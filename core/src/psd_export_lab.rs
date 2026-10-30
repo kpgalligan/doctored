@@ -1,4 +1,4 @@
-//! A Lab Color document's PSD, PSB and layered-TIFF export (#547 Lab phase
+//! A Lab Color document's PSD, PSB and layered-TIFF export (#1 Lab phase
 //! 3b): its report, its save, the three-plane composite, the CIELab strip
 //! and the four-plane channel writer the shared record walk calls.
 //! `psd_export_gray` is the template.

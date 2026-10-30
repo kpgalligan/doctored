@@ -4,7 +4,7 @@
 //! encoded once when the handle is made, so the host can hand the bytes to a
 //! pasteboard without asking the core to encode again.
 //!
-//! Since #547 phase 4c the handle holds either kind of payload
+//! Since #1 phase 4c the handle holds either kind of payload
 //! (`cmyk_clipboard_codec::AnyClipboardPayload`): an RGB one (RZCB v1–v3) or
 //! a CMYK one (v4). Each export dispatches on the document's mode and the
 //! payload's kind — a CMYK document reads and pastes through
@@ -23,7 +23,7 @@
 //! image, editable and trim exports read through the payload's RGB pixels
 //! and re-wrap.
 //!
-//! Since #547 Lab phase 4c the handle also holds a Lab payload (v6,
+//! Since #1 Lab phase 4c the handle also holds a Lab payload (v6,
 //! `lab_clipboard`), by the same pattern: Copy, Copy Merged and Cut of a
 //! Lab document wrap the RGB read with the document's Lab policy, every
 //! paste into a Lab document or of a Lab payload is `lab_clipboard::paste`'s
@@ -87,9 +87,9 @@ impl DrClipboardPayload {
     }
 
     /// A payload read from `doc`: wrapped with the document's Gray policy
-    /// when it is a Gray document (#547 phase 4), with its Lab policy when
-    /// it is a Lab document (#547 Lab phase 4c), else an RGB payload. A
-    /// Duotone document's payload is Gray with its inks dropped (#547
+    /// when it is a Gray document (#1 phase 4), with its Lab policy when
+    /// it is a Lab document (#1 Lab phase 4c), else an RGB payload. A
+    /// Duotone document's payload is Gray with its inks dropped (#1
     /// Duotone phase 2a), as its RZCB v5 encoding already holds it: New from
     /// Clipboard of it is a Grayscale document.
     fn read_from(doc: &PrecisionDocument, payload: ClipboardPayload) -> Result<Self, String> {
@@ -238,7 +238,7 @@ pub unsafe extern "C" fn dr_precision_doc_clipboard_cut(
                     return Err("payload_out is NULL".into());
                 }
                 let text = borrow_cstr_bounded(request, "request", REQUEST_LIMIT)?;
-                // #547 Indexed phase 3b: an Indexed Cut may name the
+                // #1 Indexed phase 3b: an Indexed Cut may name the
                 // background colour (`indexed_paint::BACKGROUND_KEY`), and
                 // since Bitmap phase 2a-ii a Bitmap Cut too.
                 let (text, background) = if doc.is_indexed() || doc.is_bitmap() {
@@ -258,7 +258,7 @@ pub unsafe extern "C" fn dr_precision_doc_clipboard_cut(
                 } = serde_json::from_str(&text)
                     .map_err(|e| format!("invalid clipboard cut request: {e}"))?;
                 let coverage = canvas_coverage(doc, coverage, coverage_length)?;
-                // #547 Bitmap phase 2a-ii: the Gray Cut, then the erase put
+                // #1 Bitmap phase 2a-ii: the Gray Cut, then the erase put
                 // back on the plane (`bitmap_edit::cut`).
                 if doc.is_bitmap() {
                     let (payload, next) = crate::bitmap_edit::cut(
@@ -277,7 +277,7 @@ pub unsafe extern "C" fn dr_precision_doc_clipboard_cut(
                     *payload_out = boxed(DrClipboardPayload::read_from(doc, payload)?);
                     return Ok(next);
                 }
-                // #547 Indexed phase 2c: the RGB Cut, then the erase re-indexed.
+                // #1 Indexed phase 2c: the RGB Cut, then the erase re-indexed.
                 if doc.is_indexed() {
                     let (payload, next) = crate::indexed_paint::cut(
                         doc,
@@ -411,16 +411,16 @@ pub(crate) fn dispatch_paste(
     control: Option<&DrJobControl>,
 ) -> Result<PrecisionDocument, String> {
     match (doc.is_gray(), doc.is_cmyk(), payload) {
-        // #547 Bitmap phase 3: Paste is disabled in a Bitmap document
+        // #1 Bitmap phase 3: Paste is disabled in a Bitmap document
         // (phase 2b's walk), before the Gray arm a Bitmap document would
         // otherwise reach.
         _ if doc.is_bitmap() => Err(crate::bitmap_document::refused_sentence("paste")),
-        // #547 Indexed phase 2d: the RGB paste merged into the one layer and
+        // #1 Indexed phase 2d: the RGB paste merged into the one layer and
         // re-indexed (`indexed_clipboard`).
         _ if doc.is_indexed() => {
             crate::indexed_clipboard::paste(doc, payload, request, None, limit, other, control)
         }
-        // #547 Lab phase 4c: every paste into a Lab document or of a Lab
+        // #1 Lab phase 4c: every paste into a Lab document or of a Lab
         // payload, before the Gray arm.
         _ if doc.is_lab() => {
             crate::lab_clipboard::paste(doc, payload, request, limit, other, control)
@@ -428,7 +428,7 @@ pub(crate) fn dispatch_paste(
         (_, _, AnyClipboardPayload::Lab(_)) => {
             crate::lab_clipboard::paste(doc, payload, request, limit, other, control)
         }
-        // #547 phase 4: every paste into a Gray document or of a Gray payload.
+        // #1 phase 4: every paste into a Gray document or of a Gray payload.
         (true, ..) | (_, _, AnyClipboardPayload::Gray(_)) => {
             crate::gray_clipboard::paste(doc, payload, request, limit, other, control)
         }
@@ -792,7 +792,7 @@ pub unsafe extern "C" fn dr_precision_doc_from_clipboard(
 }
 
 /// A new payload handle carrying `section` as its editable section (RZCB
-/// v3, or v4 for a CMYK payload since #547's artwork batch), replacing any
+/// v3, or v4 for a CMYK payload since #1's artwork batch), replacing any
 /// existing one (`ClipboardPayload::with_editable` /
 /// `CmykClipboardPayload::with_editable`: the section is validated as the
 /// decoder validates it, and the new handle, its encoding and the parse are

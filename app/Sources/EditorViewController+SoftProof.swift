@@ -46,7 +46,7 @@ extension EditorViewController {
 
     /// View ▸ Gamut Warning. Turning it on turns proofing on, because a
     /// warning with no proof profile has nothing to warn about.
-    /// On a CMYK document (#547) it flags the inks the proof profile cannot hold
+    /// On a CMYK document (#1) it flags the inks the proof profile cannot hold
     /// (`cmyk_proof`); a proof that preserves the numbers flags nothing.
     @objc func toggleGamutWarning(_ sender: Any?) {
         guard proofDisplay.setup != nil || seedProofSetupFromDefault(sender) else { return }
@@ -136,7 +136,7 @@ extension EditorViewController {
             canvas.proofImage = nil
             return
         }
-        // #547 phase 5: the window's setup made valid for this document before every request (a
+        // #1 phase 5: the window's setup made valid for this document before every request (a
         // mode change must not fail a proof the user cannot fix); a CMYK document proofs its ink
         // through the core, Gamut Warning against the proof profile included.
         let reconciled = setup.reconciled(isCmykDocument: doc.isCmyk)
@@ -200,7 +200,7 @@ extension EditorViewController {
         case #selector(toggleGamutWarning(_:)):
             menuItem.state = proofDisplay.gamutWarning ? .on : .off
         case #selector(applyWorkingProof(_:)):
-            // View ▸ Proof Setup ▸ Working CMYK / Working <Plate> Plate (#547 phase 5).
+            // View ▸ Proof Setup ▸ Working CMYK / Working <Plate> Plate (#1 phase 5).
             let plate = CmykProof.plate(tag: menuItem.tag)
             menuItem.state = proofDisplay.setup?.isWorking(plate: plate) == true ? .on : .off
             return document != nil && WorkingCMYK.installedData != nil

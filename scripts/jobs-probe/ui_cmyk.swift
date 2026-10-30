@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's in-process UI cases (#547 phase 1): Image ▸ Mode's sheet through its own
+// The CMYK document's in-process UI cases (#1 phase 1): Image ▸ Mode's sheet through its own
 // Apply and Cancel with one undo step, the Channels panel's four ink rows (view only), and the
 // open routing that decides a CMYK TIFF BEFORE the 16-bit prompt. The CMYK profile is macOS's
 // Generic CMYK Profile, read from the system.
@@ -110,7 +110,7 @@ func verifyCmykModeSheet() throws {
 
 /// "cmyk channels panel": a CMYK document lists CMYK, Cyan, Magenta, Yellow and Black; selecting
 /// an ink row shows that plane on the canvas, ink dark, and targets that plate (the Move tool and
-/// ⌘T on its selected pixels, #547's channels batch).
+/// ⌘T on its selected pixels, #1's channels batch).
 func verifyCmykChannelsPanel() throws {
     let tag = "[cmyk channels panel]"
     let document = try fixture(width: 64, height: 48)

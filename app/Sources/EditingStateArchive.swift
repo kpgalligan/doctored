@@ -437,7 +437,7 @@ enum EditingStateArchive {
             }
             return .channel(index)
         default:
-            // #547: one ink plate of a CMYK document.
+            // #1: one ink plate of a CMYK document.
             if let plate = CmykPlane(key: manifest.target), document.isCmyk { return .ink(plate) }
             guard let plane = RasterPlane.named(manifest.target), PaintTarget.paintablePlanes.contains(plane) else {
                 throw failure("invalid paint target")

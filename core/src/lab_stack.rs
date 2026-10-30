@@ -1,4 +1,4 @@
-//! The Lab Color document's stack-tool pixel math (#547 phase 6b-ii): what
+//! The Lab Color document's stack-tool pixel math (#1 phase 6b-ii): what
 //! Auto-Align Layers' Vignette Removal and Geometric Distortion read from a
 //! Lab layer, how Vignette Removal writes its gain into the L\*a\*b\* codes,
 //! and the Lightness-only rules of Auto-Blend Layers. A kernel: it names no

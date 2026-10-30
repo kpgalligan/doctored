@@ -1,4 +1,4 @@
-//! BYTE Opacity and Fill (#578, measured against Photoshop): below 32 bits a
+//! BYTE Opacity and Fill (#2, measured against Photoshop): below 32 bits a
 //! layer's Opacity and Fill composite at `code / 255`, never at the exact
 //! unit value the layer stores.
 //!

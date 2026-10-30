@@ -59,7 +59,7 @@ impl PrecisionDocument {
     }
 
     /// Inserts the new leaf `repair` directly above record `index` (a CMYK
-    /// document's retouch builds its own CMYK leaf, #547).
+    /// document's retouch builds its own CMYK leaf, #1).
     pub(crate) fn retouch_insert_leaf(
         &self,
         index: usize,

@@ -1,4 +1,4 @@
-//! #547 Lab phase 3a, flat Lab TIFFs as Lab Color documents through
+//! #1 Lab phase 3a, flat Lab TIFFs as Lab Color documents through
 //! `dr_path_lab_source` and `dr_precision_doc_open_lab`, the files written
 //! here (`lab_psd_fixture::write_lab_tiff`) and decoded by the independent
 //! oracle (`lab_psd_fixture`'s `cielab_units`, a thin wrapper over

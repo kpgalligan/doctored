@@ -19,7 +19,7 @@ extension AgentServer {
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let textToolFacts: [String: ToolFacts] = [
-        // Text layers in a 32-bit float document; #547: in ink in a CMYK one.
+        // Text layers in a 32-bit float document; #1: in ink in a CMYK one.
         "add_text_layer": [.typedTool, .floatTool, .cmykTool],
         "edit_text_layer": [.typedTool, .floatTool, .cmykTool],
     ]
@@ -237,7 +237,7 @@ extension AgentServer {
             fields["coverage"] = artwork.evaluation
             fields["intrinsic_glyphs"] = artwork.intrinsicGlyphs
         }
-        // A CMYK document's text (#547): `color` is the appearance hex, `ink` the C, M, Y, K
+        // A CMYK document's text (#1): `color` is the appearance hex, `ink` the C, M, Y, K
         // percents beside it, a run's likewise.
         if payload.ink == .cmyk, let artwork = payload.artwork {
             fields["ink"] = inkPercent(artwork.rgba)
@@ -289,7 +289,7 @@ extension AgentServer {
     func addTextLayer(_ a: [String: Any]) throws -> String {
         let document = try target(a)
         guard let doc = document.doc else { throw ToolError(message: "Document has no image") }
-        // #547: `ink` and `color_runs[].ink` in a CMYK document (AgentServer+CmykEdit.swift).
+        // #1: `ink` and `color_runs[].ink` in a CMYK document (AgentServer+CmykEdit.swift).
         let inked = try cmykArtworkArguments(a, doc: doc, pairs: [("ink", "rgba", "color")])
         let a = inked.arguments
         let text = try requiredString(a, "text")
@@ -368,7 +368,7 @@ extension AgentServer {
         }
         let inked = try cmykArtworkArguments(a, doc: doc, pairs: [("ink", "rgba", "color")])
         let a = inked.arguments
-        // A CMYK layer is edited on its sRGB appearance and committed back to ink (#547).
+        // A CMYK layer is edited on its sRGB appearance and committed back to ink (#1).
         guard let current = try doc.textPayload(index).map({ try displayedText(doc, $0) }) else {
             throw ToolError(
                 message: "Layer \(index) (\"\(info.name)\") is not a text layer — it is plain "

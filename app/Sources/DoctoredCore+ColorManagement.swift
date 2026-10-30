@@ -61,7 +61,7 @@ extension RasterDocument {
     /// create, edit, destructive apply, editable paste) cannot evaluate in
     /// this document's profile: the core's sentence at whichever depth it
     /// stores, nil when admitted. A profile failing the precision check on a
-    /// falling boundary admits Exposure and refuses White Balance (#578). An
+    /// falling boundary admits Exposure and refuses White Balance (#2). An
     /// existing 8-bit layer keeps rendering.
     func calibratedRefusal(op: String) -> String? {
         if let precision { return precision.calibratedRefusal(op: op) }

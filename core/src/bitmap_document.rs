@@ -1,4 +1,4 @@
-//! The Bitmap document mode (#547 Bitmap phase 1a): the policy, the edit
+//! The Bitmap document mode (#1 Bitmap phase 1a): the policy, the edit
 //! gate and the refusal sentences (`designs/bitmap-mode.md`).
 //!
 //! # What a Bitmap document IS

@@ -35,7 +35,7 @@ extension AgentServer {
         // document, so its four tools are in `documentFreeTools`.
         // The export-preset and metadata-policy libraries read no document,
         // so their tools are `DocumentPrecision.documentFreeTools`.
-        // #547 phase 5: a CMYK document exports to sRGB (or keeps CMYK for
+        // #1 phase 5: a CMYK document exports to sRGB (or keeps CMYK for
         // JPEG and TIFF with profile "document", `cmyk_export`).
         "export_preview": [.nonRecordable, .commonTool, .floatTool, .cmykTool],
         "export_image": [.nonRecordable, .commonTool, .floatTool, .cmykTool],
@@ -128,7 +128,7 @@ extension AgentServer {
         let document = try target(a)
         let settings = try settings(a, document: document)
         let (capture, result) = try encode(document, settings)
-        // #547 Duotone phase 1b: a Duotone document's export is RGB through its inks; a byte
+        // #1 Duotone phase 1b: a Duotone document's export is RGB through its inks; a byte
         // document's spot channels are composited into it (`SpotChannels.noting`).
         var fields = SpotChannels.noting(DuotoneDocument.noting(try report(result), for: capture.source),
                                          for: capture.source)
@@ -165,7 +165,7 @@ extension AgentServer {
         fields["ok"] = true
         fields["path"] = url.path
         // The encode's admitted plan (`ExportCapture.scratchEstimate`), the figure the
-        // measured-admission drives hold (#547 phase 5's CMYK exports).
+        // measured-admission drives hold (#1 phase 5's CMYK exports).
         fields["working_memory_plan_bytes"] = (try? capture.scratchEstimate(settings)) ?? NSNull()
         return try jsonResult(fields)
     }

@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Adjustments ▸ Equalize's menu action (#547): the prompt when a selection exists,
+// Image ▸ Adjustments ▸ Equalize's menu action (#1): the prompt when a selection exists,
 // then `Equalize.apply` on the active layer's current target, recorded as an Action step.
 
 extension EditorViewController {

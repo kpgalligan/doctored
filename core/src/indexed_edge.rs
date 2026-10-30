@@ -1,4 +1,4 @@
-//! KERNEL. The Indexed Color painting edge rule (#547 Indexed phase 2b,
+//! KERNEL. The Indexed Color painting edge rule (#1 Indexed phase 2b,
 //! `designs/indexed-mode.md`): how a paint op's RGB result goes back
 //! onto the palette.
 //!
@@ -40,7 +40,7 @@
 //!
 //! # Phase 2c: the ink and the backdrop generalised
 //!
-//! Since #547 Indexed phase 2c every other admitted edit (Fill, Stroke, the
+//! Since #1 Indexed phase 2c every other admitted edit (Fill, Stroke, the
 //! Paint Bucket, the Eraser, Cut, Clear and the resampling geometry) maps
 //! back through the same rule, with the ink named by [`EdgeInk`] and the
 //! backdrop optional. Per changed pixel (every pixel when there is no
@@ -66,7 +66,7 @@
 //!
 //! # Phase 3b: the other blend modes and the background colour
 //!
-//! Since #547 Indexed phase 3b the Brush, Fill, Stroke and the Paint Bucket
+//! Since #1 Indexed phase 3b the Brush, Fill, Stroke and the Paint Bucket
 //! paint in every blend mode they take on RGB. A mode other than Normal is
 //! [`EdgeInk::Blend`]: per changed pixel over an opaque backdrop s, the
 //! target T is the mode's full-strength colour over s at 8-bit codes

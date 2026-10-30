@@ -378,7 +378,7 @@ impl PrecisionDocument {
         // the coverage gate, as at 16 bits, so a selection never changes
         // the noise a pixel gets.
         let draws_everywhere = matches!(route, Route::Noise { .. });
-        let fold = self.is_gray().then_some(draws_everywhere); // #547 2c, `gray_filter`
+        let fold = self.is_gray().then_some(draws_everywhere); // #1 2c, `gray_filter`
         let mut rng = SplitMix64::new(route.seed());
         let mut pixels = reserved_vec(n)?;
         let mut changed = false;

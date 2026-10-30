@@ -23,7 +23,7 @@ extension RasterDocument {
         /// false = the rubylith covers the MASKED areas (the default, and
         /// what the Quick Mask overlay already draws).
         let colorIndicatesSelected: Bool
-        /// The ink of a SPOT channel (#547), nil for an alpha channel.
+        /// The ink of a SPOT channel (#1), nil for an alpha channel.
         var spot: SpotInk? = nil
     }
 

@@ -415,10 +415,10 @@ fn child_masked(feather: f32) -> DrDocument {
 }
 
 /// (s): (g) with 3 children whose TOP child raster also carries a satin of
-/// `size` (4; 0: the calibration twin) at distance 1: since #578 part 3 the
+/// `size` (4; 0: the calibration twin) at distance 1: since #2 part 3 the
 /// box-pair law's style plane, whose rows report at stage 6 as the
 /// Gaussian's did (the drop shadow it carried before runs the law since
-/// #578).
+/// #2).
 fn child_styled(size: f32) -> DrDocument {
     styled(
         &group_doc(3),
@@ -569,7 +569,7 @@ fn mixed(member: bool) -> DrDocument {
 // then 2, 4, 8 at each doubling; its reach is the kernel's half width plus
 // one, and above sigma 3 two more resampling pixels, scaled by the factor.
 // A mask's pad is that reach. The (s) satin runs the box-pair law at spread
-// 0 since #578 part 3 (`style_fx_satin`), no Gaussian: its matte's reach is
+// 0 since #2 part 3 (`style_fx_satin`), no Gaussian: its matte's reach is
 // the box width `w`, the size rounded half up, and its plane pad (at
 // distance 1) `w + 1 + 1`.
 
@@ -610,7 +610,7 @@ fn padded(feather: f32) -> (u32, u32) {
 }
 
 /// The padded plane `(pw, ph)` of a canvas-sized raster's satin at
-/// distance 1: the law's reach `w` (the size rounded half up, #578 part 3)
+/// distance 1: the law's reach `w` (the size rounded half up, #2 part 3)
 /// plus `ceil(distance)`, pad the reach plus one.
 fn plane(size: f32) -> (u32, u32) {
     let pad = (size + 0.5).floor() as u32 + 1 + 1;

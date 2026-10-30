@@ -25,7 +25,7 @@
 //!
 //! # Grayscale
 //!
-//! A Gray document at 8 or 16 bits (#547 phase 2e; its 32 bits refuse as
+//! A Gray document at 8 or 16 bits (#1 phase 2e; its 32 bits refuse as
 //! float) feeds the model its R = G = B plate unchanged; the model's plane is
 //! colour, so each composited pixel is folded back to one channel by the
 //! filters' rule (`gray_filter::fold`: the value when the three agree bit for
@@ -33,7 +33,7 @@
 //!
 //! # Lab Color
 //!
-//! A Lab document at 8 or 16 bits (#547 Lab 2f, third part) feeds the model
+//! A Lab document at 8 or 16 bits (#1 Lab 2f, third part) feeds the model
 //! what the person sees: each plate sample's L\*a\*b\* codes through the
 //! document's own view (`lab_convert::view_pipeline`, the twin into Display
 //! P3, clamped to 0…1, alpha kept), as Gray's model reads its view. The

@@ -13,7 +13,7 @@
 //! 35 codes off. A power curve is the model, not Photoshop's own dot-gain
 //! tables: the take bounds it at ±1 code at those three spaces.
 //!
-//! sGray (#547, the Grayscale document mode) is the eighth space: IEC
+//! sGray (#1, the Grayscale document mode) is the eighth space: IEC
 //! 61966-2-1's sRGB curve on one channel, which a PNG `sRGB` chunk on a gray
 //! file declares. [`GrayWorkingSpace::linear`] is each space's FORWARD curve
 //! (gray code → relative luminance), the `kTRC` `icc_builtin::gray_blob`

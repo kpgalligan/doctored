@@ -103,7 +103,7 @@ func verifyOperationScope() throws {
             let expected = zip(scalar, coverage).map { scopeBlend($0.0, 255 - $0.0, $0.1) }
             try scopeRequire(actual == expected, "scalar filter wrote wrong selected coverage")
         case .ink:
-            // A CMYK ink plate (#547) is never among this RGB probe's targets.
+            // A CMYK ink plate (#1) is never among this RGB probe's targets.
             throw ScopeProbeError(description: "\(target): an ink target is not an RGB scope")
         }
         let committedDisplay: CGImage?

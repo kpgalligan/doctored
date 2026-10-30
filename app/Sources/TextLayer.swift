@@ -137,7 +137,7 @@ struct TextStyle: Equatable {
 /// numbers ×255, clamped to 0–1), are linear light, written in a 32-bit float
 /// document; red, green and blue may be above white, up to 65504.
 /// Version 3 has no `ink`; any other `ink` is "not a text layer".
-/// Version 5 (#547) is version 3 whose `artwork` carries `"ink":"cmyk"`: its
+/// Version 5 (#1) is version 3 whose `artwork` carries `"ink":"cmyk"`: its
 /// `rgba` and each run's `rgba` are `[c, m, y, k, alpha]` in the CMYK
 /// document's profile, and the hex `color` is that ink's sRGB APPEARANCE
 /// through the profile (CmykArtwork.swift writes both).
@@ -149,7 +149,7 @@ struct TextLayerPayload: Codable, Equatable {
     /// The newest schema this app writes; older builds read layers at it as
     /// plain rasters — the graceful degradation the format is designed for.
     static let currentVersion = 5
-    /// The schema of a linear-ink payload and of an ink one (#547).
+    /// The schema of a linear-ink payload and of an ink one (#1).
     static let linearVersion = 4
     static let cmykVersion = 5
     /// The schema written when every version-2 field is at its default.

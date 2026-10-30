@@ -1,4 +1,4 @@
-//! #547 Lab close: Photoshop's layered menu walk on a 16-bit RGB document
+//! #1 Lab close: Photoshop's layered menu walk on a 16-bit RGB document
 //! and the same document converted to Lab Color (`~/devel/doctored-fixtures/
 //! photoshop/lab-close-547/take1`, never committed; `scripts/photoshop-probe/
 //! lab_close_take.py`, whose docstring fixes the documents, validity, `ITEMS`

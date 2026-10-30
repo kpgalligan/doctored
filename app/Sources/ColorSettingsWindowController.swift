@@ -1,6 +1,6 @@
 import AppKit
 
-/// Edit ▸ Color Settings… (⇧⌘K, #547 phase 5): the one home of the working spaces, the
+/// Edit ▸ Color Settings… (⇧⌘K, #1 phase 5): the one home of the working spaces, the
 /// colour-management policies and the conversion options, persisted in the preferences
 /// (`ColorSettings`). An app-modal card (`ModalCardWindowController`), because it works with no
 /// document open, like File ▸ New….

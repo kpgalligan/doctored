@@ -392,7 +392,7 @@ impl DrDocument {
         let (w, h) = pixels.dimensions();
         let (mut sidecar, carried) =
             self.image_sidecar(format, embed_profile, strip_metadata, w, h);
-        // A TIFF keeps the spot channels as extra samples (#547 1c-2a).
+        // A TIFF keeps the spot channels as extra samples (#1 1c-2a).
         if format == Format::Tiff && self.has_spot_channel() {
             let transparency = pixels.pixels().any(|p| p[3] < 255);
             sidecar.spots = Some(self.tiff_spot_planes(transparency));

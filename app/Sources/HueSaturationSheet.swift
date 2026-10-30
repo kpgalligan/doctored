@@ -167,7 +167,7 @@ final class HueSaturationSheet: AdjustmentSheet {
             "Targeted Adjustment", value: monitor != nil, changesValues: false
         ) { [weak self] on in self?.setTargeted(on) }
         // A float document has no 0…255 sample to read the hue of, and a
-        // CMYK document's samples are ink, not RGB (#547).
+        // CMYK document's samples are ink, not RGB (#1).
         targetedRow.compactMap { $0 as? NSButton }.first?.isEnabled =
             document.doc?.isFloat != true && document.doc?.isCmyk != true
 
@@ -264,7 +264,7 @@ final class HueSaturationSheet: AdjustmentSheet {
         case .down:
             dragStart = nil
             guard !colorize else { NSSound.beep(); return }
-            // In the kernel's space: a Lab document's ProPhoto RGB (#547 phase 2d).
+            // In the kernel's space: a Lab document's ProPhoto RGB (#1 phase 2d).
             guard let rgb = CanvasSample.kernelRGB(
                 document, mode: mode, destructiveLayer: aboveIndex, at: event.point,
                 op: "hue_saturation")

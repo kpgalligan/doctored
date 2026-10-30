@@ -1,4 +1,4 @@
-//! The CMYK document's adjustment dispatch (#547): [`parse_cmyk`], the ONE
+//! The CMYK document's adjustment dispatch (#1): [`parse_cmyk`], the ONE
 //! place a CMYK op is parsed, and [`InkRgb`], an RGB adjustment kernel
 //! (`PrecisionAdjustment`, unchanged) bound to ink. Photoshop's evidence for
 //! each binding is

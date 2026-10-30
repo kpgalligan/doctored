@@ -1,4 +1,4 @@
-//! The Smooth Outer Bevel's outside cut (#578 part 2 phase 2,
+//! The Smooth Outer Bevel's outside cut (#2 part 2 phase 2,
 //! `scripts/photoshop-probe/effect_kernels_578_p2_take.py`, its candidate
 //! SO1) against an independent brute-force oracle, through the FFI
 //! (`common::styled` sets the style with `dr_doc_set_layer_style`; the

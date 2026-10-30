@@ -1,6 +1,6 @@
 import AppKit
 
-// View ▸ Proof Setup on a CMYK document and the Working CMYK rows (#547 phase 5): the core's CMYK
+// View ▸ Proof Setup on a CMYK document and the Working CMYK rows (#1 phase 5): the core's CMYK
 // proof request (`ProofSource.cmyk` → `dr_precision_doc_cmyk_proof`, tagged Display P3), the
 // Working CMYK and Working Cyan/Magenta/Yellow/Black Plate setups, and `reconciled`, which keeps a
 // window's proof state valid across Image ▸ Mode: on a CMYK document a proof profile that is not

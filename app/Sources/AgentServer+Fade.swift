@@ -18,7 +18,7 @@ extension AgentServer {
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let fadeToolFacts: [String: ToolFacts] = [
-        // 8, 16 and 32 bits and CMYK (#547); a region step's fade reads the selection.
+        // 8, 16 and 32 bits and CMYK (#1); a region step's fade reads the selection.
         "fade": [.commonTool, .floatTool, .selectionSensitive, .cmykTool],
     ]
 

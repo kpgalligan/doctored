@@ -1,4 +1,4 @@
-//! The anti-aliased-contour band (#578): a band grown `n` px into a byte
+//! The anti-aliased-contour band (#2): a band grown `n` px into a byte
 //! coverage `u` (the Inner Glow's `shape.inverted()`) measured from the
 //! ANTI-ALIASED contour rather than the contour binarized at 1/2. Photoshop
 //! reads it so (the fourth identify take, `identify_578_take4.py`): a pixel

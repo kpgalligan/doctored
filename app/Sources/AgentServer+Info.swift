@@ -14,7 +14,7 @@ extension AgentServer {
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let infoToolFacts: [String: ToolFacts] = [
-        // #547 phase 5: a CMYK document's histogram per ink (`AgentServer+CmykColour.swift`).
+        // #1 phase 5: a CMYK document's histogram per ink (`AgentServer+CmykColour.swift`).
         "histogram": [.nonRecordable, .commonTool, .floatTool, .cmykTool],
         "sample_pixel": [.nonRecordable, .commonTool, .floatTool, .cmykTool],
     ]
@@ -49,7 +49,7 @@ extension AgentServer {
                     + "the canvas (\(doc.width)×\(doc.height), origin top-left)")
         }
         var result = bytePixelFields(readout, size: size, doc: doc)
-        // #547 phase 5: the Info panel's CMYK row through the working CMYK, "!" when out of gamut.
+        // #1 phase 5: the Info panel's CMYK row through the working CMYK, "!" when out of gamut.
         if let cmyk = cmykReadout(rgb: [Int(readout.r), Int(readout.g), Int(readout.b)], document: doc) {
             result["cmyk"] = cmyk
         }

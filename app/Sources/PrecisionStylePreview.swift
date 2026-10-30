@@ -14,7 +14,7 @@ import AppKit
 /// The base is the captured facade on a canvas of at most 4 MP. Above that
 /// (`ProxyScale`) it is a reduced facade built once off main, the style is
 /// sent with `scale: 1 / factor` so the effects shrink with the picture, and
-/// the status line says the preview is reduced; a CMYK document (#547: its
+/// the status line says the preview is reduced; a CMYK document (#1: its
 /// effects in ink, sent by the sheet with each slot's ink) takes the same
 /// proxy since phase 4b's `resize` on ink. The light edit is sent only when
 /// the sheet's light differs from the base's: an unchanged one is the core's

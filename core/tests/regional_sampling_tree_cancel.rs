@@ -318,9 +318,9 @@ fn with_empty_group(doc: &DrDocument, blend: BlendMode) -> DrDocument {
     out
 }
 
-/// A satin of `size` at distance 1: since #578 part 3 the box-pair law's
+/// A satin of `size` at distance 1: since #2 part 3 the box-pair law's
 /// style plane, whose rows report at stage 6 as the Gaussian's did (the drop
-/// shadow these cases carried runs the law since #578).
+/// shadow these cases carried runs the law since #2).
 fn satin(size: f32) -> String {
     format!("{{\"effects\":[{{\"type\":\"satin\",\"distance\":1,\"size\":{size}}}]}}")
 }

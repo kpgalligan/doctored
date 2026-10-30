@@ -214,7 +214,7 @@ enum NeuralFilterRun {
         return nil
     }
 
-    /// The model's input on `document` (#547 Lab phase 6b-iii): a Lab document's image through
+    /// The model's input on `document` (#1 Lab phase 6b-iii): a Lab document's image through
     /// its Display P3 view (`labDisplay`, the rule Remove's model reads), so the model sees colour
     /// and the core returns its result to L*a*b* codes by the Mode rule (`lab_neural`); on any
     /// other document `image` itself. `control` is single-use: pass a child of the run's control.

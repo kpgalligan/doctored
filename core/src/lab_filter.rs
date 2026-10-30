@@ -1,4 +1,4 @@
-//! The Lab Color document's filters (#547 phases 2c, 2d, 2f and 4a-ii,
+//! The Lab Color document's filters (#1 phases 2c, 2d, 2f and 4a-ii,
 //! `designs/lab-mode.md`): the filter gates of the layer and of a mask
 //! or alpha channel, and the one colour rule a filter request needs.
 //!

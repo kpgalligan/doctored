@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's phase-2 in-process UI cases (#547): the Color Picker's C/M/Y/K fields — in
+// The CMYK document's phase-2 in-process UI cases (#1): the Color Picker's C/M/Y/K fields — in
 // a CMYK document they set the foreground's ink exactly, beside an RGB document they show the
 // working CMYK equivalent and convert back to sRGB with no ink kept — the Levels and Curves
 // dialogs' channel popups, which list CMYK, Cyan, Magenta, Yellow and Black on a CMYK document,

@@ -397,7 +397,7 @@ pub(super) fn parse_within(
         outermost_version
     };
     // Version 82, 83, 84, 85, 86 or 87 is the FIRST word inside 46
-    // (`cmyk_native`, #547): a CMYK document, whose body declares storage
+    // (`cmyk_native`, #1): a CMYK document, whose body declares storage
     // tag 3 and whose CMYK table is the last one before LIDS. The words are a
     // ladder, each admitting everything below it: under 83 it may hold masks
     // and CMYK adjustment records, under 84 groups, clipping masks, blend
@@ -417,20 +417,20 @@ pub(super) fn parse_within(
     let has_cmyk_edit =
         has_cmyk_structure || (has_ids && cmyk_word == crate::cmyk_native::EDIT_VERSION);
     let has_cmyk = has_cmyk_edit || (has_ids && cmyk_word == crate::cmyk_native::PRECISION_VERSION);
-    // Version 106 in the same slot (`gray_native`, #547): a Grayscale
+    // Version 106 in the same slot (`gray_native`, #1): a Grayscale
     // document, whose GRAY table is the last one before LIDS.
     let has_gray = has_ids && cmyk_word == crate::gray_native::WORD;
-    // Version 109 in the same slot (`duotone_native`, #547 Duotone phase
+    // Version 109 in the same slot (`duotone_native`, #1 Duotone phase
     // 1a): a Duotone document, whose GRAY table is followed by its DUOT
     // table, the last ones before LIDS.
     let has_duotone = has_ids && cmyk_word == crate::duotone_native::WORD;
-    // Version 107 in the same slot (`lab_native`, #547): a Lab Color
+    // Version 107 in the same slot (`lab_native`, #1): a Lab Color
     // document, whose LAB table is the last one before LIDS.
     let has_lab = has_ids && cmyk_word == crate::lab_native::WORD;
-    // Version 108 in the same slot (`indexed_native`, #547): an Indexed
+    // Version 108 in the same slot (`indexed_native`, #1): an Indexed
     // Color document, whose INDX table is the last one before LIDS.
     let has_indexed = has_ids && cmyk_word == crate::indexed_native::WORD;
-    // Version 110 in the same slot (`bitmap_native`, #547): a Bitmap
+    // Version 110 in the same slot (`bitmap_native`, #1): a Bitmap
     // document, whose GRAY table then BTMP table are the last before LIDS.
     let has_bitmap = has_ids && cmyk_word == crate::bitmap_native::WORD;
     let spot_word = if has_cmyk || has_gray || has_duotone || has_lab || has_indexed || has_bitmap {
@@ -438,7 +438,7 @@ pub(super) fn parse_within(
     } else {
         cmyk_word
     };
-    // Version 112 (`spot_channel_native`, #547) follows the CMYK slot, ahead
+    // Version 112 (`spot_channel_native`, #1) follows the CMYK slot, ahead
     // of 111: some channel is a spot channel, its SPOT table after LREF and
     // before the CMYK table. Indexed and Bitmap documents hold none.
     let has_spot = has_ids && spot_word == crate::spot_channel_native::WORD;
@@ -1216,7 +1216,7 @@ pub(super) fn parse_within(
     if has_blend_if {
         let entries =
             crate::precision_blend_if_native::parse(&mut reader, declared, has_multichannel, job)?;
-        // A CMYK plate needs a CMYK document (#547): a non-CMYK file carrying
+        // A CMYK plate needs a CMYK document (#1): a non-CMYK file carrying
         // one in any range refuses before any pixel decodes.
         if !has_cmyk
             && entries

@@ -5,7 +5,7 @@
 //! raster cut along the exact turned lattice, each instance clamped, shift
 //! (−1, 0), pivot O), angle 0 against the angle omitted, the JSON's
 //! normalization and refusal, Photoshop's angle TIFFs (take1 to take4,
-//! #669's TAKE5 `rot5` and TAKE6 `rot6` rows from
+//! #3's TAKE5 `rot5` and TAKE6 `rot6` rows from
 //! `~/devel/doctored-fixtures`, when present) within the residual the
 //! runners recorded, and the byte `.rz` word 93 both ways.
 //! Every style is applied through `dr_doc_set_layer_style`. Never a golden.
@@ -654,7 +654,7 @@ const RESIDUAL_TAKE4: [(f64, f64); 10] = [
     (144.84, 63.338),
 ];
 /// TAKE5's ten held-out rows (A5, A5H, A50, A50H, A150, A150H, AN35, AN35H,
-/// T4A25, T4A25H; #669's `rot5` job) under the same model, as the runner's
+/// T4A25, T4A25H; #3's `rot5` job) under the same model, as the runner's
 /// TAKE5 judge recorded them (`judged5.json`'s `rows4`).
 const RESIDUAL_TAKE5: [(f64, f64); 10] = [
     (132.485, 34.711),

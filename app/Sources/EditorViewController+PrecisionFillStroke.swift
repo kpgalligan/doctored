@@ -87,7 +87,7 @@ extension EditorViewController {
         }
         let opacity = min(max(s.opacity, 0), 100) / 100
         let coverage = capture.target.isCoverage
-        // #547 Lab phase 2e: a Lab layer fills Foreground / Background Color with the swatch's
+        // #1 Lab phase 2e: a Lab layer fills Foreground / Background Color with the swatch's
         // Lab ink when it has one; a coverage target keeps the sRGB swatch.
         let labInks = ToolOptionsStore.shared.sharedState
         let labInk = coverage ? nil : s.contents == .foreground ? labInks.foregroundLab
@@ -102,7 +102,7 @@ extension EditorViewController {
         var request = PrecisionFillStroke.Request(
             layer: capture.layer, target: capture.target, color: color, mode: s.mode,
             opacity: opacity, preserve: preserve)
-        // #547: the swatch's stored CMYK ink for Foreground / Background Color.
+        // #1: the swatch's stored CMYK ink for Foreground / Background Color.
         let shared = ToolOptionsStore.shared.sharedState
         request.cmykInk = s.contents == .foreground ? shared.foregroundInk
             : s.contents == .background ? shared.backgroundInk : nil
@@ -149,14 +149,14 @@ extension EditorViewController {
             showFillAlert(FillSettings.coverageBlendRefusal)
             return
         }
-        // #547 Lab phase 2f: a Lab layer strokes the foreground swatch's Lab ink when the sheet
+        // #1 Lab phase 2f: a Lab layer strokes the foreground swatch's Lab ink when the sheet
         // kept its colour (Fill's 2e rule); a coverage target keeps the sheet's colour.
         let labInk = s.color == paintColor ? ToolOptionsStore.shared.sharedState.foregroundLab : nil
         let color = coverage ? s.color : LabPaint.color(s.color, stored: labInk, in: document.doc)
         var request = PrecisionFillStroke.Request(
             layer: capture.layer, target: capture.target, color: color, mode: s.mode,
             opacity: opacity, preserve: preserve)
-        // #547: the foreground swatch's stored CMYK ink when the sheet kept its colour.
+        // #1: the foreground swatch's stored CMYK ink when the sheet kept its colour.
         if capture.source.isCmyk, s.color == paintColor {
             request.cmykInk = ToolOptionsStore.shared.sharedState.foregroundInk
         }
@@ -167,7 +167,7 @@ extension EditorViewController {
             space: document.nsColorSpace,
             rgba32: PrecisionFillStroke.recordedLinear(request, capture: capture))
         do {
-            // #547: a CMYK layer's stroke records its ink (C, M, Y, K percent).
+            // #1: a CMYK layer's stroke records its ink (C, M, Y, K percent).
             if capture.source.isCmyk, !coverage {
                 let ink = try CmykPaint.ink(s.color, stored: request.cmykInk, in: capture.source)
                 for i in record.indices {

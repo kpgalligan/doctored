@@ -1,4 +1,4 @@
-//! Indexed Color's ordered dithers, Pattern and Noise (#547 Indexed phase
+//! Indexed Color's ordered dithers, Pattern and Noise (#1 Indexed phase
 //! 3c, KERNEL; `designs/indexed-mode.md`). Adobe has not published
 //! either, so both are DECLARED CANDIDATES. Phase 3d's Photoshop take
 //! (`scripts/photoshop-probe/indexed_palette_take.py`, `palette-take1`)

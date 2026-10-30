@@ -1,11 +1,11 @@
-//! The CMYK document in the typed `.rz` (#547: phase 1 DRDC 82, phase 2
+//! The CMYK document in the typed `.rz` (#1: phase 1 DRDC 82, phase 2
 //! DRDC 83, phase 4a DRDC 84, the channels batch DRDC 85, the styles batch
 //! DRDC 86, the artwork batch DRDC 87; stacked styles DRDC 88).
 //!
 //! The CMYK word is the FIRST word inside the identity wrapper 46, written
 //! iff the document is CMYK (`46 -> 82|83|84|85|86|87|88 -> 79 -> ...`). The
 //! format words that follow the rung are the RGB format's own: a CMYK file
-//! carries 112 (`spot_channel_native`, a spot channel, #547; the next free
+//! carries 112 (`spot_channel_native`, a spot channel, #1; the next free
 //! word is 113), 111 (`gradient_map_method_native`, a Gradient Map with a `method`),
 //! 105 (`fill_align_native`, a Gradient Fill aligned with the layer), 104
 //! (`gradient_midpoint_native`, a gradient stop midpoint other

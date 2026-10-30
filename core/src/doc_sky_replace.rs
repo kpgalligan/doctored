@@ -221,7 +221,7 @@ impl PrecisionDocument {
         if self.is_float() {
             return Err("sky replacement is not available in a 32-bit document".into());
         }
-        // #547 Lab phase 6b-iii: refused for good, a Doctored decision
+        // #1 Lab phase 6b-iii: refused for good, a Doctored decision
         // (`designs/lab-mode.md`).
         if self.is_lab() {
             return Err("sky replacement is not available in a Lab Color document".into());

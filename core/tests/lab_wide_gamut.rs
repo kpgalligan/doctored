@@ -1,4 +1,4 @@
-//! #547 Lab phase 2d, the colour adjustments' ProPhoto RGB route
+//! #1 Lab phase 2d, the colour adjustments' ProPhoto RGB route
 //! (`lab_adjust::color_space`, `kernel_params`, `kernel_rgb`): a Lab colour
 //! well outside sRGB — S = L\* 60, a\* −100, b\* 60 — survives a +5° hue shift
 //! and a Color Balance nudge with its chroma within 1 % of the hand oracle

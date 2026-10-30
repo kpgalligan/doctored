@@ -1,4 +1,4 @@
-//! #547 Bitmap phase 1c's 1-bit PNG, TIFF and BMP files through the FFI:
+//! #1 Bitmap phase 1c's 1-bit PNG, TIFF and BMP files through the FFI:
 //! files the test writes byte by byte (13 × 3, so each row ends in three pad
 //! bits) answer `dr_path_bitmap_source` and open as Bitmap documents with the
 //! oracle's bits and resolution, whatever their pad bits hold; the files the

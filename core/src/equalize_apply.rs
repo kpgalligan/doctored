@@ -1,4 +1,4 @@
-//! Image ▸ Adjustments ▸ Equalize on the documents (#547): the adapters of
+//! Image ▸ Adjustments ▸ Equalize on the documents (#1): the adapters of
 //! `equalize`'s kernel (the histogram, its table and the scope).
 //!
 //! * **8-bit RGB** ([`equalize_image`], `dr_image_equalize`): the summed R, G
@@ -16,7 +16,7 @@
 //!   whole layer under `entire` or with no selection.
 //!   - RGB 16-bit: 65536 levels on the stored codes; the lerp is
 //!     `mix_codes`' alpha-preserving branch.
-//!   - Lab Color (8 and 16 bits, #547 phase 2c): the 16-bit arm on the
+//!   - Lab Color (8 and 16 bits, #1 phase 2c): the 16-bit arm on the
 //!     Lightness plane alone — the histogram counts L\* only and the table
 //!     writes L\* only, a\* and b\* kept bit for bit.
 //!   - RGB 32-bit float: 65536 levels on the display encoding E

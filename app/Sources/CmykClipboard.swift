@@ -1,6 +1,6 @@
 import AppKit
 
-// #547 phase 4c: copy and paste across colour modes and CMYK profiles, host side. The core
+// #1 phase 4c: copy and paste across colour modes and CMYK profiles, host side. The core
 // converts every pixel (`cmyk_payload_convert`, relative colorimetric with black-point
 // compensation through the profiles' own tables); this file is what the host says about it and
 // the two host steps it takes:
@@ -16,7 +16,7 @@ import AppKit
 //   before the core's paste (which refuses a mixed clip by name): the mode conversions
 //   themselves (`convertToCMYK` / `convertCMYKToRGB`), a blocker surfacing as the core's sentence.
 //   Its type, shape and fill layers are re-rendered in the destination's colours
-//   (`reinkingArtwork`, #547), and a CMYK clip of ANOTHER profile holding one is converted here too
+//   (`reinkingArtwork`, #1), and a CMYK clip of ANOTHER profile holding one is converted here too
 //   (Convert to Profile's core edit, then the re-ink) so the core pastes it as same-profile ink.
 
 /// What a paste's pixels crossed (module comment).
@@ -28,7 +28,7 @@ struct ColorConversion {
     /// "doctored" (the core's conversion) or "platform" (CoreGraphics' decode).
     let engine: String
     /// The core's black-point compensation: true across CMYK and RGB, false for a crossing into or
-    /// out of Grayscale (#547 phase 4: the luminance rule and Mode ▸ RGB Color take none) and into
+    /// out of Grayscale (#1 phase 4: the luminance rule and Mode ▸ RGB Color take none) and into
     /// Lab Color (Lab phase 4c: Mode ▸ Lab Color's rule takes none; out of Lab it takes BPC).
     var blackPointCompensation = true
 
@@ -58,12 +58,12 @@ struct ColorConversion {
         + "pasted between RGB and CMYK are always converted"
 
     /// The core's refusal of Don't Convert into or out of Grayscale
-    /// (`gray_clipboard::CROSS_MODE_PRESERVE`, #547 phase 4).
+    /// (`gray_clipboard::CROSS_MODE_PRESERVE`, #1 phase 4).
     static let crossModePreserveGray = "Don't Convert keeps numbers within one colour mode; pixels "
         + "pasted between Grayscale and another mode are always converted"
 
     /// The core's refusal of Don't Convert into or out of Lab Color
-    /// (`lab_clipboard::CROSS_MODE_PRESERVE`, #547 Lab phase 4c).
+    /// (`lab_clipboard::CROSS_MODE_PRESERVE`, #1 Lab phase 4c).
     static let crossModePreserveLab = "Don't Convert keeps numbers within one colour mode; pixels "
         + "pasted between Lab Color and another mode are always converted"
 
@@ -189,7 +189,7 @@ enum CmykLayerClip {
         guard clip.isCmyk != doc.isCmyk else { return try reprofiled(clip, into: doc, mode: mode) }
         let conversion = ColorConversion.layers(clip, into: doc, mode: mode)
         guard mode == .convert else { throw DoctoredCoreError(message: ColorConversion.crossModePreserve) }
-        // The clip's type, shape and fill layers, re-rendered after the conversion (#547).
+        // The clip's type, shape and fill layers, re-rendered after the conversion (#1).
         let captures = try clip.artworkCaptures()
         let sourceEnd = clip.artworkColorEnd
         if doc.isCmyk {
@@ -289,7 +289,7 @@ extension ExternalClipboardImage {
     /// payload carries, a LUT profile say). The core converts it.
     func cmykDestinationPayload(into doc: RasterDocument) throws -> RasterClipboardPayload {
         if let cmyk { return cmyk.handle }
-        // #547 phase 4: a gray TIFF pastes as its Gray payload at every destination too.
+        // #1 phase 4: a gray TIFF pastes as its Gray payload at every destination too.
         if let gray { return gray.handle }
         let budget = try PrecisionWorkContext()
         guard let own = ownPixels() else {

@@ -23,7 +23,7 @@ use serde::Deserialize;
 
 /// The one admission rule: `None` on anything; `Some` on any record that
 /// carries one (a raster, an adjustment, a group of either kind), and only on
-/// a channel the document's mode has (#547): a CMYK plate needs a CMYK document (`cmyk`), and Red,
+/// a channel the document's mode has (#1): a CMYK plate needs a CMYK document (`cmyk`), and Red,
 /// Green or Blue on one refuses by name.
 pub(crate) fn validate(blend_if: Option<BlendIf>, cmyk: bool) -> Result<(), String> {
     let Some(blend_if) = blend_if else {
@@ -32,7 +32,7 @@ pub(crate) fn validate(blend_if: Option<BlendIf>, cmyk: bool) -> Result<(), Stri
     channel_refusal(blend_if, cmyk).map_or(Ok(()), Err)
 }
 
-/// A Blend If channel the document's mode does not have, by name (#547): a
+/// A Blend If channel the document's mode does not have, by name (#1): a
 /// CMYK plate on an RGB, float or byte document — "Blend If on the Cyan
 /// channel needs a CMYK document" — and Red, Green or Blue on a CMYK one
 /// through the mode's own sentence. Every range is checked;
@@ -46,7 +46,7 @@ pub(crate) fn channel_refusal(blend_if: BlendIf, cmyk: bool) -> Option<String> {
 /// [`channel_refusal`] over a REQUEST's ranges as written
 /// (`style_json::requested_blend_if_channels`), identity ranges included —
 /// what the setters check before canonicalization drops an identity range:
-/// a channel the mode lacks refuses even as an identity ramp (#547).
+/// a channel the mode lacks refuses even as an identity ramp (#1).
 pub(crate) fn requested_channel_refusal(
     blend_if: &serde_json::Value,
     cmyk: bool,
@@ -169,7 +169,7 @@ impl LayerBlendIfEdit {
         }
         let parsed = parse_blend_if(blend_if, Strictness::Strict)?;
         // A channel the document has not refuses even as an identity ramp
-        // (#547): the request names a channel this mode cannot read — in any
+        // (#1): the request names a channel this mode cannot read — in any
         // range as written, before canonicalization drops identity ranges.
         if let Some(reason) = requested_channel_refusal(blend_if, document.is_cmyk()) {
             return Err(reason);

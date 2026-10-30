@@ -1,4 +1,4 @@
-//! Photoshop's Levels and Curves preset files with ink channels (#547 phase
+//! Photoshop's Levels and Curves preset files with ink channels (#1 phase
 //! 5): an `.alv` or `.acv` loaded into a CMYK document's Levels or Curves
 //! (From Photoshop Preset…, MCP `read_photoshop_adjustment_preset` with
 //! `color_mode:"cmyk"`), decoded to the `{op, params}` of `cmyk_adjust`'s

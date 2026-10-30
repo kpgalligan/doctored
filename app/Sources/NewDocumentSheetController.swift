@@ -24,7 +24,7 @@ final class NewDocumentSheetController: NSObject {
     private let resolutionField = NSTextField()
     private let unitPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let profilePopup = NSPopUpButton(frame: .zero, pullsDown: false)
-    /// RGB Color / CMYK Color (#547 phase 5).
+    /// RGB Color / CMYK Color (#1 phase 5).
     private let colorModePopup = NSPopUpButton(frame: .zero, pullsDown: false)
     /// The installed CMYK profiles the CMYK profile popup lists after Working CMYK.
     private var cmykProfiles: [InstalledProfile] = []
@@ -231,7 +231,7 @@ final class NewDocumentSheetController: NSObject {
 
     /// The profile popup for the colour mode: sRGB, Display P3 and Profile File… for RGB;
     /// Working CMYK, the installed CMYK profiles and Profile File… for CMYK; Working Gray, the
-    /// eight Gray spaces and Profile File… for Grayscale (#547 phase 1a).
+    /// eight Gray spaces and Profile File… for Grayscale (#1 phase 1a).
     private func fillProfiles() {
         profilePopup.removeAllItems()
         switch colorMode {
@@ -248,7 +248,7 @@ final class NewDocumentSheetController: NSObject {
             profilePopup.addItems(withTitles: GrayWorkingSpace.allCases.map(\.displayName))
             profilePopup.addItem(withTitle: "Profile File…")
         case .lab:
-            // #547 Lab phase 1: one profile, the core's Lab twin (D50).
+            // #1 Lab phase 1: one profile, the core's Lab twin (D50).
             profilePopup.addItem(withTitle: "Lab Color (D50)")
         }
         chosenProfilePath = nil

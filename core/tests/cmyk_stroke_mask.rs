@@ -1,5 +1,5 @@
 //! Edit ▸ Stroke… with nothing selected and Layer ▸ Layer Mask ▸ Apply on a
-//! CMYK document (#547), through `dr_precision_doc_edit`: the stroke's strip
+//! CMYK document (#1), through `dr_precision_doc_edit`: the stroke's strip
 //! pixels (where the band is certainly full) against this file's own straight
 //! CMYKA source-over at coverage 1 and opacity 0.5, inside, centre and
 //! outside; Preserve Transparency leaving alpha exactly as it was; and Apply
@@ -248,7 +248,7 @@ fn preserve_transparency_keeps_alpha_exactly() {
     );
     // An outside stroke under Preserve Transparency lands on alpha 0 only.
     assert!(stroke(doc, "outside", true).unwrap().is_null());
-    // A blend mode composites on `L = 1 − ink` (#547): Multiply inside, on
+    // A blend mode composites on `L = 1 − ink` (#1): Multiply inside, on
     // the opaque rectangle's strip, against the W3C step with B the product
     // of `L`s; Pass Through, a group's mode, refuses by name.
     let multiplied = edit(doc, &format!(r#"{{"op":"stroke_layer_edge","layer":1,"width":2,"location":"inside","ink":{STROKE_INK:?},"opacity":0.5,"blend_mode":1}}"#), &[]).unwrap();

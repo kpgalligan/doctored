@@ -1,4 +1,4 @@
-//! #547: the flattened depth conversions (8→16, 16→8, 32→8) carry every
+//! #1: the flattened depth conversions (8→16, 16→8, 32→8) carry every
 //! saved channel, alpha and spot, with its name, order, options and ink, as
 //! Preserve Layers and the 32→16 tone map already do. Oracles are literal
 //! arithmetic written here: `v · 257` up and `(v + 128) / 257` down. The

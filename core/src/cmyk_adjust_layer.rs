@@ -1,4 +1,4 @@
-//! Adjustments in a CMYK document (#547): the adjustment record
+//! Adjustments in a CMYK document (#1): the adjustment record
 //! (`Content::CmykAdjustment`, a [`CmykAdjustmentState`]), its constructor,
 //! and the add, add-at, set and destructive-apply operations with their
 //! plans. The ink math is `cmyk_adjust`'s (Levels, Curves, drawn curves and
@@ -46,7 +46,7 @@ use crate::selected_adjustment::coverage_at;
 /// (`precision_structure`). Measured by `scripts/cmyk-admission/measure.py`
 /// at 24 MP: `adjust-add-16` 351 MB, `adjust-apply-16` 592 MB (beside the
 /// rebuilt plane), `new-layer-16` 352 MB; 16 missed all three and was raised
-/// to 20. #547 phase 5's `new-cmyk-16` (File ▸ New in CMYK) measured 404 MB,
+/// to 20. #1 phase 5's `new-cmyk-16` (File ▸ New in CMYK) measured 404 MB,
 /// which 20 missed (ratio 1.232), so it was raised to 21. A miss raises this
 /// term.
 pub(crate) const DISPLAY_BYTES_PER_PIXEL: u64 = 21;

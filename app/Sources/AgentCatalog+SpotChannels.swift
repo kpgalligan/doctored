@@ -1,6 +1,6 @@
 import Foundation
 
-/// The spot channel tools' catalog (#547 phases 1a-2 and 1c-1): `add_spot_channel`,
+/// The spot channel tools' catalog (#1 phases 1a-2 and 1c-1): `add_spot_channel`,
 /// `set_spot_channel`, `merge_spot_channel` and `set_channel_kind` (`AgentServer+SpotChannels.swift`). Behind an explicit non-inlining boundary, for
 /// `AgentCatalog.swift`'s reason.
 extension AgentServer {
@@ -21,7 +21,7 @@ extension AgentServer {
         return [
             tool(
                 "add_spot_channel",
-                "Adds a SPOT channel — Channels ▸ New Spot Channel… (#547): a channel holding one "
+                "Adds a SPOT channel — Channels ▸ New Spot Channel… (#1): a channel holding one "
                     + "ink's coverage (255 / 65535 = full ink) with the ink's D50 Lab colour and "
                     + "Solidity. Defaults: name the next \"Spot Color N\", lab sRGB red's, solidity 0, "
                     + "from \"selection\" when there is one else \"empty\". Paint it "
@@ -49,7 +49,7 @@ extension AgentServer {
             tool(
                 "set_spot_channel",
                 "Sets a spot channel's name, ink colour and Solidity — Channels ▸ Spot Channel "
-                    + "Options… (#547), one undo step. Each omitted field keeps its value; the same "
+                    + "Options… (#1), one undo step. Each omitted field keeps its value; the same "
                     + "values answer changed false. An alpha channel refuses (\"the channel is not a "
                     + "spot channel\"). Reply {ok, channel, name, lab, solidity}.",
                 [
@@ -66,7 +66,7 @@ extension AgentServer {
             tool(
                 "merge_spot_channel",
                 "Merges a spot channel into the colour channels — Channels ▸ Merge Spot Channel "
-                    + "(#547): the document is flattened first (hidden layers are "
+                    + "(#1): the document is flattened first (hidden layers are "
                     + "discarded and layer comps cleared, as Flatten Image does), the channel's ink is "
                     + "baked in as its overprint (CMYK in ink on paper), and the spot channel is "
                     + "deleted; other channels stay. One undo step. An alpha channel refuses (\"the "
@@ -83,7 +83,7 @@ extension AgentServer {
                 required: ["channel"]),
             tool(
                 "set_channel_kind",
-                "Changes a channel between an alpha channel and a spot channel (#547) — Channel "
+                "Changes a channel between an alpha channel and a spot channel (#1) — Channel "
                     + "Options… ▸ Color Indicates: Spot Color, and Spot Channel Options… ▸ Kind: Alpha "
                     + "Channel — one undo step. The pixels keep what they showed: what showed "
                     + "black (unselected) becomes full ink, so the stored plane is inverted both ways. "

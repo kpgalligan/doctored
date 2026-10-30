@@ -1,4 +1,4 @@
-//! Grayscale PSD, PSB and layered TIFF import (#547 phase 3a): a colour-mode-1
+//! Grayscale PSD, PSB and layered TIFF import (#1 phase 3a): a colour-mode-1
 //! file at 8 or 16 bits as a Gray document, its policy, and the gray lines of
 //! the shared import report. A 32-bit gray PSD or PSB (phase 3c) is
 //! dispatched to `psd_import_gray32` after the policy, and every gray rule
@@ -22,7 +22,7 @@
 //!   ([`adjustment_refusal`], `gray_adjust::record_refusal`) → a typed
 //!   adjustment layer; one it refuses is omitted and named, and so is every
 //!   fill record (a gray file's fill layers are outside phase 3a). **The
-//!   Gray channel record** (#547 phase 3a's take, `gray-files-547/take1`):
+//!   Gray channel record** (#1 phase 3a's take, `gray-files-547/take1`):
 //!   Photoshop keeps a Grayscale Levels in its CHANNEL record (record 1) with
 //!   the composite record the identity, and the RGB decoder reads record 1 as
 //!   `r`; a Levels or Curves meta with `r` (or `r_map`) and no `g`/`b` is
@@ -60,7 +60,7 @@
 //! open's (`psd_import16::budget` and `composite_plan`): RGBA16 retained, the
 //! Gray document's own storage.
 //!
-//! A Duotone file (colour mode 8 at 8 or 16 bits, #547 Duotone phase 1b)
+//! A Duotone file (colour mode 8 at 8 or 16 bits, #1 Duotone phase 1b)
 //! opens here too: `Container::duotone_gray` is the Gray file it stores, and
 //! its inks (`duotone_files::container_inks`, carrying the file block) go on
 //! the policy as the document is finished, so it opens as a Duotone document.
@@ -485,7 +485,7 @@ impl PrecisionDocument {
         let working = GrayWorkingSpace::from_name(working)
             .ok_or_else(|| format!("\"{working}\" is not a Gray working space"))?;
         let read = Container::read(bytes).map_err(|e| format!("PSD {path}: {e}"))?;
-        // A Duotone file (#547 Duotone phase 1b) is the Gray file it stores
+        // A Duotone file (#1 Duotone phase 1b) is the Gray file it stores
         // plus its inks (`duotone_files`), which `finish` puts on the policy.
         let inks = (read.color == 8)
             .then(|| crate::duotone_files::container_inks(&read))

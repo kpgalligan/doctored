@@ -1,4 +1,4 @@
-//! #547 phase 2a-ii, painting a Grayscale document: a Brush stroke
+//! #1 phase 2a-ii, painting a Grayscale document: a Brush stroke
 //! (`paint_blend`), the Paint Bucket (`bucket_fill`), the Gradient (two
 //! colours and stops), Fill's mode-less `paint` and the Eraser
 //! (`erase_native`) on Gray Gamma 2.2 at 8, 16 and 32 bits. The oracles are

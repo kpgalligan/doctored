@@ -1,4 +1,4 @@
-//! 32-bit Grayscale PSD and PSB import (#547 phase 3c): a colour-mode-1 file
+//! 32-bit Grayscale PSD and PSB import (#1 phase 3c): a colour-mode-1 file
 //! at 32 bits as a 32-bit Gray document, its layers (mode 0) or its stored
 //! composite (mode 1). `psd_import_gray::open_gray_psd` reads the policy and
 //! dispatches here.

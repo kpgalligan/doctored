@@ -1,4 +1,4 @@
-//! The Lab Color layer's luma-reading filters (#547 phase 2f,
+//! The Lab Color layer's luma-reading filters (#1 phase 2f,
 //! `designs/lab-mode.md`): Emboss, Edge Detect, Lens Blur, Reduce
 //! Noise and Smart Sharpen, and Offset's `fill` edge, run through the RGB
 //! selected-filter path (`selected_adjustment` / `selected_filter`,

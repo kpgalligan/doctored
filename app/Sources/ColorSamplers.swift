@@ -89,7 +89,7 @@ struct ColorSamplerSet: Equatable {
 enum ColorSamplerReading {
     case byte(PixelReadout)
     case precision(PrecisionReadout)
-    /// A Lab Color document's codes (#547 phase 2d): L*, a*, b* and alpha.
+    /// A Lab Color document's codes (#1 phase 2d): L*, a*, b* and alpha.
     case lab(PrecisionReadout)
     case float(FloatReadout)
     case unavailable(String?)
@@ -200,7 +200,7 @@ enum ColorSamplerReader {
                         .map { .float($0) } ?? .unavailable(nil)
                 }
                 let read = try PrecisionReadout.at(point, projection: projection, reach: reach)
-                // #547 Lab phase 2d: the projection holds the L*a*b* codes.
+                // #1 Lab phase 2d: the projection holds the L*a*b* codes.
                 if doc.isLab { return read.map { .lab($0) } ?? .unavailable(nil) }
                 return read.map { .precision($0) } ?? .unavailable(nil)
             }
@@ -243,7 +243,7 @@ enum ColorSamplerReader {
     }
 
     /// A 16-bit sheet's authoritative preview projection; `lab` reads a Lab Color document's
-    /// codes (#547 phase 2d).
+    /// codes (#1 phase 2d).
     static func read(_ set: ColorSamplerSet, precisionPreview: RasterPrecisionImage,
                      lab: Bool = false) -> [ColorSamplerReading]
     {

@@ -1,4 +1,4 @@
-//! #547 Lab phase 4b-i: the selected pixels (Move and Transform Selected
+//! #1 Lab phase 4b-i: the selected pixels (Move and Transform Selected
 //! Pixels, Puppet and Perspective Warp of a selection), Layer via Copy and
 //! via Cut, Stamp Selected and the source selections (Save and Load
 //! Selection) on a Lab Color document, through the FFI. Each is the RGB
@@ -24,7 +24,7 @@
 //!   equals a one-layer document's alpha, `luminance` answers
 //!   `LUMINANCE_REFUSAL`, the Magic Wand runs (its oracle is
 //!   `lab_wand.rs`'s) and Select Similar and Grow at 8 bits answer their
-//!   sentence naming #683, whose take did not fit them there (sampled
+//!   sentence naming #5, whose take did not fit them there (sampled
 //!   Color Range, shipped in 4b-ii, is `lab_color_select.rs`'s; Quick
 //!   Selection, shipped in 6b-ii, `lab_model_select.rs`'s);
 //! * (e) since phase 6b-i `move_selected` and `transform_selected` with
@@ -324,7 +324,7 @@ fn the_source_selections_read_the_codes_and_the_colour_kinds_wait() {
             select(doc, &json!({"kind":"luminance"})).unwrap_err(),
             LUMINANCE
         );
-        // The wand runs (`lab_wand.rs`); #683: Similar and Grow wait at
+        // The wand runs (`lab_wand.rs`); #5: Similar and Grow wait at
         // 8 bits.
         let wand = json!({"kind":"magic_wand","x":3,"y":2,"tolerance":40,"contiguous":true});
         select(doc, &wand).unwrap_or_else(|e| panic!("{wand} at {bits} bits: {e}"));
@@ -338,7 +338,7 @@ fn the_source_selections_read_the_codes_and_the_colour_kinds_wait() {
                     select(doc, &operation).unwrap_err(),
                     format!(
                         "{label} is unavailable in an 8-bit Lab Color document until its Lab \
-                         tolerance rule is measured (#683)."
+                         tolerance rule is measured (#5)."
                     ),
                     "{operation}"
                 );

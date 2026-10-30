@@ -1,4 +1,4 @@
-//! #547 Lab phase 2c, a Lab Color document's colour adjustments and channel
+//! #1 Lab phase 2c, a Lab Color document's colour adjustments and channel
 //! forms (`lab_adjust`, `lab_tone`, `adjust_precision`'s binding). Oracles
 //! written here, never the Lab path:
 //!

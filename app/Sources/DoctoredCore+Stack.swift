@@ -140,7 +140,7 @@ extension RasterDocument {
     /// canvas-sized premultiplied overlay `paintingLayer` takes; only its
     /// alpha (the stroke's coverage) is read. `range`: 0 shadows, 1 midtones,
     /// 2 highlights; `protectTones` moves each pixel's channels together
-    /// (#547). nil when nothing would change.
+    /// (#1). nil when nothing would change.
     func dodgeBurnLayer(
         _ idx: Int, overlay data: UnsafePointer<UInt8>, w: Int, h: Int,
         exposure: Double, range: Int, burn: Bool, protectTones: Bool = false

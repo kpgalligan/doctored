@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 3a: the Move tool (`affine_set` translations,
+//! #1 Indexed Color phase 3a: the Move tool (`affine_set` translations,
 //! `move_selected`), the layer row's visibility and order, the selected
 //! pixels of an alpha channel, the background rule on a document with no
 //! transparent index, and the refusals phase 3a decides for good

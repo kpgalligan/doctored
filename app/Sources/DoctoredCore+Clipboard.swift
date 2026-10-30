@@ -36,8 +36,8 @@ final class RasterClipboardPayload {
 
     /// `{version, mode, storage, depth, origin_depth, width, height, offset,
     /// ppi, profile_description, has_coverage, tone_map?}`; a CMYK payload
-    /// adds `cmyk_depth` (#547 phase 4c), a Gray payload `gray_depth` and `gray_profile` (#547
-    /// phase 4), a Lab payload `lab_depth` (#547 Lab phase 4c, `"mode":"lab"`).
+    /// adds `cmyk_depth` (#1 phase 4c), a Gray payload `gray_depth` and `gray_profile` (#1
+    /// phase 4), a Lab payload `lab_depth` (#1 Lab phase 4c, `"mode":"lab"`).
     func info() throws -> [String: Any] {
         var error: UnsafeMutablePointer<CChar>?
         let result = dr_clipboard_payload_info(ptr, &error)
@@ -45,12 +45,12 @@ final class RasterClipboardPayload {
     }
 
     /// The payload's pixels as a typed image sharing its samples; nil for a
-    /// CMYK payload, whose ink is no RGB image (#547 phase 4c).
+    /// CMYK payload, whose ink is no RGB image (#1 phase 4c).
     func image() -> RasterPrecisionImage? {
         dr_clipboard_payload_image(ptr).map { RasterPrecisionImage(owning: $0) }
     }
 
-    /// #547 phase 4c: the profile bytes the samples are in
+    /// #1 phase 4c: the profile bytes the samples are in
     /// (`dr_clipboard_payload_icc`) — the RGB ICC profile, or a CMYK
     /// payload's policy bytes, verbatim.
     var profileData: Data {
@@ -59,7 +59,7 @@ final class RasterClipboardPayload {
         return withExtendedLifetime(self) { Data(bytes: pointer, count: count) }
     }
 
-    /// #547 phase 4c: a CMYK TIFF or JPEG another app put on the pasteboard as
+    /// #1 phase 4c: a CMYK TIFF or JPEG another app put on the pasteboard as
     /// a CMYK payload (`dr_clipboard_payload_from_cmyk_image`): its ink, depth
     /// and PPI at (0, 0), its own profile when it embeds one, else
     /// `fallbackProfile` (else the working CMYK) assigned — `assigned` is

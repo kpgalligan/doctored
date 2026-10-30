@@ -1,4 +1,4 @@
-//! The CMYK geometry files' shared fixtures (#547 phase 4b:
+//! The CMYK geometry files' shared fixtures (#1 phase 4b:
 //! `cmyk_geometry.rs`, `cmyk_warp.rs`, `cmyk_selected_pixels.rs`).
 //!
 //! THE TWINS. Every CMYK geometry op resamples the five planes premultiplied

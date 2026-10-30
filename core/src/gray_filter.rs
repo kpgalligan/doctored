@@ -1,4 +1,4 @@
-//! The Grayscale document's filters and retouch tools (#547 phase 2c,
+//! The Grayscale document's filters and retouch tools (#1 phase 2c,
 //! `designs/grayscale-mode.md`): the filter gate, the one-channel
 //! fold, the Sponge's middle gray and the three retouch refusals.
 //!

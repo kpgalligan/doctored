@@ -1,4 +1,4 @@
-//! #547 Lab phase 2e, the retouch tools on a Lab Color document, through the
+//! #1 Lab phase 2e, the retouch tools on a Lab Color document, through the
 //! FFI, at 8 and 16 bits. The per-channel tools — the Blur and Sharpen
 //! brushes, Smudge, the Clone Stamp (Normal; its other modes composite by
 //! the Lab arms since phase 3, `lab_blend.rs`), the Healing Brush,

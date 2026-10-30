@@ -1,6 +1,6 @@
 import AppKit
 
-/// A CMYK document's inks as the colours a sheet SHOWS (#547): the Gradient
+/// A CMYK document's inks as the colours a sheet SHOWS (#1): the Gradient
 /// Map sheet's stops and the Layer Style sheet's colour slots.
 ///
 /// A sheet edits `#rrggbb` colours in `space`; the document stores ink. Each

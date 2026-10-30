@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 phase-1a, 1b, 2e, 4 and 5a Grayscale admission drive, on a built Release app.
+"""The #1 phase-1a, 1b, 2e, 4 and 5a Grayscale admission drive, on a built Release app.
 
 Every new Grayscale plan is held to the measured-admission rule: plan >=
 ceil(1.25 x max E), where E is `ri_interval_max_phys_footprint` - pre around

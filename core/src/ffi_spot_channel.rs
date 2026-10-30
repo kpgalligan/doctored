@@ -1,4 +1,4 @@
-//! C FFI for spot channels (#547 phase 1a-2): the byte add, set and read,
+//! C FFI for spot channels (#1 phase 1a-2): the byte add, set and read,
 //! the display overprint of a document and of one bare image, and the typed
 //! add and set — the "Spot channels" section of `include/doctored_core.h`.
 //! Same conventions as `ffi_channel`: the `ffi_util` helpers own every

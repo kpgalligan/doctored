@@ -1,4 +1,4 @@
-//! The spot channels' DISPLAY overprint on a byte composite (#547 phase
+//! The spot channels' DISPLAY overprint on a byte composite (#1 phase
 //! 1a-2, `designs/spot-channels.md`): the adapter between a
 //! document's spot channels and the `spot_overprint` kernel. It converts each
 //! ink's D50 Lab into the composite's encoding and runs the kernel once per

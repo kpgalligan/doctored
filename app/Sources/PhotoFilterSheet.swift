@@ -22,7 +22,7 @@ import AppKit
 /// three modes (Image ▸ Adjustments, Layer ▸ New Adjustment Layer, and
 /// Adjustment Options… on an existing layer).
 ///
-/// On a CMYK document (#547) the filter is an INK (`ink`, four fractions): a
+/// On a CMYK document (#1) the filter is an INK (`ink`, four fractions): a
 /// preset is its sRGB colour separated through the document's profile once,
 /// at the pick, and a colour from the well likewise (`CmykPaint.ink`); the
 /// well shows the ink's colour.

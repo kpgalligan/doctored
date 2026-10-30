@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 phase-3 MCP drive: layered CMYK files over MCP — a structured CMYK
+"""The #1 phase-3 MCP drive: layered CMYK files over MCP — a structured CMYK
 document written as a layered PSD, PSB and TIFF and read back, CMYK TIFFs with
 transparency and planes, Photoshop's own layered CMYK file, and Edit ▸ Color
 Settings' CMYK policy on every PSD/TIFF import.
@@ -47,7 +47,7 @@ probe is a cell's centre; `sample_color`'s `ink16`.
   layers as a CMYK document of six layers, its report naming the type, shape
   and smart-object records and the two colour samplers as losses, and the
   drop shadow (in ink, the styles batch) and the gray Blend If ranges (the
-  Blend If batch, #547) as carried.
+  Blend If batch, #1) as carried.
 - **F7 the open policy.** A second instance launched with
   `COLOR_SETTINGS_DEFAULTS` then `-ColorWorkingCMYK <Generic CMYK>` and
   `-ColorCMYKPolicy convert` opens take1's `layers8.psd` with psd_mode layers

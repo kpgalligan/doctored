@@ -25,14 +25,14 @@ extension NativeChannelMath {
             if case .channel(let index) = choice {
                 return try pixelPlan(["op": "read_plane", "target": "channel", "index": index])
             }
-            // #547: a CMYK layer's plate is its stored samples (`read_plane`); the composite's
+            // #1: a CMYK layer's plate is its stored samples (`read_plane`); the composite's
             // is the `color` selection, bounded with the other selection kinds below.
             if case .ink(let plate) = choice, let layer {
                 return try pixelPlan(["op": "read_plane", "target": plate.key, "index": layer,
                                       "canvas": true])
             }
             // Alpha, RGB and luma extraction share this source-stage plan; a Lab document plans
-            // its Lightness `color` read, since it refuses `luminance` (#547 Lab phase 6b-i).
+            // its Lightness `color` read, since it refuses `luminance` (#1 Lab phase 6b-i).
             let kind: [String: Any] = doc.isLab ? ["kind": "color", "channel": "red"]
                 : ["kind": "luminance"]
             var fields: [String: Any] = ["op": "selection", "source": "composite",
@@ -48,14 +48,14 @@ extension NativeChannelMath {
         }
         var stage: UInt64 = 0
         if let apply, doc.isGray, apply.target == .layer {
-            // #547 phase 6b: a Gray layer is read as its luminance (R = G = B) and written once
+            // #1 phase 6b: a Gray layer is read as its luminance (R = G = B) and written once
             // through the Gray scalar target (`NativeChannelMath.applyGray`).
             stage = try max(sourcePlan(layer: apply.targetLayer, choice: .rgb),
                 sourcePlan(layer: apply.source, choice: apply.sourcePlane))
             stage = try max(stage, pixelPlan(["op": "scalar_edit", "target": "gray",
                 "index": apply.targetLayer, "selection": true, "operation": ["kind": "replace_canvas"]]))
         } else if let apply {
-            // A CMYK layer target writes its plates (#547), an RGB one its colour planes.
+            // A CMYK layer target writes its plates (#1), an RGB one its colour planes.
             let target = apply.target == .layer
                 ? (doc.isCmyk ? PaintTarget.ink(.cyan) : PaintTarget.plane(.red)) : apply.target
             let addressed = try PrecisionScalarOperations.target(target, layer: apply.targetLayer)
@@ -75,7 +75,7 @@ extension NativeChannelMath {
             stage = try max(stage, planePlan(["kind": "luminosity", "band": "midtones", "level": 3]))
             stage = try max(stage, pixelPlan(["op": "set_channel", "index": NSNull(), "name": "Luminosity"]))
         }
-        // A CMYK layer blends plate by plate, one plane at a time (#547); a Gray layer is one plane.
+        // A CMYK layer blends plate by plate, one plane at a time (#1); a Gray layer is one plane.
         let channels = apply?.target == .layer && !doc.isCmyk && !doc.isGray ? 3 : 1
         stage = try max(stage, planePlan(["kind": "blend", "channels": channels,
             "mode": Int((apply?.blend ?? calculations?.blend ?? DR_BLEND_NORMAL).rawValue),

@@ -1,4 +1,4 @@
-//! #578's clip rule (CL2, Photoshop's clipping, ruling 1): a clipped member
+//! #2's clip rule (CL2, Photoshop's clipping, ruling 1): a clipped member
 //! composites onto its base with the base's alpha FROZEN — over a base pixel
 //! at alpha `F` the colour becomes `lerp(Cb, B(Cb, Cs), sa)` and the alpha
 //! stays `F` (Fill 1); a base whose own pixels carry a Fill below 1 keeps
@@ -447,7 +447,7 @@ fn a_group_base_and_a_unit_inside_a_normal_group_follow_the_same_rule() {
 
 #[test]
 fn a_fill_50_base_keeps_its_fill_relative_to_the_footprint() {
-    // The base's Fill composites at its byte, 128 / 255 (#578).
+    // The base's Fill composites at its byte, 128 / 255 (#2).
     for pair in PAIRS {
         let got = byte_pixels(&byte_doc(pair, 0.5));
         for (x, &a) in BASE_ALPHAS.iter().enumerate() {

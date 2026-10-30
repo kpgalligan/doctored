@@ -17,7 +17,7 @@
   32-bit document through it), MCP `hdr_toning`. Phase 4b (2026-10-17): HDR Toning's Local Adaptation, the
   default method, with its Toning Curve and Histogram; Load Files into Stack on tiny canvases. Phase 4c
   (2026-10-19): HDR Toning's presets (Default and the user's own; on 2026-10-29 the other
-  built-ins were removed, #687, #688) and MCP `hdr_toning` `preset`.
+  built-ins were removed, #7, #8) and MCP `hdr_toning` `preset`.
 - **Nothing in the phase plan is unbuilt.** The bounded Photoshop attempt was not made in 4c (with it the spec
   passed its length limit), so HDR Toning is not measured against Photoshop; that and the two other open items
   below are drafted as their own issues for the controller (the lane may not post to GitHub). Live Stack

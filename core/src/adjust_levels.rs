@@ -23,7 +23,7 @@
 //! 2.53 codes at 8 bit, the reverse order misses by 43.5), and the order
 //! `adjust_curves` already uses for its per-channel tables.
 //!
-//! **The toe (#578, H-CB).** Photoshop does not run the power law all the
+//! **The toe (#2, H-CB).** Photoshop does not run the power law all the
 //! way into the shadows: below `x0 = 2·2^(gamma/(p − 1))` (p = 1/gamma) a
 //! stage with gamma > 1 follows Color Balance's cubic Hermite, from (0, 0) at
 //! slope `2^gamma` to the power at x0 ([`stage_curve`], through
@@ -37,7 +37,7 @@
 //! (`levels_hcb_578_take.py`, `levels-hcb-578/take1`): 0.98 / 0.040 at 16
 //! bits (LcapG 11.1 / 2.19), 5 / 0.24 at 8 (LcapG 8 / 0.53).
 //!
-//! **8 bits round twice (#578 phase 4, R8(h,h,x)).** On a byte document each
+//! **8 bits round twice (#2 phase 4, R8(h,h,x)).** On a byte document each
 //! stage works on CODES ([`LevelsStage::apply8`]): the input position
 //! `s = (c − in_lo)·255/(in_hi − in_lo)` is rounded to a code, the curve's
 //! value at that code is rounded to a code, and only then is the output line

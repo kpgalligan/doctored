@@ -1,4 +1,4 @@
-//! The falling-boundary refusal split (#578), through the FFI: a matrix/TRC
+//! The falling-boundary refusal split (#2), through the FFI: a matrix/TRC
 //! profile whose `para` steps DOWN at its branch boundary but whose
 //! parameters are usable ("Synthetic Falling Boundary") admits a NEW
 //! calibrated Exposure at both depths — the asker, the destructive apply, a

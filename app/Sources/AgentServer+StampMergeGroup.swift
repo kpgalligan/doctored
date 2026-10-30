@@ -1,6 +1,6 @@
 import AppKit
 
-/// `stamp_selected` and `merge_group` (#547 phase 4c) at 8, 16 and 32 bits
+/// `stamp_selected` and `merge_group` (#1 phase 4c) at 8, 16 and 32 bits
 /// and on a CMYK document — the MCP twins of Layer ▸ Stamp Selected and of
 /// ⌘E with one group selected (Layer ▸ Merge Group,
 /// `EditorViewController+MergeStamp.swift`). Each is ONE core call
@@ -16,7 +16,7 @@ extension AgentServer {
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let stampMergeGroupToolFacts: [String: ToolFacts] = [
-        // #547 phase 4c: `layer_stamp_selected` / `layer_merge` at every
+        // #1 phase 4c: `layer_stamp_selected` / `layer_merge` at every
         // typed depth and on CMYK (`precision_merge_selected`).
         "stamp_selected": [.typedTool, .floatTool, .cmykTool],
         "merge_group": [.typedTool, .floatTool, .cmykTool],

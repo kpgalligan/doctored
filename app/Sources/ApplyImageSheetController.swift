@@ -71,13 +71,13 @@ final class ApplyImageSheetController: NSViewController {
         // where the four HSL modes have no triple to work on and the core
         // refuses them; onto the layer they blend the three planes as one
         // colour.
-        // A CMYK layer blends its plates one at a time (#547), so it is single-plane too.
-        // A Grayscale layer is one plane, its modes the Grayscale list (#547 phase 6b).
+        // A CMYK layer blends its plates one at a time (#1), so it is single-plane too.
+        // A Grayscale layer is one plane, its modes the Grayscale list (#1 phase 6b).
         if let baseDoc, baseDoc.isGray {
             ChannelMathControls.fillBlendModes(
                 blendPopup, singlePlane: true, allowed: NativeLayerBlending.grayModes(for: baseDoc))
         } else if baseDoc?.isLab == true {
-            // A Lab target blends each channel's codes alone (#547 Lab phase 6b-i).
+            // A Lab target blends each channel's codes alone (#1 Lab phase 6b-i).
             ChannelMathControls.fillBlendModes(
                 blendPopup, singlePlane: true, allowed: LabDocument.channelMathModes)
         } else {

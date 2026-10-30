@@ -1,6 +1,6 @@
 import AppKit
 
-// The Indexed Color document's gate (#547 Indexed phases 1a to 3c): what an Indexed document
+// The Indexed Color document's gate (#1 Indexed phases 1a to 3c): what an Indexed document
 // admits from the canvas, the menus and MCP, asked FIRST wherever a depth decides
 // (`DocumentPrecision.refusal`, `allows`, `validatePrecisionItem`), before the Lab, Gray and CMYK
 // gates. The core's own table is `precision_capability::INDEXED_FAMILIES` and its edit gate
@@ -46,7 +46,7 @@ import AppKit
 // transform and the layers paste, since 3b HDR Toning, since 3c the Gradient and the retouch
 // brushes, `disabledSentence`), what needs more than one layer (`oneLayer`, since 3a, since 3b
 // Auto-Align and Auto-Blend, since 3c Link and Arrange), and the rest as offered on RGB documents
-// only (`rgbOnly`), all for good. The Indexed Color PSD (#547) adds File ▸ Export as PSD…
+// only (`rgbOnly`), all for good. The Indexed Color PSD (#1) adds File ▸ Export as PSD…
 // (`export_psd`, `inspect_psd_export`): a colour-mode-2 PSD or PSB of the palette, the
 // transparent index and every index, which a PSD's open reads back. take1 checked phase 2a's
 // lists against Photoshop's own menus (`scripts/photoshop-probe/indexed_mode_take.py`;
@@ -111,7 +111,7 @@ enum IndexedDocument {
         "set_color_samplers", "detect_horizon", "straighten_layers", "list_paths", "set_path",
         "rename_path", "duplicate_path", "delete_path", "path_to_selection", "selection_to_path",
         "fill_path", "stroke_path", "list_lens_profiles", "separate_color",
-        // #547 Indexed Color PSD: File ▸ Export as PSD… writes a colour-mode-2 PSD or PSB.
+        // #1 Indexed Color PSD: File ▸ Export as PSD… writes a colour-mode-2 PSD or PSB.
         "export_psd", "inspect_psd_export",
     ]
 
@@ -234,7 +234,7 @@ enum IndexedDocument {
     }
 
     /// The core's `indexed_background` key for `color` on `doc` (`indexed_paint::BACKGROUND_KEY`,
-    /// `CropBackground`'s RGB shape): `[:]` unless `doc` is Indexed or (#547 Bitmap phase 2a-i,
+    /// `CropBackground`'s RGB shape): `[:]` unless `doc` is Indexed or (#1 Bitmap phase 2a-i,
     /// `bitmap_edit`, which snaps it to black or white) Bitmap and `color` is given, so every
     /// other document's request is unchanged.
     static func backgroundFields(_ color: NSColor?, in doc: RasterDocument) throws -> [String: Any] {
@@ -408,7 +408,7 @@ enum IndexedDocument {
     }
 
     /// The geometry edit's admitted working memory (`scratch_bytes` of its core plan, the storage
-    /// op's plus the adapter's) on an Indexed or (#547 Bitmap phase 2a-i) Bitmap document; nil for
+    /// op's plus the adapter's) on an Indexed or (#1 Bitmap phase 2a-i) Bitmap document; nil for
     /// every other document or when the plan refuses. The `rotate` and `flip` replies carry it as
     /// `working_memory_plan_bytes` (`scripts/indexed-admission/measure.py`,
     /// `scripts/bitmap-admission/measure.py`).

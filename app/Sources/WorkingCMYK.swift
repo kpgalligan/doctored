@@ -1,6 +1,6 @@
 import Foundation
 
-/// The working CMYK profile (#547 phase 5): the profile an untagged CMYK TIFF or JPEG is
+/// The working CMYK profile (#1 phase 5): the profile an untagged CMYK TIFF or JPEG is
 /// converted from as the core opens it, the destination of Image ▸ Mode ▸ CMYK Color, File ▸ New
 /// in CMYK, the Color Picker's and the Info panel's CMYK numbers on an RGB document, and the
 /// Working CMYK proof. Edit ▸ Color Settings… chooses it (`ColorSettings.workingCMYK`): Automatic
@@ -24,7 +24,7 @@ enum WorkingCMYK {
     private static let maxBytes = 16 * 1024 * 1024
 
     /// The installed profile's name, for Image ▸ Mode ▸ CMYK Color's popup and
-    /// `convert_mode`'s reply (#547); nil when none is set.
+    /// `convert_mode`'s reply (#1); nil when none is set.
     private(set) static var installedName: String?
 
     /// The installed profile's bytes, verbatim (what a document converted into the working CMYK

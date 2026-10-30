@@ -1,4 +1,4 @@
-//! Bevel & Emboss Technique (#578) across the PSD `lfx2` codec and `.asl`:
+//! Bevel & Emboss Technique (#2) across the PSD `lfx2` codec and `.asl`:
 //! `bvlT` ↔ `technique` (`SfBL` smooth, `PrBL` chisel_hard, `Slmt`
 //! chisel_soft). The expected `bvlT` items are built with the hand-encoded
 //! descriptor builder (`psd_descriptor_fixture`), never with the crate's own

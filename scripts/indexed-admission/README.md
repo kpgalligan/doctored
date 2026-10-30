@@ -1,4 +1,4 @@
-# #547 Indexed Color admission drive
+# #1 Indexed Color admission drive
 
 Every memory plan the Indexed Color document mode added (phases 1a, 1b, 1c, 2b, 2c, 2d and 3a) is held to the
 measured-admission rule on a built Release app: plan ≥ ⌈1.25 × max E⌉, where E is

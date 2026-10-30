@@ -61,7 +61,7 @@ struct PrecisionGeometryWork {
     /// the commit request, `PrecisionGeometryGesture.request`), and the plan
     /// and the run send the same request.
     let interactive: Bool
-    /// #547 Indexed phase 3b: on an Indexed source, the colour an uncovered pixel's entry is
+    /// #1 Indexed phase 3b: on an Indexed source, the colour an uncovered pixel's entry is
     /// nearest with no transparent index (the UI's background swatch); nil is white. Only
     /// `.move`, `.transform`, `.transformSet`, `.crop`, `.moveSelected` and `.transformSelected`
     /// carry it (`carriesIndexedBackground`); a duplicate, Align and Distribute keep their own
@@ -201,7 +201,7 @@ struct PrecisionGeometryWork {
     /// admits the artwork stage immediately before it does work.
     func compute(control: RasterJobControl, admittingArtwork: Bool = false) throws -> RasterDocument? {
         guard !control.isCancelled else { return nil }
-        // #547 Indexed phase 3b: the one planned command, carrying the background key (`.crop`
+        // #1 Indexed phase 3b: the one planned command, carrying the background key (`.crop`
         // adds it inside its own arm below, keeping its child control and artwork steps).
         if carriesIndexedBackground {
             switch request {
@@ -321,8 +321,8 @@ struct PrecisionGeometryWork {
         return try roundedCrop(rect, in: source)
     }
 
-    /// Whether this work sends the core's `indexed_background` (#547 Indexed phase 3b): an
-    /// Indexed or (#547 Bitmap phase 2a-i) Bitmap source given a colour, on the requests that
+    /// Whether this work sends the core's `indexed_background` (#1 Indexed phase 3b): an
+    /// Indexed or (#1 Bitmap phase 2a-i) Bitmap source given a colour, on the requests that
     /// move or uncover the layer's own pixels.
     private var carriesIndexedBackground: Bool {
         guard indexedBackground != nil, source.isIndexed || source.isBitmap else { return false }

@@ -90,7 +90,7 @@ const IPTC_SEGMENT_DATA: usize = JPEG_MAX_PAYLOAD - IPTC_ID.len();
 /// The 8BIM image resources dropped on export because they would contradict
 /// the density, the profile, the normalized EXIF and the XMP this save
 /// writes for itself, and the saved-channel resources (1006, 1007, 1045,
-/// 1053, 1077: #547 1c-2a), which describe the WRITTEN file's channels, so a
+/// 1053, 1077: #1 1c-2a), which describe the WRITTEN file's channels, so a
 /// TIFF that keeps spot channels writes its own (`tiff_spot`) and every
 /// other file states none.
 const DROPPED_8BIM: [u16; 9] = [
@@ -119,7 +119,7 @@ pub(crate) struct EncodeSidecar<'a> {
     pub iptc: Option<Vec<u8>>,
     /// The document's print resolution.
     pub dpi: Option<Resolution>,
-    /// The spot channels a flat RGB or CMYK TIFF keeps (#547 1c-2a,
+    /// The spot channels a flat RGB or CMYK TIFF keeps (#1 1c-2a,
     /// `tiff_spot`); `None` for every other file.
     pub spots: Option<crate::tiff_encode::TiffSpotPlanes>,
 }

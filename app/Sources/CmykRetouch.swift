@@ -1,6 +1,6 @@
 import AppKit
 
-// The painting and retouching tools on a CMYK document (#547's retouch batch): which canvas tools
+// The painting and retouching tools on a CMYK document (#1's retouch batch): which canvas tools
 // and MCP tools run on ink at 8 and 16 bits, and the sentence each refused one carries. Dodge,
 // Burn, Sponge, Blur, Sharpen, Smudge, the History Brush, Content-Aware Fill, the Clone Stamp and
 // the Healing Brush run at both depths, Spot Healing, Patch, Remove and Content-Aware Move follow

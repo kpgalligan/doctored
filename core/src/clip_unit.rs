@@ -1,4 +1,4 @@
-//! KERNEL: the clip unit's member rule (#578, "CL2"), Photoshop's clipping —
+//! KERNEL: the clip unit's member rule (#2, "CL2"), Photoshop's clipping —
 //! the clipped members composite onto the base with the base's alpha
 //! FROZEN. Its master statement is `blend::composite_source_frozen`: a
 //! semi-transparent pixel takes `lerp(Cb, B(Cb, Cs), sa)` in its colour and
@@ -17,7 +17,7 @@
 //! frozen lerp, and `Close` puts the footprint back, so a plain base at alpha
 //! `f` shows the member at its own strength instead of the old rule's (the
 //! alpha forced back to `f` after an absolute W3C step, which boosted the
-//! member by `1 / f`; #578 take1: Normal 11 codes off Photoshop at 8 bits).
+//! member by `1 / f`; #2 take1: Normal 11 codes off Photoshop at 8 bits).
 //! A weighted base keeps its weight RELATIVE to the footprint (Photoshop's
 //! Fill on a clip base). At `f = 1` the steps are identities on the old rule's
 //! numbers (`Open` gives the old alpha, the W3C step at alpha 1 returns 1,

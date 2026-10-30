@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK layer-style in-process UI case (#547, the styles batch): on a CMYK document Layer ▸
+// The CMYK layer-style in-process UI case (#1, the styles batch): on a CMYK document Layer ▸
 // Layer Style's effect items and Copy / Paste Layer Style validate; the sheet opened on Drop
 // Shadow has every effect checkbox and the knockout popup enabled, and its Blending Options pane
 // a Blend If heading over the channels Gray, Cyan, Magenta, Yellow and Black (the Blend If batch);

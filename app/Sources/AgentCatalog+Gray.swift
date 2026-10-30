@@ -1,6 +1,6 @@
 import Foundation
 
-/// The Grayscale document's catalog notes (#547 phases 1b, 1c, 2a-ii, 2b, 2c, 2d, 2e, 3a, 3b, 3c,
+/// The Grayscale document's catalog notes (#1 phases 1b, 1c, 2a-ii, 2b, 2c, 2d, 2e, 3a, 3b, 3c,
 /// 4, 5a, 5b, 6a-i, 6a-ii and 6b, and the close): what a Gray document does to the shared layer, style, Fill,
 /// save, paint, adjustment, filter, retouch, channel, PSD open and export, geometry, selection,
 /// clipboard, profile, depth, proof, mode, artwork, path, vector-mask, link, comp, snapshot,
@@ -21,47 +21,47 @@ extension AgentServer {
             let note: String?
             switch name {
             case "set_layer_properties":
-                note = " In a Grayscale document (#547) blend_mode takes " + modes + " (at 32 bits, "
+                note = " In a Grayscale document (#1) blend_mode takes " + modes + " (at 32 bits, "
                     + "those a float document admits), "
                     + "and Pass Through on a group; Darker Color, Lighter Color, Hue, Saturation, "
                     + "Color and Luminosity are unavailable."
             case "set_layer_style":
-                note = " In a Grayscale document (#547) every effect is available: each colour "
+                note = " In a Grayscale document (#1) every effect is available: each colour "
                     + "(hex, linear, gradient stop, a custom pattern's texels) is stored as its gray "
                     + "by Image ▸ Mode ▸ Grayscale's rule and composites R = G = B, effect blend modes "
                     + "take the Grayscale modes, and Blend If takes channel gray only (any other "
                     + "channel refuses)."
             case "set_global_light":
-                note = " A Grayscale document (#547) takes the global light, which its effects read."
+                note = " A Grayscale document (#1) takes the global light, which its effects read."
             case "apply_style_preset", "save_style_preset":
-                note = " In a Grayscale document (#547) a preset's colours are stored as their gray, "
+                note = " In a Grayscale document (#1) a preset's colours are stored as their gray, "
                     + "as set_layer_style stores them."
             case "list_channels", "duplicate_channel", "delete_channel", "rename_channel",
                  "set_channel_options":
-                note = " A Grayscale document (#547) holds alpha channels, as an RGB document does."
+                note = " A Grayscale document (#1) holds alpha channels, as an RGB document does."
             case "add_channel":
-                note = " In a Grayscale document (#547) from plane takes plane gray (the Gray row: "
+                note = " In a Grayscale document (#1) from plane takes plane gray (the Gray row: "
                     + "the composite's own gray codes) or alpha; red, green and blue refuse for good."
             case "load_selection":
-                note = " In a Grayscale document (#547) from plane takes plane gray (the Gray row: "
+                note = " In a Grayscale document (#1) from plane takes plane gray (the Gray row: "
                     + "the composite's own gray codes, whatever the working Gray) or alpha; red, "
                     + "green and blue refuse for good."
             case "warp_layer":
-                note = " In a Grayscale document (#547) a warp is applied at once and keeps no "
+                note = " In a Grayscale document (#1) a warp is applied at once and keeps no "
                     + "field (get_warp answers null; clear and bake change nothing), as at 32 bits "
                     + "and in CMYK."
             case "move_selected_pixels", "transform_selected_pixels":
-                note = " In a Grayscale document (#547) target is layer, mask or channel:<name> "
+                note = " In a Grayscale document (#1) target is layer, mask or channel:<name> "
                     + "(the Gray channel is the layer; red, green, blue and alpha refuse for good)."
             case "copy", "cut", "copy_merged":
-                note = " Copying from a Grayscale document (#547) makes a Grayscale payload (its "
+                note = " Copying from a Grayscale document (#1) makes a Grayscale payload (its "
                     + "Gray profile and depth); the pasteboard's TIFF is a one-channel gray image "
                     + "with that profile embedded (two channels with transparency), the PNG an RGB "
                     + "rendering."
             case "get_clipboard":
-                note = " mode is \"gray\" for a payload copied from a Grayscale document (#547)."
+                note = " mode is \"gray\" for a payload copied from a Grayscale document (#1)."
             case "paste":
-                note = " Into or out of a Grayscale document (#547) the pixels always convert "
+                note = " Into or out of a Grayscale document (#1) the pixels always convert "
                     + "(into Gray by Image ▸ Mode ▸ Grayscale's luminance, a CMYK payload through "
                     + "ProPhoto RGB; out of Gray by Image ▸ Mode ▸ RGB Color's conversion) and profile "
                     + "preserve refuses; color_conversion names the crossing (from or to \"Gray\", "
@@ -70,15 +70,15 @@ extension AgentServer {
                     + "and keeps the numbers under preserve. Another app's gray TIFF pastes the same "
                     + "way."
             case "invert_channel":
-                note = " A Grayscale document (#547) inverts an alpha channel at 8 and 16 bits."
+                note = " A Grayscale document (#1) inverts an alpha channel at 8 and 16 bits."
             case "fill_selection":
-                note = " In a Grayscale document (#547) the layer is filled with color's gray by "
+                note = " In a Grayscale document (#1) the layer is filled with color's gray by "
                     + "Image ▸ Mode ▸ Grayscale's rule (its luminance in the Gray profile), R = G = B; "
                     + "target is layer, mask, quick_mask or channel:<name> (the Gray channel is the "
                     + "layer; red, green, blue and alpha refuse for good), ink refuses, and "
                     + "blend_mode takes the Grayscale modes."
             case "export_image":
-                note = " A Grayscale document (#547) with profile document keeps gray: png, tiff or "
+                note = " A Grayscale document (#1) with profile document keeps gray: png, tiff or "
                     + "jpeg written as ONE channel (two with transparency) at bit_depth 8 or 16 "
                     + "(jpeg 8; the default is 16, or 8 for jpeg and an 8-bit document) with its "
                     + "Gray profile embedded; a 32-bit document's tiff also at bit_depth 32 (its "
@@ -86,33 +86,33 @@ extension AgentServer {
                     + "another format has no one-channel export, and profile srgb, display-p3 or "
                     + "file exports RGB."
             case "save_copy":
-                note = " A Grayscale document (#547) saves as doctored (or rz), png, tiff or jpeg: the image "
+                note = " A Grayscale document (#1) saves as doctored (or rz), png, tiff or jpeg: the image "
                     + "formats as ONE channel (two with transparency) with its Gray profile "
                     + "embedded, bit_depth 16 by default (8 for jpeg and an 8-bit document, 32 for "
                     + "a 32-bit document's tiff: a one-channel float TIFF); a PSD is export_psd's, "
                     + "and every other format refuses (convert to RGB Color first)."
             case "get_precision":
-                note = " A Grayscale document (#547) answers color_mode gray, mode gray8, gray16 or "
+                note = " A Grayscale document (#1) answers color_mode gray, mode gray8, gray16 or "
                     + "gray32, its gray_profile, and its own supported_tools, supported_menu_items "
                     + "and blend_modes; every other tool refuses for good, by name."
             case "render":
-                note = " A Grayscale document (#547) renders its composite with no channel, channel "
+                note = " A Grayscale document (#1) renders its composite with no channel, channel "
                     + "gray (no layer: its one gray plane, the 8-bit display of its codes; at 32 bits "
                     + "of the tone-mapped display), channel mask with a layer, or an alpha channel's "
                     + "name with no layer; any other channel refuses."
             case "sample_color":
-                note = " An 8- or 16-bit Grayscale document (#547) also reports gray_k_percent, "
+                note = " An 8- or 16-bit Grayscale document (#1) also reports gray_k_percent, "
                     + "100 × (1 − gray), the Info panel's K."
             case "brush_stroke", "fill", "gradient":
-                note = " In a Grayscale document (#547) the colour paints its gray by Image ▸ Mode ▸ "
+                note = " In a Grayscale document (#1) the colour paints its gray by Image ▸ Mode ▸ "
                     + "Grayscale's rule (its luminance in the Gray profile), R = G = B, at 8, 16 and 32 "
                     + "bits; target is layer, mask or channel:<name> (the Gray channel is the layer; "
                     + "red, green, blue and alpha refuse for good), ink refuses, and blend_mode takes "
                     + "the Grayscale modes."
             case "eraser_stroke":
-                note = " In a Grayscale document (#547) target is layer, mask or channel:<name>."
+                note = " In a Grayscale document (#1) target is layer, mask or channel:<name>."
             case "apply_filter":
-                note = " In a Grayscale document (#547) the adjustments bcs/adjust, levels, curves, "
+                note = " In a Grayscale document (#1) the adjustments bcs/adjust, levels, curves, "
                     + "exposure, invert, posterize, threshold, gradient_map (stops stored as their "
                     + "gray), shadows_highlights and replace_color run on the gray values; Levels' and "
                     + "Curves' r, g and b must be absent or alike; vibrance, hue_saturation, "
@@ -126,39 +126,39 @@ extension AgentServer {
                     + "(red, green, blue and alpha refuse for good)."
             case "dodge_burn", "blur_stroke", "sharpen_stroke", "smudge_stroke", "heal_stroke",
                  "spot_heal_stroke", "patch_region":
-                note = " In a Grayscale document (#547) it runs on the gray values (R = G = B) at 8, "
+                note = " In a Grayscale document (#1) it runs on the gray values (R = G = B) at 8, "
                     + "16 and 32 bits on the layer, or its mask where an RGB document takes one."
             case "sponge_stroke":
-                note = " In a Grayscale document (#547) the Sponge moves gray levels away from "
+                note = " In a Grayscale document (#1) the Sponge moves gray levels away from "
                     + "(saturate) or toward (desaturate) the middle gray; vibrance changes nothing "
                     + "there."
             case "clone_stamp":
-                note = " In a Grayscale document (#547) blend_mode takes the Grayscale modes, and the "
+                note = " In a Grayscale document (#1) blend_mode takes the Grayscale modes, and the "
                     + "source is the same Grayscale document."
             case "history_brush_stroke":
-                note = " In a Grayscale document (#547) the state must be from after Image ▸ Mode ▸ "
+                note = " In a Grayscale document (#1) the state must be from after Image ▸ Mode ▸ "
                     + "Grayscale; an earlier RGB state refuses by name."
             case "fade":
-                note = " In a Grayscale document (#547) mode takes the Grayscale modes; Darker "
+                note = " In a Grayscale document (#1) mode takes the Grayscale modes; Darker "
                     + "Color, Lighter Color, Hue, Saturation, Color and Luminosity refuse."
             case "red_eye", "red_eye_auto":
-                note = " A Grayscale document (#547) refuses it: Doctored offers Remove Red Eye "
+                note = " A Grayscale document (#1) refuses it: Doctored offers Remove Red Eye "
                     + "on RGB documents only."
             case "add_adjustment_layer", "edit_adjustment_layer":
-                note = " In a Grayscale document (#547) op is bcs, levels, curves, exposure, invert, "
+                note = " In a Grayscale document (#1) op is bcs, levels, curves, exposure, invert, "
                     + "posterize, threshold or gradient_map (Levels' and Curves' r, g and b absent or "
                     + "alike); shadows_highlights and replace_color apply to pixels only (apply_filter), "
                     + "and every other op refuses by name."
             case "auto_tone", "auto_contrast", "equalize":
-                note = " In a Grayscale document (#547) it runs on the gray values (Auto Tone and Auto "
+                note = " In a Grayscale document (#1) it runs on the gray values (Auto Tone and Auto "
                     + "Contrast at 8 and 16 bits); auto_color refuses."
             case "export_preview", "quick_export":
-                note = " A Grayscale document (#547) with profile document keeps gray, as "
+                note = " A Grayscale document (#1) with profile document keeps gray, as "
                     + "export_image: png, tiff or jpeg as ONE channel at bit_depth 8 or 16 with its "
                     + "Gray profile embedded, and a 32-bit document's tiff at bit_depth 32 too; "
                     + "another format has no one-channel export."
             case "export_psd", "inspect_psd_export":
-                note = " A Grayscale document (#547) writes a Grayscale (colour mode 1) PSD, PSB or "
+                note = " A Grayscale document (#1) writes a Grayscale (colour mode 1) PSD, PSB or "
                     + "layered TIFF at its declared bit_depth (8 or 16) in Photoshop's gray layout: "
                     + "ONE gray composite channel (no merged-alpha plane; a layered TIFF of one "
                     + "sample), its Gray profile embedded, effect colours as Grsc, Blend If on Gray; "
@@ -168,41 +168,41 @@ extension AgentServer {
                     + "layered TIFF is RGB only."
             case "inspect_psd":
                 note = " A Grayscale file (colour mode 1) at 8 or 16 bits — PSD, PSB or a layered "
-                    + "gray TIFF — or a 32-bit PSD or PSB answers import_precision \"gray\" (#547): "
+                    + "gray TIFF — or a 32-bit PSD or PSB answers import_precision \"gray\" (#1): "
                     + "it opens as a Grayscale document with either choice, its effects' Grsc colours "
                     + "carried as gray, Blend If on Gray only, a refused adjustment and every fill "
                     + "layer omitted by name, profile the embedded Gray profile (null when untagged: "
                     + "the working Gray is assigned at open; at 32 bits the linear twin of a built-in "
                     + "names that built-in)."
             case "stroke_selection":
-                note = " In a Grayscale document (#547) the stroke paints color's gray by Image ▸ "
+                note = " In a Grayscale document (#1) the stroke paints color's gray by Image ▸ "
                     + "Mode ▸ Grayscale's rule, R = G = B, at 8, 16 and 32 bits, with a selection or "
                     + "on the layer's edge; ink refuses, and blend_mode takes the Grayscale modes."
             case "content_aware_fill", "preview_content_aware_fill",
                  "discard_content_aware_fill_preview", "content_aware_move":
-                note = " In a Grayscale document (#547) it fills from the gray values, R = G = B, at "
+                note = " In a Grayscale document (#1) it fills from the gray values, R = G = B, at "
                     + "8, 16 and 32 bits."
             case "remove_stroke":
-                note = " In a Grayscale document (#547) at 8 and 16 bits each removed pixel is folded "
+                note = " In a Grayscale document (#1) at 8 and 16 bits each removed pixel is folded "
                     + "to one gray value (the model's colour to its Rec. 709 luma), R = G = B."
             case "art_history_brush_stroke":
-                note = " A Grayscale document (#547) runs it at 8 bits only (16 refuses), "
+                note = " A Grayscale document (#1) runs it at 8 bits only (16 refuses), "
                     + "from a Grayscale state, with blend_mode Normal, Darken or Lighten; "
                     + "Hue, Saturation, Color and Luminosity refuse."
             case "hdr_toning":
-                note = " A Grayscale document (#547) at 8 or 16 bits tones its gray values and keeps "
+                note = " A Grayscale document (#1) at 8 or 16 bits tones its gray values and keeps "
                     + "Grayscale at its own bit_depth, R = G = B; a 32-bit Grayscale document tones "
                     + "into a Grayscale document at bit_depth 8 or 16 (default 16), as Image ▸ Mode ▸ "
                     + "8/16 Bits/Channel does there."
             case "assign_profile":
-                note = " On a Grayscale document (#547) profile is working_gray (the default: Edit ▸ "
+                note = " On a Grayscale document (#1) profile is working_gray (the default: Edit ▸ "
                     + "Color Settings' working Gray), a Gray space (" + grayspaces + "), installed "
                     + "with name or file with path, a Gray profile; every gray value is kept and only "
                     + "the profile changes. An RGB or CMYK profile (srgb, display_p3, an RGB or CMYK "
                     + "file) refuses by name. Replies color_mode gray, profile, "
                     + "previous_profile and depth."
             case "convert_profile":
-                note = " On a Grayscale document (#547) profile is working_gray (the default), a Gray "
+                note = " On a Grayscale document (#1) profile is working_gray (the default), a Gray "
                     + "space (" + grayspaces + "), installed with name or file with path, a Gray "
                     + "profile: every layer's gray values are re-encoded so the picture keeps its "
                     + "appearance, R = G = B, on the 8-bit grid in an 8-bit document; intent and "
@@ -212,13 +212,13 @@ extension AgentServer {
                     + "apply. Type, shape and fill layers stay editable: each re-renders from its "
                     + "gray colours in the new profile (assign_profile too)."
             case "convert_precision":
-                note = " A Grayscale document (#547) takes mode gray8, gray16 or gray32 (Image ▸ Mode ▸ "
+                note = " A Grayscale document (#1) takes mode gray8, gray16 or gray32 (Image ▸ Mode ▸ "
                     + "8/16/32 Bits/Channel, one undo step): 16 → 8 rounds every sample to the 8-bit "
                     + "grid, 8 → 16 keeps them, → 32 decodes them to linear gray; from 32 bits it "
                     + "refuses, and hdr_toning with bit_depth 8 or 16 converts. "
                     + "structure and flatten do not apply."
             case "convert_mode":
-                note = " RGB to Grayscale (#547) carries every adjustment layer a Grayscale document "
+                note = " RGB to Grayscale (#1) carries every adjustment layer a Grayscale document "
                     + "holds (a Gradient Map's stops greyed by the Mode rule); one it cannot hold "
                     + "(Hue/Saturation and the other colour adjustments, Levels or Curves with unlike "
                     + "channels) is named, and flatten converts. Mode cmyk from an 8- or 16-bit "
@@ -234,99 +234,99 @@ extension AgentServer {
                     + "convert_profile detaches them on RGB."
             case "add_text_layer", "edit_text_layer", "add_shape_layer", "edit_shape_layer",
                  "add_fill_layer", "edit_fill_layer":
-                note = " In a Grayscale document (#547) every colour — a run's, a stop's, a custom "
+                note = " In a Grayscale document (#1) every colour — a run's, a stop's, a custom "
                     + "pattern's texels — is stored as its gray by Image ▸ Mode ▸ Grayscale's rule "
                     + "and renders R = G = B; get_document reports the gray; ink refuses."
             case "rasterize_artwork":
-                note = " A Grayscale document (#547) rasterizes a type, shape or fill layer to its "
+                note = " A Grayscale document (#1) rasterizes a type, shape or fill layer to its "
                     + "gray pixels, as on an RGB document."
             case "fill_path", "stroke_path":
-                note = " In a Grayscale document (#547) the path is painted with color's gray by "
+                note = " In a Grayscale document (#1) the path is painted with color's gray by "
                     + "Image ▸ Mode ▸ Grayscale's rule, R = G = B; ink refuses, and its blend mode "
                     + "takes the Grayscale modes."
             case "list_paths", "set_path", "rename_path", "duplicate_path", "delete_path",
                  "selection_to_path", "path_to_selection", "get_vector_mask", "set_vector_mask",
                  "set_vector_mask_properties", "remove_vector_mask":
-                note = " A Grayscale document (#547) holds paths and vector masks, as an RGB "
+                note = " A Grayscale document (#1) holds paths and vector masks, as an RGB "
                     + "document does, and keeps them in .doctored."
             case "list_layer_comps", "save_layer_comp", "apply_layer_comp", "update_layer_comp",
                  "delete_layer_comp", "reorder_layer_comp":
-                note = " A Grayscale document (#547) holds layer comps, as an RGB document does, and "
+                note = " A Grayscale document (#1) holds layer comps, as an RGB document does, and "
                     + "keeps them in .doctored; applying one skips a recorded blend mode or style the mode "
                     + "cannot hold."
             case "link_layers", "unlink_layers", "list_snapshots", "create_snapshot",
                  "rename_snapshot", "delete_snapshot", "restore_snapshot", "save_snapshot",
                  "load_snapshot":
-                note = " A Grayscale document (#547) takes it as on an RGB document."
+                note = " A Grayscale document (#1) takes it as on an RGB document."
             case "clear_selection":
-                note = " In a Grayscale document (#547) it erases the selected pixels of a Grayscale "
+                note = " In a Grayscale document (#1) it erases the selected pixels of a Grayscale "
                     + "layer, mask or alpha channel."
             case "get_proof_setup", "set_proof_setup", "render_proof":
-                note = " A Grayscale document (#547) at 8 or 16 bits proofs as RGB: its composite, "
+                note = " A Grayscale document (#1) at 8 or 16 bits proofs as RGB: its composite, "
                     + "R = G = B, through its Gray profile, so preserve_numbers refuses as on an RGB "
                     + "document; a 32-bit Grayscale document refuses, as a float document."
             case "open_document":
                 note = " A Grayscale PSD, PSB or layered TIFF at 8 or 16 bits, or a PSD or PSB at "
                     + "32 (inspect_psd import_precision \"gray\"), opens as a Grayscale document at "
                     + "its depth with either psd_mode, its Gray profile kept (an untagged file takes "
-                    + "the working Gray) (#547); a one-channel float TIFF with a Gray profile opens "
+                    + "the working Gray) (#1); a one-channel float TIFF with a Gray profile opens "
                     + "as a 32-bit Grayscale document."
             case "histogram":
-                note = " A Grayscale document (#547) answers channels [\"gray\"]: bins and "
+                note = " A Grayscale document (#1) answers channels [\"gray\"]: bins and "
                     + "bin_weight_units hold the one Gray row (R = G = B), no _luma keys; source "
                     + "scalar takes target mask or channel:<name> (red, green, blue and alpha refuse "
                     + "for good)."
             case "apply_image":
-                note = " In a Grayscale document (#547) target is layer (its Gray, blended as one "
+                note = " In a Grayscale document (#1) target is layer (its Gray, blended as one "
                     + "plane and written R = G = B, one undo step) or channel:<name>; source_plane "
                     + "is gray, alpha or an alpha channel's name; blend_mode takes the Grayscale "
                     + "modes; a 32-bit Grayscale document refuses, as a float document."
             case "calculations":
-                note = " In a Grayscale document (#547) source1_plane and source2_plane are gray, "
+                note = " In a Grayscale document (#1) source1_plane and source2_plane are gray, "
                     + "alpha or an alpha channel's name, and blend_mode takes the Grayscale modes."
             case "stack_mode", "reduce_noise_from_stack", "auto_align_layers", "auto_blend_layers":
-                note = " A Grayscale document (#547) runs it on the gray values through the RGB "
+                note = " A Grayscale document (#1) runs it on the gray values through the RGB "
                     + "kernel, R = G = B, as on an RGB document."
             case "load_files_into_stack", "merge_panorama":
-                note = " When the first file opens as Grayscale (#547) the stack is Grayscale: every "
+                note = " When the first file opens as Grayscale (#1) the stack is Grayscale: every "
                     + "later file is converted into its Gray profile and depth by Image ▸ Mode ▸ "
                     + "Grayscale's rule, R = G = B."
             case "merge_to_hdr", "merge_layers_to_hdr":
-                note = " Grayscale exposures (#547) merge into a 32-bit Grayscale document in their "
+                note = " Grayscale exposures (#1) merge into a 32-bit Grayscale document in their "
                     + "Gray profile, R = G = B."
             case "select_sky", "select_person_parts", "object_finder_select":
-                note = " A Grayscale document (#547) is read through its view, R = G = B, as the "
+                note = " A Grayscale document (#1) is read through its view, R = G = B, as the "
                     + "model sees an RGB document."
             case "super_zoom", "jpeg_artifacts_removal":
-                note = " In an 8- or 16-bit Grayscale document (#547) the model reads the gray "
+                note = " In an 8- or 16-bit Grayscale document (#1) the model reads the gray "
                     + "values and its result is folded to its gray by Image ▸ Mode ▸ Grayscale's "
                     + "rule (Super Zoom's new document is Grayscale in the same Gray profile); a "
                     + "32-bit Grayscale document refuses, as a float document."
             case "generative_fill", "generative_expand", "generative_variations",
                  "select_generative_variation", "generate_variations":
-                note = " In an 8- or 16-bit Grayscale document (#547) the provider sees the gray "
+                note = " In an 8- or 16-bit Grayscale document (#1) the provider sees the gray "
                     + "composite and every picture lands folded to its gray by Image ▸ Mode ▸ "
                     + "Grayscale's rule, R = G = B; a 32-bit Grayscale document refuses, as a float "
                     + "document."
             case "neural_colorize":
-                note = " A Grayscale document (#547) refuses it for good: a Grayscale layer holds no "
+                note = " A Grayscale document (#1) refuses it for good: a Grayscale layer holds no "
                     + "colour. Convert to RGB Color first."
             case "sky_replacement":
-                note = " A Grayscale document (#547) refuses it for good: Doctored offers Sky "
+                note = " A Grayscale document (#1) refuses it for good: Doctored offers Sky "
                     + "Replacement on RGB documents only."
             case "place_image", "add_live_photo_layer":
-                note = " In a Grayscale document (#547) the placed pixels land folded to their gray "
+                note = " In a Grayscale document (#1) the placed pixels land folded to their gray "
                     + "by Image ▸ Mode ▸ Grayscale's rule, R = G = B, as a plain layer with no "
                     + "retained source; a camera RAW file refuses (Doctored keeps RAW layers on RGB "
                     + "documents only)."
             case "export_layers":
-                note = " A Grayscale document (#547) with profile document writes each layer as a "
+                note = " A Grayscale document (#1) with profile document writes each layer as a "
                     + "one-channel PNG, TIFF or JPEG with its Gray profile embedded, as export_image."
             case "export_pdf":
-                note = " A Grayscale document (#547) writes its composite, R = G = B, as on an RGB "
+                note = " A Grayscale document (#1) writes its composite, R = G = B, as on an RGB "
                     + "document."
             case "copy_layers_to_document":
-                note = " Into or out of a Grayscale document (#547) the layers convert as paste "
+                note = " Into or out of a Grayscale document (#1) the layers convert as paste "
                     + "does, and type, shape and fill layers stay editable, each re-rendered from "
                     + "its authored colours (into Gray as their gray)."
             default:
@@ -355,10 +355,10 @@ extension AgentServer {
         }
         if name == "convert_precision" {
             appending("mode", ["gray8", "gray16", "gray32"],
-                      note: "gray8, gray16 and gray32 apply to a Grayscale document (#547), and only there.")
+                      note: "gray8, gray16 and gray32 apply to a Grayscale document (#1), and only there.")
         } else {
             appending("profile", ["installed", "working_gray"] + GrayWorkingSpace.allCases.map(\.rawValue),
-                      note: "On a Grayscale document (#547): working_gray (the default), a Gray space "
+                      note: "On a Grayscale document (#1): working_gray (the default), a Gray space "
                         + "by name, installed or file; srgb and display_p3 refuse there.")
             if name == "convert_profile", properties["name"] == nil {
                 properties["name"] = [

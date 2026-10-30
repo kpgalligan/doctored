@@ -1,4 +1,4 @@
-//! The Filter menu on a CMYK document (#547): every destructive filter
+//! The Filter menu on a CMYK document (#1): every destructive filter
 //! a CMYK document admits, run through the RGB selected-filter path
 //! (`selected_adjustment` / `selected_filter`, unchanged) in two RGBA16
 //! passes over the layer's stored domain `L = 1 − ink`:

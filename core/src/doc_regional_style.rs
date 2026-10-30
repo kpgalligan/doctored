@@ -134,7 +134,7 @@ pub(crate) struct Styled {
     pub(crate) fill: f32,
     pub(crate) blend_if: Option<BlendIf>,
     /// `style_composite::occluding_fill` of the style and the layer's mode:
-    /// what a Below stroke band divides by (#578).
+    /// what a Below stroke band divides by (#2).
     pub(crate) occluding_fill: f32,
     pub(crate) planes: Option<Arc<RenderedEffects>>,
     pub(crate) inks: Vec<Ink>,
@@ -342,7 +342,7 @@ impl ResolvedNode<'_> {
                     self.pixel_pass(&mut buf, 0, under, 1.0, BlendMode::Normal, pixel, canvas_xy);
                     let a = buf[0][3];
                     let limit = self.footprint_limit(pixel, canvas_xy);
-                    // `clip_unit`'s Open against the footprint (#578).
+                    // `clip_unit`'s Open against the footprint (#2).
                     // Open only with a member step; a stop leaves it open
                     // (`doc_regional_sample::sample_clip_until`).
                     let footprint = limit.unwrap_or(a);

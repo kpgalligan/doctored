@@ -1,4 +1,4 @@
-//! #547 Bitmap phase 2a-i through the FFI: painting in black and white and
+//! #1 Bitmap phase 2a-i through the FFI: painting in black and white and
 //! the bit-exact geometry (`bitmap_edit`, the rule `bitmap_method::
 //! white_over`).
 //!

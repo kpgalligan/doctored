@@ -1,5 +1,5 @@
 //! Move, Transform, Puppet Warp and Perspective Warp of a CMYK layer's
-//! SELECTED PIXELS, and their float bounds (#547 phase 4b): the typed RGBA16
+//! SELECTED PIXELS, and their float bounds (#1 phase 4b): the typed RGBA16
 //! arm of `precision_selected_pixels` over a CMYK document's straight
 //! CMYKA16 ink, through the ONE walk (`selected_pixels_walk::move_samples`,
 //! the master, every landing) at `[u16; 4]`.

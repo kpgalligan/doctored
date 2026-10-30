@@ -1,7 +1,7 @@
-//! CMYK files as CMYK documents (#547 phase 1): the TIFF, JPEG and PSD
+//! CMYK files as CMYK documents (#1 phase 1): the TIFF, JPEG and PSD
 //! saved-composite opens, the TIFF, PSD and JPEG-intermediate saves, and
 //! their plans. A layered CMYK PSD, PSB or TIFF (Import Layers, mode 0) is
-//! `psd_import_cmyk`'s (#547 phase 3).
+//! `psd_import_cmyk`'s (#1 phase 3).
 //!
 //! # Which files open as CMYK
 //!
@@ -190,7 +190,7 @@ impl PrecisionDocument {
                 job.reserve(scratch)?;
                 let samples = crate::cmyk_tiff_read::read_samples(bytes, path, &layout)?;
                 job.check()?;
-                // Spot channels kept (#547 1c-2a, `tiff_spot`) are not unread.
+                // Spot channels kept (#1 1c-2a, `tiff_spot`) are not unread.
                 let kept =
                     crate::tiff_spot::tiff_spot_records(bytes, scan.metadata.iptc.as_deref())
                         .map_or(0, |(_, records)| records.kept.len() as u16);
@@ -602,7 +602,7 @@ impl PrecisionDocument {
 
     /// The flattened CMYK PSD (`large` = a PSB, version 2) a PSD save
     /// writes, its profile embedded: the flattened mode of a CMYK
-    /// `export_psd` (#547 phase 3, `psd_export_cmyk`). Admission belongs to
+    /// `export_psd` (#1 phase 3, `psd_export_cmyk`). Admission belongs to
     /// the caller.
     pub(crate) fn cmyk_flat_psd(
         &self,

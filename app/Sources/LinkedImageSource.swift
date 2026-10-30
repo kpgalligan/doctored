@@ -28,7 +28,7 @@ enum LinkedImageWork {
             return notes.isEmpty ? nil : notes.joined(separator: " ")
         }
         // A camera file lands a retained RAW layer (`RawSourcePlacement`), which a Grayscale
-        // or Lab Color document does not hold (#547: `GrayDocument.rawTools`, `LabDocument.rawTools`).
+        // or Lab Color document does not hold (#1: `GrayDocument.rawTools`, `LabDocument.rawTools`).
         if RawSourcePlacement.claims(url), document.doc?.isGray == true {
             throw DoctoredCoreError(message: GrayDocument.rawRefusal(tool: "Placing a camera RAW file"))
         }

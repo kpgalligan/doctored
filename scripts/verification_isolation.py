@@ -31,7 +31,7 @@ PRESET_DIRECTORIES = {"DR_RAW_PRESETS_DIR": "raw-presets",
                       "DR_PRINTERS_DIR": "printers",
                       "DR_MODELS_DIR": "models",
                       "DR_SKIES_DIR": "skies",
-                      # Edit ▸ Color Settings' keys (#547): `ColorSettingsStore` reads launch
+                      # Edit ▸ Color Settings' keys (#1): `ColorSettingsStore` reads launch
                       # arguments, then `color-settings.plist` here, so an owned instance never
                       # follows (or writes) the person's own Color Settings.
                       "DR_COLOR_SETTINGS_DIR": "color-settings",

@@ -1,4 +1,4 @@
-//! A Duotone document out of Duotone (#547, `designs/duotone-mode.md`):
+//! A Duotone document out of Duotone (#1, `designs/duotone-mode.md`):
 //! the render through the inks, its plan, and Image ▸ Mode ▸ RGB Color.
 //! Grayscale and Bitmap are `duotone_gray`'s, through the same tree
 //! assembly ([`PrecisionDocument::duotone_leaves_mapped`]).

@@ -278,7 +278,7 @@ enum RawSourceWork {
     /// twin, every twin E 0): charge ÷ max E for O32/W32/K32 is 1.271/1.286/
     /// 1.269 on the 6 MP NEF, 1.548/1.555/2.006 on D24 and 2.091/2.102/2.090
     /// on the 45 MP D850; V32 (the Develop session's float charge, + 24 B/px of
-    /// inspection copies) 1.378, 1.721 and 2.257. Since #680 (grain at
+    /// inspection copies) 1.378, 1.721 and 2.257. Since #4 (grain at
     /// float, the extended Fit in V's frame): OG32 (the open with grain)
     /// 1.283/1.553/1.394, VG32 (its preview) 1.387/1.726/1.716 and V32
     /// 1.387/1.726/2.261. Every case ≥ 1.25, so no

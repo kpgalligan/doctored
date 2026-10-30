@@ -1,4 +1,4 @@
-//! Levels and Curves' tools on a CMYK document (#547 phase 5), through the
+//! Levels and Curves' tools on a CMYK document (#1 phase 5), through the
 //! FFI: the per-plate histograms of `L = 1 − ink` against hand-built
 //! distributions (selection coverage and the backdrop source included);
 //! Auto's endpoints, both algorithms with asymmetric clips, against an

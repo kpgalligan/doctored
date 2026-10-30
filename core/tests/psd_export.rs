@@ -953,7 +953,7 @@ fn null_and_out_of_range_arguments_are_refused() {
 }
 
 /// Photoshop reads a Color Burn, Color Dodge or Difference PIXEL record
-/// without `iOpa` as a pre-Fill legacy layer (#578 take1: opacity 153 came
+/// without `iOpa` as a pre-Fill legacy layer (#2 take1: opacity 153 came
 /// back as opacity 255, Fill 153), so those three always write it, at 255
 /// too; every other mode, and a group section in any mode, writes it only
 /// below 100 % Fill, as before.
@@ -1004,7 +1004,7 @@ fn legacy_fill_modes_always_write_iopa_on_pixel_records() {
     assert_eq!(group.fill, None, "a group section keeps today's blocks");
 }
 
-/// #578's per-mode table as the layered report states it (take1-3,
+/// #2's per-mode table as the layered report states it (take1-3,
 /// `scripts/photoshop-probe/psd_appearance_578_take.py --rejudge`): a
 /// QUALIFIED mode (Overlay) and a mode qualified at 100 % Fill used at full
 /// Fill (Difference) are named nowhere; an OUT mode (Divide, Dissolve) is

@@ -1,4 +1,4 @@
-//! Alpha channels, vector masks and their DRDC 85 on a CMYK document (#547,
+//! Alpha channels, vector masks and their DRDC 85 on a CMYK document (#1,
 //! the channels batch), through the FFI: the channel edits (set, duplicate,
 //! remove, rename, properties, import, a scalar fill, `read_plane`) keep the
 //! ink bit-identical and the planes exactly what they were given; a vector

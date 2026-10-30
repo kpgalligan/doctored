@@ -1,4 +1,4 @@
-//! The 1-bit files of a Bitmap document (#547 Bitmap phase 1c, KERNEL):
+//! The 1-bit files of a Bitmap document (#1 Bitmap phase 1c, KERNEL):
 //! which PNG, TIFF and BMP files hold one packed plane ([`facts`], header
 //! work only), their decode to `bitmap_method`'s plane ([`decode`]: MSB
 //! first, 1 white, pad bits 0, every format), the PNG and BMP encoders and

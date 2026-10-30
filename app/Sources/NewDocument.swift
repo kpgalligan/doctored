@@ -96,12 +96,12 @@ enum NewDocumentBackground: Equatable {
     var isTransparent: Bool { self == .transparent }
 }
 
-/// File ▸ New's Color Mode (#547 phases 5 and 1a): an RGB document, a CMYK
+/// File ▸ New's Color Mode (#1 phases 5 and 1a): an RGB document, a CMYK
 /// document of ink in a CMYK profile at 8 or 16 bits, or a Grayscale document
 /// in a Gray profile at 8, 16 or 32 bits.
 enum NewDocumentColorMode: String, CaseIterable {
     case rgb, cmyk, gray
-    /// A Lab Color document (#547 Lab phase 1) at 8 or 16 bits, in the core's Lab twin.
+    /// A Lab Color document (#1 Lab phase 1) at 8 or 16 bits, in the core's Lab twin.
     case lab
 
     var displayName: String {
@@ -121,11 +121,11 @@ enum NewDocumentProfile: Equatable {
     case srgb, displayP3
     /// The working CMYK profile (Edit ▸ Color Settings), a CMYK document's default.
     case workingCMYK
-    /// The working Gray (Edit ▸ Color Settings), a Grayscale document's default (#547 phase 1a).
+    /// The working Gray (Edit ▸ Color Settings), a Grayscale document's default (#1 phase 1a).
     case workingGray
     /// One of the built-in Gray spaces, by its wire name.
     case graySpace(GrayWorkingSpace)
-    /// A Lab Color document's one profile, the core's Lab twin (#547 Lab phase 1).
+    /// A Lab Color document's one profile, the core's Lab twin (#1 Lab phase 1).
     case lab
     /// A path to an ICC profile file.
     case file(String)
@@ -160,7 +160,7 @@ enum NewDocumentProfile: Equatable {
         return false
     }
 
-    /// A Grayscale document's profile (#547 phase 1a): `working` (the working Gray), a Gray
+    /// A Grayscale document's profile (#1 phase 1a): `working` (the working Gray), a Gray
     /// space's wire name (`dot_gain_20`, `sgray`, …) or the path of a Gray ICC profile; anything
     /// else is refused by name.
     static func gray(name: String) throws -> NewDocumentProfile {
@@ -176,7 +176,7 @@ enum NewDocumentProfile: Equatable {
         return .file(name)
     }
 
-    /// A CMYK document's profile (#547 phase 5): `working` (the working CMYK) or the path of a
+    /// A CMYK document's profile (#1 phase 5): `working` (the working CMYK) or the path of a
     /// CMYK ICC profile; anything else is refused by name.
     static func cmyk(name: String) throws -> NewDocumentProfile {
         if ["working", "working_cmyk"].contains(name) { return .workingCMYK }
@@ -272,7 +272,7 @@ struct NewDocumentRequest: Equatable {
     /// 8, 16 or 32 (32-bit float; see the file's doc comment); 8 or 16 for CMYK.
     let depth: Int
     let background: NewDocumentBackground
-    /// RGB or (#547 phase 5) CMYK.
+    /// RGB or (#1 phase 5) CMYK.
     let colorMode: NewDocumentColorMode
 
     init(name: String? = nil, width: Int, height: Int, ppi: Double = 300,
@@ -414,7 +414,7 @@ struct NewDocumentRequest: Equatable {
         return document
     }
 
-    /// File ▸ New in CMYK (#547 phase 5): one record of `background` — white is bare paper,
+    /// File ▸ New in CMYK (#1 phase 5): one record of `background` — white is bare paper,
     /// transparent alpha 0, black or a colour that colour separated through the NEW document's
     /// profile (`dr_cmyk_color`, Color Settings' intent and BPC) — at this depth and ppi.
     private func makeCMYK() throws -> RasterDocument {
@@ -439,7 +439,7 @@ struct NewDocumentRequest: Equatable {
         }
     }
 
-    /// File ▸ New in Grayscale (#547 phase 1a): one record of `background`'s luminance in the
+    /// File ▸ New in Grayscale (#1 phase 1a): one record of `background`'s luminance in the
     /// Gray profile (`dr_precision_doc_new_gray`) at this depth and ppi; 32 bits is the 16-bit
     /// blank promoted to float.
     private func makeGray() throws -> RasterDocument {
@@ -464,7 +464,7 @@ struct NewDocumentRequest: Equatable {
             workingLimit: context.limit, otherRetained: context.otherRetained))
     }
 
-    /// File ▸ New in Lab Color (#547 Lab phase 1): one record of `background` converted by Image ▸
+    /// File ▸ New in Lab Color (#1 Lab phase 1): one record of `background` converted by Image ▸
     /// Mode ▸ Lab Color's rule from sRGB (`dr_precision_doc_new_lab`) at this depth and ppi.
     private func makeLab() throws -> RasterDocument {
         let context = try PrecisionWorkContext()
@@ -502,7 +502,7 @@ struct NewDocumentPreset: Equatable {
             "height": request.length(request.height, in: unit),
             "unit": unit.rawValue, "ppi": request.ppi, "profile": request.profile.name,
             "depth": request.depth, "background": request.background.name]
-        // #547 phases 5 and 1a: written for a CMYK or Grayscale preset only; absent is RGB.
+        // #1 phases 5 and 1a: written for a CMYK or Grayscale preset only; absent is RGB.
         if request.colorMode != .rgb { out["color_mode"] = request.colorMode.rawValue }
         return out
     }

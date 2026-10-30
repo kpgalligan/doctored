@@ -509,7 +509,7 @@ extension ExternalClipboardImage {
     /// sRGB when the ingest decodes into sRGB. nil when the pasteboard holds
     /// no image.
     ///
-    /// #547 phase 4c: `cmyk` is the pasteboard's own TIFF read as a CMYK
+    /// #1 phase 4c: `cmyk` is the pasteboard's own TIFF read as a CMYK
     /// payload when it is one (`cmykPayload`, an untagged one taking
     /// `cmykFallback`, else the working CMYK), and `platformModel` names the
     /// colour model CoreGraphics converted from while decoding a Gray, Lab or

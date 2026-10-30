@@ -1,4 +1,4 @@
-//! Palette TIFFs as Indexed Color documents (#547 Indexed phase 1b): which
+//! Palette TIFFs as Indexed Color documents (#1 Indexed phase 1b): which
 //! TIFFs are one ([`palette_tiff`], header work only through the shared
 //! `tiff_directory` walk), their decode to indices and a transparent index
 //! ([`decode`]), the open's plan ([`open_plan`]) and the export preview's

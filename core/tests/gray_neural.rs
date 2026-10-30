@@ -1,4 +1,4 @@
-//! #547 phase 6b: the neural, generative and Merge to HDR results on a
+//! #1 phase 6b: the neural, generative and Merge to HDR results on a
 //! Grayscale document through the FFI. Each brings in colour from outside
 //! the document (a model, a provider, the merge), and the core folds it to
 //! its gray by the Mode rule before it lands.

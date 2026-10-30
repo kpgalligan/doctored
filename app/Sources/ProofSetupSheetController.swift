@@ -13,7 +13,7 @@ import UniformTypeIdentifiers
 /// through: both an A2B and a B2A table. A CMYK press profile is the normal
 /// case and is exactly what this build cannot use as a document profile, so
 /// the list here is deliberately wider than the Convert sheet's. On a CMYK
-/// document (#547 phase 5) it lists CMYK profiles only, shows Preserve CMYK
+/// document (#1 phase 5) it lists CMYK profiles only, shows Preserve CMYK
 /// Numbers and disables Gamut Warning.
 final class ProofSetupSheetController: NSViewController {
     private weak var editor: EditorViewController?
@@ -30,7 +30,7 @@ final class ProofSetupSheetController: NSViewController {
                             target: nil, action: nil)
     private let warningBox = NSButton(checkboxWithTitle: "Gamut Warning",
                                       target: nil, action: nil)
-    /// Preserve CMYK Numbers (#547 phase 5): shown on a CMYK document only.
+    /// Preserve CMYK Numbers (#1 phase 5): shown on a CMYK document only.
     let preserveBox = NSButton(checkboxWithTitle: "Preserve CMYK Numbers",
                                target: nil, action: nil)
     /// A CMYK document proofs through CMYK profiles only, with no gamut warning.

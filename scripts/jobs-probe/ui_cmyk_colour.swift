@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK colour workflow's in-process UI cases (#547 phase 5): Edit ▸ Color Settings… through its
+// The CMYK colour workflow's in-process UI cases (#1 phase 5): Edit ▸ Color Settings… through its
 // own controls (OK stores, Cancel keeps, the working CMYK reinstalled), File ▸ New's Color Mode
 // popup making a CMYK document of bare paper, and Levels and Curves on a CMYK document — the
 // histogram of L per ink, Auto, the three eyedroppers (driven through the dialog's own tool row)

@@ -72,7 +72,7 @@ succeed after the switch to `sdr16`), refusals (by name:
 `precision: rgba8` with `linear_float`; `linear_float` on a 16-bit
 document's layer; `output_encoding` in `apply_raw_settings` and in
 `save_raw_preset`'s `raw`; a tone curve applies at float, and grain
-since #680, and `scripts/verify_v1x_raw_hdr.py` drives both), presence (nonzero Texture, Clarity or Dehaze
+since #4, and `scripts/verify_v1x_raw_hdr.py` drives both), presence (nonzero Texture, Clarity or Dehaze
 refused with `RawPresenceSettings.floatRefusal` by `open_document`,
 `redevelop_raw`, `edit_raw_development` and `apply_raw_settings`; all three
 at 0 opens and redevelops), local tone (a local `tone` refused with

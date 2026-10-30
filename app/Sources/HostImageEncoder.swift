@@ -243,7 +243,7 @@ enum HostImageEncoder {
         return Encoded(bytes: written, bitDepth: measured.depth, carried: measured.carried)
     }
 
-    /// A CMYK document's JPEG (#547): the core's 8-bit CMYK TIFF intermediate
+    /// A CMYK document's JPEG (#1): the core's 8-bit CMYK TIFF intermediate
     /// (`dr_precision_doc_save_cmyk`'s `jpeg_intermediate`, its CMYK profile
     /// embedded when asked) transcoded by ImageIO, which keeps the CMYK
     /// colour space and the profile the intermediate carries, so the file is
@@ -356,7 +356,7 @@ enum HostImageEncoder {
     /// `jpeg` without the packet segments `cmykJPEG` was told to drop:
     /// `exif`, its `Exif\0\0` APP1s — ImageIO restates the XMP's `dc:rights`
     /// and the DPI as an Exif IFD0 even with every Exif input left out, and
-    /// writes the JFIF density unitless beside it (measured, #547), so the
+    /// writes the JFIF density unitless beside it (measured, #1), so the
     /// JFIF APP0 then states `dpi` in dots per inch; `xmp`, its XMP APP1s
     /// (the packet and any extension); `iptc`, its `Photoshop 3.0` APP13s,
     /// which ImageIO writes to hold the IPTC record alone. Every other
@@ -434,7 +434,7 @@ enum HostImageEncoder {
         // profile" is answered by the file's own `colr` box, which is what
         // `heif-info` and `magick` read.
         if carriesEmbeddedProfile(data) { carried |= DR_CARRIES_PROFILE }
-        // A JPEG's packets are its segments (a kept-CMYK export, #547): its
+        // A JPEG's packets are its segments (a kept-CMYK export, #1): its
         // `Exif` APP1, its XMP APP1 and its `Photoshop 3.0` APP13's IPTC
         // resource. ImageIO reads XMP's `dc:rights` back as a `{TIFF}`
         // Copyright and an `{IPTC}` notice and the Exif tags back as XMP, so
@@ -470,7 +470,7 @@ enum HostImageEncoder {
     /// names primaries and a transfer function. This is a read of the
     /// CONTAINER, so it agrees with `heif-info`'s "color profile" line rather
     /// than with what the decoder was able to synthesize. A JPEG (a kept-CMYK
-    /// export, #547) embeds one in its APP2 `ICC_PROFILE` segments.
+    /// export, #1) embeds one in its APP2 `ICC_PROFILE` segments.
     private static func carriesEmbeddedProfile(_ data: Data) -> Bool {
         if let walk = jpegSegments(data) {
             return walk.segments.contains { $0.marker == 0xE2 && $0.opens(with: "ICC_PROFILE\0", in: data) }

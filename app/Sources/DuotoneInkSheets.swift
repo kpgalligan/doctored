@@ -1,6 +1,6 @@
 import AppKit
 
-/// Duotone Options' Curve… (#547 Duotone phase 1a): one ink's 13 fields — the output percent at
+/// Duotone Options' Curve… (#1 Duotone phase 1a): one ink's 13 fields — the output percent at
 /// each input of `DuotoneOptions.curveInputs`, a blank field unset; 0 % and 100 % must be set (the
 /// core refuses otherwise when the options are applied). The curve through the set fields is
 /// Curves' natural spline (`duotone_ink`).
@@ -84,7 +84,7 @@ final class DuotoneCurveSheetController: NSViewController {
     }
 }
 
-/// Duotone Options' Overprint Colors… (#547 Duotone phase 1a): each combination of two or more
+/// Duotone Options' Overprint Colors… (#1 Duotone phase 1a): each combination of two or more
 /// inks with its L*, a*, b* (D50) and swatch, and a Default checkbox: Default shows the colour the
 /// view uses when nothing is authored (the inks' product over paper, `duotone_ink`) and authors
 /// nothing. Overprint colours change the display only.
@@ -169,7 +169,7 @@ final class DuotoneOverprintSheetController: NSViewController {
         for (key, row) in zip(keys, rows) where row.box.state == .off {
             var lab: [Double] = []
             for field in row.fields {
-                // A field that is not a number refuses here, as the Curve sheet's do (#547
+                // A field that is not a number refuses here, as the Curve sheet's do (#1
                 // Duotone phase 1b), rather than becoming 0.
                 let text = field.stringValue.trimmingCharacters(in: .whitespaces)
                 guard let value = Double(text), value.isFinite else {

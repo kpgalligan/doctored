@@ -2,7 +2,7 @@
 //! oracle decodes matrix tags independently, uses analytic inverse gamma/sRGB
 //! encoding and a published-formula Bradford oracle, never the production ICC
 //! transform; equivalent physical patches are authored independently in
-//! multiple profiles. The Exposure oracle is the per-channel rule (#578):
+//! multiple profiles. The Exposure oracle is the per-channel rule (#2):
 //! each channel at the profile's effective pure gamma — 2.2 for the built-in
 //! sRGB and P3 tables, the `curv` exponent for a pure-gamma profile.
 
@@ -284,7 +284,7 @@ fn equivalent_physical_patches_remain_equivalent_after_white_balance() {
         [0.25, 0.25, 0.25],
     ];
     // White Balance only: Exposure runs per channel in each document's own
-    // primaries (#578), so equivalent colours in two profiles no longer
+    // primaries (#2), so equivalent colours in two profiles no longer
     // receive one operation.
     for (op, params) in [(
         "white_balance",
@@ -399,7 +399,7 @@ fn exposure_in_a_pure_power_para_profile_runs_at_its_own_exponent() {
 /// and 16 bits: ITU-2020's shape (type 3: g 2.2222, a 0.90967, b 0.09033,
 /// c 0.22222, d 0.08099; its toe ends just below the power branch's start)
 /// is not the falling-boundary class, whose 1.883 applies only where the
-/// check fails (#578).
+/// check fails (#2).
 #[test]
 fn exposure_in_a_passing_offset_para_profile_stays_at_2_2() {
     let profile = para_profile(

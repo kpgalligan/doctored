@@ -1,4 +1,4 @@
-//! KERNEL: one STYLED CMYK record onto an ink row (#547, the styles batch) —
+//! KERNEL: one STYLED CMYK record onto an ink row (#1, the styles batch) —
 //! a raster, an isolated group or an adjustment carrying
 //! layer effects, a Blend If, knockout or Blend Interior Effects as Group,
 //! composited into one row of straight f32 ink by `cmyk_stack` (its adapter
@@ -117,7 +117,7 @@ pub(crate) struct StyledInk {
     pub interior: Vec<InkColor>,
     /// Fill Opacity, sanitized.
     pub fill: f32,
-    /// What a Below stroke band divides by (`contribution_alpha`, #578): the
+    /// What a Below stroke band divides by (`contribution_alpha`, #2): the
     /// adapter's `style_composite::occluding_fill`.
     pub occluding_fill: f32,
     /// Layer opacity, sanitized.
@@ -336,7 +336,7 @@ fn direct(
             BlendMode::Normal,
             1.0,
         );
-        // `clip_unit`'s Open / Settle / Close (#578).
+        // `clip_unit`'s Open / Settle / Close (#2).
         clip_footprint(unit, at, styled, pixel, ClipStep::Open);
         for i in 0..count {
             render(i, unit);
@@ -401,7 +401,7 @@ fn tone_interior(
     let has_members = members.is_some();
     if let Some((count, render)) = members {
         unit.fill(TRANSPARENT);
-        // `clip_unit`'s Open / Settle / Close (#578): no base pixels in it.
+        // `clip_unit`'s Open / Settle / Close (#2): no base pixels in it.
         clip_footprint(unit, at, styled, pixel, ClipStep::Open);
         for i in 0..count {
             render(i, unit);
@@ -455,7 +455,7 @@ fn tone_interior(
 /// D3's unit pass (`style_knockout::composite_interior_unit_into`, the
 /// master): the pixels at Normal into `unit` (fill 1 when grouped, D6),
 /// the clip members onto it with its alpha frozen relative to the footprint
-/// (`clip_unit`, #578), the grouped contributions with
+/// (`clip_unit`, #2), the grouped contributions with
 /// the unit's alpha restored after each, then per pixel `K =
 /// over_mode(B0, U, q, M)` mixed into `t` by the shape × opacity.
 #[allow(clippy::too_many_arguments)]

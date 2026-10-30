@@ -87,7 +87,7 @@ fn multiply(cb: f64, cs: f64) -> f64 {
 /// its blend function.
 type Member<'a> = ([f64; 3], f64, &'a dyn Fn(f64, f64) -> f64);
 
-/// One clip UNIT under the clip rule (#578): the base renders into a
+/// One clip UNIT under the clip rule (#2): the base renders into a
 /// transparent buffer at full opacity in Normal, its alpha footprint is
 /// recorded, each member composites onto the base with that alpha FROZEN
 /// (the W3C step against the base colour seen at alpha 1, `lerp(Cb, B(Cb,

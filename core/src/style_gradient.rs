@@ -420,7 +420,7 @@ pub(crate) fn gradient_color(fill: &GradientFill, t: f32) -> ([f32; 3], f32) {
 /// interpolation, which a 32-bit float document runs over its stops already
 /// carried into LINEAR light (`style_float`: measured against
 /// Photoshop, a 32-bit gradient interpolates between linear stops) and a
-/// CMYK document over its stops' INK, four components (#547,
+/// CMYK document over its stops' INK, four components (#1,
 /// `cmyk_style_row`; take1's G-INK). Generic over the component count `N`;
 /// `N = 3` is the RGB arithmetic statement for statement. `color_of` is
 /// asked only for indices of `fill.stops`.

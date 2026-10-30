@@ -38,7 +38,7 @@ enum RasterLab {
         return ok ? (out.map { Double($0) }, inGamut) : nil
     }
 
-    /// #547 Lab phase 2d: the D50 Lab colour `lab` (3 values) as the encoded RGB (each 0…1) of
+    /// #1 Lab phase 2d: the D50 Lab colour `lab` (3 values) as the encoded RGB (each 0…1) of
     /// the space a Lab document's `op` runs its colour form in — ProPhoto RGB, or sRGB for
     /// color_lookup and gradient_map: what that kernel reads (`dr_lab_kernel_rgb`). nil for a
     /// wrong count, a non-finite value or an op without the colour form.
@@ -57,14 +57,14 @@ enum RasterLab {
 
 // MARK: - The Lab Color document
 
-// The Lab Color document's core wrappers (#547 Lab phases 1, 1b and 3a): every `dr_*` call of the
+// The Lab Color document's core wrappers (#1 Lab phases 1, 1b and 3a): every `dr_*` call of the
 // Lab area, the view's (`RasterPrecisionImage.labDisplay`), the fit-first thumbnail's, the Lab TIFF
 // save's and the flat Lab TIFF open's included.
 // The gate that decides what a Lab document admits is `LabDocument.swift`; Image ▸ Mode's job is
 // `EditorViewController+CmykMode.swift`'s (`CmykModeConversion`'s lab arms,
 // `EditorViewController+LabMode.swift`).
 
-/// `dr_path_lab_source`'s answers (#547 Lab phase 3a).
+/// `dr_path_lab_source`'s answers (#1 Lab phase 3a).
 enum LabSource: Int32 {
     case none = 0, tiff = 1
 }
@@ -159,7 +159,7 @@ extension RasterPrecisionDocument {
         return RasterPrecisionDocument(owning: result)
     }
 
-    /// Image ▸ Mode ▸ 8/16 Bits/Channel's plan on a Lab document (#547 Lab phase 5a,
+    /// Image ▸ Mode ▸ 8/16 Bits/Channel's plan on a Lab document (#1 Lab phase 5a,
     /// `dr_precision_doc_lab_depth_plan`): `working_memory_plan_bytes`, `refusal`, `changes`.
     func labDepthPlan(bits: Int) throws -> [String: Any] {
         var error: UnsafeMutablePointer<CChar>?
@@ -193,7 +193,7 @@ extension RasterPrecisionDocument {
     }
 
     /// Writes the composite (`projection`, else a fresh render) as a TIFF 6.0 CIELab file at the
-    /// document's depth (#547 Lab phase 1b, `dr_precision_doc_save_lab`).
+    /// document's depth (#1 Lab phase 1b, `dr_precision_doc_save_lab`).
     func saveLab(to url: URL, projection: RasterPrecisionImage?, stripMetadata: Bool,
                  workingLimit: UInt64, otherRetained: UInt64) throws {
         var error: UnsafeMutablePointer<CChar>?
@@ -208,7 +208,7 @@ extension RasterPrecisionDocument {
         labJSON(["format": "tiff", "strip_metadata": strip])
     }
 
-    /// What a neural run on a Lab document reserves beside its model's own plan (#547 Lab phase
+    /// What a neural run on a Lab document reserves beside its model's own plan (#1 Lab phase
     /// 6b-iii, `dr_lab_neural_scratch_bytes`): the Display P3 view of the input and the Lab image
     /// of the output. `UInt64.max` on error, which refuses the run's admission.
     static func labNeuralScratchBytes(inputWidth: Int, inputHeight: Int, outputWidth: Int,

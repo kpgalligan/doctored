@@ -1,4 +1,4 @@
-//! #547 Lab phase 2c, the Filter menu on a Lab Color document
+//! #1 Lab phase 2c, the Filter menu on a Lab Color document
 //! (`lab_filter`), through the FFI. The oracle is the same filter on an sRGB
 //! document of one Lab channel's codes, `[c, c, c, α]`: every admitted
 //! kernel is per-channel, so Lab channel k of the result equals channel 0 of

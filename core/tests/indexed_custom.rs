@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 1c's palettes and direct conversions through the
+//! #1 Indexed Color phase 1c's palettes and direct conversions through the
 //! FFI: the Custom palette against an independent nearest-entry oracle (ties
 //! to the lowest index) and its refusals; Previous (the host's: the last
 //! conversion's palette minus its transparent entry, used as Custom)

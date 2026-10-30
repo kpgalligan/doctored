@@ -20,11 +20,11 @@
 //! Refine Edge categories) as its input. At float it reads the same R1 codes as the comparison
 //! kinds (`display_encoding` R2, rule E), so a value above white refines as flat white; its
 //! output is native u16 coverage at every depth. A CMYK document dispatches first to
-//! `cmyk_select` (#547): the wand, Similar, alpha and the ink plates on ink, the colour
+//! `cmyk_select` (#1): the wand, Similar, alpha and the ink plates on ink, the colour
 //! kinds on the view; an ink plate refuses on an RGB document. On a Lab
 //! document `color_range` reads the stored L\*a\*b\* codes by `selection_tools`'
-//! Lab arm (#547 phase 4b-ii, `lab_select`); its wand, Similar and Grow
-//! compare `lab_select::wand_key` (#683) wherever
+//! Lab arm (#1 phase 4b-ii, `lab_select`); its wand, Similar and Grow
+//! compare `lab_select::wand_key` (#5) wherever
 //! `lab_document::selection_refusal` admits them. Since phase 6b-ii `quick` reads the codes'
 //! own L\*a\*b\* (`selection_tools::quick_samples`), and `refine_edge` guides
 //! on the codes per channel, the RGB kernel with no Lab arm.
@@ -463,7 +463,7 @@ impl SelectionRequest {
         Ok(out)
     }
     /// The Lab grid a Lab document's wand or Similar/Grow compares
-    /// `lab_select`'s key on (#683), `None` for every other kind and
+    /// `lab_select`'s key on (#5), `None` for every other kind and
     /// document; the refusal of a (key, depth) `lab_document`'s table refuses.
     fn lab_grid(
         &self,

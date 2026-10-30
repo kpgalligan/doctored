@@ -1,4 +1,4 @@
-# Indexed Color document mode (#547): shipped
+# Indexed Color document mode (#1): shipped
 
 The settled record of the shipped Indexed Color phases, moved verbatim out of
 [indexed-mode-status.md](indexed-mode-status.md) (the open phase's status doc, which keeps the

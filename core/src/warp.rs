@@ -117,7 +117,7 @@ pub enum WarpEdit {
         target: WarpTarget,
         field: WarpField,
         /// The background colour a clear pixel's entry is nearest on an
-        /// Indexed document with no transparent index (#547 Indexed phase
+        /// Indexed document with no transparent index (#1 Indexed phase
         /// 3b, `indexed_paint::BACKGROUND_KEY`); read only there, ignored
         /// on every other document.
         indexed_background: Option<crate::precision_geometry::CropBackground>,

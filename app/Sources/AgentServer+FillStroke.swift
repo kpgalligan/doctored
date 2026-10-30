@@ -245,7 +245,7 @@ extension AgentServer {
             }
             // A coverage target takes `coverageColor` and reads it in
             // `coverageSpace`: white stays 255 on a LUT-mode document.
-            // #547: a Lab layer's sRGB hex stays unquantized (`labSrgbInk`).
+            // #1: a Lab layer's sRGB hex stays unquantized (`labSrgbInk`).
             color = try coverage
                 ? coverageColor(a, "color", in: document, fallback: .black)
                 : labSrgbInk(a, document, coverage: false)
@@ -275,7 +275,7 @@ extension AgentServer {
         return (color, rgba, mode, opacity, preserve, linear)
     }
 
-    /// #547 Lab phase 4a: whether a Lab layer's `color` is authored sRGB ink, read unquantized
+    /// #1 Lab phase 4a: whether a Lab layer's `color` is authored sRGB ink, read unquantized
     /// (`parseColor`) and sent as `srgb` so the core converts it by Image ▸ Mode ▸ Lab Color's
     /// rule (`PrecisionFillStroke.Request.srgb`), as the Brush's `precisionInk` and `crop`'s
     /// `background_color` are, not rounded to the document's 8-bit L*a*b* codes at 16 bits.

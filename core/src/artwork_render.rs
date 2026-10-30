@@ -107,7 +107,7 @@
 //! RGB component list; the level fits inside the FFI's existing
 //! `text.len() * 32` scratch term.
 //!
-//! # The Lab twin (#547 Lab phase 6a-i)
+//! # The Lab twin (#1 Lab phase 6a-i)
 //!
 //! A Lab Color document's artwork renders here into the twin
 //! (`lab_document::lab_twin`), with its colours still authored sRGB. The twin

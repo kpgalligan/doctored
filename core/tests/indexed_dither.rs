@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 3c: Image ▸ Mode ▸ Indexed Color's Pattern and
+//! #1 Indexed Color phase 3c: Image ▸ Mode ▸ Indexed Color's Pattern and
 //! Noise dithers (declared candidates, kept by phase 3d's take), Forced
 //! Custom and the four palettes phase 3d refuses for good, through the FFI.
 //!

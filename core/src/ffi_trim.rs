@@ -1,6 +1,6 @@
 //! Image ▸ Trim's kept rectangle across the FFI: the byte composite
 //! (`DrImage`) and the typed projection (`DrPrecisionImage`, u16 or float),
-//! both through the one scan in `trim_bounds`; and (#547 phase 4b) a CMYK
+//! both through the one scan in `trim_bounds`; and (#1 phase 4b) a CMYK
 //! document's composite ink (`cmyk_trim`).
 
 use std::ffi::{c_char, c_int};
@@ -119,7 +119,7 @@ pub unsafe extern "C" fn dr_precision_image_trim_rect(
     }
 }
 
-/// The rectangle Image ▸ Trim keeps on a CMYK document (#547 phase 4b): the
+/// The rectangle Image ▸ Trim keeps on a CMYK document (#1 phase 4b): the
 /// composite ink's, `dr_image_trim_rect`'s bases and edge bits (a corner
 /// basis compares all five codes). True with `x, y, w, h` written to
 /// `rect_out`; false with `*err_out` NULL when every pixel is trimmable (or

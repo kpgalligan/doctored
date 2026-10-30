@@ -4,7 +4,7 @@ import AppKit
 /// 100%, one source pixel occupies one backing pixel, including Retina screens.
 /// Pan changes only a normalized crop center; every crop comes from the native
 /// master: u16, or an f32 master's SDR-clipped view, or its extended image on
-/// a screen with headroom (#680).
+/// a screen with headroom (#4).
 final class RawDevelopCanvasView: NSView {
     enum Comparison: Int { case after, before, split }
     var comparison: Comparison = .after { didSet { needsDisplay = true } }

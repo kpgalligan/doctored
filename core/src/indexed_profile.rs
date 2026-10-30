@@ -1,5 +1,5 @@
 //! Edit ▸ Assign Profile and Convert to Profile on an Indexed Color
-//! document (#547 Indexed phase 3a, `designs/indexed-mode.md`). An
+//! document (#1 Indexed phase 3a, `designs/indexed-mode.md`). An
 //! adapter, not a kernel: it names the document types.
 //!
 //! An Indexed document's profile is the space of its colour table, an RGB

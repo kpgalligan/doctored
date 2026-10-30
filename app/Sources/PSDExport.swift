@@ -25,27 +25,27 @@ import UniformTypeIdentifiers
 // layer block. The container is chosen beside the mode and both reach the core, which owns every
 // per-container limit and sentence.
 //
-// A CMYK document (#547 phase 3) writes a colour-mode-4 file in every container and both modes at
+// A CMYK document (#1 phase 3) writes a colour-mode-4 file in every container and both modes at
 // its DECLARED depth (its layers, masks, groups, modes, Fill and Levels/Curves/Hue/Saturation
 // records, or its composite flattened onto paper): no projection is captured, the core renders the
 // composite itself, and the plan is the report's own `working_memory_plan_bytes`.
 //
-// A Grayscale document (#547 phase 3b) writes a colour-mode-1 file in every container and both
+// A Grayscale document (#1 phase 3b) writes a colour-mode-1 file in every container and both
 // modes at its DECLARED depth (`grayDepth`, 8 or 16) from its RGBA16 projection, as a 16-bit RGB
 // document does; a 32-bit one (phase 3c) a 32-bit colour-mode-1 PSD or PSB from its RGBA32 float
 // projection, as a float RGB document does, its layered TIFF refused by the core's report (the
 // 32-bit layered TIFF is RGB only).
 //
-// A Lab Color document (#547 Lab phase 3b) writes a colour-mode-9 file in every container and both
+// A Lab Color document (#1 Lab phase 3b) writes a colour-mode-9 file in every container and both
 // modes at its DECLARED depth (`labDepth`, 8 or 16) from its RGBA16 projection (the Lab codes in
 // its twin), as a Grayscale document does; no profile is embedded.
 //
-// A Bitmap document (#547 Bitmap phase 1c) writes a colour-mode-0 PSD or PSB at 1 bit (1 is
+// A Bitmap document (#1 Bitmap phase 1c) writes a colour-mode-0 PSD or PSB at 1 bit (1 is
 // black) in both modes, its one layer being the composite: no projection is captured, the core
 // writes its plane, and the plan is the report's `working_memory_plan_bytes`; a layered TIFF is
 // refused by the core's report.
 //
-// An Indexed Color document (#547) writes a colour-mode-2 PSD or PSB at 8 bits in both modes the
+// An Indexed Color document (#1) writes a colour-mode-2 PSD or PSB at 8 bits in both modes the
 // same way: its palette, transparent index and index plane, no projection, the report's plan; a
 // layered TIFF is refused by the core's report.
 
@@ -161,9 +161,9 @@ struct PSDExportCapture {
         self.container = container
         self.mode = mode
         self.report = report
-        // #547 Bitmap phase 1c: a Bitmap document writes a colour-mode-0 file at 1 bit from its own
+        // #1 Bitmap phase 1c: a Bitmap document writes a colour-mode-0 file at 1 bit from its own
         // plane; no projection is captured and the plan is the report's own. An Indexed Color one
-        // (#547) writes a colour-mode-2 file at 8 bits from its palette and index plane the same way.
+        // (#1) writes a colour-mode-2 file at 8 bits from its palette and index plane the same way.
         if source.isBitmap || source.isIndexed {
             self.bitDepth = source.isIndexed ? 8 : 1
             self.projection = nil
@@ -173,14 +173,14 @@ struct PSDExportCapture {
             return
         }
         if let precision = source.precision, precision.isCmyk {
-            // A CMYK document (#547) writes a colour-mode-4 file at its
+            // A CMYK document (#1) writes a colour-mode-4 file at its
             // declared depth; the core renders its composite.
             self.bitDepth = precision.cmykInfo()?["depth"] as? Int ?? 16
             self.projection = nil
             self.typedProjection = nil
         } else if let precision = source.precision {
             // A float document's projection is RGBA32 float; a Grayscale or Lab one writes
-            // its declared depth (#547 phase 3b, Lab phase 3b); a Duotone one writes 8 bits,
+            // its declared depth (#1 phase 3b, Lab phase 3b); a Duotone one writes 8 bits,
             // Photoshop's Duotone depth (`psd_export_gray`; the report's depth).
             self.bitDepth = source.isDuotone ? 8
                 : source.grayDepth ?? source.labDepth ?? (precision.isFloat ? 32 : 16)
@@ -191,7 +191,7 @@ struct PSDExportCapture {
             self.projection = try document.currentProjection()
             self.typedProjection = nil
         }
-        // #547: a CMYK document's export is admitted by the report's own plan.
+        // #1: a CMYK document's export is admitted by the report's own plan.
         if let precision = source.precision, precision.isCmyk {
             self.scratchEstimate = try PrecisionDocumentDescriptor.integer(
                 report.json, "working_memory_plan_bytes")
@@ -204,7 +204,7 @@ struct PSDExportCapture {
         // (`psd_export_float`'s measured term); 8 and 16 bits, the
         // composite's 4 and 8 (a typed projection is RGBA16 at either Gray depth).
         let canvasBytesPerPixel: UInt64 = bitDepth == 32 ? 28 : source.precision != nil ? 8 : 4
-        // #547 Duotone phase 1b: a Duotone file is one more copy of the Gray writer's bytes
+        // #1 Duotone phase 1b: a Duotone file is one more copy of the Gray writer's bytes
         // (`duotone_files::into_duotone_file`), as the core admits it.
         let duotoneCopy: UInt64 = source.isDuotone ? report.worstCaseBytes : 0
         self.scratchEstimate = report.worstCaseBytes &+ duotoneCopy
@@ -214,7 +214,7 @@ struct PSDExportCapture {
     }
 
     func write(to url: URL) throws {
-        // #547 Bitmap phase 1c, and an Indexed Color document (#547): the core writes the plane;
+        // #1 Bitmap phase 1c, and an Indexed Color document (#1): the core writes the plane;
         // no projection.
         if let precision = source.precision, source.isBitmap || source.isIndexed {
             let context = try PrecisionWorkContext(source: precision)

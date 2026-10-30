@@ -1,8 +1,8 @@
 //! The Art History Brush on the typed document: its plan, its lock
 //! gate and its refusals by depth, dispatching to the CMYK walk
 //! (`cmyk_art_history`) and the u16-record walk (`gray_art_history`) of an
-//! 8-bit Gray document (#547 phase 2e, `GRAY_ART`) and an 8-bit Lab Color
-//! one (#547 Lab 2f, third part, `lab_retouch::LAB_ART`).
+//! 8-bit Gray document (#1 phase 2e, `GRAY_ART`) and an 8-bit Lab Color
+//! one (#1 Lab 2f, third part, `lab_retouch::LAB_ART`).
 //!
 //! The tool runs only on a document of 8 bits per channel: the typed
 //! document runs only an 8-bit CMYK document's ink, an 8-bit Gray

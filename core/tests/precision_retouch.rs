@@ -263,7 +263,7 @@ fn three_native_sampling_modes_have_independent_source_over_values() {
     )
     .unwrap();
     let d = document(2, 1, vec![bottom, target, top]);
-    // Each 50 % at its byte, 128 / 255 (#578).
+    // Each 50 % at its byte, 128 / 255 (#2).
     let q = crate::common::byte_unit(0.5);
     let mix = |b: [f64; 3], t: [f64; 3]| [0, 1, 2].map(|c| b[c] + (t[c] - b[c]) * q);
     let below = mix([10001., 20001., 30001.], [30003., 40003., 50003.]);

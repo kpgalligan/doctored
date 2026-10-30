@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK colour workflow over MCP (#547 phase 5): `separate_color` — the Info panel's CMYK row
+// The CMYK colour workflow over MCP (#1 phase 5): `separate_color` — the Info panel's CMYK row
 // and the Color Picker's gamut alarm — and the CMYK routes `dispatchCmyk` forwards here:
 // `assign_profile` / `convert_profile` (Edit ▸ Assign Profile… / Convert to Profile… on a CMYK
 // document, `CmykProfileSheetController`; Convert to an RGB profile is `convert_mode`'s path),
@@ -37,7 +37,7 @@ extension AgentServer {
             }
             values = values.map { $0 / 255 }
             // An RGB document's own numbers are in its profile; a CMYK or Lab Color document's
-            // colour is sRGB (a Lab document's profile is its twin, #547 Lab close).
+            // colour is sRGB (a Lab document's profile is its twin, #1 Lab close).
             if !cmyk, doc?.isLab != true, let profile = doc?.iccProfile {
                 rgbProfile = profile
                 space = doc?.profileName ?? space
@@ -134,7 +134,7 @@ extension AgentServer {
     /// The profile `assign_profile` / `convert_profile` name on a CMYK document: `working_cmyk`
     /// (the default), `installed` with name or `file` with path, or for Convert an RGB one
     /// (`srgb`, `display_p3`, an installed or file RGB profile). `rgb` is true for the latter.
-    /// Also a Lab Color document's `convert_profile` destination (#547 Lab phase 5b), which
+    /// Also a Lab Color document's `convert_profile` destination (#1 Lab phase 5b), which
     /// `admitsGray` (Lab phase 6a-ii): an installed or file Gray profile then answers `gray` true.
     func cmykDestination(_ a: [String: Any], admitsGray: Bool = false) throws
         -> (data: Data?, name: String, rgb: Bool, gray: Bool) {
@@ -166,7 +166,7 @@ extension AgentServer {
             data = loaded
             name = RasterProfile.describe(loaded)?.name ?? url.lastPathComponent
         case let other:
-            // #547 Lab 6b-ii: a caller that admits Gray (a Lab document's convert_profile)
+            // #1 Lab 6b-ii: a caller that admits Gray (a Lab document's convert_profile)
             // names the Gray choices too.
             if admitsGray {
                 throw ToolError(message: "profile is working_cmyk, working_gray, a Gray working "

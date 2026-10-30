@@ -1,4 +1,4 @@
-//! The Lab Color document in the typed `.rz` (#547 phase 1, DRDC 107).
+//! The Lab Color document in the typed `.rz` (#1 phase 1, DRDC 107).
 //!
 //! Word 107 sits in the CMYK slot — the FIRST word inside the identity
 //! wrapper 46 — written iff the document is Lab; a document is never Lab and

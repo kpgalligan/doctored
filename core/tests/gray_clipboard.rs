@@ -1,4 +1,4 @@
-//! #547 phase 4, the Grayscale clipboard (`gray_clipboard`), black-box
+//! #1 phase 4, the Grayscale clipboard (`gray_clipboard`), black-box
 //! through the FFI. Copy of a Gray document makes an RZCB v5 payload that
 //! round-trips byte for byte and refuses each malformed stream by name (a
 //! v3 stream still decodes as RGB). Between Gray documents of one Gray ICC

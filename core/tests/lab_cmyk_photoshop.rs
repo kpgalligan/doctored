@@ -1,4 +1,4 @@
-//! #547 Lab phase 5b: Photoshop's take of Image ▸ Mode ▸ CMYK Color from a
+//! #1 Lab phase 5b: Photoshop's take of Image ▸ Mode ▸ CMYK Color from a
 //! Lab Color document at 8 and 16 bits (`~/devel/doctored-fixtures/
 //! photoshop/lab-cmyk-547/take1`, never committed; `scripts/photoshop-probe/
 //! lab_cmyk_take.py`, whose docstring fixes the scene, candidates, gate and

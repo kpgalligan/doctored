@@ -23,8 +23,8 @@ after its path. Images go in `src/assets/`, static files in `public/`.
 The site wears the **Boppa Llewyn** design system — warm-ebony neutrals with a
 cream light surface, brass accent, Cormorant Garamond display type, IBM Plex
 Sans/Mono, sharp corners and hairlines instead of shadows. The handoff it was
-built from is in `../designs/design_handoff_starlight_theme/` in the development
-repository, not the public one.
+built from is in `../designs/design_handoff_starlight_theme/` in the private
+archive `kpgalligan/doctored-dev`, not in this repository.
 
 | Where | What |
 | :--- | :--- |

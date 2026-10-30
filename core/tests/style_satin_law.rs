@@ -1,4 +1,4 @@
-//! The Satin's box-pair matte and per-copy contour (#578 part 3,
+//! The Satin's box-pair matte and per-copy contour (#2 part 3,
 //! `scripts/photoshop-probe/effect_kernels_578_p3_take.py`, its candidates
 //! SA1 and SA2l, built as the satin build rule says) against an independent
 //! brute-force oracle, through the FFI (`common::styled` sets the style with

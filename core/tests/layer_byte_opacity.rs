@@ -1,4 +1,4 @@
-//! #578: the BYTE Opacity and Fill below 32 bits (`opacity_byte`). A
+//! #2: the BYTE Opacity and Fill below 32 bits (`opacity_byte`). A
 //! layer's Opacity and its style's Fill composite at `q = code / 255`, `code =
 //! floor(255 v + 0.5 + 1e-3)` (`scripts/photoshop-probe/effects_578_take.py`),
 //! at 8 bits, at 16 bits and in CMYK; 32-bit float composites the exact `v`.

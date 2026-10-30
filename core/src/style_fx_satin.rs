@@ -25,7 +25,7 @@
 //!
 //! # Why these numbers
 //!
-//! - **The law and the per-copy contour (#578 part 3).** Declared in
+//! - **The law and the per-copy contour (#2 part 3).** Declared in
 //!   `scripts/photoshop-probe/effect_kernels_578_p3_take.py` before its
 //!   takes: SA1 (the law's matte, argued from the shadows' D1 and I1, which
 //!   replaced the same Gaussian G1/2.5 with it and were confirmed) and SA2
@@ -45,7 +45,7 @@
 //!   up to 0.29, each pinned at its measured number in
 //!   `tests/style_effect_kernels_578_p3_take.rs`. SA1 alone CONFIRMED by rule (i) on its 64 Linear rows (0.544 →
 //!   0.048). The runner's RECORDED section holds every row.
-//! - **`|a - b|` (#578).** Photoshop combines the two offset copies with
+//! - **`|a - b|` (#2).** Photoshop combines the two offset copies with
 //!   an exclusive-or-like difference: where both copies cover, or neither
 //!   does, there is no sheen. Both `|a - b|` and the soft XOR `a + b - 2ab`
 //!   equal XOR at every corner of the unit square and are symmetric in `a`
@@ -86,7 +86,7 @@
 //!   checkbox; `angle` is always the effect's own, so the render context
 //!   is not read.
 //!
-//! - **Contour** (`style_contour`; the site since #578 part 3): each
+//! - **Contour** (`style_contour`; the site since #2 part 3): each
 //!   shifted copy is mapped in place, every pixel, before the combine
 //!   ([`CONTOUR_PER_COPY`]); the combined plane before `invert` is the site
 //!   it replaced (contour-557's best fit, which missed). Linear skips the
@@ -118,11 +118,11 @@ pub(crate) const MATTE: Matte = Matte {
     gamma: 1.0,
 };
 
-/// The two copies combine as `|a - b|` ([`abs_xor`], #578), not the soft
+/// The two copies combine as `|a - b|` ([`abs_xor`], #2), not the soft
 /// XOR ([`soft_xor`]) it replaced (module doc).
 const SATIN_COMBINE_ABS: bool = true;
 
-/// The contour maps each shifted copy before the combine (module doc, #578
+/// The contour maps each shifted copy before the combine (module doc, #2
 /// part 3's SA2); false is the site it replaced, the combined plane before
 /// `invert`.
 const CONTOUR_PER_COPY: bool = true;
@@ -248,7 +248,7 @@ pub(crate) fn render(
 
 /// `round(255 (a + b - 2ab))` for coverage bytes `a`, `b` — the soft XOR
 /// of the module doc in its exact integer form (the member `abs_xor`
-/// replaced, #578).
+/// replaced, #2).
 fn soft_xor(a: u8, b: u8) -> u8 {
     let (a, b) = (u32::from(a), u32::from(b));
     (((a + b) * 255 - 2 * a * b + 127) / 255) as u8

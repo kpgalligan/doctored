@@ -1,6 +1,6 @@
 import AppKit
 
-/// Image ▸ Mode ▸ CMYK Color… / RGB Color… (#547 phase 1): the conversion's destination profile,
+/// Image ▸ Mode ▸ CMYK Color… / RGB Color… (#1 phase 1): the conversion's destination profile,
 /// rendering intent, black-point compensation and Flatten Image, planned by the core before Apply
 /// (`EditorViewController+CmykMode.swift` owns the job and its one undo step).
 ///
@@ -10,7 +10,7 @@ import AppKit
 /// Toward RGB it lists the two RGB working spaces, the current one first. The intent and BPC
 /// start at Edit ▸ Color Settings' Conversion Options (relative colorimetric with BPC unless
 /// changed there). A Lab Color document converts toward CMYK through 16-bit
-/// ProPhoto RGB (#547 Lab phase 5a, the core's `lab_cmyk`). A document holding
+/// ProPhoto RGB (#1 Lab phase 5a, the core's `lab_cmyk`). A document holding
 /// anything a phase-1 CMYK document cannot (a group, mask, style, adjustment, clipping or blend
 /// mode) must be flattened first, and the Flatten Image box says so before Apply is enabled.
 final class CmykModeSheetController: NSViewController {
@@ -66,7 +66,7 @@ final class CmykModeSheetController: NSViewController {
             box.target = self
             box.action = #selector(optionsChanged(_:))
         }
-        // Edit ▸ Color Settings' Conversion Options (#547 phase 5).
+        // Edit ▸ Color Settings' Conversion Options (#1 phase 5).
         bpcBox.state = options.blackPointCompensation ? .on : .off
         bpcBox.setAccessibilityIdentifier("cmyk-mode-bpc")
         flattenBox.setAccessibilityIdentifier("cmyk-mode-flatten")
@@ -109,7 +109,7 @@ final class CmykModeSheetController: NSViewController {
                     + CmykDocument.limitation
                 : target == .cmyk && document?.doc?.isIndexed == true
                 ? "Expands the palette and converts its colours into the press profile's ink at 8 bits "
-                    + "(#547 Indexed phase 1c), keeping the one layer and its transparent pixels. The "
+                    + "(#1 Indexed phase 1c), keeping the one layer and its transparent pixels. The "
                     + "document then holds C, M, Y and K channels and is shown through its profile. "
                     + CmykDocument.limitation
                 : target == .cmyk
@@ -199,7 +199,7 @@ final class CmykModeSheetController: NSViewController {
         guard let doc = document?.doc else { refusal = "No document."; return syncControls() }
         do {
             if doc.precision != nil {
-                // #547 phase 1a: a Grayscale source toward RGB is planned by its own arm.
+                // #1 phase 1a: a Grayscale source toward RGB is planned by its own arm.
                 let plan = try CmykModeConversion.plan(source: doc, target: target, profile: selectedProfile,
                                                        options: options)
                 flattenRequired = plan["flatten_required"] as? Bool ?? false

@@ -1,4 +1,4 @@
-//! KERNEL: the Layer Style Outside Stroke's distance MEASURE (#578) — how far
+//! KERNEL: the Layer Style Outside Stroke's distance MEASURE (#2) — how far
 //! an outside pixel is from the shape, and the outside band built from it —
 //! and the Shape Burst's contour distance ("The contour distance").
 //!
@@ -80,7 +80,7 @@
 //! exact √10 = 3.162), so a Center stroke there moves; no take measured it.
 //!
 //! An Inside stroke on a shape with a partial pixel takes the same band
-//! (#578; `style_fx_stroke::inner_band`), under the unchanged `o · c`
+//! (#2; `style_fx_stroke::inner_band`), under the unchanged `o · c`
 //! replacement; a binary shape keeps `inside_stroke_band`. The fourth Stroke
 //! take (`stroke_aa_578_take4.py`) picked it after its result (the diagnostic
 //! `Sn`: every take4 Inside row within 1.02 codes), so it shipped only on the
@@ -99,7 +99,7 @@
 //! pixel to the nearest pixel on the OTHER side of the coverage ≥ 128
 //! contour, so a pixel next to the contour reads 1. It is not the band's
 //! measure on purpose: the band's coverage is cut by the seeded 5 × 5
-//! chamfer above (the measured corner arc, #578), but the ramp ACROSS the
+//! chamfer above (the measured corner arc, #2), but the ramp ACROSS the
 //! band follows the 3 × 3 one. In take 2 of
 //! `scripts/photoshop-probe/gradient_identify_673_take2.py` the Smoothness 0
 //! burst is linear in this `D` with no offset (divisor Size + 1) on the

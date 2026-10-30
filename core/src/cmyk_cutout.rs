@@ -1,4 +1,4 @@
-//! Select and Mask's New Layer outputs on a CMYK document (#547): the CMYK
+//! Select and Mask's New Layer outputs on a CMYK document (#1): the CMYK
 //! twin of `precision_cutout`'s assembly, `dr_precision_doc_add_cmyk_cutout`.
 //!
 //! The new top root "Refined Cutout" is a CMYK raster of the visible

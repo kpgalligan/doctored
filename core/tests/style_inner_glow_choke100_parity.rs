@@ -1,4 +1,4 @@
-//! #578: the Inner Glow at Choke 100 %, edge and centre, against Photoshop's
+//! #2: the Inner Glow at Choke 100 %, edge and centre, against Photoshop's
 //! own identify-578 take2 profiles, at 8 and 16 bits. The fixtures
 //! (`tests/fixtures/psd_photoshop/identify_578/`, README) hold each source's
 //! 80 rows' whole profiles: `choke100_profiles.json` (the edge), written by

@@ -229,7 +229,7 @@ fn oracle16(case: &Case, x: u32, y: u32) -> [f64; 4] {
     };
     let w = ramp16(gray16(a), case.this) * ramp16(gray16([b[0], b[1], b[2]]), case.under);
     // The Fill and the opacity as their two bytes' product, rounded to
-    // a byte (#578, `opacity_byte::joint`).
+    // a byte (#2, `opacity_byte::joint`).
     let k = m * crate::common::joint_unit(case.fill, case.opacity) * w;
     let mut out = b;
     for c in 0..3 {

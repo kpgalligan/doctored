@@ -42,7 +42,7 @@ extension AgentServer {
                 + "(the two ends of the line that should be level or plumb, canvas px).")
         }
         let line = RulerMeasurement(start: CGPoint(x: x0, y: y0), end: CGPoint(x: x1, y: y1))
-        // #547 Bitmap phase 3: the straightened crop (`straightenBitmapWithRuler`'s twin): `crop`
+        // #1 Bitmap phase 3: the straightened crop (`straightenBitmapWithRuler`'s twin): `crop`
         // at the window `BitmapDocument.straightenWindow` fits and the line's angle.
         if doc.isBitmap {
             guard let window = BitmapDocument.straightenWindow(line, width: doc.width,

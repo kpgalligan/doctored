@@ -255,7 +255,7 @@ impl RetouchKernel {
                     job,
                 )?;
             }
-            // A Lab layer corrects its ProPhoto RGB colour (#547 Lab 2f).
+            // A Lab layer corrects its ProPhoto RGB colour (#1 Lab 2f).
             Self::RedEye if doc.is_lab() => crate::lab_retouch::red_eye(
                 doc.dimensions(),
                 pixels,

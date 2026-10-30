@@ -1,5 +1,5 @@
 //! An independent CMYK PSD / PSB / layered-TIFF byte builder and reader
-//! (#547 phase 3), written from Adobe's published "Photoshop File Formats"
+//! (#1 phase 3), written from Adobe's published "Photoshop File Formats"
 //! framing and the TIFF 6.0 specification. It has its own PackBits packer and
 //! unpacker, its own record, resource and tagged-block layout, its own ZIP
 //! prediction, and it never calls the importer, exporter or codec it is used

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 adjustments-and-filters MCP drive: on a CMYK document every
+"""The #1 adjustments-and-filters MCP drive: on a CMYK document every
 adjustment enabled in CMYK applies destructively and (where it has a
 layer kind) as an adjustment layer, a filter from each submenu runs on
 ink, Edit ▸ Fade works, the `.rz` round trip keeps the new records, and

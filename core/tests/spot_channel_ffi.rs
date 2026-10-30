@@ -1,4 +1,4 @@
-//! #547 spot channels, phase 1a-2 (`ffi_spot_channel`, `spot_view`): every
+//! #1 spot channels, phase 1a-2 (`ffi_spot_channel`, `spot_view`): every
 //! export through the C contract. The overprint against independent oracles
 //! (a black ink is `round(c·(1 − w))` at any solidity; a red ink on an sRGB
 //! document is the kernel run on the ink's own sRGB encoding; a profile the
@@ -568,7 +568,7 @@ fn report(text: *mut c_char, err: *mut c_char) -> Value {
     value
 }
 
-/// Since #547 phase 1b a PSD or PSB at 8 or 16 bits carries spot channels
+/// Since #1 phase 1b a PSD or PSB at 8 or 16 bits carries spot channels
 /// (`psd_export_preflight::spots_written_for`), and since 1c-2b the layered
 /// TIFF of an RGB or CMYK document; a Lab PSD/PSB still refuses them by
 /// name rather than dropping them, and a Gray or Lab layered TIFF refuses

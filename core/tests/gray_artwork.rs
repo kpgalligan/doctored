@@ -1,4 +1,4 @@
-//! #547 phase 6a-i, type, shape and fill layers on a Grayscale document
+//! #1 phase 6a-i, type, shape and fill layers on a Grayscale document
 //! (`gray_artwork`), through the FFI. The colour oracle is sRGB's published
 //! luminance row (`SRGB_Y_ROW`) over the IEC decode, re-encoded by the IEC
 //! curve for an sRGB colour and kept linear for a linear one; a custom

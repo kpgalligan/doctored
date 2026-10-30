@@ -27,7 +27,7 @@
 //! ([`shade`]), so flat ground is 0, a face turned to the light full
 //! highlight and one turned fully away full shadow. A Smooth bevel, in every
 //! style, shades NORMALIZED with or without a texture (its measured law,
-//! `style_bevel_smooth`, #578), and so does a Chisel the Chisel law renders
+//! `style_bevel_smooth`, #2), and so does a Chisel the Chisel law renders
 //! (`style_bevel_chisel`); every other Chisel keeps its LATERAL law byte for
 //! byte while the texture is off.
 //!

@@ -29,35 +29,35 @@
 //! The stored composite's spot planes (Raw or RLE, after the colour planes and merged alpha) are
 //! `psd_spot`'s; [`Container::tag`] attaches them to a byte document.
 //!
-//! A CMYK file (colour mode 4, #547 phase 3) — PSD, PSB or a big-endian layered CMYK TIFF —
+//! A CMYK file (colour mode 4, #1 phase 3) — PSD, PSB or a big-endian layered CMYK TIFF —
 //! has its own admission ([`Container::cmyk_layered_admission`] for the layers,
 //! [`Container::cmyk_admission`] for the saved composite) and its own profile read
 //! ([`Container::cmyk_profile_bytes`]); `support_refusal`, `profile` and the byte/16-bit
 //! composites stay RGB/gray only.
 //!
-//! A Grayscale file (colour mode 1, #547 phase 3a) is admitted by `support_refusal` at 8 and
+//! A Grayscale file (colour mode 1, #1 phase 3a) is admitted by `support_refusal` at 8 and
 //! 16 bits — PSD, PSB or a big-endian layered gray TIFF (one colour channel) — and opens as a
 //! Gray document (`psd_import_gray`): [`Container::composite16`] reads its one plane into
 //! R = G = B with the merged alpha at channel 1, and its profile bytes are
 //! [`Container::profile_bytes`] (resource 1039, else a TIFF's ICC tag), read through
 //! `GrayPolicy` rather than [`Container::profile`].
 //!
-//! A Lab file (colour mode 9, #547 Lab phase 3a) at 8 or 16 bits is refused by `support_refusal`
+//! A Lab file (colour mode 9, #1 Lab phase 3a) at 8 or 16 bits is refused by `support_refusal`
 //! by name ("opens only as a Lab Color document"), so the RGB and gray opens and every composite
 //! here keep refusing it; `psd_import_lab::lab_admission` admits it and
 //! `psd_import_lab::lab_composite` reads its stored composite.
 //!
-//! A Duotone file (colour mode 8, #547 Duotone phase 1b) at 8 or 16 bits is refused by
+//! A Duotone file (colour mode 8, #1 Duotone phase 1b) at 8 or 16 bits is refused by
 //! `support_refusal` by name ([`DUOTONE_ONLY`]); the gray open and report read it through
 //! [`Container::duotone_gray`] (the same container as colour mode 1) and its colour-mode data
 //! ([`Container::color_mode_data`]) through `duotone_files`.
 //!
-//! An Indexed Color file (colour mode 2, #547) is refused by `support_refusal` by name at every
+//! An Indexed Color file (colour mode 2, #1) is refused by `support_refusal` by name at every
 //! depth ([`INDEXED_ONLY`]), so the byte, 16-bit and 32-bit opens and composites refuse it;
 //! `indexed_psd` reports and opens it from its [`Container::color_mode_data`] table and its
 //! stored composite.
 //!
-//! A Multichannel file (colour mode 7, #547, `designs/multichannel-mode.md`) is refused by
+//! A Multichannel file (colour mode 7, #1, `designs/multichannel-mode.md`) is refused by
 //! `support_refusal` by name at every depth ([`MULTICHANNEL_REFUSAL`]), so the byte, 16-bit and
 //! 32-bit opens and the report refuse it; the Gray, Lab and CMYK admissions already refuse it
 //! as "a Multichannel file is not …".
@@ -67,7 +67,7 @@
 //! [`Container::composite_planes`]); the byte [`Container::composite`] refuses it by name. A
 //! 32-bit float RGB layered TIFF is the same container with its `Lr32` block's records
 //! and, as every TIFF, no stored composite.
-//! A 32-bit Grayscale file (#547 phase 3c) is admitted the same way and opens as a 32-bit
+//! A 32-bit Grayscale file (#1 phase 3c) is admitted the same way and opens as a 32-bit
 //! Gray document (`psd_import_gray32`; `composite32` reads its one plane into R = G = B).
 
 use std::sync::Arc;
@@ -92,10 +92,10 @@ pub(crate) const TIFF_COMPOSITE: &str = "a TIFF's flat image opens through the o
 pub(crate) const MULTICHANNEL_REFUSAL: &str =
     "Multichannel files are not supported: Doctored has no spot channels";
 
-/// `support_refusal`'s sentence for colour mode 8 (#547 Duotone phase 1b).
+/// `support_refusal`'s sentence for colour mode 8 (#1 Duotone phase 1b).
 pub(crate) const DUOTONE_ONLY: &str = "a Duotone file opens only as a Duotone document";
 
-/// `support_refusal`'s sentence for colour mode 2 (#547 Indexed Color PSD).
+/// `support_refusal`'s sentence for colour mode 2 (#1 Indexed Color PSD).
 pub(crate) const INDEXED_ONLY: &str =
     "an Indexed Color file opens only as an Indexed Color document";
 
@@ -415,7 +415,7 @@ impl<'a> Container<'a> {
     }
 
     pub fn support_refusal(&self) -> Option<String> {
-        // Multichannel (#547, `designs/multichannel-mode.md`) is refused by name
+        // Multichannel (#1, `designs/multichannel-mode.md`) is refused by name
         // at every depth and size, before any other check: it is not built.
         if self.color == 7 {
             return Some(MULTICHANNEL_REFUSAL.into());
@@ -432,18 +432,18 @@ impl<'a> Container<'a> {
                 ),
             });
         }
-        // A Lab file (#547 Lab phase 3a) is `psd_import_lab::lab_admission`'s:
+        // A Lab file (#1 Lab phase 3a) is `psd_import_lab::lab_admission`'s:
         // the RGB and gray opens, and every composite here, refuse it.
         if self.color == 9 && matches!(self.depth, 8 | 16) {
             return Some("a Lab Color file opens only as a Lab Color document".into());
         }
-        // A Duotone file (#547 Duotone phase 1b) opens through
+        // A Duotone file (#1 Duotone phase 1b) opens through
         // [`Container::duotone_gray`]: the RGB opens and every composite
         // here refuse it.
         if self.color == 8 && matches!(self.depth, 8 | 16) {
             return Some(DUOTONE_ONLY.into());
         }
-        // An Indexed Color file (#547) opens through `indexed_psd`: the RGB
+        // An Indexed Color file (#1) opens through `indexed_psd`: the RGB
         // opens and every composite here refuse it.
         if self.color == 2 {
             return Some(INDEXED_ONLY.into());
@@ -466,7 +466,7 @@ impl<'a> Container<'a> {
     }
 
     /// A Duotone file (colour mode 8) at 8 or 16 bits as the Grayscale file
-    /// it stores (#547 Duotone phase 1b): the same container, colour mode 1,
+    /// it stores (#1 Duotone phase 1b): the same container, colour mode 1,
     /// so the gray open and report read it unchanged; `None` for every other
     /// file (a TIFF holds no colour mode 8).
     pub(crate) fn duotone_gray(&self) -> Option<Container<'a>> {
@@ -710,7 +710,7 @@ impl<'a> Container<'a> {
     }
 }
 
-/// A CMYK file's saved composite (#547, `cmyk_io`): its own admission —
+/// A CMYK file's saved composite (#1, `cmyk_io`): its own admission —
 /// colour mode 4, 8 or 16 bits, at least the four ink channels — and the four
 /// ink planes as straight CMYKA16 INK (PSD stores `max − ink`; flipped here,
 /// an 8-bit code ×257, alpha opaque). Merged alpha is not read. The byte
@@ -744,7 +744,7 @@ impl<'a> Container<'a> {
         Ok(())
     }
 
-    /// The LAYERED choice's admission of a CMYK file (#547 phase 3): the
+    /// The LAYERED choice's admission of a CMYK file (#1 phase 3): the
     /// container's side limit, colour mode 4, 8 or 16 bits and the four ink
     /// channels. A layered CMYK TIFF is admitted (its records are the
     /// layers); only its stored composite is the ordinary TIFF open's.
@@ -808,7 +808,7 @@ impl<'a> Container<'a> {
 /// planes and verified merged alpha as straight RGBA16, through the same
 /// plane walk; nothing else changes, including the reconstruction from white.
 /// A gray file's one plane fills R = G = B and its merged alpha is channel 1
-/// (#547 phase 3a), as the byte composite reads it.
+/// (#1 phase 3a), as the byte composite reads it.
 impl Container<'_> {
     pub fn composite16(&self) -> Result<Vec<[u16; 4]>, String> {
         if self.tiff.is_some() {

@@ -1,6 +1,6 @@
 import AppKit
 
-// Select and Mask's New Layer outputs on a CMYK document (#547). The core assembles the cutout
+// Select and Mask's New Layer outputs on a CMYK document (#1). The core assembles the cutout
 // (`cmyk_cutout`: the visible composite's ink on a new top CMYK raster, the refined u16 coverage
 // as its mask, Decontaminate Colors on ink when asked), so no foreground image crosses the
 // boundary; the preparation, the display and the one publication are `NativeRefinementCutout`'s

@@ -121,7 +121,7 @@ fn mask_and_layer_opacity_multiply() {
     let sel = selection(3, 1, |x, _| [0, 128, 255][x as usize]);
     let masked = doc.add_mask(1, MaskKind::FromSelection(&sel)).unwrap();
     for (x, cov) in [0u8, 128, 255].into_iter().enumerate() {
-        // The layer's 50 % composites at its byte, 128 / 255 (#578).
+        // The layer's 50 % composites at its byte, 128 / 255 (#2).
         let sa = f32::from(cov) / 255.0 * (128.0 / 255.0);
         assert_eq!(
             flat(&masked, x as u32, 0),

@@ -40,7 +40,7 @@
 //! integer translation bit for bit. The colour planes are targets too
 //! (`"target":"red"|"green"|"blue"|"alpha"`, with `"swatch"` for R/G/B): one
 //! component of the layer through the same plane walk
-//! (`selected_color_plane`). #547 adds a CMYK layer's ink plates
+//! (`selected_color_plane`). #1 adds a CMYK layer's ink plates
 //! (`"target":"cyan"|"magenta"|"yellow"|"black"`, with `"swatch"` too, its
 //! gray read as ink): `cmyk_selected_plate`.
 //!
@@ -176,7 +176,7 @@ pub enum SelectedPixelsEdit {
 /// Which plane a transform or a move floats: the layer's
 /// pixels, its mask, an alpha channel (whose index replaces the layer), one
 /// colour component of the layer (Red, Green, Blue, or its Alpha), or
-/// one ink plate of a CMYK layer (#547: Cyan, Magenta, Yellow, Black,
+/// one ink plate of a CMYK layer (#1: Cyan, Magenta, Yellow, Black,
 /// `cmyk_selected_plate`).
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -251,7 +251,7 @@ impl SelectedTarget {
 }
 
 /// An ink-plate target's refusal on an 8-bit document, which is never CMYK
-/// (#547: the typed twin is `precision_selected_pixels`').
+/// (#1: the typed twin is `precision_selected_pixels`').
 fn ink_plate_refusal(edit: &SelectedPixelsEdit) -> Option<String> {
     edit.target().ink_plate().map(|_| {
         format!(

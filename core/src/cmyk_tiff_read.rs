@@ -1,4 +1,4 @@
-//! THE CMYK TIFF sample reader (#547 phase 3): the one decode of a CMYK
+//! THE CMYK TIFF sample reader (#1 phase 3): the one decode of a CMYK
 //! TIFF's own samples, which the CMYK document open (`cmyk_io`) and the flat
 //! open's sRGB conversion (`open_profile::cmyk_tiff_to_srgb8`) both read
 //! through. The gate (`open_profile::cmyk_tiff_layout`) has already admitted

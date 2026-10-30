@@ -1,4 +1,4 @@
-//! #547 phase 4, geometry, warps, selected pixels and selections on a
+//! #1 phase 4, geometry, warps, selected pixels and selections on a
 //! Grayscale document, through the FFI. The oracle is the RGB TWIN
 //! (`gray_ops::twin`: the Gray document converted to RGB through its own
 //! profile bytes, which keeps every sample) running the same op: at 8, 16

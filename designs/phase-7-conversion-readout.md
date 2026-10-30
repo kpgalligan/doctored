@@ -14,7 +14,7 @@ reinterprets a byte handle as typed.
 ## Decisions
 - **Flattened conversion** (`core/src/precision_conversion.rs`) always yields **one raster layer**, keeping ICC
   profile, print resolution and EXIF/XMP/IPTC; editable structure, live adjustments and masks are discarded; saved
-  channels carry (×257 / nearest, #547) (guides/ruler origin cross since 12E-1c). The original immutable document stays in history; converting
+  channels carry (×257 / nearest, #1) (guides/ruler origin cross since 12E-1c). The original immutable document stays in history; converting
   back never reconstructs layers.
   - **Byte→u16:** render with established byte evaluation, then ×257 exactly — preserves byte appearance, adds no detail.
   - **u16→byte:** render the authoritative u16 projection, then nearest or ordered-dither quantization; export can do

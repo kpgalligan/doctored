@@ -280,7 +280,7 @@ impl DrDocument {
             crate::reference_native::header_bytes(
                 crate::reference_native::byte_entries(self).len(),
             ),
-            // Word 112 and its SPOT table (`spot_channel_native`, #547).
+            // Word 112 and its SPOT table (`spot_channel_native`, #1).
             crate::spot_channel_native::header_bytes(
                 crate::spot_channel_native::byte_entries(&self.channels).len(),
             ),

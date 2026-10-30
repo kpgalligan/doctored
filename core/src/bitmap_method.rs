@@ -1,4 +1,4 @@
-//! Bitmap mode's 1-bit math (#547 Bitmap phases 1a and 1b, KERNEL): the
+//! Bitmap mode's 1-bit math (#1 Bitmap phases 1a and 1b, KERNEL): the
 //! five methods that turn an 8-bit gray row into black and white, the
 //! packed plane's layout and Grayscale's Size Ratio block average
 //! (`designs/bitmap-mode.md`). `bitmap_convert` is the adapter that
@@ -119,7 +119,7 @@ pub(crate) const DIFFUSION: DiffusionRule = DiffusionRule {
     white_at: 128.0,
 };
 
-/// The one rule that puts an edited pixel back on the plane (#547 Bitmap
+/// The one rule that puts an edited pixel back on the plane (#1 Bitmap
 /// phase 2a-i, `bitmap_edit`): white iff `gray·alpha + bg·(255 − alpha) ≥
 /// 128·255`, `bg` 255 when `background_white`, else 0. The pixel's gray is
 /// laid over the background colour at its own alpha, then read by

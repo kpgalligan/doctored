@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 2c: the paint family (Fill, Stroke, the Paint
+//! #1 Indexed Color phase 2c: the paint family (Fill, Stroke, the Paint
 //! Bucket, the Eraser, Clear), Cut and the Image-menu geometry on an Indexed
 //! document (`indexed_paint`, `indexed_geometry`, the generalised
 //! `indexed_edge`).

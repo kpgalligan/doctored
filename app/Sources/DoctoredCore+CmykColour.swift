@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's colour workflow wrappers (#547 phase 5): every `dr_*` call of
+// The CMYK document's colour workflow wrappers (#1 phase 5): every `dr_*` call of
 // `ffi_cmyk_colour.rs` — Assign / Convert to Profile and 8/16 Bits/Channel, File ▸ New in CMYK,
 // the CMYK proof, Levels and Curves' histogram / Auto / eyedroppers and ⌥ clipping display, the
 // one-colour separation and the CMYK preset decode.

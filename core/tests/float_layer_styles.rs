@@ -560,9 +560,9 @@ fn fill_opacity_and_the_package_model_hold_extended_range_values() {
 #[test]
 fn a_bevel_composites_each_lit_side_by_the_measured_model() {
     // The second base is overhead and softened: the Smooth law's NORMALIZED
-    // shading (#578, `style_bevel_smooth`) shades every slope and lights none
+    // shading (#2, `style_bevel_smooth`) shades every slope and lights none
     // at altitude 90. Emboss and Pillow Emboss run the law at half the Size
-    // (#578) and draw a Below half outside the rect and an Interior half
+    // (#2) and draw a Below half outside the rect and an Interior half
     // inside it; the rect's edges are hard, so each pixel is in one band.
     for style in ["inner_bevel", "emboss", "pillow_emboss"] {
         for (altitude, soften) in [(30, 0), (90, 2)] {

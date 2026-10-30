@@ -8,7 +8,7 @@
 //! visible range (`float_document`'s D3), as the float warp does. A linked
 //! mask warps through the same map at u16; the persisted warp binding is
 //! dropped. Family `geometry_puppet` (`precision_capability`). On a CMYK
-//! document (#547 phase 4b) the record is straight CMYKA16 ink
+//! document (#1 phase 4b) the record is straight CMYKA16 ink
 //! ([`MeshPixels::Cmyk`]): the same `puppet_render::render` walk with the
 //! five-plane binary64 adapter (`precision_warp::accumulate_planes16` /
 //! `finish_planes16`, C = 5, whose C = 4 is the RGBA16 arm), adopted by
@@ -42,7 +42,7 @@ use crate::sampling::straight_extended;
 const NAME: &str = "Puppet Warp";
 
 /// The pixels of the record a mesh warp edits: RGBA (16-bit or float) or a
-/// CMYK document's CMYKA16 ink (#547 phase 4b).
+/// CMYK document's CMYKA16 ink (#1 phase 4b).
 pub(crate) enum MeshPixels<'a> {
     Typed(&'a PrecisionImage),
     Cmyk(&'a CmykImage),
@@ -113,7 +113,7 @@ impl PrecisionDocument {
             Some(Content::Raster { image, .. }) => image.storage() == PrecisionStorage::Rgba32Float,
             _ => false,
         };
-        // A CMYK record (#547 phase 4b): 10 B/px output, and both CMYK
+        // A CMYK record (#1 phase 4b): 10 B/px output, and both CMYK
         // copies (`to_contiguous`, `from_contiguous`) as at float.
         let cmyk = matches!(
             self.layer(index).map(|r| &r.content),
@@ -170,7 +170,7 @@ impl PrecisionDocument {
         let source = match self.layer(index).map(|r| &r.content) {
             Some(Content::Raster { image, .. }) => image,
             Some(Content::CmykRaster { image, .. }) => {
-                // The RGBA16 arm below over five planes (#547 phase 4b).
+                // The RGBA16 arm below over five planes (#1 phase 4b).
                 let samples = image.to_contiguous()?;
                 let mut out = vec![[0u16; 5]; count];
                 render(
@@ -355,7 +355,7 @@ impl PrecisionDocument {
     }
 
     /// The typed twin of `DrDocument::puppet_warp_plan`. An Indexed Color
-    /// document refuses for good (#547 Indexed phase 3a).
+    /// document refuses for good (#1 Indexed phase 3a).
     pub fn puppet_warp_plan(
         &self,
         request: &PuppetWarpRequest,
@@ -371,7 +371,7 @@ impl PrecisionDocument {
     }
 
     /// The typed twin of `DrDocument::puppet_warp`. An Indexed Color
-    /// document refuses for good (#547 Indexed phase 3a).
+    /// document refuses for good (#1 Indexed phase 3a).
     pub fn puppet_warp(
         &self,
         request: &PuppetWarpRequest,

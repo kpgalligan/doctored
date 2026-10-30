@@ -1,4 +1,4 @@
-//! #547 Lab phase 2f, second part, through the FFI: a Pattern Overlay and a
+//! #1 Lab phase 2f, second part, through the FFI: a Pattern Overlay and a
 //! Pattern stroke on a Lab Color layer, and Edit ▸ Stroke… of a layer edge.
 //! The oracle is the hand-computed CIE L\*a\*b\* of each texel's sRGB
 //! (`lab_fixture::srgb_to_lab`), the tile being authored sRGB on a Lab

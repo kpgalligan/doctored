@@ -230,7 +230,7 @@ fn channel_value(channel: BlendIfChannel, rgb: [f32; 3], scale: f32) -> f32 {
 /// The channel a ramp reads, unscaled: gray is the `blend::lum` luminosity
 /// (0.30, 0.59, 0.11, the fitted Gray — module doc), the
 /// others one component. TOTAL: a CMYK plate on an RGB pixel (a document a
-/// reader admitted one into, which every setter refuses — #547) reads as
+/// reader admitted one into, which every setter refuses — #1) reads as
 /// Gray, so no reader's input can panic or read out of range.
 fn channel_unit(channel: BlendIfChannel, rgb: [f32; 3]) -> f32 {
     match channel {
@@ -245,7 +245,7 @@ fn channel_unit(channel: BlendIfChannel, rgb: [f32; 3]) -> f32 {
     }
 }
 
-/// A CMYK document's weight (#547), FITTED to Photoshop 26.10.0 on take1 and
+/// A CMYK document's weight (#1), FITTED to Photoshop 26.10.0 on take1 and
 /// confirmed on take2 (`scripts/photoshop-probe/cmyk_styles_take.py`, THE
 /// BLEND IF FIT; `cmyk-styles-547/take1`, `take2`). Both sides first round
 /// each ink to the code the projection stores at the document's depth

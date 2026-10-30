@@ -89,7 +89,7 @@ fn cases() -> Vec<(&'static str, Value, Value, Vec<f64>, bool)> {
             lut(&t["cone_inverted"], None, Some(CAP_DS)),
             true,
         ),
-        // The outer glow's box-pair law (#578, Size·(1 − Spread) > 0)
+        // The outer glow's box-pair law (#2, Size·(1 − Spread) > 0)
         // applies its Range in the plane before the contour, so the twin is
         // the Linear glow at the same Range and the table has none.
         (

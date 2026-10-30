@@ -1,8 +1,8 @@
 import AppKit
 
-// The Indexed Color document's core wrappers (#547 Indexed phase 1a): every `dr_*` call of the
+// The Indexed Color document's core wrappers (#1 Indexed phase 1a): every `dr_*` call of the
 // Indexed area, since phase 1c Image ▸ Mode ▸ Color Table's and the `.act` file's too, since
-// phase 2d Paste and Paste Special's, and an Indexed Color PSD's open (#547). The gate
+// phase 2d Paste and Paste Special's, and an Indexed Color PSD's open (#1). The gate
 // that decides what an Indexed document admits is `IndexedDocument.swift`; Image ▸ Mode's job is
 // `EditorViewController+CmykMode.swift`'s (`CmykModeConversion`'s indexed arms,
 // `EditorViewController+IndexedMode.swift`).
@@ -37,7 +37,7 @@ extension RasterPrecisionDocument {
     }
 
     /// An Indexed Color (colour mode 2) PSD or PSB's stored composite as an Indexed Color
-    /// document (`import_precision` `"indexed"`, #547), still the file `fingerprint` names
+    /// document (`import_precision` `"indexed"`, #1), still the file `fingerprint` names
     /// (`dr_precision_doc_open_indexed_psd`).
     static func openIndexedPSD(at url: URL, fingerprint: String, workingLimit: UInt64,
                                otherRetained: UInt64,

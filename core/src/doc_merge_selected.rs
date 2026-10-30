@@ -1,4 +1,4 @@
-//! Stamp Selected and Merge Group at 8 bits (#547 phase 4c), the byte half
+//! Stamp Selected and Merge Group at 8 bits (#1 phase 4c), the byte half
 //! of `precision_merge_selected`, whose module doc is the contract. Both take
 //! their pixels from `doc_structure::merged_layer` — the members alone
 //! through the projection's own level walk over their union extent — so

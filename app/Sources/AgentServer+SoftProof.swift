@@ -17,7 +17,7 @@ import AppKit
 /// that `get_document`, `get_color_profile`, the dirty flag, an export's
 /// bytes and the current selection all survive it untouched.
 ///
-/// A Lab Color document (#547 Lab phase 5b) proofs its Display P3 view: the
+/// A Lab Color document (#1 Lab phase 5b) proofs its Display P3 view: the
 /// display codes in the view's profile (`proofSourceProfile`), and with
 /// `exact` the u16 view (`LabDocument.exactProofImage`); `space` answers
 /// display-p3 (`LabDocument.reportedProofSpace`). A Duotone document refuses
@@ -44,7 +44,7 @@ extension AgentServer {
         // composite with `exact`); float stays refused through
         // `FloatDocument.tools`. `describe_profile` and
         // `list_installed_profiles` read no document (`documentFreeTools`).
-        // #547 phase 5: a CMYK document proofs through a CMYK profile, with
+        // #1 phase 5: a CMYK document proofs through a CMYK profile, with
         // Preserve CMYK Numbers and the plates (`render_proof`'s CMYK route
         // is `AgentServer+CmykColour.swift`).
         "get_proof_setup": [.nonRecordable, .commonTool, .cmykTool],
@@ -78,7 +78,7 @@ extension AgentServer {
         }
         var display = editorVC.proofDisplay
         let cmyk = document.doc?.isCmyk == true
-        // #547 phase 5: with no setup and no default preset, turning the
+        // #1 phase 5: with no setup and no default preset, turning the
         // warning or the proof on seeds Working CMYK, as ⌘Y and ⇧⌘Y do.
         let seeds = boolArg(a, "gamut_warning") == true || boolArg(a, "proof_colors") == true
         var setup = try baseProofSetup(a, existing: display.setup,
@@ -229,7 +229,7 @@ extension AgentServer {
         let task = try WorkerTask {
             () throws -> (rendered: (image: RasterImage, space: String, outOfGamut: Int),
                           maskCount: Int) in
-            // #547 Lab phase 5b: the view, admitted with the projection's own context.
+            // #1 Lab phase 5b: the view, admitted with the projection's own context.
             let source: RasterPrecisionImage
             if lab {
                 source = try control.withChildOperation(from: 0, to: 0.2) {
@@ -359,7 +359,7 @@ extension AgentServer {
             }
             setup.gamutColor = color
         }
-        // #547 phase 5: Preserve CMYK Numbers and one plate of the proof device.
+        // #1 phase 5: Preserve CMYK Numbers and one plate of the proof device.
         if let flag = boolArg(a, "preserve_numbers") { setup.preserveNumbers = flag }
         if a["plate"] is NSNull || stringArg(a, "plate") == "none" {
             setup.plate = nil
@@ -371,7 +371,7 @@ extension AgentServer {
         }
     }
 
-    /// A CMYK document's EXPLICIT proof request that still refuses in-band (#547 phase 5): a
+    /// A CMYK document's EXPLICIT proof request that still refuses in-band (#1 phase 5): a
     /// named proof profile or preset that is not CMYK. A window's carried state is reconciled
     /// instead (`ProofSetup.reconciled`). Gamut Warning is admitted since the remaining-gaps
     /// batch (`cmyk_proof`).
@@ -391,7 +391,7 @@ extension AgentServer {
         guard let choice = stringArg(a, "profile")?.lowercased() else { return nil }
         switch choice {
         case "working_cmyk":
-            // #547 phase 5: Edit ▸ Color Settings' working CMYK.
+            // #1 phase 5: Edit ▸ Color Settings' working CMYK.
             guard let data = WorkingCMYK.installedData else {
                 throw ToolError(message: "No working CMYK profile is installed.")
             }

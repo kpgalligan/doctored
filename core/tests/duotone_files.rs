@@ -1,4 +1,4 @@
-//! #547 Duotone phase 1b (`duotone_ado`, `duotone_files`, the PSD open and
+//! #1 Duotone phase 1b (`duotone_ado`, `duotone_files`, the PSD open and
 //! save, through the C API): a colour-mode-8 PSD and PSB open as Duotone
 //! documents, an unchanged one writes its colour-mode data and duotone
 //! resources back byte for byte, an edited one re-encodes, and a Duotone
@@ -8,7 +8,7 @@
 //! back byte for byte.
 //!
 //! Oracles written here, never the crate's writer: the duotone
-//! specification's layout as Photoshop 26.10.0 wrote it in the #547 1b
+//! specification's layout as Photoshop 26.10.0 wrote it in the #1 1b
 //! smokes (524 bytes: version, count, four 10-byte colour records, four
 //! 64-byte Pascal names, four 28-byte curves of 13 tenths-of-a-percent
 //! shorts and a 0, the dot gain 20, eleven overprint records; a blank record
@@ -716,7 +716,7 @@ fn photoshop_duotone_psds_open_with_their_inks_and_round_trip_byte_for_byte() {
 /// `None`).
 type PhotoshopInk = (&'static str, [f64; 3], [Option<f64>; 13]);
 
-/// Case `three`'s `photoshop.inks` in the #547 Duotone phase 2b take
+/// Case `three`'s `photoshop.inks` in the #1 Duotone phase 2b take
 /// (`duotone-mode-547/take1/decided.json`): Photoshop's parse of its own save
 /// of the Tritone PSD Doctored wrote, per ink its name, Lab and 13 curve
 /// slots (percent, blank `None`). `inks_match` was true, so it equals the

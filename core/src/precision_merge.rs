@@ -251,7 +251,7 @@ impl PrecisionDocument {
     ) -> Result<Option<Self>, String> {
         let flat = flatten(&self.layers);
         let contributes = contributing(&flat);
-        // A CMYK raster counts as a raster (#547 phase 4a).
+        // A CMYK raster counts as a raster (#1 phase 4a).
         let raster = |i: usize| {
             self.layer(i).is_some_and(|l| {
                 matches!(
@@ -349,7 +349,7 @@ impl PrecisionDocument {
     /// threaded, because the seed is chosen after the plan.
     pub(crate) fn merge_scratch_bytes(&self, members: &[usize]) -> Result<u64, String> {
         // A CMYK document's merges run `cmyk_merge`'s frame render, charged
-        // by its own plan over the members document (#547 phase 4a).
+        // by its own plan over the members document (#1 phase 4a).
         if self.is_cmyk() {
             if members.is_empty() {
                 return self.cmyk_merge_scratch_bytes(((0, 0), (self.width, self.height)));

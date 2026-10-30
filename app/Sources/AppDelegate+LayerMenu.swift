@@ -29,7 +29,7 @@ extension AppDelegate {
         // layer_via is a single-entry op, so acting on the primary alone would
         // silently drop the rest of a multi-selection.
         menu.addItem(item("Duplicate Layer", #selector(EditorViewController.duplicateLayer(_:))))
-        // #547 phase 4c: "Duplicate Layer… ▸ Destination" as a
+        // #1 phase 4c: "Duplicate Layer… ▸ Destination" as a
         // sheet whose Destination is a new document or any open one.
         menu.addItem(item("Duplicate to Document…",
                           #selector(EditorViewController.duplicateToNewDocument(_:))))
@@ -110,7 +110,7 @@ extension AppDelegate {
             item(
                 "Stamp Visible", #selector(EditorViewController.stampVisible(_:)), "e",
                 [.command, .shift, .option]))
-        // #547 phase 4c: Stamp Selected. No shortcut: ⌥⌘E is
+        // #1 phase 4c: Stamp Selected. No shortcut: ⌥⌘E is
         // Quick Export here.
         menu.addItem(item("Stamp Selected", #selector(EditorViewController.stampSelected(_:))))
         menu.addItem(item("Flatten Image", #selector(EditorViewController.flattenImage(_:))))

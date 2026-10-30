@@ -1,4 +1,4 @@
-//! KERNEL: the Lab arms of the one compositor (#547 phase 3), the Lab
+//! KERNEL: the Lab arms of the one compositor (#1 phase 3), the Lab
 //! sibling of `blend.rs` as `blend_float.rs` is its float one. A Lab Color
 //! document's layers, merges, flatten, render, paint, Fade, the Clone Stamp,
 //! the Art History Brush and layer effects composite through [`kind_in`] /

@@ -26,7 +26,7 @@ extension ImageDocument {
 
     func saveLosses(for typeName: String) throws -> [String] {
         var losses = try modeSaveLosses(for: typeName)
-        // #547 1c-1: a typed document's flattened file carries its spot channels' overprint, not
+        // #1 1c-1: a typed document's flattened file carries its spot channels' overprint, not
         // the channels (the byte list's `flatSaveLosses` names them in the core); a TIFF keeps
         // them as extra samples (1c-2a).
         if typeName != Self.nativeTypeIdentifier, ExportFormat.from(fileType: typeName) != .tiff,
@@ -39,7 +39,7 @@ extension ImageDocument {
     private func modeSaveLosses(for typeName: String) throws -> [String] {
         guard let doc = doc else { throw DoctoredCoreError(message: "No image loaded.") }
         if typeName == Self.nativeTypeIdentifier { return [] }
-        // #547: a CMYK document writes TIFF and JPEG as its composite on
+        // #1: a CMYK document writes TIFF and JPEG as its composite on
         // paper, so a one-layer document loses nothing and a layered one its
         // layers; no other flat format holds CMYK.
         if doc.isCmyk {
@@ -48,7 +48,7 @@ extension ImageDocument {
             return doc.layerCount > 1
                 ? ["editable CMYK layers (\(format.displayName) holds the composite flattened onto paper)"] : []
         }
-        // #547 Bitmap phase 1c: a Bitmap document saves as .doctored, a 1-bit PNG, TIFF or BMP
+        // #1 Bitmap phase 1c: a Bitmap document saves as .doctored, a 1-bit PNG, TIFF or BMP
         // keeping its plane, or JPEG through Gray; `[]` only when the copy reopens as the same
         // document.
         if doc.isBitmap {
@@ -56,30 +56,30 @@ extension ImageDocument {
                                              embedProfile: embedColorProfile,
                                              stripMetadata: stripMetadata)
         }
-        // #547 Indexed phase 1b: an Indexed Color document saves as .doctored, PNG, GIF or TIFF
+        // #1 Indexed phase 1b: an Indexed Color document saves as .doctored, PNG, GIF or TIFF
         // keeping its palette; `[]` only when the copy reopens as the same document.
         if doc.isIndexed {
             return IndexedDocument.saveLosses(doc, format: ExportFormat.from(fileType: typeName),
                                               embedProfile: embedColorProfile,
                                               stripMetadata: stripMetadata)
         }
-        // #547 Lab phase 1b: a Lab Color document saves as .doctored or Lab TIFF
+        // #1 Lab phase 1b: a Lab Color document saves as .doctored or Lab TIFF
         // (`LabDocument.saveRefusal`); a TIFF holds the flattened composite and is never
         // empty-lossed, so Save As keeps `.doctored` and Save a Copy writes the TIFF.
         if doc.isLab {
             if ExportFormat.from(fileType: typeName) == .tiff {
                 return ["editable Lab Color document state: TIFF holds the flattened composite, and "
-                    + "Doctored opens a Lab TIFF from #547 phase 3"]
+                    + "Doctored opens a Lab TIFF from #1 phase 3"]
             }
             return ["editable Lab Color document state; a Lab Color document saves as .doctored or Lab TIFF"]
         }
-        // #547 Duotone phase 1b: a Duotone document saves as .doctored, or as PSD or PSB through
+        // #1 Duotone phase 1b: a Duotone document saves as .doctored, or as PSD or PSB through
         // File ▸ Export as PSD; every other format is an export through its inks.
         if doc.isDuotone {
             return ["editable Duotone document state; a Duotone document saves as .doctored, or as PSD or "
                 + "PSB through File ▸ Export as PSD"]
         }
-        // #547 phase 1b: a Grayscale document writes PNG, TIFF and JPEG as one channel (its
+        // #1 phase 1b: a Grayscale document writes PNG, TIFF and JPEG as one channel (its
         // composite), so only one visible Normal raster layer at full opacity with no mask or
         // style, at a depth the format holds, loses nothing.
         if doc.isGray {

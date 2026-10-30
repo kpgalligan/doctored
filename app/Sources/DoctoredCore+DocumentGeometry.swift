@@ -150,7 +150,7 @@ extension RasterDocument {
     /// Changes the canvas size without scaling; (originX, originY) is where
     /// the old canvas's top-left lands in the new canvas. On an Indexed
     /// document the new area takes the entry nearest `indexedBackground` when
-    /// there is no transparent index (#547 Indexed phase 3b); nil is white.
+    /// there is no transparent index (#1 Indexed phase 3b); nil is white.
     func canvasResized(w: Int, h: Int, originX: Int, originY: Int,
                        indexedBackground: NSColor? = nil) throws -> RasterDocument? {
         guard w > 0, h > 0 else {

@@ -11,12 +11,12 @@ import AppKit
 /// the foreground swatch; Clear drops every sample, after which the
 /// foreground stands in until the next click.
 ///
-/// On a CMYK document (#547) the samples are INKS (`inks`, four fractions):
+/// On a CMYK document (#1) the samples are INKS (`inks`, four fractions):
 /// the composite's ink under the pointer (`cmykSample`), the foreground's
 /// stored ink (else its colour through the profile) standing in for none, and
 /// the distance is over C, M, Y and K (`cmyk_adjust_ink`).
 ///
-/// On a Lab Color document (#547 phase 2d) the samples are the document's own
+/// On a Lab Color document (#1 phase 2d) the samples are the document's own
 /// 8-bit `#LLaabb` codes, which the core converts for the kernel; the
 /// foreground stands in as its codes (`LabDocument.codeHex`), and the label
 /// reads L*, a*, b* (`LabDocument.readoutText`), never the hex.
@@ -153,7 +153,7 @@ final class ReplaceColorSheet: AdjustmentSheet {
             : samples.joined(separator: " ")
     }
 
-    /// A Lab Color document's samples are its own `#LLaabb` codes (#547 phase 2d).
+    /// A Lab Color document's samples are its own `#LLaabb` codes (#1 phase 2d).
     private var isLab: Bool { document.doc?.isLab == true }
 
     /// The three 0…255 channels of `"#rrggbb"` (the Lab arms').

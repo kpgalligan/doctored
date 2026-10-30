@@ -128,7 +128,7 @@ impl ResolvedNode<'_> {
         let a = unit[0][3];
         if let Some(steps) = steps.filter(|steps| !steps.is_empty()) {
             let limit = self.footprint_limit(pixel, canvas_xy);
-            // `clip_unit`'s Open against the footprint (#578), then D4: the
+            // `clip_unit`'s Open against the footprint (#2), then D4: the
             // members punch to the unit as it stands RIGHT NOW — after the
             // base's pixel pass, opened, before any member.
             let footprint = limit.unwrap_or(a);
@@ -296,7 +296,7 @@ pub(crate) fn unit_pass_sample16(
     }
     let a = unit[0][3];
     if !node.members.is_empty() {
-        // `clip_unit`'s Open against the footprint (#578), then D4: the
+        // `clip_unit`'s Open against the footprint (#2), then D4: the
         // members punch to the unit as it stands after the base's pixel
         // pass, opened, before any member.
         let footprint = limit.unwrap_or(a);

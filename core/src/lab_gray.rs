@@ -1,4 +1,4 @@
-//! Image ▸ Mode ▸ Grayscale from a Lab Color document (#547 Lab phase
+//! Image ▸ Mode ▸ Grayscale from a Lab Color document (#1 Lab phase
 //! 5a-ii): the Lab arm's pixel rule, its blocker and its plan term.
 //! `gray_convert`'s RGB → Gray body runs it, so the record tree, the
 //! styles, the comps, the depth and the flatten choice are that body's.

@@ -1,6 +1,6 @@
-# Grayscale document mode (#547): shipped runs
+# Grayscale document mode (#1): shipped runs
 
-The settled record of [#547](https://github.com/kpgalligan/doctored-dev/issues/547)'s Grayscale phases: decisions in force
+The settled record of [#1](https://github.com/kpgalligan/doctored/issues/1)'s Grayscale phases: decisions in force
 and each shipped phase's few lines, added by the batch that ships it. [grayscale-mode-status.md](grayscale-mode-status.md)
 keeps the head, unshipped contracts and `## Open items`. Takes live under `rasterize-fixtures/photoshop/`, runners in
 `scripts/photoshop-probe/`.
@@ -37,7 +37,7 @@ keeps the head, unshipped contracts and `## Open items`. Takes live under `raste
 - **The gate:** the core's `gray_document::admit_edit` in `ffi_precision_edit::request` and
   `precision_capability::GRAY_FAMILIES`; the host's `GrayDocument` asked first in `DocumentPrecision` and
   `validatePrecisionItem`. Every refusal is the core's sentence: "`<operation>` is unavailable in a Grayscale
-  document until #547 phase `<p>`.", `p` from `gray_document::LATER_PHASES` (host: `GrayDocument.laterPhases`,
+  document until #1 phase `<p>`.", `p` from `gray_document::LATER_PHASES` (host: `GrayDocument.laterPhases`,
   checked against the registry at server start): phase 6 is the only later phase (since 5b). The host's
   paint, adjustment, filter and retouch tools (`GrayDocument.depthRuled`) pass the gray gate, then answer the
   depth's own rules as on an RGB document.

@@ -483,15 +483,15 @@ extension EditorViewController {
               let paint = ToolOptionsStore.shared.paintOptions(for: currentTool)
         else { return DR_BLEND_NORMAL }
         // On a Grayscale or Lab Color document a stored mode outside its list strokes as Normal,
-        // as the popup shows it (#547 phase 2e, Lab phase 2e); the store is not rewritten.
+        // as the popup shows it (#1 phase 2e, Lab phase 2e); the store is not rewritten.
         let mode = Self.blendMode(fromStored: paint.blendIndex)
         return Self.paintBlendChoices(for: document?.doc).contains { $0.0 == mode }
             ? mode : DR_BLEND_NORMAL
     }
 
     /// The Brush's and Clone Stamp's Mode list on `doc`: on a Grayscale document its modes
-    /// (`NativeLayerBlending.grayModes(for:)`, #547 phase 2e), on a Lab Color document the Lab
-    /// list (`NativeLayerBlending.labModes`, #547 Lab phase 2e), else every mode.
+    /// (`NativeLayerBlending.grayModes(for:)`, #1 phase 2e), on a Lab Color document the Lab
+    /// list (`NativeLayerBlending.labModes`, #1 Lab phase 2e), else every mode.
     static func paintBlendChoices(for doc: RasterDocument?) -> [(DrBlendMode, String)] {
         if let doc, doc.isLab {
             return NativeLayerBlending.labModes.map { ($0, DrBlendMode.displayName(for: $0)) }
@@ -501,7 +501,7 @@ extension EditorViewController {
     }
 
     /// The Fill and Gradient tools' Mode list on `doc`: on a Lab Color document the Lab list
-    /// (`NativeLayerBlending.labModes`, #547 Lab phase 2f), else every mode.
+    /// (`NativeLayerBlending.labModes`, #1 Lab phase 2f), else every mode.
     static func toolBlendChoices(for doc: RasterDocument?) -> [(DrBlendMode, String)] {
         if let doc, doc.isLab {
             return NativeLayerBlending.labModes.map { ($0, DrBlendMode.displayName(for: $0)) }
@@ -557,7 +557,7 @@ extension EditorViewController {
     private func artHistoryCluster(read: @escaping () -> PaintToolOptions,
                                    write: @escaping (PaintToolOptions) -> Void) -> OptionCluster {
         // On a Grayscale document the Mode list is the tool's Grayscale modes
-        // (#547 phase 2e), on a Lab Color one those of `labModes` (#547 Lab 2f; since phase 3,
+        // (#1 phase 2e), on a Lab Color one those of `labModes` (#1 Lab 2f; since phase 3,
         // Normal and the HSL four); a stored mode outside it reads as Normal, the store
         // unchanged.
         let doc = document?.doc
@@ -630,8 +630,8 @@ extension EditorViewController {
         let write: (PaintToolOptions) -> Void = {
             ToolOptionsStore.shared.setPaintOptions($0, for: tool)
         }
-        // The Blend popup's list: the Grayscale modes on a Gray document (#547 phase 2e), the
-        // Lab modes on a Lab document (#547 Lab phase 2e).
+        // The Blend popup's list: the Grayscale modes on a Gray document (#1 phase 2e), the
+        // Lab modes on a Lab document (#1 Lab phase 2e).
         let blendChoices = Self.paintBlendChoices(for: document?.doc)
         let blendChoicesID = document?.doc?.isLab == true ? "paint.blend.lab"
             : document?.doc?.isGray == true ? "paint.blend.gray" : "paint.blend"
@@ -850,7 +850,7 @@ extension EditorViewController {
                             options.rangeIndex = index
                             write(options)
                         })),
-                // #547: Protect Tones moves a pixel's channels together (off by default).
+                // #1: Protect Tones moves a pixel's channels together (off by default).
                 OptionDescriptor(
                     id: "paint.protectTones", overflowLabel: "Protect Tones",
                     kind: .checkbox(
@@ -1350,7 +1350,7 @@ extension EditorViewController {
                             self?.shapeStyleEdited()
                         },
                         picker: { [weak self] current, commit, systemColors in
-                            // #547: a CMYK document picks the fill as ink.
+                            // #1: a CMYK document picks the fill as ink.
                             self?.presentSwatchPicker(
                                 title: "Color Picker (Fill Color)", color: current,
                                 commit: commit, systemColors: systemColors,
@@ -1377,7 +1377,7 @@ extension EditorViewController {
                             self?.shapeStyleEdited()
                         },
                         picker: { [weak self] current, commit, systemColors in
-                            // #547: a CMYK document picks the stroke as ink.
+                            // #1: a CMYK document picks the stroke as ink.
                             self?.presentSwatchPicker(
                                 title: "Color Picker (Stroke Color)", color: current,
                                 commit: commit, systemColors: systemColors,
@@ -1585,7 +1585,7 @@ extension EditorViewController {
                         get: { [weak self] in self?.paintColor ?? .black },
                         set: { [weak self] color in self?.setPaintColor(color) },
                         picker: { [weak self] current, commit, systemColors in
-                            // #547: a CMYK document picks the text colour as ink, kept as
+                            // #1: a CMYK document picks the text colour as ink, kept as
                             // the foreground's stored ink (`setPaintInk`).
                             self?.presentSwatchPicker(
                                 title: "Color Picker (Text Color)", color: current,

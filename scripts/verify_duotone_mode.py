@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 Duotone MCP drive (phases 1a to 2b and the close): an 8-bit sGray document converts to
+"""The #1 Duotone MCP drive (phases 1a to 2b and the close): an 8-bit sGray document converts to
 Duotone in one undo step, `render` shows the gray through the inks as the declared model says, the
 inks can be edited later, Grayscale renders them into the gray, `.rz` keeps them, a Gray edit and a
 16-bit source work, Actions replay the conversion, and what the mode does not hold refuses by its
@@ -43,7 +43,7 @@ sRGB-encoded; 8-bit.
 - **D9 Monotone Black.** `MONOTONE_BLACK` renders every pixel within ±1 8-bit code of the
   pre-conversion Grayscale `render`.
 
-Phase 1b (#547 Duotone phase 1b), each on a fresh 8-bit Duotone document of `TWO`:
+Phase 1b (#1 Duotone phase 1b), each on a fresh 8-bit Duotone document of `TWO`:
 
 - **D10 RGB.** `convert_mode rgb` answers color_mode rgb; its `render` is within ±`ROUTE_TOLERANCE`
   of the Duotone `render` per pixel; one undo answers duotone again.
@@ -64,7 +64,7 @@ Phase 1b (#547 Duotone phase 1b), each on a fresh 8-bit Duotone document of `TWO
   document set to `THREE` brings back `get_duotone` equal to D1's; `get_duotone` to the same path
   refuses without overwrite; `save_copy tiff` refuses with `SAVE`.
 
-Phase 2a (#547 Duotone phase 2a), corrected by phase 2b (the `profile` and `proof` rows refuse),
+Phase 2a (#1 Duotone phase 2a), corrected by phase 2b (the `profile` and `proof` rows refuse),
 each on a fresh 8-bit Duotone document of `TWO`:
 
 - **D17 Assign Profile.** `assign_profile gray_gamma_22` answers isError with
@@ -78,7 +78,7 @@ each on a fresh 8-bit Duotone document of `TWO`:
 - **D21 the row's name.** `get_duotone` answers channel_name Duotone, and Tritone after
   `set_duotone` with `THREE` (confirmed by the walk).
 
-Phase 2b (#547 Duotone phase 2b):
+Phase 2b (#1 Duotone phase 2b):
 
 - **D22 the walk's final table.** Read from `TAKE1` (`decided.json`; SKIP printed when absent):
   each `walk.final.photoshop_disabled_tools` entry, called with only `document_id` on a fresh
@@ -88,7 +88,7 @@ Phase 2b (#547 Duotone phase 2b):
   `convert_mode duotone` with `TWO`) and its plain Grayscale twin, `merge_layers_to_hdr layers
   [0, 1] evs [0, 1]` gives the same outcome: both answer ok, or both the same refusal.
 
-The close (#547, `designs/duotone-mode.md`), each on a fresh 8-bit Duotone document of `TWO`:
+The close (#1, `designs/duotone-mode.md`), each on a fresh 8-bit Duotone document of `TWO`:
 
 - **D24 Grayscale through the inks.** `convert_mode gray` answers gray with no duotone, and its
   `render` is, per pixel, `gray_oracle(TWO)` (the oracle's mix Y, clamped, sRGB-encoded: sGray's

@@ -1,4 +1,4 @@
-//! The adjustments #578 measured against Photoshop 26.10.0's own
+//! The adjustments #2 measured against Photoshop 26.10.0's own
 //! renders: the committed `post`, `hue2` and `vibA` layers of the
 //! `adjustments` fixture (`doctored-fixtures/photoshop/adjustments`,
 //! `photoshop.json` lists each layer's descriptor), applied to that

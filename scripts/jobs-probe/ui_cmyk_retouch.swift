@@ -1,6 +1,6 @@
 import AppKit
 
-// The retouch batch's in-process UI cases (#547): the canvas retouch tools a CMYK document admits
+// The retouch batch's in-process UI cases (#1): the canvas retouch tools a CMYK document admits
 // at each depth (`CmykRetouch`'s table, take1's record), Image ▸ Adjustments ▸
 // Equalize's prompt on CMYK and its menu validation at every depth, and Dodge/Burn's Protect Tones
 // checkbox. The CMYK profile is macOS's Generic CMYK Profile, read from the system.

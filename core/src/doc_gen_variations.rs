@@ -451,7 +451,7 @@ impl PrecisionDocument {
         Ok(if self.is_cmyk() {
             GeneratedPlane16::Cmyk(self.cmyk_gen_fill_render(table, pixels, size, job)?)
         } else {
-            // A Gray document folds the picture to its gray (#547 phase 6b)
+            // A Gray document folds the picture to its gray (#1 phase 6b)
             // and a Lab one renders it in Display P3 and returns it to Lab
             // codes (Lab phase 6b-iii, `doc_gen_fill`'s module doc), so the
             // result is the published raster.

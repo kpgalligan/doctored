@@ -1,6 +1,6 @@
 import Foundation
 
-// Image ▸ Adjustments ▸ Equalize's byte call (#547; `core/src/ffi_equalize.rs`). The typed
+// Image ▸ Adjustments ▸ Equalize's byte call (#1; `core/src/ffi_equalize.rs`). The typed
 // documents run the core's selected edit `{"op":"equalize"}` through `SelectedAdjustment`.
 
 extension RasterImage {

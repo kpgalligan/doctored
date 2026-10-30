@@ -1,4 +1,4 @@
-//! The CMYK clipboard PAYLOAD and its RZCB v4 codec (#547 phase 4c). The
+//! The CMYK clipboard PAYLOAD and its RZCB v4 codec (#1 phase 4c). The
 //! operations over it live in `cmyk_clipboard`, its conversions in
 //! `cmyk_payload_convert`.
 //!
@@ -9,7 +9,7 @@
 //! policy (its profile's verbatim bytes), its DECLARED depth, the canvas
 //! position the window came from, the resolution and, when a selection was
 //! in force, the window's u16 coverage (already multiplied into alpha, as an
-//! RGB payload's is) and, since #547's artwork batch, the host's EDITABLE
+//! RGB payload's is) and, since #1's artwork batch, the host's EDITABLE
 //! SECTION of a whole-layer Copy of a type, shape or fill layer (v3's
 //! section, opaque beyond its shape). It never carries a tone map or a
 //! byte-origin flag: a CMYK layer is never float, and its 8-bit codes are

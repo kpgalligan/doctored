@@ -53,7 +53,7 @@ enum ColorProfile {
     static let sRGB: CGColorSpace =
         CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
 
-    /// Display P3, made once: the tag of a CMYK document's proof (`"display-p3"`, #547 phase 5),
+    /// Display P3, made once: the tag of a CMYK document's proof (`"display-p3"`, #1 phase 5),
     /// the space its view is in. sRGB when the system has none.
     static let displayP3: CGColorSpace = CGColorSpace(name: CGColorSpace.displayP3) ?? sRGB
 

@@ -1,4 +1,4 @@
-//! The paint family on an Indexed Color document (#547 Indexed phases 2b
+//! The paint family on an Indexed Color document (#1 Indexed phases 2b
 //! and 2c, `designs/indexed-mode.md`): each op runs on the
 //! document's RGB storage through its existing kernel, then the result is
 //! re-indexed by the edge rule (`indexed_edge`) against the plane from

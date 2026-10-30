@@ -62,7 +62,7 @@ struct ColorRangeGamutInput {
         self.setup = setup
         width = doc.width
         height = doc.height
-        // #547 Lab phase 6b-i: a Lab document proofs its Display P3 view (5b's rule).
+        // #1 Lab phase 6b-i: a Lab document proofs its Display P3 view (5b's rule).
         profile = doc.proofSourceProfile
         setupJSON = setup.jsonText(gamutWarning: false)
         let pixels = UInt64(width * height)

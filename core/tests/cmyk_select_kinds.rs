@@ -1,4 +1,4 @@
-//! The channels batch's selection kinds on a CMYK document (#547) through
+//! The channels batch's selection kinds on a CMYK document (#1) through
 //! `dr_precision_doc_select`, each against an oracle written here from the
 //! module docs, never from the implementation: an ink plate loads its stored
 //! domain `65535 − ink` (Load Selection from a plate) over the composite and

@@ -19,7 +19,7 @@ extension EditorViewController {
 
     /// ⌘Y / ⇧⌘Y with no setup: true when the default preset seeded one and
     /// the toggle continues. With no default the Working CMYK proof seeds it
-    /// (#547 phase 5, the default; numbers preserved on a CMYK
+    /// (#1 phase 5, the default; numbers preserved on a CMYK
     /// document), and only with no working CMYK either does Proof Setup open.
     /// A default that fails opens Proof Setup with the failure as its notice.
     func seedProofSetupFromDefault(_ sender: Any?) -> Bool {

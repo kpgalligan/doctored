@@ -192,19 +192,19 @@ extension TypedClipboardPayload {
     /// payload's declared depth, `cmykDepth`).
     var originDepth: Int { (info["origin_depth"] as? NSNumber)?.intValue ?? storageDepth }
     /// Exactly `v · 257` of 8-bit RGB pixels. Never a CMYK payload, whose
-    /// 8-bit ink is the declared depth of a CMYK document (#547 phase 4c).
+    /// 8-bit ink is the declared depth of a CMYK document (#1 phase 4c).
     var byteOrigin: Bool { !isCmyk && originDepth == 8 }
-    /// #547 phase 4c: a CMYK payload (RZCB v4) — straight CMYKA16 ink in its
+    /// #1 phase 4c: a CMYK payload (RZCB v4) — straight CMYKA16 ink in its
     /// CMYK profile (`profileData`), which only a CMYK document keeps as ink.
     var isCmyk: Bool { info["mode"] as? String == "cmyk" }
     /// A CMYK payload's declared depth (8 or 16); nil for an RGB payload.
     var cmykDepth: Int? { isCmyk ? int("cmyk_depth") : nil }
-    /// #547 phase 4: a Grayscale payload (RZCB v5) — R = G = B in its Gray profile's twin, with
+    /// #1 phase 4: a Grayscale payload (RZCB v5) — R = G = B in its Gray profile's twin, with
     /// the Gray ICC (`profileData`), which only a Gray document keeps as gray codes.
     var isGray: Bool { info["mode"] as? String == "gray" }
     /// A Gray payload's declared depth (8, 16 or 32); nil for every other payload.
     var grayDepth: Int? { isGray ? int("gray_depth") : nil }
-    /// #547 Lab phase 4c: a Lab Color payload (RZCB v6) — the L*a*b* codes in the Lab twin
+    /// #1 Lab phase 4c: a Lab Color payload (RZCB v6) — the L*a*b* codes in the Lab twin
     /// (`profileData`), which only a Lab document keeps as codes.
     var isLab: Bool { info["mode"] as? String == "lab" }
     /// A Lab payload's declared depth (8 or 16); nil for every other payload.
@@ -309,7 +309,7 @@ extension RasterDocument {
     /// Edit ▸ Cut at 16 bits: the payload, and the erased document — nil
     /// when the erase changed no byte (a transparency lock). On an Indexed
     /// document `indexedBackground` is the colour a cut pixel's entry is
-    /// nearest with no transparent index (#547 Indexed phase 3b); nil is white.
+    /// nearest with no transparent index (#1 Indexed phase 3b); nil is white.
     func clipboardCut(layer: Int, window: CGRect, selection: CanvasSelection?,
                       indexedBackground: NSColor? = nil) throws
         -> (RasterClipboardPayload, RasterDocument?) {
@@ -361,7 +361,7 @@ extension RasterDocument {
             otherRetained: budget.otherRetained, control: nil))
     }
 
-    /// #547 Indexed phase 2d: Paste and Paste Special on an Indexed document — the payload merged
+    /// #1 Indexed phase 2d: Paste and Paste Special on an Indexed document — the payload merged
     /// into the one layer and re-indexed, masked by `mask` (Paste Into / Outside) in the same core
     /// call (`dr_precision_doc_indexed_paste`). Answers the document and its plan's
     /// `scratch_bytes`, which the reply reports as `working_memory_plan_bytes`.
@@ -420,7 +420,7 @@ extension RasterDocument {
         let precision = try requirePrecision()
         let context = try PrecisionWorkContext(source: precision)
         let info = try payload.info()
-        // #547 phase 4c: a CMYK payload's rendering is its ink through the
+        // #1 phase 4c: a CMYK payload's rendering is its ink through the
         // CMYK profile into this (CMYK) document's view space, Display P3.
         if info["mode"] as? String == "cmyk" {
             return try payload.rgba8(in: iccProfile, workingLimit: context.limit,

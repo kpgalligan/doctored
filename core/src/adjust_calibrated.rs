@@ -14,7 +14,7 @@
 //! typed document's own quantization on the 16-bit one. No matrix, no TRC
 //! and no encoder, which is why a profile whose curves cannot be encoded
 //! into still admits Exposure. That is Photoshop's Exposure at 8 and 16
-//! bits, fitted on its receipts and confirmed by fresh takes (#578,
+//! bits, fitted on its receipts and confirmed by fresh takes (#2,
 //! `scripts/photoshop-probe/stroke_exposure_578_take.py` take1 and
 //! `stroke_exposure_578_take2.py` take2): sRGB 8/16, Display P3 16, ROMM 8/16
 //! and ITU-709 8/16 within 1.76 codes (the reference-basis kernel it

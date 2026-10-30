@@ -109,7 +109,7 @@ impl PrecisionDocument {
             plan.encoded_bound,
             job,
         )?;
-        // Then the CMYK document word (`cmyk_native`, #547) — the FIRST
+        // Then the CMYK document word (`cmyk_native`, #1) — the FIRST
         // word inside 46, written iff the document is CMYK: 88 when it
         // holds a stacked style (a record's or a comp's), else 87 when it
         // holds a description, else 86 when any record holds a layer effect,
@@ -129,10 +129,10 @@ impl PrecisionDocument {
             )?;
         }
         // …or, in the same slot, the Gray document word 106 (`gray_native`,
-        // #547): written iff the document is Gray (never beside a CMYK
+        // #1): written iff the document is Gray (never beside a CMYK
         // word); its GRAY table goes where the CMYK table goes. A Duotone
         // document (a Gray one with a description) writes 109 in its place
-        // (`duotone_native`, #547 Duotone phase 1a), its DUOT table right
+        // (`duotone_native`, #1 Duotone phase 1a), its DUOT table right
         // after GRAY. A Bitmap document (Gray underneath) writes the Bitmap
         // word 110 (`bitmap_native`) in its place, its GRAY table then its
         // BTMP table where the CMYK table goes.
@@ -150,7 +150,7 @@ impl PrecisionDocument {
             append(out, &word.to_le_bytes(), plan.encoded_bound, job)?;
         }
         // …or, in the same slot, the Lab document word 107 (`lab_native`,
-        // #547): written iff the document is Lab (never beside a CMYK or
+        // #1): written iff the document is Lab (never beside a CMYK or
         // Gray word); its LAB table goes where the CMYK table goes.
         let lab = self.lab_policy().map(|policy| &**policy);
         if lab.is_some() {
@@ -162,7 +162,7 @@ impl PrecisionDocument {
             )?;
         }
         // …or, in the same slot, the Indexed document word 108
-        // (`indexed_native`, #547): written iff the document is Indexed
+        // (`indexed_native`, #1): written iff the document is Indexed
         // (never beside a CMYK, Gray or Lab word); its INDX table goes where
         // the CMYK table goes.
         let indexed = self.indexed_policy().map(|policy| &**policy);
@@ -174,7 +174,7 @@ impl PrecisionDocument {
                 job,
             )?;
         }
-        // Then the conditional `spot_channel_native` word 112 (#547) — right
+        // Then the conditional `spot_channel_native` word 112 (#1) — right
         // after the CMYK slot and ahead of 111, written iff some channel is a
         // spot channel. Its SPOT table follows LREF, before the CMYK table.
         let spots = crate::spot_channel_native::precision_entries(self);

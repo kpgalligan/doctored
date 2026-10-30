@@ -183,7 +183,7 @@ fn threshold_and_posterize_map_through_the_display_curve() {
     }
     let out = rendered("posterize", &json!({"levels": 4}));
     for (patch, got) in PATCHES.iter().zip(&out) {
-        // Photoshop's bins (#578): k = min(3, floor(4 E)), out k/3.
+        // Photoshop's bins (#2): k = min(3, floor(4 E)), out k/3.
         let want = wide(*patch).map(|v| decode((encode(v) * 4.0).floor().clamp(0.0, 3.0) / 3.0));
         assert_near(*got, want, 5e-5, &format!("posterize {patch:?}"));
     }

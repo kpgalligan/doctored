@@ -1,4 +1,4 @@
-//! KERNEL: the CMYK document's ink adjustments (#547) — the [`InkKernel`]
+//! KERNEL: the CMYK document's ink adjustments (#1) — the [`InkKernel`]
 //! trait every ink op beyond Levels, Curves and Hue/Saturation evaluates
 //! through, [`ink_tone`] (the ONE CMYK tone formula), and the five NATIVE ink
 //! ops with their CMYK parameter parse: Channel Mixer, Selective Color,

@@ -17,7 +17,7 @@
 //!   clip (`hi-e0`, shipped under the near-match rule: Photoshop's minimum
 //!   lands up to 2 of its 15-bit codes away), the result clamped to [0, 1].
 //!   At 8 bits this form misses Photoshop's own integer path by up to 3
-//!   codes (take6 BT8), so a byte document runs that path instead (#578
+//!   codes (take6 BT8), so a byte document runs that path instead (#2
 //!   phase 4, h8a-LE, oracle `common/bw_tint8_reference.rs`, fitted and
 //!   confirmed by `scripts/photoshop-probe/eight_bit_578_take.py`):
 //!   `eight_bit_tint_is_the_integer_path` holds it exactly.
@@ -411,7 +411,7 @@ fn percents(weights: [f64; 6]) -> [i32; 6] {
     weights.map(|w| (w * 100.0).round() as i32)
 }
 
-/// #578 phase 4: a byte document's Tint is the integer path (h8a-LE,
+/// #2 phase 4: a byte document's Tint is the integer path (h8a-LE,
 /// measured against Photoshop), exactly. The byte op on float_adjust_take7's 8-bit stimulus
 /// (its `N8` greys and `C8` colours, restated) under its sets C1-C5 equals
 /// the oracle on every code, and so do take6's own 8-bit Photoshop pins.

@@ -1,9 +1,9 @@
-//! The CIE oracles of the Lab Color tests (#547), written here from the
+//! The CIE oracles of the Lab Color tests (#1), written here from the
 //! formulas, never from the code under test: the ICC PCS white (D50), the
 //! published Bradford-adapted sRGB and Display P3 → XYZ (D50) matrices, the
 //! IEC 61966-2-1 curve, CIE L\*a\*b\* both ways, and the ICC v4 16-bit Lab
 //! decoding. `lab_convert.rs`, `lab_structure.rs` and `lab_save.rs` share
-//! them; since #547 phase 2d also ProPhoto RGB both ways (Kodak's colorants,
+//! them; since #1 phase 2d also ProPhoto RGB both ways (Kodak's colorants,
 //! the pure 461/256 power) for the colour ops' oracles.
 
 use crate::gray_fixture::{srgb_decode, srgb_encode};

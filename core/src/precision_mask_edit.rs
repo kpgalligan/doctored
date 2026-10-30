@@ -78,7 +78,7 @@ impl MaskEdit {
     pub fn scratch_bytes(&self, doc: &PrecisionDocument) -> Result<u64, String> {
         self.validate(doc)?;
         if let Self::ApplyMask { layer } = self {
-            // A CMYK raster bakes too (#547, `precision_mask_apply`'s `# CMYK`).
+            // A CMYK raster bakes too (#1, `precision_mask_apply`'s `# CMYK`).
             return doc.apply_mask_plan(*layer);
         }
         // Four MiB covers the already parsed command plus new ancestor/name

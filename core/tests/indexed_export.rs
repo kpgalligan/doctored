@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 1b's kept export, through the FFI: PNG, GIF and
+//! #1 Indexed Color phase 1b's kept export, through the FFI: PNG, GIF and
 //! TIFF of an Indexed document with profile `document` reopen
 //! (`dr_precision_doc_open_indexed`) with every index, the palette's entries
 //! and the transparent index, against the document's own plane; the PNG's

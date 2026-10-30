@@ -119,7 +119,7 @@ pub fn levels_stage(s: (f64, f64, f64, f64, f64), v: f64) -> f64 {
     ob + (ow - ob) * t
 }
 
-/// The Vibrance adjustment's unbound form (#578, `adjust_vibrance_posterize_parity`'s
+/// The Vibrance adjustment's unbound form (#2, `adjust_vibrance_posterize_parity`'s
 /// oracle with the IEC sRGB curve): `v` and `saturation` in −1…1, each stage
 /// `c' = clamp01(A + (c − A)·K)` on the DECODED values. Vibrance first, the
 /// shipped law (`common/vibrance_reference.rs`'s `stage`: one anchor and one

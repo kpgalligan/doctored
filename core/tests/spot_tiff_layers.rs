@@ -1,4 +1,4 @@
-//! #547 spot channels 1c-2b (`tiff_spot`'s LAYERED paragraph,
+//! #1 spot channels 1c-2b (`tiff_spot`'s LAYERED paragraph,
 //! `tiff_layers_write::write_spots`): the layered TIFF's spot channels in
 //! and out, through the C API.
 //!

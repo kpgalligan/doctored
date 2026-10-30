@@ -139,7 +139,7 @@ final class PrecisionFacadeMetadata {
                   let selected = row["color_indicates_selected"] as? Bool else {
                 throw Self.failure("High-depth channel display metadata is invalid.")
             }
-            // A spot channel's ink (#547): `null` for an alpha channel.
+            // A spot channel's ink (#1): `null` for an alpha channel.
             var spot: SpotInk?
             if let value = row["spot"], !(value is NSNull) {
                 guard let ink = SpotInk(json: value) else {

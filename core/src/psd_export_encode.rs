@@ -293,7 +293,7 @@ pub(crate) fn layer_info(records: &[Record], large: bool) -> Result<Vec<u8>, Str
 /// [`layer_info`] with the count's sign chosen: negative when
 /// `merged_alpha` (the first alpha channel is the merged transparency),
 /// else positive — a Grayscale file whose composite has no alpha plane
-/// (#547 phase 3b, `psd_export_gray`), as Photoshop writes its own.
+/// (#1 phase 3b, `psd_export_gray`), as Photoshop writes its own.
 pub(crate) fn layer_info_counted(
     records: &[Record],
     large: bool,
@@ -407,9 +407,9 @@ fn push_section_len(out: &mut Vec<u8>, len: usize, what: &str, large: bool) -> R
 }
 
 /// Serializes a complete PSD (`large == false`, version 1) or PSB (`large`,
-/// version 2) at `depth` (8 or 16) in `color_mode` (3 RGB, 4 CMYK — #547's
-/// flattened CMYK save, `cmyk_io` —, 1 Grayscale, #547 phase 3b, or 9 Lab,
-/// #547 Lab phase 3b). `records`, `global_light` and `color_samplers` are
+/// version 2) at `depth` (8 or 16) in `color_mode` (3 RGB, 4 CMYK — #1's
+/// flattened CMYK save, `cmyk_io` —, 1 Grayscale, #1 phase 3b, or 9 Lab,
+/// #1 Lab phase 3b). `records`, `global_light` and `color_samplers` are
 /// [`layer_info`]'s and [`image_resources`]'s; a Grayscale file with ONE
 /// composite plane and a Lab file with THREE write a positive record count
 /// (`layer_info_counted`), every other file a negative one.
@@ -420,7 +420,7 @@ fn push_section_len(out: &mut Vec<u8>, len: usize, what: &str, large: bool) -> R
 /// stored (`max − ink`); for Grayscale the one white-matted gray plane
 /// (`psd_export_gray::composite_plane_gray`); for Lab the L, a and b planes
 /// matted over Lab white (`psd_export_lab::composite_planes_lab`). A 32-bit
-/// file is [`write_psd32`]'s. `spots` (`psd_spot`, #547 1b-1) are declared
+/// file is [`write_psd32`]'s. `spots` (`psd_spot`, #1 1b-1) are declared
 /// after the composite: their planes' rows follow its rows in the RLE table
 /// and body, and their resources (`psd_spot_records::encode_resources`)
 /// follow the others, leading with the merged transparency's entry when the
@@ -530,7 +530,7 @@ pub(crate) fn write_psd(
 }
 
 /// An open or closed folder record's `lsct` in Photoshop's own 16-byte form
-/// (#547 phase 3b, M4; Lab phase 3b, L3): the divider type, `8BIM`, the
+/// (#1 phase 3b, M4; Lab phase 3b, L3): the divider type, `8BIM`, the
 /// blend key and the sub-type (0, normal), moved to the head of `blocks` —
 /// the byte position the record's own `divider` gave it — where the writer's
 /// default form is 12 bytes. A closing divider and every other record are
@@ -581,7 +581,7 @@ const PHOTOSHOP_HDR_COLOR_MODE_DATA: [u8; 110] = [
 /// the only two copies of the planes this ever holds, which is what the
 /// float save's admission charges (`psd_export_float`'s module doc).
 ///
-/// `gray` (#547 phase 3c) writes Photoshop's 32-bit Grayscale form instead,
+/// `gray` (#1 phase 3c) writes Photoshop's 32-bit Grayscale form instead,
 /// as its `layers32.psd` (take2): header channels 1 and colour mode 1, the
 /// same color-mode data, NO `Mt32` block (Photoshop's gray files carry no
 /// merged alpha, phase 3b's M1), the `Lr32` count positive as before, and a

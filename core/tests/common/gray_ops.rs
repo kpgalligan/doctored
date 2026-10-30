@@ -1,4 +1,4 @@
-//! Shared helpers for #547 phase 2c's Grayscale filter and retouch tests
+//! Shared helpers for #1 phase 2c's Grayscale filter and retouch tests
 //! (`gray_filter.rs`, `gray_retouch.rs`): a Gray Gamma 2.2 document of a
 //! pattern with partial alpha at 8, 16 or 32 bits, a uniform one, its RGB
 //! TWIN (the Gray document converted to RGB through its own profile bytes,

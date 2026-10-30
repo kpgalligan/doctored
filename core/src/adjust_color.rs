@@ -6,7 +6,7 @@
 //! moved to `adjust_hue_saturation` and Color Balance to
 //! `adjust_color_balance`, both measured in Photoshop.
 //!
-//! # The form, measured in Photoshop 26.10.0 (#578)
+//! # The form, measured in Photoshop 26.10.0 (#2)
 //!
 //! Receipts: `doctored-fixtures/photoshop/adjust-parity-535-536/take3`
 //! (VB-sat), `adjust-parity-v1x/take1`-`take4` and `adjust-arith-578/take1`;

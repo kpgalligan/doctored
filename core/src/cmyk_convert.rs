@@ -1,4 +1,4 @@
-//! Image ▸ Mode ▸ CMYK Color… and RGB Color… (#547 phase 1): the two whole
+//! Image ▸ Mode ▸ CMYK Color… and RGB Color… (#1 phase 1): the two whole
 //! document conversions, their plans and their refusals.
 //!
 //! * **RGB → CMYK** admits a u16 RGB document whose records are raster
@@ -13,11 +13,11 @@
 //!   options say otherwise) into the destination profile — the working CMYK
 //!   profile when the host passes none — at the declared depth: depth 8
 //!   rounds every component to the 8-bit grid (×257), which is what an 8-bit
-//!   RGB document converted in Photoshop holds. Since #547 phase 5b it also
+//!   RGB document converted in Photoshop holds. Since #1 phase 5b it also
 //!   takes an 8/16-bit Gray document directly (Mode ▸ CMYK Color from
 //!   Grayscale): its storage is the twin's R = G = B, so the same
 //!   `RgbToCmyk` from `source.profile()` (the twin) converts it, with the
-//!   same blockers; the `gray` policy is not carried. Since #547 Lab phase
+//!   same blockers; the `gray` policy is not carried. Since #1 Lab phase
 //!   5a it takes an 8/16-bit Lab document too (Mode ▸ CMYK Color from Lab
 //!   Color): the Lab document, flattened first when asked, becomes its
 //!   16-bit ProPhoto RGB stage (`lab_cmyk`, CMYK → Lab's rule reversed),
@@ -651,7 +651,7 @@ pub(crate) fn cmyk_to_rgb16_image(
 /// One CMYK image's ink in another profile through `leg` at `depth` (depth
 /// 8 rounds every component, alpha too, to the ×257 grid, as
 /// [`rgb16_to_cmyk_image`] does): a paste between CMYK documents of
-/// different profiles (#547 phase 4c).
+/// different profiles (#1 phase 4c).
 pub(crate) fn cmyk_to_cmyk_image(
     image: &CmykImage,
     leg: &mut CmykToCmyk<'_>,

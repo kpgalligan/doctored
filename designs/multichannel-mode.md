@@ -1,8 +1,8 @@
 # Multichannel document mode (ADR)
 
-- **Status:** Accepted, decided 2026-10-22 (owner): not built; [#547](https://github.com/kpgalligan/doctored-dev/issues/547)
+- **Status:** Accepted, decided 2026-10-22 (owner): not built; [#1](https://github.com/kpgalligan/doctored/issues/1)
   (the colour-mode umbrella) stays open for Indexed, Duotone and Bitmap.
-- **Issue:** [#547](https://github.com/kpgalligan/doctored-dev/issues/547).
+- **Issue:** [#1](https://github.com/kpgalligan/doctored/issues/1).
 - **Code:** the two refusal sites: `core/src/psd_container.rs` (`MULTICHANNEL_REFUSAL`, the first arm of
   `Container::support_refusal`) and `app/Sources/AgentServer+CmykMode.swift` (`convertMode`'s
   `multichannelRefusal`). Tests: `core/tests/multichannel_psd.rs`; drive gate G8 of `scripts/verify_cmyk_mode.py`.

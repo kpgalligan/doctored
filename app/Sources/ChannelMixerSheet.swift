@@ -21,7 +21,7 @@ import AppKit
 /// to. The matrix runs on the ENCODED values (no linearization), and the
 /// constant is a fraction too: 0.5 adds 127.5 levels.
 ///
-/// On a CMYK document (#547) the outputs are Cyan, Magenta, Yellow and Black
+/// On a CMYK document (#1) the outputs are Cyan, Magenta, Yellow and Black
 /// and the sources C, M, Y and K — the CMYK mixer, on the ink
 /// (`cmyk_adjust_ink`) — and Monochrome's Gray row sends one mix to all four
 /// plates.

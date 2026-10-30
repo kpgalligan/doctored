@@ -138,7 +138,7 @@ pub struct ProofSetup {
     pub simulate_ink_black: bool,
     pub gamut_warning: bool,
     pub gamut_color: [u8; 3],
-    /// Preserve CMYK Numbers (#547 phase 5): a CMYK document's ink is sent
+    /// Preserve CMYK Numbers (#1 phase 5): a CMYK document's ink is sent
     /// to the proof profile as it is, unconverted (`cmyk_proof`). Refused on
     /// an RGB document.
     pub preserve_numbers: bool,
@@ -428,7 +428,7 @@ impl<'a> Proofer<'a> {
         proof: &'a ProofProfile,
         setup: &ProofSetup,
     ) -> Result<Proofer<'a>, String> {
-        // A Lab Color projection (#547 Lab phase 5b) proofs through its
+        // A Lab Color projection (#1 Lab phase 5b) proofs through its
         // Display P3 view, which the host hands in instead; the twin itself
         // is no document profile.
         if crate::lab_document::is_lab_twin(document) {

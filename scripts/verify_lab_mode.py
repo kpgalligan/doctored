@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 Lab Color phase-1, 1b, 1c, phase-2-take, 2a, 2b, 2c, 2d, 2e, 2f, 2f-second, 2f-third, 3, 3a, 3b, 4a, 4a-ii, 4b-i, 4b-ii, 4c, 5a, 5a-ii, 5b, 6a-i, 6b-i, 6a-ii, 6b-ii, 6b-iii and close MCP drive: Lab
+"""The #1 Lab Color phase-1, 1b, 1c, phase-2-take, 2a, 2b, 2c, 2d, 2e, 2f, 2f-second, 2f-third, 3, 3a, 3b, 4a, 4a-ii, 4b-i, 4b-ii, 4c, 5a, 5a-ii, 5b, 6a-i, 6b-i, 6a-ii, 6b-ii, 6b-iii and close MCP drive: Lab
 documents are
 made New, converted from RGB, Grayscale and CMYK and back to RGB, shown through
 the core's view, saved as `.rz` and reopened over MCP on the Debug app; their
@@ -25,8 +25,8 @@ resamples and transforms run on the codes; phase 4a-ii's warps, Liquify,
 Align and Distribute and the Move tool run on the codes; since the close
 (L93–L98), no refusal names a phase: every tool is lifted, refused for good
 by name, or names its issue; and since L99–L101 the Magic Wand and the Paint
-Bucket run at both depths and Select ▸ Similar and Grow (#683) at 16 bits by
-the take's Lab rule, Similar and Grow refusing at 8 bits (#683).
+Bucket run at both depths and Select ▸ Similar and Grow (#5) at 16 bits by
+the take's Lab rule, Similar and Grow refusing at 8 bits (#5).
 
 The gates are FIXED here BEFORE anything is measured; a failed gate IS the
 receipt and no bound is widened afterwards. The instance is owned by this file
@@ -146,7 +146,7 @@ are the ones fixed before that first run, unchanged.
   `auto_blend_layers`, `quick_select`, the Select Subject family,
   `object_select`, `refine_selection`, `set_quick_mask`, `quick_mask_stroke`,
   `select_sky`, `select_person_parts` and `object_finder_select`, updated
-  before 6b-ii's run, + `select_magic_wand` and #683's `select_similar`,
+  before 6b-ii's run, + `select_magic_wand` and #5's `select_similar`,
   updated before L99's run)
   sorted and holds `clone_stamp` (phase 2e; it lacked it before);
   `blend_modes` equals `LAB_BLEND_NAMES` + "Pass Through (groups)"; and
@@ -626,8 +626,8 @@ is closed first (setup only).
   `COLOR_RANGE_REFUSAL`); and, after `deselect`, `select_magic_wand` (5, 3)
   tolerance 10 answers ok with `get_selection`'s bounds equal to the rect's,
   then `select_similar` tolerance 10 answers ok with the same bounds (updated
-  before L99's run for the wand and #683: they answered `AWAITING`,
-  `select_similar` with #683; updated before 4c's run, which closes phase 4:
+  before L99's run for the wand and #5: they answered `AWAITING`,
+  `select_similar` with #5; updated before 4c's run, which closes phase 4:
   they answered "<tool> " + phase 4's sentence).
 
 Phase 5a-ii, L69 (numbered after 4b-ii's L68), fixed before the run. Every earlier document is closed
@@ -819,7 +819,7 @@ first (setup only, `close_all`).
 Phase 6b-ii, L86–L89, fixed before the run. Every earlier document is closed
 first (setup only, `close_all`). A tool CLEARS THE GATE when it answers ok, or
 an error of its own whose text contains none of `GATE_PARTS` ('Lab Color',
-'until #547', 'matrix/TRC'). The pair is `texture86` (a textured 8-bit
+'until #1', 'matrix/TRC'). The pair is `texture86` (a textured 8-bit
 `TEX_W` × `TEX_H` PNG written here) opened, `convert_precision` rgba16,
 `convert_mode lab`, its layer duplicated and layer 1 `move_layers` by (3, 2).
 
@@ -885,7 +885,7 @@ Every earlier document is closed first (setup only, `close_all`).
 - **L93 the 58.** On a 16-bit 12 × 8 Lab document, each `CLOSE_LIFTED` tool
   called with `document_id` alone clears the gate (`GATE_PARTS`, L86's rule);
   each `CLOSE_REFUSED` tool answers exactly its sentence there; no reply of the
-  58 contains "#547 phase"; `get_precision` has no `later_phases` and no
+  58 contains "#1 phase"; `get_precision` has no `later_phases` and no
   `default_phase` key.
 - **L94 structure, metadata, views.** On a 16-bit two-layer Lab document:
   `arrange_layer` (layer 1 to back), `find_layers` (raster),
@@ -921,7 +921,7 @@ Every earlier document is closed first (setup only, `close_all`).
   `get_precision`'s `supported_menu_items` (Sky Replacement, the take's other
   refuse_for_good row, keeps L91's sentence, unchanged).
 
-The Magic Wand and #683, L99–L101, fixed before the run: `lab_select_682_take.py`'s
+The Magic Wand and #5, L99–L101, fixed before the run: `lab_select_682_take.py`'s
 take fitted the wand at both depths and Select ▸ Similar and Grow at 16 bits.
 Every earlier document is closed first (setup only, `close_all`). The SCENE is
 an 8 × 4 Lab `new_document` of `#808080` at the depth with `select_rect` +
@@ -977,11 +977,11 @@ SAMPLE_BOUND8 = 1
 NEUTRAL_BOUND8 = 1
 WHITE_FLOOR = 254
 NEW_32_REFUSAL = 'A Lab Color document is 8 or 16 bits per channel.'
-# Phase 4c: the Magic Wand and Select Similar (#683) waited for their takes; since L99
-# only Similar and Grow at 8 bits wait (#683).
+# Phase 4c: the Magic Wand and Select Similar (#5) waited for their takes; since L99
+# only Similar and Grow at 8 bits wait (#5).
 AWAITING = '{} is unavailable in a Lab Color document until its Lab tolerance rule is measured ({}).'
 AWAITING8 = ('{} is unavailable in an 8-bit Lab Color document until its Lab tolerance rule is '
-             'measured (#683).')
+             'measured (#5).')
 # L99–L101 (module doc): the scene's rectangles over #808080 and the tolerances.
 SCENE99 = [(2, 0, 2, 4, '#848484'), (4, 0, 2, 2, '#8c8080'), (4, 2, 2, 2, '#808c80'),
            (6, 0, 2, 4, '#a0a0a0')]
@@ -1080,9 +1080,9 @@ LAB_TOOLS = [
     'super_zoom', 'jpeg_artifacts_removal', 'neural_colorize', 'generative_fill',
     'generative_expand', 'generative_variations', 'select_generative_variation',
     'generate_variations',
-    # The Magic Wand and #683's Select Similar (L99).
+    # The Magic Wand and #5's Select Similar (L99).
     'select_magic_wand', 'select_similar',
-    # #547 spot channels (18b81bc6).
+    # #1 spot channels (18b81bc6).
     'add_spot_channel', 'set_spot_channel', 'merge_spot_channel', 'set_channel_kind',
 ]
 # The close (module doc, L93): the 34 tools it lifts and the 24 it refuses for good by name.
@@ -1196,7 +1196,7 @@ BACK82 = '#406080'
 PATCH82 = '#f0a0a0'
 GRID82 = [(x, y) for y in range(0, 8, 2) for x in range(0, 12, 2)] + [(8, 5), (3, 2)]
 # Phase 6b-ii.
-GATE_PARTS = ('Lab Color', 'until #547', 'matrix/TRC')
+GATE_PARTS = ('Lab Color', 'until #1', 'matrix/TRC')
 TEX_W, TEX_H = 160, 120
 BACK88 = '#2040a0'
 PATCH88 = '#e0c020'
@@ -3680,7 +3680,7 @@ def main():
         got = call('select_color_range', document_id=rdoc68, range='highlights')
         assert got.get('ok') is True and mode(rdoc68) == 'lab', got
         l68['highlights'] = got
-        # Updated before L99's run: the wand and (16 bits, #683) Similar run.
+        # Updated before L99's run: the wand and (16 bits, #5) Similar run.
         call('deselect', document_id=rdoc68)
         for tool, arguments in [('select_magic_wand', dict(x=5, y=3, tolerance=10)),
                                 ('select_similar', dict(tolerance=10))]:
@@ -3690,7 +3690,7 @@ def main():
             l68[tool] = bounds
         receipts['l68'] = l68
         print('PASS l68: sampled Color Range selects the rect on Lab; highlights runs (6b-i); '
-              'the Magic Wand and Select Similar (#683) select the rect', flush=True)
+              'the Magic Wand and Select Similar (#5) select the rect', flush=True)
 
         # ---- L70–L71: phase 4c ------------------------------------------------------------
         close_all()
@@ -4600,13 +4600,13 @@ def main():
             failed, text = answer(tool, document_id=rdoc93)
             if failed:
                 assert not any(part in text for part in GATE_PARTS), (tool, text)
-            if '#547 phase' in text:
+            if '#1 phase' in text:
                 phased93.append((tool, text))
             l93['lifted'][tool] = text[:120] if failed else 'ok'
         for tool, sentence in CLOSE_REFUSED.items():
             failed, text = answer(tool, document_id=rdoc93)
             assert failed and text == sentence, (tool, text, sentence)
-            if '#547 phase' in text:
+            if '#1 phase' in text:
                 phased93.append((tool, text))
             l93['refused'][tool] = text
         assert phased93 == [], phased93
@@ -4616,7 +4616,7 @@ def main():
             sorted(precision93)
         receipts['l93'] = l93
         print('PASS l93: the 34 lifted tools clear the gate, the 24 others refuse for good by '
-              'name, and no reply names a #547 phase', flush=True)
+              'name, and no reply names a #1 phase', flush=True)
         close_all()
 
         # L94: structure, metadata, views and workspaces.
@@ -4770,7 +4770,7 @@ def main():
         print('PASS l98: Auto-Blend Layers refuses for good, and its menu item '
               'is disabled', flush=True)
 
-        # ---- L99–L101: the Magic Wand and #683 -------------------------------------------
+        # ---- L99–L101: the Magic Wand and #5 -------------------------------------------
         close_all()
         everywhere99 = [(x, y) for y in range(H99) for x in range(W99)]
 
@@ -4841,7 +4841,7 @@ def main():
         receipts['l99'], receipts['l100'], receipts['l101'] = l99, l100, l101
         print(f'PASS l99: the Magic Wand selects the Lab key oracle at 8 and 16 bits {l99}',
               flush=True)
-        print(f'PASS l100: Similar and Grow select the oracle at 16 bits and refuse at 8 (#683) '
+        print(f'PASS l100: Similar and Grow select the oracle at 16 bits and refuse at 8 (#5) '
               f'{ {k: v for k, v in l100.items() if k.startswith("16")} }', flush=True)
         print(f'PASS l101: the Paint Bucket fills the wand oracle\'s region {l101}', flush=True)
 

@@ -5,7 +5,7 @@ import AppKit
 // clipping markers and Before/After show the development clipped to SDR, and a marker at 65535
 // means "at or above white". On a screen with headroom, Fit and 100 %, Clipping on or off, draw
 // each f32 side's extended image from its retained f32 master instead (`RawDevelopHDRPreview.swift`,
-// #680): values above white show brighter than white, and Clipping marks samples at or below
+// #4): values above white show brighter than white, and Clipping marks samples at or below
 // 0.0 and at or above 1.0. An f32 side's histogram reads its float samples (stop bins, above-white
 // counts) either way; a u16 side's reads every genuine u16 source pixel. Fit colours are an
 // explicitly approximate preview and clipping checks every source cell. A viewport-only frame
@@ -20,7 +20,7 @@ import AppKit
 struct RawDevelopInspectionSource {
     /// The u16 master, or an f32 master's SDR-clipped u16 view.
     let image: RasterPrecisionImage
-    /// The f32 master itself (#680), the same handle (no copy), which the
+    /// The f32 master itself (#4), the same handle (no copy), which the
     /// HDR view and the float histogram read; nil for a u16 master.
     let extendedMaster: RasterPrecisionImage?
     let histogram: [String: Any]
@@ -61,7 +61,7 @@ struct RawDevelopViewport: Equatable {
     var center = CGPoint(x: 0.5, y: 0.5)
     var backingSize = CGSize(width: 1024, height: 680)
     var clipping: UInt32 = 0
-    /// The window's screen has headroom (#680): Fit and 100 %, Clipping
+    /// The window's screen has headroom (#4): Fit and 100 %, Clipping
     /// on or off, then draw an f32 side's extended image.
     var extendedRange = false
 
@@ -106,7 +106,7 @@ struct RawDevelopPreviewFrame {
     /// The largest RGB value of the extended images drawn; nil when
     /// none is, so the canvas engages EDR exactly while one shows.
     let extendedPeak: Float?
-    /// Each side's extended peak (#680); nil for a side drawn SDR.
+    /// Each side's extended peak (#4); nil for a side drawn SDR.
     let beforeExtendedPeak: Float?
     let afterExtendedPeak: Float?
 
@@ -172,7 +172,7 @@ struct RawDevelopPreviewFrame {
     }
 
     /// The output pixels of one f32 side's extended image for `viewport`
-    /// (#680): `ceil(w / divisor) × ceil(h / divisor)` of its Fit region, or
+    /// (#4): `ceil(w / divisor) × ceil(h / divisor)` of its Fit region, or
     /// at 100 % the pane's detail extent (at most 1024 per side), which bounds
     /// every detail region the frame can draw. 0 for a u16 image or a screen
     /// without headroom.
@@ -230,7 +230,7 @@ final class RawDevelopPreviewSession {
     // Main-thread-only parking. The timer callback can be weak without losing
     // an in-flight WorkerTask when a modal controller closes.
     private static var activeSessions: [UUID: RawDevelopPreviewSession] = [:]
-    /// The viewport-only frame's extended-image term (#680): bytes per output
+    /// The viewport-only frame's extended-image term (#4): bytes per output
     /// pixel of each f32 side's extended image, beside the fixed 48 MiB. This
     /// session's own term, not a shared constant: ⌈⌈1.25 × max E⌉ / output
     /// pixels⌉ over the VF32 cases (`scripts/raw-decode-probe`, mode `frame`,
@@ -344,7 +344,7 @@ final class RawDevelopPreviewSession {
                         encoded: UInt64(camera.snapshot.bytes.count), float: float),
                     float ? UInt64(width) * UInt64(height) * 24 : 0)
             } else {
-                // #680: a viewport-only frame of known sides draws each f32
+                // #4: a viewport-only frame of known sides draws each f32
                 // side's extended image on a screen with headroom, charged
                 // per output pixel beside the fixed figure.
                 let shownAfter = self.afterDescriptor == request.descriptor ? self.after : nil

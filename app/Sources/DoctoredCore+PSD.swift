@@ -20,7 +20,7 @@ extension RasterPrecisionDocument {
     }
 
     /// A Grayscale PSD, PSB or layered TIFF at 8 or 16 bits, or a PSD or PSB at 32
-    /// (`import_precision` `"gray"`, #547 phases 3a and 3c), opens ONLY here, as a Grayscale
+    /// (`import_precision` `"gray"`, #1 phases 3a and 3c), opens ONLY here, as a Grayscale
     /// document of its depth: mode 0 its layers, 1 its stored composite. `workingGray` is the
     /// working Gray's wire name, assigned to an untagged file.
     static func openGrayPSD(at url: URL, mode: Int, fingerprint: String, workingGray: String,
@@ -34,7 +34,7 @@ extension RasterPrecisionDocument {
         return RasterPrecisionDocument(owning: handle)
     }
 
-    /// A Lab PSD, PSB or layered TIFF at 8 or 16 bits (`import_precision` `"lab"`, #547 Lab
+    /// A Lab PSD, PSB or layered TIFF at 8 or 16 bits (`import_precision` `"lab"`, #1 Lab
     /// phase 3a) opens ONLY here, as a Lab Color document of its depth: mode 0 its layers, 1 its
     /// stored composite (a TIFF has none). An embedded profile is not used.
     static func openLabPSD(at url: URL, mode: Int, fingerprint: String, workingLimit: UInt64,
@@ -51,7 +51,7 @@ extension RasterPrecisionDocument {
     /// The export preflight for one container and mode: `depth` 16, or 32 for
     /// a float document, which writes a PSD or PSB at 32 bits and refuses a
     /// layered TIFF; a Grayscale document's declared 8, 16 or 32 with `color_mode`
-    /// `"gray"` (#547 phases 3b and 3c; at 32 the float report). Reads no pixels.
+    /// `"gray"` (#1 phases 3b and 3c; at 32 the float report). Reads no pixels.
     func psdExportReport(container: LayeredContainer, mode: Int) throws -> [String: Any] {
         var error: UnsafeMutablePointer<CChar>?
         let result = dr_precision_doc_psd_export_report(ptr, container.coreValue, Int32(mode), &error)
@@ -62,12 +62,12 @@ extension RasterPrecisionDocument {
     /// authoritative rendering of THIS revision, as `saveProjection16`, and
     /// is required for an RGB document; the core validates its extent and ICC
     /// bytes. A CMYK document passes nil and is written at its declared depth,
-    /// its composite rendered by the core (#547 phase 3). Atomic, so a refusal
+    /// its composite rendered by the core (#1 phase 3). Atomic, so a refusal
     /// leaves an existing destination byte-identical. A float document writes
     /// a 32-bit RGB PSD or PSB from its RGBA32 float projection; its
     /// layered TIFF is refused. A Grayscale document writes a colour-mode-1 file at its declared
-    /// 8 or 16 bits from its required RGBA16 projection (#547 phase 3b), and at 32 a PSD or PSB
-    /// from its required RGBA32 float projection, its layered TIFF refused (#547 phase 3c).
+    /// 8 or 16 bits from its required RGBA16 projection (#1 phase 3b), and at 32 a PSD or PSB
+    /// from its required RGBA32 float projection, its layered TIFF refused (#1 phase 3c).
     func savePSD(_ projection: RasterPrecisionImage?, to url: URL, container: LayeredContainer,
                  mode: Int, workingLimit: UInt64, otherRetained: UInt64) throws {
         let path = url.path
@@ -118,7 +118,7 @@ extension RasterDocument {
 
     /// True when `url` is a TIFF whose Photoshop layer block the core reads as
     /// layers (a big-endian unsigned 8- or 16-bit RGB, CMYK, gray or Lab TIFF
-    /// holding one, #547). Every other TIFF answers false and opens flat.
+    /// holding one, #1). Every other TIFF answers false and opens flat.
     /// Reads no pixel strip.
     static func tiffHasLayers(at url: URL) -> Bool {
         dr_tiff_has_layers(url.path)

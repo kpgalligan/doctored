@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 phase-1a, 1b, 1c, 2a-ii, 2b, 2c, 2d, 2e, 3a, 3b, 3c, 4, 5a, 5b, 6a-i, 6a-ii and 6b and close MCP drive: Grayscale
+"""The #1 phase-1a, 1b, 1c, 2a-ii, 2b, 2c, 2d, 2e, 3a, 3b, 3c, 4, 5a, 5b, 6a-i, 6a-ii and 6b and close MCP drive: Grayscale
 documents are made, opened, converted both ways, saved as `.rz` and reopened
 over MCP on the Debug app; phase 1b's layer structure, Fill and one-channel
 PNG, TIFF and JPEG saves and exports work on them; phase 1c's `get_precision`,
@@ -24,7 +24,7 @@ and Sky Replacement refuse for good; the close's lifted tools (Arrange, Distort,
 the views and workspaces, the Color Samplers, file info and resolution, Modify
 Native Plane, Place and Live Photo layers, Export Layers, PDF, the contact sheet
 and the 32-bit tone map) work, and the camera RAW, byte and evaluation tools
-refuse for good by name; no reply names a #547 phase.
+refuse for good by name; no reply names a #1 phase.
 
 The gates are FIXED here BEFORE anything is measured; a failed gate IS the
 receipt and no bound is widened afterwards. The instance is owned by this file
@@ -599,7 +599,7 @@ Bound: `PLACE_BOUND16` (257 codes of 65535, 1/255).
   `put_pixels` `PUT_PIXELS_REFUSAL`, `get_evaluation` and `set_evaluation`
   `EVALUATION_REFUSAL`, each exactly; `place_image` of an empty `x.dng`
   answers text containing `RAW_PART`; and no `tools/call` reply of the whole
-  run contains "#547 phase".
+  run contains "#1 phase".
 - **G79 lifted reads and edits.** On a 16-bit two-layer Grayscale document
   `arrange_layer` back, `find_layers`, `get_mask_properties` (after
   `add_layer_mask`), `auto_select_layer`, `set_resolution` 150 (one undo step;
@@ -739,7 +739,7 @@ GRAY_TOOLS = sorted([
     'list_lens_profiles', 'modify_scalar', 'save_proof_preset', 'separate_color', 'export_layers',
     'export_pdf', 'contact_sheet', 'contact_sheet_from_sources', 'get_tone_map', 'set_tone_map',
     'place_image', 'add_live_photo_layer',
-    # #547 spot channels (18b81bc6).
+    # #1 spot channels (18b81bc6).
     'add_spot_channel', 'set_spot_channel', 'merge_spot_channel', 'set_channel_kind'])
 GRAY_MODES = ['Normal', 'Dissolve', 'Darken', 'Multiply', 'Color Burn', 'Linear Burn', 'Lighten',
               'Screen', 'Color Dodge', 'Linear Dodge (Add)', 'Overlay', 'Soft Light', 'Hard Light',
@@ -881,7 +881,7 @@ COLORIZE_REFUSAL = ('Neural Colorize is unavailable in a Grayscale document: a G
 SKY_REFUSAL = ('Sky Replacement is unavailable in a Grayscale document: Doctored offers it on RGB '
                'documents only.')
 # A reply carrying any of these did not clear the Grayscale gate (module doc, phase 6b).
-GATE_PARTS = ('Grayscale', 'until #547', 'unavailable in 16-bit mode')
+GATE_PARTS = ('Grayscale', 'until #1', 'unavailable in 16-bit mode')
 MODELS = Path('~/devel/doctored-fixtures/models').expanduser()
 PSD_W, PSD_H = 16, 12
 EFFECTS_W, EFFECTS_H = 12, 10
@@ -1132,7 +1132,7 @@ def main():
 
     with App(folder / 'app', folder / 'recovery', interval=600) as app:
         call = app.call
-        # The close (G78): every tools/call reply of the run is read for "#547 phase".
+        # The close (G78): every tools/call reply of the run is read for "#1 phase".
         phase_replies = []
         plain_rpc = app.client.rpc
 
@@ -1141,7 +1141,7 @@ def main():
             if method == 'tools/call' and isinstance(result, dict):
                 for content in result.get('content', []) or []:
                     text = content.get('text') if isinstance(content, dict) else None
-                    if text and '#547 phase' in text:
+                    if text and '#1 phase' in text:
                         phase_replies.append((params.get('name'), text[:300]))
             return result
         app.client.rpc = recording_rpc
@@ -3745,10 +3745,10 @@ def main():
         print('PASS g85: the 32-bit tone map changes the render in one undo step; 16 bits refuse '
               'as on RGB', flush=True)
 
-        # G78's last check: no reply of the run named a #547 phase.
+        # G78's last check: no reply of the run named a #1 phase.
         assert phase_replies == [], phase_replies
         print('PASS g78: the RAW, byte and evaluation tools refuse for good by name; no reply '
-              'names a #547 phase', flush=True)
+              'names a #1 phase', flush=True)
 
     (output / 'receipt.json').write_text(json.dumps(receipts, indent=2, sort_keys=True) + '\n')
     print(f'receipts: {output / "receipt.json"}', flush=True)

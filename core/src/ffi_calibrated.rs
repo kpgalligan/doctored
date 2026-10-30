@@ -66,7 +66,7 @@ unsafe fn refusal_op(op: *const c_char) -> String {
 /// profile has no matrix/TRC model (both ops), or when its tone curves fail
 /// the precision check (the own-profile sentence naming it) — for Exposure
 /// only where the curves are repaired or unusable, since Exposure needs one
-/// exponent per channel and no encoder (#578); NULL when admitted and on a
+/// exponent per channel and no encoder (#2); NULL when admitted and on a
 /// NULL doc. Existing layers are not judged: an 8-bit document already
 /// holding one keeps rendering.
 ///

@@ -9,7 +9,7 @@ import AppKit
 
 /// The stages a Levels adjustment holds: the composite (the params' top
 /// level) and one per colour channel (`r`, `g`, `b` — or, in a CMYK document
-/// (#547), `c`, `m`, `y`, `k` — each an optional object). The core applies a
+/// (#1), `c`, `m`, `y`, `k` — each an optional object). The core applies a
 /// channel's stage FIRST and the composite's second (`core/src/adjust_levels.rs`,
 /// the order measured against Photoshop; `core/src/cmyk_adjust.rs` on
 /// `1 − ink`). `rgb` and `cmyk` are the one composite, stored under `.rgb`
@@ -19,7 +19,7 @@ enum LevelsChannel: String, CaseIterable {
 
     /// The channels a dialog lists: RGB, Red, Green, Blue, or CMYK, Cyan,
     /// Magenta, Yellow, Black in a CMYK document, or Lightness (the
-    /// composite), a and b (the g and b stages) in a Lab Color one (#547 Lab
+    /// composite), a and b (the g and b stages) in a Lab Color one (#1 Lab
     /// phase 2c).
     static func cases(cmyk: Bool, lab: Bool = false) -> [LevelsChannel] {
         if lab { return [.rgb, .g, .b] }
@@ -123,7 +123,7 @@ struct LevelsStage: Equatable {
 /// form, so equal adjustments are equal JSON.
 enum LevelsMeta {
     /// Every top-level key a levels meta reads (`c`/`m`/`y`/`k` in a CMYK
-    /// document, #547).
+    /// document, #1).
     static let keys = ["black", "white", "gamma", "output_black", "output_white", "r", "g", "b",
                        "c", "m", "y", "k"]
 

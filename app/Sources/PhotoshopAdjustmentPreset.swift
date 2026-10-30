@@ -9,7 +9,7 @@ enum PhotoshopAdjustmentPreset {
     /// Curves, Levels, Hue/Saturation, Exposure, Black & White, Channel Mixer.
     static let fileExtensions = ["acv", "alv", "ahu", "eap", "blw", "cha"]
 
-    /// The two a CMYK document reads (#547 phase 5): Levels and Curves with ink channels.
+    /// The two a CMYK document reads (#1 phase 5): Levels and Curves with ink channels.
     static let cmykFileExtensions = ["acv", "alv"]
 
     /// The adjustment `url` holds. Reads at most one byte past the core's

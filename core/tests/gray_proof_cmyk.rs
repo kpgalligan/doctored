@@ -1,4 +1,4 @@
-//! #547 phase 5b: a Grayscale document's soft proof and its direct
+//! #1 phase 5b: a Grayscale document's soft proof and its direct
 //! conversion to CMYK Color.
 //!
 //! The oracles are independent of the Gray path: the RGB TWIN (the Gray

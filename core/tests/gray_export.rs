@@ -1,4 +1,4 @@
-//! #547 phase 1b, a Grayscale document's one-channel export: profile
+//! #1 phase 1b, a Grayscale document's one-channel export: profile
 //! `document` with PNG (8/16; opaque → gray, transparent → gray + alpha),
 //! TIFF (8/16) and JPEG (8) writes ONE channel with the document's Gray ICC
 //! verbatim, each header parsed by hand here from the PNG, TIFF 6.0 and
@@ -376,7 +376,7 @@ fn srgb_writes_rgb_and_the_unkept_requests_refuse_by_name() {
     );
     free(doc);
     let doc = gray_doc(&icc, 32, false);
-    // #547 phase 3c: a 32-bit kept-gray TIFF is written (`gray32_files.rs`).
+    // #1 phase 3c: a 32-bit kept-gray TIFF is written (`gray32_files.rs`).
     assert!(export(
         doc,
         r#"{"format":"tiff","bit_depth":32,"profile":"document"}"#

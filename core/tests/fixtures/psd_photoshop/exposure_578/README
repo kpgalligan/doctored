@@ -1,6 +1,6 @@
 Photoshop 26.10.0 Exposure adjustment-layer renders, one pixel per 4 x 4 patch (its centre 2 x 2 mean,
 which is every pixel of the patch: max spread recorded per file), 8 patches a row, 16-bit PNG (8-bit
-documents x 257). take1 of the #578 take (`scripts/photoshop-probe/stroke_exposure_578_take.py`, receipt
+documents x 257). take1 of the #2 take (`scripts/photoshop-probe/stroke_exposure_578_take.py`, receipt
 `~/devel/doctored-fixtures/photoshop/stroke-exposure-578/take1`): documents srgb8, srgb16, romm16,
 p3_16 (Display P3.icc), itu709_16 (ITU-709.icc); sets E1..E6 (the runner's EXPOSURE_SETS). take2_*:
 `~/devel/doctored-fixtures/photoshop/float-adjust-473/take2` 16-bit twins (sRGB and ROMM), sets X1..X3.

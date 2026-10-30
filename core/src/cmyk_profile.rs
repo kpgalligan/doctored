@@ -1,4 +1,4 @@
-//! A CMYK document's profile and depth edits (#547 phase 5): Edit ▸ Assign
+//! A CMYK document's profile and depth edits (#1 phase 5): Edit ▸ Assign
 //! Profile and Convert to Profile between CMYK profiles, Image ▸ Mode ▸
 //! 8/16 Bits/Channel, and File ▸ New in CMYK — their request, plans and
 //! refusals.
@@ -251,7 +251,7 @@ pub(crate) fn map_cmyk_tree(
 }
 
 /// Every record's style that carries an ink, at any depth, rewritten by `f`
-/// (#547: Convert maps each ink through the conversion's leg, Assign keeps
+/// (#1: Convert maps each ink through the conversion's leg, Assign keeps
 /// the inks and re-canonicalises their hex under the new profile,
 /// `cmyk_style`).
 fn map_inked_styles(
@@ -271,7 +271,7 @@ fn map_inked_styles(
 
 /// Every inked style of `layers` with each ink through `leg` (four-decimal
 /// quantized, as a parsed ink is) and its hex the ink's sRGB under `policy`:
-/// Convert to Profile and a converting layers paste (#547, `cmyk_style`).
+/// Convert to Profile and a converting layers paste (#1, `cmyk_style`).
 pub(crate) fn convert_style_inks(
     layers: &mut [PrecisionDocumentLayer],
     leg: &mut CmykToCmyk,
@@ -544,7 +544,7 @@ impl PrecisionDocument {
                 offset: *offset,
             };
             // The converted ink is no longer the description's rendering;
-            // the host re-renders it in the new profile (#547).
+            // the host re-renders it in the new profile (#1).
             next.description = None;
             Ok(next)
         })?;

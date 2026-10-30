@@ -1,4 +1,4 @@
-//! The spot-channel OVERPRINT (#547): how one spot channel shows on the
+//! The spot-channel OVERPRINT (#1): how one spot channel shows on the
 //! document's composite for display. A spot channel's ink is overprinted on
 //! the composite; Doctored's rule for that, declared and unmeasured
 //! (`designs/spot-channels.md`), is the ink colour source-over the
@@ -23,7 +23,7 @@
 //! NOT clamped, so a float composite's range above white survives the step
 //! (the ink itself is always in `[0, 1]`).
 //!
-//! The CMYK arm (#547 1c-1) is ink on paper: each plate's `L = 1 − ink`
+//! The CMYK arm (#1 1c-1) is ink on paper: each plate's `L = 1 − ink`
 //! (the domain `cmyk_filter`'s passes and the selection a plate loads use)
 //! is the backdrop, and the spot ink's own plates, as `L`, are the ink. The
 //! one body runs twice a pixel: (C, M, Y, A) with `(1 − c, 1 − m, 1 − y)`,

@@ -1,4 +1,4 @@
-//! The retouch commands on a CMYK document's raster records (#547): the
+//! The retouch commands on a CMYK document's raster records (#1): the
 //! Clone Stamp, the Healing Brush (and Patch and Content-Aware Move's heal,
 //! which are its requests), Spot Healing (and Remove) and Content-Aware Fill
 //! — `precision_retouch`'s `RetouchEdit`, routed here at the top of its plan,

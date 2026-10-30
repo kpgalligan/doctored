@@ -287,7 +287,7 @@ extension RasterDocument {
     func followingHostPlacement(of indices: [Int], placedBy core: RasterDocument) throws
         -> RasterDocument {
         // A CMYK document holds no layer comps (its table has no `layer_comp`
-        // family), so a re-rendered artwork layer has none to follow (#547).
+        // family), so a re-rendered artwork layer has none to follow (#1).
         guard !isCmyk else { return self }
         var result = self
         for index in indices {

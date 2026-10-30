@@ -190,7 +190,7 @@ enum SkyReplacementRun {
 
     /// Why `layer` of `document` cannot take Sky Replacement, nil when it can: a 32-bit or CMYK
     /// document (the command is disabled there, take 1), a Lab Color document (refused for
-    /// good, a Doctored decision: `LabDocument.skyRefusal`, #547 Lab phase 6b-iii), and a group or
+    /// good, a Doctored decision: `LabDocument.skyRefusal`, #1 Lab phase 6b-iii), and a group or
     /// adjustment layer (the core's own sentence).
     static func refusal(document: ImageDocument, layer: Int) -> String? {
         guard let doc = document.doc else { return "Document has no image" }

@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Mode ▸ Duotone… (#547 Duotone phase 1a): the options value (inks, curves, overprints —
+// Image ▸ Mode ▸ Duotone… (#1 Duotone phase 1a): the options value (inks, curves, overprints —
 // the core's one JSON schema, `duotone_ink`) and the edit as ONE undo step (`IndexedColorTableEdit`'s
 // shape). The core decides everything: the description is set, replaced or (nil options, Image ▸
 // Mode ▸ Grayscale) dropped over the same gray samples. The dialog is `DuotoneSheetController`,

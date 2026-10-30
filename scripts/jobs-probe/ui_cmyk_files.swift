@@ -1,7 +1,7 @@
 import AppKit
 import ObjectiveC
 
-// The CMYK files batch's in-process UI case (#547 phase 3): a two-layer CMYK document exported
+// The CMYK files batch's in-process UI case (#1 phase 3): a two-layer CMYK document exported
 // in-probe as a layered PSD and a layered TIFF (`PSDExportCapture`, the File ▸ Export as
 // PSD… writer), then opened through `ImageDocument.read` with `NSAlert.runModal`
 // intercepted (the template is `scripts/color-metadata-probe/psd.swift`'s `verifyPSDImports`).

@@ -1,4 +1,4 @@
-//! A Lab Color document's pixels in RGB (#547 phase 1b): the conversion an
+//! A Lab Color document's pixels in RGB (#1 phase 1b): the conversion an
 //! export runs before its RGB stages, and the Layers-panel thumbnail fitted
 //! before it converts (the fit-first rule).
 //!

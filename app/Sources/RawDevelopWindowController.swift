@@ -510,7 +510,7 @@ final class RawDevelopWindowController: NSObject {
     /// Switches the card between the 16-bit SDR master and the 32-bit float
     /// (linear) development. Entering float sets the tone curve to 0,
     /// scene-linear, and leaves its row live (Shadows stays inert while
-    /// it is 0); grain stays live (#680, on the display encoding); the
+    /// it is 0); grain stays live (#4, on the display encoding); the
     /// Presence rows (Texture, Clarity, Dehaze) and the local tone rows are
     /// disabled. Back at 16 bits the curve
     /// returns to the value it had, or the file's own.

@@ -1,4 +1,4 @@
-//! #547 Duotone phase 1a (`duotone_ink`, `duotone_document`, through
+//! #1 Duotone phase 1a (`duotone_ink`, `duotone_document`, through
 //! `ffi_duotone`): the options' schema and normalized form, Image ▸ Mode ▸
 //! Duotone…'s plan, set and replace (every sample shared; NULL options
 //! refuse), the refusals, the Gray profile edit's Duotone arm and the view.

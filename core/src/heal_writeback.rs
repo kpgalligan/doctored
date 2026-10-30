@@ -137,7 +137,7 @@ pub(crate) fn heal_with_selection<T: HealSample, C: HealSample, S: Copy + Into<f
 /// [`heal_with_selection`] over `N` colour channels: `raw` holds `N + 1`
 /// samples a pixel with alpha last, `source` `N` a pixel. `N = 3` is the RGB
 /// writeback above, statement for statement; `N = 4` heals a CMYK document's
-/// four ink codes (#547, `cmyk_retouch`), each plate its own membrane solve.
+/// four ink codes (#1, `cmyk_retouch`), each plate its own membrane solve.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn heal_with_selection_channels<
     T: HealSample,

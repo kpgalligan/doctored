@@ -1,6 +1,6 @@
 import AppKit
 
-// Edit ▸ Convert to Profile… on a Lab Color document (#547 Lab phase 5b): a Lab document has no
+// Edit ▸ Convert to Profile… on a Lab Color document (#1 Lab phase 5b): a Lab document has no
 // document profile to convert from,
 // so it is Image ▸ Mode's conversion into the chosen profile: CMYK Color into a CMYK profile (the
 // core's `lab_cmyk`), RGB Color into an RGB one (`convertLabToRGB`) and (phase 6a-ii) Grayscale

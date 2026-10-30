@@ -63,7 +63,7 @@ extension EditorViewController {
         guard let document = document, let doc = document.doc,
               let row = ChannelRow.forTarget(paintTarget, channelCount: doc.channelCount)
         else { return nil }
-        // #547 phase 4: a Gray document's Gray row loads as CMYK's composite row (its luminosity);
+        // #1 phase 4: a Gray document's Gray row loads as CMYK's composite row (its luminosity);
         // since Lab phase 4b-i a Lab document's Lab row does too (its Lightness, `canvasPlane`).
         return row.selectionSource(activeLayer: document.activeLayerIndex,
                                    isCmyk: doc.isCmyk || doc.isGray || doc.isLab)

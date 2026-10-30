@@ -31,7 +31,7 @@ extension AgentServer {
                     + LevelsMeta.keys.joined(separator: ", ") + ".")
         }
         var stages: [LevelsChannel: LevelsStage] = [.rgb: try levelsStage(params, channel: nil)]
-        // `c`/`m`/`y`/`k` are a CMYK document's ink stages (#547); the
+        // `c`/`m`/`y`/`k` are a CMYK document's ink stages (#1); the
         // document's gate refuses the other mode's keys by name
         // (`CmykDocument.toneKeyRefusal`).
         for channel in LevelsChannel.channels {
@@ -118,7 +118,7 @@ extension AgentServer {
         _ filter: String, _ params: [String: Any]?, target: PaintTarget
     ) throws {
         guard target != .layer, let params, filter == "levels" || filter == "curves" else { return }
-        // `c`/`m`/`y`/`k` (and Curves' `cmyk`) are a CMYK layer's ink channels (#547): a
+        // `c`/`m`/`y`/`k` (and Curves' `cmyk`) are a CMYK layer's ink channels (#1): a
         // mask is gray coverage at every mode.
         var keys = ["r", "g", "b", "c", "m", "y", "k", "cmyk"].filter { name in
             if filter == "levels" {
@@ -167,7 +167,7 @@ extension AgentServer {
     func levelsAutoArguments(
         tool: String, arguments: [String: Any], document: ImageDocument?
     ) throws -> [String: Any] {
-        // #547 phase 5: a CMYK document's Levels and Curves Auto — on a layer; `apply_filter` on
+        // #1 phase 5: a CMYK document's Levels and Curves Auto — on a layer; `apply_filter` on
         // one ink plate or an alpha channel is a scalar target and falls through as on RGB.
         let target = stringArg(arguments, "target") ?? "layer"
         let scalarTarget = tool == "apply_filter"
@@ -227,7 +227,7 @@ extension AgentServer {
         return resolved
     }
 
-    /// A CMYK document's `auto` (#547 phase 5) — UI path: the Levels and Curves dialogs' Auto and
+    /// A CMYK document's `auto` (#1 phase 5) — UI path: the Levels and Curves dialogs' Auto and
     /// Options… (`CmykToneControls`), in every mode: `add_adjustment_layer`,
     /// `edit_adjustment_layer` and `apply_filter` levels or curves take `auto` true or
     /// `{"algorithm","shadows","highlights"}` (Auto Options, over the saved defaults), measured

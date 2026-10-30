@@ -1,4 +1,4 @@
-//! The identify-578 take's pictures, renders and profiles (#578), shared by
+//! The identify-578 take's pictures, renders and profiles (#2), shared by
 //! the Inner Glow and the Bevel & Emboss identify parity tests
 //! (`style_inner_glow_identify_parity.rs`, `style_bevel_identify_parity.rs`):
 //! each row is rebuilt as `identify_578_take.py` builds it, a black,

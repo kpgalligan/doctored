@@ -1,4 +1,4 @@
-//! #578 part 4's two built rules against independent brute-force oracles,
+//! #2 part 4's two built rules against independent brute-force oracles,
 //! through the FFI (`common::styled` sets the style with
 //! `dr_doc_set_layer_style`; the 16-bit renders go through
 //! `dr_precision_doc_edit`), on a hard rect with an anti-aliased edge column

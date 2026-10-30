@@ -1,6 +1,6 @@
 import AppKit
 
-/// `PrecisionGeometryWork.compute`'s merged-key branch on an Indexed Color document (#547
+/// `PrecisionGeometryWork.compute`'s merged-key branch on an Indexed Color document (#1
 /// Indexed phase 3b). An 8 × 4 sRGB PNG of four 2-px colour columns opens (`RasterDocument.open`,
 /// promoted by `promotedStructure`) and converts to an Exact Indexed document with no
 /// transparent index; the Move tool's `.move`, Free Transform's `.transform` and the Crop tool's

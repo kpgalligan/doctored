@@ -1,4 +1,4 @@
-//! KERNEL: a CMYK document's type, shape and fill artwork (#547) — the
+//! KERNEL: a CMYK document's type, shape and fill artwork (#1) — the
 //! component list in ink and the ONE ink assembly loop. The adapter that
 //! publishes the result is `cmyk_artwork`.
 //!

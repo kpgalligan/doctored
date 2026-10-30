@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's remaining-gaps in-process UI case (#547): with one ink plate targeted in
+// The CMYK document's remaining-gaps in-process UI case (#1): with one ink plate targeted in
 // the Channels panel, the Filter, Adjustments, Fill, Apply Image, Calculations, Fill / Stroke Path
 // and Gamut Warning items validate, and Edit ▸ Fill with Foreground Color on Cyan changes the cyan
 // plate only (the foreground's grey, black = full ink). The CMYK profile is macOS's Generic CMYK

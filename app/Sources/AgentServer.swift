@@ -485,12 +485,12 @@ final class AgentServer {
             } else {
                 source = try doc.renderRegion(region, maxOutputBytes: RasterResources.shared.workingLimit)
             }
-            // #547 1c-1: a region overprints the spot channels at its own samples (SpotChannel.swift).
+            // #1 1c-1: a region overprints the spot channels at its own samples (SpotChannel.swift).
             let spots = try source.map { try SpotChannels.regionComposite($0, doc: doc, region: region) }
             source = spots?.0 ?? source; spotNote = SpotChannels.renderNote(spots?.1 ?? 0)
             what = doc.isFloat ? "8-bit tone-mapped display of 32-bit float canvas" : doc.isHighDepth ? "8-bit display preview of 16-bit canvas" : "flattened canvas"
         } else {
-            // #547: the full canvas shows every spot channel overprinted (SpotChannel.swift).
+            // #1: the full canvas shows every spot channel overprinted (SpotChannel.swift).
             let overprinted = try SpotChannels.renderComposite(try document.currentDisplayProjection(view: view), doc: doc)
             source = overprinted.0
             spotNote = SpotChannels.renderNote(overprinted.1)
@@ -2162,7 +2162,7 @@ final class AgentServer {
         guard let doc = document.doc else {
             throw ToolError(message: "Document has no image")
         }
-        // #547: a TIFF keeps the spot channels (1c-2a); any other flat file composites them.
+        // #1: a TIFF keeps the spot channels (1c-2a); any other flat file composites them.
         let image = try document.flatSaveProjection(format: ExportFormat.from(fileExtension: formatName))
         // `save_copy` is a FLAT save, so the host-encoded formats are not
         // among its choices (Phase 11D); `export_image` delivers those.

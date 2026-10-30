@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 1a's open: palette PNGs at depth 1, 2, 4 and 8
+//! #1 Indexed Color phase 1a's open: palette PNGs at depth 1, 2, 4 and 8
 //! and GIFs written by the `png` and `gif` encoders open as Indexed
 //! documents keeping every index, the palette (duplicate entries included)
 //! and the transparent index; `dr_path_indexed_source` answers NONE for the

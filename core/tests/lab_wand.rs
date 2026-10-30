@@ -1,4 +1,4 @@
-//! The Magic Wand, the Paint Bucket and Select ▸ Similar and Grow (#683) on a
+//! The Magic Wand, the Paint Bucket and Select ▸ Similar and Grow (#5) on a
 //! Lab Color document, through the FFI (`dr_precision_doc_select`,
 //! `dr_precision_doc_edit`). The rule is the one
 //! `scripts/photoshop-probe/lab_select_682_take.py`'s take fitted (C6 at 8
@@ -22,7 +22,7 @@
 //!   (32768 is one, 32767 is not) equal the oracle's box over those
 //!   references; no reference refuses with "No pixel is more than half
 //!   selected, so there is no colour to match.";
-//! * (d) at 8 bits Similar and Grow refuse naming #683, in their exact
+//! * (d) at 8 bits Similar and Grow refuse naming #5, in their exact
 //!   sentences.
 use std::collections::VecDeque;
 
@@ -351,7 +351,7 @@ fn lab_similar_and_grow_refuse_at_8_bits() {
             select(doc, &operation, &cover).unwrap_err(),
             format!(
                 "{label} is unavailable in an 8-bit Lab Color document until its Lab tolerance \
-                 rule is measured (#683)."
+                 rule is measured (#5)."
             )
         );
     }

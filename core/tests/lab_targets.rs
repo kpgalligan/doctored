@@ -1,4 +1,4 @@
-//! #547 Lab phases 2d and 2e, the Lab document's targets, through the FFI:
+//! #1 Lab phases 2d and 2e, the Lab document's targets, through the FFI:
 //! the scalar statistics of the red, green, blue and alpha planes (the L\*,
 //! a\* and b\* codes and alpha), their plane read, a scalar paint and a Blur
 //! on each (phase 2e) equal the same request on a 16-bit sRGB document

@@ -79,7 +79,7 @@ image. Byte and u16 modes had to stay byte-identical. Builds on [11D](phase-11d-
   integer tint path (`h8a`, exact on all 792 take6 8-bit samples) — and stalled with no reading. Ruling 2 shipped the
   build as it stands: 32 bits cap the gray at 16 (take6's fit); residual 16-bit
   high-only minimum 2 15-bit codes. The 8-bit residual (`setlum-clip8`, 3 codes) closed with
-  [#578](https://github.com/kpgalligan/doctored-dev/issues/578) phase 4: a byte document's Tint runs Photoshop's integer
+  [#2](https://github.com/kpgalligan/doctored/issues/2) phase 4: a byte document's Tint runs Photoshop's integer
   path (h8a-LE, `adjust_bw8.rs`), within 1 code on `eight-bit-578/take1`.
 - `DONE` — Color Lookup's one 3D lookup (`adjust_lut::sample_3d`)
   is tetrahedral at 8, 16 and 32 bits, as take3 pinned at 16 and 32. Nothing persisted changes; every saved Color

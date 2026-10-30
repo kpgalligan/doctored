@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 selection-batch MCP drive: on a 16-bit Generic CMYK document the
+"""The #1 selection-batch MCP drive: on a 16-bit Generic CMYK document the
 Magic Wand (on ink) and the Paint Bucket's All Layers, Color Range, Select
 Subject, Select and Mask to a mask and to a new layer, Edit ▸ Stroke… in ink,
 Apply Layer Mask, and the `.rz` round trip.

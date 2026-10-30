@@ -154,7 +154,7 @@ pub(crate) fn gradient_value(g: &GradientFill) -> Value {
     Value::Object(o)
 }
 
-/// A CMYK ink slot (#547), written ONLY when present — like the two
+/// A CMYK ink slot (#1), written ONLY when present — like the two
 /// knockout-family keys, so every RGB style, `LSTY` body and PSD golden stays
 /// byte-identical to what the writer before inks produced.
 fn put_ink(o: &mut Map<String, Value>, key: &str, ink: Option<[f32; 4]>) {
@@ -365,7 +365,7 @@ fn effect_value(e: &Effect) -> Value {
                 "style".into(),
                 Value::from(enum_name(&BEVEL_STYLES, b.style)),
             );
-            // Technique (#578) only when it is not Smooth, so every style
+            // Technique (#2) only when it is not Smooth, so every style
             // without one writes the bytes it did.
             if b.technique != BevelTechnique::Smooth {
                 o.insert(

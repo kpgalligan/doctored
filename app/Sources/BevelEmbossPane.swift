@@ -1,7 +1,7 @@
 import AppKit
 
 /// Layer Style > Bevel & Emboss — the relief pane: structure (style,
-/// technique — Smooth, Chisel Hard, Chisel Soft (#578) —, depth, direction,
+/// technique — Smooth, Chisel Hard, Chisel Soft (#2) —, depth, direction,
 /// size, soften), the light (angle and altitude, both
 /// following the document's global light while Use Global Light is on, the
 /// DropShadowPane pattern), and the highlight and shadow halves, each with
@@ -27,7 +27,7 @@ final class BevelEmbossPane: NSObject, LayerStylePane {
             values: BevelEmbossEffect.styles,
             get: { binding.read().style },
             set: { value in binding.update { $0.style = value } })
-        // Smooth is nil and writes no key (#578).
+        // Smooth is nil and writes no key (#2).
         let technique = PaneRows.popup(
             "Technique:",
             titles: ["Smooth", "Chisel Hard", "Chisel Soft"],

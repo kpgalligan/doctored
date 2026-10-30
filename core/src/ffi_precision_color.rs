@@ -4,9 +4,9 @@
 //! On a CMYK document the four adjustment exports take their CMYK arms
 //! (`cmyk_adjust_layer`: Levels and Curves on ink, every other op refused
 //! by name). On a Grayscale document each first asks `gray_adjust::admitted`
-//! (#547 phase 2b), which refuses by name or hands back the description to
+//! (#1 phase 2b), which refuses by name or hands back the description to
 //! run (a Gradient Map's stops greyed). On a Lab Color document each asks
-//! `lab_adjust::admit` (#547 phase 2b), which refuses by name; the admitted
+//! `lab_adjust::admit` (#1 phase 2b), which refuses by name; the admitted
 //! description runs in its Lab form, bound at parse.
 
 use std::ffi::{c_char, CString};
@@ -344,8 +344,8 @@ pub unsafe extern "C" fn dr_precision_doc_profile_is_convertible(
 /// is kept, and a profile with no matrix/TRC model or with tone curves that
 /// fail the precision check refuses by name.
 /// A Grayscale document refuses (`gray_document::RGB_PROFILE_EDIT_REFUSAL`,
-/// #547 phase 5a).
-/// A Lab Color document refuses (`lab_document::PROFILE_EDIT_REFUSAL`, #547
+/// #1 phase 5a).
+/// A Lab Color document refuses (`lab_document::PROFILE_EDIT_REFUSAL`, #1
 /// Lab phase 5b): it has no document profile.
 /// # Safety
 /// document/control NULL/live; icc NULL/readable for length bytes; err_out NULL/writable.
@@ -396,8 +396,8 @@ pub unsafe extern "C" fn dr_precision_doc_assign_profile(
 /// whose tone curves fail the precision check and a converted component
 /// outside ±65504 refuse by name.
 /// A Grayscale document refuses (`gray_document::RGB_PROFILE_EDIT_REFUSAL`,
-/// #547 phase 5a).
-/// A Lab Color document refuses (`lab_document::PROFILE_EDIT_REFUSAL`, #547
+/// #1 phase 5a).
+/// A Lab Color document refuses (`lab_document::PROFILE_EDIT_REFUSAL`, #1
 /// Lab phase 5b): it has no document profile.
 /// # Safety
 /// document/control NULL/live; icc NULL/readable for length bytes; err_out NULL/writable.

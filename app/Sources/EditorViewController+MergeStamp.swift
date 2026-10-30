@@ -1,6 +1,6 @@
 import AppKit
 
-/// Layer ▸ Layer Via Copy / Via Cut, Merge Visible, Stamp Visible and (#547
+/// Layer ▸ Layer Via Copy / Via Cut, Merge Visible, Stamp Visible and (#1
 /// phase 4c) Stamp Selected and Merge Group — the workflow commands that make
 /// a new layer out of what is already there.
 ///
@@ -227,7 +227,7 @@ extension EditorViewController {
         return doc.isHighDepth ? !doc.contributingRasterLeaves().isEmpty : true
     }
 
-    // MARK: - Stamp Selected / Merge Group (#547 phase 4c)
+    // MARK: - Stamp Selected / Merge Group (#1 phase 4c)
 
     /// The members Stamp Selected stamps: the selection's independent roots
     /// (a selected group's own children are inside it already).

@@ -1,4 +1,4 @@
-//! A 32-bit Grayscale document's PSD and PSB export (#547 phase 3c): the
+//! A 32-bit Grayscale document's PSD and PSB export (#1 phase 3c): the
 //! 32-bit RGB writer's float half (`psd_export_float`) in the 8/16-bit gray
 //! writer's colour mode (`psd_export_gray`), laid out as Photoshop's own
 //! `layers32.psd` (`gray-files-547/take2`).

@@ -1,4 +1,4 @@
-//! #547 Duotone's Photoshop take (`scripts/photoshop-probe/duotone_take.py`,
+//! #1 Duotone's Photoshop take (`scripts/photoshop-probe/duotone_take.py`,
 //! phase 2b): its record, re-judged. SKIPS (with an eprintln) when the take
 //! folder `duotone-mode-547/take1` has no `decided.json`.
 //!

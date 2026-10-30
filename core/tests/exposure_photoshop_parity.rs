@@ -1,4 +1,4 @@
-//! #578: `document_v2` Exposure at 8 and 16 bits — per channel in the
+//! #2: `document_v2` Exposure at 8 and 16 bits — per channel in the
 //! document's own primaries at the profile's pure exponent (rule Γ: 2.2 for
 //! a sampled or offset curve, a pure power's own exponent, 1 for a linear
 //! curve; in a profile whose `para` steps DOWN at its branch boundary, an
@@ -15,8 +15,8 @@
 //!
 //! The Photoshop rows (fixtures `psd_photoshop/exposure_578/` and
 //! `psd_photoshop/adjustments/expA_*.png`, READMEs) are `expA` (phase 10), the
-//! `float-adjust-473` take2 16-bit twins, the #578 take1's documents srgb8,
-//! srgb16, romm16, p3_16 and itu709_16 under sets E1..E6, and the #578 take2's
+//! `float-adjust-473` take2 16-bit twins, the #2 take1's documents srgb8,
+//! srgb16, romm16, p3_16 and itu709_16 under sets E1..E6, and the #2 take2's
 //! (`t2_*`) romm8, romm16, itu709_8, itu709_16, srgb8 and p3_16 under F1..F4.
 //! Their bound was declared before each take (`stroke_exposure_578_take.py`,
 //! `stroke_exposure_578_take2.py`): per (document, set), max <= 2 codes over
@@ -96,7 +96,7 @@ fn trc_of(bytes: &[u8]) -> Trc {
 /// Rule Γ, restated from its definition, and the falling-boundary class
 /// rule: an offset `para` of type 3 or 4 whose linear toe ends ABOVE the
 /// power branch's start (`c·d + f > (a·d + b)^g + e`), and that is not
-/// IEC 61966-2-1's sRGB curve, takes 1.883 (#578 take2's fitted member).
+/// IEC 61966-2-1's sRGB curve, takes 1.883 (#2 take2's fitted member).
 fn gamma_of(trc: &Trc) -> f64 {
     match trc {
         Trc::Gamma(g) => *g,
@@ -156,7 +156,7 @@ struct Profile {
 /// RGB.icc` (its `para` toe ends at the LINEAR threshold 1/512 instead of the
 /// encoded 1/32, so the curve steps down there, 0.000122 to 0.0000137) and
 /// `ITU-709.icc` (its toe's top 0.0180 lies above the power branch's 0.0179)
-/// fail the precision check, which no longer refuses Exposure (#578).
+/// fail the precision check, which no longer refuses Exposure (#2).
 fn profile(name: &'static str) -> Option<Profile> {
     let p = profile_file(name)?;
     let probe = json!({

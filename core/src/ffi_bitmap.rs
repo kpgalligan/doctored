@@ -1,4 +1,4 @@
-//! The Bitmap document across the FFI (#547 Bitmap phase 1a): Image ▸ Mode
+//! The Bitmap document across the FFI (#1 Bitmap phase 1a): Image ▸ Mode
 //! ▸ Bitmap and its plan, and Grayscale back with a Size Ratio and its plan.
 //! Phase 1c adds the 1-bit files: which PNG, TIFF and BMP files open as a
 //! Bitmap document, their open, and the open of a Bitmap PSD or PSB's

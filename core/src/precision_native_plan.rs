@@ -234,7 +234,7 @@ impl PrecisionDocument {
             if let Some(text) = self.artwork_description(index) {
                 crate::artwork_document::validate(text)?;
                 let layer = self.layer(index).ok_or("invalid artwork layer")?;
-                // A CMYK raster carries one too (#547's artwork batch).
+                // A CMYK raster carries one too (#1's artwork batch).
                 if (layer.source().is_none() && layer.cmyk_source().is_none())
                     || layer.retained_source.is_some()
                 {

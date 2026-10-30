@@ -59,7 +59,7 @@ extension RasterDocument {
 
 extension AgentServer {
     func precisionSample(_ a: [String: Any], document: ImageDocument) throws -> String {
-        // #547 Lab phase 1c: a Lab Color document's L*, a*, b* beside its codes.
+        // #1 Lab phase 1c: a Lab Color document's L*, a*, b* beside its codes.
         if document.doc?.isLab == true { return try jsonResult(labSampleReport(a, document: document)) }
         // A 32-bit float document answers the float schema through the same
         // scoped path.
@@ -76,7 +76,7 @@ extension AgentServer {
     /// `srgb_rgba`/`srgb_in_gamut` read from `normalized_rgba`. A 32-bit
     /// float document answers the float schema unchanged.
     func precisionSampleColor(_ a: [String: Any], document: ImageDocument) throws -> String {
-        // #547 Lab phase 1c: no sRGB reading — the document's colour space is the P3 view.
+        // #1 Lab phase 1c: no sRGB reading — the document's colour space is the P3 view.
         if document.doc?.isLab == true { return try jsonResult(labSampleReport(a, document: document)) }
         var report = try scopedSampleReport(a, document: document)
         if let doc = document.doc, !doc.isFloat,
@@ -88,7 +88,7 @@ extension AgentServer {
                     .compactMap { $0 }.joined(separator: " ")
             }
         }
-        // #547 phase 1c: an 8/16-bit Grayscale document's K %, the Info panel's K row.
+        // #1 phase 1c: an 8/16-bit Grayscale document's K %, the Info panel's K row.
         if let doc = document.doc, doc.isGray, !doc.isFloat,
            let normalized = report["normalized_rgba"] as? [Double], normalized.count == 4 {
             report["gray_k_percent"] = GrayDocument.kPercent(normalized[0])
@@ -97,7 +97,7 @@ extension AgentServer {
     }
 
     func precisionHistogram(_ a: [String: Any], document: ImageDocument) throws -> String {
-        // #547 Lab phase 2d: `source scalar` of Lightness, a or b reads the plane of the codes
+        // #1 Lab phase 2d: `source scalar` of Lightness, a or b reads the plane of the codes
         // that holds it (L* red, a* green, b* blue; `paintTarget`'s Lab names since phase 2e),
         // renamed (`LabDocument.scalarReport`); an RGB plane name refuses; the alpha plane (phase
         // 2e), a mask or alpha channel passes through unchanged.
@@ -111,7 +111,7 @@ extension AgentServer {
                 throw ToolError(message: LabDocument.scalarTargetRefusal)
             }
         }
-        // #547 Lab phase 1c: a Lab Color document's Lightness, a and b rows; a scalar (mask or
+        // #1 Lab phase 1c: a Lab Color document's Lightness, a and b rows; a scalar (mask or
         // alpha channel) report is coverage and passes through unchanged. The read is
         // `scopedHistogram`'s own.
         if document.doc?.isLab == true, stringArg(a, "source") != "scalar" {
@@ -124,7 +124,7 @@ extension AgentServer {
                 byteProjection: document.retainedByteProjection)
             return try jsonResult(LabDocument.histogramReport(read.run()))
         }
-        // #547 phase 6b: a Grayscale document's one Gray row (R = G = B, `GrayDocument.
+        // #1 phase 6b: a Grayscale document's one Gray row (R = G = B, `GrayDocument.
         // histogramReport`); a scalar (mask or alpha channel) report passes through unchanged.
         if document.doc?.isGray == true, stringArg(a, "source") != "scalar" {
             guard a["target"] == nil else { throw ToolError(message: "Histogram target requires source scalar.") }
@@ -165,7 +165,7 @@ extension EditorViewController {
             eyedropperReadFailed()
             return
         }
-        // #547 Lab phase 2e: a Lab document's sample is an L*a*b* ink, not a colour in the view.
+        // #1 Lab phase 2e: a Lab document's sample is an L*a*b* ink, not a colour in the view.
         if document.doc?.isLab == true {
             pickLabSample(sample, at: point)
             return

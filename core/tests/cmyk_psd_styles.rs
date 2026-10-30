@@ -1,4 +1,4 @@
-//! Layer styles and the nine adjustment kinds in a layered CMYK PSD (#547,
+//! Layer styles and the nine adjustment kinds in a layered CMYK PSD (#1,
 //! the styles batch): Doctored's own export reopened exactly (every enabled
 //! effect with its inks, Fill, knockout, Blend Interior, the nine adjustment
 //! records' parameters, the Photo Filter ink exactly through colour space 2);

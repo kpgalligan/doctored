@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 1a in `.rz` (word 108 and its `INDX` table): an
+//! #1 Indexed Color phase 1a in `.rz` (word 108 and its `INDX` table): an
 //! Indexed document with a transparent index reopens with its palette size,
 //! transparent index, every index and the same render, and a re-save is
 //! byte-equal to the first file; the reader refuses a bad schema, a

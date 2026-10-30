@@ -8,7 +8,7 @@
 //! (`style_matte::law_applies`) and, there, by source and size
 //! ([`full_choke_applies`]):
 //!
-//! - THE LAW (`size · (1 − choke) > 0`), the measured law `L` (#578), for
+//! - THE LAW (`size · (1 − choke) > 0`), the measured law `L` (#2), for
 //!   both sources, through the law's one home
 //!   (`style_matte::law_matte_with_job`). `S = max(1, round(size))`, `n =
 //!   round(S · choke)` (half up), `w = S − n`, and a width of 1 acts as 2
@@ -26,7 +26,7 @@
 //!   of its own.
 //! - THE CHOKE 100 % MEMBER `M` (`size · (1 − choke) == 0` and size > 0: an
 //!   `edge` glow at every such size, a `center` glow below
-//!   [`FULL_CHOKE_CENTRE_LIMIT`] = 24; #578's second identify take). The
+//!   [`FULL_CHOKE_CENTRE_LIMIT`] = 24; #2's second identify take). The
 //!   band is today's, `shape.inverted()` grown by `dilate = size`
 //!   (`dilate_plane_with_job`); `e` is 1 on a pixel fully inside it (byte
 //!   255: it glows full at every Range) and today's Divide `min(1, b / 2r)`
@@ -34,7 +34,7 @@
 //!   `1 − e` (the mirror), rounded once to a byte ([`full_choke_plane`]). The
 //!   contour then maps that byte with no Range of its own, as under the law.
 //! - TODAY'S KERNEL (`size · (1 − choke) == 0` otherwise: a `center` glow at
-//!   Choke 100 % from Size 24, or Size 0), byte for byte as before #578
+//!   Choke 100 % from Size 24, or Size 0), byte for byte as before #2
 //!   shipped the law.
 //!   `(dilate, sigma) = spread_split(size, choke)`, and sigma is 0 here, so
 //!   nothing blurs: an `edge` glow is `shape.inverted()` grown by `dilate`

@@ -2,7 +2,7 @@
 //! Layer Style > Outer Glow. The oracles are closed-form geometry on a hard
 //! rect: at Spread 100 % (today's kernel) the grow-rect formula of the
 //! header's `dr_selection_grow` contract with the matte stretch `min(1, a /
-//! 0.5)` on the plane byte; below it the box-pair law (#578,
+//! 0.5)` on the plane byte; below it the box-pair law (#2,
 //! `effect_kernels_578_take.py`: the grown band through the separable
 //! triangle `(w − |j|) / w²`, then `min(1, B / r)`), rebuilt here; and the
 //! W3C reference blend; every style is applied through the FFI
@@ -103,7 +103,7 @@ fn grown_glow(rect: (i32, i32, u32, u32), r: f32, px: i64, py: i64) -> u8 {
     stretched(grown_rect(rect, r, px, py))
 }
 
-/// The law's blur, written independently of the core (#578, the runner's
+/// The law's blur, written independently of the core (#2, the runner's
 /// `box_pair`): two passes of a `width`-wide box per axis, i.e. the
 /// separable triangle `(width − |j|) / width²` for `|j| < width`, over the
 /// canvas-sized byte plane as unit values (zero beyond the canvas, which the
@@ -275,7 +275,7 @@ fn a_normal_glow_over_white_shows_the_geometry_and_screen_is_invisible() {
 
 #[test]
 fn soft_glow_matches_the_box_pair_oracle() {
-    // spread 0, size 4 -> the law's n = 0, w = 4 (#578): the rect's own
+    // spread 0, size 4 -> the law's n = 0, w = 4 (#2): the rect's own
     // coverage through two passes of a 4-wide box (the triangle (4 - |j|) /
     // 16, half-width 3), the Range 50 % as min(1, B / 0.5), rounded once,
     // then zeroed under the rect (the inverted-shape multiply); in canvas
@@ -320,7 +320,7 @@ fn soft_glow_matches_the_box_pair_oracle() {
 
 #[test]
 fn partial_spread_dilates_then_blurs() {
-    // spread 0.5 at size 4: the law's n = 2, w = 2 (#578): the band grown by
+    // spread 0.5 at size 4: the law's n = 2, w = 2 (#2): the band grown by
     // 2 (the rect is binary, so the anti-aliased band is the binarized one),
     // then two passes of a 2-wide box (taps 1/4, 1/2, 1/4), min(1, B / 0.5),
     // rounded once. The oracle is the grow-rect closed form at r = 2 fed
@@ -501,7 +501,7 @@ fn glow_keeps_its_own_blend_on_a_multiply_layer() {
 fn the_shape_is_alpha_times_mask() {
     // (a) A half-transparent rect: the glow plane is knocked out by the
     // coverage (`255 - 128 = 127` of it under the rect), and lands at `sa /
-    // (1 - a)` under a pixel the layer covers (#578, the measured `g (1 -
+    // (1 - a)` under a pixel the layer covers (#2, the measured `g (1 -
     // a)`): full here, so the rect composites over the whole glow at alpha
     // 128/255 — one chain of two reference composites in f32, quantized
     // once.
@@ -663,7 +663,7 @@ fn the_glow_reads_g_times_one_minus_alpha_under_an_anti_aliased_edge() {
     // A black rect whose left column is at alpha 200 (an anti-aliased edge)
     // with a Normal yellow glow at opacity 1 on the dark backdrop: the plane
     // is knocked out by the pixel's own coverage (55 of 255 remains) and
-    // lands at `sa / (1 - a)` under it (#578: Photoshop's edge column reads
+    // lands at `sa / (1 - a)` under it (#2: Photoshop's edge column reads
     // 255 (1 - c), `glow_aa_578_law_fit.py`), so the pixel composites over
     // the whole glow and `g (1 - a)` shows: R = 55, where the plane alone
     // under the pixel would leave `g (1 - a)²` (R = 19).

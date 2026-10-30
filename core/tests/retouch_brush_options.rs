@@ -364,7 +364,7 @@ fn sixteen_bit_vibrance_is_the_vibrance_stage_on_a_uniform_patch() {
 }
 
 /// On a ProPhoto document the Sponge's Vibrance target is the adjustment's
-/// Vibrance stage at ±100 in ProPhoto's own linear light (#578): the 8-bit
+/// Vibrance stage at ±100 in ProPhoto's own linear light (#2): the 8-bit
 /// document assigned builtin ProPhoto through `dr_doc_assign_profile`, the
 /// 16-bit one built on it; within 1 code and 2/65535 of the oracle through
 /// ProPhoto's curve, and on at least one patch more than twice that

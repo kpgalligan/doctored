@@ -51,7 +51,7 @@ struct ProofSetup: Equatable {
     var simulatePaperWhite: Bool = false
     var simulateInkBlack: Bool = false
     var gamutColor: NSColor = NSColor(deviceRed: 0.5, green: 0.5, blue: 0.5, alpha: 1)
-    /// Preserve CMYK Numbers (#547 phase 5): a CMYK document's ink goes to the proof profile
+    /// Preserve CMYK Numbers (#1 phase 5): a CMYK document's ink goes to the proof profile
     /// unconverted. Meaningless (and dropped, `reconciled`) on an RGB document.
     var preserveNumbers: Bool = false
     /// One plate of the proof device instead of the colour (View ▸ Proof Setup ▸ Working Cyan
@@ -200,7 +200,7 @@ enum ProofSource {
     /// display codes — exactly what the canvas shows — are proofed, never a
     /// fresh composite. The full-depth proof is `render_proof exact:true`.
     case display(RasterDocument, RasterPrecisionImage)
-    /// A CMYK document (#547 phase 5): its composite's ink proofed by the core
+    /// A CMYK document (#1 phase 5): its composite's ink proofed by the core
     /// (`dr_precision_doc_cmyk_proof`) into Display P3.
     case cmyk(RasterDocument)
 }
@@ -367,7 +367,7 @@ final class ProofRenderer {
         case .cmyk:
             throw DoctoredCoreError(message: "The proof could not be drawn.")
         }
-        // #547 Lab phase 5b: a Lab document's display codes are its Display P3 view.
+        // #1 Lab phase 5b: a Lab document's display codes are its Display P3 view.
         let profile = document.proofSourceProfile
         let context = try PrecisionWorkContext(byteImage: flat)
         var rendered = try control.withChildOperation(from: start, to: 1) {

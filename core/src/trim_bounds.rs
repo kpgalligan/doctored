@@ -30,7 +30,7 @@ pub const TRIM_RIGHT: u32 = 8;
 /// The kept rectangle `(x, y, width, height)` of a `w`×`h` row-major image.
 /// `alpha_zero(i)` answers whether pixel `i`'s alpha sample is zero and
 /// `pixel(i)` gives its samples (`P`: four RGBA samples, or a CMYK
-/// document's five ink and alpha codes, #547 phase 4b). `None` for an empty image, an unknown
+/// document's five ink and alpha codes, #1 phase 4b). `None` for an empty image, an unknown
 /// `basis`, or an image whose every pixel is trimmable (there is nothing to
 /// keep). Edges whose bit is clear in `edges` never move; a result equal to
 /// the whole image is still `Some` — the host decides that is no change.

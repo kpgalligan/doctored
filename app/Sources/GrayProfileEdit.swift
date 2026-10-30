@@ -1,6 +1,6 @@
 import AppKit
 
-// Assign Profile, Convert to Profile and 8/16/32 Bits/Channel on a Grayscale document (#547 phase
+// Assign Profile, Convert to Profile and 8/16/32 Bits/Channel on a Grayscale document (#1 phase
 // 5a): the captured edit and its ONE undo step, `CmykProfileEdit`'s twin. The core decides
 // everything (`gray_profile`): Assign keeps every sample, Convert is the RGB conversion between the
 // two profiles' twins with R = G = B kept (on the 8-bit grid at 8 bits; at 32 bits linear gray is

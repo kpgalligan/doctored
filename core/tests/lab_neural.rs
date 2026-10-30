@@ -1,4 +1,4 @@
-//! #547 Lab phase 6b-iii: the neural and generative tools on a Lab Color
+//! #1 Lab phase 6b-iii: the neural and generative tools on a Lab Color
 //! document through the FFI. The model or provider reads the document's
 //! Display P3 view, and its result, tagged Display P3, returns to L\*a\*b\*
 //! codes by Image ▸ Mode ▸ Lab Color's rule (`lab_neural`).

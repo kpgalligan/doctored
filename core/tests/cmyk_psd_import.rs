@@ -1,4 +1,4 @@
-//! Layered CMYK PSD, PSB and TIFF import (#547 phase 3), through the host's
+//! Layered CMYK PSD, PSB and TIFF import (#1 phase 3), through the host's
 //! route (`dr_psd_import_report`, then `dr_precision_doc_open_psd` mode 0),
 //! against files built byte by byte by `common/cmyk_psd_fixture.rs`, an
 //! independent writer of Adobe's framing: the ink (`max − stored`, 8-bit
@@ -7,7 +7,7 @@
 //! modes, clipping, Fill, locks and labels exactly; the Levels, Curves and
 //! Hue/Saturation records' parameters against values computed here from the
 //! bodies; a carried Selective Color and knockout, a discarded Blend If
-//! (#547, the styles batch) and a declined mapped curve by name; the
+//! (#1, the styles batch) and a declined mapped curve by name; the
 //! refusals (a missing ink channel; an RGB record's channel id 3); and the
 //! colour-4 report by name.
 
@@ -344,7 +344,7 @@ fn assert_tree(doc: *const PrecisionDocument, built: &Built) {
     assert_eq!(carried.fill_opacity, 102.0 / 255.0);
     assert_eq!(carried.knockout, doctored_core::style::Knockout::Shallow);
     assert_eq!(hue.blend_mode(), BlendMode::Color);
-    // Knockout CARRIES since the styles batch (#547), Blend If since the
+    // Knockout CARRIES since the styles batch (#1), Blend If since the
     // Blend If batch.
     let knocked = knock.style().expect("the knockout carries");
     assert_eq!(knocked.knockout, doctored_core::style::Knockout::Shallow);

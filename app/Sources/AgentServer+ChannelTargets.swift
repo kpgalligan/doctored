@@ -27,7 +27,7 @@ extension AgentServer {
             }
             return .mask
         }
-        // #547 Lab phase 2e: a Lab document's Lightness, a and b are the red, green and blue
+        // #1 Lab phase 2e: a Lab document's Lightness, a and b are the red, green and blue
         // planes of its codes, and alpha its own; red, green and blue are not its names.
         if document.doc?.isLab == true {
             if let plane = LabDocument.plane(named: raw) ?? (raw == "alpha" ? .alpha : nil) {
@@ -40,7 +40,7 @@ extension AgentServer {
         if let plane = RasterPlane.named(raw), PaintTarget.paintablePlanes.contains(plane) {
             return .plane(plane)
         }
-        // #547: one ink plate of a CMYK layer: the Move tool and ⌘T on its selected pixels, and
+        // #1: one ink plate of a CMYK layer: the Move tool and ⌘T on its selected pixels, and
         // painting, filling, filtering and adjusting its stored `1 − ink` (`cmyk_plate_scalar`).
         if let plate = CmykPlane(key: raw) {
             guard document.doc?.isCmyk == true else {
@@ -61,7 +61,7 @@ extension AgentServer {
 
     private static func badTargetError(_ got: String, allowMask: Bool, cmyk: Bool = false) -> ToolError {
         let mask = allowMask ? "\"mask\", " : ""
-        // #547: a CMYK document's colour targets are its four ink plates.
+        // #1: a CMYK document's colour targets are its four ink plates.
         let planes = cmyk ? "\"cyan\", \"magenta\", \"yellow\", \"black\""
             : "\"red\", \"green\", \"blue\", \"alpha\""
         return ToolError(
@@ -601,7 +601,7 @@ extension AgentServer {
     static func planeRenderImage(
         _ doc: RasterDocument, channel: String, layer: Int?
     ) throws -> (image: RasterImage?, what: String) {
-        // #547 Indexed phase 3c: an alpha channel by name with no layer; the composite and the
+        // #1 Indexed phase 3c: an alpha channel by name with no layer; the composite and the
         // Index channel never reach here (`render` draws `IndexedDocument.compositeChannels` as the
         // composite), and anything else refuses with `IndexedDocument.renderRefusal`.
         if doc.isIndexed {
@@ -610,7 +610,7 @@ extension AgentServer {
             }
             throw ToolError(message: IndexedDocument.renderRefusal)
         }
-        // #547: a CMYK document's ink planes, the composite on paper, ink dark (Channels panel's view).
+        // #1: a CMYK document's ink planes, the composite on paper, ink dark (Channels panel's view).
         if let precision = doc.precision, precision.isCmyk {
             guard layer == nil, let plane = CmykPlane(key: channel) else {
                 throw ToolError(message: "A CMYK document renders one ink plane of its composite: "
@@ -620,7 +620,7 @@ extension AgentServer {
             return (try precision.cmykPlaneView(plane, maxSide: 0, workingLimit: context.limit,
                                                 otherRetained: context.otherRetained), "\(channel) ink plane")
         }
-        // #547 Lab phase 1c: a Lab Color document's lightness, a or b channel of the composite's
+        // #1 Lab phase 1c: a Lab Color document's lightness, a or b channel of the composite's
         // codes (`labPlaneDisplay`, never the P3 view), a layer's mask, or an alpha channel by name
         // with no layer; anything else refuses with `LabDocument.renderRefusal`.
         if doc.isLab {
@@ -636,7 +636,7 @@ extension AgentServer {
             }
             throw ToolError(message: LabDocument.renderRefusal)
         }
-        // #547 phase 1c: a Grayscale document's one gray plane (its R = G = B), a layer's mask, or
+        // #1 phase 1c: a Grayscale document's one gray plane (its R = G = B), a layer's mask, or
         // (phase 2d) an alpha channel; `GrayDocument.refusal` has refused every other channel. The plane is the red
         // plane of the native display (the twin's codes are the gray codes; at 32 bits the tone
         // map's), as `nativeSourcePlaneDisplay` reads it at float: the native plane read is a
@@ -704,7 +704,7 @@ extension AgentServer {
                     (r: info.red, g: info.green, b: info.blue, a: 255)),
                 "overlay_opacity": (info.opacity * 100).rounded() / 100,
                 "color_indicates": info.colorIndicatesSelected ? "selected" : "masked",
-                // #547: a spot channel's ink, {lab, solidity}; null for an alpha channel.
+                // #1: a spot channel's ink, {lab, solidity}; null for an alpha channel.
                 "spot": info.spot.map { $0.fields as Any } ?? NSNull(),
             ]
             if coreChannels.indices.contains(index) {
@@ -788,7 +788,7 @@ extension AgentServer {
     }
 
     /// A source-plane argument for apply_image / calculations: "rgb",
-    /// a colour plane, or an alpha channel's name. On a CMYK document (#547):
+    /// a colour plane, or an alpha channel's name. On a CMYK document (#1):
     /// "cmyk" (the composite), an ink plate, "luma", "alpha" or a channel's name; on a Grayscale
     /// document (phase 6b) "gray", "alpha" or a channel's name; on a Lab Color document (Lab
     /// phase 6b-i) "lab", "lightness", "a", "b", "alpha" or a channel's name.
@@ -810,7 +810,7 @@ extension AgentServer {
                     + "\"luma\", \"alpha\" or an alpha channel's name on a CMYK document "
                     + "(got \"\(raw)\")")
         }
-        // #547 phase 6b: a Grayscale document's sources are its Gray composite or layer (R = G =
+        // #1 phase 6b: a Grayscale document's sources are its Gray composite or layer (R = G =
         // B, so the RGB choice), its alpha and its alpha channels; a colour plane is not its name.
         if doc.isGray {
             if raw == "gray" { return .rgb }
@@ -823,7 +823,7 @@ extension AgentServer {
                 message: "\(key) must be \"gray\", \"alpha\" or an alpha channel's name on a "
                     + "Grayscale document (got \"\(raw)\")")
         }
-        // #547 Lab phase 6b-i: the Lab composite or layer, Lightness, a, b, alpha and the alpha
+        // #1 Lab phase 6b-i: the Lab composite or layer, Lightness, a, b, alpha and the alpha
         // channels (`LabDocument.planeChoice`).
         if doc.isLab { return try LabDocument.planeChoice(raw, in: doc, key: key) }
         if raw == "rgb" { return .rgb }
@@ -866,7 +866,7 @@ extension AgentServer {
             return .layerMask(index)
         case "plane":
             let name = stringArg(a, prefix + "plane") ?? "luma"
-            // #547: a CMYK document's planes are its four inks (each its stored `1 − ink`), its
+            // #1: a CMYK document's planes are its four inks (each its stored `1 − ink`), its
             // luminosity and its alpha; an RGB document's are its colour planes.
             if let plate = CmykPlane(key: name) {
                 guard doc.isCmyk else {
@@ -876,10 +876,10 @@ extension AgentServer {
                 }
                 return .inkPlate(plate)
             }
-            // #547 phase 4: a Grayscale document's one colour plane, Gray, is its composite's own
+            // #1 phase 4: a Grayscale document's one colour plane, Gray, is its composite's own
             // gray (R = G = B), read as the luminosity.
             if doc.isGray, name == "gray" { return .compositePlane(.luma) }
-            // #547 Lab phase 4b-i: a Lab document's planes are Lightness, a and b (the stored red,
+            // #1 Lab phase 4b-i: a Lab document's planes are Lightness, a and b (the stored red,
             // green and blue codes), luma (its Lightness: `canvasPlane`) and alpha.
             if doc.isLab, name != "luma", name != "alpha" {
                 guard let plane = LabDocument.plane(named: name) else {

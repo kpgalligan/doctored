@@ -4,8 +4,8 @@
 //! by `+(dx, dy)` and `-(dx, dy)`, clipped to the rect, with the light
 //! offset `(round(-d cos a), round(d sin a))` — and the W3C reference blend
 //! (`common::ref_composite`) for the colours; a soft satin is checked
-//! against the law's box pair at the size (#578 part 3, written out here),
-//! fed through the fitted combine `|a - b|` (#578, `style_fx_satin`'s
+//! against the law's box pair at the size (#2 part 3, written out here),
+//! fed through the fitted combine `|a - b|` (#2, `style_fx_satin`'s
 //! module doc; `style_satin_law.rs` holds the full oracle). Every document goes through
 //! `dr_doc_set_layer_style` (`common::styled`); shared fixtures live in
 //! `tests/common`.
@@ -132,7 +132,7 @@ fn translated(plane: &[u8], w: u32, h: u32, (dx, dy): (i32, i32)) -> Vec<u8> {
 }
 
 /// The combine `|a - b|` on coverage bytes, from the formula the style
-/// module documents (#578).
+/// module documents (#2).
 fn abs_difference(a: u8, b: u8) -> u8 {
     (i32::from(a) - i32::from(b)).unsigned_abs() as u8
 }
@@ -320,7 +320,7 @@ fn satin_keeps_its_own_blend_on_a_multiply_layer() {
     );
 }
 
-/// The satin's matte above size 0 (#578 part 3, `style_fx_satin`'s module
+/// The satin's matte above size 0 (#2 part 3, `style_fx_satin`'s module
 /// doc), from the law's formula: the separable triangle `(w − |j|) / w²`
 /// (`|j| < w`, `w` the size rounded half up) on the coverage as unit
 /// values, 0 off the plane, rounded once as `floor(255 p + 1/2)`.
@@ -351,7 +351,7 @@ fn box_pair_matte(plane: &[u8], w: u32, h: u32, width: i64) -> Vec<u8> {
 
 #[test]
 fn soft_satin_matches_the_box_pair_oracle_through_the_absolute_difference() {
-    // size 4 -> the law's box pair at width 4 (#578 part 3; the Gaussian
+    // size 4 -> the law's box pair at width 4 (#2 part 3; the Gaussian
     // at sigma 1.6 this test checked before is now size 0's path only).
     let doc = styled(
         &rect_doc(),

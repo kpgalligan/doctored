@@ -1,4 +1,4 @@
-//! Image ▸ Mode ▸ 8/16 Bits/Channel on a Lab Color document (#547 Lab phase
+//! Image ▸ Mode ▸ 8/16 Bits/Channel on a Lab Color document (#1 Lab phase
 //! 5a): the depth edit, its plan and its refusals. A Grayscale document's
 //! depth op is the template (`gray_profile`); nothing here converts a
 //! colour.

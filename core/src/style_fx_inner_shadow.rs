@@ -64,7 +64,7 @@
 //! at each pixel's layer coordinate, after the contour and before the
 //! coverage multiply; amount 0 skips the pass.
 //!
-//! # Why the law (#578)
+//! # Why the law (#2)
 //!
 //! The drop shadow's reason (`style_fx_drop_shadow`): the inner glow's law
 //! on `1 − coverage`, declared as candidates I1 (the anti-aliased band) and
@@ -78,9 +78,9 @@
 //! the same as before the law: only the matte changed.
 //! `core/tests/style_effect_kernels_578_take.rs` pins the take.
 //!
-//! # Why the contour reads the unrounded matte (#578 part 4)
+//! # Why the contour reads the unrounded matte (#2 part 4)
 //!
-//! The Satin's measured site (#578 part 3, `style_fx_satin`: the contour
+//! The Satin's measured site (#2 part 3, `style_fx_satin`: the contour
 //! on each shifted copy of the matte) declared for the inner shadow as
 //! candidate IC1 in `scripts/photoshop-probe/effect_kernels_578_p4_take.py`
 //! before any take (IC2, the complement table `255 − C(255 − x)`, was the

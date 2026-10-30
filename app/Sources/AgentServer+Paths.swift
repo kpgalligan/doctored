@@ -81,12 +81,12 @@ extension AgentServer {
         "path_to_selection": [.selectionSensitive, .commonTool, .floatTool, .cmykTool],
         // Admitted at float here and asked again as `stroke_selection`
         // (`fillPath`), whose float rules are Fill… and Stroke…'s.
-        // #547: on a CMYK document asked again as `fill_selection` (ink on a layer).
+        // #1: on a CMYK document asked again as `fill_selection` (ink on a layer).
         "fill_path": [.selectionSensitive, .commonTool, .floatTool, .cmykTool],
         // Admitted at float here and asked again as `brush_stroke` /
         // `eraser_stroke` (`strokePath`), whose float rules are `FloatPaint`'s:
         // `rgba32` is the Brush's linear ink on a float layer.
-        // #547: on a CMYK document asked again as the Brush's `brush_stroke` (ink on a layer).
+        // #1: on a CMYK document asked again as the Brush's `brush_stroke` (ink on a layer).
         "stroke_path": [.selectionSensitive, .commonTool, .floatTool, .cmykTool],
         // Vector masks are baked u16 (or u8) mask planes at every depth, and
         // `DoctoredCore+Paths` reaches the byte or the typed core behind one
@@ -338,7 +338,7 @@ extension AgentServer {
         if doc.isHighDepth {
             let (index, planeTarget, capture) = try precisionSelectionPaintCapture(
                 a, document, tool: "fill_path")
-            // #547: a CMYK layer takes `ink` (C, M, Y, K percent) in place of `color`, as
+            // #1: a CMYK layer takes `ink` (C, M, Y, K percent) in place of `color`, as
             // `fill_selection` does (`precisionFillSelection`).
             let ink = capture.source.isCmyk && !planeTarget.isCoverage ? try cmykInkArgument(a, "ink") : nil
             var arguments = a
@@ -393,7 +393,7 @@ extension AgentServer {
         "size", "hardness", "flow", "spacing", "angle", "roundness", "opacity", "layer", "target",
         "document_id",
     ]
-    /// `ink` is a CMYK layer's Brush colour (#547), C, M, Y, K percent.
+    /// `ink` is a CMYK layer's Brush colour (#1), C, M, Y, K percent.
     private static let brushOnlyKeys = ["color", "color_space", "blend_mode", "rgba32", "ink"]
     /// Stroke arguments that describe ONE recorded stroke's own geometry or
     /// timing; a path stroke takes its geometry from the path.

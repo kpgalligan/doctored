@@ -1,6 +1,6 @@
 import AppKit
 
-// The spot channels' core wrappers (#547 phases 1a-2 and 1c-1, the header's "Spot channels" and
+// The spot channels' core wrappers (#1 phases 1a-2 and 1c-1, the header's "Spot channels" and
 // "Spot channels 1c-1" sections): every `dr_*` call of the feature. The model, the sentences and the display helpers are
 // `SpotChannel.swift`'s.
 

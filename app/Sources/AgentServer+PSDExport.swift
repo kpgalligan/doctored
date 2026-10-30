@@ -70,7 +70,7 @@ extension AgentServer {
             "observations": capture.report.observations,
             "worst_case_bytes": NSNumber(value: capture.report.worstCaseBytes),
             // The admitted plan (`PSDExportCapture.scratchEstimate`), the figure the
-            // measured-admission drives hold (#547 Duotone phase 1b's `export-duotone-psd16`).
+            // measured-admission drives hold (#1 Duotone phase 1b's `export-duotone-psd16`).
             "working_memory_plan_bytes": NSNumber(value: capture.scratchEstimate),
         ])
     }

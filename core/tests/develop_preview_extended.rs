@@ -9,7 +9,7 @@
 //! and alpha, each rounded to nearest-even binary16 (`half`), written
 //! little-endian. The peak is the largest RGB value of those bits. Bytes and
 //! peak are compared exactly. Every refusal leaves the buffer as it was.
-//! Clipping markers (#680): a cell any of whose alpha-positive samples has an
+//! Clipping markers (#4): a cell any of whose alpha-positive samples has an
 //! RGB channel ≤ 0.0 (flag 1) or ≥ 1.0 (flag 2) is opaque binary16 blue, red
 //! or magenta; the marked count and planted endpoints are hand-counted.
 use doctored_core::ffi::dr_string_free;

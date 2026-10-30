@@ -2,7 +2,7 @@
 //! before byte promotion; typed compositing runs before byte reduction. Neither
 //! operation reinterprets a tree in the other evaluation policy. Only the one
 //! resulting raster, ICC, PPI, capture packets, canvas chrome and the saved
-//! channels survive (alpha and spot, #547: `v · 257` up, nearest down — the
+//! channels survive (alpha and spot, #1: `v · 257` up, nearest down — the
 //! selection masks' own rounding); editable structures are intentionally discarded. The
 //! GUIDES and the RULER ORIGIN cross in both directions since 12E-1c — the
 //! canvas does not move, so `doc::flattening`'s rule applies verbatim and

@@ -1,4 +1,4 @@
-//! #547 Lab phase 5a-ii: Image ▸ Mode ▸ Grayscale from a Lab Color
+//! #1 Lab phase 5a-ii: Image ▸ Mode ▸ Grayscale from a Lab Color
 //! document (`lab_gray`), and Lab → RGB's pipeline built once, through the
 //! FFI.
 //!

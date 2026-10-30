@@ -1,6 +1,6 @@
-# CMYK document mode (#547): shipped runs
+# CMYK document mode (#1): shipped runs
 
-The settled record of [#547](https://github.com/kpgalligan/doctored-dev/issues/547)'s CMYK phases: decisions in force and
+The settled record of [#1](https://github.com/kpgalligan/doctored/issues/1)'s CMYK phases: decisions in force and
 each shipped phase's few lines, added by the batch that ships it. [cmyk-mode-status.md](cmyk-mode-status.md) keeps the
 head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtures/photoshop/`, runners in
 `scripts/photoshop-probe/`.

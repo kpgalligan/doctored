@@ -61,10 +61,10 @@ enum PrecisionFillStroke {
         /// 0…65504 and alpha 0…1; `color` is then the same colour built from
         /// it (`ExtendedRangeColor.linearColor`).
         var linear: [Double]? = nil
-        /// A CMYK document's exact ink (#547): the swatch's stored ink or MCP's `ink`; nil
+        /// A CMYK document's exact ink (#1): the swatch's stored ink or MCP's `ink`; nil
         /// converts `color` through the document's profile (`CmykPaint.ink`).
         var cmykInk: CmykInk? = nil
-        /// #547 Lab phase 4a: `color` is MCP's authored sRGB on a Lab layer, sent as `srgb` ink
+        /// #1 Lab phase 4a: `color` is MCP's authored sRGB on a Lab layer, sent as `srgb` ink
         /// so the core converts it by Mode ▸ Lab Color's rule (`AgentServer.labSrgbInk`).
         var srgb = false
     }
@@ -117,7 +117,7 @@ enum PrecisionFillStroke {
         if r.target.isCoverage, floatPlane == nil {
             let ink = try PrecisionInk(color: r.color,
                 space: ColorProfile.coverageSpace(capture.facade.nsColorSpace, for: r.color))
-            // #547: one CMYK ink plate takes a colour plane's 30/59/11 grey (`cmyk_plate_scalar`).
+            // #1: one CMYK ink plate takes a colour plane's 30/59/11 grey (`cmyk_plate_scalar`).
             let gray = try r.target.isPlane || r.target.isInk
                 ? PrecisionScalarOperations.planeInk(ink) : PrecisionScalarOperations.ink(ink)
             let work = try PrecisionScalarOperations.edit(
@@ -129,7 +129,7 @@ enum PrecisionFillStroke {
             return try work.run(title: title)
         }
         if capture.source.isCmyk {
-            // #547: a CMYK layer fills in ink, in the CMYK modes (`cmyk_paint`).
+            // #1: a CMYK layer fills in ink, in the CMYK modes (`cmyk_paint`).
             if let reason = CmykPaint.modeRefusal(r.mode) { throw DoctoredCoreError(message: reason) }
             let ink = try CmykPaint.ink(r.color, stored: r.cmykInk, in: capture.source)
             let command = try CmykPaint.command([
@@ -165,7 +165,7 @@ enum PrecisionFillStroke {
     }
 
     /// The layer-edge request (`stroke_layer_edge`). `ink` is the colour keys: `["ink": [c, m,
-    /// y, k, a]]` on a CMYK document (`cmyk_stroke`, #547), else `["color": …, "color_space": …]`.
+    /// y, k, a]]` on a CMYK document (`cmyk_stroke`, #1), else `["color": …, "color_space": …]`.
     private static func edgeCommand(
         layer: Int, ink: [String: Any], widthPx: Double, location: StrokeLocation,
         mode: DrBlendMode, opacity: Double, preserve: Bool

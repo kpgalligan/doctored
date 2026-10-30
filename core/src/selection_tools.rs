@@ -9,7 +9,7 @@
 //! test stops a hard edge even when both sides fit the wider seed tolerance.
 //! Multiple seeds compete in input order (deterministic breadth first claims).
 //! It is color-guided selection, not a semantic subject or matting model.
-//! On a Lab Color document (its profile the Lab twin, #547 phase 6b-ii) the
+//! On a Lab Color document (its profile the Lab twin, #1 phase 6b-ii) the
 //! ΔE76 reads the codes' own L\*a\*b\*; any other profile with no matrix/TRC
 //! model refuses.
 //! The growth, the brush disc seeding (`radius`), the range-gated
@@ -32,7 +32,7 @@
 //!   sample's ramp times `color_range_band::cluster_weight` of the pixel's
 //!   distance to that sample's point, at `cluster_range` (0…100, default 100,
 //!   only with `points`) percent of the canvas's longer side. On a Lab Color
-//!   document (its profile the Lab twin, #547 phase 4b-ii) the samples are
+//!   document (its profile the Lab twin, #1 phase 4b-ii) the samples are
 //!   its L\*a\*b\* codes and the distance is `lab_select::RANGE_RULE`'s, the
 //!   largest per-channel difference in L\*a\*b\* units (measured). Since
 //!   phase 6b-i every other mode runs there too: `tonal` reads the codes'
@@ -154,7 +154,7 @@ pub(crate) fn color_range_samples<T: SelectionSample>(
         radius,
         lab: lab_rule,
     } = color_range_parameters::<T>(profile, dimensions, json)?;
-    // #547 phase 6b-i: on a Lab document Hues and Skin Tones read the codes'
+    // #1 phase 6b-i: on a Lab document Hues and Skin Tones read the codes'
     // 16-bit ProPhoto RGB encoding, Hue/Saturation's space
     // (`lab_adjust::color_space`), through the twin's relative pipeline. Built
     // here, after the parameters validate, so a plan builds none (6b-ii).
@@ -209,7 +209,7 @@ pub(crate) fn color_range_samples<T: SelectionSample>(
                 softness,
             )
         } else if let (Some(rule), true) = (lab_rule, points.is_empty()) {
-            // #547 phase 4b-ii: a Lab document's codes by its measured rule.
+            // #1 phase 4b-ii: a Lab document's codes by its measured rule.
             let color = lab_units(&pixel);
             let d = samples
                 .iter()
@@ -272,7 +272,7 @@ pub(crate) struct ColorRangeParameters {
     points: Vec<(u32, u32)>,
     /// `cluster_range` as `color_range_band::cluster_radius` pixels.
     radius: f32,
-    /// A Lab Color document's rule (#547 phase 4b-ii, `lab_select`): the
+    /// A Lab Color document's rule (#1 phase 4b-ii, `lab_select`): the
     /// samples are its L\*a\*b\* codes as units and the distance is the
     /// rule's; `None` everywhere else.
     lab: Option<crate::lab_select::LabRule>,
@@ -293,7 +293,7 @@ pub(crate) fn color_range_parameters<T: SelectionSample>(
     dimensions: (u32, u32),
     json: &str,
 ) -> Result<ColorRangeParameters, String> {
-    // #547 phase 4b-ii: a Lab document (its profile IS the Lab twin) runs
+    // #1 phase 4b-ii: a Lab document (its profile IS the Lab twin) runs
     // sampled Color Range by `lab_select`'s measured rule on its codes.
     let lab_rule =
         crate::lab_document::is_lab_twin(profile).then_some(crate::lab_select::RANGE_RULE);
@@ -519,7 +519,7 @@ pub(crate) fn quick_samples<T: SelectionSample>(
     json: &str,
     job: JobContext<'_>,
 ) -> Result<Vec<T>, String> {
-    // #547 phase 6b-ii: a Lab document's ΔE76 reads its codes' own L*a*b*.
+    // #1 phase 6b-ii: a Lab document's ΔE76 reads its codes' own L*a*b*.
     let lab_codes = crate::lab_document::is_lab_twin(profile);
     if profile.model().is_none() && !lab_codes {
         return Err("selection source requires a matrix/TRC RGB profile".into());

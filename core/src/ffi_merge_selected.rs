@@ -1,4 +1,4 @@
-//! The byte Stamp Selected and Merge Group exports (#547 phase 4c), the
+//! The byte Stamp Selected and Merge Group exports (#1 phase 4c), the
 //! shims of `doc_merge_selected` (whose module doc is the rule). The typed
 //! twins are the `stamp_selected` and `merge_group` structure edits of
 //! `dr_precision_doc_edit`.

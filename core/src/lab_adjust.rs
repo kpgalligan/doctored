@@ -1,4 +1,4 @@
-//! The Lab Color document's adjustments (#547 phases 2b to 2d, 2f): which
+//! The Lab Color document's adjustments (#1 phases 2b to 2d, 2f): which
 //! ops run on a Lab document and in which [`LabForm`], and which refuse for
 //! good (`designs/lab-mode.md`).
 //!
@@ -257,7 +257,7 @@ pub(crate) fn admit(doc: &PrecisionDocument, description: &str, layer: bool) -> 
 /// Why a Lab document cannot hold an adjustment layer of `description` (the
 /// table as a layer: [`rule`], then a `Pixels` op's layer sentence), or
 /// `None`: a Lab PSD's carried adjustment record is omitted by name when it
-/// refuses (#547 Lab phase 3a, `psd_import_lab`). A description the
+/// refuses (#1 Lab phase 3a, `psd_import_lab`). A description the
 /// kernel's own parser must refuse answers `None` here.
 pub(crate) fn record_refusal(description: &str) -> Option<String> {
     let value = parts(description)?;

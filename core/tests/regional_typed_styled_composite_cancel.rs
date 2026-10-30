@@ -15,10 +15,10 @@
 //! colour overlay (an enabled effect, so the group is MATERIALIZED) over ONE
 //! canvas-sized Normal child with anti-aliased holes carrying a drop shadow
 //! of size 4 at distance 0 and Spread 100 % (a dilation, no blur; reach 5),
-//! then a satin of size 4 at distance 1 (the box-pair law since #578 part
+//! then a satin of size 4 at distance 1 (the box-pair law since #2 part
 //! 3, whose rows report at stage 6 as the Gaussian's did; reach 5, the
 //! shadow's too, so the pad is 6). The soft drop shadow it carried before
-//! runs the box-pair law since #578, and the Spread 100 % shadow keeps a
+//! runs the box-pair law since #2, and the Spread 100 % shadow keeps a
 //! Below contribution in the composite. With `A = W·H`
 //! and `work` the plan's `work_units`, the progress figures (`points`): the
 //! acc fill closes at `A/work`, the group buffer's zero fill at `s =
@@ -243,7 +243,7 @@ fn materialized16() -> PrecisionDocument {
 // ---------------------------------------- the child plane's own sizing --
 //
 // Written out independently of the core (the style suite's rule): a satin
-// runs the box-pair law at spread 0 since #578 part 3 (`style_fx_satin`),
+// runs the box-pair law at spread 0 since #2 part 3 (`style_fx_satin`),
 // whose reach is its width `w`, the size rounded half up (4 here), plus
 // `ceil(distance)` (1 here); the plane pad is the reach plus one. The
 // Spread 100 % drop shadow's reach, `ceil(size · spread) + 1` = 5, equals

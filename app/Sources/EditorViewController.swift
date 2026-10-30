@@ -1685,7 +1685,7 @@ final class EditorViewController: NSViewController {
             return
         }
         let idx = document.activeLayerIndex
-        // #547 phase 4c: ⌘E on one group is Merge Group (+MergeStamp.swift).
+        // #1 phase 4c: ⌘E on one group is Merge Group (+MergeStamp.swift).
         if doc.layerIsGroup(idx) { mergeGroup(sender); return }
         let siblings = doc.layerTree.siblings(of: idx)
         guard let below = siblings.last(where: { $0 < idx }) else {

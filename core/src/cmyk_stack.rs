@@ -1,4 +1,4 @@
-//! The ONE CMYK row compositor (#547 phases 1, 2 and 4a, and the styles
+//! The ONE CMYK row compositor (#1 phases 1, 2 and 4a, and the styles
 //! batch): a CMYK document's visible record TREE, bottom first, composited
 //! into one row of straight f32 ink. Every projection (`cmyk_render`), the
 //! flatten (`cmyk_convert`), the savers (`cmyk_io`), the sampler and the
@@ -35,7 +35,7 @@
 //!   full opacity with `alpha × mask × fill`, its FOOTPRINT is
 //!   `alpha × mask` without the fill, each member composites onto the
 //!   buffer with the base's alpha frozen relative to the footprint
-//!   (`clip_unit`'s Open / Settle / Close, #578), and the buffer composites
+//!   (`clip_unit`'s Open / Settle / Close, #2), and the buffer composites
 //!   once through the base's mode at the base's opacity — the styled clip
 //!   base's rule in `precision_style_render`, so the base's Fill stays
 //!   relative and a member shows inside the base's unfilled alpha. A Pass
@@ -896,7 +896,7 @@ fn composite_entry(
             footprint.resize(acc.len(), 0.0);
             footprint.fill(0.0);
             let (opacity, mode) = draw_base(base, y, span, buf, footprint, capture);
-            // `clip_unit`'s Open (#578), then D4: a member punches to the
+            // `clip_unit`'s Open (#2), then D4: a member punches to the
             // buffer after the base alone drew (opened).
             clip_pass(buf, footprint, ClipStep::Open);
             if *members_want_base {

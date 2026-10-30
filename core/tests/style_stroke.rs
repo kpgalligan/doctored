@@ -3,7 +3,7 @@
 //! oracles: the grow/shrink-rect band geometry (an outside pixel's coverage
 //! is `round(255 * clamp(r + 1 - d, 0, 1))` with `d` the 5 x 5 chamfer
 //! distance, steps 1, sqrt 2 and sqrt 5, to the nearest rect pixel —
-//! Photoshop's corner arc, #578; the chamfer is seeded at `1 - c / 255` from
+//! Photoshop's corner arc, #2; the chamfer is seeded at `1 - c / 255` from
 //! every pixel of coverage `c >= 1`, which is 0 on a hard rect, and the
 //! anti-aliased cases below restate that seed; along a straight edge it is the Euclidean
 //! distance of `dr_selection_grow`'s contract; an inside pixel's shrunk
@@ -665,7 +665,7 @@ fn a_half_alpha_shape_is_knocked_out_of_the_band_in_proportion() {
     // The outside band is knocked out by the layer's own coverage, the
     // drop shadow's proportion: a rect at alpha 128 keeps `b = 255 - 128 =
     // 127` of the band under its own pixels. Band and layer then join as
-    // Photoshop's DISJOINT UNION (#578, `band_under_layer`): the band lands
+    // Photoshop's DISJOINT UNION (#2, `band_under_layer`): the band lands
     // at `min(1, b / (1 - a))` with `a = 128/255`, here all of the pixel, and
     // the layer composites over it at `a`, so the pixel is `a·S + b·R + (1 -
     // a - b)·W` = 128 red + 127 blue, the backdrop's share used up. Every
@@ -675,7 +675,7 @@ fn a_half_alpha_shape_is_knocked_out_of_the_band_in_proportion() {
     // inside band holds the whole of that pixel's shape (`s = 128 / 128`), so
     // it replaces the layer there: the band at 128/255 over the white
     // beneath. Every pixel of this rect is partial, so the Inside band,
-    // measured from the anti-aliased edge (NA1, `inside_corner_band`, #578:
+    // measured from the anti-aliased edge (NA1, `inside_corner_band`, #2:
     // every rect pixel seeds the chamfer at `128/255`, below the size, so
     // nothing is cut), holds the whole rect at its coverage, the interior
     // too. Both composite in f32 and quantize once, like the oracle chain.
@@ -757,7 +757,7 @@ fn an_outside_band_fades_under_the_anti_aliased_edge_in_proportion() {
     // A black outside stroke of size 3 around the black rect: under the
     // partial edge pixel (alpha 200) the band is knocked out to 55 — the
     // pixel's own transparency, the drop shadow's proportion — and band and
-    // pixel join as the disjoint union (#578): the band lands at `min(1,
+    // pixel join as the disjoint union (#2): the band lands at `min(1,
     // 55 / (255 - 200))`, all of what the pixel leaves, so the edge column is
     // `200/255` black + `55/255` black = solid black, as Photoshop draws it,
     // where drawing the pixel over the plain band left grey 43. The
@@ -841,7 +841,7 @@ fn an_outside_band_under_a_partial_fill_follows_the_disjoint_union() {
     // The half-alpha red rect at 50 % Fill under a blue Outside 4: the
     // pixel pass lands the layer at `c·f` = 128/255 · 0.5, the band keeps
     // `b` = 127/255 under it, and the pixel is the disjoint union `c·f·S +
-    // b·R + (1 − c·f − b)·W` (Photoshop's, #578 take 3 at 50 and 30 % Fill),
+    // b·R + (1 − c·f − b)·W` (Photoshop's, #2 take 3 at 50 and 30 % Fill),
     // computed here in f64 straight from the shares.
     let half = [255, 0, 0, 128];
     let doc = rect_layer_doc(CANVAS, RECT, half);
@@ -913,7 +913,7 @@ fn a_center_stroke_measures_its_inner_half_from_the_anti_aliased_edge() {
     // Center 4 px, blue, on the black rect whose left column is at alpha
     // 200: the inner half at 2 px is `c − round(255 · clamp(D − 2))`, `D`
     // the chamfer distance over the inverted plane — every pixel of
-    // coverage `c ≤ 254` seeds at `c / 255` (#578, `inside_corner_band`).
+    // coverage `c ≤ 254` seeds at `c / 255` (#2, `inside_corner_band`).
     // Along row 15 of the 10 x 6 rect at (14, 12) the nearest seeds of an
     // opaque pixel `k` columns right of the edge are the edge column
     // (`200/255 + k`), the transparent column left of it (`k + 1`), the
@@ -944,7 +944,7 @@ fn a_center_stroke_measures_its_inner_half_from_the_anti_aliased_edge() {
 #[test]
 fn a_center_stroke_measures_its_outer_half_from_the_anti_aliased_edge() {
     // Center 4 px: the outer half is the Outside band at 2 px, seeded the
-    // same way (#578 take2's Center row ranks the anti-aliased seed above
+    // same way (#2 take2's Center row ranks the anti-aliased seed above
     // the old `coverage >= 128` one). Left of the alpha-200 edge column a
     // pixel `k` columns out is `1 - 200/255 + k` away: `round(255 *
     // clamp(2 + 1 - that))` is 255 at k = 1, 200 at k = 2 (the old seed gave
@@ -973,7 +973,7 @@ fn layer_opacity_applies_once_to_the_pixels_and_the_band_together() {
     // their effects composite as one package and the layer opacity applies
     // to that — the band is 50 % blue over white,
     // never a purple tint of the red beneath it, and the interior is 50 %
-    // red. 50 % is the byte 128 / 255 (#578, `opacity_byte`), so
+    // red. 50 % is the byte 128 / 255 (#2, `opacity_byte`), so
     // white keeps 255 · 127 / 255 = 127 exactly.
     let base = rect_doc().with_layer_opacity(1, 0.5).expect("opacity");
     for position in ["inside", "outside", "center"] {

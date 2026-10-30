@@ -29,7 +29,7 @@ final class ArtworkColorsSheetController: NSViewController {
     private let notice = NSTextField(wrappingLabelWithString: "")
 
     init(document: ImageDocument) throws {
-        // A CMYK layer's colours show as their sRGB appearance (#547, `displayedDescription`).
+        // A CMYK layer's colours show as their sRGB appearance (#1, `displayedDescription`).
         guard let source = document.doc, let original = source.displayedDescription(document.activeLayerIndex),
               original.kind == .text || original.kind == .shape,
               let anchor = source.describedAnchor(document.activeLayerIndex) else {
@@ -157,7 +157,7 @@ final class ArtworkColorsSheetController: NSViewController {
                 record = .editShapeLayer(payload, at: anchor, layer: source.layerRef(index))
             case .fill: return
             }
-            // A CMYK document records and renders the colours in ink (#547): the layer's own
+            // A CMYK document records and renders the colours in ink (#1): the layer's own
             // unchanged inks are kept exactly (`inkedArtwork`).
             if source.isCmyk {
                 updated = try source.inkedArtwork(updated, replacing: index, swatches: [])
@@ -284,7 +284,7 @@ extension EditorViewController {
         guard fillChordRecolorsArtwork, let document, let doc = document.doc else { return false }
         let index = document.activeLayerIndex
         // A CMYK layer recolours on its sRGB appearance and commits in ink, the swatch's stored
-        // ink kept exactly (#547); a Lab layer's colours are authored sRGB (Lab phase 6a-i), so
+        // ink kept exactly (#1); a Lab layer's colours are authored sRGB (Lab phase 6a-i), so
         // the swatch is read in sRGB, not the Lab view's space.
         guard let description = doc.displayedDescription(index),
               let anchor = doc.describedAnchor(index) else { return false }

@@ -1,4 +1,4 @@
-//! #547 Duotone phase 1a in `.rz` (word 109 and its `DUOT` table after
+//! #1 Duotone phase 1a in `.rz` (word 109 and its `DUOT` table after
 //! `GRAY`): a Duotone document of one to four inks, with blank curve slots
 //! and authored overprints, reopens with equal options, descriptor and
 //! render, and a re-save is byte-equal to the first file; the reader refuses

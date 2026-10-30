@@ -55,7 +55,7 @@ pub(crate) fn write(
     )
 }
 
-/// [`write`] with `spots` as the composite's trailing extra samples (#547
+/// [`write`] with `spots` as the composite's trailing extra samples (#1
 /// 1c-2b, the flat TIFF's rule, `tiff_spot`): each pixel's samples are its
 /// colour and alpha samples from `samples_be`, then every spot's
 /// `SpotCoverage::stored` big-endian at `depth`, each declared ExtraSamples 0
@@ -227,9 +227,9 @@ pub(crate) fn write_with(
     let (samples, photometric): (u16, u16) = match color {
         3 => (4, 2),
         4 => (5, 5),
-        // #547 phase 3b, M6: Photoshop's own gray TIFF, one sample.
+        // #1 phase 3b, M6: Photoshop's own gray TIFF, one sample.
         1 => (1, 1),
-        // #547 Lab phase 3b, L4: Photoshop's own Lab TIFF, three CIELab
+        // #1 Lab phase 3b, L4: Photoshop's own Lab TIFF, three CIELab
         // samples (TIFF 6.0 §23), no alpha.
         9 => (3, 8),
         _ => return Err("layered TIFF export writes only RGB, CMYK, gray or Lab".into()),

@@ -7,7 +7,7 @@
 //! Edit ▸ Stroke… tests: `dr_selection_stroke`'s band against the
 //! `dr_selection_grow` / `dr_selection_shrink` contracts (the Euclidean
 //! morphology; Layer Style ▸ Stroke's outside band differs from it only at
-//! corners, #578), the canvas-edge frame, its
+//! corners, #2), the canvas-edge frame, its
 //! refusals, and the band filled through `dr_doc_fill_selection` against
 //! `ref_composite`.
 

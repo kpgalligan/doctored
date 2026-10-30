@@ -1,4 +1,4 @@
-//! #578: the soft Drop Shadow, Inner Shadow and Satin against Photoshop's
+//! #2: the soft Drop Shadow, Inner Shadow and Satin against Photoshop's
 //! own renders, at 8 and 16 bits. The fixtures
 //! (`tests/fixtures/psd_photoshop/soft_effects_578/`, README) are Photoshop
 //! 26.10.0's renders of Doctored-written PSDs: effects-578 take1 (A3's
@@ -16,7 +16,7 @@
 //! max <= 2 and mean <= 0.5.
 //!
 //! The members: the shadows' box-pair law (`style_matte::law_matte_with_job`,
-//! #578's `effect_kernels_578_take.py`), and the satin's runner-FITTED
+//! #2's `effect_kernels_578_take.py`), and the satin's runner-FITTED
 //! sigma `size / 2.5` with `|a − b|`. Every hard and shadow row meets the
 //! bound; every soft satin row keeps a residual, far below the one it had
 //! (A3's default satin 31 / 0.99 -> 3 / 0.15 at 8 bits), and asserts its own
@@ -195,7 +195,7 @@ fn measure(name: &str, depth: u32) -> (f64, f64) {
 }
 
 /// The rows that meet the bound at both depths: the hard rows, and since the
-/// shadows' box-pair law (#578, `effect_kernels_578_take.py`) every Drop and
+/// shadows' box-pair law (#2, `effect_kernels_578_take.py`) every Drop and
 /// Inner Shadow row but `ds_s9_sp30_a30` (`all` 1 / 0.055 at 8 bits, from 5
 /// / 0.143 under the Gaussian), which reads 2 codes plus float noise at 8
 /// bits and is pinned there.

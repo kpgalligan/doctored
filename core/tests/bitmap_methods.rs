@@ -1,4 +1,4 @@
-//! #547 Bitmap phase 1b's methods through the FFI, each against a hand
+//! #1 Bitmap phase 1b's methods through the FFI, each against a hand
 //! oracle written from its declared rule (`bitmap_method`'s module doc), not
 //! from the core: Pattern Dither against phase 2b's fitted table (PT8-MID,
 //! written here from the fit's record) and each entry's own boundary, one Halftone

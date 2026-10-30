@@ -1,6 +1,6 @@
 import AppKit
 
-// Assign Profile, Convert to Profile and 8/16 Bits/Channel on a CMYK document (#547 phase 5): the
+// Assign Profile, Convert to Profile and 8/16 Bits/Channel on a CMYK document (#1 phase 5): the
 // captured edit and its ONE undo step, `CmykModeConversion`'s twin. The core decides everything
 // (`cmyk_profile`): Assign keeps every sample, Convert re-separates each raster through the
 // destination's B2A (masks, records and alpha kept; Flatten Image first on request), and Depth
@@ -12,7 +12,7 @@ import AppKit
 //
 // Convert drops a converted raster's type, shape or fill description in the core; the job re-renders
 // each captured layer with its inks converted into the new profile (`reinkingArtwork`,
-// CmykArtwork.swift, #547) before the display preparation. Convert with Flatten captures nothing;
+// CmykArtwork.swift, #1) before the display preparation. Convert with Flatten captures nothing;
 // Assign and Depth keep the descriptions as they are.
 
 /// One captured CMYK profile edit: the source revision, the edit, the destination profile and
@@ -165,7 +165,7 @@ struct CmykProfileEdit {
         }
     }
 
-    /// Edit ▸ Color Settings' CMYK policy at open (#547 phase 5): Preserve Embedded Profiles keeps
+    /// Edit ▸ Color Settings' CMYK policy at open (#1 phase 5): Preserve Embedded Profiles keeps
     /// the file's profile (today), Off assigns the working CMYK and Convert to Working converts
     /// into it at Color Settings' intent and BPC — the core edit above, run synchronously inside
     /// the open's own job and admitted by the core against the open's limit. Captured on the main

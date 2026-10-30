@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's core wrappers (#547 phase 1): every `dr_*` call of the CMYK area. The
+// The CMYK document's core wrappers (#1 phase 1): every `dr_*` call of the CMYK area. The
 // vocabulary — `CmykPlane`, `CmykSource`, `CmykConversionOptions` — lives here beside them, and
 // the gate that decides what a CMYK document admits is `CmykDocument.swift`.
 
@@ -190,7 +190,7 @@ extension RasterPrecisionDocument {
         "{\"format\":\"\(format)\",\"embed_profile\":\(embed),\"strip_metadata\":\(strip)}"
     }
 
-    // MARK: - Select and Mask's New Layer (#547)
+    // MARK: - Select and Mask's New Layer (#1)
 
     /// The CMYK cutout's plan (`dr_precision_doc_cmyk_cutout_plan`): the RGB cutout plan's keys
     /// with `foreground_storage` `cmyka16_unorm`; `decontaminate` 0 (off) or a strength in (0, 1].
@@ -218,7 +218,7 @@ extension RasterPrecisionDocument {
         return try editResult(result, error)
     }
 
-    // MARK: - One colour across the CMYK boundary (#547 phase 2)
+    // MARK: - One colour across the CMYK boundary (#1 phase 2)
 
     /// `dr_cmyk_color`: one encoded sRGB colour (0…1) as ink in `document`'s CMYK profile, or in
     /// the working CMYK profile when `document` is nil or RGB (refused by name when none is set).

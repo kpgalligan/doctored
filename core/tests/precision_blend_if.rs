@@ -586,7 +586,7 @@ fn groups_clip_units_dissolve_and_refusals() {
 
     // A clip base with Blend If over a TRANSPARENT canvas: base drawn at
     // a * w, footprint a unweighted, the member onto the base with its alpha
-    // frozen RELATIVE to the footprint (#578): r = min(a w / a, 1), the
+    // frozen RELATIVE to the footprint (#2): r = min(a w / a, 1), the
     // member over (colour, r), alpha a r.
     let a = 0.5f64;
     let base_px = |red: u16| [red, 10000u16, 20000, (a * 65535.) as u16];
@@ -1275,7 +1275,7 @@ fn malformed_blend_if_framing_refuses_before_any_png_decode() {
 
 #[test]
 fn a_cmyk_plate_channel_refuses_a_non_cmyk_native_file_by_name() {
-    // Codes 4..=7 are the four CMYK plates (#547): a non-CMYK file naming one
+    // Codes 4..=7 are the four CMYK plates (#1): a non-CMYK file naming one
     // refuses before any pixel decodes; 8 is past every channel.
     let good = bytes(&set(
         &native_fixture(),

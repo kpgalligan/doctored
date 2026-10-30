@@ -1,4 +1,4 @@
-//! #547 spot channels 1c-1 (`spot_merge`, `ffi_spot_merge`): Merge Spot
+//! #1 spot channels 1c-1 (`spot_merge`, `ffi_spot_merge`): Merge Spot
 //! Channel and the alpha ↔ spot kind change against hand oracles written
 //! here. The overprint oracle is, per plane on unit values over an opaque
 //! composite, `(1 − w)·c + w·((1 − s)·c·ink + s·ink)` with the ink from the

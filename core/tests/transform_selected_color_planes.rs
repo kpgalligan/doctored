@@ -822,7 +822,7 @@ fn malformed_colour_requests_refuse_at_parse() {
         base.edit(&text.to_string(), &cov).err().as_deref(),
         Some("background applies to a mask or channel target only")
     );
-    // An ink plate is a CMYK document's target (#547), refused by name here.
+    // An ink plate is a CMYK document's target (#1), refused by name here.
     let mut plate = moved("red", 1, 0, None);
     plate["target"] = json!("cyan");
     assert_eq!(

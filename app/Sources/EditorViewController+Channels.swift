@@ -30,7 +30,7 @@ extension EditorViewController {
         case .channel(let index):
             return index >= 0 && index < doc.channelCount
         case .ink:
-            // #547: one ink plate of a CMYK layer takes the stroke as a colour plane does.
+            // #1: one ink plate of a CMYK layer takes the stroke as a colour plane does.
             return doc.isCmyk
         }
     }
@@ -117,7 +117,7 @@ extension EditorViewController {
             return
         }
         guard let panel = channelsPanel, panel.isViewLoaded else {
-            // #547: with the panel unloaded every spot channel overprints.
+            // #1: with the panel unloaded every spot channel overprints.
             canvas.channelDisplay = spotOnlyDisplay(document, doc)
             return
         }
@@ -125,7 +125,7 @@ extension EditorViewController {
         // wash for an index a delete or an undo has since renumbered.
         let visibility = panel.resolvedVisibility()
         let displayBase = visibility.base
-        // #547: a spot channel draws no wash; it overprints the composite, or draws ink dark.
+        // #1: a spot channel draws no wash; it overprints the composite, or draws ink dark.
         let spots = Set(doc.spotIndices())
         var base: CGImage? = nil
         var replacesComposite = displayBase != .composite
@@ -156,7 +156,7 @@ extension EditorViewController {
                 CanvasSelection.grayImage($0, doc.width, doc.height)
             }
         case .ink(let plane):
-            // #547: one ink of a CMYK document's composite on paper, ink dark, full size.
+            // #1: one ink of a CMYK document's composite on paper, ink dark, full size.
             base = doc.planeImage(for: .ink(plane), composite: nil, activeLayer: 0, maxSide: 0)?
                 .makeCGImage(in: ColorProfile.sRGB)
         case .nothing:
@@ -229,7 +229,7 @@ extension EditorViewController {
     func channelDisplayDidChange(_ note: Notification) {
         // The same reading of the flag the Channels panel makes.
         let isLive = (note.userInfo?["isLive"] as? Bool) ?? document?.isLiveEditing ?? false
-        // #547: a live tick drops a spot overprint base to the washes alone, so the gesture shows
+        // #1: a live tick drops a spot overprint base to the washes alone, so the gesture shows
         // on the canvas's own image; the next non-live change rebuilds the overprint.
         if isLive, let display = canvas.channelDisplay, display.baseKind == .composite,
            display.replacesComposite {
@@ -342,7 +342,7 @@ extension EditorViewController {
                 }
             }
         case .ink:
-            // #547: a CMYK document is typed, so its plate strokes commit through the scalar
+            // #1: a CMYK document is typed, so its plate strokes commit through the scalar
             // stroke (`beginPrecisionScalarStroke`), never this byte overlay.
             NSSound.beep()
         }
@@ -433,7 +433,7 @@ extension EditorViewController {
     }
 
     @objc func channelOptions(_ sender: Any?) {
-        // #547: a spot channel's options are its ink's (Spot Channel Options…).
+        // #1: a spot channel's options are its ink's (Spot Channel Options…).
         if case .channel(let index) = paintTarget, document?.doc?.channelInfo(index)?.spot != nil {
             spotChannelOptions(sender)
             return

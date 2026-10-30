@@ -277,13 +277,13 @@ plan, so a stack of 128 px or smaller canvases loads.
 `2fcb757b`, 2026-10-19: the Preset popup (Default, the user's own via `HdrToningPresetLibrary` and
 `DR_HDR_TONING_PRESETS_DIR`) and MCP `hdr_toning` `preset`; explicit keys override.
 On 2026-10-29 the eleven built-ins were removed; HDR Toning's built-in preset is Default (open items
-[#687](https://github.com/kpgalligan/doctored-dev/issues/687), [#688](https://github.com/kpgalligan/doctored-dev/issues/688)).
+[#7](https://github.com/kpgalligan/doctored/issues/7), [#8](https://github.com/kpgalligan/doctored/issues/8)).
 
 ## Open items
 
 - Not built, by decision: Live Stack Modes.
-- A built-in set of Doctored's own ([#687](https://github.com/kpgalligan/doctored-dev/issues/687)); importing a
-  `.hdt` file the user owns ([#688](https://github.com/kpgalligan/doctored-dev/issues/688)).
+- A built-in set of Doctored's own ([#7](https://github.com/kpgalligan/doctored/issues/7)); importing a
+  `.hdt` file the user owns ([#8](https://github.com/kpgalligan/doctored/issues/8)).
 
 ## For the next item
 

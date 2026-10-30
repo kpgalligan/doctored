@@ -1,4 +1,4 @@
-//! #547 spot channels 1b-1 (`psd_spot`, `psd_spot_records`): PSD and PSB
+//! #1 spot channels 1b-1 (`psd_spot`, `psd_spot_records`): PSD and PSB
 //! spot channels in and out, through the C API.
 //!
 //! Oracles, all written here from Adobe's file format specification and the
@@ -711,7 +711,7 @@ fn gray_and_duotone_documents_round_trip_their_spot_channels() {
         }
     }
     // Duotone writes 8 bits at either document depth (`psd_export_gray`,
-    // #547 1b-2's RULING-1: Photoshop opened no 16-bit Duotone file): a
+    // #1 1b-2's RULING-1: Photoshop opened no 16-bit Duotone file): a
     // 16-bit document from its 8-bit copy, each coverage rounded to the
     // nearest code, the document itself unchanged.
     for bits in [16u16, 8] {

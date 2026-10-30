@@ -42,7 +42,7 @@ extension AgentServer {
                 + "\"installed\" with a name from list_installed_profiles, or \"working_cmyk\" "
                 + "(Edit ▸ Color Settings' working CMYK, View ▸ Proof Setup ▸ Working CMYK).",
         ]
-        // #547 phase 5: Preserve CMYK Numbers and the Working plates.
+        // #1 phase 5: Preserve CMYK Numbers and the Working plates.
         let preserveNumbers: [String: Any] = [
             "type": "boolean",
             "description": "A CMYK document only (refused on RGB): send its ink to the proof "
@@ -81,7 +81,7 @@ extension AgentServer {
                     + "and no default preset, turning proof_colors or gamut_warning on seeds the "
                     + "Working CMYK proof, as ⌘Y and ⇧⌘Y do. On a CMYK document the proof "
                     + "profile must be CMYK, and gamut_warning flags the inks it cannot hold "
-                    + "(none when preserve_numbers) (#547).",
+                    + "(none when preserve_numbers) (#1).",
                 [
                     "preset": proofPreset,
                     "profile": proofProfile,
@@ -120,7 +120,7 @@ extension AgentServer {
                     + "exact:true proofs the full 16-bit composite instead, on the background "
                     + "worker (about 17 s at 24 MP; mask adds a second pass). source in the "
                     + "reply says which: \"composite\" or \"display\". A 32-bit float document "
-                    + "refuses. A CMYK document (#547) proofs its ink through a CMYK profile into "
+                    + "refuses. A CMYK document (#1) proofs its ink through a CMYK profile into "
                     + "Display P3 (space \"display-p3\", source \"cmyk\").",
                 [
                     "exact": [

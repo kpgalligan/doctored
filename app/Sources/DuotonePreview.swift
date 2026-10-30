@@ -1,6 +1,6 @@
 import AppKit
 
-// Duotone Options' Preview (#547 Duotone phase 2a; documented, unmeasured until phase 2b's menu
+// Duotone Options' Preview (#1 Duotone phase 2a; documented, unmeasured until phase 2b's menu
 // walk): while the sheet's Preview box is on, the canvas shows the document through the sheet's
 // current inks. View-only, so no MCP mirror (`set_duotone` and `render` cover it). The pattern is
 // `HdrToningSheetController.requestPreview` / `showPreview`: the candidate is the captured

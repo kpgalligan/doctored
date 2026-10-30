@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 1a's conversions through the FFI: RGB → Indexed
+//! #1 Indexed Color phase 1a's conversions through the FFI: RGB → Indexed
 //! and back exact, an 8-bit Grayscale source in its twin, the hard refusals
 //! by sentence, the one-layer rule (`flatten_required`, then `flatten`),
 //! Indexed → Grayscale through the unchanged Gray conversion, every edit

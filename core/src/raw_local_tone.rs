@@ -27,7 +27,7 @@
 //!   Whites the output white point; negative Blacks moves the input black
 //!   point up (deeper shadows), positive Blacks the output black point.
 //! - Saturation, `vibrance {saturation: s/100}`: the Vibrance dialog's flat
-//!   Saturation (`adjust_color`, #578).
+//!   Saturation (`adjust_color`, #2).
 //! - Clarity and Texture, the Presence plane (`sampling_presence`) of the
 //!   result of the pointwise steps, Dehaze 0. Dehaze is not a local control:
 //!   its veil needs the haze estimate of the whole picture.

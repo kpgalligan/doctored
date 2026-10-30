@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MCP drive for RAW HDR output (#680): the tone curve, Shadows
+"""MCP drive for RAW HDR output (#4): the tone curve, Shadows
 and grain on the 32-bit float (linear) RAW development, and the Develop
 window's HDR preview at Fit and 100 % with Clipping and its float histogram
 as `inspect_raw_development`'s `hdr_preview` and `after_histogram`, on the
@@ -50,14 +50,14 @@ Bounds, fixed before the first run and never widened (M2's, restated here):
 - hdr preview: `inspect_raw_development` on the float layer at +2 EV answers
   `hdr_preview.after_peak` > 1.0 and `after_divisor` = ceil(max(w, h) / 1600)
   of the after master; a 16-bit document's layer answers no `hdr_preview`.
-- hdr detail (#680): on the +2 EV float layer, `inspect_raw_development` with a
+- hdr detail (#4): on the +2 EV float layer, `inspect_raw_development` with a
   256×256 `region` about the brightest lattice point answers `after_divisor`
   1 and `after_peak` > 1.0 (and `after_marked` 0 without clipping); with
   `clipping: highlights` `after_marked` is in 1…65536 and the peak is
   unchanged; `after_histogram.storage` is `rgba32_float` and its
   `above_white_rgba` equals the MCP `histogram` (source layer, stride 1) of
   that layer.
-- grain (#680): `redevelop_raw grain {amount 20}` on that layer keeps a float
+- grain (#4): `redevelop_raw grain {amount 20}` on that layer keeps a float
   master and >= 20 lattice points with a channel > 1.0; every lattice point
   whose centre sample has all channels >= 1.0 is bit-identical to the no-grain
   lattice; some point with all channels < 1.0 changed; an `open_document`

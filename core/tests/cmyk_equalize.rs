@@ -1,4 +1,4 @@
-//! Image ▸ Adjustments ▸ Equalize on a CMYK document (#547), through the
+//! Image ▸ Adjustments ▸ Equalize on a CMYK document (#1), through the
 //! selected edit, against an independent f64 histogram equalization written
 //! here: ONE table from the summed histograms of the four `L = 1 − ink`
 //! plates (256 levels in an 8-bit document, `round(L / 257)`; 65536 in a

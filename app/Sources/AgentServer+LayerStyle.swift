@@ -18,13 +18,13 @@ extension AgentServer {
         // A 32-bit float document holds a style (the core's
         // `layer_style` family at depth 32 refuses an effect mode outside the
         // float set by name).
-        // #547: on a CMYK document every effect with its colours as inks
+        // #1: on a CMYK document every effect with its colours as inks
         // (`ink`, `highlight_ink`, `shadow_ink`, a stop's `ink`), knockout and
         // Blend Interior; a Blend If on Gray or a plate (Red, Green and Blue
         // refuse by name in the core).
         "set_layer_style": [.typedTool, .floatTool, .cmykTool],
         // The typed document's global light (`{op:"global_light"}`), at
-        // 32 bits too, on a CMYK document since #547.
+        // 32 bits too, on a CMYK document since #1.
         "set_global_light": [.typedTool, .floatTool, .cmykTool],
     ]
 

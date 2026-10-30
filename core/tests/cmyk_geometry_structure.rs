@@ -1,4 +1,4 @@
-//! A structured CMYK document through geometry (#547 phase 4b): a Pass
+//! A structured CMYK document through geometry (#1 phase 4b): a Pass
 //! Through group (masked, opacity 0.6) holding a clip unit with a Multiply
 //! member, a Fill 0.5 raster and a masked Levels record go through Crop,
 //! Image Size, Canvas Size, a quarter turn, a flip, Straighten, Perspective

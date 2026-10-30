@@ -1,4 +1,4 @@
-# #547 Grayscale admission drive
+# #1 Grayscale admission drive
 
 Every memory plan the Grayscale document mode added (phases 1a, 1b, 2e, 4 and 5a) is held to the
 measured-admission rule on a built Release app: plan ≥ ⌈1.25 × max E⌉, where E

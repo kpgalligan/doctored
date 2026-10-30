@@ -1,4 +1,4 @@
-//! Selections on a CMYK document (#547): the source canvases and the CMYK arms
+//! Selections on a CMYK document (#1): the source canvases and the CMYK arms
 //! of `dr_precision_doc_select`, which `precision_selection` dispatches to
 //! first on a CMYK document.
 //!
@@ -43,7 +43,7 @@
 //!   with a `layer` source is that record's own ink at full opacity with no
 //!   mask (the stack's `only` view, as the ink kinds read it) through the
 //!   same LP leg: the CMYK composite of one layer as Apply Image and
-//!   Calculations read it against one plane or channel (#547, the
+//!   Calculations read it against one plane or channel (#1, the
 //!   remaining-gaps batch, its only caller).
 //!
 //! The canvases stream `cmyk_stack` rows, so beside the canvas the scratch is

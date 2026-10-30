@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 3c: the tools that named phase 3c, through the
+//! #1 Indexed Color phase 3c: the tools that named phase 3c, through the
 //! FFI. The Magic Wand and Quick Selection select from the palette colours;
 //! the alpha channels' commands and scalar edits keep the plane and the
 //! render and survive `.rz`; Clone Stamp and the History Brush paint the RGB

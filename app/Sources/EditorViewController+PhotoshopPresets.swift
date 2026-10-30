@@ -25,7 +25,7 @@ extension EditorViewController {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        // #547 phase 5: a CMYK document reads a Levels or Curves preset's ink channels.
+        // #1 phase 5: a CMYK document reads a Levels or Curves preset's ink channels.
         let cmyk = document.doc?.isCmyk == true
         panel.message = cmyk
             ? "Choose a Photoshop CMYK Curves or Levels preset."

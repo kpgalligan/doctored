@@ -104,7 +104,7 @@ pub(crate) enum NativePaintEdit {
         burn: bool,
         #[serde(default)]
         selection: bool,
-        /// Protect Tones (#547): the three channels move together through
+        /// Protect Tones (#1): the three channels move together through
         /// `doc_retouch::protected`; absent is the per-channel curve.
         #[serde(default)]
         protect_tones: bool,
@@ -590,7 +590,7 @@ impl NativePaintEdit {
                     if original[3] > 0 {
                         let mut targets: [f32; 3] =
                             std::array::from_fn(|c| f32::from(original[c]) / 65535.);
-                        // A Lab Color document (#547 phase 2e): Dodge and Burn
+                        // A Lab Color document (#1 phase 2e): Dodge and Burn
                         // shape L* alone, the 2b rule that tone ops act on
                         // Lightness; Protect Tones is the one-element [L]
                         // group (the plain curve), and a*, b* keep their codes.

@@ -1,4 +1,4 @@
-//! #578: the Inner Glow against Photoshop's own identify-578 take1 profiles,
+//! #2: the Inner Glow against Photoshop's own identify-578 take1 profiles,
 //! edge and centre, at 8 and 16 bits. The fixture
 //! (`tests/fixtures/psd_photoshop/identify_578/profiles.json`, README) holds
 //! every `ig_*` row's profile on its fixed gate, written by

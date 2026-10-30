@@ -364,7 +364,7 @@ pub(crate) fn clip_unit_sample(
             );
         }
     }
-    // `clip_unit`'s Open against the unweighted footprint (#578). Then D4's
+    // `clip_unit`'s Open against the unweighted footprint (#2). Then D4's
     // clipped-member rule, the UNSTYLED base's loop: a member with a
     // knockout punches to the buffer as it stands after the base alone
     // rendered — after its Blend If weighting, opened, as the reference

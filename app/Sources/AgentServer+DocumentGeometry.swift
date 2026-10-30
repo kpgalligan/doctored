@@ -29,7 +29,7 @@ extension AgentServer {
         guard let current = document.doc else { throw ToolError(message: "No image loaded") }
         let revision = document.revision
         let state = document.captureEditingState()
-        // #547 Indexed phase 2c: an Indexed document's admitted plan, read before the edit
+        // #1 Indexed phase 2c: an Indexed document's admitted plan, read before the edit
         // (`scripts/indexed-admission/measure.py`'s `rotate90-indexed`).
         let indexedPlan = IndexedDocument.geometryPlanBytes(current, op)
         let prepared: RasterDocument?

@@ -37,7 +37,7 @@ extension AgentServer {
         "add_layer_mask": [.selectionSensitive, .typedTool, .floatTool, .cmykTool],
         "remove_layer_mask": [.typedTool, .floatTool, .cmykTool],
         "set_layer_mask_enabled": [.typedTool, .floatTool, .cmykTool],
-        // #547 phase 4a: clipping masks on a CMYK document.
+        // #1 phase 4a: clipping masks on a CMYK document.
         "set_layer_clipped": [.typedTool, .floatTool, .cmykTool],
     ]
 

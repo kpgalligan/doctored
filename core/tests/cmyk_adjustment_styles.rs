@@ -265,7 +265,7 @@ fn fill_scales_the_tone_and_never_the_effects() {
                 // The ring above the mask at full strength.
                 Some(opaque(STROKE_INK))
             } else if x > x0 && x + 1 < x1 && y > y0 && y + 1 < y1 {
-                // The Fill's 50 % at its byte (#578).
+                // The Fill's 50 % at its byte (#2).
                 Some(toned(b, levels(ink4(b)), crate::common::byte_unit(0.5)))
             } else if x >= x1 + 4 || y >= y1 + 4 || y + 4 < y0 {
                 Some(b)

@@ -1,5 +1,5 @@
 bevel_chisel_578 — Photoshop 26.10.0 Chisel readbacks for
-core/tests/style_bevel_chisel_parity.rs and the Chisel PSD import tests (#578).
+core/tests/style_bevel_chisel_parity.rs and the Chisel PSD import tests (#2).
 
 Written by scripts/photoshop-probe/bevel_chisel_578_take.py --fixtures from
 ~/devel/doctored-fixtures/photoshop/bevel-chisel-578/take1.

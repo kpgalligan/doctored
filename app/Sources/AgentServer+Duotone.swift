@@ -1,6 +1,6 @@
 import AppKit
 
-// The Duotone document over MCP (#547, `designs/duotone-mode.md`): `get_duotone` reads a Duotone
+// The Duotone document over MCP (#1, `designs/duotone-mode.md`): `get_duotone` reads a Duotone
 // document's normalized options, `set_duotone` replaces them (ONE undo step), and `convert_mode`'s
 // Duotone routes — `mode: "duotone"` from an 8- or 16-bit Grayscale document or on a Duotone one,
 // and `mode: "gray"` on a Duotone document, whose arguments are checked here before the ordinary
@@ -92,7 +92,7 @@ extension AgentServer {
                 try RasterPrecisionDocument.writeDuotoneADO(DuotoneOptions(json: reply), to: url)
                 reply["path"] = url.path
             }
-            // #547 Duotone phase 2a: the Channels row's name, the type's.
+            // #1 Duotone phase 2a: the Channels row's name, the type's.
             if let doc = document.doc { reply["channel_name"] = DuotoneDocument.channelName(doc) }
             reply["document"] = summary(document)
             return try jsonResult(reply)

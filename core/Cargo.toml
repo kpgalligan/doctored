@@ -35,7 +35,7 @@ crc32fast = "1.5"
 png = "0.18.1"
 tiff = "0.11.3"
 # An indexed GIF's palette, transparent index and index plane, verbatim
-# (`indexed_io`, #547 Indexed phase 1a). Pure Rust, and already in the lock
+# (`indexed_io`, #1 Indexed phase 1a). Pure Rust, and already in the lock
 # file through `image` (the same version).
 gif = "0.14"
 # OpenEXR in and out for the 32-bit float document (`exr_float`), and the

@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 3a: Edit ▸ Assign Profile and Convert to Profile
+//! #1 Indexed Color phase 3a: Edit ▸ Assign Profile and Convert to Profile
 //! on an Indexed document (`indexed_profile`).
 //!
 //! The oracles are independent of the adapter: Assign keeps every index,

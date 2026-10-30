@@ -613,7 +613,7 @@ pub(crate) fn adjust_backdrop_sample(
 /// kernel (its own opacity, blend mode, mask and offset; adjustment meta
 /// routes through [`composite_adjustment_into`] with the buffer as
 /// backdrop) onto the base with the base's alpha FROZEN — `clip_unit`'s
-/// Open / Settle / Close around the members (#578, measured against
+/// Open / Settle / Close around the members (#2, measured against
 /// Photoshop: a member over a semi-transparent base mixes in at its own
 /// strength), so
 /// clipped layers never extend or shrink the footprint. The finished buffer
@@ -2204,7 +2204,7 @@ impl DrDocument {
             if let Some(resolution) = sidecar.resolution {
                 doc.resolution = resolution;
             }
-            // A TIFF's spot channels (#547 1c-2a, `tiff_spot`).
+            // A TIFF's spot channels (#1 1c-2a, `tiff_spot`).
             if crate::metadata_tiff::is_tiff(&bytes) {
                 return doc.with_tiff_spots(&bytes);
             }

@@ -1,6 +1,6 @@
 import AppKit
 
-// The Lab Color document's gate (#547 Lab phases 1 to 6b-iii and the close): what a Lab document admits
+// The Lab Color document's gate (#1 Lab phases 1 to 6b-iii and the close): what a Lab document admits
 // from the canvas, the menus and MCP, asked FIRST wherever a depth decides (`DocumentPrecision.refusal`,
 // `allows`, `validatePrecisionItem`), before the Gray and CMYK gates. The core's own table is
 // `precision_capability::LAB_FAMILIES` and its edit gate `lab_document::admit_edit`; this is
@@ -49,8 +49,8 @@ import AppKit
 // Colors (`select_color_range` range `sampled`; its samples the L*a*b* codes, its distance the
 // largest per-channel L*a*b* difference the take measured: `lab_select` in the core; every other
 // range since 6b-i). The Magic Wand and the Paint Bucket at both depths and Select ▸ Similar and
-// Grow at 16 bits (#683) run by the rule `lab_select_682_take.py`'s take fitted
-// (`lab_select` in the core); Similar and Grow at 8 bits refuse naming #683
+// Grow at 16 bits (#5) run by the rule `lab_select_682_take.py`'s take fitted
+// (`lab_select` in the core); Similar and Grow at 8 bits refuse naming #5
 // (`selectionRefusals`). Phase 4c, which closes phase 4, adds Copy,
 // Cut, Copy Merged and Paste (the payload keeps the Lab codes, `lab_clipboard` in the core; pixels
 // pasted across modes convert by the Mode rules, a layers clip through `LabLayerClip`), Duplicate
@@ -89,7 +89,7 @@ import AppKit
 // refuses for good (`disabledTools`). No refusal names a
 // phase: a tool outside `tools` refuses for good by name — `disabledTools`, `skyRefusal`,
 // `rawTools`, `byteTools`, `evaluationTools`, `toneMapTools`, else "Doctored offers it on RGB
-// documents only" — and a selection of `selectionRefusals` refuses at its depth (#683). Phase 1c
+// documents only" — and a selection of `selectionRefusals` refuses at its depth (#5). Phase 1c
 // adds the readouts, never labelling Lab codes as RGB: the Channels panel's Lightness, a and b rows (the R,
 // G and B planes of the raw codes, `plane(named:)`, through `labCodeThumbnail`), the Info panel's
 // L*a*b* row and Lightness/a/b histogram, `sample_color` / `sample_pixel` (`readingFields`),
@@ -101,7 +101,7 @@ import AppKit
 // goes through the view.
 
 extension RasterDocument {
-    /// #547 Lab phase 1c: the composite's raw L*a*b* codes as an RGBA8 thumbnail — `projection`,
+    /// #1 Lab phase 1c: the composite's raw L*a*b* codes as an RGBA8 thumbnail — `projection`,
     /// or a fresh render, quantized and fitted in one core pass (`thumbnailRGBA8`): no view
     /// conversion and no dither, so a Lab channel reads its own codes. With no projection on the
     /// main thread the render runs as captured work under `nativeDisplay(layer: nil)`'s estimate,
@@ -222,7 +222,7 @@ enum LabDocument {
         "convert_precision",
         // Phase 4b-ii: sampled Color Range by the measured Lab rule (`lab_select` in the core).
         "select_color_range",
-        // The Magic Wand and Select ▸ Similar and Grow (#683) by the take's Lab rule
+        // The Magic Wand and Select ▸ Similar and Grow (#5) by the take's Lab rule
         // (`lab_select` in the core), wherever `selectionRefusals` admits them.
         "select_magic_wand", "select_similar",
         // Phase 4c: the clipboard across modes (`LabClipboard.swift`, `lab_clipboard` in the
@@ -301,7 +301,7 @@ enum LabDocument {
         "stamp_selected", "save_selection", "load_selection", "modify_selection",
         // Phase 4b-ii.
         "select_color_range",
-        // #683 (the same list as `tools`).
+        // #5 (the same list as `tools`).
         "select_magic_wand", "select_similar",
         // Phase 4c (the same list as `tools`).
         "copy", "cut", "copy_merged", "paste", "duplicate_to_new_document",
@@ -383,7 +383,7 @@ enum LabDocument {
         "growSelection:", "shrinkSelection:", "borderSelection:", "smoothSelection:",
         // Phase 4b-ii: Select ▸ Color Range (Sampled Colors only, `ColorRangeSheetController`).
         "showColorRange:",
-        // #683: Select ▸ Grow and Similar, each disabled where `selectionRefusals` refuses it at
+        // #5: Select ▸ Grow and Similar, each disabled where `selectionRefusals` refuses it at
         // the document's depth (`EditorViewController+Precision`).
         "selectGrow:", "selectSimilar:",
         // Phase 4c: Copy, Copy Merged, Cut, the Pastes and Duplicate to New Document (Gray's set).
@@ -467,8 +467,8 @@ enum LabDocument {
     /// a key and never a tool name. `lab_select_682_take.py`'s take fitted the Magic Wand at both
     /// depths and Similar and Grow at 16 bits only.
     static let selectionRefusals: [(key: String, depths: Set<Int>, issue: String?)] = [
-        (key: "select_similar", depths: [8], issue: "#683"),
-        (key: "select_grow", depths: [8], issue: "#683"),
+        (key: "select_similar", depths: [8], issue: "#5"),
+        (key: "select_grow", depths: [8], issue: "#5"),
     ]
 
     /// `key`'s refusal at `depth` (`selectionRefusals`), or nil where it is admitted: the core's
@@ -617,18 +617,18 @@ enum LabDocument {
         return nil
     }
 
-    /// Why a Lab document refuses a save format (#547 phase 1b): its PSD is Export as PSD's
+    /// Why a Lab document refuses a save format (#1 phase 1b): its PSD is Export as PSD's
     /// (phase 3b).
     static let saveRefusal = "A Lab Color document saves as .doctored or Lab TIFF; Export as PSD "
         + "(export_psd) writes a Lab PSD, PSB or layered TIFF. Export As writes an RGB copy, or "
         + "convert to RGB Color for other formats."
 
-    /// Why a Lab document refuses Sky Replacement, for good (#547 Lab phase 6b-iii): a Doctored
+    /// Why a Lab document refuses Sky Replacement, for good (#1 Lab phase 6b-iii): a Doctored
     /// decision, as on Grayscale (`GrayDocument.skyRefusal`). The core refuses by name too.
     static let skyRefusal = "Sky Replacement is unavailable in a Lab Color document: Doctored "
         + "offers it on RGB documents only."
 
-    /// Why a Lab document refuses a `render` channel (#547 Lab phase 1c; decided in
+    /// Why a Lab document refuses a `render` channel (#1 Lab phase 1c; decided in
     /// `AgentServer.planeRenderImage`'s Lab arm).
     static let renderRefusal = "A Lab Color document renders its composite with no channel, channel "
         + "lightness, a or b with no layer, channel mask with a layer, or an alpha channel by name "
@@ -684,26 +684,26 @@ enum LabDocument {
 
     /// The 8-bit `#LLaabb` of an L*a*b* colour's codes — round(255·L*/100), round(a* + 128),
     /// round(b* + 128), each clamped to 0…255: Replace Color's colours on a Lab document, the
-    /// document's own numbers (#547 phase 2d).
+    /// document's own numbers (#1 phase 2d).
     static func codeHex(_ lab: (l: Double, a: Double, b: Double)) -> String {
         let byte = { (v: Double) in Int(min(max(v.rounded(), 0), 255)) }
         return String(format: "#%02x%02x%02x", byte(255 * lab.l / 100), byte(lab.a + 128),
                       byte(lab.b + 128))
     }
 
-    /// Why `histogram source scalar` refuses a target on a Lab document (#547 phase 2d; alpha
+    /// Why `histogram source scalar` refuses a target on a Lab document (#1 phase 2d; alpha
     /// since phase 2e).
     static let scalarTargetRefusal = "A Lab Color document's scalar histogram takes target "
         + "lightness, a, b, alpha, mask or channel:<name>."
 
-    /// Why a paint, fill or filter target refuses on a Lab document (#547 phase 2e): its colour
+    /// Why a paint, fill or filter target refuses on a Lab document (#1 phase 2e): its colour
     /// planes are named lightness, a and b, never red, green and blue.
     static let planeTargetRefusal = "A Lab Color document's targets are layer, mask, lightness, a, "
         + "b, alpha and channel:<name>."
 
     // MARK: - Phase 4b-i: the selected pixels and the selections
 
-    /// Why `load_selection` and `add_channel` refuse a plane on a Lab document (#547 phase 4b-i):
+    /// Why `load_selection` and `add_channel` refuse a plane on a Lab document (#1 phase 4b-i):
     /// red, green and blue are not a Lab document's names.
     static let loadPlaneRefusal = "A Lab Color document's planes are lightness, a, b, luma (its "
         + "Lightness) and alpha."

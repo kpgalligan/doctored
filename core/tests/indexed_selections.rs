@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 3b: the Select menu's source selections on an
+//! #1 Indexed Color phase 3b: the Select menu's source selections on an
 //! Indexed document (`dr_precision_doc_select`: Color Range, Similar and
 //! Grow, the alpha), an alpha channel's set and read (Save and Load
 //! Selection, Quick Mask), and the commands that refuse for good (HDR

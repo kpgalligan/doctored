@@ -32,7 +32,7 @@
 //!
 //! The gamma itself is `ln(m_c) / ln(m)`, which is the correct inversion for
 //! this codebase's `out = t^(1/gamma)` (`ops_filters::levels_channels`) above
-//! the Levels toe (`adjust_levels::stage_curve`, #578), which at the gammas
+//! the Levels toe (`adjust_levels::stage_curve`, #2), which at the gammas
 //! this reaches touches only t < 1/8 (x0's maximum, at γ = 2), never the
 //! midtones it snaps, and it is CLAMPED into [0.5, 2.0] — deliberately
 //! tight, because it bounds how far an automatic command may rewrite the

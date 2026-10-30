@@ -1,14 +1,14 @@
 //! The four ICC profiles this build WRITES: sRGB IEC61966-2.1, Display P3,
 //! Adobe RGB (1998) and ProPhoto RGB, emitted as real, conformant ICC v2.1.0
 //! matrix/TRC blobs so an exported file carries a profile any other
-//! application can read; and (#547) the eight built-in Gray profiles
+//! application can read; and (#1) the eight built-in Gray profiles
 //! ([`gray_blob`]) and the RGB twin of any Gray profile ([`twin_blob`]).
 //! `icc` parses; this module builds; `icc_transform` does the numerics. It
 //! also builds [`linear_twin`], the gamma-1.0 twin of a document's own
 //! profile that a 32-bit PSD embeds, as Photoshop's does, and its
 //! inverse [`linear_twin_source`], which names the built-in a reopened twin
 //! was made from, and their Gray pair [`gray_linear_twin`] /
-//! [`gray_linear_twin_source`] for a 32-bit Gray PSD (#547 phase 3c).
+//! [`gray_linear_twin_source`] for a 32-bit Gray PSD (#1 phase 3c).
 //!
 //! # Where the two wide profiles come from
 //!
@@ -307,7 +307,7 @@ fn fixed_col(raw: [i32; 3]) -> [f64; 3] {
 /// Entries in a built-in Gray profile's power-curve `kTRC` table.
 const GRAY_TRC_ENTRIES: usize = 4096;
 
-/// The built-in Gray profile of `space` (#547's Grayscale mode): a v2.1.0
+/// The built-in Gray profile of `space` (#1's Grayscale mode): a v2.1.0
 /// `mntr` GRAY profile with an XYZ PCS whose tags are `desc` (the space's
 /// `display_name`), `cprt`, `wtpt` (D50) and `kTRC`, a 4096-entry `curv` of
 /// `space.linear` — except sGray, whose `kTRC` is sRGB's own 1024-entry IEC
@@ -345,7 +345,7 @@ pub(crate) fn gray_blob(space: GrayWorkingSpace) -> &'static [u8] {
     &blobs[index]
 }
 
-/// The RGB TWIN of a Gray profile (#547): the RGB matrix/TRC profile a Gray
+/// The RGB TWIN of a Gray profile (#1): the RGB matrix/TRC profile a Gray
 /// document's storage and view are in — sRGB's D50 columns and `chad`, the
 /// Gray profile's `desc` and `kTRC` tag bytes verbatim as its `desc` and its
 /// three TRCs, and the Gray profile's header version — so an R = G = B
@@ -375,7 +375,7 @@ pub(crate) fn twin_blob(gray_icc: &[u8]) -> Result<Vec<u8>, String> {
     ))
 }
 
-/// The Lab TWIN (#547's Lab Color mode): the profile a Lab document's storage
+/// The Lab TWIN (#1's Lab Color mode): the profile a Lab document's storage
 /// and view are in. A v4.3 `mntr` profile whose data colour space is `RGB `
 /// and whose PCS is `Lab `, with tags `desc` (mluc "Lab Color"), `cprt`
 /// (mluc, the built-ins' text), `wtpt` D50, and `A2B0` (`mAB `) and `B2A0`
@@ -578,7 +578,7 @@ pub(crate) fn linear_twin_source(profile: &IccProfile) -> Option<Builtin> {
     })
 }
 
-/// The suffix of a 32-bit Gray PSD's embedded profile (#547 phase 3c):
+/// The suffix of a 32-bit Gray PSD's embedded profile (#1 phase 3c):
 /// Photoshop's own is "Linear Grayscale Profile" (take2's `layers32.psd`),
 /// and the twin of a named Gray profile carries that name plus this.
 pub(crate) const GRAY_LINEAR_TWIN_SUFFIX: &str = " (Linear Grayscale Profile)";
@@ -595,7 +595,7 @@ fn identity_curv(data: &[u8]) -> bool {
 }
 
 /// The linear-light twin of a Gray profile, the profile a 32-bit Gray PSD
-/// embeds (#547 phase 3c), as [`linear_twin`] is for RGB: a 32-bit file's
+/// embeds (#1 phase 3c), as [`linear_twin`] is for RGB: a 32-bit file's
 /// samples are linear `Y`, so its profile's `kTRC` is a `curv` gamma of
 /// exactly 1.0. A v2.1.0 `mntr` GRAY/XYZ profile with the tags `desc` (the
 /// source's name plus [`GRAY_LINEAR_TWIN_SUFFIX`], non-ASCII as '?'), `cprt`

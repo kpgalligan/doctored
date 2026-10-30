@@ -1,4 +1,4 @@
-//! #547 phase 3c: 32-bit Grayscale files — a 32-bit gray PSD or PSB opens as
+//! #1 phase 3c: 32-bit Grayscale files — a 32-bit gray PSD or PSB opens as
 //! a 32-bit Gray document, a 32-bit Gray document writes one, and its
 //! kept-gray TIFF at 32 bits is a one- or two-sample float TIFF that reopens
 //! as a 32-bit Gray document, through the C API.

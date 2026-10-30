@@ -1,6 +1,6 @@
 # Duotone document mode (ADR)
 
-- **Status:** Accepted, closed 2026-10-23. Duotone closes here; [#547](https://github.com/kpgalligan/doctored-dev/issues/547)
+- **Status:** Accepted, closed 2026-10-23. Duotone closes here; [#1](https://github.com/kpgalligan/doctored/issues/1)
   (the colour-mode umbrella) stays open for CMYK's remaining items. Grayscale is
   `designs/grayscale-mode.md`, Lab `designs/lab-mode.md`, Indexed Color `designs/indexed-mode.md`, Bitmap
   `designs/bitmap-mode.md`, CMYK `designs/cmyk-mode-status.md`.
@@ -60,7 +60,7 @@ refused in Duotone, from the UI, over MCP and in Actions. No refusal or catalog 
   (`duotone_ado`, 524 bytes; Lab written to 0.01, curves to 0.1 %). The open is the Gray open with the inks on
   the policy, carrying the file's block (the data and every 1014/1017/1018/1063 resource); the save is the Gray
   writer post-processed (`into_duotone_file`), so unchanged inks write their data and resources back byte for
-  byte. The block lives in memory only: `.rz` keeps the inks. A layered TIFF refuses. Since #547 spot channels
+  byte. The block lives in memory only: `.rz` keeps the inks. A layered TIFF refuses. Since #1 spot channels
   1b-2, a 16-bit document's PSD/PSB is written at 8 bits from its Image ▸ Mode ▸ 8 Bits/Channel copy (the inks
   kept, the document unchanged; one loss line, the report's depth 8), as Photoshop opened no 16-bit Duotone file.
 - **`.ado`.** A Duotone Options file is the same specification (the sheet's Load…/Save…, `set_duotone path`,
@@ -152,4 +152,4 @@ Gallery and its Field, Iris, Path and Spin Blur, Filter ▸ Video and Video ▸ 
 
 ## Open items
 
-None outside #547.
+None outside #1.

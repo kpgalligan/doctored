@@ -24,7 +24,7 @@ pub struct DropShadow {
     pub blend: BlendMode,
     pub color: [u8; 3],
     /// A CMYK document's colour as straight ink `[c, m, y, k]` in `0..=1`,
-    /// four-decimal quantized; `None` = none (#547, `cmyk_style`).
+    /// four-decimal quantized; `None` = none (#1, `cmyk_style`).
     pub ink: Option<[f32; 4]>,
     /// The colour as LINEAR-LIGHT sRGB-primaries components, extended range
     /// (negative outside sRGB's gamut), when it is not an sRGB byte
@@ -86,7 +86,7 @@ pub struct InnerShadow {
     pub blend: BlendMode,
     pub color: [u8; 3],
     /// A CMYK document's colour as straight ink `[c, m, y, k]` in `0..=1`,
-    /// four-decimal quantized; `None` = none (#547, `cmyk_style`).
+    /// four-decimal quantized; `None` = none (#1, `cmyk_style`).
     pub ink: Option<[f32; 4]>,
     /// The colour as LINEAR-LIGHT sRGB-primaries components, extended range
     /// (negative outside sRGB's gamut), when it is not an sRGB byte
@@ -144,7 +144,7 @@ pub struct OuterGlow {
     pub blend: BlendMode,
     pub color: [u8; 3],
     /// A CMYK document's colour as straight ink `[c, m, y, k]` in `0..=1`,
-    /// four-decimal quantized; `None` = none (#547, `cmyk_style`).
+    /// four-decimal quantized; `None` = none (#1, `cmyk_style`).
     pub ink: Option<[f32; 4]>,
     /// The colour as LINEAR-LIGHT sRGB-primaries components, extended range
     /// (negative outside sRGB's gamut), when it is not an sRGB byte
@@ -201,7 +201,7 @@ pub struct InnerGlow {
     pub blend: BlendMode,
     pub color: [u8; 3],
     /// A CMYK document's colour as straight ink `[c, m, y, k]` in `0..=1`,
-    /// four-decimal quantized; `None` = none (#547, `cmyk_style`).
+    /// four-decimal quantized; `None` = none (#1, `cmyk_style`).
     pub ink: Option<[f32; 4]>,
     /// The colour as LINEAR-LIGHT sRGB-primaries components, extended range
     /// (negative outside sRGB's gamut), when it is not an sRGB byte
@@ -275,7 +275,7 @@ pub struct Stroke {
     pub fill_type: StrokeFill,
     pub color: [u8; 3],
     /// A CMYK document's colour as straight ink `[c, m, y, k]` in `0..=1`,
-    /// four-decimal quantized; `None` = none (#547, `cmyk_style`).
+    /// four-decimal quantized; `None` = none (#1, `cmyk_style`).
     pub ink: Option<[f32; 4]>,
     /// The colour as LINEAR-LIGHT sRGB-primaries components, extended range
     /// (negative outside sRGB's gamut), when it is not an sRGB byte
@@ -311,7 +311,7 @@ pub struct ColorOverlay {
     pub blend: BlendMode,
     pub color: [u8; 3],
     /// A CMYK document's colour as straight ink `[c, m, y, k]` in `0..=1`,
-    /// four-decimal quantized; `None` = none (#547, `cmyk_style`).
+    /// four-decimal quantized; `None` = none (#1, `cmyk_style`).
     pub ink: Option<[f32; 4]>,
     /// The colour as LINEAR-LIGHT sRGB-primaries components, extended range
     /// (negative outside sRGB's gamut), when it is not an sRGB byte
@@ -378,7 +378,7 @@ impl GradientOverlay {
 pub struct BevelEmboss {
     pub enabled: bool,
     pub style: BevelStyle,
-    /// The Technique (Smooth; #578).
+    /// The Technique (Smooth; #2).
     pub technique: BevelTechnique,
     pub depth: f32,
     pub direction: BevelDirection,
@@ -483,7 +483,7 @@ pub struct Satin {
     pub blend: BlendMode,
     pub color: [u8; 3],
     /// A CMYK document's colour as straight ink `[c, m, y, k]` in `0..=1`,
-    /// four-decimal quantized; `None` = none (#547, `cmyk_style`).
+    /// four-decimal quantized; `None` = none (#1, `cmyk_style`).
     pub ink: Option<[f32; 4]>,
     /// The colour as LINEAR-LIGHT sRGB-primaries components, extended range
     /// (negative outside sRGB's gamut), when it is not an sRGB byte

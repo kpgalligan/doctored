@@ -1,4 +1,4 @@
-//! #547's Duotone close (`duotone_gray`, through `ffi_duotone`): Image ▸
+//! #1's Duotone close (`duotone_gray`, through `ffi_duotone`): Image ▸
 //! Mode ▸ Grayscale on a Duotone document renders the inks into the gray,
 //! and Bitmap… is that rule followed by Gray → Bitmap.
 //!

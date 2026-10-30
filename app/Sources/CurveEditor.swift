@@ -16,7 +16,7 @@ struct CurvePoint: Equatable {
 
 /// The point lists of a curves op, keyed by the meta's params keys.
 /// Application order in the core: the per-channel table first, then the
-/// master (`rgb`, or `cmyk` in a CMYK document, #547) table. A CMYK curve's
+/// master (`rgb`, or `cmyk` in a CMYK document, #1) table. A CMYK curve's
 /// points are INK, 0…255 for 0…100 % (`core/src/cmyk_adjust.rs`).
 enum CurveChannel: String, CaseIterable {
     case rgb = "rgb"
@@ -32,7 +32,7 @@ enum CurveChannel: String, CaseIterable {
     /// The channels a dialog lists: RGB, Red, Green, Blue, or CMYK, Cyan,
     /// Magenta, Yellow, Black in a CMYK document, or Lightness (the
     /// composite), a and b (the green and blue curves) in a Lab Color one
-    /// (#547 Lab phase 2c).
+    /// (#1 Lab phase 2c).
     static func cases(cmyk: Bool, lab: Bool = false) -> [CurveChannel] {
         if lab { return [.rgb, .green, .blue] }
         return cmyk ? [.cmyk, .cyan, .magenta, .yellow, .black] : [.rgb, .red, .green, .blue]
@@ -90,7 +90,7 @@ enum CurveChannel: String, CaseIterable {
 /// (range truth stays in the core; the dialog only needs something sane to
 /// prefill).
 enum CurvesMeta {
-    /// The point-form params keys, `rgb` first, then the CMYK document's (#547).
+    /// The point-form params keys, `rgb` first, then the CMYK document's (#1).
     static let pointKeys: [String] = CurveChannel.allCases.map(\.rawValue)
     /// The map-form params keys, RGB then a CMYK document's
     /// (`cmyk_map`, `c_map`… on ink).
@@ -333,7 +333,7 @@ final class CurveEditorView: NSView {
         }
     }
     var onPointsChanged: (([CurvePoint]) -> Void)?
-    /// #547: a CMYK curve — axes in ink, 0 % at the left and bottom, with
+    /// #1: a CMYK curve — axes in ink, 0 % at the left and bottom, with
     /// white→black gradient bars along them, and the readout in percent.
     var inkAxes = false {
         didSet { needsDisplay = true }
@@ -444,7 +444,7 @@ final class CurveEditorView: NSView {
         DS.borderStrong.setStroke()
         frame.stroke()
 
-        // #547: ink axes — white (no ink) to black (full ink) along the
+        // #1: ink axes — white (no ink) to black (full ink) along the
         // bottom and the left, in the inset beside the plot.
         if inkAxes, let gradient = NSGradient(starting: .white, ending: .black) {
             let bar = Self.inset - 3

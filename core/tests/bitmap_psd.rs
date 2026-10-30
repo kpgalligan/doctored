@@ -1,4 +1,4 @@
-//! #547 Bitmap phase 1c's colour-mode-0 PSD and PSB files through the FFI
+//! #1 Bitmap phase 1c's colour-mode-0 PSD and PSB files through the FFI
 //! (Adobe's Photoshop File Format Specification: depth 1, mode 0, an empty
 //! Color Mode Data section, rows of `ceil(w/8)` bytes, 1 BLACK). A file the
 //! test writes byte by byte, Raw and RLE, 13 px wide, gives the import

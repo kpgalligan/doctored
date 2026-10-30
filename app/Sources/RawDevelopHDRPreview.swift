@@ -1,7 +1,7 @@
 import AppKit
 import QuartzCore
 
-// Develop's HDR preview (#680): on a screen with headroom (`EDRDisplay.potentialHeadroom`,
+// Develop's HDR preview (#4): on a screen with headroom (`EDRDisplay.potentialHeadroom`,
 // which a test instance overrides with `DR_EDR_HEADROOM`), a 32-bit float (linear) development
 // shows values above white at Fit and at 100 % detail, Clipping on or off. Each side draws the
 // core's rule-X binary16 image of its region (`RasterPrecisionImage.developPreviewExtended`, the

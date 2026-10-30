@@ -1,4 +1,4 @@
-//! #547 Lab 2f, third part, through the FFI: Remove, the Art History Brush
+//! #1 Lab 2f, third part, through the FFI: Remove, the Art History Brush
 //! and Red Eye on a Lab Color layer, at 8 and 16 bits unless said.
 //!
 //! The oracles are independent of the Lab arms: the CIE formulas of

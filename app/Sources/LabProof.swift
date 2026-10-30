@@ -1,6 +1,6 @@
 import AppKit
 
-// The Lab Color document's proof and its for-good profile refusals (#547 Lab phase 5b).
+// The Lab Color document's proof and its for-good profile refusals (#1 Lab phase 5b).
 // A Lab document proofs through the unchanged RGB proof of its Display P3 view: the canvas
 // (`ProofSource.display`) already proofs the view's display codes (`RasterDocument.display(of:)`
 // routes Lab to `LabDocument.display`), so it only needs the view's profile in place of the twin

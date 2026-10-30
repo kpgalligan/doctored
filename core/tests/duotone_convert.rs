@@ -1,4 +1,4 @@
-//! #547 Duotone phase 1b (`duotone_convert`, the Duotone export arms,
+//! #1 Duotone phase 1b (`duotone_convert`, the Duotone export arms,
 //! through the C API): the render through the inks, its blockers and its
 //! flatten, Image ▸ Mode ▸ RGB, CMYK, Lab and Indexed Color from Duotone,
 //! and an export through the inks.

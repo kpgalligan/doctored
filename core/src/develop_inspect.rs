@@ -19,7 +19,7 @@
 //! 13B-3e-4a the host intakes and the develop output are unseeded, so the FIRST preview of such a
 //! plane materializes that view (later calls hit the cache).
 //!
-//! The extended preview (#680, [`PrecisionImage::develop_preview_extended`]) is the f32
+//! The extended preview (#4, [`PrecisionImage::develop_preview_extended`]) is the f32
 //! twin of `develop_preview` at Fit and at 100 % (divisor 1): the same cells ([`cell_span`]), each
 //! centre sample through `display_encoding`'s rule X at gain 1 (`extended_display_sample`, the one
 //! display path the editor's EDR view uses) into RGBA binary16, admitted as that view's measured
@@ -282,7 +282,7 @@ impl PrecisionImage {
             .ok_or_else(|| "invalid develop preview dimensions".into())
     }
 
-    /// The extended-range preview of a 32-bit float development (#680)
+    /// The extended-range preview of a 32-bit float development (#4)
     /// at Fit or 100 % (divisor 1): output `ceil(region / divisor)` per side,
     /// at most 1600, each pixel the cell-centre sample `develop_preview`
     /// picks, through `extended_display_sample(pixel, 1.0)` (rule X: RGB held

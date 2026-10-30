@@ -1,4 +1,4 @@
-//! Indexed Color's palette math (#547 Indexed phase 1a, KERNEL): the
+//! Indexed Color's palette math (#1 Indexed phase 1a, KERNEL): the
 //! deterministic palettes, the forced colours, Transparency and Matte, the
 //! nearest-entry map and Floyd–Steinberg error diffusion, all on 8-bit codes
 //! (`designs/indexed-mode.md`). `indexed_convert` is the adapter that
@@ -14,7 +14,7 @@
 //!   256-entry tables, typed out in `system_mac` and `system_windows`.
 //! * **Exact** is the image's distinct opaque colours in first-occurrence
 //!   raster order (`ExactColors`), refused past the budget.
-//! * **Adaptive** (#547 phase 1b) is median cut after Heckbert, "Color
+//! * **Adaptive** (#1 phase 1b) is median cut after Heckbert, "Color
 //!   Image Quantization for Frame Buffer Display" (SIGGRAPH 1982), made
 //!   deterministic: the opaque colours are counted in one 2²⁴ histogram
 //!   (`ColorHistogram`, [`ADAPTIVE_BYTES`]) and the distinct ones start as

@@ -328,7 +328,7 @@ enum RawLocalWork {
     /// charge (+ the session's 24 B/px of inspection copies) ÷ max E for L0,
     /// L1, L4 and FX (no grain) is 1.502/1.415/1.351/1.560 on the NEF,
     /// 2.707/1.716/1.543/1.471 on D24 and 2.582/2.184/1.740/1.381 on D850;
-    /// FX-32 with grain (#680) 1.558/1.471/1.574 on the NEF, D24 and D850;
+    /// FX-32 with grain (#4) 1.558/1.471/1.574 on the NEF, D24 and D850;
     /// every case ≥ 1.25, so `localPerPixel` was not raised. At 8 GiB, beside
     /// the opened float document (18.1 B/px retained), a Develop session fits
     /// about 53 MP with no local, 49 MP with one and 35.5 MP with four, so a

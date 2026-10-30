@@ -458,7 +458,7 @@ impl ResolvedUnit<'_> {
             .shaped
             .then(|| f32::from(base.shape_byte(pixel, canvas_xy)) / 255.0);
         // `clip_unit`'s footprint: the styled base's shape, else the base's
-        // own alpha (#578: the members land with the base's alpha frozen).
+        // own alpha (#2: the members land with the base's alpha frozen).
         // Only a run with a member step opens the unit (`style_composite`'s
         // `any(visible)`); a stop leaves it OPEN, the buffer a member at that
         // cursor composites onto in the reference.

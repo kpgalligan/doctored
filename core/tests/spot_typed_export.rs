@@ -1,4 +1,4 @@
-//! #547 spot channels 1c-1 (`spot_typed`, `spot_cmyk`, `spot_view`): the
+//! #1 spot channels 1c-1 (`spot_typed`, `spot_cmyk`, `spot_view`): the
 //! flattened typed exports composite the overprint, against hand oracles
 //! written here (per plane on unit values over an opaque composite,
 //! `(1 − w)·c + w·((1 − s)·c·ink + s·ink)`, the ink from the core's encoding

@@ -1,4 +1,4 @@
-//! Image ▸ Trim on a CMYK document (#547 phase 4b): the kept rectangle of
+//! Image ▸ Trim on a CMYK document (#1 phase 4b): the kept rectangle of
 //! the COMPOSITE ink, through the one scan in `trim_bounds` (its master).
 //! The composite is `cmyk_merge::cmyk_projection_image` over the canvas (the ONE
 //! row compositor, straight CMYKA16), read with `CmykImage::sample_at`; a

@@ -17,9 +17,9 @@
 //!   apply; an RGB adjustment record takes it like a raster (a
 //!   CMYK one refuses it, and is skipped the same way). A GRAYSCALE document
 //!   skips the same way a recorded blend mode or style the mode cannot hold
-//!   (`gray_comps::admits_mode` / `admits_style`, #547 phase 6a-ii), and a
+//!   (`gray_comps::admits_mode` / `admits_style`, #1 phase 6a-ii), and a
 //!   LAB document the same way (`lab_comps::admits_mode` / `admits_style`,
-//!   #547 Lab phase 6a-ii).
+//!   #1 Lab phase 6a-ii).
 //!
 //! The index vocabulary is the flattened postorder record index
 //! `PrecisionDocument::layer` uses — `LLBL`'s and `LCLP`'s convention.

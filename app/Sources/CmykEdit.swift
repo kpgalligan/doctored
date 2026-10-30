@@ -1,6 +1,6 @@
 import AppKit
 
-// Editing a CMYK document in ink (#547 phase 2): the ink value `CmykInk` (the Color Picker's
+// Editing a CMYK document in ink (#1 phase 2): the ink value `CmykInk` (the Color Picker's
 // C/M/Y/K fields, the stored foreground/background ink in `SharedToolState`, MCP's `ink`), the
 // `CmykPaint` request builders every paint command site branches to (Brush, Eraser, Fill, Gradient,
 // Paint Bucket: `cmyk_paint` in the core, ink in place of colour, in the CMYK modes; the bucket's All
@@ -42,7 +42,7 @@ struct CmykInk: Codable, Equatable {
 }
 
 /// The paint requests of a CMYK document (`cmyk_paint`'s `CmykPaintEdit`): `ink` is straight
-/// `[c, m, y, k, alpha]` in 0…1, in any mode of `NativeLayerBlending.cmykModes` (#547's retouch
+/// `[c, m, y, k, alpha]` in 0…1, in any mode of `NativeLayerBlending.cmykModes` (#1's retouch
 /// batch: the mode composites on `1 − ink`, `cmyk_composite::over_mode`).
 enum CmykPaint {
     /// The refusal of a paint, fill, stroke or clone `mode` a CMYK document does not offer (Pass
@@ -96,12 +96,12 @@ enum CmykPaint {
     }
 }
 
-/// Levels and Curves on ink (#547 phases 2 and 5): the histogram, Auto, the eyedroppers and
+/// Levels and Curves on ink (#1 phases 2 and 5): the histogram, Auto, the eyedroppers and
 /// presets on ink, and the scope a dialog reads, are `CmykToneTools.swift`'s extension.
 enum CmykTone {}
 
 extension RasterPrecisionDocument {
-    /// The Paint Bucket's All Layers on a CMYK document (#547), `bucketFilledSamplingComposite`'s
+    /// The Paint Bucket's All Layers on a CMYK document (#1), `bucketFilledSamplingComposite`'s
     /// twin: the composite's `magic_wand` region over its INK (`cmyk_select`, the same predicate
     /// the single-layer bucket floods with), then a CMYK `paint_blend` of `ink` (straight
     /// `[c, m, y, k, alpha]`, 0…1) through `mode` on `layer` over that region and the selection

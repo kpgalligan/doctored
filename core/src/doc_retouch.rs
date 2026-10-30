@@ -46,7 +46,7 @@ pub(crate) fn shaped(v: f32, e: f32, range: u8, burn: bool) -> f32 {
     }
 }
 
-/// Protect Tones (#547): the fully exposed values of one channel GROUP — an
+/// Protect Tones (#1): the fully exposed values of one channel GROUP — an
 /// RGB pixel's [R, G, B], or one of a CMYK document's two `L` passes — moved
 /// together so the group keeps its hue and saturation. With `V` the group's
 /// largest value, every value is scaled by `shaped(V) / V`, so the brightest
@@ -82,7 +82,7 @@ impl DrDocument {
     /// transparent pixels are skipped (their RGB is latent garbage, not
     /// tone). `protect_tones` moves the three channels together through
     /// [`protected`] instead of each through [`shaped`]; off, the bytes are
-    /// the curve's per channel, as before #547.
+    /// the curve's per channel, as before #1.
     ///
     /// Domain refusals (`None`): `idx` out of range; `w`/`h` not the canvas
     /// size; `overlay` shorter than `w*h*4`; non-finite `exposure`;

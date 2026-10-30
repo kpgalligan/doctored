@@ -466,7 +466,7 @@ impl PrecisionDocument {
         source_layer: usize,
         selection: bool,
     ) -> Result<Value, String> {
-        // A Bitmap document's arm (#547 Bitmap phase 3, `bitmap_tools`).
+        // A Bitmap document's arm (#1 Bitmap phase 3, `bitmap_tools`).
         if self.is_bitmap() {
             return crate::bitmap_tools::history_brush_plan(
                 self,

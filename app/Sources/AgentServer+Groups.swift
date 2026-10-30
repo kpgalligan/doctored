@@ -79,7 +79,7 @@ extension AgentServer {
         // Phase 12E-1: the pure STRUCTURE edits move no pixels — the core's
         // typed ops splice records and keep every plane pointer-equal — so a
         // float document answers them exactly as it answers `group_layers`.
-        // #547 phase 4a: groups, merges and Stamp Visible on a CMYK document
+        // #1 phase 4a: groups, merges and Stamp Visible on a CMYK document
         // (`cmyk_stack`, `cmyk_merge`).
         "group_layers": [.typedTool, .floatTool, .cmykTool],
         "ungroup_layers": [.typedTool, .floatTool, .cmykTool],
@@ -94,7 +94,7 @@ extension AgentServer {
         "unlink_layers": [.typedTool, .floatTool],
         // The typed `layer_via` (`precision_layer_via`); its f32 arm answers
         // a float document too.
-        // #547 phase 4c: and on a CMYK document's ink.
+        // #1 phase 4c: and on a CMYK document's ink.
         "layer_via_copy": [.selectionSensitive, .typedTool, .floatTool, .cmykTool],
         "layer_via_cut": [.selectionSensitive, .typedTool, .floatTool, .cmykTool],
         "merge_visible": [.typedTool, .floatTool, .cmykTool],

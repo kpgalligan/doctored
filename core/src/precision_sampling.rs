@@ -235,7 +235,7 @@ pub(crate) fn transform_image(
     PrecisionImage::from_rgba16_unseeded(w, h, output, source.profile().clone(), None)
 }
 
-/// [`transform_image`]'s CMYK twin (#547 phase 4b): the same walk
+/// [`transform_image`]'s CMYK twin (#1 phase 4b): the same walk
 /// (`resample_into`, its master) over straight CMYKA16 with the five-plane
 /// premultiplied adapter (`accumulate_planes` / `straight_planes`, C = 5,
 /// alpha last), so each ink plane is exactly what the RGBA16 walk makes of a
@@ -387,7 +387,7 @@ pub(crate) fn resize_image(
     }
     PrecisionImage::from_rgba16_unseeded(w, h, out, source.profile().clone(), None)
 }
-/// [`resize_image`]'s CMYK twin (#547 phase 4b): `nearest_into` (a
+/// [`resize_image`]'s CMYK twin (#1 phase 4b): `nearest_into` (a
 /// permutation) or the separable `resize_into` with the five-plane adapter
 /// of [`transform_cmyk`]; the same image for its own size.
 pub(crate) fn resize_cmyk(
@@ -463,7 +463,7 @@ pub(crate) fn resize_cost(
 }
 
 /// [`resize_cost`] over `channels` u16 planes: 4 RGBA16, 1 a mask, 5 a CMYK
-/// document's CMYKA16 (#547 phase 4b), whose separable temporary is five f32
+/// document's CMYKA16 (#1 phase 4b), whose separable temporary is five f32
 /// planes.
 pub(crate) fn resize_cost_channels(
     source: (u32, u32),

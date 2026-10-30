@@ -38,7 +38,7 @@
 //! The Sponge at float (R5) is the same `Extended` arithmetic: the luma
 //! and `Y + 2·(rgb − Y)` over linear samples with no clamp to 0…1.
 //!
-//! On a Grayscale document (#547 phase 2c, [`Vibrancy::Gray`]) the Sponge
+//! On a Grayscale document (#1 phase 2c, [`Vibrancy::Gray`]) the Sponge
 //! moves gray levels away from or toward the middle gray `m`: Saturate
 //! `m + 2·(p − m)`, distance from the middle gray doubled, and Desaturate `m`
 //! — the RGB rule with `m` in place of `Y`, finished by the same `range.color`
@@ -47,7 +47,7 @@
 //! chroma for it to weigh. The magnitude is Doctored's rule; no take measured
 //! Photoshop's.
 //!
-//! On a Lab Color document (#547 phase 2e, [`Vibrancy::Lab`]) the samples
+//! On a Lab Color document (#1 phase 2e, [`Vibrancy::Lab`]) the samples
 //! are the L\*, a\* and b\* codes and `n` is the a\* = b\* = 0 code: the
 //! Sponge doubles (Saturate, `n + 2·(p − n)` on a\* and b\*) or zeroes
 //! (Desaturate, `n`) the chroma about the neutral axis and keeps L\* — the

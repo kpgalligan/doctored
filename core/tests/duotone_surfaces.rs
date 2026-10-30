@@ -1,4 +1,4 @@
-//! #547 Duotone (`duotone_document`, `duotone_convert`, `gray_profile`'s
+//! #1 Duotone (`duotone_document`, `duotone_convert`, `gray_profile`'s
 //! Duotone arm, the clipboard's Duotone payload, through the C API): Assign
 //! and Convert to Profile and 8 → 16 refused with 16 → 8 keeping the inks,
 //! the render's one table and its second stage admitted beside the source,

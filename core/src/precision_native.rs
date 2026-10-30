@@ -207,7 +207,7 @@
 //! parsed. The same two invariants hold. A document with no such sources
 //! writes nothing here, so its bytes stay exactly the prior writer's.
 //!
-//! Version 112 (spot_channel_native.rs, #547) is the word right after the
+//! Version 112 (spot_channel_native.rs, #1) is the word right after the
 //! CMYK slot inside 46, ahead of 111: some channel is a spot channel. Its
 //! `SPOT` table follows LREF and precedes the CMYK table; the reader applies
 //! it after CHPR and refuses it in an Indexed or Bitmap file. The next free

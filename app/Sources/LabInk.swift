@@ -1,6 +1,6 @@
 import AppKit
 
-// The Lab Color document's foreground and background ink (#547 Lab phase 2e), CMYK's `CmykInk`
+// The Lab Color document's foreground and background ink (#1 Lab phase 2e), CMYK's `CmykInk`
 // pattern: the Eyedropper on a Lab document keeps the L*a*b* it picked exactly
 // (`SharedToolState.foregroundLab`), so a colour outside sRGB paints as picked rather than through
 // its clipped sRGB swatch. The swatch shows `LabPaint.display` (the core's Lab → sRGB, clipped); the

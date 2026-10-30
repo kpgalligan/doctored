@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 // The core's flat open: a Gray-profiled grayscale file and a
 // CMYK-profiled CMYK TIFF or JPEG (under an explicit rgba8 open since
-// #547, which opens one as a CMYK document by default) are converted from that profile to
+// #1, which opens one as a CMYK document by default) are converted from that profile to
 // sRGB as they are read, and reported. Every fixture is written by ImageIO
 // and read back by the CORE — the preconditions prove no other path (ImageIO
 // fallback, host source, typed import) took it. The ImageIO-written CMYK JPEG
@@ -183,7 +183,7 @@ func verifyCoreOpenProfiles() throws {
                     "\(file) report: \(String(describing: report?["profile_refusal"]))")
         try require((report?["warnings"] as? [String] ?? []).contains(sentence),
                     "\(file) sentence is a warning")
-        // #547: a CMYK file opens as a CMYK DOCUMENT by default; the conversion to
+        // #1: a CMYK file opens as a CMYK DOCUMENT by default; the conversion to
         // sRGB this case measures is the explicit 8-bit open's.
         if url != gray {
             PrecisionImportRequest.mode = .ask

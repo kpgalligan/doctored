@@ -70,14 +70,14 @@ final class CurvesAdjustmentSheetController: NSViewController {
     /// only the RGB curve applies there: the Channel popup is hidden (as in
     /// Levels) and MCP refuses r/g/b on such a target.
     private let scalarTarget: Bool
-    /// #547: a CMYK document — the CMYK, Cyan, Magenta, Yellow and Black
+    /// #1: a CMYK document — the CMYK, Cyan, Magenta, Yellow and Black
     /// curves on ink, axes in ink %, with the histogram on the ink axes, Auto
     /// and Auto Options, the eyedroppers and CMYK presets (phase 5,
     /// `CmykToneTools.swift`), and drawn curves on ink; Targeted
     /// Adjustment is not there yet.
     private let cmyk: Bool
     private let channels: [CurveChannel]
-    /// #547 phase 5: a CMYK document's histogram and its tool row.
+    /// #1 phase 5: a CMYK document's histogram and its tool row.
     private var cmykHistogram: CmykHistogram?
     private var cmykTools: CmykToneControls?
     private let curveView = CurveEditorView()
@@ -132,7 +132,7 @@ final class CurvesAdjustmentSheetController: NSViewController {
         scalarTarget = destructive && target.map { $0 != .layer } == true
         // A mask is gray coverage at every mode, so its one curve is `rgb`.
         cmyk = document.doc?.isCmyk == true && !scalarTarget
-        // A Lab layer lists Lightness, a and b (#547 Lab phase 2c).
+        // A Lab layer lists Lightness, a and b (#1 Lab phase 2c).
         channels = CurveChannel.cases(cmyk: cmyk,
                                       lab: document.doc?.isLab == true && !scalarTarget)
         channel = channels[0]
@@ -252,7 +252,7 @@ final class CurvesAdjustmentSheetController: NSViewController {
         // A float document has no 0…255 sample to place a point at; a CMYK
         // one reads ink, which the sampler does not give yet.
         targeted.isEnabled = document.doc?.isFloat != true && !cmyk
-        // #547 phase 5: a CMYK document's Auto, Options… and eyedroppers, every mode.
+        // #1 phase 5: a CMYK document's Auto, Options… and eyedroppers, every mode.
         cmykTools?.onAuto = { [weak self] in self?.cmykAuto($0) }
         cmykTools?.onEyedropper = { [weak self] in self?.cmykEyedropper(sample: $1, target: $2) }
         let cmykRow = cmykTools?.row ?? NSStackView()
@@ -418,7 +418,7 @@ final class CurvesAdjustmentSheetController: NSViewController {
     /// An end point ⌥-dragged on the curve (CurveEditorView.onClipDrag).
     private func clipDragged(_ mode: ClipDisplayMode?) {
         var mode = mode
-        // On the ink axes (#547) the left end point is bare paper — the highlights.
+        // On the ink axes (#1) the left end point is bare paper — the highlights.
         if cmyk { mode = mode == .shadows ? .highlights : mode == .highlights ? .shadows : mode }
         if feedback.setClip(mode) { requestPreview() }
     }
@@ -435,13 +435,13 @@ final class CurvesAdjustmentSheetController: NSViewController {
         // Switching channels changes nothing in the meta — no new preview.
     }
 
-    /// #547 phase 5: the current ink's histogram on the ink axes.
+    /// #1 phase 5: the current ink's histogram on the ink axes.
     private func showCmykHistogram() {
         guard let cmykHistogram else { return }
         curveView.histogram = cmykHistogram.bins(for: channel.rawValue, inkAxis: true)
     }
 
-    /// #547 phase 5: Auto on a CMYK document — the derived curves replace every channel.
+    /// #1 phase 5: Auto on a CMYK document — the derived curves replace every channel.
     private func cmykAuto(_ auto: [String: Any]) {
         guard let derived = CmykToneTools.curvePoints(fromAuto: auto) else { NSSound.beep(); return }
         dropMaps()
@@ -451,7 +451,7 @@ final class CurvesAdjustmentSheetController: NSViewController {
         requestPreview()
     }
 
-    /// #547 phase 5: an eyedropper click on a CMYK document — a point per ink.
+    /// #1 phase 5: an eyedropper click on a CMYK document — a point per ink.
     private func cmykEyedropper(sample: [Double], target: [Double]) {
         if channelMaps != nil { pointsFromMaps() }
         channelPoints = CmykToneTools.curvePoints(sample: sample, target: target, onto: channelPoints)

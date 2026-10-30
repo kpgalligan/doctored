@@ -1,4 +1,4 @@
-//! The export workspace on a CMYK document (#547 phase 5): Export As,
+//! The export workspace on a CMYK document (#1 phase 5): Export As,
 //! Quick Export, Save for Web and Batch convert to RGB, or keep CMYK where
 //! the format can hold it. `doc_export`'s typed `export_plan` and
 //! `export_encoded` hand a CMYK document here.

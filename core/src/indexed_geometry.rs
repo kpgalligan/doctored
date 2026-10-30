@@ -1,4 +1,4 @@
-//! The Image-menu geometry on an Indexed Color document (#547 Indexed phase
+//! The Image-menu geometry on an Indexed Color document (#1 Indexed phase
 //! 2c, `designs/indexed-mode.md`): Image Size, Canvas Size, Trim and
 //! Crop, Image Rotation, flip and Perspective Crop, and since phase 2d Free
 //! Transform and Transform on the one layer (`affine`, `perspective`,

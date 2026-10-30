@@ -9,7 +9,7 @@
 //! (`doc_select`'s `shrink_mask`), so an inside stroke and a shrunk
 //! selection of the same width agree pixel for pixel; the outside band, and
 //! the inside band of an anti-aliased shape, measure their distance by
-//! #578's measured rule:
+//! #2's measured rule:
 //!
 //! - Outside: `style_stroke_distance::outside_corner_band` — the shape grown
 //!   by `size` with the distance taken as the 5 × 5 Euclidean-weight
@@ -26,7 +26,7 @@
 //!   a soft edge, a half-alpha rect and a 0 %-fill layer). Band and layer
 //!   join as a disjoint union, so under a partly covered pixel the
 //!   composite lands the band at `b / (1 − c·f)` before the layer draws over
-//!   it (`style_stroke_distance::band_under_layer`, #578; within about one
+//!   it (`style_stroke_distance::band_under_layer`, #2; within about one
 //!   code of `stroke_composite_578_take.py`'s take where drawing the layer
 //!   over the plain band was 64 off). A Below contribution: the pixels draw over it, so an
 //!   opaque layer hides the band's inner edge (the outside stroke sits
@@ -40,7 +40,7 @@
 //!   smoothly instead of at a hard threshold.
 //! - Inside: the `size` px of the shape nearest its edge. On a shape with a
 //!   partial pixel the band is measured from the ANTI-ALIASED contour by NA1
-//!   (`style_stroke_distance::inside_corner_band`, Center's inner half, #578):
+//!   (`style_stroke_distance::inside_corner_band`, Center's inner half, #2):
 //!   the fourth Stroke take (`stroke_aa_578_take4.py`) read every
 //!   anti-aliased straight edge so within 1.02 codes where the 50 % threshold
 //!   missed by 128, and the confirm take (`stroke_aa_578_confirm5.py`, on
@@ -69,7 +69,7 @@
 //!   Center 4 and 5 px rows: 1.02 codes, against the Euclidean grow's 18;
 //!   take2's anti-aliased disc Center row ranks it above the old seeds). The
 //!   inner half is `style_stroke_distance::inside_corner_band`, measured from
-//!   the anti-aliased edge (#578: the take's disc Center 6 within one code
+//!   the anti-aliased edge (#2: the take's disc Center 6 within one code
 //!   where the 50 % threshold missed by 115; take2's disc Center 4 at 50 %
 //!   keeps 63 and disc Center 3 at 50 % Fill 43, residuals of the inside
 //!   band's replacement; identical on a hard rect). The fourth Stroke take

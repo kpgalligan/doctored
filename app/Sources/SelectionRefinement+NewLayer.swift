@@ -53,7 +53,7 @@ extension SelectionRefinementCapture {
         guard let source = selection.doc.precision else {
             throw DoctoredCoreError(message: "Native refinement requires a 16-bit or 32-bit document.")
         }
-        // #547: a CMYK document's cutout is assembled in ink (`CmykRefinementCutout.swift`).
+        // #1: a CMYK document's cutout is assembled in ink (`CmykRefinementCutout.swift`).
         if source.isCmyk {
             return try applyNewLayerCmyk(matte: matte, parameters: parameters, output: output,
                                          in: document, record: record)

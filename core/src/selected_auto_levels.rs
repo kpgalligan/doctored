@@ -126,7 +126,7 @@ impl AutoLevels {
         }
         let cut = clip * total as f64;
         let unit = f64::from(u16::MAX);
-        // A Lab Color document (#547 phase 2c): both Autos stretch the
+        // A Lab Color document (#1 phase 2c): both Autos stretch the
         // Lightness plane alone — a\* and b\* are not tonal channels — so
         // a\* and b\* keep (0, 1, 1).
         if doc.is_lab() {

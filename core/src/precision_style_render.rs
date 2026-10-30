@@ -648,7 +648,7 @@ fn composite_direct_into(
                         Ok(())
                     }
                 };
-                // `clip_unit`'s Open (#578), then D4: the members punch to this
+                // `clip_unit`'s Open (#2), then D4: the members punch to this
                 // buffer as it stands after the base's pixel pass (opened) and
                 // before any member, never to the enclosing backdrop. The clone
                 // happens only when a member asks for it.
@@ -862,7 +862,7 @@ pub(crate) fn composite_pixels_into(
 /// byte `style_composite::PixelPass`'s twin).
 pub(crate) struct PixelPass16<'a> {
     /// The Fill and `opacity` as the one weight they scale the pixels by
-    /// (`opacity_byte::joint`, #578).
+    /// (`opacity_byte::joint`, #2).
     pub joint: f32,
     /// The Blend If ranges; `None` = weight 1.
     pub blend_if: Option<&'a BlendIf>,
@@ -874,7 +874,7 @@ pub(crate) struct PixelPass16<'a> {
     pub opacity: f32,
     /// A 32-bit float scene: the Blend If weight is `source_weight_float`.
     pub float: bool,
-    /// The special Fill of five modes (`blend_fill`, #578; never in a float
+    /// The special Fill of five modes (`blend_fill`, #2; never in a float
     /// scene), `None` for the plain one.
     pub fill_blend: Option<FillBlend>,
 }
@@ -1111,7 +1111,7 @@ pub(crate) fn style_extent16_of(
     light: GlobalLight,
 ) -> Option<(i64, i64, i64, i64)> {
     let style = layer.style()?;
-    // A CMYK raster grows by its style the same way (#547).
+    // A CMYK raster grows by its style the same way (#1).
     let (w, h) = layer
         .source()
         .map(|image| image.dimensions())

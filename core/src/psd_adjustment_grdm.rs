@@ -1,5 +1,5 @@
 //! `psd_adjustment`'s private half for a CMYK document's Gradient Map record
-//! (`grdm`, #547, the styles batch), both directions; reached only through
+//! (`grdm`, #1, the styles batch), both directions; reached only through
 //! `psd_adjustment::decode_cmyk` / `encode_cmyk`. The RGB document has no
 //! `grdm` codec (its Gradient Map record is not carried), so this is the one.
 //!
@@ -44,7 +44,7 @@
 //! a `grdm` body ends at Adobe's dummy word two bytes short of a multiple of
 //! 4 — the 130-byte body of a two-stop map — while its own file ends the
 //! 150-byte layout of its three-stop map with two zero bytes (152).
-//! `cmyk-psd-open-662/take1` isolated `grdm` among every construct #547
+//! `cmyk-psd-open-662/take1` isolated `grdm` among every construct #1
 //! added; take2 opened the padded body (`photoshop-probe/cmyk_psd_open_take.py`).
 //!
 //! Each decoded ink is quantized to four decimals, which recovers every

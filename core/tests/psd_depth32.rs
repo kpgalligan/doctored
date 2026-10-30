@@ -1160,7 +1160,7 @@ fn a_non_rgb_deep_file_reports_no_typed_precision() {
         let path = write(&directory, &format!("gray{depth}.psd"), &bytes);
         let report = import_report(&path);
         assert_eq!(report["color_mode"], "Grayscale", "{report}");
-        // #547 phases 3a and 3c: a 16- or 32-bit gray file opens as a
+        // #1 phases 3a and 3c: a 16- or 32-bit gray file opens as a
         // Grayscale document (its precision "gray").
         assert_eq!(report["import_precision"], "gray", "{report}");
     }

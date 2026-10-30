@@ -50,7 +50,7 @@
 //! - **Residuals** (take1; `contour_take.py` and the 10C status doc): the
 //!   gloss and the bevel contour ship the take's best fits, which missed its
 //!   bound. The satin's site (each shifted copy, before the combine) is
-//!   `style_fx_satin`'s since #578 part 3, confirmed on a fresh take.
+//!   `style_fx_satin`'s since #2 part 3, confirmed on a fresh take.
 //!
 //! [`adjust_curves::Spline`]: crate::adjust_curves::Spline
 
@@ -192,7 +192,7 @@ pub(crate) const BELOW_CAP_OUTER_GLOW: f64 = BELOW_CAP_DROP_SHADOW / 2.0;
 /// Chisels outside the Chisel law; a Smooth bevel's measured law maps its
 /// unit height before the shading and softens the shading instead,
 /// `style_bevel_smooth`, and the Chisel law maps its softened height,
-/// `style_bevel_chisel`, #578):
+/// `style_bevel_chisel`, #2):
 /// true maps the height before `soften`. The two
 /// sites scored the same to the code in the take, so the site that keeps
 /// the render independent of the pad wins: AFTER. Mapped before, a contour
@@ -605,7 +605,7 @@ pub(crate) fn map_plane_with_job(
 /// becomes `read_lut(lut, 255 · clamp(v, 0, 1)) / 255`, the table read
 /// piecewise linearly as [`map_gloss`] reads it (a NaN reads as 0). One row
 /// of `w` at a time, polling `job` per row. A Smooth bevel's contour site
-/// (`style_bevel_smooth`, #578).
+/// (`style_bevel_smooth`, #2).
 pub(crate) fn map_unit_plane_with_job(
     plane: &mut [f32],
     w: u32,

@@ -1,4 +1,4 @@
-//! #547 Lab phase 6b-i on a Lab Color document through the FFI: the
+//! #1 Lab phase 6b-i on a Lab Color document through the FFI: the
 //! Histogram, Apply Image's and Calculations' stages and Stack Modes, each
 //! the existing kernel run on the L\*a\*b\* codes per channel.
 //!

@@ -1,4 +1,4 @@
-//! The export of an Indexed Color document that keeps Indexed (#547
+//! The export of an Indexed Color document that keeps Indexed (#1
 //! Indexed phase 1b): profile `document` with PNG, GIF or TIFF writes the
 //! document's palette, transparent index and every index as they are
 //! (`indexed_encode`), with no render and no quantization, so the file
@@ -158,7 +158,7 @@ impl PrecisionDocument {
         )
     }
 
-    /// Export Layers' plan of the Index layer (`idx`, #547 Indexed phase
+    /// Export Layers' plan of the Index layer (`idx`, #1 Indexed phase
     /// 2d): an untrimmed kept-Indexed request is the document's own kept
     /// plan (the one layer IS the document); every other request is the
     /// typed layer route's plan over the RGB storage.

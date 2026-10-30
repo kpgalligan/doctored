@@ -73,14 +73,14 @@ struct ExternalClipboardImage {
     let sourceProfile: Data
     let sourceName: String
     let untagged: Bool
-    /// #547 phase 4c: the pasteboard's own TIFF as a CMYK payload when it is
+    /// #1 phase 4c: the pasteboard's own TIFF as a CMYK payload when it is
     /// a CMYK TIFF the core reads; it pastes as that payload at every
     /// destination (`ExternalClipboardImage.cmykPayload`).
     let cmyk: TypedClipboardPayload?
     /// The colour model CoreGraphics converted from while decoding a Gray,
     /// Lab or CMYK image ("Gray", "Lab", "CMYK"); nil for an RGB image.
     let platformModel: String?
-    /// #547 phase 4: the pasteboard's own TIFF as a Gray payload when it is a
+    /// #1 phase 4: the pasteboard's own TIFF as a Gray payload when it is a
     /// gray TIFF the core reads; it pastes as that payload at every
     /// destination (`ExternalClipboardImage.grayPayload`), set by
     /// `PastePlan.resolve`.
@@ -133,7 +133,7 @@ enum PastePlan {
     /// What a Paste into `document` will do. `payloadFile` (MCP
     /// `payload_path`, a replayed step's `$asset`) is decoded INSTEAD of the
     /// pasteboard's typed payload. `profile` reaches an editable record's
-    /// disposition (Don't Convert keeps a CMYK record's ink, #547); the UI
+    /// disposition (Don't Convert keeps a CMYK record's ink, #1); the UI
     /// never asks for an editable plan, so it passes `.convert`.
     static func resolve(for document: ImageDocument, pasteboard: NSPasteboard,
                         payloadFile: URL?, profile: PasteProfile = .convert) throws -> PastePlan {
@@ -157,7 +157,7 @@ enum PastePlan {
             return .editable(typed, record)
         }
         if let typed { return .typed(typed) }
-        // #547 phase 4c: an untagged CMYK TIFF pastes in a CMYK destination's
+        // #1 phase 4c: an untagged CMYK TIFF pastes in a CMYK destination's
         // own profile (the working CMYK elsewhere).
         let fallback = doc.isCmyk ? ColorConversion.profileData(of: doc) : nil
         if payloadFile == nil, let image = ExternalClipboardImage.read(pasteboard,
@@ -167,7 +167,7 @@ enum PastePlan {
         return .refused(noImage)
     }
 
-    /// #547 phase 4: `image` with the pasteboard's gray TIFF as its Gray payload (an untagged one
+    /// #1 phase 4: `image` with the pasteboard's gray TIFF as its Gray payload (an untagged one
     /// in a Gray destination's own profile, the working Gray elsewhere); a CMYK image keeps its
     /// CMYK payload alone.
     private static func withGray(_ image: ExternalClipboardImage, _ pasteboard: NSPasteboard,
@@ -185,7 +185,7 @@ enum PastePlan {
     /// counts as sRGB); nil otherwise, `.editable` and an untagged external
     /// image (whose numbers are the document's) included.
     ///
-    /// #547 phase 4c: pixels that change colour mode always convert, so a
+    /// #1 phase 4c: pixels that change colour mode always convert, so a
     /// paste across modes never asks; between CMYK documents the CMYK
     /// profiles are compared (`cmykProfileData`). Lab phase 4c: nor does a
     /// paste into or out of Lab Color (one twin, so Lab → Lab never asks).
@@ -202,7 +202,7 @@ enum PastePlan {
                 guard doc.isCmyk else { return nil }
                 source = (cmyk.profileData, cmyk.profileDescription)
             } else if let gray = image.gray {
-                // #547 phase 4: a gray TIFF asks only between Gray profiles.
+                // #1 phase 4: a gray TIFF asks only between Gray profiles.
                 guard doc.isGray else { return nil }
                 source = (gray.profileData, gray.profileDescription)
             } else {
@@ -247,10 +247,10 @@ struct PasteOutcome {
     /// Paste Into / Paste Outside: the mask the pasted layer got; nil for
     /// every other placement.
     let mask: PasteMask?
-    /// #547 phase 4c: the colour model or CMYK profile the pixels crossed
+    /// #1 phase 4c: the colour model or CMYK profile the pixels crossed
     /// (the reply's `color_conversion`); nil when they kept their model.
     var colorConversion: ColorConversion?
-    /// #547 Indexed phase 2d: an Indexed paste's admitted working memory (its core plan's
+    /// #1 Indexed phase 2d: an Indexed paste's admitted working memory (its core plan's
     /// `scratch_bytes`), the reply's `working_memory_plan_bytes`; nil for every other paste.
     var indexedPlanBytes: UInt64? = nil
 
@@ -260,7 +260,7 @@ struct PasteOutcome {
     }
 
     /// "Paste Layer" (or "Paste Into" / "Paste Outside"), with
-    /// " (CMYK → RGB)" when the pixels changed colour model (#547 phase 4c)
+    /// " (CMYK → RGB)" when the pixels changed colour model (#1 phase 4c)
     /// and " (300 → 72 ppi)" when the payload's PPI differs from the
     /// document's — both disclosed in the history row itself.
     var historyName: String {
@@ -452,7 +452,7 @@ enum PasteWork {
             narrowed = !payload.byteOrigin
             payloadPPI = (payload.ppi.x, payload.ppi.y)
             origin = payload.offset
-            // #547 phase 4c: a CMYK payload converts into this profile (phase 4: a Gray one too;
+            // #1 phase 4c: a CMYK payload converts into this profile (phase 4: a Gray one too;
             // Lab phase 4c: a Lab one too).
             profileOutcome = payload.isCmyk || payload.isGray || payload.isLab ? "converted"
                 : profile.outcome(source: payload.profileData, destination: destination)
@@ -470,7 +470,7 @@ enum PasteWork {
         case .external(let pasted):
             conversion = ColorConversion.external(pasted, into: doc, mode: profile)
             if let cmyk = pasted.cmyk ?? pasted.gray {
-                // #547 phase 4c: a CMYK TIFF converts through the core (phase 4: a gray one too).
+                // #1 phase 4c: a CMYK TIFF converts through the core (phase 4: a gray one too).
                 let budget = try PrecisionWorkContext()
                 image = try cmyk.handle.rgba8(in: destination, profile: profile,
                                               workingLimit: budget.limit,
@@ -526,7 +526,7 @@ enum PasteWork {
         -> (RasterPrecisionDocument, PasteOutcome) {
         try requireMask(spot.placement, mask)
         let facade = capture.facade
-        // #547 Indexed phase 2d: the one layer holds no editable record, so one pastes as its
+        // #1 Indexed phase 2d: the one layer holds no editable record, so one pastes as its
         // pixels.
         if facade.isIndexed, case let .editable(t, _) = plan {
             return try typedDocument(.typed(t), capture: capture, anchor: anchor,
@@ -575,7 +575,7 @@ enum PasteWork {
             origin = t.offset; size = t.size; originDepth = t.originDepth
             storageDepth = t.storageDepth; payloadPPI = (t.ppi.x, t.ppi.y)
             editable = rasterEditable(t, in: facade)
-            // #547 phase 4c: across modes the core always converts; between
+            // #1 phase 4c: across modes the core always converts; between
             // CMYK documents the CMYK profiles decide.
             conversion = ColorConversion.paste(t, into: facade, mode: profile)
             if t.isCmyk != facade.isCmyk || t.isGray != facade.isGray || t.isLab != facade.isLab {
@@ -593,7 +593,7 @@ enum PasteWork {
         case .external(let image)
             where facade.isCmyk || image.cmyk != nil || facade.isGray || image.gray != nil
                 || facade.isLab:
-            // #547 phase 4c: a CMYK destination converts another app's image
+            // #1 phase 4c: a CMYK destination converts another app's image
             // from its own space through the core, and a CMYK TIFF pastes as
             // its CMYK payload at every destination; phase 4: a Gray
             // destination and a gray TIFF the same way; Lab phase 4c: a Lab
@@ -627,7 +627,7 @@ enum PasteWork {
             throw DoctoredCoreError(message: reason)
         }
         let name = name ?? defaultName
-        // #547 Indexed phase 2d: the paste lands IN the one layer (index 0), its mask applied by
+        // #1 Indexed phase 2d: the paste lands IN the one layer (index 0), its mask applied by
         // the same core call, so `masked` is skipped.
         var indexedPlanBytes: UInt64?
         let pasted: RasterDocument

@@ -25,7 +25,7 @@ use crate::style::{GlobalLight, LayerStyle, Strictness};
 /// message (a refusal, not an error) on an out-of-range `idx` or a value
 /// equal to the current one, "no style" included. A Blend If on a CMYK plate
 /// refuses ("Blend If on the Cyan channel needs a CMYK document") and every
-/// CMYK `ink` is dropped (#547).
+/// CMYK `ink` is dropped (#1).
 ///
 /// # Safety
 /// `doc` must be NULL or a valid pointer to a live `DrDocument`;
@@ -59,7 +59,7 @@ pub unsafe extern "C" fn dr_doc_set_layer_style(
             if let Some(path) = crate::style_json_keys::unknown_key(&json) {
                 return Err(format!("style: unknown layer style field {path}"));
             }
-            // An 8-bit document has no plates (#547): a CMYK channel refuses
+            // An 8-bit document has no plates (#1): a CMYK channel refuses
             // by name in any range AS WRITTEN (an identity one included,
             // before canonicalization drops it) and every CMYK ink is
             // dropped, the RGB setters' rule.

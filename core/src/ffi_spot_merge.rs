@@ -1,4 +1,4 @@
-//! C FFI for spot channels 1c-1 (#547): Merge Spot Channel and the alpha ↔
+//! C FFI for spot channels 1c-1 (#1): Merge Spot Channel and the alpha ↔
 //! spot kind change at both depths, and the `region` / `preview_divisor`
 //! overprint of a document and of one bare image — the "Spot channels 1c-1"
 //! section of `include/doctored_core.h`. Same conventions as

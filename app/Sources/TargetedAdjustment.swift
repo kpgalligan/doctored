@@ -110,7 +110,7 @@ enum CanvasSample {
     }
 
     /// `rgb`'s sample in the space `op`'s kernel reads it in (0…255 floats): on a Lab Color
-    /// document (#547 phase 2d) the codes as L*a*b* (`LabDocument.lab`) through
+    /// document (#1 phase 2d) the codes as L*a*b* (`LabDocument.lab`) through
     /// `RasterLab.kernelRGB` — ProPhoto RGB for Hue/Saturation — so a sheet's sampler picks what
     /// the kernel rotates; on every other document `rgb` unchanged.
     static func kernelRGB(

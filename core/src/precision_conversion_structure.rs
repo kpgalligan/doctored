@@ -686,7 +686,7 @@ impl DrDocument {
     }
 
     /// Every saved channel promoted `v · 257` with its options and ink: the
-    /// flattened 8→16 conversion's channels (`precision_conversion`, #547).
+    /// flattened 8→16 conversion's channels (`precision_conversion`, #1).
     pub(crate) fn promoted_channels(
         &self,
         job: JobContext<'_>,

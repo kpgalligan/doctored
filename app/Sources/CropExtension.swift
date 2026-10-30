@@ -15,7 +15,7 @@ struct CropBackground {
     let fields: [String: Any]
 
     /// The background colour as the document paints it: on RGB `PrecisionInk`'s components in
-    /// the document's own space (on Lab, #547 phase 4a, the stored swatch ink's codes:
+    /// the document's own space (on Lab, #1 phase 4a, the stored swatch ink's codes:
     /// `LabPaint.color`, else the colour as `srgb` for the core's Mode rule), on CMYK
     /// `CmykPaint.ink` (the stored swatch ink, else the colour through the profile), its first
     /// four.

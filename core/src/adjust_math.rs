@@ -106,7 +106,7 @@ pub(crate) fn apply_to_image(adjustment: &Adjustment, img: &RgbaImage) -> RgbaIm
 }
 
 /// Posterize to `levels` (2…64) values at the depth whose code range is
-/// `top`, measured against Photoshop 26.10.0 (#578; `scripts/photoshop-probe/
+/// `top`, measured against Photoshop 26.10.0 (#2; `scripts/photoshop-probe/
 /// adjust_v1x_take.py` and `adjust_v1x_round2.py`, takes 1-4 of
 /// `adjust-parity-v1x`):
 ///

@@ -1,4 +1,4 @@
-//! ONE INK PLATE AS A SCALAR TARGET on a CMYK document (#547, the
+//! ONE INK PLATE AS A SCALAR TARGET on a CMYK document (#1, the
 //! remaining-gaps batch: `cmyk_plate_scalar`), through `dr_precision_doc_edit`,
 //! `dr_precision_doc_read_plane` and `dr_precision_doc_scalar_statistics` with
 //! `"target":"cyan"|"magenta"|"yellow"|"black"`. Every expectation is this

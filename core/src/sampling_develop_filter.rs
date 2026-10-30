@@ -456,7 +456,7 @@ impl DevelopFilter {
             }
             let mut levels = Levels::parse(&map).ok_or_else(|| refused("whites and blacks"))?;
             // A stage on continuous tones at both depths, never the Levels
-            // adjustment's 8-bit code rounding (#578 phase 4).
+            // adjustment's 8-bit code rounding (#2 phase 4).
             levels.use_precision();
             Some(levels)
         } else {

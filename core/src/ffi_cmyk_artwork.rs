@@ -1,4 +1,4 @@
-//! Type, shape and fill layers on a CMYK document across the FFI (#547,
+//! Type, shape and fill layers on a CMYK document across the FFI (#1,
 //! `cmyk_artwork`): the ink publication and the colour leg a description's
 //! numbers cross the CMYK boundary through. The conventions are the
 //! surface's: NULL tolerance first, `catch_unwind` through `fallible_op`,

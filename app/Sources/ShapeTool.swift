@@ -52,7 +52,7 @@ extension ShapeToolOptions {
         Self.color(hex: stroke, intensity: strokeIntensity, float: float)
     }
 
-    /// The fill, its picked ink (#547) cleared unless `ink` is given.
+    /// The fill, its picked ink (#1) cleared unless `ink` is given.
     mutating func setFill(_ color: NSColor?, ink: CmykInk? = nil) {
         (fill, fillIntensity) = Self.stored(color)
         fillInk = ink

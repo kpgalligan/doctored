@@ -1,4 +1,4 @@
-//! #578: the Layer Style Inside Stroke's band on an anti-aliased shape,
+//! #2: the Layer Style Inside Stroke's band on an anti-aliased shape,
 //! measured from the anti-aliased edge by NA1
 //! (`style_stroke_distance::inside_corner_band`, Center's inner half),
 //! against Photoshop's own fourth Stroke take and its confirm take at 8 and

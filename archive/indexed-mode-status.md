@@ -1,4 +1,4 @@
-# Indexed Color document mode (#547): status
+# Indexed Color document mode (#1): status
 
 - **Status:** Open — phases 1a (`451c329f`), 1b (`ac77c338`), 1c (`b7ba1382`), 2a (`8bb6008c`), 2b
   (`8ab6ccf2`), 2c (`70362821`) and 2d (`f9550c65`) shipped, completing phase 2; phase 3 is split: 3a
@@ -6,7 +6,7 @@
   and every tool decided) and 3d (the 3d commit: one Photoshop take; the four palettes refused for good,
   Pattern and Noise kept and disclosed) shipped; the close is next.
   The decisions in force and the shipped phases' lines are in [indexed-mode-shipped.md](indexed-mode-shipped.md)
-- **Issue:** [#547](https://github.com/kpgalligan/doctored-dev/issues/547) (the colour-mode umbrella; CMYK is
+- **Issue:** [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella; CMYK is
   `designs/cmyk-mode-status.md`, Grayscale `designs/grayscale-mode.md`, Lab `designs/lab-mode.md`)
 - **Code:** `core/src/indexed_document.rs`, `indexed_palette.rs`, `indexed_act.rs`, `indexed_edge.rs` and
   `indexed_dither.rs` (kernels), `indexed_paint.rs`, `indexed_geometry.rs`, `indexed_transform.rs`, `indexed_clipboard.rs`,
@@ -40,7 +40,7 @@
 **The close** (after 3d): condense this doc and the companion into the ADR `designs/indexed-mode.md` (as Lab's)
 (the decisions in force, each phase's commit, the measured takes' headline rows and the disclosed fallbacks:
 the edge rule, median cut, and whatever 3d leaves declared), `git mv` both originals to `archive/` with their
-`archive/INDEX.md` lines, sweep the README's Indexed paragraph, and close #547's Indexed part.
+`archive/INDEX.md` lines, sweep the README's Indexed paragraph, and close #1's Indexed part.
 
 ## Photoshop in Indexed Color (measured)
 

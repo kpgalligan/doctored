@@ -1,4 +1,4 @@
-//! #547 phase 2c, the retouch tools on a Grayscale document, through the
+//! #1 phase 2c, the retouch tools on a Grayscale document, through the
 //! FFI. Dodge and Burn (Protect Tones on and off), the Blur and Sharpen
 //! brushes, Smudge, the Clone Stamp, the Healing Brush and Spot Healing equal
 //! the same stroke on the RGB TWIN (the Gray document converted to RGB

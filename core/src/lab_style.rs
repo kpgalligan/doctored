@@ -1,4 +1,4 @@
-//! Layer effects and Blend If on a Lab Color document (#547 phases 2e and
+//! Layer effects and Blend If on a Lab Color document (#1 phases 2e and
 //! 2f, `designs/lab-mode.md`): the refusals `LayerStyleEdit::target`,
 //! the mode's gate (`lab_document::admit_edit`) and Mode ▸ Lab Color's
 //! blocker (`lab_convert::first_lab_blocker`) ask, and the Lab pattern

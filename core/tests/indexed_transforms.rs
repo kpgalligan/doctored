@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 2d: Free Transform and Transform on the one
+//! #1 Indexed Color phase 2d: Free Transform and Transform on the one
 //! layer (`affine`, `perspective`, `affine_set`, `perspective_set`), the
 //! selected pixels' transform, Warp, the layer row (rename, label, lock),
 //! Export Layers and the refusals around them (`indexed_geometry`,

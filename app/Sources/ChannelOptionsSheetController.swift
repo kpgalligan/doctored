@@ -7,7 +7,7 @@ import AppKit
 ///
 /// Apply chains the rename and the overlay change inside ONE transform
 /// closure, so the whole dialog is one undo step. Color Indicates: Spot Color
-/// (#547 1c-1) makes the channel a spot channel instead, in the same one step.
+/// (#1 1c-1) makes the channel a spot channel instead, in the same one step.
 final class ChannelOptionsSheetController: NSViewController {
     private let document: ImageDocument
     private let index: Int
@@ -20,7 +20,7 @@ final class ChannelOptionsSheetController: NSViewController {
         radioButtonWithTitle: "Masked Areas", target: nil, action: nil)
     private let selectedRadio = NSButton(
         radioButtonWithTitle: "Selected Areas", target: nil, action: nil)
-    /// The third choice (#547 1c-1): the channel becomes a spot channel, its colour the
+    /// The third choice (#1 1c-1): the channel becomes a spot channel, its colour the
     /// ink and its opacity the Solidity (`settingChannelKind`).
     private let spotRadio = NSButton(radioButtonWithTitle: "Spot Color", target: nil, action: nil)
     private let opacityLabel = fieldLabel("Opacity:")

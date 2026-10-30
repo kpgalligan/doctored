@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Mode ▸ Indexed Color… (#547 Indexed phase 1a): the sheet (`IndexedModeSheetController`),
+// Image ▸ Mode ▸ Indexed Color… (#1 Indexed phase 1a): the sheet (`IndexedModeSheetController`),
 // then the conversion as ONE undo step (`CmykModeConversion`'s indexed arms, recorded as
 // `convert_mode` with `mode: "indexed"` and the sheet's options). Indexed Color holds one layer:
 // a document of more (the core plan's `flatten_required`, or `ModeFlattenRequired`
@@ -77,7 +77,7 @@ extension CmykModeConversion {
         return object
     }
 
-    /// The RGB document an Indexed source's CMYK and Lab conversions start from (#547 Indexed phase
+    /// The RGB document an Indexed source's CMYK and Lab conversions start from (#1 Indexed phase
     /// 1c): its storage, every sample shared (`convertIndexedToRGB`, exact); any other typed
     /// document as it is. Only an Indexed document answers an index at the origin: a test of the
     /// mode that reads no descriptor.

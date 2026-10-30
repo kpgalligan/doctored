@@ -1,6 +1,6 @@
 import AppKit
 
-// Type, shape and fill layers on a CMYK document (#547). A CMYK document's descriptions store INK:
+// Type, shape and fill layers on a CMYK document (#1). A CMYK document's descriptions store INK:
 // text v5, shape v6 and fill v2 (TextLayer.swift, ShapeLayer.swift, FillLayer.swift) hold
 // `[c, m, y, k, alpha]` in the document's profile, and every hex field beside them holds that
 // ink's sRGB APPEARANCE through the profile (relative colorimetric with BPC). The core renders the

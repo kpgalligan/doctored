@@ -1,6 +1,6 @@
-# Lab Color document mode (#547): shipped runs
+# Lab Color document mode (#1): shipped runs
 
-The settled record of [#547](https://github.com/kpgalligan/doctored-dev/issues/547)'s Lab Color phases: decisions in force
+The settled record of [#1](https://github.com/kpgalligan/doctored/issues/1)'s Lab Color phases: decisions in force
 and each shipped phase's few lines, added by the batch that ships it. [lab-mode-status.md](lab-mode-status.md) keeps
 the head, the unshipped contracts, "Photoshop in Lab (measured)" and `## Open items`. Takes live under
 `rasterize-fixtures/photoshop/lab-mode-547/`, runners in `scripts/photoshop-probe/`.
@@ -55,8 +55,8 @@ the head, the unshipped contracts, "Photoshop in Lab (measured)" and `## Open it
 - **The gate:** the core's `lab_document::admit_edit` (in `ffi_precision_edit::request`) and
   `precision_capability::LAB_FAMILIES`; the host's `LabDocument`, asked first in `DocumentPrecision` and
   `validatePrecisionItem`. Every refusal is the core's sentence: "`<operation>` is unavailable in a Lab Color
-  document until #547 phase `<p>`." (`LATER_PHASES` / `laterPhases`, else 6), or for the Magic Wand and Select
-  Similar (`AWAITING_TAKE` / `awaitingTake`, since 4c) "… until its Lab tolerance rule is measured (<issue>).", where Select Similar's issue is #683.
+  document until #1 phase `<p>`." (`LATER_PHASES` / `laterPhases`, else 6), or for the Magic Wand and Select
+  Similar (`AWAITING_TAKE` / `awaitingTake`, since 4c) "… until its Lab tolerance rule is measured (<issue>).", where Select Similar's issue is #5.
   Panels never label Lab codes as RGB (1c): Channels shows the raw Lightness, a and b codes, Info reads
   L\*a\*b\* with a Lightness/a/b histogram, RGB, HSB and K at "—".
 - **The blend modes are measured (phase 2's take) and composite by Lab arms (phase 3).**
@@ -256,10 +256,10 @@ the head, the unshipped contracts, "Photoshop in Lab (measured)" and `## Open it
   Load Selection (planes Lightness, a, b), Select ▸ Modify; `LUMINANCE_REFUSAL`. `lab_selection.rs`; L64–L65.
 - **4b-ii** (`9200efcd`): `lab_select_take.py` take1 VALID: sampled Color Range by C2
   (`lab_select::RANGE_RULE`), other ranges naming 6; the Magic Wand fit none of C1–C8 at 16 bits,
-  Similar unmeasured (#683).
+  Similar unmeasured (#5).
   `lab_color_select.rs`; L68.
 - **4c** (`8e7fa3ff`): the clipboard, Duplicate to New Document, copying layers; the Magic Wand and Select Similar
-  `AWAITING_TAKE` refusals (#683 for Similar).
+  `AWAITING_TAKE` refusals (#5 for Similar).
   `lab_clipboard.rs` (exactly Mode ▸ RGB Color with BPC and Mode ▸ Lab Color); L70–L71; admission
   `paste-rgb-into-lab-16`, `paste-lab-into-rgb-16` PASS (plan 2548 MB, needs ≤ 1322 MB).
 

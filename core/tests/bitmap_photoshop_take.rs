@@ -1,4 +1,4 @@
-//! #547 Bitmap phase 2b: Photoshop's takes of Image ▸ Mode ▸ Bitmap, read in
+//! #1 Bitmap phase 2b: Photoshop's takes of Image ▸ Mode ▸ Bitmap, read in
 //! place from `~/devel/doctored-fixtures/photoshop/bitmap-mode-547/`
 //! (never committed; `scripts/photoshop-probe/bitmap_take.py`, whose
 //! docstring fixes the scenes, the cases, the candidates, the gates and the

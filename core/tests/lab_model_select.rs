@@ -1,4 +1,4 @@
-//! #547 Lab phase 6b-ii: Quick Selection, Select and Mask's edge stage and
+//! #1 Lab phase 6b-ii: Quick Selection, Select and Mask's edge stage and
 //! Decontaminate Colors on a Lab Color document, through the FFI
 //! (`dr_precision_doc_select`, `dr_precision_doc_estimate_foreground(_plan)`).
 //! Quick Selection's ΔE76 reads the codes' own L\*a\*b\*; the edge stage

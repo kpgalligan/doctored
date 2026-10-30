@@ -1,8 +1,8 @@
-# CMYK document mode (#547): status
+# CMYK document mode (#1): status
 
 - **Status:** Open — phases 1, 2, 3, 4a, 4b, 4c and 5 shipped, the selection, adjustments-and-filters, channels,
   retouch, artwork, styles and remaining-gaps batches and round 2 (kept-CMYK export)
-- **Issue:** [#547](https://github.com/kpgalligan/doctored-dev/issues/547) (the colour-mode umbrella: CMYK here; Grayscale,
+- **Issue:** [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella: CMYK here; Grayscale,
   Lab, Indexed Color, Duotone, Bitmap, Multichannel and spot channels are closed — their ADRs; PDF/X is the
   rest)
 - **Code:** `core/src/cmyk_*.rs`, `core/src/ffi_cmyk.rs`; `app/Sources/CmykDocument.swift`, `DoctoredCore+Cmyk.swift`,
@@ -39,19 +39,19 @@
   Gamma 2.2) tested the tone against T-K, the Gray working space's grey of the profile Y and L*: every candidate MISS
   (T-K closest, 2 / 3 / 0 of about 88 samples, each within 10 codes of the level; Gray 2 / 9 / 4, L* 16 / 7 / 2), and
   the Gray Gamma case read exactly what Dot Gain 20 % did, so the tone does not follow the Gray working space. T-K stays
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - **Adjustment residuals.** Brightness/Contrast, Selective Color, Photo Filter (Photoshop moves K under Cooling),
   Shadows/Highlights and Replace Color MISS the take's bound and ship as built (the shipped record's adjustments entry);
   Gradient Map had no valid case, and Add Noise and the Clouds miss the statistical gate
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - **Dodge/Burn/Sponge/Protect Tones on ink ship as built: take2 cannot separate the tone rule from the stroke footprint.**
   take2 (`cmyk-retouch-547`) max / mean codes, H0 vs the best alternative: Dodge/Burn 73 / 9.1 vs `twin` 71 / 9.1 (midtone
   means about 1.6), Protect Tones 86 / 7.0 vs PT-LUM 92 / 8.4, Sponge 66 / 5.1 vs `twin` 67 / 5.1; the maxima come from dab
   placement and spacing. Equalize ships as H0 at max 2 / mean 0.74 vs EQ-SUM-MID 2 / 0.80
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - **Equalize with a selection is unmeasured.** Photoshop's `ArtLayer.equalize()` raises its Selected Area Only / Entire
   Image modal even with dialogs off (take1 stalled there), so neither choice is measured
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - **Absent at every depth** (a deviation of the retouch batch, not a CMYK gap): Content-Aware Scale.
   The **Art History Brush shipped**: on 8-bit RGB and on 8-bit CMYK ink
   (`art_history_stroke.rs`, `cmyk_art_history.rs`); 16 and 32 bits and 16-bit CMYK refuse it by name
@@ -76,7 +76,7 @@
   Cyan, Magenta and Black P/INC, Yellow P/HALF (a tie-break: INC also met). take2 BUILT every channel under it (worst max /
   mean 1 / 0.026 Gray, 1 / 0.066 C, 1 / 0.082 M, 2 / 0.135 Y — INC 1 / 0.105 —, 1 / 0.003 K), and the judge's 11 `bi_*`
   Doctored renders PASS (max ≤ 2). The 16-bit form is extrapolated, not measured
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - **Styled CMYK PSDs read back.** Doctored reading Photoshop's case PSDs (take2 judge): 66 of 89 within the bound —
   every Blend If case now; the bevel MISSES by the shared renderer's bevel geometry, the gradient overlay by up to 14
   codes, the outer glow on edge pixels (mean ≤ 0.65), and four Normal 50 cases by exactly 1 code on M everywhere.
@@ -86,8 +86,8 @@
   take2 opened every construct and the full styled export layered at psd8/psd16/psb16/tif16, plus RGB psd8/psd16. Its
   composites, recorded: drop and inner shadow up to 13 codes, inner glow 48 (M) and satin 55 MISS the 2-code bound at
   the effects' default size (rendering parity, not the `grdm` open failure). These composites were recorded before the
-  shadows' and the Outer Glow's box-pair law (#578 part 2); no number here changes.
-- The rest of [#547](https://github.com/kpgalligan/doctored-dev/issues/547): PDF/X and the Indexed Color PSD (Grayscale,
+  shadows' and the Outer Glow's box-pair law (#2 part 2); no number here changes.
+- The rest of [#1](https://github.com/kpgalligan/doctored/issues/1): PDF/X and the Indexed Color PSD (Grayscale,
   Lab, Indexed Color, Duotone, Bitmap and spot channels closed by their ADRs, Multichannel closed by decision,
   `designs/multichannel-mode.md`). Spot channels: [spot-channels.md](spot-channels.md).
 

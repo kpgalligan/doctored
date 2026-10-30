@@ -112,7 +112,7 @@ extension RasterDocument {
     /// request is the whole canvas at its own size; a refusal is thrown with
     /// the core's sentence. On an Indexed document an area the quad leaves
     /// uncovered takes the entry nearest `indexedBackground` when there is no
-    /// transparent index (#547 Indexed phase 3b); nil is white.
+    /// transparent index (#1 Indexed phase 3b); nil is white.
     func perspectiveCropped(_ request: PerspectiveCropRequest, described: [Int],
                             indexedBackground: NSColor? = nil) throws -> PreparedDocumentEdit? {
         try performingCanvasGeometry(

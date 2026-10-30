@@ -418,10 +418,10 @@ impl Execution<'_> {
             }
             let work = self.plan.layers[self.index].clone();
             self.index += 1;
-            // The CMYK arm (#547 phase 4b): the raster arm below over
+            // The CMYK arm (#1 phase 4b): the raster arm below over
             // CMYKA16 ink (`PlaneWork::cmyk_image`), with no retained source
             // (a CMYK record holds none); a changed raster drops its
-            // description exactly where the RGB arm does (#547's artwork
+            // description exactly where the RGB arm does (#1's artwork
             // batch).
             if let (Content::CmykRaster { image, offset }, Some(image_work)) =
                 (&layer.content, &work.image)

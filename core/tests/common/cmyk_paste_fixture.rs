@@ -1,5 +1,5 @@
 //! The CMYK paste tests' SECOND synthetic press profile and the CMYK → CMYK
-//! oracle (#547 phase 4c), written from the ICC specification and the CIE
+//! oracle (#1 phase 4c), written from the ICC specification and the CIE
 //! formulas beside `common/cmyk_fixture.rs` (profile A), never read off the
 //! implementation.
 //!

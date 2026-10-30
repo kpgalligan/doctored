@@ -42,7 +42,7 @@ extension NativeChannelMath {
         guard let source = doc.precision else { throw DoctoredCoreError(message: "Native luminosity masks require a 16-bit source.") }
         try source.requireChannelCapacity(additional: 9)
         let reader = NativePlaneReader(doc, control: control)
-        // A Lab document's luminosity is its Lightness, the stored red codes (#547 Lab close).
+        // A Lab document's luminosity is its Lightness, the stored red codes (#1 Lab close).
         let luma = try reader.plane(layer: nil, choice: .plane(doc.isLab ? .red : .luma))
         var current = source
         for band in ["lights", "darks", "midtones"] {

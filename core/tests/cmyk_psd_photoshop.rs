@@ -1,4 +1,4 @@
-//! Photoshop-authored layered CMYK files (#547 phase 3): take1 of
+//! Photoshop-authored layered CMYK files (#1 phase 3): take1 of
 //! `scripts/photoshop-probe/cmyk_files_take.py`
 //! (`~/devel/doctored-fixtures/photoshop/cmyk-psd-547/take1`, Photoshop
 //! 26.10.0), whose docstring fixed every bound below before the take. SKIPS
@@ -114,7 +114,7 @@ fn kind_of(doc: &PrecisionDocument, layer: &PrecisionDocumentLayer) -> &'static 
         "levels" => "LayerKind.LEVELS",
         "curves" => "LayerKind.CURVES",
         "hue_saturation" => "LayerKind.HUESATURATION",
-        // Carried since the styles batch (#547).
+        // Carried since the styles batch (#1).
         "bcs" => "LayerKind.BRIGHTNESSCONTRAST",
         other => panic!("unexpected op {other}"),
     }
@@ -524,7 +524,7 @@ fn photoshops_layered_cmyk_files_import_exactly() {
                     assert!(has(losses, line), "{file}: no “{line}” in {losses}");
                 }
                 // The drop shadow's CMYK colour CARRIES since the styles
-                // batch (#547), the gray Blend If since the Blend If batch.
+                // batch (#1), the gray Blend If since the Blend If batch.
                 let observations = &r["observations"];
                 for line in [
                     "(“Shadow”) has Photoshop layer effects (drop_shadow",

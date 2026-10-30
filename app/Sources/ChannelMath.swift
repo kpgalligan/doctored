@@ -9,7 +9,7 @@ enum PlaneChoice: Equatable {
     case rgb
     case plane(RasterPlane)
     case channel(Int)
-    /// One ink plate of a CMYK document's composite or layer (#547), as its stored `1 − ink`.
+    /// One ink plate of a CMYK document's composite or layer (#1), as its stored `1 − ink`.
     /// On a CMYK document `.rgb` is the CMYK composite (spelled `cmyk`): plate for plate against
     /// a CMYK layer, its luminosity against one plate or channel (`NativeChannelMath`).
     case ink(CmykPlane)
@@ -211,7 +211,7 @@ enum ChannelMath {
         case .mask, .ink:
             // Apply Image targets the composite, a colour plane or an alpha
             // channel — the sheet disables Apply for a mask target (and an ink
-            // plate, #547) rather than inventing a meaning for it.
+            // plate, #1) rather than inventing a meaning for it.
             return nil
         }
     }
@@ -267,7 +267,7 @@ enum ChannelMath {
             // says nothing about it and is deliberately ignored.
             raw = reader.channel(index)
         case .ink:
-            // #547: a CMYK document's plates are typed (`NativeChannelMath`).
+            // #1: a CMYK document's plates are typed (`NativeChannelMath`).
             raw = nil
         }
         guard let bytes = raw else { return nil }

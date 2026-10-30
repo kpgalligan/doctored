@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Mode ▸ Color Table… (#547 Indexed phase 1c): the dialog (`ColorTableSheetController`,
+// Image ▸ Mode ▸ Color Table… (#1 Indexed phase 1c): the dialog (`ColorTableSheetController`,
 // `.document`) over an Indexed Color document's table, then the edit as ONE undo step
 // (`IndexedColorTableEdit`, recorded as `set_color_table`). Enabled only on an Indexed document,
 // not during a live edit or other work. The MCP twins are `get_color_table` and

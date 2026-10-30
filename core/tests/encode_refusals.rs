@@ -28,7 +28,7 @@
 //!
 //! The failing profile is a gamma-0 `curv` matrix/TRC profile named
 //! "Synthetic Bad Gamma", built byte by byte (`common/icc_lut_builders`). The
-//! falling-boundary split (#578) is `encode_refusals_falling.rs`, which reuses
+//! falling-boundary split (#2) is `encode_refusals_falling.rs`, which reuses
 //! the `pub(crate)` documents and outcome helpers here.
 
 use std::ffi::{c_char, CStr, CString};

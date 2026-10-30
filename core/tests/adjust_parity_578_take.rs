@@ -1,4 +1,4 @@
-//! #578 part 1: the take record of `adjust-parity-578/take1`
+//! #2 part 1: the take record of `adjust-parity-578/take1`
 //! (`scripts/photoshop-probe/adjust_parity_578_take.py`), Photoshop 26.10.0
 //! on a fresh scene: Levels (`R8(h,h,x)` at 8 bits, Color Balance's Hermite
 //! toe H-CB at 16) and Posterize (`floor(c·n/256)` bins at 8 bits, the 15-bit

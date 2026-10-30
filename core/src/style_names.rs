@@ -45,7 +45,7 @@ pub(crate) const BLEND_NAMES: [(&str, BlendMode); 27] = [
     ("luminosity", BlendMode::Luminosity),
 ];
 
-/// The Blend If channels: Gray, an RGB document's three and (#547) a CMYK
+/// The Blend If channels: Gray, an RGB document's three and (#1) a CMYK
 /// document's four plates. Which a document admits is its setter's question
 /// (`precision_blend_if::validate`), not the parser's.
 pub(crate) const CHANNELS: [(&str, BlendIfChannel); 8] = [
@@ -108,7 +108,7 @@ pub(crate) const BEVEL_STYLES: [(&str, BevelStyle); 4] = [
 pub(crate) const BEVEL_DIRECTIONS: [(&str, BevelDirection); 2] =
     [("up", BevelDirection::Up), ("down", BevelDirection::Down)];
 
-/// Bevel & Emboss > Technique (#578), in the dialog's own order.
+/// Bevel & Emboss > Technique (#2), in the dialog's own order.
 pub(crate) const BEVEL_TECHNIQUES: [(&str, BevelTechnique); 3] = [
     ("smooth", BevelTechnique::Smooth),
     ("chisel_hard", BevelTechnique::ChiselHard),

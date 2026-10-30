@@ -1,4 +1,4 @@
-//! #547 Lab phase 2f, the luma-reading filters on a Lab Color layer
+//! #1 Lab phase 2f, the luma-reading filters on a Lab Color layer
 //! (`lab_channel_filter`), through the FFI. Oracles written here, never the
 //! Lab path:
 //!

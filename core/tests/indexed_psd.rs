@@ -1,4 +1,4 @@
-//! #547's Indexed Color PSD and PSB files (colour mode 2) through the FFI.
+//! #1's Indexed Color PSD and PSB files (colour mode 2) through the FFI.
 //! Adobe's Photoshop File Format Specification is the oracle: depth 8, mode
 //! 2, a 768-byte planar Color Mode Data section (256 reds, greens, blues),
 //! resource 1046 the count in use (else 256), resource 1047 the transparent

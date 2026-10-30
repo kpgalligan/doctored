@@ -1,4 +1,4 @@
-//! Type, shape and fill layers on a Grayscale document (#547 phase 6a-i,
+//! Type, shape and fill layers on a Grayscale document (#1 phase 6a-i,
 //! `designs/grayscale-mode.md`): the greying of an artwork
 //! description's colours and the fold of its rendered pixels.
 //!
@@ -189,7 +189,7 @@ pub(crate) fn fold_artwork(
 }
 
 /// `image`, a result `doc` is about to publish, folded to its gray when `doc`
-/// is a Gray document (#547 phase 6b: the neural, generative and Merge to
+/// is a Gray document (#1 phase 6b: the neural, generative and Merge to
 /// HDR results, and since the close a placed image's rendered pixels, whose
 /// colour comes from outside the document): `image`
 /// unchanged on any other document or when [`fold_artwork`] finds it

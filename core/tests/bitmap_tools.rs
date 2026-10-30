@@ -1,4 +1,4 @@
-//! #547 Bitmap phase 3 through the FFI: the tools phase 3 built on a Bitmap
+//! #1 Bitmap phase 3 through the FFI: the tools phase 3 built on a Bitmap
 //! document (the Gradient, the Clone Stamp, the History Brush, Liquify,
 //! Perspective Crop, Copy, the layer row's name, label and lock, and the
 //! source selections) and the refusals it made for good, in their three

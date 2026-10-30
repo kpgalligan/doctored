@@ -31,7 +31,7 @@ extension RasterPrecisionImage {
 }
 
 extension RasterPrecisionDocument {
-    /// The scan over a CMYK document's composite ink (#547 phase 4b): a corner
+    /// The scan over a CMYK document's composite ink (#1 phase 4b): a corner
     /// basis compares all five codes. The composite's scratch is admitted
     /// against `workingLimit` beside `otherRetained`; nil when every pixel is
     /// trimmable, a throw when refused.

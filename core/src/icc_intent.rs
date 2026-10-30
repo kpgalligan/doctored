@@ -315,7 +315,7 @@ impl ColorPipeline {
     /// path's typed encoder and the fast path's precision tables. The byte
     /// `Transform` is inline in the pipeline, its owner's to count. A Lab
     /// document's prepared colour adjustment records its two pipelines here
-    /// (`adjust_precision`, #547 phase 2c).
+    /// (`adjust_precision`, #1 phase 2c).
     pub(crate) fn record_resources(&self, inventory: &mut crate::resources::Inventory) {
         if let Some((_, typed)) = &self.fast {
             typed.record_resources(inventory);

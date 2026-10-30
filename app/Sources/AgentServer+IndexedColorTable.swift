@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Mode ▸ Color Table over MCP (#547 Indexed phase 1c): `get_color_table` reads an Indexed
+// Image ▸ Mode ▸ Color Table over MCP (#1 Indexed phase 1c): `get_color_table` reads an Indexed
 // Color document's palette and transparent index (and with `path` writes them as an Adobe Color
 // Table `.act`); `set_color_table` replaces them from `colors` or an `.act` at `path`, ONE undo
 // step, every pixel keeping its index — the UI path is `EditorViewController+ColorTable.swift`'s

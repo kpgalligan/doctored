@@ -1,4 +1,4 @@
-//! Photoshop-authored Lab files (#547 Lab phase 3a), from
+//! Photoshop-authored Lab files (#1 Lab phase 3a), from
 //! `scripts/photoshop-probe/lab_files_take.py` (Photoshop 26.10.0), read IN
 //! PLACE under its receipts (`~/devel/doctored-fixtures/photoshop/
 //! lab-files-547/`, never committed); each test SKIPS with an eprintln when

@@ -1,4 +1,4 @@
-//! #547's Indexed Color PSD and PSB against Photoshop's own files
+//! #1's Indexed Color PSD and PSB against Photoshop's own files
 //! (`tests/fixtures/psd_photoshop/indexed_547`, authored by
 //! `scripts/photoshop-probe/indexed_psd_take.py`'s take1 from the runner's
 //! scenes). Each fixture's length and this suite's parse (`indexed_psd::parse`)

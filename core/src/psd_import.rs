@@ -17,7 +17,7 @@
 //! the layered choice (`psd_import_float::layered_refusal`) and its float
 //! losses and observation come from `psd_import_float::float_report_lines`.
 //!
-//! A CMYK file (colour mode 4, #547 phase 3) runs through the SAME record walk
+//! A CMYK file (colour mode 4, #1 phase 3) runs through the SAME record walk
 //! with its own admission (`Container::cmyk_layered_admission`), profile
 //! policy (`cmyk_io::psd_policy`), stored composite (`cmyk_admission` then
 //! `cmyk_composite`), general limitations and report lines
@@ -26,7 +26,7 @@
 //! structural-Background knockout disclosure (a CMYK import discards
 //! knockout) — are skipped for it.
 //!
-//! A Grayscale file (colour mode 1) at 8, 16 or 32 bits (#547 phases 3a and
+//! A Grayscale file (colour mode 1) at 8, 16 or 32 bits (#1 phases 3a and
 //! 3c) reports `import_precision` `"gray"`: the same walk through `parse_with`
 //! with a decode-only Gray policy (`psd_import_gray::gray_policy` under Dot
 //! Gain 20 %, since the report takes no working Gray; an unusable profile is
@@ -36,7 +36,7 @@
 //! adjustment the Gray table refuses, and every fill, gets the omission loss.
 //! A 32-bit gray file's stored composite is `psd_import_float::composite32`.
 //!
-//! A Lab file (colour mode 9) at 8 or 16 bits (#547 Lab phase 3a) reports
+//! A Lab file (colour mode 9) at 8 or 16 bits (#1 Lab phase 3a) reports
 //! `import_precision` `"lab"`: the same walk through `parse_with` with no
 //! profile (a Lab file's embedded profile, when present, is unused and
 //! named), its own admission (`psd_import_lab::lab_admission`, in place of
@@ -46,7 +46,7 @@
 //! and typed-loss lines skipped. A carried adjustment the Lab table refuses,
 //! and every fill, gets the omission loss; `"profile"` is null.
 //!
-//! A Duotone file (colour mode 8) at 8 or 16 bits (#547 Duotone phase 1b)
+//! A Duotone file (colour mode 8) at 8 or 16 bits (#1 Duotone phase 1b)
 //! reports as the Gray file it stores (`Container::duotone_gray`,
 //! `import_precision` `"gray"`) with `"color_mode"` `"Duotone"`, a first
 //! observation naming the inks and `"duotone"` the normalized options; a
@@ -81,7 +81,7 @@ pub(crate) fn parse<'a>(
     parse_with(bytes, container, None)
 }
 
-/// [`parse`], with a gray file's policy (#547 phase 3a): `Some` decodes its
+/// [`parse`], with a gray file's policy (#1 phase 3a): `Some` decodes its
 /// layer styles' `Grsc` colours through that Gray profile
 /// (`FxColours::Gray`, `GroupRecords::read`); `None` keeps every other read.
 pub(crate) fn parse_with<'a>(
@@ -94,10 +94,10 @@ pub(crate) fn parse_with<'a>(
     // back (`authored_color`). `None` for an sRGB file and for a LUT profile
     // that cannot convert both ways, whose numbers stay as stored — and for a
     // CMYK file, whose profile `Container::profile` does not read and whose
-    // import carries no effect colour (#547 phase 3), and for a gray file,
-    // whose Gray profile `Container::profile` does not read either (#547
+    // import carries no effect colour (#1 phase 3), and for a gray file,
+    // whose Gray profile `Container::profile` does not read either (#1
     // phase 3a; its colours cross through `gray`), and for a Lab file, whose
-    // document is the Lab twin and whose colours are `LbCl` (#547 Lab 3a).
+    // document is the Lab twin and whose colours are `LbCl` (#1 Lab 3a).
     let profile = if matches!(container.color, 1 | 4 | 9) {
         None
     } else {
@@ -127,7 +127,7 @@ pub(crate) fn parse_with<'a>(
     // The reverse, for a colour this crate DECODES as sRGB and must hand to
     // the document: today only the `phfl` Lab photo-filter colour.
     let to_document = profile.as_deref().and_then(AuthoredColors::into_document);
-    // A CMYK file's (#547): an sRGB colour Photoshop wrote where the record
+    // A CMYK file's (#1): an sRGB colour Photoshop wrote where the record
     // means ink (a `phfl` in RGB or Lab) goes through the file's own CMYK
     // profile, relative colorimetric with BPC (`cmyk_io::psd_policy`).
     let policy = if container.color == 4 {
@@ -256,31 +256,31 @@ pub(crate) fn report(original: &[u8], path: &str) -> Result<Value, String> {
         .map_err(|e| format!("PSD {path}: {e}"))?;
     let bytes = converted.as_deref().unwrap_or(original);
     let read = Container::read(bytes).map_err(|e| format!("PSD {path}: {e}"))?;
-    // A Bitmap file (colour mode 0, #547 Bitmap phase 1c) has its own report
+    // A Bitmap file (colour mode 0, #1 Bitmap phase 1c) has its own report
     // (`bitmap_psd`): one 1-bit composite, no layers.
     if read.color == 0 {
         return crate::bitmap_psd::import_report(&read, bytes, path);
     }
-    // An Indexed Color file (colour mode 2, #547) has its own report
+    // An Indexed Color file (colour mode 2, #1) has its own report
     // (`indexed_psd`): one index plane and its table, no layered choice.
     if read.color == 2 {
         return crate::indexed_psd::import_report(&read, bytes, path);
     }
-    // A Duotone file (#547 Duotone phase 1b) reports as the Gray file it
+    // A Duotone file (#1 Duotone phase 1b) reports as the Gray file it
     // stores (`Container::duotone_gray`), with its inks beside it.
     let duotone = read
         .duotone_gray()
         .is_some()
         .then(|| crate::duotone_files::container_inks(&read));
     let container = read.duotone_gray().unwrap_or(read);
-    // A CMYK file (#547 phase 3) takes its own admission and profile policy
+    // A CMYK file (#1 phase 3) takes its own admission and profile policy
     // in place of `support_refusal` and `profile`, which are RGB/gray only.
     let cmyk = container.color == 4;
-    // A Grayscale file at 8, 16 or 32 bits (#547 phases 3a and 3c) opens as
+    // A Grayscale file at 8, 16 or 32 bits (#1 phases 3a and 3c) opens as
     // a Gray document: its policy decodes its records, and its profile is not
     // `Container::profile`'s.
     let gray = container.color == 1 && matches!(container.depth, 8 | 16 | 32);
-    // A Lab file at 8 or 16 bits (#547 Lab phase 3a) opens as a Lab document:
+    // A Lab file at 8 or 16 bits (#1 Lab phase 3a) opens as a Lab document:
     // its own admission, no profile, its own composite and lines.
     let lab = container.color == 9 && matches!(container.depth, 8 | 16);
     // An RGB file at 32 bits opens as a float document, and an RGB or gray
@@ -383,7 +383,7 @@ pub(crate) fn report(original: &[u8], path: &str) -> Result<Value, String> {
         Some(if container.depth == 16 {
             container.composite16().map(|_| ())
         } else if container.depth == 32 {
-            // A 32-bit RGB or gray file (#547 phase 3c).
+            // A 32-bit RGB or gray file (#1 phase 3c).
             crate::psd_import_float::composite32(&container).map(|_| ())
         } else {
             container.composite().map(|_| ())
@@ -409,7 +409,7 @@ pub(crate) fn report(original: &[u8], path: &str) -> Result<Value, String> {
             );
             if let Some(carried) = records.carried(index) {
                 // A gray file's adjustment the Gray table refuses is omitted
-                // by the gray open (#547 phase 3a).
+                // by the gray open (#1 phase 3a).
                 if let Some(reason) = gray
                     .then(|| crate::psd_import_gray::adjustment_refusal(layer, carried, gray_float))
                     .flatten()
@@ -417,7 +417,7 @@ pub(crate) fn report(original: &[u8], path: &str) -> Result<Value, String> {
                     losses.push(format!("Layer {index} (“{}”) is a Photoshop {} adjustment layer ({}) that a Grayscale document cannot hold ({reason}); layered import omits it and its mask, so the layers beneath it appear without that adjustment. The stored composite keeps the saved appearance.", layer.name(), carried.kind, String::from_utf8_lossy(&carried.key)));
                     continue;
                 }
-                // …and a Lab file's the Lab table refuses (#547 Lab phase 3a).
+                // …and a Lab file's the Lab table refuses (#1 Lab phase 3a).
                 if let Some(reason) = lab
                     .then(|| crate::psd_import_lab::adjustment_refusal(carried))
                     .flatten()
@@ -453,12 +453,12 @@ pub(crate) fn report(original: &[u8], path: &str) -> Result<Value, String> {
                 continue;
             }
             if let Some(fill) = records.fill(index) {
-                // A gray file's fill layers are omitted (#547 phase 3a).
+                // A gray file's fill layers are omitted (#1 phase 3a).
                 if gray {
                     losses.push(format!("Layer {index} (“{}”) is a Photoshop {} layer ({}); a Grayscale document's layered import omits fill layers and their masks. The stored composite keeps the saved appearance.", layer.name(), fill.kind_name(), String::from_utf8_lossy(&fill.key())));
                     continue;
                 }
-                // …and so does a Lab file's (#547 Lab phase 3a).
+                // …and so does a Lab file's (#1 Lab phase 3a).
                 if lab {
                     losses.push(format!("Layer {index} (“{}”) is a Photoshop {} layer ({}); a Lab Color document's layered import omits fill layers and their masks. The stored composite keeps the saved appearance.", layer.name(), fill.kind_name(), String::from_utf8_lossy(&fill.key())));
                     continue;

@@ -117,7 +117,7 @@ fn group_adjustments_observe_isolation_and_premultiplied_group_opacity() {
         for (c, &input) in [12001_u16, 23002, 34003].iter().enumerate() {
             let normalized = f64::from(input) / 65535.0;
             let expected = if expected_changes {
-                // Each opacity at its byte (#578).
+                // Each opacity at its byte (#2).
                 normalized
                     + (1.0 - 2.0 * normalized)
                         * crate::common::byte_unit(0.625)
@@ -446,7 +446,7 @@ fn capture_descriptor_never_copies_large_operator_payloads_or_names() {
 // ---- measured adjustment retention (writer plan and native reopen) ----
 
 /// The calibrated White Balance encoder table: 3 channels x 65537 binary64
-/// entries. (A calibrated Exposure holds no encoder since #578: it needs only
+/// entries. (A calibrated Exposure holds no encoder since #2: it needs only
 /// one exponent per channel.)
 const ENC: u64 = 3 * 65_537 * 8;
 

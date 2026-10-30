@@ -1,7 +1,7 @@
 import AppKit
 import UniformTypeIdentifiers
 
-/// Image ▸ Mode ▸ Duotone… (#547 Duotone phase 1a): Type (Monotone, Duotone, Tritone, Quadtone),
+/// Image ▸ Mode ▸ Duotone… (#1 Duotone phase 1a): Type (Monotone, Duotone, Tritone, Quadtone),
 /// and per ink a name, its D50 L*, a*, b* with a swatch drawn through a D50 Lab colour space, and
 /// Curve… (`DuotoneCurveSheetController`); then Overprint Colors… for two or more inks
 /// (`DuotoneOverprintSheetController`). Apply asks the core first (`refusal`: the options

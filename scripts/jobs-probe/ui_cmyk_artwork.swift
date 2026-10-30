@@ -1,6 +1,6 @@
 import AppKit
 
-// The artwork batch's in-process UI cases (#547): the Type tool on a CMYK document — a new text
+// The artwork batch's in-process UI cases (#1): the Type tool on a CMYK document — a new text
 // layer committed from the canvas session in the foreground's picked ink, kept exactly through an
 // unchanged reopen and an edit — and a gradient fill layer's sheet reopened from the Layers panel,
 // whose angle-only Apply keeps every stop's ink. The CMYK profile is macOS's Generic CMYK Profile.

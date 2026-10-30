@@ -16,7 +16,7 @@ extension AgentServer {
     func getPrecision(_ a: [String: Any]) throws -> String {
         let document = try target(a)
         guard let doc = document.doc else { throw ToolError(message: "Document has no image") }
-        // #547 phase 1c: a Grayscale document answers its own gate's list.
+        // #1 phase 1c: a Grayscale document answers its own gate's list.
         if doc.isGray {
             var result = GrayDocument.support(doc)
             let depth = doc.grayDepth ?? 0
@@ -29,7 +29,7 @@ extension AgentServer {
             }
             return try jsonResult(result)
         }
-        // #547 Lab phase 1c: a Lab Color document answers its own gate's list.
+        // #1 Lab phase 1c: a Lab Color document answers its own gate's list.
         if doc.isLab {
             var result = LabDocument.support(doc)
             let depth = doc.labDepth ?? 0
@@ -61,11 +61,11 @@ extension AgentServer {
     /// route. All unmapped tools have already been refused by the shared gate.
     func dispatchPrecision(_ tool: String, _ a: [String: Any]) throws -> String? {
         guard let document = try? target(a), document.doc?.isHighDepth == true else { return nil }
-        // #547: a CMYK document's own routes first (AgentServer+CmykMode.swift).
+        // #1: a CMYK document's own routes first (AgentServer+CmykMode.swift).
         if let result = try dispatchCmyk(tool, a, document: document) { return result }
-        // #547 phase 5a: a Grayscale document's profile and depth routes (AgentServer+GrayColour.swift).
+        // #1 phase 5a: a Grayscale document's profile and depth routes (AgentServer+GrayColour.swift).
         if let result = try dispatchGrayColour(tool, a, document: document) { return result }
-        // #547 Lab phase 5a: a Lab document's depth route (AgentServer+LabColour.swift).
+        // #1 Lab phase 5a: a Lab document's depth route (AgentServer+LabColour.swift).
         if let result = try dispatchLabColour(tool, a, document: document) { return result }
         switch tool {
         case "get_document":
@@ -135,7 +135,7 @@ extension AgentServer {
         return try jsonResult(["ok": true, "changed": changed, "layer": index ?? document.activeLayerIndex,
                                "op": op.rawValue, "position": position.rawValue,
                                "evaluation": PrecisionAdjustment.evaluation,
-                               // #547: a CMYK document's Levels/Curves layer acts on ink.
+                               // #1: a CMYK document's Levels/Curves layer acts on ink.
                                "storage": capture.source.isCmyk ? "cmyka16_unorm" : "rgba16_unorm"])
     }
 }

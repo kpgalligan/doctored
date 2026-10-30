@@ -12,7 +12,7 @@ enum ChannelRow: Equatable {
     case layerMask
     /// A document channel, by index into `RasterDocument.channelCount`.
     case alpha(Int)
-    /// One ink plane of a CMYK document (#547): selecting it shows the plane and targets it for
+    /// One ink plane of a CMYK document (#1): selecting it shows the plane and targets it for
     /// the Move tool and ⌘T on its selected pixels (`PaintTarget.ink`); painting, filling and
     /// adjusting one plate refuse by name.
     case ink(CmykPlane)
@@ -52,7 +52,7 @@ enum ChannelRow: Equatable {
     }
 
     /// Where Load Selection reads this row's plane from, given the layer the
-    /// panel is showing a mask for. On a CMYK document (#547) the composite row loads the
+    /// panel is showing a mask for. On a CMYK document (#1) the composite row loads the
     /// composite's luminosity and an ink row its plate's stored `1 − ink`.
     func selectionSource(activeLayer: Int, isCmyk: Bool) -> SelectionSource {
         switch self {
@@ -75,7 +75,7 @@ enum SelectionSource: Equatable {
     case layerMask(Int)
     /// Red / green / blue / luma / alpha of the flattened composite.
     case compositePlane(RasterPlane)
-    /// One ink plate of a CMYK document's composite (#547), loaded as its stored `1 − ink`.
+    /// One ink plate of a CMYK document's composite (#1), loaded as its stored `1 − ink`.
     case inkPlate(CmykPlane)
 }
 
@@ -336,10 +336,10 @@ extension RasterDocument {
     /// mask row appears only while that layer has a mask; the alpha rows
     /// follow the document's own channel order.
     func channelRows(activeLayer: Int) -> [ChannelRow] {
-        // #547: a CMYK document lists its composite and its four inks, then (the channels
+        // #1: a CMYK document lists its composite and its four inks, then (the channels
         // batch) the active layer's mask and its alpha channels, as RGB does. A Grayscale
-        // document (#547 phase 1c) lists its one Gray row, then the mask and alpha rows.
-        // A Lab Color document (#547 Lab phase 1c) lists its Lab composite and its Lightness, a
+        // document (#1 phase 1c) lists its one Gray row, then the mask and alpha rows.
+        // A Lab Color document (#1 Lab phase 1c) lists its Lab composite and its Lightness, a
         // and b rows (the R, G and B planes of its codes), then the mask and alpha rows.
         var rows: [ChannelRow] = isGray
             ? [.composite]
@@ -366,7 +366,7 @@ extension RasterDocument {
     /// space, not sRGB (`ChannelsPanelViewController`'s thumbnail well).
     ///
     /// On a Lab Color document a plane row is extracted from `labCodes`, the raw-code thumbnail
-    /// the panel fitted ONCE per reload (`labCodeThumbnail`, #547 Lab phase 1c): no row reads the
+    /// the panel fitted ONCE per reload (`labCodeThumbnail`, #1 Lab phase 1c): no row reads the
     /// full projection, and none reads the Display P3 view.
     func planeImage(
         for row: ChannelRow, composite: RasterImage?, activeLayer: Int, maxSide: Int,
@@ -399,7 +399,7 @@ extension RasterDocument {
         case .layerMask:
             return layerPlaneImage(activeLayer, DR_PLANE_MASK, maxSide: maxSide)
         case .alpha(let index):
-            // A spot channel's row is ink dark (#547, `spotThumbnail`).
+            // A spot channel's row is ink dark (#1, `spotThumbnail`).
             return spotThumbnail(index, channelImage(index, maxSide: maxSide))
         case .ink:
             return nil

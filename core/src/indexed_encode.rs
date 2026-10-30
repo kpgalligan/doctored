@@ -1,4 +1,4 @@
-//! The encoders of an Indexed Color document's kept-Indexed export (#547
+//! The encoders of an Indexed Color document's kept-Indexed export (#1
 //! Indexed phase 1b, `indexed_export`): the palette, the transparent index
 //! and the index plane written as they are, with no render and no
 //! quantization. Free functions over one byte a pixel.

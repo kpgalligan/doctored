@@ -46,7 +46,7 @@
 //! | selc | Adobe's 84-byte selective-colour table; layout and mapping in `psd_adjustment_extra` | `selective_color` |
 //! | blwh | u32 version=16, descriptor class `null`: `Rd  ` `Yllw` `Grn ` `Cyn ` `Bl  ` `Mgnt` long; `useTint` bool; `tintColor` Objc class `RGBC` {`Rd  `, `Grn `, `Bl  ` doub 0…255}; `bwPresetKind` long; `blackAndWhitePresetFileName` TEXT (294) | weights `/100` as `reds`…`magentas`, `tint=useTint`, `tint_color` from the rounded RGBC doubles; a `tintColor` that is not an `RGBC` object of three finite doubles is declined; preset kind and file name ignored ← ; `round(w*100)`, the bool, RGBC doubles from `tint_color`, preset kind 1, name "" → |
 //!
-//! A CMYK document (#547 phase 3 and the styles batch) reads and writes twelve
+//! A CMYK document (#1 phase 3 and the styles batch) reads and writes twelve
 //! kinds through [`decode_cmyk`] / [`encode_cmyk`], its description the
 //! `cmyk_adjust` schema with the typed `evaluation` key (`cmyk_adjust_layer`):
 //!

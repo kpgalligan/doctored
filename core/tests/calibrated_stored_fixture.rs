@@ -92,7 +92,7 @@ const OWN_PROFILE_SENTENCE: &str = "Doctored cannot encode colour into \u{201c}S
      \u{25b8} Convert to Profile\u{2026}).";
 
 /// The `document_v2` render. Oracle, derived by hand: the gamma-0 TRC parses
-/// as `Identity`, so Exposure's per-channel gamma is 1 (rule Γ, #578) and
+/// as `Identity`, so Exposure's per-channel gamma is 1 (rule Γ, #2) and
 /// each channel is linear as stored; the gain is 2^0.7 ≈ 1.6245, clamped to
 /// [0, 1] and rounded to the 8-bit grid. 200·1.6245 = 324.9 → 255, 40 →
 /// 64.98 → 65, 90 → 146.2 → 146, 10 → 16.2 → 16, 220 → 357.4 → 255, 130 →
@@ -196,7 +196,7 @@ fn the_stored_calibrated_layer_keeps_rendering_exporting_and_merging() {
         })
     );
     // Gamma 0 makes the curves repaired (`precision_compatible` false), so a
-    // NEW Exposure is refused too, not only a White Balance (#578).
+    // NEW Exposure is refused too, not only a White Balance (#2).
     let exposure = CString::new("exposure").expect("op");
     assert_eq!(
         unsafe { text(dr_doc_calibrated_refusal(doc, exposure.as_ptr())) }.as_deref(),

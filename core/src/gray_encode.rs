@@ -1,4 +1,4 @@
-//! One-channel encoders for a Grayscale document's kept-gray export (#547
+//! One-channel encoders for a Grayscale document's kept-gray export (#1
 //! phase 1b, `gray_export`): PNG (L8, LA8, L16, LA16), TIFF (one BlackIsZero
 //! sample, or two with straight alpha, at 8 or 16 bits; `tiff_encode`) and
 //! baseline JPEG (L8). Free functions over interleaved samples; the caller

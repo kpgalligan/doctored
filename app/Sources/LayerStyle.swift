@@ -222,7 +222,7 @@ struct GradientStop: Codable, Equatable {
     var position: Double
     var color: String
     var opacity: Double
-    /// A CMYK document's straight ink [c, m, y, k] 0…1 (#547): authoritative
+    /// A CMYK document's straight ink [c, m, y, k] 0…1 (#1): authoritative
     /// there, `color` its sRGB; absent elsewhere.
     var ink: [Double]? = nil
     /// The colour midpoint toward the next stop as a fraction
@@ -296,10 +296,10 @@ struct BlendIf: Codable, Equatable {
     static let fullRamp = [0, 0, 255, 255]
     static let channels = ["gray", "red", "green", "blue"]
     static let titles = ["Gray", "Red", "Green", "Blue"]
-    /// A CMYK document's channels (#547): Gray and the four plates.
+    /// A CMYK document's channels (#1): Gray and the four plates.
     static let cmykChannels = ["gray", "cyan", "magenta", "yellow", "black"]
     static let cmykTitles = ["Gray", "Cyan", "Magenta", "Yellow", "Black"]
-    /// A Lab Color document's channels (#547 Lab phase 2f): Lightness, a and b, stored as red,
+    /// A Lab Color document's channels (#1 Lab phase 2f): Lightness, a and b, stored as red,
     /// green and blue (`lab_style::BLEND_IF_CHANNELS`); Gray refuses.
     static let labChannels = ["red", "green", "blue"]
     static let labTitles = ["Lightness", "a", "b"]
@@ -359,7 +359,7 @@ struct DropShadowEffect: Codable, Equatable {
     var enabled = true
     var blend = "multiply"
     var color = "#000000"
-    /// The slot's CMYK ink (#547, `GradientStop.ink`).
+    /// The slot's CMYK ink (#1, `GradientStop.ink`).
     var ink: [Double]? = nil
     /// The slot's wide colour (`StyleSlotColor`): linear-light sRGB
     /// components, extended range; nil writes no key.
@@ -387,7 +387,7 @@ struct InnerShadowEffect: Codable, Equatable {
     var enabled = true
     var blend = "multiply"
     var color = "#000000"
-    /// The slot's CMYK ink (#547, `GradientStop.ink`).
+    /// The slot's CMYK ink (#1, `GradientStop.ink`).
     var ink: [Double]? = nil
     /// The slot's wide colour (`StyleSlotColor`): linear-light sRGB
     /// components, extended range; nil writes no key.
@@ -412,7 +412,7 @@ struct OuterGlowEffect: Codable, Equatable {
     var enabled = true
     var blend = "screen"
     var color = "#ffffbe"
-    /// The slot's CMYK ink (#547, `GradientStop.ink`).
+    /// The slot's CMYK ink (#1, `GradientStop.ink`).
     var ink: [Double]? = nil
     /// The slot's wide colour (`StyleSlotColor`): linear-light sRGB
     /// components, extended range; nil writes no key.
@@ -448,7 +448,7 @@ struct InnerGlowEffect: Codable, Equatable {
     var enabled = true
     var blend = "screen"
     var color = "#ffffbe"
-    /// The slot's CMYK ink (#547, `GradientStop.ink`).
+    /// The slot's CMYK ink (#1, `GradientStop.ink`).
     var ink: [Double]? = nil
     /// The slot's wide colour (`StyleSlotColor`): linear-light sRGB
     /// components, extended range; nil writes no key.
@@ -484,7 +484,7 @@ struct StrokeEffect: Codable, Equatable {
     var position = "outside"
     var fillType = "color"
     var color = "#000000"
-    /// The slot's CMYK ink (#547, `GradientStop.ink`).
+    /// The slot's CMYK ink (#1, `GradientStop.ink`).
     var ink: [Double]? = nil
     /// The slot's wide colour (`StyleSlotColor`): linear-light sRGB
     /// components, extended range; nil writes no key.
@@ -500,7 +500,7 @@ struct ColorOverlayEffect: Codable, Equatable {
     var enabled = true
     var blend = "normal"
     var color = "#ff0000"
-    /// The slot's CMYK ink (#547, `GradientStop.ink`).
+    /// The slot's CMYK ink (#1, `GradientStop.ink`).
     var ink: [Double]? = nil
     /// The slot's wide colour (`StyleSlotColor`): linear-light sRGB
     /// components, extended range; nil writes no key.
@@ -524,7 +524,7 @@ struct BevelEmbossEffect: Codable, Equatable {
     var type = LayerStyleEffectKind.bevelEmboss.rawValue
     var enabled = true
     var style = "inner_bevel"
-    /// The Technique (#578): nil is Smooth and writes no key.
+    /// The Technique (#2): nil is Smooth and writes no key.
     var technique: String? = nil
     /// 1.0 is 100 %; the core clamps to 0.01…10.
     var depth = 1.0
@@ -536,14 +536,14 @@ struct BevelEmbossEffect: Codable, Equatable {
     var altitude = 30.0
     var highlightBlend = "screen"
     var highlightColor = "#ffffff"
-    /// The highlight side's CMYK ink (#547, `GradientStop.ink`).
+    /// The highlight side's CMYK ink (#1, `GradientStop.ink`).
     var highlightInk: [Double]? = nil
     /// The highlight side's wide colour (`StyleSlotColor`).
     var highlightLinear: [Double]? = nil
     var highlightOpacity = 0.75
     var shadowBlend = "multiply"
     var shadowColor = "#000000"
-    /// The shadow side's CMYK ink (#547, `GradientStop.ink`).
+    /// The shadow side's CMYK ink (#1, `GradientStop.ink`).
     var shadowInk: [Double]? = nil
     /// The shadow side's wide colour (`StyleSlotColor`).
     var shadowLinear: [Double]? = nil
@@ -569,7 +569,7 @@ struct SatinEffect: Codable, Equatable {
     var enabled = true
     var blend = "multiply"
     var color = "#000000"
-    /// The slot's CMYK ink (#547, `GradientStop.ink`).
+    /// The slot's CMYK ink (#1, `GradientStop.ink`).
     var ink: [Double]? = nil
     /// The slot's wide colour (`StyleSlotColor`): linear-light sRGB
     /// components, extended range; nil writes no key.
@@ -628,7 +628,7 @@ struct LayerStyle: Codable, Equatable {
     init() {}
 
     /// This style with every colour slot — each effect's colour and ink, the
-    /// bevel's two sides, every gradient stop — rewritten by `f` (#547: a
+    /// bevel's two sides, every gradient stop — rewritten by `f` (#1: a
     /// CMYK document's sheet maps slots to inks through `CmykShownInks`).
     func mappingColourSlots(_ f: (inout String, inout [Double]?) -> Void) -> LayerStyle {
         var out = self

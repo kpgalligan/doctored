@@ -9,7 +9,7 @@ import AppKit
 // `FineToneControls(id: "levels")` over the current stage, the Auto row (create/edit only: Auto
 // Tone / Auto Color, ids `levels-auto-tone`, `levels-auto-color`, `levels-auto-status`, disabled at
 // float; on a Lab Color layer Auto Tone stretches Lightness alone and Auto Color is disabled,
-// #547 Lab phase 2f — `LevelsAuto` over the scoped-analysis `auto`, whose scope the editor captures
+// #1 Lab phase 2f — `LevelsAuto` over the scoped-analysis `auto`, whose scope the editor captures
 // at init beside `Histogram.sheetPlan`) and Reset; the 8-bit destructive commit is
 // `capture.adjustmentImage(op: "levels")` recorded as the flat `apply_filter` levels step, 16 bits
 // the precision session.
@@ -61,12 +61,12 @@ final class LevelsAdjustmentEditor: NSViewController {
     private var channel: LevelsChannel = .rgb
     /// A mask, colour-plane or channel target: the composite stage only.
     private let scalarTarget: Bool
-    /// #547: a CMYK document — the CMYK, Cyan, Magenta, Yellow and Black
+    /// #1: a CMYK document — the CMYK, Cyan, Magenta, Yellow and Black
     /// stages on ink, with the histogram of L per ink, Auto and Auto Options,
     /// the three eyedroppers and CMYK presets (phase 5, `CmykToneTools.swift`).
     private let cmyk: Bool
     private let channels: [LevelsChannel]
-    /// #547 phase 5: a CMYK document's histogram and its tool row.
+    /// #1 phase 5: a CMYK document's histogram and its tool row.
     private var cmykHistogram: CmykHistogram?
     private var cmykTools: CmykToneControls?
 
@@ -142,7 +142,7 @@ final class LevelsAdjustmentEditor: NSViewController {
         scalarTarget = destructive && target.map { $0 != .layer } == true
         // A mask is gray coverage at every mode, so it keeps the gray channel, histogram and Auto.
         cmyk = document.doc?.isCmyk == true && !scalarTarget
-        // A Lab layer lists Lightness, a and b (#547 Lab phase 2c).
+        // A Lab layer lists Lightness, a and b (#1 Lab phase 2c).
         channels = LevelsChannel.cases(cmyk: cmyk,
                                        lab: document.doc?.isLab == true && !scalarTarget)
         channel = channels[0]
@@ -261,7 +261,7 @@ final class LevelsAdjustmentEditor: NSViewController {
         autoStatus.font = DS.sans(12)
         autoStatus.textColor = DS.textMuted
         let canAuto = document.doc?.isFloat != true && !cmyk
-        // A Lab Color layer (#547 Lab phase 2f, `scoped_auto`): Auto Tone stretches Lightness
+        // A Lab Color layer (#1 Lab phase 2f, `scoped_auto`): Auto Tone stretches Lightness
         // alone; Auto Color refuses.
         let lab = document.doc?.isLab == true
         autoToneButton.isEnabled = canAuto
@@ -285,7 +285,7 @@ final class LevelsAdjustmentEditor: NSViewController {
             op: .levels, cmyk: cmyk, current: { [weak self] in self?.params ?? [:] },
             load: { [weak self] in self?.loadPreset($0) })
         presetControl = presets
-        // #547 phase 5: a CMYK document's Auto, Options… and eyedroppers, every mode.
+        // #1 phase 5: a CMYK document's Auto, Options… and eyedroppers, every mode.
         cmykTools?.onAuto = { [weak self] in self?.cmykAuto($0) }
         cmykTools?.onEyedropper = { [weak self] in self?.cmykEyedropper($0, sample: $1, target: $2) }
         let cmykRow = cmykTools?.row ?? NSStackView()
@@ -363,7 +363,7 @@ final class LevelsAdjustmentEditor: NSViewController {
         requestPreview()
     }
 
-    /// A Lab Color layer's dialog (#547 Lab phase 2c): Lightness, a and b; a mask keeps its gray.
+    /// A Lab Color layer's dialog (#1 Lab phase 2c): Lightness, a and b; a mask keeps its gray.
     private var labLayer: Bool { document.doc?.isLab == true && !scalarTarget }
 
     /// The current stage onto the sliders, readouts, fine fields and plot.
@@ -515,7 +515,7 @@ final class LevelsAdjustmentEditor: NSViewController {
         }
     }
 
-    /// #547 phase 5: Auto on a CMYK document — the derived stages replace every stage.
+    /// #1 phase 5: Auto on a CMYK document — the derived stages replace every stage.
     private func cmykAuto(_ auto: [String: Any]) {
         guard let derived = CmykToneTools.levelsStages(fromAuto: auto) else { NSSound.beep(); return }
         stages = derived
@@ -524,7 +524,7 @@ final class LevelsAdjustmentEditor: NSViewController {
         requestPreview()
     }
 
-    /// #547 phase 5: an eyedropper click on a CMYK document — the per-ink stages move.
+    /// #1 phase 5: an eyedropper click on a CMYK document — the per-ink stages move.
     private func cmykEyedropper(_ kind: CmykEyedropper, sample: [Double], target: [Double]) {
         stages = CmykToneTools.levelsStages(kind, sample: sample, target: target, onto: stages)
         showStage()

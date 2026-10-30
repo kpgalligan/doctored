@@ -1,10 +1,10 @@
-# Bitmap document mode (#547): status
+# Bitmap document mode (#1): status
 
 - **Status:** Open — phases 1a (`4d226f92`), 1b (`aaf2593e`), 1c (`f7f07122`), 2a-i (`baf92c05`), 2a-ii
   (`25eed3cd`), 2b (`e2dd2552`) and 3 (this batch: what the walk left, built through the adapter or refused
   for good; no refusal names a phase) shipped; the close (below) is the next batch.
   The decisions in force and the shipped phases' lines are in [bitmap-mode-shipped.md](bitmap-mode-shipped.md)
-- **Issue:** [#547](https://github.com/kpgalligan/doctored-dev/issues/547) (the colour-mode umbrella; Grayscale is
+- **Issue:** [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella; Grayscale is
   `designs/grayscale-mode.md`, Indexed Color `designs/indexed-mode.md`, Multichannel
   `designs/multichannel-mode.md`)
 - **Code:** `core/src/bitmap_document.rs`, `bitmap_method.rs` (kernel), `bitmap_convert.rs`, `bitmap_native.rs`,
@@ -28,7 +28,7 @@ Phase 3 shipped (its lines and decisions 7, 11 and 14 are in the companion). Wha
   basename) and add their two lines to `archive/INDEX.md`.
 - Update README's Bitmap paragraph (its "The rest refuse by name" sentence and the tool list) to the shipped
   mode, and repoint any doc link to the status doc at the ADR.
-- Post the #547 comment for the Bitmap close.
+- Post the #1 comment for the Bitmap close.
 
 ## Known differences (for the close's ADR)
 

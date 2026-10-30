@@ -1,4 +1,4 @@
-//! #547, the close of Lab Color mode: the tools and requests no phase names,
+//! #1, the close of Lab Color mode: the tools and requests no phase names,
 //! through the FFI. Each oracle is an RGB document given the same input, its
 //! result taken through Image ▸ Mode ▸ Lab Color
 //! (`dr_precision_doc_convert_to_lab`) where colour comes in.

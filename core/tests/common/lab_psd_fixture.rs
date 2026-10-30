@@ -1,4 +1,4 @@
-//! An independent oracle for Lab files (#547 Lab phase 3a), written from
+//! An independent oracle for Lab files (#1 Lab phase 3a), written from
 //! the decided table of `scripts/photoshop-probe/lab_files_take.py` (its
 //! take1 RESULT, and the 16-bit PSD a\*/b\* on Photoshop's 15-bit grid that
 //! the readback fix measured), Adobe's file format document, TIFF 6.0

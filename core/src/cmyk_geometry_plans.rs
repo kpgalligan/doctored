@@ -1,4 +1,4 @@
-//! The geometry plans a CMYK document's descriptor reports (#547 phase 4b):
+//! The geometry plans a CMYK document's descriptor reports (#1 phase 4b):
 //! `get_precision`'s CMYK `plans` and `scripts/cmyk-admission`'s gated
 //! figures. Each is the core plan's `scratch_bytes` of one FIXED request,
 //! written beside its key, on the top CMYK raster (`None` where the request

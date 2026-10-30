@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 1b's palette TIFF open, through the FFI against
+//! #1 Indexed Color phase 1b's palette TIFF open, through the FFI against
 //! TIFFs built by hand (`indexed_fixture::palette_tiff`): Photometric 3 at 4
 //! and 8 bits, with and without an alpha sample, opens as an Indexed
 //! document whose palette is the ColorMap's `(v + 128) / 257`, whose indices

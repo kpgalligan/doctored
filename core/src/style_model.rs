@@ -57,7 +57,7 @@ impl GlobalLight {
 
 /// Which channel Blend If evaluates its ramps on. Gray serves every mode;
 /// Red, Green and Blue an RGB document's colour, and Cyan, Magenta, Yellow
-/// and Black a CMYK document's plates (#547, `style_blend_if::source_weight_ink`).
+/// and Black a CMYK document's plates (#1, `style_blend_if::source_weight_ink`).
 /// The declaration order is the canonical order of a multichannel Blend If's
 /// ranges ([`BlendIf::from_ranges`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -226,7 +226,7 @@ impl BlendIf {
 
     /// This value without its CMYK-plate ranges, canonical; `None` when no
     /// range remains (what a byte document's reader keeps of a Blend If a
-    /// newer file carries, #547).
+    /// newer file carries, #1).
     pub fn without_cmyk(self) -> Option<BlendIf> {
         let kept: Vec<BlendIfRange> = self.ranges().filter(|r| !r.channel.is_cmyk()).collect();
         let (first, rest) = kept.split_first()?;
@@ -243,7 +243,7 @@ pub struct GradientStop {
     pub opacity: f32,
     /// A CMYK document's stop colour as straight ink `[c, m, y, k]` in
     /// `0..=1`, four-decimal quantized; `None` = none, so the stop's `color`
-    /// converts through the profile at composite time (#547, `cmyk_style`).
+    /// converts through the profile at composite time (#1, `cmyk_style`).
     pub ink: Option<[f32; 4]>,
     /// The colour midpoint toward the NEXT stop as a fraction
     /// in `gradient_field::MIDPOINT_MIN..=MIDPOINT_MAX`, 0.01 steps: where
@@ -371,7 +371,7 @@ pub enum BevelDirection {
     Down,
 }
 
-/// Bevel & Emboss > Technique (#578): Smooth's height is a blur of the
+/// Bevel & Emboss > Technique (#2): Smooth's height is a blur of the
 /// coverage, the two Chisels' a clamped distance ramp
 /// (`style_fx_bevel_emboss`'s module doc, `# Technique`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]

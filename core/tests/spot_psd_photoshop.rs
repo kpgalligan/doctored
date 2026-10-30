@@ -1,4 +1,4 @@
-//! #547 spot channels 1b-1 against Photoshop's own files
+//! #1 spot channels 1b-1 against Photoshop's own files
 //! (`tests/fixtures/psd_photoshop/spot_547`, authored by
 //! `scripts/photoshop-probe/spot_psd_take.py`'s take1 on Photoshop 26.10.0:
 //! RGB, CMYK and Grayscale at 8 and 16 bits, PSD and PSB, one or two spot

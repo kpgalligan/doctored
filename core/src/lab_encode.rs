@@ -1,4 +1,4 @@
-//! A Lab Color document's file samples both ways (#547): the TIFF 6.0
+//! A Lab Color document's file samples both ways (#1): the TIFF 6.0
 //! CIELab samples `lab_save` writes (phase 1b), and the file codes a Lab
 //! PSD, PSB, layered TIFF or flat Lab TIFF stores, decoded into the
 //! document's codes (phase 3a, [`storage_code`]). Free functions over

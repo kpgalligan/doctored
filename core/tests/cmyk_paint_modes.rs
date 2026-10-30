@@ -1,4 +1,4 @@
-//! Paint, Fill and Gradient blend modes on a CMYK document (#547), through
+//! Paint, Fill and Gradient blend modes on a CMYK document (#1), through
 //! `dr_precision_doc_edit`, against the f64 W3C step on `L = 1 − ink`
 //! (`cmyk_structure_fixture::over`, written from the spec): Multiply and
 //! Color on a layer of every alpha class, the same under Preserve

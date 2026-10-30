@@ -346,7 +346,7 @@ extension EditorViewController {
         runPathStep("fill_path", arguments, undoName: "Fill Path", note: "Paths panel ▸ Fill Path")
     }
 
-    /// A CMYK layer target paints the foreground swatch's stored ink (#547), as Edit ▸ Fill…
+    /// A CMYK layer target paints the foreground swatch's stored ink (#1), as Edit ▸ Fill…
     /// does: `ink` (C, M, Y, K percent) replaces `color`. A plate or channel target keeps `color`,
     /// whose grey it paints. False (after an alert) when the ink cannot be read.
     private func cmykPathInk(_ arguments: inout [String: Any], document: ImageDocument) -> Bool {

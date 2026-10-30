@@ -1,4 +1,4 @@
-//! The Grayscale document mode (#547): the policy, the edit gate and the
+//! The Grayscale document mode (#1): the policy, the edit gate and the
 //! refusal sentences (`designs/grayscale-mode.md`, the ADR of the closed
 //! mode).
 //!
@@ -248,7 +248,7 @@ fn scalar_target_refusal(op: &str) -> String {
 
 /// The refusal of the RGB Assign and Convert to Profile exports on a Gray
 /// document (`ffi_precision_color`, `ffi_output_color`): its profile and
-/// depth edits are `gray_profile`'s (#547 phase 5a).
+/// depth edits are `gray_profile`'s (#1 phase 5a).
 pub(crate) const RGB_PROFILE_EDIT_REFUSAL: &str = "a Grayscale document's Assign Profile, Convert to Profile and Bits/Channel are its own Gray profile edit (dr_precision_doc_gray_profile_edit)";
 
 /// The refusal of a colour-plane target (Red, Green, Blue, Alpha or an ink
@@ -393,7 +393,7 @@ pub struct GrayPolicy {
     depth: GrayDepth,
     twin: Arc<IccProfile>,
     encoder: PrecisionToneEncoder,
-    /// The Duotone description (#547 Duotone phase 1a, `duotone_document`):
+    /// The Duotone description (#1 Duotone phase 1a, `duotone_document`):
     /// a Duotone document IS a Gray document whose policy carries one. Every
     /// path that carries the policy (`with_depth`, `with_gray`'s twin
     /// rebinding, `rebuilt`, a clone) carries it; [`GrayPolicy::new`] starts

@@ -9,7 +9,7 @@
 //! floor.
 //!
 //! Intervals (DECLARED before measuring): inside the satin's matte, the
-//! box-pair law at every size since #578 part 3 (`style_fx_satin`; the
+//! box-pair law at every size since #2 part 3 (`style_fx_satin`; the
 //! Gaussian it replaced ran a Triangle resample at factor 8 for Size 40),
 //! 4096 cells of each pass's horizontal sums and ONE ROW (`pw` cells, `pw ≤
 //! 4096`) of its column emit, the band at `n = 0` polling every 4096 cells
@@ -43,7 +43,7 @@
 //! the first stage-6 report); every satin size and the bevel cancel `k`
 //! checkpoints later, `k` half the checkpoints a fresh uncancelled run polls
 //! from that entry to its first report above `s1` (no size has an unpolled
-//! resample to freeze in since #578 part 3); the verdict is
+//! resample to freeze in since #2 part 3); the verdict is
 //! `inside_the_blur(s1)`.
 //! At u16, since 13A-5b-iii-c-1 the planes report INSIDE their range
 //! `[pre, target]` (`pre = pixels / work`, the zero fill's close; `target =
@@ -108,7 +108,7 @@ type Window = (u32, u32, u32, u32);
 const W: u32 = 3000;
 const H: u32 = 2000;
 const LIMIT: u64 = REFERENCE_WORKING_BYTES;
-/// The two satin sizes: the law's box pair at width 4 and 40 (#578 part 3;
+/// The two satin sizes: the law's box pair at width 4 and 40 (#2 part 3;
 /// the Gaussian before ran factor 1 and factor 8 at these sizes).
 const SIZES: [f32; 2] = [4.0, 40.0];
 const WINDOWS: [Window; 3] = [(0, 0, W, H), (1234, 777, 301, 203), (W - 17, 0, 17, 9)];
@@ -289,10 +289,10 @@ where
 
 // ------------------------------------------------------------ fixtures --
 
-/// A satin of `size` at distance 1: since #578 part 3 the box-pair law's
+/// A satin of `size` at distance 1: since #2 part 3 the box-pair law's
 /// style plane, whose rows report at stage 6 as the Gaussian's did. The
 /// fixture carried a drop shadow at distance 0 until the shadows' law
-/// (#578).
+/// (#2).
 fn satin(size: f32) -> String {
     format!("{{\"effects\":[{{\"type\":\"satin\",\"distance\":1,\"size\":{size}}}]}}")
 }
@@ -373,11 +373,11 @@ fn typed_doc(style: &str) -> PrecisionDocument {
 // ---------------------------------------- the style plane's own sizing --
 //
 // Written out independently of the core: a satin runs the box-pair law at
-// spread 0 since #578 part 3 (`style_fx_satin`), no Gaussian and no
+// spread 0 since #2 part 3 (`style_fx_satin`), no Gaussian and no
 // resample at any size; its matte's reach is the box width `w`, the size
 // rounded half up (4 and 40 here), a satin's reach `w + ceil(distance)` (1
 // here) and the plane pad the reach plus one, `w + 2`. The Smooth Inner
-// Bevel's is its own (#578, `style_bevel_smooth`): no blur, the box pair and
+// Bevel's is its own (#2, `style_bevel_smooth`): no blur, the box pair and
 // the central difference reach `W` (the size rounded half up) plus 1 for the
 // coverage's edge, so its pad is `W + 2`, 6 px at size 4 (bench (e)).
 
@@ -619,7 +619,7 @@ fn the_byte_plane_render_leaks_no_report_into_the_root_range() {
 
 #[test]
 fn a_soft_shadow_or_glow_plane_reports_its_box_pair_rows() {
-    // #578: the soft drop shadow, inner shadow and outer glow run the
+    // #2: the soft drop shadow, inner shadow and outer glow run the
     // box-pair law, whose two passes report per row at stage 6 as the
     // Gaussian they replaced did; read on the worker's own report log.
     for kind in ["drop_shadow", "inner_shadow", "outer_glow"] {
@@ -746,7 +746,7 @@ fn a_concurrently_cancelled_style_plane_render_returns_within_the_model() {
     for size in SIZES {
         let (pw, ph) = plane(size);
         let map = c_map((pw, ph));
-        // #578 part 3: the box-pair law at every size, no resample.
+        // #2 part 3: the box-pair law at every size, no resample.
         let interval = |t_style: f64| -> (f64, String, &'static str) {
             let c = t_style / (2.0 * f64::from(pw) * f64::from(ph));
             (

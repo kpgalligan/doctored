@@ -1,4 +1,4 @@
-//! #680 item 1: Develop grain on a 32-bit float RAW development, and the
+//! #4 item 1: Develop grain on a 32-bit float RAW development, and the
 //! float histogram the Develop window reads (item 4).
 //!
 //! Grain at float is the request `RawGrain.swift` sends (layer 0,

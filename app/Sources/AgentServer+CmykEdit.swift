@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's paint and tone arguments over MCP (#547 phase 2): `ink` (`brush_stroke`,
+// The CMYK document's paint and tone arguments over MCP (#1 phase 2): `ink` (`brush_stroke`,
 // `fill`, `fill_selection`, `stroke_selection`, `fill_path`, `stroke_path`) and `start_ink` /
 // `end_ink` (`gradient`), each C, M, Y, K in percent —
 // the Color Picker's C/M/Y/K fields (`ColorPickerSheetController`) — and the tone keys each colour
@@ -8,7 +8,7 @@ import AppKit
 // (`AgentServer+PrecisionPaint.swift`, `PrecisionColorTools.swift`, `AgentServer+PrecisionFillStroke.swift`);
 // the gate that narrows their arguments is `CmykDocument.refusal(tool:arguments:)`.
 //
-// The artwork batch (#547) adds the type, shape and fill layer tools' ink arguments — `ink`
+// The artwork batch (#1) adds the type, shape and fill layer tools' ink arguments — `ink`
 // (`add/edit_text_layer`, `add/edit_fill_layer`), `color_runs[].ink`, `stops[].ink`, `fill_ink`
 // and `stroke_ink` (`add/edit_shape_layer`) — which `cmykArtworkArguments` turns into the colour
 // arguments the handlers already read (each ink's sRGB appearance) plus the matches that keep the

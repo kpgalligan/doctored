@@ -204,7 +204,7 @@ impl<'a> GroupRecords<'a> {
     /// holding a `LONG_LENGTH_KEYS` block refuses. `color` is the
     /// container's colour mode: a CMYK file (4) admits channel id 3, its
     /// black plane, and decodes its adjustment bodies through
-    /// `psd_adjustment::decode_cmyk` (#547 phase 3) — with its `CgEd`
+    /// `psd_adjustment::decode_cmyk` (#1 phase 3) — with its `CgEd`
     /// companion and `to_ink`, the file's sRGB → ink conversion (the styles
     /// batch) — and its layer styles with `FxColours::Cmyk`; every other mode
     /// keeps the −3…2 id range, so a stray id 3 on an RGB or gray record
@@ -212,10 +212,10 @@ impl<'a> GroupRecords<'a> {
     /// file's profile: when set, a decoded RGB `SoCo` is declined with it
     /// (pixel-less: omitted; a raster: kept as its pixels with its marker
     /// loss), so the report and the byte walk's render agree. `gray` is a
-    /// gray file's policy (#547 phase 3a, `psd_import::parse_with`): with
+    /// gray file's policy (#1 phase 3a, `psd_import::parse_with`): with
     /// colour mode 1 and `Some`, its layer styles decode with
     /// `FxColours::Gray` (a `Grsc` colour through that Gray profile); its
-    /// fills keep `FxColours::Rgb`. A Lab file (colour mode 9, #547 Lab phase
+    /// fills keep `FxColours::Rgb`. A Lab file (colour mode 9, #1 Lab phase
     /// 3a) decodes its layer styles with `FxColours::Lab` (an `LbCl` colour
     /// as its sRGB hex); its fills keep `FxColours::Rgb` too.
     #[allow(clippy::too_many_arguments)]
@@ -621,7 +621,7 @@ impl<'a> GroupRecords<'a> {
                 match (color, gray) {
                     (4, _) => psd_layer_effects::FxColours::Cmyk,
                     (1, Some(policy)) => psd_layer_effects::FxColours::Gray(policy),
-                    // A Lab file's `LbCl` colours (#547 Lab phase 3a).
+                    // A Lab file's `LbCl` colours (#1 Lab phase 3a).
                     (9, _) => psd_layer_effects::FxColours::Lab,
                     _ => psd_layer_effects::FxColours::Rgb(colors),
                 },

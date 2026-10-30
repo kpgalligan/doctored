@@ -118,7 +118,7 @@ extension RasterDocument {
     /// (`performingCanvasGeometry`), and the caller publishes the
     /// prepared edit. On an Indexed document an uncovered corner takes the
     /// entry nearest `indexedBackground` when there is no transparent index
-    /// (#547 Indexed phase 3b); nil is white.
+    /// (#1 Indexed phase 3b); nil is white.
     func rotatingCanvas(degrees: Double, sampler: DrResizeFilter, described: [Int],
                         indexedBackground: NSColor? = nil) throws
         -> PreparedDocumentEdit?

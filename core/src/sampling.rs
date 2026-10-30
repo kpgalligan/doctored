@@ -72,7 +72,7 @@ pub(crate) fn accumulate_unorm<T: Unorm>(acc: &mut [f32; 4], src: &[T], weight: 
 /// [`accumulate_unorm`] over any number of planes, alpha LAST (`C − 1`):
 /// every colour plane is premultiplied by that alpha with the same
 /// operations in the same order, so C = 4 is RGBA's arithmetic bit for bit
-/// and C = 5 is a CMYK document's straight CMYKA16 ink (#547 phase 4b).
+/// and C = 5 is a CMYK document's straight CMYKA16 ink (#1 phase 4b).
 pub(crate) fn accumulate_planes<T: Unorm, const C: usize>(
     acc: &mut [f32; C],
     src: &[T],
@@ -99,7 +99,7 @@ pub(crate) fn straight_unorm<T: Unorm>(acc: [f32; 4]) -> [T; 4] {
 
 /// [`straight_unorm`] over any number of planes, alpha LAST: each colour
 /// plane divides by the RAW accumulated alpha before clamping, as RGBA does
-/// (C = 4 is that arithmetic bit for bit; C = 5 is CMYKA16, #547 phase 4b).
+/// (C = 4 is that arithmetic bit for bit; C = 5 is CMYKA16, #1 phase 4b).
 pub(crate) fn straight_planes<T: Unorm, const C: usize>(acc: [f32; C]) -> [T; C] {
     let alpha = T::quantize(acc[C - 1]);
     if alpha == T::default() {

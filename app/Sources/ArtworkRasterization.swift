@@ -20,7 +20,7 @@ extension AgentServer {
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let artworkRasterizationToolFacts: [String: ToolFacts] = [
-        // Also in a 32-bit float document; #547: and in a CMYK one.
+        // Also in a 32-bit float document; #1: and in a CMYK one.
         "rasterize_artwork": [.commonTool, .floatTool, .cmykTool],
     ]
 

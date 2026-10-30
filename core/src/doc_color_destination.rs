@@ -150,7 +150,7 @@ impl DrDocument {
     /// `appearance_invariant`); hidden, grouped and clipped layers included.
     /// With `refused_in`, only a layer whose op that profile refuses
     /// (`calibrated_refusal`: an Exposure is admitted by a falling-boundary
-    /// profile a White Balance is not, #578); `None` for any such layer (the
+    /// profile a White Balance is not, #2); `None` for any such layer (the
     /// no-model branch, which refuses both ops).
     fn first_calibrated_layer(&self, refused_in: Option<&IccProfile>) -> Option<&str> {
         self.layers

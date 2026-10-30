@@ -26,23 +26,23 @@ extension ImageDocument {
         let native = hasNativeSignature(at: url)
         let typedNative = try native && RasterDocument.isPrecisionNative(at: url)
         if native && !typedNative { return try RasterDocument.open(url: url) }
-        // #547: a CMYK TIFF or JPEG the core opens as a CMYK document is
+        // #1: a CMYK TIFF or JPEG the core opens as a CMYK document is
         // decided here, by the core's own header test, before any 16-bit
         // prompt (`PrecisionImportRequest.resolve` answers it first).
         // A CMYK PSD is the PSD importer's (`import_precision` "cmyk").
         let cmyk = !typedNative && [.tiff, .jpeg].contains(RasterPrecisionDocument.cmykSource(at: url))
-        // #547 phase 1a: a gray PNG, TIFF or JPEG the core opens as a Grayscale document, by the
+        // #1 phase 1a: a gray PNG, TIFF or JPEG the core opens as a Grayscale document, by the
         // core's own header test (`dr_path_gray_source`, which claims only what the gray open
         // accepts), routed like a CMYK file: no 16-bit prompt, and only rgba8 keeps today's open.
         let gray = !typedNative && !cmyk && RasterPrecisionDocument.graySource(at: url) != .none
-        // #547 Lab phase 3a: a flat Lab TIFF the core opens as a Lab Color document, by the core's
+        // #1 Lab phase 3a: a flat Lab TIFF the core opens as a Lab Color document, by the core's
         // own header test (`dr_path_lab_source`), routed like a gray file.
         let lab = !typedNative && !cmyk && !gray && RasterPrecisionDocument.labSource(at: url) != .none
-        // #547 Indexed phase 1a: an indexed PNG or GIF the core opens as an Indexed Color document, by
+        // #1 Indexed phase 1a: an indexed PNG or GIF the core opens as an Indexed Color document, by
         // the core's own header test (`dr_path_indexed_source`), asked after Lab and routed the same.
         let indexed = !typedNative && !cmyk && !gray && !lab
             && RasterPrecisionDocument.indexedSource(at: url) != .none
-        // #547 Bitmap phase 1c: a 1-bit PNG, TIFF or BMP the core opens as a Bitmap document, by the
+        // #1 Bitmap phase 1c: a 1-bit PNG, TIFF or BMP the core opens as a Bitmap document, by the
         // core's own header test (`dr_path_bitmap_source`), asked after Indexed and routed the same:
         // `precision` rgba8 keeps the old 8-bit RGB open.
         let bitmap = !typedNative && !cmyk && !gray && !lab && !indexed
@@ -60,7 +60,7 @@ extension ImageDocument {
         }
         let context = try PrecisionWorkContext()
         // Edit ▸ Color Settings' CMYK policy and working Gray, read here on the main thread
-        // (#547 phases 5 and 1a).
+        // (#1 phases 5 and 1a).
         let policy = CmykProfileEdit.OpenPolicy.current
         let workingGray = ColorSettings.workingGray.rawValue
         let task = try WorkerTask {

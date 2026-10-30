@@ -366,7 +366,7 @@ impl PrecisionDocument {
             {
                 return Err("red eye corrects its current raster target in place".into());
             }
-            // A Lab layer's ProPhoto work copy and pipelines (#547 Lab 2f).
+            // A Lab layer's ProPhoto work copy and pipelines (#1 Lab 2f).
             if self.is_lab() {
                 scratch =
                     scratch.saturating_add(crate::lab_retouch::red_eye_scratch_bytes(output)?);

@@ -1,4 +1,4 @@
-//! Lab PSD, PSB and layered TIFF import (#547 Lab phase 3a): a colour-mode-9
+//! Lab PSD, PSB and layered TIFF import (#1 Lab phase 3a): a colour-mode-9
 //! file at 8 or 16 bits as a Lab Color document, its admission and stored
 //! composite, and the Lab lines of the shared import report
 //! (`psd_import::report`). `psd_import_gray` is the template.

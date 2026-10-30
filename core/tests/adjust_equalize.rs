@@ -1,4 +1,4 @@
-//! Image ▸ Adjustments ▸ Equalize (#547) at 8, 16 and 32 bits on RGB,
+//! Image ▸ Adjustments ▸ Equalize (#1) at 8, 16 and 32 bits on RGB,
 //! through the FFI, against an independent f64 histogram equalization
 //! written here: one table from the summed R, G and B histograms, each
 //! sample weighted by selection coverage × alpha, `lut[v] = round(max ·

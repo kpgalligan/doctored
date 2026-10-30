@@ -1,4 +1,4 @@
-//! Copy, Cut, Copy Merged and Paste on and between CMYK documents (#547
+//! Copy, Cut, Copy Merged and Paste on and between CMYK documents (#1
 //! phase 4c), black-box through the FFI: RZCB v4 round trips bit for bit and
 //! refuses each malformed stream by name; Copy reads the raw ink under the
 //! coverage (alpha `round(a·c / 65535)`), Cut erases it (`a·(1 − c/65535)`),
@@ -240,7 +240,7 @@ fn v4_round_trips_bit_exactly_and_describes_itself() {
     assert_eq!(described["has_coverage"], true);
     assert_eq!(described["editable"], Value::Null);
     // The ink is not an RGB image. It carries no editable section until the
-    // host attaches one (#547's artwork batch), which then rides the v4
+    // host attaches one (#1's artwork batch), which then rides the v4
     // stream through an encode and a decode.
     assert!(unsafe { dr_clipboard_payload_image(again) }.is_null());
     let mut err = ptr::null_mut();

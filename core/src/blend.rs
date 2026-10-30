@@ -521,7 +521,7 @@ pub(crate) fn composite_blended(dst: &mut [f32], cs: &[f32], blended: &[f32], sa
 }
 
 /// [`composite_blended`] with the source's coverage split from its blend
-/// strength — `blend_fill`'s form Fb (#578): `sa_bare` weights the source
+/// strength — `blend_fill`'s form Fb (#2): `sa_bare` weights the source
 /// where the backdrop is empty (the `(1 − ab)` term, so a special Fill still
 /// fades the source over transparency) and `sa_over` weights the blend over
 /// the backdrop. `αo = sa_bare(1 − ab) + ab`, `co·αo = sa_bare(1 − ab)cs +

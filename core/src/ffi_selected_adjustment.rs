@@ -25,12 +25,12 @@ unsafe fn request<'a>(
     admit(doc.retained_bytes(), parse_bytes, other, limit)?;
     job.reserve(parse_bytes)?;
     let mut edit = SelectedEdit::parse(text)?;
-    // A Bitmap document's gate (#547 Bitmap phase 3): Liquify only. It is
+    // A Bitmap document's gate (#1 Bitmap phase 3): Liquify only. It is
     // Gray underneath, so it goes before the Gray gate.
     crate::bitmap_document::admit_selected(doc, &edit)?;
-    // A Grayscale document's gate (#547 phase 2b): Gradient Map stops greyed.
+    // A Grayscale document's gate (#1 phase 2b): Gradient Map stops greyed.
     crate::gray_adjust::admit_selected(doc, &mut edit)?;
-    // A Lab Color document's gate (#547 phases 2b, 2c): adjustments by its
+    // A Lab Color document's gate (#1 phases 2b, 2c): adjustments by its
     // table, Auto, Equalize and the filters (Clouds' colours as Lab codes).
     crate::lab_adjust::admit_selected(doc, &mut edit)?;
     Ok((doc, edit, parse_bytes))

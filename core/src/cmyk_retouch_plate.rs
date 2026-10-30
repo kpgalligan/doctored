@@ -1,4 +1,4 @@
-//! The CMYK retouch commands' sampling plate (#547, `cmyk_retouch`): WHICH
+//! The CMYK retouch commands' sampling plate (#1, `cmyk_retouch`): WHICH
 //! ink a Clone Stamp, Healing Brush, Spot Healing or Content-Aware Fill
 //! reads, its Display P3 view for the host's source overlay, and the
 //! descriptor's retouch plans.

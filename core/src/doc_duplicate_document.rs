@@ -199,8 +199,8 @@ impl PrecisionDocument {
     /// The typed twin of [`DrDocument::duplicate_to_new_document`]: built
     /// through `PrecisionDocument::build` (default metadata, no channels, this
     /// document's float policy) — or, for a CMYK document, `build_cmyk` with
-    /// this document's CMYK policy (#547 phase 4c) — then the Gray policy
-    /// (#547 phase 4), the Lab policy (#547 Lab phase 4c), the evaluation policy and the global light are copied; comps, guides and the ruler origin keep `build`'s
+    /// this document's CMYK policy (#1 phase 4c) — then the Gray policy
+    /// (#1 phase 4), the Lab policy (#1 Lab phase 4c), the evaluation policy and the global light are copied; comps, guides and the ruler origin keep `build`'s
     /// empty defaults. Refuses an empty or out-of-range set by name.
     pub fn duplicate_to_new_document(&self, idx: &[usize]) -> Result<Self, String> {
         let flat = flatten(&self.layers);
@@ -228,7 +228,7 @@ impl PrecisionDocument {
             }
         }
         let layers = rebuild(copied)?;
-        // #547 phase 4c: a CMYK source's clip is a CMYK document of the
+        // #1 phase 4c: a CMYK source's clip is a CMYK document of the
         // source's own policy (its profile and declared depth).
         let mut next = match self.cmyk_policy() {
             Some(policy) => PrecisionDocument::build_cmyk(
@@ -251,10 +251,10 @@ impl PrecisionDocument {
                 self.float.clone(),
             )?,
         };
-        // #547 phase 4: a Gray source's clip is a Gray document of the
+        // #1 phase 4: a Gray source's clip is a Gray document of the
         // source's own policy (its layers are already in the policy's twin).
         next.gray = self.gray.clone();
-        // #547 Lab phase 4c: and a Lab source's a Lab document of its policy.
+        // #1 Lab phase 4c: and a Lab source's a Lab document of its policy.
         next.lab = self.lab.clone();
         next.linear_light = self.linear_light.clone();
         next.global_light = self.global_light;

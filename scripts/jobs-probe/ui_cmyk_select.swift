@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's selection-batch in-process UI cases (#547): the Select, Edit and Layer
+// The CMYK document's selection-batch in-process UI cases (#1): the Select, Edit and Layer
 // menu items a CMYK document now enables (Color Range, Select and Mask, Subject / Objects /
 // People / Face Parts, Stroke…, Apply Layer Mask), the four canvas tools it admits (the channels
 // batch's Select items and tools are `ui_cmyk_channels.swift`'s), and Edit ▸ Stroke…'s sheet, whose Apply is one

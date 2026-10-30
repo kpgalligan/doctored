@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
-"""Check the sizes the root CLAUDE.md's "Status docs" rule sets. A step of `make gate`.
+"""Check the sizes the root CLAUDE.md's "Status docs" rule sets, and its home-path
+rule. A step of `make gate`.
 
-Standard library only. It measures bytes and characters, nothing else:
+Standard library only. It measures bytes and characters and greps for home paths:
 
     python3 scripts/check_docs.py
 
 It fails on a status doc (`designs/*-status.md`) over 40 KB, on a shipped
 companion (`designs/*-shipped.md`) over 32 KB, on a rule file over its limit,
-and on an index entry line over 200 characters. One line per failure on
-stdout, then a summary line. Exit 0 when every check holds, 1 otherwise.
+on an index entry line over 200 characters, and on a text file in the tree
+(tracked and untracked, not ignored) that holds an absolute home path (`/Users/`
+or `/home/` followed by a user name and a `/`) or its dash-encoded form
+(`-Users-<name>-`), named by file and line; such a path is written `~/...` or a
+placeholder instead, and no allow-list exists. One line per failure on stdout,
+then a summary line. Exit 0 when every check holds, 1 otherwise.
 """
 
 from __future__ import annotations
 
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +34,14 @@ INDEX_FILES: tuple[str, ...] = ("core/MODULES.md", "app/FILES.md")
 INDEX_HEADER_LINES = 4            # three header lines and one blank
 INDEX_ENTRY_MAX_CHARS = 200
 
+# A home folder's absolute path: `/Users/` or `/home/`, a user name, then `/`, not
+# preceded by a path or name character (so a relative `x/Users/` does not count).
+# Its dash-encoded form, `-Users-<name>-`, is how Claude Code names a project folder:
+# `-Users-` or `-home-`, a user name of word characters, then `-`, likewise not
+# preceded by a path or name character. Both are POSIX ERE, for `git grep -E`.
+HOME_PATH_PATTERN = r'(^|[^A-Za-z0-9._-])/(Users|home)/[^/[:space:]]+/'
+ENCODED_HOME_PATTERN = r'(^|[^A-Za-z0-9._-])-(Users|home)-[A-Za-z0-9_]+-'
+
 
 def index_entries(text: str) -> list[tuple[int, str, str]]:
     """(1-based line, key, line) per non-blank line after the header.
@@ -40,6 +55,42 @@ def index_entries(text: str) -> list[tuple[int, str, str]]:
         parts = line.split("`", 2)
         entries.append((number, parts[1] if len(parts) == 3 else "", line))
     return entries
+
+
+def home_path_errors(root: Path) -> list[str]:
+    """One message per (path, line) of the working tree's text files, tracked and
+    untracked, not ignored, that hold an absolute home path or its dash-encoded form
+    (the absolute one named when a line holds both). Binary files are skipped."""
+    done = subprocess.run(['git', '-C', str(root), 'grep', '--untracked', '-I', '-n', '-o', '-z',
+                           '-E', '-e', HOME_PATH_PATTERN, '-e', ENCODED_HOME_PATTERN],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if done.returncode == 1:
+        return []
+    if done.returncode != 0:
+        return [f"error: git grep for home paths failed: "
+                f"{done.stderr.decode('utf-8', 'replace').strip()}"]
+    found: dict[tuple[str, int], tuple[str, str]] = {}
+    for record in done.stdout.split(b'\n'):
+        if not record:
+            continue
+        parts = record.split(b'\0', 2)
+        if len(parts) != 3:
+            continue
+        name, line, match = parts
+        path = name.decode('utf-8', 'surrogateescape')
+        # The match may start with its boundary character, or with the `/` or `-`
+        # itself at column 1; search for the path part rather than slicing it.
+        text = match.decode('utf-8', 'replace')
+        key = (path, int(line))
+        absolute = re.search(r'/(Users|home)/[^/\s]+/', text)
+        if absolute:
+            if found.get(key, ('a dash-encoded',))[0] == 'a dash-encoded':
+                found[key] = ('an absolute', absolute.group(0))
+        else:
+            encoded = re.search(r'-(Users|home)-[A-Za-z0-9_]+-', text)
+            found.setdefault(key, ('a dash-encoded', encoded.group(0) if encoded else text))
+    return [f"error: {path}:{line}: holds {kind} home path {home}"
+            for (path, line), (kind, home) in sorted(found.items())]
 
 
 def check(root: Path) -> list[str]:
@@ -75,6 +126,8 @@ def check(root: Path) -> list[str]:
             if len(line) > INDEX_ENTRY_MAX_CHARS:
                 errors.append(f"error: {name}:{number}: the entry `{key}` is over the limit "
                               f"({len(line)} > {INDEX_ENTRY_MAX_CHARS})")
+
+    errors.extend(home_path_errors(root))
     return errors
 
 

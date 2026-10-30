@@ -371,8 +371,8 @@ pub unsafe extern "C" fn dr_precision_doc_conversion_preflight(
 /// preserve-appearance adjustments (`float_color::options_refusal`'s
 /// sentence), then the profile refusals of the float colour plan.
 /// A Grayscale document refuses (`gray_document::RGB_PROFILE_EDIT_REFUSAL`,
-/// #547 phase 5a).
-/// A Lab Color document refuses (`lab_document::PROFILE_EDIT_REFUSAL`, #547
+/// #1 phase 5a).
+/// A Lab Color document refuses (`lab_document::PROFILE_EDIT_REFUSAL`, #1
 /// Lab phase 5b): it has no document profile.
 ///
 /// # Safety
@@ -451,8 +451,8 @@ pub unsafe extern "C" fn dr_precision_doc_assign_refusal(
 
 /// The typed twin of `dr_doc_assign_profile_rasterizing`.
 /// A Grayscale document refuses (`gray_document::RGB_PROFILE_EDIT_REFUSAL`,
-/// #547 phase 5a).
-/// A Lab Color document refuses (`lab_document::PROFILE_EDIT_REFUSAL`, #547
+/// #1 phase 5a).
+/// A Lab Color document refuses (`lab_document::PROFILE_EDIT_REFUSAL`, #1
 /// Lab phase 5b): it has no document profile.
 ///
 /// # Safety
@@ -638,7 +638,7 @@ pub unsafe extern "C" fn dr_proof_gamut_mask(
 /// The typed twin of `dr_proof_render`: an already captured u16 projection in
 /// (returning its own profile as the document's), an RGBA8 DISPLAY image out.
 /// A projection in the Lab twin refuses
-/// (`lab_document::PROOF_VIEW_REFUSAL`, #547 Lab phase 5b): a Lab Color
+/// (`lab_document::PROOF_VIEW_REFUSAL`, #1 Lab phase 5b): a Lab Color
 /// document proofs its `dr_precision_image_lab_display` view.
 ///
 /// # Safety

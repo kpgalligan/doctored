@@ -1,4 +1,4 @@
-//! Layer effects and Blend If on a Grayscale document (#547 phase 2d,
+//! Layer effects and Blend If on a Grayscale document (#1 phase 2d,
 //! `designs/grayscale-mode.md`): the greying of a style's colours,
 //! the effect-mode and Blend If refusals, RGB → Gray's style pass (a
 //! recorded comp style's too, phase 6a-ii: [`greyed_json`]) and the open
@@ -113,7 +113,7 @@ fn grey_wide(linear: [f32; 3], color: [u8; 3]) -> ([u8; 3], Option<[f32; 3]>) {
     crate::style_json::normalized_wide([y, y, y])
 }
 
-/// A gray PSD's `Grsc` effect colour (#547 phase 3a): `Gry ` is Photoshop's
+/// A gray PSD's `Grsc` effect colour (#1 phase 3a): `Gry ` is Photoshop's
 /// K percent, so the code is `c = 1 − K/100` in the file's Gray profile; its
 /// luminance `Y` through the twin (`cmyk_color::document_xyz`) is stored as a
 /// style slot is, `style_json::normalized_wide([Y, Y, Y])` — the sRGB byte
@@ -124,7 +124,7 @@ pub(crate) fn grsc_colour(policy: &GrayPolicy, k_percent: f64) -> ([u8; 3], Opti
     crate::style_json::normalized_wide([y; 3])
 }
 
-/// The inverse of [`grsc_colour`] for a gray PSD's export (#547 phase 3b): a
+/// The inverse of [`grsc_colour`] for a gray PSD's export (#1 phase 3b): a
 /// slot's luminance `Y` (its `linear` when it has one, else the sRGB decode
 /// of its byte — a stored slot is gray, so channel 0 is its luminance) as the
 /// Gray profile's K percent, `100·(1 − encode(Y))`, to four decimals.

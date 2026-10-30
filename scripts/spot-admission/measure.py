@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 spot channels 1c-1 admission drive, on a built Release app.
+"""The #1 spot channels 1c-1 admission drive, on a built Release app.
 
 Every plan term 1c-1 added is held to the measured-admission rule: plan >=
 ceil(1.25 x max E), where E is `ri_interval_max_phys_footprint` - pre around
@@ -45,7 +45,7 @@ worst case) and `deselect`. The plans, each the reply's own
   document (the kept-CMYK staged plan, whose on-paper image the overprint
   fills); the same.
 
-1c-2a's five TIFF cases (#547, `tiff_spot`), fixed here before they first
+1c-2a's five TIFF cases (#1, `tiff_spot`), fixed here before they first
 ran. Their fixtures are written by a setup app's own saves (one owned app,
 before any case): the 16-bit RGB PNG opened with `precision preserve` and the
 16-bit CMYK TIFF, each with the full-coverage spot channel above, saved by

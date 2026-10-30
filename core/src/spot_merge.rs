@@ -1,4 +1,4 @@
-//! Merge Spot Channel and the alpha ↔ spot kind change (#547 1c-1,
+//! Merge Spot Channel and the alpha ↔ spot kind change (#1 1c-1,
 //! `designs/spot-channels.md`), at byte and typed depth.
 //!
 //! # Merge Spot Channel

@@ -7,7 +7,7 @@ import AppKit
 // `DocumentJobs` job (Remove's shape), one undo step; the byte result publishes through
 // `withLayerPixels` / `addingImageLayer(above:…offset:)`, the 16-bit one through
 // `dr_precision_doc_neural_layer_apply`. The selection is ignored: the filter outputs the whole
-// layer. On a Lab Color document (#547 Lab phase 6b-iii) FBCNN reads the layer's
+// layer. On a Lab Color document (#1 Lab phase 6b-iii) FBCNN reads the layer's
 // Display P3 view (`NeuralFilterRun.modelInput`) and the core returns its result to Lab codes, the
 // plan carrying both images (`NeuralFilterRun.labTerm`).
 
@@ -115,7 +115,7 @@ enum JpegArtifactsRemovalRun {
                     guard let pixels = precision.layerSource(layer) else {
                         throw DoctoredCoreError(message: "jpeg artifacts removal needs a raster layer; layer \(layer) is not one")
                     }
-                    // A Lab layer's model reads its Display P3 view (#547 Lab phase 6b-iii).
+                    // A Lab layer's model reads its Display P3 view (#1 Lab phase 6b-iii).
                     let lab = source.isLab
                     var view = pixels
                     if lab {

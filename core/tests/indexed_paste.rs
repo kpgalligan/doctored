@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 2d: Paste and Paste Special on an Indexed
+//! #1 Indexed Color phase 2d: Paste and Paste Special on an Indexed
 //! document (`indexed_clipboard`, `dr_precision_doc_indexed_paste`).
 //!
 //! The oracle is independent of the adapter: Image ▸ Mode ▸ RGB Color, the

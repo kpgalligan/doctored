@@ -1,4 +1,4 @@
-//! #547 phase 1a: which gray PNG, TIFF and JPEG files open as Grayscale
+//! #1 phase 1a: which gray PNG, TIFF and JPEG files open as Grayscale
 //! documents (`dr_path_gray_source`, header work only) and what the open
 //! keeps — the codes copied into R = G = B exactly, the embedded Gray ICC,
 //! a PNG `sRGB` chunk as sGray, the working Gray with its sentence — and the

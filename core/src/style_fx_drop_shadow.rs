@@ -18,7 +18,7 @@
 //! pixel's layer coordinate in the same pass as the contour, after it, held
 //! to the same Below cap, before the offset; amount 0 skips it.
 //!
-//! # Why the law (#578)
+//! # Why the law (#2)
 //!
 //! The Gaussian below left 6 / 0.15 codes on A3's default shadow and 11 /
 //! 0.79 on size 9 spread 30 %; its fitted ratio 0.4 sits near the box

@@ -1,4 +1,4 @@
-//! Indexed PNG, GIF and palette TIFF files as Indexed Color documents (#547
+//! Indexed PNG, GIF and palette TIFF files as Indexed Color documents (#1
 //! Indexed phases 1a and 1b): which files open as one
 //! ([`indexed_source_at`], header work only) and the open itself
 //! ([`PrecisionDocument::open_indexed`]).

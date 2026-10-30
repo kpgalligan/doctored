@@ -243,7 +243,7 @@ class AdjustmentSheet: NSViewController {
 
     /// The space an adjustment's colours live in — the DOCUMENT's, because
     /// an adjustment is a function of the pixels it transforms
-    /// (`AdjustmentColor`). On a Lab Color document (#547 phase 2d) sRGB: its
+    /// (`AdjustmentColor`). On a Lab Color document (#1 phase 2d) sRGB: its
     /// Photo Filter colour and Gradient Map stops are sRGB numbers the core
     /// converts for the kernel (`lab_adjust::kernel_params`), not Lab codes,
     /// though the twin's own space is a LUT-mode destination.

@@ -56,7 +56,7 @@
 //! # One gate for every CMYK source
 //!
 //! Only 8/16-bit CMYK TIFF — chunky or planar, four to 56 samples a pixel, the
-//! first extra sample read as its transparency when it is one (#547 phase 3,
+//! first extra sample read as its transparency when it is one (#1 phase 3,
 //! `cmyk_tiff_read`) — and a four-component CMYK/YCCK JPEG, inside
 //! `MAX_PIXELS` — and, for the TIFF, inside the two buffers `image`'s own
 //! decode leaves `tiff` ([`image_tiff_limits`]) — is read here. That gate is ONE function,
@@ -599,7 +599,7 @@ pub(crate) fn cmyk_tiff_layout<R: std::io::Read + std::io::Seek>(
 }
 
 /// A CMYK TIFF the gate admits but `image`'s own decoder does not read — a
-/// planar one, or one with a transparency or extra samples (#547 phase 3):
+/// planar one, or one with a transparency or extra samples (#1 phase 3):
 /// the flat open reads it through `cmyk_tiff_read` alone, and only when it
 /// converts from a CMYK profile; otherwise the platform reads it, as before.
 pub(crate) fn cmyk_tiff_beyond_image(bytes: &[u8]) -> bool {

@@ -220,7 +220,7 @@ enum ContactSheet {
                         throw DoctoredCoreError(message: "Could not build a cell for “\(label)”.")
                     }
                     // A Lab document's display projection is its Display P3 view, never
-                    // the twin's codes (#547 Lab close), so it is tagged Display P3.
+                    // the twin's codes (#1 Lab close), so it is tagged Display P3.
                     let profile = source.isLab ? RasterProfile.builtin(.displayP3) : source.iccProfile
                     let tagged = try profile.flatMap { try byte.assigningProfile($0) } ?? byte
                     return ContactSheetCell(source: tagged, label: label)

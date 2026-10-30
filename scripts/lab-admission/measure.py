@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 Lab Color phase-1, phase-1b, phase-2f, phase-3a, phase-3b, phase-4c, phase-5a and phase-5a-ii admission drive, on a built Release app.
+"""The #1 Lab Color phase-1, phase-1b, phase-2f, phase-3a, phase-3b, phase-4c, phase-5a and phase-5a-ii admission drive, on a built Release app.
 
 Every new Lab plan is held to the measured-admission rule: plan >=
 ceil(1.25 x max E), where E is `ri_interval_max_phys_footprint` - pre around

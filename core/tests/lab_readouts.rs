@@ -1,4 +1,4 @@
-//! #547 Lab Color phase 1c, the readouts, through the FFI against the CIE
+//! #1 Lab Color phase 1c, the readouts, through the FFI against the CIE
 //! oracles of `common/lab_fixture.rs`: the gate admits the scalar
 //! statistics of a layer mask and (since phase 2d) of a colour plane, and
 //! since phase 2e a colour or alpha plane as a read or edit target and the

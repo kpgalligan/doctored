@@ -26,7 +26,7 @@ final class PrecisionAdjustmentSession {
     var feedback: ToneSheetFeedback?
     /// A composite preview of u16 or float samples: not a scalar target. A
     /// float composite plots unit bins and shows ⌥ at `>= 1.0` /
-    /// `<= 0.0`. A CMYK document (#547 phase 5) takes the ⌥ clipping display
+    /// `<= 0.0`. A CMYK document (#1 phase 5) takes the ⌥ clipping display
     /// through its own ink (`cmyk_clip_display`), with no After plot.
     var supportsCompositeFeedback: Bool {
         scalar == nil
@@ -237,7 +237,7 @@ final class PrecisionAdjustmentSession {
                     let result = try Self.compute(edit, mode: mode, width: width, height: height, nativeSelection: nativeSelection, landing: landing, control: token) ?? edit.source
                     guard !token.isCancelled else { return nil }
                     box?.reset()
-                    // #547 phase 5: a CMYK candidate's ⌥ display is its ink at paper or at 100 %
+                    // #1 phase 5: a CMYK candidate's ⌥ display is its ink at paper or at 100 %
                     // (`cmyk_clip_display`), marked clipped so the samplers never read it.
                     if cmyk, let box, let clip {
                         let context = try PrecisionWorkContext(source: result)

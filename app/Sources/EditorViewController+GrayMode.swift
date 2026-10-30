@@ -1,12 +1,12 @@
 import AppKit
 
-// Image ▸ Mode ▸ Grayscale (#547 phase 1a): "Discard color information?" (Discard /
+// Image ▸ Mode ▸ Grayscale (#1 phase 1a): "Discard color information?" (Discard /
 // Cancel), then the conversion as ONE undo step (`CmykModeConversion`'s gray arms, recorded as
 // `convert_mode` with `mode: "gray"`). A record a Grayscale document cannot hold — the core
 // plan's `flatten_required` refusal, or `ModeFlattenRequired` from inside the job — asks a second
 // alert naming it (Flatten / Cancel), and Flatten converts again with `flatten: true`. The space
 // is Color Settings' working Gray; a Duotone document keeps its own Gray profile and asks no
-// Discard alert (#547's Duotone close). Phase 5a adds Edit ▸ Assign Profile… / Convert to
+// Discard alert (#1's Duotone close). Phase 5a adds Edit ▸ Assign Profile… / Convert to
 // Profile… on a Grayscale document (`GrayProfileSheetController`) and the commit every Gray
 // profile edit shares, Image ▸ Mode ▸ 8/16/32 Bits/Channel's included (`GrayProfileEdit`, one
 // undo step each).
@@ -14,10 +14,10 @@ import AppKit
 extension EditorViewController {
     @objc func convertToGrayscaleMode(_ sender: Any?) {
         guard let document, document.doc != nil else { NSSound.beep(); return }
-        // #547 Bitmap phase 1a: a Bitmap document asks its Size Ratio instead (no colour to
+        // #1 Bitmap phase 1a: a Bitmap document asks its Size Ratio instead (no colour to
         // discard).
         if document.doc?.isBitmap == true { presentBitmapToGray(); return }
-        // #547 Duotone: Duotone → Grayscale renders the inks into the gray at once (no colour to
+        // #1 Duotone: Duotone → Grayscale renders the inks into the gray at once (no colour to
         // discard: `CmykModeConversion.duotoneToGray`), with the Flatten alert when it needs one.
         if document.doc?.isDuotone == true {
             commitGrayscale(document: document, flatten: false)

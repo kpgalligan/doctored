@@ -27,7 +27,7 @@ final class NativePlaneReader {
         return (context.limit, context.otherRetained - ownReservation)
     }
     /// One source or target plane, canvas-sized. `plate` names the CMYK plate an `.rgb` (CMYK
-    /// composite) source is read as against a CMYK layer target (#547); nil reads its luminosity.
+    /// composite) source is read as against a CMYK layer target (#1); nil reads its luminosity.
     func plane(layer: Int?, choice: PlaneChoice, component: RasterPlane? = nil,
                plate: CmykPlane? = nil) throws -> [UInt16] {
         let plane: RasterPlane
@@ -46,7 +46,7 @@ final class NativePlaneReader {
             cached[key] = output; return output
         }
         switch choice {
-        // #547 Lab phase 6b-i: the Lab composite onto one plane reads Lightness (the stored red
+        // #1 Lab phase 6b-i: the Lab composite onto one plane reads Lightness (the stored red
         // codes), never `luminance`, which a Lab document refuses.
         case .rgb: plane = component ?? (doc.isLab ? .red : .luma)
         case .plane(let p): plane = p
@@ -67,7 +67,7 @@ final class NativePlaneReader {
         leases.append(try PrecisionEditPayload.admitted(bytes: UInt64(output.count) * 2 + 512))
         cached[key] = output; return output
     }
-    /// One CMYK plate as its stored `1 − ink`, canvas-sized (#547): a layer's own stored samples
+    /// One CMYK plate as its stored `1 − ink`, canvas-sized (#1): a layer's own stored samples
     /// (`read_plane`, no ink outside its rect), or the composite's (`cmyk_select`'s `color`).
     private func inkPlate(layer: Int?, _ plate: CmykPlane) throws -> [UInt16] {
         let key = "\(layer.map(String.init) ?? "merged"):\(plate.key)"
@@ -124,7 +124,7 @@ final class NativePlaneReader {
         return try stage { try source.editingPixels(request: request, samples: samples + (coverage ?? []),
             workingLimit: budget.0, otherRetained: budget.1, control: $0) }
     }
-    /// A Grayscale layer's one plane written back to R, G and B (#547 phase 6b): the core's
+    /// A Grayscale layer's one plane written back to R, G and B (#1 phase 6b): the core's
     /// `scalar_edit` target `gray`, `replace_canvas` under the selection's coverage.
     func writeGray(_ samples: [UInt16], to source: RasterPrecisionDocument, layer: Int,
                    selection: CanvasSelection?) throws -> RasterPrecisionDocument? {
@@ -151,7 +151,7 @@ enum NativeChannelMath {
         if capture.source.isCmyk {
             return try applyCmyk(capture, parameters: p, control: control, ownReservation: ownReservation)
         }
-        // #547 phase 6b: a Gray layer is one plane; an alpha channel target takes the RGB path.
+        // #1 phase 6b: a Gray layer is one plane; an alpha channel target takes the RGB path.
         if capture.facade.isGray {
             if case .channel = p.target {} else {
                 return try applyGray(capture, parameters: p, control: control, ownReservation: ownReservation)
@@ -183,7 +183,7 @@ enum NativeChannelMath {
         }
         return changed ? current : nil
     }
-    /// Apply Image on a CMYK document (#547): a layer target is its four plates, plate for plate
+    /// Apply Image on a CMYK document (#1): a layer target is its four plates, plate for plate
     /// (each one-plane blend, so the HSL modes refuse with the core's sentence), one plate or an
     /// alpha channel is one plane; every write is the plate's or channel's scalar `replace_canvas`.
     private static func applyCmyk(_ capture: PrecisionEditorCapture, parameters p: ApplyImageParameters,
@@ -214,7 +214,7 @@ enum NativeChannelMath {
         }
         return changed ? current : nil
     }
-    /// Apply Image onto a Grayscale layer (#547 phase 6b): the layer's luminance (its Gray, R = G =
+    /// Apply Image onto a Grayscale layer (#1 phase 6b): the layer's luminance (its Gray, R = G =
     /// B) blended with the source plane as ONE plane, written to R, G and B by `writeGray`, so the
     /// layer keeps R = G = B. An alpha channel target takes `apply`'s RGB path.
     private static func applyGray(_ capture: PrecisionEditorCapture, parameters p: ApplyImageParameters,

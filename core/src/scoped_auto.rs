@@ -37,7 +37,7 @@
 //! identity values. A 32-bit float document is refused at plan time with
 //! `float_document::auto_refusal`.
 //!
-//! A Lab Color document (#547 phase 2f, `lab`): Auto Tone stretches the
+//! A Lab Color document (#1 phase 2f, `lab`): Auto Tone stretches the
 //! Lightness plane alone (`ops_auto::contrast_endpoints` on index 0) and
 //! a\* and b\* keep (0, 1, 1), `selected_auto_levels`' Lab rule; Auto Color
 //! refuses (`lab_adjust::unavailable_sentence`).

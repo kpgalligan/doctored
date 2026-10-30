@@ -1,6 +1,6 @@
 import AppKit
 
-// The Grayscale document's gate (#547, closed): what a Gray document admits from the
+// The Grayscale document's gate (#1, closed): what a Gray document admits from the
 // canvas, the menus and MCP, asked FIRST wherever a depth decides (`DocumentPrecision.refusal`,
 // `allows`, `validatePrecisionItem`), before the CMYK gate. The core's own table is
 // `precision_capability::GRAY_FAMILIES` and its edit gate `gray_document::admit_edit`; this is
@@ -69,7 +69,7 @@ extension RasterDocument {
     /// The document's colour mode, Image ▸ Mode's check mark.
     var colorMode: ColorModeTarget {
         if isBitmap { return .bitmap }
-        // #547 Duotone phase 1a: a Duotone document is a Gray one with a description.
+        // #1 Duotone phase 1a: a Duotone document is a Gray one with a description.
         if isDuotone { return .duotone }
         if isGray { return .gray }
         if isLab { return .lab }
@@ -379,17 +379,17 @@ enum GrayDocument {
     static let redEyeRefusal = "Remove Red Eye is unavailable in a Grayscale document: Doctored "
         + "offers it on RGB documents only."
 
-    /// Neural Colorize's permanent refusal (#547 phase 6b, Doctored's decision): its colour has
+    /// Neural Colorize's permanent refusal (#1 phase 6b, Doctored's decision): its colour has
     /// nowhere to go in a one-channel layer.
     static let colorizeRefusal = "Neural Colorize is unavailable in a Grayscale document: a "
         + "Grayscale layer holds no colour. Convert to RGB Color first."
 
-    /// Sky Replacement's permanent refusal (#547 phase 6b, Doctored's decision): its New Layers
+    /// Sky Replacement's permanent refusal (#1 phase 6b, Doctored's decision): its New Layers
     /// output carries colour Curves the Gray adjustment table refuses.
     static let skyRefusal = "Sky Replacement is unavailable in a Grayscale document: Doctored "
         + "offers it on RGB documents only."
 
-    /// Why `histogram source scalar` refuses the Gray or layer target (#547 phase 6b): the Gray
+    /// Why `histogram source scalar` refuses the Gray or layer target (#1 phase 6b): the Gray
     /// channel is the layer, whose histogram is the composite/layer source's.
     static let scalarTargetRefusal = "A Grayscale document's scalar histogram takes target mask or "
         + "channel:<name>."
@@ -416,7 +416,7 @@ enum GrayDocument {
     }
 
     /// The bit depth a one-channel save or export of `doc` writes by default: 8 for JPEG or an
-    /// 8-bit document, 32 for a TIFF of a 32-bit document (a one-channel float TIFF, #547 phase
+    /// 8-bit document, 32 for a TIFF of a 32-bit document (a one-channel float TIFF, #1 phase
     /// 3c), else 16 (a 32-bit document's PNG writes 16: the format has no 32-bit form).
     static func defaultBitDepth(_ doc: RasterDocument, format: ExportFormat) -> Int {
         if format == .jpeg || doc.grayDepth == 8 { return 8 }
@@ -518,7 +518,7 @@ enum GrayDocument {
         return nil
     }
 
-    /// Why a Gray document refuses a `render` channel (#547 phase 1c).
+    /// Why a Gray document refuses a `render` channel (#1 phase 1c).
     static let renderRefusal = "A Grayscale document renders its composite with no channel, channel "
         + "gray with no layer, channel mask with a layer, or an alpha channel by name with no layer."
 

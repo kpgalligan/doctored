@@ -150,31 +150,31 @@ Links inside these files are historical: sibling links point at other archived o
 
 ## Grayscale mode — closed 2026-10-21
 
-- [grayscale-mode-status.md](grayscale-mode-status.md) — the working record of #547's Grayscale mode at close (2026-10-21) — the status head, the closing batch's contract and the list of tools no phase named. ([ADR](../designs/grayscale-mode.md))
+- [grayscale-mode-status.md](grayscale-mode-status.md) — the working record of #1's Grayscale mode at close (2026-10-21) — the status head, the closing batch's contract and the list of tools no phase named. ([ADR](../designs/grayscale-mode.md))
 - [grayscale-mode-shipped.md](grayscale-mode-shipped.md) — its shipped companion — every decision in force with its Photoshop take (gray-luminance, gray-mode-547 and gray-files-547 take1 to take4) and phases 1a to 6b, each with its tests, drive gates and admission figures. ([ADR](../designs/grayscale-mode.md))
 
 ## Lab Color mode — closed 2026-10-22
 
-- [lab-mode-status.md](lab-mode-status.md) — the working record of #547's Lab Color mode at close (2026-10-22) — the status head with every phase's commit, the phase 6 contract and the close's list, Photoshop in Lab (measured) and the open items. ([ADR](../designs/lab-mode.md))
+- [lab-mode-status.md](lab-mode-status.md) — the working record of #1's Lab Color mode at close (2026-10-22) — the status head with every phase's commit, the phase 6 contract and the close's list, Photoshop in Lab (measured) and the open items. ([ADR](../designs/lab-mode.md))
 - [lab-mode-shipped.md](lab-mode-shipped.md) — its shipped companion — every decision in force with its Photoshop take (lab-mode-547, lab-blend-681, lab-files-547, lab-export-547, lab-select-547, lab-gray-547, lab-cmyk-547) and phases 1 to 6b-iii, each with its tests, drive gates and admission figures. ([ADR](../designs/lab-mode.md))
 
 ## Indexed Color mode — closed 2026-10-23
 
-- [indexed-mode-status.md](indexed-mode-status.md) — the working record of #547's Indexed Color mode at close (2026-10-23) — the status head with every phase's commit, the 3d take and the close's plan, Photoshop in Indexed Color (measured) and the open item. ([ADR](../designs/indexed-mode.md))
+- [indexed-mode-status.md](indexed-mode-status.md) — the working record of #1's Indexed Color mode at close (2026-10-23) — the status head with every phase's commit, the 3d take and the close's plan, Photoshop in Indexed Color (measured) and the open item. ([ADR](../designs/indexed-mode.md))
 - [indexed-mode-shipped.md](indexed-mode-shipped.md) — its shipped companion — every decision in force (the palettes, the edge rule, the ink and background rules, the exact geometry, paste, profiles, tool classes) and phases 1a to 3c, each with its tests, drive gates and admission figures. ([ADR](../designs/indexed-mode.md))
 
 ## Duotone mode — closed 2026-10-23
 
-- [duotone-mode-status.md](duotone-mode-status.md) — the working record of #547's Duotone mode at close (2026-10-23) — the status head with phases 1a to 2b and their commits, the decisions in force with take1's numbers and menu walk, "What remains for the close" (the Grayscale question, Bitmap, the walk's 25 paths, the unreachable arms) and the mode's scope. ([ADR](../designs/duotone-mode.md))
+- [duotone-mode-status.md](duotone-mode-status.md) — the working record of #1's Duotone mode at close (2026-10-23) — the status head with phases 1a to 2b and their commits, the decisions in force with take1's numbers and menu walk, "What remains for the close" (the Grayscale question, Bitmap, the walk's 25 paths, the unreachable arms) and the mode's scope. ([ADR](../designs/duotone-mode.md))
 
 ## Bitmap mode — closed 2026-10-23
 
-- [bitmap-mode-status.md](bitmap-mode-status.md) — the working record of #547's Bitmap mode at close (2026-10-23) — the status head with phases 1a to 3 and their commits, the close's contract, the known differences, the leaf rule, Photoshop in Bitmap (measured) and the admission table. ([ADR](../designs/bitmap-mode.md))
+- [bitmap-mode-status.md](bitmap-mode-status.md) — the working record of #1's Bitmap mode at close (2026-10-23) — the status head with phases 1a to 3 and their commits, the close's contract, the known differences, the leaf rule, Photoshop in Bitmap (measured) and the admission table. ([ADR](../designs/bitmap-mode.md))
 - [bitmap-mode-shipped.md](bitmap-mode-shipped.md) — its shipped companion — the 14 decisions in force (storage, methods, files, the gate's tiers, the edits through the adapter, plans) and phases 1a to 3. ([ADR](../designs/bitmap-mode.md))
 
 ## Spot channels — closed 2026-10-26
 
-- [spot-channels-status.md](spot-channels-status.md) — the working record of #547's spot channels at close (2026-10-26) — the status head with 1a-1 to 1c-2a, the sources, the decisions in force (model, overprint, saves, PSD/PSB, flat TIFF, PDF), the plan, 1c-2b's contract, open items and the shipped runs. ([ADR](../designs/spot-channels.md))
+- [spot-channels-status.md](spot-channels-status.md) — the working record of #1's spot channels at close (2026-10-26) — the status head with 1a-1 to 1c-2a, the sources, the decisions in force (model, overprint, saves, PSD/PSB, flat TIFF, PDF), the plan, 1c-2b's contract, open items and the shipped runs. ([ADR](../designs/spot-channels.md))
 
 ## 2026-10 — originals of records condensed again
 

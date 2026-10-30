@@ -1,4 +1,4 @@
-//! Type, shape and fill layers on a CMYK document (#547's artwork batch,
+//! Type, shape and fill layers on a CMYK document (#1's artwork batch,
 //! `cmyk_artwork` / `cmyk_artwork_render`), through the FFI.
 //!
 //! The oracles are independent of the implementation: a fill and a shape's

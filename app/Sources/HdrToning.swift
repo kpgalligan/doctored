@@ -50,7 +50,7 @@ struct HdrToningSettings: Equatable {
     }
 
     /// The depth an 8- or 16-bit source keeps; nil for a 32-bit source, which chooses. A Grayscale
-    /// document keeps its declared 8 or 16 bits (#547 phase 2e); a 32-bit one chooses 8 or 16
+    /// document keeps its declared 8 or 16 bits (#1 phase 2e); a 32-bit one chooses 8 or 16
     /// (phase 5a).
     static func nativeDepth(of doc: RasterDocument) -> Int? {
         if doc.isGray, let depth = doc.grayDepth, depth != 32 { return depth }
@@ -251,7 +251,7 @@ struct HdrToningRun {
             }
             start = 0.3
         }
-        // A Grayscale document is toned at its own depth by the core, never narrowed (#547 2e); a
+        // A Grayscale document is toned at its own depth by the core, never narrowed (#1 2e); a
         // 32-bit one is toned to 16 bits and, at 8, narrowed by the Gray depth edit (phase 5a),
         // whose plan the core's 8-bit plan holds.
         let narrow = bitDepth == 8 && !source.isGray

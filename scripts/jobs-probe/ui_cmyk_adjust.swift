@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's adjustments-and-filters in-process UI cases (#547): Image ▸ Adjustments, Layer
+// The CMYK document's adjustments-and-filters in-process UI cases (#1): Image ▸ Adjustments, Layer
 // ▸ New Adjustment Layer, Image ▸ Auto and the Filter menu validate per `CmykAdjustFilter`'s table
 // (take1's record) at the document's depth, Edit ▸ Fade and Repeat Last Filter
 // after a blur, and the Channel Mixer and Gaussian Blur sheets apply on ink as one step each. The

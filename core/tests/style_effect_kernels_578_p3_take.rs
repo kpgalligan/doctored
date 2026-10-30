@@ -1,4 +1,4 @@
-//! #578 part 3: the shipped Satin law (`style_fx_satin`: the box-pair matte
+//! #2 part 3: the shipped Satin law (`style_fx_satin`: the box-pair matte
 //! and the per-copy contour, the runner
 //! `scripts/photoshop-probe/effect_kernels_578_p3_take.py`, its candidates
 //! SA1 and SA2l) against Photoshop 26.10's own pixels, at 8 and 16 bits.

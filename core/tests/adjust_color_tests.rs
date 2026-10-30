@@ -7,7 +7,7 @@
 //! formula — the hexcone conversions — or, for `hue_saturation`, from the
 //! R0 oracle (`adjust_hue_saturation_parity`), never from the core's own
 //! output. Vibrance's form is pinned against Photoshop, with its own oracle,
-//! in `adjust_vibrance_posterize_parity` (#578); this file holds the
+//! in `adjust_vibrance_posterize_parity` (#2); this file holds the
 //! properties its sliders promise.
 
 use std::ffi::{c_char, CString};

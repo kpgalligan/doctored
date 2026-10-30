@@ -52,7 +52,7 @@
   `preferredDynamicRange .high` on macOS 26), and the window's colour space is extended Display P3 (the prior
   one restored on the way back). An extended render refusal falls back to the SDR view. Info, samplers,
   `sample_pixel`, `render`, thumbnails, the Navigator and save read document values only.
-- **Develop's HDR preview (#680).** A float development, potential headroom > 1, Fit or 100 %, Clipping
+- **Develop's HDR preview (#4).** A float development, potential headroom > 1, Fit or 100 %, Clipping
   on or off: each f32 side draws `develop_preview_extended` of its region (the SDR preview's cells, centres
   through rule X at gain 1) from its retained f32 master in its profile's extended-linearized space, the canvas
   layer set by the one `EDRDisplay.configure` and the window in extended Display P3 while it shows. Clipping marks
@@ -106,7 +106,7 @@ headroom 2^1.6953 = 3.24, and `kCGImageSourceDecodeToHDR` gives the DNG no conte
 
 - 32-bit PSD read and write shipped ([v1-float-editing.md](v1-float-editing.md), "After v1").
 - RAW HDR leftovers (the local tone map at float, no supporting fixture; Visualize HDR, no colour scheme
-  on record): [#680](https://github.com/kpgalligan/doctored-dev/issues/680). Grain at float and HDR at 100 % with an
+  on record): [#4](https://github.com/kpgalligan/doctored/issues/4). Grain at float and HDR at 100 % with an
   HDR histogram shipped under it.
 - EDR for 8- and 16-bit documents: no such document can carry an HDR (PQ/HLG) profile today (matrix/TRC ICC
   only; `precision_png` refuses cICP).

@@ -198,7 +198,7 @@ extension Array where Element == ActionStep {
         step("stamp_visible", ["name": name], note: "Layer ▸ Stamp Visible")
     }
 
-    /// #547 phase 4c: Layer ▸ Stamp Selected over the replay's selected
+    /// #1 phase 4c: Layer ▸ Stamp Selected over the replay's selected
     /// layers, and ⌘E's Merge Group of its active group.
     static func stampSelected(name: String) -> [ActionStep] {
         step("stamp_selected", ["layers": ActionArgs.selectedLayers, "name": name],
@@ -722,7 +722,7 @@ extension Array where Element == ActionStep {
         return step("apply_filter", arguments, note: "Filters / Image ▸ Adjustments")
     }
 
-    /// Image ▸ Adjustments ▸ Equalize (#547): the prompt's answer (`scope`, nil when there was no
+    /// Image ▸ Adjustments ▸ Equalize (#1): the prompt's answer (`scope`, nil when there was no
     /// selection and so no prompt) and the paint target.
     static func equalize(scope: EqualizeScope?, target: String) -> [ActionStep] {
         var arguments: [String: Any] = ["layer": ActionArgs.activeLayer, "target": target]
@@ -1035,7 +1035,7 @@ extension Array where Element == ActionStep {
         case .unspecified: break
         }
         if let artwork = payload.artwork, artwork.ink == .cmyk {
-            // A CMYK document's text (#547): `ink` in percent beside the appearance hex, whose
+            // A CMYK document's text (#1): `ink` in percent beside the appearance hex, whose
             // alpha the replay takes; each run likewise (its hex carries only the alpha).
             arguments["ink"] = AgentServer.inkPercent(artwork.rgba)
             arguments["color_runs"] = artwork.runs.map {
@@ -1087,7 +1087,7 @@ extension Array where Element == ActionStep {
             "transform": payload.transform.array,
         ]
         if let artwork = payload.artwork, artwork.ink == .cmyk {
-            // A CMYK document's shape (#547): `fill_ink` / `stroke_ink` in percent beside the
+            // A CMYK document's shape (#1): `fill_ink` / `stroke_ink` in percent beside the
             // appearance hexes, whose alpha the replay takes.
             if let fill = artwork.fill { arguments["fill_ink"] = AgentServer.inkPercent(fill) }
             if let stroke = artwork.stroke { arguments["stroke_ink"] = AgentServer.inkPercent(stroke) }
@@ -1254,7 +1254,7 @@ extension Array where Element == ActionStep {
             arguments["layer"] = ActionArgs.layer(doc.layerRef(index))
         case .compositePlane(let plane):
             arguments["from"] = "plane"
-            // #547 Lab phase 4b-i: a Lab document's planes replay by their Lab names.
+            // #1 Lab phase 4b-i: a Lab document's planes replay by their Lab names.
             arguments["plane"] = doc.isLab ? LabDocument.agentPlaneName(plane) : plane.agentName
         case .inkPlate(let plate):
             arguments["from"] = "plane"
@@ -1644,11 +1644,11 @@ enum ActionArgs {
 
     /// A source-plane choice as `apply_image` / `calculations` spell it.
     static func planeChoice(_ choice: PlaneChoice, in doc: RasterDocument) -> String {
-        // #547 Lab phase 6b-i: "lab", "lightness", "a", "b", "alpha" or a channel's name.
+        // #1 Lab phase 6b-i: "lab", "lightness", "a", "b", "alpha" or a channel's name.
         if doc.isLab { return LabDocument.planeChoiceName(choice, in: doc) }
         switch choice {
-        // #547: a CMYK document's composite is spelled "cmyk", its plates by their keys.
-        // #547 phase 6b: a Grayscale document's composite or layer is spelled "gray".
+        // #1: a CMYK document's composite is spelled "cmyk", its plates by their keys.
+        // #1 phase 6b: a Grayscale document's composite or layer is spelled "gray".
         case .rgb: return doc.isCmyk ? "cmyk" : doc.isGray ? "gray" : "rgb"
         case .plane(let plane): return plane.agentName
         case .channel(let index): return doc.channelInfo(index)?.name ?? (doc.isCmyk ? "cmyk" : doc.isGray ? "gray" : "rgb")

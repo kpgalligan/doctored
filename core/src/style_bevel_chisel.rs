@@ -1,4 +1,4 @@
-//! KERNEL: the Chisel law of the Chisel Hard and Chisel Soft bevels (#578),
+//! KERNEL: the Chisel law of the Chisel Hard and Chisel Soft bevels (#2),
 //! measured against Photoshop, for each (style, technique) arm the runner
 //! shipped: a facet height from the distance to the contour, the NORMALIZED
 //! shading at a facet-slope scale `k` per technique, and Soften as a box pair

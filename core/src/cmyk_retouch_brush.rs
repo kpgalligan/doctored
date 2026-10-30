@@ -1,4 +1,4 @@
-//! The retouch brushes on a CMYK document's raster records (#547): Dodge and
+//! The retouch brushes on a CMYK document's raster records (#1): Dodge and
 //! Burn, the Blur, Sharpen and Sponge brushes, Smudge and the History Brush,
 //! each the shipped 16-bit RGB walk run on the record's `L` passes
 //! (`cmyk_passes`) and joined back into ink. Every entry point is reached

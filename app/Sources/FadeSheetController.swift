@@ -85,8 +85,8 @@ final class FadeSheetController: NSViewController {
 
     /// Apply Image's blend popup; a float document keeps only the modes it
     /// admits (`NativeLayerBlending.floatModes`), a Grayscale one only its
-    /// own (`grayModes(for:)`, #547 phase 2c), a Lab Color one only
-    /// `labModes` (#547 Lab phase 2c), and drops emptied groups.
+    /// own (`grayModes(for:)`, #1 phase 2c), a Lab Color one only
+    /// `labModes` (#1 Lab phase 2c), and drops emptied groups.
     private func fillModes() {
         ChannelMathControls.fillBlendModes(blendPopup, singlePlane: false)
         let after = candidate.after

@@ -1,4 +1,4 @@
-//! Hand-assembled gray files and a Gray ICC profile for #547's Grayscale
+//! Hand-assembled gray files and a Gray ICC profile for #1's Grayscale
 //! tests (`gray_document`, `gray_files`): PNGs written chunk by chunk from
 //! the PNG specification, little-endian classic TIFFs from TIFF 6.0 and a v2
 //! GRAY display profile from ICC.1:2001-04 — none through a decoder or

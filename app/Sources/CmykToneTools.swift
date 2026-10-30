@@ -1,6 +1,6 @@
 import AppKit
 
-// Levels and Curves' tools on a CMYK document (#547 phase 5): the histogram per ink and composite
+// Levels and Curves' tools on a CMYK document (#1 phase 5): the histogram per ink and composite
 // (`CmykHistogram`, of L = 1 − ink, read through `dr_precision_doc_cmyk_tone_analysis`), Auto and
 // Auto Options (`CmykAutoOptions`, persisted, and `CmykAutoOptionsSheetController`), the black,
 // grey and white eyedroppers (a canvas click while the dialog is up), and the turning of the

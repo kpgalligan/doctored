@@ -1,4 +1,4 @@
-//! #547 phase 2d, layer effects and Blend If on a Grayscale document
+//! #1 phase 2d, layer effects and Blend If on a Grayscale document
 //! (`gray_style`), through the FFI. The oracle is the RGB TWIN (the Gray
 //! document converted to RGB through its own profile bytes) given the style
 //! the Gray layer STORES (`reported_style`): each of the nine effects —

@@ -82,7 +82,7 @@
 //! `jitter` (read only when above 0). `useTexture` ↔ `texture_enabled` and,
 //! when it is on, the texture's `Ptrn`, `Scl `, `textureDepth`, `InvT`,
 //! `Algn` and `phase` ↔ `texture` on `ebbl`
-//! (`psd_pattern_fill`). `bvlT` ↔ `technique` on `ebbl` (#578): `SfBL` smooth
+//! (`psd_pattern_fill`). `bvlT` ↔ `technique` on `ebbl` (#2): `SfBL` smooth
 //! (read as no key), `PrBL` chisel_hard, `Slmt` chisel_soft. Written-only
 //! defaults, IGNORED on read: `GlwT` enum `BETE` `SfBL`, `Ofst` Objc `Pnt `
 //! {`Hrzn` 0, `Vrtc` 0}. Unit tags are ignored on read.
@@ -127,7 +127,7 @@
 //! `iOpa` = `[round(fill × 255), 0, 0, 0]`; it is carried back only in
 //! exactly that framing, and 255 is the 100 % default, not a carry. A pixel
 //! record in Color Burn, Color Dodge or Difference writes it at 255 too
-//! ([`encode_fill_for`], #578): without it Photoshop reads the record as a
+//! ([`encode_fill_for`], #2): without it Photoshop reads the record as a
 //! legacy layer.
 //!
 //! The record's blending ranges are 40 bytes: the pairs gray, red, green,
@@ -139,7 +139,7 @@
 //! a multichannel Blend If (a nondefault alpha slot 4 or any
 //! later slot is not carried, as before).
 //!
-//! A CMYK file's (#547) are the same 40 bytes over the pairs gray, cyan,
+//! A CMYK file's (#1) are the same 40 bytes over the pairs gray, cyan,
 //! magenta, yellow and black (Photoshop take1, `cmyk-styles-547/take1/psd`:
 //! a Cyan This Layer `[0, 0, 60, 140]` is the second pair's first word, the
 //! slider numbers as set), carried back from every nondefault slot of 0…4,
@@ -833,7 +833,7 @@ pub(crate) fn encode_fill(fill_opacity: f32) -> Option<[u8; 4]> {
 /// The blend modes whose PIXEL records always carry `iOpa`, even at 255:
 /// Photoshop reads a Color Burn, Color Dodge or Difference record WITHOUT one
 /// as a pre-Fill "legacy" layer — its opacity reopens as Fill and its
-/// semi-transparent pixels fade toward the mode's neutral (#578 take1: op60
+/// semi-transparent pixels fade toward the mode's neutral (#2 take1: op60
 /// written 153 / 255 read back 255 / 153; the same modes' Fill tiles, whose
 /// records carried `iOpa`, read back as written).
 pub(crate) const LEGACY_FILL_MODES: [BlendMode; 3] = [

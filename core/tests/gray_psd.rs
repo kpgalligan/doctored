@@ -1,11 +1,11 @@
-//! #547 phase 3a: Grayscale PSD, PSB and layered TIFF files as Grayscale
+//! #1 phase 3a: Grayscale PSD, PSB and layered TIFF files as Grayscale
 //! documents, through the C API.
 //!
 //! Oracles: gray files assembled here byte by byte from Adobe's published
 //! framing (the records through `psd16_fixture`'s `Record` and `pack`, the
 //! descriptors through `psd_descriptor_fixture`, a big-endian TIFF directory
 //! from TIFF 6.0) — never through the crate's writer. (A Gray document's
-//! PSD export, and so its round trips, shipped in #547 phase 3b.)
+//! PSD export, and so its round trips, shipped in #1 phase 3b.)
 //! A `Grsc` colour's gray is the Gray profile's `kTRC` of `1 − K/100`,
 //! computed here from the test profile's own gamma.
 
@@ -415,7 +415,7 @@ fn descriptor(doc: *const PrecisionDocument) -> Value {
 /// Whether the document's kept-gray TIFF export (`gray_export`, phase 1b:
 /// its Gray ICC verbatim in tag 34675) holds `icc` byte for byte: the Gray
 /// profile the open adopted, read back through a path that never touches
-/// the PSD writer (whose Gray form shipped in #547 phase 3b).
+/// the PSD writer (whose Gray form shipped in #1 phase 3b).
 fn embeds_gray_icc(doc: *const PrecisionDocument, depth: u16, icc: &[u8]) -> bool {
     let request = CString::new(format!(
         r#"{{"format":"tiff","bit_depth":{depth},"profile":"document","dither":"none"}}"#
@@ -750,7 +750,7 @@ fn blend_if_off_gray_drops_the_style_by_name_and_a_refused_adjustment_is_omitted
 
 #[test]
 fn a_file_of_only_a_fill_and_a_refused_adjustment_opens_its_composite() {
-    // #547 phase 3b, review nit 2: the gray open drops every fill and every
+    // #1 phase 3b, review nit 2: the gray open drops every fill and every
     // adjustment the Gray table refuses, so a file of only those imports
     // nothing and Import Layers opens the stored composite, as RGB does.
     let dir = TempDir::new().unwrap();

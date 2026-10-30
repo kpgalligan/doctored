@@ -96,7 +96,7 @@ extension RawDevelopWindowController {
     /// moved the card off the one it opened on: a place into a 32-bit
     /// float document that kept the default records none, so a replay follows
     /// its own document's depth. At the float encoding the card opened on,
-    /// grain is returned as at 16 bits (#680: it develops at float on the
+    /// grain is returned as at 16 bits (#4: it develops at float on the
     /// display encoding), and the tone curve is returned
     /// only when the user moved it from the value the card opened on (0 when
     /// the card started it at 0, else the saved curve): the recipe

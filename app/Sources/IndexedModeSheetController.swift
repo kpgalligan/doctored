@@ -1,6 +1,6 @@
 import AppKit
 
-/// Image ▸ Mode ▸ Indexed Color… (#547 Indexed phases 1a to 3d): the dialog — Palette
+/// Image ▸ Mode ▸ Indexed Color… (#1 Indexed phases 1a to 3d): the dialog — Palette
 /// (Exact, System (Mac OS), System (Windows), Web, Uniform, Adaptive (median cut), Custom… with its
 /// Table… (`ColorTableSheetController`, `.custom`), Previous (the last conversion's palette,
 /// `IndexedPalettes`, disabled when there is none); Uniform by default; both sent to the core as

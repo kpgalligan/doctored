@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 phase-4a MCP drive: a CMYK document's layer STRUCTURE over MCP —
+"""The #1 phase-4a MCP drive: a CMYK document's layer STRUCTURE over MCP —
 groups, blend modes, clipping masks, group masks, Fill Opacity, the merges and
 Stamp Visible, the DRDC 84 round trip, the words a document that needs none of
 it keeps, the refusals, and both mode conversions carrying the tree.
@@ -39,7 +39,7 @@ composite is read as `sample_color`'s `ink16`.
 - **S7 refusals.** `set_layer_style` with Blend If on Red (Gray and the plates
   are admitted since the Blend If batch) and `set_layer_properties`
   with every mode CMYK does not offer (`NOT_OFFERED`) refuse by name (an enabled
-  effect is admitted since the styles batch, #547: `verify_cmyk_styles.py`).
+  effect is admitted since the styles batch, #1: `verify_cmyk_styles.py`).
 - **S8 conversions.** `convert_mode rgb` then `convert_mode cmyk` keeps the
   group, the Multiply mode and the clip.
 """

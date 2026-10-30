@@ -1,4 +1,4 @@
-//! The Indexed Color document mode (#547 Indexed phase 1a): the policy, the
+//! The Indexed Color document mode (#1 Indexed phase 1a): the policy, the
 //! edit gate and the refusal sentences (`designs/indexed-mode.md`).
 //!
 //! # What an Indexed document IS

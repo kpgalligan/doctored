@@ -16,7 +16,7 @@ final class VibranceSheet: AdjustmentSheet {
     private var vibrance: Double = 0
     /// The flat Saturation slider. It is NOT `hue_saturation`'s master
     /// saturation: it scales each pixel's distance
-    /// from a ProPhoto-luminance anchor in the document's linear light (#578,
+    /// from a ProPhoto-luminance anchor in the document's linear light (#2,
     /// `adjust_color`), so the two dialogs differ at the same number.
     private var saturation: Double = 0
 
@@ -43,7 +43,7 @@ final class VibranceSheet: AdjustmentSheet {
     /// The two facts the sliders cannot show. A positive Vibrance gain is
     /// held back on reds and skin — a face keeps its colour while the shirt
     /// behind it lifts — and Saturation works on the document's linear
-    /// values (#578, `adjust_color`).
+    /// values (#2, `adjust_color`).
     override var footnote: String { "reds and skin held back · saturation in linear light" }
 }
 

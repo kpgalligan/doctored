@@ -225,7 +225,7 @@ enum MergeHDR {
                 message: "“\(urls[0].lastPathComponent)” opened as a 32-bit float image; "
                     + "\(title) takes 8- or 16-bit exposures.")
         }
-        // #547 Lab phase 6b-i: a Lab stack merges through 16-bit ProPhoto RGB (no 32-bit Lab).
+        // #1 Lab phase 6b-i: a Lab stack merges through 16-bit ProPhoto RGB (no 32-bit Lab).
         let stack = built.document.isLab ? try LabDocument.mergeStack(built.document) : built.document
         var frames = built.layers.map {
             Frame(layer: $0.index, name: $0.name, path: $0.path, ev: nil, source: .unknown,
@@ -277,7 +277,7 @@ enum MergeHDR {
             frames.append(Frame(layer: index, name: info.name, path: nil, ev: nil,
                                 source: .unknown, alignment: nil))
         }
-        // #547 Lab phase 6b-i: a Lab document merges through a 16-bit ProPhoto RGB copy (no
+        // #1 Lab phase 6b-i: a Lab document merges through a 16-bit ProPhoto RGB copy (no
         // 32-bit Lab); the document itself stays Lab.
         let stack = doc.isLab ? try LabDocument.mergeStack(doc) : doc
         let unknown = try assignExposures(&frames, in: stack, given: evs, files: nil)

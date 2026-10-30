@@ -107,9 +107,9 @@ extension AgentServer {
                     ["x": sampler.x, "y": sampler.y, "sample_size": sampler.sampleSize],
                     document: document)
                 row.removeValue(forKey: "ok")
-                // #547 Lab phase 2d: `sample_pixel`'s own Lab fields (`LabDocument.withReading`).
+                // #1 Lab phase 2d: `sample_pixel`'s own Lab fields (`LabDocument.withReading`).
                 if doc.isLab { row = LabDocument.withReading(row) }
-                // #547: an 8/16-bit Grayscale document's K %, sample_color's rule.
+                // #1: an 8/16-bit Grayscale document's K %, sample_color's rule.
                 if doc.isGray, !doc.isFloat,
                    let normalized = row["normalized_rgba"] as? [Double], normalized.count == 4 {
                     row["gray_k_percent"] = GrayDocument.kPercent(normalized[0])

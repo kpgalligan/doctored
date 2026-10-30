@@ -1,4 +1,4 @@
-//! #578 part 2, phase 1: the shipped box-pair law of the Drop Shadow, the
+//! #2 part 2, phase 1: the shipped box-pair law of the Drop Shadow, the
 //! Inner Shadow and the Outer Glow (`style_matte`, the runner
 //! `scripts/photoshop-probe/effect_kernels_578_take.py`, its candidates D1,
 //! I1 and O1) against Photoshop 26.10's own pixels, at 8 and 16 bits.
@@ -230,9 +230,9 @@ const PINNED: &[(&str, f64, f64)] = &[
     ("og_rr_s6_p70_r75_8", 4.001, 0.007),
     // The confirm take's shadows (all 32): every mean within 0.061 codes,
     // the max on the pictures' partial pixels, where the shadows' composite
-    // is not the model's (a disclosed residual, the #578 comment): the drop
+    // is not the model's (a disclosed residual, the #2 comment): the drop
     // shadow's knocked-out landing, `m (1 − a)²` where Photoshop reads
-    // `m (1 − a)`, is the residual DK1 fixed in #578 part 4; its pins stay
+    // `m (1 − a)`, is the residual DK1 fixed in #2 part 4; its pins stay
     // unmoved upper bounds because the take1 `rows.json` is absent. The inner
     // shadow composites over the layer's composite where Photoshop
     // composites inside the layer before it lands at `a`.

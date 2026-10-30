@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 phase-5 MCP drive: a CMYK document's COLOUR workflow over MCP —
+"""The #1 phase-5 MCP drive: a CMYK document's COLOUR workflow over MCP —
 File ▸ New in CMYK, Assign / Convert to Profile between CMYK profiles and the
 `.rz` round trip of a converted document, 8/16 Bits/Channel, the CMYK proof
 (Working CMYK, Preserve CMYK Numbers, a plate) and an RGB window's proof
@@ -35,7 +35,7 @@ a synthetic RGB LUT profile written below from the ICC specification.
 - **C4 proof.** `set_proof_setup profile working_cmyk proof_colors true`, then
   `render_proof` (space display-p3), with `preserve_numbers` and with `plate
   cyan` (space display-p3 each); `set_proof_setup gamut_warning true` is
-  admitted on a CMYK document (#547's remaining-gaps batch) and `render_proof`
+  admitted on a CMYK document (#1's remaining-gaps batch) and `render_proof`
   then reports gamut_warning true, and with `preserve_numbers` out_of_gamut 0
   (the numbers go to the press unconverted). An RGB window proofing through the
   synthetic RGB profile WITH Gamut Warning, after `convert_mode cmyk`, still has

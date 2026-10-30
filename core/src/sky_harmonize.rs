@@ -39,7 +39,7 @@
 //!    to 0…1 (as the New Layers output's Curves layer clamps it), then
 //!    `F2 = F1 + lighting·(B(F1, K̄) − F1)` with `B` Multiply or Screen from
 //!    `blend::blend_kind`, then `F3 = F2 + edge·b·(K − F2)`. `color` and
-//!    `lighting` are the sliders' bytes (`opacity_byte::quantized`, #578):
+//!    `lighting` are the sliders' bytes (`opacity_byte::quantized`, #2):
 //!    the New Layers output carries them as layer opacities, which composite
 //!    at their byte (`opacity_byte`), so both outputs read the same weights.
 //! 7. **Composite.** `o = m + (1 − m)·a`, `RGB = (m·K + (1 − m)·a·F3)/o`

@@ -235,7 +235,7 @@ enum TransformSelectedPixels {
     /// (`PlaneAlgebra.coverageColor`, the Fill/Gradient plane rule), its
     /// alpha ignored; a Red, Green or Blue target takes the colour's
     /// 8-bit codes in the document's space as the core's `swatch` (on a Lab
-    /// document the gray of that plane's code of the colour's L*a*b*, #547
+    /// document the gray of that plane's code of the colour's L*a*b*, #1
     /// Lab 6a-ii); Alpha
     /// takes neither (its hole is transparent). The UI passes the background
     /// swatch through `ActionArgs.hex`, so a recorded step replays the same
@@ -249,14 +249,14 @@ enum TransformSelectedPixels {
         let failed = DoctoredCoreError(message: "The background colour could not be converted to "
             + "the document's colour space.")
         if target.isInk {
-            // #547: an ink plate's hole is the swatch's 30/59/11 gray read as ink (the core's
+            // #1: an ink plate's hole is the swatch's 30/59/11 gray read as ink (the core's
             // `cmyk_selected_plate`), from the swatch's sRGB 8-bit codes.
             guard let bytes = ColorProfile.bytes(color, in: .sRGB) else { throw failed }
             return PlaneBackground(gray: 0, hex: hex, swatch: Array(bytes.prefix(3)))
         }
         if document.doc?.isLab == true, case .plane(let plane) = target, plane != .alpha,
            let index = [RasterPlane.red, .green, .blue].firstIndex(of: plane) {
-            // #547 Lab 6a-ii: a Lab plane's hole is that plane's 8-bit code of the background's
+            // #1 Lab 6a-ii: a Lab plane's hole is that plane's 8-bit code of the background's
             // L*a*b* (Offset's rule, `FilterFrame.kernelParameters`): round(L*·255/100),
             // round(a* + 128), round(b* + 128). A gray swatch reads back as that code exactly.
             guard let bytes = ColorProfile.bytes(color, in: .sRGB),
@@ -290,7 +290,7 @@ enum TransformSelectedPixels {
                     : doc.compositePlaneImage(plane.dr, maxSide: 0)
                 return image?.makeCGImage(in: doc.colorSpace)
             case .ink(let plate):
-                // #547: the edited composite's plate, ink dark, as the Channels base draws it.
+                // #1: the edited composite's plate, ink dark, as the Channels base draws it.
                 guard let precision = doc.precision,
                       let context = try? PrecisionWorkContext(source: precision) else { return nil }
                 let image = try? precision.cmykPlaneView(

@@ -1,4 +1,4 @@
-//! Image ▸ Mode ▸ CMYK Color from a Lab Color document (#547 Lab phase 5a):
+//! Image ▸ Mode ▸ CMYK Color from a Lab Color document (#1 Lab phase 5a):
 //! the ProPhoto stage, its plan terms and the Lab-named blocker.
 //!
 //! The rule is CMYK → Lab's reversed. That route runs CMYK → 16-bit

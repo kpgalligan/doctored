@@ -535,7 +535,7 @@ def run(drive):
     d.succeeded("describe_profile", "", path=str(SRGB))
     d.succeeded("assign_profile", "", document_id=second, profile="file", path=str(SRGB))
 
-    # convert_mode's CMYK profile file (#547), on a document of its own.
+    # convert_mode's CMYK profile file (#1), on a document of its own.
     cmyk_doc = d.call("new_document", width=32, height=24, background="white",
                       profile="srgb")["document"]["id"]
     path, label = d.gnupg("p.icc")
@@ -544,7 +544,7 @@ def run(drive):
     d.succeeded("convert_mode", "path", document_id=cmyk_doc, mode="cmyk", profile="file",
                 path=str(proof))
 
-    # The Indexed colour table's `.act` and the Duotone options' `.ado` (#547), each on a
+    # The Indexed colour table's `.act` and the Duotone options' `.ado` (#1), each on a
     # document converted from its own copy of the flat PNG: get_* writes, set_* reads it back.
     shutil.copyfile(png, a / "indexed.png")
     indexed_doc = d.call("open_document", path=str(a / "indexed.png"))["document"]["id"]

@@ -81,7 +81,7 @@ impl SelectedEdit {
     }
 }
 impl PrecisionDocument {
-    /// A CMYK document's selected adjustment (#547 phase 2): a description
+    /// A CMYK document's selected adjustment (#1 phase 2): a description
     /// applied to the ink through `cmyk_adjust_layer`; Auto refuses by name
     /// (the host runs CMYK Auto as Levels). `liquify` (phase 4b) is
     /// `cmyk_warp`'s, over the ink's five planes. Since the adjustments batch
@@ -99,12 +99,12 @@ impl PrecisionDocument {
     }
 
     pub fn selected_edit_plan(&self, edit: &SelectedEdit) -> Result<Value, String> {
-        // A Bitmap document (#547 Bitmap phase 3): the Gray storage's edit,
+        // A Bitmap document (#1 Bitmap phase 3): the Gray storage's edit,
         // then thresholded (`bitmap_tools`).
         if self.is_bitmap() {
             return crate::bitmap_tools::selected_plan(self, edit);
         }
-        // Equalize (#547) at every typed depth and on CMYK: `equalize_apply`.
+        // Equalize (#1) at every typed depth and on CMYK: `equalize_apply`.
         if edit.op == "equalize" {
             return self.equalize_plan(edit);
         }
@@ -357,7 +357,7 @@ impl PrecisionDocument {
         let mut changed = false;
         let mut next = 0;
         let noise = matches!(filter, Some(SelectedFilter::Noise { .. }));
-        let fold = (self.is_gray() && tone.is_none()).then_some(noise); // #547 2c, `gray_filter`
+        let fold = (self.is_gray() && tone.is_none()).then_some(noise); // #1 2c, `gray_filter`
         for run in runs {
             for before in run {
                 let i = next;

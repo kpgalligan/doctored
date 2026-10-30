@@ -545,7 +545,7 @@ const ADMITTED: &[&str] = &[
     "layer_remove",
     "layer_add",
     "layer_stamp",
-    // #547 phase 4c: Stamp Selected (`precision_merge_selected`).
+    // #1 phase 4c: Stamp Selected (`precision_merge_selected`).
     "layer_stamp_selected",
     "layer_flatten",
     // Apply Layer Mask, alpha · coverage in f32 (`precision_mask_apply`).

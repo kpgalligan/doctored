@@ -3,7 +3,7 @@
 //! resampling through `precision_sampling::transform_image` /
 //! `transform_plane_outside` with `perspective_crop`'s one homography.
 //!
-//! Every `Content::Raster` record (and, #547 phase 4b, every CMYK document's
+//! Every `Content::Raster` record (and, #1 phase 4b, every CMYK document's
 //! `Content::CmykRaster` through `transform_cmyk`) becomes a canvas-sized plane at `(0, 0)`
 //! and DROPS its artwork description (as typed Straighten does: resampled
 //! pixels are no longer the rendering of the description). Every mask, on
@@ -63,7 +63,7 @@ impl Walk<'_> {
             self.job.check()?;
             let mut next = layer.clone();
             match &layer.content {
-                // A CMYK document's ink (#547 phase 4b): the raster arm below
+                // A CMYK document's ink (#1 phase 4b): the raster arm below
                 // through `transform_cmyk`, `transform_image`'s CMYK twin.
                 Content::CmykRaster { image, offset } => {
                     let map = SourceMap::projective(&self.map, *offset, (0, 0));
@@ -169,7 +169,7 @@ impl PrecisionDocument {
                 destinations = destinations.saturating_add(adoption);
                 transient = transient.max(copy.saturating_add(adoption));
             }
-            // A CMYK raster (#547 phase 4b): the same two copies at 10 B/px.
+            // A CMYK raster (#1 phase 4b): the same two copies at 10 B/px.
             if let Content::CmykRaster { image, .. } = &layer.content {
                 rasters.push(size);
                 let adoption = cmyk_adoption_copy_bytes(size)?;

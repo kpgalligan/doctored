@@ -18,11 +18,11 @@ struct CapturedSave {
     let ownRetainedBytes: UInt64
     let precisionSave: PrecisionCapturedSave?
     let precisionExport: PrecisionExportCapture?
-    /// A CMYK document's flat save (#547): `"tiff"` or `"jpeg"`, written by
+    /// A CMYK document's flat save (#1): `"tiff"` or `"jpeg"`, written by
     /// `dr_precision_doc_save_cmyk` (a JPEG through its 8-bit CMYK TIFF
     /// intermediate and `HostImageEncoder.cmykJPEG`); nil for every other save.
     let cmykFormat: String?
-    /// A Lab Color document's TIFF save (#547 Lab phase 1b): the captured projection
+    /// A Lab Color document's TIFF save (#1 Lab phase 1b): the captured projection
     /// `dr_precision_doc_save_lab` writes as a TIFF 6.0 CIELab file; nil for every other save.
     var labTiff: RasterPrecisionImage?
 
@@ -30,7 +30,7 @@ struct CapturedSave {
         guard let source = document.doc else { throw DoctoredCoreError(message: "No image loaded.") }
         self.source = source
         self.type = type
-        // #547: a byte flat save composites the spot channels' overprint, except a TIFF, which
+        // #1: a byte flat save composites the spot channels' overprint, except a TIFF, which
         // keeps them as extra samples (1c-2a, `flatSaveProjection`); a typed one decides in the
         // core (`keepSpotChannels` below).
         self.projection = type == ImageDocument.nativeTypeIdentifier || source.precision != nil
@@ -75,7 +75,7 @@ struct CapturedSave {
             return
         }
         cmykFormat = nil
-        // #547 Bitmap phase 1c: a Bitmap document saves as .rz, as a 1-bit PNG, TIFF or BMP keeping
+        // #1 Bitmap phase 1c: a Bitmap document saves as .rz, as a 1-bit PNG, TIFF or BMP keeping
         // its plane, or as JPEG through its 8-bit Grayscale render, all through
         // `PrecisionExportCapture` (the core's `bitmap_export` and kept-gray stages) at 8 bits with
         // no dither; every other format refuses (`BitmapDocument.saveRefusal`).
@@ -93,7 +93,7 @@ struct CapturedSave {
             ownRetainedBytes = 0
             return
         }
-        // #547 Indexed phase 1b: an Indexed Color document saves as .rz, or as PNG, GIF or TIFF
+        // #1 Indexed phase 1b: an Indexed Color document saves as .rz, or as PNG, GIF or TIFF
         // keeping its palette through `PrecisionExportCapture` (the core's kept-Indexed stages) at
         // 8 bits with no dither; every other format refuses (`IndexedDocument.saveRefusal`).
         if source.isIndexed, type != ImageDocument.nativeTypeIdentifier {
@@ -110,7 +110,7 @@ struct CapturedSave {
             ownRetainedBytes = 0
             return
         }
-        // #547 Lab phase 1b: a Lab Color document saves as .rz, or as a Lab TIFF through the core
+        // #1 Lab phase 1b: a Lab Color document saves as .rz, or as a Lab TIFF through the core
         // (`lab_save`); every other format refuses (`LabDocument.saveRefusal`).
         if source.isLab, type != ImageDocument.nativeTypeIdentifier {
             guard let typed = source.precision, ExportFormat.from(fileType: type) == .tiff else {
@@ -126,12 +126,12 @@ struct CapturedSave {
             ownRetainedBytes = 0
             return
         }
-        // #547 Duotone phase 1b: a Duotone document saves as .doctored; PSD and PSB are
+        // #1 Duotone phase 1b: a Duotone document saves as .doctored; PSD and PSB are
         // File ▸ Export as PSD's, and every other format is an export through its inks.
         if source.isDuotone, type != ImageDocument.nativeTypeIdentifier {
             throw DoctoredCoreError(message: DuotoneDocument.saveRefusal)
         }
-        // #547 phase 1b: a Grayscale document saves as .doctored, or as one-channel PNG, TIFF or
+        // #1 phase 1b: a Grayscale document saves as .doctored, or as one-channel PNG, TIFF or
         // JPEG through `PrecisionExportCapture` (the core's kept-gray stages) at
         // `defaultBitDepth`.
         if source.isGray, type != ImageDocument.nativeTypeIdentifier,
@@ -173,7 +173,7 @@ struct CapturedSave {
             // The document's own pixels, without its evictable caches.
             self.ownRetainedBytes = try source.ownRetainedBytes()
         } else {
-            // …plus the spot channels a TIFF keeps (#547 1c-2a).
+            // …plus the spot channels a TIFF keeps (#1 1c-2a).
             let spots = ExportFormat.from(fileType: type) == .tiff ? SpotChannels.tiffSaveScratch(source) : 0
             self.scratchEstimate = Self.flatByteScratch(width: source.width, height: source.height) &+ spots
             self.ownRetainedBytes = 0

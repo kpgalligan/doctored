@@ -176,7 +176,7 @@ fn a_brush_tick_on_a_styled_layer_patches_the_cached_planes_exactly() {
         "{\"effects\":[{\"type\":\"inner_glow\",\"size\":8,\"source\":\"center\"}]}",
         "{\"effects\":[{\"type\":\"bevel_emboss\",\"size\":24,\"soften\":3,\"style\":\"emboss\"}]}",
         "{\"effects\":[{\"type\":\"bevel_emboss\",\"size\":24,\"soften\":3,\"style\":\"outer_bevel\"}]}",
-        // A textured Pillow Emboss (#578: its shading height is 1 far outside
+        // A textured Pillow Emboss (#2: its shading height is 1 far outside
         // the shape, its texture masked by the unreflected height) beside a
         // wide Inner Shadow, so the plane's pad is far past the bevel's reach.
         "{\"effects\":[{\"type\":\"bevel_emboss\",\"size\":8,\"style\":\"pillow_emboss\",\

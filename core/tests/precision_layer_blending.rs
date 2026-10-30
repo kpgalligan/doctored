@@ -211,7 +211,7 @@ fn all_native_coverage_codes_partial_alpha_and_masks_match_independent_f64() {
                 over(
                     normalized(base[i]),
                     normalized(src[i]),
-                    // The layer's 0.625 at its byte (#578).
+                    // The layer's 0.625 at its byte (#2).
                     common::byte_unit(0.625) * (0.25 + 0.75 * i as f64 / 65535.),
                     mode,
                 ),
@@ -241,7 +241,7 @@ fn nested_isolation_fractional_masks_offsets_and_pass_through_are_distinct() {
     .with_mask(Some(mask(vec![1, 32769, 65535], 0, 1.)));
     let outer = Layer::pass_through("Outer", vec![inner], 0.875, true).unwrap();
     let doc = document(3, vec![layer("B", vec![b; 3], 0, 1.), outer]);
-    // Every opacity at its byte (#578).
+    // Every opacity at its byte (#2).
     let q = common::byte_unit;
     let t = q(0.875);
     for mode in 1..=9 {
@@ -719,7 +719,7 @@ fn separable_nested_groups_keep_subcode_alpha_until_final_projection() {
         .with_mask(Some(mask(vec![32769], 0, 1.)));
         let outer = Layer::pass_through("Outer", vec![group], 0.875, true).unwrap();
         let doc = document(1, vec![layer("B", vec![b], 0, 1.), outer]);
-        // Every opacity at its byte (#578).
+        // Every opacity at its byte (#2).
         let (q, t) = (common::byte_unit, common::byte_unit(0.875));
         let inner = over([0.; 4], normalized(s), q(0.25), 0);
         assert!(inner[3] * 65535. < 0.5);

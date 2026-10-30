@@ -1,4 +1,4 @@
-//! #547 Bitmap phase 1a's conversions through the FFI: 50% Threshold at the
+//! #1 Bitmap phase 1a's conversions through the FFI: 50% Threshold at the
 //! boundary, Diffusion Dither (phase 2b's Sierra Lite serpentine) on a
 //! hand-worked 4×4 plane and a 16×9 ramp against a test-local Sierra Lite,
 //! the Output resolution (resampled by

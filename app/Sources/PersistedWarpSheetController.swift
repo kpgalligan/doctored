@@ -4,7 +4,7 @@ import AppKit
 // stale document/target/selection.
 
 /// Layer ▸ Warp… numeric editor. The full binary64 lattice is local until Apply.
-/// At 32-bit float and in a CMYK document (#547 phase 4b) a warp is
+/// At 32-bit float and in a CMYK document (#1 phase 4b) a warp is
 /// applied to the pixels at once and keeps no re-editable field, so Remove and
 /// Bake are disabled and each Apply warps the current pixels again.
 final class PersistedWarpSheetController: NSViewController, NSTextFieldDelegate {
@@ -18,7 +18,7 @@ final class PersistedWarpSheetController: NSViewController, NSTextFieldDelegate 
     private var target: PersistedWarpTarget
     private var field: PersistedWarpField
     private var selectedNode = 0
-    /// Float's, CMYK's, (#547 phase 4) Grayscale's and (#547 Lab phase 4a-ii) Lab's rule: the warp
+    /// Float's, CMYK's, (#1 phase 4) Grayscale's and (#1 Lab phase 4a-ii) Lab's rule: the warp
     /// is applied at once, with no field.
     private var appliedAtOnce: Bool {
         source.isFloat || source.isCmyk || source.isGray || source.isLab

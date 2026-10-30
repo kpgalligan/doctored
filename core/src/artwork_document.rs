@@ -171,10 +171,10 @@ impl PrecisionDocument {
     /// The LOCK gate (`precision_lock`): REPLACING a record's artwork
     /// rewrites its pixels, so that branch runs under a `Pixels` edit.
     /// Publishing to a NEW record names no target and is ungated, exactly as
-    /// every other new-layer path is. On a Gray document (#547 phase 6a-i)
+    /// every other new-layer path is. On a Gray document (#1 phase 6a-i)
     /// the published image is folded to its gray first
     /// (`gray_artwork::fold_artwork`): its coloured pixels by the Mode rule,
-    /// on the ×257 grid at 8 bits. On an 8-bit Lab document (#547 Lab phase
+    /// on the ×257 grid at 8 bits. On an 8-bit Lab document (#1 Lab phase
     /// 6a-i) it is put on the ×257 grid (`lab_artwork::on_document_grid`).
     pub(crate) fn artwork(
         &self,
@@ -346,7 +346,7 @@ impl PrecisionDocument {
         let old = self
             .layer(index)
             .ok_or("artwork layer index is out of range")?;
-        // A CMYK raster carries a description as an RGB one does (#547).
+        // A CMYK raster carries a description as an RGB one does (#1).
         if (old.source().is_none() && old.cmyk_source().is_none()) || old.retained_source.is_some()
         {
             return Err("artwork metadata requires an ordinary raster".into());

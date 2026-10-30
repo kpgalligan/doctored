@@ -354,7 +354,7 @@ fn a_drop_shadow_and_an_outer_glow_draw_their_own_fields() {
     let mut differ = 0;
     let mut n = 0;
     // Each effect's own noiseless plane: the outer glow's is not the drop
-    // shadow's (its narrower blur and matte stretch, #578).
+    // shadow's (its narrower blur and matte stretch, #2).
     let twin = coverage(&doc, json!([effect("drop_shadow", 12.0, 0.0)]));
     let twin_og = coverage(&doc, json!([effect("outer_glow", 12.0, 0.0)]));
     let ds = coverage(&doc, json!([effect("drop_shadow", 12.0, 0.5)]));
@@ -479,13 +479,13 @@ fn described(ps: (f64, f64, f64), rz: (f64, f64, f64)) -> String {
 /// is unchanged; the test asserts each listed bin is still compared, still
 /// misses, by no more than its recorded amount, and still meets the sd check.
 ///
-/// og_n50 bin 160 was one (#578: Photoshop 168.723 / sd 67.368 (n 780)
+/// og_n50 bin 160 was one (#2: Photoshop 168.723 / sd 67.368 (n 780)
 /// against Doctored 154.588 / sd 72.630 (n 1164), a miss of 2.484 codes
 /// under the Gaussian member) until the Outer Glow's box-pair law
 /// (`effect_kernels_578_take.py`): it now reads 168.374 / sd 68.453 (n 764)
 /// and meets the bound.
 ///
-/// ig_n50 bin 48 (#578, RULING-2): Photoshop 64.347 / sd 61.332 (n 1476) against
+/// ig_n50 bin 48 (#2, RULING-2): Photoshop 64.347 / sd 61.332 (n 1476) against
 /// Doctored 45.897 / sd 59.378 (n 1468), a miss of 9.7751 codes under the shipped
 /// box law. Cause: the law's Size 40 rings sit one code higher (49/55/61 against
 /// Photoshop's 49/54/60), so codes 54 and 60 hold only k = 16 and k = 8 pixels yet

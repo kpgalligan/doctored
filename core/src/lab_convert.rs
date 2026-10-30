@@ -1,4 +1,4 @@
-//! Image ▸ Mode ▸ Lab Color and RGB Color on a Lab document (#547 phase 1):
+//! Image ▸ Mode ▸ Lab Color and RGB Color on a Lab document (#1 phase 1):
 //! the two whole-document conversions, their plans and their refusals.
 //!
 //! One rule both ways: each u16 pixel of every raster runs through a
@@ -124,7 +124,7 @@ pub fn lab_display(
 /// What [`lab_display`] reserves for a `width` × `height` image: its output
 /// at [`VIEW_BYTES_PER_PIXEL`], the view pipeline's tables and bookkeeping.
 /// `PrecisionDocument::display_scratch_bytes` charges it for a Lab document
-/// (#547 Lab phase 4a-ii: the host bounds each display stage by that plan).
+/// (#1 Lab phase 4a-ii: the host bounds each display stage by that plan).
 /// Both profiles are built in, so the tables' bytes are computed once.
 pub(crate) fn view_scratch_bytes(width: u32, height: u32) -> Result<u64, String> {
     static TABLES: OnceLock<u64> = OnceLock::new();
@@ -543,7 +543,7 @@ impl PrecisionDocument {
     /// Lab → RGB's conversion once admitted: every leaf through the twin
     /// into `destination` under `options`, at u16, never narrowed. The
     /// caller has admitted and reserved its scratch; Lab → CMYK's ProPhoto
-    /// stage runs it too (`lab_cmyk`, #547 Lab phase 5a).
+    /// stage runs it too (`lab_cmyk`, #1 Lab phase 5a).
     pub(crate) fn lab_to_rgb_with_context(
         &self,
         destination: &Arc<IccProfile>,

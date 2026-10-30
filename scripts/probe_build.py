@@ -100,7 +100,7 @@ PROBE_SETS: dict[str, ProbeSet] = {
 
 # Directories under scripts/ whose Swift is never compiled with the app.
 STANDALONE_DIRS: tuple[str, ...] = ("auxiliary-matte-probe", "hdr-photos", "host-still-admission",
-                                    "host-stills-opaque", "people-instances-oracle", "photoshop-probe")
+                                    "host-stills-opaque", "people-instances-oracle")
 
 
 def app_sources(root: Path = ROOT) -> list[Path]:

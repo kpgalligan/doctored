@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Mode ▸ Lab Color (#547 Lab phase 1): the conversion at once (no "Discard
+// Image ▸ Mode ▸ Lab Color (#1 Lab phase 1): the conversion at once (no "Discard
 // color information?" — Lab keeps every colour), as ONE undo step (`CmykModeConversion`'s lab
 // arms, recorded as `convert_mode` with `mode: "lab"`). A record a Lab document cannot hold —
 // the core plan's `flatten_required` refusal, or `ModeFlattenRequired` from inside the job — asks
@@ -44,7 +44,7 @@ extension EditorViewController {
         }
     }
 
-    /// Image ▸ Mode ▸ 8/16 Bits/Channel on a Lab document (#547 Lab phase 5a, `LabDepthEdit`) as
+    /// Image ▸ Mode ▸ 8/16 Bits/Channel on a Lab document (#1 Lab phase 5a, `LabDepthEdit`) as
     /// one undo step, recorded as `convert_precision`; the declared depth beeps.
     func commitLabDepth(_ bits: Int, document: ImageDocument) {
         do {

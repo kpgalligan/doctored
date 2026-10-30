@@ -1,4 +1,4 @@
-//! #547 Lab phases 4a and 4a-ii: the resamples, transforms, warps,
+//! #1 Lab phases 4a and 4a-ii: the resamples, transforms, warps,
 //! Liquify, Align and Distribute and the Move tool on a Lab Color document,
 //! through the FFI. Every one is the RGB kernel run on the L\*a\*b\* codes,
 //! so the oracle is the RGB TWIN: the identical `from_parts` document

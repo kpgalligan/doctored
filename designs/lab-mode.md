@@ -1,6 +1,6 @@
 # Lab Color document mode (ADR)
 
-- **Status:** Accepted, closed 2026-10-22. Lab Color closes here; [#547](https://github.com/kpgalligan/doctored-dev/issues/547)
+- **Status:** Accepted, closed 2026-10-22. Lab Color closes here; [#1](https://github.com/kpgalligan/doctored/issues/1)
   (the colour-mode umbrella) stays open for the later modes; Indexed Color closed (`designs/indexed-mode.md`).
   Grayscale is `designs/grayscale-mode.md`, CMYK `designs/cmyk-mode-status.md`.
 - **Originals:** [archive/lab-mode-status.md](../archive/lab-mode-status.md) (the working record at close) and
@@ -153,8 +153,8 @@ Photoshop 26.10.0.
   admitted; Place through ProPhoto (`LAB_FAMILIES` `source_place`); a Generative Layer converts; Auto-Blend
   Layers refused for good; a contact sheet cell tagged Display P3. Tests `core/tests/lab_close.rs`,
   `lab_close_photoshop.rs`; drive `scripts/verify_lab_mode.py` L93–L98.
-- **#683** (this batch): the Magic Wand and Paint Bucket at 8 and 16 bits and Select Similar and Grow at
-  16 by `lab_select`'s key; Similar and Grow at 8 bits refuse naming #683 (`SELECTION_REFUSALS`). Tests
+- **#5** (this batch): the Magic Wand and Paint Bucket at 8 and 16 bits and Select Similar and Grow at
+  16 by `lab_select`'s key; Similar and Grow at 8 bits refuse naming #5 (`SELECTION_REFUSALS`). Tests
   `core/tests/lab_wand.rs`, `lab_wand_photoshop.rs`; drive L99–L101.
 
 ## The close's fates
@@ -176,11 +176,11 @@ Photoshop 26.10.0.
 | `get_tone_map`, `set_tone_map` | refused for good: a 32-bit document's |
 | `depth_blur`, `auto_color`, `hdr_toning`, `assign_profile`, `sky_replacement` | refused for good (earlier phases) |
 | `select_magic_wand` (and the Paint Bucket) | lifted: `lab_select` at both depths |
-| `select_similar` (and Grow) | lifted at 16 bits; at 8 bits refuse naming #683 |
+| `select_similar` (and Grow) | lifted at 16 bits; at 8 bits refuse naming #5 |
 
 ## Open items
 
 - Lab Select Similar and Grow at 8 bits fit no declared rule; Photoshop selects less than the references' box
-  over a dithered field ([#683](https://github.com/kpgalligan/doctored-dev/issues/683)).
+  over a dithered field ([#5](https://github.com/kpgalligan/doctored/issues/5)).
 - Lab → CMYK is not confirmed by Photoshop (`lab_cmyk_photoshop.rs` records it); one RGB → CMYK take
   (`rgb-cmyk-684/take1`) measured the CMS engine's residual against Photoshop, which the owner accepted.

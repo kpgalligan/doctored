@@ -196,7 +196,7 @@ impl AdjustmentAdmission {
         )
     }
     /// Reader, after preparing one CMYK adjustment record
-    /// (`cmyk_adjust_layer`, #547 phase 2): its measured retention `bytes`
+    /// (`cmyk_adjust_layer`, #1 phase 2): its measured retention `bytes`
     /// joins the prepared total — [`Self::record`]'s charge for a record
     /// that holds no RGB operator.
     pub(crate) fn record_bytes(&mut self, bytes: u64, job: JobContext<'_>) -> Result<(), String> {

@@ -21,7 +21,7 @@ enum OperationScope: String, CaseIterable {
         _ operation: OperationScope, target: PaintTarget,
         doc: RasterDocument, layerIndex: Int
     ) -> (message: String, lockOwner: Int?)? {
-        // #547: one ink plate of a CMYK layer is gated as a colour plane is; its selected pixels
+        // #1: one ink plate of a CMYK layer is gated as a colour plane is; its selected pixels
         // move through `MoveSelectedPixels.inkRefusal`, never this scope.
         if operation != .layerGeometry, doc.hasRetainedSource(layerIndex) {
             switch target {
@@ -80,7 +80,7 @@ enum OperationScope: String, CaseIterable {
         + "Use the brush or eraser to edit Quick Mask coverage."
 
     static var supportTable: [String: [String]] {
-        // A CMYK document's four ink plates (#547) take what an RGB colour plane takes.
+        // A CMYK document's four ink plates (#1) take what an RGB colour plane takes.
         ["filter": ["layer", "mask", "red", "green", "blue", "alpha", "channel",
                     "cyan", "magenta", "yellow", "black"],
          "fill": ["layer", "mask", "red", "green", "blue", "alpha", "channel",
@@ -138,7 +138,7 @@ struct OperationCapture {
             source = image
             placement = nil
         case .ink:
-            // #547: a CMYK document is typed; its plates edit through the scalar path, never
+            // #1: a CMYK document is typed; its plates edit through the scalar path, never
             // this byte capture.
             return nil
         }
@@ -230,7 +230,7 @@ struct OperationCapture {
         case .layerMask:
             guard let bytes = result.layerPlane(layerIndex, DR_PLANE_MASK) else { return nil }
             return CanvasSelection.grayImage(bytes, result.width, result.height)
-        // #547: a CMYK ink plane is view only; no byte operation previews over it.
+        // #1: a CMYK ink plane is view only; no byte operation previews over it.
         case .nothing, .ink:
             return nil
         }

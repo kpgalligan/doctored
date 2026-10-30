@@ -5,7 +5,7 @@
 //! and the float arm's binary64 premultiplied extended samples finished
 //! against the layer's own visible range, D3). Family
 //! `geometry_perspective_warp` (`precision_capability`); on a CMYK document
-//! (#547 phase 4b) the same helpers' CMYKA16 arm (`MeshPixels::Cmyk`).
+//! (#1 phase 4b) the same helpers' CMYKA16 arm (`MeshPixels::Cmyk`).
 use serde_json::Value;
 
 use crate::doc_perspective_warp::{ready, PerspectiveWarpRequest, NAME};

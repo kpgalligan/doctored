@@ -1,4 +1,4 @@
-//! The record tree both mode conversions carry (#547 phase 4a and the
+//! The record tree both mode conversions carry (#1 phase 4a and the
 //! styles batch, `cmyk_convert`): groups (Normal and Pass Through, at any
 //! depth), layer masks, clipping, blend modes, layer styles (effects,
 //! knockout, Blend Interior, Fill) ride across Image ▸ Mode ▸
@@ -12,7 +12,7 @@
 //! group) — what the CMYK mode cannot hold (`cmyk_document`): an RGB
 //! adjustment layer, a Blend If on Red, Green or Blue, a blend mode outside `cmyk_document::CMYK_BLEND_MODES`, a placed image or a
 //! warp. A text, shape or fill layer converts as its pixels, its description
-//! dropped; the host re-renders it in the destination's colours (#547's
+//! dropped; the host re-renders it in the destination's colours (#1's
 //! artwork batch). A Gray Blend If carries both ways ([`carry`]); its ramps
 //! read the destination's own Gray. CMYK → RGB's blockers
 //! ([`first_rgb_blocker`]) are a CMYK adjustment record and a Blend If on a
@@ -31,7 +31,7 @@ pub(crate) fn first_blocker(layers: &[PrecisionDocumentLayer]) -> Option<String>
 
 /// [`first_blocker`] with a Blend If channel named by `channel_name`: a Lab
 /// document's Red, Green and Blue are Lightness, a and b
-/// (`lab_cmyk::first_blocker`, #547 Lab phase 5a).
+/// (`lab_cmyk::first_blocker`, #1 Lab phase 5a).
 pub(crate) fn first_blocker_named(
     layers: &[PrecisionDocumentLayer],
     channel_name: &dyn Fn(BlendIfChannel) -> &'static str,

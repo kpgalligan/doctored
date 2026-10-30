@@ -84,7 +84,7 @@ extension AgentServer {
             let (data, report) = try PDFExport.run(
                 capture, settings: settings, options: options, title: base)
             try PDFExport.write(data, to: url, overwrite: boolArg(a, "overwrite") ?? false)
-            // #547 Duotone phase 1b: a Duotone document's page is RGB through its inks.
+            // #1 Duotone phase 1b: a Duotone document's page is RGB through its inks.
             return try jsonResult(DuotoneDocument.noting([
                 "ok": true,
                 "path": url.path,

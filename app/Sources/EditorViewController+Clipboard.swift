@@ -37,7 +37,7 @@ extension EditorViewController {
         let rendering = try doc.publicRendering(of: payload)
         guard let cgImage = rendering.makeCGImage(in: space) else { return false }
         let bytes = payload.bytes
-        // #547 phase 4: a Grayscale copy's TIFF is its one-channel gray image.
+        // #1 phase 4: a Grayscale copy's TIFF is its one-channel gray image.
         let tiff = try payload.pasteboardTIFF(from: doc, held: bytes.count)
         try Clipboard.writeItem(cgImage, typed: bytes, source: clipboardSource, tiff: tiff)
         return true
@@ -59,7 +59,7 @@ extension EditorViewController {
                 return false
             }
             let layer = document.activeLayerIndex
-            // #547 phase 4c: a CMYK adjustment record has no ink to copy —
+            // #1 phase 4c: a CMYK adjustment record has no ink to copy —
             // the core refuses it by name ("use Copy Merged"); since the
             // artwork batch a CMYK type or shape layer carries its record.
             let editable = selection == nil && !(doc.isCmyk && doc.layerIsAdjustment(layer))

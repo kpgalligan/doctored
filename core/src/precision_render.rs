@@ -10,7 +10,7 @@
 //! scene, through `StyleEnv::blend_if_weight`) into the effective alpha AFTER
 //! `checked_alpha` in the Raster and Group arms; a clip base records its UNWEIGHTED footprint,
 //! weights only its own `buf` alpha, and its members land with that alpha frozen relative to the
-//! footprint (`clip_unit`'s Open / Settle / Close, #578, the one rule of every clip unit).
+//! footprint (`clip_unit`'s Open / Settle / Close, #2, the one rule of every clip unit).
 //!
 //! # Admission
 //! A float render adopts its top accumulator as the result and tiles it, so
@@ -1005,7 +1005,7 @@ pub(crate) fn render_layers(
             // Normal (its own mask applies there), its alpha footprint is
             // recorded, each member composites through the ordinary kernel
             // onto the base with its alpha frozen (`clip_unit`'s Open /
-            // Settle / Close, #578), and the finished buffer composites once
+            // Settle / Close, #2), and the finished buffer composites once
             // with the base's mode and opacity — the `Kind::Group` arm's
             // closing loop without a mask.
             let mut buf = zero_plane(acc.len(), progress)?;

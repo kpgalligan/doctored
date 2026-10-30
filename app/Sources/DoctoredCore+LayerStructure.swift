@@ -519,7 +519,7 @@ extension RasterDocument {
         return wrap(dr_doc_stamp_visible(ptr, above, name))
     }
 
-    /// #547 phase 4c: Stamp Selected — one group, or two or more entries
+    /// #1 phase 4c: Stamp Selected — one group, or two or more entries
     /// sharing one parent, composited into ONE new layer directly above the
     /// topmost, every original untouched. Throws the typed core's sentence;
     /// nil at 8 bits where the byte core refuses.
@@ -530,7 +530,7 @@ extension RasterDocument {
         }
     }
 
-    /// #547 phase 4c: Merge Group — the visible group `idx` replaced by ONE
+    /// #1 phase 4c: Merge Group — the visible group `idx` replaced by ONE
     /// layer holding its contents and keeping its own appearance.
     func mergingGroup(_ idx: Int) throws -> RasterDocument? {
         if isHighDepth { return try precisionMergeGroup(idx) }

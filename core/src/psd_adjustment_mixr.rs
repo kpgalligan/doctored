@@ -1,5 +1,5 @@
 //! The Channel Mixer record body (`mixr`; a CMYK document's since the
-//! #547 styles batch, [`decode_cmyk_body`] / [`encode_cmyk_body`]) — the private half of
+//! #1 styles batch, [`decode_cmyk_body`] / [`encode_cmyk_body`]) — the private half of
 //! `psd_adjustment`, which is the ONE codec entry point and the only caller
 //! of this module (the `psd_layer_effects_fx` precedent). A `.cha` preset
 //! file is this body verbatim, so `adjustment_preset_file` reaches it through
@@ -203,7 +203,7 @@ const CMYK_ROWS: [(&str, [f64; 5]); 4] = [
 ];
 const CMYK_GRAY: [f64; 5] = [0.0, 0.0, 0.0, 1.0, 0.0];
 
-/// A CMYK document's `mixr` body (#547; Photoshop take1's `adjust9.psd`):
+/// A CMYK document's `mixr` body (#1; Photoshop take1's `adjust9.psd`):
 /// Monochrome off, records 0–3 are the Cyan, Magenta, Yellow and Black
 /// outputs, each `{c, m, y, k, constant}` = `percent / 100`; on, record 0 is
 /// the Gray output. Every field read lies in −200…200, else declined; `None`

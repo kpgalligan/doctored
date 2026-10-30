@@ -96,7 +96,7 @@ enum PrecisionImportRequest {
             guard alert.runModal() == .alertFirstButtonReturn else { throw CocoaError(.userCancelled) }
             return .preserve
         }
-        // #547: a CMYK TIFF or JPEG (`dr_path_cmyk_source`) opens as a CMYK
+        // #1: a CMYK TIFF or JPEG (`dr_path_cmyk_source`) opens as a CMYK
         // document at either depth with NO 16-bit prompt — its choice is not
         // about 256 values but about keeping the file's own ink — and only an
         // explicit rgba8 keeps the conversion to sRGB.

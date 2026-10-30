@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's phase-4b in-process UI cases (#547): the geometry items of the Image, Edit,
+// The CMYK document's phase-4b in-process UI cases (#1): the geometry items of the Image, Edit,
 // Layer and Filter menus validate on a CMYK document, with Transform Selection since the channels
 // batch and Auto-Align and Reduce Noise from Stack too, ⌘T keeps its one-entry rule, and the
 // Move, Crop, Perspective Crop and Ruler tools are selectable; one ⌘T session on a CMYK layer

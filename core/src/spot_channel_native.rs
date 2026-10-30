@@ -1,4 +1,4 @@
-//! The conditional SPOT CHANNEL word and table (#547, `spot_channel`): which
+//! The conditional SPOT CHANNEL word and table (#1, `spot_channel`): which
 //! channels are spot channels, and each one's ink. The plane and name are
 //! the channel record's own, written as every alpha channel's are.
 //! `reference_native.rs` is the shape this follows; `gradient_map_method_native`

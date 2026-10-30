@@ -1,4 +1,4 @@
-//! The retouch tools on a Lab Color document (#547 phase 2e,
+//! The retouch tools on a Lab Color document (#1 phase 2e,
 //! `designs/lab-mode.md`): the Sponge's neutral and the source
 //! refusals of the History Brush and the clone from plates; since 2f's third
 //! part the Art History Brush's arm ([`LAB_ART`]) and Red Eye ([`red_eye`]).

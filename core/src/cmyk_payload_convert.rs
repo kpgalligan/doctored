@@ -1,4 +1,4 @@
-//! The clipboard's conversions ACROSS colour modes and CMYK profiles (#547
+//! The clipboard's conversions ACROSS colour modes and CMYK profiles (#1
 //! phase 4c): a typed payload pasted where its pixels are not at home.
 //! Every arm here converts pasted pixels into the destination's mode and
 //! profile at relative colorimetric with black-point compensation — always

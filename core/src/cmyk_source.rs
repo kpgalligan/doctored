@@ -1,4 +1,4 @@
-//! Which files open as CMYK documents (#547 phase 1), header work only.
+//! Which files open as CMYK documents (#1 phase 1), header work only.
 //!
 //! An 8/16-bit CMYK TIFF (chunky or planar, four samples or more: the first
 //! extra is its transparency, phase 3) and a four-component CMYK/YCCK JPEG

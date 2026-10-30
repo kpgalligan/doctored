@@ -1,4 +1,4 @@
-//! Image ▸ Mode ▸ Bitmap and Grayscale back (#547 Bitmap phases 1a and 1b):
+//! Image ▸ Mode ▸ Bitmap and Grayscale back (#1 Bitmap phases 1a and 1b):
 //! the options, the plans and both conversions
 //! (`designs/bitmap-mode.md`).
 //!

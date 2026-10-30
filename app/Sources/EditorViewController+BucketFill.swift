@@ -113,22 +113,22 @@ extension EditorViewController {
         ToolOptionsStore.shared.fill.contentsIndex == 1 ? backgroundColor : paintColor
     }
 
-    /// The Fill tool's stored CMYK ink (#547): the Contents swatch's, nil when it has none.
+    /// The Fill tool's stored CMYK ink (#1): the Contents swatch's, nil when it has none.
     var fillToolInk: CmykInk? {
         let shared = ToolOptionsStore.shared.sharedState
         return ToolOptionsStore.shared.fill.contentsIndex == 1 ? shared.backgroundInk : shared.foregroundInk
     }
 
     /// The bar's Mode and Sample all layers. A stored mode outside the document's list
-    /// (`toolBlendChoices`, Lab's since #547 phase 2f) paints as Normal; the store is kept.
+    /// (`toolBlendChoices`, Lab's since #1 phase 2f) paints as Normal; the store is kept.
     var fillToolStyle: BucketFillStyle {
         let options = ToolOptionsStore.shared.fill
         let stored = Self.blendMode(fromStored: options.blendIndex)
         let mode = Self.toolBlendChoices(for: document?.doc).contains { $0.0 == stored }
             ? stored : DR_BLEND_NORMAL
-        // #547 Indexed phase 2c: off on an Indexed document, whose one layer's region is the
+        // #1 Indexed phase 2c: off on an Indexed document, whose one layer's region is the
         // composite's (the composite path asks the `selection` op, which the mode refuses), and
-        // on a Bitmap document (#547 Bitmap phase 2a-i), which holds one layer too.
+        // on a Bitmap document (#1 Bitmap phase 2a-i), which holds one layer too.
         let oneLayer = document?.doc?.isIndexed == true || document?.doc?.isBitmap == true
         return BucketFillStyle(mode: mode, sampleAllLayers: options.sampleAllLayers && !oneLayer)
     }

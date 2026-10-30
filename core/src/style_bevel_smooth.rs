@@ -1,4 +1,4 @@
-//! KERNEL: the law `B` of the Smooth bevels (#578), measured against
+//! KERNEL: the law `B` of the Smooth bevels (#2), measured against
 //! Photoshop, in all four styles: a box-pair height, a slope of Depth · W,
 //! the NORMALIZED shading and Soften on the shading. The adapter is
 //! `style_fx_bevel_emboss`, which renders a Chisel through the Chisel law
@@ -75,7 +75,7 @@
 //! `tests/style_bevel_emboss_take2_parity.rs` pins the rest.
 //!
 //! The outside cut is `scripts/photoshop-probe/effect_kernels_578_p2_take.py`'s
-//! SO1 (#578 part 2 phase 2). The third identify take measured Smooth Outer's
+//! SO1 (#2 part 2 phase 2). The third identify take measured Smooth Outer's
 //! outside count as `W − 1` at 45 and 60 degrees and `W` at 30; a Euclidean
 //! cut at that count (the bevel runner's E1) was right on the half plane but
 //! dark on the disc's shadow, where Photoshop keeps the pixels a square

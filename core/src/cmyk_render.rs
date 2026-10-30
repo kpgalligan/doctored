@@ -1,4 +1,4 @@
-//! The CMYK document's projections (#547 phases 1 and 2): the RGBA16
+//! The CMYK document's projections (#1 phases 1 and 2): the RGBA16
 //! Display P3 VIEW (full and regional), one record on a transparent canvas,
 //! the Layers panel thumbnail, the Channels panel's ink planes, the point
 //! sample and the plans that admit each, and the descriptor.
@@ -464,7 +464,7 @@ impl PrecisionDocument {
             r#"{{"op":"stamp_visible","name":"Stamp","anchor":{}}}"#,
             self.layer_count().saturating_sub(1)
         ));
-        // #547 phase 5: New in CMYK of this canvas and profile, the proof through the
+        // #1 phase 5: New in CMYK of this canvas and profile, the proof through the
         // document's own profile, the composite's tone analysis and the ⌥ display.
         let policy = self.cmyk_policy();
         let canvas = u64::from(w) * u64::from(h);
@@ -502,7 +502,7 @@ impl PrecisionDocument {
             "cmyk_add_layer_scratch_bytes": add_layer,
             "cmyk_merge_scratch_bytes": merge_visible,
             "cmyk_stamp_scratch_bytes": stamp_visible,
-            // The styles batch (#547): Merge Down of the top raster onto the
+            // The styles batch (#1): Merge Down of the top raster onto the
             // record below it — a knockout or grouped one seeded (D7,
             // `cmyk_merge`) — as `merge_down` admits it.
             "cmyk_merge_down_scratch_bytes": top
@@ -578,7 +578,7 @@ impl PrecisionDocument {
             plans.extend(more);
         }
         if let Value::Object(plans) = &mut plans {
-            plans.extend(self.cmyk_retouch_plans()); // #547: the retouch batch's plans.
+            plans.extend(self.cmyk_retouch_plans()); // #1: the retouch batch's plans.
         }
         plans
     }

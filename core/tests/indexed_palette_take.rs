@@ -1,4 +1,4 @@
-//! #547 Indexed phase 3d: Photoshop's take of Image ▸ Mode ▸ Indexed
+//! #1 Indexed phase 3d: Photoshop's take of Image ▸ Mode ▸ Indexed
 //! Color's Local and Master Perceptual and Selective palettes and its
 //! Pattern and Noise dithers (`~/devel/doctored-fixtures/photoshop/
 //! indexed-mode-547/palette-take1`, never committed;

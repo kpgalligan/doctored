@@ -607,7 +607,7 @@ fn a_pass_through_base_whose_only_member_is_hidden_keeps_pass_through_at_u16() {
     assert_eq!(rows(&p), [0, 1, 2]);
     assert_eq!(p["layers"][2]["operator"], "pass_through");
     let d = doc(vec![base(), p_group(0.5), hidden]);
-    // The group's 50 % gates at its byte, 128 / 255 (#578): the
+    // The group's 50 % gates at its byte, 128 / 255 (#2): the
     // inverse mixed in at `q` is `x + (1 − 2x)·q`, no longer exactly a half.
     let q = crate::common::byte_unit(0.5);
     for (got, was) in full(&d).2.chunks(4).zip(backdrop.2.chunks(4)) {

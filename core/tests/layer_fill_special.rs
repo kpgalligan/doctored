@@ -1,4 +1,4 @@
-//! #578's special Fill (`blend_fill`): Color Burn, Linear Burn, Color Dodge,
+//! #2's special Fill (`blend_fill`): Color Burn, Linear Burn, Color Dodge,
 //! Linear Dodge (Add) and Vivid Light fold a Fill `f` below 1 into the blend —
 //! `B(cb, n + f·(cs − n))`, `n` = 1 for the burns, 0 for the dodges, ½ for
 //! Vivid Light — and composite it at the layer's alpha × opacity over the
@@ -148,7 +148,7 @@ fn alpha_of(row: usize) -> u8 {
 /// The patch `(row, column)` of the tile, as codes at `top` (255 or 65535);
 /// `grouped`: the layer inside a Normal group, its buffer quantized at `top`.
 fn oracle(mode: BlendMode, f: f64, row: usize, col: usize, grouped: bool, top: f64) -> [f64; 3] {
-    // The byte Fill below 32 bits (#578, `layer_byte_opacity.rs`):
+    // The byte Fill below 32 bits (#2, `layer_byte_opacity.rs`):
     // 60 % composites at 153 / 255, 25 % at 64 / 255.
     let f = (f * 255.0 + 0.5 + 1e-3).floor() / 255.0;
     let backdrop = unit(BACK[col]);

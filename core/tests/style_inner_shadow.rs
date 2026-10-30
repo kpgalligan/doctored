@@ -3,7 +3,7 @@
 //! contracts, never a golden image: a hard shadow is the inverted rect
 //! translated and clipped (`rect \ (rect + offset)`), a choked one follows
 //! the header's grow contract applied to the inverse, a soft one the
-//! box-pair law (#578, the triangle `(w − |j|) / w²` rebuilt here), and
+//! box-pair law (#2, the triangle `(w − |j|) / w²` rebuilt here), and
 //! every colour
 //! goes through the W3C reference blend. Also the effect's own blend mode
 //! on a Multiply layer, enabled/opacity/offset/fill-0/mask/transparent
@@ -72,7 +72,7 @@ fn shaded(base: [u8; 4], color: [f32; 4], opacity: f32, cov: u8, mode: i32) -> [
     ))
 }
 
-/// The law's blur (#578, `effect_kernels_578_take.py`), written
+/// The law's blur (#2, `effect_kernels_578_take.py`), written
 /// independently of the core: two passes of a `width`-wide box per axis,
 /// the separable triangle `(width − |j|) / width²` for `|j| < width`, over
 /// unit values, clamp-to-edge (the inverse is 255 at every border, in the
@@ -274,7 +274,7 @@ fn choke_pulls_the_shadow_inward_by_the_grow_closed_form() {
         "choke 1, distance 3",
     );
 
-    // Choke 0.5 at size 4: the law's n = 2, w = 2 (#578) — the band grown by
+    // Choke 0.5 at size 4: the law's n = 2, w = 2 (#2) — the band grown by
     // 2, THEN the box pair of the remaining 2 px — the order the split
     // defines; the oracle composes the closed forms the same way.
     let doc = styled(
@@ -292,7 +292,7 @@ fn choke_pulls_the_shadow_inward_by_the_grow_closed_form() {
 
 #[test]
 fn soft_inner_shadow_matches_the_box_pair_oracle() {
-    // Size 4, choke 0 -> the law's n = 0, w = 4 (#578): the inverse through
+    // Size 4, choke 0 -> the law's n = 0, w = 4 (#2): the inverse through
     // two passes of a 4-wide box (half-width 3) first, then shifted by the
     // 120° offset (2, 3).
     let doc = styled(

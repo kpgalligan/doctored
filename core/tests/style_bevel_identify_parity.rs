@@ -1,4 +1,4 @@
-//! #578: the Smooth Inner Bevel against Photoshop's own identify-578 take1
+//! #2: the Smooth Inner Bevel against Photoshop's own identify-578 take1
 //! profiles, at 8 and 16 bits. The fixture
 //! (`tests/fixtures/psd_photoshop/identify_578/bevel_profiles.json`, README)
 //! holds every Smooth `bv_*` row's profile on its fixed gate, written by

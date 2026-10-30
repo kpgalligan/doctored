@@ -1,7 +1,7 @@
 # Indexed Color document mode (ADR)
 
 - **Status:** Accepted, closed 2026-10-23; the Indexed Color PSD and PSB added the same day. Indexed Color closes
-  here; [#547](https://github.com/kpgalligan/doctored-dev/issues/547) (the colour-mode umbrella) stays open for CMYK's
+  here; [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella) stays open for CMYK's
   spot channels and PDF/X. Grayscale is
   `designs/grayscale-mode.md`, Lab `designs/lab-mode.md`, CMYK `designs/cmyk-mode-status.md`.
 - **Originals:** [archive/indexed-mode-status.md](../archive/indexed-mode-status.md) (the working record at close)
@@ -74,7 +74,7 @@ phase.
   or no profile), a GIF (one full-screen image, a colour table) and a palette TIFF (Photometric 3, 1/2/4/8 bits,
   optional straight alpha whose clear pixels are exactly one index, read through the shared `tiff_directory`
   leaf) open Indexed with palette, t and every index kept; every other file keeps its open. A colour-mode-2 PSD
-  or PSB (#547 Indexed PSD, `indexed_psd`, `indexed_psd_records`) opens from its stored composite, its one
+  or PSB (#1 Indexed PSD, `indexed_psd`, `indexed_psd_records`) opens from its stored composite, its one
   choice: the 768-byte planar table, count from 1046 (else 256), t from 1047 when inside it, every index as
   stored, an RGB 1039 profile kept (else sRGB, warned). Depth 8, Raw or RLE; a ZIP composite, a table not 768
   bytes and a palette outside 2–256 refuse in the report and the open by one sentence; an index outside the
@@ -202,7 +202,7 @@ Photoshop 26.10.0.
   good; Pattern and Noise disclosed.
 - **The close** (this batch): the docs condensed here; drive `scripts/verify_indexed_mode.py` I59 sweeps the
   whole catalog on an Indexed document and pins each refusal's class; no refusal was found naming a phase.
-- **The Indexed Color PSD** (#547, this batch): colour-mode-2 PSD and PSB read and write (Decisions: Open,
+- **The Indexed Color PSD** (#1, this batch): colour-mode-2 PSD and PSB read and write (Decisions: Open,
   Export), fixtures `indexed_547`, take2 PASS; `dr_precision_doc_open_indexed_psd`; drive I60. The
   jobs-probe case "indexed background key" runs `PrecisionGeometryWork.compute`'s merged-key branch
   (move, transform, crop past the canvas) with and without the swatch.

@@ -14,7 +14,7 @@ enum ChannelBase: Equatable {
     case channel(Int)
     /// The active layer's mask, in grayscale.
     case layerMask
-    /// One ink plane of a CMYK document, ink dark (#547).
+    /// One ink plane of a CMYK document, ink dark (#1).
     case ink(CmykPlane)
     /// Every eye is off: the canvas shows its checkerboard and nothing else.
     case nothing
@@ -49,13 +49,13 @@ struct ChannelVisibility: Equatable {
     var rgb = true
     /// The ONE colour plane shown while `rgb` is off.
     var plane: RasterPlane?
-    /// The ONE ink plane of a CMYK document shown while `rgb` is off (#547).
+    /// The ONE ink plane of a CMYK document shown while `rgb` is off (#1).
     var ink: CmykPlane?
     /// The layer-mask row's eye.
     var mask = false
     /// Alpha channel rows whose eye is on, by channel index.
     var channels: Set<Int> = []
-    /// SPOT channel rows whose eye is OFF, by channel index (#547). A spot channel is visible
+    /// SPOT channel rows whose eye is OFF, by channel index (#1). A spot channel is visible
     /// unless hidden, so a state recorded before it existed (an opened file, a redone add) shows
     /// it; `channels` carries the visible ones like any alpha row.
     var hiddenSpots: Set<Int> = []
@@ -164,7 +164,7 @@ struct ChannelDisplay {
     /// Rubylith washes drawn over whatever the base is (alpha channels and
     /// the layer mask, when their eye is on with RGB still visible).
     let overlays: [Overlay]
-    /// True when `base` is a spot channel drawn INK DARK (#547): its gray is the inverse of the
+    /// True when `base` is a spot channel drawn INK DARK (#1): its gray is the inverse of the
     /// coverage a stroke paints, so the stroke ghost must not read it as that coverage.
     var baseIsInkDark = false
 

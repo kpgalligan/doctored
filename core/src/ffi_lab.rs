@@ -1,4 +1,4 @@
-//! The Lab Color document across the FFI (#547 phase 1): File ▸ New ▸ Lab
+//! The Lab Color document across the FFI (#1 phase 1): File ▸ New ▸ Lab
 //! Color, Image ▸ Mode's two conversions and their plans, and the view;
 //! since phase 1b the fit-first layer thumbnail and the Lab TIFF save and
 //! its plan; since phase 2d the value-only [`dr_lab_kernel_rgb`], what a
@@ -43,7 +43,7 @@ unsafe fn options<'a>(text: *const c_char, what: &str) -> Result<&'a str, String
 /// `DR_LAB_SOURCE_*` for the file at `path`: TIFF 1 (a flat CIELab or
 /// ICCLab TIFF `dr_precision_doc_open_lab` accepts), else 0 (NULL,
 /// unreadable, or any other file). Header work only
-/// (`lab_tiff_read::lab_source_at`, #547 Lab phase 3a).
+/// (`lab_tiff_read::lab_source_at`, #1 Lab phase 3a).
 ///
 /// # Safety
 /// `path` must be NULL or a NUL-terminated string.
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn dr_path_lab_source(path: *const c_char) -> i32 {
 }
 
 /// A flat Lab TIFF (CIELab or ICCLab, 8 or 16 bits) as a Lab Color document
-/// (#547 Lab phase 3a); NULL on refusal with the reason in `err_out`.
+/// (#1 Lab phase 3a); NULL on refusal with the reason in `err_out`.
 ///
 /// # Safety
 /// `path` NULL or NUL-terminated; `control` NULL or a live single-use token;
@@ -281,7 +281,7 @@ pub unsafe extern "C" fn dr_precision_doc_convert_lab_to_rgb(
     }
 }
 
-/// Image ▸ Mode ▸ 8/16 Bits/Channel's plan on a Lab document (#547 Lab phase
+/// Image ▸ Mode ▸ 8/16 Bits/Channel's plan on a Lab document (#1 Lab phase
 /// 5a, `lab_depth`): `{"working_memory_plan_bytes","refusal","changes"}` for
 /// `bits` 8 or 16. Free with `dr_string_free`.
 ///
@@ -338,7 +338,7 @@ pub unsafe extern "C" fn dr_precision_doc_lab_depth_edit(
     }
 }
 
-/// A Lab layer's Layers-panel thumbnail (#547 phase 1b, `lab_rgb`): `image`
+/// A Lab layer's Layers-panel thumbnail (#1 phase 1b, `lab_rgb`): `image`
 /// (u16, its profile the twin) fitted at u16 first — longest side
 /// `max_side`, never upscaled — then converted into Display P3 and
 /// quantized once without dither. Freed with `dr_image_free`; carries no
@@ -484,7 +484,7 @@ pub unsafe extern "C" fn dr_lab_kernel_rgb(
 }
 
 /// The bytes a neural run on a Lab document reserves beside its model's own
-/// plan (#547 Lab phase 6b-iii, `lab_neural::neural_scratch_bytes`): the
+/// plan (#1 Lab phase 6b-iii, `lab_neural::neural_scratch_bytes`): the
 /// Display P3 view of an `in_width` × `in_height` input, the Lab image of an
 /// `out_width` × `out_height` result at 8 bytes a pixel, the way back's
 /// tables and bookkeeping. `UINT64_MAX` on error. Value-only: no handle.

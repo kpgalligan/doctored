@@ -97,7 +97,7 @@ extension EditorViewController {
         case .mask, .ink:
             // A layer mask is not one of the planes this arithmetic is defined
             // over; the sheet disables Apply, so this is reachable only if the
-            // target changed under an open dialog. One ink plate (#547) is a
+            // target changed under an open dialog. One ink plate (#1) is a
             // CMYK document's, which is typed and commits through
             // `NativeChannelMathSession`, never this byte path.
             NSSound.beep()
@@ -204,7 +204,7 @@ enum ChannelMathControls {
 
     /// RGB, the colour planes and Luma, then every alpha channel — the plane
     /// vocabulary Apply Image and Calculations share. On a CMYK document
-    /// (#547): CMYK (the composite), the four ink plates, Luma and Alpha; on a Grayscale document
+    /// (#1): CMYK (the composite), the four ink plates, Luma and Alpha; on a Grayscale document
     /// (phase 6b): Gray (the composite or layer) and Alpha.
     static func fillPlanes(_ popup: NSPopUpButton, _ doc: RasterDocument?) {
         let menu = NSMenu()
@@ -212,7 +212,7 @@ enum ChannelMathControls {
             menu.addItem(planeItem("Gray", .rgb))
             menu.addItem(planeItem(RasterPlane.alpha.displayName, .plane(.alpha)))
         } else if doc?.isLab == true {
-            // #547 Lab phase 6b-i: Lab (the composite or layer), Lightness, a and b (the stored
+            // #1 Lab phase 6b-i: Lab (the composite or layer), Lightness, a and b (the stored
             // red, green and blue codes) and Alpha.
             menu.addItem(planeItem("Lab", .rgb))
             for plane: RasterPlane in [.red, .green, .blue] {
@@ -256,7 +256,7 @@ enum ChannelMathControls {
     /// channel — has no triple for them to work on, and the core refuses
     /// them there, so offering them would advertise four modes that answer
     /// the base unchanged. `allowed`, when given, keeps only those modes (a Grayscale document's
-    /// list, #547 phase 6b).
+    /// list, #1 phase 6b).
     static func fillBlendModes(_ popup: NSPopUpButton, singlePlane: Bool, allowed: [DrBlendMode]? = nil) {
         let menu = NSMenu()
         for group in DrBlendMode.blendModeGroups {

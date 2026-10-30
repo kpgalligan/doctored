@@ -10,13 +10,13 @@ extension AgentServer {
             // OpenEXR and Radiance are 32-bit float deliverables: only
             // a float document can write one, so only it lists them.
             if format.isFloatOnly && !doc.isFloat { continue }
-            // #547 Bitmap phase 1c: the same answer Save As asks (`ImageDocument.saveLosses`).
+            // #1 Bitmap phase 1c: the same answer Save As asks (`ImageDocument.saveLosses`).
             if doc.isBitmap {
                 formats[format.fileExtension] = BitmapDocument.saveLosses(doc, format: format,
                     embedProfile: document.embedColorProfile, stripMetadata: document.stripMetadata)
                 continue
             }
-            // #547 Indexed phase 1b: the same answer Save As asks (`ImageDocument.saveLosses`).
+            // #1 Indexed phase 1b: the same answer Save As asks (`ImageDocument.saveLosses`).
             if doc.isIndexed {
                 formats[format.fileExtension] = IndexedDocument.saveLosses(doc, format: format,
                     embedProfile: document.embedColorProfile, stripMetadata: document.stripMetadata)

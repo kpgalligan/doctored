@@ -1,4 +1,4 @@
-//! Hue/Saturation on a CMYK document's ink (#547), all through the FFI,
+//! Hue/Saturation on a CMYK document's ink (#1), all through the FFI,
 //! against an oracle written here: an f64 Hue/Saturation written from
 //! `adjust_hue_saturation`'s module-doc formulas (R0, and Colorize's HSL
 //! replace), run as `cmyk_adjust`'s module doc says Photoshop runs it on
@@ -776,7 +776,7 @@ fn a_record_renders_the_destructive_result_at_the_root_and_in_a_group() {
         for c in 0..4 {
             let ink = f64::from(s[c]) / 65535.0;
             let adjusted = f64::from(d[c]) / 65535.0;
-            // The record's 50 % at its byte, 128 / 255 (#578).
+            // The record's 50 % at its byte, 128 / 255 (#2).
             let want = code16(ink + (adjusted - ink) * crate::common::byte_unit(0.5));
             assert!(
                 got[c].abs_diff(want) <= 1,

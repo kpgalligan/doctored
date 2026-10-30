@@ -1,5 +1,5 @@
 //! The selected pixels' move and transform and Warp on an Indexed Color
-//! document (#547 Indexed phases 2d and 3a, `designs/indexed-mode.md`),
+//! document (#1 Indexed phases 2d and 3a, `designs/indexed-mode.md`),
 //! through the existing kernels (`selected_pixels_with_context`,
 //! `warp_edit_with_context`) and 2c's two ways back. An adapter, not a
 //! kernel: it names the document types.

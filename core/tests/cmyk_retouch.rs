@@ -1,4 +1,4 @@
-//! The retouch commands on a CMYK document (#547), through the FFI, each
+//! The retouch commands on a CMYK document (#1), through the FFI, each
 //! against an oracle written here:
 //!
 //! * the Healing Brush equals, exactly, the shipped RGB16 heal of the two

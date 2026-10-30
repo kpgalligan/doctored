@@ -1,4 +1,4 @@
-//! The kept-CMYK export's stages (#547, round 2): what a profile-`document`
+//! The kept-CMYK export's stages (#1, round 2): what a profile-`document`
 //! JPEG or TIFF of a CMYK document does between the composite and the
 //! encode.
 //!
@@ -18,7 +18,7 @@
 //!
 //! The staged plan follows what `cmyk_kept_samples` holds alive at once. Its
 //! stages run one after another and each drops its input before the next
-//! begins, so the plan is the LARGEST stage peak, not their sum (#547: the
+//! begins, so the plan is the LARGEST stage peak, not their sum (#1: the
 //! sum planned 2.2–3.0× the measured Release peak), plus the export's own
 //! result bytes (out × `KEEP_BYTES_PER_PIXEL`), held beside all of them:
 //!

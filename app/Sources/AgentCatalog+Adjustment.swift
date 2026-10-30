@@ -158,7 +158,7 @@ extension AgentServer {
             "description": "levels only, instead of params: {\"mode\": \"tone\" or \"color\", "
                 + "\"clip\": fraction 0…0.1 dropped at each end, default 0.001}. Derives "
                 + "per-channel r/g/b stages from the BACKDROP below the layer (see the tool "
-                + "description); refused at 32-bit float. On a CMYK document (#547) levels and "
+                + "description); refused at 32-bit float. On a CMYK document (#1) levels and "
                 + "curves take {\"algorithm\": \"per_channel\" or \"monochromatic\", \"shadows\", "
                 + "\"highlights\": clip percent 0–9.99} (Auto Options; every key optional, the "
                 + "saved defaults otherwise, 0.10 %): the ink stages (or the "

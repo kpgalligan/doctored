@@ -1,4 +1,4 @@
-//! #547 Lab phase 2b, a Lab Color document's adjustments (`lab_adjust`,
+//! #1 Lab phase 2b, a Lab Color document's adjustments (`lab_adjust`,
 //! `lab_tone`). The oracle is the RGB kernel on an sRGB document of chosen
 //! codes, never the Lab path: a Lightness op (Levels gamma, Curves on the
 //! composite, Brightness/Contrast) keeps a\*/b\* bit for bit and its L\* is

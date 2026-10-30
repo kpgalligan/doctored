@@ -214,7 +214,7 @@ extension AgentServer {
         info["global_light"] = Self.globalLightFields(doc)
         info["precision_support"] = doc.isGray ? GrayDocument.support(doc)
             : doc.isFloat ? FloatDocument.support : DocumentPrecision.support
-        // #547 Lab phase 1c: a Lab Color document's own lists.
+        // #1 Lab phase 1c: a Lab Color document's own lists.
         if doc.isLab { info["precision_support"] = LabDocument.support(doc) }
         return try jsonResult(info)
     }

@@ -1,6 +1,6 @@
 import AppKit
 
-// The Info panel's CMYK readout (#547 phases 2 and 5): the CMYK and Total ink rows. In a CMYK
+// The Info panel's CMYK readout (#1 phases 2 and 5): the CMYK and Total ink rows. In a CMYK
 // document they show the composite's ink under the cursor — the core's own sample (`cmyk_render`'s
 // `cmyk_sample`, the same numbers `sample_color` reports), never a conversion of the view's RGB —
 // as C, M, Y and K percent and their sum. The sample prepares the stack's masks (a feathered one

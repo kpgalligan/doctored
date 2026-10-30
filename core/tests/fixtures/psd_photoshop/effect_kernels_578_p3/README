@@ -6,7 +6,7 @@ Linear rows (Size 4, 10, 20 x Distance 3, 9 x Angle 30, 120 x Invert on the disc
 ellipse, and the rect at Size 10, Angle 0, 90) and the 24 contoured rows (Cone, Half Round,
 Rolling Slope - Descending x Size 6, 16 x Invert at Distance 5, Angle 45); 8 bits; `row` the
 red codes on y = 112 and `col` on x = 128; every row `take` effect-kernels-578-p3/identify1)
-for core/tests/style_effect_kernels_578_p3_take.rs (#578).
+for core/tests/style_effect_kernels_578_p3_take.rs (#2).
 
 Source receipt: ~/devel/doctored-fixtures/photoshop/effect-kernels-578-p3/identify1/measured.json
 Written by: scripts/photoshop-probe/effect_kernels_578_p3_take.py --fixtures (SA1 and the

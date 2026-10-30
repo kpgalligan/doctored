@@ -1,4 +1,4 @@
-//! Editing a CMYK document in ink (#547 phase 2): the Brush/Fill
+//! Editing a CMYK document in ink (#1 phase 2): the Brush/Fill
 //! (`paint_blend`), Gradient, Paint Bucket and Eraser through
 //! `dr_precision_doc_edit`, each against this file's own straight CMYKA
 //! source-over at a coverage, frozen-alpha over, erase and flood written
@@ -634,7 +634,7 @@ fn a_layer_mask_scales_the_layers_coverage_in_the_composite() {
             let want = codes(over(
                 unit(low[i]),
                 [ink[0], ink[1], ink[2], ink[3]],
-                // The layer's 75 % at its byte (#578).
+                // The layer's 75 % at its byte (#2).
                 crate::common::byte_unit(0.75) * m,
             ));
             let got = sample_ink(masked, x as i32, y as i32);

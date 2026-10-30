@@ -38,7 +38,7 @@ enum RawSourcePlacement {
     /// document takes the float development, so the layer holds what the
     /// document can: highlights above white. A tone curve develops float (the
     /// decoder's curve under the extended range,
-    /// `RawOutputEncoding`), and grain since #680 (on the display encoding,
+    /// `RawOutputEncoding`), and grain since #4 (on the display encoding,
     /// `RawGrain.swift`). The default is never written into the recorded
     /// step: a replay follows its own document's depth.
     static func defaultEncoding(documentIsFloat: Bool) -> RawOutputEncoding {

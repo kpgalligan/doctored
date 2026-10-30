@@ -1,4 +1,4 @@
-//! The CMYK document's raster storage (#547 phase 1): [`CmykImage`], an
+//! The CMYK document's raster storage (#1 phase 1): [`CmykImage`], an
 //! immutable straight CMYKA16 plane over the shared tile store
 //! (`TilePlane<[u16; 5]>`), 10 bytes a pixel.
 //!
@@ -64,7 +64,7 @@ impl CmykImage {
 
     /// Tiles a row-major contiguous plane (`samples.len() == w·h`), minting
     /// a fresh identity: the adoption of a geometry walk's contiguous output
-    /// (#547 phase 4b), `PrecisionImage::from_rgba16_unseeded`'s twin. The
+    /// (#1 phase 4b), `PrecisionImage::from_rgba16_unseeded`'s twin. The
     /// caller's plan charges the copy (`cmyk_adoption_copy_bytes`).
     pub(crate) fn from_contiguous(
         width: u32,

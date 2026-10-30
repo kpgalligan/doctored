@@ -1,4 +1,4 @@
-//! #547 Lab phase 5b: a Lab Color document's soft proof and its profile
+//! #1 Lab phase 5b: a Lab Color document's soft proof and its profile
 //! commands, through the FFI.
 //!
 //! The oracle of the proof is the RGB proof of the document's Lab → RGB

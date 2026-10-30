@@ -22,7 +22,7 @@ extension AgentServer {
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let fillLayersToolFacts: [String: ToolFacts] = [
         // Fill layers render at every depth, 32-bit float included, and in ink in a CMYK
-        // document (#547).
+        // document (#1).
         "add_fill_layer": [.typedTool, .floatTool, .cmykTool],
         "edit_fill_layer": [.typedTool, .floatTool, .cmykTool],
     ]
@@ -85,7 +85,7 @@ extension AgentServer {
         ], doc: document.doc))
     }
 
-    /// The fill tools' ink arguments in a CMYK document (#547, AgentServer+CmykEdit.swift): a
+    /// The fill tools' ink arguments in a CMYK document (#1, AgentServer+CmykEdit.swift): a
     /// solid `ink` becomes the colour's exact appearance numbers (`__appearance`, read by
     /// `fillColor` only), each `gradient.stops[].ink` its stop's appearance hex; `a` as it is in an
     /// RGB document.
@@ -114,7 +114,7 @@ extension AgentServer {
         }
         let inked = try fillInkArguments(a, doc: doc)
         let a = inked.arguments
-        // A CMYK layer is edited on its sRGB appearance and committed back to ink (#547): an
+        // A CMYK layer is edited on its sRGB appearance and committed back to ink (#1): an
         // unchanged colour or stop keeps its ink exactly (`cmykArtwork`).
         guard var payload = try doc.fillPayload(index).map({ fill -> FillLayerPayload in
             guard doc.isCmyk, case let .fill(shown) = try doc.cmykDisplay(.fill(fill)) else { return fill }
@@ -182,7 +182,7 @@ extension AgentServer {
         if let pattern = payload.patternFill {
             fill["pattern"] = Self.fillPatternArguments(pattern, tile: false)
         }
-        // A CMYK document's fill (#547): the colour is ink, reported in percent with its alpha;
+        // A CMYK document's fill (#1): the colour is ink, reported in percent with its alpha;
         // each stop's `color` is its ink's appearance and `ink` its percents.
         if payload.ink == .cmyk {
             fill["color_space"] = "cmyk"
@@ -200,7 +200,7 @@ extension AgentServer {
     }
 
     /// A gradient as the `gradient` argument spells it; with `inks` (a CMYK fill's `stop_inks`,
-    /// #547) each stop carries its `ink` in percent too. `smoothness` (1 when unset) and
+    /// #1) each stop carries its `ink` in percent too. `smoothness` (1 when unset) and
     /// `align_with_layer` are always written, so a recorded step replays the value it had
     /// even when that is the default; a stop's `midpoint` and `opacity_midpoint` only when
     /// not 0.5, so a gradient without them records as it always did.
@@ -499,7 +499,7 @@ extension Array where Element == ActionStep {
     }
 
     /// `color`, `gradient` or `pattern` (with its tile's `rgba`), as both fill tools take
-    /// them; a CMYK fill (#547) records its `ink`
+    /// them; a CMYK fill (#1) records its `ink`
     /// (and a solid colour's alpha as `color`'s) and each stop's `ink` beside its hex.
     private static func fillArguments(_ payload: FillLayerPayload) -> [String: Any] {
         if payload.ink == .cmyk, let color = payload.color {

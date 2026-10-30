@@ -233,7 +233,7 @@ pub unsafe extern "C" fn dr_precision_doc_smudge_plan(
             ptr::null_mut(),
             || {
                 let doc = required_handle(document)?;
-                // #547 Bitmap phase 3: refused for good, before the Gray storage.
+                // #1 Bitmap phase 3: refused for good, before the Gray storage.
                 if doc.is_bitmap() {
                     return Err(crate::bitmap_document::refused_sentence("smudge"));
                 }
@@ -337,9 +337,9 @@ pub unsafe extern "C" fn dr_precision_doc_smudge(
 /// `scratch_bytes` and `input_samples` (the canvas pixel count, doubled when
 /// `selection`), admitted against `limit`. A float `document` takes a float
 /// `source` ("history brush source has a different bit depth" otherwise), and
-/// a Grayscale `document` a Grayscale `source` (#547 phase 2c,
+/// a Grayscale `document` a Grayscale `source` (#1 phase 2c,
 /// `gray_filter::HISTORY_SOURCE_REFUSAL`), and a Lab Color `document` a Lab
-/// Color `source` while a Lab `source` paints only a Lab `document` (#547
+/// Color `source` while a Lab `source` paints only a Lab `document` (#1
 /// phase 2e, `lab_retouch::history_source_refusal`). Free the JSON with
 /// dr_string_free.
 ///
@@ -537,11 +537,11 @@ pub unsafe extern "C" fn dr_doc_art_history_brush_layer(
 /// History Brush paints only a CMYK raster layer" otherwise, judged before
 /// the source) and takes a CMYK `source` ("The Art History Brush's source
 /// state is not a CMYK raster" otherwise). An 8-bit Grayscale document
-/// (#547 phase 2e) paints only a u16 raster `layer` ("The Art History Brush
+/// (#1 phase 2e) paints only a u16 raster `layer` ("The Art History Brush
 /// paints only a Grayscale raster layer", before the source) from a Gray
 /// `source` ("The Art History Brush's source state is not a Grayscale
 /// raster"), its `blend_mode` Normal, Darken or Lighten; a 16-bit one refuses
-/// as a 16-bit document. An 8-bit Lab Color document (#547 Lab 2f, third
+/// as a 16-bit document. An 8-bit Lab Color document (#1 Lab 2f, third
 /// part) paints per channel on its L\*a\*b\* codes, its strokes along L\*,
 /// only a u16 raster `layer` ("The Art History Brush paints only a Lab Color
 /// raster layer", before the source) from a Lab `source` ("The Art History
@@ -576,7 +576,7 @@ pub unsafe extern "C" fn dr_precision_doc_art_history_brush_plan(
             ptr::null_mut(),
             || {
                 let doc = required_handle(document)?;
-                // #547 Bitmap phase 3: refused for good, before the Gray storage.
+                // #1 Bitmap phase 3: refused for good, before the Gray storage.
                 if doc.is_bitmap() {
                     return Err(crate::bitmap_document::refused_sentence(
                         "art_history_brush",
@@ -616,8 +616,8 @@ pub unsafe extern "C" fn dr_precision_doc_art_history_brush_plan(
 /// Paints layer `layer` of an 8-bit CMYK document with the Art History
 /// Brush from layer `source_layer` of `source`, as
 /// `dr_doc_art_history_brush_layer` paints a byte layer, in ink (or, on an
-/// 8-bit Grayscale document, on its R = G = B raster, #547 phase 2e; on an
-/// 8-bit Lab Color document, per channel on its codes, #547 Lab 2f):
+/// 8-bit Grayscale document, on its R = G = B raster, #1 phase 2e; on an
+/// 8-bit Lab Color document, per channel on its codes, #1 Lab 2f):
 /// `selection` is the canvas-sized u16 selection plane or NULL with
 /// `selection_len` 0. Refuses what the plan refuses, by depth first. An
 /// exact no-op is NULL with no error. `control` is an optional single-use

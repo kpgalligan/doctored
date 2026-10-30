@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 retouch-batch MCP drive: the painting and retouching tools and
+"""The #1 retouch-batch MCP drive: the painting and retouching tools and
 Image ▸ Adjustments ▸ Equalize on a CMYK document's ink, over MCP, on an owned
 Debug instance (`phase5_support.App`: its own scratch socket, a dummy API key,
 a private directory for every preference library), terminated by its own

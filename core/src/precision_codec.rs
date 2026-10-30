@@ -251,7 +251,7 @@ fn header<'a>(bytes: &'a [u8], label: &str) -> Result<Header<'a>, String> {
             let extras = decoder
                 .find_tag_unsigned_vec::<u16>(Tag::ExtraSamples)
                 .map_err(|e| problem("alpha", label, e))?;
-            // Spot channels (#547 1c-2a): trailing extra samples of 0 after
+            // Spot channels (#1 1c-2a): trailing extra samples of 0 after
             // the colour and its straight alpha, admitted only when every
             // one is a kept spot channel (`tiff_spot`).
             let spot_extras = || {

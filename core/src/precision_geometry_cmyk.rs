@@ -1,4 +1,4 @@
-//! The CMYK arm of typed geometry (#547 phase 4b), a `#[path]` child of
+//! The CMYK arm of typed geometry (#1 phase 4b), a `#[path]` child of
 //! `precision_geometry`: one planned raster plane of a CMYK document's
 //! straight CMYKA16 ink, executed through `precision_sampling`'s CMYK twins
 //! (`resize_cmyk`, `transform_cmyk`) of the RGBA16 `PlaneWork::image`, its

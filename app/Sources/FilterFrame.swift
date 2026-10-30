@@ -23,7 +23,7 @@ import AppKit
 /// mask it fills white, on a red/green/blue plane that component of the
 /// background colour, and on the alpha plane or a saved channel the colour's
 /// Rec. 709 gray. On a Lab Color document's Lightness, a or b plane (`lab`,
-/// #547 Lab phase 2f) the fill is that plane's code of the background
+/// #1 Lab phase 2f) the fill is that plane's code of the background
 /// colour's L*a*b* (Mode ▸ Lab Color's colour, `RasterLab.lab(srgb:)`).
 /// `kernelParameters` is the ONE translation of the recorded host-level
 /// arguments into the kernel's (`transparent` or one scalar `fill`), so the

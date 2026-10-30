@@ -80,7 +80,7 @@ pub(crate) fn record_extent16(
     }
     let canvas = document.dimensions();
     match &layer.content {
-        // A CMYK record (#547): its style's grown rect, or its pixel rect
+        // A CMYK record (#1): its style's grown rect, or its pixel rect
         // without one; an adjustment the canvas.
         Content::CmykRaster { image, offset } => Some(
             style_extent16_of(layer, &document.profile, canvas, document.global_light)

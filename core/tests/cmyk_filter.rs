@@ -1,4 +1,4 @@
-//! The Filter menu and Edit ▸ Fade on a CMYK document (#547), through the
+//! The Filter menu and Edit ▸ Fade on a CMYK document (#1), through the
 //! FFI, each against an oracle written here:
 //!
 //! * every filter equals, exactly, the RGB16 selected-edit results of the two

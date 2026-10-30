@@ -1,4 +1,4 @@
-//! #547 phase 5a, colour on a Grayscale document: Edit ▸ Assign Profile and
+//! #1 phase 5a, colour on a Grayscale document: Edit ▸ Assign Profile and
 //! Convert to Profile between Gray profiles, Image ▸ Mode ▸ 8/16/32
 //! Bits/Channel, and HDR Toning of a 32-bit Gray document
 //! (`dr_precision_doc_gray_profile_edit`, `_plan`).

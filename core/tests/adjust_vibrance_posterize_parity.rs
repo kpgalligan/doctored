@@ -1,4 +1,4 @@
-//! #578: Vibrance and Posterize as Photoshop 26.10.0 computes them, as far as
+//! #2: Vibrance and Posterize as Photoshop 26.10.0 computes them, as far as
 //! the declared families reach (`scripts/photoshop-probe/adjust_v1x_take.py`,
 //! `adjust_v1x_round2.py` and `adjust_arith_578_take.py`; `adjust-parity-v1x`
 //! takes 1-4 and `adjust-arith-578/take1`).

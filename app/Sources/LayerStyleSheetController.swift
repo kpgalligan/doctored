@@ -64,7 +64,7 @@ final class LayerStyleSheetController: NSViewController {
     /// stale-target guard compares it, so an agent edit that swapped the
     /// stack under the sheet cannot land the style on another kind of layer.
     private let openedOnAdjustment: Bool
-    /// A CMYK document's inks as the colours the panes show (#547).
+    /// A CMYK document's inks as the colours the panes show (#1).
     private let shownInks: CmykShownInks?
     private let original: LayerStyle?
     private let originalLight: GlobalLight
@@ -105,7 +105,7 @@ final class LayerStyleSheetController: NSViewController {
         let base: RasterDocument? = capture?.facade ?? document.doc
         var original = base?.layerStylePayload(layer)
         let originalLight = base?.globalLight ?? GlobalLight()
-        // A CMYK document (#547): each inked slot shows its ink's colour,
+        // A CMYK document (#1): each inked slot shows its ink's colour,
         // remembered so a slot left alone sends its ink back exactly.
         var shownInks: CmykShownInks?
         if base?.isCmyk == true, let precision = base?.precision {
@@ -593,7 +593,7 @@ final class LayerStyleSheetController: NSViewController {
             set: { [weak self] value in self?.lightDidChange(value) })
         return LayerStylePaneContext(
             globalLight: light, canvasSize: baseDoc?.canvasSize ?? .zero,
-            // A Grayscale document's effects take its own list (#547 phase 2d).
+            // A Grayscale document's effects take its own list (#1 phase 2d).
             blendModes: isGray ? baseDoc.map { GrayDocument.effectModes(for: $0) }
                 : isFloat ? FloatDocument.effectModes : nil)
     }
@@ -778,9 +778,9 @@ private final class PreviewChain {
 /// the two remaining blending options — Knockout and Blend Interior
 /// Effects as Group (`LayerStyleKnockoutRows`, Phase 12E-3b) — over the
 /// embedded Blend If pane. The same rows at 8 and 16 bits; `cmyk` (a CMYK
-/// document, #547) offers Blend If on Gray and the four plates; `gray` (a
-/// Grayscale document, #547 phase 2d) on Gray only; `lab` (a Lab Color
-/// document, #547 phase 2f) on Lightness, a and b.
+/// document, #1) offers Blend If on Gray and the four plates; `gray` (a
+/// Grayscale document, #1 phase 2d) on Gray only; `lab` (a Lab Color
+/// document, #1 phase 2f) on Lightness, a and b.
 private final class BlendingOptionsPane: NSObject, LayerStylePane {
     let view: NSView
     private let rows: [PaneRow]

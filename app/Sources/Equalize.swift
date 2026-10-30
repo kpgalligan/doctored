@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Adjustments ▸ Equalize (#547), at 8, 16 and 32 bits on RGB and on a CMYK document: one
+// Image ▸ Adjustments ▸ Equalize (#1), at 8, 16 and 32 bits on RGB and on a CMYK document: one
 // table from the summed histograms of the colour planes (the four `1 − ink` plates on CMYK) remaps
 // the target so its levels spread evenly. With a selection, a prompt asks whether to equalize the
 // selected area only (the default) or the entire image based on the selected area's histogram. The

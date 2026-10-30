@@ -1,5 +1,5 @@
 //! Merge Down, Merge Layers, Merge Visible and Stamp Visible on a CMYK
-//! document (#547 phase 4a): the merged leaf's straight samples against
+//! document (#1 phase 4a): the merged leaf's straight samples against
 //! `common/cmyk_structure_fixture.rs`'s f64 oracle over the members' union
 //! frame (pixels off the canvas kept), the kept identity, name and clipping,
 //! the document composite unchanged, and every plan admitted.

@@ -42,7 +42,7 @@ extension EditorViewController {
                 height: capture.facade.height, selection: capture.selection)
             guard document.confirmRasterize(layer: capture.layer) else { return }
             try capture.requireCurrent(document)
-            // #547 Indexed phase 3b: a cleared pixel with no transparent index takes the entry
+            // #1 Indexed phase 3b: a cleared pixel with no transparent index takes the entry
             // nearest the background swatch.
             let command = try IndexedDocument.backgrounded(.erase(layer: capture.layer), backgroundColor,
                                                            in: capture.facade)

@@ -161,7 +161,7 @@ extension AgentServer {
         static let rasterTool = ToolFacts(rawValue: 1 << 6)
         /// In `FloatDocument.tools`.
         static let floatTool = ToolFacts(rawValue: 1 << 7)
-        /// In `CmykDocument.tools` (#547): answered in a CMYK document.
+        /// In `CmykDocument.tools` (#1): answered in a CMYK document.
         static let cmykTool = ToolFacts(rawValue: 1 << 8)
     }
 
@@ -374,7 +374,7 @@ extension AgentServer {
             clauses.append("tool facts break a set rule: " + broken.joined(separator: ", "))
         }
 
-        // #547: the Grayscale gate names its tools and its permanently refused tools; each must
+        // #1: the Grayscale gate names its tools and its permanently refused tools; each must
         // be a registered tool.
         let unregistered = GrayDocument.tools.subtracting(handlers.keys).sorted()
         if !unregistered.isEmpty {
@@ -386,7 +386,7 @@ extension AgentServer {
             clauses.append("GrayDocument's refused tools not registered: "
                 + refused.joined(separator: ", "))
         }
-        // #547 Lab phase 1: the Lab Color gate's tools and later phases, by the same rule.
+        // #1 Lab phase 1: the Lab Color gate's tools and later phases, by the same rule.
         let labUnregistered = LabDocument.tools.subtracting(handlers.keys).sorted()
         if !labUnregistered.isEmpty {
             clauses.append("LabDocument.tools not registered: " + labUnregistered.joined(separator: ", "))
@@ -398,7 +398,7 @@ extension AgentServer {
             clauses.append("LabDocument's refused tools not registered: "
                 + labRefused.joined(separator: ", "))
         }
-        // #547 Indexed phase 1a: the Indexed Color gate's tools and its disabled tools (and
+        // #1 Indexed phase 1a: the Indexed Color gate's tools and its disabled tools (and
         // since 3a its one-layer tools), by the same rule.
         let indexedNamed = IndexedDocument.tools.union(IndexedDocument.disabledTools)
             .union(IndexedDocument.oneLayer)
@@ -407,7 +407,7 @@ extension AgentServer {
             clauses.append("IndexedDocument's tools not registered: "
                 + indexedUnregistered.joined(separator: ", "))
         }
-        // #547 Bitmap phase 1a: the Bitmap gate's tools and disabled tools, by the same
+        // #1 Bitmap phase 1a: the Bitmap gate's tools and disabled tools, by the same
         // rule (phase 2a-ii ended the later-phase list; phase 3 added the one-layer and
         // alpha-channel lists).
         let bitmapNamed = BitmapDocument.tools.union(BitmapDocument.disabledTools)

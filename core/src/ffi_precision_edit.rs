@@ -47,23 +47,23 @@ enum Edit {
     Channel(crate::precision_channel_edit::ChannelEdit),
     Paint(PaintEdit),
     NativePaint(crate::precision_paint_tools::NativePaintEdit),
-    /// The same tools in ink on a CMYK document (`cmyk_paint`, #547 phase 2).
+    /// The same tools in ink on a CMYK document (`cmyk_paint`, #1 phase 2).
     CmykPaint(crate::cmyk_paint::CmykPaintEdit),
-    /// The paint family on an Indexed document (`indexed_paint`, #547 Indexed
+    /// The paint family on an Indexed document (`indexed_paint`, #1 Indexed
     /// phases 2b and 2c).
     IndexedPaint(crate::indexed_paint::IndexedPaintEdit),
     /// The whole-canvas geometry on an Indexed document (`indexed_geometry`,
-    /// #547 Indexed phase 2c).
+    /// #1 Indexed phase 2c).
     IndexedGeometry(crate::indexed_geometry::IndexedGeometryEdit),
     /// The selected pixels' transform on an Indexed document
-    /// (`indexed_transform`, #547 Indexed phase 2d).
+    /// (`indexed_transform`, #1 Indexed phase 2d).
     IndexedSelected(crate::indexed_transform::IndexedSelectedEdit),
     /// The paint family and the bit-exact geometry on a Bitmap document
-    /// (`bitmap_edit`, #547 Bitmap phase 2a-i).
+    /// (`bitmap_edit`, #1 Bitmap phase 2a-i).
     Bitmap(crate::bitmap_edit::BitmapEdit),
     RetouchBrush(crate::precision_retouch_brush::RetouchBrushEdit),
     LayerEdgeStroke(crate::precision_fill_stroke::LayerEdgeStroke),
-    /// Stroke… with nothing selected in ink on a CMYK document (`cmyk_stroke`, #547).
+    /// Stroke… with nothing selected in ink on a CMYK document (`cmyk_stroke`, #1).
     CmykLayerEdgeStroke(crate::cmyk_stroke::CmykLayerEdgeStroke),
     Retouch(crate::precision_retouch::RetouchEdit),
     Read(PlaneRead),
@@ -365,7 +365,7 @@ enum CmykRoute {
     LayerEdgeStroke,
 }
 
-/// A CMYK document (#547) takes only the edits of its operation table
+/// A CMYK document (#1) takes only the edits of its operation table
 /// (`precision_capability::CMYK_FAMILIES`): the structure edits (phase 1),
 /// and since phase 2 New Layer, the four ink tools (`CmykRoute::Paint`), the
 /// layer-mask edits, and the mask targets of `read_plane` and `scalar_edit`;
@@ -374,7 +374,7 @@ enum CmykRoute {
 /// the group, clipping, blend, style, merge and stamp edits; since phase 4b
 /// the geometry edits, Perspective Crop, align/distribute and the selected
 /// pixels; since phase 4c Duplicate to Document, Layer Via, Stamp Selected
-/// and Merge Group; since #547's retouch batch Dodge/Burn, the retouch brushes
+/// and Merge Group; since #1's retouch batch Dodge/Burn, the retouch brushes
 /// and the retouch commands (Red Eye refuses in its CMYK arm); since the
 /// remaining-gaps batch the ink-plate targets of `read_plane` and
 /// `scalar_edit` and `scalar_statistics` on a mask, a channel or a plate.
@@ -467,7 +467,7 @@ fn cmyk_route(text: &str) -> Result<CmykRoute, String> {
         {
             Ok(CmykRoute::Shared)
         }
-        // #547: the retouch tools on ink (`cmyk_retouch_brush`,
+        // #1: the retouch tools on ink (`cmyk_retouch_brush`,
         // `cmyk_retouch`), each with a CMYK arm at its entry point.
         "dodge_burn" => Ok(CmykRoute::Shared),
         "retouch_brush" => Ok(CmykRoute::Shared),

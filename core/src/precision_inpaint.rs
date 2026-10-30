@@ -212,7 +212,7 @@ fn scratch(canvas_pixels: u64, covered: u64, window: u64, channels: usize) -> u6
 
 /// [`WINDOW_BYTES`] for a plate of `channels` colour channels: the measured
 /// RGB figure scaled by `channels / 3`, rounded up — 72 for RGB exactly, 96
-/// for a CMYK document's four inks (#547). Every per-window buffer is at most
+/// for a CMYK document's four inks (#1). Every per-window buffer is at most
 /// proportional to the channel count (the pyramid's colour planes, the vote,
 /// the membrane's per-channel solve), so the scaled figure over-charges the
 /// channel-free masks and the distance field, never under-charges.
@@ -220,7 +220,7 @@ fn window_bytes(channels: usize) -> u64 {
     (WINDOW_BYTES * channels as u64).div_ceil(3)
 }
 
-/// The sampling plate a synthesis reads (#547): a native RGB plate, or a CMYK
+/// The sampling plate a synthesis reads (#1): a native RGB plate, or a CMYK
 /// document's ink plate, whose four ink codes are the colour channels.
 #[derive(Clone, Copy)]
 pub(crate) enum SynthesisPlate<'a> {
@@ -530,7 +530,7 @@ pub(crate) fn opaque_hole<T: Copy + PartialEq, const C: usize>(
 ///
 /// `C` is the colour channel count and `pixels` holds `C + 1` samples a
 /// pixel, alpha last: 3 with an RGB [`SynthesisPlate::Precision`] plate, 4
-/// with a CMYK document's [`SynthesisPlate::Cmyk`] plate (#547), whose four
+/// with a CMYK document's [`SynthesisPlate::Cmyk`] plate (#1), whose four
 /// ink codes are searched, voted and healed as the RGB channels are, with the
 /// same half-alpha data rule. A plate of the other width is refused.
 #[allow(clippy::too_many_arguments)]

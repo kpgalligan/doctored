@@ -1,7 +1,7 @@
 import AppKit
 
 // Image ▸ Adjustments, Layer ▸ New Adjustment Layer and Image ▸ Auto on a Grayscale document
-// (#547 phase 2b): which ops run — on R = G = B through the RGB kernels, destructively and as a
+// (#1 phase 2b): which ops run — on R = G = B through the RGB kernels, destructively and as a
 // layer where the op has one — and the sentence each refused op carries. The core's twin is
 // `gray_adjust::GRAY_ADJUSTMENTS`, in the same words. Since phase 2c the Filter menu runs too
 // (`allowsFilterAction`): every filter (Liquify since phase 4), on R = G = B through the RGB

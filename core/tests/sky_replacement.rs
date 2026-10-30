@@ -287,7 +287,7 @@ fn assert_within(depth: Depth, got: f64, want: f64, codes: f64, what: &str) {
 /// stored old sky `o` and sky `s`.
 fn harmonized(f: [f64; 3], o: [f64; 3], s: [f64; 3], p: &Value) -> [f64; 3] {
     // Each slider at its byte: the New Layers output carries both as
-    // layer opacities (#578, `sky_harmonize`'s step 6).
+    // layer opacities (#2, `sky_harmonize`'s step 6).
     let lighting = crate::common::byte_unit(p["lighting"].as_f64().unwrap() / 100.0);
     let color = crate::common::byte_unit(p["color_adjustment"].as_f64().unwrap() / 100.0);
     let screen = p["lighting_mode"] == "screen";

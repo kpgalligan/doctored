@@ -1,4 +1,4 @@
-//! A Lab Color document's TIFF save (#547 phase 1b): the flattened composite
+//! A Lab Color document's TIFF save (#1 phase 1b): the flattened composite
 //! as a TIFF 6.0 CIELab file at the document's own depth, its request and
 //! its plan (`dr_precision_doc_save_lab_plan` / `dr_precision_doc_save_lab`;
 //! the CMYK save's shape, `cmyk_io`).
@@ -75,7 +75,7 @@ impl PrecisionDocument {
         if !self.is_lab() {
             return Err("Saving a Lab TIFF requires a Lab Color document".into());
         }
-        // A Lab TIFF writes no spot channels (#547 1c-2a, `tiff_spot`).
+        // A Lab TIFF writes no spot channels (#1 1c-2a, `tiff_spot`).
         if self.has_spot_channel() {
             return Err(crate::spot_channel::TIFF_REFUSAL.into());
         }

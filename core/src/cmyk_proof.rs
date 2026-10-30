@@ -1,4 +1,4 @@
-//! A CMYK document's soft proof and the one-colour separation (#547 phase
+//! A CMYK document's soft proof and the one-colour separation (#1 phase
 //! 5): View ▸ Proof Setup on a CMYK document (Custom with Preserve CMYK
 //! Numbers, Working CMYK and its four plates), and [`separate`], the Info
 //! panel's CMYK readout of an RGB colour with its out-of-gamut "!" and the
@@ -26,7 +26,7 @@
 //! # Gamut Warning
 //!
 //! View ▸ Gamut Warning on a CMYK document flags the inks its PROOF profile
-//! cannot hold, the owner's 2026-10-14 request on #547 for a Gamut Warning
+//! cannot hold, the owner's 2026-10-14 request on #1 for a Gamut Warning
 //! on a CMYK document against its proof profile. A pixel is
 //! outside when the proof converts its numbers (`!preserve_numbers`) and
 //! `soft_proof::gamut_delta` of the ink's PCS colour (the document profile's

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 remaining-gaps MCP drive: on a 16-bit Generic CMYK document one ink
+"""The #1 remaining-gaps MCP drive: on a 16-bit Generic CMYK document one ink
 plate as an edit target, Fill and Stroke Path in ink, Apply Image and
 Calculations on plates and channels, an alpha channel's Levels and the scalar
 histograms, Gamut Warning against a proof press, and the reduced-resolution

@@ -382,12 +382,12 @@ extension RasterDocument {
                                               otherRetained: context.otherRetained,
                                               control: control)
         }
-        // #547 Duotone phase 1a: the gray channel through the inks (`DuotoneDocument.display`).
+        // #1 Duotone phase 1a: the gray channel through the inks (`DuotoneDocument.display`).
         if isDuotone, let precision {
             return try DuotoneDocument.display(of: image, precision: precision, context: context,
                                                control: control)
         }
-        // #547 Lab: the core's Display P3 view of the u16 Lab codes, never a byte preview of them.
+        // #1 Lab: the core's Display P3 view of the u16 Lab codes, never a byte preview of them.
         if isLab { return try LabDocument.display(of: image, context: context, control: control) }
         return try image.previewRGBA8(workingLimit: context.limit,
                                       otherRetained: context.otherRetained, control: control)

@@ -175,9 +175,9 @@ enum GenerativeFillRun {
     static let hostBytesPerCell: UInt64 = 40
 
     /// Why `feature` cannot run on `doc`, nil when it can: a 32-bit or a 16-bit CMYK document.
-    /// A Lab Color document runs since #547 Lab phase 6b-iii: the provider sees the plate's
+    /// A Lab Color document runs since #1 Lab phase 6b-iii: the provider sees the plate's
     /// Display P3 view and the core returns each picture to Lab codes by the Mode rule. A Bitmap
-    /// document refuses first, for good (#547 Bitmap phase 2a-i): the Crop tool's Fill popup
+    /// document refuses first, for good (#1 Bitmap phase 2a-i): the Crop tool's Fill popup
     /// reaches Generative Expand there, before any provider call.
     static func refusal(_ doc: RasterDocument, feature: GenerativeFeature = .fill) -> String? {
         if doc.isBitmap { return "\(feature.title) is not available in Bitmap mode." }

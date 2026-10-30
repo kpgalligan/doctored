@@ -114,7 +114,7 @@ struct PaintToolOptions: Codable, Equatable {
     var burn = false
     /// 0 shadows, 1 midtones, 2 highlights.
     var rangeIndex = 1
-    /// Protect Tones (#547): the stroke moves each pixel's channels together, keeping hue and
+    /// Protect Tones (#1): the stroke moves each pixel's channels together, keeping hue and
     /// saturation. nil or false is off (Doctored keeps every stroke it made before unchanged).
     /// Optional so blobs saved before it keep decoding.
     var protectTones: Bool?
@@ -348,7 +348,7 @@ struct ShapeToolOptions: Codable, Equatable {
     var strokeJoinIndex = 0
     var strokeDashIndex = 0
     var strokeAlignIndex = 1
-    /// The CMYK ink a fill or stroke was PICKED as (#547, the Color Picker's C/M/Y/K on a CMYK
+    /// The CMYK ink a fill or stroke was PICKED as (#1, the Color Picker's C/M/Y/K on a CMYK
     /// document), kept exactly beside its appearance hex; nil once the colour is set any other
     /// way (`ShapeTool.swift`'s writers). A CMYK commit matches the colour to it.
     var fillInk: CmykInk? = nil
@@ -488,17 +488,17 @@ struct ViewToolOptions: Codable, Equatable {
 /// Cross-tool state that is nobody's option in particular: the rail's two
 /// color swatches ("#RRGGBBAA", TextLayer's hex convention).
 struct SharedToolState: Codable, Equatable {
-    /// Setting either swatch clears its Lab ink (#547 Lab phase 2e): `setPaintColor` /
+    /// Setting either swatch clears its Lab ink (#1 Lab phase 2e): `setPaintColor` /
     /// `setBackgroundColor` write it, so a colour set any other way paints as its colour.
     var foreground = "#000000FF" { didSet { foregroundLab = nil } }
     var background = "#FFFFFFFF" { didSet { backgroundLab = nil } }
-    /// #547 phase 2: the ink a CMYK document's Color Picker or eyedropper set for each swatch,
+    /// #1 phase 2: the ink a CMYK document's Color Picker or eyedropper set for each swatch,
     /// kept exactly (the swatch's sRGB is its display); nil once the colour is set any other way
     /// (`setPaintColor`/`setBackgroundColor` clear it), when the colour converts through the
     /// document's profile instead.
     var foregroundInk: CmykInk? = nil
     var backgroundInk: CmykInk? = nil
-    /// #547 Lab phase 2e: the L*a*b* the Eyedropper picked on a Lab document for each swatch,
+    /// #1 Lab phase 2e: the L*a*b* the Eyedropper picked on a Lab document for each swatch,
     /// kept exactly (`LabInk`; the swatch's sRGB is its clipped display); nil once the swatch's
     /// colour is set any other way.
     var foregroundLab: LabInk? = nil

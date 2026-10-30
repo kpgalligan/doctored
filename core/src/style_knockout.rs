@@ -671,7 +671,7 @@ pub(crate) fn composite_interior_unit_into(
                 Ok(())
             }
         };
-        // `clip_unit`'s Open (#578), then D4: the members punch to the unit
+        // `clip_unit`'s Open (#2), then D4: the members punch to the unit
         // buffer as it stands RIGHT NOW — after the base's pixel pass,
         // opened, before any member — never to the enclosing backdrop.
         clip(&mut unit, ClipStep::Open)?;

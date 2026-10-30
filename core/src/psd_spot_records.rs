@@ -1,4 +1,4 @@
-//! KERNEL (#547 spot channels 1b-1): the ONE reader and writer of a PSD's
+//! KERNEL (#1 spot channels 1b-1): the ONE reader and writer of a PSD's
 //! saved-channel resources — 1006 (Pascal names), 1045 (Unicode names), 1077
 //! (DisplayInfo) and 1053 (alpha identifiers) — and the sample polarity of a
 //! saved-channel plane. `psd_spot` adapts it to the container and the two

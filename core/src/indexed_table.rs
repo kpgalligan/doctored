@@ -1,4 +1,4 @@
-//! Image ▸ Mode ▸ Color Table (#547 Indexed phase 1c): an Indexed
+//! Image ▸ Mode ▸ Color Table (#1 Indexed phase 1c): an Indexed
 //! document's palette and transparent index read, planned and replaced, and
 //! the `.act` file read and written (`designs/indexed-mode.md`).
 //!
@@ -8,7 +8,7 @@
 //! everything else (name, id, locks). A table shorter than the plane's
 //! largest index plus one refuses, naming both. The `indexed_act` kernel
 //! owns the file layout and the JSON. The re-render is
-//! [`PrecisionDocument::retabled`], which Convert to Profile shares (#547
+//! [`PrecisionDocument::retabled`], which Convert to Profile shares (#1
 //! Indexed phase 3a, `indexed_profile`).
 
 use std::sync::Arc;

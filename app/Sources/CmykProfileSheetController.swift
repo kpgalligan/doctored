@@ -1,6 +1,6 @@
 import AppKit
 
-/// Image ▸ Mode ▸ Assign Profile… / Convert to Profile… on a CMYK document (#547 phase 5): the
+/// Image ▸ Mode ▸ Assign Profile… / Convert to Profile… on a CMYK document (#1 phase 5): the
 /// destination CMYK profile and, for Convert, the intent, black-point compensation and Flatten
 /// Image to Preserve Appearance, planned by the core before Apply (`CmykProfileEdit`; the job and
 /// its one undo step are `EditorViewController+CmykProfile.swift`'s).
@@ -11,7 +11,7 @@ import AppKit
 /// Mode ▸ RGB Color's conversion (`CmykModeConversion`). Intent and BPC start at Color Settings'
 /// Conversion Options.
 ///
-/// On a Lab Color document (#547 Lab phase 5b) only Convert opens, with the same rows: Image ▸
+/// On a Lab Color document (#1 Lab phase 5b) only Convert opens, with the same rows: Image ▸
 /// Mode's conversion into the chosen CMYK or RGB profile (`CmykModeConversion`), planned with
 /// `CmykModeConversion.plan` and committed by `commitLabProfileConversion`. Since phase 6a-ii it
 /// also lists the Gray destinations after the RGB rows (`GrayProfileSheetController`'s list: the

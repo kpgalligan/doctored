@@ -1,4 +1,4 @@
-//! #547 Lab Color phase 1b, the saves: the Lab TIFF at 8 and 16 bits,
+//! #1 Lab Color phase 1b, the saves: the Lab TIFF at 8 and 16 bits,
 //! opaque and transparent, its header parsed by hand here (TIFF 6.0 CIELab:
 //! PhotometricInterpretation 8, three samples or four with ExtraSamples
 //! [2], no ICC tag) and its samples equal to TIFF 6.0's CIELab formula

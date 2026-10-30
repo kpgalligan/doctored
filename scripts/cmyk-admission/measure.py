@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 CMYK admission drive, on a built Release app.
+"""The #1 CMYK admission drive, on a built Release app.
 
 Every new CMYK plan is held to the measured-admission rule: plan >=
 ceil(1.25 x max E), where E is `ri_interval_max_phys_footprint` - pre around
@@ -49,7 +49,7 @@ document, and `convert_mode`'s reply):
   `decode_scratch_bytes` (the reopen's scratch beside `reopen_retained_bytes`,
   which the measured interval also holds, so the plan is their sum).
 
-Phase 2 (#547): the edit plans `get_precision` reports for a CMYK document,
+Phase 2 (#1): the edit plans `get_precision` reports for a CMYK document,
 read BEFORE the measured call:
 
 - `fill-16`: `select_all`, then `fill_selection` with `ink`; plan =
@@ -78,7 +78,7 @@ read BEFORE the measured call:
 - `native-reopen-83`: `open_document` of that `.rz`; plan =
   `decode_scratch_bytes` + `reopen_retained_bytes`.
 
-The selection batch (#547): the plans `get_precision` reports for the
+The selection batch (#1): the plans `get_precision` reports for the
 selections, Stroke…, Apply Layer Mask and Select and Mask's New Layer, read
 BEFORE the measured call (the measured call is the whole MCP tool, so its
 interval also holds the host's commit of the selection or the edit):
@@ -106,7 +106,7 @@ interval also holds the host's commit of the selection or the edit):
   gated at max(`cmyk_wand_scratch_bytes`, `cmyk_paint_scratch_bytes`), the
   region and then the paint, which never run together.
 
-Phase 4a (#547): the structure plans, `get_precision`'s `plans` read BEFORE
+Phase 4a (#1): the structure plans, `get_precision`'s `plans` read BEFORE
 the measured call:
 
 - `merge-16`: a two-layer CMYK document (`duplicate_layer`); `merge_visible`;
@@ -122,7 +122,7 @@ the measured call:
 - `native-reopen-84`: `open_document` of that `.rz`; plan =
   `decode_scratch_bytes` + `reopen_retained_bytes`.
 
-Phase 5 (#547): the colour workflow, each plan the core's own figure for the
+Phase 5 (#1): the colour workflow, each plan the core's own figure for the
 call (a reply's `working_memory_plan_bytes`, or `get_precision`'s `plans`):
 
 - `cmyk-convert-16`: `convert_profile` (profile installed) into a second
@@ -144,7 +144,7 @@ call (a reply's `working_memory_plan_bytes`, or `get_precision`'s `plans`):
 - `export-cmyk-tiff-keep`: `export_image` tiff, bit_depth 16, profile
   document (kept CMYK); the same.
 
-Round 2 (#547): the kept-CMYK export's stages (`cmyk_export_ink`), each
+Round 2 (#1): the kept-CMYK export's stages (`cmyk_export_ink`), each
 `export_image` with profile document; plan = the reply's
 `working_memory_plan_bytes`:
 
@@ -156,7 +156,7 @@ Round 2 (#547): the kept-CMYK export's stages (`cmyk_export_ink`), each
 - `export-cmyk-jpeg-keep-staged`: jpeg, size scale 1.5, Unsharp Mask radius 2,
   amount 1, and a metadata policy with a copyright stamp.
 
-Phase 4b (#547): geometry on ink. The first six are gated on the descriptor's
+Phase 4b (#1): geometry on ink. The first six are gated on the descriptor's
 geometry plans (`cmyk_geometry_plans`), read BEFORE the measured call, each the
 core plan of the very request the drive sends (w × h the canvas):
 
@@ -195,7 +195,7 @@ projection (`MeshWarpWork.prepareLayer`):
 
 Trim reuses `cmyk_merge_scratch_bytes` (measured as `stamp-16`).
 
-The adjustments and filters (#547), `get_precision`'s `plans` read BEFORE the
+The adjustments and filters (#1), `get_precision`'s `plans` read BEFORE the
 measured call:
 
 - `filter-gaussian-16`: `apply_filter blur` sigma 8 (Filter ▸ Blur ▸ Gaussian
@@ -210,7 +210,7 @@ measured call:
 - `fade-16`: an `apply_filter blur` sigma 8 is the setup; `fade` 50 %; plan =
   `cmyk_fade_scratch_bytes` (`cmyk_fade`).
 
-Phase 4c (#547): copy and paste, Layer Via, Stamp Selected and Merge Group,
+Phase 4c (#1): copy and paste, Layer Via, Stamp Selected and Merge Group,
 the plans `get_precision` reports, read BEFORE the measured call. Every case
 runs on its OWN private pasteboard (`DR_PASTEBOARD_NAME`, set per app before it
 starts), so nothing reaches the general pasteboard. A second CMYK profile is
@@ -239,7 +239,7 @@ refusal and fail):
 - `merge-group-16`: the two layers grouped; `merge_group`; plan =
   `cmyk_merge_group_scratch_bytes`.
 
-Phase 3 (#547): layered CMYK files, each plan the core's own figure read
+Phase 3 (#1): layered CMYK files, each plan the core's own figure read
 BEFORE the measured call:
 
 - `export-psd-layers-16`: the `render-structure-16` document with its group
@@ -255,7 +255,7 @@ BEFORE the measured call:
   `cmyk_io::open_scratch`: pixels x `cmyk_open_bytes_per_pixel` + the file's
   bytes + the alpha's decoded bytes (2 x pixels) + 1 MiB.
 
-The channels batch (#547): the selection kinds, the DRDC 85 document and one
+The channels batch (#1): the selection kinds, the DRDC 85 document and one
 ink plate's selected pixels, `get_precision`'s `plans` read BEFORE the
 measured call:
 
@@ -281,7 +281,7 @@ descriptor's `cmyk_backdrop_wand_scratch_bytes` — the composite wand's
 formula with the whole document's stack, an upper bound of the backdrop's —
 has no case here; `wand-16` is its measured record.
 
-The retouch batch (#547), `get_precision`'s `plans` read BEFORE the measured
+The retouch batch (#1), `get_precision`'s `plans` read BEFORE the measured
 call, each the core plan of the very request the drive sends (the descriptor's
 `cmyk_retouch_plate::cmyk_retouch_plans`; the canvas centre is (3000, 2000)):
 
@@ -333,7 +333,7 @@ call, each the core plan of the very request the drive sends (the descriptor's
   plan = max(edit plan, `PROJECTION_16`) + dR, dR the smallest growth of
   `unique_retained_bytes` across the call. The float row keeps its edit plan.
 
-The artwork batch (#547): type, shape and fill layers in ink, each gated on
+The artwork batch (#1): type, shape and fill layers in ink, each gated on
 the plan the host admits for the render (`NativeArtworkEvaluation.scratchBytes`
 + `cmykMarginPerPixel` × the raster + 64 × the profile), which the reply
 echoes as `working_memory_plan_bytes`:
@@ -346,7 +346,7 @@ echoes as `working_memory_plan_bytes`:
 - `artwork-edit-16`: a solid fill layer as the setup, then `edit_fill_layer`
   recolouring it (`ink` [60, 0, 20, 40]).
 
-The styles batch (#547): layer effects and knockout on ink, each plan read
+The styles batch (#1): layer effects and knockout on ink, each plan read
 from `get_precision` BEFORE the measured call:
 
 - `render-styles-16`: the layer duplicated and styled (`STYLE`: a Multiply
@@ -369,7 +369,7 @@ from `get_precision` BEFORE the measured call:
   `cmyk_merge_down_scratch_bytes` (the members' plan beside the seed's
   stack, `cmyk_merge::cmyk_seed_scratch_bytes`).
 
-The remaining-gaps batch (#547): one ink plate as a scalar target, Apply Image on
+The remaining-gaps batch (#1): one ink plate as a scalar target, Apply Image on
 CMYK, Gamut Warning and the reduced region. Each plan is the one the host admits
 the call at, which the reply reports as `working_memory_plan_bytes` (no
 descriptor key holds it): the core's scalar plan (`ScalarEdit::plan`, its plate
@@ -441,7 +441,7 @@ CASES = {
     'save-jpeg': ('tiff16', 'save:jpeg'),
     'native-save-16': ('tiff16', 'save:rz'),
     'native-reopen-16': ('none', 'open:rz16'),
-    # Phase 2 (#547): the edit plans.
+    # Phase 2 (#1): the edit plans.
     'fill-16': ('tiff16', 'edit:fill'),
     'gradient-16': ('tiff16', 'edit:gradient'),
     'bucket-16': ('flat16', 'edit:bucket'),
@@ -451,11 +451,11 @@ CASES = {
     'new-layer-16': ('tiff16', 'edit:new-layer'),
     'native-save-83': ('tiff16-masked', 'save:rz'),
     'native-reopen-83': ('none', 'open:rz83'),
-    # #547: Hue/Saturation on ink, K held (no memo).
+    # #1: Hue/Saturation on ink, K held (no memo).
     'huesat-apply-16': ('tiff16', 'edit:huesat-apply'),
     'huesat-add-16': ('tiff16', 'edit:huesat-add'),
     'render-huesat-16': ('tiff16-huesat', 'render'),
-    # The selection batch (#547).
+    # The selection batch (#1).
     'wand-16': ('tiff16', 'edit:wand'),
     'range-16': ('tiff16', 'edit:range'),
     'quick-16': ('tiff16', 'edit:quick'),
@@ -465,13 +465,13 @@ CASES = {
     'cutout-16': ('tiff16-selected', 'edit:cutout'),
     'cutout-decontam-16': ('tiff16-selected', 'edit:cutout-decontam'),
     'bucket-all-16': ('flat16', 'edit:bucket-all'),
-    # Phase 4a (#547): merges, Stamp Visible and the structured document.
+    # Phase 4a (#1): merges, Stamp Visible and the structured document.
     'merge-16': ('tiff16-two', 'edit:merge-visible'),
     'stamp-16': ('tiff16-two', 'edit:stamp-visible'),
     'render-structure-16': ('tiff16-structure', 'render'),
     'native-save-84': ('tiff16-structure', 'save:rz'),
     'native-reopen-84': ('none', 'open:rz84'),
-    # Phase 5 (#547): the colour workflow.
+    # Phase 5 (#1): the colour workflow.
     'cmyk-convert-16': ('tiff16', 'colour:convert'),
     'cmyk-assign-16': ('tiff16', 'colour:assign'),
     'cmyk-depth-8': ('tiff16', 'colour:depth'),
@@ -481,7 +481,7 @@ CASES = {
     'clip-display-16': ('tiff16', 'colour:clip'),
     'export-cmyk-png': ('tiff16', 'colour:export-png'),
     'export-cmyk-tiff-keep': ('tiff16', 'colour:export-tiff'),
-    # Phase 4b (#547): geometry on ink.
+    # Phase 4b (#1): geometry on ink.
     'resize-16': ('tiff16', 'edit:resize'),
     'affine-16': ('tiff16', 'edit:affine'),
     'perspective-crop-16': ('tiff16', 'edit:perspective-crop'),
@@ -490,13 +490,13 @@ CASES = {
     'transform-selected-16': ('tiff16', 'edit:transform-selected'),
     'puppet-16': ('tiff16', 'mesh:puppet'),
     'perspective-warp-16': ('tiff16', 'mesh:perspective'),
-    # #547: the adjustments and filters.
+    # #1: the adjustments and filters.
     'filter-gaussian-16': ('tiff16', 'edit:filter-gaussian'),
     'filter-surface-16': ('tiff16', 'edit:filter-surface'),
     'filter-dust-16': ('tiff16', 'edit:filter-dust'),
     'shadows-apply-16': ('tiff16', 'edit:shadows-apply'),
     'fade-16': ('tiff16-blurred', 'edit:fade'),
-    # Phase 4c (#547): copy and paste, Layer Via, Stamp Selected, Merge Group.
+    # Phase 4c (#1): copy and paste, Layer Via, Stamp Selected, Merge Group.
     'copy-16': ('tiff16', 'clip:copy'),
     'copy-merged-16': ('tiff16', 'clip:copy-merged'),
     'cut-16': ('tiff16', 'clip:cut'),
@@ -513,7 +513,7 @@ CASES = {
     'export-psd-layers-16': ('tiff16-structure', 'save:psd-layers'),
     'open-psd-layers-16': ('none', 'open:psdl16'),
     'open-tiff-alpha-16': ('none', 'open:tiffa16'),
-    # The channels batch (#547): the selection kinds, word 85 and one ink plate.
+    # The channels batch (#1): the selection kinds, word 85 and one ink plate.
     'plate-load-16': ('tiff16', 'edit:plate-load'),
     'luminance-16': ('tiff16', 'edit:luminance'),
     'similar-16': ('tiff16-selected', 'edit:similar'),
@@ -521,7 +521,7 @@ CASES = {
     'native-reopen-85': ('none', 'open:rz85'),
     'move-plate-16': ('tiff16', 'edit:move-plate'),
     'transform-plate-16': ('tiff16', 'edit:transform-plate'),
-    # The retouch batch (#547).
+    # The retouch batch (#1).
     'retouch-clone-16': ('tiff16', 'edit:retouch-clone'),
     'retouch-heal-16': ('tiff16', 'edit:retouch-heal'),
     'spot-heal-16': ('tiff16', 'edit:spot-heal'),
@@ -538,17 +538,17 @@ CASES = {
     'smudge-sal-16': ('tiff16', 'stroke:smudge-sal'),
     # The Art History Brush on 8-bit CMYK, the one typed document it runs on.
     'art-history-8': ('tiff8-history', 'stroke:art-history'),
-    # Round 2 (#547): the kept-CMYK export's stages.
+    # Round 2 (#1): the kept-CMYK export's stages.
     'export-cmyk-keep-resize-16': ('tiff16', 'colour:export-keep-resize'),
     'export-cmyk-keep-sharpen-16': ('tiff16', 'colour:export-keep-sharpen'),
     'export-cmyk-keep-depth-8': ('tiff16', 'colour:export-keep-depth-8'),
     'export-cmyk-keep-depth-16': ('tiff8', 'colour:export-keep-depth-16'),
     'export-cmyk-jpeg-keep-staged': ('tiff16', 'colour:export-jpeg-keep-staged'),
-    # The artwork batch (#547): type, shape and fill layers in ink.
+    # The artwork batch (#1): type, shape and fill layers in ink.
     'artwork-fill-16': ('tiff16', 'artwork:fill'),
     'artwork-shape-16': ('tiff16', 'artwork:shape'),
     'artwork-edit-16': ('tiff16-fill', 'artwork:edit'),
-    # The styles batch (#547): effects and knockout on ink.
+    # The styles batch (#1): effects and knockout on ink.
     'render-styles-16': ('tiff16-styled', 'render'),
     'merge-styles-16': ('tiff16-styled', 'edit:merge-visible'),
     'render-styled-group-16': ('tiff16-styled-group', 'render'),
@@ -558,7 +558,7 @@ CASES = {
     'render-stacked-rgb16': ('png16-stacked', 'render'),
     # Its unseeded twin: Merge Down of a plain layer (no knockout, no seed).
     'merge-down-16': ('tiff16-two', 'edit:merge-down-plain'),
-    # The remaining-gaps batch (#547): plates, Apply Image, Gamut Warning, the divisor.
+    # The remaining-gaps batch (#1): plates, Apply Image, Gamut Warning, the divisor.
     'plate-fill-16': ('tiff16', 'plate:fill'),
     'plate-gaussian-16': ('tiff16', 'plate:gaussian'),
     'apply-image-cmyk-16': ('tiff16', 'plate:apply-image'),
@@ -575,7 +575,7 @@ PLATE_CALLS = {
                                               blend_mode='Multiply')),
 }
 
-# Round 2 (#547): each kept-CMYK export case's settings and file suffix.
+# Round 2 (#1): each kept-CMYK export case's settings and file suffix.
 KEPT_SHARPEN = {'radius': 2.0, 'amount': 1.0, 'threshold': 0.0}
 KEPT_EXPORTS = {
     'colour:export-keep-resize': ('.tif', {'format': 'tiff', 'bit_depth': 16, 'filter': 'lanczos3',

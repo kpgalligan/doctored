@@ -1,6 +1,6 @@
 import AppKit
 
-/// Layer ▸ Duplicate to Document… (#547 phase 4c). The sheet picks the
+/// Layer ▸ Duplicate to Document… (#1 phase 4c). The sheet picks the
 /// Destination. "New Document" (the default) copies the selection's
 /// independent roots into a new one through ONE core call
 /// (`ImageDocument.openDuplicate`); the source gets no undo step and no dirty

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 spot channels MCP drive (phases 1a-2 and 1c-1): on an 8-bit RGB
+"""The #1 spot channels MCP drive (phases 1a-2 and 1c-1): on an 8-bit RGB
 document a spot channel is added from the selection, painted, edited, undone and
 redone, saved and reopened as `.rz`, composited into a flattened PNG and into
 `render` (full, region and preview_divisor) as its overprint, kept by a TIFF
@@ -82,7 +82,7 @@ primaries) → the sRGB curve, clamped.
   back by this file's 16-bit reader): inside the rect within 514 codes (2 at
   8 bits) of `65535 · ((1 − s)·c·ink + s·ink)`, outside exactly the fixture ×
   257, and flat_save_losses holds the spot loss line.
-- **S12 convert_precision keeps the channels (#547).** On a fresh copy,
+- **S12 convert_precision keeps the channels (#1).** On a fresh copy,
   select_rect (5, 3, 16, 12) feathered 2, add_channel from the selection
   "Mask", set_channel_options overlay_color #00c800, overlay_opacity 0.35,
   color_indicates selected; deselect; select_rect (6, 5, 14, 10),
@@ -97,7 +97,7 @@ primaries) → the sRGB curve, clamped.
   equal rows; then both coverages equal the originals at ALL. Phase B (no undo
   after): rgba16 flatten again, both coverages equal the originals at ALL;
   rgba8 flatten again, both coverages equal the originals at ALL.
-- **S13 a TIFF keeps the spot channel (#547 1c-2a).** On a fresh 8-bit copy,
+- **S13 a TIFF keeps the spot channel (#1 1c-2a).** On a fresh 8-bit copy,
   select_rect (6, 5, 14, 10) feathered 2, add_spot_channel "Red" lab
   [54.29, 80.81, 69.89] solidity 60, deselect; its coverage at ALL is recorded.
   save_copy tif succeeds, its flat_save_losses lacks the spot loss line and its
@@ -108,7 +108,7 @@ primaries) → the sRGB curve, clamped.
   channel; a second save_copy tif reopens with no spot channel. Then the same
   on a fresh copy after convert_precision rgba16 flatten, with save_copy
   bit_depth 16.
-- **S14 a layered TIFF keeps the spot channel (#547 1c-2b).** On fresh
+- **S14 a layered TIFF keeps the spot channel (#1 1c-2b).** On fresh
   copies built as S13's sources (8 bits, and after convert_precision rgba16
   flatten): export_psd format tiff mode layers succeeds and its observations
   name "1 spot channels are written as Photoshop spot channels"; inspect_psd
@@ -418,10 +418,10 @@ def main():
               f'render {render_worst} codes; region and preview exact)', flush=True)
 
         # ---- S6: refusals and the disclosure ----------------------------------------
-        # Since #547 1c-2a a TIFF keeps the spot channels (S13 measures it).
+        # Since #1 1c-2a a TIFF keeps the spot channels (S13 measures it).
         tif_reply = call('save_copy', document_id=red_doc, path=str(folder / 'red.tif'), format='tif')
         assert tif_reply['ok'] and (folder / 'red.tif').is_file(), tif_reply
-        # Since #547 phase 1b an 8-bit PSD carries the spot channels, and since
+        # Since #1 phase 1b an 8-bit PSD carries the spot channels, and since
         # 1c-2b the layered TIFF (S14 measures it).
         call('export_psd', document_id=red_doc, path=str(folder / 'red.psd'), format='psd',
              mode='layers')

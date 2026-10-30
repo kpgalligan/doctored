@@ -1,4 +1,4 @@
-//! Black & White's 8-bit Tint oracle (#578 phase 4), member h8a-LE of
+//! Black & White's 8-bit Tint oracle (#2 phase 4), member h8a-LE of
 //! `scripts/photoshop-probe/eight_bit_578_take.py`, restated from
 //! `psd_appearance_578_take.py`'s `gray_even` and `h8_member(new_l=True)`,
 //! never from the core:

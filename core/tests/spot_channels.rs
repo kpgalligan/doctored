@@ -1,4 +1,4 @@
-//! #547 spot channels, phase 1a-1 (`spot_channel`, `spot_overprint`,
+//! #1 spot channels, phase 1a-1 (`spot_channel`, `spot_overprint`,
 //! `spot_channel_native`): the overprint kernel against hand-worked values
 //! of its rule (Multiply at coverage, mixed toward the ink by Solidity); the
 //! ink's range refusals; the byte add/set/duplicate/crop

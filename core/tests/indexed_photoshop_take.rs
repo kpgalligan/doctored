@@ -1,4 +1,4 @@
-//! #547 Indexed phase 2a: Photoshop's menu-walk and painting take of an
+//! #1 Indexed phase 2a: Photoshop's menu-walk and painting take of an
 //! Indexed Color document (`~/devel/doctored-fixtures/photoshop/
 //! indexed-mode-547/take1`, never committed; `scripts/photoshop-probe/
 //! indexed_mode_take.py`, whose docstring fixes the scene, the candidates, the

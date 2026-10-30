@@ -1,4 +1,4 @@
-//! Bevel & Emboss Technique (#578): Smooth, Chisel Hard and Chisel Soft —
+//! Bevel & Emboss Technique (#2): Smooth, Chisel Hard and Chisel Soft —
 //! black-box through the style FFI, the typed edit and the projection.
 //!
 //! The Chisel oracle restates the module doc's height from an independent
@@ -14,7 +14,7 @@
 //! highlight's and shadow's 75 % opacity is its byte
 //! (`common::byte_unit`).
 //!
-//! The Chisel law's shipped arms (#578 bevel phase 2, `style_bevel_chisel`:
+//! The Chisel law's shipped arms (#2 bevel phase 2, `style_bevel_chisel`:
 //! Pillow Emboss, Hard and Soft) have their own oracle, restated from the
 //! law and sharing nothing with the core: the same brute-force distance over
 //! the facet `S_f = size / 2`, `m = (1 + di − do) / 2` in f64; Chisel Soft
@@ -53,7 +53,7 @@ use crate::common::*;
 
 const LIMIT: u64 = REFERENCE_WORKING_BYTES;
 
-/// `style_fx_bevel_emboss::CHISEL_SOFT_RATIO`, restated: the r the #578 take
+/// `style_fx_bevel_emboss::CHISEL_SOFT_RATIO`, restated: the r the #2 take
 /// judged (`bevel_chisel_578_take.py`; 0.5 was the declared value before it).
 const CHISEL_SOFT_RATIO: f32 = 0.1;
 

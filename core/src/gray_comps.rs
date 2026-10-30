@@ -1,4 +1,4 @@
-//! Layer comps on a Grayscale document (#547 phase 6a-ii,
+//! Layer comps on a Grayscale document (#1 phase 6a-ii,
 //! `designs/grayscale-mode.md`): RGB → Gray's comp carry and the two
 //! questions a Gray Apply asks.
 //!

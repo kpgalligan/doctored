@@ -1,4 +1,4 @@
-soft_effects_578 — Photoshop 26.10.0's renders for core/tests/style_soft_effects_parity.rs (#578).
+soft_effects_578 — Photoshop 26.10.0's renders for core/tests/style_soft_effects_parity.rs (#2).
 
 Every PNG is a 64 x 64 render, at 8 or 16 bits, that Photoshop made of a
 Rasterize-written PSD (export_psd mode layers): Base plus one case layer, A3's

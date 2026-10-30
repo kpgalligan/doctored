@@ -1,4 +1,4 @@
-//! #547 Lab phase 6b-ii: Auto-Align Layers' Vignette Removal and Geometric
+//! #1 Lab phase 6b-ii: Auto-Align Layers' Vignette Removal and Geometric
 //! Distortion, and Auto-Blend Layers (Stack Images, Panorama with Seamless
 //! Tones) on a Lab Color document, through the FFI. A Lab layer's linear
 //! light is its codes' CIE Y; Vignette Removal's gain multiplies their XYZ;

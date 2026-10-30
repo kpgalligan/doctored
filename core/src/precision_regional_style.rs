@@ -238,7 +238,7 @@ fn direct_sample16(
         let mut buf = [[0.0f32; 4]];
         pixel_pass(&mut buf, 0, BlendMode::Normal, 1.0)?;
         let a = buf[0][3];
-        // `clip_unit`'s Open against the footprint (#578), then D4's
+        // `clip_unit`'s Open against the footprint (#2), then D4's
         // clipped-member rule, the STYLED base's loop: the base-only sample
         // (opened) as BOTH backdrops when a member asks for it.
         let footprint = limit.unwrap_or(a);

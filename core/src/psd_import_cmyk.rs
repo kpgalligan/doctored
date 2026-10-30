@@ -1,4 +1,4 @@
-//! Layered CMYK PSD, PSB and TIFF import (#547 phase 3): Import Layers of a
+//! Layered CMYK PSD, PSB and TIFF import (#1 phase 3): Import Layers of a
 //! colour-mode-4 file as a CMYK document, its plan, and the CMYK lines of the
 //! shared import report.
 //!

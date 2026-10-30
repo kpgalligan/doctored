@@ -97,7 +97,7 @@ struct PrecisionDocumentDescriptor {
     /// FLOAT one. A storage name outside the pair refuses, which is how an
     /// older build meeting a newer document stops rather than misreading it.
     static let floatStorage = "rgba32_float"
-    /// #547: a CMYK document's straight CMYKA16 ink (`cmyk_document`).
+    /// #1: a CMYK document's straight CMYKA16 ink (`cmyk_document`).
     static let cmykStorage = "cmyka16_unorm"
     static let admittedStorages = [storage, floatStorage, cmykStorage]
     static let evaluation = "encoded_rgb_f32_v1"

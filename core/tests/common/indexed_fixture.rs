@@ -1,4 +1,4 @@
-//! #547 Indexed Color phases 1a, 1b and 1c's shared fixtures: an 8-bit RGB
+//! #1 Indexed Color phases 1a, 1b and 1c's shared fixtures: an 8-bit RGB
 //! document from its codes, the conversion and plan through the FFI, the
 //! index plane read back point by point, palette PNG and GIF files written by
 //! the `png` and `gif` encoders, a palette TIFF built by hand, the typed

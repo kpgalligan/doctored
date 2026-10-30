@@ -293,7 +293,7 @@ fn pointwise_typed_render_matches_an_f64_source_over_oracle() {
             let expected = if (0..22).contains(&lx) && (0..17).contains(&ly) {
                 over(
                     norm(top_image.get_pixel(lx as u32, ly as u32)),
-                    // The layer's 65 % at its byte (#578).
+                    // The layer's 65 % at its byte (#2).
                     crate::common::byte_unit(f64::from(0.65_f32)),
                     bottom,
                 )

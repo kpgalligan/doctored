@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 3b: the Brush, Fill, Stroke and the Paint Bucket
+//! #1 Indexed Color phase 3b: the Brush, Fill, Stroke and the Paint Bucket
 //! in blend modes other than Normal (`indexed_paint`, `indexed_edge`'s
 //! `EdgeInk::Blend`).
 //!

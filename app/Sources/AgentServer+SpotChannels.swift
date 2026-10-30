@@ -1,6 +1,6 @@
 import AppKit
 
-/// The spot channel tools (#547 phase 1a-2), mirroring the Channels menu:
+/// The spot channel tools (#1 phase 1a-2), mirroring the Channels menu:
 ///
 /// | Handler | UI path it mirrors |
 /// |---|---|
@@ -30,7 +30,7 @@ extension AgentServer {
         "set_channel_kind": [.commonTool, .floatTool, .cmykTool],
     ]
 
-    /// Channels ▸ Merge Spot Channel (#547 1c-1): the document flattened with the spot channel's
+    /// Channels ▸ Merge Spot Channel (#1 1c-1): the document flattened with the spot channel's
     /// ink baked into the colour channels and the channel deleted, one undo step. An alpha channel
     /// and a Duotone document refuse by name.
     func mergeSpotChannel(_ a: [String: Any]) throws -> String {
@@ -53,7 +53,7 @@ extension AgentServer {
     }
 
     /// Channel Options… ▸ Color Indicates: Spot Color (`kind` "spot") and Spot Channel Options… ▸
-    /// Kind: Alpha Channel (`kind` "alpha") (#547 1c-1): the channel's kind, its plane inverted so
+    /// Kind: Alpha Channel (`kind` "alpha") (#1 1c-1): the channel's kind, its plane inverted so
     /// what showed black becomes full ink, one undo step. A new spot ink defaults to the UI's: the
     /// rubylith colour's Lab and its opacity as the Solidity.
     func setChannelKind(_ a: [String: Any]) throws -> String {

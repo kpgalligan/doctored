@@ -33,7 +33,7 @@ extension AppDelegate {
         if menu.numberOfItems < Self.staticProofRows {
             menu.removeAllItems()
             menu.addItem(item("Custom…", #selector(EditorViewController.showProofSetup(_:))))
-            // #547 phase 5: Working CMYK and the four Working plates, tags 0–4
+            // #1 phase 5: Working CMYK and the four Working plates, tags 0–4
             // (EditorViewController.applyWorkingProof, CmykProof.swift).
             for (tag, row) in CmykProof.rows.enumerated() {
                 let entry = item(row.title, #selector(EditorViewController.applyWorkingProof(_:)))

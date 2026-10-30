@@ -1,4 +1,4 @@
-//! #547 Lab Color phase 1 in `.rz` (word 107 and its `LAB ` table): a Lab
+//! #1 Lab Color phase 1 in `.rz` (word 107 and its `LAB ` table): a Lab
 //! document of two rasters, a group, a mask, a hidden layer and opacity 0.5
 //! reopens at 8 and 16 bits with `color_mode` lab and its depth, the same
 //! render, and a re-save byte-equal to the first file; the reader refuses a

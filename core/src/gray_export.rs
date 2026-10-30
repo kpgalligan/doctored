@@ -1,8 +1,8 @@
-//! The export of a Grayscale document that keeps gray (#547 phase 1b):
+//! The export of a Grayscale document that keeps gray (#1 phase 1b):
 //! profile `document` with PNG, TIFF or JPEG writes ONE channel (two with
 //! alpha) at 8 or 16 bits, JPEG at 8, with the Gray ICC embedded; a 32-bit
 //! Gray document's TIFF at 32 bits is the float stage's
-//! (`doc_export_float::export_float`, #547 phase 3c).
+//! (`doc_export_float::export_float`, #1 phase 3c).
 //! `doc_export`'s typed plan and stages hand a Gray document here (the
 //! `cmyk_export` dispatch).
 //!

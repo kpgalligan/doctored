@@ -507,14 +507,14 @@ enum StackLoad {
     /// control starts once and its reservation is the latest figure, not a
     /// sum), so the rasterize is never held to the place's scratch limit,
     /// which refused it on a small canvas. On a Grayscale
-    /// stack (#547 phase 6b) the file is first converted into the stack's Gray
+    /// stack (#1 phase 6b) the file is first converted into the stack's Gray
     /// profile and depth (`GrayLayerClip.converted`, Convert), so the place
     /// lands R = G = B; that place keeps no source, so the rasterize is skipped.
     private static func placing(_ file: RasterDocument, named name: String,
                                 onto stack: RasterDocument) throws -> RasterDocument {
         let asset = stack.isGray
             ? try GrayLayerClip.converted(file, into: stack, mode: .convert)?.clip ?? file
-            // #547 Lab phase 6b-i: a Lab stack converts the file by the Mode rules first.
+            // #1 Lab phase 6b-i: a Lab stack converts the file by the Mode rules first.
             : stack.isLab
             ? try LabLayerClip.converted(file, into: stack, mode: .convert)?.clip ?? file : file
         let top = max(stack.layerCount - 1, 0)
@@ -536,7 +536,7 @@ enum StackLoad {
             }
             return edited
         }
-        // A Grayscale place keeps no retained source (#547, the core's Gray arm): the placed
+        // A Grayscale place keeps no retained source (#1, the core's Gray arm): the placed
         // layer is already plain folded pixels, so there is nothing to rasterize.
         if stack.isGray { return placed }
         let rasterizePlan = try placed.retainedSourcePlan(request: rasterize)

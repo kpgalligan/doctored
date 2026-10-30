@@ -229,7 +229,7 @@ pub(crate) fn layered_counts(
 /// SAME `peak_forecast` the byte importer and the export preflight share,
 /// plus a carried solid's render scratch in `profile`, the document's one
 /// handle (`GroupRecords::fill_scratch_bytes`). The gray open
-/// (`psd_import_gray`, #547 phase 3a) charges the same plan with its twin.
+/// (`psd_import_gray`, #1 phase 3a) charges the same plan with its twin.
 pub(crate) fn budget(
     container: &Container<'_>,
     records: &GroupRecords<'_>,
@@ -268,7 +268,7 @@ pub(crate) type SampleDecoder<'a> =
 /// A carried Pattern, Solid Color or Gradient Fill (`fill`) is its rendered
 /// canvas raster at the origin, in the document's profile, with its fill
 /// description (`psd_fill_layer`). `samples` decodes the record's planes
-/// (`LayerPixels::decode16`, or a gray file's `decode_gray`, #547 phase 3a)
+/// (`LayerPixels::decode16`, or a gray file's `decode_gray`, #1 phase 3a)
 /// and `mask_bytes` is the container's sample width its mask is read at.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn raster_layer(
@@ -471,7 +471,7 @@ pub(crate) fn emit_typed_tree(
 /// The stored composite's plan, `(retained, scratch)`, admitted on its own
 /// budget before a single sample is decoded: one retained canvas of RGBA16
 /// plus the decode forecast for a canvas-sized 16-bit plane set. Shared by
-/// [`open16`] and the gray open (`psd_import_gray`, #547 phase 3a), whose
+/// [`open16`] and the gray open (`psd_import_gray`, #1 phase 3a), whose
 /// document stores RGBA16 at both depths.
 pub(crate) fn composite_plan(width: u32, height: u32, source_bytes: usize) -> (u64, u64) {
     let canvas_pixels = u64::from(width) * u64::from(height);
@@ -516,7 +516,7 @@ pub(crate) fn open16(
         return Err(format!("PSD {path}: {reason}"));
     }
     if container.color == 1 {
-        // A gray file opens as a Grayscale document (#547 phase 3a).
+        // A gray file opens as a Grayscale document (#1 phase 3a).
         return Err(format!(
             "PSD {path}: this is a Grayscale file; open it as a Grayscale document"
         ));

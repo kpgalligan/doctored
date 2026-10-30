@@ -767,7 +767,7 @@ impl DrDocument {
                         }
                         let style = match &appearance.style {
                             // A CMYK-channel Blend If has no meaning on a
-                            // byte layer and is dropped (#547).
+                            // byte layer and is dropped (#1).
                             Some(json) => Some(std::sync::Arc::new(
                                 LayerStyle::from_json(json)?.without_cmyk_blend_if(),
                             )),

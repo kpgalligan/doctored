@@ -1,4 +1,4 @@
-//! Indexed Color PSD and PSB files, colour mode 2 (#547): the compatibility
+//! Indexed Color PSD and PSB files, colour mode 2 (#1): the compatibility
 //! report ([`import_report`]), the open of the stored composite
 //! ([`PrecisionDocument::open_indexed_psd`]), and the export's report and
 //! writer (`designs/indexed-mode.md`). `bitmap_psd` is the template; the

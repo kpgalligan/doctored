@@ -546,7 +546,7 @@ fn a_cmyk_tiff_with_a_cmyk_profile_converts_with_black_point_compensation() {
     check_cmyk(&path16, &grid16, 65535.0, "CMYK16");
 }
 
-/// #547 phase 3: an extra sample past the inks (ExtraSamples 0, a spot or
+/// #1 phase 3: an extra sample past the inks (ExtraSamples 0, a spot or
 /// saved alpha channel) is counted and never read (`cmyk_tiff_read`), so the
 /// file converts exactly as its four-sample twin, under the converted
 /// sentence the header report shares with the open.
@@ -632,7 +632,7 @@ fn planar_cmyk_tiff(w: u32, h: u32, planes: [&[u8]; 4], icc: Option<&[u8]>) -> V
     out
 }
 
-/// #547 phase 3: a planar CMYK TIFF is read by THE CMYK TIFF reader
+/// #1 phase 3: a planar CMYK TIFF is read by THE CMYK TIFF reader
 /// (`cmyk_tiff_read`), so it converts exactly as its chunky twin, and the
 /// header report — sharing the open's gate — calls it converted.
 #[test]
@@ -1088,7 +1088,7 @@ fn a_cmyk_tiff_whose_profile_has_no_b2a_converts_uncompensated() {
 /// A B2A-only profile — formerly "ignored" — is
 /// not one the open could convert from, and neither is no profile with no
 /// working CMYK profile set, so a planar TIFF (which the gate reads since
-/// #547 phase 3) is left to the platform by name, gets no report sentence, and the platform's conversion is worded plainly rather
+/// #1 phase 3) is left to the platform by name, gets no report sentence, and the platform's conversion is worded plainly rather
 /// than as one from that profile, exactly as for an untagged file.
 #[test]
 fn a_gate_refused_cmyk_tiff_with_an_unusable_profile_gets_the_plain_sentence() {
@@ -1111,7 +1111,7 @@ fn a_gate_refused_cmyk_tiff_with_an_unusable_profile_gets_the_plain_sentence() {
     }
 }
 
-/// #547 phase 3: a CMYK TIFF with unassociated alpha converts its four inks
+/// #1 phase 3: a CMYK TIFF with unassociated alpha converts its four inks
 /// as its opaque twin does and keeps its transparency as the RGBA8 alpha,
 /// under the converted sentence.
 #[test]

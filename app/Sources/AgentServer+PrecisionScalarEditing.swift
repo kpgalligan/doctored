@@ -114,7 +114,7 @@ extension EditorViewController {
             throw DoctoredCoreError(message: "Native scalar strokes support Brush, Eraser, Dodge and Burn outside Quick Mask.")
         }
         // R4m covers a mask or an alpha channel only, as `precisionDodgeBurn` refuses; one CMYK
-        // ink plate follows the colour plane's refusal (#547).
+        // ink plate follows the colour plane's refusal (#1).
         if currentTool == .dodge, capture.target.isPlane || capture.target.isInk {
             throw DoctoredCoreError(message: "Dodge / Burn's target is the layer, its mask or an alpha channel.")
         }

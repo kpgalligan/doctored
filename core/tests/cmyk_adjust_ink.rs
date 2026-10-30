@@ -1,4 +1,4 @@
-//! Every adjustment the CMYK adjustments batch admits on ink (#547), each
+//! Every adjustment the CMYK adjustments batch admits on ink (#1), each
 //! against an independent oracle written here, through the FFI:
 //!
 //! * the RGB-bound ops (P4: Invert, Posterize, Brightness/Contrast; C3K:

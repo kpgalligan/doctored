@@ -1,4 +1,4 @@
-//! A Grayscale document's profile and depth edits (#547 phase 5a): Edit ▸
+//! A Grayscale document's profile and depth edits (#1 phase 5a): Edit ▸
 //! Assign Profile and Convert to Profile between Gray profiles and Image ▸
 //! Mode ▸ 8/16/32 Bits/Channel — their request, plan and refusals. CMYK's
 //! `cmyk_profile` is the template; nothing here converts a pixel itself.
@@ -38,7 +38,7 @@
 //! (`GrayPolicy::new`). None of this is a format change: the `GRAY` table
 //! already holds the profile and the depth.
 //!
-//! A Duotone document (#547, `designs/duotone-mode.md`) refuses Assign
+//! A Duotone document (#1, `designs/duotone-mode.md`) refuses Assign
 //! Profile, Convert to Profile, 8 → 16 and 32 Bits/Channel by name
 //! (`duotone_document`'s `ASSIGN_REFUSAL`, `CONVERT_REFUSAL`,
 //! `DEPTH16_REFUSAL` and `DEPTH32_REFUSAL`). 16 → 8 runs as above and the
@@ -275,7 +275,7 @@ impl PrecisionDocument {
                 false,
             );
         };
-        // #547 Duotone: Assign, Convert, 8 → 16 and 32 Bits/Channel are
+        // #1 Duotone: Assign, Convert, 8 → 16 and 32 Bits/Channel are
         // unavailable for good (`duotone_document`); 16 → 8 runs below and
         // keeps the description (module doc).
         if current.duotone().is_some() {

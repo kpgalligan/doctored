@@ -1,7 +1,7 @@
 identify_profiles.json - Photoshop 26.10.0 Inner Shadow and Drop Shadow profiles (the 104 rows
 of the effect-kernels-578-p4 identify take whose rule is built: a source over an opaque
 backdrop at 256 x 224; 8 bits; every row `take` effect-kernels-578-p4/identify1) for
-core/tests/style_effect_kernels_578_p4_take.rs (#578).
+core/tests/style_effect_kernels_578_p4_take.rs (#2).
 
 - The 80 Inner Shadow rows (`ic_*`, family IC): a black source over opaque black, the binary
   disc r 40 at (128, 112) and the 8 x 8 supersampled 76 x 56 ellipse; the shadow (255, 226,

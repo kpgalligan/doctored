@@ -1,4 +1,4 @@
-//! #578: the Inner Glow law's band measured from the anti-aliased contour
+//! #2: the Inner Glow law's band measured from the anti-aliased contour
 //! (`style_aa_band`), against Photoshop's own identify-578 take4 profiles at
 //! 8 and 16 bits, against a brute-force oracle, and across 8, 16 and 32
 //! bits. The fixture (`tests/fixtures/psd_photoshop/identify_578/`, README)
@@ -483,7 +483,7 @@ mod bench {
     }
 
     #[test]
-    #[ignore = "make cancel-bench: a wall-clock verdict (#578)"]
+    #[ignore = "make cancel-bench: a wall-clock verdict (#2)"]
     fn a_feathered_layer_costs_about_the_binary_one() {
         // Bound, declared before measuring: feathered <= 3 × binary + 50 ms.
         // Edge, Size 250, Choke 50 % (`La`; `Ma` did not ship), Range 50 %.

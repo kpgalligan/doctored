@@ -32,11 +32,11 @@
 //! at both depths. Every call admits its plan against `limit` beside `other`
 //! and reserves it on its job control before allocating; the inputs are never
 //! changed. A 32-bit float or 16-bit CMYK document refuses by name.
-//! On a Grayscale document (#547 phase 6b) the plate is R = G = B in the
+//! On a Grayscale document (#1 phase 6b) the plate is R = G = B in the
 //! twin, and the rendered picture, whose colour comes from the provider, is
 //! folded to its gray by the Mode rule (`gray_artwork::folded_result`) before
 //! the record and its binding are built; the plan carries the fold's image
-//! (`gray_artwork::fold_bytes`). On a Lab Color document (#547 Lab phase
+//! (`gray_artwork::fold_bytes`). On a Lab Color document (#1 Lab phase
 //! 6b-iii) the plate's codes pass through the Display P3 view
 //! (`lab_neural::view_samples`, Remove's rule) before the provider sees
 //! them, and the picture is rendered in Display P3

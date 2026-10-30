@@ -298,7 +298,7 @@ fn layer_opacity_applies_once_to_the_packaged_pixels_and_overlay() {
     // at 50 % is the overlay colour at 50 % over the backdrop, never a tint
     // of the pixels beneath it.
     let base = rect_doc().with_layer_opacity(1, 0.5).expect("opacity");
-    // The layer's 50 % composites at its byte, 128 / 255 (#578).
+    // The layer's 50 % composites at its byte, 128 / 255 (#2).
     let half = 128.0 / 255.0;
     let doc = styled(&base, 1, &overlay("normal", O_HEX, 1.0, ""));
     let want = packaged(

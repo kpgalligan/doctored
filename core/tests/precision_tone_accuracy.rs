@@ -129,7 +129,7 @@ fn nonlinear_curve_survives_tiny_alpha_nested_groups_and_native_reopen() {
     let output = output.to_rgba16().ok().unwrap();
     let mut maximum = 0.0_f64;
     for (source, actual) in pixels.iter().zip(output.iter()) {
-        // The group's 37.5 % at its byte (#578).
+        // The group's 37.5 % at its byte (#2).
         let q = crate::common::byte_unit(0.375);
         assert_eq!(actual[3], (f64::from(source[3]) * q).round() as u16);
         if source[3] == 0 {

@@ -1,4 +1,4 @@
-//! SPOT CHANNELS (#547, `designs/spot-channels.md`): a spot channel is
+//! SPOT CHANNELS (#1, `designs/spot-channels.md`): a spot channel is
 //! an existing channel (the byte `doc_channel::Channel`, the typed
 //! `precision_mask::PrecisionChannel`) whose `spot` holds an ink. Everything
 //! else is the alpha channel's: the canvas-sized plane, the count cap and

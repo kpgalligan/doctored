@@ -43,7 +43,7 @@
 //! profile and resolution, empty metadata (the frames' capture packets
 //! describe one exposure, not the merge) and the `Clip` tone map. Those are
 //! `float_document`'s own gates; nothing here admits an f32 leaf. A
-//! Grayscale source (#547 phase 6b) gives a 32-bit Grayscale document: the
+//! Grayscale source (#1 phase 6b) gives a 32-bit Grayscale document: the
 //! merged image is folded to its gray by the Mode rule
 //! (`gray_artwork::fold_artwork` under the source's policy at 32 bits, which
 //! keeps a neutral pixel's `Y`), and the document takes that policy.

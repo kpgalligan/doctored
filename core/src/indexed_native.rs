@@ -1,4 +1,4 @@
-//! The Indexed Color document in the typed `.rz` (#547 Indexed phase 1a,
+//! The Indexed Color document in the typed `.rz` (#1 Indexed phase 1a,
 //! DRDC 108).
 //!
 //! Word 108 sits in the CMYK slot — the FIRST word inside the identity

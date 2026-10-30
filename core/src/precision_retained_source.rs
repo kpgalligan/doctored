@@ -547,7 +547,7 @@ impl PrecisionDocument {
             source.transform,
             source.filter,
         );
-        // A Place on a Lab Color document (#547, the close) renders into the
+        // A Place on a Lab Color document (#1, the close) renders into the
         // built-in ProPhoto RGB, not the twin, and converts that raster to Lab
         // codes by the Mode rule, so the colour visit is priced against
         // ProPhoto, the profile the edit renders into. An asset already in the
@@ -694,7 +694,7 @@ impl PrecisionDocument {
         }
         plan.scratch_bytes =
             crate::precision_geometry::source_transform_scratch(transform, plan.scratch_bytes)?;
-        // A Place on a Grayscale document (#547, the close) folds the
+        // A Place on a Grayscale document (#1, the close) folds the
         // rendered raster to gray before it publishes it: the one image
         // `gray_artwork::folded_result` may build, 0 on any other document.
         if prepared.name.is_some() && matches!(edit, SourceEdit::Place { .. }) {
@@ -706,7 +706,7 @@ impl PrecisionDocument {
                 ))
                 .ok_or("source render size overflow")?;
         }
-        // A Place on a Lab document (#547, the close) converts the ProPhoto
+        // A Place on a Lab document (#1, the close) converts the ProPhoto
         // render to Lab codes: the converted RGBA16 image (8 bytes a pixel)
         // beside the render, plus the conversion pipeline's own scratch.
         if prepared.name.is_some() && lab_place {
@@ -806,14 +806,14 @@ impl PrecisionDocument {
             } else {
                 PrecisionDocumentLayer::raster
             };
-            // A Place on a Grayscale document (#547, the close) publishes the
+            // A Place on a Grayscale document (#1, the close) publishes the
             // rendered pixels folded to gray and keeps no retained source: a
             // re-render from the colour master would bring colour back, so
             // the layer is a plain raster (the host's chained `rasterize`
             // then changes nothing).
             let gray_place =
                 self.gray_policy().is_some() && matches!(edit, SourceEdit::Place { .. });
-            // A Place on a Lab document (#547, the close) publishes the
+            // A Place on a Lab document (#1, the close) publishes the
             // ProPhoto render converted to Lab codes by Mode ▸ Lab Color's
             // rule, and, as Gray's, keeps no retained source.
             let pixels = if gray_place {

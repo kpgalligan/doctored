@@ -4,19 +4,19 @@
 //! EXIF directories; metadata_tiff owns the shared relocation algorithm.
 //!
 //! The typed encoder owns layout and marks RGBA8 as straight alpha. A CMYK
-//! document's save (#547, `cmyk_io`) writes four-sample CMYK8/CMYK16 through
+//! document's save (#1, `cmyk_io`) writes four-sample CMYK8/CMYK16 through
 //! the same tags with no ExtraSamples: its fourth sample is K, not alpha.
-//! A Grayscale document's export (#547 phase 1b, `gray_encode`) writes one
+//! A Grayscale document's export (#1 phase 1b, `gray_encode`) writes one
 //! BlackIsZero sample, or two with the second tagged straight alpha.
-//! A Lab Color document's save (#547 phase 1b, `lab_save`) writes three
+//! A Lab Color document's save (#1 phase 1b, `lab_save`) writes three
 //! CIELab samples, or four with the fourth tagged straight alpha.
-//! An Indexed Color document's export (#547 Indexed phase 1b,
+//! An Indexed Color document's export (#1 Indexed phase 1b,
 //! `indexed_encode`) writes one 8-bit RGB Palette sample with its ColorMap,
 //! or two with the second tagged straight alpha.
-//! A Bitmap document's export (#547 Bitmap phase 1c, `bitmap_export`)
+//! A Bitmap document's export (#1 Bitmap phase 1c, `bitmap_export`)
 //! writes its packed 1-bit plane BlackIsZero ([`encode_bilevel`]); every
 //! writer here shares the sidecar's tags (`side_tags`).
-//! An RGB or CMYK file whose sidecar carries spot channels (#547 1c-2a,
+//! An RGB or CMYK file whose sidecar carries spot channels (#1 1c-2a,
 //! `tiff_spot`) writes them as trailing extra samples ([`encode_with_spots`]),
 //! with their resources after the 8BIM run in tag 34377.
 
@@ -28,7 +28,7 @@ use tiff::tags::{PhotometricInterpretation, SampleFormat, Tag};
 use crate::metadata_tiff::{export_exif, write_children, write_values, Node};
 use crate::metadata_write::EncodeSidecar;
 
-/// A flat TIFF's spot channels as the encoder writes them (#547 1c-2a,
+/// A flat TIFF's spot channels as the encoder writes them (#1 1c-2a,
 /// `tiff_spot`): the 8BIM resources describing them (after the inherited
 /// run in tag 34377), the ExtraSamples of every sample after the colour
 /// samples (the transparency's first when the file keeps one), and each
@@ -447,7 +447,7 @@ fn side_tags<W: Write + Seek>(
     tags.write_tag(Tag::Orientation, 1u16)
 }
 
-/// A Bitmap document's kept TIFF (#547 Bitmap phase 1c, `bitmap_export`):
+/// A Bitmap document's kept TIFF (#1 Bitmap phase 1c, `bitmap_export`):
 /// the packed plane (`bitmap_method`: `ceil(w/8)` bytes a row, MSB first, 1
 /// white) as BitsPerSample 1, Photometric 1 (BlackIsZero, so a set bit is
 /// white and the rows are written as they stand), one uncompressed strip,

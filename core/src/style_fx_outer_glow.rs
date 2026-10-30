@@ -2,7 +2,7 @@
 //! shape, OUTSIDE only, in two regimes split where Size·(1 − Spread) is 0
 //! (`style_matte::law_applies`):
 //!
-//! - THE LAW (Size·(1 − Spread) > 0, #578): the box-pair law of the
+//! - THE LAW (Size·(1 − Spread) > 0, #2): the box-pair law of the
 //!   coverage (`style_matte::law_matte_with_job`: the band grown by `n =
 //!   round(S · spread)` px from the anti-aliased contour, [`LAW_BAND`], then
 //!   two passes of a `w = S − n` box), the Range `r` (0.01..=1) as `min(1,
@@ -21,7 +21,7 @@
 //! Below stroke band's rule), so after the layer's own pass the visible glow
 //! is `g (1 − a)` in both regimes.
 //!
-//! # Why the law and the composite (#578)
+//! # Why the law and the composite (#2)
 //!
 //! The third and fourth identify takes measured the Outer Glow as the inner
 //! glow law's outside twin with its band measured from the anti-aliased
@@ -41,7 +41,7 @@
 //! the composite. `core/tests/style_effect_kernels_578_take.rs` pins the
 //! take and identify takes 3 and 4.
 //!
-//! # Why sigma / 2.5 and the stretch (#578, today's kernel)
+//! # Why sigma / 2.5 and the stretch (#2, today's kernel)
 //!
 //! `Mdilate · 1/2.5 · Rscale`, style-parity-v1x's fitted member
 //! (`style_v1x_take.py`), shipped on effects-578 take1
@@ -55,7 +55,7 @@
 //! leave only even codes); `blur_reach` at the narrower sigma still bounds
 //! it, because the f32 blur reads and writes exactly as far as the byte
 //! one. The inner glow runs no Gaussian: it ships the measured law `L`
-//! below Choke 100 % (#578, `style_fx_inner_glow`).
+//! below Choke 100 % (#2, `style_fx_inner_glow`).
 //!
 //! # Why the knock-out happens in-plane, and in proportion to the coverage
 //!
@@ -69,7 +69,7 @@
 //! glow lands where the layer draws nothing over it (Fill 0 %: the hollow
 //! halo `g (1 − a)`); where the layer's pass will cover the pixel, the
 //! compositor lands the band at `sa / (1 − a·fill)` (`band_under_layer`,
-//! #578), so the layer's `over` leaves exactly `g (1 − a)` of it, the
+//! #2), so the layer's `over` leaves exactly `g (1 − a)` of it, the
 //! measured composite, where the plane alone under the layer would leave
 //! `g (1 − a)²`.
 //!

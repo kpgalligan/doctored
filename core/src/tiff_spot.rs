@@ -1,4 +1,4 @@
-//! #547 spot channels 1c-2a: flat TIFF spot channels in and out, the
+//! #1 spot channels 1c-2a: flat TIFF spot channels in and out, the
 //! adapter over the `tiff_spot_samples` kernel (the layout, the samples and
 //! their polarity) and the `psd_spot_records` kernel (resources 1006, 1045,
 //! 1077 and 1053, which Photoshop stores in a TIFF's tag 34377 exactly as in
@@ -27,7 +27,7 @@
 //! CMYK at 8 and 16 bits; any other document refuses with
 //! `spot_channel::TIFF_REFUSAL`.
 //!
-//! LAYERED (#547 1c-2b). Photoshop's layered TIFF (take2's `rgb8_l.tif`,
+//! LAYERED (#1 1c-2b). Photoshop's layered TIFF (take2's `rgb8_l.tif`,
 //! `cmyk16_l.tif`) follows the flat rule: the composite IFD's trailing extra
 //! samples (ExtraSamples 0, H1), the lists in tag 34377 led by
 //! "Transparency", tag 37724 beside them. So the layered TIFF reads and

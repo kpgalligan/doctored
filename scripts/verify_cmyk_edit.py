@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 phase-2 MCP drive: a CMYK document is EDITED in ink over MCP —
+"""The #1 phase-2 MCP drive: a CMYK document is EDITED in ink over MCP —
 New Layer, the Brush, Fill, Gradient and Paint Bucket with `ink`, Levels and
 Curves (an adjustment layer with a mask), Hue/Saturation on the ink with K
 held, the `.rz` round trip — and what is
@@ -39,7 +39,7 @@ Generic CMYK Profile (always installed). Ink codes are `percent / 100 ×
   same `sample_color` ink16 at every probed point (bit-exact), the Curves layer
   still an adjustment.
 - **E7 refusals.** depth_blur (RGB only; the Clone Stamp and the brush blend
-  modes run on ink since #547's retouch batch); Hue
+  modes run on ink since #1's retouch batch); Hue
   Rotate (RGB only since the adjustments batch, which admits the filters);
   Levels with an RGB `r` stage; and `ink` on an RGB
   document ("ink is a CMYK document's colour") each refuse. (`fill` with

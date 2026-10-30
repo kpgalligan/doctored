@@ -18,9 +18,9 @@ use crate::psd_framing::{LayeredContainer, UNKNOWN_CONTAINER};
 /// "import_precision" is "rgba8", "rgba16", "cmyk", "rgba32" for a 32-bit
 /// RGB file, which opens as a 32-bit float document, "gray" for an
 /// 8-, 16- or 32-bit Grayscale file, which opens as a Grayscale document
-/// through `dr_precision_doc_open_gray_psd` (#547 phases 3a and 3c), or
+/// through `dr_precision_doc_open_gray_psd` (#1 phases 3a and 3c), or
 /// "lab" for an 8- or 16-bit Lab file, which opens as a Lab Color document
-/// through `dr_precision_doc_open_lab_psd` (#547 Lab phase 3a).
+/// through `dr_precision_doc_open_lab_psd` (#1 Lab phase 3a).
 ///
 /// # Safety
 /// path must be NULL or a NUL-terminated string; err_out NULL or writable.
@@ -157,14 +157,14 @@ pub unsafe extern "C" fn dr_doc_save_psd(
 /// none here and refuses). Never falls back between modes,
 /// converts depth implicitly, or accepts an 8-bit RGB file. A CMYK file
 /// (colour mode 4) of any of the three containers, at 8 or 16 bits, opens as
-/// a CMYK document: mode 0 its layers, mode 1 its saved composite (#547). A
+/// a CMYK document: mode 0 its layers, mode 1 its saved composite (#1). A
 /// 32-bit RGB PSD or PSB opens as a 32-bit float document the same two ways,
 /// and so does a 32-bit float RGB layered TIFF, its layers only, in
 /// either byte order: a little-endian one through its big-endian form
 /// (`tiff_layers_order::big_endian_form`), whose fingerprint is the
 /// file's own. A Grayscale file is refused by name: it opens through
-/// `dr_precision_doc_open_gray_psd` (#547 phase 3a); so is a Lab file, which
-/// opens through `dr_precision_doc_open_lab_psd` (#547 Lab phase 3a).
+/// `dr_precision_doc_open_gray_psd` (#1 phase 3a); so is a Lab file, which
+/// opens through `dr_precision_doc_open_lab_psd` (#1 Lab phase 3a).
 ///
 /// # Safety
 /// path and expected_fingerprint must be NULL or NUL-terminated strings;
@@ -208,7 +208,7 @@ pub unsafe extern "C" fn dr_precision_doc_open_psd(
                     None => bytes,
                 };
                 // A CMYK file (colour mode 4) — PSD, PSB or a layered CMYK
-                // TIFF — opens as a CMYK document (#547: its layers, mode 0,
+                // TIFF — opens as a CMYK document (#1: its layers, mode 0,
                 // `psd_import_cmyk`; its saved composite, mode 1, `cmyk_io`),
                 // before the RGB importer's own admission.
                 if crate::psd_container::Container::read(&bytes)
@@ -251,7 +251,7 @@ pub unsafe extern "C" fn dr_precision_doc_open_psd(
 }
 
 /// Opens a Grayscale (colour mode 1) PSD, PSB or layered TIFF at 8 or 16
-/// bits, or a PSD or PSB at 32 (#547 phase 3c), as a Gray document (#547
+/// bits, or a PSD or PSB at 32 (#1 phase 3c), as a Gray document (#1
 /// phase 3a): mode 0 its layers, 1 its saved composite (a TIFF has none).
 /// `working_gray` is the working Gray's wire name (`"dot_gain_20"`, …),
 /// assigned to an untagged file under an import warning. Never falls back between modes; any other file refuses.
@@ -304,7 +304,7 @@ pub unsafe extern "C" fn dr_precision_doc_open_gray_psd(
 }
 
 /// Opens a Lab (colour mode 9) PSD, PSB or layered TIFF at 8 or 16 bits as
-/// a Lab Color document (#547 Lab phase 3a): mode 0 its layers, 1 its saved
+/// a Lab Color document (#1 Lab phase 3a): mode 0 its layers, 1 its saved
 /// composite (a TIFF has none). Never falls back between modes; any other
 /// file refuses.
 ///
@@ -354,10 +354,10 @@ pub unsafe extern "C" fn dr_precision_doc_open_lab_psd(
 /// of a typed document, as JSON freed with dr_string_free: depth 16, or 32 for
 /// a float document, which writes a PSD, PSB or big-endian layered
 /// TIFF at 32 bits. A Grayscale document answers its declared depth (8,
-/// 16 or 32) with `"color_mode":"gray"` (#547 phase 3b); at 32 it is the
-/// float report, a layered TIFF refused (#547 phase 3c). A Lab Color
+/// 16 or 32) with `"color_mode":"gray"` (#1 phase 3b); at 32 it is the
+/// float report, a layered TIFF refused (#1 phase 3c). A Lab Color
 /// document answers its declared depth (8 or 16) with `"color_mode":"lab"`
-/// (#547 Lab phase 3b). Reads no pixels.
+/// (#1 Lab phase 3b). Reads no pixels.
 ///
 /// # Safety
 /// err_out must be NULL or writable.
@@ -396,16 +396,16 @@ pub unsafe extern "C" fn dr_precision_doc_psd_export_report(
 /// DrLayeredContainer). `projection` is REQUIRED for an RGB document and must
 /// be this document's canvas-sized RGBA16 UNORM rendering in its exact ICC
 /// bytes; a CMYK document takes NULL and writes a CMYK file at its declared
-/// depth, its composite rendered here (#547). A float document writes a
+/// depth, its composite rendered here (#1). A float document writes a
 /// 32-bit RGB PSD or PSB or big-endian layered TIFF from its
 /// canvas-sized RGBA32 float projection. A Grayscale document writes a
 /// colour-mode-1 PSD, PSB or layered TIFF at its declared 8 or 16 bits from
-/// its REQUIRED canvas-sized RGBA16 projection (#547 phase 3b); a 32-bit one
+/// its REQUIRED canvas-sized RGBA16 projection (#1 phase 3b); a 32-bit one
 /// writes a 32-bit colour-mode-1 PSD or PSB from its REQUIRED RGBA32 float
-/// projection, and its layered TIFF is refused (#547 phase 3c). A Lab Color
+/// projection, and its layered TIFF is refused (#1 phase 3c). A Lab Color
 /// document writes a colour-mode-9 PSD, PSB or layered TIFF at its declared
 /// 8 or 16 bits, no profile embedded, from its REQUIRED canvas-sized RGBA16
-/// projection in its Lab twin (#547 Lab phase 3b). The preflight runs again
+/// projection in its Lab twin (#1 Lab phase 3b). The preflight runs again
 /// and its refusal is this call's error, so a refused export leaves an
 /// existing destination byte-identical.
 ///
@@ -450,7 +450,7 @@ pub unsafe extern "C" fn dr_precision_doc_save_psd(
 
 /// True when the file at `path` is a TIFF whose Photoshop layer block this
 /// core reads as layers: a classic big-endian unsigned RGB, CMYK (InkSet
-/// absent or 1), BlackIsZero gray (#547 phase 3a) or Lab TIFF at 8 or 16
+/// absent or 1), BlackIsZero gray (#1 phase 3a) or Lab TIFF at 8 or 16
 /// bits holding a `Layr`/`Lr16` block, or a 32-bit IEEE-float RGB
 /// TIFF of either byte order holding an `Lr32` block. False for NULL, an
 /// unreadable path, a little-endian file at 8 or 16 bits, any other colour

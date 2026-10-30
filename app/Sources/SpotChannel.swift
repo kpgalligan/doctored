@@ -1,6 +1,6 @@
 import AppKit
 
-/// A spot channel's ink (#547 phase 1a-2, `designs/spot-channels.md`): D50 CIE Lab and
+/// A spot channel's ink (#1 phase 1a-2, `designs/spot-channels.md`): D50 CIE Lab and
 /// Solidity as an integer percent, 0–100. A spot channel is an alpha channel with an
 /// ink: its plane is the ink's coverage (255 / 65535 = full ink), painted, duplicated, deleted and
 /// loaded as a selection exactly as an alpha channel is. The core checks the ranges
@@ -65,7 +65,7 @@ enum SpotChannels {
     }
 
     /// A PDF export of a document holding spot channels; nil without them. Doctored's PDF cannot
-    /// write them as `/Separation` inks, the form #547 1c-2a measured Photoshop's PDF keeping them
+    /// write them as `/Separation` inks, the form #1 1c-2a measured Photoshop's PDF keeping them
     /// in (`spot_tiff_take.py` take2: PDF-FORM SEPARATIONS).
     static func pdfRefusal(_ doc: RasterDocument?) -> String? {
         guard doc?.hasSpotChannels == true else { return nil }
@@ -73,7 +73,7 @@ enum SpotChannels {
             + "save as TIFF, PSD or .doctored, or delete the spot channels first."
     }
 
-    /// A byte TIFF save's working memory for the spot channels it keeps (#547 1c-2a), the core's
+    /// A byte TIFF save's working memory for the spot channels it keeps (#1 1c-2a), the core's
     /// `tiff_spot_scratch_bytes` at one byte a sample and three colour samples: each plane stored
     /// as u16 and written at one byte, the interleaved strip and its copies (at most three 8 MiB
     /// strips), and 512 bytes of resources a spot plus two a UTF-16 unit of its name. 0 without
@@ -166,7 +166,7 @@ extension RasterDocument {
 
     var hasSpotChannels: Bool { !spotIndices().isEmpty }
 
-    /// Channels ▸ Merge Spot Channel (#547 1c-1): the document flattened with spot channel `i`'s
+    /// Channels ▸ Merge Spot Channel (#1 1c-1): the document flattened with spot channel `i`'s
     /// ink baked in and the channel deleted. A byte document runs directly; a typed one refuses
     /// while the worker is busy, reads the core plan's refusal (a Duotone document, an alpha
     /// channel), admits the plan and runs on the bounded worker with Cancel. nil for an alpha
@@ -224,7 +224,7 @@ extension ImageDocument {
         return try doc.spotOverprint(projection) ?? projection
     }
 
-    /// A flat byte save's pixels in `format` (#547 1c-2a): a TIFF keeps the spot channels as
+    /// A flat byte save's pixels in `format` (#1 1c-2a): a TIFF keeps the spot channels as
     /// extra samples, so it takes the plain projection; every other format the overprinted one
     /// (`flatExportProjection`).
     func flatSaveProjection(format: ExportFormat?) throws -> RasterImage {

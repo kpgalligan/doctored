@@ -1,4 +1,4 @@
-//! #578: the Chisel law's shipped arms (Chisel Hard and Chisel Soft Pillow
+//! #2: the Chisel law's shipped arms (Chisel Hard and Chisel Soft Pillow
 //! Emboss, `style_bevel_chisel`) against Photoshop's own identify-578 take3
 //! profiles, at 8 and 16 bits. The fixture
 //! (`tests/fixtures/psd_photoshop/identify_578/chisel_take3_profiles.json`,

@@ -1,5 +1,5 @@
 //! Layer ▸ Warp and Filter ▸ Liquify on a CMYK document's straight CMYKA16
-//! ink (#547 phase 4b).
+//! ink (#1 phase 4b).
 //!
 //! WARP. The float rule (`precision_warp`): a CMYK warp is applied at
 //! once and keeps no binding (`build_cmyk` refuses one, so no format change),
@@ -199,7 +199,7 @@ impl PrecisionDocument {
             };
             layer.content = Content::CmykRaster { image, offset };
             // A warp is applied at once, so the pixels are no longer a
-            // description's rendering (#547's artwork batch).
+            // description's rendering (#1's artwork batch).
             layer.description = None;
         }
         if *target == WarpTarget::Mask || linked {

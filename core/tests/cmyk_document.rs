@@ -1,4 +1,4 @@
-//! The CMYK document mode (#547 phase 1): Image ▸ Mode's two conversions
+//! The CMYK document mode (#1 phase 1): Image ▸ Mode's two conversions
 //! against the synthetic press profile's closed-form oracle
 //! (`common/cmyk_fixture.rs`: the profile's own affine tables, the CIE
 //! formulas and the built-in sRGB's own tags through `common::icc_chain`),
@@ -630,7 +630,7 @@ fn every_refusal_names_itself() {
     let group = unsafe { &*carried }.layer(1).unwrap();
     assert_eq!(group.name(), "G");
     assert_eq!(group.children().map(<[_]>::len), Some(1));
-    // An enabled layer effect CARRIES since the styles batch (#547).
+    // An enabled layer effect CARRIES since the styles batch (#1).
     let shadowed = edit(
         rgb,
         r#"{"op":"layer_style","version":1,"layer":0,"style":{"effects":[{"type":"drop_shadow"}]}}"#,
@@ -664,7 +664,7 @@ fn every_refusal_names_itself() {
     )
     .unwrap();
     let blocker = "“Background” is a layer with Blend If on the Red channel, which a CMYK document cannot hold yet; flatten the image to convert it";
-    // A plate channel names the mode it needs on an RGB document (#547).
+    // A plate channel names the mode it needs on an RGB document (#1).
     for (edit_text, channel) in [
         (
             r#"{"op":"layer_blend_if","version":1,"layer":0,"blend_if":{"channel":"cyan","this_layer":[0,0,200,255]}}"#,
@@ -707,7 +707,7 @@ fn every_refusal_names_itself() {
         edit(flattened, r#"{"op":"paint","layer":0}"#).unwrap_err(),
         "The \"paint\" edit is unavailable in a CMYK document"
     );
-    // Phase 2 admits painting in ink; #547's retouch batch the Clone Stamp,
+    // Phase 2 admits painting in ink; #1's retouch batch the Clone Stamp,
     // the healing family and the retouch brushes; the channels batch alpha
     // channels. An RGB-only family refuses.
     assert!(require_cmyk("paint", "raster").is_ok());

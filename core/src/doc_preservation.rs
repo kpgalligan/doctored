@@ -118,7 +118,7 @@ impl DrDocument {
         if self.channels.iter().any(|c| c.spot.is_none()) {
             losses.push("saved selection channels");
         }
-        // A flat TIFF keeps them as extra samples (#547 1c-2a, `tiff_spot`).
+        // A flat TIFF keeps them as extra samples (#1 1c-2a, `tiff_spot`).
         if self.has_spot_channel() && format != Format::Tiff {
             losses.push(crate::spot_channel::FLAT_LOSS);
         }

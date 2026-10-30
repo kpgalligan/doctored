@@ -1,4 +1,4 @@
-//! KERNEL (#547 spot channels 1c-2a): a flat TIFF's spot channel samples —
+//! KERNEL (#1 spot channels 1c-2a): a flat TIFF's spot channel samples —
 //! the layout test, the read of the saved extra samples and their polarity.
 //! `tiff_spot` adapts it to the resources and the two document types;
 //! nothing here names a document.
@@ -156,7 +156,7 @@ pub(crate) fn tiff_stored(coverage: u16, max: u16) -> u16 {
 }
 
 /// A spot channel's coverage plane as a layered TIFF writer reads it in
-/// place (#547 1c-2b, `tiff_layers_write::write_spots`): canvas-sized, row 0
+/// place (#1 1c-2b, `tiff_layers_write::write_spots`): canvas-sized, row 0
 /// top, at the document's own channel depth (a byte document's 8 bits, a
 /// typed one's 16).
 #[derive(Clone, Copy, Debug)]

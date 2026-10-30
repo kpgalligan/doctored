@@ -48,7 +48,7 @@ extension AgentServer {
         // alpha erase (`clipboard_cut`), RGB retained. `get_clipboard` and
         // `new_from_clipboard` read no document
         // (`DocumentPrecision.documentFreeTools`).
-        // #547 phase 4c: Copy, Cut, Copy Merged and Paste on a CMYK document
+        // #1 phase 4c: Copy, Cut, Copy Merged and Paste on a CMYK document
         // (`cmyk_clipboard`), RZCB v4 payloads.
         "cut": [.typedTool, .rasterTool, .floatTool, .cmykTool],
         "copy": [.selectionSensitive, .typedTool, .floatTool, .cmykTool],
@@ -190,7 +190,7 @@ extension AgentServer {
         guard let cgImage = rendering.makeCGImage(in: document.colorSpace) else {
             throw ToolError(message: "The clipboard could not be written.")
         }
-        // #547 phase 4: a Grayscale copy's TIFF is its one-channel gray image.
+        // #1 phase 4: a Grayscale copy's TIFF is its one-channel gray image.
         let tiff = try payload.pasteboardTIFF(from: doc, held: bytes.count)
         try writeItem(cgImage, typed: bytes, from: document, tiff: tiff)
         let info = try payload.info()
@@ -246,7 +246,7 @@ extension AgentServer {
         if doc.isHighDepth {
             let capture = try PrecisionEditorCapture(document)
             let facade = capture.facade
-            // #547 phase 4c: a CMYK adjustment record refuses by the core's
+            // #1 phase 4c: a CMYK adjustment record refuses by the core's
             // name; since the artwork batch a CMYK type or shape layer's
             // whole-layer copy carries its record.
             let editable = whole && !(facade.isCmyk && facade.layerIsAdjustment(index))
@@ -578,7 +578,7 @@ extension AgentServer {
                                     "layers": layerClipboardJSON(),
                                     "source": ClipboardSource.read(Clipboard.pasteboard)?.json
                                         ?? NSNull()]
-        // #547 phase 4c: `mode` — "rgb" or "cmyk" (phase 4: or "gray"; Lab phase 4c: or "lab"),
+        // #1 phase 4c: `mode` — "rgb" or "cmyk" (phase 4: or "gray"; Lab phase 4c: or "lab"),
         // the typed payload's colour mode; null without one.
         reply["mode"] = NSNull()
         if let typed = try TypedClipboardPayload.read(Clipboard.pasteboard) {

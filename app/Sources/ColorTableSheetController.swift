@@ -1,7 +1,7 @@
 import AppKit
 import UniformTypeIdentifiers
 
-/// Image ▸ Mode ▸ Color Table… (#547 Indexed phase 1c): the table as a 16-column swatch grid, a
+/// Image ▸ Mode ▸ Color Table… (#1 Indexed phase 1c): the table as a 16-column swatch grid, a
 /// Color well editing the selected entry, the Transparent index (None or an entry; the document's
 /// table only), and Load… / Save… of Adobe Color Table (`.act`) files through the core
 /// (`IndexedColorTable.readAct` / `writeAct`). OK asks `refusal` first (the core's plan: a table
@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 /// it hands the table to `commit`. The same dialog edits the Indexed Color sheet's Custom palette
 /// (`.custom`: no transparent index, any table of 2…256 entries). The well and the swatches show
 /// each entry's codes in the document's RGB colour space (`tableSpace(for:)`), so a P3-tagged
-/// document shows its true colours (#547 Indexed phase 2a).
+/// document shows its true colours (#1 Indexed phase 2a).
 final class ColorTableSheetController: NSViewController {
     enum Purpose { case document, custom }
 

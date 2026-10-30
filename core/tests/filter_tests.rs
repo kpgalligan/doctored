@@ -368,7 +368,7 @@ fn null_safety_all_filters() {
     assert!(unsafe { dr_image_edge_detect(null) }.is_null());
     assert!(unsafe { dr_image_emboss(null) }.is_null());
     assert!(unsafe { doctored_core::ffi_clip_display::dr_image_clip_display(null, 1) }.is_null());
-    // Equalize (#547) is fallible: a NULL image refuses with or without an
+    // Equalize (#1) is fallible: a NULL image refuses with or without an
     // err_out, and a NULL mask with a nonzero length is refused too.
     assert!(unsafe {
         doctored_core::ffi_equalize::dr_image_equalize(null, ptr::null(), 0, ptr::null_mut())

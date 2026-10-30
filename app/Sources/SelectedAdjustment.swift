@@ -74,7 +74,7 @@ enum SelectedAdjustment {
         let named = filter == "lens_correction" ? try capture.facade.lensResolvedParameters(params, layer: layer) : params
         var params = try FilterFrame.kernelParameters(filter, named, target: target ?? capture.target,
                                                       lab: capture.facade.isLab)
-        // #547: a CMYK document's Clouds take ink — the swatches' stored ink, else their colours
+        // #1: a CMYK document's Clouds take ink — the swatches' stored ink, else their colours
         // through the profile.
         if capture.source.isCmyk {
             params = try CmykAdjustFilter.inkParams(filter: filter, params: params, document: capture.source)

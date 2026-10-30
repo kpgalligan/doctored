@@ -359,9 +359,9 @@ fn solid(d: &Descriptor, colours: FxColours<'_>) -> Result<FillKind, String> {
             })
         }
         // A gray file's fills keep `FxColours::Rgb` (`GroupRecords::read`),
-        // and its open omits every fill (#547 phase 3a).
+        // and its open omits every fill (#1 phase 3a).
         FxColours::Gray(_) => Err(NOT_RGB.to_string()),
-        // …and a Lab file's are omitted too (#547 Lab phase 3a).
+        // …and a Lab file's are omitted too (#1 Lab phase 3a).
         FxColours::Lab => Err(NOT_RGB.to_string()),
         // Write-only; the 32-bit open reads through `Rgb` (module doc's 32 bits).
         FxColours::Float(_) => Err(NOT_RGB.to_string()),

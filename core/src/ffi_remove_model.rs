@@ -112,7 +112,7 @@ pub unsafe extern "C" fn dr_doc_remove_model_plan(
 
 /// `dr_doc_remove_model_plan` for a 16-bit document; a 32-bit float or CMYK
 /// document refuses by name. A Lab Color document's plan adds its view
-/// pipeline's tables (#547 Lab 2f).
+/// pipeline's tables (#1 Lab 2f).
 ///
 /// # Safety
 /// `doc` must be NULL or a live `PrecisionDocument`; the rest as
@@ -218,7 +218,7 @@ pub unsafe extern "C" fn dr_doc_remove_model_input(
 
 /// `dr_doc_remove_model_input` for a 16-bit document; a 32-bit float or CMYK
 /// document refuses by name. On a Lab Color document `image_out` is the
-/// plate's Display P3 view (`lab_convert::view_pipeline`, #547 Lab 2f).
+/// plate's Display P3 view (`lab_convert::view_pipeline`, #1 Lab 2f).
 ///
 /// # Safety
 /// `doc` must be NULL or a live `PrecisionDocument`; the rest as
@@ -348,7 +348,7 @@ pub unsafe extern "C" fn dr_doc_remove_model_apply(
 /// `dr_doc_remove_model_apply` for a 16-bit document: the new record is a
 /// u16 raster. A 32-bit float or CMYK document refuses by name. On a Lab
 /// Color document the plane is Display P3, converted to Lab codes before the
-/// coverage mix (`lab_convert::from_view_pipeline`, #547 Lab 2f). NULL with
+/// coverage mix (`lab_convert::from_view_pipeline`, #1 Lab 2f). NULL with
 /// `err_out` untouched when nothing changed; every other NULL carries a
 /// message (a NULL `doc` too).
 ///

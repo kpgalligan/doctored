@@ -8,7 +8,7 @@ struct PersistedWarpWork {
     let source: RasterDocument
     let request: PersistedWarpRequest
     /// On an Indexed document, the colour an uncovered pixel's entry is nearest with no
-    /// transparent index (#547 Indexed phase 3b, the core's `indexed_background` on a `set`);
+    /// transparent index (#1 Indexed phase 3b, the core's `indexed_background` on a `set`);
     /// nil is white.
     var indexedBackground: NSColor? = nil
 

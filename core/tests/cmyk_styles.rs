@@ -1,4 +1,4 @@
-//! Layer effects on a CMYK document's ink (#547, the styles batch): every
+//! Layer effects on a CMYK document's ink (#1, the styles batch): every
 //! effect at Normal 100 and 50, Multiply and Screen against the coverage its
 //! RGB16 twin renders (`common/cmyk_style_fixture.rs`) meeting the ink
 //! through the f64 W3C step on `L = 1 − ink`
@@ -147,10 +147,10 @@ fn every_effect_meets_its_coverage_on_one_minus_ink() {
                         let a = f64::from(coverage[i]) / 65535.0;
                         let mut sa = cov[i] * opacity;
                         // An outside stroke band lands under the layer as
-                        // the disjoint union (#578): at `sa / (1 − a)` under
+                        // the disjoint union (#2): at `sa / (1 − a)` under
                         // a pixel the layer covers at `a` (Fill 1); so does
-                        // an outer glow, whose plane is `g (1 − a)` (#578,
-                        // the measured composite `g (1 − a)`), and since #578
+                        // an outer glow, whose plane is `g (1 − a)` (#2,
+                        // the measured composite `g (1 − a)`), and since #2
                         // part 4 (DK1) a knocked-out drop shadow, whose twin
                         // already reads `m (1 − a)`.
                         let under = matches!(name, "stroke" | "outer_glow" | "drop_shadow");
@@ -175,9 +175,9 @@ fn every_effect_meets_its_coverage_on_one_minus_ink() {
 #[test]
 fn the_bevel_lights_each_side_with_its_own_ink() {
     // The second base is overhead and softened: the Smooth law's NORMALIZED
-    // shading (#578, `style_bevel_smooth`) shades every slope and lights none
+    // shading (#2, `style_bevel_smooth`) shades every slope and lights none
     // at altitude 90. The Emboss and Pillow Emboss bases (the law at half the
-    // Size, #578) draw a Below half and an Interior half; on a hard edge
+    // Size, #2) draw a Below half and an Interior half; on a hard edge
     // every pixel is in one band, so the oracle's one pass over the layer is
     // the kernel's order there.
     let bases = [
@@ -307,7 +307,7 @@ fn layer_opacity_packages_the_layer_with_its_effects() {
     assert_flat_all(doc, 2, "package", |x, y| {
         let i = (y * W + x) as usize;
         let a = f64::from(coverage[i]) / 65535.0;
-        // The knocked-out shadow lands under the layer (#578 part 4, DK1).
+        // The knocked-out shadow lands under the layer (#2 part 4, DK1).
         let sa = if a > 0.0 && a < 1.0 {
             (cov[i] / (1.0 - a)).min(1.0)
         } else {
@@ -319,7 +319,7 @@ fn layer_opacity_packages_the_layer_with_its_effects() {
             a,
             BlendMode::Normal,
         );
-        // The byte opacity (#578): 50 % composites at 128 / 255.
+        // The byte opacity (#2): 50 % composites at 128 / 255.
         mix(
             column(x),
             packaged,
@@ -344,7 +344,7 @@ fn fill_opacity_scales_the_pixels_never_the_effects() {
     assert_flat_all(doc, 2, "fill", |x, y| {
         let i = (y * W + x) as usize;
         let a = f64::from(coverage[i]) / 65535.0;
-        // The byte Fill (#578): 30 % composites at 77 / 255; the
+        // The byte Fill (#2): 30 % composites at 77 / 255; the
         // effect's own opacity is not a byte.
         let fill = crate::cmyk_structure_fixture::byte_unit(0.3);
         let acc = over_to(column(x), percent(SOURCE), a * fill, BlendMode::Normal);
@@ -377,7 +377,7 @@ fn an_inside_stroke_replaces_what_lies_under_it() {
 
 #[test]
 fn an_anti_aliased_inside_stroke_takes_the_anti_aliased_band_in_ink() {
-    // #578: on a shape with partial pixels the Inside band is measured from
+    // #2: on a shape with partial pixels the Inside band is measured from
     // the anti-aliased edge (NA1, `inside_corner_band`), the one u8 kernel every
     // depth and CMYK share, so the twin's red (Fill 0 over black, a white
     // stroke: exactly the band) is this document's band too.
@@ -583,7 +583,7 @@ fn a_default_black_shadow_is_k100() {
     free(doc);
 }
 
-// ------------------------------------------------- byte documents (#547) --
+// ------------------------------------------------- byte documents (#1) --
 
 /// A byte document's style JSON as a value, `blend_if` read as absent when
 /// null.

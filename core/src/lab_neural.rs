@@ -1,4 +1,4 @@
-//! The neural and generative tools on a Lab Color document (#547 Lab phase
+//! The neural and generative tools on a Lab Color document (#1 Lab phase
 //! 6b-iii): the model's input is the document's Display P3 VIEW and its
 //! result returns to L\*a\*b\* codes by Mode ▸ Lab Color's rule.
 //!

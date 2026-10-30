@@ -28,7 +28,7 @@
 //! and a bake refuse at float with that module's `layers_refusal` sentence
 //! (the report refuses first, so they are never reached).
 //!
-//! A Grayscale document (#547 phase 3b) takes the SAME inventory (`gray`: one
+//! A Grayscale document (#1 phase 3b) takes the SAME inventory (`gray`: one
 //! composite plane, its Gray profile) and the SAME record walk
 //! (`Walk::gray`): every raster, stamp and bake is written from its R plane
 //! (R = G = B) and alpha, channels `-1` and `0` (`psd_export_gray::
@@ -39,7 +39,7 @@
 //! `gray`, phase 3c) writes R and alpha as Raw f32
 //! (`psd_export_gray32::channels_gray32`) and its masks as the float walk's.
 //!
-//! A Lab Color document (#547 Lab phase 3b) takes the SAME inventory (`lab`:
+//! A Lab Color document (#1 Lab phase 3b) takes the SAME inventory (`lab`:
 //! three composite planes, no profile) and the SAME record walk, decided by
 //! the walk's document (`walk.document.lab_policy()`, no `Walk` field): every
 //! raster and bake is written as L, a, b and alpha at the document's DECLARED
@@ -47,7 +47,7 @@
 //! `lab_encode::psd_sample`), its masks at that depth, its effect colours as
 //! `LbCl` (`FxColours::Lab`). An adjustment layer is written as its STAMP
 //! (`entries` decides by `lab_document::is_lab_twin`): no Lab adjustment
-//! record was ever observed (`psd_import_lab`'s H-L). A fill layer (#547
+//! record was ever observed (`psd_import_lab`'s H-L). A fill layer (#1
 //! Lab phase 6a-i) is written as its rendered codes, an ordinary raster:
 //! [`exported_fill16`] answers `None` on the twin, so the inventory, the
 //! pattern table and the walk agree, and preflight reports the description's
@@ -414,7 +414,7 @@ fn plane16(samples: impl Iterator<Item = u16>, width: u32, height: u32, large: b
 
 /// The record's `-2` channel and mask body: a 16-bit PackBits plane, or at
 /// `float` a Raw plane of f32 coverage (`psd_export_float::mask_plane32`),
-/// or at a Grayscale file's `depth` (#547 phase 3b) a PackBits plane of its
+/// or at a Grayscale file's `depth` (#1 phase 3b) a PackBits plane of its
 /// samples at that depth.
 fn mask_channel(
     layer: &PrecisionDocumentLayer,
@@ -492,7 +492,7 @@ fn style_blocks(
     colours: crate::psd_layer_effects::FxColours<'_>,
 ) -> Result<StyleBlocks, String> {
     // A pixel record in a legacy-Fill mode writes `iOpa` even at 255
-    // (`encode_fill_for`, #578); a group section keeps `encode_fill`'s.
+    // (`encode_fill_for`, #2); a group section keeps `encode_fill`'s.
     // An adjustment record keeps `encode_fill`'s, as the 8-bit walk does.
     // A pattern or solid fill record (module doc) takes an adjustment
     // record's `iOpa`; a pattern's writes its reference as `fxrp`, always.
@@ -562,7 +562,7 @@ fn style_blocks(
 /// adjustment stamps render from, with the caller's working limit and other
 /// retained bytes for their admission, the container's row-count width,
 /// whether this is a 32-bit float document's walk (module doc), and a
-/// Grayscale document's declared depth and policy (#547 phase 3b).
+/// Grayscale document's declared depth and policy (#1 phase 3b).
 pub(crate) struct Walk<'a> {
     pub document: &'a PrecisionDocument,
     pub limit: u64,
@@ -573,7 +573,7 @@ pub(crate) struct Walk<'a> {
 }
 
 impl Walk<'_> {
-    /// A Lab Color document's declared depth (#547 Lab phase 3b, module
+    /// A Lab Color document's declared depth (#1 Lab phase 3b, module
     /// doc), read off the walk's document; `None` for every other.
     fn lab_depth(&self) -> Option<Depth> {
         self.document.lab_policy().map(|policy| Depth {
@@ -850,7 +850,7 @@ pub(crate) fn records(
         let (w, h) = image.dimensions();
         let (ox, oy) = bake.as_ref().map_or(layer.offset(), |(origin, _)| *origin);
         let mut channels = if float && gray {
-            // A 32-bit Gray walk (#547 phase 3c): R and alpha, Raw f32.
+            // A 32-bit Gray walk (#1 phase 3c): R and alpha, Raw f32.
             crate::psd_export_gray32::channels_gray32(image)
                 .ok_or("32-bit PSD export requires RGBA32 float sources")?
         } else if float {
@@ -926,9 +926,9 @@ impl PrecisionDocument {
             .collect();
         // At 32 bits the file embeds the profile's linear twin and carries
         // Photoshop's 110-byte color-mode data (`psd_export_encode::write_psd32`);
-        // a Gray document's file embeds its Gray profile (#547 phase 3b), at
+        // a Gray document's file embeds its Gray profile (#1 phase 3b), at
         // 32 bits its Gray linear twin (phase 3c); a Lab document's file
-        // embeds none (#547 Lab phase 3b, L2).
+        // embeds none (#1 Lab phase 3b, L2).
         let (profile_bytes, profile_name) = if self.is_lab() {
             (0, String::new())
         } else if let Some(policy) = self.gray_policy() {
@@ -1006,7 +1006,7 @@ impl PrecisionDocument {
     /// written), and in the layered mode a record the 32-bit writer has
     /// no form for refuses with `psd_export_float::layers_refusal` when
     /// nothing more fundamental did.
-    /// An 8-bit Gray document (#547 phase 3b) or Lab document (#547 Lab
+    /// An 8-bit Gray document (#1 phase 3b) or Lab document (#1 Lab
     /// phase 3b) is preflighted at 1 byte a sample, its declared depth.
     pub(crate) fn limited_psd_report(
         &self,
@@ -1130,27 +1130,27 @@ impl PrecisionDocument {
             file.min(container.max_file_bytes()),
             reopen.min(import_envelope_bytes()),
         );
-        // A Bitmap document (#547 Bitmap phase 1c), Gray storage underneath,
+        // A Bitmap document (#1 Bitmap phase 1c), Gray storage underneath,
         // writes a colour-mode-0 file (`bitmap_psd`), asked before Gray.
         if self.is_bitmap() {
             return self.bitmap_psd_report_json(container, mode);
         }
-        // An Indexed Color document (#547), RGB storage underneath, writes a
+        // An Indexed Color document (#1), RGB storage underneath, writes a
         // colour-mode-2 file (`indexed_psd`).
         if self.is_indexed() {
             return self.indexed_psd_report_json(container, mode);
         }
-        // A Grayscale document (#547 phase 3b) writes a colour-mode-1 file at
+        // A Grayscale document (#1 phase 3b) writes a colour-mode-1 file at
         // its declared depth (`psd_export_gray`).
         if self.is_gray() {
             return self.gray_psd_report_json(container, mode, file, reopen);
         }
-        // A Lab document (#547 Lab phase 3b) writes a colour-mode-9 file at
+        // A Lab document (#1 Lab phase 3b) writes a colour-mode-9 file at
         // its declared depth (`psd_export_lab`).
         if self.is_lab() {
             return self.lab_psd_report_json(container, mode, file, reopen);
         }
-        // A CMYK document (#547 phase 3) has its own export: every container,
+        // A CMYK document (#1 phase 3) has its own export: every container,
         // both modes, at its declared depth (`psd_export_cmyk`).
         if self.is_cmyk() {
             return self.cmyk_psd_report_json(container, mode, file, reopen);
@@ -1191,7 +1191,7 @@ impl PrecisionDocument {
     /// revision, required for an RGB document; the only rendering done here
     /// is an adjustment stamp (`psd_export_bake`), admitted against `limit`
     /// and `other`. A CMYK document takes none and is written by
-    /// `psd_export_cmyk` (#547 phase 3), before any projection check; a float
+    /// `psd_export_cmyk` (#1 phase 3), before any projection check; a float
     /// document is written at 32 bits by `psd_export_float`.
     pub(crate) fn save_psd(
         &self,
@@ -1202,24 +1202,24 @@ impl PrecisionDocument {
         limit: u64,
         other: u64,
     ) -> Result<(), String> {
-        // Spot channels (#547): written to PSD and PSB at 8 and 16 bits since
+        // Spot channels (#1): written to PSD and PSB at 8 and 16 bits since
         // phase 1b; refused where the writer cannot carry them.
         if self.spots_refused(container) {
             return Err(crate::psd_export_preflight::spot_refusal(container).into());
         }
-        // A Bitmap document (#547 Bitmap phase 1c): `bitmap_psd`, before Gray.
+        // A Bitmap document (#1 Bitmap phase 1c): `bitmap_psd`, before Gray.
         if self.is_bitmap() {
             return self.save_bitmap_psd(path, container, mode, limit, other);
         }
-        // An Indexed Color document (#547): `indexed_psd`, no projection.
+        // An Indexed Color document (#1): `indexed_psd`, no projection.
         if self.is_indexed() {
             return self.save_indexed_psd(path, container, mode, limit, other);
         }
-        // A Grayscale document (#547 phase 3b): `psd_export_gray`.
+        // A Grayscale document (#1 phase 3b): `psd_export_gray`.
         if self.is_gray() {
             return self.save_gray_psd(projection, path, container, mode, limit, other);
         }
-        // A Lab document (#547 Lab phase 3b): `psd_export_lab`.
+        // A Lab document (#1 Lab phase 3b): `psd_export_lab`.
         if self.is_lab() {
             return self.save_lab_psd(projection, path, container, mode, limit, other);
         }

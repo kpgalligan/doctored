@@ -1,4 +1,4 @@
-//! Vibrance at 8 and 16 bits, bound to the document profile's TRC (#578): a
+//! Vibrance at 8 and 16 bits, bound to the document profile's TRC (#2): a
 //! thin adapter over the `adjust_color` kernel, in the `adjust_photo_filter`
 //! pattern. It names `IccProfile`, so it is not a kernel module.
 //!

@@ -315,4 +315,4 @@ force, the contract of each item not yet shipped and `## Open items`. Takes live
   `ActionRecorder.recordAgentCall`). Verification: `python3 scripts/verify_v1_hdr_toning.py` its presets
   case. The Photoshop take was not attempted.
   (2026-10-29) The eleven built-ins were removed: HDR Toning's built-in preset is Default; user presets are
-  saved from the Preset popup (#687, #688).
+  saved from the Preset popup (#7, #8).

@@ -26,7 +26,7 @@ struct NativeArtworkEvaluation {
     /// True in a 32-bit float document: `compute` renders through
     /// `dr_artwork_render_float`.
     let float: Bool
-    /// True in a CMYK document (#547): every colour is five ink numbers, the
+    /// True in a CMYK document (#1): every colour is five ink numbers, the
     /// components carry `ink`/`inks`, and `components()` feeds
     /// `dr_precision_doc_cmyk_artwork` (CmykArtwork.swift).
     let cmyk: Bool
@@ -55,7 +55,7 @@ struct NativeArtworkEvaluation {
         offsetX = drawing.offsetX; offsetY = drawing.offsetY
         let count = width * height
         // A float render's numbers are linear light and may be above white;
-        // a CMYK render's are ink (#547).
+        // a CMYK render's are ink (#1).
         let ink: ArtworkInk = cmyk ? .cmyk : float ? .linearSRGB : .srgb
         var captured: [Part] = []
         var scalar = 0, intrinsic = 0, planeless = 0
@@ -306,7 +306,7 @@ extension RasterDocument {
     /// default `.above` is the UI's decision and is what every pre-12E-2b
     /// caller meant at byte depth — the typed depth used to append a top root
     /// and now follows the same rule.
-    /// `matching` (a CMYK document only, #547): the inks a colour of an sRGB
+    /// `matching` (a CMYK document only, #1): the inks a colour of an sRGB
     /// description takes when its sRGB is one of theirs (`cmykArtwork`).
     func nativeArtwork(_ description: LayerDescription, anchor: CGPoint, layer: Int,
                        replacing: Bool, name: String,
@@ -322,7 +322,7 @@ extension RasterDocument {
         // it looks the same. A fill is first sized for THIS canvas:
         // whatever canvas it was last rendered for, it covers this one.
         let ink = artworkInk
-        // A Grayscale document stores each colour as its gray (#547 phase 6a-i, GrayArtwork.swift).
+        // A Grayscale document stores each colour as its gray (#1 phase 6a-i, GrayArtwork.swift).
         let description = try grayArtwork(description.fitted(toCanvas: (width, height)).inInk(ink)
             .withOriginFraction(DescribedLayer.anchorFraction(anchor)))
         guard let json = description.json(),

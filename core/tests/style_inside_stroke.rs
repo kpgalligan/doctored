@@ -17,7 +17,7 @@
 //! plain one. The band is `a − erode(a, size)`: `255 − round(255 ·
 //! clamp(d − size, 0, 1))` for a rect, `d` the axis distance to its
 //! complement. On a shape with a partial pixel (the alpha-128 rim) it is
-//! measured from the anti-aliased edge (NA1, `inside_corner_band`, #578, the
+//! measured from the anti-aliased edge (NA1, `inside_corner_band`, #2, the
 //! Stroke confirm take), which along this straight rim is the larger of that
 //! and `round(255 · clamp(size − (|p − q| − u_q), 0, 1))` over the partial
 //! pixels q, `u_q = 1 − a_q`, bounded by `a`.

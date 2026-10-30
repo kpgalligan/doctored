@@ -1,5 +1,5 @@
 //! Stamp Selected and Merge Group at 16 bits, 32-bit float and on a CMYK
-//! document (#547 phase 4c): the typed twins of `doc_merge_selected`, whose
+//! document (#1 phase 4c): the typed twins of `doc_merge_selected`, whose
 //! rules they share, and both built on `precision_merge`'s pixel half
 //! (`merged_record`: the members' union extent through the ordinary typed
 //! compositor, or `cmyk_merge`'s frame render on a CMYK document).

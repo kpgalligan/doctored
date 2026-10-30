@@ -51,7 +51,7 @@ final class ColorizeSheetController: NSViewController {
     private static func source(_ doc: RasterDocument, layer: Int) throws -> RasterImage? {
         let pixels: RasterImage?
         if let precision = doc.precision {
-            // A Lab layer previews its Display P3 view, the model's input (#547 Lab phase 6b-iii).
+            // A Lab layer previews its Display P3 view, the model's input (#1 Lab phase 6b-iii).
             let limit = RasterResources.shared.workingLimit
             pixels = try precision.layerSource(layer).map {
                 try NeuralFilterRun.modelInput($0, document: doc, limit: limit, other: 0, control: nil)

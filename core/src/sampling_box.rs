@@ -27,11 +27,11 @@
 //! after`, seeded in the order `−before ..= after`, sliding by dropping `x − 1
 //! − before` and adding `x + after`, on a ring of `min(before + after + 2, h)`
 //! rows. The inner glow's two-pass box of an EVEN width `2m` is one `(m, m −
-//! 1)` pass then one `(m − 1, m)` pass, so the pair is centred (#578). With
+//! 1)` pass then one `(m − 1, m)` pass, so the pair is centred (#2). With
 //! `before == after == r` every read, sum and order is the symmetric box's, so
 //! `new` and `box_sum` are the `window` forms at `(r, r)`, bit for bit.
 //! [`box_pair`] is that two-pass box, shared by the inner glow's law and the
-//! Smooth bevels' (`style_bevel_smooth`, #578).
+//! Smooth bevels' (`style_bevel_smooth`, #2).
 use crate::job_control::JobContext;
 use crate::precision_image::reserved_vec;
 

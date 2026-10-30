@@ -1,4 +1,4 @@
-//! The Grayscale document's adjustments (#547 phase 2b): which ops run on a
+//! The Grayscale document's adjustments (#1 phase 2b): which ops run on a
 //! Gray document, which refuse for good, and the one rewrite an admitted
 //! description needs (`designs/grayscale-mode.md`).
 //!
@@ -175,7 +175,7 @@ pub(crate) fn grey_hex(doc: &PrecisionDocument, hex: &str) -> Option<String> {
 }
 
 /// An admitted adjustment layer's description carried by Image ▸ Mode ▸
-/// Grayscale (#547 phase 2e, `gray_convert`): a `gradient_map`'s stops become
+/// Grayscale (#1 phase 2e, `gray_convert`): a `gradient_map`'s stops become
 /// the `#gggggg` of their luminance from `from`, the RGB document's profile,
 /// under `policy` (the Mode rule, [`grey_in`]); every other description
 /// unchanged. `Err` only when the rewritten description cannot be written.
@@ -291,7 +291,7 @@ pub(crate) fn admit_selected(
 
 /// Why a Gray document cannot hold an adjustment layer of `description` (the
 /// table and the channel rule, as a layer), or `None`: a gray PSD's carried
-/// adjustment record is omitted by name when it refuses (#547 phase 3a,
+/// adjustment record is omitted by name when it refuses (#1 phase 3a,
 /// `psd_import_gray`). A description the kernel's own parser must refuse
 /// answers `None` here.
 pub(crate) fn record_refusal(description: &str) -> Option<String> {

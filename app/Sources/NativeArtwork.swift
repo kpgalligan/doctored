@@ -67,7 +67,7 @@ struct ArtworkColorRun: Codable, Equatable {
 
 /// What a description's colour numbers are. `.srgb` is never
 /// stored in a style (`stored`); the payload's computed `ink` reads it back.
-/// `.cmyk` (#547) is a CMYK document's: five numbers `[c, m, y, k, alpha]`,
+/// `.cmyk` (#1) is a CMYK document's: five numbers `[c, m, y, k, alpha]`,
 /// each 0…1, in the document's own profile (CmykArtwork.swift). Its carrier
 /// `NSColor` is built in `genericCMYK` with those five components — a
 /// container for the numbers, never a colour conversion.
@@ -241,7 +241,7 @@ enum ArtworkColor {
     /// built in another — unvalidated (NaN when it cannot convert).
     static func authored(_ color: NSColor, in ink: ArtworkInk) -> [Double] {
         // Ink is read off a CMYK-model colour's own five components (the
-        // `.cmyk` carrier); any other colour is not ink (#547).
+        // `.cmyk` carrier); any other colour is not ink (#1).
         if ink == .cmyk {
             guard color.type == .componentBased, color.colorSpace.colorSpaceModel == .cmyk,
                   color.numberOfComponents == 5 else { return Array(repeating: .nan, count: 5) }
@@ -316,7 +316,7 @@ extension LayerDescription {
 
 extension RasterDocument {
     /// The ink this document's descriptions are read and written in: ink in
-    /// a CMYK document (#547), linear light at 32 bits,
+    /// a CMYK document (#1), linear light at 32 bits,
     /// sRGB-encoded otherwise.
     var artworkInk: ArtworkInk { isCmyk ? .cmyk : isFloat ? .linearSRGB : .srgb }
 }

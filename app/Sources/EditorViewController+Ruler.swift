@@ -55,7 +55,7 @@ extension EditorViewController {
             NSSound.beep()
             return
         }
-        // #547 Bitmap phase 3: the straightened crop (EditorViewController+BitmapMode.swift).
+        // #1 Bitmap phase 3: the straightened crop (EditorViewController+BitmapMode.swift).
         if doc.isBitmap {
             // The line stays when the straighten was refused or changed nothing.
             if straightenBitmapWithRuler(line) { clearRuler() }

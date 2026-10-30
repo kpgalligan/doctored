@@ -66,7 +66,7 @@ extension AgentServer {
     }
 
     /// `nativeScalarHistogram`'s report before it is wrapped; a Lab Color document renames a
-    /// colour plane's (`LabDocument.scalarReport`, #547 phase 2d).
+    /// colour plane's (`LabDocument.scalarReport`, #1 phase 2d).
     func nativeScalarHistogramReport(_ arguments: [String: Any],
                                      document: ImageDocument) throws -> [String: Any] {
         let allowed: Set<String> = ["document_id", "source", "target", "layer", "selection", "stride"]

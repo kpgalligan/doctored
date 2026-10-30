@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Mode ▸ Color Table (#547 Indexed phase 1c): the colour table value, the Previous
+// Image ▸ Mode ▸ Color Table (#1 Indexed phase 1c): the colour table value, the Previous
 // palette, and the table edit as ONE undo step (`LabDepthEdit`'s shape). The core decides
 // everything (`indexed_table`): the new table replaces the palette and transparent index over the
 // same index plane, so every pixel keeps its index and takes its entry's new colour; a table
@@ -71,7 +71,7 @@ struct IndexedColorTable: Equatable {
     }
 }
 
-/// The Indexed Color sheet's Previous palette (#547 Indexed phase 1c), app-wide:
+/// The Indexed Color sheet's Previous palette (#1 Indexed phase 1c), app-wide:
 /// the last Indexed Color conversion's palette with its transparent entry removed. A conversion
 /// whose palette leaves fewer than 2 opaque entries clears it, so Previous never names an older
 /// conversion.

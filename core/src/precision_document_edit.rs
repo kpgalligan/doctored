@@ -156,11 +156,11 @@ impl PrecisionDocument {
             .ok_or_else(|| "failed to prepare hypothetical layer".into())
     }
     pub fn duplicate_layer(&self, index: usize) -> Result<Option<Self>, String> {
-        // #547 Bitmap phase 2a-ii: a Bitmap document holds one layer too.
+        // #1 Bitmap phase 2a-ii: a Bitmap document holds one layer too.
         if self.is_bitmap() {
             return Err(crate::bitmap_document::refused_sentence("duplicate_layer"));
         }
-        // #547 Indexed phase 2d: an Indexed document holds one layer.
+        // #1 Indexed phase 2d: an Indexed document holds one layer.
         if self.is_indexed() {
             return Err(crate::indexed_document::refused_sentence("duplicate_layer"));
         }

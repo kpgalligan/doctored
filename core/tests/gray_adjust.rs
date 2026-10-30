@@ -1,4 +1,4 @@
-//! #547 phase 2b, a Grayscale document's adjustments (`gray_adjust`): every
+//! #1 phase 2b, a Grayscale document's adjustments (`gray_adjust`): every
 //! op the table runs, destructively and as a layer, equals the same op on
 //! the RGB TWIN (the Gray document converted to RGB through its own profile
 //! bytes, which keeps every sample) and keeps R = G = B — the oracle is the

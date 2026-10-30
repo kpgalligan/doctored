@@ -1,4 +1,4 @@
-//! What Levels and Curves read from a CMYK document (#547 phase 5): the
+//! What Levels and Curves read from a CMYK document (#1 phase 5): the
 //! per-plate histograms, Auto's endpoints under Auto Options, the black,
 //! grey and white eyedroppers' sample and target, and Curves' ⌥ clipping
 //! display, with their plans.

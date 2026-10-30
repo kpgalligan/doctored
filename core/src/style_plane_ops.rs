@@ -50,7 +50,7 @@
 //!   `cov − erode(cov, px)` over a bare coverage plane
 //!   (`doc_fill_stroke::stroke_mask`). Layer Style ▸ Stroke shares the
 //!   inside band; its outside band is `style_stroke_distance::outside_corner_band`
-//!   (#578), the measured chamfer distance from an anti-aliased (`1 − c/255`)
+//!   (#2), the measured chamfer distance from an anti-aliased (`1 − c/255`)
 //!   seed, so the two outside bands differ at corners and under anti-aliased
 //!   pixels.
 //!

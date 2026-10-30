@@ -77,16 +77,16 @@ pub(crate) const MAX_DRDC_BLOB_LEN: u32 = 16 * 1024 * 1024;
 /// RAW-locals word at both depths (`raw_locals_native`). Like 67 and
 /// 75, 78 is a typed word only: no byte body version above 23 exists, so the
 /// body-version check in `drdc_read` still refuses 76 to 78 by name.
-/// 82 is the typed CMYK document word (`cmyk_native`, #547; 80 and 81 are
+/// 82 is the typed CMYK document word (`cmyk_native`, #1; 80 and 81 are
 /// other batches' words), typed only like 78: the first word inside 46,
 /// storage tag 3 and the `CMYK` table. 83 is the same word for a CMYK
-/// document holding a layer mask or a CMYK adjustment record (#547
+/// document holding a layer mask or a CMYK adjustment record (#1
 /// phase 2), typed only; 84 the same word for one holding a group, a
-/// clipping mask, a blend mode or a Fill Opacity style (#547 phase 4a),
+/// clipping mask, a blend mode or a Fill Opacity style (#1 phase 4a),
 /// typed only; 85 the same word for one holding an alpha channel or a vector
-/// mask (#547 channels batch), 86 for one holding a layer effect, knockout
-/// or Blend Interior (#547 styles batch) and 87 for one holding a type, shape
-/// or fill description (#547 artwork batch), each admitting the words below
+/// mask (#1 channels batch), 86 for one holding a layer effect, knockout
+/// or Blend Interior (#1 styles batch) and 87 for one holding a type, shape
+/// or fill description (#1 artwork batch), each admitting the words below
 /// it, typed only; 88 the same word for one holding a stacked layer effect,
 /// typed only. 89 is the stacked-effects word at both depths
 /// (`style_instances`): the FIRST word inside 45, and in a typed file
@@ -146,24 +146,24 @@ pub(crate) const MAX_DRDC_BLOB_LEN: u32 = 16 * 1024 * 1024;
 /// (`fill_align_native`: a Gradient Fill description with
 /// `align_with_layer` true): the FIRST word inside 45 (ahead of 104), and in
 /// a typed file the word right after the CMYK slot (ahead of 104). 106 is
-/// the Grayscale document word (`gray_native`, #547): typed files only, in
+/// the Grayscale document word (`gray_native`, #1): typed files only, in
 /// the CMYK slot itself (never beside a CMYK word), its `GRAY` table where
 /// the CMYK table goes. 107 is the Lab Color document word (`lab_native`,
-/// #547): typed files only, in the CMYK slot itself (never beside a CMYK or
+/// #1): typed files only, in the CMYK slot itself (never beside a CMYK or
 /// Gray word), its `LAB ` table where the CMYK table goes. 108 is the
-/// Indexed Color document word (`indexed_native`, #547): typed files only,
+/// Indexed Color document word (`indexed_native`, #1): typed files only,
 /// in the CMYK slot itself (never beside a CMYK, Gray or Lab word), its
 /// `INDX` table where the CMYK table goes. 109 is the Duotone document word
-/// (`duotone_native`, #547): typed files only, in the CMYK slot in place of
+/// (`duotone_native`, #1): typed files only, in the CMYK slot in place of
 /// the Gray word 106, its `DUOT` table right after the `GRAY` table. 110 is
-/// the Bitmap document word (`bitmap_native`, #547): typed files only, in the
+/// the Bitmap document word (`bitmap_native`, #1): typed files only, in the
 /// CMYK slot itself in place of the Gray word 106 its Gray storage would
 /// write, its `GRAY` table then its `BTMP` table where the CMYK table goes.
 /// 111 is the Gradient Map method word at both depths
 /// (`gradient_map_method_native`: a `gradient_map` adjustment whose
 /// params hold `method`): the FIRST word inside 45 (ahead of 105), and in a
 /// typed file the word right after the CMYK slot (ahead of 105).
-/// 112 is the spot channel word at both depths (`spot_channel_native`, #547:
+/// 112 is the spot channel word at both depths (`spot_channel_native`, #1:
 /// some channel is a spot channel): the FIRST word inside 45 (ahead of 111)
 /// with its `SPOT` table after `LREF`, and in a typed file the word right
 /// after the CMYK slot (ahead of 111) with `SPOT` after `LREF`.
@@ -493,7 +493,7 @@ impl DrDocument {
     /// the profile rides inside that record's meta. A document with no such
     /// meta writes nothing here, so its bytes stay exactly the prior
     /// writer's.
-    /// Version 112 is the FIRST word inside 45 (`spot_channel_native`, #547),
+    /// Version 112 is the FIRST word inside 45 (`spot_channel_native`, #1),
     /// ahead of 111: a document some channel of which is a spot channel
     /// writes 112 after 45 and before every other conditional word, and its
     /// `SPOT` table after LREF, before LIDS. The next free word is 113.
@@ -634,7 +634,7 @@ impl DrDocument {
         buf.extend_from_slice(&crate::identity_native::BYTE_VERSION.to_le_bytes());
         // Then `spot_channel_native`'s word 112 — the FIRST word inside 45,
         // ahead of 111, written only when some channel is a spot channel;
-        // its SPOT table follows LREF (#547).
+        // its SPOT table follows LREF (#1).
         let spots = crate::spot_channel_native::byte_entries(&self.channels);
         if !spots.is_empty() {
             buf.extend_from_slice(&crate::spot_channel_native::WORD.to_le_bytes());

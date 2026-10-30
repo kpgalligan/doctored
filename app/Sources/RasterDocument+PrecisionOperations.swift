@@ -284,7 +284,7 @@ extension RasterDocument {
         return try performingPrecisionPixelEdit(command)
     }
 
-    // #547 phase 4c: STAMP SELECTED and MERGE GROUP, one request each.
+    // #1 phase 4c: STAMP SELECTED and MERGE GROUP, one request each.
 
     func precisionStampSelected(_ indices: [Int], name: String) throws -> RasterDocument? {
         let command = try PrecisionPixelCommand(

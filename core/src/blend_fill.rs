@@ -1,4 +1,4 @@
-//! KERNEL: Fill on five of the "special eight" modes (#578 take1,
+//! KERNEL: Fill on five of the "special eight" modes (#2 take1,
 //! the FILL BUILD: rule F1, form Fb). For Color Burn, Linear Burn, Color
 //! Dodge, Linear Dodge (Add) and Vivid Light a Fill `f` below 1 is not a
 //! plain alpha factor: Photoshop folds it into the blend, pulling the source

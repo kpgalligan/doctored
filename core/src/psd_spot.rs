@@ -1,4 +1,4 @@
-//! #547 spot channels 1b-1: PSD and PSB spot channels in and out, the
+//! #1 spot channels 1b-1: PSD and PSB spot channels in and out, the
 //! adapter over the `psd_spot_records` kernel (resources 1006/1045/1077/1053
 //! and the polarity).
 //!

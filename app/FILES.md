@@ -31,10 +31,10 @@ Detail belongs in the source file's own header comment.
 - `DoctoredCore+Selection.swift` — `RasterSelection` byte mask operations: quick mask, feather, grow, shrink, border, stroke, smooth.
 - `DoctoredCore+Export.swift` — `ExportFormat` and the export workspace (`RasterExportResult`) from Phase 11A.
 - `DoctoredCore+LUT.swift` — `RasterLUT`: Cube LUT and profile LUT parsing.
-- `DoctoredCore+Lab.swift` — `RasterLab` sRGB / Lab conversion; #547 Lab Color document: every `dr_*lab*` wrapper (New, Mode both ways, plans, the P3 view, `labSource`/`openLab`).
-- `DoctoredCore+Indexed.swift` — #547 Indexed Color: every Indexed wrapper (open, conversion, `indexedIndex`, Color Table get/plan/set, `.act`, 2d `indexedPastePlan`/`indexedPasting`).
-- `DoctoredCore+Duotone.swift` — #547 Duotone: every Duotone wrapper (options, Mode ▸ Duotone plan/set, the view; the render, → RGB, → Grayscale, → Bitmap, `.ado`, thumbnail).
-- `DoctoredCore+Bitmap.swift` — #547 Bitmap 1a/1c: every Bitmap wrapper (Mode ▸ Bitmap, Bitmap → Grayscale and plans; `BitmapSource`, the 1-bit open, the PSD open).
+- `DoctoredCore+Lab.swift` — `RasterLab` sRGB / Lab conversion; #1 Lab Color document: every `dr_*lab*` wrapper (New, Mode both ways, plans, the P3 view, `labSource`/`openLab`).
+- `DoctoredCore+Indexed.swift` — #1 Indexed Color: every Indexed wrapper (open, conversion, `indexedIndex`, Color Table get/plan/set, `.act`, 2d `indexedPastePlan`/`indexedPasting`).
+- `DoctoredCore+Duotone.swift` — #1 Duotone: every Duotone wrapper (options, Mode ▸ Duotone plan/set, the view; the render, → RGB, → Grayscale, → Bitmap, `.ado`, thumbnail).
+- `DoctoredCore+Bitmap.swift` — #1 Bitmap 1a/1c: every Bitmap wrapper (Mode ▸ Bitmap, Bitmap → Grayscale and plans; `BitmapSource`, the 1-bit open, the PSD open).
 - `DoctoredCore+AdjustmentPresets.swift` — `RasterAdjustmentPresetFile`: Photoshop adjustment preset decode.
 - `DoctoredCore+StylePresets.swift` — `RasterStylePresets`: the preset canonicalizer, the twelve built-ins, `.asl` decode and encode.
 - `DoctoredCore+Jobs.swift` — content-aware fill, heal jobs, resource reports and cache eviction.
@@ -162,7 +162,7 @@ Detail belongs in the source file's own header comment.
 - `EditorViewController+TransformSession.swift` — the extracted existing ⌘T session logic; the frozen controller/canvas files keep wiring.
 - `GeometrySet.swift` / `ArtworkGeometryWork.swift` / `AgentServer+GeometrySets.swift` / `AgentCatalog+GeometrySets.swift` — 12F-2's captured set transform: handles, `transform_layers`, replay.
 - `AgentServer+AlignDistribute.swift` — `align_layers` / `distribute_layers` (Layer ▸ Align / Distribute and the Move bar), moved out of `AgentServer+Groups.swift`.
-- `DuplicateToNewDocument.swift` / `DuplicateToNewDocumentSheetController.swift` — Layer ▸ Duplicate to Document… (#547 4c's Destination popup) and its MCP twin.
+- `DuplicateToNewDocument.swift` / `DuplicateToNewDocumentSheetController.swift` — Layer ▸ Duplicate to Document… (#1 4c's Destination popup) and its MCP twin.
 - `EditorViewController+DuplicateToNewDocument.swift` / `AgentServer+DuplicateToNewDocument.swift` — Duplicate to Document's menu (new or open destination) and MCP halves.
 - `RedEye.swift` — Vision face landmarks behind Filters > Remove Red Eye and the agent's `red_eye_auto`, and the **second** platform-model seam.
 - `BackgroundWork.swift` / `DocumentJobs.swift` — the bounded final-operation worker seam: one immutable operation runs app-wide on a serial queue; main-thread timers poll a locked result mailbox.
@@ -172,7 +172,7 @@ Detail belongs in the source file's own header comment.
 - `CanvasKeyTableView.swift` — the Layers and Channels tables: a bare key the table has no use for goes to the canvas (`EditorWindow.handKeyToCanvas`).
 - `RasterResources.swift` — weak live-wrapper registry, so history, jobs and projections participate without extra retention.
 - `WorkingLimit.swift` / `WorkingLimitSheetController.swift` — the working-memory limit policy (`designs/working-limit-ram-scaled.md`).
-- `WorkingCMYK.swift` — the working CMYK profile (Color Settings' choice, else SWOP v2, else Generic CMYK), installed in the core (#547).
+- `WorkingCMYK.swift` — the working CMYK profile (Color Settings' choice, else SWOP v2, else Generic CMYK), installed in the core (#1).
 - `EditingState.swift` / `DocumentHistory.swift` / `ImageDocument+History.swift` — full editing states, enumerable history and the central undo adapter.
 - `EditingStateArchive.swift` / `NamedSnapshots.swift` — versioned host packages around an unchanged native `.rz`.
 - `RecoveryStore.swift` / `RecoveryCoordinator.swift` / `ImageDocument+Recovery.swift` — native recovery independent of AppKit's imported-file autosave machinery.
@@ -190,7 +190,7 @@ Detail belongs in the source file's own header comment.
 - `PrecisionModeConversion.swift` / `ConvertPrecisionSheetController.swift` — 12H: Image ▸ Mode ▸ Convert Precision… and 32 Bits/Channel… are ONE sheet; MCP `convert_precision`.
 - `CanvasRotation.swift` / `RotateCanvasSheetController.swift` / `EditorViewController+RotateCanvas.swift` — ARBITRARY CANVAS ROTATION at 8 bits (12F-1b3) and 16 bits (12F-1b4).
 - `AgentServer+RotateCanvas.swift` / `AgentServer+DocumentGeometry.swift` — its MCP side, plus checked exact rotate/flip publication.
-- `NativeLayerBlending.swift` — the native mode set the Layers popup, `set_layer_properties` and Actions share; `floatModes`, `cmykModes` (#547); group-only Pass Through.
+- `NativeLayerBlending.swift` — the native mode set the Layers popup, `set_layer_properties` and Actions share; `floatModes`, `cmykModes` (#1); group-only Pass Through.
 - `LayerStyle.swift` — the typed Swift view of the layer style, mirroring the core's JSON key for key; `StyleSlotColor` (hex + wide `linear`).
 - `NativeLayerStyle.swift` — the 16-bit document's whole layer style (fill opacity, the effects, Blend If).
 - `LayerStyleList.swift` — the Layer Style sheet's checklist row (`StyleListRow`, with "+" on a repeating kind) and `LayerStyleInstanceBar` (↑, ↓, trash).
@@ -297,11 +297,11 @@ Detail belongs in the source file's own header comment.
 - `LensGridOverlay.swift` — Lens Correction's Show Grid accessory and the square alignment grid it lays over the canvas while the sheet is up.
 - `LensProfile.swift` — v1-lensfun's model: `LensIdentity`, `LensProfileChoice`, `LensProfileMatch`, and RAW's `applyingRawLensfun` stage.
 - `DoctoredCore+RetouchBrushes.swift` — the retouch brushes' core calls: `retouchBrushLayer`, `historyBrushLayer`, `smudgeLayer` and the typed smudge / history twins.
-- `DoctoredCore+Equalize.swift` — Equalize's byte call (#547): `RasterImage.equalized(mask:)` over `dr_image_equalize`.
+- `DoctoredCore+Equalize.swift` — Equalize's byte call (#1): `RasterImage.equalized(mask:)` over `dr_image_equalize`.
 - `DoctoredCore+Fade.swift` — Edit ▸ Fade's core calls (v1): `faded(from:…)` (byte) and the typed `fadePlan` / `fading`.
 - `FadeStep.swift` / `ImageDocument+Fade.swift` — Edit ▸ Fade's model: the fadeable-tool tables and hint, the candidate, its validity, the faded result and the replacing commit.
 - `FadeSheetController.swift` / `EditorViewController+Fade.swift` / `AgentServer+Fade.swift` / `AgentCatalog+Fade.swift` — Edit ▸ Fade… (⇧⌘F): the sheet, the item, MCP `fade`.
-- `Equalize.swift` / `EditorViewController+Equalize.swift` / `AgentServer+Equalize.swift` / `AgentCatalog+Equalize.swift` — Image ▸ Adjustments ▸ Equalize (#547): prompt, apply, MCP.
+- `Equalize.swift` / `EditorViewController+Equalize.swift` / `AgentServer+Equalize.swift` / `AgentCatalog+Equalize.swift` — Image ▸ Adjustments ▸ Equalize (#1): prompt, apply, MCP.
 - `EditorViewController+RetouchBrushes.swift` — the five retouch brushes on the canvas at 8 bits: per-tick ops, the incremental Smudge and `HistoryBrushSource.latch`.
 - `EditorViewController+ArtHistoryBrush.swift` — the Art History Brush on the canvas: source latch, seed, byte tick, typed depth gate.
 - `AgentServer+RetouchBrushes.swift` — `blur_stroke`, `sharpen_stroke`, `smudge_stroke`, `sponge_stroke`, `history_brush_stroke`: handlers, facts, the shared coverage stroke.
@@ -326,7 +326,7 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+RawLocals.swift` — mirrors edits and explicit control-only copy with guarded canonical Actions.
 - `RawDevelopWindowController+Workflow.swift` / `RawDevelopPreviewSession.swift` — the Develop workspace's full-source histogram, exact RGB endpoint readouts and Fit/100% native detail.
 - `RawDevelopPreviewPanel.swift` / `RawDevelopCanvasView.swift` — the Develop preview panel and canvas: pan and Before/After/Split comparison.
-- `RawDevelopHDRPreview.swift` — Develop's HDR preview (#680): the f32 extended image at Fit or 100 % with Clipping, the canvas's EDR layer and window colour space.
+- `RawDevelopHDRPreview.swift` — Develop's HDR preview (#4): the f32 extended image at Fit or 100 % with Clipping, the canvas's EDR layer and window colour space.
 - `RawDecoderMigration.swift` / `RawDevelopComparisonController.swift` / `AgentServer+RawDevelopment.swift` — explicit review of a changed decoder's exact prepared source against the saved master.
 - `RawSourceGeometry.swift` / `RawMigrationGeometry.swift` / `RawSourceGeometryControls.swift` — recipe 4's radial/TCA profile, pinned decoder frame, inverse maps, controls, migration registration.
 - `RawPreset.swift` / `RawPresetLibrary.swift` / `RawPresetSheets.swift` — selected transferable RAW settings, separate from camera-specific effective recipes.
@@ -367,68 +367,68 @@ Detail belongs in the source file's own header comment.
 - `ExtendedRangeColor.swift` — above-white colour at 32 bits: the float eyedropper's foreground and the Intensity (stops) split of the Color Picker and Artwork Colors sheet.
 - `FloatDocument.swift` / `ToneMapSheetController.swift` / `EditorViewController+FloatDocument.swift` — the 32-BIT FLOAT DOCUMENT (11F): linear light, operators and tools, a TONE MAP.
 - `AgentServer+FloatDocument.swift` / `AgentCatalog+FloatDocument.swift` — Image ▸ Tone Map…'s MCP twins `get_tone_map` / `set_tone_map`.
-- `CmykDocument.swift` / `DoctoredCore+Cmyk.swift` — #547's CMYK document: the gate (tools, selectors incl. 4b geometry, canvas tools, sentence) and every `dr_*cmyk*` wrapper.
+- `CmykDocument.swift` / `DoctoredCore+Cmyk.swift` — #1's CMYK document: the gate (tools, selectors incl. 4b geometry, canvas tools, sentence) and every `dr_*cmyk*` wrapper.
 - `CmykModeSheetController.swift` / `EditorViewController+CmykMode.swift` — Image ▸ Mode ▸ CMYK Color… / RGB Color…: the sheet, the job and its undo step.
-- `GrayDocument.swift` / `DoctoredCore+Gray.swift` — #547 Gray document: the gate (tools, retouch, selectors, refusals, canvas tools, sentences, depths, `support`, K %) and every `dr_*gray*` wrapper.
-- `GrayAdjust.swift` — #547 phases 2b/2c: host twin of `gray_adjust`'s table: which adjustments and filters run on Gray (layer, depth), the refusal sentences, the menu answer.
-- `AgentCatalog+Lab.swift` — #547 Lab: `annotateLabCatalog`, the Lab notes on the layer, style, Fill, save, export, readout, paint and adjustment tools; the `prose` list join.
-- `AgentCatalog+Gray.swift` — #547 phases 1b–3b: `annotateGrayCatalog`, the Grayscale notes on the layer, style, Fill, save, paint, adjustment, filter, retouch, channel and PSD open and export tools.
-- `LabDocument.swift` — #547 Lab Color (closed): the gate (tools, `depthRuled`, selectors, targets), the for-good sets (RAW, byte, evaluation, tone map, Sky), `isLab`, P3 view.
-- `LabClipboard.swift` — #547 Lab 4c: a layers clip into or out of Lab Color converted (`LabLayerClip`) and `LayerPasteWork.labConverted`.
-- `LabInk.swift` — #547 Lab 2e: `LabInk` (the Eyedropper's exact L*a*b* foreground/background ink) and `LabPaint` (the ink a Lab layer paints, the swatch display).
-- `LabDepthEdit.swift` — #547 Lab 5a: 8/16 Bits/Channel on a Lab document, one undo step (`lab_depth`), recorded as `convert_precision` lab8/lab16.
-- `AgentServer+LabColour.swift` — #547 Lab 5a: the Lab route of `convert_precision` (mode lab8 / lab16); 5b `convert_profile` as a mode conversion.
-- `LabProof.swift` — #547 Lab 5b: `proofSourceProfile` (the P3 view), Lab's exact proof source, proof tools and items, the Assign refusal.
-- `LabAnalysis.swift` — #547 Lab 6b-i: Apply Image and Calculations on Lab (modes, `planeChoice`, its names) and Merge to HDR's ProPhoto stack (`mergeStack`).
-- `EditorViewController+LabProfile.swift` — #547 Lab 5b: Convert to Profile… on Lab, the CMYK profile sheet's Lab arm and its one undo step.
-- `LabAdjust.swift` — #547 Lab 2b–2d: host twin of `lab_adjust`'s and `lab_filter`'s tables: what runs on Lab, `pixelsOnly`, layer and mask/alpha filter sentences, menu, MCP.
+- `GrayDocument.swift` / `DoctoredCore+Gray.swift` — #1 Gray document: the gate (tools, retouch, selectors, refusals, canvas tools, sentences, depths, `support`, K %) and every `dr_*gray*` wrapper.
+- `GrayAdjust.swift` — #1 phases 2b/2c: host twin of `gray_adjust`'s table: which adjustments and filters run on Gray (layer, depth), the refusal sentences, the menu answer.
+- `AgentCatalog+Lab.swift` — #1 Lab: `annotateLabCatalog`, the Lab notes on the layer, style, Fill, save, export, readout, paint and adjustment tools; the `prose` list join.
+- `AgentCatalog+Gray.swift` — #1 phases 1b–3b: `annotateGrayCatalog`, the Grayscale notes on the layer, style, Fill, save, paint, adjustment, filter, retouch, channel and PSD open and export tools.
+- `LabDocument.swift` — #1 Lab Color (closed): the gate (tools, `depthRuled`, selectors, targets), the for-good sets (RAW, byte, evaluation, tone map, Sky), `isLab`, P3 view.
+- `LabClipboard.swift` — #1 Lab 4c: a layers clip into or out of Lab Color converted (`LabLayerClip`) and `LayerPasteWork.labConverted`.
+- `LabInk.swift` — #1 Lab 2e: `LabInk` (the Eyedropper's exact L*a*b* foreground/background ink) and `LabPaint` (the ink a Lab layer paints, the swatch display).
+- `LabDepthEdit.swift` — #1 Lab 5a: 8/16 Bits/Channel on a Lab document, one undo step (`lab_depth`), recorded as `convert_precision` lab8/lab16.
+- `AgentServer+LabColour.swift` — #1 Lab 5a: the Lab route of `convert_precision` (mode lab8 / lab16); 5b `convert_profile` as a mode conversion.
+- `LabProof.swift` — #1 Lab 5b: `proofSourceProfile` (the P3 view), Lab's exact proof source, proof tools and items, the Assign refusal.
+- `LabAnalysis.swift` — #1 Lab 6b-i: Apply Image and Calculations on Lab (modes, `planeChoice`, its names) and Merge to HDR's ProPhoto stack (`mergeStack`).
+- `EditorViewController+LabProfile.swift` — #1 Lab 5b: Convert to Profile… on Lab, the CMYK profile sheet's Lab arm and its one undo step.
+- `LabAdjust.swift` — #1 Lab 2b–2d: host twin of `lab_adjust`'s and `lab_filter`'s tables: what runs on Lab, `pixelsOnly`, layer and mask/alpha filter sentences, menu, MCP.
 - `EditorViewController+LabMode.swift` — Image ▸ Mode ▸ Lab Color at once, the Flatten alert, one undo step; `CmykModeConversion`'s lab plan and arm.
 - `EditorViewController+GrayMode.swift` — Image ▸ Mode ▸ Grayscale: "Discard color information?", the Flatten alert, one undo step (`CmykModeConversion`'s gray arms).
-- `IndexedDocument.swift` — #547 Indexed 1a–3c: the gate (tools, selectors, for good, `oneLayer`, `rgbOnly`, render channels, canvas tools), the swatch key (`splicedRequest`), `saveLosses`.
-- `IndexedModeSheetController.swift` — #547 Indexed 1a–3d: Mode ▸ Indexed Color…'s sheet (Palette, Custom… Table…, Previous; Colors, Forced incl. Custom…, Matte, Dither incl. Pattern, Noise).
+- `IndexedDocument.swift` — #1 Indexed 1a–3c: the gate (tools, selectors, for good, `oneLayer`, `rgbOnly`, render channels, canvas tools), the swatch key (`splicedRequest`), `saveLosses`.
+- `IndexedModeSheetController.swift` — #1 Indexed 1a–3d: Mode ▸ Indexed Color…'s sheet (Palette, Custom… Table…, Previous; Colors, Forced incl. Custom…, Matte, Dither incl. Pattern, Noise).
 - `EditorViewController+IndexedMode.swift` — Indexed Color's commit, "Flatten layers?", Indexed → RGB at once; `CmykModeConversion`'s indexed plan, arm, `indexedExpanded`.
-- `IndexedColorTable.swift` — #547 Indexed 1c: `IndexedColorTable` value, `IndexedPalettes.previous`, `IndexedColorTableEdit` (Color Table as one undo step).
-- `ColorTableSheetController.swift` — #547 Indexed 1c/2a: the Color Table dialog (swatches and well in `tableSpace`, Transparent, `.act` Load…/Save…), also the Custom palette's.
-- `EditorViewController+ColorTable.swift` — #547 Indexed 1c: Image ▸ Mode ▸ Color Table… (`showColorTable:`), its commit and validation.
-- `AgentServer+IndexedColorTable.swift` — #547 Indexed 1c: `get_color_table` / `set_color_table` handlers and facts (`.act` path read/write).
-- `AgentCatalog+Indexed.swift` — #547 Indexed 1a–3c: `annotateIndexedCatalog` (`convert_mode` options, edit, select, channel, retouch, render notes), export notes; `indexedColorTableCatalog`.
-- `DuotoneDocument.swift` — #547 Duotone: `isDuotone`, the gate (tools, `disabledTools`, filters, `refuses(selector:)`, `turnsProofingOff`), `saveRefusal`, `exportNote`, `display`, `thumbnail`.
-- `DuotoneOptions.swift` — #547 Duotone 1a: `DuotoneInk`, `DuotoneOptions` (the core's JSON, `monotoneBlack`, overprint keys), `DuotoneEdit` (one undo step).
-- `DuotoneSheetController.swift` — #547 Duotone 1a–2a: Mode ▸ Duotone…'s sheet (Type, per ink name, D50 L*a*b*, swatch, Curve…; Overprint Colors…; .ado Load…/Save…; Preview).
-- `DuotonePreview.swift` — #547 Duotone 2a: the Duotone Options sheet's canvas preview (candidate inks, preview lease, `PreviewRenderer`).
-- `DuotoneInkSheets.swift` — #547 Duotone 1a: the Duotone Curve (13 fields) and Overprint Colors (L*a*b* or Default per combination) sub-sheets.
-- `EditorViewController+DuotoneMode.swift` — #547 Duotone: `convertToDuotoneMode:`, its commit; `duotonePlan`, the render routes, `duotoneToGray`, `duotoneToBitmap`.
-- `AgentServer+Duotone.swift` — #547 Duotone: `get_duotone` / `set_duotone` handlers and facts, `convert_mode`'s duotone route and Duotone → gray's argument checks.
-- `AgentCatalog+Duotone.swift` — #547 Duotone 1a: `duotoneCatalog`, `annotateDuotoneCatalog` (`convert_mode` duotone with inks/overprints, document/save/export notes).
-- `BitmapDocument.swift` — #547 Bitmap 1a-3: `isBitmap`, the gate (tools, selectors, refusal tiers, `straightenWindow`), `keptFormats`/`saveLosses`/`grayRouteLoss`, MCP options, `sizeRatio`.
-- `BitmapModeSheetController.swift` — #547 Bitmap 1a/1b: Mode ▸ Bitmap…'s sheet (Output and unit, Method, Halftone rows, Pattern) and `BitmapToGraySheetController` (Size Ratio).
+- `IndexedColorTable.swift` — #1 Indexed 1c: `IndexedColorTable` value, `IndexedPalettes.previous`, `IndexedColorTableEdit` (Color Table as one undo step).
+- `ColorTableSheetController.swift` — #1 Indexed 1c/2a: the Color Table dialog (swatches and well in `tableSpace`, Transparent, `.act` Load…/Save…), also the Custom palette's.
+- `EditorViewController+ColorTable.swift` — #1 Indexed 1c: Image ▸ Mode ▸ Color Table… (`showColorTable:`), its commit and validation.
+- `AgentServer+IndexedColorTable.swift` — #1 Indexed 1c: `get_color_table` / `set_color_table` handlers and facts (`.act` path read/write).
+- `AgentCatalog+Indexed.swift` — #1 Indexed 1a–3c: `annotateIndexedCatalog` (`convert_mode` options, edit, select, channel, retouch, render notes), export notes; `indexedColorTableCatalog`.
+- `DuotoneDocument.swift` — #1 Duotone: `isDuotone`, the gate (tools, `disabledTools`, filters, `refuses(selector:)`, `turnsProofingOff`), `saveRefusal`, `exportNote`, `display`, `thumbnail`.
+- `DuotoneOptions.swift` — #1 Duotone 1a: `DuotoneInk`, `DuotoneOptions` (the core's JSON, `monotoneBlack`, overprint keys), `DuotoneEdit` (one undo step).
+- `DuotoneSheetController.swift` — #1 Duotone 1a–2a: Mode ▸ Duotone…'s sheet (Type, per ink name, D50 L*a*b*, swatch, Curve…; Overprint Colors…; .ado Load…/Save…; Preview).
+- `DuotonePreview.swift` — #1 Duotone 2a: the Duotone Options sheet's canvas preview (candidate inks, preview lease, `PreviewRenderer`).
+- `DuotoneInkSheets.swift` — #1 Duotone 1a: the Duotone Curve (13 fields) and Overprint Colors (L*a*b* or Default per combination) sub-sheets.
+- `EditorViewController+DuotoneMode.swift` — #1 Duotone: `convertToDuotoneMode:`, its commit; `duotonePlan`, the render routes, `duotoneToGray`, `duotoneToBitmap`.
+- `AgentServer+Duotone.swift` — #1 Duotone: `get_duotone` / `set_duotone` handlers and facts, `convert_mode`'s duotone route and Duotone → gray's argument checks.
+- `AgentCatalog+Duotone.swift` — #1 Duotone 1a: `duotoneCatalog`, `annotateDuotoneCatalog` (`convert_mode` duotone with inks/overprints, document/save/export notes).
+- `BitmapDocument.swift` — #1 Bitmap 1a-3: `isBitmap`, the gate (tools, selectors, refusal tiers, `straightenWindow`), `keptFormats`/`saveLosses`/`grayRouteLoss`, MCP options, `sizeRatio`.
+- `BitmapModeSheetController.swift` — #1 Bitmap 1a/1b: Mode ▸ Bitmap…'s sheet (Output and unit, Method, Halftone rows, Pattern) and `BitmapToGraySheetController` (Size Ratio).
 - `EditorViewController+BitmapMode.swift` — Bitmap's commit, "Flatten layers?", Size Ratio back to Grayscale, the Ruler's straightened crop; `CmykModeConversion`'s bitmap arms.
-- `AgentCatalog+Bitmap.swift` — #547 Bitmap 1a-3: `annotateBitmapCatalog` (mode options, size_ratio), document, save, export, PSD, open, paint, geometry, resample, cut, phase 3 notes.
+- `AgentCatalog+Bitmap.swift` — #1 Bitmap 1a-3: `annotateBitmapCatalog` (mode options, size_ratio), document, save, export, PSD, open, paint, geometry, resample, cut, phase 3 notes.
 - `AgentServer+CmykMode.swift` / `AgentCatalog+CmykMode.swift` — `convert_mode`, the CMYK route ahead of `dispatchPrecision` and the CMYK catalog notes.
-- `CmykEdit.swift` — #547 phase 2: `CmykInk`, the `CmykPaint` ink request builders and sentences, the `CmykTone` namespace.
-- `CmykShownInks.swift` — #547: a CMYK document's inks as the colours a sheet shows (Gradient Map stops, Layer Style slots), kept exact.
-- `CmykClipboard.swift` — #547 4c: `ColorConversion` (a paste's disclosure), the pasteboard's CMYK TIFF as a payload, a layers clip of the other mode converted.
-- `GrayClipboard.swift` — #547 4: a layers clip into or out of Grayscale converted (`GrayLayerClip`), the pasteboard's gray TIFF as a payload and a Gray copy's TIFF.
-- `GrayArtwork.swift` — #547 6a-i: a type, shape or fill description's colours stored as their gray (`grayArtwork`, `dr_precision_doc_gray_artwork_colors`).
-- `GrayProfileEdit.swift` — #547 5a: Assign/Convert to Profile and 8/16/32 Bits/Channel on Gray, one undo step each (`gray_profile`).
-- `GrayProfileSheetController.swift` — #547 5a: the Assign / Convert to Profile sheet of a Grayscale document.
-- `AgentServer+GrayColour.swift` — #547 5a: the Gray routes of `assign_profile`, `convert_profile` and `convert_precision`.
-- `EditorViewController+MergeStamp.swift` — Layer Via Copy/Cut, Merge Visible, Stamp Visible, (#547 4c) Stamp Selected and ⌘E's Merge Group, and their validation.
-- `AgentServer+StampMergeGroup.swift` / `AgentCatalog+StampMergeGroup.swift` — MCP `stamp_selected` and `merge_group` (#547 4c) and their catalog entries.
+- `CmykEdit.swift` — #1 phase 2: `CmykInk`, the `CmykPaint` ink request builders and sentences, the `CmykTone` namespace.
+- `CmykShownInks.swift` — #1: a CMYK document's inks as the colours a sheet shows (Gradient Map stops, Layer Style slots), kept exact.
+- `CmykClipboard.swift` — #1 4c: `ColorConversion` (a paste's disclosure), the pasteboard's CMYK TIFF as a payload, a layers clip of the other mode converted.
+- `GrayClipboard.swift` — #1 4: a layers clip into or out of Grayscale converted (`GrayLayerClip`), the pasteboard's gray TIFF as a payload and a Gray copy's TIFF.
+- `GrayArtwork.swift` — #1 6a-i: a type, shape or fill description's colours stored as their gray (`grayArtwork`, `dr_precision_doc_gray_artwork_colors`).
+- `GrayProfileEdit.swift` — #1 5a: Assign/Convert to Profile and 8/16/32 Bits/Channel on Gray, one undo step each (`gray_profile`).
+- `GrayProfileSheetController.swift` — #1 5a: the Assign / Convert to Profile sheet of a Grayscale document.
+- `AgentServer+GrayColour.swift` — #1 5a: the Gray routes of `assign_profile`, `convert_profile` and `convert_precision`.
+- `EditorViewController+MergeStamp.swift` — Layer Via Copy/Cut, Merge Visible, Stamp Visible, (#1 4c) Stamp Selected and ⌘E's Merge Group, and their validation.
+- `AgentServer+StampMergeGroup.swift` / `AgentCatalog+StampMergeGroup.swift` — MCP `stamp_selected` and `merge_group` (#1 4c) and their catalog entries.
 - `AgentServer+CmykEdit.swift` — MCP's ink arguments (paint, gradient, and the type/shape/fill tools' `ink`/`fill_ink`/`stroke_ink`) and the CMYK/RGB tone keys; helpers, no tool.
-- `CmykArtwork.swift` — #547: type/shape/fill on CMYK: ink matches, `cmykArtwork`/`cmykDisplay`/`cmykMatches`, the CMYK `nativeArtwork` arm, captures and `reinkingArtwork`.
-- `DoctoredCore+CmykArtwork.swift` — #547: `dr_precision_doc_cmyk_artwork` and `dr_cmyk_artwork_colors` wrappers.
-- `CmykRefinementCutout.swift` — #547: Select and Mask's New Layer outputs on CMYK over `addingCmykCutout` (`prepareNative`'s twin).
+- `CmykArtwork.swift` — #1: type/shape/fill on CMYK: ink matches, `cmykArtwork`/`cmykDisplay`/`cmykMatches`, the CMYK `nativeArtwork` arm, captures and `reinkingArtwork`.
+- `DoctoredCore+CmykArtwork.swift` — #1: `dr_precision_doc_cmyk_artwork` and `dr_cmyk_artwork_colors` wrappers.
+- `CmykRefinementCutout.swift` — #1: Select and Mask's New Layer outputs on CMYK over `addingCmykCutout` (`prepareNative`'s twin).
 - `InfoPanelViewController+Cmyk.swift` — the Info panel's CMYK and Total ink rows: a CMYK document's ink, an RGB one's working CMYK with "!".
-- `CmykProfileEdit.swift` / `EditorViewController+CmykProfile.swift` — #547 phase 5: Assign/Convert to Profile and 8/16 Bits/Channel on CMYK.
-- `CmykProfileSheetController.swift` — #547 phase 5: the Assign / Convert to Profile sheet of a CMYK document.
-- `ColorSettingsWindowController.swift` — Edit ▸ Color Settings… (⇧⌘K): working spaces (RGB, CMYK, Gray), policies, conversion options (#547 phase 5).
-- `ColorSettingsStore.swift` — #547: where Color Settings' keys live; `DR_COLOR_SETTINGS_DIR` = a private plist after the launch arguments.
-- `CmykProof.swift` — #547 phase 5: the CMYK proof request (Gamut Warning too), the Working CMYK and plate setups, `ProofSetup.reconciled(isCmykDocument:)`.
-- `CmykToneTools.swift` — #547 phase 5: CMYK Levels/Curves histogram, Auto + Auto Options, eyedroppers → stage values.
-- `CmykAdjustFilter.swift` — #547: CMYK adjustments/filters availability (take1), refusals, CMYK param rows, Clouds' ink, Auto on ink (plates scalar).
-- `CmykRetouch.swift` — #547: the CMYK retouch tools' availability (take1), `allows(_:depth:)`, refusals and the MCP narrowing of the retouch tools.
-- `DoctoredCore+CmykColour.swift` / `AgentServer+CmykColour.swift` — #547 phase 5's wrappers; `separate_color` and the CMYK colour routes.
+- `CmykProfileEdit.swift` / `EditorViewController+CmykProfile.swift` — #1 phase 5: Assign/Convert to Profile and 8/16 Bits/Channel on CMYK.
+- `CmykProfileSheetController.swift` — #1 phase 5: the Assign / Convert to Profile sheet of a CMYK document.
+- `ColorSettingsWindowController.swift` — Edit ▸ Color Settings… (⇧⌘K): working spaces (RGB, CMYK, Gray), policies, conversion options (#1 phase 5).
+- `ColorSettingsStore.swift` — #1: where Color Settings' keys live; `DR_COLOR_SETTINGS_DIR` = a private plist after the launch arguments.
+- `CmykProof.swift` — #1 phase 5: the CMYK proof request (Gamut Warning too), the Working CMYK and plate setups, `ProofSetup.reconciled(isCmykDocument:)`.
+- `CmykToneTools.swift` — #1 phase 5: CMYK Levels/Curves histogram, Auto + Auto Options, eyedroppers → stage values.
+- `CmykAdjustFilter.swift` — #1: CMYK adjustments/filters availability (take1), refusals, CMYK param rows, Clouds' ink, Auto on ink (plates scalar).
+- `CmykRetouch.swift` — #1: the CMYK retouch tools' availability (take1), `allows(_:depth:)`, refusals and the MCP narrowing of the retouch tools.
+- `DoctoredCore+CmykColour.swift` / `AgentServer+CmykColour.swift` — #1 phase 5's wrappers; `separate_color` and the CMYK colour routes.
 - `FloatPaint.swift` — Brush, Eraser, Gradient, Bucket and Dodge/Burn at 32-bit float: the pre-dispatch gate, plane, mode and coverage-ink refusals, linear endpoints.
 - `FloatRetouch.swift` — retouching at 32-bit float: the retouch and five brush tools' gate (target, Quick Mask, capability, mode), the Sponge's coverage refusal.
 - `NativeScalarStatistics.swift` — captured raw mask/channel/RGBA histograms for native tone sheets and MCP `histogram(source: "scalar")`.
@@ -536,8 +536,8 @@ Detail belongs in the source file's own header comment.
 - `Colorize.swift` / `ColorizeSheet.swift` — Colorize…: output, settings, the DocumentJobs job and New Document; the sheet with its kept-chroma preview.
 - `JpegArtifactsRemoval.swift` / `JpegArtifactsRemovalSheet.swift` — JPEG Artifacts Removal…: strength, settings, the `DocumentJobs` job; the sheet.
 - `AgentServer+NeuralFilters.swift` / `AgentCatalog+NeuralFilters.swift` — MCP `super_zoom`, `jpeg_artifacts_removal` and `neural_colorize`.
-- `DoctoredCore+SpotChannels.swift` — #547: the spot wrappers (read/add/set, merge, kind change, typed plan; doc/image overprint, full and region).
-- `SpotChannel.swift` — #547: `SpotInk`, `SpotChannels` (sentences, TIFF save scratch, notes, full/region render), `mergingSpotChannel`, `flatExportProjection`, `flatSaveProjection`.
-- `SpotChannelSheetController.swift` — #547: New Spot Channel… / Spot Channel Options… (Name, Kind, swatch + L*a*b*, Solidity), one undo step.
-- `EditorViewController+SpotChannels.swift` — #547: New, Options, Merge Spot Channel, `validateSpotChannelItem`, the composite view's overprint base.
-- `AgentServer+SpotChannels.swift` / `AgentCatalog+SpotChannels.swift` — #547: MCP `add_spot_channel`, `set_spot_channel`, `merge_spot_channel`, `set_channel_kind`.
+- `DoctoredCore+SpotChannels.swift` — #1: the spot wrappers (read/add/set, merge, kind change, typed plan; doc/image overprint, full and region).
+- `SpotChannel.swift` — #1: `SpotInk`, `SpotChannels` (sentences, TIFF save scratch, notes, full/region render), `mergingSpotChannel`, `flatExportProjection`, `flatSaveProjection`.
+- `SpotChannelSheetController.swift` — #1: New Spot Channel… / Spot Channel Options… (Name, Kind, swatch + L*a*b*, Solidity), one undo step.
+- `EditorViewController+SpotChannels.swift` — #1: New, Options, Merge Spot Channel, `validateSpotChannelItem`, the composite view's overprint base.
+- `AgentServer+SpotChannels.swift` / `AgentCatalog+SpotChannels.swift` — #1: MCP `add_spot_channel`, `set_spot_channel`, `merge_spot_channel`, `set_channel_kind`.

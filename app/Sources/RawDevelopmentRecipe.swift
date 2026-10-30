@@ -155,7 +155,7 @@ struct RawDevelopmentRecipe: Codable, Equatable {
         }
         if encoding == .linearFloat {
             // The tone curve and Shadows apply, and so does grain, on
-            // the display encoding (#680, `RawGrain.swift`). Presence is
+            // the display encoding (#4, `RawGrain.swift`). Presence is
             // defined on display-referred values and is refused: the
             // request's amounts over the saved ones must all be 0. Every
             // float path (Develop, Redevelop RAW, presets, Sync Settings, the

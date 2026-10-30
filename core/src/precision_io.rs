@@ -100,7 +100,7 @@ impl PrecisionDocument {
         {
             return crate::float_io::from_float_tiff(&bytes, path, limit, other, job);
         }
-        // A CMYK TIFF or JPEG opens as a CMYK document (#547) — exactly the
+        // A CMYK TIFF or JPEG opens as a CMYK document (#1) — exactly the
         // files `cmyk_source::cmyk_source` answers for, so an untagged one with
         // no working CMYK profile set keeps the path below unchanged.
         if matches!(
@@ -114,7 +114,7 @@ impl PrecisionDocument {
             precision_codec::decode_with_context(&bytes, path, limit, other, length, job)?;
         let doc = Self::from_image(decoded.image, decoded.metadata, decoded.resolution)?
             .with_import_warnings(decoded.warnings)?;
-        // A TIFF's spot channels (#547 1c-2a, `tiff_spot`).
+        // A TIFF's spot channels (#1 1c-2a, `tiff_spot`).
         let doc = if crate::metadata_tiff::is_tiff(&bytes) {
             doc.with_tiff_spots(&bytes, limit, other.saturating_add(length))?
         } else {

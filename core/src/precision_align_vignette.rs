@@ -10,7 +10,7 @@
 //! apply_vignette_stops` with `selected_filter::profile_linear_gain` (the
 //! 16-bit Lens Correction profile arm's basis), clamped and rounded to its
 //! code; at float RGB × 2^stops, unclamped (a corner lifted above white is a
-//! value a float layer keeps). A Lab layer (#547 phase 6b-ii) is fitted on
+//! value a float layer keeps). A Lab layer (#1 phase 6b-ii) is fitted on
 //! its codes' CIE Y and written by `lab_stack::vignette_codes`, the gain on
 //! its XYZ, never through `profile_linear_gain`.
 //!
@@ -57,7 +57,7 @@ pub(crate) fn typed_linear<'a>(
         Float,
         Model(&'m crate::icc_transform::MatrixTrc),
         /// A Lab layer (its profile the Lab twin): the codes' CIE Y
-        /// (`lab_stack::linear_y`, #547 phase 6b-ii).
+        /// (`lab_stack::linear_y`, #1 phase 6b-ii).
         Lab,
     }
     let mut readers = Vec::with_capacity(images.len());

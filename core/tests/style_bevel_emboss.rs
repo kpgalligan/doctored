@@ -3,7 +3,7 @@
 //! `clamp(d)`, shadow `clamp(−d)`, each restricted to its band and
 //! composited below or inside the pixels with its own blend and its byte
 //! opacity (`common::byte_unit`), over the W3C reference blend. One oracle,
-//! the measured law `B` of every Smooth bevel (#578, `style_bevel_smooth`),
+//! the measured law `B` of every Smooth bevel (#2, `style_bevel_smooth`),
 //! restated independently: the height `H` is the separable triangle `(W −
 //! |j|) / W²` on `a = sel / 255` (reads clamped), `W` the size rounded half
 //! up (1 acts as 2) for an Inner and an Outer Bevel and the same of half the
@@ -675,7 +675,7 @@ fn an_overhead_inner_bevel_shades_its_band_and_lights_nothing() {
 
 #[test]
 fn an_overhead_emboss_shades_both_sides_of_its_edge_and_lights_nothing() {
-    // An Emboss runs the law too (#578), so at altitude 90 every slope is
+    // An Emboss runs the law too (#2), so at altitude 90 every slope is
     // shadow under the NORMALIZED law and nothing is highlight: the edge's
     // slope straddles the contour, so both the inside and the outside are
     // shaded.
@@ -894,7 +894,7 @@ fn outer_bevel_emboss_and_pillow_place_their_halves_below_and_inside() {
     )
     .flattened()
     .unwrap();
-    // Photoshop's measured pillow (#578, identify take2): the inside falls
+    // Photoshop's measured pillow (#2, identify take2): the inside falls
     // toward the edge and the outside rises away from it.
     assert_lighter(
         px(&pillow, right_edge, y),

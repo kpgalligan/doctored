@@ -30,7 +30,7 @@
 //! and Center-inside `t = 1`); a pixel on the side a position does not
 //! measure reads `D = 0` (Outside gives the inside pixels `t = 1`, Inside
 //! gives the outside pixels `t = 0`). The band's coverage keeps the seeded
-//! 5 × 5 chamfer (`style_stroke_distance`, #578), so a shape with no pixel
+//! 5 × 5 chamfer (`style_stroke_distance`, #2), so a shape with no pixel
 //! at coverage ≥ 128 (alpha 102 everywhere) still draws its Outside band, in
 //! the first stop's colour. The output is finite everywhere.
 //!

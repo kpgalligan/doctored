@@ -140,7 +140,7 @@ impl LayerPixels<'_> {
         };
         let required: &[i16] = match color {
             1 => &[0],
-            // CMYK (#547 phase 3): all four ink planes.
+            // CMYK (#1 phase 3): all four ink planes.
             4 => &[0, 1, 2, 3],
             _ => &[0, 1, 2],
         };
@@ -227,7 +227,7 @@ impl LayerPixels<'_> {
     }
 }
 
-/// A gray raster's straight samples as RGBA16 with R = G = B (#547 phase
+/// A gray raster's straight samples as RGBA16 with R = G = B (#1 phase
 /// 3a): channel 0 is the gray plane, `-1` the transparency, and a record
 /// with none is opaque. An 8-bit sample is its code ×257. `validate` has
 /// already required channel 0 and refused any other colour channel.
@@ -264,7 +264,7 @@ impl LayerPixels<'_> {
     }
 }
 
-/// A CMYK raster's straight CMYKA16 INK (#547 phase 3): a PSD stores each ink
+/// A CMYK raster's straight CMYKA16 INK (#1 phase 3): a PSD stores each ink
 /// plane as `max − ink`, flipped here; channel `-1` is the transparency, and
 /// a record with none is opaque. An 8-bit sample is its code ×257. `validate`
 /// has already required the four ink planes.
@@ -455,7 +455,7 @@ pub(crate) struct PeakInputs {
     /// decode copy is that many times larger.
     pub sample_bytes: u64,
     /// The planes one decoded pixel holds: 4 for RGB or gray (RGBA), 5 for
-    /// CMYK (four inks and alpha, #547 phase 3).
+    /// CMYK (four inks and alpha, #1 phase 3).
     pub planes: u64,
 }
 

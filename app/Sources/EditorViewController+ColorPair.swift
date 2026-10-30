@@ -37,7 +37,7 @@ extension EditorViewController {
     }
 
     /// Exchanges the foreground and background colours, alpha included, and
-    /// their stored CMYK inks (#547) and Lab inks (#547 Lab phase 2e) with them.
+    /// their stored CMYK inks (#1) and Lab inks (#1 Lab phase 2e) with them.
     func swapColors() {
         let foreground = paintColor
         let background = backgroundColor
@@ -75,7 +75,7 @@ extension EditorViewController {
         let current = slot == .foreground ? paintColor : backgroundColor
         let split = document?.doc?.isFloat == true ? ExtendedRangeColor.split(current) : nil
         let shared = ToolOptionsStore.shared.sharedState
-        // #547: the C/M/Y/K fields — a CMYK document's own ink, or the working
+        // #1: the C/M/Y/K fields — a CMYK document's own ink, or the working
         // CMYK equivalent beside an RGB document's colour (not at 32 bits).
         let cmyk = split == nil ? PickerCmykContext(
             document: document?.doc?.precision, isCmyk: document?.doc?.isCmyk == true,
@@ -89,7 +89,7 @@ extension EditorViewController {
         presentAsSheet(sheet)
     }
 
-    /// The foreground's write path with a CMYK ink (#547): `color` is the ink's display,
+    /// The foreground's write path with a CMYK ink (#1): `color` is the ink's display,
     /// written through `setPaintColor`, and `ink` (nil clears it) is kept exactly in the
     /// shared state, so a CMYK document paints with the ink picked rather than a conversion.
     func setPaintInk(_ ink: CmykInk?, color: NSColor) {
@@ -107,7 +107,7 @@ extension EditorViewController {
         ToolOptionsStore.shared.sharedState = shared
     }
 
-    /// The foreground's write path with a Lab ink (#547 Lab phase 2e), `setPaintInk`'s shape:
+    /// The foreground's write path with a Lab ink (#1 Lab phase 2e), `setPaintInk`'s shape:
     /// `color` is the ink's display, written first through `setPaintColor` (which clears the
     /// stored inks), then `ink` (nil clears it) is kept exactly, so a Lab document paints the
     /// L*a*b* picked rather than its clipped sRGB swatch (`LabPaint.color`).
@@ -136,7 +136,7 @@ extension EditorViewController {
     /// control. Answers false, presenting nothing, at 8 and 16 bits, where
     /// the swatch keeps the system panel.
     ///
-    /// In a CMYK document (#547) the swatch opens the sheet with its
+    /// In a CMYK document (#1) the swatch opens the sheet with its
     /// C/M/Y/K fields on the document's ink (`PickerCmykContext`), so a type
     /// or shape colour can be picked as exact ink: OK hands `commitInk` the
     /// colour and the ink (nil when an RGB-side field was edited), else

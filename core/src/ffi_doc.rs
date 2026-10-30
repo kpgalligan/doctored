@@ -864,7 +864,7 @@ pub unsafe extern "C" fn dr_doc_painting_layer_blend_color(
 /// equal the canvas size); only its alpha channel is read, as per-pixel
 /// stroke coverage. `exposure` is clamped to [0, 1]; `range` selects the
 /// tonal band (0 shadows, 1 midtones, 2 highlights). `protect_tones` moves
-/// each pixel's three channels together (`doc_retouch::protected`, #547).
+/// each pixel's three channels together (`doc_retouch::protected`, #1).
 /// Layer alpha is never
 /// touched. NULL on NULL args, dimension mismatch, non-finite exposure,
 /// range > 2, out-of-range idx, a layer extent that misses the canvas, or

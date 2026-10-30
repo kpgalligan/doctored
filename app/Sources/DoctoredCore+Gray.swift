@@ -1,6 +1,6 @@
 import AppKit
 
-// The Grayscale document's core wrappers (#547 phase 1a): every `dr_*` call of the Gray area. The
+// The Grayscale document's core wrappers (#1 phase 1a): every `dr_*` call of the Gray area. The
 // gate that decides what a Gray document admits is `GrayDocument.swift`; Image ▸ Mode's job is
 // `EditorViewController+CmykMode.swift`'s (`CmykModeConversion`'s gray arms).
 
@@ -109,7 +109,7 @@ extension RasterPrecisionDocument {
     }
 }
 
-// #547 phase 5a: Assign / Convert to Profile and 8/16/32 Bits/Channel on a Grayscale document
+// #1 phase 5a: Assign / Convert to Profile and 8/16/32 Bits/Channel on a Grayscale document
 // (`GrayProfileEdit.swift`).
 extension RasterPrecisionDocument {
     /// The Gray profile edit's plan: `working_memory_plan_bytes`, `refusal`, `changes`. Request
@@ -144,7 +144,7 @@ extension RasterPrecisionDocument {
     }
 }
 
-// #547 phase 6a-i: a type, shape or fill layer's colours as their gray (`GrayArtwork.swift`).
+// #1 phase 6a-i: a type, shape or fill layer's colours as their gray (`GrayArtwork.swift`).
 extension RasterPrecisionDocument {
     /// A description's colours as their gray (`dr_precision_doc_gray_artwork_colors`): request
     /// `{"srgb"?,"linear"?,"pattern"?}` (each list at most 1024 `[r, g, b]`), answered under the
@@ -156,7 +156,7 @@ extension RasterPrecisionDocument {
     }
 }
 
-// #547 phase 4: the Gray profile and the Grayscale clipboard's pasteboard TIFF.
+// #1 phase 4: the Gray profile and the Grayscale clipboard's pasteboard TIFF.
 extension RasterPrecisionDocument {
     /// A Grayscale document's Gray ICC bytes, verbatim (`dr_precision_doc_gray_profile`); empty for
     /// every other document.

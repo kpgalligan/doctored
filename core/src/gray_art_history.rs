@@ -1,5 +1,5 @@
 //! The Art History Brush on the 8-bit u16-record modes: Grayscale
-//! (#547 phase 2e, [`GRAY_ART`]) and Lab Color (#547 Lab 2f, third part,
+//! (#1 phase 2e, [`GRAY_ART`]) and Lab Color (#1 Lab 2f, third part,
 //! `lab_retouch::LAB_ART`). One walk, the kernel (`art_history_stroke`) over
 //! RGBA16 records, modelled on the CMYK arm (`cmyk_art_history`) and painting
 //! as the byte master does (`doc_art_history`); a [`U16Art`] names what a
@@ -73,7 +73,7 @@ fn gray_blend_refusal(mode: BlendMode) -> Option<String> {
     crate::gray_document::blend_refusal(mode, false)
 }
 
-/// The 8-bit Grayscale document's arm (#547 phase 2e).
+/// The 8-bit Grayscale document's arm (#1 phase 2e).
 pub(crate) const GRAY_ART: U16Art = U16Art {
     target_refusal: GRAY_ART_TARGET_REFUSAL,
     source_refusal: GRAY_ART_SOURCE_REFUSAL,

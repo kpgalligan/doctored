@@ -1,10 +1,10 @@
-# Spot channels (#547): status
+# Spot channels (#1): status
 
 - **Status:** Open — 1a-1 (core model, overprint kernel, `.rz` word 112), 1a-2 (host half), 1b-1 (PSD/PSB spot
   channels in and out, Photoshop-authored fixtures), 1b-2 (Photoshop's readback take; 1b complete), 1c-1 (Merge
   Spot Channel, alpha ↔ spot, the typed exports' and the region render's overprint) and 1c-2a (flat TIFF spot
   channels in and out, Photoshop-authored fixtures; PDF measured and kept refused) shipped; 1c-2b to come
-- **Issue:** [#547](https://github.com/kpgalligan/doctored-dev/issues/547) (the colour-mode umbrella; spot channels are
+- **Issue:** [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella; spot channels are
   part of its rest, `designs/cmyk-mode-status.md`, and Multichannel waits on them, `designs/multichannel-mode.md`)
 - **Code:** `core/src/spot_channel.rs` (model and adapters), `core/src/spot_overprint.rs` (KERNEL: the overprint),
   `core/src/spot_channel_native.rs` (`.rz` word 112 and `SPOT`), `core/src/spot_view.rs` and
@@ -171,15 +171,15 @@ unmeasured; nothing fetched:
 ## Open items
 
 - The overprint rule is Doctored's own reading, not measured against Photoshop
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - 32-bit documents admit spot channels without verification of the display path; the export's overprint is
-  tested (`spot_typed`'s f32 arm, `export-float-exr32`) ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  tested (`spot_typed`'s f32 arm, `export-float-exr32`) ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - Merge Spot Channel and the alpha ↔ spot kind change are declared, not measured
-  against Photoshop; a take can measure them later ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  against Photoshop; a take can measure them later ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - A 16-bit Duotone PSD/PSB export's 8-bit copy is admitted at the depth step's own plan (`gray_profile_plan`, which
   includes a display term an export copy does not use): 1.68 GB planned against 65 MB measured at 24 MP
   (`scripts/duotone-admission/measure.py`, `export-duotone-psd16`). It passes; it is over-admission, kept by the
-  controller's ruling ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  controller's ruling ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 
 ## Shipped
 
@@ -234,4 +234,4 @@ unmeasured; nothing fetched:
 - **`convert_precision` keeps the channels**: the flattened 8→16, 16→8 and 32→8 conversions carry every alpha and
   spot channel (×257 / nearest, the selection masks' rounding); every other step already did; no step discards
   them; the flatten promotion's plan now counts them, as preserve does; drive S12
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  ([#1](https://github.com/kpgalligan/doctored/issues/1)).

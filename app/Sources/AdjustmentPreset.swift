@@ -28,7 +28,7 @@ struct AdjustmentPreset {
     let name: String
     let op: AdjustmentLayerOp
     let params: [String: Any]
-    /// #547 phase 5: a CMYK document's Levels or Curves preset (ink channels, `cmyk_adjust`'s
+    /// #1 phase 5: a CMYK document's Levels or Curves preset (ink channels, `cmyk_adjust`'s
     /// keys), listed only by a CMYK document's dialog. Stored as `"color_mode": "cmyk"`; an RGB
     /// preset carries no key, so every earlier file reads unchanged.
     var cmyk = false
@@ -161,7 +161,7 @@ enum AdjustmentPresetLibrary {
         try Library.listing()
     }
 
-    /// `op`'s presets, in the listing's name order: RGB ones, or (#547 phase 5) a CMYK
+    /// `op`'s presets, in the listing's name order: RGB ones, or (#1 phase 5) a CMYK
     /// document's.
     static func presets(for op: AdjustmentLayerOp, cmyk: Bool = false) throws -> [AdjustmentPreset] {
         try listing().entries.map(\.item).filter { $0.op == op && $0.cmyk == cmyk }
@@ -176,7 +176,7 @@ enum AdjustmentPresetLibrary {
         // under its lock.
         let existing = try stored(op: checked.op, name: checked.name)
         // RGB and CMYK presets share one key per op and name, and each dialog lists only its
-        // own mode's, so a name the other mode holds refuses even with Replace (#547 phase 5).
+        // own mode's, so a name the other mode holds refuses even with Replace (#1 phase 5).
         if let existing, existing.cmyk != checked.cmyk {
             throw DoctoredCoreError(message: "The name “\(checked.name)” is taken by "
                 + "\(existing.cmyk ? "a CMYK" : "an RGB") \(checked.op.rawValue) preset.")

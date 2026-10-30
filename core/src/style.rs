@@ -42,7 +42,7 @@
 //! `blend_if` object: `channel` — `"gray"` | `"red"` | `"green"` | `"blue"` |
 //! `"cyan"` | `"magenta"` | `"yellow"` | `"black"` (default `"gray"`; the
 //! three colour channels serve an RGB document and the four plates a CMYK
-//! one, each refused by name on the other, #547); `this_layer` and
+//! one, each refused by name on the other, #1); `this_layer` and
 //! `underlying` — arrays of exactly 4 integers 0..=255 with
 //! `lo0 <= lo1 <= hi0 <= hi1` (default `[0, 0, 255, 255]` = full weight
 //! everywhere); `extra` — optional array of objects with the
@@ -54,7 +54,7 @@
 //! more than one range remains, so every single-channel style is
 //! byte-identical.
 //!
-//! CMYK INKS (#547, `cmyk_style`): beside every colour slot a CMYK document's
+//! CMYK INKS (#1, `cmyk_style`): beside every colour slot a CMYK document's
 //! style may carry the slot's ink, straight `[c, m, y, k]` in `0..=1`
 //! (four-decimal quantized, clamped): `ink` beside `color` on drop_shadow,
 //! inner_shadow, outer_glow, inner_glow, stroke, color_overlay and satin;
@@ -128,7 +128,7 @@
 //! |                    | `highlight_color` (#ffffff), `highlight_opacity` (0.75), `shadow_blend`         |
 //! |                    | (multiply), `shadow_color` (#000000), `shadow_opacity` (0.75), `technique`      |
 //! |                    | `"smooth"` \| `"chisel_hard"` \| `"chisel_soft"` (smooth, written only when    |
-//! |                    | not smooth; #578)                                                               |
+//! |                    | not smooth; #2)                                                               |
 //! | `satin`            | `blend` (multiply), `color` (#000000), `opacity` (0.5), `angle` (19),           |
 //! |                    | `distance` px (11), `size` px (14), `invert` bool (true)                        |
 //! | contours           | `drop_shadow`, `inner_shadow`, `satin`: `contour` (Contour, Linear),            |
@@ -858,7 +858,7 @@ impl LayerStyle {
     }
 
     /// This style without the Blend If ranges that read a CMYK plate — what
-    /// the byte document's readers keep of one a newer file carries (#547).
+    /// the byte document's readers keep of one a newer file carries (#1).
     /// Fresh cache.
     pub(crate) fn without_cmyk_blend_if(&self) -> LayerStyle {
         if !self.has_cmyk_blend_if() {

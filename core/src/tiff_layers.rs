@@ -28,10 +28,10 @@
 //!
 //! **What is read.** The scan answers ONLY for a classic TIFF whose first
 //! directory is RGB (PhotometricInterpretation 2, 3 or more samples), CMYK
-//! (PhotometricInterpretation 5, InkSet absent or 1, 4 or more samples; #547
+//! (PhotometricInterpretation 5, InkSet absent or 1, 4 or more samples; #1
 //! phase 3), gray (PhotometricInterpretation 1 BlackIsZero, 1 or more
-//! samples; #547 phase 3a) or Lab (PhotometricInterpretation 8 CIELab or 9
-//! ICCLab, 3 or more samples; #547 Lab phase 3a), unsigned (SampleFormat
+//! samples; #1 phase 3a) or Lab (PhotometricInterpretation 8 CIELab or 9
+//! ICCLab, 3 or more samples; #1 Lab phase 3a), unsigned (SampleFormat
 //! absent or 1; for CIELab also [1, 2, 2] and [1, 2, 2, 1], its signed
 //! a\*/b\* — the block's records store the PSD encoding whatever the flat
 //! image's, `psd_import_lab`), 8 or 16 bits on every sample, big-endian
@@ -54,9 +54,9 @@
 //! uncompressed strip of straight RGBA — or, for `color` 4, straight CMYK ink
 //! and alpha under Photometric 5 and InkSet 1 — ExtraSamples 2 = unassociated
 //! alpha; at depth 32 the RGBA is IEEE float, SampleFormat 3 on every sample;
-//! for `color` 1 (#547 phase 3b) ONE white-matted gray sample under
+//! for `color` 1 (#1 phase 3b) ONE white-matted gray sample under
 //! Photometric 1 with no ExtraSamples, as Photoshop writes its own gray
-//! TIFF; for `color` 9 (#547 Lab phase 3b) three CIELab samples matted over
+//! TIFF; for `color` 9 (#1 Lab phase 3b) three CIELab samples matted over
 //! Lab white under Photometric 8 with no ExtraSamples and no SampleFormat, as
 //! Photoshop writes its own Lab TIFF), the out-of-line values and ONE
 //! directory, into ONE buffer of the file's exact size: the layer information
@@ -65,7 +65,7 @@
 //! inline when it fits the entry's four bytes (TIFF's rule, which `scan`
 //! reads), else out of line. Every offset is a u32, so a file past 4 GiB
 //! refuses. [`write`] is the big-endian form every 8- and 16-bit writer
-//! calls, its samples already big-endian. [`write_spots`] (#547 1c-2b) is
+//! calls, its samples already big-endian. [`write_spots`] (#1 1c-2b) is
 //! [`write`] with an RGB or CMYK document's spot channels at 8 or 16 bits
 //! as trailing extra samples after the alpha, ExtraSamples 0 each, the flat
 //! TIFF's rule (`tiff_spot`). All live in `tiff_layers_write` and are
@@ -254,9 +254,9 @@ fn scan(read: &mut dyn FnMut(u64, usize) -> Option<Vec<u8>>) -> Option<Located> 
         Some(2) if samples >= 3 => 3,
         // InkSet 1 is CMYK; absent is its default.
         Some(5) if samples >= 4 && ink_set.is_none_or(|set| set == 1) => 4,
-        // BlackIsZero gray (#547 phase 3a).
+        // BlackIsZero gray (#1 phase 3a).
         Some(1) if samples >= 1 => 1,
-        // CIELab or ICCLab (#547 Lab phase 3a).
+        // CIELab or ICCLab (#1 Lab phase 3a).
         Some(8 | 9) if samples >= 3 => 9,
         _ => return None,
     };
@@ -286,7 +286,7 @@ fn scan(read: &mut dyn FnMut(u64, usize) -> Option<Vec<u8>>) -> Option<Located> 
             return None;
         }
         if let Some(formats) = formats {
-            // CIELab's signed a*/b* (#547 Lab phase 3a): [1, 2, 2] or [1, 2, 2, 1].
+            // CIELab's signed a*/b* (#1 Lab phase 3a): [1, 2, 2] or [1, 2, 2, 1].
             let cielab =
                 photometric == Some(8) && matches!(formats.as_slice(), [1, 2, 2] | [1, 2, 2, 1]);
             if !cielab && formats.iter().any(|f| *f != 1) {

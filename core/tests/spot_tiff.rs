@@ -1,4 +1,4 @@
-//! #547 spot channels 1c-2a (`tiff_spot`, `tiff_spot_samples`): flat TIFF
+//! #1 spot channels 1c-2a (`tiff_spot`, `tiff_spot_samples`): flat TIFF
 //! spot channels in and out, through the C API where one exists.
 //!
 //! Oracles, all written here: this file's own TIFF directory and strip

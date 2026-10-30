@@ -6,7 +6,7 @@ import AppKit
 /// `FillLayerSheetController`; the commits here are one undo step each and
 /// record `add_fill_layer` / `edit_fill_layer`, their MCP mirrors
 /// (AgentServer+FillLayers.swift). They work at 8, 16 and 32 bits: the layer
-/// is rendered by the core at the document's depth. In a CMYK document (#547)
+/// is rendered by the core at the document's depth. In a CMYK document (#1)
 /// the dialog works on the colours' sRGB appearance and the commit converts
 /// them to ink first (`inkedArtwork`: the swatches' stored inks, and a
 /// re-edited layer's own inks — a gradient stop's by its unchanged hex — kept

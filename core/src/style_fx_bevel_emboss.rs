@@ -4,7 +4,7 @@
 //! Chisels), lit from (`angle`, `altitude`), and the lit and unlit slopes
 //! become a highlight and a shadow contribution.
 //!
-//! # Smooth bevels (#578)
+//! # Smooth bevels (#2)
 //!
 //! Every Smooth bevel renders through the measured law `B`
 //! (`style_bevel_smooth`, whose module doc holds the law per style and
@@ -23,9 +23,9 @@
 //! highlight and shadow bytes, the bands) is the shared tail below, and
 //! [`reach`] is the law's `smooth_reach`. The distance height, the LATERAL
 //! shading, the height soften and the stencil below cover the Chisels outside
-//! the Chisel law only, byte for byte as before #578 shipped the law.
+//! the Chisel law only, byte for byte as before #2 shipped the law.
 //!
-//! # The Chisel law (#578 bevel phase 2)
+//! # The Chisel law (#2 bevel phase 2)
 //!
 //! A Chisel arm `style_bevel_chisel::chisel_law_applies` names (Pillow
 //! Emboss, Hard and Soft) renders through [`law_shading`] too, in the order
@@ -37,7 +37,7 @@
 //! NORMALIZED shading at `facet_gain`, with no Soften on the shading;
 //! [`reach`] is its `chisel_law_reach`.
 //!
-//! # Technique (#578)
+//! # Technique (#2)
 //!
 //! `technique` picks the height field; everything after it (the Contour
 //! sub-panel, `soften`, the shading, the texture and the banding) is one
@@ -191,7 +191,7 @@ pub(crate) fn stencil_half_width(size: f32) -> u32 {
 
 /// Chisel Soft's blur size as a fraction of the bevel's `size` (module doc's
 /// Technique): Chisel Hard's height blurred at `sigma_for_size(size · r)`.
-/// Declared 0.5 before the #578 take (`bevel_chisel_578_take.py`), which
+/// Declared 0.5 before the #2 take (`bevel_chisel_578_take.py`), which
 /// judged r from 0.1..=1.0 and chose 0.1, the lowest mean of row means (the
 /// best declared member ships whatever its residual, which that runner
 /// records and `style_bevel_chisel_parity.rs` pins); always in (0, 1], so

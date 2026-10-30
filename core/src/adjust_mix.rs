@@ -184,7 +184,7 @@ impl BlackAndWhite {
     /// branch fired over a grey above 0. Take6 pinned this form at 16 bits
     /// (`setlum-clip16`, 0.14 tolerance units; the HSL form it replaces
     /// missed by 135). With Tint on, the 8-bit form runs Photoshop's integer
-    /// path instead (#578 phase 4, h8a-LE: `adjust_bw8`'s [`tint8`] of the
+    /// path instead (#2 phase 4, h8a-LE: `adjust_bw8`'s [`tint8`] of the
     /// tint's codes at [`gray8`] of the pixel's codes), which this SetLum form
     /// missed by up to 10 codes.
     pub(crate) fn apply(&self, rgb: [f32; 3]) -> [f32; 3] {

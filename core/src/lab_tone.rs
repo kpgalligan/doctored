@@ -1,5 +1,5 @@
 //! How a prepared RGB adjustment acts on a Lab Color document's L\*a\*b\*
-//! codes (#547 phases 2b to 2d, `designs/lab-mode.md`): the pixel
+//! codes (#1 phases 2b to 2d, `designs/lab-mode.md`): the pixel
 //! rule of each [`LabForm`], over the one adjustment kernel.
 //!
 //! # Why seven forms and no Lab kernel

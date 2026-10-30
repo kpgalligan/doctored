@@ -37,15 +37,15 @@ struct PrecisionExportCapture {
     /// The export-workspace request a 32-bit float document's 16- or 32-bit
     /// copy encodes through, so its float stage tone-maps (16) or writes the
     /// samples (32) exactly as File > Export does; a Grayscale document's copy
-    /// at every depth (#547 phase 1b), so the core's kept-gray stages write one
-    /// channel with the Gray profile; an Indexed Color document's copy (#547
+    /// at every depth (#1 phase 1b), so the core's kept-gray stages write one
+    /// channel with the Gray profile; an Indexed Color document's copy (#1
     /// Indexed phase 1b), so the core's kept-Indexed stages write the palette
-    /// and every index; a copy of a document with spot channels (#547 1c-1),
+    /// and every index; a copy of a document with spot channels (#1 1c-1),
     /// so the core composites their overprint; nil for every other copy.
     let floatRequest: String?
     /// The sample width of a 32-bit copy; `.f32` at every other depth.
     let floatSamples: ExportSettings.FloatSamples
-    /// A TIFF copy that keeps the spot channels as extra samples (#547 1c-2a, the core's
+    /// A TIFF copy that keeps the spot channels as extra samples (#1 1c-2a, the core's
     /// `"spot_channels":"keep"`) rather than compositing their overprint.
     let keepsSpotChannels: Bool
 
@@ -87,7 +87,7 @@ struct PrecisionExportCapture {
         self.floatSamples = floatSamples
         self.keepsSpotChannels = keepSpotChannels && format == .tiff && source.hasSpotChannels
         if source.isGray || source.isIndexed || source.isBitmap || source.hasSpotChannels {
-            // #547 phase 1b: profile document keeps gray (`gray_export`), and an Indexed document's
+            // #1 phase 1b: profile document keeps gray (`gray_export`), and an Indexed document's
             // PNG, GIF or TIFF keeps its palette (`indexed_export`); since Bitmap phase 1c a Bitmap
             // document's PNG, TIFF or BMP keeps its 1-bit plane (`bitmap_export`) and its JPEG is
             // the Gray storage's; since spot channels 1c-1 a document with spot channels composites
@@ -140,13 +140,13 @@ struct PrecisionExportCapture {
     }
 
     var losses: [String] {
-        // #547 Bitmap phase 1c: a Bitmap copy (1-bit PNG, TIFF or BMP, or JPEG through Gray)
+        // #1 Bitmap phase 1c: a Bitmap copy (1-bit PNG, TIFF or BMP, or JPEG through Gray)
         // loses only what `BitmapDocument.saveLosses` names.
         if source.isBitmap {
             return BitmapDocument.saveLosses(source, format: format, embedProfile: embedProfile,
                                              stripMetadata: stripMetadata)
         }
-        // #547 Indexed phase 1b: a kept-Indexed copy (PNG, GIF or TIFF with profile document)
+        // #1 Indexed phase 1b: a kept-Indexed copy (PNG, GIF or TIFF with profile document)
         // loses only what `IndexedDocument.saveLosses` names.
         if source.isIndexed, IndexedDocument.keptFormats.contains(format) {
             return IndexedDocument.saveLosses(source, format: format, embedProfile: embedProfile,
@@ -155,7 +155,7 @@ struct PrecisionExportCapture {
         var result = Self.losses(format: format, bitDepth: bitDepth, isFloat: source.isFloat,
                                  embedProfile: embedProfile, stripMetadata: stripMetadata,
                                  floatSamples: floatSamples)
-        // #547 1c-1: the flattened copy carries the spot channels' overprint, not the channels;
+        // #1 1c-1: the flattened copy carries the spot channels' overprint, not the channels;
         // a TIFF that keeps them (1c-2a) loses nothing.
         if source.hasSpotChannels, !keepsSpotChannels { result.append(SpotChannels.flatLoss) }
         return result

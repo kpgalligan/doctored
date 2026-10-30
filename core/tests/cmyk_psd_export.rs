@@ -1,4 +1,4 @@
-//! Layered CMYK PSD, PSB and TIFF export (#547 phase 3): a structured CMYK
+//! Layered CMYK PSD, PSB and TIFF export (#1 phase 3): a structured CMYK
 //! document (`common/cmyk_structure_fixture.rs`: Normal and Pass Through
 //! groups with masks, opacity and modes, a clipped record, Fill, a hidden
 //! layer, a label and a lock, Levels, Curves and Hue/Saturation records) at
@@ -374,7 +374,7 @@ fn assert_records(file: &ReadFile, doc: &PrecisionDocument) {
         assert_eq!(record.clipping, u8::from(layer.clipped()), "{name}");
         assert_eq!(record.flags & 2 != 0, !layer.visible(), "{name}");
         // A pixel record in Color Burn, Color Dodge or Difference writes
-        // `iOpa` at 255 too (#578: Photoshop reads one without it as a
+        // `iOpa` at 255 too (#2: Photoshop reads one without it as a
         // legacy layer); the fixture holds no adjustment in those modes.
         let legacy = layer.children().is_none()
             && [

@@ -1,9 +1,9 @@
-//! The CMYK document's colour workflow across the FFI (#547 phase 5): Assign
+//! The CMYK document's colour workflow across the FFI (#1 phase 5): Assign
 //! and Convert to Profile, 8/16 Bits/Channel and File ▸ New in CMYK
 //! (`cmyk_profile`), the CMYK proof and the one-colour separation
 //! (`cmyk_proof`), Levels and Curves' histogram, Auto, eyedroppers and ⌥
 //! clipping display (`cmyk_tone_analysis`), and the CMYK preset decode
-//! (`cmyk_preset_file`) — the "CMYK documents (#547 phase 5)" section of
+//! (`cmyk_preset_file`) — the "CMYK documents (#1 phase 5)" section of
 //! `include/doctored_core.h`.
 //!
 //! The conventions are the surface's: NULL tolerance first, `catch_unwind`

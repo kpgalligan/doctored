@@ -1,4 +1,4 @@
-//! #547 Bitmap phase 2a-ii through the FFI: the resampled geometry (Image
+//! #1 Bitmap phase 2a-ii through the FFI: the resampled geometry (Image
 //! Size, the Crop tool's straighten, the layer's affine and perspective
 //! transforms and their sets), the selected pixels' moves (their transforms
 //! and arbitrary rotation refuse since phase 2b), Cut, the refusals

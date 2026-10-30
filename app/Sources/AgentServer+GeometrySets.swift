@@ -110,7 +110,7 @@ extension AgentServer {
         if truePerspective && !authorize && !described.isEmpty {
             throw ToolError(message: Self.truePerspectiveRefusal)
         }
-        // #547 Indexed phase 2d: an Indexed document's admitted plan, read before the edit
+        // #1 Indexed phase 2d: an Indexed document's admitted plan, read before the edit
         // (`scripts/indexed-admission/measure.py`'s `transform-indexed`); since Bitmap phase
         // 2a-ii a Bitmap document's too (Bitmap phase 2b then refused
         // `transform_layers` on a Bitmap document, `BitmapDocument.disabledTools`).

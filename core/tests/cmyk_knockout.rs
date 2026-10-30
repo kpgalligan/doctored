@@ -1,5 +1,5 @@
 //! Knockout and Blend Interior Effects as Group on a CMYK document's ink
-//! (#547, the styles batch): D3–D6 of `style_knockout` on ink, each case
+//! (#1, the styles batch): D3–D6 of `style_knockout` on ink, each case
 //! against the D3 statement written out here — `K = over(B0, C, q, M)`,
 //! `out = mix(acc, K, s·opacity)` on `L = 1 − ink` through the fixture's f64
 //! W3C step (`common/cmyk_structure_fixture.rs`'s `over`, never the
@@ -85,7 +85,7 @@ fn clip(doc: *mut PrecisionDocument, name: &str) -> *mut PrecisionDocument {
 }
 
 /// D3 on ink: the knocked-out layer of ink `c` at shape `s`, fill `q` (at
-/// its byte, #578) and mode `m` over `acc`, its hole stopping at `b0`.
+/// its byte, #2) and mode `m` over `acc`, its hole stopping at `b0`.
 fn d3(acc: Ink, b0: Ink, c: [f64; 4], s: f64, q: f64, m: BlendMode) -> Ink {
     mix(acc, over_to(b0, c, crate::common::byte_unit(q), m), s)
 }

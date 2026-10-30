@@ -1,4 +1,4 @@
-//! Levels and Curves on ink (#547 phase 2), destructive and as adjustment
+//! Levels and Curves on ink (#1 phase 2), destructive and as adjustment
 //! records, each against an independent oracle written here: Levels in
 //! closed form (the stage formula of `adjust_levels`' module doc) on
 //! `L = 1 − ink`, Curves through a two-point line and a three-point natural

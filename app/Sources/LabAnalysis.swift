@@ -1,6 +1,6 @@
 import AppKit
 
-// #547 Lab phase 6b-i: Apply Image's and Calculations' vocabulary on a Lab Color document, and
+// #1 Lab phase 6b-i: Apply Image's and Calculations' vocabulary on a Lab Color document, and
 // Merge to HDR's stack conversion. Apply Image and Calculations blend each channel's codes alone
 // through the channel-math kernel (`NativeChannelMath`, whose RGB path runs unchanged: its red,
 // green and blue are Lightness, a and b); the Lab composite onto one plane reads Lightness. So

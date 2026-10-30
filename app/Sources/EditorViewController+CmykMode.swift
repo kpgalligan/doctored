@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Mode ▸ Grayscale / RGB Color… / CMYK Color… / Lab Color (#547 phases 1, 1a and 5b, Lab
+// Image ▸ Mode ▸ Grayscale / RGB Color… / CMYK Color… / Lab Color (#1 phases 1, 1a and 5b, Lab
 // phase 1): the conversion job
 // and its ONE undo step, published through the Convert Precision path (`applyEdit(…,
 // intentionalDepthConversion: true)`), and the three items' validation (the current mode checked
@@ -22,7 +22,7 @@ import AppKit
 // phase 5a-ii one converts to Grayscale directly too (`lab_gray`: each pixel's L* through the Gray
 // profile's tone curve), keeping its declared depth.
 //
-// Type, shape and fill layers (#547's artwork batch) stay editable toward CMYK, RGB and (Gray
+// Type, shape and fill layers (#1's artwork batch) stay editable toward CMYK, RGB and (Gray
 // phase 6a-ii) Grayscale: the core converts their pixels and drops their descriptions, and the job
 // re-renders each captured layer with its colours converted (`reinkingArtwork`, CmykArtwork.swift;
 // toward Grayscale greyed by the Gray arm) before the display preparation. A CMYK source's inks
@@ -50,9 +50,9 @@ import AppKit
 /// Which mode Image ▸ Mode converts to.
 enum ColorModeTarget: String {
     case cmyk, rgb, gray, lab, indexed
-    // #547 Duotone phase 1a: Image ▸ Mode ▸ Duotone… (`DuotoneEdit`, never this conversion).
+    // #1 Duotone phase 1a: Image ▸ Mode ▸ Duotone… (`DuotoneEdit`, never this conversion).
     case duotone
-    // #547 Bitmap phase 1a.
+    // #1 Bitmap phase 1a.
     case bitmap
 
     var title: String {
@@ -85,7 +85,7 @@ struct CmykModeConversion {
     let target: ColorModeTarget
     /// The destination profile: CMYK bytes toward CMYK (nil = the working CMYK profile), RGB
     /// bytes toward RGB (nil = sRGB), Gray ICC bytes toward Grayscale (nil = `graySpace`; only a
-    /// Lab document's Convert to Profile passes one, #547 Lab phase 6a-ii).
+    /// Lab document's Convert to Profile passes one, #1 Lab phase 6a-ii).
     let profile: Data?
     /// The destination as `convert_mode` names it (`profile`/`name` toward CMYK, `rgb_space`
     /// toward RGB, `gray_space` toward Grayscale), so the recorded step replays to the profile
@@ -117,7 +117,7 @@ struct CmykModeConversion {
         guard let source = document.doc, !document.isLiveEditing, !BackgroundWork.occupied else {
             throw DoctoredCoreError(message: "Finish the current operation before converting the mode.")
         }
-        // #547 Duotone: Duotone is `DuotoneEdit`'s (`EditorViewController+DuotoneMode.swift`); a
+        // #1 Duotone: Duotone is `DuotoneEdit`'s (`EditorViewController+DuotoneMode.swift`); a
         // Duotone source converts through the render, or toward Grayscale and Bitmap through the
         // inks' luminance (`duotonePlan`).
         if target == .duotone {
@@ -130,7 +130,7 @@ struct CmykModeConversion {
             throw DoctoredCoreError(message: "\(target.title) is unavailable in a 32-bit float document; "
                 + "convert to 16 Bits/Channel first.")
         }
-        // #547 Bitmap phase 1a: a Bitmap document converts to Grayscale only, and Bitmap is made
+        // #1 Bitmap phase 1a: a Bitmap document converts to Grayscale only, and Bitmap is made
         // from 8-bit Grayscale only; both asked before the Indexed check.
         if source.isBitmap, target != .gray {
             throw DoctoredCoreError(message: BitmapDocument.modeRefusal(target))
@@ -138,7 +138,7 @@ struct CmykModeConversion {
         if target == .bitmap, let reason = BitmapDocument.sourceRefusal(source) {
             throw DoctoredCoreError(message: reason)
         }
-        // #547 Indexed phase 1a: an 8-bit RGB or Grayscale source only.
+        // #1 Indexed phase 1a: an 8-bit RGB or Grayscale source only.
         if target == .indexed, let reason = IndexedDocument.sourceRefusal(source) {
             throw DoctoredCoreError(message: reason)
         }
@@ -159,7 +159,7 @@ struct CmykModeConversion {
         switch target {
         case .cmyk:
             // A typed source is never promoted (`eightBit` false); an 8-bit Gray or Lab one converts
-            // at its declared 8 bits (#547 Gray phase 5b, Lab phase 5a).
+            // at its declared 8 bits (#1 Gray phase 5b, Lab phase 5a).
             eightBit = !source.isHighDepth
             options.depth = (eightBit || Self.declaredDepth(source) == 8) ? 8 : 16
         case .rgb:
@@ -174,10 +174,10 @@ struct CmykModeConversion {
                                     graySpace: self.graySpace, eightBit: eightBit,
                                     indexed: indexedOptions, bitmap: bitmapOptions)
         scratch = plan.bytes
-        // A Gray source's type, shape and fill layers re-render in RGB or CMYK (#547 phase 6a-i),
+        // A Gray source's type, shape and fill layers re-render in RGB or CMYK (#1 phase 6a-i),
         // an RGB or CMYK source's in Grayscale (Gray phase 6a-ii), and a Lab source's or target's
         // both ways (Lab phase 6a-i).
-        // A Duotone source's described layers render through its inks as pixels (#547 Duotone 1b).
+        // A Duotone source's described layers render through its inks as pixels (#1 Duotone 1b).
         captures = plan.flattens || target == .indexed || source.isIndexed || target == .bitmap
             || source.isBitmap || source.isDuotone ? []
             : try source.artworkCaptures()
@@ -225,7 +225,7 @@ struct CmykModeConversion {
         guard let typed = source.precision else {
             throw DoctoredCoreError(message: "The document is not a typed document.")
         }
-        // #547 Duotone: the core's Duotone plans (`duotonePlan`).
+        // #1 Duotone: the core's Duotone plans (`duotonePlan`).
         if source.isDuotone {
             return try duotonePlan(source: source, typed: typed, target: target, profile: profile,
                                    options: options, indexed: indexed, bitmap: bitmap)
@@ -233,14 +233,14 @@ struct CmykModeConversion {
         switch target {
         case .duotone:
             throw DoctoredCoreError(message: "Duotone converts through Image ▸ Mode ▸ Duotone….")
-        // #547 Bitmap phase 1a: the core's own plans (`bitmap_convert`).
+        // #1 Bitmap phase 1a: the core's own plans (`bitmap_convert`).
         case .bitmap:
             return try typed.convertToBitmapPlan(options: bitmapCoreOptions(bitmap, flatten: options.flatten))
         case .gray where source.isBitmap:
             return try typed.convertBitmapToGrayPlan(options: bitmap)
         case .rgb where source.isIndexed:
             return indexedToRGBPlan(source)
-        // #547 Indexed phase 1c: the expanded palette's own plans (`indexedExpanded`).
+        // #1 Indexed phase 1c: the expanded palette's own plans (`indexedExpanded`).
         case .cmyk where source.isIndexed:
             return try indexedExpanded(typed).convertToCMYKPlan(profile: profile, options: options)
         case .lab where source.isIndexed:
@@ -305,7 +305,7 @@ struct CmykModeConversion {
             let plan = try Self.plan(source: source, target: target, profile: profile, options: options,
                                      graySpace: graySpace, indexed: indexed, bitmap: bitmap)
             if let refusal = plan["refusal"] as? String {
-                // From Duotone every target asks the Flatten question (#547 Duotone phase 1b).
+                // From Duotone every target asks the Flatten question (#1 Duotone phase 1b).
                 if target == .gray || target == .lab || target == .indexed || target == .bitmap
                     || source.isDuotone,
                    plan["flatten_required"] as? Bool == true,
@@ -322,7 +322,7 @@ struct CmykModeConversion {
                 // narrowing's fixed reservation beside them.
                 return (max(bytes, canvas &* 16 &+ 16 * 1024 * 1024), flattens)
             case .cmyk where source.isIndexed, .lab where source.isIndexed:
-                // #547 Indexed phase 1c: the expanded palette's plan, but never less than Indexed →
+                // #1 Indexed phase 1c: the expanded palette's plan, but never less than Indexed →
                 // RGB's own term (`indexedToRGBPlan`, 41 B a pixel): the CMYK plan alone measured
                 // short (`scripts/indexed-admission/measure.py` `to-cmyk-from-indexed`).
                 let floor = try PrecisionDocumentDescriptor.integer(indexedToRGBPlan(source),
@@ -334,7 +334,7 @@ struct CmykModeConversion {
         }
         let pixels = canvas &* UInt64(max(1, source.layerCount))
         if target == .gray || target == .lab || target == .indexed {
-            // #547 Indexed phase 1b: the Adaptive palette's exact terms beside the core's own
+            // #1 Indexed phase 1b: the Adaptive palette's exact terms beside the core's own
             // (`indexed_palette::ADAPTIVE_BYTES`, 64 MiB, and 8 B a distinct colour, at most one a
             // canvas pixel and 2²⁴), which the promoted conversion reserves inside this job.
             let adaptive: UInt64 = target == .indexed && indexed["palette"] as? String == "adaptive"
@@ -365,7 +365,7 @@ struct CmykModeConversion {
                 let typed: RasterPrecisionDocument
                 var start = eightBit ? 0.4 : 0
                 if let precision = source.precision, source.isDuotone {
-                    // #547 Duotone phase 1b: the render through the inks, then RGB → CMYK.
+                    // #1 Duotone phase 1b: the render through the inks, then RGB → CMYK.
                     typed = try Self.duotoneRendered(precision, options: options, control: control,
                                                      to: 0.4)
                     start = 0.4
@@ -392,7 +392,7 @@ struct CmykModeConversion {
                 let context = try PrecisionWorkContext(source: typed)
                 let rgb = try control.withChildOperation(from: 0, to: eightBit ? 0.6 : 1) { child in
                     source.isDuotone
-                        // #547 Duotone phase 1b: the render, then Convert to Profile (the core's).
+                        // #1 Duotone phase 1b: the render, then Convert to Profile (the core's).
                         ? try typed.convertDuotoneToRGB(profile: profile ?? RasterProfile.builtin(.sRGB),
                                                         options: Self.duotoneRGBOptions(options),
                                                         workingLimit: context.limit,
@@ -422,7 +422,7 @@ struct CmykModeConversion {
             case .gray where source.isBitmap:
                 return try RasterDocument(precision: Self.bitmapToGray(
                     source, bitmap: bitmapOptions, control: control))
-            // #547 Duotone: the inks' luminance in the Gray twin, then Bitmap (the core's).
+            // #1 Duotone: the inks' luminance in the Gray twin, then Bitmap (the core's).
             case .gray where source.isDuotone:
                 return try RasterDocument(precision: Self.duotoneToGray(
                     source, options: options, control: control))
@@ -488,7 +488,7 @@ struct CmykModeConversion {
     /// Indexed source expanded (`indexedExpanded`), a typed RGB or Gray source as it is.
     static func rgbStage(_ source: RasterDocument, options: CmykConversionOptions,
                          control: RasterJobControl) throws -> (RasterPrecisionDocument, Double) {
-        // #547 Duotone phase 1b: a Duotone source's RGB stage is the render through its inks.
+        // #1 Duotone phase 1b: a Duotone source's RGB stage is the render through its inks.
         if let typed = source.precision, source.isDuotone {
             return (try duotoneRendered(typed, options: options, control: control, to: 0.5), 0.5)
         }
@@ -532,7 +532,7 @@ struct CmykModeConversion {
         withUndoGroup(document.undoManager) {
             document.applyEdit(name, record: record, intentionalDepthConversion: true) { _ in prepared.document }
         }
-        // #547 Indexed phase 1c: the Indexed Color sheet's Previous palette.
+        // #1 Indexed phase 1c: the Indexed Color sheet's Previous palette.
         if target == .indexed, document.doc === prepared.document {
             IndexedPalettes.notePrevious(prepared.document)
         }
@@ -550,7 +550,7 @@ struct CmykModeConversion {
         if target == .gray, !source.isBitmap, !source.isDuotone {
             arguments["gray_space"] = graySpace
         }
-        // #547 Bitmap phase 1a: the method and, only when sent, the Output resolution; from a
+        // #1 Bitmap phase 1a: the method and, only when sent, the Output resolution; from a
         // Bitmap document, the Size Ratio.
         if target == .bitmap || source.isBitmap {
             arguments.merge(bitmapOptions) { _, own in own }
@@ -567,7 +567,7 @@ extension EditorViewController {
     }
 
     @objc func convertToRGBMode(_ sender: Any?) {
-        // #547 Indexed phase 1a: an Indexed document converts at once, with no sheet.
+        // #1 Indexed phase 1a: an Indexed document converts at once, with no sheet.
         if document?.doc?.isIndexed == true { convertIndexedToRGBMode(); return }
         presentColorModeSheet(.rgb)
     }
@@ -596,7 +596,7 @@ extension EditorViewController {
         guard let document, let doc = document.doc else { return false }
         let current = doc.colorMode == target
         (item as? NSMenuItem)?.state = current ? .on : .off
-        // #547 Duotone: Duotone… on 8/16-bit Grayscale and on Duotone (checked, still enabled: it
+        // #1 Duotone: Duotone… on 8/16-bit Grayscale and on Duotone (checked, still enabled: it
         // edits the inks). RGB, CMYK and Lab Color convert a Duotone document through its inks,
         // Grayscale and Bitmap through the inks' luminance, and Indexed Color and Bitmap by their
         // own source rules.
@@ -606,11 +606,11 @@ extension EditorViewController {
         }
         if target == .cmyk, doc.isFloat { return false }
         if target == .lab, doc.isFloat { return false }
-        // #547 Bitmap phase 1a: a Bitmap document converts to Grayscale only (Bitmap itself is
+        // #1 Bitmap phase 1a: a Bitmap document converts to Grayscale only (Bitmap itself is
         // checked); Bitmap from 8-bit Grayscale only.
         if doc.isBitmap, target != .gray { return false }
         if target == .bitmap, !current, BitmapDocument.sourceRefusal(doc) != nil { return false }
-        // #547 Indexed phase 1a: Indexed Color from 8-bit RGB and Grayscale only.
+        // #1 Indexed phase 1a: Indexed Color from 8-bit RGB and Grayscale only.
         if target == .indexed, !current, IndexedDocument.sourceRefusal(doc) != nil { return false }
         return !current && !document.isLiveEditing && !BackgroundWork.occupied
     }

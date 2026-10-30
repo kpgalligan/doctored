@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 phase-4c MCP drive: copy and paste on and between CMYK documents,
+"""The #1 phase-4c MCP drive: copy and paste on and between CMYK documents,
 across RGB and CMYK and across two CMYK profiles, the system pasteboard, the
 layers paste and Duplicate to Document's MCP twin, Layer Via, Stamp Selected
 and Merge Group, and the refusals.

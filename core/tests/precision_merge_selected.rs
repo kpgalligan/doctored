@@ -1,6 +1,6 @@
 //! Stamp Selected and Merge Group at 8 bits (`dr_doc_stamp_selected`,
 //! `dr_doc_merge_group`), 16 bits and 32-bit float (the `stamp_selected` and
-//! `merge_group` structure edits of `dr_precision_doc_edit`), #547 phase 4c.
+//! `merge_group` structure edits of `dr_precision_doc_edit`), #1 phase 4c.
 //!
 //! **Bounds, fixed here before anything was measured:** 8 bits 1 code of
 //! 255; 16 bits 2 codes of 65535; float relative 1e-5 against

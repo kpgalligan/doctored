@@ -122,7 +122,7 @@ impl PrecisionDocument {
             return Err("high-depth stamp visible requires a contributing raster layer".into());
         }
         self.preflight_raster_addition((self.width, self.height), name)?;
-        // A CMYK document stamps its ink composite (`cmyk_merge`, #547
+        // A CMYK document stamps its ink composite (`cmyk_merge`, #1
         // phase 4a) through the same leaf builder Merge Visible uses.
         let leaf = self.projection_leaf(name, limit, other, job)?;
         self.inserting_record(

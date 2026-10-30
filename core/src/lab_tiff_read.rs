@@ -1,4 +1,4 @@
-//! Flat Lab TIFFs as Lab Color documents (#547 Lab phase 3a): which TIFFs
+//! Flat Lab TIFFs as Lab Color documents (#1 Lab phase 3a): which TIFFs
 //! open as one ([`lab_source_at`], header work only) and the open itself
 //! ([`PrecisionDocument::open_lab`]). `gray_io` is the template.
 //!

@@ -1,8 +1,8 @@
-# Duotone document mode (#547): status
+# Duotone document mode (#1): status
 
 - **Status:** Open — phases 1a (`00c31aa1`), 1b (`7f05bfe9`), 2a (`761abdd0`) and 2b (this batch: the take
   of the view, the Photoshop-written PSD readback, the menu walk) shipped; the close next
-- **Issue:** [#547](https://github.com/kpgalligan/doctored-dev/issues/547) (the colour-mode umbrella; CMYK is
+- **Issue:** [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella; CMYK is
   `designs/cmyk-mode-status.md`, Grayscale `designs/grayscale-mode.md`, Lab `designs/lab-mode.md`, Indexed
   `designs/indexed-mode.md`)
 - **Code:** `core/src/duotone_ink.rs` and `duotone_ado.rs` (kernels), `duotone_document.rs`, `duotone_native.rs`,

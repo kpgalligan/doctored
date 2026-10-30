@@ -1,6 +1,6 @@
 import AppKit
 
-// The Grayscale colour workflow over MCP (#547 phase 5a): the Gray routes `dispatchPrecision`
+// The Grayscale colour workflow over MCP (#1 phase 5a): the Gray routes `dispatchPrecision`
 // forwards here — `assign_profile` / `convert_profile` (Edit ▸ Assign Profile… / Convert to
 // Profile… on a Grayscale document, `GrayProfileSheetController`) and `convert_precision`
 // (Image ▸ Mode ▸ 8/16/32 Bits/Channel, `EditorViewController+CmykProfile.swift`'s

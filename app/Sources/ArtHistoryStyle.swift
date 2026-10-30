@@ -68,8 +68,8 @@ struct ArtHistoryOptions {
 
     /// The options bar's stroke: `paint`'s Style, Area, Tolerance, Opacity
     /// (percent) and Mode (`blendIndex`, Normal unless one of `modes` and, on a Grayscale
-    /// `document`, one of its modes — #547 phase 2e — or on a Lab Color one one of
-    /// `NativeLayerBlending.labModes` — #547 Lab 2f — as the Gray and Lab popups show it). The
+    /// `document`, one of its modes — #1 phase 2e — or on a Lab Color one one of
+    /// `NativeLayerBlending.labModes` — #1 Lab 2f — as the Gray and Lab popups show it). The
     /// byte callers pass no document.
     init(paint: PaintToolOptions, seed: UInt32, document: RasterDocument? = nil) {
         let stored = DrBlendMode(rawValue: UInt32(max(paint.blendIndex, 0)))

@@ -29,7 +29,7 @@
 //!
 //! # Grayscale
 //!
-//! A Gray document (#547 phase 2e) at 8 or 16 bits tones through the same
+//! A Gray document (#1 phase 2e) at 8 or 16 bits tones through the same
 //! kernels on its R = G = B composite; each mapped triple is folded back to
 //! one channel by the filters' rule (`gray_filter::fold`: the value when the
 //! three agree bit for bit, else the Rec. 709 luma), and the flattened result
@@ -235,7 +235,7 @@ impl PrecisionDocument {
         if self.is_cmyk() {
             return Err(CMYK_REFUSAL.into());
         }
-        // #547 Indexed phase 3b: HDR Toning refuses in Indexed Color, for
+        // #1 Indexed phase 3b: HDR Toning refuses in Indexed Color, for
         // good.
         if self.is_indexed() {
             return Err(crate::indexed_document::refused_sentence("hdr_toning"));
@@ -263,7 +263,7 @@ impl PrecisionDocument {
         if self.is_cmyk() {
             return Err(CMYK_REFUSAL.into());
         }
-        // #547 Indexed phase 3b: HDR Toning refuses in Indexed Color, for
+        // #1 Indexed phase 3b: HDR Toning refuses in Indexed Color, for
         // good.
         if self.is_indexed() {
             return Err(crate::indexed_document::refused_sentence("hdr_toning"));
@@ -349,7 +349,7 @@ impl PrecisionDocument {
         if self.is_cmyk() {
             return Err(CMYK_REFUSAL.into());
         }
-        // #547 Indexed phase 3b: HDR Toning refuses in Indexed Color, for
+        // #1 Indexed phase 3b: HDR Toning refuses in Indexed Color, for
         // good.
         if self.is_indexed() {
             return Err(crate::indexed_document::refused_sentence("hdr_toning"));
@@ -458,7 +458,7 @@ impl DrDocument {
         let promote = self.promote_flattened_plan()?;
         let count = pixel_count(self.width, self.height)? as u64;
         // The promotion and the narrowing both carry the saved channels
-        // (#547): n u16 samples per channel held, n bytes per channel out.
+        // (#1): n u16 samples per channel held, n bytes per channel out.
         let channels = self.channels.len() as u64;
         let narrowed_channels = count.checked_mul(channels).ok_or_else(overflow)?;
         let held = count

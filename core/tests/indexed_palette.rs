@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 1a's palettes and dither, black-box through the
+//! #1 Indexed Color phase 1a's palettes and dither, black-box through the
 //! FFI against hand-built tables: an image holding a table's colours in its
 //! order converts with Dither None to indices 0, 1, 2, … (each colour maps to
 //! itself, the lowest index on a duplicate), so the tables below — Web's

@@ -1,4 +1,4 @@
-//! #547 Bitmap phase 1a in `.rz` (word 110, its GRAY table then its `BTMP`
+//! #1 Bitmap phase 1a in `.rz` (word 110, its GRAY table then its `BTMP`
 //! table): a Bitmap document reopens as Bitmap with the same plane and
 //! render, and a re-save is byte-equal to the first file; the reader refuses
 //! a bad schema, a pad bit set past the canvas and a plane that disagrees

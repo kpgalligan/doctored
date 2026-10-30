@@ -237,7 +237,7 @@ fn black_and_white_never_tints_a_neutral() {
 }
 
 /// The tint's NUMBERS set to the computed grey's luminosity — at 8 bits
-/// Photoshop 26.10.0's integer path (#578 phase 4, h8a-LE: the grey on the
+/// Photoshop 26.10.0's integer path (#2 phase 4, h8a-LE: the grey on the
 /// codes rounded half to even, the integer luminosity `L8`, ClipColor with a
 /// one-code lift), which replaced the SetLum oracle this test held within a
 /// code; `black_and_white_tint.rs` pins it to Photoshop's numbers.

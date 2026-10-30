@@ -44,7 +44,7 @@ extension AgentServer {
         // A float document relabels (Assign) or converts in linear
         // light with no clamp (Convert); the core's `float_color` refuses
         // what it cannot do by name.
-        // #547 phase 5: on a CMYK document Assign/Convert to Profile take a
+        // #1 phase 5: on a CMYK document Assign/Convert to Profile take a
         // CMYK profile (`AgentServer+CmykColour.swift`'s route).
         "assign_profile": [.typedTool, .floatTool, .cmykTool],
         "convert_profile": [.typedTool, .floatTool, .cmykTool],
@@ -69,7 +69,7 @@ extension AgentServer {
         guard let doc = document.doc else { throw ToolError(message: "Document has no image") }
         var result = Self.colorProfileFields(doc, document)
         result.merge(Self.resolutionFields(doc)) { _, new in new }
-        // #547: a CMYK document's colour is its CMYK profile; the RGB fields describe its view.
+        // #1: a CMYK document's colour is its CMYK profile; the RGB fields describe its view.
         if let precision = doc.precision, precision.isCmyk, let info = precision.cmykInfo() {
             result["color_mode"] = "cmyk"
             result["cmyk_profile"] = info["profile"] ?? NSNull()
@@ -261,7 +261,7 @@ extension AgentServer {
         // evaluated ON the numbers being changed, so a layered composite
         // genuinely moves and "the picture looks the same" would be wrong.
         let appearance = ColorProfileControls.convertAppearanceSentence(doc)
-        // #547 Indexed phase 3a: an Indexed document's admitted plan, asked of the source.
+        // #1 Indexed phase 3a: an Indexed document's admitted plan, asked of the source.
         let indexedPlan = IndexedDocument.profilePlanBytes(doc, profile: profile.data, options: options)
         var report = ConversionReport()
         var failure: Error?

@@ -74,7 +74,7 @@ pub fn cmyk_tiff(
 /// A little-endian classic CMYK TIFF from `planes` (one per sample, values at
 /// `bits`): chunky in one uncompressed strip, or planar (PlanarConfiguration
 /// 2) with one strip per plane; `ExtraSamples = extra_samples` whenever there
-/// are more than four planes (#547 phase 3).
+/// are more than four planes (#1 phase 3).
 pub fn cmyk_tiff_planes(
     w: u32,
     h: u32,

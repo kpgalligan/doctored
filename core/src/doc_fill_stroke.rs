@@ -23,7 +23,7 @@
 //! `style_plane_ops::outside_stroke_band` / `inside_stroke_band`; Layer
 //! Style ▸ Stroke shares the inside band, and its outside band differs from
 //! this one only at corners, where it takes Photoshop's chamfer distance
-//! (`style_stroke_distance`, #578) — and the band is the mask handed to
+//! (`style_stroke_distance`, #2) — and the band is the mask handed to
 //! [`DrDocument::fill_selection`]. The band is therefore clipped to the
 //! layer's own pixels like any fill: on a smaller or offset layer the part
 //! of the band outside its buffer is dropped.

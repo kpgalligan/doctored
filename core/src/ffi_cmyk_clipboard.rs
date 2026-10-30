@@ -1,4 +1,4 @@
-//! The CMYK clipboard's two exports (#547 phase 4c): a payload's profile
+//! The CMYK clipboard's two exports (#1 phase 4c): a payload's profile
 //! bytes, which the host compares to decide whether a paste converts, and a
 //! payload made from a CMYK TIFF or JPEG on the system pasteboard
 //! (`CmykClipboardPayload::from_cmyk_image`).

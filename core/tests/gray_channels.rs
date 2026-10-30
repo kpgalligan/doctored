@@ -1,4 +1,4 @@
-//! #547 phase 2d, alpha channels on a Grayscale document, through the FFI.
+//! #1 phase 2d, alpha channels on a Grayscale document, through the FFI.
 //! An alpha channel is a colour-free u16 plane at every depth, so the oracle
 //! is the RGB TWIN (the Gray document converted to RGB through its own
 //! profile bytes) given the same request: New Channel, a scalar Fill, a

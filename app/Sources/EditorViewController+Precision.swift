@@ -89,25 +89,25 @@ extension EditorViewController {
     func validatePrecisionItem(_ item: NSValidatedUserInterfaceItem) -> Bool? {
         // Image ▸ Adjustments ▸ HDR Toning… at every depth.
         if let allowed = validateHdrToningItem(item) { return allowed }
-        // #547: Image ▸ Mode ▸ RGB Color / CMYK Color answer at every depth.
+        // #1: Image ▸ Mode ▸ RGB Color / CMYK Color answer at every depth.
         if let allowed = validateCmykModeItem(item) { return allowed }
-        // #547 Indexed phase 1c: Image ▸ Mode ▸ Color Table…, on an Indexed document only.
+        // #1 Indexed phase 1c: Image ▸ Mode ▸ Color Table…, on an Indexed document only.
         if let allowed = validateColorTableItem(item) { return allowed }
-        // #547 Bitmap phase 1a: a Bitmap document's own closed whitelist (`BitmapDocument.selectors`),
+        // #1 Bitmap phase 1a: a Bitmap document's own closed whitelist (`BitmapDocument.selectors`),
         // asked before every other rule but the Mode items.
         if let document, document.doc?.isBitmap == true, let selector = item.action {
             let action = NSStringFromSelector(selector)
             if Self.isDepthIndependentAction(action) { return nil }
             return BitmapDocument.selectors.contains(action) ? nil : false
         }
-        // #547 Indexed phase 1a: an Indexed Color document's own closed whitelist
+        // #1 Indexed phase 1a: an Indexed Color document's own closed whitelist
         // (`IndexedDocument.selectors`), asked before every other rule but the Mode items.
         if let document, document.doc?.isIndexed == true, let selector = item.action {
             let action = NSStringFromSelector(selector)
             if Self.isDepthIndependentAction(action) { return nil }
             return IndexedDocument.selectors.contains(action) ? nil : false
         }
-        // #547 Lab phase 1: a Lab Color document's own closed whitelist (`LabDocument.selectors`),
+        // #1 Lab phase 1: a Lab Color document's own closed whitelist (`LabDocument.selectors`),
         // asked before every other rule but the Mode items.
         if let document, document.doc?.isLab == true, let selector = item.action {
             // Phase 5a: Image ▸ Mode ▸ 8/16 Bits/Channel, the declared depth checked (32 falls
@@ -143,7 +143,7 @@ extension EditorViewController {
                 return DocumentPrecision.refusal(
                     tool: step.tool, arguments: step.arguments, document: document) == nil ? nil : false
             }
-            // #683: Select ▸ Similar and Grow where `LabDocument.selectionRefusal` admits them at
+            // #5: Select ▸ Similar and Grow where `LabDocument.selectionRefusal` admits them at
             // the document's depth.
             if let key = ["selectSimilar:": "select_similar", "selectGrow:": "select_grow"][action],
                LabDocument.selectionRefusal(key: key, depth: document.doc?.labDepth) != nil {
@@ -153,10 +153,10 @@ extension EditorViewController {
             let adjusts = LabAdjust.allowsAction(action, tag: item.tag)
             return LabDocument.selectors.contains(action) || adjusts == true ? nil : false
         }
-        // #547 phase 1a: a Grayscale document's own closed whitelist (`GrayDocument.selectors`),
+        // #1 phase 1a: a Grayscale document's own closed whitelist (`GrayDocument.selectors`),
         // asked before every other rule but the Mode items.
         if let document, document.doc?.isGray == true, let selector = item.action {
-            // #547 Duotone: what a Duotone document disables beyond Gray's rules.
+            // #1 Duotone: what a Duotone document disables beyond Gray's rules.
             if document.doc?.isDuotone == true,
                DuotoneDocument.refuses(selector: NSStringFromSelector(selector),
                                        proofColorsOn: proofDisplay.proofColors) {
@@ -208,7 +208,7 @@ extension EditorViewController {
             let adjusts = GrayAdjust.allowsAction(action, tag: item.tag, depth: depth)
             return GrayDocument.selectors.contains(action) || adjusts == true ? nil : false
         }
-        // #547 phase 5: Image ▸ Mode ▸ 8/16 Bits/Channel at every depth.
+        // #1 phase 5: Image ▸ Mode ▸ 8/16 Bits/Channel at every depth.
         if let allowed = validateBitDepthItem(item) { return allowed }
         guard let document, document.doc?.isHighDepth == true, let selector = item.action else { return nil }
         let action = NSStringFromSelector(selector)
@@ -219,13 +219,13 @@ extension EditorViewController {
         // so they answer through `validateFillItem` at 16 and 32 bits alike.
         // Gaussian Blur there softens the same coverage
         // (`QuickMaskBlur`), answered by `validateQuickMaskEditItem`. Asked
-        // before the CMYK whitelist (#547): the coverage is colour-free.
+        // before the CMYK whitelist (#1): the coverage is colour-free.
         if document.quickMaskActive, [
             "fillSelection:", "fillSelectionFromDeleteKey:", "fillWithForeground:",
             "fillWithBackground:", "fillWithForegroundPreserving:", "fillWithBackgroundPreserving:",
             "showBlur:",
         ].contains(action) { return nil }
-        // #547: a CMYK document's own closed whitelist (`CmykDocument.selectors`, and the tagged
+        // #1: a CMYK document's own closed whitelist (`CmykDocument.selectors`, and the tagged
         // adjustment items `CmykDocument.allowsTagged` admits), asked before every other 16-bit
         // and float rule; below the four transform set-count checks (phase 4b), which hold for
         // CMYK as they do at 16 bits, and Quick Mask's coverage edits.
@@ -310,7 +310,7 @@ extension EditorViewController {
                 "strokeCurrentPath:",
                 // Edit ▸ Content-Aware Fill… on a float layer (`FloatRetouch`).
                 "contentAwareFill:",
-                // #547: Image ▸ Adjustments ▸ Equalize on the display encoding (`equalize_apply`).
+                // #1: Image ▸ Adjustments ▸ Equalize on the display encoding (`equalize_apply`).
                 "equalize:",
                 "makeSelectionFromPath:", "fillCurrentPath:", "makeWorkPath:",
                 "duplicateCurrentPath:", "deleteCurrentPath:",
@@ -336,7 +336,7 @@ extension EditorViewController {
                 "mergeDown:", "mergeVisible:", "linkLayers:", "unlinkLayers:",
                 "lockTransparency:", "lockPixels:", "lockPosition:", "lockAll:",
                 "stampVisible:", "flattenImage:",
-                // #547 phase 4c: Layer ▸ Stamp Selected (`layer_stamp_selected`).
+                // #1 phase 4c: Layer ▸ Stamp Selected (`layer_stamp_selected`).
                 "stampSelected:",
                 // Layer ▸ Layer Mask ▸ Apply bakes alpha · coverage in f32 (typed `apply_mask`).
                 "applyLayerMask:",
@@ -524,7 +524,7 @@ extension EditorViewController {
 
     /// The items whose edit lands on the TARGET — the adjustments, Auto, Fill and its chords,
     /// Apply Image, Fill Path and Fade — which a CMYK document answers by both its table and the
-    /// 16-bit rule when one ink plate or an alpha channel is targeted (#547).
+    /// 16-bit rule when one ink plate or an alpha channel is targeted (#1).
     private static let targetedActions: Set<String> = [
         "showAdjustments:", "showLevels:", "showCurves:", "showAdjustmentSheet:", "applyInvert:",
         "showPosterize:", "showThreshold:", "applyDesaturate:", "equalize:", "autoTone:",
@@ -562,7 +562,7 @@ extension EditorViewController {
         "assignProfile:", "convertToProfile:", "showAdjustments:", "showLevels:", "showCurves:", "showHueRotate:",
         "showThreshold:", "showPosterize:", "showAdjustmentSheet:", "applyInvert:", "applyGrayscale:", "applySepia:",
         "applyDesaturate:",
-        // #547: Image ▸ Adjustments ▸ Equalize (`equalize_apply`).
+        // #1: Image ▸ Adjustments ▸ Equalize (`equalize_apply`).
         "equalize:",
         "adjustmentOptions:", "addAdjustmentLayer:", "duplicateLayer:", "groupLayers:",
         // Layer ▸ Duplicate to New Document…
@@ -605,7 +605,7 @@ extension EditorViewController {
         "mergeDown:", "mergeVisible:", "linkLayers:", "unlinkLayers:",
         "lockTransparency:", "lockPixels:", "lockPosition:", "lockAll:",
         "stampVisible:", "flattenImage:",
-        // #547 phase 4c: Layer ▸ Stamp Selected (`layer_stamp_selected`).
+        // #1 phase 4c: Layer ▸ Stamp Selected (`layer_stamp_selected`).
         "stampSelected:",
         // Layer ▸ Layer Via Copy (⌘J) / Via Cut (⇧⌘J), through the
         // core's typed `layer_via` (PrecisionLayerVia.swift); ⌘J still

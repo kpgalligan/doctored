@@ -44,7 +44,7 @@ impl PrecisionDocument {
     /// refuses a failing destination in `icc_encode_refusal`'s Assign
     /// words, before any rebind could answer the own-profile sentence. A
     /// 32-bit float document answers `float_color`'s plan instead, and an
-    /// Indexed Color document `indexed_profile::plan` (#547 Indexed phase 3a).
+    /// Indexed Color document `indexed_profile::plan` (#1 Indexed phase 3a).
     pub fn color_plan(
         &self,
         profile: &Arc<IccProfile>,
@@ -97,7 +97,7 @@ impl PrecisionDocument {
                 }
                 // The first calibrated layer whose op `destination` refuses
                 // (`calibrated_refusal`: a falling-boundary profile admits
-                // Exposure but not White Balance, #578).
+                // Exposure but not White Balance, #2).
                 fn first_calibrated<'a>(
                     layers: &'a [PrecisionDocumentLayer],
                     destination: &IccProfile,
@@ -316,7 +316,7 @@ impl PrecisionDocument {
         job: JobContext<'_>,
     ) -> Result<Option<Self>, String> {
         // An Indexed Color document assigns over its storage and converts its
-        // colour table (#547 Indexed phase 3a, `indexed_profile`).
+        // colour table (#1 Indexed phase 3a, `indexed_profile`).
         if self.is_indexed() {
             if !convert {
                 return crate::indexed_profile::assign(self, profile, limit, other, job);

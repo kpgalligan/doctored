@@ -45,7 +45,7 @@
 //!
 //! # CMYK
 //!
-//! A CMYK raster (#547) takes the u16 rule on its straight alpha: `alpha' =
+//! A CMYK raster (#1) takes the u16 rule on its straight alpha: `alpha' =
 //! round(alpha · clamp(PreparedMask::at, 0, 1))`, every ink bit kept. Its rows
 //! are rebuilt once (`CmykImage::from_rows_with_job`) into
 //! `Content::CmykRaster`, and the mask and description are dropped. The plan

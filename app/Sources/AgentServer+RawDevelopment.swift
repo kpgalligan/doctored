@@ -52,7 +52,7 @@ extension AgentServer {
         report["document_revision"] = capture.revision
         report["committed"] = false
         report["proposed_descriptor"] = try descriptor.map { try JSONSerialization.jsonObject(with: Data($0.json().utf8)) }
-        // The Develop window's HDR preview (#680): each f32 side's
+        // The Develop window's HDR preview (#4): each f32 side's
         // extended image at the window's Fit, or at the 100 % `region`
         // (divisor 1), with `clipping`'s float markers (at or below 0.0, at
         // or above 1.0): its peak (markers excluded), divisor and marked
@@ -226,7 +226,7 @@ extension AgentServer {
         let budget: UInt64 = 96 * 1024 * 1024
         _ = try RasterResources.shared.admit(scratch: budget)
         let result = try BackgroundWork.wait(try WorkerTask(scratchEstimate: budget) {
-            // #680: an f32 side's histogram reads its master's float samples.
+            // #4: an f32 side's histogram reads its master's float samples.
             let beforeHistogram = try (master.isFloatStorage ? master : before).developHistogram()
             let afterHistogram = master === developed ? beforeHistogram
                 : try (developed.isFloatStorage ? developed : after).developHistogram()

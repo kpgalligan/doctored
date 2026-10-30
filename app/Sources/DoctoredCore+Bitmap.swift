@@ -1,12 +1,12 @@
 import AppKit
 
-// The Bitmap document's core wrappers (#547 Bitmap phase 1a): every `dr_*` call of the Bitmap
+// The Bitmap document's core wrappers (#1 Bitmap phase 1a): every `dr_*` call of the Bitmap
 // area. The gate that decides what a Bitmap document admits is `BitmapDocument.swift`; Image ▸
 // Mode's job is `EditorViewController+CmykMode.swift`'s (`CmykModeConversion`'s bitmap arms,
 // `EditorViewController+BitmapMode.swift`). Phase 1c adds the 1-bit files: which PNG, TIFF and
 // BMP files open as a Bitmap document, their open, and a Bitmap PSD or PSB's stored composite.
 
-/// `dr_path_bitmap_source`'s answers (#547 Bitmap phase 1c).
+/// `dr_path_bitmap_source`'s answers (#1 Bitmap phase 1c).
 enum BitmapSource: Int32 {
     case none = 0, png = 1, tiff = 2, bmp = 3
 }

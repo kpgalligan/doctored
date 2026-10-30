@@ -192,7 +192,7 @@ private final class TextArtworkLayout: NSLayoutManager {
         var pixels = [UInt8](repeating: 0, count: countBytes)
         var opaqueAttributes = attributes
         // The colour's own numbers with alpha 1 — all four inks in a CMYK
-        // document (#547), where alpha is the fifth (`ArtworkColor.alpha`).
+        // document (#1), where alpha is the fifth (`ArtworkColor.alpha`).
         guard let opaque = ArtworkColor.color(Array(rgba.dropLast()) + [1], in: ink) else {
             throw error("TextKit returned unsupported text ink.")
         }

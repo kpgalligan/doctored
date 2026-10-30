@@ -9,9 +9,9 @@
 //! working profile is macOS's own Generic CMYK, read from disk.
 //!
 //! The same test holds the CMYK document cases that need the slot set
-//! (#547): with it set an untagged CMYK file opens through the typed open
+//! (#1): with it set an untagged CMYK file opens through the typed open
 //! as a CMYK document ASSIGNED the working profile, under its sentence, and
-//! Image ▸ Mode ▸ CMYK Color with no profile converts into it. Since #547
+//! Image ▸ Mode ▸ CMYK Color with no profile converts into it. Since #1
 //! phase 3 a well-formed planar untagged TIFF opens the same way, and an
 //! untagged layered CMYK PSD imports its layers under the working profile.
 
@@ -184,7 +184,7 @@ fn an_untagged_cmyk_file_converts_from_the_working_cmyk_profile() {
         "untagged JPEG vs tagged twin"
     );
 
-    // #547: the typed open makes the untagged files CMYK documents assigned
+    // #1: the typed open makes the untagged files CMYK documents assigned
     // the working profile, under the sentence saying so, and Image ▸ Mode ▸
     // CMYK Color with no profile converts into it.
     assert_eq!(
@@ -225,7 +225,7 @@ fn an_untagged_cmyk_file_converts_from_the_working_cmyk_profile() {
         }
         assert_eq!(info["import_warnings"], serde_json::json!([assigned]));
     }
-    // #547 phase 3: a well-formed PLANAR untagged TIFF opens the same way,
+    // #1 phase 3: a well-formed PLANAR untagged TIFF opens the same way,
     // with its chunky twin's ink.
     let planes: Vec<Vec<u16>> = (0..4)
         .map(|c| data.chunks(4).map(|s| u16::from(s[c])).collect())

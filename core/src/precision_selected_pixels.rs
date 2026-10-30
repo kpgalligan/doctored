@@ -49,7 +49,7 @@ pub(crate) fn sample_bytes(storage: PrecisionStorage) -> u64 {
 }
 
 impl PrecisionDocument {
-    /// The mode's refusal of a plane target (#547): an ink plate on an RGB
+    /// The mode's refusal of a plane target (#1): an ink plate on an RGB
     /// document, and Red, Green, Blue or Alpha on a CMYK one.
     fn plane_target_refusal(&self, edit: &SelectedPixelsEdit) -> Result<(), String> {
         let target = edit.target();
@@ -79,7 +79,7 @@ impl PrecisionDocument {
             .ok_or("high-depth layer index is out of range")?;
         let image = match &record.content {
             // A CMYK layer target routes to `cmyk_selected_pixels` first
-            // (#547 phase 4b); only a colour-plane target reaches here.
+            // (#1 phase 4b); only a colour-plane target reaches here.
             Content::CmykRaster { .. } => {
                 return Err(crate::cmyk_document::refused_sentence(
                     "Moving or transforming one colour channel's selected pixels",

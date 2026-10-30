@@ -15,7 +15,7 @@
 //! `image_sidecar_with_policy`, which for OpenEXR and Radiance carries
 //! nothing because neither container has a slot for a profile or a packet
 //! (`format_carries` is 0 for both — the file states the document profile's
-//! PRIMARIES instead). A 32-bit Grayscale document that keeps gray (#547
+//! PRIMARIES instead). A 32-bit Grayscale document that keeps gray (#1
 //! phase 3c; a TIFF, the one container that gets here kept) writes one or two
 //! samples through `float_io::encode_float_gray` with its Gray ICC embedded
 //! in place of the twin's, and its preview reads them as R = G = B.
@@ -248,7 +248,7 @@ impl FloatDeliverable {
             let first = y as usize * stride;
             for (x, pixel) in row.iter_mut().enumerate() {
                 let at = (first + x) * channels;
-                // A kept-gray TIFF (#547 phase 3c) is R = G = B.
+                // A kept-gray TIFF (#1 phase 3c) is R = G = B.
                 let (rgb, a) = match channels {
                     1 => ([samples[at]; 3], 1.0),
                     2 => ([samples[at]; 3], samples[at + 1]),

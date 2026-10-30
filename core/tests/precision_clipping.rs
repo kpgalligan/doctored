@@ -165,7 +165,7 @@ fn over(base: [f64; 4], mut src: [f64; 4], weight: f64, mode: i32) -> [f64; 4] {
     }
     out
 }
-/// The clip rule in f64 (#578): the base at full opacity in Normal
+/// The clip rule in f64 (#2): the base at full opacity in Normal
 /// into a transparent buffer, its alpha (the footprint) recorded, each member
 /// composited onto the base with that alpha FROZEN — the W3C step against the
 /// base colour seen at alpha 1, `lerp(Cb, B(Cb, Cs), sa)` — then the buffer
@@ -256,7 +256,7 @@ fn a_raster_base_with_two_members_matches_the_independent_clip_group_equation() 
         let expected = clip_unit(
             normalized(backdrop),
             (normalized(base_px[x]), base_cov),
-            // Every opacity at its byte (#578).
+            // Every opacity at its byte (#2).
             (crate::common::byte_unit(0.625), 2),
             &[
                 (normalized(m1_px[x]), 1., 0),
@@ -423,7 +423,7 @@ fn a_pass_through_base_or_member_with_a_base_is_isolated_and_an_adjustment_base_
     for x in 0..2 {
         // Hand-computed: the adjustment sees a transparent buffer, so the
         // member is R alone at opacity 0.5 inside a group at 0.875.
-        // Every opacity at its byte (#578).
+        // Every opacity at its byte (#2).
         let inner = over([0.; 4], normalized(r), crate::common::byte_unit(0.5), 0);
         let expected = clip_unit(
             normalized(b),
@@ -474,7 +474,7 @@ fn clip_units_nest_inside_groups_and_a_clipped_group_member_composites_as_a_unit
             .with_clipped(clipped),
         ]
     };
-    // Every opacity at its byte (#578).
+    // Every opacity at its byte (#2).
     let member_px = over(
         over([0.; 4], normalized(r1), 1., 0),
         normalized(r2),

@@ -357,7 +357,7 @@ fn identity_truth_table() {
     assert!(BlendIf::default().is_identity());
 }
 
-/// The law's blur (#578, `effect_kernels_578_take.py`), written
+/// The law's blur (#2, `effect_kernels_578_take.py`), written
 /// independently of the core: two passes of a `width`-wide box per axis,
 /// the separable triangle `(width − |j|) / width²` for `|j| < width`, over
 /// unit values (zero beyond the canvas, which the shadow never reaches
@@ -447,7 +447,7 @@ fn pad_follows_the_documented_reach_and_is_capped() {
         2,
         "ceil(0) + 1 + blur_reach(0) = 1, +1"
     );
-    // Below Spread 100 % the drop shadow runs the box-pair law (#578,
+    // Below Spread 100 % the drop shadow runs the box-pair law (#2,
     // `style_matte`): `n = round(S · spread)`, `w = S − n` (2 where it is
     // 1), reach `n + 1 + (w − 1)`, plus the pad's own 1.
     assert_eq!(shadow(4.0, 0.0, 5.0), 1 + 3 + 1, "n 0, w 4");
@@ -464,7 +464,7 @@ fn pad_follows_the_documented_reach_and_is_capped() {
     );
     assert_eq!(shadow(250.0, 0.0, 5.0), 1 + 249 + 1, "n 0, w 250");
     assert_eq!(shadow(3.0, 0.7, 5.0), 2 + 1 + 1 + 1, "n 2, w 1 acts as 2");
-    // The satin runs the box-pair law at spread 0 (#578 part 3,
+    // The satin runs the box-pair law at spread 0 (#2 part 3,
     // `style_fx_satin`): `n = 0`, `w = S`, reach `w`, plus its in-plane
     // distance and the pad's own 1; at Size 0 its Gaussian is sigma 0.
     let satin = parse("{\"effects\":[{\"type\":\"satin\",\"size\":14,\"distance\":11}]}");
@@ -477,12 +477,12 @@ fn pad_follows_the_documented_reach_and_is_capped() {
         1 + 7 + 1,
         "an in-plane shift pads by its distance"
     );
-    // The default Smooth Inner Bevel runs the measured law (#578,
+    // The default Smooth Inner Bevel runs the measured law (#2,
     // `style_bevel_smooth`): the box pair and the central difference reach
     // W = 4, plus 1 for the coverage's edge, plus the pad's own 1.
     let bevel = parse("{\"effects\":[{\"type\":\"bevel_emboss\",\"size\":4,\"soften\":0}]}");
     assert_eq!(bevel.pad(), 4 + 1 + 1, "W + 1, plus 1");
-    // A Smooth Emboss runs the law at half the Size (#578, TAKE2 MEMBERS):
+    // A Smooth Emboss runs the law at half the Size (#2, TAKE2 MEMBERS):
     // W' = 2 at Size 4, plus 1, plus the pad's own 1.
     let emboss = parse(
         "{\"effects\":[{\"type\":\"bevel_emboss\",\"style\":\"emboss\",\"size\":4,\"soften\":0}]}",
@@ -851,7 +851,7 @@ fn knock_out_keeps_the_shadow_from_under_the_shape() {
 
 #[test]
 fn soft_drop_shadow_matches_the_box_pair_oracle() {
-    // size 4, spread 0 -> the law's n = 0, w = 4 (#578, `style_matte`): the
+    // size 4, spread 0 -> the law's n = 0, w = 4 (#2, `style_matte`): the
     // shifted rect through two passes of a 4-wide box (the triangle (4 -
     // |j|) / 16), rounded once.
     let doc = styled(
@@ -1340,7 +1340,7 @@ fn multibyte_colours_are_refused_through_the_ffi_naming_the_key() {
 
 #[test]
 fn large_shadow_sizes_render_sanely() {
-    // size 40 -> the law's 40-wide box pair (#578, `style_matte`), the
+    // size 40 -> the law's 40-wide box pair (#2, `style_matte`), the
     // widest soft shadow a test renders. No oracle at this softness; pin the
     // properties any symmetric blur keeps. The rect spans x 90..150, so its
     // mirror axis is x = 119.5: column `120 - k` mirrors `119 + k`.

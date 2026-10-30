@@ -32,7 +32,7 @@ fn owned(text: String) -> Result<CString, String> {
 /// `{"working_memory_plan_bytes","output_bytes"}`, after every refusal the
 /// toning gives before it allocates. NULL with a message on a NULL argument,
 /// a malformed request, a CMYK document, a depth it does not take and a
-/// profile that cannot carry float. A Grayscale document (#547 phase 2e)
+/// profile that cannot carry float. A Grayscale document (#1 phase 2e)
 /// takes only its own depth (8 or 16, no narrowing); a 32-bit one (phase 5a)
 /// takes 8 or 16, its 8-bit plan holding the host's Gray depth edit
 /// (`gray_profile::depth_eight_bytes`). Free the result with
@@ -107,7 +107,7 @@ pub unsafe extern "C" fn dr_doc_hdr_toning_plan(
 /// it renders. NULL with a message on a NULL handle or request, a malformed
 /// request, a CMYK document, a profile that cannot carry float, a
 /// working-memory refusal and a cancel. A Grayscale document at 8 or 16 bits
-/// (#547 phase 2e) answers a Grayscale document at its own depth, each mapped
+/// (#1 phase 2e) answers a Grayscale document at its own depth, each mapped
 /// pixel folded back to one gray value (`doc_hdr_toning`'s "Grayscale"); a
 /// 32-bit one (phase 5a) answers a 16-bit Grayscale document. Free the
 /// result with `dr_precision_doc_free`.

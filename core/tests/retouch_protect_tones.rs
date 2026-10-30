@@ -1,4 +1,4 @@
-//! Dodge/Burn's Protect Tones (#547) at 8, 16 and 32 bits, through the FFI,
+//! Dodge/Burn's Protect Tones (#1) at 8, 16 and 32 bits, through the FFI,
 //! against an f64 statement of the rule written here: the curve
 //! (`shaped`, the tool's documented black-point, gamma and white-point
 //! moves) and the group rule — with `V` the pixel's largest channel, every

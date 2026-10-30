@@ -15,7 +15,7 @@
 //!   ink as given.
 //! - **Dodge/Burn (R4).** [`dodge_burn_rule`] builds
 //!   `display_encoding::DodgeBurnLinear` (with Protect Tones' group rule when
-//!   the request asks, #547) from the document's own encoder
+//!   the request asks, #1) from the document's own encoder
 //!   (the policy's, never the tone map) and decoder; the walk mixes each
 //!   covered, non-transparent pixel toward its target.
 //!

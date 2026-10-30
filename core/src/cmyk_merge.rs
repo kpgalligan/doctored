@@ -1,4 +1,4 @@
-//! The pixel half of the CMYK document's merges (#547 phase 4a and the
+//! The pixel half of the CMYK document's merges (#1 phase 4a and the
 //! styles batch): Merge Layers, Merge Down, Merge Visible and Stamp Visible
 //! (`precision_merge`, `precision_stamp_flatten`, whose structural rules are
 //! the RGB ones verbatim) take their pixels from the ONE row compositor

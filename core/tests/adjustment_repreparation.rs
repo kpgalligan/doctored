@@ -10,7 +10,7 @@
 //! prepare_scratch_bytes`, whose constant floor alone is 4 MiB) and, for a
 //! calibrated operator that encodes (White Balance), at least its ENCODER
 //! tables — three 65,537-entry f64 tables, which every prepared White Balance
-//! holds (a calibrated Exposure holds none since #578: one exponent per
+//! holds (a calibrated Exposure holds none since #2: one exponent per
 //! channel). A
 //! conversion reuses the records `rebind_layers` prepared, so its
 //! delta equals assignment's. A 600-adjustment stack, which one allowance per

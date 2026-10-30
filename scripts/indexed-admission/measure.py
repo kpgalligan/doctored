@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 Indexed Color phase-1a, 1b, 1c, 2b, 2c, 2d and 3a admission drive, on a built Release app.
+"""The #1 Indexed Color phase-1a, 1b, 1c, 2b, 2c, 2d and 3a admission drive, on a built Release app.
 
 Every new Indexed plan is held to the measured-admission rule: plan >=
 ceil(1.25 x max E), where E is `ri_interval_max_phys_footprint` - pre around
@@ -111,12 +111,12 @@ The plans:
   Move tool's moves (`move_layers`, `move_selected_pixels`) reuse
   `transform-nearest-indexed`'s measured exact path, so they take no case of
   their own.
-- `open-indexed-psd` (#547 Indexed Color PSD): `open_document` psd_mode
+- `open-indexed-psd` (#1 Indexed Color PSD): `open_document` psd_mode
   composite of a 24 MP Indexed Color PSD written here (the palette PNG's table
   and indices, a Raw composite), after `inspect_psd` in the setup of both
   twins; plan = `indexed_io::open_scratch`, as `open-indexed-png`'s; the
   reply's `color_mode` indexed. A miss raises `OPEN_BYTES_PER_PIXEL`.
-- `export-indexed-psd` (#547 Indexed Color PSD): the palette PNG whose index 0
+- `export-indexed-psd` (#1 Indexed Color PSD): the palette PNG whose index 0
   is transparent opened as an Indexed document (so the file sets 1047, the
   transparent index; it holds the empty layer section and the RLE composite
   only, Photoshop's own form); `export_psd` format psd mode

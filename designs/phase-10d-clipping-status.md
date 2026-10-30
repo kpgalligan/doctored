@@ -22,7 +22,7 @@ snapshots/recovery, the shared UI/MCP/Actions path and 16-bit PSD in both direct
   (`zero_plane`, `render_layers`, `checked_alpha`, `composite_source_into`, `blend_kind`). Later slices refine the
   footprint: a Blend If base clamps members to its UNWEIGHTED footprint ([Blend If](phase-10d-blend-if-status.md));
   a styled base clamps to the byte-plane shape ([layer styles](phase-10d-layer-styles-status.md)).
-- **Superseded by CL2 ([#578](https://github.com/kpgalligan/doctored-dev/issues/578), Photoshop take1 and take2):** members
+- **Superseded by CL2 ([#2](https://github.com/kpgalligan/doctored/issues/2), Photoshop take1 and take2):** members
   no longer composite absolutely and get forced back; `clip_unit.rs` (Open / Settle / Close, every byte, typed, float,
   regional and CMYK member loop) composites them onto the base with its alpha frozen, relative to the same footprint.
   An opaque base renders bit for bit as before.

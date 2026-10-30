@@ -8,7 +8,7 @@
 //! nothing opaque. Not clipped to the canvas, blind to `visible`, and the
 //! final tuple clamped exactly as the byte one. The index is the postorder
 //! record index `PrecisionDocument::layer` reads. A CMYK document's raster
-//! (#547 phase 4b) is the same rule over its straight alpha (`[4]`) × its
+//! (#1 phase 4b) is the same rule over its straight alpha (`[4]`) × its
 //! enabled mask ([`scan_cmyk`]), memoized on `CmykImage::identity_weak`.
 //!
 //! THE SCAN. An unmasked raster is `doc_export_layers::alpha_bounds16` /
@@ -274,7 +274,7 @@ fn memoized(
     box_
 }
 
-/// A CMYK record's box (#547 phase 4b): [`scan`]'s rule over straight
+/// A CMYK record's box (#1 phase 4b): [`scan`]'s rule over straight
 /// CMYKA16 — a pixel counts when its alpha (`[4]`) is > 0 and its enabled
 /// mask's prepared coverage is > 0 — through the same `edge_bounds` /
 /// `runs_extent` scan over the image's own tile runs. (The RGB unmasked

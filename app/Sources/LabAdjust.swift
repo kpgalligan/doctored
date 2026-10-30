@@ -1,7 +1,7 @@
 import AppKit
 
 // Image ▸ Adjustments, Layer ▸ New Adjustment Layer, Image ▸ Auto and the Filter menu on a Lab
-// Color document (#547 Lab phases 2b to 2f and 4a-ii): which ops run — the RGB kernels in their Lab form,
+// Color document (#1 Lab phases 2b to 2f and 4a-ii): which ops run — the RGB kernels in their Lab form,
 // bound by the core at parse (Levels and Curves on Lightness, their r, g and b on Lightness, a and
 // b; Brightness/Contrast on Lightness, its saturation on a* and b*; Invert and Posterize on every
 // channel; Threshold black and white; Desaturate keeping L*; since phase 2d Hue/Saturation, Color

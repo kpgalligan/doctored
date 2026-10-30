@@ -1,4 +1,4 @@
-//! ONE INK PLATE AS A SCALAR TARGET on a CMYK document (#547): painting,
+//! ONE INK PLATE AS A SCALAR TARGET on a CMYK document (#1): painting,
 //! filling, a gradient, the Paint Bucket, Dodge/Burn, morphology, a filter or
 //! an adjustment, and `replace`/`replace_canvas` (Apply Image, Calculations)
 //! on the Cyan, Magenta, Yellow or Black row the Channels panel targets,

@@ -161,13 +161,13 @@ extension RasterDocument {
                                 reason: "The clipboard's editable \(type) record pastes as pixels: "
                                     + why + ".")
         }
-        // #547 phase 4: a Grayscale document restores a record only from a Grayscale copy (its
+        // #1 phase 4: a Grayscale document restores a record only from a Grayscale copy (its
         // colours are already gray); any other pastes as the converted pixels.
         if isGray, !payload.isGray {
             return raster("a Grayscale document restores an editable record only from a "
                 + "Grayscale copy")
         }
-        // #547 Lab phase 4c: a record restores only between Lab Color documents (a Lab copy's
+        // #1 Lab phase 4c: a record restores only between Lab Color documents (a Lab copy's
         // colours are Lab codes, an RGB copy's are not); any other pair pastes as the converted
         // pixels.
         if isLab != payload.isLab {
@@ -201,7 +201,7 @@ extension RasterDocument {
             if !description.isRenderable {
                 return raster("its text family is not installed on this Mac")
             }
-            // #547: a record in ink (a CMYK document's copy) restores in this
+            // #1: a record in ink (a CMYK document's copy) restores in this
             // document's colours: into another CMYK profile, or into RGB,
             // relative colorimetric with BPC (`convertedArtwork`); the same
             // profile, and Don't Convert into a CMYK document, keep the ink

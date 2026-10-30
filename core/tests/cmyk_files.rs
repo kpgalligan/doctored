@@ -1,10 +1,10 @@
-//! CMYK files as CMYK documents (#547 phase 1): the TIFF, JPEG and PSD
+//! CMYK files as CMYK documents (#1 phase 1): the TIFF, JPEG and PSD
 //! opens keep the file's own ink and embedded profile; the TIFF, PSD and
 //! `.rz` saves are bit-exact at 8 and 16 bits, each re-read by an
 //! independent reader — the `tiff` crate for TIFF, a PSD parser written here
 //! from Adobe's file-format specification, the typed native reader for `.rz`
 //! — and the CMYK PSD round trip goes through the same report and the opens
-//! the host uses (since #547 phase 3 Import Layers too). ImageMagick-authored
+//! the host uses (since #1 phase 3 Import Layers too). ImageMagick-authored
 //! fixtures skip when it is absent. No test here sets the working CMYK
 //! profile.
 
@@ -344,7 +344,7 @@ fn cmyk_psd_saves_flattened_and_reopens_through_the_hosts_route() {
         assert_eq!(r["import_precision"], "cmyk");
         assert_eq!(r["color_mode"], "CMYK");
         assert_eq!(r["stored_composite_available"], true);
-        // #547 phase 3: Import Layers is available; a flattened file holds
+        // #1 phase 3: Import Layers is available; a flattened file holds
         // no record, so it opens the saved composite.
         assert_eq!(r["layered_available"], true);
         assert_eq!(r["profile"], "Press Test");

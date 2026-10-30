@@ -128,7 +128,7 @@ extension EditorViewController {
         if paintTarget.isCoverage { fillNativePlane(at: point); return }
         do {
             let capture = try PrecisionEditorCapture(document), options = ToolOptionsStore.shared.fill
-            // Contents picks the colour; Mode and Sample all layers the style. #547 Lab
+            // Contents picks the colour; Mode and Sample all layers the style. #1 Lab
             // phase 2e: on a Lab layer the Contents swatch's Lab ink when it has one.
             let shared = ToolOptionsStore.shared.sharedState
             let color = LabPaint.color(fillToolColor,
@@ -149,7 +149,7 @@ extension EditorViewController {
             let opacity = min(max(options.opacity, 0), 100) / 100
             let x = Int(floor(point.x)), y = Int(floor(point.y))
             let tolerance = Int((options.tolerance * 257).rounded())
-            // #547: a CMYK layer fills in ink, from its own pixels or (All Layers) the
+            // #1: a CMYK layer fills in ink, from its own pixels or (All Layers) the
             // composite's ink, in the CMYK modes.
             if capture.source.isCmyk {
                 if let reason = CmykPaint.modeRefusal(style.mode) { throw DoctoredCoreError(message: reason) }
@@ -238,14 +238,14 @@ extension EditorViewController {
             // request carries it once, as the two-colour request always has.
             var unfaded = options
             unfaded.opacity = 100
-            // #547 Lab phase 2e: a Lab layer's ends are the swatches' Lab inks when they have
+            // #1 Lab phase 2e: a Lab layer's ends are the swatches' Lab inks when they have
             // them; a coverage target keeps the sRGB swatches.
             let shared = ToolOptionsStore.shared.sharedState
             let labDoc = capture.target.isCoverage ? nil : document.doc
             let ramp = GradientRamp(options: unfaded,
                 foreground: LabPaint.color(paintColor, stored: shared.foregroundLab, in: labDoc),
                 background: LabPaint.color(backgroundColor, stored: shared.backgroundLab, in: labDoc))
-            // #547: a CMYK layer's gradient is the ramp in ink, in the CMYK modes.
+            // #1: a CMYK layer's gradient is the ramp in ink, in the CMYK modes.
             if capture.source.isCmyk, !capture.target.isCoverage {
                 if let reason = CmykPaint.modeRefusal(gradientToolMode) { throw DoctoredCoreError(message: reason) }
                 let shared = ToolOptionsStore.shared.sharedState
@@ -332,7 +332,7 @@ extension AgentServer {
         // A float layer's linear endpoints name the ramp themselves.
         let linear = try linearGradientEndpoints(a, document)
         let capture = try PrecisionEditorCapture(document), layer = try structuralLayerIndex(a, document)
-        // #547: a CMYK layer's gradient in ink (`start_ink`/`end_ink`, or colours converted).
+        // #1: a CMYK layer's gradient in ink (`start_ink`/`end_ink`, or colours converted).
         if capture.source.isCmyk, try !paintTarget(a, document).isCoverage {
             return try cmykGradient(a, document: document, capture: capture, layer: layer)
         }
@@ -419,7 +419,7 @@ extension AgentServer {
         return try jsonResult(["ok": true, "changed": changed, "storage": storage])
     }
 
-    /// `gradient` on a CMYK layer (#547 phase 2) — mirrors the Gradient tool's CMYK drag
+    /// `gradient` on a CMYK layer (#1 phase 2) — mirrors the Gradient tool's CMYK drag
     /// (`gradientPrecisionColor`): `start_ink`/`end_ink` (C, M, Y, K percent) or `start_color`/
     /// `end_color` converted through the document's profile, or `stops` whose colours convert;
     /// in the CMYK modes (`CmykPaint.modeRefusal`).
@@ -537,7 +537,7 @@ extension AgentServer {
         let job = try DocumentJobs.startPrecisionStroke(work, document: document, capture: capture, layer: layer,
             title: "Dodge / Burn", record: .notACommand, showProgress: false, rasterizesTarget: true,
             completion: Self.noteStrokeJobChange)
-        // A float layer's pixels are f32, a CMYK layer's ink (#547).
+        // A float layer's pixels are f32, a CMYK layer's ink (#1).
         let storage = capture.source.isCmyk ? "cmyka16_unorm" : capture.facade.isFloat ? "rgba32_float" : "u16"
         job.details = ["storage": storage]
         return try finishJobCall(job, tool: "dodge_burn", arguments: a, unchanged: {

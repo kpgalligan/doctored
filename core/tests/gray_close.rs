@@ -1,4 +1,4 @@
-//! #547, the close of Grayscale mode: the tools no phase named, through the
+//! #1, the close of Grayscale mode: the tools no phase named, through the
 //! FFI. Each lifted tool is the RGB kernel on R = G = B, so its oracle is the
 //! RGB TWIN (`gray_ops::twin`) given the same input, its result taken through
 //! Image ▸ Mode ▸ Grayscale where colour came in from outside (a placed

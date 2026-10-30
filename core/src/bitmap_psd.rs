@@ -1,4 +1,4 @@
-//! Bitmap PSD and PSB files, colour mode 0 (#547 Bitmap phase 1c): the
+//! Bitmap PSD and PSB files, colour mode 0 (#1 Bitmap phase 1c): the
 //! compatibility report ([`import_report`]), the open of the stored
 //! composite ([`PrecisionDocument::open_bitmap_psd`]), and the export's
 //! report and writer (`designs/bitmap-mode.md`).

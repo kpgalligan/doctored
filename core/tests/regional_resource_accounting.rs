@@ -276,7 +276,7 @@ fn overlay_planes(w: u64, h: u64) -> u64 {
 }
 
 /// `style_scratch` of `DROP_SHADOW` (distance 3, size 2, spread 0) over a
-/// `w`×`h` raster, restated: the drop shadow's box-pair law (#578,
+/// `w`×`h` raster, restated: the drop shadow's box-pair law (#2,
 /// `style_matte`: `n = 0`, `w = 2`), reach `n + 1 + (w − 1)` = 2 and pad 3,
 /// `P = (w + 6)·(h + 6)`; one enabled effect, so `P·(2 + 2)` u8 planes;
 /// `plane_blur::float_plan` at sigma 0 (the law runs no Gaussian; factor 1,

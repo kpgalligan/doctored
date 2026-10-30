@@ -495,7 +495,7 @@ refuse large documents; they are not a design target.
   channel list past what `.doctored` can store is refused there, with an alert
   naming how many channels that canvas holds, rather than at save time) and
   are saved in `.doctored`.
-  **Spot channels** ([#547](https://github.com/kpgalligan/doctored-dev/issues/547),
+  **Spot channels** ([#1](https://github.com/kpgalligan/doctored/issues/1),
   [the ADR](designs/spot-channels.md)): Image ▸ Channels ▸ New Spot
   Channel… adds a channel with an ink (a colour from the colour picker, kept
   as Lab) and a Solidity of 0–100 %, Spot Channel Options… edits them, and the
@@ -535,7 +535,7 @@ refuse large documents; they are not a design target.
   buttons that fill the channel stages from what the layer sits over; a
   gamma above 1 takes Color Balance's toe, and at 8 bits each stage rounds
   on an integer path, confirmed on a fresh Photoshop take at 8 and 16 bits,
-  [#578](https://github.com/kpgalligan/doctored-dev/issues/578)),
+  [#2](https://github.com/kpgalligan/doctored/issues/2)),
   Curves (an
   interactive editor drawing a natural cubic spline: click the
   curve to add up to 16 control points per channel, drag to move them, with a channel popup switching between the
@@ -554,7 +554,7 @@ refuse large documents; they are not a design target.
   8, 16 and 32 bits),
   Black & White (six hue weights and an optional tint, which at 8 bits takes
   an integer path, within 1 code of a Photoshop take,
-  [#578](https://github.com/kpgalligan/doctored-dev/issues/578)), Photo Filter (the
+  [#2](https://github.com/kpgalligan/doctored/issues/2)), Photo Filter (the
   standard warming and cooling filters, or any colour, at a chosen density;
   at 8 and 16 bits it multiplies in the profile's D50 connection space and
   Preserve Luminosity is a Luminosity blend, measured against Photoshop),
@@ -639,7 +639,7 @@ refuse large documents; they are not a design target.
   profile-independent grayscale evaluation. Exposure runs per channel at the
   profile's effective pure gamma (2.2 for sRGB-shaped and sampled curves, a
   pure power's own exponent) with no tone encoder, within about 2 codes of
-  Photoshop ([#578](https://github.com/kpgalligan/doctored-dev/issues/578)).
+  Photoshop ([#2](https://github.com/kpgalligan/doctored/issues/2)).
   Calibrated processing refuses unsupported profiles rather than
   substituting sRGB: a LUT-only profile refuses a new or re-edited
   `document_v2` Exposure/White Balance at every depth with the core's
@@ -712,7 +712,7 @@ refuse large documents; they are not a design target.
   half of the Center stroke's band (at 8, 16 and 32 bits and on CMYK,
   confirmed on a fresh Photoshop take at 8 and 16 bits), each checked against
   Photoshop takes
-  ([#578](https://github.com/kpgalligan/doctored-dev/issues/578)). At 8, 16 and
+  ([#2](https://github.com/kpgalligan/doctored/issues/2)). At 8, 16 and
   32 bits and on CMYK the Inner Glow follows the law measured against
   Photoshop below Choke 100 %, and at Choke 100 % on its Edge and, below Size
   24, its Center; Smooth Inner and Outer Bevel, Emboss, Pillow Emboss and
@@ -720,7 +720,7 @@ refuse large documents; they are not a design target.
   a Smooth Outer Bevel lit from 45° or higher cuts its outside shading at a
   measured reach (confirmed on a fresh Photoshop take at 8 and 16 bits); the
   other Chisel bevels keep their own kernel
-  ([#578](https://github.com/kpgalligan/doctored-dev/issues/578)). A colour
+  ([#2](https://github.com/kpgalligan/doctored/issues/2)). A colour
   picked in Display P3 or ROMM, or between byte codes at 16 bits, keeps its
   value in the style, in `.doctored` and in PSD. Styles and Blend If also work on
   adjustment layers — the effects take the layer's mask as their shape and
@@ -742,13 +742,13 @@ refuse large documents; they are not a design target.
   movies, and camera RAW (CR3, CR2, NEF, ARW, DNG, Apple ProRAW,
   ORF, RW2, RAF, SRW, PEF) — EXIF orientation is applied on open, so camera
   photos display upright. A GRAYSCALE PNG, TIFF or JPEG (8 or 16 bits, no
-  profile or a Gray ICC) opens as a Grayscale document (#547 phase 1a): its
+  profile or a Gray ICC) opens as a Grayscale document (#1 phase 1a): its
   codes are kept exactly, an embedded Gray ICC is kept, a PNG `sRGB` chunk is
   sGray and a file with no profile takes the working Gray; a one-channel float
   TIFF with a Gray ICC opens as a 32-bit Grayscale document. A palette PNG,
   a single-image GIF, a palette TIFF or an Indexed Color PSD or PSB opens as an Indexed Color document
   with its palette and every index kept, and a 1-bit black-and-white PNG,
-  TIFF or BMP as a Bitmap document (#547). A PDF page or an SVG is RASTERIZED on the way in at a page
+  TIFF or BMP as a Bitmap document (#1). A PDF page or an SVG is RASTERIZED on the way in at a page
   and resolution you choose. HEIC (48 MP 8-bit photos open: a 48 MP AVIF and
   the 36 MP system HEICs need less than 2 GiB, a 48 MP HEIC 2.03 GB; a single
   8-bit still's whole open, its first projection included, is admitted up
@@ -1002,7 +1002,7 @@ refuse large documents; they are not a design target.
   DOCUMENT instead: its own ink
   and embedded profile are kept, an untagged one is assigned the working CMYK
   profile, it is shown through its profile and it saves back as CMYK
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547),
+  ([#1](https://github.com/kpgalligan/doctored/issues/1),
   [the status](designs/cmyk-mode-status.md)): TIFF and PSD bit-exact at 8 and
   16 bits, Export as PSD writing layered or flattened PSD, PSB and TIFF
   with those same records (type and shape layers as pixels, named in the
@@ -1060,7 +1060,7 @@ refuse large documents; they are not a design target.
   selected pixels; Apply Image and Calculations read and write the
   composite, the plates and alpha channels.
   A GRAYSCALE document holds one gray channel at 8, 16 or 32 bits under its
-  Gray profile ([#547](https://github.com/kpgalligan/doctored-dev/issues/547),
+  Gray profile ([#1](https://github.com/kpgalligan/doctored/issues/1),
   [the ADR](designs/grayscale-mode.md)). Image ▸ Mode ▸ Grayscale
   converts an RGB or CMYK document by luminance (the rule a Photoshop take
   confirmed at 8 and 16 bits) and RGB Color converts back, one undo step each
@@ -1110,7 +1110,7 @@ refuse large documents; they are not a design target.
   document's TIFF is one float channel.
   A LAB COLOR document holds L\*a\*b\* (D50) at 8 or 16 bits; there is no
   32-bit Lab
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547),
+  ([#1](https://github.com/kpgalligan/doctored/issues/1),
   [the ADR](designs/lab-mode.md)). File > New's Color Mode **Lab
   Color** makes one; Image ▸ Mode ▸ Lab Color converts an RGB, Grayscale or
   CMYK document, and RGB Color, CMYK Color (through 16-bit ProPhoto RGB),
@@ -1142,12 +1142,12 @@ refuse large documents; they are not a design target.
   other eight blend modes are refused; the Magic Wand and Paint Bucket compare Lab
   codes by the rule a Photoshop take measured, as do Select Similar and Grow
   at 16 bits, which at 8 bits refuse by name pending their issue
-  ([#683](https://github.com/kpgalligan/doctored-dev/issues/683)); and every
+  ([#5](https://github.com/kpgalligan/doctored/issues/5)); and every
   other tool (the RAW and image-source tools among them) is refused for good
   by name.
   An INDEXED COLOR document holds a palette of 2 to 256 colours, an
   optional transparent index and one index a pixel, at 8 bits in one layer
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547),
+  ([#1](https://github.com/kpgalligan/doctored/issues/1),
   [the ADR](designs/indexed-mode.md)). A palette PNG, a
   single-image GIF, a palette TIFF or an Indexed Color PSD or PSB opens as
   one with every index kept, and
@@ -1202,7 +1202,7 @@ refuse large documents; they are not a design target.
   is unmeasured.
   A DUOTONE document is an 8- or 16-bit Grayscale document printed with 1 to
   4 inks, Monotone to Quadtone
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547),
+  ([#1](https://github.com/kpgalligan/doctored/issues/1),
   [the ADR](designs/duotone-mode.md)). Image ▸ Mode ▸ Duotone…
   converts a Grayscale document only, and later edits the
   inks: each a name, a D50 Lab colour and a 13-point curve, with Overprint
@@ -1227,7 +1227,7 @@ refuse large documents; they are not a design target.
   the Neural Filters, Develop Filter, Lens Correction, Tilt-Shift and 16
   and 32 Bits/Channel refuse, and Merge to HDR runs as on Grayscale.
   A BITMAP document holds one bit a pixel, black or white, in one layer
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547),
+  ([#1](https://github.com/kpgalligan/doctored/issues/1),
   [the ADR](designs/bitmap-mode.md)). Image ▸ Mode ▸ Bitmap… converts an
   8-bit Grayscale document (a layered one after flattening;
   16- and 32-bit Grayscale convert to 8 Bits/Channel first, colour documents
@@ -3160,11 +3160,11 @@ refuse large documents; they are not a design target.
   transparent document's single layer is named "Layer 1" and a filled one's
   "Background".
   A 32-bit float document's white is exactly 1.0 and its black or
-  transparency exactly 0. Color Mode **Grayscale** (#547 phase 1a) makes a
+  transparency exactly 0. Color Mode **Grayscale** (#1 phase 1a) makes a
   Grayscale document at 8, 16 or 32 bits in the working Gray, one of Color
   Settings' Gray spaces or sGray, or a Gray ICC file, filled with the
   background's luminance; an RGB document refuses a grayscale profile by name.
-  Color Mode **Lab Color** (#547) makes an 8- or 16-bit Lab Color document.
+  Color Mode **Lab Color** (#1) makes an 8- or 16-bit Lab Color document.
   A 16-bit document may be as large as an 8-bit
   one, 100 megapixels (10000 × 10000): a stored plane in the `.doctored` it will
   be reopened from may hold 1 GiB
@@ -3172,7 +3172,7 @@ refuse large documents; they are not a design target.
 
 The editor offers **16-bit RGB document mode** for genuine 16-bit PNG/TIFF
 sources — RGB and RGBA (a Gray or Gray+alpha file opens as a Grayscale
-document, #547 phase 1a) — and typed native documents.
+document, #1 phase 1a) — and typed native documents.
 Choose preserving import to retain source
 samples and profiles. Layer RGB, supported groups and tone/color adjustments,
 u16 masks/channels, geometry, all existing brush paint blends, erase, bucket fill,
@@ -3259,7 +3259,7 @@ records numerical, photographic, UI and automation qualification and limits.
 Image > Mode > Convert Precision prepares a before/after comparison. Its Flatten
 choice flattens the captured appearance to one raster. It and the Preserve Layers
 choice below both keep the document's saved alpha and spot channels at every depth step
-([#547](https://github.com/kpgalligan/doctored-dev/issues/547)). Conversion is one Undo step;
+([#1](https://github.com/kpgalligan/doctored/issues/1)). Conversion is one Undo step;
 promotion preserves the legacy composite and cannot recover missing source detail.
 Its Preserve Layers choice (12H-1/12H-2, MCP `convert_precision structure:"preserve"`),
 which the sheet opens on unless the document cannot be converted that way,
@@ -3390,7 +3390,7 @@ Solid Color fill layer opens with its style, while a 32-bit gradient or
 pattern fill layer is refused by name. An Indexed
 Color PSD or PSB opens from its stored composite as an Indexed document with
 its palette, transparent index and every index exactly as stored
-([#547](https://github.com/kpgalligan/doctored-dev/issues/547)). An 8-, 16- or
+([#1](https://github.com/kpgalligan/doctored/issues/1)). An 8-, 16- or
 32-bit grayscale file opens as a Grayscale document of its depth with its Gray
 ICC; a CMYK file
 opens as a CMYK document, its saved composite or, with Import Layers, its layers (see the CMYK paragraph above).
@@ -3533,7 +3533,7 @@ stroke's corners recorded with their gaps in
 stroke's corners have since been brought within about 1–2 codes of
 Photoshop's, and the Inner Glow, the soft Drop Shadow, Inner Shadow and Outer
 Glow, the Smooth bevels, Emboss and Pillow Emboss follow Photoshop's measured
-laws, [#578](https://github.com/kpgalligan/doctored-dev/issues/578),
+laws, [#2](https://github.com/kpgalligan/doctored/issues/2),
 as do Linear, Angle, Reflected and Radial gradients and the Shape Burst stroke) — because the
 setting Doctored does not model (the glows' technique) is not
 written. Only what Photoshop's dialog or
@@ -3573,7 +3573,7 @@ Photoshop is claimed, at 8 and 16 bits, for Normal, Darken, Multiply, Color
 Burn, Linear Burn, Lighten, Screen, Color Dodge, Linear Dodge, Overlay, Soft
 Light, Hard Light, Pin Light, Exclusion, Subtract, Hue, Saturation, Color,
 Luminosity and Pass Through, and for Difference, Lighter Color and Hard Mix at
-100 % Fill only (#578, three Photoshop takes); Dissolve, Darker Color, Vivid
+100 % Fill only (#2, three Photoshop takes); Dissolve, Darker Color, Vivid
 Light, Linear Light and Divide, and a clip base below 100 % Fill, are written
 but reported as unqualified, and a CMYK file's claim stays Normal, Multiply,
 Screen and Pass Through. Group clipping is written and reopens here clipped,
@@ -3734,7 +3734,7 @@ floating-point `D2Bx`/`B2Dx` (the tag is named), and a colour table past
 profiles is not built. Lab profiles are still refused as DOCUMENT
 profiles (a Lab Color document holds the built-in ICC Lab encoding instead), a CMYK profile is one only of a CMYK document and a Gray profile
 one only of a Grayscale document
-([#547](https://github.com/kpgalligan/doctored-dev/issues/547)) — an RGB
+([#1](https://github.com/kpgalligan/doctored/issues/1)) — an RGB
 document's pixels are RGB — but a Gray or CMYK profile is a
 perfectly good PROOF profile, which is what soft proofing reads them for. So
 are device-link and abstract profiles, which describe a transform, and
@@ -4063,7 +4063,7 @@ The UI takes its structure from the Balopy design handoff in
 `designs/design_handoff_rasterize_desktop` — an IBM Plex Mono voice for
 machine numbers, the welcome window and overlap motif — and its geometry
 from `designs/design_handoff_rasterize_sharp` (both handoffs live in the
-development repository, not the public one): the chrome is square, with
+private archive `kpgalligan/doctored-dev`, not in this repository): the chrome is square, with
 every button, field, row, thumbnail, panel and the zoom HUD drawn at a 0pt
 radius, flat fills with no offset shadow, a 3pt slider track with a block
 knob, and the options bar's More overflow in a square panel. The chrome
@@ -4127,7 +4127,8 @@ Probe directories build through `scripts/probe_build.py`, cached in
 writes its menu tree and tool-name sets to that path and exits. Contributor
 rules are in `CLAUDE.md`, `core/CLAUDE.md` and `app/CLAUDE.md`. The
 Photoshop-written fixtures under `core/tests/fixtures/` come from a measurement
-harness that is not part of the public repository; where a fixture folder
+harness that lives in the private archive `kpgalligan/doctored-dev`, not in this
+repository; where a fixture folder
 carries a README or `photoshop.json`, that file records the run that wrote it.
 
 `Doctored.xcodeproj` is generated — run `make project` after editing
@@ -4180,4 +4181,4 @@ Doctored is licensed under the Apache License, Version 2.0; the full text is in
 [`LICENSE`](LICENSE). Bundled third-party material keeps its own licence: the
 fonts are OFL, the Lensfun lens database is CC BY-SA 3.0, and a downloadable
 model shows its licence in Settings ▸ Models before it is downloaded.
-<!-- readme-swept-to: 3c060d3c166de7e5b5761080a27b34a446f40e94 -->
+<!-- readme-swept-to: 6b0fef4f43c76727a76a11908c564c01bfc2edcc -->

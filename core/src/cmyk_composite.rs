@@ -1,4 +1,4 @@
-//! KERNEL: the CMYK document's compositing (#547 phases 1 and 2) — Normal
+//! KERNEL: the CMYK document's compositing (#1 phases 1 and 2) — Normal
 //! source-over of straight CMYKA at an effective alpha (a layer's opacity ×
 //! its mask, or a brush's ink alpha × opacity × coverage), the same over with
 //! the backdrop's alpha frozen, an adjustment record's mix, and the flatten

@@ -4,7 +4,7 @@
 //! layer by the 16-bit document and rendered by `precision_style_render`
 //! under the shape-quantized byte-plane policy of
 //! `designs/phase-10d-layer-styles-status.md`. A style is admitted on raster
-//! layers (a CMYK one included, with its colours in ink: #547, `cmyk_style`),
+//! layers (a CMYK one included, with its colours in ink: #1, `cmyk_style`),
 //! adjustment layers (effects shaped by the mask over the canvas, the
 //! adjustment applied after the Below effects, `precision_style_adjustment`;
 //! a CMYK one included, on ink through `cmyk_style_row`) and groups, a Pass
@@ -217,7 +217,7 @@ impl LayerStyleEdit {
                 return Err(reason);
             }
         }
-        // A CMYK document (#547, `cmyk_style`): a Blend If on Red, Green or
+        // A CMYK document (#1, `cmyk_style`): a Blend If on Red, Green or
         // Blue refuses by name (`cmyk_document::style_refusal`), here as at
         // the mode's gate, an
         // ink-less black shadow slot takes
@@ -250,7 +250,7 @@ impl LayerStyleEdit {
             }
             None => wanted.map(|style| style.without_inks()),
         };
-        // A Grayscale document (#547 phase 2d, `gray_style`): an effect mode
+        // A Grayscale document (#1 phase 2d, `gray_style`): an effect mode
         // outside the Grayscale list refuses by name, and every colour is
         // stored as its gray, so the stored style is what renders R = G = B.
         // Its Blend If channels were asked at the mode's gate.
@@ -267,7 +267,7 @@ impl LayerStyleEdit {
                 .transpose()?,
             None => wanted,
         };
-        // A Lab Color document (#547 phase 2e, `lab_style`): an effect mode
+        // A Lab Color document (#1 phase 2e, `lab_style`): an effect mode
         // outside the Lab list and a Pattern Overlay or Pattern stroke refuse
         // by name; every other style is stored as written (its colours
         // convert at composite). Its Blend If was asked at the mode's gate.

@@ -58,7 +58,7 @@
 //!    → `rebuilt`, so this document's channels, comps, guides, evaluation,
 //!    global light and tone map are kept.
 //!
-//! # CMYK (#547 phase 4c)
+//! # CMYK (#1 phase 4c)
 //!
 //! Modes never mix in a layers paste: a CMYK document refuses a clip that is
 //! not CMYK ([`CMYK_DESTINATION_REFUSAL`]) and an RGB document a CMYK clip
@@ -433,23 +433,23 @@ impl PrecisionDocument {
         limit: u64,
         other: u64,
     ) -> Result<(PrecisionDocument, LayerPasteReport), String> {
-        // #547 Indexed phase 2d: an Indexed document holds one layer.
+        // #1 Indexed phase 2d: an Indexed document holds one layer.
         if self.is_indexed() {
             return Err(crate::indexed_document::refused_sentence("paste_layers"));
         }
         let slot = self.insert_slot(anchor, position)?;
-        // #547 phase 4c: modes never mix here; the host converts first.
+        // #1 phase 4c: modes never mix here; the host converts first.
         if self.is_cmyk() && !layers.is_cmyk() {
             return Err(CMYK_DESTINATION_REFUSAL.into());
         }
         if !self.is_cmyk() && layers.is_cmyk() {
             return Err(RGB_DESTINATION_REFUSAL.into());
         }
-        // #547 Lab phase 4c: nor do Lab Color and the other modes.
+        // #1 Lab phase 4c: nor do Lab Color and the other modes.
         if self.is_lab() != layers.is_lab() {
             return Err(LAB_MIX_REFUSAL.into());
         }
-        // #547 phase 4: nor do Grayscale and the other modes.
+        // #1 phase 4: nor do Grayscale and the other modes.
         if self.is_gray() != layers.is_gray() {
             return Err(GRAY_MIX_REFUSAL.into());
         }
@@ -614,7 +614,7 @@ impl PrecisionDocument {
                 )
             })?;
         // A layer style's inks take the same leg, their hex this profile's
-        // (#547, `cmyk_profile::convert_style_inks`).
+        // (#1, `cmyk_profile::convert_style_inks`).
         crate::cmyk_profile::convert_style_inks(&mut converted, &mut leg, own)?;
         Ok(converted)
     }

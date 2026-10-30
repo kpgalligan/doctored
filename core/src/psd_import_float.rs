@@ -111,7 +111,7 @@ pub(crate) fn decode32(raw: &LayerPixels<'_>) -> Result<Vec<[f32; 4]>, String> {
 /// planes and verified merged alpha through the shared plane walk, the white
 /// matte removed as `(m − (1 − a)) / a`, a zero alpha's colour the canonical
 /// 0, no merged alpha opaque. Not sanitised here: the open does that once. A
-/// 32-bit Grayscale file (colour mode 1, #547 phase 3c) has one colour plane,
+/// 32-bit Grayscale file (colour mode 1, #1 phase 3c) has one colour plane,
 /// which fills R = G = B, and its merged alpha at plane 1.
 pub(crate) fn composite32(container: &Container<'_>) -> Result<Vec<[f32; 4]>, String> {
     if container.kind == crate::psd_framing::LayeredContainer::Tiff {

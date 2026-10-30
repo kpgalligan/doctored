@@ -72,7 +72,7 @@ use std::ffi::c_char;
 use std::ptr;
 
 /// Captured authoritative native canvas plate. Source/display owners are separate.
-/// On a CMYK document (#547) the plate's Display P3 RGBA16 view.
+/// On a CMYK document (#1) the plate's Display P3 RGBA16 view.
 /// # Safety
 /// Handles NULL/live; err_out NULL/writable; owner keeps all handles alive.
 #[no_mangle]
@@ -99,7 +99,7 @@ pub unsafe extern "C" fn dr_precision_doc_retouch_source(
                 let _run = control.map(DrJobControl::begin).transpose()?;
                 let job = control.map_or(JobContext::NONE, JobContext::new);
                 // A CMYK document's plate as the view, a display adapter
-                // (#547, `cmyk_retouch`).
+                // (#1, `cmyk_retouch`).
                 if doc.is_cmyk() {
                     return doc.cmyk_retouch_view(
                         index,
@@ -123,11 +123,11 @@ pub unsafe extern "C" fn dr_precision_doc_retouch_source(
 /// target layer in place (output `layer`, no `expand_destination`) and
 /// `plates` must have `document`'s canvas size, its bit depth and a
 /// raster layer at the sampled index (a CMYK document takes CMYK plates
-/// with a CMYK raster there, #547; a Grayscale document asks its edit gate,
+/// with a CMYK raster there, #1; a Grayscale document asks its edit gate,
 /// `gray_document::admit_edit`, and takes Grayscale plates only,
 /// `gray_filter::CLONE_SOURCE_REFUSAL`; a Lab Color document asks
 /// `lab_document::admit_edit` and takes Lab Color plates only,
-/// `lab_retouch::CLONE_SOURCE_REFUSAL`, #547 phase 2e). `length` must equal the request's planned `input_samples`
+/// `lab_retouch::CLONE_SOURCE_REFUSAL`, #1 phase 2e). `length` must equal the request's planned `input_samples`
 /// on `document`, recomputed here before the samples are borrowed. NULL with
 /// no error: nothing would change. NULL with an error: a refusal.
 /// # Safety
@@ -157,7 +157,7 @@ pub unsafe extern "C" fn dr_precision_doc_retouch_from(
                 let text = borrow_cstr_bounded(text, "request", 64 * 1024)?;
                 if doc.is_bitmap() {
                     crate::bitmap_document::admit_edit(text)?;
-                    // #547 Bitmap phase 3: Clone Stamp is admitted, but a
+                    // #1 Bitmap phase 3: Clone Stamp is admitted, but a
                     // retouch from another state is Content-Aware Move's,
                     // which a Bitmap document is not offered.
                     return Err(crate::bitmap_document::refused_sentence(
@@ -178,7 +178,7 @@ pub unsafe extern "C" fn dr_precision_doc_retouch_from(
                 }
                 if doc.is_indexed() {
                     crate::indexed_document::admit_edit(text)?;
-                    // #547 Indexed phase 3c: Clone Stamp is admitted, but a
+                    // #1 Indexed phase 3c: Clone Stamp is admitted, but a
                     // retouch from another state is Content-Aware Move's,
                     // which does not run on indexed colour.
                     return Err(crate::indexed_document::refused_sentence(

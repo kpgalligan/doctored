@@ -1,10 +1,10 @@
 //! Inner glow (work item E3): an edge glow at full choke is the complement
 //! of the shrink-rect closed form (a hard band inside the contour) whose
 //! full pixels glow full at every Range and whose partial pixels keep today's
-//! Divide (#578's Choke 100 % member), a centre glow at full choke below Size
+//! Divide (#2's Choke 100 % member), a centre glow at full choke below Size
 //! 24 is one minus that (the member's mirror) and from Size 24 keeps today's
 //! Range rule, soft and partly-choked glows are the measured law's box pair
-//! (#578) over the hand-built grown inverse with its Range, a
+//! (#2) over the hand-built grown inverse with its Range, a
 //! centre glow of size 0 is the whole shape, colours
 //! follow the W3C reference blend with the effect's OWN blend mode (also on
 //! a Multiply layer), and the common cases: disabled / opacity 0 / edge
@@ -93,7 +93,7 @@ fn grown_inverse(rect: (i32, i32, u32, u32), r: f32, x: i64, y: i64) -> u8 {
     ((r + 1.0 - d_out(rect, x, y) as f32).clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
-/// The measured law's `(n, w)` (#578, the runner's `law_split` in
+/// The measured law's `(n, w)` (#2, the runner's `law_split` in
 /// `scripts/photoshop-probe/inner_glow_578_law_fit.py`): `S = round(size)`,
 /// `n = floor(S · choke + 0.5)`, `w = S − n`, and a width of 1 acts as 2.
 fn law_split(size: f32, choke: f32) -> (i64, i64) {
@@ -104,7 +104,7 @@ fn law_split(size: f32, choke: f32) -> (i64, i64) {
 }
 
 /// The law's analytic oracle for the glow's coverage plane over the canvas
-/// (#578), for a row with Size·(1 − Choke) > 0: (1) the rect's inverse grown
+/// (#2), for a row with Size·(1 − Choke) > 0: (1) the rect's inverse grown
 /// by `n` in closed form, for both sources; (2) the separable triangle
 /// `(w − |j|) / w²`, edge-clamped (none at `w = 0`); (3) `min(1, B / r)` for
 /// an edge glow, one minus that for a centre glow; (4) `floor(255 g + 0.5)`,
@@ -323,7 +323,7 @@ fn soft_and_partly_choked_glows_match_the_box_law_oracle() {
 #[test]
 fn full_choke_edge_band_glows_full_at_every_range() {
     // At Choke 100 % Size·(1 − Choke) is 0. An edge glow runs the Choke 100 %
-    // member (#578, identify take2): a pixel fully inside the band glows full
+    // member (#2, identify take2): a pixel fully inside the band glows full
     // at every Range (today's Divide halved it to 128 at Range 100 %). This
     // rect's band has no partial pixel. A centre glow below Size 24 runs the
     // member's mirror, one minus the edge: the plateau inside the band is
@@ -383,7 +383,7 @@ fn full_choke_edge_band_glows_full_at_every_range() {
 
 #[test]
 fn full_choke_centre_keeps_todays_kernel_from_size_24() {
-    // From Size 24 a centre glow at Choke 100 % keeps today's kernel (#578's
+    // From Size 24 a centre glow at Choke 100 % keeps today's kernel (#2's
     // CHOKE 100 CENTRE SPLIT): the shape eroded by 24 px, no blur, through
     // today's Divide, which halves the plateau at Range 100 % (255 / 2 ->
     // 128). The rect's sides are at least 51 px so an 8x4 plateau survives
@@ -418,7 +418,7 @@ fn full_choke_centre_keeps_todays_kernel_from_size_24() {
 fn full_choke_partial_pixels_keep_todays_divide() {
     // A binary disc's band (Size 3) has partial pixels where the Euclidean
     // distance to the nearest outside pixel centre is not an integer. The
-    // oracle restates the member (#578): the band byte `round(255 clamp(S + 1
+    // oracle restates the member (#2): the band byte `round(255 clamp(S + 1
     // − d))`, then `e` = 1 where it is full and today's Divide `min(1, b /
     // 2r)` elsewhere, unrounded; the edge glow is `e` and the centre glow `1 −
     // e`, each `floor(255 g + 0.5)` once.

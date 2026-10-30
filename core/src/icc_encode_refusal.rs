@@ -37,7 +37,7 @@
 //! `document_v2` White Balance answers `own_profile_sentence` at both depths
 //! (`PROFILE_SENTENCE` when there is no matrix/TRC model), and so does an Exposure only where
 //! `MatrixTrc::exposure_domain` is `None` — Exposure runs on one exponent per channel and no
-//! encoder, so a falling branch boundary (ROMM, ITU-709) admits it (#578) — and `adjust_image`
+//! encoder, so a falling branch boundary (ROMM, ITU-709) admits it (#2) — and `adjust_image`
 //! refuses through it,
 //! while an EXISTING 8-bit layer keeps rendering through the byte `ToneEncoder`, pinned by the
 //! stored `tests/fixtures/rz_byte_bad_gamma/calibrated_exposure.rz` (regenerate only with an

@@ -1,4 +1,4 @@
-//! A Duotone document into Grayscale and Bitmap (#547's Duotone close,
+//! A Duotone document into Grayscale and Bitmap (#1's Duotone close,
 //! `designs/duotone-mode.md`).
 //!
 //! * **The rule.** Image ▸ Mode ▸ Grayscale on a Duotone document renders the

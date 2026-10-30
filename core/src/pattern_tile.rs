@@ -80,7 +80,7 @@
 //! rotate, a supersampled turn, a whole-pixel shear) passed nothing either,
 //! and its confirm take on a 112 x 80 canvas (35, 80, 145 and −50 degrees on
 //! a 16 x 10 tile, 110 on a 7 x 11 tile, at 100 % and 60 %) reads 19.7 to
-//! 58.2 codes mean. The residual is an open item of #669
+//! 58.2 codes mean. The residual is an open item of #3
 //! (`designs/phase-10c-constructs-status.md`).
 //!
 //! # Depths and CMYK

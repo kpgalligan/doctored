@@ -1,4 +1,4 @@
-//! #547 Lab Color phase 1b, the layer structure: the 19 blend modes of
+//! #1 Lab Color phase 1b, the layer structure: the 19 blend modes of
 //! `LAB_BLEND_MODES` (measured (26.10.0) by phase 2's take, which dropped
 //! 1b's Subtract and Divide; the six phase 3 confirmed) composite
 //! through the one compositor's Lab arms on the L\*a\*b\* codes, each

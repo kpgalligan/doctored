@@ -1,6 +1,6 @@
 # Spot channels (ADR)
 
-- **Status:** Accepted, closed 2026-10-26. Spot channels close here; [#547](https://github.com/kpgalligan/doctored-dev/issues/547)
+- **Status:** Accepted, closed 2026-10-26. Spot channels close here; [#1](https://github.com/kpgalligan/doctored/issues/1)
   (the colour-mode umbrella) stays open for CMYK's remaining items and PDF/X (`designs/cmyk-mode-status.md`).
   Multichannel, which would make spot channels, is closed by decision (`designs/multichannel-mode.md`).
 - **Original:** [archive/spot-channels-status.md](../archive/spot-channels-status.md) (the working record at close).
@@ -123,11 +123,11 @@ Photoshop 26.10.0 throughout.
 ## Open items
 
 - The overprint rule is Doctored's own, not measured against Photoshop
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - 32-bit documents admit spot channels without verification of the display path; the export's overprint is
-  tested (`spot_typed`'s f32 arm) ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  tested (`spot_typed`'s f32 arm) ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - Merge Spot Channel and the alpha ↔ spot kind change are declared, not measured against Photoshop
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - A 16-bit Duotone PSD/PSB export's 8-bit copy is admitted at the depth step's own plan (1.68 GB planned against
   65 MB measured at 24 MP), over-admission kept by the controller's ruling
-  ([#547](https://github.com/kpgalligan/doctored-dev/issues/547)).
+  ([#1](https://github.com/kpgalligan/doctored/issues/1)).

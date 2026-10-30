@@ -1,4 +1,4 @@
-//! Paste and Paste Special on an Indexed Color document (#547 Indexed phase
+//! Paste and Paste Special on an Indexed Color document (#1 Indexed phase
 //! 2d, `designs/indexed-mode.md`). An adapter, not a kernel: it names
 //! the document types.
 //!

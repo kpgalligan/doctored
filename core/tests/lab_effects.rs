@@ -1,4 +1,4 @@
-//! #547 Lab phase 2e, layer effects on a Lab Color document, through the
+//! #1 Lab phase 2e, layer effects on a Lab Color document, through the
 //! FFI. A Color Overlay of sRGB #ff0000 on an opaque layer composites to the
 //! Lab codes of sRGB red: each rendered code ÷ 257 within 1 of the 8-bit
 //! codes of the hand-computed CIE L\*a\*b\* (`lab_fixture::srgb_to_lab`:

@@ -123,7 +123,7 @@ extension Clipboard {
     static func writeItem(_ cgImage: CGImage, typed: Data?, layerToken: String? = nil,
                           source: ClipboardSource?, tiff grayTIFF: Data? = nil) throws {
         let rep = NSBitmapImageRep(cgImage: cgImage)
-        // #547 phase 4: a Grayscale copy's TIFF is its one-channel gray image
+        // #1 phase 4: a Grayscale copy's TIFF is its one-channel gray image
         // (`RasterClipboardPayload.grayTIFF`); the PNG stays the RGB rendering.
         let tiff = grayTIFF ?? rep.representation(using: .tiff, properties: [:])
         let png = rep.representation(using: .png, properties: [:])

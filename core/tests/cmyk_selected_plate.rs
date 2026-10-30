@@ -1,4 +1,4 @@
-//! One ink plate's SELECTED PIXELS on a CMYK document (#547, the channels
+//! One ink plate's SELECTED PIXELS on a CMYK document (#1, the channels
 //! batch: `cmyk_selected_plate`), through `dr_precision_doc_edit` with
 //! `"target":"cyan"|"magenta"|"yellow"|"black"`: a move and a 90° transform
 //! of each plate at 8 and 16 bits against this file's own shift and

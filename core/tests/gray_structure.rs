@@ -1,4 +1,4 @@
-//! #547 phase 1b, a Grayscale document's layer structure: the 21 blend
+//! #1 phase 1b, a Grayscale document's layer structure: the 21 blend
 //! modes of `GRAY_BLEND_MODES` (measured by phase 2's take) composite
 //! through the one kernel on R = G = B and land
 //! within 2 u16 codes of the independent W3C oracle

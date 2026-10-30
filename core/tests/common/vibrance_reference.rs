@@ -1,4 +1,4 @@
-//! The Vibrance stage's oracle (#578), shared by every test that renders the
+//! The Vibrance stage's oracle (#2), shared by every test that renders the
 //! slider: member V3t-P of `scripts/photoshop-probe/adjust_arith_578_take.py`,
 //! restated in binary64 from that runner's docstring and read from the
 //! runner's own record of the fit, copied byte for byte to

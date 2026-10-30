@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 artwork-batch MCP drive: type, shape and Solid Color / Gradient
+"""The #1 artwork-batch MCP drive: type, shape and Solid Color / Gradient
 fill layers on a CMYK document — made, edited, rasterized, saved and reopened
 at 8 and 16 bits, carried through Image ▸ Mode both ways, Convert to Profile,
 copy and paste and PSD export — and the RGB document's ink refusals.

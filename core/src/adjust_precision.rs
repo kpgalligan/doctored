@@ -175,7 +175,7 @@ fn precision_kernel(
         // Photoshop's 16-bit bins read the 15-bit grid (`adjust_math::posterize`).
         Adjustment::Posterize { levels, .. } => Adjustment::Posterize { levels, top: 65535 },
         // Photoshop rounds Levels' stages to codes and runs Black & White's
-        // Tint on integers only at 8 bits (#578 phase 4).
+        // Tint on integers only at 8 bits (#2 phase 4).
         Adjustment::Levels(mut op) => {
             op.use_precision();
             Adjustment::Levels(op)
@@ -263,7 +263,7 @@ impl PrecisionAdjustment {
     /// `Calibrated` operators (`prepare_precision`), which is why Assign asks
     /// it (`precision_color`, which then asks `calibrated_refusal` for the
     /// layer's [`Self::operation`]: Exposure needs only its exponents and is
-    /// admitted where White Balance is refused, #578). Photo Filter and Vibrance also bind the profile
+    /// admitted where White Balance is refused, #2). Photo Filter and Vibrance also bind the profile
     /// but never refuse one ([`Self::binds_profile`]); every other kernel parses to the
     /// same tables under any profile. `#[doc(hidden)] pub` as a black-box test
     /// seam (`adjust_photo_filter_tests`).

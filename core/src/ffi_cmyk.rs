@@ -1,4 +1,4 @@
-//! The CMYK document across the FFI (#547 phase 1): the file and mode
+//! The CMYK document across the FFI (#1 phase 1): the file and mode
 //! queries, the profile, the capability table, Image ▸ Mode's two
 //! conversions and their plans, the ink readout, the Channels panel's ink
 //! planes, the Layers panel's thumbnail and identity, and the CMYK saves.
@@ -513,7 +513,7 @@ pub unsafe extern "C" fn dr_precision_doc_add_cmyk_cutout(
     }
 }
 
-/// One colour across the CMYK boundary (#547 phase 2: the Color Picker, the
+/// One colour across the CMYK boundary (#1 phase 2: the Color Picker, the
 /// eyedropper and MCP ink): `{"from":"srgb","values":[r,g,b]}` answers
 /// `{"ink":[c,m,y,k],"profile"}` and `{"from":"ink","values":[c,m,y,k]}`
 /// answers `{"srgb":[r,g,b],"profile"}`, every value 0…1; optional `intent`

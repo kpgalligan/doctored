@@ -1,4 +1,4 @@
-//! A CMYK document's PSD, PSB and layered-TIFF export (#547 phase 3): the
+//! A CMYK document's PSD, PSB and layered-TIFF export (#1 phase 3): the
 //! inventory it hands the shared preflight, the record walk that writes its
 //! tree as colour-mode-4 layer records, the composite planes and the plan.
 //!
@@ -248,7 +248,7 @@ fn entries(
             adjustment,
             style: export_style(layer, clip_base, policy, light),
             // A type, shape or solid or gradient fill layer exports its
-            // pixels, named on the loss line as in RGB (#547's artwork
+            // pixels, named on the loss line as in RGB (#1's artwork
             // batch); a pattern fill is its `PtFl` record.
             described: layer.description.is_some() && fill_rect.is_none(),
             retained_source: false,
@@ -370,7 +370,7 @@ fn blocks(layer: &PrecisionDocumentLayer, walk: &Walk<'_>) -> Result<(Blocks, Ve
         }
     } else if pixel {
         // An unstyled pixel record in a legacy-Fill mode writes `iOpa` at
-        // 255 too (#578), where a styled record without effects does.
+        // 255 too (#2), where a styled record without effects does.
         if let Some(body) = encode_fill_for(layer.blend_mode(), 1.0) {
             out.push((*b"iOpa", body.to_vec()));
         }

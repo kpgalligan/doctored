@@ -1,5 +1,5 @@
 //! MOVE AND FREE TRANSFORM OF ONE INK PLATE'S SELECTED PIXELS on a CMYK
-//! document (#547): the Move tool, its nudge, ⌘T and `move_selected_pixels` /
+//! document (#1): the Move tool, its nudge, ⌘T and `move_selected_pixels` /
 //! `transform_selected_pixels` with `"target":"cyan"|"magenta"|"yellow"|"black"`
 //! on a CMYK raster. An adapter like `selected_color_plane`: it reads the
 //! layer's straight CMYKA16 over the layer rect R, runs THE walk for one

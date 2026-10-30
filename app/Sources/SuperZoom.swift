@@ -8,7 +8,7 @@ import AppKit
 // one admitted, cancellable `BackgroundWork` job, as Depth Blur's capture; the new document opens
 // as Merge to HDR Pro's does and is noted as a duplicate, so a recording's later steps in it
 // become the placeholder (`ActionRecorder.noteDuplicatedDocument`). On a Lab Color document
-// (#547 Lab phase 6b-iii) the models read the layer's Display P3 view
+// (#1 Lab phase 6b-iii) the models read the layer's Display P3 view
 // (`NeuralFilterRun.modelInput`) and the core returns the zoom to a Lab document by the Mode rule.
 
 /// The dialog's controls, in the core's units.
@@ -132,7 +132,7 @@ enum SuperZoomRun {
                             settings: settings, superResolution: models.superResolution.entry,
                             jpeg: models.jpeg?.entry)
         // A Lab document's model reads the Display P3 view and its result returns to Lab codes
-        // (#547 Lab phase 6b-iii): the plan carries both images.
+        // (#1 Lab phase 6b-iii): the plan carries both images.
         let labTerm = NeuralFilterRun.labTerm(source, input: (source.width, source.height),
                                               output: (base.width, base.height))
         let plan = SuperZoomPlan(stages: base.stages,

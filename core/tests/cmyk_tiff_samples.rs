@@ -1,4 +1,4 @@
-//! THE CMYK TIFF sample reader (#547 phase 3, `cmyk_tiff_read`): chunky and
+//! THE CMYK TIFF sample reader (#1 phase 3, `cmyk_tiff_read`): chunky and
 //! planar files at 8 and 16 bits, with no transparency, associated or
 //! unassociated alpha, and extra samples past it, each built by
 //! `common/cmyk_tiff_builder.rs` (from the TIFF 6.0 specification, not from

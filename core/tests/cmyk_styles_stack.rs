@@ -1,4 +1,4 @@
-//! A styled CMYK document through the stack operations (#547, the styles
+//! A styled CMYK document through the stack operations (#1, the styles
 //! batch): flatten, Merge Visible, Stamp Visible, Merge Down (a deep
 //! knockout layer's included: the merge is seeded from the source stack),
 //! Merge Layers and Copy Merged within 1/65535 of the projection; a layers

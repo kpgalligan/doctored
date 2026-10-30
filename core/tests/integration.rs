@@ -802,7 +802,7 @@ fn null_safety_everywhere() {
         )
     }
     .is_null());
-    // #547 phase 4b: Image ▸ Trim on a CMYK document (NULL document, NULL out).
+    // #1 phase 4b: Image ▸ Trim on a CMYK document (NULL document, NULL out).
     let mut trim = [7u32; 4];
     assert!(!unsafe {
         doctored_core::ffi_trim::dr_precision_doc_cmyk_trim_rect(
@@ -816,7 +816,7 @@ fn null_safety_everywhere() {
         )
     });
     assert_eq!(trim, [7; 4], "a refusal leaves rect_out untouched");
-    // #547: Select and Mask's CMYK New Layer.
+    // #1: Select and Mask's CMYK New Layer.
     assert!(unsafe {
         doctored_core::ffi_cmyk::dr_precision_doc_cmyk_cutout_plan(
             ptr::null(),

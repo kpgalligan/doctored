@@ -1,4 +1,4 @@
-//! Warps on a CMYK document (#547 phase 4b): Layer ▸ Warp (pixels with a
+//! Warps on a CMYK document (#1 phase 4b): Layer ▸ Warp (pixels with a
 //! linked mask, and a mask target), Puppet Warp, Perspective Warp, Liquify
 //! (with and without a feathered selection) and Perspective Crop, each plane
 //! for plane against its two RGB16 twins (`common/cmyk_geometry_fixture.rs`);

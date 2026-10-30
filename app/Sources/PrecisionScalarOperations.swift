@@ -60,7 +60,7 @@ enum PrecisionScalarOperations {
             guard PaintTarget.paintablePlanes.contains(plane) else { break }
             return (plane.agentName, layer)
         case .layer: break
-        // #547: one ink plate of a CMYK layer, as its stored `1 − ink` (`cmyk_plate_scalar`).
+        // #1: one ink plate of a CMYK layer, as its stored `1 − ink` (`cmyk_plate_scalar`).
         case .ink(let plate): return (plate.key, layer)
         }
         throw DoctoredCoreError(message: "Choose a mask, saved channel or writable RGBA plane.")
@@ -142,14 +142,14 @@ enum PrecisionScalarOperations {
         case .layerMask(let index): return try read(doc, target: "mask", index: index, canvas: true)
         case .layerAlpha(let index): return try sourcePlane(doc, plane: .alpha, scope: .layer(index))
         case .compositePlane(let plane):
-            // #547 Lab phase 4b-i: a Lab document's luminosity is its Lightness, the composite's
+            // #1 Lab phase 4b-i: a Lab document's luminosity is its Lightness, the composite's
             // stored red codes (`lab_document::LUMINANCE_REFUSAL`), never a working-Gray re-encode.
             if doc.isLab, plane == .luma {
                 return try sourcePlane(doc, plane: .red, scope: .composite)
             }
             // Load Selection's luminosity takes Color Settings' Gray working space at 16 bits on
             // RGB (`core/src/gray_working.rs`); CMYK keeps its LP leg and float the Y row. A Gray
-            // document's luma of R = G = B is its own code (#547 phase 4): no working-Gray re-encode.
+            // document's luma of R = G = B is its own code (#1 phase 4): no working-Gray re-encode.
             let gray = plane == .luma && !doc.isCmyk && !doc.isFloat && !doc.isGray
                 ? ColorSettings.workingGray : nil
             return try sourcePlane(doc, plane: plane, scope: .composite, gray: gray)
@@ -157,7 +157,7 @@ enum PrecisionScalarOperations {
         }
     }
 
-    /// One CMYK ink plate of the composite as its stored `1 − ink` (#547: Load Selection from a
+    /// One CMYK ink plate of the composite as its stored `1 − ink` (#1: Load Selection from a
     /// plate, `cmyk_select`'s `color` kind with that plate).
     static func inkPlane(_ doc: RasterDocument, plate: CmykPlane) throws -> PrecisionScalarBuffer {
         let work = try NativeSelectionWork(source: doc.precision, width: doc.width, height: doc.height,

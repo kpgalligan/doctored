@@ -1,6 +1,6 @@
 import Foundation
 
-/// Where Edit ▸ Color Settings' keys live (#547). Without `DR_COLOR_SETTINGS_DIR` they are ordinary
+/// Where Edit ▸ Color Settings' keys live (#1). Without `DR_COLOR_SETTINGS_DIR` they are ordinary
 /// `UserDefaults.standard` keys, as before. With it — every owned test instance sets it to a
 /// private folder through `scripts/verification_isolation.py`'s `PRESET_DIRECTORIES` — a read
 /// takes the launch arguments first (`-ColorWorkingSpace srgb` and a drive's own pins still win),

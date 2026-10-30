@@ -1,4 +1,4 @@
-//! The Grayscale clipboard (#547 phase 4): the Gray payload, its RZCB v5
+//! The Grayscale clipboard (#1 phase 4): the Gray payload, its RZCB v5
 //! codec, the paste across modes and the one-channel TIFF the pasteboard
 //! carries beside it.
 //!

@@ -216,7 +216,7 @@ fn immutable_capture_preview_and_fractional_alpha_have_distinct_roles() {
         // The two layers have the same straight RGB, so only alpha changes.
         // Compute in f64 from exact integer input, with no production kernel.
         let a = f64::from(input[3]) / 65535.0;
-        // Each opacity at its byte (#578).
+        // Each opacity at its byte (#2).
         let q = crate::common::byte_unit;
         let alpha = (a + a * q(0.625) * (1.0 - a)) * q(0.75) * q(0.5);
         let target = (alpha * 65535.0).round() as u16;

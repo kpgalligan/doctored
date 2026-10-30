@@ -1,4 +1,4 @@
-//! #547 phase 6b on a Grayscale document through the FFI: the Histogram,
+//! #1 phase 6b on a Grayscale document through the FFI: the Histogram,
 //! Apply Image's layer write (`scalar_edit` target `gray`), Calculations into
 //! a new channel and Stack Modes.
 //!

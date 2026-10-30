@@ -759,7 +759,7 @@ final class RasterDocument {
     /// conversion words its warning through the same core sentence — else
     /// nil, so a sentence the typed open did not say is never shown.
     func precisionProfileRefusal(openedFrom url: URL) -> String? {
-        if isCmyk { return CmykDocument.assignedSentence(precisionInfo) } // #547
+        if isCmyk { return CmykDocument.assignedSentence(precisionInfo) } // #1
         guard let warnings = precisionInfo?["import_warnings"] as? [String], !warnings.isEmpty,
               let sentence = RasterDocument.flatOpenProfileRefusal(at: url),
               warnings.contains(sentence)
@@ -1015,7 +1015,7 @@ final class RasterDocument {
         guard isValidIndex(idx), maxSide > 0 else { return nil }
         if let precision, isCmyk, let context = try? PrecisionWorkContext(source: precision) {
             return try? precision.cmykLayerThumbnail(idx, maxSide: maxSide, workingLimit: context.limit,
-                                                     otherRetained: context.otherRetained) // #547
+                                                     otherRetained: context.otherRetained) // #1
         }
         if let precision {
             guard let source = precision.layerSource(idx) else { return nil }
@@ -1046,7 +1046,7 @@ final class RasterDocument {
     /// Opaque identity of layer `idx`'s pixel storage; 0 when there is none.
     func layerStorageIdentity(_ idx: Int) -> UInt64 {
         guard isValidIndex(idx) else { return 0 }
-        if let precision, isCmyk { return precision.cmykLayerIdentity(idx) } // #547
+        if let precision, isCmyk { return precision.cmykLayerIdentity(idx) } // #1
         if let precision { return precision.layerSource(idx)?.storageIdentity ?? 0 }
         return dr_doc_layer_storage_identity(ptr, idx)
     }

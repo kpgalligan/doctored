@@ -1,4 +1,4 @@
-//! Type, shape and fill layers on a CMYK document (#547): the adapter over
+//! Type, shape and fill layers on a CMYK document (#1): the adapter over
 //! `cmyk_artwork_render` that publishes a CMYK raster WITH its description,
 //! and `artwork_colors`, the host's one colour leg for a description's
 //! numbers across the CMYK boundary.
@@ -51,7 +51,7 @@
 //! `cmykMarginPerPixel` a pixel and the profile × 64) is the measured
 //! figure; its record is below.
 //!
-//! # Measurement record (#547, 2026-10-15)
+//! # Measurement record (#1, 2026-10-15)
 //!
 //! `scripts/cmyk-admission/measure.py` (Release, `MallocLargeCache=0`, one
 //! case per process, three runs, each beside a `resource_usage` baseline

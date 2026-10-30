@@ -70,7 +70,7 @@ struct RawGrainSettings: Codable, Equatable {
 extension RasterDocument {
     /// Returns self for nil/neutral grain or a core no-op.
     ///
-    /// A 32-bit float (linear) development (#680) takes grain too, by
+    /// A 32-bit float (linear) development (#4) takes grain too, by
     /// Doctored's own rule (not measured against Adobe Camera Raw): the same
     /// request runs the one Add Grain kernel on the layer's display encoding
     /// E (the document profile's curve on 0…1, continued as a logarithm above

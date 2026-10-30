@@ -1,4 +1,4 @@
-//! #547 Multichannel (`designs/multichannel-mode.md`): Doctored has no spot
+//! #1 Multichannel (`designs/multichannel-mode.md`): Doctored has no spot
 //! channels, so a colour-mode-7 PSD or PSB is refused by name at every depth,
 //! never by a phase. The files are crafted here (a bare header, empty
 //! sections and a raw composite), written into a `TempDir` and read through

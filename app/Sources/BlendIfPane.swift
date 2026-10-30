@@ -19,8 +19,8 @@ final class BlendIfPane: NSObject, LayerStylePane {
     private let available: [String]
 
     /// `cmyk` offers a CMYK document's channels (Gray and the four plates); `gray` a Grayscale
-    /// document's one, Gray (#547 phase 2d); `lab` a Lab Color document's Lightness, a and b, the
-    /// stored red, green and blue (#547 Lab phase 2f). A channel the list lacks shows its first.
+    /// document's one, Gray (#1 phase 2d); `lab` a Lab Color document's Lightness, a and b, the
+    /// stored red, green and blue (#1 Lab phase 2f). A channel the list lacks shows its first.
     init(binding: EffectBinding<BlendIf?>, context: LayerStylePaneContext, cmyk: Bool = false,
          gray: Bool = false, lab: Bool = false) {
         let available = gray ? ["gray"] : lab ? BlendIf.labChannels

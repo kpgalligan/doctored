@@ -1,6 +1,6 @@
 import AppKit
 
-/// Image ▸ Adjustments ▸ Equalize (#547):
+/// Image ▸ Adjustments ▸ Equalize (#1):
 ///
 /// | Handler | UI path it mirrors |
 /// |---|---|
@@ -16,7 +16,7 @@ extension AgentServer {
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let equalizeToolFacts: [String: ToolFacts] = [
-        // 8, 16 and 32 bits on RGB and CMYK 8/16 (#547); the selection weighs and gates it.
+        // 8, 16 and 32 bits on RGB and CMYK 8/16 (#1); the selection weighs and gates it.
         "equalize": [.repeatable, .selectionSensitive, .typedTool, .rasterTool, .floatTool, .cmykTool],
     ]
 

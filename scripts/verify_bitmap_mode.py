@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 Bitmap phases 1a to 3 MCP drive, and the close (B31 with arguments,
+"""The #1 Bitmap phases 1a to 3 MCP drive, and the close (B31 with arguments,
 B33 the catalog sweep): an 8-bit Grayscale document
 converts to Bitmap in one undo step (50% Threshold, Diffusion Dither, the
 Output resolution; since 1b Pattern Dither, Halftone Screen and Custom

@@ -1,4 +1,4 @@
-//! The Grayscale document in the typed `.rz` (#547 phase 1a, DRDC 106).
+//! The Grayscale document in the typed `.rz` (#1 phase 1a, DRDC 106).
 //!
 //! Word 106 sits in the CMYK slot — the FIRST word inside the identity
 //! wrapper 46 — written iff the document is Gray; a document is never both

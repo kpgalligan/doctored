@@ -1,4 +1,4 @@
-//! The export of a Bitmap document that keeps its 1-bit plane (#547 Bitmap
+//! The export of a Bitmap document that keeps its 1-bit plane (#1 Bitmap
 //! phase 1c): profile `document` with PNG, TIFF or BMP writes the packed
 //! plane as it is (`bitmap_codec`, `tiff_encode::encode_bilevel`), with no
 //! render and no threshold, so the file reopens as the same plane.

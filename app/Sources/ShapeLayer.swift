@@ -40,7 +40,7 @@ import AppKit
 /// style is off its default: a default-style shape keeps encoding as 1–4.
 /// Below version 5 the three keys are ignored and the styles are the defaults.
 ///
-/// Version 6 (#547) is version 5 whose `artwork` carries `"ink":"cmyk"`: its
+/// Version 6 (#1) is version 5 whose `artwork` carries `"ink":"cmyk"`: its
 /// `fill` and `stroke` are `[c, m, y, k, alpha]` in the CMYK document's
 /// profile, and the hex `fill`/`stroke` are that ink's sRGB APPEARANCE through
 /// the profile (CmykArtwork.swift). An ink payload is always version 6.
@@ -52,7 +52,7 @@ struct ShapeLayerPayload: Codable, Equatable {
     /// The newest schema this app writes; older builds read layers at it as
     /// plain rasters — the graceful degradation the format is designed for.
     static let currentVersion = 6
-    /// The stroke-style schema and the ink one (#547).
+    /// The stroke-style schema and the ink one (#1).
     static let styledVersion = 5
     static let cmykVersion = 6
     /// The schema a linear-ink payload with default stroke styles is written

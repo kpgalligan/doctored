@@ -5,7 +5,7 @@ import AppKit
 
 extension InfoPanelViewController {
     func setPrecisionCursor(_ point: (x: Int, y: Int)) {
-        // #547 Indexed phase 1a: the palette index under the cursor (the core's plane, one FFI
+        // #1 Indexed phase 1a: the palette index under the cursor (the core's plane, one FFI
         // read), beside the colour the readouts below report; "—" off the canvas.
         if let doc = document?.doc, doc.isIndexed, isViewLoaded {
             valueLabels[.index]?.stringValue = doc.precision?.indexedIndex(x: point.x, y: point.y)
@@ -35,14 +35,14 @@ extension InfoPanelViewController {
         lastReadout = nil
         guard isViewLoaded else { return }
         valueLabels[.position]?.stringValue = "\(point.x), \(point.y)"
-        // #547 Lab phase 1c: a Lab Color document's samples are L*a*b* codes, never RGB.
+        // #1 Lab phase 1c: a Lab Color document's samples are L*a*b* codes, never RGB.
         if document.doc?.isLab == true {
             showLabReading(reading.normalized)
             updateFootnote()
             return
         }
         valueLabels[.lab]?.toolTip = nil
-        // #547 Bitmap phase 2a-ii: a Bitmap pixel reads as Grayscale's K (0 % white, 100 % black).
+        // #1 Bitmap phase 2a-ii: a Bitmap pixel reads as Grayscale's K (0 % white, 100 % black).
         let grayK = document.doc.map { $0.isGray || $0.isBitmap } == true
         showGrayK(grayK ? reading.normalized[0] : nil)
         valueLabels[.rgb]?.stringValue = reading.rgbText
@@ -51,7 +51,7 @@ extension InfoPanelViewController {
         // than its input. Exact document samples remain available above.
         valueLabels[.hsb]?.stringValue = "—"
         valueLabels[.lab]?.stringValue = "—"
-        // #547: a CMYK document's own ink under the cursor; an RGB one's colour through the
+        // #1: a CMYK document's own ink under the cursor; an RGB one's colour through the
         // working CMYK (phase 5).
         showCmykInk(at: point, rgb: document.doc?.isCmyk == true ? nil : reading.normalized)
         updateFootnote()
@@ -190,7 +190,7 @@ extension InfoPanelViewController {
         updateFootnote()
     }
 
-    /// #547 Lab phase 1c: a Lab Color reading on the Lab row (L*, a*, b* at one decimal, four in
+    /// #1 Lab phase 1c: a Lab Color reading on the Lab row (L*, a*, b* at one decimal, four in
     /// the tooltip); RGB, HSB, K and the CMYK ink read "—".
     func showLabReading(_ normalized: [Double]) {
         let value = LabDocument.lab(normalized)
@@ -204,7 +204,7 @@ extension InfoPanelViewController {
         showCmykInk(at: nil)
     }
 
-    /// #547 phase 1c: the K row of an 8/16-bit Grayscale reading (`normalizedGray`, the sample's
+    /// #1 phase 1c: the K row of an 8/16-bit Grayscale reading (`normalizedGray`, the sample's
     /// R = G = B), the K % of the code, and since Bitmap phase 2a-ii a Bitmap pixel's (0 %
     /// or 100 %); "—" for nil (another document, 32 bits, a failure).
     func showGrayK(_ normalizedGray: Double?) {

@@ -181,7 +181,7 @@ final class RawDevelopPreviewPanel: NSView {
                 .joined(separator: " / ")
         }
         if float {
-            // #680: a float side's endpoints are the float histogram's
+            // #4: a float side's endpoints are the float histogram's
             // inclusive counts, the clipping markers' rule.
             endpoints.stringValue = "RGB endpoints — ≤ 0: \(counts(["exact_zero_rgba", "below_zero_rgba"]))"
                 + " · ≥ 1.0 (at or above white): \(counts(["exact_one_rgba", "above_white_rgba"]))"
@@ -190,7 +190,7 @@ final class RawDevelopPreviewPanel: NSView {
                 + " · 65535: \(counts(["exact_max_rgba"]))"
         }
         let r = frame.detailRegion ?? frame.viewport.region(source.image)
-        // An f32 side says whether it shows values above white (#680).
+        // An f32 side says whether it shows values above white (#4).
         let range: String
         if float {
             let peak = before ? frame.beforeExtendedPeak : frame.afterExtendedPeak

@@ -57,7 +57,7 @@ extension RasterPrecisionImage {
 
     /// Full-source bins and independent exact endpoint counts; never a sampled
     /// fit preview. Each inspection call consumes its own optional job token.
-    /// An f32 image (a 32-bit float development, #680) answers the float
+    /// An f32 image (a 32-bit float development, #4) answers the float
     /// histogram the Info and Levels readouts use (the scoped analysis's
     /// float schema: stop bins over −12…+6 EV, above-white and below-zero
     /// counts), admitted at that request's planned scratch.
@@ -123,7 +123,7 @@ extension RasterPrecisionImage {
     }
 
     /// The extended-range preview of an f32 image (a 32-bit float
-    /// development, #680) at Fit or 100 % (divisor 1): the cell centres
+    /// development, #4) at Fit or 100 % (divisor 1): the cell centres
     /// `developPreview` samples, through rule X at gain 1, as RGBA binary16
     /// little-endian premultiplied pixels (ceil(region/divisor) per side, at
     /// most 1600) linear in this image's primaries. Clipping bits 1/2 mark a

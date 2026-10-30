@@ -1,5 +1,5 @@
 //! KERNEL: the ONE reader and writer of an Indexed Color PSD's colour table
-//! (#547): the 768-byte Color Mode Data section and image resources 1046
+//! (#1): the 768-byte Color Mode Data section and image resources 1046
 //! (the colour count) and 1047 (the transparent index). `indexed_psd` reads
 //! and writes the file around them.
 //!

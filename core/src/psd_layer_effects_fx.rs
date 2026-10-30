@@ -10,18 +10,18 @@
 //! (`linear`: `authored_color::wide_out`, kept only when it is not an
 //! sRGB byte, so an sRGB file's integers add no key) and a slot's wide colour
 //! written as the document's numbers (`wide_into`: the byte grid in an 8-bit
-//! file, `Rgb16`'s fractional numbers in a 16-bit one) — or (#547) a CMYK document's `CMYC` ink {`Cyn ` `Mgnt` `Ylw ` `Blck`
+//! file, `Rgb16`'s fractional numbers in a 16-bit one) — or (#1) a CMYK document's `CMYC` ink {`Cyn ` `Mgnt` `Ylw ` `Blck`
 //! doub 0…100} to and from the slot's `ink` — an `RGBC` in a CMYK file reads
 //! as an sRGB hex with no ink, and a slot with no ink writes its hex as
 //! `RGBC` (the CMYK export first gives every slot one,
-//! `cmyk_style::with_all_inks`) — or (#547 phase 3a) a gray file's `Grsc`
+//! `cmyk_style::with_all_inks`) — or (#1 phase 3a) a gray file's `Grsc`
 //! {`Gry ` doub, Photoshop's K percent} to and from the slot's gray
 //! (`gray_style::grsc_colour` / `grsc_k_percent`, the latter the Grayscale
-//! export's, #547 phase 3b; an `RGBC` in a gray file reads as an sRGB hex,
-//! which the gray open greys) — or (#547 Lab phase 3a) a Lab file's `LbCl`
+//! export's, #1 phase 3b; an `RGBC` in a gray file reads as an sRGB hex,
+//! which the gray open greys) — or (#1 Lab phase 3a) a Lab file's `LbCl`
 //! {`Lmnc` L\*, `A   ` a\*, `B   ` b\*} read as the sRGB hex of that Lab
 //! colour (`psd_import_lab::lbcl_srgb`), an `RGBC` there as an sRGB hex (a
-//! Lab document's style colours are authored sRGB, `lab_style`), and (#547
+//! Lab document's style colours are authored sRGB, `lab_style`), and (#1
 //! Lab phase 3b) written as the `LbCl` of the slot's hex
 //! (`psd_export_lab::srgb_lbcl`, the read inverted).
 //!
@@ -31,7 +31,7 @@
 //! handed over raw — `LayerStyle::from_value` clamps and quantizes it. Writing
 //! emits every key Photoshop's dialog reads plus the fixed
 //! written-only defaults (the glows' technique, offset), which the reader
-//! ignores; a bevel's `bvlT` crosses both ways as `technique` (#578: read
+//! ignores; a bevel's `bvlT` crosses both ways as `technique` (#2: read
 //! only when it is a Chisel, so a Smooth `SfBL` adds no key); a glow's `Grad` and `ShdN` cross both ways as its `fill_type`
 //! gradient, `gradient` stops and `jitter` (`style_glow_gradient`: a
 //! `Grad` makes the glow a Gradient one, `ShdN` is read only when above 0,
@@ -111,7 +111,7 @@ const BEVEL_STYLE_IDS: [(&[u8], &str); 4] = [
     (b"PlEb", "pillow_emboss"),
 ];
 const BEVEL_DIRECTION_IDS: [(&[u8], &str); 2] = [(b"In  ", "up"), (b"Out ", "down")];
-/// The `bvlT` ids (#578): Smooth, Chisel Hard, Chisel Soft (the stringIDs
+/// The `bvlT` ids (#2): Smooth, Chisel Hard, Chisel Soft (the stringIDs
 /// `softMatte`, `preciseMatte`, `slopeLimitMatte`).
 const BEVEL_TECHNIQUE_IDS: [(&[u8], &str); 3] = [
     (b"SfBL", "smooth"),
@@ -157,13 +157,13 @@ pub(crate) enum FxColours<'a> {
     /// A 16-bit RGB document: read as `Rgb`; a wide colour writes the
     /// document's fractional numbers.
     Rgb16(Option<&'a AuthoredColors>),
-    /// A CMYK document: `CMYC` ink to and from the slot's ink (#547).
+    /// A CMYK document: `CMYC` ink to and from the slot's ink (#1).
     Cmyk,
     /// A gray file: `Grsc` K percent read as the slot's gray through its
-    /// Gray profile (#547 phase 3a).
+    /// Gray profile (#1 phase 3a).
     Gray(&'a crate::gray_document::GrayPolicy),
     /// A Lab file: `LbCl` read as the sRGB hex of its Lab colour, `RGBC` as
-    /// an sRGB hex (#547 Lab phase 3a).
+    /// an sRGB hex (#1 Lab phase 3a).
     Lab,
     /// A 32-bit float RGB document's WRITE: `RGBC` numbers are the
     /// document's linear light × 255
@@ -650,7 +650,7 @@ pub(crate) fn colour_item(
             Some(linear) => rgbc_numbers(wide_into(colors, linear, false)),
             None => rgbc(color, colors),
         },
-        // A Lab document's `LbCl` (#547 Lab phase 3b): the authored sRGB hex
+        // A Lab document's `LbCl` (#1 Lab phase 3b): the authored sRGB hex
         // as its L*, a*, b* (`psd_export_lab::srgb_lbcl`, the exact inverse
         // of the read's `lbcl_srgb`). The wide `linear` slot is not written:
         // a Lab document's style colours are authored sRGB bytes.

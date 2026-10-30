@@ -120,7 +120,7 @@ pub(crate) const MAX_ORIGINS: usize = 1_000_000;
 /// window coordinates.
 ///
 /// `C` is the colour channel count: 3 (RGB, every shipped caller and the
-/// default) or 4 (a CMYK document's ink codes, #547). Every statement below
+/// default) or 4 (a CMYK document's ink codes, #1). Every statement below
 /// is the same arithmetic per channel, so `C = 3` is the RGB code exactly.
 pub(crate) struct Plane<S = u8, const C: usize = 3> {
     /// Width in pixels.

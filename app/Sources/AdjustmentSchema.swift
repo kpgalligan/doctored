@@ -58,12 +58,12 @@ enum AdjustmentSchema {
         /// numbers — Replace Color's sampled colours. No default: the
         /// tail requires it.
         case colors(maxCount: Int)
-        /// A CMYK Gradient Map's gradient (#547): `stops` of `{position,
+        /// A CMYK Gradient Map's gradient (#1): `stops` of `{position,
         /// ink, opacity}` (ink four fractions 0…1) and `reverse`
         /// (`CmykAdjustFilter.cmykParams`).
         case inkGradient
         /// An array of 1…`maxCount` inks, each four fractions 0…1 — a CMYK
-        /// Replace Color's sampled inks (#547).
+        /// Replace Color's sampled inks (#1).
         case inks(maxCount: Int)
     }
 
@@ -368,7 +368,7 @@ enum AdjustmentSchema {
         _ params: [String: Any], for op: AdjustmentLayerOp
     ) -> [String: Any] {
         let params = op == .gradientMap ? classicForm(params) : params
-        // A CMYK spelling (#547) reads by the CMYK table, so an edit of its ink is a change.
+        // A CMYK spelling (#1) reads by the CMYK table, so an edit of its ink is a change.
         if CmykAdjustFilter.spellsInk(params, for: op), let ink = CmykAdjustFilter.cmykParams(for: op) {
             return effective(params, table: ink)
         }
@@ -516,7 +516,7 @@ enum AdjustmentSchema {
                 "midpoint": (stop["midpoint"] as? NSNumber)?.doubleValue ?? 0.5,
                 "opacity_midpoint": (stop["opacity_midpoint"] as? NSNumber)?.doubleValue ?? 0.5,
             ]
-            // A CMYK map's stop (#547) carries its `ink`, an RGB map's its `color`.
+            // A CMYK map's stop (#1) carries its `ink`, an RGB map's its `color`.
             if inks {
                 entry["ink"] = (stop["ink"] as? [Any])?
                     .map { ($0 as? NSNumber)?.doubleValue ?? Double.nan } ?? stop["ink"] as Any
@@ -608,7 +608,7 @@ enum AdjustmentSchema {
     /// `file` is baked through (`RasterLUT.parse`); nil for no document.
     /// `cmyk` validates against the op's CMYK table where it has one
     /// (`CmykAdjustFilter.cmykParams`: Photo Filter's, Channel Mixer's,
-    /// Gradient Map's and Replace Color's params name ink, #547).
+    /// Gradient Map's and Replace Color's params name ink, #1).
     static func validate(
         _ params: [String: Any], for op: AdjustmentLayerOp, documentProfile: Data? = nil,
         cmyk: Bool = false
@@ -896,7 +896,7 @@ enum AdjustmentSchema {
         }
     }
 
-    /// A CMYK Gradient Map's gradient (#547): `gradient`'s shape with each
+    /// A CMYK Gradient Map's gradient (#1): `gradient`'s shape with each
     /// stop's colour an `ink` of four fractions (`cmyk_adjust_ink`), and a
     /// Classic map's `smoothness` and stop midpoints.
     private static func inkGradient(_ value: Any, _ path: String) throws -> [String: Any] {

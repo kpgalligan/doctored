@@ -1,4 +1,4 @@
-//! #547 Lab phase 4b-ii: sampled Color Range on a Lab Color document,
+//! #1 Lab phase 4b-ii: sampled Color Range on a Lab Color document,
 //! through the FFI (`dr_precision_doc_select`). The rule is the one
 //! `scripts/photoshop-probe/lab_select_take.py`'s take1 confirmed (its C2):
 //! a pixel's distance from a sample is the largest of |ΔL\*|, |Δa\*| and
@@ -21,7 +21,7 @@
 //!   code, and its hue (reds, blues) and skin modes equal the same request
 //!   on the document's 16-bit ProPhoto RGB conversion (relative, no black
 //!   point compensation) within 257 coverage codes, at 8 and 16 bits; the
-//!   Magic Wand runs and Select Similar refuses at 8 bits naming #683;
+//!   Magic Wand runs and Select Similar refuses at 8 bits naming #5;
 //! * (d) take1, read IN PLACE (`~/devel/doctored-fixtures/photoshop/
 //!   lab-select-547/take1`; skipped with a note when absent, a panic unless
 //!   its `decided.json` is `valid` with Color Range `C2`): each saved scene
@@ -256,7 +256,7 @@ fn lab_color_range_runs_every_range_and_similar_waits_at_8_bits() {
         free(rgb);
         free(colourful);
         // The Magic Wand runs at both depths (`lab_wand.rs` holds its
-        // oracle); #683: Select Similar waits at 8 bits only.
+        // oracle); #5: Select Similar waits at 8 bits only.
         let wand = json!({"kind":"magic_wand","x":3,"y":2,"tolerance":10,"contiguous":true});
         select(doc, &wand).unwrap_or_else(|e| panic!("the wand at {bits} bits: {e}"));
         if bits == 8 {
@@ -267,7 +267,7 @@ fn lab_color_range_runs_every_range_and_similar_waits_at_8_bits() {
                 )
                 .unwrap_err(),
                 "select_similar is unavailable in an 8-bit Lab Color document until its Lab \
-                 tolerance rule is measured (#683).",
+                 tolerance rule is measured (#5).",
                 "select_similar at {bits} bits"
             );
         }

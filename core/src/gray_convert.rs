@@ -1,4 +1,4 @@
-//! Image ▸ Mode ▸ Grayscale and RGB Color on a Gray document (#547 phase
+//! Image ▸ Mode ▸ Grayscale and RGB Color on a Gray document (#1 phase
 //! 1a): the two whole-document conversions, their plans and their refusals.
 //!
 //! * **RGB → Gray** discards colour by the rule measured against Photoshop
@@ -30,7 +30,7 @@
 //!   document cannot hold is named ([`first_gray_blocker`]) with
 //!   `flatten_required`, and `flatten: true` runs Flatten Image first
 //!   (`designs/grayscale-mode.md`).
-//! * **Lab → Gray** (#547 Lab phase 5a-ii, `lab_gray`) is the same body
+//! * **Lab → Gray** (#1 Lab phase 5a-ii, `lab_gray`) is the same body
 //!   from a Lab Color document: each raster's L\* through the Gray profile's
 //!   tone curve (`lab_gray::gray_image`), the record tree, styles (their
 //!   colours authored sRGB) and comps carried as above, an adjustment layer
@@ -93,7 +93,7 @@ pub(crate) fn first_gray_blocker(layers: &[PrecisionDocumentLayer]) -> Option<St
 /// [`first_gray_blocker`] with a Blend If channel named by `channel_name`
 /// (a Lab document's Red, Green and Blue are Lightness, a and b) and, when
 /// `lab`, every adjustment layer a blocker: a Lab record's settings act on
-/// L\*a\*b\* codes, not Gray codes (`lab_gray::first_blocker`, #547 Lab
+/// L\*a\*b\* codes, not Gray codes (`lab_gray::first_blocker`, #1 Lab
 /// phase 5a-ii).
 pub(crate) fn first_gray_blocker_with(
     layers: &[PrecisionDocumentLayer],

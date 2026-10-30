@@ -1,4 +1,4 @@
-//! #547 phase 1a, the Grayscale document mode: Image ▸ Mode ▸ Grayscale
+//! #1 phase 1a, the Grayscale document mode: Image ▸ Mode ▸ Grayscale
 //! against a hand-computed luminance (sRGB's published D50 luminance row and
 //! the IEC curve, then each Gray space's own definition: `Y^e` for Dot Gain
 //! and Gray Gamma, the IEC encode for sGray), with the bounds declared in
@@ -531,7 +531,7 @@ fn every_gray_export_tolerates_null() {
             ptr::null_mut()
         )
         .is_null());
-        // #547 phase 3a: the gray PSD open.
+        // #1 phase 3a: the gray PSD open.
         assert!(doctored_core::ffi_psd::dr_precision_doc_open_gray_psd(
             ptr::null(),
             0,

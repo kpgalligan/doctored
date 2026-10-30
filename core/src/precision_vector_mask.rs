@@ -218,7 +218,7 @@ impl PrecisionDocument {
             return Some((raster.properties.offset.0, raster.properties.offset.1, w, h));
         }
         let canvas = (0, 0, i64::from(self.width), i64::from(self.height));
-        // A CMYK raster (#547) bakes over its own rect exactly as an RGB one.
+        // A CMYK raster (#1) bakes over its own rect exactly as an RGB one.
         let dimensions = layer
             .source()
             .map(|image| image.dimensions())

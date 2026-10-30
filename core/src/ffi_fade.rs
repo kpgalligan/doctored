@@ -106,8 +106,8 @@ pub unsafe extern "C" fn dr_precision_doc_fade_plan(
 /// by the samples it changed. An exact no-op is NULL with no error. `control`
 /// is an optional single-use job. On a Grayscale document a mode the Gray
 /// document does not offer refuses with `gray_document::blend_refusal`'s
-/// sentence before any work (#547 phase 2c), and on a Lab Color document a
-/// mode outside its list with `lab_document::blend_refusal`'s (#547 Lab
+/// sentence before any work (#1 phase 2c), and on a Lab Color document a
+/// mode outside its list with `lab_document::blend_refusal`'s (#1 Lab
 /// phase 2c).
 ///
 /// # Safety

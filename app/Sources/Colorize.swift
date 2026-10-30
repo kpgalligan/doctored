@@ -8,7 +8,7 @@ import AppKit
 // directly above it (JPEG Artifacts Removal's `DocumentJobs` job, one undo step), or a NEW
 // document "<doc> Colorize" (Super Zoom's `BackgroundWork` job and `openSuperZoom`, noted as a
 // duplicate). The selection is ignored: the filter outputs the whole layer;
-// Focal Points are not built (DDColor takes no colour hints). On a Lab Color document (#547 Lab
+// Focal Points are not built (DDColor takes no colour hints). On a Lab Color document (#1 Lab
 // phase 6b-iii) it runs on the layer's Display P3 view in that profile
 // (`NeuralFilterRun.modelInput` / `modelProfile`: the twin is no matrix/TRC profile), and the core
 // returns the result to Lab codes by the Mode rule.
@@ -245,7 +245,7 @@ enum ColorizeRun {
                     guard let pixels = precision.layerSource(layer) else {
                         throw DoctoredCoreError(message: "colorize needs a raster layer; layer \(layer) is not one")
                     }
-                    // A Lab layer is colorized in its Display P3 view (#547 Lab phase 6b-iii).
+                    // A Lab layer is colorized in its Display P3 view (#1 Lab phase 6b-iii).
                     var view = pixels
                     if source.isLab {
                         view = try control.withChildOperation(from: 0, to: 0.02) { child in
@@ -305,7 +305,7 @@ enum ColorizeRun {
                     return .byte(image)
                 }
                 // A Lab canvas is colorized in its Display P3 view, which is also the new
-                // document's picture when nothing changes (#547 Lab phase 6b-iii).
+                // document's picture when nothing changes (#1 Lab phase 6b-iii).
                 if source.isLab, case .wide(let pixels) = read {
                     read = .wide(try control.withChildOperation(from: 0.04, to: 0.05) { child in
                         try NeuralFilterRun.modelInput(pixels, document: source, limit: budget.limit,

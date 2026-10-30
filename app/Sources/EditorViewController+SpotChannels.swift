@@ -1,6 +1,6 @@
 import AppKit
 
-/// Spot channels in the editor (#547 phase 1a-2): Channels ▸ New Spot Channel… and Spot Channel
+/// Spot channels in the editor (#1 phase 1a-2): Channels ▸ New Spot Channel… and Spot Channel
 /// Options… (`SpotChannelSheetController`, whose Apply is the one undo step), their validation, and
 /// the composite view's overprint — each visible spot channel's ink laid over the displayed
 /// composite in list order, display only. Painting a spot channel is the alpha channel's path
@@ -27,7 +27,7 @@ extension EditorViewController {
         presentAsSheet(sheet)
     }
 
-    /// Channels ▸ Merge Spot Channel (#547 1c-1): the document flattened with the target spot
+    /// Channels ▸ Merge Spot Channel (#1 1c-1): the document flattened with the target spot
     /// channel's ink baked into the colour channels and the channel deleted, one undo step
     /// (`RasterDocument.mergingSpotChannel`). A Duotone document refuses by name. The paint target
     /// follows the removed row as Delete Channel's does.

@@ -2,7 +2,7 @@ import AppKit
 
 // The existing central edit has an explicit depth-change flag; normal edits cannot change storage.
 // Conversion resets a mask or channel target to the sole raster inside the same Undo transition
-// (a flatten drops the masks; saved channels carry, #547).
+// (a flatten drops the masks; saved channels carry, #1).
 //
 // `ConversionStructure` is the one vocabulary; `PrecisionModeConversion.init` admits `.preserve` in
 // every direction the "already there" guard lets through (8→16, 16→8, float→either) — `compute`
@@ -273,7 +273,7 @@ extension EditorViewController {
     /// conversion into float.
     @objc func convertToFloatPrecision(_ sender: Any?) {
         guard let document, document.doc != nil else { return }
-        // #547 phase 5a: a Grayscale document's own depth edit, one undo step, no sheet.
+        // #1 phase 5a: a Grayscale document's own depth edit, one undo step, no sheet.
         if document.doc?.isGray == true {
             commitGrayProfileEdit(.depth(32), profile: nil, space: nil, destination: [:],
                                   options: CmykConversionOptions(), document: document)
@@ -291,7 +291,7 @@ extension AgentServer {
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let precisionModeConversionToolFacts: [String: ToolFacts] = [
-        // #547 phase 5: a CMYK document's 8/16 Bits/Channel (mode cmyk8 / cmyk16,
+        // #1 phase 5: a CMYK document's 8/16 Bits/Channel (mode cmyk8 / cmyk16,
         // `AgentServer+CmykColour.swift`'s route).
         "convert_precision": [.commonTool, .floatTool, .cmykTool],
     ]

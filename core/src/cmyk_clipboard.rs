@@ -1,5 +1,5 @@
 //! Copy, Copy Merged, Cut, Paste (Paste in Place, Paste Into, Paste
-//! Outside) and New from Clipboard on a CMYK document (#547 phase 4c), over
+//! Outside) and New from Clipboard on a CMYK document (#1 phase 4c), over
 //! [`CmykClipboardPayload`] (`cmyk_clipboard_codec`). The RGB twin is
 //! `precision_clipboard`, whose module doc is the contract; every rule here
 //! is that one in ink.

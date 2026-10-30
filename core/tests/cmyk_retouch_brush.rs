@@ -1,4 +1,4 @@
-//! The retouch brushes on a CMYK document (#547), through the FFI, each
+//! The retouch brushes on a CMYK document (#1), through the FFI, each
 //! against an oracle written here:
 //!
 //! * Dodge/Burn, Blur, Sharpen, Smudge and the History Brush equal, exactly,

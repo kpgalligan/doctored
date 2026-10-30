@@ -1,4 +1,4 @@
-//! #547 phase 2e, the rest of phase 2 on a Grayscale document: Stroke… on the
+//! #1 phase 2e, the rest of phase 2 on a Grayscale document: Stroke… on the
 //! layer edge (`stroke_layer_edge`), Content-Aware Fill, the Remove tool's
 //! model apply, the Art History Brush at 8 bits, RGB → Gray carrying
 //! adjustment layers, HDR Toning at 8 and 16 bits, Import Channel, and the

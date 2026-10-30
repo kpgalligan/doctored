@@ -77,7 +77,7 @@ extension EditorViewController {
         // takes the same refusal as the canvas click.
         guard !refuseChannelTargetEdit() else { return }
         canvas.textSessionDisplayInk = textSessionDisplayInk()
-        // A CMYK layer opens on its sRGB appearance (#547, `displayedTextPayload`).
+        // A CMYK layer opens on its sRGB appearance (#1, `displayedTextPayload`).
         guard let doc = document?.doc,
               let payload = doc.displayedTextPayload(idx), let anchor = doc.describedAnchor(idx)
         else {
@@ -118,7 +118,7 @@ extension EditorViewController {
         canvas.restoreArtworkText(payload)
     }
 
-    /// The Text session's preview ink (#547 phase 6b): on a Grayscale document each run is shown
+    /// The Text session's preview ink (#1 phase 6b): on a Grayscale document each run is shown
     /// as its gray (`grayDisplayColor`, the last colour memoized), so the session previews what
     /// the commit renders; nil elsewhere.
     private func textSessionDisplayInk() -> ((NSColor) -> NSColor)? {
@@ -176,7 +176,7 @@ extension EditorViewController {
 
         // A CMYK layer compares and commits on its sRGB appearance; the commit converts the
         // colours to ink first (`inkedArtwork`, the swatches' stored inks and the layer's own
-        // among the matches), and records and renders that (#547).
+        // among the matches), and records and renders that (#1).
         let swatches = CmykInkMatch.swatches(paint: paintColor, background: backgroundColor)
         if let idx = editing, let info = doc.layerInfo(idx), let old = doc.displayedTextPayload(idx) {
             // The editor edits the string, never the map: the layer's own

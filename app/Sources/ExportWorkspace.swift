@@ -140,18 +140,18 @@ enum OutputProfile: Equatable {
     /// for the dropped-packet notice.
     func profileData(for document: RasterDocument) -> Data? {
         switch self {
-        // #547: a CMYK document's "Document profile" export is sRGB pixels, or
+        // #1: a CMYK document's "Document profile" export is sRGB pixels, or
         // a kept-CMYK JPEG/TIFF (at any size, sharpened or not, 8 or 16 bits)
         // whose preview the core decodes into sRGB, so the preview's tag is
         // sRGB either way.
         case .document where document.isCmyk: return RasterProfile.builtin(.sRGB)
-        // #547 Duotone phase 1b: a Duotone document's export is RGB through its inks in the
+        // #1 Duotone phase 1b: a Duotone document's export is RGB through its inks in the
         // document's own profile, the twin (`duotone_document`'s view).
         case .document where document.isDuotone: return document.iccProfile
-        // #547 phase 1c: a Grayscale document's kept-gray export decodes into sRGB the same way
+        // #1 phase 1c: a Grayscale document's kept-gray export decodes into sRGB the same way
         // (`open_profile::gray_to_srgb8`).
         case .document where document.isGray: return RasterProfile.builtin(.sRGB)
-        // #547 Lab phase 1b: a Lab Color document's export is RGB, and its "Document profile" writes
+        // #1 Lab phase 1b: a Lab Color document's export is RGB, and its "Document profile" writes
         // sRGB (`ExportRequest::destination_for`).
         case .document where document.isLab: return RasterProfile.builtin(.sRGB)
         case .document: return document.iccProfile
@@ -245,7 +245,7 @@ struct ExportSettings: Equatable {
     /// over an SDR base, or BT.2100 PQ. nil for every other deliverable; the
     /// key is written only when set, so earlier requests are unchanged.
     var hdrEncoding: HDREncoding?
-    /// A typed TIFF save that keeps the spot channels as extra samples (#547 1c-2a): the core's
+    /// A typed TIFF save that keeps the spot channels as extra samples (#1 1c-2a): the core's
     /// `"spot_channels":"keep"`, written only when true, so every other request is unchanged.
     var keepSpotChannels: Bool = false
 
@@ -469,7 +469,7 @@ struct ExportSettings: Equatable {
     /// wrote. The five per-document save preferences seed the corresponding
     /// controls; the three NEW options start neutral.
     static func defaults(for document: ImageDocument) -> ExportSettings {
-        // #547: a CMYK document starts at Color Settings' intent and BPC with
+        // #1: a CMYK document starts at Color Settings' intent and BPC with
         // the TIFF depth its own declared depth, so a default kept-CMYK TIFF
         // is the CMYK save's bytes (8 and 16 are both offered).
         if document.doc?.isCmyk == true {
@@ -486,7 +486,7 @@ struct ExportSettings: Equatable {
             settings.blackPointCompensation = ColorSettings.blackPointCompensation
             return settings
         }
-        // #547 Lab phase 1b: a Lab Color document exports through RGB: PNG, 8 bits, sRGB, at Color
+        // #1 Lab phase 1b: a Lab Color document exports through RGB: PNG, 8 bits, sRGB, at Color
         // Settings' intent and BPC.
         if document.doc?.isLab == true {
             var settings = ExportSettings(
@@ -498,7 +498,7 @@ struct ExportSettings: Equatable {
             settings.blackPointCompensation = ColorSettings.blackPointCompensation
             return settings
         }
-        // #547 Bitmap phase 1c: a Bitmap document starts at its own kept format (else PNG), 8 bits,
+        // #1 Bitmap phase 1c: a Bitmap document starts at its own kept format (else PNG), 8 bits,
         // profile document and no dither, keeping its 1-bit plane (`bitmap_export`).
         if document.doc?.isBitmap == true {
             let own = ExportFormat.from(fileType: document.fileType ?? "")
@@ -509,7 +509,7 @@ struct ExportSettings: Equatable {
                 embedProfile: document.embedColorProfile, stripMetadata: document.stripMetadata,
                 metadata: nil)
         }
-        // #547 Indexed phase 1b: an Indexed Color document starts at its own kept format (else PNG),
+        // #1 Indexed phase 1b: an Indexed Color document starts at its own kept format (else PNG),
         // 8 bits, profile document and no dither, keeping its palette (`indexed_export`).
         if document.doc?.isIndexed == true {
             let own = ExportFormat.from(fileType: document.fileType ?? "")
@@ -520,7 +520,7 @@ struct ExportSettings: Equatable {
                 embedProfile: document.embedColorProfile, stripMetadata: document.stripMetadata,
                 metadata: nil)
         }
-        // #547 Duotone phase 1b: a Duotone document exports RGB through its inks: PNG at the Gray
+        // #1 Duotone phase 1b: a Duotone document exports RGB through its inks: PNG at the Gray
         // default depth, profile document (its twin).
         if let doc = document.doc, doc.isDuotone {
             return ExportSettings(
@@ -530,7 +530,7 @@ struct ExportSettings: Equatable {
                 embedProfile: document.embedColorProfile, stripMetadata: document.stripMetadata,
                 metadata: nil)
         }
-        // #547 phase 1b: a Grayscale document starts at its own one-channel format (else PNG) and
+        // #1 phase 1b: a Grayscale document starts at its own one-channel format (else PNG) and
         // its default depth, keeping gray through profile document (`gray_export`).
         if let doc = document.doc, doc.isGray {
             let own = ExportFormat.from(fileType: document.fileType ?? "")
@@ -894,7 +894,7 @@ struct ExportCapture {
             throw DoctoredCoreError(message: "No image loaded.")
         }
         if source.isCmyk {
-            // #547 phase 5: a CMYK document exports from its own ink
+            // #1 phase 5: a CMYK document exports from its own ink
             // (`cmyk_export`), never from its Display P3 view.
             precisionProjection = nil
             projection = nil
@@ -952,7 +952,7 @@ struct ExportCapture {
 
     /// Encode, on whatever thread the caller is on. No file is written.
     func encode(_ settings: ExportSettings, control: RasterJobControl?) throws -> RasterExportResult {
-        // #547: spot channels composite into every flattened export, a TIFF too (a byte one
+        // #1: spot channels composite into every flattened export, a TIFF too (a byte one
         // through the overprint below, a typed one in the core, 1c-1); a TIFF save keeps them
         // (1c-2a, `flatSaveProjection`, `keepSpotChannels`).
         if let typed = source.precision {
@@ -985,7 +985,7 @@ struct ExportCapture {
     static func hostFinish(_ result: RasterExportResult,
                            settings: ExportSettings) throws -> RasterExportResult {
         guard try result.isHostPending() else { return result }
-        // #547: a CMYK document's kept-CMYK JPEG — the 8-bit CMYK TIFF
+        // #1: a CMYK document's kept-CMYK JPEG — the 8-bit CMYK TIFF
         // intermediate ImageIO transcodes keeping CMYK and its profile. The
         // transcode follows the policy's EXIF, XMP and IPTC answers (the
         // intermediate's carried bits), and the packets adopted are those

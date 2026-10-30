@@ -1,7 +1,7 @@
 import AppKit
 
 // Image ▸ Adjustments, Layer ▸ New Adjustment Layer, Image ▸ Auto and the Filter menu on a CMYK
-// document (#547): which items run at 8 and 16 bits and the sentence each refused item carries;
+// document (#1): which items run at 8 and 16 bits and the sentence each refused item carries;
 // the CMYK parameter rows of the four ops whose params name ink (Photo Filter, Channel Mixer,
 // Gradient Map, Replace Color); Clouds' ink; and Auto Tone / Contrast / Color through the CMYK
 // tone analysis. The core's twins are `cmyk_adjust_rgb`'s `ADJUSTMENT_REFUSALS` and

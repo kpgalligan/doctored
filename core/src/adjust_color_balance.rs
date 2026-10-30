@@ -40,7 +40,7 @@
 //! fitted from take2 and pinned by take5 (the Hermite 0.33 units, a linear
 //! cap `min(S0·y, y^p)` 136, no toe 224); x0 shrinks as γ grows (1/8 at
 //! γ = 2), so the toe only ever touches the deepest shadows. Levels shares
-//! this toe ([`Toe`], `adjust_levels::stage_curve`): #578 fitted Photoshop's
+//! this toe ([`Toe`], `adjust_levels::stage_curve`): #2 fitted Photoshop's
 //! Levels toe back onto these constants and one take confirmed it.
 //!
 //! # 32 bits
@@ -91,7 +91,7 @@ struct ChannelCurve {
 }
 
 /// The cubic Hermite below x0 (module doc "Why the toe"): its end, start
-/// slope, end value and end slope; also Levels' toe (#578).
+/// slope, end value and end slope; also Levels' toe (#2).
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) struct Toe {
     x0: f64,

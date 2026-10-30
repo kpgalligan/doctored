@@ -15,7 +15,7 @@ extension AgentServer {
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let adjustmentsToolFacts: [String: ToolFacts] = [
-        // #547: a CMYK document's Auto is CMYK Levels from its tone analysis.
+        // #1: a CMYK document's Auto is CMYK Levels from its tone analysis.
         "auto_tone": [.repeatable, .selectionSensitive, .typedTool, .rasterTool, .cmykTool],
         "auto_contrast": [.repeatable, .selectionSensitive, .typedTool, .rasterTool, .cmykTool],
         "auto_color": [.repeatable, .selectionSensitive, .typedTool, .rasterTool, .cmykTool],
@@ -62,7 +62,7 @@ extension AgentServer {
         "reduce_noise": ["radius", "luminance", "detail", "color"],
         "dust_and_scratches": ["radius", "threshold"],
         "adjust": ["brightness", "contrast", "saturation", "legacy"],
-        // `c`/`m`/`y`/`k`: a CMYK document's ink stages (#547).
+        // `c`/`m`/`y`/`k`: a CMYK document's ink stages (#1).
         "levels": ["black", "white", "gamma", "output_black", "output_white", "r", "g", "b",
                    "c", "m", "y", "k"],
         "hue_rotate": ["degrees"],
@@ -74,7 +74,7 @@ extension AgentServer {
         "surface_blur": ["radius", "threshold"],
         "add_grain": ["amount", "size", "roughness", "seed"],
         "radial_blur": ["amount", "method", "quality", "center_x", "center_y"],
-        // `foreground_ink` / `background_ink`: a CMYK document's clouds inks, percent (#547).
+        // `foreground_ink` / `background_ink`: a CMYK document's clouds inks, percent (#1).
         "clouds": ["seed", "foreground_color", "background_color", "high_contrast",
                    "foreground_ink", "background_ink"],
         "difference_clouds": ["seed", "foreground_color", "background_color", "high_contrast",
@@ -198,7 +198,7 @@ extension AgentServer {
                         + quoted(stray) + " would have been ignored and \(filter)'s DEFAULTS "
                         + "applied instead. Nothing was applied.")
             }
-            // #547: a CMYK layer reads the CMYK keys; one ink plate or an alpha channel is a
+            // #1: a CMYK layer reads the CMYK keys; one ink plate or an alpha channel is a
             // scalar target and reads the RGB scalar vocabulary.
             let scalarTarget = (stringArg(a, "target") ?? "layer") != "layer"
             return try AdjustmentSchema.validate(adjustmentParamsObject(a), for: op,
@@ -381,7 +381,7 @@ extension AgentServer {
             throw ToolError(message: "clip must be a finite number between 0 and 0.1")
         }
         if document.doc?.isCmyk == true {
-            // #547: one ink plate or an alpha channel takes the scalar Auto, as a 16-bit colour
+            // #1: one ink plate or an alpha channel takes the scalar Auto, as a 16-bit colour
             // plane or channel does.
             if editTarget.isInk || editTarget.isChannel {
                 return try selectedPrecisionScalarAuto(document, index: index, target: editTarget,
@@ -419,7 +419,7 @@ extension AgentServer {
             ])
     }
 
-    /// A CMYK document's Auto Tone / Auto Contrast / Auto Color (#547) — UI path: Image ▸ Auto
+    /// A CMYK document's Auto Tone / Auto Contrast / Auto Color (#1) — UI path: Image ▸ Auto
     /// Tone, Auto Contrast and Auto Color (`EditorViewController+AutoAdjust.swift`): the CMYK tone
     /// analysis's Auto on the layer (`CmykAdjustFilter.autoLevelsParams`, clipping `clip` at each
     /// end; a mask, plane or channel target is refused before this runs), applied as a

@@ -96,7 +96,7 @@ extension PrecisionScalarOperations {
         case .layerMask: plane = try read(doc, target: "mask", index: layer, canvas: true, ownReservation: ownReservation)
         case .plane(let component): plane = try sourcePlane(doc, plane: component, scope: .composite, ownReservation: ownReservation)
         case .composite: return PreparedDocumentEdit(doc).preview
-        // #547: one CMYK ink plane previews as the Channels panel shows it (the composite's plate
+        // #1: one CMYK ink plane previews as the Channels panel shows it (the composite's plate
         // on paper, ink dark), so an edit of that plate shows on the canvas.
         case .ink(let plate):
             return doc.planeImage(for: .ink(plate), composite: nil, activeLayer: layer, maxSide: 0)?

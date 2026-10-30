@@ -452,7 +452,7 @@ fn only_a_big_endian_tiff_at_eight_or_sixteen_bits_or_a_float_rgb_tiff_at_32_has
             ..RGB8
         })
     ));
-    // #547 phase 3: a separated (CMYK, InkSet absent) first directory's
+    // #1 phase 3: a separated (CMYK, InkSet absent) first directory's
     // records are a layered CMYK file's.
     assert!(has_layers(
         &directory,
@@ -463,7 +463,7 @@ fn only_a_big_endian_tiff_at_eight_or_sixteen_bits_or_a_float_rgb_tiff_at_32_has
             ..RGB8
         })
     ));
-    // #547 phase 3a: a BlackIsZero first directory's records are a layered
+    // #1 phase 3a: a BlackIsZero first directory's records are a layered
     // Grayscale file's, with or without its alpha sample.
     assert!(has_layers(
         &directory,
@@ -483,7 +483,7 @@ fn only_a_big_endian_tiff_at_eight_or_sixteen_bits_or_a_float_rgb_tiff_at_32_has
             ..RGB8
         })
     ));
-    // #547 Lab phase 3a: a CIELab first directory's records are a layered
+    // #1 Lab phase 3a: a CIELab first directory's records are a layered
     // Lab file's.
     assert!(has_layers(
         &directory,
@@ -655,7 +655,7 @@ fn a_tiff_the_locator_rejects_is_not_a_layered_file_to_the_importer() {
         "a palette TIFF is refused by name rather than imported as RGB"
     );
 
-    // #547 Lab phase 3a: a layered Lab TIFF is a Lab file to the importer.
+    // #1 Lab phase 3a: a layered Lab TIFF is a Lab file to the importer.
     let path = directory.path().join("lab.tif");
     std::fs::write(
         &path,

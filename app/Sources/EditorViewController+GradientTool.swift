@@ -16,7 +16,7 @@ extension EditorViewController {
     /// The options bar's Mode: the stored raw `DrBlendMode`, Normal
     /// for anything unrecognized.
     var gradientToolMode: DrBlendMode {
-        // A stored mode outside the document's list (`toolBlendChoices`, Lab's since #547 phase
+        // A stored mode outside the document's list (`toolBlendChoices`, Lab's since #1 phase
         // 2f) paints as Normal; the store is kept.
         let stored = Self.blendMode(fromStored: ToolOptionsStore.shared.gradient.blendIndex)
         return Self.toolBlendChoices(for: document?.doc).contains { $0.0 == stored }

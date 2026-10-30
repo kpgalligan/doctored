@@ -1,4 +1,4 @@
-//! #547 Lab phase 2f, Blend If on a Lab Color document and the channel
+//! #1 Lab phase 2f, Blend If on a Lab Color document and the channel
 //! carries (`lab_style`, `lab_convert`), through the FFI. A Lab document's
 //! Blend If channels are Lightness, a and b, stored as red, green and blue.
 //! Oracles written here:

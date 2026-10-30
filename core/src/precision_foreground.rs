@@ -12,7 +12,7 @@
 //! name (`float_document::decontaminate_refusal`): the solve reads and writes
 //! RGBA16 codes clamped to 0…1, so a fringe above white would be clipped.
 //! The edge stage itself runs at float (`display_encoding`, rule E).
-//! A Lab Color document (#547 phase 6b-ii) runs the same encoded per-channel
+//! A Lab Color document (#1 phase 6b-ii) runs the same encoded per-channel
 //! solve on its L\*a\*b\* codes, the linear mix Normal compositing uses.
 use crate::foreground_solve::solve;
 use crate::job_control::JobContext;
@@ -45,7 +45,7 @@ impl PrecisionDocument {
     /// count: the matte). Refuses a 32-bit float document first (module doc),
     /// a source that is not canvas-sized RGBA16 in the document's exact
     /// profile, and a profile with no matrix/TRC model (a Lab Color document
-    /// excepted, #547 phase 6b-ii).
+    /// excepted, #1 phase 6b-ii).
     pub fn foreground_estimate_plan(&self, source: &PrecisionImage) -> Result<Value, String> {
         if self.is_float() {
             return Err(crate::float_document::decontaminate_refusal());

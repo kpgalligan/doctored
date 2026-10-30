@@ -1,4 +1,4 @@
-//! #547 Lab phase 3b: a Lab Color document's PSD, PSB and layered-TIFF
+//! #1 Lab phase 3b: a Lab Color document's PSD, PSB and layered-TIFF
 //! export, through the C API.
 //!
 //! Oracles, never the writer itself:

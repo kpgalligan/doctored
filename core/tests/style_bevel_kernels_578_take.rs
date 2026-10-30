@@ -1,4 +1,4 @@
-//! #578 part 2, phase 2: the shipped outside cut of the Smooth Outer Bevel
+//! #2 part 2, phase 2: the shipped outside cut of the Smooth Outer Bevel
 //! (`style_bevel_smooth::cut_outside_with_job`, the runner
 //! `scripts/photoshop-probe/effect_kernels_578_p2_take.py`, its candidate
 //! SO1) against Photoshop 26.10's own pixels, at 8 and 16 bits.

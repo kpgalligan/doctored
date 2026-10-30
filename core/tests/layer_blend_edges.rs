@@ -1,6 +1,6 @@
 //! The blend-mode EDGE conventions Photoshop 26.10.0 showed at RGB 8, RGB 16
 //! and CMYK (`scripts/photoshop-probe/blend_edge_take.py` take1,
-//! `doctored-fixtures/photoshop/blend-edge-547/take1`, #547): Divide keeps
+//! `doctored-fixtures/photoshop/blend-edge-547/take1`, #1): Divide keeps
 //! the backdrop's 0 at 0 / 0 (D-KEEP), and Vivid Light's halves take a black
 //! source to 0 and a white one to 1 before the backdrop's ends (VL-PS), while
 //! the stand-alone Color Burn and Color Dodge keep the W3C order. Every layer

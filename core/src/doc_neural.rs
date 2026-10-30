@@ -15,12 +15,12 @@
 //!   through the host's existing layer-pixel exports.
 //!
 //! A float or CMYK document refuses by name (the menu and MCP gate both
-//! filters away from them first). On a Grayscale document (#547 phase 6b)
+//! filters away from them first). On a Grayscale document (#1 phase 6b)
 //! the model's output, whose colour comes from outside the document, is
 //! folded to its gray by the Mode rule (`gray_artwork::folded_result`) before
 //! it lands: Super Zoom's new document is Gray in the source's policy, and
 //! the layer keeps R = G = B. Both admit the fold's image
-//! (`gray_artwork::fold_bytes`). On a Lab Color document (#547 Lab phase
+//! (`gray_artwork::fold_bytes`). On a Lab Color document (#1 Lab phase
 //! 6b-iii) the model read the document's Display P3 view, so its output,
 //! tagged Display P3 and never retagged here, returns to L\*a\*b\* codes by
 //! the Mode rule (`lab_neural::published`): Super Zoom's new document is Lab

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 phase-1 MCP drive: CMYK documents open, edit, save, reopen and
+"""The #1 phase-1 MCP drive: CMYK documents open, edit, save, reopen and
 convert over MCP, and everything else refuses by name.
 
 The gates are FIXED here BEFORE anything is measured; a failed gate IS the
@@ -30,15 +30,15 @@ app. The CMYK profile is macOS's Generic CMYK Profile (always installed).
   CMYK profile), undo restores RGB, redo restores CMYK, and `convert_mode rgb`
   returns an 8-bit RGB document; `render channel cyan` answers an image.
 - **G7 refusals.** depth_blur (RGB only; the retouch tools run on ink since
-  #547's retouch batch), a layer style with a Blend If on Red (layer effects
+  #1's retouch batch), a layer style with a Blend If on Red (layer effects
   are admitted since the styles batch, Gray and plate Blend If since the
-  Blend If batch, #547) and `save_copy png` refuse by name in a
+  Blend If batch, #1) and `save_copy png` refuse by name in a
   CMYK document (`export_psd mode layers` writes since phase 3,
   `verify_cmyk_files.py`).
 - **G8 Multichannel.** `convert_mode mode multichannel` refuses by name on the
   RGB and the CMYK document and leaves each mode unchanged; a crafted 8-bit
   colour-mode-7 PSD reports color_mode "Multichannel" with both choices
-  refused by the core's sentence, and its open refuses with it (#547,
+  refused by the core's sentence, and its open refuses with it (#1,
   `designs/multichannel-mode.md`).
 - **G9 Auto-Align and Reduce Noise.** `verify_v1_stack_align.py`'s
   value-noise picture at 640x480: A, B = A(K^-1 q) with K = translation(14, -9)
@@ -408,7 +408,7 @@ def main():
         receipts['g7'] = refusals
         print('PASS g7: everything else refuses by name', flush=True)
 
-        # ---- G8: Multichannel (#547, designs/multichannel-mode.md) ---------------
+        # ---- G8: Multichannel (#1, designs/multichannel-mode.md) ---------------
         g8 = {}
         for name, target in (('rgb', rdoc), ('cmyk', doc)):
             before = call('get_color_profile', document_id=target).get('color_mode')

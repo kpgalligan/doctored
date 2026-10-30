@@ -158,7 +158,7 @@ fn raw_layer_scope_maps_offsets_and_counts_transparent_canvas_padding() {
 fn partial_backdrop_keeps_ancestor_group_gate_and_excludes_boundary() {
     // Index0 opaque black base; group children1red,2blue; group3; top4white.
     // below2 means opaque black plus red at group opacity 1/2, which composites
-    // at its byte 128/255 (#578) = native [32896,0,0,65535] (128·257).
+    // at its byte 128/255 (#2) = native [32896,0,0,65535] (128·257).
     let leaf = |name: &str, p: [u16; 4]| {
         PrecisionDocumentLayer::raster(name, image(vec![p]), (0, 0), 1., true).unwrap()
     };

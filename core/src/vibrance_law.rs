@@ -1,4 +1,4 @@
-//! The Vibrance slider's law (#578), the numbers `adjust_color`'s Vibrance
+//! The Vibrance slider's law (#2), the numbers `adjust_color`'s Vibrance
 //! stage runs on: the gain `K` and anchor share `A/M`, fitted to Photoshop
 //! 26.10.0, as tables over a pixel's linear chroma and maximum. A kernel
 //! module: plain numbers and free functions, no profile and no document.

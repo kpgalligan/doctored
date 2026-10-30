@@ -10,7 +10,7 @@ import CoreText
 /// Color-font callbacks ignore foreground alpha. The editor uses the same
 /// continuous run opacity as native assembly, applied around the intrinsic run.
 final class ArtworkEditingLayoutManager: NSLayoutManager {
-    /// The colour a run is SHOWN in (#547 phase 6b: a Grayscale document's gray of it); the
+    /// The colour a run is SHOWN in (#1 phase 6b: a Grayscale document's gray of it); the
     /// storage, and so the payload, keep the authored colour. Colour glyphs keep their own.
     var displayInk: ((NSColor) -> NSColor)?
 

@@ -96,7 +96,7 @@ extension AgentServer {
         } catch {
             throw ToolError(message: error.localizedDescription)
         }
-        // #547 Duotone phase 1b: a Duotone document's layers export as RGB through its inks.
+        // #1 Duotone phase 1b: a Duotone document's layers export as RGB through its inks.
         let source = document.doc
         do {
             let reply = try document.exportLayers(request).json

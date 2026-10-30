@@ -42,7 +42,7 @@ const FLOAT_FIXTURE: &str = "tests/fixtures/float_11f/scene.tiff";
 
 /// Two effects that render planes: a drop shadow (Below) and a stroke. The
 /// stroke is mid-toned: its band lands wholly under the holed raster's
-/// partial pixels (#578's disjoint union), and an Overlay layer over black
+/// partial pixels (#2's disjoint union), and an Overlay layer over black
 /// would show nothing of the guide's change.
 const FX: &str = "{\"effects\":[{\"type\":\"drop_shadow\",\"distance\":5,\"size\":2},\
                   {\"type\":\"stroke\",\"size\":3,\"color\":\"#4080c0\"}]}";

@@ -1,6 +1,6 @@
 import AppKit
 
-// #547 phase 4: copy and paste across Grayscale and the other colour modes, host side (CMYK phase
+// #1 phase 4: copy and paste across Grayscale and the other colour modes, host side (CMYK phase
 // 4c's `CmykClipboard.swift` is the template). The core converts every PIXEL paste
 // (`gray_clipboard`: into Gray by Image ▸ Mode ▸ Grayscale's luminance, a CMYK payload through
 // ProPhoto RGB first; out of Gray by Mode ▸ RGB Color's conversion); this file takes the two host
@@ -24,7 +24,7 @@ enum GrayLayerClip {
     /// depth); Gray → CMYK goes through ProPhoto RGB and `CmykLayerClip.converted`; Gray A → Gray B
     /// through ProPhoto RGB, narrowed to 16 bits on the way for an 8 or 16-bit document. Don't
     /// Convert across modes refuses. The clip's type, shape and fill layers are re-rendered after
-    /// the conversion from their authored colours (#547 phase 6b, `carried`), so they stay
+    /// the conversion from their authored colours (#1 phase 6b, `carried`), so they stay
     /// editable.
     static func converted(_ clip: RasterDocument, into doc: RasterDocument,
                           mode: PasteProfile) throws
@@ -63,7 +63,7 @@ enum GrayLayerClip {
     }
 
     /// A clip's type, shape and fill layers captured before a conversion and re-rendered on its
-    /// result (#547 phase 6b, 6a-ii's carry: `CmykClipboard.swift`, `GrayProfileEdit.swift`): each
+    /// result (#1 phase 6b, 6a-ii's carry: `CmykClipboard.swift`, `GrayProfileEdit.swift`): each
     /// colour from the clip's own colour end, through Mode ▸ Grayscale's CMYK stage for a CMYK
     /// clip into Gray. No captures, no step.
     private struct ArtworkCarry {
@@ -160,7 +160,7 @@ enum GrayLayerClip {
 
     /// `rgb` at `doc`'s depth: narrowed to 8 bits for an 8-bit document and to 16 for a 16-bit
     /// one (a 16-bit clip into a float document is the core paste's promotion). Also Lab → RGB's
-    /// fit (`LabLayerClip`, #547 Lab phase 4c).
+    /// fit (`LabLayerClip`, #1 Lab phase 4c).
     static func fitted(_ rgb: RasterPrecisionDocument,
                                to doc: RasterDocument) throws -> RasterDocument {
         let budget = try PrecisionWorkContext(source: rgb)

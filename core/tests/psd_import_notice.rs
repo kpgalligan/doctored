@@ -291,7 +291,7 @@ fn unsupported_depth_color_and_profile_never_fall_back() {
         )
         .unwrap();
         let r = report(&path);
-        // #547 Lab phase 3a: a Lab file's report is the Lab open's, which
+        // #1 Lab phase 3a: a Lab file's report is the Lab open's, which
         // opens its stored composite either way; the RGB opens below still
         // refuse it.
         assert_eq!(r["import_precision"] == "lab", color == 9, "{r}");

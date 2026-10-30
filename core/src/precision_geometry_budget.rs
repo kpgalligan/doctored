@@ -287,7 +287,7 @@ pub(crate) fn source_transform_scratch(one_shot: bool, scratch: u64) -> Result<u
 
 /// `scratch` with the measured headroom: a filtered turn's 5/4
 /// (interactive or not), a one-shot transform commit's `TRANSFORM_HEADROOM`,
-/// and (#547 phase 4b) a CMYK document's Image Size the same
+/// and (#1 phase 4b) a CMYK document's Image Size the same
 /// `TRANSFORM_HEADROOM`: `scripts/cmyk-admission`'s `resize-16` (24 MP
 /// CMYKA16 to 9000×6000 bicubic, Release, 3 runs) measured max E
 /// 1,501,430,840 against the bare summed plan 1,504,292,256 (1.002×), a

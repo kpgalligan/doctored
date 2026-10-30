@@ -1,4 +1,4 @@
-//! 1-bit PNG, TIFF and BMP files as Bitmap documents (#547 Bitmap phase
+//! 1-bit PNG, TIFF and BMP files as Bitmap documents (#1 Bitmap phase
 //! 1c): which files open as one ([`bitmap_source_at`], header work only,
 //! `bitmap_codec`'s claim) and the open itself
 //! ([`PrecisionDocument::open_bitmap`]), with the plane-to-document step the

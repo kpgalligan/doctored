@@ -1,4 +1,4 @@
-//! Image ▸ Mode ▸ Indexed Color and RGB Color back (#547 Indexed phase
+//! Image ▸ Mode ▸ Indexed Color and RGB Color back (#1 Indexed phase
 //! 1a): the options, the plan and both conversions
 //! (`designs/indexed-mode.md`).
 //!

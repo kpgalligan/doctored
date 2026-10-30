@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 Indexed Color phase-1a, 1b, 1c, 2a, 2b, 2c, 2d, 3a, 3b and 3c MCP drive: indexed PNG and GIF files
+"""The #1 Indexed Color phase-1a, 1b, 1c, 2a, 2b, 2c, 2d, 3a, 3b and 3c MCP drive: indexed PNG and GIF files
 open as Indexed Color documents, an 8-bit RGB document converts to Indexed Color
 in one undo step and back to RGB exactly, an Indexed document converts to
 Grayscale, `.rz` reopens it, `get_document` reports its palette size, and what
@@ -311,7 +311,7 @@ through the descriptor).
   (`DocumentPrecision.refusal` asks `DuotoneDocument.tools` before the Indexed
   gate); no reply text contains `phase` (any case), and no key of
   `get_precision` on the document does.
-- **I60 the Indexed Color PSD (#547).** I1's palette PNG, opened afresh:
+- **I60 the Indexed Color PSD (#1).** I1's palette PNG, opened afresh:
   `inspect_psd_export` format tiff is unavailable with `PSD_TIFF`; `export_psd`
   flattened writes a `.psd` and a `.psb` at `bit_depth` 8; `inspect_psd` of each
   answers `import_precision` indexed, `color_mode` Indexed, `layered_available`
@@ -383,7 +383,7 @@ ONE_LAYER_3C = ['link_layers', 'unlink_layers', 'arrange_layer', 'reorder_layers
 # The Indexed Color PSD's TIFF refusal (`indexed_psd`, I60).
 PSD_TIFF = ('An Indexed Color document writes an 8-bit Indexed PSD or PSB; a TIFF with layers '
             'cannot hold it. Save a Copy writes its palette TIFF.')
-# `export_psd` left this list for `INDEXED_TOOLS` with the Indexed Color PSD (#547, I60).
+# `export_psd` left this list for `INDEXED_TOOLS` with the Indexed Color PSD (#1, I60).
 RGB_ONLY_3C = ['redevelop_raw', 'fade', 'art_history_brush_stroke']
 # Phase 3c's admitted additions (`IndexedDocument.tools`): with `document_id` alone each answers
 # no gate sentence (I58).
@@ -507,7 +507,7 @@ AUTO_TOOLS = ['auto_align_layers', 'auto_blend_layers']
 SELECT_TOOLS = ['load_selection', 'modify_selection', 'save_selection', 'select_color_range',
                 'select_similar', 'set_quick_mask', 'transform_selection']
 # The Indexed gate's sentences: an admitted tool's answer is none of them.
-GATE_MARKS = ('until #547 Indexed phase', 'is not available in Indexed Color',
+GATE_MARKS = ('until #1 Indexed phase', 'is not available in Indexed Color',
               'needs more than one layer, and an Indexed Color document holds one',
               'in an Indexed Color document: Doctored offers it on RGB documents only')
 GENERIC_CMYK = Path('/System/Library/ColorSync/Profiles/Generic CMYK Profile.icc')
@@ -2209,7 +2209,7 @@ def main():
               f'{counts59["rgb_only"]} are offered on RGB only and {counts59["duotone"]} are '
               "Duotone's; no reply and no get_precision key names a phase", flush=True)
 
-        # ---- I60: the Indexed Color PSD and PSB (#547) -----------------------------------
+        # ---- I60: the Indexed Color PSD and PSB (#1) -----------------------------------
         palette60 = folder / 'palette-60.png'
         trns60 = bytes(0 if i == CLEAR else 255 for i in range(3))
         png(palette60, 4, 2, 8, 3, INDICES,

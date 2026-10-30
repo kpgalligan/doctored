@@ -199,7 +199,7 @@ impl<'a> MaskRecord<'a> {
     /// and enabled state as an independent (unlinked) `PrecisionMask`, whose
     /// density and feather are the neutral 1/0 this import never infers. A
     /// 16-bit plane's big-endian samples, or an 8-bit plane's codes ×257 —
-    /// the typed mask of an 8-bit CMYK file (#547 phase 3), whose document is
+    /// the typed mask of an 8-bit CMYK file (#1 phase 3), whose document is
     /// typed at either depth — or a 32-bit plane's big-endian f32 coverage,
     /// stored as `round(clamp(v, 0, 1) · 65535)` with NaN as 0: a
     /// float document's masks are u16 coverage, and `psd_export_float`

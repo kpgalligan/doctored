@@ -16,7 +16,7 @@ import AppKit
 /// runs the shared adjustment twin. Both record the flat `adjust` step with
 /// `legacy` spelled out.
 ///
-/// On a CMYK document (#547) Saturation is disabled and held at 0: the op runs
+/// On a CMYK document (#1) Saturation is disabled and held at 0: the op runs
 /// per plate on `1 − ink`, where a saturation has no meaning
 /// (Hue/Saturation is the way).
 final class BrightnessContrastSheet: AdjustmentSheet {

@@ -15,7 +15,7 @@ extension AgentServer {
     func precisionFillSelection(_ a: [String: Any], _ document: ImageDocument) throws -> String {
         let (index, planeTarget, capture) = try precisionSelectionPaintCapture(
             a, document, tool: "fill_selection")
-        // #547: a CMYK layer takes `ink` (C, M, Y, K percent) in place of `color`.
+        // #1: a CMYK layer takes `ink` (C, M, Y, K percent) in place of `color`.
         let ink = capture.source.isCmyk && !planeTarget.isCoverage ? try cmykInkArgument(a, "ink") : nil
         var arguments = a
         if ink != nil, arguments["color"] == nil { arguments["color"] = "#000000" }
@@ -41,7 +41,7 @@ extension AgentServer {
     ) throws -> String {
         let (index, planeTarget, capture) = try precisionSelectionPaintCapture(
             a, document, tool: "stroke_selection")
-        // #547: a CMYK layer takes `ink` (C, M, Y, K percent) in place of `color`, as
+        // #1: a CMYK layer takes `ink` (C, M, Y, K percent) in place of `color`, as
         // `fill_selection` does; mirrors `applyPrecisionStroke`'s CMYK record.
         let ink = capture.source.isCmyk && !planeTarget.isCoverage ? try cmykInkArgument(a, "ink") : nil
         var arguments = a

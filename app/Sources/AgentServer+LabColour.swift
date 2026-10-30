@@ -1,6 +1,6 @@
 import AppKit
 
-// The Lab Color depth over MCP (#547 Lab phase 5a): the Lab route `dispatchPrecision` forwards
+// The Lab Color depth over MCP (#1 Lab phase 5a): the Lab route `dispatchPrecision` forwards
 // here — `convert_precision` mode lab8 / lab16, mirroring Image ▸ Mode ▸ 8/16 Bits/Channel on a
 // Lab document (`EditorViewController+CmykProfile.swift`'s `convertToBits` →
 // `EditorViewController+LabMode.swift`'s `commitLabDepth`). The edit is `LabDepthEdit`; there is
@@ -26,7 +26,7 @@ extension AgentServer {
         }
     }
 
-    /// Edit ▸ Convert to Profile… on a Lab Color document (#547 Lab phase 5b): `profile`
+    /// Edit ▸ Convert to Profile… on a Lab Color document (#1 Lab phase 5b): `profile`
     /// working_cmyk (the default), srgb, display_p3, installed with name or file with path
     /// (`cmykDestination`), with intent, black_point_compensation and flatten, converts to CMYK
     /// Color or RGB Color in that profile at the document's own depth, one undo step. Since phase

@@ -15,7 +15,7 @@
 //! is no curve to undo, since the samples are already linear. An embedded ICC
 //! must be an RGB matrix/TRC profile this build can model, because the SDR
 //! encode runs its forward curve; anything else refuses by sentence rather
-//! than being ignored. The one exception (#547 phase 3c): a one- or
+//! than being ignored. The one exception (#1 phase 3c): a one- or
 //! two-sample TIFF whose ICC is a usable Gray profile (`GrayPolicy::new`)
 //! opens as a 32-bit Gray document under that policy's twin; an untagged
 //! one still opens as RGB float under sRGB.
@@ -214,7 +214,7 @@ pub(crate) fn from_float_tiff(
     } = decoded;
     let mut warnings = Vec::new();
     // A one- or two-sample file under a Gray profile is a Gray document
-    // (#547 phase 3c); its samples are linear `Y` under the policy's twin.
+    // (#1 phase 3c); its samples are linear `Y` under the policy's twin.
     let gray = match &icc {
         Some(bytes) if channels <= 2 => GrayPolicy::new(bytes, GrayDepth::ThirtyTwo).ok(),
         _ => None,
@@ -590,7 +590,7 @@ pub(crate) fn primaries_of(profile: &IccProfile) -> Result<Chromaticities, Strin
 }
 
 /// Encodes the F32 projection of a 32-bit Gray document as a kept-gray float
-/// TIFF (#547 phase 3c): its R (R = G = B) as one sample, and its alpha as a
+/// TIFF (#1 phase 3c): its R (R = G = B) as one sample, and its alpha as a
 /// second (`ExtraSamples = 2`) only when some pixel's alpha is not 1.0;
 /// Deflate, at `samples` width, with `side`'s profile and packets (the
 /// caller's Gray ICC).

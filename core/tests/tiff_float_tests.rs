@@ -541,7 +541,7 @@ fn the_encoder_refuses_what_it_cannot_write() {
         metadata: Default::default(),
         non_finite: 0,
     };
-    // #547 phase 3c: gray + alpha is written (BlackIsZero, ExtraSamples 2)
+    // #1 phase 3c: gray + alpha is written (BlackIsZero, ExtraSamples 2)
     // and reads back sample for sample.
     let written = tiff_float::encode_to_vec(&image, false).expect("gray + alpha encodes");
     let decoded = tiff_float::decode(&written, "written", LIMIT).expect("decode");

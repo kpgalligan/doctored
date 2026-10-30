@@ -1,5 +1,5 @@
 //! The box-pair law of the Drop Shadow, the Inner Shadow and the Outer Glow
-//! (#578 part 2, `scripts/photoshop-probe/effect_kernels_578_take.py`, its
+//! (#2 part 2, `scripts/photoshop-probe/effect_kernels_578_take.py`, its
 //! candidates D1, I1 and O1) against an independent brute-force oracle,
 //! through the FFI (`common::styled` sets the style with
 //! `dr_doc_set_layer_style`; the 16-bit rows go through

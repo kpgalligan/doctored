@@ -1,6 +1,6 @@
 # Bitmap document mode (ADR)
 
-- **Status:** Accepted, closed 2026-10-23. Bitmap closes here; [#547](https://github.com/kpgalligan/doctored-dev/issues/547)
+- **Status:** Accepted, closed 2026-10-23. Bitmap closes here; [#1](https://github.com/kpgalligan/doctored/issues/1)
   (the colour-mode umbrella) stays open for CMYK (spot channels, PDF/X; `designs/cmyk-mode-status.md`).
   Grayscale is `designs/grayscale-mode.md`, Lab `designs/lab-mode.md`, Indexed Color
   `designs/indexed-mode.md`, Duotone `designs/duotone-mode.md`, Multichannel `designs/multichannel-mode.md`.
@@ -240,5 +240,5 @@ rotate5-bitmap`, then `--cases transform-bitmap`) for the resampled geometry, un
 
 ## Open items
 
-- None for Bitmap. What remains of [#547](https://github.com/kpgalligan/doctored-dev/issues/547) is CMYK's (spot
+- None for Bitmap. What remains of [#1](https://github.com/kpgalligan/doctored/issues/1) is CMYK's (spot
   channels, PDF/X).

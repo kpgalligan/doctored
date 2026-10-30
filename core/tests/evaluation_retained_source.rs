@@ -215,7 +215,7 @@ fn a_byte_placed_image_switches_to_linear_light_and_composites_there() {
     assert!(linear.linear_light_refusal().is_none());
     let flat = linear.flattened().unwrap();
     for (x, y, pixel) in flat.enumerate_pixels() {
-        // The layer's 50 % at its byte, 128 / 255 (#578).
+        // The layer's 50 % at its byte, 128 / 255 (#2).
         let alpha = if (2..6).contains(&x) {
             crate::common::byte_unit(0.5)
         } else {
@@ -253,7 +253,7 @@ fn a_typed_placed_image_switches_to_linear_light_and_composites_there() {
     let samples = linear.render(LIMIT, 0, None).unwrap().to_rgba16().unwrap();
     for (i, pixel) in samples.iter().enumerate() {
         let x = i as u32 % 8;
-        // The layer's 50 % at its byte, 128 / 255 (#578).
+        // The layer's 50 % at its byte, 128 / 255 (#2).
         let alpha = if (2..6).contains(&x) {
             crate::common::byte_unit(0.5)
         } else {

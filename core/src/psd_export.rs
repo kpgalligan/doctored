@@ -301,7 +301,7 @@ impl DrDocument {
             container.max_file_bytes(),
             import_envelope_bytes(),
         );
-        // Spot channels reach PSD and PSB in #547 phase 1b; a container the
+        // Spot channels reach PSD and PSB in #1 phase 1b; a container the
         // writer cannot carry them in (the layered TIFF) refuses by name
         // rather than dropping them.
         if self.has_spot_channel()
@@ -557,7 +557,7 @@ impl DrDocument {
             }
         }
         // An unstyled pixel record's `iOpa`: only a legacy-Fill mode writes
-        // one, at 255 (#578), where a styled record without effects does.
+        // one, at 255 (#2), where a styled record without effects does.
         if preserved.is_none() && pixel_record {
             if let Some(body) = encode_fill_for(layer.blend, 1.0) {
                 blocks.push((*b"iOpa", body.to_vec()));

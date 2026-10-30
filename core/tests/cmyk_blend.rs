@@ -1,4 +1,4 @@
-//! Blend modes and Fill Opacity on a CMYK document (#547 phase 4a): every
+//! Blend modes and Fill Opacity on a CMYK document (#1 phase 4a): every
 //! offered mode over a 14 × 14 grid of inks (the Photoshop take's
 //! backdrop rows × source columns) at opacity 1 and 0.5 and at Fill 0.5,
 //! and on an adjustment record over a half-transparent backdrop, against
@@ -265,7 +265,7 @@ fn normal_is_bit_identical_to_phase_two() {
             (*d).cmyk_layer_samples(1).unwrap(),
         )
     };
-    // The record's 50 % composites at its byte, 128 / 255 (#578,
+    // The record's 50 % composites at its byte, 128 / 255 (#2,
     // `opacity_byte`).
     for y in 0..N as i32 {
         for x in 0..N as i32 {
@@ -389,7 +389,7 @@ fn every_refused_mode_and_style_part_names_itself() {
             &[],
         )
     };
-    // The styles batch admits effects and knockout (#547), the Blend If batch
+    // The styles batch admits effects and knockout (#1), the Blend If batch
     // Gray and the plates; a Blend If on Red, Green or Blue refuses by name.
     for admitted in [
         r#"{"fill_opacity":0.5,"effects":[{"type":"drop_shadow"}]}"#,

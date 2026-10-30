@@ -1,4 +1,4 @@
-//! The spot channels' overprint on a TYPED composite (#547 1c-1,
+//! The spot channels' overprint on a TYPED composite (#1 1c-1,
 //! `designs/spot-channels.md`): the adapter between a typed
 //! document's spot channels and the `spot_overprint` kernel, for the
 //! flattened exports (`doc_export`'s typed `export_encoded`) and Merge Spot

@@ -1,5 +1,5 @@
 //! Assign / Convert to Profile, 8/16 Bits/Channel and File ▸ New in a CMYK
-//! document (#547 phase 5), through the FFI, against oracles written here
+//! document (#1 phase 5), through the FFI, against oracles written here
 //! and in `common/cmyk_fixture.rs`: the CMYK → CMYK conversion against the
 //! two synthetic presses' own tables in closed form (A2B → BPC → B2A, both
 //! intents the fixture defines, BPC on and off); Assign's untouched

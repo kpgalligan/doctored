@@ -274,7 +274,7 @@ pub struct ExportRequest {
     /// The HDR encoding of a 32-bit HEIC or AVIF; `None` for
     /// every other request.
     pub(crate) hdr_encoding: Option<HdrExportEncoding>,
-    /// `"spot_channels": "keep"` (#547 1c-2a, `tiff_spot`): a full-size
+    /// `"spot_channels": "keep"` (#1 1c-2a, `tiff_spot`): a full-size
     /// TIFF keeps the spot channels as extra samples instead of compositing
     /// their overprint (`"overprint"`, the default).
     pub(crate) keep_spots: bool,
@@ -640,7 +640,7 @@ impl ExportRequest {
 
     /// The profile the export's pixels end in, or `None` for the document's
     /// own: a Lab Color document's own profile (the twin) is not one an RGB
-    /// file can carry, so `"document"` writes sRGB there (#547 phase 1b,
+    /// file can carry, so `"document"` writes sRGB there (#1 phase 1b,
     /// `lab_rgb`).
     pub(crate) fn destination_for(&self, document: &PrecisionDocument) -> Option<Arc<IccProfile>> {
         if document.is_lab() && matches!(self.profile, OutputProfile::Document) {
@@ -1583,7 +1583,7 @@ impl PrecisionDocument {
         if self.is_cmyk() {
             return self.cmyk_export_plan(request);
         }
-        // A Bitmap document (#547 Bitmap phase 1c, `bitmap_export`): its
+        // A Bitmap document (#1 Bitmap phase 1c, `bitmap_export`): its
         // refusals, then a kept 1-bit file; JPEG and the RGB profiles fall
         // through to the Gray storage's stages.
         if let Some(reason) = self.bitmap_export_refusal(request) {
@@ -1597,7 +1597,7 @@ impl PrecisionDocument {
             return self.indexed_export_plan(request);
         }
         let mut plan = self.export_plan_for(self.dimensions(), projection, request)?;
-        // The spot channels' overprint of the flattened source (#547 1c-1,
+        // The spot channels' overprint of the flattened source (#1 1c-1,
         // `spot_typed`); a layer export never overprints, so the shared
         // `export_plan_for` does not charge it. A TIFF that keeps them
         // charges their planes instead (1c-2a, `tiff_spot`).
@@ -1625,7 +1625,7 @@ impl PrecisionDocument {
         projection: Option<&PrecisionImage>,
         request: &ExportRequest,
     ) -> Result<Value, String> {
-        // A Duotone document (#547 Duotone phase 1b) exports RGB through its
+        // A Duotone document (#1 Duotone phase 1b) exports RGB through its
         // inks: the RGB document its storage is, plus the view's scratch.
         if self.is_duotone() {
             let mut plan = self
@@ -1779,7 +1779,7 @@ impl PrecisionDocument {
             let job = control.map_or(JobContext::NONE, JobContext::new);
             return self.cmyk_export_encoded(request, limit, other, job);
         }
-        // A Bitmap document's kept 1-bit file (#547 Bitmap phase 1c).
+        // A Bitmap document's kept 1-bit file (#1 Bitmap phase 1c).
         if self.keeps_bitmap(request) {
             let _run = control.map(DrJobControl::begin).transpose()?;
             let job = control.map_or(JobContext::NONE, JobContext::new);
@@ -1809,7 +1809,7 @@ impl PrecisionDocument {
             }
         };
         // A flattened export composites the spot channels' overprint
-        // (#547 1c-1, `spot_typed`), unless its TIFF keeps them (1c-2a).
+        // (#1 1c-1, `spot_typed`), unless its TIFF keeps them (1c-2a).
         if self.has_spot_channel() && !request.keep_spots {
             return self.spot_export_stages(source, request, job);
         }
@@ -1826,7 +1826,7 @@ impl PrecisionDocument {
         request: &ExportRequest,
         job: JobContext<'_>,
     ) -> Result<ExportResult, String> {
-        // A Duotone document (#547 Duotone phase 1b): the RGB document its
+        // A Duotone document (#1 Duotone phase 1b): the RGB document its
         // storage is, over the view of `source`.
         if self.is_duotone() {
             let view = self.duotone_view_job(source, job)?;

@@ -1,4 +1,4 @@
-//! The Duotone document across the FFI (#547, `designs/duotone-mode.md`):
+//! The Duotone document across the FFI (#1, `designs/duotone-mode.md`):
 //! the options normalized and read, Image ▸ Mode ▸ Duotone…'s plan and edit
 //! (set or replace the description) and the view; the render through the
 //! inks and its plan, Duotone → RGB and its plan, and a Duotone Options
@@ -170,7 +170,7 @@ pub unsafe extern "C" fn dr_precision_doc_duotone_view(
     }
 }
 
-/// A Duotone layer's (or composite's) thumbnail (#547 Duotone phase 2a,
+/// A Duotone layer's (or composite's) thumbnail (#1 Duotone phase 2a,
 /// `duotone_document`): `image` (u16, this document's twin) fitted at u16
 /// first — longest side `max_side`, never upscaled — then through the inks'
 /// view, quantized once without dither; RGBA8 in the document's profile,

@@ -22,7 +22,7 @@ extension AgentServer {
         // two. The source asks `layer_duplicate` at 16 bits and float
         // (`DocumentPrecision.layerCopyFamily`); the destination is asked as
         // a `paste` below.
-        // #547 phase 4c: between CMYK documents, and across modes converted.
+        // #1 phase 4c: between CMYK documents, and across modes converted.
         "copy_layers_to_document": [.nonRecordable, .typedTool, .floatTool, .cmykTool],
     ]
 

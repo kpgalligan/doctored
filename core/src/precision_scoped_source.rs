@@ -213,7 +213,7 @@ impl PrecisionDocument {
             if self.render_storage() == PrecisionStorage::Rgba32Float {
                 return Err(crate::float_document::auto_refusal());
             }
-            // A Lab Color document (#547 phase 2f): Auto Color refuses;
+            // A Lab Color document (#1 phase 2f): Auto Color refuses;
             // Auto Tone acts on Lightness (`scoped_auto::derive`).
             if self.is_lab() && auto.mode == scoped_auto::AutoAnalysisMode::Color {
                 return Err(crate::lab_adjust::unavailable_sentence("Auto Color"));

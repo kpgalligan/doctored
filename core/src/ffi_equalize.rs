@@ -1,4 +1,4 @@
-//! The C export of Equalize on a byte image (#547): `dr_image_equalize`.
+//! The C export of Equalize on a byte image (#1): `dr_image_equalize`.
 //! The typed documents run it as the selected edit `{"op":"equalize"}`
 //! (`selected_adjustment` → `equalize_apply`).
 

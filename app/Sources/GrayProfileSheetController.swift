@@ -1,6 +1,6 @@
 import AppKit
 
-/// Edit ▸ Assign Profile… / Convert to Profile… on a Grayscale document (#547 phase 5a): the
+/// Edit ▸ Assign Profile… / Convert to Profile… on a Grayscale document (#1 phase 5a): the
 /// destination Gray profile and, for Convert, the intent and black-point compensation, planned by
 /// the core before Apply (`GrayProfileEdit`; the job and its one undo step are
 /// `EditorViewController+GrayMode.swift`'s).

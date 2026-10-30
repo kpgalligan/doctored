@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 3b: the background colour a clear pixel takes on
+//! #1 Indexed Color phase 3b: the background colour a clear pixel takes on
 //! a document with no transparent index (`indexed_paint::BACKGROUND_KEY`,
 //! `indexed_edge::clear_index`): the request's `indexed_background` (the
 //! host's background swatch), else white. Phase 3c adds the request shapes

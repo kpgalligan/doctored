@@ -59,7 +59,7 @@ alternatives, the consequences, the qualification and `## Open items`.
   decoder's `boostAmount`/`boostShadowAmount` under the extended range, values above white kept: M2,
   `scripts/raw-probe/float_tone.py`); a float development still starts at tone curve 0, Shadows inert while it is
   0; local tone map 0; manual vignette a linear gain; lens geometry resampled in linear float; grain on the display
-  encoding since [#680](https://github.com/kpgalligan/doctored-dev/issues/680) (Doctored's rule, not measured against
+  encoding since [#4](https://github.com/kpgalligan/doctored/issues/4) (Doctored's rule, not measured against
   Adobe Camera Raw: the one Add Grain kernel on E, the profile curve continued as a logarithm above white; each
   pixel's encoded offset is the 16-bit grain's for its encoded luma clamped to 0…1, added to each channel's E(v)
   unclamped and decoded back, so a channel that stays in 0…1 gets the 16-bit grain of its encoded value and a pixel
@@ -71,8 +71,8 @@ alternatives, the consequences, the qualification and `## Open items`.
   tone mapping, not clipping, is how it is meant to be viewed. Inspection (Fit/100 %, clipping, Before/After) shows
   it clipped to SDR, except on a screen with headroom, where Develop's Fit and 100 % views, Clipping on or off,
   draw rule X's binary16 image (`develop_preview_extended`, the EDR view's plan at the preview size; markers at or
-  below 0.0 / at or above 1.0; MCP `hdr_preview`, #680); its histogram reads the f32 master in stops (the float
-  scoped histogram, #680). Drives `scripts/verify_v1_raw_float.py`, `scripts/verify_v1x_raw_hdr.py`. Admission,
+  below 0.0 / at or above 1.0; MCP `hdr_preview`, #4); its histogram reads the f32 master in stops (the float
+  scoped histogram, #4). Drives `scripts/verify_v1_raw_float.py`, `scripts/verify_v1x_raw_hdr.py`. Admission,
   formulas fixed before measuring: decode `RawSourceWork.scratch` + 16·px; local `measuredScratch` + (8·(k + 2) +
   8 + 8e)·px; `replaceScratch` 16·(k + 2)·px; a Develop session + 24·px. `measure.py --float` on the NEF, D24 and
   D850: every charge ≥ 1.25 × the measured peak (smallest 1.269, K32-NEF), no constant raised (records beside the

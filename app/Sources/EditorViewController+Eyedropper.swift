@@ -39,10 +39,10 @@ private enum EyedropperLayerSource {
     static var typed: RasterPrecisionImage?
     /// Whether the press in flight has picked a colour yet.
     static var picked = false
-    /// Where the press in flight last picked (#547: a CMYK document's ink is read there once,
+    /// Where the press in flight last picked (#1: a CMYK document's ink is read there once,
     /// when the press ends, not on every drag tick).
     static var point: CGPoint?
-    /// The L*a*b* the press in flight last picked on a Lab document (#547 Lab phase 2e), set as
+    /// The L*a*b* the press in flight last picked on a Lab document (#1 Lab phase 2e), set as
     /// the foreground's Lab ink when the press ends.
     static var lab: LabInk?
 
@@ -141,7 +141,7 @@ extension EditorViewController {
         optionsBar.refreshValues()
     }
 
-    /// One Lab document sample tick (#547 Lab phase 2e): the swatch shows the picked L*a*b*'s
+    /// One Lab document sample tick (#1 Lab phase 2e): the swatch shows the picked L*a*b*'s
     /// clipped sRGB (`LabPaint.display`), the text reads L*, a*, b*, and the press latches the
     /// L*a*b* itself, which becomes the foreground's Lab ink when the press ends.
     func pickLabSample(_ readout: PrecisionReadout, at point: CGPoint) {
@@ -150,7 +150,7 @@ extension EditorViewController {
         EyedropperLayerSource.lab = ink
     }
 
-    /// The CMYK composite's ink under `point` at the Sample Size (#547); nil for an RGB
+    /// The CMYK composite's ink under `point` at the Sample Size (#1); nil for an RGB
     /// document, Sample from — Current layer, or a read that failed.
     private func cmykSampleInk(at point: CGPoint) -> CmykInk? {
         let options = ToolOptionsStore.shared.sample
@@ -176,11 +176,11 @@ extension EditorViewController {
         let lab = EyedropperLayerSource.lab
         EyedropperLayerSource.lab = nil
         guard pickedThisPress, let picked = lastSampleColor else { return }
-        // #547: in a CMYK document the composite's own ink where the press
+        // #1: in a CMYK document the composite's own ink where the press
         // ended is the foreground's ink, kept exactly (Sample from — Current
         // layer keeps the colour, which converts back through the profile).
         if let point, let ink = cmykSampleInk(at: point) { setPaintInk(ink, color: paintColor) }
-        // #547 Lab phase 2e: in a Lab document the L*a*b* picked is the foreground's Lab ink,
+        // #1 Lab phase 2e: in a Lab document the L*a*b* picked is the foreground's Lab ink,
         // kept exactly (the swatch shows its clipped sRGB).
         if let lab { setPaintLab(lab, color: paintColor) }
         RecentSwatches.record(picked)

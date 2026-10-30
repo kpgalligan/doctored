@@ -1,6 +1,6 @@
 import AppKit
 
-// Type, shape and fill layers on a CMYK document (#547): the two `dr_*` wrappers of
+// Type, shape and fill layers on a CMYK document (#1): the two `dr_*` wrappers of
 // `core/src/ffi_cmyk_artwork.rs` — the ink publication and the colour leg a description's numbers
 // cross the CMYK boundary through. Their callers are `CmykArtwork.swift`'s.
 

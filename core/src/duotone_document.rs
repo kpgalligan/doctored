@@ -1,4 +1,4 @@
-//! The Duotone document mode (#547, `designs/duotone-mode.md`): a Grayscale
+//! The Duotone document mode (#1, `designs/duotone-mode.md`): a Grayscale
 //! document whose `GrayPolicy` carries a Duotone description
 //! (`duotone_ink`). Its pixels are the Gray document's, 8 or 16 bits, layers
 //! and all; every edit a Gray document admits runs unchanged on the gray

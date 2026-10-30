@@ -1,4 +1,4 @@
-//! The Lab Color clipboard (#547 Lab phase 4c): the Lab payload, its RZCB
+//! The Lab Color clipboard (#1 Lab phase 4c): the Lab payload, its RZCB
 //! v6 codec and the paste across modes. Gray's clipboard is the template
 //! (`gray_clipboard`); nothing here adds pixel math — every conversion is
 //! `lab_convert::converted_image` through a `ColorPipeline`.

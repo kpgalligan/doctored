@@ -45,13 +45,13 @@ final class InfoPanelViewController: NSViewController {
         case rgb
         case hsb
         case lab
-        /// #547 phase 1c: a Grayscale document's K % under the cursor, hidden on every other
+        /// #1 phase 1c: a Grayscale document's K % under the cursor, hidden on every other
         /// document (`InfoPanelViewController+Precision.swift`).
         case gray
-        /// #547 Indexed phase 1a: an Indexed Color document's palette index under the cursor,
+        /// #1 Indexed phase 1a: an Indexed Color document's palette index under the cursor,
         /// hidden on every other document (`InfoPanelViewController+Precision.swift`).
         case index
-        /// #547: a CMYK document's ink under the cursor and its total ink;
+        /// #1: a CMYK document's ink under the cursor and its total ink;
         /// "—" on an RGB document (`InfoPanelViewController+Cmyk.swift`).
         case cmyk
         case totalInk
@@ -127,7 +127,7 @@ final class InfoPanelViewController: NSViewController {
     let loader = HistogramLoader()
     var precisionHistogramControl: RasterJobControl?
     let readoutLoader = HistogramLoader()
-    /// #547: the CMYK rows' ink sample, off the main thread (a feathered mask
+    /// #1: the CMYK rows' ink sample, off the main thread (a feathered mask
     /// is prepared per sample, `InfoPanelViewController+Cmyk.swift`).
     let cmykLoader = HistogramLoader()
     var scopedReadoutControl: RasterJobControl?
@@ -141,7 +141,7 @@ final class InfoPanelViewController: NSViewController {
     }
     private var source: Source = .composite
     /// The plot a Lab Color document moved to Lightness (Luminosity or RGB), restored on the next
-    /// document that is not Lab (#547 Lab phase 1c).
+    /// document that is not Lab (#1 Lab phase 1c).
     private var displayBeforeLab: HistogramView.Display?
     private var isPanelVisible = false
     /// A scan that was asked for while the panel was hidden or while a
@@ -549,7 +549,7 @@ final class InfoPanelViewController: NSViewController {
             // core cannot model.
             valueLabels[.lab]?.stringValue = "—"
         }
-        // #547 phase 5: the working CMYK's separation of this RGB colour, "!" out of gamut.
+        // #1 phase 5: the working CMYK's separation of this RGB colour, "!" out of gamut.
         showCmykInk(at: (readout.x, readout.y),
                     rgb: [Double(readout.r), Double(readout.g), Double(readout.b)].map { $0 / 255 })
         updateFootnote()
@@ -581,7 +581,7 @@ final class InfoPanelViewController: NSViewController {
         guard isViewLoaded else { return }
         reloadDisplayMenu()
         if let k = valueLabels[.gray], let grid = k.superview as? NSGridView {
-            // #547 Bitmap phase 2a-ii: a Bitmap pixel reads as Grayscale's K, 0 % or 100 %.
+            // #1 Bitmap phase 2a-ii: a Bitmap pixel reads as Grayscale's K, 0 % or 100 %.
             grid.cell(for: k)?.row?.isHidden = document?.doc.map { $0.isGray || $0.isBitmap } != true
         }
         if let index = valueLabels[.index], let grid = index.superview as? NSGridView {
@@ -598,10 +598,10 @@ final class InfoPanelViewController: NSViewController {
         valueLabels[.profile]?.stringValue = doc.profileName
     }
 
-    /// #547 Lab phase 1c: on a Lab Color document the histogram menu offers Lightness, a and b
+    /// #1 Lab phase 1c: on a Lab Color document the histogram menu offers Lightness, a and b
     /// (`LabDocument.histogramTitle`; Luminosity and RGB hidden, and the plot moved off them to
     /// Lightness) drawn neutral; on every other document each item is shown under its own name.
-    /// #547 phase 6b: on a Grayscale document the menu offers Gray alone (`GrayDocument.
+    /// #1 phase 6b: on a Grayscale document the menu offers Gray alone (`GrayDocument.
     /// histogramTitle`), the Luminosity plot, restored as Lab's is on leaving it.
     private func reloadDisplayMenu() {
         let lab = document?.doc?.isLab == true
@@ -655,7 +655,7 @@ final class InfoPanelViewController: NSViewController {
     func updateFootnote() {
         var parts: [String]
         if document?.doc?.isLab == true {
-            // #547 Lab phase 1c.
+            // #1 Lab phase 1c.
             parts = [LabDocument.infoFootnote]
         } else if document?.doc?.isFloat == true {
             parts = ["32-bit float linear samples. The histogram counts the chosen source in stops from −12 to +6 EV and weights selection coverage; its end markers count values below zero and above white over the complete scope. RGB readout shows linear components with stops and uses the chosen source and selection-weighting switch. HSB/Lab are unavailable in this mode."]

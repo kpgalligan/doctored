@@ -32,7 +32,7 @@ enum RasterAdjustmentPresetFile {
     }
 
     /// A Photoshop `.alv` or `.acv` with ink channels as a CMYK document's Levels or Curves
-    /// (#547 phase 5, `dr_adjustment_preset_file_decode_cmyk`): composite and C, M, Y, K, the
+    /// (#1 phase 5, `dr_adjustment_preset_file_decode_cmyk`): composite and C, M, Y, K, the
     /// curves' points reflected onto the ink axes. Every other extension and an RGB `.acv` refuse
     /// with the core's sentence.
     static func decodeCMYK(_ bytes: Data, extension: String) throws -> AdjustmentLayerPayload {

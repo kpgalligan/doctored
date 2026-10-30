@@ -186,7 +186,7 @@ pub(super) fn transform(
     }
 }
 /// One plane's work over `channels` u16 planes: 4 an RGBA16 raster, 1 a
-/// mask or channel, 5 a CMYK document's CMYKA16 raster (#547 phase 4b,
+/// mask or channel, 5 a CMYK document's CMYKA16 raster (#1 phase 4b,
 /// [`pixel_channels`]), whose output is charged 10 B/px.
 pub(super) fn work(
     source: Extent,
@@ -220,7 +220,7 @@ pub(super) fn work(
     })
 }
 /// The u16 planes a pixel leaf's raster resamples over: 5 for a CMYK
-/// document's CMYKA16 ink (#547 phase 4b), 4 for RGBA16 (float charges its
+/// document's CMYKA16 ink (#1 phase 4b), 4 for RGBA16 (float charges its
 /// own factor in `build`).
 pub(super) fn pixel_channels(layer: &PrecisionDocumentLayer) -> u64 {
     if matches!(layer.content, Content::CmykRaster { .. }) {
@@ -760,7 +760,7 @@ pub(super) fn build(
         let plane = if raster && work.uniform {
             uniform_band_bytes((work.dest.2, work.dest.3))?
         } else if raster && !matches!(work.kind, WorkKind::Keep) {
-            // A CMYK document's rasters are all CMYKA16 (#547 phase 4b):
+            // A CMYK document's rasters are all CMYKA16 (#1 phase 4b):
             // `transform_cmyk` / `resize_cmyk` bind the 10 B/px copies.
             let (source_copy, adoption_copy): (fn(_) -> _, fn(_) -> _) = if doc.is_float() {
                 (float_source_copy_bytes, float_adoption_copy_bytes)

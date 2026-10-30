@@ -505,7 +505,7 @@ fn five_modes_strict_ffi_and_hidden_predecode_refusals_preserve_input() {
 fn exact_half_source_group_pins_vivid_linear_and_pin_light_seams() {
     let backdrop = [12345, 34567, 56789, 65535];
     for mode in [18, 19, 20] {
-        // Native u16 has no exact .5 code, and since #578 neither has a
+        // Native u16 has no exact .5 code, and since #2 neither has a
         // layer opacity (its byte: 50 % is 128 / 255). This opaque
         // group's black plus white under a hidden mask at density 0.5
         // (coverage `1 − 0.5·(1 − 0)`, exactly .5) produces .5 without an

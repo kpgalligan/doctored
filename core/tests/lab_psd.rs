@@ -1,4 +1,4 @@
-//! #547 Lab phase 3a, synthetic Lab PSD, PSB and layered TIFF files (built
+//! #1 Lab phase 3a, synthetic Lab PSD, PSB and layered TIFF files (built
 //! here over `cmyk_psd_fixture`'s generic records, colour word 9 and
 //! Photometric 8 patched in by `lab_psd_fixture`), opened through the FFI at
 //! 8 and 16 bits and checked against the independent oracle

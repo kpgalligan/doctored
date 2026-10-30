@@ -1,4 +1,4 @@
-# Lab Color document mode (#547): status
+# Lab Color document mode (#1): status
 
 - **Status:** Open — phase 1 (the plan, the model, New, Image ▸ Mode both ways, the view, `.rz`) shipped in
   `d4cf7e32`; phase 1b (layer structure, Fill, alpha channels, the Lab TIFF, exports through RGB, the fit-first
@@ -30,7 +30,7 @@
   Quick Mask, Quick Selection, the model selections, Select and Mask) in `50de4191`. Phase 6b-iii (the neural
   and generative tools on the Display P3 view; Sky Replacement refused for good) is this batch's; the close is
   next
-- **Issue:** [#547](https://github.com/kpgalligan/doctored-dev/issues/547) (the colour-mode umbrella; CMYK is
+- **Issue:** [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella; CMYK is
   `designs/cmyk-mode-status.md`, Grayscale `designs/grayscale-mode.md`)
 - **Code:** `core/src/lab_document.rs`, `lab_convert.rs`, `lab_native.rs`, `lab_rgb.rs`, `lab_save.rs`,
   `lab_encode.rs`, `lab_adjust.rs`, `lab_tone.rs`, `lab_filter.rs`, `lab_channel_filter.rs`,
@@ -126,8 +126,8 @@ and filters:
 - The Lab Magic Wand (and the Paint Bucket's Lab rule): take1 fitted no declared candidate at 16 bits (the
   halved cyclic projections were exact at 8); it needs a separate Photoshop take.
 - Lab Select Similar and Grow refuse through scripting though the menu shows them enabled; they need another
-  invocation before a take ([#683](https://github.com/kpgalligan/doctored-dev/issues/683)). The Magic Wand's and
-  Similar/Grow's refusals are `AWAITING_TAKE`'s; Similar/Grow's name #683.
+  invocation before a take ([#5](https://github.com/kpgalligan/doctored/issues/5)). The Magic Wand's and
+  Similar/Grow's refusals are `AWAITING_TAKE`'s; Similar/Grow's name #5.
 
 - Lab → CMYK is not confirmed by Photoshop: take1's residual (6.06 codes max at 8 bits) is common to both
   candidates and most likely in the → CMYK conversion itself; the follow-up is one RGB → CMYK take.

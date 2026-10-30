@@ -1,4 +1,4 @@
-//! A Duotone document's files (#547 Duotone phase 1b,
+//! A Duotone document's files (#1 Duotone phase 1b,
 //! `designs/duotone-mode.md`): the PSD/PSB carry and the user's own
 //! Duotone Options (`.ado`) file. The adapter over `duotone_ado`'s codec.
 //!

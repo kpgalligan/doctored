@@ -372,7 +372,7 @@ impl PrecisionDocument {
     ) -> Result<Option<(Self, ConversionReport)>, String> {
         let _run = control.map(DrJobControl::begin).transpose()?;
         let job = control.map_or(JobContext::NONE, JobContext::new);
-        // An Indexed Color document converts its colour table (#547 Indexed
+        // An Indexed Color document converts its colour table (#1 Indexed
         // phase 3a, `indexed_profile`).
         if self.is_indexed() {
             return crate::indexed_profile::convert(self, profile, options, limit, other, job);

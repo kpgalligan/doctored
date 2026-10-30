@@ -1109,7 +1109,7 @@ Pencil, presses Smooth and Apply (destructive at 8, 16 and 32 bits on RGB and at
 a CMYK document's ink, and an adjustment layer's create and edit arms), checking each map against
 the file's own stroke and Smooth and points → map against the core's byte table.
 
-"cmyk type tool" (`ui_cmyk_artwork.swift`, #547's artwork batch) admits the Type and shape tools
+"cmyk type tool" (`ui_cmyk_artwork.swift`, #1's artwork batch) admits the Type and shape tools
 and the New Fill Layer items on a CMYK document, picks K 100 as the foreground ink, types "Ink" in
 a canvas session and requires the committed text layer's stored ink to be exactly `[0, 0, 0, 1, 1]`;
 an unchanged reopen adds no step and an edit of the string keeps the ink. "cmyk fill layer sheet"

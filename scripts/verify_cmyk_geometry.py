@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 phase-4b MCP drive: every geometry tool on a CMYK document over
+"""The #1 phase-4b MCP drive: every geometry tool on a CMYK document over
 MCP — Image Size, Canvas Size, Crop, rotation and flips, Trim, Reveal All,
 Free Transform on layers, sets and masks, Straighten, Perspective Crop, Warp,
 Puppet Warp, Perspective Warp, Liquify, the Move tool, align and distribute,

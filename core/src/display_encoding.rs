@@ -89,7 +89,7 @@
 //!   - v > 1: t = v·D(shaped(1));
 //!   - v < 0: t = v + D(shaped(0)).
 //!
-//!   Under Protect Tones (#547) the in-range triple is moved as one group:
+//!   Under Protect Tones (#1) the in-range triple is moved as one group:
 //!   `doc_retouch::protected` on `E(clamp(v, 0, 1))` replaces `shaped` per
 //!   component, then D; a component above white or below zero keeps its
 //!   scale or shift above.

@@ -206,7 +206,7 @@ pub unsafe extern "C" fn dr_precision_image_develop_preview(
     }
 }
 
-/// The extended-range preview of a 32-bit float development (#680) at
+/// The extended-range preview of a 32-bit float development (#4) at
 /// Fit or 100 % (divisor 1): f32 storage only; output ceil(region/divisor) per
 /// side, each at most 1600; each output pixel is the cell-centre sample
 /// dr_precision_image_develop_preview picks, through display_encoding's rule

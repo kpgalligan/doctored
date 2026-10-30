@@ -883,7 +883,7 @@ final class ImageCanvasView: NSView {
     var overlayHeight = 0
 
     var activeTextView: CanvasTextView?
-    /// The Text session's preview ink (#547 phase 6b, EditorViewController+Text.swift).
+    /// The Text session's preview ink (#1 phase 6b, EditorViewController+Text.swift).
     var textSessionDisplayInk: ((NSColor) -> NSColor)?
     /// The view that places the active session (ImageCanvasView+TextSession.swift).
     var textSessionHost: TextSessionHostView?

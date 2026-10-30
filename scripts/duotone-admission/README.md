@@ -1,4 +1,4 @@
-# #547 Duotone admission drive
+# #1 Duotone admission drive
 
 Every memory plan the Duotone document mode added is held to the measured-admission
 rule on a built Release app: plan ≥ ⌈1.25 × max E⌉, where E is

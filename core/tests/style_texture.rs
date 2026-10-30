@@ -308,7 +308,7 @@ fn on_the_flat_interior_the_texture_is_the_oracle() {
 
 #[test]
 fn a_textured_pillow_stops_at_its_reach() {
-    // A Pillow Emboss shades a height that is 1 far outside the shape (#578,
+    // A Pillow Emboss shades a height that is 1 far outside the shape (#2,
     // `style_bevel_smooth`), but its texture is masked by the unreflected
     // height `round(255 · H)`, so nothing lands farther than `smooth_reach`
     // outside the rect (W' + 1 = pair_width(8 / 2) + 1 = 5 at Size 8, Soften

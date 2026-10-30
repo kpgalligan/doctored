@@ -4,7 +4,7 @@
 //! request. The kernels are the layer route's own (`float_filter_route::
 //! Route`: `parse`, `kernel_plan`, `plane`, `evaluate`), run on a one-channel
 //! plane; this module adds no kernel and no route arm. A Grayscale document
-//! comes here only for its layer mask (#547 phase 2c).
+//! comes here only for its layer mask (#1 phase 2c).
 //!
 //! # The plane rule
 //! - **Read.** The plane is read as an opaque gray pixel `[v, v, v, 1]`, at

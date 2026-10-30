@@ -146,7 +146,7 @@ pub(crate) fn background_record(
     let Some(entry) = layers.first() else {
         return false;
     };
-    // A CMYK raster qualifies on the same clauses (#547, `cmyk_stack`'s D5).
+    // A CMYK raster qualifies on the same clauses (#1, `cmyk_stack`'s D5).
     let (dimensions, offset) = match &entry.content {
         Content::Raster { image, offset } => (image.dimensions(), offset),
         Content::CmykRaster { image, offset } => (image.dimensions(), offset),
@@ -501,7 +501,7 @@ pub(crate) fn composite_interior_unit_into(
                 Ok(())
             }
         };
-        // `clip_unit`'s Open (#578), then D4: the members punch to the unit
+        // `clip_unit`'s Open (#2), then D4: the members punch to the unit
         // buffer as it stands RIGHT NOW — after the base's pixel pass,
         // opened, before any member.
         clip(&mut unit, ClipStep::Open)?;

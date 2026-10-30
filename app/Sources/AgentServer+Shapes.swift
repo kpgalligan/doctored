@@ -17,7 +17,7 @@ extension AgentServer {
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let shapesToolFacts: [String: ToolFacts] = [
-        // Shape layers in a 32-bit float document; #547: in ink in a CMYK one.
+        // Shape layers in a 32-bit float document; #1: in ink in a CMYK one.
         "add_shape_layer": [.typedTool, .floatTool, .cmykTool],
         "edit_shape_layer": [.typedTool, .floatTool, .cmykTool],
     ]
@@ -28,7 +28,7 @@ extension AgentServer {
     func addShapeLayer(_ a: [String: Any]) throws -> String {
         let document = try target(a)
         guard let doc = document.doc else { throw ToolError(message: "Document has no image") }
-        // #547: `fill_ink` / `stroke_ink` in a CMYK document (AgentServer+CmykEdit.swift).
+        // #1: `fill_ink` / `stroke_ink` in a CMYK document (AgentServer+CmykEdit.swift).
         let inked = try cmykArtworkArguments(a, doc: doc, pairs: Self.shapeInkPairs)
         let a = inked.arguments
         let ink = doc.authoringInk
@@ -132,7 +132,7 @@ extension AgentServer {
         }
         let inked = try cmykArtworkArguments(a, doc: doc, pairs: Self.shapeInkPairs)
         let a = inked.arguments
-        // A CMYK layer is edited on its sRGB appearance and committed back to ink (#547).
+        // A CMYK layer is edited on its sRGB appearance and committed back to ink (#1).
         guard let current = try doc.shapePayload(index).map({ shape -> ShapeLayerPayload in
                   guard doc.isCmyk, case let .shape(shown) = try doc.cmykDisplay(.shape(shape)) else { return shape }
                   return shown
@@ -230,7 +230,7 @@ extension AgentServer {
             shape["fill_rgba"] = artwork.fill.map { $0 as Any } ?? NSNull()
             shape["stroke_rgba"] = artwork.stroke.map { $0 as Any } ?? NSNull()
             shape["coverage"] = artwork.evaluation
-            // A CMYK document's shape (#547): `fill`/`stroke` are the appearance hexes and
+            // A CMYK document's shape (#1): `fill`/`stroke` are the appearance hexes and
             // `fill_ink`/`stroke_ink` the C, M, Y, K percents beside them.
             if payload.ink == .cmyk {
                 shape["fill_ink"] = artwork.fill.map { inkPercent($0) as Any } ?? NSNull()

@@ -1,4 +1,4 @@
-//! The spot channels on a CMYK document's composite (#547 1c-1,
+//! The spot channels on a CMYK document's composite (#1 1c-1,
 //! `designs/spot-channels.md`): the adapter between a CMYK
 //! document's spot channels and the kernel's CMYK arm
 //! (`spot_overprint::overprint_cmyka16`).

@@ -1,4 +1,4 @@
-# Grayscale document mode (#547): status
+# Grayscale document mode (#1): status
 
 - **Status:** Open — phases 1a (the plan, the model, New, open, Image ▸ Mode both ways, the view, `.rz`),
   1b (layer structure, Fill, the one-channel saves and exports), 1c (the panels, `get_precision`,
@@ -9,7 +9,7 @@
   (geometry, selections, the clipboard), 5a (profiles, Bits/Channel, 32-bit HDR Toning), 5b (proof, Gray → CMYK)
   and 6 (6a-i: type, shape and fill layers, paths, vector masks; 6a-ii: comps, links, snapshots, the legacy ops,
   the artwork carry; 6b: the analysis, multi-image, neural and generative tools) shipped; the closing batch next
-- **Issue:** [#547](https://github.com/kpgalligan/doctored-dev/issues/547) (the colour-mode umbrella; CMYK is
+- **Issue:** [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella; CMYK is
   `designs/cmyk-mode-status.md`)
 - **Code:** `core/src/gray_document.rs`, `gray_adjust.rs`, `gray_filter.rs`, `gray_style.rs`, `gray_io.rs`, `gray_convert.rs`, `gray_native.rs`, `psd_import_gray.rs`, `psd_import_gray32.rs`, `psd_export_gray.rs`, `psd_export_gray32.rs`,
   `ffi_gray.rs`, `gray_encode.rs`, `gray_export.rs`, `gray_working.rs` (sGray), `icc_builtin.rs` (`gray_blob`,
@@ -32,7 +32,7 @@ small batch:
 - condense this doc and the companion into the ADR `designs/grayscale-mode.md` (decisions in force, what shipped with
   commits, the measured Photoshop facts), `git mv` both into `archive/`, add their `archive/INDEX.md` lines and update
   every link to the old paths;
-- decide the document tools no phase names, which still refuse "until #547 phase 6" (`set_resolution`,
+- decide the document tools no phase names, which still refuse "until #1 phase 6" (`set_resolution`,
   `get_metadata`, `distort_layer`, `arrange_layer`, `auto_select_layer`, `export_layers`, `contact_sheet*`,
   `set_history_budget`, `recover_document`, `discard_recovery`, `get_mask_properties`, `place_image`, the image-source
   and RAW tools, `export_pdf`, `get/set_evaluation`, `find_layers`, the view, workspace and second-view tools,

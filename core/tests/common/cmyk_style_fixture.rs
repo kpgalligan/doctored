@@ -1,4 +1,4 @@
-//! The CMYK layer-style files' shared fixtures (#547, the styles batch:
+//! The CMYK layer-style files' shared fixtures (#1, the styles batch:
 //! `cmyk_styles.rs`, `cmyk_blend_if.rs`, `cmyk_knockout.rs`,
 //! `cmyk_styles_stack.rs`).
 //!

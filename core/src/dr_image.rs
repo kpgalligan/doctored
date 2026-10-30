@@ -172,7 +172,7 @@ impl DrImage {
         }
         let decode_err = |e: image::ImageError| format!("failed to decode {path}: {e}");
         // A CMYK TIFF `image` cannot decode — transparency, extra samples,
-        // planar (#547 phase 3) — is read by THE CMYK TIFF reader alone.
+        // planar (#1 phase 3) — is read by THE CMYK TIFF reader alone.
         if open_profile::cmyk_tiff_beyond_image(bytes) {
             return cmyk_tiff_flat(bytes, path);
         }
@@ -284,7 +284,7 @@ impl DrImage {
 /// (`open_profile::cmyk_tiff_beyond_image`): converted from its embedded (or
 /// the working) CMYK profile by `open_profile::cmyk_tiff_to_srgb8`, its
 /// transparency kept. With no profile to convert from it is an `Err`, so the
-/// host's platform decode reads it, as before #547 phase 3.
+/// host's platform decode reads it, as before #1 phase 3.
 fn cmyk_tiff_flat(bytes: &[u8], path: &str) -> Result<(DrImage, Sidecar), String> {
     let mut scan = metadata::scan(bytes);
     let icc = scan.icc.take();

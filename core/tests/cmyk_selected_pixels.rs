@@ -1,4 +1,4 @@
-//! A CMYK layer's SELECTED PIXELS (#547 phase 4b): Move (the layer's extent
+//! A CMYK layer's SELECTED PIXELS (#1 phase 4b): Move (the layer's extent
 //! unchanged and grown), ⌥ duplicate, Transform, Puppet Warp and Perspective
 //! Warp of the selection, a mask target and the float bounds, each against
 //! the two RGB16 twins (`common/cmyk_geometry_fixture.rs`); the RGB twin's

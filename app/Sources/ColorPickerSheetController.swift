@@ -1,6 +1,6 @@
 import AppKit
 
-/// The picker's C/M/Y/K fields (#547 phase 2). In a CMYK document (`isCmyk`) they set the ink
+/// The picker's C/M/Y/K fields (#1 phase 2). In a CMYK document (`isCmyk`) they set the ink
 /// EXACTLY — the swatch keeps it (`setPaintInk`) and the HSB, RGB, Lab and hex fields show its sRGB
 /// through the document's profile — and an RGB-side edit clears it. Beside an RGB document they show
 /// the working CMYK equivalent of the colour and editing them converts back to sRGB; no ink is kept.
@@ -60,7 +60,7 @@ final class ColorPickerSheetController: NSViewController {
     private let hexField = NSTextField(string: "")
     private let gamutNote = NSTextField(
         wrappingLabelWithString: "Out of sRGB gamut — clamped to the nearest sRGB colour")
-    /// #547 phase 5: the out-of-gamut alarm — a ⚠ and the nearest printable colour's
+    /// #1 phase 5: the out-of-gamut alarm — a ⚠ and the nearest printable colour's
     /// swatch (click: take it) when the colour falls outside the CMYK profile's gamut (the
     /// document's own, else the working CMYK).
     private let cmykAlarm = NSTextField(labelWithString: "⚠")
@@ -73,7 +73,7 @@ final class ColorPickerSheetController: NSViewController {
     private var shown: [NSTextField: Int] = [:]
     private var shownHex = ""
 
-    /// #547: the C/M/Y/K fields' context; nil hides them (32 bits, or no profile to convert with).
+    /// #1: the C/M/Y/K fields' context; nil hides them (32 bits, or no profile to convert with).
     private let cmyk: PickerCmykContext?
     private let cyanField = NSTextField(string: "")
     private let magentaField = NSTextField(string: "")
@@ -146,7 +146,7 @@ final class ColorPickerSheetController: NSViewController {
             [label("#"), hexField, empty(), empty(), empty()],
         ]
         if cmyk != nil {
-            // #547: C/M/Y/K beside R/G/B/#, percent.
+            // #1: C/M/Y/K beside R/G/B/#, percent.
             for (row, (name, ink)) in [("C", cyanField), ("M", magentaField), ("Y", yellowField),
                                         ("K", blackInkField)].enumerated() {
                 configure(ink, minimum: 0, maximum: 100)
@@ -358,7 +358,7 @@ final class ColorPickerSheetController: NSViewController {
     }
 
     /// An RGB-side edit (field, strip, numbers, hex): the ink follows the colour again, so a
-    /// CMYK document's exact ink is cleared (#547).
+    /// CMYK document's exact ink is cleared (#1).
     private func inkFollowsColor() {
         guard let cmyk else { return }
         authoredInk = nil

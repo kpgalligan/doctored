@@ -2751,7 +2751,7 @@ fn null_safety_sweep() {
         assert!(dr_precision_doc_clear_guides(null_typed).is_null());
         assert!(dr_precision_doc_set_ruler_origin(null_typed, 1.0, 1.0).is_null());
 
-        // Spot channels (ffi_spot_channel, #547 1a-2), both depths; the
+        // Spot channels (ffi_spot_channel, #1 1a-2), both depths; the
         // behaviour is `spot_channel_ffi.rs`. A NULL byte document answers
         // NULL/false with no message; a NULL typed one or a NULL image
         // names the handle.
@@ -2848,7 +2848,7 @@ fn null_safety_sweep() {
             doctored_core::ffi::dr_string_free(err);
         }
 
-        // Spot channels 1c-1 (ffi_spot_merge, #547): merge, kind change and
+        // Spot channels 1c-1 (ffi_spot_merge, #1): merge, kind change and
         // the region overprint, both depths; the behaviour is
         // `spot_merge.rs`. A NULL byte document answers NULL with no
         // message; a NULL typed one or a NULL image names the handle.

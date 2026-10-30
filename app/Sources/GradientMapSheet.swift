@@ -20,7 +20,7 @@ import AppKit
 /// — which really are sRGB colours — convert ONCE, at the moment they are
 /// picked, through `AdjustmentColor.documentHex(forSRGBHex:in:)`.
 ///
-/// On a CMYK document (#547) a stop is an INK (`{position, ink, opacity}`):
+/// On a CMYK document (#1) a stop is an INK (`{position, ink, opacity}`):
 /// the editor shows each ink's colour, a stop it opened on or a swatch with a
 /// stored ink keeps that ink exactly, and any other colour is separated
 /// through the document's profile (`CmykPaint.ink`) when the params are read.

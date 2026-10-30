@@ -1,4 +1,4 @@
-//! The Lab Color mode's own memory limits (#547 Lab phase 3b): a leaf that
+//! The Lab Color mode's own memory limits (#1 Lab phase 3b): a leaf that
 //! imports nothing from the crate (core/CLAUDE.md, "Layers").
 
 /// Bytes a canvas pixel the flat Lab TIFF open charges beside the encoded

@@ -153,10 +153,10 @@ enum DocumentPrecision {
         if isDocumentFree(tool: tool, arguments: arguments) { return nil }
         if let reason = RetainedImagePolicy.refusal(tool: tool, arguments: arguments, document: document) { return reason }
         guard let doc = document.doc else { return nil }
-        // #547 Bitmap phase 1a: a Bitmap document's own closed table (`BitmapDocument`), asked
+        // #1 Bitmap phase 1a: a Bitmap document's own closed table (`BitmapDocument`), asked
         // first of all.
         if doc.isBitmap { return BitmapDocument.refusal(tool: tool, arguments: arguments, in: doc) }
-        // #547 Duotone phase 1a: `get_duotone`/`set_duotone` answer on a Duotone document only, and
+        // #1 Duotone phase 1a: `get_duotone`/`set_duotone` answer on a Duotone document only, and
         // a Duotone document's own refusals come before Gray's arm, which then answers unchanged.
         if DuotoneDocument.tools.contains(tool) {
             return doc.isDuotone ? nil : DuotoneDocument.notDuotoneRefusal(tool: tool)
@@ -164,17 +164,17 @@ enum DocumentPrecision {
         if doc.isDuotone, let reason = DuotoneDocument.refusal(tool: tool, arguments: arguments) {
             return reason
         }
-        // #547 Indexed phase 1a: an Indexed Color document's own closed table (`IndexedDocument`),
+        // #1 Indexed phase 1a: an Indexed Color document's own closed table (`IndexedDocument`),
         // asked first.
         if doc.isIndexed { return IndexedDocument.refusal(tool: tool, arguments: arguments) }
-        // #547 Lab phase 1: a Lab Color document's own table (`LabDocument`), asked first; since
+        // #1 Lab phase 1: a Lab Color document's own table (`LabDocument`), asked first; since
         // phase 2a its paint and adjustment tools (`depthRuled`) then answer the 16-bit rules.
         if doc.isLab {
             if let reason = LabDocument.refusal(tool: tool, arguments: arguments,
                                                 depth: doc.labDepth) { return reason }
             guard LabDocument.depthRuled.contains(tool) else { return nil }
         }
-        // #547 phase 1a: a Grayscale document's own table (`GrayDocument`), asked first; since
+        // #1 phase 1a: a Grayscale document's own table (`GrayDocument`), asked first; since
         // phase 2a-ii its paint and adjustment tools (`depthRuled`) then answer the depth's rules.
         if doc.isGray {
             if let reason = GrayDocument.refusal(tool: tool, arguments: arguments, document: doc) {
@@ -182,7 +182,7 @@ enum DocumentPrecision {
             }
             guard GrayDocument.depthRuled.contains(tool) else { return nil }
         }
-        // #547: a CMYK document's own table (`CmykDocument`), asked FIRST — after Quick Mask's
+        // #1: a CMYK document's own table (`CmykDocument`), asked FIRST — after Quick Mask's
         // coverage edits below (`quickMaskCoverageEdit`), which are colour-free on CMYK too.
         if doc.isCmyk {
             if quickMaskCoverageEdit(tool: tool, arguments: arguments, document: document) { return nil }
@@ -330,7 +330,7 @@ enum DocumentPrecision {
             "set_layer_lock": "layer_lock", "link_layers": "layer_link",
             "unlink_layers": "layer_link", "new_layer": "layer_add",
             "stamp_visible": "layer_stamp", "flatten_image": "layer_flatten",
-            // #547 phase 4c: Stamp Selected and Merge Group.
+            // #1 phase 4c: Stamp Selected and Merge Group.
             "stamp_selected": "layer_stamp_selected", "merge_group": "layer_merge",
             // Arrange was missing here while its UI items and typed op worked.
             "arrange_layer": "layer_move",
@@ -414,7 +414,7 @@ enum DocumentPrecision {
         else if ["layer_duplicate", "layer_opacity", "layer_clipped", "mask_set",
                  "layer_move", "layer_group", "layer_ungroup", "layer_remove",
                  "layer_merge", "layer_lock", "layer_link", "clipboard_copy", "clipboard_cut",
-                 // #547 phase 4c: Stamp Selected names its members.
+                 // #1 phase 4c: Stamp Selected names its members.
                  "layer_stamp_selected",
                  // Layer Via names the layer it copies.
                  "layer_via",
@@ -509,7 +509,7 @@ enum DocumentPrecision {
             "set_layer_lock":"layer_lock", "link_layers":"layer_link",
             "unlink_layers":"layer_link", "new_layer":"layer_add",
             "stamp_visible":"layer_stamp", "flatten_image":"layer_flatten",
-            // #547 phase 4c: Stamp Selected and Merge Group.
+            // #1 phase 4c: Stamp Selected and Merge Group.
             "stamp_selected":"layer_stamp_selected", "merge_group":"layer_merge",
             // Arrange was missing here while its UI items and typed op worked.
             "arrange_layer":"layer_move",
@@ -637,15 +637,15 @@ enum DocumentPrecision {
 
     static func allows(_ tool: EditorTool, document: ImageDocument?) -> Bool {
         guard RetainedImagePolicy.allows(tool, document: document) else { return false }
-        // #547 Bitmap phase 1a: a Bitmap document admits its own closed tool list, asked first.
+        // #1 Bitmap phase 1a: a Bitmap document admits its own closed tool list, asked first.
         if document?.doc?.isBitmap == true { return BitmapDocument.allows(tool) }
-        // #547 Indexed phase 1a: an Indexed Color document admits its own closed tool list.
+        // #1 Indexed phase 1a: an Indexed Color document admits its own closed tool list.
         if document?.doc?.isIndexed == true { return IndexedDocument.allows(tool) }
-        // #547 Lab phase 1: a Lab Color document admits its own closed tool list.
+        // #1 Lab phase 1: a Lab Color document admits its own closed tool list.
         if document?.doc?.isLab == true { return LabDocument.allows(tool) }
-        // #547 phase 1a: a Grayscale document admits its own closed tool list.
+        // #1 phase 1a: a Grayscale document admits its own closed tool list.
         if document?.doc?.isGray == true { return GrayDocument.allows(tool) }
-        // #547: a CMYK document admits its own closed tool list (`CmykDocument.allows`).
+        // #1: a CMYK document admits its own closed tool list (`CmykDocument.allows`).
         if document?.doc?.isCmyk == true {
             return CmykDocument.allows(tool, depth: CmykAdjustFilter.depth(of: document?.doc))
         }

@@ -73,7 +73,7 @@ final class CalculationsSheetController: NSViewController {
         // Calculations always produces ONE plane, so the four HSL modes —
         // which need an RGB triple — are not offered (the core refuses them
         // there; see DrBlendMode.grayDegenerateModes).
-        // A Grayscale document offers its own modes (#547 phase 6b), a Lab document the modes
+        // A Grayscale document offers its own modes (#1 phase 6b), a Lab document the modes
         // that blend each channel alone (Lab phase 6b-i).
         ChannelMathControls.fillBlendModes(
             blendPopup, singlePlane: true,

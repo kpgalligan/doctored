@@ -1,4 +1,4 @@
-//! #578: the Layer Style Outside, Center and Inside Stroke against
+//! #2: the Layer Style Outside, Center and Inside Stroke against
 //! Photoshop's own renders, at 8 and 16 bits. The fixtures
 //! (`tests/fixtures/psd_photoshop/stroke_corner_578/`, README) are the
 //! flattened TIFFs of three Photoshop 26.10.0 takes:
@@ -21,7 +21,7 @@
 //! (151) and the exact Fill (the 151.5 tie, 152) differed out of the gate:
 //! take 3's 8-bit disc Center 3 at 50 % Fill went from 608 gated pixels to
 //! 292 and its mean rose from 3.941 to 7.000 with no pixel worse. On the
-//! fixed gate it keeps its 608 pixels and its mean fell to 3.362 (#578
+//! fixed gate it keeps its 608 pixels and its mean fell to 3.362 (#2
 //! controller ruling, 2026-10-17).
 //!
 //! Every Outside row meets it at 8 and 16 bits: the band is Photoshop's
@@ -435,7 +435,7 @@ fn the_remaining_rows_keep_their_measured_residual() {
 }
 
 // Measured on the shipped composite against the takes (max, mean in codes,
-// rounded up in the third decimal): the recorded #578 residual.
+// rounded up in the third decimal): the recorded #2 residual.
 type Pinned = (Row, u32, (f64, f64));
 const PINNED: [Pinned; 7] = [
     (

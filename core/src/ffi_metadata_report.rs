@@ -99,7 +99,7 @@ pub unsafe extern "C" fn dr_path_metadata_import_report(
                 if let Some(resolution) = resolution {
                     report["resolution"] = serde_json::json!({"x":resolution.x,"y":resolution.y});
                 }
-                // A TIFF's spot channels (#547 1c-2a, `tiff_spot`): the byte
+                // A TIFF's spot channels (#1 1c-2a, `tiff_spot`): the byte
                 // open's observation and loss lines.
                 if container == "tiff" {
                     if let Some((_, records)) =

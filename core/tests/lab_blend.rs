@@ -1,4 +1,4 @@
-//! #547 phase 3: a Lab Color document composites every mode it offers
+//! #1 phase 3: a Lab Color document composites every mode it offers
 //! by its Lab arm (`lab_blend`, take2 of
 //! `scripts/photoshop-probe/lab_blend_take.py`), at 8 and 16 bits, through
 //! every path that blends: a layer's render, Merge Down, Flatten, a layer at

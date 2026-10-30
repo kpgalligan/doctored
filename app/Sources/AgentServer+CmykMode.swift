@@ -1,7 +1,7 @@
 import AppKit
 import UniformTypeIdentifiers
 
-// The CMYK document over MCP (#547 phase 1): `convert_mode` — Image ▸ Mode ▸ CMYK Color… / RGB
+// The CMYK document over MCP (#1 phase 1): `convert_mode` — Image ▸ Mode ▸ CMYK Color… / RGB
 // Color… (`EditorViewController+CmykMode.swift`'s conversion and undo step) — and the CMYK route
 // `dispatchPrecision` asks FIRST: the ink readout beside the view's RGB on `sample_color` and
 // `sample_pixel` (the Info panel's CMYK numbers), `save_copy`'s CMYK TIFF/JPEG/.rz and
@@ -22,16 +22,16 @@ extension AgentServer {
         "Multichannel documents are not supported: Doctored has no spot channels."
 
     /// Mirrors Image ▸ Mode ▸ CMYK Color… and RGB Color… (`CmykModeSheetController`) and
-    /// Grayscale (`convertToGrayscaleMode:`, #547 phase 1a) and Lab Color (`convertToLabMode:`,
-    /// #547 Lab phase 1) and Indexed Color… (`convertToIndexedMode:`, `IndexedModeSheetController`,
-    /// #547 Indexed phase 1a): the same capture, plan, job and one undo step. A Grayscale, Lab
+    /// Grayscale (`convertToGrayscaleMode:`, #1 phase 1a) and Lab Color (`convertToLabMode:`,
+    /// #1 Lab phase 1) and Indexed Color… (`convertToIndexedMode:`, `IndexedModeSheetController`,
+    /// #1 Indexed phase 1a): the same capture, plan, job and one undo step. A Grayscale, Lab
     /// Color or Indexed Color conversion that must flatten answers the core's sentence in-band;
     /// `flatten: true` converts.
-    /// Since #547 Bitmap phase 1a also Bitmap… (`convertToBitmapMode:`, `BitmapModeSheetController`)
+    /// Since #1 Bitmap phase 1a also Bitmap… (`convertToBitmapMode:`, `BitmapModeSheetController`)
     /// with `method`, `resolution` and `flatten` (since phase 1b also Halftone Screen's `frequency`,
     /// `angle` and `shape` and Custom Pattern's `pattern`), and Grayscale on a Bitmap document with
     /// `size_ratio` (`BitmapToGraySheetController`).
-    /// `mode: multichannel` refuses by name, #547: no spot channels.
+    /// `mode: multichannel` refuses by name, #1: no spot channels.
     func convertMode(_ a: [String: Any]) throws -> String {
         let document = try target(a)
         let modeName = try requiredString(a, "mode")
@@ -41,7 +41,7 @@ extension AgentServer {
         guard let mode = ColorModeTarget(rawValue: modeName) else {
             throw ToolError(message: "mode must be gray, rgb, cmyk, lab, indexed, duotone or bitmap.")
         }
-        // #547 Duotone phase 1a: Duotone's options apply to mode duotone only, and mode duotone (and
+        // #1 Duotone phase 1a: Duotone's options apply to mode duotone only, and mode duotone (and
         // mode gray on a Duotone document) is AgentServer+Duotone.swift's.
         if mode != .duotone, let key = ["inks", "overprints"].first(where: { a[$0] != nil }) {
             throw ToolError(message: "\(key) applies to mode duotone only.")
@@ -72,7 +72,7 @@ extension AgentServer {
             }
             graySpace = name
         }
-        // #547 Indexed phase 1a: the sheet's options (`IndexedDocument.options`).
+        // #1 Indexed phase 1a: the sheet's options (`IndexedDocument.options`).
         let indexedKeys = ["palette", "table", "colors", "forced", "transparency", "matte", "matte_rgb",
                            "dither", "amount", "preserve_exact"]
         if mode != .indexed, let key = indexedKeys.first(where: { a[$0] != nil }) {
@@ -86,7 +86,7 @@ extension AgentServer {
                 throw ToolError(message: error.localizedDescription)
             }
         }
-        // #547 Bitmap phase 1a: the Bitmap sheet's options (`BitmapDocument.options`), and the Size
+        // #1 Bitmap phase 1a: the Bitmap sheet's options (`BitmapDocument.options`), and the Size
         // Ratio toward Grayscale from a Bitmap document.
         let fromBitmap = document.doc?.isBitmap == true
         let bitmapKeys = ["method", "resolution", "frequency", "angle", "shape", "pattern"]
@@ -132,7 +132,7 @@ extension AgentServer {
             "black_point_compensation": mode == .lab ? false : options.blackPointCompensation,
             "flattened": options.flatten && (doc?.layerCount ?? 0) == 1,
             "working_memory_plan_bytes": conversion.scratch,
-            // #547 Indexed phase 1a: the palette size and transparent index of an Indexed result.
+            // #1 Indexed phase 1a: the palette size and transparent index of an Indexed result.
             "indexed": doc?.precisionInfo?["indexed"] ?? NSNull(),
             "document": summary(document),
         ])
@@ -212,7 +212,7 @@ extension AgentServer {
     /// The CMYK route `dispatchPrecision` asks first; nil hands the tool to its ordinary handler.
     func dispatchCmyk(_ tool: String, _ a: [String: Any], document: ImageDocument) throws -> String? {
         guard let doc = document.doc, let precision = doc.precision, precision.isCmyk else { return nil }
-        // #547 phase 5: the colour workflow's routes (AgentServer+CmykColour.swift).
+        // #1 phase 5: the colour workflow's routes (AgentServer+CmykColour.swift).
         if let result = try dispatchCmykColour(tool, a, document: document, precision: precision) {
             return result
         }
@@ -248,48 +248,48 @@ extension AgentServer {
                          "native_scratch_bytes",
                          "decode_scratch_bytes", "reopen_retained_bytes", "cmyk_flatten_scratch_bytes",
                          "cmyk_open_bytes_per_pixel", "retained_bytes",
-                         // #547 phase 2: the paint, tone and New Layer plans.
+                         // #1 phase 2: the paint, tone and New Layer plans.
                          "cmyk_paint_scratch_bytes", "cmyk_gradient_scratch_bytes",
                          "cmyk_bucket_scratch_bytes", "cmyk_adjust_apply_scratch_bytes",
                          "cmyk_adjust_add_scratch_bytes", "cmyk_add_layer_scratch_bytes",
-                         // #547: Hue/Saturation's destructive and record plans.
+                         // #1: Hue/Saturation's destructive and record plans.
                          "cmyk_huesat_apply_scratch_bytes", "cmyk_huesat_add_scratch_bytes",
-                         // #547: the selections', Stroke…'s, Apply Layer Mask's and the cutout's.
+                         // #1: the selections', Stroke…'s, Apply Layer Mask's and the cutout's.
                          "cmyk_wand_scratch_bytes", "cmyk_range_scratch_bytes",
                          "cmyk_quick_scratch_bytes", "cmyk_refine_scratch_bytes",
                          "cmyk_stroke_edge_scratch_bytes", "cmyk_apply_mask_scratch_bytes",
                          "cmyk_cutout_scratch_bytes", "cmyk_cutout_decontaminate_scratch_bytes",
-                         // #547 phase 4a: Merge Visible's and Stamp Visible's plans.
+                         // #1 phase 4a: Merge Visible's and Stamp Visible's plans.
                          "cmyk_merge_scratch_bytes", "cmyk_stamp_scratch_bytes",
-                         // #547 styles batch: Merge Down of the top raster (seeded under a
+                         // #1 styles batch: Merge Down of the top raster (seeded under a
                          // knockout).
                          "cmyk_merge_down_scratch_bytes",
-                         // #547 phase 5: New in CMYK, the proof, the tone analysis and the ⌥
+                         // #1 phase 5: New in CMYK, the proof, the tone analysis and the ⌥
                          // clipping display.
                          "cmyk_new_scratch_bytes", "cmyk_proof_scratch_bytes",
                          "cmyk_tone_analysis_scratch_bytes", "cmyk_clip_display_scratch_bytes",
-                         // #547 phase 4b: the geometry plans (`cmyk_geometry_plans`).
+                         // #1 phase 4b: the geometry plans (`cmyk_geometry_plans`).
                          "cmyk_resize_scratch_bytes",
                          "cmyk_affine_scratch_bytes",
                          "cmyk_perspective_crop_scratch_bytes",
                          "cmyk_warp_scratch_bytes",
                          "cmyk_liquify_scratch_bytes",
                          "cmyk_transform_selected_scratch_bytes",
-                         // #547 adjustments and filters: three filters, a destructive
+                         // #1 adjustments and filters: three filters, a destructive
                          // Shadows/Highlights and Fade.
                          "cmyk_filter_gaussian_scratch_bytes",
                          "cmyk_filter_surface_scratch_bytes",
                          "cmyk_filter_dust_scratch_bytes",
                          "cmyk_shadows_apply_scratch_bytes",
                          "cmyk_fade_scratch_bytes",
-                         // #547 phase 4c: copy and paste, Layer Via, Stamp Selected, Merge Group.
+                         // #1 phase 4c: copy and paste, Layer Via, Stamp Selected, Merge Group.
                          "cmyk_copy_scratch_bytes", "cmyk_copy_merged_scratch_bytes",
                          "cmyk_cut_scratch_bytes", "cmyk_paste_scratch_bytes",
                          "cmyk_paste_convert_scratch_bytes", "cmyk_paste_to_rgb_scratch_bytes",
                          "cmyk_layer_via_copy_scratch_bytes", "cmyk_layer_via_cut_scratch_bytes",
                          "cmyk_paste_layers_convert_scratch_bytes",
                          "cmyk_stamp_selected_scratch_bytes", "cmyk_merge_group_scratch_bytes",
-                         // #547's channels batch: the plate and composite loads, Similar, the
+                         // #1's channels batch: the plate and composite loads, Similar, the
                          // backdrop wand and one ink plate's move and transform.
                          "cmyk_plate_load_scratch_bytes",
                          "cmyk_luminance_scratch_bytes",
@@ -297,7 +297,7 @@ extension AgentServer {
                          "cmyk_backdrop_wand_scratch_bytes",
                          "cmyk_move_plate_scratch_bytes",
                          "cmyk_transform_plate_scratch_bytes",
-                         // #547's retouch batch: the retouch tools' and Equalize's plans
+                         // #1's retouch batch: the retouch tools' and Equalize's plans
                          // (`cmyk_retouch_plate::cmyk_retouch_plans`).
                          "cmyk_clone_scratch_bytes", "cmyk_heal_scratch_bytes",
                          "cmyk_spot_heal_scratch_bytes", "cmyk_dodge_scratch_bytes",
@@ -355,7 +355,7 @@ extension AgentServer {
         var result: [String: Any] = ["ok": true, "path": url.path, "format": name, "color_mode": "cmyk",
                                      "bit_depth": name == "jpeg" ? 8 : info["depth"] ?? 16,
                                      "flattened": name != ImageDocument.nativeFormatName]
-        // A TIFF keeps the spot channels (#547 1c-2a) and names the plan it was admitted at.
+        // A TIFF keeps the spot channels (#1 1c-2a) and names the plan it was admitted at.
         if name == "tiff", document.doc?.hasSpotChannels == true { result["working_memory_plan_bytes"] = scratch }
         return try jsonResult(result)
     }

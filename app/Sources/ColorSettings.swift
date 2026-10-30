@@ -74,7 +74,7 @@ enum ColorSettings {
         set { ColorSettingsStore.set(newValue, forKey: askWhenPastingKey) }
     }
 
-    // MARK: - Edit ▸ Color Settings (#547 phase 5)
+    // MARK: - Edit ▸ Color Settings (#1 phase 5)
 
     static let workingCMYKKey = "ColorWorkingCMYK"
     static let rgbPolicyKey = "ColorRGBPolicy"

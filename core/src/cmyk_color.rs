@@ -1,4 +1,4 @@
-//! The two colour legs of a CMYK document (#547 phase 1), written ONCE and
+//! The two colour legs of a CMYK document (#1 phase 1), written ONCE and
 //! shared with the two older callers that ran the same arithmetic inline:
 //!
 //! * **RGB → CMYK** ([`ToDevice`], [`RgbToCmyk`]): an RGB colour's PCS XYZ
@@ -19,7 +19,7 @@
 //!   [`CmykToRgb::evaluate`] (byte-identical: the same calls in the same
 //!   order).
 //!
-//! * **CMYK → CMYK** ([`CmykToCmyk`], #547 phases 5 and 4c): Edit ▸ Convert
+//! * **CMYK → CMYK** ([`CmykToCmyk`], #1 phases 5 and 4c): Edit ▸ Convert
 //!   to Profile between two CMYK profiles, the CMYK document's proof, and a
 //!   paste between CMYK documents of different profiles. The source's `A2B`
 //!   at the intent, the absolute media-white scale, BPC from the source's
@@ -394,7 +394,7 @@ impl<'a> CmykToCmyk<'a> {
 
 /// One encoded sRGB colour (the built-in sRGB, 0…1) as ink in `profile`
 /// (0…1) — the Color Picker's, the eyedropper's and MCP's single colour
-/// across the CMYK boundary (#547 phase 2), through [`RgbToCmyk`] and no
+/// across the CMYK boundary (#1 phase 2), through [`RgbToCmyk`] and no
 /// other arithmetic.
 pub(crate) fn srgb_to_ink(
     profile: &ProofProfile,

@@ -1,4 +1,4 @@
-//! A Grayscale document's PSD, PSB and layered-TIFF export (#547 phase 3b):
+//! A Grayscale document's PSD, PSB and layered-TIFF export (#1 phase 3b):
 //! its report, its save, the one-plane composite and the two-plane channel
 //! writer the shared record walk calls.
 //!
@@ -20,7 +20,7 @@
 //! `psd_export_gray32::TIFF_REFUSAL`, a record with no 32-bit form with
 //! `layers_refusal`) and writes through `psd_export_gray32`.
 //!
-//! **Photoshop's own gray layout** (#547 phase 3b). Phase 3a's writer
+//! **Photoshop's own gray layout** (#1 phase 3b). Phase 3a's writer
 //! crashed Photoshop on open (`gray-files-547/take1`); an offline diff of
 //! its files against Photoshop's own gray PSD, PSB and TIFF (the read
 //! fixtures `tests/fixtures/psd_photoshop/gray/`) moved it, one reasoned
@@ -50,11 +50,11 @@
 //!   ExtraSamples, and its `Layr`/`Lr16` count is positive, as Photoshop's
 //!   `layers8.tif`; 3a wrote straight gray and alpha and a negative count.
 //!
-//! **A Duotone document** (#547 Duotone phase 1b) is written by this same
+//! **A Duotone document** (#1 Duotone phase 1b) is written by this same
 //! body and post-processed by `duotone_files::into_duotone_file`: colour
 //! mode 8, its duotone specification as the colour-mode data and its carried
 //! duotone resources, the report saying `"color_mode":"duotone"`; a layered
-//! TIFF refuses. **A 16-bit Duotone document** (#547 spot channels 1b-2,
+//! TIFF refuses. **A 16-bit Duotone document** (#1 spot channels 1b-2,
 //! RULING-1) is written at 8 bits: Photoshop 26.10 refused to open every
 //! 16-bit Duotone file Doctored wrote, spot channels or none
 //! (`scripts/photoshop-probe/spot_psd_readback_take.py` take1). The file is
@@ -96,7 +96,7 @@ const DUOTONE_EIGHT_REQUEST: &str = r#"{"op":"depth","depth":8}"#;
 const DUOTONE_EIGHT_LOSS: &str =
     "16-bit Duotone samples written at 8 bits (Photoshop's Duotone is 8-bit)";
 
-/// A Duotone document's first general limitation (#547 Duotone phase 1b).
+/// A Duotone document's first general limitation (#1 Duotone phase 1b).
 const DUOTONE_LIMITATION: &str = "A Duotone document is written as a Duotone PSD or PSB (colour mode 8) at 8 bits, Photoshop's Duotone depth (a 16-bit document from an 8-bit copy, the document unchanged): its gray channel as a Grayscale file's, with PackBits (RLE) channel compression, and its inks as Photoshop's duotone specification. Inks unchanged since the file was opened keep its duotone data byte for byte.";
 
 /// A Duotone document's refusal of a layered TIFF.
@@ -289,7 +289,7 @@ impl PrecisionDocument {
         if let Some(first) = out["general_limitations"].get_mut(0) {
             *first = json!(first_limitation(container, depth == GrayDepth::ThirtyTwo));
         }
-        // A Duotone document (#547 Duotone phase 1b) writes colour mode 8
+        // A Duotone document (#1 Duotone phase 1b) writes colour mode 8
         // (`duotone_files`); a layered TIFF has no Duotone form.
         if self.is_duotone() {
             out["color_mode"] = json!("duotone");

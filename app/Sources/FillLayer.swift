@@ -93,7 +93,7 @@ import AppKit
 // render reads the mask. Smoothness (`smoothness`, nil at 100 %) rides
 // in the gradient object like every other key.
 //
-// INK (#547, version 2). In a CMYK document the description's colours are ink
+// INK (#1, version 2). In a CMYK document the description's colours are ink
 // in the document's profile: `"ink":"cmyk"`, a solid `color` of
 // `[c, m, y, k, a]`, and a gradient's `stop_inks`, one `[c, m, y, k]` per
 // stop in STORED order (`stop_inks[i]` is `stops[i]`'s), each stop's `#rrggbb`
@@ -112,7 +112,7 @@ import AppKit
 struct FillLayerPayload: Codable, Equatable {
     static let typeName = "fill"
     static let currentVersion = 1
-    /// The ink form (#547): `ink` "cmyk", 5-number `color`, `stop_inks`.
+    /// The ink form (#1): `ink` "cmyk", 5-number `color`, `stop_inks`.
     static let cmykVersion = 2
     static let solid = "solid"
     static let gradientKind = "gradient"

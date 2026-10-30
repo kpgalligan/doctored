@@ -79,7 +79,7 @@ pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
     // this reader always did.
     let has_ids = outermost_version == crate::identity_native::BYTE_VERSION;
     let spot_word = if has_ids { r.u32()? } else { outermost_version };
-    // Version 112 is the FIRST word inside 45 (`spot_channel_native`, #547),
+    // Version 112 is the FIRST word inside 45 (`spot_channel_native`, #1),
     // ahead of 111: some channel is a spot channel, and its SPOT table
     // follows LREF, every entry checked before any PNG decodes.
     let has_spot = has_ids && spot_word == crate::spot_channel_native::WORD;
@@ -461,7 +461,7 @@ pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
             take_opt_string(&mut r, "style")?
                 .and_then(|s| LayerStyle::from_json_lenient(&s).ok())
                 // A byte document has no plates: a CMYK-channel Blend If (a
-                // file this build's setter never writes) is dropped (#547).
+                // file this build's setter never writes) is dropped (#1).
                 .map(|s| s.without_cmyk_blend_if())
                 .filter(|s| !s.is_identity())
                 .map(Arc::new)

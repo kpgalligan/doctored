@@ -1,4 +1,4 @@
-Photoshop 26.10.0's own Duotone PSDs from the #547 Duotone phase 1b smokes
+Photoshop 26.10.0's own Duotone PSDs from the #1 Duotone phase 1b smokes
 (scripts/photoshop-probe/duotone_take.py; the take itself moved to Duotone
 phase 2, RULING-1 (b) 3). Each is the 104 x 24 scene (an 8-bit RGB TIFF of
 R = G = B patches and a ramp) converted by Image > Mode > Grayscale (CnvM
@@ -21,7 +21,7 @@ product W (.) P1/W (.) P2/W to 0.01. Copied from
 Both hold colour-mode data of 524 bytes and the resources 1014 and 1017 (no
 1018, no 1063). core/tests/duotone_files.rs reads them.
 
-duotone3-curves.psd: the #547 Duotone phase 2b take (take1, case `three`).
+duotone3-curves.psd: the #1 Duotone phase 2b take (take1, case `three`).
 Rasterize wrote the 104 x 24 scene (an untagged 8-bit gray PNG of the same
 codes, opened under Dot Gain 20%) as a Tritone PSD through
 core/examples/duotone_take_psd.rs: "Warm Black" Lab (20, 2, 4) curve 0 -> 100,

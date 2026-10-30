@@ -1,4 +1,4 @@
-//! A CMYK document's LAYER STYLES (#547, the styles batch): the adapter
+//! A CMYK document's LAYER STYLES (#1, the styles batch): the adapter
 //! between a styled CMYK record and the row kernel `cmyk_style_row`, and the
 //! style's INKS.
 //!

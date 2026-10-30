@@ -1,4 +1,4 @@
-//! #547 Lab Color phase 1: Image ▸ Mode ▸ Lab Color and RGB Color back,
+//! #1 Lab Color phase 1: Image ▸ Mode ▸ Lab Color and RGB Color back,
 //! against the CIE formulas computed here — the ICC PCS white (0.9642, 1.0,
 //! 0.8249), the published Bradford-adapted sRGB → XYZ (D50) matrix and the
 //! IEC 61966-2-1 curve — with the bounds declared in the spec before
@@ -476,7 +476,7 @@ fn the_hard_refusals_name_the_route() {
         to_lab_plan(lab, "{}")["refusal"],
         "the document is already Lab Color"
     );
-    // Lab → Grayscale converts directly since #547 Lab phase 5a-ii
+    // Lab → Grayscale converts directly since #1 Lab phase 5a-ii
     // (`lab_gray.rs` holds its oracles); Lab → CMYK since phase 5a
     // (`lab_cmyk_depth.rs`).
     let options = CString::new(r#"{"space":"sgray"}"#).unwrap();
@@ -579,7 +579,7 @@ fn the_hard_refusals_name_the_route() {
     free(rgb);
 }
 
-/// #547 Lab phase 2's Photoshop take (`scripts/photoshop-probe/lab_mode_take.py`,
+/// #1 Lab phase 2's Photoshop take (`scripts/photoshop-probe/lab_mode_take.py`,
 /// `lab-mode-547/take1`, Photoshop 26.10.0): the 26 sRGB patches (8-bit codes;
 /// `gray_luminance_take.item1_patches`, seed 4421) it converted by Image ▸ Mode ▸ Lab Color.
 const TAKE_PATCHES: [[u16; 3]; 26] = [

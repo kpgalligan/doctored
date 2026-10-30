@@ -251,7 +251,7 @@ fn color(
     }
 }
 
-/// `obj[key]` as a straight CMYK ink `[c, m, y, k]` (#547): exactly four
+/// `obj[key]` as a straight CMYK ink `[c, m, y, k]` (#1): exactly four
 /// finite numbers, each clamped into `0..=1` and quantized like every unit
 /// value (`RANGES.unit`); `None` when absent or null. Anything else is
 /// malformed in both modes.
@@ -546,7 +546,7 @@ fn blend_if_range(
 /// then each `extra` entry in order, identity ranges included — read the
 /// way [`parse_blend_if`] reads it (an absent channel is Gray). The
 /// setters' mode check runs on this before canonicalization drops identity
-/// ranges (#547: a channel the mode lacks refuses even as an identity ramp).
+/// ranges (#1: a channel the mode lacks refuses even as an identity ramp).
 /// Called only on a value `parse_blend_if` accepted; empty for null.
 pub(crate) fn requested_blend_if_channels(blend_if: &Value) -> Vec<BlendIfChannel> {
     let Some(b) = blend_if.as_object() else {

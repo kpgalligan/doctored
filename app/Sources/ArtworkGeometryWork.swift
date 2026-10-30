@@ -2,7 +2,7 @@ import AppKit
 
 /// Main-thread capture of every editable artwork member a set transform
 /// affects. Workers receive only immutable drawing commands and descriptions.
-/// In a CMYK document (#547) the members are captured in ink and published
+/// In a CMYK document (#1) the members are captured in ink and published
 /// through `dr_precision_doc_cmyk_artwork` (CmykArtwork.swift's arm).
 struct ArtworkGeometryWork {
     struct Member {

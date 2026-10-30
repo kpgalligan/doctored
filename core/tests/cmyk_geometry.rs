@@ -1,4 +1,4 @@
-//! Geometry on a CMYK document (#547 phase 4b): Image Size, transforms and
+//! Geometry on a CMYK document (#1 phase 4b): Image Size, transforms and
 //! perspective of the CMYKA16 ink against `common/cmyk_geometry_fixture.rs`'s
 //! f64 premultiplied reference resampler (≤ 1 code a plate, alpha included,
 //! at every pixel and kernel), the exact permutations, every geometry op

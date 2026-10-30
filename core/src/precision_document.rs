@@ -44,7 +44,7 @@ pub(crate) enum Content {
         offset: (i32, i32),
     },
     /// A CMYK document's Levels or Curves record (`cmyk_adjust_layer`,
-    /// #547 phase 2). Like `CmykRaster`, only `build_cmyk` admits one and an
+    /// #1 phase 2). Like `CmykRaster`, only `build_cmyk` admits one and an
     /// RGB path meeting it refuses by `cmyk_document::refused_sentence`.
     CmykAdjustment(crate::cmyk_adjust_layer::CmykAdjustmentState),
 }
@@ -320,7 +320,7 @@ impl PrecisionDocumentLayer {
         }
     }
     /// A record holding pixels geometry resamples: an RGB raster or a CMYK
-    /// document's CMYKA16 raster (#547 phase 4b).
+    /// document's CMYKA16 raster (#1 phase 4b).
     pub(crate) fn is_pixel_leaf(&self) -> bool {
         matches!(
             self.content,
@@ -355,7 +355,7 @@ impl PrecisionDocumentLayer {
         float: bool,
     ) -> Result<PrecisionLayer, String> {
         // The byte opacity below 32 bits, measured against Photoshop
-        // (`opacity_byte`, #578).
+        // (`opacity_byte`, #2).
         let opacity = crate::opacity_byte::composite(self.opacity, float);
         let layer = match &self.content {
             Content::Raster { image, offset } => {
@@ -482,23 +482,23 @@ pub struct PrecisionDocument {
     /// `Content::CmykRaster`. Like `float`, its presence is a storage
     /// question `build_body` gates on.
     pub(crate) cmyk: Option<Arc<crate::cmyk_document::CmykPolicy>>,
-    /// The Grayscale mode's policy (`gray_document`, #547): `None` for every
+    /// The Grayscale mode's policy (`gray_document`, #1): `None` for every
     /// other document. Its storage is the RGB document's (R = G = B in the
     /// policy's twin profile), so no `build` gate reads it: `build_body`
     /// sets `None`, `rebuilt` carries it and `with_gray` sets it.
     pub(crate) gray: Option<Arc<crate::gray_document::GrayPolicy>>,
-    /// The Lab Color mode's policy (`lab_document`, #547): `None` for every
+    /// The Lab Color mode's policy (`lab_document`, #1): `None` for every
     /// other document. Its storage is the RGB document's (L\*, a\*, b\* in
     /// R, G, B, in the Lab twin), so, like `gray`, no `build` gate reads it:
     /// `build_body` sets `None`, `rebuilt` carries it and `with_lab` sets it.
     pub(crate) lab: Option<Arc<crate::lab_document::LabPolicy>>,
-    /// The Indexed Color mode's policy (`indexed_document`, #547): `None` for
+    /// The Indexed Color mode's policy (`indexed_document`, #1): `None` for
     /// every other document. Its storage is the RGB document of one layer
     /// holding the policy's render, so, like `gray`, no `build` gate reads
     /// it: `build_body` sets `None`, `rebuilt` carries it and `with_indexed`
     /// sets it.
     pub(crate) indexed: Option<Arc<crate::indexed_document::IndexedPolicy>>,
-    /// The Bitmap mode's policy (`bitmap_document`, #547): `None` for every
+    /// The Bitmap mode's policy (`bitmap_document`, #1): `None` for every
     /// other document. Its storage is the 8-bit Gray document of one layer
     /// holding the packed plane's render (`gray` is `Some` beside it), so,
     /// like `gray`, no `build` gate reads it: `build_body` sets `None`,
@@ -682,7 +682,7 @@ impl PrecisionDocument {
                     !cmyk && (image.storage() == PrecisionStorage::Rgba32Float) == float
                 }
                 Content::Adjustment(_) => !cmyk,
-                // A CMYK group (#547 phase 4a) agrees when its children do.
+                // A CMYK group (#1 phase 4a) agrees when its children do.
                 Content::Group(children) | Content::PassThrough(children) => {
                     storage_agrees(children, float, cmyk)
                 }
@@ -1095,14 +1095,14 @@ impl PrecisionDocument {
     /// document's display is two stages, the Lab view
     /// (`lab_convert::view_scratch_bytes`) and then the preview of it with the
     /// view held, each bounded by this figure in the host
-    /// (`PreparedDocumentEdit`), so it is the larger of the two (#547 Lab
+    /// (`PreparedDocumentEdit`), so it is the larger of the two (#1 Lab
     /// phase 4a-ii: the preview alone left a small Lab canvas's view
     /// refused).
     pub(crate) fn display_scratch_bytes(&self) -> Result<u64, String> {
         if self.float.is_some() {
             crate::float_document::display_scratch(self.width, self.height)
         } else if self.is_duotone() {
-            // #547 Duotone phase 1a: the view, then its preview, Lab's shape.
+            // #1 Duotone phase 1a: the view, then its preview, Lab's shape.
             crate::duotone_document::display_scratch_bytes(self.width, self.height)
         } else if self.is_lab() {
             let preview = crate::precision_image::rgba8_preview_scratch(self.width, self.height)?;
@@ -1253,7 +1253,7 @@ impl PrecisionDocument {
                 descriptor["supported_operations"] =
                     json!(crate::precision_capability::gray_operations());
             }
-            // #547 Duotone phase 1a: the storage stays Gray (`color_mode`
+            // #1 Duotone phase 1a: the storage stays Gray (`color_mode`
             // "gray"); the description's type and ink count beside it.
             if let Some(inks) = self.gray.as_ref().and_then(|p| p.duotone()) {
                 descriptor["duotone"] = json!({"type": inks.type_name(), "inks": inks.inks().len()});

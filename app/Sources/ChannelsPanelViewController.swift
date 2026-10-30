@@ -66,7 +66,7 @@ final class ChannelsPanelViewController: NSViewController {
     /// disappear with it.
     private var visibleChannels: Set<UInt64> = []
 
-    /// The SPOT channels whose eye is off, by the same stable id (#547): a spot channel is visible
+    /// The SPOT channels whose eye is off, by the same stable id (#1): a spot channel is visible
     /// unless hidden, so a new spot channel overprints the composite at once.
     private var hiddenSpotChannels: Set<UInt64> = []
 
@@ -90,7 +90,7 @@ final class ChannelsPanelViewController: NSViewController {
     /// keeps a reload off the main thread's back on a large document (the
     /// plane readers allocate a canvas-sized buffer per call).
     private var thumbnailComposite: RasterImage?
-    /// #547 Lab phase 1c: a Lab Color document's raw-code thumbnail, fitted once per reload
+    /// #1 Lab phase 1c: a Lab Color document's raw-code thumbnail, fitted once per reload
     /// beside `thumbnailComposite`; its Lightness, a and b rows extract their planes from it.
     private var thumbnailLabCodes: RasterImage?
 
@@ -294,15 +294,15 @@ final class ChannelsPanelViewController: NSViewController {
         guard isViewLoaded else { return }
         let activeLayer = document?.activeLayerIndex ?? 0
         rows = document?.doc?.channelRows(activeLayer: activeLayer) ?? []
-        // #547 Indexed phase 1a: an Indexed Color document lists one composite row, "Index", and
+        // #1 Indexed phase 1a: an Indexed Color document lists one composite row, "Index", and
         // no colour planes (its pixels are palette indices).
-        // #547 Bitmap phase 1a: a Bitmap document lists one composite row, "Bitmap", by the same
+        // #1 Bitmap phase 1a: a Bitmap document lists one composite row, "Bitmap", by the same
         // rule.
         if document?.doc?.isIndexed == true || document?.doc?.isBitmap == true {
             rows.removeAll { if case .plane = $0 { return true } else { return false } }
         }
         if let doc = document?.doc, doc.isDuotone, let precision = doc.precision {
-            // #547 Duotone phase 2a: the core's thumbnail of the u16 projection through the inks,
+            // #1 Duotone phase 2a: the core's thumbnail of the u16 projection through the inks,
             // fitted first (no full display projection).
             thumbnailComposite = (try? document?.currentPrecisionProjection()).flatMap { projection in
                 (try? PrecisionWorkContext(image: projection)).flatMap {
@@ -632,7 +632,7 @@ extension ChannelsPanelViewController: NSTableViewDataSource, NSTableViewDelegat
             thumbnail = NSImage(
                 cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
         }
-        // #547: a spot row's ink swatch, its D50 Lab drawn as Duotone's swatches are.
+        // #1: a spot row's ink swatch, its D50 Lab drawn as Duotone's swatches are.
         var ink: CGColor?
         if case .alpha(let index) = channelRow, let spot = doc.channelInfo(index)?.spot {
             ink = DuotoneSheetController.swatchColor(spot.lab)
@@ -652,7 +652,7 @@ extension ChannelsPanelViewController: NSTableViewDataSource, NSTableViewDelegat
         cell.onCommandClick = { [weak self] event in
             guard let self = self else { return }
             self.onLoadSelection?(
-                // #547 phase 4: a Gray document's Gray row loads as CMYK's composite row; since
+                // #1 phase 4: a Gray document's Gray row loads as CMYK's composite row; since
                 // Lab phase 4b-i a Lab document's Lab row does too (its Lightness).
                 channelRow.selectionSource(activeLayer: activeLayer,
                                            isCmyk: doc.isCmyk || doc.isGray || doc.isLab),
@@ -720,7 +720,7 @@ extension ChannelsPanelViewController: NSTableViewDataSource, NSTableViewDelegat
                 NSMenuItem(
                     title: "Delete Channel",
                     action: #selector(EditorViewController.deleteChannel(_:)), keyEquivalent: ""))
-            // #547: a spot row's options are its ink's.
+            // #1: a spot row's options are its ink's.
             menu.addItem(
                 NSMenuItem(
                     title: spot ? "Spot Channel Options…" : "Channel Options…",
@@ -752,7 +752,7 @@ extension ChannelsPanelViewController: NSTableViewDataSource, NSTableViewDelegat
     ) -> String {
         switch row {
         case .composite:
-            // #547 Duotone phase 2a: a Duotone document's row is named after its type.
+            // #1 Duotone phase 2a: a Duotone document's row is named after its type.
             if !doc.isBitmap, doc.isDuotone { return DuotoneDocument.channelName(doc) }
             return doc.isBitmap ? "Bitmap" : doc.isGray ? "Gray" : doc.isLab ? "Lab" : doc.isIndexed ? "Index" : doc.isCmyk ? "CMYK" : "RGB"
         case .plane(let plane): return doc.isLab ? LabDocument.channelName(plane) : plane.displayName
@@ -783,7 +783,7 @@ extension ChannelsPanelViewController: NSTableViewDataSource, NSTableViewDelegat
     }
 
     /// A row's thumbnail tooltip in place of the cell's default, or nil for the default: a Lab
-    /// Color document's Lightness, a and b rows (#547 phase 2e) edit the active layer's channel,
+    /// Color document's Lightness, a and b rows (#1 phase 2e) edit the active layer's channel,
     /// named in Lab.
     private static func tooltip(for row: ChannelRow, doc: RasterDocument) -> String? {
         if case .alpha(let index) = row, doc.channelInfo(index)?.spot != nil {
@@ -808,7 +808,7 @@ final class ChannelCellView: NSView, NSTextFieldDelegate {
     private let thumbFrame = ThumbnailWellView()
     private let nameField = NSTextField(string: "")
     private let metaLabel = NSTextField(labelWithString: "")
-    /// A spot channel's ink swatch, a badge in the thumbnail's corner (#547); hidden otherwise.
+    /// A spot channel's ink swatch, a badge in the thumbnail's corner (#1); hidden otherwise.
     private let inkBadge = NSView()
     private var committedName = ""
 

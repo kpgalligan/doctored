@@ -1,6 +1,6 @@
 # Grayscale document mode (ADR)
 
-- **Status:** Accepted, closed 2026-10-21. Grayscale closes here; [#547](https://github.com/kpgalligan/doctored-dev/issues/547)
+- **Status:** Accepted, closed 2026-10-21. Grayscale closes here; [#1](https://github.com/kpgalligan/doctored/issues/1)
   (the colour-mode umbrella) stays open for Lab Color (`designs/lab-mode.md`, closed 2026-10-22). CMYK is `designs/cmyk-mode-status.md`.
 - **Name:** this ADR is `grayscale-mode.md`, as the closing request named it, not the `-status` basename of the
   `v1-stacks-status.md` precedent.
@@ -164,4 +164,4 @@ No issue was filed: nothing Grayscale lacks needs more than this batch.
 
 ## Open items
 
-- Lab Color continued under [#547](https://github.com/kpgalligan/doctored-dev/issues/547) and closed 2026-10-22 (`designs/lab-mode.md`).
+- Lab Color continued under [#1](https://github.com/kpgalligan/doctored/issues/1) and closed 2026-10-22 (`designs/lab-mode.md`).

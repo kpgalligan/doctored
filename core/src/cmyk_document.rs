@@ -1,4 +1,4 @@
-//! The CMYK document mode (#547 phases 1, 2, 4a and 4b, and the channels,
+//! The CMYK document mode (#1 phases 1, 2, 4a and 4b, and the channels,
 //! retouch, artwork and styles batches): the policy, the storage gate, the
 //! blend-mode set and the refusal sentences.
 //!

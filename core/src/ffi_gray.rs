@@ -1,4 +1,4 @@
-//! The Grayscale document across the FFI (#547 phase 1a): which files open
+//! The Grayscale document across the FFI (#1 phase 1a): which files open
 //! as one, the open, File ▸ New ▸ Grayscale, Image ▸ Mode's two
 //! conversions and their plans, and (phase 5a) the profile and depth edit
 //! and its plan.
@@ -131,7 +131,7 @@ pub unsafe extern "C" fn dr_precision_doc_new_gray(
 /// Image ▸ Mode ▸ Grayscale's plan: `{"working_memory_plan_bytes",
 /// "refusal","flatten_required","flattens"}`. `icc` NULL takes the options'
 /// `space`. An 8- or 16-bit Lab Color document converts too (`lab_gray`,
-/// #547 Lab phase 5a-ii).
+/// #1 Lab phase 5a-ii).
 ///
 /// # Safety
 /// `document` NULL or live; `icc` NULL or valid for `icc_len` bytes;
@@ -164,7 +164,7 @@ pub unsafe extern "C" fn dr_precision_doc_convert_to_gray_plan(
 }
 
 /// Image ▸ Mode ▸ Grayscale: a new Grayscale document (`gray_convert`), from
-/// an RGB or an 8- or 16-bit Lab Color document (`lab_gray`, #547 Lab phase
+/// an RGB or an 8- or 16-bit Lab Color document (`lab_gray`, #1 Lab phase
 /// 5a-ii).
 ///
 /// # Safety
@@ -267,7 +267,7 @@ pub unsafe extern "C" fn dr_precision_doc_convert_gray_to_rgb(
 }
 
 /// A Grayscale document's Gray ICC bytes, verbatim, borrowed until the
-/// document is freed (#547 phase 4: the host's clipboard compares and
+/// document is freed (#1 phase 4: the host's clipboard compares and
 /// converts with them); NULL with length 0 for a NULL handle or a document
 /// that is not Grayscale.
 ///
@@ -359,7 +359,7 @@ pub unsafe extern "C" fn dr_precision_doc_gray_profile_edit(
     }
 }
 
-/// #547 Gray phase 6a-i: a type, shape or fill layer's colours as their gray
+/// #1 Gray phase 6a-i: a type, shape or fill layer's colours as their gray
 /// (Mode ▸ Grayscale's rule, `gray_artwork`). `request` is
 /// `{"srgb":[[r,g,b],…],"linear":[[r,g,b],…],"pattern":{…}}`, each key
 /// optional, each list at most 1024, srgb 0…1, linear finite. Answers the

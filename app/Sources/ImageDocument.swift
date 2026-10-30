@@ -410,22 +410,22 @@ final class ImageDocument: NSDocument {
 
     override func writableTypes(for saveOperation: NSDocument.SaveOperationType) -> [String] {
         if saveOperation == .saveToOperation {
-            // #547 phase 5: a CMYK document's Save a Copy writes what a CMYK
+            // #1 phase 5: a CMYK document's Save a Copy writes what a CMYK
             // save can (`CapturedSave`): .doctored, JPEG and TIFF.
             if doc?.isCmyk == true {
                 return [Self.nativeTypeIdentifier, UTType.jpeg.identifier, UTType.tiff.identifier]
             }
-            // #547 Lab phase 1b: a Lab Color document's Save a Copy writes .doctored or a Lab TIFF.
+            // #1 Lab phase 1b: a Lab Color document's Save a Copy writes .doctored or a Lab TIFF.
             if doc?.isLab == true {
                 return [Self.nativeTypeIdentifier, UTType.tiff.identifier]
             }
-            // #547 Bitmap phase 1c: a Bitmap document's Save a Copy keeps its 1-bit plane in PNG, TIFF
+            // #1 Bitmap phase 1c: a Bitmap document's Save a Copy keeps its 1-bit plane in PNG, TIFF
             // and BMP (`BitmapDocument.keptFormats`) and writes JPEG through its Gray render.
             if doc?.isBitmap == true {
                 return [Self.nativeTypeIdentifier]
                     + (BitmapDocument.keptFormats + [.jpeg]).map(\.utType.identifier)
             }
-            // #547 Indexed phase 1b: an Indexed Color document's Save a Copy keeps its palette in
+            // #1 Indexed phase 1b: an Indexed Color document's Save a Copy keeps its palette in
             // PNG, GIF and TIFF (`IndexedDocument.keptFormats`).
             if doc?.isIndexed == true {
                 return [Self.nativeTypeIdentifier] + IndexedDocument.keptFormats.map(\.utType.identifier)
@@ -510,7 +510,7 @@ final class ImageDocument: NSDocument {
     /// Internal, not private: `makeUntitled` is the fourth document-creating
     /// path and takes the same one conversion.
     ///
-    /// Edit ▸ Color Settings' RGB policy decides it (#547 phase 5): Convert to Working (the
+    /// Edit ▸ Color Settings' RGB policy decides it (#1 phase 5): Convert to Working (the
     /// default) is the conversion above, Preserve Embedded Profiles keeps the file's profile, and
     /// Off assigns the working space to the numbers as they are.
     func adoptWorkingSpace() {
@@ -765,7 +765,7 @@ final class ImageDocument: NSDocument {
         guard let format = ExportFormat.from(fileType: typeName) else {
             throw DoctoredCoreError(message: "Cannot write files of type \(typeName).")
         }
-        // #547: a TIFF keeps the spot channels (1c-2a); any other flat file composites them.
+        // #1: a TIFF keeps the spot channels (1c-2a); any other flat file composites them.
         let flattened = try flatSaveProjection(format: format)
         // The document-level save so the ICC profile, the EXIF/XMP/IPTC
         // packets and the print resolution ride along; the warm projection

@@ -1,6 +1,6 @@
 //! A classic TIFF's first directory, read header-only, and the byte
 //! [`Overlay`] that presents patched directory values to the `tiff` decoder
-//! (#547: moved verbatim out of `lab_tiff_read.rs` so the Lab and the
+//! (#1: moved verbatim out of `lab_tiff_read.rs` so the Lab and the
 //! palette TIFF opens share one walk; leaf, std only).
 //!
 //! [`Directory::first`] reads the header (`II` or `MM`, 42, never BigTIFF)

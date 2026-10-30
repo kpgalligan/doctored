@@ -23,7 +23,7 @@
 //! 32-bit float bucket compares its R1 display codes the same way; R−G, G−B and R−B are taken in
 //! those same codes. A gray mask or channel (`[v, v, v, max]`) reduces to |Δv| ≤ t, unchanged.
 //!
-//! **Ink (#547).** A CMYK document's Magic Wand and Paint Bucket compare the ink's NAIVE RGB, never
+//! **Ink (#1).** A CMYK document's Magic Wand and Paint Bucket compare the ink's NAIVE RGB, never
 //! the view: [`grow_ink`] is `grow`'s twin over straight CMYKA16 samples and the same [`flood`],
 //! each sample read through [`ink_as_rgb`] — `R = (1 − C)(1 − K)` (G from M, B from Y, A the alpha),
 //! rounded to the document's depth: at 8 bits `R = 257·round((255 − c8)(255 − k8)/255)` with

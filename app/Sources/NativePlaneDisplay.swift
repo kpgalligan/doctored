@@ -54,7 +54,7 @@ extension RasterDocument {
     /// the exact native plane read. On a Lab Color document it is `labPlaneDisplay`: the composite's
     /// Lightness, a or b codes only, and a layer refuses with `LabDocument.renderRefusal`.
     func nativeSourcePlaneDisplay(_ plane: RasterPlane, layer: Int?, maxSide: Int = 0) throws -> RasterImage {
-        // #547 Lab phase 1c: a Lab Color document's Lightness, a or b of the composite's codes.
+        // #1 Lab phase 1c: a Lab Color document's Lightness, a or b of the composite's codes.
         if isLab {
             guard layer == nil else { throw DoctoredCoreError(message: LabDocument.renderRefusal) }
             return try labPlaneDisplay(plane, maxSide: maxSide)

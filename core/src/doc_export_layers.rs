@@ -376,7 +376,7 @@ impl PrecisionDocument {
         trimmed: bool,
         request: &ExportRequest,
     ) -> Result<Value, String> {
-        // #547 Indexed phase 2d: the Index layer (`indexed_export`).
+        // #1 Indexed phase 2d: the Index layer (`indexed_export`).
         if self.is_indexed() {
             return self.indexed_layer_export_plan(idx, trimmed, request);
         }
@@ -418,7 +418,7 @@ impl PrecisionDocument {
         other: u64,
         control: Option<&DrJobControl>,
     ) -> Result<ExportResult, String> {
-        // #547 Indexed phase 2d: the Index layer (`indexed_export`).
+        // #1 Indexed phase 2d: the Index layer (`indexed_export`).
         if self.is_indexed() {
             return self.indexed_layer_export_encoded(idx, trimmed, request, limit, other, control);
         }

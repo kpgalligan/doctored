@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's phase-4c in-process UI case (#547): with a selection, Cut, Copy, Copy Merged,
+// The CMYK document's phase-4c in-process UI case (#1): with a selection, Cut, Copy, Copy Merged,
 // Layer Via Copy / Cut and Duplicate to Document… validate on a CMYK document, and after ⌘C so do
 // Paste, Paste in Place, Paste Into and Paste Outside; ⌘V lands ONE "Paste Layer" step whose ink
 // is exactly the copied ink (the composite at the copied spot is unchanged) and the document stays

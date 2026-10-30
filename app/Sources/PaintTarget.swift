@@ -79,7 +79,7 @@ enum PaintTarget: Equatable {
     case plane(RasterPlane)
     /// Index into the document's channel list.
     case channel(Int)
-    /// One ink plate of a CMYK layer (#547): the Move tool, its nudge and ⌘T move that plate's
+    /// One ink plate of a CMYK layer (#1): the Move tool, its nudge and ⌘T move that plate's
     /// selected pixels, and painting, filling, filtering and adjusting it edit the plate's stored
     /// `1 − ink` as a colour plane's samples are edited (`cmyk_plate_scalar`): a grey g leaves
     /// ink 1 − g.
@@ -99,7 +99,7 @@ enum PaintTarget: Equatable {
         }
     }
 
-    /// One ink plate of a CMYK layer (#547).
+    /// One ink plate of a CMYK layer (#1).
     var isInk: Bool {
         if case .ink = self { return true }
         return false
@@ -152,7 +152,7 @@ enum PaintTarget: Equatable {
         case .layer: return "layer"
         case .mask: return "mask"
         case .plane(let plane):
-            // #547 Lab phase 2e: a Lab document's colour planes are lightness, a and b, the names
+            // #1 Lab phase 2e: a Lab document's colour planes are lightness, a and b, the names
             // its gate admits, so a recorded step replays.
             if doc?.isLab == true, plane != .alpha {
                 return LabDocument.channelName(plane).lowercased()

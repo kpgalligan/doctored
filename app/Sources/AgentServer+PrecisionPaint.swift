@@ -19,9 +19,9 @@ extension AgentServer {
         // `fill`'s blend_mode / sample_all_layers, refused by name on a
         // mask, plane or channel target (+BucketFill).
         var fillStyle = tool == "fill" ? try bucketFillStyle(a, target: requested) : BucketFillStyle()
-        // #547 Indexed phase 2c: Sample all layers is off on an Indexed document, as the Fill
+        // #1 Indexed phase 2c: Sample all layers is off on an Indexed document, as the Fill
         // tool's (`fillToolStyle`): its one layer's region is the composite's. A Bitmap document
-        // (#547 Bitmap phase 2a-i) holds one layer too.
+        // (#1 Bitmap phase 2a-i) holds one layer too.
         if document.doc?.isIndexed == true || document.doc?.isBitmap == true {
             fillStyle.sampleAllLayers = false
         }
@@ -53,7 +53,7 @@ extension AgentServer {
         // block, and they carry their own gate in the core.
         try rejectLockedEdit(document, layer, DR_EDIT_PIXELS)
         let width = capture.facade.width, height = capture.facade.height
-        // What a reply says of its storage, by depth and mode (#547).
+        // What a reply says of its storage, by depth and mode (#1).
         let cmyk = capture.source.isCmyk
         let replyStorage = cmyk ? "cmyka16_unorm" : capture.facade.isFloat ? "rgba32_float" : "rgba16_unorm"
         let command: PrecisionPixelCommand
@@ -63,7 +63,7 @@ extension AgentServer {
             coverage = try PrecisionStrokeCoverage.selection(width: width, height: height, selection: capture.selection)
             command = try .erase(layer: layer)
         } else if tool == "fill", cmyk {
-            // #547: the Paint Bucket in ink on a CMYK layer (`cmyk_paint`),
+            // #1: the Paint Bucket in ink on a CMYK layer (`cmyk_paint`),
             // mirroring EditorViewController.fillPrecisionColor's CMYK branch
             // (All Layers: `cmykBucketFilledSamplingComposite`).
             coverage = try PrecisionStrokeCoverage.selection(width: width, height: height, selection: capture.selection)
@@ -240,7 +240,7 @@ extension AgentServer {
             } else if tool == "eraser_stroke" {
                 command = try PrecisionPixelCommand(["op": "erase_native", "layer": layer, "opacity": opacity, "selection": selected])
             } else if cmyk {
-                // #547: the Brush in ink on a CMYK layer, in the CMYK modes
+                // #1: the Brush in ink on a CMYK layer, in the CMYK modes
                 // (EditorViewController.finishPrecisionStroke's CMYK branch).
                 let blend = try blendModeArg(a) ?? DR_BLEND_NORMAL
                 if let reason = CmykPaint.modeRefusal(blend) { throw ToolError(message: reason) }
@@ -268,9 +268,9 @@ extension AgentServer {
                 layer: layer, title: tool.replacingOccurrences(of: "_", with: " "), record: .notACommand,
                 showProgress: false, rasterizesTarget: rasterizes, completion: Self.noteStrokeJobChange)
             job.details = ["storage": storage, "coverage": note]
-            // #547 Indexed phase 2b: the Brush's admitted plan (the native paint's and the
+            // #1 Indexed phase 2b: the Brush's admitted plan (the native paint's and the
             // re-index's), which `scripts/indexed-admission/measure.py`'s `brush-indexed` gates on;
-            // on a Bitmap document (#547 Bitmap phase 2a-i) the native paint's and the republish's,
+            // on a Bitmap document (#1 Bitmap phase 2a-i) the native paint's and the republish's,
             // `scripts/bitmap-admission/measure.py`'s `brush-bitmap`.
             if document.doc?.isIndexed == true || document.doc?.isBitmap == true {
                 job.details["working_memory_plan_bytes"] = work.scratchEstimate

@@ -3,7 +3,7 @@
 //! version) and is never nested inside any of them. After every prior tail,
 //! including `LCLP`: `LBIF`, u32 schema=1, u32 count, then entries of u32
 //! postorder index (strictly ascending), u32 channel (0 gray, 1 red, 2 green,
-//! 3 blue; a CMYK document's 4 cyan, 5 magenta, 6 yellow, 7 black, #547 —
+//! 3 blue; a CMYK document's 4 cyan, 5 magenta, 6 yellow, 7 black, #1 —
 //! refused in any other document), `[u8; 4]` this-layer ramp and `[u8; 4]` underlying ramp. Entries
 //! belong to raster or isolated-group records only; an identity entry, an
 //! unordered ramp, an unknown channel and an empty/noncanonical table refuse
@@ -34,7 +34,7 @@ use crate::style::{BlendIf, BlendIfChannel, BlendIfRange, MAX_EXTRA_RANGES};
 
 pub const PRECISION_VERSION: u32 = 35;
 
-/// The channel codes: 0 gray, 1 red, 2 green, 3 blue and (#547, a CMYK
+/// The channel codes: 0 gray, 1 red, 2 green, 3 blue and (#1, a CMYK
 /// document's plates, under DRDC 86) 4 cyan, 5 magenta, 6 yellow, 7 black.
 const CHANNELS: [BlendIfChannel; 8] = [
     BlendIfChannel::Gray,

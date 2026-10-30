@@ -25,9 +25,9 @@ extension AgentServer {
                                    "bit_depth": source.isFloat ? 32 : 16,
                                    "flat_save_losses": [String]()])
         }
-        // #547: a TIFF copy keeps the spot channels as extra samples (1c-2a, `keepSpotChannels`
+        // #1: a TIFF copy keeps the spot channels as extra samples (1c-2a, `keepSpotChannels`
         // below); any other flattened copy composites their overprint in the core (1c-1).
-        // #547 Lab phase 1b: a Lab Color document's TIFF is a TIFF 6.0 CIELab file at its own
+        // #1 Lab phase 1b: a Lab Color document's TIFF is a TIFF 6.0 CIELab file at its own
         // depth (`CapturedSave`'s Lab branch), mirroring File ▸ Save a Copy ▸ TIFF.
         if source.isLab, ["tiff", "tif"].contains(name) {
             let depth = source.labDepth ?? 16
@@ -57,8 +57,8 @@ extension AgentServer {
         if format.isFloatOnly && !source.isFloat {
             throw ToolError(message: "\(format.displayName) is written only from a 32-bit float document.")
         }
-        // #547 phase 1b: a Grayscale document's copy defaults to its one-channel depth; an Indexed
-        // document's (#547 Indexed phase 1b) and a Bitmap document's (#547 Bitmap phase 1c) to 8
+        // #1 phase 1b: a Grayscale document's copy defaults to its one-channel depth; an Indexed
+        // document's (#1 Indexed phase 1b) and a Bitmap document's (#1 Bitmap phase 1c) to 8
         // bits with no dither, the palette or the 1-bit plane kept.
         let bits = intArg(arguments, "bit_depth")
             ?? (source.isGray ? GrayDocument.defaultBitDepth(source, format: format)
@@ -82,7 +82,7 @@ extension AgentServer {
             stripMetadata: boolArg(arguments, "strip_metadata") ?? document.stripMetadata,
             floatSamples: samples, keepSpotChannels: format == .tiff)
         let report = try captured.run(to: url)
-        // A Bitmap document's kept PNG, TIFF or BMP holds 1 bit a pixel (#547 Bitmap phase 1c).
+        // A Bitmap document's kept PNG, TIFF or BMP holds 1 bit a pixel (#1 Bitmap phase 1c).
         let written = source.isBitmap && BitmapDocument.keptFormats.contains(format) ? 1 : bits
         var result: [String: Any] = ["ok": true, "path": url.path, "format": format.displayName,
             "bit_depth": written, "dither": dither, "flat_save_losses": captured.losses,
@@ -90,7 +90,7 @@ extension AgentServer {
         if bits == 32 {
             result["float_samples"] = format == .hdr ? "rgbe" : samples.rawValue
         }
-        // A copy that kept spot channels (#547 1c-2a) names the plan it was admitted at.
+        // A copy that kept spot channels (#1 1c-2a) names the plan it was admitted at.
         if captured.keepsSpotChannels { result["working_memory_plan_bytes"] = captured.scratchEstimate }
         result.merge(Self.savedFields(source, document, report: report)) { _, new in new }
         return try jsonResult(result)

@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Mode ▸ Duotone… (#547, `designs/duotone-mode.md`): the sheet (`DuotoneSheetController`)
+// Image ▸ Mode ▸ Duotone… (#1, `designs/duotone-mode.md`): the sheet (`DuotoneSheetController`)
 // over an 8- or 16-bit Grayscale document — opened at the last options used this session,
 // Monotone Black at first — or over a Duotone document at its own description, then the edit as
 // ONE undo step (`DuotoneEdit`, recorded as `convert_mode` with `mode: "duotone"` and the
@@ -37,7 +37,7 @@ extension EditorViewController {
                 return
             }
         }
-        // #547 Duotone phase 2a: the sheet's Preview; nil (no projection) disables its box.
+        // #1 Duotone phase 2a: the sheet's Preview; nil (no projection) disables its box.
         let preview = try? DuotonePreview(editor: self, document: document)
         presentAsSheet(DuotoneSheetController(
             options: options,

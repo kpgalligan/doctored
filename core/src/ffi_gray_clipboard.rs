@@ -1,4 +1,4 @@
-//! The Grayscale clipboard's two exports (#547 phase 4): a Gray payload's
+//! The Grayscale clipboard's two exports (#1 phase 4): a Gray payload's
 //! one-channel TIFF for the pasteboard, and a payload made from another
 //! app's gray TIFF on the pasteboard (`gray_clipboard`).
 

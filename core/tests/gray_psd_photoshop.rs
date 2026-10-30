@@ -1,4 +1,4 @@
-//! Photoshop-authored layered Grayscale files (#547 phase 3a): take1 of
+//! Photoshop-authored layered Grayscale files (#1 phase 3a): take1 of
 //! `scripts/photoshop-probe/gray_files_take.py` (Photoshop 26.10.0), exported
 //! into `tests/fixtures/psd_photoshop/gray/` by its `--export-fixture`, whose
 //! docstring fixed every bound below before the take. SKIPS with an eprintln
@@ -466,7 +466,7 @@ fn srgb_decode(v: u8) -> f64 {
 fn the_gray_profile_travels_verbatim() {
     // The open adopts resource 1039's bytes as they are; the kept-gray TIFF
     // export (`gray_export`, phase 1b: the Gray ICC verbatim in tag 34675)
-    // reads them back without the PSD writer, whose Gray form is #547
+    // reads them back without the PSD writer, whose Gray form is #1
     // phase 3b.
     let Some(root) = folder() else { return };
     let path = root.join("layers8.psd");

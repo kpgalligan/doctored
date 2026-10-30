@@ -24,7 +24,7 @@
 //!
 //! Encode: f32, or half through this module's own 16-bit colour types
 //! (`half::f16::from_f32`: the nearest half, ties to even), predictor NONE,
-//! 1 to 4 samples (gray + alpha, #547 phase 3c, through this module's own
+//! 1 to 4 samples (gray + alpha, #1 phase 3c, through this module's own
 //! `GrayA32Float` / `GrayA16Float`), optionally Deflate.
 //! The `tiff` crate has no float-predictor ENCODER, so writing predictor 3
 //! would mean writing the byte shuffle here; the acceptance criterion for
@@ -384,7 +384,7 @@ half_color_type!(GrayA16Float, BlackIsZero, 2);
 half_color_type!(Rgb16Float, RGB, 3);
 half_color_type!(Rgba16Float, RGB, 4);
 
-/// Gray + alpha at 32 bits a sample (#547 phase 3c), which the `tiff` crate
+/// Gray + alpha at 32 bits a sample (#1 phase 3c), which the `tiff` crate
 /// does not ship: BlackIsZero, two IEEE floats, predictor NONE as at every
 /// width here, so `horizontal_predict` is never called.
 struct GrayA32Float;

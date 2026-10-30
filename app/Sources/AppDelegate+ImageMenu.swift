@@ -144,24 +144,24 @@ extension AppDelegate {
     /// EditorViewController.validateUserInterfaceItem.
     private func modeMenu() -> NSMenu {
         let menu = NSMenu(title: "Mode")
-        // #547: the colour mode's Grayscale, RGB Color and CMYK
+        // #1: the colour mode's Grayscale, RGB Color and CMYK
         // Color items; the current one is checked
         // (EditorViewController+CmykMode.swift, +GrayMode.swift).
-        // #547 Bitmap phase 1a: Bitmap, through its sheet (+BitmapMode.swift), above Grayscale.
+        // #1 Bitmap phase 1a: Bitmap, through its sheet (+BitmapMode.swift), above Grayscale.
         menu.addItem(item("Bitmap…", #selector(EditorViewController.convertToBitmapMode(_:))))
         menu.addItem(item("Grayscale", #selector(EditorViewController.convertToGrayscaleMode(_:))))
-        // #547 Duotone phase 1a: Duotone, through its sheet (+DuotoneMode.swift).
+        // #1 Duotone phase 1a: Duotone, through its sheet (+DuotoneMode.swift).
         menu.addItem(item("Duotone…", #selector(EditorViewController.convertToDuotoneMode(_:))))
-        // #547 Indexed phase 1a: Indexed Color, through its sheet (+IndexedMode.swift).
+        // #1 Indexed phase 1a: Indexed Color, through its sheet (+IndexedMode.swift).
         menu.addItem(item("Indexed Color…", #selector(EditorViewController.convertToIndexedMode(_:))))
         menu.addItem(item("RGB Color…", #selector(EditorViewController.convertToRGBMode(_:))))
         menu.addItem(item("CMYK Color…", #selector(EditorViewController.convertToCMYKMode(_:))))
-        // #547 Lab phase 1: Lab Color, converted at once (+LabMode.swift).
+        // #1 Lab phase 1: Lab Color, converted at once (+LabMode.swift).
         menu.addItem(item("Lab Color", #selector(EditorViewController.convertToLabMode(_:))))
         menu.addItem(.separator())
         menu.addItem(item("Document Precision…", #selector(EditorViewController.showDocumentPrecision(_:))))
         menu.addItem(item("Convert Precision…", #selector(EditorViewController.convertDocumentPrecision(_:))))
-        // #547 phase 5: 8/16 Bits/Channel, the current one checked
+        // #1 phase 5: 8/16 Bits/Channel, the current one checked
         // (EditorViewController+CmykProfile.swift): a CMYK document's depth,
         // HDR Toning at that depth for a 32-bit RGB one, or
         // Convert Precision on that mode for an 8- or 16-bit RGB one.
@@ -169,7 +169,7 @@ extension AppDelegate {
         menu.addItem(item("16 Bits/Channel", #selector(EditorViewController.convertToSixteenBits(_:))))
         menu.addItem(item("32 Bits/Channel…", #selector(EditorViewController.convertToFloatPrecision(_:))))
         menu.addItem(.separator())
-        // #547 Indexed phase 1c: an Indexed document's palette (+ColorTable.swift).
+        // #1 Indexed phase 1c: an Indexed document's palette (+ColorTable.swift).
         menu.addItem(item("Color Table…", #selector(EditorViewController.showColorTable(_:))))
         menu.addItem(.separator())
         menu.addItem(
@@ -199,7 +199,7 @@ extension AppDelegate {
     private func channelsMenu() -> NSMenu {
         let menu = NSMenu(title: "Channels")
         menu.addItem(item("New Channel", #selector(EditorViewController.newChannel(_:))))
-        // #547: the menu pair for spot colour channels.
+        // #1: the menu pair for spot colour channels.
         menu.addItem(item("New Spot Channel…", #selector(EditorViewController.newSpotChannel(_:))))
         menu.addItem(
             item("Spot Channel Options…", #selector(EditorViewController.spotChannelOptions(_:))))

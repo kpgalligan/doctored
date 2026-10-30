@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's channels-batch in-process UI cases (#547): the Select, Channels, Paths and
+// The CMYK document's channels-batch in-process UI cases (#1): the Select, Channels, Paths and
 // Vector Mask menu items a CMYK document now enables, the Magnetic Lasso and the Pen, the Channels
 // panel's mask and alpha rows below the inks, an ink row targeting that plate (the Move tool and
 // ⌘T), and Quick Mask, which edits coverage and dirties nothing. The CMYK profile is macOS's

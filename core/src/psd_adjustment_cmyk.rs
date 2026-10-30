@@ -1,5 +1,5 @@
 //! `psd_adjustment`'s private half for a CMYK document's `levl`, `curv` and
-//! (the styles batch) `phfl` bodies (#547), both directions; reached only through
+//! (the styles batch) `phfl` bodies (#1), both directions; reached only through
 //! `psd_adjustment::decode_cmyk` / `encode_cmyk`, which own the kinds table,
 //! the decline reasons and the `hue2` arm (the RGB body, unchanged).
 //!

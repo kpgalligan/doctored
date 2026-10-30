@@ -1,4 +1,4 @@
-//! Layer comps on a Lab Color document (#547 Lab phase 6a-ii,
+//! Layer comps on a Lab Color document (#1 Lab phase 6a-ii,
 //! `designs/lab-mode.md`): the two questions a Lab Apply asks.
 //!
 //! Every comp RULE is `doc_comps`'s, restated over typed layers by

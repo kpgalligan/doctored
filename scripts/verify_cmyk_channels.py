@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 channels-batch MCP drive: on a 16-bit Generic CMYK document the
+"""The #1 channels-batch MCP drive: on a 16-bit Generic CMYK document the
 alpha channels, Save/Load Selection and their arithmetic, Load Selection from
 an ink plate and from the composite, luminosity masks, Quick Mask, paths and
 vector masks, the Select commands, the carries through Image ▸ Mode and
@@ -71,7 +71,7 @@ Fixture `krect.tif` (48 x 40): paper with a 100 % K rectangle (12, 10, 24, 20).
   the 8-bit grid (a multiple of 257) and the vector mask stays.
 - **C8 refusals and admissions.** load_selection plane red refuses with
   "plane \\"red\\" is an RGB plane; a CMYK document's planes are cyan,
-  magenta, yellow, black, luma and alpha". Since #547's remaining-gaps batch,
+  magenta, yellow, black, luma and alpha". Since #1's remaining-gaps batch,
   on a fresh copy with a work path from select_rect (4, 4, 12, 10): fill_path
   ink [0, 0, 0, 100] on layer 0 makes (6, 6) [0, 0, 0, 65535] exactly and
   leaves (24, 20) as it was; stroke_path ink [100, 0, 0, 0] size 3 raises C at

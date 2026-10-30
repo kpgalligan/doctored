@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 1c's Image ▸ Mode ▸ Color Table through the FFI:
+//! #1 Indexed Color phase 1c's Image ▸ Mode ▸ Color Table through the FFI:
 //! the table read and replaced (every index kept, the one layer re-rendered
 //! as `palette[i] × 257`), its plan and refusals, and Adobe's `.act` file
 //! against hand-built bytes (768 and 772 bytes, a transparent index and

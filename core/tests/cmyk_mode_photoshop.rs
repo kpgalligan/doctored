@@ -21,7 +21,7 @@
 //!
 //! With `DR_RGB_CMYK_JUDGE=<take>/judged.json` set, the one test writes
 //! `{"rgb8":{Ck:{"max","mean","patches"}},"rgb16":{…},"lab":{…}|null}` for the
-//! runner's `--decide`. `lab` re-measures #547 Lab phase 5b's take
+//! runner's `--decide`. `lab` re-measures #1 Lab phase 5b's take
 //! (`lab-cmyk-547/take1`) in place through its C1 route (the codes at 16
 //! bits, into the built-in ProPhoto relative with BPC) and then each of
 //! C1–C4's options, over its 26 cells; null when that take is absent.

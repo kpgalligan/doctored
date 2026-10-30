@@ -4,7 +4,7 @@
 //!
 //! The oracles are written out here in f64 from the formula — `u =
 //! clamp((v - black) / (white - black), 0, 1)`, `t = u ^ (1 / gamma)` except
-//! below `x0 = 2·2^(gamma/(p − 1))` (p = 1/gamma) at gamma > 1, where #578's
+//! below `x0 = 2·2^(gamma/(p − 1))` (p = 1/gamma) at gamma > 1, where #2's
 //! toe (H-CB, Color Balance's Hermite) runs the cubic Hermite from (0, 0) at
 //! slope `2^gamma` to `(x0, x0^p)` at slope `p·x0^(p − 1)`, then
 //! `out = output_black + (output_white - output_black) * t`, the channel's
@@ -100,7 +100,7 @@ fn reversed(master: Stage, channels: [Stage; 3], rgb: [f64; 3]) -> [f64; 3] {
 /// 3e-5 code); declared before measuring, never widened.
 const TIE: f64 = 1e-3;
 
-/// #578 phase 4's 8-bit member R8(h,h,x), from the runner's docstring
+/// #2 phase 4's 8-bit member R8(h,h,x), from the runner's docstring
 /// (`scripts/photoshop-probe/eight_bit_578_take.py`): one stage on the code
 /// `c = 255·v` (and its integer input and output codes), each snapped to an
 /// integer within 1e-3; `s = clamp((c − in_lo)·255/(in_hi − in_lo), 0, 255)`
@@ -433,7 +433,7 @@ fn levels_identity_black_point_gamma_and_guards() {
     free(img);
 }
 
-/// #578: the toe against Photoshop 26.10.0's own take1 samples
+/// #2: the toe against Photoshop 26.10.0's own take1 samples
 /// (`psd-appearance-578/take1`, `lev_srgb8`, sets M1–M4 and M6): the input
 /// triple and Photoshop's output, with the H-CB oracle's output computed here
 /// from each set's stages. Doctored lands within the oracle's own
@@ -521,7 +521,7 @@ fn the_toe_follows_photoshops_take1_samples() {
     }
 }
 
-/// #578: Levels' toe IS Color Balance's. A red-only levels stage at gamma G
+/// #2: Levels' toe IS Color Balance's. A red-only levels stage at gamma G
 /// and a `color_balance` midtones cyan-red of M/100 (Preserve Luminosity
 /// off, so red's gamma is `r2(2^(M/100))` = G, and its black and white points
 /// stay at the rails) agree within a code on every 8-bit code, and neither
@@ -573,7 +573,7 @@ fn levels_toe_is_color_balances() {
     free(img);
 }
 
-/// #578 phase 4: a byte document's Levels round twice (R8(h,h,x)). On a
+/// #2 phase 4: a byte document's Levels round twice (R8(h,h,x)). On a
 /// 256-code ramp, for L4 (30–220, gamma 4), L6 (10–245, gamma 2, output
 /// 20–235) and N8 (master 10–250 gamma 1.9 over red 0–240 gamma 3.1), every
 /// code equals the f64 R8 oracle, but where a rounding saw a near tie (one

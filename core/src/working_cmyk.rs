@@ -14,7 +14,7 @@
 //!
 //! The slot also keeps the profile's BYTES (`working_cmyk_bytes`): a CMYK
 //! document converted into the working profile, or an untagged CMYK file
-//! opened as a CMYK document (#547), embeds exactly the bytes the host
+//! opened as a CMYK document (#1), embeds exactly the bytes the host
 //! handed over.
 
 use std::sync::{Arc, RwLock};

@@ -83,7 +83,7 @@
 //! |               | `offset`: float in [-0.5, 0.5], default 0; `gamma`:      |
 //! |               | float in [0.01, 9.99], default 1. Linearize (legacy:     |
 //! |               | sRGB; `document_v2`: each channel at the profile's       |
-//! |               | effective pure gamma, 2.2 for sRGB-shaped curves, #578), |
+//! |               | effective pure gamma, 2.2 for sRGB-shaped curves, #2), |
 //! |               | scale by 2^exposure, add offset, raise to the RECIPROCAL |
 //! |               | power 1/gamma — Photoshop's Gamma Correction, so gamma > |
 //! |               | 1 brightens, the same direction as `levels`' midtone     |
@@ -98,7 +98,7 @@
 //! |               | (below 0 it is flat);                                    |
 //! |               | then Saturation scales the distance from the ROMM Y-row  |
 //! |               | anchor by 1 + s on the document profile's linear values  |
-//! |               | (#578, `adjust_vibrance`). See `adjust_color`.           |
+//! |               | (#2, `adjust_vibrance`). See `adjust_color`.           |
 //! | `"hue_saturation"` | `hue`: float in [-180, 180] degrees, default 0;     |
 //! |               | `saturation`, `lightness`: floats in [-1, 1], default 0. |
 //! |               | `bands`: OPTIONAL object with any of `reds`, `yellows`,  |

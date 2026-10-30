@@ -1,5 +1,5 @@
 //! Type, shape and fill layers, Rasterize Artwork, paths and vector masks on
-//! a Lab Color document (#547 Lab phase 6a-i, `designs/lab-mode.md`):
+//! a Lab Color document (#1 Lab phase 6a-i, `designs/lab-mode.md`):
 //! the rules, and the 8-bit publication grid ([`on_document_grid`]).
 //!
 //! # Why the existing renderer, unchanged

@@ -1,4 +1,4 @@
-//! Selections on a CMYK document (#547): the Magic Wand on INK through
+//! Selections on a CMYK document (#1): the Magic Wand on INK through
 //! `dr_precision_doc_select` against this file's own projection-and-BFS
 //! oracle (PN7: the ink's naive RGB `(1 − ink)(1 − K)`, rounded through
 //! 8-bit codes on an 8-bit document, then R, G, B, A, R−G, G−B, R−B each

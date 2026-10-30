@@ -26,10 +26,10 @@ import AppKit
 // at 8, 16 and 32-bit float. A lift from only transparent pixels refuses with
 // `colorPlaneEmptyRefusal`.
 //
-// #547: on a CMYK document ONE INK PLATE (`PaintTarget.ink`, an ink row of the Channels panel or
+// #1: on a CMYK document ONE INK PLATE (`PaintTarget.ink`, an ink row of the Channels panel or
 // `"target":"cyan"` …) takes the same plane branch: the Pixels lock, `inkRefusal`, and the vacated
 // area the background swatch's 30/59/11 gray read as ink (its sRGB codes as `"swatch"`).
-// #547 Lab 6a-ii: a Lab document's Lightness, a, b and alpha planes take the same plane branch, the
+// #1 Lab 6a-ii: a Lab document's Lightness, a, b and alpha planes take the same plane branch, the
 // vacated value the background's code in that plane (`TransformSelectedPixels.planeBackground`).
 
 /// Move Selected Pixels: the Move tool's drag and arrow nudge, and
@@ -102,7 +102,7 @@ enum MoveSelectedPixels {
     /// for Red, Green and Blue, Merge for Alpha (it writes the layer's
     /// transparency); nil for any other target.
     static func planeLockKind(_ target: PaintTarget) -> DrEditKind? {
-        // #547: one ink plate writes the layer's pixels, as Red, Green and Blue do.
+        // #1: one ink plate writes the layer's pixels, as Red, Green and Blue do.
         if target.isInk { return DR_EDIT_PIXELS }
         guard case .plane(let plane) = target else { return nil }
         return plane == .alpha ? DR_EDIT_MERGE : DR_EDIT_PIXELS
@@ -169,7 +169,7 @@ enum MoveSelectedPixels {
         return OperationScope.refusalReason(.fill, target: target, doc: doc, layerIndex: layer)
     }
 
-    /// #547: why one ink plate's selected pixels cannot move — not a CMYK document, a group or
+    /// #1: why one ink plate's selected pixels cannot move — not a CMYK document, a group or
     /// adjustment record, a retained source, then the Pixels lock (the core's own order,
     /// `cmyk_selected_plate`). Painting one plate refuses elsewhere (`OperationScope`).
     static func inkRefusal(_ doc: RasterDocument, layer: Int, plate: CmykPlane) -> String? {

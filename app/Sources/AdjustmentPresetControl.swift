@@ -15,7 +15,7 @@ final class AdjustmentPresetControl: NSObject {
     let row: NSView
 
     private let op: AdjustmentLayerOp
-    /// #547 phase 5: a CMYK document's dialog lists and saves CMYK presets only.
+    /// #1 phase 5: a CMYK document's dialog lists and saves CMYK presets only.
     private let cmyk: Bool
     private let current: () -> [String: Any]
     private let load: (AdjustmentLayerPayload) -> Void

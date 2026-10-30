@@ -19,7 +19,7 @@ extension AgentServer {
         // Layer ▸ Duplicate to New Document, one typed
         // `duplicate_to_new_document` structure request.
         // Duplicate to New Document keeps the float document's depth.
-        // #547 phase 4c: a CMYK document's clip is a CMYK document.
+        // #1 phase 4c: a CMYK document's clip is a CMYK document.
         "duplicate_to_new_document": [.typedTool, .floatTool, .cmykTool],
     ]
 

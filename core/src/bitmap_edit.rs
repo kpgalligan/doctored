@@ -1,4 +1,4 @@
-//! The edits a Bitmap document takes (#547 Bitmap phases 2a-i and 2a-ii,
+//! The edits a Bitmap document takes (#1 Bitmap phases 2a-i and 2a-ii,
 //! `designs/bitmap-mode.md`): painting in black and white, the
 //! geometry, the selected pixels' moves and transforms, and Cut. An
 //! adapter, not a kernel: each request runs on the document's 8-bit Gray

@@ -1,4 +1,4 @@
-//! KERNEL: Levels, Curves and Hue/Saturation on CMYK ink (#547) — the ink
+//! KERNEL: Levels, Curves and Hue/Saturation on CMYK ink (#1) — the ink
 //! bindings of the existing tone kernels, as free functions over plain
 //! arrays — and [`CmykAdjustment`], the parsed op every CMYK caller holds.
 //! The record that carries one in a document is `cmyk_adjust_layer`.
@@ -16,7 +16,7 @@
 //! RGB schema row unchanged, so the sliders mean what they mean on RGB), and
 //! the kernel is the RGB one (`HueSaturation::apply`) run on the C, M and Y
 //! plates' stored domain, with K handled as Photoshop handles it
-//! ([`hue_saturation_on_ink`]; #547, fitted on the Hue/Saturation take1 and
+//! ([`hue_saturation_on_ink`]; #1, fitted on the Hue/Saturation take1 and
 //! confirmed by `scripts/photoshop-probe/cmyk_k_take.py`'s one take):
 //!
 //! * not Colorize: `out = apply([1 − C, 1 − M, 1 − Y])`, `C' = 1 − out_r`
@@ -36,7 +36,7 @@
 //! Photoshop stores a CMYK channel as `L = 1 − ink` (white paper is 1) and
 //! runs Levels in that domain, so a stage maps `L`, never the ink: one stage
 //! is `adjust_levels::LevelsStage` exactly (its `parse`, its `apply`, its
-//! identity) with its toe switched off (`stage`: #578 measured the toe on RGB
+//! identity) with its toe switched off (`stage`: #2 measured the toe on RGB
 //! only, so a CMYK stage keeps the pure power), and
 //! `ink' = 1 − master(channel(1 − ink))` — the channel's stage first, then
 //! the composite's, the order `adjust_levels` measured.
@@ -152,7 +152,7 @@ fn stage(params: &Map<String, Value>, what: &str) -> Result<LevelsStage, String>
     if let Some(key) = params.keys().find(|k| !STAGE_KEYS.contains(&k.as_str())) {
         return Err(format!("unknown CMYK levels {what} parameter {key}"));
     }
-    // A CMYK stage keeps the pure power (no toe: #578 measured RGB only).
+    // A CMYK stage keeps the pure power (no toe: #2 measured RGB only).
     let mut stage = LevelsStage::parse(params)
         .ok_or_else(|| format!("invalid CMYK levels {what} parameters"))?;
     stage.toe = None;

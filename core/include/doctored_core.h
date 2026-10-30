@@ -198,7 +198,7 @@ typedef enum {
  * imported as one layer per PSD raster layer (name, visibility, opacity,
  * best-effort blend-mode mapping; on any per-layer failure falls back to a
  * single flattened layer); anything else decodes via dr_image_open rules to
- * a single "Background" layer. An RGB or CMYK TIFF's spot channels (#547
+ * a single "Background" layer. An RGB or CMYK TIFF's spot channels (#1
  * 1c-2a: trailing extra samples described by resource 1077 in tag 34377)
  * open as spot channels, a 16-bit file's narrowed to 8 bits;
  * dr_path_metadata_import_report names them and any it cannot keep. Errors
@@ -984,7 +984,7 @@ DrDocument *dr_doc_stroke_layer_edge(const DrDocument *doc, size_t idx,
  * canvas size); ONLY its alpha channel is read, as per-pixel stroke
  * coverage. Each color channel moves toward white (dodge) or black (burn),
  * banded by its own value — range 0 shadows, 1 midtones, 2 highlights —
- * and scaled by exposure (clamped to [0, 1]). protect_tones (#547) moves
+ * and scaled by exposure (clamped to [0, 1]). protect_tones (#1) moves
  * the three channels TOGETHER instead: with V the pixel's largest channel,
  * every channel is scaled by curve(V) / V (V = 0 gives curve(0) on each), so
  * hue and saturation hold; false is the per-channel curve, byte for byte as
@@ -1499,7 +1499,7 @@ DrImage *dr_image_threshold(const DrImage *img, float level);
  * output code floor(255*k/(levels-1)). Alpha untouched. */
 DrImage *dr_image_posterize(const DrImage *img, uint32_t levels);
 
-/* Image > Adjustments > Equalize (#547): ONE table from the summed R, G and B
+/* Image > Adjustments > Equalize (#1): ONE table from the summed R, G and B
  * histogram at 256 levels, lut[v] = round(255 (cdf(v) - cdf(v_min)) /
  * (N - cdf(v_min))) with v_min the darkest occupied level and N the total
  * weight, applied to every pixel's RGB; alpha is never written and alpha-0
@@ -2632,7 +2632,7 @@ bool dr_blend_planes_rgb(uint8_t *base_r, uint8_t *base_g, uint8_t *base_b,
                          DrBlendMode mode, float opacity, bool invert_base,
                          bool invert_source);
 
-/* ---- Spot channels (#547 phase 1a-2, ffi_spot_channel.rs) -----------------
+/* ---- Spot channels (#1 phase 1a-2, ffi_spot_channel.rs) -----------------
  *
  * A spot channel is a channel whose ink is set: D50 CIE Lab (L 0..100, a and
  * b -128..127, finite) and Solidity, an integer percent 0..100. Its plane is
@@ -2691,7 +2691,7 @@ struct PrecisionDocument *dr_precision_doc_set_spot_channel(
     const struct PrecisionDocument *doc, size_t index, const char *name, double l,
     double a, double b, uint8_t solidity, uint64_t limit, uint64_t other, char **err_out);
 
-/* ---- Spot channels 1c-1 (#547, ffi_spot_merge.rs) --------------------------
+/* ---- Spot channels 1c-1 (#1, ffi_spot_merge.rs) --------------------------
  *
  * MERGE SPOT CHANNEL flattens the document (hidden layers discarded, comps
  * cleared, every other channel kept), bakes the ONE ink in through the
@@ -3603,7 +3603,7 @@ bool dr_image_trim_rect(const DrImage *img, DrTrimBasis basis, uint32_t edges, u
  * luma rounded to an 8-bit code, /255 (measured, plane_gray.py), Alpha's 0;
  * duplicate leaves none. A CMYK document's "cyan"|"magenta"|"yellow"|"black"
  * target takes the swatch in sRGB 8-bit codes and leaves ink 1 − that gray
- * (#547, cmyk_selected_plate.rs). Red, green and blue coverage is scaled by the
+ * (#1, cmyk_selected_plate.rs). Red, green and blue coverage is scaled by the
  * stored alpha, so a lift from only transparent pixels refuses "The
  * selection holds no pixels in this colour channel." R/G/B are a
  * pixels edit, Alpha a merge edit (Lock Transparency refuses too); a
@@ -3695,7 +3695,7 @@ DrDocument *dr_doc_merge_visible(const DrDocument *doc);
 DrDocument *dr_doc_stamp_visible(const DrDocument *doc, size_t above_idx,
                                  const char *name);
 
-/* Stamp Selected (#547 phase 4c, doc_merge_selected): ONE group, or two or
+/* Stamp Selected (#1 phase 4c, doc_merge_selected): ONE group, or two or
  * more entries sharing one parent, composited over their union extent (the
  * dr_doc_merge_layers kernel) into ONE new raster entry — Normal, opacity 1,
  * unclipped, a new id, named `name` — directly above the topmost member's
@@ -3706,7 +3706,7 @@ DrDocument *dr_doc_stamp_visible(const DrDocument *doc, size_t above_idx,
 DrDocument *dr_doc_stamp_selected(const DrDocument *doc, const size_t *idx, size_t len,
                                   const char *name);
 
-/* Merge Group (#547 phase 4c): the visible group `idx` replaced by ONE raster
+/* Merge Group (#1 phase 4c): the visible group `idx` replaced by ONE raster
  * entry holding its RAW projection (the group at opacity 1, Normal, no mask
  * or style, unclipped, Pass Through isolated) over its union extent, keeping
  * the group's slot, depth, name, id, label, opacity, blend mode (Pass Through
@@ -4664,7 +4664,7 @@ uint32_t dr_format_carries(DrFormat format);
  * caller-supplied composite of THIS document; passing an unrelated image is
  * a caller bug, and the canvas dimensions are not re-checked.
  *
- * A TIFF keeps the document's spot channels (#547 1c-2a) as Photoshop does:
+ * A TIFF keeps the document's spot channels (#1 1c-2a) as Photoshop does:
  * trailing extra samples (ExtraSamples 0) after the colour and, only when
  * some pixel is not opaque, a straight alpha, each stored `255 − coverage`,
  * with their names and inks as resources 1006/1045/1077/1053 after the
@@ -4746,7 +4746,7 @@ typedef enum {
 
 /* True when `path` is a TIFF whose Photoshop layer block this core reads as
  * layers: a big-endian unsigned 8- or 16-bit RGB, CMYK (InkSet absent or
- * 1, #547), BlackIsZero gray (#547 phase 3a) or Lab TIFF holding a
+ * 1, #1), BlackIsZero gray (#1 phase 3a) or Lab TIFF holding a
  * Layr/Lr16 block, or a 32-bit IEEE-float RGB TIFF of either byte order
  * holding an Lr32 block. False for NULL, unreadable, little-endian
  * at 8 or 16 bits, any other model or sample format, or no readable block:
@@ -4775,7 +4775,7 @@ bool dr_tiff_has_layers(const char *path);
  * Interior and Blend If observed on every record kind, a Pass Through group
  * (composited isolated) and an adjustment record included — and the CMYK
  * general limitations
- * (#547); its embedded
+ * (#1); its embedded
  * profile is read as CMYK, never through the RGB profile rule.
  * A 32-bit RGB PSD or PSB answers "import_precision":"rgba32" and opens as a
  * 32-bit float document.
@@ -4786,7 +4786,7 @@ bool dr_tiff_has_layers(const char *path);
  * or discarded by the Gray rules, a refused adjustment and every fill layer
  * omitted by name, "profile" the embedded Gray profile's name (null when
  * untagged: the working Gray is assigned at open) and the Gray general
- * limitations (#547 phase 3a). At 32 bits (phase 3c) the float rules apply
+ * limitations (#1 phase 3a). At 32 bits (phase 3c) the float rules apply
  * too, and the linear twin of a built-in Gray profile names that built-in.
  * A Lab file (colour mode 9: PSD, PSB or a layered Lab TIFF) at 8 or 16 bits
  * answers "import_precision":"lab" (it opens as a Lab Color document through
@@ -4794,21 +4794,21 @@ bool dr_tiff_has_layers(const char *path);
  * embedded profile is unused and named), "layered_plan_bytes", each style
  * carried or discarded by the Lab rules (an LbCl effect colour as its sRGB
  * hex), a refused adjustment and every fill layer omitted by name, and the
- * Lab general limitations (#547 Lab phase 3a).
+ * Lab general limitations (#1 Lab phase 3a).
  * An Indexed Color file (colour mode 2: PSD or PSB) answers
  * "import_precision":"indexed" (it opens as an Indexed Color document
  * through dr_precision_doc_open_indexed_psd): "color_mode":"Indexed",
  * "layered_available" false, "stored_composite_available" with the open's
  * own refusal sentence (the depth, the 768-byte table, the palette size,
  * Raw or RLE), one loss per extra saved channel, and "profile" the 1039
- * profile's name or null (#547).
+ * profile's name or null (#1).
  * An RGB, CMYK, Grayscale or Duotone PSD or PSB at 8 or 16 bits names its
  * spot channels (DisplayInfo kind spot, a Lab ink) in one observation: every
  * open keeps them as spot channels with name, D50 Lab ink, solidity and
  * coverage; a spot channel it cannot keep, and every alpha channel, stays a
- * loss (#547 spot channels 1b-1). A layered RGB or CMYK TIFF at 8 or 16 bits
+ * loss (#1 spot channels 1b-1). A layered RGB or CMYK TIFF at 8 or 16 bits
  * names and keeps the spot channels its composite holds as trailing extra
- * samples the same way (#547 spot channels 1c-2b).
+ * samples the same way (#1 spot channels 1c-2b).
  * Free the returned string with dr_string_free; NULL on failure. */
 char *dr_psd_import_report(const char *path, char **err_out);
 /* Explicit choice: mode 0 layers, 1 file-stored composite. Requires the
@@ -4844,8 +4844,8 @@ char *dr_doc_psd_export_report(const DrDocument *doc, int container, int mode,
  * OPENING folder records, only when the key is not at its default; a baked
  * style writes neither. A PSD or PSB carries the document's spot channels
  * (at most 56 channels in all) in Photoshop's layout, and a layered TIFF
- * carries them as its composite's trailing extra samples (#547 1c-2b); alpha
- * channels are not written (#547 spot channels 1b-1). Atomic like
+ * carries them as its composite's trailing extra samples (#1 1c-2b); alpha
+ * channels are not written (#1 spot channels 1b-1). Atomic like
  * dr_image_save. */
 bool dr_doc_save_psd(const DrDocument *doc, const DrImage *flat,
                      const char *path, int container, int mode, char **err_out);
@@ -4874,7 +4874,7 @@ DrImage *dr_doc_adjust_image(const DrDocument *doc, const DrImage *img,
  * an owned sentence (free with dr_string_free) when the profile has no matrix/TRC
  * model (both ops), or when its tone curves fail the precision check (the
  * own-profile sentence naming it) -- for Exposure only where the curves are
- * repaired or unusable (#578); NULL when admitted and on a NULL doc. Existing
+ * repaired or unusable (#2); NULL when admitted and on a NULL doc. Existing
  * layers are not judged: an 8-bit document already holding one keeps rendering. */
 char *dr_doc_calibrated_refusal(const DrDocument *doc, const char *op);
 
@@ -5170,7 +5170,7 @@ char *dr_assisted_replay_summary(const char *replay, char **err_out);
  * Codecs have cancellation at stage boundaries; render/preview poll in chunks.
  */
 typedef struct PrecisionDocument DrPrecisionDocument;
-/* A warp "set" request may add "indexed_background" (#547 Indexed phase 3b,
+/* A warp "set" request may add "indexed_background" (#1 Indexed phase 3b,
  * the Indexed section's shape): the colour a clear pixel's entry is nearest
  * on an Indexed Color document with no transparent index; ignored on every
  * other document. */
@@ -5259,7 +5259,7 @@ DrPrecisionDocument *dr_precision_doc_set_vector_mask_properties(
 /* Same modes/fingerprint contract as dr_doc_open_psd; only for files whose
  * report says "import_precision":"rgba16" (8-bit files refuse) or "cmyk"
  * (a PSD, PSB or layered TIFF at 8 or 16 bits: mode 0 imports its layers,
- * mode 1 opens the saved composite, both as a CMYK document, #547) or
+ * mode 1 opens the saved composite, both as a CMYK document, #1) or
  * "rgba32" (a 32-bit RGB PSD or PSB, both modes as a 32-bit float document;
  * a 32-bit float layered TIFF of either byte order, its layers).
  * A "gray" file refuses by name (dr_precision_doc_open_gray_psd opens
@@ -5270,17 +5270,17 @@ DrPrecisionDocument *dr_precision_doc_open_psd(const char *path, int mode,
     const char *expected_fingerprint, uint64_t limit, uint64_t other_retained_bytes,
     const DrJobControl *control, char **err_out);
 /* Opens a Grayscale (colour mode 1) PSD, PSB or layered TIFF at 8 or 16 bits,
- * or a PSD or PSB at 32 (#547 phase 3c), as a Gray document of that depth:
+ * or a PSD or PSB at 32 (#1 phase 3c), as a Gray document of that depth:
  * mode 0 its layers, 1 its saved composite (a TIFF has none). working_gray
  * is the working Gray's wire name, assigned to an untagged file under an
  * import warning. Same fingerprint contract as
- * dr_doc_open_psd; optional single-use control begun once (#547 phase 3a).
+ * dr_doc_open_psd; optional single-use control begun once (#1 phase 3a).
  * Free with dr_precision_doc_free. */
 DrPrecisionDocument *dr_precision_doc_open_gray_psd(const char *path, int mode,
     const char *expected_fingerprint, const char *working_gray, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
 /* Opens a Lab (colour mode 9) PSD, PSB or layered TIFF at 8 or 16 bits as a
- * Lab Color document of that depth (#547 Lab phase 3a): mode 0 its layers,
+ * Lab Color document of that depth (#1 Lab phase 3a): mode 0 its layers,
  * 1 its saved composite (a TIFF has none). The file codes are Photoshop's,
  * measured (8 bits L* 100v/255, a* v - 128; 16 bits L* 100v/65535, a* on
  * Photoshop's 15-bit grid: i = round(v * 32768/65535), a* = (i - 16384)/128).
@@ -5293,14 +5293,14 @@ DrPrecisionDocument *dr_precision_doc_open_lab_psd(const char *path, int mode,
  * document, which writes a PSD or PSB or a big-endian layered TIFF
  * at 32 bits. A CMYK
  * document answers "depth":"cmyk" with "bit_depth" (its declared 8 or 16)
- * and "working_memory_plan_bytes", for every container and both modes (#547).
+ * and "working_memory_plan_bytes", for every container and both modes (#1).
  * A Grayscale document answers its declared "depth" (8, 16 or 32) with
- * "color_mode":"gray" (#547 phase 3b); at 32 it is the float report: a
- * layered TIFF refused (#547 phase 3c). A Lab Color document answers its
- * declared "depth" (8 or 16) with "color_mode":"lab" (#547 Lab phase 3b).
+ * "color_mode":"gray" (#1 phase 3b); at 32 it is the float report: a
+ * layered TIFF refused (#1 phase 3c). A Lab Color document answers its
+ * declared "depth" (8 or 16) with "color_mode":"lab" (#1 Lab phase 3b).
  * An Indexed Color document answers "depth":8,"bit_depth":8 with
  * "color_mode":"indexed", "layer_count" 0 (the file holds no layer record,
- * as Photoshop's own) and "working_memory_plan_bytes" (#547). */
+ * as Photoshop's own) and "working_memory_plan_bytes" (#1). */
 char *dr_precision_doc_psd_export_report(const DrPrecisionDocument *doc,
     int container, int mode, char **err_out);
 /* Writes a 16-bit RGB PSD, PSB or layered TIFF. `projection` is REQUIRED for
@@ -5311,18 +5311,18 @@ char *dr_precision_doc_psd_export_report(const DrPrecisionDocument *doc,
  * takes NULL: a colour-mode-4 file at its declared depth (layers: ink, masks,
  * groups, modes, Fill and its Levels/Curves/Hue/Saturation records; its
  * composite rendered here), admitted against the report's
- * working_memory_plan_bytes (#547). Atomic, noncancellable. A float
+ * working_memory_plan_bytes (#1). Atomic, noncancellable. A float
  * document writes a 32-bit RGB PSD or PSB or big-endian layered TIFF
  * from its canvas-sized RGBA32 float projection. A Grayscale document
  * writes a colour-mode-1 PSD, PSB or layered TIFF at its declared 8 or 16
- * bits from its REQUIRED canvas-sized RGBA16 projection (#547 phase 3b); a
+ * bits from its REQUIRED canvas-sized RGBA16 projection (#1 phase 3b); a
  * 32-bit one writes a 32-bit colour-mode-1 PSD or PSB from its REQUIRED
- * RGBA32 float projection, and its layered TIFF is refused (#547 phase 3c).
+ * RGBA32 float projection, and its layered TIFF is refused (#1 phase 3c).
  * A Lab Color document writes a colour-mode-9 PSD, PSB or layered TIFF at
  * its declared 8 or 16 bits, no profile embedded, from its REQUIRED
- * canvas-sized RGBA16 projection in its Lab twin (#547 Lab phase 3b).
+ * canvas-sized RGBA16 projection in its Lab twin (#1 Lab phase 3b).
  * An RGB, CMYK, Grayscale or Duotone PSD or PSB at 8 or 16 bits carries the
- * document's spot channels in Photoshop's layout (#547 spot channels 1b-1);
+ * document's spot channels in Photoshop's layout (#1 spot channels 1b-1);
  * a layered TIFF from RGB or CMYK at 8 or 16 bits carries them as trailing
  * extra samples (1c-2b). A Lab or 32-bit PSD or PSB refuses them, and a
  * Gray, Duotone, Lab or 32-bit layered TIFF refuses them with the TIFF
@@ -5413,7 +5413,7 @@ DrPrecisionDocument *dr_precision_doc_add_refinement_cutout(const DrPrecisionDoc
  * cancelled"; `control` is optional and single-use. The input never changes;
  * one result is one undo step. An Indexed Color document refuses both
  * precision calls for good ("auto_blend_layers needs more than one layer,
- * and an Indexed Color document holds one.", #547 Indexed
+ * and an Indexed Color document holds one.", #1 Indexed
  * phase 3b). Free the JSON and errors with dr_string_free
  * and the documents with dr_doc_free / dr_precision_doc_free. */
 char *dr_doc_auto_blend_plan(const DrDocument *document, const char *request, char **err_out);
@@ -5472,7 +5472,7 @@ DrPrecisionImage *dr_precision_doc_estimate_foreground(const DrPrecisionDocument
  * the plan carries none, a run with a control has none, and a run with NULL
  * control keeps the destructive work ceiling.
  */
-/* On a CMYK document (#547) op "adjustment" applies the description to the
+/* On a CMYK document (#1) op "adjustment" applies the description to the
  * layer's ink lerped by coverage, alpha kept (dr_precision_doc_apply_adjustment's
  * CMYK rules), and Auto refuses by name (the host runs CMYK Auto as Levels).
  * Op "liquify" (phase 4b) runs the RGB kernel over the ink's five planes.
@@ -5486,7 +5486,7 @@ DrPrecisionImage *dr_precision_doc_estimate_foreground(const DrPrecisionDocument
  * lens_correction, develop_filter, presence, add_grain, depth_blur and
  * levels_channels refuse by name. The plan has the RGB
  * plan's keys (output_bytes = layer pixels x 10). */
-/* Grayscale (#547 phase 2b): on a Gray document the selected edit, its plan
+/* Grayscale (#1 phase 2b): on a Gray document the selected edit, its plan
  * and selected auto levels admit "adjustment" under the adjustment exports'
  * Gray rules, auto_tone, auto_contrast, equalize, and levels_channels whose
  * black, white and gamma arrays each hold equal values (else the Levels
@@ -5497,7 +5497,7 @@ DrPrecisionImage *dr_precision_doc_estimate_foreground(const DrPrecisionDocument
  * Rec. 709 luma; Add Noise takes channel 0's draw. Clouds' foreground_color
  * and background_color are greyed by Image > Mode > Grayscale's rule;
  * "liquify" runs through its RGB kernel (phase 4). */
-/* Lab Color (#547 phases 2b to 2f): on a Lab document the selected edit, its
+/* Lab Color (#1 phases 2b to 2f): on a Lab document the selected edit, its
  * plan and selected auto levels admit "adjustment" under the adjustment
  * exports' Lab rules (not as a layer); auto_tone and auto_contrast derive the
  * Lightness endpoints only (a* and b* keep 0, 1, 1), equalize and
@@ -5524,7 +5524,7 @@ DrPrecisionImage *dr_precision_doc_estimate_foreground(const DrPrecisionDocument
  * phase 2d) and on the red, green, blue and alpha planes (Lightness, a, b and
  * alpha, phase 2e) a filter runs as on RGB, those five, offset's fill and
  * clouds included; the rows that refuse for good and liquify refuse alike. */
-/* Equalize (#547): {layer,op:"equalize",params:{"scope":"selected"|"entire"}}
+/* Equalize (#1): {layer,op:"equalize",params:{"scope":"selected"|"entire"}}
  * (scope default "selected"; ignored with empty coverage) on a raster layer
  * of an RGB 16-bit, 32-bit float or CMYK document. ONE table from the summed
  * histograms of the colour planes (R+G+B; on CMYK the four L = 1 - ink
@@ -5541,7 +5541,7 @@ DrPrecisionImage *dr_precision_doc_estimate_foreground(const DrPrecisionDocument
  * group or an adjustment layer refuses by name; fewer than two occupied
  * levels, or no changed sample, is NULL with no error. The plan has the
  * selected edit's keys. An 8-bit RGB document runs dr_image_equalize. On a
- * Lab Color document (8 or 16 bits, #547 phase 2c) the 16-bit arm runs on
+ * Lab Color document (8 or 16 bits, #1 phase 2c) the 16-bit arm runs on
  * Lightness alone: the histogram counts L* and the table writes L*, a* and
  * b* kept bit for bit. */
 char *dr_precision_doc_selected_edit_plan(const DrPrecisionDocument *document,
@@ -5558,7 +5558,7 @@ DrPrecisionImage *dr_precision_image_transform_retouch_source(const DrPrecisionI
     const double *matrix, uint64_t working_limit, uint64_t other_retained,
     const DrJobControl *control, char **err_out);
 /* Authoritative native canvas retouch plate; same sampling codes as byte API.
- * On a CMYK document (#547) the plate (Current: the layer's ink on paper at
+ * On a CMYK document (#1) the plate (Current: the layer's ink on paper at
  * alpha 0; Current & Below and All: the CMYK composite with the excluded
  * records at opacity 0) as its Display P3 RGBA16 VIEW, a display adapter for
  * the host's source overlay; the retouch itself samples the ink. */
@@ -5582,13 +5582,13 @@ DrPrecisionImage *dr_precision_doc_retouch_source(const DrPrecisionDocument *doc
  * an op other than retouch_clone / retouch_heal; output other than "layer"
  * or expand_destination true; `plates` of another canvas size; `plates` of
  * another bit depth; `plates` with no raster layer at the sampled
- * index (source_layer, else layer). A CMYK `document` (#547) takes CMYK
+ * index (source_layer, else layer). A CMYK `document` (#1) takes CMYK
  * `plates` with a CMYK raster at the sampled index ("retouch plates must have
  * the document's bit depth" for an RGB one), whose plate is ink. A Grayscale
- * `document` (#547 phase 2c) asks dr_precision_doc_edit's Gray gate (a mode
+ * `document` (#1 phase 2c) asks dr_precision_doc_edit's Gray gate (a mode
  * the Gray document does not offer refuses) and takes Grayscale `plates`
  * only ("A Grayscale document clones from a Grayscale document only: convert
- * the source to Grayscale first."). A Lab Color `document` (#547 phase 2e)
+ * the source to Grayscale first."). A Lab Color `document` (#1 phase 2e)
  * asks dr_precision_doc_edit's Lab gate and takes Lab Color `plates` only ("A
  * Lab Color document clones from a Lab Color document only: convert the
  * source to Lab Color first."). */
@@ -5598,7 +5598,7 @@ DrPrecisionDocument *dr_precision_doc_retouch_from(const DrPrecisionDocument *do
     const DrJobControl *control, char **err_out);
 
 
-/* An RGB or CMYK TIFF's spot channels (#547 1c-2a: trailing extra samples
+/* An RGB or CMYK TIFF's spot channels (#1 1c-2a: trailing extra samples
  * described by resource 1077 in tag 34377) open as spot channels at u16
  * (an 8-bit file's ×257), admitted against `limit` for the decoded samples
  * and the planes; the observation and any loss line join import_warnings.
@@ -5608,7 +5608,7 @@ DrPrecisionDocument *dr_precision_doc_retouch_from(const DrPrecisionDocument *do
 DrPrecisionDocument *dr_precision_doc_open(const char *path, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
 void dr_precision_doc_free(DrPrecisionDocument *document);
-/* ---- CMYK documents (#547 phases 1, 2, 4a, 4b and 4c, and the artwork batch) ----
+/* ---- CMYK documents (#1 phases 1, 2, 4a, 4b and 4c, and the artwork batch) ----
  * A CMYK document is a DrPrecisionDocument whose leaves are straight
  * CMYKA16 ink (0 = none, 65535 = 100 %): raster layers and (phase 2)
  * Levels/Curves/Hue/Saturation adjustment records, each with an optional
@@ -5676,7 +5676,7 @@ const uint8_t *dr_precision_doc_cmyk_profile(const DrPrecisionDocument *document
  * runs Flatten Image first); a 32-bit float document and alpha channels
  * refuse. Toward RGB yields a 16-bit RGB document, layers kept. A Lab
  * document converts toward CMYK through 16-bit ProPhoto RGB (relative
- * colorimetric with BPC, never narrowed; #547 Lab phase 5a, lab_cmyk), its
+ * colorimetric with BPC, never narrowed; #1 Lab phase 5a, lab_cmyk), its
  * blocker naming a Blend If channel Lightness, a or b, its plan adding the
  * stage's bytes. */
 char *dr_precision_doc_convert_to_cmyk_plan(const DrPrecisionDocument *document,
@@ -5689,13 +5689,13 @@ char *dr_precision_doc_convert_cmyk_to_rgb_plan(const DrPrecisionDocument *docum
 DrPrecisionDocument *dr_precision_doc_convert_cmyk_to_rgb(const DrPrecisionDocument *document,
     const uint8_t *icc, size_t icc_len, const char *options, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
-/* ---- The Grayscale document (#547 phase 1a, ffi_gray.rs) -----------------
+/* ---- The Grayscale document (#1 phase 1a, ffi_gray.rs) -----------------
  * A typed document whose storage is R = G = B in the RGB twin of its Gray
  * ICC profile (u16 at 8/16 bits, the linear float at 32); its descriptor
  * reports "color_mode":"gray","gray":{"profile","depth"}. Every other
  * typed document reports "color_mode":"rgb". NULL-tolerant; errors through
  * err_out (free with dr_string_free), JSON freed with dr_string_free.
- * Styles, Blend If and channels (#547 phase 2d, gray_style): dr_precision_doc_edit's
+ * Styles, Blend If and channels (#1 phase 2d, gray_style): dr_precision_doc_edit's
  * layer_style takes every effect; each colour (hex, linear, gradient stop, a
  * custom pattern's texels) is stored as its gray by Mode > Grayscale's rule,
  * an effect's blend mode follows the layer modes ("The <Mode> blend mode is
@@ -5710,7 +5710,7 @@ DrPrecisionDocument *dr_precision_doc_convert_cmyk_to_rgb(const DrPrecisionDocum
  * to Gray carries effects and a Gray Blend If greyed; an effect in a mode
  * outside the list or a Blend If on another channel is named with
  * flatten_required.
- * Geometry, selections and the clipboard (#547 phase 4): every geometry edit
+ * Geometry, selections and the clipboard (#1 phase 4): every geometry edit
  * (resize, crop, canvas_size, straighten, rotate_canvas, the rotations and
  * flips, affine/perspective and their sets, perspective_crop, align_set,
  * distribute_set), the selected pixels of a layer, its mask or an alpha
@@ -5724,7 +5724,7 @@ DrPrecisionDocument *dr_precision_doc_convert_cmyk_to_rgb(const DrPrecisionDocum
  * another mode's clip into a Gray document ("Grayscale layers paste only
  * into a Grayscale document, ..."). The clipboard is DrClipboardPayload's
  * GRAYSCALE paragraph.
- * Analysis and multi-image (#547 phase 6b): the histogram and stack_mode run
+ * Analysis and multi-image (#1 phase 6b): the histogram and stack_mode run
  * on R = G = B; scalar_edit takes target "gray" (the layer: component 0
  * read, the result written to R, G and B; replace_canvas only, u16 storage
  * only; on another document "scalar target gray is a Grayscale document's
@@ -5761,7 +5761,7 @@ DrPrecisionDocument *dr_precision_doc_new_gray(uint32_t width, uint32_t height,
  * Generative Layer converts as its pixels: from a document in the Gray
  * profile's RGB twin its variations stay live, from any other profile they
  * are detached, as Convert to Profile detaches them on RGB. An 8- or 16-bit
- * Lab Color document converts too (#547 Lab phase 5a-ii): each pixel's L*
+ * Lab Color document converts too (#1 Lab phase 5a-ii): each pixel's L*
  * through the Gray profile's tone curve; an adjustment layer is named with
  * flatten_required. */
 char *dr_precision_doc_convert_to_gray_plan(const DrPrecisionDocument *doc, const uint8_t *icc,
@@ -5782,7 +5782,7 @@ DrPrecisionDocument *dr_precision_doc_convert_gray_to_rgb(const DrPrecisionDocum
  * is not Grayscale. */
 const uint8_t *dr_precision_doc_gray_profile(const DrPrecisionDocument *document, size_t *length);
 /* Edit > Assign Profile, Convert to Profile and Image > Mode > 8/16/32
- * Bits/Channel on a Grayscale document (#547 phase 5a, gray_profile.rs).
+ * Bits/Channel on a Grayscale document (#1 phase 5a, gray_profile.rs).
  * request {"op":"assign"|"convert"|"depth","space"?:"<gray space>",
  * "intent"?,"black_point_compensation"?:bool,"depth"?:8|16|32}: icc (a Gray
  * ICC) wins over space and assign/convert need one of them; depth only (and
@@ -5805,7 +5805,7 @@ char *dr_precision_doc_gray_profile_plan(const DrPrecisionDocument *document, co
 DrPrecisionDocument *dr_precision_doc_gray_profile_edit(const DrPrecisionDocument *document,
     const uint8_t *icc, size_t icc_len, const char *request, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
-/* #547 Gray phase 6a-i: a type, shape or fill layer's colours as their gray (Mode ▸ Grayscale's
+/* #1 Gray phase 6a-i: a type, shape or fill layer's colours as their gray (Mode ▸ Grayscale's
  * rule). request {"srgb":[[r,g,b],...],"linear":[[r,g,b],...],"pattern":{pattern object}}, each
  * key optional, each list <= 1024; srgb 0..1, linear finite. Answers the same keys: an srgb or
  * linear triple with r = g = b verbatim, else [v,v,v] (srgb: the sRGB value of its luminance;
@@ -5814,7 +5814,7 @@ DrPrecisionDocument *dr_precision_doc_gray_profile_edit(const DrPrecisionDocumen
  * dr_string_free. */
 char *dr_precision_doc_gray_artwork_colors(const DrPrecisionDocument *document, const char *request,
     char **err_out);
-/* ---- Duotone (#547 Duotone phase 1a, ffi_duotone.rs) ----------------------
+/* ---- Duotone (#1 Duotone phase 1a, ffi_duotone.rs) ----------------------
  * A Duotone document is a Grayscale document (8 or 16 bits, layers and all;
  * its descriptor keeps "color_mode":"gray") whose policy carries a duotone
  * description, reported as "duotone":{"type","inks":n}. Options JSON (one
@@ -5913,7 +5913,7 @@ DrPrecisionDocument *dr_precision_doc_convert_duotone_to_bitmap(const DrPrecisio
  * (Lab to 0.01, curve points to 0.1 %). */
 char *dr_duotone_read_ado(const char *path, char **err_out);
 bool dr_duotone_write_ado(const char *path, const char *options, char **err_out);
-/* #547 Duotone phase 2a. A Duotone layer's (or composite's) thumbnail: image (u16, this document's
+/* #1 Duotone phase 2a. A Duotone layer's (or composite's) thumbnail: image (u16, this document's
  * twin) fitted at u16 first (longest side max_side, never upscaled), then through the inks' view,
  * quantized once without dither; RGBA8 in the document's profile, no ICC. NULL with the reason for a
  * document that is not Duotone, a non-u16 image, the working limit and a cancel. Free with
@@ -5921,7 +5921,7 @@ bool dr_duotone_write_ado(const char *path, const char *options, char **err_out)
 DrImage *dr_precision_doc_duotone_thumbnail_rgba8(const DrPrecisionDocument *document,
     const DrPrecisionImage *image, uint32_t max_side, uint64_t limit, uint64_t other_retained_bytes,
     const DrJobControl *control, char **err_out);
-/* ---- Indexed Color (#547 Indexed phases 1a to 3c, ffi_indexed.rs) ---------
+/* ---- Indexed Color (#1 Indexed phases 1a to 3c, ffi_indexed.rs) ---------
  * A typed document of ONE canvas-sized raster layer, "Index", whose u16
  * storage is its palette's render: each pixel palette[i] x257 with alpha
  * 65535, alpha 0 at the transparent index, in an RGB profile. The palette
@@ -6104,7 +6104,7 @@ DrPrecisionDocument *dr_precision_doc_indexed_paste(const DrPrecisionDocument *d
     const struct DrClipboardPayload *payload, const char *request, const uint16_t *coverage,
     size_t coverage_len, uint8_t outside_coverage, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
-/* ---- Bitmap (#547 Bitmap phases 1a-3, ffi_bitmap.rs) ---------------------
+/* ---- Bitmap (#1 Bitmap phases 1a-3, ffi_bitmap.rs) ---------------------
  * An 8-bit Grayscale typed document (its Gray profile and twin) of ONE
  * canvas-sized opaque raster layer, "Bitmap", whose u16 storage is its
  * packed 1-bit plane's render: each pixel 65535 x4 white or (0,0,0,65535)
@@ -6240,7 +6240,7 @@ char *dr_precision_doc_convert_bitmap_to_gray_plan(const DrPrecisionDocument *do
 DrPrecisionDocument *dr_precision_doc_convert_bitmap_to_gray(const DrPrecisionDocument *doc,
     const char *options, uint64_t limit, uint64_t other_retained_bytes,
     const DrJobControl *control, char **err_out);
-/* ---- Lab Color (#547, ffi_lab.rs) ----------------------------------------
+/* ---- Lab Color (#1, ffi_lab.rs) ----------------------------------------
  * A typed document whose u16 storage holds L*, a*, b* (D50) in R, G, B in
  * the ICC v4 Lab encoding (L* = 100v, a* and b* = 255v - 128; an 8-bit document
  * on the x257 grid), every layer in the Lab twin (an RGB-data, Lab-PCS
@@ -6249,7 +6249,7 @@ DrPrecisionDocument *dr_precision_doc_convert_bitmap_to_gray(const DrPrecisionDo
  * reports "color_mode":"lab","lab":{"depth":8|16,"filter_plans":{...}}. 8 or
  * 16 bits only. NULL-tolerant; errors through err_out (free
  * with dr_string_free), JSON freed with dr_string_free.
- * Blend If (#547 phase 2f, lab_style): dr_precision_doc_edit's layer_style
+ * Blend If (#1 phase 2f, lab_style): dr_precision_doc_edit's layer_style
  * and layer_blend_if take channel red, green and blue, which are Lightness, a
  * and b (ramps on the stored codes; not measured against Photoshop); gray
  * refuses, an identity range included ("Blend If on the Gray
@@ -6262,7 +6262,7 @@ DrPrecisionDocument *dr_precision_doc_convert_bitmap_to_gray(const DrPrecisionDo
  * runs, its tile authored sRGB and converted to Lab codes before the pyramid
  * (the stored tile unchanged), and dr_precision_doc_edit admits
  * stroke_layer_edge in the Lab blend modes, its colour Lab codes.
- * Since #547 phase 6b-i dr_precision_doc_edit admits stack_mode (each
+ * Since #1 phase 6b-i dr_precision_doc_edit admits stack_mode (each
  * statistic per channel on the codes; an 8-bit result can land off the x257
  * grid), the selection kind color_range in every mode (tonal on the codes'
  * L*, hue and skin on the codes' 16-bit ProPhoto RGB encoding, skin's Lab the
@@ -6271,7 +6271,7 @@ DrPrecisionDocument *dr_precision_doc_convert_bitmap_to_gray(const DrPrecisionDo
  * alpha; the family table adds histogram and layer_stack_mode. */
 #define DR_LAB_SOURCE_NONE 0
 #define DR_LAB_SOURCE_TIFF 1
-/* Header work only (#547 Lab phase 3a): TIFF when the file is a flat Lab
+/* Header work only (#1 Lab phase 3a): TIFF when the file is a flat Lab
  * TIFF dr_precision_doc_open_lab opens — classic II or MM, Photometric 8
  * (CIELab) or 9 (ICCLab), chunky, 3 samples or 4 with an unassociated alpha,
  * 8 or 16 bits, SampleFormat absent, all 1 or (CIELab) 1,2,2(,1), no
@@ -6297,12 +6297,12 @@ DrPrecisionDocument *dr_precision_doc_new_lab(uint32_t width, uint32_t height, c
  * "refusal","flatten_required","flattens"}; a record a Lab document cannot
  * hold yet is named with flatten_required; CMYK and 32-bit documents
  * refuse by name. An adjustment layer carries, its description unchanged and
- * rebound to the twin (#547 phase 2d; since phase 2f a Levels or Curves layer
+ * rebound to the twin (#1 phase 2d; since phase 2f a Levels or Curves layer
  * with r, g, b, r_map, g_map or b_map too, its Red, Green and Blue stages
  * becoming Lightness, a and b by channel index), except an op a Lab document
  * refuses or a pixels-only op ("“<layer>” cannot convert to Lab Color: <its
  * Lab sentence> Flatten the image to convert it."). A layer style with
- * effects carries unchanged (#547 phase 2e; its colours convert at
+ * effects carries unchanged (#1 phase 2e; its colours convert at
  * composite), except an effect mode the Lab list lacks ("“<layer>” cannot
  * convert to Lab Color: <the style's
  * sentence> Flatten the image to convert it."). A Blend If (the layer's or
@@ -6310,7 +6310,7 @@ DrPrecisionDocument *dr_precision_doc_new_lab(uint32_t width, uint32_t height, c
  * and b (phase 2f), except a Gray or plate range ("“<layer>” cannot convert
  * to Lab Color: Blend If on the <Channel> channel is unavailable in a Lab
  * Color document: its Blend If channels are Lightness, a and b.
- * Flatten the image to convert it."). Layer comps carry unchanged (#547 Lab
+ * Flatten the image to convert it."). Layer comps carry unchanged (#1 Lab
  * phase 6a-ii); a flatten clears them first. */
 char *dr_precision_doc_convert_to_lab_plan(const DrPrecisionDocument *doc, const char *options,
     char **err_out);
@@ -6322,7 +6322,7 @@ DrPrecisionDocument *dr_precision_doc_convert_to_lab(const DrPrecisionDocument *
  * The result is a 16-bit RGB document. An adjustment layer carries,
  * rebound; a Levels or Curves layer with r, g, b, r_map, g_map or b_map keeps
  * its record byte-equal, its Lightness, a and b stages becoming Red, Green and
- * Blue by channel index (#547 phase 2f). A layer style and a Blend If carry
+ * Blue by channel index (#1 phase 2f). A layer style and a Blend If carry
  * unchanged (Lightness, a and b ranges become Red, Green and Blue), and so
  * do layer comps (phase 6a-ii). The plan's refusal names only a document
  * that is not Lab or a destination that does not prepare. */
@@ -6331,7 +6331,7 @@ char *dr_precision_doc_convert_lab_to_rgb_plan(const DrPrecisionDocument *doc, c
 DrPrecisionDocument *dr_precision_doc_convert_lab_to_rgb(const DrPrecisionDocument *doc,
     const uint8_t *icc, size_t icc_len, const char *options, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
-/* #547 Lab phase 5a: 8/16 Bits/Channel on a Lab Color document (lab_depth.rs). bits 8 or 16.
+/* #1 Lab phase 5a: 8/16 Bits/Channel on a Lab Color document (lab_depth.rs). bits 8 or 16.
  * 16 -> 8 puts every raster, alpha, mask and alpha-channel sample on the 8-bit (x257) grid;
  * 8 -> 16 changes only the declared depth. The plan answers {"working_memory_plan_bytes",
  * "refusal","changes"}; any other bits and a non-Lab document refuse. */
@@ -6350,7 +6350,7 @@ DrPrecisionDocument *dr_precision_doc_lab_depth_edit(const DrPrecisionDocument *
  * dr_precision_image_free. */
 DrPrecisionImage *dr_precision_image_lab_display(const DrPrecisionImage *image, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
-/* #547 Lab phase 6b-iii. The bytes a neural run on a Lab document reserves
+/* #1 Lab phase 6b-iii. The bytes a neural run on a Lab document reserves
  * beside its model's own plan: the Display P3 view of an in_width x
  * in_height input (dr_precision_image_lab_display's charge), the Lab image
  * of an out_width x out_height result at 8 bytes a pixel, the way back's
@@ -6360,7 +6360,7 @@ DrPrecisionImage *dr_precision_image_lab_display(const DrPrecisionImage *image, 
  * Display P3. Value-only; UINT64_MAX on error. */
 uint64_t dr_lab_neural_scratch_bytes(uint32_t in_width, uint32_t in_height, uint32_t out_width,
     uint32_t out_height);
-/* #547 phase 1b. A Lab layer's Layers-panel thumbnail, fitted BEFORE it
+/* #1 phase 1b. A Lab layer's Layers-panel thumbnail, fitted BEFORE it
  * converts: image (u16, in the twin) aspect-fit at u16 with the
  * longest side max_side, never upscaled, then through the view's conversion
  * into Display P3 and quantized once without dither. Opaque-or-not RGBA8,
@@ -6378,7 +6378,7 @@ DrImage *dr_precision_image_lab_thumbnail_rgba8(const DrPrecisionImage *image, u
  * unavailable in a Lab Color document: it saves as a Lab TIFF, and Export as
  * PSD writes its PSD." A document holding spot channels refuses
  * "Spot channels are saved to a TIFF only from an RGB or CMYK document at 8
- * or 16 bits; save as .doctored, or delete the spot channels first." (#547
+ * or 16 bits; save as .doctored, or delete the spot channels first." (#1
  * 1c-2a). The plan
  * answers {"working_memory_plan_bytes","refusal"}; a non-Lab document, spot
  * channels, a bad request or a foreign projection is its refusal. */
@@ -6405,7 +6405,7 @@ DrImage *dr_precision_doc_cmyk_layer_thumbnail_rgba8(const DrPrecisionDocument *
     const DrJobControl *control, char **err_out);
 /* Stable pixel identity of a CMYK record; 0 if none. */
 uint64_t dr_precision_doc_cmyk_layer_identity(const DrPrecisionDocument *document, size_t index);
-/* Image > Trim on a CMYK document (#547 phase 4b): the kept rectangle of the
+/* Image > Trim on a CMYK document (#1 phase 4b): the kept rectangle of the
  * composite ink, dr_image_trim_rect's bases and edge bits (a corner basis
  * compares all five codes; transparent = alpha 0). The composite's scratch is
  * admitted against limit beside other_retained_bytes first. True with
@@ -6418,7 +6418,7 @@ bool dr_precision_doc_cmyk_trim_rect(const DrPrecisionDocument *document, DrTrim
  * "strip_metadata":bool}. Writes the composite flattened onto paper at the
  * declared depth (jpeg_intermediate: an 8-bit CMYK TIFF the host transcodes).
  * PSD: colour mode 4, four channels, no layer records, samples stored
- * inverted (max - ink), resources 1039/1005. TIFF (#547 1c-2a): the spot
+ * inverted (max - ink), resources 1039/1005. TIFF (#1 1c-2a): the spot
  * channels follow the four inks as trailing extra samples (ExtraSamples 0),
  * each stored `max − coverage`, with resources 1006/1045/1077/1053 in tag
  * 34377; the plan adds their planes. The plan answers the convert plans'
@@ -6428,7 +6428,7 @@ char *dr_precision_doc_save_cmyk_plan(const DrPrecisionDocument *document, const
 bool dr_precision_doc_save_cmyk(const DrPrecisionDocument *document, const char *path,
     const char *request, uint64_t limit, uint64_t other_retained_bytes,
     const DrJobControl *control, char **err_out);
-/* ---- CMYK selections (#547) ---- Select and Mask's New Layer on a CMYK document: the plan
+/* ---- CMYK selections (#1) ---- Select and Mask's New Layer on a CMYK document: the plan
  * answers the RGB cutout plan's keys with "foreground_storage":"cmyka16_unorm". decontaminate is
  * 0 (off) or a strength in (0, 1] (Decontaminate Colors on ink). The add puts the visible
  * composite's ink on a new top CMYK raster "Refined Cutout" masked by matte (width*height u16
@@ -6439,14 +6439,14 @@ char *dr_precision_doc_cmyk_cutout_plan(const DrPrecisionDocument *document, flo
 DrPrecisionDocument *dr_precision_doc_add_cmyk_cutout(const DrPrecisionDocument *document,
     const uint16_t *matte, float decontaminate, uint64_t working_limit, uint64_t other_retained,
     const DrJobControl *control, char **err_out);   /* NULL, no error: empty coverage */
-/* ---- CMYK documents (#547 phase 2) ---- One colour across the CMYK boundary (Color Picker,
+/* ---- CMYK documents (#1 phase 2) ---- One colour across the CMYK boundary (Color Picker,
  * eyedropper, MCP ink): {"from":"srgb","values":[r,g,b]} -> {"ink":[c,m,y,k],"profile"} or
  * {"from":"ink","values":[c,m,y,k]} -> {"srgb":[r,g,b],"profile"}; 0..1; optional "intent",
  * "black_point_compensation" (defaults relative, true). sRGB is the built-in profile. document: a
  * CMYK document's own profile; NULL or RGB: the working CMYK profile, refused by name when unset.
  * Free with dr_string_free. */
 char *dr_cmyk_color(const DrPrecisionDocument *document, const char *request, char **err_out);
-/* ---- CMYK documents (#547's artwork batch): type, shape and fill layers in ink ----
+/* ---- CMYK documents (#1's artwork batch): type, shape and fill layers in ink ----
  * Assemble ink components (coverage planes component-major u16; intrinsic RGBA8 sRGB converted
  * through the document's CMYK profile, relative + BPC) into a CMYKA16 raster and publish it with
  * description: replacing rewrites layer (under its Pixels lock, mask kept); else a NEW leaf at
@@ -6473,7 +6473,7 @@ DrPrecisionDocument *dr_precision_doc_cmyk_artwork(const DrPrecisionDocument *do
  * refuses by name. Free with dr_string_free. */
 char *dr_cmyk_artwork_colors(const uint8_t *source_icc, size_t source_len, const uint8_t *destination_icc,
     size_t destination_len, const char *request, char **err_out);
-/* ---- CMYK documents (#547 phase 5) ---- icc NULL = the working CMYK profile; plans
+/* ---- CMYK documents (#1 phase 5) ---- icc NULL = the working CMYK profile; plans
  * {"working_memory_plan_bytes","refusal","flatten_required"}; request {"op":"assign"|"convert"|
  * "depth","intent","black_point_compensation","flatten","depth":8|16} (intent/BPC default relative,
  * true; flatten convert only; depth op depth only). Assign keeps every sample; convert re-separates
@@ -6596,7 +6596,7 @@ DrPrecisionDocument *dr_precision_doc_set_layer_opacity(const DrPrecisionDocumen
  * application targets one raster source, rounds RGB once to u16 and keeps alpha
  * (a 32-bit float source keeps f32 under the layer's float form).
  * Pure edits return NULL without error only when unchanged.
- * On a CMYK document (#547 phase 2) the plan, add, add_at, set and apply take
+ * On a CMYK document (#1 phase 2) the plan, add, add_at, set and apply take
  * op "levels", "curves" or "hue_saturation" on ink: Levels on L = 1 - ink
  * (top-level keys the composite stage, optional "c"/"m"/"y"/"k" stage
  * objects), Curves points in ink 0-255 (keys "cmyk", "c", "m", "y", "k"),
@@ -6617,7 +6617,7 @@ DrPrecisionDocument *dr_precision_doc_set_layer_opacity(const DrPrecisionDocumen
  * CMYK), hue_rotate, grayscale, sepia and white_balance refuse (RGB
  * only), and any other op refuses as "The \"<op>\" adjustment is unavailable
  * in a CMYK document". */
-/* Grayscale (#547 phase 2b): on a Gray document these five exports run the RGB
+/* Grayscale (#1 phase 2b): on a Gray document these five exports run the RGB
  * kernel on R = G = B: bcs, levels, curves, exposure, invert, posterize,
  * threshold and gradient_map as a layer or destructively, shadows_highlights
  * and replace_color destructively only (a layer refuses "A <Name> adjustment
@@ -6632,7 +6632,7 @@ DrPrecisionDocument *dr_precision_doc_set_layer_opacity(const DrPrecisionDocumen
  * only."; any other op refuses "unsupported high-depth adjustment <op>", as on
  * RGB. The plan (destructive false = a layer)
  * refuses alike. */
-/* Lab Color (#547 phases 2b to 2d): on a Lab document these five exports run
+/* Lab Color (#1 phases 2b to 2d): on a Lab document these five exports run
  * the RGB kernel in a Lab form bound at parse: levels and curves on the
  * composite and bcs act on Lightness (the kernel on L, L, L; a* and b* kept),
  * their r, g and b settings on Lightness, a and b (r under the composite; g
@@ -6724,11 +6724,11 @@ char *dr_precision_doc_color_plan(const DrPrecisionDocument *document,
 char *dr_precision_doc_conversion_plan(const DrPrecisionDocument *document,
     const uint8_t *icc, size_t length, const char *options_json, uint64_t limit,
     uint64_t other_retained_bytes, char **err_out);
-/* A Lab Color document (#547 Lab phase 5b) refuses Assign and Convert: "a Lab
+/* A Lab Color document (#1 Lab phase 5b) refuses Assign and Convert: "a Lab
  * Color document has no document profile: it converts through Image ▸ Mode
  * (dr_precision_doc_convert_lab_to_rgb, dr_precision_doc_convert_to_cmyk,
  * dr_precision_doc_convert_to_gray)".
- * An Indexed Color document (#547 Indexed phase 3a) takes an RGB profile only
+ * An Indexed Color document (#1 Indexed phase 3a) takes an RGB profile only
  * ("An Indexed Color document's colour table is RGB: assign or convert to an
  * RGB profile, or change the mode with Image ▸ Mode."): Assign keeps every
  * index, the table's codes and every sample; Convert converts each colour
@@ -6909,7 +6909,7 @@ char *dr_precision_doc_edit_plan(const DrPrecisionDocument *document, const char
  * persists channel display metadata and strict camera-auxiliary provenance;
  * default-only channel documents retain their prior compatible native writer.
  * scalar_edit targets mask/channel/red/green/blue/alpha at index; operation is
- * fill/paint/bucket_fill/replace/filter/morphology. Target gray (#547 phase
+ * fill/paint/bucket_fill/replace/filter/morphology. Target gray (#1 phase
  * 6b) is a Grayscale document's u16 layer, replace_canvas only, written to R,
  * G and B. Payload precedes optional
  * canvas selection (selection:true). Plan names payload_samples and raw width,
@@ -7020,7 +7020,7 @@ char *dr_precision_doc_edit_plan(const DrPrecisionDocument *document, const char
  *      the byte stamp and the byte flatten are canvas-sized at (0,0) too.
  * Families "layer_stamp" and "layer_flatten", target "document", at 16 bits
  * and at 32-bit float. Refusals are NAMED. */
-/* Native STAMP SELECTED and MERGE GROUP (#547 phase 4c,
+/* Native STAMP SELECTED and MERGE GROUP (#1 phase 4c,
  * precision_merge_selected), through dr_precision_doc_edit, no samples:
  *   {"op":"stamp_selected","layers":[N,...],"name":S}  both REQUIRED.
  *   {"op":"merge_group","layer":N}
@@ -7302,14 +7302,14 @@ char *dr_precision_doc_edit_plan(const DrPrecisionDocument *document, const char
 /* Immutable result; NULL/no error means exact no-op. Input sample count is
  * recomputed from validated document/request extents and must equal length.
  * NULL samples are allowed only when input_samples and length are both zero.
- * A CMYK document (#547 phase 2) admits the structure edits, "add_layer"
+ * A CMYK document (#1 phase 2) admits the structure edits, "add_layer"
  * (bare paper), "set_mask"/"remove_mask"/"mask_properties", "read_plane" and
  * "scalar_edit" of a layer mask, and the four ink tools: "paint_blend",
  * "bucket_fill", "gradient" and "erase_native" with "ink":[c,m,y,k,alpha]
  * (0..1, straight; a gradient takes "stops":[{"position","ink"}], 2..32, and
  * an optional "style", linear when absent) in place of color/color_space,
  * the input planes and plan keys of the RGB tools; a colour-channel "plane",
- * an RGB colour and every other op refuse by name. Since #547's retouch batch
+ * an RGB colour and every other op refuse by name. Since #1's retouch batch
  * "blend_mode" is any mode but Pass Through ("The Pass Through blend mode is
  * unavailable in a CMYK document"), composited on L = 1 - ink, and the
  * retouch ops run on a CMYK raster: "dodge_burn" (protect_tones included)
@@ -7559,7 +7559,7 @@ bool dr_brush_u16(uint32_t width, uint32_t height, const char *request,
  * * opacity of 1 writes the source sample's bits, less than 1 the
  * premultiplied mix in binary64 rounded once to f32.
  *
- * A CMYK document (#547) runs dr_precision_doc_smudge and the History Brush
+ * A CMYK document (#1) runs dr_precision_doc_smudge and the History Brush
  * on a CMYK raster as the RGB16 walk on the two L passes [L_c, L_m, L_y, a]
  * and [L_k; 3, a] (the history state's layer split the same way), mapped
  * back as dr_precision_doc_edit's CMYK retouch ops are; a state that is not
@@ -7568,7 +7568,7 @@ bool dr_brush_u16(uint32_t width, uint32_t height, const char *request,
  * pass A only, K held; Sample All Layers renders the ink picture once and
  * each pass reads its own L pass of it.
  *
- * A Grayscale document (#547 phase 2c) runs the three calls and the
+ * A Grayscale document (#1 phase 2c) runs the three calls and the
  * "retouch_brush" op on R = G = B unchanged, except the Sponge: Saturate
  * m + 2 * (p - m) (clamped to 0..1 at 8 and 16 bits, unclamped at 32) and
  * Desaturate m, m the middle gray (0.5, or at 32 bits the linear value of code
@@ -7577,7 +7577,7 @@ bool dr_brush_u16(uint32_t width, uint32_t height, const char *request,
  * document from a Grayscale state only: this state is from before Image >
  * Mode > Grayscale."
  *
- * A Lab Color document (#547 phase 2e) runs them on the L*, a*, b* codes
+ * A Lab Color document (#1 phase 2e) runs them on the L*, a*, b* codes
  * unchanged, except the Sponge: Saturate n + 2 * (p - n) on a* and b*
  * (clamped to 0..1) and Desaturate n, n the a* = b* = 0 code 0x8080, L* kept,
  * vibrance ignored. dr_precision_doc_history_brush and its plan refuse a
@@ -7661,14 +7661,14 @@ DrPrecisionDocument *dr_precision_doc_history_brush(
  * CMYK raster refuses "The Art History Brush paints only a CMYK raster layer",
  * judged before the source; a source that is not a CMYK document with a CMYK
  * raster at source_layer refuses "The Art History Brush's source state is not
- * a CMYK raster". An 8-bit Grayscale document (#547 phase 2e) paints its
+ * a CMYK raster". An 8-bit Grayscale document (#1 phase 2e) paints its
  * R = G = B raster through blend_mode Normal, Darken or Lighten (the others
  * refuse "The <mode> blend mode is unavailable in a Grayscale document.");
  * a 16-bit one refuses as a 16-bit document does, a layer that
  * is not a u16 raster "The Art History Brush paints only a Grayscale raster
  * layer", judged before the source, and a source that is not a Grayscale
  * document's raster "The Art History Brush's source state is not a Grayscale
- * raster". An 8-bit Lab Color document (#547 Lab 2f, third part) paints
+ * raster". An 8-bit Lab Color document (#1 Lab 2f, third part) paints
  * per channel on its L*a*b* codes, its strokes along L* (the Tolerance test
  * compares every channel), through lab_document::blend_refusal's modes
  * (Darken and Lighten refuse with its sentence; the four HSL modes are
@@ -7718,13 +7718,13 @@ DrPrecisionDocument *dr_precision_doc_art_history_brush(
  * a different canvas size", "... bit depth", an invalid opacity or coverage
  * length) and answers NULL with no error for an exact no-op. The typed plan
  * is the History Brush's (input_samples n with coverage, else 0); control is
- * an optional single-use job. On a CMYK document (#547) the typed pair fades a
+ * an optional single-use job. On a CMYK document (#1) the typed pair fades a
  * CMYK raster by the same rule on the four inks (a mode composited on
  * L = 1 - ink as its layers are; a CMYK `before`); its plan is layer pixels x
- * 20 + canvas x 2 + the display preparation. On a Grayscale document (#547
+ * 20 + canvas x 2 + the display preparation. On a Grayscale document (#1
  * phase 2c) dr_precision_doc_fade refuses, before any work, a mode the Gray
  * document does not offer, in the Gray blend sentence, and on a Lab Color
- * document (#547 Lab phase 2c) a mode outside the Lab list, in the Lab blend
+ * document (#1 Lab phase 2c) a mode outside the Lab list, in the Lab blend
  * sentence (the plan takes no mode; the host refuses before planning). */
 DrDocument *dr_doc_fade(const DrDocument *doc, const DrDocument *before,
     size_t idx, DrBlendMode mode, float opacity, const uint8_t *coverage,
@@ -7745,8 +7745,8 @@ DrPrecisionDocument *dr_precision_doc_fade(const DrPrecisionDocument *document,
  * raster storage only to changed canvas ink, preserving independent raw masks.
  * dodge_burn(layer,exposure[0,1],range0shadows/1midtones/2highlights,burn,
  * protect_tones default false: the three channels move together, each scaled
- * by curve(V)/V with V the largest, #547; a float layer groups its in-range
- * display codes; on a Lab Color document, #547 phase 2e, only L* is shaped and
+ * by curve(V)/V with V the largest, #1; a float layer groups its in-range
+ * display codes; on a Lab Color document, #1 phase 2e, only L* is shaped and
  * protect_tones is the plain curve on L*) retains alpha and raw storage; a scalar_edit dodge_burn
  * accepts protect_tones and takes the plain curve (a single plane). erase_native(layer,opacity) changes alpha
  * alone without expansion. Every op reads one canvas coverage plane;
@@ -7797,7 +7797,7 @@ DrPrecisionDocument *dr_precision_doc_fade(const DrPrecisionDocument *document,
  * discarded editable state. These flattened conversions preserve ICC/PPI/capture
  * packets and produce ONE raster, and carry every saved channel, alpha and spot,
  * with its name, options and ink (coverage x257 up, nearest (v+128)/257 down;
- * #547); the structure-preserving 8->16 conversion is
+ * #1); the structure-preserving 8->16 conversion is
  * the separate dr_doc_promote_structure family below. Legacy promotion runs
  * legacy evaluation then multiplies exact bytes by 257. Plain stacks cancel by
  * tile; legacy groups/styles cancel per tile row through the regional tree;
@@ -7986,11 +7986,11 @@ bool dr_precision_doc_layer_at(const DrPrecisionDocument *document, int32_t x, i
  * Info returns valid:false for a plain/destructively detached layer, otherwise
  * source_id, source width/height/depth/profile, affine/filter and embedded:true.
  * All JSON/error strings are owned and freed with dr_string_free.
- * On a Grayscale document (#547) place folds the rendered pixels to gray
+ * On a Grayscale document (#1) place folds the rendered pixels to gray
  * (Mode > Grayscale's rule, neutral pixels kept) and keeps no retained source:
  * the new layer is a plain raster, so a following rasterize changes nothing,
  * and the plan adds the folded image (8 bytes a pixel, 16 at 32 bits).
- * On a Lab Color document (#547) place renders into the built-in ProPhoto RGB
+ * On a Lab Color document (#1) place renders into the built-in ProPhoto RGB
  * at u16, converts that raster to L*a*b* codes by Image > Mode > Lab Color's
  * rule (the 8-bit grid at 8 bits) and keeps no retained source; the plan
  * prices the colour visit against ProPhoto and adds the converted image (8
@@ -8145,14 +8145,14 @@ DrPrecisionDocument *dr_precision_doc_create_blank(uint32_t width, uint32_t heig
  * refuses rather than clipping. Errors via err_out, freed with
  * dr_string_free.
  *
- * CMYK (#547 phase 4c, cmyk_clipboard / cmyk_clipboard_codec /
+ * CMYK (#1 phase 4c, cmyk_clipboard / cmyk_clipboard_codec /
  * cmyk_payload_convert). A CMYK document copies, cuts and copies merged its
  * raw ink (a group its raw projection, an adjustment record refused) as a
  * CMYK payload: RZCB v4 — v3's layout with storage 3 = CMYKA16 (w*h*5 u16
  * [c,m,y,k,a], ink 0 = none) and one more u32 after editable_length, the
  * source's declared CMYK depth (8|16); the profile is the CMYK policy's
  * verbatim bytes; flags may carry bit0 (coverage) and bit2 (editable), the
- * tone map is 0, and the editable section (#547's artwork batch: v3's cap,
+ * tone map is 0, and the editable section (#1's artwork batch: v3's cap,
  * shape and flag rule) is the editable_length UTF-8 bytes right after the
  * depth word, before the samples. A non-4 version read as CMYK refuses "clipboard payload
  * version N is not a CMYK payload (CMYK payloads are version 4)"; storage
@@ -8176,7 +8176,7 @@ DrPrecisionDocument *dr_precision_doc_create_blank(uint32_t width, uint32_t heig
  * dr_precision_doc_from_clipboard makes a CMYK document of its policy and
  * depth; dr_clipboard_payload_trim trims it by alpha.
  *
- * GRAYSCALE (#547 phase 4, gray_clipboard): Copy, Copy Merged and Cut of a
+ * GRAYSCALE (#1 phase 4, gray_clipboard): Copy, Copy Merged and Cut of a
  * Grayscale document make a Gray payload, RZCB v5: b"RZCB", u32 5, u8 depth
  * (8/16/32), u32 ICC length + the Gray ICC, then one complete v3 stream of
  * R = G = B in the Gray profile's twin (f32 storage exactly at 32). The
@@ -8199,7 +8199,7 @@ DrPrecisionDocument *dr_precision_doc_create_blank(uint32_t width, uint32_t heig
  * dr_precision_doc_from_clipboard makes a Gray document of its policy;
  * editable and trim work as on an RGB payload.
  *
- * LAB COLOR (#547 Lab phase 4c, lab_clipboard): Copy, Copy Merged and Cut of
+ * LAB COLOR (#1 Lab phase 4c, lab_clipboard): Copy, Copy Merged and Cut of
  * a Lab Color document make a Lab payload, RZCB v6: b"RZCB", u32 6, u8 depth
  * (8/16), then one complete v3 stream of the L*a*b* codes in the Lab twin,
  * RGBA16. The decoder refuses, before any sample is allocated, a bad depth,
@@ -8412,7 +8412,7 @@ DrClipboardPayload *dr_clipboard_payload_from_cmyk_image(const uint8_t *bytes, s
  * image", "text or shape" or "warp"; every list is empty when
  * nothing was promoted. Free it with dr_string_free.
  *
- * CMYK (#547 phase 4c): modes never mix here — a CMYK document refuses a
+ * CMYK (#1 phase 4c): modes never mix here — a CMYK document refuses a
  * clip that is not CMYK ("pasted layers must be CMYK to land in a CMYK
  * document; convert them to CMYK first") and an RGB document a CMYK clip
  * ("pasted CMYK layers must be converted to RGB before they land in an RGB
@@ -8425,7 +8425,7 @@ DrClipboardPayload *dr_clipboard_payload_from_cmyk_image(const uint8_t *bytes, s
  * offset and every LINKED mask. The conversion admits its leg over every
  * leaf's pixels with the converted planes held.
  *
- * LAB COLOR (#547 Lab phase 4c): nor do Lab Color and the other modes — a
+ * LAB COLOR (#1 Lab phase 4c): nor do Lab Color and the other modes — a
  * Lab clip into another document or another mode's clip into a Lab document
  * refuses, asked before the Grayscale check: "Lab Color layers paste only
  * into a Lab Color document, and a Lab Color document takes only Lab Color
@@ -8553,7 +8553,7 @@ DrImage *dr_precision_image_develop_preview(const DrPrecisionImage *image,
     uint32_t clipping, uint64_t limit, uint64_t other_retained_bytes,
     const DrJobControl *control, char **err_out);
 
-/* The EXTENDED-RANGE preview of a 32-bit float development (#680), at Fit
+/* The EXTENDED-RANGE preview of a 32-bit float development (#4), at Fit
  * or 100% (divisor 1). DISPLAY ONLY; rgba32_float storage only. Region must be
  * in bounds; divisor>=1; output dimensions ceil(region/divisor) each<=1600. Each
  * output pixel is the cell-centre sample dr_precision_image_develop_preview
@@ -8636,7 +8636,7 @@ bool dr_artwork_path_coverage(const uint8_t *commands, size_t command_count,
  * align_box), the box in raster pixels it spans instead of the raster; a
  * width or height below 1, or a value outside int32, refuses "artwork
  * gradient box requires a positive width and height".
- * Into the Lab twin (#547 Lab phase 6a-i) every authored colour converts by
+ * Into the Lab twin (#1 Lab phase 6a-i) every authored colour converts by
  * Image > Mode > Lab Color's rule (relative colorimetric, no BPC), a gradient
  * interpolating between its converted stops' codes, and a pattern's sRGB tile
  * converts texel by texel to 8-bit Lab codes before its pyramid (the Lab
@@ -8664,7 +8664,7 @@ DrPrecisionImage *dr_artwork_render_float(uint32_t width, uint32_t height,
  * genuineu16 once; descriptions preserve continuous authored values. In a
  * 32-bit float typed document the image must be the dr_artwork_render_float
  * f32 image in the document profile (a u16 image refuses). On an
- * 8-bit Lab Color document (#547 Lab phase 6a-i) the published image is put
+ * 8-bit Lab Color document (#1 Lab phase 6a-i) the published image is put
  * on the x257 grid first (an image already on it is kept, so republishing
  * the same pixels answers no change). */
 DrDocument *dr_doc_artwork(const DrDocument *document, size_t layer, bool replacing,
@@ -9030,9 +9030,9 @@ char *dr_doc_projection_scoped_analysis(const DrDocument *document, const DrImag
  *    "embed_profile":bool,                    (default true)
  *    "strip_metadata":bool,                   (default false)
  *    "metadata":{...},                        (default absent; Phase 11B)
- *    "spot_channels":"overprint|keep"}        (default overprint; #547 1c-2a)
+ *    "spot_channels":"overprint|keep"}        (default overprint; #1 1c-2a)
  *
- * "spot_channels":"keep" (#547 1c-2a) makes a typed TIFF export keep the
+ * "spot_channels":"keep" (#1 1c-2a) makes a typed TIFF export keep the
  * document's spot channels as trailing extra samples, the way a TIFF save
  * does, instead of compositing their overprint. It requires format tiff
  * and size none ("export request spot_channels \"keep\" requires format
@@ -9129,17 +9129,17 @@ char *dr_precision_doc_export_plan(const DrPrecisionDocument *document,
  * BE NULL, in which case the document is rendered here; when non-NULL its
  * storage must be RGBA16 UNORM, its dimensions the canvas and its ICC bytes
  * exact. NO FILE IS WRITTEN. Free the result with dr_export_result_free.
- * A CMYK document (#547 phase 5) ignores `projection` in both calls: profile
+ * A CMYK document (#1 phase 5) ignores `projection` in both calls: profile
  * "document" with jpeg or tiff KEEPS CMYK (the CMYK save's bytes, info
  * "cmyk":true; a jpeg is a pending 8-bit CMYK TIFF the host transcodes) and
  * refuses a size, a sharpen, a tiff bit_depth other than the document's and a
  * metadata policy by name; every other request flattens on paper and converts
  * (its intent and BPC) to sRGB ("document"), Display P3 or the file profile,
- * then runs the ordinary stages. A Grayscale document (#547 phase 1b) with
+ * then runs the ordinary stages. A Grayscale document (#1 phase 1b) with
  * profile "document" KEEPS GRAY: png, tiff or jpeg at 8 or 16 bits (jpeg at
  * 8) written as one channel (two with alpha) with the Gray ICC embedded, and
  * every other kept format or bit_depth 32 refused naming phase 3.
- * An Indexed Color document (#547 Indexed phase 1b) ignores `projection` when
+ * An Indexed Color document (#1 Indexed phase 1b) ignores `projection` when
  * profile "document" with png, gif or tiff KEEPS INDEXED: the palette, the
  * transparent index and every index written as they are (png colour type 3
  * at the least depth, PLTE the palette, tRNS clear at the transparent index;
@@ -9493,7 +9493,7 @@ char *dr_precision_doc_conversion_preflight(const DrPrecisionDocument *document,
                                             uint64_t limit, uint64_t other,
                                             const DrJobControl *control,
                                             char **err_out);
-/* An Indexed Color document (#547 Indexed phase 3a) converts its colour
+/* An Indexed Color document (#1 Indexed phase 3a) converts its colour
  * table under options_json (each entry through this conversion, read at
  * 8-bit codes) and keeps every index; a profile that is not RGB refuses. */
 DrPrecisionDocument *dr_precision_doc_convert_to_profile_with(
@@ -9503,7 +9503,7 @@ DrPrecisionDocument *dr_precision_doc_convert_to_profile_with(
 char *dr_precision_doc_assign_refusal(const DrPrecisionDocument *document);
 /* dr_precision_doc_convert_to_profile_with and
  * dr_precision_doc_assign_profile_rasterizing refuse a Lab Color document
- * with dr_precision_doc_assign_profile's Lab sentence (#547 Lab phase 5b). */
+ * with dr_precision_doc_assign_profile's Lab sentence (#1 Lab phase 5b). */
 DrPrecisionDocument *dr_precision_doc_assign_profile_rasterizing(
     const DrPrecisionDocument *document, const uint8_t *icc, size_t len,
     uint64_t limit, uint64_t other, const DrJobControl *control,
@@ -9549,7 +9549,7 @@ bool dr_proof_gamut_mask(const DrImage *flat, const uint8_t *doc_icc,
  * cancel both return NULL/false with "operation cancelled"; the mask leaves
  * `out` and `count_out` untouched. A projection in the Lab twin (and the byte
  * exports' doc_icc the twin) refuses: "a Lab Color projection proofs through
- * its Display P3 view (dr_precision_image_lab_display)" (#547 Lab phase 5b);
+ * its Display P3 view (dr_precision_image_lab_display)" (#1 Lab phase 5b);
  * the host proofs that view. */
 DrImage *dr_precision_proof_render(const DrPrecisionImage *projection,
                                    const uint8_t *proof_icc, size_t proof_len,
@@ -9954,7 +9954,7 @@ char *dr_precision_image_float_sample(const DrPrecisionImage *image, int32_t x, 
  * other_retained_bytes against limit and reserves both on control.
  * dr_*_merge_hdr: the new document, one raster layer "Merged HDR", with the
  * source's profile and resolution, no metadata and the clip tone map; free it
- * with dr_precision_doc_free. A Grayscale source (#547 phase 6b) gives a
+ * with dr_precision_doc_free. A Grayscale source (#1 phase 6b) gives a
  * 32-bit Grayscale document in its Gray profile, the merge folded to its gray
  * by Mode > Grayscale's rule (its 16 bytes a pixel admitted beside the
  * result). report_out (may be NULL) receives, on success
@@ -9998,19 +9998,19 @@ DrPrecisionDocument *dr_precision_doc_merge_hdr(const DrPrecisionDocument *docum
  * 0..255, identity by default)}, every key optional and each refusal naming
  * its key. A CMYK document refuses ("hdr toning is unavailable in a
  * CMYK document"), an Indexed Color one for good ("hdr_toning is not
- * available in Indexed Color.", #547 Indexed phase 3b,
+ * available in Indexed Color.", #1 Indexed phase 3b,
  * the histogram too), as do a profile with no matrix/TRC model, a
  * working-memory refusal and a cancel. A float source's result evaluates in
  * linear light; a 16-bit source's keeps its evaluation. An 8-bit document
  * is toned by the host as promote_flattened, this call, then downconvert
  * (dither none). The plans answer owned JSON {"working_memory_plan_bytes",
  * "output_bytes"} (free with dr_string_free); bit_depth is 16, or 8 for a
- * float source. A Grayscale document (#547 phase 2e) at 8 or 16 bits tones
+ * float source. A Grayscale document (#1 phase 2e) at 8 or 16 bits tones
  * its R = G = B composite, each mapped pixel folded back to one gray value
  * (the value when the three agree, else the Rec. 709 luma), into a Grayscale
  * result at its own depth (bit_depth must be that depth, else "a <b>-bit
  * Grayscale document keeps its depth through hdr toning"; output 8 B/px; no
- * host narrowing). A 32-bit one (#547 phase 5a) tones into a 16-bit
+ * host narrowing). A 32-bit one (#1 phase 5a) tones into a 16-bit
  * Grayscale document; its plan takes bit_depth 8 or 16 (else "hdr toning
  * converts a 32-bit Grayscale document to 8 or 16 bits per channel; <n> was
  * given"), output 8 B/px, the 8-bit plan also holding the host's narrowing
@@ -10114,7 +10114,7 @@ char *dr_doc_puppet_warp_plan(const DrDocument *document, const char *request, u
 DrDocument *dr_doc_puppet_warp(const DrDocument *document, const char *request, uint64_t limit,
     uint64_t other, const DrJobControl *control, char **err_out);
 /* An Indexed Color document refuses both for good ("puppet_warp is not
- * available in Indexed Color.", #547 Indexed phase 3a). */
+ * available in Indexed Color.", #1 Indexed phase 3a). */
 char *dr_precision_doc_puppet_warp_plan(const DrPrecisionDocument *document,
     const char *request, uint64_t limit, uint64_t other, char **err_out);
 DrPrecisionDocument *dr_precision_doc_puppet_warp(const DrPrecisionDocument *document,
@@ -10404,7 +10404,7 @@ uint64_t dr_feature_register_scratch_bytes(uint32_t width, uint32_t height);
  * "Sky" (canvas raster at (0,0), Normal, opacity 1, masked); it composites
  * as the Duplicate Layer output does. A source nested too deep refuses
  * "sky replacement cannot nest its group that deep". A group or adjustment
- * layer, a CMYK, a 32-bit or (#547 Lab phase 6b-iii) a Lab Color document
+ * layer, a CMYK, a 32-bit or (#1 Lab phase 6b-iii) a Lab Color document
  * refuses by name; a picture with no sky weight refuses "sky replacement
  * found no sky on layer N". control is single-use and may be NULL. NULL always carries a message (dr_string_free), except a
  * NULL byte doc, which returns NULL with err_out untouched. */
@@ -10441,7 +10441,7 @@ DrPrecisionDocument *dr_precision_doc_sky_replace(const DrPrecisionDocument *doc
  * inside its extent on the canvas, or with new_layer onto a canvas-sized
  * raster "Remove" directly above it; NULL with err_out untouched when
  * nothing changed. A NULL doc carries "required handle is NULL" at every
- * export. A Lab Color document (#547 Lab 2f) feeds the model its Display P3
+ * export. A Lab Color document (#1 Lab 2f) feeds the model its Display P3
  * view (lab_convert::view_pipeline, clamped, alpha kept) and converts the
  * plane back to Lab codes (from_view_pipeline, clamped) before the coverage
  * mix; its plans add the pipeline's tables.
@@ -10517,9 +10517,9 @@ DrPrecisionDocument *dr_precision_doc_remove_model_apply(const DrPrecisionDocume
  * the layer's VARIATIONS (stored as PNG, the first selected, persisted in
  * .rz: word 92, CMYK too); *layer_out (may be NULL) takes its index. The
  * composite outside the selection is unchanged. On a Grayscale document
- * (#547 phase 6b) every rendered picture (apply and select_variation) is
+ * (#1 phase 6b) every rendered picture (apply and select_variation) is
  * folded to its gray by Mode > Grayscale's rule, R = G = B, and the plan adds
- * 8 bytes a canvas pixel for it. On a Lab Color document (#547 Lab phase
+ * 8 bytes a canvas pixel for it. On a Lab Color document (#1 Lab phase
  * 6b-iii) image_out is the plate's Display P3 view (relative colorimetric,
  * no BPC), and every rendered picture is read as Display P3 and returned to
  * L*a*b* codes by Image > Mode > Lab Color's rule; the plan adds the view's
@@ -10673,10 +10673,10 @@ bool dr_precision_doc_gen_expand_coverage(const DrPrecisionDocument *doc, size_t
  * above it at the same offset; NULL with err_out untouched when nothing
  * changed (a pixel-locked layer, identical pixels). Float and CMYK documents
  * refuse "neural filters are not available in a 32-bit document" / "... in a
- * CMYK document". On an 8- or 16-bit Grayscale document (#547 phase 6b) the
+ * CMYK document". On an 8- or 16-bit Grayscale document (#1 phase 6b) the
  * result is folded to its gray by Mode > Grayscale's rule (R = G = B), and
  * Super Zoom's document is Grayscale in the source's Gray profile. On a Lab
- * Color document (#547 Lab phase 6b-iii) the model read the Display P3 view
+ * Color document (#1 Lab phase 6b-iii) the model read the Display P3 view
  * (dr_precision_image_lab_display), so zoomed / pixels must be tagged the
  * built-in Display P3 (else "a Lab Color document takes a model's result in
  * its Display P3 view"); the result returns to L*a*b* codes by Mode > Lab

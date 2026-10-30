@@ -22,7 +22,7 @@
 //! channel in the document's own primaries instead, each channel linearized
 //! at the profile's effective pure gamma (2.2 for sRGB-shaped and sampled
 //! curves, a pure power's own exponent) and re-encoded by its inverse — no
-//! TRC, no matrix (`adjust_calibrated`, #578, fitted to Photoshop at 8 and 16
+//! TRC, no matrix (`adjust_calibrated`, #2, fitted to Photoshop at 8 and 16
 //! bits) — and a 32-bit float document applies it per stored linear channel
 //! (`adjust_float`).
 //!

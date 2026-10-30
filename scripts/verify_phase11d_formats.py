@@ -37,7 +37,7 @@ tolerance is widened after the fact.
   working space is Display P3, the base's own, because an 8-bit open
   converts into the working space).
 - **D2 Gray16.** Gray16 PNG/TIFF fixtures written byte by byte here. Since
-  #547 phase 1a each opens as a GRAYSCALE document (`color_mode` "gray"; the
+  #1 phase 1a each opens as a GRAYSCALE document (`color_mode` "gray"; the
   drive launches with `-ColorWorkingGray sgray`, so an untagged file takes
   sGray), is converted with `convert_mode rgb rgb_space srgb` and exported
   back. **T2**: with a Gray Gamma 2.2 ICC, max <= 514 u16 codes (two codes at
@@ -141,7 +141,7 @@ T1_HEIC10_MAX_CODES10 = 2          # codes on the 10-bit scale
 T1_HEIC10_MEAN_CODES10 = 0.5
 T2_GRAY_MAX_U16 = 514              # two codes at 8 bits
 T2_GRAY_MEAN_U16 = 128
-# #547 phase 1a: the untagged, sRGB-chunk and GrayA cases are a gray → sRGB
+# #1 phase 1a: the untagged, sRGB-chunk and GrayA cases are a gray → sRGB
 # conversion now (an sGray Grayscale document through RGB Color), no longer a
 # copy: a new operation's gate, declared before its first run.
 T2_GRAY_CONVERTED_MAX_U16 = 1
@@ -1174,7 +1174,7 @@ def take_heic(app, output, report, fixtures):
 
 
 def gray_to_srgb(app, document, entry):
-    """#547 phase 1a: a gray file opens as a Grayscale document, which RGB
+    """#1 phase 1a: a gray file opens as a Grayscale document, which RGB
     Color converts into sRGB before the export (D2's re-expression)."""
     entry['color_mode'] = document.get('color_mode')
     if document.get('color_mode') != 'gray':
@@ -2011,7 +2011,7 @@ def main():
         if wanted('D4'):
             take_float_tiff(output, report)
         host = support.HostApp(output / 'app', output / 'recovery', executable)
-        # D2 (#547 phase 1a): an untagged gray file takes the working Gray, pinned to sGray.
+        # D2 (#1 phase 1a): an untagged gray file takes the working Gray, pinned to sGray.
         host.extra_defaults = ['-ColorWorkingGray', 'sgray']
         with host as app:
             for case, take in (('D1', take_heic), ('D2', take_gray16), ('D3', take_bridge),

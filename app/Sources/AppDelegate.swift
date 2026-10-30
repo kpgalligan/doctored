@@ -105,7 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         ColorSettings.askWhenPasting.toggle()
     }
 
-    /// Edit ▸ Color Settings… (#547 phase 5): the working spaces, the colour-management policies
+    /// Edit ▸ Color Settings… (#1 phase 5): the working spaces, the colour-management policies
     /// and the conversion options. Here, beside the working space, for its reason: an app-wide
     /// preference settable before the first open.
     @objc func showColorSettings(_ sender: Any?) {

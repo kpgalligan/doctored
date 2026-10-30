@@ -67,7 +67,7 @@ final class LoadSelectionSheetController: NSViewController {
             entries.append(("Layer Mask", .layerMask(activeLayer)))
         }
         entries.append(("", nil))
-        // #547: a CMYK document's composite (its luminosity) and its four ink plates, each
+        // #1: a CMYK document's composite (its luminosity) and its four ink plates, each
         // loading its stored `1 − ink`.
         if doc.isCmyk {
             entries.append(("CMYK", .compositePlane(.luma)))
@@ -76,7 +76,7 @@ final class LoadSelectionSheetController: NSViewController {
             }
             return entries
         }
-        // #547 Lab phase 4b-i: a Lab document's composite (its Lightness) and its Lightness, a
+        // #1 Lab phase 4b-i: a Lab document's composite (its Lightness) and its Lightness, a
         // and b channels, the stored codes.
         if doc.isLab {
             entries.append(("Lab", .compositePlane(.luma)))

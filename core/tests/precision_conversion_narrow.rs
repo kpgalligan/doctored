@@ -929,7 +929,7 @@ fn float_to_sixteen_tone_maps_every_record_and_carries_the_rest() {
 /// raises the scratch figure by at least its three 65,537-entry f64 encoder
 /// tables and by less than one allowance (`adjustment_repreparation.rs`
 /// covers the other two plans). A calibrated Exposure holds no encoder since
-/// #578.
+/// #2.
 #[test]
 fn float_to_sixteen_charges_each_added_adjustment_below_one_allowance() {
     let directory = TempDir::new().unwrap();

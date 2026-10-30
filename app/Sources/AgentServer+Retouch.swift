@@ -17,7 +17,7 @@ extension AgentServer {
     static let retouchToolFacts: [String: ToolFacts] = [
         // A float layer's Clone Stamp copies linear light (`FloatRetouch`).
         "clone_stamp": [.typedTool, .rasterTool, .floatTool, .cmykTool],
-        // R4 on a float layer, R4m on a mask or channel (`FloatPaint`); #547: on ink
+        // R4 on a float layer, R4m on a mask or channel (`FloatPaint`); #1: on ink
         // (`CmykRetouch`), the Clone Stamp likewise.
         "dodge_burn": [.typedTool, .rasterTool, .floatTool, .cmykTool],
         // Phase 12F-1b: the EXACT canvas geometry. A zero-angle `crop` keeps
@@ -420,7 +420,7 @@ extension AgentServer {
                     + "blend modes apply to brush_stroke and clone_stamp.")
         }
         let burn = boolArg(a, "burn") ?? false
-        // #547: Protect Tones, off unless asked (the tool's checkbox).
+        // #1: Protect Tones, off unless asked (the tool's checkbox).
         let protectTones = boolArg(a, "protect_tones") ?? false
         let rangeName = stringArg(a, "range") ?? "midtones"
         let range: Int
@@ -594,7 +594,7 @@ extension AgentServer {
                 message: "sampler must be nearest, bilinear, bicubic or lanczos "
                     + "(got \"\(samplerName)\")")
         }
-        // #547 Lab phase 4a: a Lab document takes the authored sRGB colour unquantized (the
+        // #1 Lab phase 4a: a Lab document takes the authored sRGB colour unquantized (the
         // Brush's `precisionInk` rule), so the pad converts by Mode ▸ Lab Color's rule in the
         // core at 16 bits too, not through the document's 8-bit codes.
         let backgroundColor = doc.isLab

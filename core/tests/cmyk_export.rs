@@ -1,4 +1,4 @@
-//! The export workspace on a CMYK document (#547 phase 5 and round 2),
+//! The export workspace on a CMYK document (#1 phase 5 and round 2),
 //! through the FFI: a converting export against the test's own
 //! `ink_to_srgb` of the composite on paper (`common/cmyk_fixture.rs`, the
 //! synthetic press's tables and the built-in sRGB's own tags); a default

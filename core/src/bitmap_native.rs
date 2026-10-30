@@ -1,4 +1,4 @@
-//! The Bitmap document in the typed `.rz` (#547 Bitmap phase 1a, DRDC 110).
+//! The Bitmap document in the typed `.rz` (#1 Bitmap phase 1a, DRDC 110).
 //!
 //! Word 110 sits in the CMYK slot — the FIRST word inside the identity
 //! wrapper 46 — written iff the document is Bitmap, in place of the Gray

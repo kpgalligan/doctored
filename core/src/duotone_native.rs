@@ -1,4 +1,4 @@
-//! The Duotone document in the typed `.rz` (#547 Duotone phase 1a, DRDC
+//! The Duotone document in the typed `.rz` (#1 Duotone phase 1a, DRDC
 //! 109).
 //!
 //! Word 109 replaces the Gray word 106 in the CMYK slot — the FIRST word

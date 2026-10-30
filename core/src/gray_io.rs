@@ -1,4 +1,4 @@
-//! Gray files as Grayscale documents (#547 phase 1a): which PNG, TIFF and
+//! Gray files as Grayscale documents (#1 phase 1a): which PNG, TIFF and
 //! JPEG files open as one ([`gray_source`], header work only) and the open
 //! itself ([`PrecisionDocument::open_gray`]).
 //!

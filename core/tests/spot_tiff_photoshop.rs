@@ -1,4 +1,4 @@
-//! #547 spot channels 1c-2a against Photoshop's own flat TIFFs
+//! #1 spot channels 1c-2a against Photoshop's own flat TIFFs
 //! (`tests/fixtures/photoshop_spot_tiff`, authored by
 //! `scripts/photoshop-probe/spot_tiff_take.py`'s take2 on Photoshop
 //! 26.10.0: RGB at 8 and 16 bits, one with a transparency, and CMYK at 8

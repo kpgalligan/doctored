@@ -1,10 +1,10 @@
-//! The soft matte of a blurred layer effect (#578), in two forms.
+//! The soft matte of a blurred layer effect (#2), in two forms.
 //!
 //! - THE LAW ([`law_matte_with_job`]): the matte measured in Photoshop for the
 //!   drop shadow, the inner shadow, the outer glow and the inner glow
 //!   wherever Size·(1 − Spread) > 0 ([`law_applies`]; for the inner effects
 //!   the Choke is the spread), and the satin at spread 0 wherever Size > 0
-//!   (#578 part 3, `style_fx_satin`). Its ONE home is here.
+//!   (#2 part 3, `style_fx_satin`). Its ONE home is here.
 //! - A [`Matte`]: a Gaussian sized per effect and the map its blurred plane
 //!   goes through. The satin's `MATTE` runs only at Size 0 (sigma 0); the outer glow's
 //!   [`OUTER_GLOW`] and the shadows' `MATTE` run only where the law does not

@@ -411,54 +411,54 @@ do {
         ("fade sheet", verifyFadeSheets),
         ("curves sheet", verifyCurvesSheets),
         ("curves pencil", verifyCurvesPencil),
-        // #547: the CMYK document's Mode sheet, Channels panel and open routing.
+        // #1: the CMYK document's Mode sheet, Channels panel and open routing.
         ("cmyk mode sheet", verifyCmykModeSheet),
         ("cmyk channels panel", verifyCmykChannelsPanel),
         ("cmyk open routing", verifyCmykOpenRouting),
-        // #547 phase 2: the picker's C/M/Y/K fields and the Levels/Curves ink channels.
+        // #1 phase 2: the picker's C/M/Y/K fields and the Levels/Curves ink channels.
         ("cmyk picker", verifyCmykPicker),
         ("cmyk tone channels", verifyCmykToneChannels),
         ("cmyk hue saturation", verifyCmykHueSaturation),
-        // #547: the selection batch's menu items and tools, and Stroke… in ink.
+        // #1: the selection batch's menu items and tools, and Stroke… in ink.
         ("cmyk selection menus", verifyCmykSelectionMenus),
         ("cmyk stroke sheet", verifyCmykStrokeSheet),
-        // #547: the channels batch's Select, Channels, Paths and Vector Mask items, the ink-row
+        // #1: the channels batch's Select, Channels, Paths and Vector Mask items, the ink-row
         // targets and Quick Mask on CMYK.
         ("cmyk channels menus", verifyCmykChannelsMenus),
         ("cmyk quick mask", verifyCmykQuickMask),
-        // #547 phase 4a: groups, clipping, merges, blend modes and Fill on CMYK.
+        // #1 phase 4a: groups, clipping, merges, blend modes and Fill on CMYK.
         ("cmyk structure", verifyCmykStructure),
-        // #547 styles batch: layer effects in ink and knockout on CMYK.
+        // #1 styles batch: layer effects in ink and knockout on CMYK.
         ("cmyk layer style", verifyCmykLayerStyle),
-        // #547 phase 5: Color Settings, File ▸ New in CMYK, and Levels/Curves' Auto,
+        // #1 phase 5: Color Settings, File ▸ New in CMYK, and Levels/Curves' Auto,
         // eyedroppers and presets on ink.
         ("cmyk color settings", verifyCmykColorSettings),
         ("cmyk new document", verifyCmykNewDocument),
         ("cmyk tone auto", verifyCmykToneAuto),
         ("cmyk tone eyedroppers", verifyCmykToneEyedroppers),
         ("cmyk tone presets", verifyCmykTonePresets),
-        // #547 phase 4b: geometry menus and tools on CMYK, and one ⌘T session.
+        // #1 phase 4b: geometry menus and tools on CMYK, and one ⌘T session.
         ("cmyk geometry menus", verifyCmykGeometryMenus),
         ("cmyk transform session", verifyCmykTransformSession),
-        // #547: the adjustments and filters on CMYK — menus per the take1 table, two sheets.
+        // #1: the adjustments and filters on CMYK — menus per the take1 table, two sheets.
         ("cmyk adjustment menus", verifyCmykAdjustmentMenus),
         ("cmyk filter menus", verifyCmykFilterMenus),
         ("cmyk channel mixer sheet", verifyCmykChannelMixerSheet),
         ("cmyk gaussian blur sheet", verifyCmykGaussianBlurSheet),
-        // #547 phase 4c: copy and paste, Stamp Selected, Merge Group and Duplicate to Document.
+        // #1 phase 4c: copy and paste, Stamp Selected, Merge Group and Duplicate to Document.
         ("cmyk clipboard", verifyCmykClipboard),
-        // #547 phase 3: the import report sheet on a layered CMYK PSD and the
+        // #1 phase 3: the import report sheet on a layered CMYK PSD and the
         // layered-TIFF chooser on a layered CMYK TIFF.
         ("cmyk psd import report", verifyCmykPsdImportReport),
-        // #547's retouch batch: the CMYK retouch tools, Equalize's prompt and menus, and
+        // #1's retouch batch: the CMYK retouch tools, Equalize's prompt and menus, and
         // Dodge/Burn's Protect Tones.
         ("cmyk retouch tools", verifyCmykRetouchTools),
         ("cmyk equalize prompt", verifyCmykEqualizePrompt),
-        // #547's remaining gaps: one ink plate targeted — its menus and a Fill on Cyan.
+        // #1's remaining gaps: one ink plate targeted — its menus and a Fill on Cyan.
         ("cmyk plate menus", verifyCmykPlateMenus),
         ("equalize menus", verifyEqualizeMenus),
         ("dodge protect tones option", verifyDodgeProtectTonesOption),
-        // #547's artwork batch: the Type tool and a gradient fill layer's sheet on CMYK.
+        // #1's artwork batch: the Type tool and a gradient fill layer's sheet on CMYK.
         ("cmyk type tool", verifyCmykTypeTool),
         ("cmyk fill layer sheet", verifyCmykFillLayerSheet),
         // Edit ▸ Puppet Warp's on-canvas session.

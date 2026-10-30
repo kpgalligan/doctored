@@ -16,9 +16,9 @@ extension EditorViewController {
     /// Image > Mode > Assign Profile… — RELABELS the document: the pixel
     /// numbers do not change, so the picture changes appearance.
     @objc func assignProfile(_ sender: Any?) {
-        // #547 phase 5: a CMYK document assigns a CMYK profile (CmykProfileSheetController).
+        // #1 phase 5: a CMYK document assigns a CMYK profile (CmykProfileSheetController).
         if presentCmykProfileSheet(.assign) { return }
-        // #547 phase 5a: a Grayscale document assigns a Gray profile (GrayProfileSheetController).
+        // #1 phase 5a: a Grayscale document assigns a Gray profile (GrayProfileSheetController).
         if presentGrayProfileSheet(.assign) { return }
         guard let document = document, let sheet = AssignProfileSheetController(document: document)
         else {
@@ -31,7 +31,7 @@ extension EditorViewController {
     /// Image > Mode > Convert to Profile… — TRANSFORMS every layer's pixels
     /// so the picture looks the same in the new space.
     @objc func convertToProfile(_ sender: Any?) {
-        // #547 Lab phase 5b: a Lab Color document converts through Image ▸ Mode's conversion.
+        // #1 Lab phase 5b: a Lab Color document converts through Image ▸ Mode's conversion.
         if presentLabProfileSheet() { return }
         if presentCmykProfileSheet(.convert) { return }
         if presentGrayProfileSheet(.convert) { return }

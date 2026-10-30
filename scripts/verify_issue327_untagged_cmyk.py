@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The MCP drive: an untagged CMYK TIFF opens through the working CMYK.
 
-Since #547 such a file opens as a CMYK DOCUMENT assigned the working CMYK
+Since #1 such a file opens as a CMYK DOCUMENT assigned the working CMYK
 profile (no conversion to sRGB), so the twins are two CMYK documents with the
 same ink and the same profile, and the sentence is the assignment's.
 
@@ -21,7 +21,7 @@ with Adobe's profiles, and the twin needs the same bytes.
   same pixels — the untagged file was converted exactly as the SWOP-tagged one.
 - **V2 sentence.** `get_color_profile.on_open_refusal` of the untagged file is
   the working-profile ASSIGNMENT sentence naming `U.S. Web Coated (SWOP) v2`
-  (#547), and both documents report `color_mode` "cmyk" with that profile.
+  (#1), and both documents report `color_mode` "cmyk" with that profile.
 """
 import argparse
 import base64

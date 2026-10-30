@@ -187,7 +187,7 @@ enum RawOutputSpace: String, CaseIterable, Codable {
 /// Shadows (`boostShadowAmount`), noise reduction, sharpening, detail,
 /// local contrast, moiré, profile corrections and highlight recovery act in
 /// the decoder as they do at 16 bits. Grain, a stage after the decoder,
-/// applies on the display encoding (#680, `RawGrain.swift`).
+/// applies on the display encoding (#4, `RawGrain.swift`).
 ///
 /// A float development starts at tone curve 0: scene-linear, linear in
 /// exposure and with no highlight shoulder, so it looks brighter in the

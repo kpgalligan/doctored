@@ -1,4 +1,4 @@
-//! The CMYK document tests' synthetic press profile (#547) and its oracle,
+//! The CMYK document tests' synthetic press profile (#1) and its oracle,
 //! written from the ICC specification and the CIE formulas, never read off
 //! the implementation.
 //!
@@ -21,7 +21,7 @@
 //! The lut16 Lab encoding is the legacy one in both ICC versions:
 //! `L* = code / 65280 · 100`, `a* = code / 256 − 128`.
 //!
-//! A SECOND press (#547 phase 5, `press_profile_b`) is built the same way
+//! A SECOND press (#1 phase 5, `press_profile_b`) is built the same way
 //! with other coefficients, so a CMYK → CMYK conversion and a CMYK proof
 //! have a destination whose tables differ from the source's:
 //!

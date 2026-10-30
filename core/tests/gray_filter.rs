@@ -1,4 +1,4 @@
-//! #547 phase 2c, the Filter menu on a Grayscale document (`gray_filter`),
+//! #1 phase 2c, the Filter menu on a Grayscale document (`gray_filter`),
 //! through the FFI. The oracle is the RGB TWIN (the Gray document converted
 //! to RGB through its own profile bytes) running the same filter: every gray
 //! result is R = G = B; where the twin's pixel is R = G = B the gray pixel

@@ -1,4 +1,4 @@
-//! The Duotone description's kernel (#547 Duotone phase 1a,
+//! The Duotone description's kernel (#1 Duotone phase 1a,
 //! `designs/duotone-mode.md`): the inks, their curves, the overprint
 //! colours, their one JSON form and the colour mix the view shows.
 //!

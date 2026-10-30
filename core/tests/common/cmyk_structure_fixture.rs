@@ -1,4 +1,4 @@
-//! The CMYK structure files' shared fixtures and f64 oracle (#547 phase
+//! The CMYK structure files' shared fixtures and f64 oracle (#1 phase
 //! 4a: `cmyk_blend.rs`, `cmyk_structure.rs`, `cmyk_merge.rs`).
 //!
 //! The documents are built through the FFI: an RGB document of layers (any
@@ -592,7 +592,7 @@ pub fn tone(dst: &mut Ink, adjusted: [f64; 4], k: f64, mode: BlendMode) {
     }
 }
 
-/// The byte for a unit Opacity or Fill (#578): `floor(255 v + 0.5 +
+/// The byte for a unit Opacity or Fill (#2): `floor(255 v + 0.5 +
 /// 1e-3) / 255` on the stored f32 widened to f64; a CMYK composite reads it
 /// at every depth.
 pub fn byte_unit(v: f32) -> f64 {
@@ -713,7 +713,7 @@ pub fn level(layers: &[PrecisionDocumentLayer], x: i64, y: i64, acc: &mut Ink) {
                         None => ([0.0; 4], 0.0),
                     }
                 };
-                // Photoshop's clip rule (#578): the members land on the base
+                // Photoshop's clip rule (#2): the members land on the base
                 // with its alpha frozen RELATIVE to the footprint — the base
                 // at its Fill share of it, each member over that, the result
                 // scaled back onto the footprint.

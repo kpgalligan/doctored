@@ -1,4 +1,4 @@
-//! #578: the Smooth Emboss and Pillow Emboss against Photoshop's own
+//! #2: the Smooth Emboss and Pillow Emboss against Photoshop's own
 //! identify-578 take2 profiles, at 8 and 16 bits. The fixture
 //! (`tests/fixtures/psd_photoshop/identify_578/emboss_pillow_profiles.json`,
 //! README) holds each style's 112 rows' whole profiles, written by

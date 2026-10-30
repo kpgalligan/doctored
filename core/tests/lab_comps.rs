@@ -1,4 +1,4 @@
-//! #547 Lab phase 6a-ii: layer comps, links and the snapshot round trip on
+//! #1 Lab phase 6a-ii: layer comps, links and the snapshot round trip on
 //! a Lab Color document (`lab_comps`), through the FFI. Bounds, declared
 //! before measuring:
 //!

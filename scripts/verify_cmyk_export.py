@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 kept-CMYK export drive (round 2): a CMYK document exported with
+"""The #1 kept-CMYK export drive (round 2): a CMYK document exported with
 profile "document" as TIFF or JPEG — resized on ink, output-sharpened, at the
 other depth, under a metadata policy — and the files read back; the Export
 workspace's preview and plan; and the PSD export's vector-mask loss line.

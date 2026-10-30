@@ -358,16 +358,16 @@ pub fn free(img: *mut DrImage) {
     unsafe { dr_image_free(img) }
 }
 
-// ------------------------------------------------- the byte opacity (#578) --
+// ------------------------------------------------- the byte opacity (#2) --
 
-/// The byte for a unit Opacity or Fill (#578, `opacity_byte`): below
+/// The byte for a unit Opacity or Fill (#2, `opacity_byte`): below
 /// 32 bits every composite reads `floor(255 v + 0.5 + 1e-3) / 255`, written
 /// here from the integer rule, never from the core.
 pub fn byte_unit(v: f64) -> f64 {
     (v.clamp(0.0, 1.0) * 255.0 + 0.5 + 1e-3).floor() / 255.0
 }
 
-/// A Fill and an Opacity scaling one contribution in one product (#578,
+/// A Fill and an Opacity scaling one contribution in one product (#2,
 /// `opacity_byte::joint`): the two bytes' product rounded to a byte, never a
 /// tie (255 is odd).
 pub fn joint_unit(fill: f64, opacity: f64) -> f64 {
@@ -955,7 +955,7 @@ pub fn feathered_plane(plane: &[u8], w: u32, h: u32, radius: f32) -> Vec<u8> {
 
 /// [`feathered_plane`] before its one rounding: the feathered values in
 /// codes, for an oracle that maps them before rounding (the outer glow's
-/// matte stretch, #578).
+/// matte stretch, #2).
 pub fn feathered_field(plane: &[u8], w: u32, h: u32, radius: f32) -> Vec<f32> {
     let (w, h) = (w as usize, h as usize);
     assert_eq!(plane.len(), w * h);

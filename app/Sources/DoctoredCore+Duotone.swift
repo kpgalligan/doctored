@@ -1,6 +1,6 @@
 import AppKit
 
-// The Duotone document's core wrappers (#547, `designs/duotone-mode.md`): every `dr_*` call of the
+// The Duotone document's core wrappers (#1, `designs/duotone-mode.md`): every `dr_*` call of the
 // Duotone area — the options normalized and read, Image ▸ Mode ▸ Duotone…'s plan and edit, and the
 // view; the render through the inks, Duotone → RGB and the `.ado` file; the thumbnail through the
 // inks; Duotone → Grayscale and Duotone → Bitmap.
@@ -63,7 +63,7 @@ extension RasterPrecisionDocument {
         return RasterPrecisionImage(owning: result)
     }
 
-    // #547 Duotone phase 1b: the render through the inks, Duotone → RGB and the `.ado` file.
+    // #1 Duotone phase 1b: the render through the inks, Duotone → RGB and the `.ado` file.
 
     private static func withDuotoneProfile<T>(_ profile: Data,
                                               _ body: (UnsafePointer<UInt8>?, Int) throws -> T) rethrows -> T {
@@ -157,7 +157,7 @@ extension RasterPrecisionDocument {
         return RasterPrecisionDocument(owning: result)
     }
 
-    /// A Duotone layer's (or composite's) thumbnail, fitted at u16 BEFORE the view (#547
+    /// A Duotone layer's (or composite's) thumbnail, fitted at u16 BEFORE the view (#1
     /// Duotone phase 2a, `dr_precision_doc_duotone_thumbnail_rgba8`): RGBA8 in the document's
     /// profile, never upscaled.
     func duotoneThumbnailRGBA8(of image: RasterPrecisionImage, maxSide: Int, workingLimit: UInt64,

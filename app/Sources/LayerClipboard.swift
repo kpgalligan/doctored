@@ -121,7 +121,7 @@ final class LayerClipboard {
         let rendering: RasterImage
         var payload: RasterClipboardPayload?
         let flat: String
-        // #547 phase 4c: a CMYK clip whose one root is an adjustment record
+        // #1 phase 4c: a CMYK clip whose one root is an adjustment record
         // (no ink of its own, no editable record) writes the clip's Copy
         // Merged, and a CMYK root's copy carries no editable record.
         let cmykAdjustment = clip.isCmyk && roots.count == 1
@@ -131,7 +131,7 @@ final class LayerClipboard {
             // Today's whole-layer Copy of that one root (`copyPrecision` /
             // `typedBytes(forByteCopy:offset:layer:)`).
             if clip.isCmyk {
-                // Since #547's artwork batch a CMYK type or shape layer's copy
+                // Since #1's artwork batch a CMYK type or shape layer's copy
                 // carries its record (`cmykAdjustment` excluded it above).
                 let copied = try clip.attachingEditable(
                     clip.clipboardCopy(layer: root, window: canvas, selection: nil), layer: root)
@@ -308,7 +308,7 @@ extension LayerClipboard.Entry {
     /// is nil. No history step; the topmost root is active.
     func newDocument() throws -> (document: ImageDocument, sourceOffset: (x: Int, y: Int),
                                   trimmed: Bool) {
-        // #547 phase 4c: a CMYK clip opens as itself, untrimmed (the trim is
+        // #1 phase 4c: a CMYK clip opens as itself, untrimmed (the trim is
         // a crop, which a CMYK document does not take yet).
         if layers.isCmyk {
             let document = try ImageDocument.makeDuplicate(
@@ -335,7 +335,7 @@ extension LayerClipboard.Entry {
                 trimmed = true
             }
         }
-        // #547 Lab phase 4c: a Lab clip, trimmed as above, opens as itself (New Document makes
+        // #1 Lab phase 4c: a Lab clip, trimmed as above, opens as itself (New Document makes
         // no Lab document, so the `makeNew` base path is not taken).
         if clip.isLab {
             let document = try ImageDocument.makeDuplicate(
@@ -443,12 +443,12 @@ enum LayerPastePlan {
     /// The Paste Profile Mismatch alert's two names when the clip's profile
     /// `PasteProfile.differ`s from the document's (an untagged document
     /// counts as sRGB); nil otherwise.
-    /// #547 phase 4c: a clip of the other colour mode always converts, so
+    /// #1 phase 4c: a clip of the other colour mode always converts, so
     /// it never asks; between CMYK documents the CMYK profiles are compared.
     static func profileMismatch(_ entry: LayerClipboard.Entry,
                                 into doc: RasterDocument) -> (source: String, destination: String)? {
         let clip = entry.layers
-        // #547 phase 4: so does a clip into or out of Grayscale; between Gray documents the Gray
+        // #1 phase 4: so does a clip into or out of Grayscale; between Gray documents the Gray
         // profiles are compared. Lab phase 4c: and Lab Color (one twin, so Lab → Lab never asks).
         guard clip.isCmyk == doc.isCmyk, clip.isGray == doc.isGray, clip.isLab == doc.isLab
         else { return nil }
@@ -470,11 +470,11 @@ enum LayerPastePlan {
     /// core's promotion takes Don't Convert itself.
     static func preserveRefusal(_ entry: LayerClipboard.Entry,
                                 into doc: RasterDocument) -> String? {
-        // #547 phase 4c: between CMYK documents Don't Convert keeps the ink; phase 4: between
+        // #1 phase 4c: between CMYK documents Don't Convert keeps the ink; phase 4: between
         // Gray documents it keeps the gray codes.
         if doc.isFloat || (doc.isCmyk && entry.layers.isCmyk)
             || (doc.isGray && entry.layers.isGray) { return nil }
-        // #547 Lab phase 4c: between Lab documents it keeps the codes; across modes it refuses.
+        // #1 Lab phase 4c: between Lab documents it keeps the codes; across modes it refuses.
         if doc.isLab || entry.layers.isLab {
             return doc.isLab == entry.layers.isLab ? nil : ColorConversion.crossModePreserveLab
         }
@@ -509,7 +509,7 @@ struct LayerPasteOutcome {
     /// paste).
     let report: [String: Any]
     let ppi: (clipboard: (Double, Double), document: (Double, Double))
-    /// #547 phase 4c: the colour model or CMYK profile the layers crossed;
+    /// #1 phase 4c: the colour model or CMYK profile the layers crossed;
     /// nil when they kept their model.
     var colorConversion: ColorConversion?
 
@@ -520,7 +520,7 @@ struct LayerPasteOutcome {
     /// The topmost pasted root — the layer the paste leaves active.
     var topRoot: Int { roots.last ?? landing }
 
-    /// "Paste Layers", with " (CMYK → RGB)" across colour modes (#547 phase
+    /// "Paste Layers", with " (CMYK → RGB)" across colour modes (#1 phase
     /// 4c) and " (300 → 72 ppi)" on a PPI mismatch.
     var historyName: String {
         let base = "Paste Layers" + (colorConversion?.historySuffix ?? "")
@@ -624,7 +624,7 @@ enum LayerPasteWork {
                                   profile mode: PasteProfile) throws
         -> (clip: RasterDocument, narrowed: Bool, promoted: Bool, profileConverted: Bool,
             profile: String, core: PasteProfile, conversion: ColorConversion?) {
-        // #547 Lab phase 4c: a Lab side first (Lab → Gray and Lab → CMYK cross through RGB,
+        // #1 Lab phase 4c: a Lab side first (Lab → Gray and Lab → CMYK cross through RGB,
         // `LabClipboard.swift`); phase 4: a Grayscale side before the CMYK one (Gray → CMYK
         // crosses through RGB first).
         if doc.isLab || entry.layers.isLab {
@@ -681,7 +681,7 @@ enum LayerPasteWork {
         return (clip, narrowed, promoted, profileConverted, outcome, core, nil)
     }
 
-    /// #547 phase 4c: `converted`'s CMYK arms. A clip of the other colour
+    /// #1 phase 4c: `converted`'s CMYK arms. A clip of the other colour
     /// mode is brought into the document's here (`CmykLayerClip.converted`:
     /// the mode conversions, relative colorimetric with BPC through the
     /// profiles) and the core splices it as it is; between CMYK documents
@@ -705,7 +705,7 @@ enum LayerPasteWork {
                 ColorConversion.layers(clip, into: doc, mode: mode))
     }
 
-    /// #547 phase 4: `converted`'s Grayscale arms. A clip of another mode (or, under `.convert`,
+    /// #1 phase 4: `converted`'s Grayscale arms. A clip of another mode (or, under `.convert`,
     /// of another Gray profile) is brought into the document's here (`GrayLayerClip.converted`)
     /// and the core splices it as it is; between Gray documents of one profile, or under
     /// `.preserve`, the core keeps the codes.
@@ -788,7 +788,7 @@ enum LayerPasteWork {
         -> (RasterPrecisionDocument, LayerPasteOutcome) {
         let facade = capture.facade
         let work = try converted(entry, into: facade, profile: profile)
-        // #547 phase 4c: a clip converted INTO CMYK is placed by its RGB
+        // #1 phase 4c: a clip converted INTO CMYK is placed by its RGB
         // original's content boxes — the same geometry — because a CMYK
         // record reports no content box yet (4b's).
         let geometry = work.clip.isCmyk && !entry.layers.isCmyk ? entry.layers : work.clip

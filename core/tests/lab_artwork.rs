@@ -1,4 +1,4 @@
-//! #547 Lab phase 6a-i, type, shape and fill layers, paths and vector masks
+//! #1 Lab phase 6a-i, type, shape and fill layers, paths and vector masks
 //! on a Lab Color document (`lab_artwork`), through the FFI. The oracles are
 //! the RGB rendering of the same components converted by Image ▸ Mode ▸ Lab
 //! Color's own export, and the hand-computed CIE L\*a\*b\* of an sRGB colour

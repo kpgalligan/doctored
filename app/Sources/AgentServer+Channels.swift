@@ -68,11 +68,11 @@ extension AgentServer {
         "save_selection": [.selectionSensitive, .typedTool, .floatTool, .cmykTool],
         // Apply Image writes layer pixels from u16 planes clamped to 0…1, so
         // it stays refused at float (the core's operator table has the row).
-        // #547: on a CMYK document onto its layer (plate for plate), one plate or a channel.
+        // #1: on a CMYK document onto its layer (plate for plate), one plate or a channel.
         "apply_image": [.commonTool, .cmykTool],
         // Calculations and Add Luminosity Masks read planes and write a
         // channel or a selection, which a float document holds as u16 too;
-        // #547: a CMYK document's sources are its composite, plates, luma,
+        // #1: a CMYK document's sources are its composite, plates, luma,
         // alpha and channels.
         "calculations": [.commonTool, .floatTool, .cmykTool],
         "add_luminosity_masks": [.commonTool, .floatTool, .cmykTool],
@@ -692,7 +692,7 @@ extension AgentServer {
     /// How a source plane is reported back, in the vocabulary the caller
     /// used: "rgb", a colour plane, or a channel's name.
     private static func planeChoiceName(_ choice: PlaneChoice, _ doc: RasterDocument) -> String {
-        // #547 Lab phase 6b-i: a Lab document's names (`LabDocument.planeChoiceName`).
+        // #1 Lab phase 6b-i: a Lab document's names (`LabDocument.planeChoiceName`).
         if doc.isLab { return LabDocument.planeChoiceName(choice, in: doc) }
         switch choice {
         case .rgb: return doc.isCmyk ? "cmyk" : doc.isGray ? "gray" : "rgb"

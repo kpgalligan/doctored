@@ -1,6 +1,6 @@
 import AppKit
 
-// The Duotone document's gate (#547, `designs/duotone-mode.md`): a Duotone document IS a Grayscale
+// The Duotone document's gate (#1, `designs/duotone-mode.md`): a Duotone document IS a Grayscale
 // document (8 or 16 bits, layers and all; `isGray` stays true) whose policy carries a duotone
 // description, so every edit Gray admits runs unchanged on the gray channel.
 // `DocumentPrecision.refusal` asks this table right after its document check and before the
@@ -124,7 +124,7 @@ enum DuotoneDocument {
     static let saveRefusal = "A Duotone document saves as .doctored, or as PSD or PSB through File ▸ Export "
         + "as PSD; File ▸ Export renders its inks to RGB."
 
-    /// Every export reply's note on a Duotone document (#547 Duotone phase 1b).
+    /// Every export reply's note on a Duotone document (#1 Duotone phase 1b).
     static let exportNote = "A Duotone document exports through its inks: the file is RGB, rendered "
         + "as the canvas shows it."
 

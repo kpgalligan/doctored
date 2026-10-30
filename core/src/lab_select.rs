@@ -1,5 +1,5 @@
-//! The Lab Color document's colour-selection rules (#547 phase 4b-ii,
-//! #683): how sampled Color Range measures a pixel's distance from a sample,
+//! The Lab Color document's colour-selection rules (#1 phase 4b-ii,
+//! #5): how sampled Color Range measures a pixel's distance from a sample,
 //! and how the Magic Wand, the Paint Bucket and Select ▸ Similar and Grow
 //! admit a pixel, on a Lab document's codes. A kernel: it names no document
 //! type.
@@ -17,7 +17,7 @@
 //! so Color Range ships [`LabRule::Units`]: the largest of |ΔL\*|, |Δa\*| and
 //! |Δb\*|, compared with the tolerance in those same units.
 //!
-//! **The wand (#683).** `scripts/photoshop-probe/lab_select_682_take.py`
+//! **The wand (#5).** `scripts/photoshop-probe/lab_select_682_take.py`
 //! re-scored take1's wand in place against eleven candidates and took a new
 //! scene (field (60, −12, 18), t 15 and 25, 8 and 16 bits; `lab-select-682`)
 //! with Select ▸ Similar and Grow run by `executeAction` of their events. The

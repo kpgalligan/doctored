@@ -11,7 +11,7 @@ struct PrecisionCanvasStroke {
     var blendMode: DrBlendMode = DR_BLEND_NORMAL
     var dodgeRange: Int = 1
     var burn: Bool = false
-    /// Dodge/Burn's Protect Tones (#547), latched at mouse-down.
+    /// Dodge/Burn's Protect Tones (#1), latched at mouse-down.
     var protectTones: Bool = false
     /// Sponge's mode and the History Brush's latched source.
     var saturate: Bool = false
@@ -24,7 +24,7 @@ struct PrecisionCanvasStroke {
     /// the document's primaries, sent as `linear` ink and recorded as
     /// `rgba32`. nil takes `ink`, the document route.
     var linear: [Double]? = nil
-    /// A CMYK document Brush's ink (#547 phase 2): straight `[c, m, y, k, alpha]` 0…1, the
+    /// A CMYK document Brush's ink (#1 phase 2): straight `[c, m, y, k, alpha]` 0…1, the
     /// foreground's stored ink or its conversion (`CmykPaint.ink`), sent as `cmyk_paint`'s `ink`.
     var cmyk: [Double]? = nil
     /// The Art History Brush's options and seed, latched at mouse-down;
@@ -69,7 +69,7 @@ extension EditorViewController {
                 }
                 linear = ExtendedRangeColor.aboveWhite(canvas.paintColor, in: capture.facade)
             }
-            // #547: a CMYK layer takes the Brush and the Eraser in ink in the CMYK modes, and
+            // #1: a CMYK layer takes the Brush and the Eraser in ink in the CMYK modes, and
             // the retouch tools `CmykRetouch` enables at the document's depth.
             var cmyk: [Double]?
             if capture.source.isCmyk {
@@ -121,7 +121,7 @@ extension EditorViewController {
                 currentTool == .spotHeal ? nil : try capture.source.retouchSource(layer: capture.layer,
                     sample: options.sample, ignoreAdjustments: options.ignoreAdjustments)
             }
-            // #547 Lab phase 2e: a Lab layer's ink is the foreground's Lab ink when it has one;
+            // #1 Lab phase 2e: a Lab layer's ink is the foreground's Lab ink when it has one;
             // a coverage target keeps the sRGB swatch, as the Gradient and Fill do.
             let inkColor = LabPaint.color(canvas.paintColor,
                 stored: ToolOptionsStore.shared.sharedState.foregroundLab,
@@ -165,7 +165,7 @@ extension EditorViewController {
             var kind = PrecisionStrokeWork.Kind.edit
             switch stroke.tool {
             case .brush where stroke.cmyk != nil:
-                // #547: ink on a CMYK layer (`cmyk_paint`).
+                // #1: ink on a CMYK layer (`cmyk_paint`).
                 command = try CmykPaint.command(["op": "paint_blend", "layer": stroke.capture.layer,
                     "ink": stroke.cmyk ?? [], "opacity": stroke.opacity,
                     "blend_mode": Int(stroke.blendMode.rawValue), "selection": selected])
@@ -175,7 +175,7 @@ extension EditorViewController {
                     "color_space": stroke.linear == nil ? "document" : "linear", "opacity": stroke.opacity,
                     "blend_mode": stroke.blendMode.rawValue, "selection": selected])
             case .eraser:
-                // #547 Indexed phase 3b: an erased pixel with no transparent index takes the
+                // #1 Indexed phase 3b: an erased pixel with no transparent index takes the
                 // entry nearest the background swatch.
                 command = try PrecisionPixelCommand(["op": "erase_native", "layer": stroke.capture.layer,
                     "opacity": stroke.opacity, "selection": selected]
@@ -267,7 +267,7 @@ extension EditorViewController {
             if stroke.tool == .brush {
                 for index in record.indices {
                     if let cmyk = stroke.cmyk {
-                        // `brush_stroke`'s `ink`: C, M, Y, K in percent (#547).
+                        // `brush_stroke`'s `ink`: C, M, Y, K in percent (#1).
                         record[index].arguments["ink"] = cmyk.prefix(4).map { $0 * 100 }
                         for key in ["color", "rgba", "color_space"] {
                             record[index].arguments.removeValue(forKey: key)

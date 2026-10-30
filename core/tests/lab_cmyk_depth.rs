@@ -1,4 +1,4 @@
-//! #547 Lab phase 5a: Image ▸ Mode ▸ CMYK Color from a Lab Color document
+//! #1 Lab phase 5a: Image ▸ Mode ▸ CMYK Color from a Lab Color document
 //! and 8/16 Bits/Channel on one, through the FFI.
 //!
 //! Lab → CMYK runs the twin into 16-bit ProPhoto RGB (relative colorimetric

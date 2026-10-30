@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Mode ▸ 8/16 Bits/Channel on a Lab Color document (#547 Lab phase 5a): the captured edit
+// Image ▸ Mode ▸ 8/16 Bits/Channel on a Lab Color document (#1 Lab phase 5a): the captured edit
 // and its ONE undo step, `GrayProfileEdit`'s depth arm twin. The core decides everything
 // (`lab_depth`): 16 → 8 puts every L*, a*, b*, alpha, mask and alpha-channel value on the 8-bit
 // grid, 8 → 16 widens only the declared depth; there is no 32-bit Lab. The menu

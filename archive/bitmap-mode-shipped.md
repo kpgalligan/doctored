@@ -1,4 +1,4 @@
-# Bitmap document mode (#547): shipped
+# Bitmap document mode (#1): shipped
 
 The settled record of the shipped Bitmap phases, moved verbatim out of
 [bitmap-mode-status.md](bitmap-mode-status.md) (the open phase's status doc, which keeps the head, the

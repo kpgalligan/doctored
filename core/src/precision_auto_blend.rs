@@ -35,7 +35,7 @@
 //!
 //! # Lab Color
 //!
-//! A Lab document (#547 phase 6b-ii) reads its L\*a\*b\* codes over 65535.
+//! A Lab document (#1 phase 6b-ii) reads its L\*a\*b\* codes over 65535.
 //! Stack Images scores, and Panorama's seams take their gradient, on L\*
 //! alone (`lab_stack::LIGHTNESS_LUMA`). Seamless Tones fits each frame's
 //! gains as on RGB, then keeps only the Lightness gain
@@ -74,7 +74,7 @@ struct Stage {
 
 impl PrecisionDocument {
     fn auto_blend_stage(&self, request: &AutoBlendRequest) -> Result<Stage, String> {
-        // #547 Indexed phase 3b: an Indexed document holds one layer, and
+        // #1 Indexed phase 3b: an Indexed document holds one layer, and
         // Auto-Blend Layers needs more, for good.
         if self.is_indexed() {
             return Err(crate::indexed_document::refused_sentence(

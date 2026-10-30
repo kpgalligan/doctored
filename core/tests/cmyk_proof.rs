@@ -1,4 +1,4 @@
-//! A CMYK document's soft proof and the one-colour separation (#547 phase
+//! A CMYK document's soft proof and the one-colour separation (#1 phase
 //! 5), through the FFI, against the test's own chain written from the two
 //! synthetic presses' tables (`common/cmyk_fixture.rs`): Preserve CMYK
 //! Numbers on and off, Simulate Black Ink and Paper Color on and off, a plate, the info's

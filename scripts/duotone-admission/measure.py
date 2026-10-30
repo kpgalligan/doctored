@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 Duotone admission drive (phases 1a, 1b and the close), on a built Release app.
+"""The #1 Duotone admission drive (phases 1a, 1b and the close), on a built Release app.
 
 Every new Duotone plan is held to the measured-admission rule: plan >= ceil(1.25 x max E), where
 E is `ri_interval_max_phys_footprint` - pre around ONE MCP call, read once the footprint has been
@@ -36,7 +36,7 @@ reply's `working_memory_plan_bytes`:
   Dither; the Grayscale stage without the display term, beside Gray → Bitmap's own plan);
   color_mode bitmap.
 
-Phase 1b (#547 Duotone phase 1b), each on the same document converted with `TWO` in the setup
+Phase 1b (#1 Duotone phase 1b), each on the same document converted with `TWO` in the setup
 (`to-indexed-from-duotone8` on a 24 MP 8-bit sGray PNG written the same way, since Indexed Color
 converts 8-bit documents); the plan is the reply's `working_memory_plan_bytes` (the core's render
 plan, `duotone_convert::RENDER_BYTES_PER_PIXEL` a raster pixel and the view's table, beside the

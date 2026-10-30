@@ -1,10 +1,10 @@
 import AppKit
 
-// The CMYK document's phase-4a in-process UI case (#547): the structure menus (groups, clipping,
+// The CMYK document's phase-4a in-process UI case (#1): the structure menus (groups, clipping,
 // merges, Stamp Visible, Blending Options) validate on a CMYK document, the Layers panel's blend
 // popup enables exactly `NativeLayerBlending.cmykModes`, Blending Options shows Fill Opacity and
 // the knockout rows with every effect row available and Blend If on Gray and the four plates (the
-// styles and Blend If batches, #547; the effects themselves are "cmyk layer style"'s) and previews
+// styles and Blend If batches, #1; the effects themselves are "cmyk layer style"'s) and previews
 // a Fill change with no refusal, and ⌘G
 // groups as one step. The CMYK profile is macOS's Generic CMYK
 // Profile, read from the system.

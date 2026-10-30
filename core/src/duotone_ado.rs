@@ -1,4 +1,4 @@
-//! The binary duotone specification (#547 Duotone phase 1b,
+//! The binary duotone specification (#1 Duotone phase 1b,
 //! `designs/duotone-mode.md`): the colour-mode data of a colour-mode-8
 //! PSD or PSB, which is also the body of a Photoshop Duotone Options (`.ado`)
 //! file, read into a [`DuotoneInks`] and written from one.
@@ -12,7 +12,7 @@
 //! it. Its colour records are the specification's "Color structure" (a
 //! 2-byte colour space, then four 2-byte components). The layout below is
 //! the one Photoshop 26.10.0 writes, read off the Duotone PSDs of the four
-//! #547 1b smokes (`scripts/photoshop-probe/duotone_take.py`, whose inks,
+//! #1 1b smokes (`scripts/photoshop-probe/duotone_take.py`, whose inks,
 //! names and overprints were known), 524 bytes, big-endian:
 //!
 //! | offset | bytes | field |
@@ -54,7 +54,7 @@ pub(crate) const SPEC_BYTES: usize = 524;
 
 /// The image resources Adobe's table lists for a duotone image (1014
 /// halftoning, 1017 transfer functions, 1018 image information) and 1063,
-/// which #547 1b's request named; Photoshop 26.10.0's own Duotone PSD holds
+/// which #1 1b's request named; Photoshop 26.10.0's own Duotone PSD holds
 /// 1014 and 1017.
 pub(crate) const DUOTONE_RESOURCE_IDS: [u16; 4] = [1014, 1017, 1018, 1063];
 

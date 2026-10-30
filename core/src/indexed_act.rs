@@ -1,4 +1,4 @@
-//! Indexed Color's colour table (#547 Indexed phase 1c, KERNEL): Adobe's
+//! Indexed Color's colour table (#1 Indexed phase 1c, KERNEL): Adobe's
 //! `.act` file, the table's JSON, and the Custom palette
 //! (`designs/indexed-mode.md`). `indexed_table` is the adapter that
 //! reads and replaces a document's table; `indexed_convert` builds the

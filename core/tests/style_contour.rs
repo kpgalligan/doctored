@@ -493,7 +493,7 @@ fn a_below_contour_stops_at_its_extent_whatever_the_pad() {
 
 #[test]
 fn the_outer_glow_range_maps_the_glow_before_its_knock_out() {
-    // Below Spread 100 % the outer glow runs the box-pair law (#578,
+    // Below Spread 100 % the outer glow runs the box-pair law (#2,
     // `style_fx_outer_glow`), which applies its Range in the plane before
     // the contour, as the inner glow's law does: the twin is the Linear glow
     // at the same Range and the capped table has none.
@@ -526,7 +526,7 @@ fn the_outer_glow_range_maps_the_glow_before_its_knock_out() {
 fn interior_contours_map_every_pixel_before_the_coverage_multiply() {
     let doc = scene();
     let measured = tables();
-    // `law`: the inner glow's measured law (#578, Size·(1 − Choke) > 0)
+    // `law`: the inner glow's measured law (#2, Size·(1 − Choke) > 0)
     // applies its Range before the contour, so the twin is the Linear glow at
     // the same Range and the table has none.
     for (base, contour, range, law) in [
@@ -546,7 +546,7 @@ fn interior_contours_map_every_pixel_before_the_coverage_multiply() {
         assert_mapped(&twin, &got, &table, inside, contour);
         assert!(got.iter().enumerate().all(|(i, &g)| inside(i) || g == 0));
     }
-    // The inner shadow under its law (#578 part 4, IC1,
+    // The inner shadow under its law (#2 part 4, IC1,
     // `style_fx_inner_shadow::CONTOUR_UNROUNDED`): the contour reads the
     // UNROUNDED matte and rounds once, so each pixel is the measured table
     // read piecewise linearly somewhere in the half code its Linear twin's
@@ -591,7 +591,7 @@ fn interior_contours_map_every_pixel_before_the_coverage_multiply() {
 
 #[test]
 fn the_satin_contour_maps_each_shifted_copy_not_the_combined_plane() {
-    // Since #578 part 3 the contour maps each shifted copy before the
+    // Since #2 part 3 the contour maps each shifted copy before the
     // combine (`style_fx_satin`), so the contoured satin is no longer a
     // table of its Linear twin: the contour-557 site this test pinned
     // (BEFORE-INVERT, the inverted twin q reading 255 − L[255 − q]) now
@@ -622,7 +622,7 @@ fn the_satin_contour_maps_each_shifted_copy_not_the_combined_plane() {
 
 /// The highlight and the shadow of a bevel of `style` (Smooth unless `extra`
 /// names a technique: a Smooth `emboss` or `inner_bevel` runs the measured
-/// law of #578, an `emboss` with `"technique":"chisel_hard"` today's lateral
+/// law of #2, an `emboss` with `"technique":"chisel_hard"` today's lateral
 /// kernel), each read alone (the other side at opacity 0).
 fn bevel_sides(doc: &DrDocument, style: &str, extra: Value) -> (Vec<u8>, Vec<u8>) {
     let base = json!({"type":"bevel_emboss","style":style,"size":12,"depth":1,
@@ -642,7 +642,7 @@ fn bevel_sides(doc: &DrDocument, style: &str, extra: Value) -> (Vec<u8>, Vec<u8>
 }
 
 /// The signed shading `d` of `bevel_sides`'s Smooth `style` under the
-/// measured law of #578, written here from the law's definition (never the
+/// measured law of #2, written here from the law's definition (never the
 /// kernel): the rect's coverage through the separable triangle
 /// `(W − |j|) / W²` (W = 12 for an Inner Bevel at Size 12, 6 for an Emboss,
 /// whose height is the law's at half the Size), reads clamped; the unit
@@ -888,7 +888,7 @@ fn a_halving_bevel_contour_shades_like_half_the_depth() {
 
 /// A contour with `C(0) > 0` lifts the zero ground to a flat plateau that
 /// reaches the plane border. A Smooth Outer Bevel runs the measured law
-/// (#578, `style_bevel_smooth`): the contour maps the unit height `h` before
+/// (#2, `style_bevel_smooth`): the contour maps the unit height `h` before
 /// the shading, and Soften is a box pair on the shading, not a blur of the
 /// height, so the plateau stays flat, shades to nothing, and the bevel draws
 /// no line along the plane's edge. The rect is 121 x 81 px, so the plane's

@@ -79,7 +79,7 @@ extension AgentServer {
             // BEFORE the edit: exactly the UI's own set. Adjustment layers
             // keep their meta — it describes an op, not pixels.
             let described = (0..<doc.layerCount).filter { document.layerDescribesSource($0) }
-            // #547 Indexed phase 2c: an Indexed document's admitted plan, read before the edit
+            // #1 Indexed phase 2c: an Indexed document's admitted plan, read before the edit
             // (`scripts/indexed-admission/measure.py`'s `rotate-indexed`); since Bitmap phase
             // 2a-ii a Bitmap document's too (`scripts/bitmap-admission/measure.py`'s
             // `rotate5-bitmap`).

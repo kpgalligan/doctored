@@ -110,7 +110,7 @@ extension AppDelegate {
         // Edit ▸ Sky Replacement…: the sky model's mask, a library or user sky, one new
         // layer (SkyReplacementSheet.swift).
         menu.addItem(item("Sky Replacement…", #selector(EditorViewController.showSkyReplacement(_:))))
-        // Edit ▸ Color Settings… on ⇧⌘K (#547 phase 5): the working spaces, policies
+        // Edit ▸ Color Settings… on ⇧⌘K (#1 phase 5): the working spaces, policies
         // and conversion options (ColorSettingsWindowController.swift). On AppDelegate, so it
         // works with no document open.
         menu.addItem(.separator())

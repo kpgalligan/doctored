@@ -1,4 +1,4 @@
-//! One Duotone PSD of the #547 Duotone phase 2b take
+//! One Duotone PSD of the #1 Duotone phase 2b take
 //! (`scripts/photoshop-probe/duotone_take.py`), authored through the core's C
 //! API exactly as the app's File ▸ Export as PSD writes one:
 //!

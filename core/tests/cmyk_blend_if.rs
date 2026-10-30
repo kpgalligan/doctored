@@ -1,4 +1,4 @@
-//! Blend If on a CMYK document (#547, the Blend If batch): the rule fitted to
+//! Blend If on a CMYK document (#1, the Blend If batch): the rule fitted to
 //! Photoshop 26.10.0 on take1 and confirmed on take2
 //! (`scripts/photoshop-probe/cmyk_styles_take.py`, THE BLEND IF FIT), written
 //! here as an independent closed form and checked over a grid of inks —

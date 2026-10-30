@@ -1,4 +1,4 @@
-//! #683: the Photoshop takes' records, read IN PLACE and skipped
+//! #5: the Photoshop takes' records, read IN PLACE and skipped
 //! with a note when absent: `scripts/photoshop-probe/lab_select_682_take.py`'s
 //! take1 (`~/devel/doctored-fixtures/photoshop/lab-select-682/take1`,
 //! Photoshop 26.10.0) and the wand cases of `lab_select_take.py`'s take1
@@ -7,9 +7,9 @@
 //! capture's mask is L\* < 50, Anti-alias off). Each saved scene is opened by
 //! `dr_precision_doc_open_lab`; the wand runs at the click (Photoshop's
 //! (x + 0.5, y + 0.5) lands on (x + 1, y + 1): (25, 59) on take1, (21, 37) on
-//! #547's) with the host's tolerance 257·t, Contiguous; at 16 bits Select ▸
+//! #1's) with the host's tolerance 257·t, Contiguous; at 16 bits Select ▸
 //! Similar (global) and Grow (contiguous) run from the full rectangle (8, 8,
-//! 24, 24); at 8 bits they refuse naming #683. Nothing from the takes is
+//! 24, 24); at 8 bits they refuse naming #5. Nothing from the takes is
 //! committed.
 use std::path::{Path, PathBuf};
 use std::ptr;
@@ -171,7 +171,7 @@ fn lab_similar_and_grow_match_photoshop_at_16_bits() {
                     result.unwrap_err(),
                     format!(
                         "{label} is unavailable in an 8-bit Lab Color document until its Lab \
-                         tolerance rule is measured (#683)."
+                         tolerance rule is measured (#5)."
                     ),
                     "{name}"
                 );

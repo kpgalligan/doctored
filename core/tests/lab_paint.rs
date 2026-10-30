@@ -1,4 +1,4 @@
-//! #547 Lab phase 2a, painting a Lab Color document: a Brush stroke
+//! #1 Lab phase 2a, painting a Lab Color document: a Brush stroke
 //! (`paint_blend`), Fill's mode-less `paint`, the Paint Bucket
 //! (`bucket_fill`), a two-colour Gradient and the Eraser (`erase_native`)
 //! at 8 and 16 bits. The oracles are independent of the Lab path: a covered

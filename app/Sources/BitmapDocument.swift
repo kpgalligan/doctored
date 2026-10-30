@@ -1,6 +1,6 @@
 import AppKit
 
-// The Bitmap document's gate (#547 Bitmap phases 1a to 3): what a Bitmap document admits from
+// The Bitmap document's gate (#1 Bitmap phases 1a to 3): what a Bitmap document admits from
 // the canvas, the menus and MCP, asked FIRST wherever a depth decides (`DocumentPrecision.refusal`,
 // `allows`, `validatePrecisionItem`), before the Indexed, Lab, Gray and CMYK gates. A Bitmap
 // document is 8-bit Grayscale underneath (the core's `is_gray()` is true on it), but it reports

@@ -2,7 +2,7 @@ import AppKit
 
 /// Image ▸ Auto Tone / Auto Contrast / Auto Color: Levels parameters derived
 /// from the active layer's own histogram, then applied through the SAME
-/// levels math every other Levels path runs. On a CMYK document (#547) they
+/// levels math every other Levels path runs. On a CMYK document (#1) they
 /// are the CMYK tone analysis's Auto (`CmykAdjustFilter.autoLevelsParams`:
 /// per channel for Tone and Color, monochromatic for Contrast) applied as a
 /// destructive CMYK Levels. One undo step; a layer already
@@ -70,7 +70,7 @@ extension EditorViewController {
                 let record: [ActionStep] = .autoAdjust(tool, target: target, analysisScope: scope.rawValue)
                 if let capture = typed {
                     try capture.requireCurrent(document)
-                    // #547: a CMYK document runs Auto on a layer's ink, or on one ink plate or an
+                    // #1: a CMYK document runs Auto on a layer's ink, or on one ink plate or an
                     // alpha channel through the scalar Auto below.
                     if capture.source.isCmyk, capture.target == .mask {
                         throw DoctoredCoreError(message: CmykAdjustFilter.autoTargetRefusal(target))
@@ -79,7 +79,7 @@ extension EditorViewController {
                         guard document.confirmRasterize(layer: capture.layer) else { return }
                     }
                     try capture.requireCurrent(document)
-                    // #547: on ink, the CMYK tone analysis's Auto as a destructive CMYK Levels.
+                    // #1: on ink, the CMYK tone analysis's Auto as a destructive CMYK Levels.
                     if capture.source.isCmyk, capture.target == .layer {
                         let coverage = scope == .selection
                             ? document.canvasSelection?.maskSamples16() ?? [] : []

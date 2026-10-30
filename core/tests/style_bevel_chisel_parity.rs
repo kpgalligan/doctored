@@ -1,4 +1,4 @@
-//! #578: Bevel & Emboss Chisel Hard and Chisel Soft against Photoshop's own
+//! #2: Bevel & Emboss Chisel Hard and Chisel Soft against Photoshop's own
 //! readbacks, at 8 and 16 bits. The fixtures
 //! (`tests/fixtures/psd_photoshop/bevel_chisel_578/`, README) are bevel-
 //! chisel-578 take1 (`scripts/photoshop-probe/bevel_chisel_578_take.py`):
@@ -194,7 +194,7 @@ type Pin = (usize, &'static str, &'static str, u32, Option<(f64, f64)>);
 // the third decimal: no row meets 2 / 0.5. The runner's own model of the
 // same members (its RECORDED section) gives means within 1.4 codes of these
 // and maxima within 31. The Pillow Emboss rows (specs 03 and 07) are the
-// Chisel law's since #578 bevel phase 2 (`style_bevel_chisel`), re-pinned
+// Chisel law's since #2 bevel phase 2 (`style_bevel_chisel`), re-pinned
 // lower: within 1 code / 0.002 of `bevel_578_law_fit.py --judge-chisel-take3`'s
 // model (03 h 243 / 21.03 -> 166 / 5.67 Hard, 07 s 245 / 29.98 -> 195 / 6.56).
 const PINNED: [Pin; 72] = [

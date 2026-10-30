@@ -44,7 +44,7 @@ extension EditorViewController {
             strokeJoin: options.strokeJoin, strokeDash: options.strokeDash,
             strokeAlign: options.strokeAlign)
         let name = ShapeLayer.layerName(for: payload)
-        // A CMYK document records and renders the shape in ink (#547): the picked fill and
+        // A CMYK document records and renders the shape in ink (#1): the picked fill and
         // stroke inks and the swatches' stored ones are kept exactly.
         guard let committed = inkedShape(payload, in: doc, replacing: nil) else { return }
         // The box's top-left lands on whole pixels (a new shape is never
@@ -133,7 +133,7 @@ extension EditorViewController {
         // Re-read AFTER selectTool: it commits a pending Free Transform,
         // which replaces the document — and can even rasterize this very
         // layer, dropping the payload (then there is nothing to reopen).
-        // A CMYK layer opens on its sRGB appearance (#547, `displayedShapePayload`).
+        // A CMYK layer opens on its sRGB appearance (#1, `displayedShapePayload`).
         guard let doc = document.doc, let payload = doc.displayedShapePayload(idx),
               let anchor = doc.describedAnchor(idx)
         else {

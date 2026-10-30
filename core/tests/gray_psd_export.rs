@@ -1,4 +1,4 @@
-//! #547 phase 3b: a Gray document's PSD, PSB and layered-TIFF export,
+//! #1 phase 3b: a Gray document's PSD, PSB and layered-TIFF export,
 //! through the C API.
 //!
 //! Oracles: the round trip reads our files back through the gray open (its
@@ -752,7 +752,7 @@ fn m6_the_layered_tiff_is_one_gray_sample_with_a_positive_count() {
 
 #[test]
 fn a_thirty_two_bit_gray_document_refuses_a_layered_tiff_and_a_null_projection() {
-    // #547 phase 3c: the PSD is written (`gray32_files.rs`); a layered TIFF
+    // #1 phase 3c: the PSD is written (`gray32_files.rs`); a layered TIFF
     // is refused (the 32-bit layered TIFF is RGB only), and the
     // projection is required.
     let doc = crate::gray_ops::gray_doc(4, 3, 32);

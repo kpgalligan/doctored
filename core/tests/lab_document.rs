@@ -1,4 +1,4 @@
-//! #547 Lab Color phase 1, the document: the Lab twin is an RGB-data,
+//! #1 Lab Color phase 1, the document: the Lab twin is an RGB-data,
 //! Lab-PCS LUT profile (`RgbLut`, no matrix model, D50 white, named "Lab
 //! Color"); New Lab Color fills white as (255, 128, 128, 255)×257 exactly at
 //! 8 bits and within 2 codes of (65535, 32896, 32896) at 16 (the bounds
@@ -208,7 +208,7 @@ fn the_gate_admits_structure_edits_and_answers_every_other_by_name() {
 fn every_lab_export_tolerates_null() {
     let mut err = ptr::null_mut();
     unsafe {
-        // #547 Lab phase 3a's opens.
+        // #1 Lab phase 3a's opens.
         assert_eq!(dr_path_lab_source(ptr::null()), 0, "DR_LAB_SOURCE_NONE");
         assert!(dr_precision_doc_open_lab(ptr::null(), LIMIT, 0, ptr::null(), &mut err).is_null());
         assert!(!err.is_null());

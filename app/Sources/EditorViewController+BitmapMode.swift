@@ -1,6 +1,6 @@
 import AppKit
 
-// Image ▸ Mode ▸ Bitmap… (#547 Bitmap phase 1a): the sheet (`BitmapModeSheetController`), then the
+// Image ▸ Mode ▸ Bitmap… (#1 Bitmap phase 1a): the sheet (`BitmapModeSheetController`), then the
 // conversion as ONE undo step (`CmykModeConversion`'s bitmap arms, recorded as `convert_mode` with
 // `mode: "bitmap"`, the method and, only when the sheet changed it, the Output resolution). Bitmap
 // holds one layer: a document of more (the core plan's `flatten_required`, or
@@ -54,7 +54,7 @@ extension EditorViewController {
         presentAsSheet(BitmapToGraySheetController(editor: self, document: document))
     }
 
-    /// The Ruler's Straighten Layer on a Bitmap document (#547 Bitmap phase 3): the straightened
+    /// The Ruler's Straighten Layer on a Bitmap document (#1 Bitmap phase 3): the straightened
     /// crop of `BitmapDocument.straightenWindow`, as the Crop tool commits a turned box
     /// (`commitCropSession`'s angle branch, `RasterDocument.straightenedCrop`), as ONE "Straighten
     /// Layer" step recorded as the `straighten_layers` step, whose MCP twin runs `crop` with the

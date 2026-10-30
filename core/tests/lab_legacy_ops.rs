@@ -1,4 +1,4 @@
-//! #547 Lab phase 6a-ii: the legacy `erase`, `clone` and `heal` paint ops
+//! #1 Lab phase 6a-ii: the legacy `erase`, `clone` and `heal` paint ops
 //! and Edit ▸ Clear (whose layer path is `erase`) on a Lab Color document,
 //! through the FFI. Each is the RGB kernel run on the L\*a\*b\* codes, per
 //! channel, so the oracle is `lab_geometry`'s RGB TWIN (the identical

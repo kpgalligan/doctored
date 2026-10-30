@@ -1,4 +1,4 @@
-//! The Lab Color document mode (#547): the policy, the edit gate and the
+//! The Lab Color document mode (#1): the policy, the edit gate and the
 //! refusal sentences. Decisions and the Photoshop record: `designs/lab-mode.md`.
 //!
 //! # What a Lab document IS
@@ -37,9 +37,9 @@
 //!   offers, each with a Lab arm; [`LAB_NOT_OFFERED`] refuses for good.
 //! - **Selections.** `alpha`, `color` (the planes), every Color Range range,
 //!   `quick`, `refine_edge` and the Magic Wand are admitted, and Select ▸
-//!   Similar and Grow at 16 bits (`lab_select`, #683); `luminance`
+//!   Similar and Grow at 16 bits (`lab_select`, #5); `luminance`
 //!   answers [`LUMINANCE_REFUSAL`]; Similar and Grow at 8 bits refuse naming
-//!   #683 ([`SELECTION_REFUSALS`]).
+//!   #5 ([`SELECTION_REFUSALS`]).
 //! - **No document profile.** The ops of [`NO_PROFILE_OPS`] refuse for good,
 //!   and the four profile exports answer
 //!   [`PROFILE_EDIT_REFUSAL`]; the document converts through Image ▸ Mode.
@@ -77,8 +77,8 @@ pub(crate) const COLOR_MODE_LAB: &str = "lab";
 /// `lab_select_682_take.py`'s take fitted the wand at both depths and
 /// Similar and Grow at 16 bits only (`lab_select`'s module doc).
 const SELECTION_REFUSALS: &[(&str, &[LabDepth], Option<&str>)] = &[
-    ("select_similar", &[LabDepth::Eight], Some("#683")),
-    ("select_grow", &[LabDepth::Eight], Some("#683")),
+    ("select_similar", &[LabDepth::Eight], Some("#5")),
+    ("select_grow", &[LabDepth::Eight], Some("#5")),
 ];
 
 /// The [`SELECTION_REFUSALS`] key of a source selection's `kind` and
@@ -333,7 +333,7 @@ fn scalar_target_refusal(op: &str) -> String {
 /// or alpha plane too (phase 2e), the `alpha`, `color`, `color_range`
 /// (phases 4b-i to 6b-i), `quick` and `refine_edge` (phase 6b-ii) source
 /// selections, `magic_wand` and `similar` wherever [`selection_refusal`]
-/// admits them at the document's `depth` (#683), a layer style (phase 2e: its effects are
+/// admits them at the document's `depth` (#5), a layer style (phase 2e: its effects are
 /// `LayerStyleEdit::target`'s, `lab_style`; patterns since 2f's second
 /// part) and a layer's Blend If whose
 /// channels are Lightness, a and b (phase 2f: `lab_style::blend_if_refusal`
@@ -382,7 +382,7 @@ pub(crate) fn admit_edit(text: &str, depth: LabDepth) -> Result<(), String> {
         // (`selection_tools`); phase 6b-ii Quick Selection on the codes'
         // L*a*b* and Select and Mask's edge stage on the codes; the wand,
         // Similar and Grow by `lab_select`'s rule where `SELECTION_REFUSALS`
-        // admits them (#683).
+        // admits them (#5).
         "selection" => match value["operation"]["kind"].as_str() {
             Some("alpha" | "color" | "color_range" | "quick" | "refine_edge") => None,
             Some("luminance") => Some(LUMINANCE_REFUSAL.to_string()),

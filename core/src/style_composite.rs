@@ -22,10 +22,10 @@
 //!    the layer's blend mode. An outside stroke band and an outer glow land
 //!    at `sa / (1 − a)` under a pixel the layer will cover at `a`
 //!    ([`occluding_fill`] · shape, `style_stroke_distance::band_under_layer`,
-//!    #578), so band and layer join as the measured disjoint union and the
+//!    #2), so band and layer join as the measured disjoint union and the
 //!    glow reads the measured `g (1 − a)`. A drop shadow with Layer Knocks
 //!    Out on is knocked out at its landing to `m (1 − a)` and lands there
-//!    the same way (#578 part 4, [`SHADOW_UNDER_LAYER`]), so the visible
+//!    the same way (#2 part 4, [`SHADOW_UNDER_LAYER`]), so the visible
 //!    shadow is the measured `m (1 − a)` at every Fill.
 //! 3. The interior unit. A plain styled layer draws its pixels through the
 //!    ordinary per-pixel loop with `sa = alpha x mask x fill_opacity x
@@ -37,7 +37,7 @@
 //!    allocation the unstyled clip group makes today, a pre-existing cost —
 //!    then each visible member through `composite_layer_into` onto the base
 //!    with its alpha frozen relative to the SHAPE (`clip_unit`'s Open /
-//!    Settle / Close, #578; the footprint is the shape at fill 1, so a base
+//!    Settle / Close, #2; the footprint is the shape at fill 1, so a base
 //!    at 0 % fill still confines its members and its Fill stays relative), and
 //!    finally composites the buffer with the layer's blend mode through
 //!    `blend::composite_buffer_into`. A styled ADJUSTMENT has no
@@ -1002,7 +1002,7 @@ pub(crate) fn mix_premultiplied_in(
 
 /// [`mix_premultiplied_in`] over `N` planes, the LAST one alpha: the ONE
 /// premultiplied mix, `N = 4` for RGBA (statement for statement the body
-/// above always ran) and `N = 5` for a CMYK document's CMYKA (#547,
+/// above always ran) and `N = 5` for a CMYK document's CMYKA (#1,
 /// `cmyk_style_row`: the layer-opacity package and D3's `mix`).
 pub(crate) fn mix_premultiplied_planes<const N: usize>(
     backdrop: [f32; N],
@@ -1096,7 +1096,7 @@ impl BackdropSnapshot {
 /// Master copy of the iteration: `doc::composite_layer_into` —
 /// this is its variant with one extra multiply (the Blend If weight); the
 /// arithmetic is kept identical, and both values are the opacity byte (`opacity_byte::
-/// quantized`, #578), so a fill-opacity edit and a layer-opacity edit of the
+/// quantized`, #2), so a fill-opacity edit and a layer-opacity edit of the
 /// same value composite byte-identically. A fresh transparent target pixel is
 /// written directly as `[cs, sa]` under Normal (the kernel's `sa*cs/sa`
 /// would only add rounding), so the clip-base buffer holds the base pixels
@@ -1174,7 +1174,7 @@ pub(crate) fn composite_pixels_into(
 /// The loop-invariant inputs of one `composite_pixels_into` pass.
 pub(crate) struct PixelPass<'a> {
     /// The byte Fill and `opacity` as the one weight they scale the pixels
-    /// by (`opacity_byte::joint`, #578).
+    /// by (`opacity_byte::joint`, #2).
     pub joint: f32,
     /// The Blend If ranges; `None` = weight 1.
     pub blend_if: Option<&'a BlendIf>,
@@ -1184,7 +1184,7 @@ pub(crate) struct PixelPass<'a> {
     pub direct: bool,
     /// Already > 0.
     pub opacity: f32,
-    /// The special Fill of five modes (`blend_fill`, #578), `None` for the
+    /// The special Fill of five modes (`blend_fill`, #2), `None` for the
     /// plain one.
     pub fill_blend: Option<FillBlend>,
 }
@@ -1332,7 +1332,7 @@ pub(crate) fn composite_contribution_sample(
 }
 
 /// Whether a knocked-out drop shadow lands under the layer
-/// ([`contribution_alpha`], module doc step 2): #578 part 4's confirmed
+/// ([`contribution_alpha`], module doc step 2): #2 part 4's confirmed
 /// candidate DK1 (`scripts/photoshop-probe/effect_kernels_578_p4_take.py`).
 /// Its knock-out at the landing leaves `m (1 − a)`; landing at `sa / (1 −
 /// a·fill)` keeps exactly that after the layer's `over`, where landing at `sa`
@@ -1348,9 +1348,9 @@ const SHADOW_UNDER_LAYER: bool = true;
 /// occluding_fill`, [`SHADOW_UNDER_LAYER`]), and a Below STROKE band and an
 /// OUTER GLOW under the layer at `shape(p) / 255 · occluding_fill` (module
 /// doc step 2; the glow's plane is already `g (1 − a)`, so the layer's
-/// `over` leaves the measured `g (1 − a)`, #578, `style_fx_outer_glow`). The
+/// `over` leaves the measured `g (1 − a)`, #2, `style_fx_outer_glow`). The
 /// ONE coverage rule, shared by [`composite_contribution_sample`]
-/// and the CMYK styled row (`cmyk_style_row`, #547); 0 means "draws nothing
+/// and the CMYK styled row (`cmyk_style_row`, #1); 0 means "draws nothing
 /// here".
 #[inline]
 pub(crate) fn contribution_alpha(
@@ -1392,7 +1392,7 @@ pub(crate) fn contribution_alpha(
 }
 
 /// The share of a covered pixel the layer's pixel pass lands with, which a
-/// Below stroke band's division assumes (`contribution_alpha`, #578): 0 —
+/// Below stroke band's division assumes (`contribution_alpha`, #2): 0 —
 /// the band keeps its own alpha — for a styled adjustment (`adjusted`:
 /// its pixels occlude nothing), under a non-identity Blend If (the pass lands
 /// at `…·weight`), in Dissolve (its coin toss lands a pixel at 0 or full) and
@@ -1425,7 +1425,7 @@ pub(crate) fn occluding_fill(
 
 /// `clip_unit`'s `step` over the whole buffer with the footprint read from
 /// the shape — its coverage / 255, 0 outside the plane — the clip-base
-/// footprint rule of the module doc (#578: the members composite onto the
+/// footprint rule of the module doc (#2: the members composite onto the
 /// base with its alpha frozen). Shared with the typed styled clip base.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn clip_pass_shape(

@@ -9,7 +9,7 @@ import Foundation
 // document), and `releaseDisplayForWindowClose()` empties it through the panel's
 // `releaseForWindowClose()`, which also removes the panel's document observer. A float layer's entry
 // also carries a `FloatDisplay` key (the document's tone map and profile, memoized per document
-// handle), so a tone-map change misses and a rename hits (since #547 Duotone phase 2a a Duotone
+// handle), so a tone-map change misses and a rename hits (since #1 Duotone phase 2a a Duotone
 // document's key is its inks and profile, so an ink or profile change misses); MASK thumbnails
 // have a second table on
 // the same rules, validated by `RasterDocument.layerMaskStorageIdentity`
@@ -51,7 +51,7 @@ import Foundation
 /// A float layer's thumbnail also depends on the document's tone map and
 /// profile curve, so its entries carry a `FloatDisplay` key beside the
 /// identity: a tone-map or profile change misses, a rename still hits.
-/// A Duotone layer's goes through the inks and the profile (#547 Duotone
+/// A Duotone layer's goes through the inks and the profile (#1 Duotone
 /// phase 2a), which entering or leaving Duotone, `set_duotone` and Assign
 /// change while every tile is shared, so its key carries both.
 ///
@@ -68,7 +68,7 @@ import Foundation
 struct LayerThumbnailCache {
     /// What a float document's layer thumbnail depends on besides the
     /// layer's pixels: the tone map and the profile it displays through; a
-    /// Duotone document's (#547 Duotone phase 2a): its inks and profile.
+    /// Duotone document's (#1 Duotone phase 2a): its inks and profile.
     struct FloatDisplay: Equatable {
         let toneMap: ToneMap?
         let profile: Data
@@ -186,7 +186,7 @@ struct LayerThumbnailCache {
             display = FloatDisplay(toneMap: doc.toneMap, profile: doc.precision?.profileData ?? Data(),
                                    duotone: nil)
         } else if doc.isDuotone {
-            // #547 Duotone phase 2a: the inks and the profile the view goes through.
+            // #1 Duotone phase 2a: the inks and the profile the view goes through.
             let options = (try? doc.precision?.duotoneOptions()).flatMap { $0 }
             display = FloatDisplay(toneMap: nil, profile: doc.precision?.profileData ?? Data(),
                                    duotone: options.flatMap { try? DuotoneOptions(json: $0) })

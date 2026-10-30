@@ -1,6 +1,6 @@
 import AppKit
 
-// Type, shape and fill layers on a Grayscale document (#547 phase 6a-i). A Gray document stores
+// Type, shape and fill layers on a Grayscale document (#1 phase 6a-i). A Gray document stores
 // each colour of a description as its gray by Image ▸ Mode ▸ Grayscale's rule — a run's, a shape's
 // fill and stroke, a fill layer's colour and its wide `linear`, a gradient stop's hex and wide
 // `stop_linears`, a custom pattern tile's texels — as its layer effects do (`gray_style`), so the
@@ -68,7 +68,7 @@ extension RasterDocument {
     }
 
     /// `color` as its gray by the Mode rule (`grayArtworkColors`' `srgb` list), alpha kept: the
-    /// Text session's live preview ink on a Gray document (#547 phase 6b). `color` unchanged off
+    /// Text session's live preview ink on a Gray document (#1 phase 6b). `color` unchanged off
     /// a Gray document or when the core cannot answer.
     func grayDisplayColor(_ color: NSColor) -> NSColor {
         guard isGray, let precision, let srgb = color.usingColorSpace(.sRGB) else { return color }

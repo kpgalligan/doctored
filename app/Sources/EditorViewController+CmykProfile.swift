@@ -1,11 +1,11 @@
 import AppKit
 
 // Image ▸ Mode ▸ Assign Profile… / Convert to Profile… on a CMYK document and Image ▸ Mode ▸
-// 8 Bits/Channel and 16 Bits/Channel (#547 phase 5): the commits (one undo step each, recorded as
+// 8 Bits/Channel and 16 Bits/Channel (#1 phase 5): the commits (one undo step each, recorded as
 // `assign_profile`, `convert_profile` and `convert_precision`) and the validation the precision
 // gate asks first. On a 32-bit RGB document 8/16 Bits/Channel open HDR Toning at that depth
 // (`EditorViewController+HdrToning.swift`); on an 8- or 16-bit RGB one Convert Precision
-// on that mode; on a Lab Color one its own depth edit (#547 Lab phase 5a,
+// on that mode; on a Lab Color one its own depth edit (#1 Lab phase 5a,
 // `EditorViewController+LabMode.swift`'s `commitLabDepth`); the CMYK edit itself is
 // `CmykProfileEdit.swift`, the sheet `CmykProfileSheetController`.
 
@@ -26,14 +26,14 @@ extension EditorViewController {
             presentHdrToning(bitDepth: bits)
             return
         }
-        // #547 phase 5a: an 8- or 16-bit Grayscale document's own depth edit (a 32-bit one opened
+        // #1 phase 5a: an 8- or 16-bit Grayscale document's own depth edit (a 32-bit one opened
         // HDR Toning above).
         if doc.isGray {
             commitGrayProfileEdit(.depth(bits), profile: nil, space: nil, destination: [:],
                                   options: CmykConversionOptions(), document: document)
             return
         }
-        // #547 Lab phase 5a: a Lab Color document's own depth edit (`LabDepthEdit`).
+        // #1 Lab phase 5a: a Lab Color document's own depth edit (`LabDepthEdit`).
         if doc.isLab {
             commitLabDepth(bits, document: document)
             return
@@ -94,7 +94,7 @@ extension EditorViewController {
 
     /// Image ▸ Mode ▸ 8/16 Bits/Channel at every depth (the current one checked and disabled; a
     /// float document converts through Convert Precision), and Assign / Convert to Profile on a
-    /// CMYK document; on a Grayscale document (#547 phase 5a) also 32 Bits/Channel, its declared
+    /// CMYK document; on a Grayscale document (#1 phase 5a) also 32 Bits/Channel, its declared
     /// depth checked; on a Lab one (Lab phase 5a) its declared depth checked, 32 left to the Lab
     /// gate. nil for every other item.
     func validateBitDepthItem(_ item: NSValidatedUserInterfaceItem) -> Bool? {

@@ -480,7 +480,7 @@ fn oracle_pixel(x: u32, y: u32, fx: &[Fx], fill: f64, mode: &str, opacity: f64) 
         if cov > 0 {
             cov = (cov * (255 - under) + 127) / 255;
         }
-        // The knocked-out shadow lands under the layer (#578 part 4, DK1):
+        // The knocked-out shadow lands under the layer (#2 part 4, DK1):
         // at `sa / (1 − a·fill)` where the layer covers its landing at `a`.
         let mut sa = cov as f64 / 255. * 0.75;
         let la = under as f64 / 255. * fill;
@@ -542,7 +542,7 @@ fn unblurred_effects_and_fill_opacity_meet_the_f64_oracle() {
                         for x in 0..OW {
                             // Every case has effects, so a partial opacity
                             // packages the layer: the two bytes never meet in
-                            // one product (#578).
+                            // one product (#2).
                             let expected = oracle_pixel(
                                 x,
                                 y,

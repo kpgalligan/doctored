@@ -47,7 +47,7 @@ final class PrecisionGeometryGesture {
     /// continued Move float's source. `capture` still checks currency against
     /// the live document. nil = the captured document.
     private let workSource: RasterDocument?
-    /// #547 Indexed phase 3b: the background swatch every work this gesture makes carries
+    /// #1 Indexed phase 3b: the background swatch every work this gesture makes carries
     /// (`PrecisionGeometryWork.indexedBackground`); nil is white.
     private let indexedBackground: NSColor?
     private var generation: UInt64 = 0

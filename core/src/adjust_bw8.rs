@@ -1,4 +1,4 @@
-//! KERNEL: Black & White's 8-bit Tint on integers (#578 phase 4, h8a-LE),
+//! KERNEL: Black & White's 8-bit Tint on integers (#2 phase 4, h8a-LE),
 //! the form Photoshop 26.10.0 computes on a byte document.
 //!
 //! [`gray8`] is the six-weight grey on the pixel's CODES with the weights in

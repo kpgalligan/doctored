@@ -1,4 +1,4 @@
-//! The Indexed Color document across the FFI (#547 Indexed phase 1a):
+//! The Indexed Color document across the FFI (#1 Indexed phase 1a):
 //! which files open as one, the open, Image ▸ Mode ▸ Indexed Color and its
 //! plan, RGB Color back, and the index under a point; since phase 1c, Image ▸
 //! Mode ▸ Color Table (the table read, planned and replaced) and the `.act`
@@ -360,7 +360,7 @@ pub unsafe extern "C" fn dr_indexed_read_act(
 }
 
 /// Paste and Paste Special on an Indexed Color document, planned
-/// (`indexed_clipboard::paste_plan`, #547 Indexed phase 2d): owned JSON
+/// (`indexed_clipboard::paste_plan`, #1 Indexed phase 2d): owned JSON
 /// `{"retained_bytes","scratch_bytes"}`. Free it with `dr_string_free`.
 ///
 /// # Safety

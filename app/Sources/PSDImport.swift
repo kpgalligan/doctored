@@ -10,7 +10,7 @@ import AppKit
 // "take the ordinary open"). Its chooser lists "Open Flattened" FIRST, which is also the answer an
 // automated run gives every alert.
 //
-// A CMYK file (`import_precision` `"cmyk"`, #547) — PSD, PSB or a big-endian layered CMYK TIFF —
+// A CMYK file (`import_precision` `"cmyk"`, #1) — PSD, PSB or a big-endian layered CMYK TIFF —
 // opens as a CMYK document with either choice: Import Layers its layers, Stored Composite (or a
 // TIFF's Open Flattened, the ordinary CMYK TIFF open) its flat picture. Both follow Edit ▸ Color
 // Settings' CMYK policy (`CmykProfileEdit.OpenPolicy`), which `openPrecisionPSD` applies as the
@@ -21,23 +21,23 @@ import AppKit
 // of either byte order, its Import Layers answer, its Open Flattened the ordinary float TIFF
 // open.
 //
-// A Grayscale file at 8 or 16 bits (`import_precision` `"gray"`, #547 phase 3a) — PSD, PSB or a
+// A Grayscale file at 8 or 16 bits (`import_precision` `"gray"`, #1 phase 3a) — PSD, PSB or a
 // big-endian layered gray TIFF, which `isLayeredTIFF` claims too — or a 32-bit PSD or PSB (phase
 // 3c) opens as a Grayscale document of its depth with either choice through the same
 // `openPrecisionPSD` (`openGrayPSD`, Color Settings' working Gray assigned to an untagged file); a
 // TIFF's Open Flattened is the ordinary gray TIFF open.
 //
-// A Lab file at 8 or 16 bits (`import_precision` `"lab"`, #547 Lab phase 3a) — PSD, PSB or a
+// A Lab file at 8 or 16 bits (`import_precision` `"lab"`, #1 Lab phase 3a) — PSD, PSB or a
 // big-endian layered Lab TIFF, which `isLayeredTIFF` claims too — opens as a Lab Color document of
 // its depth with either choice through the same `openPrecisionPSD` (`openLabPSD`; an embedded
 // profile is not used); a TIFF's Open Flattened is the ordinary flat Lab TIFF open.
 //
-// A Bitmap PSD or PSB (`import_precision` `"bitmap"`, colour mode 0, #547 Bitmap phase 1c) holds
+// A Bitmap PSD or PSB (`import_precision` `"bitmap"`, colour mode 0, #1 Bitmap phase 1c) holds
 // no layers, so Stored Composite is its one choice; it opens as a Bitmap document through the
 // same `openPrecisionPSD` (`openBitmapPSD`, Color Settings' working Gray unless resource 1039 is
 // a Gray profile).
 //
-// An Indexed Color PSD or PSB (`import_precision` `"indexed"`, colour mode 2, #547) opens from its
+// An Indexed Color PSD or PSB (`import_precision` `"indexed"`, colour mode 2, #1) opens from its
 // stored composite, its one choice, as an Indexed Color document keeping its palette, transparent
 // index and every index, through the same `openPrecisionPSD` (`openIndexedPSD`).
 
@@ -57,7 +57,7 @@ struct PSDImportState {
     /// "cmyk", "gray" or "lab": a 16-bit RGB PSD opens as a 16-bit document, a 32-bit
     /// one as a 32-bit float document, a CMYK file as a CMYK document,
     /// a Grayscale one as a Grayscale document and a Lab one as a Lab Color
-    /// document with either choice (#547), never as a converted copy.
+    /// document with either choice (#1), never as a converted copy.
     let precision: String
     var json: [String: Any] {
         var result = report
@@ -141,7 +141,7 @@ extension ImageDocument {
     }
 
     /// True for a TIFF whose Photoshop layer block the core reads as layers:
-    /// a big-endian unsigned 8- or 16-bit RGB, CMYK, gray or Lab (#547) TIFF
+    /// a big-endian unsigned 8- or 16-bit RGB, CMYK, gray or Lab (#1) TIFF
     /// holding one, or a 32-bit float RGB one of either byte order.
     /// Every other TIFF — a 16-bit float, little-endian at 8 or 16 bits —
     /// answers false and is never offered the layered open. It is asked before the ordinary CMYK,
@@ -205,9 +205,9 @@ extension ImageDocument {
     /// one (`cmyk`) takes Color Settings' CMYK policy, and a Grayscale one
     /// (`gray`) its working Gray, both read here on the main thread, as the
     /// ordinary CMYK and gray opens do (`ImageDocument+PrecisionGuard`); a Lab one
-    /// (`lab`) takes neither. A Bitmap one (`bitmap`, #547 Bitmap phase 1c) opens its stored
+    /// (`lab`) takes neither. A Bitmap one (`bitmap`, #1 Bitmap phase 1c) opens its stored
     /// composite under the working Gray, its only choice; so does an Indexed Color one
-    /// (`indexed`, #547), keeping its palette and every index.
+    /// (`indexed`, #1), keeping its palette and every index.
     private static func openPrecisionPSD(at url: URL, mode: Int, fingerprint: String, cmyk: Bool,
                                          gray: Bool, lab: Bool, bitmap: Bool, indexed: Bool,
                                          title: String) throws -> RasterDocument {

@@ -207,7 +207,7 @@ impl Curve {
 
 /// The pure power `document_v2` Exposure linearizes with when a curve is
 /// not itself one (rule Γ, [`Curve::effective_gamma`]): sRGB-shaped and
-/// sampled curves. 2.2, measured (#578, `scripts/photoshop-probe/
+/// sampled curves. 2.2, measured (#2, `scripts/photoshop-probe/
 /// stroke_exposure_578_take.py` take1): Photoshop's Exposure on sRGB (a
 /// sampled `curv`) and on Apple's Display P3 (an offset `para`, g 2.4) fits
 /// x^2.2 within 1.76 codes at 8 and 16 bits, where P3's own g (2.4) misses
@@ -223,7 +223,7 @@ pub(crate) const OFFSET_CURVE_GAMMA: f64 = 2.2;
 /// with (class O of `MatrixTrc::exposure_domain`) when the profile fails the
 /// precision check on a falling branch boundary: Apple's `ITU-709.icc` (g
 /// 2.222, b 0.090, a linear toe whose top lies above the power branch's
-/// start). 1.883, fitted on take1's 16-bit ITU-709 rows (#578,
+/// start). 1.883, fitted on take1's 16-bit ITU-709 rows (#2,
 /// `scripts/photoshop-probe/stroke_exposure_578_take2.py`, grid 1.500 to
 /// 2.600 by worst code) BEFORE take2, which confirmed it within 1.0 code at
 /// 8 and 16 bits on four fresh parameter sets — where 2.2 misses by 114,
@@ -232,7 +232,7 @@ pub(crate) const OFFSET_CURVE_GAMMA: f64 = 2.2;
 pub(crate) const FAILING_OFFSET_CURVE_GAMMA: f64 = 1.883;
 
 impl Curve {
-    /// Rule Γ (#578): the pure power `document_v2` Exposure evaluates a
+    /// Rule Γ (#2): the pure power `document_v2` Exposure evaluates a
     /// channel of this curve in. `Identity` → 1; `Gamma(g)` → g; a `Para`
     /// whose power term is a pure power (b = 0, and no added constant: c for
     /// type 2, e for type 4) → its g, any linear toe ignored (ROMM's γ 1.8
@@ -489,7 +489,7 @@ impl MatrixTrc {
         std::array::from_fn(|c| self.trc[c].effective_gamma())
     }
 
-    /// The per-channel exponents `document_v2` Exposure evaluates in (#578),
+    /// The per-channel exponents `document_v2` Exposure evaluates in (#2),
     /// or `None` where it cannot. A profile that passes
     /// [`Self::validate_precision`] → [`Self::effective_gammas`] (rule Γ,
     /// unchanged: ITU-2020 stays 2.2). One that fails it → `None` when its

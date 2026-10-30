@@ -143,7 +143,7 @@ enum PDFExport {
     static func run(_ capture: ExportCapture, settings: ExportSettings,
                     options: PDFExportOptions,
                     title: String) throws -> (data: Data, report: PDFExportReport) {
-        // #547: spot channels refuse a PDF by name until 1c writes them.
+        // #1: spot channels refuse a PDF by name until 1c writes them.
         if let refusal = SpotChannels.pdfRefusal(capture.source) { throw DoctoredCoreError(message: refusal) }
         let scratch = try scratchEstimate(capture, settings: settings, options: options)
         _ = try RasterResources.shared.admit(scratch: scratch)

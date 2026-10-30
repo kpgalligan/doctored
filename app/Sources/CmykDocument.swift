@@ -1,6 +1,6 @@
 import AppKit
 
-// The CMYK document's gate (#547): what a CMYK document admits from the canvas, the menus and
+// The CMYK document's gate (#1): what a CMYK document admits from the canvas, the menus and
 // MCP, asked FIRST wherever a depth decides (`DocumentPrecision.refusal`, `allows`,
 // `validatePrecisionItem`). The core's own table is `precision_capability::CMYK_FAMILIES`; this
 // is its host side, written once. Phase 1 opens, views, saves and converts a CMYK document and
@@ -302,7 +302,7 @@ enum CmykDocument {
         CmykAdjustFilter.refusal(op: op, layer: layer) + ". " + limitation
     }
 
-    /// An RGB document's refusal of CMYK-only arguments (#547): the ink keys and the CMYK tone
+    /// An RGB document's refusal of CMYK-only arguments (#1): the ink keys and the CMYK tone
     /// keys mean nothing there. nil when none is passed.
     static func rgbDocumentRefusal(tool: String, arguments: [String: Any]) -> String? {
         if AgentServer.cmykInkTools.contains(tool),
@@ -322,7 +322,7 @@ enum CmykDocument {
         return nil
     }
 
-    /// Whether an artwork call's rows carry an `ink` (#547): `color_runs[]`, `stops[]` and
+    /// Whether an artwork call's rows carry an `ink` (#1): `color_runs[]`, `stops[]` and
     /// `gradient.stops[]`.
     private static func nestedInk(_ arguments: [String: Any]) -> Bool {
         let gradient = (arguments["gradient"] as? [String: Any]) ?? [:]
@@ -405,14 +405,14 @@ enum CmykDocument {
                         : adjustmentRefusal(op, layer: layer)
                 }
             }
-            // #547 phase 5: Auto is admitted on Levels and Curves (`cmykAutoArguments`).
+            // #1 phase 5: Auto is admitted on Levels and Curves (`cmykAutoArguments`).
             if arguments["auto"] != nil,
                !["levels", "curves"].contains((arguments["filter"] as? String) ?? (arguments["op"] as? String) ?? "levels") {
                 return "Auto applies to Levels and Curves in a CMYK document."
             }
             // The CMYK tone keys belong to a layer (or no target); one ink plate or an alpha channel
             // is a scalar target and takes the RGB scalar vocabulary, as the sheets do. A mask is
-            // asked neither (#547).
+            // asked neither (#1).
             if target == nil || target == "layer",
                let key = toneKeys(arguments).first(where: { AgentServer.rgbToneKeys.contains($0) }) {
                 return "The RGB channel key \"\(key)\" is unavailable in a CMYK document: its Levels and "

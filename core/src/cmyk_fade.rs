@@ -1,4 +1,4 @@
-//! Edit ▸ Fade on a CMYK raster (#547): `precision_fade`'s walk over
+//! Edit ▸ Fade on a CMYK raster (#1): `precision_fade`'s walk over
 //! CMYKA16 — the same overlap (`precision_fade::Overlap`), the same weights
 //! (`precision_fade::fade_weight`: a region step's coverage, a stroke's
 //! changed samples), the same Pass Through refusal and no-op rule — with

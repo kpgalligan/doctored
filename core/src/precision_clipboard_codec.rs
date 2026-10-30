@@ -43,7 +43,7 @@
 //! # RZCB v4
 //!
 //! Version 4 is a CMYK payload, read and written only by
-//! `cmyk_clipboard_codec::CmykClipboardPayload` (#547 phase 4c; that
+//! `cmyk_clipboard_codec::CmykClipboardPayload` (#1 phase 4c; that
 //! module's doc is the format), whose editable section shares
 //! `validate_section` and `section_info` with v3. [`ClipboardPayload::decode`] still refuses it
 //! at its version check, and storage code 3 under versions 1–3 is still
@@ -51,7 +51,7 @@
 //!
 //! # RZCB v5
 //!
-//! Version 5 is a Grayscale payload (#547 phase 4), read and written only by
+//! Version 5 is a Grayscale payload (#1 phase 4), read and written only by
 //! `gray_clipboard::GrayClipboardPayload` (that module's doc is the format):
 //! a depth byte and the Gray ICC, then one complete v3 stream of this
 //! module's, R = G = B in the Gray profile's twin. [`ClipboardPayload::decode`]

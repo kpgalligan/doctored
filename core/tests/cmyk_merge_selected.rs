@@ -1,4 +1,4 @@
-//! Stamp Selected and Merge Group on a CMYK document (#547 phase 4c): the
+//! Stamp Selected and Merge Group on a CMYK document (#1 phase 4c): the
 //! stamped or merged leaf's straight samples against
 //! `common/cmyk_structure_fixture.rs`'s f64 oracle (W3C on `L = 1 − ink`)
 //! over the members' union frame, within 2/65535 on paper — the bound fixed

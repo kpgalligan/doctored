@@ -1,4 +1,4 @@
-//! #547 phase 6a-ii, layer comps, links and the snapshot round trip on a
+//! #1 phase 6a-ii, layer comps, links and the snapshot round trip on a
 //! Grayscale document (`gray_comps`), through the FFI. A comp saved on a Gray
 //! document and applied after hiding, re-blending, fading and moving a layer
 //! restores each layer's visibility, opacity, blend mode and offset and the

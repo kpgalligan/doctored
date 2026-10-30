@@ -101,7 +101,7 @@
 //! `core/tests/float_layer_edits.rs`'s `plans_cover_the_measured_peaks` holds
 //! the same `max E` values.
 //!
-//! # CMYK (#547 phase 4c)
+//! # CMYK (#1 phase 4c)
 //!
 //! A CMYK document takes the same request on its CMYK raster records. A
 //! copied pixel keeps its ink exactly and takes alpha `cover_u16(alpha,

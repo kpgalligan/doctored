@@ -76,7 +76,7 @@ final class ExportWorkspaceSheetController: NSViewController {
     private let isFloat: Bool
     /// A 32-bit AVIF of a float document: an HDR AVIF, which this system
     /// cannot encode (`HostImageEncoder.hdrAVIFUnavailable`).
-    /// A CMYK document (#547): Document profile keeps CMYK for JPEG and TIFF (`cmyk_export`), a
+    /// A CMYK document (#1): Document profile keeps CMYK for JPEG and TIFF (`cmyk_export`), a
     /// TIFF at 8 or 16 bits.
     private let isCmyk: Bool
 
@@ -419,7 +419,7 @@ final class ExportWorkspaceSheetController: NSViewController {
         let converts = settings.profile != .document || (isCmyk && !keeps)
         intentPopup.isEnabled = converts
         bpcBox.isEnabled = converts
-        // A kept-CMYK JPEG or TIFF (#547) resizes, sharpens, takes either TIFF depth and follows
+        // A kept-CMYK JPEG or TIFF (#1) resizes, sharpens, takes either TIFF depth and follows
         // the metadata policy, but its 16 → 8 step is the save's rounding: the core refuses a
         // dithered 8-bit TIFF of a 16-bit document, so dither shows its pin.
         if keeps {
@@ -491,7 +491,7 @@ final class ExportWorkspaceSheetController: NSViewController {
             && samplesPopup.indexOfSelectedItem == 1 ? .f16 : .f32
         next.hdrEncoding = next.bitDepth == 32 && (next.format == .heic || next.format == .avif)
             ? (hdrPopup.indexOfSelectedItem == 1 ? .pq : .gainMap) : nil
-        // A kept-CMYK JPEG or TIFF (#547) never dithers (the dither control is disabled).
+        // A kept-CMYK JPEG or TIFF (#1) never dithers (the dither control is disabled).
         if keepsCmyk(next) {
             next.dither = "none"
         }

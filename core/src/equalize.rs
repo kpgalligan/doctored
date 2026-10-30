@@ -1,4 +1,4 @@
-//! KERNEL: Image ▸ Adjustments ▸ Equalize (#547) — the weighted histogram,
+//! KERNEL: Image ▸ Adjustments ▸ Equalize (#1) — the weighted histogram,
 //! its look-up table and the request's scope. Free functions over plain
 //! numbers; the document adapters are `equalize_apply` (byte image, RGB16,
 //! f32 and CMYK layers).

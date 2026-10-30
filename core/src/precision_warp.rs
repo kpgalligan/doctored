@@ -8,13 +8,13 @@
 //! RGB is clamped to the source layer's own visible range
 //! (`precision_sampling::visible_range`, `float_document`'s D3).
 //!
-//! A CMYK document (#547 phase 4b) takes the float rule through `cmyk_warp`:
-//! applied at once, no binding. A Grayscale document (#547 phase 4) takes the
+//! A CMYK document (#1 phase 4b) takes the float rule through `cmyk_warp`:
+//! applied at once, no binding. A Grayscale document (#1 phase 4) takes the
 //! same rule here: its set warps R = G = B through this kernel and drops the
 //! binding in the same edit, so `warp_info` reports `null`. A Lab Color
-//! document (#547 Lab phase 4a-ii) takes Gray's arm: its set warps the
+//! document (#1 Lab phase 4a-ii) takes Gray's arm: its set warps the
 //! L\*a\*b\* codes through this kernel and keeps no binding either. An
-//! Indexed Color document (#547 Indexed phase 2d) runs a set on its RGB
+//! Indexed Color document (#1 Indexed phase 2d) runs a set on its RGB
 //! storage (or its index carrier) through `warp_edit_with_context` and is
 //! re-indexed by `indexed_transform`, with no binding.
 //!
@@ -153,7 +153,7 @@ pub(crate) fn accumulate_rgba16(acc: &mut [f64; 4], p: [u16; 4], weight: f64) {
 
 /// [`accumulate_rgba16`] over any number of planes, alpha LAST: the same
 /// binary64 operations in the same order (C = 4 is RGBA bit for bit, C = 5
-/// a CMYK document's CMYKA16 ink, #547 phase 4b).
+/// a CMYK document's CMYKA16 ink, #1 phase 4b).
 pub(crate) fn accumulate_planes16<const C: usize>(acc: &mut [f64; C], p: [u16; C], weight: f64) {
     let a = f64::from(p[C - 1]);
     let pm = weight * a / 65535.0;
@@ -204,7 +204,7 @@ pub(crate) fn accumulate_extended_f64(acc: &mut [f64; 4], pixel: [f32; 4], weigh
     acc[3] += weight * f64::from(pixel[3]);
 }
 /// A mask plane through `field` relative to its `outside` coverage (the
-/// persisted warp's, the float warp's and, #547 phase 4b, the CMYK warp's).
+/// persisted warp's, the float warp's and, #1 phase 4b, the CMYK warp's).
 pub(crate) fn mask(
     source: &PrecisionPlane,
     origin: (i32, i32),
@@ -257,7 +257,7 @@ impl PrecisionDocument {
         if self.is_cmyk() {
             return self.cmyk_warp_plan(edit);
         }
-        // #547 Indexed phase 2d: the RGB storage's warp, re-indexed.
+        // #1 Indexed phase 2d: the RGB storage's warp, re-indexed.
         if self.is_indexed() {
             return crate::indexed_transform::warp_plan(self, edit);
         }
@@ -395,7 +395,7 @@ impl PrecisionDocument {
     ) -> Result<Option<Self>, String> {
         let _run = control.map(DrJobControl::begin).transpose()?;
         let job = control.map_or(JobContext::NONE, JobContext::new);
-        // #547 Indexed phase 2d: the RGB storage's warp, re-indexed.
+        // #1 Indexed phase 2d: the RGB storage's warp, re-indexed.
         if self.is_indexed() {
             job.check()?;
             return crate::indexed_transform::warp_edit(
@@ -565,7 +565,7 @@ impl PrecisionDocument {
                     // 11F: a float layer carries no warp, so a float set
                     // is applied at once and keeps no binding; a
                     // Gray or Lab document's set is baked in the same edit
-                    // too (#547 phase 4 and Lab phase 4a-ii: no persisted
+                    // too (#1 phase 4 and Lab phase 4a-ii: no persisted
                     // Gray or Lab binding).
                     if self.is_gray() || self.is_lab() {
                         layer.warp = None;

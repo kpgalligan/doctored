@@ -1,4 +1,4 @@
-//! #547 Lab phase 4c, the Lab Color clipboard (`lab_clipboard`), black-box
+//! #1 Lab phase 4c, the Lab Color clipboard (`lab_clipboard`), black-box
 //! through the FFI at 8 and 16 bits. The oracles are the Mode conversions
 //! of the same pixels, run here through their own exports. Bounds, declared
 //! before measuring:

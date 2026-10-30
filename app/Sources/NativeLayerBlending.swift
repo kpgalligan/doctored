@@ -19,9 +19,9 @@ import AppKit
 // isolated); every caller (popup, `set_layer_properties` pre-check, apply) shares
 // `allows(_:document:layer:)`. In a 32-bit float document Pass Through stays group-only
 // (measured against Photoshop 26.10.0) and every other mode takes
-// `floatModes`; in a CMYK document every mode takes `cmykModes` (#547 phase 4a); in a Grayscale
-// document `grayModes(for:)`, asked before the float arm (#547 phase 1b); in a Lab Color document
-// `labModes`, asked first (#547 Lab phase 1b). Legacy byte properties keep their existing path.
+// `floatModes`; in a CMYK document every mode takes `cmykModes` (#1 phase 4a); in a Grayscale
+// document `grayModes(for:)`, asked before the float arm (#1 phase 1b); in a Lab Color document
+// `labModes`, asked first (#1 Lab phase 1b). Legacy byte properties keep their existing path.
 
 /// The existing Layers blend menu and set_layer_properties/Actions share this
 /// bounded native semantic set. All pixel work stays in the captured core owner.
@@ -78,7 +78,7 @@ enum NativeLayerBlending {
     }
 
     /// The modes a CMYK document offers on a raster layer, an adjustment layer or an isolated group
-    /// (#547 phase 4a), in menu order: the core's `cmyk_document::CMYK_BLEND_MODES`, all 27
+    /// (#1 phase 4a), in menu order: the core's `cmyk_document::CMYK_BLEND_MODES`, all 27
     /// (`scripts/photoshop-probe/cmyk_blend_take.py`), evaluated on `1 − ink`. Pass Through takes
     /// the group rule, as at every depth.
     static let cmykModes: [DrBlendMode] = [
@@ -97,7 +97,7 @@ enum NativeLayerBlending {
             + " unavailable in a CMYK document. Pass Through requires a group."
     }
 
-    /// The modes a Grayscale document offers (#547), in menu order: the core's
+    /// The modes a Grayscale document offers (#1), in menu order: the core's
     /// `gray_document::GRAY_BLEND_MODES`, 21 modes (measured against Photoshop 26.10,
     /// `scripts/photoshop-probe/gray_mode_take.py`): every mode but Darker Color, Lighter Color,
     /// Hue, Saturation, Color and Luminosity. Pass Through takes the group rule.
@@ -122,7 +122,7 @@ enum NativeLayerBlending {
             + " Pass Through requires a group."
     }
 
-    /// The modes a Lab Color document offers (#547 Lab phase 1b), in menu order: the core's
+    /// The modes a Lab Color document offers (#1 Lab phase 1b), in menu order: the core's
     /// `lab_document::LAB_BLEND_MODES`, every mode but `labNotOffered` at 8 and 16 bits (measured
     /// against Photoshop 26.10, `scripts/photoshop-probe/lab_mode_take.py`, which dropped Subtract
     /// and Divide). Darker Color, Lighter Color and the four HSL modes joined in phase 3;

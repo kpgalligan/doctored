@@ -57,7 +57,7 @@ pub enum ScalarTarget {
     Magenta,
     Yellow,
     Black,
-    /// A Grayscale document's layer (#547 phase 6b): its one colour
+    /// A Grayscale document's layer (#1 phase 6b): its one colour
     /// channel, read from component 0 and written to R, G and B so the
     /// layer keeps R = G = B. Apply Image's `replace_canvas` write only.
     Gray,
@@ -160,7 +160,7 @@ pub enum ScalarOperation {
         exposure: f32,
         range: u8,
         burn: bool,
-        /// Protect Tones (#547), accepted so the host sends one request at
+        /// Protect Tones (#1), accepted so the host sends one request at
         /// every target: a single plane is a group of one, whose protected
         /// curve is the plain one (`doc_retouch::protected`), so it changes
         /// nothing here.

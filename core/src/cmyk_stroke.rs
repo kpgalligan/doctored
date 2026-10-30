@@ -1,4 +1,4 @@
-//! Edit ▸ Stroke… with nothing selected on a CMYK document (#547): a CMYK
+//! Edit ▸ Stroke… with nothing selected on a CMYK document (#1): a CMYK
 //! raster's own alpha edge stroked in ink — the CMYK twin of
 //! `precision_fill_stroke::LayerEdgeStroke`, whose module doc (and the byte
 //! master's, `doc_fill_stroke::stroke_layer_edge`) is this module's
@@ -23,7 +23,7 @@
 //! `color`/`color_space`) on the pixel-edit request API with no input
 //! samples; its plan reports `outline`. The edit runs under the record's
 //! `Pixels` locks; a blend mode outside `CMYK_BLEND_MODES` (Pass Through)
-//! refuses by name (#547); an edit that
+//! refuses by name (#1); an edit that
 //! changes nothing is `Ok(None)`.
 //!
 //! The plan is `8·BOOKKEEPING + canvas·cmyk_paint::CANVAS_BYTES_PER_PIXEL` (the

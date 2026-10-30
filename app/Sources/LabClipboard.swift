@@ -1,6 +1,6 @@
 import AppKit
 
-// #547 Lab phase 4c: copy and paste across Lab Color and the other colour modes, host side
+// #1 Lab phase 4c: copy and paste across Lab Color and the other colour modes, host side
 // (`GrayClipboard.swift` is the template). The core converts every PIXEL paste
 // (`lab_clipboard`: into Lab by Image ▸ Mode ▸ Lab Color's rule, relative colorimetric with no
 // BPC; out of Lab relative colorimetric with BPC; Gray and CMYK through 16-bit ProPhoto RGB);
@@ -109,7 +109,7 @@ enum LabLayerClip {
 }
 
 extension LayerPasteWork {
-    /// #547 Lab phase 4c: `converted`'s Lab arms (`grayConverted`'s shape). A clip of another mode
+    /// #1 Lab phase 4c: `converted`'s Lab arms (`grayConverted`'s shape). A clip of another mode
     /// is brought into the document's here (`LabLayerClip.converted`) and the core splices it as
     /// it is; between Lab documents the core keeps the codes under either mode (a 16-bit clip
     /// into an 8-bit document put on its grid here first).

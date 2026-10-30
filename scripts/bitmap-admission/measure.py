@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The #547 Bitmap phases 1a to 2a-ii admission drive, on a built Release app.
+"""The #1 Bitmap phases 1a to 2a-ii admission drive, on a built Release app.
 
 Every new Bitmap plan is held to the measured-admission rule: plan >=
 ceil(1.25 x max E), where E is `ri_interval_max_phys_footprint` - pre around
@@ -31,7 +31,7 @@ The plans (each the reply's `working_memory_plan_bytes`):
 - `to-bitmap-resample`: the same, Diffusion, with `resolution` 1.25 x the
   document's own ppi (read in the setup), so the gray is resampled Bicubic to
   7500x5000 first (the LARGER of the geometry plan's scratch and the larger
-  canvas's per-pixel term, not their sum: #547 Bitmap phase 1b's fix of 1a's
+  canvas's per-pixel term, not their sum: #1 Bitmap phase 1b's fix of 1a's
   2.108 overlap).
 - `to-bitmap-halftone` (phase 1b): `method halftone` at 53 lpi, 45 degrees,
   round (adds the 512 KiB sorted spot grid).

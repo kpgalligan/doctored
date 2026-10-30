@@ -1,4 +1,4 @@
-//! #578 part 4: the contoured Inner Shadow read on the unrounded matte
+//! #2 part 4: the contoured Inner Shadow read on the unrounded matte
 //! (`style_fx_inner_shadow::CONTOUR_UNROUNDED`, candidate IC1) and the
 //! knocked-out Drop Shadow landing under the layer
 //! (`style_composite::SHADOW_UNDER_LAYER`, DK1) against Photoshop 26.10's

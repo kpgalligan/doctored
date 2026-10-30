@@ -1,5 +1,5 @@
 //! The two `L` passes a CMYK edit runs through a shipped RGB16 operation
-//! (#547): Filter ▸ … (`cmyk_filter`) and the retouch tools
+//! (#1): Filter ▸ … (`cmyk_filter`) and the retouch tools
 //! (`cmyk_retouch_brush`, `cmyk_retouch`).
 //!
 //! The stored domain is `L = 65535 − ink`. [`InkPass::Cmy`] is the RGBA16

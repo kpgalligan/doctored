@@ -1,11 +1,11 @@
 import AppKit
 
-/// Image ▸ Mode ▸ Bitmap… (#547 Bitmap phase 1a). Resolution: the document's
+/// Image ▸ Mode ▸ Bitmap… (#1 Bitmap phase 1a). Resolution: the document's
 /// Input (its horizontal ppi) and the Output resolution with its unit (Pixels/Inch or
 /// Pixels/Centimeter, sent to the core in pixels per inch); while the field still holds the
 /// document's own value no `resolution` is sent, so each axis keeps its pixels and ppi (an
 /// anisotropic document is untouched). Method: 50% Threshold, Pattern Dither, Diffusion Dither
-/// (the default), Halftone Screen… and Custom Pattern (#547 Bitmap phase 1b). Halftone Screen's
+/// (the default), Halftone Screen… and Custom Pattern (#1 Bitmap phase 1b). Halftone Screen's
 /// Frequency (Lines/Inch or Lines/Centimeter, sent in lines per inch), Angle and Shape, and Custom
 /// Pattern's Pattern (the pattern presets every Pattern Overlay offers, sent as `{"preset": id}`),
 /// are enabled only under their own method and send nothing otherwise. Apply asks the core's plan
@@ -253,7 +253,7 @@ final class BitmapModeSheetController: NSViewController {
     }
 }
 
-/// Image ▸ Mode ▸ Grayscale on a Bitmap document (#547 Bitmap phase 1a): the Size Ratio,
+/// Image ▸ Mode ▸ Grayscale on a Bitmap document (#1 Bitmap phase 1a): the Size Ratio,
 /// an integer 1…16 (1 keeps the canvas; r averages each r × r block onto a canvas 1/r the size).
 /// The conversion and its one undo step are `EditorViewController+BitmapMode.swift`'s.
 final class BitmapToGraySheetController: NSViewController {

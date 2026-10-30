@@ -25,7 +25,7 @@ const FAMILIES: &[(&str, &[&str])] = &[
     ("layer_merge", &["raster", "group", "adjustment"]),
     ("layer_merge_visible", &["document"]),
     ("layer_stamp", &["document"]),
-    // #547 phase 4c: Stamp Selected (`precision_merge_selected`).
+    // #1 phase 4c: Stamp Selected (`precision_merge_selected`).
     ("layer_stamp_selected", &["raster", "group", "adjustment"]),
     ("layer_flatten", &["document"]),
     ("layer_lock", &["raster", "group", "adjustment"]),
@@ -139,7 +139,7 @@ const FLOAT_FAMILIES: &[(&str, &[&str])] = &[
     ("layer_merge", &["raster", "group", "adjustment"]),
     ("layer_merge_visible", &["document"]),
     ("layer_stamp", &["document"]),
-    // #547 phase 4c: Stamp Selected's f32 arm (`precision_merge_selected`).
+    // #1 phase 4c: Stamp Selected's f32 arm (`precision_merge_selected`).
     ("layer_stamp_selected", &["raster", "group", "adjustment"]),
     ("layer_flatten", &["document"]),
     ("layer_lock", &["raster", "group", "adjustment"]),
@@ -258,7 +258,7 @@ const FLOAT_FAMILIES: &[(&str, &[&str])] = &[
     ("rasterize", &["document"]),
 ];
 
-/// The CMYK document's own admitted families (#547 phases 1, 2, 4a, 4b, 4c and 5,
+/// The CMYK document's own admitted families (#1 phases 1, 2, 4a, 4b, 4c and 5,
 /// `cmyk_document`'s operation table). Everything outside it refuses by
 /// name through `cmyk_document::refused_sentence`.
 const CMYK_FAMILIES: &[(&str, &[&str])] = &[
@@ -367,12 +367,12 @@ const CMYK_FAMILIES: &[(&str, &[&str])] = &[
         "selected_pixels_transform",
         &["cyan", "magenta", "yellow", "black"],
     ),
-    // #547's retouch batch: the Clone Stamp, the healing family and the
+    // #1's retouch batch: the Clone Stamp, the healing family and the
     // Blur, Sharpen, Sponge, Smudge and History brushes on ink.
     ("clone", &["raster"]),
     ("heal", &["raster"]),
     ("retouch_brush", &["raster"]),
-    // #547's artwork batch: a new type, shape or fill layer in ink
+    // #1's artwork batch: a new type, shape or fill layer in ink
     // (`cmyk_artwork`).
     ("rasterize", &["document"]),
     // The styles batch: the document's global light (`cmyk_style`).
@@ -417,7 +417,7 @@ pub(crate) fn cmyk_operations() -> Vec<&'static str> {
     out
 }
 
-/// The Grayscale document's admitted families (#547, `gray_document`):
+/// The Grayscale document's admitted families (#1, `gray_document`):
 /// phase 1a's structure families and the document's flatten, render, sample
 /// and mode conversion; phase 1b's layer structure (New Layer, groups,
 /// blend modes, clipping, merges, Stamp Visible, Fill Opacity, layer masks),
@@ -551,7 +551,7 @@ pub(crate) fn gray_operations() -> Vec<&'static str> {
     GRAY_FAMILIES.iter().map(|(name, _)| *name).collect()
 }
 
-/// The Lab Color document's admitted families (#547, `lab_document`): phase
+/// The Lab Color document's admitted families (#1, `lab_document`): phase
 /// 1's structure families on rasters and groups, and the document's
 /// flatten, render and mode conversion; phase 1b's layer structure (New
 /// Layer, groups, blend modes, clipping, merges, Stamp Visible, Fill
@@ -685,7 +685,7 @@ pub(crate) fn lab_operations() -> Vec<&'static str> {
     LAB_FAMILIES.iter().map(|(name, _)| *name).collect()
 }
 
-/// The Indexed Color document's admitted families (#547 Indexed phase 1a,
+/// The Indexed Color document's admitted families (#1 Indexed phase 1a,
 /// `indexed_document`): the document's render, its `sample_color` and
 /// `sample_pixel` readouts (the RGB storage through the scoped-analysis
 /// path, not the edit request API), its mode conversion, (phase 1b) its
@@ -752,7 +752,7 @@ pub(crate) fn indexed_operations() -> Vec<&'static str> {
     INDEXED_FAMILIES.iter().map(|(name, _)| *name).collect()
 }
 
-/// The Bitmap document's admitted families (#547 Bitmap phase 1a,
+/// The Bitmap document's admitted families (#1 Bitmap phase 1a,
 /// `bitmap_document`): the document's render, its `sample_color` and
 /// `sample_pixel` readouts, its mode conversion (to Grayscale) and, since
 /// phase 1c, its export (the kept 1-bit PNG, TIFF and BMP of

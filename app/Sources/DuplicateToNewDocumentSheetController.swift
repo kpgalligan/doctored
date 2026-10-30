@@ -1,7 +1,7 @@
 import AppKit
 
 /// Layer ▸ Duplicate to Document…'s two fields: the Destination — "New
-/// Document" first, then every other open document by name (#547 phase 4c)
+/// Document" first, then every other open document by name (#1 phase 4c)
 /// — and, for a new document, its name, prefilled with the topmost selected
 /// root's. An empty name (after trimming) leaves NSDocument's default
 /// untitled name. `onApply` receives the name and the chosen destination: 0

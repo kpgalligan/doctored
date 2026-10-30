@@ -62,7 +62,7 @@ extension ImageDocument {
     /// is trimmable (nothing would be left) or there is no image.
     func trimRect(basis: TrimBasis, edges: TrimEdges) throws -> CGRect? {
         guard let doc else { return nil }
-        // #547 phase 4b: a CMYK document compares its composite INK, not the view.
+        // #1 phase 4b: a CMYK document compares its composite INK, not the view.
         if doc.isCmyk, let precision = doc.precision {
             let context = try PrecisionWorkContext(source: precision)
             return try precision.cmykTrimRect(basis, edges, workingLimit: context.limit,

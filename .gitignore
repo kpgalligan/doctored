@@ -12,3 +12,6 @@ xcuserdata/
 **/.claude/settings.local.json
 /agent/node_modules/
 __pycache__/
+/OPENAIKEY
+/GEMINIKEY
+/FALKEY

@@ -1,4 +1,4 @@
-//! #547 Indexed Color phase 2b: the Brush on an Indexed document
+//! #1 Indexed Color phase 2b: the Brush on an Indexed document
 //! (`indexed_paint`) and its edge rule (`indexed_edge`, THRESH at k = 131,
 //! the controller's RULING-1 fallback with its residual disclosed in
 //! `designs/indexed-mode.md`).

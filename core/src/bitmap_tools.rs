@@ -1,4 +1,4 @@
-//! Liquify and the History Brush on a Bitmap document (#547 Bitmap phase
+//! Liquify and the History Brush on a Bitmap document (#1 Bitmap phase
 //! 3, `designs/bitmap-mode.md`). An adapter, not a kernel, in
 //! `bitmap_edit`'s shape: each runs on the document's 8-bit Gray storage
 //! (`PrecisionDocument::without_bitmap`) through its existing kernel, then

@@ -31,7 +31,7 @@ final class HistogramView: NSView {
     var display: Display = .luminosity {
         didSet { needsDisplay = true }
     }
-    /// #547 Lab phase 1c: a Lab Color document's Lightness, a and b bars, drawn neutral — the
+    /// #1 Lab phase 1c: a Lab Color document's Lightness, a and b bars, drawn neutral — the
     /// red, green and blue rows hold L*, a* and b* codes, not colours.
     var neutralPlanes = false {
         didSet { needsDisplay = true }
@@ -92,7 +92,7 @@ final class HistogramView: NSView {
 ///
 /// Nothing here fills a background: the caller owns its ground (the view
 /// below, and `CurveEditorView`'s own `DS.canvasVoid` fill). `neutral` draws a single plane in
-/// the luminosity colour (a Lab document's Lightness, a or b, #547 Lab phase 1c).
+/// the luminosity colour (a Lab document's Lightness, a or b, #1 Lab phase 1c).
 func drawHistogram(_ bins: HistogramBins, display: HistogramView.Display, in rect: NSRect,
                    neutral: Bool = false) {
     guard rect.width > 0, rect.height > 0 else { return }

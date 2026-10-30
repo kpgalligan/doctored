@@ -1,6 +1,6 @@
 import AppKit
 
-/// Channels ▸ New Spot Channel… and Spot Channel Options… (#547 phase 1a-2): the dialog —
+/// Channels ▸ New Spot Channel… and Spot Channel Options… (#1 phase 1a-2): the dialog —
 /// Name, and Ink Characteristics: Color (a swatch that opens the Color Picker, plus the D50 L*, a*,
 /// b* it stores) and Solidity, 0–100 %. One sheet with two modes: `channel` nil adds a spot channel
 /// whose coverage is the selection's (none without one), an index edits that spot channel's name
@@ -20,7 +20,7 @@ final class SpotChannelSheetController: NSViewController {
     private let soliditySlider = NSSlider(value: 0, minValue: 0, maxValue: 100, target: nil, action: nil)
     private let solidityField = NSTextField(string: "0")
     private let note = NSTextField(wrappingLabelWithString: "")
-    /// Spot Channel Options' kind (#547 1c-1): "Alpha Channel" turns the spot channel back into an
+    /// Spot Channel Options' kind (#1 1c-1): "Alpha Channel" turns the spot channel back into an
     /// alpha channel, its plane inverted (`settingChannelKind`).
     private let spotKindRadio = NSButton(radioButtonWithTitle: "Spot Color", target: nil, action: nil)
     private let alphaKindRadio = NSButton(radioButtonWithTitle: "Alpha Channel", target: nil, action: nil)

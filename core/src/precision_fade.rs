@@ -18,7 +18,7 @@
 //! the same walk shape — the layer rect being rewritten and `before`'s part
 //! of it — so its measured term covers this one and no new plan is minted.
 //!
-//! A CMYK document's Fade (#547) is `cmyk_fade`'s: `fade_plan` and `fade`
+//! A CMYK document's Fade (#1) is `cmyk_fade`'s: `fade_plan` and `fade`
 //! route there, and its walk shares this module's `Overlap` and
 //! `fade_weight`.
 use serde_json::Value;

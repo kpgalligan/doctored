@@ -90,7 +90,7 @@ fn general_limitations(container: LayeredContainer, depth: u16) -> Vec<&'static 
     out
 }
 
-/// The CMYK export's general limits (#547 phase 3 and the styles batch,
+/// The CMYK export's general limits (#1 phase 3 and the styles batch,
 /// `psd_export_cmyk`): its own first two sentences, then the RGB list's
 /// channel, mask, container and reopen sentences (nothing is baked and there
 /// is no warp to lose).
@@ -346,15 +346,15 @@ pub(crate) struct ExportInventory {
     /// 1 for an 8-bit document, 2 for a 16-bit one, 4 for a 32-bit float
     /// one.
     pub sample_bytes: u64,
-    /// A CMYK document (#547 phase 3, `psd_export_cmyk`): every raster and
+    /// A CMYK document (#1 phase 3, `psd_export_cmyk`): every raster and
     /// the composite carry five planes (four inks and alpha), and the
     /// general limitations are the CMYK ones.
     pub cmyk: bool,
-    /// A Grayscale document (#547 phase 3b, `psd_export_gray`): the
+    /// A Grayscale document (#1 phase 3b, `psd_export_gray`): the
     /// composite carries ONE plane (the white-matted gray, as Photoshop
     /// writes it) and the embedded profile is its Gray one.
     pub gray: bool,
-    /// A Lab Color document (#547 Lab phase 3b, `psd_export_lab`): the
+    /// A Lab Color document (#1 Lab phase 3b, `psd_export_lab`): the
     /// composite carries THREE planes (L, a, b matted over Lab white, as
     /// Photoshop writes them) and no profile is embedded (`profile_bytes`
     /// 0): L\*a\*b\* values are CIE D50 by definition.
@@ -481,7 +481,7 @@ fn spots_written(inventory: &ExportInventory, container: LayeredContainer) -> bo
 }
 
 /// The file a spot-channel save writes: a layered container (PSD, PSB, the
-/// layered TIFF) or the flat TIFF (#547 1c-2a, `tiff_spot`).
+/// layered TIFF) or the flat TIFF (#1 1c-2a, `tiff_spot`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SpotFile {
     Layered(LayeredContainer),
@@ -492,7 +492,7 @@ pub(crate) enum SpotFile {
 /// refusals for spot channels elsewhere (`spot_channel::PSD_REFUSAL`,
 /// `spot_channel::TIFF_REFUSAL`) all ask it, so a file the writer can carry
 /// is never refused. A PSD or PSB at 8 or 16 bits, not Lab; a TIFF, flat or
-/// layered (#547 1c-2b: the layered file's composite carries them as the
+/// layered (#1 1c-2b: the layered file's composite carries them as the
 /// flat file's trailing extra samples), of an RGB or CMYK document (not
 /// Gray, Duotone or Lab) at 8 or 16 bits.
 pub(crate) fn spots_written_for(lab: bool, gray: bool, sample_bytes: u64, file: SpotFile) -> bool {
@@ -742,7 +742,7 @@ fn export_refusal(
     if mode != PsdExportMode::Layers {
         return None;
     }
-    // A CMYK document (#547, `psd_export_cmyk`) bakes nothing: an adjustment
+    // A CMYK document (#1, `psd_export_cmyk`) bakes nothing: an adjustment
     // kind with no Photoshop record, or a style Photoshop's dialog cannot
     // hold, refuses the Layers mode by name. The report and the save read
     // this one answer.
@@ -1027,7 +1027,7 @@ fn document_losses(
 }
 
 /// The blend modes whose appearance in Photoshop is claimed for an RGB file
-/// (#578, `scripts/photoshop-probe/psd_appearance_578_take.py`, `--rejudge`
+/// (#2, `scripts/photoshop-probe/psd_appearance_578_take.py`, `--rejudge`
 /// of take1-3): every judged tile of the mode (opacity, Fill, inside a
 /// Normal, Pass Through or moded group, a clipped member, a clipping base)
 /// within 2 codes max and 0.5 mean of Photoshop 26.10.0's own render at 8
@@ -1057,7 +1057,7 @@ const QUALIFIED_BLEND: &[BlendMode] = &[
 ];
 
 /// The modes claimed only at 100 % Fill: every tile but the Fill ones passes
-/// (#578: Lighter Color misses on a luminosity tie, Hard Mix and Difference
+/// (#2: Lighter Color misses on a luminosity tie, Hard Mix and Difference
 /// on Photoshop's own Fill arithmetic, which no declared candidate met).
 const QUALIFIED_AT_FULL_FILL: &[BlendMode] = &[
     BlendMode::Difference,
@@ -1065,7 +1065,7 @@ const QUALIFIED_AT_FULL_FILL: &[BlendMode] = &[
     BlendMode::HardMix,
 ];
 
-/// The CMYK claim, unchanged: #578 measured RGB only.
+/// The CMYK claim, unchanged: #2 measured RGB only.
 const QUALIFIED_BLEND_CMYK: &[BlendMode] = &[
     BlendMode::Normal,
     BlendMode::Multiply,
@@ -1087,10 +1087,10 @@ fn mode_names<'a>(entries: impl Iterator<Item = &'a ExportEntry>) -> Vec<String>
 
 /// The layered mode's blend and clipping observations: the modes outside
 /// the claim, the Fill-limited modes used below 100 % Fill, Dissolve's
-/// pattern, a clipping base below 100 % Fill (#578 take2's `c_fill`: no
+/// pattern, a clipping base below 100 % Fill (#2 take2's `c_fill`: no
 /// declared clip rule met Photoshop there, 128 codes apart) and a clipped
 /// group, which Photoshop reads unclipped from every record form Doctored
-/// can write and will not create itself (#578 take2 and take3).
+/// can write and will not create itself (#2 take2 and take3).
 fn blend_observations(inventory: &ExportInventory, observations: &mut Vec<String>) {
     let entries = &inventory.entries;
     if inventory.cmyk {

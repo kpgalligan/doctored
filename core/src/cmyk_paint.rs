@@ -1,4 +1,4 @@
-//! Painting in ink (#547 phase 2): the Brush, Eraser, Fill (`paint_blend`),
+//! Painting in ink (#1 phase 2): the Brush, Eraser, Fill (`paint_blend`),
 //! Gradient and Paint Bucket on a CMYK document's raster records —
 //! [`CmykPaintEdit`], the CMYK twin of `precision_paint_tools`'
 //! `NativePaintEdit`, parsed by `dr_precision_doc_edit` on a CMYK document.
@@ -9,7 +9,7 @@
 //! exactly: plane 0 the canvas stroke coverage, plane 1 the selection when
 //! `selection`. A `blend_mode` outside `CMYK_BLEND_MODES` (Pass Through, a
 //! group's), a `plane` target and an RGB `color`/`color_space` refuse by
-//! name; Dodge/Burn is `NativePaintEdit`'s (`cmyk_retouch_brush`, #547).
+//! name; Dodge/Burn is `NativePaintEdit`'s (`cmyk_retouch_brush`, #1).
 //!
 //! Per pixel, with `s` the coverage (stroke × selection) and the walk over
 //! the canvas rect the coverage can change:
