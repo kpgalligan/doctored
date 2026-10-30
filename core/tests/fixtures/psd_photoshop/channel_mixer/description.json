@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "name": "channel_mixer",
+  "canvas": [64, 64],
+  "profile": "sRGB IEC61966-2.1",
+  "base": {"name": "Base", "png": "base.png"},
+  "layers": [
+    {"name": "Mixer", "kind": "channel_mixer",
+     "params": {"monochrome": false,
+                "red": [80, 30, -10, 5], "green": [-20, 110, 15, -4],
+                "blue": [25, -35, 120, 8]},
+     "opacity": 100, "blend": "normal", "visible": true},
+    {"name": "Mono", "kind": "channel_mixer",
+     "params": {"monochrome": true, "gray": [-60, 150, 35, -6]},
+     "opacity": 100, "blend": "normal", "visible": true},
+    {"name": "MonoRows", "kind": "channel_mixer",
+     "params": {"monochrome": true, "gray": [45, 25, 30, 3],
+                "red": [70, 20, 10, -2], "green": [5, 90, 5, 1],
+                "blue": [-15, 10, 105, 4]},
+     "opacity": 100, "blend": "normal", "visible": true}
+  ]
+}

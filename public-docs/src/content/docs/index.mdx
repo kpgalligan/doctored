@@ -1,0 +1,44 @@
+---
+title: Documentation
+description: Documentation for Doctored, a native macOS raster image editor.
+eyebrow: Documentation
+template: splash # Remove or comment out this line to display the site sidebar on this page.
+hero:
+  # Distinct from `title` above so the browser tab reads "Documentation | Doctored"
+  # while the hero still opens with the product name.
+  title: Doctored
+  tagline: A native macOS raster image editor — Swift and AppKit over a Rust core that does every pixel.
+  image:
+    file: ../../assets/doctored-1024.png
+    alt: The Doctored app icon
+  actions:
+    - text: Example guide
+      link: /guides/example/
+      icon: right-arrow
+    - text: Example reference
+      link: /reference/example/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Next steps
+
+<CardGrid stagger>
+	<Card title="Update content" icon="pencil">
+		Edit `src/content/docs/index.mdx` to see this page change.
+	</Card>
+	<Card title="Change page layout" icon="document">
+		Delete `template: splash` in `src/content/docs/index.mdx` to display a
+		sidebar on this page.
+	</Card>
+	<Card title="Add new content" icon="add-document">
+		Add Markdown or MDX files to `src/content/docs` to create new pages.
+	</Card>
+	<Card title="Configure your site" icon="setting">
+		Edit your `sidebar` and other config in `astro.config.mjs`.
+	</Card>
+	<Card title="Read the docs" icon="open-book">
+		Learn more in [the Starlight docs](https://starlight.astro.build/).
+	</Card>
+</CardGrid>

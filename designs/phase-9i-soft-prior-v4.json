@@ -1,0 +1,18 @@
+{
+  "candidate": "stable_prior_protected_v4",
+  "input_policy_version": 1,
+  "alpha_policy": "preserve supplied degraded prior exactly, except any explicit foreground/background user labels",
+  "automatic_alpha_estimation": false,
+  "user_constraints": "none in automatic benchmark",
+  "foreground_policy": "exact unchanged source_protection_v1 from protected_tiled_soft_prior_v3",
+  "foreground_initial_estimator": "unchanged encoded-RGB multilevel foreground estimation, supplied prior as alpha",
+  "eligible_color_footprint": "supplied alpha in 1..127 and Unknown user label",
+  "foreground_support": "same radius16, 8-code/channel observed high-prior/explicit foreground support as v3",
+  "max_local_sample_checks": 250000000,
+  "purpose": "separate supplied-prior alpha limitations from source-only foreground/recomposition error, without solver regression",
+  "physical_opacity_claimed": false,
+  "fixtures": "all original 24 analytic, 24 photographic crop and 42 complete photographic cases",
+  "gates": "unchanged phase-6-matting-reference-protocol; stable alpha is not an automatic pass if soft-detail recall fails",
+  "truth_at_inference": false,
+  "advanced_controls_enabled": false
+}

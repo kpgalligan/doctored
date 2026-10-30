@@ -1,0 +1,261 @@
+{
+  "schema": 1,
+  "name": "knockout",
+  "canvas": [
+    64,
+    64
+  ],
+  "profile": "sRGB IEC61966-2.1",
+  "base": {
+    "name": "Background",
+    "png": "base.png",
+    "background": true
+  },
+  "layers": [
+    {
+      "name": "Mid",
+      "png": "mid.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "RootShallow",
+      "png": "high.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "knockout": "shallow",
+      "fill_opacity": 0
+    },
+    {
+      "name": "FillHalfMultiply",
+      "png": "high.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "multiply",
+      "visible": true,
+      "knockout": "deep",
+      "fill_opacity": 50
+    },
+    {
+      "name": "BlendIf",
+      "png": "high.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "knockout": "deep",
+      "blend_if": {
+        "channel": "gray",
+        "this_layer": [
+          200,
+          200,
+          255,
+          255
+        ],
+        "underlying": [
+          0,
+          0,
+          255,
+          255
+        ]
+      }
+    },
+    {
+      "name": "PassShallow",
+      "group": true,
+      "blend": "pass_through",
+      "opacity": 100,
+      "visible": true,
+      "layers": [
+        {
+          "name": "PassInnerA",
+          "png": "extra.png",
+          "offset": [
+            0,
+            0
+          ],
+          "opacity": 100,
+          "blend": "normal",
+          "visible": true
+        },
+        {
+          "name": "PassKnockA",
+          "png": "high.png",
+          "offset": [
+            0,
+            0
+          ],
+          "opacity": 100,
+          "blend": "normal",
+          "visible": true,
+          "knockout": "shallow",
+          "fill_opacity": 0
+        }
+      ]
+    },
+    {
+      "name": "PassDeep",
+      "group": true,
+      "blend": "pass_through",
+      "opacity": 100,
+      "visible": true,
+      "layers": [
+        {
+          "name": "PassInnerB",
+          "png": "extra.png",
+          "offset": [
+            0,
+            0
+          ],
+          "opacity": 100,
+          "blend": "normal",
+          "visible": true
+        },
+        {
+          "name": "PassKnockB",
+          "png": "high.png",
+          "offset": [
+            0,
+            0
+          ],
+          "opacity": 100,
+          "blend": "normal",
+          "visible": true,
+          "knockout": "deep",
+          "fill_opacity": 0
+        }
+      ]
+    },
+    {
+      "name": "IsoDeep",
+      "group": true,
+      "blend": "normal",
+      "opacity": 100,
+      "visible": true,
+      "layers": [
+        {
+          "name": "IsoInner",
+          "png": "extra.png",
+          "offset": [
+            0,
+            0
+          ],
+          "opacity": 100,
+          "blend": "normal",
+          "visible": true
+        },
+        {
+          "name": "IsoKnock",
+          "png": "high.png",
+          "offset": [
+            0,
+            0
+          ],
+          "opacity": 100,
+          "blend": "normal",
+          "visible": true,
+          "knockout": "deep",
+          "fill_opacity": 0
+        }
+      ]
+    },
+    {
+      "name": "ClipBase",
+      "png": "extra.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "ClipLower",
+      "png": "high.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "clipped": true
+    },
+    {
+      "name": "ClipKnock",
+      "png": "mid.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "clipped": true,
+      "knockout": "shallow",
+      "fill_opacity": 0
+    },
+    {
+      "name": "InteriorOff",
+      "png": "white.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "multiply",
+      "visible": true,
+      "effects": {
+        "color_overlay": {
+          "color": [
+            0,
+            255,
+            0
+          ],
+          "opacity": 100,
+          "blend": "normal"
+        }
+      }
+    },
+    {
+      "name": "InteriorOn",
+      "png": "white.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "multiply",
+      "visible": true,
+      "blend_interior": true,
+      "effects": {
+        "color_overlay": {
+          "color": [
+            0,
+            255,
+            0
+          ],
+          "opacity": 100,
+          "blend": "normal"
+        }
+      }
+    }
+  ]
+}

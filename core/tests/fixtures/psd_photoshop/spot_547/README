@@ -1,0 +1,43 @@
+#547 spot channels 1b-1: PSD and PSB fixtures with spot channels, authored by Adobe Photoshop
+2025 26.10.0 (scripts/photoshop-probe/spot_psd_take.py, take1, run 20261024T042340Z-dfcc2def;
+receipts in ~/devel/doctored-fixtures/photoshop/spot-psd-547/take1).
+
+Each file starts from one of the runner's PNG scenes: S, 32 x 8 opaque, gray v(x) =
+round(255 x / 31); St, the same with alpha 0 at x >= 28 (kept as Layer 0; S is flattened to a
+Background). 16-bit files are converted to 16 bits BEFORE the spots, CMYK and Grayscale files
+converted AFTER them (CnvM, DialogModes.NO). Each spot channel is ONE Make of a new spot channel
+(Mk Nw SCch: name, Lab ink, integer solidity), filled from the selection:
+
+  Spot Ramp     Lab (55, 70, 30), from the Red channel loaded as the selection: coverage v(x)
+  Spot Bloc é   Lab (80, -20, 60), from the rectangle x in [8, 24), y in [2, 6): full inside
+
+  file         mode, depth   scene   spots (solidity %)
+  rgb8.psd     RGB 8         S       Ramp 0, Bloc 100
+  rgb8_t.psb   RGB 8         St      Bloc 50 (merged transparency)
+  rgb16.psd    RGB 16        S       Ramp 50, Bloc 100
+  cmyk8.psd    CMYK 8        S       Ramp 100, Bloc 0
+  cmyk16.psb   CMYK 16       S       Ramp 50
+  gray8.psd    Gray 8        S       Ramp 100
+  gray16.psb   Gray 16       S       Ramp 0, Bloc 50
+
+PSDs were saved with PhotoshopSaveOptions (layers, profile embedded), PSBs through the
+largeDocumentFormat save descriptor. Every file reopened in its mode and depth with every spot's
+name, kind SPOTCOLOR, solidity and Lab as declared (Photoshop's own DOM readback).
+
+photoshop.json holds, for each file, its sha256, bytes, mode, depth, container, channel count,
+merged alpha, first saved plane, the channel resources as hex, and per spot its name, declared
+and readback Lab, solidity, DisplayInfo kind and colour space, the stored Lab words and the
+stored rows (as the runner's reader reads them).
+
+What the files say, which is the writer's spec (core/src/psd_spot_records.rs):
+- a spot channel's plane is stored INVERTED, max - coverage (take1's H1, every file);
+- the saved-channel resources are 1006 (Pascal names, Mac Roman, no padding), 1045 (u32 unit
+  count including one trailing NUL, UTF-16BE), 1077 (u32 version 1, then 13 bytes a channel:
+  colour space 7 = Lab with L, a, b x 100, opacity = solidity, kind 2 = spot) and 1053 (u32
+  ids from 3), in that order, and no 1007;
+- the first saved plane follows the colour planes and merged alpha; with merged alpha
+  (rgb8_t.psb, layer count -1) every list leads with "Transparency" (kind 1, colour space 0,
+  65535/0/0/0, opacity 100, id 0), whose plane is the merged alpha;
+- the composite is RLE in rgb8, rgb8_t and cmyk8, Raw in the rest.
+
+Read by core/tests/spot_psd_photoshop.rs, which SKIPs when this folder is absent.

@@ -1,0 +1,1158 @@
+{
+ "run_id": "rz-557-contour-20261016T060208Z-75688f18",
+ "verdict": "MISSES",
+ "runner_sha256": "55889de0d8238ecd7908d0b93fe482899724ce9c173fa1dcc82911852e41136c",
+ "judged_by_sha256": "55889de0d8238ecd7908d0b93fe482899724ce9c173fa1dcc82911852e41136c",
+ "photoshop": {
+  "session_was_running": false,
+  "launched": true,
+  "quit": true,
+  "still_running": false
+ },
+ "versions": [
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0",
+  "26.10.0"
+ ],
+ "summary": {
+  "verdict": "MISSES",
+  "kind": "take",
+  "run_id": "rz-557-contour-20261016T060208Z-75688f18",
+  "stall": null,
+  "skipped": null,
+  "errors": {},
+  "winners": {
+   "custom": "SPLINE",
+   "extent": 8,
+   "aa": "NONE",
+   "satin": "BEFORE-INVERT",
+   "range": "DIVIDE",
+   "gloss": "PLAIN",
+   "bevel": "BEFORE-SOFTEN/COMPLEMENT"
+  },
+  "met": false,
+  "presets": {
+   "cone": {
+    "measured": 256,
+    "max_code": 255,
+    "spread": 3.0
+   },
+   "cone_inverted": {
+    "measured": 256,
+    "max_code": 255,
+    "spread": 8.0
+   },
+   "gaussian": {
+    "measured": 256,
+    "max_code": 255,
+    "spread": 2.0
+   },
+   "half_round": {
+    "measured": 256,
+    "max_code": 255,
+    "spread": 3.0
+   },
+   "ring": {
+    "measured": 256,
+    "max_code": 255,
+    "spread": 5.0
+   },
+   "ring_double": {
+    "measured": 256,
+    "max_code": 255,
+    "spread": 11.0
+   },
+   "rolling_slope_descending": {
+    "measured": 256,
+    "max_code": 255,
+    "spread": 8.0
+   },
+   "rounded_steps": {
+    "measured": 256,
+    "max_code": 255,
+    "spread": 3.0
+   },
+   "sawtooth_1": {
+    "measured": 256,
+    "max_code": 255,
+    "spread": 2.0
+   }
+  },
+  "smoke": null,
+  "inspect_mismatch": {
+   "psd8": {
+    "P1": {},
+    "P2": {},
+    "P3": {},
+    "P4": {},
+    "P5": {},
+    "P6": {},
+    "P7": {},
+    "P8": {},
+    "P9": {},
+    "P10": {}
+   }
+  },
+  "custom": {
+   "winner": "SPLINE",
+   "met": false,
+   "missing": [],
+   "rows": {
+    "ds_cu1": [
+     2.0,
+     0.43
+    ],
+    "ds_cu2": [
+     1.579,
+     0.36
+    ],
+    "ds_cu3": [
+     50.651,
+     0.907
+    ]
+   },
+   "others": {
+    "SPLINE": 0.907,
+    "LINEAR": 15.001
+   }
+  },
+  "extent": {
+   "winner": 8,
+   "met": false,
+   "missing": [],
+   "rows": {
+    "ds_cone_inverted": [
+     93.689,
+     41.515
+    ],
+    "ds_rolling_slope_descending": [
+     104.419,
+     44.056
+    ],
+    "og_cone_inverted": [
+     125.689,
+     57.584
+    ],
+    "og_rolling_slope_descending": [
+     136.419,
+     60.436
+    ],
+    "ds_cu3": [
+     159.938,
+     60.699
+    ]
+   },
+   "others": {
+    "1": 173.617,
+    "2": 138.669,
+    "3": 115.51,
+    "5": 85.719,
+    "8": 60.699
+   }
+  },
+  "aa": {
+   "winner": "NONE",
+   "met": true,
+   "missing": [],
+   "rows": {
+    "ds_cone_aa": [
+     2.0,
+     0.432
+    ],
+    "ds_sawtooth_1_aa": [
+     2.0,
+     0.459
+    ],
+    "ds_rounded_steps_aa": [
+     2.0,
+     0.225
+    ]
+   },
+   "others": {
+    "NONE": 0.459,
+    "BOX": 0.538,
+    "TRI": 0.644
+   }
+  },
+  "satin": {
+   "winner": "BEFORE-INVERT",
+   "met": false,
+   "missing": [],
+   "rows": {
+    "sa_cone": [
+     250.0,
+     27.159
+    ],
+    "sa_rolling_slope_descending": [
+     173.0,
+     92.821
+    ]
+   },
+   "others": {
+    "BEFORE-INVERT": 92.821,
+    "AFTER-INVERT": 154.405
+   }
+  },
+  "site": {
+   "winner": "TABLE",
+   "met": false,
+   "missing": [],
+   "rows": {
+    "is_cone": [
+     3.0,
+     1.441
+    ],
+    "is_cone_inverted": [
+     153.0,
+     52.925
+    ],
+    "ig_cone": [
+     3.0,
+     1.499
+    ],
+    "og_cone": [
+     2.0,
+     0.452
+    ],
+    "og_cone_inverted": [
+     93.0,
+     10.043
+    ],
+    "og_rolling_slope_descending": [
+     88.0,
+     8.726
+    ]
+   },
+   "others": {
+    "TABLE": 52.925
+   }
+  },
+  "range": {
+   "winner": "DIVIDE",
+   "met": false,
+   "missing": [],
+   "rows": {
+    "og_linear_r25": [
+     1.0,
+     0.285
+    ],
+    "og_linear_r100": [
+     1.0,
+     0.301
+    ],
+    "og_cone_r25": [
+     3.0,
+     0.57
+    ],
+    "ig_linear_r25": [
+     1.0,
+     0.162
+    ],
+    "ig_linear_r100": [
+     55.5,
+     0.785
+    ],
+    "ig_cone_r25": [
+     3.0,
+     1.422
+    ],
+    "og_cone": [
+     2.0,
+     0.452
+    ],
+    "ig_cone": [
+     3.0,
+     1.499
+    ]
+   },
+   "others": {
+    "DIVIDE": 1.499,
+    "COMPLEMENT": 169.387,
+    "CENTRED": 134.306
+   }
+  },
+  "gloss": {
+   "winner": "PLAIN",
+   "met": false,
+   "missing": [],
+   "rows": {
+    "ob_gcone": [
+     255.0,
+     58.307
+    ],
+    "em_gcone": [
+     255.0,
+     37.419
+    ]
+   },
+   "others": {
+    "PLAIN": 58.307,
+    "FLAT": 150.806
+   }
+  },
+  "bevel": {
+   "winner": "BEFORE-SOFTEN/COMPLEMENT",
+   "met": false,
+   "missing": [],
+   "rows": {
+    "ib_hr_s0": [
+     104.732,
+     23.765
+    ],
+    "ib_hr_s4": [
+     63.402,
+     13.32
+    ],
+    "ib_hr_r25": [
+     97.635,
+     22.141
+    ],
+    "ib_hr_r100": [
+     91.903,
+     27.734
+    ]
+   },
+   "others": {
+    "BEFORE-SOFTEN/DIVIDE": 63.004,
+    "BEFORE-SOFTEN/COMPLEMENT": 27.734,
+    "BEFORE-SOFTEN/CENTRED": 50.74,
+    "AFTER-SOFTEN/DIVIDE": 63.004,
+    "AFTER-SOFTEN/COMPLEMENT": 27.734,
+    "AFTER-SOFTEN/CENTRED": 50.74
+   }
+  },
+  "controls": {
+   "winner": "TABLE",
+   "met": true,
+   "missing": [],
+   "rows": {
+    "ds_cone_rgb16": [
+     0.802,
+     0.166
+    ],
+    "ds_cone_rgb32": [
+     0.789,
+     0.163
+    ],
+    "og_cone_r25_rgb16": [
+     0.767,
+     0.154
+    ],
+    "og_cone_r25_rgb32": [
+     0.816,
+     0.15
+    ]
+   },
+   "others": {
+    "TABLE": 0.166
+   }
+  }
+ },
+ "readbacks": {
+  "ds_linear_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_cone_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_cone_inverted_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/ConeInverted=Cone - Inverted"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_gaussian_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Gaussian=Gaussian"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_half_round_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_ring_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Ring=Ring"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_ring_double_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/DoubleRing=Ring - Double"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_rolling_slope_descending_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/RollingSlopeDescending=Rolling Slope - Descending"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_rounded_steps_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/RoundedSteps=Rounded Steps"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_sawtooth_1_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Sawtooth1=Sawtooth 1"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_cone_aa_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": true
+   }
+  },
+  "ds_sawtooth_1_aa_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Sawtooth1=Sawtooth 1"
+    },
+    "antiAlias": true
+   }
+  },
+  "ds_rounded_steps_aa_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/RoundedSteps=Rounded Steps"
+    },
+    "antiAlias": true
+   }
+  },
+  "ds_cu1_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "curve": [
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 0,
+        "vertical": 0
+       }
+      },
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 64,
+        "vertical": 170
+       }
+      },
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 150,
+        "vertical": 60
+       }
+      },
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 255,
+        "vertical": 255
+       }
+      }
+     ]
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_cu2_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "curve": [
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 0,
+        "vertical": 40,
+        "continuity": true
+       }
+      },
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 96,
+        "vertical": 230,
+        "continuity": false
+       }
+      },
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 200,
+        "vertical": 90,
+        "continuity": true
+       }
+      },
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 255,
+        "vertical": 200,
+        "continuity": true
+       }
+      }
+     ]
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_cu3_rgb8": {
+   "drop_shadow": {
+    "transferSpec": {
+     "curve": [
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 0,
+        "vertical": 255
+       }
+      },
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 90,
+        "vertical": 30
+       }
+      },
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 180,
+        "vertical": 200
+       }
+      },
+      {
+       "object": "curvePoint",
+       "value": {
+        "horizontal": 255,
+        "vertical": 120
+       }
+      }
+     ]
+    },
+    "antiAlias": false
+   }
+  },
+  "og_linear_rgb8": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false,
+    "inputRange": 50
+   }
+  },
+  "og_cone_rgb8": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false,
+    "inputRange": 50
+   }
+  },
+  "og_cone_inverted_rgb8": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/ConeInverted=Cone - Inverted"
+    },
+    "antiAlias": false,
+    "inputRange": 50
+   }
+  },
+  "og_rolling_slope_descending_rgb8": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/RollingSlopeDescending=Rolling Slope - Descending"
+    },
+    "antiAlias": false,
+    "inputRange": 50
+   }
+  },
+  "og_linear_r25_rgb8": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false,
+    "inputRange": 25
+   }
+  },
+  "og_linear_r100_rgb8": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false,
+    "inputRange": 100
+   }
+  },
+  "og_cone_r25_rgb8": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false,
+    "inputRange": 25
+   }
+  },
+  "is_linear_rgb8": {
+   "inner_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false
+   }
+  },
+  "is_cone_rgb8": {
+   "inner_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false
+   }
+  },
+  "is_cone_inverted_rgb8": {
+   "inner_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/ConeInverted=Cone - Inverted"
+    },
+    "antiAlias": false
+   }
+  },
+  "ig_linear_rgb8": {
+   "inner_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false,
+    "inputRange": 50
+   }
+  },
+  "ig_cone_rgb8": {
+   "inner_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false,
+    "inputRange": 50
+   }
+  },
+  "ig_linear_r25_rgb8": {
+   "inner_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false,
+    "inputRange": 25
+   }
+  },
+  "ig_linear_r100_rgb8": {
+   "inner_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false,
+    "inputRange": 100
+   }
+  },
+  "ig_cone_r25_rgb8": {
+   "inner_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false,
+    "inputRange": 25
+   }
+  },
+  "sa_linear_rgb8": {
+   "satin": {
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false
+   }
+  },
+  "sa_cone_rgb8": {
+   "satin": {
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false
+   }
+  },
+  "sa_rolling_slope_descending_rgb8": {
+   "satin": {
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/RollingSlopeDescending=Rolling Slope - Descending"
+    },
+    "antiAlias": false
+   }
+  },
+  "ib_s0_h_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "ib_s0_s_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "ib_s4_h_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "ib_s4_s_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "ib_hr_s0_h_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+    },
+    "antiAlias": false,
+    "antialiasGloss": false,
+    "inputRange": 50,
+    "useShape": true
+   }
+  },
+  "ib_hr_s0_s_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+    },
+    "antiAlias": false,
+    "antialiasGloss": false,
+    "inputRange": 50,
+    "useShape": true
+   }
+  },
+  "ib_hr_s4_h_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+    },
+    "antiAlias": false,
+    "antialiasGloss": false,
+    "inputRange": 50,
+    "useShape": true
+   }
+  },
+  "ib_hr_s4_s_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+    },
+    "antiAlias": false,
+    "antialiasGloss": false,
+    "inputRange": 50,
+    "useShape": true
+   }
+  },
+  "ib_hr_r25_h_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+    },
+    "antiAlias": false,
+    "antialiasGloss": false,
+    "inputRange": 25,
+    "useShape": true
+   }
+  },
+  "ib_hr_r25_s_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+    },
+    "antiAlias": false,
+    "antialiasGloss": false,
+    "inputRange": 25,
+    "useShape": true
+   }
+  },
+  "ib_hr_r100_h_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+    },
+    "antiAlias": false,
+    "antialiasGloss": false,
+    "inputRange": 100,
+    "useShape": true
+   }
+  },
+  "ib_hr_r100_s_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "mappingShape": {
+     "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+    },
+    "antiAlias": false,
+    "antialiasGloss": false,
+    "inputRange": 100,
+    "useShape": true
+   }
+  },
+  "ob_h_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "ob_s_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "ob_gcone_h_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "ob_gcone_s_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "em_h_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "em_s_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "em_gcone_h_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "em_gcone_s_rgb8": {
+   "bevel_emboss": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antialiasGloss": false,
+    "useShape": false
+   }
+  },
+  "ds_linear_rgb16": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_cone_rgb16": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false
+   }
+  },
+  "og_linear_rgb16": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false,
+    "inputRange": 50
+   }
+  },
+  "og_cone_r25_rgb16": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false,
+    "inputRange": 25
+   }
+  },
+  "ds_linear_rgb32": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false
+   }
+  },
+  "ds_cone_rgb32": {
+   "drop_shadow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false
+   }
+  },
+  "og_linear_rgb32": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Linear=Linear"
+    },
+    "antiAlias": false,
+    "inputRange": 50
+   }
+  },
+  "og_cone_r25_rgb32": {
+   "outer_glow": {
+    "transferSpec": {
+     "name": "$$$/Contours/Defaults/Cone=Cone"
+    },
+    "antiAlias": false,
+    "inputRange": 25
+   }
+  }
+ },
+ "inspect": {
+  "psd8": {
+   "error": null,
+   "layers": {
+    "P10": {
+     "inner_glow": {
+      "transferSpec": {
+       "curve": [
+        {
+         "object": "curvePoint",
+         "value": {
+          "horizontal": 0,
+          "vertical": 40,
+          "continuity": true
+         }
+        },
+        {
+         "object": "curvePoint",
+         "value": {
+          "horizontal": 96,
+          "vertical": 230,
+          "continuity": false
+         }
+        },
+        {
+         "object": "curvePoint",
+         "value": {
+          "horizontal": 200,
+          "vertical": 90,
+          "continuity": true
+         }
+        },
+        {
+         "object": "curvePoint",
+         "value": {
+          "horizontal": 255,
+          "vertical": 200,
+          "continuity": true
+         }
+        }
+       ]
+      },
+      "antiAlias": true,
+      "inputRange": 50
+     }
+    },
+    "P9": {
+     "bevel_emboss": {
+      "transferSpec": {
+       "name": "$$$/Contours/Defaults/Sawtooth1=Sawtooth 1"
+      },
+      "mappingShape": {
+       "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+      },
+      "antiAlias": true,
+      "antialiasGloss": true,
+      "inputRange": 30,
+      "useShape": true
+     }
+    },
+    "P8": {
+     "outer_glow": {
+      "transferSpec": {
+       "name": "$$$/Contours/Defaults/RoundedSteps=Rounded Steps"
+      },
+      "antiAlias": false,
+      "inputRange": 50
+     }
+    },
+    "P7": {
+     "drop_shadow": {
+      "transferSpec": {
+       "name": "$$$/Contours/Defaults/RollingSlopeDescending=Rolling Slope - Descending"
+      },
+      "antiAlias": false
+     }
+    },
+    "P6": {
+     "satin": {
+      "mappingShape": {
+       "name": "$$$/Contours/Defaults/DoubleRing=Ring - Double"
+      },
+      "antiAlias": false
+     }
+    },
+    "P5": {
+     "inner_shadow": {
+      "transferSpec": {
+       "name": "$$$/Contours/Defaults/Ring=Ring"
+      },
+      "antiAlias": false
+     }
+    },
+    "P4": {
+     "inner_glow": {
+      "transferSpec": {
+       "name": "$$$/Contours/Defaults/HalfRound=Half Round"
+      },
+      "antiAlias": true,
+      "inputRange": 75
+     }
+    },
+    "P3": {
+     "outer_glow": {
+      "transferSpec": {
+       "name": "$$$/Contours/Defaults/Gaussian=Gaussian"
+      },
+      "antiAlias": false,
+      "inputRange": 25
+     }
+    },
+    "P2": {
+     "drop_shadow": {
+      "transferSpec": {
+       "name": "$$$/Contours/Defaults/ConeInverted=Cone - Inverted"
+      },
+      "antiAlias": false
+     }
+    },
+    "P1": {
+     "drop_shadow": {
+      "transferSpec": {
+       "name": "$$$/Contours/Defaults/Cone=Cone"
+      },
+      "antiAlias": true
+     }
+    }
+   },
+   "tiff": "psd8.flat.tif"
+  }
+ }
+}

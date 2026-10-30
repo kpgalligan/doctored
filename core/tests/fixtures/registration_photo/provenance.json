@@ -1,0 +1,13 @@
+[
+  {
+    "name": "sky",
+    "file": "sky.jpg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/c/c0/Blue_sky_behind_rooftops_and_clouds.jpg",
+    "author": "Bo Jessen, 2012",
+    "license": "CC0 1.0",
+    "provenance": "https://commons.wikimedia.org/wiki/File:Blue_sky_behind_rooftops_and_clouds.jpg",
+    "sha256": "c4f4e249cba29671e98a50ad4f911d01248b444fe3ae6c5cfb0359e71bd59375",
+    "size_bytes": 153983,
+    "alpha_ground_truth": false
+  }
+]

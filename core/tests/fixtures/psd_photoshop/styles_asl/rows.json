@@ -1,0 +1,1586 @@
+{
+  "run_id": "rz-557-asl-20261017T030137Z-3a9be5b2",
+  "build_id": "rz-557-aslb-20261017T025915Z-84916c20",
+  "photoshop": "26.10.0",
+  "save_form": "all",
+  "blnd": "SWAPPED-WHITE",
+  "files": {
+    "styles_a.asl": {
+      "sha256": "56cd79d8c0ee2260f488ad51e59e623e9f05720abf4441c0bcff275accce8cc1",
+      "bytes": 12708,
+      "in_repo": true
+    },
+    "styles_b.asl": {
+      "sha256": "35c05bcc8a123cb7af6fc34d392ee6dfd76e886574052885e15b8f6da72a078a",
+      "bytes": 7316,
+      "in_repo": true
+    },
+    "open/open.asl": {
+      "sha256": "11fa95b8f18eca720d80f397756ef334868f6b65c76e2a5a812aace4ae3869e4",
+      "bytes": 15304,
+      "in_repo": true
+    },
+    "S1.psd": {
+      "sha256": "c7f283c8b5a2719cc2fb306912a057cf85df053f950e97c37996fa059ab9c209",
+      "bytes": 39146,
+      "in_repo": true
+    },
+    "S2.psd": {
+      "sha256": "fa6d516f05f567dfac55d8d5156dd8a9dc02f686b3b149e34e3ee8a4af7e87c7",
+      "bytes": 36410,
+      "in_repo": true
+    },
+    "S3.psd": {
+      "sha256": "f0c23a34b85a145ca94c308844099bd9971e28836ca0a62c2f3d574d751c7b2c",
+      "bytes": 42122,
+      "in_repo": true
+    },
+    "S4.psd": {
+      "sha256": "371c297b06f5922d11edcc0ce00b48f5968751e5224832b51ff76e3739eb930f",
+      "bytes": 42845,
+      "in_repo": true
+    },
+    "S5.psd": {
+      "sha256": "c881b46919ff7463abb45d8db81a5381e293807c24802cda6829ce0ae1785ba3",
+      "bytes": 35320,
+      "in_repo": true
+    },
+    "S6.psd": {
+      "sha256": "d60a9087d830f04289ddeffe8e477c50234fcf9e021690f15c3a0cf7f5e4b05a",
+      "bytes": 42566,
+      "in_repo": true
+    },
+    "S7.psd": {
+      "sha256": "c819718cafb660e16e8e9a7bc345aab40802e48ac27eda552fcacba97f15f243",
+      "bytes": 36718,
+      "in_repo": true
+    },
+    "S8.psd": {
+      "sha256": "b414ec3bfaadce4a8da9a217644f83e4732674576cb381769ed4f82ca9c87722",
+      "bytes": 41492,
+      "in_repo": true
+    },
+    "S9.psd": {
+      "sha256": "cdebd8f434113fa1769bf3a8ef3e75572d18aa835ebb30a7ff8dcb39531c13fc",
+      "bytes": 32200,
+      "in_repo": true
+    },
+    "S10.psd": {
+      "sha256": "26fe6290116cf1462b0ff0fe063c170cb31bbf0e5a6c3c0e680ec21bb84ddabf",
+      "bytes": 34989,
+      "in_repo": true
+    }
+  },
+  "styles": {
+    "S1": {
+      "case": {
+        "name": "S1",
+        "depth": 8,
+        "doc": "small",
+        "rect": [
+          24,
+          16,
+          80,
+          64
+        ],
+        "effects": [
+          {
+            "type": "drop_shadow",
+            "mode": "multiply",
+            "opacity": 60,
+            "color": [
+              0,
+              0,
+              0
+            ],
+            "use_global_light": false,
+            "angle": 120,
+            "distance": 6,
+            "spread": 10,
+            "size": 8,
+            "layer_conceals": true,
+            "contour": {
+              "name": "Cone"
+            },
+            "anti_aliased": false,
+            "noise": 10
+          },
+          {
+            "type": "drop_shadow",
+            "mode": "normal",
+            "opacity": 40,
+            "color": [
+              40,
+              20,
+              120
+            ],
+            "use_global_light": false,
+            "angle": 45,
+            "distance": 3,
+            "spread": 0,
+            "size": 4,
+            "layer_conceals": true,
+            "contour": null,
+            "anti_aliased": false
+          },
+          {
+            "type": "stroke",
+            "mode": "normal",
+            "opacity": 100,
+            "position": "outside",
+            "size": 6,
+            "color": [
+              30,
+              60,
+              200
+            ]
+          },
+          {
+            "type": "stroke",
+            "mode": "normal",
+            "opacity": 100,
+            "position": "outside",
+            "size": 3,
+            "color": [
+              250,
+              250,
+              250
+            ]
+          }
+        ],
+        "make_style": {
+          "name": "rz-557-asl-20261017T030137Z-3a9be5b2-S1",
+          "effects": true,
+          "blending": false
+        }
+      },
+      "form": "all",
+      "expect": {
+        "effects": [
+          {
+            "type": "drop_shadow",
+            "blend": "normal",
+            "opacity": 0.4,
+            "color": "#281478",
+            "angle": 45,
+            "distance": 3,
+            "size": 4
+          },
+          {
+            "type": "drop_shadow",
+            "blend": "multiply",
+            "opacity": 0.6,
+            "color": "#000000",
+            "angle": 120,
+            "use_global_light": false,
+            "distance": 6,
+            "spread": 0.1,
+            "size": 8,
+            "contour": {
+              "preset": "cone"
+            },
+            "noise": 0.1
+          },
+          {
+            "type": "stroke",
+            "position": "outside",
+            "size": 3,
+            "color": "#fafafa",
+            "opacity": 1
+          },
+          {
+            "type": "stroke",
+            "position": "outside",
+            "size": 6,
+            "color": "#1e3cc8",
+            "opacity": 1
+          }
+        ],
+        "blending": null,
+        "blend_if": null,
+        "root": {},
+        "dropped": []
+      }
+    },
+    "S2": {
+      "case": {
+        "name": "S2",
+        "depth": 8,
+        "doc": "small",
+        "rect": [
+          24,
+          16,
+          80,
+          64
+        ],
+        "effects": [
+          {
+            "type": "inner_shadow",
+            "mode": "multiply",
+            "opacity": 75,
+            "color": [
+              0,
+              0,
+              0
+            ],
+            "use_global_light": false,
+            "angle": 120,
+            "distance": 5,
+            "spread": 0,
+            "size": 5,
+            "contour": null,
+            "anti_aliased": false
+          },
+          {
+            "type": "inner_shadow",
+            "mode": "normal",
+            "opacity": 50,
+            "color": [
+              200,
+              40,
+              40
+            ],
+            "use_global_light": false,
+            "angle": -60,
+            "distance": 2,
+            "spread": 20,
+            "size": 3,
+            "contour": null,
+            "anti_aliased": false
+          },
+          {
+            "type": "color_overlay",
+            "mode": "overlay",
+            "opacity": 80,
+            "color": [
+              40,
+              160,
+              90
+            ]
+          },
+          {
+            "type": "color_overlay",
+            "mode": "normal",
+            "opacity": 30,
+            "color": [
+              250,
+              200,
+              0
+            ]
+          }
+        ],
+        "make_style": {
+          "name": "rz-557-asl-20261017T030137Z-3a9be5b2-S2",
+          "effects": true,
+          "blending": false
+        }
+      },
+      "form": "all",
+      "expect": {
+        "effects": [
+          {
+            "type": "inner_shadow",
+            "blend": "normal",
+            "opacity": 0.5,
+            "color": "#c82828",
+            "angle": -60,
+            "distance": 2,
+            "size": 3,
+            "choke": 0.2
+          },
+          {
+            "type": "inner_shadow",
+            "blend": "multiply",
+            "opacity": 0.75,
+            "color": "#000000",
+            "angle": 120,
+            "distance": 5,
+            "size": 5
+          },
+          {
+            "type": "color_overlay",
+            "blend": "normal",
+            "opacity": 0.3,
+            "color": "#fac800"
+          },
+          {
+            "type": "color_overlay",
+            "blend": "overlay",
+            "opacity": 0.8,
+            "color": "#28a05a"
+          }
+        ],
+        "blending": null,
+        "blend_if": null,
+        "root": {},
+        "dropped": []
+      }
+    },
+    "S3": {
+      "case": {
+        "name": "S3",
+        "depth": 8,
+        "doc": "small",
+        "rect": [
+          24,
+          16,
+          80,
+          64
+        ],
+        "effects": [
+          {
+            "type": "outer_glow",
+            "mode": "normal",
+            "opacity": 80,
+            "color": null,
+            "spread": 0,
+            "size": 12,
+            "range": 50,
+            "contour": null,
+            "anti_aliased": false,
+            "noise": 0,
+            "gradient": {
+              "stops": [
+                [
+                  255,
+                  200,
+                  0,
+                  0
+                ],
+                [
+                  255,
+                  0,
+                  80,
+                  4096
+                ]
+              ]
+            },
+            "jitter": 25
+          },
+          {
+            "type": "inner_glow",
+            "mode": "screen",
+            "opacity": 70,
+            "color": [
+              255,
+              255,
+              190
+            ],
+            "spread": 0,
+            "size": 10,
+            "range": 70,
+            "contour": null,
+            "anti_aliased": false,
+            "noise": 20,
+            "source": "SrcC"
+          }
+        ],
+        "make_style": {
+          "name": "rz-557-asl-20261017T030137Z-3a9be5b2-S3",
+          "effects": true,
+          "blending": false
+        }
+      },
+      "form": "all",
+      "expect": {
+        "effects": [
+          {
+            "type": "outer_glow",
+            "blend": "normal",
+            "opacity": 0.8,
+            "size": 12,
+            "range": 0.5,
+            "fill_type": "gradient",
+            "jitter": 0.25,
+            "gradient": {
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#ffc800"
+                },
+                {
+                  "position": 1,
+                  "color": "#ff0050"
+                }
+              ]
+            }
+          },
+          {
+            "type": "inner_glow",
+            "blend": "screen",
+            "opacity": 0.7,
+            "color": "#ffffbe",
+            "size": 10,
+            "range": 0.7,
+            "noise": 0.2,
+            "source": "center"
+          }
+        ],
+        "blending": null,
+        "blend_if": null,
+        "root": {},
+        "dropped": []
+      }
+    },
+    "S4": {
+      "case": {
+        "name": "S4",
+        "depth": 8,
+        "doc": "small",
+        "rect": [
+          24,
+          16,
+          80,
+          64
+        ],
+        "effects": [
+          {
+            "type": "bevel_emboss",
+            "highlight_mode": "screen",
+            "highlight_color": [
+              255,
+              255,
+              255
+            ],
+            "highlight_opacity": 75,
+            "shadow_mode": "multiply",
+            "shadow_color": [
+              0,
+              0,
+              0
+            ],
+            "shadow_opacity": 75,
+            "bevel_style": "InrB",
+            "depth": 120,
+            "direction": "In  ",
+            "angle": 120,
+            "altitude": 30,
+            "size": 10,
+            "soften": 0,
+            "gloss_contour": {
+              "name": "Ring"
+            },
+            "gloss_anti_aliased": false,
+            "use_shape": true,
+            "contour": {
+              "name": "Half Round"
+            },
+            "contour_anti_aliased": false,
+            "contour_range": 60,
+            "texture": {
+              "scale": 100,
+              "depth": 100,
+              "invert": false,
+              "link": true,
+              "pattern": {
+                "name": "rz-557-asl-20261017T030137Z-3a9be5b2-pattern"
+              },
+              "phase": [
+                0,
+                0
+              ]
+            }
+          }
+        ],
+        "make_style": {
+          "name": "rz-557-asl-20261017T030137Z-3a9be5b2-S4",
+          "effects": true,
+          "blending": false
+        }
+      },
+      "form": "all",
+      "expect": {
+        "effects": [
+          {
+            "type": "bevel_emboss",
+            "style": "inner_bevel",
+            "depth": 1.2,
+            "direction": "up",
+            "size": 10,
+            "soften": 0,
+            "angle": 120,
+            "altitude": 30,
+            "highlight_blend": "screen",
+            "highlight_color": "#ffffff",
+            "highlight_opacity": 0.75,
+            "shadow_blend": "multiply",
+            "shadow_color": "#000000",
+            "shadow_opacity": 0.75,
+            "gloss_contour": {
+              "preset": "ring"
+            },
+            "contour_enabled": true,
+            "contour": {
+              "preset": "half_round"
+            },
+            "contour_range": 0.6,
+            "texture_enabled": true,
+            "texture": {
+              "pattern": {
+                "name": "rz-557-asl-20261017T030137Z-3a9be5b2-pattern",
+                "width": 12,
+                "height": 8
+              },
+              "scale": 1,
+              "depth": 1,
+              "invert": false,
+              "link_with_layer": true
+            }
+          }
+        ],
+        "blending": null,
+        "blend_if": null,
+        "root": {},
+        "dropped": []
+      }
+    },
+    "S5": {
+      "case": {
+        "name": "S5",
+        "depth": 8,
+        "doc": "small",
+        "rect": [
+          24,
+          16,
+          80,
+          64
+        ],
+        "effects": [
+          {
+            "type": "pattern_overlay",
+            "mode": "normal",
+            "opacity": 80,
+            "pattern": {
+              "name": "rz-557-asl-20261017T030137Z-3a9be5b2-pattern"
+            },
+            "scale": 50,
+            "angle": 30,
+            "link": true,
+            "phase": [
+              0,
+              0
+            ]
+          },
+          {
+            "type": "gradient_overlay",
+            "mode": "normal",
+            "opacity": 100,
+            "gradient": {
+              "stops": [
+                [
+                  255,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  255,
+                  4096
+                ]
+              ],
+              "angle": 90
+            }
+          },
+          {
+            "type": "gradient_overlay",
+            "mode": "multiply",
+            "opacity": 60,
+            "gradient": {
+              "stops": [
+                [
+                  0,
+                  255,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  4096
+                ]
+              ],
+              "angle": -45,
+              "gradient_type": "Rdl ",
+              "scale": 80
+            }
+          }
+        ],
+        "make_style": {
+          "name": "rz-557-asl-20261017T030137Z-3a9be5b2-S5",
+          "effects": true,
+          "blending": false
+        }
+      },
+      "form": "all",
+      "expect": {
+        "effects": [
+          {
+            "type": "pattern_overlay",
+            "blend": "normal",
+            "opacity": 0.8,
+            "pattern": {
+              "name": "rz-557-asl-20261017T030137Z-3a9be5b2-pattern",
+              "width": 12,
+              "height": 8
+            },
+            "scale": 0.5,
+            "angle": 30,
+            "link_with_layer": true
+          },
+          {
+            "type": "gradient_overlay",
+            "blend": "multiply",
+            "opacity": 0.6,
+            "gradient": {
+              "style": "radial",
+              "angle": -45,
+              "scale": 0.8,
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#00ff00"
+                },
+                {
+                  "position": 1,
+                  "color": "#000000"
+                }
+              ]
+            }
+          },
+          {
+            "type": "gradient_overlay",
+            "blend": "normal",
+            "opacity": 1,
+            "gradient": {
+              "style": "linear",
+              "angle": 90,
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#ff0000"
+                },
+                {
+                  "position": 1,
+                  "color": "#0000ff"
+                }
+              ]
+            }
+          }
+        ],
+        "blending": null,
+        "blend_if": null,
+        "root": {},
+        "dropped": []
+      }
+    },
+    "S6": {
+      "case": {
+        "name": "S6",
+        "depth": 8,
+        "doc": "small",
+        "rect": [
+          24,
+          16,
+          80,
+          64
+        ],
+        "effects": [
+          {
+            "type": "satin",
+            "mode": "multiply",
+            "opacity": 50,
+            "color": [
+              0,
+              0,
+              0
+            ],
+            "angle": 19,
+            "distance": 11,
+            "size": 14,
+            "invert": true,
+            "contour": {
+              "name": "Cone"
+            },
+            "anti_aliased": false
+          }
+        ],
+        "make_style": {
+          "name": "rz-557-asl-20261017T030137Z-3a9be5b2-S6",
+          "effects": true,
+          "blending": false
+        }
+      },
+      "form": "all",
+      "expect": {
+        "effects": [
+          {
+            "type": "satin",
+            "blend": "multiply",
+            "opacity": 0.5,
+            "color": "#000000",
+            "angle": 19,
+            "distance": 11,
+            "size": 14,
+            "invert": true,
+            "contour": {
+              "preset": "cone"
+            }
+          }
+        ],
+        "blending": null,
+        "blend_if": null,
+        "root": {},
+        "dropped": []
+      }
+    },
+    "S7": {
+      "case": {
+        "name": "S7",
+        "depth": 8,
+        "doc": "small",
+        "rect": [
+          24,
+          16,
+          80,
+          64
+        ],
+        "effects": [
+          {
+            "type": "stroke",
+            "mode": "normal",
+            "opacity": 100,
+            "position": "inside",
+            "size": 5,
+            "gradient": {
+              "stops": [
+                [
+                  255,
+                  255,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  128,
+                  255,
+                  4096
+                ]
+              ],
+              "angle": 90,
+              "gradient_type_sid": "shapeburst",
+              "dither": true
+            }
+          }
+        ],
+        "make_style": {
+          "name": "rz-557-asl-20261017T030137Z-3a9be5b2-S7",
+          "effects": true,
+          "blending": false
+        }
+      },
+      "form": "all",
+      "expect": {
+        "effects": [
+          {
+            "type": "stroke",
+            "position": "inside",
+            "size": 5,
+            "fill_type": "gradient",
+            "gradient": {
+              "style": "shape_burst",
+              "dither": true,
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#ffff00"
+                },
+                {
+                  "position": 1,
+                  "color": "#0080ff"
+                }
+              ]
+            }
+          }
+        ],
+        "blending": null,
+        "blend_if": null,
+        "root": {},
+        "dropped": []
+      }
+    },
+    "S8": {
+      "case": {
+        "name": "S8",
+        "depth": 8,
+        "doc": "small",
+        "rect": [
+          24,
+          16,
+          80,
+          64
+        ],
+        "effects": [
+          {
+            "type": "stroke",
+            "mode": "normal",
+            "opacity": 100,
+            "position": "center",
+            "size": 6,
+            "pattern": {
+              "name": "rz-557-asl-20261017T030137Z-3a9be5b2-pattern"
+            },
+            "scale": 75,
+            "link": true,
+            "phase": [
+              0,
+              0
+            ],
+            "angle": 15
+          }
+        ],
+        "make_style": {
+          "name": "rz-557-asl-20261017T030137Z-3a9be5b2-S8",
+          "effects": true,
+          "blending": false
+        }
+      },
+      "form": "all",
+      "expect": {
+        "effects": [
+          {
+            "type": "stroke",
+            "position": "center",
+            "size": 6,
+            "fill_type": "pattern",
+            "pattern_fill": {
+              "pattern": {
+                "name": "rz-557-asl-20261017T030137Z-3a9be5b2-pattern",
+                "width": 12,
+                "height": 8
+              },
+              "scale": 0.75,
+              "angle": 15,
+              "link_with_layer": true
+            }
+          }
+        ],
+        "blending": null,
+        "blend_if": null,
+        "root": {},
+        "dropped": []
+      }
+    },
+    "S9": {
+      "case": {
+        "name": "S9",
+        "depth": 8,
+        "doc": "small",
+        "rect": [
+          24,
+          16,
+          80,
+          64
+        ],
+        "effects": [
+          {
+            "type": "drop_shadow",
+            "mode": "multiply",
+            "opacity": 60,
+            "color": [
+              0,
+              0,
+              0
+            ],
+            "use_global_light": false,
+            "angle": 120,
+            "distance": 6,
+            "spread": 10,
+            "size": 8,
+            "layer_conceals": true,
+            "contour": null,
+            "anti_aliased": false
+          }
+        ],
+        "make_style": {
+          "name": "rz-557-asl-20261017T030137Z-3a9be5b2-S9",
+          "effects": true,
+          "blending": true
+        },
+        "blend": "MULTIPLY",
+        "layer_opacity": 70,
+        "fill": 40,
+        "knockout": "shallow",
+        "blend_interior": true,
+        "blend_if_list": [
+          {
+            "channel": "gray",
+            "this_layer": [
+              10,
+              40,
+              200,
+              230
+            ],
+            "underlying": [
+              20,
+              60,
+              180,
+              240
+            ]
+          },
+          {
+            "channel": "red",
+            "this_layer": [
+              5,
+              30,
+              220,
+              250
+            ],
+            "underlying": [
+              3,
+              25,
+              235,
+              252
+            ]
+          }
+        ]
+      },
+      "form": "all",
+      "expect": {
+        "effects": [
+          {
+            "type": "drop_shadow",
+            "blend": "multiply",
+            "opacity": 0.6,
+            "color": "#000000",
+            "angle": 120,
+            "use_global_light": false,
+            "distance": 6,
+            "spread": 0.1,
+            "size": 8
+          }
+        ],
+        "blending": {
+          "mode": "multiply",
+          "opacity": 0.7
+        },
+        "blend_if": {
+          "channel": "gray",
+          "this_layer": [
+            10,
+            40,
+            200,
+            230
+          ],
+          "underlying": [
+            20,
+            60,
+            180,
+            240
+          ],
+          "extra": [
+            {
+              "channel": "red",
+              "this_layer": [
+                5,
+                30,
+                220,
+                250
+              ],
+              "underlying": [
+                3,
+                25,
+                235,
+                252
+              ]
+            }
+          ]
+        },
+        "root": {
+          "fill_opacity": 0.4,
+          "knockout": "shallow",
+          "blend_interior_as_group": true
+        },
+        "dropped": []
+      }
+    },
+    "S10": {
+      "case": {
+        "name": "S10",
+        "depth": 8,
+        "doc": "small",
+        "rect": [
+          24,
+          16,
+          80,
+          64
+        ],
+        "effects": [
+          {
+            "type": "bevel_emboss",
+            "highlight_mode": "screen",
+            "highlight_color": [
+              255,
+              255,
+              255
+            ],
+            "highlight_opacity": 75,
+            "shadow_mode": "multiply",
+            "shadow_color": [
+              0,
+              0,
+              0
+            ],
+            "shadow_opacity": 75,
+            "bevel_style": "strokeEmboss",
+            "depth": 120,
+            "direction": "In  ",
+            "angle": 120,
+            "altitude": 30,
+            "size": 4,
+            "soften": 0,
+            "gloss_contour": null,
+            "gloss_anti_aliased": false,
+            "use_shape": false,
+            "contour": null,
+            "contour_anti_aliased": false,
+            "contour_range": 50
+          },
+          {
+            "type": "stroke",
+            "mode": "normal",
+            "opacity": 100,
+            "position": "outside",
+            "size": 2,
+            "color": [
+              200,
+              30,
+              30
+            ]
+          }
+        ],
+        "make_style": {
+          "name": "rz-557-asl-20261017T030137Z-3a9be5b2-S10",
+          "effects": true,
+          "blending": false
+        }
+      },
+      "form": "all",
+      "expect": {
+        "effects": [
+          {
+            "type": "stroke",
+            "position": "outside",
+            "size": 2,
+            "color": "#c81e1e",
+            "opacity": 1
+          }
+        ],
+        "blending": null,
+        "blend_if": null,
+        "root": {},
+        "dropped": [
+          "Bevel & Emboss: bevel uses Stroke Emboss, which Rasterize does not render"
+        ]
+      }
+    }
+  },
+  "presets": {
+    "R1": {
+      "name": "rz-557-aslb-20261017T025915Z-84916c20-R1",
+      "style": {
+        "effects": [
+          {
+            "spread": 0.1,
+            "blend": "multiply",
+            "contour": {
+              "preset": "cone"
+            },
+            "noise": 0.1,
+            "angle": 120,
+            "layer_knocks_out": true,
+            "color": "#000000",
+            "opacity": 0.6,
+            "size": 8,
+            "type": "drop_shadow",
+            "enabled": true,
+            "distance": 6,
+            "use_global_light": false
+          },
+          {
+            "angle": 45,
+            "color": "#281478",
+            "distance": 3,
+            "blend": "multiply",
+            "enabled": true,
+            "layer_knocks_out": true,
+            "size": 4,
+            "spread": 0,
+            "type": "drop_shadow",
+            "opacity": 0.4,
+            "use_global_light": false
+          },
+          {
+            "color": "#1e3cc8",
+            "enabled": true,
+            "blend": "normal",
+            "position": "outside",
+            "fill_type": "color",
+            "gradient": {
+              "stops": [
+                {
+                  "color": "#000000",
+                  "opacity": 1,
+                  "position": 0
+                },
+                {
+                  "color": "#ffffff",
+                  "opacity": 1,
+                  "position": 1
+                }
+              ],
+              "align_with_layer": true,
+              "style": "linear",
+              "angle": 90,
+              "reverse": false,
+              "scale": 1
+            },
+            "size": 6,
+            "type": "stroke",
+            "opacity": 1
+          }
+        ],
+        "version": 1,
+        "fill_opacity": 1,
+        "blend_if": null
+      },
+      "blending": null,
+      "keys": "shipped"
+    },
+    "R2": {
+      "name": "rz-557-aslb-20261017T025915Z-84916c20-R2",
+      "style": {
+        "version": 1,
+        "effects": [
+          {
+            "jitter": 0.25,
+            "color": "#ffffbe",
+            "enabled": true,
+            "blend": "screen",
+            "spread": 0,
+            "fill_type": "gradient",
+            "gradient": {
+              "stops": [
+                {
+                  "color": "#ffc800",
+                  "opacity": 1,
+                  "position": 0
+                },
+                {
+                  "color": "#ff0050",
+                  "opacity": 1,
+                  "position": 1
+                }
+              ],
+              "align_with_layer": true,
+              "style": "linear",
+              "angle": 90,
+              "reverse": false,
+              "scale": 1
+            },
+            "size": 12,
+            "type": "outer_glow",
+            "opacity": 0.8
+          },
+          {
+            "source": "center",
+            "color": "#ffffbe",
+            "enabled": true,
+            "blend": "screen",
+            "range": 0.7,
+            "size": 10,
+            "type": "inner_glow",
+            "opacity": 0.7,
+            "choke": 0,
+            "noise": 0.2
+          }
+        ],
+        "blend_if": null,
+        "fill_opacity": 1
+      },
+      "blending": null,
+      "keys": "shipped"
+    },
+    "R3": {
+      "name": "rz-557-aslb-20261017T025915Z-84916c20-R3",
+      "style": {
+        "effects": [
+          {
+            "shadow_opacity": 0.75,
+            "style": "inner_bevel",
+            "highlight_opacity": 0.75,
+            "use_global_light": false,
+            "texture": {
+              "pattern": {
+                "width": 12,
+                "height": 8,
+                "name": "rz-557-aslb-20261017T025915Z-84916c20-tile",
+                "rgba": "Cg/I/x4PPP8yD8j/Rg88/1oPyP9uDzz/gg/I/5YPPP+qD8j/vg88/9IPyP/mDzz/Ci08/x4tyP8yLTz/Ri3I/1otPP9uLcj/gi08/5YtyP+qLTz/vi3I/9ItPP/mLcj/CkvI/x5LPP8yS8j/Rks8/1pLyP9uSzz/gkvI/5ZLPP+qS8j/vks8/9JLyP/mSzz/Cmk8/x5pyP8yaTz/RmnI/1ppPP9uacj/gmk8/5ZpyP+qaTz/vmnI/9JpPP/macj/CofI/x6HPP8yh8j/Roc8/1qHyP9uhzz/gofI/5aHPP+qh8j/voc8/9KHyP/mhzz/CqU8/x6lyP8ypTz/RqXI/1qlPP9upcj/gqU8/5alyP+qpTz/vqXI/9KlPP/mpcj/CsPI/x7DPP8yw8j/RsM8/1rDyP9uwzz/gsPI/5bDPP+qw8j/vsM8/9LDyP/mwzz/CuE8/x7hyP8y4Tz/RuHI/1rhPP9u4cj/guE8/5bhyP+q4Tz/vuHI/9LhPP/m4cj/"
+              },
+              "phase": [
+                0,
+                0
+              ],
+              "scale": 1,
+              "link_with_layer": true,
+              "depth": 1,
+              "invert": false
+            },
+            "angle": 120,
+            "highlight_blend": "screen",
+            "shadow_color": "#000000",
+            "size": 10,
+            "type": "bevel_emboss",
+            "gloss_contour": {
+              "preset": "ring"
+            },
+            "enabled": true,
+            "depth": 1.2,
+            "highlight_color": "#ffffff",
+            "shadow_blend": "multiply",
+            "altitude": 30,
+            "soften": 0,
+            "direction": "up",
+            "texture_enabled": true
+          }
+        ],
+        "version": 1,
+        "blend_if": null,
+        "fill_opacity": 1
+      },
+      "blending": null,
+      "keys": "shipped"
+    },
+    "R4": {
+      "name": "rz-557-aslb-20261017T025915Z-84916c20-R4",
+      "style": {
+        "effects": [
+          {
+            "angle": 30,
+            "phase": [
+              0,
+              0
+            ],
+            "enabled": true,
+            "blend": "normal",
+            "pattern": {
+              "width": 12,
+              "height": 8,
+              "name": "rz-557-aslb-20261017T025915Z-84916c20-tile",
+              "rgba": "Cg/I/x4PPP8yD8j/Rg88/1oPyP9uDzz/gg/I/5YPPP+qD8j/vg88/9IPyP/mDzz/Ci08/x4tyP8yLTz/Ri3I/1otPP9uLcj/gi08/5YtyP+qLTz/vi3I/9ItPP/mLcj/CkvI/x5LPP8yS8j/Rks8/1pLyP9uSzz/gkvI/5ZLPP+qS8j/vks8/9JLyP/mSzz/Cmk8/x5pyP8yaTz/RmnI/1ppPP9uacj/gmk8/5ZpyP+qaTz/vmnI/9JpPP/macj/CofI/x6HPP8yh8j/Roc8/1qHyP9uhzz/gofI/5aHPP+qh8j/voc8/9KHyP/mhzz/CqU8/x6lyP8ypTz/RqXI/1qlPP9upcj/gqU8/5alyP+qpTz/vqXI/9KlPP/mpcj/CsPI/x7DPP8yw8j/RsM8/1rDyP9uwzz/gsPI/5bDPP+qw8j/vsM8/9LDyP/mwzz/CuE8/x7hyP8y4Tz/RuHI/1rhPP9u4cj/guE8/5bhyP+q4Tz/vuHI/9LhPP/m4cj/"
+            },
+            "link_with_layer": true,
+            "type": "pattern_overlay",
+            "opacity": 0.8,
+            "scale": 0.5
+          },
+          {
+            "blend": "normal",
+            "enabled": true,
+            "gradient": {
+              "stops": [
+                {
+                  "color": "#ff0000",
+                  "opacity": 1,
+                  "position": 0
+                },
+                {
+                  "color": "#0000ff",
+                  "opacity": 1,
+                  "position": 1
+                }
+              ],
+              "align_with_layer": true,
+              "style": "linear",
+              "angle": 90,
+              "reverse": false,
+              "scale": 1
+            },
+            "opacity": 1,
+            "type": "gradient_overlay"
+          }
+        ],
+        "version": 1,
+        "blend_if": null,
+        "fill_opacity": 1
+      },
+      "blending": null,
+      "keys": "shipped"
+    },
+    "R5": {
+      "name": "rz-557-aslb-20261017T025915Z-84916c20-R5",
+      "style": {
+        "blend_if": null,
+        "effects": [
+          {
+            "blend": "overlay",
+            "enabled": true,
+            "type": "color_overlay",
+            "opacity": 0.8,
+            "color": "#28a05a"
+          },
+          {
+            "angle": 19,
+            "color": "#000000",
+            "distance": 11,
+            "blend": "multiply",
+            "enabled": true,
+            "invert": true,
+            "size": 14,
+            "type": "satin",
+            "opacity": 0.5,
+            "contour": {
+              "preset": "cone"
+            }
+          },
+          {
+            "angle": 120,
+            "color": "#000000",
+            "distance": 5,
+            "blend": "multiply",
+            "enabled": true,
+            "size": 5,
+            "type": "inner_shadow",
+            "opacity": 0.75,
+            "choke": 0,
+            "use_global_light": false
+          }
+        ],
+        "version": 1,
+        "fill_opacity": 1
+      },
+      "blending": null,
+      "keys": "shipped"
+    },
+    "R6": {
+      "name": "rz-557-aslb-20261017T025915Z-84916c20-R6",
+      "style": {
+        "fill_opacity": 1,
+        "effects": [
+          {
+            "color": "#000000",
+            "enabled": true,
+            "blend": "normal",
+            "position": "inside",
+            "fill_type": "gradient",
+            "gradient": {
+              "angle": 90,
+              "dither": true,
+              "align_with_layer": true,
+              "style": "shape_burst",
+              "reverse": false,
+              "stops": [
+                {
+                  "color": "#ffff00",
+                  "opacity": 1,
+                  "position": 0
+                },
+                {
+                  "color": "#0080ff",
+                  "opacity": 1,
+                  "position": 1
+                }
+              ],
+              "scale": 1
+            },
+            "size": 5,
+            "type": "stroke",
+            "opacity": 1
+          }
+        ],
+        "blend_if": null,
+        "version": 1
+      },
+      "blending": null,
+      "keys": "shipped"
+    },
+    "R7": {
+      "name": "rz-557-aslb-20261017T025915Z-84916c20-R7",
+      "style": {
+        "effects": [
+          {
+            "color": "#000000",
+            "enabled": true,
+            "blend": "normal",
+            "position": "center",
+            "fill_type": "pattern",
+            "gradient": {
+              "stops": [
+                {
+                  "color": "#000000",
+                  "opacity": 1,
+                  "position": 0
+                },
+                {
+                  "color": "#ffffff",
+                  "opacity": 1,
+                  "position": 1
+                }
+              ],
+              "align_with_layer": true,
+              "style": "linear",
+              "angle": 90,
+              "reverse": false,
+              "scale": 1
+            },
+            "size": 6,
+            "pattern_fill": {
+              "pattern": {
+                "width": 12,
+                "height": 8,
+                "name": "rz-557-aslb-20261017T025915Z-84916c20-tile",
+                "rgba": "Cg/I/x4PPP8yD8j/Rg88/1oPyP9uDzz/gg/I/5YPPP+qD8j/vg88/9IPyP/mDzz/Ci08/x4tyP8yLTz/Ri3I/1otPP9uLcj/gi08/5YtyP+qLTz/vi3I/9ItPP/mLcj/CkvI/x5LPP8yS8j/Rks8/1pLyP9uSzz/gkvI/5ZLPP+qS8j/vks8/9JLyP/mSzz/Cmk8/x5pyP8yaTz/RmnI/1ppPP9uacj/gmk8/5ZpyP+qaTz/vmnI/9JpPP/macj/CofI/x6HPP8yh8j/Roc8/1qHyP9uhzz/gofI/5aHPP+qh8j/voc8/9KHyP/mhzz/CqU8/x6lyP8ypTz/RqXI/1qlPP9upcj/gqU8/5alyP+qpTz/vqXI/9KlPP/mpcj/CsPI/x7DPP8yw8j/RsM8/1rDyP9uwzz/gsPI/5bDPP+qw8j/vsM8/9LDyP/mwzz/CuE8/x7hyP8y4Tz/RuHI/1rhPP9u4cj/guE8/5bhyP+q4Tz/vuHI/9LhPP/m4cj/"
+              },
+              "phase": [
+                0,
+                0
+              ],
+              "angle": 15,
+              "link_with_layer": true,
+              "scale": 0.75
+            },
+            "opacity": 1,
+            "type": "stroke"
+          }
+        ],
+        "fill_opacity": 1,
+        "version": 1,
+        "blend_if": null
+      },
+      "blending": null,
+      "keys": "shipped"
+    },
+    "R8": {
+      "name": "rz-557-aslb-20261017T025915Z-84916c20-R8",
+      "style": {
+        "knockout": "shallow",
+        "blend_if": {
+          "channel": "gray",
+          "underlying": [
+            20,
+            60,
+            180,
+            240
+          ],
+          "extra": [
+            {
+              "channel": "red",
+              "underlying": [
+                3,
+                25,
+                235,
+                252
+              ],
+              "this_layer": [
+                5,
+                30,
+                220,
+                250
+              ]
+            }
+          ],
+          "this_layer": [
+            10,
+            40,
+            200,
+            230
+          ]
+        },
+        "version": 1,
+        "fill_opacity": 0.4,
+        "effects": [
+          {
+            "angle": 120,
+            "color": "#000000",
+            "distance": 6,
+            "blend": "multiply",
+            "enabled": true,
+            "layer_knocks_out": true,
+            "size": 8,
+            "spread": 0.1,
+            "type": "drop_shadow",
+            "opacity": 0.6,
+            "use_global_light": false
+          }
+        ]
+      },
+      "blending": {
+        "mode": "multiply",
+        "opacity": 0.7
+      },
+      "keys": "shipped"
+    },
+    "R9": {
+      "name": "rz-557-aslb-20261017T025915Z-84916c20-R9",
+      "style": {
+        "knockout": "shallow",
+        "blend_if": {
+          "channel": "gray",
+          "underlying": [
+            20,
+            60,
+            180,
+            240
+          ],
+          "extra": [
+            {
+              "channel": "red",
+              "underlying": [
+                3,
+                25,
+                235,
+                252
+              ],
+              "this_layer": [
+                5,
+                30,
+                220,
+                250
+              ]
+            }
+          ],
+          "this_layer": [
+            10,
+            40,
+            200,
+            230
+          ]
+        },
+        "version": 1,
+        "fill_opacity": 0.4,
+        "effects": [
+          {
+            "angle": 120,
+            "color": "#000000",
+            "distance": 6,
+            "blend": "multiply",
+            "enabled": true,
+            "layer_knocks_out": true,
+            "size": 8,
+            "spread": 0.1,
+            "type": "drop_shadow",
+            "opacity": 0.6,
+            "use_global_light": false
+          }
+        ]
+      },
+      "blending": {
+        "mode": "multiply",
+        "opacity": 0.7
+      },
+      "keys": "swapped"
+    }
+  }
+}

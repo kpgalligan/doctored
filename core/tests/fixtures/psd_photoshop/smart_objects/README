@@ -1,0 +1,11 @@
+Four PSDs written by Photoshop 26.10.0, each holding a smart-object record
+(PlLd / SoLd), committed as Photoshop wrote them:
+
+p8_smart_object.psd: an 8-bit embedded smart object.
+p8_smart_filter.psd: the same, with a Gaussian Blur smart filter.
+t7_C16.psd: a 16-bit smart object.
+f3_SRC16.psd: a 16-bit smart object whose contents are 32-bit.
+
+core/tests/psd_smart_object_pixels.rs reads them: each imports as its layer
+pixels, with the discarded record reported as a loss. The oracle is each
+file's own merged composite, which Photoshop rendered.

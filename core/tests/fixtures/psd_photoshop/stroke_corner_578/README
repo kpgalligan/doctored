@@ -1,0 +1,84 @@
+Photoshop 26.10.0 renders of the #578 take (`scripts/photoshop-probe/stroke_exposure_578_take.py`,
+receipt `~/devel/doctored-fixtures/photoshop/stroke-exposure-578/take1`): a red (#ff0000) Normal 100 %
+Layer Style stroke on #30a050 sources over a 96 x 64 white backdrop, flattened. `rect_*` is the hard rect
+[28, 20, 40, 24]; `disc_*` (r 12 at (48, 32)) and `soft_*` (3 px linear edge) ran over the unstyled rect
+layer (and soft over the disc layer too) — the take's harness defect, recorded in the runner.
+Converted TIFF -> PNG losslessly (RGBA8 / RGBA16, alpha 255). Sources and their sha256:
+
+rect_outside1_rgb8.png  <-  jobs/stroke_rgb8/rect_outside1_rgb8.tif  07252b3a2b92e5d73b0d5a7c12162a8141cff68640beb1545d432490c509d57a
+rect_outside2_rgb8.png  <-  jobs/stroke_rgb8/rect_outside2_rgb8.tif  881e65ca6363b87bfec9b7452deda9ada5f9057bcaa19e957253444fb367961c
+rect_outside4_rgb8.png  <-  jobs/stroke_rgb8/rect_outside4_rgb8.tif  937f408e24d00869261afaef46af1d0f4c808eeba3b26a738c365eb492a4491e
+rect_outside7_rgb8.png  <-  jobs/stroke_rgb8/rect_outside7_rgb8.tif  f0b4cbe25084c960a46a30ecf56d92f2ee6c2bd9bb0463f0e1e65b84a0114ad1
+rect_outside10_rgb8.png  <-  jobs/stroke_rgb8/rect_outside10_rgb8.tif  241bd247dc8b5f44d6955bf1b114767f4c14c39c79e8ad3b37477827dc6ccc33
+rect_center4_rgb8.png  <-  jobs/stroke_rgb8/rect_center4_rgb8.tif  746f4611630714944a1797ab62e370509dca23a520788f70f983b5a3e0716ec7
+rect_center5_rgb8.png  <-  jobs/stroke_rgb8/rect_center5_rgb8.tif  87d66a5f2cee3e5b6fffa0392ad0a9216f4e0b055e34920125a7831b129931ca
+disc_outside4_rgb8.png  <-  jobs/stroke_rgb8/disc_outside4_rgb8.tif  c96e746db661d2d2cfbb5ccd7ed55d1f1e315bd4826544cb5aad2230a21f7cc9
+soft_outside4_rgb8.png  <-  jobs/stroke_rgb8/soft_outside4_rgb8.tif  26214cb0bf95d2dc3e670f9d076dd47cf59c1e7e0b0a547e774064c07a55022b
+rect_outside1_rgb16.png  <-  jobs/stroke_rgb16/rect_outside1_rgb16.tif  27611461120f0d5e63770b1b19816d5f8ab566f7968ad900c1930de8dd680bce
+rect_outside2_rgb16.png  <-  jobs/stroke_rgb16/rect_outside2_rgb16.tif  7c40bc9eded61a41255788ed207387cae791b94046ecf597d6556ba470b1396f
+rect_outside4_rgb16.png  <-  jobs/stroke_rgb16/rect_outside4_rgb16.tif  2d4472c65de745fb09afe3635b09d57a9bc44604253d7d15492d245af066b6ec
+rect_outside7_rgb16.png  <-  jobs/stroke_rgb16/rect_outside7_rgb16.tif  700b86f5463db900ed0d8ae96ba312997aed1fafd26386c77cb7a256e3a48336
+rect_outside10_rgb16.png  <-  jobs/stroke_rgb16/rect_outside10_rgb16.tif  9bbab70e5a41028bd1ac387f841d40f8d14bfd9c3f7954a2da858be6dd513647
+rect_center4_rgb16.png  <-  jobs/stroke_rgb16/rect_center4_rgb16.tif  7964ce748ac499757c0b85f4af2e888a988f86b37c738bb17212cfdfb3c2350e
+rect_center5_rgb16.png  <-  jobs/stroke_rgb16/rect_center5_rgb16.tif  1beddcc616538c6b6c89b218f20e0ab6abf332bfe6b585906a2ca087f098cbbe
+disc_outside4_rgb16.png  <-  jobs/stroke_rgb16/disc_outside4_rgb16.tif  8d448c9ffb7f68e2c4638ad3080594245114d36ffe3003103f6cbc58ed4f3e42
+soft_outside4_rgb16.png  <-  jobs/stroke_rgb16/soft_outside4_rgb16.tif  c2243c2d2852d29a0a4bf4a4d81197b577788649f48d1eb6004d207906d5a292
+
+take2 (`scripts/photoshop-probe/stroke_exposure_578_take2.py`, receipt
+`~/devel/doctored-fixtures/photoshop/stroke-exposure-578/take2`), `t2_*`: each shape in its OWN
+document over white (the harness fixed): disc Outside 2/4/7, soft Outside 2/4/7, half (the rect at
+alpha 128) Outside 4, disc Outside 4 at 0 % fill, disc Center 4 at 50 % stroke opacity, rect Outside
+4/7; red Normal. Converted TIFF -> PNG losslessly. Sources and their sha256:
+
+t2_disc_outside2_rgb8.png  <-  jobs/stroke_rgb8/disc_outside2_rgb8.tif  988f98fdddc71b2d00d2ab72b2dfcd58df59a7cfd3c7ba7528d49d493c53813d
+t2_disc_outside4_rgb8.png  <-  jobs/stroke_rgb8/disc_outside4_rgb8.tif  fd02d3e1b2ac169a497ad899c40e9276a6b7cc356ebde2a7494c083a5b8107ed
+t2_disc_outside7_rgb8.png  <-  jobs/stroke_rgb8/disc_outside7_rgb8.tif  0d67c008dd46f30caab4267d95b6d4ad3bb8a0261a49784d3e7d33fc9e3fb2de
+t2_soft_outside2_rgb8.png  <-  jobs/stroke_rgb8/soft_outside2_rgb8.tif  c8ee80a6002b6fe47c364e6cc8c5a373454332df7d59ddd8c4a773310e069021
+t2_soft_outside4_rgb8.png  <-  jobs/stroke_rgb8/soft_outside4_rgb8.tif  8b65f44b5ae01193e80c23cce58f2a31324378dfc6b067d50c5c12181ab971b2
+t2_soft_outside7_rgb8.png  <-  jobs/stroke_rgb8/soft_outside7_rgb8.tif  38a12d3c89656d05e7747c9077f9d9432d2328207f8f3fc94bf7fcc22ad5c65a
+t2_half_outside4_rgb8.png  <-  jobs/stroke_rgb8/half_outside4_rgb8.tif  4ce365ab0e80ad2fa51abdac329a5d1756ec80569dbbe6a81cadb9805b820e56
+t2_disc_outside4_fill0_rgb8.png  <-  jobs/stroke_rgb8/disc_outside4_fill0_rgb8.tif  1831c20f08aeab97732c1766ca88caffe07eec946982f43d6e60a5f38561d325
+t2_disc_center4_op50_rgb8.png  <-  jobs/stroke_rgb8/disc_center4_op50_rgb8.tif  49cee21440360789a56c3287730e19cc70d3e3592e2254c82ee92198c22d4f3f
+t2_rect_outside4_rgb8.png  <-  jobs/stroke_rgb8/rect_outside4_rgb8.tif  6a4bbea807b30b8eb7a6a9e323a3f2717221585c6b7115863319775f020e263b
+t2_rect_outside7_rgb8.png  <-  jobs/stroke_rgb8/rect_outside7_rgb8.tif  7bf4d87920f93ac6b05e7c6cbea2d50fe6abf4b7b5d2285feffdccf6298170fb
+t2_disc_outside2_rgb16.png  <-  jobs/stroke_rgb16/disc_outside2_rgb16.tif  315df56bc682a6fbc2fb95a47831f87836dd76d0b9dbd9c90c5c39e81596a955
+t2_disc_outside4_rgb16.png  <-  jobs/stroke_rgb16/disc_outside4_rgb16.tif  50d52c2acd2bd4f3582f58ace486d7d2d8934bc35b110574298c3dc2ff72e374
+t2_disc_outside7_rgb16.png  <-  jobs/stroke_rgb16/disc_outside7_rgb16.tif  348f37128040b1464dce2adfcfb3e3f7a750ed0e6a1c2d3165b3c7eba516fc6d
+t2_soft_outside2_rgb16.png  <-  jobs/stroke_rgb16/soft_outside2_rgb16.tif  ade68f1061c98df48d351f3358dda3f03db688f301ab0080472f092ada4a19cc
+t2_soft_outside4_rgb16.png  <-  jobs/stroke_rgb16/soft_outside4_rgb16.tif  c557affe5b05c01c9435e93e982e2ac8493ebc79fdc967c3134992cfb34b9bfe
+t2_soft_outside7_rgb16.png  <-  jobs/stroke_rgb16/soft_outside7_rgb16.tif  31efdf65d72439bd5139e58be352d93a8689e575cf01a554bacc1da5e74df9ab
+t2_half_outside4_rgb16.png  <-  jobs/stroke_rgb16/half_outside4_rgb16.tif  28cfd423e5009b3db49c34dbd23f2648bd2814ba97ab30a0c388854d8005a532
+t2_disc_outside4_fill0_rgb16.png  <-  jobs/stroke_rgb16/disc_outside4_fill0_rgb16.tif  10adeae3f39fa8ba2a5e020ad021cb99bfab03a5156b50cd89e5556cc70da8f1
+t2_disc_center4_op50_rgb16.png  <-  jobs/stroke_rgb16/disc_center4_op50_rgb16.tif  de13db20a5116c6683c88558fd06d2e1b44193eae19bc546d87b853c708a9728
+t2_rect_outside4_rgb16.png  <-  jobs/stroke_rgb16/rect_outside4_rgb16.tif  fa0d9cbe1e5c28ee2883e693a7c42c9f897542169219a4107847ec18a4ec7048
+t2_rect_outside7_rgb16.png  <-  jobs/stroke_rgb16/rect_outside7_rgb16.tif  070b30220e0118e331fd1a7cc94f73cf0551d1dc30b0818817d2c805d0012144
+
+take 3 (`scripts/photoshop-probe/stroke_composite_578_take.py`, receipt
+`~/devel/doctored-fixtures/photoshop/stroke-composite-578/take1`), `c1_*`: each shape in its OWN
+document over white: disc Outside 3 at 50 % fill, soft Outside 5 at 30 % fill, half Outside 6, disc
+Outside 5 at 60 % stroke opacity, disc Center 6, soft Center 4 at 50 % stroke opacity, disc Center 3
+at 50 % fill, disc Inside 3, soft Inside 4 at 50 % stroke opacity, rect Outside 3 at 50 % fill, rect
+Center 6; red Normal. Converted TIFF -> PNG losslessly. Sources and their sha256:
+
+c1_disc_outside3_fill50_rgb8.png  <-  jobs/stroke_rgb8/disc_outside3_fill50_rgb8.tif  0b642590fc57be000729e4adde918307b6da4a979d841e3ca264369799bf36d3
+c1_soft_outside5_fill30_rgb8.png  <-  jobs/stroke_rgb8/soft_outside5_fill30_rgb8.tif  db7905958c22c57386dcd151b9b7dca028a5683bf7a2486b4f32a11f6ae9deac
+c1_half_outside6_rgb8.png  <-  jobs/stroke_rgb8/half_outside6_rgb8.tif  a00aa0ae54e29016f62891b86f22b4075eccf663dd6925dfe0d3bf50b3fd63d7
+c1_disc_outside5_op60_rgb8.png  <-  jobs/stroke_rgb8/disc_outside5_op60_rgb8.tif  fe757f6f178484ea77cb2003cf453c9551f700d71ba68ee20dd0fa4fb02a8dc0
+c1_disc_center6_rgb8.png  <-  jobs/stroke_rgb8/disc_center6_rgb8.tif  913a6b8814d8425a4f3ebbb12df93ddc0b4e0e9752b45fd81a30693b4593a62e
+c1_soft_center4_op50_rgb8.png  <-  jobs/stroke_rgb8/soft_center4_op50_rgb8.tif  bc2dda947b24ef102e34b25e9e8fb477a5f9773568aef0592128380db6d6d87c
+c1_disc_center3_fill50_rgb8.png  <-  jobs/stroke_rgb8/disc_center3_fill50_rgb8.tif  6c0b32782492ed83f938701d338aba0c42136412f23635630203bc8c300c03e7
+c1_disc_inside3_rgb8.png  <-  jobs/stroke_rgb8/disc_inside3_rgb8.tif  1ce34ef4aa7d0570993a1d1a2088c4046362c7b6bfd61f28c8f46e44da8252aa
+c1_soft_inside4_op50_rgb8.png  <-  jobs/stroke_rgb8/soft_inside4_op50_rgb8.tif  34e2420dff994be3be808f2130bde2db3247bc57e6259dca1afd5805b17a143d
+c1_rect_outside3_fill50_rgb8.png  <-  jobs/stroke_rgb8/rect_outside3_fill50_rgb8.tif  bb49db8bfafb674b4341f1b09028f41d1ae13ef7b3cf24a48304134db760093a
+c1_rect_center6_rgb8.png  <-  jobs/stroke_rgb8/rect_center6_rgb8.tif  9d6f022d172b57e130e5b483a34953e17e3e509e153e5460c8859a655418eecd
+c1_disc_outside3_fill50_rgb16.png  <-  jobs/stroke_rgb16/disc_outside3_fill50_rgb16.tif  ff42835def08b435ac489b78b818b902cdbc062e69fcff88f01e34f14706067e
+c1_soft_outside5_fill30_rgb16.png  <-  jobs/stroke_rgb16/soft_outside5_fill30_rgb16.tif  9e1c5b33dc954bdc7600164bd58eb7c7860ba6ab16b6d08f38e70c8ae452c079
+c1_half_outside6_rgb16.png  <-  jobs/stroke_rgb16/half_outside6_rgb16.tif  edcea3701d7dd0a9650fb887d064bc1f5876a86257e0bfc05a2b1068a10a91fb
+c1_disc_outside5_op60_rgb16.png  <-  jobs/stroke_rgb16/disc_outside5_op60_rgb16.tif  ab22366cfc3ff9cd043b22a4bf6050eedf94340e798469a056ae4d40ca575baa
+c1_disc_center6_rgb16.png  <-  jobs/stroke_rgb16/disc_center6_rgb16.tif  0b94b07d990e9c86450a30527f80df36bf03258e9dea26c3c35ff799974da2f3
+c1_soft_center4_op50_rgb16.png  <-  jobs/stroke_rgb16/soft_center4_op50_rgb16.tif  8c61300c99342fcd42e1a43f29edad502b48aa8a3f6087aa352f5c16b32e1291
+c1_disc_center3_fill50_rgb16.png  <-  jobs/stroke_rgb16/disc_center3_fill50_rgb16.tif  c099413d322252eab87e38846af195e0eba2a54fa2a3f559a50a5d516df4c05b
+c1_disc_inside3_rgb16.png  <-  jobs/stroke_rgb16/disc_inside3_rgb16.tif  36fad778181a28612d3dcefeb6b58189e81791b01f089dc8ee04f899e5baf7c7
+c1_soft_inside4_op50_rgb16.png  <-  jobs/stroke_rgb16/soft_inside4_op50_rgb16.tif  498df674b0a5a0d562d309358bd4022c7df57d924350941fffe0f61dc0a96d3b
+c1_rect_outside3_fill50_rgb16.png  <-  jobs/stroke_rgb16/rect_outside3_fill50_rgb16.tif  e7d73415c48eb349c78f376c14c6120ced6f13599b287f735c90d65c4c829d25
+c1_rect_center6_rgb16.png  <-  jobs/stroke_rgb16/rect_center6_rgb16.tif  3de07f2c70bf47e6c54fe54abd8f62183eef2dafa3d1d8c93914d626f9c08a00

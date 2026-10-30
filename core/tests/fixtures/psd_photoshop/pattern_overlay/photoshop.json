@@ -1,0 +1,21 @@
+{
+ "schema": 1,
+ "application": {
+  "name": "Adobe Photoshop",
+  "version": "26.10.0"
+ },
+ "source": "~/devel/doctored-fixtures/photoshop/pattern-overlay-557/take2 (scripts/photoshop-probe/pattern_overlay_take.py --take confirm)",
+ "run_id": "rz-557-take2-20261015T211912Z-2094d28b",
+ "cases": {
+  "p5_rgb8": "RGB8 96x64, FS_source #30a050 cut to (13, 9, 50, 40), moved (+7, +3) BEFORE a linked Pattern Overlay of the 12 x 8 tile T at 100 %; its fxrp is (7, 3)",
+  "p2_rgb16": "RGB16, the same layer moved (+7, +3) AFTER the style; its pattern table is keyed Pat2",
+  "an45_rgb8": "take3 (run id rz-557-take3-20261016T010139Z-5108aadb, --take confirm3): RGB8 96x64, FS_source #30a050 cut to (13, 9, 50, 40), a linked Pattern Overlay of the 12 x 8 tile T at Angle -45, 100 %, never moved"
+ },
+ "files": {
+  "p2_rgb16.psd": "7d8e11150dcd9e83f4a73884d78f274806f4300ed0d51b5f64c4db7348add04b",
+  "p5_rgb8.psd": "ef958f7b56f90289e87aafff41351350703fa72e3fdd7355cd0681549c01f2ad",
+  "p5_rgb8.tif": "ad07d7c678559a7f87d8ec3f845404e5036a7d6ece491957faa95e2a8b4d9707",
+  "an45_rgb8.psd": "7a6a5f7ef50ccae2f08344b334415c06b89f18cccf868de5941d655b1ffb9d07",
+  "an45_rgb8.tif": "09ff49c4233891dae4149025bdc7023b96b80efd9bda7fba39d8b0725b1fc041"
+ }
+}

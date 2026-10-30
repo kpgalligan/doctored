@@ -1,0 +1,272 @@
+{
+ "refit_by_sha256": "729e539494ff11f7524a7ccd666dbfaca8fa1aeeff9e06cddba04c36cd965a39",
+ "summary": {
+  "cap_k": 8.25,
+  "winners": {
+   "extent_cap": 8.25,
+   "satin": "BEFORE-INVERT",
+   "gloss": "PLAIN",
+   "bevel": "BEFORE-SOFTEN/COMPLEMENT"
+  },
+  "extent_cap": {
+   "winner": 8.25,
+   "met": false,
+   "rows": {
+    "ds_cone_inverted": [
+     5.0,
+     2.084
+    ],
+    "ds_rolling_slope_descending": [
+     5.0,
+     2.084
+    ],
+    "og_cone_inverted": [
+     3.0,
+     1.122
+    ],
+    "og_rolling_slope_descending": [
+     3.0,
+     1.122
+    ],
+    "ds_cu3": [
+     5.0,
+     2.084
+    ]
+   },
+   "others": {
+    "6.0": 15.392,
+    "6.25": 13.747,
+    "6.5": 12.101,
+    "6.75": 10.47,
+    "7.0": 8.838,
+    "7.25": 7.247,
+    "7.5": 5.682,
+    "7.75": 4.166,
+    "8.0": 2.77,
+    "8.25": 2.084,
+    "8.5": 2.372,
+    "8.75": 3.578,
+    "9.0": 5.027,
+    "9.25": 6.605,
+    "9.5": 8.223,
+    "9.75": 9.861,
+    "10.0": 11.5,
+    "10.25": 13.159,
+    "10.5": 14.818,
+    "10.75": 16.476,
+    "11.0": 18.135,
+    "11.25": 19.801,
+    "11.5": 21.466,
+    "11.75": 23.132,
+    "12.0": 24.797
+   }
+  },
+  "custom": {
+   "winner": "SPLINE",
+   "met": true,
+   "rows": {
+    "ds_cu1": [
+     2.0,
+     0.43
+    ],
+    "ds_cu2": [
+     1.579,
+     0.36
+    ],
+    "ds_cu3": [
+     5.25,
+     0.393
+    ]
+   },
+   "others": {
+    "SPLINE": 0.43
+   }
+  },
+  "aa": {
+   "winner": "NONE",
+   "met": true,
+   "rows": {
+    "ds_cone_aa": [
+     2.0,
+     0.432
+    ],
+    "ds_sawtooth_1_aa": [
+     2.0,
+     0.459
+    ],
+    "ds_rounded_steps_aa": [
+     2.0,
+     0.225
+    ]
+   },
+   "others": {
+    "NONE": 0.459
+   }
+  },
+  "site": {
+   "winner": "TABLE",
+   "met": false,
+   "rows": {
+    "is_cone": [
+     2.0,
+     0.239
+    ],
+    "is_cone_inverted": [
+     4.0,
+     2.107
+    ],
+    "ig_cone": [
+     2.0,
+     0.37
+    ],
+    "og_cone": [
+     2.0,
+     0.452
+    ],
+    "og_cone_inverted": [
+     3.5,
+     0.615
+    ],
+    "og_rolling_slope_descending": [
+     3.5,
+     0.531
+    ]
+   },
+   "others": {
+    "TABLE": 2.107
+   }
+  },
+  "range": {
+   "winner": "DIVIDE",
+   "met": false,
+   "rows": {
+    "og_linear_r25": [
+     1.0,
+     0.285
+    ],
+    "og_linear_r100": [
+     1.0,
+     0.301
+    ],
+    "og_cone_r25": [
+     3.0,
+     0.57
+    ],
+    "ig_linear_r25": [
+     1.0,
+     0.162
+    ],
+    "ig_linear_r100": [
+     55.5,
+     0.785
+    ],
+    "ig_cone_r25": [
+     3.0,
+     0.36
+    ],
+    "og_cone": [
+     2.0,
+     0.452
+    ],
+    "ig_cone": [
+     2.0,
+     0.37
+    ]
+   },
+   "others": {
+    "DIVIDE": 0.785
+   }
+  },
+  "satin": {
+   "winner": "BEFORE-INVERT",
+   "met": false,
+   "rows": {
+    "sa_cone": [
+     250.0,
+     26.433
+    ],
+    "sa_rolling_slope_descending": [
+     247.0,
+     120.252
+    ]
+   },
+   "others": {
+    "BEFORE-INVERT": 120.252,
+    "AFTER-INVERT": 154.405
+   }
+  },
+  "gloss": {
+   "winner": "PLAIN",
+   "met": false,
+   "rows": {
+    "ob_gcone": [
+     255.0,
+     85.758
+    ],
+    "em_gcone": [
+     255.0,
+     41.193
+    ]
+   },
+   "others": {
+    "PLAIN": 85.758,
+    "FLAT": 150.806
+   }
+  },
+  "bevel": {
+   "winner": "BEFORE-SOFTEN/COMPLEMENT",
+   "met": false,
+   "rows": {
+    "ib_hr_s0": [
+     104.732,
+     23.765
+    ],
+    "ib_hr_s4": [
+     63.402,
+     13.148
+    ],
+    "ib_hr_r25": [
+     97.635,
+     22.141
+    ],
+    "ib_hr_r100": [
+     91.903,
+     27.734
+    ]
+   },
+   "others": {
+    "BEFORE-SOFTEN/DIVIDE": 63.014,
+    "BEFORE-SOFTEN/COMPLEMENT": 27.734,
+    "BEFORE-SOFTEN/CENTRED": 50.752,
+    "AFTER-SOFTEN/DIVIDE": 63.014,
+    "AFTER-SOFTEN/COMPLEMENT": 27.734,
+    "AFTER-SOFTEN/CENTRED": 50.752
+   }
+  },
+  "controls": {
+   "winner": "TABLE",
+   "met": true,
+   "rows": {
+    "ds_cone_rgb16": [
+     0.802,
+     0.166
+    ],
+    "ds_cone_rgb32": [
+     0.789,
+     0.163
+    ],
+    "og_cone_r25_rgb16": [
+     0.767,
+     0.154
+    ],
+    "og_cone_r25_rgb32": [
+     0.816,
+     0.15
+    ]
+   },
+   "others": {
+    "TABLE": 0.166
+   }
+  }
+ }
+}

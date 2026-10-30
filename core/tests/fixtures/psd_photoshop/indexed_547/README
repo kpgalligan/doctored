@@ -1,0 +1,28 @@
+#547 Indexed Color PSD and PSB fixtures, authored by Adobe Photoshop 2025 26.10.0
+(scripts/photoshop-probe/indexed_psd_take.py, take1, run 20261024T025614Z-9e90f7e4;
+receipts in ~/devel/doctored-fixtures/photoshop/indexed-psd-547/take1).
+
+Each file is one of the runner's PNG scenes, opened in Photoshop and converted by ONE
+Image > Mode > Indexed Color (CnvM IndC: Palette Exact, Forced None, Transparency true for
+exact_t only, DialogModes.NO). Photoshop then saved it as a PSD (PhotoshopSaveOptions, layers,
+profile embedded) and, for exact and exact_t, as a PSB (the largeDocumentFormat save
+descriptor, which embeds no profile: those two carry resource 1041 and no 1039).
+
+  exact.psd, exact.psb       24 x 16, six 4-px bands (200,30,30) (30,160,60) (40,60,200)
+                             (230,200,40) (20,20,20) (128,128,128); 6 entries, no t
+  exact_t.psd, exact_t.psb   the same with x >= 20 clear; 5 opaque entries + t = 5 (white)
+  full256.psd                16 x 16, pixel (x, y) = (17x, 17y, 128); 256 entries, Raw composite
+
+photoshop.json holds, for each file, its sha256, bytes, document row, mode, count, palette,
+transparent index, index rows and layout (as the runner's reader reads it).
+
+What the layout says, which is the writer's spec (core/src/indexed_psd.rs):
+- the header declares ONE channel, transparent index or not;
+- the 768-byte table is planar and zero-padded past the count;
+- 1046 (the count) and 1047 are in every file: 1047 is 0xFFFF with no transparent index;
+- the layer-and-mask section holds NO layer record (layer information length 0, then a
+  global mask and the tail blocks CAI, OCIO, GenI, FMsk, cinf), and Photoshop reopens every
+  file, exact_t included, as one Background layer;
+- the composite is RLE except full256's, which is Raw.
+
+Read by core/tests/indexed_psd_photoshop.rs, which SKIPs when this folder is absent.

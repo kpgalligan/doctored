@@ -1,0 +1,1424 @@
+{
+ "run_id": "20261021T043005Z-babcc367",
+ "take": "~/devel/doctored-fixtures/photoshop/gray-files-547/take1",
+ "photoshop": "26.10.0",
+ "runner_sha256": "a832376cc46c5d70a9403f126ae029fbe1a5e5a4e3f1a16a3e029827af2d6ab6",
+ "canvas": [
+  32,
+  24
+ ],
+ "cell": 8,
+ "scenes": {
+  "layers": {
+   "rows": [
+    {
+     "name": "Hidden",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "visible": false,
+     "bounds": [
+      0,
+      0,
+      32,
+      24
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Lighten",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.LIGHTEN",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      16,
+      0,
+      24,
+      24
+     ],
+     "clipped": false,
+     "fill_opacity_255": 102,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Darken",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.DARKEN",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      24,
+      0,
+      32,
+      24
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Clipped",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.OVERLAY",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      16,
+      16,
+      32,
+      24
+     ],
+     "clipped": true,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Clip base",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      24,
+      16,
+      32,
+      24
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Pass group",
+     "depth": 0,
+     "type": "LayerSet",
+     "kind": "LayerKind.LAYERSET",
+     "blend": "BlendMode.PASSTHROUGH",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      16,
+      8,
+      32,
+      16
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionStart"
+     }
+    },
+    {
+     "name": "Pass child",
+     "depth": 1,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.SCREEN",
+     "opacity": 60,
+     "visible": true,
+     "bounds": [
+      16,
+      8,
+      32,
+      16
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 153,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Normal group",
+     "depth": 0,
+     "type": "LayerSet",
+     "kind": "LayerKind.LAYERSET",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 80,
+     "visible": true,
+     "bounds": [
+      0,
+      16,
+      24,
+      24
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 204,
+     "adjustment": null,
+     "has_user_mask": true,
+     "user_mask_enabled": true,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionStart"
+     }
+    },
+    {
+     "name": "Group B",
+     "depth": 1,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.MULTIPLY",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      8,
+      16,
+      24,
+      24
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Group A",
+     "depth": 1,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      0,
+      16,
+      16,
+      24
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Masked off",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      0,
+      8,
+      32,
+      16
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": true,
+     "user_mask_enabled": false,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Ramp",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      8,
+      0,
+      32,
+      8
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": true,
+     "user_mask_enabled": true,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Base",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      0,
+      0,
+      32,
+      24
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    }
+   ],
+   "document": {
+    "name": "base.tif",
+    "width": 32,
+    "height": 24,
+    "bits": 8,
+    "bits_enum": "BitsPerChannelType.EIGHT",
+    "profile": "Dot Gain 20%"
+   },
+   "converted": {
+    "mode": "DocumentMode.GRAYSCALE",
+    "bits": 8,
+    "profile": "Dot Gain 20%",
+    "error": null
+   },
+   "elements": [
+    {
+     "name": "Ramp",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Masked off",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Normal group",
+     "type": "group",
+     "errors": []
+    },
+    {
+     "name": "Group A",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Group B",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Pass group",
+     "type": "group",
+     "errors": []
+    },
+    {
+     "name": "Pass child",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Clip base",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Clipped",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Darken",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Lighten",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Hidden",
+     "type": "raster",
+     "errors": []
+    }
+   ],
+   "layers": [
+    {
+     "file": "layers8.psd",
+     "target": "Base",
+     "tiff": "layers8_Base.tif",
+     "copied": true
+    },
+    {
+     "file": "layers8.psd",
+     "target": "Ramp",
+     "tiff": "layers8_Ramp.tif",
+     "copied": true
+    },
+    {
+     "file": "layers8.psd",
+     "target": "Masked off",
+     "tiff": "layers8_Masked_off.tif",
+     "copied": true
+    },
+    {
+     "file": "layers8.psd",
+     "target": "Group A",
+     "tiff": "layers8_Group_A.tif",
+     "copied": true
+    },
+    {
+     "file": "layers8.psd",
+     "target": "Group B",
+     "tiff": "layers8_Group_B.tif",
+     "copied": true
+    },
+    {
+     "file": "layers8.psd",
+     "target": "Pass child",
+     "tiff": "layers8_Pass_child.tif",
+     "copied": true
+    },
+    {
+     "file": "layers8.psd",
+     "target": "Clip base",
+     "tiff": "layers8_Clip_base.tif",
+     "copied": true
+    },
+    {
+     "file": "layers8.psd",
+     "target": "Clipped",
+     "tiff": "layers8_Clipped.tif",
+     "copied": true
+    },
+    {
+     "file": "layers8.psd",
+     "target": "Darken",
+     "tiff": "layers8_Darken.tif",
+     "copied": true
+    },
+    {
+     "file": "layers8.psd",
+     "target": "Lighten",
+     "tiff": "layers8_Lighten.tif",
+     "copied": true
+    },
+    {
+     "file": "layers8.psd",
+     "target": "Hidden",
+     "tiff": "layers8_Hidden.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Base",
+     "tiff": "layers16_Base.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Ramp",
+     "tiff": "layers16_Ramp.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Masked off",
+     "tiff": "layers16_Masked_off.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Group A",
+     "tiff": "layers16_Group_A.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Group B",
+     "tiff": "layers16_Group_B.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Pass child",
+     "tiff": "layers16_Pass_child.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Clip base",
+     "tiff": "layers16_Clip_base.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Clipped",
+     "tiff": "layers16_Clipped.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Darken",
+     "tiff": "layers16_Darken.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Lighten",
+     "tiff": "layers16_Lighten.tif",
+     "copied": true
+    },
+    {
+     "file": "layers16.psd",
+     "target": "Hidden",
+     "tiff": "layers16_Hidden.tif",
+     "copied": true
+    }
+   ]
+  },
+  "styled": {
+   "rows": [
+    {
+     "name": "Levels",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.LEVELS",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      0,
+      16,
+      32,
+      24
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": [
+      {
+       "object": "levels",
+       "value": {
+        "presetKind": {
+         "enumeration": "presetKindType",
+         "value": "presetKindCustom"
+        },
+        "adjustment": [
+         {
+          "object": "levelsAdjustment",
+          "value": {
+           "channel": "<DescValueType.REFERENCETYPE>",
+           "input": [
+            10,
+            240
+           ],
+           "gamma": 1.2,
+           "output": [
+            0,
+            255
+           ]
+          }
+         }
+        ]
+       }
+      }
+     ],
+     "has_user_mask": true,
+     "user_mask_enabled": true,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     },
+     "adjustment_channels": [
+      "gray"
+     ]
+    },
+    {
+     "name": "Ranged",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      8,
+      8,
+      32,
+      16
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": {
+      "object": "null",
+      "value": {
+       "scale": {
+        "unit": "percentUnit",
+        "value": 100
+       },
+       "dropShadowMulti": [
+        {
+         "object": "dropShadow",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "multiply"
+          },
+          "color": {
+           "object": "grayscale",
+           "value": {
+            "gray": 98.6625165678561
+           }
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 22
+          },
+          "useGlobalAngle": true,
+          "localLightingAngle": {
+           "unit": "angleUnit",
+           "value": 90
+          },
+          "distance": {
+           "unit": "pixelsUnit",
+           "value": 9
+          },
+          "chokeMatte": {
+           "unit": "pixelsUnit",
+           "value": 25
+          },
+          "blur": {
+           "unit": "pixelsUnit",
+           "value": 18
+          },
+          "noise": {
+           "unit": "percentUnit",
+           "value": 0
+          },
+          "antiAlias": false,
+          "transferSpec": {
+           "object": "shapeCurveType",
+           "value": {
+            "name": "Linear"
+           }
+          },
+          "layerConceals": true
+         }
+        }
+       ],
+       "innerShadowMulti": [
+        {
+         "object": "innerShadow",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "multiply"
+          },
+          "color": {
+           "object": "grayscale",
+           "value": {
+            "gray": 98.6625165678561
+           }
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 35
+          },
+          "useGlobalAngle": true,
+          "localLightingAngle": {
+           "unit": "angleUnit",
+           "value": 90
+          },
+          "distance": {
+           "unit": "pixelsUnit",
+           "value": 3
+          },
+          "chokeMatte": {
+           "unit": "pixelsUnit",
+           "value": 0
+          },
+          "blur": {
+           "unit": "pixelsUnit",
+           "value": 7
+          },
+          "noise": {
+           "unit": "percentUnit",
+           "value": 0
+          },
+          "antiAlias": false,
+          "transferSpec": {
+           "object": "shapeCurveType",
+           "value": {
+            "name": "Linear"
+           }
+          }
+         }
+        }
+       ],
+       "solidFillMulti": [
+        {
+         "object": "solidFill",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "normal"
+          },
+          "color": {
+           "object": "grayscale",
+           "value": {
+            "gray": 57.724004983902
+           }
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 100
+          }
+         }
+        }
+       ],
+       "gradientFillMulti": [
+        {
+         "object": "gradientFill",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "normal"
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 100
+          },
+          "gradient": {
+           "object": "gradientClassEvent",
+           "value": {
+            "name": "Gray, White",
+            "gradientForm": {
+             "enumeration": "gradientForm",
+             "value": "customStops"
+            },
+            "interfaceIconFrameDimmed": 4096,
+            "colors": [
+             {
+              "object": "colorStop",
+              "value": {
+               "color": {
+                "object": "grayscale",
+                "value": {
+                 "gray": 19.1637635231018
+                }
+               },
+               "type": {
+                "enumeration": "colorStopType",
+                "value": "userStop"
+               },
+               "location": 0,
+               "midpoint": 50
+              }
+             },
+             {
+              "object": "colorStop",
+              "value": {
+               "color": {
+                "object": "grayscale",
+                "value": {
+                 "gray": 1.192092896e-05
+                }
+               },
+               "type": {
+                "enumeration": "colorStopType",
+                "value": "userStop"
+               },
+               "location": 4096,
+               "midpoint": 50
+              }
+             }
+            ],
+            "transparency": [
+             {
+              "object": "transferSpec",
+              "value": {
+               "opacity": {
+                "unit": "percentUnit",
+                "value": 100
+               },
+               "location": 0,
+               "midpoint": 50
+              }
+             },
+             {
+              "object": "transferSpec",
+              "value": {
+               "opacity": {
+                "unit": "percentUnit",
+                "value": 100
+               },
+               "location": 4096,
+               "midpoint": 50
+              }
+             }
+            ]
+           }
+          },
+          "angle": {
+           "unit": "angleUnit",
+           "value": 90
+          },
+          "type": {
+           "enumeration": "gradientType",
+           "value": "linear"
+          },
+          "reverse": false,
+          "dither": false,
+          "gs99": {
+           "enumeration": "gradientInterpolationMethodType",
+           "value": "smooth"
+          },
+          "align": true,
+          "scale": {
+           "unit": "percentUnit",
+           "value": 100
+          },
+          "offset": {
+           "object": "paint",
+           "value": {
+            "horizontal": {
+             "unit": "percentUnit",
+             "value": 0
+            },
+            "vertical": {
+             "unit": "percentUnit",
+             "value": 0
+            }
+           }
+          }
+         }
+        }
+       ],
+       "frameFXMulti": [
+        {
+         "object": "frameFX",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "style": {
+           "enumeration": "frameStyle",
+           "value": "insetFrame"
+          },
+          "paintType": {
+           "enumeration": "frameFill",
+           "value": "solidColor"
+          },
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "normal"
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 100
+          },
+          "size": {
+           "unit": "pixelsUnit",
+           "value": 4
+          },
+          "color": {
+           "object": "grayscale",
+           "value": {
+            "gray": 98.6625165678561
+           }
+          },
+          "overprint": false
+         }
+        },
+        {
+         "object": "frameFX",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "style": {
+           "enumeration": "frameStyle",
+           "value": "insetFrame"
+          },
+          "paintType": {
+           "enumeration": "frameFill",
+           "value": "solidColor"
+          },
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "normal"
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 100
+          },
+          "size": {
+           "unit": "pixelsUnit",
+           "value": 12
+          },
+          "color": {
+           "object": "grayscale",
+           "value": {
+            "gray": 98.6625165678561
+           }
+          },
+          "overprint": false
+         }
+        }
+       ]
+      }
+     },
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Overlay",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      0,
+      0,
+      8,
+      8
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": {
+      "object": "null",
+      "value": {
+       "scale": {
+        "unit": "percentUnit",
+        "value": 100
+       },
+       "dropShadowMulti": [
+        {
+         "object": "dropShadow",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "multiply"
+          },
+          "color": {
+           "object": "grayscale",
+           "value": {
+            "gray": 100
+           }
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 35
+          },
+          "useGlobalAngle": true,
+          "localLightingAngle": {
+           "unit": "angleUnit",
+           "value": 90
+          },
+          "distance": {
+           "unit": "pixelsUnit",
+           "value": 3
+          },
+          "chokeMatte": {
+           "unit": "pixelsUnit",
+           "value": 0
+          },
+          "blur": {
+           "unit": "pixelsUnit",
+           "value": 7
+          },
+          "noise": {
+           "unit": "percentUnit",
+           "value": 0
+          },
+          "antiAlias": false,
+          "transferSpec": {
+           "object": "shapeCurveType",
+           "value": {
+            "name": "Linear"
+           }
+          },
+          "layerConceals": true
+         }
+        }
+       ],
+       "innerShadowMulti": [
+        {
+         "object": "innerShadow",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "multiply"
+          },
+          "color": {
+           "object": "grayscale",
+           "value": {
+            "gray": 100
+           }
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 35
+          },
+          "useGlobalAngle": true,
+          "localLightingAngle": {
+           "unit": "angleUnit",
+           "value": 90
+          },
+          "distance": {
+           "unit": "pixelsUnit",
+           "value": 3
+          },
+          "chokeMatte": {
+           "unit": "pixelsUnit",
+           "value": 0
+          },
+          "blur": {
+           "unit": "pixelsUnit",
+           "value": 7
+          },
+          "noise": {
+           "unit": "percentUnit",
+           "value": 0
+          },
+          "antiAlias": false,
+          "transferSpec": {
+           "object": "shapeCurveType",
+           "value": {
+            "name": "Linear"
+           }
+          }
+         }
+        }
+       ],
+       "solidFill": {
+        "object": "solidFill",
+        "value": {
+         "enabled": true,
+         "present": true,
+         "showInDialog": true,
+         "mode": {
+          "enumeration": "blendMode",
+          "value": "normal"
+         },
+         "color": {
+          "object": "grayscale",
+          "value": {
+           "gray": 52.4295002222061
+          }
+         },
+         "opacity": {
+          "unit": "percentUnit",
+          "value": 100
+         }
+        }
+       },
+       "gradientFillMulti": [
+        {
+         "object": "gradientFill",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "normal"
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 100
+          },
+          "gradient": {
+           "object": "gradientClassEvent",
+           "value": {
+            "name": "Gray, White",
+            "gradientForm": {
+             "enumeration": "gradientForm",
+             "value": "customStops"
+            },
+            "interfaceIconFrameDimmed": 4096,
+            "colors": [
+             {
+              "object": "colorStop",
+              "value": {
+               "color": {
+                "object": "grayscale",
+                "value": {
+                 "gray": 19.9418187141418
+                }
+               },
+               "type": {
+                "enumeration": "colorStopType",
+                "value": "userStop"
+               },
+               "location": 0,
+               "midpoint": 50
+              }
+             },
+             {
+              "object": "colorStop",
+              "value": {
+               "color": {
+                "object": "grayscale",
+                "value": {
+                 "gray": 0
+                }
+               },
+               "type": {
+                "enumeration": "colorStopType",
+                "value": "userStop"
+               },
+               "location": 4096,
+               "midpoint": 50
+              }
+             }
+            ],
+            "transparency": [
+             {
+              "object": "transferSpec",
+              "value": {
+               "opacity": {
+                "unit": "percentUnit",
+                "value": 100
+               },
+               "location": 0,
+               "midpoint": 50
+              }
+             },
+             {
+              "object": "transferSpec",
+              "value": {
+               "opacity": {
+                "unit": "percentUnit",
+                "value": 100
+               },
+               "location": 4096,
+               "midpoint": 50
+              }
+             }
+            ]
+           }
+          },
+          "angle": {
+           "unit": "angleUnit",
+           "value": 90
+          },
+          "type": {
+           "enumeration": "gradientType",
+           "value": "linear"
+          },
+          "reverse": false,
+          "dither": false,
+          "gs99": {
+           "enumeration": "gradientInterpolationMethodType",
+           "value": "smooth"
+          },
+          "align": true,
+          "scale": {
+           "unit": "percentUnit",
+           "value": 100
+          },
+          "offset": {
+           "object": "paint",
+           "value": {
+            "horizontal": {
+             "unit": "percentUnit",
+             "value": 0
+            },
+            "vertical": {
+             "unit": "percentUnit",
+             "value": 0
+            }
+           }
+          }
+         }
+        }
+       ],
+       "frameFXMulti": [
+        {
+         "object": "frameFX",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "style": {
+           "enumeration": "frameStyle",
+           "value": "insetFrame"
+          },
+          "paintType": {
+           "enumeration": "frameFill",
+           "value": "solidColor"
+          },
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "normal"
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 100
+          },
+          "size": {
+           "unit": "pixelsUnit",
+           "value": 1
+          },
+          "color": {
+           "object": "grayscale",
+           "value": {
+            "gray": 100
+           }
+          },
+          "overprint": false
+         }
+        }
+       ]
+      }
+     },
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    },
+    {
+     "name": "Base",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "visible": true,
+     "bounds": [
+      0,
+      0,
+      32,
+      24
+     ],
+     "clipped": false,
+     "fill_opacity_255": 255,
+     "opacity_255": 255,
+     "adjustment": null,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "effects": null,
+     "error": null,
+     "layer_section": {
+      "enumeration": "layerSectionType",
+      "value": "layerSectionContent"
+     }
+    }
+   ],
+   "document": {
+    "name": "base.tif",
+    "width": 32,
+    "height": 24,
+    "bits": 8,
+    "bits_enum": "BitsPerChannelType.EIGHT",
+    "profile": "Dot Gain 20%"
+   },
+   "converted": {
+    "mode": "DocumentMode.GRAYSCALE",
+    "bits": 8,
+    "profile": "Dot Gain 20%",
+    "error": null
+   },
+   "elements": [
+    {
+     "name": "Overlay",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Ranged",
+     "type": "raster",
+     "errors": []
+    },
+    {
+     "name": "Levels",
+     "type": "adjustment",
+     "errors": []
+    }
+   ],
+   "layers": [
+    {
+     "file": "styled8.psd",
+     "target": "Base",
+     "tiff": "styled8_Base.tif",
+     "copied": true
+    },
+    {
+     "file": "styled8.psd",
+     "target": "Overlay",
+     "tiff": "styled8_Overlay.tif",
+     "copied": true
+    },
+    {
+     "file": "styled8.psd",
+     "target": "Ranged",
+     "tiff": "styled8_Ranged.tif",
+     "copied": true
+    }
+   ]
+  }
+ },
+ "files": {
+  "layers8.psd": {
+   "scene": "layers",
+   "bits": 8,
+   "sha256": "1ed0ce1a408e8696212e2fbda49d5e2dd817d30720a9faf489728b86a9444c4d",
+   "composite": "composite8.tif"
+  },
+  "layers8.tif": {
+   "scene": "layers",
+   "bits": 8,
+   "sha256": "7fd2c1819af57ad27668624bfd6861db19ceef0bb6c6b5bd1d36bfe98f433524"
+  },
+  "layers16.psd": {
+   "scene": "layers",
+   "bits": 16,
+   "sha256": "acdfcbed0628aa915f0d52cfa758e5fe415aa09237db38e6f62f5993a91c5852",
+   "composite": "composite16.tif"
+  },
+  "layers16.psb": {
+   "scene": "layers",
+   "bits": 16,
+   "sha256": "c4d0cc901b396a2e32f6be7740db41473309c2ed93047517f52270400d1e2f88"
+  },
+  "styled8.psd": {
+   "scene": "styled",
+   "bits": 8,
+   "sha256": "cbac3ab0664e7c2c2ce842bfed1272b9a7b646ba1aa29a17e9991e18279c0d9e",
+   "composite": "styled_composite8.tif"
+  }
+ }
+}

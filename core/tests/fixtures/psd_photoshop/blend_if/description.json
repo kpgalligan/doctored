@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "name": "blend_if",
+  "canvas": [
+    64,
+    64
+  ],
+  "profile": "sRGB IEC61966-2.1",
+  "note": "Photoshop 2025 26.10.0 authored this file from the PNGs beside it (scripts/verify_phase10_photoshop_appearance.py --receipt A4 --author). The blending ranges go in through the string-ID `blendRange` setter and are not readable back through executeActionGet, so the record bytes are the only readout.",
+  "base": {
+    "name": "Base",
+    "png": "base.png"
+  },
+  "layers": [
+    {
+      "name": "this_gray_soft",
+      "png": "inverted.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "blend_if": {
+        "channel": "gray",
+        "this_layer": [
+          32,
+          96,
+          160,
+          224
+        ],
+        "underlying": [
+          0,
+          0,
+          255,
+          255
+        ]
+      }
+    },
+    {
+      "name": "this_red_hard",
+      "png": "inverted.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "blend_if": {
+        "channel": "red",
+        "this_layer": [
+          155,
+          155,
+          255,
+          255
+        ],
+        "underlying": [
+          0,
+          0,
+          255,
+          255
+        ]
+      }
+    },
+    {
+      "name": "under_red_soft",
+      "png": "solid.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "blend_if": {
+        "channel": "red",
+        "this_layer": [
+          0,
+          0,
+          255,
+          255
+        ],
+        "underlying": [
+          16,
+          80,
+          176,
+          240
+        ]
+      }
+    },
+    {
+      "name": "under_gray_hard",
+      "png": "solid.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "blend_if": {
+        "channel": "gray",
+        "this_layer": [
+          0,
+          0,
+          255,
+          255
+        ],
+        "underlying": [
+          100,
+          100,
+          255,
+          255
+        ]
+      }
+    }
+  ]
+}

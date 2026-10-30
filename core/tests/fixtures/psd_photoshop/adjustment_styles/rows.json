@@ -1,0 +1,713 @@
+{
+ "run_id": "rz-558-scope-20261016T184202Z-d6aa5517",
+ "verdict": "MISSES",
+ "runner_sha256": "c59d8c739865862c3099e818364ff5b77aea64ecc326ed75df51ce586109988c",
+ "winners": {
+  "A1": {
+   "8": "S-MASK",
+   "16": "S-MASK",
+   "32": "S-MASK"
+  },
+  "A2": {
+   "8": "POST",
+   "16": "POST",
+   "32": "POST"
+  },
+  "A3": {
+   "8": "FILL-SCALES",
+   "16": "FILL-SCALES",
+   "32": "FILL-SCALES"
+  },
+  "A4": {
+   "8": "T-ADJUSTED",
+   "16": "T-ADJUSTED",
+   "32": "T-ADJUSTED"
+  },
+  "A5": {
+   "8": "TWIN",
+   "16": "TWIN",
+   "32": "TWIN"
+  },
+  "A6": {
+   "8": "ALPHA-TWIN",
+   "16": "ALPHA-TWIN",
+   "32": "ALPHA-TWIN"
+  },
+  "A7": {
+   "8": "C-SHAPE",
+   "16": "C-SHAPE",
+   "32": "C-SHAPE"
+  }
+ },
+ "kept": [
+  "a1_rgb16.png",
+  "a1_rgb8.png",
+  "a2_rgb16.png",
+  "a2_rgb8.png",
+  "a3_rgb16.png",
+  "a3_rgb8.png",
+  "a3_rgb8.psd",
+  "a4t_rgb16.png",
+  "a4t_rgb8.png",
+  "a4u_rgb16.png",
+  "a4u_rgb8.png",
+  "a6_rgb16.png",
+  "a6_rgb8.png",
+  "a6_rgb8.psd",
+  "a7_rgb16.png",
+  "a7_rgb8.png",
+  "a7b_rgb16.png",
+  "a7b_rgb8.png",
+  "adj_rgb16.png",
+  "adj_rgb8.png",
+  "base_rgb16.png",
+  "base_rgb8.png"
+ ],
+ "skipped_over_64k": [
+  "a1_rgb16.psd",
+  "a1_rgb8.psd",
+  "a2_rgb16.psd",
+  "a2_rgb8.psd",
+  "a3_rgb16.psd",
+  "a4t_rgb16.psd",
+  "a4t_rgb8.psd",
+  "a4u_rgb16.psd",
+  "a4u_rgb8.psd",
+  "a5_op50_rgb16.psd",
+  "a5_op50_rgb8.psd",
+  "a5_overlay_rgb16.psd",
+  "a5_overlay_rgb8.psd",
+  "a5_shadow_rgb16.psd",
+  "a5_shadow_rgb8.psd",
+  "a5_stroke_rgb16.psd",
+  "a5_stroke_rgb8.psd",
+  "a6_rgb16.psd",
+  "a7_rgb16.psd",
+  "a7_rgb8.psd"
+ ],
+ "summary": {
+  "verdict": "MISSES",
+  "kind": "take",
+  "run_id": "rz-558-scope-20261016T184202Z-d6aa5517",
+  "stall": null,
+  "skipped": null,
+  "errors": {},
+  "record_errors": {},
+  "job_errors": [],
+  "missing": [],
+  "winners": {
+   "A1": {
+    "8": "S-MASK",
+    "16": "S-MASK",
+    "32": "S-MASK"
+   },
+   "A2": {
+    "8": "POST",
+    "16": "POST",
+    "32": "POST"
+   },
+   "A3": {
+    "8": "FILL-SCALES",
+    "16": "FILL-SCALES",
+    "32": "FILL-SCALES"
+   },
+   "A4": {
+    "8": "T-ADJUSTED",
+    "16": "T-ADJUSTED",
+    "32": "T-ADJUSTED"
+   },
+   "A5": {
+    "8": "TWIN",
+    "16": "TWIN",
+    "32": "TWIN"
+   },
+   "A6": {
+    "8": "ALPHA-TWIN",
+    "16": "ALPHA-TWIN",
+    "32": "ALPHA-TWIN"
+   },
+   "A7": {
+    "8": "C-SHAPE",
+    "16": "C-SHAPE",
+    "32": "C-SHAPE"
+   }
+  },
+  "shipped_met": false,
+  "a": {
+   "8": {
+    "A1": {
+     "winner": "S-MASK",
+     "met": true,
+     "rows": {
+      "S-BACKDROP": {
+       "a1": [
+        255.0,
+        255.0
+       ]
+      },
+      "S-MASK": {
+       "a1": [
+        0.0,
+        0.0
+       ]
+      }
+     }
+    },
+    "A2": {
+     "winner": "POST",
+     "met": true,
+     "rows": {
+      "PRE": {
+       "a2": [
+        188.0,
+        133.0
+       ]
+      },
+      "POST": {
+       "a2": [
+        0.0,
+        0.0
+       ]
+      }
+     }
+    },
+    "A3": {
+     "winner": "FILL-SCALES",
+     "met": true,
+     "rows": {
+      "FILL-SCALES": {
+       "a3": [
+        0.5,
+        0.5
+       ]
+      },
+      "FILL-IGNORED": {
+       "a3": [
+        127.0,
+        71.78
+       ]
+      }
+     }
+    },
+    "A4": {
+     "winner": "T-ADJUSTED",
+     "met": true,
+     "rows": {
+      "T-ADJUSTED": {
+       "a4t": [
+        0.0,
+        0.0
+       ],
+       "a4u": [
+        0.0,
+        0.0
+       ]
+      },
+      "T-BACKDROP": {
+       "a4t": [
+        255.0,
+        141.162
+       ],
+       "a4u": [
+        0.0,
+        0.0
+       ]
+      }
+     }
+    },
+    "A5": {
+     "winner": "TWIN",
+     "met": false,
+     "rows": {
+      "TWIN": {
+       "a5_stroke": [
+        255.0,
+        12.018
+       ],
+       "a5_shadow": [
+        255.0,
+        35.971
+       ],
+       "a5_overlay": [
+        255.0,
+        11.906
+       ],
+       "a5_op50": [
+        255.0,
+        7.537
+       ]
+      }
+     }
+    },
+    "A6": {
+     "winner": "ALPHA-TWIN",
+     "met": false,
+     "rows": {
+      "ALPHA-TWIN": {
+       "a6": [
+        118.154,
+        118.154
+       ]
+      },
+      "ALPHA-KEPT": {
+       "a6": [
+        127.0,
+        127.0
+       ]
+      }
+     }
+    },
+    "A7": {
+     "winner": "C-SHAPE",
+     "met": true,
+     "rows": {
+      "C-SHAPE": {
+       "a7": [
+        0.0,
+        0.0
+       ]
+      },
+      "C-NONE": {
+       "a7": [
+        255.0,
+        255.0
+       ]
+      }
+     }
+    }
+   },
+   "16": {
+    "A1": {
+     "winner": "S-MASK",
+     "met": true,
+     "rows": {
+      "S-BACKDROP": {
+       "a1": [
+        255.0,
+        255.0
+       ]
+      },
+      "S-MASK": {
+       "a1": [
+        0.0,
+        0.0
+       ]
+      }
+     }
+    },
+    "A2": {
+     "winner": "POST",
+     "met": true,
+     "rows": {
+      "PRE": {
+       "a2": [
+        187.994,
+        132.996
+       ]
+      },
+      "POST": {
+       "a2": [
+        0.0,
+        0.0
+       ]
+      }
+     }
+    },
+    "A3": {
+     "winner": "FILL-SCALES",
+     "met": true,
+     "rows": {
+      "FILL-SCALES": {
+       "a3": [
+        0.492,
+        0.275
+       ]
+      },
+      "FILL-IGNORED": {
+       "a3": [
+        127.008,
+        72.0
+       ]
+      }
+     }
+    },
+    "A4": {
+     "winner": "T-ADJUSTED",
+     "met": true,
+     "rows": {
+      "T-ADJUSTED": {
+       "a4t": [
+        0.0,
+        0.0
+       ],
+       "a4u": [
+        0.008,
+        0.002
+       ]
+      },
+      "T-BACKDROP": {
+       "a4t": [
+        255.0,
+        141.154
+       ],
+       "a4u": [
+        0.008,
+        0.002
+       ]
+      }
+     }
+    },
+    "A5": {
+     "winner": "TWIN",
+     "met": false,
+     "rows": {
+      "TWIN": {
+       "a5_stroke": [
+        255.0,
+        12.02
+       ],
+       "a5_shadow": [
+        255.0,
+        35.973
+       ],
+       "a5_overlay": [
+        255.0,
+        11.923
+       ],
+       "a5_op50": [
+        255.0,
+        7.522
+       ]
+      }
+     }
+    },
+    "A6": {
+     "winner": "ALPHA-TWIN",
+     "met": false,
+     "rows": {
+      "ALPHA-TWIN": {
+       "a6": [
+        118.281,
+        118.281
+       ]
+      },
+      "ALPHA-KEPT": {
+       "a6": [
+        127.004,
+        127.004
+       ]
+      }
+     }
+    },
+    "A7": {
+     "winner": "C-SHAPE",
+     "met": true,
+     "rows": {
+      "C-SHAPE": {
+       "a7": [
+        0.0,
+        0.0
+       ]
+      },
+      "C-NONE": {
+       "a7": [
+        255.0,
+        255.0
+       ]
+      }
+     }
+    }
+   },
+   "32": {
+    "A1": {
+     "winner": "S-MASK",
+     "met": true,
+     "rows": {
+      "S-BACKDROP": {
+       "a1": [
+        255.0,
+        255.0
+       ]
+      },
+      "S-MASK": {
+       "a1": [
+        0.0,
+        0.0
+       ]
+      }
+     }
+    },
+    "A2": {
+     "winner": "POST",
+     "met": true,
+     "rows": {
+      "PRE": {
+       "a2": [
+        255.642,
+        182.225
+       ]
+      },
+      "POST": {
+       "a2": [
+        0.0,
+        0.0
+       ]
+      }
+     }
+    },
+    "A3": {
+     "winner": "FILL-SCALES",
+     "met": true,
+     "rows": {
+      "FILL-SCALES": {
+       "a3": [
+        0.173,
+        0.097
+       ]
+      },
+      "FILL-IGNORED": {
+       "a3": [
+        40.391,
+        22.535
+       ]
+      }
+     }
+    },
+    "A4": {
+     "winner": "T-ADJUSTED",
+     "met": true,
+     "rows": {
+      "T-ADJUSTED": {
+       "a4t": [
+        0.0,
+        0.0
+       ],
+       "a4u": [
+        0.002,
+        0.001
+       ]
+      },
+      "T-BACKDROP": {
+       "a4t": [
+        63.961,
+        10.198
+       ],
+       "a4u": [
+        0.002,
+        0.001
+       ]
+      }
+     }
+    },
+    "A5": {
+     "winner": "TWIN",
+     "met": false,
+     "rows": {
+      "TWIN": {
+       "a5_stroke": [
+        255.0,
+        12.02
+       ],
+       "a5_shadow": [
+        255.639,
+        42.823
+       ],
+       "a5_overlay": [
+        255.0,
+        12.741
+       ],
+       "a5_op50": [
+        255.0,
+        7.522
+       ]
+      }
+     }
+    },
+    "A6": {
+     "winner": "ALPHA-TWIN",
+     "met": false,
+     "rows": {
+      "ALPHA-TWIN": {
+       "a6": [
+        127.075,
+        127.075
+       ]
+      },
+      "ALPHA-KEPT": {
+       "a6": [
+        138.179,
+        138.179
+       ]
+      }
+     }
+    },
+    "A7": {
+     "winner": "C-SHAPE",
+     "met": true,
+     "rows": {
+      "C-SHAPE": {
+       "a7": [
+        0.0,
+        0.0
+       ]
+      },
+      "C-NONE": {
+       "a7": [
+        255.0,
+        255.0
+       ]
+      }
+     }
+    }
+   }
+  },
+  "b": {
+   "P1": {
+    "winner": "PASS",
+    "met": false,
+    "rows": {
+     "PASS": {
+      "p1": [
+       255.0,
+       146.67
+      ],
+      "p1u": [
+       0.0,
+       0.0
+      ]
+     },
+     "ISOLATE": {
+      "p1": [
+       0.0,
+       0.0
+      ],
+      "p1u": [
+       255.0,
+       146.67
+      ]
+     }
+    }
+   },
+   "P2": {
+    "winner": "ISOLATE",
+    "met": true,
+    "rows": {
+     "PASS": {
+      "p2": [
+       255.0,
+       146.67
+      ]
+     },
+     "ISOLATE": {
+      "p2": [
+       0.0,
+       0.0
+      ]
+     }
+    }
+   },
+   "P3": {
+    "winner": "WEIGHT",
+    "met": false,
+    "rows": {
+     "WEIGHT": {
+      "p3": [
+       255.0,
+       55.194
+      ]
+     },
+     "IGNORED": {
+      "p3": [
+       255.0,
+       146.67
+      ]
+     }
+    }
+   }
+  },
+  "c": {
+   "M1": {
+    "winner": "PRODUCT",
+    "met": false,
+    "rows": {
+     "PRODUCT": {
+      "m1": [
+       2.406,
+       0.407
+      ]
+     },
+     "MIN": {
+      "m1": [
+       38.175,
+       4.235
+      ]
+     }
+    }
+   },
+   "M2": {
+    "winner": "PRODUCT-L",
+    "met": false,
+    "rows": {
+     "PRODUCT-INK": {
+      "m2": [
+       255.0,
+       84.563
+      ]
+     },
+     "MIN-INK": {
+      "m2": [
+       255.0,
+       83.151
+      ]
+     },
+     "PRODUCT-L": {
+      "m2": [
+       2.403,
+       0.368
+      ]
+     },
+     "MIN-L": {
+      "m2": [
+       28.583,
+       2.443
+      ]
+     }
+    }
+   },
+   "M3": {
+    "accepted": true,
+    "changed_pixels": 12224,
+    "changed": true
+   }
+  },
+  "inspect": {
+   "rows": {
+    "a1_psd8": {
+     "max": 0,
+     "mean": 0.0,
+     "n": 19516,
+     "meets": true
+    },
+    "a1_psd16": {
+     "max": 1.016,
+     "mean": 0.01,
+     "n": 19516,
+     "meets": true
+    },
+    "a4t_psd8": {
+     "max": 0,
+     "mean": 0.0,
+     "n": 19516,
+     "meets": true
+    },
+    "a4t_psd16": {
+     "max": 1.016,
+     "mean": 0.012,
+     "n": 19516,
+     "meets": true
+    }
+   },
+   "matched": true
+  }
+ }
+}

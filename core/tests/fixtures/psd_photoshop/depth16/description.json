@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "name": "depth16",
+  "canvas": [
+    64,
+    64
+  ],
+  "profile": "sRGB IEC61966-2.1",
+  "note": "Photoshop 2025 26.10.0 authored source.psd and source16.psd from the PNGs beside it (scripts/verify_phase10_photoshop_depth16.py --author). The 16-bit file is the point: its layer-information section is empty and its records live in an Lr16 tail block with ZIP-with-prediction channels, which is the form Rasterize learned to read in Run 4.",
+  "base": {
+    "name": "Base",
+    "png": "base.png"
+  },
+  "layers": [
+    {
+      "name": "Shadowed",
+      "png": "shadowed.png",
+      "offset": [
+        8,
+        8
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "effects": {
+        "drop_shadow": {
+          "opacity": 75,
+          "angle": 120,
+          "distance": 6,
+          "size": 0,
+          "spread": 0,
+          "color": [
+            0,
+            0,
+            0
+          ],
+          "blend": "multiply",
+          "use_global_light": false
+        }
+      }
+    },
+    {
+      "name": "Masked",
+      "png": "masked.png",
+      "offset": [
+        12,
+        8
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "mask": {
+        "rect": [
+          28,
+          24,
+          32,
+          36
+        ],
+        "gradient": null
+      }
+    },
+    {
+      "name": "Group",
+      "group": true,
+      "opacity": 100,
+      "visible": true,
+      "layers": [
+        {
+          "name": "Inner",
+          "png": "inner.png",
+          "offset": [
+            30,
+            30
+          ],
+          "opacity": 60,
+          "blend": "multiply",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "name": "Curves",
+      "kind": "curves",
+      "params": {
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            64,
+            80
+          ],
+          [
+            255,
+            255
+          ]
+        ]
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "Brightness",
+      "kind": "brightness_contrast",
+      "params": {
+        "brightness": 30,
+        "contrast": 20,
+        "legacy": false
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "Fill",
+      "fill": "solid_color",
+      "params": {
+        "color": [
+          40,
+          40,
+          200
+        ]
+      },
+      "opacity": 50,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "Empty",
+      "empty": true,
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    }
+  ]
+}

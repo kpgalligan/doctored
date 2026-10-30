@@ -1,0 +1,53 @@
+soft_effects_578 — Photoshop 26.10.0's renders for core/tests/style_soft_effects_parity.rs (#578).
+
+Every PNG is a 64 x 64 render, at 8 or 16 bits, that Photoshop made of a
+Rasterize-written PSD (export_psd mode layers): Base plus one case layer, A3's
+#40607c 24 x 24 rect at (20, 20) with the case's layer style.
+
+- effects-578 take1 (~/devel/doctored-fixtures/photoshop/effects-578/take1,
+  scripts/photoshop-probe/effects_578_take.py): base, drop_shadow_soft,
+  drop_shadow_hard, inner_shadow_soft, inner_shadow_hard, satin_soft,
+  satin_hard and all, A3's cases (verify_phase10_photoshop_appearance.py).
+- soft-effects-578 take1 (~/devel/doctored-fixtures/photoshop/soft-effects-578/
+  take1, scripts/photoshop-probe/soft_effects_578_fit.py, the held-out take,
+  VALID): ds_s3_a60, ds_s9_sp30_a30, ds_s12_a90, is_s3_a60, is_s9_ch30_a30,
+  is_s8_a90, sa_s6_d5_a60, sa_s20_d8_a135, sa_s10_d3_a90 (global light off).
+  Its base renders equal take1's pixel for pixel, so base_<d>.png is take1's.
+
+Files are copied unchanged from each take's photoshop-effects<d>/ folder.
+
+sha256:
+  0212d6cdf3a20a3114dde4185edca696c19a4360a7c7660304a6adcf4c0bf13b  base_8.png
+  3fd96a6e91a572ffbd3f121cb5c819abef00ebeb688807d3c543ebd5aa295e60  base_16.png
+  a0d79cbcb16070ef51f336f0353d6b7ed6a4bcb53e4f48833913adc848379738  drop_shadow_soft_8.png
+  5b43380f7da406f9763cf184fdb48d5cbfa1a827cbc2ba77cd8369a005c6dff0  drop_shadow_soft_16.png
+  8d180aa57529e882e3054bf4c550a1d0d8fec39dec5a38bdaae6d093d59586a5  drop_shadow_hard_8.png
+  09198c564a665c1218e6639e8ad55a7ca9520e4dd85eb38f26e0953932a7320a  drop_shadow_hard_16.png
+  2662bfa0b07f96ba9396f299a30e265bbd7747b1f18c93416db81636338a96be  inner_shadow_soft_8.png
+  25a087ee1fc76c198400101f9d80e361fd0c3458b98e70ba6671c18f7f112ae9  inner_shadow_soft_16.png
+  b917b29da6e8f2733cc6ba3cf2faeb86e30b9bd57e6c118fd3813f43d8f2d4cc  inner_shadow_hard_8.png
+  28ee2dae1580b00055960a57823743d7efbba3c28bdb1dff576c4192f169ce14  inner_shadow_hard_16.png
+  631d656f3547c9c4f404eea0cd4d31cd5c86d929624613cdd9720f329f843dd2  satin_soft_8.png
+  e5d2520b9bb555857e80e07f9b70254b63426dfe7284ac3f33d8e643b0302603  satin_soft_16.png
+  1d8dbd10e7287b9482cdd4d14fba9a09d8b09a476edd3e03da63e688f22b90e9  satin_hard_8.png
+  469dc382f8730a3fb5a2ea44de65c6531c7b7f1ba93536a815a3d09669869f08  satin_hard_16.png
+  a88e034a8c5189809f42d911f3a56249a1ae4837be53f57eae27e465e0e4d532  all_8.png
+  0a1d6a32f12bf90f36f5cc4a295914e51e34765ecf6c972c1af93aab95e37899  all_16.png
+  bc1f399722e8252c5025bd316a97848da01d832cfa30bb48bb6d006e8db5ecf2  ds_s3_a60_8.png
+  61d0cbcba9096dda49c7242332ebc2b754d27ec6549c5d74f8f2b410d2215fde  ds_s3_a60_16.png
+  7f0c56ca0ef9c134b4b8aa90a8aefa27d32b6ecc988eb62f4928c72351912c63  ds_s9_sp30_a30_8.png
+  9a867f067fb37f702390460945a771f7c0b93f86d5bd7a95bb1f52411c5285f4  ds_s9_sp30_a30_16.png
+  b3e0d6e5302b95eed1e71dd4933b37945a30f5c335c8170088ee5a6bce63e240  ds_s12_a90_8.png
+  2c7c6c8ed6fa46287e5536956edd74ce2b540d19563099d89febdcb8724c847a  ds_s12_a90_16.png
+  d576749e9056010d420991e904e839a5ded20b4f309a0004762dbd266d5cd66a  is_s3_a60_8.png
+  a7d68fb7299465773fc84f32a8520ffb9c0fddc39a52d6db00119604a58188e6  is_s3_a60_16.png
+  17e3951766f9521b2946970ccc622cdc86f58382b1f5ae3c1fa2da7241025308  is_s9_ch30_a30_8.png
+  515271cd51a6370939b4bb264d83c48d351fea620e504b88d2958e1ae590bb17  is_s9_ch30_a30_16.png
+  a6a7cf7160c156497f72b84abacfa8492fdf7b55c9aebf0571075f8f06d09514  is_s8_a90_8.png
+  cdb69bd93d06367db191e60946a84597119bff9474f4147a3afc875e937c04e8  is_s8_a90_16.png
+  538b29b6c6e54e52396b846c75c8e889c247a0e87d420d8a837a1893b5987a9d  sa_s6_d5_a60_8.png
+  e6c4ac94a1e09575f7bf74383fca2dacb8bdd21c2ce7179c9b95e89640ae0da1  sa_s6_d5_a60_16.png
+  94eff22cc751b40d0164773e4cc529a3b213e4539e0d7b1e13b57b95e6dfeeb0  sa_s20_d8_a135_8.png
+  21218fe9b73e4221f905dc6adbcf76285ad88508089bed9b1045e235b86964d4  sa_s20_d8_a135_16.png
+  e27843b3cdb3a9195f7ecba4a4d2de438f39394bc78ab9ca4c5b6730924a7728  sa_s10_d3_a90_8.png
+  16249b23141cf22f7f0ba3a4fa2651ea00ee2e8c6d4ec03ba1de736aedf4bd52  sa_s10_d3_a90_16.png

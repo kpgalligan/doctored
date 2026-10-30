@@ -1,0 +1,1354 @@
+{
+  "template_schema_version": 1,
+  "protocol_id": "phase9i-assisted-edges-v1",
+  "document_kind": "unfrozen_run_declaration_template",
+  "state": "pending_inputs_and_human_annotations",
+  "run_id": null,
+  "input_freeze_utc": null,
+  "replay_freeze_utc": null,
+  "scoring_freeze_utc": null,
+  "scoring_authorized_by_template": false,
+  "protocol_path": "archive/phase-9i-assisted-protocol-v1.md",
+  "protocol_sha256": null,
+  "pins_note": "Hashes are pinned per run, not here: private/mapping.json (protocol_sha256, task_card_sha256, program_sha256) at export and predeclared.json at scoring.",
+  "case_count": 78,
+  "whole_run_required_passes": 78,
+  "categories": [
+    "ordinary_portrait_hair",
+    "fur_edges",
+    "hard_product_edges"
+  ],
+  "claim_limit": "Supplied ordinary-edge annotations; no physical-opacity, transmission, refraction, typed-estimator or public-workflow qualification.",
+  "automatic_original_case_count_unchanged": 90,
+  "excluded_before_annotation": {
+    "analytic_prefix": "translucent_glass-",
+    "full_prefix": "full-glass-bottle-",
+    "cases": 12,
+    "reason": "Separate optical scope; bottle has silhouette-only reference, not transmission truth. These cases remain in original automatic90."
+  },
+  "source_format": "opaque RGB8; original encoded-RGB composites; S=255; top row first; exact native dimensions",
+  "prior_format": "unchanged original degraded u8 matte",
+  "output_format": "straight RGB8 F plus captured source alpha S plus independent u8 matte M",
+  "unsupported_inputs": [
+    "partially_transparent_source",
+    "native_RGBA16",
+    "HDR",
+    "linear_light",
+    "profile_conversion"
+  ],
+  "write_masks": {
+    "alpha": "uint16 actual coverage",
+    "rgb": "separate uint16 actual coverage",
+    "protection": "uint8 binary",
+    "labels": {
+      "0": "Unknown",
+      "1": "FG",
+      "2": "BG"
+    },
+    "analysis": "full_canvas"
+  },
+  "interaction": {
+    "seconds_per_case": 300,
+    "modifying_gestures_per_case": 20,
+    "attempts_per_case": 1,
+    "preview_rounds": 0,
+    "model_suggestions": false,
+    "brush_diameters_native_pixels": [
+      3,
+      9,
+      27,
+      81
+    ],
+    "max_stroke_points": 256,
+    "max_polygon_vertices": 32,
+    "feather_widths_native_pixels": [
+      0,
+      4,
+      16,
+      64
+    ],
+    "rasterizer_identity": null,
+    "rasterizer_sha256": null
+  },
+  "source_only_export_program_sha256": null,
+  "accessible_input_manifest_sha256": null,
+  "annotation_program_sha256": null,
+  "annotator_blinding_attestation_sha256": null,
+  "replay_manifest_sha256": null,
+  "recipe_source_pins": {
+    "core/tests/common/selection_quality.rs": null,
+    "core/tests/common/matting_quality.rs": null,
+    "core/examples/phase6_matting_quality.rs": null,
+    "core/examples/phase6_full_image_quality.rs": null,
+    "scripts/phase6_reference_fixtures.py": null,
+    "scripts/phase6_full_reference_fixtures.py": null
+  },
+  "compared_pipelines": null,
+  "pipeline_note": "Select globally and pin complete alpha-and-foreground implementations before scoring. Historical V3/V4 reports are controls; no current executable identity is inferred from a reused temporary binary path.",
+  "resources": {
+    "ceiling_bytes": 2147483648,
+    "legacy_harness_admission": "256*N + 64 MiB",
+    "combined_pipeline_peak_reservation_bytes": null,
+    "work_bound": null,
+    "timeout_policy": null
+  },
+  "readiness_blockers": [
+    "Export and independently audit source-only RGB/prior files for every case and fill byte/decoded-plane/profile hashes.",
+    "Freeze annotation program and deterministic rasterizer before collection.",
+    "Collect actual blinded human sessions and freeze replays; do not fabricate provenance or strokes.",
+    "Freeze globally selected pipelines, source/package/weight pins, preprocessing, rights evidence and combined memory/work policy.",
+    "Validate contract replay and independently recompute original metrics before any claim."
+  ],
+  "cases": [
+    {
+      "annotation_id": "a9i-001",
+      "original_case_id": "full-fur-longhair-checker-binary",
+      "dimensions": [
+        763,
+        764
+      ],
+      "family": "fur_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-002",
+      "original_case_id": "full-fur-longhair-checker-blurred",
+      "dimensions": [
+        763,
+        764
+      ],
+      "family": "fur_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-003",
+      "original_case_id": "full-fur-longhair-dark-binary",
+      "dimensions": [
+        763,
+        764
+      ],
+      "family": "fur_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-004",
+      "original_case_id": "full-fur-longhair-dark-blurred",
+      "dimensions": [
+        763,
+        764
+      ],
+      "family": "fur_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-005",
+      "original_case_id": "full-fur-longhair-light-binary",
+      "dimensions": [
+        763,
+        764
+      ],
+      "family": "fur_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-006",
+      "original_case_id": "full-fur-longhair-light-blurred",
+      "dimensions": [
+        763,
+        764
+      ],
+      "family": "fur_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-007",
+      "original_case_id": "full-hard-arduboy-checker-binary",
+      "dimensions": [
+        944,
+        1338
+      ],
+      "family": "product_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-008",
+      "original_case_id": "full-hard-arduboy-checker-blurred",
+      "dimensions": [
+        944,
+        1338
+      ],
+      "family": "product_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-009",
+      "original_case_id": "full-hard-arduboy-dark-binary",
+      "dimensions": [
+        944,
+        1338
+      ],
+      "family": "product_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-010",
+      "original_case_id": "full-hard-arduboy-dark-blurred",
+      "dimensions": [
+        944,
+        1338
+      ],
+      "family": "product_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-011",
+      "original_case_id": "full-hard-arduboy-light-binary",
+      "dimensions": [
+        944,
+        1338
+      ],
+      "family": "product_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-012",
+      "original_case_id": "full-hard-arduboy-light-blurred",
+      "dimensions": [
+        944,
+        1338
+      ],
+      "family": "product_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-013",
+      "original_case_id": "full-portrait-0051115Q_000001_0003-checker-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-014",
+      "original_case_id": "full-portrait-0051115Q_000001_0003-checker-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-015",
+      "original_case_id": "full-portrait-0051115Q_000001_0003-dark-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-016",
+      "original_case_id": "full-portrait-0051115Q_000001_0003-dark-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-017",
+      "original_case_id": "full-portrait-0051115Q_000001_0003-light-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-018",
+      "original_case_id": "full-portrait-0051115Q_000001_0003-light-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-019",
+      "original_case_id": "full-portrait-0051115Q_000001_0031-checker-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-020",
+      "original_case_id": "full-portrait-0051115Q_000001_0031-checker-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-021",
+      "original_case_id": "full-portrait-0051115Q_000001_0031-dark-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-022",
+      "original_case_id": "full-portrait-0051115Q_000001_0031-dark-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-023",
+      "original_case_id": "full-portrait-0051115Q_000001_0031-light-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-024",
+      "original_case_id": "full-portrait-0051115Q_000001_0031-light-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-025",
+      "original_case_id": "full-portrait-0051115Q_000001_0060-checker-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-026",
+      "original_case_id": "full-portrait-0051115Q_000001_0060-checker-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-027",
+      "original_case_id": "full-portrait-0051115Q_000001_0060-dark-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-028",
+      "original_case_id": "full-portrait-0051115Q_000001_0060-dark-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-029",
+      "original_case_id": "full-portrait-0051115Q_000001_0060-light-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-030",
+      "original_case_id": "full-portrait-0051115Q_000001_0060-light-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-031",
+      "original_case_id": "full-portrait-0051115Q_000001_0088-checker-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-032",
+      "original_case_id": "full-portrait-0051115Q_000001_0088-checker-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-033",
+      "original_case_id": "full-portrait-0051115Q_000001_0088-dark-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-034",
+      "original_case_id": "full-portrait-0051115Q_000001_0088-dark-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-035",
+      "original_case_id": "full-portrait-0051115Q_000001_0088-light-binary",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-036",
+      "original_case_id": "full-portrait-0051115Q_000001_0088-light-blurred",
+      "dimensions": [
+        2304,
+        3456
+      ],
+      "family": "portrait_full",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-037",
+      "original_case_id": "fur-ambiguous-binary",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-038",
+      "original_case_id": "fur-ambiguous-blurred",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-039",
+      "original_case_id": "fur-dark-binary",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-040",
+      "original_case_id": "fur-dark-blurred",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-041",
+      "original_case_id": "fur-light-binary",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-042",
+      "original_case_id": "fur-light-blurred",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-043",
+      "original_case_id": "hard_product-ambiguous-binary",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-044",
+      "original_case_id": "hard_product-ambiguous-blurred",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-045",
+      "original_case_id": "hard_product-dark-binary",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-046",
+      "original_case_id": "hard_product-dark-blurred",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-047",
+      "original_case_id": "hard_product-light-binary",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-048",
+      "original_case_id": "hard_product-light-blurred",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-049",
+      "original_case_id": "photo-0051115Q_000001_0003-checker-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-050",
+      "original_case_id": "photo-0051115Q_000001_0003-checker-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-051",
+      "original_case_id": "photo-0051115Q_000001_0003-dark-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-052",
+      "original_case_id": "photo-0051115Q_000001_0003-dark-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-053",
+      "original_case_id": "photo-0051115Q_000001_0003-light-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-054",
+      "original_case_id": "photo-0051115Q_000001_0003-light-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-055",
+      "original_case_id": "photo-0051115Q_000001_0031-checker-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-056",
+      "original_case_id": "photo-0051115Q_000001_0031-checker-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-057",
+      "original_case_id": "photo-0051115Q_000001_0031-dark-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-058",
+      "original_case_id": "photo-0051115Q_000001_0031-dark-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-059",
+      "original_case_id": "photo-0051115Q_000001_0031-light-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-060",
+      "original_case_id": "photo-0051115Q_000001_0031-light-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-061",
+      "original_case_id": "photo-0051115Q_000001_0060-checker-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-062",
+      "original_case_id": "photo-0051115Q_000001_0060-checker-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-063",
+      "original_case_id": "photo-0051115Q_000001_0060-dark-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-064",
+      "original_case_id": "photo-0051115Q_000001_0060-dark-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-065",
+      "original_case_id": "photo-0051115Q_000001_0060-light-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-066",
+      "original_case_id": "photo-0051115Q_000001_0060-light-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-067",
+      "original_case_id": "photo-0051115Q_000001_0088-checker-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-068",
+      "original_case_id": "photo-0051115Q_000001_0088-checker-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-069",
+      "original_case_id": "photo-0051115Q_000001_0088-dark-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-070",
+      "original_case_id": "photo-0051115Q_000001_0088-dark-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-071",
+      "original_case_id": "photo-0051115Q_000001_0088-light-binary",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-072",
+      "original_case_id": "photo-0051115Q_000001_0088-light-blurred",
+      "dimensions": [
+        1280,
+        1280
+      ],
+      "family": "portrait_crop",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-073",
+      "original_case_id": "portrait_hair-ambiguous-binary",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-074",
+      "original_case_id": "portrait_hair-ambiguous-blurred",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-075",
+      "original_case_id": "portrait_hair-dark-binary",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-076",
+      "original_case_id": "portrait_hair-dark-blurred",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-077",
+      "original_case_id": "portrait_hair-light-binary",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    },
+    {
+      "annotation_id": "a9i-078",
+      "original_case_id": "portrait_hair-light-blurred",
+      "dimensions": [
+        320,
+        256
+      ],
+      "family": "analytic",
+      "source_rgb_file_sha256": null,
+      "source_rgb_decoded_sha256": null,
+      "prior_file_sha256": null,
+      "prior_decoded_sha256": null,
+      "profile_identity": null,
+      "guidance_replay_sha256": null,
+      "final_guidance_planes_sha256": null
+    }
+  ],
+  "annotation_task_path": "designs/phase-9i-assisted-annotation-task-v1.md",
+  "annotation_task_sha256": null
+}

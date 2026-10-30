@@ -1,0 +1,22 @@
+identify_profiles.json - Photoshop 26.10.0 Inner Shadow and Drop Shadow profiles (the 104 rows
+of the effect-kernels-578-p4 identify take whose rule is built: a source over an opaque
+backdrop at 256 x 224; 8 bits; every row `take` effect-kernels-578-p4/identify1) for
+core/tests/style_effect_kernels_578_p4_take.rs (#578).
+
+- The 80 Inner Shadow rows (`ic_*`, family IC): a black source over opaque black, the binary
+  disc r 40 at (128, 112) and the 8 x 8 supersampled 76 x 56 ellipse; the shadow (255, 226,
+  170) Normal 100 %, Angle 120, global light off; Linear, Cone, Cone - Inverted, Half Round,
+  Ring x Size 6, 16 x Choke 0, 40 % x Distance 0, 7; `row` the red codes on y = 112 and `col`
+  on x = 128.
+- The 24 Drop Shadow rows (`ds_*`, family DK): backdrop (196, 204, 92), source (24, 64, 148)
+  on the ellipse and `aar` (the binary rect x [48, 168) y [24, 200), its column x = 168 at
+  alpha 0.6 and its row y = 200 at alpha 0.3); the shadow (48, 24, 112) Size 8, Spread 0,
+  Distance 5, Angle 135, global light off; Fill 100, 50, 0 % x Layer Knocks Out on, off x
+  Normal 80 %, Multiply 75 %; `row` / `col` the [R, G, B] codes on y = 112 / x = 128.
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/effect-kernels-578-p4/identify1/measured.json
+Written by: scripts/photoshop-probe/effect_kernels_578_p4_take.py --fixtures (IC1 and DK1
+built: each fit SHIP, CONFIRMED on effect-kernels-578-p4/take1)
+
+sha256:
+  000bedb6725621aef405d78c4f92fad736c6099fe15ca537aee0f784c846c4a3  identify_profiles.json

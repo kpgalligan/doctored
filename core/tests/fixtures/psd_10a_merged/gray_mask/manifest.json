@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "name": "gray_mask",
+  "application": {
+    "name": "GIMP",
+    "version": "3.2.6"
+  },
+  "loader": "file-psd-load-merged",
+  "source_psd_sha256": "f5284ad39f4d1365e854f8b8c2a883fd3aec410f0945ba818266d062a9fa5357",
+  "merged": {
+    "canvas": [
+      4,
+      3
+    ],
+    "precision": "u8-non-linear",
+    "color_mode": "gray",
+    "resolution": [
+      300.0,
+      240.0
+    ],
+    "profile": "merged.icc",
+    "profile_sha256": "4ed877d27a6f8270e37b7001ccf9bb14944f0f5cf4c60c319d8e704227f5ee15",
+    "layers": [
+      {
+        "name": "Background",
+        "kind": "raster",
+        "depth": 0,
+        "offset": [
+          0,
+          0
+        ],
+        "size": [
+          4,
+          3
+        ],
+        "rgba": [
+          73,
+          73,
+          73,
+          255,
+          83,
+          83,
+          83,
+          255,
+          103,
+          103,
+          103,
+          255,
+          153,
+          153,
+          153,
+          255,
+          153,
+          153,
+          153,
+          255,
+          133,
+          133,
+          133,
+          255,
+          113,
+          113,
+          113,
+          255,
+          93,
+          93,
+          93,
+          255,
+          74,
+          74,
+          74,
+          255,
+          96,
+          96,
+          96,
+          255,
+          127,
+          127,
+          127,
+          255,
+          152,
+          152,
+          152,
+          255
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "normal",
+        "mask": null
+      }
+    ],
+    "saved_channels": []
+  },
+  "original_icc_sha256": "b92a3da6c8d70b9b54d25c07a81344af656dde1cd5281e1239fe5932418fc0c4",
+  "icc_creation_time_only_difference": true,
+  "files": {
+    "merged.icc": "4ed877d27a6f8270e37b7001ccf9bb14944f0f5cf4c60c319d8e704227f5ee15",
+    "merged.png": "f15ec57cef75f4cbd4579914767c2af48ae8eb3d502614ad30402e3b620686e8"
+  }
+}

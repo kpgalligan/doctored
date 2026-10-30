@@ -1,0 +1,3116 @@
+{
+ "source": {
+  "take": "~/devel/doctored-fixtures/photoshop/reference-point-667/take1",
+  "run_id": "20261017T040216Z-8e2c6e46",
+  "verdict": "VALID"
+ },
+ "document": {
+  "size": [
+   120,
+   80
+  ],
+  "l0": {
+   "rect": [
+    13,
+    9,
+    50,
+    40
+   ],
+   "rgb": [
+    48,
+    160,
+    80
+   ],
+   "phase": [
+    0,
+    0
+   ]
+  },
+  "l1": {
+   "rect": [
+    70,
+    30,
+    40,
+    24
+   ],
+   "rgb": [
+    48,
+    80,
+    160
+   ],
+   "phase": [
+    5,
+    2
+   ],
+   "premove": [
+    7,
+    3
+   ]
+  },
+  "l2": {
+   "rect": [
+    20,
+    55,
+    30,
+    16
+   ],
+   "rgb": [
+    160,
+    80,
+    48
+   ]
+  },
+  "group_move": [
+   5,
+   -2
+  ],
+  "tile": [
+   [
+    [
+     10,
+     15,
+     200
+    ],
+    [
+     30,
+     15,
+     60
+    ],
+    [
+     50,
+     15,
+     200
+    ],
+    [
+     70,
+     15,
+     60
+    ],
+    [
+     90,
+     15,
+     200
+    ],
+    [
+     110,
+     15,
+     60
+    ],
+    [
+     130,
+     15,
+     200
+    ],
+    [
+     150,
+     15,
+     60
+    ],
+    [
+     170,
+     15,
+     200
+    ],
+    [
+     190,
+     15,
+     60
+    ],
+    [
+     210,
+     15,
+     200
+    ],
+    [
+     230,
+     15,
+     60
+    ]
+   ],
+   [
+    [
+     10,
+     45,
+     60
+    ],
+    [
+     30,
+     45,
+     200
+    ],
+    [
+     50,
+     45,
+     60
+    ],
+    [
+     70,
+     45,
+     200
+    ],
+    [
+     90,
+     45,
+     60
+    ],
+    [
+     110,
+     45,
+     200
+    ],
+    [
+     130,
+     45,
+     60
+    ],
+    [
+     150,
+     45,
+     200
+    ],
+    [
+     170,
+     45,
+     60
+    ],
+    [
+     190,
+     45,
+     200
+    ],
+    [
+     210,
+     45,
+     60
+    ],
+    [
+     230,
+     45,
+     200
+    ]
+   ],
+   [
+    [
+     10,
+     75,
+     200
+    ],
+    [
+     30,
+     75,
+     60
+    ],
+    [
+     50,
+     75,
+     200
+    ],
+    [
+     70,
+     75,
+     60
+    ],
+    [
+     90,
+     75,
+     200
+    ],
+    [
+     110,
+     75,
+     60
+    ],
+    [
+     130,
+     75,
+     200
+    ],
+    [
+     150,
+     75,
+     60
+    ],
+    [
+     170,
+     75,
+     200
+    ],
+    [
+     190,
+     75,
+     60
+    ],
+    [
+     210,
+     75,
+     200
+    ],
+    [
+     230,
+     75,
+     60
+    ]
+   ],
+   [
+    [
+     10,
+     105,
+     60
+    ],
+    [
+     30,
+     105,
+     200
+    ],
+    [
+     50,
+     105,
+     60
+    ],
+    [
+     70,
+     105,
+     200
+    ],
+    [
+     90,
+     105,
+     60
+    ],
+    [
+     110,
+     105,
+     200
+    ],
+    [
+     130,
+     105,
+     60
+    ],
+    [
+     150,
+     105,
+     200
+    ],
+    [
+     170,
+     105,
+     60
+    ],
+    [
+     190,
+     105,
+     200
+    ],
+    [
+     210,
+     105,
+     60
+    ],
+    [
+     230,
+     105,
+     200
+    ]
+   ],
+   [
+    [
+     10,
+     135,
+     200
+    ],
+    [
+     30,
+     135,
+     60
+    ],
+    [
+     50,
+     135,
+     200
+    ],
+    [
+     70,
+     135,
+     60
+    ],
+    [
+     90,
+     135,
+     200
+    ],
+    [
+     110,
+     135,
+     60
+    ],
+    [
+     130,
+     135,
+     200
+    ],
+    [
+     150,
+     135,
+     60
+    ],
+    [
+     170,
+     135,
+     200
+    ],
+    [
+     190,
+     135,
+     60
+    ],
+    [
+     210,
+     135,
+     200
+    ],
+    [
+     230,
+     135,
+     60
+    ]
+   ],
+   [
+    [
+     10,
+     165,
+     60
+    ],
+    [
+     30,
+     165,
+     200
+    ],
+    [
+     50,
+     165,
+     60
+    ],
+    [
+     70,
+     165,
+     200
+    ],
+    [
+     90,
+     165,
+     60
+    ],
+    [
+     110,
+     165,
+     200
+    ],
+    [
+     130,
+     165,
+     60
+    ],
+    [
+     150,
+     165,
+     200
+    ],
+    [
+     170,
+     165,
+     60
+    ],
+    [
+     190,
+     165,
+     200
+    ],
+    [
+     210,
+     165,
+     60
+    ],
+    [
+     230,
+     165,
+     200
+    ]
+   ],
+   [
+    [
+     10,
+     195,
+     200
+    ],
+    [
+     30,
+     195,
+     60
+    ],
+    [
+     50,
+     195,
+     200
+    ],
+    [
+     70,
+     195,
+     60
+    ],
+    [
+     90,
+     195,
+     200
+    ],
+    [
+     110,
+     195,
+     60
+    ],
+    [
+     130,
+     195,
+     200
+    ],
+    [
+     150,
+     195,
+     60
+    ],
+    [
+     170,
+     195,
+     200
+    ],
+    [
+     190,
+     195,
+     60
+    ],
+    [
+     210,
+     195,
+     200
+    ],
+    [
+     230,
+     195,
+     60
+    ]
+   ],
+   [
+    [
+     10,
+     225,
+     60
+    ],
+    [
+     30,
+     225,
+     200
+    ],
+    [
+     50,
+     225,
+     60
+    ],
+    [
+     70,
+     225,
+     200
+    ],
+    [
+     90,
+     225,
+     60
+    ],
+    [
+     110,
+     225,
+     200
+    ],
+    [
+     130,
+     225,
+     60
+    ],
+    [
+     150,
+     225,
+     200
+    ],
+    [
+     170,
+     225,
+     60
+    ],
+    [
+     190,
+     225,
+     200
+    ],
+    [
+     210,
+     225,
+     60
+    ],
+    [
+     230,
+     225,
+     200
+    ]
+   ]
+  ]
+ },
+ "before_findings": {},
+ "families": {
+  "IMAGE-SIZE": {
+   "verdict": "SHIP",
+   "winner": "POINT"
+  },
+  "CANVAS-SIZE": {
+   "verdict": "SHIP",
+   "winner": "POINT"
+  },
+  "CROP": {
+   "verdict": "SHIP",
+   "winner": "POINT"
+  },
+  "CROP-ANGLE": {
+   "verdict": "NO-SHIP",
+   "winner": null
+  },
+  "QUARTER": {
+   "verdict": "NO-SHIP",
+   "winner": "POINT"
+  },
+  "ROTATE": {
+   "verdict": "NO-SHIP",
+   "winner": null
+  },
+  "FLIP": {
+   "verdict": "NO-SHIP",
+   "winner": "POINT"
+  },
+  "FREE-TRANSFORM": {
+   "verdict": "RECORD",
+   "winner": null
+  }
+ },
+ "cases": {
+  "IS-UP": {
+   "family": "IMAGE-SIZE",
+   "edit": {
+    "op": "image_size",
+    "width": 187,
+    "height": 127
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    187,
+    127
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      20,
+      14,
+      99,
+      78
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      0.0,
+      0.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      119,
+      52,
+      183,
+      91
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      10.908333333333333,
+      4.762499999999999
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      38,
+      84,
+      86,
+      110
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      7.791666666666667,
+      -3.175
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      38,
+      84,
+      86,
+      110
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      7.791666666666667,
+      -3.175
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "IS-DOWN": {
+   "family": "IMAGE-SIZE",
+   "edit": {
+    "op": "image_size",
+    "width": 77,
+    "height": 51
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    77,
+    51
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      8,
+      5,
+      41,
+      32
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      0.0,
+      0.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      49,
+      21,
+      76,
+      37
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      4.491666666666667,
+      1.9124999999999999
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      16,
+      33,
+      36,
+      44
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      3.2083333333333335,
+      -1.275
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      16,
+      33,
+      36,
+      44
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      3.2083333333333335,
+      -1.275
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "IS-UNI": {
+   "family": "IMAGE-SIZE",
+   "edit": {
+    "op": "image_size",
+    "width": 210,
+    "height": 140
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    210,
+    140
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      22,
+      15,
+      111,
+      86
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      0.0,
+      0.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      134,
+      57,
+      205,
+      100
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      12.25,
+      5.25
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      43,
+      92,
+      97,
+      121
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      8.75,
+      -3.5
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      43,
+      92,
+      97,
+      121
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      8.75,
+      -3.5
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "CS-TL": {
+   "family": "CANVAS-SIZE",
+   "edit": {
+    "op": "canvas_size",
+    "width": 151,
+    "height": 97,
+    "anchor": "TOPLEFT"
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    151,
+    97
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      0.0,
+      0.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      7.0,
+      3.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      -2.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      -2.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "CS-C": {
+   "family": "CANVAS-SIZE",
+   "edit": {
+    "op": "canvas_size",
+    "width": 151,
+    "height": 97,
+    "anchor": "MIDDLECENTER"
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    151,
+    97
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      28,
+      17,
+      78,
+      57
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      15.0,
+      8.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      92,
+      41,
+      132,
+      65
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      22.0,
+      11.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      40,
+      61,
+      70,
+      77
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      20.0,
+      6.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      40,
+      61,
+      70,
+      77
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      20.0,
+      6.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "CS-BR": {
+   "family": "CANVAS-SIZE",
+   "edit": {
+    "op": "canvas_size",
+    "width": 151,
+    "height": 97,
+    "anchor": "BOTTOMRIGHT"
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    151,
+    97
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      44,
+      26,
+      94,
+      66
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      31.0,
+      17.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      108,
+      50,
+      148,
+      74
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      38.0,
+      20.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      56,
+      70,
+      86,
+      86
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      36.0,
+      15.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      56,
+      70,
+      86,
+      86
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      36.0,
+      15.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "CS-SHRINK": {
+   "family": "CANVAS-SIZE",
+   "edit": {
+    "op": "canvas_size",
+    "width": 100,
+    "height": 70,
+    "anchor": "MIDDLECENTER"
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    100,
+    70
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      3,
+      4,
+      53,
+      44
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      -10.0,
+      -5.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      67,
+      28,
+      107,
+      52
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      -3.0,
+      -2.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      15,
+      48,
+      45,
+      64
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      -5.0,
+      -7.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      15,
+      48,
+      45,
+      64
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      -5.0,
+      -7.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "CROP-D": {
+   "family": "CROP",
+   "edit": {
+    "op": "crop_dom",
+    "bounds": [
+     10,
+     6,
+     110,
+     74
+    ],
+    "angle": 0
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    100,
+    68
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      3,
+      3,
+      53,
+      43
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      -10.0,
+      -6.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      67,
+      27,
+      100,
+      51
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      -3.0,
+      -3.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      15,
+      47,
+      45,
+      63
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      -5.0,
+      -8.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      15,
+      47,
+      45,
+      63
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      -5.0,
+      -8.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "CROP-K": {
+   "family": "CROP",
+   "edit": {
+    "op": "crop_event",
+    "bounds": [
+     10,
+     6,
+     110,
+     74
+    ],
+    "delete_cropped": false
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    100,
+    68
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      3,
+      3,
+      53,
+      43
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      -10.0,
+      -6.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      67,
+      27,
+      107,
+      51
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      -3.0,
+      -3.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      15,
+      47,
+      45,
+      63
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      -5.0,
+      -8.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      15,
+      47,
+      45,
+      63
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      -5.0,
+      -8.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "CROP-A": {
+   "family": "CROP-ANGLE",
+   "edit": {
+    "op": "crop_dom",
+    "bounds": [
+     10,
+     6,
+     110,
+     74
+    ],
+    "angle": 10
+   },
+   "sign": null,
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    100,
+    68
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      2,
+      0,
+      59,
+      44
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      -2.1425380740552735,
+      -15.811200780504148
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      63,
+      29,
+      100,
+      60
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      4.230171664029392,
+      -11.64124027779901
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      10,
+      40,
+      43,
+      62
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      3.128797046339628,
+      -16.912575398193912
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      10,
+      40,
+      43,
+      62
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      3.128797046339628,
+      -16.912575398193912
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "R90": {
+   "family": "QUARTER",
+   "edit": {
+    "op": "rotate",
+    "angle": 90
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    80,
+    120
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      31,
+      13,
+      71,
+      63
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      80.0,
+      0.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      23,
+      77,
+      47,
+      117
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      77.0,
+      7.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      11,
+      25,
+      27,
+      55
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      82.0,
+      5.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      11,
+      25,
+      27,
+      55
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      82.0,
+      5.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "R180": {
+   "family": "QUARTER",
+   "edit": {
+    "op": "rotate",
+    "angle": 180
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    120,
+    80
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      57,
+      31,
+      107,
+      71
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      120.0,
+      80.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      3,
+      23,
+      43,
+      47
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      113.0,
+      77.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      65,
+      11,
+      95,
+      27
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      115.0,
+      82.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      65,
+      11,
+      95,
+      27
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      115.0,
+      82.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "R270": {
+   "family": "QUARTER",
+   "edit": {
+    "op": "rotate",
+    "angle": -90
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    80,
+    120
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      9,
+      57,
+      49,
+      107
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      0.0,
+      120.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      33,
+      3,
+      57,
+      43
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      3.0,
+      113.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      53,
+      65,
+      69,
+      95
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      -2.0,
+      115.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      53,
+      65,
+      69,
+      95
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      -2.0,
+      115.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "R30": {
+   "family": "ROTATE",
+   "edit": {
+    "op": "rotate",
+    "angle": 30
+   },
+   "sign": "+",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    144,
+    130
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      27,
+      15,
+      91,
+      75
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      40.39745962155613,
+      0.3974596215561377
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      78,
+      67,
+      125,
+      108
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      44.959637448047204,
+      6.495535832909454
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      27,
+      59,
+      61,
+      88
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      45.72758664047832,
+      1.1654088139872627
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      27,
+      59,
+      61,
+      88
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      45.72758664047832,
+      1.1654088139872627
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "FH": {
+   "family": "FLIP",
+   "edit": {
+    "op": "flip",
+    "direction": "horizontal"
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    120,
+    80
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      57,
+      9,
+      107,
+      49
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      120.0,
+      0.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      3,
+      33,
+      43,
+      57
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      113.0,
+      3.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      65,
+      53,
+      95,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      115.0,
+      -2.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      65,
+      53,
+      95,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      115.0,
+      -2.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "FV": {
+   "family": "FLIP",
+   "edit": {
+    "op": "flip",
+    "direction": "vertical"
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    120,
+    80
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      13,
+      31,
+      63,
+      71
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      0.0,
+      80.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      77,
+      23,
+      117,
+      47
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      7.0,
+      77.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      11,
+      55,
+      27
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      82.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      11,
+      55,
+      27
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      82.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "FT-S": {
+   "family": "FREE-TRANSFORM",
+   "edit": {
+    "op": "free_transform",
+    "width": 50,
+    "height": 75
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    120,
+    80
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      0.0,
+      0.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      87,
+      36,
+      107,
+      54
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      52.0,
+      13.5
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      -2.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      -2.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "FT-R": {
+   "family": "FREE-TRANSFORM",
+   "edit": {
+    "op": "free_transform",
+    "angle": 30
+   },
+   "sign": null,
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    120,
+    80
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      0.0,
+      0.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      74,
+      26,
+      120,
+      66
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      40.0577136594005,
+      -36.373066958946424
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      -2.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      -2.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "FT-K": {
+   "family": "FREE-TRANSFORM",
+   "edit": {
+    "op": "free_transform",
+    "skew": [
+     20,
+     0
+    ]
+   },
+   "sign": null,
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    120,
+    80
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      0.0,
+      0.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      73,
+      33,
+      121,
+      57
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      -8.286749839180509,
+      3.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      -2.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      -2.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  },
+  "FT-F": {
+   "family": "FREE-TRANSFORM",
+   "edit": {
+    "op": "free_transform",
+    "width": -100
+   },
+   "sign": "",
+   "canvas_before": [
+    120,
+    80
+   ],
+   "canvas_after": [
+    120,
+    80
+   ],
+   "records": {
+    "L0": {
+     "bounds_before": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "bounds_after": [
+      13,
+      9,
+      63,
+      49
+     ],
+     "fxrp_before": [
+      0.0,
+      0.0
+     ],
+     "fxrp_after": [
+      0.0,
+      0.0
+     ]
+    },
+    "L1": {
+     "bounds_before": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "bounds_after": [
+      77,
+      33,
+      117,
+      57
+     ],
+     "fxrp_before": [
+      7.0,
+      3.0
+     ],
+     "fxrp_after": [
+      187.0,
+      3.0
+     ]
+    },
+    "L2": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      -2.0
+     ]
+    },
+    "G": {
+     "bounds_before": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "bounds_after": [
+      25,
+      53,
+      55,
+      69
+     ],
+     "fxrp_before": [
+      5.0,
+      -2.0
+     ],
+     "fxrp_after": [
+      5.0,
+      -2.0
+     ]
+    }
+   },
+   "readback_after": {
+    "L0": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      0,
+      0
+     ]
+    },
+    "L1": {
+     "scale": 100,
+     "angle": 0,
+     "phase": [
+      5,
+      2
+     ]
+    }
+   }
+  }
+ }
+}

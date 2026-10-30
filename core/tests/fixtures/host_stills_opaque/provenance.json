@@ -1,0 +1,786 @@
+{
+  "files": {
+    "avif10.avif": {
+      "argv": [
+        "avifenc",
+        "-l",
+        "-d",
+        "10",
+        "source16.png",
+        "avif10.avif"
+      ],
+      "bytes": 3623,
+      "encoded_depth": 10,
+      "imageio_layout": {
+        "depth": 10,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipFirst",
+          "bpc": 10,
+          "bpp": 32,
+          "byte_order": "32Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "RGB101010",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "noneSkipFirst",
+          "bpc": 10,
+          "bpp": 32,
+          "byte_order": "32Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "RGB101010",
+          "width": 64
+        },
+        "type": "public.avif"
+      },
+      "sha256": "b2d940630d26531857814040b3e65ee657ce40012923a8b2d9f7d9c5dc512936",
+      "source": "source16.png"
+    },
+    "avif12.avif": {
+      "argv": [
+        "avifenc",
+        "-l",
+        "-d",
+        "12",
+        "source16.png",
+        "avif12.avif"
+      ],
+      "bytes": 4919,
+      "encoded_depth": 12,
+      "imageio_layout": {
+        "depth": 12,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 16,
+          "bpp": 64,
+          "byte_order": "16Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 16,
+          "bpp": 64,
+          "byte_order": "16Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.avif"
+      },
+      "sha256": "6ed6c3c367350aeaf0ae8d3b65a7441cde3479698b7bbe6d95d1556380ea4ad1",
+      "source": "source16.png"
+    },
+    "avif8-alpha.avif": {
+      "argv": [
+        "avifenc",
+        "-l",
+        "source8-alpha.png",
+        "avif8-alpha.avif"
+      ],
+      "bytes": 9765,
+      "encoded_depth": 8,
+      "imageio_layout": {
+        "depth": 8,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "last",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "last",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.avif"
+      },
+      "sha256": "02c1d8e452edcfe04038a8ca7942785017d266201a3d588ae47bf7de0b985342",
+      "source": "source8-alpha.png"
+    },
+    "avif8.avif": {
+      "argv": [
+        "avifenc",
+        "-l",
+        "source8.png",
+        "avif8.avif"
+      ],
+      "bytes": 6727,
+      "encoded_depth": 8,
+      "imageio_layout": {
+        "depth": 8,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.avif"
+      },
+      "sha256": "553b5a4fd7582687a92575b620f7e6d7ab7d2e9aace4fc526ecd260ad012b84c",
+      "source": "source8.png"
+    },
+    "gainmap.heic": {
+      "argv": [
+        "oracle",
+        "gainmap",
+        "gainmap.heic"
+      ],
+      "bytes": 2128,
+      "encoded_depth": 8,
+      "imageio_layout": {
+        "depth": 8,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipFirst",
+          "bpc": 10,
+          "bpp": 32,
+          "byte_order": "32Little",
+          "color_space": null,
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": true,
+          "pixel_format": "RGB101010",
+          "width": 64
+        },
+        "iso_gain_map": true,
+        "sdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceDisplayP3",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.heic"
+      },
+      "sha256": "1d845c95fe9ff038527c39a0618917e5dfb2bc527c9653ccf3e16b315d8d84bc",
+      "source": "synthetic HDR scene authored in oracle.swift (Core Image HDR HEIF writer)"
+    },
+    "heic10.heic": {
+      "argv": [
+        "heif-enc",
+        "--lossless",
+        "-b",
+        "10",
+        "source16.png",
+        "-o",
+        "heic10.heic"
+      ],
+      "bytes": 7465,
+      "encoded_depth": 10,
+      "imageio_layout": {
+        "depth": 10,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipFirst",
+          "bpc": 10,
+          "bpp": 32,
+          "byte_order": "32Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "RGB101010",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "noneSkipFirst",
+          "bpc": 10,
+          "bpp": 32,
+          "byte_order": "32Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "RGB101010",
+          "width": 64
+        },
+        "type": "public.heic"
+      },
+      "sha256": "ddd2f015d722a6f30772421c0ddd4b8b9777d4377737b8d70943945a4f913025",
+      "source": "source16.png"
+    },
+    "heic12-444.heic": {
+      "argv": [
+        "heif-enc",
+        "--lossless",
+        "-b",
+        "12",
+        "source16.png",
+        "-o",
+        "heic12-444.heic"
+      ],
+      "bytes": 10839,
+      "encoded_depth": 12,
+      "imageio_layout": {
+        "depth": 12,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 16,
+          "bpp": 64,
+          "byte_order": "16Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 16,
+          "bpp": 64,
+          "byte_order": "16Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.heic"
+      },
+      "sha256": "d70514b2dcb33d8167eace248005525cc20bcefcc5e2fb1e760e833fd16bc2f6",
+      "source": "source16.png"
+    },
+    "heic12.heic": {
+      "argv": [
+        "heif-enc",
+        "-q",
+        "100",
+        "-b",
+        "12",
+        "source16.png",
+        "-o",
+        "heic12.heic"
+      ],
+      "bytes": 1748,
+      "encoded_depth": 12,
+      "imageio_layout": {
+        "depth": 12,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 16,
+          "bpp": 64,
+          "byte_order": "16Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 16,
+          "bpp": 64,
+          "byte_order": "16Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.heic"
+      },
+      "sha256": "2e2eeadf12fb00228347160bb9dc5b889256e5aee78642d3436d4d72e2f9d50b",
+      "source": "source16.png"
+    },
+    "heic8.heic": {
+      "argv": [
+        "heif-enc",
+        "--lossless",
+        "-b",
+        "8",
+        "source8.png",
+        "-o",
+        "heic8.heic"
+      ],
+      "bytes": 9931,
+      "encoded_depth": 8,
+      "imageio_layout": {
+        "depth": 8,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.heic"
+      },
+      "sha256": "bcbc4b86ef35be9353ea560abe995bf0be3b68f3c44127ea7787739e76bf293c",
+      "source": "source8.png"
+    },
+    "jp2-8.jp2": {
+      "argv": [
+        "opj_compress",
+        "-i",
+        "source8.png",
+        "-o",
+        "jp2-8.jp2",
+        "-r",
+        "1"
+      ],
+      "bytes": 4000,
+      "encoded_depth": 8,
+      "imageio_layout": {
+        "depth": 8,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.jpeg-2000"
+      },
+      "sha256": "93cf13a236b999e65f6198584e3428aabf2d0e4bdf0aac154adcb2101ede284a",
+      "source": "source8.png"
+    },
+    "jxl8.jxl": {
+      "argv": [
+        "cjxl",
+        "-d",
+        "0",
+        "source8.png",
+        "jxl8.jxl"
+      ],
+      "bytes": 1772,
+      "encoded_depth": 8,
+      "imageio_layout": {
+        "depth": 8,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.jpeg-xl"
+      },
+      "sha256": "18652f4e3c22d081bfa47e4bb9fd0fc31dc4fc33bc8b80de6302436aeeb1c2ca",
+      "source": "source8.png"
+    },
+    "live.jpg": {
+      "argv": [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        "source8.png",
+        "-frames:v",
+        "1",
+        "-q:v",
+        "2",
+        "live.jpg"
+      ],
+      "bytes": 4880,
+      "encoded_depth": 8,
+      "imageio_layout": {
+        "depth": 8,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "none",
+          "bpc": 8,
+          "bpp": 24,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "none",
+          "bpc": 8,
+          "bpp": 24,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.jpeg"
+      },
+      "sha256": "314d771b263f04b1e33a4d4269d676eb0cf1ae7659be787975794944ba2c1df7",
+      "source": "source8.png"
+    },
+    "live.mov": {
+      "argv": [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-loop",
+        "1",
+        "-framerate",
+        "24000/1001",
+        "-i",
+        "source8.png",
+        "-frames:v",
+        "4",
+        "-vf",
+        "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709,format=yuv420p",
+        "-c:v",
+        "libx264",
+        "-bf",
+        "2",
+        "-g",
+        "12",
+        "-threads",
+        "1",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-colorspace",
+        "bt709",
+        "-movflags",
+        "+write_colr",
+        "-video_track_timescale",
+        "24000",
+        "live.mov"
+      ],
+      "bytes": 2705,
+      "sha256": "8bb4ae087c84fdbca73d1960598c78f0a1a908b5525ef1dc779a7be3c6bd3e56",
+      "source": "source8.png"
+    },
+    "source16.png": {
+      "argv": null,
+      "bytes": 18566,
+      "encoded_depth": 16,
+      "imageio_layout": {
+        "depth": 16,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "none",
+          "bpc": 16,
+          "bpp": 48,
+          "byte_order": "16Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "none",
+          "bpc": 16,
+          "bpp": 48,
+          "byte_order": "16Little",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.png"
+      },
+      "sha256": "9774aa98ffdf9f5a0347b7215ea1639da248c6c1309b75f78af0e4b7dadcf7a7",
+      "source": "authored by fixtures.py"
+    },
+    "source8-alpha.png": {
+      "argv": null,
+      "bytes": 1241,
+      "encoded_depth": 8,
+      "imageio_layout": {
+        "depth": 8,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "last",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "last",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.png"
+      },
+      "sha256": "fb58f5c5f3e6e32834f5bf85e827dbf7ac86a78c0259ed549572cb345f88fadb",
+      "source": "authored by fixtures.py"
+    },
+    "source8.png": {
+      "argv": null,
+      "bytes": 957,
+      "encoded_depth": 8,
+      "imageio_layout": {
+        "depth": 8,
+        "hdr_gain_map": false,
+        "hdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "iso_gain_map": false,
+        "sdr_request": {
+          "alpha_info": "noneSkipLast",
+          "bpc": 8,
+          "bpp": 32,
+          "byte_order": "default",
+          "color_space": "kCGColorSpaceSRGB",
+          "extended": false,
+          "float": false,
+          "height": 48,
+          "is_hdr": false,
+          "pixel_format": "packed",
+          "width": 64
+        },
+        "type": "public.png"
+      },
+      "sha256": "c23c3da8be6c749ec4c479a3c80b5f2556c5bb2b7abbf7db16ac1fd3031c7232",
+      "source": "authored by fixtures.py"
+    }
+  },
+  "generator": {
+    "path": "scripts/host-stills-opaque/fixtures.py",
+    "sha256": "f100e4ab29969ee01104b7976d2cfb6a1d02529538b16390b634d60f767254c9"
+  },
+  "macos": {
+    "build": "25F80",
+    "version": "26.5.1"
+  },
+  "oracle": {
+    "path": "scripts/host-stills-opaque/oracle.swift",
+    "sha256": "75b9352d34975e8d8282d39463d419963ce9c093b0fd3d7c621331630de37f78"
+  },
+  "schema": 1,
+  "tools": {
+    "avifdec": {
+      "executable": "/opt/homebrew/bin/avifdec",
+      "version": [
+        "Version: 1.3.0 (aom [enc/dec]:3.12.1)",
+        "libyuv : unavailable"
+      ]
+    },
+    "avifenc": {
+      "executable": "/opt/homebrew/bin/avifenc",
+      "version": [
+        "Version: 1.3.0 (aom [enc/dec]:3.12.1)",
+        "libyuv : unavailable"
+      ]
+    },
+    "cjxl": {
+      "executable": "/opt/homebrew/bin/cjxl",
+      "version": [
+        "cjxl v0.11.1 0.11.1 [NEON_BF16,NEON]",
+        "Copyright (c) the JPEG XL Project"
+      ]
+    },
+    "ffmpeg": {
+      "executable": "/opt/homebrew/bin/ffmpeg",
+      "version": [
+        "ffmpeg version 8.0 Copyright (c) 2000-2025 the FFmpeg developers",
+        "built with Apple clang version 17.0.0 (clang-1700.0.13.3)",
+        "configuration: --prefix=/opt/homebrew/Cellar/ffmpeg/8.0_1 --enable-shared --enable-pthreads --enable-version3 --cc=clang --host-cflags= --host-ldflags='-Wl,-ld_classic' --enable-ffplay --enable-gnutls --enable-gpl --enable-libaom --enable-libaribb24 --enable-libbluray --enable-libdav1d --enable-libharfbuzz --enable-libjxl --enable-libmp3lame --enable-libopus --enable-librav1e --enable-librist --enable-librubberband --enable-libsnappy --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libtesseract --enable-libtheora --enable-libvidstab --enable-libvmaf --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxml2 --enable-libxvid --enable-lzma --enable-libfontconfig --enable-libfreetype --enable-frei0r --enable-libass --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-libspeex --enable-libsoxr --enable-libzmq --enable-libzimg --disable-libjack --disable-indev=jack --enable-videotoolbox --enable-audiotoolbox --enable-neon"
+      ]
+    },
+    "heif-enc": {
+      "executable": "/opt/homebrew/bin/heif-enc",
+      "version": [
+        "1.20.2",
+        "libheif: 1.20.2",
+        "plugin path: /opt/homebrew/Cellar/libheif/1.20.2/lib/libheif"
+      ]
+    },
+    "magick": {
+      "executable": "/opt/homebrew/bin/magick",
+      "version": [
+        "Version: ImageMagick 7.1.2-0 Q16-HDRI aarch64 23234 https://imagemagick.org",
+        "Copyright: (C) 1999 ImageMagick Studio LLC",
+        "License: https://imagemagick.org/script/license.php"
+      ]
+    },
+    "opj_compress": {
+      "executable": "/opt/homebrew/bin/opj_compress",
+      "version": [
+        "This is the opj_compress utility from the OpenJPEG project.",
+        "It compresses various image formats with the JPEG 2000 algorithm.",
+        "It has been compiled against openjp2 library v2.5.3."
+      ]
+    }
+  }
+}

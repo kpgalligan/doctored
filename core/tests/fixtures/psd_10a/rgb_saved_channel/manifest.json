@@ -1,0 +1,238 @@
+{
+  "schema": 1,
+  "name": "rgb_saved_channel",
+  "application": {
+    "name": "GIMP",
+    "version": "3.2.6"
+  },
+  "author": {
+    "canvas": [
+      4,
+      3
+    ],
+    "color_mode": "rgb",
+    "precision": "u8-non-linear",
+    "resolution": [
+      300.0,
+      240.0
+    ],
+    "layers": [
+      {
+        "name": "Saved-channel control",
+        "kind": "raster",
+        "depth": 0,
+        "size": [
+          4,
+          3
+        ],
+        "offset": [
+          0,
+          0
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "normal",
+        "blend_space": "auto",
+        "composite_space": "rgb-non-linear",
+        "composite_mode": "union",
+        "open": null,
+        "rgba": [
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255
+        ],
+        "mask": null
+      }
+    ],
+    "saved_channels": [
+      {
+        "name": "Excluded auxiliary coverage",
+        "size": [
+          4,
+          3
+        ],
+        "coverage": [
+          0,
+          99,
+          165,
+          255,
+          255,
+          225,
+          188,
+          137,
+          28,
+          146,
+          215,
+          254
+        ]
+      }
+    ],
+    "profile": "authored.icc",
+    "profile_sha256": "c9852c1ea68a71c2b396990b1505385207371667b2ca6b0b98b9c81a7d01ab90"
+  },
+  "reopened": {
+    "canvas": [
+      4,
+      3
+    ],
+    "color_mode": "rgb",
+    "precision": "u8-non-linear",
+    "resolution": [
+      300.0,
+      240.0
+    ],
+    "layers": [
+      {
+        "name": "Saved-channel control",
+        "kind": "raster",
+        "depth": 0,
+        "size": [
+          4,
+          3
+        ],
+        "offset": [
+          0,
+          0
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "normal",
+        "blend_space": "auto",
+        "composite_space": "rgb-perceptual",
+        "composite_mode": "union",
+        "open": null,
+        "rgba": [
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255,
+          43,
+          101,
+          169,
+          255
+        ],
+        "mask": null
+      }
+    ],
+    "saved_channels": [
+      {
+        "name": "Excluded auxiliary coverage",
+        "size": [
+          4,
+          3
+        ],
+        "coverage": [
+          0,
+          99,
+          165,
+          255,
+          255,
+          225,
+          188,
+          137,
+          28,
+          146,
+          215,
+          254
+        ]
+      }
+    ],
+    "profile": "reopened.icc",
+    "profile_sha256": "c9852c1ea68a71c2b396990b1505385207371667b2ca6b0b98b9c81a7d01ab90"
+  },
+  "profile_embedding_requested": true,
+  "opaque_backdrop": true,
+  "files": {
+    "authored.icc": "c9852c1ea68a71c2b396990b1505385207371667b2ca6b0b98b9c81a7d01ab90",
+    "authored.png": "9f32e03109136efa429d7d2ecb3631764b40338cee1bcbca02494684e8389986",
+    "reopened.icc": "c9852c1ea68a71c2b396990b1505385207371667b2ca6b0b98b9c81a7d01ab90",
+    "reopened.png": "9f32e03109136efa429d7d2ecb3631764b40338cee1bcbca02494684e8389986",
+    "source.psd": "ed5feb2002cb23bed2205f105b0f16543de06575431d1d6e4c3c2e4d3ae11c01"
+  },
+  "expected_loss_contains": "additional saved channels"
+}

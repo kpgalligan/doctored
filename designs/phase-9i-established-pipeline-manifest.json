@@ -1,0 +1,464 @@
+{
+  "schema_version": 1,
+  "record_kind": "conditional_pipeline_acquisition_runtime_proposal",
+  "created_at_utc": "2026-09-13T04:25:47.026285+00:00",
+  "repository_baseline": "19b7928",
+  "decision": "no_eligible_scored_candidate_yet",
+  "preferred_conditional_pipeline": "author_rvm_mobilenetv3_fp32_single_still_deep_guided_filter",
+  "frozen_candidate_declaration": false,
+  "quality_run_started": false,
+  "decision_document": "archive/phase-9i-established-pipeline-decision.md",
+  "reviewed_candidates": [
+    {
+      "name": "Robust Video Matting MobileNetv3",
+      "complete_alpha_foreground_pipeline": true,
+      "input": "source_rgb_only",
+      "training_domain": "human_video_matting",
+      "code_license": "GPL-3.0",
+      "weight_license": null,
+      "weight_rights_evidence": "Official assets and intended inference documented; separate exact-weight permission not established.",
+      "outcome": "preferred_conditional",
+      "primary_sources": [
+        "https://github.com/PeterL1n/RobustVideoMatting",
+        "https://github.com/PeterL1n/RobustVideoMatting/issues/281"
+      ]
+    },
+    {
+      "name": "F B Alpha Matting",
+      "complete_alpha_foreground_pipeline": true,
+      "input": "rgb_and_categorical_trimap",
+      "training_domain": "Adobe_Image_Matting_Composition_1k",
+      "code_license": "MIT",
+      "weight_license": "Adobe Deep Image Matting Dataset License Agreement; author restricts supplied weights to noncommercial use/distribution",
+      "outcome": "not_selected",
+      "reasons": [
+        "No accepted source-only user trimap; automatic-prior hard-label defect is preserved evidence.",
+        "Author recommends >=11 GB GPU memory for Composition-1k; native 2 GiB eligibility not established.",
+        "Intended-use compatibility with noncommercial weight restriction not established."
+      ],
+      "primary_sources": [
+        "https://github.com/MarcoForte/FBA_Matting",
+        "https://github.com/MarcoForte/FBA_Matting/blob/master/LICENSE",
+        "https://github.com/MarcoForte/FBA_Matting/blob/master/demo.py",
+        "https://github.com/MarcoForte/FBA_Matting/blob/master/networks/transforms.py"
+      ]
+    },
+    {
+      "name": "Background Matting V2 MobileNetv2 with sampled refinement",
+      "complete_alpha_foreground_pipeline": true,
+      "input": "rgb_and_independently_captured_empty_background",
+      "training_domain": "human_background_replacement",
+      "code_license": "MIT",
+      "weight_license": null,
+      "weight_rights_evidence": "Author project-level MIT statement; exact-asset grant not audited after input prerequisite failed.",
+      "outcome": "not_selected",
+      "reasons": [
+        "No independently captured empty background exists in frozen inputs.",
+        "Known benchmark compositing backgrounds or reference-derived reconstructions are not permitted substitute inputs."
+      ],
+      "primary_sources": [
+        "https://github.com/PeterL1n/BackgroundMattingV2",
+        "https://github.com/PeterL1n/BackgroundMattingV2/blob/master/doc/model_usage.md"
+      ]
+    }
+  ],
+  "prior_evidence_read_first": "designs/phase-6-vitmatte-spike.md",
+  "source_audit": {
+    "directory": "/private/tmp/rz-phase9i-rvm-source-audit-5y3j4w4d",
+    "source_subdirectory": "source",
+    "source_revision": "53d74c6826735f01f4406b5ca9075eee27bec094",
+    "manifest_sha256": "62c99818c7bb0a3054b1074189de18b93a2707cbb53b1ff4869af4f46c0055f5",
+    "files": [
+      {
+        "path": "LICENSE",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/LICENSE",
+        "bytes": 35148,
+        "sha256": "8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b"
+      },
+      {
+        "path": "README.md",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/README.md",
+        "bytes": 12297,
+        "sha256": "239354ea615b768de0be7f17a703d784dd1eccd9f773b6be76cacbdde3a4aa06"
+      },
+      {
+        "path": "requirements_inference.txt",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/requirements_inference.txt",
+        "bytes": 65,
+        "sha256": "b4ab4ff64ec6dd825a83ff438292b7e3dc62f662367a44f26d84fa44e5028a50"
+      },
+      {
+        "path": "inference.py",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/inference.py",
+        "bytes": 8797,
+        "sha256": "2647ce5d01bcdfe2a3bc134e593521702d4d03fd9a9695e7880cfbabb94add92"
+      },
+      {
+        "path": "inference_utils.py",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/inference_utils.py",
+        "bytes": 2686,
+        "sha256": "0f91a6a166f398ef4184d595e4746b4241602c5ec14ca88baad57a63dd7cec13"
+      },
+      {
+        "path": "documentation/inference.md",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/documentation/inference.md",
+        "bytes": 11834,
+        "sha256": "0e18a712ca85ecc46f76c6587dd2d0b76ab7831ec92f1321fd07eab30b08fe0b"
+      },
+      {
+        "path": "model/model.py",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/model/model.py",
+        "bytes": 3091,
+        "sha256": "d8378170659fd21d114096120f9a0ad2fed0550c4d4664927d68f2def3ccd960"
+      },
+      {
+        "path": "model/mobilenetv3.py",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/model/mobilenetv3.py",
+        "bytes": 3001,
+        "sha256": "6932676d3e0cc100a48d2d2b90a37e45973fce16cefc764b26ac52cd46bc748c"
+      },
+      {
+        "path": "model/resnet.py",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/model/resnet.py",
+        "bytes": 1349,
+        "sha256": "639822fcd9469daeb9bff3b9ce24eed9c1fe6e9547d1177d7aea61783268e85b"
+      },
+      {
+        "path": "model/lraspp.py",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/model/lraspp.py",
+        "bytes": 896,
+        "sha256": "c35712af044cecca8c216d4fa28611c44df88e8f4a40aad89f2618a14cf5ee17"
+      },
+      {
+        "path": "model/decoder.py",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/model/decoder.py",
+        "bytes": 7091,
+        "sha256": "f3a8c237ddd6756bf231106d03a00e45ead3c265ae57fb2661aa6bf1f9167af5"
+      },
+      {
+        "path": "model/deep_guided_filter.py",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/model/deep_guided_filter.py",
+        "bytes": 2508,
+        "sha256": "b0576d4513b6238f77bce018219bd0bbc10c628948c296024cae09f64437fece"
+      },
+      {
+        "path": "model/fast_guided_filter.py",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/model/fast_guided_filter.py",
+        "bytes": 3009,
+        "sha256": "7d984c58f691eb18d1ac62c00b325714dbf7f464b59ba947e56027a876474fe4"
+      },
+      {
+        "path": "model/__init__.py",
+        "url": "https://raw.githubusercontent.com/PeterL1n/RobustVideoMatting/53d74c6826735f01f4406b5ca9075eee27bec094/model/__init__.py",
+        "bytes": 33,
+        "sha256": "b0897f863332e0ef783017ab2c24211c633dc10b904a92dde1342c02c714c7ba"
+      }
+    ],
+    "downloaded_source_bytes": 91805,
+    "model_imported": false
+  },
+  "weight_acquisition": {
+    "status": "not_started_pending_exact_asset_rights",
+    "release_tag": "v1.0.0",
+    "release_id": 49727187,
+    "release_metadata_path": "/private/tmp/rz-phase9i-rvm-source-audit-5y3j4w4d/release.json",
+    "release_metadata_sha256": "191d247e11e83f6bd54b92bc5a13447d2ee9598ffc4fbe9e6f446a07ea6ddda0",
+    "release_metadata_url": "https://api.github.com/repos/PeterL1n/RobustVideoMatting/releases/tags/v1.0.0",
+    "release_body": "",
+    "assets": [
+      {
+        "name": "rvm_mobilenetv3.pth",
+        "id": 44993286,
+        "bytes": 15217721,
+        "publisher_digest": null,
+        "url": "https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0/rvm_mobilenetv3.pth",
+        "updated_at": "2021-09-17T07:12:47Z",
+        "downloaded": false,
+        "local_path": null,
+        "sha256": null,
+        "permission_status": "exact_asset_terms_unresolved",
+        "role": "original_state_dict_provenance_only"
+      },
+      {
+        "name": "rvm_mobilenetv3_fp32.torchscript",
+        "id": 44993214,
+        "bytes": 15501891,
+        "publisher_digest": null,
+        "url": "https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0/rvm_mobilenetv3_fp32.torchscript",
+        "updated_at": "2021-09-17T07:11:46Z",
+        "downloaded": false,
+        "local_path": null,
+        "sha256": null,
+        "permission_status": "exact_asset_terms_unresolved",
+        "role": "preferred_conditional_reference_graph"
+      }
+    ],
+    "later_acquisition_rules": [
+      "Primary permission evidence must establish intended evaluation for the exact asset.",
+      "Retain official URL, asset ID, response metadata, actual length and local SHA-256 before any model load.",
+      "A locally computed digest is not a publisher-signed digest.",
+      "Keep weights and runtime outside repository and application.",
+      "Inspect author graph/schema and qualify runtime before claiming fidelity."
+    ]
+  },
+  "proposed_input_contract": {
+    "status": "proposal_not_frozen_run",
+    "case_count": 90,
+    "source_storage": "native_RGB8",
+    "model_input_dtype": "float32",
+    "model_input_shape": "[1,3,H,W]",
+    "host_rescaling": "byte / 255",
+    "host_normalization": "none; author encoder performs ImageNet normalization internally",
+    "color_domain": "existing_encoded_RGB_without_new_profile_transform",
+    "external_resize": false,
+    "external_padding": false,
+    "model_consumes_prior": false,
+    "model_consumes_reference_alpha": false,
+    "model_consumes_reference_foreground": false,
+    "model_consumes_automatic_hard_labels": false,
+    "new_reference_derived_input": false,
+    "existing_prior_recipe": "unchanged_for_provenance_baseline_and_scoring",
+    "recurrent_state": "four_None_inputs_reset_for_every_independent_still",
+    "forward_passes_per_case": 1,
+    "downsample_ratio": "min(512/max(H,W),1)",
+    "stage1_resize": "author bilinear, align_corners=False, recompute_scale_factor=False",
+    "native_refinement": "author deep guided filter consumes full native source",
+    "cases": [
+      {
+        "group": "analytic",
+        "cases": 24,
+        "width": 320,
+        "height": 256,
+        "pixels": 81920,
+        "downsample_ratio": 1,
+        "stage1_width": 320,
+        "stage1_height": 256,
+        "stage1_pixels": 81920,
+        "model_child_forecast_bytes": 899678208,
+        "model_with_controller_forecast_bytes": 933232640,
+        "scorer_with_controller_forecast_bytes": 121634816
+      },
+      {
+        "group": "photographic_crops",
+        "cases": 24,
+        "width": 1280,
+        "height": 1280,
+        "pixels": 1638400,
+        "downsample_ratio": 0.4,
+        "stage1_width": 512,
+        "stage1_height": 512,
+        "stage1_pixels": 262144,
+        "model_child_forecast_bytes": 1283457024,
+        "model_with_controller_forecast_bytes": 1317011456,
+        "scorer_with_controller_forecast_bytes": 520093696
+      },
+      {
+        "group": "full_fur",
+        "cases": 6,
+        "width": 763,
+        "height": 764,
+        "pixels": 582932,
+        "downsample_ratio": 0.6701570680628273,
+        "stage1_width": 511,
+        "stage1_height": 512,
+        "stage1_pixels": 261632,
+        "model_child_forecast_bytes": 1147832832,
+        "model_with_controller_forecast_bytes": 1181387264,
+        "scorer_with_controller_forecast_bytes": 249893888
+      },
+      {
+        "group": "full_bottle",
+        "cases": 6,
+        "width": 800,
+        "height": 600,
+        "pixels": 480000,
+        "downsample_ratio": 0.64,
+        "stage1_width": 512,
+        "stage1_height": 384,
+        "stage1_pixels": 196608,
+        "model_child_forecast_bytes": 1068072960,
+        "model_with_controller_forecast_bytes": 1101627392,
+        "scorer_with_controller_forecast_bytes": 223543296
+      },
+      {
+        "group": "full_product",
+        "cases": 6,
+        "width": 944,
+        "height": 1338,
+        "pixels": 1263072,
+        "downsample_ratio": 0.38266068759342303,
+        "stage1_width": 361,
+        "stage1_height": 512,
+        "stage1_pixels": 184832,
+        "model_child_forecast_bytes": 1156247552,
+        "model_with_controller_forecast_bytes": 1189801984,
+        "scorer_with_controller_forecast_bytes": 424009728
+      },
+      {
+        "group": "full_portraits",
+        "cases": 24,
+        "width": 2304,
+        "height": 3456,
+        "pixels": 7962624,
+        "downsample_ratio": 0.14814814814814814,
+        "stage1_width": 341,
+        "stage1_height": 512,
+        "stage1_pixels": 174592,
+        "model_child_forecast_bytes": 2003304448,
+        "model_with_controller_forecast_bytes": 2036858880,
+        "scorer_with_controller_forecast_bytes": 2139095040
+      }
+    ]
+  },
+  "proposed_output_contract": {
+    "native_dimensions_required": true,
+    "emitted_alpha": "float32 [1,1,H,W]",
+    "emitted_foreground": "float32 [1,3,H,W], straight encoded RGB",
+    "pre_conversion_validation": [
+      "exact shape and channel count",
+      "float32 dtype",
+      "all finite",
+      "all samples in [0,1]"
+    ],
+    "raw_float_planes": "retain externally as evidence after validation",
+    "benchmark_byte_quantization": "floor(255*x+0.5)",
+    "quantization_status": "explicit proposed benchmark adapter; not author-image-writer parity",
+    "added_postprocessing": null,
+    "known_constraint_enforcement": "No categorical user labels in automatic run; none manufactured from automatic prior.",
+    "assisted_guarantees_qualified": false,
+    "refusal_semantics": "Any malformed output, missing pair, deadline or resource failure refuses entire alpha/F pair; diagnostics never substitute."
+  },
+  "runtime_proposal": {
+    "backend": "author official FP32 TorchScript through PyTorch CPU",
+    "backend_qualified": false,
+    "source_pytorch_parity_qualified": false,
+    "device": "cpu",
+    "dtype": "float32",
+    "evaluation_mode": true,
+    "inference_mode": true,
+    "intraop_threads": 4,
+    "interop_threads": 1,
+    "max_simultaneous_model_children": 1,
+    "model_and_scorer_overlap": false,
+    "network_during_inference": false,
+    "packages_installed": false,
+    "author_requirements": {
+      "torch": "1.9.0",
+      "torchvision": "0.10.0",
+      "av": "8.0.3",
+      "tqdm": "4.61.1",
+      "pims": "0.5"
+    },
+    "existing_environment_for_metadata_only": "/private/tmp/rz-vitmatte-spike-yytbfsx_/venv/bin/python",
+    "proposed_direct_packages": {
+      "torch": "2.8.0",
+      "numpy": "2.3.2",
+      "Pillow": "11.3.0"
+    },
+    "resolved_environment_lock": null,
+    "resolved_environment_sha256": null,
+    "runtime_difference": "Current private environment torch2.8 differs from author torch1.9; metadata presence does not qualify compatibility."
+  },
+  "resource_proposal": {
+    "cap_bytes": 2147483648,
+    "native_model_bytes_per_pixel": 128,
+    "coarse_model_bytes_per_pixel": 1024,
+    "model_fixed_allowance_bytes": 805306368,
+    "controller_allowance_bytes": 33554432,
+    "model_formula": "768MiB + 128*N + 1024*L; plus 32MiB controller",
+    "scorer_formula": "existing 256*N + 64MiB; plus 32MiB controller",
+    "largest_model_plus_controller_bytes": 2036858880,
+    "largest_scorer_plus_controller_bytes": 2139095040,
+    "largest_scorer_remaining_bytes": 8388608,
+    "forecast_type": "source_informed_planning_allowance_not_proven_upper_bound",
+    "allocation_accounting": [
+      "source decode and float conversion",
+      "native guided-filter tensors and intermediates",
+      "emitted F and alpha overlap",
+      "sequential raw/byte export and validation",
+      "coarse features and recurrent storage",
+      "weights and runtime",
+      "allocator retention and operator workspace",
+      "controller overlap",
+      "scorer raw-input validation and F retention require independent proof"
+    ],
+    "wall_seconds_per_case": 120,
+    "rss_poll_interval_ms": 50,
+    "measurement_required": [
+      "aggregate owned-process RSS",
+      "child exit ru_maxrss plus conservative observed controller peak",
+      "candidate forward time separately from startup/export/import/scoring",
+      "per-case native geometry and refusal cause"
+    ],
+    "measured_peaks": null,
+    "monitor_is_os_limit": false,
+    "work_shape": "one fixed forward pass; native O(N), coarse max512x512; no iteration loop or case-specific policy search",
+    "forbidden": [
+      "concurrent model jobs without new aggregate review",
+      "scorer retaining model process",
+      "silent image resize for cap admission",
+      "higher cap",
+      "admitting diagnostic output from a refused case"
+    ]
+  },
+  "reference_manifest_pins": [
+    {
+      "path": "/private/tmp/rz-phase6-quality/references/references.json",
+      "sha256": "3bcdd07cd7bbd690ba857cd14f4f70e8762e6c462178f45c977908d70a1e08d9"
+    },
+    {
+      "path": "/private/tmp/rz-phase6-full-references/full-references.json",
+      "sha256": "06dd848c8178f835b80c684508b837c4ff19e2763278be3aefd1f19904ee33f2"
+    }
+  ],
+  "remaining_prerequisites": [
+    {
+      "id": "weight_permission",
+      "status": "unresolved",
+      "detail": "Primary evidence establishing permission for intended evaluation of exact pretrained asset; no inference of weight license from source GPL."
+    },
+    {
+      "id": "asset_freeze",
+      "status": "not_started",
+      "detail": "Only after rights prerequisite: acquire exact asset, length/SHA-256, author graph/schema inspection."
+    },
+    {
+      "id": "runtime_qualification",
+      "status": "not_started",
+      "detail": "Bounded CPU FP32 reference-route qualification and complete exact package lock; no Rust/CoreML port before reference evidence."
+    },
+    {
+      "id": "all90_source_only_export",
+      "status": "incomplete",
+      "detail": "Existing exports cover24 analytic+42full; complete24crop export needed with existing prior recipe unchanged and no reference planes."
+    },
+    {
+      "id": "joint_alpha_foreground_adapter",
+      "status": "not_implemented",
+      "detail": "Import actual learned F as well as alpha; qualify shapes/finiteness/range/quantization and retained-output memory without old F estimator."
+    },
+    {
+      "id": "pre_score_freeze",
+      "status": "not_started",
+      "detail": "Pin candidate, acquisition, runtime, inputs and adapter before any score; independent gate recomputation and legacy parity if shared scorer changes."
+    },
+    {
+      "id": "assisted_guidance",
+      "status": "absent_separate_track",
+      "detail": "Actual accepted source-only blinded guidance and replay required; RVM automatic output does not qualify assisted semantics."
+    },
+    {
+      "id": "photographic_transmission_foreground_evidence",
+      "status": "absent_separate_track",
+      "detail": "Current bottle silhouette does not provide physical transmission/F truth."
+    }
+  ],
+  "scope_effect": {
+    "phase9i_complete": false,
+    "p7_12_complete": false,
+    "advanced_controls_enabled": false,
+    "original_automatic_gate_changed": false,
+    "publishers_contacted": false,
+    "agreements_submitted": false
+  }
+}

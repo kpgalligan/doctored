@@ -1,0 +1,1083 @@
+{
+ "source": {
+  "take": "~/devel/doctored-fixtures/photoshop/fill-layers-672/take1",
+  "run_id": "20261017T133830Z-0a42dde8",
+  "built_run_id": "20261017T193116Z-6609b0d1",
+  "runner_sha256": "6d3dc9b6da06524a9eae21790c86f40210dcf16dbb6292fec6a3b887a4f29263"
+ },
+ "canvas": [
+  64,
+  48
+ ],
+ "mask": [
+  8,
+  6,
+  40,
+  30
+ ],
+ "files": {
+  "GL8": {
+   "case": {
+    "name": "GL8",
+    "fill": "gradient",
+    "mode": "rgb",
+    "depth": 8,
+    "profile": "sRGB IEC61966-2.1",
+    "masked": false,
+    "embed": true,
+    "gradient": {
+     "stops": [
+      [
+       220,
+       40,
+       40,
+       0
+      ],
+      [
+       40,
+       90,
+       200,
+       2048
+      ],
+      [
+       250,
+       230,
+       60,
+       4096
+      ]
+     ],
+     "alphas": [
+      [
+       100,
+       0
+      ],
+      [
+       100,
+       2048
+      ],
+      [
+       40,
+       4096
+      ]
+     ],
+     "gradient_type": "Lnr ",
+     "angle": 30,
+     "scale": 80
+    }
+   },
+   "layer": "GF",
+   "gdfl": {
+    "type": "Lnr ",
+    "rvrs": false,
+    "algn": true,
+    "dthr": false,
+    "angl": 30.0,
+    "scl": 80.0,
+    "stops": [
+     {
+      "lctn": 0,
+      "klass": "RGBC",
+      "colour": [
+       220.00000208616257,
+       40.00000141561031,
+       40.00000141561031
+      ]
+     },
+     {
+      "lctn": 2048,
+      "klass": "RGBC",
+      "colour": [
+       40.00000141561031,
+       90.00000223517418,
+       200.00000327825546
+      ]
+     },
+     {
+      "lctn": 4096,
+      "klass": "RGBC",
+      "colour": [
+       250.00000029802322,
+       230.00000149011612,
+       60.00000022351742
+      ]
+     }
+    ],
+    "trns": [
+     {
+      "lctn": 0,
+      "opct": 100.0
+     },
+     {
+      "lctn": 2048,
+      "opct": 100.0
+     },
+     {
+      "lctn": 4096,
+      "opct": 40.0
+     }
+    ]
+   },
+   "form": {
+    "bounds": [
+     0,
+     0,
+     48,
+     64
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 24.0,
+    "mean": 13.0215,
+    "n": 3072,
+    "worst": {
+     "x": 24,
+     "y": 0,
+     "ours": [
+      93.0,
+      127.0,
+      185.0
+     ],
+     "theirs": [
+      69.0,
+      120.0,
+      197.0
+     ]
+    }
+   },
+   "psd": {
+    "file": "GL8.psd",
+    "sha256": "a707ec805aeeef978b8f2860e75adb3b87157cc7bf97ad305332fdd6853370da",
+    "bytes": 44446
+   },
+   "tiff": {
+    "file": "GL8.tif",
+    "sha256": "03cec4225ab1cb3b76995611dbd5eec05bc921573c9de0a34fbca81decd415e1",
+    "bytes": 30944
+   }
+  },
+  "GR8": {
+   "case": {
+    "name": "GR8",
+    "fill": "gradient",
+    "mode": "rgb",
+    "depth": 8,
+    "profile": "sRGB IEC61966-2.1",
+    "masked": false,
+    "embed": true,
+    "gradient": {
+     "stops": [
+      [
+       220,
+       40,
+       40,
+       0
+      ],
+      [
+       40,
+       90,
+       200,
+       2048
+      ],
+      [
+       250,
+       230,
+       60,
+       4096
+      ]
+     ],
+     "alphas": [
+      [
+       100,
+       0
+      ],
+      [
+       100,
+       2048
+      ],
+      [
+       40,
+       4096
+      ]
+     ],
+     "gradient_type": "Rdl ",
+     "angle": 30,
+     "scale": 80
+    }
+   },
+   "layer": "GF",
+   "gdfl": {
+    "type": "Rdl ",
+    "rvrs": false,
+    "algn": true,
+    "dthr": false,
+    "angl": 30.0,
+    "scl": 80.0,
+    "stops": [
+     {
+      "lctn": 0,
+      "klass": "RGBC",
+      "colour": [
+       220.00000208616257,
+       40.00000141561031,
+       40.00000141561031
+      ]
+     },
+     {
+      "lctn": 2048,
+      "klass": "RGBC",
+      "colour": [
+       40.00000141561031,
+       90.00000223517418,
+       200.00000327825546
+      ]
+     },
+     {
+      "lctn": 4096,
+      "klass": "RGBC",
+      "colour": [
+       250.00000029802322,
+       230.00000149011612,
+       60.00000022351742
+      ]
+     }
+    ],
+    "trns": [
+     {
+      "lctn": 0,
+      "opct": 100.0
+     },
+     {
+      "lctn": 2048,
+      "opct": 100.0
+     },
+     {
+      "lctn": 4096,
+      "opct": 40.0
+     }
+    ]
+   },
+   "form": {
+    "bounds": [
+     0,
+     0,
+     48,
+     64
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 77.0,
+    "mean": 23.8522,
+    "n": 3072,
+    "worst": {
+     "x": 47,
+     "y": 32,
+     "ours": [
+      151.0,
+      168.0,
+      172.0
+     ],
+     "theirs": [
+      74.0,
+      125.0,
+      195.0
+     ]
+    }
+   },
+   "psd": {
+    "file": "GR8.psd",
+    "sha256": "4adaa089938315172c93d500f1ec3cedfde0c01b68d123d82d104794a5a2be9b",
+    "bytes": 42730
+   },
+   "tiff": {
+    "file": "GR8.tif",
+    "sha256": "d835dbe69d91d7c56ca045ba98a84a75feffc64dad2d1427190117e9a42f2e08",
+    "bytes": 31076
+   }
+  },
+  "GA8": {
+   "case": {
+    "name": "GA8",
+    "fill": "gradient",
+    "mode": "rgb",
+    "depth": 8,
+    "profile": "sRGB IEC61966-2.1",
+    "masked": false,
+    "embed": true,
+    "gradient": {
+     "stops": [
+      [
+       220,
+       40,
+       40,
+       0
+      ],
+      [
+       40,
+       90,
+       200,
+       2048
+      ],
+      [
+       250,
+       230,
+       60,
+       4096
+      ]
+     ],
+     "alphas": [
+      [
+       100,
+       0
+      ],
+      [
+       100,
+       2048
+      ],
+      [
+       40,
+       4096
+      ]
+     ],
+     "gradient_type": "Angl",
+     "angle": 30,
+     "scale": 80
+    }
+   },
+   "layer": "GF",
+   "gdfl": {
+    "type": "Angl",
+    "rvrs": false,
+    "algn": true,
+    "dthr": false,
+    "angl": 30.0,
+    "scl": 80.0,
+    "stops": [
+     {
+      "lctn": 0,
+      "klass": "RGBC",
+      "colour": [
+       220.00000208616257,
+       40.00000141561031,
+       40.00000141561031
+      ]
+     },
+     {
+      "lctn": 2048,
+      "klass": "RGBC",
+      "colour": [
+       40.00000141561031,
+       90.00000223517418,
+       200.00000327825546
+      ]
+     },
+     {
+      "lctn": 4096,
+      "klass": "RGBC",
+      "colour": [
+       250.00000029802322,
+       230.00000149011612,
+       60.00000022351742
+      ]
+     }
+    ],
+    "trns": [
+     {
+      "lctn": 0,
+      "opct": 100.0
+     },
+     {
+      "lctn": 2048,
+      "opct": 100.0
+     },
+     {
+      "lctn": 4096,
+      "opct": 40.0
+     }
+    ]
+   },
+   "form": {
+    "bounds": [
+     0,
+     0,
+     48,
+     64
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 204.0,
+    "mean": 115.5365,
+    "n": 3072,
+    "worst": {
+     "x": 62,
+     "y": 5,
+     "ours": [
+      219.0,
+      40.0,
+      41.0
+     ],
+     "theirs": [
+      252.0,
+      244.0,
+      177.0
+     ]
+    }
+   },
+   "psd": {
+    "file": "GA8.psd",
+    "sha256": "0a00721a4a5e51b3e8ded04f4b26c5e5d036dbe8dc8d75ae073b79bbf37bd0e3",
+    "bytes": 42478
+   },
+   "tiff": {
+    "file": "GA8.tif",
+    "sha256": "c9c709b43ce9831e4c77312eab4649325ac625461f4b087e70f791f32cf5d5ba",
+    "bytes": 31044
+   }
+  },
+  "GF8": {
+   "case": {
+    "name": "GF8",
+    "fill": "gradient",
+    "mode": "rgb",
+    "depth": 8,
+    "profile": "sRGB IEC61966-2.1",
+    "masked": false,
+    "embed": true,
+    "gradient": {
+     "stops": [
+      [
+       220,
+       40,
+       40,
+       0
+      ],
+      [
+       40,
+       90,
+       200,
+       2048
+      ],
+      [
+       250,
+       230,
+       60,
+       4096
+      ]
+     ],
+     "alphas": [
+      [
+       100,
+       0
+      ],
+      [
+       100,
+       2048
+      ],
+      [
+       40,
+       4096
+      ]
+     ],
+     "gradient_type": "Rflc",
+     "angle": 30,
+     "scale": 80
+    }
+   },
+   "layer": "GF",
+   "gdfl": {
+    "type": "Rflc",
+    "rvrs": false,
+    "algn": true,
+    "dthr": false,
+    "angl": 30.0,
+    "scl": 80.0,
+    "stops": [
+     {
+      "lctn": 0,
+      "klass": "RGBC",
+      "colour": [
+       220.00000208616257,
+       40.00000141561031,
+       40.00000141561031
+      ]
+     },
+     {
+      "lctn": 2048,
+      "klass": "RGBC",
+      "colour": [
+       40.00000141561031,
+       90.00000223517418,
+       200.00000327825546
+      ]
+     },
+     {
+      "lctn": 4096,
+      "klass": "RGBC",
+      "colour": [
+       250.00000029802322,
+       230.00000149011612,
+       60.00000022351742
+      ]
+     }
+    ],
+    "trns": [
+     {
+      "lctn": 0,
+      "opct": 100.0
+     },
+     {
+      "lctn": 2048,
+      "opct": 100.0
+     },
+     {
+      "lctn": 4096,
+      "opct": 40.0
+     }
+    ]
+   },
+   "form": {
+    "bounds": [
+     0,
+     0,
+     48,
+     64
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 44.0,
+    "mean": 20.5498,
+    "n": 3072,
+    "worst": {
+     "x": 6,
+     "y": 0,
+     "ours": [
+      103.0,
+      73.0,
+      144.0
+     ],
+     "theirs": [
+      59.0,
+      71.0,
+      180.0
+     ]
+    }
+   },
+   "psd": {
+    "file": "GF8.psd",
+    "sha256": "0df699245bd19083db40531d7c3a7a0fe4c6d6db7bb1aabbe666abc48fd262ae",
+    "bytes": 44496
+   },
+   "tiff": {
+    "file": "GF8.tif",
+    "sha256": "a324571c30c6e8ce89cdaaac05bfa7e262d3f3a617c77dbeab03b15c0082c421",
+    "bytes": 31080
+   }
+  },
+  "GL16": {
+   "case": {
+    "name": "GL16",
+    "fill": "gradient",
+    "mode": "rgb",
+    "depth": 16,
+    "profile": "sRGB IEC61966-2.1",
+    "masked": false,
+    "embed": true,
+    "gradient": {
+     "stops": [
+      [
+       220,
+       40,
+       40,
+       0
+      ],
+      [
+       40,
+       90,
+       200,
+       2048
+      ],
+      [
+       250,
+       230,
+       60,
+       4096
+      ]
+     ],
+     "alphas": [
+      [
+       100,
+       0
+      ],
+      [
+       100,
+       2048
+      ],
+      [
+       40,
+       4096
+      ]
+     ],
+     "gradient_type": "Lnr ",
+     "angle": 30,
+     "scale": 80
+    }
+   },
+   "layer": "GF",
+   "gdfl": {
+    "type": "Lnr ",
+    "rvrs": false,
+    "algn": true,
+    "dthr": false,
+    "angl": 30.0,
+    "scl": 80.0,
+    "stops": [
+     {
+      "lctn": 0,
+      "klass": "RGBC",
+      "colour": [
+       220.00000208616257,
+       40.00000141561031,
+       40.00000141561031
+      ]
+     },
+     {
+      "lctn": 2048,
+      "klass": "RGBC",
+      "colour": [
+       40.00000141561031,
+       90.00000223517418,
+       200.00000327825546
+      ]
+     },
+     {
+      "lctn": 4096,
+      "klass": "RGBC",
+      "colour": [
+       250.00000029802322,
+       230.00000149011612,
+       60.00000022351742
+      ]
+     }
+    ],
+    "trns": [
+     {
+      "lctn": 0,
+      "opct": 100.0
+     },
+     {
+      "lctn": 2048,
+      "opct": 100.0
+     },
+     {
+      "lctn": 4096,
+      "opct": 40.0
+     }
+    ]
+   },
+   "form": {
+    "bounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 23.996,
+    "mean": 13.0199,
+    "n": 3072,
+    "worst": {
+     "x": 0,
+     "y": 19,
+     "ours": [
+      181.81,
+      50.63,
+      73.93
+     ],
+     "theirs": [
+      205.8,
+      42.86,
+      52.36
+     ]
+    }
+   },
+   "psd": {
+    "file": "GL16.psd",
+    "sha256": "c45945e18d33eaf49b088ef31d055846e27169d01d1a9e3fa3c5aa89d6468021",
+    "bytes": 42442
+   },
+   "tiff": {
+    "file": "GL16.tif",
+    "sha256": "259ba6061aa6c7dbd29783abea574a6d782cedbfa7e2070fc69bd3009c941ea8",
+    "bytes": 40164
+   }
+  },
+  "GC8": {
+   "case": {
+    "name": "GC8",
+    "fill": "gradient",
+    "mode": "cmyk",
+    "depth": 8,
+    "profile": null,
+    "masked": false,
+    "embed": false,
+    "gradient": {
+     "stops": [
+      [
+       220,
+       40,
+       40,
+       0
+      ],
+      [
+       40,
+       90,
+       200,
+       2048
+      ],
+      [
+       250,
+       230,
+       60,
+       4096
+      ]
+     ],
+     "alphas": [
+      [
+       100,
+       0
+      ],
+      [
+       100,
+       2048
+      ],
+      [
+       40,
+       4096
+      ]
+     ],
+     "gradient_type": "Lnr ",
+     "angle": 30,
+     "scale": 80
+    }
+   },
+   "layer": "GF",
+   "gdfl": {
+    "type": "Lnr ",
+    "rvrs": false,
+    "algn": true,
+    "dthr": false,
+    "angl": 30.0,
+    "scl": 80.0,
+    "stops": [
+     {
+      "lctn": 0,
+      "klass": "CMYC",
+      "colour": [
+       7.58,
+       97.61,
+       98.54,
+       0.7
+      ]
+     },
+     {
+      "lctn": 2048,
+      "klass": "CMYC",
+      "colour": [
+       85.31,
+       68.91,
+       0.0,
+       0.0
+      ]
+     },
+     {
+      "lctn": 4096,
+      "klass": "CMYC",
+      "colour": [
+       4.08,
+       3.48,
+       87.18,
+       0.0
+      ]
+     }
+    ],
+    "trns": [
+     {
+      "lctn": 0,
+      "opct": 100.0
+     },
+     {
+      "lctn": 2048,
+      "opct": 100.0
+     },
+     {
+      "lctn": 4096,
+      "opct": 40.0
+     }
+    ]
+   },
+   "form": {
+    "bounds": [
+     0,
+     0,
+     48,
+     64
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     3,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 34.0,
+    "mean": 15.57,
+    "n": 3072,
+    "worst": {
+     "x": 0,
+     "y": 16,
+     "ours": [
+      71.0,
+      230.0,
+      186.0,
+      1.0
+     ],
+     "theirs": [
+      45.0,
+      242.0,
+      220.0,
+      2.0
+     ]
+    }
+   },
+   "psd": {
+    "file": "GC8.psd",
+    "sha256": "4a28e6b9148b6d4ec2b973670ecb66e1714052242e6f460d46936170bad8d28c",
+    "bytes": 41915
+   },
+   "tiff": {
+    "file": "GC8.tif",
+    "sha256": "e72899c9cab019fc7d14120fa72da44fb61a9ac130f3dc8d2ab3931069f172f2",
+    "bytes": 30784
+   }
+  },
+  "GM8": {
+   "case": {
+    "name": "GM8",
+    "fill": "gradient",
+    "mode": "rgb",
+    "depth": 8,
+    "profile": "sRGB IEC61966-2.1",
+    "masked": true,
+    "embed": true,
+    "gradient": {
+     "stops": [
+      [
+       220,
+       40,
+       40,
+       0
+      ],
+      [
+       40,
+       90,
+       200,
+       2048
+      ],
+      [
+       250,
+       230,
+       60,
+       4096
+      ]
+     ],
+     "alphas": [
+      [
+       100,
+       0
+      ],
+      [
+       100,
+       2048
+      ],
+      [
+       40,
+       4096
+      ]
+     ],
+     "gradient_type": "Lnr ",
+     "angle": 30,
+     "scale": 80
+    }
+   },
+   "layer": "GF",
+   "gdfl": {
+    "type": "Lnr ",
+    "rvrs": false,
+    "algn": true,
+    "dthr": false,
+    "angl": 30.0,
+    "scl": 80.0,
+    "stops": [
+     {
+      "lctn": 0,
+      "klass": "RGBC",
+      "colour": [
+       220.00000208616257,
+       40.00000141561031,
+       40.00000141561031
+      ]
+     },
+     {
+      "lctn": 2048,
+      "klass": "RGBC",
+      "colour": [
+       40.00000141561031,
+       90.00000223517418,
+       200.00000327825546
+      ]
+     },
+     {
+      "lctn": 4096,
+      "klass": "RGBC",
+      "colour": [
+       250.00000029802322,
+       230.00000149011612,
+       60.00000022351742
+      ]
+     }
+    ],
+    "trns": [
+     {
+      "lctn": 0,
+      "opct": 100.0
+     },
+     {
+      "lctn": 2048,
+      "opct": 100.0
+     },
+     {
+      "lctn": 4096,
+      "opct": 40.0
+     }
+    ]
+   },
+   "form": {
+    "bounds": [
+     6,
+     8,
+     36,
+     48
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 80.0,
+    "mean": 15.234,
+    "n": 3072,
+    "worst": {
+     "x": 45,
+     "y": 21,
+     "ours": [
+      157.0,
+      173.0,
+      170.0
+     ],
+     "theirs": [
+      237.0,
+      233.0,
+      171.0
+     ]
+    }
+   },
+   "psd": {
+    "file": "GM8.psd",
+    "sha256": "5c48c7ed0e572d1c16e2738aac8a3639384d76e3a2fa76934f16952acd757c9f",
+    "bytes": 33196
+   },
+   "tiff": {
+    "file": "GM8.tif",
+    "sha256": "a487db73a554d3cfae737ad44006d3318da97e286f3a8f4195858a5cd7822fa6",
+    "bytes": 31076
+   }
+  }
+ }
+}

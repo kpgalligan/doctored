@@ -1,0 +1,8 @@
+#578 Vibrance: the fitted law the tests' Vibrance oracle reads.
+
+adjust_arith_578_fitted.json is a byte-identical copy of the #578 runner's record of the fit
+(scripts/photoshop-probe/adjust_arith_578_take.py --prefit, its FITTED_FILE), sha256
+40da3fe95032b56517a08afc56fd2ea10df10d14f0a3ea5351e184ddec02b637. Member V3t-P's tables are
+the oracle; nothing in it comes from the core's tables or code.
+
+Read by core/tests/common/vibrance_reference.rs.

@@ -1,0 +1,447 @@
+{
+ "source": {
+  "take": "~/devel/doctored-fixtures/photoshop/fill-layers-672/take1",
+  "run_id": "20261017T133830Z-0a42dde8",
+  "verdict": "VALID",
+  "runner_sha256": "297c42c66601e3849d372e81f5ea9766976cbfaaad6834cf349c1467476f5b73"
+ },
+ "bound": 1.0,
+ "ink_bound": 0.4,
+ "mask": [
+  8,
+  6,
+  40,
+  30
+ ],
+ "canvas": [
+  64,
+  48
+ ],
+ "files": {
+  "S8": {
+   "case": {
+    "name": "S8",
+    "fill": "solid",
+    "mode": "rgb",
+    "depth": 8,
+    "profile": "sRGB IEC61966-2.1",
+    "color": [
+     40,
+     90,
+     200
+    ],
+    "cmyk": null,
+    "masked": false,
+    "embed": true
+   },
+   "soco": {
+    "colour_class": "RGBC",
+    "colour": [
+     40.00000141561031,
+     90.00000223517418,
+     200.00000327825546
+    ],
+    "bounds": [
+     0,
+     0,
+     48,
+     64
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 0.0,
+    "mean": 0.0,
+    "read": true,
+    "rt": true,
+    "rt_colour": [
+     40.0,
+     90.0,
+     200.0
+    ],
+    "photoshop_colour": [
+     40.00000141561031,
+     90.00000223517418,
+     200.00000327825546
+    ],
+    "meets": true
+   },
+   "psd": {
+    "file": "S8.psd",
+    "sha256": "9e340d9442c31f4ed3777175aa1cb02f112e5ed55f5468a857098a3192a2c642",
+    "bytes": 24548
+   },
+   "tiff": {
+    "file": "S8.tif",
+    "sha256": "6795b70913ebe5c72a67e5cf8a67e2c17ce8d2528bc12afde06eb2328e4849e3",
+    "bytes": 30748
+   }
+  },
+  "S16": {
+   "case": {
+    "name": "S16",
+    "fill": "solid",
+    "mode": "rgb",
+    "depth": 16,
+    "profile": "sRGB IEC61966-2.1",
+    "color": [
+     40,
+     90,
+     200
+    ],
+    "cmyk": null,
+    "masked": false,
+    "embed": true
+   },
+   "soco": {
+    "colour_class": "RGBC",
+    "colour": [
+     40.00000141561031,
+     90.00000223517418,
+     200.00000327825546
+    ],
+    "bounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 0.019,
+    "mean": 0.0195,
+    "read": true,
+    "rt": true,
+    "rt_colour": [
+     40.0,
+     90.0,
+     200.0
+    ],
+    "photoshop_colour": [
+     40.00000141561031,
+     90.00000223517418,
+     200.00000327825546
+    ],
+    "meets": true
+   },
+   "psd": {
+    "file": "S16.psd",
+    "sha256": "c6123e947490553fd802059773b7bec99740da26c0f3a618dab6b9944838f620",
+    "bytes": 41286
+   },
+   "tiff": {
+    "file": "S16.tif",
+    "sha256": "e8334f85ca3cec1bfb492c98d416372ff3f0ac471b60cab4a2a5bb362ec1e9b1",
+    "bytes": 39968
+   }
+  },
+  "SM8": {
+   "case": {
+    "name": "SM8",
+    "fill": "solid",
+    "mode": "rgb",
+    "depth": 8,
+    "profile": "sRGB IEC61966-2.1",
+    "color": [
+     200,
+     60,
+     30
+    ],
+    "cmyk": null,
+    "masked": true,
+    "embed": true
+   },
+   "soco": {
+    "colour_class": "RGBC",
+    "colour": [
+     200.00000327825546,
+     60.00000022351742,
+     30.00000011175871
+    ],
+    "bounds": [
+     6,
+     8,
+     36,
+     48
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 0.0,
+    "mean": 0.0,
+    "read": true,
+    "rt": true,
+    "rt_colour": [
+     200.0,
+     60.0,
+     30.0
+    ],
+    "photoshop_colour": [
+     200.00000327825546,
+     60.00000022351742,
+     30.00000011175871
+    ],
+    "meets": true
+   },
+   "psd": {
+    "file": "SM8.psd",
+    "sha256": "81a43ff8fe2f288ccc3199a682e4c11861aead652aad06eb0ef968e599df20cf",
+    "bytes": 25022
+   },
+   "tiff": {
+    "file": "SM8.tif",
+    "sha256": "61dbcfd156bfc136ee5a777ca05962c6c5403930c2b5d8202406e06fee88c399",
+    "bytes": 31032
+   }
+  },
+  "SP8": {
+   "case": {
+    "name": "SP8",
+    "fill": "solid",
+    "mode": "rgb",
+    "depth": 8,
+    "profile": "Display P3",
+    "color": [
+     0,
+     255,
+     0
+    ],
+    "cmyk": null,
+    "masked": false,
+    "embed": true
+   },
+   "soco": {
+    "colour_class": "RGBC",
+    "colour": [
+     0.0,
+     255.0,
+     0.0
+    ],
+    "bounds": [
+     0,
+     0,
+     48,
+     64
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 0.0,
+    "mean": 0.0,
+    "read": true,
+    "rt": true,
+    "rt_colour": [
+     0.0,
+     255.0,
+     0.0
+    ],
+    "photoshop_colour": [
+     0.0,
+     255.0,
+     0.0
+    ],
+    "meets": true
+   },
+   "psd": {
+    "file": "SP8.psd",
+    "sha256": "5deefe0313e01ad1a0e1c95394247573c28f8856aeb19cbd9dd197785979f832",
+    "bytes": 21930
+   },
+   "tiff": {
+    "file": "SP8.tif",
+    "sha256": "839716962d1bcb8fa8a4871eb98cdf6f6bf20351bf0f1606bc50e41d1bdb29bc",
+    "bytes": 28136
+   }
+  },
+  "SP16": {
+   "case": {
+    "name": "SP16",
+    "fill": "solid",
+    "mode": "rgb",
+    "depth": 16,
+    "profile": "Display P3",
+    "color": [
+     255,
+     0,
+     0
+    ],
+    "cmyk": null,
+    "masked": false,
+    "embed": true
+   },
+   "soco": {
+    "colour_class": "RGBC",
+    "colour": [
+     255.0,
+     0.0,
+     0.0
+    ],
+    "bounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 0.0,
+    "mean": 0.0,
+    "read": true,
+    "rt": true,
+    "rt_colour": [
+     255.0,
+     0.0,
+     0.0
+    ],
+    "photoshop_colour": [
+     255.0,
+     0.0,
+     0.0
+    ],
+    "meets": true
+   },
+   "psd": {
+    "file": "SP16.psd",
+    "sha256": "3287b67c034b1e2bdeb99c73fb715c401486ecf00f59122c064c77675d45b41e",
+    "bytes": 38668
+   },
+   "tiff": {
+    "file": "SP16.tif",
+    "sha256": "c504341e02d8e36b7867c7c229c7c4e321904d18969d1c42c10c5b53bdddabf1",
+    "bytes": 37352
+   }
+  },
+  "SC8": {
+   "case": {
+    "name": "SC8",
+    "fill": "solid",
+    "mode": "cmyk",
+    "depth": 8,
+    "profile": null,
+    "color": null,
+    "cmyk": [
+     70,
+     20,
+     10,
+     5
+    ],
+    "masked": false,
+    "embed": false
+   },
+   "soco": {
+    "colour_class": "CMYC",
+    "colour": [
+     70.0,
+     20.0,
+     10.0,
+     5.0
+    ],
+    "bounds": [
+     0,
+     0,
+     48,
+     64
+    ],
+    "flags": 24,
+    "channels": [
+     -1,
+     0,
+     1,
+     2,
+     3,
+     -2
+    ],
+    "fxrp": [
+     0.0,
+     0.0
+    ]
+   },
+   "read": {
+    "max": 0.0,
+    "mean": 0.0,
+    "read": true,
+    "rt": true,
+    "rt_colour": [
+     70.0,
+     20.0,
+     10.0,
+     5.0
+    ],
+    "photoshop_colour": [
+     70.0,
+     20.0,
+     10.0,
+     5.0
+    ],
+    "meets": true
+   },
+   "psd": {
+    "file": "SC8.psd",
+    "sha256": "7f9246d54fecb1a5dfa4cc4fbbfb30364a6e075c99db1a7ef0a36e29bc9bbcb3",
+    "bytes": 21938
+   },
+   "tiff": {
+    "file": "SC8.tif",
+    "sha256": "ccbc03e70c83ffc2495cd0452c6578bd8cea13a066387f8e64035a40165b5bb9",
+    "bytes": 30608
+   }
+  }
+ }
+}

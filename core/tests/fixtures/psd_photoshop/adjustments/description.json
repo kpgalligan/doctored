@@ -1,0 +1,182 @@
+{
+  "schema": 1,
+  "name": "adjustments",
+  "canvas": [
+    64,
+    64
+  ],
+  "profile": "sRGB IEC61966-2.1",
+  "base": {
+    "name": "Base",
+    "png": "base.png"
+  },
+  "layers": [
+    {
+      "name": "nvrt",
+      "kind": "invert",
+      "params": {},
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "thrs",
+      "kind": "threshold",
+      "params": {
+        "level": 153
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "post",
+      "kind": "posterize",
+      "params": {
+        "levels": 4
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "levl",
+      "kind": "levels",
+      "params": {
+        "input": [
+          51,
+          204
+        ],
+        "output": [
+          0,
+          255
+        ],
+        "gamma": 1.5
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "curv",
+      "kind": "curves",
+      "params": {
+        "points": [
+          [
+            0,
+            0
+          ],
+          [
+            64,
+            80
+          ],
+          [
+            255,
+            255
+          ]
+        ]
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "blnc",
+      "kind": "color_balance",
+      "params": {
+        "shadows": [
+          0,
+          0,
+          0
+        ],
+        "midtones": [
+          25,
+          -10,
+          30
+        ],
+        "highlights": [
+          0,
+          0,
+          0
+        ],
+        "preserve_luminosity": false
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "hue2",
+      "kind": "hue_saturation",
+      "params": {
+        "hue": 20,
+        "saturation": 25,
+        "lightness": -10,
+        "colorize": false
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "phfl",
+      "kind": "photo_filter",
+      "params": {
+        "color": [
+          236,
+          138,
+          0
+        ],
+        "density": 40,
+        "preserve_luminosity": true
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "expA",
+      "kind": "exposure",
+      "params": {
+        "exposure": 1.5,
+        "offset": -0.25,
+        "gamma": 2.0
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "vibA",
+      "kind": "vibrance",
+      "params": {
+        "vibrance": 40,
+        "saturation": -20
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "blwh",
+      "kind": "black_and_white",
+      "params": {
+        "reds": 30,
+        "yellows": -50,
+        "greens": 120,
+        "cyans": 60,
+        "blues": 250,
+        "magentas": 0,
+        "tint": true,
+        "tint_color": [
+          153,
+          138,
+          102
+        ]
+      },
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    }
+  ]
+}

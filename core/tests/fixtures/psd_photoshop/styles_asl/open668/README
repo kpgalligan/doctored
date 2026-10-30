@@ -1,0 +1,24 @@
+readings.json - Photoshop 26.10.0 applying Doctored's own `.asl` (#668 Session O): the 11
+presets of build rz-557-aslb-20261028T205751Z-4299664f (R1..R8 of ../rows.json with their tile
+renamed `<id>-tile`, then H12 no blending with Fill 50 %, Knockout Deep and a gray Blend If, H13
+that Blend If alone, H14 Multiply 70 %), each loaded by `Opn ` (L1), applied by name to a fresh
+layer and saved as `<key>.psd`, then read back through Doctored's PSD importer, for
+core/tests/psd_asl_open_668.rs.
+
+- `readings`: per key the top layer's canonical style (anchors stripped; Photoshop's disabled
+  effects included, `enabled` false) and its layer `mode` and `opacity`.
+- `misses`: per key the lines breaking the bounds declared before the session (the test's
+  module doc and the runner's `#668 SESSION O (668c)`); empty: every key meets every bound.
+- The PSDs themselves (32-43 KB each) stay in the take folder,
+  ~/devel/doctored-fixtures/photoshop/styles-asl-668/take1/fixture/open668/; the take test
+  reads them again when they are there and skips when not.
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/styles-asl-668/take1/measured.json
+(judged.json: OPENS; library sha256
+6047b128d7ac00c81d88f289b03b861e65c21ce2b1196073701a6787be028a15)
+Written by: ASL_OPEN_TAKE=<take1> ASL_OPEN_READINGS_OUT=<this folder>/readings.json
+make t F=psd_asl_open_668 T=the_take_psds_read_as_the_committed_readings, after
+scripts/photoshop-probe/styles_asl_take.py --open-take and --export-open-fixture
+
+sha256:
+  9a39b1dcf591b2de99241ab75c3bbcfc8732ee16149050772216ea3622205d5d  readings.json

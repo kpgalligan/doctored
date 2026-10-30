@@ -1,0 +1,17 @@
+{
+ "receipt": "665-crop-extend-take1 (phase 1's take, R5 only; no new take)",
+ "take": "~/devel/doctored-fixtures/photoshop/crop-extend-665/take1",
+ "note": "Copied verbatim from the take's job folder; sha256 is the take file's own.",
+ "files": {
+  "R5_before.png": {
+   "sha256": "6f9d9f256605356d2b675c59f054c8145ffe0fe865eee59ed5568aed7810a18c"
+  },
+  "R5_after.png": {
+   "sha256": "270658eab9792ec1a7f3d3ef03a846097e657b590acbb58aac8e2b046d53c006"
+  }
+ },
+ "crop": [-10, -6, 84, 60],
+ "angle": 8,
+ "background": "#C83228",
+ "bound": 2
+}

@@ -1,0 +1,27 @@
+Doctored acknowledgements
+==========================
+
+Lensfun lens database
+---------------------
+
+Title:        Lensfun lens database (data/db, release v0.3.4,
+              commit 101c745e847a5de4a1e569a94368ce2027198598)
+Source:       https://github.com/lensfun/lensfun
+Authors:      The Lensfun project and its contributors
+              (original database: Tom Niemann's PTLens database)
+Licence:      Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)
+              https://creativecommons.org/licenses/by-sa/3.0/
+
+Doctored bundles the lens database, converted to JSON by Doctored
+(scripts/fetch_lensfun.py; the result is core/data/lensfun/lensfun-db.json in
+the source tree, embedded in the application). The converted database is an
+adaptation of the Lensfun lens database and is licensed under the same
+licence, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/). The
+conversion keeps the mounts, cameras and lenses with their distortion,
+chromatic aberration and vignetting calibration rows, and drops translations,
+comments, crop and real-focal-length entries and rows outside the ranges
+Doctored's lens model accepts.
+
+Doctored does not include or link the Lensfun library (LGPL-3.0). Its lens
+correction is its own code, written from Lensfun's published model
+documentation.

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "candidate": "joint_bayesian_v5",
+  "status": "predeclared research candidate; no quality qualification implied",
+  "base_commit": "d5ee109",
+  "inference_inputs": ["opaque encoded RGB source", "unchanged supplied automatic prior", "optional explicit categorical user constraints"],
+  "forbidden_inputs": ["reference alpha", "reference foreground", "case names", "fixture-specific parameters"],
+  "input_policy_version": 1,
+  "automatic_prior": "finite Gaussian alpha prior, including endpoints; never a hard constraint",
+  "alpha_prior_sigma": 0.5,
+  "observation_variance": "1/(12*255*255), encoded-byte quantization floor; not camera calibration",
+  "color_covariance_floor": "same observation variance times identity, per authors' addendum",
+  "automatic_color_support": {"background_prior_max": 8, "foreground_prior_min": 247, "minimum_distance_inside_class_contour_pixels": 8, "distance_kernel": "existing exact Euclidean signed-distance field", "classification": "uncertain source-color observations; not user labels or physical opacity"},
+  "explicit_user_constraints": "0/255 pin alpha and can supply corresponding observed colors;128 releases; benchmark has none",
+  "sample_search": {"population": "four-neighbor support boundaries plus image edges", "local_samples": 8, "global_palette_samples": 8, "maximum_total_boundary_samples": 250000, "spatial_weight": "(nearest_distance_squared+8*8)/(distance_squared+8*8)", "distribution": "one weighted full-covariance RGB Gaussian per class; bounded approximation to mixture Bayesian matting"},
+  "joint_solver": {"method": "conditional Gaussian F/B elimination and bounded scalar alpha search", "uniform_grid_points": 9, "additional_initial_points": ["supplied prior", "color-line projection"], "golden_section_iterations": 8, "maximum_objective_evaluations_per_pixel": 21, "selection_energy": "original joint Gaussian objective after gamut clipping, covariance log determinants and finite alpha prior", "convergence_claimed": false},
+  "foreground_output": "joint estimate, single encoded-byte quantization; output-alpha endpoints preserve observed RGB exactly, without any reference-opaque claim",
+  "missing_class_policy": "refuse and preserve original prior/source diagnostics; never certify a translucent composite as foreground",
+  "resource_limits": {"working_bytes": 2147483648, "joint_objective_evaluations": 200000000, "measured_spatial_tree_node_visits": 2000000000, "scratch_bytes": "64*N+16MiB; borrowed RGB/prior/labels14*N also admitted", "silent_rescaling": false},
+  "qualification": {"analytic_cases": 24, "crop_cases": 24, "full_image_cases": 42, "gates": "all original alpha/color/recomposition/opaque gates unchanged; refusals fail", "high_prior_and_reference_opaque_errors": "reported separately; no metric exemptions", "physical_transmission_reference": "not available; bottle annotation is silhouette"},
+  "sources": ["https://grail.cs.washington.edu/projects/digital-matting/image-matting/", "https://www.cmlab.csie.ntu.edu.tw/new_cml_website/media/publications/Chuang-2001-BAD.pdf", "https://www.microsoft.com/en-us/research/wp-content/uploads/2011/06/HeEtAl.pdf"],
+  "advanced_controls_enabled": false
+}

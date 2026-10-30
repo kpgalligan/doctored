@@ -1,0 +1,25 @@
+[package]
+name = "doctored-mcp"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+name = "doctored_mcp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "doctored-mcp"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = "1"
+
+[dev-dependencies]
+# The app's own transport (core/src/agent.rs), for the tests' stub servers.
+tiny_http = "0.12"
+
+[profile.release]
+# No LTO: a small helper, rebuilt by every app build.
+incremental = true

@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "name": "masks",
+  "canvas": [
+    64,
+    64
+  ],
+  "profile": "sRGB IEC61966-2.1",
+  "note": "Photoshop 2025 26.10.0 authored source.psd from the PNGs beside it (scripts/verify_phase10_photoshop_appearance.py --receipt A5 --author); it writes every one of these masks ABSOLUTE (flags 0). source_relative.psd is that same file with each masked record's body patched in place by the runner \u2014 flags |= 1 and the rectangle made relative to the record's own top/left \u2014 which is the only way to get a layer-relative mask at all, since Photoshop never writes one.",
+  "base": {
+    "name": "Base",
+    "png": "base.png"
+  },
+  "layers": [
+    {
+      "name": "hard",
+      "png": "overlay.png",
+      "offset": [
+        12,
+        8
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "mask": {
+        "rect": [
+          28,
+          24,
+          32,
+          36
+        ],
+        "gradient": null
+      }
+    },
+    {
+      "name": "soft",
+      "png": "overlay.png",
+      "offset": [
+        12,
+        8
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "mask": {
+        "rect": [
+          28,
+          24,
+          32,
+          36
+        ],
+        "gradient": [
+          [
+            28,
+            24
+          ],
+          [
+            60,
+            24
+          ]
+        ]
+      }
+    },
+    {
+      "name": "wide",
+      "png": "overlay.png",
+      "offset": [
+        12,
+        8
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "mask": {
+        "rect": [
+          0,
+          0,
+          40,
+          64
+        ],
+        "gradient": null
+      }
+    }
+  ]
+}

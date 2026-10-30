@@ -1,0 +1,6 @@
+{"job": "author", "description": "<fixture>/description.json", "output": "<fresh folder>",
+ "depths": [8, 16],
+ "renders": [{"name": "base", "visible": ["Base"]},
+             {"name": "mixer", "visible": ["Base", "Mixer"]},
+             {"name": "mono", "visible": ["Base", "Mono"]},
+             {"name": "monorows", "visible": ["Base", "MonoRows"]}]}

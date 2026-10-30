@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "name": "p3_ppi",
+  "application": {
+    "name": "GIMP",
+    "version": "3.2.6"
+  },
+  "source_psd_sha256": "7b394aad86396e9c63eb649cb1b5ece075e3b8aaca2e63660e8e71b5ba60bf25",
+  "error": null,
+  "reopened": {
+    "canvas": [
+      4,
+      3
+    ],
+    "color_mode": "rgb",
+    "precision": "u8-non-linear",
+    "resolution": [
+      300.0,
+      240.0
+    ],
+    "layers": [
+      {
+        "name": "Display P3 source",
+        "kind": "raster",
+        "depth": 0,
+        "size": [
+          4,
+          3
+        ],
+        "offset": [
+          0,
+          0
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "normal",
+        "blend_space": "auto",
+        "composite_space": "rgb-perceptual",
+        "composite_mode": "union",
+        "open": null,
+        "rgba": [
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255,
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255,
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255,
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255,
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255,
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255
+        ],
+        "mask": null
+      }
+    ],
+    "saved_channels": [],
+    "profile": "reopened.icc",
+    "profile_sha256": "2569af8834abcbcadcfe25297fd736664fddf575a0450d35865759345d736499"
+  },
+  "merged": {
+    "canvas": [
+      4,
+      3
+    ],
+    "color_mode": "rgb",
+    "precision": "u8-non-linear",
+    "resolution": [
+      300.0,
+      240.0
+    ],
+    "layers": [
+      {
+        "name": "Background",
+        "kind": "raster",
+        "depth": 0,
+        "size": [
+          4,
+          3
+        ],
+        "offset": [
+          0,
+          0
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "normal",
+        "blend_space": "auto",
+        "composite_space": "auto",
+        "composite_mode": "auto",
+        "open": null,
+        "rgba": [
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255,
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255,
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255,
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255,
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255,
+          211,
+          93,
+          17,
+          255,
+          39,
+          187,
+          233,
+          255
+        ],
+        "mask": null
+      }
+    ],
+    "saved_channels": [],
+    "profile": "merged.icc",
+    "profile_sha256": "2569af8834abcbcadcfe25297fd736664fddf575a0450d35865759345d736499"
+  },
+  "files": {
+    "merged.icc": "2569af8834abcbcadcfe25297fd736664fddf575a0450d35865759345d736499",
+    "merged.png": "1ee5fc1bf74b4e5388c323772366122e4e128e32ca766802ac41daaf682531da",
+    "reopened.icc": "2569af8834abcbcadcfe25297fd736664fddf575a0450d35865759345d736499",
+    "reopened.png": "1ee5fc1bf74b4e5388c323772366122e4e128e32ca766802ac41daaf682531da"
+  }
+}

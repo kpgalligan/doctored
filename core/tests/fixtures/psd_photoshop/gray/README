@@ -1,0 +1,13 @@
+Photoshop's layered Grayscale files of the #547 phase 3a take
+(scripts/photoshop-probe/gray_files_take.py, take1, run 20261021T043005Z-babcc367):
+RGB-authored scenes converted by Image > Mode > Grayscale without flattening,
+their composite TIFFs and each raster's own pixels. photoshop.json holds
+Photoshop's rows; core/tests/gray_psd_photoshop.rs restates the gates.
+
+layers32.psd is Photoshop's own 32-bit Grayscale PSD from the #547 take2
+(scripts/photoshop-probe/gray_export_take.py, job gray_files_deep, Photoshop
+26.10.0; candidate cnvm32: Image > Mode > Grayscale, then CnvM Dpth 32,
+i.e. Image > Mode > 32 Bits/Channel), copied from
+~/devel/doctored-fixtures/photoshop/gray-files-547/take2/jobs/deep/layers32.psd
+(sha256 cf14414108f277b76ad5dcd2658c4d8cee57ed6b3aac67057aeb047e5159abaa).
+core/tests/gray32_files.rs reads it (#547 phase 3c).

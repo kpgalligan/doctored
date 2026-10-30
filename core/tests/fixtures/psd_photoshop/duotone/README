@@ -1,0 +1,36 @@
+Photoshop 26.10.0's own Duotone PSDs from the #547 Duotone phase 1b smokes
+(scripts/photoshop-probe/duotone_take.py; the take itself moved to Duotone
+phase 2, RULING-1 (b) 3). Each is the 104 x 24 scene (an 8-bit RGB TIFF of
+R = G = B patches and a ramp) converted by Image > Mode > Grayscale (CnvM
+Grys, Dot Gain 20%) and then Image > Mode > Duotone through one action
+descriptor (CnvM T = duotoneMode), saved by a save descriptor (Pht3,
+maximize compatibility, a copy).
+
+duotone2-blank.psd: smoke1, attempt 1 (`inks`): two inks, "Warm Black" Lab
+(20, 2, 4) and "Rust" Lab (55, 45, 55), Photoshop's default curves (0 % and
+100 % set, the rest blank) and every overprint record blank. Copied from
+~/devel/doctored-fixtures/photoshop/duotone-mode-547/smoke1/jobs/two/attempt-1.psd
+(sha256 737b544a4b298166f1cff976def4c2df927f4af07d1d81e6ae830899cb305bb6).
+
+duotone2-overprint.psd: smoke2, attempt 4 (`overprints`): the same inks and
+curves with the 1+2 overprint given as Lab (6.19, 14.69, 9.21), the default
+product W (.) P1/W (.) P2/W to 0.01. Copied from
+~/devel/doctored-fixtures/photoshop/duotone-mode-547/smoke2/jobs/two/attempt-4.psd
+(sha256 9580bc25c3857ec3d971fc9322d40de9f651702e4f6f7a621f2250a9b3750bc0).
+
+Both hold colour-mode data of 524 bytes and the resources 1014 and 1017 (no
+1018, no 1063). core/tests/duotone_files.rs reads them.
+
+duotone3-curves.psd: the #547 Duotone phase 2b take (take1, case `three`).
+Rasterize wrote the 104 x 24 scene (an untagged 8-bit gray PNG of the same
+codes, opened under Dot Gain 20%) as a Tritone PSD through
+core/examples/duotone_take_psd.rs: "Warm Black" Lab (20, 2, 4) curve 0 -> 100,
+"Rust" Lab (55, 45, 55) curve 0 -> 10, 50 -> 30, 100 -> 70, "Lime" Lab
+(80, -25, 70) curve 0 -> 0, 100 -> 50, every overprint the default. Photoshop
+opened it (app.open) and saved it by a save descriptor (Pht3, maximize
+compatibility, a copy); this is that save. Its colour-mode data (524 bytes:
+the three inks and curves above, the four overprint records Lab, the rest
+blank) is byte-equal to Rasterize's; its resources include 1014 and 1017 and
+no ICC (1039). Copied from
+~/devel/doctored-fixtures/photoshop/duotone-mode-547/take1/jobs/three/duotone3.psd
+(sha256 68c77c9f5f4c47af695f492645e7363626b3e8f047149f25003ea806c9430477).

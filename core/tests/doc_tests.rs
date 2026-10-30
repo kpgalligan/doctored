@@ -1,0 +1,4271 @@
+//! Integration tests for the layered document model, exercised through the
+//! public C FFI (`dr_doc_*`) declared in `include/doctored_core.h`: open
+//! and save, blend-mode math, the layer stack, DRDC format edges, geometry,
+//! PSD import, and the null-safety sweep. Selection, layer-mask, transform
+//! and adjustment coverage lives in the sibling test files; shared helpers
+//! live in `tests/common`.
+
+use std::ffi::{c_char, c_int, CString};
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::ptr;
+
+use doctored_core::doc::DrDocument;
+use doctored_core::ffi::*;
+use doctored_core::ffi_adjust::*;
+use doctored_core::ffi_channel::*;
+use doctored_core::ffi_color::*;
+use doctored_core::ffi_doc::*;
+use doctored_core::ffi_fill_stroke::*;
+use doctored_core::ffi_gradient::dr_gradient_midpoint_fraction;
+use doctored_core::ffi_group::*;
+use doctored_core::ffi_guide::*;
+use doctored_core::ffi_heal::*;
+use doctored_core::ffi_insert::dr_doc_adding_layer_at;
+use doctored_core::ffi_jobs::dr_doc_spot_heal_layer_job;
+use doctored_core::ffi_layer_clipboard::{dr_doc_paste_layers, dr_precision_doc_paste_layers};
+use doctored_core::ffi_merge_selected::{dr_doc_merge_group, dr_doc_stamp_selected};
+use doctored_core::ffi_raw_geometry::*;
+use doctored_core::ffi_retouch_brush::{
+    dr_doc_art_history_brush_layer, dr_precision_doc_art_history_brush,
+    dr_precision_doc_art_history_brush_plan,
+};
+use doctored_core::ffi_rotate::*;
+use doctored_core::ffi_style::*;
+use doctored_core::precision_document::PrecisionDocument;
+use doctored_core::DrImage;
+use image::{Rgba, RgbaImage};
+use tempfile::TempDir;
+
+use crate::common;
+use crate::serial;
+use common::*;
+
+// --------------------------------------------- reference blend math (W3C) --
+
+/// Builds a two-layer doc (solid bottom, solid top with mode/opacity) and
+/// returns the flattened top-left pixel.
+fn blended_pixel(
+    dir: &TempDir,
+    tag: &str,
+    bottom: [u8; 4],
+    top: [u8; 4],
+    mode: c_int,
+    opacity: f32,
+) -> [u8; 4] {
+    let doc = doc_from(dir, &format!("b-{tag}.png"), &solid(2, 2, bottom));
+    let doc = add_layer(
+        dir,
+        &format!("t-{tag}.png"),
+        doc,
+        0,
+        &solid(2, 2, top),
+        "Top",
+    );
+    // `apply_or_keep`, not `apply`: a property setter handed the value the
+    // layer already holds answers NULL (the purity rule), and Normal at
+    // opacity 1 is exactly what a fresh layer carries.
+    let doc = apply_or_keep(doc, |d| unsafe { dr_doc_with_layer_blend_mode(d, 1, mode) });
+    let doc = apply_or_keep(doc, |d| unsafe { dr_doc_with_layer_opacity(d, 1, opacity) });
+    let flat = flat_pixels(doc);
+    unsafe { dr_doc_free(doc) };
+    pixel(&flat, 2, 0, 0)
+}
+
+// ------------------------------------------------------------------ tests --
+
+#[test]
+fn open_single_layer_and_from_image() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let pattern = opaque_pattern(16, 12);
+
+    // dr_doc_open on a plain PNG: single "Background" layer.
+    let path = dir.path().join("plain.png");
+    pattern.save(&path).unwrap();
+    let c = cpath(&path);
+    let mut err: *mut c_char = ptr::null_mut();
+    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    assert!(!doc.is_null(), "doc open failed: {}", take_err_string(err));
+    assert!(err.is_null());
+    assert_eq!(unsafe { dr_doc_width(doc) }, 16);
+    assert_eq!(unsafe { dr_doc_height(doc) }, 12);
+    assert_eq!(unsafe { dr_doc_layer_count(doc) }, 1);
+    assert_eq!(layer_name(doc, 0), "Background");
+    assert_eq!(layer_dims(doc, 0), (16, 12));
+    assert_eq!(layer_offset(doc, 0), (0, 0));
+    assert_eq!(unsafe { dr_doc_layer_opacity(doc, 0) }, 1.0);
+    assert_eq!(unsafe { dr_doc_layer_blend_mode(doc, 0) }, BLEND_NORMAL);
+    assert!(unsafe { dr_doc_layer_visible(doc, 0) });
+    assert_eq!(flat_pixels(doc), *pattern.as_raw());
+    assert_eq!(layer_pixels(doc, 0), *pattern.as_raw());
+
+    // dr_doc_from_image produces the same document; clone is independent.
+    let img = open_image(&dir, "same.png", &pattern);
+    let doc2 = unsafe { dr_doc_from_image(img) };
+    unsafe { dr_image_free(img) };
+    assert!(!doc2.is_null());
+    assert_eq!(flat_pixels(doc2), *pattern.as_raw());
+    let clone = unsafe { dr_doc_clone(doc2) };
+    assert!(!clone.is_null());
+    unsafe { dr_doc_free(doc2) };
+    assert_eq!(unsafe { dr_doc_layer_count(clone) }, 1);
+    assert_eq!(flat_pixels(clone), *pattern.as_raw());
+    unsafe { dr_doc_free(clone) };
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn blend_mode_math_opaque_layers() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    // (tag, mode, bottom RGB, top RGB) — values chosen to hit both branches
+    // of the piecewise modes and the divide-by-zero edges of dodge/burn.
+    let cases: &[(&str, c_int, [u8; 3], [u8; 3])] = &[
+        ("mul", BLEND_MULTIPLY, [51, 102, 204], [102, 153, 255]),
+        ("scr", BLEND_SCREEN, [51, 102, 204], [102, 153, 255]),
+        ("ovr", BLEND_OVERLAY, [51, 204, 128], [100, 100, 200]),
+        ("hard", BLEND_HARD_LIGHT, [51, 204, 128], [100, 200, 128]),
+        ("dark", BLEND_DARKEN, [51, 204, 100], [102, 153, 100]),
+        ("light", BLEND_LIGHTEN, [51, 204, 100], [102, 153, 100]),
+        ("diff", BLEND_DIFFERENCE, [200, 30, 128], [100, 80, 128]),
+        ("excl", BLEND_EXCLUSION, [200, 30, 128], [100, 80, 128]),
+        // color-dodge edges: cb==0 -> 0 (even with cs==1), cs==255 -> 1,
+        // plus a normal channel.
+        ("dodge", BLEND_COLOR_DODGE, [0, 100, 100], [255, 255, 100]),
+        // color-burn edges: cb==255 -> 1, cs==0 -> 0, normal channel.
+        ("burn", BLEND_COLOR_BURN, [255, 100, 100], [10, 0, 200]),
+        // soft-light: cs <= 0.5 branch, then cs > 0.5 with cb <= 0.25
+        // (polynomial d) and cb > 0.25 (sqrt d).
+        ("soft1", BLEND_SOFT_LIGHT, [40, 150, 220], [64, 64, 64]),
+        ("soft2", BLEND_SOFT_LIGHT, [40, 150, 220], [200, 200, 200]),
+        ("add", BLEND_ADDITION, [200, 100, 10], [100, 100, 10]),
+        ("sub", BLEND_SUBTRACT, [30, 200, 100], [100, 50, 100]),
+    ];
+    for &(tag, mode, cb, cs) in cases {
+        let got = blended_pixel(
+            &dir,
+            tag,
+            [cb[0], cb[1], cb[2], 255],
+            [cs[0], cs[1], cs[2], 255],
+            mode,
+            1.0,
+        );
+        for c in 0..3 {
+            let b = ref_blend(mode, f32::from(cb[c]) / 255.0, f32::from(cs[c]) / 255.0);
+            let want = (b.clamp(0.0, 1.0) * 255.0).round();
+            assert!(
+                (f32::from(got[c]) - want).abs() <= 1.0,
+                "{tag} channel {c}: got {}, want ~{want}",
+                got[c]
+            );
+        }
+        assert_eq!(got[3], 255, "{tag}: opaque stack must stay opaque");
+    }
+}
+
+#[test]
+fn blend_full_formula_with_opacity_and_transparency() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+
+    // Normal at opacity 0.5 over an opaque backdrop: Co = 0.5 Cs + 0.5 Cb.
+    let got = blended_pixel(
+        &dir,
+        "op50",
+        [40, 80, 120, 255],
+        [240, 20, 60, 255],
+        BLEND_NORMAL,
+        0.5,
+    );
+    for c in 0..3 {
+        let want =
+            (0.5 * f32::from([240u8, 20, 60][c]) + 0.5 * f32::from([40u8, 80, 120][c])).round();
+        assert!(
+            (f32::from(got[c]) - want).abs() <= 1.0,
+            "opacity 0.5 channel {c}: got {}, want ~{want}",
+            got[c]
+        );
+    }
+    assert_eq!(got[3], 255);
+
+    // Semi-transparent backdrop AND semi-transparent scaled source exercise
+    // every term of the W3C formula (not the simplified opaque form).
+    let bottom = [40, 200, 120, 128];
+    let top = [220, 60, 30, 200];
+    let (mode, opacity) = (BLEND_MULTIPLY, 0.7);
+    let got = blended_pixel(&dir, "w3c", bottom, top, mode, opacity);
+    let want = ref_composite(to_unit(bottom), to_unit(top), opacity, mode);
+    for c in 0..4 {
+        let want_b = (want[c].clamp(0.0, 1.0) * 255.0).round();
+        assert!(
+            (f32::from(got[c]) - want_b).abs() <= 1.0,
+            "full-formula channel {c}: got {}, want ~{want_b}",
+            got[c]
+        );
+    }
+
+    // Zero-opacity layer contributes nothing.
+    let got = blended_pixel(
+        &dir,
+        "op0",
+        [10, 20, 30, 255],
+        [200, 200, 200, 255],
+        BLEND_NORMAL,
+        0.0,
+    );
+    assert_eq!(got, [10, 20, 30, 255]);
+}
+
+#[test]
+fn blend_mode_math_new_separable_modes() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    // (tag, mode, bottom RGB, top RGB, expected RGB on the 255 scale) —
+    // hand-computed from the header's formulas, covering both branches of the
+    // piecewise modes and the cs==0 / cs==1 edges. All values here are exact
+    // (byte arithmetic), so a wrong branch or formula misses by far more than
+    // the 1-count quantization tolerance.
+    #[allow(clippy::type_complexity)]
+    let cases: &[(&str, c_int, [u8; 3], [u8; 3], [f32; 3])] = &[
+        // (cb + cs - 1).max(0): 200+100-255=45; 50+100-255<0 -> 0; 255+200-255.
+        (
+            "lburn",
+            BLEND_LINEAR_BURN,
+            [200, 50, 255],
+            [100, 100, 200],
+            [45.0, 0.0, 200.0],
+        ),
+        // cs<=0.5 -> burn(cb, 2cs) = 1 - (127/255)/(128/255) = 1/128 -> 1.99;
+        // cs>0.5 -> dodge(cb, 2cs-1) = (64/255)/(1 - 127/255) = 0.5 -> 127.5;
+        // cs==1 -> dodge edge -> 1.
+        (
+            "vivid",
+            BLEND_VIVID_LIGHT,
+            [128, 64, 100],
+            [64, 191, 255],
+            [1.99, 127.5, 255.0],
+        ),
+        // cb + 2cs - 1 clamped: 100+200-255=45; 30+100-255<0 -> 0;
+        // 200+400-255=345 -> 255.
+        (
+            "llight",
+            BLEND_LINEAR_LIGHT,
+            [100, 30, 200],
+            [100, 50, 200],
+            [45.0, 0.0, 255.0],
+        ),
+        // cs<=0.5 -> min(cb, 2cs): min(200,120), min(50,120);
+        // cs>0.5 -> max(cb, 2cs-1): max(100, 145).
+        (
+            "pin",
+            BLEND_PIN_LIGHT,
+            [200, 50, 100],
+            [60, 60, 200],
+            [120.0, 50.0, 145.0],
+        ),
+        // cb+cs >= 1 -> 1 else 0: 256/255 -> 1; 200/255 -> 0; exactly 1 -> 1.
+        (
+            "hmix",
+            BLEND_HARD_MIX,
+            [128, 100, 255],
+            [128, 100, 0],
+            [255.0, 0.0, 255.0],
+        ),
+        // cb/cs clamped: 100/200 -> 127.5; 200/100 -> clamp 255; 60/180 -> 85.
+        (
+            "div",
+            BLEND_DIVIDE,
+            [100, 200, 60],
+            [200, 100, 180],
+            [127.5, 255.0, 85.0],
+        ),
+        // cs == 0 -> 1, except 0/0, which keeps the backdrop's 0 (measured
+        // against Photoshop, `blend_edge_take.py` take1).
+        (
+            "div0",
+            BLEND_DIVIDE,
+            [50, 0, 128],
+            [0, 0, 0],
+            [255.0, 0.0, 255.0],
+        ),
+    ];
+    for &(tag, mode, cb, cs, want) in cases {
+        let got = blended_pixel(
+            &dir,
+            tag,
+            [cb[0], cb[1], cb[2], 255],
+            [cs[0], cs[1], cs[2], 255],
+            mode,
+            1.0,
+        );
+        for c in 0..3 {
+            assert!(
+                (f32::from(got[c]) - want[c]).abs() <= 1.0,
+                "{tag} channel {c}: got {}, want ~{}",
+                got[c],
+                want[c]
+            );
+        }
+        assert_eq!(got[3], 255, "{tag}: opaque stack must stay opaque");
+    }
+}
+
+#[test]
+fn blend_mode_math_non_separable() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    // cb = (128, 64, 192)/255, cs = (51, 204, 102)/255 = (0.2, 0.8, 0.4).
+    // Expectations hand-executed from the W3C SetLum/SetSat pseudocode with
+    // Lum = 0.3R + 0.59G + 0.11B, all on the 255 scale:
+    //   lum(cb) = 0.3*128 + 0.59*64 + 0.11*192 = 97.28
+    //   lum(cs) = 0.3*51 + 0.59*204 + 0.11*102 = 146.88
+    //   sat(cb) = 192-64 = 128, sat(cs) = 204-51 = 153
+    // hue = set_lum(set_sat(cs, 128), 97.28):
+    //   set_sat(cs, 128): min r->0, max g->128, mid b->(102-51)*128/153=42.667
+    //   lum(0, 128, 42.667) = 80.213; d = 17.067 -> (17.07, 145.07, 59.73),
+    //   in gamut so ClipColor is the identity.
+    // saturation = set_lum(set_sat(cb, 153), 97.28):
+    //   set_sat(cb, 153): min g->0, max b->153, mid r->(128-64)*153/128=76.5
+    //   lum(76.5, 0, 153) = 39.78; d = 57.5 -> (134, 57.5, 210.5).
+    // color = set_lum(cs, 97.28): d = 97.28-146.88 = -49.6
+    //   -> (1.4, 154.4, 52.4).
+    // luminosity = set_lum(cb, 146.88): d = 49.6 -> (177.6, 113.6, 241.6).
+    let cb = [128u8, 64, 192];
+    let cs = [51u8, 204, 102];
+    let cases: &[(&str, c_int, [f32; 3])] = &[
+        ("hue", BLEND_HUE, [17.07, 145.07, 59.73]),
+        ("nsat", BLEND_SATURATION, [134.0, 57.5, 210.5]),
+        ("ncol", BLEND_COLOR, [1.4, 154.4, 52.4]),
+        ("nlum", BLEND_LUMINOSITY, [177.6, 113.6, 241.6]),
+    ];
+    for &(tag, mode, want) in cases {
+        let got = blended_pixel(
+            &dir,
+            tag,
+            [cb[0], cb[1], cb[2], 255],
+            [cs[0], cs[1], cs[2], 255],
+            mode,
+            1.0,
+        );
+        for c in 0..3 {
+            assert!(
+                (f32::from(got[c]) - want[c]).abs() <= 1.0,
+                "{tag} channel {c}: got {}, want ~{}",
+                got[c],
+                want[c]
+            );
+        }
+        assert_eq!(got[3], 255, "{tag}: opaque stack must stay opaque");
+    }
+}
+
+#[test]
+fn darker_and_lighter_color_pick_whole_pixels() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    // Red has lum 0.3, blue lum 0.11.
+    let red = [255, 0, 0, 255];
+    let blue = [0, 0, 255, 255];
+    // Darker color keeps the whole lower-luma pixel (blue); a per-channel
+    // darken of the same pair would produce black.
+    let got = blended_pixel(&dir, "dkcl", red, blue, BLEND_DARKER_COLOR, 1.0);
+    assert_eq!(got, blue, "darker color must keep the whole blue pixel");
+    // Lighter color keeps the whole higher-luma pixel (red, the backdrop); a
+    // per-channel lighten would produce magenta (255, 0, 255).
+    let got = blended_pixel(&dir, "ltcl", red, blue, BLEND_LIGHTER_COLOR, 1.0);
+    assert_eq!(got, red, "lighter color must keep the whole red pixel");
+}
+
+#[test]
+fn dissolve_is_deterministic_and_dithers_by_alpha() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let backdrop = [10, 20, 30, 255];
+    let source = [200, 150, 100, 255];
+    let doc = doc_from(&dir, "dis-bg.png", &solid(100, 100, backdrop));
+    let doc = add_layer(
+        &dir,
+        "dis-top.png",
+        doc,
+        0,
+        &solid(100, 100, source),
+        "Dissolve",
+    );
+    let doc = apply(doc, |d| unsafe {
+        dr_doc_with_layer_blend_mode(d, 1, BLEND_DISSOLVE)
+    });
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_opacity(d, 1, 0.5) });
+
+    // Deterministic: flattening twice yields byte-identical output.
+    let flat = flat_pixels(doc);
+    assert_eq!(flat, flat_pixels(doc), "dissolve must be deterministic");
+
+    // Every output pixel is either the untouched backdrop or the fully
+    // opaque source; at 50% effective alpha the dissolved fraction over
+    // 10000 pixels must land close to one half.
+    let mut dissolved = 0usize;
+    for (i, px) in flat.chunks_exact(4).enumerate() {
+        let px = [px[0], px[1], px[2], px[3]];
+        assert!(
+            px == source || px == backdrop,
+            "pixel {i}: dissolve output {px:?} is neither opaque source nor backdrop"
+        );
+        if px == source {
+            dissolved += 1;
+        }
+    }
+    let fraction = dissolved as f64 / 10_000.0;
+    assert!(
+        (0.45..=0.55).contains(&fraction),
+        "dissolved fraction {fraction} outside 45-55%"
+    );
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn drdc_round_trip_preserves_all_blend_modes() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let mut doc = doc_from(&dir, "modes.png", &solid(2, 2, [9, 9, 9, 255]));
+    let lname = CString::new("L").unwrap();
+    for _ in 1..BLEND_MODE_COUNT {
+        doc = apply(doc, |d| unsafe {
+            dr_doc_adding_layer_at(d, 0, 0 /* DR_INSERT_ABOVE */, lname.as_ptr())
+        });
+    }
+    for mode in 0..BLEND_MODE_COUNT {
+        // Layer 0 is asked for Normal, which it already carries: a setter
+        // handed the stored value answers NULL (the purity rule).
+        doc = apply_or_keep(doc, |d| unsafe {
+            dr_doc_with_layer_blend_mode(d, mode as usize, mode)
+        });
+    }
+    // The first value past the end of the enum is rejected...
+    assert!(unsafe { dr_doc_with_layer_blend_mode(doc, 0, BLEND_PASS_THROUGH + 1) }.is_null());
+    // ...and so is Pass Through, which is a GROUP's declaration that it has no
+    // footprint of its own and has no meaning on a raster layer.
+    assert!(unsafe { dr_doc_with_layer_blend_mode(doc, 0, BLEND_PASS_THROUGH) }.is_null());
+
+    let path = dir.path().join("modes.drdc");
+    let c = cpath(&path);
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        "save failed: {}",
+        take_err_string(err)
+    );
+    let mut err: *mut c_char = ptr::null_mut();
+    let reopened = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    assert!(
+        !reopened.is_null(),
+        "reopen failed: {}",
+        take_err_string(err)
+    );
+    assert_eq!(
+        unsafe { dr_doc_layer_count(reopened) },
+        BLEND_MODE_COUNT as usize
+    );
+    for mode in 0..BLEND_MODE_COUNT {
+        assert_eq!(
+            unsafe { dr_doc_layer_blend_mode(reopened, mode as usize) },
+            mode,
+            "layer {mode} blend mode after round trip"
+        );
+    }
+    unsafe { dr_doc_free(reopened) };
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn layer_offsets_clip_and_show_backdrop() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let red = [255, 0, 0, 255];
+    let doc = doc_from(&dir, "bg.png", &solid(6, 5, red));
+    // 2x2 layer with four distinct pixels so the mapping is unambiguous.
+    let mut quad = RgbaImage::new(2, 2);
+    quad.put_pixel(0, 0, Rgba([0, 0, 255, 255]));
+    quad.put_pixel(1, 0, Rgba([0, 255, 0, 255]));
+    quad.put_pixel(0, 1, Rgba([255, 255, 0, 255]));
+    quad.put_pixel(1, 1, Rgba([0, 255, 255, 255]));
+    let doc = add_layer(&dir, "quad.png", doc, 0, &quad, "Quad");
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_offset(d, 1, 3, 2) });
+    let flat = flat_pixels(doc);
+    assert_eq!(pixel(&flat, 6, 3, 2), [0, 0, 255, 255]);
+    assert_eq!(pixel(&flat, 6, 4, 2), [0, 255, 0, 255]);
+    assert_eq!(pixel(&flat, 6, 3, 3), [255, 255, 0, 255]);
+    assert_eq!(pixel(&flat, 6, 4, 3), [0, 255, 255, 255]);
+    // Everything else is backdrop.
+    for y in 0..5u32 {
+        for x in 0..6u32 {
+            if (3..5).contains(&x) && (2..4).contains(&y) {
+                continue;
+            }
+            assert_eq!(pixel(&flat, 6, x, y), red, "backdrop leak at ({x},{y})");
+        }
+    }
+
+    // Negative offset: only the layer's bottom-right pixel remains visible.
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_offset(d, 1, -1, -1) });
+    let flat = flat_pixels(doc);
+    assert_eq!(
+        pixel(&flat, 6, 0, 0),
+        [0, 255, 255, 255],
+        "quad(1,1) at canvas origin"
+    );
+    assert_eq!(pixel(&flat, 6, 1, 0), red);
+    assert_eq!(pixel(&flat, 6, 0, 1), red);
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn setters_are_pure_and_validate() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let doc = doc_from(&dir, "bg.png", &opaque_pattern(4, 4));
+
+    let changed = unsafe { dr_doc_with_layer_opacity(doc, 0, 0.25) };
+    assert!(!changed.is_null());
+    assert_ne!(doc as usize, changed as usize);
+    assert_eq!(unsafe { dr_doc_layer_opacity(changed, 0) }, 0.25);
+    assert_eq!(
+        unsafe { dr_doc_layer_opacity(doc, 0) },
+        1.0,
+        "original document mutated"
+    );
+    unsafe { dr_doc_free(changed) };
+
+    // Clamping, watched from a layer that is NOT already at the clamped
+    // value — a setter handed the value it already holds answers NULL, which
+    // the latch block below pins.
+    let quarter = unsafe { dr_doc_with_layer_opacity(doc, 0, 0.25) };
+    let hi = unsafe { dr_doc_with_layer_opacity(quarter, 0, 3.0) };
+    assert_eq!(unsafe { dr_doc_layer_opacity(hi, 0) }, 1.0);
+    unsafe { dr_doc_free(hi) };
+    let lo = unsafe { dr_doc_with_layer_opacity(quarter, 0, -0.5) };
+    assert_eq!(unsafe { dr_doc_layer_opacity(lo, 0) }, 0.0);
+    unsafe { dr_doc_free(lo) };
+    unsafe { dr_doc_free(quarter) };
+
+    // Name, blend, visible, offset round-trips leave the original untouched.
+    let name = CString::new("Étage 层").unwrap();
+    let named = unsafe { dr_doc_with_layer_name(doc, 0, name.as_ptr()) };
+    assert_eq!(layer_name(named, 0), "Étage 层");
+    assert_eq!(layer_name(doc, 0), "Background");
+    unsafe { dr_doc_free(named) };
+
+    let blended = unsafe { dr_doc_with_layer_blend_mode(doc, 0, BLEND_SCREEN) };
+    assert_eq!(unsafe { dr_doc_layer_blend_mode(blended, 0) }, BLEND_SCREEN);
+    assert_eq!(unsafe { dr_doc_layer_blend_mode(doc, 0) }, BLEND_NORMAL);
+    unsafe { dr_doc_free(blended) };
+
+    let hidden = unsafe { dr_doc_with_layer_visible(doc, 0, false) };
+    assert!(!unsafe { dr_doc_layer_visible(hidden, 0) });
+    assert!(unsafe { dr_doc_layer_visible(doc, 0) });
+    unsafe { dr_doc_free(hidden) };
+
+    let moved = unsafe { dr_doc_with_layer_offset(doc, 0, -7, 9) };
+    assert_eq!(layer_offset(moved, 0), (-7, 9));
+    assert_eq!(layer_offset(doc, 0), (0, 0));
+    unsafe { dr_doc_free(moved) };
+
+    // The NO-OP LATCH, one assertion per setter: an op that would change
+    // nothing answers NULL rather than an identical copy, so a host reading a
+    // row and writing it straight back adds no undo step and does not dirty
+    // the document. The value compared is the one that would be STORED, so a
+    // clamped opacity latches against the clamped number.
+    let stored = CString::new("Background").unwrap();
+    unsafe {
+        assert!(dr_doc_with_layer_name(doc, 0, stored.as_ptr()).is_null());
+        assert!(dr_doc_with_layer_opacity(doc, 0, 1.0).is_null());
+        assert!(
+            dr_doc_with_layer_opacity(doc, 0, 4.0).is_null(),
+            "4.0 clamps onto the stored 1.0"
+        );
+        assert!(dr_doc_with_layer_blend_mode(doc, 0, BLEND_NORMAL).is_null());
+        assert!(dr_doc_with_layer_visible(doc, 0, true).is_null());
+        assert!(dr_doc_with_layer_offset(doc, 0, 0, 0).is_null());
+    }
+
+    // with_layer_pixels replaces pixels (any size), keeps properties.
+    let tiny = open_image(&dir, "tiny.png", &solid(2, 3, [9, 8, 7, 255]));
+    let offset_doc = unsafe { dr_doc_with_layer_offset(doc, 0, 5, 5) };
+    let repl = unsafe { dr_doc_with_layer_pixels(offset_doc, 0, tiny) };
+    unsafe { dr_image_free(tiny) };
+    assert!(!repl.is_null());
+    assert_eq!(layer_dims(repl, 0), (2, 3));
+    assert_eq!(layer_offset(repl, 0), (5, 5), "offset must be kept");
+    assert_eq!(layer_name(repl, 0), "Background");
+    unsafe { dr_doc_free(repl) };
+    unsafe { dr_doc_free(offset_doc) };
+
+    // Out-of-range idx -> NULL for every setter.
+    let name = CString::new("x").unwrap();
+    unsafe {
+        assert!(dr_doc_with_layer_name(doc, 1, name.as_ptr()).is_null());
+        assert!(dr_doc_with_layer_opacity(doc, 1, 0.5).is_null());
+        assert!(dr_doc_with_layer_blend_mode(doc, 1, BLEND_NORMAL).is_null());
+        assert!(dr_doc_with_layer_visible(doc, 1, false).is_null());
+        assert!(dr_doc_with_layer_offset(doc, 1, 0, 0).is_null());
+        // Unknown blend mode value -> NULL.
+        assert!(dr_doc_with_layer_blend_mode(doc, 0, 99).is_null());
+    }
+
+    // Out-of-range getters return defaults.
+    unsafe {
+        assert!(dr_doc_layer_name(doc, 5).is_null());
+        assert_eq!(dr_doc_layer_opacity(doc, 5), 0.0);
+        assert_eq!(dr_doc_layer_blend_mode(doc, 5), BLEND_NORMAL);
+        assert!(!dr_doc_layer_visible(doc, 5));
+        assert_eq!(dr_doc_layer_offset_x(doc, 5), 0);
+        assert_eq!(dr_doc_layer_offset_y(doc, 5), 0);
+        assert_eq!(dr_doc_layer_width(doc, 5), 0);
+        assert_eq!(dr_doc_layer_height(doc, 5), 0);
+        assert!(dr_doc_layer_image(doc, 5).is_null());
+        assert!(dr_doc_layer_canvas_image(doc, 5).is_null());
+        assert!(dr_doc_layer_thumbnail(doc, 5, 10).is_null());
+        // Layer groups, locks and links (ffi_group).
+        assert!(!dr_doc_layer_is_group(doc, 5));
+        assert_eq!(dr_doc_layer_depth(doc, 5), 0);
+        assert_eq!(dr_doc_layer_locks(doc, 5), 0);
+        assert_eq!(dr_doc_layer_link(doc, 5), 0);
+        assert!(!dr_doc_layer_open(doc, 5));
+        assert_eq!(dr_doc_lock_block(doc, 5, 0), 0);
+        assert_eq!(
+            dr_doc_lock_block(doc, 0, 99),
+            0,
+            "an unknown edit kind blocks nothing"
+        );
+        let mut start = 7usize;
+        let mut end = 7usize;
+        assert!(!dr_doc_layer_subtree(doc, 5, &mut start, &mut end));
+        assert_eq!((start, end), (7, 7), "nothing is written on a refusal");
+        let mut xywh = [7i32; 4];
+        assert!(!dr_doc_layer_bounds(doc, 5, xywh.as_mut_ptr()));
+        assert_eq!(xywh, [7; 4]);
+        assert!(dr_doc_with_layer_locks(doc, 5, 1).is_null());
+        assert!(dr_doc_with_layer_open(doc, 5, false).is_null());
+        assert!(
+            dr_doc_with_layer_open(doc, 0, false).is_null(),
+            "not a group"
+        );
+        assert!(dr_doc_ungroup_layer(doc, 5, ptr::null_mut(), ptr::null_mut(), 0).is_null());
+        assert!(
+            dr_doc_ungroup_layer(doc, 0, ptr::null_mut(), ptr::null_mut(), 0).is_null(),
+            "not a group"
+        );
+        assert!(dr_doc_move_layer_to(doc, 5, 0, 0).is_null());
+        assert!(dr_doc_move_layer_to(doc, 0, 5, 0).is_null());
+        assert!(
+            dr_doc_move_layer_to(doc, 0, 0, 99).is_null(),
+            "past the depth cap"
+        );
+        // An index list is refused WHOLE: empty, out of range, or repeating.
+        let cname = CString::new("G").unwrap();
+        let mut group_out = 0usize;
+        for indices in [vec![], vec![5usize], vec![0usize, 0]] {
+            assert!(
+                dr_doc_group_layers(
+                    doc,
+                    indices.as_ptr(),
+                    indices.len(),
+                    cname.as_ptr(),
+                    &mut group_out,
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    0,
+                )
+                .is_null(),
+                "group_layers({indices:?})"
+            );
+        }
+        let ok = [0usize];
+        assert!(
+            dr_doc_group_layers(
+                doc,
+                ok.as_ptr(),
+                1,
+                ptr::null(),
+                &mut group_out,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+                0,
+            )
+            .is_null(),
+            "a NULL name is refused"
+        );
+        // The SET ops take the same index list and refuse it whole.
+        for indices in [vec![], vec![5usize], vec![0usize, 0]] {
+            let (p, n) = (indices.as_ptr(), indices.len());
+            assert!(dr_doc_link_layers(doc, p, n).is_null(), "link {indices:?}");
+            assert!(
+                dr_doc_unlink_layers(doc, p, n).is_null(),
+                "unlink {indices:?}"
+            );
+            assert!(
+                dr_doc_move_layers(doc, p, n, 1, 1).is_null(),
+                "move {indices:?}"
+            );
+            assert!(
+                affine_set(doc, &indices, [1., 0., 0., 1., 1., 1.])
+                    .0
+                    .is_null(),
+                "transform {indices:?}"
+            );
+            assert!(
+                dr_doc_duplicate_layers(doc, p, n).is_null(),
+                "duplicate {indices:?}"
+            );
+            assert!(
+                dr_doc_remove_layers(doc, p, n).is_null(),
+                "remove {indices:?}"
+            );
+            assert!(
+                dr_doc_merge_layers(doc, p, n).is_null(),
+                "merge {indices:?}"
+            );
+            assert!(
+                dr_doc_align_layers(doc, p, n, ALIGN_LEFT, false).is_null(),
+                "align {indices:?}"
+            );
+            assert!(
+                dr_doc_distribute_layers(doc, p, n, false).is_null(),
+                "distribute {indices:?}"
+            );
+        }
+        let ok2 = [0usize, 1];
+        assert!(
+            dr_doc_align_layers(doc, ok2.as_ptr(), 2, 99, false).is_null(),
+            "an unknown edge is refused"
+        );
+        for how in [0, 1, 2, 3] {
+            assert!(
+                dr_doc_arrange_layer(doc, 5, how).is_null(),
+                "arrange out of range"
+            );
+        }
+        assert!(
+            dr_doc_arrange_layer(doc, 0, 99).is_null(),
+            "an unknown arrangement is refused"
+        );
+        assert!(dr_doc_stamp_visible(doc, 5, cname.as_ptr()).is_null());
+        assert!(dr_doc_stamp_visible(doc, 0, ptr::null()).is_null());
+        assert!(dr_doc_layer_via(doc, 5, ptr::null(), 2, 2, false, cname.as_ptr()).is_null());
+        assert!(dr_doc_layer_via(doc, 0, ptr::null(), 2, 2, false, ptr::null()).is_null());
+    }
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn stack_operations() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let red = solid(4, 4, [255, 0, 0, 255]);
+    let green = solid(4, 4, [0, 255, 0, 255]);
+    let blue = solid(4, 4, [0, 0, 255, 255]);
+
+    let doc = doc_from(&dir, "red.png", &red);
+
+    // adding_layer_at DR_INSERT_ABOVE: transparent canvas-sized layer above
+    // idx 0.
+    let cname = CString::new("Empty").unwrap();
+    let with_empty = unsafe {
+        dr_doc_adding_layer_at(doc, 0, 0 /* DR_INSERT_ABOVE */, cname.as_ptr())
+    };
+    assert!(!with_empty.is_null());
+    assert_eq!(unsafe { dr_doc_layer_count(with_empty) }, 2);
+    assert_eq!(layer_name(with_empty, 1), "Empty");
+    assert_eq!(layer_dims(with_empty, 1), (4, 4));
+    assert_eq!(layer_offset(with_empty, 1), (0, 0));
+    assert!(layer_pixels(with_empty, 1).iter().all(|&b| b == 0));
+    // A transparent layer does not change the projection.
+    assert_eq!(flat_pixels(with_empty), *red.as_raw());
+    unsafe { dr_doc_free(with_empty) };
+    assert_eq!(unsafe { dr_doc_layer_count(doc) }, 1, "original mutated");
+
+    // adding_image_layer above the bottom, then another above that.
+    let doc = add_layer(&dir, "green.png", doc, 0, &green, "Green");
+    let doc = add_layer(&dir, "blue.png", doc, 1, &blue, "Blue");
+    assert_eq!(unsafe { dr_doc_layer_count(doc) }, 3);
+    assert_eq!(layer_name(doc, 0), "Background");
+    assert_eq!(layer_name(doc, 1), "Green");
+    assert_eq!(layer_name(doc, 2), "Blue");
+    assert_eq!(pixel(&layer_pixels(doc, 1), 4, 0, 0), [0, 255, 0, 255]);
+    assert_eq!(pixel(&layer_pixels(doc, 2), 4, 0, 0), [0, 0, 255, 255]);
+
+    // duplicating_layer: " copy" suffix, same pixels, inserted above.
+    let doc = apply(doc, |d| unsafe { dr_doc_duplicating_layer(d, 1) });
+    assert_eq!(unsafe { dr_doc_layer_count(doc) }, 4);
+    assert_eq!(layer_name(doc, 2), "Green copy");
+    assert_eq!(layer_pixels(doc, 2), *green.as_raw());
+    assert_eq!(layer_name(doc, 3), "Blue");
+
+    // move_layer_to at the destination's depth: remove at `from`, insert at
+    // `to`.
+    let doc = apply(doc, |d| unsafe {
+        dr_doc_move_layer_to(d, 0, 3, dr_doc_layer_depth(d, 3))
+    });
+    assert_eq!(layer_name(doc, 0), "Green");
+    assert_eq!(layer_name(doc, 1), "Green copy");
+    assert_eq!(layer_name(doc, 2), "Blue");
+    assert_eq!(layer_name(doc, 3), "Background");
+    let doc = apply(doc, |d| unsafe {
+        dr_doc_move_layer_to(d, 3, 0, dr_doc_layer_depth(d, 0))
+    });
+    assert_eq!(layer_name(doc, 0), "Background");
+    assert_eq!(layer_name(doc, 1), "Green");
+
+    // removing_layer.
+    let doc = apply(doc, |d| unsafe { dr_doc_removing_layer(d, 2) });
+    assert_eq!(unsafe { dr_doc_layer_count(doc) }, 3);
+    assert_eq!(layer_name(doc, 2), "Blue");
+
+    // Index validation.
+    let cname = CString::new("nope").unwrap();
+    unsafe {
+        assert!(dr_doc_adding_layer_at(doc, 3, 0 /* DR_INSERT_ABOVE */, cname.as_ptr()).is_null());
+        assert!(dr_doc_duplicating_layer(doc, 3).is_null());
+        assert!(dr_doc_removing_layer(doc, 3).is_null());
+        assert!(dr_doc_move_layer_to(doc, 0, 3, dr_doc_layer_depth(doc, 3)).is_null());
+        assert!(dr_doc_move_layer_to(doc, 3, 0, dr_doc_layer_depth(doc, 0)).is_null());
+    }
+    unsafe { dr_doc_free(doc) };
+
+    // The last remaining layer cannot be removed.
+    let last = doc_from(&dir, "last.png", &red);
+    assert!(unsafe { dr_doc_removing_layer(last, 0) }.is_null());
+    unsafe { dr_doc_free(last) };
+}
+
+#[test]
+fn merge_down_matches_flatten_and_handles_extents() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+
+    // Same-extent merge must equal the projection of the pair exactly (same
+    // kernel, single quantization).
+    let doc = doc_from(&dir, "bg.png", &opaque_pattern(6, 4));
+    let doc = add_layer(
+        &dir,
+        "top.png",
+        doc,
+        0,
+        &solid(6, 4, [180, 40, 220, 200]),
+        "Top",
+    );
+    let doc = apply(doc, |d| unsafe {
+        dr_doc_with_layer_blend_mode(d, 1, BLEND_MULTIPLY)
+    });
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_opacity(d, 1, 0.6) });
+    let flat_before = flat_pixels(doc);
+    let merged = unsafe { dr_doc_merging_down(doc, 1) };
+    assert!(!merged.is_null());
+    assert_eq!(unsafe { dr_doc_layer_count(merged) }, 1);
+    assert_eq!(layer_name(merged, 0), "Background");
+    assert_eq!(unsafe { dr_doc_layer_opacity(merged, 0) }, 1.0);
+    assert_eq!(unsafe { dr_doc_layer_blend_mode(merged, 0) }, BLEND_NORMAL);
+    assert_eq!(layer_offset(merged, 0), (0, 0));
+    assert_eq!(
+        flat_pixels(merged),
+        flat_before,
+        "merge_down must equal flatten of the pair"
+    );
+    unsafe { dr_doc_free(merged) };
+    assert_eq!(unsafe { dr_doc_layer_count(doc) }, 2, "original mutated");
+    unsafe { dr_doc_free(doc) };
+
+    // Offset layers: merged layer covers the union of both extents.
+    let green = [0, 200, 0, 255];
+    let magenta = [255, 0, 255, 255];
+    let doc = doc_from(&dir, "base10.png", &opaque_pattern(10, 8));
+    let doc = add_layer(&dir, "a.png", doc, 0, &solid(3, 2, green), "A");
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_offset(d, 1, 1, 1) });
+    let doc = add_layer(&dir, "b.png", doc, 1, &solid(2, 2, magenta), "B");
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_offset(d, 2, 3, 2) });
+    let flat_before = flat_pixels(doc);
+    let merged = unsafe { dr_doc_merging_down(doc, 2) };
+    assert!(!merged.is_null());
+    assert_eq!(unsafe { dr_doc_layer_count(merged) }, 2);
+    assert_eq!(layer_name(merged, 1), "A");
+    assert_eq!(layer_offset(merged, 1), (1, 1), "union origin");
+    assert_eq!(layer_dims(merged, 1), (4, 3), "union extent");
+    let mp = layer_pixels(merged, 1);
+    assert_eq!(pixel(&mp, 4, 0, 0), green, "A-only region");
+    assert_eq!(pixel(&mp, 4, 1, 1), green, "A under nothing");
+    assert_eq!(pixel(&mp, 4, 2, 1), magenta, "B over A overlap");
+    assert_eq!(pixel(&mp, 4, 3, 2), magenta, "B-only region");
+    assert_eq!(pixel(&mp, 4, 3, 0), [0, 0, 0, 0], "uncovered union corner");
+    assert_eq!(pixel(&mp, 4, 0, 2), [0, 0, 0, 0], "uncovered union corner");
+    // The projection is unchanged by merging.
+    assert_eq!(flat_pixels(merged), flat_before);
+    unsafe { dr_doc_free(merged) };
+
+    // Invisible upper layer: merge_down simply removes it.
+    let hidden = apply(unsafe { dr_doc_clone(doc) }, |d| unsafe {
+        dr_doc_with_layer_visible(d, 2, false)
+    });
+    let a_before = layer_pixels(hidden, 1);
+    let merged = unsafe { dr_doc_merging_down(hidden, 2) };
+    assert!(!merged.is_null());
+    assert_eq!(unsafe { dr_doc_layer_count(merged) }, 2);
+    assert_eq!(layer_pixels(merged, 1), a_before, "lower must be unchanged");
+    assert_eq!(layer_offset(merged, 1), (1, 1));
+    assert_eq!(layer_dims(merged, 1), (3, 2));
+    unsafe { dr_doc_free(merged) };
+    unsafe { dr_doc_free(hidden) };
+
+    // merging_down(0) and OOB -> NULL.
+    unsafe {
+        assert!(dr_doc_merging_down(doc, 0).is_null());
+        assert!(dr_doc_merging_down(doc, 3).is_null());
+    }
+
+    // flattening: one "Background" layer, projection preserved.
+    let flattened = unsafe { dr_doc_flattening(doc) };
+    assert!(!flattened.is_null());
+    assert_eq!(unsafe { dr_doc_layer_count(flattened) }, 1);
+    assert_eq!(layer_name(flattened, 0), "Background");
+    assert_eq!(layer_offset(flattened, 0), (0, 0));
+    assert_eq!(layer_dims(flattened, 0), (10, 8));
+    assert_eq!(flat_pixels(flattened), flat_before);
+    unsafe { dr_doc_free(flattened) };
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn merge_down_bakes_lower_opacity_and_blend() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+
+    // Lower layer at opacity 0.5 with Multiply under a semi-transparent
+    // upper: merging must bake BOTH layers' modes/opacities into the pixels
+    // (lower over a transparent backdrop, where Multiply degenerates to
+    // Normal), so the projection is unchanged by the merge.
+    let doc = doc_from(&dir, "mb-lo.png", &solid(5, 4, [40, 200, 120, 255]));
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_opacity(d, 0, 0.5) });
+    let doc = apply(doc, |d| unsafe {
+        dr_doc_with_layer_blend_mode(d, 0, BLEND_MULTIPLY)
+    });
+    let doc = add_layer(
+        &dir,
+        "mb-hi.png",
+        doc,
+        0,
+        &solid(5, 4, [220, 60, 30, 160]),
+        "Upper",
+    );
+    let flat_before = flat_pixels(doc);
+    let merged = unsafe { dr_doc_merging_down(doc, 1) };
+    assert!(!merged.is_null());
+    assert_eq!(unsafe { dr_doc_layer_count(merged) }, 1);
+    assert_eq!(layer_name(merged, 0), "Background");
+    assert_eq!(
+        unsafe { dr_doc_layer_opacity(merged, 0) },
+        1.0,
+        "lower opacity must be baked, not kept"
+    );
+    assert_eq!(
+        unsafe { dr_doc_layer_blend_mode(merged, 0) },
+        BLEND_NORMAL,
+        "lower blend must be baked, not kept"
+    );
+    let flat_after = flat_pixels(merged);
+    for (i, (&a, &b)) in flat_after.iter().zip(flat_before.iter()).enumerate() {
+        assert!(
+            (i32::from(a) - i32::from(b)).abs() <= 1,
+            "byte {i}: merged {a} vs pre-merge {b}"
+        );
+    }
+    unsafe { dr_doc_free(merged) };
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn merge_down_onto_hidden_lower_is_refused() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let doc = doc_from(&dir, "mh-lo.png", &solid(4, 4, [10, 20, 30, 255]));
+    let doc = add_layer(
+        &dir,
+        "mh-hi.png",
+        doc,
+        0,
+        &solid(4, 4, [200, 100, 50, 255]),
+        "Upper",
+    );
+    // Merging a visible layer into a hidden lower layer would make the upper
+    // content vanish from the projection; it must fail instead.
+    let hidden = apply(unsafe { dr_doc_clone(doc) }, |d| unsafe {
+        dr_doc_with_layer_visible(d, 0, false)
+    });
+    assert!(
+        unsafe { dr_doc_merging_down(hidden, 1) }.is_null(),
+        "merge into a hidden lower layer must fail"
+    );
+    unsafe { dr_doc_free(hidden) };
+    // With the lower visible the same merge succeeds.
+    let merged = unsafe { dr_doc_merging_down(doc, 1) };
+    assert!(!merged.is_null());
+    unsafe { dr_doc_free(merged) };
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn painting_layer_over_and_erase() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let bottom = opaque_pattern(8, 6);
+    let top = solid(4, 3, [10, 20, 30, 255]);
+    let doc = doc_from(&dir, "bg.png", &bottom);
+    let doc = add_layer(&dir, "top.png", doc, 0, &top, "Paint");
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_offset(d, 1, 2, 1) });
+
+    // Opaque premultiplied red square covering canvas x 3..6, y 2..4.
+    let mut overlay = [0u8; 8 * 6 * 4];
+    for y in 2..4u32 {
+        for x in 3..6u32 {
+            let i = ((y * 8 + x) * 4) as usize;
+            overlay[i..i + 4].copy_from_slice(&[255, 0, 0, 255]);
+        }
+    }
+    let painted =
+        unsafe { dr_doc_painting_layer(doc, 1, overlay.as_ptr(), 8, 6, COMPOSITE_OVER, 1.0) };
+    assert!(!painted.is_null());
+    let lp = layer_pixels(painted, 1);
+    for ly in 0..3u32 {
+        for lx in 0..4u32 {
+            let (cx, cy) = (lx + 2, ly + 1);
+            let inside = (3..6).contains(&cx) && (2..4).contains(&cy);
+            let got = pixel(&lp, 4, lx, ly);
+            if inside {
+                assert_eq!(got, [255, 0, 0, 255], "paint missing at layer ({lx},{ly})");
+            } else {
+                assert_eq!(got, [10, 20, 30, 255], "paint leaked to layer ({lx},{ly})");
+            }
+        }
+    }
+    // Other layers and the source document are untouched.
+    assert_eq!(layer_pixels(painted, 0), *bottom.as_raw());
+    assert_eq!(layer_pixels(doc, 1), *top.as_raw(), "original mutated");
+    assert_eq!(layer_offset(painted, 1), (2, 1));
+    unsafe { dr_doc_free(painted) };
+
+    // ERASE halves alpha through a 128-alpha overlay.
+    let erase_overlay = [128u8; 8 * 6 * 4];
+    let erased = unsafe {
+        dr_doc_painting_layer(doc, 1, erase_overlay.as_ptr(), 8, 6, COMPOSITE_ERASE, 1.0)
+    };
+    assert!(!erased.is_null());
+    let ep = layer_pixels(erased, 1);
+    for (i, chunk) in ep.chunks_exact(4).enumerate() {
+        assert_eq!(&chunk[..3], &[10, 20, 30], "erase changed color at {i}");
+        assert!(
+            (f32::from(chunk[3]) - 127.0).abs() <= 1.0,
+            "erase alpha at {i}: got {}",
+            chunk[3]
+        );
+    }
+    unsafe { dr_doc_free(erased) };
+
+    // Guards: dimension mismatch, unknown mode, NaN alpha, OOB idx, NULL src.
+    unsafe {
+        assert!(
+            dr_doc_painting_layer(doc, 1, overlay.as_ptr(), 7, 6, COMPOSITE_OVER, 1.0).is_null()
+        );
+        assert!(
+            dr_doc_painting_layer(doc, 1, overlay.as_ptr(), 8, 5, COMPOSITE_OVER, 1.0).is_null()
+        );
+        assert!(dr_doc_painting_layer(doc, 1, overlay.as_ptr(), 8, 6, 99, 1.0).is_null());
+        assert!(
+            dr_doc_painting_layer(doc, 1, overlay.as_ptr(), 8, 6, COMPOSITE_OVER, f32::NAN)
+                .is_null()
+        );
+        assert!(
+            dr_doc_painting_layer(doc, 9, overlay.as_ptr(), 8, 6, COMPOSITE_OVER, 1.0).is_null()
+        );
+        assert!(dr_doc_painting_layer(doc, 1, ptr::null(), 8, 6, COMPOSITE_OVER, 1.0).is_null());
+    }
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn painting_layer_outside_extent_returns_null() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let doc = doc_from(&dir, "po-bg.png", &opaque_pattern(8, 6));
+    let doc = add_layer(
+        &dir,
+        "po-small.png",
+        doc,
+        0,
+        &solid(2, 2, [10, 20, 30, 255]),
+        "Small",
+    );
+    let overlay = [255u8; 8 * 6 * 4]; // opaque premultiplied white, full frame
+
+    // Layer entirely outside the canvas: no overlay pixel can reach it, so
+    // the paint must fail (NULL) instead of returning an unchanged copy.
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_offset(d, 1, 100, 100) });
+    unsafe {
+        assert!(
+            dr_doc_painting_layer(doc, 1, overlay.as_ptr(), 8, 6, COMPOSITE_OVER, 1.0).is_null(),
+            "painting a layer fully outside the canvas must fail"
+        );
+    }
+
+    // Partial intersection still paints the covered pixel and leaves the
+    // off-canvas ones untouched.
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_offset(d, 1, -1, -1) });
+    let painted =
+        unsafe { dr_doc_painting_layer(doc, 1, overlay.as_ptr(), 8, 6, COMPOSITE_OVER, 1.0) };
+    assert!(!painted.is_null(), "partial intersection must still paint");
+    let lp = layer_pixels(painted, 1);
+    assert_eq!(pixel(&lp, 2, 1, 1), [255, 255, 255, 255], "on-canvas pixel");
+    assert_eq!(pixel(&lp, 2, 0, 0), [10, 20, 30, 255], "off-canvas pixel");
+    assert_eq!(pixel(&lp, 2, 1, 0), [10, 20, 30, 255], "off-canvas pixel");
+    assert_eq!(pixel(&lp, 2, 0, 1), [10, 20, 30, 255], "off-canvas pixel");
+    unsafe { dr_doc_free(painted) };
+    unsafe { dr_doc_free(doc) };
+}
+
+/// Builds the asymmetric geometry fixture: 7x5 canvas, semi-transparent 3x2
+/// layer at (1, 1) blended with multiply.
+fn geometry_fixture(dir: &TempDir, tag: &str, offset: (i32, i32)) -> *mut DrDocument {
+    let doc = doc_from(dir, &format!("geo-bg-{tag}.png"), &opaque_pattern(7, 5));
+    let layer = RgbaImage::from_fn(3, 2, |x, y| {
+        Rgba([
+            (x * 90 + 20) as u8,
+            (y * 100 + 40) as u8,
+            ((x + y) * 60 + 10) as u8,
+            if (x + y) % 2 == 0 { 255 } else { 128 },
+        ])
+    });
+    let doc = add_layer(dir, &format!("geo-l-{tag}.png"), doc, 0, &layer, "Geo");
+    let doc = apply(doc, |d| unsafe {
+        dr_doc_with_layer_blend_mode(d, 1, BLEND_MULTIPLY)
+    });
+    apply(doc, |d| unsafe {
+        dr_doc_with_layer_offset(d, 1, offset.0, offset.1)
+    })
+}
+
+/// The single-layer counterpart of flatten: raw pixels at the layer's
+/// offset, everything else transparent, and the compositing properties
+/// (opacity, blend mode, visibility) deliberately ignored.
+#[test]
+fn layer_canvas_image_places_raw_pixels() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    // 7x5 canvas, 3x2 multiply layer at (2, 1).
+    let doc = geometry_fixture(&dir, "canvasimg", (2, 1));
+    let raw = layer_pixels(doc, 1);
+
+    let placed = unsafe { dr_doc_layer_canvas_image(doc, 1) };
+    assert!(!placed.is_null());
+    assert_eq!(
+        unsafe { (dr_image_width(placed), dr_image_height(placed)) },
+        (7, 5),
+        "canvas-sized, not layer-sized"
+    );
+    let px = img_pixels(placed);
+    for y in 0..5usize {
+        for x in 0..7usize {
+            let i = (y * 7 + x) * 4;
+            if (2..5).contains(&x) && (1..3).contains(&y) {
+                let j = ((y - 1) * 3 + (x - 2)) * 4;
+                assert_eq!(px[i..i + 4], raw[j..j + 4], "layer pixel at ({x}, {y})");
+            } else {
+                assert_eq!(
+                    px[i..i + 4],
+                    [0, 0, 0, 0],
+                    "clear outside the layer ({x}, {y})"
+                );
+            }
+        }
+    }
+    unsafe { dr_image_free(placed) };
+
+    // Opacity and visibility are compositing properties: the pixels a copy
+    // would take are the same with the layer at 25% and hidden.
+    let faded = apply(unsafe { dr_doc_clone(doc) }, |d| unsafe {
+        dr_doc_with_layer_opacity(d, 1, 0.25)
+    });
+    let hidden = apply(faded, |d| unsafe { dr_doc_with_layer_visible(d, 1, false) });
+    let unchanged = unsafe { dr_doc_layer_canvas_image(hidden, 1) };
+    assert!(!unchanged.is_null());
+    assert_eq!(
+        img_pixels(unchanged),
+        px,
+        "opacity and visibility must not apply"
+    );
+    unsafe {
+        dr_image_free(unchanged);
+        dr_doc_free(hidden);
+        dr_doc_free(doc);
+    }
+
+    // A layer hanging off the top-left corner keeps only what is on canvas.
+    let off = geometry_fixture(&dir, "canvasimg-off", (-1, -1));
+    let off_raw = layer_pixels(off, 1);
+    let clipped = unsafe { dr_doc_layer_canvas_image(off, 1) };
+    assert!(!clipped.is_null());
+    let cpx = img_pixels(clipped);
+    // Only the layer's bottom-right 2x1 corner is still on canvas: its
+    // pixels (1, 1) and (2, 1) land at canvas (0, 0) and (1, 0).
+    let layer_px = |x: usize, y: usize| {
+        let i = (y * 3 + x) * 4;
+        off_raw[i..i + 4].to_vec()
+    };
+    assert_eq!(cpx[0..4], layer_px(1, 1)[..]);
+    assert_eq!(cpx[4..8], layer_px(2, 1)[..]);
+    // Row 1 of the canvas is past the layer's 2-pixel height: clear.
+    assert_eq!(cpx[7 * 4..7 * 4 + 4], [0, 0, 0, 0]);
+    unsafe {
+        dr_image_free(clipped);
+        dr_doc_free(off);
+    }
+}
+
+#[test]
+fn geometry_ops_commute_with_flatten() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+
+    type DocOp = unsafe extern "C" fn(*const DrDocument) -> *mut DrDocument;
+    type ImgOp = unsafe extern "C" fn(*const DrImage) -> *mut DrImage;
+    let ops: &[(&str, DocOp, ImgOp)] = &[
+        ("rotate90", dr_doc_rotate90, dr_image_rotate90),
+        ("rotate180", dr_doc_rotate180, dr_image_rotate180),
+        ("rotate270", dr_doc_rotate270, dr_image_rotate270),
+        ("flip_h", dr_doc_flip_horizontal, dr_image_flip_horizontal),
+        ("flip_v", dr_doc_flip_vertical, dr_image_flip_vertical),
+    ];
+
+    // Both an interior offset and a negative (clipping) offset.
+    for (tag, offset) in [("in", (1, 1)), ("neg", (-1, -1))] {
+        let doc = geometry_fixture(&dir, tag, offset);
+        let flat = unsafe { dr_doc_flattened(doc, 0, std::ptr::null(), std::ptr::null_mut()) };
+        assert!(!flat.is_null());
+        for (name, doc_op, img_op) in ops {
+            let rotated_doc = unsafe { doc_op(doc) };
+            assert!(!rotated_doc.is_null(), "{name} failed");
+            let a = flat_pixels(rotated_doc);
+            let rotated_flat = unsafe { img_op(flat) };
+            let b = img_pixels(rotated_flat);
+            let (aw, ah) = {
+                let d = rotated_doc;
+                unsafe { (dr_doc_width(d), dr_doc_height(d)) }
+            };
+            assert_eq!((aw, ah), img_dims(rotated_flat), "{name}/{tag}: dims");
+            assert_eq!(a, b, "{name}/{tag}: flatten must commute with geometry");
+            unsafe { dr_image_free(rotated_flat) };
+            unsafe { dr_doc_free(rotated_doc) };
+        }
+        unsafe { dr_image_free(flat) };
+        unsafe { dr_doc_free(doc) };
+    }
+
+    // Explicit dimension/offset formulas on the interior fixture:
+    // (name, op, canvas dims, layer dims, layer offset).
+    type GeoCheck = (
+        &'static str,
+        unsafe extern "C" fn(*const DrDocument) -> *mut DrDocument,
+        (u32, u32),
+        (u32, u32),
+        (i32, i32),
+    );
+    let doc = geometry_fixture(&dir, "fx", (1, 1));
+    let checks: &[GeoCheck] = &[
+        ("rotate90", dr_doc_rotate90, (5, 7), (2, 3), (2, 1)),
+        ("rotate180", dr_doc_rotate180, (7, 5), (3, 2), (3, 2)),
+        ("rotate270", dr_doc_rotate270, (5, 7), (2, 3), (1, 3)),
+        ("flip_h", dr_doc_flip_horizontal, (7, 5), (3, 2), (3, 1)),
+        ("flip_v", dr_doc_flip_vertical, (7, 5), (3, 2), (1, 2)),
+    ];
+    for &(name, op, canvas, ldims, loff) in checks {
+        let out = unsafe { op(doc) };
+        assert!(!out.is_null());
+        assert_eq!(
+            unsafe { (dr_doc_width(out), dr_doc_height(out)) },
+            canvas,
+            "{name}: canvas dims"
+        );
+        assert_eq!(layer_dims(out, 1), ldims, "{name}: layer dims");
+        assert_eq!(layer_offset(out, 1), loff, "{name}: layer offset");
+        unsafe { dr_doc_free(out) };
+    }
+
+    // rotate270(rotate90(doc)) is the identity.
+    let there = unsafe { dr_doc_rotate90(doc) };
+    let back = unsafe { dr_doc_rotate270(there) };
+    assert_eq!(flat_pixels(back), flat_pixels(doc));
+    assert_eq!(layer_offset(back, 1), (1, 1));
+    unsafe { dr_doc_free(there) };
+    unsafe { dr_doc_free(back) };
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn crop_shifts_offsets_and_resize_scales() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let doc = geometry_fixture(&dir, "crop", (1, 1));
+    let layer_before = layer_pixels(doc, 1);
+    let flat = unsafe { dr_doc_flattened(doc, 0, std::ptr::null(), std::ptr::null_mut()) };
+
+    // Crop: canvas window moves; layer pixels untouched, offsets shift.
+    let cropped = unsafe { dr_doc_crop(doc, 2, 1, 4, 3) };
+    assert!(!cropped.is_null());
+    assert_eq!(
+        unsafe { (dr_doc_width(cropped), dr_doc_height(cropped)) },
+        (4, 3)
+    );
+    assert_eq!(layer_offset(cropped, 1), (-1, 0));
+    assert_eq!(layer_offset(cropped, 0), (-2, -1));
+    assert_eq!(
+        layer_pixels(cropped, 1),
+        layer_before,
+        "crop must not touch pixels"
+    );
+    // Projection of the cropped doc == crop of the projection.
+    let flat_crop = unsafe { dr_image_crop(flat, 2, 1, 4, 3) };
+    assert!(!flat_crop.is_null());
+    assert_eq!(flat_pixels(cropped), img_pixels(flat_crop));
+    unsafe { dr_image_free(flat_crop) };
+    unsafe { dr_doc_free(cropped) };
+
+    // Crop validation mirrors dr_image_crop.
+    unsafe {
+        assert!(dr_doc_crop(doc, 0, 0, 0, 3).is_null());
+        assert!(dr_doc_crop(doc, 0, 0, 3, 0).is_null());
+        assert!(dr_doc_crop(doc, 5, 0, 3, 3).is_null());
+        assert!(dr_doc_crop(doc, 0, 4, 2, 2).is_null());
+        assert!(dr_doc_crop(doc, u32::MAX, 0, 2, 2).is_null());
+    }
+
+    // Cropping to the whole canvas is the window the document already has:
+    // NULL, not an identical copy that would be a phantom undo step.
+    unsafe {
+        let (w, h) = (dr_doc_width(doc), dr_doc_height(doc));
+        assert!(dr_doc_crop(doc, 0, 0, w, h).is_null());
+        // One pixel narrower is a real crop, and still succeeds.
+        let narrower = dr_doc_crop(doc, 0, 0, w - 1, h);
+        assert!(!narrower.is_null());
+        assert_eq!(
+            (dr_doc_width(narrower), dr_doc_height(narrower)),
+            (w - 1, h)
+        );
+        dr_doc_free(narrower);
+    }
+
+    // Resize by exactly 2x: canvas, layer dims, and offsets all double.
+    let resized = unsafe { dr_doc_resize(doc, 14, 10, FILTER_NEAREST) };
+    assert!(!resized.is_null());
+    assert_eq!(
+        unsafe { (dr_doc_width(resized), dr_doc_height(resized)) },
+        (14, 10)
+    );
+    assert_eq!(layer_dims(resized, 0), (14, 10));
+    assert_eq!(layer_dims(resized, 1), (6, 4));
+    assert_eq!(layer_offset(resized, 1), (2, 2));
+    unsafe { dr_doc_free(resized) };
+
+    // Resize guards: zero dims, absurd target, unknown filter.
+    unsafe {
+        assert!(dr_doc_resize(doc, 0, 5, FILTER_BILINEAR).is_null());
+        assert!(dr_doc_resize(doc, 5, 0, FILTER_BILINEAR).is_null());
+        assert!(dr_doc_resize(doc, 10_000, 10_001, FILTER_BILINEAR).is_null());
+        assert!(dr_doc_resize(doc, 5, 5, 99).is_null());
+    }
+
+    // Thumbnails: aspect-fit with the longest side == max_side, upscaling
+    // small layers.
+    let thumb = unsafe { dr_doc_layer_thumbnail(doc, 0, 4) };
+    assert!(!thumb.is_null());
+    assert_eq!(img_dims(thumb), (4, 3)); // 7x5 -> longest side 4
+    unsafe { dr_image_free(thumb) };
+    let thumb = unsafe { dr_doc_layer_thumbnail(doc, 1, 9) };
+    assert!(!thumb.is_null());
+    assert_eq!(img_dims(thumb), (9, 6)); // 3x2 upscaled
+    unsafe { dr_image_free(thumb) };
+    let thumb = unsafe { dr_doc_layer_thumbnail(doc, 1, 0) };
+    assert!(!thumb.is_null());
+    assert_eq!(img_dims(thumb), (1, 1)); // max_side clamps up to 1
+    unsafe { dr_image_free(thumb) };
+
+    unsafe { dr_image_free(flat) };
+    unsafe { dr_doc_free(doc) };
+}
+
+/// Builds the 3-layer document used by the DRDC round-trip tests.
+fn drdc_fixture(dir: &TempDir) -> *mut DrDocument {
+    let doc = doc_from(dir, "rz-bg.png", &opaque_pattern(9, 7));
+    let mid = RgbaImage::from_fn(4, 3, |x, y| {
+        Rgba([
+            (x * 60) as u8,
+            (y * 80) as u8,
+            200,
+            ((x + y) * 40 + 50) as u8,
+        ])
+    });
+    let doc = add_layer(dir, "rz-mid.png", doc, 0, &mid, "Ébauche 层");
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_offset(d, 1, -3, 2) });
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_opacity(d, 1, 0.6) });
+    let doc = apply(doc, |d| unsafe {
+        dr_doc_with_layer_blend_mode(d, 1, BLEND_MULTIPLY)
+    });
+    let top = solid(2, 5, [250, 128, 3, 200]);
+    let doc = add_layer(dir, "rz-top.png", doc, 1, &top, "guide/mask");
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_offset(d, 2, 5, -4) });
+    let doc = apply(doc, |d| unsafe { dr_doc_with_layer_opacity(d, 2, 0.25) });
+    let doc = apply(doc, |d| unsafe {
+        dr_doc_with_layer_blend_mode(d, 2, BLEND_SCREEN)
+    });
+    apply(doc, |d| unsafe { dr_doc_with_layer_visible(d, 2, false) })
+}
+
+#[test]
+fn drdc_round_trip_preserves_everything() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let doc = drdc_fixture(&dir);
+
+    let path = dir.path().join("doc.drdc");
+    let c = cpath(&path);
+    let mut err: *mut c_char = ptr::null_mut();
+    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) };
+    assert!(ok, "save_native failed: {}", take_err_string(err));
+    assert!(err.is_null());
+    let header = std::fs::read(&path).unwrap();
+    assert_eq!(&header[..4], b"DRDC", "file must start with the magic");
+
+    let mut err: *mut c_char = ptr::null_mut();
+    let reopened = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    assert!(
+        !reopened.is_null(),
+        "reopen failed: {}",
+        take_err_string(err)
+    );
+
+    assert_eq!(unsafe { dr_doc_width(reopened) }, unsafe {
+        dr_doc_width(doc)
+    });
+    assert_eq!(unsafe { dr_doc_height(reopened) }, unsafe {
+        dr_doc_height(doc)
+    });
+    assert_eq!(unsafe { dr_doc_layer_count(reopened) }, 3);
+    for idx in 0..3usize {
+        assert_eq!(
+            layer_name(reopened, idx),
+            layer_name(doc, idx),
+            "layer {idx} name"
+        );
+        assert_eq!(
+            unsafe { dr_doc_layer_opacity(reopened, idx) },
+            unsafe { dr_doc_layer_opacity(doc, idx) },
+            "layer {idx} opacity"
+        );
+        assert_eq!(
+            unsafe { dr_doc_layer_blend_mode(reopened, idx) },
+            unsafe { dr_doc_layer_blend_mode(doc, idx) },
+            "layer {idx} blend"
+        );
+        assert_eq!(
+            unsafe { dr_doc_layer_visible(reopened, idx) },
+            unsafe { dr_doc_layer_visible(doc, idx) },
+            "layer {idx} visibility"
+        );
+        assert_eq!(
+            layer_offset(reopened, idx),
+            layer_offset(doc, idx),
+            "layer {idx} offset"
+        );
+        assert_eq!(
+            layer_dims(reopened, idx),
+            layer_dims(doc, idx),
+            "layer {idx} dims"
+        );
+        assert_eq!(
+            layer_pixels(reopened, idx),
+            layer_pixels(doc, idx),
+            "layer {idx} pixels must be byte-identical"
+        );
+    }
+    assert_eq!(flat_pixels(reopened), flat_pixels(doc));
+    unsafe { dr_doc_free(reopened) };
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn drdc_corrupt_truncated_and_lenient_fields() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let doc = drdc_fixture(&dir);
+    let path = dir.path().join("doc.drdc");
+    let c = cpath(&path);
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) });
+    unsafe { dr_doc_free(doc) };
+    let bytes = std::fs::read(&path).unwrap();
+
+    // Truncations at various depths: header, layer table, PNG payload, and
+    // twice inside the 12-byte version-6 document tail (which is the last 12
+    // bytes: two resolution floats and four blob-present flags).
+    for cut in [
+        0usize,
+        3,
+        4,
+        10,
+        17,
+        20,
+        bytes.len() / 3,
+        bytes.len() / 2,
+        bytes.len() - 10,
+        bytes.len() - 6,
+        bytes.len() - 1,
+    ] {
+        let tpath = dir.path().join(format!("cut-{cut}.drdc"));
+        std::fs::write(&tpath, &bytes[..cut]).unwrap();
+        let tc = cpath(&tpath);
+        let mut err: *mut c_char = ptr::null_mut();
+        let p = unsafe { dr_doc_open(tc.as_ptr(), &mut err) };
+        assert!(p.is_null(), "truncated file (cut {cut}) must not open");
+        assert!(!err.is_null(), "truncation (cut {cut}) must set an error");
+        assert!(!take_err_string(err).is_empty());
+    }
+
+    // Bad magic.
+    let mut bad = bytes.clone();
+    bad[3] = b'X';
+    let bpath = dir.path().join("bad-magic.drdc");
+    std::fs::write(&bpath, &bad).unwrap();
+    let bc = cpath(&bpath);
+    let mut err: *mut c_char = ptr::null_mut();
+    let p = unsafe { dr_doc_open(bc.as_ptr(), &mut err) };
+    assert!(p.is_null(), "bad magic must not open");
+    assert!(!take_err_string(err).is_empty());
+
+    // Zero layer count is rejected.
+    let mut zero = bytes[..16].to_vec();
+    zero.extend_from_slice(&0u32.to_le_bytes());
+    let zpath = dir.path().join("zero.drdc");
+    std::fs::write(&zpath, &zero).unwrap();
+    let zc = cpath(&zpath);
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(unsafe { dr_doc_open(zc.as_ptr(), &mut err) }.is_null());
+    assert!(!take_err_string(err).is_empty());
+
+    // Hand-crafted file with an unknown blend value and out-of-range opacity:
+    // opens leniently (Normal, clamped).
+    let mut png = Vec::new();
+    solid(2, 2, [1, 2, 3, 255])
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+    let mut crafted = Vec::new();
+    crafted.extend_from_slice(b"RZDC");
+    crafted.extend_from_slice(&1u32.to_le_bytes());
+    crafted.extend_from_slice(&2u32.to_le_bytes());
+    crafted.extend_from_slice(&2u32.to_le_bytes());
+    crafted.extend_from_slice(&1u32.to_le_bytes());
+    crafted.extend_from_slice(&1u32.to_le_bytes()); // name len
+    crafted.push(b'X');
+    crafted.extend_from_slice(&0i32.to_le_bytes());
+    crafted.extend_from_slice(&0i32.to_le_bytes());
+    crafted.extend_from_slice(&2.5f32.to_le_bytes()); // opacity out of range
+    crafted.extend_from_slice(&999u32.to_le_bytes()); // unknown blend
+    crafted.push(1);
+    crafted.extend_from_slice(&(png.len() as u32).to_le_bytes());
+    crafted.extend_from_slice(&png);
+    let hpath = dir.path().join("crafted.drdc");
+    std::fs::write(&hpath, &crafted).unwrap();
+    let hc = cpath(&hpath);
+    let mut err: *mut c_char = ptr::null_mut();
+    let lenient = unsafe { dr_doc_open(hc.as_ptr(), &mut err) };
+    assert!(
+        !lenient.is_null(),
+        "lenient open failed: {}",
+        take_err_string(err)
+    );
+    assert_eq!(unsafe { dr_doc_layer_count(lenient) }, 1);
+    assert_eq!(layer_name(lenient, 0), "X");
+    assert_eq!(unsafe { dr_doc_layer_opacity(lenient, 0) }, 1.0);
+    assert_eq!(unsafe { dr_doc_layer_blend_mode(lenient, 0) }, BLEND_NORMAL);
+    unsafe { dr_doc_free(lenient) };
+}
+
+#[test]
+fn drdc_rejects_absurd_canvas_dims() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let mut png = Vec::new();
+    solid(1, 1, [1, 2, 3, 255])
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+    // Well-formed file whose header declares a 100000x100000 canvas (1e10
+    // pixels) holding one 1x1 layer: the reader must reject the canvas size
+    // instead of trusting it.
+    let mut crafted = Vec::new();
+    crafted.extend_from_slice(b"RZDC");
+    crafted.extend_from_slice(&1u32.to_le_bytes()); // version
+    crafted.extend_from_slice(&100_000u32.to_le_bytes()); // width
+    crafted.extend_from_slice(&100_000u32.to_le_bytes()); // height
+    crafted.extend_from_slice(&1u32.to_le_bytes()); // layer count
+    crafted.extend_from_slice(&1u32.to_le_bytes()); // name len
+    crafted.push(b'X');
+    crafted.extend_from_slice(&0i32.to_le_bytes());
+    crafted.extend_from_slice(&0i32.to_le_bytes());
+    crafted.extend_from_slice(&1.0f32.to_le_bytes());
+    crafted.extend_from_slice(&0u32.to_le_bytes()); // blend
+    crafted.push(1); // visible
+    crafted.extend_from_slice(&(png.len() as u32).to_le_bytes());
+    crafted.extend_from_slice(&png);
+    let path = dir.path().join("huge-canvas.drdc");
+    std::fs::write(&path, &crafted).unwrap();
+    let c = cpath(&path);
+    let mut err: *mut c_char = ptr::null_mut();
+    let p = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    assert!(p.is_null(), "absurd canvas dims must not open");
+    let msg = take_err_string(err);
+    assert!(
+        msg.contains("invalid canvas size"),
+        "unexpected error: {msg}"
+    );
+}
+
+#[test]
+fn drdc_save_enforces_reader_caps() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+
+    // A layer name longer than the 64 KiB reader cap still saves; the name is
+    // truncated on a char boundary and round-trips. 64 KiB is not a multiple
+    // of 3, so a name of 3-byte chars forces the boundary adjustment.
+    const NAME_CAP: usize = 64 * 1024;
+    let long_name = "层".repeat(NAME_CAP / 3 + 10);
+    assert!(long_name.len() > NAME_CAP);
+    let doc = doc_from(&dir, "caps.png", &solid(3, 3, [7, 8, 9, 255]));
+    let cname = CString::new(long_name.clone()).unwrap();
+    let doc = apply(doc, |d| unsafe {
+        dr_doc_with_layer_name(d, 0, cname.as_ptr())
+    });
+    let path = dir.path().join("longname.drdc");
+    let c = cpath(&path);
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        "save with over-long name failed: {}",
+        take_err_string(err)
+    );
+    unsafe { dr_doc_free(doc) };
+    let mut err: *mut c_char = ptr::null_mut();
+    let reopened = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    assert!(
+        !reopened.is_null(),
+        "reopen failed: {}",
+        take_err_string(err)
+    );
+    let got = layer_name(reopened, 0);
+    assert_eq!(got, "层".repeat(NAME_CAP / 3), "truncated at char boundary");
+    assert!(long_name.starts_with(&got));
+    unsafe { dr_doc_free(reopened) };
+
+    // Layer count: exactly 1024 layers saves, 1025 is refused with an error.
+    let mut big = doc_from(&dir, "many.png", &solid(2, 2, [1, 1, 1, 255]));
+    let lname = CString::new("L").unwrap();
+    for _ in 0..1023 {
+        big = apply(big, |d| unsafe {
+            dr_doc_adding_layer_at(d, 0, 0 /* DR_INSERT_ABOVE */, lname.as_ptr())
+        });
+    }
+    assert_eq!(unsafe { dr_doc_layer_count(big) }, 1024);
+    let at_cap = dir.path().join("at-cap.drdc");
+    let ac = cpath(&at_cap);
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(
+        unsafe { dr_doc_save_native(big, ac.as_ptr(), &mut err) },
+        "1024 layers must save: {}",
+        take_err_string(err)
+    );
+    assert!(
+        unsafe {
+            dr_doc_adding_layer_at(big, 0, 0 /* DR_INSERT_ABOVE */, lname.as_ptr())
+        }
+        .is_null(),
+        "ordinary editing must refuse the 1025th layer"
+    );
+    assert_eq!(unsafe { dr_doc_layer_count(big) }, 1024);
+    // The writer still guards an unsupported model supplied directly by an
+    // importer or retained from an older build, even though normal edits can
+    // no longer create it.
+    let mut unsupported = unsafe { &*big }.clone();
+    unsupported.layers.push(unsupported.layers[0].clone());
+    let previous = std::fs::read(&at_cap).unwrap();
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(!unsafe { dr_doc_save_native(&unsupported, ac.as_ptr(), &mut err) });
+    assert!(take_err_string(err).contains("invalid layer count 1025"));
+    assert_eq!(std::fs::read(&at_cap).unwrap(), previous);
+    let over_cap = dir.path().join("over-cap.drdc");
+    let oc = cpath(&over_cap);
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(
+        !unsafe { dr_doc_save_native(&unsupported, oc.as_ptr(), &mut err) },
+        "1025 layers must not save"
+    );
+    assert!(!take_err_string(err).is_empty());
+    assert!(!over_cap.exists(), "failed save must not create the file");
+    unsafe { dr_doc_free(big) };
+}
+
+#[test]
+fn drdc_failed_save_leaves_no_temp_files() {
+    let _serial = serial();
+    use std::os::unix::fs::PermissionsExt;
+    let dir = TempDir::new().unwrap();
+    let doc = drdc_fixture(&dir);
+
+    // Nonexistent directory.
+    let bad = CString::new("/nonexistent-dir-xyz-doctored/doc.drdc").unwrap();
+    let mut err: *mut c_char = ptr::null_mut();
+    let ok = unsafe { dr_doc_save_native(doc, bad.as_ptr(), &mut err) };
+    assert!(!ok);
+    assert!(!take_err_string(err).is_empty());
+
+    // Read-only directory: creation of the temp file fails and nothing is
+    // left behind.
+    let ro = dir.path().join("ro");
+    std::fs::create_dir(&ro).unwrap();
+    std::fs::set_permissions(&ro, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let target = cpath(&ro.join("doc.drdc"));
+    let mut err: *mut c_char = ptr::null_mut();
+    let ok = unsafe { dr_doc_save_native(doc, target.as_ptr(), &mut err) };
+    std::fs::set_permissions(&ro, std::fs::Permissions::from_mode(0o755)).unwrap();
+    if !ok {
+        assert!(!take_err_string(err).is_empty());
+    }
+    let leftovers: Vec<_> = std::fs::read_dir(&ro)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.contains("dr-tmp"))
+        .collect();
+    assert!(
+        leftovers.is_empty(),
+        "temp files left behind: {leftovers:?}"
+    );
+    unsafe { dr_doc_free(doc) };
+}
+
+// --------------------------------------------------------------------- psd --
+
+/// Generates a real two-layer PSD with ImageMagick, or None (with a log line)
+/// if that is impossible, so the suite skips gracefully.
+///
+/// Recipe notes (verified against ImageMagick 7.1.2):
+/// - When writing a multi-image PSD, image 0 becomes the merged composite and
+///   the remaining images become the layers, so a composite is prepended with
+///   `-clone 0,1 -flatten -insert 0` to get TWO real layers.
+/// - `-endian MSB` is required: without it this ImageMagick writes the layer
+///   blend-mode keys byte-reversed ("mron" instead of "norm"), which the psd
+///   crate rejects.
+fn layered_psd_fixture(dir: &TempDir) -> Option<PathBuf> {
+    let magick = Path::new("/opt/homebrew/bin/magick");
+    if !magick.exists() {
+        eprintln!("skipping PSD assertions: {} not found", magick.display());
+        return None;
+    }
+    let path = dir.path().join("layered.psd");
+    let status = Command::new(magick)
+        .args([
+            "-size",
+            "40x30",
+            "xc:#3060c0",
+            "(",
+            "-size",
+            "20x10",
+            "xc:#e04040",
+            "-repage",
+            "+8+6",
+            ")",
+            "(",
+            "-clone",
+            "0,1",
+            "-flatten",
+            ")",
+            "-insert",
+            "0",
+            "-depth",
+            "8",
+            "-endian",
+            "MSB",
+        ])
+        .arg(&path)
+        .status();
+    match status {
+        Ok(s) if s.success() && path.exists() => Some(path),
+        other => {
+            eprintln!("skipping PSD assertions: magick failed: {other:?}");
+            None
+        }
+    }
+}
+
+#[test]
+fn psd_layered_import() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let Some(path) = layered_psd_fixture(&dir) else {
+        return;
+    };
+    let c = cpath(&path);
+    let mut err: *mut c_char = ptr::null_mut();
+    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    assert!(!doc.is_null(), "PSD open failed: {}", take_err_string(err));
+    assert_eq!(unsafe { (dr_doc_width(doc), dr_doc_height(doc)) }, (40, 30));
+    assert_eq!(unsafe { dr_doc_layer_count(doc) }, 2, "expected two layers");
+
+    // Bottom layer: canvas-sized blue; top layer: 20x10 red at (8, 6).
+    assert_eq!(layer_dims(doc, 0), (40, 30));
+    assert_eq!(layer_offset(doc, 0), (0, 0));
+    let bottom = layer_pixels(doc, 0);
+    let blue = pixel(&bottom, 40, 5, 5);
+    assert!(
+        blue[2] >= 150 && blue[0] <= 100 && blue[3] == 255,
+        "bottom layer not blue: {blue:?}"
+    );
+    assert!(!layer_name(doc, 0).is_empty());
+
+    assert_eq!(
+        layer_dims(doc, 1),
+        (20, 10),
+        "top layer must keep its own size"
+    );
+    assert_eq!(
+        layer_offset(doc, 1),
+        (8, 6),
+        "top layer offset from PSD rect"
+    );
+    let top = layer_pixels(doc, 1);
+    let red = pixel(&top, 20, 0, 0);
+    assert!(
+        red[0] >= 180 && red[2] <= 100 && red[3] == 255,
+        "top layer not red: {red:?}"
+    );
+    assert!(!layer_name(doc, 1).is_empty());
+    // ImageMagick marks both layers shown; opacity 255 -> 1.0; blend normal.
+    for idx in 0..2usize {
+        assert!(
+            unsafe { dr_doc_layer_visible(doc, idx) },
+            "layer {idx} hidden"
+        );
+        assert_eq!(unsafe { dr_doc_layer_opacity(doc, idx) }, 1.0);
+        assert_eq!(unsafe { dr_doc_layer_blend_mode(doc, idx) }, BLEND_NORMAL);
+    }
+
+    // The projection matches the file: red rectangle at (8,6)-(28,16) over
+    // blue.
+    let flat = flat_pixels(doc);
+    for (x, y, want_red) in [
+        (0u32, 0u32, false),
+        (7, 6, false),
+        (8, 6, true),
+        (20, 10, true),
+        (27, 15, true),
+        (28, 16, false),
+        (39, 29, false),
+    ] {
+        let px = pixel(&flat, 40, x, y);
+        if want_red {
+            assert!(
+                px[0] >= 180 && px[2] <= 100,
+                "({x},{y}) should be red: {px:?}"
+            );
+        } else {
+            assert!(
+                px[2] >= 150 && px[0] <= 100,
+                "({x},{y}) should be blue: {px:?}"
+            );
+        }
+    }
+
+    // ... and stays close to ImageMagick's own composite of the same file.
+    let composite_png = dir.path().join("composite.png");
+    let status = Command::new("/opt/homebrew/bin/magick")
+        .arg(format!("{}[0]", path.display()))
+        .arg(&composite_png)
+        .status();
+    if matches!(status, Ok(s) if s.success()) {
+        let magick_flat = image::open(&composite_png).unwrap().to_rgba8();
+        assert_eq!(magick_flat.dimensions(), (40, 30));
+        for (i, (&a, &b)) in flat.iter().zip(magick_flat.as_raw().iter()).enumerate() {
+            assert!(
+                (i32::from(a) - i32::from(b)).abs() <= 2,
+                "byte {i}: flattened {a} vs magick composite {b}"
+            );
+        }
+    }
+
+    // The flat open path on the same layered file keeps working.
+    let mut err: *mut c_char = ptr::null_mut();
+    let img = unsafe { dr_image_open(c.as_ptr(), &mut err) };
+    assert!(
+        !img.is_null(),
+        "dr_image_open on PSD failed: {}",
+        take_err_string(err)
+    );
+    assert_eq!(img_dims(img), (40, 30));
+    unsafe { dr_image_free(img) };
+    unsafe { dr_doc_free(doc) };
+
+    // A single-image PSD still opens as a one-layer document whose
+    // projection matches the dr_image_open decode. (This ImageMagick writes
+    // one real layer record even for a single image — named "L1", not our
+    // "Background" fallback — so only the count and pixels are asserted.)
+    let flat_psd = dir.path().join("flat.psd");
+    let status = Command::new("/opt/homebrew/bin/magick")
+        .args(["-size", "32x24", "gradient:red-blue", "-depth", "8"])
+        .arg(&flat_psd)
+        .status();
+    if matches!(status, Ok(s) if s.success()) {
+        let fc = cpath(&flat_psd);
+        let mut err: *mut c_char = ptr::null_mut();
+        let fdoc = unsafe { dr_doc_open(fc.as_ptr(), &mut err) };
+        assert!(
+            !fdoc.is_null(),
+            "flat PSD open failed: {}",
+            take_err_string(err)
+        );
+        assert_eq!(unsafe { dr_doc_layer_count(fdoc) }, 1);
+        assert!(!layer_name(fdoc, 0).is_empty());
+        let mut err: *mut c_char = ptr::null_mut();
+        let fimg = unsafe { dr_image_open(fc.as_ptr(), &mut err) };
+        assert!(!fimg.is_null());
+        assert_eq!(flat_pixels(fdoc), img_pixels(fimg));
+        unsafe { dr_image_free(fimg) };
+        unsafe { dr_doc_free(fdoc) };
+    }
+}
+
+// ------------------------------------------------------------- null safety --
+
+/// DR_PLANE_RED, mirrored from the header like the BLEND_* constants in
+/// `tests/common` (channel_tests carries the full set).
+const PLANE_RED: c_int = 0;
+
+/// Colour-management constants, mirrored from the header the same way
+/// (color_tests and metadata_tests carry the ones they need).
+const PROFILE_SRGB: c_int = 0;
+const METADATA_EXIF: c_int = 0;
+const ICC_NOT_ICC: c_int = 0;
+const ADOPT_UNCHANGED: c_int = 0;
+
+/// One of the profiles this build writes, read out through the two-call
+/// length-then-fill shape every blob getter uses.
+fn builtin_profile(which: c_int) -> Vec<u8> {
+    let len = dr_builtin_profile_len(which);
+    assert!(len > 0, "a built-in profile is never empty");
+    let mut out = vec![0u8; len];
+    assert!(unsafe { dr_builtin_profile(which, out.as_mut_ptr(), len) });
+    out
+}
+
+#[test]
+fn null_safety_sweep() {
+    let _serial = serial();
+    let null_doc: *const DrDocument = ptr::null();
+    let null_img: *const DrImage = ptr::null();
+    let name = CString::new("x").unwrap();
+    let overlay = [0u8; 16];
+    // A 2x2 canvas-sized coverage mask, for the selection-shaped exports.
+    let mask = [255u8; 4];
+    // A 2x2 canvas-sized plane and its read-back buffer, for the channel
+    // exports below.
+    let plane = [0u8; 4];
+    let mut out = [0u8; 4];
+
+    unsafe {
+        let raw_map = CString::new("{\"version\":1,\"kind\":\"exif\",\"orientation\":1}").unwrap();
+        assert!(dr_raw_local_mask_remap_plan(
+            ptr::null(),
+            raw_map.as_ptr(),
+            1,
+            2 << 30,
+            0,
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(dr_raw_local_mask_remap(
+            ptr::null(),
+            raw_map.as_ptr(),
+            1,
+            2 << 30,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(dr_raw_local_mask_resize(
+            ptr::null(),
+            2,
+            2,
+            2 << 30,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(dr_raw_source_geometry_plan(
+            ptr::null(),
+            raw_map.as_ptr(),
+            2 << 30,
+            0,
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(dr_raw_source_geometry(
+            ptr::null(),
+            raw_map.as_ptr(),
+            2 << 30,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        // A NULL pattern answers NULL (an error, no panic).
+        assert!(doctored_core::ffi_layer_reference::dr_turn_pattern(
+            ptr::null(),
+            0.0,
+            1.0,
+            -1.0,
+            0.0,
+            ptr::null_mut()
+        )
+        .is_null());
+        let warp_request = CString::new("{\"op\":\"clear\",\"layer\":0}").unwrap();
+        assert!(doctored_core::ffi_warp::dr_doc_warp_info(null_doc, 0, ptr::null_mut()).is_null());
+        assert!(doctored_core::ffi_warp::dr_doc_warp_edit_plan(
+            null_doc,
+            warp_request.as_ptr(),
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(doctored_core::ffi_warp::dr_doc_warp_edit(
+            null_doc,
+            warp_request.as_ptr(),
+            0,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(doctored_core::ffi_warp::dr_precision_doc_warp_info(
+            ptr::null::<PrecisionDocument>(),
+            0,
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(doctored_core::ffi_warp::dr_precision_doc_warp_edit_plan(
+            ptr::null::<PrecisionDocument>(),
+            warp_request.as_ptr(),
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(doctored_core::ffi_warp::dr_precision_doc_warp_edit(
+            ptr::null::<PrecisionDocument>(),
+            warp_request.as_ptr(),
+            0,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        // Open/save.
+        // Counted nonpixel resource arrays tolerate NULL only when empty;
+        // populated arrays with NULL entries are covered by resources.rs.
+        assert!(
+            doctored_core::ffi_resources::dr_mixed_resources_report_with_raw_masks(
+                ptr::null(),
+                1,
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                0,
+                0,
+                ptr::null_mut()
+            )
+            .is_null()
+        );
+        assert!(
+            doctored_core::ffi_resources::dr_mixed_resources_evict_caches(
+                ptr::null(),
+                1,
+                ptr::null(),
+                0,
+                ptr::null_mut()
+            )
+            .is_null()
+        );
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(dr_doc_open(ptr::null(), &mut err).is_null());
+        assert!(!take_err_string(err).is_empty());
+        assert!(dr_doc_open(ptr::null(), ptr::null_mut()).is_null());
+        let path = CString::new("/tmp/never-created.drdc").unwrap();
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(!dr_doc_save_native(null_doc, path.as_ptr(), &mut err));
+        assert!(!take_err_string(err).is_empty());
+        assert!(!dr_doc_save_native(
+            null_doc,
+            path.as_ptr(),
+            ptr::null_mut()
+        ));
+        let mut err: *mut c_char = ptr::null_mut();
+        assert_eq!(dr_doc_native_save_scratch_bytes(null_doc, &mut err), 0);
+        assert!(!take_err_string(err).is_empty());
+        assert_eq!(
+            dr_doc_native_save_scratch_bytes(null_doc, ptr::null_mut()),
+            0
+        );
+        let (mut retained, mut decode) = (0u64, 0u64);
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(!dr_doc_native_reopen_plan(
+            null_doc,
+            &mut retained,
+            &mut decode,
+            &mut err
+        ));
+        assert!(!take_err_string(err).is_empty());
+        assert!(!dr_doc_native_reopen_plan(
+            null_doc,
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut()
+        ));
+
+        // Lifetime and getters.
+        assert!(dr_doc_from_image(null_img).is_null());
+        assert!(dr_doc_clone(null_doc).is_null());
+        dr_doc_free(ptr::null_mut());
+        assert_eq!(dr_doc_width(null_doc), 0);
+        assert_eq!(dr_doc_height(null_doc), 0);
+        assert_eq!(dr_doc_layer_count(null_doc), 0);
+        assert!(dr_doc_layer_name(null_doc, 0).is_null());
+        assert_eq!(doctored_core::ffi_identity::dr_doc_layer_id(null_doc, 0), 0);
+        assert_eq!(
+            doctored_core::ffi_identity::dr_doc_layer_storage_identity(null_doc, 0),
+            0
+        );
+        assert_eq!(
+            doctored_core::ffi_identity::dr_doc_layer_mask_storage_identity(null_doc, 0),
+            0
+        );
+        assert!(
+            doctored_core::ffi_scoped_statistics::dr_doc_projection_scoped_analysis_plan(
+                null_doc,
+                std::ptr::null(),
+                std::ptr::null_mut()
+            )
+            .is_null()
+        );
+        assert!(
+            doctored_core::ffi_scoped_statistics::dr_doc_projection_scoped_analysis(
+                null_doc,
+                null_img,
+                std::ptr::null(),
+                std::ptr::null(),
+                0,
+                0,
+                0,
+                std::ptr::null(),
+                std::ptr::null_mut()
+            )
+            .is_null()
+        );
+        assert_eq!(dr_doc_layer_opacity(null_doc, 0), 0.0);
+        assert_eq!(dr_doc_layer_blend_mode(null_doc, 0), BLEND_NORMAL);
+        assert!(!dr_doc_layer_visible(null_doc, 0));
+        assert_eq!(dr_doc_layer_offset_x(null_doc, 0), 0);
+        assert_eq!(dr_doc_layer_offset_y(null_doc, 0), 0);
+        assert_eq!(dr_doc_layer_width(null_doc, 0), 0);
+        assert_eq!(dr_doc_layer_height(null_doc, 0), 0);
+        assert!(dr_doc_layer_image(null_doc, 0).is_null());
+        assert!(dr_doc_layer_canvas_image(null_doc, 0).is_null());
+        assert!(dr_doc_layer_thumbnail(null_doc, 0, 16).is_null());
+        assert!(dr_doc_flattened(null_doc, 0, std::ptr::null(), std::ptr::null_mut()).is_null());
+
+        // Setters and stack operations.
+        assert!(dr_doc_with_layer_name(null_doc, 0, name.as_ptr()).is_null());
+        assert!(dr_doc_with_layer_opacity(null_doc, 0, 1.0).is_null());
+        assert!(dr_doc_with_layer_blend_mode(null_doc, 0, BLEND_NORMAL).is_null());
+        assert!(dr_doc_with_layer_visible(null_doc, 0, true).is_null());
+        assert!(dr_doc_with_layer_offset(null_doc, 0, 0, 0).is_null());
+        assert!(dr_doc_with_layer_pixels(null_doc, 0, null_img).is_null());
+        assert!(
+            dr_doc_set_layer_content(null_doc, 0, overlay.as_ptr(), 2, 2, 0, 0, ptr::null())
+                .is_null()
+        );
+        assert!(dr_doc_adding_image_layer(null_doc, 0, null_img, name.as_ptr()).is_null());
+        assert!(dr_doc_add_image_layer_at(null_doc, 0, null_img, name.as_ptr(), 0, 0).is_null());
+        assert!(dr_doc_duplicating_layer(null_doc, 0).is_null());
+        assert!(dr_doc_removing_layer(null_doc, 0).is_null());
+        assert!(dr_doc_merging_down(null_doc, 1).is_null());
+        assert!(dr_doc_flattening(null_doc).is_null());
+
+        // Layer groups, locks, links and structure (ffi_group).
+        assert!(!dr_doc_layer_is_group(null_doc, 0));
+        assert_eq!(dr_doc_layer_depth(null_doc, 0), 0);
+        assert_eq!(dr_doc_layer_locks(null_doc, 0), 0);
+        assert_eq!(dr_doc_layer_link(null_doc, 0), 0);
+        assert!(!dr_doc_layer_open(null_doc, 0));
+        assert_eq!(dr_doc_lock_block(null_doc, 0, 0), 0);
+        let mut owner = 9usize;
+        assert!(!dr_doc_lock_owner(null_doc, 0, 7, &mut owner));
+        assert_eq!(owner, 9, "nothing written on NULL");
+        let mut a = 0usize;
+        let mut b = 0usize;
+        assert!(!dr_doc_layer_subtree(null_doc, 0, &mut a, &mut b));
+        assert!(!dr_doc_layer_subtree(
+            null_doc,
+            0,
+            ptr::null_mut(),
+            ptr::null_mut()
+        ));
+        let mut xywh = [0i32; 4];
+        assert!(!dr_doc_layer_bounds(null_doc, 0, xywh.as_mut_ptr()));
+        assert!(!dr_doc_layer_bounds(null_doc, 0, ptr::null_mut()));
+        assert!(!dr_doc_layer_at(null_doc, 0, 0, false, &mut a));
+        assert!(!dr_doc_layer_at(null_doc, 0, 0, true, ptr::null_mut()));
+        assert!(dr_doc_with_layer_locks(null_doc, 0, 1).is_null());
+        assert!(dr_doc_with_layer_open(null_doc, 0, true).is_null());
+        assert!(dr_doc_ungroup_layer(null_doc, 0, ptr::null_mut(), ptr::null_mut(), 0).is_null());
+        assert!(dr_doc_move_layer_to(null_doc, 0, 0, 0).is_null());
+        let indices = [0usize];
+        assert!(dr_doc_group_layers(
+            null_doc,
+            indices.as_ptr(),
+            1,
+            name.as_ptr(),
+            &mut a,
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            0,
+        )
+        .is_null());
+        assert!(dr_doc_group_layers(
+            null_doc,
+            ptr::null(),
+            0,
+            name.as_ptr(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            0,
+        )
+        .is_null());
+        assert!(dr_doc_arrange_layer(null_doc, 0, 0).is_null());
+        assert!(dr_doc_link_layers(null_doc, indices.as_ptr(), 1).is_null());
+        assert!(dr_doc_link_layers(null_doc, ptr::null(), 0).is_null());
+        assert!(dr_doc_unlink_layers(null_doc, indices.as_ptr(), 1).is_null());
+        assert!(dr_doc_unlink_layers(null_doc, ptr::null(), 0).is_null());
+        assert!(dr_doc_move_layers(null_doc, indices.as_ptr(), 1, 1, 1).is_null());
+        assert!(dr_doc_move_layers(null_doc, ptr::null(), 0, 1, 1).is_null());
+        // Phase 12F-1b3. The plan export takes no handle at all and
+        // tolerates both out pointers being NULL.
+        assert_eq!(
+            dr_canvas_rotation_plan(64, 48, 30.0, ptr::null_mut(), ptr::null_mut()),
+            5
+        );
+        assert_eq!(
+            dr_canvas_rotation_plan(64, 48, f64::NAN, ptr::null_mut(), ptr::null_mut()),
+            0
+        );
+        assert!(dr_doc_duplicate_layers(null_doc, indices.as_ptr(), 1).is_null());
+        assert!(dr_doc_duplicate_layers(null_doc, ptr::null(), 0).is_null());
+        assert!(dr_doc_duplicate_to_new_document(null_doc, indices.as_ptr(), 1).is_null());
+        assert!(dr_doc_duplicate_to_new_document(null_doc, ptr::null(), 0).is_null());
+        // The Art History Brush, byte and typed, with its plan.
+        let mut art_err: *mut std::ffi::c_char = ptr::null_mut();
+        assert!(dr_doc_art_history_brush_layer(
+            null_doc,
+            0,
+            null_doc,
+            0,
+            ptr::null(),
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            0,
+            &mut art_err
+        )
+        .is_null());
+        assert!(art_err.is_null(), "a NULL doc leaves err_out untouched");
+        let art_plan = dr_precision_doc_art_history_brush_plan(
+            ptr::null(),
+            0,
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null(),
+            ptr::null(),
+            0,
+            false,
+            1 << 30,
+            0,
+            &mut art_err,
+        );
+        assert!(art_plan.is_null());
+        assert!(!take_err_string(art_err).is_empty());
+        let mut art_err: *mut std::ffi::c_char = ptr::null_mut();
+        assert!(dr_precision_doc_art_history_brush(
+            ptr::null(),
+            0,
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            0,
+            1 << 30,
+            0,
+            ptr::null(),
+            &mut art_err
+        )
+        .is_null());
+        assert!(!take_err_string(art_err).is_empty());
+        // The layer clipboard's paste, at both depths.
+        let mut paste_err: *mut std::ffi::c_char = ptr::null_mut();
+        assert!(
+            dr_doc_paste_layers(null_doc, null_doc, 0, 0, 0, 0, false, ptr::null_mut()).is_null()
+        );
+        assert!(
+            dr_doc_paste_layers(null_doc, null_doc, 0, 0, 0, 0, false, &mut paste_err).is_null()
+        );
+        assert!(paste_err.is_null(), "a NULL doc leaves err_out untouched");
+        assert!(dr_precision_doc_paste_layers(
+            ptr::null(),
+            ptr::null(),
+            0,
+            0,
+            0,
+            0,
+            true,
+            1 << 30,
+            0,
+            ptr::null_mut(),
+            ptr::null_mut()
+        )
+        .is_null());
+        let mut paste_report: *mut std::ffi::c_char = ptr::null_mut();
+        assert!(dr_precision_doc_paste_layers(
+            ptr::null(),
+            ptr::null(),
+            0,
+            0,
+            0,
+            0,
+            false,
+            1 << 30,
+            0,
+            &mut paste_report,
+            &mut paste_err
+        )
+        .is_null());
+        assert!(!paste_err.is_null(), "the typed export names a NULL handle");
+        assert!(paste_report.is_null(), "no report on a refusal");
+        doctored_core::ffi::dr_string_free(paste_err);
+        assert!(dr_doc_remove_layers(null_doc, indices.as_ptr(), 1).is_null());
+        assert!(dr_doc_remove_layers(null_doc, ptr::null(), 0).is_null());
+        assert!(dr_doc_merge_layers(null_doc, indices.as_ptr(), 1).is_null());
+        assert!(dr_doc_merge_layers(null_doc, ptr::null(), 0).is_null());
+        assert!(dr_doc_align_layers(null_doc, indices.as_ptr(), 1, ALIGN_LEFT, true).is_null());
+        assert!(dr_doc_align_layers(null_doc, ptr::null(), 0, ALIGN_LEFT, true).is_null());
+        assert!(dr_doc_distribute_layers(null_doc, indices.as_ptr(), 1, true).is_null());
+        assert!(dr_doc_distribute_layers(null_doc, ptr::null(), 0, true).is_null());
+        assert!(dr_doc_merge_visible(null_doc).is_null());
+        assert!(dr_doc_stamp_visible(null_doc, 0, name.as_ptr()).is_null());
+        assert!(dr_doc_stamp_visible(null_doc, 0, ptr::null()).is_null());
+        assert!(dr_doc_stamp_selected(null_doc, indices.as_ptr(), 1, name.as_ptr()).is_null());
+        assert!(dr_doc_stamp_selected(null_doc, ptr::null(), 0, ptr::null()).is_null());
+        assert!(dr_doc_merge_group(null_doc, 0).is_null());
+        assert!(dr_doc_layer_via(null_doc, 0, ptr::null(), 2, 2, false, name.as_ptr()).is_null());
+        assert!(dr_doc_layer_via(null_doc, 0, mask.as_ptr(), 2, 2, true, name.as_ptr()).is_null());
+        assert!(dr_doc_layer_via(null_doc, 0, ptr::null(), 2, 2, false, ptr::null()).is_null());
+        assert!(
+            dr_doc_painting_layer(null_doc, 0, overlay.as_ptr(), 2, 2, COMPOSITE_OVER, 1.0)
+                .is_null()
+        );
+        assert!(dr_doc_painting_layer_blend(
+            null_doc,
+            0,
+            overlay.as_ptr(),
+            2,
+            2,
+            BLEND_MULTIPLY,
+            1.0
+        )
+        .is_null());
+        assert!(
+            dr_doc_painting_layer_blend(null_doc, 0, ptr::null(), 2, 2, BLEND_MULTIPLY, 1.0)
+                .is_null()
+        );
+        let ink = [200u8, 100, 50];
+        assert!(dr_doc_painting_layer_blend_color(
+            null_doc,
+            0,
+            overlay.as_ptr(),
+            2,
+            2,
+            ink.as_ptr(),
+            BLEND_MULTIPLY,
+            1.0
+        )
+        .is_null());
+        let red = [255u8, 0, 0, 255];
+        assert!(dr_doc_fill_selection(
+            null_doc,
+            0,
+            mask.as_ptr(),
+            2,
+            2,
+            red.as_ptr(),
+            BLEND_NORMAL,
+            1.0,
+            false
+        )
+        .is_null());
+        assert!(dr_doc_fill_selection(
+            null_doc,
+            0,
+            ptr::null(),
+            2,
+            2,
+            ptr::null(),
+            BLEND_NORMAL,
+            1.0,
+            true
+        )
+        .is_null());
+        assert!(!dr_selection_stroke(ptr::null_mut(), 2, 2, 1.0, 1));
+        {
+            // The Magnetic Lasso tracer: a NULL source, params or scalar
+            // output, or a NULL point buffer with room claimed, refuses with
+            // err_out untouched.
+            let trace = CString::new(r#"{"from":[0,0],"trail":[[1,1]],"end":"snap"}"#).unwrap();
+            let src = [0u8; 16];
+            let image = doctored_core::ffi::dr_image_from_rgba(src.as_ptr(), 2, 2);
+            let (mut count, mut fasten, mut corridor) = (7usize, 7i32, 7u64);
+            let mut points = [0f32; 8];
+            let mut err: *mut c_char = ptr::null_mut();
+            let call = |image: *const DrImage,
+                        params: *const c_char,
+                        points: *mut f32,
+                        capacity: usize,
+                        count: *mut usize,
+                        fasten: *mut i32,
+                        corridor: *mut u64,
+                        err: *mut *mut c_char| {
+                doctored_core::ffi_selection_tools::dr_selection_trace_edge(
+                    image, params, points, capacity, count, fasten, corridor, err,
+                )
+            };
+            let p = points.as_mut_ptr();
+            assert!(!call(
+                null_img,
+                trace.as_ptr(),
+                p,
+                4,
+                &mut count,
+                &mut fasten,
+                &mut corridor,
+                &mut err
+            ));
+            assert!(!call(
+                image,
+                ptr::null(),
+                p,
+                4,
+                &mut count,
+                &mut fasten,
+                &mut corridor,
+                &mut err
+            ));
+            assert!(!call(
+                image,
+                trace.as_ptr(),
+                ptr::null_mut(),
+                4,
+                &mut count,
+                &mut fasten,
+                &mut corridor,
+                &mut err
+            ));
+            assert!(!call(
+                image,
+                trace.as_ptr(),
+                p,
+                4,
+                ptr::null_mut(),
+                &mut fasten,
+                &mut corridor,
+                &mut err
+            ));
+            assert!(!call(
+                image,
+                trace.as_ptr(),
+                p,
+                4,
+                &mut count,
+                ptr::null_mut(),
+                &mut corridor,
+                &mut err
+            ));
+            assert!(!call(
+                image,
+                trace.as_ptr(),
+                p,
+                4,
+                &mut count,
+                &mut fasten,
+                ptr::null_mut(),
+                &mut err
+            ));
+            assert!(err.is_null());
+            assert_eq!((count, fasten, corridor), (7, 7, 7));
+            doctored_core::ffi::dr_image_free(image);
+        }
+
+        // Retouching: healing and spot healing. A NULL document is a
+        // refusal, not an error, so both leave err_out NULL; each also takes
+        // a NULL buffer. Spot healing goes through its job export, whose NULL
+        // doc/src refusal comes before the (here NULL) control is read.
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(dr_doc_heal_layer(
+            null_doc,
+            0,
+            overlay.as_ptr(),
+            2,
+            2,
+            1.0,
+            ptr::null(),
+            &mut err
+        )
+        .is_null());
+        assert!(err.is_null());
+        assert!(dr_doc_heal_layer(
+            null_doc,
+            0,
+            overlay.as_ptr(),
+            2,
+            2,
+            1.0,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(dr_doc_heal_layer(
+            null_doc,
+            0,
+            ptr::null(),
+            2,
+            2,
+            1.0,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(dr_doc_spot_heal_layer_job(
+            null_doc,
+            0,
+            overlay.as_ptr(),
+            2,
+            2,
+            1.0,
+            0,
+            7,
+            0,
+            0,
+            false,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(dr_doc_spot_heal_layer_job(
+            null_doc,
+            0,
+            ptr::null(),
+            2,
+            2,
+            1.0,
+            0,
+            7,
+            0,
+            0,
+            false,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(dr_doc_red_eye_layer(null_doc, 0, 0, 0, 2, 2, 1.0, 0.5).is_null());
+
+        // Geometry.
+        assert!(dr_doc_rotate90(null_doc).is_null());
+        assert!(dr_doc_rotate180(null_doc).is_null());
+        assert!(dr_doc_rotate270(null_doc).is_null());
+        assert!(dr_doc_flip_horizontal(null_doc).is_null());
+        assert!(dr_doc_flip_vertical(null_doc).is_null());
+        assert!(dr_doc_crop(null_doc, 0, 0, 1, 1).is_null());
+        assert!(dr_doc_resize(null_doc, 1, 1, FILTER_NEAREST).is_null());
+        let identity = [1.0f64, 0.0, 0.0, 1.0, 0.0, 0.0];
+        assert!(dr_doc_transform_layer(null_doc, 0, identity.as_ptr(), FILTER_NEAREST).is_null());
+        assert!(dr_doc_transform_layer(null_doc, 0, ptr::null(), FILTER_NEAREST).is_null());
+        let unit_quad = [0.0f64, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0];
+        assert!(
+            dr_doc_perspective_layer(null_doc, 0, unit_quad.as_ptr(), FILTER_NEAREST).is_null()
+        );
+        assert!(dr_doc_perspective_layer(null_doc, 0, ptr::null(), FILTER_NEAREST).is_null());
+
+        // Layer styles and the global light (ffi_style).
+        let style = CString::new("{\"effects\":[{\"type\":\"drop_shadow\"}]}").unwrap();
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(dr_doc_set_layer_style(null_doc, 0, style.as_ptr(), &mut err).is_null());
+        assert!(!take_err_string(err).is_empty());
+        assert!(dr_doc_set_layer_style(null_doc, 0, style.as_ptr(), ptr::null_mut()).is_null());
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(dr_doc_set_layer_style(null_doc, 0, ptr::null(), &mut err).is_null());
+        assert!(!take_err_string(err).is_empty());
+        assert!(dr_doc_layer_style(null_doc, 0).is_null());
+        assert!(!dr_doc_layer_has_style(null_doc, 0));
+        assert!(dr_doc_set_global_light(null_doc, 0.0, 30.0).is_null());
+        assert_eq!(dr_doc_global_light_angle(null_doc), 0.0);
+        assert_eq!(dr_doc_global_light_altitude(null_doc), 0.0);
+        // The pattern presets take no handle; a NULL err_out is tolerated.
+        let presets = dr_pattern_presets_json(ptr::null_mut());
+        assert!(!presets.is_null());
+        doctored_core::ffi::dr_string_free(presets);
+        // Style presets: a NULL style refuses with a message, a NULL
+        // err_out is tolerated, NULL bytes with a length refuse and with 0
+        // read as an empty (refused) file.
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(dr_style_preset_canonical(ptr::null(), &mut err).is_null());
+        assert!(!take_err_string(err).is_empty());
+        assert!(dr_style_preset_canonical(ptr::null(), ptr::null_mut()).is_null());
+        let defaults = dr_style_preset_defaults_json(ptr::null_mut());
+        assert!(!defaults.is_null());
+        doctored_core::ffi::dr_string_free(defaults);
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(dr_asl_decode(ptr::null(), 4, &mut err).is_null());
+        assert!(!take_err_string(err).is_empty());
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(dr_asl_decode(ptr::null(), 0, &mut err).is_null());
+        assert!(!take_err_string(err).is_empty());
+        assert!(dr_asl_decode(ptr::null(), 0, ptr::null_mut()).is_null());
+        // The .asl writer: NULL presets refuse with a message, a NULL
+        // err_out is tolerated.
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(dr_asl_encode(ptr::null(), &mut err).is_null());
+        assert!(!take_err_string(err).is_empty());
+        assert!(dr_asl_encode(ptr::null(), ptr::null_mut()).is_null());
+
+        // Channels and planes (ffi_channel). Every export takes a NULL doc,
+        // and every one with a caller buffer takes a NULL buffer.
+        let mut rgb = [0u8; 3];
+        assert_eq!(dr_doc_channel_count(null_doc), 0);
+        assert_eq!(dr_doc_channel_id(null_doc, 0), 0);
+        assert!(dr_doc_channel_name(null_doc, 0).is_null());
+        assert!(!dr_doc_channel_overlay_color(null_doc, 0, rgb.as_mut_ptr()));
+        assert_eq!(dr_doc_channel_overlay_opacity(null_doc, 0), 0.0);
+        assert!(!dr_doc_channel_color_indicates_selected(null_doc, 0));
+        assert!(
+            dr_doc_add_channel(null_doc, name.as_ptr(), plane.as_ptr(), 2, 2, 1, 2, 3, 0.5)
+                .is_null()
+        );
+        assert!(
+            dr_doc_add_channel(null_doc, ptr::null(), plane.as_ptr(), 2, 2, 0, 0, 0, 0.5).is_null()
+        );
+        assert!(
+            dr_doc_add_channel(null_doc, name.as_ptr(), ptr::null(), 2, 2, 0, 0, 0, 0.5).is_null()
+        );
+        assert!(dr_doc_remove_channel(null_doc, 0).is_null());
+        assert!(dr_doc_rename_channel(null_doc, 0, name.as_ptr()).is_null());
+        assert!(dr_doc_rename_channel(null_doc, 0, ptr::null()).is_null());
+        assert!(dr_doc_set_channel_overlay(null_doc, 0, 1, 2, 3, 0.5, true).is_null());
+        assert!(dr_doc_set_channel_data(null_doc, 0, plane.as_ptr(), 2, 2).is_null());
+        assert!(dr_doc_set_channel_data(null_doc, 0, ptr::null(), 2, 2).is_null());
+        assert!(dr_doc_duplicate_channel(null_doc, 0).is_null());
+        assert!(dr_doc_invert_channel(null_doc, 0).is_null());
+        assert!(dr_doc_add_luminosity_masks(null_doc).is_null());
+
+        // Guides and the ruler origin (ffi_guide). Every export takes a NULL
+        // doc, and the one with a caller buffer takes a NULL buffer.
+        // `dr_max_guides` takes no pointer at all — the cap does not vary
+        // with the canvas — so it gets a value assertion instead.
+        let mut origin = [0.0f64; 2];
+        assert_eq!(dr_max_guides(), 1024);
+        // `dr_gradient_midpoint_fraction` (ffi_gradient) takes no
+        // pointer either: a NaN pair answers 0 and an infinite pair a finite
+        // fraction.
+        assert_eq!(dr_gradient_midpoint_fraction(f32::NAN, f32::NAN), 0.0);
+        assert!(dr_gradient_midpoint_fraction(f32::INFINITY, f32::NEG_INFINITY).is_finite());
+        assert_eq!(dr_doc_guide_count(null_doc), 0);
+        assert_eq!(dr_doc_guide_id(null_doc, 0), 0);
+        assert_eq!(dr_doc_guide_orientation(null_doc, 0), -1);
+        assert_eq!(dr_doc_guide_position(null_doc, 0), -1.0);
+        assert!(!dr_doc_ruler_origin(null_doc, origin.as_mut_ptr()));
+        assert!(!dr_doc_ruler_origin(null_doc, ptr::null_mut()));
+        assert!(dr_doc_add_guide(null_doc, 0, 10.0).is_null());
+        assert!(dr_doc_move_guide(null_doc, 0, 10.0).is_null());
+        assert!(dr_doc_remove_guide(null_doc, 0).is_null());
+        assert!(dr_doc_clear_guides(null_doc).is_null());
+        assert!(dr_doc_set_ruler_origin(null_doc, 1.0, 1.0).is_null());
+
+        // The typed twins of the same family (12E-1c): the same sentinels on
+        // a NULL high-depth handle, and the same NULL-buffer refusal.
+        let null_typed: *const PrecisionDocument = ptr::null();
+        assert_eq!(dr_precision_doc_guide_count(null_typed), 0);
+        assert_eq!(dr_precision_doc_guide_id(null_typed, 0), 0);
+        assert_eq!(dr_precision_doc_guide_orientation(null_typed, 0), -1);
+        assert_eq!(dr_precision_doc_guide_position(null_typed, 0), -1.0);
+        assert!(!dr_precision_doc_ruler_origin(
+            null_typed,
+            origin.as_mut_ptr()
+        ));
+        assert!(!dr_precision_doc_ruler_origin(null_typed, ptr::null_mut()));
+        assert!(dr_precision_doc_add_guide(null_typed, 0, 10.0).is_null());
+        assert!(dr_precision_doc_move_guide(null_typed, 0, 10.0).is_null());
+        assert!(dr_precision_doc_remove_guide(null_typed, 0).is_null());
+        assert!(dr_precision_doc_clear_guides(null_typed).is_null());
+        assert!(dr_precision_doc_set_ruler_origin(null_typed, 1.0, 1.0).is_null());
+
+        // Spot channels (ffi_spot_channel, #547 1a-2), both depths; the
+        // behaviour is `spot_channel_ffi.rs`. A NULL byte document answers
+        // NULL/false with no message; a NULL typed one or a NULL image
+        // names the handle.
+        {
+            use doctored_core::ffi_spot_channel::*;
+            let mut err: *mut c_char = ptr::null_mut();
+            let mut lab = [0.0f64; 3];
+            let mut solidity = 0u8;
+            let wide = [0u16; 4];
+            assert!(dr_doc_add_spot_channel(
+                null_doc,
+                name.as_ptr(),
+                plane.as_ptr(),
+                50.0,
+                0.0,
+                0.0,
+                0,
+                &mut err
+            )
+            .is_null());
+            assert!(err.is_null());
+            assert!(dr_doc_add_spot_channel(
+                null_doc,
+                ptr::null(),
+                ptr::null(),
+                50.0,
+                0.0,
+                0.0,
+                0,
+                ptr::null_mut()
+            )
+            .is_null());
+            assert!(
+                dr_doc_set_spot_channel(null_doc, 0, ptr::null(), 50.0, 0.0, 0.0, 0, &mut err)
+                    .is_null()
+            );
+            assert!(err.is_null());
+            assert!(!dr_doc_channel_spot(
+                null_doc,
+                0,
+                lab.as_mut_ptr(),
+                &mut solidity
+            ));
+            assert!(!dr_doc_channel_spot(
+                null_doc,
+                0,
+                ptr::null_mut(),
+                ptr::null_mut()
+            ));
+            assert!(dr_doc_spot_overprint(null_doc, null_img, &mut err).is_null());
+            assert!(err.is_null());
+            assert!(dr_image_spot_overprint(
+                null_img,
+                plane.as_ptr(),
+                4,
+                50.0,
+                0.0,
+                0.0,
+                0,
+                ptr::null(),
+                0,
+                ptr::null_mut()
+            )
+            .is_null());
+            assert!(dr_precision_doc_add_spot_channel(
+                null_typed,
+                name.as_ptr(),
+                50.0,
+                0.0,
+                0.0,
+                0,
+                wide.as_ptr(),
+                4,
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+            assert!(dr_precision_doc_set_spot_channel(
+                null_typed,
+                0,
+                ptr::null(),
+                50.0,
+                0.0,
+                0.0,
+                0,
+                1 << 30,
+                0,
+                &mut err
+            )
+            .is_null());
+            assert!(!err.is_null(), "a NULL typed document names the handle");
+            doctored_core::ffi::dr_string_free(err);
+        }
+
+        // Spot channels 1c-1 (ffi_spot_merge, #547): merge, kind change and
+        // the region overprint, both depths; the behaviour is
+        // `spot_merge.rs`. A NULL byte document answers NULL with no
+        // message; a NULL typed one or a NULL image names the handle.
+        {
+            use doctored_core::ffi_spot_merge::*;
+            let mut err: *mut c_char = ptr::null_mut();
+            assert!(dr_doc_merge_spot_channel(null_doc, 0, &mut err).is_null());
+            assert!(err.is_null());
+            assert!(
+                dr_doc_set_channel_kind(null_doc, 0, true, 50.0, 0.0, 0.0, 0, &mut err).is_null()
+            );
+            assert!(err.is_null());
+            assert!(dr_doc_spot_overprint_region(null_doc, null_img, 0, 0, 1, &mut err).is_null());
+            assert!(err.is_null());
+            for typed in 0..3 {
+                let failed = match typed {
+                    0 => {
+                        dr_precision_doc_merge_spot_channel_plan(null_typed, 0, &mut err).is_null()
+                    }
+                    1 => dr_precision_doc_merge_spot_channel(
+                        null_typed,
+                        0,
+                        1 << 30,
+                        0,
+                        ptr::null(),
+                        &mut err,
+                    )
+                    .is_null(),
+                    _ => dr_precision_doc_set_channel_kind(
+                        null_typed,
+                        0,
+                        false,
+                        0.0,
+                        0.0,
+                        0.0,
+                        0,
+                        1 << 30,
+                        0,
+                        &mut err,
+                    )
+                    .is_null(),
+                };
+                assert!(failed, "typed export {typed}");
+                assert!(!err.is_null(), "a NULL typed document names the handle");
+                doctored_core::ffi::dr_string_free(err);
+                err = ptr::null_mut();
+            }
+            assert!(dr_image_spot_overprint_region(
+                null_img,
+                plane.as_ptr(),
+                4,
+                2,
+                2,
+                0,
+                0,
+                1,
+                50.0,
+                0.0,
+                0.0,
+                0,
+                ptr::null(),
+                0,
+                &mut err
+            )
+            .is_null());
+            assert!(!err.is_null(), "a NULL image names the handle");
+            doctored_core::ffi::dr_string_free(err);
+            assert!(
+                dr_precision_doc_merge_spot_channel_plan(null_typed, 0, ptr::null_mut()).is_null()
+            );
+        }
+
+        // Colour samplers (ffi_sampler), both depths; the behaviour is
+        // `color_samplers.rs`.
+        {
+            use doctored_core::ffi_sampler::*;
+            let mut triple = [0u32; 3];
+            assert_eq!(dr_doc_color_sampler_count(null_doc), 0);
+            assert!(!dr_doc_color_sampler(null_doc, 0, triple.as_mut_ptr()));
+            assert!(dr_doc_with_color_samplers(null_doc, ptr::null(), 0).is_null());
+            assert_eq!(dr_precision_doc_color_sampler_count(null_typed), 0);
+            assert!(!dr_precision_doc_color_sampler(
+                null_typed,
+                0,
+                triple.as_mut_ptr()
+            ));
+            assert!(dr_precision_doc_with_color_samplers(null_typed, ptr::null(), 0).is_null());
+        }
+
+        // Paths (ffi_path), both depths; the behaviour is
+        // `path_geometry.rs` and `path_format.rs`. A NULL document answers
+        // NULL with no message; `dr_max_paths` takes no pointer.
+        {
+            use doctored_core::ffi_path::*;
+            use doctored_core::ffi_vector_mask::*;
+            assert_eq!(dr_max_paths(), 256);
+            assert!(dr_doc_paths_json(null_doc).is_null());
+            assert!(dr_precision_doc_paths_json(null_typed).is_null());
+            let list = CString::new("{\"paths\":[]}").unwrap();
+            let mut err: *mut c_char = ptr::null_mut();
+            assert!(dr_doc_with_paths_json(null_doc, list.as_ptr(), &mut err).is_null());
+            assert!(err.is_null());
+            assert!(dr_doc_with_paths_json(null_doc, ptr::null(), ptr::null_mut()).is_null());
+            assert!(
+                dr_precision_doc_with_paths_json(null_typed, list.as_ptr(), &mut err).is_null()
+            );
+            assert!(err.is_null());
+            assert!(
+                dr_precision_doc_with_paths_json(null_typed, ptr::null(), ptr::null_mut())
+                    .is_null()
+            );
+            // The shape operations take no document: a NULL shape, plane or
+            // output is refused, with and without somewhere to say why
+            // (`path_shape.rs`, `path_trace.rs`).
+            let mut plane = [0u16; 4];
+            fn said(err: &mut *mut c_char, expected: bool) {
+                if expected {
+                    assert!(!take_err_string(*err).is_empty());
+                    *err = ptr::null_mut();
+                } else {
+                    assert!(err.is_null());
+                }
+            }
+            for says in [true, false] {
+                let err_out: *mut *mut c_char = if says { &mut err } else { ptr::null_mut() };
+                assert!(!dr_path_coverage(
+                    ptr::null(),
+                    0,
+                    0,
+                    2,
+                    2,
+                    true,
+                    ptr::null(),
+                    0,
+                    plane.as_mut_ptr(),
+                    4,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    err_out,
+                ));
+                said(&mut err, says);
+                assert!(!dr_path_coverage(
+                    list.as_ptr(),
+                    0,
+                    0,
+                    2,
+                    2,
+                    true,
+                    ptr::null(),
+                    0,
+                    ptr::null_mut(),
+                    4,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    err_out,
+                ));
+                said(&mut err, says);
+                assert!(dr_path_flatten(ptr::null(), 0.25, err_out).is_null());
+                said(&mut err, says);
+                assert!(
+                    dr_path_trace(ptr::null(), 4, 2, 2, 2.0, 1 << 30, 0, ptr::null(), err_out)
+                        .is_null()
+                );
+                said(&mut err, says);
+                assert!(dr_path_insert_anchor(ptr::null(), 0, 0, 0.5, err_out).is_null());
+                said(&mut err, says);
+                assert!(dr_path_convert_anchor(ptr::null(), 0, 0, true, err_out).is_null());
+                said(&mut err, says);
+                // Landmark regions (`landmark_region.rs`): a NULL request or
+                // output is refused the same way.
+                assert!(!doctored_core::ffi_landmark::dr_landmark_coverage(
+                    ptr::null(),
+                    2,
+                    2,
+                    plane.as_mut_ptr(),
+                    4,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    err_out,
+                ));
+                said(&mut err, says);
+                let regions = CString::new("{\"regions\":[]}").unwrap();
+                assert!(!doctored_core::ffi_landmark::dr_landmark_coverage(
+                    regions.as_ptr(),
+                    2,
+                    2,
+                    ptr::null_mut(),
+                    4,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    err_out,
+                ));
+                said(&mut err, says);
+                // Model masks (`model_mask.rs`): a NULL plane, request or
+                // output is refused the same way.
+                let samples = [0.0f32; 4];
+                let request =
+                    CString::new("{\"frame\":[0,0,2,2],\"values\":\"probability\"}").unwrap();
+                for (source, json, output) in [
+                    (ptr::null(), request.as_ptr(), plane.as_mut_ptr()),
+                    (samples.as_ptr(), ptr::null(), plane.as_mut_ptr()),
+                    (samples.as_ptr(), request.as_ptr(), ptr::null_mut()),
+                ] {
+                    assert!(!doctored_core::ffi_model_mask::dr_model_mask_coverage(
+                        source,
+                        4,
+                        2,
+                        2,
+                        1,
+                        json,
+                        ptr::null(),
+                        0,
+                        2,
+                        2,
+                        output,
+                        4,
+                        ptr::null_mut(),
+                        1 << 30,
+                        0,
+                        ptr::null(),
+                        err_out,
+                    ));
+                    said(&mut err, says);
+                }
+            }
+            assert!(dr_path_hit(ptr::null(), 0.0, 0.0, 1.0, true).is_null());
+            assert!(dr_path_hit(ptr::null(), 0.0, 0.0, 1.0, false).is_null());
+            assert_eq!(plane, [0u16; 4], "no refused call wrote its output");
+            // Vector masks, both depths; the behaviour is `vector_masks.rs`
+            // and `precision_vector_masks.rs`. A NULL document answers NULL
+            // with no message, whatever else is NULL.
+            let shape = CString::new("{\"subpaths\":[]}").unwrap();
+            assert!(dr_doc_vector_mask_json(null_doc, 0).is_null());
+            assert!(dr_precision_doc_vector_mask_json(null_typed, 0).is_null());
+            assert!(dr_doc_remove_vector_mask(null_doc, 0).is_null());
+            for (json, err_out) in [
+                (shape.as_ptr(), &mut err as *mut *mut c_char),
+                (ptr::null(), ptr::null_mut()),
+            ] {
+                assert!(dr_doc_set_vector_mask(null_doc, 0, json, ptr::null(), err_out).is_null());
+                assert!(dr_doc_set_vector_mask_properties(
+                    null_doc,
+                    0,
+                    true,
+                    true,
+                    ptr::null(),
+                    err_out
+                )
+                .is_null());
+                assert!(dr_precision_doc_set_vector_mask(
+                    null_typed,
+                    0,
+                    json,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    err_out
+                )
+                .is_null());
+                assert!(
+                    dr_precision_doc_remove_vector_mask(null_typed, 0, 1 << 30, 0, err_out)
+                        .is_null()
+                );
+                assert!(dr_precision_doc_set_vector_mask_properties(
+                    null_typed,
+                    0,
+                    true,
+                    true,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    err_out
+                )
+                .is_null());
+            }
+            assert!(err.is_null());
+        }
+
+        // The versioned evaluation policy (ffi_evaluation, Phase 11E). The
+        // table export takes no pointer at all, so it gets a non-NULL
+        // assertion instead; the comparison pair is in `evaluation_ffi`.
+        assert_eq!(
+            doctored_core::ffi_evaluation::dr_evaluation_from_name(ptr::null()),
+            -1
+        );
+        let table = doctored_core::ffi_evaluation::dr_evaluation_operators();
+        assert!(!table.is_null());
+        dr_string_free(table);
+        assert_eq!(
+            doctored_core::ffi_evaluation::dr_doc_evaluation(null_doc),
+            0
+        );
+        assert!(doctored_core::ffi_evaluation::dr_doc_linear_light_refusal(null_doc).is_null());
+        let exposure = CString::new("exposure").unwrap();
+        for op in [ptr::null(), exposure.as_ptr()] {
+            assert!(
+                doctored_core::ffi_calibrated::dr_doc_calibrated_refusal(null_doc, op).is_null()
+            );
+            assert!(
+                doctored_core::ffi_calibrated::dr_precision_doc_calibrated_refusal(null_typed, op)
+                    .is_null()
+            );
+        }
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(
+            doctored_core::ffi_evaluation::dr_doc_set_evaluation(null_doc, 1, &mut err).is_null()
+        );
+        assert!(!take_err_string(err).is_empty());
+        assert!(
+            doctored_core::ffi_evaluation::dr_doc_set_evaluation(null_doc, 1, ptr::null_mut())
+                .is_null()
+        );
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(
+            doctored_core::ffi_evaluation::dr_image_compare(null_img, null_img, &mut err).is_null()
+        );
+        assert!(!take_err_string(err).is_empty());
+        assert!(doctored_core::ffi_evaluation::dr_image_compare(
+            null_img,
+            null_img,
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(!dr_doc_composite_plane(
+            null_doc,
+            PLANE_RED,
+            out.as_mut_ptr(),
+            2,
+            2
+        ));
+        assert!(!dr_doc_composite_plane(
+            null_doc,
+            PLANE_RED,
+            ptr::null_mut(),
+            2,
+            2
+        ));
+        let dot_gain = c"dot_gain_20";
+        assert!(!doctored_core::ffi_gray_plane::dr_doc_composite_gray_plane(
+            null_doc,
+            dot_gain.as_ptr(),
+            out.as_mut_ptr(),
+            2,
+            2
+        ));
+        assert!(!doctored_core::ffi_gray_plane::dr_doc_composite_gray_plane(
+            null_doc,
+            ptr::null(),
+            ptr::null_mut(),
+            2,
+            2
+        ));
+        assert!(!dr_doc_layer_plane(
+            null_doc,
+            0,
+            PLANE_RED,
+            out.as_mut_ptr(),
+            2,
+            2
+        ));
+        assert!(!dr_doc_layer_plane(
+            null_doc,
+            0,
+            PLANE_RED,
+            ptr::null_mut(),
+            2,
+            2
+        ));
+        assert!(!dr_doc_channel_plane(null_doc, 0, out.as_mut_ptr(), 2, 2));
+        assert!(!dr_doc_channel_plane(null_doc, 0, ptr::null_mut(), 2, 2));
+        assert!(dr_doc_composite_plane_image(null_doc, PLANE_RED, 0).is_null());
+        assert!(dr_doc_layer_plane_image(null_doc, 0, PLANE_RED, 0).is_null());
+        assert!(dr_doc_channel_image(null_doc, 0, 0).is_null());
+        assert!(dr_doc_with_layer_plane(null_doc, 0, PLANE_RED, plane.as_ptr(), 2, 2).is_null());
+        assert!(dr_doc_with_layer_plane(null_doc, 0, PLANE_RED, ptr::null(), 2, 2).is_null());
+        // The one channel export that takes no handle at all: it can only be
+        // asked for a size, and answers a count for every one of them.
+        assert_eq!(dr_max_channels_at(0, 0), 256);
+        assert_eq!(dr_max_channels_at(u32::MAX, u32::MAX), 0);
+        assert!(dr_doc_painting_channel(null_doc, 0, overlay.as_ptr(), 2, 2).is_null());
+        assert!(dr_doc_painting_channel(null_doc, 0, ptr::null(), 2, 2).is_null());
+        assert!(
+            dr_doc_painting_layer_plane(null_doc, 0, PLANE_RED, overlay.as_ptr(), 2, 2).is_null()
+        );
+        assert!(dr_doc_painting_layer_plane(null_doc, 0, PLANE_RED, ptr::null(), 2, 2).is_null());
+
+        // The two image-sized plane readers take a NULL image, and the one
+        // with a caller buffer takes a NULL buffer too.
+        assert!(!dr_image_plane(null_img, PLANE_RED, out.as_mut_ptr(), 2, 2));
+        assert!(!dr_image_plane(null_img, PLANE_RED, ptr::null_mut(), 2, 2));
+        assert!(dr_image_plane_image(null_img, PLANE_RED, 0).is_null());
+
+        // Plane arithmetic owns no handle: both buffers and both dimensions
+        // are the only things it can refuse on.
+        let mut base = [0u8; 4];
+        assert!(!dr_blend_planes(
+            ptr::null_mut(),
+            plane.as_ptr(),
+            2,
+            2,
+            BLEND_NORMAL,
+            1.0,
+            false,
+            false
+        ));
+        assert!(!dr_blend_planes(
+            base.as_mut_ptr(),
+            ptr::null(),
+            2,
+            2,
+            BLEND_NORMAL,
+            1.0,
+            false,
+            false
+        ));
+        assert!(!dr_blend_planes(
+            base.as_mut_ptr(),
+            plane.as_ptr(),
+            0,
+            0,
+            BLEND_NORMAL,
+            1.0,
+            false,
+            false
+        ));
+        // The RGB twin refuses a NULL in any of its six buffers.
+        let mut base_g = [0u8; 4];
+        let mut base_b = [0u8; 4];
+        for hole in 0..6 {
+            let mut planes: [*mut u8; 3] =
+                [base.as_mut_ptr(), base_g.as_mut_ptr(), base_b.as_mut_ptr()];
+            let mut sources: [*const u8; 3] = [plane.as_ptr(), plane.as_ptr(), plane.as_ptr()];
+            if hole < 3 {
+                planes[hole] = ptr::null_mut();
+            } else {
+                sources[hole - 3] = ptr::null();
+            }
+            assert!(
+                !dr_blend_planes_rgb(
+                    planes[0],
+                    planes[1],
+                    planes[2],
+                    sources[0],
+                    sources[1],
+                    sources[2],
+                    2,
+                    2,
+                    BLEND_NORMAL,
+                    1.0,
+                    false,
+                    false
+                ),
+                "NULL buffer {hole} must be refused"
+            );
+        }
+        assert!(!dr_blend_planes_rgb(
+            base.as_mut_ptr(),
+            base_g.as_mut_ptr(),
+            base_b.as_mut_ptr(),
+            plane.as_ptr(),
+            plane.as_ptr(),
+            plane.as_ptr(),
+            0,
+            0,
+            BLEND_NORMAL,
+            1.0,
+            false,
+            false
+        ));
+
+        // Colour management and metadata.
+        let mut blob = [0u8; 8];
+        assert_eq!(dr_doc_icc_profile_len(null_doc), 0);
+        assert!(!dr_doc_icc_profile(null_doc, blob.as_mut_ptr(), 8));
+        assert!(dr_doc_profile_name(null_doc).is_null());
+        assert!(!dr_doc_profile_is_convertible(null_doc));
+        let mut lab = [0f32; 3];
+        assert!(!dr_doc_lab(null_doc, 0, 0, 0, lab.as_mut_ptr()));
+        let mut rgb = [0f32; 3];
+        let mut in_gamut = false;
+        assert!(!dr_srgb_to_lab(ptr::null(), lab.as_mut_ptr()));
+        assert!(!dr_srgb_to_lab(rgb.as_ptr(), ptr::null_mut()));
+        assert!(!dr_lab_to_srgb(
+            ptr::null(),
+            rgb.as_mut_ptr(),
+            &mut in_gamut
+        ));
+        assert!(!dr_lab_to_srgb(
+            lab.as_ptr(),
+            ptr::null_mut(),
+            &mut in_gamut
+        ));
+        assert!(!dr_lab_to_srgb(
+            lab.as_ptr(),
+            rgb.as_mut_ptr(),
+            ptr::null_mut()
+        ));
+        assert_eq!(dr_doc_metadata_len(null_doc, METADATA_EXIF), 0);
+        assert!(!dr_doc_metadata(
+            null_doc,
+            METADATA_EXIF,
+            blob.as_mut_ptr(),
+            8
+        ));
+        assert_eq!(dr_doc_resolution_x(null_doc), 0.0);
+        assert_eq!(dr_doc_resolution_y(null_doc), 0.0);
+        let srgb = builtin_profile(PROFILE_SRGB);
+        assert!(
+            dr_doc_assign_profile(null_doc, srgb.as_ptr(), srgb.len(), std::ptr::null_mut())
+                .is_null()
+        );
+        assert!(dr_doc_convert_to_profile(
+            null_doc,
+            srgb.as_ptr(),
+            srgb.len(),
+            std::ptr::null_mut()
+        )
+        .is_null());
+        let mut outcome: c_int = 99;
+        assert!(
+            dr_doc_adopt_working_space(null_doc, srgb.as_ptr(), srgb.len(), &mut outcome).is_null()
+        );
+        assert_eq!(
+            outcome, ADOPT_UNCHANGED,
+            "the outcome is written even when no document comes back"
+        );
+        assert!(
+            dr_doc_adopt_working_space(null_doc, srgb.as_ptr(), srgb.len(), ptr::null_mut())
+                .is_null(),
+            "a NULL outcome pointer is tolerated"
+        );
+        assert!(
+            dr_doc_set_metadata(null_doc, METADATA_EXIF, blob.as_ptr(), 8, ptr::null_mut())
+                .is_null()
+        );
+        assert!(dr_doc_set_resolution(null_doc, 300.0, 300.0, ptr::null_mut()).is_null());
+        // File Info, at both depths: a NULL document answers NULL and
+        // leaves err_out untouched; NULL JSON on a NULL document is the same.
+        {
+            use doctored_core::ffi_file_info::{
+                dr_doc_file_info, dr_doc_set_file_info, dr_precision_doc_file_info,
+                dr_precision_doc_set_file_info,
+            };
+            let info =
+                CString::new(r#"{"creator":["A"],"copyright":"","description":"","keywords":[]}"#)
+                    .unwrap();
+            let mut err: *mut c_char = ptr::null_mut();
+            assert!(dr_doc_file_info(null_doc).is_null());
+            assert!(dr_doc_set_file_info(null_doc, info.as_ptr(), &mut err).is_null());
+            assert!(dr_doc_set_file_info(null_doc, ptr::null(), &mut err).is_null());
+            assert!(dr_doc_set_file_info(null_doc, info.as_ptr(), ptr::null_mut()).is_null());
+            assert!(dr_precision_doc_file_info(ptr::null()).is_null());
+            assert!(dr_precision_doc_set_file_info(ptr::null(), info.as_ptr(), &mut err).is_null());
+            assert!(dr_precision_doc_set_file_info(ptr::null(), ptr::null(), &mut err).is_null());
+            assert!(
+                dr_precision_doc_set_file_info(ptr::null(), info.as_ptr(), ptr::null_mut())
+                    .is_null()
+            );
+            assert!(err.is_null(), "a NULL document is not an error");
+        }
+        // The `prem` locator: NULL bytes or a NULL output is false.
+        {
+            use doctored_core::ffi_heif_container::dr_heif_premultiplied_reference;
+            let (mut offset, mut width) = (5usize, 6usize);
+            assert!(!dr_heif_premultiplied_reference(
+                ptr::null(),
+                0,
+                &mut offset,
+                &mut width,
+                ptr::null_mut()
+            ));
+            assert!(!dr_heif_premultiplied_reference(
+                blob.as_ptr(),
+                blob.len(),
+                ptr::null_mut(),
+                &mut width,
+                ptr::null_mut()
+            ));
+            assert!(!dr_heif_premultiplied_reference(
+                blob.as_ptr(),
+                blob.len(),
+                &mut offset,
+                ptr::null_mut(),
+                ptr::null_mut()
+            ));
+            assert_eq!((offset, width), (5, 6), "outputs untouched");
+        }
+        let png_path = CString::new("/tmp/never-created.png").unwrap();
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(!dr_doc_save_image(
+            null_doc,
+            ptr::null(),
+            png_path.as_ptr(),
+            0,
+            90,
+            true,
+            false,
+            ptr::null_mut(),
+            &mut err
+        ));
+        assert!(!take_err_string(err).is_empty());
+        assert!(!dr_doc_save_image(
+            null_doc,
+            ptr::null(),
+            png_path.as_ptr(),
+            0,
+            90,
+            true,
+            false,
+            ptr::null_mut(),
+            ptr::null_mut()
+        ));
+        // Inspecting nothing is "not an ICC profile", with no name.
+        let mut name: *mut c_char = ptr::null_mut();
+        assert_eq!(dr_icc_inspect(ptr::null(), 0, &mut name), ICC_NOT_ICC);
+        assert!(name.is_null());
+        assert_eq!(dr_icc_inspect(ptr::null(), 0, ptr::null_mut()), ICC_NOT_ICC);
+        // Whether a path's container is walked: NULL is not.
+        assert!(!dr_path_metadata_walked(ptr::null()));
+        assert_eq!(dr_builtin_profile_len(9999), 0);
+        assert!(!dr_builtin_profile(9999, blob.as_mut_ptr(), 8));
+        assert!(!dr_builtin_profile(PROFILE_SRGB, ptr::null_mut(), 0));
+        // Nothing describes the same space as nothing.
+        assert!(!dr_icc_describes_same_space(
+            ptr::null(),
+            0,
+            blob.as_ptr(),
+            blob.len()
+        ));
+        assert!(!dr_icc_describes_same_space(
+            blob.as_ptr(),
+            blob.len(),
+            ptr::null(),
+            0
+        ));
+        assert!(!dr_icc_describes_same_space(ptr::null(), 0, ptr::null(), 0));
+    }
+
+    // NULL name / NULL image arguments on a valid doc.
+    let dir = TempDir::new().unwrap();
+    let doc = doc_from(&dir, "n.png", &solid(2, 2, [1, 2, 3, 255]));
+    unsafe {
+        assert!(dr_doc_with_layer_name(doc, 0, ptr::null()).is_null());
+        assert!(dr_doc_adding_image_layer(doc, 0, null_img, name.as_ptr()).is_null());
+        assert!(dr_doc_adding_image_layer(doc, 0, ptr::null(), ptr::null()).is_null());
+        assert!(dr_doc_add_image_layer_at(doc, 0, null_img, name.as_ptr(), 3, 4).is_null());
+        assert!(dr_doc_add_image_layer_at(doc, 0, ptr::null(), ptr::null(), 3, 4).is_null());
+        assert!(dr_doc_with_layer_pixels(doc, 0, null_img).is_null());
+        assert!(dr_doc_set_layer_content(doc, 0, ptr::null(), 2, 2, 0, 0, ptr::null()).is_null());
+        assert!(dr_doc_transform_layer(doc, 0, ptr::null(), FILTER_NEAREST).is_null());
+        assert!(dr_doc_add_channel(doc, ptr::null(), plane.as_ptr(), 2, 2, 0, 0, 0, 0.5).is_null());
+        assert!(dr_doc_add_channel(doc, name.as_ptr(), ptr::null(), 2, 2, 0, 0, 0, 0.5).is_null());
+        assert!(dr_doc_rename_channel(doc, 0, ptr::null()).is_null());
+        assert!(dr_doc_set_channel_data(doc, 0, ptr::null(), 2, 2).is_null());
+        assert!(!dr_doc_composite_plane(
+            doc,
+            PLANE_RED,
+            ptr::null_mut(),
+            2,
+            2
+        ));
+        assert!(!doctored_core::ffi_gray_plane::dr_doc_composite_gray_plane(
+            doc,
+            c"dot_gain_20".as_ptr(),
+            ptr::null_mut(),
+            2,
+            2
+        ));
+        let mut gray_out = [0u8; 4];
+        assert!(!doctored_core::ffi_gray_plane::dr_doc_composite_gray_plane(
+            doc,
+            ptr::null(),
+            gray_out.as_mut_ptr(),
+            2,
+            2
+        ));
+        assert!(!doctored_core::ffi_gray_plane::dr_doc_composite_gray_plane(
+            doc,
+            c"dot_gain_99".as_ptr(),
+            gray_out.as_mut_ptr(),
+            2,
+            2
+        ));
+        assert!(!doctored_core::ffi_gray_plane::dr_doc_composite_gray_plane(
+            doc,
+            c"dot_gain_20".as_ptr(),
+            gray_out.as_mut_ptr(),
+            2,
+            3
+        ));
+        assert!(!dr_doc_layer_plane(
+            doc,
+            0,
+            PLANE_RED,
+            ptr::null_mut(),
+            2,
+            2
+        ));
+        assert!(!dr_doc_channel_plane(doc, 0, ptr::null_mut(), 2, 2));
+        assert!(dr_doc_with_layer_plane(doc, 0, PLANE_RED, ptr::null(), 2, 2).is_null());
+        assert!(dr_doc_painting_channel(doc, 0, ptr::null(), 2, 2).is_null());
+        assert!(dr_doc_painting_layer_plane(doc, 0, PLANE_RED, ptr::null(), 2, 2).is_null());
+        assert!(
+            dr_doc_heal_layer(doc, 0, ptr::null(), 2, 2, 1.0, ptr::null(), ptr::null_mut())
+                .is_null()
+        );
+        assert!(dr_doc_spot_heal_layer_job(
+            doc,
+            0,
+            ptr::null(),
+            2,
+            2,
+            1.0,
+            0,
+            7,
+            0,
+            0,
+            false,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        // Sky Replacement: NULL handles, coverage and params.
+        {
+            use doctored_core::ffi_sky::*;
+            assert_eq!(dr_sky_replace_scratch_bytes(0, 0, 1, 1, 8, 0, false), 0);
+            assert_eq!(dr_sky_replace_scratch_bytes(2, 2, 1, 1, 7, 0, false), 0);
+            assert_eq!(dr_sky_replace_scratch_bytes(0, 0, 1, 1, 8, 1, false), 0);
+            assert_eq!(dr_sky_replace_scratch_bytes(2, 2, 1, 1, 8, 2, false), 0);
+            assert!(dr_image_sky_replace(
+                null_img,
+                null_img,
+                ptr::null(),
+                0,
+                2,
+                2,
+                ptr::null(),
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+            for target in [null_doc, doc as *const DrDocument] {
+                assert!(dr_doc_sky_replace(
+                    target,
+                    0,
+                    null_img,
+                    ptr::null(),
+                    0,
+                    ptr::null(),
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    ptr::null_mut()
+                )
+                .is_null());
+            }
+            assert!(dr_precision_doc_sky_replace(
+                ptr::null(),
+                0,
+                null_img,
+                ptr::null(),
+                0,
+                ptr::null(),
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+        }
+        // The Remove tool's model engine: NULL handles, sample and buffers.
+        {
+            use doctored_core::ffi_remove_model::*;
+            let sample = c"all";
+            for target in [null_doc, doc as *const DrDocument] {
+                assert_eq!(
+                    dr_doc_remove_model_plan(target, 0, ptr::null(), 512, false, ptr::null_mut()),
+                    0
+                );
+                assert!(!dr_doc_remove_model_input(
+                    target,
+                    0,
+                    sample.as_ptr(),
+                    false,
+                    ptr::null(),
+                    0,
+                    512,
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    0,
+                    ptr::null_mut(),
+                    0,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    ptr::null_mut()
+                ));
+                assert!(dr_doc_remove_model_apply(
+                    target,
+                    0,
+                    ptr::null(),
+                    0,
+                    512,
+                    ptr::null(),
+                    0,
+                    false,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    ptr::null_mut()
+                )
+                .is_null());
+            }
+            assert_eq!(
+                dr_precision_doc_remove_model_plan(
+                    ptr::null(),
+                    0,
+                    sample.as_ptr(),
+                    512,
+                    false,
+                    ptr::null_mut()
+                ),
+                0
+            );
+            assert!(!dr_precision_doc_remove_model_input(
+                ptr::null(),
+                0,
+                ptr::null(),
+                false,
+                ptr::null(),
+                0,
+                512,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                0,
+                ptr::null_mut(),
+                0,
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            ));
+            assert!(dr_precision_doc_remove_model_apply(
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                512,
+                ptr::null(),
+                0,
+                false,
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+        }
+        // Neural filters: NULL handles, strings and callbacks.
+        {
+            use doctored_core::ffi_neural::*;
+            let stage = c"{\"tile\":32,\"pad\":8,\"scale\":2,\"model_scale\":4,\"model\":true}";
+            assert!(dr_neural_stage_info(4, 4, ptr::null(), 1, ptr::null_mut()).is_null());
+            assert!(dr_image_neural_stage(
+                null_img,
+                stage.as_ptr(),
+                None,
+                ptr::null_mut(),
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+            assert!(dr_precision_image_neural_stage(
+                ptr::null(),
+                stage.as_ptr(),
+                None,
+                ptr::null_mut(),
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+            for target in [null_doc, doc as *const DrDocument] {
+                assert!(dr_doc_super_zoom_document(target, null_img, ptr::null_mut()).is_null());
+            }
+            assert!(dr_precision_doc_super_zoom_document(
+                ptr::null(),
+                ptr::null(),
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+            assert!(dr_precision_doc_neural_layer_apply(
+                ptr::null(),
+                0,
+                ptr::null(),
+                true,
+                ptr::null(),
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+            // Colorize (M4 phase 2): NULL handles, profiles, buffers and strings.
+            assert_eq!(dr_neural_colorize_plan(0, 0, 0, 3, ptr::null_mut()), 0);
+            let mut input = vec![0.0_f32; 3 * 16 * 16];
+            let chroma = vec![0.0_f32; 2 * 16 * 16];
+            assert!(!dr_image_neural_colorize_input(
+                null_img,
+                ptr::null(),
+                0,
+                16,
+                input.as_mut_ptr(),
+                input.len(),
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            ));
+            assert!(!dr_precision_image_neural_colorize_input(
+                ptr::null(),
+                ptr::null(),
+                0,
+                16,
+                ptr::null_mut(),
+                0,
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            ));
+            assert!(dr_image_neural_colorize_apply(
+                null_img,
+                ptr::null(),
+                0,
+                16,
+                chroma.as_ptr(),
+                chroma.len(),
+                ptr::null(),
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+            assert!(dr_precision_image_neural_colorize_apply(
+                ptr::null(),
+                ptr::null(),
+                0,
+                16,
+                ptr::null(),
+                0,
+                ptr::null(),
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+        }
+        // Generative Fill: NULL handles, buffers and strings.
+        {
+            use doctored_core::ffi_gen_fill::*;
+            let mut frame = [0u32; 6];
+            assert!(!dr_gen_fill_frame(
+                ptr::null(),
+                0,
+                4,
+                4,
+                ptr::null(),
+                0,
+                frame.as_mut_ptr(),
+                ptr::null_mut()
+            ));
+            for target in [null_doc, doc as *const DrDocument] {
+                if target.is_null() {
+                    assert_eq!(
+                        dr_doc_gen_fill_plan(target, 1024, 1024, 3, ptr::null_mut()),
+                        0
+                    );
+                }
+                assert!(!dr_doc_gen_fill_input(
+                    target,
+                    0,
+                    ptr::null(),
+                    0,
+                    1024,
+                    1024,
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    0,
+                    ptr::null_mut(),
+                    0,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    ptr::null_mut()
+                ));
+                assert!(dr_doc_gen_fill_apply(
+                    target,
+                    0,
+                    ptr::null(),
+                    0,
+                    1024,
+                    1024,
+                    ptr::null(),
+                    0,
+                    ptr::null(),
+                    0,
+                    ptr::null(),
+                    ptr::null(),
+                    ptr::null_mut(),
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    ptr::null_mut()
+                )
+                .is_null());
+            }
+            assert_eq!(
+                dr_precision_doc_gen_fill_plan(ptr::null(), 1024, 1024, 3, ptr::null_mut()),
+                0
+            );
+            assert!(!dr_precision_doc_gen_fill_input(
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                1024,
+                1024,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                0,
+                ptr::null_mut(),
+                0,
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            ));
+            assert!(dr_precision_doc_gen_fill_apply(
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                1024,
+                1024,
+                ptr::null(),
+                0,
+                ptr::null(),
+                0,
+                ptr::null(),
+                ptr::null(),
+                ptr::null_mut(),
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            )
+            .is_null());
+            // Generative Layer variations.
+            {
+                use doctored_core::ffi_gen_variations::*;
+                let mut info = [0u32; 8];
+                for target in [null_doc, doc as *const DrDocument] {
+                    let mut err: *mut c_char = ptr::null_mut();
+                    assert!(!dr_doc_gen_fill_variations(
+                        target,
+                        0,
+                        info.as_mut_ptr(),
+                        &mut err
+                    ));
+                    if target.is_null() {
+                        assert_eq!(take_err_string(err), "required handle is NULL");
+                    } else if !err.is_null() {
+                        take_err_string(err);
+                    }
+                    assert!(!dr_doc_gen_fill_variations(
+                        target,
+                        0,
+                        ptr::null_mut(),
+                        ptr::null_mut()
+                    ));
+                    let mut err: *mut c_char = ptr::null_mut();
+                    assert!(dr_doc_gen_fill_select_variation(
+                        target,
+                        0,
+                        1,
+                        1 << 30,
+                        0,
+                        ptr::null(),
+                        &mut err
+                    )
+                    .is_null());
+                    assert!(!take_err_string(err).is_empty());
+                    assert!(!dr_doc_gen_fill_more_input(
+                        target,
+                        0,
+                        ptr::null_mut(),
+                        0,
+                        ptr::null_mut(),
+                        0,
+                        1 << 30,
+                        0,
+                        ptr::null(),
+                        ptr::null_mut()
+                    ));
+                    assert!(dr_doc_gen_fill_add_variations(
+                        target,
+                        0,
+                        ptr::null(),
+                        0,
+                        ptr::null(),
+                        0,
+                        ptr::null(),
+                        1 << 30,
+                        0,
+                        ptr::null(),
+                        ptr::null_mut()
+                    )
+                    .is_null());
+                }
+                let mut err: *mut c_char = ptr::null_mut();
+                assert!(!dr_precision_doc_gen_fill_variations(
+                    ptr::null(),
+                    0,
+                    info.as_mut_ptr(),
+                    &mut err
+                ));
+                assert_eq!(take_err_string(err), "required handle is NULL");
+                assert!(dr_precision_doc_gen_fill_select_variation(
+                    ptr::null(),
+                    0,
+                    0,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    ptr::null_mut()
+                )
+                .is_null());
+                assert!(!dr_precision_doc_gen_fill_more_input(
+                    ptr::null(),
+                    0,
+                    ptr::null_mut(),
+                    0,
+                    ptr::null_mut(),
+                    0,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    ptr::null_mut()
+                ));
+                assert!(dr_precision_doc_gen_fill_add_variations(
+                    ptr::null(),
+                    0,
+                    ptr::null(),
+                    0,
+                    ptr::null(),
+                    0,
+                    ptr::null(),
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    ptr::null_mut()
+                )
+                .is_null());
+            }
+        }
+        // Generative Expand: NULL handles and buffers.
+        {
+            use doctored_core::ffi_gen_expand::*;
+            let mut coverage = [0u16; 4];
+            for target in [null_doc, doc as *const DrDocument] {
+                let mut err: *mut c_char = ptr::null_mut();
+                assert!(!dr_doc_gen_expand_coverage(
+                    target,
+                    0,
+                    ptr::null_mut(),
+                    0,
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    &mut err
+                ));
+                assert!(!take_err_string(err).is_empty());
+                assert!(!dr_doc_gen_expand_coverage(
+                    target,
+                    0,
+                    coverage.as_mut_ptr(),
+                    coverage.len(),
+                    1 << 30,
+                    0,
+                    ptr::null(),
+                    ptr::null_mut()
+                ));
+            }
+            let mut err: *mut c_char = ptr::null_mut();
+            assert!(!dr_precision_doc_gen_expand_coverage(
+                ptr::null(),
+                0,
+                coverage.as_mut_ptr(),
+                coverage.len(),
+                1 << 30,
+                0,
+                ptr::null(),
+                &mut err
+            ));
+            assert_eq!(take_err_string(err), "required handle is NULL");
+            assert!(!dr_precision_doc_gen_expand_coverage(
+                ptr::null(),
+                0,
+                ptr::null_mut(),
+                0,
+                1 << 30,
+                0,
+                ptr::null(),
+                ptr::null_mut()
+            ));
+        }
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(!dr_doc_save_native(doc, ptr::null(), &mut err));
+        assert!(!take_err_string(err).is_empty());
+
+        // Colour management and metadata, on a valid document.
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(
+            doctored_core::ffi_file_info::dr_doc_set_file_info(doc, ptr::null(), &mut err)
+                .is_null()
+        );
+        assert_eq!(take_err_string(err), "file info json is NULL");
+        assert!(doctored_core::ffi_file_info::dr_doc_set_file_info(
+            doc,
+            ptr::null(),
+            ptr::null_mut()
+        )
+        .is_null());
+        assert!(!dr_doc_icc_profile(doc, ptr::null_mut(), 0));
+        assert!(!dr_doc_metadata(doc, METADATA_EXIF, ptr::null_mut(), 0));
+        assert!(
+            dr_doc_assign_profile(doc, ptr::null(), 0, std::ptr::null_mut()).is_null(),
+            "NULL bytes is a refusal, not a clear: a document always has a profile"
+        );
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(
+            !dr_doc_save_image(
+                doc,
+                ptr::null(),
+                ptr::null(),
+                0,
+                90,
+                true,
+                false,
+                ptr::null_mut(),
+                &mut err
+            ),
+            "a NULL path is an error"
+        );
+        assert!(!take_err_string(err).is_empty());
+    }
+
+    // A NULL `flat` is the flatten-here case, not an error.
+    let out = dir.path().join("flatten-here.png");
+    let c = cpath(&out);
+    let mut err: *mut c_char = ptr::null_mut();
+    let mut carried: u32 = 0;
+    assert!(
+        unsafe {
+            dr_doc_save_image(
+                doc,
+                ptr::null(),
+                c.as_ptr(),
+                0,
+                90,
+                true,
+                false,
+                &mut carried,
+                &mut err,
+            )
+        },
+        "{}",
+        take_err_string(err)
+    );
+    assert!(out.exists());
+    unsafe { dr_doc_free(doc) };
+}
+
+/// Mirrors `channel_tests::bogus_plane_values_are_refused_rather_than_materialized`
+/// for the three enums this phase adds and for `DrFormat`, which had no
+/// out-of-range line anywhere in the sweep before. Each list is the enum's
+/// own: 3 is a bogus `DrMetadataKind` but a perfectly good `DR_FORMAT_BMP`.
+#[test]
+fn bogus_colour_enum_values_are_refused_rather_than_materialized() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let doc = doc_from(&dir, "bogus.png", &solid(2, 2, [1, 2, 3, 255]));
+    let mut out = [0u8; 8];
+    let path = dir.path().join("bogus-out.png");
+    let c = cpath(&path);
+
+    for kind in [-1, 3, 6, 99, c_int::MIN, c_int::MAX] {
+        unsafe {
+            assert_eq!(dr_doc_metadata_len(doc, kind), 0, "kind {kind}");
+            assert!(
+                !dr_doc_metadata(doc, kind, out.as_mut_ptr(), 8),
+                "kind {kind}"
+            );
+            let mut err = ptr::null_mut();
+            assert!(
+                dr_doc_set_metadata(doc, kind, out.as_ptr(), 8, &mut err).is_null(),
+                "kind {kind}"
+            );
+            assert_eq!(
+                take_err_string(err),
+                format!("unknown metadata kind {kind}"),
+                "kind {kind}: the refusal names its reason"
+            );
+        }
+    }
+    for which in [-1, 4, 6, 99, c_int::MIN, c_int::MAX] {
+        assert_eq!(dr_builtin_profile_len(which), 0, "profile {which}");
+        assert!(
+            !unsafe { dr_builtin_profile(which, out.as_mut_ptr(), 8) },
+            "profile {which}"
+        );
+    }
+    // 6 is DR_FORMAT_HEIC since Phase 11D, and 7 and 8 are DR_FORMAT_AVIF and
+    // DR_FORMAT_JXL, and 9 and 10 are DR_FORMAT_EXR and DR_FORMAT_HDR —
+    // real formats, refused by the flat writer rather than unknown, so the
+    // out-of-range list starts at 11.
+    for format in [-1, 11, 99, c_int::MIN, c_int::MAX] {
+        assert_eq!(dr_format_carries(format), 0, "format {format}");
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(
+            !unsafe {
+                dr_doc_save_image(
+                    doc,
+                    ptr::null(),
+                    c.as_ptr(),
+                    format,
+                    90,
+                    true,
+                    false,
+                    ptr::null_mut(),
+                    &mut err,
+                )
+            },
+            "format {format}"
+        );
+        assert!(take_err_string(err).contains("unknown format value"));
+        assert!(!path.exists(), "a refused format writes no file");
+    }
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn canvas_resize_shifts_offsets_without_scaling() {
+    let _serial = serial();
+    let dir = TempDir::new().unwrap();
+    let doc = geometry_fixture(&dir, "canvas", (1, 1));
+    let layer_before = layer_pixels(doc, 1);
+    let flat = unsafe { dr_doc_flattened(doc, 0, std::ptr::null(), std::ptr::null_mut()) };
+
+    // Grow from 7x5 to 11x9 anchored at the center: old origin lands at
+    // (2, 2); layer dims and pixels unchanged.
+    let grown = unsafe { dr_doc_canvas_resize(doc, 11, 9, 2, 2) };
+    assert!(!grown.is_null());
+    assert_eq!(
+        unsafe { (dr_doc_width(grown), dr_doc_height(grown)) },
+        (11, 9)
+    );
+    assert_eq!(layer_offset(grown, 0), (2, 2));
+    assert_eq!(layer_offset(grown, 1), (3, 3));
+    assert_eq!(layer_dims(grown, 1), (3, 2));
+    assert_eq!(
+        layer_pixels(grown, 1),
+        layer_before,
+        "canvas resize must not touch pixels"
+    );
+    // The old projection appears verbatim inside the grown projection.
+    let grown_flat = unsafe { dr_doc_flattened(grown, 0, std::ptr::null(), std::ptr::null_mut()) };
+    let window = unsafe { dr_image_crop(grown_flat, 2, 2, 7, 5) };
+    assert!(!window.is_null());
+    assert_eq!(img_pixels(window), img_pixels(flat));
+    unsafe { dr_image_free(window) };
+    unsafe { dr_image_free(grown_flat) };
+    unsafe { dr_doc_free(grown) };
+
+    // Shrinking with a negative origin is exactly a crop of the same window.
+    let shrunk = unsafe { dr_doc_canvas_resize(doc, 4, 3, -2, -1) };
+    let cropped = unsafe { dr_doc_crop(doc, 2, 1, 4, 3) };
+    assert!(!shrunk.is_null() && !cropped.is_null());
+    assert_eq!(layer_offset(shrunk, 0), layer_offset(cropped, 0));
+    assert_eq!(layer_offset(shrunk, 1), layer_offset(cropped, 1));
+    assert_eq!(flat_pixels(shrunk), flat_pixels(cropped));
+    unsafe { dr_doc_free(cropped) };
+    unsafe { dr_doc_free(shrunk) };
+
+    // Guards: zero dims, over-limit canvas, NULL doc.
+    unsafe {
+        assert!(dr_doc_canvas_resize(doc, 0, 5, 0, 0).is_null());
+        assert!(dr_doc_canvas_resize(doc, 5, 0, 0, 0).is_null());
+        assert!(dr_doc_canvas_resize(doc, 10_001, 10_000, 0, 0).is_null());
+        assert!(dr_doc_canvas_resize(std::ptr::null(), 5, 5, 0, 0).is_null());
+    }
+
+    unsafe { dr_image_free(flat) };
+    unsafe { dr_doc_free(doc) };
+}

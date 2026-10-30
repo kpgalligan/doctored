@@ -1,0 +1,334 @@
+{
+  "schema": 1,
+  "name": "depth16",
+  "application": {
+    "name": "GIMP",
+    "version": "3.2.6"
+  },
+  "source_psd_sha256": "07434cf6ddf3e84c70442804c443e7473061790016ff8a972da2490db49cbee0",
+  "error": null,
+  "reopened": {
+    "canvas": [
+      4,
+      3
+    ],
+    "color_mode": "rgb",
+    "precision": "u16-non-linear",
+    "resolution": [
+      300.0,
+      240.0
+    ],
+    "layers": [
+      {
+        "name": "Base",
+        "kind": "raster",
+        "depth": 0,
+        "size": [
+          4,
+          3
+        ],
+        "offset": [
+          0,
+          0
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "normal",
+        "blend_space": "auto",
+        "composite_space": "rgb-perceptual",
+        "composite_mode": "union",
+        "open": null,
+        "rgba": [
+          77,
+          539,
+          1001,
+          65535,
+          1090,
+          4110,
+          8920,
+          65535,
+          2103,
+          7681,
+          16839,
+          65535,
+          3116,
+          11252,
+          24758,
+          65535,
+          4129,
+          14823,
+          32677,
+          65535,
+          5142,
+          18394,
+          40596,
+          65535,
+          6155,
+          21965,
+          48515,
+          65535,
+          7168,
+          25536,
+          56434,
+          65535,
+          8181,
+          29107,
+          64353,
+          65535,
+          9194,
+          32678,
+          6736,
+          65535,
+          10207,
+          36249,
+          14655,
+          65535,
+          11220,
+          39820,
+          22574,
+          65535
+        ],
+        "mask": null
+      },
+      {
+        "name": "Multiply",
+        "kind": "raster",
+        "depth": 1,
+        "size": [
+          3,
+          2
+        ],
+        "offset": [
+          1,
+          0
+        ],
+        "opacity": 0.5019607843137255,
+        "visible": true,
+        "blend": "multiply",
+        "blend_space": "rgb-perceptual",
+        "composite_space": "rgb-perceptual",
+        "composite_mode": "union",
+        "open": null,
+        "rgba": [
+          4097,
+          51234,
+          60000,
+          0,
+          4098,
+          51233,
+          60000,
+          1,
+          4099,
+          51232,
+          60000,
+          16384,
+          4100,
+          51231,
+          60000,
+          32767,
+          4101,
+          51230,
+          60000,
+          32768,
+          4102,
+          51229,
+          60000,
+          60000
+        ],
+        "mask": {
+          "size": [
+            3,
+            2
+          ],
+          "offset": [
+            1,
+            0
+          ],
+          "coverage": [
+            0,
+            9001,
+            18002,
+            27003,
+            36004,
+            45005
+          ],
+          "enabled": true
+        }
+      },
+      {
+        "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+        "kind": "raster",
+        "depth": 1,
+        "size": [
+          2,
+          2
+        ],
+        "offset": [
+          -1,
+          1
+        ],
+        "opacity": 1.0,
+        "visible": false,
+        "blend": "normal",
+        "blend_space": "auto",
+        "composite_space": "rgb-perceptual",
+        "composite_mode": "union",
+        "open": null,
+        "rgba": [
+          4097,
+          51234,
+          60000,
+          0,
+          4098,
+          51233,
+          60000,
+          1,
+          4099,
+          51232,
+          60000,
+          16384,
+          4100,
+          51231,
+          60000,
+          32767
+        ],
+        "mask": {
+          "size": [
+            2,
+            2
+          ],
+          "offset": [
+            -1,
+            1
+          ],
+          "coverage": [
+            0,
+            21001,
+            42002,
+            63003
+          ],
+          "enabled": false
+        }
+      },
+      {
+        "name": "Group",
+        "kind": "group",
+        "depth": 0,
+        "size": [
+          5,
+          3
+        ],
+        "offset": [
+          -1,
+          0
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "pass-through",
+        "blend_space": "auto",
+        "composite_space": "rgb-perceptual",
+        "composite_mode": "auto",
+        "open": true,
+        "rgba": null,
+        "mask": null
+      }
+    ],
+    "saved_channels": [],
+    "profile": "reopened.icc",
+    "profile_sha256": "2569af8834abcbcadcfe25297fd736664fddf575a0450d35865759345d736499"
+  },
+  "merged": {
+    "canvas": [
+      4,
+      3
+    ],
+    "color_mode": "rgb",
+    "precision": "u16-non-linear",
+    "resolution": [
+      300.0,
+      240.0
+    ],
+    "layers": [
+      {
+        "name": "Background",
+        "kind": "raster",
+        "depth": 0,
+        "size": [
+          4,
+          3
+        ],
+        "offset": [
+          0,
+          0
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "normal",
+        "blend_space": "auto",
+        "composite_space": "auto",
+        "composite_mode": "auto",
+        "open": null,
+        "rgba": [
+          77,
+          539,
+          1001,
+          65535,
+          1090,
+          4110,
+          8920,
+          65535,
+          2103,
+          7681,
+          16839,
+          65535,
+          3015,
+          11167,
+          24686,
+          65535,
+          4129,
+          14823,
+          32677,
+          65535,
+          4644,
+          17979,
+          40241,
+          65535,
+          5359,
+          21304,
+          47950,
+          65535,
+          5047,
+          23777,
+          54930,
+          65535,
+          8181,
+          29107,
+          64353,
+          65535,
+          9194,
+          32678,
+          6736,
+          65535,
+          10207,
+          36249,
+          14655,
+          65535,
+          11220,
+          39820,
+          22574,
+          65535
+        ],
+        "mask": null
+      }
+    ],
+    "saved_channels": [],
+    "profile": "merged.icc",
+    "profile_sha256": "2569af8834abcbcadcfe25297fd736664fddf575a0450d35865759345d736499"
+  },
+  "files": {
+    "merged.icc": "2569af8834abcbcadcfe25297fd736664fddf575a0450d35865759345d736499",
+    "merged.png": "e435c091e9dd15350481c1e380be0d179af109fc83489ee0031a3b7ed98155d4",
+    "reopened.icc": "2569af8834abcbcadcfe25297fd736664fddf575a0450d35865759345d736499",
+    "reopened.png": "e435c091e9dd15350481c1e380be0d179af109fc83489ee0031a3b7ed98155d4"
+  }
+}

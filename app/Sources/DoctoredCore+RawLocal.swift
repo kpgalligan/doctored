@@ -1,0 +1,352 @@
+import AppKit
+import CryptoKit
+
+// MARK: - Native local RAW coverage and source evaluation
+
+func rawLocalContext(documents: [RasterDocument] = [], images: [RasterPrecisionImage] = [],
+                             masks: [RasterRawLocalMask] = []) throws -> (limit: UInt64, other: UInt64) {
+    let own = try RasterDocument.mixedResourceReport(documents: documents, images: [],
+        precisionDocuments: documents.compactMap(\.precision), precisionImages: images,
+        rawLocalMasks: masks, scratch: 0, limit: 0)
+    let report = try RasterResources.shared.report()
+    let ownBytes = try PrecisionDocumentDescriptor.integer(own, "unique_retained_bytes")
+    let retained = try PrecisionDocumentDescriptor.integer(report, "unique_retained_bytes")
+    guard ownBytes <= retained else { throw DoctoredCoreError(message: "Local RAW owners are missing from resource accounting.") }
+    return (RasterResources.shared.workingLimit, try PrecisionDocumentDescriptor.sum(retained - ownBytes,
+        PrecisionDocumentDescriptor.integer(report, "transient_estimate_bytes")))
+}
+
+/// Immutable native coverage; its binary allocation is shared with native RAW
+/// attachments and counted once across documents, masks, previews and Undo.
+final class RasterRawLocalMask {
+    let ptr: OpaquePointer
+    private let hashLock = NSLock()
+    private var cachedHash: String?
+
+    init(owning pointer: OpaquePointer) {
+        ptr = pointer
+        RasterResources.shared.register(self)
+    }
+    deinit { dr_raw_local_mask_free(ptr) }
+
+    static func create(width: Int, height: Int, command: [String: Any],
+                       control: RasterJobControl? = nil) throws -> RasterRawLocalMask {
+        guard let width = UInt32(exactly: width), let height = UInt32(exactly: height),
+              width > 0, height > 0, UInt64(width) * UInt64(height) <= 64_000_000 else {
+            throw DoctoredCoreError(message: "Local masks require valid source dimensions up to 64 megapixels.")
+        }
+        let text = try commandText(command)
+        let context = try rawLocalContext()
+        var error: UnsafeMutablePointer<CChar>?
+        guard let result = dr_raw_local_mask_edit(nil, width, height, text,
+                context.limit, context.other, control?.ptr, &error) else {
+            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not create native local coverage."))
+        }
+        return RasterRawLocalMask(owning: result)
+    }
+    func edited(command: [String: Any], control: RasterJobControl? = nil) throws -> RasterRawLocalMask {
+        let text = try Self.commandText(command)
+        let fields = try dimensionsInfo()
+        let width = try PrecisionDocumentDescriptor.integer(fields, "width")
+        let height = try PrecisionDocumentDescriptor.integer(fields, "height")
+        let context = try rawLocalContext(masks: [self])
+        var error: UnsafeMutablePointer<CChar>?
+        let result = dr_raw_local_mask_edit(ptr, UInt32(width), UInt32(height), text,
+            context.limit, context.other, control?.ptr, &error)
+        if let error { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Local coverage edit failed.")) }
+        return result.map { RasterRawLocalMask(owning: $0) } ?? self
+    }
+    static func fromSource(_ source: RasterDocument, layer: Int, resource: Int) throws -> RasterRawLocalMask {
+        guard layer >= 0, layer < source.layerCount,
+              (0..<RawEnhancementRecipe.maximumLocals).contains(resource),
+              source.sourceAttachmentKind(layer) == .rawLocalMasks else {
+            throw DoctoredCoreError(message: "The retained RAW source has no matching native local coverage.")
+        }
+        var error: UnsafeMutablePointer<CChar>?
+        let result = source.precision.map { dr_precision_doc_raw_local_mask($0.ptr, layer, resource, &error) }
+            ?? dr_doc_raw_local_mask(source.ptr, layer, resource, &error)
+        guard let result else { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not share local RAW coverage.")) }
+        return withExtendedLifetime(source) { RasterRawLocalMask(owning: result) }
+    }
+    static func fromEncodedBytes(_ data: Data, control: RasterJobControl? = nil) throws -> RasterRawLocalMask {
+        guard data.count >= 16, data.count <= 128_000_016 else { throw DoctoredCoreError(message: "Local mask payload exceeds its bound.") }
+        let context = try rawLocalContext()
+        var error: UnsafeMutablePointer<CChar>?
+        let result = data.withUnsafeBytes { bytes in
+            dr_raw_local_mask_from_bytes(bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count,
+                context.limit, context.other, control?.ptr, &error)
+        }
+        guard let result else { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Invalid native local coverage.")) }
+        return RasterRawLocalMask(owning: result)
+    }
+    /// A mask from a host-generated byte coverage plane (the Vision subject or people mask):
+    /// `width * height` samples, row 0 top, 0 outside…255 inside, each stored by the core as
+    /// the u16 `v * 257`. nil: every sample was 0, so there is no coverage to store.
+    static func fromCoverage(_ samples: [UInt8], width: Int, height: Int,
+                             control: RasterJobControl? = nil) throws -> RasterRawLocalMask? {
+        guard let width = UInt32(exactly: width), let height = UInt32(exactly: height),
+              width > 0, height > 0, UInt64(width) * UInt64(height) <= 64_000_000,
+              samples.count == Int(width) * Int(height) else {
+            throw DoctoredCoreError(message: "Local masks require valid source dimensions up to 64 megapixels.")
+        }
+        let context = try rawLocalContext()
+        var error: UnsafeMutablePointer<CChar>?
+        let result = samples.withUnsafeBufferPointer { bytes in
+            dr_raw_local_mask_from_coverage(bytes.baseAddress, bytes.count, width, height,
+                context.limit, context.other, control?.ptr, &error)
+        }
+        if let error {
+            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not store generated local coverage."))
+        }
+        return result.map { RasterRawLocalMask(owning: $0) }
+    }
+    private static func commandText(_ command: [String: Any]) throws -> String {
+        let data = try JSONSerialization.data(withJSONObject: command, options: [.sortedKeys])
+        guard data.count <= 1024 * 1024, let text = String(data: data, encoding: .utf8) else {
+            throw DoctoredCoreError(message: "Local coverage command exceeds 1 MiB.")
+        }
+        return text
+    }
+    private func dimensionsInfo() throws -> [String: Any] {
+        var error: UnsafeMutablePointer<CChar>?
+        let value = dr_raw_local_mask_info(ptr, &error)
+        return try precisionJSON(value, error)
+    }
+    func info() throws -> [String: Any] {
+        var fields = try dimensionsInfo()
+        fields["encoded_bytes"] = fields["byte_length"]
+        fields["sha256"] = try sha256()
+        return fields
+    }
+    /// Hashes a borrowed immutable blob with no full-plane Data copy. The small
+    /// CryptoKit state is admitted; the handle remains alive for the whole call.
+    func sha256() throws -> String {
+        hashLock.lock()
+        let existing = cachedHash
+        hashLock.unlock()
+        if let existing { return existing }
+        _ = try RasterResources.shared.admit(scratch: 65_536)
+        var length = 0
+        var error: UnsafeMutablePointer<CChar>?
+        guard let bytes = dr_raw_local_mask_bytes(ptr, &length, &error) else {
+            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Local coverage bytes are unavailable."))
+        }
+        let hash = withExtendedLifetime(self) {
+            let data = Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: bytes), count: length, deallocator: .none)
+            return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        }
+        hashLock.lock()
+        cachedHash = hash
+        hashLock.unlock()
+        return hash
+    }
+    func encodedBytes(control: RasterJobControl? = nil) throws -> Data {
+        let fields = try dimensionsInfo()
+        let count = try PrecisionDocumentDescriptor.integer(fields, "byte_length")
+        guard count <= 128_000_016 else { throw DoctoredCoreError(message: "Local mask payload exceeds its bound.") }
+        _ = try RasterResources.shared.admit(scratch: count * 2 + 1024 * 1024)
+        let context = try rawLocalContext(masks: [self])
+        var data = Data(count: Int(count))
+        var error: UnsafeMutablePointer<CChar>?
+        let success = data.withUnsafeMutableBytes { bytes in
+            dr_raw_local_mask_copy(ptr, bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count,
+                context.limit, context.other, control?.ptr, &error)
+        }
+        guard success else { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not copy local coverage.")) }
+        return data
+    }
+    func previewScratch(x: Int, y: Int, width: Int, height: Int, divisor: Int,
+                        density: Double = 1, feather: Double = 0, effective: Bool = false) throws -> UInt64 {
+        guard let x = UInt32(exactly: x), let y = UInt32(exactly: y),
+              let width = UInt32(exactly: width), let height = UInt32(exactly: height),
+              let divisor = UInt32(exactly: divisor), divisor > 0 else {
+            throw DoctoredCoreError(message: "Invalid local coverage preview region.")
+        }
+        var error: UnsafeMutablePointer<CChar>?
+        let bytes = dr_raw_local_mask_preview_scratch(ptr, x, y, width, height, divisor,
+            density, feather, effective, &error)
+        guard bytes > 0 else { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not plan local coverage preview.")) }
+        return bytes
+    }
+    /// `base` and `range` come together or not at all: the local's range JSON
+    /// (`RawLocalRange.coreJSON`) and the 16-bit base development it reads. With them the
+    /// overlay is shape coverage times the range's coverage of the base, the weight the
+    /// development blends by. The base is read in place; `previewScratch` is still the plan.
+    func preview(x: Int, y: Int, width: Int, height: Int, divisor: Int,
+                 density: Double = 1, feather: Double = 0, effective: Bool = false,
+                 base: RasterDocument? = nil, range: String? = nil,
+                 control: RasterJobControl? = nil) throws -> RasterImage {
+        guard let x = UInt32(exactly: x), let y = UInt32(exactly: y),
+              let width = UInt32(exactly: width), let height = UInt32(exactly: height),
+              let divisor = UInt32(exactly: divisor), divisor > 0 else {
+            throw DoctoredCoreError(message: "Invalid local coverage preview region.")
+        }
+        guard (base == nil) == (range == nil), base == nil || base?.precision != nil else {
+            throw DoctoredCoreError(message: "A local range overlay needs its range and a 16-bit or 32-bit float base development together.")
+        }
+        if let range { try precisionCString(range, maximumBytes: 1024) }
+        let context = try rawLocalContext(documents: base.map { [$0] } ?? [], masks: [self])
+        var error: UnsafeMutablePointer<CChar>?
+        let result = withExtendedLifetime(base) {
+            dr_raw_local_mask_preview(ptr, base?.precision?.ptr, range, x, y, width, height, divisor,
+                density, feather, effective, context.limit, context.other, control?.ptr, &error)
+        }
+        guard let result else {
+            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not preview local coverage."))
+        }
+        return RasterImage(owning: result)
+    }
+}
+
+extension RasterDocument {
+    /// Share the retained source master in a plain native document, before layer
+    /// geometry or fallback conversion. The caller decides when it is a base. The
+    /// document is the master's own depth: 16-bit for a 16-bit SDR development, 32-bit
+    /// float for a 32-bit float (linear) one.
+    func rawLocalBaseSource(layer: Int, control: RasterJobControl? = nil) throws -> RasterDocument {
+        let image = try sourceMaster(layer)
+        let context = try rawLocalContext(images: [image])
+        var error: UnsafeMutablePointer<CChar>?
+        guard let result = dr_precision_doc_from_image(image.ptr, context.limit, context.other, control?.ptr, &error) else {
+            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not capture the full RAW source."))
+        }
+        return try RasterDocument(precision: RasterPrecisionDocument(owning: result))
+    }
+    func attachingRawLocalMasks(layer: Int, descriptor: String?, masks: [RasterRawLocalMask],
+                                control: RasterJobControl? = nil) throws -> RasterDocument {
+        guard isValidIndex(layer), masks.count <= RawEnhancementRecipe.maximumLocals else {
+            throw DoctoredCoreError(message: "Invalid local-mask attachment target or count.")
+        }
+        if let descriptor { try precisionCString(descriptor, maximumBytes: 64 * 1024) }
+        let metadata = try PrecisionEditPayload.admitted(bytes: UInt64(descriptor?.utf8.count ?? 0) * 512 + 65_536)
+        defer { withExtendedLifetime(metadata) {} }
+        let context = try rawLocalContext(documents: [self], masks: masks)
+        var error: UnsafeMutablePointer<CChar>?
+        let pointers = masks.map { Optional($0.ptr) }
+        let result = pointers.withUnsafeBufferPointer { values in
+            func attach(_ text: UnsafePointer<CChar>?) -> OpaquePointer? {
+                if let precision {
+                    return dr_precision_doc_attach_raw_local_masks(precision.ptr, layer, text, values.baseAddress,
+                        values.count, context.limit, context.other, control?.ptr, &error)
+                }
+                return dr_doc_attach_raw_local_masks(ptr, layer, text, values.baseAddress, values.count,
+                    context.limit, context.other, control?.ptr, &error)
+            }
+            return descriptor.map { $0.withCString(attach) } ?? attach(nil)
+        }
+        if let error { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not retain local RAW coverage.")) }
+        guard let result else { return self }
+        if isHighDepth { return try RasterDocument(precision: RasterPrecisionDocument(owning: result)) }
+        return RasterDocument(owning: result)
+    }
+    /// `variants[i]` is local `i`'s camera variant, or nil for a local with no camera change,
+    /// which the core evaluates on the development itself (`dr_precision_doc_develop_locals`):
+    /// at most 16 locals, 4 of them with a variant, and 32 KiB of settings.
+    func developLocals(variants: [RasterDocument?], masks: [RasterRawLocalMask], settings: String,
+                       vignette: String?, control: RasterJobControl? = nil) throws -> RasterDocument {
+        let cameras = variants.compactMap { $0 }
+        guard let precision, variants.count == masks.count,
+              variants.count <= RawEnhancementRecipe.maximumLocals,
+              cameras.count <= RawEnhancementRecipe.maximumCameraLocals,
+              cameras.allSatisfy(\.isHighDepth) else {
+            throw DoctoredCoreError(message: "Local development needs genuine 16-bit or 32-bit float base and variant sources.")
+        }
+        try precisionCString(settings, maximumBytes: 32_768)
+        if let vignette { try precisionCString(vignette, maximumBytes: 4096) }
+        let context = try rawLocalContext(documents: [self] + cameras, masks: masks)
+        let images = variants.map { $0?.precision?.ptr }
+        let planes = masks.map { Optional($0.ptr) }
+        var error: UnsafeMutablePointer<CChar>?
+        let result = images.withUnsafeBufferPointer { images in
+            planes.withUnsafeBufferPointer { planes in
+                func render(_ vignette: UnsafePointer<CChar>?) -> OpaquePointer? {
+                    dr_precision_doc_develop_locals(precision.ptr, images.baseAddress, planes.baseAddress, images.count,
+                        settings, vignette, context.limit, context.other, control?.ptr, &error)
+                }
+                return vignette.map { $0.withCString(render) } ?? render(nil)
+            }
+        }
+        if let error { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Local RAW evaluation failed.")) }
+        guard let result else { return self }
+        return try RasterDocument(precision: RasterPrecisionDocument(owning: result))
+    }
+    /// On a base development: the colour a range's Sample Colour click stores, as CIE L*a*b*
+    /// [L, a, b] (D50, L clamped to 0…100). The mean of the 5×5 pixels about source point
+    /// (`x`, `y`), clipped to the frame; `x` in 0…width and `y` in 0…height.
+    func rawRangeSample(x: Double, y: Double) throws -> [Double] {
+        guard let precision else {
+            throw DoctoredCoreError(message: "A local range colour is sampled from a 16-bit or 32-bit float base development.")
+        }
+        var lab = [Double](repeating: 0, count: 3)
+        var error: UnsafeMutablePointer<CChar>?
+        guard dr_precision_doc_raw_range_sample(precision.ptr, x, y, &lab, &error) else {
+            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not sample a local range colour."))
+        }
+        return lab
+    }
+}
+
+// MARK: - RAW source geometry and local-mask remapping
+
+extension RasterRawLocalMask {
+    func remapPlan(_ request: String, channel: UInt32 = 1) throws -> [String: Any] {
+        let context = try rawLocalContext(masks: [self])
+        var error: UnsafeMutablePointer<CChar>?
+        return try precisionJSON(dr_raw_local_mask_remap_plan(ptr, request, channel,
+            context.limit, context.other, &error), error)
+    }
+    func remapped(_ request: String, channel: UInt32 = 1,
+                  control: RasterJobControl? = nil) throws -> RasterRawLocalMask {
+        let context = try rawLocalContext(masks: [self])
+        var error: UnsafeMutablePointer<CChar>?
+        let result = dr_raw_local_mask_remap(ptr, request, channel,
+            context.limit, context.other, control?.ptr, &error)
+        if let error {
+            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "RAW local remap failed."))
+        }
+        return result.map { RasterRawLocalMask(owning: $0) } ?? self
+    }
+    /// This coverage at `width` x `height` in normalised coordinates (each axis scaled on its
+    /// own; edge-normalised bilinear): Synchronize RAW Settings' Masking. `self` when the
+    /// size is unchanged.
+    func resized(width: Int, height: Int, control: RasterJobControl? = nil) throws -> RasterRawLocalMask {
+        guard let width = UInt32(exactly: width), let height = UInt32(exactly: height),
+              width > 0, height > 0, UInt64(width) * UInt64(height) <= 64_000_000 else {
+            throw DoctoredCoreError(message: "Local masks require valid source dimensions up to 64 megapixels.")
+        }
+        let context = try rawLocalContext(masks: [self])
+        var error: UnsafeMutablePointer<CChar>?
+        let result = dr_raw_local_mask_resize(ptr, width, height,
+            context.limit, context.other, control?.ptr, &error)
+        if let error {
+            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "RAW local resize failed."))
+        }
+        return result.map { RasterRawLocalMask(owning: $0) } ?? self
+    }
+}
+
+extension RasterDocument {
+    func rawSourceGeometryPlan(_ request: String) throws -> [String: Any] {
+        guard let precision else {
+            throw DoctoredCoreError(message: "RAW source geometry requires genuine RGBA16 or RGBA32 float storage.")
+        }
+        let context = try rawLocalContext(documents: [self])
+        var error: UnsafeMutablePointer<CChar>?
+        return try precisionJSON(dr_raw_source_geometry_plan(precision.ptr, request,
+            context.limit, context.other, &error), error)
+    }
+    func applyingRawSourceGeometry(_ request: String,
+                                   control: RasterJobControl? = nil) throws -> RasterDocument {
+        guard let precision else {
+            throw DoctoredCoreError(message: "RAW source geometry requires genuine RGBA16 or RGBA32 float storage.")
+        }
+        let context = try rawLocalContext(documents: [self])
+        var error: UnsafeMutablePointer<CChar>?
+        let result = dr_raw_source_geometry(precision.ptr, request,
+            context.limit, context.other, control?.ptr, &error)
+        if let error {
+            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "RAW source geometry failed."))
+        }
+        return try result.map { try RasterDocument(precision: RasterPrecisionDocument(owning: $0)) } ?? self
+    }
+}

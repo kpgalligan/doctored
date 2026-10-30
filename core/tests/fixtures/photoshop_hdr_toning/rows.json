@@ -1,0 +1,163 @@
+{
+  "take": "hdr-toning-564/take3",
+  "photoshop": "26.10.0",
+  "form": "C1",
+  "members": {
+    "LA": "hdrtype4",
+    "EG": "hdrtype2",
+    "HC": "hdrtype1",
+    "EH": "hdrtype3"
+  },
+  "gate": {
+    "max": 2.0,
+    "mean": 0.5
+  },
+  "gamma": "CLAMPED",
+  "preset": "SELECTED",
+  "rows": [
+    {
+      "document": "chart",
+      "name": "la_default",
+      "method": "LA",
+      "request": {
+        "method": "local_adaptation"
+      },
+      "max": 19.3346,
+      "mean": 11.035,
+      "verdict": "MISS"
+    },
+    {
+      "document": "chart",
+      "name": "eg_0_1",
+      "method": "EG",
+      "request": {
+        "method": "exposure_gamma",
+        "exposure": 0.0,
+        "gamma": 1.0
+      },
+      "max": 0.0233,
+      "mean": 0.0018,
+      "verdict": "PASS"
+    },
+    {
+      "document": "chart",
+      "name": "eg_p15_18",
+      "method": "EG",
+      "request": {
+        "method": "exposure_gamma",
+        "exposure": 1.5,
+        "gamma": 1.8
+      },
+      "max": 117.0739,
+      "mean": 45.0905,
+      "verdict": "MISS"
+    },
+    {
+      "document": "chart",
+      "name": "eg_m2_06",
+      "method": "EG",
+      "request": {
+        "method": "exposure_gamma",
+        "exposure": -2.0,
+        "gamma": 0.6
+      },
+      "max": 108.0,
+      "mean": 45.7543,
+      "verdict": "MISS"
+    },
+    {
+      "document": "chart",
+      "name": "hc",
+      "method": "HC",
+      "request": {
+        "method": "highlight_compression"
+      },
+      "max": 84.9377,
+      "mean": 5.3884,
+      "verdict": "MISS"
+    },
+    {
+      "document": "chart",
+      "name": "eh",
+      "method": "EH",
+      "request": {
+        "method": "equalize_histogram"
+      },
+      "max": 70.2957,
+      "mean": 15.9105,
+      "verdict": "MISS"
+    },
+    {
+      "document": "merged",
+      "name": "la_default",
+      "method": "LA",
+      "request": {
+        "method": "local_adaptation"
+      },
+      "max": 14.4202,
+      "mean": 10.9934,
+      "verdict": "MISS"
+    },
+    {
+      "document": "merged",
+      "name": "eg_0_1",
+      "method": "EG",
+      "request": {
+        "method": "exposure_gamma",
+        "exposure": 0.0,
+        "gamma": 1.0
+      },
+      "max": 0.0233,
+      "mean": 0.0022,
+      "verdict": "PASS"
+    },
+    {
+      "document": "merged",
+      "name": "eg_p15_18",
+      "method": "EG",
+      "request": {
+        "method": "exposure_gamma",
+        "exposure": 1.5,
+        "gamma": 1.8
+      },
+      "max": 111.6031,
+      "mean": 53.8509,
+      "verdict": "MISS"
+    },
+    {
+      "document": "merged",
+      "name": "eg_m2_06",
+      "method": "EG",
+      "request": {
+        "method": "exposure_gamma",
+        "exposure": -2.0,
+        "gamma": 0.6
+      },
+      "max": 99.2412,
+      "mean": 53.7249,
+      "verdict": "MISS"
+    },
+    {
+      "document": "merged",
+      "name": "hc",
+      "method": "HC",
+      "request": {
+        "method": "highlight_compression"
+      },
+      "max": 20.8599,
+      "mean": 1.878,
+      "verdict": "MISS"
+    },
+    {
+      "document": "merged",
+      "name": "eh",
+      "method": "EH",
+      "request": {
+        "method": "equalize_histogram"
+      },
+      "max": 21.3191,
+      "mean": 12.8307,
+      "verdict": "MISS"
+    }
+  ]
+}

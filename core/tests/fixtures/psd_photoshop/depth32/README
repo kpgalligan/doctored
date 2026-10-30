@@ -1,0 +1,7 @@
+source32.psd: Photoshop 26.10.0's 32-bit RGB PSD of the #653 take's scene
+(scripts/photoshop-probe/psd32_653_take.py, run 20261020T191439Z-6899b32b, verdict
+STOP, stored-composite candidate None).
+photoshop.json holds the declared scene, Photoshop's rows and the judged
+composite regions; core/tests/psd_photoshop_depth32.rs restates the oracle.
+The runner's RECORDED RESULT explains the verdict and the composite (H1
+with Inner's stored opacity code 191).

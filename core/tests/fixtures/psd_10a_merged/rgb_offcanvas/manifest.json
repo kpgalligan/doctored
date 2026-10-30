@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "name": "rgb_offcanvas",
+  "application": {
+    "name": "GIMP",
+    "version": "3.2.6"
+  },
+  "loader": "file-psd-load-merged",
+  "source_psd_sha256": "473291f2bc770e7b257c0d0c96b96746630fc8c3c36f16caf57b4ea0f544dfde",
+  "merged": {
+    "canvas": [
+      4,
+      3
+    ],
+    "precision": "u8-non-linear",
+    "color_mode": "rgb",
+    "resolution": [
+      300.0,
+      240.0
+    ],
+    "profile": "merged.icc",
+    "profile_sha256": "a826ff7ee19552918399475808f7f4e63299859a2b4081fbe3bb501115ff4ebd",
+    "layers": [
+      {
+        "name": "Background",
+        "kind": "raster",
+        "depth": 0,
+        "offset": [
+          0,
+          0
+        ],
+        "size": [
+          4,
+          3
+        ],
+        "rgba": [
+          28,
+          103,
+          174,
+          255,
+          58,
+          123,
+          185,
+          255,
+          25,
+          95,
+          161,
+          255,
+          79,
+          133,
+          185,
+          255,
+          31,
+          106,
+          180,
+          255,
+          40,
+          112,
+          180,
+          255,
+          47,
+          98,
+          169,
+          255,
+          55,
+          117,
+          175,
+          255,
+          66,
+          135,
+          150,
+          255,
+          30,
+          107,
+          180,
+          255,
+          35,
+          112,
+          175,
+          255,
+          40,
+          108,
+          172,
+          255
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "normal",
+        "mask": null
+      }
+    ],
+    "saved_channels": []
+  },
+  "original_icc_sha256": "c9852c1ea68a71c2b396990b1505385207371667b2ca6b0b98b9c81a7d01ab90",
+  "icc_creation_time_only_difference": true,
+  "files": {
+    "merged.icc": "a826ff7ee19552918399475808f7f4e63299859a2b4081fbe3bb501115ff4ebd",
+    "merged.png": "71d7c2b7445322720d29bd305966511cadbfe8b3d746254b2c6c1149eb6f7981"
+  }
+}

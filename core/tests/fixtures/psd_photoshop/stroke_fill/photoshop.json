@@ -1,0 +1,27 @@
+{
+ "schema": 1,
+ "application": {
+  "name": "Adobe Photoshop",
+  "version": "26.10.0"
+ },
+ "source": "~/devel/doctored-fixtures/photoshop/stroke-fill-557/take1 (scripts/photoshop-probe/stroke_fill_take.py --take)",
+ "run_id": "rz-557-stroke-20261016T031550Z-b1929bc6",
+ "cases": {
+  "sb_c_rgb8": "RGB8 96x64 white, FS_source #30a050 cut to (13, 9, 50, 40) with an 8 px Center Stroke, Fill Type Gradient black to white, Style Shape Burst (GrdT shapeburst), Scale 100 %, Dither off, Normal 100 %",
+  "pt_o_rgb8": "RGB8 96x64 white, FS_source #30a050 cut to (13, 9, 50, 40) with an 8 px Outside Stroke, Fill Type Pattern T (12x8, texel (20x+10, 30y+15, 200 if x+y even else 60)), Scale 100 %, phase (0, 0), Link with Layer on, Normal 100 %",
+  "pt_i_rgb8": "as pt_o_rgb8 at Inside",
+  "pt_c_rgb8": "as pt_o_rgb8 at Center",
+  "pt_u_rgb8": "as pt_o_rgb8 with Link with Layer off and phase (5, 2); the layer translated (+7, +3) after the style is set",
+  "pt_o_rgb16": "as pt_o_rgb8 in an RGB16 document"
+ },
+ "files": {
+  "sb_c_rgb8.psd": "fcf3a2e27c51f13629c10b0027396b33e89936c4ee9904c79720d41295c551ea",
+  "sb_c_rgb8.tif": "8ef7f2ec2328a2440ef7aff4f936c7b2f3f823ed49ae69b0948d2071ebb20b36",
+  "pt_o_rgb8.psd": "a7e9275058d2b1bcbe8cf6d05b5836fdd8172d6067d8ab027c5ad41e321d5fb2",
+  "pt_o_rgb8.tif": "2f5be00caf0acee84d0c12f18a74fde34521bf254b67e1a62b75bb1096d0010a",
+  "pt_i_rgb8.tif": "15d0211051733e7fafe7590e3b5db2c0b9d18e170ce3f5bd0c4f577aa6cd6611",
+  "pt_c_rgb8.tif": "22a872f3771558d6bb2f873932c944f48973d3bafc4974961239f5b72f28ee24",
+  "pt_u_rgb8.tif": "49f9cf7e158c71bb22fd2335eafc376f064b398f5ba701b3b1c2e91be9cc32bd",
+  "pt_o_rgb16.tif": "988f06abaadd23bb46725f81d70ac3c4db6a3d1a836aa68ca4ddf6788783d017"
+ }
+}

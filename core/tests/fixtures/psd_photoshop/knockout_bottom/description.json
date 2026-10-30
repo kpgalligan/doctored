@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "name": "knockout_bottom",
+  "canvas": [
+    64,
+    64
+  ],
+  "profile": "sRGB IEC61966-2.1",
+  "base": {
+    "name": "Bottom",
+    "png": "base.png"
+  },
+  "layers": [
+    {
+      "name": "Mid",
+      "png": "mid.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true
+    },
+    {
+      "name": "DeepKnock",
+      "png": "high.png",
+      "offset": [
+        16,
+        16
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "knockout": "deep",
+      "fill_opacity": 0
+    },
+    {
+      "name": "ClipBase",
+      "png": "extra.png",
+      "offset": [
+        0,
+        0
+      ],
+      "opacity": 100,
+      "blend": "multiply",
+      "visible": true,
+      "blend_interior": true,
+      "effects": {
+        "color_overlay": {
+          "color": [
+            0,
+            255,
+            0
+          ],
+          "opacity": 100,
+          "blend": "normal"
+        }
+      }
+    },
+    {
+      "name": "ClipMember",
+      "png": "high.png",
+      "offset": [
+        16,
+        16
+      ],
+      "opacity": 100,
+      "blend": "normal",
+      "visible": true,
+      "clipped": true
+    }
+  ]
+}

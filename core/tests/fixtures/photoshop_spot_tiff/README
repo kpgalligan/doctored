@@ -1,0 +1,43 @@
+#547 spot channels 1c-2a: flat and layered TIFF fixtures with spot channels, authored by Adobe
+Photoshop 2025 26.10.0 (scripts/photoshop-probe/spot_tiff_take.py, take2, run
+20261026T230703Z-a8b8762a; receipts in ~/devel/doctored-fixtures/photoshop/spot-tiff-547/take2.
+take1 was skipped before anything was driven: a Photoshop the run had not launched was open).
+
+Each file starts from one of the runner's PNG scenes: S, 32 x 8 opaque, gray v(x) =
+round(255 x / 31); St, the same with alpha 0 at x >= 28. The spot channels are 1b's
+(spot_psd_take.py): one Make of a new spot channel each, filled from the selection:
+
+  Spot Ramp     Lab (55, 70, 30), from the Red channel loaded as the selection: coverage v(x)
+  Spot Bloc é   Lab (80, -20, 60), from the rectangle x in [8, 24), y in [2, 6): full inside
+
+  file          mode, depth   scene   kind      spots (solidity %)
+  rgb8.tif      RGB 8         S       flat      Ramp 0, Bloc 100
+  rgb8_t.tif    RGB 8         St      flat      Bloc 50 (with a transparency)
+  rgb16.tif     RGB 16        S       flat      Ramp 50, Bloc 100
+  cmyk8.tif     CMYK 8        S       flat      Ramp 100, Bloc 0
+  cmyk16.tif    CMYK 16       S       flat      Ramp 50
+  rgb8_l.tif    RGB 8         St      layered   Ramp 0, Bloc 100
+  cmyk16_l.tif  CMYK 16       St      layered   Ramp 50
+
+Saved as copies with TiffSaveOptions (alpha channels, spot colors and transparency on; layers
+per kind; no compression; byte order MACOS; profile embedded), reopened by Photoshop with every
+spot's name, kind SPOTCOLOR, solidity and Lab as declared. The two PDFs of the take (rgb8.pdf,
+cmyk16.pdf) are not committed: both keep the spots as /Separation colourants (PDF-FORM
+SEPARATIONS).
+
+photoshop.json holds, for each file, its sha256, bytes, mode, depth, kind, the directory's
+layout (byte order, Photometric, SamplesPerPixel, BitsPerSample, ExtraSamples, Planar,
+Compression, tag 34377's resource ids and the channel resources as hex, the first saved sample),
+the PLACE, POLARITY and COMPOSITE readings, and per spot its name, declared and readback Lab,
+solidity, DisplayInfo kind and colour space, the stored Lab words and the stored rows.
+
+What the flat files say, which is the reader's and writer's spec (core/src/tiff_spot_samples.rs,
+core/src/tiff_spot.rs): one MM directory, uncompressed chunky strips; a spot channel is a
+TRAILING extra sample after the colour samples and the transparency, ExtraSamples 0 (the
+transparency is ExtraSamples 1); its samples are stored INVERTED, max - coverage, in RGB and
+CMYK alike (H1); the composite holds no overprint (C0); tag 34377 holds the PSD's 1006 (Mac
+Roman), 1045, 1077 (kind 2, Lab) and 1053 (ids from 3) and no 1007, every list leading with
+"Transparency" (kind 1, id 0) when the file has one (L1). The layered files carry the same
+trailing extras on their composite and tag 37724 (Layr / Lr16); they are recorded for 1c-2b.
+
+Read by core/tests/spot_tiff_photoshop.rs, which SKIPs when this folder is absent.

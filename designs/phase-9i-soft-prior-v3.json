@@ -1,0 +1,22 @@
+{
+  "candidate": "protected_tiled_soft_prior_v3",
+  "alpha_candidate": "exact unchanged tiled_soft_prior_v2 algorithm and parameters",
+  "input_policy_version": 1,
+  "foreground_policy": "source_protection_v1",
+  "foreground_initial_estimator": "unchanged encoded-RGB multilevel foreground estimation",
+  "eligible_color_footprint": "estimated alpha in 1..127, automatic prior in 0..127, explicit user label Unknown (128), estimated RGB different from source",
+  "outside_footprint": "preserve observed source RGB exactly",
+  "foreground_support": "observed source RGB within 8 byte codes per channel of any observed high-prior (>=247) or explicit-user-foreground sample in a clipped radius16 square; explicit user background never supplies foreground support",
+  "supported_footprint_pixel": "preserve observed source RGB exactly",
+  "unsupported_footprint_pixel": "use existing estimated foreground RGB",
+  "alpha_changed_by_color_protection": false,
+  "purpose": "test whether conservative source-only color support reduces opaque damage while retaining the original fractional-color and recomposition gates",
+  "physical_opacity_claimed": false,
+  "user_constraints": "none in automatic benchmark; explicit user labels independently tested",
+  "max_local_sample_checks": 250000000,
+  "any_resource_refusal": "failure, with complete prior diagnostic metrics retained",
+  "fixtures": "all original 24 analytic, 24 photographic crop and 42 complete photographic cases",
+  "gates": "unchanged phase-6-matting-reference-protocol",
+  "truth_at_inference": false,
+  "advanced_controls_enabled": false
+}

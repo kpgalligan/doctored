@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "name": "rgb_p3_ppi",
+  "application": {
+    "name": "GIMP",
+    "version": "3.2.6"
+  },
+  "profile_note": "merged.icc is Apple's Display P3 profile (copyright Apple Inc.), exactly as GIMP 3.2.6 embedded it in ../../psd_10a/rgb_p3_ppi/source.psd.",
+  "loader": "file-psd-load-merged",
+  "source_psd_sha256": "3963252b12bfd201fab40583d9d3ddd3faa7788ad37a73492bcde0191bdc81c4",
+  "merged": {
+    "canvas": [
+      4,
+      3
+    ],
+    "precision": "u8-non-linear",
+    "color_mode": "rgb",
+    "resolution": [
+      300.0,
+      240.0
+    ],
+    "profile": "merged.icc",
+    "profile_sha256": "0ff6958f98684c61f6bbdce1368ddeaf3873baf84545baba482e920d92a914c0",
+    "layers": [
+      {
+        "name": "Background",
+        "kind": "raster",
+        "depth": 0,
+        "offset": [
+          0,
+          0
+        ],
+        "size": [
+          4,
+          3
+        ],
+        "rgba": [
+          197,
+          100,
+          43,
+          255,
+          91,
+          184,
+          228,
+          255,
+          197,
+          100,
+          43,
+          255,
+          91,
+          184,
+          228,
+          255,
+          197,
+          100,
+          43,
+          255,
+          91,
+          184,
+          228,
+          255,
+          197,
+          100,
+          43,
+          255,
+          91,
+          184,
+          228,
+          255,
+          197,
+          100,
+          43,
+          255,
+          91,
+          184,
+          228,
+          255,
+          197,
+          100,
+          43,
+          255,
+          91,
+          184,
+          228,
+          255
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "normal",
+        "mask": null
+      }
+    ],
+    "saved_channels": []
+  },
+  "original_icc_sha256": "0ff6958f98684c61f6bbdce1368ddeaf3873baf84545baba482e920d92a914c0",
+  "icc_creation_time_only_difference": false,
+  "files": {
+    "merged.icc": "0ff6958f98684c61f6bbdce1368ddeaf3873baf84545baba482e920d92a914c0",
+    "merged.png": "1058362170186224f9e812724548c05facbc7131b57823695bc2a847f5a5da5f"
+  }
+}

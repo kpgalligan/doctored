@@ -1,0 +1,77 @@
+gradient_identify_673 - Photoshop 26.10.0 Gradient Fill / Gradient Overlay profiles
+(Linear, Radial, Angle and Reflected, two-stop black to white and the 3-stop, 8-bit codes) for
+core/tests/style_gradient_identify_parity.rs (#673).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/gradient-identify-673/take1/profiles.json
+Written by: scripts/photoshop-probe/gradient_identify_673_fit.py --fixtures (on a
+--judge-style-split SHIP; Reflected on its --judge-phase2 SHIP, the controller's
+RULING-1 of phase 2; Radial on its --judge-rint SHIP, the controller's RULING-1 of
+take 2; the Shape Burst on its --judge-phase3 SHIP: Diamond keeps today's kernel)
+
+pixels: per profile geometry, the profile's pixels [x, y] in the take's order
+(axis: -1/2 < v <= 1/2 sorted by u; ring: 96 <= |d| < 97 sorted by theta;
+row: y = 128 sorted by x).
+rows: depth, style, item (fill | overlay), angle, scale, reverse, stops [[position,
+value]], pixels (the key), codes (Photoshop, red, 8-bit codes), seam (entry indices
+in the bin: Angle's SEAM, within 2 degrees of a jump of more than 128 codes;
+Radial's, Reflected's and Diamond's CENTRE, |coordinate| < 1.5).
+
+take2.json (Radial, take 2): source receipt ~/devel/doctored-fixtures/photoshop/
+gradient-identify-673/take2/profiles.json (402 cases, 216 Radial on six boxes).
+pixels: rowcol_<bw>x<bh>, the row y = floor(bh/2) by x, then the column
+x = floor(bw/2) by y.
+rows: as above plus box [bw, bh] (the document is the box);
+seam: the CENTRE entries, pixel centre within 1.5 of the box centre.
+
+take2_burst.json (the Shape Burst Stroke, take 2) for
+core/tests/style_shape_burst_identify_parity.rs: the 54 Smoothness-100 rows
+(Outside, Inside and Center at Size 4, 16 and 32 on the rect, the disc and the
+anti-aliased disc, 8 and 16 bits). rows: [{key, depth, shape, position, size,
+pixels: [[x, side, code], ...]}], pixels the judged band on row y = 80 (no
+partial-alpha pixel; Outside the outside pixels within Size of the alpha >= 1/2
+contour, Inside the inside ones, Center both sides within Size / 2, Euclidean),
+side in | out, code Photoshop's red in 8-bit codes.
+
+take2_smooth.json (Gradient Smoothness, take 2) for
+core/tests/style_gradient_identify_parity.rs: the 20 SMOOTH rows
+f_lin{2,3}_sm{0,25,50,75,100}_{8,16} (Linear 0 degrees, scale 100, 256 x 256; lin2
+the two stops, lin3 the three at midpoints 50). pixels and rows as profiles.json
+plus smoothness (the percent as sent); no seam.
+
+take2_midpoint.json (gradient stop midpoints, take 2) for
+core/tests/style_gradient_identify_parity.rs: the 10 MIDPOINT rows
+f_3s_md{10,25,50,75,90}_{8,16} (Linear 0 degrees, scale 100, 256 x 256, the three
+stops, every stop at the row's Mdpn), on --judge-midpoints SHIP. pixels and rows
+as take2_smooth.json with midpoints (the percents as sent) for smoothness.
+
+map_take1.json (the RGB Gradient Map, gradient-map-673 take1) for
+core/tests/gradient_map_identify_parity.rs: source receipt
+~/devel/doctored-fixtures/photoshop/gradient-map-673/take1/profiles.json, written by
+scripts/photoshop-probe/gradient_map_673_take.py --judge (SMOOTH KEEP, MIDPOINT KEEP:
+today's kernel). verdicts: the runner's; rows: [{name, depth, family (grid | seg |
+method), set (G2 | G3 | C3), stops [{position, color [r, g, b] 0..255}], midpoints
+(percents as sent), smoothness (Intr / 4096), method, codes}], codes Photoshop's R, G, B
+in 8-bit codes (16 bits: v / 257) on row y = 1 per column of the ramp (8 bits: 256
+wide, gray x; 16 bits: 1024 wide, gray round(65535 x / 1023)).
+
+map_678_take1.json (the RGB Gradient Map confirm take, gradient-map-678 take1, #678) for
+core/tests/gradient_map_identify_parity.rs: source receipt
+~/devel/doctored-fixtures/photoshop/gradient-map-678/take1/profiles.json, written by
+scripts/photoshop-probe/gradient_map_678_take.py --judge (SMOOTH SHIP with CLAMP, the bracket
+bound; MIDPOINT SHIP; FILL ASSIGNMENT NEXT; FILL CLAMP CLAMPED; METHOD Perceptual PERC-OK,
+Linear and Smooth NONE). fit: the runner's offline fit on map_take1.json (C, R_fit, F);
+verdicts: the runner's; rows: [{name, depth, family (smooth | seg | method | fill_seg |
+fill_n4), set (N2 | N4), stops [{position, color [r, g, b] 0..255}], midpoints (Photoshop's
+Mdpn per stop, percents as sent: segment i reads stop i + 1's), smoothness (Intr / 4096),
+method (Perc | Lnr | Smoo, or null for Classic), codes}], codes Photoshop's R, G, B in 8-bit
+codes (16 bits: v / 257); a map row on row y = 1 per column of the ramp (as map_take1.json),
+a fill row (a Gradient Fill layer, Linear 0 degrees, 256 x 256) on row y = 128 per column.
+
+sha256:
+  a954ac099fa5b37d33f2f4e3fccd2e2873afcc716d2cdafe1421f3e3adeeb70d  profiles.json
+  d7728ee98ce1f1b502583026d809461ab9869847d3c7e1b1e572f7992239e0d5  take2.json
+  96ee6c34eb14bdb16f35f8f99992949ccc29292d25bd11063ce10f4bcfaffc5b  take2_burst.json
+  0ee752d7e0838323c3f082cd104bd005f9a026258d16ab9609c001b6eae77751  take2_smooth.json
+  82bdabea1a429201b03d2e00ae9902f51fc42f14f655bf775830729304c1e916  take2_midpoint.json
+  0bbab2df3119c95c0906c391bad0f1a45979631b89e701086953e9c07e1f0dfd  map_take1.json
+  1464648faffb9c43458443a27d6fda406fc697625f921087551223f094cc6ac8  map_678_take1.json

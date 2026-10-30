@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "name": "rgb_mask_disabled",
+  "application": {
+    "name": "GIMP",
+    "version": "3.2.6"
+  },
+  "loader": "file-psd-load-merged",
+  "source_psd_sha256": "fe4e4225fb55bd6c024f2e7ca6a8ab45e99f4c27e12183327c10dcc8b2faedc0",
+  "merged": {
+    "canvas": [
+      4,
+      3
+    ],
+    "precision": "u8-non-linear",
+    "color_mode": "rgb",
+    "resolution": [
+      300.0,
+      240.0
+    ],
+    "profile": "merged.icc",
+    "profile_sha256": "a826ff7ee19552918399475808f7f4e63299859a2b4081fbe3bb501115ff4ebd",
+    "layers": [
+      {
+        "name": "Background",
+        "kind": "raster",
+        "depth": 0,
+        "offset": [
+          0,
+          0
+        ],
+        "size": [
+          4,
+          3
+        ],
+        "rgba": [
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255,
+          161,
+          85,
+          66,
+          255
+        ],
+        "opacity": 1.0,
+        "visible": true,
+        "blend": "normal",
+        "mask": null
+      }
+    ],
+    "saved_channels": []
+  },
+  "original_icc_sha256": "c9852c1ea68a71c2b396990b1505385207371667b2ca6b0b98b9c81a7d01ab90",
+  "icc_creation_time_only_difference": true,
+  "files": {
+    "merged.icc": "a826ff7ee19552918399475808f7f4e63299859a2b4081fbe3bb501115ff4ebd",
+    "merged.png": "32a9fd540db23865a0b18945ac4e8de62e993df43a5e39b57f5a00b16a9bf50f"
+  }
+}

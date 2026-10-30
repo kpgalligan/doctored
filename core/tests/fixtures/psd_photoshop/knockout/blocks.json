@@ -1,0 +1,120 @@
+{
+  "records": {
+    "0": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "00000000",
+      "name": "Background"
+    },
+    "1": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "00000000",
+      "name": "Mid"
+    },
+    "10": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "00000000",
+      "name": "PassInnerB"
+    },
+    "11": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "02000000",
+      "name": "PassKnockB"
+    },
+    "12": {
+      "name": "PassDeep"
+    },
+    "13": {
+      "name": "</Layer group>"
+    },
+    "14": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "00000000",
+      "name": "IsoInner"
+    },
+    "15": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "02000000",
+      "name": "IsoKnock"
+    },
+    "16": {
+      "name": "IsoDeep"
+    },
+    "17": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "00000000",
+      "name": "ClipBase"
+    },
+    "18": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "00000000",
+      "name": "ClipLower"
+    },
+    "19": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "01000000",
+      "name": "ClipKnock"
+    },
+    "2": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "01000000",
+      "name": "RootShallow"
+    },
+    "20": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "00000000",
+      "name": "InteriorOff"
+    },
+    "21": {
+      "clbl": "01000000",
+      "infx": "01000000",
+      "knko": "00000000",
+      "name": "InteriorOn"
+    },
+    "3": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "02000000",
+      "name": "FillHalfMultiply"
+    },
+    "4": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "02000000",
+      "name": "BlendIf"
+    },
+    "5": {
+      "name": "</Layer group>"
+    },
+    "6": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "00000000",
+      "name": "PassInnerA"
+    },
+    "7": {
+      "clbl": "01000000",
+      "infx": "00000000",
+      "knko": "01000000",
+      "name": "PassKnockA"
+    },
+    "8": {
+      "name": "PassShallow"
+    },
+    "9": {
+      "name": "</Layer group>"
+    }
+  },
+  "schema": 2,
+  "source": "source.psd"
+}

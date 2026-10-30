@@ -1,0 +1,136 @@
+identify_578 - Photoshop 26.10.0 Inner Glow profiles (gate values only, 8-bit codes)
+for core/tests/style_inner_glow_identify_parity.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/identify-578/take1/profiles.json
+Written by: scripts/photoshop-probe/inner_glow_578_law_fit.py --fixtures
+Sources: edge, center
+
+sha256:
+  e3c41caae6117bc439167f2ec4c0f5cf2c619f357e84c6948f840419f589687b  profiles.json
+
+bevel_profiles.json - Photoshop 26.10.0 Smooth Inner Bevel profiles (the 144 identify
+rows, gate values only, 8-bit codes) for core/tests/style_bevel_identify_parity.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/identify-578/take1/profiles.json
+Written by: scripts/photoshop-probe/bevel_578_law_fit.py --fixtures (on a --judge-style-split SHIP)
+
+sha256:
+  55fd32c48b9b99f4c663233af7b913ddb744def82e7474f3ab784f1ffbcd1996  bevel_profiles.json
+
+choke100_profiles.json - Photoshop 26.10.0 Inner Glow profiles at Choke 100 % (the 80
+edge rows of the second identify take: style-parity-v1x take1's fx picture and an
+anti-aliased r = 40 disc, Size 1, 3, 8, 16, 32, Range 25, 50, 75, 100, at 8 and 16 bits;
+the whole profile, 8-bit codes) for core/tests/style_inner_glow_choke100_parity.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/identify-578/take2/profiles.json
+Written by: scripts/photoshop-probe/inner_glow_578_law_fit.py --fixtures-choke100 (on a
+--judge-choke100 SHIP; edge only, the centre was judged STOP)
+
+sha256:
+  60d24f450b686b5e6919cbf9e128c76e6212dc62c97520f8171e52fe017c07b8  choke100_profiles.json
+
+choke100_center_profiles.json - Photoshop 26.10.0 Inner Glow profiles at Choke 100 % (the 80
+centre rows of the second identify take: the same pictures, Sizes, Ranges and depths as
+choke100_profiles.json; the whole profile, 8-bit codes) for
+core/tests/style_inner_glow_choke100_parity.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/identify-578/take2/profiles.json
+Written by: scripts/photoshop-probe/inner_glow_578_law_fit.py --fixtures-choke100-centre (on a
+--judge-choke100-centre SHIP: the centre takes M below Size 24, today's kernel from Size 24)
+
+sha256:
+  1453291a9f12386c6124cef3376d2bcb6854c975d34fb8a901a7701ec1316537  choke100_center_profiles.json
+
+emboss_pillow_profiles.json - Photoshop 26.10.0 Smooth Emboss and Pillow Emboss profiles (the
+224 bevel rows of the second identify take, 112 per style: the half plane and the r = 40 disc,
+highlight and shadow sides, lights a0e0 and e90, Size 1, 4, 8, 16, 32 at Depth 100 and Size 8 at
+Depth 50 and 200, at 8 and 16 bits; the whole profile, 8-bit codes) for
+core/tests/style_bevel_emboss_take2_parity.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/identify-578/take2/profiles.json
+Written by: scripts/photoshop-probe/bevel_578_law_fit.py --fixtures-take2 (on a --judge-take2
+SHIP for both styles)
+
+sha256:
+  79088ed5b7f266a06611141a4015e1be08e98b4e2ec3f1679cc0fb4a7915cf9b  emboss_pillow_profiles.json
+
+chisel_take3_profiles.json - Photoshop 26.10.0 Chisel Hard and Chisel Soft Pillow Emboss
+profiles (the 192 rows of the third identify take for the two shipped arms, 96 per technique:
+the half plane and the r = 40 disc, highlight and shadow sides, altitude 30, 45 and 60,
+Soften 0 and 4, Size 4 and 16, at 8 and 16 bits; `values`, and `left` on the half plane,
+8-bit codes; every row `take` 3) for core/tests/style_bevel_chisel_take3_parity.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/identify-578/take3/profiles.json
+Written by: scripts/photoshop-probe/bevel_578_law_fit.py --fixtures-chisel-take3 (on a
+--judge-chisel-take3 SHIP for Pillow Emboss, Hard and Soft)
+
+sha256:
+  bb5dde8f9aee97befd91edb90e024cf751b87433bae84a2e40ec14c30930d76f  chisel_take3_profiles.json
+
+take4_inner_profiles.json - Photoshop 26.10.0 Inner Glow profiles on anti-aliased pictures (the
+144 rows of the fourth identify take where the law runs, Choke 0, 50 and 80, 72 per source: the
+half plane whose x = 256 column has coverage 0.25 / 0.5 / 0.75 and the supersampled r = 40 disc,
+Size 4, 12, 32, Range 50 and 100, at 8 and 16 bits; the whole profile, 8-bit codes) for
+core/tests/style_inner_glow_aa_parity.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/identify-578/take4/profiles.json
+Written by: scripts/photoshop-probe/glow_aa_578_law_fit.py --fixtures-inner (on an INNER JUDGE
+SHIP for La/edge and La/center; Ma/edge KEEP and Ma/center STOP, so Choke 100 % has no rows)
+
+sha256:
+  a02a27ec13a17690fc0588ae67fc0501737a44afddef417c17add03775686eea  take4_inner_profiles.json
+
+stroke_take4_profiles.json - Photoshop 26.10.0 Layer Style Stroke profiles on anti-aliased
+pictures (all 64 rows of the fourth Stroke take: Inside and Center, Size 1, 3, 4, 8, Fill 100
+and 50 %, at 8 and 16 bits; a #ff0000 Normal 100 % stroke on a #00ff00 layer over opaque
+#0000ff, on the half plane whose x = 256 column has coverage 0.25 / 0.5 / 0.75 and the
+supersampled r = 40 disc; the r | g | b profile in 8-bit codes, with its gate) for
+core/tests/style_stroke_aa_parity.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/stroke-aa-578/take4/profiles.json
+Written by: scripts/photoshop-probe/stroke_aa_578_law_fit.py --fixtures (on a JUDGE SHIP for
+Sa, Inside; Ca, Center, KEEP)
+
+sha256:
+  89a1a4e437947e76cb050a55d3bad84386979dd6a894a356f46d783cdd5da7f6  stroke_take4_profiles.json
+
+stroke_take5_profiles.json - Photoshop 26.10.0 Layer Style Stroke Inside profiles on held-out
+anti-aliased pictures (all 160 rows of the Stroke confirm take: Size 2, 3, 5, 8, 12, Fill 100
+and 50 %, stroke opacity 100 and 50 %, at 8 and 16 bits; a #ff0000 Normal stroke on a #00ff00
+layer over opaque #0000ff, on the half plane whose x = 256 column has coverage 0.125 / 0.375 /
+0.625 / 0.875, the supersampled r = 17.5 and r = 30 discs and a rounded rect; the r | g | b
+profile in 8-bit codes, with its gate) for core/tests/style_stroke_aa_parity.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/stroke-aa-578/confirm5/profiles.json
+Written by: scripts/photoshop-probe/stroke_aa_578_confirm5.py --fixtures (on a JUDGE SHIP for
+Sn, Inside, by rule (i))
+
+sha256:
+  351018a17e724f417355ee3552e0768c551b6f447da760e1aae008753f07395f  stroke_take5_profiles.json
+
+outer_glow_take34_profiles.json - Photoshop 26.10.0 Outer Glow profiles (the 80 rows of the
+third identify take: the half plane, the disc and the corner, Size 0 ... 32, Spread 0, 50,
+80, 100, Range 25, 50, 100; and the 96 `og4` rows of the fourth: the anti-aliased half plane
+and disc, Size 4, 12, 32, Spread 0, 50, 80, 100, Range 50 and 100; at 8 and 16 bits; the
+whole profile, 8-bit codes) for core/tests/style_effect_kernels_578_take.rs (#578).
+
+Source receipts: ~/devel/doctored-fixtures/photoshop/identify-578/take3/profiles.json and
+~/devel/doctored-fixtures/photoshop/identify-578/take4/profiles.json
+Written by: scripts/photoshop-probe/effect_kernels_578_take.py --fixtures (O1 built: its fit
+SHIP by rule (ii), CONFIRMED on effect-kernels-578/take1)
+
+sha256:
+  5d865bec8c16a366f5ed2368290718d693b05d0acee6d3c751f8845b93fb3af4  outer_glow_take34_profiles.json
+
+bevel_take3_outside_profiles.json - Photoshop 26.10.0 Smooth Outer Bevel profiles (the 160 rows
+of the third identify take: the half plane and the r = 40 disc, highlight and shadow sides,
+altitude 30, 45 and 60 at Soften 0 and 4 and Size 4 and 16, plus altitude 0 and 90 at Size 1,
+4, 16, 32; at 8 and 16 bits; `values`, and `left` on the half plane, 8-bit codes; every row
+`take` 3) for core/tests/style_bevel_kernels_578_take.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/identify-578/take3/profiles.json
+Written by: scripts/photoshop-probe/effect_kernels_578_p2_take.py --fixtures (SO1 built: its
+fit SHIP by rule (ii), CONFIRMED on effect-kernels-578-p2/take1)
+
+sha256:
+  7ce9c8ebd4c8f37b53f86a136f021e3070a1e07a9701ea18ecc12ab45539d68e  bevel_take3_outside_profiles.json

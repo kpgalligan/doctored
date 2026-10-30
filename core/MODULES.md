@@ -1,0 +1,557 @@
+Index of the modules in `core/src`. Grep this file by file name (`grep -n -F 'doc_select.rs' core/MODULES.md | cut -c1-400`); never read it whole.
+A new entry is one line of at most 200 characters.
+Detail belongs in the source file's own header comment.
+
+- `warp.rs` / `doc_warp.rs` / `precision_warp.rs` / `warp_native.rs` / `ffi_warp.rs` — Phase 12F-3's one byte/u16 persisted displacement field per layer: lattice, byte and typed owners, native table.
+- `precision_clipboard.rs` / `precision_clipboard_codec.rs` / `precision_clipboard_convert.rs` / `precision_clipboard_promote.rs` — Phase 12G's typed clipboard: ops, payload + RZCB, convert, promote.
+- `precision_clipboard_group.rs` / `precision_clipboard_host.rs` / `precision_clipboard_trim.rs` / `ffi_clipboard.rs` — typed clipboard: group Copy, host-stage admission, trim, FFI.
+- `lib.rs` — module declarations and re-exports only. No implementation code.
+- `dr_image.rs` — flat `DrImage`, format sniffing, file open/save/encode, and `from_rgba` (the in-memory twin of `open`, for pixels only the host can decode).
+- `open_profile.rs` — the flat open's embedded-profile decision: keep, convert or ignore an embedded profile, and the one sentence that reports it.
+- `working_cmyk.rs` — the process-wide working CMYK profile an untagged CMYK TIFF/JPEG converts from; set by `dr_set_working_cmyk_profile`.
+- `cmyk_jpeg.rs` — a CMYK/YCCK JPEG's raw planes as CMYK8 ink, read through `zune-jpeg` (the decoder `image` wraps) with ONE options constructor.
+- `cmyk_document.rs` — #547's CMYK document mode: `CmykPolicy` (profile bytes, depth, view), the `build_cmyk` storage gate, `refused_sentence`.
+- `cmyk_image.rs` — `CmykImage`, the CMYK document's immutable tiled straight CMYKA16 ink (10 B/px).
+- `cmyk_color.rs` — the RGB→CMYK, CMYK→RGB and (4c) CMYK→CMYK legs over the ICC engine (shared with soft proof and the flat open) and the 33⁴ view link.
+- `cmyk_style.rs` — CMYK layer styles: a styled record's shape, planes, inks (`TexelInk`, the sRGB → ink leg) and tone for `cmyk_style_row`; hex, D-K black, plans.
+- `cmyk_style_row.rs` — KERNEL: one styled CMYK record onto an ink row in D3 order (Below, knockout unit vs `B0`, Interior, D6); an adjustment's interior.
+- `cmyk_composite.rs` — KERNEL: CMYKA over and moded over/tone mix on `1 − ink` (`ink_blended`), Pass Through gate, frozen over, paper flatten (masters in `blend.rs`).
+- `cmyk_stack.rs` — the ONE CMYK row compositor over the record tree: modes, Fill, masks, groups, clip units, tone records, styled records, knockout `B0`; strided rows.
+- `cmyk_adjust.rs` — KERNEL: Levels on `1 − ink`, Curves on ink points and drawn maps, Hue/Saturation on `1 − C/M/Y` with K held.
+- `cmyk_adjust_layer.rs` — `CmykAdjustmentState`, the CMYK adjustment record, add/add-at/set/destructive apply and their plans.
+- `cmyk_adjust_ink.rs` — KERNEL: `InkKernel`, `ink_tone`, and Channel Mixer, Selective Color, Threshold, Gradient Map, Replace Color on ink.
+- `cmyk_adjust_rgb.rs` — `parse_cmyk` (the one CMYK op dispatch), `InkRgb` (an RGB kernel per plate or on CMY), the refusal table.
+- `cmyk_filter.rs` — #547: Filter menu on CMYK as two RGBA16 `L` passes of the RGB selected-filter path; lock rule, plans, refusals.
+- `cmyk_passes.rs` — #547: the two `L = 1 − ink` RGBA16 pass documents a CMYK edit runs a shipped RGB16 op on, and `join_sample`, the join back into ink.
+- `cmyk_retouch.rs` — #547: Clone, Heal, Spot Heal and Content-Aware Fill on ink (two passes; four-ink synthesis), new layer and expand, the plan and refusals.
+- `cmyk_retouch_plate.rs` — #547: the CMYK retouch sampling plate (Current; the composite cut at opacity 0), its P3 view and the descriptor's retouch plans.
+- `cmyk_retouch_brush.rs` — #547: Dodge/Burn, Blur, Sharpen, Sponge (K held), Smudge and the History Brush on ink as RGB16 passes; their plans.
+- `cmyk_art_history.rs` — the Art History Brush on an 8-bit CMYK record's ink: the kernel's strokes through `over_mode`, written as `CmykPaintEdit` writes.
+- `cmyk_fade.rs` — #547: Edit ▸ Fade on a CMYK raster: `precision_fade`'s walk over CMYKA16 through `fade_ink`; its plan.
+- `cmyk_paint.rs` — `CmykPaintEdit`: Brush, Eraser, Fill, Gradient and Paint Bucket in ink on a CMYK layer; plan, walk, refusals.
+- `cmyk_select.rs` — #547: CMYK source selections (wand, Similar, alpha, plates on ink; luminance on sRGB, of a layer too; view kinds), canvases, backdrop.
+- `cmyk_cutout.rs` — #547: Select and Mask's New Layer on CMYK: the composite's ink masked by the matte; Decontaminate Colors on ink.
+- `cmyk_stroke.rs` — #547: Stroke… with nothing selected in ink: a CMYK layer's alpha edge through `PlaneOperation::Stroke`.
+- `cmyk_render.rs` — CMYK projections over `cmyk_stack`: the P3 view, regions at any divisor, layer canvas/thumbnail, ink planes, sample, descriptor.
+- `cmyk_convert.rs` — Image ▸ Mode ▸ CMYK Color / RGB Color conversions, plans, refusals; the CMYK flatten; the 3 per-image legs the clipboard shares.
+- `cmyk_convert_tree.rs` — the record tree both mode conversions carry (groups, masks, clipping, modes, Fill), their first blockers and `carry`.
+- `cmyk_merge.rs` — the CMYK merges' pixels: `cmyk_frame_image` (the stack over a frame, D7-seeded), `cmyk_projection_image`, the scratch plans.
+- `cmyk_warp.rs` — #547 4b: Layer ▸ Warp on CMYK ink (applied at once, no binding) and Liquify over two ink views joined; their plans.
+- `cmyk_selected_pixels.rs` — #547 4b: Move/Transform/Puppet/Perspective of a CMYK layer's selected pixels, the one walk over two ink views; bounds.
+- `cmyk_selected_plate.rs` — #547: Move/Transform of ONE ink plate's selected pixels through `selected_color_plane::walk_component`.
+- `cmyk_plate_scalar.rs` — #547: one ink plate as a scalar target (its stored 1 − ink) for `scalar_edit`, `read_plane` and `scalar_statistics`.
+- `cmyk_trim.rs` — #547 4b: Image ▸ Trim over the CMYK composite ink (`cmyk_frame_image`) through `trim_bounds::trim_rect`.
+- `cmyk_geometry_plans.rs` — #547 4b: the descriptor's six CMYK geometry plans (resize, affine, perspective crop, warp, liquify, transform selected).
+- `cmyk_io.rs` — CMYK TIFF/JPEG/PSD-composite opens as CMYK documents and the TIFF/PSD/JPEG-intermediate saves.
+- `cmyk_tiff_read.rs` — THE CMYK TIFF sample reader: chunky or planar, 8/16-bit, first extra sample as alpha, others counted.
+- `cmyk_source.rs` — which TIFF/JPEG files open as CMYK documents, from bytes or a path (header only, never the whole file).
+- `cmyk_native.rs` — CMYK in `.rz`: word 82 (83 masks/tone, 84 groups/clip/modes/Fill, 85 channels/vector masks, 86 effects/knockout, 87 descriptions, 88 stacked effects), tag 3, raw CMYKA16.
+- `ffi_cmyk.rs` — every `dr_*cmyk*` export: mode queries, profile, conversions, sample, ink planes, thumbnails, saves.
+- `cmyk_profile.rs` — #547 phase 5: Assign / Convert to Profile CMYK↔CMYK, 8↔16 Bits/Channel and New in CMYK; plans, refusals.
+- `cmyk_proof.rs` — #547 phase 5: the CMYK document's proof (Preserve Numbers, plates, Gamut Warning) into Display P3, and `separate` (RGB → ink + "!").
+- `cmyk_tone_analysis.rs` — #547 phase 5: per-plate histograms, Auto endpoints, eyedropper sample/target, ⌥ clip display; plans.
+- `cmyk_export.rs` — #547: a CMYK document's export: to RGB through `CmykToRgb`, or kept CMYK (TIFF 8/16, JPEG intermediate) with the policy sidecar.
+- `cmyk_export_ink.rs` — #547 round 2: kept-CMYK export stages on paper: `resize_cmyk`, PLATE-L output sharpen, depth; its plan, the max stage peak.
+- `cmyk_preset_file.rs` — #547 phase 5: `.acv`/`.alv` with ink channels → CMYK Levels/Curves params.
+- `ffi_cmyk_colour.rs` — #547 phase 5's exports: profile edits, New in CMYK, proof, separate, tone analysis, clip display, preset decode.
+- `cmyk_artwork_render.rs` — KERNEL: #547 type/shape/fill/pattern on ink: `cmyk_components`, `assemble_cmyk` (`artwork_render`'s walk), `pattern_scratch`.
+- `cmyk_artwork.rs` — #547: `PrecisionDocument::cmyk_artwork` (publish a CMYK raster with its description), the glyph sRGB→ink leg, `artwork_colors`.
+- `ffi_cmyk_artwork.rs` — `dr_precision_doc_cmyk_artwork`, `dr_cmyk_artwork_colors`.
+- `cmyk_clipboard_codec.rs` — #547 4c: `CmykClipboardPayload` and its RZCB v4 codec (editable section), trim; `AnyClipboardPayload`, the FFI handle's.
+- `cmyk_payload_convert.rs` — the clipboard's conversions across modes and CMYK profiles (RGB→CMYK, CMYK→RGB, CMYK→CMYK), relative + BPC; `from_cmyk_image`.
+- `cmyk_clipboard.rs` — CMYK Copy, Copy Merged, Cut, Paste, New from Clipboard, read allocation and the descriptor's clipboard plans.
+- `ffi_cmyk_clipboard.rs` — `dr_clipboard_payload_icc`, `dr_clipboard_payload_from_cmyk_image` (a CMYK TIFF/JPEG on the pasteboard).
+- `durable_file.rs` — the core's one flush policy. Only `dr_image::save_atomically` calls it, so every core writer inherits it; never add a writer-local `sync_all`.
+- `doc.rs` — layer model, compositing/projection, document ops, layer masks. **Full — no new concerns.** A new feature area gets a new module.
+- `blend.rs` — `BlendMode` + blend math, source-over/erase primitives, `LUMA_*` constants, and `composite_source_frozen`, THE frozen-alpha rule every paint path at 8, 16 and 32 bits routes through.
+- `clip_unit.rs` — KERNEL: the clip unit's member rule (CL2, #578): Open / Settle / Close of the footprint-relative alpha, `composite_source_frozen` through the member kernel.
+- `blend_fill.rs` — KERNEL: Fill on Color/Linear Burn, Color/Linear Dodge and Vivid Light (#578 F1/Fb, measured against Photoshop): the source pulled to the neutral, the split composite.
+- `blend_float.rs` — `blend_kind_at`: float blend variants (unclamped Linear Dodge/Subtract/Burn/Light, floored Divide; HSL with no ClipColor), else `blend_kind`.
+- `blend_if_channels_native.rs` — the MULTICHANNEL BLEND IF word: `.rz` word 101 for a Blend If with more than one range, ahead of 100; claims LBIF schema 2.
+- `large_description_native.rs` — the LARGE DESCRIPTION word: `.rz` word 102 for an artwork description over 64 KiB (up to the 16 MiB meta cap), ahead of 101.
+- `gradient_midpoint_native.rs` — the GRADIENT MIDPOINT word: `.rz` word 104 for a stop midpoint other than 50 % in a style or a Gradient Fill description; no table.
+- `gradient_smoothness_native.rs` — the GRADIENT SMOOTHNESS word: `.rz` word 103 for a Smoothness below 100 % in a style or a Gradient Fill description; no table.
+- `fill_align_native.rs` — the GRADIENT FILL ALIGNMENT word: `.rz` word 105 for a Gradient Fill description aligned with the layer, first inside 45; no table.
+- `gradient_map_method_native.rs` — the GRADIENT MAP METHOD word: `.rz` word 111 for a Gradient Map with a `method`, first inside 45, ahead of 105; no table.
+- `drdc.rs` / `drdc_capacity.rs` / `drdc_read.rs` / `drdc_save_plan.rs` / `drdc_reopen_plan.rs` — the native `.rz` format: writer, capacity checks, preflighted reader, save and reopen plans.
+- `psd.rs` / `psd_import.rs` / `psd_import16.rs` / `psd_container.rs` — PSD, PSB and layered-TIFF layer import (16-bit typed, 32-bit float), preflight/choice, framing, composites.
+- `psd_framing.rs` — leaf: the three layered containers' field widths and limits, PSB's long-length keys, the ONE RLE row-table walk and the ONE PackBits decoder.
+- `psd_spot_records.rs` (KERNEL) — #547 1b-1: the ONE reader/writer of PSD resources 1006/1045/1077/1053 and the spot plane polarity (`max − coverage`).
+- `psd_spot.rs` — #547 1b-1 PSD/PSB spot channels: the container read and loss lines, `with_psd_spots` at both depths, `psd_spot_planes` for the writers.
+- `tiff_spot_samples.rs` (KERNEL) — #547 1c-2a: a TIFF's spot layout (trailing extra samples), the Multiband read, the polarity; `SpotCoverage` (1c-2b).
+- `tiff_spot.rs` — #547 TIFF spot channels, flat (1c-2a) and layered (1c-2b): records from tag 34377, `with_(layered_)tiff_spots`, planes, plan terms, keep refusal.
+- `tiff_layers.rs` — Photoshop's layer block in a TIFF (tags 34377/34675/37724): `ByteOrder`, the locator (8/16 `MM`; 32-bit float RGB `Lr32` in both orders); re-exports the writer.
+- `tiff_layers_write.rs` — layered-TIFF writer: `write_with` plans every offset, the caller appends info and strip; `write` 8/16 bits, `write_spots` + spot samples.
+- `tiff_layers_order.rs` — the ONE byte-order walk of a tag-37724 block: a little-endian 32-bit TIFF's big-endian form for the reader, and the little-endian test/take seam.
+- `psd_group_records.rs` / `psd_layer_pixels.rs` / `psd_locks.rs` / `psd_raster_masks.rs` — PSD folder metadata framing, raster storage and decode envelope, the ONE `lspf` codec, ordinary masks.
+- `psd_zip.rs` / `psd_feature_markers.rs` — the ONE PSD inflate seam (+ 32-bit deflate twin); markers. `psd_adjustment.rs` / `psd_descriptor.rs` are the ONE adjustment-record and descriptor codecs.
+- `psd_adjustment_extra.rs` — `psd_adjustment`'s private half for Brightness/Contrast (`brit` with its `CgEd`) and Selective Color (`selc`), both directions.
+- `psd_adjustment_cmyk.rs` — `psd_adjustment`'s private half for a CMYK file's `levl`, `curv` and `phfl` bodies, both directions.
+- `psd_adjustment_grdm.rs` — `psd_adjustment`'s private half for a CMYK file's `grdm` (Gradient Map) body, Adobe's layout, both ways; Classic's Smoothness and NEXT-stop `Mdpn`.
+- `psd_import_cmyk.rs` — layered CMYK PSD/PSB/TIFF import as a CMYK document (`PtFl`/`SoCo`/`GdFl` as fill layers), its plan and the CMYK report lines.
+- `psd_import_float.rs` — 32-bit RGB PSD/PSB (`Lr32`) open as a float document: f32 decode, un-matted composite, profile rule, linear twin → built-in, float losses, plan.
+- `psd_import_gray.rs` — 8/16-bit Grayscale PSD/PSB/layered TIFF open as a Gray document: policy (32-bit twin relabel), `Grsc` styles, Blend If copy rule, report lines.
+- `psd_import_gray32.rs` — 32-bit Grayscale PSD/PSB open as a 32-bit Gray document: f32 gray decode, the gray rules in float form, composite, float plans.
+- `psd_import_lab.rs` — #547 Lab 3a: 8/16-bit Lab PSD/PSB/layered TIFF open as a Lab document: admission, white-unmatted composite, `LbCl`, Blend If copy rule, report lines.
+- `psd_layer_effects.rs` / `psd_layer_effects_fx.rs` — the ONE codec for PSD layer effects and blending options, both directions and depths; the `_fx` file is the per-effect half.
+- `psd_patterns.rs` / `psd_pattern_fill.rs` — Pattern Overlay in PSD: the `Patt`/`Pat2` table both ways (CMYK too), `PtFl`'s tiles; `patternFill` with `Angl`; every `fxrp`.
+- `psd_fill_layer.rs` — Pattern, Solid Color, Gradient fill layers `PtFl`/`SoCo`/`GdFl` in PSD both ways, RGB and CMYK: every form read and re-rendered; written in Photoshop's form.
+- `psd_gradient_fill.rs` — every `GdFl` body: decode, named losses, description, render components, export parse, encoded body, report sentences.
+- `asl.rs` — Photoshop style libraries (`.asl`): the reader (patterns, Lefx via `read_effect_list` leniently, blendOptions, multichannel Blnd as Blend If); `dr_asl_decode`.
+- `asl_write.rs` — the `.asl` writer: Photoshop's record form (uuid `Idnt`, padded lengths), `Lefx` via `effect_items`, full six-key blendOptions, multichannel `Blnd`; `dr_asl_encode`.
+- `psd_contour.rs` — the `ShpC` contour in PSD: presets by Photoshop's `$$$` name, custom `Crv`, and `AntA`/`Inpr`/`useShape`/`antialiasGloss` both ways.
+- `psd_export_preflight.rs` / `psd_export.rs` / `psd_export16.rs` / `psd_export_encode.rs` / `psd_export_rasterize.rs` — layered PSD, PSB or TIFF export at the DOCUMENT's own depth (8, 16, 32).
+- `psd_export_float.rs` — a float document's 32-bit PSD/PSB: Raw f32 planes and masks, `Lr32` records, white-matted composite, layered refusals.
+- `psd_export_gray.rs` — a Gray document's PSD/PSB/layered-TIFF export: report, save, Photoshop's gray layout (M1–M6) at 8 or 16 bits; 32 bits routed to `psd_export_gray32`.
+- `psd_export_gray32.rs` — a 32-bit Gray document's PSD/PSB: Raw f32 gray and alpha, no `Mt32`, the Gray linear-twin profile, one-plane white-matted composite.
+- `psd_export_lab.rs` — #547 Lab 3b: a Lab document's PSD/PSB/layered-TIFF export: report, save, Photoshop's Lab layout (L1–L4), `channels_lab`, `LbCl` (`srgb_lbcl`).
+- `psd_export_bake.rs` — the adjustment stamp: the pixels an adjustment layer with no Photoshop record is exported as, for the byte and the typed document.
+- `psd_export_cmyk.rs` — a CMYK document's PSD/PSB/layered-TIFF export: inventory, record walk (fills as `PtFl`/`SoCo`/`GdFl`), five-plane composite, plan.
+- `jxl_encode.rs` — lossless JPEG XL encoding of an 8-bit RGBA image for the export workspace's `jxl` format (a wrapper over `zune-jpegxl`; nothing decodes one).
+- `doc_evaluation.rs` / `precision_evaluation.rs` / `evaluation_native.rs` / `ffi_evaluation.rs` — the VERSIONED EVALUATION POLICY (11E phase 1): `encoded` (default) or `linear_light`, per document.
+- `layer_insert.rs` / `precision_insert.rs` / `ffi_insert.rs` — WHERE a newly created entry lands, at BOTH depths (Phase 12E-2): `InsertPosition`, `InsertSlot` and the shared `slot` rule.
+- `doc_identity.rs` / `ffi_identity.rs` — STABLE LAYER IDENTITY at both depths: `NEXT_LAYER_ID`, the minting rule, the id lookups, and the content and mask storage identities.
+- `identity_native.rs` — PERSISTED LAYER IDENTITY at both depths (Phase 12E-1) and the ONE `.rz` table this format ALWAYS writes: version 45 (byte) / 46 (typed) and its `LIDS` table.
+- `precision_structure_ops.rs` — the TYPED twins of the four pure structure operations (Phase 12E-1), over the ONE flat postorder record model the typed merges and locks share.
+- `doc_structure_sets.rs` — the byte set DUPLICATE and DELETE, `duplicate_layers` / `remove_layers` (`dr_doc_duplicate_layers` / `dr_doc_remove_layers`), moved out of `doc_structure.rs`.
+- `doc_delete_cropped.rs` / `ffi_delete_cropped.rs` — Crop's Delete Cropped Pixels: eligible rasters trimmed to the canvas; the typed twin is Straighten's `delete_cropped`.
+- `doc_duplicate_document.rs` — Layer ▸ Duplicate to Document… at both depths and on CMYK: the given set copied into a NEW document, never an edit of the source.
+- `doc_paste_layers.rs` / `ffi_layer_clipboard.rs` — Edit ▸ Paste of a LAYER clipboard: `paste_layers` at both depths splices every record of a clip document in ONE call.
+- `layer_clipboard_float.rs` — the promotion of a layer clipboard into a 32-bit float document, called only by `PrecisionDocument::paste_layers`; its module doc is the rule.
+- `doc_label.rs` / `label_native.rs` — per-layer COLOUR LABELS at both depths (Phase 12C-1): `Layer.label` / `PrecisionDocumentLayer.label`, 0 none and 1…7 exactly Photoshop's `lclr` palette codes.
+- `pattern_angle_native.rs` — the Pattern Overlay ANGLE word: `.rz` word 93 at both depths, no table, and its predicates (mirrors word 90).
+- `gradient_options_native.rs` — the gradient OPTIONS word: `.rz` word 94 for a Shape Burst stroke or dithered gradient, no table, its predicates.
+- `stroke_pattern_native.rs` — the PATTERN STROKE word: `.rz` word 95 for a stroke carrying a pattern fill, no table, its predicates.
+- `contour_native.rs` — the CONTOUR word: `.rz` word 96 for a layer style contour, Anti-aliased or Range; no table, its predicates.
+- `noise_native.rs` — the NOISE word: `.rz` word 97 for a layer style Noise above 0, ahead of 96; no table, its predicates.
+- `texture_native.rs` — the TEXTURE word: `.rz` word 98 for a bevel carrying a texture, ahead of 97; no table, its predicates.
+- `glow_gradient_native.rs` — the GLOW GRADIENT word: `.rz` word 99 for a glow carrying a gradient or Jitter, ahead of 98; no table, its predicates.
+- `wide_color_native.rs` — the WIDE COLOUR word: `.rz` word 100 for a style slot carrying `linear`, ahead of 99; no table, its predicates.
+- `reference_native.rs` — the layer REFERENCE POINT (Photoshop's `fxrp`): `.rz` word 91 and its `LREF` table at both depths.
+- `spot_channel.rs` — #547 spot channels: `SpotInk` (D50 Lab, solidity %), mode refusals, byte and typed add/set over the channel model.
+- `spot_overprint.rs` (KERNEL) — #547: a spot ink's overprint at coverage, Solidity mixing Multiply toward the ink; RGBA8/16, f32 (unclamped), CMYKA16 as two L = 1 − ink passes.
+- `spot_channel_native.rs` — #547 spot channels in `.rz`: word 112 and its `SPOT` table at both depths.
+- `spot_view.rs` — #547: the ink's Lab in the composite's encoding (sRGB fallback), a byte image's and document's overprint, full or a region/divisor's samples.
+- `ffi_spot_channel.rs` — #547 1a-2: `dr_doc_add/set_spot_channel`, `dr_doc_channel_spot`, the doc/image overprint, the typed add/set.
+- `spot_typed.rs` — #547 1c-1: the typed overprint per mode (RGB/float, Gray's L* gray, Lab via ProPhoto, Duotone's view), its plan term, the flattened export hook.
+- `spot_cmyk.rs` — #547 1c-1: a spot ink's CMYK through the document profile and the on-paper composite with spot inks overprinted in ink; its plan term.
+- `spot_merge.rs` — #547 1c-1: Merge Spot Channel (flatten, bake one ink, delete) and alpha ↔ spot (plane inverted) at byte and typed depth; the typed plan.
+- `ffi_spot_merge.rs` — #547 1c-1: merge and kind change at both depths, the typed merge plan, the doc/image region overprint.
+- `reference_point.rs` (KERNEL) — the reference point and linked anchors under a canvas op or Free Transform (POINT, Rotate's `rotate_canvas_map`, the box margins swapped); turned tiles.
+- `doc_reference.rs` — the adapter: `follow_layer`/`follow_record` (point, anchors, `TurnedTiles`), each canvas edit's map; `turn_pattern`.
+- `ffi_layer_reference.rs` — `dr_doc_layer_reference_x`/`_y`: a byte layer's `fxrp`; `dr_turn_pattern`, a fill layer's turned tile.
+- `precision_lock.rs` — LOCKS/LINKS: `PrecisionDocumentLayer.locks` / `.link`, `lock_block`, `with_layer_locks`, `link_layers` / `unlink_layers`, `lock_refusal` / `under_locks` / `lock_sentence`.
+- `precision_lock_native.rs` — typed LAYER LOCKS and LINKS (Phase 12E-1b): the conditional `LLNK` table, `.rz` 47, the one version word inside the 46 identity wrapper.
+- `precision_guide.rs` / `precision_guide_native.rs` — GUIDES and the RULER ORIGIN at high depth (Phase 12E-1c): `PrecisionDocument.guides` / `.ruler_origin`, the five mutators and `geometry_chrome`.
+- `precision_group_open_native.rs` — the typed GROUP DISCLOSURE: `PrecisionDocumentLayer.open`, set by the lock-exempt `layer_open` edit and persisted by word 55's `LOPN` table.
+- `precision_global_light.rs` — the typed document's GLOBAL LIGHT: `PrecisionDocument.global_light`, `global_light()` and the pure `with_global_light`.
+- `precision_light_native.rs` — the conditional typed word **58** and its `LGLT` table: the first word inside 46, written only for a non-default light.
+- `doc_sampler.rs` / `precision_sampler.rs` / `sampler_native.rs` / `psd_samplers.rs` / `ffi_sampler.rs` — COLOUR SAMPLERS, both depths: `MAX_COLOR_SAMPLERS` (one home), `with_color_samplers`.
+- `precision_merge.rs` — the three TYPED MERGES (Phase 12E-1b): `merge_layers`, `merge_down`, `merge_visible` and `merge_scratch_bytes`, reached through `precision_structure.rs`'s `StructureEdit`.
+- `precision_merge_extent.rs` — the typed merge FRAME: `record_extent16`, `frame_of`, `windowed_seed`, and `PrecisionDocument::merge_frame` / `framed_scratch_bytes`.
+- `precision_stamp_flatten.rs` — Stamp Visible and Flatten Image at high depth (Phase 12E-2c), moved out of `precision_merge.rs`: `stamp_visible` and `flatten_image` on `PrecisionDocument`.
+- `precision_merge_selected.rs` / `doc_merge_selected.rs` / `ffi_merge_selected.rs` — Stamp Selected and Merge Group (#547 4c) at 16/32 bits and CMYK, at 8 bits, and the byte exports.
+- `precision_layer_via.rs` — Layer Via Copy/Cut at 16 bits, float and CMYK (#547): the typed `layer_via` request (`LayerViaEdit`); measured admission in its doc.
+- `doc_comps.rs` / `precision_comps.rs` / `comps_native.rs` — LAYER COMPS at both depths (Phase 12D-1); `doc_comps` owns every rule, apply hiding unrecorded non-group layers included.
+- `comps_unrecorded.rs` — the one predicate: the non-group layers no entry of a comp names, which apply hides at both depths (measured against Photoshop).
+- `comps_geometry.rs` — comps follow whole-canvas geometry and layer storage growth. INVARIANT: every new whole-canvas geometry op builds its comps through `remapped_comps`.
+- `doc_select.rs` / `doc_transform.rs` — selections/fill/gradient and mask morphology; free transform.
+- `doc_pixels.rs` / `ffi_pixels.rs` — the agent's `put_pixels` (pixel art): one canvas rect of straight RGBA8 written onto one raster layer with REPLACE semantics.
+- `doc_fill_stroke.rs` / `ffi_fill_stroke.rs` — Edit ▸ Fill… and Edit ▸ Stroke… at 8 bits: `fill_selection`, `stroke_mask`, `stroke_layer_edge`; the byte master, kept byte-identical.
+- `fill_align_box.rs` — KERNEL: a Gradient Fill's Align with Layer box, the mask's raw coverage bounds clipped to the canvas, else the canvas.
+- `doc_fill_align.rs` / `ffi_fill_align.rs` — the align box on a byte and a typed document (CMYK too): `fill_align_box`, `dr_doc_fill_align_box`, `dr_precision_doc_fill_align_box`.
+- `precision_fill_stroke.rs` — Edit ▸ Fill… / Stroke… at 16 bits and, through `float_paint`, at 32-bit float.
+- `float_paint.rs` — the f32 arm of native paint: Fill/Stroke, a colour plane, Brush, Eraser, Gradient, Bucket, Dodge/Burn; `admit_ink`.
+- `float_paint_tone.rs` — the float bucket's region on R1 display codes (`grow`) and Dodge/Burn's R4 rule, read by `float_paint`'s walk; their admission record.
+- `float_paint_ink.rs` — `FloatInk`: a float paint walk's ink as linear RGBA, one colour or a gradient ramp lerped in linear light; `linear_ink`.
+- `doc_rotate.rs` / `ffi_rotate.rs` — DESTRUCTIVE whole-canvas rotation by any finite angle at BYTE depth (Phase 12F-1b3), and the single place an angle is CLASSIFIED and a rotated canvas SIZED.
+- `precision_scalar_edit.rs` / `precision_scalar_filter.rs` / `precision_scalar_statistics.rs` — native scalar editing: mask/channel/RGBA/plate writes, Dodge/Burn (R4m), filters, statistics.
+- `precision_selection.rs` / `precision_selection_plane.rs` / `ffi_selection_u16.rs` — native source-derived selection and the independent u16 selection-plane kinds.
+- `precision_selection_support.rs` — Phase 13A-6a's SUPPORT-BOUNDED typed Modify Selection: index arithmetic only (support rect, reach, window, work figure, crop, embed).
+- `edge_trace.rs` / `edge_trace_corridor.rs` — the Magnetic Lasso's live-wire tracer, exported as `dr_selection_trace_edge` from `ffi_selection_tools.rs`.
+- `selection_tools.rs` / `selection_refine.rs` / `ffi_selection_tools.rs` — profile-aware Color Range, Quick Selection's adapter, selection-only affine transforms, Select and Mask's refinement.
+- `selection_quick.rs` — kernel of Quick Selection: brush-disc seeding, range-gated Lab pre-smoothing, the anchored growth, enclosed-hole fill.
+- `edge_refine.rs` — kernel of Select and Mask's edge stage: the radius band, a guided filter per RGB channel, confidence blend, Smart Radius.
+- `selection_region.rs` / `selection_similar.rs` — one four-connected `flood` walk behind the byte/native/ink wand (Sample Size: `WAND_SAMPLE_SIZES`) and bucket, and Select ▸ Grow/Similar.
+- `color_range_band.rs` — kernel: Color Range's hue bands (amount × (2 − max)), Skin Tones (Lab ramp, take3 MISS), the one ramp, Localized Color Clusters' weight.
+- `color_range_gamut.rs` — Color Range ▸ Out Of Gamut: `soft_proof`'s one gamut rule over RGBA8 codes as coverage (source alpha where outside XOR invert).
+- `ffi_color_range_gamut.rs` — `dr_selection_out_of_gamut` and its scratch figure (`byte_proof_scratch_pixels` plus the output), on `ffi_output_color`'s parsers.
+- `brush_coverage.rs` / `ffi_brush.rs` / `precision_paint_tools.rs` / `gradient_field.rs` — version-1 native brush dabs (packed binary64 transfer, 50,000-dab cap), native paint tools, gradient field.
+- `foreground_estimate.rs` / `ffi_foreground.rs` — foreground RGB estimation from an opaque captured composite and a supplied matte (Decontaminate Colors); byte adapter and both depths' FFI.
+- `foreground_solve.rs` — kernel of the foreground estimate: the multi-level pyramid, sweeps and the two-variable relaxation, shared by both depths.
+- `precision_foreground.rs` — 16-bit `foreground_estimate_plan` / `estimate_foreground` over `foreground_solve`, encoded domain only; float refuses by name.
+- `doc_cutout.rs` / `ffi_cutout.rs` — Select and Mask's New Layer output: the foreground's bytes (own alpha kept) plus a separate editable mask on a new top-level layer.
+- `sampled_matting.rs` / `matting_samples.rs` — experimental categorical-trimap alpha estimation with bounded foreground/background sampling. Safe Rust qualification API only; no editor/MCP exposure.
+- `closed_form_matting.rs` / `matting_laplacian.rs` — experimental spatial color-line alpha solver. All variants remain research APIs without FFI/UI exposure until the alpha/color gates qualify.
+- `foreground_protection.rs` — failed source-only color-protection hypothesis over the foreground estimate, kept as a research API; not called by Select and Mask.
+- `bayesian_matting.rs` / `bayesian_color.rs` — experimental source-only joint alpha/F/B estimation (finite automatic prior, separate user constraints); quality gates and disabled controls stay.
+- `trimap_strokes.rs` / `ffi_trimap.rs` — categorical 0/128/255 brush replay, with round-cap pixel-center labeling and last-stroke overwrite; enables none of the unqualified matting controls.
+- `assisted_replay.rs` / `ffi_assisted.rs` — the Phase 9I assisted annotation replay: one per-case session document, its module doc **is** the schema table.
+- `doc_mask.rs` / `doc_mask_set.rs` / `ffi_mask.rs` / `mask_outside_native.rs` — independent raw masks: placement, content links, mask-only affine transforms, density/feather; the byte Set Mask.
+- `mask_invert.rs` — kernel: the union of a mask's stored rect and the canvas, and a stored plane re-laid into it.
+- `doc_mask_invert.rs` — byte whole-canvas mask Invert, `dr_doc_invert_mask` (in `ffi_mask.rs`): flips outside coverage, or grows the plane under a selection.
+- `doc_gradient.rs` / `ffi_gradient.rs` — the byte stops gradient, `dr_doc_gradient_stops`: 2..32 stops, five shapes; `dr_gradient_midpoint_fraction`, the editor's remap.
+- `doc_gray_plane.rs` / `ffi_gray_plane.rs` — `dr_doc_composite_gray_plane`: the composite's grey in a Gray working space, 8-bit Load Selection luminosity.
+- `doc_scope.rs` / `ffi_scope.rs` — full-storage destructive result writeback through canvas selection coverage for pixels, masks, RGBA planes and saved channels.
+- `poisson.rs` — the ONE membrane (Poisson) solver every healing op shares: free functions over window-sized buffers, red-black multigrid, and the one classification rule stated on `Region`.
+- `doc_heal.rs` — healing on the document: `heal_layer`, the shared write-back `heal_window_into_pixels_with_context`, two measured caps. The component items live in `heal_components.rs`.
+- `heal_components.rs` — a `#[path]` submodule of `doc_heal`: `Component`, the one 4-connected `components_with_context` walk the healing family shares, and `component_count_bound`.
+- `doc_inpaint.rs` — inpainting on the document: spot healing (any Type) and Content-Aware Fill, one pipeline per connected component; owns the inpaint caps and their refusal sentences.
+- `spot_heal_type.rs` — KERNEL of the Spot Healing Brush's Type: Content-Aware dispatch, Proximity Match's patch search, Create Texture's tiling that leaves the blemish out, refusals.
+- `doc_content_aware.rs` / `ffi_content_aware.rs` / `inpaint_source_mask.rs` — exact Content-Aware Fill requests (byte/native), source permission, layer output, opt-in `fill_transparent` pad.
+- `patchmatch.rs` / `patchmatch_nnf.rs` — the ONE PatchMatch (Barnes et al.) search, masked pyramid and Wexler vote, and the sparse nearest-neighbour field with its propagation/random-search sweep.
+- `job_control.rs` / `ffi_jobs.rs` — explicit single-use atomic worker tokens, progress, cooperative cancellation, and conservative scratch admission.
+- `inpaint_source.rs` / `doc_regional_plate.rs` — THE sampling-plate builder, shared by every retouch gesture and the 16-bit promotion, over three arms chosen by `plate_arm`.
+- `retouch_sampling.rs` — the three retouch sampling modes and the ignore-adjustments control, as a `Cut` over the compositor.
+- `precision_retouch.rs` / `precision_retouch_apply.rs` / `precision_retouch_source.rs` / `retouch_transform.rs` / `ffi_retouch.rs` — native retouch requests, typed compositor cuts, source mapping.
+- `float_retouch.rs` — the f32 arm of the typed retouch: staging, the linear clone walk, encode → shared kernel → decode for heal, spot heal and fill.
+- `float_retouch_brush.rs` — the f32 arm of the Blur, Sharpen, Sponge, Smudge and History brushes: plans, walks over the shared kernels, admission record.
+- `retouch_encoding.rs` — kernel: W, the sRGB-only encoding a float heal or fill solves in (log above white, ±65535); not `display_encoding`'s E.
+- `display_encoding.rs` — kernel: E/D (log above white) for display-referred float filters; R1–R5, E, M, A, `scaled`; X, the EDR view's binary16 sample.
+- `retouch_brush.rs` — kernel of the Blur, Sharpen and Sponge brushes: per-pixel targets, Vibrance, the mix and `mix_over`.
+- `retouch_smudge.rs` — kernel of the Smudge brush: the sub-stepped drag over a premultiplied f32 field, and its work charge.
+- `doc_retouch_brush.rs` — byte adapters: `retouch_brush_layer` (Blur / Sharpen / Sponge, Vibrance, Sample All Layers) and `history_brush_layer`.
+- `retouch_brush_sampling.rs` — Sample All Layers: `SAMPLE_ALL_LAYERS` and the sampled picture at 8, 16, 32 bits and CMYK; the float sampled walk.
+- `doc_smudge.rs` — byte adapter `smudge_layer`: the smudge kernel over the stroke's footprint on a layer, dabs in canvas coordinates.
+- `art_history_stroke.rs` — KERNEL of the Art History Brush: request, fitted ten-style table (L, κ, density), clicks, seeded strokes on luma contours (fixed travel sign), painting.
+- `doc_art_history.rs` — byte adapter `art_history_brush_layer`: the kernel over the layer's part within reach of the dabs, half-up; `Part`/`Pair`/`reach_rect`.
+- `precision_retouch_brush.rs` — 16-bit twins: `RetouchBrushEdit` (the `retouch_brush` op) and `history_brush_plan` / `history_brush`.
+- `precision_smudge.rs` — 16-bit `smudge_plan` / `smudge` over the stroke's footprint, quantized to u16 once.
+- `precision_art_history.rs` — typed Art History Brush: depth refusals (16-bit, 32-bit, 16-bit CMYK), plan, lock gate, dispatch to CMYK and 8-bit Gray and Lab.
+- `ffi_retouch_brush.rs` — the ten retouch-brush exports: byte retouch / history / smudge / art history, typed smudge, history and art history brush with plans.
+- `precision_inpaint.rs` / `inpaint_sample.rs` — the shared PatchMatch pipeline's native f32 specialization, carrying u16-code source RGB through search, pyramid, vote and membrane solve.
+- `doc_retouch_output.rs` — retouching onto a NEW layer above the target, through the SHIPPED heal against a one-layer temporary document made from the sampling plate.
+- `render_scratch.rs` — shares its conservative full-projection reservation with resource reporting and host admission.
+- `doc_redeye.rs` — red-eye: red DOMINANCE inside a canvas rect, a component gate against the rect's shorter side, and the neutralize-then-darken correction.
+- `rng.rs` — `SplitMix64`, the crate's ONE PRNG.
+- `icc.rs` / `icc_transform.rs` / `icc_builtin.rs` — ICC v2/v4 RGB matrix-TRC parsing, the SIX-way inspect; curve model, matrix, 8-bit transform; four built-ins and linear twin ↔ gamma source.
+- `icc_lut.rs` / `icc_intent.rs` / `soft_proof.rs` — Phase 11C: LUT profile parsing (`LutPipeline`, `ProofProfile`), rendering intents and BPC (`ColorPipeline`), and soft proofing.
+- `icc_black_point.rs` — every black point BPC reads, Little CMS's two rules: SOURCE (`cmsDetectBlackPoint`) and DESTINATION (`cmsDetectDestinationBlackPoint`).
+- `icc_lookup.rs` — Color Lookup's ICC LOOKS: a plain-grid link ≤ 33 at its own grid, others at 33³; an abstract keeps its bytes, re-baked on every profile write.
+- `doc_look.rs` — the byte adapter of the abstract-look re-bake: `rebake_looks` from `rebind_evaluation`, `rebake_layer_meta` for a Don't-Convert paste.
+- `look_native.rs` — `.rz` word 71, one number at both depths, first inside 45/46, no table: written iff a Color Lookup meta keeps `abstract_profile`.
+- `icc_encode_refusal.rs` — the ONE home of the refusal of an encode INTO a matrix/TRC profile whose curves fail `validate_precision`: `destination_sentence`, `own_profile_sentence`.
+- `adjustment_preset_file.rs` / `ffi_adjustment_preset.rs` — Photoshop adjustment PRESET files (`dr_adjustment_preset_file_decode`): `.alv`/`.ahu`/`.eap`/`.blw`/`.cha`/`.acv` to params.
+- `doc_color_policy.rs` / `precision_color_policy.rs` — Phase 11C conversion POLICY, both depths: `ConversionOptions`, the preflight and its `ConversionReport`, and the two explicit Assign workflows.
+- `metadata.rs` / `metadata_write.rs` / `metadata_xmp.rs` / `tiff_view.rs` — the ONE JPEG/PNG container walk (EXIF/XMP/IPTC/ppi in), its write half, and the shared TIFF-stream reader.
+- `xmp_rdf.rs` / `metadata_xmp_extended.rs` / `metadata_xmp_split.rs` / `md5.rs` — JPEG ExtendedXMP: the bounded `rdf:RDF` scanner, merge on open, split on export, the GUID's MD5.
+- `metadata_tiff.rs` / `tiff_encode.rs` — bounded TIFF (classic or BigTIFF) capture-IFD relocation, ICC/PPI/XMP/IPTC extraction and typed TIFF encoding (1-bit bilevel too).
+- `file_info.rs` / `file_info_legacy.rs` / `doc_file_info.rs` / `ffi_file_info.rs` — File Info: creator, copyright, description, keywords in XMP, IIM, EXIF IFD0.
+- `doc_color.rs` — assign vs convert, the working-space adoption, the resolution, the metadata packets, the per-format capability table, and the document-level image save.
+- `ops.rs` / `ops_filters.rs` / `ops_photographic.rs` — flat-image ops/filters (`pub(crate)`, pure, clone-then-mutate); `ops_photographic.rs`: the photographic filters over `filter_kernels.rs`.
+- `ops_spatial.rs` / `sampling_surface.rs` — Box Blur, Surface Blur and Add Grain: ONE `SpatialKernel` at both depths, and `filter_op`, the ONE byte filter dispatch.
+- `sampling_radial.rs` / `render_clouds.rs` / `sampling_offset.rs` — Radial Blur, Clouds / Difference Clouds and Offset, three more `SpatialKernel` arms on the same route.
+- `sampling_motion.rs` — Motion Blur: the mean of `distance + 1` bilinear samples along a line, a `SpatialKernel` arm.
+- `lens_model.rs` — the radial lens model RAW development and Lens Correction share, plus Lensfun's poly3/poly5/ptlens, TCA and pa models as `LensProfile`.
+- `lens_db.rs` — the bundled Lensfun database (CC BY-SA 3.0, `data/lensfun/`): EXIF camera/lens matching and interpolation to a profile JSON. No pixel work.
+- `lens_interp.rs` — `lens_db`'s interpolation of a Lensfun lens's distortion, TCA and pa rows at a focal length, f-number and distance.
+- `sampling_lens.rs` — Lens Correction: distortion, chromatic aberration, vignette, perspective/angle/scale, a Lensfun profile; a `SpatialKernel` arm.
+- `sampling_presence.rs` / `sampling_dehaze.rs` — Presence: Texture, Clarity and Dehaze over the guided-filter base; a `SpatialKernel` arm; float rule D.
+- `sampling_smart_sharpen.rs` — Smart Sharpen: Reduce Noise, the blur to remove (Gaussian, lens disc, motion line), USM combine, tonal fades, lens halo projection; float rule.
+- `develop_filter_masks.rs` — Develop Filter masks: ordered locals over the globals via RAW-local coverage, range, `DevelopFilter` and detail; boxed arm.
+- `develop_filter_masks_request.rs` — Develop Filter masks' request parsing: strict mask keys, shapes, strokes, range, controls and detail into `FilterLocal`.
+- `local_detail.rs` — kernel: a local's Sharpness and Noise Reduction as Reduce Noise, then Smart Sharpen or Gaussian Blur; plan; mask and Develop.
+- `sampling_develop_filter.rs` — Develop Filter: 13 Develop controls as existing ops and Presence in one fixed order; a `SpatialKernel` arm.
+- `sampling_disc.rs` — Lens Blur and Tilt-Shift: a weighted disc mean from ring-held row prefix sums, the radius per pixel.
+- `liquify.rs` / `ffi_liquify.rs` — Liquify: strokes into a displacement/freeze field, its bicubic render, the `dr_liquify_field_*` handle.
+- `depth_blur.rs` — Depth Blur kernel: host depth map normalized, guided field (`edge_refine`), Lens Blur's disc at a depth radius, haze, grade, grain.
+- `puppet_mesh.rs` / `puppet_cholesky.rs` / `puppet_arap.rs` / `puppet_render.rs` — Puppet Warp kernels: alpha mesh, RCM envelope Cholesky, ARAP solve, pose map and render.
+- `doc_puppet.rs` / `precision_puppet.rs` / `selected_pixels_puppet.rs` / `ffi_puppet.rs` — Puppet Warp's byte and typed (CMYK too) layer edits, the selection float form, the FFI.
+- `perspective_plane.rs` / `perspective_mesh.rs` / `perspective_warp.rs` — Perspective Warp kernels: quads, joins, straighten, homographies; the plane mesh; the ARAP extension and map.
+- `doc_perspective_warp.rs` / `precision_perspective_warp.rs` / `selected_pixels_perspective.rs` / `ffi_perspective_warp.rs` — Perspective Warp's byte and typed layer edits, float form, FFI.
+- `align_projection.rs` — KERNEL: Auto-Align's Cylindrical, Spherical and lens plane: a layer onto the surface or plane map; pixel-centre clip, pixel-span rect.
+- `doc_align_projection.rs` / `precision_align_projection.rs` / `ffi_align_projection.rs` — the `project_layer` request, byte and typed edits, FFI.
+- `align_vignette.rs` — KERNEL: Auto-Align's Vignette Removal: one 1 + a·ρ² falloff fitted to the overlaps; the per-pixel stops.
+- `doc_align_vignette.rs` / `precision_align_vignette.rs` / `ffi_align_vignette.rs` — the `remove_vignette` request, byte and typed edits, FFI.
+- `align_distortion.rs` — KERNEL: Auto-Align's Geometric Distortion: patch matches, one radial k for the stack, the refined maps; `folds`.
+- `align_distortion_match.rs` — KERNEL: Geometric Distortion's NCC patch matcher (Jacobian-warped patch, two levels, sub-pixel) and DLT homography.
+- `align_distortion_pair.rs` — KERNEL: the lens test's one-pair radial k and corrected homography, through `align_distortion`'s search.
+- `doc_align_distortion.rs` / `ffi_align_distortion.rs` — the `fit_distortion` request, byte and typed read-only fits, FFI.
+- `feature_points.rs` — KERNEL: Auto-Align's feature corners: grey pyramid, Harris, ANMS, oriented 8×8 patch descriptors.
+- `feature_register.rs` / `ffi_feature_register.rs` — KERNEL: feature matching, RANSAC homography, the lens test's departure; FFI.
+- `selected_adjustment.rs` / `selected_filter.rs` / `selected_auto_levels.rs` / `ffi_selected_adjustment.rs` — captured native destructive tone and spatial requests.
+- `equalize.rs` — KERNEL: Equalize's weighted summed histogram, its table (EQ-SUM-MIN) and the request's scope (#547).
+- `equalize_apply.rs` / `ffi_equalize.rs` — Equalize on a byte image (`dr_image_equalize`) and on RGB16, float and CMYK layers (the selected edit).
+- `selected_pixels.rs` / `precision_selected_pixels.rs` / `ffi_selected_pixels.rs` — MOVE SELECTED PIXELS at 8, 16 and 32-bit float: one `SelectedPixelsEdit`.
+- `selected_pixels_walk.rs` — the walk 8, 16 and 32-bit float run, moved out of `selected_pixels.rs` verbatim: `move_extent`, `moved_pixel`, `move_samples`, `land_samples`.
+- `selected_pixels_transform.rs` — FREE TRANSFORM OF THE SELECTED PIXELS, `SelectedPixelsEdit::TransformSelected`, on the Move Selected Pixels walk.
+- `selected_plane.rs` — Free Transform of the selected area of a targeted LAYER MASK or ALPHA CHANNEL: `TransformSelected` and `MoveSelected` with a plane target and a background.
+- `selected_color_plane.rs` — Move / Free Transform of ONE colour channel (R/G/B/Alpha) of a layer at 8, 16 and 32 bits over `selected_plane`'s walk.
+- `plane_swatch.rs` — kernel: a swatch's 30/59/11 gray on one colour channel: the Fill/Stroke ink at 8, 16 and 32 bits and the channel move's vacated value.
+- `adjust.rs` — the shared adjustment-layer interpreter; its module doc holds the JSON schema table for every recognized `meta` op. Layer `meta` is otherwise an opaque blob the core never interprets.
+- `adjust_levels.rs` / `levels_native.rs` — the `levels` adjustment's payload: a master stage plus optional `r`/`g`/`b` stages, the channel's stage applied BEFORE the master's.
+- `adjust_curves.rs` / `curves_native.rs` — the `curves` adjustment's payload: point lists, or the 256-entry MAP form a Photoshop pencil curve imports as; native words 63/64.
+- `adjust_lut.rs` — `color_lookup`: the `.cube` parser, the stored table, the tetrahedral 3D lookup, every table at 32 bits and the parse memo.
+- `adjust_float.rs` — each adjustment's 32-bit float form (`FloatForm`): fitted, closed and display forms, derived at parse; a thin adapter. Fits in its doc.
+- `adjust_photo_filter.rs` — Photo Filter at 8/16 bits bound to the profile's D50 PCS (`BoundPhotoFilter`, `pcs_ratio`); adapter over `adjust_mix`. Fits in its doc.
+- `adjust_vibrance.rs` — #578: Vibrance at 8/16 bits bound to the profile's TRC (`BoundVibrance`); adapter over `adjust_color`'s kernel. Fits in its doc.
+- `vibrance_law.rs` — kernel: #578's Vibrance law (V3t-P), K and A/M tables over linear chroma × √max at five slider knots, a skin term above 0; read by `adjust_color`.
+- `adjust_color_balance.rs` — Color Balance as measured against Photoshop (take6): per-channel Levels, whole units, 32-bit stage end slopes. Kernel; form in its doc.
+- `adjust_bw8.rs` — kernel: #578 phase 4: Black & White's 8-bit Tint on integers (h8a-LE): `gray8` half to even on codes, `tint8` with L8 and a one-code lift.
+- `adjust_hue_saturation.rs` — Hue/Saturation as measured against Photoshop (take4's R0) at 8/16 bits, C16 Colorize, the 32-bit closed forms. Kernel; form in its doc.
+- `oklab.rs` — KERNEL leaf: Oklab to and from linear sRGB (Ottosson's published M1/M2 and inverses, f32); the Gradient Map's Perceptual method.
+- `adjust_replace_color.rs` — Replace Color: Hue/Saturation weighted by distance (0…255 encoded units) to 1…8 sampled colours; core 1 to f/2, linear to 0 at f. Kernel module.
+- `float_adjust_apply.rs` — destructive Image ▸ Adjustments on a float layer under the layer's own form; measured admission table in its doc.
+- `float_filter_apply.rs` — 24 filters on a float layer, linear or on the display-encoded copy; plan, coverage mix, admission table.
+- `float_filter_route.rs` — `Route` (parse, domain, plan, plane, combine, Develop Filter `back`, `needs_encoding`), `display_encoding()`.
+- `float_plane_filter.rs` — float filters on a mask, alpha channel or one RGBA plane through `Route`; the plane rule, layer-only refusals, plan, admission table.
+- `float_color.rs` — Assign/Convert to Profile in a float document (relabel; linear matrix, no clamp), an adapter over `promoted_image`; refusals and admission in its doc.
+- `agent.rs` — embedded MCP server on a Unix socket: `prepare_socket_path`'s claim policy, `start_socket`, `SocketClaim`, `release`. **Generic**: host gives catalog + callback.
+- `mcp_versions.rs` — the MCP protocol versions and `negotiate`; std only, shared with `mcp-proxy/` by `#[path]`, so it names nothing of the crate.
+- `style.rs` — layer styles: `LayerStyle`, `scaled_style`/`quad_mean_scale`, the `impl DrDocument` block; its module doc IS the style JSON schema table. `style::` is the one public path.
+- `style_model.rs` / `style_effects.rs` — the model's value types (global light, Blend If, gradient fill, the enums, `Strictness`) and the nine effect structs with `EffectKind`/`Effect`.
+- `style_knockout.rs` — KNOCKOUT and "Blend Interior Effects as Group" at 8 bits (12E-3): its module doc IS the design; `style_composite` / `doc_group` / `doc.rs` only WIRE IT UP.
+- `style_knockout_merge.rs` — what a MERGE punches through to at 8 bits (Phase 12E-3b, contract g): the knockout capture, the merge backdrop, and the one excluded set.
+- `precision_style_knockout.rs` — the TYPED twin of `style_knockout` (Phase 12E-3b), restating none of its rules and adding no pixel math; its one typed piece is the knockout SEED.
+- `style_instances.rs` — stacked effect instances: up to 10 of the five repeating kinds, the JSON sentences, the `.rz` word 89 and its byte/typed predicates.
+- `style_pattern.rs` — Pattern Overlay: `Pattern`, `PatternOverlay`, the AT-CREATION anchor (`made_at`) of every pattern fill, its level bytes, `.rz` word 90 and its predicates.
+- `style_pattern_fill.rs` — `PatternFill`: the overlay's, a Pattern stroke's and a bevel texture's (`BevelTexture`) shared fill, its JSON, origin, sampler, Scale Effects.
+- `style_presets.rs` — style PRESETS (Styles panel): `preset_style` (strict, no inks, no anchors) and the twelve original built-ins.
+- `pattern_tile.rs` — KERNEL: the tile, its PYRAMID levels (RGBA, mapped `tile_level_mapped`, CMYK ink `ink_sampler`), the sampler, the rotation sampler (TWO-PASS), presets.
+- `style_json.rs` / `style_json_write.rs` / `style_names.rs` — the ONE strict/lenient parser (clamp table, four-decimal quantization), the canonical writer, and the name tables both read.
+- `style_json_keys.rs` — the style JSON key table and `unknown_key`: both style setters refuse a key the schema does not name, by its path.
+- `style_render.rs` — the padded shape plane (with sub-planes) and the per-effect dispatch. Its parts: `style_plane_ops.rs`, `style_gradient.rs` (the ONE gradient), `style_cache.rs`, `style_reuse.rs`.
+- `style_composite.rs` — the styled-layer compositing path `doc.rs` routes to, and the ONE place a style's AUTHORED sRGB colour converts into the document's space.
+- `style_adjustment.rs` — a style / Blend If on an 8-bit adjustment layer: its shape (mask over the canvas) and the in-place interior `style_composite` applies after its Below effects.
+- `style_float.rs` — a style in a 32-bit float document: `FloatStyle`, sRGB → linear effect colour and the effect's float kind, measured in Photoshop.
+- `style_fx_*.rs` / `style_blend_if.rs` — one effect each (drop shadow, inner shadow, outer/inner glow, stroke, colour/gradient overlay, bevel/emboss, satin) and the Blend If weight.
+- `style_bevel_smooth.rs` — KERNEL: the measured Smooth bevel law `B` (#578): box-pair height (half Size for Emboss/Pillow), Depth·W slope, NORMALIZED shading, Soften, Outer's W − 1 cut at ≥ 45°.
+- `style_bevel_chisel.rs` — KERNEL: the measured Chisel law (#578 phase 2), shipped arms Pillow Hard/Soft: distance facet, k=(W_f−delta)/2W_f, NORMALIZED, Soften on the height.
+- `style_matte.rs` — KERNEL: the effects' box-pair law (#578: `law_split`, `law_matte_with_job`, `LawBand`) for shadows, glows and satin, and `Matte` (satin at Size 0; Spread 100 %).
+- `style_fx_satin.rs` — Satin (#578 part 3): the law's matte at spread 0, the two shifted copies each contour-mapped, `|C(a) − C(b)|`, invert, × coverage.
+- `style_fx_pattern_overlay.rs` — KERNEL: the Pattern Overlay renderer (one Interior contribution; coverage × tile alpha; layer coordinates only).
+- `style_stroke_distance.rs` — KERNEL: the 5×5 chamfer, `outside_corner_band`, `band_under_layer`, `inside_corner_band` (Center, AA Inside: #578), Shape Burst's 8-neighbour `contour_distance`.
+- `style_aa_band.rs` — KERNEL: the Inner Glow law's band measured from the anti-aliased contour (#578): `b_full`, `b_part` (partial pixels), their max.
+- `opacity_byte.rs` — KERNEL leaf: the byte Opacity and Fill below 32 bits (#578, measured), `code` / `quantized` / `composite` / `joint` (both bytes' product); composites and PSD bytes read it.
+- `style_stroke_fill.rs` — KERNEL: the Stroke's Shape Burst field (`burst_t`, `burst_field`) and its gradient box grown by the band's reach.
+- `style_contour.rs` — KERNEL: layer style contours: 10 measured preset tables, custom spline, Range, the Below cap, the in-place plane map, the gloss map.
+- `style_contour_json.rs` — the contour keys of the style JSON: the contour object both ways, the conditional writers, `carries_contour`.
+- `style_noise.rs` — KERNEL: layer style Noise: take 2's ADD law, the positional SplitMix64 grain at layer coordinates, the Below-capped fused pass.
+- `style_texture.rs` — KERNEL: the Bevel & Emboss Texture: Gray heights from the placed tile, take 2's REFIT law and gain, the slopes.
+- `style_glow_gradient.rs` — KERNEL: gradient glows and Jitter: the post-take ramp (EDGE-FIRST, min(255·a(t), cap), cap before Range, linear opacity), SPREAD-1, the t field.
+- `job_control.rs` / `ffi_jobs.rs` — single-use atomic cancellation/progress/scratch control.
+- `resources.rs` / `ffi_resources.rs` / `render_scratch.rs` — one-live-set allocation identity accounting, synchronized cache eviction and conservative projection scratch estimates.
+- Phase 4 image-level kernel contract (`render_request.rs` / `ffi_render.rs`, now deleted): byte Invert is `ops::invert` behind `dr_image_invert`; its region/preview rules live on in `regional.rs`.
+- `regional.rs` / `regional_plan.rs` / `doc_regional.rs` / `doc_regional_walk.rs` — Phase 13A's REGIONAL COMPOSITOR, 8/16/float (`regional.rs`'s module doc IS the contract); plan types; byte walk.
+- `doc_regional_tree.rs` / `doc_regional_sample.rs` / `doc_regional_style.rs` / `doc_regional_budget.rs` / `doc_regional_progress.rs` — byte tree, per-sample bodies, budget dry run, progress.
+- `regional_knockout.rs` / `regional_guide.rs` / `doc_regional_guide.rs` / `precision_regional_guide.rs` — knockout per sample; guided Shadows/Highlights stages (geometry, byte and typed drivers).
+- `precision_regional.rs` / `precision_regional_walk.rs` / `precision_regional_tree.rs` / `precision_regional_sample.rs` — the typed compositor: entry, admission walk, tree, cursor blocks.
+- `precision_regional_style.rs` / `ffi_regional.rs` — typed styled per-sample bodies; FFI. The tree/sample/style files hold no admission logic and no pixel math (they call the full frame's bodies).
+- `precision_image.rs` / `precision_render.rs` — typed storage/compositing, separate from the RGBA8 editor handles: `PrecisionImage` (tiled, private representation) and the typed compositor.
+- `precision_content_box.rs` — the typed content box: `PrecisionDocument::layer_bounds`, 16/32-bit twin of the byte `DrDocument::layer_bounds` (`doc_group_query.rs`), same tuple and rules.
+- `precision_layer_canvas.rs` — one typed record's RAW pixels on a transparent canvas (`PrecisionDocument::layer_canvas_image`), the typed twin of `dr_doc_layer_canvas_image`.
+- `precision_layer_hit.rs` — typed layer hit test: `PrecisionDocument::layer_at`, 16/32-bit twin of the byte `DrDocument::layer_at` (`doc_group_query.rs`) behind `dr_precision_doc_layer_at`.
+- `precision_document.rs` / `precision_native.rs` / `precision_native_read.rs` — immutable typed documents and their native records (v11+ reads); open and save stream the file (`native_stream`).
+- `precision_native_write.rs` — the typed `.rz` writer: admission, then the format in order to a `NativeSink` (the temp file or a Vec); small tables via one scratch Vec.
+- `native_stream.rs` — typed `.rz` I/O: `Reader` over a slice or a pread-only file (small takes in an arena, spans read on decode), `NativeSink`, `FileSink`, the window.
+- `native_magic.rs` — leaf: the native magic, written `DRDC` (`NATIVE_MAGIC`), read `DRDC` or legacy `RZDC` (`is_native_magic`); every writer and reader sniff goes through it.
+- `precision_clip_native.rs` — the typed `clipped` flag's conditional native v32 wrapper: the outermost version word, then the `LCLP` table after MOUT.
+- `precision_blend_if.rs` / `precision_blend_if_native.rs` — typed `Option<BlendIf>` on rasters, RGB adjustments and isolated groups: `validate`, `with_blend_if`, `layer_blend_if`; LBIF 1/2.
+- `precision_style.rs` / `precision_style_render.rs` / `precision_style_native.rs` — typed `Option<Arc<LayerStyle>>` by `StyleTarget`: validate, edit, render, persist (v36).
+- `precision_style_adjustment.rs` — the typed twin of `style_adjustment`: the in-place interior a styled 16/32-bit adjustment's styled path applies after its Below effects.
+- `precision_layer_blend.rs` / `precision_blend_native.rs` — native Normal/Multiply/Screen + 24 qualified raster/isolated-group modes on the existing `blend.rs` kernel, adjustments too; `LBLD` tables.
+- `precision_mask.rs` / `precision_mask_edit.rs` / `precision_plane_read.rs` — persistent u16 raw masks/channels, independent placement, linking, density/feather and exact scalar reads.
+- `precision_geometry.rs` / `precision_geometry_plan.rs` / `precision_geometry_canvas.rs` / `precision_sampling.rs` — typed affine/perspective and whole-document geometry: 16 bits, float, CMYK.
+- `precision_geometry_cmyk.rs` — #547 4b: `#[path]` child of `precision_geometry`, a CMYK raster plane through `resize_cmyk`/`transform_cmyk`.
+- `geometry_set.rs` / `precision_geometry_set.rs` / `doc_geometry_set.rs` / `ffi_geometry.rs` — Phase 12F-2's one fixed-point postorder subtree/link expansion and atomic affine/projective set edit.
+- `align_math.rs` / `precision_align.rs` — Align and Distribute at both depths: the shared math (`AlignEdge`, `claim_deltas`) and the typed `align_set` / `distribute_set` request.
+- `source_transform.rs` / `source_transform_native.rs` / `doc_source_geometry.rs` / `precision_source_geometry.rs` — accumulated affine or projective maps always sample original retained masters.
+- `precision_paint.rs` / `precision_heal.rs` / `ffi_precision_edit.rs` — strict typed requests: authored-color paint, erase, integer raster-source clone, text/shape assembly, explicit-window healing.
+- `precision_conversion_structure.rs` — 12H-1's structure-preserving 8→16 conversion beside the untouched flattened one: plan, op and preview over one walk.
+- `precision_conversion_narrow.rs` — 12H-2's structure-preserving NARROWING (16→8, float→16, float→8) beside the flattened `downconvert`/`float_to_u16`, as ONE walk.
+- `precision_conversion_float.rs` — 8/16→float, every record carried, codes decoded by the profile TRC (the layers paste's promotion); plan, refusals, admission.
+- `precision_conversion.rs` / `precision_quantize.rs` / `precision_stats.rs` / `ffi_precision_conversion.rs` — legacy promotion, typed downconversion, one RGB quantizer, u16 sample/histogram reads.
+- `precision_inspect.rs` / `ffi_precision_inspect.rs` / `precision_structure.rs` / `precision_capability.rs` — bounded UI metadata, adjustment inspection, name/visibility edits, the family decision.
+- `precision_adjustment.rs` / `precision_color.rs` / `ffi_precision_color.rs` — typed live/destructive adjustment and captured-profile edits; `AdjustmentAdmission`: the ONE adjustment charge.
+- `gray16_import.rs` — the Phase 11D 16-bit GRAYSCALE interpretation: `GrayInterpretation` is either `SrgbCodes` or `GrayProfile(curve)`; the document profile is always sRGB.
+- `gray_working.rs` — KERNEL: `GrayWorkingSpace`, Color Settings' seven Gray spaces as `Y^e` (Dot Gain, Gray Gamma) and sGray, `linear`, the luminosity load measured against Photoshop.
+- `gray_document.rs` — #547 Grayscale mode: `GrayPolicy` (Gray ICC, depth, RGB twin, luminance), the gate (every parser op admitted or refused for good), the permanent sentences, New Grayscale.
+- `gray_art_history.rs` — #547: the 8-bit u16-record Art History walk (`U16Art`, its `kind`): Gray (2e, `GRAY_ART`) and Lab (2f, `LAB_ART`); plan and apply as `doc_art_history`.
+- `gray_artwork.rs` — #547 phase 6a-i: a type, shape or fill layer's colours as their gray (Mode rule, custom tiles too) and the fold of its published pixels.
+- `gray_adjust.rs` — #547 phase 2b: the Gray adjustment table (runs, layer, disabled, RGB-only), channel rule, Gradient Map stop greying, record check.
+- `gray_filter.rs` — #547 phase 2c: Gray filter gate (Clouds greyed, Liquify admitted), the one-channel fold, the Sponge's middle gray, retouch refusals.
+- `gray_style.rs` — #547 phase 2d: a Gray document's style colours greyed (hex, wide, tiles), effect-mode and Blend If refusals, RGB → Gray's style pass, open check.
+- `gray_io.rs` — #547: which gray PNG/TIFF/JPEG files open as Gray documents (header only) and `open_gray`; its plan.
+- `gray_encode.rs` — KERNEL: #547 one-channel encoders: PNG L8/LA8/L16/LA16, TIFF gray (+ alpha) 8/16, JPEG L8, behind the export sidecar.
+- `gray_export.rs` — #547: a Gray document's kept-gray export (profile document): R and alpha of the staged u16 composite, Gray ICC; refusals.
+- `gray_convert.rs` — #547: Image ▸ Mode ▸ Grayscale from RGB or Lab (u16 and float, tree carried), RGB Color back through Convert to Profile; plans, blockers.
+- `gray_native.rs` — #547: the Gray document in `.rz`: word 106 in the CMYK slot and the `GRAY` table before LIDS.
+- `gray_profile.rs` — #547 phase 5a: a Gray document's Assign / Convert to Profile Gray↔Gray and 8/16/32 Bits/Channel; plan, refusals.
+- `gray_clipboard.rs` — #547 phase 4: the Gray clipboard payload and RZCB v5, the paste across modes, the one-channel pasteboard TIFF out and in.
+- `gray_comps.rs` — #547 phase 6a-ii: RGB → Gray's comp carry (recorded styles greyed, plan bytes) and the Apply skips of a mode or style Gray cannot hold.
+- `ffi_gray.rs` — every `dr_*gray*` export of #547's Grayscale mode: source query, open, New, both conversions and their plans.
+- `ffi_gray_clipboard.rs` — `dr_clipboard_payload_gray_tiff`, `dr_clipboard_payload_from_gray_image` (a gray TIFF on the pasteboard).
+- `lab_document.rs` — #547 Lab Color (closed; `designs/lab-mode.md`): `LabPolicy`, `is_lab_twin`, the edit gate (codes, colours, modes, selections, no profile), sentences, New.
+- `lab_retouch.rs` — #547 Lab 2e/2f: Sponge neutral, History Brush and clone-plate refusals, Art History arm (`LAB_ART`), Red Eye through ProPhoto (`red_eye`).
+- `lab_select.rs` — Lab selection kernel: Color Range's `RANGE_RULE`; the wand/bucket/Similar/Grow `wand_key` (#683), `LabWandRange`, `grow`, `similar`.
+- `lab_stack.rs` — #547 Lab 6b-ii kernel: a Lab layer's CIE Y (`linear_y`), the vignette gain on the codes' XYZ, Auto-Blend's L*-only luma and gains.
+- `lab_style.rs` — #547 Lab 2e/2f: `style_refusal` (effect modes outside the Lab list); Blend If on L, a, b; `painted_sampler` (sRGB tile → Lab codes before the pyramid).
+- `lab_tone.rs` — KERNEL: #547 Lab 2b–2d: `LabForm` (Lightness, Channels, Threshold, Split, Chroma, Desaturate, Color in the op's space), a kernel's rule on L*a*b*.
+- `lab_adjust.rs` — #547 Lab 2b–2d: adjustment table, form rules, `LabBinding`, `color_space` (ProPhoto), `kernel_params`, `kernel_rgb`, gates, `lab_carry_refusal`.
+- `lab_artwork.rs` — #547 Lab 6a-i: type, shape and fill layers, paths and vector masks on Lab (rules); `on_document_grid` (8-bit publication on ×257), `grid_bytes`.
+- `lab_blend.rs` — KERNEL: the Lab arms of the compositor (take2's verdicts), `kind_in`/`fill_in`/`lab_fade_blend` routing; 8- and 16-bit grids.
+- `lab_comps.rs` — #547 Lab 6a-ii: the Apply skips of a recorded mode or style (effect mode, Blend If channel) Lab cannot hold; RGB/Gray ↔ Lab carry comps unchanged.
+- `lab_convert.rs` — #547: Mode ▸ Lab Color from RGB/Gray (2d: with adjustments) and back through `ColorPipeline`; plans, blockers; `lab_display`, `view_pipeline`, `view_scratch_bytes`.
+- `lab_filter.rs` — #547 Lab 2c/2d/4a-ii: the layer filter gate (`LAB_FILTERS`; Liquify runs since 4a-ii), the mask/alpha `scalar_refusal`, Clouds' `lab_hex`.
+- `lab_channel_filter.rs` — #547 Lab 2f: Emboss, Edge Detect, Lens Blur, Reduce Noise, Smart Sharpen, Offset fill as gray one-channel passes; plan; `filter_plans`.
+- `lab_encode.rs` — KERNEL: #547 Lab 1b/3a/3b: CIELab TIFF samples; `storage_code` reads PSD/CIELab/ICCLab; `psd_sample`/`psd16_ab_sample` write PSD; `LAB_WHITE`, `matte_white`.
+- `lab_rgb.rs` — #547 Lab 1b: the export's Lab → RGB stage (`lab_to_rgb_image`) and the fit-first layer thumbnail (`lab_thumbnail_rgba8`).
+- `lab_save.rs` — #547 Lab 1b: the Lab TIFF save, its request and plan (`save_lab`, `save_lab_plan`; no ICC, alpha only when not opaque).
+- `lab_tiff_read.rs` — #547 Lab 3a: which flat Lab TIFFs open (Photometric 8/9, header only over `tiff_directory`, `lab_source_at`) and `open_lab`; `open_plan`.
+- `tiff_directory.rs` — KERNEL leaf: a classic TIFF's first directory (header only), the bytes/file readers and the patching `Overlay` (Lab and palette TIFF opens).
+- `lab_limits.rs` — #547 Lab 3b: leaf; the flat Lab TIFF open's measured `OPEN_BYTES_PER_PIXEL`.
+- `lab_native.rs` — #547: the Lab document in `.rz`: word 107 in the CMYK slot and the `LAB ` table before LIDS.
+- `lab_neural.rs` — #547 Lab 6b-iii: a model's input through the Display P3 view and its result back by the Mode rule (`published`), their plan terms.
+- `lab_depth.rs` — #547 Lab 5a: 8/16 Bits/Channel on Lab (16 → 8 on the ×257 grid, 8 → 16 relabels), its plan, `DEPTH_BYTES_PER_PIXEL`.
+- `lab_clipboard.rs` — #547 Lab 4c: the Lab clipboard payload and RZCB v6, the paste across modes (RGB → Lab by Mode ▸ Lab Color, Lab → RGB relative + BPC).
+- `lab_cmyk.rs` — #547 Lab 5a: Lab → CMYK's 16-bit ProPhoto stage (relative + BPC), `stage_scratch_bytes`, the Lab-named `first_blocker`.
+- `lab_gray.rs` — #547 Lab 5a-ii: Lab → Grayscale's L* rule (L*⁻¹, the Gray curve; take-confirmed), its blocker, `EXTRA_BYTES_PER_PIXEL`.
+- `ffi_lab.rs` — every `dr_*lab*` export of #547's Lab Color mode: New, conversions and plans, the view, thumbnail, Lab TIFF save, 2d `dr_lab_kernel_rgb`.
+- `indexed_document.rs` — #547 Indexed 1a–3c: `IndexedPolicy` (palette, t, plane), render, `with_table`, `with_indexed`, the gate (`IndexedRoute`), sentences (disabled, one layer, RGB only).
+- `indexed_edge.rs` — KERNEL #547 Indexed 2b–3b: the edge rule (THRESH k = 131) by `EdgeInk` (3b: `Blend`); `clear_index` (t, else nearest the background colour, lazy); test seams.
+- `indexed_paint.rs` — #547 Indexed 2b–3c: paint (any mode), Fill, Stroke, Bucket, erasers, Cut, Clone Stamp, History Brush, then `republish`; `rebuild`; the background key.
+- `indexed_geometry.rs` — #547 Indexed 2c–3b: canvas geometry, layer transforms: exact via `carried` (new area `clear_index` of the background), else resample + re-index.
+- `indexed_transform.rs` — #547 Indexed 2d–3b: `move_selected`, `transform_selected` (layer, alpha channel) and Warp, exact via `carried`, else re-indexed; the background key.
+- `indexed_profile.rs` — #547 Indexed 3a/3b: Assign Profile (indices, table codes kept), Convert to Profile (table converted; own profile returns first), RGB only; `plan`.
+- `indexed_clipboard.rs` — #547 Indexed 2d: Paste and Paste Special: RGB paste, optional `set_mask`, Merge Down, re-index; `paste_plan`, `PASTE_MERGE_BYTES_PER_PIXEL`.
+- `indexed_palette.rs` — KERNEL #547 Indexed 1a–3c: Web, Uniform, System, Exact, Adaptive palettes, forced colours (3c: Custom), matte, `nearest_entry` and its memo, Floyd–Steinberg.
+- `indexed_dither.rs` — KERNEL #547 Indexed 3c: Pattern (Bitmap's 8×8 Bayer) and Noise (Dissolve's hash) ordered dithers, `DITHER_SPREAD`; declared, kept by 3d's take (Pattern missed, Noise refused).
+- `indexed_convert.rs` — #547 Indexed 1a–3c: Mode ▸ Indexed Color from 8-bit RGB/Gray (options, dithers, forced table, plan, one-layer rule), back to RGB; `TO_INDEXED_BYTES_PER_PIXEL`.
+- `indexed_act.rs` — KERNEL #547 Indexed 1c: `ColorTable`, Adobe `.act` parse/encode (768/772 B), the table JSON, the Custom palette (`custom`).
+- `indexed_table.rs` — #547 Indexed 1c/3a: Mode ▸ Color Table on a document (get, plan, set keeping the plane; `retabled`), `.act` read/write by path.
+- `indexed_io.rs` — #547 Indexed 1a/1b: which PNG/GIF/palette TIFF files open as Indexed (header only, `indexed_source_at`), `open_indexed`; `OPEN_BYTES_PER_PIXEL`.
+- `indexed_tiff.rs` — #547 Indexed 1b: palette TIFF facts (Photometric 3), decode to indices and transparent index, `open_plan`, the export preview's decode.
+- `indexed_encode.rs` — #547 Indexed 1b: palette PNG (type 3), GIF89a and TIFF (Photometric 3) encoders over a palette, transparent index and plane.
+- `indexed_export.rs` — #547 Indexed 1b–3a: the kept-Indexed export (PNG/GIF/TIFF), refusals (3a: hidden layer), plan, stages; Export Layers of the Index layer; `EXPORT_BYTES_PER_PIXEL`.
+- `indexed_psd.rs` — #547: colour-mode-2 PSD/PSB: import report, stored-composite open, export report and writer (Photoshop's form: no layer record), `indexed_psd_worst_case`.
+- `indexed_psd_records.rs` — KERNEL #547: the ONE reader and writer of the 768-byte planar colour table and resources 1046 (count) and 1047 (transparent index).
+- `indexed_native.rs` — #547 Indexed 1a: the Indexed document in `.rz`: word 108 in the CMYK slot and the `INDX` table before LIDS.
+- `ffi_indexed.rs` — every export of #547's Indexed Color mode: source test, open, conversions and plan, index under a point, Color Table get/plan/set, `.act` read/write, 2d paste plan/apply.
+- `duotone_ink.rs` — KERNEL #547 Duotone 1a: `DuotoneInks` (1–4 Lab inks, 13-slot curves, overprints), parse/JSON, coverage splines, the Neugebauer mix.
+- `duotone_document.rs` — #547 Duotone: a Gray document with a description: options, Mode ▸ Duotone plan/set, the view (one table), thumbnail, refusals; `TO_DUOTONE_BYTES_PER_PIXEL`.
+- `duotone_native.rs` — #547 Duotone 1a: the Duotone document in `.rz`: word 109 in the CMYK slot and the `DUOT` table after `GRAY`.
+- `duotone_ado.rs` — KERNEL #547 Duotone 1b: Photoshop's duotone specification (PSD colour-mode data = `.ado`) read/written, `DuotoneFileBlock`.
+- `duotone_files.rs` — #547 Duotone 1b: the PSD/PSB carry (`container_inks`, `into_duotone_file`) and `.ado` file I/O.
+- `duotone_convert.rs` — #547 Duotone 1b: the render through the inks (RGB in the twin), the shared tree assembly, its blockers and plan, Duotone → RGB.
+- `duotone_gray.rs` — #547 Duotone close: Duotone → Grayscale (the inks' luminance in its own Gray profile, one table) and Duotone → Bitmap (that, then Bitmap); their plans.
+- `ffi_duotone.rs` — every `dr_*duotone*` export of #547's Duotone mode: options, Mode ▸ Duotone plan/set, the view, render, → RGB, `.ado`, thumbnail, → Grayscale, → Bitmap.
+- `bitmap_document.rs` — #547 Bitmap 1a-3: `BitmapPolicy` (packed 1-bit plane), render, `with_bitmap`, the gate (`BitmapRoute`, `admit_selected`), three refusal tiers.
+- `bitmap_method.rs` — KERNEL #547 Bitmap 1a-2b: Threshold, the fitted Pattern table, `DIFFUSION` (Sierra Lite), Halftone, Custom tile; packing, Size Ratio, `white_over`.
+- `bitmap_edit.rs` — #547 Bitmap 2a/3: paint, Gradient, geometry, Perspective Crop, Clone, selected pixels and Cut on the Gray storage, ink snap, `republish` by `white_over`.
+- `bitmap_tools.rs` — #547 Bitmap 3: Liquify (the selected edit) and the History Brush on the Gray storage, then `bitmap_edit::republish`.
+- `bitmap_convert.rs` — #547 Bitmap 1a/1b: Mode ▸ Bitmap from 8-bit Gray (options, pattern tile, Output resolution, plan, one-layer rule), Gray back with a Size Ratio.
+- `bitmap_native.rs` — #547 Bitmap 1a: the Bitmap document in `.rz`: word 110 in the Gray word's place, GRAY then the `BTMP` table before LIDS.
+- `ffi_bitmap.rs` — #547 Bitmap 1a/1c's exports: Mode ▸ Bitmap, Bitmap → Grayscale and plans; the 1-bit source test, its open, the Bitmap PSD open.
+- `bitmap_codec.rs` — KERNEL #547 Bitmap 1c: which 1-bit PNG/TIFF/BMP files claim, their decode to the plane, PNG/BMP encoders, polarity flip, pad clear.
+- `bitmap_io.rs` — #547 Bitmap 1c: the 1-bit PNG/TIFF/BMP open (`open_bitmap`, plan 42 B/px), `from_bitmap_plane`, the header-only source test.
+- `bitmap_psd.rs` — #547 Bitmap 1c: colour-mode-0 PSD/PSB: import report, stored-composite open, export report and writer (1 is black).
+- `bitmap_export.rs` — #547 Bitmap 1c: the kept 1-bit PNG/TIFF/BMP export (bit_depth 1 reply), its refusals and plan (2 B/px).
+- `tile_store.rs` — the Phase 13B-1 shared immutable tile store: `TilePlane<S>` over the five retained sample types, fixed 256×256 tiles, edge tiles clipped; the ONLY tile equality.
+- `layer_raster.rs` — Phase 13B-2a's `LayerRaster`, the ONE accessor for byte layer pixels (tiled, private representation): layer pixels, retained-source and warp planes share its identity.
+- `thumbnail_reduce.rs` — the thumbnail REDUCERS, moved out of `doc_plane.rs` verbatim: `box_reduced`, `area_split`, `box_reduced_rows`, `gray_resized`.
+- `layer_thumbnail.rs` — the Layers panel's thumbnails FITTED BEFORE any whole-layer copy: the byte raster arm, the typed `thumbnail_rgba8` and the 8-bit mask thumbnail.
+- `precision_thumbnail.rs` — the typed DOCUMENT's Layers-panel thumbnails fitted before any whole-layer work, and the 16-bit Channels panel's rows.
+- `contiguous_views.rs` — the ONE process-wide bounded cache of disposable whole-plane contiguous views (13B-2b's, generalized in 13B-3b-1), shared by both depths.
+- `tiff_float.rs` — the Phase 11D floating-point TIFF SEAM, pure and with no policy of its own; `float_io.rs` is its only in-crate caller and owns what a value above 1.0 MEANS.
+- `float_document.rs` / `float_io.rs` / `float_native.rs` / `float_stats.rs` / `ffi_float.rs` — the 11F 32-BIT FLOAT MODE; `build(.., float)` is the ONE storage gate; words 67/72 float masters.
+- `exr_float.rs` — the OpenEXR SEAM: inspect, decode and encode over the `exr` crate, pure and with no policy; `float_io.rs` owns alpha, primaries and the finite rule.
+- `radiance_hdr.rs` — the Radiance RGBE SEAM: inspect, decode and encode over `image::codecs::hdr`, with the `PRIMARIES=` line; no policy of its own.
+- `float_primaries.rs` — xy chromaticities: Rec.709, Display P3 and BT.2020 constants, the 0.002 match, `conversion` between primaries and `luminance_row`.
+- `hdr_transfer.rs` — kernel: BT.2100 PQ and HLG signal↔linear and the one reference-white rule (1.0 = 203 cd/m², an SDR base's white for a gain map).
+- `float_host_intake.rs` — a host-decoded HDR still (f32 linear, or PQ/HLG codes) into a float document through `float_io::document_of`.
+- `float_view.rs` — `FloatView`, `display_rgba8_view` (view exposure, candidate tone map) and `display_extended` (the EDR view's binary16 buffer, its plan).
+- `merge_hdr.rs` / `doc_merge_hdr.rs` / `ffi_merge_hdr.rs` — Merge to HDR: the weighted linear merge, EV estimate and ghost test; layer adapters into a new float document; six exports.
+- `hdr_toning.rs` — kernel: HDR Toning's request (`HdrRequest`), its three global maps, plane statistics, post-render plan by request.
+- `hdr_local_adaptation.rs` — kernel: Local Adaptation's request, log range, guided base/detail split, per-pixel map, Toning Curve histogram, plan.
+- `doc_hdr_toning.rs` / `ffi_hdr_toning.rs` — HDR Toning adapters: render, decode, tone into a flattened 16-bit document; the 8/16-bit plans; the histogram; four exports.
+- `doc_export_float.rs` — the 32-bit float deliverable: TIFF, OpenEXR, Radiance, its preview; the HDR HEIC/AVIF's gain-map or PQ intermediate.
+- `precision_metadata_edit.rs` / `ffi_precision_metadata.rs` — Phase 11D typed twins of the three byte metadata edits (`import_metadata`, `set_metadata`, `set_resolution`), byte contracts verbatim.
+- `doc_export.rs` / `ffi_export.rs` — the Phase 11A export workspace: ONE pure render → resample → sharpen → convert → reduce → encode chain producing a deliverable's ENCODED BYTES, at both depths.
+- `doc_export_layers.rs` — per-item deliverables (Phase 11B): one top-level layer or group exported on its own through the SAME `doc_export` chain.
+- `fade.rs` / `doc_fade.rs` / `precision_fade.rs` / `ffi_fade.rs` — Edit ▸ Fade (v1): the per-pixel kernel over `blend.rs`, the byte, u16 and f32 adapters, and their FFI.
+- `contact_sheet.rs` — pure grid composition (Phase 11B): geometry only, no pixel math. The core rasterizes NO text — a caption is a host-rendered bitmap it places and clips.
+- `export_metadata.rs` — the named metadata policy (Phase 11B) carried as the export request's `metadata` key, plus the `MetadataOutcome` report.
+- `export_sharpen.rs` — the export output-sharpening stage: Unsharp Mask or Smart Sharpen, its request parse, plan term and the 8/16-bit runs.
+- `precision_projection_export.rs` / `ffi_precision_export.rs` — export an already captured authoritative u16 projection through the shared atomic codec without rendering another copy.
+- `source_refusal_native.rs` — the conditional byte word 56 / typed word 57, the FIRST word inside identity 45/46, and its `RSPR` table, the last table before `LIDS`.
+- `source_asset.rs` / `retained_source.rs` / `doc_retained_source.rs` / `precision_retained_source.rs` / `retained_source_render.rs` — genuine 8/16/32-bit masters at every depth, stable identity.
+- `retained_source_float.rs` — a retained source's fallback in a 32-bit float document (RAW layers): convert to linear light, then resample.
+- `raw_source.rs` / `raw_source_edit.rs` / `ffi_raw_source.rs` / `ffi_precision_input.rs` — opaque immutable camera bytes and strict descriptor envelopes attached to retained genuine-u16 masters.
+- `precision_blank.rs` — the blank 16-bit document (`PrecisionDocument::create_blank`, `dr_precision_doc_create_blank` in `ffi_precision_input.rs`): File ▸ New… at 16 bits.
+- `source_attachment.rs` / `ffi_source_attachment.rs` — bounded opaque host-state envelopes and immutable binary resources, shared across content revisions.
+- `filter_kernels.rs` — the photographic kernels the destructive filters share: the ONE operator dispatch (`FilterKind`, `Neighborhood`; plan and plane from one match).
+- `sampling_gaussian.rs` / `sampling_rank.rs` / `sampling_denoise.rs` / `sampling_box.rs` — the neighbourhoods: Gaussian, lower-median rank disc, guided-filter denoise, the ONE sliding box sum.
+- `gaussian_blur_filter.rs` — kernel: Gaussian Blur (measured against Photoshop), the fitted law and its K-pass extended box (the filter's master; not Box Blur's integer box), banded.
+- `cache_limit.rs` — leaf: resident cache bounds from the working limit: the cache bound limit/16 and the host trim limit/8 (all-or-nothing).
+- `native_source_resources.rs` — byte v21 / typed v22: per-asset ATCH records plus ONE deduplicated RBIN pool for RAW and generic resources. Never create separate RAW and generic pools.
+- `raw_local_mask.rs` / `raw_local_coverage.rs` / `raw_local_effective.rs` / `raw_local_preview.rs` — immutable RZLM1 u16 source-coordinate RAW local mask blobs, shared with native RBIN resources.
+- `raw_local_range.rs` — kernel: a RAW local's luminance/colour range as coverage of the base development's D50 Lab (L* clamped 0…100); laws, validation.
+- `raw_local_tone.rs` — kernel: a RAW local's tone controls, ranges, and their mapping onto existing adjustment descriptions, Presence and `LocalDetail`.
+- `raw_local_tone_apply.rs` — `ToneStage`: binds a local's tone descriptions to the base profile, builds its guide/Presence planes, answers its sample.
+- `raw_local_limits.rs` — leaf: 16 RAW locals, 4 camera variants, the 1 GiB combined resource cap, `fitting_locals`.
+- `raw_locals_native.rs` — `.rz` word 79, both depths, first inside 45/46, no table: >4 masks on an attachment or >512 MiB resources.
+- `raw_local_develop.rs` / `raw_local_attachment.rs` / `ffi_raw_local.rs` — RAW local develop: alternate RAW variants mixed through the shared premultiplied gate, vignette, one final u16 quantization.
+- `raw_float_develop.rs` — the f32 arm of the RAW local develop: blend, linear-gain vignette and range sample over a scene-linear base, unclamped; `float_document`.
+- `raw_source_geometry.rs` / `raw_local_remap.rs` / `ffi_raw_geometry.rs` — strict inverse EXIF/affine/lens maps, exact permutation copies, f64 u16 image/mask sampling, plans; normalised mask resize.
+- `host_pixels.rs` / `pixel_orientation.rs` / `ffi_host_pixels.rs` — RGBA8/16, RGB, BGRA, RGBX, ARGB16 BE, packed 10:10:10, rgba32f (HDR); alpha policy, padded rows, EXIF permutation.
+- `heif_container.rs` / `ffi_heif_container.rs` — the primary item's colour facts and `prem` reference from an ISO-BMFF/HEIF file's own boxes, no decode.
+- `develop_inspect.rs` / `ffi_develop_inspect.rs` — read-only inspection of retained u16/f32 masters before geometry or retouch; the f32 rule-X preview at Fit/100 % with float clipping (#680).
+- `clip_display.rs` / `ffi_clip_display.rs` — the ⌥-drag Levels/Curves clipping display: a transient threshold image of an edited composite; u16 0/65535, f32 >= 1.0 / <= 0.0.
+- `precision_codec.rs` / `precision_png.rs` / `precision_io.rs` / `ffi_precision.rs` — preserving RGB/RGBA16 PNG/TIFF input, metadata sidecar/TIFF encoder, native pixel payloads, typed C owners.
+- `artwork_coverage.rs` / `artwork_render.rs` / `artwork_document.rs` / `ffi_artwork.rs` — bounded coverage; ink assembly into RGBA16 (linear f32 at 32 bits); a document-depth publication.
+- `authored_color.rs` / `ffi_authored_color.rs` — the one sRGB ↔ document decision for authored colours (`LabTwin` converts tiles), wide colours in and out.
+- `artwork_native.rs` and the typed native reader/writer — v20 postorder `ADSC` references and bounded opaque UTF-8 descriptions; source bindings and descriptions are mutually exclusive.
+- `ffi.rs` / `ffi_doc.rs` / `ffi_filters.rs` / `ffi_agent.rs` / `ffi_style.rs` / `ffi_color.rs` / `ffi_heal.rs` — thin shims only; shared plumbing lives in `ffi_util.rs`, never copy-pasted.
+- `scoped_statistics.rs` / `precision_scoped_source.rs` / `ffi_scoped_statistics.rs` — code/coverage counting for named scopes and projections; `float_bins` picks float stop or unit bins.
+- `ffi_jobs.rs` / `job_control.rs` — `dr_job_control_begin_compound` atomically consumes a single-use token for host-composed sequential child work.
+- `doc_cutout_render.rs` / `ffi_cutout.rs` — the internal byte cutout's one visible plain root/default mask, validated, then `doc::composite_layer_into` and `doc::quantize` in ≤4096-pixel chunks.
+- `trim_bounds.rs` / `ffi_trim.rs` — Image ▸ Trim scan: the kept rect past transparent or corner-equal rows and columns, at u8, u16 and f32.
+- `perspective_crop.rs` / `doc_perspective_crop.rs` / `precision_perspective_crop.rs` — Perspective Crop: request and homography kernel, byte and typed adapters.
+- `path_geometry.rs` — KERNEL: `PathShape` (anchors, subpaths, fill rule), `PathHit`, JSON, caps, validation, commands, bounds, point maps, coverage.
+- `path_flatten.rs` — KERNEL: `PathShape::flattened`, each subpath as a polyline within a tolerance (`flatten_cubic`), split from `path_geometry`.
+- `path_edit.rs` — KERNEL: the Pen's geometry, `PathShape::hit`, `inserting_anchor`, `converting_anchor` (`nearest_on_cubic`), split from `path_geometry`.
+- `path_trace.rs` — KERNEL: `trace`, u16 coverage to a `PathShape` (50 % contour, Douglas–Peucker corners); the fit is `path_fit`.
+- `path_fit.rs` — KERNEL: `path_trace`'s step 3, Schneider's cubic fit (`fit`, `generate`, `reparameterize`), and the point helpers both use.
+- `doc_path.rs` / `precision_path.rs` — PATHS at both depths: `PathEntry`, `DocPaths` / `TypedPaths`, `list_refusal` (the one home of the list rules), `with_paths`.
+- `path_native.rs` — the `.rz` `PATH` table, words 74 (byte) / 75 (typed): the path list and the vector-mask section with its raster planes.
+- `doc_vector_mask.rs` / `precision_vector_mask.rs` — VECTOR MASKS: a shape baked into the layer's ordinary mask; records, live or dead, bake, expose/rebake, edits.
+- `vector_mask_common.rs` — vector masks' depth-neutral half: `VectorMaskView` and its JSON, `VectorMaskSeed`, `bake_rect`, `anchor_refusal`, `table_mask_agrees`.
+- `doc_vector_mask_carry.rs` — byte vector masks carried across ops: seeds, the follow hook, the `.rz` table written and `adopted_records`.
+- `precision_vector_mask_carry.rs` — typed vector masks carried across ops: seeds, `following_geometry`, the `.rz` table and `adopt_vector_masks`.
+- `ffi_path.rs` — the exports: path lists, `dr_path_coverage` / `_flatten` / `_trace` / `_hit` / `_insert_anchor` / `_convert_anchor`.
+- `ffi_vector_mask.rs` — the vector-mask exports at both depths: `dr_doc_vector_mask_json`, set, remove, properties, and their `dr_precision_doc_*` twins.
+- `landmark_region.rs` — Face Parts KERNEL: landmark point loops to closed centripetal Catmull–Rom subpaths, include × clip × (1 − exclude) u16 coverage via `PathShape::coverage`.
+- `ffi_landmark.rs` — `dr_landmark_coverage`: landmark regions JSON to a canvas u16 coverage plane, admitted and cancellable like `dr_path_coverage`.
+- `model_mask.rs` — KERNEL: a model's channel-major output plane to canvas u16 coverage (`sample_exact` bilinear, logit or probability, × clip).
+- `ffi_model_mask.rs` — `dr_model_mask_coverage`: model plane + frame JSON to canvas u16 coverage and a covered count, admitted like landmarks.
+- `ffi_lens_profile.rs` — v1-lensfun's `dr_lens_exif_identity` (EXIF to lens identity JSON) and `dr_lens_match` (the database's match and profile).
+- `stack_stat.rs` / `doc_stack_mode.rs` / `precision_stack_mode.rs` / `ffi_stack.rs` — Stack Modes (12): request, extent, plan KERNEL; byte and typed adapters, byte exports.
+- `stack_moments.rs` — KERNEL of the per-pixel statistic: the twelve modes' rule (bounded skewness/kurtosis, 256-bin entropy, majority), integer and f64.
+- `cmyk_stack_mode.rs` — Stack Modes in a CMYK document: per ink over `cmyk_passes`' L domain, two passes through `stack_row`, joined on paper.
+- `focus_stack.rs` — kernel of Auto-Blend's Stack Images: two-band sharpness score, one majority vote, Laplacian-pyramid blend, their plans.
+- `doc_auto_blend.rs` / `precision_auto_blend.rs` — Auto-Blend Layers at 8 bits and 16/float: request, method, report, masks, Stack Images' merged layer, Panorama's branch.
+- `graph_cut.rs` — KERNEL (`#[doc(hidden)] pub`): one binary min s-t cut on a 4-connected grid (Boykov–Kolmogorov), `cut_bytes`.
+- `panorama_seam.rs` — kernel of Auto-Blend's Panorama: analysis grid, bottom-up min-cut seams through each overlap (Lower preference), full-res labels, plan.
+- `panorama_gain.rs` — kernel of Panorama's Seamless Tones: per-frame RGB gains from overlap means (Brown–Lowe, σ_g 1), `gained`, plan.
+- `doc_panorama_blend.rs` / `precision_panorama_blend.rs` — Panorama write-back: each frame's blend where its mask reveals, gained RGB elsewhere.
+- `ffi_auto_blend.rs` — the exports: `dr_doc_auto_blend_plan` / `dr_doc_auto_blend` and their `dr_precision_doc_*` twins.
+- `sky_harmonize.rs` — KERNEL of Sky Replacement: params, Shift/Fade/edge radii, sky adjust + placement, harmony statistics, per-pixel composite, plan.
+- `doc_sky_replace.rs` — the adapters: byte and 16-bit `sky_replace` (Duplicate Layer above the source; New Layers dispatches to `doc_sky_group`; 32-bit/CMYK refuse), preview.
+- `sky_group.rs` — KERNEL of the New Layers output: child names, the sky mask, sky and Foreground Edge planes from `prepare`, the Curves points, planned bytes.
+- `doc_sky_group.rs` — the adapters: byte and 16-bit `sky_replace_group` (Pass Through group: Foreground Edge if on, two Curves layers, masked Sky).
+- `sky_decontaminate.rs` — KERNEL of Sky Replacement's edge decontamination: old-sky and foreground cell grids, the per-pixel solve and its band.
+- `ffi_sky.rs` — the exports: `dr_sky_replace_scratch_bytes`, `dr_image_sky_replace`, `dr_doc_sky_replace`, `dr_precision_doc_sky_replace`.
+- `remove_model.rs` (KERNEL) / `doc_remove_model.rs` / `ffi_remove_model.rs` — Remove tool Model mode: crop, native mask/image, fill composite 8/16 bit (Gray fold, Lab view); plan, input, apply.
+- `gen_fill.rs` (KERNEL) / `doc_gen_fill.rs` / `ffi_gen_fill.rs` — Generative Fill: native size, crop, RGBA8 input, read-back onto a new masked tagged layer at 8/16 bits.
+- `doc_gen_expand.rs` / `ffi_gen_expand.rs` — Generative Expand: coverage 65535 − composite alpha at 8/16/32 bits and CMYK 8, fed to Fill's frame, input and apply.
+- `gen_variations.rs` — KERNEL: the variations model, caps (24, 80/256 MiB, 1 GiB) and one picture's PNG legs.
+- `doc_gen_variations.rs` / `ffi_gen_variations.rs` — Generative Layer bindings, live rule, info/select/more-input/add at 8/16 bits and CMYK 8.
+- `generated_native.rs` — the `.rz` `GVAR` table shared by both depths: word 92 at every depth, CMYK too (after the rung), entry checks.
+- `cmyk_gen_fill.rs` — Generative Fill on 8-bit CMYK: plate ink→sRGB input, sRGB→ink apply/select, the CMYK plan.
+- `crop_background.rs` — KERNEL: crop past the canvas: `window_fits` (signed window), the Background `pad_rect` (+`PAD_REACH`) and `padded`.
+- `doc_crop_extend.rs` — the adapters: byte/typed D5 Background pad (opaque, Delete Cropped on), its plan bytes and filled plan stand-in, the byte `extended_crop` and `extended_straighten`.
+- `neural_colorize.rs` — KERNEL: Colorize: the model's gray L* input, the adjusted a*b* plane (blur, saturation, balance), bilinear chroma onto the source L*, gamut map.
+- `neural_colorize_run.rs` — Colorize adapter at 8/16 bits: document profile → model/encoder, plan, admission, input and apply.
+- `neural_tiling.rs` — KERNEL: the Neural Filters tile grid (8-aligned pad/core), a tile's model input, the clamped Catmull-Rom sample, the k×k-mean stitch.
+- `neural_stage.rs` — one neural stage at 8/16 bits: parse, info, plan; Reduce Noise on the source, tiles through the predict callback, Unsharp Mask on the output.
+- `doc_neural.rs` / `ffi_neural.rs` — Super Zoom's new document (8/16 bits) and JPEG Artifacts Removal's typed layer apply; the stage/info exports.

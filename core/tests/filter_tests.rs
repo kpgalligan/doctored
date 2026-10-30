@@ -1,0 +1,468 @@
+//! FFI-level tests for the "Additional filters" section of
+//! `include/doctored_core.h`, exercised through the C ABI like
+//! `tests/integration.rs`.
+
+use std::ffi::{c_char, CString};
+use std::ptr;
+
+use doctored_core::ffi_adjust::*;
+use doctored_core::ffi_filters::*;
+use doctored_core::DrImage;
+use image::{Rgba, RgbaImage};
+
+use crate::common;
+use common::*;
+
+// ------------------------------------------------------------------ tests --
+
+#[test]
+fn hue_rotate_identity_rotation_alpha_and_nan() {
+    let dir = tempfile::tempdir().unwrap();
+    let pattern = test_pattern(32, 24);
+    let img = open_pattern(&dir, "pattern.png", &pattern);
+    let src = pattern.as_raw();
+
+    // The matrix at 0 degrees IS the identity (tolerance 1); at 360 degrees
+    // it is near-exact (tolerance 2). Alpha must be byte-identical.
+    for (degrees, tol) in [(0.0f32, 1i32), (360.0, 2)] {
+        let out = unsafe { dr_image_hue_rotate(img, degrees) };
+        assert!(!out.is_null(), "hue_rotate({degrees}) failed");
+        assert_eq!(dims(out), (32, 24));
+        for (i, (&got, &want)) in pixels(out).iter().zip(src.iter()).enumerate() {
+            if i % 4 == 3 {
+                assert_eq!(got, want, "alpha changed at byte {i} ({degrees} deg)");
+            } else {
+                assert!(
+                    (i32::from(got) - i32::from(want)).abs() <= tol,
+                    "byte {i}: {got} vs {want} at {degrees} deg"
+                );
+            }
+        }
+        free(out);
+    }
+
+    // Pure red rotated 120 degrees is approximately green (dominant channel).
+    let red = RgbaImage::from_pixel(8, 8, Rgba([255, 0, 0, 200]));
+    let rimg = open_pattern(&dir, "red.png", &red);
+    let rot = unsafe { dr_image_hue_rotate(rimg, 120.0) };
+    assert!(!rot.is_null());
+    let [r, g, b, a] = pixel_at(rot, 4, 4);
+    assert!(g > r && g > b, "not green-dominant: {:?}", [r, g, b]);
+    assert!(g >= 90, "green channel too weak: {g}");
+    assert_eq!(a, 200, "alpha changed by hue rotation");
+    free(rot);
+    free(rimg);
+
+    // Any finite angle is accepted; NaN (and infinities) -> NULL.
+    let big = unsafe { dr_image_hue_rotate(img, -1234.5) };
+    assert!(!big.is_null());
+    free(big);
+    assert!(unsafe { dr_image_hue_rotate(img, f32::NAN) }.is_null());
+    assert!(unsafe { dr_image_hue_rotate(img, f32::INFINITY) }.is_null());
+    assert!(unsafe { dr_image_hue_rotate(img, f32::NEG_INFINITY) }.is_null());
+    free(img);
+}
+
+#[test]
+fn threshold_splits_gradient_at_level() {
+    let dir = tempfile::tempdir().unwrap();
+    // 256 columns of r = g = b = x with an alpha ramp.
+    let grad = RgbaImage::from_fn(256, 4, |x, _| {
+        Rgba([x as u8, x as u8, x as u8, 255 - (x / 2) as u8])
+    });
+    let img = open_pattern(&dir, "grad.png", &grad);
+    let out = unsafe { dr_image_threshold(img, 0.5) };
+    assert!(!out.is_null());
+    let src = grad.as_raw();
+    for (i, (chunk, sc)) in pixels(out)
+        .chunks_exact(4)
+        .zip(src.chunks_exact(4))
+        .enumerate()
+    {
+        let x = i % 256;
+        // Gray value x has luma x/255, so the split lands between 127 and 128.
+        let want = if x >= 128 { 255 } else { 0 };
+        assert_eq!(
+            &chunk[..3],
+            &[want, want, want],
+            "column {x} on the wrong side of the threshold"
+        );
+        assert_eq!(chunk[3], sc[3], "alpha changed at pixel {i}");
+    }
+    free(out);
+
+    // level 0 sends everything to white (luma >= 0 always).
+    let all_white = unsafe { dr_image_threshold(img, 0.0) };
+    assert!(!all_white.is_null());
+    for (i, chunk) in pixels(all_white).chunks_exact(4).enumerate() {
+        assert_eq!(&chunk[..3], &[255, 255, 255], "pixel {i} not white");
+    }
+    free(all_white);
+
+    // Out-of-range or NaN level -> NULL.
+    for level in [-0.1f32, 1.1, f32::NAN] {
+        assert!(
+            unsafe { dr_image_threshold(img, level) }.is_null(),
+            "threshold({level}) should be NULL"
+        );
+    }
+    free(img);
+}
+
+#[test]
+fn posterize_two_and_sixtyfour_levels() {
+    let dir = tempfile::tempdir().unwrap();
+    let pattern = test_pattern(64, 48);
+    let img = open_pattern(&dir, "pattern.png", &pattern);
+    let src = pattern.as_raw();
+
+    // levels = 2 yields only {0, 255} in the color channels.
+    let two = unsafe { dr_image_posterize(img, 2) };
+    assert!(!two.is_null());
+    for (i, (chunk, sc)) in pixels(two)
+        .chunks_exact(4)
+        .zip(src.chunks_exact(4))
+        .enumerate()
+    {
+        for &c in &chunk[..3] {
+            assert!(c == 0 || c == 255, "pixel {i}: {c} not in {{0, 255}}");
+        }
+        assert_eq!(chunk[3], sc[3], "alpha changed at pixel {i}");
+    }
+    free(two);
+
+    // levels = 64 is close to the identity (max color delta <= 3).
+    let many = unsafe { dr_image_posterize(img, 64) };
+    assert!(!many.is_null());
+    let mut max_delta = 0i32;
+    for (i, (&got, &want)) in pixels(many).iter().zip(src.iter()).enumerate() {
+        if i % 4 == 3 {
+            assert_eq!(got, want, "alpha changed at byte {i}");
+        } else {
+            max_delta = max_delta.max((i32::from(got) - i32::from(want)).abs());
+        }
+    }
+    assert!(max_delta <= 3, "64 levels drifted by {max_delta}");
+    free(many);
+
+    // Out-of-range level counts -> NULL.
+    for levels in [0u32, 1, 65, 1000] {
+        assert!(
+            unsafe { dr_image_posterize(img, levels) }.is_null(),
+            "posterize({levels}) should be NULL"
+        );
+    }
+    free(img);
+}
+
+#[test]
+fn pixelate_quadrants_identity_and_guards() {
+    let dir = tempfile::tempdir().unwrap();
+    // 4x4 with four distinct 2x2 quadrants; the bottom-right one is fully
+    // transparent with junk color bytes that must not leak into the output.
+    let quad = RgbaImage::from_fn(4, 4, |x, y| match (x < 2, y < 2) {
+        (true, true) => Rgba([255, 0, 0, 255]),
+        (false, true) => Rgba([0, 255, 0, 255]),
+        (true, false) => Rgba([0, 0, 255, 255]),
+        (false, false) => Rgba([9, 8, 7, 0]),
+    });
+    let img = open_pattern(&dir, "quad.png", &quad);
+    assert_eq!(pixels(img), *quad.as_raw(), "png round trip must be exact");
+
+    let out = unsafe { dr_image_pixelate(img, 2) };
+    assert!(!out.is_null());
+    assert_eq!(dims(out), (4, 4));
+    for y in 0..4 {
+        for x in 0..4 {
+            let want = match (x < 2, y < 2) {
+                (true, true) => [255, 0, 0, 255],
+                (false, true) => [0, 255, 0, 255],
+                (true, false) => [0, 0, 255, 255],
+                // Zero total alpha -> fully transparent black, junk gone.
+                (false, false) => [0, 0, 0, 0],
+            };
+            assert_eq!(pixel_at(out, x, y), want, "cell pixel ({x},{y})");
+        }
+    }
+    free(out);
+
+    // block == 1 is the identity, as a fresh image.
+    let one = unsafe { dr_image_pixelate(img, 1) };
+    assert!(!one.is_null());
+    assert_ne!(
+        one as usize, img as usize,
+        "block 1 must allocate a new image"
+    );
+    assert_eq!(pixels(one), pixels(img));
+    free(one);
+
+    // Out-of-range block sizes -> NULL.
+    for block in [0u32, 1025, 4096] {
+        assert!(
+            unsafe { dr_image_pixelate(img, block) }.is_null(),
+            "pixelate({block}) should be NULL"
+        );
+    }
+    free(img);
+}
+
+#[test]
+fn pixelate_mean_is_alpha_weighted_and_edges_partial() {
+    let dir = tempfile::tempdir().unwrap();
+    // One 2x2 cell mixing opaque red, fully transparent junk green,
+    // low-alpha blue, and transparent black.
+    let mut cell = RgbaImage::new(2, 2);
+    cell.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+    cell.put_pixel(1, 0, Rgba([0, 255, 0, 0]));
+    cell.put_pixel(0, 1, Rgba([0, 0, 255, 50]));
+    cell.put_pixel(1, 1, Rgba([0, 0, 0, 0]));
+    let img = open_pattern(&dir, "cell.png", &cell);
+    let out = unsafe { dr_image_pixelate(img, 2) };
+    assert!(!out.is_null());
+    // sum a = 305; r = 255*255/305 = 213.2 -> 213; b = 255*50/305 = 41.8 -> 42;
+    // the transparent green contributes nothing; mean alpha = 305/4 -> 76.
+    for y in 0..2 {
+        for x in 0..2 {
+            assert_eq!(pixel_at(out, x, y), [213, 0, 42, 76], "pixel ({x},{y})");
+        }
+    }
+    free(out);
+    free(img);
+
+    // Partial edge cells use their actual extent: 3x1 with block 2 averages
+    // the first two pixels and leaves the third alone.
+    let mut strip = RgbaImage::new(3, 1);
+    strip.put_pixel(0, 0, Rgba([100, 0, 0, 255]));
+    strip.put_pixel(1, 0, Rgba([200, 0, 0, 255]));
+    strip.put_pixel(2, 0, Rgba([50, 60, 70, 255]));
+    let simg = open_pattern(&dir, "strip.png", &strip);
+    let sout = unsafe { dr_image_pixelate(simg, 2) };
+    assert!(!sout.is_null());
+    assert_eq!(pixel_at(sout, 0, 0), [150, 0, 0, 255]);
+    assert_eq!(pixel_at(sout, 1, 0), [150, 0, 0, 255]);
+    assert_eq!(pixel_at(sout, 2, 0), [50, 60, 70, 255]);
+    free(sout);
+    free(simg);
+}
+
+#[test]
+fn noise_is_deterministic_bounded_and_validated() {
+    let dir = tempfile::tempdir().unwrap();
+    let pattern = test_pattern(64, 48);
+    let img = open_pattern(&dir, "pattern.png", &pattern);
+    let src = pattern.as_raw();
+
+    let a = unsafe { dr_image_noise(img, 0.2, 42) };
+    let b = unsafe { dr_image_noise(img, 0.2, 42) };
+    let c = unsafe { dr_image_noise(img, 0.2, 43) };
+    assert!(!a.is_null() && !b.is_null() && !c.is_null());
+    assert_eq!(pixels(a), pixels(b), "same seed must reproduce exactly");
+    assert_ne!(pixels(a), pixels(c), "different seeds must differ");
+    assert_ne!(pixels(a), *src, "noise at amount 0.2 changed nothing");
+
+    // Bounds: per color channel, |delta| <= round(amount * 255) + 1.
+    let bound = (0.2f32 * 255.0).round() as i32 + 1;
+    for (i, (&got, &want)) in pixels(a).iter().zip(src.iter()).enumerate() {
+        if i % 4 == 3 {
+            assert_eq!(got, want, "alpha changed at byte {i}");
+        } else {
+            assert!(
+                (i32::from(got) - i32::from(want)).abs() <= bound,
+                "byte {i}: {got} deviates from {want} beyond {bound}"
+            );
+        }
+    }
+    free(a);
+    free(b);
+    free(c);
+
+    // Full-strength noise is still valid.
+    let full = unsafe { dr_image_noise(img, 1.0, 7) };
+    assert!(!full.is_null());
+    free(full);
+
+    // amount outside (0, 1] or NaN -> NULL.
+    for amount in [0.0f32, -0.2, 1.5, f32::NAN] {
+        assert!(
+            unsafe { dr_image_noise(img, amount, 42) }.is_null(),
+            "noise({amount}) should be NULL"
+        );
+    }
+    free(img);
+}
+
+#[test]
+fn edge_detect_flat_and_step() {
+    let dir = tempfile::tempdir().unwrap();
+
+    // A flat image (even a translucent one) has no edges: opaque black out.
+    let flat = RgbaImage::from_pixel(16, 12, Rgba([80, 160, 240, 128]));
+    let img = open_pattern(&dir, "flat.png", &flat);
+    let out = unsafe { dr_image_edge_detect(img) };
+    assert!(!out.is_null());
+    assert_eq!(dims(out), (16, 12));
+    for (i, chunk) in pixels(out).chunks_exact(4).enumerate() {
+        assert_eq!(chunk, &[0, 0, 0, 255], "pixel {i} of flat image");
+    }
+    free(out);
+    free(img);
+
+    // A vertical black->white step at x == 8 lights exactly the two columns
+    // adjacent to the step (Sobel gx saturates); output is opaque gray.
+    let step = RgbaImage::from_fn(16, 12, |x, _| {
+        if x < 8 {
+            Rgba([0, 0, 0, 255])
+        } else {
+            Rgba([255, 255, 255, 255])
+        }
+    });
+    let simg = open_pattern(&dir, "step.png", &step);
+    let sout = unsafe { dr_image_edge_detect(simg) };
+    assert!(!sout.is_null());
+    for (i, chunk) in pixels(sout).chunks_exact(4).enumerate() {
+        let x = i % 16;
+        assert!(
+            chunk[0] == chunk[1] && chunk[1] == chunk[2],
+            "pixel {i} not gray: {chunk:?}"
+        );
+        assert_eq!(chunk[3], 255, "pixel {i} not opaque");
+        let want = if x == 7 || x == 8 { 255 } else { 0 };
+        assert_eq!(chunk[0], want, "column {x} magnitude");
+    }
+    free(sout);
+    free(simg);
+}
+
+#[test]
+fn emboss_flat_black_is_mid_gray() {
+    let dir = tempfile::tempdir().unwrap();
+    let flat = RgbaImage::from_pixel(8, 8, Rgba([0, 0, 0, 255]));
+    let img = open_pattern(&dir, "black.png", &flat);
+    let out = unsafe { dr_image_emboss(img) };
+    assert!(!out.is_null());
+    assert_eq!(dims(out), (8, 8));
+    for (i, chunk) in pixels(out).chunks_exact(4).enumerate() {
+        assert!(
+            chunk[0] == chunk[1] && chunk[1] == chunk[2],
+            "pixel {i} not gray: {chunk:?}"
+        );
+        assert!(
+            (127..=128).contains(&chunk[0]),
+            "pixel {i}: {} not mid-gray",
+            chunk[0]
+        );
+        assert_eq!(chunk[3], 255, "pixel {i} not opaque");
+    }
+    free(out);
+    free(img);
+}
+
+#[test]
+fn null_safety_all_filters() {
+    let null: *const DrImage = ptr::null();
+    assert!(unsafe { dr_image_hue_rotate(null, 30.0) }.is_null());
+    assert!(unsafe { dr_image_threshold(null, 0.5) }.is_null());
+    assert!(unsafe { dr_image_posterize(null, 4) }.is_null());
+    assert!(unsafe { dr_image_pixelate(null, 4) }.is_null());
+    assert!(unsafe { dr_image_noise(null, 0.5, 1) }.is_null());
+    assert!(unsafe { dr_image_edge_detect(null) }.is_null());
+    assert!(unsafe { dr_image_emboss(null) }.is_null());
+    assert!(unsafe { doctored_core::ffi_clip_display::dr_image_clip_display(null, 1) }.is_null());
+    // Equalize (#547) is fallible: a NULL image refuses with or without an
+    // err_out, and a NULL mask with a nonzero length is refused too.
+    assert!(unsafe {
+        doctored_core::ffi_equalize::dr_image_equalize(null, ptr::null(), 0, ptr::null_mut())
+    }
+    .is_null());
+
+    // dr_image_filter_op is fallible, so it joins the sweep on both arms: a
+    // NULL image refuses without writing an error (that is the same shape an
+    // exact bypass takes), with and without an err_out — for a spatial and a
+    // photographic op (the photographic exports were folded into it).
+    for op in [
+        "box_blur",
+        "unsharp_mask",
+        "radial_blur",
+        "clouds",
+        "difference_clouds",
+        "offset",
+    ] {
+        let op = CString::new(op).unwrap();
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(unsafe {
+            dr_image_filter_op(null, op.as_ptr(), ptr::null(), ptr::null(), &mut err)
+        }
+        .is_null());
+        assert!(err.is_null(), "a NULL image is a refusal, not an error");
+        assert!(unsafe {
+            dr_image_filter_op(null, op.as_ptr(), ptr::null(), ptr::null(), ptr::null_mut())
+        }
+        .is_null());
+        // Its plan answers 0 for a NULL image, again with no error.
+        let mut err: *mut c_char = ptr::null_mut();
+        assert_eq!(
+            unsafe { dr_image_filter_op_scratch_bytes(null, op.as_ptr(), ptr::null(), &mut err) },
+            0
+        );
+        assert!(err.is_null(), "a NULL image plans 0 with no error");
+        assert_eq!(
+            unsafe {
+                dr_image_filter_op_scratch_bytes(null, op.as_ptr(), ptr::null(), ptr::null_mut())
+            },
+            0
+        );
+    }
+
+    // The adjustment, statistics and readout exports of `ffi_adjust` join
+    // the same sweep: a NULL image is a refusal everywhere, and the two
+    // fallible ones tolerate a NULL err_out as well.
+    let op = CString::new("invert").unwrap();
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(unsafe { dr_image_adjust_op(null, op.as_ptr(), ptr::null(), &mut err) }.is_null());
+    assert!(err.is_null(), "a NULL image is a refusal, not an error");
+    assert!(
+        unsafe { dr_image_adjust_op(null, op.as_ptr(), ptr::null(), ptr::null_mut()) }.is_null()
+    );
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(unsafe { dr_lut_parse_cube(ptr::null(), &mut err) }.is_null());
+    assert!(!take_err_string(err).is_empty());
+    assert!(unsafe { dr_lut_parse_cube(ptr::null(), ptr::null_mut()) }.is_null());
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(unsafe { dr_lut_parse_profile(ptr::null(), ptr::null(), 0, &mut err) }.is_null());
+    assert!(!take_err_string(err).is_empty());
+    assert!(
+        unsafe { dr_lut_parse_profile(ptr::null(), ptr::null(), 0, ptr::null_mut()) }.is_null()
+    );
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(unsafe { dr_lut_bake_profile(ptr::null(), 0, ptr::null(), 0, &mut err) }.is_null());
+    assert!(!take_err_string(err).is_empty());
+    assert!(
+        unsafe { dr_lut_bake_profile(ptr::null(), 0, ptr::null(), 0, ptr::null_mut()) }.is_null()
+    );
+    let mut bins = [0u32; 1024];
+    let mut total = 0u64;
+    let mut rgba = [0u8; 4];
+    let mut params = [0f32; 9];
+    let triple = [0.0f32, 0.0, 0.0];
+    unsafe {
+        assert!(!dr_image_histogram(
+            null,
+            ptr::null(),
+            1,
+            bins.as_mut_ptr(),
+            &mut total
+        ));
+        assert!(!dr_image_sample(null, 0, 0, 0, rgba.as_mut_ptr()));
+        assert!(!dr_image_auto_levels(
+            null,
+            ptr::null(),
+            0,
+            0.001,
+            params.as_mut_ptr()
+        ));
+        assert!(
+            dr_image_levels_channels(null, triple.as_ptr(), triple.as_ptr(), triple.as_ptr())
+                .is_null()
+        );
+    }
+}

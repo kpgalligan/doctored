@@ -1,0 +1,291 @@
+{
+ "source": {
+  "take": "~/devel/doctored-fixtures/photoshop/psd32-653/take1",
+  "run_id": "20261020T191439Z-6899b32b",
+  "verdict": "STOP",
+  "runner_sha256": "be0a210864a0764df136ba309b46ab70009a4d3ed0b4c2fe16546eb4754d8b3a"
+ },
+ "file": {
+  "name": "source32.psd",
+  "sha256": "d8484d64a7a3a0ddbe9a3fd5ded3ff607d9ea72d7a8c4218b976190cd37afa19",
+  "bytes": 35488
+ },
+ "canvas": [
+  32,
+  24
+ ],
+ "profile": "sRGB Profile.icc",
+ "bound": {
+  "relative": 0.001,
+  "absolute": 1e-06
+ },
+ "scene": {
+  "base_values": [
+   [
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.001,
+    0.001,
+    0.001
+   ],
+   [
+    0.18,
+    0.18,
+    0.18
+   ],
+   [
+    0.5,
+    0.5,
+    0.5
+   ],
+   [
+    1.0,
+    1.0,
+    1.0
+   ],
+   [
+    2.5,
+    2.5,
+    2.5
+   ],
+   [
+    8.0,
+    8.0,
+    8.0
+   ],
+   [
+    16.0,
+    16.0,
+    16.0
+   ],
+   [
+    2.0,
+    0.25,
+    0.5
+   ]
+  ],
+  "bright": [
+   4.0,
+   1.5,
+   0.25
+  ],
+  "masked": [
+   0.25,
+   2.0,
+   8.0
+  ],
+  "inner": [
+   0.5,
+   0.5,
+   0.5
+  ],
+  "hidden": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "base_clear": [
+   [
+    4,
+    4,
+    28,
+    4
+   ],
+   [
+    0,
+    8,
+    32,
+    16
+   ]
+  ],
+  "bright_clear": [
+   [
+    16,
+    0,
+    16,
+    24
+   ]
+  ],
+  "inner_clear": [
+   [
+    0,
+    0,
+    32,
+    16
+   ],
+   [
+    0,
+    16,
+    8,
+    8
+   ],
+   [
+    24,
+    16,
+    8,
+    8
+   ]
+  ],
+  "mask_rect": [
+   0,
+   0,
+   16,
+   24
+  ]
+ },
+ "rows": [
+  [
+   "Hidden",
+   0,
+   "LayerKind.NORMAL",
+   "BlendMode.NORMAL",
+   255,
+   false,
+   false
+  ],
+  [
+   "Set",
+   0,
+   "LayerKind.LAYERSET",
+   "BlendMode.PASSTHROUGH",
+   255,
+   true,
+   false
+  ],
+  [
+   "Inner",
+   1,
+   "LayerKind.NORMAL",
+   "BlendMode.NORMAL",
+   191,
+   true,
+   false
+  ],
+  [
+   "Masked",
+   0,
+   "LayerKind.NORMAL",
+   "BlendMode.MULTIPLY",
+   255,
+   true,
+   true
+  ],
+  [
+   "Bright",
+   0,
+   "LayerKind.NORMAL",
+   "BlendMode.LINEARDODGE",
+   128,
+   true,
+   false
+  ],
+  [
+   "Base",
+   0,
+   "LayerKind.NORMAL",
+   "BlendMode.NORMAL",
+   255,
+   true,
+   false
+  ]
+ ],
+ "regions": {
+  "A": [
+   24,
+   8,
+   32,
+   24
+  ],
+  "B": [
+   16,
+   16,
+   24,
+   24
+  ],
+  "D": [
+   16,
+   0,
+   32,
+   4
+  ]
+ },
+ "candidate": null,
+ "composite": {
+  "word": 0,
+  "channels": 4,
+  "regions": {
+   "H1": {
+    "fits": false,
+    "worst": {
+     "region": "B",
+     "x": 16,
+     "y": 16,
+     "got": [
+      0.6254901885986328,
+      0.6254901885986328,
+      0.6254901885986328,
+      0.7490196228027344
+     ],
+     "want": [
+      0.625,
+      0.625,
+      0.625,
+      0.75
+     ]
+    }
+   },
+   "H0": {
+    "fits": false,
+    "worst": {
+     "region": "A",
+     "x": 24,
+     "y": 8,
+     "got": [
+      1.0,
+      1.0,
+      1.0,
+      0.0
+     ],
+     "want": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "fits": [],
+  "samples": {
+   "A": [
+    1.0,
+    1.0,
+    1.0,
+    0.0
+   ],
+   "B": [
+    0.6254901885986328,
+    0.6254901885986328,
+    0.6254901885986328,
+    0.7490196228027344
+   ],
+   "D": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ]
+  }
+ },
+ "informational": {
+  "bright_then_masked_x0_8_y8_16": [
+   0.625,
+   2.5,
+   5.0,
+   1.0
+  ]
+ }
+}

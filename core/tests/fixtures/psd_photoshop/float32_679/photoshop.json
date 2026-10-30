@@ -1,0 +1,546 @@
+{
+ "source": {
+  "take": "~/devel/doctored-fixtures/photoshop/takes-675-679/take1",
+  "run_id": "20261023T184243Z-0a40f606",
+  "runner_sha256": "6e5fc7c64655e32534677ef3cb89cbc767e867e77e21422a65e0750cbd27f461"
+ },
+ "files": [
+  {
+   "name": "layered32.tif",
+   "sha256": "49ef7d2532c7ee32c81358c527e9829f822fff25cf970062ff5959bcc5a70712",
+   "bytes": 23384,
+   "document": {
+    "name": "layered32.tif",
+    "width": 16,
+    "height": 12,
+    "bits": 32,
+    "bits_enum": "BitsPerChannelType.THIRTYTWO",
+    "profile": "sRGB IEC61966-2.1 (Linear RGB Profile)"
+   },
+   "rows": [
+    {
+     "name": "Top",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "fill_opacity": 100,
+     "visible": true,
+     "bounds": [
+      0,
+      0,
+      8,
+      12
+     ],
+     "adjustment": null,
+     "effects": null,
+     "fill_opacity_255": 255,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "user_mask_linked": null
+    },
+    {
+     "name": "Bottom",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "fill_opacity": 100,
+     "visible": true,
+     "bounds": [
+      0,
+      0,
+      16,
+      12
+     ],
+     "adjustment": null,
+     "effects": null,
+     "fill_opacity_255": 255,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "user_mask_linked": null
+    }
+   ]
+  },
+  {
+   "name": "fill_style32.psd",
+   "sha256": "3441055b7ad5bc14e80f0235fcfd96c1145d70888a2b783766a2fab593950263",
+   "bytes": 29376,
+   "document": {
+    "name": "fill_style32.psd",
+    "width": 16,
+    "height": 12,
+    "bits": 32,
+    "bits_enum": "BitsPerChannelType.THIRTYTWO",
+    "profile": "sRGB IEC61966-2.1 (Linear RGB Profile)"
+   },
+   "rows": [
+    {
+     "name": "Shadowed",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "fill_opacity": 100,
+     "visible": true,
+     "bounds": [
+      4,
+      3,
+      15,
+      13
+     ],
+     "adjustment": null,
+     "effects": {
+      "object": "null",
+      "value": {
+       "scale": {
+        "unit": "percentUnit",
+        "value": 100
+       },
+       "dropShadow": {
+        "object": "dropShadow",
+        "value": {
+         "enabled": true,
+         "present": true,
+         "showInDialog": true,
+         "mode": {
+          "enumeration": "blendMode",
+          "value": "multiply"
+         },
+         "color": {
+          "object": "RGBColor",
+          "value": {
+           "red": 0,
+           "grain": 0,
+           "blue": 0
+          }
+         },
+         "opacity": {
+          "unit": "percentUnit",
+          "value": 75
+         },
+         "useGlobalAngle": false,
+         "localLightingAngle": {
+          "unit": "angleUnit",
+          "value": 120
+         },
+         "distance": {
+          "unit": "pixelsUnit",
+          "value": 2
+         },
+         "chokeMatte": {
+          "unit": "pixelsUnit",
+          "value": 0
+         },
+         "blur": {
+          "unit": "pixelsUnit",
+          "value": 2
+         },
+         "noise": {
+          "unit": "percentUnit",
+          "value": 0
+         },
+         "antiAlias": false,
+         "transferSpec": {
+          "object": "shapeCurveType",
+          "value": {
+           "name": "$$$/Contours/Defaults/Linear=Linear"
+          }
+         },
+         "layerConceals": true
+        }
+       },
+       "innerShadowMulti": [
+        {
+         "object": "innerShadow",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "multiply"
+          },
+          "color": {
+           "object": "RGBColor",
+           "value": {
+            "red": 0,
+            "grain": 0,
+            "blue": 0
+           }
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 35
+          },
+          "useGlobalAngle": true,
+          "localLightingAngle": {
+           "unit": "angleUnit",
+           "value": 90
+          },
+          "distance": {
+           "unit": "pixelsUnit",
+           "value": 3
+          },
+          "chokeMatte": {
+           "unit": "pixelsUnit",
+           "value": 0
+          },
+          "blur": {
+           "unit": "pixelsUnit",
+           "value": 7
+          },
+          "noise": {
+           "unit": "percentUnit",
+           "value": 0
+          },
+          "antiAlias": false,
+          "transferSpec": {
+           "object": "shapeCurveType",
+           "value": {
+            "name": "Linear"
+           }
+          }
+         }
+        }
+       ],
+       "solidFillMulti": [
+        {
+         "object": "solidFill",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "normal"
+          },
+          "color": {
+           "object": "RGBColor",
+           "value": {
+            "red": 129.001922607422,
+            "grain": 129.001922607422,
+            "blue": 129.001922607422
+           }
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 100
+          }
+         }
+        }
+       ],
+       "gradientFillMulti": [
+        {
+         "object": "gradientFill",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "normal"
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 100
+          },
+          "gradient": {
+           "object": "gradientClassEvent",
+           "value": {
+            "name": "Gray, White",
+            "gradientForm": {
+             "enumeration": "gradientForm",
+             "value": "customStops"
+            },
+            "interfaceIconFrameDimmed": 4096,
+            "colors": [
+             {
+              "object": "colorStop",
+              "value": {
+               "color": {
+                "object": "RGBColor",
+                "value": {
+                 "red": 215.000610351562,
+                 "grain": 215.000610351562,
+                 "blue": 215.000610351562
+                }
+               },
+               "type": {
+                "enumeration": "colorStopType",
+                "value": "userStop"
+               },
+               "location": 0,
+               "midpoint": 50
+              }
+             },
+             {
+              "object": "colorStop",
+              "value": {
+               "color": {
+                "object": "RGBColor",
+                "value": {
+                 "red": 255,
+                 "grain": 255,
+                 "blue": 255
+                }
+               },
+               "type": {
+                "enumeration": "colorStopType",
+                "value": "userStop"
+               },
+               "location": 4096,
+               "midpoint": 50
+              }
+             }
+            ],
+            "transparency": [
+             {
+              "object": "transferSpec",
+              "value": {
+               "opacity": {
+                "unit": "percentUnit",
+                "value": 100
+               },
+               "location": 0,
+               "midpoint": 50
+              }
+             },
+             {
+              "object": "transferSpec",
+              "value": {
+               "opacity": {
+                "unit": "percentUnit",
+                "value": 100
+               },
+               "location": 4096,
+               "midpoint": 50
+              }
+             }
+            ]
+           }
+          },
+          "angle": {
+           "unit": "angleUnit",
+           "value": 90
+          },
+          "type": {
+           "enumeration": "gradientType",
+           "value": "linear"
+          },
+          "reverse": false,
+          "dither": false,
+          "gs99": {
+           "enumeration": "gradientInterpolationMethodType",
+           "value": "smooth"
+          },
+          "align": true,
+          "scale": {
+           "unit": "percentUnit",
+           "value": 100
+          },
+          "offset": {
+           "object": "paint",
+           "value": {
+            "horizontal": {
+             "unit": "percentUnit",
+             "value": 0
+            },
+            "vertical": {
+             "unit": "percentUnit",
+             "value": 0
+            }
+           }
+          }
+         }
+        }
+       ],
+       "frameFXMulti": [
+        {
+         "object": "frameFX",
+         "value": {
+          "enabled": false,
+          "present": false,
+          "showInDialog": true,
+          "style": {
+           "enumeration": "frameStyle",
+           "value": "insetFrame"
+          },
+          "paintType": {
+           "enumeration": "frameFill",
+           "value": "solidColor"
+          },
+          "mode": {
+           "enumeration": "blendMode",
+           "value": "normal"
+          },
+          "opacity": {
+           "unit": "percentUnit",
+           "value": 100
+          },
+          "size": {
+           "unit": "pixelsUnit",
+           "value": 1
+          },
+          "color": {
+           "object": "RGBColor",
+           "value": {
+            "red": 0,
+            "grain": 0,
+            "blue": 0
+           }
+          },
+          "overprint": false
+         }
+        }
+       ]
+      }
+     },
+     "fill_opacity_255": 255,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "user_mask_linked": null
+    },
+    {
+     "name": "Fill",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.SOLIDFILL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "fill_opacity": 100,
+     "visible": true,
+     "bounds": [
+      0,
+      0,
+      16,
+      12
+     ],
+     "adjustment": [
+      {
+       "object": "solidColorLayer",
+       "value": {
+        "color": {
+         "object": "RGBColor",
+         "value": {
+          "red": 40.0000014156103,
+          "grain": 40.0000014156103,
+          "blue": 200.000003278255
+         }
+        }
+       }
+      }
+     ],
+     "effects": null,
+     "fill_opacity_255": 255,
+     "has_user_mask": true,
+     "user_mask_enabled": true,
+     "user_mask_linked": true
+    },
+    {
+     "name": "Base",
+     "depth": 0,
+     "type": "ArtLayer",
+     "kind": "LayerKind.NORMAL",
+     "blend": "BlendMode.NORMAL",
+     "opacity": 100,
+     "fill_opacity": 100,
+     "visible": true,
+     "bounds": [
+      0,
+      0,
+      16,
+      12
+     ],
+     "adjustment": null,
+     "effects": null,
+     "fill_opacity_255": 255,
+     "has_user_mask": false,
+     "user_mask_enabled": null,
+     "user_mask_linked": null
+    }
+   ]
+  }
+ ],
+ "scene": {
+  "tiff_name": "layered32.tif",
+  "psd_name": "fill_style32.psd",
+  "size": [
+   16,
+   12
+  ],
+  "bottom": [
+   0.25,
+   0.5,
+   2.0
+  ],
+  "top": [
+   4.0,
+   1.0,
+   0.125
+  ],
+  "shadowed": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "top_clear": [
+   [
+    8,
+    0,
+    8,
+    12
+   ]
+  ],
+  "shadowed_clear": [
+   [
+    0,
+    0,
+    16,
+    3
+   ],
+   [
+    0,
+    9,
+    16,
+    3
+   ],
+   [
+    0,
+    3,
+    4,
+    6
+   ],
+   [
+    12,
+    3,
+    4,
+    6
+   ]
+  ],
+  "fill_color": [
+   40,
+   40,
+   200
+  ],
+  "shadow": {
+   "color": [
+    0,
+    0,
+    0
+   ],
+   "opacity": 75,
+   "angle": 120,
+   "distance": 2,
+   "spread": 0,
+   "size": 2,
+   "blend": "multiply",
+   "use_global_light": false
+  }
+ },
+ "profile": "sRGB Profile.icc",
+ "refused": {}
+}

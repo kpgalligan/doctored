@@ -1,0 +1,317 @@
+name: Doctored
+options:
+  bundleIdPrefix: com.kgalligan
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+
+targets:
+  Doctored:
+    type: application
+    platform: macOS
+    sources:
+      - path: app/Sources
+      - path: app/Assets.xcassets
+      - path: app/Resources/Fonts
+        type: folder
+        buildPhase: resources
+      # The Lensfun lens database credit (CC BY-SA 3.0, v1-lensfun): Credits.html is what the
+      # standard About panel shows; Acknowledgements.txt holds the full notice.
+      - path: app/Resources/Credits.html
+        buildPhase: resources
+      - path: app/Resources/Acknowledgements.txt
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: Doctored
+        PRODUCT_BUNDLE_IDENTIFIER: com.kgalligan.Doctored
+        # The Rust core is built for the host arch only; for a universal app,
+        # cargo-build both targets and lipo them, then widen this.
+        ARCHS: arm64
+        SWIFT_VERSION: "5.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_OBJC_BRIDGING_HEADER: app/Bridging/Doctored-Bridging-Header.h
+        LIBRARY_SEARCH_PATHS:
+          - $(PROJECT_DIR)/core/target/release
+        OTHER_LDFLAGS:
+          - -ldoctored_core
+        ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+        ENABLE_HARDENED_RUNTIME: "YES"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+        # The base version lives in VERSION; `make project` exports it as
+        # DR_BASE_VERSION (a bare `xcodegen generate` leaves it blank). Local
+        # builds read "0.2 (0)"; the publish workflow overrides both settings
+        # with "<base>.<run number>" and the run number.
+        MARKETING_VERSION: ${DR_BASE_VERSION}
+        CURRENT_PROJECT_VERSION: "0"
+      configs:
+        Debug:
+          # Xcode 26 splits a Debug executable into a stub and __preview.dylib,
+          # and Write Agent Catalog's `codesign -s - -f "$exe"` fails on the split.
+          ENABLE_DEBUG_DYLIB: "NO"
+    info:
+      path: app/Info.plist
+      properties:
+        CFBundleName: Doctored
+        CFBundleDisplayName: Doctored
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "15.0"
+        LSApplicationCategoryType: public.app-category.graphics-design
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+        ATSApplicationFontsPath: Fonts
+        NSHumanReadableCopyright: ""
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.kgalligan.doctored-snapshot
+            UTTypeDescription: Doctored Snapshot
+            UTTypeConformsTo: [com.apple.package]
+            UTTypeTagSpecification:
+              public.filename-extension: [drsnapshot, rzsnapshot]
+          - UTTypeIdentifier: com.kgalligan.doctored-document
+            UTTypeDescription: Doctored Document
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [doctored]
+        # Photoshop's Large Document format. The type is Adobe's; it is
+        # imported here so `.psb` resolves to it on a Mac without Photoshop,
+        # which is what lets the open panel offer the file and the export
+        # panel append the extension.
+        UTImportedTypeDeclarations:
+          # The pre-rename native type: `.rz` files keep opening and editing;
+          # Save on one goes through Save As to `.doctored`.
+          - UTTypeIdentifier: com.kgalligan.rasterize-document
+            UTTypeDescription: Doctored Document (legacy .rz)
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [rz]
+          - UTTypeIdentifier: com.adobe.photoshop-large-image
+            UTTypeDescription: Photoshop Large Document
+            UTTypeConformsTo: [public.image]
+            UTTypeTagSpecification:
+              public.filename-extension: [psb]
+          # Radiance RGBE. The system declares OpenEXR
+          # (com.ilm.openexr-image) itself; `public.radiance` is imported
+          # here, as PSB's type is, so `.hdr` resolves to it on every Mac and
+          # the open panel offers the file.
+          - UTTypeIdentifier: public.radiance
+            UTTypeDescription: Radiance HDR Image
+            UTTypeConformsTo: [public.image]
+            UTTypeTagSpecification:
+              public.filename-extension: [hdr]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Doctored Document
+            LSItemContentTypes: [com.kgalligan.doctored-document]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Owner
+          - CFBundleTypeName: Doctored Document (legacy .rz)
+            LSItemContentTypes: [com.kgalligan.rasterize-document]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Owner
+          - CFBundleTypeName: PNG Image
+            LSItemContentTypes: [public.png]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: JPEG Image
+            LSItemContentTypes: [public.jpeg]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: Photoshop Document
+            LSItemContentTypes: [com.adobe.photoshop-image]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: Photoshop Large Document
+            LSItemContentTypes: [com.adobe.photoshop-large-image]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: TIFF Image
+            LSItemContentTypes: [public.tiff]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: BMP Image
+            LSItemContentTypes: [com.microsoft.bmp]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: GIF Image
+            LSItemContentTypes: [com.compuserve.gif]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: WebP Image
+            LSItemContentTypes: [org.webmproject.webp]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          # A Live Photo is a still plus a QuickTime clip sharing one name;
+          # opening either half opens the pair (ImageDocument.openDocument).
+          # HEIC/HEIF are decoded by the platform, not the Rust core.
+          - CFBundleTypeName: HEIF Image
+            LSItemContentTypes: [public.heic, public.heif]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: JPEG XL Image
+            LSItemContentTypes: [public.jpeg-xl]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: QuickTime Movie
+            LSItemContentTypes: [com.apple.quicktime-movie, public.mpeg-4]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          # One umbrella type: every vendor RAW UTI (CR3, CR2, NEF, NRW, ARW,
+          # DNG including Apple ProRAW, ORF, RW2, RAF, SRW, PEF) conforms to
+          # it, and public.tiff does NOT — so a plain TIFF keeps its own core
+          # decode path. Opening one puts up the Develop dialog first
+          # (ImageDocument.openRaw); Core Image does the decode.
+          # Phase 11D. AVIF and JPEG 2000 are platform-decoded stills through
+          # the same host-source route HEIC takes; PDF and SVG are RASTERIZED
+          # on the way in at a page and resolution the open asks for
+          # (ImageDocument.openVector).
+          - CFBundleTypeName: AVIF Image
+            LSItemContentTypes: [public.avif]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: JPEG 2000 Image
+            LSItemContentTypes: [public.jpeg-2000]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: PDF Document
+            LSItemContentTypes: [com.adobe.pdf]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: SVG Drawing
+            LSItemContentTypes: [public.svg-image]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: Camera RAW Image
+            LSItemContentTypes: [public.camera-raw-image]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          # The two float interchange containers. The core decodes both
+          # into a 32-bit float document; the export workspace writes them.
+          - CFBundleTypeName: OpenEXR Image
+            LSItemContentTypes: [com.ilm.openexr-image]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+          - CFBundleTypeName: Radiance HDR Image
+            LSItemContentTypes: [public.radiance]
+            CFBundleTypeRole: Editor
+            NSDocumentClass: Doctored.ImageDocument
+            LSHandlerRank: Alternate
+    preBuildScripts:
+      - name: Build Rust Core
+        # Cargo decides what is stale, so it runs every build (0.1 s when nothing changed).
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          export PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+          cd "$PROJECT_DIR/core"
+          cargo build --release
+        outputFiles:
+          - $(PROJECT_DIR)/core/target/release/libdoctored_core.a
+    postBuildScripts:
+      # The assistant's agent helper (agent/): compiled with Bun, placed in
+      # Contents/Helpers and signed here, before Xcode signs the app around
+      # it — the app's own signature does not cover a nested executable.
+      - name: Build Agent Helper
+        # Bun rebuilds the helper in ~0.2 s, so it simply runs every build.
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          export PATH="$HOME/.bun/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
+          cd "$PROJECT_DIR/agent"
+          bun install --frozen-lockfile
+          bun run build
+          HELPERS="$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers"
+          mkdir -p "$HELPERS"
+          cp "$PROJECT_DIR/build/agent/doctored-agent" "$HELPERS/"
+          IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:--}"
+          TIMESTAMP=""
+          if [ "$IDENTITY" != "-" ]; then TIMESTAMP="--timestamp"; fi
+          codesign --force --options runtime $TIMESTAMP \
+            --entitlements "$PROJECT_DIR/agent/entitlements.plist" \
+            --sign "$IDENTITY" "$HELPERS/doctored-agent"
+      # The stdio MCP helper external clients start (designs/agent-socket.md):
+      # mcp-proxy/ built by cargo, put in Contents/Helpers beside the assistant's
+      # helper and signed as that one is (the hardened runtime), with no
+      # entitlements, before Xcode signs the app.
+      - name: Build MCP Helper
+        # Cargo decides what is stale, so it runs every build.
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          export PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+          cd "$PROJECT_DIR/mcp-proxy"
+          cargo build --release
+          HELPERS="$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers"
+          mkdir -p "$HELPERS"
+          cp "$PROJECT_DIR/mcp-proxy/target/release/doctored-mcp" "$HELPERS/"
+          IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:--}"
+          TIMESTAMP=""
+          if [ "$IDENTITY" != "-" ]; then TIMESTAMP="--timestamp"; fi
+          codesign --force --options runtime $TIMESTAMP \
+            --sign "$IDENTITY" "$HELPERS/doctored-mcp"
+      # The catalog snapshot doctored-mcp lists from while no Doctored answers:
+      # the just-linked executable, ad-hoc signed alone in place because the
+      # linker leaves it unsigned and arm64 kills an unsigned exec, run with
+      # -DRWriteCatalog (AgentCatalogSnapshot.swift), then the bundle sealed
+      # again as Xcode's CodeSign seals it. A non-zero exit (a write failure or
+      # the catalog parity check) fails the build.
+      - name: Write Agent Catalog
+        basedOnDependencyAnalysis: false
+        script: |
+          set -e
+          out="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/agent-catalog.json"
+          exe="$TARGET_BUILD_DIR/$EXECUTABLE_PATH"
+          mkdir -p "$(dirname "$out")"
+          codesign -s - -f "$exe"
+          rc=0
+          "$exe" -DRWriteCatalog "$out" || rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "error: the catalog writer exited $rc"
+            exit 1
+          fi
+          # Xcode's CodeSign task does not see this step change the bundle, so
+          # a build where nothing else changed skips it and would leave the
+          # ad-hoc signature above over a catalog written after it. Seal the
+          # bundle as that task does: its identity, the hardened runtime and
+          # its processed entitlements when there are any.
+          IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:--}"
+          TIMESTAMP="--timestamp=none"
+          if [ "$IDENTITY" != "-" ]; then TIMESTAMP="--timestamp"; fi
+          RUNTIME=""
+          if [ "$ENABLE_HARDENED_RUNTIME" = YES ]; then RUNTIME="-o runtime"; fi
+          XCENT="$TARGET_TEMP_DIR/$FULL_PRODUCT_NAME.xcent"
+          if [ -f "$XCENT" ]; then
+            codesign --force --sign "$IDENTITY" $TIMESTAMP $RUNTIME \
+              --entitlements "$XCENT" "$CODESIGNING_FOLDER_PATH"
+          else
+            codesign --force --sign "$IDENTITY" $TIMESTAMP $RUNTIME "$CODESIGNING_FOLDER_PATH"
+          fi
+
+schemes:
+  Doctored:
+    build:
+      targets:
+        Doctored: all
+    run:
+      config: Release

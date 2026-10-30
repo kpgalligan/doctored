@@ -1,0 +1,16 @@
+identify_profiles.json - Photoshop 26.10.0 Satin profiles (the 80 satin rows of the
+effect-kernels-578-p3 identify take: a black source over opaque black at 256 x 224, the
+binary rect `hp` x [48, 168) y [24, 200), the binary disc r 40 at (128, 112) and the 8 x 8
+supersampled 76 x 56 ellipse; the satin (255, 226, 170) Normal 100 %, read on red; the 56
+Linear rows (Size 4, 10, 20 x Distance 3, 9 x Angle 30, 120 x Invert on the disc and the
+ellipse, and the rect at Size 10, Angle 0, 90) and the 24 contoured rows (Cone, Half Round,
+Rolling Slope - Descending x Size 6, 16 x Invert at Distance 5, Angle 45); 8 bits; `row` the
+red codes on y = 112 and `col` on x = 128; every row `take` effect-kernels-578-p3/identify1)
+for core/tests/style_effect_kernels_578_p3_take.rs (#578).
+
+Source receipt: ~/devel/doctored-fixtures/photoshop/effect-kernels-578-p3/identify1/measured.json
+Written by: scripts/photoshop-probe/effect_kernels_578_p3_take.py --fixtures (SA1 and the
+per-copy contour built: SA2l's fit SHIP by rule (ii), CONFIRMED on effect-kernels-578-p3/take1)
+
+sha256:
+  1689958458ad6d9d0b1d4e8b3897f5f92740f43767d718334010256ffb709af0  identify_profiles.json

@@ -1,0 +1,152 @@
+[package]
+name = "doctored-core"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+# Test targets are listed at the end of this file; nothing under `tests/` is
+# built by discovery.
+autotests = false
+
+[lib]
+name = "doctored_core"
+crate-type = ["staticlib", "rlib"]
+doctest = false
+# No unit tests in `src/`: every test is black-box under `tests/`.
+test = false
+
+[dependencies]
+# Explicit features: image 0.25's `default` minus `avif`, which is only
+# `ravif`'s AVIF encoder; no save path encodes AVIF (HEIC/AVIF are written and
+# read by the host's ImageIO). Every decoder stays.
+image = { version = "0.25", default-features = false, features = ["rayon", "bmp", "dds", "exr", "ff", "gif", "hdr", "ico", "jpeg", "png", "pnm", "qoi", "tga", "tiff", "webp"] }
+# The ONE inflate seam (`psd_zip`), for 16-bit PSD ZIP layer/mask planes and
+# compressed PNG XMP (`iTXt`), and its deflate twin (`psd_zip::zip_predicted32`)
+# for a little-endian 32-bit layered TIFF's word-3 channels (#679).
+# Pure Rust, and already in the lock file through `png`/`tiff`.
+miniz_oxide = "0.8"
+# The banded native RGBA16 PNG writer (`precision_png::put_native_png`, #390):
+# the stored-block zlib stream and the chunk CRCs png's own writer uses.
+# Pure Rust, and already in the lock file through `png` (the same versions).
+fdeflate = "0.3.7"
+crc32fast = "1.5"
+# The banded native RGBA16 PNG reader (`precision_png_rows::decode_native_png`,
+# #380): png's row reader, so a reopen decodes rows straight into tiles.
+# Pure Rust, and already in the lock file through `image` (the same version).
+png = "0.18.1"
+tiff = "0.11.3"
+# An indexed GIF's palette, transparent index and index plane, verbatim
+# (`indexed_io`, #547 Indexed phase 1a). Pure Rust, and already in the lock
+# file through `image` (the same version).
+gif = "0.14"
+# OpenEXR in and out for the 32-bit float document (`exr_float`), and the
+# half-float samples a float TIFF or OpenEXR export writes (`tiff_float`,
+# `exr_float`). Pure Rust, and both already in the lock file through `image`
+# and `tiff` (the same versions).
+exr = { version = "1.74.2", default-features = false, features = ["rayon"] }
+half = "2"
+# A CMYK/YCCK JPEG's raw planes for the flat open's profile conversion
+# (`cmyk_jpeg`); `image` converts them to RGB before the core sees them.
+# Pure Rust, and already in the lock file through `image` (same features).
+zune-jpeg = "0.5"
+# The lossless JPEG XL export encoder (`jxl_encode`). Pure Rust; its only
+# dependency, `zune-core`, is already in the lock file through `zune-jpeg`.
+zune-jpegxl = "0.5.2"
+psd = "0.3"
+serde = { version = "1", features = ["derive"] }
+# Opaque RAW recipes retain host-authored IEEE-754 values exactly. The default
+# approximate decimal reader can move an f32-promoted Double by one f64 ULP.
+serde_json = { version = "1", features = ["float_roundtrip"] }
+tiny_http = "0.12"
+# fcntl(F_BARRIERFSYNC / F_FULLFSYNC) for durable saves (`durable_file`).
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+# This one profile builds `make test`, `make t`, the gate's build and tests,
+# and the shipped library: `make rust` and project.yml's Xcode script phase
+# both run `cargo build --release` and link
+# `core/target/release/libdoctored_core.a`. (`make lint`'s clippy uses dev.)
+# `incremental = true` keeps library and test-binary rebuilds short; with it
+# cargo uses 256 codegen units. No LTO: cargo does not apply it to this
+# staticlib+rlib unit, and asking for it fat-LTOs every test binary.
+incremental = true
+
+# ---- Test binaries ---------------------------------------------------------
+# `autotests = false`: a file under `tests/` is built only when a suite root
+# (`tests/suite_*.rs`) mounts it or a `[[test]]` entry below names it, and
+# `tests/test_layout.rs` fails on one that neither does. A new test file is
+# mounted in its family's suite. A standalone entry states why the file needs
+# its own process after `# isolate:`.
+
+# The suites: one binary per family of test files.
+[[test]]
+name = "suite_color_formats"
+[[test]]
+name = "suite_document"
+[[test]]
+name = "suite_precision"
+[[test]]
+name = "suite_psd"
+[[test]]
+name = "suite_regional"
+[[test]]
+name = "suite_retouch"
+# Every test takes one shared lock first: the cache-state files (core/CLAUDE.md "Tests").
+[[test]]
+name = "suite_serial"
+[[test]]
+name = "suite_sources"
+[[test]]
+name = "suite_style_adjust"
+
+# Standalone, allocator: each has its own #[global_allocator].
+[[test]]
+name = "host_intake_unseeded" # isolate: own #[global_allocator], measures process-wide allocation
+[[test]]
+name = "linked_source_memory" # isolate: own #[global_allocator], measures process-wide allocation
+[[test]]
+name = "precision_decoders_unseeded" # isolate: own #[global_allocator], measures process-wide allocation
+[[test]]
+name = "precision_f32_unseeded" # isolate: own #[global_allocator], measures process-wide allocation
+[[test]]
+name = "precision_geometry_scratch" # isolate: own #[global_allocator], measures process-wide allocation
+[[test]]
+name = "preview_view_exception" # isolate: own #[global_allocator], measures process-wide allocation
+[[test]]
+name = "raw_source_memory" # isolate: own #[global_allocator], measures process-wide allocation
+[[test]]
+name = "raw_source_plan_memory" # isolate: own #[global_allocator], measures process-wide allocation
+
+# Standalone, process state.
+[[test]]
+name = "durable_save" # isolate: changes the working directory
+[[test]]
+name = "process_working_limit" # isolate: sets the process working limit
+[[test]]
+name = "geometry_job_work_cap" # isolate: sets the process working limit
+[[test]]
+name = "float_above_cache_bound" # isolate: sets the process working limit and has its own #[global_allocator]
+[[test]]
+name = "native_file_size" # isolate: sets the process working limit; its ignored cases hold several GB
+[[test]]
+name = "untagged_cmyk_working" # isolate: sets the process working CMYK profile
+
+# Standalone, large document.
+[[test]]
+name = "conversion_bake_24mp" # isolate: one large document at a time
+[[test]]
+name = "float_adjust_apply_24mp" # isolate: one large document at a time
+[[test]]
+name = "float_interchange_24mp" # isolate: one large document at a time
+[[test]]
+name = "float_master_24mp" # isolate: one large document at a time
+[[test]]
+name = "float_promote_24mp" # isolate: one large document at a time; sets the process working limit
+[[test]]
+name = "float_selected_pixels_24mp" # isolate: one large document at a time
+[[test]]
+name = "selected_color_planes_24mp" # isolate: one large document at a time
+[[test]]
+name = "native_save_plan8_45mp" # isolate: holds about 1.4 GB per case

@@ -1,0 +1,29 @@
+Photoshop 26.10.0's own 32-bit files for #679's next build batch, saved in one
+session by scripts/photoshop-probe/takes_675_679.py (take1, run
+20261023T184243Z-0a40f606; receipts in
+~/devel/doctored-fixtures/photoshop/takes-675-679/take1). The scene is a 16 x 12
+sRGB canvas built from the runner's constant-colour float TIFFs (three f32
+samples, macOS sRGB Profile.icc); Photoshop embeds its linear twin,
+"sRGB IEC61966-2.1 (Linear RGB Profile)".
+
+layered32.tif: Bottom (0.25, 0.5, 2.0), Background off; Top (4.0, 1.0, 0.125)
+duplicated above it and cleared at x >= 8. Saved with layers and transparency,
+image compression NONE, layer compression ZIP, byte order IBM, profile embedded.
+The layer records are an Lr32 block (count 2) inside tag 37724, whose entries
+are written byte-reversed (MIB8, 23rL) in this little-endian file; IFD0 holds
+three 32-bit IEEE float samples.
+
+fill_style32.psd: Base (0.25, 0.5, 2.0); Fill, a Solid Color fill layer of RGB
+40/40/200 at 100 %; Shadowed (1.0, 1.0, 1.0) cleared outside x in [4, 12),
+y in [3, 9), with a Drop Shadow (black, multiply, 75 %, 120 degrees, no global
+light, distance 2, spread 0, size 2). Saved with maximize compatibility. The
+layer records are an Lr32 block (count 3); the fill is a SoCo record whose
+RGBC doubles are 40.00000141561031, 40.00000141561031 and 200.00000327825546
+(not the integers asked for: each is f32(c/255)·255, linear light, as every
+32-bit descriptor colour is; the stored composite at the Fill reads
+0.1568627), and the shadow sits in lfx2 (and lrFX).
+
+photoshop.json holds the run id, each file's sha256 and size, the declared
+scene and Photoshop's rows of each file reopened.
+core/tests/psd_photoshop_float32_679.rs parses both and opens both layered to
+photoshop.json's rows and the scene's constants within 1e-3·|v| + 1e-6.

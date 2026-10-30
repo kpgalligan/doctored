@@ -1,0 +1,14 @@
+/core/target/
+/mcp-proxy/target/
+/build/
+/Rasterize.xcodeproj/
+/Doctored.xcodeproj/
+/app/Info.plist
+xcuserdata/
+.DS_Store
+.idea/
+.claude/scheduled_tasks.lock
+.claude/worktrees
+**/.claude/settings.local.json
+/agent/node_modules/
+__pycache__/
