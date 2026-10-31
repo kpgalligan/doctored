@@ -26,7 +26,7 @@ const fixture = JSON.parse(
 const bundledDate = (JSON.parse(readFileSync(new URL("../prices/anthropic.json", import.meta.url), "utf8")) as {
   litellm_commit_date: string;
 }).litellm_commit_date;
-const scratch = mkdtempSync(join(tmpdir(), "framejob-prices-"));
+const scratch = mkdtempSync(join(tmpdir(), "doctored-prices-"));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
 let folders = 0;

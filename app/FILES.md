@@ -523,7 +523,7 @@ Detail belongs in the source file's own header comment.
 - `HostImageEncoder.swift` / `VectorImport.swift` / `VectorImportSheetController.swift` / `ImageDocument+VectorImport.swift` — Phase 11D's host-side flows: HEIC and AVIF encode, PDF/SVG import.
 - `PDFExport.swift` / `PDFExportAccessoryController.swift` / `AgentServer+FormatAdditions.swift` — Phase 11D's PDF export and the four flows' MCP tools.
 - `AppActivity.swift` — the `NSProcessInfo` activity assertion both agent tool paths (the MCP trampoline and `AssistantHelperSession.runTool`) hold around a tool call.
-- `AssistantHelperSession.swift` / `AssistantHelperPrompt.swift` — the Assistant's helper process and Doctored's half of `configure`; `agent/src/` is Frame Job's byte for byte.
+- `AssistantHelperSession.swift` / `AssistantHelperPrompt.swift` — the Assistant's helper process and the app-specific `configure` message (prompt, tools, search guide).
 - `Assistant.swift` — `APIKeyStore`: the Anthropic API key from `ANTHROPIC_API_KEY`, else a 0600 file under Application Support (the legacy keychain read once, to migrate).
 - `AssistantPanelViewController.swift` — the right panel's Assistant tab: a chat with the built-in agent over the shared tool dispatcher; one session per document window.
 - `AssistantChatSettings.swift` — the assistant's Chat Settings, app-wide in user defaults, sent to the helper in `configure` and on save; a change applies from the next turn.

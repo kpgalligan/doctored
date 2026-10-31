@@ -2,9 +2,8 @@
 // Runner, in a separate process the app launches from Contents/Helpers. It
 // speaks JSON lines over stdio (protocol.ts) and owns no tools itself: every
 // tool call goes back to the app, which runs it through the same dispatcher
-// its MCP server uses. Two apps carry agent/src/ byte for byte, Rasterize
-// and Frame Job: a change is one diff applied to both, and whatever differs
-// between them arrives in `configure`.
+// its MCP server uses. What is specific to the app (its system prompt, its
+// tools, the search guide) arrives in `configure`.
 
 import Anthropic from "@anthropic-ai/sdk";
 import type {
@@ -67,7 +66,7 @@ let nextCallID = 0;
 let contextUsed = 0;
 let contextLimit: number | null = null;
 const pendingCalls = new Map<string, (result: CallToolResult | null) => void>();
-/** The price table in force; a turn takes it once, at its start (spec §11 P-5). */
+/** The price table in force; a turn takes it once, at its start. */
 let prices: LoadedPrices | undefined;
 
 function emit(event: HelperEvent) {

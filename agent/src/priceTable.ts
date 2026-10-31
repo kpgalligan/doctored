@@ -1,4 +1,4 @@
-// The price table in force (spec §11 P-1, P-5): the snapshot bundled into the
+// The price table in force: the snapshot bundled into the
 // helper (prices/anthropic.json), a cached copy of LiteLLM's table that the
 // helper refreshes at most once a day, and the source it priced from, which
 // is always reported so a stale table is never silent. The cache path comes

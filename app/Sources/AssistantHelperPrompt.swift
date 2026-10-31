@@ -1,8 +1,7 @@
 import Foundation
 
-/// Doctored's half of the assistant helper's `configure` message. The helper
-/// (`agent/src/`) is shared byte for byte with Frame Job, so everything about the
-/// prompt that names this app arrives here, through `AssistantHelperSession.open`.
+/// Doctored's part of the assistant helper's `configure` message: everything about
+/// the prompt that names this app, sent through `AssistantHelperSession.open`.
 enum AssistantHelperPrompt {
     /// Tools the model sees up front; every other catalog entry is deferred (tool search).
     static let coreTools: [String] = ["render", "get_document", "list_documents", "open_document"]
