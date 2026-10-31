@@ -139,4 +139,4 @@ Doctored is licensed under the Apache License, Version 2.0; the full text is in
 [`LICENSE`](LICENSE). Bundled third-party material keeps its own licence: the
 fonts are OFL, the Lensfun lens database is CC BY-SA 3.0, and a downloadable
 model shows its licence in Settings ▸ Models before it is downloaded.
-<!-- readme-swept-to: 33af17a59c32f20c1b040ca1e13d1250da36e771 -->
+<!-- readme-swept-to: 1b051ae7e1c45e9e2079a253a2a92aee4bfbbd9f -->
