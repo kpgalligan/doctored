@@ -18,9 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     // AppKit calls this only when the app is launched or reactivated with no
     // documents to open, so it can't race launch-time file opens the way a
-    // check in applicationDidFinishLaunching does. There is no blank-canvas
-    // "New" document; show the welcome window (design proposal 4) instead
-    // of an untitled file.
+    // check in applicationDidFinishLaunching does. Show the welcome window
+    // (design proposal 4) instead of an untitled file.
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
         WelcomeWindowController.shared.show()
         return false

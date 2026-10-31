@@ -2,9 +2,9 @@ import AppKit
 
 /// Design tokens. Chrome colors come from the semantic AppKit system palette
 /// so the app matches the OS in both appearances — an image editor's chrome
-/// should stay neutral. The only fixed colors are the three brand inks (the
-/// welcome motif, the canvas marks `marquee` strokes, and the few overlays
-/// listed at the inks) and the transparency checkerboard; fonts remain the
+/// should stay neutral. The only fixed colors are the two brand inks (the
+/// canvas marks `marquee` strokes and the few overlays listed at the inks)
+/// and the transparency checkerboard; fonts remain the
 /// vendored Balopy faces. The chrome is square: every chrome radius token
 /// below is 0, so controls, rows, fields and panels draw with sharp corners.
 enum DS {
@@ -27,14 +27,12 @@ enum DS {
 
     // MARK: - Fixed colors
 
-    /// Brand inks. All three draw the welcome window's motif. Forest also
-    /// strokes Select and Mask's add strokes (`RefinementCanvasView`) and
-    /// draws Liquify's mesh grid (`LiquifySession`); coral strokes Select and
-    /// Mask's subtract strokes, fills Liquify's frozen-area overlay
-    /// (`LiquifyCanvasView`) and is `marquee`'s ink. Butter paints only the
-    /// motif.
+    /// Brand inks. Forest strokes Select and Mask's add strokes
+    /// (`RefinementCanvasView`) and draws Liquify's mesh grid
+    /// (`LiquifySession`); coral strokes Select and Mask's subtract strokes,
+    /// fills Liquify's frozen-area overlay (`LiquifyCanvasView`) and is
+    /// `marquee`'s ink.
     static let forest = NSColor(srgbRed: 0x1F / 255, green: 0x85 / 255, blue: 0x64 / 255, alpha: 1)
-    static let butter = NSColor(srgbRed: 0xF2 / 255, green: 0xC1 / 255, blue: 0x4E / 255, alpha: 1)
     static let coral = NSColor(srgbRed: 0xF4 / 255, green: 0x65 / 255, blue: 0x3F / 255, alpha: 1)
 
     /// Coral at 0.9: the canvas's one accent-colored mark. It strokes the
