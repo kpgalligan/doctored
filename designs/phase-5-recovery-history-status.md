@@ -1,6 +1,6 @@
 # Phase 5 — native recovery and history (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#10](https://github.com/kpgalligan/doctored/issues/10), [#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** Phase 5 (5A–5D) of the [implementation plan](professional-photo-editor-implementation-plan.md), 2026-09-09 (layer-comp note added 2026-09-19)
 - **Original:** [archive/phase-5-recovery-history-status.md](../archive/phase-5-recovery-history-status.md) — full history, measurements, receipts
 - **Key commits:** `83de68c` (Phase 5 with Phase 6 selection work), `5adcb8d` (12D-1 layer comps note); Phase 4 was `968e0ee`
@@ -13,7 +13,7 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
 
 ## Decisions
 - **Own the autosave path.** `ImageDocument` disables inherited draft/in-place autosave
-  (`autosavesInPlace`/`autosavesDrafts` return false, `app/Sources/ImageDocument.swift:222`) and routes explicit
+  (`autosavesInPlace`/`autosavesDrafts` return false, `app/Sources/ImageDocument.swift`) and routes explicit
   AppKit autosave requests and scheduling through `app/Sources/RecoveryCoordinator.swift`. *Why:* inherited
   autosave could write an imported type and mark it saved.
 - **Recovery store** in `~/Library/Application Support/Doctored/Recovery` (tests: `DR_RECOVERY_DIR` and a
@@ -34,7 +34,7 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
   the source moved; imported JPEG/RAW originals are never overwritten. A confirmed preserving save removes
   recovery only when the image is clean and the session snapshot list is empty; saving an older captured
   revision keeps newer work; a normal close discards recovery and blocks a late worker publication.
-- **Shared host archive** (`app/Sources/EditingStateArchive.swift`) wraps an unchanged native `.rz` image plus
+- **Shared host archive** (`app/Sources/EditingStateArchive.swift`) wraps an unchanged native `.doctored` image plus
   selection, layer targeting and export settings; its schema is independent of DRDC (v1 then; now v4, adding
   typed/float storage and the linear-light tag). Names, geometry, indices, targets, versions and metadata sizes
   are validated before applying; selection materializability is checked on decode so corrupt coverage cannot
@@ -51,7 +51,7 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
 - **Named snapshots** (`app/Sources/NamedSnapshots.swift`): at most **32** per session with budget
   working limit / 4 (`NamedSnapshots`); captures over budget are refused; restoring a different state is one undoable
   action, restoring the current one a no-op. Save/Load Snapshot writes/reads portable `.drsnapshot` packages.
-  Ordinary `.rz` saves embed neither the session list, the transient selection nor history. Session snapshots
+  Ordinary `.doctored` saves embed neither the session list, the transient selection nor history. Session snapshots
   force recovery even for a clean image and expire on normal close.
 - **Deliberate limits:** a transient selection alone on a clean image does not trigger recovery; history and
   snapshot management are not recordable Action steps; history is session-only (no persistent branches or
@@ -84,10 +84,14 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
   varies: 0.025 / 0.198 / 0.137 ms before, 0.027 / 0.049 / 0.043 ms after — every after run clears the bar, which is
   the evidence for `DONE` (one before run did too, so the medians overstate the contrast). What remains is
   `dropHistoryUndo`'s NSUndoManager walk, AppKit's residual (`levelsOfUndo` stays 0).
-- `TRACKED` — Snapshot/recovery payload compression and cross-generation dedupe → P7-32 (plan §13C).
-- `TRACKED` — Tiled undo backing → plan §13B; broader history/snapshot workloads at 24/48 MP → P7-33 (§13D).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Snapshot/recovery payload compression and
+  cross-generation dedupe.
+- `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled undo backing: per-edit history bytes measured
+  with tiles, then the history budget and the 32-snapshot cap re-decided.
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Broader history/snapshot workloads at 24/48 MP.
 - `DONE` — Selective layer comps — 12D-1 (`core/src/doc_comps.rs`, Window > Layer Comps…).
-- `DONE` — Recovery of embedded assets and high-depth buffers (plan §5 boundary) — Phase 8 retained sources
+- `DONE` — Recovery of embedded assets and high-depth buffers (plan §5 boundary) — Phase 8 retained sources, camera
+  RAW layers only since the 2026-10-10 removal
   (`archive/phase-8-retained-source-status.md`, "Native save, portable snapshots and recovery retain assets")
   and typed/float archive storage (`EditingStateArchive` v2–v4).
 - `DONE` — Optimized Swift unqualified (Release `make app`, qualified from Phase 7E on).

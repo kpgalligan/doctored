@@ -1,6 +1,6 @@
 # Layer comps, view rotation and synchronized second views (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13), [#20](https://github.com/kpgalligan/doctored/issues/20), [#22](https://github.com/kpgalligan/doctored/issues/22))
 - **Phase / dates:** 12D-1 (layer comps) and 12D-2 (view rotation + second view), both shipped 2026-09-19
 - **Originals:** [archive/phase-12d-comparison-views-status.md](../archive/phase-12d-comparison-views-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-12d-comparison-views-status.md](../archive/2026-10/phase-12d-comparison-views-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `5adcb8d` (12D-1), `8c99934` (12D-2)
@@ -25,7 +25,7 @@ which restore the whole editing state.
   Not recorded: selection, history, masks, channels, guides, canvas, profile, open state, locks, links,
   labels, clipping.
 - **Limits:** 64 comps; names ≤ 128 bytes, trimmed, non-empty, unique (case-sensitive); comments ≤ 1024 bytes;
-  8 MiB `.rz` payload cap, checked on the save/update op (so the refusal lands where the list grew, never on Save).
+  8 MiB `.doctored` payload cap, checked on the save/update op (so the refusal lands where the list grew, never on Save).
 - **Purity:** every op returns `None` for "nothing would change" — no phantom undo step. Apply, update, rename,
   delete and cycling are each one undoable step.
 - **Binding by layer id**; an entry whose id matches no layer is STALE, reported by its recorded name and skipped
@@ -49,16 +49,16 @@ which restore the whole editing state.
   never a failure. Read with `lock_block(idx, EditKind::Position)` BEFORE the setter, because `under_locks`
   returns the same `None` for a lock refusal and a zero move. Real at both depths since 12E-1b (`precision_lock`).
 - **Order is the user's:** the list order — what ◀ ▶ step through, what `list_layer_comps` returns and
-  what the `.rz` carries (`comps_native::payload` already writes list order, so no format change) — is set by
+  what the `.doctored` file carries (`comps_native::payload` already writes list order, so no format change) — is set by
   dragging a row in the window or by `reorder_layer_comp`. The core's `reorder` action takes `to` as the FINAL
-  index (remove, then insert), like `reorder_layer` / `reorder_live_filters`; `comp == to` is the exact no-op.
+  index (remove, then insert), like `reorder_layer`; `comp == to` is the exact no-op.
   It is bookkeeping, so no lock applies and no payload-cap check is needed. Drag only — no Move Up/Down buttons.
   `list_layer_comps` reports each entry's RECORDED state — `visible`, `offset`,
   `opacity`, `blend_mode`, `style` — in `get_document`'s vocabulary, each key present iff captured.
 - **`update_layer_comp`** is the reconciliation point: `recapture: true` (default) re-records; `false` drops
   stale entries and refreshes bound names, keeping values. **Naming any capture flag states the whole set**
   (unnamed flags become `true`).
-- **`.rz` carriage** — `../core/src/comps_native.rs`, conditional outermost wrapper **43 (byte) / 44 (typed)**,
+- **`.doctored` carriage** — `../core/src/comps_native.rs`, conditional outermost wrapper **43 (byte) / 44 (typed)**,
   one `LCMP` table: tag, `u32` schema, `u32` length, UTF-8 JSON (JSON because entries carry the style, already
   JSON everywhere). Written only when a comp exists, so a comp-less document's bytes equal the prior writer's.
   Schema 1 bound by index + name; **schema 2 (12E-1b) binds by the persisted layer id**
@@ -84,7 +84,8 @@ which restore the whole editing state.
   the rotation is assigned only when it differs, so 0° numbers are bit-identical to 12C-2's. Writes nothing:
   no pixel, history, dirty flag, Action step or saved state.
 - **One writer**, `EditorViewController.setViewRotation` (keeps the canvas point under the well's centre fixed),
-  reached by View ▸ Rotate View… (⌥⌘R; live preview, no Apply, Cancel restores), Hand-tool ⌥-drag (⇧ snaps 15°)
+  reached by View ▸ Rotate View… (no chord: ⌥⌘R is Select ▸ Select and Mask…; live preview, Done or Cancel,
+  Cancel restores), Hand-tool ⌥-drag (⇧ snaps 15°)
   and trackpad rotate. Reset View Rotation is ⌃⌥⌘R.
 - **Rulers hide while turned** (`rulersVisible = pref && viewRotation == 0`; preference untouched). Grid,
   guides, marquee, handles rotate for free (drawn in canvas bounds). The Navigator proxy and `get_view.visible`
@@ -108,9 +109,8 @@ which restore the whole editing state.
   document-wide view bookkeeping (not persisted/undone). The last view cannot be closed. Malformed view
   arguments are refused by name (`viewArgument`, `AgentServer+Views.swift`, since 12E-1).
 - **New View and Sync Pan & Zoom take no chord.**
-- **Shortcut matching is exact.** The 12D-2 claim that `NSMenu.performKeyEquivalent` ignores an extra Shift was
-  an artifact of probe-built `NSEvent.keyEvent` presses; 12E-1b measured hardware-shaped events match chords
-  EXACTLY, so `ShortcutMenu.conflict`'s exact comparison is correct and `X`/`⇧X` pairs work.
+- **Shortcut matching is exact** (12D-2's extra-Shift leniency was a probe artifact): see
+  [phase-12e-layer-ops-status.md](phase-12e-layer-ops-status.md), "The measured Shift rule".
 
 ## Rejected alternatives
 - Rotating the scroll view's document view — would turn scrolling, hand pan and clip constraints with it.
@@ -131,19 +131,19 @@ which restore the whole editing state.
 ## Open items (verified 2026-10-07)
 - `DONE` — apply hides unrecorded non-group layers
   (Binding above).
-- `TRACKED` — Photoshop `cmls` / image-resource-1065 comp import/export; evidence fixture must be authored first → plan §10C-3.
-- `DONE` — host-regenerated text, shape and Live Photo
-  layers: after a whole-canvas op the host sends one `{"op":"layer_comp","action":"shift"}` per re-rendered layer
+- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — PSD `cmls` / image-resource-1065 comp
+  import/export; a Photoshop-authored evidence fixture comes first.
+- `DONE` — host-regenerated text and shape layers (fill layers too, `FillLayer.swift`): after a whole-canvas op the host sends one `{"op":"layer_comp","action":"shift"}` per re-rendered layer
   whose offset differs from the core's (`RasterDocument.followingHostPlacement`, `LayerComps.swift`; core
   `comps_shifted`, `../core/src/comps_geometry.rs`), inside the same edit. Measured by gate C9 of
   `scripts/verify_phase12d1_comps.py` (Image Size 260×195, Rotate 17°, Crop at 5°, 8 and 16 bits: entry = layer,
   apply `changed: false`); the 2026-09-28 drift was up to (+2, +2).
-- `OPEN` — real tracking-area and cursor-rect coverage under rotation is hand-checked by
-  necessity: synthetic moves never reach tracking areas, and real HID events need Accessibility permission. Hand
-  checks: (a) the ring follows the pointer over the picture at 30°; (b) over the host corners the pointer is the
-  tool cursor, with no ring pinned to the edge; (c) at 30°, typing −30 in Rotate View… moves the ring with the
-  resting pointer.
-- `OPEN` — text-session editing under a rotated view is hand-checked only, no gate; deferred.
+- `DROPPED` (2026-10-30) — a gate for real tracking-area and cursor-rect coverage under rotation: it needs
+  real HID events and Accessibility permission, so it stays a manual check; hover and hit-testing are gated by
+  the 9H case `rotate-view-hover-ui` (below).
+- `OPEN` [#22](https://github.com/kpgalligan/doctored/issues/22) — typing and committing a text edit while
+  the view is rotated: the 9H case `rotated-text-editor-ui` opens a text session at −30° and checks the mapping
+  and hit test, but resets the rotation before its commit steps.
 - `DONE` — hover and hit-testing under a rotated
   view are gated by the 9H case `rotate-view-hover-ui`; `setViewRotation` re-derives the brush ring's hover point
   after every turn (a turn need not scroll).
@@ -161,8 +161,10 @@ which restore the whole editing state.
   filtered geometry; see [phase-12f-geometry-status.md](phase-12f-geometry-status.md).
 - `DONE` — persisted layer ids and id-bound comps (`LCMP` schema 2, `../core/src/identity_native.rs`, `comps_native.rs`).
 - `DONE` — typed locks, so typed `locked` is real (`../core/src/precision_lock.rs`, 12E-1b).
-- `DONE` — destructive arbitrary rotation at 8 and 16 bits (12F-1b3 / 12F-1b4; P7-28 row in [phase-7-carryovers.md](phase-7-carryovers.md)).
+- `DONE` — destructive arbitrary rotation at 8 and 16 bits (12F-1b3 / 12F-1b4; P7-28 row in [the carryover ledger](phase-7-carryovers.md)).
 - `DONE` — `set_view` malformed-argument refusals (12E-1, `viewArgument`); Shift-leniency conflict gap closed (12E-1b).
-- `DROPPED` — group/adjustment position capture (decision above), a Rotate View rail tool, Match Zoom/Location
-  across documents, a rotated Navigator thumbnail, and persisting rotation / view count / sync in `.rz`,
-  workspaces or Actions (all declared not scheduled or deliberate in the original).
+- `DROPPED` — group/adjustment position capture (decision above), a Rotate View rail tool, a rotated
+  Navigator thumbnail, and persisting rotation / view count / sync in the document file, workspaces or
+  Actions (all declared not scheduled or deliberate in the original).
+- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — Match Zoom and Match Location across open
+  documents.

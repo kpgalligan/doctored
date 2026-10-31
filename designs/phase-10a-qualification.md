@@ -30,8 +30,8 @@ compatible" claim. This record owns 10A status; the slice ADRs are history.
   - Compatibility choice: report before editing; the user explicitly selects layers or the saved
     composite; **a layer failure never silently chooses the composite**. Observed excluded markers name the
     affected record; general limitations stay distinguishable from observed losses.
-  - Editing/persistence: imports are editable through central Undo/Actions; `.rz` save/reopen keeps exact
-    samples, properties, profile, PPI.
+  - Editing/persistence: imports are editable through central Undo/Actions; native save/reopen keeps
+    exact samples, properties, profile, PPI.
   - Admission: canvas, raw-plane, aggregate, record, metadata, nesting and the layered-decode envelope
     (`psd_layer_pixels::import_envelope_bytes()` = `process_working_limit()`, 2 GiB at the test pin)
     limits are enforced before expensive decode (not the initial file read).
@@ -78,6 +78,7 @@ Exclusions assigned elsewhere or declared non-goals — none keeps 10A open:
 - `DONE` — Styles, adjustments, group clipping, Blend If, fill opacity, knockout on import: 10C constructs slices (`psd_adjustment.rs`, `psd_layer_effects.rs`, `psd_knockout` tests; carryovers P7-20/P7-21 verified); native compositing 10D (P7-19).
 - `DONE` — PSD layer locks (`lspf`) on import and export at both depths: `psd_locks.rs`, `psd_locks` tests.
 - `DONE` — Photoshop-authored mask evidence: Run 3 (`d1b6c27`), see [relative-mask agreement](phase-10a-relative-masks-status.md#photoshop-appearance-agreement-run-3-2026-09-16).
-- `TRACKED` — 8-bit ZIP channels, ZIP composites → plan §10C "what stays open".
-- `DROPPED` — PSB and full Smart Object interchange: plan §10 boundary ("separate commitments").
+- `DONE` — 8-bit ZIP channels and ZIP composites (`22ea5a9f`, `core/tests/psd_zip8.rs`).
+- `DONE` — PSB read and write (`22ea5a9f`).
+- `DROPPED` — Smart Object interchange: smart objects were removed 2026-10-10.
 - `DROPPED` — Extended / vector masks, density/feather, rendered/inverted flags, PSD mask linkage; guides, ruler origin, saved auxiliary channels, capture metadata; >10 folder levels: explicit non-goals of this contract (plan §10A).

@@ -43,8 +43,8 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "15.0"
         # The base version lives in VERSION; `make project` exports it as
         # DR_BASE_VERSION (a bare `xcodegen generate` leaves it blank). Local
-        # builds read "0.2 (0)"; the publish workflow overrides both settings
-        # with "<base>.<run number>" and the run number.
+        # builds read "<VERSION> (0)"; the publish workflow overrides both
+        # settings with "<base>.<run number>" and the run number.
         MARKETING_VERSION: ${DR_BASE_VERSION}
         CURRENT_PROJECT_VERSION: "0"
       configs:

@@ -4,6 +4,7 @@
 - **Phase / dates:** 10B, phase 1 (writer) then phase 2 (GIMP reopen); closed, `styled_effects` case re-run 2026-09-16
 - **Original:** [archive/phase-10b-export-status.md](../archive/phase-10b-export-status.md) — full history, measurements, receipts
 - **Key commits:** `01a9541` (writer, preflight, UI, MCP), `4f793bd` (GIMP qualification, close), `fc70079` (styles written as `lfx2`)
+- **Photoshop harness:** runners under `scripts/photoshop-probe/` and the `verify_*photoshop*` drives live in the private archive `kpgalligan/doctored-dev`.
 
 ## Context
 Doctored could read PSD ([phase-10a-qualification.md](phase-10a-qualification.md)) but not write it.
@@ -27,17 +28,17 @@ is refused with a reason before a byte is written or listed in the report both t
   - Composite preview: PackBits, RGB **matted against white** — alpha exact; color exact at alpha 0/255,
     within `ceil(127.5/a)` codes elsewhere.
 - **Refused** (mode unavailable, destination untouched): side > 30,000 px (canvas, layer or mask);
-  worst-case file > 2 GiB; masks with density or feather; adjustment layers without a Photoshop encoding;
-  a group whose style would need a bake. (At 10B, all adjustments, all styles and all 16-bit documents
-  refused; those were narrowed by 10C — see Open items.)
-- **Reported, not refused:** group clipping (Photoshop reads a clipped group unclipped, #2); exceeding Doctored's own
+  worst-case file > 2 GiB; masks with density or feather; a group whose style would need a bake. (At
+  10B, all adjustments, all styles and all 16-bit documents refused; those were narrowed by 10C — see
+  Open items.)
+- **Reported, not refused:** group clipping (Photoshop reads a clipped group unclipped, [#2](https://github.com/kpgalligan/doctored/issues/2)); exceeding Doctored's own
   layered-reopen envelope (the working limit) (`psd_layer_pixels::peak_forecast` evaluated on the file being written) is a
   loss saying it will reopen *here* as a composite only — a file Photoshop can open must still export;
-  blend keys outside #2's qualified table are written but appearance-unqualified;
-  descriptions/sources/live filters/warps export as pixels; locks, link groups, saved channels, guides,
-  ruler origin, EXIF/XMP/IPTC, mask link state are not written.
+  blend keys outside [#2](https://github.com/kpgalligan/doctored/issues/2)'s qualified table are written but appearance-unqualified;
+  descriptions, RAW layers and warps export as pixels; link groups, saved channels, guides, ruler
+  origin, EXIF/XMP/IPTC, mask link state are not written (layer locks are, `psd_locks.rs`).
 - Flattened mode writes one raster named "Composite".
-- Out of scope: PSB, ZIP output, grayscale/CMYK output, thumbnails, Doctored-private payloads.
+- Out of scope: ZIP output, thumbnails, Doctored-private payloads.
 - UI: File > Export as PSD… (`ImageDocument+PSDExport.swift`); MCP twins `inspect_psd_export` and
   `export_psd` (`AgentServer+PSDExport.swift`). FFI: `dr_doc_psd_export_report`, `dr_doc_save_psd`.
   PSD is not a `save_copy`/Batch/Action output; `export_psd` is not an Action step (`Action.notAStepTool`).
@@ -61,8 +62,9 @@ the mode (`DrLayeredContainer`; MCP `format: psd | psb | tiff`): a classic PSD, 
 flat strip is the composite and whose tags 34377/37724 carry the same records. They share every
 record, loss and observation; only the limits and the sentences that name the format differ, and a
 PSD refused for a side or for size names PSB. `psd_framing.rs` is the one home of the widths.
-An adjustment layer never refuses: one with no Photoshop record is baked into a canvas-sized pixel
-layer holding the picture up to and including it (`psd_export_bake.rs`), one loss per layer. The
+In an 8- or 16-bit RGB document an adjustment layer never refuses: one with no Photoshop record is
+baked into a canvas-sized pixel layer holding the picture up to and including it (`psd_export_bake.rs`),
+one loss per layer. The
 report's `bake_scratch_bytes` is three canvas-sized RGBA planes at the document's depth; the
 multiplier is measured (24 MP, both depths, `core/examples/psd_bake_admission.rs`), and 2 missed.
 
@@ -78,10 +80,11 @@ multiplier is measured (24 MP, both depths, `core/examples/psd_bake_admission.rs
 
 ## Open items (verified 2026-09-26)
 - `DONE` — 16-bit export (then refused): `dr_precision_doc_save_psd`, `a3d29b7`.
-- `DONE` — Adjustment layers (then refused): eleven kinds written as Photoshop records (`psd_adjustment.rs`); unmapped kinds still refuse.
+- `DONE` — Adjustment layers (then refused): fourteen kinds written as Photoshop records (`psd_adjustment.rs`); unmapped kinds bake into a pixel layer (`psd_export_bake.rs`), and a CMYK or 32-bit document refuses an unrecorded adjustment by name.
 - `DONE` — Layer styles (then refused/baked): written as `lfx2`/`iOpa`/blending ranges (`fc70079`); bake only where Photoshop cannot hold it.
 - `DONE` — Group clipping dropped by Doctored's importer: retained since the 10C constructs slice (plan §10C).
 - `DONE` — Photoshop's own reading of exported effects: Run 3 (plan §10C, `d1b6c27`).
 - `DROPPED` — Human confirmation that the menu item greys out for 16-bit documents: moot, 16-bit export is now enabled (`ImageDocument.swift` `validateUserInterfaceItem`, "Both depths").
-- `DROPPED` — PSB, ZIP output, grayscale/CMYK/32-bit output; masks wholly outside their layer (GIMP drops them): outside the claim (plan §10 boundary).
-- `DONE` — Photoshop appearance of blend keys and clipping ([#2](https://github.com/kpgalligan/doctored/issues/2), three takes, `../scripts/photoshop-probe/psd_appearance_578_take.py`; RGB, 8 and 16 bits, max 2 / mean 0.5 codes per tile): QUALIFIED Normal, Darken, Multiply, Color Burn, Linear Burn, Lighten, Screen, Color Dodge, Linear Dodge, Overlay, Soft Light, Hard Light, Pin Light, Exclusion, Subtract, Hue, Saturation, Color, Luminosity, Pass Through; Difference, Lighter Color, Hard Mix at 100 % Fill only; OUT Dissolve (its own dither), Darker Color (99 codes on a luminosity tie), Vivid Light (4), Linear Light (2, mean 0.52), Divide (7). The table is `psd_export_preflight::QUALIFIED_BLEND` / `QUALIFIED_AT_FULL_FILL`; CMYK keeps the four. Shipped with it: the clip rule measured on those takes (CL2, [10D](phase-10d-clipping-status.md)), `iOpa` always on Color Burn / Color Dodge / Difference pixel records, Fill F1/Fb for five special modes. Outside, and reported per file: a clip base below 100 % Fill (128 codes) and a clipped group, which Photoshop reads unclipped from the folder record, the divider or both and will not create (take3).
+- `DONE` — PSB (v1 formats, above); CMYK, Grayscale and 32-bit float output from those documents ([cmyk-mode-status.md](cmyk-mode-status.md), [grayscale-mode.md](grayscale-mode.md), `psd_export_float.rs`).
+- `DROPPED` — ZIP output; masks wholly outside their layer (GIMP drops them): outside the claim (plan §10 boundary).
+- `DONE` — Photoshop appearance of blend keys and clipping ([#2](https://github.com/kpgalligan/doctored/issues/2), three takes, `psd_appearance_578_take.py` in the private archive; RGB, 8 and 16 bits, max 2 / mean 0.5 codes per tile): QUALIFIED Normal, Darken, Multiply, Color Burn, Linear Burn, Lighten, Screen, Color Dodge, Linear Dodge, Overlay, Soft Light, Hard Light, Pin Light, Exclusion, Subtract, Hue, Saturation, Color, Luminosity, Pass Through; Difference, Lighter Color, Hard Mix at 100 % Fill only; OUT Dissolve (its own dither), Darker Color (99 codes on a luminosity tie), Vivid Light (4), Linear Light (2, mean 0.52), Divide (7). The table is `psd_export_preflight::QUALIFIED_BLEND` / `QUALIFIED_AT_FULL_FILL`; CMYK keeps the four. Shipped with it: the clip rule measured on those takes (CL2, [10D](phase-10d-clipping-status.md)), `iOpa` always on Color Burn / Color Dodge / Difference pixel records, Fill F1/Fb for five special modes. Outside, and reported per file: a clip base below 100 % Fill (128 codes) and a clipped group, which Photoshop reads unclipped from the folder record, the divider or both and will not create (take3).

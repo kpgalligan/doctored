@@ -1,11 +1,13 @@
 # Merge and stacks (ADR)
 
-- **Status:** Accepted, closed 2026-10-19.
+- **Status:** Accepted — open items remain ([#7](https://github.com/kpgalligan/doctored/issues/7),
+  [#8](https://github.com/kpgalligan/doctored/issues/8)); the phase closed 2026-10-19.
 - **Phase / dates:** first wave 2026-10-11 to 2026-10-12, phases 1 to 4c 2026-10-16 to 2026-10-19.
 - **Originals:** [archive/v1-stacks-status.md](../archive/v1-stacks-status.md) (the working record at close) and
   [archive/v1-stacks-shipped.md](../archive/v1-stacks-shipped.md) (its shipped companion).
 - **Takes:** `~/devel/doctored-fixtures/photoshop/auto-align-564/take1`, `panorama-564/take1`–`take3`,
-  `hdr-toning-564/selftest-1`, `selftest-2` and `take3`; the runners are in `scripts/photoshop-probe/`.
+  `hdr-toning-564/selftest-1`, `selftest-2` and `take3`; the runners are in the private archive
+  `kpgalligan/doctored-dev` (`scripts/photoshop-probe/`).
 - **Key commits:** given in each Shipped and Phase section.
 
 ## Context
@@ -18,9 +20,10 @@ EDR display shipped in v1.x.
 
 - **A Stack Mode is a one-shot statistic into ONE new raster layer**, not a live mode (smart objects were
   removed, [ADR](convert-to-smart-object-status.md)); the layers read are kept and hidden.
-- **No `.rz` change.** A stack is ordinary raster layers; alignment is the core's `perspective_set`, the
+- **No native-format (DRDC) change.** A stack is ordinary raster layers; alignment is the core's `perspective_set`, the
   statistic is one core request (`stack_mode`, `stack_stat.rs`), a merged HDR document is an ordinary 32-bit
-  float document. DRDC word 79 stays unused and is the one to take if a later item needs it. Merge to HDR is
+  float document. A later item that needs a word takes the next free one named in `drdc.rs`'s `DRDC_VERSION`
+  doc. Merge to HDR is
   the kernel `merge_hdr.rs`, the adapters `doc_merge_hdr.rs` and six `dr_*merge_hdr*` exports.
 - **The alpha rule** (`stack_stat.rs`'s module doc is the statement). The extent is the union of the layers'
   pixel rectangles; a layer is transparent outside its own. The layers with alpha above 0 are present; none
@@ -82,11 +85,11 @@ EDR display shipped in v1.x.
 - **A merge is tested against the radiance that made its frames**, not against another editor: frames are
   authored from a known scene through the sRGB curve, bounds fixed before measuring (1e-3 at 16 bits, 0.06 at
   8 bits in the core; 5e-3 at 16 bits through the app).
-- **There is no conversion into 32-bit float.** Merge to HDR builds a NEW float document
-  (`raster_float`, `from_parts_float`); it never converts the source.
+- **Merge to HDR builds a NEW float document** (`raster_float`, `from_parts_float`); it never converts its
+  source frames. (Converting a document into float is Image ▸ Mode ▸ 32 Bits/Channel, a separate command.)
 - **Vision's conventions are measured, not assumed** (`AutoAlign.swift`'s header): both requests map the
   targeted image to the handler's, in pixels, bottom-left origin; `warpTransform` acts on a column vector.
-- **Auto-Align follows take1** (`auto_align_stack_take.py`). R1: the reference is the BOTTOM layer (the lowest
+- **Auto-Align's reference and canvas (R1–R3; take1 measured the same, `auto_align_stack_take.py`).** R1: the reference is the BOTTOM layer (the lowest
   selected index, or the one position-locked layer). R2: the canvas grows to the union of the canvas, the
   reference and every aligned layer, through Reveal All's `canvasResized`, the selection carried
   (`AutoAlign.alignedCanvas`); Auto-Align and Auto-Blend's Panorama grow it, Reduce Noise, Stack Images and
@@ -96,14 +99,15 @@ EDR display shipped in v1.x.
   and within the channel budget, else `AutoAlign.tooBigMessage` and nothing changes. Cylindrical and Spherical
   hold their projected union to the same bound before any warp. No admission for the growth (Reveal All admits
   none either).
-- **Cylindrical and Spherical follow take2's C** (`AutoAlignReprojection.swift`, `align_projection.rs`). Each
+- **Cylindrical and Spherical fit one focal and reproject onto the reference's surface**
+  (`AutoAlignReprojection.swift`, `align_projection.rs`; take2's C measured the same). Each
   layer is registered as Perspective; only homography answers count; one focal is fitted (the f that makes
   K⁻¹·N·K closest to a rotation), each rotation is the polar factor. Every layer, the reference too, is
   reprojected onto the reference camera's surface, clipped at the frame edge; the canvas is the projected
   union. No homography or no focal refuses with `AutoAlign.focalRefusal` and nothing changes (take1's Spherical
   on a pure shift is refused, as take1's Cylindrical did).
-- **Vignette Removal follows take2's V, re-read offline** (`panorama_lens_reread.py`). ONE coefficient for the
-  stack, V = 1 + a·ρ² (`lens_model::pa_falloff`), fitted in linear light to the registered overlaps' ratios
+- **Vignette Removal fits ONE coefficient for the stack** (take2's V measured the same, re-read offline by
+  `panorama_lens_reread.py`): V = 1 + a·ρ² (`lens_model::pa_falloff`), fitted in linear light to the registered overlaps' ratios
   with a per-layer exposure as a nuisance (never applied); every layer multiplied by gain / V, gain the mean of
   V (`align_vignette.rs`). Vignette Removal REPROJECTS: Perspective and Auto switch to Spherical; Cylindrical
   and Spherical keep their surface; Collage and Reposition IGNORE it. The fit refuses below 1,000 ratios.
@@ -111,7 +115,7 @@ EDR display shipped in v1.x.
   applies on Auto, Perspective, Cylindrical and Spherical and is ignored on Collage and Reposition; Geometric
   Distortion applies on all six (`AutoAlign.Registration.lens`, `AutoAlignDistortion.swift`: `.applies` or
   `.ignored`, no `.refused`). Both sheet boxes are always enabled.
-- **Geometric Distortion follows take2's D.** ONE k for the stack, Lens Correction's model: p =
+- **Geometric Distortion fits ONE k for the stack** (take2's D measured the same), Lens Correction's model: p =
   `lens_model::radial_map(c, R, u, [k, 0, 0], 1)`, c the rect's centre, R half its longer side, k in ±0.25
   (`align_distortion.rs`). Fitted after the registration, before the focal, from two passes of NCC patch
   matches per pair; its refined maps replace Vision's for the focal and rotations (Vignette Removal keeps
@@ -142,7 +146,7 @@ EDR display shipped in v1.x.
   four inks (`perspective_set`, the CMYKA16 mesh arm); Reduce Noise's statistic is the per-ink Stack Mode.
   Vignette Removal and Geometric Distortion refuse on CMYK by the core's sentences
   (`CmykDocument.autoAlignLensRefusal`).
-- **Auto-Blend Panorama follows take2** (`panorama_fill_take.py`): Seamless writes the frames' pixels
+- **Auto-Blend Panorama's seam, gain and fill** (take2 measured the same, `panorama_fill_take.py`): Seamless writes the frames' pixels
   (C-PIXELS); each frame's gain moves (G-SPLIT); a flat overlap stays with the frame below (W Lower,
   `panorama_seam::SEAM_PREFERENCE`); masks are binary. Content-Aware Fill Transparent Areas adds ONE layer,
   "<top frame> (merged)" (F-MERGED), filled by the one Content-Aware Fill over Generative Expand's coverage; a
@@ -166,7 +170,7 @@ EDR display shipped in v1.x.
 File ▸ Load Files into Stack… and MCP `load_files_into_stack` (`LoadFilesIntoStack.swift`,
 `AgentServer+Stacks.swift`): one raster layer per file, bottom-first, the canvas the largest width and height;
 later files go through the core's `place` + `rasterize`. `StackLoad.plan` admits the stack from headers before
-any decode. A native `.rz` is refused. Not recorded into Actions. Commit `d92b438d`.
+any decode. A Doctored document (`.doctored`, or a legacy `.rz`) is refused. Not recorded into Actions. Commit `d92b438d`.
 
 ### Auto-Align Layers
 
@@ -203,7 +207,7 @@ by default. Not recorded into Actions. Commit `d1684ad3`.
 Edit ▸ Auto-Blend Layers… and MCP `auto_blend_layers` (`AutoBlend.swift`, `AgentServer+AutoBlend.swift`,
 `AutoBlendFill.swift`; core `focus_stack.rs`, `doc_auto_blend.rs`, `graph_cut.rs`, `panorama_seam.rs`,
 `panorama_gain.rs`): Stack Images, Panorama and Content-Aware Fill Transparent Areas. One undo step, one job,
-8, 16 and 32 bits; CMYK refuses Panorama by name. Commits `6fe82db0`, phases 2a and 2b-1.
+8, 16 and 32 bits; unavailable on CMYK (every method). Commits `6fe82db0`, phases 2a and 2b-1.
 
 ### Merge Panorama
 
@@ -251,7 +255,7 @@ Summation, Variance, Entropy, Kurtosis, Skewness and Majority; Stack Modes on CM
 
 ## Phase 2b-5: the planar lens path and the extent (shipped)
 
-`bd000f44`, 2026-10-17: no new export, no `.rz` change; `RECT_SLACK` 0.01.
+`bd000f44`, 2026-10-17: no new export, no native-format (DRDC) change; `RECT_SLACK` 0.01.
 
 ## Phase 3a: Auto-Align's registration reach (shipped)
 
@@ -276,14 +280,12 @@ plan, so a stack of 128 px or smaller canvases loads.
 
 `2fcb757b`, 2026-10-19: the Preset popup (Default, the user's own via `HdrToningPresetLibrary` and
 `DR_HDR_TONING_PRESETS_DIR`) and MCP `hdr_toning` `preset`; explicit keys override.
-On 2026-10-29 the eleven built-ins were removed; HDR Toning's built-in preset is Default (open items
-[#7](https://github.com/kpgalligan/doctored/issues/7), [#8](https://github.com/kpgalligan/doctored/issues/8)).
+On 2026-10-29 the eleven built-ins were removed.
 
 ## Open items
 
-- Not built, by decision: Live Stack Modes.
-- A built-in set of Doctored's own ([#7](https://github.com/kpgalligan/doctored/issues/7)); importing a
-  `.hdt` file the user owns ([#8](https://github.com/kpgalligan/doctored/issues/8)).
+- `OPEN` [#7](https://github.com/kpgalligan/doctored/issues/7) — a built-in HDR Toning preset set of Doctored's own.
+- `OPEN` [#8](https://github.com/kpgalligan/doctored/issues/8) — importing a `.hdt` file the user owns.
 
 ## For the next item
 

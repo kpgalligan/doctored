@@ -1,6 +1,7 @@
 # Smart objects — built, then removed for v1 (ADR)
 
-- **Status:** Removed 2026-10-10. Smart-object support is a later decision, not an open phase.
+- **Status:** Accepted — closed; the features were removed 2026-10-10. Smart-object support is a later decision,
+  not an open phase.
 - **Phase / dates:** built 2026-10-09 to 2026-10-10 (last build with them: `3e05aea6`); removed in the batch
   after it.
 - **Originals:** [archive/convert-to-smart-object-status.md](../archive/convert-to-smart-object-status.md) (the
@@ -51,7 +52,8 @@ shared, now `core/src/filter_kernels.rs`. MCP keeps `place_image`, `get_image_so
   a layer with no camera original.
 
 ## File compatibility
-- **`.rz`.** `DRDC_VERSION` stays 73 and the reader accepts every earlier version. Words 65/66 (contents), 68
+- **Native files (`.doctored`, legacy `.rz`).** The removal did not bump `DRDC_VERSION` (73 at the time) and
+  the reader accepts every earlier version. Words 65/66 (contents), 68
   and 73 (float contents), 69/70 (Stack Mode), the `SOCT` and `SOSM` tables and the live-filter records
   (`LFLT`, with its mask references still range-checked) are bounds-checked and skipped, never decoded. A
   binding whose record carried any of them is dropped and the layer keeps its stored pixels. A plain or linked
@@ -65,11 +67,13 @@ shared, now `core/src/filter_kernels.rs`. MCP keeps `place_image`, `get_image_so
   rasterized on restore.
 
 ## Profile conversion with RAW layers
-With placed sources gone, the retained-source refusal of Convert to Profile applies only to RAW layers. A
-conversion other than relative colorimetric without black point compensation refuses on a document that has
-one; `rasterize_sources` (the Convert sheet's "Rasterize N RAW layers, then convert", MCP `convert_profile`,
-recorded in Actions) rasterizes every bound layer and converts as one result. A bound source therefore converts
-only at relative/no BPC, so there is no intent to persist per source.
+With placed sources gone, the retained-source refusal of Convert to Profile applies only to RAW layers
+(`ConversionOptions::source_refusal` in `doc_color_policy.rs`, its one home). A source re-renders relative colorimetric with BPC off, so
+between matrix/TRC profiles relative, perceptual and saturation keep RAW sources bound (all three give the
+source render's bytes), and with a LUT profile on either side only relative does (at 16 bits a LUT side still
+refuses at the typed colour plan); black point compensation and absolute refuse everywhere. Past any of these
+refusals, `rasterize_sources` (the Convert sheet's "Rasterize N RAW layers, then convert", MCP `convert_profile`,
+recorded in Actions) rasterizes every bound layer and converts as one result. No intent is persisted per source.
 
 ## Evidence kept
 - `core/tests/fixtures/rz_removed_features/`: 18 `.rz` files written by `3e05aea6` (a smart object, float

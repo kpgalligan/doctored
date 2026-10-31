@@ -1,6 +1,6 @@
 # Relative placement of ordinary PSD raster masks (ADR)
 
-- **Status:** Accepted — decision reversed 2026-10-11; see "Decision in force"
+- **Status:** Accepted — closed (decision reversed 2026-10-11; see "Decision in force")
 - **Phase / dates:** 10A relative-mask slice, 2026-09-13; Photoshop measurement Run 3, 2026-09-16; reversal 2026-10-11
 - **Original:** [archive/phase-10a-relative-masks-status.md](../archive/phase-10a-relative-masks-status.md) — full history, measurements, receipts
 - **Key commits:** `1992d43` (slice), `d1b6c27` (masks measured against Photoshop)
@@ -20,7 +20,7 @@ flag, which left the question of which reading to keep.
   Photoshop reads it)` when set.
 - A folder mask with bit 0 set is therefore an ordinary admitted mask, not a loss.
 - The 16-bit and 32-bit readers share `MaskRecord`, so they changed with it. Export (bit 0 always clear)
-  and `.rz` are untouched.
+  and the native file are untouched.
 - Result is still `linked=false`, exact samples, outside coverage, enabled state; density 1, feather 0. A
   flag-set file and its flag-clear twin with the same stored rectangle open as the same document and save
   the same native bytes.
@@ -40,7 +40,8 @@ flag, which left the question of which reading to keep.
 - Reverse direction: Doctored's unlinked masks exported via `export_psd` keep canvas-space rectangles
   (bit 0 clear) while the layer moves, and render in Photoshop at 0–1 codes at both depths.
   `add_layer_mask from_selection` yields a canvas-sized mask at both depths.
-- `scripts/verify_phase10_photoshop_appearance.py --receipt A5` holds the gate (`M3_twin` now requires
+- `scripts/verify_phase10_photoshop_appearance.py --receipt A5` (in the private archive
+  `kpgalligan/doctored-dev`, with the rest of the Photoshop harness) holds the gate (`M3_twin` now requires
   the twin to equal the flag-clear control and differ from the original); it was edited with the reversal
   and not re-run, because a run drives Photoshop.
 
@@ -66,4 +67,3 @@ flag, which left the question of which reading to keep.
 - `DROPPED` — Extended/vector/parameter forms: explicit exclusions of [phase-10a-qualification.md](phase-10a-qualification.md).
 - `DONE` — Broader depth/compression: 16-bit + 16-bit ZIP masks ([phase-10c-depth-status.md](phase-10c-depth-status.md), `core/src/psd_zip.rs`).
 - `DONE` — Independent-application exchange: GIMP closeout (`352cb50`) and Photoshop Run 3 (`d1b6c27`).
-- `TRACKED` — 9I prerequisite gate (mentioned as unchanged) → plan §9I.

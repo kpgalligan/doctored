@@ -1,6 +1,6 @@
 # Closed-form (color-line) alpha candidate (ADR)
 
-- **Status:** Accepted — open items remain (candidate kept experimental; the cutout gate it was measured against is open)
+- **Status:** Accepted — closed (candidate kept experimental; the cutout gate it was measured against is no longer a ship condition)
 - **Phase / dates:** 6C, 2026-09-10
 - **Original:** [archive/phase-6-closed-form-matting-candidate.md](../archive/phase-6-closed-form-matting-candidate.md) — full history, measurements, receipts
 - **Key commits:** 0155d41
@@ -55,7 +55,8 @@ touching the sampled/guided candidates, their defaults, or any frozen gate. No e
 - Scalar alpha + fixed foreground cannot represent refractive glass; glass cases without foreground constraints refuse.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Coupled alpha/color qualification, stronger input evidence and full-image photographic inspection →
-  carryover P7-12 / plan 9I, gate v2 assisted protocol ([phase-9i-gate-v2-status.md](phase-9i-gate-v2-status.md)).
+- `DROPPED` (2026-10-30) — Coupled alpha/color qualification, stronger input evidence and full-image photographic
+  inspection: the gate is not a ship condition (2026-10-10) and gate v2's assisted run is dropped
+  ([phase-9i-gate-v2-status.md](phase-9i-gate-v2-status.md)); shipped Select and Mask uses `edge_refine.rs`.
 - `DROPPED` — Glass/transmission recovery: glass left the pass rule for a reported-only glass diagnostic (transmission research declined) (gate v2
   decision 1, [archive/phase-9i-gate-v2-status.md](../archive/phase-9i-gate-v2-status.md)).

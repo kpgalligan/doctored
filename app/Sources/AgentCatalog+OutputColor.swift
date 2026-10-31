@@ -42,7 +42,7 @@ extension AgentServer {
                 + "\"installed\" with a name from list_installed_profiles, or \"working_cmyk\" "
                 + "(Edit ▸ Color Settings' working CMYK, View ▸ Proof Setup ▸ Working CMYK).",
         ]
-        // #1 phase 5: Preserve CMYK Numbers and the Working plates.
+        // Preserve CMYK Numbers and the Working plates.
         let preserveNumbers: [String: Any] = [
             "type": "boolean",
             "description": "A CMYK document only (refused on RGB): send its ink to the proof "
@@ -81,7 +81,7 @@ extension AgentServer {
                     + "and no default preset, turning proof_colors or gamut_warning on seeds the "
                     + "Working CMYK proof, as ⌘Y and ⇧⌘Y do. On a CMYK document the proof "
                     + "profile must be CMYK, and gamut_warning flags the inks it cannot hold "
-                    + "(none when preserve_numbers) (#1).",
+                    + "(none when preserve_numbers).",
                 [
                     "preset": proofPreset,
                     "profile": proofProfile,
@@ -120,7 +120,7 @@ extension AgentServer {
                     + "exact:true proofs the full 16-bit composite instead, on the background "
                     + "worker (about 17 s at 24 MP; mask adds a second pass). source in the "
                     + "reply says which: \"composite\" or \"display\". A 32-bit float document "
-                    + "refuses. A CMYK document (#1) proofs its ink through a CMYK profile into "
+                    + "refuses. A CMYK document proofs its ink through a CMYK profile into "
                     + "Display P3 (space \"display-p3\", source \"cmyk\").",
                 [
                     "exact": [
@@ -285,7 +285,7 @@ extension AgentServer {
                     + "document_v2 Exposure/White Balance layer: each refuses at every depth "
                     + "with one Assign sentence naming the profile (and the layer)."
             case "get_color_profile":
-                note = "can_decode (Phase 11C) is the wider question: on an 8-bit document true "
+                note = "can_decode is the wider question: on an 8-bit document true "
                     + "when this build can turn the document's numbers into PCS colour, "
                     + "including a LUT profile with a readable A2B table, which convertible is "
                     + "false for. At 16 and 32 bits a conversion's source must be matrix/TRC: "

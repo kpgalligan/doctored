@@ -46,7 +46,8 @@ extension AgentServer {
             tool(
                 "open_document",
                 "Opens an image file (PNG, JPEG, PSD, PSB, TIFF, BMP, GIF, WebP, HEIC/HEIF, AVIF, "
-                    + "JPEG XL, JPEG 2000, OpenEXR, Radiance HDR, PDF, SVG, camera RAW, RZ) in a new "
+                    + "JPEG XL, JPEG 2000, OpenEXR, Radiance HDR, PDF, SVG, camera RAW, Doctored "
+                    + "(.doctored, and legacy .rz)) in a new "
                     + "editor window and returns "
                     + "its document id. A camera RAW opens as a 16-bit document, or as a 32-bit "
                     + "float document holding its scene-linear development with raw.output_encoding "

@@ -1,6 +1,6 @@
 # Doctored docs
 
-The public documentation site for Doctored, built with [Astro](https://astro.build)
+The source of Doctored's documentation site, built with [Astro](https://astro.build)
 and [Starlight](https://starlight.astro.build).
 
 ## Commands
@@ -32,7 +32,7 @@ archive `kpgalligan/doctored-dev`, not in this repository.
 | `src/fonts/font-face.css` | `@font-face` rules for the three families, split by `unicode-range`. |
 | `public/fonts/` | Self-hosted WOFF2 (`latin` and `latin-ext` subsets from Google Fonts). Licences in `public/fonts/OFL.txt`. |
 | `src/components/` | The four component overrides — `SiteTitle` (wordmark and version badge), `ThemeSelect` (two-state toggle), `PageTitle` (eyebrow and description), `Hero` (eyebrow). |
-| `src/site.ts` | The version shown in the header badge. Keep in step with `CFBundleShortVersionString` in the repo's `project.yml`. |
+| `src/site.ts` | The version shown in the header badge. Keep in step with the repo's `VERSION` file (MAJOR.MINOR; a release appends the publish run number). |
 
 Every page may set an `eyebrow` in its frontmatter — the mono uppercase label
 above the title. Without one, a page uses the name of the sidebar group it sits in.

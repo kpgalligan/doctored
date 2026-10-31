@@ -530,14 +530,14 @@ struct Action {
     /// edit high for a run whose net effect was an undo. Neither is
     /// something a step can be made to do correctly — an entry cannot
     /// contain itself — so the pair is refused by name, which is also what
-    /// the assistant's prompt paragraph tells a model.
+    /// `save_action`'s catalog description tells a model.
     ///
     /// Refused at DECODE time, so a hand-edited file, `save_action` and the
     /// window's JSON editor all report it by step index instead of writing a
     /// file that crashes the app, or overwrites someone's originals, the
     /// moment anything runs it. `ActionCatalogFacts.nonRecordable` already
-    /// keeps all nine out of a recording; this is the half that keeps them
-    /// out of a file.
+    /// keeps them out of a recording; this is the half that keeps them out
+    /// of a file.
     static let notAStepTool: Set<String> = [
         "save_raw_preset", "delete_raw_preset", "repair_raw_preset", "sync_raw_settings", "apply_raw_preset",
         "preview_raw_decoder_migration",

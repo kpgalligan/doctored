@@ -1,11 +1,7 @@
 # live-filter-probe
 
-Shared Python modules that other drives import. The Phase 9A live-filter probe that lived
-here (its Swift, `mcp.py`, `verify.py`, the oracle and `scripts/verify_phase9a.py`) went
-with live filters on 2026-10-10 (`designs/convert-to-smart-object-status.md`).
-
-| File | What it holds |
-|---|---|
-| `support.py` | The isolated app transport (`host-source-probe/support.py`) with this probe's private stores. |
-| `native.py` | An independent length-framed DRDC source reader; never calls the product. |
-| `fixtures.py` | The independent native-depth fixture writers. |
+One shared Python module, `native.py`, an independent length-framed DRDC source reader
+that never calls the product; the PSD, retouch, phase-9 and phase-10 drives load it by
+path. The
+Phase 9A probe that lived here went with live filters on 2026-10-10
+(`designs/convert-to-smart-object-status.md`).

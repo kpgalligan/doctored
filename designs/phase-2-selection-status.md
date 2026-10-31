@@ -30,7 +30,7 @@ without making them persistent document state.
 - **Quick Mask replays recorded coverage**, not brush parameters: premultiplied gray/alpha runs as
   little-endian `UInt32` lengths + bytes, base64 (`app/Sources/QuickMaskStroke.swift`), validated before
   applying, canvas-absolute, one shared Rust source-over kernel for preview and replay.
-- **Selections are not written to `.rz`**; saved channels are the persistent workflow. No native version change.
+- **Selections are not written to `.doctored`**; saved channels are the persistent workflow. No native version change.
 
 ## Rejected alternatives
 - Filtering a cropped selection — treats the selection edge as an image edge.
@@ -46,4 +46,7 @@ without making them persistent document state.
 - `DONE` — Freehand lasso (`EditorTool.freehandLasso`, `app/Sources/Tools.swift:36`), Color Range and
   independent mask transforms (`app/Sources/MaskTransformSheetController.swift`) — Phase 6.
 - `DONE` — Broader history budgets and recovery — Phase 5.
-- `TRACKED` — Advanced refinement (brushing, colour decontamination, cutout quality gate) → P7-12.
+- `DONE` — Advanced refinement: edge brushing and colour decontamination ship in Select and Mask
+  (`app/Sources/RefineSelectionSheetController+Edge.swift`, MCP `refine_selection` in
+  `app/Sources/AgentServer+SelectionRefinement.swift`). `DROPPED` — the cutout quality gate as a ship condition
+  (2026-10-10).

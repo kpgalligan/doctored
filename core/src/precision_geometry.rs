@@ -321,8 +321,8 @@ fn image_equal(
     if a.dimensions() != b.dimensions() {
         return Ok(false);
     }
-    // At 32-bit float every geometry op but warp is admitted (the filtered
-    // ones included), and a layer whose output lands at its OWN offset — a
+    // At 32-bit float every geometry op is admitted (the filtered ones and
+    // warp included), and a layer whose output lands at its OWN offset — a
     // turn or a flip of a full-canvas layer, or a resample that happens to
     // keep its extent — reaches this comparison. Bit equality, not `==`: a
     // permutation copies bits, so `to_bits` is the honest question and it

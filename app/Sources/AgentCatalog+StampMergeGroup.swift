@@ -1,7 +1,7 @@
 import Foundation
 
-/// `stamp_selected` and `merge_group`'s catalog entries (#1 phase 4c,
-/// `AgentServer+StampMergeGroup.swift`). Behind an explicit non-inlining
+/// `stamp_selected` and `merge_group`'s catalog entries
+/// (`AgentServer+StampMergeGroup.swift`). Behind an explicit non-inlining
 /// boundary, for `AgentCatalog.swift`'s reason.
 extension AgentServer {
     @inline(never) func stampMergeGroupCatalog() -> [[String: Any]] {

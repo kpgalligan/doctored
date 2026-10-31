@@ -1,6 +1,6 @@
 # High-leverage roadmap — four features from the GIMP study (ADR)
 
-- **Status:** Accepted — closed (all four phases shipped; the rewrite-scale deferrals were later taken up by the [implementation plan](professional-photo-editor-implementation-plan.md))
+- **Status:** Accepted — closed (historical record; not a feature catalog). All four phases shipped; the rewrite-scale deferrals were later taken up by the [implementation plan](professional-photo-editor-implementation-plan.md). The feature inventory is [photo-editor-gap-review.md](photo-editor-gap-review.md) with [photo-editor-gap-review-2026-09.md](photo-editor-gap-review-2026-09.md).
 - **Phase / dates:** pre-plan feature roadmap, 2026-08-10 → 2026-08-11
 - **Original:** [archive/high-leverage-roadmap.md](../archive/high-leverage-roadmap.md) — full history and per-phase design notes
 - **Key commits:** `4f56283` (roadmap), `e7d23ca` (selection algebra), `e973b3c` (layer masks), `75ecde3` (text layers), `6c170ae` (free transform), `0c1aa52` (perspective)
@@ -55,7 +55,7 @@ usual FFI three-file lockstep.
   is shared with layer styles.
 - Every resampler must stay premultiplied (later enforced across the codebase by Phase 1D).
 
-## Open items (verified 2026-09-26)
+## Open items (verified 2026-10-30)
 - `DONE` — Perspective transform (deferred within Phase 4): `0c1aa52`, `core/src/doc_perspective.rs`.
 - `DONE` — Symbolic (re-rendering) transforms for text instead of rasterize-on-transform: 8E, P7-04 verified.
 - `DONE` — PSD layer-mask import (stretch goal): 10A (`core/src/psd_raster_masks.rs`).
@@ -64,43 +64,11 @@ usual FFI three-file lockstep.
   `core/src/icc*.rs`, `core/src/soft_proof.rs`), high-depth and float documents (Phase 7, 11F). Live filter
   stacks (9A/9B) were also taken up, then removed for v1 on 2026-10-10
   ([removal ADR](convert-to-smart-object-status.md)).
-- `TRACKED` — Linear-light compositing is a per-document policy (11E); per-layer blend/composite-space axes and
-  the remaining migration → P7-24 (row open).
-- `TRACKED` — Tiled/lazy buffers → plan §13B (`core/src/tile_store.rs`, 13B-1); mipmaps are not planned.
-- `DONE` — Transforming a floated selection (selected pixels) rather than a whole layer: with a
-  selection active, ⌘T (8/16-bit) and `transform_selected_pixels` transform the active layer's
-  selected pixels in one "Transform Selected Pixels" step; flagged open in
-  `archive/photo-editor-gap-review-2026-09.md`. The first piece to land: the Move tool's drag/nudge
-  and `move_selected_pixels` float the selected pixels by an integer delta through
-  `SelectedPixelsEdit::MoveSelected` (`core/src/selected_pixels.rs`, 8/16-bit, the shared
-  `move_extent` / `moved_pixel` body, `lock_block(Pixels)` directly) and the shared multi-layer
-  sentence `MoveSelectedPixels.multiLayerRefusal(verb:count:)`. Then came
-  `SelectedPixelsEdit::TransformSelected` (affine/quad + filter,
-  `core/src/selected_pixels_transform.rs`) through the same two exports, the ⌘T floating session
-  (`FloatingSelection.swift`, `EditorViewController+FloatingTransform.swift`), the `perspective`
-  selection op, `transform_selected_pixels`, and `multiLayerRefusal(verb: "transform", …)`. Landed
-  since: landing-sized plan scratch, one-wait commit, the opaque-bounds ⌘T box (the core float-rect
-  query), selection-bounded plans and one 16-bit geometry wait, and the Move tool's ⌥-drag duplicate
-  with a first-tick empty refusal (the persistent float shipped later: `MoveFloat.swift`;
-  consecutive drags, nudges and `move_selected_pixels` calls lift ONCE from the float's source at
-  its total delta, so pixels under the path come back; one "Move" step each, the float surviving
-  undo and redo; Deselect, a selection or layer switch, Save and any other edit commit it; the ⌥
-  copy floats and ⌥ over a float stamps a copy. Not measured: the scripted take's `move` event moved
-  the whole layer, so it could not observe a float (`move_float_202_take.py`'s RESULT). Gray rides
-  the same `move_selected` request and floats once lane A's Grayscale mode admits it), the rest of
-  the ⌥ duplicate family — ⌥+arrow, ⌥-drag and ⌥+arrow with no selection duplicating the layers, ⌥⌘T
-  Free Transform a Copy and the ⌥ cursor, each with its MCP `duplicate` — and the selected-pixels
-  polish: the drag snapping to the float's opaque bounds, a delayed-reveal wait panel, the
-  `selected_pixels_walk.rs` split and the named wrong-shape `bounds` refusal. Then ⌥⌘T with no
-  selection duplicating the layers and transforming the copies, the delayed wait panel on every
-  16-bit Move/⌘T/⌥⌘T/Crop commit and 8-bit layer transform and a duplicate drag or box snapping to
-  its source, and Transform Again (⇧⌘T) and Transform Again with Copy (⌥⇧⌘T) with MCP
-  `transform_again`, and the selected area of a targeted layer mask or alpha channel at 8, 16 and
-  32-bit float — the same walk with a background-colour hole (`core/src/selected_plane.rs`),
-  `target`/`background` on `transform_selected_pixels` and `transform_again`, and the Move tool and
-  `move_selected_pixels` on the same planes, and a layer's selected pixels in a 32-bit float
-  document, f32 through the same walk with filtered landings clamped to the floated pixels' range,
-  and one colour channel's selected pixels at 8, 16 and 32 bits: the move fills the vacated area
-  with the background swatch's 0.30/0.59/0.11 luma rounded to a code (unconverted at 32 bits) and
-  refuses a lift from only transparent pixels, measured against Photoshop 26.10.0
-  (`channel-move-633/take2`, `plane-gray-431-633/take1`).
+- `DONE` — Linear-light compositing as a per-document evaluation policy (11E). The remaining migration is
+  [#12](https://github.com/kpgalligan/doctored/issues/12); per-layer blend/composite-space axes are not built.
+- `DONE` — The shared immutable tile store (13B-1, `core/src/tile_store.rs`). The rest of the tiled backing is
+  [#10](https://github.com/kpgalligan/doctored/issues/10) and the canvas display through the regional render
+  path is [#9](https://github.com/kpgalligan/doctored/issues/9); mipmaps are not planned.
+- `DONE` — Move and Transform Selected Pixels rather than a whole layer: Move-tool floats, ⌘T and ⌥⌘T, the ⌥
+  duplicates and Transform Again, on layers, masks, alpha channels and colour channels at 8, 16 and 32 bits
+  (`core/src/selected_pixels*.rs`, `core/src/selected_plane.rs`, `app/Sources/MoveFloat.swift`).

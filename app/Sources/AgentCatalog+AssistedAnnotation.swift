@@ -36,25 +36,25 @@ extension AgentServer {
         return [
             self.tool(
                 "assisted_workspace_status",
-                "Internal Phase 9I experiment: the cases in a prepared assisted annotation workspace and which still have no replay. No document is involved.",
+                "Internal experiment: refuses unless assisted annotation is enabled for this launch (DR_ASSISTED_ANNOTATION=1, or the AssistedAnnotationEnabled default). The cases in a prepared assisted annotation workspace and which still have no replay. No document is involved.",
                 ["workspace": workspace], required: ["workspace"]),
             self.tool(
                 "assisted_open_case",
-                "Mirrors File > Open Assisted Annotation Case…. Opens one case in the gated annotation window; a human session stops at the task card and a synthetic session starts its 5-minute, 20-gesture budget at once. Refuses a locked case or a live session.",
+                "Internal experiment: refuses unless assisted annotation is enabled for this launch (DR_ASSISTED_ANNOTATION=1, or the AssistedAnnotationEnabled default). Mirrors File > Open Assisted Annotation Case…, which only such a launch shows. Opens one case in the gated annotation window; a human session stops at the task card and a synthetic session starts its 5-minute, 20-gesture budget at once. Refuses a locked case or a live session.",
                 ["workspace": workspace, "case": caseID, "synthetic": synthetic],
                 required: ["workspace"]),
             self.tool(
                 "assisted_session_state",
-                "The open annotation session's elapsed time, gesture budget, applied strokes, recorded events and current label-plane hash.",
+                "Internal experiment: refuses unless assisted annotation is enabled for this launch (DR_ASSISTED_ANNOTATION=1, or the AssistedAnnotationEnabled default). The open annotation session's elapsed time, gesture budget, applied strokes, recorded events and current label-plane hash.",
                 [:]),
             self.tool(
                 "assisted_synthetic_stroke",
-                "One brush gesture on a SYNTHETIC session. accepted:false with result \"rejected:time_budget\" or \"rejected:rasterizer_limit\" is a recorded refusal that still spent a gesture and left the label plane unchanged.",
+                "Internal experiment: refuses unless assisted annotation is enabled for this launch (DR_ASSISTED_ANNOTATION=1, or the AssistedAnnotationEnabled default). One brush gesture on a SYNTHETIC session. accepted:false with result \"rejected:time_budget\" or \"rejected:rasterizer_limit\" is a recorded refusal that still spent a gesture and left the label plane unchanged.",
                 ["tool": tool, "diameter": diameter, "points": points],
                 required: ["tool", "diameter", "points"]),
             self.tool(
                 "assisted_finalize_case",
-                "Mirrors the annotation window's Submit button for a synthetic session: writes <workspace>/replays/<case_id>.json and locks the case.",
+                "Internal experiment: refuses unless assisted annotation is enabled for this launch (DR_ASSISTED_ANNOTATION=1, or the AssistedAnnotationEnabled default). Mirrors the annotation window's Submit button for a synthetic session: writes <workspace>/replays/<case_id>.json and locks the case.",
                 [:]),
         ]
     }

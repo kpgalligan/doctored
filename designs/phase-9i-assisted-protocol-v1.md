@@ -1,6 +1,6 @@
 # Phase 9I assisted edge refinement protocol v1 (ADR)
 
-- **Status:** Accepted — open items remain (tooling built; no human annotation collected or scored)
+- **Status:** Accepted — closed (tooling built; no human annotation collected or scored; the run was dropped 2026-10-30)
 - **Phase / dates:** 9I, defined 2026-09-13; gate v2 amendment 2026-09-15; tooling pins 2026-09-15; scoring pins 2026-09-16
 - **Original:** [archive/phase-9i-assisted-protocol-v1.md](../archive/phase-9i-assisted-protocol-v1.md) — full contract text, geometry and refusal wording; the hashed contract (the live `protocol_sha256` input)
 - **Key commits:** `195efe7` (protocol), `d5c7490` (gate v2 amendment), `de70228` (tooling pins), `5f75604` (scoring pins)
@@ -95,8 +95,8 @@ scorer-facing contract; the annotator sees only the task card ([phase-9i-assiste
   runs pin; this ADR is not hashed.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Collect the blinded human session and score it → P7-12 / plan §9I "Next assignment"; procedure in [phase-9i-assisted-annotation-runbook.md](phase-9i-assisted-annotation-runbook.md).
-- `OPEN` — The 78-case population / 78/78 whole-run report cannot be produced: the exporter and scorer accept only the 36-case `ASSISTED_COMPLETION_SUBSET` (`scripts/phase9i_assisted_workspace.py` refuses other cases). Either extend the tooling or record that v1 reports only the 36-case subset.
+- `DROPPED` (2026-10-30) — Collect the blinded human session and score it: the gate is no longer a ship condition ([gate v2](phase-9i-gate-v2-status.md)); the procedure stays in [phase-9i-assisted-annotation-runbook.md](phase-9i-assisted-annotation-runbook.md).
+- `DROPPED` (2026-10-30) — Extending the exporter and scorer to the 78-case population / 78/78 whole-run report: v1 reports only the 36-case `ASSISTED_COMPLETION_SUBSET` (`scripts/phase9i_assisted_workspace.py` refuses other cases), tooling for a run that is no longer a ship condition.
 - `DONE` — Source-only exporter, replay format/rasterizer and blinded annotation window (`de70228`; [phase-9i-assisted-workspace-status.md](phase-9i-assisted-workspace-status.md)).
 - `DONE` — Scorer and frozen candidate (`5f75604`; [phase-9i-assisted-scoring-status.md](phase-9i-assisted-scoring-status.md)).
 - `DROPPED` — Protection/write-region collection tools: v1 collection is labels-only by the tooling pin above.

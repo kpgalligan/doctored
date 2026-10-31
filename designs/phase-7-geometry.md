@@ -55,8 +55,9 @@ arithmetic. Status and batch evidence: [geometry/paint status](phase-7-geometry-
 ## Consequences
 - New typed geometry must reuse `sampling_walk`/`sampling` and the plan-before-allocate shape; byte and typed canvas
   rotation must stay on the shared `doc_rotate` classification.
-- Filtered geometry at 32-bit float (resize, affine/perspective, straighten, arbitrary rotation, warp) is refused by
-  name by the 11F float gate (`FLOAT_FAMILIES` in `core/src/precision_capability.rs`), not by this contract.
+- Filtered geometry at 32-bit float (resize, affine/perspective, straighten, arbitrary rotation, warp) is admitted by
+  the float gate (`FLOAT_FAMILIES` in `core/src/precision_capability.rs`): it resamples premultiplied extended-range
+  f32 and clamps each layer's RGB to its own visible range (`float_document`'s D3), outside this contract's gates.
 
 ## Open items (verified 2026-09-26)
 - `DONE` — group-content and adjustment-content transforms (refused in 7D): `GeometryEdit::AffineSet` /

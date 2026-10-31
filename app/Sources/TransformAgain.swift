@@ -22,7 +22,7 @@ import AppKit
 /// (`AgentServer+TransformAgain.swift`); the controller half is
 /// `EditorViewController+TransformAgain.swift`.
 ///
-/// Decisions stated here and in the README:
+/// Decisions stated here and in the feature reference:
 /// 1. What gets recorded. The memory is the canvas-space matrix, pivot
 ///    included, plus the sampler — or, for a TRUE PERSPECTIVE, its
 ///    four corners over the source rectangle they were dragged from — and it

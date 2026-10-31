@@ -1,6 +1,6 @@
 # Format additions — HEIC, Gray16, typed metadata bridge, float TIFF seam, PDF/SVG (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#15](https://github.com/kpgalligan/doctored/issues/15), [#16](https://github.com/kpgalligan/doctored/issues/16), [#1](https://github.com/kpgalligan/doctored/issues/1))
 - **Phase / dates:** 11D, drive run 2026-09-18 (all seven gates D1–D7 pass)
 - **Originals:** [archive/phase-11d-format-additions-status.md](../archive/phase-11d-format-additions-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-11d-format-additions-status.md](../archive/2026-10/phase-11d-format-additions-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `0e1c496`
@@ -21,7 +21,7 @@ claim alone is insufficient": every depth/profile/packet claim must come from an
 |---|---|---|---|
 | HEIC export | 8 or 10 bits, **measured from the written file** | export's destination, embedded by ImageIO | lossy; IPTC dropped by the host encoder; 16 requested → 8/10 written, reported in `bit_depth` |
 | HEIC import | 8 → byte doc, 10/12 → 16-bit typed (12-bit 4:2:0 decodes at full scale; it was never 65520) | file's ICC | since v1.x a gain-map still and a PQ/HLG still open as 32-bit float by default ([v1x-hdr-photos.md](v1x-hdr-photos.md)); with `hdr_photo: "sdr"` a gain-map still opens as its SDR base (`decode_request: "sdr_base"`, disclosed) and PQ/HLG refuses by name; monochrome still refused by the 8F sentence; 12-bit applies to 4:2:0 only — a 12-bit 4:4:4 file (what `heif-enc --lossless` writes) is refused with `HostStillDecoder.noDecodedPixels`, since ImageIO returns it with no pixels (fixture `heic12-444.heic`, gated by D1) |
-| Gray16 PNG/TIFF import | 16-bit typed **RGB** | always sRGB | gray-ness; a Gray ICC's curve is applied, not carried |
+| Gray16 PNG/TIFF import | 16-bit typed **RGB** | always sRGB | gray-ness; a Gray ICC's curve is applied, not carried (superseded: a gray file untagged or with a usable Gray ICC opens as a Gray document, [grayscale-mode.md](grayscale-mode.md)) |
 | Typed packet/PPI bridge | unchanged | unchanged | packets are the reader's reconstruction; exact originals only in the retained file |
 | Float TIFF | seam only (11F exposes it) | read, not interpreted | — |
 | PDF/SVG import | 8-bit sRGB, one page at a chosen PPI | built-in sRGB | all vector content; one-way raster |
@@ -45,7 +45,8 @@ claim alone is insufficient": every depth/profile/packet claim must come from an
   gray image; `cICP`/`mDCV`/`cLLI`. Gray ICC is parsed with `icc_lut::ProofProfile`, **never** `IccProfile::parse`,
   so the RGB path is untouched. TIFF `GrayA` needs exactly one unassociated alpha. A `.rgba8` import choice opens
   through the core's flat open, which converts a Gray ICC through the same per-code rule
-  (`gray16_import::encoded_gray`) from the 16-bit samples, rounded to 8 bits.
+  (`gray16_import::encoded_gray`) from the 16-bit samples, rounded to 8 bits. (Superseded: a gray file untagged
+  or with a usable Gray ICC opens as a Gray document, `dr_path_gray_source`; [grayscale-mode.md](grayscale-mode.md).)
 - **Typed metadata bridge** (`core/src/precision_metadata_edit.rs`): typed `import_metadata` / `set_metadata` /
   `set_resolution` with the byte contracts verbatim (16 MiB packet cap, `Resolution::sane`), sharing one carrier
   parser `doc_metadata_import::carrier_packets`. Typed host stills and typed RAW now carry packets + PPI; loss
@@ -85,25 +86,33 @@ ICC-tagged JPEG XL, EXR writing, multipage TIFF, BigTIFF output.
 
 ## Consequences
 Any new host-encoded format must follow the pending-result + adopt pattern so unadopted intermediates can never
-reach disk or preview. Gray inputs stay RGB documents until a gray document mode exists. Tests:
+reach disk or preview. Tests:
 `core/tests/{export_host_formats,gray16_import_tests,tiff_float_tests,precision_metadata_bridge}.rs`; drive
 `scripts/verify_phase11d_formats.py`.
 
-## Open items (verified 2026-10-07)
-- `TRACKED` — HEVC (`hvc1`/`hev1`) 8-bit/Main10 movie frames (needs a `HostHEVCPreflight` + `ffmpeg` ≤ 4-code
-  gate; no such code exists) → plan §11 11D bullet ("HEVC movie frames … stay open").
-- `TRACKED` — expanded multiframe ProRes cross-decoder comparison, unqualified at 64 codes → plan §8 8F / §11 11D.
-- `TRACKED` — float-predictor encoding (owned predictor-3 writer checked by `tiffinfo`), F16 export → plan §11 11D
-  bullet and P7-36 row note.
-- `TRACKED` — Gray as export/convert destination, gray document mode, PNG `gAMA` evaluation →
-  plan §11 11D bullet ("a gray DESTINATION").
-- `TRACKED` — PDF/SVG as retained re-rasterizable sources → plan §11 11D bullet; PDF/X → plan §11 Boundary.
-- `TRACKED` — HEIF sequences/animation, AVIF export → plan "Additional formats and sharing" track.
+## Open items (verified 2026-10-30)
+- `OPEN` [#15](https://github.com/kpgalligan/doctored/issues/15) — SDR HEVC (`hvc1`/`hev1`) movie frames
+  (`HostVideoDecoder.swift` admits no HEVC; needs a preflight and an `ffmpeg` ≤ 4-code gate).
+- `DROPPED` (2026-10-30) — an expanded multiframe ProRes cross-decoder comparison: it re-qualifies a shipped
+  decode, and frames land as pixels with no re-render, so the figure gates nothing.
+- `DROPPED` (2026-10-30) — float-predictor (predictor 3) TIFF encoding: not written; a Deflate float TIFF without
+  the predictor is valid, opens everywhere and reopens bit-exact, only larger. F16 TIFF export shipped (11F).
+- `DONE` — Gray as a convert/export destination and a Gray document mode (`gray_convert.rs`, `gray_document.rs`,
+  `gray_export.rs`; [grayscale-mode.md](grayscale-mode.md)).
+- `OPEN` [#16](https://github.com/kpgalligan/doctored/issues/16) — evaluating a PNG's bare `gAMA` (and `cHRM`):
+  refused at 16 bits, not evaluated at 8.
+- `REMOVED` — PDF/SVG as retained re-rasterizable sources: non-RAW retained sources were removed 2026-10-10;
+  PDF/SVG open or place as pixels.
+- `OPEN` [#1](https://github.com/kpgalligan/doctored/issues/1) — PDF/X output.
+- `DONE` — AVIF export (v1 formats, above; `HostImageEncoder.swift`).
+- `DROPPED` (2026-10-30) — HEIF image sequences and animation: Doctored is a still editor with no frame model, and
+  a multi-image HEIF opens its primary image.
 - `DONE` — an untagged CMYK TIFF or JPEG the core opens is converted from the WORKING CMYK profile
   (`core/src/working_cmyk.rs`, set at launch by `WorkingCMYK.install()`: U.S. Web Coated (SWOP) v2 when installed,
   else Generic CMYK) through the embedded-profile path, and `profile_refusal` names it; with none set the naive
-  numbers read as sRGB under a sentence saying so. Not covered: a Color Settings UI, an unusable embedded CMYK
-  profile (still "read as sRGB"), and gate-refused files (ImageIO's own Generic CMYK). Drive:
+  numbers read as sRGB under a sentence saying so. The working profile is chosen in Edit ▸ Color Settings…
+  (`ColorSettingsWindowController.swift`). Not covered: an unusable embedded CMYK profile (still "read as sRGB")
+  and gate-refused files (ImageIO's own Generic CMYK). Drive:
   `scripts/verify_issue327_untagged_cmyk.py`.
 - `DONE` — a Gray, CMYK or Lab paste into an open document reports its conversion: the reply's `color_conversion`
   and the history row's suffix (CMYK phase 4c, [cmyk-mode-shipped.md](cmyk-mode-shipped.md)).
@@ -127,11 +136,12 @@ reach disk or preview. Gray inputs stay RGB documents until a gray document mode
   CMYK-profiled CMYK TIFF to sRGB as it reads them, and the import report's `profile_refusal` names every embedded
   profile it does not keep.
 - `DONE` — that refusal reaches every surface: the typed 16-bit open (`open_profile::converted_sentence`,
-  `get_color_profile.on_open_refusal`); Place, Replace Contents and Refresh (MCP `disclosures`,
-  `contact_sheet_from_sources` `profile_refusals`, and one "Embedded Colour Profile" sheet after the edit commits; a
-  no-op import returns and discloses none); and the placed layer's source asset (`get_image_source`), which `.rz`
-  persists by conditional word 56 (byte) / 57 (typed) inside 45/46 with an `RSPR` table before `LIDS`. An
-  assisted-annotation case file carrying a profile is refused with that refusal.
+  `get_color_profile.on_open_refusal`); Place (MCP `disclosures`, `contact_sheet_from_sources`
+  `profile_refusals`, and one "Embedded Colour Profile" sheet after the edit commits; a no-op import returns and
+  discloses none); and a layer's source asset, which the native file persists by conditional DRDC word 56 (byte) /
+  57 (typed) inside 45/46 with an `RSPR` table before `LIDS`. (Replace Contents, Refresh and `get_image_source`
+  on a placed source were removed with non-RAW retained sources on 2026-10-10; `get_image_source` answers for a
+  RAW layer.) An assisted-annotation case file carrying a profile is refused with that refusal.
 - `DONE` — one CMYK gate (`open_profile::cmyk_gate`) answers for the open and the import report, for EVERY CMYK
   source whatever its profile: a refused file fails the core open, goes to the platform fallback and gets no
   `profile_refusal`, and a planar or extra-sample CMYK TIFF is not reported "converted". The TIFF gate also refuses

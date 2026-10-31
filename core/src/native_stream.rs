@@ -1,4 +1,4 @@
-//! The typed `.rz` reader's and writer's I/O: a bounds-checked
+//! The typed native (`.doctored`, legacy `.rz`) reader's and writer's I/O: a bounds-checked
 //! [`Reader`] over either a caller's byte slice or an open file, and the
 //! [`NativeSink`] a writer streams into (a `Vec<u8>` or a temporary file).
 //!
@@ -131,7 +131,7 @@ impl NativeSink for FileSink {
     }
 }
 
-/// An open typed `.rz` file: its handle, the length seen at open, and the
+/// An open typed native file: its handle, the length seen at open, and the
 /// arena that holds every small take until the file is dropped.
 pub(crate) struct NativeFile {
     file: File,

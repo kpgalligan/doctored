@@ -1,7 +1,8 @@
 # v1 float editing (ADR)
 
-- **Status:** Accepted, 2026-10-12. The working record is [archive/v1-float-editing.md](../archive/v1-float-editing.md).
-- **Contract:** [phase-11f-hdr-float-status.md](phase-11f-hdr-float-status.md) and its shipped companion still hold; this ADR adds the v1 batches that made 32-bit float a full editing depth.
+- **Status:** Accepted — open items remain ([#4](https://github.com/kpgalligan/doctored/issues/4),
+  [#14](https://github.com/kpgalligan/doctored/issues/14)); 2026-10-12. The working record is [archive/v1-float-editing.md](../archive/v1-float-editing.md).
+- **Contract:** [phase-11f-hdr-float-status.md](phase-11f-hdr-float-status.md) still holds (its shipped companion was folded into it on 2026-10-30); this ADR adds the v1 batches that made 32-bit float a full editing depth.
 
 ## Context
 
@@ -89,11 +90,14 @@ The operator table (`float_document.rs`, `get_precision` / `get_tone_map` `opera
 - Select and Mask's Decontaminate Colors: its foreground solve reads and writes RGBA16 codes clamped to 0 to 1, so a fringe above white would be clipped. The sheet disables it; `refine_selection decontaminate: true` refuses before any job.
 - Auto Tone, Auto Contrast, Auto Color and the Levels dialog's Auto buttons: each reads its black and white points off the clipped ends of a 0 to 1 histogram. The menu items and the Levels buttons are disabled; `auto_tone`, `auto_contrast`, `auto_color` and a Levels `auto` refuse with the row's reason.
 
-Not built: a proxy preview stage at float; RAW Develop's own Presence at float; Image ▸ Adjustments, Auto and Invert on a float mask, channel or colour plane; filters on the Quick Mask at float beyond Gaussian Blur.
+Not built:
+
+- `OPEN` [#14](https://github.com/kpgalligan/doctored/issues/14) — a proxy preview stage at float; Image ▸ Adjustments, Auto and Invert on a float mask, channel or colour plane; filters on the Quick Mask at float beyond Gaussian Blur.
+- `OPEN` [#4](https://github.com/kpgalligan/doctored/issues/4) — RAW Develop's own Presence on a 32-bit float development.
 
 ## After v1
 
-What v1 left for float documents (EDR display, HDR Toning and 32-bit PSD):
+What v1 left for float documents (EDR display, HDR Toning and 32-bit PSD), all shipped since. The `scripts/photoshop-probe/` runners named here are in the private archive (`kpgalligan/doctored-dev`).
 
 - **EDR (HDR) display.** Shipped in v1.x: View ▸ HDR Preview shows values above 1.0 brighter than white on an EDR screen ([v1x-hdr-photos.md](v1x-hdr-photos.md)); HDR photos open as float documents there too.
 - **HDR Toning.** Image ▸ Adjustments ▸ HDR Toning… (and 8/16 Bits/Channel on a float document) flattens and tone maps with Equalize Histogram, Exposure and Gamma and Highlight Compression since phase 4a of merge and stacks, and with Local Adaptation, the local tone map and the dialog's default, since its phase 4b ([v1-stacks-status.md](v1-stacks-status.md)); measured against Photoshop: Exposure and Gamma at (0, 1) matches, and every other method and value misses the 2 / 0.5 gate and ships as declared with its numbers.

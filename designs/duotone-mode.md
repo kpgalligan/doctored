@@ -1,12 +1,12 @@
 # Duotone document mode (ADR)
 
-- **Status:** Accepted, closed 2026-10-23. Duotone closes here; [#1](https://github.com/kpgalligan/doctored/issues/1)
-  (the colour-mode umbrella) stays open for CMYK's remaining items. Grayscale is
+- **Status:** Accepted — closed 2026-10-23. [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode
+  umbrella) stays open (see [cmyk-mode-status.md](cmyk-mode-status.md)). Grayscale is
   `designs/grayscale-mode.md`, Lab `designs/lab-mode.md`, Indexed Color `designs/indexed-mode.md`, Bitmap
   `designs/bitmap-mode.md`, CMYK `designs/cmyk-mode-status.md`.
 - **Original:** [archive/duotone-mode-status.md](../archive/duotone-mode-status.md) (the working record at close).
 - **Takes:** `~/devel/doctored-fixtures/photoshop/duotone-mode-547/smoke5`, `smoke6`, `take1`; runner
-  `scripts/photoshop-probe/duotone_take.py`. No take was run for the close: take1's receipts settle it.
+  `scripts/photoshop-probe/duotone_take.py` in the private archive (`kpgalligan/doctored-dev`). No take was run for the close: take1's receipts settle it.
 - **Code:** `core/src/duotone_ink.rs` and `duotone_ado.rs` (kernels), `duotone_document.rs`, `duotone_native.rs`,
   `duotone_files.rs`, `duotone_convert.rs`, `duotone_gray.rs`, `ffi_duotone.rs`, `gray_document.rs`'s
   `GrayPolicy.duotone`; `app/Sources/DuotoneDocument.swift`, `DuotoneOptions.swift`, `DoctoredCore+Duotone.swift`,
@@ -17,7 +17,7 @@
 ## Context
 
 Image ▸ Mode ▸ Duotone at 8 and 16 bits: Monotone, Duotone, Tritone and Quadtone over a Grayscale document,
-the inks' curves and overprint colours, the view through the inks, `.rz`, Duotone PSD/PSB, `.ado` files, the
+the inks' curves and overprint colours, the view through the inks, `.doctored`, Duotone PSD/PSB, `.ado` files, the
 conversions out (RGB, CMYK, Lab, Indexed, Grayscale, Bitmap), the exports through the inks and the items
 refused in Duotone, from the UI, over MCP and in Actions. No refusal or catalog note names a phase.
 
@@ -55,17 +55,18 @@ refused in Duotone, from the UI, over MCP and in Actions. No refusal or catalog 
   Bitmap → Duotone stays refused. One undo step each; every target asks the Flatten
   question for a blocker.
 - **Exports** render RGB through the view in the core, and every export reply carries `duotone`
-  (`exportNote`). A save that is not `.rz` refuses (`saveRefusal`): PSD and PSB are File ▸ Export as PSD's.
+  (`exportNote`). A save that is not `.doctored` refuses (`saveRefusal`): PSD and PSB are File ▸ Export as PSD's.
 - **PSD and PSB** (colour mode 8, 8 or 16 bits). The colour-mode data is Photoshop's duotone specification
   (`duotone_ado`, 524 bytes; Lab written to 0.01, curves to 0.1 %). The open is the Gray open with the inks on
   the policy, carrying the file's block (the data and every 1014/1017/1018/1063 resource); the save is the Gray
   writer post-processed (`into_duotone_file`), so unchanged inks write their data and resources back byte for
-  byte. The block lives in memory only: `.rz` keeps the inks. A layered TIFF refuses. Since #1 spot channels
-  1b-2, a 16-bit document's PSD/PSB is written at 8 bits from its Image ▸ Mode ▸ 8 Bits/Channel copy (the inks
-  kept, the document unchanged; one loss line, the report's depth 8), as Photoshop opened no 16-bit Duotone file.
+  byte. The block lives in memory only: `.doctored` keeps the inks. A layered TIFF refuses. Since spot channels
+  1b-2 ([spot-channels.md](spot-channels.md)), a 16-bit document's PSD/PSB is written at 8 bits from its Image ▸ Mode ▸ 8 Bits/Channel copy (the inks
+  kept, the document unchanged; one loss line, the report's depth 8), because Photoshop, the compatibility target, opened no 16-bit Duotone
+  file.
 - **`.ado`.** A Duotone Options file is the same specification (the sheet's Load…/Save…, `set_duotone path`,
   `get_duotone path overwrite`). No Pantone or licensed library ships.
-- **`.rz`.** Word 109 in the CMYK slot; `GRAY` then `DUOT` where the CMYK table goes (`duotone_native`). Float
+- **`.doctored`** (legacy `.rz` still read). Word 109 in the CMYK slot; `GRAY` then `DUOT` where the CMYK table goes (`duotone_native`). Float
   storage under 109 refuses. `DRDC_VERSION` unchanged.
 - **Memory.** Mode ▸ Duotone… shares every sample (canvas × `TO_DUOTONE_BYTES_PER_PIXEL` (31) and bookkeeping);
   the render, the conversions, the exports and the close's Grayscale and Bitmap are held by
@@ -108,7 +109,7 @@ Photoshop 26.10.0, take1 (`duotone_take.py --take`, `decided.json` VALID, decisi
   take measured Photoshop's Bitmap from Duotone.
 - **16-bit Duotone is kept** (Duotone from 16-bit Grayscale, 16 → 8 keeping the inks); unmeasured. Measured at
   the file: Photoshop 26.10 refuses to open a 16-bit Duotone PSD/PSB (`spot_psd_readback_take.py` take1),
-  so `.rz` keeps 16 bits and PSD/PSB write 8.
+  so `.doctored` keeps 16 bits and PSD/PSB write 8.
 - **Unmeasured for good** (no dialog-free reading): the Layers and Channels thumbnails, Duotone Options'
   Preview, and New from Clipboard.
 - **EPS and DCS 2.0** are not planned.
@@ -119,7 +120,7 @@ Photoshop 26.10.0, take1 (`duotone_take.py --take`, `decided.json` VALID, decisi
 - **1b** (`7f05bfe9`): PSD/PSB, the conversions out, exports, `.ado`, the sheet's number fields; drive D10–D16.
 - **2a** (`761abdd0`): profiles, proof, thumbnails, the Channels row, Preview, New from Clipboard; drive D17–D21.
 - **2b** (`9fd3eabd`): take1 (the view, the Photoshop-written PSD, the menu walk); drive D22–D23.
-- **The close** (this batch): Grayscale renders the inks (gated against take1), Bitmap… from Duotone, the
+- **The close** (2026-10-23): Grayscale renders the inks (gated against take1), Bitmap… from Duotone, the
   refusals by menu below (16 Bits/Channel among them), Proof Colors' way off, the unreachable arms removed
   (`exactProofImage`, Gray's profile route on a Duotone document, the `assign-duotone16`/`convert-duotone16`
   admission cases, the NULL drop of `dr_precision_doc_set_duotone`). Tests `core/tests/duotone_close.rs` and the take's Grayscale gate; drive
@@ -152,4 +153,4 @@ Gallery and its Field, Iris, Path and Spin Blur, Filter ▸ Video and Video ▸ 
 
 ## Open items
 
-None outside #1.
+None.

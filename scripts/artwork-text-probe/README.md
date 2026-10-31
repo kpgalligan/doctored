@@ -1,8 +1,14 @@
 # TextKit capture qualification
 
-`host.swift` is the integration probe: compile it and `comparison.swift` with the actual app sources, then call `runArtworkTextCaptureProbe(directory:)` on the main thread after background work finishes. It exercises the real `TextLayer.drawingPlan`, payload-v3 color runs and `ArtworkTextCapture`; it writes `artwork-text-capture.json` and representative reference/captured PNG pairs.
+Run `make rust project`, then:
 
-`standalone.swift` and `main.swift` provide a small development harness behind `ARTWORK_CAPTURE_STANDALONE`. The scaffold deliberately supplies simplified fixed-canvas layout/model/resource types, so its results establish only the capture/oracle seam, not app integration, native persistence, memory admission or authoritative Swift typechecking. Build it with:
+```sh
+python3 -B scripts/artwork-text-probe/run_host.py --report <path outside the repo>
+```
+
+`run_host.py` builds `main.swift`'s host entry, `host.swift` and `comparison.swift` with the app sources through `scripts/probe_build.py` (`--workflow-ui` adds `artwork-workflow-probe/ui.swift`; `--library` selects another core archive; `--require-current` fails a run whose checkout changed during it). The host entry calls `runArtworkTextCaptureProbe(directory:)` on the main thread with the private folder `DR_ARTWORK_TEXT_PROBE_DIR` names. `host.swift` is the integration probe: it exercises the real `TextLayer.drawingPlan`, payload-v3 color runs and `ArtworkTextCapture`; it writes `artwork-text-capture.json` and representative reference/captured PNG pairs.
+
+`standalone.swift` and `main.swift`'s `ARTWORK_CAPTURE_STANDALONE` branch provide a small development harness. The scaffold deliberately supplies simplified fixed-canvas layout/model/resource types, so its results establish only the capture/oracle seam, not app integration, native persistence, memory admission or authoritative Swift typechecking. Build it with:
 
 ```sh
 xcrun swiftc -D ARTWORK_CAPTURE_STANDALONE \

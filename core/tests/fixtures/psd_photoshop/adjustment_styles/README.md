@@ -23,7 +23,7 @@ Copied here by `--export-fixture`, every file under 64 KB:
 Verdict MISSES (clean take). Shipped and confirmed: FILL-SCALES (A3), T-ADJUSTED (A4),
 C-SHAPE (A7) at 8, 16 and 32 bits; INSPECT matched. Missed: A1 — Photoshop's shape is
 the mask over the canvas (S-MASK), not the backdrop's alpha; A2 — the adjustment reads
-its own Below effects (POST); A5 TWIN and A6 follow from those two. Rasterize ships
+its own Below effects (POST); A5 TWIN and A6 follow from those two. Doctored ships
 S-MASK and POST, fitted from this take (controller ruling, fix pass 2), with the
 adjustment applied in place and alpha kept, as row a1's band shows; `psd_adjustment_styles.rs`
 rebuilds rows a1, a2, a6 and a7 over `base` and matches them on every pixel.

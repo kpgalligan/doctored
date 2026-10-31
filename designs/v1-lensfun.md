@@ -1,6 +1,6 @@
 # v1 Lensfun lens profiles (ADR)
 
-- **Status:** shipped (2026-10-12). Filter ▸ Lens Correction applies a bundled Lensfun profile (Auto, None or a chosen lens); the Develop RAW window's Enable Profile Corrections applies one when the decoder carries no lens profile; MCP mirrors both (`apply_filter` lens_correction `profile`, `list_lens_profiles`).
+- **Status:** Accepted — closed; shipped 2026-10-12. Filter ▸ Lens Correction applies a bundled Lensfun profile (Auto, None or a chosen lens); the Develop RAW window's Enable Profile Corrections applies one when the decoder carries no lens profile; MCP mirrors both (`apply_filter` lens_correction `profile`, `list_lens_profiles`).
 - **Code:** `core/src/lens_model.rs` (the models, `LensProfile`), `core/src/lens_db.rs` (data, matching, interpolation), `core/src/sampling_lens.rs` (the stage), `core/src/ffi_lens_profile.rs` (`dr_lens_exif_identity`, `dr_lens_match`), `app/Sources/LensProfile.swift`, `LensCorrectionSheet.swift`, `AgentServer+LensProfiles.swift`, the RAW recipe files. Tests: `core/tests/filter_lens_profiles.rs`. Drive: `scripts/verify_v1_lensfun.py`.
 
 ## Licence and attribution

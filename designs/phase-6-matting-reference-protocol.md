@@ -1,6 +1,6 @@
 # Matting reference and color-gate protocol — gate v1 (ADR)
 
-- **Status:** Accepted — open items remain (gate v1 thresholds still bind; 9I completion rule superseded by [gate v2](phase-9i-gate-v2-status.md))
+- **Status:** Accepted — closed (thresholds bind the research gate only; see [gate v2](phase-9i-gate-v2-status.md))
 - **Phase / dates:** 6C, 2026-09-09 (gate v2 note added 2026-09-15)
 - **Original:** [archive/phase-6-matting-reference-protocol.md](../archive/phase-6-matting-reference-protocol.md) — full history, measurements, receipts
 - **Key commits:** 653309d, d5c7490
@@ -44,7 +44,8 @@ still reproduces it.
   result); end-to-end (alpha gate + coupled color gate). A refused alpha cannot pass end-to-end; oracle-alpha success
   never substitutes for alpha qualification.
 - **Runner:** `../scripts/phase6_matting_qualification.py` (new output dir outside the repo; verifies pins, records
-  executable hashes, reruns the guided 12/24 baseline, writes `run.json`, `matting/metrics.json`,
+  executable hashes, reruns the `phase6_selection_quality` analytic baseline (the guided 12/24 result until
+  `guided_selection.rs` was deleted on 2026-10-11), writes `run.json`, `matting/metrics.json`,
   `failure-reasons.json`; `--require-pass` fails unless every case passes; `--gate v1|v2`). Diagnostics:
   `../scripts/phase6_matting_diagnostics.py`. Metric tests: `../core/tests/matting_qualification.rs`.
 
@@ -61,4 +62,5 @@ still reproduces it.
   [full-image protocol](phase-6-full-image-reference-protocol.md) (`../scripts/phase6_full_reference_fixtures.py`).
 - `DROPPED` — Photographic glass/transmission reference: never obtained; glass left the pass rule (gate v2 decision 1,
   [archive/phase-9i-gate-v2-status.md](../archive/phase-9i-gate-v2-status.md)).
-- `TRACKED` — Passing the combined alpha/color gate → carryover P7-12 / plan 9I, now under gate v2.
+- `DROPPED` (2026-10-30) — Passing the combined alpha/color gate: the gate is not a ship condition (2026-10-10),
+  gate v2's assisted run is dropped, and shipped Select and Mask uses `edge_refine.rs`, so this research gates nothing.

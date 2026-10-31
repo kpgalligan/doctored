@@ -1,6 +1,6 @@
 # Public 16-bit document mode (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11), [#12](https://github.com/kpgalligan/doctored/issues/12))
 - **Phase / dates:** 7E, 2026-09-10 (downstream notes through Phase 12F)
 - **Original:** [archive/phase-7-public-mode-status.md](../archive/phase-7-public-mode-status.md) — full history, measurements, receipts
 - **Key commits:** `3bd4349` (follows 7D `7e60190`)
@@ -9,8 +9,8 @@
 7B–7D built a qualified typed workflow behind internal owners. 7E exposed it as a public editor mode: the typed
 document had to live inside the existing document, editing-state, Undo, save, snapshot and recovery machinery without
 a second Undo system, without byte surrogates, and with every unsupported tool explicitly refused. Current
-per-operation support is the [operation matrix](phase-7-operation-support.md); remaining gaps are rows in the
-[carryover ledger](phase-7-carryovers.md).
+per-operation support is the [operation matrix](phase-7-operation-support.md); remaining gaps were rows in the
+[carryover ledger](phase-7-carryovers.md), closed 2026-10-30, whose open rows are issues.
 
 ## Decisions
 - **One owner, either depth.** `RasterDocument` (`app/Sources/DoctoredCore.swift`) owns exactly one byte or typed core
@@ -53,7 +53,7 @@ per-operation support is the [operation matrix](phase-7-operation-support.md); r
 
 ## Consequences
 - Every new typed tool must be admitted through `DocumentPrecision` + `precision_capability.rs` and refused by name
-  otherwise; the matrix and carryover ledger must stay consistent with that gate.
+  otherwise; the matrix must stay consistent with that gate.
 - Policy at 7E was normalized encoded SDR; linear light (11E) and float (11F) are separately versioned modes.
 - The 24 MP result qualifies a single-edit workflow, not arbitrary multilayer/history sizes or every export format.
 
@@ -63,7 +63,11 @@ per-operation support is the [operation matrix](phase-7-operation-support.md); r
   (P7-14), channel↔selection at u16 (P7-11), scalar-plane painting (P7-08), clipboard (P7-29 closed, 12G), styles and
   other blends (P7-19/P7-20), content-aware (P7-18), retained text/shapes (P7-04), 16-bit PSD (P7-21), typed RAW
   packets/PPI (11D), camera auxiliary mattes (9G), invalid-preset repair (12B).
-- `TRACKED` — Phase 6 cutout quality gate → carryover P7-12 (9I gate v2; assisted session deferred).
-- `TRACKED` — linear-light phases 2–3 → carryover P7-24 (11E).
-- `TRACKED` — live codec cancellation, compression of native/snapshot payloads → carryover P7-32 (13C).
-- `TRACKED` — larger multilayer/history/export workloads → carryover P7-33 (13D).
+- `DONE` — edge brushing and colour decontamination ship in Select and Mask (2026-10-11, carryover P7-12); the Phase 6
+  cutout quality gate is no longer a ship condition and its assisted session is dropped
+  ([gate v2](phase-9i-gate-v2-status.md)).
+- `OPEN` [#12](https://github.com/kpgalligan/doctored/issues/12) — linear-light phases 2–3 (carryover P7-24).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — live codec cancellation, compression of
+  native/snapshot payloads (carryover P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — larger multilayer/history/export workloads
+  (carryover P7-33).

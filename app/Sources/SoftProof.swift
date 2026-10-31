@@ -215,8 +215,8 @@ enum ProofOutcome {
 
 /// Renders proofs through the shared `PreviewRenderer` seam: coalescing, one
 /// at a time, off the main thread, delivered back on it. Deliberately NOT a
-/// queue of its own — `app/CLAUDE.md` names the four `DispatchQueue` seams
-/// this app has, and a proof is exactly what the preview one is for.
+/// queue of its own — `app/CLAUDE.md` names the `DispatchQueue` seams this
+/// app has, and a proof is exactly what the preview one is for.
 ///
 /// The renderer knows nothing about the canvas. It takes immutable values — a
 /// document handle and its retained projection (at 8 bits, when one is

@@ -120,9 +120,7 @@ The frozen corpus is 111,832 bytes across 60 files. A fresh private-state
 regeneration reproduced all raw sources, masks, structure, metadata and rendered
 samples exactly; 52 artifact hashes differed only through those builtin ICC
 creation timestamps and their dependent encodings/hashes. The P3 case was
-byte-identical. The authoring receipt and comparison are retained at
-`/private/tmp/rz-10a-external-app/reproduction-state/receipt.json` and
-`/private/tmp/rz-10a-external-app/reproduction-comparison.json`. Final Doctored
+byte-identical. Final Doctored
 application measurements and closeout receipts belong to the qualification
 record linked above.
 

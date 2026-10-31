@@ -267,9 +267,9 @@ enum CmykDocument {
         + "proof profile cannot print, and layer effects, knockout, Blend If and Global Light work "
         + "in ink, and Layer ▸ Stack Mode takes its statistic per ink; Auto-Align (but for "
         + "Vignette Removal and Geometric Distortion) registers on the view and warps every ink, "
-        + "and Reduce Noise from Stack takes its Median or Mean per ink. Red Eye, Auto-Blend and "
-        + "Content-Aware Scale are not available in CMYK yet: use Image ▸ Mode ▸ RGB Color to edit "
-        + "in RGB, and CMYK Color to return."
+        + "and Reduce Noise from Stack takes its Median or Mean per ink. Red Eye and Auto-Blend "
+        + "are not available in CMYK: use Image ▸ Mode ▸ RGB Color to edit in RGB, and CMYK Color "
+        + "to return."
 
     /// The refusal of an ink key (`ink`, `start_ink`, `end_ink`) on one ink plate or an alpha
     /// channel: a single plane holds a grey, so the colour's grey is painted, as on a colour plane.

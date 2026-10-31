@@ -25,13 +25,15 @@ second decompressor.
 - `core/src/psd_layer_pixels.rs` copies Raw samples directly; each PackBits channel goes through the
   existing composite codec seam (`decode_composite`) and its red scalar output is placed into the right
   RGBA component. Mixed Raw/RLE per layer is supported. `validate_packbits` is the single framing-only
-  validator. No premultiplication, no canvas clipping.
+  validator. No premultiplication, no canvas clipping. (Superseded: PackBits is `psd_framing`'s one
+  decoder, `unpack_packbits`, and `decode_composite` is gone, since `22ea5a9f`.)
 - Admission (before any wrapper, codec copy or plane allocation): nonempty positive rectangle, ≤ 30,000
   px/side, ≤ 100 MP; aggregate raw pixels (incl. group placeholders) within native 400 MP. **Empty raster
   records refuse** the layered choice (no native empty-rectangle representation; no 1×1 substitute).
   Channel IDs recognized and unique; Raw lengths exact; RLE rows decode to exactly the width with no
   unclaimed data. ZIP/unknown compression on non-mask channels refuses, even on discarded folder/divider
-  records.
+  records. (Superseded: 8-bit ZIP layer, mask and composite planes decode since `22ea5a9f`,
+  `core/src/psd_zip.rs`; unknown compression still refuses.)
 - **Peak forecast** `psd_layer_pixels::peak_forecast`: `4I + 8M + 4P + 4L + 2E + 4C + 64MiB` bytes
   (I source length, M metadata spans, P retained pixels, L largest plane, E largest encoded channel,
   C canvas pixels), saturating, refused past `psd_layer_pixels::import_envelope_bytes()` = `process_working_limit()`
@@ -56,6 +58,5 @@ second decompressor.
 - `DONE` — Native-depth (16-bit) PSD: [phase-10c-depth-status.md](phase-10c-depth-status.md).
 - `DONE` — Independent Photoshop/GIMP reopen: [phase-10a-qualification.md](phase-10a-qualification.md); plan §10C Runs 2–4.
 - `DONE` — ZIP for 16-bit layer/mask planes (`core/src/psd_zip.rs`, `5e0ed4d`).
-- `TRACKED` — 8-bit ZIP channels, ZIP composites → plan §10C "what stays open".
-- `DROPPED` — PSB: plan §10 boundary ("Full Smart Object interchange and PSB are separate commitments").
-- `TRACKED` — Phase 9I quality gate (mentioned as open) → plan §9I.
+- `DONE` — 8-bit ZIP channels and ZIP composites (`22ea5a9f`, `core/tests/psd_zip8.rs`).
+- `DONE` — PSB read and write (`22ea5a9f`).

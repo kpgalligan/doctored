@@ -26,7 +26,7 @@ use tempfile::TempDir;
 
 use crate::common::{cpath, take_err_string};
 
-const SENTENCE: &str = "Multichannel files are not supported: Doctored has no spot channels";
+const SENTENCE: &str = "Multichannel files are not supported";
 const LIMIT: u64 = 2 * 1024 * 1024 * 1024;
 const W: u32 = 4;
 const H: u32 = 3;

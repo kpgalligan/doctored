@@ -1,6 +1,6 @@
 # Phase 9I cutout gate v2 (ADR)
 
-- **Status:** Accepted — open items remain (the gate itself is frozen; no candidate passes it and the assisted run has not happened)
+- **Status:** Accepted — closed (the gate itself is frozen; no candidate passes it; the assisted run is dropped, since the gate is no longer a ship condition)
 - **Phase / dates:** 9I, frozen 2026-09-15
 - **Original:** [archive/phase-9i-gate-v2-status.md](../archive/phase-9i-gate-v2-status.md) — full history, measurements, receipts
 - **Key commits:** `d5c7490` (rescoring milestone, re-scored at head `b2e0c80`)
@@ -54,8 +54,8 @@ analytic case scope and the opaque clause. Case ids come from `SUBJECTS` and the
   (source, reference, panel or scores); those are annotated unblinded, flagged `annotator_exposed: true`, and
   stay in the denominator.
 - **Decision 5 — RVM dropped; no neural matting model is added; Apple Vision stays the automatic prior.**
-  *Why:* its weight-license issue #281 is unanswered, its GPL-3.0 code cannot link into all-rights-reserved
-  Doctored, and it is trimap-free human-video work that cannot consume brush guidance. Closes work package 1
+  *Why:* its weight-licence question (RobustVideoMatting's upstream issue 281) is unanswered, its GPL-3.0 code
+  would put the combined app under GPL-3.0, which Doctored's Apache-2.0 licence does not take, and it is trimap-free human-video work that cannot consume brush guidance. Closes work package 1
   of [phase-9i-next-steps.md](phase-9i-next-steps.md) with no pipeline selected.
 - **Decision 6 — persistent storage:** canonical corpus is `~/devel/doctored-fixtures/phase6/{references,photos,full-references}`;
   preserved reports are `~/devel/doctored-fixtures/phase9i-reports/` (V1–V5 runs, V5 diagnostics, both feasibility
@@ -97,9 +97,11 @@ No candidate passes gate v2 on any corpus; the union of analytic pass-rule passe
 - New runs from the rebuilt evaluators are fully v2-decidable; preserved records stay partly indeterminate forever
   (nine V2 cases), and cannot be resolved without re-running.
 - Re-running any purged check needs a new output directory under `~/devel/doctored-fixtures/` and a new receipt.
+- The gate stopped being a ship condition on 2026-10-10: P7-12's other half (edge brushing, colour
+  decontamination) shipped in Select and Mask on 2026-10-11 without it.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Run the assisted protocol over the 36-case subset (human annotation session, then scoring) → carryover P7-12 ("deferred at the owner's discretion"), plan §9I "Next assignment"; steps in [phase-9i-assisted-annotation-runbook.md](phase-9i-assisted-annotation-runbook.md). No `assisted-run-*` directory exists under `~/devel/doctored-fixtures/phase9i-reports/`.
+- `DROPPED` (2026-10-30) — Run the assisted protocol over the 36-case subset (human annotation session, then scoring): the gate is no longer a ship condition and P7-12's other half shipped without it, so the run gates nothing; the steps stay in [phase-9i-assisted-annotation-runbook.md](phase-9i-assisted-annotation-runbook.md).
 - `DROPPED` — Glass/transmission research: out of scope (dropped 2026-09-28); the six analytic glass cases stay reported diagnostics under frozen gate v2 and the bottle stays silhouette-only.
 - `DONE` — Corpus re-acquired and verified under `~/devel/doctored-fixtures/phase6/` (present on disk).
 - `DONE` — Assisted workspace/replay tool and scorer built (`de70228`, `5f75604`).

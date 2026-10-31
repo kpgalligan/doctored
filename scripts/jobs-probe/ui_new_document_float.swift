@@ -174,7 +174,7 @@ func verifyNewDocumentFloat() throws {
     } catch let error as DoctoredCoreError {
         sentence = error.message
     }
-    try require(sentence.contains(gray) && sentence.hasSuffix("Grayscale documents are not supported."),
+    try require(sentence.contains(gray) && sentence.hasSuffix("choose the Grayscale colour mode for a gray document."),
                 "\(tag) the gray refusal names the path and ends as declared: \(sentence)")
     let before = NSDocumentController.shared.documents.count
     let reply = try uiExecute("new_document", [

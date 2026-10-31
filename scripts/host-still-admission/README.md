@@ -27,10 +27,10 @@ once the footprint has been still for 2 s. The table goes in `receipt.json`'s
 
 Run it outside the sandbox: it launches owned app instances
 (`scripts/host-source-probe/support.py`'s `HostApp`, with `DR_BACKGROUND=1`, a
-dummy `ANTHROPIC_API_KEY`, a free port and private `DR_*_DIR` folders) and
-stops only those. It writes `receipt.json` to the output folder (a fresh
-temporary folder when `--output` is omitted) and exits 0 only when every
-must-pass gate passed.
+dummy `ANTHROPIC_API_KEY`, a private scratch `DR_AGENT_SOCKET` and private
+`DR_*_DIR` folders) and stops only those. It writes `receipt.json` to the
+output folder (a fresh temporary folder when `--output` is omitted) and exits 0
+only when every must-pass gate passed.
 
 ## Fixtures
 
@@ -51,8 +51,8 @@ run folder's `system/` and opened from there, because the path guard refuses
 
 ## Gates
 
-Each gate runs in its own fresh app, because there is no `close_document`
-tool, and names its `document_id` on every call.
+Each gate runs in its own fresh app, so no earlier open's memory is inside a
+later gate's interval, and names its `document_id` on every call.
 
 Each gate also runs at an explicit working limit, set through
 `DR_WORKING_LIMIT_BYTES` for its own app and checked first
@@ -72,9 +72,8 @@ A7-plan. A single 8-bit still's whole open is charged up front
 - **A3** at 8 GiB: the same for a 48 MP 8-bit AVIF (open charge
   2,103,027,151).
 - **A4** the iMac Blue HEIC, which was once refused, opens as 6016x6016.
-- **A5** in a 12 MP 8-bit document: place the 48 MP HEIC embedded, place it
-  linked from a private copy, relink to a second copy elsewhere, then
-  replace the linked layer's contents with the 48 MP gain-map HEIC.
+- **A5** in a 12 MP 8-bit document: `place_image` the 48 MP HEIC embedded,
+  then the 48 MP gain-map HEIC embedded; both succeed.
 - **A6** 12 MP regression: heic8, avif8 and heic10 open; heic10 opens at 16
   bits with `precision: preserve`.
 - **A7** at 8 GiB: a plain 48 MP JPEG and PNG each open. The core's

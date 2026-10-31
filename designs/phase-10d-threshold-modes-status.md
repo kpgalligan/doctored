@@ -14,7 +14,9 @@ mode the byte compositor offers is qualified at native depth.
 
 ## Decisions
 - **Kernel definitions** (`core/src/blend.rs`, over encoded document RGB, used as-is):
-  - Hard Mix per channel: `B(cb, cs) = 1` if `cb + cs >= 1` else 0 (tie → 1).
+  - Hard Mix per channel: `B(cb, cs) = 1` if `cb + cs > 1`, else 0; at the exact tie
+    (`|cb + cs − 1| ≤ 2⁻²²`, `HARD_MIX_TIE`) 1 iff `cb − cs > 1/32768`, else 0
+    ([cmyk-mode-shipped.md](cmyk-mode-shipped.md), "Hard Mix's exact tie").
   - Darker / Lighter Color: whole triple with lower / higher `lum = 0.3R + 0.59G + 0.11B` (f32 constants);
     backdrop on a tie.
   - Dissolve replaces compositing: the source shows fully opaque (straight colour, alpha 1) when
@@ -60,9 +62,11 @@ mode the byte compositor offers is qualified at native depth.
 - Anything that composites threshold modes over an adjusted or composited source (e.g. adjustment-layer
   blending) may assert only the weak form. Code comments in `core/src/precision_blend_native.rs` and tests cite
   this policy by name.
-- Changing any f32 intermediate in these kernels changes the frozen v34 evaluation and needs a new version.
+- Changing any f32 intermediate in these kernels changes the frozen v34 evaluation; the one change since,
+  Hard Mix's exact tie (2026-10-15), was made without a DRDC version
+  ([cmyk-mode-shipped.md](cmyk-mode-shipped.md)).
 - Qualified by [`core/tests/precision_threshold_blending.rs`](../core/tests/precision_threshold_blending.rs)
-  (exhaustive direct Hard Mix over 65,536 codes: the exact-sum in-band row rendered 65535 everywhere; every
+  (exhaustive direct Hard Mix over 65,536 codes: the exact-sum in-band row follows the tie rule; every
   mask code; nested groups; Dissolve at two offsets/opacities, raster shown/hidden pixels exact),
   [`scripts/verify_phase10d_threshold_modes.py`](../scripts/verify_phase10d_threshold_modes.py) (gates T1–T4)
   and GIMP 3.2.6 receipt R6 in [`scripts/verify_phase10_receipts.py`](../scripts/verify_phase10_receipts.py)

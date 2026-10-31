@@ -1,6 +1,6 @@
 # Phase 6 — selection and mask workflows (ADR)
 
-- **Status:** Accepted — open items remain (6A–6D shipped, Select and Mask included; the matting research gate is no longer a ship condition)
+- **Status:** Accepted — open items remain ([#17](https://github.com/kpgalligan/doctored/issues/17)); 6A–6D shipped, Select and Mask included; the matting research gate is no longer a ship condition
 - **Phase / dates:** 6A–6D, 2026-09-09 – 2026-09-15 (9I status notes folded in)
 - **Original:** [archive/phase-6-selection-mask-status.md](../archive/phase-6-selection-mask-status.md) — full history, measurements, receipts
 - **Key commits:** 83de68c, 653309d, 0155d41
@@ -28,11 +28,13 @@ matting research, so the functional slices shipped while the advanced cutout gat
   `../app/Sources/RefineSelectionSheetController.swift`; typed twin `../app/Sources/NativeSelectionRefinement.swift`).
   Mask output creates/replaces the raw mask and resets it to linked/full-density/no-feather; selection output changes
   only transient coverage. Save Selection/alpha channels keep coverage reusable.
-- **6C advanced (implemented, unexposed):** categorical trimap strokes (`rz_trimap_strokes`,
-  `../core/src/trimap_strokes.rs`, `../app/Sources/RefinementTrimap.swift` — Unknown strokes release a constraint),
-  sampled and closed-form alpha solvers, foreground-color estimation, and reversible foreground+mask output
-  ([cutout contract](phase-6-cutout-output-contract.md)). MCP refuses advanced/unknown refinement fields with exact
-  coverage and history preserved. *Why:* every estimated-alpha pipeline failed the combined alpha/color gate.
+- **6C advanced (implemented; the trimap strokes and the sampled and closed-form alpha solvers stay unexposed):**
+  categorical trimap strokes (`rz_trimap_strokes`, `../core/src/trimap_strokes.rs`,
+  `../app/Sources/RefinementTrimap.swift` — Unknown strokes release a constraint), sampled and closed-form alpha
+  solvers, foreground-color estimation, and reversible foreground+mask output
+  ([cutout contract](phase-6-cutout-output-contract.md)). Foreground-color estimation and the foreground+mask output
+  have shipped since 2026-10-11 as Decontaminate Colors and the New Layer outputs (below). The research estimators
+  stay unexposed; `refine_selection` refuses only fields it does not take. *Why:* every estimated-alpha pipeline failed the combined alpha/color gate.
 - **6D Assisted selection (shipped):** seeded Quick Selection (connected growth, not a semantic brush), Vision
   foreground-instance object targets (hit-tested on the coarse instance map) and one aggregate people selection.
 - **Select and Mask, brush Quick Selection, Object Selection (2026-10-11):** the owner
@@ -59,10 +61,10 @@ matting research, so the functional slices shipped while the advanced cutout gat
   6/24, 6/24 and 6/42 cases impossible regardless of solver. Details: [matting reference protocol](phase-6-matting-reference-protocol.md),
   [full-image protocol](phase-6-full-image-reference-protocol.md), [foreground evidence](phase-6-foreground-evidence.md),
   [ViTMatte spike](phase-6-vitmatte-spike.md).
-- **Scheduling:** the gate is owned by 9I / carryover P7-12 and rescoped once as [gate v2](phase-9i-gate-v2-status.md)
+- **Scheduling:** the gate went to 9I / carryover P7-12 and was rescoped once as [gate v2](phase-9i-gate-v2-status.md)
   (thresholds unchanged; analytic pass rule = 12 recoverable cases; ambiguous and glass cases reported only; bounded
-  opaque rule; completion = assisted protocol passing v2 on a declared 36-case subset). Phase 7A proceeded
-  independently and does not waive this gate.
+  opaque rule; completion = assisted protocol passing v2 on a declared 36-case subset). The gate is not a ship
+  condition (2026-10-10), and its assisted run is dropped.
 
 ## Rejected alternatives
 - Holding freehand selection / mask controls until matting research finished — plan boundary for Phase 6.
@@ -82,7 +84,7 @@ matting research, so the functional slices shipped while the advanced cutout gat
   gate v2 assisted protocol as their ship condition (owner direction 2026-10-10); the research estimators stay unexposed.
 - `DONE` — Distinguish tentative automatic labels from explicit user strokes: soft-prior `user_constraints` in
   `closed_form_matting::estimate_soft_prior` and `../core/src/tiled_soft_matting.rs`; `InputPolicy` in
-  `../core/examples/phase6_matting_quality.rs`. Qualifying that policy is part of the TRACKED item above.
+  `../core/examples/phase6_matting_quality.rs`.
 - `DROPPED` — Improve coupled RGB recovery under the research gates: no longer a v1 condition (2026-10-10).
 - `DONE` — Controls exposed; `refine_selection` refuses only fields it does not take.
 - `DROPPED` — Stronger translucent-object evidence and a photographic transmission reference: glass left the pass rule
@@ -91,14 +93,16 @@ matting research, so the functional slices shipped while the advanced cutout gat
   matting model is added.
 - `DONE` Part A — the Magnetic Lasso (6D follow-on): the core live-wire tracer (`edge_trace.rs`,
   `dr_selection_trace_edge`), the L-group tool with hover tracing and fastening, and MCP `select_magnetic`, at 8
-  and 16 bits. `TRACKED` Part B — ⌥-drag freehand segments, the Caps Lock width cursor, the `,`/`.` contrast keys,
-  stylus pressure, sub-pixel and direction cost terms, a cached per-capture edge map.
-- `TRACKED` — Specialized subject models (6D follow-on) → plan §6D "individually selectable
-  follow-ons". Part 0 (All People refuses a picture with no detected person) shipped in d6a9d77; Part B, Select ▸ Face Parts… and
+  and 16 bits.
+- `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — Magnetic Lasso Part B: ⌥-drag freehand segments,
+  the Caps Lock width cursor, the `,`/`.` contrast keys, stylus pressure, sub-pixel and direction cost terms, a
+  cached per-capture edge map.
+- `DONE` — Specialized subject models (6D follow-on). Part 0 (All People refuses a picture with no detected person) shipped in d6a9d77; Part B, Select ▸ Face Parts… and
   `inspect_faces` / `select_face_parts` (face, skin, eyes, irises, eyebrows, lips, mouth as u16 coverage from Vision landmarks through
   the core's `landmark_region`), shipped in the commit that adds `core/src/landmark_region.rs`. At 32-bit float the parts come
   from Vision's landmarks on the display rendering, so they can sit a fraction of a pixel from the 8-bit result. Part A, Select ▸
   Select People… and `model "people"` on `inspect_subjects` / `select_subjects` (people numbered left to right; each person is the
   accurate aggregate where an argmax over `generateMask(forInstances:)` names them, owning pixels only within one coarse cell of their
   map cells; `app/Sources/PersonInstances.swift`), shipped with the old one-shot renamed Select ▸ All People. Vision may merge people
-  who stand close together; Select ▸ All People still covers them. Part C (sky/hair/skin/clothes model) stays open.
+  who stand close together; Select ▸ All People still covers them. Part C, Select ▸ Sky (`ModelSelection.swift`,
+  `select_sky`) and Select ▸ Person Parts… (hair, skin and clothes; `PersonParts.swift`, `select_person_parts`).

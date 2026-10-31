@@ -1,6 +1,6 @@
 # Production outputs — layer exports, contact sheets, metadata policies, batch delivery (ADR)
 
-- **Status:** Accepted — open items remain (one manual runbook)
+- **Status:** Accepted — closed
 - **Phase / dates:** 11B, shipped 2026-09-17
 - **Original:** [archive/phase-11b-production-outputs-status.md](../archive/phase-11b-production-outputs-status.md) — full history, measurements, receipts
 - **Key commits:** `a88b2bb`
@@ -90,5 +90,6 @@ New export features must keep default-policy byte identity and the `metadata` re
 - `DROPPED` — the "not in this slice, by decision" list above.
 - `DONE` — the contact sheet admits each layer encode and core JPEG/PNG file open before it runs, and its compose
   (`ContactSheetAdmission.composeScratch`, measured; record beside it) before running it as a cancellable job;
-  the MCP reply reports `working_memory_plan_bytes`. Cells are still built on main, and a 16-bit document cell's
-  display projection is not charged. Drive: `scripts/contact-sheet-admission/measure.py` (Release).
+  the MCP reply reports `working_memory_plan_bytes`. Drive: `scripts/contact-sheet-admission/measure.py` (Release).
+- `DROPPED` (2026-10-30) — moving contact-sheet cells off main and charging a 16-bit document cell's display
+  projection: the open document already holds that projection, and AppKit text needs main.

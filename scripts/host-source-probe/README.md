@@ -9,4 +9,4 @@ a host still or movie frame now opens and places as an ordinary raster layer.
 |---|---|
 | `support.py` | Owned app processes and explicit document calls (`HostApp`, with every `DR_*_DIR` redirected). |
 | `native.py` | An independent reader of the native source and resource tables; no product loader calls. |
-| `fixtures.py` | The bounded, independent source and rational-frame fixture generator. |
+| `fixtures.py` | The standalone author of the preserved Phase 8F corpus (`~/devel/doctored-fixtures/phase8f`); no current drive reads that corpus. |

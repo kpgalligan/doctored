@@ -66,5 +66,5 @@ typed specialization; the broader 9D retouch workflow is recorded in `phase-9-li
   (handed to 9E) — see [phase-9e-content-aware-status.md](phase-9e-content-aware-status.md); commit `694c39f`.
 - `DONE` — General scalar targets and authoritative native selection creation (handed to 9G) — see
   [phase-9g-selections-masks-status.md](phase-9g-selections-masks-status.md); commit `f457cdb`.
-- `TRACKED` — Phase ambiguity of large periodic fills remains a declared limit → carryover P7-18 row
-  ("large periodic-hole phase ambiguity … remain explicit 13A/13D limits").
+- `DROPPED` (2026-10-30) — phase accuracy of large periodic fills and large-removal qualification: a declared
+  PatchMatch limit with no planned approach; the comparison UI lets the user pick candidates.

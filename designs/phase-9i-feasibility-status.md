@@ -32,5 +32,5 @@ products are the [assisted protocol](phase-9i-assisted-protocol-v1.md), the
 ## Open items (verified 2026-09-26)
 - `DROPPED` — Exact RVM checkpoint terms, runtime/input adapter, and the one automatic comparison (gate v2 decision 5).
 - `DONE` — Source-only workspace, replay tool and frozen geometry policy (`de70228`, [phase-9i-assisted-workspace-status.md](phase-9i-assisted-workspace-status.md)).
-- `TRACKED` — Actual blinded human sessions under v1 → P7-12 / plan §9I; [runbook](phase-9i-assisted-annotation-runbook.md).
-- `DROPPED` — Glass/transmission research: out of scope (closed 2026-09-28, not planned); the six analytic glass cases stay reported diagnostics under frozen gate v2 and the bottle stays silhouette-only.
+- `DROPPED` (2026-10-30) — Actual blinded human sessions under v1: the gate is no longer a ship condition ([gate v2](phase-9i-gate-v2-status.md)).
+- `DROPPED` — glass/transmission research ([gate v2](phase-9i-gate-v2-status.md)).

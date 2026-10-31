@@ -4,7 +4,7 @@ import AppKit
 /// declaration, pre-filled with its default.
 ///
 /// **Every Play path asks.** The Actions window's Play button, File ▸ Automate
-/// ▸ Play Last, and the Batch window's Run all go through
+/// ▸ Play Last Action, and the Batch window's Run all go through
 /// `ActionParametersSheet.values(for:)`, so an action with parameters can
 /// never be started from the UI with none of them bound — and an action that
 /// declares none is never interrupted by a sheet, because `values(for:)`

@@ -7,8 +7,13 @@
 # release's DMG rather than failing.
 #
 # Secrets (in the `publish` environment, restricted to the `publish` branch):
-#   DEVELOPER_ID_P12_BASE64, DEVELOPER_ID_P12_PASSWORD, KEYCHAIN_PASSWORD,
-#   APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8_BASE64
+#   DEVELOPER_ID_P12_BASE64, DEVELOPER_ID_P12_PASSWORD  the exported Developer
+#     ID Application certificate (.p12, base64-encoded) and its password
+#   KEYCHAIN_PASSWORD  any random string; it locks the job's temporary keychain
+#   APPLE_TEAM_ID  the Apple Developer team the archive is signed for
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8_BASE64  an App Store Connect API key
+#     (its key ID, issuer ID and base64-encoded .p8), used to notarize
+# Local builds are ad-hoc signed and need none of these.
 name: Publish
 
 on:

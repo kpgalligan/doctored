@@ -30,7 +30,7 @@ and prepares the NEF and every `--real` fixture once at that working limit.
 32 on the NEF, D24 and every `--real` fixture and gates each on the app's own
 float charge: O32, OG32, W32, K32, V32 and VG32 (`RawSourceWork.scratch(float:
 true)`, V with the session's 24 B/px of inspection copies; OG and VG develop
-grain, #4), GR32 (`applyingRawGrain` alone, the core's selected-edit plan),
+grain), GR32 (`applyingRawGrain` alone, the core's selected-edit plan),
 VF32F and VF32D (a viewport-only HDR frame, the preview session's 48 MiB plus
 `extendedFramePerPixel` per output pixel of each f32 side) and L0, L1, L4 and
 FX with grain (`RawLocalWork.measuredScratch(float: true)` plus those 24
@@ -1026,7 +1026,7 @@ def fit_from(paths):
 
 def float_cases(camera, real):
     """The float cases: (label, mode, fixture, shape, cold) at depth 32. FX is grain, vignette and authored
-    lens (#4: grain applies at the float encoding). #4 adds OG32 (the open with grain), VG32
+    lens (grain applies at the float encoding). The float cases add OG32 (the open with grain), VG32
     (the import preview whose after develops grain), GR32 (`applyingRawGrain` alone on an open
     float development, gated on the core's selected-edit plan) and VF32F / VF32D (one
     viewport-only HDR frame of two f32 sides with Clipping, at Fit and at a 1024 x 1024 100 %

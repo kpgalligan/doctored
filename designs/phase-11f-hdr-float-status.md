@@ -1,10 +1,12 @@
 # HDR and 32-bit float document workflow (ADR)
 
-- **Status:** Accepted — open items remain (deliberately bounded operator set)
-- **Phase / dates:** 11F, shipped 2026-09-18 (drive gates F1–F10 pass); admitted set widened by 12E-2b/2c and 12F-1/1b
-- **Originals:** [archive/phase-11f-hdr-float-status.md](../archive/phase-11f-hdr-float-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-11f-hdr-float-status.md](../archive/2026-10/phase-11f-hdr-float-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
+- **Status:** Accepted — open items remain ([#18](https://github.com/kpgalligan/doctored/issues/18))
+- **Phase / dates:** 11F, shipped 2026-09-18 (drive gates F1–F10 pass); admitted set widened by 12E-2b/2c, 12F-1/1b and the v1 float batches
+- **Originals:** [archive/phase-11f-hdr-float-status.md](../archive/phase-11f-hdr-float-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-11f-hdr-float-status.md](../archive/2026-10/phase-11f-hdr-float-status.md) — this doc as of 2026-10-07, with every measurement table and issue record; [archive/phase-11f-hdr-float-shipped.md](../archive/phase-11f-hdr-float-shipped.md) — the shipped companion as of 2026-10-30, with each item's take readings and admission ratios; [archive/2026-10-30/phase-11f-hdr-float-status.md](../archive/2026-10-30/phase-11f-hdr-float-status.md) — this doc as of 2026-10-30, before the companion fold, with its take records
 - **Key commits:** `a3e4f2c`
 - **Carryover:** closes **P7-25** (HDR/extended-range storage, editing, output) and **P7-36** (float TIFF interchange)
+- **Photoshop harness:** the runners under `scripts/photoshop-probe/` named below live in the private archive `kpgalligan/doctored-dev`; receipts live under `doctored-fixtures/photoshop/`.
+- **Later batches:** [v1-float-editing.md](v1-float-editing.md) (rules R1–R5, A–E; float filters, retouching, Stroke Path, promotion) and [v1x-hdr-photos.md](v1x-hdr-photos.md) (HDR stills, EDR display).
 
 > **Removed 2026-10-10:** smart objects, live filters and non-RAW retained sources (placed images, host
 > media, Live Photo frames) are gone for v1; camera RAW layers stay. Where this record describes them, that
@@ -17,196 +19,225 @@ I/O, with HDR readouts and deliberate tone-mapped SDR output — qualified on ge
 image. Byte and u16 modes had to stay byte-identical. Builds on [11D](phase-11d-format-additions-status.md)'s
 `tiff_float.rs` seam and [11E](phase-11e-linear-light-status.md)'s evaluation policy.
 
-## Open items (verified 2026-10-07)
-- `DONE` (2026-10-12) — tolerance/distance source selections (Magic Wand, Color Range, Select Similar, Quick
-  Selection) compare the R1 display copy (`display_encoding`; [v1-float-editing.md](v1-float-editing.md)), and so
-  does Select and Mask's edge stage (Refine Edge, Quick Selection's Enhance Edge, Object Selection's refinement; rule
-  E, the v1 float closing batch); Decontaminate Colors stays refused by name. Placed images are admitted
-  since phase 187a, text and shape layers since 187b and live filters since 187c3 (the shipped companion);
-  Divide is admitted under rule B (below); above-white text/shape colour ships (the shipped companion), but
-  Photoshop's own above-white TYPE colour is unmeasured (a script-made type layer ignores the foreground, take2
-  T-none); Fill/Stroke take an above-white foreground (below) and the options-bar Text and Shape swatches author
-  one (below); colour-glyph type at float stays open, as do the last 32-bit float master gaps (phase 1, a
-  float master in a float document, phase 2a, Convert to Smart Object at 32 bits, phase 2b, Edit Contents and its
-  commit at 32 bits, phase 2c, Convert to Layers, Export Contents and Convert to Linked at 32 bits, phase 2d, a
-  layered `.rz` or PSD placed, replaced, updated and relinked at 32 bits, phase 3a, a float master in an 8/16-bit
-  document rendered clipped (`.rz` words 67 / 72), phase 3b-1, float smart-object contents in an 8/16-bit
-  document (`.rz` words 68 / 73), phase 3b-2, their Convert to Layers, phase 3c-1, a PSD smart object's 32-bit contents read in an 8/16-bit file, phase 3c-2, written there, and phase 3c-3, their masks, effects and adjustment layers, shipped; whether Photoshop keeps one whose converted colours pass ±65504 is
-  unmeasured, and the place refuses; 24 MP admits a 140 % transform, and at 150 % the f32 master exceeded the native
-  1.6 GB decoded cap, since raised to 8 GiB).
-- v1 float gaps, shipped: Apply Layer Mask (alpha ·
-  coverage in f32, RGB bit for bit; `precision_mask_apply`), Layer Via Copy / Cut (`precision_layer_via`'s f32 arm;
-  the cut is the float Cut's erase), Assign Profile (the linear samples relabelled) and Convert to Profile (the matrix
-  between the two profiles' primaries in linear light, no clamp; `float_color`), and, with no core change,
-  Calculations, Add Luminosity Masks (planes read clamped to 0…1) and Contact Sheet (tone-mapped 8-bit cells). Menu
-  items and MCP twins are admitted; `scripts/verify_v1_float_gaps.py` drives them. Left refused, each by name with
-  its reason in the operator table: Apply Image (its blend runs on u16 planes clamped to 0…1, so writing float
-  pixels needs a rule for values above white and below zero); Assign or Convert with a profile that has no
-  matrix/TRC model, and Assign of one whose tone curves fail the precision check (linear values are defined by the
-  profile's primaries, and display and SDR export encode through its curves); Convert with absolute colorimetric
-  intent, black-point compensation or preserve-appearance (each needs an undecided rule for linear extended-range
-  values); a converted component outside ±65504 (refused, not clipped).
-- `DONE` (2026-10-12) — the adjustments refused at 32 bits: every Hue/Saturation setting, every Color Lookup table,
-  Hue Rotate, Grayscale, Sepia, Threshold, Posterize, Gradient Map, Vibrance, Selective Color, Replace Color and the
-  `document_v2` White Balance apply run under rule A ([v1-float-editing.md](v1-float-editing.md)). Refused by name, with
-  their reasons in the operator table: Invert, Shadows/Highlights and the legacy White Balance.
-- float_adjust take3 (`float-adjust-473/take3`, `scripts/photoshop-probe/float_adjust_take3.py`), 32-bit verdicts:
-  Color Lookup, measured only as Photoshop's render of a device-link `profile`, pins `linear`, `tetrahedral`,
-  `table-clip`, `clamp`, `zero`, apply `same` — tetrahedral was outside take3's own build table, and it is
-  built since (below); Black & White with Tint matched none of the twelve BT forms (best 221 units), so
-  Tint at 32 bits stays refused; the Curves map form pinned `kept-map`, `lin`, `channel-first`, `slope`/`slope`, apply `same` and
-  ships. At 16 bits BT16 and CM16 are unmatched against today's 8/16-bit kernels; the 8/16-bit Color Lookup was trilinear before the tetrahedral item below.
-- float_adjust take4 (`float-adjust-473/take4`, `scripts/photoshop-probe/float_adjust_take4.py`): three scripted shapes
-  each left a Color Lookup an identity, so Photoshop's own load of a `.cube` is unmeasured (NL `invalid`) and a 1D
-  table, a domain other than 0…1 and entries outside 0…1 refuse at 32 bits. CM16 is `unmatched`: the composed
-  4096-stage table scores 2.93 units (it holds on M2, M4, M6 and misses M5, mostly a stored 1.0 rendered 237.5/255
-  against the table's 239/255), every other candidate 42 or more, so 16-bit map Curves is unchanged until take5.
-- float_adjust take5 (`float-adjust-473/take5`, `scripts/photoshop-probe/float_adjust_take5.py` sha `3d2ac9fb…`): CM16X
-  pins `int15`, all-integer 15-bit stage tables, exact on all 1368 samples of M2, M4–M8 (rivals 2 to 58887 codes off);
-  LG pins `own` (a link read on its own grid) at 16 and 32 bits (0.048 / 1.2e-4 units; 33-node bake 31, trilinear 47).
-  Color Lookup Dither: 16 bits `none` (on = off); 8 bits `other` — an aperiodic, repeatable noise rounding about half of
-  the half-code pixels down (1061 of 2048) and 4 near-integer ones up, not the 8×8 Bayer threshold, so the Dither item
-  stops; the key is not built.
-- float_adjust take6 (`float-adjust-473/take6`, `scripts/photoshop-probe/float_adjust_take6.py` sha `acd84bee…`),
-  Black & White with Tint as SetLum of the tint numbers to the gray with ClipColor: 32 bits BT32-low pins
-  `clip/e510/num` (0.003 units, G < 4.5), apply `same`, but BT32-hi is unmatched — Photoshop caps the gray at 16 —
-  so the 32-bit Tint stops; 16 bits pins `setlum-clip16` (0.14 units;
-  today's `hsl16` 135) and the low floor `e15`, but the high-only floor (±2 15-bit codes) and BT8 (worst 3 codes) are
-  unmatched, so the 8/16-bit Tint stops. Ruling 1 shipped the pinned forms
-  under the near-match rule (shipped companion).
-- float_adjust take7 (`scripts/photoshop-probe/float_adjust_take7.py` sha `ba79af9d…`, `float-adjust-473/take7`)
-  was fixed to confirm take6's two fits on fresh stimuli — the 32-bit gray cap at 16 (`cap16`) and Photoshop's 8-bit
-  integer tint path (`h8a`, exact on all 792 take6 8-bit samples) — and stalled with no reading. Ruling 2 shipped the
-  build as it stands: 32 bits cap the gray at 16 (take6's fit); residual 16-bit
-  high-only minimum 2 15-bit codes. The 8-bit residual (`setlum-clip8`, 3 codes) closed with
-  [#2](https://github.com/kpgalligan/doctored/issues/2) phase 4: a byte document's Tint runs Photoshop's integer
-  path (h8a-LE, `adjust_bw8.rs`), within 1 code on `eight-bit-578/take1`.
-- `DONE` — Color Lookup's one 3D lookup (`adjust_lut::sample_3d`)
-  is tetrahedral at 8, 16 and 32 bits, as take3 pinned at 16 and 32. Nothing persisted changes; every saved Color
-  Lookup layer re-renders. Since take5 a plain-grid device link of at most 33 nodes is stored at its own grid
-  (`icc_lookup`, `LutPipeline::plain_grid`); larger or curved links and abstracts stay sampled at 33³.
-- `DONE` — 16-bit map-form Curves reads take5's 15-bit stage
-  tables (`adjust_curves::stage15`/`read15`, three composed tables built at parse); 8 and 32 bits unchanged. Nothing
-  persisted changes; saved 16-bit map Curves layers re-render.
-- `DONE` — Color Lookup renders and applies at 32 bits for a 3D
-  table with a 0…1 domain and entries in 0…1, whatever loaded it, under take3's device-link form
-  (`FloatForm::ColorLookup` over the 8/16-bit `CubeLut::apply`); the unloaded 1D identity passes through.
-- Hue/Saturation take4 (`adjust-parity-535-536/take4`,
-  `scripts/photoshop-probe/hue_sat_take4.py`), max tolerance units at 16 / 32 bits:
-  T4-hue `s4096t` (1/24576-turn shift, truncated toward 0) unmatched 1.13 / pinned 0.74 — master Hue alone ships at
-  32; T4-gain `tid` unmatched 1.15 / 1.09 (sat+ mid residual), so master Saturation and every master combination take
-  the display-scaled form at 32; T4-master unmatched 1.09 / pinned 0.69; T4-light16 `float` unmatched 1.12 at
-  16, Lm32 pinned 0.51; T4-band `h359` unmatched 1.39 / 1.26; T4-band-net netted unmatched 1.14 / pinned 0.64;
-  T4-band-order `before` unmatched 1.21 / 881; T4-combine `mgrid` unmatched 16.4 / 1828. At 8 and 16 bits take4's
-  reference form R0 ships (2026-10-13, `adjust_hue_saturation.rs`): take4's 8-bit max codes 2 (light,
-  gain, hue), 3 (master), 7 (band), 5 (combine), and the `hue2` fixture within 2 codes at 8 bits.
-- Color Balance take5 and take6 (`adjust-parity-535-536`,
-  `color_balance_parity.py` / `color_balance_take6.py`), max tolerance units at 16 / 32 bits: take5 pinned toe `hermite`,
-  round `round2`, range `free`, pref `norm`, pgamma `none`, x32 `lut-ends` on rail ends; bw and form missed on T3 alone
-  (9.25) and the black/white-point ends at 32 (4.4e4). take6 pinned tone `sum` t = M + trunc((S + H)/2) 0.64 / 0.61,
-  pmid `midtrunc` 0.31 / 0.21, bw `levels` 0.68 / 0.74, form `fitted` 0.68 / 0.74 (`today` 6776) and the 32-bit
-  end slopes `stages` 4.3e-4 (`stages-dr` 2.4e4): build row 1, Color Balance replaced at 8/16 bits and admitted at 32
-  as a layer and a destructive apply (`adjust_color_balance`).
-- `DONE` — RAW-developed HDR: a camera RAW opens as a 32-bit float document with
-  `raw.output_encoding: linear_float`. `camera.NEF` at +2 EV holds lattice values to 2.2 with over 300 of 640 points
-  above 1.0, where its 16-bit development clips at 65535 (`scripts/verify_v1_raw_float.py`; ADR
-  `phase-8g-raw-enhancements-status.md`).
-- `TRACKED` — float-predictor TIFF encoding (owned writer checked by `tiffinfo`) → P7-36 row note and plan §11
-  gate (3). F16 TIFF export and OpenEXR shipped with v1 float phase 1 (next item).
-- `DONE` v1 float phase 1 — float in, out
-  and on screen. OpenEXR (`exr_float`, over the `exr` crate) and Radiance `.hdr` (`radiance_hdr`) open as float
-  documents: the first part that is not deep and has R, G and B, its display window as the canvas, associated alpha
-  unpremultiplied; stated xy primaries within 0.002 of Rec.709 or Display P3 take that built-in profile, any other
-  set is converted once in linear light to sRGB primaries with a warning (`float_primaries`). `bit_depth: 32`
-  exports to `tiff`, `exr` or `hdr`, and `float_samples: "f16"` writes a half TIFF or OpenEXR (`doc_export_float`);
-  OpenEXR and Radiance declare the document profile's primaries and convert no pixel. View ▸ 32-bit Exposure…
-  (±20 stops, per window, never document state: `float_view`, drawn through the proof slot; `get_view` /
-  `set_view` `exposure` and `exposure_displayed`, `render` `exposure`), and Image ▸ Tone Map… previews live as a
-  candidate map in the same slot. The open and export plans are measured at 24 MP (`float_interchange_24mp`);
-  drive gate F38. A later slice must know: a file holding ANY deep part refuses, because the `exr` crate validates
-  every header and reads no deep data; a preview that writes `canvas.previewImage` is drawn at 0 stops. The v1 float work closed
-  without EDR display, HDR Toning or 32-bit PSD: they are the after-v1 issue its closing batch drafted
-  ([v1-float-editing.md](v1-float-editing.md), "After v1").
-- `DONE` (v1.x) — EDR display output: View ▸ HDR Preview, per window, on an EDR screen (rule X, `float_view::display_extended`; [v1x-hdr-photos.md](v1x-hdr-photos.md)). `TRACKED` — luminance/ACES tone maps → plan §11 gate (3).
-- `DONE` (v1.x) — the 32-bit PSD reader and writer (`Lr32`, `psd_import_float` / `psd_export_float`); the Phase A PSD
-  refusal is gone ([v1-float-editing.md](v1-float-editing.md)).
-- `DONE` — Fill… / Stroke… on the Red, Green, Blue and
-  Alpha planes at 32-bit float: `paint_blend`'s `plane` (`float_paint`, `# Admission`; gate F32). Receipt
-  `plane-fill-431/take1` (`scripts/photoshop-probe/plane_fill.py`, B431): the value is the ink's 30/59/11 luma over
-  its components, raw (`3059x` / `raw`; `plane_swatch::plane_fill_value`); Normal, Multiply, Darken, Lighten,
-  Difference, Linear Dodge, Subtract (`scalar`) and Dissolve (`dither`); Darker Color and Lighter Color refuse by
-  name there (unmeasured: the take's Fill threw on them). Decisions: opacity stays exact (Photoshop's is a
-  byte); `t` is not scaled by the pixel's stored alpha (SOFT `written`; a stored-alpha-0 pixel takes the
-  write too, unreadable in Photoshop's TIFFs); linear ink on a plane writes the luma of the linear numbers
-  (H-LIN); an Alpha target is clamped to 0…1. The plan is the layer fill's figure, P32 pinned in
-  `selected_color_planes_24mp.rs`.
-- `DONE` — above-white Fill / Stroke ink at 32-bit float:
-  `color_space` `linear` on `paint_blend` and `stroke_layer_edge`, RGB 0…65504 used as is (receipt
-  `hdr-colour-317-608/take2`, FG: fill = float); an above-white foreground and MCP's `rgba32` take it, recorded as
-  the step's `rgba32`; a mask, alpha channel and Quick Mask clip the colour to 0…1 (the Brush and Gradient take
-  it too, below).
-- `DONE` — the colour-channel gray at 8 and 16 bits and the
-  vacated value. Receipt `plane-gray-431-633/take1` (`scripts/photoshop-probe/plane_gray.py`, rows F8, S8, F16, S16,
-  H): `fill8` `3059r`, `fill16` `3059x`, both strokes `band`, `soft8` / `soft16` `written` (32 pixels each),
-  `hole8` / `hole16` / `hole32` `3059r`, `form32` `raw`. Edit ▸ Fill… / Stroke… and `fill_selection` /
-  `stroke_selection` on a Red, Green, Blue or Alpha plane write the colour's 30/59/11 luma: rounded to a code at
-  8 bits (`plane_swatch::plane_ink_u8`, `PlaneAlgebra.fillColor`), unrounded at 16 (`plane_ink_u16`,
-  `PrecisionScalarOperations.planeInk`), not weighted by the pixel's alpha; a moved colour channel leaves that
-  8-bit code over 255 at every depth (`color_plane_hole`; the plane-gray take2's `bg.601f` agreed only on its own three
-  pairs). Gates F30 (`#0000ff`: 28, not 29) and F32 rows i, i-undo, j. Decisions: a mask and a saved alpha channel
-  keep their Rec. 709 gray; an Alpha plane takes the plane gray, as at 32 bits. Unmeasured, unchanged: the bucket,
-  gradient and brush on a colour plane, Quick Mask fill and `modify_scalar` (Rec. 709); a rounding tie of `3059r`
-  (built half up); Dissolve and Stroke over partly transparent pixels.
-- `DONE` — in a 32-bit float document the options bar's
-  Text colour and Shape fill / stroke swatches open the Color Picker sheet with its Intensity row
-  (`presentSwatchPicker`; System Colors… is still one click away), so they author an above-white colour; the shape
-  options store keeps each colour as an sRGB hex plus stops (`ShapeToolOptions.fillIntensity` / `strokeIntensity`),
-  clipped per linear channel at 1 outside a float document. At 8 and 16 bits the swatches keep the system panel.
-  No MCP twin (`app/CLAUDE.md`, view preferences); checked by the Debug build, with no automated drive.
-- `DONE` v1 float phase 1 — the Brush,
-  Eraser and Gradient tools and `brush_stroke` / `eraser_stroke` / `gradient` in a 32-bit float document, on a layer
-  in linear light with no clamp on colour (`float_paint`'s `paint_blend`, `erase_native` and `gradient` arm,
-  `float_paint_ink::FloatInk`) and on its mask or an alpha channel through the unchanged 16-bit coverage routes
-  (u16 at every depth). Decisions: no options-bar intensity control (the Color Picker's Intensity row and the
-  eyedropper already set an above-white foreground, which paints as its own value); above-white ink is the Brush's
-  (`rgba32`) and the Gradient's two endpoints (`start_rgba32` + `end_rgba32`; in the UI the Foreground → Background
-  ramp only, stored stops being sRGB hex), and one aimed at a mask, a channel or an adjustment layer's mask refuses
-  by name (`FloatPaint.coverageInkRefusal`); the Gradient converts each stop to linear light and interpolates there;
-  the Eraser is `alpha × (1 − coverage × opacity)` with RGB untouched bit for bit (`blend::erase_alpha`); a Red,
-  Green, Blue or Alpha target refuses by name for all three (Fill… is the float plane route); a blend mode outside
-  `NativeLayerBlending.floatModes` refuses before the stroke or drag starts. Retouching and Stroke Path at float,
-  and what stays refused there and why: [v1-float-editing.md](v1-float-editing.md).
-  The three plans are the layer fill's figure, measured in `float_paint`'s `# Brush, Eraser, Gradient` table
-  and pinned in `selected_color_planes_24mp.rs` (`FLOOR_B32`, `FLOOR_E32`, `FLOOR_G32`). Oracles
-  `core/tests/float_brush_tools.rs`; gate F37; jobs-probe "float paint strokes".
-- `DONE` — Load Selection from the RGB composite. Float:
-  the profile's Y row over UNclamped samples, clamped as a sum (`precision_selection.rs`, 03c1798), confirmed by
-  `float-selection-442/take1` (`a` sRGB, `b` ROMM) and take 2's rows (the issue body); `float_source_selection.rs`'s
-  `luminance_reproduces_photoshops_442_receipts` pins all 18 receipt rows. 8/16 bits (RGB) load the luminosity in
-  Edit ▸ Color Settings' Gray working space (`ColorSettings.workingGray`, seven spaces, Dot Gain 20 % by
-  default): `Y^e`, Y the profile's relative PCS Y (`cmyk_color::document_xyz`), Dot Gain d % `e = ln 0.5 /
-  ln(0.5 − d/100)`, Gray Gamma γ `1/γ` (`gray_working.rs`, `dr_doc_composite_gray_plane`, the native `luminance`
-  kind's `gray`). `gray-luminance/take1` (`gray_luminance_take.py`) read it 0 codes off on 26 patches at 8 and 16
-  bits under Dot Gain 20 %, Gray Gamma 2.2 and Dot Gain 15 %; `gray_working_selection.rs` pins the take. Only Load
-  Selection (sheet, ⌘-click, MCP `load_selection`, `add_channel from: plane`) reads it; every other luma stays
-  Rec. 709.
-- `DONE` — Divide at 32-bit float, layer, Fill and effect, by
-  rule B: `clamp(cb / max(cs, 1/65504), ±65504)` (Photoshop's 2^-39 stand-in writes values a float document
-  cannot store). Linear Burn, Linear Light and Pin Light ship with it; Screen, Overlay, Soft Light, Hard Light, Color
-  Dodge, Color Burn, Vivid Light, Hard Mix and Exclusion stay refused by name (each inverts about white or divides by
-  1 − v).
-- `OPEN` — Behind and Clear for Fill/Stroke, which
-  Doctored has at no depth (not a float-only gap).
-- `DONE` — File ▸ New at 32 bits
-  and Image ▸ Mode ▸ 32 Bits/Channel… / `convert_precision mode: rgba32` (preserve only): an 8- or 16-bit document
-  becomes a float document with every record carried, each code decoded through the profile's TRC to linear light
-  (`precision_conversion_float`); the round trip back is exact; what float cannot hold, a result too large to save
-  and reopen at 32 bits included, blocks by name. Rule, refusals and admission: [v1-float-editing.md](v1-float-editing.md).
-- `REVERSED` — promotion of u16/byte to float, once dropped by decision: reversed by the user on 2026-10-12, because a
-  16-bit picture or a RAW development must be able to join a float composite, and a user who wants to paint with
-  light needs a float document (shipped above). `DROPPED` — `PrecisionStateArchive.swift` float coverage (out of
-  scope; internal probe archive only).
+## Decisions
+- **Storage**: straight RGBA32 float (`PrecisionStorage::Rgba32Float`). RGB = **linear light in the document
+  profile's primaries**; TRC applied only at SDR encode. Straight alpha in [0, 1]. Finite,
+  `|v| ≤ FLOAT_RANGE_MAX = 65504` (largest finite half, so any sample survives a half round trip). **Negatives are
+  stored** and admitted by every admitted operator; mapped to 0 only at display/SDR output.
+- **Promotion** from u16/byte into float is Image ▸ Mode ▸ 32 Bits/Channel… / `convert_precision mode: rgba32`
+  (`precision_conversion_float`; the original no-promotion decision was reversed on 2026-10-12, because a 16-bit
+  picture or a RAW development must be able to join a float composite); `from_image` with F32 still refuses.
+- **One storage gate**: `PrecisionDocument::build(.., float)` requires every raster leaf's storage to match
+  `float.is_some()` (else "high-depth document storage does not match the document mode"). `raster()` keeps its u16
+  refusal; `raster_float` (`pub(crate)`) is the only F32 leaf constructor.
+- **Evaluation invariant**: a float document has `linear_light == None`, `float == Some(..)`, and `evaluation()`
+  answers `LinearLight` from `float` alone — no 2.36 MB `TypedTransfer`. `with_evaluation(LinearLight)` is
+  `Ok(None)` (no phantom undo); `Encoded` is refused; `rebind_evaluation` is a no-op. `linear_light_refusal()`
+  returns `float_refusal()` first, so 11E's two host guards refuse unadmitted float edits with **no new guard**.
+- **Finite rule is import-only** (`float_document::sanitize`): NaN→0, ±∞→±65504, out-of-range clamped, alpha
+  clamped, each counted into import warnings. Everywhere else (render, edit, native record) a non-finite or
+  out-of-range result **refuses** (`from_rendered_float(extended: true)`, `from_rgba32_extended`). ONE named exception
+  (D3): filtered geometry clamps each output RGB component to the source layer's own visible range (per channel over
+  alpha > 0) and drops an output alpha below 2^-24 to transparent (`sampling::EXTENDED_ALPHA_FLOOR`,
+  alpha 0 and RGB 0), because a kernel's overshoot is a property of the filter, not of the document. The floor is
+  2^-24, not the renderer's 2^-96: it is below one f32 ulp at 1.0 and far below a 16-bit code, and alpha × any mask
+  coverage (≥ 2^-16) × any UI opacity stays far above the 2^-96 render floor, so a filtered layer under a mask still
+  renders (`checked_alpha`).
+- **Import alpha/profile**: `ExtraSamples=1` → unpremultiplied with a warning; `2` taken as is; absent → 1.0; 1–2
+  samples fill R=G=B. An embedded ICC must be an RGB matrix/TRC profile passing `validate_precision` (the SDR encode
+  needs its forward curve; linear values are defined by the profile's primaries); none → sRGB primaries, with a
+  warning.
+- **Tone maps** (per RGB channel; alpha never mapped), then `PrecisionToneEncoder` (the doc's forward curve, no
+  inverter): `clip` (default) `y = clamp(v,0,1)`; `reinhard` `u=max(v,0); y=min(u(1+u/W²)/(1+u),1)`, `W ∈ [1, 65504]`,
+  default 4.0. `ToneMap::parse` is **hand-written** over a JSON map because serde's internally tagged enum accepts
+  unknown keys on unit variants; any extra key (or `white` beside `clip`) refuses `unknown tone map field`.
+- **Where the map applies**: display only via `PrecisionDocument::display_rgba8` (`PrecisionImage::to_rgba8`
+  **refuses** F32, so no clamped preview can leak); 8/16-bit export (`doc_export::export_stages` substitutes
+  `tone_mapped_u16` before stage 1); conversion to u16/byte (`float_to_u16`, `downconvert`). **32-bit export is
+  exact** at size none — no map; a size mode resamples the rendered composite through filtered geometry's
+  extended-range resize, RGB clamped to the composite's own visible range.
+- **Admitted operators** — the live table is `FLOAT_FAMILIES` in `core/src/precision_capability.rs` (and
+  `float_document::float_operators_json`). Everything not in it refuses `"<operator> is unavailable in a 32-bit
+  float document"`; the refusal walk (`float_document::float_refusal`) asks the kernel (`apply_linear(..).err()`)
+  rather than re-listing adjustments. The display-defined tools and the rule-A adjustments run under
+  `display_encoding`'s stated rules ([v1-float-editing.md](v1-float-editing.md)); the nine blend modes that invert
+  about white refuse by name (Blend modes, below).
+- **Adjustments at 32 bits**: each adjustment measured against Photoshop 26.10.0 at 32 bits takes its OWN closed
+  form on the stored linear values (`adjust_float::prepare`, derived at parse, never persisted), each within 2e-3 of
+  the take2 receipt (`float-adjust-473/take2`) or within the later takes' tolerance units:
 
-## Shipped runs
-[phase-11f-hdr-float-shipped.md](phase-11f-hdr-float-shipped.md) — Decisions, Rejected alternatives, Consequences and every `DONE` item, moved there verbatim.
-[v1-float-editing.md](v1-float-editing.md) — what the v1 float editing batches shipped after that companion reached its cap, starting with the eleven float filters (phase 2), and retouching and Stroke Path (the float half of phase 5).
+  | op | 32-bit form |
+  |---|---|
+  | Levels | the master stage with every clamp removed, `sgn(t)·abs(t)^(1/γ)` |
+  | Black & White (Tint off) | the master decomposition, `max(0, gray)` |
+  | Black & White (Tint on) | gray `max(0, g)` capped at 16; SetLum of the tint's numbers/255 to it, ClipColor at 16; `+1/510` when fired |
+  | Channel Mixer | the master matrix in 1/1024 steps, constant `trunc(512·K)/1024`, no clamp |
+  | Photo Filter | the density multiply on white-normalized XYZ in the profile's NATIVE basis, Y held |
+  | `bcs` vs legacy Brightness/Contrast | the master affine, no clamp |
+  | Exposure (both evaluations) | per stored channel `sgn(u)·abs(u)^(1/γ)`, `u = v·2^e + o`, no reference-basis matrices |
+  | Curves (point form) | the natural cubic spline, no clamp; above the last point the end slope; below the first flat, or its slope when it sits at 0 |
+  | Curves (map / pencil form) | each map piecewise linear on `X = 255·v`, end segments continued, channel map first |
+  | Hue/Saturation (Colorize; master Lightness alone; master Hue alone) | C32 colorize; per-component two-sided lerp, a component past the target held; hexcone rotation, shift on a 1/24576-turn grid truncated toward 0 |
+  | Color Balance | per-channel Levels in whole units, r2 gamma, Hermite toe; beyond [0, 1] the 4096-stage end slopes |
+  | Color Lookup (3D, domain and entries in 0…1) | the table on stored values, tetrahedral, an input above 1 as 1, below 0 as 0 |
+
+  The master `ChannelMixer` truncates to 1/1024 steps at EVERY depth (an 8/16-bit render moves by at most
+  `Σ|v|/1024`, under one 8-bit code). Exposure's gamma is the reciprocal power at every depth. Every other
+  Hue/Saturation setting and the remaining adjustments run under rule A ([v1-float-editing.md](v1-float-editing.md));
+  Invert, Shadows/Highlights and the legacy White Balance refuse by name. Color Lookup outside its measured form (a
+  1D table, another domain, entries outside 0…1, abstract-baked) runs `CubeLut::apply` on the stored values under
+  rule A. Oracle `core/tests/float_adjustments.rs`; drive gate F16.
+- **Destructive Image ▸ Adjustments at 32 bits**: `float_adjust_apply` applies the layer's own form
+  (`apply_linear`; each op applied gives the same result as its layer, measured), then the straight alpha-preserving
+  coverage lerp with no clamp (master `mix_codes`), through `rebuilt_rgba32_extended`. The applied set is the
+  operator table's `*_apply` rows; the `document_v2` White Balance applies under rule A; the legacy White Balance
+  refuses by name, and an op whose layer form refuses keeps that sentence. Admission measured at 24 MP (plan
+  40 B/px plus fixed terms, pinned by `float_adjust_apply_24mp`). Oracle `core/tests/float_adjust_apply.rs`; drive
+  gate F17.
+- **Readouts**: above-white (`v > 1`) / below-zero (`v < 0`) instead of clipping. Sample
+  (`PrecisionImage::float_sample`) with `stops = log2(max(v, 2^-16))`; histogram stop-binned, 256 bins over
+  −12…+6 EV, channel 4 = Rec.709 luma of linear components, plus min/max/zero/above/below counts. The histogram and a
+  weighted sample are the float arm of the schema2 scoped analysis (`float_stats::evaluate`), so Composite, Active
+  layer and Below active layer, with selection weighting, answer at 32 bits; RGB eligibility is alpha > 0, and the
+  bins and the `*_weight_units_rgba` twins carry each pixel's coverage weight.
+- **Source-plane selection**: Load Selection from the Red/Green/Blue/luminosity plane or a layer's transparency
+  (`alpha` / `luminance` / `color` kinds, `source_plane_selection` in `ADMITTED`) maps each f32 sample to u16
+  coverage by **clamping the scene-linear value**: `unit_to_u16(v) = round(65535 · clamp(v, 0, 1))`, alpha the same,
+  whatever the tone map; luminosity is the profile's Y row over the UNclamped samples, only the sum clamped. Measured
+  against Photoshop 26.10.0 before any code (`float_selection.py`; `float-selection-442/take1` matched sRGB and ROMM
+  exactly). Magic Wand, Color Range, Select Similar and Quick Selection compare the R1 display copy
+  (`display_encoding`; [v1-float-editing.md](v1-float-editing.md)), as does Select and Mask's edge stage (rule E);
+  Decontaminate Colors refuses by name. Oracle `core/tests/float_source_selection.rs`; drive gate F13.
+- **Native v40** (`core/src/float_native.rs`): `40` outermost, next word **must** be `39`; body storage tag **2**
+  (admitted only under 40, so earlier readers refuse rather than misread); raster payload `u32 w, u32 h, u64 w·h·16,
+  raw LE f32 RGBA` (PNG has no float); tail `"FLOT" | schema 1 | operator (0 clip / 1 reinhard) | f32 white`, all
+  validated before any pixel decode. u16 documents' bytes unchanged. History, snapshots, archive (`storage:
+  "rgba32_float"`) and recovery ride the native file.
+- **Interchange**: `open_preserving` branches `DRDC` → native, a float TIFF, EXR or `.hdr` → float document, else
+  the unchanged u16 codec; a 32-bit PSD or PSB (`Lr32`) opens as a float document (`psd_import_float.rs`). `bit_depth: 32` export writes `tiff`, `exr`
+  or `hdr` (TIFF: 4 samples, `ExtraSamples=2`, Deflate, no predictor, document profile and packets;
+  `float_samples: "f16"` a half TIFF or OpenEXR) and requires `profile: document`, no `sharpen` and `dither: none`
+  (each refused by name); Export as PSD writes a 32-bit PSD, PSB or layered TIFF (`psd_export_float.rs`).
+- **Host**: Image ▸ Tone Map… (`ToneMapSheetController`, live preview; one undo step); Convert Precision offers
+  16/8-bit; a float TIFF opens only as float (`precision: "rgba8"` refused); Export offers/defaults "32-bit float";
+  MCP `get_tone_map` (`nonRecordable`) / `set_tone_map` (step), `get_document.float`, `summary.precision =
+  "rgba32_float"`. Tool rail: `FloatDocument.tools`, then the core's depth-32 table, decide each tool
+  ([v1-float-editing.md](v1-float-editing.md)).
+- **Resource accounting**: raster `w·h·16`; policy tables ≈1.57 MB via `record_resources`; display/tone-map
+  `+w·h·12`; export plan `+source·8`, plus `source·16·2 + 1 MiB` at bit depth 32.
+- **Fixture** `core/tests/fixtures/float_11f/scene.tiff` is authored by `scripts/verify_phase11f_float.py
+  --author-fixture` (stdlib), not `magick` (whose Q16-HDRI scales float output), and verified by `tiffinfo` /
+  `magick identify`.
+
+## Rejected alternatives
+- Clipping negatives at storage — would make float a worse container than u16.
+- A second evaluation policy beside `linear_light` — float is linear light by construction.
+- A range bound above 65504 — buys range no interchange format here can carry.
+- serde-derived tone-map parsing — silently accepts `{"operator":"clip","white":4}`.
+- Previewing tone-map candidates live — the canvas already is the tone-mapped projection.
+
+## Consequences
+Admitting any new float operator requires an f64 oracle on extended-range input (including negatives) and a
+`FLOAT_FAMILIES` entry; exact permutation/copy ops may be admitted on that argument alone (12F precedent). An f32
+plane above `CONTIGUOUS_CACHE_BYTES` is refused at the 2 GiB pin but admitted at the 8 GiB limit of a 16 GB Mac;
+it is tiled. Tests: `core/tests/float_{document,native,interchange}.rs`; drive `scripts/verify_phase11f_float.py`.
+
+## Open items (verified 2026-10-30)
+- `OPEN` [#18](https://github.com/kpgalligan/doctored/issues/18) — Behind and Clear for Fill/Stroke and painting,
+  which Doctored has at no depth (not a float-only gap).
+- `DROPPED` (2026-10-30) — the operations still refused at 32 bits, each by name with its reason in the operator
+  table: Apply Image (its blend runs on u16 planes clamped to 0…1), Assign or Convert with a profile that has no
+  matrix/TRC model or whose curves fail the precision check, Convert with absolute colorimetric, black-point
+  compensation or preserve-appearance, a converted component outside ±65504. A deliberately bounded set; a float
+  document requires a matrix/TRC profile by design.
+- `DROPPED` (2026-10-30) — luminance and ACES tone maps: HDR Toning's methods and the clip/Reinhard maps cover SDR
+  delivery.
+- `DROPPED` (2026-10-30) — float-predictor (predictor 3) TIFF encoding: a Deflate float TIFF without the predictor
+  is valid and reopens bit-exact, only larger.
+- `DROPPED` (2026-10-30) — measuring Photoshop's above-white TYPE colour: above-white type colour ships.
+- `DROPPED` (2026-10-30) — the unmeasured plane-fill corners (the bucket, gradient and brush on a colour plane, Quick
+  Mask fill and `modify_scalar` keep Rec. 709; a `3059r` rounding tie, built half up; Dissolve and Stroke over
+  partly transparent pixels).
+- `DROPPED` (2026-10-30) — a Color Lookup Dither key (the take found 16-bit dither a no-op and the 8-bit form
+  aperiodic noise) and the unmeasured `.cube` load at 32 bits (three takes could not load one).
+- `REMOVED` — float masters and smart-object contents at 32 bits: the feature was removed 2026-10-10.
+- `DROPPED` — `PrecisionStateArchive.swift` float coverage (out of scope; internal probe archive only).
+
+## Shipped
+- **Geometry** — filtered geometry in premultiplied extended-range f32 through the shared walks with the D3 clamp
+  and alpha floor (`float_filtered_geometry.rs`); warp over the binary64 walk, applied at once with no persisted
+  field (`float_warp.rs`); 32-bit export resampling (`float_interchange.rs`); Move and Free Transform of selected
+  pixels (`precision_selected_pixels.rs`); `layer_add`, stamp/flatten and exact canvas ops (12E-2b/2c, 12F-1/1b).
+- **Blend modes** — slice 1 (`03ad6f0`): nine modes measured at 32 bits (`blend_float.rs`, `float_blend_modes.rs`,
+  F14): Linear Dodge/Subtract unclamped, Hue…Luminosity in the document's linear primaries with no ClipColor.
+  Divide by rule B `clamp(cb / max(cs, 1/65504), ±65504)`, with Linear Burn, Linear Light and Pin Light; Screen,
+  Overlay, Soft Light, Hard Light, Color Dodge, Color Burn, Vivid Light, Hard Mix and Exclusion refuse by name (each
+  inverts about white or divides by 1 − v). Slice 4 (`89e7dbd`): Pass Through groups (`Kind::PassThrough`, F18).
+- **Styles** — slice 2 (`67385ec`): layer styles, Blend If and the global light at 32 bits (`style_float`, F15);
+  effect colours are the document's LINEAR numbers (`LinearInk`), Blend If reads stored values unclamped.
+- **Adjustments** — slices 3a–3d: the forms above as layers (rendered full and regional, merged, saved, pasted) and
+  as destructive applies; Exposure's `1/gamma` at every depth (slice 3b: every saved Exposure with gamma ≠ 1
+  re-renders); Curves the NATURAL cubic spline at every depth (`adjust_curves::Spline`; slice 3d: every saved curve
+  with 3 or more points re-renders). Photo Filter at 8/16 bits is the D50 PCS multiply and Luminosity blend
+  (`adjust_photo_filter`, `adjust_photo_filter_tests.rs`; every saved 8/16-bit Photo Filter re-renders; residuals
+  8-bit ClipColor highlights ≤ 7.3 codes, ROMM toe 3.4e-3). Later takes (`float-adjust-473/take3`–`take7`,
+  `adjust-parity-535-536/take4`–`take6`): Color Lookup's one 3D lookup is tetrahedral at every depth
+  (`adjust_lut::sample_3d`) and a plain-grid device link of at most 33 nodes is stored at its own grid
+  (`LutPipeline::plain_grid`); 16-bit map Curves reads 15-bit stage tables (`adjust_curves::stage15`); the map form
+  and Color Lookup run at 32 bits (`float_lookup_tint_map.rs`); Black & White's Tint is SetLum of the tint's
+  numbers to the grey with ClipColor (`blend::set_lum_within`, `black_and_white_tint.rs`, F35; residual 16-bit
+  high-only minimum 2 15-bit codes; 8 bits on the integer path, `adjust_bw8.rs`); Hue/Saturation's reference form R0
+  at 8 and 16 bits (`adjust_hue_saturation.rs`); Color Balance replaced at 8/16 bits and admitted at 32 as a layer
+  and an apply (`adjust_color_balance`). The adjustments once refused at 32 bits run under rule A since 2026-10-12,
+  except Invert, Shadows/Highlights and the legacy White Balance, which still refuse by name.
+- **Selections** — Load Selection from a colour plane, the luminosity plane or a layer's transparency (UI and MCP
+  `load_selection` / `add_channel from:plane`); from the RGB composite: float reads the profile's Y row over
+  unclamped samples (`precision_selection.rs`), and 8/16 bits load the luminosity in Edit ▸ Color Settings' Gray
+  working space (`gray_working.rs`, `dr_doc_composite_gray_plane`; `gray_working_selection.rs`); every other luma
+  stays Rec. 709. Tolerance and distance selections and the edge stage on R1 (2026-10-12).
+- **Paint and fill** — Fill… / Stroke…, the ⌫ chords, MCP `fill_selection` / `stroke_selection` and the
+  layer-edge stroke on a layer, its mask or an alpha channel (`float_paint`'s f32 arm of `paint_blend`,
+  `float_fill_stroke.rs`); Quick Mask Fill on the native u16 coverage; Fill / Stroke on the Red, Green, Blue and
+  Alpha planes writing the ink's 30/59/11 luma, raw (`plane_swatch::plane_fill_value`, F32; Darker and Lighter Color
+  refuse there; opacity exact; `t` not scaled by the pixel's stored alpha; linear ink writes the luma of the linear
+  numbers; an Alpha target clamped to 0…1), and at 8/16 bits the colour-channel gray (`plane_ink_u8` rounded,
+  `plane_ink_u16` unrounded, not weighted by alpha; a mask and a saved alpha channel keep their Rec. 709 gray, an
+  Alpha plane takes the plane gray; a moved colour channel leaves its 8-bit code over 255, `color_plane_hole`; F30).
+  Above-white ink: `color_space` `linear` on `paint_blend` and `stroke_layer_edge`, RGB 0…65504 as is, recorded as
+  `rgba32`; a mask, alpha channel and Quick Mask clip it to 0…1. The Brush, Eraser and Gradient on a layer in linear
+  light with no clamp (`float_paint_ink::FloatInk`; no options-bar intensity control: above-white ink is the Brush's
+  `rgba32` and the Gradient's `start_rgba32` / `end_rgba32`, the UI offering only the Foreground → Background ramp
+  and stored stops staying sRGB hex; the Gradient converts each stop to linear light and interpolates there; the
+  Eraser `alpha × (1 − coverage × opacity)`, RGB untouched; above-white ink aimed at a mask or channel refuses by
+  name, a Red, Green, Blue or Alpha target refuses for all three, and a blend mode outside
+  `NativeLayerBlending.floatModes` refuses before the stroke or drag starts; `float_brush_tools.rs`, F37). The Paint
+  Bucket, Dodge, Burn and Sponge run under `display_encoding`'s rules ([v1-float-editing.md](v1-float-editing.md)).
+- **Type and shapes** — text and shape layers at 32 bits (`artwork_render::render_float`, `dr_artwork_render_float`;
+  stored colour numbers as LINEAR light, 16-bit antialias coverage kept, `float_artwork.rs`, F20; the host writes
+  description v4 `"ink":"linear_srgb"`); intrinsic colour-glyph pixels decode through sRGB at float. Above-white
+  text/shape colour (RGB 0–65504 in the core, the sheets' Intensity and MCP; 32 → 16/8 clips it at 1); the
+  options bar's Text and Shape swatches open the Color Picker with its Intensity row in a float document, and keep
+  the system panel at 8 and 16 bits; no MCP twin, as a view preference (`app/CLAUDE.md`).
+- **Readouts** — float scoped statistics for the Info panel and MCP `histogram` / `sample_pixel` /
+  `sample_color`; `histogram source:"scalar"` on a mask or channel through the 16-bit scalar counter; the eyedropper
+  picks the float mean, above white kept.
+- **Sources** — camera RAW layers at 32 bits render their 8/16-bit master into linear light
+  (`retained_source_float`, `FLOAT_SOURCE_MARGIN_PER_PIXEL` 26; Redevelop, presets, Sync and locals admitted;
+  `float_raw_source.rs`, F34); a camera RAW opens as a float document with `raw.output_encoding: linear_float`
+  (`scripts/verify_v1_raw_float.py`; [phase-8g-raw-enhancements-status.md](phase-8g-raw-enhancements-status.md)).
+  Placed images and floating-point TIFFs place at 32 bits through the same master render and are rasterized on
+  landing since 2026-10-10 (`float_placed_image.rs`, `float_placed_master.rs`).
+- **Interchange and display** — v1 float phase 1: OpenEXR (`exr_float`) and Radiance `.hdr` (`radiance_hdr`) open as
+  float documents (the first non-deep part with R, G and B; associated alpha unpremultiplied; xy primaries within
+  0.002 of Rec.709 or Display P3 take that profile, any other set converts once in linear light to sRGB primaries
+  with a warning, `float_primaries`; a file holding any deep part refuses); `bit_depth: 32` exports `tiff`, `exr` or
+  `hdr`, with F16 TIFF and OpenEXR (`doc_export_float`); View ▸ 32-bit Exposure… (±20 stops, per window, never
+  document state: `float_view`) and the live Tone Map… candidate drawn in the proof slot (a preview that writes
+  `canvas.previewImage` is drawn at 0 stops); measured at 24 MP (`float_interchange_24mp`, F38). EDR display: View ▸
+  HDR Preview (`float_view::display_extended`). The 32-bit PSD reader and writer (`Lr32`, `psd_import_float`,
+  `psd_export_float`).
+- **Documents** — File ▸ New at 32 bits and Image ▸ Mode ▸ 32 Bits/Channel… (preserve only; every record carried,
+  each code decoded through the profile's TRC; the round trip back is exact; what float cannot hold blocks by name).
+  The v1 float gaps: Apply Layer Mask (`precision_mask_apply`), Layer Via Copy / Cut (`precision_layer_via`), Assign
+  Profile (the linear samples relabelled) and Convert to Profile (the matrix between the primaries in linear light,
+  no clamp; `float_color`), Calculations, Add Luminosity Masks and Contact Sheet (`scripts/verify_v1_float_gaps.py`).

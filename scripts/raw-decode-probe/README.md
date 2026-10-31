@@ -363,8 +363,8 @@ Depth `32` is the float development: `setDepth(32)` opens headless with
 `output_encoding: linear_float` (`PrecisionImportRequest.mode` `.preserve`),
 so every later stage runs on the float recipe. `--float` runs, at depth 32 on
 the NEF, D24 and every `--real` label, O32, W32, K32 and V32 (the modes
-above), L0, L1, L4 and FX through `local` (FX with grain since #4), and
-#4's grain and HDR-frame cases:
+above), L0, L1, L4 and FX through `local` (FX with grain), and the grain and
+HDR-frame cases:
 
 - OG32: `open` with grain {50, 1.5, 50} (shape `OG`).
 - VG32: `preview` whose after develops that grain (shape `VG`). V32 and VG32

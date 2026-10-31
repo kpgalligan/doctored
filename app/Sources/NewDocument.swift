@@ -8,8 +8,8 @@ import AppKit
 // `ImageDocument.makeNew` is the fourth document-creating path beside open, New from Clipboard and
 // recovery, and deliberately does NOT call `adoptWorkingSpace()`: the request already names its
 // space. A 32-bit float document is the 16-bit blank converted by the core's conversion into float,
-// so the fill is that conversion's decode. GRAY is refused BY NAME rather than substituted — a
-// document is RGB — and the sheet simply does not offer it.
+// so the fill is that conversion's decode. The Grayscale, CMYK and Lab colour modes make their own
+// documents (`NewDocumentColorMode`); a Gray ICC file as an RGB document's profile refuses by name.
 
 /// File ▸ New… — starting a document with no seed image.
 ///
@@ -24,9 +24,9 @@ import AppKit
 /// Depth 8, 16 or 32: a 32-bit FLOAT document is the 16-bit blank
 /// converted into float (`core/src/precision_conversion_float.rs`), so white
 /// is exactly 1.0, black and transparent 0, and a `#rrggbb` colour its
-/// profile's tone-curve decode. One deliberate omission, a refusal BY NAME
-/// rather than a silent substitution: GRAY (the core stores RGB documents
-/// only — `RasterProfileKind.notRGB`).
+/// profile's tone-curve decode. An RGB document's profile must be RGB: a Gray
+/// ICC file refuses BY NAME (`RasterProfileKind.notRGB`) and points at the
+/// Grayscale colour mode.
 enum NewDocumentUnit: String, CaseIterable {
     case px, inches = "in", cm, mm
 
@@ -249,8 +249,8 @@ enum NewDocumentProfile: Equatable {
         case .notICC:
             return "\(path) " + predicate + "."
         case .notRGB:
-            return "\(path) is \(info.name), which " + predicate + " — a new document is RGB. "
-                + "Grayscale documents are not supported."
+            return "\(path) is \(info.name), which " + predicate + " — this profile is for an RGB "
+                + "document; choose the Grayscale colour mode for a gray document."
         case .notImageProfile:
             return "\(path) is \(info.name), which " + predicate + "."
         default:

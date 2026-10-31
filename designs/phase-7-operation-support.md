@@ -1,6 +1,6 @@
 # High-depth operation support matrix (ADR)
 
-- **Status:** Accepted — open items remain (the matrix below is the live summary; verified against code 2026-09-26)
+- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11), [#12](https://github.com/kpgalligan/doctored/issues/12), [#13](https://github.com/kpgalligan/doctored/issues/13)) (the matrix below is the live summary; its float column, masks and RAW rows re-verified against code 2026-10-30)
 - **Phase / dates:** 7A audit → 7E public matrix, 2026-09-10; amended through Phases 8–12
 - **Original:** [archive/phase-7-operation-support.md](../archive/phase-7-operation-support.md) — full history, the original RGBA8 boundary audit, per-slice notes
 - **Key commits:** `082ccb1` (audit), `3bd4349` (public gate); later rows `e8af30c` (12E-2c), `07d9153` (12F-2)
@@ -14,12 +14,13 @@ Every existing operation had an RGBA8 contract, and many lost precision in ways 
 `to_rgba8()`, isolated-group `quantize`, byte Curves LUTs, the byte `ToneEncoder`, byte-tolerance profile equality,
 byte mask/alpha rounding, `to_rgba8()` in native reads). The 7A audit listed each boundary and the migration it
 needed; 7E turned the qualified subset into one public operation/target/depth gate. The
-[carryover ledger](phase-7-carryovers.md) owns every remaining gap; this matrix states only what works today.
+[carryover ledger](phase-7-carryovers.md), closed 2026-10-30, recorded every remaining gap, and its open rows are
+issues; this matrix states only what works today.
 
 ## Decisions
 - **One gate, core-enforced.** The host gate is `DocumentPrecision.refusal` (`app/Sources/DocumentPrecision.swift`:
-  `commonTools`, `typedTools`, `rasterTools`, `coreRefusal`) for 16-bit and `FloatDocument.tools` +
-  `floatCoreRefusal` (`app/Sources/FloatDocument.swift`) for 32-bit float; both map tools onto the core family table
+  `commonTools`, `typedTools`, `rasterTools`, `coreRefusal`) for 16-bit and `FloatDocument.tools`
+  (`app/Sources/FloatDocument.swift`) + `DocumentPrecision.floatCoreRefusal` for 32-bit float; both map tools onto the core family table
   in `core/src/precision_capability.rs` (`FAMILIES`, `FLOAT_FAMILIES`). UI menus (`validatePrecisionItem`), MCP
   (`AgentServer` before dispatch) and Actions replay share it. Unknown operations/targets/depths fail closed; a
   supported family still passes strict parameter, record-kind, profile and resource checks.
@@ -33,21 +34,21 @@ needed; 7E turned the qualified subset into one public operation/target/depth ga
 
 | Family | 16-bit | 32-bit float | Refused / limits |
 | --- | --- | --- | --- |
-| Import / mode | RGB(A)16 + Gray16 PNG/TIFF, 16-bit PSD, RAW (retained source), typed native `.rz`; `get_precision`/`convert_precision` | Float TIFF, float `.rz` | Nothing promotes integer→float; typed import never uses ImageIO byte fallback |
-| Conversion | Flattened or `structure:"preserve"` (12H), none/ordered dither to 8-bit | Tone-mapped to 16 or 8 | Alpha never dithered; promotion adds no precision |
+| Import / mode | RGB(A)16 + Gray16 PNG/TIFF, 16-bit PSD, RAW (retained source), typed native `.doctored` (legacy `.rz` read); `get_precision`/`convert_precision` | Float TIFF, OpenEXR (`exr_float.rs`), Radiance `.hdr`, 32-bit PSD/PSB, HDR host stills (`float_host_intake.rs`), the 32-bit float RAW development, float `.doctored` | Typed import never uses ImageIO byte fallback |
+| Conversion | Flattened or `structure:"preserve"` (12H), none/ordered dither to 8-bit; 8/16 → 32-bit float, each code the profile's TRC decode (`precision_conversion_float.rs`) | Tone-mapped to 16 or 8 | Alpha never dithered; promotion adds no precision |
 | Structure | Duplicate, name/visible/label, reorder/group/ungroup/delete, merges, **Stamp Visible / Flatten Image** (12E-2c), locks/links, comps, guides/ruler, `set_resolution`, new layer, group open/close | Same set | Same |
-| Blending | 27 modes on raster, adjustment and isolated groups; Pass Through (groups); clipping; Blend If and layer styles on raster/groups; knockout | Normal, Multiply, Darken, Lighten, Difference, and nine more: Dissolve, Darker/Lighter Color, Linear Dodge, Subtract, Hue, Saturation, Color, Luminosity (Divide refused); Pass Through (groups); Blend If, layer styles (nine effects in those modes), fill, knockout, Blend Interior and the global light on raster/groups | no Blend If/style on adjustment layers; styled/Blend-If group refuses Pass Through |
-| Tone / profiles | Live adjustments at a chosen slot; selected destructive tone on RGB and scalar targets; Auto Tone/Contrast/Color; assign/convert profile | Exposure, White Balance, Levels, Brightness/Contrast/Saturation, Black & White without Tint, Channel Mixer, Photo Filter and point-form Curves adjustment layers, each under its form fitted to a Photoshop take | Float: destructive apply of Levels, Black & White without Tint, Channel Mixer, Photo Filter, Exposure and point-form Curves only (White Balance refuses; `bcs` applies in both its forms); Assign Profile relabels the linear samples and Convert to Profile applies the matrix between the two profiles' primaries with no clamp (a profile with no matrix/TRC model, absolute intent, black-point compensation and preserve-appearance refuse by name); the other adjustments refuse by name |
-| Spatial filters | Every spatial filter the app has at 8 bits (selection-aware): Blur, Sharpen, Unsharp Mask, High Pass, Reduce Noise, Dust & Scratches, Edge Detect, Emboss, Pixelate, Add Noise, Box Blur, Surface Blur, Add Grain, Radial Blur, Clouds, Difference Clouds, Offset, Motion Blur, Lens Blur, Tilt-Shift | — | No `apply_filter` name or Filters-menu item is refused at 16 bits; each spatial filter is held to its 8-bit twin in `../core/tests/filter_depth_parity.rs`. 16-bit `blur` takes sigma up to 64 (8-bit: 1000) |
+| Blending | 27 modes on raster, adjustment and isolated groups; Pass Through (groups); clipping; Blend If and layer styles on raster/groups; knockout | Every mode but the nine that invert about white; Pass Through (groups); Blend If, layer styles in the admitted modes, fill, knockout, Blend Interior and the global light on raster/groups ([v1 float editing](v1-float-editing.md) rule B) | no Blend If/style on adjustment layers; styled/Blend-If group refuses Pass Through; float: Screen, Overlay, Soft Light, Hard Light, Color Dodge, Color Burn, Vivid Light, Hard Mix and Exclusion refuse by name |
+| Tone / profiles | Live adjustments at a chosen slot; selected destructive tone on RGB and scalar targets; Auto Tone/Contrast/Color; assign/convert profile | Adjustment layers and destructive apply under the float rules ([v1 float editing](v1-float-editing.md) rule A); assign/convert profile | Float: Invert, Shadows/Highlights, the legacy White Balance and Auto Tone/Contrast/Color refuse by name; Assign Profile relabels the linear samples and Convert to Profile applies the matrix between the two profiles' primaries with no clamp (a profile with no matrix/TRC model, absolute intent, black-point compensation and preserve-appearance refuse by name) |
+| Spatial filters | Every spatial filter the app has at 8 bits (selection-aware): Blur, Sharpen, Unsharp Mask, High Pass, Reduce Noise, Dust & Scratches, Edge Detect, Emboss, Pixelate, Add Noise, Box Blur, Surface Blur, Add Grain, Radial Blur, Clouds, Difference Clouds, Offset, Motion Blur, Lens Blur, Tilt-Shift | The Filter menu in linear light or on an encoded copy, per filter, on layers and on masks, alpha channels and colour planes ([v1 float editing](v1-float-editing.md), "Filters") | No `apply_filter` name or Filters-menu item is refused at 16 bits; each spatial filter is held to its 8-bit twin in `../core/tests/filter_depth_parity.rs`. 16-bit `blur` takes sigma up to 64 (8-bit: 1000). Float: Liquify, Depth Blur and the Develop Filter refuse on a mask, channel or plane; Develop Filter masks refuse on a float layer (`develop_filter_masks.rs`) |
 | Geometry | Resize, crop, Canvas Size, straighten, arbitrary rotate, quarter turns/flips, numeric/drag affine+perspective on leaves, masks, sets, groups and adjustments, warp; Move drag/nudge; Move selected pixels; Free Transform of selected pixels; Move Auto-select, `align_layers`, `distribute_layers` | Canvas Size, zero-angle crop, quarter turns/flips, exact integer Move; filtered geometry (resize, straighten, arbitrary rotate, affine/perspective, warp) with each layer's RGB clamped to its own visible range; Move selected pixels and Free Transform of selected pixels on a layer (filtered landings clamped to the floated pixels' range) and on a mask or alpha channel; Move Auto-select, `align_layers`, `distribute_layers` | Selected pixels of a colour channel refused at every depth |
-| Masks / channels / selections | u16 masks (link, density, feather, outside), channels, Apply Image/Calculations, luminosity masks, source-derived selections, Quick Mask, basic Refine Selection | Mask/channel CRUD and properties, selections, Save/Load Selection; Apply Layer Mask, Calculations and luminosity masks | No mask transform at float; Apply Image is 8/16-bit only (refused by name at float); advanced refinement → P7-12 |
-| Paint / retouch | 27 paint modes, erase, fill, gradients, dodge/burn, clone/heal with Current/Below/All sampling, spot heal, red-eye, content-aware fill, Patch | — | Brush, Paint Bucket, Fill…/Stroke…, Gradient and Clone Stamp take all 27 modes (a clone onto a new layer and a gradient on a mask, plane, channel or the Quick Mask are Normal only); Healing, Spot Healing, Dodge/Burn and the Eraser are Normal only (a heal replaces the covered pixels with a solved membrane, so it has no source colour to blend); 50,000-dab and footprint caps |
+| Masks / channels / selections | u16 masks (link, density, feather, outside), channels, Apply Image/Calculations, luminosity masks, source-derived selections, Quick Mask, Select and Mask (Refine Edge brush, decontamination, New Layer outputs) | Mask/channel CRUD and properties, mask transforms, selections, Save/Load Selection; Apply Layer Mask, Calculations and luminosity masks; Select and Mask without Decontaminate | Float: Apply Image and Decontaminate Colors refuse by name |
+| Paint / retouch | 27 paint modes, erase, fill, gradients, dodge/burn, clone/heal with Current/Below/All sampling, spot heal, red-eye, content-aware fill, Patch | Brush, Eraser, Gradient and Clone Stamp in linear light; Paint Bucket, Dodge/Burn and Sponge (v1 rules R3–R5); Fill…/Stroke… on layers, masks, alpha channels and colour planes; heal, spot heal, Patch, Remove, Content-Aware Fill and Move in the working encoding; Blur, Sharpen, Smudge and History brushes ([v1 float editing](v1-float-editing.md)) | Brush, Paint Bucket, Fill…/Stroke…, Gradient and Clone Stamp take all 27 modes at 8/16 bits; at float, ink refuses the nine modes the Blending row names (a clone onto a new layer and a gradient on a mask, plane, channel or the Quick Mask are Normal only); Healing, Spot Healing, Dodge/Burn and the Eraser are Normal only (a heal replaces the covered pixels with a solved membrane, so it has no source colour to blend); 50,000-dab and footprint caps |
 | Artwork | Retained text/shapes (`add_text_layer`, `add_shape_layer`) | Text and shape layers, Artwork Colors, Rasterize Artwork; colours are linear-light numbers | Legacy `add_text` byte tool refused; 4,096 UTF-16 units |
-| Retained sources | Place/replace/link/embed/refresh; RAW redevelop; host stills/frames; live filters (a 32-bit float master, 32-bit contents) | Place/replace/link/embed/refresh/rasterize and transform of an 8/16-bit or 32-bit float master, rendered into linear light (no live filter) | Destructive pixel edits require rasterizing the source first (`RetainedImagePolicy`) |
+| RAW layers | Place Embedded/Linked… of a camera file, Redevelop RAW…, RAW Source…, Rasterize RAW Layer | Same; a 16-bit development renders into linear light, and the 32-bit float development keeps an f32 master (`float_native`) | Destructive pixel edits need Layer ▸ Rasterize RAW Layer first (`RetainedImagePolicy`) |
 | Clipboard | Cut/Copy/Copy Merged/Paste, New from Clipboard; Layer Via Copy / Via Cut (`layer_via_copy`/`layer_via_cut`) | Cut/Copy/Copy Merged/Paste, New from Clipboard; Layer Via Copy / Via Cut | Layer Via rasterizes at every depth: the new layer keeps no description or style |
 | Readouts | Native sample sums/means; histograms with exact endpoint counts; selection/backdrop scopes | Sample, histogram (scalar: masks/channels) | 256 display bins are not clipping counts |
 | Output | Native save, PNG/TIFF16 from captured projection, export workspace, layer export, PSD; soft proof of the display codes, `render_proof exact` for the full composite | Native save, export | `export_pdf` writes an 8- or 16-bit page; soft proof refused at 32-bit float |
-| Evaluation policy | `encoded` / `linear_light` (11E) | Holds linear light by definition | Under `linear_light`, unmigrated operators refuse by name (P7-24) |
+| Evaluation policy | `encoded` / `linear_light` (11E) | Holds linear light by definition | Under `linear_light`, unmigrated operators refuse by name ([#12](https://github.com/kpgalligan/doctored/issues/12)) |
 
 ## Rejected alternatives
 - Per-surface capability lists in UI, MCP and Actions separately — they drift; one host gate over one core table.
@@ -57,7 +58,7 @@ needed; 7E turned the qualified subset into one public operation/target/depth ga
 ## Consequences
 - A new typed tool is enabled only by adding its family to `precision_capability.rs` and its tool name to the host gate
   (and to `validatePrecisionItem` for menus); anything absent is refused at that depth.
-- The carryover ledger, the implementation plan and this matrix must stay consistent when rows move.
+- The open issues, the implementation plan and this matrix must stay consistent when rows move.
 
 ## Open items (verified 2026-09-26)
 - `DONE` — `arrange_layer` is admitted at 16-bit and float (`typedTools`, `FloatDocument.tools`, both `families` maps
@@ -71,8 +72,7 @@ needed; 7E turned the qualified subset into one public operation/target/depth ga
   `group_layers` decide their no-op / cross-parent refusal up front. The typed colour label runs through
   `applyingPrecisionBookkeepingEdit` (synchronous, no `BackgroundWork`) and `applyEdit`'s `renderNeutral` carry keeps
   the current projection, so it opens no modal panel, refuses during background work and stays one undo step.
-- `DONE` — `DocumentPrecision.isDocumentFree` admits `save_raw_preset` / `save_live_filter_preset` given authored
-  settings at every depth, and the 17 tools whose handlers read no document moved from `commonTools` /
+- `DONE` — `DocumentPrecision.isDocumentFree` admits `save_raw_preset` given authored settings at every depth, and the 17 tools whose handlers read no document moved from `commonTools` /
   `FloatDocument.tools` into `documentFreeTools`. The remaining typed layer/channel facades (add, merge ×3, stamp,
   flatten, lock, link, unlink, name, visible, clipped and the five channel edits) throw the core's sentence; UI call
   sites use `try` and `applyEdit` presents it instead of beeping, and the Layers panel drop presents a thrown reorder
@@ -138,7 +138,7 @@ needed; 7E turned the qualified subset into one public operation/target/depth ga
   (`HistogramLoader.onFailure`; a cancel, mid-run or not, and a superseded request are never shown as a failure). The
   typed Evaluation sheet measures against the retained typed projection instead of rendering "before" again. The
   scoped analysis over the retained projection and float Info analysis are resolved below; the float eyedropper is
-  resolved: it picks the float block mean into the foreground, above white kept (phase-11f shipped companion). The
+  resolved: it picks the float block mean into the foreground, above white kept ([11F ADR](phase-11f-hdr-float-status.md)). The
   Levels/Curves sheet histogram is resolved: the sheets show "Histogram unavailable" with the reason as the tooltip.
 - `DONE` — at 16 bits the composite scope of `ScopedAnalysisRead` (Info histogram, scoped cursor, MCP `histogram` /
   `sample_pixel`) counts the retained typed projection through `dr_precision_image_scoped_analysis{,_plan}` (composite
@@ -161,11 +161,18 @@ needed; 7E turned the qualified subset into one public operation/target/depth ga
   `align_set`/`distribute_set`, one typed edit; `core/src/precision_align.rs`); Auto-select landed (PR-A).
 - `DONE` — Stamp Visible / Flatten Image at depth (the archived row still said unavailable): `e8af30c`, families
   `layer_stamp`/`layer_flatten`.
-- `DONE` — knockout at both depths (carryover P7-37, verified 12E-3…12E-3d); `lfx2` PSD exchange (P7-21).
+- `DONE` — knockout at both depths (carryover P7-37, verified 12E-3…12E-3d) and `blend_interior_as_group` on a clip
+  base with visible members (P7-39, verified); `lfx2` PSD exchange (P7-21).
 - `DONE` — typed clipboard (P7-29 closed, 12G); group/adjustment/linked-set Free Transform and retained-source
   geometry (12F-2, `07d9153`).
 - `DONE` — typed global light and native group open state.
-- `TRACKED` — advanced cutout refinement → P7-12; linear-light phases 2–3 → P7-24; full-frame projection fallback /
-  cancellation → P7-31; payload compression and codec cancellation → P7-32; large-document workloads and broader
-  camera/codec corpora → P7-33; dab/text/plane caps → P7-34; Background layer kind and clip-base
-  `blend_interior_as_group` → P7-38 / P7-39 (10C-3).
+- `DONE` — advanced cutout refinement: edge brushing and colour decontamination ship in Select and Mask (2026-10-11;
+  P7-12).
+- `OPEN` [#12](https://github.com/kpgalligan/doctored/issues/12) — linear-light phases 2–3 (P7-24).
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — full-frame projection fallback and stage-only
+  cancellation (P7-31).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — payload compression and codec cancellation (P7-32);
+  large-document workloads and the broader camera corpus (P7-33); dab/text/plane caps (P7-34).
+- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — a Background layer kind (P7-38).
+- `OPEN` [#2](https://github.com/kpgalligan/doctored/issues/2) — `blend_interior_as_group` on a clip base below 100 %
+  Fill.

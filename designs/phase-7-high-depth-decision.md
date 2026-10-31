@@ -1,6 +1,6 @@
 # High-depth storage representation (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 7A, 2026-09-10
 - **Original:** [archive/phase-7-high-depth-decision.md](../archive/phase-7-high-depth-decision.md) — full history, measurements, receipts
 - **Key commits:** `082ccb1`
@@ -70,7 +70,9 @@ exposing a document mode, to pick the representation for the rest of Phase 7. Th
   (`app/Sources/PrecisionModeConversion.swift`, "The document already uses the requested precision.").
 - `DONE` — public-app decode/display/Undo/recovery residency measured for the declared 24 MP workflow (7E,
   [public mode](phase-7-public-mode-status.md)).
-- `TRACKED` — 48 MP grouped workflow (refused at 2 GiB in 7A; qualification is now at the 8 GiB minimum) and broader large multilayer/history residency →
-  carryover P7-33 (13D), with regional/tiled work in P7-31 (13A) and plan §13B.
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — 48 MP grouped workflow (refused at 2 GiB in 7A;
+  qualification is now at the 8 GiB minimum) and broader large multilayer/history residency (carryover P7-33).
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — the regional render path those workloads need
+  (carryover P7-31).
 - `DROPPED` — "float prototype is comparison-only, no second public mode": superseded by the 11F 32-bit float
   document mode (carryover P7-25, verified).

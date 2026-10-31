@@ -26,7 +26,7 @@ import AppKit
 /// request at 8 and 16 bits; the 8-bit commit is
 /// `MoveSelectedPixels.prepared`.
 ///
-/// Decisions stated here and in the README: one layer, the active one (a
+/// Decisions stated here and in the feature reference: one layer, the active one (a
 /// multi-layer panel selection refuses by name); links are ignored; the box
 /// is the FLOAT's opaque bounds — the pixels with alpha > 0 under the
 /// selection, found by the core in one short cancellable

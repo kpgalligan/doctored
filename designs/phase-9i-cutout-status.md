@@ -1,6 +1,6 @@
 # Phase 9I cutout quality candidates and native cutout foundation (ADR)
 
-- **Status:** Accepted — open items remain (no candidate qualifies; gate rescoped by [gate v2](phase-9i-gate-v2-status.md))
+- **Status:** Accepted — closed (no candidate qualifies; gate rescoped by [gate v2](phase-9i-gate-v2-status.md); P7-12's other half shipped 2026-10-11 without it)
 - **Phase / dates:** 9I, 2026-09-12 → 2026-09-15
 - **Original:** [archive/phase-9i-cutout-status.md](../archive/phase-9i-cutout-status.md) — per-candidate numbers, failure counts, receipts, reproduction commands
 - **Key commits:** `d5ee109` (native foundation integrated over 9G `f457cdb` / 9H `93a45cf`), `2e26401` (V5 + execution continuation), `d5c7490` (gate v2 rescoping)
@@ -49,7 +49,8 @@ unchanged combined gate, and all measurements stand under both gates.
   separately admits assembly and display preparation, checks revision/session/cancel/closed-owner before
   publishing through the central one-edit Undo path; accepts `PrecisionScalarBuffer` with its registered lease.
   Execution details: [phase-9i-execution-status.md](phase-9i-execution-status.md).
-- **Advanced brushing and decontamination stay disabled**; no candidate was promoted into typed refinement, UI, MCP or Actions.
+- **No candidate was promoted** into typed refinement, UI, MCP or Actions. Edge brushing and decontamination ship
+  in Select and Mask since 2026-10-11, without the gate ([typed cutouts](phase-9i-typed-cutouts-status.md)).
 
 ## Rejected alternatives
 - Another protection/alpha threshold — V3/V4 measurements show missing input detail and residual foreground evidence, not a tunable cutoff.
@@ -57,16 +58,16 @@ unchanged combined gate, and all measurements stand under both gates.
 - Transparent-460, alphamatting.com, BackgroundMattingV2 as transmission evidence — permission unestablished / needs a real empty-background capture; bottle stays silhouette-only.
 
 ## Consequences
-- The foundation is internal only; current estimators still require opaque encoded-RGB inputs and are not a
-  qualified RGBA16/partial-alpha estimator.
+- The foundation backs Select and Mask's typed New Layer outputs since 2026-10-11
+  ([typed cutouts](phase-9i-typed-cutouts-status.md)); the V1–V5 estimators were never qualified.
 - The legacy `oracle_alpha_color` rows measure the old *unprotected* estimator with reference alpha; they cannot
   qualify protected V3/V4 or any new pipeline.
 - Canonical report and corpus locations are `~/devel/doctored-fixtures/` (gate v2 decision 6).
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Recover missing input detail via a genuinely blinded user-constraint workflow → gate v2 assisted protocol, P7-12 / plan §9I ([runbook](phase-9i-assisted-annotation-runbook.md)).
-- `TRACKED` — Qualify the typed RGB/alpha estimator and connect it to the independent-mask foundation, with before/after, mask transforms, UI/MCP/Actions and persistence → plan §9I ("Extend the qualified path to typed source RGB/alpha …") / P7-12.
-- `DROPPED` — Glass/transmission research: out of scope (closed 2026-09-28, not planned); the six analytic glass cases stay reported diagnostics under frozen gate v2 and the bottle stays silhouette-only.
+- `DROPPED` (2026-10-30) — Recover missing input detail via a genuinely blinded user-constraint workflow (the gate v2 assisted run): the gate is no longer a ship condition ([gate v2](phase-9i-gate-v2-status.md)).
+- `DONE` — typed estimator and Select and Mask UI/MCP/Actions outputs at 8 and 16 bits shipped 2026-10-11 without the gate ([typed cutouts](phase-9i-typed-cutouts-status.md)).
+- `DROPPED` — glass/transmission research ([gate v2](phase-9i-gate-v2-status.md)).
 - `DROPPED` — Better automatic source-only foreground reconstruction (automatic line stopped; [gate v2](phase-9i-gate-v2-status.md) decisions 4–5).
 - `DROPPED` — Measuring a protected reference-alpha variant (automatic line stopped).
 - `DONE` — Basic typed refinement into the u16 mask ([phase-9i-typed-cutouts-status.md](phase-9i-typed-cutouts-status.md), `b2e0c80`).

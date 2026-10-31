@@ -1,6 +1,6 @@
 # Phase 8 — retained sources: embedded, linked, RAW and Develop (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 8A–8D (this record; 8E/8F/8G have their own ADRs), 2026-09-10 → 2026-09-11
 - **Original:** [archive/phase-8-retained-source-status.md](../archive/phase-8-retained-source-status.md) — full history, measurements, receipts
 - **Key commits:** `3e0d2dd` (8A), `a5868ab` (8B), `6e611fc` (8C), `943dbf5` (8D); siblings `23cf25d` (8E), `9b3f65c` (8F), `e386448` (8G)
@@ -28,16 +28,15 @@ completed the phase).
   layer stores the accumulated affine, interpolation policy and a rendered fallback in the document profile.
   *Why:* re-rendering from the original is the only way scale-down/up and profile conversion stay lossless.
   Code: `source_asset.rs`, `retained_source.rs`, `doc_retained_source.rs`, `precision_retained_source.rs`.
-- **Fixed evaluation order:** original → document-profile conversion → (live filter stack, added in
-  [Phase 9](phase-9-live-filters-status.md)) → accumulated affine sampling → explicit fallback-depth conversion
+- **Fixed evaluation order:** original → document-profile conversion → accumulated affine sampling → explicit fallback-depth conversion
   → layer mask → styles/blending/opacity. Byte originals promote (×257) before typed evaluation; typed originals
   render at 16 bits before one nearest, undithered byte quantization. Identity placement restores the original
   samples exactly when profiles/depths agree. `retained_source_render.rs` (`work_plan` shares the render's
   exact/permutation/filtered sampling decision so admission matches rendering).
 - **A display CGImage is never a master; no implicit reinterpretation.** Convert Profile re-renders from the
   original; Assign Profile on a source-bearing document refuses (11C later added the disclosed
-  `assign_profile_rasterizing` path). Destructive pixel edits require the explicit **Rasterize** (Layer ▸ Smart Objects)
-  step, which detaches the source keeping current fallback pixels; Undo restores the binding. Core
+  `assign_profile_rasterizing` path). Destructive pixel edits require the explicit **Rasterize** (Layer ▸ Rasterize RAW
+  Layer) step, which detaches the source keeping current fallback pixels; Undo restores the binding. Core
   fallback-allocation/profile guards stop a stale caller from resurrecting a source after its fallback changed.
 - **Linked masks follow the incremental transform** with the established mask sampling rule; a separately
   edited mask gets no immutable master (explicit non-goal).
@@ -47,15 +46,10 @@ completed the phase).
   originals, `native_sources_raw.rs`). All records, references, dimensions, profiles and aggregate capacity
   are preflighted before any pixel decode; malformed native files never fall through to an image decoder.
   Source ICC: 16 MiB each / 64 MiB aggregate. RAW originals: 256 MiB each / 512 MiB distinct aggregate;
-  recipe descriptor 64 KiB. Ordinary embedded sources require an empty layer-description slot (writing other
-  metadata detaches the source).
-- **Linked assets (8B):** bindings record an absolute local path + SHA256 of a private snapshot taken before
-  decoding; cached originals/profiles and fallbacks are always saved. File changes never auto-rerender:
-  Refresh is explicit (one undoable revision; unchanged is a no-op), Relink accepts only the same captured
-  bytes, different bytes need Replace Contents (new revision, keeps identity/affine/properties). Embed works
-  from the cache even with the file missing. Save Portable Image Copy writes one native `.rz` with links
-  removed (decoded originals, not original containers); it is MCP-only and excluded from Actions like
-  `save_copy`. Cross-depth placement/replacement refuses by default and offers explicit conversion.
+  recipe descriptor 64 KiB. Ordinary embedded sources (removed 2026-10-10) required an empty layer-description
+  slot.
+- **Linked assets (8B):** relink/refresh/replace/portable copy were removed 2026-10-10; a linked camera file keeps
+  its path + SHA256 binding.
 - **Retained RAW (8C):** the exact camera file is embedded beside a genuine u16 SDR developed master and the
   fallback; a versioned dense recipe captures every effective control, exact as-shot chromaticity,
   orientation, output policy and decoder/OS/Core Image identity. Redevelop (**Layer > Redevelop RAW…**,
@@ -119,9 +113,9 @@ cycles; presets, sync, stale/expired migration tickets and fresh-process reopen 
 Reproduction: [`scripts/raw-workflow-probe`](../scripts/raw-workflow-probe/README.md).
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Deduplicating masters across separate snapshot/recovery generations; compressed native/archive payloads → carryover P7-32 / plan §13C.
-- `TRACKED` — Noncancellable RAW capture/decode, source snapshot copy and fingerprint stages → P7-32 / §13C.
-- `TRACKED` — Larger source-heavy/multilayer/history workloads, encoded-input budgets, broader camera corpus and migration coverage → P7-33 / §13D.
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Deduplicating masters across separate snapshot/recovery generations; compressed native/archive payloads (carryover P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Noncancellable RAW capture/decode, source snapshot copy and fingerprint stages (P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Larger source-heavy/multilayer/history workloads, encoded-input budgets, broader camera corpus and migration coverage (P7-33).
 - `DONE` — Floating/HDR RAW development output: the 32-bit float (linear) development (`RawOutputEncoding.linearFloat`) keeps an f32 master beside the camera file in a 32-bit float document, under typed DRDC word 78 (`float_native`); it never narrows into an 8- or 16-bit document. ADR: `phase-8g-raw-enhancements-status.md`.
 - `DONE` — Typed RAW capture packets/PPI (11D typed metadata bridge, `core/src/precision_metadata_edit.rs`; plan §11D).
 - `DONE` — Typed camera auxiliary matte/depth import (9G, P7-08 verified).
@@ -129,6 +123,4 @@ Reproduction: [`scripts/raw-workflow-probe`](../scripts/raw-workflow-probe/READM
 - `DONE` — Retained-source whole-document, group/linked and perspective geometry (12F-2, `07d9153`, `RSPJ` table); geometry-changing RAW migration with local-plane remap (12F-4, `6400648`).
 - `DONE` — Typed layer locks / arbitrary placement for sources (12E-2b, P7-26/P7-27 verified); retouch improvements (9D).
 - `DONE` — Per-entry RAW preset repair (12B: `broken` rows, `repair_raw_preset`, schema 2).
-- `DONE` — A placed or replaced ordinary source keeps the core open's profile refusal on its immutable asset (`SourceAsset.profile_refusal`), reported by `get_image_source` and Layer > Image Source…, and persisted in `.rz` by conditional word 56 (byte) / 57 (typed) inside 45/46 and the `RSPR` table before `LIDS` (`core/src/source_refusal_native.rs`).
-- `DONE` — UI Place Embedded/Linked, Replace Contents and Refresh show that refusal once, after the edit commits, as an informational "Embedded Colour Profile" sheet carrying the MCP `disclosures` sentence verbatim (`EditorViewController.presentSourceProfileNotice`). `RetainedImageWork.edit` now reports whether it published, so a no-op import returns no refusal and MCP stops disclosing it. Verified by typecheck, build and review: the UI path opens an `NSOpenPanel`, which automation cannot drive.
-- `DONE` — Place Embedded/Linked…, Replace Contents, Update Modified Content and `place_image`/`replace_image_source` of a camera RAW file land a retained RAW layer at 8, 16 and 32 bits (`RawSourcePlacement`): the u16 development is the master under `convert_fallback` at every depth (no consent, as the open's 8-bit choice), the camera file is attached, a place is scaled by document ÷ file ppi through a non-interactive `transform` (a place request's own `source_transform` is held to `MAX_WORK_UNITS`), and the `.xmp` sidecar's `Exposure2012` applies (open too; other settings disclosed). Redevelopment keeps a linked layer's link. Refresh carries the saved development and refuses locals/enhancements; Update All still skips `camera_raw`. Admission (24 MP, `RawSourcePlacement`'s record): every stage ≥ 1.25×, no constant moved. Tests `raw_place.rs`; drive F36.
+- `DONE` — Place Embedded/Linked… and `place_image` of a camera RAW file land a retained RAW layer at 8, 16 and 32 bits (`RawSourcePlacement`): the u16 development is the master under `convert_fallback` at every depth (no consent, as the open's 8-bit choice), the camera file is attached, a place is scaled by document ÷ file ppi through a non-interactive `transform` (a place request's own `source_transform` is held to `MAX_WORK_UNITS`), and the `.xmp` sidecar's `Exposure2012` applies (open too; other settings disclosed). Redevelopment keeps a linked layer's link. Admission (24 MP, `RawSourcePlacement`'s record): every stage ≥ 1.25×, no constant moved. Tests `raw_place.rs`; drive F36.

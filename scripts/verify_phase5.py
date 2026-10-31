@@ -2,7 +2,8 @@
 """Qualify Phase 5 history, full-state snapshots and actual crash recovery.
 
 Set DR_VERIFY_APP to the isolated built executable. Every process uses a private
-port, Actions/recovery directories, suppressed startup recovery UI and dummy key.
+scratch DR_AGENT_SOCKET, private Actions/recovery directories, suppressed startup
+recovery UI and a dummy key.
 Only processes and fixtures created by this runner are terminated or modified.
 """
 

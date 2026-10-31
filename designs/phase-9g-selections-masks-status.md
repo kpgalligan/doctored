@@ -27,7 +27,7 @@ auxiliary mattes — while every existing byte ABI and operation keeps its meani
   per canvas sample; current/previous selections keep their own type; v3 also stores channel-view state.
   Validation precedes materialization. (The package has since moved to v4 for linear-light evaluation —
   `app/Sources/EditingStateArchive.swift`.) Transient selections live only in the editing-state package;
-  `.rz` stores reusable coverage as masks/channels.
+  the native document stores reusable coverage as masks/channels.
 - **One captured scalar request** for masks, saved channels and R/G/B/A planes: neighbourhoods read the
   original plane, canvas selection gates writeback, and only that plane changes (raw offsets, mask
   properties, other components and zero-coverage samples exact). Scalar colours use the core Rec. 709
@@ -84,4 +84,5 @@ Grow/Similar's seven-projection box anchored at the seed: R, G, B, A, R−G, G�
 - `DONE` — Generated native brush/pressure engine for Quick Mask and scalar painting (handed to 9H) — `93a45cf`.
 - `DROPPED` — Opaque packed RGB10 auxiliary layout "assigned to 11D": 11D kept packed 10-bit layouts outside
   the host packing seam by decision (carryover P7-23 row; `HostStillDecoder.layout` still refuses them).
-- `TRACKED` — P7-12/9I cutout gate and the Phase 9 gate → carryover P7-12.
+- `DONE` — P7-12's other half: edge brushing and colour decontamination shipped 2026-10-11 in Select and Mask; the
+  9I cutout gate is no longer a ship condition.

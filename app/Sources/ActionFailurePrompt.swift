@@ -1,9 +1,10 @@
 import AppKit
 
 // The prompt an INTERACTIVE Play puts up when a step fails — the
-// Actions window's Play and File ▸ Automate ▸ Play Last, the two callers that
-// pass `ask` to `ActionPlayer.run`. Batch, `run_action` and ⌃F never ask: a
-// failed step there follows its own `on_error` (or Batch's `stop_on_error`).
+// Actions window's Play and File ▸ Automate ▸ Play Last Action, the two callers
+// that pass `prompt: ActionFailurePrompt.ask` to `ActionPlayer.run`. Batch,
+// `run_action` and ⌃F never ask: a failed step there follows its own `on_error`
+// (or Batch's `stop_on_error`).
 //
 // The rule: the prompt asks only about a failed step whose `on_error`
 // is `stop`. Continue is offered when the step's command could not run ("The

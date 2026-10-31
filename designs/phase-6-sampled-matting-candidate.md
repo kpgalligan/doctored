@@ -1,6 +1,6 @@
 # Trimap sampling alpha candidate (ADR)
 
-- **Status:** Accepted — open items remain (experimental kernel, failed its gate, not exposed)
+- **Status:** Accepted — closed (experimental kernel, failed its gate, not exposed)
 - **Phase / dates:** 6C, 2026-09-09
 - **Original:** [archive/phase-6-sampled-matting-candidate.md](../archive/phase-6-sampled-matting-candidate.md) — full history, measurements, receipts
 - **Key commits:** 653309d
@@ -46,8 +46,9 @@ changing its corpus, degradations or thresholds. It has no editor or MCP exposur
 ## Open items (verified 2026-09-26)
 - `DONE` — Competing-pair / ambiguity counterexample added: `../core/tests/foreground_ambiguity.rs`
   (see [phase-6-foreground-evidence.md](phase-6-foreground-evidence.md)).
-- `TRACKED` — Stronger ambiguity model and better trimap/color evidence; rerun alpha+color gates → carryover P7-12 /
-  9I gate v2 assisted protocol.
+- `DROPPED` (2026-10-30) — Stronger ambiguity model and better trimap/color evidence; rerun alpha+color gates: gate v2
+  stopped the automatic algorithm line, the gate no longer gates shipping, and shipped Select and Mask uses
+  `edge_refine.rs`.
 - `DROPPED` — Regional (brush-local) output for this kernel: 9I's declared assisted kernel is instead
   `assisted_tiled_soft_prior_v1` (`../core/src/tiled_soft_matting.rs`), built on the closed-form objective.
 - `DROPPED` — Glass references/transmission: gate v2 decision 1 ([archive/phase-9i-gate-v2-status.md](../archive/phase-9i-gate-v2-status.md)).

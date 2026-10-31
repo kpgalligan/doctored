@@ -1,13 +1,15 @@
 # Lab Color document mode (ADR)
 
-- **Status:** Accepted, closed 2026-10-22. Lab Color closes here; [#1](https://github.com/kpgalligan/doctored/issues/1)
-  (the colour-mode umbrella) stays open for the later modes; Indexed Color closed (`designs/indexed-mode.md`).
-  Grayscale is `designs/grayscale-mode.md`, CMYK `designs/cmyk-mode-status.md`.
+- **Status:** Accepted — open items remain ([#5](https://github.com/kpgalligan/doctored/issues/5)); the mode closed
+  2026-10-22. [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella) stays open (see
+  [cmyk-mode-status.md](cmyk-mode-status.md)). Grayscale is `designs/grayscale-mode.md`, Indexed Color
+  `designs/indexed-mode.md`.
 - **Originals:** [archive/lab-mode-status.md](../archive/lab-mode-status.md) (the working record at close) and
   [archive/lab-mode-shipped.md](../archive/lab-mode-shipped.md) (its shipped companion).
 - **Takes:** `~/devel/doctored-fixtures/photoshop/lab-mode-547/take1`, `lab-blend-681/take2`,
   `lab-files-547/take2`, `lab-export-547/take1`, `lab-select-547/take1`, `lab-gray-547/take1`,
-  `lab-cmyk-547/take1`, `lab-close-547/take1`; runners `scripts/photoshop-probe/lab_*_take.py`.
+  `lab-cmyk-547/take1`, `lab-close-547/take1`; runners `scripts/photoshop-probe/lab_*_take.py` in the private
+  archive (`kpgalligan/doctored-dev`).
 - **Code:** `core/src/lab_*.rs`, `psd_import_lab.rs`, `psd_export_lab.rs`, `ffi_lab.rs`, `icc_builtin.rs`
   (`lab_twin_blob`); `app/Sources/LabDocument.swift`, `LabAnalysis.swift`, `LabAdjust.swift`, `LabInk.swift`,
   `LabDepthEdit.swift`, `LabClipboard.swift`, `LabProof.swift`, `EditorViewController+LabProfile.swift`,
@@ -17,7 +19,7 @@
 
 ## Context
 
-Image ▸ Mode ▸ Lab Color at 8 and 16 bits: New, both conversions (RGB, Gray, CMYK), `.rz`, the view,
+Image ▸ Mode ▸ Lab Color at 8 and 16 bits: New, both conversions (RGB, Gray, CMYK), `.doctored`, the view,
 layer structure, paint, adjustments, filters, retouch, effects, Lab TIFF/PSD/PSB in and out, geometry,
 selections, clipboard, Bits/Channel, proof and the profile commands, type/shape/fill layers, comps, analysis,
 multi-image, neural and generative tools, from the UI, over MCP and in Actions. Every tool the catalog offers is
@@ -49,8 +51,9 @@ phase.
   Assign Profile refuses for good (`disabledTools`, `PROFILE_EDIT_REFUSAL`, `NO_PROFILE_OPS`).
 - **Files are measured.** PSD/PSB/layered TIFF: 8 bits P8, 16 bits L\* = 100v/65535 and a\*/b\* on Photoshop's
   15-bit grid; TIFF Photometric 8 measured at 8 and 16 bits, Photometric 9 from the spec. Lab files are written
-  as Photoshop writes Lab (colour mode 9, no ICC, adjustment layers as their stamps, a reported loss). The Lab
-  TIFF save is TIFF 6.0 CIELab of the composite. `.rz` word 107 with its `LAB ` table; `DRDC_VERSION` unchanged.
+  in the PSD's measured Lab form (colour mode 9, no ICC, adjustment layers as their stamps, a reported loss). The Lab
+  TIFF save is TIFF 6.0 CIELab of the composite. `.doctored` word 107 (legacy `.rz` still read) with its `LAB `
+  table; `DRDC_VERSION` unchanged.
 - **The gate.** The core's `lab_document::admit_edit` (first in `ffi_precision_edit::request`) and
   `precision_capability::LAB_FAMILIES`; the host's `LabDocument`, asked first in `DocumentPrecision` and
   `validatePrecisionItem`. Admitted edits run the RGB kernel on the codes; every colour a request names
@@ -148,13 +151,13 @@ Photoshop 26.10.0.
   stacks, Merge to HDR, Color Range ranges. **6a-ii** (`9aa9a847`): comps, links, snapshots, legacy ops, Clear.
   **6b-ii** (`50de4191`): Auto-Align, Auto-Blend, Merge Panorama, the selections. **6b-iii** (`d6d571ea`): neural and
   generative tools; Sky Replacement refused.
-- **The close** (this batch): `lab_close_take.py` take1; every tool no phase named given one fate (below); the
+- **The close** (2026-10-22): `lab_close_take.py` take1; every tool no phase named given one fate (below); the
   core gate answers as on RGB and `refused_sentence` names no phase; `import_channel` and the legacy `rasterize`
   admitted; Place through ProPhoto (`LAB_FAMILIES` `source_place`); a Generative Layer converts; Auto-Blend
   Layers refused for good; a contact sheet cell tagged Display P3. Tests `core/tests/lab_close.rs`,
   `lab_close_photoshop.rs`; drive `scripts/verify_lab_mode.py` L93–L98.
-- **#5** (this batch): the Magic Wand and Paint Bucket at 8 and 16 bits and Select Similar and Grow at
-  16 by `lab_select`'s key; Similar and Grow at 8 bits refuse naming #5 (`SELECTION_REFUSALS`). Tests
+- **The Wand, Paint Bucket, Similar and Grow**: the Magic Wand and Paint Bucket at 8 and 16 bits and Select
+  Similar and Grow at 16 by `lab_select`'s key; Similar and Grow at 8 bits refuse naming #5 (`SELECTION_REFUSALS`). Tests
   `core/tests/lab_wand.rs`, `lab_wand_photoshop.rs`; drive L99–L101.
 
 ## The close's fates
@@ -180,7 +183,7 @@ Photoshop 26.10.0.
 
 ## Open items
 
-- Lab Select Similar and Grow at 8 bits fit no declared rule; Photoshop selects less than the references' box
-  over a dithered field ([#5](https://github.com/kpgalligan/doctored/issues/5)).
-- Lab → CMYK is not confirmed by Photoshop (`lab_cmyk_photoshop.rs` records it); one RGB → CMYK take
-  (`rgb-cmyk-684/take1`) measured the CMS engine's residual against Photoshop, which the owner accepted.
+- `OPEN` [#5](https://github.com/kpgalligan/doctored/issues/5) — Lab Select Similar and Grow at 8 bits fit no
+  declared rule; Photoshop selects less than the references' box over a dithered field.
+- `DROPPED` (2026-10-30) — confirming Lab → CMYK against a take (`lab_cmyk_photoshop.rs` records its MISS): it
+  would re-measure a shipped conversion whose CMS residual the owner accepted (`rgb-cmyk-684/take1`).

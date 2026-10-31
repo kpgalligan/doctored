@@ -1,6 +1,6 @@
 # Phase 8F — retained host image and frame sources (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11), [#15](https://github.com/kpgalligan/doctored/issues/15))
 - **Phase / dates:** 8F, 2026-09-11
 - **Original:** [archive/phase-8f-host-source-status.md](../archive/phase-8f-host-source-status.md) — full history, measurements, receipts
 - **Key commits:** `9b3f65c` (follows 8E `23cf25d`)
@@ -22,8 +22,9 @@ later without the original files or a decoder at reopen, and disclose genuinely 
   document fallback depth; a genuine byte source stays a byte master in a 16-bit document. Actual full decoder
   output determines storage/layout/profile; container depth claims are recorded, never trusted.
 - **Core packs host buffers** (`host_pixels.rs`, `ffi_host_pixels.rs`) from the declared integer channel order,
-  endianness, alpha mode, row padding and exact orientation. Unsupported HDR/float/profile/layout, or an
-  unverified high-depth→byte decode, refuses.
+  endianness, alpha mode, row padding and exact orientation. Unsupported profile/layout, or an unverified
+  high-depth→byte decode, refuses; the HDR still's f32 layouts (`rgba32f_le`) go only to the float intake
+  (`float_host_intake.rs`), and the byte and typed packers refuse them.
 - **Strict decoder contract + rational frame identity.** Descriptors save decoder/codec identity and exact
   rational requested/resolved time. Movie requests pick the greatest PTS ≤ request inside the track's
   start-inclusive/end-exclusive interval; `value/scale` input stays rational, decimal seconds round explicitly to
@@ -62,13 +63,17 @@ Authored Display P3 JXL RGBA16 preserves all 147,456 components and ICC exactly;
 case stays within 64 u16 codes (52/27/60); 56 saved masters / 10.9 M source components and 9.4 M external-MCP
 components exact through native/snapshot/crash recovery after deleting originals. The expanded multiframe ProRes
 cross-decoder comparison **failed** its 64-code bound (79 codes) and is recorded as unqualified.
-Reproduction, at `3e05aea6` and earlier (removed with the feature): `scripts/host-source-probe`, `scripts/verify_phase8f.py`.
+Reproduction, at `3e05aea6` and earlier: the host-source probe's Swift and drives and `scripts/verify_phase8f.py`,
+removed with the feature; `scripts/host-source-probe/` keeps only its fixture writer, native reader and the
+`HostApp` launcher support.
 
 ## Open items (verified 2026-09-26)
-- `DONE` — the corpus is re-authored by the committed `scripts/host-source-probe/prepare.py` into `~/devel/doctored-fixtures/phase8f/` (regenerable, never committed; basis = recipe + decoded metrics). JXL matches the 8F record exactly; HEIC10 `nonbyte_components` 110107 measured vs 110107 recorded and ProRes frame-0 `max_rgb_error` [52, 27, 60] measured vs [52, 27, 60] recorded, within the unchanged 64-code bound. JP2 is now a supported byte still (11D). `--require-current` passes: host 40 groups, MCP 26 groups / 546 calls on a pinned worktree of `acdf6d0` (2026-09-27). The 9A `--media` default is removed.
+- `DONE` — corpus re-authored and matched the 8F record (2026-09-27); the probe's prepare step and drive were removed 2026-10-10.
 - `DONE` — why the probe passed while the app still refused opaque stills: its "opaque" stills are not opaque-layout files. `fixtures.py` always writes RGBA PNGs (`opaque=True` only sets alpha to max), and `magick` keeps that alpha plane, so `rgb8.heic`, `rgb10.heic` and `pair/Live.heic` carry alpha (`heif-info`: "alpha channel: yes"). ImageIO decodes them to `rgba8` / `rgba16_le`, and `pair-jpeg/Live.jpg` to 24-bit `rgb8`, all admitted even before opaque stills opened (measured on the re-authored corpus with `HostStillDecoder`'s options, 2026-09-27). The `Live.heic` recipe is unchanged since `9b3f65c`. The lost `/tmp` `rgb8`/`rgb10` recipe is unknown, but the re-authored HEIC10 matches its decoded record. The probe never accepts a refusal: `opened()` goes through `Client.call`, which asserts `isError` is false. It still does not cover RGBX/packed-10 layouts; the committed `core/tests/fixtures/host_stills_opaque/` fixtures gated by `verify_phase11d_formats.py` do.
-- `TRACKED` — Expanded multiframe ProRes cross-decoder conformance at the unchanged 64-code bound → plan §13D ("preserve the failed expanded ProRes comparison … as an open gate") and §11D.
-- `TRACKED` — HEVC movie frames, broader codec matrix → plan §11D open list; HDR/float host input → §11F; broader size/cancellation → P7-32 / P7-33 (§13C/§13D).
+- `DROPPED` (2026-10-30) — Expanded multiframe ProRes cross-decoder conformance: retained host sources were removed 2026-10-10 and frames land as plain pixels, so decoder agreement has no user-visible effect.
+- `OPEN` [#15](https://github.com/kpgalligan/doctored/issues/15) — SDR HEVC movie frames (`HostVideoDecoder.swift` admits only `avc1`/`ap4h`/`ap4x`); HDR movie frames, refused by `requireSDR` whatever the codec, are a separate item of the same issue.
+- `DONE` — HDR host stills open as 32-bit float documents (`core/src/float_host_intake.rs`).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — broader size and cancellation (carryover P7-32 / P7-33).
 - `DONE` — Typed capture packets/PPI for host stills (11D typed metadata bridge; selected movie frames still disclose the gap by design).
 - `DONE` — Typed auxiliary matte import (9G, P7-08).
 - `DONE` — Retained-source group/perspective/whole-document geometry (12F-2, `07d9153`; Canvas Size by 12F-1).

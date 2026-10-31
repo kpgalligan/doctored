@@ -1,6 +1,6 @@
 # Phase 7 high-depth editing — overview (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11), [#12](https://github.com/kpgalligan/doctored/issues/12))
 - **Phase / dates:** 7A–7E, 2026-09-10 (downstream notes through Phase 10D/9I)
 - **Original:** [archive/phase-7-high-depth-status.md](../archive/phase-7-high-depth-status.md) — full history, measurements, receipts
 - **Key commits:** `082ccb1` (7A), `2d9bc69` (7B), `4061646` (7C), `7e60190` (7D), `3bd4349` (7E)
@@ -9,8 +9,8 @@
 Phase 7 made Doctored a genuinely high-depth editor. The byte editor lost source precision at import, at isolated
 group boundaries and inside tone/color operations; a wider store alone could not fix that. Phase 7 was split into five
 independently qualified slices, ending with a public 16-bit mode that exposes only a qualified subset and assigns every
-remaining gap to a named later slice. The [Phase 6 cutout quality gate](phase-6-selection-mask-status.md) was **not**
-closed or waived by starting Phase 7.
+remaining gap to a named later slice. Starting Phase 7 did not close the
+[Phase 6 cutout quality gate](phase-6-selection-mask-status.md); it stopped being a ship condition on 2026-10-10.
 
 ## Decisions
 - **Slice sequence and where each contract lives:**
@@ -24,8 +24,8 @@ closed or waived by starting Phase 7.
   | 7E | Public mode inside existing history/recovery, explicit conversion, export dithering | [public mode](phase-7-public-mode-status.md), [conversion/readout](phase-7-conversion-readout.md) |
 
 - **Authorities:** the [operation matrix](phase-7-operation-support.md) states what is enabled today; the
-  [carryover ledger](phase-7-carryovers.md) owns every remaining gap (P7-nn rows, each with a receiving slice and
-  acceptance criteria). Phase 7 completion closes none of them.
+  [carryover ledger](phase-7-carryovers.md) gave every remaining gap a P7-nn row with a receiving slice and
+  acceptance criteria; it closed 2026-10-30 and its open rows are issues. Phase 7 completion closed none of them.
 - **Code anchors:** typed storage/compositing `core/src/precision_image.rs` / `core/src/precision_render.rs`; the
   typed document `core/src/precision_document.rs`; the family gate `core/src/precision_capability.rs` and its host
   mirror `app/Sources/DocumentPrecision.swift`; measurements `core/examples/phase7_precision.rs` and the source-linked
@@ -44,19 +44,21 @@ closed or waived by starting Phase 7.
 - Later phases (8–13) extend the typed path rather than the byte one, and each closes its P7 rows with its own UI,
   MCP/Actions, Undo, native and recovery evidence.
 - Native typed documents now write layered conditional wrappers on top of the v11–v13 base records (up to the float
-  v40 wrapper and later `.rz` tables); byte documents keep their own versioning, and each reader refuses the other's
+  v40 wrapper and later native tables); byte documents keep their own versioning, and each reader refuses the other's
   typed versions before decoding pixels.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Phase 6 / 9I cutout quality gate (advanced refinement, color decontamination) → carryover P7-12.
-- `TRACKED` — linear-light phases 2–3 → carryover P7-24 (11E).
-- `TRACKED` — full-frame fallbacks and stage-only cancellation, slow 24 MP full projections/conversions → carryover
-  P7-31 (closes with 13A-latency).
-- `TRACKED` — noncancellable compound export/codecs, uncompressed native payloads → carryover P7-32 (13C).
-- `TRACKED` — 48 MP and broader multilayer/history/snapshot workloads, app residency beyond the declared runs →
-  carryover P7-33 (13D).
-- `TRACKED` — stroke/text/canvas caps (50,000 dabs, 4,096 UTF-16 units, plane/aggregate limits) → carryover P7-34 (13D).
-  A brush now reaches 5,000 px, the stroke work cap is 2 billion units, a canvas stroke that reaches a cap
+- `DONE` — edge brushing and colour decontamination ship in Select and Mask (2026-10-11; `core/src/edge_refine.rs`,
+  `core/src/foreground_solve.rs`); the Phase 6 / 9I quality gate is no longer a ship condition (carryover P7-12).
+- `OPEN` [#12](https://github.com/kpgalligan/doctored/issues/12) — linear-light phases 2–3 (carryover P7-24).
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — full-frame fallbacks and stage-only cancellation,
+  slow 24 MP full projections/conversions (carryover P7-31).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — noncancellable compound export/codecs,
+  uncompressed native payloads (carryover P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — 48 MP and broader multilayer/history/snapshot
+  workloads, app residency beyond the declared runs (carryover P7-33).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — stroke/text/canvas caps (50,000 dabs, 4,096
+  UTF-16 units, plane/aggregate limits; carryover P7-34). A brush now reaches 5,000 px, the stroke work cap is 2 billion units, a canvas stroke that reaches a cap
   stops laying ink and commits what was laid, and one 16-bit image holds the 100 MP document limit.
 - `DONE` — native save plan and reopen charge measured retained operator data plus the
   peak preparation allowance, so long simple stacks reach 1,024 records; see [tone/color](phase-7-tone-color.md).

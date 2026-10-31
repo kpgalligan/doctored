@@ -1,6 +1,7 @@
 # Paths, the Pen tool and vector masks (ADR)
 
-- **Status:** Accepted
+- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13),
+  [#19](https://github.com/kpgalligan/doctored/issues/19))
 - **Date:** 2026-10-11
 - **Closes the track items:** "Pen/Bézier node editing" and "path operations/vector masks" of *Text and paths* in the
   [plan](professional-photo-editor-implementation-plan.md)
@@ -18,7 +19,7 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   The kernel is `core/src/path_geometry.rs`; it names no document type.
 - **The list.** A document holds up to 256 paths (`doc_path.rs`): at most one **work path** (always first,
   always named "Work Path") and saved paths with unique names. One cap covers every path and every live
-  vector-mask shape: 65,536 anchors, sized so the `.rz` table's JSON stays under its 16 MiB limit.
+  vector-mask shape: 65,536 anchors, sized so the native file's `PATH` table JSON stays under its 16 MiB limit.
   `list_refusal` is the one home of these rules, and its sentence is what the FFI and MCP return.
 - **A path edit is render-neutral.** It goes through `ImageDocument.applyPathEdit` (`applyGuideEdit`): one
   undo step, the document dirty, no reprojection. The **current path** is view state (`currentPath`), not
@@ -26,7 +27,8 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
 - **Geometry.** Paths follow crop, canvas size, image size, rotate/flip, arbitrary rotation and perspective
   crop through the same point map a colour sampler takes at that call site. They are never dropped and never
   clamped to the canvas; a coordinate that would leave ±1,000,000 lands on that wall.
-- **`.rz`.** Word 74 (byte) / 75 (typed) is the first word inside the identity wrapper, and the `PATH` table
+- **`.doctored`** (legacy `.rz` still read). Word 74 (byte) / 75 (typed) sits inside the identity wrapper, after
+  the conditional word 79 (`raw_locals_native`), and the `PATH` table
   is the last before `LIDS`. It is written only when a path or a live vector mask exists, so any other
   document is byte-for-byte the earlier writer's file. Ids are minted on load. A flat save names `"paths"`
   among its losses. PSD and TIFF carry no path.
@@ -78,18 +80,21 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   the target document, which a recorded Pen or Make Work Path step earlier in the same action provides.
 
 ## Not in v1
-- Curvature Pen; Freeform and Magnetic pen.
-- Type on a path.
-- Clipping paths for print.
-- Convert Path to Shape layer.
-- Reading or writing paths and vector masks in PSD or TIFF: export writes the baked mask, and an imported
-  PSD's `vmsk`/`vsms` stays a reported loss.
-- Path Selection and Direct Selection as separate tools; path boolean operations; per-path fill and stroke
-  dialogs.
-- Pressure or canonical-dab strokes along a path.
-- A vector mask surviving warp, perspective, perspective crop, straighten, arbitrary canvas rotation, layer
-  duplicate, the clipboard, a merge, or any resampling transform while it has a raster mask beside it: there
-  it becomes a raster mask with the same picture.
+- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Type on a path.
+- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Convert Path to Shape layer (shape layers
+  hold only rectangle, ellipse and line geometry).
+- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Path Selection and Direct Selection as
+  separate tools; path boolean operations; per-path fill and stroke dialogs.
+- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — reading or writing paths, vector masks and
+  clipping paths in PSD or TIFF: export writes the baked mask, and an imported PSD's `vmsk`/`vsms` stays a
+  reported loss.
+- `DROPPED` (2026-10-30) — Curvature Pen; Freeform and Magnetic pen: the Pen covers authoring, and the Magnetic
+  Lasso plus Make Work Path covers edge tracing.
+- `DROPPED` (2026-10-30) — pressure or canonical-dab strokes along a path: Stroke Path ships, and simulated
+  pressure has no request on record.
+- `DROPPED` (2026-10-30) — a vector mask surviving warp, perspective, perspective crop, straighten, arbitrary
+  canvas rotation, layer duplicate, the clipboard, a merge, or any resampling transform while it has a raster
+  mask beside it: each bakes to a raster mask with the same picture, so nothing visible is lost.
 
 ## Consequences
 - A feature that replaces a layer's mask plane does not need to know about vector masks: the record dies and

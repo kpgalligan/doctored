@@ -30,18 +30,8 @@ leaves preview reservations registered fails with `FAIL [<case>]: left <n> B of
 preview reservations registered in SelectionWorkBudget`. The check is
 relative to the case's entry, so only the retaining case fails and later cases do
 not cascade. It stays as the regression guard; a passing run reads `0 B (0 B at
-entry)` for every case.
-
-What it found: a full run used to end with 215,674,368 B registered, left
-by four cases — "closed view panels" 3,145,728 B (it retains them run alone too),
-"more composite readers" 199,945,728 B, "precision readers" 3,145,728 B and "info
-analysis" 9,437,184 B. All four were probe artefacts, not app retention:
-`main.swift` is top-level code with no autorelease pool of its own, so the objects
-a case autoreleased, and the preview reservations reachable from them, were never
-released. Run with `try check()` inside `autoreleasepool { }` all four drained to
-0 B, and the same four cases without the pool retained the same bytes, so the loop
-now runs every case inside its own pool. "preview own lease" reports `0 preview
-bytes registered at entry` in a full run; its own entry-relative drain stays.
+entry)` for every case. Every case runs inside its own autoreleasepool, because
+top-level `main.swift` has none.
 
 "transforms" checks that the Free Transform commit's modal wait services the main
 run loop with a gated heartbeat: a 2 ms timer in the common and modal-panel
@@ -210,37 +200,7 @@ blue edge at 37%) is compared with `displayRGBA8` + `RasterDocument.fitted`
 for drift (≤ 2 codes); its timing is reported, not required, since both paths
 tone-map every sample through the same encoder and differ only by the
 whole-layer copy the miss saves.
-One `INFO:` line per measurement. Measured at batch 83 (Apple Silicon,
-release core, `-Onone` probe; every row from one run):
-
-| case | before_ms (median of 3) | miss_ms (median of 3) | hit_ms | drift |
-| --- | --- | --- | --- | --- |
-| 8-bit 6000 × 4000 → 34 × 23 | 73.9 | 39.6 | 0.003 | 1 |
-| 16-bit 6000 × 4000 → 34 × 23 | 116.6 | 41.9 | 0.005 | 2 |
-| 8-bit 6000 × 4000 mask → 28 × 19 | 91.5 | 10.0 | 0.002 | 0 |
-| 16-bit 6000 × 4000 mask | — | 11.5 | 0.001 | — |
-| 16-bit 600 × 400 mask → 28 × 19 | 75.8 | 2.0 | 0.001 | 0 |
-| 16-bit 600 × 400 Channels mask row → 34 × 23 | 77.3 | 2.1 | — | 0 |
-| 16-bit 600 × 400 Channels alpha row → 34 × 23 | 77.0 | 2.0 | — | 1 |
-| float 48 × 32 | — | 1.0 | 0.007 | — |
-| float 2400 × 1600 → 34 × 23 | 1084.5 / 1038.6 (the two misses before the bucket index) | 107.6 | — | 0 |
-
-The float row's `before_ms` is the miss itself as batch 80 measured it, when every
-sample's tone-map encode (`FloatPolicy::encode_sdr` → `PrecisionToneEncoder::rgb`) ran
-three binary searches over the profile encoder's 65 537-entry tables. Each
-search now starts from a 4096-bucket index into those tables and searches only
-its bucket, which finds the same interval, so every output bit is unchanged
-(`core/tests/precision_icc_math.rs` compares it with the whole-table search
-over every curve kind); a call measures ~20 ns against ~90 ns before, and the
-miss 107.6 ms against 1084.5 / 1038.6 ms. The replaced float path
-(`displayRGBA8` + `RasterDocument.fitted`) shares the encoder and now measures
-136.3 ms, still above the miss. The 8-bit mask's `before_ms` (91.5 ms) is the
-former path's `dr_doc_layer_mask_image` RGBA expansion plus the kernel over
-24 MP; the Channels rows' (77 ms) is mostly the Swift `-Onone` per-sample
-conversion of the whole 600 × 400 plane, which the core arm never builds.
-The ~360 ms figure once reported for a 16-bit miss is not reproduced by this
-probe: the replaced path measures 116.6 ms here (154.8 and 123.6 ms at batch
-80), against 41.9 ms for the miss.
+One `INFO:` line per measurement.
 "composite readers" checks that Apply Image / Calculations from Merged, their
 sheet previews, the Evaluation readout and Remove Red Eye read the retained 8-bit
 projection only for its own handle, and that a render failure answers the core's
@@ -1109,7 +1069,7 @@ Pencil, presses Smooth and Apply (destructive at 8, 16 and 32 bits on RGB and at
 a CMYK document's ink, and an adjustment layer's create and edit arms), checking each map against
 the file's own stroke and Smooth and points → map against the core's byte table.
 
-"cmyk type tool" (`ui_cmyk_artwork.swift`, #1's artwork batch) admits the Type and shape tools
+"cmyk type tool" (`ui_cmyk_artwork.swift`, the CMYK artwork batch) admits the Type and shape tools
 and the New Fill Layer items on a CMYK document, picks K 100 as the foreground ink, types "Ink" in
 a canvas session and requires the committed text layer's stored ink to be exactly `[0, 0, 0, 1, 1]`;
 an unchanged reopen adds no step and an edit of the string keeps the ink. "cmyk fill layer sheet"

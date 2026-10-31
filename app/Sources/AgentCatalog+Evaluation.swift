@@ -63,8 +63,9 @@ extension AgentServer {
             case "image_size":
                 let existing = (catalog[index]["description"] as? String) ?? ""
                 let note: String = " Refused on a document whose evaluation policy is "
-                    + "linear_light: resampling in the stored encoding is phase 2 of that "
-                    + "work (get_evaluation reports the sentence). A 32-bit float document "
+                    + "linear_light: Image Size resamples in the stored encoding, which "
+                    + "linear-light evaluation does not support yet (get_evaluation reports "
+                    + "the sentence). A 32-bit float document "
                     + "is linear light by construction and is NOT refused: its samples are "
                     + "already linear, so it resamples them directly."
                 catalog[index]["description"] = existing + note

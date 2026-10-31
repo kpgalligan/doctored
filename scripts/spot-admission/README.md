@@ -1,4 +1,4 @@
-# #1 spot channels 1c-1 and 1c-2a admission drive
+# Spot channels 1c-1 and 1c-2a admission drive
 
 Every memory plan term spot channels 1c-1 added — Merge Spot Channel at 16 bits, in Lab and in
 CMYK, and the overprint of a flattened typed export (RGB16 PNG, 32-bit OpenEXR, a kept-CMYK JPEG)

@@ -1,6 +1,6 @@
 # Output color control — LUT profiles, intents, soft proofing, conversion policy (ADR)
 
-- **Status:** Accepted — open items remain (soft-proof reference-CMS gate T3 is a recorded miss)
+- **Status:** Accepted — open items remain ([#16](https://github.com/kpgalligan/doctored/issues/16): soft-proof reference-CMS gate T3 is a recorded miss; [#1](https://github.com/kpgalligan/doctored/issues/1): PDF/X)
 - **Phase / dates:** 11C, receipt 2026-09-17
 - **Originals:** [archive/phase-11c-output-color-status.md](../archive/phase-11c-output-color-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-11c-output-color-status.md](../archive/2026-10/phase-11c-output-color-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `54d2547`
@@ -62,13 +62,13 @@ The overriding constraint: default conversions and every 11A/11B default export 
   repairs — assign anything, convert out of anything. An 8-bit file embedding one is therefore CONVERTED on open.
   Export and Convert INTO one are refused by the CORE's own preflights, before any work, with `dr_icc_describe`'s
   `export_refusal` / `convert_refusal` sentence (`icc_encode_refusal.rs`): `ExportRequest::destination_refusal` in
-  every byte and typed export entry point after the bit-depth check, both `conversion_preflight`s and
-  `live_filter_profile::plan` right after the own-bytes rule. The document's own bytes under a non-absolute intent
+  every byte and typed export entry point after the bit-depth check, and both `conversion_preflight`s right
+  after the own-bytes rule. The document's own bytes under a non-absolute intent
   with BPC off are exempt, and `"profile":"document"` never converts, so it never refuses. The host keeps only the
   gates that must answer before the core is reached: Export Layers' whole-run check, contact sheets and preset save;
   a batch run decides per file through the core's export refusal, own-bytes exemption included. Every other encode
   into such a document's OWN profile (16-bit painting and artwork, linear-light at both depths, soft proof, a
-  retained source's 16-bit render, a converted paste, an abstract Color Lookup look; a new or re-edited calibrated
+  RAW layer's 16-bit render, a converted paste, an abstract Color Lookup look; a new or re-edited calibrated
   Exposure / White Balance is refused first through the core's `calibratedRefusal` query, which the host asks and
   `dr_doc_adjust_image` backs up, with this same sentence at both depths) answers one capitalised sentence naming
   the profile and pointing at Image ▸ Mode ▸ Convert to Profile… (no fallback encoder). ASSIGN of such a profile is
@@ -88,8 +88,8 @@ The overriding constraint: default conversions and every 11A/11B default export 
 - **Gamut rule**: out of gamut iff CIE76 ΔE\*ab (D50) between a pixel's Lab and its proof round trip > **5.0**, the
   round trip being **relative colorimetric always** (lcms's rule) regardless of setup intent — otherwise perceptual
   flags printable colours. Overlay = opaque `gamut_color` (default 50 % grey); alpha copied.
-- **Proofing is view state only**: `ProofDisplay` on `EditorViewController`, never `EditingState`, `.rz`, undo,
-  dirty flag or an Action. Drawn through the display-only `ImageCanvasView.proofImage` slot
+- **Proofing is view state only**: `ProofDisplay` on `EditorViewController`, never `EditingState`, the
+  `.doctored` file, undo, dirty flag or an Action. Drawn through the display-only `ImageCanvasView.proofImage` slot
   (`previewImage ?? proofImage ?? image`), never assigned to `canvas.image` (whose `didSet` resets selection etc.).
   A sheet's live preview wins over the proof and is unproofed.
 - **16-bit proof = the display codes**: at 16 bits the canvas and the default `render_proof` proof the RETAINED
@@ -115,18 +115,19 @@ The overriding constraint: default conversions and every 11A/11B default export 
   `document_v2` Exposure/WB layer by name (offering the bake only when it would succeed), preserve appearance bakes a
   visible one under the same rules and refuses a hidden one, and a `linear_light` document refuses the destination
   (`core/tests/conversion_lut_destination.rs`).
-- **Assign + 8A**: `assign_profile` refuses (naming the count) while retained sources or live filters exist;
+- **Assign + 8A**: `assign_profile` refuses (naming the count) while RAW layers exist;
   `assign_profile_rasterizing` / `rasterize_sources: true` rasterizes via `SourceEdit::Rasterize` then assigns as
   ONE undo step. Both also refuse a profile with no matrix/TRC model while a `document_v2`
   Exposure/WB layer exists or the document is `linear_light` (`dr_doc_assign_profile_refusal`, shown per choice by the
-  Assign sheet, thrown first by `assign_profile`). On retained-source/live-filter documents BPC, absolute, and
+  Assign sheet, thrown first by `assign_profile`). On documents with RAW layers BPC, absolute, and
   perceptual or saturation with a LUT side refuse, naming the count and the setting that keeps the sources bound
   (relative colorimetric, BPC off); relative to or from a LUT profile converts at 8 bits, every source re-rendering
   through `retained_source_render::lut_pipeline` (relative, no BPC), so the 9A cache key needs no intent.
 - **Export**: `intent`, `black_point_compensation`, `profile: "file"` + `profile_path` join the 11A request; the host
   resolves `profile: "installed"` + `profile_name` to a path first so recordings carry a value. `info_json` gains
   `profile_name`, `intent`, `black_point_compensation`.
-- Surfaces: Convert/Assign sheet additions; View ▸ Proof Setup…, Proof Colors ⌘Y, Gamut Warning ⇧⌘Y; MCP
+- Surfaces: Convert/Assign sheet additions; View ▸ Proof Setup ▸ Custom… (and saved presets), Proof Colors ⌘Y,
+  Gamut Warning ⇧⌘Y; MCP
   `get_proof_setup`, `set_proof_setup`, `render_proof`, `describe_profile`, `list_installed_profiles` (all
   `nonRecordable`), plus new args on `convert_profile` / `assign_profile` and `can_decode` on `get_color_profile`.
 
@@ -139,27 +140,28 @@ The overriding constraint: default conversions and every 11A/11B default export 
 - Widening the tolerance after T3 missed — tolerances are fixed before measurement.
 
 ## Consequences
-Default conversion/export byte identity is load-bearing (`conversion_policy_tests`, `export_pipeline`). CMYK
-profiles are read for proofing/gamut only. Tests: `core/tests/{icc_lut,color_intent,soft_proof,conversion_policy}_tests.rs`;
-drive `scripts/verify_phase11c_color.py` (T1–T6 tolerances fixed in-file). **T3 result (2026-09-17, FOGRA39 vs
+Default conversion/export byte identity is load-bearing (`conversion_policy_tests`, `export_pipeline`). Tests:
+`core/tests/{icc_lut,color_intent,soft_proof,conversion_policy}_tests.rs`; drive `verify_phase11c_color.py`
+(T1–T6 tolerances fixed in-file; in the private archive `kpgalligan/doctored-dev`). **T3 result (2026-09-17, FOGRA39 vs
 Adobe ACE, tolerance mean ≤ 2.0 / p95 ≤ 4.0 / max ≤ 8.0 ΔE76):** perceptual+BPC mean 1.87, relative 3.52,
 relative+BPC 4.15, absolute 5.59 — a miss; the gamut-mask half of C6 passes exactly (8 249 / 17 152 under both
 intents). T2 (vs ACE, matrix) is within 1–2 codes; T5 preserve-appearance mean 0.126 vs keep-parameters max 65.
 
-## Open items (verified 2026-10-07)
-- `TRACKED` — T3 soft proof vs Adobe ACE misses its fixed tolerance. Acceptance: per-stage comparison against a
-  third CMS (Little-CMS built from source as an owned fixture) isolating the B2A read, then a named defect fixed or
-  a written finding from which the tolerance is re-derived → plan §11 "Gate assessment", NOT MET (1).
-- `TRACKED` — writing CMYK/Gray/spot files, CMYK mode, PDF/X → plan §11 **Boundary** and the "Specialist
-  production" follow-on track.
-- `TRACKED` — Gray as convert/export destination → plan §11 11D bullet ("a gray DESTINATION … stay open").
-- `TRACKED` — physical print samples: deferrable runbook (proof to the loaded paper profile, export 16-bit TIFF with
-  that profile/relative/BPC, print unmanaged, compare under D50; steps in the archive) → plan §11 11C bullet.
+## Open items (verified 2026-10-30)
+- `OPEN` [#16](https://github.com/kpgalligan/doctored/issues/16) — T3 soft proof vs Adobe ACE misses its fixed
+  tolerance. Acceptance: per-stage comparison against a third CMS (Little-CMS built from source as an owned
+  fixture) isolating the B2A read, then a named defect fixed or a written finding from which the tolerance is
+  re-derived.
+- `DONE` — CMYK and Grayscale document modes and CMYK, Gray and spot files (`cmyk_document.rs`, `cmyk_export.rs`,
+  `gray_convert.rs`, `gray_export.rs`, `tiff_spot.rs`, `psd_spot.rs`; [cmyk-mode-status.md](cmyk-mode-status.md),
+  [grayscale-mode.md](grayscale-mode.md), [spot-channels.md](spot-channels.md)), Gray as a convert/export
+  destination included.
+- `OPEN` [#1](https://github.com/kpgalligan/doctored/issues/1) — PDF/X output.
+- `DROPPED` (2026-10-30) — the physical print-sample runbook: a manual print session that gates nothing; the
+  profile path is covered by the automated proof and export tests.
 - `DROPPED` — evaluating `document_v2` Exposure/White Balance through a two-way LUT, which needs
   `adjust_calibrated` to decode through `ColorPipeline`; the gate stays matrix/TRC (`dr_doc_profile_is_convertible`).
 - `DROPPED` — exact 16-bit proof on the canvas through parallel core row bands (Decisions, **16-bit proof**).
-- `DONE` — persisted intent and BPC on retained-source and live-filter layers: a bound source converts only at
-  relative/no BPC, so there is none to persist (head).
 - `DONE` — `rasterize_sources` on Convert for BPC and absolute on source documents (head).
 - `DROPPED` — proof targets through `D2Bx`/`B2Dx`; refused today (Decisions, **Refused**).
 - `DROPPED` — `nCLR` proof targets; refused today by colourant count.
@@ -167,10 +169,8 @@ intents). T2 (vs ACE, matrix) is within 1–2 codes; T5 preserve-appearance mean
 - `DONE` — every refusal names what the profile really is; the refused set is unchanged (Decisions, **Refused**;
   `core/tests/icc_lut_tests.rs`).
 - `DROPPED` — named-colour support: such a profile is a list of colours, not a pixel transform.
-- `DONE` — the live-filter guard is back on the unchecked byte `convert_to_profile_with` alone
-  (`LIVE_FILTER_ROUTE`); hosts convert through the checked live-filter path. One
-  `ConversionOptions::source_refusal` for both depths; preserve appearance is admitted
-  beside a placed source, refused beside a live filter (`core/tests/source_conversion_policy.rs`).
+- `DONE` — one `ConversionOptions::source_refusal` for both depths; preserve appearance is admitted beside a RAW
+  layer (`core/tests/source_conversion_policy.rs`).
 - `DONE` — the 8-bit LUT conversion that keeps sources bound (Decisions, **Assign + 8A**). The work gate charges the
   LUT colour visit at `LUT_COLOR_WORK_FACTOR`; 16/32 bits still refuse a LUT side
   (`core/tests/source_conversion_lut.rs`).
@@ -184,11 +184,13 @@ intents). T2 (vs ACE, matrix) is within 1–2 codes; T5 preserve-appearance mean
 - `DONE` — the encode refusals live in the core, the preset save refusal and the own-profile sentence (Decisions,
   **A failing matrix profile**). The Swift-side export and Convert checks are deleted
   (`core/tests/encode_refusals.rs`); there is no fallback encoder.
-- `PARTIAL` — authored colours on an 8/16-bit LUT-tagged document convert into it once (measured against Photoshop,
+- `DONE` — authored colours on an 8/16-bit LUT-tagged document convert into it once (measured against Photoshop,
   take `lut-style-colours-100/take1`, B-APP): styles, lfx2/`phfl`, artwork, `srgb` ink and the host through
   `authored_color` / `dr_authored_color` (relative, no BPC); a LUT that cannot convert both ways keeps the numbers
-  (`core/tests/lut_authored_colors.rs`). Phase 1; not covered: a typed hex read as document RGB, Convert to Profile
-  into a LUT at 16/32 bits, and `srgb_rgba` on LUT samples.
+  (`core/tests/lut_authored_colors.rs`).
+- `OPEN` [#16](https://github.com/kpgalligan/doctored/issues/16) — the rest of authored colours on a LUT-tagged
+  document: a typed hex read as document RGB, `srgb_rgba` on LUT samples, and Convert to Profile into a LUT at 16
+  bits. (A 32-bit float document requires a matrix/TRC profile by design.)
 - `DONE` — the 8-bit canvas proof and `render_proof` proof the RETAINED projection
   (`ImageDocument.retainedByteProjection`, `ProofSource.flat(doc, retained)`) and render the document only when none
   is retained; pixels and `out_of_gamut` are unchanged.
@@ -201,7 +203,7 @@ intents). T2 (vs ACE, matrix) is within 1–2 codes; T5 preserve-appearance mean
   covers the diagnostic need.
 - `DONE` — soft proof (menu + MCP) at 16 bits (Decisions, **16-bit proof**; `soft_proof_tests.rs`, 9H
   `soft-proof-menu-ui`).
-- `DONE` — MCP-level 16-bit soft proof check: `scripts/verify_phase11c_softproof16.py` (G1–G5). The canvas
+- `DONE` — MCP-level 16-bit soft proof check: `verify_phase11c_softproof16.py` (G1–G5; private archive). The canvas
   cancel-on-new-request check lives in 9H `soft-proof-menu-ui`, because the canvas proof slot has no MCP surface.
 - `DONE` — the 16-bit preserve-appearance Convert plans with its own `dr_precision_doc_conversion_plan`
   (`PrecisionDocument::conversion_plan`), which counts the bake renders and the baked layers; formula and 24 MP

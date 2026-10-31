@@ -1,10 +1,10 @@
 # Versioned linear-light evaluation, phase 1 of P7-24 (ADR)
 
-- **Status:** Accepted — open items remain (P7-24 phases 2–3)
+- **Status:** Accepted — open items remain ([#12](https://github.com/kpgalligan/doctored/issues/12): P7-24 phases 2–3)
 - **Phase / dates:** 11E phase 1, drive run 2026-09-18 (all seven gates E1–E7 pass)
 - **Original:** [archive/phase-11e-linear-light-status.md](../archive/phase-11e-linear-light-status.md) — full history, measurements, receipts
 - **Key commits:** `6d4b1b0`
-- **Carryover:** first of three slices of **P7-24** (row stays open)
+- **Carryover:** first of three slices of **P7-24** (the rest: [#12](https://github.com/kpgalligan/doctored/issues/12))
 
 > **Removed 2026-10-10:** smart objects, live filters and non-RAW retained sources (placed images, host
 > media, Live Photo frames) are gone for v1; camera RAW layers stay. Where this record describes them, that
@@ -28,7 +28,7 @@ their evaluation exactly, and each operation is migrated and verified before it 
   `doc_evaluation.rs`'s `REFUSED`, exported as JSON by `dr_evaluation_operators`.
 - **Migrated:** Normal + the 19 separable modes (`blend::composite_source_into` unchanged — only inputs decoded),
   opacity, masks, pass-through/isolated/clip groups, pointwise adjustment layers (incl. `document_v2`
-  exposure/WB), text/shape/Live Photo rasters, export/preview/history/snapshots/recovery, profile assign/convert
+  exposure/WB), text/shape rasters, RAW layers, export/preview/history/snapshots/recovery, profile assign/convert
   (`rebind_evaluation` rebuilds tables), depth conversion (tables rebuilt for the target depth).
 - **Encoded documents take the `transfer == None` branch everywhere** and are byte-for-byte unchanged;
   `linear_light_refusal()` returns `None` before walking.
@@ -47,7 +47,8 @@ their evaluation exactly, and each operation is migrated and verified before it 
 - **Byte group boundaries keep byte quantization** (`doc_group::rendered_group` re-encodes through `env.transfer`),
   matching `doc::quantize`'s invariant; typed groups stay f32.
 - **Persistence** (`core/src/evaluation_native.rs`): an outermost conditional wrapper written **only** for a
-  linear-light document: `"RZDC" | 38 (byte) / 39 (typed) | <prior words and body> | "EVAL" | schema 1 | policy 1`.
+  linear-light document: `"DRDC" | 38 (byte) / 39 (typed) | <prior words and body> | "EVAL" | schema 1 | policy 1`
+  (legacy `"RZDC"` still read).
   Encoded documents write neither word nor table. Policy 0 is never written and refused on read; bad
   schema/policy/trailing word or an undecodable profile refuse before any PNG decode. Typed descriptor tags
   `encoded_rgb_f32_v1` / `linear_light_f32_v1`; editing-state archive **v4** (`legacy` / `encoded_rgb_f32_v1` /
@@ -55,10 +56,9 @@ their evaluation exactly, and each operation is migrated and verified before it 
   disclosure. (`DRDC_VERSION` was 39 at ship; later wrappers raised it.)
 - **Policy needs a finite monotone forward TRC per channel**: LUT-only profiles or ones `validate_precision` rejects
   are refused (not a phase item).
-- **A retained source without a live filter is admitted.** No compositor reads
-  the binding, so the layer composites its fallback like any raster; its re-render on transform/replace is unchanged
-  and resamples in the STORED encoding, as raster Free Transform and warp already do under linear light. The
-  refused row is now "a live filter" (`doc_evaluation::LIVE_FILTER_OPERATOR`); `MIGRATED` gains `retained_source`.
+- **A RAW layer is admitted.** No compositor reads the binding, so the layer composites its fallback like any
+  raster; its re-render on transform/replace is unchanged and resamples in the STORED encoding, as raster Free
+  Transform and warp already do under linear light. `MIGRATED` holds `retained_source`.
 - **`image_size`'s refusal sentence lives in the core** (`doc_evaluation::resize_refusal_sentence`, shipped in the
   operators JSON as `resize_refusal`) so the host guard and MCP pre-check can't drift.
 - **Recordability:** `get_evaluation` is `nonRecordable` (like every sibling read); `set_evaluation` is a recordable
@@ -78,15 +78,15 @@ construction on top of this policy. Tests: `core/tests/evaluation_{transfer,comp
 gate; 2 for the disclosed fixture; typed 24/65535, derived from the sampled-TRC-vs-analytic bound); drive
 `scripts/verify_phase11e_linear.py`.
 
-## Open items (verified 2026-09-26)
-- `TRACKED` — **Phase 2**: live-filter stack under linear light (decode before the Gaussian neighbourhood; cache keys
-  carry the policy), geometric resampling (Free Transform, warp, placed-image re-render) in premultiplied linear,
-  Image Size / typed `resize` in premultiplied linear. Still refused (`core/src/doc_evaluation.rs:191`) → P7-24.
-- `TRACKED` — **Phase 3**, each needing its own linear-light oracle: the six non-separable modes (W3C
-  `Lum`/`ClipColor` weights restated for linear), Dissolve (show its dither is domain-independent or give it one),
-  layer styles and Blend If (restate the plane contract, choose the ramp's domain), the Shadows/Highlights guide
-  (choose and measure the guide's domain), and whether destructive paint/fill/blur acquire a domain (today they are
-  storage edits and not refused) → P7-24.
+## Open items (verified 2026-10-30)
+- `OPEN` [#12](https://github.com/kpgalligan/doctored/issues/12) — **Phase 2** (P7-24): Image Size / typed
+  `resize` in premultiplied linear (refused, `doc_evaluation::REFUSED`), and geometric resampling (Free Transform,
+  warp, RAW re-render) in premultiplied linear (admitted today, resampling in the stored encoding).
+- `OPEN` [#12](https://github.com/kpgalligan/doctored/issues/12) — **Phase 3** (P7-24), each needing its own
+  linear-light oracle: the six non-separable modes (W3C `Lum`/`ClipColor` weights restated for linear), Dissolve
+  (show its dither is domain-independent or give it one), layer styles and Blend If (restate the plane contract,
+  choose the ramp's domain), the Shadows/Highlights guide (choose and measure the guide's domain), and whether
+  destructive paint/fill/blur acquire a domain (today they are storage edits and not refused).
 - `DROPPED` — PSD export of a linear document beyond today's behaviour; CMYK/Gray destinations; HDR/float (done
   separately in 11F); `PrecisionStateArchive.swift` coverage (internal probe archive used only by
   `scripts/precision-probe/`) — all declared out of scope for all three phases.

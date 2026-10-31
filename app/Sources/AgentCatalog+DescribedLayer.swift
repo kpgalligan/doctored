@@ -537,7 +537,7 @@ extension AgentServer {
             + "rounded to 0.01; the last stop's is ignored). Outside 0.05…0.95 is refused."]
     }
 
-    /// A CMYK ink argument (#1): C, M, Y, K in percent, kept exactly, its alpha the colour
+    /// A CMYK ink argument: C, M, Y, K in percent, kept exactly, its alpha the colour
     /// argument's beside it, else 1. An RGB document refuses it.
     private static func cmykInk(_ what: String) -> [String: Any] {
         ["type": "array", "items": ["type": "number", "minimum": 0, "maximum": 100],

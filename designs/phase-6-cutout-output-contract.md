@@ -1,6 +1,6 @@
 # Experimental cutout output contract (ADR)
 
-- **Status:** Accepted (shipped as Select and Mask's New Layer outputs, 2026-10-11)
+- **Status:** Accepted — closed (shipped as Select and Mask's New Layer outputs, 2026-10-11)
 - **Phase / dates:** 6C (with 9I execution continuation), 2026-09-10 – 2026-09-12
 - **Original:** [archive/phase-6-cutout-output-contract.md](../archive/phase-6-cutout-output-contract.md) — full history, measurements, receipts
 - **Key commits:** 0155d41, 2e26401
@@ -8,8 +8,8 @@
 ## Context
 An advanced refinement result is an opaque foreground RGB estimate plus a separate alpha. Applying alpha into pixels
 would bake it (and risk applying it twice) and make later mask edits destructive. This defines how such a result
-becomes one reversible document edit. It is internal: no menu, brush, MCP command or Actions entry uses it, and
-assembly correctness does not qualify the matte or colors.
+becomes one reversible document edit. It was built internal (no menu, brush, MCP command or Actions entry) and is
+now Select and Mask's New Layer outputs (below); assembly correctness does not qualify the matte or colors.
 
 ## Decisions
 - **FFI:** `dr_doc_add_refinement_cutout(document, foreground, alpha, control, err)` (`../core/src/ffi_cutout.rs`,

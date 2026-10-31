@@ -1,6 +1,6 @@
 # High-depth layer and document operations (ADR)
 
-- **Status:** Accepted, with open items remaining (10C-3 owns the PSD follow-ups; five small items are untracked)
+- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13): the Background layer kind and PSD layer comps)
 - **Phase / dates:** 12E (12E-1 … 12E-3d), 2026-09-19 → 2026-09-20; closes P7-26, P7-27, P7-37
 - **Original:** [archive/phase-12e-layer-ops-status.md](../archive/phase-12e-layer-ops-status.md): full history, measurement tables (M1–M7, P16/PD/PX), F1–F11 pre-registration, receipts, drive gate lists
 - **Key commits:** `ab5c193` (12E-1), `9d49b2c` (1b), `a03fca9` (1c), `50b2d67` (2), `d8a0538` (2b), `e8af30c` (2c), `78cb0ba` (3), `1a69abb` (3b), `1063561` (3c), `e03026e` (3d)
@@ -86,15 +86,15 @@ byte op is always the specification: each typed twin restates it and adds no rul
 - **Every layer-creating path lands through the slot rule:** `SourceEdit::Place` (optional `anchor` +
   `position`, plan forecasts the positioned edit), `dr_doc_artwork_at` / `dr_precision_doc_artwork_at`, and
   typed `add_layer` (`layer_add`, admitted at 16-bit and float).
-- **Typed source locks are consulted, not wrapped:** live filter/capture/replace → Merge (+ Position when the
-  extent changes); transform → Position; rasterize → Pixels; link/embed/place/retain ungated;
+- **Typed source locks are consulted, not wrapped:** capture/replace → Merge (+ Position when the
+  extent changes); transform → Position; rasterize → Pixels; place/retain ungated;
   `RawDocument::attachment_lock_refusal` → Pixels.
 - **`JobProgressController` sets `animationBehavior = .none`.** The default `NSPanel` animation parked one
   thread per presentation, which led to a 64-thread deadlock.
 
 ### 12E-2c: Stamp Visible and Flatten at depth
 - **`StampVisible { name, anchor }` / `Flatten {}`** use the document's own projection, with no export and no
-  `.rz` change.
+  format change.
 - **A stamp does NOT join a clip run** (the one slot-rule override), and it needs a contributing *raster* leaf.
 - **A flatten drops all comps**, as the byte op does. It yields one `"Background"` with a new id and keeps
   channels, guides, profile, metadata, PPI and policy. It never answers a no-op. Both ops are lock-exempt.
@@ -162,7 +162,7 @@ byte op is always the specification: each typed twin restates it and adds no rul
 
 ## Rejected alternatives
 - New outer words for `LLNK`/`LGDE`/50: would break the first-word and last-table invariants.
-- A Background flag in 12E: D5 kept structural, divergence disclosed (D13, now P7-38).
+- A Background flag in 12E: D5 kept structural, divergence disclosed (D13, now P7-38, [#13](https://github.com/kpgalligan/doctored/issues/13)).
 - `!members.is_empty()` for D6's visible test: copies a byte deviation.
 - Gating on Photoshop's `getd` read-back: 26.10.0 never answers it.
 
@@ -173,17 +173,19 @@ byte op is always the specification: each typed twin restates it and adds no rul
   (`hasQualifyingBackground`, `isIsolatedGroup`) follow it, and the f64 oracle is extended before any rule change.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED`: **P7-38**, a true Background kind/flag through PSD in/out and `.rz` (conditional word inside 45/46);
-  also clears D13's disclosure inexactnesses. → [phase-7-carryovers.md](phase-7-carryovers.md) P7-38, plan §10C-3.
+- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13): **P7-38**, a true Background kind/flag through
+  PSD in/out and `.doctored` (conditional word inside 45/46); also clears D13's disclosure inexactnesses
+  ([the carryover ledger](phase-7-carryovers.md) P7-38).
 - `DONE`: **P7-39** (2026-10-13), D6's clip-base narrowing lifted at both depths; the f64 oracle was extended
   first and `interior_on_clip_base` matches the `knockout_bottom` renders (max 2 / mean 0.5); the PSD disclosures
-  and `clipBaseNote` are gone. → [phase-7-carryovers.md](phase-7-carryovers.md) P7-39.
-- `TRACKED`: **`cmls` evidence** (never a gate): a `comps` family (3 rasters; comps `VisOnly`/`All`, one offset and
-  one opacity change) and `comps.json` (resource 1065 hex, per-record `shmd` keys and `cmls` hex), which needs
-  `resource_bodies`/`shmd` in `psd_records.py` and a `comps` key in `photoshop.jsx`. → plan §10C-3.
-- `TRACKED`: **PSD `cmls` import/export**: names, comments, capture flags and visibility bound by id (`LCMP`
-  schema 2); position/appearance carried or dropped with a per-comp loss; Photoshop fixture test. → plan §10C-3.
-- `DONE`: 8F corpus re-authored by `scripts/host-source-probe/prepare.py` into `~/devel/doctored-fixtures/phase8f/`; see [the 8F ADR](phase-8f-host-source-status.md).
+  and `clipBaseNote` are gone ([the carryover ledger](phase-7-carryovers.md) P7-39).
+- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13): **`cmls` evidence** (never a gate): a `comps`
+  family (3 rasters; comps `VisOnly`/`All`, one offset and one opacity change) and `comps.json` (resource 1065
+  hex, per-record `shmd` keys and `cmls` hex), which needs `resource_bodies`/`shmd` in `scripts/psd_records.py`
+  and a `comps` key in the private harness's `photoshop.jsx`.
+- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13): **PSD `cmls` import/export**: names,
+  comments, capture flags and visibility bound by id (`LCMP` schema 2); position/appearance carried or dropped
+  with a per-comp loss; Photoshop fixture test.
 - `DONE`: stale module docs in `core/src/precision_layer_blend.rs` and `core/src/style_knockout.rs` now point at
   the knockout implementation and P7-39 (2026-09-26).
 - `DONE`: dead export `dr_precision_doc_group_all` / `groupingAll` / `layer_group_all` deleted end to end
@@ -193,7 +195,7 @@ byte op is always the specification: each typed twin restates it and adds no rul
   `core/tests/knockout_merge.rs`).
 - `DONE`: union-extent typed Merge Layers / Merge Down through a framed typed compositor (`precision_merge_extent.rs`, `core/tests/precision_merge_extent.rs`).
 - `DONE`: float menu UI gate (`scripts/native-paint-probe/stampflatten.swift`); `merge_visible` floor wording
-  (`app/Sources/AgentServer+Groups.swift:638`); 12E-2b drive single-instance (`576f69f`); comps survive profile
+  (`app/Sources/AgentServer+Groups.swift`, header); 12E-2b drive single-instance (`576f69f`); comps survive profile
   edits (12E-2); `padded_*`, float canvas ops and the P7-39 predicate (12F-1/1b, `c83614f`); typed Paste (12G);
   multi-layer transform (`07d9153`).
 - `DROPPED`: re-measuring shortcut pairs with real key-window enablement ("a strengthening of the probe, not an open decision").

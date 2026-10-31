@@ -1,6 +1,6 @@
 # Preserving 16-bit neutral workflow (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 7B, 2026-09-10
 - **Original:** [archive/phase-7-neutral-path.md](../archive/phase-7-neutral-path.md) — full history, measurements, receipts
 - **Key commits:** `2d9bc69`
@@ -50,6 +50,7 @@ risk was a typed image leaking into a byte API or a byte fallback silently repla
 - `DONE` — masks, channels, adjustments, other blend modes, styles, geometry, paint/retouch and profile conversion,
   all unavailable in 7B (7C/7D, then carryovers P7-06…P7-20, verified).
 - `DONE` — public mode, central Undo/snapshots/recovery (7E, [public mode](phase-7-public-mode-status.md)).
-- `TRACKED` — uncompressed PNG/native raster payloads and duplicate serialized layers; noncancellable compound
-  export and codec calls → carryover P7-32 (13C).
-- `TRACKED` — independent multilayer/48 MP sessions → carryover P7-33 (13D).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — uncompressed PNG/native raster payloads and
+  duplicate serialized layers; noncancellable compound export and codec calls (carryover P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — independent multilayer/48 MP sessions (carryover
+  P7-33).

@@ -11,7 +11,7 @@ import AppKit
 /// with `duplicate` is the MCP twin. The controller half is
 /// `EditorViewController+TransformCopy.swift`.
 ///
-/// Decisions stated here and in the README:
+/// Decisions stated here and in the feature reference:
 /// - the session never edits the document. It is an ordinary
 ///   `TransformSession` built over `source` — the base with the originals
 ///   duplicated — so its `layers`, `sourceRect`, plates and 8-bit preview

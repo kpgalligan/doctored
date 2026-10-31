@@ -1,13 +1,14 @@
 # Phase 8D RAW workflow qualification
 
-Run from the repository root after `make app` and `make typecheck` pass:
+Run from the repository root after `make app-debug`:
 
 ```sh
 python3 -B scripts/verify_phase8d.py --keep --report /tmp/rz-phase8d-workflow.json
 ```
 
 `--host-only` exercises shared product code and actual AppKit Develop windows.
-`--mcp-only` drives the built Release app through its external MCP server. The
+`--mcp-only` drives the app under test (the Debug build; `DR_VERIFY_APP` selects
+another) through its external MCP server. The
 runner generates small DNG fixtures with independently framed, different camera
 white-balance defaults. It uses private preference-library folders (every
 `scripts/host-source-probe/support.py` `PRESET_DIRECTORIES` entry), Actions and

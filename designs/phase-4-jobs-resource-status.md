@@ -1,6 +1,6 @@
 # Phase 4 — jobs and resource foundations (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#10](https://github.com/kpgalligan/doctored/issues/10), [#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** Phase 4 (4A–4D) of the [implementation plan](professional-photo-editor-implementation-plan.md), 2026-09-09; issue records added through October 2026
 - **Originals:** [archive/phase-4-jobs-resource-status.md](../archive/phase-4-jobs-resource-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-4-jobs-resource-status.md](../archive/2026-10/phase-4-jobs-resource-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `968e0ee` (Phase 3 was `f34201b`)
@@ -83,7 +83,7 @@ Each `DONE` entry keeps what shipped and what a later batch must hold. The measu
   `make cancel-bench` runs the ignored 24 MP bench.
 - `DONE` — The 8-bit Crop straighten and the filtered Rotate Canvas commit through `dr_doc_geometry_edit`'s
   byte `straighten` / `rotate_canvas` requests on the worker, with progress and Cancel
-  (`ByteCanvasGeometry.swift`, `core/tests/byte_canvas_geometry_cancel.rs`). The three job-less exports are
+  (`CanvasGeometryJob.swift`, `core/tests/byte_canvas_geometry_cancel.rs`). The three job-less exports are
   retired end to end.
 - `DONE` — The Crop straighten and the filtered Rotate Canvas run as ONE compound job at both depths
   (`CanvasGeometryJob.swift`): core geometry, described-artwork re-render, display preparation on the worker,
@@ -148,11 +148,12 @@ Each `DONE` entry keeps what shipped and what a later batch must hold. The measu
   survive a reopen: a second 17° turn of the reopened 24 MP two-layer document is admitted at 8 GiB. The 16-bit
   display after a reopen carries `ProjectionMargin`'s 6/16. `core/tests/uniform_plane_turn.rs`.
 - `DONE` — The 16-bit native PNG is written row by row from the tiles (`precision_png::put_native_png` into
-  fdeflate's `StoredOnlyCompressor`), straight into the `.rz` body buffer, which the writer reserves once at
-  `encoded_bound`. The bytes are unchanged (pins in `core/tests/native_save_bytes.rs`) and the written length is
-  checked equal to `native_png_encoded_bound`. The plan's write term is the file, the header, one row and
-  bookkeeping, plus a quarter (float keeps 2·`encoded_bound` + 1 MiB). The whole `.rz` is still built in memory
-  before it is written.
+  fdeflate's `StoredOnlyCompressor`). The bytes are unchanged (pins in `core/tests/native_save_bytes.rs`) and the
+  written length is checked equal to `native_png_encoded_bound`. The typed writer now streams to a temporary file
+  (`core/src/native_stream.rs`), so the save plan no longer charges the file
+  ([working limit](working-limit-ram-scaled.md)): its write term is base + ⌈base/4⌉, base = 2·header + one writer
+  transient + `NATIVE_STREAM_WINDOW_BYTES` + bookkeeping, at both depths (`precision_native_plan`'s `# Streamed
+  reader and writer`). The byte (8-bit) writer still assembles its file in memory.
 - `DONE` — Decided: the reopen envelope keeps charging header bytes (a RAW payload among them) in
   both `reopen_retained` and `encoded_bound`, because the reader holds them twice and its own admission charges
   both (`precision_native_plan`'s `# Header and retained payloads counted twice` record).
@@ -167,8 +168,7 @@ Each `DONE` entry keeps what shipped and what a later batch must hold. The measu
   whole working limit (`dr_job_control_set_working_limit`). 16-bit plans: the native plan refuses with
   `too_large_to_reopen` or `too_large_to_save`, and a source past the per-image cap says "…one image holds at most
   about N megapixels…" (once 67 at 16 bits; one image now holds the 100 MP document limit at either depth, so the
-  pixel-limit sentence answers first). Host sources: `HostSourceWork.place` returns its disclosures to the UI and
-  to `replace_image_source`.
+  pixel-limit sentence answers first). Host sources: `HostSourceWork.place` returns its disclosures to the UI.
 - `DONE` — The 8-bit native save and snapshot admit a core plan: `drdc_save_plan.rs`
   (`dr_doc_native_save_scratch_bytes`, `RasterDocument.nativeSaveScratchBytes()`, the one source for `CapturedSave`
   and `EditingStateArchive.capture`) answers `W + held + T + BOOKKEEPING_BYTES + SAVE_OVERHEAD_BYTES` (32 MiB). W
@@ -221,9 +221,12 @@ Each `DONE` entry keeps what shipped and what a later batch must hold. The measu
     (typed) per fill window pixel, one component record per component, a 9n new-layer canvas term.
   - Kernels poll every 4096 pixels or per tile, and `make cancel-bench` times the heal and fill gaps.
   - 16-bit strokes run as jobs and `heal_stroke` takes `background` at 16 bits.
-- `TRACKED` — Noncancellable save/export encode and RAW/decode paths → P7-32 (plan §13C).
-- `TRACKED` — Broader cancellable/regional processing → P7-31 / plan §13A (closes with 13A-latency).
-- `TRACKED` — Tiled document storage → plan §13B.
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Noncancellable save/export encode and RAW/decode
+  paths.
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — Broader cancellable/regional processing: the
+  remaining full-frame fallbacks, stage-only render and preparation cancellation, and the regional latency regression.
+- `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled document storage: masks, channels and typed
+  mask planes on tiles, a measured history budget and one bounded cache registry.
 - `DONE` — Higher precision storage — Phase 7 (typed 16-bit) and 11F (float).
 - `DONE` — Budgeted history and recovery — Phase 5 ([phase-5-recovery-history-status.md](phase-5-recovery-history-status.md)).
 - `DONE` — "Comprehensive legacy-operation admission": `RasterResources.shared.admit` now guards 113 call
@@ -231,6 +234,6 @@ Each `DONE` entry keeps what shipped and what a later batch must hold. The measu
 - `DONE` — Optimized Swift unqualified (Release `make app`, qualified from Phase 7E on).
 - `DONE` — the 24 MP Catmull-Rom Crop straighten and ⌘T (over the interactive work cap) preview at reduced resolution: the geometry plan JSON reports `work_units`, the gesture builds a proxy of factor `ceil(sqrt(units / 1e9))` off main and lands with "Preview current (reduced resolution; the commit renders at full size)"; commits never see it (`GeometryProxyPreview.swift`, jobs probe "transform admission").
 - `DROPPED` — (2) of the preview-worker entry above: after an undo the redo-tail document keeps a 24 MP 16-bit display from fitting.
-- `OPEN` — left: a decision on the 8-bit placed ⌘T at 100 MP (`MAX_PIXELS`), which plans about 10.6 GB, over a 16 GB Mac's 8 GiB. Exact typed edits of a placed layer and an exact 8-bit Rotate Canvas no longer count the never-run source render's work.
-- `OPEN` — working-memory estimate follow-ups (the fresh-process display peak, typed fill plan coverage).
+- `DROPPED` (2026-10-30) — a decision on the 8-bit placed ⌘T at 100 MP (`MAX_PIXELS`), which plans about 10.6 GB, over a 16 GB Mac's 8 GiB: only RAW layers remain placed, and a RAW opens at 8 GiB only to about 90 MP, so the case barely arises on the minimum machine; the RAM-scaled limit admits it on larger Macs. Exact typed edits of a placed layer and an exact 8-bit Rotate Canvas no longer count the never-run source render's work.
+- `DROPPED` (2026-10-30) — working-memory estimate follow-ups (the fresh-process display peak, typed fill plan coverage, the legacy 16-bit `blur` σ4 work margin): calibration of shipped admission figures with no user-facing failure; admission is not an RSS ceiling.
 - `DROPPED` — recovered and loaded session snapshots share no memory.

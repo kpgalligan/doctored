@@ -58,4 +58,3 @@ to native persistence, before any PSD mask import was attempted.
 
 ## Open items (verified 2026-09-26)
 - `DONE` — PSD mask import on top of this model: [phase-10a-masks-status.md](phase-10a-masks-status.md) (`b802115`).
-- `TRACKED` — Phase 9I prerequisite decision / carryover ledger (mentioned as unchanged) → plan §9I, P7-12.

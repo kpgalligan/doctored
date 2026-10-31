@@ -1,6 +1,6 @@
 # Phase 9I assisted annotation workspace and replay pipeline (ADR)
 
-- **Status:** Accepted — closed (the instrument is built; the session it serves is tracked elsewhere)
+- **Status:** Accepted — closed (the instrument is built; the session it serves was dropped 2026-10-30)
 - **Phase / dates:** 9I assisted protocol phase 1, 2026-09-16
 - **Original:** [archive/phase-9i-assisted-workspace-status.md](../archive/phase-9i-assisted-workspace-status.md) — drive receipt, hash history
 - **Key commits:** `de70228` (workspace + window), `5f75604` (scorer follow-up), `81d6aa5` (runbook link)
@@ -59,5 +59,5 @@ a session, follow [phase-9i-assisted-annotation-runbook.md](phase-9i-assisted-an
   `scripts/test_phase9i_assisted_workspace.py`, and the owned production MCP drive `scripts/verify_phase9i_assisted.py`.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — The real human session over the exported workspace → P7-12 / plan §9I; see the runbook.
+- `DROPPED` (2026-10-30) — The real human session over the exported workspace: the gate is no longer a ship condition ([gate v2](phase-9i-gate-v2-status.md)).
 - `DONE` — The scorer ("phase 2") exists: `core/examples/phase9i_assisted_quality.rs`, `scripts/phase9i_assisted_scoring.py` (`5f75604`).

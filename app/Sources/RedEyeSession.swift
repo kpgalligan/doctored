@@ -7,7 +7,7 @@ import AppKit
 /// `EditorViewController+RedEye.redEyeRectDragged`, which is the only place
 /// that knows what a rectangle means.
 ///
-/// The gesture the README documents: drag a TIGHT
+/// The gesture the feature reference documents: drag a TIGHT
 /// rectangle over one eye. The rect is the core op's whole domain — the
 /// redness test shapes the mask inside it and the pupil-size gate measures
 /// against its shorter side — so the feedback while dragging is simply the

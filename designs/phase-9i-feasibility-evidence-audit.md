@@ -46,5 +46,5 @@ checkpoint or package was acquired, no annotation invented, and no inference or 
 ## Open items (verified 2026-09-26)
 - `DONE` — Source-only exporter with isolation audit (`scripts/phase9i_assisted_workspace.py`, `de70228`).
 - `DONE` — Fixture recovery after purge: `~/devel/doctored-fixtures/phase6/{references,photos,full-references}` present (gate v2 decision 6).
-- `DROPPED` — Glass/transmission research: out of scope (closed 2026-09-28, not planned); the six analytic glass cases stay reported diagnostics under frozen gate v2 and the bottle stays silhouette-only.
+- `DROPPED` — glass/transmission research ([gate v2](phase-9i-gate-v2-status.md)).
 - `DROPPED` — Qualifying a new model runtime/environment for an established pipeline (gate v2 decision 5).

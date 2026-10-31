@@ -1,6 +1,6 @@
 # Phase 9I typed refinement — the typed half of P7-12 (ADR)
 
-- **Status:** Accepted (typed half closed; the other half of P7-12 shipped without the quality gate, 2026-10-11)
+- **Status:** Accepted — closed (typed half; the other half of P7-12 shipped without the quality gate, 2026-10-11)
 - **Phase / dates:** 9I, 2026-09-15; Actions replay receipt 2026-09-16/17
 - **Original:** [archive/phase-9i-typed-cutouts-status.md](../archive/phase-9i-typed-cutouts-status.md) — thirteen-check drive list, receipt paths
 - **Key commits:** `b2e0c80` (typed refine), `fa336cf` (Actions replay, Phase 10 closeout Run 5)

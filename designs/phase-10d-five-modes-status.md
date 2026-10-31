@@ -51,4 +51,3 @@ cannot be qualified by an error tolerance.
   (v34/schema 6 strong/weak band policy).
 - `DONE` — HSL modes — `ac33773`; clipping — `f65a0d2`; Blend If/styles — `7c130e2`, `b8aa5b5`.
 - `DONE` — Knockout (P7-37), adjustment blending (P7-19) — carryover ledger rows verified.
-- `TRACKED` — P7-12/9I → carryover P7-12.

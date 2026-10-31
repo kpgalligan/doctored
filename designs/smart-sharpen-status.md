@@ -1,5 +1,6 @@
 # Smart Sharpen — ADR
 
+- **Status:** Accepted — closed
 - **Scope:** Smart Sharpen, and Smart Sharpen as an export sharpening method, both shipped by the v1 batch of
   2026-10-13.
 - **Record before the build:** [archive/smart-sharpen-status.md](../archive/smart-sharpen-status.md), the Photoshop
@@ -11,7 +12,7 @@
   the non-legacy modes not linear, Reduce Noise a smoother and the fades with no closed form; nothing is fitted to
   it.)
 - **One kernel module, every stage an existing kernel** (`core/src/sampling_smart_sharpen.rs`, a `SpatialKernel`
-  arm on the one spatial route; no new export, no `.rz` change, no new MCP tool):
+  arm on the one spatial route; no new export, no native-format change, no new MCP tool):
   1. Reduce Noise: the base `D` is `reduce_noise {radius 0.5, luminance noise/1000, detail 0, color 0}` before
      quantization (`sampling_presence::base_delta_in` + `sampling_denoise::applied_in`); noise 0 is the source.
   2. The blur to remove is a low-pass `B` of `D`: Gaussian (`neighborhood_plane_in`, σ = Radius), Lens

@@ -8,7 +8,8 @@ including that sha. This lists the commits after it, oldest first:
     python3 scripts/readme_sweep.py [--since REV] [--count]
 
 Each commit is one `<short sha>  <subject>` line, then one indented line per
-`designs/` doc it changed (and `README.md` when it changed README), and
+`designs/` doc it changed (and `README.md` or the feature reference,
+`public-docs/src/content/docs/reference/features.md`, when it changed them), and
 `(sets the sweep marker)` under the commit that set the current marker.
 `--since REV` lists the commits after REV instead of after the marker.
 `--count` prints only the number of commits.
@@ -27,6 +28,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
+# The detailed feature reference the sweep keeps current beside README.
+FEATURE_REFERENCE = "public-docs/src/content/docs/reference/features.md"
 MARKER_RE = re.compile(r"<!-- readme-swept-to: ([0-9a-f]{7,40}) -->")
 SWEEP_DUE_AT = 20
 
@@ -73,10 +76,11 @@ def commits_since(rev: str) -> list[tuple[str, str]]:
 
 
 def touched(sha: str) -> list[str]:
-    """The `designs/` paths commit `sha` changed, plus `README.md` when it changed README."""
-    out = git("show", "--format=", "--name-only", sha, "--", "designs", "README.md")
+    """The `designs/` paths commit `sha` changed, then `README.md` and the feature reference when it changed them."""
+    out = git("show", "--format=", "--name-only", sha, "--", "designs", "README.md", FEATURE_REFERENCE)
     paths = [path for path in out.splitlines() if path]
-    return [p for p in paths if p.startswith("designs/")] + [p for p in paths if p == "README.md"]
+    return ([p for p in paths if p.startswith("designs/")] + [p for p in paths if p == "README.md"]
+            + [p for p in paths if p == FEATURE_REFERENCE])
 
 
 def marker_commit(sha: str) -> str | None:

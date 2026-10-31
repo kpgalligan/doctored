@@ -1,4 +1,4 @@
-# #1 Bitmap admission drive
+# Bitmap admission drive
 
 Every memory plan the Bitmap document mode added (phases 1a to 2a-ii) is held to the measured-admission
 rule on a built Release app: plan ≥ ⌈1.25 × max E⌉, where E is

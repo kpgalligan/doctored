@@ -57,4 +57,3 @@ meaning only through a conditional, versioned wrapper so older files and writers
 - `DONE` — Clipping, Blend If, layer styles — 10D clipping/Blend If/styles slices (`f65a0d2`, `7c130e2`, `b8aa5b5`; P7-20 verified).
 - `DONE` — Knockout — carryover P7-37 verified (12E-3…12E-3d).
 - `DONE` — Exchange validation — 16-bit PSD carriage in later slices; plan §10A–10C closed.
-- `TRACKED` — Original 9I gate → carryover P7-12.

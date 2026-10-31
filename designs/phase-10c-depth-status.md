@@ -1,9 +1,10 @@
 # Genuine 16-bit RGB PSD import and export (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2))
 - **Phase / dates:** 10C-1, 2026-09; Photoshop 16-bit import (Run 4) 2026-09-16
 - **Original:** [archive/phase-10c-depth-status.md](../archive/phase-10c-depth-status.md) — full history, measurements, receipts
 - **Key commits:** `a3d29b7` (16-bit import/export, depth-agnostic preflight), `5e0ed4d` (`Lr16` + ZIP, Photoshop fixture)
+- **Photoshop harness:** runners under `scripts/photoshop-probe/` and the `verify_*photoshop*` drives live in the private archive `kpgalligan/doctored-dev`.
 
 ## Context
 10A/10B were 8-bit only. 16-bit documents (`PrecisionDocument`) needed PSD exchange without any silent
@@ -34,11 +35,11 @@ Per-construct preserve/rasterize/refuse rules are a separate slice
   ordinary layer-information section if non-empty, else (depth 16 only) the first `Lr16` tail block after
   the global-mask section (`8BIM` + key + u32 length, padded to a multiple of 4). `merged_alpha` reads from
   the same body. `8B64` or a bad tail signature refuses the **layered** choice only.
-- `core/src/psd_zip.rs::unpack_zip16` is the **one inflate seam** (`miniz_oxide`): validates the zlib
-  header, inflates with the admitted plane size as limit, refuses any other length, undoes per-row
-  big-endian u16 prediction (word 3). Words 2/3 admitted for layer/mask planes at `sample_bytes == 2` only.
-- `psd_container::unpack_packbits` is the in-crate PackBits decoder (twin of `validate_packbits`), used
-  **only** by 16-bit planes; 8-bit planes still decode through the crate (`decode_composite`).
+- `core/src/psd_zip.rs` is the **one inflate seam** (`miniz_oxide`) for 8-, 16- and 32-bit layer and mask
+  planes and the composite: it validates the zlib header, inflates with the admitted plane size as limit,
+  refuses any other length and undoes per-row big-endian prediction (word 3).
+- `psd_framing::unpack_packbits` (re-exported by `psd_container`) is the one PackBits decoder at every
+  depth, twin of `validate_packbits`.
 - `psd_export_preflight` is depth-agnostic via `ExportInventory`: shared refusal order, sentences and
   worst-case arithmetic; only the first limitation sentence and `sample_bytes` differ.
   `psd_layer_pixels::peak_forecast` takes `sample_bytes`, so import admission and export preflight evaluate
@@ -47,9 +48,11 @@ Per-construct preserve/rasterize/refuse rules are a separate slice
   `PrecisionImage::from_rgba16` gets `None` (a single-use token cannot be begun twice).
 - FFI: `dr_precision_doc_open_psd`, `dr_precision_doc_psd_export_report` (adds `"depth":16`),
   `dr_precision_doc_save_psd`.
-- **Refused at 16 bits:** 16-bit grayscale, 32-bit float (`Lr32`), CMYK/Lab, PSB; 8-bit ZIP channels and ZIP
-  composites keep their existing refusals; the 10B refusal set (side > 30,000, file > 2 GiB, unmapped typed
-  adjustments, mask density/feather).
+- **Refused at 10C:** 16-bit grayscale, 32-bit float (`Lr32`), CMYK/Lab, PSB, 8-bit ZIP. All have since
+  opened: PSB and 8-bit and composite ZIP (`22ea5a9f`), `Lr32` (`psd_import_float.rs`), Gray, CMYK and Lab
+  ([grayscale-mode.md](grayscale-mode.md), [cmyk-mode-status.md](cmyk-mode-status.md),
+  [lab-mode.md](lab-mode.md)). The 10B refusal set still holds at 16 bits: a classic PSD side > 30,000
+  (the refusal names PSB), file > 2 GiB, mask density/feather.
 - The 8-bit writer's exact bytes are pinned by goldens `core/tests/fixtures/psd_10c/{nested,flat}.psd`
   (`psd_export.rs::eight_bit_writer_bytes_match_the_committed_goldens`); regenerate only for an intentional
   8-bit writer change.
@@ -64,7 +67,8 @@ Per-construct preserve/rasterize/refuse rules are a separate slice
 ## Consequences
 - Tests: `core/tests/psd_depth16.rs` (independent builder/reader `tests/common/psd16_fixture.rs`),
   `core/tests/psd_zip16.rs`, `core/tests/psd_photoshop_depth16.rs` (Photoshop-authored
-  `core/tests/fixtures/psd_photoshop/depth16/`); runner `scripts/verify_phase10_photoshop_depth16.py`.
+  `core/tests/fixtures/psd_photoshop/depth16/`); runner `scripts/verify_phase10_photoshop_depth16.py`
+  (private archive).
   16-bit export reopen: `psd_10b/depth16` via [phase-10b-export-status.md](phase-10b-export-status.md).
 - New inflate or PackBits decoding must reuse the single seams above.
 
@@ -74,6 +78,6 @@ Per-construct preserve/rasterize/refuse rules are a separate slice
 - `DONE` — 16-bit ZIP/ZIP-prediction layer and mask planes (`psd_zip.rs`, `5e0ed4d`).
 - `DONE` — Independent reopen of 16-bit exports (GIMP `psd_10b/depth16`) and third-party-authored 16-bit import (Photoshop Run 4).
 - `DONE` — `SoCo` and `GdFl` carriage and `brit`: all carried at 8 and 16 bits (a 16-bit `GdFl` is written pixel-less, as Photoshop writes it).
-- `TRACKED` — 8-bit ZIP channels, ZIP composites, `Lr32` → plan §10C "what stays open".
-- `TRACKED` — measured arithmetic gaps against Photoshop (e.g. `curves` 5 codes) → plan §10C "measured gaps".
-- `DROPPED` — 16-bit grayscale, CMYK/Lab: refused by contract (plan §10C "remain refused"); PSB: separate commitment (plan §10 boundary).
+- `DONE` — 8-bit ZIP channels and ZIP composites (`22ea5a9f`, `core/tests/psd_zip8.rs`); `Lr32` read and written (`psd_import_float.rs`, `psd_export_float.rs`).
+- `OPEN` [#2](https://github.com/kpgalligan/doctored/issues/2) — measured adjustment-arithmetic gaps against Photoshop (e.g. `curves` 5 codes).
+- `DONE` — Gray, CMYK and Lab PSDs ([grayscale-mode.md](grayscale-mode.md), [cmyk-mode-status.md](cmyk-mode-status.md), [lab-mode.md](lab-mode.md)); PSB (`22ea5a9f`).

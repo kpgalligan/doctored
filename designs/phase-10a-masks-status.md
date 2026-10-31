@@ -33,8 +33,8 @@ per file and malformed admitted data refused.
 - **Malformed admitted data refuses layers** (bad rectangles, Raw lengths, row tables, PackBits packets,
   trailing bytes) — never an implicit dropped mask or a composite fallback. All retained channels are
   validated before any plane allocation.
-- Decoding reuses `psd_layer_pixels::validate_channel`, `validate_packbits` and the
-  `psd_container::decode_composite` PackBits seam; no second decompressor.
+- Decoding reuses `psd_layer_pixels::validate_channel`, `validate_packbits` and `psd_framing`'s one
+  PackBits decoder (`unpack_packbits`); no second decompressor.
 - Admission: widened signed arithmetic, 30,000-px side, 100 MP plane, shared native aggregate mask
   limit — checked before channel validation, including disabled and folder masks. Layered forecast becomes
   `4I + 8M + 4P + A + 4L + 2E + 4C + 64MiB` (A = aggregate mask samples; L/E include masks) under the
@@ -58,4 +58,3 @@ per file and malformed admitted data refused.
 - `DONE` — Native-depth PSD masks: [phase-10c-depth-status.md](phase-10c-depth-status.md).
 - `DONE` — Independent-application exchange: GIMP corpus in [phase-10a-qualification.md](phase-10a-qualification.md); Photoshop mask agreement Run 3 (`d1b6c27`).
 - `DROPPED` — Extended/vector/parameter masks, density/feather import, PSD linkage: explicit exclusions of the closed 10A contract ([phase-10a-qualification.md](phase-10a-qualification.md)). The app has vector masks of its own ([v1-paths.md](v1-paths.md)); a PSD's `vmsk`/`vsms` is still not read, and export writes the baked mask.
-- `TRACKED` — Phase 9I prerequisite decision (mentioned as open) → plan §9I, P7-12.

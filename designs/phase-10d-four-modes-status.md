@@ -57,4 +57,3 @@ exceed the usual error budget; the slice also had to compose with the independen
 - `DONE` — Remaining native modes incl. Hard Mix — `9f8f37b`, `ac33773`, `dd3474f`.
 - `DONE` — Clipping, styles, Blend If, broad PSD exchange — `f65a0d2`, `7c130e2`, `b8aa5b5`; plan §10A–10C closed.
 - `DONE` — Knockout — carryover P7-37 verified; P7-19/P7-20 verified.
-- `TRACKED` — P7-12/9I → carryover P7-12.

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Doctored's half of the assistant helper's `configure` message. The helper
-/// (`agent/src/`) is shared byte for byte with Reelcut, so everything about the
+/// (`agent/src/`) is shared byte for byte with Frame Job, so everything about the
 /// prompt that names this app arrives here, through `AssistantHelperSession.open`.
 enum AssistantHelperPrompt {
     /// Tools the model sees up front; every other catalog entry is deferred (tool search).
@@ -20,7 +20,11 @@ enum AssistantHelperPrompt {
         transforms and canvas (move, transform, warp, distort, crop, rotate, flip, canvas and \
         image size); text and shape layers; channels, color profiles and proofing; camera RAW \
         development; history, undo/redo and snapshots; documents, saving and export \
-        (PNG/JPEG/PSD/PDF, presets); actions and batches.
+        (PNG/JPEG/PSD/PDF, presets); actions and batches; vector paths; colour modes \
+        (Grayscale, CMYK, Lab, Indexed, Duotone, Bitmap); HDR merge, toning and tone mapping; \
+        generative fill and expand; neural filters (colorize, super zoom, depth blur) and sky \
+        replacement; stacks, panoramas and auto-align/blend; liquify and puppet warp; guides, \
+        color samplers and file info.
         """
 
     /// The end-of-turn compaction summary's instructions: renders and images don't survive it.

@@ -3,7 +3,7 @@
 //! encoded adjustment, so a Convert sheet's check can now be cancelled; the
 //! 8-bit proof flatten runs under the request's control.
 //!
-//! Every assertion is load-independent (core/CLAUDE.md, 13A-5b-iii-b-1):
+//! Every assertion is load-independent (core/CLAUDE.md, "Load robustness"):
 //!
 //! - a NULL control and a fresh control give the IDENTICAL preflight JSON, at
 //!   8 and 16 bits;

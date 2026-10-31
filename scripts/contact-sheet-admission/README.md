@@ -34,7 +34,8 @@ inside the interval. The cases: one cell each of S12, S48, S96, P48 and L48
 It imports `owned`, `call` and `footprint` from
 `scripts/host-still-admission/verify.py`. Memory, not wall-clock: it may run
 beside another lane's build. Run it outside the sandbox: it launches owned app
-instances (`HostApp`: `DR_BACKGROUND=1`, a dummy `ANTHROPIC_API_KEY`, a free
-port, private `DR_*_DIR` folders) and stops only those. It writes
+instances (`HostApp`: `DR_BACKGROUND=1`, a dummy `ANTHROPIC_API_KEY`, a
+private scratch `DR_AGENT_SOCKET`, private `DR_*_DIR` folders) and stops only
+those. It writes
 `receipt.json` to the output folder (a fresh temporary folder when `--output`
 is omitted) and exits 0 only when both gates pass.

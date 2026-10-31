@@ -1,12 +1,14 @@
 # Spot channels (ADR)
 
-- **Status:** Accepted, closed 2026-10-26. Spot channels close here; [#1](https://github.com/kpgalligan/doctored/issues/1)
-  (the colour-mode umbrella) stays open for CMYK's remaining items and PDF/X (`designs/cmyk-mode-status.md`).
-  Multichannel, which would make spot channels, is closed by decision (`designs/multichannel-mode.md`).
+- **Status:** Accepted — open items remain ([#1](https://github.com/kpgalligan/doctored/issues/1)); the phase closed
+  2026-10-26. [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella) stays open (see
+  [cmyk-mode-status.md](cmyk-mode-status.md)). Multichannel, which would make spot channels, is closed by decision
+  ([multichannel-mode.md](multichannel-mode.md)).
 - **Original:** [archive/spot-channels-status.md](../archive/spot-channels-status.md) (the working record at close).
 - **Takes:** under `~/devel/doctored-fixtures/photoshop/`: `spot-psd-547` (`spot_psd_take.py`, 1b-1),
   `spot-psd-readback-547` (`spot_psd_readback_take.py`, 1b-2), `spot-tiff-547` (`spot_tiff_take.py`, 1c-2a) and
-  `spot-tiff-readback-547` (`spot_tiff_readback_take.py`, 1c-2b); runners in `scripts/photoshop-probe/`, each
+  `spot-tiff-readback-547` (`spot_tiff_readback_take.py`, 1c-2b); runners in `scripts/photoshop-probe/` in the
+  private archive (`kpgalligan/doctored-dev`), each
   docstring holding its rows, bounds and recorded result. Fixtures `core/tests/fixtures/psd_photoshop/spot_547` and
   `core/tests/fixtures/photoshop_spot_tiff`.
 - **Code:** `core/src/spot_channel.rs` (model, sentences), `spot_overprint.rs` (KERNEL), `spot_channel_native.rs`
@@ -116,7 +118,7 @@ Photoshop 26.10.0 throughout.
 - **1b-2** (`71afa269`): the PSD/PSB readback take; a 16-bit Duotone PSD/PSB written at 8 bits.
 - **1c-2a** (`12b8a5a5`): flat TIFF in and out, the author take and fixtures, PDF measured and kept refused; drive
   S13.
-- **1c-2b** (the closing batch): the layered TIFF in and out (`write_spots`, `SpotCoverage`,
+- **1c-2b** (2026-10-26, the closing batch): the layered TIFF in and out (`write_spots`, `SpotCoverage`,
   `layered_spot_records`, `with_layered_tiff_spots`, `spot_refusal`), the TIFF readback take PASS; tests
   `spot_tiff_layers.rs` and the layered fixtures' test in `spot_tiff_photoshop.rs`; drive S14.
 

@@ -1,6 +1,6 @@
 # Build velocity: the change loop's build, test and docs tooling (ADR)
 
-- **Status:** Accepted — plan complete 2026-10-08
+- **Status:** Accepted — closed; plan complete 2026-10-08
 - **Phase / dates:** 2026-10-06 to 2026-10-08, branch `worktree-modules-refactor`
 - **Originals:** [archive/build-velocity-proposal.md](../archive/build-velocity-proposal.md) — the study and its measurements; [archive/build-velocity-plan.md](../archive/build-velocity-plan.md) — the plan, phase by phase; [archive/build-velocity-status.md](../archive/build-velocity-status.md) — the working record at close (Phases 9b and 10 in full); [archive/build-velocity-shipped.md](../archive/build-velocity-shipped.md) — its shipped companion (Phases 1 to 9a and 9c, every table); [archive/2026-10/build-velocity-status.md](../archive/2026-10/build-velocity-status.md) — Phases 1–4 as first recorded, with the per-drive Debug/Release table
 - **Evidence:** `~/.claude/litecode/rasterize/build-velocity/evidence/` — reports, the timing harness, and the `transcript-scripts/` a re-profile would re-run
@@ -22,35 +22,40 @@ grew was the number of test binaries (about 90 a week), the two nested `CLAUDE.m
 - **Owner, Phase 9 (2026-10-06):** README may be updated less often (by sweep); status docs keep their per-change updates, because a
   later agent would not have the detail.
 - **Owner, 2026-10-07:** archives stay in the repository ("Archives stay in repo").
-- **P1:** `make app-debug`, the type-check bullets (IDE diagnostics are noise; `make typecheck` stops before SILGen; no `make typecheck`
-  before an app build) and the stale-app refusal (`DR_ALLOW_STALE_APP`, `DR_VERIFY_APP`) are in root `CLAUDE.md` "Commands" and
-  "Driving a built app"; the Debug caveats are `app/CLAUDE.md` "Debug and Release".
-- **P2:** root `CLAUDE.md` imports `core/CLAUDE.md` and `app/CLAUDE.md`; the per-file indexes `core/MODULES.md` and `app/FILES.md` are
-  grep-only (root `CLAUDE.md`, the line after the imports, and each index's header).
+- **P1:** `make app-debug`, the IDE-diagnostics bullet and `make typecheck` (stops before SILGen) are root `CLAUDE.md` "Commands"; no
+  `make typecheck` before an app build is its "Verification"; the stale-app refusal (`DR_ALLOW_STALE_APP`, `DR_VERIFY_APP`) is its
+  "Driving a built app for verification"; what a clean typecheck does not prove and the Debug caveats are `app/CLAUDE.md`'s
+  "`make typecheck` is authoritative for TYPE errors" and "Debug and Release".
+- **P2:** root `CLAUDE.md` imports `core/CLAUDE.md`, `app/CLAUDE.md` and `mcp-proxy/CLAUDE.md`; the per-file indexes `core/MODULES.md`
+  and `app/FILES.md` are grep-only (root `CLAUDE.md`, the paragraph after the imports, which `core/CLAUDE.md` and `app/CLAUDE.md`
+  point to, and each index's header).
 - **P3:** the Release-only drives are root `CLAUDE.md` "Release-only drives".
 - **P4:** root `CLAUDE.md` "Verification" and `make gate` (`scripts/gate.py`): its hash inputs are `RUST_INPUTS` and `SWIFT_INPUTS` in
-  `gate.py`, a `.md`-only change runs nothing, and the solo list is `SOLO` in `scripts/run_tests.py`.
+  `gate.py`, a `.md`-only change runs only the `docs` step, and the solo list is `SOLO` in `scripts/run_tests.py` (`core/CLAUDE.md`
+  "Tests." says when a binary joins it).
 - **P5:** the suites (`core/tests/suite_*.rs`), `autotests = false`, the `# isolate:` reason on a `[[test]]` entry, `make t` and the
   `test_layout` guards are `core/CLAUDE.md` "Tests." and root `CLAUDE.md` "Commands".
 - **P6:** `scripts/probe_build.py` (its cache key covers every input, per its module docstring), the gate's `probes` step and
   `DR_PROBE_BUILD_ONLY` are root `CLAUDE.md` "Verification"; a probe set whose basenames clash by case builds without `-num-threads`
   (`case_clashes` in the helper).
-- **P7a:** `DoctoredCore+<Area>.swift` (root `CLAUDE.md` "FFI contract", recipe step 2), `AgentCatalog+<Area>.swift`, `dr_*` confined to
-  the `DoctoredCore*` files and the frozen list are `app/CLAUDE.md` "Placement." and `app/FILES.md`.
-- **P7b:** the per-file handler tables, the `ToolFacts` tables, the start parity check and the menu builders are root `CLAUDE.md` recipe
-  steps 5 and 6 and `app/CLAUDE.md` "Agent parity."; `DR_REGISTRY_DUMP` (`RegistryDump.swift`) is Debug-only.
+- **P7a:** `DoctoredCore+<Area>.swift` (root `CLAUDE.md` "FFI contract", recipe step 2), `AgentCatalog+<Area>.swift` and `dr_*`
+  confined to the `DoctoredCore*` files are `app/CLAUDE.md` "Placement."; the frozen six are `app/CLAUDE.md`'s header and its
+  `app/FILES.md` entries.
+- **P7b:** the per-file handler tables, the `ToolFacts` tables and the start parity check are `app/CLAUDE.md` "Agent parity." (root
+  `CLAUDE.md` recipe step 6 points there); the menu builders are `app/CLAUDE.md` "Placement." (recipe step 5); `DR_REGISTRY_DUMP`
+  (`RegistryDump.swift`) is Debug-only.
 - **P8:** `image` takes explicit features without `avif`, `[lib] test = false` and no LTO are `core/Cargo.toml` (its comments say why);
   the kernel layering rule is `core/CLAUDE.md` "Layers.", enforced by `scripts/check_layers.py` under `make lint`.
 - **P9a:** the README sweep is root `CLAUDE.md` "README" (`scripts/readme_sweep.py`).
 - **P9b:** the status-doc rule, the shipped companion and the `check_docs.py` caps are root `CLAUDE.md` "Status docs".
-- **P9c:** index entries are one line of at most 200 characters, detail in the source file's own header (each index's header;
-  `check_docs.py` checks every entry line).
+- **P9c:** index entries are one line of at most 200 characters, detail in the source file's own header (each index's header,
+  `core/CLAUDE.md` and `app/CLAUDE.md`; `check_docs.py` checks every entry line, root `CLAUDE.md` "Status docs").
 - **P10:** shared test modules declared once per suite root, the `suite_serial` lock as every test's first statement, `mod bench` twins
   run by `make cancel-bench`, and `test_layout::no_default_test_asserts_a_duration` are `core/CLAUDE.md` "Tests.".
 - **`eaa4d2c`:** a small fix whose answer is clear is made in place, not filed (root `CLAUDE.md` "Architecture", the open-work paragraph).
 - **Keeping it fast (proposal §5):** the gate's timing log (`build/gate-times.tsv`) is the control. A look is due when the Swift check is
   over 30 s, the full gate over 8 minutes, a whole-suite run over 3 minutes (already over at close: 240.3 s), or a nested
-  `CLAUDE.md` over 20 KB; re-profile after about 20 batches.
+  `CLAUDE.md` over 20 KB. No scheduled re-profile (dropped, Open items).
 
 ## Rejected alternatives
 - **A Rust crate or Swift module split for build speed.** Whole-unit rebuilds were already short once invoked properly (library 12 s,
@@ -78,8 +83,8 @@ and `archive/` were not rewritten.
 ## Phase 3
 `c46f334`: 100 drives ran on Debug and Release from `6630ce3`: 77 pass on both, 1 Release-only, 11 fail on both, 11 not run. No Debug
 run trapped, so the 58 asserts stand; the drives default to Debug. Release-only: `verify_phase12g_clipboard.py`, which now passes
-on Debug. Fail on both, not fixed here: the 8A, 8B, 8C, 9B, two 10D, 11D, 11E, 12A, 12F-1 and Phase 4 drives (causes under Open
-items); the 11 not run have no inputs here; `verify_phase12f3_warp.py` rewrites a tracked page.
+on Debug. Fail on both, not fixed here: the 8A, 8B, 8C, 9B, two 10D, 11D, 11E, 12A, 12F-1 and Phase 4 drives (each fixed or dropped
+since, Open items); the 11 not run have no inputs here; `verify_phase12f3_warp.py` rewrites a tracked page.
 
 ## Phase 4
 `4a3c70e`: `make gate` (`scripts/gate.py`), the parallel runner `scripts/run_tests.py` (`make test`; `make test-serial` stays plain
@@ -98,12 +103,14 @@ left as written.
 `fa47689` (6a), `ad33e84` (6b): all 20 of the plan's probe runners build through `scripts/probe_build.py`, which keeps the linked probe
 in `build/probe-cache/<key>/` (eight entries) and a persistent module cache. The gain is the reuse on unchanged sources, not the
 compile. The `probes` gate step type-checks changed or last-failed probe directories only, so a committed one is checked by hand.
-Existing failures found: `color-metadata-probe`, `test_provenance_manifests.py` and `verify_phase8c.py --host-only` (Open items).
+Existing failures found: `color-metadata-probe` and `test_provenance_manifests.py` (fixed since) and `verify_phase8c.py --host-only`,
+whose host probe still hangs ([#22](https://github.com/kpgalligan/doctored/issues/22)).
 
 ## Phase 7a
 `6e5d2e6`: `DoctoredCore.swift` keeps the handle classes and error plumbing; its other sections moved verbatim into 44
 `DoctoredCore+<Area>.swift` files, and `AgentCatalog.swift`'s 14 area builders into `AgentCatalog+<Area>.swift`. 36 declarations lost
-`private` because their callers moved; `tools/list` is `cmp`-identical. Four server-lifecycle `dr_*` calls remain in `AgentServer.swift`.
+`private` because their callers moved; `tools/list` is `cmp`-identical. Four server-lifecycle `dr_*` calls remain in `AgentServer.swift`
+(none since the socket batch, [agent-socket.md](agent-socket.md)).
 
 ## Phase 7b
 `b7cfc7f`, `5837a08`, `814da95`: 77 per-file `<prefix>Handlers` tables merged by `AgentServer+Registry.swift`; 11
@@ -139,7 +146,8 @@ timed body is a `mod bench` twin under `make cancel-bench`; 25 test executables 
 under the 300 s target. The report-log PIN runs only in `#[ignore]`d twins and the guard counts a call to `assert_pin` / `assert_ramp`
 (`CLOCK_VERDICTS`) in default code; each regional concurrent cancel parks the worker by default (`common::probe::cancelled_past_each`,
 counts from a fresh twin) and its timing is an `…_is_measured` twin in `CANCEL_BENCH_FILES`. In `live_filter_native.rs` the two
-parked-edit workers hold `common::probe::ReleaseOnDrop`, so a panicking edit still wakes the waiter.
+parked-edit workers hold `common::probe::ReleaseOnDrop`, so a panicking edit still wakes the waiter (that file went with live filters
+on 2026-10-10).
 
 ## Before and after
 | Measurement | Command | Before | After | Phase |
@@ -160,23 +168,11 @@ parked-edit workers hold `common::probe::ReleaseOnDrop`, so a panicking edit sti
 
 The whole suite got slower: 215.0 s at Phase 4, 240.3 s at close, 25.3 s more. Since Phase 5 the eight suite binaries run one at a
 time instead of sharing the pool (Phase 5 measured 234 s, about 20 s over Phase 4). Phase 10's own runs moved between 218.4 and
-240.3 s (227.0 s before its last two runs), one run each, with an outside build possibly overlapping the last; a re-profile
-would settle it.
+240.3 s (227.0 s before its last two runs), one run each, with an outside build possibly overlapping the last.
 
-## Open items (verified 2026-10-08)
-- `DROPPED` — re-profile after about 20 batches and compare with the proposal.
-- `DROPPED` — the owner's Developer Tools first-launch experiment.
-- `DONE` — `color-metadata-probe` failed on the large XMP format limit for JPEG.
-- `DONE` — `test_provenance_manifests.py` failed: 54 manifests missed `scripts/app_under_test.py`.
-- `DONE` — `verify_phase8c.py --host-only`'s host probe hung until its 600 s timeout.
-- `DROPPED` — the owner decides which `image` decoders to keep.
-- `DROPPED` — 8B and 8C drives: a frozen tool-catalog count.
-- `DONE` — 8A and 11E drives: `WRAPPER_WORDS`.
-- `DONE` — two 10D drives gated on a reworded Pass Through refusal.
-- `DONE` — 11D gate D6: no JPEG 2000 reader in ImageMagick.
-- `DONE` — 12A gate r9.
-- `DONE` — 12F-1 gate b5.
-- `DONE` — 9B's 16-filter stack.
-- `DONE` — Phase 4's 48 MP corpus.
-- `DONE` — `verify_phase12f3_warp.py` rewrote a tracked docs page.
-- `DROPPED` — eleven drives have no inputs on this machine.
+## Open items
+None. `DROPPED`: the re-profile after about 20 batches, the owner's Developer Tools first-launch experiment, the
+owner's choice of which `image` decoders to keep, the 8B and 8C drives' frozen tool-catalog count, and the eleven drives with no
+inputs on this machine. The 8C host probe's hang is open as [#22](https://github.com/kpgalligan/doctored/issues/22)
+([phase-8g-raw-enhancements-status.md](phase-8g-raw-enhancements-status.md) owns it); every other failure Phases 3 and 6 found
+was fixed.

@@ -1,7 +1,8 @@
 # Retained RAW qualification
 
 Run `python3 -B scripts/verify_phase8c.py --camera /path/to/camera.NEF --keep`
-after the final Release app and Rust archive build. `--host-only` runs the
+after `make app-debug` (`DR_VERIFY_APP=build/Build/Products/Release/Doctored.app`
+qualifies a Release build). `--host-only` runs the
 synthetic DNG host workflow; `--mcp-only --camera …` runs the genuine camera
 workflow against the built app. `--library` selects an alternate coordinated
 Rust archive. Core Image and AppKit require macOS graphics service access; an
@@ -48,7 +49,7 @@ fresh-process portability and explicit redevelopment after deleting the
 original path. Changing only the saved decoder implementation descriptor must
 leave exported rendering identical while redevelopment refuses.
 
-All app processes, ports, Actions libraries and recovery directories belong to
+All app processes, scratch sockets, Actions libraries and recovery directories belong to
 the runner; credentials are dummy. Reports include source hashes, file-set
 checks, library/app hashes and process IDs. Source changes during qualification
 fail the run. This is one 6 MP camera workflow plus a small synthetic state

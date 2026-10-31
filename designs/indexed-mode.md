@@ -1,13 +1,14 @@
 # Indexed Color document mode (ADR)
 
-- **Status:** Accepted, closed 2026-10-23; the Indexed Color PSD and PSB added the same day. Indexed Color closes
-  here; [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella) stays open for CMYK's
-  spot channels and PDF/X. Grayscale is
+- **Status:** Accepted — closed 2026-10-23; the Indexed Color PSD and PSB added the same day.
+  [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella) stays open (see
+  [cmyk-mode-status.md](cmyk-mode-status.md)). Grayscale is
   `designs/grayscale-mode.md`, Lab `designs/lab-mode.md`, CMYK `designs/cmyk-mode-status.md`.
 - **Originals:** [archive/indexed-mode-status.md](../archive/indexed-mode-status.md) (the working record at close)
   and [archive/indexed-mode-shipped.md](../archive/indexed-mode-shipped.md) (its shipped companion).
 - **Takes:** `~/devel/doctored-fixtures/photoshop/indexed-mode-547/` `take1`, `fit1`, `fit2`, `take2`,
-  `palette-take1`; runners `scripts/photoshop-probe/indexed_mode_take.py` and `indexed_palette_take.py`. The PSD:
+  `palette-take1`; runners `scripts/photoshop-probe/indexed_mode_take.py` and `indexed_palette_take.py` (the
+  harness is in the private archive, `kpgalligan/doctored-dev`). The PSD:
   `~/devel/doctored-fixtures/photoshop/indexed-psd-547/`, runner `indexed_psd_take.py`, fixtures
   `core/tests/fixtures/psd_photoshop/indexed_547`.
 - **Code:** `core/src/indexed_document.rs`, `indexed_palette.rs`, `indexed_act.rs`, `indexed_edge.rs` and
@@ -27,7 +28,7 @@
 Image ▸ Mode ▸ Indexed Color at 8 bits: palette PNG, GIF and TIFF open; the conversion from 8-bit RGB and
 Grayscale with the deterministic palettes and dithers, and back to RGB, Grayscale, CMYK and Lab; Color Table
 and `.act`; painting, geometry, paste, selections and profiles kept on the palette; the kept-palette export and
-`.rz`, from the UI, over MCP and in Actions. Every tool is admitted or refused for good by name; no refusal names a
+`.doctored`, from the UI, over MCP and in Actions. Every tool is admitted or refused for good by name; no refusal names a
 phase.
 
 ## Decisions in force
@@ -74,7 +75,7 @@ phase.
   or no profile), a GIF (one full-screen image, a colour table) and a palette TIFF (Photometric 3, 1/2/4/8 bits,
   optional straight alpha whose clear pixels are exactly one index, read through the shared `tiff_directory`
   leaf) open Indexed with palette, t and every index kept; every other file keeps its open. A colour-mode-2 PSD
-  or PSB (#1 Indexed PSD, `indexed_psd`, `indexed_psd_records`) opens from its stored composite, its one
+  or PSB (`indexed_psd`, `indexed_psd_records`) opens from its stored composite, its one
   choice: the 768-byte planar table, count from 1046 (else 256), t from 1047 when inside it, every index as
   stored, an RGB 1039 profile kept (else sRGB, warned). Depth 8, Raw or RLE; a ZIP composite, a table not 768
   bytes and a palette outside 2–256 refuse in the report and the open by one sentence; an index outside the
@@ -83,14 +84,14 @@ phase.
   encoded directly (PNG type 3 at the least depth with tRNS; GIF89a padded to a power of two with a GCE index;
   TIFF 8-bit Photometric 3 with a second sample when t is set). Another bit depth, an output size, an active
   sharpen, or a hidden layer (`HIDDEN_LAYER`) refuses by name; other requests export the RGB storage. Save As and
-  `save_copy` write `.rz`, PNG, GIF or TIFF; `IndexedDocument.saveLosses` names what a copy drops. Export Layers
+  `save_copy` write `.doctored`, PNG, GIF or TIFF; `IndexedDocument.saveLosses` names what a copy drops. Export Layers
   of the Index layer untrimmed takes the kept path. Export as PSD (`export_psd`, both modes) writes a
   colour-mode-2 PSD or PSB in Photoshop's form (take1): one channel, the table zero-padded, 1046 and 1047
   (0xFFFF with no t) after the shared resources, an empty layer section (Photoshop writes no layer record, t or
   not: the image is a Background), the RLE plane; a renamed layer is a loss (`NAME_LOSS`); a TIFF, a side past
   the container and a hidden layer refuse. Plan `indexed_psd_worst_case` + pixels × `EXPORT_BYTES_PER_PIXEL` +
   bookkeeping.
-- **`.rz` word 108** with its `INDX` table (u32 schema 1, u16 count, count × 3 RGB, i16 transparent, u32 width,
+- **`.doctored` word 108** (legacy `.rz` still read) with its `INDX` table (u32 schema 1, u16 count, count × 3 RGB, i16 transparent, u32 width,
   u32 height, the plane), last before LIDS. `DRDC_VERSION` stays 89 (a conditional word like 90–107). Reader and
   writer both require word ⇔ table, one canvas-sized raster at the origin, every index inside the palette and the
   body equal to the table's render.
@@ -200,9 +201,9 @@ Photoshop 26.10.0.
 - **3c** (`6c7446f2`): Pattern, Noise, Forced Custom, render channels, Magic Wand, Quick Selection, Clone Stamp,
   History Brush; every tool decided for good. **3d** (`06635454`): palette-take1; the four palettes refused for
   good; Pattern and Noise disclosed.
-- **The close** (this batch): the docs condensed here; drive `scripts/verify_indexed_mode.py` I59 sweeps the
+- **The close** (2026-10-23): the docs condensed here; drive `scripts/verify_indexed_mode.py` I59 sweeps the
   whole catalog on an Indexed document and pins each refusal's class; no refusal was found naming a phase.
-- **The Indexed Color PSD** (#1, this batch): colour-mode-2 PSD and PSB read and write (Decisions: Open,
+- **The Indexed Color PSD** (2026-10-23): colour-mode-2 PSD and PSB read and write (Decisions: Open,
   Export), fixtures `indexed_547`, take2 PASS; `dr_precision_doc_open_indexed_psd`; drive I60. The
   jobs-probe case "indexed background key" runs `PrecisionGeometryWork.compute`'s merged-key branch
   (move, transform, crop past the canvas) with and without the swatch.

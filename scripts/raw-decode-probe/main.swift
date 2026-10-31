@@ -6,9 +6,9 @@
 //   probe <open|warm|cold|prep|preview|resident> <file> <16|8>   (cold takes a .rz)
 //   probe [baseline] open <raw> <16|8> OP / preview <raw> 16 VP   (with Presence)
 //   probe [baseline] open <raw> <16|8> OL / preview <raw> 16 VL   (v1-lensfun: Lensfun stage on)
-//   probe [baseline] open <raw> 32 OG / preview <raw> 32 VG        (#4: with grain)
-//   probe [baseline] grain <raw> 32                                (#4: applyingRawGrain alone, GR)
-//   probe [baseline] frame <raw> 32 <F|D>                          (#4: a viewport-only HDR frame, VF)
+//   probe [baseline] open <raw> 32 OG / preview <raw> 32 VG        (with grain)
+//   probe [baseline] grain <raw> 32                                (applyingRawGrain alone, GR)
+//   probe [baseline] frame <raw> 32 <F|D>                          (a viewport-only HDR frame, VF)
 //   probe baseline <open|warm|cold|prep|preview> <file> <16|8>
 //   probe save <dng> <16|8> <out.rz>
 //   probe [baseline] restore <raw|.rz> <16|8> [none|L4]           (phase 2, RS)
@@ -77,7 +77,7 @@ func redevelopSettings() -> RawDevelopSettings {
     return settings
 }
 
-/// The grain every grain case develops (FX, OG, VG, GR; #4).
+/// The grain every grain case develops (FX, OG, VG, GR).
 let probeGrain = RawGrainSettings(amount: 50, size: 1.5, roughness: 50)
 
 /// Develop Presence at 50 on all three sliders, so every guided pass runs (OP, VP, PX).
@@ -219,7 +219,7 @@ func phase2Settings(exposure: Double, effects: Bool, presence: Bool = false) -> 
     var settings = presence ? withPresence(RawDevelopSettings()) : RawDevelopSettings()
     settings.exposure = exposure
     if effects {
-        // Grain applies at the float encoding too since #4, so FX is the same at every depth.
+        // Grain applies at the float encoding too, so FX is the same at every depth.
         settings.grain = probeGrain
         settings.vignette = RawVignetteSettings(edgeExposure: -1.25, centerX: 0.31, centerY: 0.67, falloff: 1.7)
         settings.sourceGeometry = RawLensGeometry(profileID: "fx", center: [0.43, 0.59],
@@ -661,7 +661,7 @@ func phase2Menu() throws {
     fields["ok"] = going
 }
 
-/// GR (#4): `applyingRawGrain` alone on an opened float development (the open is setup,
+/// GR: `applyingRawGrain` alone on an opened float development (the open is setup,
 /// outside the interval). The gate is the core's own selected-edit plan (`scratch_bytes`) for
 /// the request `applyingRawGrain` sends.
 func floatGrain() throws {
@@ -693,7 +693,7 @@ func floatGrain() throws {
     withExtendedLifetime(opened) {}
 }
 
-/// VF (#4): one viewport-only `RawDevelopPreviewFrame` of two known f32 sides on a screen with
+/// VF: one viewport-only `RawDevelopPreviewFrame` of two known f32 sides on a screen with
 /// headroom, with Clipping's highlights, at Fit (F) or a 1024 × 1024 100 % region (D). Setup,
 /// outside the interval: the two float developments (the file's own, and exposure 0.5), their
 /// inspection sources and the first frame (Clipping off), which stays alive as the panel holds
@@ -765,7 +765,7 @@ do {
     case "open":
         // OP: the open develops with Presence, the stage before grain.
         if shapeName == "OP" { RawImportRequest.mode = .headless(withPresence(RawDevelopSettings())) }
-        // OG (#4): the open develops grain, the last stage, at the probe's depth.
+        // OG: the open develops grain, the last stage, at the probe's depth.
         if shapeName == "OG" {
             var settings = RawDevelopSettings()
             if floatDepth { settings.outputEncoding = .linearFloat }
@@ -857,7 +857,7 @@ do {
         // VP: the after develop runs Presence too, as the import preview does once a
         // slider moved (16/8 only: the float development refuses nonzero Presence).
         if shapeName == "VL" { requested.lensCorrection = true }
-        // VG (#4): the after develop runs grain, at the float encoding too.
+        // VG: the after develop runs grain, at the float encoding too.
         if shapeName == "VG" { requested.grain = probeGrain }
         desired.recipe = try captured.recipe.updating(shapeName == "VP" ? withPresence(requested)
                                                                          : requested)
@@ -885,7 +885,7 @@ do {
                     throw DoctoredCoreError(message: "The RAW after image has no native samples.")
                 }
                 let after = try RawDevelopInspectionSource(afterImage)
-                // #4: at the float depth the window is on a screen with
+                // At the float depth the window is on a screen with
                 // headroom, so the frame draws the f32 side's extended Fit.
                 var viewport = RawDevelopViewport()
                 viewport.extendedRange = floatDepth

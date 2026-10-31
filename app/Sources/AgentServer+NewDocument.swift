@@ -234,11 +234,11 @@ extension AgentServer {
         ]
         let colorMode: [String: Any] = [
             "type": "string", "enum": ["rgb", "cmyk", "gray", "lab"], "default": "rgb",
-            "description": "File > New's Color Mode. cmyk (#1) makes a CMYK document of ink at "
+            "description": "File > New's Color Mode. cmyk makes a CMYK document of ink at "
                 + "depth 8 or 16: white is bare paper, transparent alpha 0, black or a #rrggbb "
-                + "colour separated through the document's CMYK profile. gray (#1 phase 1a) "
+                + "colour separated through the document's CMYK profile. gray "
                 + "makes a Grayscale document at depth 8, 16 or 32: the background's luminance in "
-                + "the Gray profile. lab (#1) makes a Lab Color document (D50) at depth 8 or "
+                + "the Gray profile. lab makes a Lab Color document (D50) at depth 8 or "
                 + "16: the background converted from sRGB, relative colorimetric.",
         ]
         let depth: [String: Any] = [

@@ -20,7 +20,7 @@ The synthetic oriented DNG qualifies fast UI/state checks; it never substitutes
 for the genuine 3008×2000 camera pipeline. Original camera files remain outside
 the repository. Shared fixture/reference files are immutable during qualification.
 
-All host/MCP runs use private snapshots, stores, ports and dummy credentials,
+All host/MCP runs use private snapshots, stores, scratch sockets and dummy credentials,
 retain source/header/Cargo/build/helper hashes and exact binary/archive hashes,
 and terminate only owned processes. Camera decoding needs actual macOS graphics
 services; a denied/all-zero decode fails rather than becoming a reference.
@@ -32,7 +32,7 @@ path (the generator rejects a different SHA):
 python3 -B scripts/raw-local-probe/fixtures.py --camera /path/to/camera.NEF --output /tmp/rz-phase8g-fixtures
 xcrun swiftc -O -target arm64-apple-macos15.0 scripts/raw-local-probe/reference.swift -o /tmp/rz-phase8g-reference
 /tmp/rz-phase8g-reference /tmp/rz-phase8g-fixtures/reference-jobs.json /tmp/rz-phase8g-reference-output
-MACOSX_DEPLOYMENT_TARGET=15.0 make app
+make app-debug
 python3 -B scripts/verify_phase8g.py --mode all --require-current --report /tmp/rz-phase8g-final.json
 ```
 

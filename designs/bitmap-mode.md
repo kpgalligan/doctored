@@ -1,13 +1,13 @@
 # Bitmap document mode (ADR)
 
-- **Status:** Accepted, closed 2026-10-23. Bitmap closes here; [#1](https://github.com/kpgalligan/doctored/issues/1)
-  (the colour-mode umbrella) stays open for CMYK (spot channels, PDF/X; `designs/cmyk-mode-status.md`).
+- **Status:** Accepted — closed 2026-10-23. [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode
+  umbrella) stays open (see [cmyk-mode-status.md](cmyk-mode-status.md)).
   Grayscale is `designs/grayscale-mode.md`, Lab `designs/lab-mode.md`, Indexed Color
   `designs/indexed-mode.md`, Duotone `designs/duotone-mode.md`, Multichannel `designs/multichannel-mode.md`.
 - **Originals:** [archive/bitmap-mode-status.md](../archive/bitmap-mode-status.md) (the working record at close)
   and [archive/bitmap-mode-shipped.md](../archive/bitmap-mode-shipped.md) (its shipped companion).
 - **Takes:** `~/devel/doctored-fixtures/photoshop/bitmap-mode-547/` `smoke1`, `fit1`, `smoke2`, `take1`, `walk1`,
-  `walk2` and `halftone1`; runner `scripts/photoshop-probe/bitmap_take.py`.
+  `walk2` and `halftone1`; runner `scripts/photoshop-probe/bitmap_take.py` in the private archive (`kpgalligan/doctored-dev`).
 - **Code:** `core/src/bitmap_document.rs`, `bitmap_method.rs` (kernel), `bitmap_convert.rs`, `bitmap_native.rs`,
   `bitmap_codec.rs` (kernel), `bitmap_io.rs`, `bitmap_export.rs`, `bitmap_psd.rs`, `bitmap_edit.rs`,
   `bitmap_tools.rs`, `ffi_bitmap.rs`; `app/Sources/BitmapDocument.swift`, `DoctoredCore+Bitmap.swift`,
@@ -63,7 +63,7 @@ is admitted or refused for good by name; no refusal names a phase.
   averages each `r × r` block onto `ceil(w/r) × ceil(h/r)` at `ppi/r`: `(510·W + n) / (2n)`, the chrome moving as
   Image Size moves it. Every other mode refuses: "<Mode> is unavailable in a Bitmap document; convert to
   Grayscale first."
-- **`.rz` word 110** in the CMYK slot (Duotone holds 109), table `BTMP` after GRAY and before `LIDS`: u32 schema 1,
+- **`.doctored` word 110** (legacy `.rz` still read) in the CMYK slot (Duotone holds 109), table `BTMP` after GRAY and before `LIDS`: u32 schema 1,
   u32 width, u32 height, the packed rows. Reader and writer run `bitmap_native::check` (8-bit Gray, one canvas
   raster at the origin, no alpha channel, pad bits 0, body equal to the render). `DRDC_VERSION` stays 89.
 - **The 1-bit files.** `bitmap_codec`'s header-only claim (`dr_path_bitmap_source`, after Indexed): PNG colour type
@@ -96,8 +96,8 @@ is admitted or refused for good by name; no refusal names a phase.
   `tools`, `selectors` and `allows` (the selections, the view, Brush, Eraser, Paint Bucket, Crop, Move, Gradient,
   Clone Stamp, History Brush, Quick Selection, Magnetic Lasso, Eyedropper, Color Sampler, Ruler, Pen,
   Perspective Crop); `disabledTools`, `oneLayer`, `channelTools` (`channelRefusal`), `save_selection`
-  (`saveSelectionRefusal`) and every other tool `unoffered`; `save_copy` takes rz, png, tif/tiff, bmp or
-  jpg/jpeg (`saveRefusal`), `crop`'s `fill` other than `background` refuses, a copy move `copyRefusal`, `rotate`
+  (`saveSelectionRefusal`) and every other tool `unoffered`; `save_copy` takes doctored (legacy rz accepted), png, tif/tiff,
+  bmp or jpg/jpeg (`saveRefusal`), `crop`'s `fill` other than `background` refuses, a copy move `copyRefusal`, `rotate`
   at a filtered angle `arbitraryRotationRefusal`, `set_layer_properties` past the name `layerPropertiesRefusal`,
   `render` past `composite`/`bitmap` `renderRefusal`. `AgentServer+Registry` requires every listed name to be a
   registered tool.
@@ -118,7 +118,7 @@ is admitted or refused for good by name; no refusal names a phase.
   the Magnetic Lasso and the source selections edit the selection only. `render` draws the composite for
   `composite` or `bitmap`. Straighten Layer is the straightened crop (`BitmapDocument.straightenWindow`: the Crop
   tool's `CropFit.fitted` of the canvas at the line's `straightenRotation`, `fit_crop`'s angle), one step whose
-  reply is `crop`'s with `rotation`. The layer row takes its name, label and lock, kept in `.rz`. Info reads K
+  reply is `crop`'s with `rotation`. The layer row takes its name, label and lock, kept in `.doctored`. Info reads K
   (0 % white, 100 % black), as Grayscale's.
 - **The Magic Wand and a copy move refuse for good.** The Magic Wand is in `DISABLED_OPS` (above); a copy move
   "A copy move makes a second layer, which a Bitmap document cannot hold."
@@ -231,7 +231,7 @@ rotate5-bitmap`, then `--cases transform-bitmap`) for the resampled geometry, un
 - **3** (`b3069fe6`): the Gradient, the Clone Stamp, the History Brush, Liquify, Perspective Crop, Copy, Quick
   Mask, Quick Selection, the Magnetic Lasso, the render channels, the layer row and Straighten Layer; every other
   tool refused for good in three tiers.
-- **The close** (this batch): the docs condensed here. Drive `scripts/verify_bitmap_mode.py` B31 calls the
+- **The close** (2026-10-23): the docs condensed here. Drive `scripts/verify_bitmap_mode.py` B31 calls the
   admitted tools with valid arguments (resolution, File Info, ruler origin, history budget, Fit Crop, the
   Magnetic Lasso, samplers, paths, snapshots, views, workspaces, proofs, PDF, the contact sheets and an Action's
   flip) and each reaches the core; the one error, `save_proof_preset` over the working CMYK profile ("A proof
@@ -240,5 +240,4 @@ rotate5-bitmap`, then `--cases transform-bitmap`) for the resampled geometry, un
 
 ## Open items
 
-- None for Bitmap. What remains of [#1](https://github.com/kpgalligan/doctored/issues/1) is CMYK's (spot
-  channels, PDF/X).
+- None.

@@ -45,23 +45,28 @@ import AppKit
 /// `undo` would remove all three.
 ///
 /// VIEW PREFERENCES GET NO TOOL AT ALL, and that is a decision, not an
-/// omission. Rulers, the grid, the snap toggles and the ruler unit live in
-/// `UserDefaults` and are app-wide, so (1) the `document_id` every catalog
+/// omission. Rulers, the grid, the snap toggles, the ruler unit, the guide
+/// colour, Lock Guides and Show Clipping live in `ToolOptionsStore`
+/// (`UserDefaults`) and are app-wide, so (1) the `document_id` every catalog
 /// tool carries would be a lie — a call naming one document would change
 /// every other open window; (2) there is no undo step that can walk one
 /// back, which would make it the only mutation in the surface `undo` cannot
 /// reverse; (3) a model has no pointer and never benefits from a snap — it
 /// computes the coordinate it wants and passes it at full precision; and
-/// (4) a preference writes nothing a `save_copy` would carry. Guides and the
-/// ruler origin are the opposite on all four counts — per-document,
-/// undoable, `.rz`-persisted — so they get the full set.
+/// (4) a preference writes nothing a `save_copy` would carry. The shared
+/// foreground/background pair (`ToolOptionsStore.sharedState`: the rail
+/// swatches, the eyedropper, X/D) is exempt on the same counts, and every
+/// paint, fill and gradient tool takes explicit colours, so there is no
+/// `get_colors`/`set_colors`. Guides and the ruler origin are the opposite
+/// on all four counts — per-document, undoable, saved in the `.doctored`
+/// document — so they get the full set. A new view preference is exempt the
+/// same way.
 extension AgentServer {
     /// This file's MCP tools; merged by AgentServer+Registry.swift.
     static let guidesHandlers: [String: ToolHandler] = [
-        // Guides and the ruler origin (AgentServer+Guides.swift). The view
-        // PREFERENCES beside them — rulers, the grid, the snap toggles, the
-        // ruler unit — deliberately get no tool at all; that file's header
-        // records why.
+        // Guides and the ruler origin. The view PREFERENCES beside them —
+        // rulers, the grid, the snap toggles, the ruler unit — deliberately
+        // get no tool at all; this file's header records why.
         "list_guides": { $0.listGuides },
         "add_guide": { $0.addGuide },
         "remove_guide": { $0.removeGuide },

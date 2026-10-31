@@ -1,6 +1,6 @@
 # The working limit scales with RAM (ADR)
 
-- **Status:** Accepted
+- **Status:** Accepted — closed
 - **Date:** 2026-10-04 (condensed 2026-10-09)
 - **Supersedes:** the fixed limit in [phase-4-jobs-resource-status](phase-4-jobs-resource-status.md)
 - **Record:** [../archive/working-limit-ram-scaled.md](../archive/working-limit-ram-scaled.md) is the full record of batches 163–168 and of the cancellable jobs' work-ceiling removal.
@@ -112,9 +112,8 @@ around the one MCP call; P is the admission's own plan beside the pre state.
 |---|---|---|---|---|
 | 96 MP 8-bit HEIC / gain-map HEIC / AVIF open | admitted | 4,196,342,077; 4,190,291,083; 4,044,034,729 | 3,130,968,656; 3,128,789,680; 3,081,456,136 | 1.340; 1.339; 1.312 |
 | second Rotate Canvas 17° of a 24 MP 16-bit two-layer document | turn admitted | 2,810,377,520 | 1,781,793,968 | 1.577 |
-| that document's `.rz` save | admitted (1,061,842,238 B) | 1,333,945,560 | 1,019,888,048 | 1.308 |
+| that document's `.doctored` save | admitted (1,061,842,238 B) | 1,333,945,560 | 1,019,888,048 | 1.308 |
 | that document's reopen in a fresh instance | admitted | 3,794,975,709 | 2,521,712,392 | 1.505 |
-| 16-bit live Reduce Noise over an opened 24 MP photo | admitted | 1,473,377,920 | 935,445,176 | 1.575 |
 | 45 MP 8-bit Box Blur r5 | admitted | 2,065,143,936 | 1,633,240,216 | 1.264 |
 | M1 (m8 = 7) 45 MP 8-bit Dust & Scratches r2 | admitted, no work cap under a job | 2,113,014,146 | 1,643,070,664 | 1.286 |
 | M2 45 MP 8-bit Surface Blur r5 T15 | admitted | 2,113,014,146 | 1,647,903,944 | 1.282 |

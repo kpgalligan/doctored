@@ -37,4 +37,3 @@ meaning of any existing save.
 - `DONE` — Other layer modes, nonseparable modes, Dissolve — later slices (`b6c1fd7`, `9f8f37b`, `ac33773`, `dd3474f`).
 - `DONE` — Clipping, styles, Blend If — `f65a0d2`, `7c130e2`, `b8aa5b5` (P7-20 verified).
 - `DONE` — Adjustment-layer blending (P7-19) — `ea4d9d1`; knockout — P7-37 verified.
-- `TRACKED` — P7-12/9I cutout gate → carryover P7-12.

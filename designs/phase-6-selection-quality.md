@@ -1,6 +1,6 @@
 # Selection kernels and refinement qualification (ADR)
 
-- **Status:** Accepted (kernels shipped; the guided candidate is replaced by `edge_refine.rs` and decontamination ships, 2026-10-11)
+- **Status:** Accepted — closed (kernels shipped; the guided candidate is replaced by `edge_refine.rs` and decontamination ships, 2026-10-11)
 - **Phase / dates:** 6A–6C, 2026-09-09 – 2026-09-10
 - **Original:** [archive/phase-6-selection-quality.md](../archive/phase-6-selection-quality.md) — full history, measurements, receipts
 - **Key commits:** 83de68c, 653309d, 0155d41
@@ -9,7 +9,7 @@
 Phase 6 needed Color Range, Quick Selection, selection-only transforms and ordinary refinement (Smooth/Feather/Shift/
 Contrast) built on existing profile, resampling and morphology code, plus an honest test of whether an edge-aware
 "refine brush" and foreground-color decontamination were good enough to expose. The essentials shipped; the guided
-candidate failed its predeclared gate and stays unexposed. The workspace edits reusable coverage without claiming
+candidate failed its predeclared gate and was deleted on 2026-10-11 (replaced by `edge_refine.rs`). The workspace edits reusable coverage without claiming
 automatic high-quality matting.
 
 ## Decisions
@@ -25,7 +25,8 @@ automatic high-quality matting.
     Localized Color Clusters (`points` + `cluster_range`: each sample's ramp × `1 − d/R`,
     `R = range/100 · max(w, h)`), one kernel at 8/16/32 bits and on a CMYK view; the wand gains Sample Size (the
     truncating box mean about the seed, clipped, through `ops_stats::block_mean`). Photoshop 26.10.0 take1
-    (`scripts/photoshop-probe/color_range_671_take.py`, receipt `doctored-fixtures/photoshop/color-range-671/take1`):
+    (take script in the private archive kpgalligan/doctored-dev: `scripts/photoshop-probe/color_range_671_take.py`; receipt
+    `doctored-fixtures/photoshop/color-range-671/take1`):
     bands MISS, the fitted `DEC(1.25)` ships at max 42–47 / mean 2.87–3.24 codes on the held-out chart (the undeclared
     `amount · (2 − max)` reproduces all twelve masks exactly and awaits a confirming take); Invert exact; clusters and
     Sample Size UNMEASURED (the descriptor carries no cluster position; a scripted wand click no Sample Size), so
@@ -33,8 +34,9 @@ automatic high-quality matting.
     Phase 2 adds Out Of Gamut (`range: out_of_gamut`, `../core/src/color_range_gamut.rs`,
     `dr_selection_out_of_gamut`): the gamut warning's one rule (`soft_proof::GAMUT_DELTA_E`) as coverage over the
     8-bit codes the warning proofs at each depth, through the window's proof setup, else the default preset, else
-    Working CMYK; a CMYK document selects nothing. take2 (`scripts/photoshop-probe/color_range_671_take2.py`,
-    receipt `doctored-fixtures/photoshop/color-range-671/take2`, held-out HW3 at 8 and 16 bits): the declared
+    Working CMYK; a CMYK document selects nothing. take2 (archive take script
+    `scripts/photoshop-probe/color_range_671_take2.py`, receipt `doctored-fixtures/photoshop/color-range-671/take2`,
+    held-out HW3 at 8 and 16 bits): the declared
     `amount · (2 − max)` SHIPS in place of `DEC(1.25)`: 55 held-out rows at max 0 codes (8-bit) and ≤ 0.51 / mean
     0.084 (16-bit, 8-bit scale), exact on take1's 13 masks. Out Of Gamut MISSES its 5 % gate: 3376 of 28800 HW3
     pixels disagree at 8 and 16 bits, nearly all dark saturated colours Doctored flags and Photoshop does not; the
@@ -42,12 +44,12 @@ automatic high-quality matting.
     measured: the scripted CMYK Color Range crashed Photoshop in smoke2, so take2 dropped that case.
     Phase 3 adds Skin Tones (`range: skin_tones`, core `mode: skin` with `fuzziness` 0–200, default 40;
     `color_range_band::skin_coverage` in the same kernel at 8/16/32 bits and on a CMYK view): ΔE76 from
-    Lab (70, 18, 19), full within 18, then a shoulder 0.25·F wide. take3 (`scripts/photoshop-probe/color_range_671_take3.py`,
-    receipt `doctored-fixtures/photoshop/color-range-671/take3`): the fitted LAB member MISSES its gate (held-out
+    Lab (70, 18, 19), full within 18, then a shoulder 0.25·F wide. take3 (archive take script
+    `scripts/photoshop-probe/color_range_671_take3.py`, receipt `doctored-fixtures/photoshop/color-range-671/take3`): the fitted LAB member MISSES its gate (held-out
     SK3 and the NASA portrait, max 221–255 / mean 25–46 codes) and ships pinned, no agreement claimed; Photoshop selects
     nothing at F 0 and its peak falls as F rises, a shape no declared family has. Detect Faces is described only (it
-    re-weights the whole frame, mean 59.3 → 44.8 on the portrait) and stays open.
-    Phase 4 (`scripts/photoshop-probe/color_range_671_take4.py`, receipt `…/color-range-671/take4`, fresh charts
+    re-weights the whole frame, mean 59.3 → 44.8 on the portrait) and is not built (dropped, Open items).
+    Phase 4 (archive take script `scripts/photoshop-probe/color_range_671_take4.py`, receipt `…/color-range-671/take4`, fresh charts
     sk4g/sk4r at F 10–170, the NASA portrait and a second NASA public-domain face): two Photoshop-shaped members
     fitted on take3 (P per pixel; A re-centred on the image's own colours) both lose to today's band (mean of row
     means 31.5 and 33.0 vs 24.7 codes; neither is below it on every row), so the LAB band is KEPT unchanged. Detect
@@ -63,14 +65,16 @@ automatic high-quality matting.
     fixed canvas, zero outside, singular/nonfinite refuse. Never transforms layer pixels.
   - `dr_selection_refine` — smooth → signed contour shift (regenerates the AA ramp from the 50% contour) → feather →
     contrast (hard 128 threshold at 1). Smooth/feather 0–64 px, shift ±64 px, contrast 0–1. Internal `edge_radius`
-    0–16 / `edge_strength` 0–1 drive the guided candidate (positive radius requires a brush mask) — host-gated off.
+    0–16 / `edge_strength` 0–1 drove the guided candidate (positive radius requires a brush mask), host-gated off
+    (superseded 2026-10-11, below).
 - **Strict params:** strict JSON, unknown fields refuse, params > 128 KiB refuse. Core borrows the captured source,
   never flattens a second projection. Cancellation per row and ≤ 4096 pixels. Legacy sync entry points reuse the kernels.
 - **Working reservations** (N canvas px, M max dimension; exclude borrowed source and host output): Color Range
   `N + 256 KiB`; Quick Selection `21N + 1 MiB`; transform `2N + 4096`; refinement `5N + 256 KiB`, with shift
   `9N + 20M + 4 + 256 KiB`; guided candidate `64N + 256 KiB`. No reduced-resolution authoritative path.
-- **Guided candidate** (`../core/src/guided_selection.rs`): He/Sun/Tang guided filter eqs. 5, 6, 8; encoded luma
-  guidance, ε 0.0004. A coverage filter only — not color estimation or semantic matting.
+- **Guided candidate** (`guided_selection.rs`, deleted 2026-10-11; replaced by `../core/src/edge_refine.rs`):
+  He/Sun/Tang guided filter eqs. 5, 6, 8; encoded luma guidance, ε 0.0004. A coverage filter only — not color
+  estimation or semantic matting.
 - **Analytic corpus** (`../core/tests/common/selection_quality.rs`): portrait/hair, fur, translucent glass, hard product
   × light/dark/ambiguous × blurred/thresholded = 24 cases at 320×256, alpha from 4×4 area samples of explicit shapes.
   **Predeclared alpha gate:** boundary-MAD regression ≤ 1/255 and ≥ 95% soft-detail recall (truth 32–223 retained if
@@ -102,12 +106,12 @@ automatic high-quality matting.
 
 ## Rejected alternatives
 - Exposing the guided "refine edge" brush — 12/24, damages accurate contours when guidance is weak (e.g. ambiguous
-  product 0.0017 → 0.3871).
+  product 0.0017 → 0.3871). Superseded 2026-10-11: the per-channel `edge_refine.rs` brush ships.
 - Enabling decontamination on the strength of simple FFI fixtures — needs trustworthy F/B and representative bleed
-  evaluation.
+  evaluation. Superseded 2026-10-11: Decontaminate Colors ships, tested on known-alpha composites.
 
 ## Consequences
-- Guided 12/24 is the frozen baseline every later runner re-verifies; replacement candidates are in
+- Replacement candidates are in
   [phase-6-sampled-matting-candidate.md](phase-6-sampled-matting-candidate.md),
   [phase-6-closed-form-matting-candidate.md](phase-6-closed-form-matting-candidate.md) and
   [phase-6-vitmatte-spike.md](phase-6-vitmatte-spike.md), under the [reference/color protocol](phase-6-matting-reference-protocol.md).
@@ -120,3 +124,5 @@ automatic high-quality matting.
   ([phase-6-cutout-output-contract.md](phase-6-cutout-output-contract.md), `../core/tests/refinement_cutout.rs`).
 - `DONE` — Edge brushing and color decontamination ship in Select and Mask (sheet, `refine_selection`,
   Actions), no longer gated on the corpus (owner direction 2026-10-10).
+- `DROPPED` (2026-10-30) — Color Range Skin Tones' Detect Faces: take4's two declared members (DF-C, DF-S) do not
+  beat "faces off", and face skin is selectable through Select ▸ Face Parts… and `select_person_parts`.

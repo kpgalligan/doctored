@@ -1,6 +1,6 @@
 # Phase 4 rendering and kernel contract (ADR)
 
-- **Status:** Accepted — closed (its document-level successor is the Phase 13A regional contract, [phase-13a-regional-status.md](phase-13a-regional-status.md))
+- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11)); its document-level successor is the Phase 13A regional contract, [phase-13a-regional-status.md](phase-13a-regional-status.md)
 - **Phase / dates:** Phase 4C/4D of the [implementation plan](professional-photo-editor-implementation-plan.md), 2026-09-09
 - **Original:** [archive/phase-4-rendering-contract.md](../archive/phase-4-rendering-contract.md) — full history, measurements, receipts
 - **Key commits:** `968e0ee`
@@ -82,7 +82,10 @@ rendered full frames. It also records the 4D measurements used to decide which s
 - `DROPPED` — A padded regional Gaussian adapter on the image-level request: the regional work moved to the
   13A document renderer (feathered masks declare their blur halo there; live filters and global operators were
   closed by recorded decision in 13A-4a).
-- `TRACKED` — Cooperative cancellation for transform resampling / platform RAW / encoders: codec and RAW →
-  P7-32 (plan §13C); the byte final transform job is an `OPEN` item in
-  [phase-4-jobs-resource-status.md](phase-4-jobs-resource-status.md).
-- `TRACKED` — Remaining regional/preparation cancellation and latency → P7-31, 13A-latency.
+- `DONE` — Cooperative cancellation for transform resampling: the byte final Free Transform commit is a cancellable
+  job (`TransformWork.wait` runs the cancellable byte kernel, `core/tests/byte_geometry_cancel.rs`;
+  [phase-4-jobs-resource-status.md](phase-4-jobs-resource-status.md)).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Cooperative cancellation for platform RAW and the
+  encoders and decoders.
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — Remaining regional/preparation cancellation and
+  latency.

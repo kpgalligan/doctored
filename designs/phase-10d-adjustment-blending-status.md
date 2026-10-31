@@ -1,6 +1,6 @@
 # Blend modes on 16-bit adjustment layers — v37 / `LBLD` schema 7 (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#14](https://github.com/kpgalligan/doctored/issues/14))
 - **Phase / dates:** 10D adjustment-blending slice, 2026-09-15 (verifier and GIMP receipt 2026-09-16)
 - **Original:** [archive/phase-10d-adjustment-blending-status.md](../archive/phase-10d-adjustment-blending-status.md) — full history, per-mode measured maxima, receipts
 - **Key commits:** `ea4d9d1` (slice, closes 10D), `502cc88` (GIMP R8), `fa336cf` (MCP verifier)
@@ -62,6 +62,6 @@ without changing any existing mode meaning or any previously written file.
 ## Open items (verified 2026-09-26)
 - `DONE` Styles scope phase 1 — Blend If and layer styles on RGB adjustment layers at 8, 16 and 32 bits ([layer styles](phase-10d-layer-styles-status.md) holds the take and the rule). An UNSTYLED adjustment keeps `composite_adjustment_into` byte for byte at both depths; a STYLED one applies the same per-pixel body in place after its own Below effects, alpha kept, at `k = mask × Fill × Blend If × opacity`. A CMYK adjustment followed in phase 2b-1.
 - `DONE` Styles scope phase 2b-1 — Blend If and layer styles on a CMYK adjustment layer at 8 and 16 bits ([layer styles](phase-10d-layer-styles-status.md) holds the take). An UNSTYLED CMYK adjustment keeps `cmyk_stack`'s `Entry::Tone`. A STYLED one (any style, Fill-only included, or a Blend If) applies its tone in place through `cmyk_composite::tone_mix_mode` after its own Below effects, alpha kept, at `k = mask × Fill × Blend If × opacity` (`cmyk_style_row`).
-- `TRACKED` — typed rendered-plane cache → plan §10D "what stays open". (The typed global light has landed.)
+- `OPEN` [#14](https://github.com/kpgalligan/doctored/issues/14) — a typed rendered-plane cache for styled layers (`precision_style_render.rs` renders planes per render).
 - `DONE` — knockout / `blend_interior_as_group` (P7-37): byte `78cb0ba`, typed `1a69abb`, PSD `1063561`, Photoshop `e03026e`; carryovers P7-37 VERIFIED. (P7-38/P7-39 are owned by 10C-3.)
 - `DONE` — MCP verifier (`fa336cf`) and GIMP reopen receipt R8 (`502cc88`).

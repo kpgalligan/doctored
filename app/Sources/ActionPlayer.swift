@@ -16,7 +16,7 @@ enum ActionRunHistory {
     case oneEntry
     /// Each step that changed something is its own History/Undo state under
     /// its own tool's undo name (the Actions window's Play, File ▸ Automate ▸
-    /// Play Last).
+    /// Play Last Action).
     case perStep
 }
 
@@ -39,7 +39,7 @@ enum ActionRunHistory {
 ///   That method's own comment carries the measurement the design rests on.
 ///   `run_action` is one entry because each MCP tool call is one undo step;
 ///   Batch is one per file because it saves and closes each document.
-/// - `.perStep` (the Actions window's Play, File ▸ Automate ▸ Play Last):
+/// - `.perStep` (the Actions window's Play, File ▸ Automate ▸ Play Last Action):
 ///   each step runs alone inside `ImageDocument.withUndoGroupDiscardingEmpty`,
 ///   so a step that changed something is one History/Undo state under its own
 ///   tool's undo name and counts its own change, and a failed or no-op step
@@ -53,7 +53,7 @@ enum ActionRunHistory {
 /// Batch pass none — Batch has its own Stop, per file.
 ///
 /// **A UI-driven run ASKS when a step fails.** The Actions
-/// window's Play and File ▸ Automate ▸ Play Last pass `prompt`
+/// window's Play and File ▸ Automate ▸ Play Last Action pass `prompt`
 /// (`ActionFailurePrompt.ask`): a failed step whose `on_error` is `stop` puts
 /// up Stop / Continue when its command is unavailable or names a missing
 /// object, and an OK-only alert that stops the run when it failed inside the

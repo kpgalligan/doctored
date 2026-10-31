@@ -113,7 +113,7 @@ import AppKit
 // mask, an alpha channel or one colour channel too, through the same kernels on a one-channel plane
 // (`float_plane_filter` in the core): coverage clamped to 0…1, a colour channel unclamped.
 //
-// `designs/phase-11f-hdr-float-shipped.md` is the contract; `designs/v1-float-editing.md` holds
+// `designs/phase-11f-hdr-float-status.md` is the contract; `designs/v1-float-editing.md` holds
 // what shipped after it.
 
 /// The 32-bit float document mode (Phase 11F) as the host speaks it.

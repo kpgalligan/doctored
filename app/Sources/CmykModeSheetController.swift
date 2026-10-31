@@ -108,8 +108,8 @@ final class CmykModeSheetController: NSViewController {
                     + "then holds C, M, Y and K channels and is shown through its profile. "
                     + CmykDocument.limitation
                 : target == .cmyk && document?.doc?.isIndexed == true
-                ? "Expands the palette and converts its colours into the press profile's ink at 8 bits "
-                    + "(#1 Indexed phase 1c), keeping the one layer and its transparent pixels. The "
+                ? "Expands the palette and converts its colours into the press profile's ink at "
+                    + "8 bits, keeping the one layer and its transparent pixels. The "
                     + "document then holds C, M, Y and K channels and is shown through its profile. "
                     + CmykDocument.limitation
                 : target == .cmyk

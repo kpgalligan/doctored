@@ -2,43 +2,50 @@
 title: Documentation
 description: Documentation for Doctored, a native macOS raster image editor.
 eyebrow: Documentation
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+template: splash
 hero:
   # Distinct from `title` above so the browser tab reads "Documentation | Doctored"
   # while the hero still opens with the product name.
   title: Doctored
-  tagline: A native macOS raster image editor — Swift and AppKit over a Rust core that does every pixel.
+  tagline: A native macOS raster image editor for Apple silicon — Swift and AppKit over a Rust core that does the image work.
   image:
     file: ../../assets/doctored-1024.png
     alt: The Doctored app icon
   actions:
-    - text: Example guide
-      link: /guides/example/
+    - text: Download
+      link: https://github.com/kpgalligan/doctored/releases/latest/download/Doctored.dmg
       icon: right-arrow
-    - text: Example reference
-      link: /reference/example/
+    - text: Feature reference
+      link: /reference/features/
+      variant: minimal
+    - text: MCP tool reference
+      link: /reference/mcp-tools/
       variant: minimal
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Next steps
+Doctored is a free, open-source image editor for photographers. It runs on an
+Apple silicon Mac with macOS 15 Sequoia or later, and the download is a
+notarized DMG.
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
+	<Card title="Photo editing" icon="star">
+		Layers and masks, adjustment layers, selections down to hair, healing and
+		content-aware retouching, Camera RAW, colour modes from Bitmap to Lab, and
+		8-bit, 16-bit and 32-bit float documents.
 	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
+	<Card title="Built-in assistant" icon="rocket">
+		View ▸ Assistant opens a chat assistant that edits the open document,
+		using your own Anthropic API key.
 	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
+	<Card title="Agents over MCP" icon="puzzle">
+		Settings ▸ MCP copies the command that adds the bundled `doctored-mcp`
+		helper to Claude Code. The [MCP tool reference](/reference/mcp-tools/)
+		lists every tool.
 	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight docs](https://starlight.astro.build/).
+	<Card title="Open source" icon="open-book">
+		Apache-2.0. The source, issues and releases are on
+		[GitHub](https://github.com/kpgalligan/doctored).
 	</Card>
 </CardGrid>

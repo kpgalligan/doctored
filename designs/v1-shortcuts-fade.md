@@ -1,6 +1,6 @@
 # v1 shortcuts and Edit ▸ Fade (ADR)
 
-- **Status:** Accepted, 2026-10-13.
+- **Status:** Accepted — closed; 2026-10-13.
 - **Supersedes:** Phase 12C's "⌘N stays New from Clipboard" and every "a shortcut already in the user's fingers is
   never renegotiated" comment ([phase-12c-workspace-status.md](phase-12c-workspace-status.md)).
 
@@ -47,7 +47,7 @@
 | Edit ▸ Clear | ⌫ | same |
 | Edit ▸ Fill… (+ hidden ⇧⌫) | ⇧F5 | same |
 | Edit ▸ the four colour fills | ⌥⌫ / ⌘⌫ / ⌥⇧⌫ / ⇧⌘⌫ | same |
-| Edit ▸ Color Settings… (#1, after this audit) | — | ⇧⌘K |
+| Edit ▸ Color Settings… (CMYK phase 5, after this audit) | — | ⇧⌘K |
 | Image ▸ Rotate 90° CW / CCW | ⌘R / ⇧⌘R | — / — |
 | Image ▸ Crop | ⌘K | — |
 | Image ▸ Image Size… / Canvas Size… | ⌥⌘I / ⌥⌘C | same |

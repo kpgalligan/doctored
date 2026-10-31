@@ -1,6 +1,6 @@
 # Phase 1 — save and rendering integrity (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** Phase 1 (1A–1D) of the [implementation plan](professional-photo-editor-implementation-plan.md), 2026-09-09
 - **Original:** [archive/phase-1-integrity-status.md](../archive/phase-1-integrity-status.md) — full history, measurements, receipts
 - **Key commits:** `95a8397` (Phases 1 and 2 together)
@@ -53,8 +53,9 @@ explicit, tested outcome without changing capacity or colour policy.
 - `DONE` — Power-loss durability: `save_atomically` barrier-flushes
   before the rename and flushes the directory after it (`core/src/durable_file.rs`); app saves, exports, snapshots and
   recovery manifests publish through `app/Sources/DurableFile.swift` (see "Power-loss durability" above).
-- `DONE` — Optimized Swift build: `make app` builds Release (`Makefile:43`), qualified from Phase 7E on.
+- `DONE` — Optimized Swift build: `make app` builds Release (`Makefile` `app:` target), qualified from Phase 7E on.
 - `DONE` — TIFF profile/PPI round trips → Phase 3A ([phase-3-color-metadata-status.md](phase-3-color-metadata-status.md)).
 - `DONE` — Native recovery → Phase 5 ([phase-5-recovery-history-status.md](phase-5-recovery-history-status.md)).
-- `DONE` — Fixed 24-level undo → budgeted history (`levelsOfUndo = 0`, `app/Sources/ImageDocument.swift:218`).
-- `TRACKED` — Large-document and real-photograph corpora → P7-33 (plan §13D).
+- `DONE` — Fixed 24-level undo → budgeted history (`levelsOfUndo = 0`, `app/Sources/ImageDocument.swift`).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Large-document and real-photograph corpora
+  (24/48 MP workloads measured at the 8 GiB working limit).

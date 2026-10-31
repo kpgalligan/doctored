@@ -1,6 +1,6 @@
 # Phase 7D geometry, paint and retouch — outcome (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 7D, 2026-09-10
 - **Original:** [archive/phase-7-geometry-paint-status.md](../archive/phase-7-geometry-paint-status.md) — full history, measurements, receipts
 - **Key commits:** `7e60190` (7D, on top of 7C `4061646`)
@@ -49,5 +49,6 @@ the rules it established for qualification, and the 7E handoff.
 - `DONE` — mask/channel paint/filter/morphology and RGBA-plane writeback (P7-08); Sample All/composite sources and
   fractional clone (P7-15/P7-16); content-aware, spot healing, red-eye (P7-17/P7-18); editable/attributed artwork
   (P7-04/P7-05).
-- `TRACKED` — uncompressed native payloads → carryover P7-32 (13C).
-- `TRACKED` — 48 MP and general large multilayer/history workloads → carryover P7-33 (13D).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — uncompressed native payloads (carryover P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — 48 MP and general large multilayer/history
+  workloads (carryover P7-33).

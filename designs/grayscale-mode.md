@@ -1,14 +1,15 @@
 # Grayscale document mode (ADR)
 
-- **Status:** Accepted, closed 2026-10-21. Grayscale closes here; [#1](https://github.com/kpgalligan/doctored/issues/1)
-  (the colour-mode umbrella) stays open for Lab Color (`designs/lab-mode.md`, closed 2026-10-22). CMYK is `designs/cmyk-mode-status.md`.
+- **Status:** Accepted — closed 2026-10-21. [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode
+  umbrella) stays open (see [cmyk-mode-status.md](cmyk-mode-status.md)). Lab Color is [lab-mode.md](lab-mode.md).
 - **Name:** this ADR is `grayscale-mode.md`, as the closing request named it, not the `-status` basename of the
   `v1-stacks-status.md` precedent.
 - **Originals:** [archive/grayscale-mode-status.md](../archive/grayscale-mode-status.md) (the working record at close) and
   [archive/grayscale-mode-shipped.md](../archive/grayscale-mode-shipped.md) (its shipped companion).
 - **Takes:** `~/devel/doctored-fixtures/photoshop/gray-luminance/take1`, `gray-mode-547/take1`,
   `gray-files-547/take1` to `take4`; the runners are `scripts/photoshop-probe/gray_mode_take.py`,
-  `gray_files_take.py`, `gray_export_take.py` and `gray_export_take4.py`.
+  `gray_files_take.py`, `gray_export_take.py` and `gray_export_take4.py` in the private archive
+  (`kpgalligan/doctored-dev`).
 - **Code:** `core/src/gray_*.rs`, `psd_import_gray*.rs`, `psd_export_gray*.rs`, `ffi_gray*.rs`, `icc_builtin.rs`
   (`gray_blob`, `twin_blob`); `app/Sources/GrayDocument.swift`, `GrayAdjust.swift`, `GrayClipboard.swift`,
   `GrayProfileEdit.swift`, `GrayArtwork.swift`, `AgentServer+GrayColour.swift`, `DoctoredCore+Gray.swift`,
@@ -17,7 +18,7 @@
 
 ## Context
 
-Image ▸ Mode ▸ Grayscale, at 8, 16 and 32 bits: New, open, both conversions, `.rz`, layer structure, paint,
+Image ▸ Mode ▸ Grayscale, at 8, 16 and 32 bits: New, open, both conversions, `.doctored`, layer structure, paint,
 adjustments, filters, retouch, effects, Gray PSD/PSB/TIFF in and out, geometry, selections, clipboard,
 profiles and Bits/Channel, proof, type/shape/fill layers, comps, analysis, multi-image, neural and generative
 tools, from the UI, over MCP and in Actions. Every tool the catalog offers is admitted or refused for good by name.
@@ -44,9 +45,9 @@ tools, from the UI, over MCP and in Actions. Every tool the catalog offers is ad
   a BlackIsZero TIFF of 1–2 unsigned 8/16-bit samples, a one-component 8-bit JPEG, each untagged or with a usable
   Gray ICC (a PNG `sRGB` chunk is sGray; untagged is the working Gray under an import warning); a mode-1 PSD, PSB
   or layered gray TIFF at 8/16 bits, a 32-bit Gray PSD or PSB, and a one-channel float TIFF with a Gray profile.
-- **`.rz` word 106** in the CMYK slot; its `GRAY` table (schema 1, depth, ICC) is the last before LIDS.
-  `DRDC_VERSION` stays 89. The reader requires word ⇔ table, depth ⇔ storage and the body profile equal to the
-  table's twin. Word 108 is free.
+- **`.doctored` word 106** (legacy `.rz` still read) in the CMYK slot; its `GRAY` table (schema 1, depth, ICC) is
+  the last before LIDS. `DRDC_VERSION` stays 89. The reader requires word ⇔ table, depth ⇔ storage and the body
+  profile equal to the table's twin.
 - **The gate.** The core's `gray_document::admit_edit` (asked first by `ffi_precision_edit::request` and the
   plate retouch) and `precision_capability::GRAY_FAMILIES`; the host's `GrayDocument` asked first in
   `DocumentPrecision` and `validatePrecisionItem`. Every parser op is admitted or has its own arm; a request RGB
@@ -138,7 +139,7 @@ tools, from the UI, over MCP and in Actions. Every tool the catalog offers is ad
   editable and carries comps.
 - **6b** (`11878a3c`): Histogram, Apply Image, Calculations, Stack Modes and the stack tools, Merge to HDR,
   Merge Panorama, the model selections, the neural and generative tools.
-- **The close** (this batch): the tools no phase named, each given one fate (below); Place folded with no retained
+- **The close** (2026-10-21): the tools no phase named, each given one fate (below); Place folded with no retained
   source (`GRAY_FAMILIES` `source_place`); RGB → Gray carries a Generative Layer; RGB's own errors for requests RGB
   rejects; this ADR. Tests `core/tests/gray_close.rs` (each against the RGB twin, exact); drive
   `scripts/verify_gray_mode.py` G78–G85.
@@ -160,8 +161,6 @@ tools, from the UI, over MCP and in Actions. Every tool the catalog offers is ad
 | `get_evaluation`, `set_evaluation` | refused for good: linear-light evaluation is RGB's |
 | `auto_color`, `red_eye`, `red_eye_auto`, `neural_colorize`, `sky_replacement` | refused for good (earlier phases) |
 
-No issue was filed: nothing Grayscale lacks needs more than this batch.
-
 ## Open items
 
-- Lab Color continued under [#1](https://github.com/kpgalligan/doctored/issues/1) and closed 2026-10-22 (`designs/lab-mode.md`).
+None.

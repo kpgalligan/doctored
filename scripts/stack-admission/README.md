@@ -195,7 +195,9 @@ whose cases was selected keeps its PASS.
   recorded: the baseline twin loads the same five files with
   `load_files_into_stack` after its interval is read, that reply's figure is
   the stack's plan, the rest of the sum is the merge's, and each of the two
-  must be ≥ ⌈1.25 × max E⌉.
+  must be ≥ ⌈1.25 × max E⌉. M-merge's measurement record (every run's E, the
+  stack's and the merge's plans and their ratios) sits in the `///` block
+  beside `mergeBytes` in `app/Sources/MergeHDR.swift`.
 - **M-tone**: for the tone cases, `working_memory_plan_bytes` (the core's
   `hdr_toning_plan`) ≥ ⌈1.25 × max E⌉, and every reply answers `ok`, one layer
   and bit depth 8, 16 and 16 (the same for the three `tone-la-*` cases). A
@@ -204,31 +206,11 @@ whose cases was selected keeps its PASS.
 - **R**: at 1 GiB, a jpeg8 x 12 load is refused with "…on its own…" and the
   `list_documents` count is unchanged.
 
-M-merge's record (2026-10-12; a Release app at 8 GiB,
-`MallocLargeCache=0`, three runs, every baseline twin E ≤ 65,536; every run
-answered frame 2 `reference` and the other four `aligned`):
-
-| case | reply's plan | stack's plan | merge's plan | E per run | stack's, merge's plan / max E |
-|---|---|---|---|---|---|
-| `merge-5-jpeg8-24mp` | 5,490,176,323 | 2,760,747,679 | 2,729,428,644 | 1,053,377,328 / 1,053,262,664 / 1,053,115,208 | 2.621, 2.591 |
-| `merge-5-png16-24mp` | 9,071,664,763 | 5,502,236,119 | 3,569,428,644 | 2,123,990,600 / 2,122,810,976 / 2,123,187,808 | 2.591, 1.681 |
-| `merge-layers-5-png16-24mp` | 3,569,428,644 | none (already open) | 3,569,428,644 | 1,527,923,840 / 1,527,956,608 / 1,527,956,608 | 2.336 (merge's) |
-
-The files form's plan is the stack's plan plus the merge's, and the two are
-admitted one after the other: the stack's before any file is decoded
-(`StackLoad.plan`), the merge's before its job with the stack resident (the
-built stack is passed to that admission as the job's own input). So the
-16-bit files case reports 9.07 GB at an 8 GiB limit and is admitted; admitted
-as one sum it would have been refused, against a peak of 2.12 GB. E of a files
-case is the peak of the whole interval, both stages, so the gate holds each of
-the two plans to it rather than their sum. The layers form's plan is the
-merge's alone (3.57 GB here), and its interval starts with the five-layer
-stack already open.
-
 It imports `owned`, `call` and `footprint` from
 `scripts/host-still-admission/verify.py`. Memory, not wall-clock: it may run
 beside another lane's build. Run it outside the sandbox: it launches owned app
-instances (`HostApp`: `DR_BACKGROUND=1`, a dummy `ANTHROPIC_API_KEY`, a free
-port, private `DR_*_DIR` folders) and stops only those. It writes
+instances (`HostApp`: `DR_BACKGROUND=1`, a dummy `ANTHROPIC_API_KEY`, a
+private scratch `DR_AGENT_SOCKET`, private `DR_*_DIR` folders) and stops only
+those. It writes
 `receipt.json` to the output folder (a fresh temporary folder when `--output`
 is omitted) and exits 0 only when all six gates pass.

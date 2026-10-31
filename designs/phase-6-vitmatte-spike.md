@@ -42,5 +42,6 @@ no model, Python runtime, dependency, control or inference path to the app.
 ## Open items (verified 2026-09-26)
 - `DROPPED` — MPS / Core ML deployment, a new resource policy, or any neural matting integration: gate v2 decision 5
   ("no neural matting model is added; Apple Vision stays the automatic prior"),
-  [archive/phase-9i-gate-v2-status.md](../archive/phase-9i-gate-v2-status.md); also carryover P7-12.
-- `TRACKED` — Better automatic input policy / manual evidence → 9I assisted protocol under gate v2 (P7-12).
+  [archive/phase-9i-gate-v2-status.md](../archive/phase-9i-gate-v2-status.md).
+- `DROPPED` (2026-10-30) — Better automatic input policy / manual evidence: the gate is not a ship condition
+  (2026-10-10) and gate v2's assisted run is dropped.

@@ -62,7 +62,7 @@ extension AgentServer {
             "stages as r/g/b objects), .ahu ",
             "Hue/Saturation, .eap Exposure, .blw Black & White and .cha Channel Mixer (RGB ",
             "presets; a CMYK preset refuses). Files over 64 KiB refuse. color_mode \"cmyk\" ",
-            "(#1) reads a .alv's or .acv's INK channels for a CMYK document's Levels or Curves: ",
+            "reads a .alv's or .acv's INK channels for a CMYK document's Levels or Curves: ",
             "the composite and c, m, y, k (Levels stages on L = 1 − ink, Curves points on the ink ",
             "axes); an RGB .acv and every other extension refuse there. ",
             "Pass op and params to add_adjustment_layer to create the layer — params carry no ",

@@ -1,6 +1,6 @@
 # Phase 8E — retained artwork at native depth (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 8E, 2026-09-11
 - **Original:** [archive/phase-8e-artwork-status.md](../archive/phase-8e-artwork-status.md) — full history, measurements, receipts
 - **Key commits:** `23cf25d` (follows 8D `943dbf5`)
@@ -67,7 +67,8 @@ Shared retained-source rules are in [phase-8-retained-source-status.md](phase-8-
 ## Consequences
 - Any new geometry/profile op touching an artwork layer must regenerate from the description or disclose
   description loss; never publish a raster-only result on failure.
-- Text/canvas size growth must go through P7-34, not a cap bump.
+- Text/canvas size growth must go through P7-34 ([#11](https://github.com/kpgalligan/doctored/issues/11)), not a cap
+  bump.
 
 ## Qualification
 Independent Rust coverage/composition references: exact fractional rectangles, 1,024 distinct coverage values,
@@ -79,7 +80,7 @@ Reproduction: `scripts/verify_phase8e.py`, [`scripts/artwork-text-probe`](../scr
 
 ## Open items (verified 2026-09-26)
 - `DONE` Part A — Outline-less non-color glyphs that draw no ink are dropped (Apple Chancery U+0338 no longer exceeds 256 parts; `outline_less_no_ink`); the inked A8 fallback stays a fail-safe qualified by core composition. Part B (a fixture font) won't do.
-- `TRACKED` — Larger text (>4,096 UTF-16 units) and canvases → carryover P7-34 / plan §13D; regional processing → §13A–13C.
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Larger text (>4,096 UTF-16 units) and canvases through bounded processing (carryover P7-34).
 - `DONE` — Group/linked-set geometry and native text/shape regeneration; true perspective now asks for authorization and reports exact description loss (12F-2, `07d9153`). Warp/deform shipped in 12F-3 (`6400648`).
 - `DONE` — Brush/selection coverage beyond bytes (P7-11/P7-13 verified by 9G/9H); P7-06 verified by 9F.
 - `DONE` — Typed insertion at the named slot (12E-2b).

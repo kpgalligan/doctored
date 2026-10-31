@@ -82,7 +82,8 @@ PatchMatch/membrane path qualified in [phase-9d-synthesis-qualification.md](phas
   picture through `dr_precision_doc_retouch_from`. Extend is the heal alone. Offsets stay whole pixels.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Large periodic-hole phase ambiguity and broader large-image photographic quality → carryover
-  P7-18 row (explicit 13A/13D limits); plan §13D scale qualification.
-- `TRACKED` — P7-12/9I cutout gate and the whole Phase 9 gate → carryover P7-12 (assisted session deferred).
+- `DROPPED` (2026-10-30) — large periodic-hole phase accuracy and large-removal photographic qualification: a
+  declared PatchMatch limit with no planned approach; the comparison UI lets the user pick candidates.
+- `DONE` — P7-12's other half: edge brushing and colour decontamination shipped 2026-10-11 in Select and Mask; the
+  9I cutout gate is no longer a ship condition and its assisted session is dropped.
 - `DONE` — Scalar targets and native selection creation (9G) — `f457cdb`.

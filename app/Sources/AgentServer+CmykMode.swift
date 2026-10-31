@@ -19,7 +19,7 @@ extension AgentServer {
     ]
 
     private static let multichannelRefusal =
-        "Multichannel documents are not supported: Doctored has no spot channels."
+        "Multichannel documents are not supported."
 
     /// Mirrors Image ▸ Mode ▸ CMYK Color… and RGB Color… (`CmykModeSheetController`) and
     /// Grayscale (`convertToGrayscaleMode:`, #1 phase 1a) and Lab Color (`convertToLabMode:`,
@@ -31,7 +31,7 @@ extension AgentServer {
     /// with `method`, `resolution` and `flatten` (since phase 1b also Halftone Screen's `frequency`,
     /// `angle` and `shape` and Custom Pattern's `pattern`), and Grayscale on a Bitmap document with
     /// `size_ratio` (`BitmapToGraySheetController`).
-    /// `mode: multichannel` refuses by name, #1: no spot channels.
+    /// `mode: multichannel` refuses by name (`designs/multichannel-mode.md`: not built).
     func convertMode(_ a: [String: Any]) throws -> String {
         let document = try target(a)
         let modeName = try requiredString(a, "mode")

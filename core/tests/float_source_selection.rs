@@ -1,7 +1,7 @@
 //! Load Selection from a colour plane, the luminosity plane or a
 //! layer's transparency on a 32-bit float document. Each f32 sample becomes
 //! u16 coverage by clamping the scene-linear value to 0…1 (Photoshop 2025's
-//! measured mapping, `designs/phase-11f-hdr-float-shipped.md`), whatever the
+//! measured mapping, `designs/phase-11f-hdr-float-status.md`), whatever the
 //! document's tone map; the luminosity plane is the document profile's Y row
 //! over the UNclamped samples, clamped only as a sum (measured on sRGB
 //! and ROMM). Magic Wand, Color Range, Select Similar, Quick Selection and

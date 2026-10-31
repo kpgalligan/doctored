@@ -62,8 +62,8 @@ extension AgentServer {
                 ], required: ["path"]),
 
             // Actions — recorded sequences of these very tools
-            // (AgentServer+Actions.swift). Batch deliberately has no tool: it
-            // is open_document + run_action + save_copy in a loop.
+            // (AgentServer+Actions.swift). The batch tools are in
+            // AgentCatalog+ReusableActions.swift.
             tool(
                 "list_actions",
                 "Lists the saved Actions — named, replayable sequences of these tools. "
@@ -132,14 +132,18 @@ extension AgentServer {
                     + "differently sized document and needs recorded_canvas. A file is "
                     + "written at schema 1 when it uses none of those. Every step is "
                     + "validated before a byte is written, and an unknown tool is refused "
-                    + "by step index. A step may "
-                    + "not name the Actions tools themselves (run_action, save_action, "
-                    + "delete_action, list_actions, start_recording, stop_recording): an "
-                    + "action does not run or edit actions. save_copy is refused too — an "
-                    + "action says what to DO to a picture, never where to write it, and "
-                    + "its recorded path is absolute, so in a batch every file would be "
-                    + "written over the same one outside the output folder. Batch chooses "
-                    + "the folder, the format and the name. undo and redo are refused as "
+                    + "by step index. A step may not name, for example, a tool that runs "
+                    + "or edits actions or batches (run_action, run_batch, save_action, "
+                    + "delete_action, list_actions, start_recording, stop_recording, "
+                    + "package_action, import_action), writes a file to a literal path "
+                    + "(save_copy, export_image, export_pdf, export_psd), closes the "
+                    + "document, or writes a preset, policy or workspace library; the "
+                    + "refusal gives the reason and, where there is one, what to record "
+                    + "instead. save_copy's "
+                    + "recorded path is absolute, so a batch would write every file over "
+                    + "that one path: record quick_export (a destination plus a pattern "
+                    + "containing {name}, never overwriting) or let Batch choose the "
+                    + "folder, the format and the name. undo and redo are refused as "
                     + "steps as well: an action IS one undo entry, so an undo inside it "
                     + "throws the document's redo history away and reports success.",
                 [

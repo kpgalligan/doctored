@@ -50,4 +50,5 @@ crops, or reinterpret earlier results. Source selection and the memory envelope 
 ## Open items (verified 2026-09-26)
 - `DROPPED` — Photographic physical-translucency reference: never obtained; glass moved out of the pass rule to a
   reported-only glass diagnostic (transmission research declined) (gate v2 decision 1, [archive/phase-9i-gate-v2-status.md](../archive/phase-9i-gate-v2-status.md)).
-- `TRACKED` — Qualifying any candidate on these 42 → carryover P7-12 / 9I gate v2.
+- `DROPPED` (2026-10-30) — Qualifying any candidate on these 42: the gate is not a ship condition (2026-10-10) and
+  gate v2's assisted run is dropped.

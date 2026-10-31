@@ -2,7 +2,7 @@
 
 Historical design and status documents, moved here on 2026-09-26. Each was condensed into an ADR at the same basename in [`designs/`](../designs/); read the ADR first. Come here only when asked, or when you need the full reasoning, measurements, receipts or run logs behind an earlier phase's decision. Their verified open items are GitHub issues, linked from each ADR's "Open items" section.
 
-A record that grew again after 2026-09-26 and was condensed a second time has its second original under [`2026-10/`](2026-10/), at the same basename: the doc as it stood on 2026-10-07, with the measurement tables and issue records added since September. The first original stays where it was. They are listed in the last section.
+A record that grew again after 2026-09-26 and was condensed a second time has its second original under [`2026-10/`](2026-10/), at the same basename: the doc as it stood on 2026-10-07, with the measurement tables and issue records added since September. The first original stays where it was. Two records condensed a third time on 2026-10-30 have that original under [`2026-10-30/`](2026-10-30/). They are listed in the last section.
 
 Links inside these files are historical: sibling links point at other archived originals, and code line numbers may have drifted.
 
@@ -13,6 +13,7 @@ Links inside these files are historical: sibling links point at other archived o
 - [next-features.md](next-features.md) — Feature survey choosing the meta-parametric-layer direction; suggested phase and second wave shipped. ADR carries a verified 20-row catalog. ([ADR](../designs/next-features.md))
 - [photo-editor-gap-review-2026-09.md](photo-editor-gap-review-2026-09.md) — September re-review (F01–F16, P0–P3) reprioritising around integrity, precision, sources and scale; became the plan's Phases 1–13. Mostly done. ([ADR](../designs/photo-editor-gap-review-2026-09.md))
 - [photo-editor-gap-review.md](photo-editor-gap-review.md) — First gap catalog, driving Phases 1–8 (styles, symbolic transforms, channels, ICC/metadata, adjustments, healing/CAF, groups/locks, guides, RAW, Actions) — all shipped; the §3 breadth catalog is partly open. ([ADR](../designs/photo-editor-gap-review.md))
+- [professional-photo-editor-implementation-plan.md](professional-photo-editor-implementation-plan.md) — The thirteen-phase plan implementing the September gap review, with every slice narrative, completion gate, boundary, the follow-on tracks table and the original execution sections, to 2026-10-30 (Phases 1–12 shipped, 13 partly open). ([ADR](../designs/professional-photo-editor-implementation-plan.md))
 
 ## Phases 1–5 — integrity, selection, colour/metadata, jobs, recovery
 
@@ -38,6 +39,7 @@ Links inside these files are historical: sibling links point at other archived o
 
 ## Phase 7 — high-depth (16-bit) documents
 
+- [phase-7-carryovers.md](phase-7-carryovers.md) — Carryover ledger P7-01–P7-39 — each 7A–7E gap's receiving slice and close criterion, with every row's verification evidence; closed 2026-10-30, open rows filed as issues. ([ADR](../designs/phase-7-carryovers.md))
 - [phase-7-conversion-readout.md](phase-7-conversion-readout.md) — 7E contract — flattened ×257 promotion/downconversion, one nearest/Bayer quantizer with undithered alpha, captured-projection PNG/TIFF16 export, u16 readouts (12H addendum). ([ADR](../designs/phase-7-conversion-readout.md))
 - [phase-7-geometry-paint-status.md](phase-7-geometry-paint-status.md) — 7D batch outcome — masks/channels, geometry, paint/clone, artwork, healing on the typed document; 21/21 native 24 MP stages. ([ADR](../designs/phase-7-geometry-paint-status.md))
 - [phase-7-geometry.md](phase-7-geometry.md) — 7D typed geometry contract — `GeometryEdit` requests (extended by 12F), mask-link rules, exact vs filtered sampling, f64 weights, plan-before-allocate. Closed. ([ADR](../designs/phase-7-geometry.md))
@@ -55,6 +57,7 @@ Links inside these files are historical: sibling links point at other archived o
 - [phase-8e-artwork-status.md](phase-8e-artwork-status.md) — 8E retained text/shape artwork at both depths — description v3, native area coverage, typed native v20 `ADSC`, fail-closed metadata. Verified P7-04/P7-05. ([ADR](../designs/phase-8e-artwork-status.md))
 - [phase-8f-host-source-status.md](phase-8f-host-source-status.md) — 8F retained host stills and video frames — exact encoded originals, actual decoder samples, rational frame identity, native v21/v22 `RBIN` pool. Verified P7-03; ProRes cross-decoder unqualified. ([ADR](../designs/phase-8f-host-source-status.md))
 - [phase-8g-raw-enhancements-status.md](phase-8g-raw-enhancements-status.md) — 8G camera-relative controls and up to four local RAW developments with u16 `RZLM` source-coordinate masks, recipe 3, frozen numeric gates. Completed Phase 8. ([ADR](../designs/phase-8g-raw-enhancements-status.md))
+- [phase-8g-raw-enhancements-shipped.md](phase-8g-raw-enhancements-shipped.md) — 8G's shipped companion as of 2026-10-30 — the decisions in force for locals, range/generated/Sky masks, the 32-bit float development, the Develop Filter and its masks, Presence, local tone, syncing and bounds; condensed into the ADR. ([ADR](../designs/phase-8g-raw-enhancements-status.md))
 
 ## Phase 9 — live filters, retouch, selections, paint
 
@@ -74,6 +77,7 @@ Links inside these files are historical: sibling links point at other archived o
 - [phase-9i-bayesian-v5-status.md](phase-9i-bayesian-v5-status.md) — Joint Bayesian alpha/foreground candidate V5 — failed (2/90 combined passes, damaged interiors, 24 budget refusals); kept as a diagnostic. ([ADR](../designs/phase-9i-bayesian-v5-status.md))
 - [phase-9i-cutout-status.md](phase-9i-cutout-status.md) — The five predeclared automatic cutout candidates (V1–V5) and the internal RGBA16 + u16-mask cutout foundation; none pass, advanced controls stay disabled. ([ADR](../designs/phase-9i-cutout-status.md))
 - [phase-9i-established-pipeline-decision.md](phase-9i-established-pipeline-decision.md) — Review of RVM, FBA and BGMv2 as an established matting pipeline; RVM preferred conditionally, then dropped by gate v2. ([ADR](../designs/phase-9i-established-pipeline-decision.md))
+- [phase-9i-established-pipeline-manifest.json](phase-9i-established-pipeline-manifest.json) — RVM acquisition/runtime proposal for the established-pipeline review; never a frozen candidate, unused since gate v2 dropped RVM. ([ADR](../designs/phase-9i-established-pipeline-decision.md))
 - [phase-9i-execution-status.md](phase-9i-execution-status.md) — Cancellable cutout preparation — compound single-use job control, owner-close forwarding, chunked byte copy/render, borrowed-matte accounting. Closed. ([ADR](../designs/phase-9i-execution-status.md))
 - [phase-9i-feasibility-evidence-audit.md](phase-9i-feasibility-evidence-audit.md) — Audit of preserved fixtures, reports, binaries, dataset permissions and source-only isolation; `/private/tmp` locations later purged and replaced. ([ADR](../designs/phase-9i-feasibility-evidence-audit.md))
 - [phase-9i-feasibility-status.md](phase-9i-feasibility-status.md) — Work-package-1 prerequisite decision — stop at missing rights/evidence. Superseded by gate v2. ([ADR](../designs/phase-9i-feasibility-status.md))
@@ -91,6 +95,7 @@ Links inside these files are historical: sibling links point at other archived o
 - [phase-10a-relative-masks-status.md](phase-10a-relative-masks-status.md) — Raster-relative PSD masks normalized from the owning raster's origin; Photoshop Run 3 shows Photoshop ignores bit 0 — divergence recorded. ([ADR](../designs/phase-10a-relative-masks-status.md))
 - [phase-10b-export-status.md](phase-10b-export-status.md) — 8-bit classic PSD writer (layers or flattened composite) under "never silent" preflight, qualified by GIMP 3.2.6 reopen under five gates. Closed. ([ADR](../designs/phase-10b-export-status.md))
 - [phase-10c-constructs-status.md](phase-10c-constructs-status.md) — 10C-2 per-construct PSD exchange rules (adjustments, lfx2/iOpa/Blend If, clipping, omissions) both directions at both depths; closed 2026-09-16, its agreement with Photoshop measured. ([ADR](../designs/phase-10c-constructs-status.md))
+- [phase-10c-constructs-shipped.md](phase-10c-constructs-shipped.md) — 10C-2's shipped companion as of 2026-10-30 — Pattern Overlay, reference point, Stroke Fill Type, Contour, Noise, Texture, gradient glows, Styles panel and `.asl`, Levels/Curves carry and the measured effect-kernel and gradient members, each with its take record. ([ADR](../designs/phase-10c-constructs-status.md))
 - [phase-10c-depth-status.md](phase-10c-depth-status.md) — 16-bit RGB PSD import/export following document depth; `Lr16` tail blocks, ZIP decode, Photoshop-authored 16-bit fixture. ([ADR](../designs/phase-10c-depth-status.md))
 - [phase-10d-adjustment-blending-status.md](phase-10d-adjustment-blending-status.md) — 26 non-Normal blend modes on typed 16-bit adjustment layers via the byte composite_adjustment_into rule; native v37 / LBLD schema 7, 16-bit PSD keys; verified P7-19. ([ADR](../designs/phase-10d-adjustment-blending-status.md))
 - [phase-10d-basic-blending.md](phase-10d-basic-blending.md) — First native blend slice — Normal/Multiply/Screen + Pass Through, `layer_blend` v1 edit, atomic compound properties, conditional RZDC26 / LBLD schema 1. ([ADR](../designs/phase-10d-basic-blending.md))
@@ -111,6 +116,7 @@ Links inside these files are historical: sibling links point at other archived o
 - [phase-11d-format-additions-status.md](phase-11d-format-additions-status.md) — 11D formats — host-encoded HEIC, Gray16→sRGB, typed packet/PPI bridge, float-TIFF seam, PDF/SVG import, PDF export, AVIF/JP2 in the 8F matrix (closes P7-23). ([ADR](../designs/phase-11d-format-additions-status.md))
 - [phase-11e-linear-light-status.md](phase-11e-linear-light-status.md) — 11E phase 1 of P7-24 — per-document encoded/linear_light policy refused by name at switch/edit/render, native wrapper 38/39 `EVAL`, archive v4. ([ADR](../designs/phase-11e-linear-light-status.md))
 - [phase-11f-hdr-float-status.md](phase-11f-hdr-float-status.md) — 11F 32-bit float document — linear-light RGBA32, finite-at-import rule, tone maps, native v40 `FLOT`, exact float TIFF I/O, bounded operator set (closes P7-25/P7-36). ([ADR](../designs/phase-11f-hdr-float-status.md))
+- [phase-11f-hdr-float-shipped.md](phase-11f-hdr-float-shipped.md) — 11F's shipped companion as of 2026-10-30 — the float decisions in force and each shipped item (blend modes, styles, adjustments and their takes, paint and fill, selections, placed and RAW sources) with its take readings and admission ratios. ([ADR](../designs/phase-11f-hdr-float-status.md))
 
 ## Phase 12 — workflow and high-depth parity
 
@@ -121,6 +127,7 @@ Links inside these files are historical: sibling links point at other archived o
 - [phase-12e-layer-ops-status.md](phase-12e-layer-ops-status.md) — 12E high-depth layer ops — persisted ids (RZDC 45/46), typed structure, merge, locks, guides, slot-rule insertion, stamp/flatten, knockout at both depths with PSD `knko`/`infx`. Closes P7-26/27/37. ([ADR](../designs/phase-12e-layer-ops-status.md))
 - [phase-12f-geometry-status.md](phase-12f-geometry-status.md) — 12F high-depth geometry across ten runs — typed Canvas Size, straighten/arbitrary rotation, float exact ops, interactive geometry, set/retained transforms, warp, source geometry, paint replay. Shipped. ([ADR](../designs/phase-12f-geometry-status.md))
 - [phase-12g-clipboard-status.md](phase-12g-clipboard-status.md) — 12G high-depth clipboard — RZCB v1–v3 typed payload, Cut/Copy/Paste at depth, convert/promote arms, New from Clipboard, recordable $asset Paste, editable payloads. Shipped. ([ADR](../designs/phase-12g-clipboard-status.md))
+- [phase-12g-clipboard-shipped.md](phase-12g-clipboard-shipped.md) — 12G shipped companion — the full Part A–D records (paste conversion, recorded Paste, layers into float and across profiles, group copy and cut, what travels with copied layers, placement) with their Photoshop verdicts, receipts and coordinates; condensed into the ADR's Shipped parts 2026-10-30. ([ADR](../designs/phase-12g-clipboard-status.md))
 - [phase-12h-conversion-status.md](phase-12h-conversion-status.md) — 12H structure-preserving precision conversion — per-structure table, 8↔16, float→16, float→8 with source/warp carriage; no conversion into float. Shipped; closes Phase 12. ([ADR](../designs/phase-12h-conversion-status.md))
 
 ## Build velocity — closed 2026-10-08
@@ -176,6 +183,10 @@ Links inside these files are historical: sibling links point at other archived o
 
 - [spot-channels-status.md](spot-channels-status.md) — the working record of #1's spot channels at close (2026-10-26) — the status head with 1a-1 to 1c-2a, the sources, the decisions in force (model, overprint, saves, PSD/PSB, flat TIFF, PDF), the plan, 1c-2b's contract, open items and the shipped runs. ([ADR](../designs/spot-channels.md))
 
+## Retired assets
+
+- [rasterize-app-icon/](rasterize-app-icon/) — The retired Rasterize "1a Overlap" app icon (three multiplying circles in a squircle): SVG master, appiconset and notes; replaced by the Doctored icon. ([current](../designs/new-icon/README.md))
+
 ## 2026-10 — originals of records condensed again
 
 - [2026-10/phase-9f-selected-tone-status.md](2026-10/phase-9f-selected-tone-status.md) — 9F as of 2026-10-07 — the September ADR plus the full records of the additional spatial filters (Box/Surface Blur, Add Grain, Radial Blur, Clouds, Offset), the proxy previews, the 24 MP 16-bit previews, the 24 MP ceilings Parts C and D phase 1, the byte filter_op plan and its Apply as a job, with every calibration, footprint, latency and drive table. ([record](../designs/phase-9f-selected-tone-status.md))
@@ -194,3 +205,7 @@ Links inside these files are historical: sibling links point at other archived o
 - [2026-10/phase-12a-replay-status.md](2026-10/phase-12a-replay-status.md) — 12A as of 2026-10-07 — the September ADR plus the issue record added since (`color_space` on the remaining tools, the 16-bit document hex, sampled sRGB numbers for text and shape colours). ([record](../designs/phase-12a-replay-status.md))
 - [2026-10/phase-13a-regional-status.md](2026-10/phase-13a-regional-status.md) — 13A as of 2026-10-07, condensed here for the first time (the phase was open on 2026-09-26, so there is no September original) — the sub-slice plan with every split and every `Owns` / `Exit` cell, the 13A-1 contract and its 30 contract deltas, the 13A-6 cap survey, all 102 decisions, the 31 verification records with their receipts paths, cancel-to-return tables and run logs, the latency A/B and bisect tables, and the open-items table with its 65 struck rows ([record](../designs/phase-13a-regional-status.md))
 - [2026-10/phase-13b-tiled-status.md](2026-10/phase-13b-tiled-status.md) — 13B as of 2026-10-07, condensed here for the first time (the phase was open on 2026-09-26, so there is no September original) — the survey of retained storage before 13B-1 with its line evidence, the sub-slice plan with every `Owns` / `Exit` cell, the 30 run contracts, all 198 decisions with their constructor-site classifications, the 30 verification records with their receipts paths, bound tables and run logs, and the open-items table with its 48 closed rows ([record](../designs/phase-13b-tiled-status.md))
+- [2026-10-30/phase-10c-constructs-status.md](2026-10-30/phase-10c-constructs-status.md) — 10C-2 as of 2026-10-30, before its shipped companion was folded into the ADR — the decisions, open receipts and open items as they stood, with the take records. ([ADR](../designs/phase-10c-constructs-status.md))
+- [2026-10-30/phase-11f-hdr-float-status.md](2026-10-30/phase-11f-hdr-float-status.md) — 11F as of 2026-10-30, before its shipped companion was folded into the ADR — the open items as they stood and the shipped runs, with their take records. ([ADR](../designs/phase-11f-hdr-float-status.md))
+- [2026-10-30/phase-8g-raw-enhancements-status.md](2026-10-30/phase-8g-raw-enhancements-status.md) — 8G as of 2026-10-30, before its shipped companion was folded into the ADR — the open items as they stood. ([ADR](../designs/phase-8g-raw-enhancements-status.md))
+- [2026-10-30/phase-12g-clipboard-status.md](2026-10-30/phase-12g-clipboard-status.md) — 12G as of 2026-10-30, before its shipped companion was folded into the ADR — the open items as they stood. ([ADR](../designs/phase-12g-clipboard-status.md))

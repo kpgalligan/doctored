@@ -45,5 +45,5 @@ yield identical RGB, prior and valid trimap. No deterministic operation on those
 - `DONE` — Learned-prior direction (ViTMatte) was tried as an offline spike ([phase-6-vitmatte-spike.md](phase-6-vitmatte-spike.md)).
 - `DROPPED` — Integrating ViTMatte or BackgroundMattingV2: gate v2 decision 5 adds no neural matting model; Apple
   Vision stays the automatic prior ([archive/phase-9i-gate-v2-status.md](../archive/phase-9i-gate-v2-status.md)).
-- `TRACKED` — Reliable constraints / explicit correction footprint to fix coupled color → carryover P7-12, 9I assisted
-  protocol under gate v2.
+- `DROPPED` (2026-10-30) — Reliable constraints / explicit correction footprint to fix coupled color: the gate is not
+  a ship condition (2026-10-10) and gate v2's assisted run is dropped.

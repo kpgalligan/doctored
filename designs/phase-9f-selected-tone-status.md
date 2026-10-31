@@ -66,7 +66,8 @@ menu was regrouped into submenus.
 - **Placement.** One `SpatialKernel` (`core/src/ops_spatial.rs`) serves `SelectedFilter::Spatial` (16-bit layers,
   masks, colour/channel planes) and the byte `dr_image_filter_op`, so a byte-origin 16-bit result is within one
   code of the 8-bit one. The sheets record `apply_filter` steps (Actions and ⌃F replay them); the MCP twin is
-  `apply_filter`. Float documents refuse these as they refuse Gaussian Blur.
+  `apply_filter`. At 32-bit float Box Blur runs in linear light and Surface Blur and Add Grain on an encoded copy
+  ([v1 float editing](v1-float-editing.md)).
 - **Box Blur**: premultiplied mean of a `(2r+1)²` clamped-edge window (integer radius 1–1000; the sheet shows
   1–250) by sliding sums, so cost does not depend on the radius. It filters alpha.
 - **Surface Blur** (`sampling_surface.rs`): the exact tent filter per channel, `out = Σα·w(v−c)·v / Σα·w(v−c)`,
@@ -82,8 +83,7 @@ menu was regrouped into submenus.
   Roughness at constant RMS, added as `amount·GRAIN_RMS_PER_AMOUNT·g·4Y(1−Y)` per channel (`GRAIN_RMS_PER_AMOUNT`
   frozen at 0.001: Amount 100 is 25.5 levels at mid-grey, zero at black and white). Colour only; amount 0 is the
   exact bypass.
-- **Since:** grain in RAW develop is the last development stage, seeded from the camera file's SHA-256. Live-stack
-  versions of these filters are not built.
+- **Since:** grain in RAW develop is the last development stage, seeded from the camera file's SHA-256.
 
 ## Radial Blur, Clouds / Difference Clouds, Offset
 **Radial Blur…**, **Clouds** / **Difference Clouds** and **Offset…**: destructive 8/16-bit filters on layers,
@@ -126,7 +126,8 @@ masks, colour planes and channels, selection-scoped, recorded, ⌃F-repeatable, 
   The centre picker shows the image; a 16-bit mask's picker frame falls back to the
   layer's rect. `apply_filter`'s colour defaults are #000000 / #ffffff, not the swatches. ⌃F on Clouds draws and
   records a new seed; an Action keeps its recorded one. The constants were not compared with Photoshop renders.
-  The 24 MP Good / Best refusal stands. No 32-bit float. No UI drive was run on the sheets.
+  The 24 MP Good / Best refusal stands. At 32-bit float Radial Blur and Offset run in linear light and Clouds on an
+  encoded copy ([v1 float editing](v1-float-editing.md)). No UI drive was run on the sheets.
 - The calibration, memory-gate and drive tables are in the archived original.
 
 ## Staged, cancellable slider previews (2026-10-02)
@@ -202,7 +203,8 @@ From σ4 up (`LEGACY_FAST_SIGMA`) the legacy Gaussian family (8-bit `dr_image_fi
   and f32::MAX. Only Deriche qualifies, switching at σ4. Its largest error against the exact 3σ kernel at σ ≥ 4
   is **0.6409/255** (quadrant step, σ64), which sets the tests' bounds (2 codes at 8 bits, 166 at 16). The spec's
   "live" clause against the 3σ-truncated kernel was ruled mis-specified and re-derived against an
-  untruncated reference ([phase 9](phase-9-live-filters-status.md#live-filters-at-24-mp-both-depths)).
+  untruncated reference (phase 9's live-filters-at-24-MP section, in
+  [its October original](../archive/2026-10/phase-9-live-filters-status.md)).
 - **Photoshop.** Its radius is σ, about 2% wider (best-fit σ 12.29 at r = 12), and its large-radius Gaussian
   looks like an iterated box; Gaussian Blur now runs an iterated box from r 7 up, fitted to the takes
   (next section). The error tables, fixture hashes and Photoshop manifest are in the archived original; the
@@ -243,8 +245,7 @@ takes measured the box only in Gaussian Blur.
 
 ## Reduce Noise statistics in row rings, a measured rank charge (2026-10-03)
 Reduce Noise's guided filter keeps its window statistics as streamed row rings instead of 6–8 whole n×8 planes,
-bit-identical. A 6000 × 4000 layer is admitted at 8 and 16 bits by the sheet, `apply_filter` and the live
-filter's core plans. Dust & Scratches' and Reduce Noise's work charges are re-calibrated against measured time.
+bit-identical. A 6000 × 4000 layer is admitted at 8 and 16 bits by the sheet and `apply_filter`. Dust & Scratches' and Reduce Noise's work charges are re-calibrated against measured time.
 - `core/src/sampling_box.rs` is the ONE clamped-edge sliding box sum. `BoxRows` takes input rows in order
   (`push`) and hands back output rows in order (`emit`), holding a ring of min(2r+2, h) rows and one running
   column; `box_sum` (Box Blur) is its whole-plane wrapper.
@@ -259,16 +260,7 @@ filter's core plans. Dust & Scratches' and Reduce Noise's work charges are re-ca
   refuses by work) and Reduce Noise is admitted at every radius 0–64.
 - **Footprint gates the tests hold.** The 16-bit selected `reduce_noise` default plan, 822,291,456, is at least
   its measured peak 753,877,544 (`S16_FLOOR`; gate 1.0×, the arm's allocations are fixed-size) and at most the
-  Apply bound. The live plans are at least 1.25× their peaks (964,444,880 at 16 bits, 960,676,512 at 8). Pins:
-  one SHA-256 per path, captured on the unchanged tree (`a4a5859`).
-- **A user-visible cost.** The raised charges lowered what every operation that re-renders a live-filtered layer
-  under the interactive `MAX_WORK_UNITS` (2e9) admits. Ceilings before → after, in MP, for ⌘T bicubic / ⌘T
-  Lanczos3 / Replace, RAW redevelop and Convert to Profile: Reduce Noise defaults 8.6 → 3.6, 6.7 → 3.2,
-  11.5 → 4.0; Dust & Scratches r1 8.8 → 3.8, 6.8 → 3.4, 11.8 → 4.3; r2 4.8 → 3.1, 4.1 → 2.8, 5.5 → 3.3. No charge
-  was lowered to keep them. They are restored, charges unchanged, by
-  [the phase-9 "Operations on a live-filtered layer" section](phase-9-live-filters-status.md#operations-on-a-live-filtered-layer).
-- The 16-bit live Reduce Noise over an opened 24 MP photo was refused by the host, 62,200 bytes over the 2 GiB
-  reference limit; it is admitted under the RAM-scaled working limit.
+  Apply bound. Pins: one SHA-256 per path, captured on the unchanged tree (`a4a5859`).
 - The calibration, footprint, probe and drive tables are in the archived original.
 
 ## The byte filter_op plan and admission
@@ -339,13 +331,13 @@ is shown, recorded or added to history. `apply_filter` still waits for its resul
 
 ## Open items (verified 2026-10-07)
 - `DONE` — Native scalar-target and Quick Mask editing (handed to 9G) — `f457cdb`.
-- `TRACKED` — P7-12/9I and the Phase 9 gate → carryover P7-12.
+- `DONE` — P7-12's other half: edge brushing and colour decontamination shipped 2026-10-11 in Select and Mask; the 9I quality gate is no longer a ship condition.
 - `DONE` — the 8-bit `dr_image_filter_op` arm has a core plan and host admission ([section above](#the-byte-filter_op-plan-and-admission)).
 - `DONE` — the 8-bit `dr_image_filter_op` Apply and `apply_filter` run as a cancellable job ([section above](#the-byte-filter_op-apply-as-a-job)).
 - `DONE` — a 16-bit ⌘T or Crop straighten whose preview the interactive work cap refuses previews at reduced resolution, sized from the commit plan's `work_units` (`GeometryProxyPreview.swift`).
 - `DONE` — Gaussian Blur from radius 7, measured against Photoshop ([section above](#gaussian-blur-from-radius-7-2026-10-13)).
 - `DONE` — 45 MP 8-bit Dust & Scratches r2 and Surface Blur r5/T15 run as jobs with no work ceiling under a control; uncontrolled calls keep `MAX_DESTRUCTIVE_WORK`.
-- `OPEN` — live (smart) filter versions of Box Blur, Surface Blur, Add Grain, Radial Blur and Offset.
-- `OPEN` — 32-bit float documents refuse every destructive filter.
+- `REMOVED` — live filter versions of Box Blur, Surface Blur, Add Grain, Radial Blur and Offset: the feature was removed 2026-10-10.
+- `DONE` — destructive filters at 32-bit float: `FloatDocument.swift` runs them through `float_filter_apply` and `float_plane_filter` ([v1 float editing](v1-float-editing.md)).
 - `DONE` — the byte Apply job's residual: 8-bit Gaussian Blur is a planned, cancellable `dr_image_filter_op` `blur` job, the 8-bit sheets' write and first projection run on that job's worker, and (item 3) a late busy refusal after a slider sheet closed brings the sheet back with its values at 8 and 16 bits ([section above](#the-byte-filter_op-apply-as-a-job)).
-- `OPEN` — the Radial Blur and Offset sheets and ⌃F on Clouds have no UI drive or recorded hand check.
+- `DROPPED` (2026-10-30) — a UI drive or hand check of the Radial Blur and Offset sheets and ⌃F on Clouds: the kernels and `apply_filter` are exercised by drives, and a hand check of two shipped sheets guards no real risk.

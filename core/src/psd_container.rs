@@ -89,8 +89,7 @@ pub use crate::psd_framing::unpack_packbits;
 pub(crate) const TIFF_COMPOSITE: &str = "a TIFF's flat image opens through the ordinary TIFF open";
 
 /// The sentence every PSD/PSB open and the compatibility report give for colour mode 7.
-pub(crate) const MULTICHANNEL_REFUSAL: &str =
-    "Multichannel files are not supported: Doctored has no spot channels";
+pub(crate) const MULTICHANNEL_REFUSAL: &str = "Multichannel files are not supported";
 
 /// `support_refusal`'s sentence for colour mode 8 (#1 Duotone phase 1b).
 pub(crate) const DUOTONE_ONLY: &str = "a Duotone file opens only as a Duotone document";

@@ -1,6 +1,6 @@
 # Phase 3 — TIFF, color and capture metadata (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#15](https://github.com/kpgalligan/doctored/issues/15))
 - **Phase / dates:** Phase 3 (3A–3D) of the [implementation plan](professional-photo-editor-implementation-plan.md), 2026-09-09
 - **Original:** [archive/phase-3-color-metadata-status.md](../archive/phase-3-color-metadata-status.md) — full history, measurements, receipts
 - **Key commits:** `f34201b`
@@ -27,7 +27,7 @@ versioned the colour evaluation so old documents keep their look, and surfaced P
   packet, and the four IIM datasets plus the IPTC digest dropped so they cannot contradict. Read order per
   field is XMP, then IIM, then EXIF. The EXIF write appends a new IFD0 at the packet end and reuses its own
   tail on a repeat edit, so no other byte moves; when the result would pass the JPEG APP1 bound the three
-  tags are removed in place instead and XMP alone carries them. Undoable, `.rz`-persisted (no version
+  tags are removed in place instead and XMP alone carries them. Undoable, `.doctored`-persisted (no version
   bump: the packets are existing state), carried by JPEG, PNG and TIFF exports. UI File ▸ File Info…
   (⌥⇧⌘I); MCP `get_file_info` / `set_file_info`, where an omitted key is unchanged and a recorded step
   carries only the keys it changed. Out of scope: GImage/GDepth XMP, Save As a flattened copy, writing IIM
@@ -67,8 +67,8 @@ versioned the colour evaluation so old documents keep their look, and surfaced P
 ## Open items (verified 2026-09-26)
 - `DONE` — BigTIFF opens at 8-bit, 16-bit and float with ICC, XMP, IPTC,
   EXIF and ppi read as for classic TIFF (`core/src/tiff_view.rs`'s `Tiff::file`); it saves back as classic TIFF.
-- `TRACKED` — Multipage TIFF (refused, `core/src/precision_codec.rs:244`) → plan follow-on track
-  *Additional formats and sharing*.
+- `OPEN` [#15](https://github.com/kpgalligan/doctored/issues/15) — Multipage TIFF: refused at 16 and 32 bits
+  (`core/src/precision_codec.rs`, `core/src/tiff_float.rs`); the 8-bit open reads only the first page.
 - `DONE` — High-depth TIFF (Phase 7, `core/src/precision_codec.rs`) and float TIFF (11F, `core/src/tiff_float.rs`).
 - `DONE` — Detailed per-file PSD record reporting → 10A (`core/src/psd_feature_markers.rs`); 16-bit PSD → 10C
   (`core/src/psd_import16.rs`).

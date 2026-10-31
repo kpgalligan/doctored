@@ -1,6 +1,6 @@
 # Workspace productivity: New Document, labels, preference libraries, Navigator, shortcuts, workspaces (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#20](https://github.com/kpgalligan/doctored/issues/20))
 - **Phase / dates:** 12C-1 shipped 2026-09-18, 12C-2 shipped 2026-09-19
 - **Originals:** [archive/phase-12c-workspace-status.md](../archive/phase-12c-workspace-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-12c-workspace-status.md](../archive/2026-10/phase-12c-workspace-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `bc3c0fc` (12C-1), `8692207` (12C-2)
@@ -19,10 +19,13 @@ library.
 - **New Document (File ▸ New…, ⌥⌘N)** — `../app/Sources/NewDocument.swift` (`NewDocumentRequest`,
   `NewDocumentPresetLibrary`, `ImageDocument.makeNew`), `NewDocumentSheetController.swift`, MCP
   `new_document` / `list_document_presets` / `save_document_preset` / `delete_document_preset`. Units
-  px/in/cm/mm at a PPI; sRGB, Display P3 or an RGB ICC file; 8 or 16 bits; transparent/white/black/#rrggbb.
+  px/in/cm/mm at a PPI; sRGB, Display P3 or an RGB ICC file for RGB; 8 or 16 bits in every mode, and 32
+  bits (the 16-bit blank converted into float) for RGB and Grayscale; CMYK and Lab are 8 or 16 bits only;
+  RGB, CMYK, Lab or Grayscale (`NewDocumentColorMode`;
+  the colour-mode ADRs [cmyk-mode-status.md](cmyk-mode-status.md), [lab-mode.md](lab-mode.md),
+  [grayscale-mode.md](grayscale-mode.md)); transparent/white/black/#rrggbb.
   A transparent document's layer is "Layer 1", a filled one's "Background". `makeNew` does NOT call
-  `adoptWorkingSpace()` — the request already names its space. **32-bit float and Gray are refused by name**
-  (no promotion into float exists; the core stores RGB only). An unreadable ICC path is refused naming the path
+  `adoptWorkingSpace()` — the request already names its space. An unreadable ICC path is refused naming the path
   (`NewDocumentProfile.data() throws`). The card's Save Preset… (a nested name card, the export-preset save
   sheet's shape) and Delete Preset (a listed preset, no confirmation) are the UI twins of `save_document_preset` and
   `delete_document_preset {name}`.
@@ -34,7 +37,7 @@ library.
   `AgentServer+LayerLabels.swift` (`set_layer_label`, `find_layers`); `label` (by NAME) on `get_document`
   rows at both depths. A label is **lock-exempt** (like rename). Carriage: duplicate copies, group/ungroup and
   geometry carry, a merge keeps the LOWEST entry's label (the `doc_identity` rule), flatten is unlabelled.
-- **`.rz` carriage** — conditional outermost wrapper **41 (byte) / 42 (typed)** with one `LLBL` table
+- **`.doctored` carriage** — conditional outermost wrapper **41 (byte) / 42 (typed)** with one `LLBL` table
   (`u32 schema=1`, `u32 count≥1`, ascending `(u32 index, u32 code 1…7)` pairs; byte index bottom-first as
   `MOUT`, typed index = postorder record index as `LCLP`). Written only when some entry is labelled, so an
   unlabelled document's bytes are exactly the prior writer's; malformed tables refuse before any PNG decodes.
@@ -48,7 +51,7 @@ library.
   (`PreferenceLibraryCodec` + `PreferenceLibrary<Codec>`): bounded reads, digest file names, advisory `flock`,
   atomic publish, `{entries, broken}` listings, delete by exactly one of `name`/`file`, and refusal (not
   overwrite) of an occupied canonical slot. Every sentence is built from the codec's `noun`. Codecs and
-  bounds: RAW 128×8 KiB (schemas 1…2), live filter 128×8 KiB, export 64×4 KiB (1…2), metadata policy
+  bounds: RAW 128×8 KiB (schemas 1…2), export 64×4 KiB (1…2), metadata policy
   64×4 KiB, document presets 64×4 KiB (`DR_DOCUMENT_PRESETS_DIR`), shortcuts 4×32 KiB (`DR_SHORTCUTS_DIR`),
   workspaces 32×4 KiB (`DR_WORKSPACES_DIR`). **Repair stays RAW-only**; `RawPresetLibrary` keeps its
   `Fault`/`Broken`/`Entry`/`Listing`/`repair(file:)` API as wrappers.
@@ -74,7 +77,7 @@ library.
   `buildMainMenu()`; the file stores only overrides (one library item named `"Shortcuts"`), applied to the
   live `NSMenuItem`s so the command palette needs no change. A chord must contain ⌘ or be F1–F19 (menu
   equivalents resolve ahead of the first responder). Conflicts are checked against the whole walk (exact chord
-  comparison — see [phase-12d-comparison-views-status.md](phase-12d-comparison-views-status.md) for why exact is right)
+  comparison — see [phase-12e-layer-ops-status.md](phase-12e-layer-ops-status.md), "The measured Shift rule", for why exact is right)
   and refused naming the holder. Not customizable: app menu, `ShortcutMenu.systemSelectors`, Open Recent,
   dynamic lists (`representedObject`), hidden/alternate items. A broken file applies NOTHING.
 - **Saved workspace layouts** (Window ▸ Workspaces) — `Workspace.swift` (`WorkspaceLayout` schema 1),
@@ -89,7 +92,7 @@ library.
 - **No MCP twin for shortcuts** — app-wide preference with no honest `document_id`, undo step or saved carrier.
 - **Broken library files in the UI** — `PreferenceLibraryBrokenSection.swift`
   (`BrokenLibraryFilesSection`) lists each bad file as "file — reason" with Delete File, and Repair on RAW only.
-  The RAW, filter, export and metadata-policy managers and the New Document card use it; each reads `listing()`
+  The RAW, export and metadata-policy managers, the shortcuts sheet and the New Document card use it; each reads `listing()`
   once. Window ▸ Workspaces ▸ Delete Workspace adds a "Delete Broken File" group, and a library-level fault
   replaces "No Saved Workspaces" with its sentence. Delete File is **unconfirmed**, for RAW parity: it removes a
   file no build can read, and MCP's `delete_* {file}` twin asks nothing either.
@@ -110,13 +113,15 @@ library.
   load-bearing for `airbrush-ui`'s exact dab comparison.
 
 ## Open items (verified 2026-10-07)
-- `OPEN` — bare canvas tool-key remapping, per-document / named shortcut sets, Photoshop `.kys` import.
+- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — bare canvas tool-key remapping, per-document / named shortcut sets, Photoshop `.kys` import.
   The shortcut file can take a second item without a schema bump. The bare tool letters keep their
   defaults (a shared key cycles in rail order).
 - `DONE` — a new editor window reopens at the last window's frame and right-panel
   visibility and tab (`EditorWindowMemory`, app-wide in `UserDefaults`; cascaded off an open window at the same origin, fitted by
   `WindowFrameFit`; recorded on move, resize, resign-key and close, never full screen). Not the tool, no MCP twin, and off under
-  automation (`AutomationAlerts.isEnabled`). Per-document binding is not built.
+  automation (`AutomationAlerts.isEnabled`).
+- `DROPPED` (2026-10-30) — per-document window frames: the app-wide frame memory (`EditorWindowMemory`)
+  covers the need.
 - `DONE` — the shortcuts sheet lists each broken
   shortcut-set file with Delete File (`BrokenLibraryFilesSection`); a failure of the whole listing names no file
   and stays in the message line. No MCP twin (an app-wide preference).
@@ -130,8 +135,11 @@ library.
   9H case `workspace-frame-fit-ui` and the 12C-2 drive's W2.
 - `DONE` — second synchronized view and layer comps (12D, `5adcb8d`, `8c99934`).
 - `DONE` — `lclr` on carried adjustment records at import: `../core/src/psd.rs` (`label: records.layer_labels[i]`)
-  and `adjustment_layer(..., label)` in `../core/src/psd_import16.rs`. No test fixture exercises it;
-  uncarried adjustment/fill records are omitted whole, label included.
+  and `adjustment_layer(..., label)` in `../core/src/psd_import16.rs`; uncarried adjustment/fill records are
+  omitted whole, label included.
+- `DROPPED` (2026-10-30) — a test fixture for `lclr` on carried adjustment records: a one-test addition to
+  make in passing, not an issue.
 - `DONE` — 9H probe tablet drift fixed; carried nits (library-full wording, `NewDocumentProfile.data() throws`).
-- `DROPPED` — 32-bit float and Gray New Document: refused by design (`../app/Sources/NewDocument.swift` header);
-  no promotion into float exists anywhere (also refused by 12G-2's clipboard arms) and the core is RGB-only.
+- `DONE` — File ▸ New at 32-bit float and in Grayscale (and CMYK and Lab): `../app/Sources/NewDocument.swift`
+  (`NewDocumentColorMode`; a float document is the 16-bit blank converted into float) and the sheet's depth
+  and mode choices (`NewDocumentSheetController.swift`).

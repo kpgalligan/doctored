@@ -1,4 +1,4 @@
-# #1 Lab Color admission drive
+# Lab Color admission drive
 
 Every memory plan the Lab Color document mode added (phases 1, 1b, 2f and 3a) is held to the
 measured-admission rule on a built Release app: plan ≥ ⌈1.25 × max E⌉, where E

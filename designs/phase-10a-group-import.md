@@ -54,5 +54,4 @@ to bound the metadata walk so hostile files cannot drive the legacy recursive em
 - `DONE` — Native-depth PSD: [phase-10c-depth-status.md](phase-10c-depth-status.md), `a3d29b7`.
 - `DONE` — Independent-application reopen: GIMP corpus in [phase-10a-qualification.md](phase-10a-qualification.md) (`352cb50`); Photoshop runs 2–4 (plan §10C).
 - `DONE` — Group clipping / Blend If on import: 10C constructs slice and 10D (carryover P7-20 verified).
-- `DROPPED` — Layer locks: declared a non-goal of the closed 10A contract ([phase-10a-qualification.md](phase-10a-qualification.md) exclusions).
-- `TRACKED` — Phase 9 cutout gate (mentioned as still open) → plan §9I / P7-12.
+- `DONE` — Layer locks: declared a non-goal of the closed 10A contract, then read and written at both depths (`psd_locks.rs`; [phase-10a-qualification.md](phase-10a-qualification.md)).

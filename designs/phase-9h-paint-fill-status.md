@@ -1,6 +1,6 @@
 # Native paint and fill (ADR)
 
-- **Status:** Accepted — closed (verifies P7-13, P7-14)
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11)) (verifies P7-13, P7-14)
 - **Phase / dates:** 9H, September 2026
 - **Original:** [archive/phase-9h-paint-fill-status.md](../archive/phase-9h-paint-fill-status.md) — full history, measurements, receipts
 - **Key commits:** `93a45cf` (Complete native paint, pressure replay and fill parity for phase 9H)
@@ -59,7 +59,7 @@ native depth with independent selection gating — without changing any legacy b
 - RZBR v1 and the legacy 8-bit unversioned meaning are frozen replay contracts.
 - 12A later added byte canonical dabs on the same rasterizer; 13A-6c-1 changed the work charge to the stroke
   footprint (hard-edge band only is area-integrated).
-- Larger strokes/canvases beyond these caps are 13D's job, not a cap raise.
+- Larger strokes/canvases beyond these caps go through P7-34 ([#11](https://github.com/kpgalligan/doctored/issues/11)), not a cap raise.
 
 ## Bounds and qualification
 Dedicated FFI suites check every paint blend, soft coverage, pressure accumulation, partial/tiny alpha,
@@ -70,8 +70,9 @@ pass; native brush error ≤ 1 code vs an independent footprint reference. Displ
 against the built-in sRGB authored-profile reference.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Larger or tiled strokes, larger history/canvas targets, broader resource qualification →
-  carryover P7-34 and P7-33 (13D); plan §13A/§13D.
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Larger or tiled strokes, larger history/canvas
+  targets, broader resource qualification (carryover P7-34 and P7-33).
 - `DONE` — Remaining 12A replay work (multi-layer gestures, byte canonical dabs, profile-qualified colour) —
   `7211b97`.
-- `TRACKED` — P7-12/9I refinement/colour-decontamination gate → carryover P7-12.
+- `DONE` — edge brushing and colour decontamination ship in Select and Mask (2026-10-11); the 9I quality gate is no
+  longer a ship condition (carryover P7-12).

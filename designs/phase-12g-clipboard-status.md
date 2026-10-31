@@ -1,8 +1,8 @@
 # High-depth clipboard (ADR)
 
-- **Status:** Accepted — open items remain
-- **Phase / dates:** 12G (carryover P7-29), runs 12G-1 … 12G-3, 2026-09-22 → 2026-09-23; issue records to 2026-10-05
-- **Originals:** [archive/phase-12g-clipboard-status.md](../archive/phase-12g-clipboard-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-12g-clipboard-status.md](../archive/2026-10/phase-12g-clipboard-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
+- **Status:** Accepted — closed
+- **Phase / dates:** 12G (carryover P7-29), runs 12G-1 … 12G-3, 2026-09-22 → 2026-09-23; Parts A–D to 2026-10-08
+- **Originals:** [archive/phase-12g-clipboard-status.md](../archive/phase-12g-clipboard-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-12g-clipboard-status.md](../archive/2026-10/phase-12g-clipboard-status.md) — this doc as of 2026-10-07, with every measurement table and issue record; [archive/phase-12g-clipboard-shipped.md](../archive/phase-12g-clipboard-shipped.md) — the full records of Parts A–D (verdicts, receipts, coordinates); [archive/2026-10-30/phase-12g-clipboard-status.md](../archive/2026-10-30/phase-12g-clipboard-status.md) — this doc as of 2026-10-30, before the companion fold
 - **Key commits:** `e507cd6` (12G-1), `b509766` (12G-2), `5e06b0a` (12G-3)
 
 > **Removed 2026-10-10:** smart objects, live filters and non-RAW retained sources (placed images, host
@@ -19,7 +19,9 @@ recordable Paste, and editable (text/shape/adjustment) payloads.
 - **RZCB private payload** (`core/src/precision_clipboard_codec.rs`; operations in `core/src/precision_clipboard.rs`).
   One canvas window of RAW samples in the source storage (RGBA16 UNORM or RGBA32 float) and profile, the source canvas
   offset, PPI and optional u16 coverage. The public TIFF/PNG beside it is only a rendering (float through the document's
-  tone map). Encoder writes **v3**; v1 and v2 still decode.
+  tone map). The RGB encoder writes **v3**; v1 and v2 still decode. v4 is the CMYK payload
+  (`cmyk_clipboard_codec`), v5 the Grayscale payload (`gray_clipboard`) and v6 the Lab payload (`lab_clipboard`),
+  each module's doc being its format.
   - v1 layout (LE): `"RZCB"`, u32 version, u32 storage (1 u16, 2 f32), u32 w, h, i32 ox, oy, f32 ppi x/y, u32 ICC length +
     bytes, u8 flags, `w·h·4` samples, `w·h` u16 coverage.
   - v2: flags bit0 coverage, bit1 **byte origin** (u16 samples all multiples of 257); then the `FLOT` tone-map words
@@ -49,8 +51,8 @@ recordable Paste, and editable (text/shape/adjustment) payloads.
   payload and `PASTE_PROMOTE_MARGIN_PER_PIXEL` (29 B/px, fitted) × canvas when a conversion into float ran;
   `clipboard_paste_plan` is the exact threshold and `clipboard_paste_allocation` the new memory (record in
   `precision_clipboard_promote.rs`).
-- **Ask When Pasting** (`ColorSettings.askWhenPasting`, Image ▸ Mode ▸ Working Space ▸ Ask When Pasting, off by
-  default). Off, every Paste converts silently. On, a typed payload,
+- **Ask When Pasting** (`ColorSettings.askWhenPasting`, Image ▸ Mode ▸ Working Space ▸ Ask When Pasting and
+  Edit ▸ Color Settings…, off by default). Off, every Paste converts silently. On, a typed payload,
   an external image or a layer clip whose profile `PasteProfile.differ`s from the document's (bytes AND name differ)
   asks "Paste Profile Mismatch": Convert / Don't Convert / Cancel. Don't Convert keeps the numbers (`profile:
   "preserve"`); depth always converts. The preference is app-wide with no MCP setter; MCP `paste` takes the choice as
@@ -60,7 +62,7 @@ recordable Paste, and editable (text/shape/adjustment) payloads.
   an exact ×257 byte-origin payload the core promotes; MCP `external: "promote"` is the default and `"refuse"` refuses
   one at depth. An UNTAGGED image (no embedded profile in the pasteboard's bytes, or a space with no ICC,
   `ExternalClipboardImage.read`) keeps its numbers in the destination's profile and never asks — measured
-  against Photoshop (case f below). Paste in Place of an external image, which has no source position, lands like Paste
+  against Photoshop (Part A case f, under Shipped parts below). Paste in Place of an external image, which has no source position, lands like Paste
   (`PasteContext.landing`: the selection, the view or the centre).
 - **8-bit documents write the private type too** (`dr_clipboard_payload_from_rgba8`, byte origin) so Paste in Place
   works at 8 bits and 8-bit copies promote exactly. An 8-bit Paste of a typed payload that is not u16 in
@@ -89,7 +91,7 @@ recordable Paste, and editable (text/shape/adjustment) payloads.
     document: a pixel selection → pixels of the active layer, none → the selected layers
     (`LayerClipboard.resolvingAutoCopy`, read by the handler and by `DocumentPrecision`'s capability gate, which
     therefore asks the family of the mode `auto` resolves to). Photoshop's Copy step re-decides the same way
-    (measured, below). Edit ▸ Copy Merged records `copy_merged {}`. A Cut that degrades to Copy records nothing.
+    (measured in Part B, below). Edit ▸ Copy Merged records `copy_merged {}`. A Cut that degrades to Copy records nothing.
   - MCP `copy`, `copy_merged` and `cut` calls are recorded verbatim (`ActionRecorder.recordAgentCall`); the MCP
     default mode stays `pixels`.
   - **Paste has two kinds of step.** *Live* — the default, from the menu and over MCP, for pixels and layers alike:
@@ -142,7 +144,8 @@ recordable Paste, and editable (text/shape/adjustment) payloads.
   fresh ids, link ids re-numbered to unused ones, the roots joining the slot's clip run, typed rasters/adjustments/warps
   re-bound to the destination's profile handle, and the destination's channels, comps, guides, evaluation, global light
   and tone map kept; as measured against Photoshop (Part C3), the copied layers bring no comp, channel, guide or sampler, a pasted
-  style that uses the global light casts by the destination's, and a linked placed image stays linked.
+  style that uses the global light casts by the destination's, and at 8 and 16 bits a linked RAW layer stays
+  linked, its file missing or not.
   **Placement:** ⌘V centres the pasted roots' union CONTENT box (`layerBounds` over the clip's top level) on a
   destination selection or the view (the Placement rule above, never in place), and an empty union does not move;
   ⇧⌘V keeps the source canvas coordinates on a canvas of the clip's size and otherwise moves the box by the relative
@@ -150,23 +153,28 @@ recordable Paste, and editable (text/shape/adjustment) payloads.
   (`doc_align::translate_entry` / `translate_records`). **Depth and profile** follow the paste policy
   (`LayerPastePlan`): into 8 and 16 bits anything pastes — depth always converts (`narrow_structure_to_u8`, no
   dither; `narrow_structure_to_u16` under the clip's own map; `promote_structure`, exact ×257) and another profile is
-  converted (`convertingToProfile`; at 8 bits a live-filtered clip through `LiveFilterProfileWork.run`; a conversion
-  that answers nil, two spellings of one model, lands relabelled), or, by the Ask When Pasting alert's Don't Convert
-  (MCP `profile: "preserve"`), RELABELLED by the core inside the same paste call (Part C1b): every record keeps its
-  numbers, and placed images and their live filters stay bound, re-pointed without a re-render. Don't Convert is
+  converted (`convertingToProfile`; a conversion that answers nil, two spellings of one model, lands relabelled),
+  or, by the Ask When Pasting alert's Don't Convert (MCP `profile: "preserve"`), RELABELLED by the core inside the
+  same paste call (Part C1b): every record keeps its numbers, and a RAW layer (a placed image in the core) whose
+  source is effective under the clip's profile stays bound, re-pointed without a re-render. Don't Convert is
   unavailable only when the destination profile fails the Assign check for the copied text/shape or calibrated layers
   (`LayerPastePlan.preserveRefusal`, the core's relabel making the same check; asked before the alert, which then omits
   the button and says why; MCP refuses by that sentence before any edit); a float destination never asks it. **Into 32-bit float** (Part C1, measured
   against Photoshop) anything pastes too, and the CORE does it inside the same one call
   (`../core/src/layer_clipboard_float.rs`): an 8-bit clip is first promoted ×257 by the host, then every record is
   promoted — a 16-bit plane decoded to linear light and, under Convert, taken through the source → destination
-  matrix; a float plane of another profile converted, or relabelled under Don't Convert; a placed image's plane under
-  the paste's own mode like any other (C1b) — with no profile or depth refusal. A placed image with no live filter lands placed (11F slice 5: re-rendered from its master under Convert, its binding kept over the promoted plane under Don't Convert); a live-filtered or stale placed image and a warp binding land as the layer's own pixels, as does a text or shape description under Don't Convert from another profile (text and shape layers otherwise land described since 11F phase 187b)
-  (reply `rasterized`), a Pass Through group lands Pass Through (11F slice 4), and
-  the twelve blend modes Part C1 measured as reset at 32 bits land Normal (`blend_reset`). A copied layer the float mode still
-  cannot hold refuses the whole paste before any edit, naming the layer and the feature ("the copied layer “Name”
-  cannot be pasted into a 32-bit float document: a layer style or Blend If is unavailable in a 32-bit float
-  document"); the float gap list in the Part C1 entry (shipped companion) says what does. **Flat item:** one root's flat image is its whole-layer Copy (raw layer pixels or a group's raw projection,
+  matrix; a float plane of another profile converted, or relabelled under Don't Convert; a RAW layer's plane under
+  the paste's own mode like any other (C1b) — with no profile or depth refusal. A RAW layer lands placed
+  (re-rendered from its master under Convert, its binding kept over the promoted plane under Don't Convert); a
+  stale retained source and a warp binding land as the layer's own pixels, as does a text or shape description
+  under Don't Convert from another profile (text and shape layers otherwise land described)
+  (reply `rasterized`), a Pass Through group lands Pass Through, a layer style and Blend If ride (an effect's
+  Screen resets per `FLOAT_EFFECT_RESET`), and the nine blend modes a float document still refuses
+  (`FLOAT_RESET_MODES`, of the twelve Part C1 measured as reset) land Normal (`blend_reset`). A copied layer the
+  float mode still cannot hold refuses the whole paste before any edit, naming the layer and the reason ("the
+  copied layer “Name” cannot be pasted into a 32-bit float document: <sentence>" — an effect blend mode outside
+  the float set, Divide, or an adjustment the float mode cannot evaluate; `layer_clipboard_float.rs`, "What
+  still refuses"). **Flat item:** one root's flat image is its whole-layer Copy (raw layer pixels or a group's raw projection,
   with its editable record when today's Copy attaches one); several roots' is the clip's Copy Merged. Paste
   Into / Outside of a held entry are refused (Part C2; the items disabled; MCP `paste` auto
   throws `LayerClipboard.maskedPasteRefusal`; mode `pixels` pastes the flat item), and New from Clipboard lands the
@@ -203,19 +211,20 @@ recordable Paste, and editable (text/shape/adjustment) payloads.
     process reads it, and AppKit resolves it at quit, so it does not lift the size refusal.
   - Rejected: a file promise or temp file writes 384–720 MB to disk per copy.
   - Rejected: compression does not bound a float payload below the limit.
-- `.rz` format untouched.
+- Document format untouched.
 
 ## Rejected alternatives
 - Superseded (maintainer ruling 2026-10-05):
   "Silent conversion on mismatch — every lossy boundary needs an explicit arm" and "Promotion of
   8/16-bit data into a float document — standing no promotion into float contract (11F)". Paste now converts
   silently, promotes into float, and asks only under Ask When Pasting.
-- Editable payloads for Live Photo, retained-source and smart layers — their record is an immutable asset plus up to
+- Editable payloads for retained-source (RAW) layers — the record is an immutable asset plus up to
   512 MiB of attachments; Duplicate and Place are their editable paths; copy reports `editable: null`.
 - A New from Clipboard sheet — the window's mode readout is the disclosure.
 
 ## Consequences
-- Any new clipboard producer must write RZCB v3 and let the decoder's refusals stand; readers must keep v1/v2.
+- An RGB clipboard producer writes RZCB v3; CMYK writes v4 (`cmyk_clipboard_codec`), Grayscale v5
+  (`gray_clipboard`), Lab v6 (`lab_clipboard`). The decoder's refusals stand and readers keep v1/v2.
 - Profile conversion for paste and Convert to Profile must stay one kernel (`convert_u16_pixels`).
 - A saved-payload step depends on its `.drcb`; a live step on the clipboard at replay.
 
@@ -228,23 +237,25 @@ recordable Paste, and editable (text/shape/adjustment) payloads.
 - `DONE` — Copy of a group at 16 bits and float copies the group's raw projection, as 8-bit does
   (`../core/src/precision_clipboard_group.rs`); Cut of a group refuses at every depth. Measured in Part C2:
   Photoshop's Copy with a group targeted lands opaque white over the selection, not the group's content, and
-  its Cut on a group refuses; the raw projection is kept (maintainer decision, Part C2 entry in the shipped companion).
+  its Cut on a group refuses; the raw projection is kept (maintainer decision, Part C2 below).
 - `DONE` — every typed group read (`layer_canvas_image`,
   layer-scoped analysis, a group selection source) uses the raw projection Copy does: `analysis_source` renders
   `raw_group_document` (`../core/tests/group_projection_rule.rs`, u16, float and the byte twin).
 - `DONE` — Copy/Paste of layers between documents (Decisions above). **Measured against
   Photoshop in Part C3:** layer comps, alpha channels, guides and samplers do not travel, the destination's global
-  light applies, and a linked placed image stays linked (applying a comp hides pasted layers it has no record
-  of). **Maintainer decisions, not built:** metadata does not
+  light applies, and at 8 and 16 bits a linked RAW layer stays linked, its file missing or not (applying a comp
+  hides pasted layers it has no record of). **Maintainer decisions, not built:** metadata does not
   travel; the destination's evaluation policy and tone map apply; the layer clipboard is in-process (another app or
   instance gets the flat image); MCP `copy` defaults to pixels for compatibility. Paste Into / Outside and New from
   Clipboard with layers were settled by Part C2.
 - `DONE` — ⌘V placement (Placement above; `b86891c`). ⌘V
   never keeps a source position (Part D removed the visibility rule `b86891c` built); a pixel paste deselects;
   a layers paste centres like pixels and keeps the selection; MCP `paste` takes `view`; a saved-payload `at` step
-  takes relative and anchor geometry. Part D measured each of these against Photoshop. Still unmeasured: a rotated
-  view's centre; the no-window canvas fallback is not
-  driven by g16. Part B measured that Photoshop's recorded Paste carries no position and replays live.
+  takes relative and anchor geometry. Part D measured each of these against Photoshop. Part B measured that
+  Photoshop's recorded Paste carries no position and replays live.
+- `DROPPED` (2026-10-30) — measuring the paste centre under a rotated view and driving the no-window canvas
+  fallback: the rotated centre (the visible bounding box, g23(b)) has no measured rule by decision (Part D),
+  and the fallback is a rare path.
 - `DONE` — every typed clipboard read admits the host's public-rendering stage, fitted at ≥ 1.25× the
   measured peak (`precision_clipboard_host.rs`).
 - `DONE` — a typed payload over 255 MiB is held in process and named on the pasteboard by a token
@@ -255,12 +266,58 @@ recordable Paste, and editable (text/shape/adjustment) payloads.
   disclosure, pasteboard release (`b509766`); editable payloads and 12G-2's four nits (`5e06b0a`).
 - `DONE` — Parts A–D: paste conversion, recorded Paste,
   layers into float and across profiles, group copy and cut, what travels with copied layers, and placement, each
-  measured against Photoshop; their records are in the shipped companion (Shipped runs below).
+  measured against Photoshop (Shipped parts below).
 - `DONE` — drag layers into another document window, from the Layers panel or with the Move tool (`6d5383d`).
 - `DONE` — a Continue / Stop prompt when a recorded step cannot run
   ([phase-12b-actions-status.md](phase-12b-actions-status.md), **Interactive Play prompts**).
-- `DROPPED` — Editable payloads for retained-source (in 12G-2's criteria), Live Photo and smart layers — declined in 12G-3.
-- `OPEN` — the layer features the float mode lacks (the float gap in the Part C1 entry).
+- `DROPPED` — Editable payloads for retained-source (RAW) layers (in 12G-2's criteria) — declined in 12G-3.
+- `DROPPED` (2026-10-30) — more layer features for a paste into float: styles, Blend If and the measured modes
+  ride now, and what still refuses (Decisions, **Layer clipboard**) matches the float mode's deliberate refusals.
 
-## Shipped runs
-[phase-12g-clipboard-shipped.md](phase-12g-clipboard-shipped.md) — the records of Parts A–D.
+## Shipped parts
+Each part was measured against Photoshop 26.10.0 by a take whose runner (`paste_depth.py`, `paste_action.py`,
+`paste_layers.py`, `paste_placement.py`) is in the private archive `kpgalligan/doctored-dev`; the receipts are
+under `doctored-fixtures/photoshop/paste-*`, and the gates are those of `../scripts/verify_phase12g_clipboard.py`.
+The full records are in [the archived companion](../archive/phase-12g-clipboard-shipped.md).
+- **Part A** (`82bec04`; g2, g8, g12, g13 rewritten, g17 added) — Paste converts into the destination
+  (Decisions: Conversion, Ask When Pasting, External images). Measured: 8- and 16-bit sRGB → 32-bit land in linear
+  light; 8 → 16 is exact (v·257); 16 → 8 narrows; 16-bit sRGB → 16-bit Display P3 converts (the silent Convert
+  default); (f) an untagged 8-bit TIFF into 16-bit Display P3 is read in the destination's profile; (g) Paste in
+  Place of it with no selection centres.
+- **Part B** (`22852ab`; g18 added; g10, g13, g14, g16, g17 keep the saved-payload step through `record_payload`)
+  — a recorded Paste replays the live clipboard; Copy and Copy Merged are steps (Decisions: Recording). Measured:
+  no paste descriptor holds a position or pixels, each paste kind is distinct, and Copy re-decides pixels or
+  layers at replay. Maintainer decisions: `antiAlias` and `as` (vector clipboard content) are not built;
+  `copy {mode: "auto"}` stores no hint; UI paste steps carry no `mode`; only MCP `record_payload` /
+  `payload_path` records a saved-payload step.
+- **Part C1** (`fe895fd`; g19 added) — copied layers paste into a 32-bit float document (Decisions: Layer
+  clipboard). Measured: 8- and 16-bit sRGB layers land in linear light, groups kept; a 32-bit Display P3 layer
+  converts by the linear matrix, unclipped; twelve modes land Normal there, of which Doctored resets the nine
+  `FLOAT_RESET_MODES`. Admission: `paste_layers_allocation` is 2.02× the measured 24 MP peak, and
+  `LAYER_PROMOTE_MARGIN_PER_PIXEL` is 10, shared with the conversion into float (record in
+  `../core/src/layer_clipboard_float.rs`).
+- **Part C1b** (g17(f) rewritten; its gate g20 went with the 2026-10-10 removal) — at 8 and 16 bits, Don't
+  Convert with differing profile bytes RELABELS the clip (`dr_doc_paste_layers` `preserve`): the Assign check of the clip against the destination
+  refuses first in its own words, then every record keeps its samples and is re-pointed at the destination's
+  profile; a retained (RAW) source effective under the clip's profile stays bound, one that is not is dropped, its
+  pixels kept (`../core/src/doc_paste_layers.rs`). Into float, a RAW record promotes under the paste's own mode, so Don't Convert keeps its numbers.
+- **Part C2** (g21 added) — group Copy / Copy Merged / Cut, Cut with no selection, Paste Into / Outside and New
+  from Clipboard with copied layers. Measured: Cut on a group and Cut of layers with no selection refuse; Paste
+  Into / Outside of copied layers is unavailable, so Doctored refuses it; New from Clipboard takes the content box
+  at the source's depth, profile and PPI with the layers by name over a white Background. Maintainer decision: a
+  Copy with a group targeted keeps the group's raw projection, where the take pasted opaque white over the
+  selection.
+- **Part C3** (g22 added; `../core/tests/layer_clipboard_chrome.rs`) — channels, guides and samplers do not travel;
+  comps do not travel, and applying a destination comp hides pasted layers it does not know; the destination's
+  global light applies and a layer's own light is kept; at 8 and 16 bits a linked RAW layer stays linked, its
+  file missing or not (the cached pixels land); into float a RAW layer lands placed
+  (`../core/src/layer_clipboard_float.rs`). Nothing else behavioural was built.
+- **Part D** (g23 added; g16, g18(b) and the layers-into-float helper rewritten) — ⌘V centres on the active
+  selection, else on the visible centre, and never keeps the source position (pixels or layers); ⇧⌘V across
+  canvas sizes lands `relative_in_place`; a pixel paste deselects (Reselect restores it), a layers paste keeps the
+  selection; MCP `paste` takes `view`; a saved-payload `at` step remaps under relative and anchor geometry.
+  Under a rotated view ⌘V centres on the visible bounding box (`visible.integral`, g23(b)); the take could not
+  set a view rotation, so that rule is Doctored's own and unmeasured. Maintainer decisions: the
+  saved-payload geometry rule is Doctored's own, since Photoshop records no paste position; transparent
+  interiors, non-RGB and deep documents and Quick Mask are unmeasured; a payload file carries no source canvas,
+  so its in-place paste keeps its coordinates.

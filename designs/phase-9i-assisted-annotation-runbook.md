@@ -1,13 +1,13 @@
 # Phase 9I assisted annotation session runbook (ADR)
 
-- **Status:** Accepted — open items remain. **Operational runbook, still live:** the session is deferred at the owner's discretion (2026-09-16) and is the one human step left in 9I.
+- **Status:** Accepted — closed. The session was dropped on 2026-10-30 (the gate is no longer a ship condition); the steps below stay as the procedure should it ever be run.
 - **Phase / dates:** 9I, 2026-09-16
 - **Original:** [archive/phase-9i-assisted-annotation-runbook.md](../archive/phase-9i-assisted-annotation-runbook.md)
 - **Key commits:** `81d6aa5`
 
 ## Context
-9I completes only when the assisted protocol passes [gate v2](phase-9i-gate-v2-status.md) on its declared 36-case
-subset. Everything is built and verified — the exporter and annotation window
+The assisted protocol is measured against [gate v2](phase-9i-gate-v2-status.md) on its declared 36-case subset; the
+run is no longer a ship condition. Everything is built and verified — the exporter and annotation window
 ([phase-9i-assisted-workspace-status.md](phase-9i-assisted-workspace-status.md)), the scorer
 ([phase-9i-assisted-scoring-status.md](phase-9i-assisted-scoring-status.md)) and the rules
 ([phase-9i-assisted-protocol-v1.md](phase-9i-assisted-protocol-v1.md)). This page is only the order of operations.
@@ -72,16 +72,15 @@ Exit 0 means gate v2 passed on the full subset. Verdict in `run.json` (`numerica
 and `gate-rescore.json`. A run with missing cases is scored but cannot claim completion.
 
 ### Step 5 — close out
-Hand the score directory to Claude. On a pass: record the assisted capability and close the gate-v2 measurement.
-The advanced refine controls are exposed, and 9I, P7-12 and the Phase 6 gate closed, only after the typed estimator
-and public UI/MCP/Actions slices that plan §9I and the protocol require. On a fail: record the per-case failures in a status doc; the gate stays
-open with the reason. Either outcome validly ends the milestone (decision table in [phase-9i-next-steps.md](phase-9i-next-steps.md)).
+Hand the score directory to Claude. On a pass: record the assisted capability and close the gate-v2 measurement
+(the refine controls already ship, since 2026-10-11). On a fail: record the per-case failures in a status doc with
+the reason. Either outcome validly ends the milestone (decision table in [phase-9i-next-steps.md](phase-9i-next-steps.md)).
 
 ## Consequences
 - The runbook's commands are coupled to the scripts' argument names and to `designs/phase-9i-assisted-annotation-task-v1.md`,
   which the exporter copies byte-for-byte into the workspace as `TASK-CARD.md`.
-- A pass on its own does not qualify a typed estimator or public workflow — see the open items.
+- A pass on its own does not qualify a typed estimator or public workflow.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Run the session and score it → P7-12 ("deferred at the owner's discretion (2026-09-16)"), plan §9I "Next assignment". No `assisted-run-*` directory exists yet under `~/devel/doctored-fixtures/phase9i-reports/`.
-- `TRACKED` — After a pass, typed estimator qualification and public UI/MCP/Actions integration of the refine controls → plan §9I ("Extend the qualified path to typed source RGB/alpha …") / P7-12. (Step 5 now says so; the archived original's "enable the advanced controls" on a pass understated it.)
+- `DROPPED` (2026-10-30) — Run the session and score it: the matting gate stopped being a ship condition on 2026-10-10 and P7-12's other half shipped without it, so it gates nothing ([gate v2](phase-9i-gate-v2-status.md)).
+- `DROPPED` (2026-10-30) — After a pass, typed estimator qualification and public integration of the refine controls: no pass is coming, and the typed estimator and the Select and Mask UI/MCP/Actions outputs at 8 and 16 bits shipped 2026-10-11 without the gate ([typed cutouts](phase-9i-typed-cutouts-status.md)).

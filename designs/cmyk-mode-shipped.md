@@ -2,8 +2,8 @@
 
 The settled record of [#1](https://github.com/kpgalligan/doctored/issues/1)'s CMYK phases: decisions in force and
 each shipped phase's few lines, added by the batch that ships it. [cmyk-mode-status.md](cmyk-mode-status.md) keeps the
-head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtures/photoshop/`, runners in
-`scripts/photoshop-probe/`.
+head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtures/photoshop/`, runners in the
+private archive `kpgalligan/doctored-dev` (`scripts/photoshop-probe/`).
 
 ## Decisions in force
 
@@ -15,7 +15,8 @@ head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtur
 - **One gate.** `build_cmyk` admits CMYK raster leaves, CMYK adjustment records (`Content::CmykAdjustment`) and Normal /
   Pass Through groups of them at any depth, each with an optional mask, clipping, a `CMYK_BLEND_MODES` mode and a
   layer style (Fill; since the styles batch every effect, knockout and Blend Interior), and a description (since DRDC
-  87); an RGB record, Blend If, another mode ("The <name> blend mode"), a placed source or a warp refuses by name (`first_refusal`, postorder).
+  87); an RGB record, a Blend If on Red, Green or Blue, a mode outside `CMYK_BLEND_MODES` ("The <name> blend mode"), a
+  placed source or a warp refuses by name (`first_refusal`, postorder).
   `rebuilt` routes every CMYK edit through it; `build` refuses a CMYK record, `scene_for` refuses (no RGB scene),
   `dr_precision_doc_edit` refuses every op outside the CMYK set before parsing (`cmyk_route`). The host asks
   `CmykDocument` FIRST (`DocumentPrecision`). Admitted (`precision_capability::CMYK_FAMILIES` / `.cmykTool`;
@@ -69,9 +70,10 @@ head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtur
   Group: a visible group's RAW projection (`raw_group_document`) as one leaf keeping the group's slot, id, name, opacity,
   mode (Pass Through → Normal), style, Blend If, mask, clipping, locks and link; ⌘E on one group runs it (retitled "Merge
   Group").
-- **Conversions carry the tree** (`cmyk_convert_tree`): groups, masks, clipping, modes and Fill both ways. RGB → CMYK
-  blocks (first in postorder) an RGB adjustment, an enabled effect, knockout, Blend If, a mode CMYK lacks, a placed image
-  or a warp; CMYK → RGB blocks a CMYK adjustment record anywhere. Both plans answer `flattens`.
+- **Conversions carry the tree** (`cmyk_convert_tree`): groups, masks, clipping, modes and Fill both ways. Styles carry. RGB → CMYK
+  blocks (first in postorder) an RGB adjustment, a Blend If on Red, Green or Blue, a mode outside `CMYK_BLEND_MODES`, a
+  placed image or a warp; a Gray Blend If carries both ways; CMYK → RGB blocks a CMYK adjustment record or a Blend If on
+  a plate. Both plans answer `flattens`.
 - **Artwork on ink.** A CMYK document's descriptions store ink (text v5, shape v6, fill v2: `[c, m, y, k, alpha]` 0…1, a
   gradient's `stop_inks` one per STORED stop) beside hex fields holding its sRGB appearance (relative + BPC). The core
   renders it (`cmyk_artwork`): coverage is the RGB path's own, fill and interior ink exact, a colour glyph's sRGB
@@ -138,8 +140,8 @@ head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtur
   `ColorWorkingCMYK`, `ColorRGBPolicy`, `ColorCMYKPolicy`, `ColorIntent`, `ColorBPC`) is the one home: working RGB and
   CMYK (Automatic, an installed profile or a loaded file), open policies (RGB Convert = `adoptWorkingSpace`, Preserve
   skips it, Off assigns the working RGB; CMYK Preserve keeps, Off assigns the working CMYK, Convert converts in the open),
-  intent and BPC; every reader of them reads it; `WorkingCMYK` reinstalls on `didChange`. Gray and dither omitted; no MCP
-  setter (the view-preference exemption). `ColorSettingsStore` keeps the keys in `UserDefaults`, or under
+  intent and BPC; every reader of them reads it; `WorkingCMYK` reinstalls on `didChange`. Working Gray (`ColorWorkingGray`) since Grayscale mode;
+  dither omitted; no MCP setter (the view-preference exemption). `ColorSettingsStore` keeps the keys in `UserDefaults`, or under
   `DR_COLOR_SETTINGS_DIR` (every owned instance) the launch arguments then a private `color-settings.plist`.
 - **Profile edits (`cmyk_profile`).** Assign = a new `CmykPolicy`, samples untouched (identical bytes = `None`); Convert =
   each raster leaf at any depth (`map_cmyk_tree`) through `CmykToCmyk` (source A2B → abs scale → BPC → destination B2A,
@@ -163,7 +165,7 @@ head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtur
   dithered), encoded under the request's metadata policy at the output size; a default request is the save's bytes. A TIFF
   is 8 or 16 bits; refused by name: another TIFF depth, and dither on an 8-bit TIFF of a 16-bit document (a JPEG ignores
   dither). The JPEG is the host's transcode of the 8-bit intermediate (`cmykJPEG`), its packets MEASURED from the written
-  file. Anything else flattens on paper through `CmykToRgb` into u16 RGB, then the RGB stages. Save a Copy offers `.rz`,
+  file. Anything else flattens on paper through `CmykToRgb` into u16 RGB, then the RGB stages. Save a Copy offers `.doctored`,
   JPEG and TIFF.
 - **The view.** The CMYK → Display P3 leg (relative + BPC) sampled in LINEAR light on a 33⁴ grid, quadrilinear, then
   clamped and encoded through a 4097-sample table. Bound: ≤ 1/255 of the exact leg at every grid cell centre; on a miss
@@ -179,7 +181,7 @@ head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtur
   (mode 0, `open_cmyk_layers`). Both, and Import Layers, apply the CMYK policy (`openPrecisionPSD`).
 - **Saves.** TIFF (CMYK8/16, no ExtraSamples) and the JPEG intermediate (8-bit CMYK TIFF ImageIO transcodes) write the
   composite flattened onto paper at the declared depth; Export as PSD writes PSD, PSB or layered TIFF, Layers or
-  Flattened; `.rz` keeps every layer.
+  Flattened; the native `.doctored` keeps every layer.
 - **Files.** Layered import keeps raster ink + transparency (`max − stored`, 8-bit ×257; no −1 channel = opaque), masks,
   Normal/Pass Through/moded groups, clipping, the 27 modes, opacity, Fill, locks, labels, CMYK Levels/Curves (point form;
   `levl`/`curv` records 0–4 = composite, C, M, Y, K, points reflected) and Hue/Saturation (`hue2`); any other adjustment
@@ -196,7 +198,7 @@ head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtur
   then `over_mode` at the opacity. Spot Heal, Content-Aware Fill, Remove, Move: synthesis at C = 4 on ink (the kernels
   generic over C; C = 3 bit-identical). Plate: Current = the layer's ink on paper; Current & Below / All =
   `cmyk_frame_image` of a copy with `retouch_cut16`'s records at opacity 0. Paint, Fill, Gradient and Stroke… take every
-  CMYK mode; Red Eye, Auto-Align and Auto-Blend stay refused (`CmykRetouch`).
+  CMYK mode; Red Eye stays refused (`CmykRetouch`); Auto-Blend is not offered on CMYK.
 - **Equalize** (every depth): EQ-SUM-MIN, one table from the summed plane histograms (CMYK: the four `L` plates), weight
   coverage × α, `round(max·(cdf − cdf(v_min))/(N − cdf(v_min)))`, 256 or 65536 levels; float on the display encoding,
   out-of-range samples kept. `selected` (default, lerped) or `entire` (unmeasured). 8-bit RGB via
@@ -240,7 +242,7 @@ head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtur
 - **Selections, Stroke… and Apply Layer Mask** (`174cb195`): the wand on ink, the Vision and view-based selections, Color
   Range, Select and Mask, the All Layers bucket, Stroke… in ink, Layer Mask ▸ Apply.
 - **Phase 4a — structure** (`3caea697`): groups, clipping, the 27 modes, Fill Opacity, the merges, Stamp Visible,
-  conversions carrying the tree, DRDC 84. Take1 (`cmyk-blend-547/take1`): four modes MISS, shipped as built (open item).
+  conversions carrying the tree, DRDC 84. Take1 (`cmyk-blend-547/take1`): four modes MISS, shipped as built.
 - **Phase 5 — colour** (`650776d8`): Color Settings…, Assign / Convert to Profile, 8 / 16 Bits, New in CMYK, proofing and
   plates, exports, tone tools; on RGB the gamut alarms; MCP `separate_color`, `new_document` `color_mode`.
   `DISPLAY_BYTES_PER_PIXEL` 20 → 21. The Auto take MISSED on K, held since `0aab1139`.
@@ -264,6 +266,12 @@ head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtur
 - **Painting and retouching on ink, Equalize at every depth** (2026-10-15): the toning, focus, history, clone and healing
   tools, Patch, Remove, Content-Aware Fill/Move, paint and fill modes on ink; Equalize at RGB 8/16/32 and CMYK, MCP
   `equalize`; no DRDC change. Takes `cmyk-retouch-547` take1/take2: VALID; MISS, shipped as built (open items).
+- **Art History, Spot Healing types, Sponge Vibrance, Sample All Layers** (RGB and ink, shipped as built): the Art
+  History Brush at 8 bits only (`art_history_stroke.rs`, `cmyk_art_history.rs`), refit to take1's strokes, take2
+  confirming the travel rule (only loose_medium CONFIRMED); Proximity Match and Create Texture (`spot_heal_type.rs`;
+  `spot-heal-types-656-657/take1`) and Sponge Vibrance (`retouch-options-659-660/take1`) ship H0 after their takes MISSED
+  (Create Texture's later pool rule unconfirmed); Sample All Layers on Blur,
+  Sharpen and Smudge at every depth (take1 undecided).
 - **Round 2 — kept-CMYK export** (2026-10-15): a kept JPEG or TIFF resizes, output-sharpens, changes depth and applies the
   metadata policy; `export_psd`/`inspect_psd_export` name each vector mask written as pixels (RGB and CMYK).
 - **Type, shape and fill layers in ink** (2026-10-15): the Type and shape tools, Fill Layers, Artwork Colors…, MCP
@@ -278,7 +286,7 @@ head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtur
   `CmykStack::row_strided`, the styled-row kernel included); the kept staged plan is its largest stage; Divide and Vivid
   Light's edges agree with Photoshop's at every depth (`blend-edge-547/take1`, Hard Mix MISS); no DRDC change.
 - **Blend If** (2026-10-15): Gray and the four plates on CMYK rasters and isolated groups — the gate, the Layer Style
-  sheet (split sliders), MCP `set_layer_style`, Mode/Profile/Depth conversions, `.rz` and CMYK PSD import and export.
+  sheet (split sliders), MCP `set_layer_style`, Mode/Profile/Depth conversions, DRDC and CMYK PSD import and export.
   Fitted on take1 (`--fit`), confirmed by take2 (`cmyk-styles-547/take2`, every channel BUILT). No DRDC word: Blend If
   joined word 86's claim, `LBIF` codes 4–7 already existed.
 - **Hard Mix's exact tie** (2026-10-15): `blend.rs`'s `b_hard_mix` breaks `L_b + L_s = 1` by order, 1 where
@@ -287,7 +295,7 @@ head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtur
 - **Photoshop opens styled CMYK files** (2026-10-15): `grdm` is written in Photoshop's form — padded to a multiple
   of 4, its two opaque transparency stops and seed. `cmyk-psd-open-662/take1` blamed only `grdm` (PSD/PSB refused, TIFF
   flat); take2 opened every construct and the full styled export with every layer (PSD, PSB, layered TIFF; RGB too).
-- **Pattern Overlay in ink** (2026-10-15): the effect on CMYK at 8 and 16 bits, in the sheet, MCP, `.rz` (word 90
+- **Pattern Overlay in ink** (2026-10-15): the effect on CMYK at 8 and 16 bits, in the sheet, MCP, DRDC (word 90
   after the rung) and CMYK PSD (RGB pattern records); `cmyk_pattern_overlay.rs` against the Colour Overlay oracle.
 - **RGB → CMYK against Photoshop: the engine residual is accepted** (2026-10-22). `rgb-cmyk-684/take1`
   (`rgb_cmyk_take.py`; sRGB, 39 patches, U.S. Web Coated (SWOP) v2, NA General Purpose 2, 1-code gate) MISSED:

@@ -13,8 +13,9 @@ analytic, 0/42 full admitted under 2 GiB), so repeating it was ruled out.
 
 ## Decisions
 - **Closing decision (2026-09-15): RVM is dropped and no pipeline is selected. No neural matting model is added;
-  Apple Vision stays the automatic prior.** *Why:* RVM issue #281 (exact pretrained-weight terms) is unanswered;
-  its GPL-3.0 code cannot link into all-rights-reserved Doctored regardless of a weight grant; it is human-video
+  Apple Vision stays the automatic prior.** *Why:* RobustVideoMatting's upstream issue 281 (exact pretrained-weight
+  terms) is unanswered; its GPL-3.0 code would put the combined app under GPL-3.0, which Doctored's Apache-2.0
+  licence does not take, regardless of a weight grant; it is human-video
   trained and trimap-free, so it cannot consume brush guidance — the input the assisted protocol adds.
 - Survey outcome that stands as history:
   - **RVM MobileNetv3 + deep guided filter** — RGB-only joint F/α; was the preferred *conditional* pipeline, pending weight rights.
@@ -22,7 +23,7 @@ analytic, 0/42 full admitted under 2 GiB), so repeating it was ruled out.
     repeat the known input defect), author restricts Adobe-trained weights to noncommercial use, and ~11 GB GPU guidance.
   - **Background Matting V2** — not selected: needs an independently captured empty background, which the corpus lacks;
     a background reconstructed from reference planes would be contaminated input.
-- The [acquisition/runtime proposal](phase-9i-established-pipeline-manifest.json) is explicitly **not a frozen
+- The [acquisition/runtime proposal](../archive/phase-9i-established-pipeline-manifest.json) is explicitly **not a frozen
   candidate declaration**. No weights were downloaded, packages installed, model loaded or publisher contacted.
 - Standing rules for any future external model (from the conditional RVM contract): no host double-normalization,
   no external resize/padding/profile transform, validate native shapes/finiteness/range before conversion,
@@ -41,5 +42,5 @@ analytic, 0/42 full admitted under 2 GiB), so repeating it was ruled out.
 ## Open items (verified 2026-09-26)
 - `DROPPED` — Resolve RVM checkpoint terms, acquire/pin the TorchScript export, build the joint-output adapter and run the 90-case comparison ([phase-9i-gate-v2-status.md](phase-9i-gate-v2-status.md) decision 5).
 - `DROPPED` — New complete 90-case source-only export for the automatic comparison (same).
-- `TRACKED` — Accepted blinded human guidance → P7-12 / plan §9I assisted run.
-- `DROPPED` — Glass/transmission research: out of scope (dropped 2026-09-28); the six analytic glass cases stay reported diagnostics under frozen gate v2 and the bottle stays silhouette-only.
+- `DROPPED` (2026-10-30) — Accepted blinded human guidance (the gate v2 assisted run): the gate is no longer a ship condition ([gate v2](phase-9i-gate-v2-status.md)).
+- `DROPPED` — glass/transmission research ([gate v2](phase-9i-gate-v2-status.md)).

@@ -10,33 +10,17 @@ Catalog" then writes the snapshot it falls back to.
 
 ## Module map
 
-- `lib.rs` (and `main.rs`, which only calls it) — the modules and `run()`: the stdin loop
-  (one `Session`, one `Output`; stdin's end exits at once). It includes
+One line per file; each file's `//!` doc and item docs hold its detail.
+
+- `lib.rs` (and `main.rs`, which only calls it) — `run()`, the stdin loop; it includes
   `core/src/mcp_versions.rs` by `#[path]`, so helper and app negotiate from ONE list.
-- `session.rs` — `dispatch` (blank line skipped; unparsable `-32700` and a batch
-  `-32600` with a null id; notifications and responses dropped; each request on
-  its own thread), `Output` (one line per message under one lock) and `Session`.
-  `initialize` and `ping` are answered here; `tools/list` from the app within
-  `LIST_READ_TIMEOUT`, else the snapshot, never launching; `tools/call` launches
-  its own bundle on `Absent`; anything else is forwarded, else `-32601`. A
-  helper-side call failure is a CallToolResult with `isError: true`. The
-  `list_changed` check compares `serde_json::Value`s, never bytes. A launch that
-  timed out STRANDS the session: later `Absent` calls launch nothing.
-- `socket.rs` — `socket_path` (`DR_AGENT_SOCKET` when not empty, else
-  `$HOME/Library/Application Support/Doctored/Agent/agent.sock`), `is_scratch`,
-  `reach`, and `post`: one `POST /mcp` with `Connection: close`, its body read by
-  `Content-Length` or CHUNKED (`tiny_http` 0.12 chunks bodies of 32 KB or more).
-- `launch.rs` — `ensure_running`: folder made `0700`, `agent.launch.lock` beside
-  the socket taken with `File::lock`, the re-check, `/usr/bin/open` with
-  `open_arguments` (`-n -g`; a scratch socket adds `--env DR_AGENT_SOCKET=…`, one
-  `--env` per `forwarded_environment` pair — every `DR_*` and
-  `ANTHROPIC_API_KEY` —, `--stderr <folder>/doctored-launch.log` and `--args
-  -ApplePersistenceIgnoreState YES`), and the 50 ms poll until the socket answers
-  or `launch_wait()` (`DR_MCP_LAUNCH_WAIT`, else 60 s) ends in `timeout_sentence`.
-- `bundle.rs` — `own_bundle` (the executable must be
-  `<X>.app/Contents/Helpers/<name>`) and `read_snapshot`
-  (`Contents/Resources/agent-catalog.json`, `{version, tools}`), written by
-  `app/Sources/AgentCatalogSnapshot.swift` (`-DRWriteCatalog`).
+- `session.rs` — `dispatch`, `Output` and `Session`: what is answered here and what
+  is forwarded, the `list_changed` check and the stranded session.
+- `socket.rs` — `socket_path`, `is_scratch`, `reach` and `post` (one `POST /mcp`,
+  its body read by `Content-Length` or chunked).
+- `launch.rs` — `ensure_running`: the locked launch of its own bundle and the poll
+  until the socket answers or `launch_wait()` ends.
+- `bundle.rs` — `own_bundle` and `read_snapshot`, the catalog snapshot the build writes.
 
 ## Rules
 

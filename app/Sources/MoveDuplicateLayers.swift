@@ -21,7 +21,7 @@ import AppKit
 /// `duplicate` is the MCP twin. The controller half is
 /// `EditorViewController+MoveDuplicate.swift`.
 ///
-/// Decisions stated here and in the README:
+/// Decisions stated here and in the feature reference:
 /// - the copies are `duplicateLayers`' own — unlinked, each landing directly
 ///   above its source's subtree in the same group, keeping its locks — so the
 ///   gesture is ONE "Duplicate Layer" step (the Layer ▸ Duplicate Layer name);

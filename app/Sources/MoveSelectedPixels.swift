@@ -40,7 +40,7 @@ import AppKit
 /// is `SelectedPixelsEdit` (`core/src/selected_pixels.rs`), the same request
 /// at 8 and 16 bits, widened to Free Transform.
 ///
-/// Decisions stated here and in the README: a multi-layer panel selection
+/// Decisions stated here and in the feature reference: a multi-layer panel selection
 /// refuses by name, links are ignored, consecutive gestures and
 /// nudges over one selection move ONE float lifted once
 /// (`MoveFloat.swift`: each step is still one undo step, and pixels the

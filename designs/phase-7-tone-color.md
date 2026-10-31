@@ -1,6 +1,6 @@
 # Shared high-depth tone and color processing (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 7C, 2026-09-10
 - **Original:** [archive/phase-7-tone-color.md](../archive/phase-7-tone-color.md) — full history, measurements, receipts
 - **Key commits:** `4061646`
@@ -70,7 +70,8 @@ legacy byte result.
   adjustment preparation (`AdjustmentAdmission::next`, seeded with the plan's retained bytes, the bookkeeping and
   the live source shapes) BEFORE building it, against the op's own limit; a conversion reuses `rebind_layers`'
   records, so `color_plan` charges them once for assign and convert alike.
-- `TRACKED` — slow full-frame live projection / stored-source conversion at 24 MP (6.08 s / 3.68 s) → regional work
-  P7-31 (13A) and latency qualification P7-33 (13D).
-- `TRACKED` — stage-only codec cancellation, noncancellable compound export, uncompressed PNG/native payloads →
-  carryover P7-32 (13C).
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — full-frame live projection and stored-source
+  conversion at 24 MP (regional work, carryover P7-31); latency targets come from the measured corpus
+  ([#11](https://github.com/kpgalligan/doctored/issues/11), P7-33).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — stage-only codec cancellation, noncancellable
+  compound export, uncompressed PNG/native payloads (carryover P7-32).

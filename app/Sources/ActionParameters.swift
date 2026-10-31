@@ -1,8 +1,8 @@
 import Foundation
 
-// `ActionParameters.bind` is the ONE validator every Play path shares (the window, Play Last,
-// `run_action`, `run_batch`, the Batch window), and it refuses at SUBMISSION so a batch never turns
-// one parameter error into 200 rows.
+// `ActionParameters.bind` is the ONE validator every Play path shares (the window, Play Last
+// Action, `run_action`, `run_batch`, the Batch window), and it refuses at SUBMISSION so a batch
+// never turns one parameter error into 200 rows.
 
 /// An action's declared parameters: what a caller may supply, and the one
 /// validator every path that supplies them goes through.
@@ -21,7 +21,7 @@ import Foundation
 ///
 /// **`bind` is the single validator, and it runs BEFORE anything runs.** Every
 /// path that plays an action with parameters — the Actions window's Play, File
-/// ▸ Automate ▸ Play Last, `run_action`, `run_batch` and the Batch window —
+/// ▸ Automate ▸ Play Last Action, `run_action`, `run_batch` and the Batch window —
 /// calls it and refuses as a whole rather than discovering a missing value at
 /// step 7 with the picture already changed. In a batch that matters most: a
 /// parameter error is an ACTION-level refusal at submission, so it is one

@@ -17,4 +17,4 @@ DR_VERIFY_APP=/path/to/test/Doctored.app/Contents/MacOS/Doctored \
   python3 scripts/verify_phase5.py --keep
 ```
 
-Use a copy of the app with a private bundle identifier to isolate its preference/recent-document domain. The MCP runner allocates private ports and temporary files and signals only the processes it launches.
+Use a copy of the app with a private bundle identifier to isolate its preference/recent-document domain. The MCP runner gives each instance a private scratch socket and temporary files and signals only the processes it launches.

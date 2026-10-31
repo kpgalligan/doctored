@@ -1,6 +1,6 @@
 import Foundation
 
-/// The Duotone document's catalog (#1, `designs/duotone-mode.md`): `get_duotone` and
+/// The Duotone document's catalog (`designs/duotone-mode.md`): `get_duotone` and
 /// `set_duotone` (`AgentServer+Duotone.swift`, with the `.ado` `path`), `convert_mode`'s `duotone`
 /// mode, its `inks`/`overprints` schema and the conversions out, and the notes on `get_document`,
 /// `save_copy`, the PSD open and export, the exports through the inks, New from Clipboard and
@@ -52,7 +52,7 @@ extension AgentServer {
         return [
             tool(
                 "get_duotone",
-                "Reads a Duotone document's options, as Image ▸ Mode ▸ Duotone… shows them (#1): "
+                "Reads a Duotone document's options, as Image ▸ Mode ▸ Duotone… shows them: "
                     + "type (monotone, duotone, tritone or quadtone), inks [{name, lab (D50 L*, a*, "
                     + "b*), curve (13 output percents at the inputs 0, 5, 10, 20, 30, 40, 50, 60, 70, "
                     + "80, 90, 95 and 100 %, null blank)}], overprints {key: [L, a, b] or null for the "
@@ -69,7 +69,7 @@ extension AgentServer {
             tool(
                 "set_duotone",
                 "Replaces a Duotone document's inks, curves and overprint colours, as Image ▸ Mode ▸ "
-                    + "Duotone…'s OK on a Duotone document (#1), one undo step: the gray pixels are "
+                    + "Duotone…'s OK on a Duotone document, one undo step: the gray pixels are "
                     + "kept and only the view changes. Pass inks (1–4 inks, with overprints optional) "
                     + "or path, a Duotone Options (.ado) file, as the dialog's Load…; the same "
                     + "options answer changed false. Any other document refuses (convert_mode duotone "
@@ -79,7 +79,7 @@ extension AgentServer {
     }
 
     @inline(never) func annotateDuotoneCatalog(_ catalog: inout [[String: Any]]) {
-        let note = " mode \"duotone\" (#1) converts an 8- or 16-bit Grayscale document to "
+        let note = " mode \"duotone\" converts an 8- or 16-bit Grayscale document to "
             + "Duotone, as Image ▸ Mode ▸ Duotone…, one undo step: the gray pixels, layers and depth "
             + "are kept and the view shows the gray channel through the inks (each ink's coverage = "
             + "its curve, a natural spline through the set slots, of the gray's ink percentage, "
@@ -94,9 +94,9 @@ extension AgentServer {
             + "lab and indexed (8-bit) convert it through the render of its inks (each layer through "
             + "the view into RGB, then the mode's own route), one undo step. An adjustment layer or "
             + "a layer style needs flatten true. The reply's duotone holds type and inks."
-        let renders = " A Duotone document (#1) exports through its inks: the file is RGB in the "
+        let renders = " A Duotone document exports through its inks: the file is RGB in the "
             + "document's profile, rendered as the canvas shows it, and the reply's duotone says so."
-        let disabled = " A Duotone document refuses it for good (#1)."
+        let disabled = " A Duotone document refuses it for good."
         for index in catalog.indices {
             guard let name = catalog[index]["name"] as? String else { continue }
             let existing = (catalog[index]["description"] as? String) ?? ""
@@ -115,15 +115,15 @@ extension AgentServer {
                 schema["properties"] = current
                 catalog[index]["inputSchema"] = schema
             case "get_document":
-                catalog[index]["description"] = existing + " A Duotone document (#1) reports "
+                catalog[index]["description"] = existing + " A Duotone document reports "
                     + "color_mode duotone and duotone {type, inks}; its gray block and pixels are the "
                     + "Grayscale document's."
             case "save_copy":
-                catalog[index]["description"] = existing + " A Duotone document (#1) saves rz only, "
+                catalog[index]["description"] = existing + " A Duotone document saves doctored (or rz) only, "
                     + "keeping its inks; PSD and PSB are export_psd's and every other format is an "
                     + "export through its inks, so other formats refuse by that sentence."
             case "export_psd", "inspect_psd_export":
-                catalog[index]["description"] = existing + " A Duotone document (#1) writes a "
+                catalog[index]["description"] = existing + " A Duotone document writes a "
                     + "Duotone PSD or PSB (colour mode 8, its gray channel and its inks as Photoshop's "
                     + "duotone specification; inks unchanged since the open keep the file's duotone "
                     + "data byte for byte) at 8 bits, Photoshop's Duotone depth: a 16-bit document is "
@@ -131,7 +131,7 @@ extension AgentServer {
                     + "bits); a layered TIFF refuses."
             case "inspect_psd", "open_document":
                 catalog[index]["description"] = existing + " A Duotone PSD or PSB (colour mode 8, 8 or "
-                    + "16 bits, #1) answers import_precision \"gray\", color_mode Duotone and duotone "
+                    + "16 bits) answers import_precision \"gray\", color_mode Duotone and duotone "
                     + "(its options), and opens as a Duotone document."
             case "export_image", "export_preview", "quick_export", "export_layers", "export_pdf",
                  "contact_sheet":
@@ -147,19 +147,19 @@ extension AgentServer {
                  "super_zoom", "jpeg_artifacts_removal", "neural_colorize":
                 catalog[index]["description"] = existing + disabled
             case "apply_filter":
-                catalog[index]["description"] = existing + " A Duotone document (#1) refuses filter "
+                catalog[index]["description"] = existing + " A Duotone document refuses filter "
                     + "develop_filter, lens_correction and tilt_shift for good."
             case "convert_precision":
-                catalog[index]["description"] = existing + " A Duotone document (#1) refuses 16 and "
+                catalog[index]["description"] = existing + " A Duotone document refuses 16 and "
                     + "32 Bits/Channel for good (mode rgba16 and rgba32, and gray16 from 8 bits and "
                     + "gray32); gray8 from 16 bits keeps the "
                     + "inks."
             case "merge_layers_to_hdr":
-                catalog[index]["description"] = existing + " A Duotone document (#1) merges as a "
+                catalog[index]["description"] = existing + " A Duotone document merges as a "
                     + "Grayscale document does."
             case "new_from_clipboard":
                 catalog[index]["description"] = existing + " A pixel copy of a Duotone document "
-                    + "(#1) makes a Grayscale document of the copied gray at the source's Gray "
+                    + "makes a Grayscale document of the copied gray at the source's Gray "
                     + "profile and depth, without the inks."
             default:
                 break

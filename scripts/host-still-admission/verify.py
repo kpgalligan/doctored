@@ -11,8 +11,9 @@ This drive pins what those figures and the whole-open charge
 below. The gates are FIXED here before the drive runs; a miss is recorded in
 `receipt.json` and fails its gate, and nothing is widened after the fact.
 
-Every gate runs in its own fresh owned `HostApp` (there is no
-`close_document` tool), and every call names its `document_id`. The
+Every gate runs in its own fresh owned `HostApp`, so no earlier open's
+memory is inside a later gate's interval, and every call names its
+`document_id`. The
 fixtures are authored into this run's private folder by `author.swift`
 (ImageIO / Core Image only, no Doctored code) and `avifenc`, and their
 bytes and SHA-256 are recorded.

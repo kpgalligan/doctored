@@ -1,6 +1,6 @@
 # Phase 9I assisted scoring path (ADR)
 
-- **Status:** Accepted — closed (scorer built; only a synthetic dry run executed; the real run is tracked elsewhere)
+- **Status:** Accepted — closed (scorer built; only a synthetic dry run executed; the real run was dropped 2026-10-30)
 - **Phase / dates:** 9I assisted protocol phase 2, 2026-09-16
 - **Original:** [archive/phase-9i-assisted-scoring-status.md](../archive/phase-9i-assisted-scoring-status.md) — dry-run receipt, hash history, test list
 - **Key commits:** `5f75604`
@@ -58,4 +58,4 @@ instrument: nothing reaches the app, and no assisted result exists.
   `core/tests/fixtures/assisted/drive-synthetic-replay.json`), `scripts/test_phase9i_assisted_scoring.py`.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Score a real human run → P7-12 / plan §9I; procedure in [phase-9i-assisted-annotation-runbook.md](phase-9i-assisted-annotation-runbook.md). Only dry-run directories (`assisted-scoring-dryrun*`) exist under `~/devel/doctored-fixtures/phase9i-reports/`.
+- `DROPPED` (2026-10-30) — Score a real human run: the gate is no longer a ship condition ([gate v2](phase-9i-gate-v2-status.md)); the procedure stays in [phase-9i-assisted-annotation-runbook.md](phase-9i-assisted-annotation-runbook.md).

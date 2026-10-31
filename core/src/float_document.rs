@@ -168,8 +168,8 @@
 //! (bit-identical to the whole-table search, `rgb_reference` the test oracle; ~4.5× fewer ns
 //! per call); no curve inverter.
 //! `PrecisionImage::to_rgba8` REFUSES F32 storage so a clamped preview can never be shown; display
-//! is `PrecisionDocument::display_rgba8`. Contract and operator table:
-//! `designs/phase-11f-hdr-float-shipped.md`; open items: `designs/phase-11f-hdr-float-status.md`.
+//! is `PrecisionDocument::display_rgba8`. Decisions, shipped items and open items:
+//! `designs/phase-11f-hdr-float-status.md`.
 
 use std::sync::Arc;
 

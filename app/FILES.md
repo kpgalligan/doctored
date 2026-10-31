@@ -31,10 +31,10 @@ Detail belongs in the source file's own header comment.
 - `DoctoredCore+Selection.swift` — `RasterSelection` byte mask operations: quick mask, feather, grow, shrink, border, stroke, smooth.
 - `DoctoredCore+Export.swift` — `ExportFormat` and the export workspace (`RasterExportResult`) from Phase 11A.
 - `DoctoredCore+LUT.swift` — `RasterLUT`: Cube LUT and profile LUT parsing.
-- `DoctoredCore+Lab.swift` — `RasterLab` sRGB / Lab conversion; #1 Lab Color document: every `dr_*lab*` wrapper (New, Mode both ways, plans, the P3 view, `labSource`/`openLab`).
-- `DoctoredCore+Indexed.swift` — #1 Indexed Color: every Indexed wrapper (open, conversion, `indexedIndex`, Color Table get/plan/set, `.act`, 2d `indexedPastePlan`/`indexedPasting`).
-- `DoctoredCore+Duotone.swift` — #1 Duotone: every Duotone wrapper (options, Mode ▸ Duotone plan/set, the view; the render, → RGB, → Grayscale, → Bitmap, `.ado`, thumbnail).
-- `DoctoredCore+Bitmap.swift` — #1 Bitmap 1a/1c: every Bitmap wrapper (Mode ▸ Bitmap, Bitmap → Grayscale and plans; `BitmapSource`, the 1-bit open, the PSD open).
+- `DoctoredCore+Lab.swift` — `RasterLab` sRGB / Lab conversion; the Lab Color document: every `dr_*lab*` wrapper (New, Mode both ways, plans, the P3 view, `labSource`/`openLab`).
+- `DoctoredCore+Indexed.swift` — Indexed Color: every Indexed wrapper (open, conversion, `indexedIndex`, Color Table get/plan/set, `.act`, Paste's `indexedPastePlan`/`indexedPasting`).
+- `DoctoredCore+Duotone.swift` — Duotone: every Duotone wrapper (options, Mode ▸ Duotone plan/set, the view; the render, → RGB, → Grayscale, → Bitmap, `.ado`, thumbnail).
+- `DoctoredCore+Bitmap.swift` — Bitmap: every Bitmap wrapper (Mode ▸ Bitmap, Bitmap → Grayscale and plans; `BitmapSource`, the 1-bit open, the PSD open).
 - `DoctoredCore+AdjustmentPresets.swift` — `RasterAdjustmentPresetFile`: Photoshop adjustment preset decode.
 - `DoctoredCore+StylePresets.swift` — `RasterStylePresets`: the preset canonicalizer, the twelve built-ins, `.asl` decode and encode.
 - `DoctoredCore+Jobs.swift` — content-aware fill, heal jobs, resource reports and cache eviction.
@@ -55,7 +55,7 @@ Detail belongs in the source file's own header comment.
 - `DoctoredCore+Float.swift` — the 32-bit float mode: `FloatCore`, tone map, float display and samples (Phase 11F).
 - `DoctoredCore+HDR.swift` — the HDR still float intake and the extended-range (EDR) view wrappers.
 - `DoctoredCore+Clipboard.swift` — `RasterClipboardPayload`, the typed clipboard payload (Phase 12G-1), and paste into documents.
-- `ImageDocument.swift` — NSDocument; the single mutation point (see Undo below).
+- `ImageDocument.swift` — NSDocument; the single mutation point (app/CLAUDE.md, "Undo and dirty tracking").
 - `ImageDocument+EditPreflight.swift` — `preflightPublication`, `applyEdit`'s own post-transform list as one throwing call a caller asks BEFORE its `withUndoGroup` opens.
 - `ImageDocument+Composite.swift` — `byteComposite(of:)` (the one 8-bit composite read), `analysisComposite`, `edgeTraceComposite` (the Magnetic Lasso's R1 trace).
 - `ClipboardPayload.swift` / `ClipboardBoundaries.swift` / `EditorViewController+Clipboard.swift` / `AgentServer+Clipboard.swift` — Phase 12G's typed clipboard.
@@ -65,9 +65,16 @@ Detail belongs in the source file's own header comment.
 - `LayerClipboard.swift` / `EditorViewController+LayerClipboard.swift` / `AgentServer+LayerClipboard.swift` — Copy/Paste of LAYERS.
 - `AgentServer+LayerClipboard.swift` — MCP `copy {mode: "layers"}`, `paste {mode: auto|layers|pixels}` and `get_clipboard.layers`.
 - `HeldClipboardPayload.swift` — the held typed payload and `Clipboard.writeItem`, the ONE pasteboard write (Copy, Copy Merged, Cut, the layers copy; UI and MCP).
-- `EditorViewController.swift`, `ImageCanvasView.swift`, `AgentServer.swift`, `Sheets.swift`, `DoctoredCore.swift`, `AgentCatalog.swift` — **frozen at current size.**
+- `ClipboardEditable.swift` — a whole-layer Copy of a text, shape or adjustment layer attaches its `EditableClipboardRecord` (`RasterDocument.attachingEditable`) to the payload.
+- `EditorViewController.swift`, `ImageCanvasView.swift`, `AgentServer.swift`, `Sheets.swift`, `DoctoredCore.swift`, `AgentCatalog.swift` — frozen: wiring only; over ~50 lines goes in an extension.
 - `EditorViewController+<Feature>.swift`, `AgentServer+<Feature>.swift`, `DoctoredCore+<Area>.swift`, `AgentCatalog+<Area>.swift`, a new `…SheetController` — frozen-six changes over ~50 lines go here.
 - `EditorViewController+DisplayLifecycle.swift` — clears canvas preview/provider references and redraws the backing display on the window's actual will-close notification.
+- `main.swift` — the entry point: the catalog snapshot when asked (`-DRWriteCatalog`), `DataMigration`, then `AppDelegate` and `NSApplicationMain`.
+- `AppDelegate.swift` — launch (working limit, Working CMYK, automation alerts, background policy, menus), the welcome window, New, New from Clipboard, working space, Automate, `buildMainMenu()`.
+- `EditorWindowController.swift` — the document window: `EditorWindowController` (which view of its document it is: 1, or 2 for New View) and `EditorWindow` (unconsumed Esc goes to `JobEscape`).
+- `FileDropView.swift` — the editor and welcome windows' root view: image files dragged in from Finder open as documents.
+- `ModalCardWindowController.swift` — an app-modal window hosting one `makeSheetView` card, for a dialog that runs with no window to hang a sheet from.
+- `UndoGrouping.swift` — `withUndoGroup`: runs a body in an explicit undo group and closes only groups above the caller's level (app/CLAUDE.md, "Undo and dirty tracking").
 - `Bitmap.swift` — the CoreGraphics ⇄ core-buffer seam: the ONE unpremultiply, CGImage→straight-RGBA8, the ImageIO decode for formats the core lacks. AppKit/CG pixel rendering converts here.
 - `Tools.swift` — the single `EditorTool` enum plus per-tool facts (name, SF Symbol, glyph, cursor, bare key, selector, `planned`) as computed properties, and `railGroups`, the rail's slots.
 - `ToolRailView.swift` — the left tool rail; renders `railGroups`, and a group of more than one tool becomes one slot with a corner-triangle dropdown that remembers its last-used member.
@@ -91,8 +98,76 @@ Detail belongs in the source file's own header comment.
 - `AgentCatalog+PersistenceAction.swift` — `persistenceActionCatalog`: undo/redo, save copy, actions and recording.
 - `AgentCatalog+Session.swift` — `sessionCatalog`: snapshot, history and recovery groups.
 - `AgentCatalog+AdvancedSelection.swift` — `advancedSelectionCatalog`: selection essentials, independent masks, subject targeting, refinement, select similar.
-- Feature model files (`TextLayer.swift`, `LayerTransform.swift`, `AdjustmentLayer.swift`, `LivePhotoLayer.swift`, `SubjectSelection.swift`, `SoftBrush.swift` are the pattern).
-- `SoftBrush.swift` — `SoftBrush` is the dab engine behind the paint tools' tip options. Every feature model file holds pure value types, geometry/math and an `extension RasterDocument`.
+- `AgentCatalog+AssistedAnnotation.swift` — the five assisted annotation tools' catalog entries.
+- `AgentCatalog+MoveLayers.swift` — the `move_layers` catalog entry.
+- `AgentCatalog+NativePaint.swift` — the stroke tools' added arguments (`stroke_version`, pressures, times, airbrush, `native_stroke`, `background`) and the 32-bit float notes.
+- `AgentCatalog+Precision.swift` — small catalog amendments that disclose target/depth restrictions while keeping the existing tool schemas.
+- `AgentCatalog+ReusableActions.swift` — the catalog entries of `reorder_layers`, the three batch tools and the two bundle tools.
+- `AgentServer+Actions.swift` — the six Actions tools, mirroring the Actions window and File ▸ Automate.
+- `AgentServer+Adjustments.swift` — the adjustments' agent side: the destructive twin `apply_filter` routes to, Color Lookup tables kept out of replies, the three Auto commands.
+- `AgentServer+AssistedAnnotation.swift` — the assisted annotation tools (the internal experiment behind `DR_ASSISTED_ANNOTATION=1`).
+- `AgentServer+ByteFilters.swift` — `apply_filter`'s one 8-bit `dr_image_filter_op` route: the Blur menu, Add Grain, Clouds, Offset, sharpening and cleanup, Lens Correction, Presence, Develop Filter.
+- `AgentServer+CalibratedAdjustments.swift` — mirrors Image ▸ Adjustments and the New/Options adjustment sheets; evaluation is resolved before dispatch and recording.
+- `AgentServer+Channels.swift` — the channel tools, mirroring the Channels panel and its menus (`add_channel`, `duplicate_channel`, `save_selection`, `calculations`).
+- `AgentServer+ChannelTargets.swift` — the channel pieces frozen `AgentServer.swift` calls in one line: the paint `target` vocabulary, coverage commit, plane filters and loads, `render {channel:…}`.
+- `AgentServer+Color.swift` — the colour-management and metadata tools, mirroring Image ▸ Mode, Image Size's Resolution field and the Export panel's two checkboxes.
+- `AgentServer+Curves.swift` — `validatedCurvesParams`, the one strict validator for every Curves params object: point lists (RGB or CMYK channels) or 256-entry maps.
+- `AgentServer+Distort.swift` — the agent's Free Transform commits, affine and perspective, and the report's name for the kind a layer's meta claims.
+- `AgentServer+Groups.swift` — the layer structure tools: group/ungroup, locks, links, layer via copy/cut, merge/stamp visible, arrange, auto-select, duplicate, delete, merge down.
+- `AgentServer+Guides.swift` — the guide and ruler-origin tools; its header says why the view preferences have no MCP twin.
+- `AgentServer+Heal.swift` — `heal_stroke` and `spot_heal_stroke`, the Healing and Spot Healing Brush mirrors, rasterized through the shared `retouchPixels` overlay.
+- `AgentServer+History.swift` — mirrors Window ▸ History…: navigation and the per-document budget.
+- `AgentServer+IndependentMasks.swift` — mirrors Layer ▸ Mask ▸ Properties…, Link with Content and Transform Mask….
+- `AgentServer+Info.swift` — the two read-only tools behind the Info panel: its histogram and the cursor readout; neither registers an undo step or dirties the document.
+- `AgentServer+Jobs.swift` — `job_status`, `cancel_job`, `resource_usage` and `finishJobCall`; a handler that ends in it is listed in `AgentServer.documentJobTools`.
+- `AgentServer+LayerProperties.swift` — the per-entry property tools: `set_layer_properties`, `reorder_layer`, the layer-mask family and `set_layer_clipped`.
+- `AgentServer+LayerSets.swift` — `reorder_layers`, the multi-entry twin of `reorder_layer`.
+- `AgentServer+LayerStyle.swift` — `set_layer_style` and `set_global_light`, mirroring Layer ▸ Layer Style… (Apply / Clear) and the panes' Use Global Light.
+- `AgentServer+LivePhoto.swift` — the agent half of Layer ▸ Place Live Photo… and the host-media argument readers `place_image` shares; the still lands as a raster layer.
+- `AgentServer+MoveLayers.swift` — `move_layers`, the relative twin of the Move tool's drag and arrow nudge: a set of layers moved by a delta.
+- `AgentServer+NativeChannelMath.swift` — Image ▸ Apply Image and Calculations with the visible sheet's native capture; native output stays scalar.
+- `AgentServer+OperationScope.swift` — MCP mirrors of Filters, Image ▸ Adjustments and Fill/Gradient over the capture and target policy the UI shares; results write only through the selection.
+- `AgentServer+Patch.swift` — `patch_region`, the Patch tool's mirror: an explicit polygon or the current selection, committed through `PatchEditCapture`.
+- `AgentServer+Precision.swift` — Image ▸ Mode ▸ Document Precision… and the operation/target/depth table that menu validation and the pre-dispatch Actions/MCP gate share.
+- `AgentServer+PrecisionPaint.swift` — mirrors the typed canvas brush/eraser/clone/heal paths: native-depth sampling plates, `rgba32` float colours, 0…1 coverage on masks and channels.
+- `AgentServer+PrecisionScalarEditing.swift` — mirrors brush/eraser and Fill while a Channels row or layer mask is targeted.
+- `AgentServer+PrecisionScalars.swift` — mirrors Mask Properties and Select ▸ Save/Load Selection; persistent mask/channel buffers stay u16.
+- `AgentServer+Preservation.swift` — `get_document`'s File ▸ Save/Save As format availability (OpenEXR and Radiance only for float); copies stay explicit exports.
+- `AgentServer+PSD.swift` — `inspect_psd`, mirroring File ▸ Open's PSD compatibility notice without creating a document or showing a dialog.
+- `AgentServer+QualifiedColor.swift` — profile-qualified colour over MCP: a bare hex means one authored sRGB colour converted once into the document's space.
+- `AgentServer+Raw.swift` — the RAW Develop dialog's MCP mirror: `open_document`'s optional `raw` object, which `redevelop_raw` reuses.
+- `AgentServer+Recovery.swift` — mirrors File ▸ Recover Unsaved Work…: checkpoint, recover and discard.
+- `AgentServer+RedEye.swift` — `red_eye` (the Red Eye tool's drag rectangle) and `red_eye_auto` (Filters ▸ Remove Red Eye), over the core's one correction.
+- `AgentServer+RetainedImage.swift` — mirrors Layer ▸ Place Embedded… / Place Linked…; the new layer lands where the `position`/`layer` pair names.
+- `AgentServer+Retouch.swift` — the Clone Stamp, Dodge / Burn and Crop (straighten included) mirrors; strokes rasterize the interactive pipeline's canvas-sized premultiplied overlay.
+- `AgentServer+SelectionEssentials.swift` — mirrors the Freehand/Magnetic Lasso and Quick Selection tools and Select ▸ Color Range… / Transform Selection…, with shared capture validation.
+- `AgentServer+SelectionHistory.swift` — `reselect`, `get_selection`, `set_quick_mask` and `quick_mask_stroke`, in parity with the float whitelist in `EditorViewController+Precision.swift`.
+- `AgentServer+SelectionRefinement.swift` — mirrors Select ▸ Select and Mask… over the same captured coverage and validation as the UI.
+- `AgentServer+Shapes.swift` — `add_shape_layer` and `edit_shape_layer`, mirroring the shape tools' commit and the Layers panel's double-click re-edit, so either way renders the same layer.
+- `AgentServer+Snapshots.swift` — mirrors Window ▸ Snapshots…, including the portable Save/Load files.
+- `AgentServer+SubjectSelection.swift` — subject segmentation, mirroring Select ▸ Select Subject (every subject) and the Subject tool's press-and-hold (the one under the point).
+- `AgentServer+SubjectTargets.swift` — mirrors Select ▸ Select Objects…, Select People… and All People; instance IDs are ephemeral indices for the captured composite and model.
+- `AgentServer+Text.swift` — `add_text_layer` and `edit_text_layer`, mirroring the text tool's commit and re-open, so either way renders the same layer through its description.
+- `AgentServer+TransformJobs.swift` — the final Free Transform / Distort raster commits as worker jobs (only pure affine/perspective resampling) and Transform Again's memory.
+- `SoftBrush.swift` — `SoftBrush` is the dab engine behind the paint tools' tip options.
+- `BrushPreset.swift` — the paint tools' built-in tip presets: named sets of the tip fields (hardness, flow, spacing, angle, roundness, airbrush); size and opacity stay untouched.
+- `StrokeSpline.swift` — `StrokeSpline`, the centripetal Catmull-Rom smoother for canvas strokes, and `StrokeLeash`, the Smoothing stabilizer; agent strokes keep their exact polyline.
+- `QuickMaskStroke.swift` — a Quick Mask stroke's canonical source-over coverage after pressure, smoothing and timed dabs, stored as RLE (byte, or the native u16 encoding).
+- `PaintTarget.swift` — `RasterPlane` (one 8-bit plane, mirroring `DrPlane`) and `PaintTarget`, what a stroke, fill or adjustment edits: the layer, its mask, a plane or a channel.
+- `TextLayer.swift` — text layers: `TextBox`, `TextStyle`, `TextLayerPayload` (the meta) and `TextLayer`, the one render-and-name entry point the tool and the agent share.
+- `EditorViewController+Text.swift` — the text tool's layer logic: click to open or re-open a text layer, the panel's double-click, and the commit into a re-editable text layer.
+- `EditorViewController+TextTypography.swift` — the style the text tool types with: the live family/size/alignment plus the options store's weight, tracking, leading and decorations.
+- `ShapeLayer.swift` — shape layers: `ShapeLayerPayload`, the JSON description in the layer's meta (the source of truth; the raster is its cache), and `ShapeLayer`'s render.
+- `ShapeTool.swift` — the style a shape drags with: the options bar's fill, stroke, weight and corner radius, resolved to native types.
+- `EditorViewController+Shapes.swift` — the shape tools (U): drag out a rectangle, ellipse or line into a re-editable shape layer; a refused re-edit keeps its session open.
+- `DescribedLayer.swift` — the shared geometry of described layers (text, shapes) under a `LinearMap`, `LayerDescription`, and the two pure document ops every described-layer commit runs.
+- `DescribedLayerGeometry.swift` — `DocumentGeometry`: a whole-document geometry op and what it does to each described layer's map; `applyingDocumentGeometry`, `transformingDescribedLayer`.
+- `DescribedDrawingPlan.swift` — one geometry/drawing plan for coloured rasters and typed scalar coverage; a text plan holds TextKit objects and is main-thread-only.
+- `ArtworkTextCapture.swift` — TextKit's resolved glyphs, positions and decorations sent to Rust as outlines; intrinsic glyph assets keep their byte colour and coverage.
+- `AdjustmentLayer.swift` — the adjustment ops the app can create and re-edit (the core schema's meta `op` strings); a newer schema's op still composites and round-trips.
+- `AdjustmentSchema.swift` — the app-side mirror of the core's meta schema (`core/src/adjust.rs`): every parameter's key, kind, range and default, for the MCP validator, sheets and catalog.
+- `AdjustmentSheet.swift` — which surface opened an adjustment dialog and so what Apply commits; one sheet class per op serves the layer and its destructive twin (`dr_image_adjust_op`).
+- `LivePhotoLayer.swift` — `LivePhotoSource` and `LivePhoto`: a Live Photo's still and clip paired by basename; it places as an ordinary raster layer of its still.
 - `ImageCanvasView+BrushOutline.swift` — the stroke tools' brush-tip outline cursor. View-only: no undo, dirty count, Action or MCP twin.
 - `ImageCanvasView+MarchingAnts.swift` — the marching ants on the COMMITTED selection. View-only: no undo, dirty count, Action or MCP twin.
 - `ImageCanvasView+ExtendedRange.swift` — the canvas layer's EDR configuration and the jobs-probe's `ExtendedDrawRecord` draw check. View-only.
@@ -100,6 +175,25 @@ Detail belongs in the source file's own header comment.
 - `SubjectSelection.swift` — Vision segmentation behind Select > Select Subject and the Subject tool: `SubjectSelection.mask`, the `SubjectAnalysis` cache and the `SubjectSession` gesture.
 - `SelectionEssentials.swift` / `SelectionStrokeSession.swift` / `SelectionWorkBudget.swift` — captured selection commands, freehand/Quick Selection gestures, worker-held preview reservations.
 - `ColorRangeGamut.swift` — Color Range ▸ Out Of Gamut: the proof-setup choice, the captured per-depth input over the gamut warning's codes, `outOfGamutShape`.
+- `Selection.swift` — the shared selection model: `CanvasSelection` (an exact path for geometric shapes, retained byte or u16 coverage otherwise) and `SelectionCombineMode`.
+- `ImageDocument+SelectionHistory.swift` — the selection command boundary menus, gestures and MCP share; transient coverage (Quick Mask too) belongs to the document, never saved to `.doctored`.
+- `ImageCanvasView+SelectionFeedback.swift` — view-only feedback for selection gestures: the committed selection stays visible while a new shape is dragged.
+- `SelectionPreviewView.swift` — a fit-to-view preview in the canvas's top-left pixel coordinates; Color Range samples the immutable source, never the shown mask.
+- `ColorRangeSheetController.swift` — Select ▸ Color Range…: Sampled Colors, hue presets, tones, Skin Tones, Out Of Gamut, Custom; candidate coverage previewed, re-checked on Apply.
+- `SelectionTransformSheetController.swift` — Select ▸ Transform Selection…: numeric affine controls on the coverage alone, pivot at the captured bounds' centre by default.
+- `LoadSelectionSheetController.swift` — Select ▸ Load Selection…: a channel, the layer's transparency or mask, or a composite plane, with Replace/Add/Subtract/Intersect and Invert.
+- `SaveSelectionSheetController.swift` — Select ▸ Save Selection…: the selection into a new alpha channel, or combined into an existing one under Load Selection's four-way algebra.
+- `EditorViewController+SelectionEssentials.swift` — the Freehand Lasso and Quick Selection tools, Select ▸ Color Range… and Transform Selection…, and the options bar's Anti-alias.
+- `EditorViewController+SelectionHistory.swift` — Select ▸ Reselect and the selection-history observer, which restores the display even when a command made no undo step.
+- `EditorViewController+SelectionIO.swift` — Select ▸ Save / Load Selection…, Image ▸ Channels ▸ Load Channel as Selection and the three ⌘-click gestures (layer, mask, channel row).
+- `EditorViewController+SelectionRefinement.swift` — Select ▸ Select and Mask… (`refineSelection`).
+- `RefineSelectionSheetController.swift` — the Select and Mask sheet: every preview starts from the captured coverage, so changing a control never compounds an earlier preview.
+- `RefinementCanvasView.swift` — Select and Mask's canvas: one image pixel per point at 100 % with nearest sampling; Refine Edge brush drags go to the sheet (`onBrush*`).
+- `RefinementCutoutPreparation.swift` — the main-thread lifetime of a captured cutout preparation: cancelled across assembly and projection; every worker drains before release.
+- `EditorViewController+SubjectSelection.swift` — Select ▸ Select Subject: Vision's foreground subjects in the flattened composite become the selection.
+- `SubjectTargetsSheetController.swift` — Select ▸ Select Objects… / Select People…: a picker over one reusable Vision analysis, combining subjects by list, image hit test or region.
+- `EditorViewController+SubjectTargets.swift` — Select ▸ Select Objects… / Select People… (the `SubjectTargetsSheetController` picker) and All People, and their coverage commits.
+- `SelectedPixelsFloat.swift` — `SelectedPixelsFloatQuery`: the core float-rect query the first Move Selected tick starts, under a 64 KiB preview reservation.
 - `SubjectTargeting.swift` — bounded noncancellable Vision workers for multi-object, per-person instance and aggregate people selection.
 - `PersonInstances.swift` — the people model: `SubjectModel` (objects/people strings), `PersonInstanceMap`, the person-instance argmax, keep rule and left-to-right order.
 - `FaceParts.swift` — the Select ▸ Face Parts… model: `FacePart`, `FaceLandmarks` (part rules, forehead, brow band), `FaceAnalysis` (Vision faces, numbering, request JSON), `FaceParts`.
@@ -140,7 +234,7 @@ Detail belongs in the source file's own header comment.
 - `CloudProviders+Gemini.swift` / `CloudProviders+Fal.swift` — the providers: Gemini Interactions (`DR_GEMINI_BASE_URL`), fal FLUX Fill (`DR_FAL_BASE_URL`).
 - `CloudConsentCard.swift` / `CloudSettingsPane.swift` — the per-provider consent card (probe hook `present`) and Settings ▸ Cloud: keys, consent, agent switch.
 - `MCPSettingsPane.swift` — Settings ▸ MCP: the helper's path and Copy MCP Command (`AgentServer.mcpCommand`); no MCP mirror, it is not an edit.
-- `DepthBlur.swift` / `DepthBlurSheet.swift` — Filter ▸ Neural Filters ▸ Depth Blur…: settings, model capture, core params, apply (New Layer); the sheet.
+- `DepthBlur.swift` / `DepthBlurSheet.swift` — Filters ▸ Neural Filters ▸ Depth Blur…: settings, model capture, core params, apply (New Layer); the sheet.
 - `AgentServer+DepthBlur.swift` / `AgentCatalog+DepthBlur.swift` — `depth_blur` and `list_models`, Depth Blur's and Settings ▸ Models' MCP mirrors.
 - `PuppetWarp.swift` / `PuppetWarpSession.swift` — Edit ▸ Puppet Warp: options, pins, request and Action step; the on-canvas session (proxy, mesh, pins, solve, preview).
 - `ImageCanvasView+PuppetWarp.swift` / `EditorViewController+PuppetWarp.swift` — Puppet Warp's canvas routing, base and overlay; open, options bar, commit and cancel.
@@ -159,10 +253,16 @@ Detail belongs in the source file's own header comment.
 - `TransformMaskPreview.swift` / `EditorViewController+TransformPreview.swift` — masked Free Transform previews: core geometry and projection in two admitted stages, with source/revision checks.
 - `PrecisionGeometryWork.swift` / `PrecisionGeometryGesture.swift` — 12F-1c's typed Move, one-raster Free Transform and Crop handles: one captured native work builder for previews and commit.
 - `EditorViewController+PrecisionGeometryGestures.swift` / `ImageCanvasView+PrecisionGeometry.swift` — the typed geometry gestures' controller and canvas halves.
-- `EditorViewController+TransformSession.swift` — the extracted existing ⌘T session logic; the frozen controller/canvas files keep wiring.
+- `EditorViewController+TransformSession.swift` — the ⌘T session logic; the frozen controller/canvas files keep wiring.
+- `LayerTransform.swift` — Free Transform's model: `TransformHandle` (the eight handles) and `LayerTransform`, the pivot·translate·rotate·scale matrix `dr_doc_transform_layer` takes.
+- `TransformWork.swift` — `TransformWork`, Free Transform's raster work: the preview's (`interactive: true`, the interactive work limit) and the commit's (the caller's cap).
+- `PerspectivePreview.swift` — the warped-layer half of a Free Transform preview once corners move: Core Image's perspective transform of the session's cached layer image.
+- `EditorViewController+DescribedTransform.swift` — Free Transform on a described layer (text, shape): an affine session composed into the layer's map.
+- `EditorViewController+TransformJobs.swift` — final Free Transform raster resampling on the worker, after every prompt and described-source composition; a refusal keeps the session open.
+- `MultiLayerEdit.swift` — editing several layers as one gesture: the Free Transform session and the Move drag, whose unit of work is a set of entries.
 - `GeometrySet.swift` / `ArtworkGeometryWork.swift` / `AgentServer+GeometrySets.swift` / `AgentCatalog+GeometrySets.swift` — 12F-2's captured set transform: handles, `transform_layers`, replay.
-- `AgentServer+AlignDistribute.swift` — `align_layers` / `distribute_layers` (Layer ▸ Align / Distribute and the Move bar), moved out of `AgentServer+Groups.swift`.
-- `DuplicateToNewDocument.swift` / `DuplicateToNewDocumentSheetController.swift` — Layer ▸ Duplicate to Document… (#1 4c's Destination popup) and its MCP twin.
+- `AgentServer+AlignDistribute.swift` — `align_layers` / `distribute_layers` (Layer ▸ Align / Distribute and the Move bar).
+- `DuplicateToNewDocument.swift` / `DuplicateToNewDocumentSheetController.swift` — Layer ▸ Duplicate to Document… (its Destination popup) and its MCP twin.
 - `EditorViewController+DuplicateToNewDocument.swift` / `AgentServer+DuplicateToNewDocument.swift` — Duplicate to Document's menu (new or open destination) and MCP halves.
 - `RedEye.swift` — Vision face landmarks behind Filters > Remove Red Eye and the agent's `red_eye_auto`, and the **second** platform-model seam.
 - `BackgroundWork.swift` / `DocumentJobs.swift` — the bounded final-operation worker seam: one immutable operation runs app-wide on a serial queue; main-thread timers poll a locked result mailbox.
@@ -172,25 +272,37 @@ Detail belongs in the source file's own header comment.
 - `CanvasKeyTableView.swift` — the Layers and Channels tables: a bare key the table has no use for goes to the canvas (`EditorWindow.handKeyToCanvas`).
 - `RasterResources.swift` — weak live-wrapper registry, so history, jobs and projections participate without extra retention.
 - `WorkingLimit.swift` / `WorkingLimitSheetController.swift` — the working-memory limit policy (`designs/working-limit-ram-scaled.md`).
-- `WorkingCMYK.swift` — the working CMYK profile (Color Settings' choice, else SWOP v2, else Generic CMYK), installed in the core (#1).
+- `WorkingCMYK.swift` — the working CMYK profile (Color Settings' choice, else SWOP v2, else Generic CMYK), installed in the core.
 - `EditingState.swift` / `DocumentHistory.swift` / `ImageDocument+History.swift` — full editing states, enumerable history and the central undo adapter.
-- `EditingStateArchive.swift` / `NamedSnapshots.swift` — versioned host packages around an unchanged native `.rz`.
+- `EditingStateArchive.swift` / `NamedSnapshots.swift` — versioned host packages around an unchanged native `.doctored` document.
 - `RecoveryStore.swift` / `RecoveryCoordinator.swift` / `ImageDocument+Recovery.swift` — native recovery independent of AppKit's imported-file autosave machinery.
+- `HistoryWindowController.swift` — Window ▸ History…: navigation, budgets and the budget exception (the nearest Undo is kept); a row's menu sets the History Brush source ("✎").
+- `EditorViewController+History.swift` — Window ▸ History… (`showHistory`).
+- `ImageDocument+HistoryAdmission.swift` — undo, redo and navigation never refuse: each first asks `historyStepOverage` (the restored state's projection estimate) and records the overage.
+- `EditorViewController+HistoryAdmission.swift` — the status bar's "Over working limit" segment, shown while the history step an undo, redo or History move landed on was estimated over the limit.
+- `ImageDocument+PublishPrepared.swift` — `publishPrepared`: `applyEdit` inside `withUndoGroupDiscardingEmpty`, answering a `PublishOutcome` (`.published`, `.unchanged`, `.refused`).
+- `CanvasGeometryJob.swift` — the one canvas geometry job: Crop straighten and filtered Rotate Canvas at both depths as one cancellable compound job (geometry, artwork, display).
+- `EditingResourceReport.swift` — `EditingResourceReport`: per-document history/snapshot unions and selection estimates beside the core's buffer inventory; they overlap, so never sum them.
+- `SnapshotsWindowController.swift` — Window ▸ Snapshots…: session captures kept apart from their portable Save/Load files, with the persistence policy shown beside them.
+- `RecoveryWindowController.swift` — File ▸ Recover Unsaved Work…: nonmodal discovery and failure status that never lock the photograph behind an alert.
+- `RecoveryCapacity.swift` — `RecoveryCapacity`: a recovery reopen's decode and projection charged as max(), not a sum; a refused checkpoint shows "Recovery off".
+- `EditorViewController+Recovery.swift` — the status bar's "Recovery off" segment: shown while this document's latest crash-recovery attempt failed, the reason as its tooltip.
 - `DurableFile.swift` — the app's one flush policy for published files, the twin of the core's `durable_file.rs`; `publish` is the only way a save, export, snapshot or package is published.
 - `DataMigration.swift` — first ordinary launch: Rasterize → Doctored folder, old defaults copied once, Camera Raw Filter Presets → Develop Filter Presets; never under automation.
 - `LegacyNames.swift` — old → new names of renamed features (Action step tools, filter ops, shortcut identities, the preset key); read only from persisted files.
 - `SideFileExtensions.swift` — `SideFileExtension`: the snapshot, action bundle, clipboard payload and RAW mask extensions; writers use `current` (`.dr*`), readers also take `legacy` (`.rz*`).
 - `CapturedSave.swift` / `PreparedDocumentEdit.swift` — immutable save source/settings and precomputed final projection.
+- `RegionRenderRequest.swift` — a canvas window of a layered document's projection: the region in canvas pixels and a preview divisor (1 is authoritative).
 - `ProjectionMargin.swift` / `FlatOpenAdmission.swift` — the display projection's charge and the core flat JPEG/PNG open's.
 - `PrecisionCapturedSave.swift` / `PrecisionStateArchive.swift` / `ImageDocument+PrecisionGuard.swift` — typed save captures, internal compatibility archives, preserving import/publication guards.
 - `RasterDocument+PrecisionMetadata.swift` / `RasterDocument+PrecisionOperations.swift` — one `RasterDocument` facade owns either a legacy pointer or a typed owner, never a byte surrogate.
-- `DocumentPrecision.swift` / `PrecisionEditorCapture.swift` / `PrecisionImportRequest.swift` / `PrecisionModeConversion.swift` — the public mode's shared UI/MCP/Actions depth guard.
+- `DocumentPrecision.swift` — the public mode's shared UI/MCP/Actions depth guard (`refusal(tool:…)`, `documentFreeTools`).
 - `PrecisionEditorCapture.swift` / `PrecisionImportRequest.swift` / `PrecisionModeConversion.swift` — full revision/target/selection capture, preserving import choice, deliberate flattened conversion.
 - `AgentServer+DocumentReply.swift` — `get_document`'s ONE document-level block: `documentFields`, `selectionFields` and `typedDocumentReply`.
 - `PrecisionModeConversion.swift` / `ConvertPrecisionSheetController.swift` — 12H: Image ▸ Mode ▸ Convert Precision… and 32 Bits/Channel… are ONE sheet; MCP `convert_precision`.
 - `CanvasRotation.swift` / `RotateCanvasSheetController.swift` / `EditorViewController+RotateCanvas.swift` — ARBITRARY CANVAS ROTATION at 8 bits (12F-1b3) and 16 bits (12F-1b4).
 - `AgentServer+RotateCanvas.swift` / `AgentServer+DocumentGeometry.swift` — its MCP side, plus checked exact rotate/flip publication.
-- `NativeLayerBlending.swift` — the native mode set the Layers popup, `set_layer_properties` and Actions share; `floatModes`, `cmykModes` (#1); group-only Pass Through.
+- `NativeLayerBlending.swift` — the native mode set the Layers popup, `set_layer_properties` and Actions share; `floatModes`, `cmykModes`; group-only Pass Through.
 - `LayerStyle.swift` — the typed Swift view of the layer style, mirroring the core's JSON key for key; `StyleSlotColor` (hex + wide `linear`).
 - `NativeLayerStyle.swift` — the 16-bit document's whole layer style (fill opacity, the effects, Blend If).
 - `LayerStyleList.swift` — the Layer Style sheet's checklist row (`StyleListRow`, with "+" on a repeating kind) and `LayerStyleInstanceBar` (↑, ↓, trash).
@@ -199,18 +311,56 @@ Detail belongs in the source file's own header comment.
 - `GlowFillRows.swift` — the Outer and Inner Glow's Fill rows (colour or gradient end stops) and Jitter, `GlowFillEffect`; Gradient seeds Foreground to Transparent.
 - `LayerStyleContour.swift` — `ContourValue` / `ContourPointValue`: a contour as the core's style JSON holds it, the ten preset ids and titles.
 - `ContourRow.swift` — the Layer Style Contour row (presets, Custom… popover over `CurveEditorView`, Anti-aliased) and `PaneRows.range`.
+- `LayerStyleSheetController.swift` — Layer ▸ Layer Style's sheet; on a typed document it opens with a `PrecisionEditorCapture` and previews live at 16 bits (`PrecisionStylePreview`).
+- `LayerStylePane.swift` — the Layer Style sheet's pane contract (one pane at a time) and the row builders the nine effect panes and Blending Options compose from.
+- `LayerStyleKnockoutRows.swift` — Blending Options' Knockout popup and Blend Interior Effects as Group checkbox, with their identifiers; the same rows at 8 and 16 bits.
+- `BlendIfPane.swift` — Blending Options ▸ Blend If: a channel popup over two split-slider ramps ("This Layer", "Underlying"), each a four-handle `BlendIfRampView`.
+- `DropShadowPane.swift` — Layer Style ▸ Drop Shadow, the pane the others follow: `PaneRows` rows bound to the effect; Angle with Use Global Light edits the document's light.
+- `InnerShadowPane.swift` — Layer Style ▸ Inner Shadow: the drop shadow's controls with Choke in place of Spread and no knock-out.
+- `OuterGlowPane.swift` — Layer Style ▸ Outer Glow: a halo outside the shape, every control a `PaneRows` row bound to the effect.
+- `InnerGlowPane.swift` — Layer Style ▸ Inner Glow: a glow inside the shape from the edge or the centre, with its own blend mode (Screen by default), opacity and colour.
+- `BevelEmbossPane.swift` — Layer Style ▸ Bevel & Emboss: structure (style, technique, depth, direction, size, soften) and the light (angle, altitude, Use Global Light).
+- `SatinPane.swift` — Layer Style ▸ Satin: two copies of the blurred shape pushed apart along Angle by Distance, combined where exactly one covers (Invert shows the complement).
+- `ColorOverlayPane.swift` — Layer Style ▸ Color Overlay: the shape filled with one colour at the overlay's own blend mode and opacity, never the layer's.
+- `GradientOverlayPane.swift` — Layer Style ▸ Gradient Overlay: blend mode, opacity, the end colours and Reverse, Style with Align with Layer, Angle, Scale.
+- `StrokePane.swift` — Layer Style ▸ Stroke: Size, Position, Blend Mode, Opacity and the fill (a colour, or a gradient with Reverse, Style, Align with Layer, Dither).
+- `EditorViewController+LayerStyle.swift` — Layer ▸ Layer Style (Blending Options…, one item per effect, Copy / Paste / Clear), the row menu and a plain raster row's double-click.
+- `LayersPanelViewController.swift` — the right panel's Layers tab; `scrubOpacity` is the one opacity tick body the slider and the UI probe share.
+- `LayersPanelViewController+Rows.swift` — the Layers panel's row behaviour: selection, thumbnail click, drag reorder, disclosure and the row menu.
+- `LayerTree.swift` — one row of the Layers panel as a value (in place of `LayerCellView.configure`'s positional arguments).
+- `LayerCellView.swift` — a Layers or Channels row's accent-tinted selection and ring, plus the two opt-in extras only the Layers panel gets.
+- `LayerSelection.swift` — the Layers panel's selection: one primary entry (`activeLayerIndex`) plus the other entries of a set.
+- `LayerLocks.swift` — a layer's lock flags as an `OptionSet` over the core's `DrLockFlags` (the meaning lives in `doc_lock.rs`; this side names and displays them).
+- `EditorViewController+Locks.swift` — Layer ▸ Lock, the refusal alert the canvas paths use, and the one validation entry the lock items answer through.
+- `EditorViewController+Groups.swift` — Layer ▸ New Group / Ungroup Layers, the clipping-mask toggle and the Move tool's Auto-Select.
+- `EditorViewController+Arrange.swift` — Layer ▸ Arrange, Align, Distribute and Link; Align / Distribute and the Move bar take the `align_layers` / `distribute_layers` route.
+- `EditorViewController+IndependentMasks.swift` — Layer ▸ Mask ▸ Properties…, Transform Mask… and Link with Content, and their validation.
+- `MaskPropertiesSheetController.swift` — Layer ▸ Mask ▸ Properties…: density and feather as editable native properties; preview and commit share the original coverage.
+- `MaskTransformSheetController.swift` — Layer ▸ Mask ▸ Transform Mask…: numeric mask-only translation, scale and rotation, with `LayerTransform`'s pivot composition.
+- `MaskSheetPreview.swift` — `MaskSheetPreview`: a mask sheet's immutable inputs and its one bounded full-resolution preview reservation.
+- `NativeMaskApplication.swift` — Layer ▸ Apply Layer Mask at 16 bits and 32-bit float, disabled-mask coverage included.
 - `PrecisionStylePreview.swift` — the Layer Style sheet's 16-bit live preview: bookkeeping style/light edits, a projection reservation, reduced above 4 MP.
 - `PrecisionLayerVia.swift` — Layer Via Copy/Cut at 16 bits and 32-bit float: the typed `layer_via` request, the ⌘J/⇧⌘J canvas action and the MCP branch.
-- `LayerInsertion.swift` / `PrecisionOpacityDrag.swift` / `EditorViewController+OpacityDrag.swift` — Phase 12E-2 (P7-27): layer insertion; `PrecisionOpacityDrag` is the typed opacity gesture.
+- `PrecisionOpacityDrag.swift` / `EditorViewController+OpacityDrag.swift` — the Layers panel's opacity drag on a typed document: one capture, one builder for preview and commit; the controller half.
 - `LayerInsertion.swift` — `LayerInsertPosition` is the host side of the CORE's one slot rule (`core/src/layer_insert.rs`, whose module doc IS the rule).
 - `PrecisionAdjustmentSession.swift` / `PrecisionProfileEditing.swift` — the existing tone/profile controls retain typed sources through admitted previews and final work.
 - `PrecisionStrokeCoverage.swift` / `EditorViewController+PrecisionPaint.swift` — typed scalar drawing, shared with MCP.
 - `ExportWorkspace.swift` / `ExportWorkspaceSheetController.swift` / `ExportPresetSheets.swift` — File ▸ Export… (⌘E) and File ▸ Quick Export (⌥⌘E).
+- `ExportAccessoryController.swift` — the export save panel's accessory: format popup, a JPEG-only quality slider and the two colour/metadata checkboxes.
+- `ExportCapabilities.swift` — what an export format can carry and what a finished save carried: the Export panel's checkboxes and its after-the-fact notice.
+- `ImageDocument+Preservation.swift` — Save routing: ordinary Save keeps editable state; File ▸ Export and MCP `save_copy` may flatten without retargeting or clearing dirty.
+- `ImageDocument+Print.swift` — a single printed page: the flattened composite, drawn once as a CGImage tagged with the document's profile.
 - `EditorViewController+Export.swift` / `AgentServer+Export.swift` — menu and MCP halves; `ExportCapture` is the ONE encode path the sheet, MCP and Quick Export share.
 - `QuickExportDefaults.swift` — Quick Export with no setup: the built-in PNG preset, the default's resolution, and the `-2`…`-999` free-name search.
 - `FileInfo.swift` / `FileInfoSheetController.swift` / `EditorViewController+FileInfo.swift` — File ▸ File Info…: creator, copyright, description, keywords.
 - `DoctoredCore+FileInfo.swift` / `AgentServer+FileInfo.swift` / `AgentCatalog+FileInfo.swift` — File Info's core wrappers and MCP twins `get_file_info` / `set_file_info`.
 - `OutputColor.swift` / `SoftProof.swift` / `ProofSetupSheetController.swift` — Phase 11C output colour control.
+- `ColorProfile.swift` — the colour space a document's pixels live in: what their CGImages are tagged with, what contexts writing back to the core use, what a sampled colour is in.
+- `ColorSettings.swift` — the app-wide colour working space: the profile a newly opened flat file is converted to (a preference, not document state).
+- `ColorProfileControls.swift` — `ColorProfileControls`, the profile popup the Assign and Convert sheets share, and `ProfileChoice` (a `.file` keeps its path for replay).
+- `AssignProfileSheetController.swift` — Image ▸ Mode ▸ Assign Profile…: relabel the document without touching a pixel.
+- `ConvertProfileSheetController.swift` — Image ▸ Mode ▸ Convert to Profile…: transform every layer's pixels into another space so the picture looks the same.
+- `EditorViewController+ColorManagement.swift` — Image ▸ Mode's two profile commands and their validation; Working Space is an app-wide preference on `AppDelegate`.
 - `EditorViewController+SoftProof.swift` / `AgentServer+SoftProof.swift` / `AgentCatalog+OutputColor.swift` — the soft proof's menu, MCP and catalog halves.
 - `ProfileConversionWork.swift` — the one 8-bit options-conversion worker, and the cancellable baking preflight at both depths.
 - `ProofPreset.swift` / `EditorViewController+ProofPresets.swift` / `ProofSetupSheetController+Presets.swift` / `AppDelegate+ProofPresets.swift` / `AgentServer+ProofPresets.swift` — proof presets.
@@ -222,6 +372,18 @@ Detail belongs in the source file's own header comment.
 - `Action.swift` / `ActionIdentity.swift` / `ActionGeometry.swift` / `ActionParameters.swift` / `ActionAssets.swift` / `ActionPlayer.swift` — the Actions feature and its 12B reusability.
 - `ActionSteps.swift` / `ActionLibrary.swift` / `BatchRun.swift` / `AgentServer+Batch.swift` / `AgentServer+ActionAssets.swift` — `ActionSteps.swift` is THE recorded vocabulary; a new step goes there.
 - `ActionFailurePrompt.swift` — an interactive Play's Stop / Continue (unavailable, missing object) or OK-and-stop (typed command failure) alert.
+- `ActionRecorder.swift` — the recording half of Actions: the one place a step lands; a step on a document `openDuplicate` made becomes one `.unrecorded` placeholder.
+- `ActionRunProgress.swift` — the step counter and Stop button behind a UI-driven replay (`ActionPlayer.run` stays synchronous on main).
+- `ActionsWindowController.swift` — File ▸ Automate ▸ Actions…: the library window.
+- `ActionsViewController.swift` — the Actions window's content: the library on top, one action's steps below, and the commands that act on either.
+- `ActionStepCellView.swift` — one row of the Actions window's step table: the step number, the enabled checkbox, the one-line name over a mono meta line.
+- `ActionJSONSheetController.swift` — the Actions window's Edit JSON sheet: the action as text, validated by `Action.decode` before anything is written.
+- `ActionParametersSheetController.swift` — asks for an action's declared parameters before it plays, one field per declaration pre-filled with its default; every Play path asks.
+- `BatchWindowController.swift` — File ▸ Automate ▸ Batch…: one action over every image in a folder; one app-modal window, Setup then Run/Report.
+- `EditorViewController+Actions.swift` — the editor's half of Actions: menu validation, transform and one-shot record builders (latched paint records are `+StrokeRecording`'s).
+- `EditorViewController+RepeatLast.swift` — Filters ▸ Repeat Last Filter (⌃F): re-run the last destructive filter or adjustment with the same parameters.
+- `CommandPalette.swift` — the command palette's model: a runnable command, the list (a walk of `NSApp.mainMenu`) and how a query is scored.
+- `CommandPaletteWindowController.swift` — Tools ▸ Command Palette… (⌘F): fuzzy-search every enabled menu command and run it.
 - `LayerReorder.swift` — the panel's multi-row drag arithmetic as pure statics, because `reorder_layers` runs the same chain.
 - `SelectedAdjustment.swift` / `AgentServer+SelectedAdjustment.swift` — native destructive tone/spatial requests and Auto analysis, sharing the previews' source/selection capture and one publication.
 - `FineToneControls.swift` / `FineCurveControls.swift` — normalized/native-code entry without reducing parameters to byte steps.
@@ -231,8 +393,15 @@ Detail belongs in the source file's own header comment.
 - `ArtworkTextEditing.swift` / `ArtworkColorsSheetController.swift` / `ArtworkRasterization.swift` / `AgentServer+Artwork.swift` — editor opacity parity, attributed colors, rasterization, MCP/Actions.
 - `ContentAwareFill.swift` / `ContentAwareFillReview.swift` — captured source eligibility and exact final-result review in both depths.
 - `ContentAwareFillCanvasView.swift` / `ContentAwareFillSheetController.swift` — the Content-Aware Fill review's canvas view and sheet.
+- `EditorViewController+ContentAwareFill.swift` — Edit ▸ Content-Aware Fill…: the command that opens the sheet, and the exact-candidate sheet.
 - `AgentServer+ContentAwareFill.swift` / `AgentCatalog+ContentAwareFill.swift` — MCP mirror: source brushes/rectangles, current/new output, Before/After, exact acceptance.
 - `PatchEdit.swift` — captures Patch sources/options across a gesture.
+- `PatchSession.swift` — the Patch tool's gesture: a region (a clicked outline or the current selection), then a whole-pixel drag whose snapshot is re-taken at the press, so preview matches commit.
+- `EditorViewController+Patch.swift` — the Patch tool's preview and commit over one source/option capture, published through one nonmodal job at both depths.
+- `EditorViewController+Heal.swift` — the Healing and Spot Healing Brush: the two seams the canvas hands a healing stroke to.
+- `RetouchSourceOverlay.swift` — the retouch tools' display-only hover cache of the source; pixel commits always recapture the native source.
+- `RedEyeSession.swift` — the Red Eye tool's drag rectangle, handed to `EditorViewController+RedEye.redEyeRectDragged`; the rectangle is the core op's whole domain.
+- `EditorViewController+RedEye.swift` — red eye, both halves: the tool's drag rectangle and Filters ▸ Remove Red Eye (Vision finds the eyes), one core op on each.
 - `RemoveSession.swift` — the Remove tool's drag, its held strokes, and `RemoveStroke`: the strokes' union or the selection as coverage, dispatched by Mode.
 - `ImageCanvasView+Remove.swift` — Return applies and Escape cancels the Remove tool's held strokes (Remove after each stroke off).
 - `RemoveModel.swift` — Remove Mode: `RemoveMode`, `RemoveToolOptions` (Remove after each stroke), `RemoveModelRun` (gate, plan, MI-GAN predictor, the job).
@@ -244,11 +413,17 @@ Detail belongs in the source file's own header comment.
 - `EditorViewController+ContentAwareMove.swift` — `selectContentAwareMoveTool`, the tool's Destination capture and its commit through `ContentAwareMoveWork.start`.
 - `RetouchGeometry.swift` / `EditorViewController+RetouchOptions.swift` / `PrecisionRedEye.swift` — retouch source transforms, matrix replay, destination expansion, typed red-eye publication.
 - `RetainedImageSource.swift` / `RetainedImagePolicy.swift` / `LinkedImageSource.swift` / `ImageSourceFile.swift` — Place: a camera file lands a RAW layer, any other file a raster layer.
+- `EditorViewController+LinkedImage.swift` — Layer ▸ Place Embedded… / Place Linked…: one file, one new layer above the active one; a camera RAW file becomes a RAW layer.
+- `EditorViewController+RetainedImage.swift` — Layer ▸ Rasterize RAW Layer: drops the camera original and its development, keeping the pixels exactly; one undo step.
+- `EditorViewController+LivePhoto.swift` — Layer ▸ Place Live Photo…: the still (or a clip's first frame) lands as an ordinary layer above the active one; MCP `add_live_photo_layer`.
+- `RetainedSourceInspection.swift` — compact stack inspection of retained sources, shared by byte and typed owners; dense recipes and mask pixels only through their own inspection.
 - `HostSourceDescriptor.swift` / `HostSourceInput.swift` / `HostSourceWork.swift` — strict still/movie contracts and private snapshots; the decode opens or places as a raster layer.
 - `HostStillDecoder.swift` / `HostVideoDecoder.swift` / `HostAVCPrecision.swift` / `HostAVCPreflight.swift` — bounded full ImageIO/AVFoundation SDR decoding into explicit integer packing layouts.
 - `HDRPhotoRequest.swift` / `HDRStillDecoder.swift` / `HDRStillOpen.swift` — an HDR photo (gain map, PQ, HLG) opened as 32-bit float or its SDR rendition.
 - `HostSourceImport.swift` — File ▸ Open of host media as one raster layer, with a deliberate 16/8-bit depth choice.
-- `PreferenceLibrary.swift` — THE bounded preference-library contract every library speaks (Phase 12C-1, lifted out of `RawPresetLibrary`).
+- `ImageIOMetadata.swift` — the capture metadata ImageIO exposes for HEIC/HEIF and camera RAW (fields, XMP) attached on open; `Bitmap.declaredCaptureDPI` asks the core scanner.
+- `AuxiliaryMattes.swift` — iPhone auxiliary images (depth/disparity, portrait-effects and semantic mattes) read off a HEIC or JPEG at open and attached as named alpha channels.
+- `PreferenceLibrary.swift` — THE bounded preference-library contract every library speaks.
 - `PreferenceLibraryBrokenSection.swift` — `BrokenLibraryFilesSection`, the ONE UI for broken library rows.
 - `NavigatorPanelViewController.swift` / `EditorViewController+Navigator.swift` — Phase 12C-2's Navigator, the right panel's fifth tab, which only reads.
 - `Workspace.swift` / `EditorViewController+Workspace.swift` / `WorkspaceSheets.swift` / `AppDelegate+Workspaces.swift` — Phase 12C-2's saved workspace LAYOUTS.
@@ -265,6 +440,7 @@ Detail belongs in the source file's own header comment.
 - `AppDelegate+ViewMenu.swift` — the View menu with Ruler Units, Guide Color, Grid Spacing, Grid Subdivisions and Snap To. `AppDelegate.buildMainMenu()` orders the top-level menus.
 - `AppDelegate+WindowMenu.swift` — the Window menu builder. `AppDelegate.buildMainMenu()` orders the top-level menus.
 - `AppDelegate+HelpMenu.swift` — the Help menu builder. `AppDelegate.buildMainMenu()` orders the top-level menus.
+- `AppDelegate+Resources.swift` — Help ▸ Memory Usage… and Doctored ▸ Working Memory…; MCP `resource_usage` reads the same policy, read-only (`working_limit`).
 - `RegistryDump.swift` — Debug-only; with `DR_REGISTRY_DUMP=<path>`, the app writes the installed menu tree and nine tool-name sets to that file at launch and exits 0.
 - `LayerLabel.swift` / `EditorViewController+LayerLabels.swift` / `AgentServer+LayerLabels.swift` — per-layer COLOUR LABELS and the layers panel's filter vocabulary (Phase 12C-1).
 - `LayerThumbnailCache.swift` — the Layers panel's per-layer thumbnail cache, owned by `LayersPanelViewController` (`thumbnails`).
@@ -277,17 +453,22 @@ Detail belongs in the source file's own header comment.
 - `LayerComps.swift` / `ImageDocument+LayerComps.swift` / `LayerCompsWindowController.swift` / `LayerCompSheets.swift` / `AgentServer+LayerComps.swift` — LAYER COMPS (Phase 12D-1).
 - `LayerComps.swift` — named recordings of per-layer visibility, position and appearance; `RasterDocument.editingLayerComps(_:)` is the ONE writer of UI and MCP.
 - `NewDocument.swift` / `NewDocumentSheetController.swift` / `AgentServer+NewDocument.swift` — File ▸ New… (⌘N; New from Clipboard is ⌥⌘N, `designs/v1-shortcuts-fade.md`) and its preset library.
+- `ImageSizeSheetController.swift` — Image ▸ Image Size…: the pixel dimensions, with the print resolution and print size beside them.
+- `ImageSizeDimensions.swift` — checked dimension conversion for one Image Size edit; the sheet keeps the resolved result in `PrintSize`.
+- `PrintSize.swift` — a physical unit for the Image Size sheet's Resolution and Print size rows.
 - `RetouchSampling.swift` / `RetouchPlate.swift` — WHICH pixels a retouch gesture reads, and the buffer it reads them from.
 - `SpotHealType.swift` — the Spot Healing Brush's Type (Content-Aware, Create Texture, Proximity Match): names, C code, MCP/Action `type` argument.
 - `ArtHistoryStyle.swift` — the Art History Brush's ten Styles and `ArtHistoryOptions`: Mode list, core request, MCP/Action arguments.
-- `SharpenSheets.swift` / `NoiseSheets.swift` — the destructive twins (Unsharp Mask, High Pass, Reduce Noise, Dust & Scratches) as `SliderSheetController` factories, selection-scoped.
-- `BlurSheets.swift` — Gaussian Blur, Box Blur, Surface Blur (and `NoiseSheets.swift`'s Add Grain): the same factory over the one core kernel `RasterImage.filterOp`.
-- `FilterSheetAccessories.swift` / `FilterFrame.swift` / `OtherFilterSheets.swift` / `EditorViewController+Clouds.swift` — filter accessories, frame, Offset, Clouds on the one `SpatialKernel` route.
-- `BlurSheets.swift` / `OtherFilterSheets.swift` — Filters ▸ Blur ▸ Radial Blur…, Filters ▸ Render ▸ Clouds / Difference Clouds and Filters ▸ Other ▸ Offset….
+- `SharpenSheets.swift` — Filters ▸ Sharpen ▸ Unsharp Mask… and Filters ▸ Other ▸ High Pass…: `SliderSheetController` factories over the core's shared filter kernels, colour only.
+- `NoiseSheets.swift` — Filters ▸ Noise ▸ Reduce Noise…, Dust & Scratches… and Add Grain…: `SliderSheetController` factories over the core's filter kernels, selection-scoped.
+- `BlurSheets.swift` — Filters ▸ Blur ▸ Gaussian, Box, Radial and Surface Blur…: `SliderSheetController` factories over the one core kernel `RasterImage.filterOp`.
+- `OtherFilterSheets.swift` — Filters ▸ Other ▸ Offset…: one core kernel, within the FRAME, with Set to Transparent/Background, Repeat Edge Pixels or Wrap Around.
+- `FilterSheetAccessories.swift` / `FilterFrame.swift` — a slider sheet's popup, integer and Radial Blur centre rows; the FRAME and Offset's one translation of its recorded arguments.
+- `EditorViewController+Clouds.swift` — Filters ▸ Render ▸ Clouds / Difference Clouds: no dialog, the swatches and a fresh seed (⌥: high contrast), one core kernel at both depths.
 - `MotionLensBlurSheets.swift` — Filters ▸ Blur ▸ Lens Blur…, Motion Blur… and Tilt-Shift…: three slider sheets over `RasterImage.filterOp`.
 - `LensCorrectionSheet.swift` — Filters ▸ Lens Correction…: nine sliders over `filterOp("lens_correction")`, the Lensfun profile popup, `showLensCorrection`.
 - `PresenceSheet.swift` — Filters ▸ Presence…: Texture, Clarity and Dehaze sliders over `filterOp("presence")`, `showPresence`.
-- `SmartSharpen.swift` / `SmartSharpenSheet.swift` — Filter ▸ Sharpen ▸ Smart Sharpen…: `SmartSharpenSettings`, the sheet over `filterOp("smart_sharpen")`, `showSmartSharpen`.
+- `SmartSharpen.swift` / `SmartSharpenSheet.swift` — Filters ▸ Sharpen ▸ Smart Sharpen…: `SmartSharpenSettings`, the sheet over `filterOp("smart_sharpen")`, `showSmartSharpen`.
 - `DevelopFilterSheet.swift` — Filters ▸ Develop Filter…: the 13-control panel accessory over `filterOp("develop_filter")`, `showDevelopFilter`.
 - `DevelopFilterPreset.swift` — the filter's controls, its preset codec and library (`DR_DEVELOP_FILTER_PRESETS_DIR`), Develop-preset transfer.
 - `DevelopFilterPresetControl.swift` — the Develop Filter's Preset popup: its own presets, Develop presets read-only, Save and Delete.
@@ -297,11 +478,11 @@ Detail belongs in the source file's own header comment.
 - `LensGridOverlay.swift` — Lens Correction's Show Grid accessory and the square alignment grid it lays over the canvas while the sheet is up.
 - `LensProfile.swift` — v1-lensfun's model: `LensIdentity`, `LensProfileChoice`, `LensProfileMatch`, and RAW's `applyingRawLensfun` stage.
 - `DoctoredCore+RetouchBrushes.swift` — the retouch brushes' core calls: `retouchBrushLayer`, `historyBrushLayer`, `smudgeLayer` and the typed smudge / history twins.
-- `DoctoredCore+Equalize.swift` — Equalize's byte call (#1): `RasterImage.equalized(mask:)` over `dr_image_equalize`.
+- `DoctoredCore+Equalize.swift` — Equalize's byte call: `RasterImage.equalized(mask:)` over `dr_image_equalize`.
 - `DoctoredCore+Fade.swift` — Edit ▸ Fade's core calls (v1): `faded(from:…)` (byte) and the typed `fadePlan` / `fading`.
 - `FadeStep.swift` / `ImageDocument+Fade.swift` — Edit ▸ Fade's model: the fadeable-tool tables and hint, the candidate, its validity, the faded result and the replacing commit.
 - `FadeSheetController.swift` / `EditorViewController+Fade.swift` / `AgentServer+Fade.swift` / `AgentCatalog+Fade.swift` — Edit ▸ Fade… (⇧⌘F): the sheet, the item, MCP `fade`.
-- `Equalize.swift` / `EditorViewController+Equalize.swift` / `AgentServer+Equalize.swift` / `AgentCatalog+Equalize.swift` — Image ▸ Adjustments ▸ Equalize (#1): prompt, apply, MCP.
+- `Equalize.swift` / `EditorViewController+Equalize.swift` / `AgentServer+Equalize.swift` / `AgentCatalog+Equalize.swift` — Image ▸ Adjustments ▸ Equalize: prompt, apply, MCP.
 - `EditorViewController+RetouchBrushes.swift` — the five retouch brushes on the canvas at 8 bits: per-tick ops, the incremental Smudge and `HistoryBrushSource.latch`.
 - `EditorViewController+ArtHistoryBrush.swift` — the Art History Brush on the canvas: source latch, seed, byte tick, typed depth gate.
 - `AgentServer+RetouchBrushes.swift` — `blur_stroke`, `sharpen_stroke`, `smudge_stroke`, `sponge_stroke`, `history_brush_stroke`: handlers, facts, the shared coverage stroke.
@@ -326,7 +507,12 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+RawLocals.swift` — mirrors edits and explicit control-only copy with guarded canonical Actions.
 - `RawDevelopWindowController+Workflow.swift` / `RawDevelopPreviewSession.swift` — the Develop workspace's full-source histogram, exact RGB endpoint readouts and Fit/100% native detail.
 - `RawDevelopPreviewPanel.swift` / `RawDevelopCanvasView.swift` — the Develop preview panel and canvas: pan and Before/After/Split comparison.
-- `RawDevelopHDRPreview.swift` — Develop's HDR preview (#4): the f32 extended image at Fit or 100 % with Clipping, the canvas's EDR layer and window colour space.
+- `RawDevelopHDRPreview.swift` — Develop's HDR preview: the f32 extended image at Fit or 100 % with Clipping, the canvas's EDR layer and window colour space.
+- `RawImage.swift` — camera RAW platform inspection and the legacy preview/latency-probe decoder; public import uses `RetainedRawDecoder`'s UInt16 output.
+- `RawDevelopSettings.swift` — the develop request a camera RAW open takes: `RawImage` decodes with it, the Develop window edits it, `AgentServer+Raw.swift` parses it.
+- `RawDevelopWindowController.swift` — the RAW Develop window: initial development and redevelopment controls over a retained snapshot and captured decoder recipe.
+- `RawLocalRemapSheetController.swift` — one authored canonical u16 RAW local mask remap; the canvas dimensions stay fixed.
+- `RawMigrationGeometrySheetController.swift` — the explicit inverse map for an unregistered decoder extent, reviewed with both native dimensions before publication.
 - `RawDecoderMigration.swift` / `RawDevelopComparisonController.swift` / `AgentServer+RawDevelopment.swift` — explicit review of a changed decoder's exact prepared source against the saved master.
 - `RawSourceGeometry.swift` / `RawMigrationGeometry.swift` / `RawSourceGeometryControls.swift` — recipe 4's radial/TCA profile, pinned decoder frame, inverse maps, controls, migration registration.
 - `RawPreset.swift` / `RawPresetLibrary.swift` / `RawPresetSheets.swift` — selected transferable RAW settings, separate from camera-specific effective recipes.
@@ -337,12 +523,18 @@ Detail belongs in the source file's own header comment.
 - `HostImageEncoder.swift` / `VectorImport.swift` / `VectorImportSheetController.swift` / `ImageDocument+VectorImport.swift` — Phase 11D's host-side flows: HEIC and AVIF encode, PDF/SVG import.
 - `PDFExport.swift` / `PDFExportAccessoryController.swift` / `AgentServer+FormatAdditions.swift` — Phase 11D's PDF export and the four flows' MCP tools.
 - `AppActivity.swift` — the `NSProcessInfo` activity assertion both agent tool paths (the MCP trampoline and `AssistantHelperSession.runTool`) hold around a tool call.
-- `AssistantHelperSession.swift` / `AssistantHelperPrompt.swift` — the Assistant's helper process and Doctored's half of `configure`; `agent/src/` is Reelcut's byte for byte.
+- `AssistantHelperSession.swift` / `AssistantHelperPrompt.swift` — the Assistant's helper process and Doctored's half of `configure`; `agent/src/` is Frame Job's byte for byte.
+- `Assistant.swift` — `APIKeyStore`: the Anthropic API key from `ANTHROPIC_API_KEY`, else a 0600 file under Application Support (the legacy keychain read once, to migrate).
+- `AssistantPanelViewController.swift` — the right panel's Assistant tab: a chat with the built-in agent over the shared tool dispatcher; one session per document window.
+- `AssistantChatSettings.swift` — the assistant's Chat Settings, app-wide in user defaults, sent to the helper in `configure` and on save; a change applies from the next turn.
+- `AssistantContextMeter.swift` — how full the assistant's context is: tokens in play against the model's context window, both reported by the helper (`context_usage`).
+- `AssistantActionAuthoring.swift` — the assistant's half of Actions: one paragraph spliced into the panel's system prompt.
 - `AgentServer+ServeThread.swift` — how a socket MCP call reaches main. Nothing on the serve thread may block on main except through `AgentServeGate.hop`.
 - `AgentServer+Socket.swift` — the agent socket: its path (`DR_AGENT_SOCKET`), `bindSocket` at launch, `unbindSocket` at quit, `mcpHelperURL`, `mcpCommand`.
 - `AgentCatalogSnapshot.swift` — `-DRWriteCatalog <path>`: the build writes the bundle's `agent-catalog.json` for `doctored-mcp`; main.swift's first statement.
 - `AgentDocumentIDs.swift` — the MCP `document_id` map: ids assigned on first sight, never reused, O(1) per lookup; `AgentServer.target` resolves through it.
 - `BackgroundLaunch.swift` — the `DR_BACKGROUND=1` switch. A new launch- or MCP-reachable window presentation goes through it.
+- `WelcomeWindowController.swift` — the no-document window: app icon, "Fixing Pixels.", Open…/New Document…/New from Clipboard, file drop (`FileDropView`); closes once a document is main.
 - `AutomationAlerts.swift` — automated-run alert hook, installed first in `applicationWillFinishLaunching` under `DR_BACKGROUND=1` or `DR_AUTOMATION_ALERTS=record`. Alert call sites need no change.
 - `SessionCommitRefusal.swift` / `AgentServer+PendingSessions.swift` — the agent twin of the save/export session guard.
 - `AgentServer+PendingSessions.swift` — every MCP writer calls `commitPendingCanvasSessions(document)` right after `target(a)`.
@@ -354,12 +546,37 @@ Detail belongs in the source file's own header comment.
 - `MoveDuplicateLayers.swift` / `EditorViewController+MoveDuplicate.swift` — the Move tool's ⌥ duplicate with NO pixel selection.
 - `DuplicateTransform.swift` / `EditorViewController+TransformCopy.swift` — Layer ▸ Free Transform a Copy (⌥⌘T) with NO pixel selection.
 - `TransformAgain.swift` / `EditorViewController+TransformAgain.swift` / `AgentServer+TransformAgain.swift` / `AgentCatalog+TransformAgain.swift` — Transform Again (⇧⌘T) and with Copy (⌥⇧⌘T).
-- Shared chrome: `Theme.swift` (`DS` design tokens), `Controls.swift` (controls), `EditorChrome.swift`; dialogs are `…SheetController`s built on the `makeSheetView` builders in `Sheets.swift`.
+- Shared chrome: `Theme.swift` (`DS` design tokens), `Controls.swift` (controls), `EditorChrome.swift`.
 - `PersistedWarp.swift` / `PersistedWarpWork.swift` / `PersistedWarpPolicy.swift` / `PersistedWarpSheetController.swift` — Layer > Warp… and `get_warp`/`warp_layer`; float/CMYK/Gray/Lab apply at once.
-- `EditorViewController+PersistedWarp.swift` / `AgentServer+PersistedWarp.swift` / `AgentCatalog+PersistedWarp.swift` — the warp's menu, MCP and catalog halves, at 8/16 bits.
+- `EditorViewController+PersistedWarp.swift` / `AgentServer+PersistedWarp.swift` / `AgentCatalog+PersistedWarp.swift` — the warp's menu, MCP and catalog halves.
 - `ScopedAnalysis.swift` / `InfoPanelViewController+Precision.swift` — shared byte/native document-code histogram and readout capture.
+- `InfoPanelViewController.swift` — the right panel's Info tab: the histogram over a readout of the pixel under the cursor and the selection's bounds and area, in a scrolling column.
+- `EditorViewController+Info.swift` — the Info tab's entry points (View ▸ Info) and the live cursor readout that feeds it.
+- `PixelReadout.swift` — everything the Info panel and its agent twin `sample_pixel` say about one pixel of the flattened composite.
+- `PrecisionReadout.swift` — readout values from the authoritative typed projection (never display bins or hex strings): the sample at one canvas point.
+- `Histogram.swift` — `HistogramLoader`, both coalescing histogram read seams; a read failure shows "Histogram unavailable" with the sentence as its tooltip.
+- `HistogramView.swift` — the one histogram plot (per channel or luminosity, a clipping wedge at each end) for the Info panel, Levels and the Curves editor.
 - `NativeSelection.swift` / `NativeSelectionMorphSheetController.swift` — bounded native source and standalone coverage work.
 - `PrecisionScalarOperations.swift` / `PrecisionScalarAdjustmentSession.swift` / `ScalarMorphology.swift` — captured native mask/channel/RGBA/CMYK-plate fill, brush, filtering and morphology.
+- `OperationScope.swift` — the shared UI/MCP operation policy: scalar targets run the image operators as opaque grayscale; analysis reads the whole source, writes are selection-gated.
+- `EditorViewController+OperationScope.swift` — the specific refusal MCP also reports, asked before dialogs open and by gesture paths menu validation cannot protect.
+- `PrecisionScalarAuto.swift` — Auto analysis on captured scalar storage; the final edit applies the reported levels without measuring again, in one publication.
+- `EditorViewController+Precision.swift` — Image ▸ Mode ▸ Document Precision… (`showDocumentPrecision`), `validatePrecisionItem` (the typed documents' menu whitelist) and `installPrecisionToolPolicy`.
+- `EditorViewController+PrecisionArtwork.swift` — `presentPrecisionError`: the sheet alert for a typed operation's error (a cancelled job shows none).
+- `EditorViewController+PrecisionScalars.swift` — masks and the selection on a typed document: `addPrecisionMask`, `clearPrecisionSelection`, `savePrecisionSelection`.
+- `Channel.swift` — one row of the Channels panel: the colour composite ("RGB", the `.layer` paint target), its three planes, the active layer's mask, then every alpha channel.
+- `ChannelsPanelViewController.swift` — the right panel's Channels tab: RGB, the three planes, the active mask and every alpha channel; selecting a row is the paint target.
+- `ChannelDisplay.swift` — what the canvas draws under the rubylith washes, derived from `ChannelVisibility` so every eye state has one answer.
+- `ChannelBudget.swift` — the channel budget said out loud: the core refuses Image Size, Canvas Size and channel-creating commands once the channel list would break the native file's channel cap.
+- `ChannelOptionsSheetController.swift` — Image ▸ Channels ▸ Channel Options… (and the row menu): a channel's name and its display-only rubylith.
+- `EditorViewController+Channels.swift` — the Channels tab's half of the editor: targets beyond layer and mask, the plane-and-rubylith display, the coverage stroke commit, Image ▸ Channels.
+- `EditorViewController+PlanePaint.swift` — Fill and gradient on a colour plane or alpha channel: the canvas click paths, redirected when the edit target is a plane.
+- `EditorViewController+NativePlanes.swift` — Load/Save Selection and the bucket fill on a native-depth plane (`loadNativePlaneSelection`, `saveNativePlaneSelection`, `fillNativePlane`).
+- `ImageDocument+Channels.swift` — scalar fill and gradient on masks, planes and channels over the same capture as their MCP twins; mask edits keep layer pixels and descriptions.
+- `ChannelMath.swift` — a source plane for Apply Image / Calculations: the whole colour image, one of its planes, or an alpha channel.
+- `ApplyImageSheetController.swift` — Image ▸ Apply Image…: one source (a layer or Merged, a plane or channel, optionally inverted) blended onto the edit target, previewed live.
+- `CalculationsSheetController.swift` — Image ▸ Calculations…: two source planes blended into a new plane, an alpha channel or the selection (Source 1 is the blend, Source 2 the base).
+- `EditorViewController+ChannelMath.swift` — Image ▸ Apply Image… / Calculations… and Select ▸ Add Luminosity Masks: sheets, live previews and edit wrappers over `ChannelMath`.
 - `NativeChannelMath.swift` / `NativeChannelMathBudget.swift` / `NativeChannelMathSession.swift` — native Apply Image (CMYK plates too), Calculations and luminosity masks, on core plane-blend math.
 - `NativeAuxiliaryMattes.swift` / `NativePlaneDisplay.swift` / `NativeLayerDisplay.swift` — auxiliary scalar matte intake at declared precision, core alignment, provenance, display-only reductions.
 - `DocumentEvaluation.swift` / `EvaluationSheetController.swift` / `EditorViewController+Evaluation.swift` — the per-document EVALUATION POLICY: `encoded` or `linear_light`.
@@ -367,73 +584,74 @@ Detail belongs in the source file's own header comment.
 - `ExtendedRangeColor.swift` — above-white colour at 32 bits: the float eyedropper's foreground and the Intensity (stops) split of the Color Picker and Artwork Colors sheet.
 - `FloatDocument.swift` / `ToneMapSheetController.swift` / `EditorViewController+FloatDocument.swift` — the 32-BIT FLOAT DOCUMENT (11F): linear light, operators and tools, a TONE MAP.
 - `AgentServer+FloatDocument.swift` / `AgentCatalog+FloatDocument.swift` — Image ▸ Tone Map…'s MCP twins `get_tone_map` / `set_tone_map`.
-- `CmykDocument.swift` / `DoctoredCore+Cmyk.swift` — #1's CMYK document: the gate (tools, selectors incl. 4b geometry, canvas tools, sentence) and every `dr_*cmyk*` wrapper.
+- `CmykDocument.swift` / `DoctoredCore+Cmyk.swift` — the CMYK document: the gate (tools, selectors incl. geometry, canvas tools, sentence) and every `dr_*cmyk*` wrapper.
 - `CmykModeSheetController.swift` / `EditorViewController+CmykMode.swift` — Image ▸ Mode ▸ CMYK Color… / RGB Color…: the sheet, the job and its undo step.
-- `GrayDocument.swift` / `DoctoredCore+Gray.swift` — #1 Gray document: the gate (tools, retouch, selectors, refusals, canvas tools, sentences, depths, `support`, K %) and every `dr_*gray*` wrapper.
-- `GrayAdjust.swift` — #1 phases 2b/2c: host twin of `gray_adjust`'s table: which adjustments and filters run on Gray (layer, depth), the refusal sentences, the menu answer.
-- `AgentCatalog+Lab.swift` — #1 Lab: `annotateLabCatalog`, the Lab notes on the layer, style, Fill, save, export, readout, paint and adjustment tools; the `prose` list join.
-- `AgentCatalog+Gray.swift` — #1 phases 1b–3b: `annotateGrayCatalog`, the Grayscale notes on the layer, style, Fill, save, paint, adjustment, filter, retouch, channel and PSD open and export tools.
-- `LabDocument.swift` — #1 Lab Color (closed): the gate (tools, `depthRuled`, selectors, targets), the for-good sets (RAW, byte, evaluation, tone map, Sky), `isLab`, P3 view.
-- `LabClipboard.swift` — #1 Lab 4c: a layers clip into or out of Lab Color converted (`LabLayerClip`) and `LayerPasteWork.labConverted`.
-- `LabInk.swift` — #1 Lab 2e: `LabInk` (the Eyedropper's exact L*a*b* foreground/background ink) and `LabPaint` (the ink a Lab layer paints, the swatch display).
-- `LabDepthEdit.swift` — #1 Lab 5a: 8/16 Bits/Channel on a Lab document, one undo step (`lab_depth`), recorded as `convert_precision` lab8/lab16.
-- `AgentServer+LabColour.swift` — #1 Lab 5a: the Lab route of `convert_precision` (mode lab8 / lab16); 5b `convert_profile` as a mode conversion.
-- `LabProof.swift` — #1 Lab 5b: `proofSourceProfile` (the P3 view), Lab's exact proof source, proof tools and items, the Assign refusal.
-- `LabAnalysis.swift` — #1 Lab 6b-i: Apply Image and Calculations on Lab (modes, `planeChoice`, its names) and Merge to HDR's ProPhoto stack (`mergeStack`).
-- `EditorViewController+LabProfile.swift` — #1 Lab 5b: Convert to Profile… on Lab, the CMYK profile sheet's Lab arm and its one undo step.
-- `LabAdjust.swift` — #1 Lab 2b–2d: host twin of `lab_adjust`'s and `lab_filter`'s tables: what runs on Lab, `pixelsOnly`, layer and mask/alpha filter sentences, menu, MCP.
+- `GrayDocument.swift` / `DoctoredCore+Gray.swift` — the Gray document: the gate (tools, retouch, selectors, refusals, canvas tools, sentences, depths, `support`, K %) and every `dr_*gray*` wrapper.
+- `GrayAdjust.swift` — host twin of `gray_adjust`'s table: which adjustments and filters run on Gray (layer, depth), the refusal sentences, the menu answer.
+- `AgentCatalog+Lab.swift` — `annotateLabCatalog`, the Lab notes on the layer, style, Fill, save, export, readout, paint and adjustment tools; the `prose` list join.
+- `AgentCatalog+Gray.swift` — `annotateGrayCatalog`, the Grayscale notes on the layer, style, Fill, save, paint, adjustment, filter, retouch, channel and PSD open and export tools.
+- `LabDocument.swift` — Lab Color: the gate (tools, `depthRuled`, selectors, targets), the for-good sets (RAW, byte, evaluation, tone map, Sky), `isLab`, P3 view.
+- `LabClipboard.swift` — a layers clip into or out of Lab Color converted (`LabLayerClip`) and `LayerPasteWork.labConverted`.
+- `LabInk.swift` — `LabInk` (the Eyedropper's exact L*a*b* foreground/background ink) and `LabPaint` (the ink a Lab layer paints, the swatch display).
+- `LabDepthEdit.swift` — 8/16 Bits/Channel on a Lab document, one undo step (`lab_depth`), recorded as `convert_precision` lab8/lab16.
+- `AgentServer+LabColour.swift` — the Lab route of `convert_precision` (mode lab8 / lab16) and `convert_profile` as a mode conversion.
+- `LabProof.swift` — `proofSourceProfile` (the P3 view), Lab's exact proof source, proof tools and items, the Assign refusal.
+- `LabAnalysis.swift` — Apply Image and Calculations on Lab (modes, `planeChoice`, its names) and Merge to HDR's ProPhoto stack (`mergeStack`).
+- `EditorViewController+LabProfile.swift` — Convert to Profile… on Lab, the CMYK profile sheet's Lab arm and its one undo step.
+- `LabAdjust.swift` — host twin of `lab_adjust`'s and `lab_filter`'s tables: what runs on Lab, `pixelsOnly`, layer and mask/alpha filter sentences, menu, MCP.
 - `EditorViewController+LabMode.swift` — Image ▸ Mode ▸ Lab Color at once, the Flatten alert, one undo step; `CmykModeConversion`'s lab plan and arm.
 - `EditorViewController+GrayMode.swift` — Image ▸ Mode ▸ Grayscale: "Discard color information?", the Flatten alert, one undo step (`CmykModeConversion`'s gray arms).
-- `IndexedDocument.swift` — #1 Indexed 1a–3c: the gate (tools, selectors, for good, `oneLayer`, `rgbOnly`, render channels, canvas tools), the swatch key (`splicedRequest`), `saveLosses`.
-- `IndexedModeSheetController.swift` — #1 Indexed 1a–3d: Mode ▸ Indexed Color…'s sheet (Palette, Custom… Table…, Previous; Colors, Forced incl. Custom…, Matte, Dither incl. Pattern, Noise).
+- `IndexedDocument.swift` — Indexed Color: the gate (tools, selectors, for good, `oneLayer`, `rgbOnly`, render channels, canvas tools), the swatch key (`splicedRequest`), `saveLosses`.
+- `IndexedModeSheetController.swift` — Mode ▸ Indexed Color…'s sheet (Palette, Custom… Table…, Previous; Colors, Forced incl. Custom…, Matte, Dither incl. Pattern, Noise).
 - `EditorViewController+IndexedMode.swift` — Indexed Color's commit, "Flatten layers?", Indexed → RGB at once; `CmykModeConversion`'s indexed plan, arm, `indexedExpanded`.
-- `IndexedColorTable.swift` — #1 Indexed 1c: `IndexedColorTable` value, `IndexedPalettes.previous`, `IndexedColorTableEdit` (Color Table as one undo step).
-- `ColorTableSheetController.swift` — #1 Indexed 1c/2a: the Color Table dialog (swatches and well in `tableSpace`, Transparent, `.act` Load…/Save…), also the Custom palette's.
-- `EditorViewController+ColorTable.swift` — #1 Indexed 1c: Image ▸ Mode ▸ Color Table… (`showColorTable:`), its commit and validation.
-- `AgentServer+IndexedColorTable.swift` — #1 Indexed 1c: `get_color_table` / `set_color_table` handlers and facts (`.act` path read/write).
-- `AgentCatalog+Indexed.swift` — #1 Indexed 1a–3c: `annotateIndexedCatalog` (`convert_mode` options, edit, select, channel, retouch, render notes), export notes; `indexedColorTableCatalog`.
-- `DuotoneDocument.swift` — #1 Duotone: `isDuotone`, the gate (tools, `disabledTools`, filters, `refuses(selector:)`, `turnsProofingOff`), `saveRefusal`, `exportNote`, `display`, `thumbnail`.
-- `DuotoneOptions.swift` — #1 Duotone 1a: `DuotoneInk`, `DuotoneOptions` (the core's JSON, `monotoneBlack`, overprint keys), `DuotoneEdit` (one undo step).
-- `DuotoneSheetController.swift` — #1 Duotone 1a–2a: Mode ▸ Duotone…'s sheet (Type, per ink name, D50 L*a*b*, swatch, Curve…; Overprint Colors…; .ado Load…/Save…; Preview).
-- `DuotonePreview.swift` — #1 Duotone 2a: the Duotone Options sheet's canvas preview (candidate inks, preview lease, `PreviewRenderer`).
-- `DuotoneInkSheets.swift` — #1 Duotone 1a: the Duotone Curve (13 fields) and Overprint Colors (L*a*b* or Default per combination) sub-sheets.
-- `EditorViewController+DuotoneMode.swift` — #1 Duotone: `convertToDuotoneMode:`, its commit; `duotonePlan`, the render routes, `duotoneToGray`, `duotoneToBitmap`.
-- `AgentServer+Duotone.swift` — #1 Duotone: `get_duotone` / `set_duotone` handlers and facts, `convert_mode`'s duotone route and Duotone → gray's argument checks.
-- `AgentCatalog+Duotone.swift` — #1 Duotone 1a: `duotoneCatalog`, `annotateDuotoneCatalog` (`convert_mode` duotone with inks/overprints, document/save/export notes).
-- `BitmapDocument.swift` — #1 Bitmap 1a-3: `isBitmap`, the gate (tools, selectors, refusal tiers, `straightenWindow`), `keptFormats`/`saveLosses`/`grayRouteLoss`, MCP options, `sizeRatio`.
-- `BitmapModeSheetController.swift` — #1 Bitmap 1a/1b: Mode ▸ Bitmap…'s sheet (Output and unit, Method, Halftone rows, Pattern) and `BitmapToGraySheetController` (Size Ratio).
+- `IndexedColorTable.swift` — `IndexedColorTable` value, `IndexedPalettes.previous`, `IndexedColorTableEdit` (Color Table as one undo step).
+- `ColorTableSheetController.swift` — the Color Table dialog (swatches and well in `tableSpace`, Transparent, `.act` Load…/Save…), also the Custom palette's.
+- `EditorViewController+ColorTable.swift` — Image ▸ Mode ▸ Color Table… (`showColorTable:`), its commit and validation.
+- `AgentServer+IndexedColorTable.swift` — `get_color_table` / `set_color_table` handlers and facts (`.act` path read/write).
+- `AgentCatalog+Indexed.swift` — `annotateIndexedCatalog` (`convert_mode` options, edit, select, channel, retouch, render notes), export notes; `indexedColorTableCatalog`.
+- `DuotoneDocument.swift` — `isDuotone`, the gate (tools, `disabledTools`, filters, `refuses(selector:)`, `turnsProofingOff`), `saveRefusal`, `exportNote`, `display`, `thumbnail`.
+- `DuotoneOptions.swift` — `DuotoneInk`, `DuotoneOptions` (the core's JSON, `monotoneBlack`, overprint keys), `DuotoneEdit` (one undo step).
+- `DuotoneSheetController.swift` — Mode ▸ Duotone…'s sheet (Type, per ink name, D50 L*a*b*, swatch, Curve…; Overprint Colors…; .ado Load…/Save…; Preview).
+- `DuotonePreview.swift` — the Duotone Options sheet's canvas preview (candidate inks, preview lease, `PreviewRenderer`).
+- `DuotoneInkSheets.swift` — the Duotone Curve (13 fields) and Overprint Colors (L*a*b* or Default per combination) sub-sheets.
+- `EditorViewController+DuotoneMode.swift` — `convertToDuotoneMode:`, its commit; `duotonePlan`, the render routes, `duotoneToGray`, `duotoneToBitmap`.
+- `AgentServer+Duotone.swift` — `get_duotone` / `set_duotone` handlers and facts, `convert_mode`'s duotone route and Duotone → gray's argument checks.
+- `AgentCatalog+Duotone.swift` — `duotoneCatalog`, `annotateDuotoneCatalog` (`convert_mode` duotone with inks/overprints, document/save/export notes).
+- `BitmapDocument.swift` — `isBitmap`, the gate (tools, selectors, refusal tiers, `straightenWindow`), `keptFormats`/`saveLosses`/`grayRouteLoss`, MCP options, `sizeRatio`.
+- `BitmapModeSheetController.swift` — Mode ▸ Bitmap…'s sheet (Output and unit, Method, Halftone rows, Pattern) and `BitmapToGraySheetController` (Size Ratio).
 - `EditorViewController+BitmapMode.swift` — Bitmap's commit, "Flatten layers?", Size Ratio back to Grayscale, the Ruler's straightened crop; `CmykModeConversion`'s bitmap arms.
-- `AgentCatalog+Bitmap.swift` — #1 Bitmap 1a-3: `annotateBitmapCatalog` (mode options, size_ratio), document, save, export, PSD, open, paint, geometry, resample, cut, phase 3 notes.
+- `AgentCatalog+Bitmap.swift` — `annotateBitmapCatalog` (mode options, size_ratio), document, save, export, PSD, open, paint, geometry, resample and cut notes.
 - `AgentServer+CmykMode.swift` / `AgentCatalog+CmykMode.swift` — `convert_mode`, the CMYK route ahead of `dispatchPrecision` and the CMYK catalog notes.
-- `CmykEdit.swift` — #1 phase 2: `CmykInk`, the `CmykPaint` ink request builders and sentences, the `CmykTone` namespace.
-- `CmykShownInks.swift` — #1: a CMYK document's inks as the colours a sheet shows (Gradient Map stops, Layer Style slots), kept exact.
-- `CmykClipboard.swift` — #1 4c: `ColorConversion` (a paste's disclosure), the pasteboard's CMYK TIFF as a payload, a layers clip of the other mode converted.
-- `GrayClipboard.swift` — #1 4: a layers clip into or out of Grayscale converted (`GrayLayerClip`), the pasteboard's gray TIFF as a payload and a Gray copy's TIFF.
-- `GrayArtwork.swift` — #1 6a-i: a type, shape or fill description's colours stored as their gray (`grayArtwork`, `dr_precision_doc_gray_artwork_colors`).
-- `GrayProfileEdit.swift` — #1 5a: Assign/Convert to Profile and 8/16/32 Bits/Channel on Gray, one undo step each (`gray_profile`).
-- `GrayProfileSheetController.swift` — #1 5a: the Assign / Convert to Profile sheet of a Grayscale document.
-- `AgentServer+GrayColour.swift` — #1 5a: the Gray routes of `assign_profile`, `convert_profile` and `convert_precision`.
-- `EditorViewController+MergeStamp.swift` — Layer Via Copy/Cut, Merge Visible, Stamp Visible, (#1 4c) Stamp Selected and ⌘E's Merge Group, and their validation.
-- `AgentServer+StampMergeGroup.swift` / `AgentCatalog+StampMergeGroup.swift` — MCP `stamp_selected` and `merge_group` (#1 4c) and their catalog entries.
+- `CmykEdit.swift` — `CmykInk`, the `CmykPaint` ink request builders and sentences, the `CmykTone` namespace.
+- `CmykShownInks.swift` — a CMYK document's inks as the colours a sheet shows (Gradient Map stops, Layer Style slots), kept exact.
+- `CmykClipboard.swift` — `ColorConversion` (a paste's disclosure), the pasteboard's CMYK TIFF as a payload, a layers clip of the other mode converted.
+- `GrayClipboard.swift` — a layers clip into or out of Grayscale converted (`GrayLayerClip`), the pasteboard's gray TIFF as a payload and a Gray copy's TIFF.
+- `GrayArtwork.swift` — a type, shape or fill description's colours stored as their gray (`grayArtwork`, `dr_precision_doc_gray_artwork_colors`).
+- `GrayProfileEdit.swift` — Assign/Convert to Profile and 8/16/32 Bits/Channel on Gray, one undo step each (`gray_profile`).
+- `GrayProfileSheetController.swift` — the Assign / Convert to Profile sheet of a Grayscale document.
+- `AgentServer+GrayColour.swift` — the Gray routes of `assign_profile`, `convert_profile` and `convert_precision`.
+- `EditorViewController+MergeStamp.swift` — Layer Via Copy/Cut, Merge Visible, Stamp Visible, Stamp Selected and ⌘E's Merge Group, and their validation.
+- `AgentServer+StampMergeGroup.swift` / `AgentCatalog+StampMergeGroup.swift` — MCP `stamp_selected` and `merge_group` and their catalog entries.
 - `AgentServer+CmykEdit.swift` — MCP's ink arguments (paint, gradient, and the type/shape/fill tools' `ink`/`fill_ink`/`stroke_ink`) and the CMYK/RGB tone keys; helpers, no tool.
-- `CmykArtwork.swift` — #1: type/shape/fill on CMYK: ink matches, `cmykArtwork`/`cmykDisplay`/`cmykMatches`, the CMYK `nativeArtwork` arm, captures and `reinkingArtwork`.
-- `DoctoredCore+CmykArtwork.swift` — #1: `dr_precision_doc_cmyk_artwork` and `dr_cmyk_artwork_colors` wrappers.
-- `CmykRefinementCutout.swift` — #1: Select and Mask's New Layer outputs on CMYK over `addingCmykCutout` (`prepareNative`'s twin).
+- `CmykArtwork.swift` — type/shape/fill on CMYK: ink matches, `cmykArtwork`/`cmykDisplay`/`cmykMatches`, the CMYK `nativeArtwork` arm, captures and `reinkingArtwork`.
+- `DoctoredCore+CmykArtwork.swift` — `dr_precision_doc_cmyk_artwork` and `dr_cmyk_artwork_colors` wrappers.
+- `CmykRefinementCutout.swift` — Select and Mask's New Layer outputs on CMYK over `addingCmykCutout` (`prepareNative`'s twin).
 - `InfoPanelViewController+Cmyk.swift` — the Info panel's CMYK and Total ink rows: a CMYK document's ink, an RGB one's working CMYK with "!".
-- `CmykProfileEdit.swift` / `EditorViewController+CmykProfile.swift` — #1 phase 5: Assign/Convert to Profile and 8/16 Bits/Channel on CMYK.
-- `CmykProfileSheetController.swift` — #1 phase 5: the Assign / Convert to Profile sheet of a CMYK document.
-- `ColorSettingsWindowController.swift` — Edit ▸ Color Settings… (⇧⌘K): working spaces (RGB, CMYK, Gray), policies, conversion options (#1 phase 5).
-- `ColorSettingsStore.swift` — #1: where Color Settings' keys live; `DR_COLOR_SETTINGS_DIR` = a private plist after the launch arguments.
-- `CmykProof.swift` — #1 phase 5: the CMYK proof request (Gamut Warning too), the Working CMYK and plate setups, `ProofSetup.reconciled(isCmykDocument:)`.
-- `CmykToneTools.swift` — #1 phase 5: CMYK Levels/Curves histogram, Auto + Auto Options, eyedroppers → stage values.
-- `CmykAdjustFilter.swift` — #1: CMYK adjustments/filters availability (take1), refusals, CMYK param rows, Clouds' ink, Auto on ink (plates scalar).
-- `CmykRetouch.swift` — #1: the CMYK retouch tools' availability (take1), `allows(_:depth:)`, refusals and the MCP narrowing of the retouch tools.
-- `DoctoredCore+CmykColour.swift` / `AgentServer+CmykColour.swift` — #1 phase 5's wrappers; `separate_color` and the CMYK colour routes.
+- `CmykProfileEdit.swift` / `EditorViewController+CmykProfile.swift` — Assign/Convert to Profile and 8/16 Bits/Channel on CMYK.
+- `CmykProfileSheetController.swift` — the Assign / Convert to Profile sheet of a CMYK document.
+- `ColorSettingsWindowController.swift` — Edit ▸ Color Settings… (⇧⌘K): working spaces (RGB, CMYK, Gray), policies, conversion options.
+- `ColorSettingsStore.swift` — where Color Settings' keys live; `DR_COLOR_SETTINGS_DIR` = a private plist after the launch arguments.
+- `CmykProof.swift` — the CMYK proof request (Gamut Warning too), the Working CMYK and plate setups, `ProofSetup.reconciled(isCmykDocument:)`.
+- `CmykToneTools.swift` — CMYK Levels/Curves histogram, Auto + Auto Options, eyedroppers → stage values.
+- `CmykAdjustFilter.swift` — CMYK adjustments/filters availability (take1), refusals, CMYK param rows, Clouds' ink, Auto on ink (plates scalar).
+- `CmykRetouch.swift` — the CMYK retouch tools' availability (take1), `allows(_:depth:)`, refusals and the MCP narrowing of the retouch tools.
+- `DoctoredCore+CmykColour.swift` / `AgentServer+CmykColour.swift` — the CMYK colour workflow wrappers; `separate_color` and the CMYK colour routes.
 - `FloatPaint.swift` — Brush, Eraser, Gradient, Bucket and Dodge/Burn at 32-bit float: the pre-dispatch gate, plane, mode and coverage-ink refusals, linear endpoints.
 - `FloatRetouch.swift` — retouching at 32-bit float: the retouch and five brush tools' gate (target, Quick Mask, capability, mode), the Sponge's coverage refusal.
 - `NativeScalarStatistics.swift` — captured raw mask/channel/RGBA histograms for native tone sheets and MCP `histogram(source: "scalar")`.
 - `AssistedAnnotation.swift` / `AssistedAnnotationCanvasView.swift` / `AssistedAnnotationWindowController.swift` — the gated Phase 9I assisted annotation session, an INTERNAL experiment.
 - `AssistedTaskCardSheetController.swift` — its task card; the session is gated by `DR_ASSISTED_ANNOTATION` and has no product surface.
+- `AppDelegate+AssistedAnnotation.swift` — File ▸ Open Assisted Annotation Case…, the experiment's only UI entry point, present only when it is enabled.
 - `NativeBrushStroke.swift` / `AgentServer+NativeBrush.swift` / `ImageCanvasView+NativeBrush.swift` — versioned canonical native dabs, captured pressure/timer deposits, strict replay, core coverage.
 - `PrecisionColorTools.swift` — connects native brush blends, bucket/gradient/dodge controls, native selections and raw-storage expansion to the captured publication path.
 - `BytePaintStroke.swift` / `ImageCanvasView+BytePaint.swift` / `EditorViewController+BytePaint.swift` — 12F-5's byte RZBR v1 owner, canonical final overlay, latched stroke records, replay rasterizer.
@@ -456,6 +674,16 @@ Detail belongs in the source file's own header comment.
 - `QuickMaskEdits.swift` / `EditorViewController+QuickMaskEdits.swift` / `AgentServer+QuickMaskEdits.swift` — Gaussian Blur and Gradient in Quick Mask, UI and MCP.
 - `SelectionCanvasMap.swift` — the selection carried through crop, canvas size, rotate, flip and image size: `CanvasSelection.carried`, `selectionCarried`.
 - `EditorViewController+ScreenChrome.swift` — the screen keys (Tab, Shift+Tab, F); `setToolChromeVisible` is the ONE writer of `toolChromeVisible`.
+- `Guides.swift` — the value types behind rulers, guides, grid and snapping: a guide as the canvas sees it, the one view-preference bundle pushed into the canvas, the ruler unit.
+- `RulerView.swift` — one ruler strip (horizontal above the canvas, vertical beside it) plus the corner box where the two meet.
+- `GuideDragSession.swift` — a guide drag in flight, out of a ruler or moved on the canvas: one stored property on the canvas, the geometry here.
+- `NewGuideSheetController.swift` — View ▸ New Guide…: an orientation and a position in the ruler's current unit.
+- `EditorViewController+Guides.swift` — the guide gestures and the two guide commands: everything that edits a document's guides.
+- `EditorViewController+Rulers.swift` — View ▸ Rulers, the ruler unit, guides, guide lock and colour, grid and snap toggles (app-wide preferences) and their change notification.
+- `ImageCanvasView+Guides.swift` — the canvas's guide drawing and its hover cursor.
+- `ImageCanvasView+Grid.swift` — the document grid, the pixel lattice and the Smart Guides' drawing, from the values the controller pushed in.
+- `SnapEngine.swift` — the one snapping engine: every drag that can snap (Move, Free Transform, crop, shapes, marquees, guides) asks it and nothing else.
+- `DragSnapping.swift` — where `SnapEngine` meets every drag: one row per canvas gesture, including those that must not snap.
 - `EditorViewController+PortraitMattes.swift` — Select ▸ Portrait Matte items; no MCP tool of its own (`load_selection` with `from:"channel"` mirrors it).
 - `CurvesAdjustmentSheetController.swift` / `PhotoshopAdjustmentPreset.swift` — Image ▸ Adjustments ▸ Curves… and the Photoshop adjustment presets.
 - `CurvePencil.swift` — the Curves pencil's pure map functions (a drawn stroke, Smooth, points → map); no MCP twin (it yields map params).
@@ -469,8 +697,28 @@ Detail belongs in the source file's own header comment.
 - `StylesPanelController.swift` / `NewStyleSheetController.swift` / `EditorViewController+StylePresets.swift` — Window ▸ Styles: the grid panel, New Style…, export, apply.
 - `AgentServer+StylePresets.swift` / `AgentCatalog+StylePresets.swift` — the seven style-preset MCP tools and their catalog entries.
 - `BrightnessContrastSheet.swift` / `ReplaceColorSheet.swift` — Brightness/Contrast (Use Legacy; modern curve by default) and Replace Color; both `AdjustmentSheet` subclasses.
+- `EditorViewController+Adjustments.swift` — the one ordered list of adjustment ops that Image ▸ Adjustments, Layer ▸ New Adjustment Layer and the Layers footer menu build from.
+- `EditorViewController+AutoAdjust.swift` — Image ▸ Auto Tone / Auto Contrast / Auto Color: Levels parameters from the active layer's histogram, applied through the one Levels math.
+- `CalibratedAdjustment.swift` — the persisted evaluation choice for Exposure and White Balance; Adjustment Options… offers Switch to Legacy sRGB Evaluation… where the core refuses.
+- `CurveEditor.swift` — Curves' model and graph: `CurvePoint` (the meta schema's [0, 255] space), `CurveChannel`, `CurvesMeta`, `NaturalCurve` (the spline) and `CurveEditorView`.
+- `HueSaturationSheet.swift` — the Hue/Saturation dialog: a range popup (Master and six hue bands) picks which part of the one params object the Hue/Saturation/Lightness trio writes.
+- `ColorBalanceSheet.swift` — the Color Balance dialog: a Tone popup (Shadows, Midtones, Highlights) over three opposed-colour sliders, plus Preserve Luminosity.
+- `BlackAndWhiteSheet.swift` — the Black & White dialog: six hue-weight sliders plus a Tint checkbox and swatch, every parameter from `AdjustmentSchema`.
+- `PhotoFilterSheet.swift` — the Photo Filter dialog: the filter presets, the colour they select, Density and Preserve Luminosity.
+- `ChannelMixerSheet.swift` — the Channel Mixer dialog: an Output popup, three source sliders, Constant, the display-only Total readout and Monochrome.
+- `ColorLookupSheet.swift` — the Color Lookup dialog: Load LUT… (a .cube, or an .icc/.icm device-link or abstract profile), the table's title and size, and Strength.
+- `GradientMapSheet.swift` — the Gradient Map dialog: `GradientEditorView`, a stop position and opacity field, Reverse and Dither.
+- `GradientEditorView.swift` — the reusable multi-stop gradient editor: a ramp over a stop bar where stops are selected, dragged, added and removed (never below two).
+- `SelectiveColorSheet.swift` — the Selective Color dialog: a nine-range Colors popup, the four ink sliders and the Relative/Absolute method.
+- `ShadowsHighlightsSheet.swift` — the Shadows/Highlights dialog: Shadows and Highlights (Amount, Tone), then the shared Radius, Color and Midtone controls.
+- `ExposureSheet.swift` — the Exposure dialog: exposure in stops, an offset and a reversed log-feel gamma slider.
+- `VibranceSheet.swift` — the Vibrance dialog: the chroma-weighted Vibrance slider and the flat Saturation slider, shown as ±100 and stored as the core's unit floats.
+- `WhiteBalanceSheet.swift` — the White Balance dialog: Temperature and Tint sliders and an "As shot" reset to the exact identity.
+- `ByteFilterAdmission.swift` — the seven destructive filter sheets' 8-bit preview reservation and Apply admission against the core's `filterOpScratchBytes` plan.
 - `TargetedAdjustment.swift` — the canvas pointer monitor and input sample (Lab: `kernelRGB`, the kernel's space) for Curves, Hue/Saturation, Replace Color. No MCP twin.
 - `CropFit.swift` / `EditorViewController+AutoStraighten.swift` / `HorizonDetection.swift` / `AgentServer+Horizon.swift` — the straighten aids for the Crop tool.
+- `CropTool.swift` — `CropOverlay` (the box, straighten angle and thirds the canvas draws) and `CropSession` (the box, the drag and its ratio, pure math); the straightened crop.
+- `EditorViewController+Crop.swift` — the Crop tool (C): box, aspect presets, thirds and straighten, committed with Return or a double-click; Delete Cropped Pixels.
 - `CropExtension.swift` / `ImageCanvasView+CropExtent.swift` — crop past the canvas: `CropBackground`, `extends`/`bounded`, `extendedCrop`; the extended box drawn past the image.
 - `CropFill.swift` — Crop Fill: `CropFill`, `CropFillRequest`, `CropFillRun` (unpublished crop, new-area coverage, the two fill jobs).
 - `EditorViewController+CropFill.swift` — the Crop tool's commit with Fill set to Generative Expand or Content-Aware Fill; the 16-bit box re-arms.
@@ -532,12 +780,12 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+GenerativeFill.swift` / `AgentCatalog+GenerativeFill.swift` — MCP `generative_fill`, `generative_expand` and the variation tools (`generative_variations`, select, generate).
 - `DoctoredCore+Neural.swift` — the neural wrappers: `RasterNeural.stageInfo`, the predict trampoline over `NeuralPredictBox`, both `neuralStage`s, Super Zoom docs, `neuralLayerApply`.
 - `NeuralFilters.swift` — the shared runner: `NeuralTileModel`, `NeuralPreviewModels`, `NeuralImage`, `NeuralFilterRun` (stages, refusals, plan terms, the Lab view input and term).
-- `SuperZoom.swift` / `SuperZoomSheet.swift` — Filter ▸ Neural Filters ▸ Super Zoom…: settings, plan, the new-document run; the sheet and `showSuperZoom(_:)`.
+- `SuperZoom.swift` / `SuperZoomSheet.swift` — Filters ▸ Neural Filters ▸ Super Zoom…: settings, plan, the new-document run; the sheet and `showSuperZoom(_:)`.
 - `Colorize.swift` / `ColorizeSheet.swift` — Colorize…: output, settings, the DocumentJobs job and New Document; the sheet with its kept-chroma preview.
 - `JpegArtifactsRemoval.swift` / `JpegArtifactsRemovalSheet.swift` — JPEG Artifacts Removal…: strength, settings, the `DocumentJobs` job; the sheet.
 - `AgentServer+NeuralFilters.swift` / `AgentCatalog+NeuralFilters.swift` — MCP `super_zoom`, `jpeg_artifacts_removal` and `neural_colorize`.
-- `DoctoredCore+SpotChannels.swift` — #1: the spot wrappers (read/add/set, merge, kind change, typed plan; doc/image overprint, full and region).
-- `SpotChannel.swift` — #1: `SpotInk`, `SpotChannels` (sentences, TIFF save scratch, notes, full/region render), `mergingSpotChannel`, `flatExportProjection`, `flatSaveProjection`.
-- `SpotChannelSheetController.swift` — #1: New Spot Channel… / Spot Channel Options… (Name, Kind, swatch + L*a*b*, Solidity), one undo step.
-- `EditorViewController+SpotChannels.swift` — #1: New, Options, Merge Spot Channel, `validateSpotChannelItem`, the composite view's overprint base.
-- `AgentServer+SpotChannels.swift` / `AgentCatalog+SpotChannels.swift` — #1: MCP `add_spot_channel`, `set_spot_channel`, `merge_spot_channel`, `set_channel_kind`.
+- `DoctoredCore+SpotChannels.swift` — the spot wrappers (read/add/set, merge, kind change, typed plan; doc/image overprint, full and region).
+- `SpotChannel.swift` — `SpotInk`, `SpotChannels` (sentences, TIFF save scratch, notes, full/region render), `mergingSpotChannel`, `flatExportProjection`, `flatSaveProjection`.
+- `SpotChannelSheetController.swift` — New Spot Channel… / Spot Channel Options… (Name, Kind, swatch + L*a*b*, Solidity), one undo step.
+- `EditorViewController+SpotChannels.swift` — New, Options, Merge Spot Channel, `validateSpotChannelItem`, the composite view's overprint base.
+- `AgentServer+SpotChannels.swift` / `AgentCatalog+SpotChannels.swift` — MCP `add_spot_channel`, `set_spot_channel`, `merge_spot_channel`, `set_channel_kind`.

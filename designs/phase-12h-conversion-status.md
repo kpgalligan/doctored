@@ -1,6 +1,6 @@
 # Structure-preserving precision conversion (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — closed
 - **Phase / dates:** 12H (carryover P7-30, verified), runs 12H-1 and 12H-2, 2026-09-23. Closes Phase 12.
 - **Original:** [archive/phase-12h-conversion-status.md](../archive/phase-12h-conversion-status.md) — full history, measurements, receipts
 - **Key commits:** `754fa97` (12H-1), `a38f064` (12H-2)
@@ -28,22 +28,22 @@ have id 0 and read "Preserve Layers cannot convert this document: <note>". The "
 | Offset, name, opacity, visibility, clipping, locks, links, labels, comps, guides, ruler origin, layer ids, PPI, ICC, capture metadata | exact (ids set directly, never re-minted) | exact | exact | exact |
 | Blend mode | exact; a mode `precision_layer_blend::validate` refuses **blocks** | exact | exact | exact |
 | Isolated group | exact · RD (f32 instead of byte rounding) | exact · RD (byte rounding) | exact | exact · RD |
-| Pass Through group | exact; isolated-through-style carried as an isolated group · RD | exact | n/a | n/a |
+| Pass Through group | exact; isolated-through-style carried as an isolated group · RD | exact | exact | exact |
 | Group depth | never blocks (byte 10 < typed 16) | deeper than 10 **blocks**, as the FIRST rows | never blocks | **blocks** past 10 |
 | Record count | > `precision_render::MAX_RECORDS` (1024) **blocks** as the first row | n/a | n/a | n/a |
 | Adjustment layer | carried iff `PrecisionAdjustment::parse` accepts the byte meta under `evaluation: precision_v1` (Exposure/White Balance pinned to `legacy_srgb`) · RD; refusal **blocks** | typed description → byte meta on a 1×1 plane (canvas-sized transparent plane when MASKED) · RD; `from_meta` refusal **blocks** (unreachable backstop) | re-created · RD (applies after per-record tone map) | as 16→8 + tone-map RD |
 | Text / shape description | exact; re-edit rasterizes at 16 | exact | exact | exact |
-| Other `meta` (Live Photo, host media, unknown) | **blocks** | n/a | n/a | n/a |
-| Retained / smart / RAW / live-filter source | `RetainedSource16`, `rendered` = the ×257 raster · RD; stale binding not carried · RD | `RetainedSource8`, `rendered` = the landed pixels · RD; stale as 8→16 | carried (`rendered` = the tone-mapped leaf; re-renders at 16 bits on the next edit; live filters refuse at float) · 11F 187a | carried (`rendered` = the landed pixels; re-renders at 8 bits on the next edit) · 11F 187a |
+| Other raster `meta` (an unknown kind) | **blocks** | n/a | n/a | n/a |
+| RAW source | `RetainedSource16`, `rendered` = the ×257 raster · RD; stale binding not carried · RD | `RetainedSource8`, `rendered` = the landed pixels · RD; stale as 8→16 | **blocks** when the master is a 32-bit float RAW development ("…redevelop it as a 16-bit SDR master or rasterize it first", `FLOAT_RAW_NARROW_REFUSAL`); else carried (`rendered` = the tone-mapped leaf; re-renders at 16 bits on the next edit) | **blocks** as float→16; else carried (`rendered` = the landed pixels; re-renders at 8 bits on the next edit) |
 | Warp binding | `WarpBinding16`, ×257 originals · RD; stale as sources | `WarpBinding8`, nearest originals, every guard input tied to the landed layer · RD | n/a | n/a |
 | Layer mask | exact ×257, properties verbatim · RD only if feather > 0 or density < 1 | nearest | exact | nearest |
 | Saved channel | exact ×257, overlay carried, id re-minted | nearest, id re-minted | exact | nearest |
-| Layer style (fill, effects, knockout, blend interior) | exact via `with_layer_style` · RD; oversize padded plane **blocks** | exact (`reported_style` merge → one byte style) | n/a (float refuses styles) | n/a |
-| Style on an adjustment layer | dropped · RD | n/a | n/a | n/a |
-| Blend If | exact · RD (16-bit ramp) | exact | n/a | n/a |
+| Layer style (fill, effects, knockout, blend interior) | exact via `with_layer_style` · RD; oversize padded plane **blocks** | exact (`reported_style` merge → one byte style) | exact | exact (`reported_style` merge, as 16→8) |
+| Style on an adjustment layer | exact (`precision_style_adjustment`) | exact (`reported_style` merge) | exact | exact (`reported_style` merge) |
+| Blend If | exact · RD (16-bit ramp) | exact | exact | exact (in the `reported_style` merge) |
 | Extended range | n/a | n/a | **discarded** (`extended_range`) | same |
 | Evaluation policy | carried, tables rebuilt; `linear_light` with a typed refusal **blocks** | carried; byte refusal is a document row | `linear_light` | `linear_light` |
-| Global light (non-default) | exact (`global_light`) | exact | n/a (default light) | n/a (default light) |
+| Global light (non-default) | exact (`global_light`) | exact | exact | exact |
 | Group open state | exact (`group_open_state`) | exact | exact | exact |
 
 Vector masks ([v1-paths.md](v1-paths.md)): on the structure-preserving 8→16 and 16→8 conversions a
@@ -52,7 +52,8 @@ crosses as the plain mask it baked. The path list is carried with its ids by eve
 
 Into float (`../core/src/precision_conversion_float.rs`, preserve only): each u16 code (a byte first ×257) is
 decoded through the document profile's TRC to linear light, alpha `c/65535`, by the layers paste's own promotion
-under Preserve; masks and channels stay u16, every record keeps its id, the result is float under `clip`. Blocks: a
+under Preserve; masks and channels stay u16, every record keeps its id, the result is float under `clip`; a style
+and Blend If ride, with the note "style and Blend If composite in linear light". Blocks: a
 blend mode, effect mode or adjustment float refuses (on the record as it is), an effective warp, a profile with no
 matrix/TRC model, and a result too large to save and reopen at 32 bits. The 8→float plan drops the 8→16 Blend If,
 source and warp notes for its float rows. Narrowing back returns every code.
@@ -105,7 +106,7 @@ source and warp notes for its float rows. Narrowing back returns every code.
 ## Open items (verified 2026-09-26)
 - `DONE` — Group open state (9790eb5) and the global light are typed
   `PrecisionDocument` fields carried both ways (`../core/src/precision_global_light.rs`, `PRESERVED` `global_light`).
-  Forward compatibility: a typed `.rz` holding a non-default light writes word 58, which an older build refuses with
+  Forward compatibility: a typed `.doctored` file holding a non-default light writes word 58, which an older build refuses with
   its generic high-depth sentence (house policy, as for 55/57).
 - `DONE` — The oversize style-plane refusal (shared `plane_pixels` gate) is tested past the limit,
   at the limit and at the capped pad, with no 100 MP of pixels (`core/tests/precision_conversion_structure.rs`,

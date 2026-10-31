@@ -1,6 +1,6 @@
 # Typed masks, channels, paint, artwork and healing (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 7D, 2026-09-10
 - **Original:** [archive/phase-7-pixel-editing.md](../archive/phase-7-pixel-editing.md) — full history, measurements, receipts
 - **Key commits:** `7e60190`
@@ -52,7 +52,7 @@ The overriding rule: no RGBA8 overlay, CGImage, clipboard bitmap or display prev
   geometry ops, `paint`, `erase`, `clone`, `heal`, `rasterize`, `read_plane`; read targets `mask`, `effective_mask`,
   `channel`, `red`, `green`, `blue`, `alpha`. Unknown fields/targets refuse; no byte fallback. The FFI owns the job
   token from pre-parse admission (4 MiB) to publication; the final copy-out is noncancellable.
-- **Swift:** calls stay in `app/Sources/DoctoredCore.swift`; scalar buffers carry dimensions, plane count, provenance and
+- **Swift:** calls stay in the `app/Sources/DoctoredCore*.swift` files; scalar buffers carry dimensions, plane count, provenance and
   retained-payload leases; captures use the existing bounded worker/resource registry. No second Undo system.
 
 ## Rejected alternatives
@@ -72,5 +72,5 @@ The overriding rule: no RGBA8 overlay, CGImage, clipboard bitmap or display prev
 - `DONE` — editable text/shape descriptions, attributed colors, intrinsic color glyphs (P7-04, P7-05, verified 8E).
 - `DONE` — content-aware synthesis/PatchMatch, spot healing, red-eye (P7-17, P7-18, verified 9D/9E).
 - `DONE` — public UI/MCP/Actions/history/recovery integration (7E, [public mode](phase-7-public-mode-status.md)).
-- `TRACKED` — text beyond 4,096 UTF-16 units (still enforced, `app/Sources/NativeArtworkEvaluation.swift`) and larger
-  strokes/canvases → carryover P7-34 (13D).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — text beyond 4,096 UTF-16 units (still enforced,
+  `app/Sources/NativeArtworkEvaluation.swift`) and larger strokes/canvases (carryover P7-34).

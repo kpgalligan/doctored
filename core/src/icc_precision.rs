@@ -12,7 +12,9 @@
 //! SAME upper index — every output bit is unchanged (`rgb_reference`, the
 //! former body, is the test oracle) for 49 KB beside the 1.5 MB tables. It is
 //! an index into the forward samples, not a LUT of encoded values and not an
-//! inverse curve.
+//! inverse curve. It is there for speed: a call measured ~20 ns against ~90 ns
+//! for the whole-table search, and the jobs probe's 2400 × 1600 float
+//! thumbnail miss 107.6 ms against 1,084.5 / 1,038.6 ms without it.
 //!
 //! `icc_precision.rs` specializes the shared forward curve evaluator for continuous encoding and
 //! exact model identity, preserving the old byte thresholds and approximate equality.

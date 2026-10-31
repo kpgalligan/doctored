@@ -1,6 +1,6 @@
 # Precision conversion, quantization and authoritative readout (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 7E core contract, 2026-09-10 (regional-fallback notes 13A-5c; structure-preserving addendum 12H-1/12H-2)
 - **Original:** [archive/phase-7-conversion-readout.md](../archive/phase-7-conversion-readout.md) — full history, measurements, receipts
 - **Key commits:** `3bd4349`
@@ -14,7 +14,7 @@ reinterprets a byte handle as typed.
 ## Decisions
 - **Flattened conversion** (`core/src/precision_conversion.rs`) always yields **one raster layer**, keeping ICC
   profile, print resolution and EXIF/XMP/IPTC; editable structure, live adjustments and masks are discarded; saved
-  channels carry (×257 / nearest, #1) (guides/ruler origin cross since 12E-1c). The original immutable document stays in history; converting
+  channels carry (×257 / nearest) (guides/ruler origin cross since 12E-1c). The original immutable document stays in history; converting
   back never reconstructs layers.
   - **Byte→u16:** render with established byte evaluation, then ×257 exactly — preserves byte appearance, adds no detail.
   - **u16→byte:** render the authoritative u16 projection, then nearest or ordered-dither quantization; export can do
@@ -48,7 +48,8 @@ reinterprets a byte handle as typed.
 - **Structure-preserving alternative (12H):** beside the unchanged flattened path,
   `core/src/precision_conversion_structure.rs` (8→16, codes ×257, plan names exact/different/discarded/blocked records)
   and `core/src/precision_conversion_narrow.rs` (16→8, float→16, float→8 per record with this same quantizer and
-  `tone_mapped_u16`; masks/channels nearest). There is no conversion into float.
+  `tone_mapped_u16`; masks/channels nearest). Conversion into float (8/16 → 32, every record carried) is
+  `core/src/precision_conversion_float.rs`: each u16 code becomes the profile's TRC decode.
 
 ## Rejected alternatives
 - Dithering alpha — alpha is coverage; noise there changes edges and compositing.
@@ -67,6 +68,7 @@ reinterprets a byte handle as typed.
   (`scoped_analysis`).
 - `DONE` — public-app and native 24 MP workflow checks (7E, [public mode](phase-7-public-mode-status.md)).
 - `DONE` — structure-preserving conversion in every direction: carryover P7-30, verified 12H-1/12H-2.
-- `TRACKED` — guided Shadows/Highlights full-frame fallback in promotion → 13A open items ("guided sampling plates",
-  owner 13B) and carryover P7-31.
-- `TRACKED` — synchronous noncancellable PNG16/TIFF16 encoders → carryover P7-32 (13C).
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — guided Shadows/Highlights full-frame fallback in
+  promotion (the guided sampling plates; carryover P7-31).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — synchronous noncancellable PNG16/TIFF16 encoders
+  (carryover P7-32).

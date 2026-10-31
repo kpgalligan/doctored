@@ -1,6 +1,6 @@
 # Phase 9I execution plan after the automatic candidates failed (ADR)
 
-- **Status:** Accepted — open items remain (work package 1 closed by [gate v2](phase-9i-gate-v2-status.md); the assisted run is pending)
+- **Status:** Accepted — closed (work package 1 closed by [gate v2](phase-9i-gate-v2-status.md); the assisted run is dropped)
 - **Phase / dates:** 9I, 2026-09-13 (after `2e26401`); recorded outcome 2026-09-15
 - **Original:** [archive/phase-9i-next-steps.md](../archive/phase-9i-next-steps.md) — failure analysis table, subagent plan, resume instructions
 - **Key commits:** `19b7928` (plan), `195efe7` (execution update), `d5c7490` (recorded outcome)
@@ -46,14 +46,15 @@ round of tuned variants.
 - Treating a "continue" as permission to tune V5, enable advanced controls or restart completed 9A–9H slices.
 
 ## Consequences
-- Advanced controls stay disabled until quality *and* integration gates pass.
+- Advanced controls shipped in Select and Mask on 2026-10-11 without the quality gate, which stopped being a ship
+  condition on 2026-10-10 ([typed cutouts](phase-9i-typed-cutouts-status.md)).
 - Any custom V5 successor must address interior sampling, multiple color populations, uncertainty and bounded full-size queries.
 - Phase 10 proceeds independently and never closes 9I.
 
 ## Open items (verified 2026-09-26)
-- `TRACKED` — Run the assisted protocol (human session + scoring) → P7-12 / plan §9I "Next assignment"; [runbook](phase-9i-assisted-annotation-runbook.md).
-- `TRACKED` — Typed estimator + captured workspace + UI/MCP/Actions + persistence slices after a pass → plan §9I / P7-12.
-- `DROPPED` — Glass/transmission research: out of scope (closed 2026-09-28, not planned); the six analytic glass cases stay reported diagnostics under frozen gate v2 and the bottle stays silhouette-only.
+- `DROPPED` (2026-10-30) — Run the assisted protocol (human session + scoring): the gate is no longer a ship condition ([gate v2](phase-9i-gate-v2-status.md)).
+- `DONE` — typed estimator and Select and Mask UI/MCP/Actions outputs at 8 and 16 bits shipped 2026-10-11 without the gate ([typed cutouts](phase-9i-typed-cutouts-status.md)).
+- `DROPPED` — glass/transmission research ([gate v2](phase-9i-gate-v2-status.md)).
 - `DONE` — Work package 1 deliverables: [protocol](phase-9i-assisted-protocol-v1.md), [pipeline decision](phase-9i-established-pipeline-decision.md), [evidence audit](phase-9i-feasibility-evidence-audit.md) (`195efe7`).
 - `DROPPED` — Work package 2's automatic established-pipeline comparison (gate v2 decision 5).
 - `DONE` — Independent Phase 10 work (10A closed; Phase 10 leftovers closed in `fa336cf`).

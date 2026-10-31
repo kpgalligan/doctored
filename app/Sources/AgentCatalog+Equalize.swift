@@ -1,6 +1,6 @@
 import Foundation
 
-/// #1's catalog entry for `equalize` (Image ▸ Adjustments ▸ Equalize), in its own file behind an
+/// The catalog entry for `equalize` (Image ▸ Adjustments ▸ Equalize), in its own file behind an
 /// explicit non-inlining boundary for the reason `AgentCatalog.swift`'s header gives.
 extension AgentServer {
     @inline(never) func equalizeCatalog() -> [[String: Any]] {

@@ -1,6 +1,6 @@
 # Reusable Actions and the RAW preset library (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — open items remain ([#20](https://github.com/kpgalligan/doctored/issues/20))
 - **Phase / dates:** 12B (12B-1 items 1–7, 12B-2 item 8), both shipped 2026-09-18
 - **Originals:** [archive/phase-12b-actions-status.md](../archive/phase-12b-actions-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-12b-actions-status.md](../archive/2026-10/phase-12b-actions-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `3e86887` (12B-1), `729524f` (12B-2)
@@ -10,7 +10,7 @@
 silently re-aimed or broke an Action; assets named by path did not travel; Batch needed a modal window; and a
 single malformed RAW preset file refused the whole preset library. Plan text: package assets, stable layer
 identities, absolute/relative/anchor geometry, named parameters, batch failure/cancel/collision behaviour, and
-per-entry diagnosis/repair/migration for the RAW preset library. No `.rz` change and no `DRDC_VERSION` bump.
+per-entry diagnosis/repair/migration for the RAW preset library. No document-format change and no `DRDC_VERSION` bump.
 
 ## Decisions
 - **Stable layer identity** (`../core/src/doc_identity.rs`): `Layer.id` / `PrecisionDocumentLayer.id: u64`
@@ -48,7 +48,8 @@ per-entry diagnosis/repair/migration for the RAW preset library. No `.rz` change
   `M'(x) = L(x − Rp) + Rp + S·(M(p) − p)`, so angle, scale and skew stay about the remapped pivot; the pivot
   remaps as a position. Uniform scale or no rotation/skew reduces to the conjugation; a recording without a
   pivot replays as before. No Photoshop take; the rule's replay onto a different aspect ratio is unmeasured.
-  Drive B10 `pivot-matrix` / `pivot-mask`.
+  Gate B10 `pivot-matrix` / `pivot-mask` of the 12B drive `verify_phase12b_actions.py`, which with its
+  gates B8–B10 is in the private archive `kpgalligan/doctored-dev`, not this repository.
 - **`ActionGeometry.fields` is the explicit per-tool table of coordinate ARGUMENTS**; a non-absolute mode on any
   other tool, or on a `native_stroke` dab step, is refused at DECODE by name — remapping the wrong argument is
   silent. A non-absolute step without `recorded_canvas` is refused at decode.
@@ -87,7 +88,8 @@ per-entry diagnosis/repair/migration for the RAW preset library. No `.rz` change
   `delete_raw_preset` takes exactly one of `name` / `file`. v1 → v2 on write is field-for-field identity.
   A NEW-name save onto an occupied canonical digest file is refused (behaviour change from silent overwrite);
   the 128 bound counts `.json` FILES. Library writes stay outside Undo and Actions; applying a preset records
-  resolved `apply_raw_settings`. Raw-preset tools are refused at float.
+  resolved `apply_raw_settings`. Raw-preset tools run at float on a camera RAW layer (its 16-bit development
+  rendered into linear light).
 - **Interactive Play prompts:** the Actions window's Play and Play Last pass `ActionFailurePrompt.ask`.
   A failed step whose `on_error` is `stop` asks Stop / Continue only when its command could not run or names an
   object the document does not have; Continue skips the failed step and plays on, Stop keeps the applied steps,
@@ -106,13 +108,14 @@ per-entry diagnosis/repair/migration for the RAW preset library. No `.rz` change
   `doctored-fixtures/photoshop/action-failure-472/take1/job/paste_empty/photoshop.json`): `paste_empty` and
   `select_missing` prompted and Continue played on; `inverse_none` did not fail; `blur_empty` stopped at its
   step; Stop left the earlier step applied (`layers_after` `[AF_before, Background]`) and did not run the later
-  one. `action_failure.py` refuses without `--attended`. Not built: filters refusing on an empty selection
+  one. The takes' runner, `action_failure.py` (in the archived Photoshop harness), refuses without
+  `--attended`. Not built: filters refusing on an empty selection
   (set aside as post-v1 on 2026-10-10).
 - **Per-step history:** `ActionPlayer.run(history:)` takes `ActionRunHistory`. The Actions window's Play
   and Play Last pass `.perStep`: each step runs in `withUndoGroupDiscardingEmpty`, so a step that changed
   something is one History/Undo state under its own tool's undo name and counts its own change; a failed or
   no-op step leaves none; `progress.tick` and `prompt` run outside the groups. `run_action` stays `.oneEntry`
-  (`withReplayUndo`) by the MCP rule that each tool call is one undo step (README "Agent edits"); Batch stays
+  (`withReplayUndo`) by the MCP rule that each tool call is one undo step (`AgentServer.performGroupedEdit`); Batch stays
   one entry per file because it saves and closes each document; ⌃F is one entry. `undo`/`redo` stay refused as
   steps. jobs-probe "action failure prompt" (h).
 
@@ -141,14 +144,14 @@ per-entry diagnosis/repair/migration for the RAW preset library. No `.rz` change
   (Decisions, **Per-step history**).
 - `DONE` — which failures prompt (Decisions,
   **Interactive Play prompts**).
-- `OPEN` — deferred: geometry modes
-  for the retouch recipes (`patch`, `content_aware_fill`) and typed numeric ink, which are not in
+- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — geometry modes
+  for the retouch recipes (`patch_region`, `content_aware_fill`), which are not in
   `ActionGeometry.fields` and refuse non-absolute modes; a parameters editor UI beyond the JSON sheet; zip
   `.draction` bundles.
 - `DONE` — a recorded pivot for matrix remaps
   (Decisions, **Pivot rule**).
-- `OPEN` — a synthetic fixture for the subjects half of
-  drive gate B10, which needs `--photos-dir` today.
+- `DROPPED` (2026-10-30) — a synthetic fixture for the subjects half of drive gate B10: the drive is not
+  in this repository, and `../scripts/selection-probe/subjects.swift` covers subject selection.
 - `DONE` — the refusal says so honestly: the
   `unqualified` tools and `content_aware_fill`'s `source_mask` answer "supports absolute geometry only", and a
   `content_aware_fill` without one names the selection step.
@@ -160,7 +163,7 @@ per-entry diagnosis/repair/migration for the RAW preset library. No `.rz` change
   per-entry `broken` rows, `../scripts/verify_phase8d.py` no longer pins the catalog count, and
   `../scripts/raw-probe/native.py` reads the 45/46 identity wrapper.
 - `DONE` — persisted layer ids + cross-session `$layer.id` (12E-1/12E-1b, `../core/src/identity_native.rs`, `ActionIdentity` rule 2).
-- `DONE` — typed `reorder_layers` and typed locks (12E-1/12E-1b; `DocumentPrecision.swift:113`, `FloatDocument.swift:377`, `../core/src/precision_lock.rs`).
+- `DONE` — typed `reorder_layers` and typed locks (12E-1/12E-1b; `DocumentPrecision.swift`, `FloatDocument.swift`, `../core/src/precision_lock.rs`).
 - `DONE` — per-entry diagnosis for non-RAW libraries (12C-1, `PreferenceLibrary.swift`).
 - `DONE` — multi-layer transform / clone-heal dabs (12F), Paste `$asset` (12G-2; since 12G Part B a Paste records
   a live step by default, [phase-12g-clipboard-status.md](phase-12g-clipboard-status.md)).

@@ -1,6 +1,6 @@
 # Replay gaps: multi-layer move, channel fallback, canonical dabs, qualified colour (ADR)
 
-- **Status:** Accepted — open items remain
+- **Status:** Accepted — closed
 - **Phase / dates:** 12A, shipped 2026-09-18 (byte canonical dabs later widened by 12F-5, 2026-09-22)
 - **Originals:** [archive/phase-12a-replay-status.md](../archive/phase-12a-replay-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-12a-replay-status.md](../archive/2026-10/phase-12a-replay-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `7211b97`
@@ -75,11 +75,12 @@ matching output. Swift only — no Rust change and no `DRDC_VERSION` bump.
   one halts on replay.
 - A sampled colour reaches a text or shape layer as `srgb_rgba` numbers; a new artwork colour argument should
   take continuous sRGB numbers too rather than a `color_space` hex.
-- Verification drives: `../scripts/verify_phase12a_replay.py` (R1–R9, R9b, R10) and the 9H UI-source probe cases
+- Verification drives: the 12A drive `verify_phase12a_replay.py` (R1–R9, R9b, R10; in the private archive
+  `kpgalligan/doctored-dev`, not this repository) and the 9H UI-source probe cases
   `byte-pressure-ui`, `byte-airbrush-ui`, `move-record-ui` (`../scripts/native-paint-probe/replay.swift`).
 
 ## Open items (verified 2026-10-07)
-- `DONE` — `../scripts/verify_phase12a_replay.py` gate
+- `DONE` — the 12A drive's gate
   R9 asserts today's `color_space` tool list, `put_pixels` included (`R9_GATE_WORDS`, `0723cb7`).
 - `DONE` — `color_space` beyond brush, fill and gradient:
   the one gate, the 16-bit `document` hex (Part A), `srgb_rgba` sampling for text and shape colours (3′) and the

@@ -1,4 +1,4 @@
-//! Adjustment layers: the ONE meta shape the core interprets. A layer whose
+//! Adjustment layers: the meta shape the core composites as an adjustment. A layer whose
 //! `meta` parses as an [`Adjustment`] is composited by `doc` as a
 //! non-destructive color adjustment of the accumulated backdrop instead of as
 //! pixels (the layer's own pixels are ignored). Anything that does not parse
@@ -297,7 +297,7 @@
 //! `adjust_map_tests::gradient_map_dither_is_keyed_on_the_position_it_is_given`.
 //! This is not fixable by giving the destructive export a canvas origin
 //! without putting an origin argument on all twenty-one ops for the sake of
-//! one, so it is documented instead — here, in the README, in
+//! one, so it is documented instead — here, in the feature reference, in
 //! `adjust_math::apply_to_image` and in the `add_adjustment_layer` catalog
 //! text, which is what an agent codes against.
 //!

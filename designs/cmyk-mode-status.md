@@ -1,10 +1,12 @@
 # CMYK document mode (#1): status
 
-- **Status:** Open — phases 1, 2, 3, 4a, 4b, 4c and 5 shipped, the selection, adjustments-and-filters, channels,
-  retouch, artwork, styles and remaining-gaps batches and round 2 (kept-CMYK export)
+- **Status:** Open — open items remain ([#1](https://github.com/kpgalligan/doctored/issues/1),
+  [#17](https://github.com/kpgalligan/doctored/issues/17), [#19](https://github.com/kpgalligan/doctored/issues/19));
+  phases 1, 2, 3, 4a, 4b, 4c and 5 shipped, the selection, adjustments-and-filters, channels, retouch, artwork, styles
+  and remaining-gaps batches and round 2 (kept-CMYK export)
 - **Issue:** [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella: CMYK here; Grayscale,
-  Lab, Indexed Color, Duotone, Bitmap, Multichannel and spot channels are closed — their ADRs; PDF/X is the
-  rest)
+  Lab, Indexed Color, Duotone, Bitmap, Multichannel and spot channels are closed — their ADRs; PDF/X and spot
+  channels' open items are the rest)
 - **Code:** `core/src/cmyk_*.rs`, `core/src/ffi_cmyk.rs`; `app/Sources/CmykDocument.swift`, `DoctoredCore+Cmyk.swift`,
   `CmykModeSheetController.swift`, `EditorViewController+CmykMode.swift`, `AgentServer+CmykMode.swift`, `AgentCatalog+CmykMode.swift`,
   `CmykEdit.swift`, `AgentServer+CmykEdit.swift`, `InfoPanelViewController+Cmyk.swift`, `CmykRefinementCutout.swift`; phase 5: `core/src/ffi_cmyk_colour.rs`,
@@ -26,10 +28,14 @@
   Exposure, Vibrance, Black & White, Lens Correction, the Develop Filter with Presence and Add Grain, Auto-Blend
   Layers, the RGB-only Hue Rotate, Grayscale, Sepia, White Balance, Depth Blur, Remove Red Eye and the Red Eye tool,
   Auto-Align's Vignette Removal and Geometric Distortion, Shadows/Highlights and Replace Color as layers,
-  Brightness/Contrast's Saturation; the Pass Through paint mode, Blend If on Red, Green or Blue; the retouch tools on one ink plate (as on an RGB colour plane). Not in Doctored at any depth: Pattern fill layers, Warp Text and
-  Pen-made shape layers, Focus Area,
-  Match Color, HDR Toning, a backdrop selection from a menu or MCP (core `source: backdrop` only), and the retouch batch's
-  deviations (open items).
+  Brightness/Contrast's Saturation, HDR Toning; the Pass Through paint mode, Blend If on Red, Green or Blue; the retouch
+  tools on one ink plate (as on an RGB colour plane).
+- **Not in Doctored at any depth** (not CMYK gaps):
+  - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Warp Text, and shape layers from a Pen path.
+  - `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — Select ▸ Focus Area.
+  - Match Color and Content-Aware Scale: not built (rows of [photo-editor-gap-review.md](photo-editor-gap-review.md)).
+  - `DROPPED` (2026-10-30) — a backdrop selection from a menu or MCP (core `source: backdrop` stays internal): no
+    request on record, and Sample All Layers covers composite sampling.
 
 ## Open items
 
@@ -52,44 +58,19 @@
 - **Equalize with a selection is unmeasured.** Photoshop's `ArtLayer.equalize()` raises its Selected Area Only / Entire
   Image modal even with dialogs off (take1 stalled there), so neither choice is measured
   ([#1](https://github.com/kpgalligan/doctored/issues/1)).
-- **Absent at every depth** (a deviation of the retouch batch, not a CMYK gap): Content-Aware Scale.
-  The **Art History Brush shipped**: on 8-bit RGB and on 8-bit CMYK ink
-  (`art_history_stroke.rs`, `cmyk_art_history.rs`); 16 and 32 bits and 16-bit CMYK refuse it by name
-  (admission row `art-history-8`). `art-history-658/take1` recorded Photoshop refusing it at those depths.
-  Batch 2 refit it to take1's whole strokes (one colour each, from the source at the start): every path style heads
-  along the source's luma contours, travelling with the brighter side on its right, curls turn the heading
-  angle down, and `L`, `κ` and a per-style density `ν` are fitted (`art_history_take.py` THE REFIT).
-  `art-history-658/take2` confirmed the travel rule (BRIGHT-RIGHT) and the heading on held-out fixtures B, C
-  and CMYK D. Residual per style, Doctored against Photoshop: loose_medium CONFIRMED; tight_short,
-  tight_medium, tight_long and loose_long fewer or shorter strokes (Len, N) on some fixtures, Areas or sizes;
-  the four curls also Curl, and tight_curl_long the travel (Photoshop turns further); D (CMYK) Len at one
-  click only. Spot Healing's Proximity Match and Create Texture shipped at 8/16/32 bits and on ink
-  (`spot_heal_type.rs`); `spot-heal-types-656-657/take1` MISSED both rules, so H0's settings
-  ship (band 4, tile 7, detrended); after the take Create Texture's pool rule changed to leave out the blemish (pixels outside the 4 px band's residual range):
-  re-judged on take1's recorded outputs U/G/T pass and S misses (Photoshop scrambles the
-  stripes); that rule is unconfirmed by a fresh take.
-- **Sponge Vibrance shipped**: the Vibrance stage at ±100 as the target, at 8/16/32 bits and on ink (pass A, K held);
-  `retouch-options-659-660/take1` MISSED every candidate, so H0 ships.
-- **Sample All Layers on Blur, Sharpen and Smudge shipped**: all visible layers (take1 undecided), every depth and ink;
-  the picture is charged once beside the walk.
-- **Blend If on ink: confirmed (take2).** Fitted on take1 (`cmyk_styles_take.py --fit`, THE BLEND IF FIT): Gray G-LUM/INC,
-  Cyan, Magenta and Black P/INC, Yellow P/HALF (a tie-break: INC also met). take2 BUILT every channel under it (worst max /
-  mean 1 / 0.026 Gray, 1 / 0.066 C, 1 / 0.082 M, 2 / 0.135 Y — INC 1 / 0.105 —, 1 / 0.003 K), and the judge's 11 `bi_*`
-  Doctored renders PASS (max ≤ 2). The 16-bit form is extrapolated, not measured
+- **Blend If's 16-bit form is extrapolated, not measured.** The 8-bit fit (take1) was confirmed by take2 on every
+  channel (the shipped record's Blend If entries); the 16-bit knees are its ×257
   ([#1](https://github.com/kpgalligan/doctored/issues/1)).
-- **Styled CMYK PSDs read back.** Doctored reading Photoshop's case PSDs (take2 judge): 66 of 89 within the bound —
-  every Blend If case now; the bevel MISSES by the shared renderer's bevel geometry, the gradient overlay by up to 14
-  codes, the outer glow on edge pixels (mean ≤ 0.65), and four Normal 50 cases by exactly 1 code on M everywhere.
-  Photoshop reading Doctored's: fixed. The bisect (`cmyk-psd-open-662/take1`, `cmyk_psd_open_take.py`) blamed only the
-  Gradient Map record — a `grdm` body two bytes short of a multiple of 4 failed the whole PSD/PSB and flattened the
-  TIFF; the light resources, `lfx2`/`CMYC`, `iOpa`, `knko`, the ranges, Generic CMYK and the other eight blocks opened.
-  take2 opened every construct and the full styled export layered at psd8/psd16/psb16/tif16, plus RGB psd8/psd16. Its
-  composites, recorded: drop and inner shadow up to 13 codes, inner glow 48 (M) and satin 55 MISS the 2-code bound at
-  the effects' default size (rendering parity, not the `grdm` open failure). These composites were recorded before the
-  shadows' and the Outer Glow's box-pair law (#2 part 2); no number here changes.
-- The rest of [#1](https://github.com/kpgalligan/doctored/issues/1): PDF/X and the Indexed Color PSD (Grayscale,
-  Lab, Indexed Color, Duotone, Bitmap and spot channels closed by their ADRs, Multichannel closed by decision,
-  `designs/multichannel-mode.md`). Spot channels: [spot-channels.md](spot-channels.md).
+- **Styled CMYK PSD composites outside the bound.** Doctored reading Photoshop's case PSDs (take2 judge): 66 of 89
+  within the bound, every Blend If case among them; the bevel MISSES by the shared renderer's bevel geometry, the
+  gradient overlay by up to 14 codes, the outer glow on edge pixels (mean ≤ 0.65), and four Normal 50 cases by exactly
+  1 code on M everywhere. Photoshop's composites of Doctored's files (take2, which opened every construct): drop and
+  inner shadow up to 13 codes, inner glow 48 (M) and satin 55 MISS the 2-code bound at the effects' default size
+  (rendering parity). These composites were recorded before the box-pair law for the shadows and the Outer Glow
+  shipped; no number here changes ([#1](https://github.com/kpgalligan/doctored/issues/1)).
+- The rest of [#1](https://github.com/kpgalligan/doctored/issues/1): PDF/X, CMYK's open items above and spot
+  channels' open items ([spot-channels.md](spot-channels.md)). Grayscale, Lab, Indexed Color, Duotone, Bitmap and spot
+  channels closed by their ADRs; Multichannel closed by decision ([multichannel-mode.md](multichannel-mode.md)).
 
 ## Shipped runs
 
