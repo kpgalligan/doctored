@@ -38,7 +38,7 @@ enum AssistedAnnotation {
     static let rasterizerIdentity = "rz_trimap_strokes/v1"
 
     static let disabledMessage =
-        "Assisted annotation is an internal Phase 9I experiment and is off in this build. "
+        "Assisted annotation is an internal experiment and is off for this launch. "
         + "Launch with DR_ASSISTED_ANNOTATION=1 to enable it."
 
     static var appVersion: String {

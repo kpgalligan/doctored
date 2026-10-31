@@ -191,7 +191,7 @@ def main():
         receipt = drive(client, workspace)
     with instance(args.executable, folder, enabled=False) as client:
         message = client.call("assisted_workspace_status", fail=True, workspace=str(workspace))
-        assert "internal Phase 9I experiment and is off" in message, message
+        assert "internal experiment and is off for this launch" in message, message
         receipt["disabled_message"] = message
     print(json.dumps(receipt, indent=2, sort_keys=True), flush=True)
     return 0
