@@ -16,12 +16,9 @@ mod corpus;
 mod qualification;
 use qualification::alpha_metrics as metrics;
 
-fn refine(
-    source: &RgbaImage,
-    mask: &GrayImage,
-    params: &str,
-    brush: &GrayImage,
-) -> (GrayImage, f64) {
+/// Select and Mask's refine with no area plane: every pixel automatic, as with
+/// no Refine Edge strokes.
+fn refine(source: &RgbaImage, mask: &GrayImage, params: &str) -> (GrayImage, f64) {
     unsafe {
         let source = dr_image_from_rgba(source.as_raw().as_ptr(), source.width(), source.height());
         let mut out = vec![0; mask.as_raw().len()];
@@ -30,7 +27,7 @@ fn refine(
         let ok = dr_selection_refine(
             source,
             mask.as_raw().as_ptr(),
-            brush.as_raw().as_ptr(),
+            ptr::null(),
             CString::new(params).unwrap().as_ptr(),
             out.as_mut_ptr(),
             ptr::null(),
@@ -139,14 +136,7 @@ fn main() {
                         *v = if *v >= 128 { 255 } else { 0 };
                     }
                 }
-                let brush =
-                    GrayImage::from_pixel(truth.width(), truth.height(), image::Luma([255]));
-                let (after, ms) = refine(
-                    &source,
-                    &initial,
-                    r#"{"edge_radius":4,"edge_strength":1}"#,
-                    &brush,
-                );
+                let (after, ms) = refine(&source, &initial, r#"{"edge_radius":4}"#);
                 let before_metrics = metrics(&truth, &initial);
                 let after_metrics = metrics(&truth, &after);
                 // Predeclared gate: no >1/255 boundary MAD regression and retain
@@ -197,19 +187,8 @@ fn main() {
                 "initial mask must contain background and subject"
             );
             assert_eq!(source.dimensions(), initial.dimensions());
-            let brush = GrayImage::from_pixel(source.width(), source.height(), image::Luma([255]));
-            let (after, ms) = refine(
-                &source,
-                &initial,
-                r#"{"edge_radius":4,"edge_strength":1}"#,
-                &brush,
-            );
-            let (manual, manual_ms) = refine(
-                &source,
-                &initial,
-                r#"{"feather":1,"contrast":0.05}"#,
-                &brush,
-            );
+            let (after, ms) = refine(&source, &initial, r#"{"edge_radius":4}"#);
+            let (manual, manual_ms) = refine(&source, &initial, r#"{"feather":1,"contrast":0.05}"#);
             artifacts(
                 root,
                 &format!("photo-{name}"),
@@ -229,7 +208,7 @@ fn main() {
             photographs.push(json!({"case":name,"dimensions":[source.width(),source.height()],"initial":"macOS Vision foreground instance mask","alpha_ground_truth":false,"candidate_ms":ms,"manual_ms":manual_ms,"inspection_crop":crop,"candidate_mean_absolute_change":metrics(&initial,&after)["mad"],"manual_controls":{"feather":1,"contrast":0.05}}));
         }
     }
-    let report = json!({"analytic_passes":passes,"analytic_cases":records.len(),"gate":"no boundary MAD regression above1/255,soft-detail recall>=0.95 on every analytic case plus photographic inspection","edge_aware_enabled":false,"decontamination_enabled":false,"photographic_ground_truth_available":false,"analytic":records,"photographs":photographs});
+    let report = json!({"analytic_passes":passes,"analytic_cases":records.len(),"gate":"no boundary MAD regression above1/255,soft-detail recall>=0.95 on every analytic case plus photographic inspection","edge_stage":"edge_radius 4, automatic area (no Refine Edge strokes)","decontamination":false,"photographic_ground_truth_available":false,"analytic":records,"photographs":photographs});
     std::fs::write(
         root.join("metrics.json"),
         serde_json::to_string_pretty(&report).unwrap() + "\n",

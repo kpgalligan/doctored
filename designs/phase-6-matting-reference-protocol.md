@@ -44,8 +44,9 @@ still reproduces it.
   result); end-to-end (alpha gate + coupled color gate). A refused alpha cannot pass end-to-end; oracle-alpha success
   never substitutes for alpha qualification.
 - **Runner:** `../scripts/phase6_matting_qualification.py` (new output dir outside the repo; verifies pins, records
-  executable hashes, reruns the `phase6_selection_quality` analytic baseline (the guided 12/24 result until
-  `guided_selection.rs` was deleted on 2026-10-11), writes `run.json`, `matting/metrics.json`,
+  executable hashes, reruns the `phase6_selection_quality` analytic baseline and pins it: Select and Mask's
+  shipped refine at `edge_radius` 4 with an automatic area, 11/24, re-pinned 2026-10-31 (the guided candidate's
+  12/24 was the pin until `guided_selection.rs` was deleted on 2026-10-11), writes `run.json`, `matting/metrics.json`,
   `failure-reasons.json`; `--require-pass` fails unless every case passes; `--gate v1|v2`). Diagnostics:
   `../scripts/phase6_matting_diagnostics.py`. Metric tests: `../core/tests/matting_qualification.rs`.
 

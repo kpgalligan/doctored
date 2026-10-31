@@ -19,6 +19,9 @@ import phase6_reference_fixtures as fixtures
 from phase6_matting_diagnostics import summarize as failure_summary
 import phase9i_gate_v2_rescore as rescore
 
+# (cases, passes) of phase6_selection_quality's analytic run of the shipped refine.
+BASELINE=(24,11)
+
 
 def run(binary, arguments, log):
     with log.open("x") as output:
@@ -43,13 +46,15 @@ def main():
     names=["phase6_selection_quality","phase6_matting_quality"]
     binaries={name:{"path":str((args.bin_directory/name).resolve()),"sha256":fixtures.sha256(args.bin_directory/name)} for name in names}
     started=time.time()
-    run(Path(binaries[names[0]]["path"]),[output/"guided-baseline"],output/"guided.log")
+    run(Path(binaries[names[0]]["path"]),[output/"refine-baseline"],output/"refine.log")
     run(Path(binaries[names[1]]["path"]),[output/"matting",args.references.resolve()],output/"matting.log")
-    baseline=json.loads((output/"guided-baseline/metrics.json").read_text())
+    baseline=json.loads((output/"refine-baseline/metrics.json").read_text())
     measured=json.loads((output/"matting/metrics.json").read_text())
-    # This protects the original gate's known result during infrastructure changes.
-    if (baseline["analytic_cases"],baseline["analytic_passes"])!=(24,12):
-        raise ValueError("Original guided24-case result changed; investigate before interpreting new measurements")
+    # Pins Select and Mask's shipped refine (edge_radius 4, automatic area) on the
+    # 24 analytic cases, so an infrastructure change that moves it is caught.
+    if (baseline["analytic_cases"],baseline["analytic_passes"])!=BASELINE:
+        raise ValueError(f"the refine baseline is no longer {BASELINE[1]}/{BASELINE[0]} analytic passes; "
+                         "investigate before interpreting new measurements")
     # Gate v1 demanded 24/24 on both corpora. Gate v2 keeps the same measurements
     # and rescopes the pass rule; the Rust evaluator still records only v1.
     scored=rescore.score_run(output)
@@ -65,7 +70,7 @@ def main():
     # schema_version stays 1 (no reader exists to migrate): from this run on
     # "gate_summaries" carries rescore.gate_report's shape.
     report={"schema_version":1,"seconds":time.time()-started,"binaries":binaries,
-            "archive_sha256":references["archive_sha256"],"baseline":{"cases":24,"passes":12},
+            "archive_sha256":references["archive_sha256"],"baseline":{"cases":BASELINE[0],"passes":BASELINE[1]},
             "analytic":measured["analytic_summary"],"photographic":measured["photo_summary"],
             "gate":args.gate,"gate_summaries":rescore.gate_report(scored["summaries"]),
             "v2_indeterminate":{corpus:row["v2_indeterminate"] for corpus,row in scored["summaries"].items()},
