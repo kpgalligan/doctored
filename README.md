@@ -13,7 +13,9 @@ formerly named Rasterize, and it still opens `.rz` documents.
 Get the latest notarized build:
 **[Doctored.dmg](https://github.com/kpgalligan/doctored/releases/latest/download/Doctored.dmg)**.
 Every release, with its notes, is on the
-[Releases](https://github.com/kpgalligan/doctored/releases) page.
+[Releases](https://github.com/kpgalligan/doctored/releases) page. Releases
+after 0.4.2 update themselves (Doctored ▸ Check for Updates…, and a daily
+check once you allow it); replace 0.4.1 or 0.4.2 by hand once.
 
 Requirements:
 
@@ -136,9 +138,10 @@ private archive `kpgalligan/doctored-dev`. A fixture folder's README or
 ## Releases
 
 Pushing to the `publish` branch builds, signs, notarizes and publishes
-`Doctored.dmg` as a GitHub Release tagged `v<VERSION>.<run number>`
+`Doctored.dmg`, with the signed update feed `appcast.xml` beside it, as a
+GitHub Release tagged `v<VERSION>.<run number>`
 ([`.github/workflows/publish.yml`](.github/workflows/publish.yml), whose header
-lists the signing secrets). Local builds are ad-hoc signed.
+lists the signing secrets). Local builds are ad-hoc signed and have no updater.
 
 ## License
 
@@ -150,4 +153,4 @@ fonts are OFL, the Lensfun lens database is CC BY-SA 3.0, the Sparkle update
 framework is MIT (with the notices in the app's `Acknowledgements.txt`), and a
 downloadable model shows its licence in Settings ▸ Models before it is
 downloaded.
-<!-- readme-swept-to: 1b051ae7e1c45e9e2079a253a2a92aee4bfbbd9f -->
+<!-- readme-swept-to: 9f1a059d345e73d238c1dca4e94a905b3f5d061d -->

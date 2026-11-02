@@ -80,6 +80,22 @@ The design record behind each area is in the repository's
   `background: true` for fill/heal (`heal_stroke` at 8 and 16 bits), `job_status`,
   `cancel_job` and `resource_usage`.
 
+- **Software updates** (Doctored ▸ Check for Updates…): a build downloaded from
+  the Releases page updates itself through Sparkle, starting with the first
+  release after 0.4.2 (0.4.1 and 0.4.2 have no updater, so replace those by
+  hand once). On the second launch it asks whether to check automatically;
+  when allowed it checks once a day. An update is installed when you choose
+  Install Update, or without asking once you tick the alert's option to
+  install updates automatically. Each update is the release's notarized DMG,
+  and its EdDSA signature is checked against the key built into the app before
+  anything is installed. Run the app from `/Applications`: a copy running from
+  the disk image cannot update itself. A build made from source has no
+  updater, and its menu item stays disabled.
+  `defaults write com.kgalligan.Doctored SUEnableAutomaticChecks -bool NO`
+  turns the scheduled check off. An instance the MCP helper opens waits until
+  you first switch to it before it checks, and no MCP tool starts an update,
+  since an install quits the app.
+
 - **Layers**: full layer stack with per-layer opacity, visibility, offsets,
   and the full 27-mode blend set — the separable W3C modes plus
   Dissolve, Vivid/Linear/Pin Light, Hard Mix, Divide, Darker/Lighter Color,
