@@ -73,6 +73,14 @@ nothing listens on the network. The
 [MCP tool reference](public-docs/src/content/docs/reference/mcp-tools.md) lists
 every tool and its arguments.
 
+**Mind the tool count.** The MCP server exposes several hundred tools. A client
+that loads every tool definition up front spends a large share of its context
+on them, so an MCP client without a tool search feature (loading definitions
+on demand) is not practical with Doctored. The tool setup may be reorganized in
+a future version. Until then, keep this in mind before adding the server
+globally: the `--scope user` command above makes it available in every
+session, and leaving out `--scope user` adds it to the current project only.
+
 ## Building from source
 
 Prerequisites:
