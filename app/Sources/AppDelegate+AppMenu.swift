@@ -5,6 +5,8 @@ extension AppDelegate {
         let menu = NSMenu(title: "Doctored")
         menu.addItem(
             item("About Doctored", #selector(NSApplication.orderFrontStandardAboutPanel(_:))))
+        // Enabled only in a launch with an updater (AppUpdater); no key equivalent.
+        menu.addItem(item("Check for Updates…", #selector(checkForUpdates(_:))))
         menu.addItem(.separator())
         // The app menu's standard slot for preferences, on macOS's own ⌘,.
         menu.addItem(item("Settings…", #selector(showSettings(_:)), ","))

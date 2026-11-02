@@ -1,9 +1,10 @@
 APP := Doctored
 BUILD_DIR := build
 APP_PATH := $(BUILD_DIR)/Build/Products/Release/$(APP).app
+DIST_PATH := $(BUILD_DIR)/Build/Products/Distribution/$(APP).app
 
 .PHONY: all app app-debug rust test t test-serial gate cancel-bench lint typecheck project run clean \
-	agent-test prices mcp-test
+	agent-test prices mcp-test dist release-check
 
 all: app
 
@@ -131,6 +132,23 @@ DEBUG_XCFLAGS := COMPILER_INDEX_STORE_ENABLE=NO ENABLE_DEBUG_DYLIB=NO
 app-debug: rust project
 	xcodebuild -project $(APP).xcodeproj -scheme $(APP) -configuration Debug \
 		-derivedDataPath $(BUILD_DIR) $(DEBUG_XCFLAGS) build
+
+# The Distribution configuration the publish workflow archives (Release plus Sparkle,
+# designs/sparkle-updates.md), ad-hoc signed beside Release's product and never launched
+# as built; then scripts/updater_check.py over both (its D9 launches only a scratch copy
+# re-signed without the runtime, under automation) and its mutation cases, both run even
+# when the first fails. Run it after `make gate` passes, never while a gate runs: it
+# rebuilds Release first. DIST_ARGS passes extra build settings to xcodebuild.
+dist: app
+	xcodebuild -project $(APP).xcodeproj -scheme $(APP) -configuration Distribution \
+		-derivedDataPath $(BUILD_DIR) $(DIST_ARGS) build
+	rc=0; python3 scripts/updater_check.py dist --release "$(APP_PATH)" --dist "$(DIST_PATH)" || rc=1; \
+	python3 scripts/updater_check.py mutants --release "$(APP_PATH)" --dist "$(DIST_PATH)" || rc=1; exit $$rc
+
+# The release tooling's own checks; no build, no network, no key.
+release-check:
+	python3 scripts/appcast.py --selftest
+	python3 scripts/updater_check.py --selftest
 
 # Fast compile check of the Swift sources without a full Xcode build.
 typecheck:

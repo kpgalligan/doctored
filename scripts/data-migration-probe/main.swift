@@ -145,28 +145,29 @@ do {
     defaults.removePersistentDomain(forName: newSuite)
 }
 
-// 7. Automation launches skip the migration.
+// 7. Automation launches skip the migration: `AutomationLaunch.isAutomation`, the broad test
+// `runAtLaunch` asks first (and `AppUpdater` too).
 do {
     let path = "/probe-home/Library/Application Support/Doctored/Agent/agent.sock"
     for key in ["DR_BACKGROUND", "DR_AUTOMATION_ALERTS"] {
-        report(DataMigration.isAutomationLaunch([key: "1"], defaultSocketPath: path), "automation: \(key)")
+        report(AutomationLaunch.isAutomation([key: "1"], defaultSocketPath: path), "automation: \(key)")
     }
-    report(DataMigration.isAutomationLaunch(["DR_AGENT_SOCKET": "/tmp/s/agent.sock"], defaultSocketPath: path),
+    report(AutomationLaunch.isAutomation(["DR_AGENT_SOCKET": "/tmp/s/agent.sock"], defaultSocketPath: path),
            "automation: a scratch DR_AGENT_SOCKET")
-    report(!DataMigration.isAutomationLaunch([:], defaultSocketPath: path), "an ordinary launch migrates")
-    report(!DataMigration.isAutomationLaunch(["DR_AGENT_SOCKET": path], defaultSocketPath: path),
+    report(!AutomationLaunch.isAutomation([:], defaultSocketPath: path), "an ordinary launch migrates")
+    report(!AutomationLaunch.isAutomation(["DR_AGENT_SOCKET": path], defaultSocketPath: path),
            "the default socket is not automation")
-    report(!DataMigration.isAutomationLaunch(["DR_BACKGROUND": ""], defaultSocketPath: path),
+    report(!AutomationLaunch.isAutomation(["DR_BACKGROUND": ""], defaultSocketPath: path),
            "an empty variable is not automation")
     // The pre-rename spellings: an old script's RZ_* still marks automation,
     // whichever variable it is, so it can never migrate the owner's folder.
     for key in ["RZ_BACKGROUND", "RZ_AUTOMATION_ALERTS", "RZ_AGENT_SOCKET", "RZ_ACTIONS_DIR"] {
-        report(DataMigration.isAutomationLaunch([key: "1"], defaultSocketPath: path),
+        report(AutomationLaunch.isAutomation([key: "1"], defaultSocketPath: path),
                "automation: legacy \(key)")
     }
-    report(DataMigration.isAutomationLaunch(["RZ_AGENT_SOCKET": path], defaultSocketPath: path),
+    report(AutomationLaunch.isAutomation(["RZ_AGENT_SOCKET": path], defaultSocketPath: path),
            "automation: a legacy RZ_AGENT_SOCKET even at the default path")
-    report(!DataMigration.isAutomationLaunch(["RZ_BACKGROUND": ""], defaultSocketPath: path),
+    report(!AutomationLaunch.isAutomation(["RZ_BACKGROUND": ""], defaultSocketPath: path),
            "an empty legacy variable is not automation")
 }
 

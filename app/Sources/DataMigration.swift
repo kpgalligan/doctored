@@ -11,9 +11,9 @@ import Foundation
 /// behind `markerKey`. A library folder a later feature rename renamed moves
 /// the same way, once, unless its new folder already exists (`moveRenamedFolder`
 /// below). It never deletes the old domain, and it never runs in
-/// an automation launch, so no test, drive or gate step can touch the
-/// owner's real folders or domains: they call `migrate` with scratch
-/// folders and suite names only.
+/// an automation launch (`AutomationLaunch`), so no test, drive or gate step
+/// can touch the owner's real folders or domains: they call `migrate` with
+/// scratch folders and suite names only.
 enum DataMigration {
     struct Outcome: Equatable {
         var movedFolder: Bool
@@ -22,25 +22,6 @@ enum DataMigration {
 
     /// Set in the new domain once its keys have been copied.
     static let markerKey = "DoctoredMigratedFromRasterize"
-
-    /// True for a launch a script or probe owns: `DR_BACKGROUND` or
-    /// `DR_AUTOMATION_ALERTS` set, or an agent socket other than the default.
-    /// Any non-empty variable with the pre-rename `RZ_` prefix counts too: the
-    /// app reads none of them, but a script written before the rename still
-    /// sets them, and it must never migrate the owner's folder.
-    static func isAutomationLaunch(_ environment: [String: String],
-                                   defaultSocketPath: String?) -> Bool {
-        if environment.contains(where: { $0.key.hasPrefix("RZ_") && !$0.value.isEmpty }) {
-            return true
-        }
-        if environment["DR_BACKGROUND"]?.isEmpty == false { return true }
-        if environment["DR_AUTOMATION_ALERTS"]?.isEmpty == false { return true }
-        if let socket = environment[AgentServer.socketEnvironmentKey], !socket.isEmpty,
-           socket != defaultSocketPath {
-            return true
-        }
-        return false
-    }
 
     /// Moves `oldFolder` to `newFolder` when only the old one holds data,
     /// then copies `oldDomain`'s keys `newDomain` lacks, once. A failure is
@@ -114,10 +95,7 @@ enum DataMigration {
 
     /// The launch-time call (`main.swift`): skipped for an automation launch.
     static func runAtLaunch() {
-        if isAutomationLaunch(ProcessInfo.processInfo.environment,
-                              defaultSocketPath: AgentServer.defaultSocketPath) {
-            return
-        }
+        if AutomationLaunch.isCurrent { return }
         guard let support = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
         let doctored = support.appendingPathComponent("Doctored", isDirectory: true)

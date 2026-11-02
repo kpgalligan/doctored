@@ -713,6 +713,8 @@ fn open_arguments_for_a_scratch_socket_and_the_persons() {
             "/tmp/x/Doctored.app",
             "--args",
             "-ApplePersistenceIgnoreState",
+            "YES",
+            "-DRMCPHelperLaunch",
             "YES"
         ]
     );
@@ -720,7 +722,17 @@ fn open_arguments_for_a_scratch_socket_and_the_persons() {
         .into_iter()
         .map(|a| a.into_string().expect("UTF-8"))
         .collect();
-    assert_eq!(persons, ["-n", "-g", "/tmp/x/Doctored.app"]);
+    assert_eq!(
+        persons,
+        [
+            "-n",
+            "-g",
+            "/tmp/x/Doctored.app",
+            "--args",
+            "-DRMCPHelperLaunch",
+            "YES"
+        ]
+    );
 }
 
 #[test]
@@ -749,6 +761,7 @@ fn a_scratch_launch_forwards_the_environment_and_arguments() {
         "ANTHROPIC_API_KEY=dummy",
         "-ApplePersistenceIgnoreState",
         "YES",
+        "-DRMCPHelperLaunch",
     ];
     let record = fixture.launch_record();
     let holds_all = || {

@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationDidFinishLaunching(_ notification: Notification) {
         RecoveryCoordinator.shared.start()
         AgentServer.shared.bindSocket()
+        AppUpdater.startIfEligible()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -162,6 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // used to grey itself out with a document plainly open behind it.
             return last != nil && ActionPlayer.frontDocument() != nil
         }
+        if item.action == #selector(checkForUpdates(_:)) { return validateUpdatesItem(item) }
         return true
     }
 

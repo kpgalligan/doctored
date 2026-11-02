@@ -5,6 +5,29 @@ options:
     macOS: "15.0"
   createIntermediateGroups: true
 
+# Distribution is the configuration the publish workflow archives: Release plus the
+# updater (designs/sparkle-updates.md). Debug and Release are what runs locally
+# (make app-debug, make app, make run, the gate's launch, every drive, Xcode's Run).
+# Distribution is built only by `make dist` and the workflow and is never launched as
+# built here: an ad-hoc, hardened-runtime build cannot load the ad-hoc Sparkle.framework.
+# The one local launch is scripts/updater_check.py D9's scratch copy, re-signed without
+# the runtime, under automation.
+configs:
+  Debug: debug
+  Release: release
+  Distribution: release
+
+# Sparkle 2, the published build's updater. xcodegen links a package per target, not
+# per configuration, so Sparkle.framework is embedded in every configuration and loaded
+# only by Distribution, the one configuration that compiles code naming it (DR_UPDATER
+# below); `-dead_strip_dylibs` drops its load command everywhere else. The pin lives
+# here because Package.resolved would sit inside the ignored Doctored.xcodeproj. The
+# first build fetches it over the network into build/SourcePackages.
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: "2.10.1"
+
 targets:
   Doctored:
     type: application
@@ -15,12 +38,17 @@ targets:
       - path: app/Resources/Fonts
         type: folder
         buildPhase: resources
-      # The Lensfun lens database credit (CC BY-SA 3.0, v1-lensfun): Credits.html is what the
-      # standard About panel shows; Acknowledgements.txt holds the full notice.
+      # The credits for the Lensfun lens database (CC BY-SA 3.0, v1-lensfun) and the Sparkle
+      # update framework (MIT, with the external notices it carries; embedded in every
+      # configuration): Credits.html is what the standard About panel shows;
+      # Acknowledgements.txt holds the full notices.
       - path: app/Resources/Credits.html
         buildPhase: resources
       - path: app/Resources/Acknowledgements.txt
         buildPhase: resources
+    # Embedded in every configuration, loaded only by Distribution (packages: above).
+    dependencies:
+      - package: Sparkle
     settings:
       base:
         PRODUCT_NAME: Doctored
@@ -35,6 +63,14 @@ targets:
           - $(PROJECT_DIR)/core/target/release
         OTHER_LDFLAGS:
           - -ldoctored_core
+          # Drops the load command of every dylib the binary references nothing from.
+          # Sparkle is linked in every configuration but referenced only under DR_UPDATER,
+          # so Debug and Release carry no Sparkle load command; loaded there, dyld would
+          # refuse the ad-hoc framework under library validation ("different Team IDs")
+          # and the app could not launch. Distribution's other loads stay Release's
+          # (scripts/updater_check.py D6).
+          - -Xlinker
+          - -dead_strip_dylibs
         ENABLE_USER_SCRIPT_SANDBOXING: "NO"
         ENABLE_HARDENED_RUNTIME: "YES"
         CODE_SIGN_IDENTITY: "-"
@@ -52,6 +88,15 @@ targets:
           # Xcode 26 splits a Debug executable into a stub and __preview.dylib,
           # and Write Agent Catalog's `codesign -s - -f "$exe"` fails on the split.
           ENABLE_DEBUG_DYLIB: "NO"
+        # The build that ships (designs/sparkle-updates.md): AppUpdater.swift's Sparkle code
+        # compiles only under DR_UPDATER, and Info.plist reads the feed and the EdDSA public
+        # key through `:default=`, so Debug and Release hold neither. The feed URL never
+        # changes: every installed copy reads it. The public key is the one Frame Job's
+        # updater uses (one key, two apps); its private half is the owner's alone.
+        Distribution:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) DR_UPDATER"
+          DR_SPARKLE_FEED_URL: https://github.com/kpgalligan/doctored/releases/latest/download/appcast.xml
+          DR_SPARKLE_PUBLIC_KEY: "v0qZeH0YUq+E1zznO2RjbaKZcIMuKSWM1hfEAuz7otI="
     info:
       path: app/Info.plist
       properties:
@@ -65,6 +110,11 @@ targets:
         NSHighResolutionCapable: true
         ATSApplicationFontsPath: Fonts
         NSHumanReadableCopyright: ""
+        # Sparkle's feed and EdDSA public key: Distribution's alone, empty strings in
+        # Debug and Release. No SUEnableAutomaticChecks or SUAutomaticallyUpdate: Sparkle's
+        # own defaults (it asks on the second launch and never installs without asking).
+        SUFeedURL: "$(DR_SPARKLE_FEED_URL:default=)"
+        SUPublicEDKey: "$(DR_SPARKLE_PUBLIC_KEY:default=)"
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: com.kgalligan.doctored-snapshot
             UTTypeDescription: Doctored Snapshot
@@ -315,3 +365,6 @@ schemes:
         Doctored: all
     run:
       config: Release
+    # The publish workflow archives Distribution (configs: above); `make dist` builds it.
+    archive:
+      config: Distribution

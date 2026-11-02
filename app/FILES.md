@@ -70,7 +70,7 @@ Detail belongs in the source file's own header comment.
 - `EditorViewController+<Feature>.swift`, `AgentServer+<Feature>.swift`, `DoctoredCore+<Area>.swift`, `AgentCatalog+<Area>.swift`, a new `…SheetController` — frozen-six changes over ~50 lines go here.
 - `EditorViewController+DisplayLifecycle.swift` — clears canvas preview/provider references and redraws the backing display on the window's actual will-close notification.
 - `main.swift` — the entry point: the catalog snapshot when asked (`-DRWriteCatalog`), `DataMigration`, then `AppDelegate` and `NSApplicationMain`.
-- `AppDelegate.swift` — launch (working limit, Working CMYK, automation alerts, background policy, menus), the welcome window, New, New from Clipboard, working space, Automate, `buildMainMenu()`.
+- `AppDelegate.swift` — launch (limit, Working CMYK, alerts, background policy, menus; recovery, socket, updater), welcome window, New, New from Clipboard, working space, Automate, `buildMainMenu()`.
 - `EditorWindowController.swift` — the document window: `EditorWindowController` (which view of its document it is: 1, or 2 for New View) and `EditorWindow` (unconsumed Esc goes to `JobEscape`).
 - `FileDropView.swift` — the editor and welcome windows' root view: image files dragged in from Finder open as documents.
 - `ModalCardWindowController.swift` — an app-modal window hosting one `makeSheetView` card, for a dialog that runs with no window to hang a sheet from.
@@ -288,7 +288,7 @@ Detail belongs in the source file's own header comment.
 - `RecoveryCapacity.swift` — `RecoveryCapacity`: a recovery reopen's decode and projection charged as max(), not a sum; a refused checkpoint shows "Recovery off".
 - `EditorViewController+Recovery.swift` — the status bar's "Recovery off" segment: shown while this document's latest crash-recovery attempt failed, the reason as its tooltip.
 - `DurableFile.swift` — the app's one flush policy for published files, the twin of the core's `durable_file.rs`; `publish` is the only way a save, export, snapshot or package is published.
-- `DataMigration.swift` — first ordinary launch: Rasterize → Doctored folder, old defaults copied once, Camera Raw Filter Presets → Develop Filter Presets; never under automation.
+- `DataMigration.swift` — first ordinary launch: Rasterize → Doctored folder, old defaults copied once, Camera Raw Filter Presets → Develop Filter Presets; never under automation (`AutomationLaunch`).
 - `LegacyNames.swift` — old → new names of renamed features (Action step tools, filter ops, shortcut identities, the preset key); read only from persisted files.
 - `SideFileExtensions.swift` — `SideFileExtension`: the snapshot, action bundle, clipboard payload and RAW mask extensions; writers use `current` (`.dr*`), readers also take `legacy` (`.rz*`).
 - `CapturedSave.swift` / `PreparedDocumentEdit.swift` — immutable save source/settings and precomputed final projection.
@@ -430,6 +430,7 @@ Detail belongs in the source file's own header comment.
 - `EditorWindowMemory.swift` — the frame and panel layout a new editor window reopens with (`UserDefaults`; never read or written under automation).
 - `Shortcuts.swift` / `ShortcutsSheetController.swift` / `AppDelegate+Shortcuts.swift` / `AgentServer+Workspace.swift` — customizable SHORTCUTS; the workspace and view MCP tools.
 - `AppDelegate+AppMenu.swift` — the Doctored (app) menu builder. `AppDelegate.buildMainMenu()` orders the top-level menus.
+- `AppDelegate+Updates.swift` — Doctored ▸ Check for Updates…: the nil-target action and `validateUpdatesItem`; in every build, enabled only when this launch has an updater.
 - `AppDelegate+FileMenu.swift` — the File menu builder. `AppDelegate.buildMainMenu()` orders the top-level menus.
 - `AppDelegate+EditMenu.swift` — the Edit menu builder. `AppDelegate.buildMainMenu()` orders the top-level menus.
 - `AppDelegate+ImageMenu.swift` — the Image menu with its Adjustments, Mode, Working Space and Channels submenus. `AppDelegate.buildMainMenu()` orders the top-level menus.
@@ -536,6 +537,8 @@ Detail belongs in the source file's own header comment.
 - `BackgroundLaunch.swift` — the `DR_BACKGROUND=1` switch. A new launch- or MCP-reachable window presentation goes through it.
 - `WelcomeWindowController.swift` — the no-document window: app icon, "Fixing Pixels.", Open…/New Document…/New from Clipboard, file drop (`FileDropView`); closes once a document is main.
 - `AutomationAlerts.swift` — automated-run alert hook, installed first in `applicationWillFinishLaunching` under `DR_BACKGROUND=1` or `DR_AUTOMATION_ALERTS=record`. Alert call sites need no change.
+- `AutomationLaunch.swift` — the broad automation-launch test (`DR_BACKGROUND`, `DR_AUTOMATION_ALERTS`, a scratch socket, any `RZ_*`), read by `DataMigration` and `AppUpdater`.
+- `AppUpdater.swift` — Sparkle, Distribution's alone (`#if DR_UPDATER`): who gets an updater (`availability`), its start and Check for Updates…; never under automation.
 - `SessionCommitRefusal.swift` / `AgentServer+PendingSessions.swift` — the agent twin of the save/export session guard.
 - `AgentServer+PendingSessions.swift` — every MCP writer calls `commitPendingCanvasSessions(document)` right after `target(a)`.
 - `MoveSelectedPixels.swift` / `EditorViewController+MoveSelected.swift` / `ImageCanvasView+MoveSelected.swift` — Move Selected Pixels.

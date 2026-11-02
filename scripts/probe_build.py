@@ -96,6 +96,7 @@ PROBE_SETS: dict[str, ProbeSet] = {
         _listed("selected-tone-probe", "main.swift", "info.swift", "adjustment_dialogs.swift")),
     "selection-history-probe": ProbeSet(None),
     "selection-probe": ProbeSet(None),
+    "updater-probe": ProbeSet(_listed("updater-probe", "main.swift")),
 }
 
 # Directories under scripts/ whose Swift is never compiled with the app.

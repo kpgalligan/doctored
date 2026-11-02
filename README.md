@@ -91,7 +91,8 @@ Prerequisites:
 - [Bun](https://bun.sh), which builds the assistant's helper
 - Python 3, for the test and check scripts
 
-The first build needs the network for the Rust crates and `bun install`.
+The first build needs the network for the Rust crates, `bun install` and the
+Sparkle Swift package.
 
 ```sh
 make app-debug  # Debug build → build/Build/Products/Debug/Doctored.app
@@ -145,6 +146,8 @@ Copyright 2026 Kevin Galligan.
 
 Doctored is licensed under the Apache License, Version 2.0; the full text is in
 [`LICENSE`](LICENSE). Bundled third-party material keeps its own licence: the
-fonts are OFL, the Lensfun lens database is CC BY-SA 3.0, and a downloadable
-model shows its licence in Settings ▸ Models before it is downloaded.
+fonts are OFL, the Lensfun lens database is CC BY-SA 3.0, the Sparkle update
+framework is MIT (with the notices in the app's `Acknowledgements.txt`), and a
+downloadable model shows its licence in Settings ▸ Models before it is
+downloaded.
 <!-- readme-swept-to: 1b051ae7e1c45e9e2079a253a2a92aee4bfbbd9f -->

@@ -15,6 +15,13 @@
 //! `-ApplePersistenceIgnoreState YES` and its stderr written to
 //! `doctored-launch.log` beside the socket; the person's own socket gets
 //! none of these, so their Doctored opens as theirs.
+//!
+//! **The launch marker.** Every launch, scratch or the person's, ends
+//! `--args … -DRMCPHelperLaunch YES` (`HELPER_LAUNCH_ARGUMENT`): it tells the
+//! app that no person opened it, so its updater (`AppUpdater`) waits for the
+//! first activation instead of asking anything of an instance nobody is
+//! looking at. The person's socket gets `-n -g <bundle> --args
+//! -DRMCPHelperLaunch YES` and nothing else.
 
 use std::ffi::OsString;
 use std::fs::{DirBuilder, OpenOptions};
@@ -37,6 +44,10 @@ pub const LAUNCH_LOG_NAME: &str = "doctored-launch.log";
 pub const TIMEOUT_OPENING: &str = "Doctored did not answer at ";
 /// How often the wait asks the socket.
 const POLL: Duration = Duration::from_millis(50);
+/// Appended with `YES` to every launch's arguments: the app's
+/// `AppUpdater.helperLaunchArgument`, which defers its updater until a person
+/// first activates the instance.
+pub const HELPER_LAUNCH_ARGUMENT: &str = "-DRMCPHelperLaunch";
 
 /// A positive whole number of seconds in `DR_MCP_LAUNCH_WAIT`, else 60 s.
 pub fn launch_wait() -> Duration {
@@ -67,7 +78,10 @@ pub fn forwarded_environment() -> Vec<(OsString, OsString)> {
 /// The `/usr/bin/open` arguments that launch `bundle` for `socket`. Pure.
 /// A scratch launch passes `DR_AGENT_SOCKET` first, then one `--env
 /// NAME=VALUE` per `forwarded` pair in order (any `DR_AGENT_SOCKET` among
-/// them skipped); the person's socket gets `-n -g <bundle>` only.
+/// them skipped), and `-ApplePersistenceIgnoreState YES` after `--args`;
+/// the person's socket gets `-n -g <bundle> --args -DRMCPHelperLaunch YES`
+/// only. Both end with `HELPER_LAUNCH_ARGUMENT YES`: no person opened the
+/// instance, so its updater waits for the first activation.
 pub fn open_arguments(
     bundle: &Path,
     socket: &Path,
@@ -95,11 +109,13 @@ pub fn open_arguments(
         arguments.push(folder.join(LAUNCH_LOG_NAME).into_os_string());
     }
     arguments.push(bundle.as_os_str().to_os_string());
+    arguments.push("--args".into());
     if scratch {
-        arguments.push("--args".into());
         arguments.push("-ApplePersistenceIgnoreState".into());
         arguments.push("YES".into());
     }
+    arguments.push(HELPER_LAUNCH_ARGUMENT.into());
+    arguments.push("YES".into());
     arguments
 }
 

@@ -19,7 +19,8 @@ One line per file; each file's `//!` doc and item docs hold its detail.
 - `socket.rs` — `socket_path`, `is_scratch`, `reach` and `post` (one `POST /mcp`,
   its body read by `Content-Length` or chunked).
 - `launch.rs` — `ensure_running`: the locked launch of its own bundle and the poll
-  until the socket answers or `launch_wait()` ends.
+  until the socket answers or `launch_wait()` ends; `open_arguments`, with the
+  launch marker `HELPER_LAUNCH_ARGUMENT`.
 - `bundle.rs` — `own_bundle` and `read_snapshot`, the catalog snapshot the build writes.
 
 ## Rules
@@ -29,6 +30,11 @@ One line per file; each file's `//!` doc and item docs hold its detail.
 - **The launch lock is held until the poll ends**, so a second helper's re-check
   finds the first one's instance. **No read timeout on a forwarded call** (a save
   may take minutes); only the session's `tools/list` passes `LIST_READ_TIMEOUT`.
+- **Every launch ends `--args … -DRMCPHelperLaunch YES`** (`HELPER_LAUNCH_ARGUMENT`,
+  the app's `AppUpdater.helperLaunchArgument`): no person opened the instance, so
+  a published build's updater waits for the first activation. The person's socket
+  gets `-n -g <bundle> --args -DRMCPHelperLaunch YES` and nothing else
+  (`designs/sparkle-updates.md`).
 - **A helper launches only its OWN bundle**; outside one a call answers the
   sentence naming the executable. `#![forbid(unsafe_code)]` stays in `lib.rs` and
   `main.rs`; every `src/` file stays under 400 lines. Dependencies: `serde_json` and `std`; dev `tiny_http`

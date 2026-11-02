@@ -1,18 +1,26 @@
 #!/usr/bin/env python3
 """The one Full verification command: locked, input-hashed, timed.
 
-Steps: `wait`, `docs`, `fmt`, `core-build`, then the Rust leg (`clippy`,
-`tests`, `mcp-tests`) beside the Swift leg (`app`, `launch`), then `probes`.
-`docs` is `scripts/check_docs.py` and runs every time. `fmt` checks both crates
-(`core/` and the `doctored-mcp` helper's `mcp-proxy/`). `clippy` is `make
-lint`: `scripts/check_layers.py`, then cargo clippy on both crates.
+Steps: `wait`, `docs`, `release`, `fmt`, `core-build`, then the Rust leg
+(`clippy`, `tests`, `mcp-tests`) beside the Swift leg (`app`, `launch`), then
+`probes`. `docs` is `scripts/check_docs.py` and `release` is `make
+release-check` (the release tools' selftests: `scripts/appcast.py` and
+`scripts/updater_check.py`, about a second); both run every time. `fmt` checks
+both crates (`core/` and the `doctored-mcp` helper's `mcp-proxy/`). `clippy` is
+`make lint`: `scripts/check_layers.py`, then cargo clippy on both crates.
 `mcp-tests` is `make mcp-test`, the helper's own suite. `launch` starts the
-Release app on a scratch `DR_AGENT_SOCKET` (`mcp_client.scratch_socket`) and
-passes when `tools/list` answers over it, the bundle holds an executable
-`Contents/Helpers/doctored-mcp`, and the bundle's
+Release app on a scratch `DR_AGENT_SOCKET` (`mcp_client.scratch_socket`), with
+`verification_isolation.owned_environment`, and passes when `tools/list`
+answers over it, the bundle holds an executable
+`Contents/Helpers/doctored-mcp`, the bundle's
 `Contents/Resources/agent-catalog.json` lists the same tools as the live
-answer, compared as JSON values. A leg whose inputs hash to the value stored
-at its last pass is skipped. `probes` type-checks, through
+answer, compared as JSON values, and the Release bundle passes the updater
+check's rows R1–R5 (`updater_check.release_failures`: Sparkle.framework is
+embedded but not loaded, the feed and key are empty, the updater class is
+absent, the seal verifies), which proves Release launches with Sparkle embedded
+and not loaded. An `--app` override is any executable and is not held to
+R1–R5. A leg whose inputs hash to the value stored at its last pass is
+skipped. `probes` type-checks, through
 `scripts/probe_build.py --typecheck`, each probe set whose directory under
 `scripts/` has uncommitted changes or whose last type check failed, and fails
 on a `scripts/` directory that holds Swift and is not registered in
@@ -27,7 +35,7 @@ path resolves inside it; a nested worktree is another checkout, and a process
 whose working directory cannot be read counts, to stay safe.
 
 Standard library only; from `scripts/` it imports `app_under_test`,
-`mcp_client`, `probe_build` and `verification_isolation`.
+`mcp_client`, `probe_build`, `updater_check` and `verification_isolation`.
 """
 
 from __future__ import annotations
@@ -51,7 +59,8 @@ from pathlib import Path
 import app_under_test
 import mcp_client
 import probe_build
-from verification_isolation import preset_environment
+import updater_check
+from verification_isolation import owned_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT / "core"
@@ -63,12 +72,13 @@ TIMES = BUILD / "gate-times.tsv"
 TESTS_SUMMARY = LOGS / "tests.json"
 LIBRARY = CORE / "target/release/libdoctored_core.a"
 
-STEPS = ("wait", "docs", "fmt", "core-build", "clippy", "tests", "mcp-tests", "app", "launch", "probes")
+STEPS = ("wait", "docs", "release", "fmt", "core-build", "clippy", "tests", "mcp-tests", "app", "launch",
+         "probes")
 RUST_INPUTS = ("core/", "mcp-proxy/", "scripts/run_tests.py", "scripts/gate.py", "Makefile",
                "scripts/check_layers.py")
 SWIFT_INPUTS = ("app/", "agent/", "mcp-proxy/", "core/include/doctored_core.h", "project.yml", "Makefile",
                 "VERSION", "scripts/gate.py", "scripts/app_under_test.py", "scripts/verification_isolation.py",
-                "scripts/mcp_client.py")
+                "scripts/mcp_client.py", "scripts/updater_check.py")
 MCP_HELPER = "Contents/Helpers/doctored-mcp"
 CATALOG_SNAPSHOT = "Contents/Resources/agent-catalog.json"
 BUILD_TOOLS = ("cargo", "rustc", "clippy-driver", "xcodebuild")
@@ -264,9 +274,10 @@ def tools_listed(client: mcp_client.Client) -> list:
     return tools
 
 
-def bundle_failure(executable: Path, live: list) -> str | None:
-    """Why the bundle around `executable` is incomplete, else None: the helper must be executable and the
-    catalog snapshot must list the live tools, compared as JSON values (key order differs between processes)."""
+def bundle_failure(executable: Path, live: list, release_bundle: bool) -> str | None:
+    """Why the bundle around `executable` is incomplete, else None: the helper must be executable, the
+    catalog snapshot must list the live tools, compared as JSON values (key order differs between processes),
+    and, for the Release bundle alone, the updater check's rows R1–R5 must pass."""
     bundle = executable.resolve().parents[2]
     helper = bundle / MCP_HELPER
     if not os.access(helper, os.X_OK):
@@ -278,10 +289,16 @@ def bundle_failure(executable: Path, live: list) -> str | None:
         return f"could not read the tools of {snapshot}: {type(error).__name__}: {error}"
     if tools != live:
         return f"{snapshot} lists {len(tools)} tools that differ from the live {len(live)}"
+    if release_bundle:
+        failures = updater_check.release_failures(bundle)
+        if failures:
+            return "; ".join(failures)
     return None
 
 
-def launch(executable: Path) -> int:
+def launch(executable: Path, release_bundle: bool) -> int:
+    """Start `executable` as an owned instance and judge it (`bundle_failure`); `release_bundle` holds the
+    bundle to R1–R5, which an `--app` override is not."""
     started = time.monotonic()
     agent_socket = mcp_client.scratch_socket("rz-gate-")
     client = mcp_client.Client(agent_socket)
@@ -289,10 +306,7 @@ def launch(executable: Path) -> int:
     with tempfile.TemporaryDirectory(prefix="rz-gate-", ignore_cleanup_errors=True) as scratch, \
             log_path("launch").open("wb") as log:
         folder = Path(scratch)
-        env = dict(os.environ, DR_BACKGROUND="1", DR_AGENT_SOCKET=str(agent_socket), ANTHROPIC_API_KEY="dummy",
-                   DR_AUTOMATION_ALERTS="record", DR_WORKING_LIMIT_BYTES="2147483648",
-                   DR_ACTIONS_DIR=str(folder / "actions"), DR_RECOVERY_DIR=str(folder / "recovery"),
-                   **preset_environment(folder))
+        env = dict(os.environ, **owned_environment(folder, agent_socket))
         log.write(f"launch: {executable} on {agent_socket}\n".encode())
         log.flush()
         try:
@@ -316,12 +330,13 @@ def launch(executable: Path) -> int:
                             http.client.HTTPException) as error:
                         last = f"{type(error).__name__}: {error}"
                     else:
-                        incomplete = bundle_failure(executable, live)
+                        incomplete = bundle_failure(executable, live, release_bundle)
                         if incomplete is None:
                             code = 0
                             verdict = (f"tools/list answered with {len(live)} tools after "
                                        f"{time.monotonic() - started:.1f} s; the helper and the catalog "
-                                       "snapshot match")
+                                       "snapshot match"
+                                       + ("; R1–R5 pass" if release_bundle else ""))
                         else:
                             verdict = f"error: {incomplete}"
                         break
@@ -365,7 +380,8 @@ def swift_leg(run_it: bool, wanted: str, app: Path | None) -> None:
     if run("app", ["make", "app"], ROOT) != 0:
         skip("launch", "the app build failed")
         return
-    launched = launch(app if app is not None else app_under_test.RELEASE_APP / app_under_test.EXECUTABLE_IN_BUNDLE)
+    launched = launch(app if app is not None else app_under_test.RELEASE_APP / app_under_test.EXECUTABLE_IN_BUNDLE,
+                      release_bundle=app is None)
     if launched == 0 and app is None:
         store("swift", wanted)
 
@@ -468,9 +484,10 @@ def main() -> int:
 
 
 def gate() -> int:
-    parser = argparse.ArgumentParser(description="Run the docs check, fmt, the core build, clippy, the whole "
-                                                 "suite, the doctored-mcp suite, the Release app build, a launch "
-                                                 "over a scratch socket and the probes step (a "
+    parser = argparse.ArgumentParser(description="Run the docs check, the release tools' selftests, fmt, the "
+                                                 "core build, clippy, the whole suite, the doctored-mcp suite, "
+                                                 "the Release app build, a launch over a scratch socket with the "
+                                                 "Release bundle's updater check (R1–R5) and the probes step (a "
                                                  "type check of each changed probe directory); skip a leg whose "
                                                  "inputs are unchanged since its last pass.")
     parser.add_argument("--force", action="store_true",
@@ -482,7 +499,8 @@ def gate() -> int:
                              "default 120")
     parser.add_argument("--app", type=Path, metavar="EXECUTABLE",
                         help="executable the launch step starts instead of the Release app; "
-                             "a Swift pass is then not stored")
+                             "a Swift pass is then not stored, and the updater check's rows R1–R5 apply "
+                             "only to the Release bundle, so they are not run")
     args = parser.parse_args()
 
     started = time.monotonic()
@@ -511,6 +529,7 @@ def gate() -> int:
                                 "builds\n")
     record("wait", 0, time.monotonic() - started)
     run("docs", ["python3", "scripts/check_docs.py"], ROOT)
+    run("release", ["make", "release-check"], ROOT)
 
     state = {} if args.force else read_state()
     rust_wanted = input_hash(RUST_INPUTS)

@@ -2,7 +2,8 @@
 
 Standard library only, and it imports nothing from `scripts/` (the rule
 `verification_isolation` follows). `DR_VERIFY_APP` selects another app, a
-bundle or an executable; `DR_ALLOW_STALE_APP=1` skips the freshness check.
+bundle or an executable; `DR_ALLOW_STALE_APP=1` skips the freshness check,
+never the refusal of a Distribution build.
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DEBUG_APP = ROOT / "build/Build/Products/Debug/Doctored.app"
 RELEASE_APP = ROOT / "build/Build/Products/Release/Doctored.app"
 EXECUTABLE_IN_BUNDLE = "Contents/MacOS/Doctored"
+# `make dist`'s products: the shipping configuration, which no drive may launch.
+DISTRIBUTION_PRODUCTS = "/Build/Products/Distribution/"
 
 
 def default_app_bundle() -> Path:
@@ -43,7 +46,15 @@ def _inputs():
 
 
 def require_fresh_app(executable: str | os.PathLike) -> None:
-    """Exit unless `executable` is at least as new as everything it is built from."""
+    """Exit unless `executable` is at least as new as everything it is built from.
+
+    A Distribution build is refused whatever `DR_ALLOW_STALE_APP` says: it is never launched as
+    built (designs/sparkle-updates.md). `scripts/updater_check.py`'s D9 launches its own re-signed
+    scratch copy and does not pass through here.
+    """
+    if DISTRIBUTION_PRODUCTS in os.path.abspath(executable):
+        raise SystemExit(f"refusing to launch {executable}: a Distribution build loads Sparkle, which an "
+                         "ad-hoc hardened build cannot load; drive Debug or Release")
     if os.environ.get("DR_ALLOW_STALE_APP") == "1":
         return
     path = Path(executable)

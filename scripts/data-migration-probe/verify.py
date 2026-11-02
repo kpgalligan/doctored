@@ -5,8 +5,9 @@ Run `make rust project` first. The linked probe is built by `scripts/probe_build
 and cached under `build/probe-cache`; the copy that runs and its logs live in a
 temporary directory, retained on failure or with --keep.
 
-The probe calls only `DataMigration.migrate`, `moveRenamedFolder` and
-`isAutomationLaunch` with scratch folders and scratch defaults suites, and
+The probe calls only `DataMigration.migrate` and `moveRenamedFolder` with scratch
+folders and scratch defaults suites, `AutomationLaunch.isAutomation` (case 7, the
+test `runAtLaunch` skips on) on in-memory environments, and
 `DevelopFilterPreset.decode` on in-memory objects (`main.swift`); it never calls
 `runAtLaunch`, so the owner's Application Support folders and defaults domains
 are never read or written.

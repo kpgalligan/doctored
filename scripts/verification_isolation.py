@@ -3,20 +3,29 @@
 Standard library only, and it imports nothing from `scripts/`: `phase5_support`
 imports `verify_phase1`, and both (with every other launcher) read this list.
 
-The agent socket is not among them because it is per INSTANCE, not per folder:
-every launcher gives each instance it starts its own `DR_AGENT_SOCKET` from
-`mcp_client.scratch_socket()` (a fresh `0700` folder under the temp dir, for
-macOS's 103-byte socket path), so no test binds the person's own socket.
+The agent socket is not among the directories because it is per INSTANCE, not
+per folder: every launcher gives each instance it starts its own
+`DR_AGENT_SOCKET` from `mcp_client.scratch_socket()` (a fresh `0700` folder
+under the temp dir, for macOS's 103-byte socket path), so no test binds the
+person's own socket.
+
+`owned_environment(folder, agent_socket)` is the whole set of additions an owned
+instance's environment makes to `os.environ`: the background and automation
+switches, that socket, the dummy API key, the pinned working limit, private
+Actions and recovery folders, and `preset_environment(folder)`. The gate's
+`launch` step and `scripts/updater_check.py`'s D9 launch both use it, so the two
+cannot drift.
 """
 
 import os
 from pathlib import Path
 
-# Every private directory the app reads besides Actions and recovery
-# (app/CLAUDE.md "Verification isolation"): each preference library plus
-# DR_PRINTERS_DIR, the read-only printer-profile scan root. `App` points any
-# the caller has not set into its own folder, so no owned instance reads or
-# writes the user's real libraries. `HostApp.PRESET_DIRECTORIES` is this list.
+# Every private directory the app reads besides Actions and recovery, which
+# `owned_environment` adds (app/CLAUDE.md "Verification isolation"): each
+# preference library plus DR_PRINTERS_DIR, the read-only printer-profile scan
+# root. `App` points any the caller has not set into its own folder, so no owned
+# instance reads or writes the user's real libraries.
+# `HostApp.PRESET_DIRECTORIES` is this list.
 PRESET_DIRECTORIES = {"DR_RAW_PRESETS_DIR": "raw-presets",
                       "DR_EXPORT_PRESETS_DIR": "export-presets",
                       "DR_METADATA_POLICIES_DIR": "metadata-policies",
@@ -57,4 +66,24 @@ def preset_environment(folder: str | os.PathLike) -> dict[str, str]:
     """Every PRESET_DIRECTORIES entry, pointed into `folder`, and PROVIDER_BASE_URLS."""
     environment = {name: str(Path(folder) / leaf) for name, leaf in PRESET_DIRECTORIES.items()}
     environment.update(PROVIDER_BASE_URLS)
+    return environment
+
+
+def owned_environment(folder: str | os.PathLike, agent_socket: str | os.PathLike) -> dict[str, str]:
+    """The additions every owned instance's environment makes to `os.environ`.
+
+    `DR_BACKGROUND` and `DR_AUTOMATION_ALERTS` make it a background, automation launch
+    (so `AutomationLaunch` holds and the updater is never constructed), `agent_socket` is
+    its private scratch socket, the dummy key short-circuits every stored-key read, the
+    working limit is the 2 GiB reference, and Actions, recovery and every
+    `preset_environment(folder)` entry point into `folder`.
+    """
+    environment = {"DR_BACKGROUND": "1",
+                   "DR_AGENT_SOCKET": str(agent_socket),
+                   "ANTHROPIC_API_KEY": "dummy",
+                   "DR_AUTOMATION_ALERTS": "record",
+                   "DR_WORKING_LIMIT_BYTES": "2147483648",
+                   "DR_ACTIONS_DIR": str(Path(folder) / "actions"),
+                   "DR_RECOVERY_DIR": str(Path(folder) / "recovery")}
+    environment.update(preset_environment(folder))
     return environment
