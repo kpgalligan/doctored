@@ -7,6 +7,15 @@
 # (scripts/appcast.py); every installed copy reads it from
 # releases/latest/download/appcast.xml.
 #
+# The archive's "Build Agent Helper" phase compiles the assistant's helper and
+# its Slaude dependency with SwiftPM (scripts/build_agent_helper.sh,
+# designs/assistant-helper.md), fetching Slaude at its pinned revision. Release
+# compiles it file by file in batches, not as one whole module (which peaks at
+# 10.6 GB): on a 96 GB Mac at three jobs that took 160 s, 435 s of CPU and a
+# 2.1 GB peak. Its time and peak memory on this runner are not yet measured
+# (#25, linked from designs/assistant-helper.md's Open section); the levers are
+# DR_AGENT_BUILD_CONFIG=debug and a larger runner.
+#
 # Version: "<VERSION file>.<run number>", build number = run number. The run
 # counter belongs to this file — renaming or recreating it restarts numbering,
 # so leave the name alone: the build number is what installed copies compare,
@@ -95,9 +104,6 @@ jobs:
           rustup default stable
           rustc --version
           brew install xcodegen
-
-      # Builds the assistant's agent helper (agent/) in the Xcode post-build step.
-      - uses: oven-sh/setup-bun@v2
 
       - uses: Swatinem/rust-cache@v2
         with:

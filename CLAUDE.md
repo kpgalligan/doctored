@@ -5,6 +5,7 @@ Per-side rules live next to the code they govern and are imported here, so every
 @core/CLAUDE.md
 @app/CLAUDE.md
 @mcp-proxy/CLAUDE.md
+@agent/CLAUDE.md
 
 The per-file indexes are `core/MODULES.md` (Rust modules) and `app/FILES.md` (Swift files, including which six are frozen): grep an index by file name before editing or adding a file (`grep -n -F 'Bitmap.swift' app/FILES.md | cut -c1-400`), and never read one whole.
 
@@ -17,14 +18,14 @@ make rust       # cd core && cargo build --release: the release core archive (co
 make test       # the whole Rust suite through scripts/run_tests.py: one build, the standalone test binaries four at a time with the serial suite beside them, the other suites one at a time, then the solo list one at a time; lists every failing binary
 make t F=<file> T=<filter>  # one Rust test file, whichever binary holds it (scripts/run_test_file.py); T is optional; fails when no test runs
 make test-serial  # the whole Rust suite as plain cargo (cd core && cargo test --release)
-make gate       # the one Full verification command: the docs check (doc sizes and home paths), the release tools' selftests, fmt, core build, clippy, the suite, the doctored-mcp suite, the Release app, a launch over a scratch socket with the Release bundle's updater check (R1–R5), a type check of each changed probe directory (see "Verification")
+make gate       # the one Full verification command: the docs check (doc sizes and home paths), the release tools' selftests, fmt, core build, clippy, the suite, the doctored-mcp suite, the doctored-agent suite, the Release app, a launch over a scratch socket with the Release bundle's updater check (R1–R5) and a stdio run of its doctored-agent, a type check of each changed probe directory (see "Verification")
 make release-check  # the release tools' selftests (scripts/appcast.py, scripts/updater_check.py): no build, no network, no key; the gate's `release` step
 make dist       # after `make gate` passes, never while it runs: the Distribution build the publish workflow archives (Release plus Sparkle; ad hoc, never launched as built), then scripts/updater_check.py over it and Release (its D9 launches a re-signed scratch copy under automation) and its mutants; DIST_ARGS passes build settings
 make cancel-bench  # the ignored wall-clock probes (release, serial, no fail-fast); its output is the measurement record
 make lint       # scripts/check_layers.py, then cargo clippy --all-targets -- -D warnings (core/, then mcp-proxy/)
-make agent-test # the assistant helper's tsc and bun test (agent/; no network)
+make agent      # the assistant's helper alone (scripts/build_agent_helper.sh, the app build's phase) → build/agent/doctored-agent, stripped and signed as the bundle's copy; DR_AGENT_BUILD_CONFIG=release|debug (release by default)
+make agent-test # the doctored-agent helper's suite (swift test in agent/ on the build/agent-swift scratch path; no network, no real key; make gate runs it)
 make mcp-test   # the doctored-mcp stdio helper's suite (mcp-proxy/; make lint clippies it, make gate runs both)
-make prices     # NETWORK: regenerate agent/prices/anthropic.json from LiteLLM; its only writer
 make typecheck  # fast type check, no artifact, stops before SILGen
 python3 scripts/probe_build.py --typecheck scripts/<probe dir>  # the same check of the app sources with one probe directory's Swift files; the loop check for a probe edit
 make project    # regenerate Doctored.xcodeproj from project.yml (injects VERSION; never run bare xcodegen)
@@ -37,7 +38,7 @@ make run        # build and launch
 
 ## Architecture
 
-Swift/AppKit UI (programmatic, no storyboards) over a Rust staticlib core. Pixel math lives in Rust. Swift decodes what the core cannot (ImageIO stills, CIRAWFilter RAW, AVFoundation frames), lays out text and runs the Vision and Core ML models, then hands the core their pixels; `Bitmap.swift` is the one place a CoreGraphics premultiplied buffer becomes the straight RGBA8 the FFI takes. Swift also owns windows, tools, undo and agent tool dispatch. Beside them: `mcp-proxy/` (the bundled `doctored-mcp` stdio helper), `agent/` (the built-in assistant's Bun helper) and `public-docs/` (the Astro user-documentation site, with its own `CLAUDE.md`; it holds the feature reference and the generated MCP tool reference).
+Swift/AppKit UI (programmatic, no storyboards) over a Rust staticlib core. Pixel math lives in Rust. Swift decodes what the core cannot (ImageIO stills, CIRAWFilter RAW, AVFoundation frames), lays out text and runs the Vision and Core ML models, then hands the core their pixels; `Bitmap.swift` is the one place a CoreGraphics premultiplied buffer becomes the straight RGBA8 the FFI takes. Swift also owns windows, tools, undo and agent tool dispatch. Beside them: `mcp-proxy/` (the bundled `doctored-mcp` stdio helper), `agent/` (the built-in assistant's helper `doctored-agent`, a Swift executable on the Slaude Claude API client: `designs/assistant-helper.md`) and `public-docs/` (the Astro user-documentation site, with its own `CLAUDE.md`; it holds the feature reference and the generated MCP tool reference).
 
 Design decisions live in `designs/` as condensed ADRs, one per phase or study. Before designing a feature from scratch, check the feature catalogs, the two gap reviews `designs/photo-editor-gap-review.md` and `designs/photo-editor-gap-review-2026-09.md`; `designs/gimp-image-manipulation-capabilities.md` is the mechanism reference. The live working docs are the roadmap (`designs/professional-photo-editor-implementation-plan.md`, a short phase index plus the open work, each item linking its issue) and the status docs of the phases still open (13A, 13B and CMYK); the Phase 7 carryover ledger (`designs/phase-7-carryovers.md`) is a closed record whose open rows are issues. Two ADRs keep one section current: the high-depth support matrix in `designs/phase-7-operation-support.md` and the model survey in `designs/neural-models.md`.
 
@@ -142,7 +143,7 @@ Always launch test instances with a dummy `ANTHROPIC_API_KEY`: the variable wins
 
 `DR_BACKGROUND=1` makes the instance an `.accessory` app (no Dock icon, no menu bar) that never activates itself and orders its windows behind other apps' windows while it is inactive — set it for every test launch (`app/Sources/BackgroundLaunch.swift`). `export DR_BACKGROUND=1` once reaches every `scripts/` launcher with no edits, because all of them build the child env from `dict(os.environ, …)` / `os.environ.copy()` (the shared launchers are `phase5_support.App`, its `host-source-probe/support.py` `HostApp` subclass, `verify_phase1.instance` and `verify_phase9i_assisted.instance`; drives with their own `App` class, such as `verify_v1_lens.py`, build their environment the same way). The `scripts/*_ui.py` drives compile their own probe `main.swift` and activate themselves on purpose (their synthesized key events need a key window), so they still come to the front with the variable set; setting it does not change their outcome. A background instance is not active, so an MCP call that omits `document_id` cannot rely on a main window — pass `document_id` when more than one document is open.
 
-`scripts/` drives default to the Debug app through `scripts/app_under_test.py`; `DR_VERIFY_APP` selects another app; the launchers refuse a binary older than the Swift sources, the header, the core library or the `doctored-mcp` sources and name the `make` target; `DR_ALLOW_STALE_APP=1` overrides. They refuse a Distribution build (`make dist`'s product) whatever that variable says.
+`scripts/` drives default to the Debug app through `scripts/app_under_test.py`; `DR_VERIFY_APP` selects another app; the launchers refuse a binary older than the Swift sources, the header, the core library, the `doctored-mcp` sources or the `doctored-agent` package and name the `make` target; `DR_ALLOW_STALE_APP=1` overrides. They refuse a Distribution build (`make dist`'s product) whatever that variable says.
 
 Owned instances never start the updater (`AutomationLaunch`), and Debug and Release have none.
 

@@ -43,6 +43,10 @@ def _inputs():
     # The bundled doctored-mcp helper and the protocol versions it shares with the core.
     yield from (ROOT / "mcp-proxy/src").glob("*.rs")
     yield ROOT / "core/src/mcp_versions.rs"
+    # The bundled doctored-agent helper (agent/, a SwiftPM package) and its pinned dependency.
+    yield from (ROOT / "agent/Sources").rglob("*.swift")
+    yield ROOT / "agent/Package.swift"
+    yield ROOT / "agent/Package.resolved"
 
 
 def require_fresh_app(executable: str | os.PathLike) -> None:

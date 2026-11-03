@@ -10,7 +10,12 @@ xcuserdata/
 .claude/scheduled_tasks.lock
 .claude/worktrees
 **/.claude/settings.local.json
-/agent/node_modules/
+# SwiftPM's in-package folders (a bare `swift build`, an editor's index, Xcode opening
+# the package); the build itself uses build/agent-swift.
+/agent/.build/
+/agent/.swiftpm/
+# `swift package edit`'s checkout of a dependency being worked on.
+/agent/Packages/
 __pycache__/
 /OPENAIKEY
 /GEMINIKEY

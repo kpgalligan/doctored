@@ -3608,9 +3608,9 @@ pixel-bound `GImage:`/`GDepth:` ones and a stale `xmpNote:HasExtendedXMP`.
 The Assistant tab of the right panel (View > Assistant, ⌃⌘A) is a chat
 agent built into the app: it edits the window's document by calling the
 same tools the MCP server exposes, sees the canvas by rendering it, and
-verifies its own work. The agent loop runs in a bundled helper
-(`agent/`, compiled with Bun into `Contents/Helpers/doctored-agent`):
-the Anthropic TypeScript SDK's Tool Runner, which streams replies and
+verifies its own work. The agent loop runs in a bundled helper,
+`Contents/Helpers/doctored-agent`: a Swift executable built from
+`agent/` on the Slaude Claude API client, which streams replies and
 the model's progress notes into the panel, caches the prompt, retries
 rate limits and overloads, and cancels at any point. The helper owns no
 tools — each call comes back to the app over the helper's stdio and runs

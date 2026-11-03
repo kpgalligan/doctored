@@ -377,8 +377,6 @@ final class AssistantPanelViewController: NSViewController {
                 used: event["used"] as? Int ?? 0, limit: event["limit"] as? Int, reported: true))
         case "turn_started":
             setBusy(true)
-        case "assistant_text":
-            appendAssistant(event["text"] as? String ?? "")
         case "tool_call":
             let name = event["name"] as? String ?? "?"
             appendMeta("⚙ \(name)\(argsSummary(event["arguments"]))")
@@ -441,12 +439,8 @@ final class AssistantPanelViewController: NSViewController {
         append(text, font: DS.sans(13, weight: .semibold), color: DS.textStrong, spacingAbove: 8)
     }
 
-    private func appendAssistant(_ text: String) {
-        append(text, font: DS.sans(13), color: DS.textStrong, spacingAbove: 6)
-    }
-
     /// Streams into the newest paragraph; the first delta of a run opens a
-    /// paragraph the way a whole assistant_text would.
+    /// new paragraph.
     private func appendDelta(
         _ text: String, type: String, font: NSFont, color: NSColor, spacingAbove: CGFloat
     ) {

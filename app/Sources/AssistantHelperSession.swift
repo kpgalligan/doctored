@@ -1,12 +1,12 @@
 import AppKit
 
 /// One Assistant panel conversation, run by the agent helper in
-/// Contents/Helpers — the Anthropic SDK's Tool Runner in a Bun-compiled
-/// executable (`agent/`). JSON lines over the helper's stdin/stdout
-/// (`agent/src/protocol.ts`): the helper streams text and asks for tool
-/// calls, and each call runs here, on main, through the same dispatcher
-/// the MCP server uses. Events reach `onEvent` on the main queue as parsed
-/// objects ({"type": ...}).
+/// Contents/Helpers — `doctored-agent`, a Swift executable on the Slaude
+/// Claude API client (`agent/`) that runs the agent loop. JSON lines over the
+/// helper's stdin/stdout (the protocol in designs/assistant-helper.md): the
+/// helper streams text and asks for tool calls, and each call runs here, on
+/// main, through the same dispatcher the MCP server uses. Events reach
+/// `onEvent` on the main queue as parsed objects ({"type": ...}).
 final class AssistantHelperSession {
     var onEvent: (([String: Any]) -> Void)?
 
@@ -221,8 +221,11 @@ final class AssistantHelperSession {
 
     // MARK: - Writing
 
+    /// Sorted keys: the helper sends the catalog's schemas to the API as these bytes, and the
+    /// prompt cache matches bytes, so the same catalog must serialize the same way every launch.
     private func write(_ message: [String: Any]) {
-        guard let data = try? JSONSerialization.data(withJSONObject: message),
+        guard
+            let data = try? JSONSerialization.data(withJSONObject: message, options: [.sortedKeys]),
             let line = String(data: data, encoding: .utf8)
         else { return }
         writeLine(line)

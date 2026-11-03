@@ -6,7 +6,8 @@ import AppKit
 struct AssistantChatSettings: Equatable {
     static let defaultCompactTokens = 300_000
     static let compactTokensRange = 20_000...900_000
-    /// The helper's fixed clearing threshold (CLEAR_TRIGGER_TOKENS), for the sheet's wording.
+    /// The helper's fixed clearing threshold (`Request.clearTriggerTokens` in agent/),
+    /// for the sheet's wording.
     static let clearTriggerTokens = 150_000
 
     /// Compact at the end of a turn once context reaches `autoCompactTokens`.
@@ -38,7 +39,7 @@ struct AssistantChatSettings: Equatable {
         defaults.set(clearToolResults, forKey: Self.clearToolResultsKey)
     }
 
-    /// The helper protocol's `ChatSettings` (agent/src/protocol.ts).
+    /// The helper protocol's `settings` (`ChatSettings` in agent/; designs/assistant-helper.md).
     var helperJSON: [String: Any] {
         [
             "auto_compact_tokens": autoCompact ? autoCompactTokens as Any : NSNull(),

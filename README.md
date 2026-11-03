@@ -90,11 +90,10 @@ Prerequisites:
 - Xcode 26
 - Rust stable through [rustup](https://rustup.rs) (1.89 or later)
 - [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
-- [Bun](https://bun.sh), which builds the assistant's helper
 - Python 3, for the test and check scripts
 
-The first build needs the network for the Rust crates, `bun install` and the
-Sparkle Swift package.
+The first build needs the network for the Rust crates and the Slaude and
+Sparkle Swift packages.
 
 ```sh
 make app-debug  # Debug build → build/Build/Products/Debug/Doctored.app
@@ -111,7 +110,7 @@ Contributor commands and rules are in [CLAUDE.md](CLAUDE.md).
 | :--- | :--- |
 | `app/` | The Swift/AppKit app: sources, bridging header, resources, app icon |
 | `core/` | The Rust staticlib that does the image work, its C header (`include/doctored_core.h`) and its tests |
-| `agent/` | The assistant's helper (TypeScript, built with Bun) |
+| `agent/` | `doctored-agent`, the assistant's helper (a Swift package on the Slaude Claude API client) |
 | `mcp-proxy/` | `doctored-mcp`, the stdio MCP helper bundled for external agents |
 | `scripts/` | The gate, test runners, probes and app drives |
 | `designs/` | Design decisions (ADRs) and the status docs of open work |
@@ -125,9 +124,9 @@ Contributor commands and rules are in [CLAUDE.md](CLAUDE.md).
 Bugs and open work are tracked as
 [GitHub issues](https://github.com/kpgalligan/doctored/issues). The development
 rules, for people and coding agents alike, start at [CLAUDE.md](CLAUDE.md),
-which imports the rules for each side (`core/`, `app/` and `mcp-proxy/`); the
-docs site has its own `public-docs/CLAUDE.md`. Design decisions live in
-`designs/` as ADRs, and older records in `archive/` (indexed in
+which imports the rules for each side (`core/`, `app/`, `mcp-proxy/` and
+`agent/`); the docs site has its own `public-docs/CLAUDE.md`. Design decisions
+live in `designs/` as ADRs, and older records in `archive/` (indexed in
 `archive/INDEX.md`).
 
 History before this repository's first commit, and the measurement harness
@@ -150,7 +149,10 @@ Copyright 2026 Kevin Galligan.
 Doctored is licensed under the Apache License, Version 2.0; the full text is in
 [`LICENSE`](LICENSE). Bundled third-party material keeps its own licence: the
 fonts are OFL, the Lensfun lens database is CC BY-SA 3.0, the Sparkle update
-framework is MIT (with the notices in the app's `Acknowledgements.txt`), and a
-downloadable model shows its licence in Settings ▸ Models before it is
-downloaded.
+framework is MIT (with the notices in the app's `Acknowledgements.txt`), the
+assistant's helper is built on [Slaude](https://github.com/kpgalligan/Slaude)
+(Apache-2.0), a Swift transformation of Anthropic's Python SDK, which is
+Apache-2.0 with its earlier contributions under MIT (both SDK notices are in
+`Acknowledgements.txt`), and a downloadable model shows its licence in
+Settings ▸ Models before it is downloaded.
 <!-- readme-swept-to: 9f1a059d345e73d238c1dca4e94a905b3f5d061d -->

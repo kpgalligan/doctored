@@ -1,0 +1,14 @@
+{
+  "originHash" : "4befadd63b4ce6429bc2e4d76f576b9d90097e187d604eee0edea37f7e4c5bf8",
+  "pins" : [
+    {
+      "identity" : "slaude",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kpgalligan/Slaude",
+      "state" : {
+        "revision" : "4c6c2ca435350741796c3d461720a61e7149b378"
+      }
+    }
+  ],
+  "version" : 3
+}

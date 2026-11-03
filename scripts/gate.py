@@ -2,24 +2,33 @@
 """The one Full verification command: locked, input-hashed, timed.
 
 Steps: `wait`, `docs`, `release`, `fmt`, `core-build`, then the Rust leg
-(`clippy`, `tests`, `mcp-tests`) beside the Swift leg (`app`, `launch`), then
-`probes`. `docs` is `scripts/check_docs.py` and `release` is `make
-release-check` (the release tools' selftests: `scripts/appcast.py` and
-`scripts/updater_check.py`, about a second); both run every time. `fmt` checks
-both crates (`core/` and the `doctored-mcp` helper's `mcp-proxy/`). `clippy` is
-`make lint`: `scripts/check_layers.py`, then cargo clippy on both crates.
-`mcp-tests` is `make mcp-test`, the helper's own suite. `launch` starts the
+(`clippy`, `tests`, `mcp-tests`) beside the Swift leg (`app`, `launch`) and the
+agent leg (`agent-tests`), then `probes`. `docs` is `scripts/check_docs.py` and
+`release` is `make release-check` (the release tools' selftests:
+`scripts/appcast.py` and `scripts/updater_check.py`, about a second); both run
+every time. `fmt` checks both crates (`core/` and the `doctored-mcp` helper's
+`mcp-proxy/`). `clippy` is `make lint`: `scripts/check_layers.py`, then cargo
+clippy on both crates. `mcp-tests` is `make mcp-test`, the helper's own suite.
+`agent-tests` is `make agent-test`, the assistant helper's own suite (`swift
+test` in `agent/`, designs/assistant-helper.md); it needs no core, so it starts
+before `core-build` and runs even when that step fails. `launch` starts the
 Release app on a scratch `DR_AGENT_SOCKET` (`mcp_client.scratch_socket`), with
 `verification_isolation.owned_environment`, and passes when `tools/list`
 answers over it, the bundle holds an executable
-`Contents/Helpers/doctored-mcp`, the bundle's
-`Contents/Resources/agent-catalog.json` lists the same tools as the live
-answer, compared as JSON values, and the Release bundle passes the updater
-check's rows R1–R5 (`updater_check.release_failures`: Sparkle.framework is
-embedded but not loaded, the feed and key are empty, the updater class is
-absent, the seal verifies), which proves Release launches with Sparkle embedded
-and not loaded. An `--app` override is any executable and is not held to
-R1–R5. A leg whose inputs hash to the value stored at its last pass is
+`Contents/Helpers/doctored-mcp` and an executable
+`Contents/Helpers/doctored-agent` signed with the hardened runtime and no
+entitlements, the bundle's `Contents/Resources/agent-catalog.json` lists the
+same tools as the live answer, compared as JSON values, and the Release bundle
+passes the updater check's rows R1–R5 (`updater_check.release_failures`:
+Sparkle.framework is embedded but not loaded, the feed and key are empty, the
+updater class is absent, the seal verifies), which proves Release launches with
+Sparkle embedded and not loaded. An `--app` override is any executable and is not held to
+R1–R5. Once the app has stopped, `launch` also runs the bundle's own
+`doctored-agent` through `scripts/verify_agent_helper.py`'s `text-turn` and
+`framing` cases (a loopback API, no key, a few seconds; `helper_failure`), so
+the copy that ships, built -O in batches, stripped and re-signed with the
+hardened runtime, has run, where the `agent-tests` suite runs SwiftPM's debug
+build. A leg whose inputs hash to the value stored at its last pass is
 skipped. `probes` type-checks, through
 `scripts/probe_build.py --typecheck`, each probe set whose directory under
 `scripts/` has uncommitted changes or whose last type check failed, and fails
@@ -31,8 +40,10 @@ The lock and the `wait` step are per checkout: several git worktrees (the
 lanes under `.claude/worktrees/`) gate in parallel, each with its own
 `core/target` and `build/`. `wait` waits only for a build tool whose working
 directory is inside this checkout, or a whole-suite run or gate whose script
-path resolves inside it; a nested worktree is another checkout, and a process
-whose working directory cannot be read counts, to stay safe.
+path resolves inside it (the build tools are cargo, rustc, clippy-driver,
+xcodebuild, and SwiftPM's swift-build and swift-test); a nested worktree is
+another checkout, and a process whose working directory cannot be read counts,
+to stay safe.
 
 Standard library only; from `scripts/` it imports `app_under_test`,
 `mcp_client`, `probe_build`, `updater_check` and `verification_isolation`.
@@ -72,16 +83,29 @@ TIMES = BUILD / "gate-times.tsv"
 TESTS_SUMMARY = LOGS / "tests.json"
 LIBRARY = CORE / "target/release/libdoctored_core.a"
 
-STEPS = ("wait", "docs", "release", "fmt", "core-build", "clippy", "tests", "mcp-tests", "app", "launch",
-         "probes")
+STEPS = ("wait", "docs", "release", "fmt", "core-build", "clippy", "tests", "mcp-tests", "agent-tests", "app",
+         "launch", "probes")
 RUST_INPUTS = ("core/", "mcp-proxy/", "scripts/run_tests.py", "scripts/gate.py", "Makefile",
                "scripts/check_layers.py")
-SWIFT_INPUTS = ("app/", "agent/", "mcp-proxy/", "core/include/doctored_core.h", "project.yml", "Makefile",
-                "VERSION", "scripts/gate.py", "scripts/app_under_test.py", "scripts/verification_isolation.py",
-                "scripts/mcp_client.py", "scripts/updater_check.py")
+# The app bundle carries the assistant's helper, so its package and build script are Swift inputs; its
+# tests are not (AGENT_INPUTS).
+SWIFT_INPUTS = ("app/", "agent/Package.swift", "agent/Package.resolved", "agent/Sources/",
+                "scripts/build_agent_helper.sh", "scripts/verify_agent_helper.py", "mcp-proxy/",
+                "core/include/doctored_core.h", "project.yml", "Makefile", "VERSION", "scripts/gate.py",
+                "scripts/app_under_test.py", "scripts/verification_isolation.py", "scripts/mcp_client.py",
+                "scripts/updater_check.py")
+AGENT_INPUTS = ("agent/Package.swift", "agent/Package.resolved", "agent/Sources/", "agent/Tests/", "Makefile",
+                "scripts/gate.py")
 MCP_HELPER = "Contents/Helpers/doctored-mcp"
+AGENT_HELPER = "Contents/Helpers/doctored-agent"
+# `codesign --display --verbose=2`'s line for the code directory, e.g. `flags=0x10002(adhoc,runtime)`.
+CODE_DIRECTORY_FLAGS = re.compile(r"^CodeDirectory .*\bflags=0x[0-9a-fA-F]+\(([^)]*)\)", re.MULTILINE)
 CATALOG_SNAPSHOT = "Contents/Resources/agent-catalog.json"
-BUILD_TOOLS = ("cargo", "rustc", "clippy-driver", "xcodebuild")
+# The stdio drive's cases `launch` runs against the bundle's helper (`helper_failure`), and their bound: the
+# two take a few seconds, and every wait inside the drive is bounded on its own.
+AGENT_SMOKE_CASES = "text-turn,framing"
+AGENT_SMOKE_TIMEOUT_S = 120
+BUILD_TOOLS = ("cargo", "rustc", "clippy-driver", "xcodebuild", "swift-build", "swift-test")
 GATE_SCRIPTS = ("run_tests.py", "gate.py")
 TIMES_HEADER = "utc\tcommit\tstep\tseconds\texit\tswift_files\ttest_binaries\n"
 # A diagnostic's `error:` / `error[E0308]:`, not xcodebuild's `...=YES_ERROR` setting lines.
@@ -274,14 +298,38 @@ def tools_listed(client: mcp_client.Client) -> list:
     return tools
 
 
+def signing_failure(helper: Path) -> str | None:
+    """Why `helper` is not signed as the Build Agent Helper phase signs it, else None: a signature whose code
+    directory has the `runtime` flag (the hardened runtime), and no entitlements at all."""
+    shown = subprocess.run(["codesign", "--display", "--verbose=2", str(helper)], stdin=subprocess.DEVNULL,
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
+    if shown.returncode != 0:
+        lines = shown.stdout.strip().splitlines()
+        return f"{helper} is not signed: {lines[-1] if lines else 'codesign failed'}"
+    flags = CODE_DIRECTORY_FLAGS.search(shown.stdout)
+    if flags is None or "runtime" not in flags.group(1).split(","):
+        return f"{helper} is not signed with the hardened runtime ({flags.group(0) if flags else 'no flags line'})"
+    entitlements = subprocess.run(["codesign", "--display", "--entitlements", "-", "--xml", str(helper)],
+                                  stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    if entitlements.returncode != 0:
+        return f"could not read the entitlements of {helper}"
+    if entitlements.stdout.strip():
+        return f"{helper} carries entitlements: {entitlements.stdout.decode(errors='replace').strip()[:200]}"
+    return None
+
+
 def bundle_failure(executable: Path, live: list, release_bundle: bool) -> str | None:
-    """Why the bundle around `executable` is incomplete, else None: the helper must be executable, the
-    catalog snapshot must list the live tools, compared as JSON values (key order differs between processes),
-    and, for the Release bundle alone, the updater check's rows R1–R5 must pass."""
+    """Why the bundle around `executable` is incomplete, else None: both helpers must be executable, the
+    assistant's signed with the hardened runtime and no entitlements (`signing_failure`), the catalog snapshot
+    must list the live tools, compared as JSON values (key order differs between processes), and, for the
+    Release bundle alone, the updater check's rows R1–R5 must pass."""
     bundle = executable.resolve().parents[2]
-    helper = bundle / MCP_HELPER
-    if not os.access(helper, os.X_OK):
-        return f"{helper} is missing or not executable"
+    for helper in (bundle / MCP_HELPER, bundle / AGENT_HELPER):
+        if not os.access(helper, os.X_OK):
+            return f"{helper} is missing or not executable"
+    unsigned = signing_failure(bundle / AGENT_HELPER)
+    if unsigned is not None:
+        return unsigned
     snapshot = bundle / CATALOG_SNAPSHOT
     try:
         tools = json.loads(snapshot.read_text())["tools"]
@@ -293,6 +341,29 @@ def bundle_failure(executable: Path, live: list, release_bundle: bool) -> str | 
         failures = updater_check.release_failures(bundle)
         if failures:
             return "; ".join(failures)
+    return None
+
+
+def helper_failure(bundle: Path, log) -> str | None:
+    """Why the bundle's assistant helper fails its stdio smoke run, else None: `scripts/verify_agent_helper.py`'s
+    `AGENT_SMOKE_CASES` against the drive's loopback Messages API with a dummy key, the bundle's own catalog, and
+    the app's scrubbed environment for the helper. Its output goes to `log`. Freshness is not this step's
+    question (the gate judges the bundle it launched), so the drive's stale-helper refusal is turned off."""
+    helper = bundle / AGENT_HELPER
+    log.write(f"launch: driving {helper} ({AGENT_SMOKE_CASES})\n".encode())
+    log.flush()
+    command = [sys.executable, str(ROOT / "scripts" / "verify_agent_helper.py"), "--helper", str(helper),
+               "--catalog", str(bundle / CATALOG_SNAPSHOT), "--cases", AGENT_SMOKE_CASES]
+    try:
+        done = subprocess.run(command, cwd=ROOT, env=dict(os.environ, DR_ALLOW_STALE_APP="1"),
+                              stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                              timeout=AGENT_SMOKE_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        return f"the stdio drive of {helper} did not finish within {AGENT_SMOKE_TIMEOUT_S} s"
+    except OSError as error:
+        return f"could not start the stdio drive of {helper}: {error}"
+    if done.returncode != 0:
+        return f"{helper} failed scripts/verify_agent_helper.py --cases {AGENT_SMOKE_CASES} (exit {done.returncode})"
     return None
 
 
@@ -334,7 +405,7 @@ def launch(executable: Path, release_bundle: bool) -> int:
                         if incomplete is None:
                             code = 0
                             verdict = (f"tools/list answered with {len(live)} tools after "
-                                       f"{time.monotonic() - started:.1f} s; the helper and the catalog "
+                                       f"{time.monotonic() - started:.1f} s; both helpers and the catalog "
                                        "snapshot match"
                                        + ("; R1–R5 pass" if release_bundle else ""))
                         else:
@@ -353,6 +424,14 @@ def launch(executable: Path, release_bundle: bool) -> int:
                         process.kill()
                         process.wait()
                 mcp_client.remove_scratch(agent_socket)
+        if code == 0:
+            # The app has stopped; the helper it would start runs on its own, as the Assistant panel starts it.
+            log.seek(0, os.SEEK_END)
+            failed = helper_failure(executable.resolve().parents[2], log)
+            if failed is None:
+                verdict += f"; the bundle's doctored-agent passes {AGENT_SMOKE_CASES}"
+            else:
+                code, verdict = 1, f"error: {failed}"
         log.seek(0, os.SEEK_END)
         log.write(f"launch: {verdict}\n".encode())
     record("launch", code, time.monotonic() - started)
@@ -370,6 +449,14 @@ def rust_leg(run_it: bool, fmt_code: int | str, wanted: str) -> None:
     mcp_tests = run("mcp-tests", ["make", "mcp-test"], ROOT)
     if fmt_code == 0 and clippy == 0 and tests == 0 and mcp_tests == 0:
         store("rust", wanted)
+
+
+def agent_leg(run_it: bool, wanted: str) -> None:
+    if not run_it:
+        skip("agent-tests", "the assistant helper's inputs are unchanged since the last pass")
+        return
+    if run("agent-tests", ["make", "agent-test"], ROOT) == 0:
+        store("agent", wanted)
 
 
 def swift_leg(run_it: bool, wanted: str, app: Path | None) -> None:
@@ -486,10 +573,11 @@ def main() -> int:
 def gate() -> int:
     parser = argparse.ArgumentParser(description="Run the docs check, the release tools' selftests, fmt, the "
                                                  "core build, clippy, the whole suite, the doctored-mcp suite, "
-                                                 "the Release app build, a launch over a scratch socket with the "
-                                                 "Release bundle's updater check (R1–R5) and the probes step (a "
-                                                 "type check of each changed probe directory); skip a leg whose "
-                                                 "inputs are unchanged since its last pass.")
+                                                 "the assistant helper's suite, the Release app build, a launch "
+                                                 "over a scratch socket with the Release bundle's updater check "
+                                                 "(R1–R5) and the probes step (a type check of each changed probe "
+                                                 "directory); skip a leg whose inputs are unchanged since its last "
+                                                 "pass.")
     parser.add_argument("--force", action="store_true",
                         help="ignore stored hashes; run every step (the probes step still checks only probe "
                              "directories that changed or failed last time)")
@@ -537,6 +625,9 @@ def gate() -> int:
     run_rust = state.get("rust") != rust_wanted
     if run_rust:
         TESTS_SUMMARY.unlink(missing_ok=True)
+    agent_wanted = input_hash(AGENT_INPUTS)
+    agent = threading.Thread(target=agent_leg, args=(state.get("agent") != agent_wanted, agent_wanted))
+    agent.start()
 
     fmt_code: int | str
     if run_rust:
@@ -558,6 +649,7 @@ def gate() -> int:
             leg.start()
         for leg in legs:
             leg.join()
+    agent.join()
     try:
         probe_leg(args.force)
     except Exception:

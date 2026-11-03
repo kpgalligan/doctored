@@ -4,7 +4,7 @@ APP_PATH := $(BUILD_DIR)/Build/Products/Release/$(APP).app
 DIST_PATH := $(BUILD_DIR)/Build/Products/Distribution/$(APP).app
 
 .PHONY: all app app-debug rust test t test-serial gate cancel-bench lint typecheck project run clean \
-	agent-test prices mcp-test dist release-check
+	agent agent-test mcp-test dist release-check
 
 all: app
 
@@ -110,15 +110,17 @@ lint:
 mcp-test:
 	cd mcp-proxy && cargo test
 
-# The assistant helper's own checks (agent/): tsc --noEmit, then `bun test`
-# (the price function and table against agent/prices' fixtures; no network).
-agent-test:
-	export PATH="$$HOME/.bun/bin:$$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:$$PATH"; \
-	cd agent && bun install --frozen-lockfile && bun run typecheck && bun test
+# The assistant's helper alone, through the script the app build's "Build Agent Helper"
+# phase runs: stripped and ad-hoc signed as the bundle's copy is, at build/agent/doctored-agent
+# (for DR_ASSISTANT_HELPER, or a stdio drive with no app build). DR_AGENT_BUILD_CONFIG as there.
+agent:
+	bash scripts/build_agent_helper.sh build/agent/doctored-agent
 
-# NETWORK: regenerates agent/prices/anthropic.json from LiteLLM; its only writer, never run by another target.
-prices:
-	python3 agent/prices/update.py
+# The assistant helper's own suite (agent/Tests; no network, no real key), on the scratch
+# path the app build's helper uses; the gate's `agent-tests` step. DR_AGENT_STRICT=1 holds the
+# helper's own targets to -warnings-as-errors (agent/Package.swift); the shipping build is not.
+agent-test:
+	DR_AGENT_STRICT=1 swift test --package-path agent --scratch-path build/agent-swift
 
 project:
 	DR_BASE_VERSION="$$(cat VERSION)" xcodegen generate

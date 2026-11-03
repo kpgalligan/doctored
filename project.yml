@@ -279,27 +279,22 @@ targets:
         outputFiles:
           - $(PROJECT_DIR)/core/target/release/libdoctored_core.a
     postBuildScripts:
-      # The assistant's agent helper (agent/): compiled with Bun, placed in
-      # Contents/Helpers and signed here, before Xcode signs the app around
-      # it — the app's own signature does not cover a nested executable.
+      # The assistant's helper, doctored-agent (agent/, a SwiftPM package on Slaude;
+      # designs/assistant-helper.md): scripts/build_agent_helper.sh builds it with
+      # none of this phase's build settings in SwiftPM's environment, strips it into
+      # Contents/Helpers and signs it there as doctored-mcp is signed (the hardened
+      # runtime, no entitlements), before Xcode signs the app around it — the app's
+      # own signature does not cover a nested executable — and before Write Agent
+      # Catalog seals the bundle. DR_AGENT_BUILD_CONFIG picks SwiftPM's configuration
+      # (release unless set), the same for every app configuration.
       - name: Build Agent Helper
-        # Bun rebuilds the helper in ~0.2 s, so it simply runs every build.
+        # SwiftPM decides what is stale, behind the script's content stamp, so it runs every build.
         basedOnDependencyAnalysis: false
         script: |
           set -e
-          export PATH="$HOME/.bun/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
-          cd "$PROJECT_DIR/agent"
-          bun install --frozen-lockfile
-          bun run build
           HELPERS="$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers"
           mkdir -p "$HELPERS"
-          cp "$PROJECT_DIR/build/agent/doctored-agent" "$HELPERS/"
-          IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:--}"
-          TIMESTAMP=""
-          if [ "$IDENTITY" != "-" ]; then TIMESTAMP="--timestamp"; fi
-          codesign --force --options runtime $TIMESTAMP \
-            --entitlements "$PROJECT_DIR/agent/entitlements.plist" \
-            --sign "$IDENTITY" "$HELPERS/doctored-agent"
+          /bin/bash "$PROJECT_DIR/scripts/build_agent_helper.sh" "$HELPERS/doctored-agent"
       # The stdio MCP helper external clients start (designs/agent-socket.md):
       # mcp-proxy/ built by cargo, put in Contents/Helpers beside the assistant's
       # helper and signed as that one is (the hardened runtime), with no
