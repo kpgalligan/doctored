@@ -7,7 +7,9 @@ and started once per panel by `AssistantHelperSession` (protocol and decisions i
 "Build Agent Helper" phase and `make agent` build it through `scripts/build_agent_helper.sh`
 (SwiftPM release on the build/agent-swift scratch path, file by file in batches rather than
 whole-module, which peaks near 10 GB) and sign it (`--options runtime`, no entitlements).
-`scripts/verify_agent_helper.py` drives a built helper over stdio against a loopback API.
+`scripts/verify_agent_helper.py` drives a built helper over stdio against a loopback API;
+`scripts/live_assistant_acceptance.py --live --yes-spend` runs it against the real API with the
+owner's key and spends money, so only when the owner asks (`--self-test` is free).
 
 ## Module map
 

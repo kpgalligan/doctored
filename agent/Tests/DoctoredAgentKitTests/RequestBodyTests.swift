@@ -23,7 +23,10 @@ final class RequestBodyTests: XCTestCase {
                                                 "output_config", "thinking", "fallbacks", "stream"])
         XCTAssertEqual(body["model"], "claude-opus-5-5")
         XCTAssertEqual(body["max_tokens"], 32000)
-        XCTAssertEqual(body["system"], "You edit images.\n\nSearch for tools.")
+        // One text block ending the static prefix with its own cache breakpoint.
+        XCTAssertEqual(body["system"]?.serializedString, """
+            [{"type":"text","text":"You edit images.\\n\\nSearch for tools.","cache_control":{"type":"ephemeral"}}]
+            """)
         XCTAssertEqual(body["tools"]?.serializedString, """
             [{"type":"tool_search_tool_bm25_20251119","name":"tool_search_tool_bm25"},\
             {"name":"render","description":"The render tool.","input_schema":{"type":"object","properties":{"zoom":{"type":"number"},"document_id":{"type":"string"}}}},\

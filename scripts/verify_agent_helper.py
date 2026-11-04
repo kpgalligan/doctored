@@ -598,15 +598,16 @@ class Silent(AssertionError):
 class Helper:
     """The helper, a Popen child of this drive with the app's environment. Its stdout lines are
     read on one thread and its stdin is written on another, as the app's writeQueue does, so a
-    multi-megabyte line never blocks the drive."""
+    multi-megabyte line never blocks the drive. `stderr_path` defaults to `<folder>/<label>.stderr`;
+    scripts/live_assistant_acceptance.py names its own."""
 
-    def __init__(self, executable, folder, label):
+    def __init__(self, executable, folder, label, stderr_path=None):
         self.label = label
         folder.mkdir(parents=True, exist_ok=True)
         home, temporary = folder / f"{label}-home", folder / f"{label}-tmp"
         home.mkdir(exist_ok=True)
         temporary.mkdir(exist_ok=True)
-        self.stderr_path = folder / f"{label}.stderr"
+        self.stderr_path = Path(stderr_path) if stderr_path else folder / f"{label}.stderr"
         self._stderr = self.stderr_path.open("wb")
         environment = {"HOME": str(home), "TMPDIR": f"{temporary}/", "PATH": "/usr/bin:/bin"}
         self.process = subprocess.Popen([str(executable)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -912,8 +913,10 @@ def check_request(record, catalog, clearing=False):
     assert not missing, f"the request lacks {missing}"
     for field, value in FIXED_FIELDS.items():
         assert body[field] == value, f"{field} is {body[field]!r}, expected {value!r}"
-    assert body["system"] == f"{SYSTEM}\n\n{SEARCH_GUIDE}", \
-        "system is not configure.system, a blank line and search_guide"
+    assert body["system"] == [{"type": "text", "text": f"{SYSTEM}\n\n{SEARCH_GUIDE}",
+                               "cache_control": {"type": "ephemeral"}}], \
+        "system is not one text block of configure.system, a blank line and search_guide, " \
+        "with the static prefix's cache breakpoint"
     if clearing:
         assert body.get("context_management") == CLEAR_TOOL_USES, \
             f"context_management is {body.get('context_management')!r}, expected {CLEAR_TOOL_USES!r}"

@@ -176,10 +176,10 @@ Newline-delimited JSON, one object per line in each direction. The type name `to
 - **Requests:**
   - Each round is `POST /v1/messages` with `stream: true`. The body:
     - `model`, and `max_tokens` 32000.
-    - `system`: `system`, a blank line, then `search_guide`.
+    - `system`: one text block, `system`, a blank line, then `search_guide`, with `cache_control: {type: "ephemeral"}`: the explicit breakpoint that ends the static prefix (tools, then system), so a new conversation and the first request after a compaction read it instead of writing it again (measured live: such a first request wrote ~9.7K tokens without it).
     - `tools`: first `{type: "tool_search_tool_bm25_20251119", name: "tool_search_tool_bm25"}`, then the catalog in its order, each `{name, description, input_schema, defer_loading: true}`, with `defer_loading` absent for `core_tools`. The app's descriptions and schemas are kept as received, in their key order; the app writes every message with sorted keys (`AssistantHelperSession.write`), so the same catalog is the same bytes on every launch and the cached prefix survives a relaunch.
     - `messages`: the history.
-    - `cache_control: {type: "ephemeral"}` at the top level, the automatic caching whose breakpoint moves to the newest block.
+    - `cache_control: {type: "ephemeral"}` at the top level, the automatic caching whose breakpoint moves to the newest block (the history); with the system block's marker that is two of the four breakpoints.
     - `output_config: {effort: "medium"}`, `thinking: {type: "adaptive", display: "updates"}` and `fallbacks: "default"`.
     - Only when `clear_tool_results` is on, `context_management: {edits: [{type: "clear_tool_uses_20250919", trigger: {type: "input_tokens", value: 150000}, keep: {type: "tool_uses", value: 5}, clear_at_least: {type: "input_tokens", value: 50000}}]}`. The Chat Settings sheet repeats the 150,000 in its wording.
     - The keys go in this order: `model`, `max_tokens`, `system`, `tools`, `messages`, `cache_control`, `output_config`, `thinking`, `fallbacks`, `context_management` (when on), `stream`. The summary request ends `stream`, `compaction`. The request-body tests pin the order, so the bytes of a conversation's requests stay the same in every process.
@@ -261,6 +261,13 @@ Newline-delimited JSON, one object per line in each direction. The type name `to
 - **Freshness.** `scripts/app_under_test.py` refuses an app older than `agent/Sources`, `Package.swift` or `Package.resolved`.
 - **`scripts/verify_agent_helper.py`**, the stdio conformance drive: it runs a built helper (the Debug bundle's by default, `--helper` for another) as the app does, under the app's scrubbed environment, against a loopback Messages API, with the bundle's catalog. Its 12 cases are text-turn, settings, tool-round-trip, cancel-stream, cancel-tools, refusal, max-tokens, rate-limit-retry, retries-exhausted, stream-error, two-processes and framing. The gate runs only text-turn and framing (above); the whole drive is the loop's check after a helper change.
 
+- **`scripts/live_assistant_acceptance.py --live --yes-spend`**, the owner-approved acceptance run against the real API (it spends money; `--budget-usd`, default $5, stops it). A recording proxy between the helper and the API keeps every body and its usage, never a header; an owned instance runs the tools. Six scenarios: three tool turns, a relaunch, a cancel mid-stream, a cancel with tools pending, eight turns, and compaction at the app's 20,000-token minimum; `--self-test` runs them against the loopback stub. Refusal and `max_tokens` are left to the scripted cases. Run 2026-11-04 on the Release build (`build/live-acceptance/20261104T012253Z`), all six PASS, 36 requests, all 200, no error event, $1.18 at Opus 5.5 rates:
+  - every request after a conversation's first read the cache, growing across turns (S1's turn-opening reads 0 → 23,006 → 34,724, the larger figures summing the API's tool-search iterations); eight turns read 82.3% of their input from it;
+  - a relaunched helper's first request was byte-identical to the first one's and read 9,738 cached tokens;
+  - both cancels left a history the next send was accepted on, with the cancelled text absent from it;
+  - compaction took 50,294 tokens to 567 and the next turn was accepted.
+  That run also showed each new conversation (and the first request after a compaction) writing the ~9.7K-token tools and system prefix again, since the automatic breakpoint sits only on the newest block; the system block's explicit breakpoint (above) fixes it: with it, a new conversation's first request read 9,638 tokens and wrote only its message's 100-132 (`--nonce --scenarios S3,S4`, `20261104T012832Z`).
+
 ## Accepted risks
 
 - **Slaude is two days old and has a single maintainer**, Doctored's owner. Its transformation and ~3,800 tests track the official Python SDK, but no one else uses it yet. Its macOS CI had not run by 2026-11-03.
@@ -270,5 +277,4 @@ Newline-delimited JSON, one object per line in each direction. The type name `to
 
 ## Open
 
-- OPEN — The live acceptance run with a real key: cache reads growing across turns, a cancel mid-stream and with tools pending, many-turn thinking replay with no 400, fallback, refusal and compaction [#25](https://github.com/kpgalligan/doctored/issues/25)
 - OPEN — The publish runner's compile of the helper: time and peak memory of Slaude's batched release build on `macos-26` (2.1 GB at three jobs here), and the lever if it does not fit [#25](https://github.com/kpgalligan/doctored/issues/25)

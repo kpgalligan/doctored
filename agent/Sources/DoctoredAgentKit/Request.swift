@@ -37,14 +37,22 @@ public struct Request: Sendable {
     static let toolSearch: RawJSON = ["type": "tool_search_tool_bm25_20251119", "name": "tool_search_tool_bm25"]
 
     public let model: String
-    /// The app's system prompt, a blank line, and the search guide.
+    /// The app's system prompt, a blank line, and the search guide, as one text block
+    /// carrying the explicit cache breakpoint that ends the static prefix (tools, then
+    /// system): every new conversation, and the first request after a compaction, reads
+    /// that prefix from the cache instead of writing it again. The top-level automatic
+    /// breakpoint still covers the growing history.
     public let system: RawJSON
     /// Tool search, then the catalog in the app's order; every tool but the core ones is deferred.
     public let tools: RawJSON
 
     public init(_ configure: Configure) {
         model = configure.model
-        system = .string("\(configure.system)\n\n\(configure.searchGuide)")
+        system = .array([[
+            "type": "text",
+            "text": .string("\(configure.system)\n\n\(configure.searchGuide)"),
+            "cache_control": ["type": "ephemeral"],
+        ]])
         let core = Set(configure.coreTools)
         tools = .array([Self.toolSearch] + configure.tools.map { tool in
             var o: RawJSONObject = ["name": .string(tool.name)]
@@ -94,8 +102,8 @@ public struct Request: Sendable {
             "system": system,
             "tools": tools,
             "messages": .array(messages),
-            // Automatic caching: the breakpoint moves to the newest block each round,
-            // so the tool catalog, system prompt and history are reused.
+            // Automatic caching for the history: this breakpoint moves to the newest
+            // block each round; the system block's own marker holds the static prefix.
             "cache_control": ["type": "ephemeral"],
             // Thinking is always on for Opus 5.5; effort is the dial (its API default
             // is also medium, set here so it doesn't drift).
