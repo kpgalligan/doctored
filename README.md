@@ -155,4 +155,4 @@ assistant's helper is built on [Slaude](https://github.com/kpgalligan/Slaude)
 Apache-2.0 with its earlier contributions under MIT (both SDK notices are in
 `Acknowledgements.txt`), and a downloadable model shows its licence in
 Settings ▸ Models before it is downloaded.
-<!-- readme-swept-to: 9f1a059d345e73d238c1dca4e94a905b3f5d061d -->
+<!-- readme-swept-to: 0bb54fc263d71029937151b4c0c47db3cb83ad7c -->
