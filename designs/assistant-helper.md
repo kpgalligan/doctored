@@ -1,6 +1,6 @@
 # The assistant's agent loop runs in a Swift helper on Slaude (ADR)
 
-- **Status:** Accepted — 2026-11-03; it replaces the Bun-compiled TypeScript helper. The live run with a real key and the publish runner's compile are not yet proven (both under Open, below).
+- **Status:** Accepted — 2026-11-03; it replaces the Bun-compiled TypeScript helper. Shipped in v0.4.4 (2026-11-04) after the live run with a real key (Verification) and the first publish run's compile (Accepted risks) both passed.
 - **Source:** the owner's request of 2026-11-03: replace the helper with a Swift one on the owner's Swift Claude API client, Slaude, and remove the Bun/TypeScript/JavaScript integration of the helper (the `public-docs/` Astro site is not part of it). The TypeScript original is `agent/src/main.ts` and `agent/src/protocol.ts` at `c39d5aa8`, deleted by this batch (`git show c39d5aa8:agent/src/main.ts`); the Protocol section below replaces `protocol.ts`.
 - **Related:** [agent-socket.md](agent-socket.md) (the MCP server whose dispatcher every helper tool call reaches); [sparkle-updates.md](sparkle-updates.md) (the publish workflow); `agent/CLAUDE.md` (the helper's own rules).
 
@@ -270,11 +270,11 @@ Newline-delimited JSON, one object per line in each direction. The type name `to
 
 ## Accepted risks
 
-- **Slaude is two days old and has a single maintainer**, Doctored's owner. Its transformation and ~3,800 tests track the official Python SDK, but no one else uses it yet. Its macOS CI had not run by 2026-11-03.
+- **Slaude is two days old and has a single maintainer**, Doctored's owner. Its transformation and ~3,800 tests track the official Python SDK, but no one else uses it yet. Its first CI run (macOS on Xcode 26.2 and the newest Xcode 26, Linux on Swift 6.4) passed on 2026-11-03.
 - **Refresh cadence.** The pin moves only in its own reviewed commit, which runs `make agent-test` and the gate. A new API feature or fix reaches the helper only through such a bump. Slaude follows the Python SDK through `Tools/update-upstream.sh`.
-- **The release compile on CI.** In batches, 435 s of CPU and a 2.1 GB peak at three jobs on a 96 GB Mac, so it should fit the `macos-26` runner's ~7 GB in a few minutes; the runner itself was not measured (Open, below). The levers are `DR_AGENT_BUILD_CONFIG=debug` and a larger runner.
+- **The release compile on CI.** In batches, 435 s of CPU and a 2.1 GB peak at three jobs on a 96 GB Mac. On the publish runner (`macos-26`, ~7 GB, publish run 4, v0.4.4, 2026-11-04) SwiftPM built Slaude and the helper in 279.5 s with no memory failure, and the whole archive step took 20 min 2 s against 19 min 11 s for the last Bun build. If a later Slaude outgrows the runner, the levers are `DR_AGENT_BUILD_CONFIG=debug` and a larger runner.
 - **Build cost.** Every lane's first app build compiles Slaude in release, minutes where Bun took about 0.2 s, and its first `make agent-test` compiles it again in debug. Later builds are incremental or skipped by the stamp.
 
 ## Open
 
-- OPEN — The publish runner's compile of the helper: time and peak memory of Slaude's batched release build on `macos-26` (2.1 GB at three jobs here), and the lever if it does not fit [#25](https://github.com/kpgalligan/doctored/issues/25)
+Nothing is open.

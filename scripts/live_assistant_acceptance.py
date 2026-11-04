@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The assistant helper's live acceptance run (#25): `Contents/Helpers/doctored-agent` against the
+"""The assistant helper's live acceptance run: `Contents/Helpers/doctored-agent` against the
 Claude API, with an owned Doctored running every tool call.
 
 The run plays the app's side of the helper protocol exactly as `AssistantHelperSession` and
