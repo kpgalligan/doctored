@@ -169,7 +169,7 @@ enum RedEye {
         // is macOS 10.13+ and the app's floor is 15. The classic
         // Objective-C request rather than Vision's Swift
         // DetectFaceLandmarksRequest, whose only `perform` is `async`, which
-        // app/CLAUDE.md's hygiene rule bans.
+        // would need a documented async seam (app/CLAUDE.md, Hygiene).
         do {
             try handler.perform([request])
         } catch {
