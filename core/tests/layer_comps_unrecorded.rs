@@ -437,10 +437,13 @@ fn byte_the_rule_survives_a_save_and_a_reopen() {
     let doc = add8(&saved, 0, TOP, "LN");
     let path = CString::new(dir.path().join("comp.rz").to_str().unwrap()).unwrap();
     let mut err = ptr::null_mut();
-    assert!(unsafe { dr_doc_save_native(&doc, path.as_ptr(), &mut err) });
+    assert!(unsafe { dr_doc_save_native(&doc, path.as_ptr(), std::ptr::null(), &mut err) });
     assert_eq!(owned(err), None);
     let mut err = ptr::null_mut();
-    let reopened = take8(unsafe { dr_doc_open(path.as_ptr(), &mut err) }, "reopen");
+    let reopened = take8(
+        unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) },
+        "reopen",
+    );
     assert_eq!(owned(err), None);
     assert_eq!(rows8(&reopened), rows8(&doc), "the ids persist");
     let applied = check8(&reopened, &saved, 0, "reopened");

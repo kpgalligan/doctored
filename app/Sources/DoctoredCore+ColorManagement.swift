@@ -270,7 +270,7 @@ extension RasterDocument {
     /// canvas dimensions are not re-checked.
     func saveImage(
         _ flattened: RasterImage?, to url: URL, format: DrFormat, jpegQuality: Int,
-        embedProfile: Bool, stripMetadata: Bool
+        embedProfile: Bool, stripMetadata: Bool, control: RasterJobControl? = nil
     ) throws -> RasterSaveReport {
         var err: UnsafeMutablePointer<CChar>? = nil
         var carried: UInt32 = 0
@@ -278,7 +278,7 @@ extension RasterDocument {
         guard
             dr_doc_save_image(
                 ptr, flattened?.ptr, url.path, format, quality, embedProfile, stripMetadata,
-                &carried, &err)
+                &carried, control?.ptr, &err)
         else {
             throw DoctoredCoreError(
                 message: takeErrorMessage(err, fallback: "Could not save \(url.lastPathComponent)."))

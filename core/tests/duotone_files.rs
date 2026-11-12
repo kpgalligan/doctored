@@ -352,6 +352,7 @@ fn save(doc: *const PrecisionDocument, path: &Path, container: i32) -> Result<()
             0,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

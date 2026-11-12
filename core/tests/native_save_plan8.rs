@@ -90,7 +90,7 @@ fn saved(doc: &DrDocument, dir: &TempDir, name: &str) -> Vec<u8> {
     let path = dir.path().join(name);
     let c = CString::new(path.to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut error) };
+    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut error) };
     assert!(ok, "{name}: {}", unsafe { text(error) });
     std::fs::read(&path).unwrap()
 }

@@ -58,7 +58,15 @@ fn import_report(path: &Path) -> Value {
 fn open_psd(path: &Path, report: &Value) -> Box<DrDocument> {
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let raw = unsafe { dr_doc_open_psd(cpath(path).as_ptr(), LAYERS, token.as_ptr(), &mut error) };
+    let raw = unsafe {
+        dr_doc_open_psd(
+            cpath(path).as_ptr(),
+            LAYERS,
+            token.as_ptr(),
+            std::ptr::null(),
+            &mut error,
+        )
+    };
     assert!(!raw.is_null(), "open_psd: {}", take_err_string(error));
     unsafe { Box::from_raw(raw) }
 }
@@ -405,6 +413,7 @@ fn a_per_channel_levels_layer_writes_its_records_and_reopens_equal_at_8_bits() {
                 cpath(&path).as_ptr(),
                 0,
                 LAYERS,
+                std::ptr::null(),
                 &mut error,
             )
         },
@@ -476,6 +485,7 @@ fn a_per_channel_levels_layer_writes_its_records_and_reopens_equal_at_16_bits() 
                 LAYERS,
                 REFERENCE_WORKING_BYTES,
                 0,
+                std::ptr::null(),
                 &mut error,
             )
         },

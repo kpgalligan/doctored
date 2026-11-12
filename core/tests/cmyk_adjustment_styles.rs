@@ -426,6 +426,7 @@ fn a_layered_cmyk_psd_carries_the_style_and_range_both_ways() {
                 0,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut err,
             )
         };

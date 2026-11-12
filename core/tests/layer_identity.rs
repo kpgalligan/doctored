@@ -284,12 +284,12 @@ fn a_native_round_trip_keeps_every_id_because_they_are_persisted() {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "save failed: {}",
         take_err_string(err)
     );
     let mut err: *mut c_char = ptr::null_mut();
-    let reopened = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let reopened = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!reopened.is_null(), "open failed: {}", take_err_string(err));
     assert_distinct_and_live(reopened, "a reopened document");
     // Phase 12E-1 inverted this claim: the always-written `LIDS` table
@@ -315,7 +315,7 @@ fn a_psd_import_mints_too() {
     }
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    let first = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let first = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     if first.is_null() {
         // A fixture this build's importer refuses is not this test's subject.
         if !err.is_null() {
@@ -324,7 +324,7 @@ fn a_psd_import_mints_too() {
         return;
     }
     let mut err: *mut c_char = ptr::null_mut();
-    let second = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let second = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!second.is_null(), "open failed: {}", take_err_string(err));
     assert_distinct_and_live(first, "a PSD import");
     let (a, b) = (ids(first), ids(second));

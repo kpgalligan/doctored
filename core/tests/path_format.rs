@@ -36,7 +36,8 @@ const H: u32 = 48;
 pub fn save_byte(dir: &TempDir, name: &str, doc: &DrDocument) -> Vec<u8> {
     let path = dir.path().join(name);
     let mut error = ptr::null_mut();
-    let saved = unsafe { dr_doc_save_native(doc, cpath(&path).as_ptr(), &mut error) };
+    let saved =
+        unsafe { dr_doc_save_native(doc, cpath(&path).as_ptr(), std::ptr::null(), &mut error) };
     assert!(saved, "{}", take_err_string(error));
     std::fs::read(path).expect("read back")
 }
@@ -45,7 +46,7 @@ pub fn open_byte(dir: &TempDir, name: &str, bytes: &[u8]) -> Result<DrDocument, 
     let path = dir.path().join(name);
     std::fs::write(&path, bytes).expect("write");
     let mut error = ptr::null_mut();
-    let out = unsafe { dr_doc_open(cpath(&path).as_ptr(), &mut error) };
+    let out = unsafe { dr_doc_open(cpath(&path).as_ptr(), std::ptr::null(), &mut error) };
     if out.is_null() {
         return Err(take_err_string(error));
     }

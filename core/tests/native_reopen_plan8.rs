@@ -169,7 +169,7 @@ fn save(doc: &DrDocument, dir: &Path, name: &str) -> String {
     let path = dir.join(name).to_str().unwrap().to_string();
     let c = CString::new(path.clone()).unwrap();
     let mut error = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut error) };
+    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut error) };
     assert!(ok, "{name}: {}", unsafe { text(error) });
     path
 }
@@ -178,7 +178,7 @@ fn save(doc: &DrDocument, dir: &Path, name: &str) -> String {
 fn open(path: &str) -> Result<Box<DrDocument>, String> {
     let c = CString::new(path).unwrap();
     let mut error = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut error) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut error) };
     if doc.is_null() {
         return Err(unsafe { text(error) });
     }

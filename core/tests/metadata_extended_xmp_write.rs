@@ -634,11 +634,11 @@ fn google_pixel_bound_properties_leave_flat_exports_but_stay_in_the_rz() {
     let c = cpath(&rz);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
-    let reopened = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let reopened = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!reopened.is_null(), "{}", take_err_string(err));
     assert_eq!(
         packet(reopened, METADATA_XMP),

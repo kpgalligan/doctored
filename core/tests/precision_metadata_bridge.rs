@@ -113,6 +113,7 @@ fn carrier(dir: &TempDir) -> Vec<u8> {
                 true,
                 false,
                 &mut carried,
+                std::ptr::null(),
                 &mut err,
             )
         },
@@ -445,6 +446,7 @@ fn reconstructed_packets_survive_a_native_round_trip_and_reach_an_export() {
                 LIMIT,
                 0,
                 &mut report,
+                std::ptr::null(),
                 &mut err,
             )
         },

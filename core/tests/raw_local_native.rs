@@ -290,7 +290,7 @@ impl Doc {
         let mut err = ptr::null_mut();
         let ok = unsafe {
             match self {
-                Self::Byte(d) => dr_doc_save_native(d, path_c.as_ptr(), &mut err),
+                Self::Byte(d) => dr_doc_save_native(d, path_c.as_ptr(), std::ptr::null(), &mut err),
                 Self::Typed(d) => dr_precision_doc_save_native(
                     d,
                     path_c.as_ptr(),
@@ -313,7 +313,7 @@ impl Doc {
         std::fs::write(&path, bytes).unwrap();
         let path = CString::new(path.to_str().unwrap()).unwrap();
         let mut err = ptr::null_mut();
-        let out = unsafe { dr_doc_open(path.as_ptr(), &mut err) };
+        let out = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) };
         if out.is_null() {
             Err(unsafe { text(err) })
         } else {

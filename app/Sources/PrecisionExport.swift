@@ -277,7 +277,10 @@ struct PrecisionExportCapture {
         return result
     }
 
-    func write(to url: URL) throws -> RasterSaveReport {
+    /// `control` is single-use: the float/kept-mode encode and the 16-bit
+    /// projection save are one core call each; the 8-bit copy (downconvert,
+    /// then encode) runs each core stage under a child.
+    func write(to url: URL, control: RasterJobControl? = nil) throws -> RasterSaveReport {
         guard let typed = source.precision else { throw DoctoredCoreError(message: "The captured source is not 16-bit or 32-bit float.") }
         let context = try PrecisionWorkContext(source: typed, image: projection)
         if let floatRequest {
@@ -285,7 +288,8 @@ struct PrecisionExportCapture {
             // u16 codes, then the same 16-bit codec and injector a projection
             // save uses.
             let result = try typed.exportEncoded(projection: projection, request: floatRequest,
-                workingLimit: context.limit, otherRetained: context.otherRetained)
+                workingLimit: context.limit, otherRetained: context.otherRetained, control: control)
+            try control?.checkCancelled()
             try result.write(to: url, overwrite: true)
             return try result.saveReport()
         }
@@ -295,36 +299,45 @@ struct PrecisionExportCapture {
             }
             let carried = try typed.saveProjection16(projection, to: url, format: format == .png ? .png16 : .tiff16,
                 embedProfile: embedProfile, stripMetadata: stripMetadata,
-                workingLimit: context.limit, otherRetained: context.otherRetained)
+                workingLimit: context.limit, otherRetained: context.otherRetained, control: control)
             return RasterSaveReport(carried: carried)
         }
-        let byteDocument = try typed.downconverted(dither: dither == "ordered" ? 1 : 0,
-            workingLimit: context.limit, otherRetained: context.otherRetained)
+        try control?.beginCompoundOperation()
+        let byteDocument = try control.stage(from: 0, to: 0.5) { stage in
+            try typed.downconverted(dither: dither == "ordered" ? 1 : 0,
+                workingLimit: context.limit, otherRetained: context.otherRetained, control: stage)
+        }
         // Encode the quantizer's raster directly. Rendering it again could
         // discard straight RGB where its alpha rounded down to zero.
         guard let image = byteDocument.layerImage(0) else {
             throw DoctoredCoreError(message: "The deliberately converted export has no raster source.")
         }
         _ = try RasterResources.shared.admit(scratch: byteEncodingScratchEstimate)
-        return try byteDocument.saveImage(image, to: url, format: format.drFormat,
-            jpegQuality: quality, embedProfile: embedProfile, stripMetadata: stripMetadata)
+        return try control.stage(from: 0.5, to: 1) { stage in
+            try byteDocument.saveImage(image, to: url, format: format.drFormat,
+                jpegQuality: quality, embedProfile: embedProfile, stripMetadata: stripMetadata,
+                control: stage)
+        }
     }
 
-    func writeSafely(to url: URL) throws -> RasterSaveReport {
+    func writeSafely(to url: URL, control: RasterJobControl? = nil) throws -> RasterSaveReport {
         StagedFile.sweep(beside: url)
         let staged = StagedFile.url(beside: url, kind: .export)
         defer { try? FileManager.default.removeItem(at: staged) }
         let result: RasterSaveReport
-        do { result = try write(to: staged) }
+        do { result = try write(to: staged, control: control) }
+        catch let cancel as JobCancelled { throw cancel }
         catch { throw DoctoredCoreError(message: error.localizedDescription.replacingOccurrences(of: staged.path, with: url.path)) }
+        try control?.checkCancelled()
         try DurableFile.publish(staged, to: url)
         return result
     }
 
     func run(to url: URL) throws -> RasterSaveReport {
         _ = try RasterResources.shared.admit(scratch: scratchEstimate)
+        let control = try RasterJobControl()
         return try BackgroundWork.wait(try WorkerTask(scratchEstimate: scratchEstimate) {
-            try writeSafely(to: url)
-        }, title: "Exporting \(bitDepth)-bit Copy")
+            try writeSafely(to: url, control: control)
+        }, title: "Exporting \(bitDepth)-bit Copy", control: control)
     }
 }

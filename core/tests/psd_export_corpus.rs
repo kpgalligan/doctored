@@ -45,7 +45,17 @@ const LIMIT: u64 = REFERENCE_WORKING_BYTES;
 fn save(doc: &DrDocument, path: &Path, mode: i32) -> Result<(), String> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    if unsafe { dr_doc_save_psd(doc, ptr::null(), c.as_ptr(), 0, mode, &mut err) } {
+    if unsafe {
+        dr_doc_save_psd(
+            doc,
+            ptr::null(),
+            c.as_ptr(),
+            0,
+            mode,
+            std::ptr::null(),
+            &mut err,
+        )
+    } {
         assert!(err.is_null(), "err_out set on success");
         Ok(())
     } else {
@@ -70,6 +80,7 @@ fn save16(
             mode,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     } {

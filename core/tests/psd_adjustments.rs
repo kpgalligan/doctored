@@ -59,7 +59,15 @@ fn import_report(path: &Path) -> Value {
 fn open_psd(path: &Path, report: &Value) -> Box<DrDocument> {
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let raw = unsafe { dr_doc_open_psd(cpath(path).as_ptr(), LAYERS, token.as_ptr(), &mut error) };
+    let raw = unsafe {
+        dr_doc_open_psd(
+            cpath(path).as_ptr(),
+            LAYERS,
+            token.as_ptr(),
+            std::ptr::null(),
+            &mut error,
+        )
+    };
     assert!(!raw.is_null(), "open_psd: {}", take_err_string(error));
     assert!(error.is_null());
     unsafe { Box::from_raw(raw) }
@@ -121,7 +129,17 @@ fn export_report16(document: &PrecisionDocument, mode: i32) -> Value {
 fn save(doc: &DrDocument, path: &Path, mode: i32) -> Result<(), String> {
     let c = cpath(path);
     let mut error: *mut c_char = ptr::null_mut();
-    if unsafe { dr_doc_save_psd(doc, ptr::null(), c.as_ptr(), 0, mode, &mut error) } {
+    if unsafe {
+        dr_doc_save_psd(
+            doc,
+            ptr::null(),
+            c.as_ptr(),
+            0,
+            mode,
+            std::ptr::null(),
+            &mut error,
+        )
+    } {
         assert!(error.is_null(), "err_out set on success");
         Ok(())
     } else {
@@ -145,6 +163,7 @@ fn save16(
             mode,
             REFERENCE_WORKING_BYTES,
             0,
+            std::ptr::null(),
             &mut error,
         )
     } {

@@ -22,8 +22,15 @@ fn report(path: &Path) -> Value {
 fn open(path: &Path, report: &Value, mode: i32) -> Box<DrDocument> {
     let fingerprint = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let raw =
-        unsafe { dr_doc_open_psd(cpath(path).as_ptr(), mode, fingerprint.as_ptr(), &mut error) };
+    let raw = unsafe {
+        dr_doc_open_psd(
+            cpath(path).as_ptr(),
+            mode,
+            fingerprint.as_ptr(),
+            std::ptr::null(),
+            &mut error,
+        )
+    };
     assert!(!raw.is_null(), "{}", take_err_string(error));
     assert!(error.is_null());
     unsafe { Box::from_raw(raw) }
@@ -31,7 +38,7 @@ fn open(path: &Path, report: &Value, mode: i32) -> Box<DrDocument> {
 fn save(doc: &DrDocument, path: &Path) -> Vec<u8> {
     let mut error = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, cpath(path).as_ptr(), &mut error) },
+        unsafe { dr_doc_save_native(doc, cpath(path).as_ptr(), std::ptr::null(), &mut error) },
         "{}",
         take_err_string(error)
     );
@@ -39,7 +46,7 @@ fn save(doc: &DrDocument, path: &Path) -> Vec<u8> {
 }
 fn reopen(path: &Path) -> Box<DrDocument> {
     let mut error = ptr::null_mut();
-    let raw = unsafe { dr_doc_open(cpath(path).as_ptr(), &mut error) };
+    let raw = unsafe { dr_doc_open(cpath(path).as_ptr(), std::ptr::null(), &mut error) };
     assert!(!raw.is_null(), "{}", take_err_string(error));
     unsafe { Box::from_raw(raw) }
 }

@@ -379,14 +379,16 @@ fn a_placed_source_round_trips_through_rz_tiled() {
         let path = dir.path().join(name);
         let c_path = CString::new(path.to_str().unwrap()).unwrap();
         let mut error = ptr::null_mut();
-        let ok = unsafe { dr_doc_save_native(doc.0, c_path.as_ptr(), &mut error) };
+        let ok =
+            unsafe { dr_doc_save_native(doc.0, c_path.as_ptr(), std::ptr::null(), &mut error) };
         assert!(ok, "{}", unsafe { text(error) });
         std::fs::read(&path).unwrap()
     };
     let first = save(&placed, "first.rz");
     let c_path = CString::new(dir.path().join("first.rz").to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let reopened = Doc::checked(unsafe { dr_doc_open(c_path.as_ptr(), &mut error) });
+    let reopened =
+        Doc::checked(unsafe { dr_doc_open(c_path.as_ptr(), std::ptr::null(), &mut error) });
     assert!(error.is_null(), "{}", unsafe { text(error) });
     let second = save(&reopened, "second.rz");
     assert!(first == second, "reopen → resave is byte-identical");

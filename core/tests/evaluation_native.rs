@@ -52,7 +52,7 @@ fn save(doc: &DrDocument, path: &std::path::Path) -> Vec<u8> {
     let h = handle(doc);
     let c = CString::new(path.to_str().unwrap()).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(h, c.as_ptr(), &mut err) };
+    let ok = unsafe { dr_doc_save_native(h, c.as_ptr(), std::ptr::null(), &mut err) };
     unsafe { dr_doc_free(h) };
     assert!(ok, "{}", take_err(err));
     std::fs::read(path).expect("the saved file")
@@ -70,7 +70,7 @@ fn reopen_error(path: &std::path::Path, what: &str) -> String {
 fn reopen(path: &std::path::Path) -> Result<DrDocument, String> {
     let c = CString::new(path.to_str().unwrap()).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
-    let out = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let out = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     if out.is_null() {
         return Err(take_err(err));
     }

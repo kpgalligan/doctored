@@ -240,7 +240,15 @@ impl GrayClipboardPayload {
                     samples.push(byte(pixel[3]));
                 }
             }
-            crate::gray_encode::encode_gray8(&samples, alpha, (w, h), Format::Tiff, 0, &side)
+            crate::gray_encode::encode_gray8(
+                &samples,
+                alpha,
+                (w, h),
+                Format::Tiff,
+                0,
+                &side,
+                JobContext::NONE,
+            )
         } else {
             let mut samples: Vec<u16> = reserved_vec(count * channels)?;
             for pixel in runs()?.flatten() {
@@ -249,7 +257,14 @@ impl GrayClipboardPayload {
                     samples.push(pixel[3]);
                 }
             }
-            crate::gray_encode::encode_gray16(&samples, alpha, (w, h), Format::Tiff, &side)
+            crate::gray_encode::encode_gray16(
+                &samples,
+                alpha,
+                (w, h),
+                Format::Tiff,
+                &side,
+                JobContext::NONE,
+            )
         }
     }
 

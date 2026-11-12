@@ -66,7 +66,12 @@ use crate::style::{GlobalLight, LayerStyle};
 /// 2026-10-10 for smart objects, are bounds-checked and skipped
 /// (`native_sources`' module doc): every binding of an asset with contents
 /// is dropped and its layer opens with its stored pixels.
-pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
+///
+/// `job` reports progress per layer and per channel plane (each report a
+/// checkpoint), and each plane's PNG decoder reads through
+/// `cancel_io::Polled`; the caller settles a cancel to exactly
+/// `operation cancelled`.
+pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocument, String> {
     let mut r = Reader::new(bytes);
     if !crate::native_magic::is_native_magic(r.take(4)?) {
         return Err("not a DRDC document".to_string());
@@ -1180,8 +1185,16 @@ pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
     let source_profiles = sources.profiles()?;
     // All aggregate capacities, structure, masks, channel dimensions and tail
     // slots passed before the first PNG decode or raw mask allocation.
-    for (layer, (png, dims, mask, mask_dims)) in layers.iter_mut().zip(layer_planes) {
-        let pixels = image::load_from_memory_with_format(png, image::ImageFormat::Png)
+    let planes = (layers.len() + channels.len()).max(1) as f64;
+    let decode = |png: &[u8]| {
+        image::ImageReader::with_format(Polled::new(Cursor::new(png), job), image::ImageFormat::Png)
+            .decode()
+    };
+    for (index, (layer, (png, dims, mask, mask_dims))) in
+        layers.iter_mut().zip(layer_planes).enumerate()
+    {
+        job.report(index as f64 / planes, 1)?;
+        let pixels = decode(png)
             .map_err(|e| format!("failed to decode layer pixels: {e}"))?
             // One decoded buffer at a time (`drdc_reopen_plan`'s layer stage).
             .into_rgba8();
@@ -1197,9 +1210,11 @@ pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
             })
             .transpose()?;
     }
-    for (channel, png) in channels.iter_mut().zip(channel_planes) {
+    let first_channel = layers.len();
+    for (index, (channel, png)) in channels.iter_mut().zip(channel_planes).enumerate() {
+        job.report((first_channel + index) as f64 / planes, 1)?;
         channel.data = Arc::new(
-            image::load_from_memory_with_format(png, image::ImageFormat::Png)
+            decode(png)
                 .map_err(|e| format!("failed to decode channel plane: {e}"))?
                 .to_luma8(),
         );

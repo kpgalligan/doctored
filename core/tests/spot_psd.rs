@@ -414,6 +414,7 @@ pub fn save_null_projection(doc: &PrecisionDocument, path: &Path, container: i32
             mode,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

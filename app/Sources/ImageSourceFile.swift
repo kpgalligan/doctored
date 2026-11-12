@@ -61,14 +61,19 @@ struct ImageSourceFile {
 
     /// The staged snapshot's asset, its fingerprint and the open's profile
     /// refusal: the sentence naming an embedded profile the core open
-    /// converted from or ignored, nil when it kept or found none.
-    func decode() throws -> (asset: RasterDocument, sha256: String, profileRefusal: String?) {
+    /// converted from or ignored, nil when it kept or found none. `control`
+    /// is checked through the snapshot copy and then handed to the one core
+    /// open; a cancel throws `JobCancelled` (or the core's sentence, which the
+    /// wait maps to it) and removes the snapshot.
+    func decode(control: RasterJobControl? = nil)
+        throws -> (asset: RasterDocument, sha256: String, profileRefusal: String?) {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("doctored-source-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false,
                                                attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: folder) }
         let staged = folder.appendingPathComponent("source.\(url.pathExtension)")
-        let digest = try Self.fingerprint(url, copyingTo: staged, maximumBytes: byteCount)
+        let digest = try Self.fingerprint(url, copyingTo: staged, maximumBytes: byteCount,
+                                          control: control)
         // Reinspect the captured bytes: a file may have changed after the open
         // panel or the first admission estimate. A larger capture refuses.
         let captured = try ImageSourceFile(url: staged)
@@ -80,18 +85,24 @@ struct ImageSourceFile {
         if depth == 16 || depth == 32 {
             let context = try PrecisionWorkContext()
             asset = try RasterDocument(precision: RasterPrecisionDocument.openPreserving(
-                url: staged, workingLimit: context.limit, otherRetained: context.otherRetained))
+                url: staged, workingLimit: context.limit, otherRetained: context.otherRetained,
+                control: control))
             refusal = asset.precisionProfileRefusal(openedFrom: staged)
         } else {
-            asset = try RasterDocument.open(url: staged)
+            asset = try RasterDocument.open(url: staged, control: control)
             refusal = RasterDocument.flatOpenProfileRefusal(at: staged)
         }
+        try control?.checkCancelled()
         return (asset, digest, refusal)
     }
 
     /// Bounded streaming I/O; no mapped file and no full-file Data allocation.
+    /// `control` is only read: checked at entry and before each 1 MiB block,
+    /// throwing `JobCancelled`, so it stays fresh for a core call after this.
     static func fingerprint(_ url: URL, copyingTo destination: URL? = nil,
-                            maximumBytes: UInt64? = nil) throws -> String {
+                            maximumBytes: UInt64? = nil,
+                            control: RasterJobControl? = nil) throws -> String {
+        try control?.checkCancelled()
         let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
         guard values.isRegularFile == true, let size = values.fileSize, size >= 0 else {
             throw DoctoredCoreError(message: "The linked source must be a regular file.")
@@ -114,7 +125,9 @@ struct ImageSourceFile {
         defer { try? output?.close() }
         var hash = SHA256()
         var total: UInt64 = 0
-        while let data = try input.read(upToCount: 1024 * 1024), !data.isEmpty {
+        while true {
+            try control?.checkCancelled()
+            guard let data = try input.read(upToCount: 1024 * 1024), !data.isEmpty else { break }
             total = try PrecisionDocumentDescriptor.sum(total, UInt64(data.count))
             guard total <= limit else { throw DoctoredCoreError(message: "The source grew while it was being read. Try again.") }
             hash.update(data: data)

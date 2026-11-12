@@ -874,7 +874,8 @@ fn placed_source((width, height): (u32, u32)) {
     let held = [host as *const _, placed as *const _, dabbed as *const _];
     evict(&held);
     let start = Instant::now();
-    let saved = unsafe { dr_doc_save_native(placed, c_path.as_ptr(), &mut error) };
+    let saved =
+        unsafe { dr_doc_save_native(placed, c_path.as_ptr(), std::ptr::null(), &mut error) };
     let elapsed = ms(start);
     assert!(saved && error.is_null(), "save failed");
     let measured = report(&held);
@@ -895,7 +896,7 @@ fn placed_source((width, height): (u32, u32)) {
     drop(bytes);
 
     let start = Instant::now();
-    let reopened = unsafe { dr_doc_open(c_path.as_ptr(), &mut error) };
+    let reopened = unsafe { dr_doc_open(c_path.as_ptr(), std::ptr::null(), &mut error) };
     let elapsed = ms(start);
     assert!(error.is_null() && !reopened.is_null(), "open failed");
     std::fs::remove_file(&path).expect("the saved file removed");
@@ -2021,6 +2022,7 @@ fn typed_unseeded() {
                     0,
                     REFERENCE_WORKING_BYTES,
                     0,
+                    std::ptr::null(),
                     &mut error,
                 )
             };
@@ -3072,6 +3074,7 @@ fn exports_psd(
             mode,
             REFERENCE_WORKING_BYTES,
             0,
+            std::ptr::null(),
             error,
         )
     })
@@ -3152,6 +3155,7 @@ fn typed_exports() {
                     REFERENCE_WORKING_BYTES,
                     0,
                     &mut carried,
+                    std::ptr::null(),
                     error,
                 )
             })
@@ -4290,6 +4294,7 @@ fn typed_decoders() {
                 0,
                 REFERENCE_WORKING_BYTES,
                 0,
+                std::ptr::null(),
                 &mut error,
             )
         };

@@ -95,6 +95,7 @@ fn save(document: &PrecisionDocument, path: &Path) {
             LAYERS,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut error,
         )
     };

@@ -195,11 +195,12 @@ extension RasterPrecisionDocument {
     /// Writes the composite (`projection`, else a fresh render) as a TIFF 6.0 CIELab file at the
     /// document's depth (#1 Lab phase 1b, `dr_precision_doc_save_lab`).
     func saveLab(to url: URL, projection: RasterPrecisionImage?, stripMetadata: Bool,
-                 workingLimit: UInt64, otherRetained: UInt64) throws {
+                 workingLimit: UInt64, otherRetained: UInt64,
+                 control: RasterJobControl? = nil) throws {
         var error: UnsafeMutablePointer<CChar>?
         guard dr_precision_doc_save_lab(ptr, projection?.ptr, url.path,
                                         Self.labSaveRequest(stripMetadata), workingLimit,
-                                        otherRetained, nil, &error) else {
+                                        otherRetained, control?.ptr, &error) else {
             throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not save the Lab TIFF."))
         }
     }

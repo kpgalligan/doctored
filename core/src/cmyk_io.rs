@@ -533,9 +533,7 @@ impl PrecisionDocument {
         job.reserve(scratch)?;
         let bytes = self.cmyk_encoded(&request, job)?;
         job.check()?;
-        crate::dr_image::save_atomically(path, |tmp| {
-            std::fs::write(tmp, &bytes).map_err(|e| format!("failed to write {path}: {e}"))
-        })?;
+        crate::dr_image::save_bytes_atomically(path, &bytes, job)?;
         if let Some(control) = control {
             control.report(1.0, 5);
         }
@@ -591,7 +589,7 @@ impl PrecisionDocument {
                 {
                     crate::tiff_paths::attach(&mut side, paths);
                 }
-                cmyk_tiff_bytes(&samples, (w, h), depth, &side)?
+                cmyk_tiff_bytes(&samples, (w, h), depth, &side, job.range(0.6, 1.0))?
             }
             SaveFormat::Psd => {
                 let icc: &[u8] = if request.embed_profile {
@@ -640,23 +638,28 @@ impl PrecisionDocument {
 /// A CMYK TIFF of interleaved `samples` at `depth` (8-bit: one code a u16
 /// slot, as [`PrecisionDocument::cmyk_flat_samples`] gives them) carrying
 /// `side`'s packets: the encode a TIFF or JPEG-intermediate save and a
-/// kept-CMYK export (`cmyk_export`) share.
+/// kept-CMYK export (`cmyk_export`) share. The writer streams through
+/// `cancel_io::Polled`, polling `job`; a cancel answers exactly
+/// `operation cancelled`.
 pub(crate) fn cmyk_tiff_bytes(
     samples: &[u16],
     dimensions: (u32, u32),
     depth: CmykDepth,
     side: &crate::metadata_write::EncodeSidecar<'_>,
+    job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
     let mut out = Cursor::new(Vec::new());
-    match depth {
+    let mut sink = crate::cancel_io::Polled::new(&mut out, job);
+    let written = match depth {
         CmykDepth::Eight => {
             let bytes: Vec<u8> = samples.iter().map(|v| *v as u8).collect();
-            crate::tiff_encode::encode_cmyk8(&bytes, dimensions, &mut out, side)?
+            crate::tiff_encode::encode_cmyk8(&bytes, dimensions, &mut sink, side)
         }
         CmykDepth::Sixteen => {
-            crate::tiff_encode::encode_cmyk16(samples, dimensions, &mut out, side)?
+            crate::tiff_encode::encode_cmyk16(samples, dimensions, &mut sink, side)
         }
-    }
+    };
+    crate::cancel_io::settle(job, written)?;
     Ok(out.into_inner())
 }
 

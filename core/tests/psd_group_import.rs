@@ -138,8 +138,15 @@ fn report(path: &Path) -> Value {
 fn open(path: &Path, mode: i32, report: &Value) -> Result<Box<DrDocument>, String> {
     let fingerprint = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut err = ptr::null_mut();
-    let doc =
-        unsafe { dr_doc_open_psd(cpath(path).as_ptr(), mode, fingerprint.as_ptr(), &mut err) };
+    let doc = unsafe {
+        dr_doc_open_psd(
+            cpath(path).as_ptr(),
+            mode,
+            fingerprint.as_ptr(),
+            std::ptr::null(),
+            &mut err,
+        )
+    };
     if doc.is_null() {
         Err(take_err_string(err))
     } else {
@@ -154,11 +161,11 @@ fn save_reopen(dir: &TempDir, doc: &DrDocument) -> Box<DrDocument> {
     let path = cpath(&dir.path().join("roundtrip.rz"));
     let mut err = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, path.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, path.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
-    let reopened = unsafe { dr_doc_open(path.as_ptr(), &mut err) };
+    let reopened = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!reopened.is_null(), "{}", take_err_string(err));
     unsafe { Box::from_raw(reopened) }
 }
@@ -524,7 +531,14 @@ fn malformed_lengths_and_stale_fingerprint_preserve_captured_native_state() {
     let captured = open(&path, 0, &before).unwrap();
     let native = dir.path().join("before.rz");
     let mut err = ptr::null_mut();
-    assert!(unsafe { dr_doc_save_native(&*captured, cpath(&native).as_ptr(), &mut err) });
+    assert!(unsafe {
+        dr_doc_save_native(
+            &*captured,
+            cpath(&native).as_ptr(),
+            std::ptr::null(),
+            &mut err,
+        )
+    });
     let original_native = std::fs::read(&native).unwrap();
     let mut malformed = bytes.clone();
     malformed[38..42].copy_from_slice(&u32::MAX.to_be_bytes());
@@ -549,7 +563,14 @@ fn malformed_lengths_and_stale_fingerprint_preserve_captured_native_state() {
         "truncated PSD layer record",
     );
     assert_eq!(pixels(&captured), [9, 19, 29, 255]);
-    assert!(unsafe { dr_doc_save_native(&*captured, cpath(&native).as_ptr(), &mut err) });
+    assert!(unsafe {
+        dr_doc_save_native(
+            &*captured,
+            cpath(&native).as_ptr(),
+            std::ptr::null(),
+            &mut err,
+        )
+    });
     assert_eq!(std::fs::read(&native).unwrap(), original_native);
 }
 

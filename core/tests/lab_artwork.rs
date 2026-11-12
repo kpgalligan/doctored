@@ -612,6 +612,7 @@ fn a_lab_solid_fill_exports_to_psd_as_its_pixels_with_the_loss_reported() {
                 0,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut err,
             )
         };

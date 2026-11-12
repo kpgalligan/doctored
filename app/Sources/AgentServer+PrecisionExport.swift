@@ -18,9 +18,7 @@ extension AgentServer {
             let captured = try CapturedSave(document, type: ImageDocument.nativeTypeIdentifier)
             _ = try RasterResources.shared.admit(scratch: captured.scratchEstimate,
                 own: captured.ownRetainedBytes, remedy: captured.refusalRemedy)
-            try BackgroundWork.wait(try WorkerTask(scratchEstimate: captured.scratchEstimate) {
-                try captured.writeSafely(to: url)
-            }, title: "Saving Native Copy")
+            try captured.run(to: url, title: "Saving Native Copy")
             return try jsonResult(["ok": true, "path": url.path, "format": ImageDocument.nativeFormatName,
                                    "bit_depth": source.isFloat ? 32 : 16,
                                    "flat_save_losses": [String]()])
@@ -40,9 +38,7 @@ extension AgentServer {
             let captured = try CapturedSave(document, type: UTType.tiff.identifier)
             _ = try RasterResources.shared.admit(scratch: captured.scratchEstimate,
                 own: captured.ownRetainedBytes, remedy: captured.refusalRemedy)
-            try BackgroundWork.wait(try WorkerTask(scratchEstimate: captured.scratchEstimate) {
-                try captured.writeSafely(to: url)
-            }, title: "Saving Lab TIFF")
+            try captured.run(to: url, title: "Saving Lab TIFF")
             return try jsonResult(["ok": true, "path": url.path, "format": "TIFF", "bit_depth": depth,
                                    "flat_save_losses": try document.saveLosses(for: UTType.tiff.identifier),
                                    "working_memory_plan_bytes": captured.scratchEstimate])

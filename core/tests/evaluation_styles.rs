@@ -823,14 +823,24 @@ fn a_psd_style_bake_is_encoded_from_linear_light_at_byte_depth() {
     ));
     let shown = flatten(&doc).expect("the linear projection");
     let mut err: *mut c_char = ptr::null_mut();
-    let saved =
-        unsafe { dr_doc_save_psd(&doc, ptr::null(), path_c(&path).as_ptr(), 0, 0, &mut err) };
+    let saved = unsafe {
+        dr_doc_save_psd(
+            &doc,
+            ptr::null(),
+            path_c(&path).as_ptr(),
+            0,
+            0,
+            std::ptr::null(),
+            &mut err,
+        )
+    };
     assert!(saved, "PSD export: {}", crate::linear_oracle::take_err(err));
     let opened = unsafe {
         dr_doc_open_psd(
             path_c(&path).as_ptr(),
             0,
             fingerprint(&path).as_ptr(),
+            std::ptr::null(),
             &mut err,
         )
     };
@@ -874,6 +884,7 @@ fn a_psd_style_bake_is_encoded_from_linear_light_at_typed_depth() {
             0,
             REFERENCE_WORKING_BYTES,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

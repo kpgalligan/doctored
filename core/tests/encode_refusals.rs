@@ -1305,12 +1305,12 @@ fn an_existing_calibrated_layer_in_a_failing_own_profile_keeps_rendering_at_8_bi
     let path = CString::new(dir.path().join("kept.rz").to_str().expect("utf8")).expect("path");
     let mut err = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, path.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, path.as_ptr(), std::ptr::null(), &mut err) },
         "{:?}",
         unsafe { text(err) }
     );
     let mut err = ptr::null_mut();
-    let reopened = unsafe { dr_doc_open(path.as_ptr(), &mut err) };
+    let reopened = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!reopened.is_null(), "{:?}", unsafe { text(err) });
     assert_eq!(
         unsafe { text(dr_doc_layer_meta(reopened, 1)) }.as_deref(),

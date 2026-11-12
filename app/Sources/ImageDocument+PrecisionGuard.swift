@@ -25,7 +25,9 @@ extension ImageDocument {
     static func openPrecisionDocumentIfRequested(at url: URL) throws -> RasterDocument? {
         let native = hasNativeSignature(at: url)
         let typedNative = try native && RasterDocument.isPrecisionNative(at: url)
-        if native && !typedNative { return try RasterDocument.open(url: url) }
+        if native && !typedNative {
+            return try openWork(url) { control in try RasterDocument.open(url: url, control: control) }
+        }
         // #1: a CMYK TIFF or JPEG the core opens as a CMYK document is
         // decided here, by the core's own header test, before any 16-bit
         // prompt (`PrecisionImportRequest.resolve` answers it first).
@@ -63,31 +65,41 @@ extension ImageDocument {
         // (#1 phases 5 and 1a).
         let policy = CmykProfileEdit.OpenPolicy.current
         let workingGray = ColorSettings.workingGray.rawValue
+        // The control goes to the one core open; the profile policy, the display preparation
+        // and the mattes after it check it at their boundaries.
+        let control = try RasterJobControl()
         let task = try WorkerTask {
             var source = gray
                 ? try RasterPrecisionDocument.openGray(url: url, workingGray: workingGray,
                                                        workingLimit: context.limit,
-                                                       otherRetained: context.otherRetained)
+                                                       otherRetained: context.otherRetained,
+                                                       control: control)
                 : lab
                 ? try RasterPrecisionDocument.openLab(url: url, workingLimit: context.limit,
-                                                      otherRetained: context.otherRetained)
+                                                      otherRetained: context.otherRetained,
+                                                      control: control)
                 : indexed
                 ? try RasterPrecisionDocument.openIndexed(url: url, workingLimit: context.limit,
-                                                          otherRetained: context.otherRetained)
+                                                          otherRetained: context.otherRetained,
+                                                          control: control)
                 : bitmap
                 ? try RasterPrecisionDocument.openBitmap(url: url, workingGray: workingGray,
                                                          workingLimit: context.limit,
-                                                         otherRetained: context.otherRetained)
+                                                         otherRetained: context.otherRetained,
+                                                         control: control)
                 : try RasterPrecisionDocument.openPreserving(url: url, workingLimit: context.limit,
-                                                             otherRetained: context.otherRetained)
+                                                             otherRetained: context.otherRetained,
+                                                             control: control)
+            try control.checkCancelled()
             if cmyk { source = try policy.applied(to: source, context: context) }
             let document = try RasterDocument(precision: source)
+            try control.checkCancelled()
             return try typedNative ? document : NativeAuxiliaryMattes.attaching(to: document, from: url)
         }
         let title = cmyk ? "Opening CMYK Document" : gray ? "Opening Grayscale Document"
             : lab ? "Opening Lab Color Document" : indexed ? "Opening Indexed Color Document"
             : bitmap ? "Opening Bitmap Document" : "Opening 16-bit Document"
-        return try BackgroundWork.wait(task, title: title)
+        return try BackgroundWork.wait(task, title: title, control: control)
     }
 
     /// Value-only workers return a prepared immutable owner. The same central

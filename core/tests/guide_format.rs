@@ -47,7 +47,7 @@ fn save_and_read(doc: *const DrDocument, dir: &TempDir, name: &str) -> Vec<u8> {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
@@ -57,7 +57,7 @@ fn save_and_read(doc: *const DrDocument, dir: &TempDir, name: &str) -> Vec<u8> {
 fn reopen(dir: &TempDir, name: &str) -> *mut DrDocument {
     let c = cpath(&dir.path().join(name));
     let mut err: *mut c_char = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "reopen {name}: {}", take_err_string(err));
     doc
 }

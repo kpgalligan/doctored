@@ -37,6 +37,7 @@ fn exported(doc: &DrDocument, format: i32, strip: bool) -> DrDocument {
                 true,
                 strip,
                 ptr::null_mut(),
+                std::ptr::null(),
                 &mut err,
             )
         },

@@ -310,6 +310,7 @@ fn a_cmyk_psd_carries_the_glow_gradients_stop_inks() {
             0,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

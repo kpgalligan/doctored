@@ -1,6 +1,7 @@
 //! Captured authoritative projection export through the shared typed codec.
 
 use crate::ffi_util::{borrow_cstr_bounded, fallible_op, required_handle};
+use crate::job_control::DrJobControl;
 use crate::precision_codec::PrecisionFormat;
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::PrecisionImage;
@@ -35,11 +36,15 @@ pub unsafe extern "C" fn dr_precision_doc_projection_export_plan(
 /// Save a captured RGBA16 projection as PNG16 (0) or TIFF16 (1), without another
 /// render. Requires exact canvas dimensions and ICC bytes; the host guarantees
 /// source/revision pairing. other excludes the union of BOTH input owners.
-/// Noncancellable dependency codecs; report_out receives CARRIES bits on success.
+/// The optional single-use control is polled as the encoded bytes move; a
+/// cancel answers exactly `operation cancelled`. report_out receives CARRIES
+/// bits on success.
 /// # Safety
 /// document/image NULL/live; path NULL/terminated UTF-8 of at most 64 KiB;
-/// report_out/err_out NULL/writable. Keep both immutable inputs live until return.
+/// control NULL or a live single-use token; report_out/err_out NULL/writable.
+/// Keep both immutable inputs live until return.
 #[no_mangle]
+#[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn dr_precision_doc_save_projection16(
     document: *const PrecisionDocument,
     image: *const PrecisionImage,
@@ -50,6 +55,7 @@ pub unsafe extern "C" fn dr_precision_doc_save_projection16(
     limit: u64,
     other: u64,
     report_out: *mut u32,
+    control: *const DrJobControl,
     err_out: *mut *mut c_char,
 ) -> bool {
     unsafe {
@@ -74,6 +80,7 @@ pub unsafe extern "C" fn dr_precision_doc_save_projection16(
                     strip_metadata,
                     limit,
                     other,
+                    control.as_ref(),
                 )
             },
             |report| {

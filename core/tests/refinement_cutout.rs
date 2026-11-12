@@ -66,8 +66,13 @@ fn output_is_an_editable_masked_layer_and_original_group_is_unchanged() {
             }
         }
         let path = cpath(&temporary.path().join("cutout.rz"));
-        assert!(dr_doc_save_native(output, path.as_ptr(), &mut error));
-        let reopened = dr_doc_open(path.as_ptr(), &mut error);
+        assert!(dr_doc_save_native(
+            output,
+            path.as_ptr(),
+            std::ptr::null(),
+            &mut error
+        ));
+        let reopened = dr_doc_open(path.as_ptr(), std::ptr::null(), &mut error);
         assert!(!reopened.is_null());
         assert_eq!(flat_pixels(reopened), flat);
         assert_eq!(layer_pixels(reopened, 0), *original.as_raw());

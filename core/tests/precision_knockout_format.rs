@@ -448,6 +448,7 @@ fn the_16_bit_psd_export_writes_the_knockout_blocks_and_the_old_loss_sentence_is
                     0,
                     LIMIT,
                     0,
+                    std::ptr::null(),
                     &mut err,
                 )
             },

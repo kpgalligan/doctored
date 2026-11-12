@@ -345,9 +345,7 @@ extension AgentServer {
             scratch = captured.scratchEstimate
             _ = try RasterResources.shared.admit(scratch: captured.scratchEstimate,
                 own: captured.ownRetainedBytes, remedy: captured.refusalRemedy)
-            try BackgroundWork.wait(try WorkerTask(scratchEstimate: captured.scratchEstimate) {
-                try captured.writeSafely(to: url)
-            }, title: "Saving CMYK Copy")
+            try captured.run(to: url, title: "Saving CMYK Copy")
         } catch {
             throw ToolError(message: error.localizedDescription)
         }

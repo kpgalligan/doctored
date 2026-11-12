@@ -60,6 +60,7 @@ use serde_json::{json, Value};
 use crate::authored_color::AuthoredColors;
 use crate::doc::DrDocument;
 use crate::doc_group::MAX_GROUP_DEPTH;
+use crate::job_control::JobContext;
 use crate::psd_adjustment::AdjustmentBody;
 use crate::psd_container::Container;
 use crate::psd_group_records::GroupRecords;
@@ -833,7 +834,24 @@ pub(crate) fn report(original: &[u8], path: &str) -> Result<Value, String> {
 
 /// 0 imports the supported layer subset; 1 opens only the saved composite.
 /// A layered decode error is never replaced with a composite implicitly.
-pub(crate) fn open(bytes: &[u8], path: &str, mode: i32) -> Result<DrDocument, String> {
+/// `job` is checked before the parse, per imported record and before the
+/// composite decode; a cancel answers exactly `operation cancelled`.
+pub(crate) fn open(
+    bytes: &[u8],
+    path: &str,
+    mode: i32,
+    job: JobContext<'_>,
+) -> Result<DrDocument, String> {
+    crate::cancel_io::settle(job, open_checked(bytes, path, mode, job))
+}
+
+fn open_checked(
+    bytes: &[u8],
+    path: &str,
+    mode: i32,
+    job: JobContext<'_>,
+) -> Result<DrDocument, String> {
+    job.check()?;
     let container = Container::read(bytes).map_err(|e| format!("PSD {path}: {e}"))?;
     if let Some(reason) = container.support_refusal() {
         return Err(format!("PSD {path}: {reason}"));
@@ -853,26 +871,26 @@ pub(crate) fn open(bytes: &[u8], path: &str, mode: i32) -> Result<DrDocument, St
     container
         .profile()
         .map_err(|e| format!("PSD {path}: {e}"))?;
+    let composite = || {
+        job.check()?;
+        container
+            .composite()
+            .map_err(|e| format!("PSD {path}: {e}"))
+    };
     let doc = match mode {
         0 => {
             let (psd, records) = parse(bytes, &container)
                 .map_err(|e| format!("PSD {path}: {e}; inspect the saved-composite option"))?;
+            job.check()?;
             if records.retains_nothing() {
-                DrDocument::from_pixels(
-                    container
-                        .composite()
-                        .map_err(|e| format!("PSD {path}: {e}"))?,
-                )
+                DrDocument::from_pixels(composite()?)
             } else {
-                crate::psd::import_layers(&psd, &records, &container, path)?
+                crate::psd::import_layers(&psd, &records, &container, path, job)?
             }
         }
-        1 => DrDocument::from_pixels(
-            container
-                .composite()
-                .map_err(|e| format!("PSD {path}: {e}"))?,
-        ),
+        1 => DrDocument::from_pixels(composite()?),
         _ => return Err("unknown PSD import mode; use 0 (layers) or 1 (stored composite)".into()),
     };
+    job.check()?;
     container.tag(doc).map_err(|e| format!("PSD {path}: {e}"))
 }

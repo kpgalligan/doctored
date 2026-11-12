@@ -24,6 +24,7 @@ use crate::adjust::Adjustment;
 use crate::blend::{
     blend_kind, composite_buffer_into, composite_source_into, dissolve_threshold, BlendKind,
 };
+use crate::cancel_io::settle;
 use crate::clip_unit::{clip_pass, ClipStep};
 use crate::comps_geometry::merged_comps;
 use crate::doc_align;
@@ -34,6 +35,7 @@ use crate::doc_lock::EditKind;
 use crate::doc_plane::channel_lerp;
 use crate::doc_sampler;
 use crate::icc::IccProfile;
+use crate::job_control::{DrJobControl, JobContext};
 use crate::metadata::{Metadata, Resolution};
 use crate::style::{scaled_style, GlobalLight, LayerStyle};
 use crate::style_composite::{composite_styled_into, merge_extent, CompositeEnv, Cut};
@@ -2206,29 +2208,50 @@ impl DrDocument {
     /// Gray profile on a grayscale image, a CMYK profile on a CMYK TIFF —
     /// whose pixels `open_bytes` has already converted to sRGB.
     pub fn open(path: &str) -> Result<Self, String> {
-        let mut bytes = std::fs::read(path).map_err(|e| format!("failed to read {path}: {e}"))?;
-        if crate::native_magic::is_native_magic(&bytes) {
-            crate::drdc::parse_native(&bytes)
-                .map_err(|e| format!("failed to read document {path}: {e}"))
+        Self::open_controlled(path, None)
+    }
+
+    /// [`Self::open`] under an optional single-use job control, begun once
+    /// for the whole open: the file is read through `cancel_io::read_file`,
+    /// a native file's planes and a flat file's codec read through
+    /// `cancel_io::Polled`, and every route checks the job between its
+    /// layers, planes or pages, so a cancel answers exactly
+    /// `operation cancelled` and opens nothing. No control behaves exactly
+    /// as [`Self::open`] always did.
+    pub fn open_controlled(path: &str, control: Option<&DrJobControl>) -> Result<Self, String> {
+        let _run = control.map(DrJobControl::begin).transpose()?;
+        let job = control.map_or(JobContext::NONE, JobContext::new);
+        let mut bytes = crate::cancel_io::read_file(path, job.range(0.0, 0.2))?;
+        let job = job.range(0.2, 1.0);
+        let doc = if crate::native_magic::is_native_magic(&bytes) {
+            settle(
+                job,
+                crate::drdc::parse_native(&bytes, job)
+                    .map_err(|e| format!("failed to read document {path}: {e}")),
+            )?
         } else if bytes.len() >= 4 && &bytes[..4] == b"8BPS" {
-            crate::psd::open_psd(&bytes, path)
+            settle(job, crate::psd::open_psd(&bytes, path, job))?
         } else {
             // A TIFF holding more than one image opens each page as a layer
             // (`tiff_pages`, `doc_tiff_pages`).
-            if crate::metadata_tiff::is_tiff(&bytes) {
-                if let Some(pages) = crate::tiff_pages::read(&bytes) {
-                    return Self::open_tiff_pages(&mut bytes, &pages, path);
-                }
+            let pages = crate::metadata_tiff::is_tiff(&bytes)
+                .then(|| crate::tiff_pages::read(&bytes))
+                .flatten();
+            match pages {
+                Some(pages) => Self::open_tiff_pages(&mut bytes, &pages, path, job)?,
+                None => Self::open_flat(&bytes, path, job)?,
             }
-            Self::open_flat(&bytes, path)
-        }
+        };
+        job.report(1.0, 5)?;
+        Ok(doc)
     }
 
     /// The flat branch of [`Self::open`] over bytes already read: a one-image
     /// file, or page 1 of a multipage TIFF made the file's only page
     /// (`tiff_pages::with_page`).
-    pub(crate) fn open_flat(bytes: &[u8], path: &str) -> Result<Self, String> {
-        let (image, sidecar) = DrImage::open_bytes(bytes, path)?;
+    pub(crate) fn open_flat(bytes: &[u8], path: &str, job: JobContext<'_>) -> Result<Self, String> {
+        let (image, sidecar) = DrImage::open_bytes(bytes, path, job)?;
+        job.check()?;
         let mut doc = DrDocument::from_pixels(image.pixels);
         // The sidecar carries only a profile the open KEPT: one it
         // converted from (Gray, CMYK) or ignored (any other non-RGB

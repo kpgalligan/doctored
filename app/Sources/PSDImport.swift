@@ -136,7 +136,10 @@ extension ImageDocument {
                                    cmyk: precision == "cmyk", gray: precision == "gray",
                                    lab: precision == "lab", bitmap: precision == "bitmap",
                                    indexed: precision == "indexed", title: title)
-            : try RasterDocument.openPSD(at: url, mode: choice.coreMode, fingerprint: fingerprint)
+            : try ImageDocument.openWork(url) { control in
+                try RasterDocument.openPSD(at: url, mode: choice.coreMode, fingerprint: fingerprint,
+                                           control: control)
+            }
         return (doc, PSDImportState(choice: choice, report: report, precision: precision))
     }
 
@@ -214,30 +217,41 @@ extension ImageDocument {
         let context = try PrecisionWorkContext()
         let policy = CmykProfileEdit.OpenPolicy.current
         let workingGray = ColorSettings.workingGray.rawValue
+        // The control goes to the one core open; the profile policy and the display
+        // preparation after it check it at their boundaries.
+        let control = try RasterJobControl()
         let task = try WorkerTask {
             var source = bitmap
                 ? try RasterPrecisionDocument.openBitmapPSD(
                     at: url, fingerprint: fingerprint, workingGray: workingGray,
-                    workingLimit: context.limit, otherRetained: context.otherRetained)
+                    workingLimit: context.limit, otherRetained: context.otherRetained,
+                    control: control)
                 : indexed
                 ? try RasterPrecisionDocument.openIndexedPSD(
                     at: url, fingerprint: fingerprint,
-                    workingLimit: context.limit, otherRetained: context.otherRetained)
+                    workingLimit: context.limit, otherRetained: context.otherRetained,
+                    control: control)
                 : gray
                 ? try RasterPrecisionDocument.openGrayPSD(
                     at: url, mode: mode, fingerprint: fingerprint, workingGray: workingGray,
-                    workingLimit: context.limit, otherRetained: context.otherRetained)
+                    workingLimit: context.limit, otherRetained: context.otherRetained,
+                    control: control)
                 : lab
                 ? try RasterPrecisionDocument.openLabPSD(
                     at: url, mode: mode, fingerprint: fingerprint,
-                    workingLimit: context.limit, otherRetained: context.otherRetained)
+                    workingLimit: context.limit, otherRetained: context.otherRetained,
+                    control: control)
                 : try RasterPrecisionDocument.openPSD(
                     at: url, mode: mode, fingerprint: fingerprint,
-                    workingLimit: context.limit, otherRetained: context.otherRetained)
+                    workingLimit: context.limit, otherRetained: context.otherRetained,
+                    control: control)
+            try control.checkCancelled()
             if cmyk { source = try policy.applied(to: source, context: context) }
-            return try RasterDocument(precision: source)
+            let document = try RasterDocument(precision: source)
+            try control.checkCancelled()
+            return document
         }
-        return try BackgroundWork.wait(task, title: title)
+        return try BackgroundWork.wait(task, title: title, control: control)
     }
 }
 

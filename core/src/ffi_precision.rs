@@ -239,10 +239,14 @@ pub unsafe extern "C" fn dr_precision_doc_save_native(
 }
 
 /// Export authoritative PNG16 (0) or TIFF16 (1), returning DR_CARRIES_* bits
-/// through report_out only on success. Compound codec export is noncancellable.
+/// through report_out only on success. The optional single-use control is
+/// begun once for the render and the encode; a cancel answers exactly
+/// `operation cancelled`.
 /// # Safety
-/// document NULL/live, path NULL/terminated UTF-8; report_out/err_out NULL/writable.
+/// document/control NULL/live, control single-use, path NULL/terminated UTF-8;
+/// report_out/err_out NULL/writable.
 #[no_mangle]
+#[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn dr_precision_doc_export16(
     document: *const PrecisionDocument,
     path: *const c_char,
@@ -252,6 +256,7 @@ pub unsafe extern "C" fn dr_precision_doc_export16(
     limit: u64,
     other: u64,
     report_out: *mut u32,
+    control: *const DrJobControl,
     err_out: *mut *mut c_char,
 ) -> bool {
     unsafe {
@@ -272,6 +277,7 @@ pub unsafe extern "C" fn dr_precision_doc_export16(
                     strip_metadata,
                     limit,
                     other,
+                    control.as_ref(),
                 )
             },
             |report| {

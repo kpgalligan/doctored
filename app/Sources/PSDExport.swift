@@ -213,19 +213,22 @@ struct PSDExportCapture {
             &+ 16 * 1024 * 1024
     }
 
-    func write(to url: URL) throws {
+    /// `control` is single-use and goes to the one core save.
+    func write(to url: URL, control: RasterJobControl? = nil) throws {
         // #1 Bitmap phase 1c, and an Indexed Color document (#1): the core writes the plane;
         // no projection.
         if let precision = source.precision, source.isBitmap || source.isIndexed {
             let context = try PrecisionWorkContext(source: precision)
             try precision.savePSD(nil, to: url, container: container, mode: mode.coreMode,
-                                  workingLimit: context.limit, otherRetained: context.otherRetained)
+                                  workingLimit: context.limit, otherRetained: context.otherRetained,
+                                  control: control)
             return
         }
         if let precision = source.precision, precision.isCmyk {
             let context = try PrecisionWorkContext(source: precision)
             try precision.savePSD(nil, to: url, container: container, mode: mode.coreMode,
-                                  workingLimit: context.limit, otherRetained: context.otherRetained)
+                                  workingLimit: context.limit, otherRetained: context.otherRetained,
+                                  control: control)
             return
         }
         if let precision = source.precision {
@@ -235,10 +238,22 @@ struct PSDExportCapture {
             let context = try PrecisionWorkContext(source: precision, image: typedProjection)
             try precision.savePSD(typedProjection, to: url, container: container,
                                   mode: mode.coreMode, workingLimit: context.limit,
-                                  otherRetained: context.otherRetained)
+                                  otherRetained: context.otherRetained, control: control)
             return
         }
-        try source.savePSD(projection, to: url, container: container, mode: mode.coreMode)
+        try source.savePSD(projection, to: url, container: container, mode: mode.coreMode,
+                           control: control)
+    }
+
+    /// `write` on the bounded worker under a fresh control, waited with Cancel
+    /// and Esc (File ▸ Export as PSD and `export_psd`). A cancel throws
+    /// `JobCancelled` and keeps the previous file.
+    func run(to url: URL) throws {
+        let control = try RasterJobControl()
+        let task = try WorkerTask(scratchEstimate: scratchEstimate) {
+            try write(to: url, control: control)
+        }
+        try BackgroundWork.wait(task, title: "Exporting Photoshop Document", control: control)
     }
 
     /// What did not travel with the written file, as one informational

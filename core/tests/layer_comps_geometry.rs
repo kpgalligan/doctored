@@ -837,12 +837,12 @@ fn a_remapped_comp_survives_save_and_reopen_at_both_depths() {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(&cropped, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(&cropped, c.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
     let mut err: *mut c_char = ptr::null_mut();
-    let reopened = owned(unsafe { dr_doc_open(c.as_ptr(), &mut err) })
+    let reopened = owned(unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) })
         .unwrap_or_else(|| panic!("{}", take_err_string(err)));
     let applied = byte_applied(reopened);
     assert_eq!(

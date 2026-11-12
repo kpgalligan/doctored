@@ -35,14 +35,18 @@ fn page_error(number: usize, path: &str, error: String) -> String {
 impl DrDocument {
     /// `DrDocument::open` of a TIFF `tiff_pages::read` found more than one
     /// image in (module doc). `bytes` is restored before this returns.
+    /// `job` is checked before each page and polled inside each page's
+    /// decode (`DrImage::open_bytes`); a cancel answers exactly
+    /// `operation cancelled`, never a page's sentence.
     pub(crate) fn open_tiff_pages(
         bytes: &mut [u8],
         pages: &Pages,
         path: &str,
+        job: JobContext<'_>,
     ) -> Result<Self, String> {
         let admitted = pages.admitted();
         let mut doc = with_page(bytes, pages, admitted[0], |page| {
-            Self::open_flat(page, path)
+            Self::open_flat(page, path, job)
         })?;
         if admitted.len() == 1 {
             return Ok(doc);
@@ -51,9 +55,12 @@ impl DrDocument {
             first.name = page_name(1);
         }
         for &number in &admitted[1..] {
-            let (image, _) =
-                with_page(bytes, pages, number, |page| DrImage::open_bytes(page, path))
-                    .map_err(|e| page_error(number, path, e))?;
+            job.check()?;
+            let decoded = with_page(bytes, pages, number, |page| {
+                DrImage::open_bytes(page, path, job)
+            })
+            .map_err(|e| page_error(number, path, e));
+            let (image, _) = crate::cancel_io::settle(job, decoded)?;
             let top = doc.layers.len() - 1;
             let mut next = doc
                 .add_image_layer_at(top, image.pixels, &page_name(number), (0, 0))

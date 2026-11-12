@@ -129,6 +129,7 @@ fn float_save_writes_a_psd_and_a_32_bit_layered_tiff() {
                 mode,
                 REFERENCE_WORKING_BYTES,
                 0,
+                std::ptr::null(),
                 &mut err,
             )
         };

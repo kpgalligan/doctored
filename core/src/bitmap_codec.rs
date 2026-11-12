@@ -42,11 +42,13 @@
 //! pad-bit clear, which [`flip_polarity`] calls after it inverts.
 
 use std::borrow::Cow;
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 use crate::bitmap_method::stride;
+use crate::cancel_io::{settle, Polled};
 use crate::dr_image::Format;
 use crate::gray_document::{GrayDepth, GrayPolicy};
+use crate::job_control::JobContext;
 use crate::metadata::{Resolution, PNG_SIGNATURE};
 use crate::metadata_write::EncodeSidecar;
 use crate::tiff_directory::{bytes_reader, Directory, Overlay, COMPRESSIONS};
@@ -433,6 +435,7 @@ pub(crate) fn encode_png(
     packed: &[u8],
     dims: (u32, u32),
     side: &EncodeSidecar<'_>,
+    job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
     if packed.len() as u64 != stride(dims.0) as u64 * u64::from(dims.1) {
         return Err("encoding failed: the Bitmap plane does not match the dimensions".into());
@@ -442,26 +445,30 @@ pub(crate) fn encode_png(
     info.bit_depth = png::BitDepth::One;
     info.icc_profile = side.icc.map(|icc| Cow::Owned(icc.to_vec()));
     info.exif_metadata = side.exif.clone().map(Cow::Owned);
-    let mut sink = crate::gray_encode::injector(Format::Png, side);
+    let mut injected = crate::gray_encode::injector(Format::Png, side);
     let fail = |e: png::EncodingError| format!("encoding failed: {e}");
-    {
-        let encoder = png::Encoder::with_info(&mut sink, info).map_err(fail)?;
+    let written = (|| {
+        let encoder =
+            png::Encoder::with_info(Polled::new(&mut injected, job), info).map_err(fail)?;
         let mut writer = encoder.write_header().map_err(fail)?;
         writer.write_image_data(packed).map_err(fail)?;
-        writer.finish().map_err(fail)?;
-    }
-    Ok(sink.finish()?.into_inner())
+        writer.finish().map_err(fail)
+    })();
+    settle(job, written)?;
+    Ok(injected.finish()?.into_inner())
 }
 
 /// The plane as a 1 bpp BMP: a 14-byte file header, a 40-byte
 /// BITMAPINFOHEADER (BI_RGB, two colours, the resolution in pixels per
 /// metre), the palette black then white (so a bit 1 is white, the plane's
 /// own polarity) and the rows bottom-up, each padded to four bytes. A BMP
-/// carries no profile and no metadata.
+/// carries no profile and no metadata. The rows are written through
+/// `cancel_io::Polled`, polling `job` as they move.
 pub(crate) fn encode_bmp(
     packed: &[u8],
     dims: (u32, u32),
     resolution: Resolution,
+    job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
     let line = stride(dims.0);
     let height = dims.1 as usize;
@@ -496,9 +503,15 @@ pub(crate) fn encode_bmp(
     out.extend_from_slice(&2u32.to_le_bytes());
     out.extend_from_slice(&2u32.to_le_bytes());
     out.extend_from_slice(&[0, 0, 0, 0, 255, 255, 255, 0]);
-    for y in (0..height).rev() {
-        out.extend_from_slice(&packed[y * line..(y + 1) * line]);
-        out.resize(out.len() + padded - line, 0);
-    }
-    Ok(out)
+    let mut sink = Polled::new(out, job);
+    let pad = [0u8; 4];
+    let rows = (|| -> std::io::Result<()> {
+        for y in (0..height).rev() {
+            sink.write_all(&packed[y * line..(y + 1) * line])?;
+            sink.write_all(&pad[..padded - line])?;
+        }
+        Ok(())
+    })();
+    settle(job, rows.map_err(|e| format!("encoding failed: {e}")))?;
+    Ok(sink.into_inner())
 }

@@ -201,7 +201,9 @@ impl PrecisionDocument {
             {
                 crate::tiff_paths::attach(&mut side, paths);
             }
-            let bytes = crate::cmyk_io::cmyk_tiff_bytes(&samples, dimensions, depth, &side)?;
+            // The encode is the last stage; its codec polls as it writes.
+            job.report(0.8, 1)?;
+            let bytes = crate::cmyk_io::cmyk_tiff_bytes(&samples, dimensions, depth, &side, job)?;
             drop(samples);
             job.report(1.0, 5)?;
             return ExportResult::cmyk_kept(

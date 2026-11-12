@@ -339,6 +339,8 @@ do {
         ("stack mode cancel", verifyStackModeCancel),
         ("merge panorama cancel", verifyMergePanoramaCancel),
         ("hdr toning cancel", verifyHdrToningCancel),
+        ("save and open cancel", verifySaveOpenCancel),
+        ("snapshot fingerprint cancel", verifySnapshotFingerprintCancel),
         ("float quick mask fill", verifyFloatQuickMaskFill),
         ("float paint strokes", verifyFloatPaintStrokes),
         ("float retouch strokes", verifyFloatRetouchStrokes),

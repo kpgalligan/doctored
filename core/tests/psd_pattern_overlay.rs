@@ -102,7 +102,15 @@ fn open8(path: &Path) -> DrDocument {
     let report = import_report(path);
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let raw = unsafe { dr_doc_open_psd(cpath(path).as_ptr(), 0, token.as_ptr(), &mut error) };
+    let raw = unsafe {
+        dr_doc_open_psd(
+            cpath(path).as_ptr(),
+            0,
+            token.as_ptr(),
+            std::ptr::null(),
+            &mut error,
+        )
+    };
     assert!(!raw.is_null(), "open_psd: {}", take_err_string(error));
     *unsafe { Box::from_raw(raw) }
 }
@@ -137,6 +145,7 @@ fn save8(doc: &DrDocument, path: &Path, container: i32) {
             cpath(path).as_ptr(),
             container,
             0,
+            std::ptr::null(),
             &mut error,
         )
     };
@@ -155,6 +164,7 @@ fn save16(doc: &PrecisionDocument, path: &Path, container: i32) {
             0,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut error,
         )
     };

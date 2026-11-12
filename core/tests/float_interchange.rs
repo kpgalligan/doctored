@@ -320,6 +320,7 @@ fn a_float_document_refuses_the_untone_mapped_sixteen_bit_writer() {
             false,
             LIMIT,
             0,
+            None,
         )
         .expect_err("the untone-mapped writer refuses");
     assert!(error.contains("Export"), "{error}");

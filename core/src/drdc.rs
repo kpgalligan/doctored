@@ -6,12 +6,14 @@ use image::codecs::png::PngEncoder;
 use image::{ExtendedColorType, ImageEncoder};
 
 use crate::blend::BlendMode;
+use crate::cancel_io::{settle, write_file, Polled};
 use crate::doc::{sane_opacity, DrDocument, Layer, LayerKind, MAX_PIXELS};
 use crate::doc_channel::MAX_CHANNELS;
 use crate::doc_group::validate_structure;
 use crate::doc_guide::{sane_origin, sane_position, GuideOrientation, MAX_GUIDES};
 use crate::doc_lock::LOCK_ALL;
 use crate::dr_image::save_atomically;
+use crate::job_control::{DrJobControl, JobContext};
 use crate::metadata::Resolution;
 
 #[path = "drdc_capacity.rs"]
@@ -633,7 +635,12 @@ impl DrDocument {
     ///
     /// The body buffer and every layer/channel PNG Vec reserve their
     /// `drdc_save_plan` bounds up front, so only capacity changes, never a byte.
-    pub(crate) fn encode_native(&self) -> Result<Vec<u8>, String> {
+    ///
+    /// `job` reports progress per layer and per channel plane (each report
+    /// a checkpoint), and each plane's PNG encoder writes through
+    /// `cancel_io::Polled`; a cancel answers exactly `operation cancelled`
+    /// once the caller settles it. `JobContext::NONE` writes the same bytes.
+    pub(crate) fn encode_native(&self, job: JobContext<'_>) -> Result<Vec<u8>, String> {
         self.native_save_preflight()?;
         let plan = self.native_save_plan()?;
         let count = capacity::layer_count(self.layers.len())?;
@@ -884,7 +891,11 @@ impl DrDocument {
         let light = self.global_light.sane();
         buf.extend_from_slice(&light.angle.to_le_bytes());
         buf.extend_from_slice(&light.altitude.to_le_bytes());
-        for layer in &self.layers {
+        // One progress step per layer and per channel plane: each is one
+        // PNG encode, the writer's unit of work.
+        let planes = (self.layers.len() + self.channels.len()).max(1) as f64;
+        for (index, layer) in self.layers.iter().enumerate() {
+            job.report(index as f64 / planes, 1)?;
             put_name(&mut buf, &layer.name);
             buf.extend_from_slice(&layer.offset.0.to_le_bytes());
             buf.extend_from_slice(&layer.offset.1.to_le_bytes());
@@ -897,7 +908,7 @@ impl DrDocument {
                 4,
             )?)?;
             let image = layer.pixels.to_contiguous()?;
-            PngEncoder::new(&mut png)
+            PngEncoder::new(Polled::new(&mut png, job))
                 .write_image(image.as_raw(), lw, lh, ExtendedColorType::Rgba8)
                 .map_err(|e| format!("PNG encoding failed: {e}"))?;
             drop(image);
@@ -959,7 +970,8 @@ impl DrDocument {
         // build is one it cannot read back.
         let channel_count = capacity::channel_count(self.channels.len(), self.width, self.height)?;
         buf.extend_from_slice(&channel_count.to_le_bytes());
-        for channel in &self.channels {
+        for (index, channel) in self.channels.iter().enumerate() {
+            job.report((self.layers.len() + index) as f64 / planes, 1)?;
             let (cw, ch) = channel.data.dimensions();
             if (cw, ch) != (self.width, self.height) {
                 // The model's invariant; a broken one would write a file the
@@ -977,7 +989,7 @@ impl DrDocument {
                 (cw, ch),
                 1,
             )?)?;
-            PngEncoder::new(&mut png)
+            PngEncoder::new(Polled::new(&mut png, job))
                 .write_image(channel.data.as_raw(), cw, ch, ExtendedColorType::L8)
                 .map_err(|e| format!("PNG encoding failed: {e}"))?;
             let png_len = u32::try_from(png.len())
@@ -1053,61 +1065,21 @@ impl DrDocument {
             buf.push(*orientation);
             buf.extend_from_slice(&position.to_le_bytes());
         }
-        sources.encode(&mut buf, u64::MAX, crate::job_control::JobContext::NONE)?;
-        crate::mask_outside_native::encode(
-            &outside,
-            &mut buf,
-            u64::MAX,
-            crate::job_control::JobContext::NONE,
-        )?;
-        crate::evaluation_native::encode(
-            linear_light,
-            &mut buf,
-            u64::MAX,
-            crate::job_control::JobContext::NONE,
-        )?;
-        crate::label_native::encode(
-            &labels,
-            &mut buf,
-            u64::MAX,
-            crate::job_control::JobContext::NONE,
-        )?;
-        crate::comps_native::encode(
-            &comps,
-            &mut buf,
-            u64::MAX,
-            crate::job_control::JobContext::NONE,
-        )?;
+        sources.encode(&mut buf, u64::MAX, job.checkpoints_only())?;
+        crate::mask_outside_native::encode(&outside, &mut buf, u64::MAX, job.checkpoints_only())?;
+        crate::evaluation_native::encode(linear_light, &mut buf, u64::MAX, job.checkpoints_only())?;
+        crate::label_native::encode(&labels, &mut buf, u64::MAX, job.checkpoints_only())?;
+        crate::comps_native::encode(&comps, &mut buf, u64::MAX, job.checkpoints_only())?;
         buf.extend_from_slice(&crate::source_transform_native::encode(&projective)?);
         buf.extend_from_slice(&warp);
         buf.extend_from_slice(&crate::source_refusal_native::encode(&refusals)?);
         buf.extend_from_slice(&samplers);
         buf.extend_from_slice(&paths);
         buf.extend_from_slice(&variations);
-        crate::reference_native::encode(
-            &references,
-            &mut buf,
-            u64::MAX,
-            crate::job_control::JobContext::NONE,
-        )?;
-        crate::spot_channel_native::encode(
-            &spots,
-            &mut buf,
-            u64::MAX,
-            crate::job_control::JobContext::NONE,
-        )?;
-        crate::background_native::encode(
-            background,
-            &mut buf,
-            u64::MAX,
-            crate::job_control::JobContext::NONE,
-        )?;
-        crate::identity_native::encode(
-            &ids,
-            &mut buf,
-            u64::MAX,
-            crate::job_control::JobContext::NONE,
-        )?;
+        crate::reference_native::encode(&references, &mut buf, u64::MAX, job.checkpoints_only())?;
+        crate::spot_channel_native::encode(&spots, &mut buf, u64::MAX, job.checkpoints_only())?;
+        crate::background_native::encode(background, &mut buf, u64::MAX, job.checkpoints_only())?;
+        crate::identity_native::encode(&ids, &mut buf, u64::MAX, job.checkpoints_only())?;
         Ok(buf)
     }
 
@@ -1117,12 +1089,38 @@ impl DrDocument {
     /// success, so a failed save never truncates or deletes an existing
     /// destination file.
     pub fn save_native(&self, path: &str) -> Result<(), String> {
-        let bytes = self
-            .encode_native()
-            .map_err(|e| format!("failed to save document {path}: {e}"))?;
+        self.save_native_controlled(path, None)
+    }
+
+    /// [`Self::save_native`] under an optional single-use job control, begun
+    /// once for the whole save: the encoder checks the job per layer and per
+    /// channel and its planes' PNG copy-out is polled, the file is written
+    /// through `cancel_io::write_file`, and the job is checked once more
+    /// before the rename. A cancel answers exactly `operation cancelled` and
+    /// keeps the previous file; one arriving after the rename leaves the
+    /// published save a success. No control writes the same bytes.
+    pub fn save_native_controlled(
+        &self,
+        path: &str,
+        control: Option<&DrJobControl>,
+    ) -> Result<(), String> {
+        let _run = control.map(DrJobControl::begin).transpose()?;
+        let job = control.map_or(JobContext::NONE, JobContext::new);
+        let encoded = self
+            .encode_native(job.range(0.0, 0.8))
+            .map_err(|e| format!("failed to save document {path}: {e}"));
+        let bytes = settle(job, encoded)?;
+        let write = job.range(0.8, 1.0);
         save_atomically(path, |tmp_path| {
-            std::fs::write(tmp_path, &bytes).map_err(|e| format!("failed to create {path}: {e}"))
-        })
+            write_file(tmp_path, &bytes, write, |e| {
+                format!("failed to create {path}: {e}")
+            })?;
+            job.check()
+        })?;
+        if let Some(control) = control {
+            control.report(1.0, 5);
+        }
+        Ok(())
     }
 }
 

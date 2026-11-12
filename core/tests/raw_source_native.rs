@@ -161,7 +161,14 @@ fn save8(d: &DrDocument, dir: &TempDir) -> Vec<u8> {
     let cpath = CString::new(path.to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
     assert!(
-        unsafe { doctored_core::ffi_doc::dr_doc_save_native(d, cpath.as_ptr(), &mut error) },
+        unsafe {
+            doctored_core::ffi_doc::dr_doc_save_native(
+                d,
+                cpath.as_ptr(),
+                std::ptr::null(),
+                &mut error,
+            )
+        },
         "{}",
         ffi_error(error)
     );

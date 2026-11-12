@@ -9,9 +9,11 @@
 //!
 //! Storage, canvas dimensions and exact ICC bytes are required; the host preserves source/revision
 //! pairing. Unique document/projection retained accounting reconciles additive codec packet
-//! charges, including aliases, with the host plan. Codec estimates and synchronous cancellation
-//! limits are unchanged.
+//! charges, including aliases, with the host plan. Codec estimates are unchanged; the save
+//! takes an optional single-use job control that the shared writer polls as the encoded bytes
+//! move (`precision_codec::save_with_paths`).
 
+use crate::job_control::DrJobControl;
 use crate::precision_codec::{self, PrecisionFormat};
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::{admit, PrecisionImage, PrecisionStorage, BOOKKEEPING_BYTES};
@@ -106,8 +108,10 @@ impl PrecisionDocument {
 
     /// Save the supplied authoritative projection with this captured document's
     /// metadata and resolution. No display image, render or cache is involved.
-    /// The dependency codecs are synchronous, so this operation promises no
-    /// live cancellation. Publication and packet reports use the shared writer.
+    /// Publication and packet reports use the shared writer, which begins the
+    /// optional single-use `control` and polls it as the encoded bytes move; a
+    /// cancel answers exactly `operation cancelled` and keeps the previous
+    /// file.
     #[allow(clippy::too_many_arguments)]
     pub fn save_projection16(
         &self,
@@ -118,6 +122,7 @@ impl PrecisionDocument {
         strip_metadata: bool,
         limit: u64,
         other: u64,
+        control: Option<&DrJobControl>,
     ) -> Result<u32, String> {
         let plan = self.projection_export_plan(image)?;
         admit(plan.retained_bytes, plan.host_scratch_bytes, other, limit)?;
@@ -141,7 +146,7 @@ impl PrecisionDocument {
             embed_profile,
             strip_metadata,
             (limit, codec_other),
-            None,
+            control,
             self.tiff_path_run(),
         )
     }

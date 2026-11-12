@@ -82,6 +82,7 @@ fn save(doc: *const PrecisionDocument, path: &Path, mode: i32) -> Result<(), Str
             mode,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

@@ -229,7 +229,7 @@ fn write(dir: &TempDir, name: &str, bytes: &[u8]) -> PathBuf {
 fn open_doc(path: &Path) -> *mut DrDocument {
     let c = cpath(path);
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "open {path:?}: {}", take_err_string(err));
     doc
 }
@@ -776,7 +776,7 @@ fn untagged_and_kept_profiles_open_exactly_as_before() {
     let c = cpath(&native);
     let mut err = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
@@ -1041,7 +1041,7 @@ fn an_untagged_cmyk_jpeg_without_a_working_profile_says_so() {
 fn open_error(path: &Path) -> String {
     let c = cpath(path);
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(doc.is_null(), "{path:?} must not open");
     take_err_string(err)
 }

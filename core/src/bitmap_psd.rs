@@ -420,6 +420,7 @@ impl PrecisionDocument {
         _mode: PsdExportMode,
         limit: u64,
         other: u64,
+        job: JobContext<'_>,
     ) -> Result<(), String> {
         if let Some(refusal) = self.bitmap_psd_refusal(container) {
             return Err(refusal);
@@ -461,8 +462,7 @@ impl PrecisionDocument {
             out.extend_from_slice(&0u32.to_be_bytes());
         }
         out.extend_from_slice(&plane);
-        crate::dr_image::save_atomically(path, |tmp| {
-            std::fs::write(tmp, &out).map_err(|e| format!("failed to write {path}: {e}"))
-        })
+        job.check()?;
+        crate::dr_image::save_bytes_atomically(path, &out, job)
     }
 }

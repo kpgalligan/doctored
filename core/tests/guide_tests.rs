@@ -259,12 +259,12 @@ fn ids_are_stable_through_unrelated_ops_and_fresh_after_a_reload() {
     let c = cpath(&path);
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
     let mut err: *mut std::ffi::c_char = ptr::null_mut();
-    let back = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let back = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!back.is_null(), "{}", take_err_string(err));
     assert_eq!(guides(back), guides(doc), "the same lines come back");
     assert!(

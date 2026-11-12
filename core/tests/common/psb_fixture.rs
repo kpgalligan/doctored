@@ -703,6 +703,7 @@ pub fn open8(path: &Path, mode: i32) -> Result<Box<DrDocument>, String> {
             cpath(path).as_ptr(),
             mode,
             expected.as_ptr(),
+            std::ptr::null(),
             &mut error,
         )
     };
@@ -759,6 +760,7 @@ pub fn save8(document: &DrDocument, path: &Path, container: i32, mode: i32) -> R
             cpath(path).as_ptr(),
             container,
             mode,
+            std::ptr::null(),
             &mut error,
         )
     };
@@ -787,6 +789,7 @@ pub fn save16(
             mode,
             REFERENCE_WORKING_BYTES,
             0,
+            std::ptr::null(),
             &mut error,
         )
     };

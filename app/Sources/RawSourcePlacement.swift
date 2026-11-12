@@ -64,9 +64,10 @@ enum RawSourcePlacement {
         let budget = try RawSourceWork.scratch(width: Int(probe.pixelSize.width),
             height: Int(probe.pixelSize.height), encoded: count)
         _ = try RasterResources.shared.admit(scratch: budget)
+        let control = try RasterJobControl()
         let snapshot = try BackgroundWork.wait(try WorkerTask(scratchEstimate: budget) {
-            try RawSourceSnapshot.capture(url, maximumBytes: count)
-        }, title: "Capturing Camera RAW")
+            try RawSourceSnapshot.capture(url, maximumBytes: count, control: control)
+        }, title: "Capturing Camera RAW", control: control)
         guard let captureProbe = RawImage.inspect(url: snapshot.url),
             captureProbe.pixelSize == probe.pixelSize else {
             throw RawImportError(url: url, reason: "the source changed while it was being captured")

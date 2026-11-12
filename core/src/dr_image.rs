@@ -14,7 +14,9 @@ use image::codecs::png::PngEncoder;
 use image::codecs::webp::WebPEncoder;
 use image::{ExtendedColorType, ImageDecoder, ImageEncoder, RgbaImage};
 
+use crate::cancel_io::{settle, Polled};
 use crate::doc::MAX_PIXELS;
+use crate::job_control::JobContext;
 use crate::metadata::{self, Metadata, Resolution};
 use crate::metadata_write::{EncodeSidecar, MetadataInjector};
 use crate::open_profile::{self, CmykContainer, ProfileAction, SourceSamples};
@@ -115,7 +117,7 @@ impl DrImage {
     /// refuses is an `Err` here too.
     pub(crate) fn open(path: &str) -> Result<Self, String> {
         let bytes = std::fs::read(path).map_err(|e| format!("failed to read {path}: {e}"))?;
-        Ok(DrImage::open_bytes(&bytes, path)?.0)
+        Ok(DrImage::open_bytes(&bytes, path, JobContext::NONE)?.0)
     }
 
     /// Decodes `bytes` (already read from `path`, which is used only in
@@ -142,7 +144,24 @@ impl DrImage {
     /// An OpenEXR or Radiance RGBE signature is refused by name: both are
     /// float containers that open only through `open_preserving`, and
     /// `image`'s own decoders would hand them over clamped to 8 bits.
-    pub(crate) fn open_bytes(bytes: &[u8], path: &str) -> Result<(Self, Sidecar), String> {
+    ///
+    /// The `image` decoder reads through `cancel_io::Polled`, so `job` is
+    /// polled as the encoded bytes move, and checked after the decode and
+    /// around a CMYK file's second read; a cancel answers exactly
+    /// `operation cancelled`.
+    pub(crate) fn open_bytes(
+        bytes: &[u8],
+        path: &str,
+        job: JobContext<'_>,
+    ) -> Result<(Self, Sidecar), String> {
+        settle(job, Self::decode_bytes(bytes, path, job))
+    }
+
+    fn decode_bytes(
+        bytes: &[u8],
+        path: &str,
+        job: JobContext<'_>,
+    ) -> Result<(Self, Sidecar), String> {
         if crate::exr_float::is_exr(bytes) {
             return Err(format!("failed to decode {path}: {EXR_FLOAT_OPEN}"));
         }
@@ -176,7 +195,7 @@ impl DrImage {
         if open_profile::cmyk_tiff_beyond_image(bytes) {
             return cmyk_tiff_flat(bytes, path);
         }
-        let mut decoder = match flat_decoder(bytes, path) {
+        let mut decoder = match flat_decoder(bytes, path, job) {
             Ok(decoder) => decoder,
             // `tiff` refuses a planar file short of a strip set a sample
             // before it knows the colour type; the CMYK gate's sentence
@@ -215,6 +234,7 @@ impl DrImage {
                 // read again — with `tiff`, or with `zune-jpeg` asked for
                 // the raw planes.
                 drop(decoder);
+                job.check()?;
                 let rgba = match container {
                     CmykContainer::Tiff => open_profile::cmyk_tiff_to_srgb8(bytes, path, profile)?,
                     CmykContainer::Jpeg => open_profile::cmyk_jpeg_to_srgb8(
@@ -224,17 +244,20 @@ impl DrImage {
                         scan.adobe_transform.is_some(),
                     )?,
                 };
+                job.check()?;
                 let mut img = image::DynamicImage::ImageRgba8(rgba);
                 img.apply_orientation(orientation);
                 img.into_rgba8()
             }
             ProfileAction::ConvertGray(curve) => {
                 let mut img = image::DynamicImage::from_decoder(decoder).map_err(decode_err)?;
+                job.check()?;
                 img.apply_orientation(orientation);
                 open_profile::gray_to_srgb8(&img, curve, path)?
             }
             ProfileAction::Keep | ProfileAction::Ignore => {
                 let mut img = image::DynamicImage::from_decoder(decoder).map_err(decode_err)?;
+                job.check()?;
                 img.apply_orientation(orientation);
                 img.to_rgba8()
             }
@@ -284,6 +307,7 @@ impl DrImage {
             format,
             jpeg_quality,
             &EncodeSidecar::NONE,
+            JobContext::NONE,
         )
     }
 }
@@ -323,11 +347,18 @@ fn cmyk_tiff_flat(bytes: &[u8], path: &str) -> Result<(DrImage, Sidecar), String
 /// The `image` decoder behind every flat open, chosen by content sniffing.
 /// A TIFF (classic or BigTIFF, `metadata_tiff::is_tiff`) is named
 /// explicitly: `image`'s own sniffing does not recognise the BigTIFF magic.
-fn flat_decoder<'a>(bytes: &'a [u8], path: &str) -> Result<impl ImageDecoder + 'a, String> {
+/// It reads through `cancel_io::Polled`, a pass-through under
+/// `JobContext::NONE`.
+fn flat_decoder<'a>(
+    bytes: &'a [u8],
+    path: &str,
+    job: JobContext<'a>,
+) -> Result<impl ImageDecoder + 'a, String> {
+    let source = Polled::new(std::io::Cursor::new(bytes), job);
     let reader = if crate::metadata_tiff::is_tiff(bytes) {
-        image::ImageReader::with_format(std::io::Cursor::new(bytes), image::ImageFormat::Tiff)
+        image::ImageReader::with_format(source, image::ImageFormat::Tiff)
     } else {
-        image::ImageReader::new(std::io::Cursor::new(bytes))
+        image::ImageReader::new(source)
             .with_guessed_format()
             .map_err(|e| format!("failed to read {path}: {e}"))?
     };
@@ -383,7 +414,7 @@ pub(crate) fn embedded_profile_report(bytes: &[u8], scan_icc: Option<Vec<u8>>) -
             _ => None,
         };
     }
-    let mut decoder = flat_decoder(bytes, "the file").ok()?;
+    let mut decoder = flat_decoder(bytes, "the file", JobContext::NONE).ok()?;
     let (icc, source) = embedded_color(&mut decoder, bytes, scan_icc);
     open_profile::decide(icc.as_deref(), source).sentence
 }
@@ -399,7 +430,7 @@ pub(crate) fn embedded_icc(bytes: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
     metadata::scan(bytes).icc.or_else(|| {
-        flat_decoder(bytes, "the file")
+        flat_decoder(bytes, "the file", JobContext::NONE)
             .ok()
             .and_then(|mut decoder| decoder.icc_profile().ok().flatten())
     })
@@ -454,12 +485,18 @@ fn quarter_turned(orientation: image::metadata::Orientation) -> bool {
 /// The splice lives INSIDE the [`save_atomically`] closure, so atomicity is
 /// preserved and there is no second helper; and there is exactly one
 /// `match format` in the crate that dispatches an encoder.
+///
+/// The encoder writes through `cancel_io::Polled`, exactly as the export
+/// workspace's does, so `job` is polled as the bytes move; it is checked
+/// once more before the rename, and a cancel answers exactly
+/// `operation cancelled` with the previous file kept.
 pub(crate) fn save_flat(
     pixels: &RgbaImage,
     path: &str,
     format: Format,
     jpeg_quality: u8,
     side: &EncodeSidecar<'_>,
+    job: JobContext<'_>,
 ) -> Result<(), String> {
     match format {
         Format::Heic => return Err(HEIC_HOST_ONLY.into()),
@@ -487,11 +524,14 @@ pub(crate) fn save_flat(
             Format::Png => MetadataInjector::png(writer, extra),
             _ => MetadataInjector::passthrough(writer),
         };
-        encode_into(pixels, &mut injector, format, jpeg_quality, side)?;
+        let mut sink = Polled::new(&mut injector, job);
+        let encoded = encode_into(pixels, &mut sink, format, jpeg_quality, side);
+        settle(job, encoded)?;
         let mut writer = injector.finish()?;
         writer
             .flush()
-            .map_err(|e| format!("failed to write {path}: {e}"))
+            .map_err(|e| format!("failed to write {path}: {e}"))?;
+        job.check()
     })
 }
 
@@ -626,6 +666,25 @@ pub(crate) fn save_atomically(
         crate::durable_file::persist_parent_dir(path);
     }
     result
+}
+
+/// [`save_atomically`] of a file already built in memory — every PSD, PSB and
+/// layered TIFF writer, and the CMYK and Lab files: the bytes are written
+/// through `cancel_io::write_file`, polling `job`, which is checked once
+/// more before the rename. An I/O failure reads `failed to write {path}: …`,
+/// exactly the sentence each writer's own `std::fs::write` gave; a cancel
+/// answers exactly `operation cancelled` and keeps the previous file.
+pub(crate) fn save_bytes_atomically(
+    path: &str,
+    bytes: &[u8],
+    job: JobContext<'_>,
+) -> Result<(), String> {
+    save_atomically(path, |temporary| {
+        crate::cancel_io::write_file(temporary, bytes, job, |e| {
+            format!("failed to write {path}: {e}")
+        })?;
+        job.check()
+    })
 }
 
 /// Alpha-composites the image over an opaque white background, producing RGB8

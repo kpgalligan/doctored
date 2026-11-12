@@ -282,8 +282,8 @@ impl PrecisionDocument {
         path: &str,
         container: LayeredContainer,
         mode: PsdExportMode,
-        limit: u64,
-        other: u64,
+        (limit, other): (u64, u64),
+        job: crate::job_control::JobContext<'_>,
     ) -> Result<(), String> {
         let policy = self
             .lab_policy()
@@ -451,8 +451,7 @@ impl PrecisionDocument {
                 &extra,
             )?
         };
-        crate::dr_image::save_atomically(path, |tmp| {
-            std::fs::write(tmp, &bytes).map_err(|e| format!("failed to write {path}: {e}"))
-        })
+        job.check()?;
+        crate::dr_image::save_bytes_atomically(path, &bytes, job)
     }
 }

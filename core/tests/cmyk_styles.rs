@@ -595,7 +595,7 @@ fn byte_save(doc: *const doctored_core::doc::DrDocument, path: &std::path::Path)
     use doctored_core::ffi_doc::dr_doc_save_native;
     let c = crate::common::cpath(path);
     let mut err = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) };
+    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(ok, "{}", crate::common::take_err_string(err));
     std::fs::read(path).unwrap()
 }
@@ -681,7 +681,7 @@ fn a_byte_file_or_comp_holding_a_plate_channel_drops_it() {
     std::fs::write(&path, &bytes).unwrap();
     let c = cpath(&path);
     let mut err = ptr::null_mut();
-    let reopened = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let reopened = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!reopened.is_null(), "{}", take_err_string(err));
     let style = byte_style(reopened, 1);
     assert!(style.get("blend_if").is_none_or(Value::is_null), "{style}");

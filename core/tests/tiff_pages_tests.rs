@@ -348,7 +348,7 @@ fn save(dir: &TempDir, name: &str, bytes: &[u8]) -> PathBuf {
 fn open_byte(path: &Path) -> Result<*mut DrDocument, String> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     if doc.is_null() {
         Err(take_err_string(err))
     } else {

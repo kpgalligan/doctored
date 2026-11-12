@@ -517,7 +517,7 @@ fn byte_artwork_keeps_legacy_description_with_raw_and_missing_linked_resources()
     let cpath = CString::new(path.to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(&doc, cpath.as_ptr(), &mut error) },
+        unsafe { dr_doc_save_native(&doc, cpath.as_ptr(), std::ptr::null(), &mut error) },
         "{}",
         unsafe { text(error) }
     );

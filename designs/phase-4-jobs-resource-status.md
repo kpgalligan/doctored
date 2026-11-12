@@ -221,11 +221,13 @@ Each `DONE` entry keeps what shipped and what a later batch must hold. The measu
     (typed) per fill window pixel, one component record per component, a 9n new-layer canvas term.
   - Kernels poll every 4096 pixels or per tile, and `make cancel-bench` times the heal and fill gaps.
   - 16-bit strokes run as jobs and `heal_stroke` takes `background` at 16 bits.
-- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Noncancellable save and open: neither takes a
-  job control, so neither shows Cancel. Since 2026-11-12 the export workspace's encoders and the 16-bit PNG and TIFF
-  opens poll inside the codec call, every 64 KiB of encoded bytes (`core/src/cancel_io.rs`; PNG, WebP, GIF and JPEG
-  XL only while their finished output is copied out). RAW (CIRAWFilter) and movie-frame (AVFoundation) decodes are
-  host calls with no cancel inside: they are cancelled before and after each camera or frame stage.
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Codecs that still cancel only between stages.
+  Since 2026-11-12 the export workspace's encoders and the 16-bit PNG and TIFF opens poll inside the codec call,
+  every 64 KiB of encoded bytes (`core/src/cancel_io.rs`; PNG, WebP, GIF and JPEG XL only while their finished output
+  is copied out), and Save, Save As, Save a Copy and Open take a job control, so their panels show Cancel
+  (`CapturedSave.run`, `ImageDocument.openWork`). The float and colour-mode decoders cancel at their stage
+  boundaries. RAW (CIRAWFilter) and movie-frame (AVFoundation) decodes are host calls with no cancel inside: they are
+  cancelled before and after each camera or frame stage.
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — Broader cancellable/regional processing: the
   remaining full-frame fallbacks, stage-only render and preparation cancellation, and the regional latency regression.
 - `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled document storage: masks, channels and typed

@@ -97,7 +97,9 @@ impl PrecisionDocument {
         }
         let bytes = if request.bit_depth == 16 {
             let (samples, alpha) = gray16_samples(prepared, job)?;
-            crate::gray_encode::encode_gray16(&samples, alpha, (w, h), format, &side)?
+            // The encode is the last stage; its codec polls as it writes.
+            job.report(0.9, 1)?;
+            crate::gray_encode::encode_gray16(&samples, alpha, (w, h), format, &side, job)?
         } else {
             let reduced = prepared.quantize_with_context(request.dither, job)?;
             job.check()?;
@@ -110,6 +112,7 @@ impl PrecisionDocument {
                     samples.push(pixel[0]);
                 }
                 drop(flat);
+                job.report(0.9, 1)?;
                 crate::gray_encode::encode_gray8(
                     &samples,
                     false,
@@ -117,6 +120,7 @@ impl PrecisionDocument {
                     format,
                     request.jpeg_quality,
                     &side,
+                    job,
                 )?
             } else {
                 let alpha = reduced.pixels().any(|pixel| pixel[3] < u8::MAX);
@@ -130,6 +134,7 @@ impl PrecisionDocument {
                     }
                 }
                 drop(reduced);
+                job.report(0.9, 1)?;
                 crate::gray_encode::encode_gray8(
                     &samples,
                     alpha,
@@ -137,6 +142,7 @@ impl PrecisionDocument {
                     format,
                     request.jpeg_quality,
                     &side,
+                    job,
                 )?
             }
         };

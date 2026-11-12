@@ -55,10 +55,7 @@ extension AgentServer {
         }
         do {
             _ = try RasterResources.shared.admit(scratch: capture.scratchEstimate)
-            let task = try WorkerTask(scratchEstimate: capture.scratchEstimate) {
-                try capture.write(to: url)
-            }
-            try BackgroundWork.wait(task, title: "Exporting Photoshop Document")
+            try capture.run(to: url)
         } catch {
             throw ToolError(message: error.localizedDescription)
         }

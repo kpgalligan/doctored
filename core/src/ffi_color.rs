@@ -23,6 +23,7 @@ use crate::dr_image::Format;
 use crate::drdc::MAX_DRDC_BLOB_LEN;
 use crate::ffi_util::{boxed, doc_get, fallible_doc_op, fallible_op, read_cstr};
 use crate::icc::{self, IccProfile, Inspect};
+use crate::job_control::DrJobControl;
 use crate::DrImage;
 
 /// The `DR_ICC_*` classification values.
@@ -590,14 +591,17 @@ pub unsafe extern "C" fn dr_path_metadata_walked(path: *const c_char) -> bool {
 /// `carried_out` (may be NULL) receives the `DR_CARRIES_*` bits actually
 /// written. A blob the format cannot carry, one too large for its segment,
 /// or an 8BIM run that filters to nothing is DROPPED, not an error. Atomic
-/// like `dr_image_save`.
+/// like `dr_image_save`. `control` is optional and single-use, begun once for
+/// the whole save; a cancel answers exactly `operation cancelled` and keeps
+/// the previous file.
 ///
 /// # Safety
 /// `doc` must be NULL or a valid pointer to a live `DrDocument`; `flat` must
 /// be NULL or a valid pointer to a live `DrImage`; `path` must be NULL or a
 /// valid NUL-terminated C string; `carried_out` must be NULL or a valid
-/// pointer to a writable `uint32_t`; `err_out` must be NULL or a valid
-/// pointer to writable `*mut c_char`.
+/// pointer to a writable `uint32_t`; `control` must be NULL or a live
+/// single-use token; `err_out` must be NULL or a valid pointer to writable
+/// `*mut c_char`.
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn dr_doc_save_image(
@@ -609,6 +613,7 @@ pub unsafe extern "C" fn dr_doc_save_image(
     embed_profile: bool,
     strip_metadata: bool,
     carried_out: *mut u32,
+    control: *const DrJobControl,
     err_out: *mut *mut c_char,
 ) -> bool {
     let body = || {
@@ -631,6 +636,7 @@ pub unsafe extern "C" fn dr_doc_save_image(
             jpeg_quality,
             embed_profile,
             strip_metadata,
+            unsafe { control.as_ref() },
         )
     };
     unsafe {

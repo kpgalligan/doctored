@@ -84,7 +84,9 @@ fn save8(d: &DrDocument, dir: &TempDir) -> Vec<u8> {
     let path = dir.path().join("byte.rz");
     let cpath = CString::new(path.to_str().unwrap()).unwrap();
     let mut err = ptr::null_mut();
-    assert!(unsafe { doctored_core::ffi_doc::dr_doc_save_native(d, cpath.as_ptr(), &mut err) });
+    assert!(unsafe {
+        doctored_core::ffi_doc::dr_doc_save_native(d, cpath.as_ptr(), std::ptr::null(), &mut err)
+    });
     assert!(err.is_null());
     std::fs::read(path).unwrap()
 }

@@ -416,7 +416,17 @@ fn a_layered_psd_writes_each_range_in_its_slot_and_reads_both_back() {
     let path = dir.path().join("ranges.psd");
     let c = crate::common::cpath(&path);
     assert!(
-        unsafe { dr_doc_save_psd(&doc, std::ptr::null(), c.as_ptr(), 0, 0, &mut err) },
+        unsafe {
+            dr_doc_save_psd(
+                &doc,
+                std::ptr::null(),
+                c.as_ptr(),
+                0,
+                0,
+                std::ptr::null(),
+                &mut err,
+            )
+        },
         "{}",
         take_err_string(err)
     );
@@ -454,7 +464,8 @@ fn a_layered_psd_writes_each_range_in_its_slot_and_reads_both_back() {
         "{import}"
     );
     let token = std::ffi::CString::new(import["source_fingerprint"].as_str().unwrap()).unwrap();
-    let opened = unsafe { dr_doc_open_psd(c.as_ptr(), 0, token.as_ptr(), &mut err) };
+    let opened =
+        unsafe { dr_doc_open_psd(c.as_ptr(), 0, token.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!opened.is_null(), "{}", take_err_string(err));
     let opened = unsafe { Box::from_raw(opened) };
     let top = opened.layers.len() - 1;
@@ -585,7 +596,8 @@ fn photoshops_own_c3_psd_imports_with_both_ranges() {
         "{report}"
     );
     let token = std::ffi::CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
-    let opened = unsafe { dr_doc_open_psd(c.as_ptr(), 0, token.as_ptr(), &mut err) };
+    let opened =
+        unsafe { dr_doc_open_psd(c.as_ptr(), 0, token.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!opened.is_null(), "{}", take_err_string(err));
     let opened = unsafe { Box::from_raw(opened) };
     let styled = (0..opened.layers.len())
@@ -653,7 +665,8 @@ fn photoshops_alpha_named_ranges_import_and_render_as_gray() {
             "n{n}: {report}"
         );
         let token = std::ffi::CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
-        let opened = unsafe { dr_doc_open_psd(c.as_ptr(), 0, token.as_ptr(), &mut err) };
+        let opened =
+            unsafe { dr_doc_open_psd(c.as_ptr(), 0, token.as_ptr(), std::ptr::null(), &mut err) };
         assert!(!opened.is_null(), "n{n}: {}", take_err_string(err));
         let opened = unsafe { Box::from_raw(opened) };
         let styled = (0..opened.layers.len())

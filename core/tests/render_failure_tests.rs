@@ -98,9 +98,9 @@ fn failed_projection_keeps_native_save_and_reopen_available() {
     let dir = TempDir::new().unwrap();
     let path = cpath(&dir.path().join("preserved.rz"));
     let mut err = ptr::null_mut();
-    assert!(unsafe { dr_doc_save_native(&doc, path.as_ptr(), &mut err) });
+    assert!(unsafe { dr_doc_save_native(&doc, path.as_ptr(), std::ptr::null(), &mut err) });
     assert!(err.is_null());
-    let reopened = unsafe { dr_doc_open(path.as_ptr(), &mut err) };
+    let reopened = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!reopened.is_null(), "{}", take_err_string(err));
     assert_eq!(render(unsafe { &*reopened }, 4).unwrap(), red().into_raw());
     assert!(render(unsafe { &*reopened }, 1).is_err());

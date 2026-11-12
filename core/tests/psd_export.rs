@@ -44,7 +44,17 @@ fn export_report(doc: &DrDocument, mode: i32) -> Value {
 fn save(doc: &DrDocument, path: &std::path::Path, mode: i32) -> Result<(), String> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    if unsafe { dr_doc_save_psd(doc, ptr::null(), c.as_ptr(), 0, mode, &mut err) } {
+    if unsafe {
+        dr_doc_save_psd(
+            doc,
+            ptr::null(),
+            c.as_ptr(),
+            0,
+            mode,
+            std::ptr::null(),
+            &mut err,
+        )
+    } {
         assert!(err.is_null(), "err_out set on success");
         Ok(())
     } else {
@@ -68,7 +78,7 @@ fn open_psd(path: &std::path::Path, mode: i32, fingerprint: &str) -> Box<DrDocum
     let c = cpath(path);
     let f = CString::new(fingerprint).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
-    let doc = unsafe { dr_doc_open_psd(c.as_ptr(), mode, f.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open_psd(c.as_ptr(), mode, f.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "open_psd({mode}): {}", take_err_string(err));
     unsafe { Box::from_raw(doc) }
 }
@@ -918,16 +928,44 @@ fn null_and_out_of_range_arguments_are_refused() {
 
     let mut err: *mut c_char = ptr::null_mut();
     assert!(!unsafe {
-        dr_doc_save_psd(ptr::null(), ptr::null(), path.as_ptr(), 0, LAYERS, &mut err)
+        dr_doc_save_psd(
+            ptr::null(),
+            ptr::null(),
+            path.as_ptr(),
+            0,
+            LAYERS,
+            std::ptr::null(),
+            &mut err,
+        )
     });
     assert!(take_err_string(err).contains("NULL"));
 
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(!unsafe { dr_doc_save_psd(&doc, ptr::null(), ptr::null(), 0, LAYERS, &mut err) });
+    assert!(!unsafe {
+        dr_doc_save_psd(
+            &doc,
+            ptr::null(),
+            ptr::null(),
+            0,
+            LAYERS,
+            std::ptr::null(),
+            &mut err,
+        )
+    });
     assert!(take_err_string(err).contains("path is NULL"));
 
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(!unsafe { dr_doc_save_psd(&doc, ptr::null(), path.as_ptr(), 0, -1, &mut err) });
+    assert!(!unsafe {
+        dr_doc_save_psd(
+            &doc,
+            ptr::null(),
+            path.as_ptr(),
+            0,
+            -1,
+            std::ptr::null(),
+            &mut err,
+        )
+    });
     assert!(take_err_string(err).contains("unknown PSD export mode"));
 
     assert!(!unsafe {
@@ -937,6 +975,7 @@ fn null_and_out_of_range_arguments_are_refused() {
             ptr::null(),
             0,
             LAYERS,
+            std::ptr::null(),
             ptr::null_mut(),
         )
     });

@@ -731,7 +731,15 @@ fn a_32_bit_lab_file_refuses_and_the_rgb_and_gray_opens_refuse_lab_by_name() {
     let error = take_err_string(err);
     assert!(error.contains(refusal), "{error}");
     let mut err = ptr::null_mut();
-    let byte_doc = unsafe { dr_doc_open_psd(cpath(&lab).as_ptr(), 0, print.as_ptr(), &mut err) };
+    let byte_doc = unsafe {
+        dr_doc_open_psd(
+            cpath(&lab).as_ptr(),
+            0,
+            print.as_ptr(),
+            std::ptr::null(),
+            &mut err,
+        )
+    };
     if !byte_doc.is_null() {
         unsafe { dr_doc_free(byte_doc) };
         panic!("the byte RGB open admitted a Lab file");

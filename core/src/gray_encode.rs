@@ -9,6 +9,10 @@
 //! setters, the JFIF density on a JPEG (`dr_image::clamp_jfif_density`), and
 //! the remaining packets (XMP, pHYs, IPTC) spliced by `MetadataInjector`
 //! from `EncodeSidecar::png_chunks` / `jpeg_segments`.
+//!
+//! Every encoder writes through `cancel_io::Polled`, so `job` is polled as
+//! the encoded bytes move (`cancel_io`'s module doc says what that buys per
+//! format) and a cancel answers exactly `operation cancelled`.
 
 use std::io::Cursor;
 
@@ -16,8 +20,13 @@ use image::codecs::jpeg::{JpegEncoder, PixelDensity, PixelDensityUnit};
 use image::codecs::png::PngEncoder;
 use image::{ExtendedColorType, ImageEncoder};
 
+use crate::cancel_io::{settle, Polled};
 use crate::dr_image::{clamp_jfif_density, Format};
+use crate::job_control::JobContext;
 use crate::metadata_write::{EncodeSidecar, MetadataInjector};
+
+/// The polled sink every encoder here writes to.
+type Sink<'a, 'j> = Polled<'j, &'a mut MetadataInjector<Cursor<Vec<u8>>>>;
 
 fn err(e: image::ImageError) -> String {
     format!("encoding failed: {e}")
@@ -46,33 +55,37 @@ pub(crate) fn injector(
     }
 }
 
+/// `format`'s injector, written through `write` over a polled sink.
+fn encoded(
+    format: Format,
+    side: &EncodeSidecar<'_>,
+    job: JobContext<'_>,
+    write: impl FnOnce(&mut Sink<'_, '_>) -> Result<(), String>,
+) -> Result<Vec<u8>, String> {
+    let mut injected = injector(format, side);
+    let mut sink = Polled::new(&mut injected, job);
+    settle(job, write(&mut sink))?;
+    Ok(injected.finish()?.into_inner())
+}
+
 /// A PNG of `bytes` (native-endian samples) as `color`.
 fn png(
     bytes: &[u8],
     color: ExtendedColorType,
     dims: (u32, u32),
     side: &EncodeSidecar<'_>,
+    job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
-    let mut sink = injector(Format::Png, side);
-    let mut enc = PngEncoder::new(&mut sink);
-    if let Some(icc) = side.icc {
-        enc.set_icc_profile(icc.to_vec()).map_err(unsupported)?;
-    }
-    if let Some(exif) = &side.exif {
-        enc.set_exif_metadata(exif.clone()).map_err(unsupported)?;
-    }
-    enc.write_image(bytes, dims.0, dims.1, color).map_err(err)?;
-    Ok(sink.finish()?.into_inner())
-}
-
-/// A TIFF through `write` (one of `tiff_encode`'s gray writers).
-fn tiff(
-    side: &EncodeSidecar<'_>,
-    write: impl FnOnce(&mut MetadataInjector<Cursor<Vec<u8>>>) -> Result<(), String>,
-) -> Result<Vec<u8>, String> {
-    let mut sink = injector(Format::Tiff, side);
-    write(&mut sink)?;
-    Ok(sink.finish()?.into_inner())
+    encoded(Format::Png, side, job, |sink| {
+        let mut enc = PngEncoder::new(sink);
+        if let Some(icc) = side.icc {
+            enc.set_icc_profile(icc.to_vec()).map_err(unsupported)?;
+        }
+        if let Some(exif) = &side.exif {
+            enc.set_exif_metadata(exif.clone()).map_err(unsupported)?;
+        }
+        enc.write_image(bytes, dims.0, dims.1, color).map_err(err)
+    })
 }
 
 /// `samples`, interleaved 8-bit gray (and straight alpha when `alpha`), as
@@ -85,6 +98,7 @@ pub(crate) fn encode_gray8(
     format: Format,
     quality: u8,
     side: &EncodeSidecar<'_>,
+    job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
     match format {
         Format::Png => {
@@ -93,14 +107,13 @@ pub(crate) fn encode_gray8(
             } else {
                 ExtendedColorType::L8
             };
-            png(samples, color, dims, side)
+            png(samples, color, dims, side, job)
         }
-        Format::Tiff => tiff(side, |sink| {
+        Format::Tiff => encoded(Format::Tiff, side, job, |sink| {
             crate::tiff_encode::encode_gray8(samples, alpha, dims, sink, side)
         }),
-        Format::Jpeg if !alpha => {
-            let mut sink = injector(Format::Jpeg, side);
-            let mut enc = JpegEncoder::new_with_quality(&mut sink, quality.clamp(1, 100));
+        Format::Jpeg if !alpha => encoded(Format::Jpeg, side, job, |sink| {
+            let mut enc = JpegEncoder::new_with_quality(sink, quality.clamp(1, 100));
             if let Some(icc) = side.icc {
                 enc.set_icc_profile(icc.to_vec()).map_err(unsupported)?;
             }
@@ -114,9 +127,8 @@ pub(crate) fn encode_gray8(
                 });
             }
             enc.write_image(samples, dims.0, dims.1, ExtendedColorType::L8)
-                .map_err(err)?;
-            Ok(sink.finish()?.into_inner())
-        }
+                .map_err(err)
+        }),
         Format::Jpeg => Err("a gray JPEG has no alpha; flatten it first".into()),
         _ => Err("a one-channel export is PNG, TIFF or JPEG".into()),
     }
@@ -131,6 +143,7 @@ pub(crate) fn encode_gray16(
     dims: (u32, u32),
     format: Format,
     side: &EncodeSidecar<'_>,
+    job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
     match format {
         Format::Png => {
@@ -143,9 +156,9 @@ pub(crate) fn encode_gray16(
             } else {
                 ExtendedColorType::L16
             };
-            png(&bytes, color, dims, side)
+            png(&bytes, color, dims, side, job)
         }
-        Format::Tiff => tiff(side, |sink| {
+        Format::Tiff => encoded(Format::Tiff, side, job, |sink| {
             crate::tiff_encode::encode_gray16(samples, alpha, dims, sink, side)
         }),
         Format::Jpeg => Err("a gray JPEG is written at 8 bits".into()),

@@ -366,7 +366,7 @@ fn the_flat_open_refuses_both_float_containers() {
         let path = directory.path().join(name);
         std::fs::write(&path, bytes).unwrap();
         let mut err = ptr::null_mut();
-        let doc = unsafe { dr_doc_open(cpath(&path).as_ptr(), &mut err) };
+        let doc = unsafe { dr_doc_open(cpath(&path).as_ptr(), std::ptr::null(), &mut err) };
         assert!(doc.is_null(), "{name} must not open at 8 bits");
         let error = take_err_string(err);
         assert!(error.contains(named), "{error}");

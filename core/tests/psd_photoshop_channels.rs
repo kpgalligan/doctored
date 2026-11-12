@@ -306,7 +306,15 @@ fn the_sixteen_bit_file_carries_every_record() {
     // The byte entry point refuses depth 16 and names the typed path.
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let raw = unsafe { dr_doc_open_psd(cpath(&path).as_ptr(), LAYERS, token.as_ptr(), &mut error) };
+    let raw = unsafe {
+        dr_doc_open_psd(
+            cpath(&path).as_ptr(),
+            LAYERS,
+            token.as_ptr(),
+            std::ptr::null(),
+            &mut error,
+        )
+    };
     assert!(raw.is_null(), "the byte entry point must refuse depth 16");
     assert!(take_err_string(error).contains("16-bit PSD opens only as a 16-bit document"));
 
@@ -467,6 +475,7 @@ fn the_map_curve_exports_photoshops_own_curv_body_at_both_depths() {
             cpath(&out).as_ptr(),
             0,
             LAYERS,
+            std::ptr::null(),
             &mut error,
         )
     };
@@ -495,6 +504,7 @@ fn the_map_curve_exports_photoshops_own_curv_body_at_both_depths() {
             LAYERS,
             REFERENCE_WORKING_BYTES,
             0,
+            std::ptr::null(),
             &mut error,
         )
     };

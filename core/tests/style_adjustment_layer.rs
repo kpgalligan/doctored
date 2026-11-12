@@ -585,11 +585,11 @@ fn the_style_round_trips_flattens_and_refuses_regionally() {
     let target = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(&doc, target.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(&doc, target.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
-    let back = unsafe { dr_doc_open(target.as_ptr(), &mut err) };
+    let back = unsafe { dr_doc_open(target.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!back.is_null(), "{}", take_err_string(err));
     assert_eq!(ffi_style(back, 1), ffi_style(&doc, 1));
     assert!(ffi_style(back, 1).is_some());

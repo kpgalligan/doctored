@@ -140,7 +140,15 @@ pub(crate) fn psd_top_layer(path: &Path) -> (Option<Value>, BlendMode, f32) {
     let report: Value = serde_json::from_str(&take_err_string(raw)).unwrap();
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let raw = unsafe { dr_doc_open_psd(cpath(path).as_ptr(), 0, token.as_ptr(), &mut error) };
+    let raw = unsafe {
+        dr_doc_open_psd(
+            cpath(path).as_ptr(),
+            0,
+            token.as_ptr(),
+            std::ptr::null(),
+            &mut error,
+        )
+    };
     assert!(!raw.is_null(), "open_psd: {}", take_err_string(error));
     let document: Box<DrDocument> = unsafe { Box::from_raw(raw) };
     let top = document.layers.len() - 1;

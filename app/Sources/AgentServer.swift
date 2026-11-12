@@ -2145,7 +2145,9 @@ final class AgentServer {
                 let captured = try CapturedSave(document, type: ImageDocument.nativeTypeIdentifier)
                 _ = try RasterResources.shared.admit(scratch: captured.scratchEstimate,
                     own: captured.ownRetainedBytes, remedy: captured.refusalRemedy)
-                try BackgroundWork.wait(try WorkerTask { try doc.saveNative(to: url) }, title: "Saving Copy")
+                let control = try RasterJobControl()
+                try BackgroundWork.wait(try WorkerTask { try doc.saveNative(to: url, control: control) },
+                                        title: "Saving Copy", control: control)
             } catch {
                 throw ToolError(message: error.localizedDescription)
             }
@@ -2177,11 +2179,12 @@ final class AgentServer {
             // packets and the print resolution ride along; the warm
             // projection is the composite, so nothing re-flattens.
             _ = try RasterResources.shared.admit(scratch: SpotChannels.byteSaveScratch(doc, format: format))
+            let control = try RasterJobControl()
             let task = try WorkerTask {
                 try doc.saveImage(image, to: url, format: format.drFormat, jpegQuality: quality,
-                                  embedProfile: embed, stripMetadata: strip)
+                                  embedProfile: embed, stripMetadata: strip, control: control)
             }
-            report = try BackgroundWork.wait(task, title: "Exporting Copy")
+            report = try BackgroundWork.wait(task, title: "Exporting Copy", control: control)
         } catch {
             throw ToolError(message: error.localizedDescription)
         }

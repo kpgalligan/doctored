@@ -170,8 +170,10 @@ extension ImageDocument {
         let captured = try CapturedSave(self, type: typeName)
         _ = try RasterResources.shared.admit(scratch: captured.scratchEstimate,
             own: captured.ownRetainedBytes, remedy: captured.refusalRemedy)
-        let task = try WorkerTask(scratchEstimate: captured.scratchEstimate) { try captured.writeSafely(to: url) }
-        try BackgroundWork.wait(task, title: "Saving “\(url.lastPathComponent)”")
+        // Cancel and Esc stop the write; a cancelled save throws `JobCancelled`
+        // (`NSUserCancelledError`: no alert, the document stays edited, a close
+        // that asked for it is not carried out) and keeps the previous file.
+        try captured.run(to: url, title: "Saving “\(url.lastPathComponent)”")
         if saveOperation != .saveToOperation { lastWrittenDocument = captured.source }
 
     }

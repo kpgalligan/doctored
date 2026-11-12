@@ -1348,13 +1348,13 @@ fn ffi_layer_meta_survives_a_native_save_and_reopen() {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "save failed: {}",
         take_err_string(err)
     );
 
     let mut err: *mut c_char = ptr::null_mut();
-    let back = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let back = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!back.is_null(), "reopen failed: {}", take_err_string(err));
     assert_eq!(unsafe { dr_doc_layer_count(back) }, 2);
     assert_eq!(

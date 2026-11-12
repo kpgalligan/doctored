@@ -1244,7 +1244,7 @@ fn png_with_profile(dir: &TempDir, name: &str, icc: Vec<u8>) -> std::path::PathB
 fn open_path(path: &std::path::Path) -> *mut DrDocument {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "open: {}", take_err_string(err));
     doc
 }
@@ -1259,7 +1259,7 @@ fn profile_bytes(doc: *const DrDocument) -> Vec<u8> {
 fn saves_natively(doc: *const DrDocument, path: &std::path::Path) -> Result<(), String> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    if unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) } {
+    if unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) } {
         Ok(())
     } else {
         Err(take_err_string(err))

@@ -190,6 +190,7 @@ fn save_psd(doc: *const PrecisionDocument, path: &Path) {
             0,
             crate::cmyk_structure_fixture::LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

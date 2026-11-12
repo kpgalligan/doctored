@@ -78,10 +78,7 @@ extension ImageDocument {
     private func writePSD(_ capture: PSDExportCapture, to url: URL) {
         do {
             _ = try RasterResources.shared.admit(scratch: capture.scratchEstimate)
-            let task = try WorkerTask(scratchEstimate: capture.scratchEstimate) {
-                try capture.write(to: url)
-            }
-            try BackgroundWork.wait(task, title: "Exporting Photoshop Document")
+            try capture.run(to: url)
             if let message = capture.droppedMessage {
                 presentExportNotice(message)
             }

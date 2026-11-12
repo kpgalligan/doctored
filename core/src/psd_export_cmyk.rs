@@ -738,6 +738,7 @@ impl PrecisionDocument {
         mode: PsdExportMode,
         limit: u64,
         other: u64,
+        job: JobContext<'_>,
     ) -> Result<(), String> {
         let policy = self.require_cmyk_policy("A CMYK PSD export")?.clone();
         let inventory = self.cmyk_export_inventory()?;
@@ -753,7 +754,10 @@ impl PrecisionDocument {
         }
         let plan = self.cmyk_psd_plan(container, mode, report.worst_case_bytes)?;
         admit(self.retained_bytes(), plan, other, limit)?;
-        let job = JobContext::NONE;
+        // The writer's own stages report inside the save's first 80 %; the
+        // file's write is the rest.
+        let write = job.range(0.8, 1.0);
+        let job = job.range(0.0, 0.8);
         let large = container.large();
         let depth = Depth {
             eight: policy.depth() == CmykDepth::Eight,
@@ -849,8 +853,7 @@ impl PrecisionDocument {
                 }
             }
         };
-        crate::dr_image::save_atomically(path, |tmp| {
-            std::fs::write(tmp, &bytes).map_err(|e| format!("failed to write {path}: {e}"))
-        })
+        job.check()?;
+        crate::dr_image::save_bytes_atomically(path, &bytes, write)
     }
 }

@@ -295,7 +295,7 @@ fn only_one_compressed_xmp_is_inflated_per_open() {
         std::fs::write(dir.path().join(name), &file).unwrap();
         let c = cpath(&dir.path().join(name));
         let mut err: *mut c_char = ptr::null_mut();
-        let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+        let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
         assert!(!doc.is_null(), "{}", take_err_string(err));
         assert_eq!(packet(doc, METADATA_XMP), None, "past the blob cap");
         unsafe { dr_doc_free(doc) };
@@ -345,7 +345,7 @@ mod bench {
             for _ in 0..3 {
                 let start = std::time::Instant::now();
                 let mut err: *mut c_char = ptr::null_mut();
-                let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+                let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
                 best = best.min(start.elapsed());
                 assert!(!doc.is_null(), "{}", take_err_string(err));
                 assert_eq!(packet(doc, METADATA_XMP), None, "past the blob cap");

@@ -225,7 +225,7 @@ Detail belongs in the source file's own header comment.
 - `spot_heal_type.rs` — KERNEL of the Spot Healing Brush's Type: Content-Aware dispatch, Proximity Match's patch search, Create Texture's tiling that leaves the blemish out, refusals.
 - `doc_content_aware.rs` / `ffi_content_aware.rs` / `inpaint_source_mask.rs` — exact Content-Aware Fill requests (byte/native), source permission, layer output, opt-in `fill_transparent` pad.
 - `patchmatch.rs` / `patchmatch_nnf.rs` — the ONE PatchMatch (Barnes et al.) search, masked pyramid and Wexler vote, and the sparse nearest-neighbour field with its propagation/random-search sweep.
-- `cancel_io.rs` — `Polled`, the sink/source a codec call writes or reads through: one job poll per 64 KiB moved; `settle` keeps a cancel's sentence.
+- `cancel_io.rs` — `Polled`, a codec's sink/source, one job poll per 64 KiB moved; `read_file`/`write_file` for whole files; `settle` keeps a cancel's sentence.
 - `job_control.rs` / `ffi_jobs.rs` — single-use atomic worker tokens: progress, cooperative cancellation, scratch admission; `dr_job_control_begin_compound` for host-composed child work.
 - `inpaint_source.rs` / `doc_regional_plate.rs` — THE sampling-plate builder, shared by every retouch gesture and the 16-bit promotion, over three arms chosen by `plate_arm`.
 - `retouch_sampling.rs` — the three retouch sampling modes and the ignore-adjustments control, as a `Cut` over the compositor.

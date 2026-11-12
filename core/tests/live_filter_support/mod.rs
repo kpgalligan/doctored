@@ -256,7 +256,7 @@ impl Doc {
         std::fs::write(path, bytes).unwrap();
         let path = CString::new(path.to_str().unwrap()).unwrap();
         let mut e = ptr::null_mut();
-        let p = unsafe { dr_doc_open(path.as_ptr(), &mut e) };
+        let p = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut e) };
         let error = unsafe { text(e) };
         if p.is_null() {
             Err(error)

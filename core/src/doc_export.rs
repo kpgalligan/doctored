@@ -1309,7 +1309,7 @@ impl ExportResult {
                 return preview;
             }
         }
-        Ok(DrImage::open_bytes(&self.bytes, "the encoded export")?.0)
+        Ok(DrImage::open_bytes(&self.bytes, "the encoded export", JobContext::NONE)?.0)
     }
 
     /// Write the bytes atomically. An existing `path` is REFUSED unless

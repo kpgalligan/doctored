@@ -309,11 +309,11 @@ fn native_v10_roundtrip_preserves_independent_storage_and_rejects_bad_properties
     let path = cpath(&dir.path().join("independent.rz"));
     let mut err = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(&*adjusted, path.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(&*adjusted, path.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
-    let back = owned(unsafe { dr_doc_open(path.as_ptr(), &mut err) });
+    let back = owned(unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) });
     assert_eq!(properties(&back, 1), properties(&adjusted, 1));
     assert_eq!(mask_bytes(&back, 1), mask_bytes(&adjusted, 1));
     assert_eq!(effective(&back, 1), effective(&adjusted, 1));
@@ -448,7 +448,7 @@ fn every_legacy_version_migrates_default_properties_and_mask_location() {
         std::fs::write(&path, bytes).unwrap();
         let path = cpath(&path);
         let mut err = ptr::null_mut();
-        let raw = unsafe { dr_doc_open(path.as_ptr(), &mut err) };
+        let raw = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) };
         assert!(!raw.is_null(), "v{version}: {}", take_err_string(err));
         let doc = owned(raw);
         if version == 1 {
@@ -463,8 +463,10 @@ fn every_legacy_version_migrates_default_properties_and_mask_location() {
         assert_eq!(&values[8..10], &[64, 255]);
         assert_eq!(values.iter().filter(|v| **v != 0).count(), 2);
         let new_path = cpath(&dir.path().join(format!("v{version}-saved.rz")));
-        assert!(unsafe { dr_doc_save_native(&*doc, new_path.as_ptr(), &mut err) });
-        let back = owned(unsafe { dr_doc_open(new_path.as_ptr(), &mut err) });
+        assert!(unsafe {
+            dr_doc_save_native(&*doc, new_path.as_ptr(), std::ptr::null(), &mut err)
+        });
+        let back = owned(unsafe { dr_doc_open(new_path.as_ptr(), std::ptr::null(), &mut err) });
         assert_eq!(effective(&back, 0), values);
     }
 }

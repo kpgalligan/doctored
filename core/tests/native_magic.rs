@@ -68,7 +68,7 @@ fn with_magic(bytes: &[u8], magic: &[u8; 4]) -> Vec<u8> {
 fn byte_result(path: &Path) -> Result<(usize, Vec<u8>), String> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     if doc.is_null() {
         return Err(take_err_string(err).replace(path.to_str().unwrap(), "<path>"));
     }
@@ -151,7 +151,7 @@ fn a_byte_document_writes_drdc_and_reopens_equal() {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "save: {}",
         take_err_string(err)
     );
@@ -159,7 +159,7 @@ fn a_byte_document_writes_drdc_and_reopens_equal() {
     assert_eq!(&bytes[..4], NEW, "the writer emits the new magic");
 
     let mut err: *mut c_char = ptr::null_mut();
-    let back = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let back = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!back.is_null(), "reopen: {}", take_err_string(err));
     assert_eq!(unsafe { dr_doc_layer_count(back) }, 2);
     for i in 0..2 {
@@ -275,7 +275,7 @@ fn the_metadata_sniffs_accept_both_magics() {
     let path = dir.path().join("saved.doctored");
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) });
+    assert!(unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) });
     unsafe { dr_doc_free(doc) };
     let bytes = std::fs::read(&path).unwrap();
     let legacy = dir.path().join("legacy.rz");

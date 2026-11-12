@@ -35,22 +35,32 @@ final class RawSourceSnapshot {
         return UInt64(count)
     }
 
-    static func capture(_ source: URL, maximumBytes: UInt64) throws -> RawSourceSnapshot {
+    /// The copy and its SHA-256 check `control` per 1 MiB block
+    /// (`ImageSourceFile.fingerprint`) and once more before the copy is read
+    /// back; a cancel throws `JobCancelled` and removes the private folder.
+    static func capture(_ source: URL, maximumBytes: UInt64,
+                        control: RasterJobControl? = nil) throws -> RawSourceSnapshot {
         let directory = try folder()
         do {
             let url = directory.appendingPathComponent(source.lastPathComponent)
-            let hash = try ImageSourceFile.fingerprint(source, copyingTo: url, maximumBytes: maximumBytes)
+            let hash = try ImageSourceFile.fingerprint(source, copyingTo: url, maximumBytes: maximumBytes,
+                                                       control: control)
+            try control?.checkCancelled()
             return try RawSourceSnapshot(directory: directory, url: url,
                 bytes: Data(contentsOf: url, options: .uncached), sha256: hash)
         } catch { try? FileManager.default.removeItem(at: directory); throw error }
     }
 
-    static func restore(_ source: RasterDocument, layer: Int,
-                        descriptor: RawSourceDescriptor) throws -> RawSourceSnapshot {
+    /// The retained bytes are hashed in one call; `control` is checked before
+    /// and after it, and a cancel removes the private folder.
+    static func restore(_ source: RasterDocument, layer: Int, descriptor: RawSourceDescriptor,
+                        control: RasterJobControl? = nil) throws -> RawSourceSnapshot {
         let directory = try folder()
         do {
+            try control?.checkCancelled()
             let bytes = try source.rawSourceBytes(layer)
             let hash = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+            try control?.checkCancelled()
             guard hash == descriptor.content_sha256 else {
                 throw DoctoredCoreError(message: "The retained RAW fingerprint does not match its saved descriptor. The saved rendering remains intact.")
             }
@@ -464,9 +474,10 @@ extension ImageDocument {
         let budget = try RawSourceWork.scratch(width: Int(originalProbe.pixelSize.width),
             height: Int(originalProbe.pixelSize.height), encoded: count)
         _ = try RasterResources.shared.admit(scratch: budget)
+        let control = try RasterJobControl()
         let snapshot = try BackgroundWork.wait(try WorkerTask(scratchEstimate: budget) {
-            try RawSourceSnapshot.capture(originalProbe.url, maximumBytes: count)
-        }, title: "Capturing Camera RAW")
+            try RawSourceSnapshot.capture(originalProbe.url, maximumBytes: count, control: control)
+        }, title: "Capturing Camera RAW", control: control)
         guard let probe = RawImage.inspect(url: snapshot.url), probe.pixelSize == originalProbe.pixelSize else {
             throw RawImportError(url: originalProbe.url, reason: "the source changed while it was being captured")
         }

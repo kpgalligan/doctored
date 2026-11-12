@@ -149,14 +149,18 @@ impl PrecisionDocument {
             crate::tiff_paths::attach(&mut side, paths);
         }
         let packed = bitmap.packed();
+        // The encode is the last stage; its codec polls as it writes.
+        job.report(0.9, 1)?;
         let bytes = match format {
-            Format::Png => crate::bitmap_codec::encode_png(packed, dims, &side)?,
+            Format::Png => crate::bitmap_codec::encode_png(packed, dims, &side, job)?,
             Format::Tiff => {
-                let mut sink = crate::gray_encode::injector(Format::Tiff, &side);
-                crate::tiff_encode::encode_bilevel(packed, dims, &mut sink, &side)?;
-                sink.finish()?.into_inner()
+                let mut injected = crate::gray_encode::injector(Format::Tiff, &side);
+                let mut sink = crate::cancel_io::Polled::new(&mut injected, job);
+                let written = crate::tiff_encode::encode_bilevel(packed, dims, &mut sink, &side);
+                crate::cancel_io::settle(job, written)?;
+                injected.finish()?.into_inner()
             }
-            Format::Bmp => crate::bitmap_codec::encode_bmp(packed, dims, self.resolution())?,
+            Format::Bmp => crate::bitmap_codec::encode_bmp(packed, dims, self.resolution(), job)?,
             _ => return Err("a kept-Bitmap export is PNG, TIFF or BMP".into()),
         };
         job.report(1.0, 5)?;

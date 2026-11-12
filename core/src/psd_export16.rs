@@ -58,7 +58,7 @@
 use std::sync::Arc;
 
 use crate::icc::IccProfile;
-use crate::job_control::JobContext;
+use crate::job_control::{DrJobControl, JobContext};
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{admit, PrecisionImage, PrecisionStorage};
 use crate::precision_style_render::{bake_style16, style_extent16_of, StyleEnv};
@@ -1192,6 +1192,14 @@ impl PrecisionDocument {
     /// and `other`. A CMYK document takes none and is written by
     /// `psd_export_cmyk` (#1 phase 3), before any projection check; a float
     /// document is written at 32 bits by `psd_export_float`.
+    ///
+    /// `control` is optional and single-use, begun once for the whole save:
+    /// every writer checks the job once its records are built and lands its
+    /// bytes through `dr_image::save_bytes_atomically`, which polls the
+    /// write and checks once more before the rename. A cancel answers
+    /// exactly `operation cancelled` and keeps the previous file; one
+    /// arriving after the rename leaves the published save a success.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn save_psd(
         &self,
         projection: Option<&PrecisionImage>,
@@ -1200,6 +1208,27 @@ impl PrecisionDocument {
         mode: PsdExportMode,
         limit: u64,
         other: u64,
+        control: Option<&DrJobControl>,
+    ) -> Result<(), String> {
+        let _run = control.map(DrJobControl::begin).transpose()?;
+        let job = control.map_or(JobContext::NONE, JobContext::new);
+        let written = self.save_psd_with(projection, path, container, mode, (limit, other), job);
+        crate::cancel_io::settle(job, written)?;
+        if let Some(control) = control {
+            control.report(1.0, 5);
+        }
+        Ok(())
+    }
+
+    /// [`Self::save_psd`]'s dispatch to the writer of this document's mode.
+    fn save_psd_with(
+        &self,
+        projection: Option<&PrecisionImage>,
+        path: &str,
+        container: LayeredContainer,
+        mode: PsdExportMode,
+        (limit, other): (u64, u64),
+        job: JobContext<'_>,
     ) -> Result<(), String> {
         // Spot channels (#1): written to PSD and PSB at 8 and 16 bits since
         // phase 1b; refused where the writer cannot carry them.
@@ -1208,26 +1237,26 @@ impl PrecisionDocument {
         }
         // A Bitmap document (#1 Bitmap phase 1c): `bitmap_psd`, before Gray.
         if self.is_bitmap() {
-            return self.save_bitmap_psd(path, container, mode, limit, other);
+            return self.save_bitmap_psd(path, container, mode, limit, other, job);
         }
         // An Indexed Color document (#1): `indexed_psd`, no projection.
         if self.is_indexed() {
-            return self.save_indexed_psd(path, container, mode, limit, other);
+            return self.save_indexed_psd(path, container, mode, limit, other, job);
         }
         // A Grayscale document (#1 phase 3b): `psd_export_gray`.
         if self.is_gray() {
-            return self.save_gray_psd(projection, path, container, mode, limit, other);
+            return self.save_gray_psd(projection, path, container, mode, (limit, other), job);
         }
         // A Lab document (#1 Lab phase 3b): `psd_export_lab`.
         if self.is_lab() {
-            return self.save_lab_psd(projection, path, container, mode, limit, other);
+            return self.save_lab_psd(projection, path, container, mode, (limit, other), job);
         }
         if self.is_cmyk() {
-            return self.save_cmyk_psd(path, container, mode, limit, other);
+            return self.save_cmyk_psd(path, container, mode, limit, other, job);
         }
         // A float document is written at 32 bits (`psd_export_float`).
         if self.is_float() {
-            return self.save_psd_float(projection, path, container, mode, limit, other);
+            return self.save_psd_float(projection, path, container, mode, (limit, other), job);
         }
         let report = self.psd_export_report(container, mode);
         if let Some(refusal) = report.refusal {
@@ -1328,6 +1357,7 @@ impl PrecisionDocument {
                 ranges: Vec::new(),
             }),
         }
+        job.check()?;
         // The comps' `lyid`/`shmd`, the raster-less vector masks' `vmsk` and
         // the Background record (`psd_typed_exchange`).
         if matches!(mode, PsdExportMode::Layers) {
@@ -1419,8 +1449,6 @@ impl PrecisionDocument {
                 &extra,
             )?
         };
-        crate::dr_image::save_atomically(path, |tmp| {
-            std::fs::write(tmp, &bytes).map_err(|e| format!("failed to write {path}: {e}"))
-        })
+        crate::dr_image::save_bytes_atomically(path, &bytes, job)
     }
 }

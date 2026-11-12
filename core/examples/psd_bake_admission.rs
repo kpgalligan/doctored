@@ -112,6 +112,7 @@ fn main() {
                 0,
                 limit,
                 0,
+                std::ptr::null(),
                 &mut error,
             )
         };
@@ -141,8 +142,17 @@ fn main() {
                 .unwrap();
         document.layers[1].meta = Some(meta(bake, false));
         let report = taken(unsafe { dr_doc_psd_export_report(&document, 0, 0, &mut error) });
-        let ok =
-            unsafe { dr_doc_save_psd(&document, ptr::null(), path.as_ptr(), 0, 0, &mut error) };
+        let ok = unsafe {
+            dr_doc_save_psd(
+                &document,
+                ptr::null(),
+                path.as_ptr(),
+                0,
+                0,
+                std::ptr::null(),
+                &mut error,
+            )
+        };
         assert!(
             ok,
             "{}",

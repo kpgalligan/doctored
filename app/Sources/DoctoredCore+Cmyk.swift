@@ -178,10 +178,11 @@ extension RasterPrecisionDocument {
 
     /// Writes the composite flattened onto paper: `format` tiff, psd or jpeg_intermediate.
     func saveCMYK(to url: URL, format: String, embedProfile: Bool, stripMetadata: Bool,
-                  workingLimit: UInt64, otherRetained: UInt64) throws {
+                  workingLimit: UInt64, otherRetained: UInt64,
+                  control: RasterJobControl? = nil) throws {
         var error: UnsafeMutablePointer<CChar>?
         guard dr_precision_doc_save_cmyk(ptr, url.path, Self.saveRequest(format, embedProfile, stripMetadata),
-                                         workingLimit, otherRetained, nil, &error) else {
+                                         workingLimit, otherRetained, control?.ptr, &error) else {
             throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not save the CMYK file."))
         }
     }

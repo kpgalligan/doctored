@@ -208,6 +208,8 @@ mod remove_model_depths;
 mod render_failure_tests;
 #[path = "save_leftovers.rs"]
 mod save_leftovers;
+#[path = "save_open_cancel.rs"]
+mod save_open_cancel;
 #[path = "sky_decontaminate.rs"]
 mod sky_decontaminate;
 #[path = "sky_replacement.rs"]

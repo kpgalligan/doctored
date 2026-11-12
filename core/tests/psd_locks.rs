@@ -88,7 +88,15 @@ fn import8(path: &Path) -> (Value, Vec<u32>) {
     let report = import_report(path);
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open_psd(cpath(path).as_ptr(), LAYERS, token.as_ptr(), &mut err) };
+    let doc = unsafe {
+        dr_doc_open_psd(
+            cpath(path).as_ptr(),
+            LAYERS,
+            token.as_ptr(),
+            std::ptr::null(),
+            &mut err,
+        )
+    };
     assert!(!doc.is_null(), "open_psd: {}", take_err_string(err));
     let locks = byte_locks(doc);
     unsafe { dr_doc_free(doc) };
@@ -390,6 +398,7 @@ fn a_locked_folder_locks_its_contents_and_dividers_carry_nothing() {
             cpath(&folder_path).as_ptr(),
             LAYERS,
             token.as_ptr(),
+            std::ptr::null(),
             &mut err,
         )
     };
@@ -460,7 +469,15 @@ fn a_locked_folder_dissolved_past_the_cap_locks_its_contents() {
 
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open_psd(cpath(&path).as_ptr(), LAYERS, token.as_ptr(), &mut err) };
+    let doc = unsafe {
+        dr_doc_open_psd(
+            cpath(&path).as_ptr(),
+            LAYERS,
+            token.as_ptr(),
+            std::ptr::null(),
+            &mut err,
+        )
+    };
     assert!(!doc.is_null(), "open_psd: {}", take_err_string(err));
     assert_eq!(
         unsafe { dr_doc_lock_block(doc, 0, 0) },
@@ -720,8 +737,17 @@ fn typed_export_report(doc: &PrecisionDocument, mode: i32) -> Value {
 
 fn save8(doc: *const DrDocument, path: &Path) -> Vec<u8> {
     let mut err: *mut c_char = ptr::null_mut();
-    let ok =
-        unsafe { dr_doc_save_psd(doc, ptr::null(), cpath(path).as_ptr(), 0, LAYERS, &mut err) };
+    let ok = unsafe {
+        dr_doc_save_psd(
+            doc,
+            ptr::null(),
+            cpath(path).as_ptr(),
+            0,
+            LAYERS,
+            std::ptr::null(),
+            &mut err,
+        )
+    };
     assert!(ok, "save_psd: {}", take_err_string(err));
     std::fs::read(path).unwrap()
 }
@@ -738,6 +764,7 @@ fn save16(doc: &PrecisionDocument, path: &Path) -> Vec<u8> {
             LAYERS,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

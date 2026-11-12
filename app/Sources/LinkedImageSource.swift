@@ -42,9 +42,10 @@ enum LinkedImageWork {
         let capture = try ImageSourceCapture(document)
         let file = try ImageSourceFile(url: url)
         _ = try RasterResources.shared.admit(scratch: file.scratchEstimate)
+        let control = try RasterJobControl()
         let decoded = try BackgroundWork.wait(try WorkerTask(scratchEstimate: file.scratchEstimate) {
-            try file.decode()
-        }, title: "Reading Image")
+            try file.decode(control: control)
+        }, title: "Reading Image", control: control)
         try capture.requireCurrent(document)
         // The slot the new layer lands at — the CORE's rule, carried in the
         // request as the `anchor`/`position` pair and read back here for the
@@ -78,12 +79,15 @@ enum LinkedImageWork {
         }
         let scratch: UInt64 = 2 * 1024 * 1024
         _ = try RasterResources.shared.admit(scratch: scratch)
-        // Only file I/O failures describe the link. Admission/busy failures
+        // Only file I/O failures describe the link. Admission/busy failures and a cancel
         // propagate instead of incorrectly labeling a readable file unreadable.
+        let control = try RasterJobControl()
         let status = try BackgroundWork.wait(try WorkerTask(scratchEstimate: scratch) {
             do {
-                let hash = try ImageSourceFile.fingerprint(URL(fileURLWithPath: path))
+                let hash = try ImageSourceFile.fingerprint(URL(fileURLWithPath: path), control: control)
                 return ["link_status": hash == expected ? "current" : "changed"]
+            } catch let cancel as JobCancelled {
+                throw cancel
             } catch {
                 let failure = error as NSError
                 let missing = failure.domain == NSCocoaErrorDomain
@@ -91,7 +95,7 @@ enum LinkedImageWork {
                 return ["link_status": missing ? "missing" : "unreadable",
                         "link_error": error.localizedDescription]
             }
-        }, title: "Checking Linked Image")
+        }, title: "Checking Linked Image", control: control)
         info.merge(status) { _, new in new }
         info["cached_original_available"] = true
         return info

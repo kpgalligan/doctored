@@ -134,7 +134,7 @@ fn native_fixture(dir: &TempDir, style: Option<&str>) -> *mut DrDocument {
 fn save(doc: *const DrDocument, path: &std::path::Path) -> Vec<u8> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) };
+    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(ok, "save_native: {}", take_err_string(err));
     std::fs::read(path).expect("the saved file")
 }
@@ -142,7 +142,7 @@ fn save(doc: *const DrDocument, path: &std::path::Path) -> Vec<u8> {
 fn open(path: &std::path::Path) -> Result<*mut DrDocument, String> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    let out = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let out = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     if out.is_null() {
         Err(take_err_string(err))
     } else {
@@ -466,7 +466,17 @@ fn the_psd_export_writes_the_knockout_blocks_and_the_old_loss_sentence_is_gone()
         let path = dir.path().join(name);
         let c = cpath(&path);
         let mut err: *mut c_char = ptr::null_mut();
-        let ok = unsafe { dr_doc_save_psd(doc, ptr::null(), c.as_ptr(), 0, LAYERS_MODE, &mut err) };
+        let ok = unsafe {
+            dr_doc_save_psd(
+                doc,
+                ptr::null(),
+                c.as_ptr(),
+                0,
+                LAYERS_MODE,
+                std::ptr::null(),
+                &mut err,
+            )
+        };
         assert!(ok, "save_psd: {}", take_err_string(err));
         std::fs::read(&path).unwrap()
     };

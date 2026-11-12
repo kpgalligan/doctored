@@ -591,6 +591,22 @@ requiring an in-band `JobCancelled` with the document, its revision, undo,
 dirty state, Actions, worker slot and alert log untouched. The same call,
 uncancelled, answers ok, `flattened` and `bit_depth` 8, with one layer.
 
+"save and open cancel" and "snapshot fingerprint cancel" (`save_open_cancel.swift`) run after
+it. Each row clicks its job panel's Cancel (`PanelCanceller`) while a `QueueHold` keeps
+`BackgroundWork.queue` blocked until the click lands, so the worker starts with its control
+already cancelled however fast it would run. Save rows (8-bit native and JPEG, 16-bit native,
+TIFF and JPEG, the last a downconvert-then-encode compound): save, edit, save again and cancel;
+the save completes with `NSUserCancelledError`, the file keeps the first save's bytes, no staged
+name is left, the document stays edited, no alert is recorded and the worker is free; a native
+row also cancels the close-time `save(withDelegate:…)`, which answers `didSave` false; then an
+uncancelled save succeeds. Open rows (an 8-bit PNG, a `.doctored`, a 16-bit TIFF) throw
+`JobCancelled` and open nothing, then open. MCP `save_copy` answers `JobCancelled` in-band and
+writes nothing. The second case cancels `ImageSourceFile.fingerprint` and
+`RawSourceSnapshot.capture` (an uncancelled fingerprint is the file's SHA-256), then the
+"Capturing Camera RAW", "Reading Image" and "Checking Linked Image" waits from MCP
+(`place_image`, `get_image_source` over a linked `develop.dng`), each answering `JobCancelled`
+rather than a link status, and each running uncancelled after.
+
 "float quick mask fill" and "target default layer" (`depth_targets.swift`) run
 after "info analysis". The first opens the committed 32-bit float fixture
 (`core/tests/fixtures/float_11f/scene.tiff`) without activating the app, sets

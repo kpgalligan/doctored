@@ -233,11 +233,11 @@ impl Doc {
             match *self {
                 Doc::Byte(doc) => {
                     assert!(
-                        dr_doc_save_native(doc, path.as_ptr(), &mut err),
+                        dr_doc_save_native(doc, path.as_ptr(), std::ptr::null(), &mut err),
                         "{}",
                         take_err_string(err)
                     );
-                    let back = dr_doc_open(path.as_ptr(), &mut err);
+                    let back = dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err);
                     assert!(!back.is_null(), "{}", take_err_string(err));
                     Doc::Byte(back)
                 }

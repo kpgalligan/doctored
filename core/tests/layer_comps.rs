@@ -186,7 +186,7 @@ fn state(doc: *const DrDocument) -> Vec<(bool, i32, i32, f32)> {
 fn save(doc: *const DrDocument, path: &Path) -> Vec<u8> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) };
+    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(ok, "{}", take_err_string(err));
     std::fs::read(path).expect("the saved file")
 }
@@ -194,7 +194,7 @@ fn save(doc: *const DrDocument, path: &Path) -> Vec<u8> {
 fn open(path: &Path) -> Result<*mut DrDocument, String> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    let out = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let out = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     if out.is_null() {
         return Err(take_err_string(err));
     }

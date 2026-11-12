@@ -263,7 +263,7 @@ fn current_drdc_round_trips_the_style_and_the_light() {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
@@ -292,7 +292,7 @@ fn current_drdc_round_trips_the_style_and_the_light() {
     );
 
     let mut err: *mut c_char = ptr::null_mut();
-    let back = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let back = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!back.is_null(), "reopen failed: {}", take_err_string(err));
     assert_eq!(
         ffi_style(back, 1).as_deref(),
@@ -312,7 +312,7 @@ fn current_drdc_round_trips_the_style_and_the_light() {
     let c2 = cpath(&again);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(back, c2.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(back, c2.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
@@ -375,13 +375,13 @@ fn angles_beyond_the_f32_range_canonicalize_finite_and_round_trip() {
         let handle = Box::into_raw(Box::new(doc.clone()));
         let mut err: *mut c_char = ptr::null_mut();
         assert!(
-            unsafe { dr_doc_save_native(handle, c.as_ptr(), &mut err) },
+            unsafe { dr_doc_save_native(handle, c.as_ptr(), std::ptr::null(), &mut err) },
             "{}",
             take_err_string(err)
         );
         unsafe { dr_doc_free(handle) };
         let mut err: *mut c_char = ptr::null_mut();
-        let back = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+        let back = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
         assert!(!back.is_null(), "reopen failed: {}", take_err_string(err));
         assert_eq!(
             ffi_style(back, 1).as_deref(),

@@ -57,6 +57,7 @@ use crate::dr_image::{save_flat, Format};
 use crate::drdc::MAX_DRDC_BLOB_LEN;
 use crate::export_metadata::{MetadataOutcome, MetadataPolicy};
 use crate::icc::IccProfile;
+use crate::job_control::{DrJobControl, JobContext};
 use crate::metadata::{self, Metadata, Resolution};
 use crate::metadata_write::{
     exif_normalized, iptc_filtered, EncodeSidecar, JPEG_EXIF_PREFIX, JPEG_MAX_PAYLOAD,
@@ -371,7 +372,12 @@ impl DrDocument {
     /// something it inherited from a file, so they follow the format's
     /// capability and `embed_profile`.
     ///
-    /// Atomic exactly like `dr_image_save`.
+    /// Atomic exactly like `dr_image_save`. `control` is optional and
+    /// single-use, begun once for the whole save: the encoder is polled as
+    /// its bytes move (`save_flat`), and a cancel answers exactly
+    /// `operation cancelled` with the previous file kept. A cancel arriving
+    /// after the rename leaves the published file a success.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn save_image(
         &self,
         flat: Option<&DrImage>,
@@ -380,12 +386,16 @@ impl DrDocument {
         jpeg_quality: u8,
         embed_profile: bool,
         strip_metadata: bool,
+        control: Option<&DrJobControl>,
     ) -> Result<u32, String> {
+        let _run = control.map(DrJobControl::begin).transpose()?;
+        let job = control.map_or(JobContext::NONE, JobContext::new);
         let flattened;
         let pixels = match flat {
             Some(image) => &image.pixels,
             None => {
                 flattened = self.flattened()?;
+                job.check()?;
                 &flattened
             }
         };
@@ -401,7 +411,10 @@ impl DrDocument {
             }
             crate::tiff_paths::attach(&mut sidecar, self.tiff_path_run());
         }
-        save_flat(pixels, path, format, jpeg_quality, &sidecar)?;
+        save_flat(pixels, path, format, jpeg_quality, &sidecar, job)?;
+        if let Some(control) = control {
+            control.report(1.0, 5);
+        }
         Ok(carried)
     }
 

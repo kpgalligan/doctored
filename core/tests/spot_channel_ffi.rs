@@ -594,7 +594,15 @@ fn lab_and_a_gray_tiff_refuse_a_spot_channel_by_name_and_psd_and_rgb_tiff_carry_
         let path = cpath(&file);
         let mut err = ptr::null_mut();
         assert!(
-            dr_doc_save_psd(spot, ptr::null(), path.as_ptr(), 0, 0, &mut err),
+            dr_doc_save_psd(
+                spot,
+                ptr::null(),
+                path.as_ptr(),
+                0,
+                0,
+                std::ptr::null(),
+                &mut err
+            ),
             "{}",
             take_err_string(err)
         );
@@ -665,6 +673,7 @@ fn lab_and_a_gray_tiff_refuse_a_spot_channel_by_name_and_psd_and_rgb_tiff_carry_
                     0,
                     LIMIT,
                     0,
+                    std::ptr::null(),
                     &mut err
                 ));
                 assert_eq!(err_of(err), PSD_REFUSAL, "{mode_name}");

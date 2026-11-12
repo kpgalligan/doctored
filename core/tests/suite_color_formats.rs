@@ -571,6 +571,8 @@ mod metadata_packet_framing;
 mod metadata_tests;
 #[path = "metadata_tiff_tests.rs"]
 mod metadata_tiff_tests;
+#[path = "mode_codec_cancel.rs"]
+mod mode_codec_cancel;
 #[path = "multichannel_psd.rs"]
 mod multichannel_psd;
 #[path = "native_banded_reopen.rs"]

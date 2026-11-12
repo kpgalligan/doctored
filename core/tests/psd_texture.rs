@@ -67,6 +67,7 @@ fn save8(doc: &DrDocument, path: &Path) {
             cpath(path).as_ptr(),
             0,
             LAYERS,
+            std::ptr::null(),
             &mut error,
         )
     };
@@ -168,6 +169,7 @@ fn a_texture_crosses_our_16_bit_psd_both_ways() {
             LAYERS,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut error,
         )
     };

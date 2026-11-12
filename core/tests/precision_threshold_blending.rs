@@ -991,6 +991,7 @@ fn threshold_modes_round_trip_through_sixteen_bit_psd_and_import_a_hard_mix_fold
                 LAYERS,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut error,
             )
         },

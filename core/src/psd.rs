@@ -21,6 +21,7 @@ use crate::blend::BlendMode;
 use crate::doc::{DrDocument, Layer, LayerKind, LayerRaster};
 use crate::doc_group::{validate_structure, MAX_GROUP_DEPTH};
 use crate::icc::IccProfile;
+use crate::job_control::JobContext;
 use crate::metadata::{Metadata, Resolution};
 use crate::psd_layer_effects::StyleBody;
 use crate::style::GlobalLight;
@@ -130,15 +131,22 @@ pub(crate) fn map_psd_blend(mode: i32) -> BlendMode {
 /// recursion. The finished stack goes through `validate_structure` — this is
 /// a trust boundary, and a decoder whose ordering surprised us must refuse
 /// rather than hand back a stack whose entries would silently vanish.
-pub(crate) fn open_psd(bytes: &[u8], path: &str) -> Result<DrDocument, String> {
-    crate::psd_import::open(bytes, path, 0)
+pub(crate) fn open_psd(
+    bytes: &[u8],
+    path: &str,
+    job: JobContext<'_>,
+) -> Result<DrDocument, String> {
+    crate::psd_import::open(bytes, path, 0, job)
 }
 
+/// `job` is checked before each record the tree emits; a cancel stops the
+/// walk with the job's own error.
 pub(crate) fn import_layers(
     psd: &psd::Psd,
     records: &crate::psd_group_records::GroupRecords<'_>,
     container: &crate::psd_container::Container<'_>,
     path: &str,
+    job: JobContext<'_>,
 ) -> Result<DrDocument, String> {
     check_supported(psd, path)?;
     let (cw, ch) = (container.width, container.height);
@@ -166,6 +174,10 @@ pub(crate) fn import_layers(
     let group_locks = |id: u32| records.groups[id as usize - 1].features.locks();
     tree.emit(None, 0, 0, &group_locks, &mut |node, depth, dissolved| {
         if failure.is_some() {
+            return;
+        }
+        if let Err(cancelled) = job.check() {
+            failure = Some(cancelled);
             return;
         }
         match node {

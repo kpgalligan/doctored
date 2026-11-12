@@ -85,7 +85,7 @@ fn byte_bytes(doc: &DrDocument) -> Vec<u8> {
     let path = CString::new(temp.path().join("mask.rz").to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, path.as_ptr(), &mut error) },
+        unsafe { dr_doc_save_native(doc, path.as_ptr(), std::ptr::null(), &mut error) },
         "{}",
         take_err_string(error)
     );
@@ -97,7 +97,7 @@ fn byte_parse(bytes: &[u8]) -> Result<Box<DrDocument>, String> {
     std::fs::write(&path, bytes).unwrap();
     let path = CString::new(path.to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let handle = unsafe { dr_doc_open(path.as_ptr(), &mut error) };
+    let handle = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut error) };
     if handle.is_null() {
         Err(take_err_string(error))
     } else {

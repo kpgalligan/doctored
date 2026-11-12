@@ -26,19 +26,22 @@ use crate::DrImage;
 /// files import Photoshop layers (falling back to the flattened composite on
 /// per-layer failures), anything else decodes as a single-layer image.
 /// Returns NULL on failure and writes a message through `err_out` (caller
-/// frees with `dr_string_free`).
+/// frees with `dr_string_free`). `control` is optional and single-use, begun
+/// once for the whole open; a cancel answers exactly `operation cancelled`.
 ///
 /// # Safety
-/// `path` must be NULL or a valid NUL-terminated C string; `err_out` must be
-/// NULL or a valid pointer to writable `*mut c_char`.
+/// `path` must be NULL or a valid NUL-terminated C string; `control` must be
+/// NULL or a live single-use token; `err_out` must be NULL or a valid pointer
+/// to writable `*mut c_char`.
 #[no_mangle]
 pub unsafe extern "C" fn dr_doc_open(
     path: *const c_char,
+    control: *const DrJobControl,
     err_out: *mut *mut c_char,
 ) -> *mut DrDocument {
     let body = || {
         let path = unsafe { read_cstr(path, "path") }?;
-        DrDocument::open(&path)
+        DrDocument::open_controlled(&path, unsafe { control.as_ref() })
     };
     unsafe {
         fallible_op(
@@ -94,16 +97,21 @@ pub unsafe extern "C" fn dr_doc_free(doc: *mut DrDocument) {
 
 /// Writes the native DRDC format (all layers preserved), atomically like
 /// `dr_image_save`. Returns false on failure and writes a message through
-/// `err_out`.
+/// `err_out`. `control` is optional and single-use, begun once for the whole
+/// save; a cancel answers exactly `operation cancelled` and keeps the
+/// previous file, and one arriving after the rename leaves the save a
+/// success.
 ///
 /// # Safety
 /// `doc` must be NULL or a valid pointer to a live `DrDocument`; `path` must
-/// be NULL or a valid NUL-terminated C string; `err_out` must be NULL or a
-/// valid pointer to writable `*mut c_char`.
+/// be NULL or a valid NUL-terminated C string; `control` must be NULL or a
+/// live single-use token; `err_out` must be NULL or a valid pointer to
+/// writable `*mut c_char`.
 #[no_mangle]
 pub unsafe extern "C" fn dr_doc_save_native(
     doc: *const DrDocument,
     path: *const c_char,
+    control: *const DrJobControl,
     err_out: *mut *mut c_char,
 ) -> bool {
     let body = || {
@@ -112,7 +120,7 @@ pub unsafe extern "C" fn dr_doc_save_native(
         }
         let document = unsafe { &*doc };
         let path = unsafe { read_cstr(path, "path") }?;
-        document.save_native(&path)
+        document.save_native_controlled(&path, unsafe { control.as_ref() })
     };
     unsafe {
         fallible_op(err_out, "panic while saving document", false, body, |()| {

@@ -286,7 +286,7 @@ fn save8(doc: &DrDocument, dir: &tempfile::TempDir, name: &str) -> Vec<u8> {
     let path = dir.path().join(name);
     let text = CString::new(path.to_str().unwrap()).unwrap();
     let mut err = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(doc, text.as_ptr(), &mut err) };
+    let ok = unsafe { dr_doc_save_native(doc, text.as_ptr(), std::ptr::null(), &mut err) };
     if let Some(message) = owned(err) {
         panic!("save {name}: {message}");
     }

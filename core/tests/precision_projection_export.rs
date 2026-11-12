@@ -102,6 +102,7 @@ fn supplied_projection_encodes_every_u16_code_and_metadata_without_rendering() {
                     REFERENCE_WORKING_BYTES,
                     0,
                     &mut report,
+                    std::ptr::null(),
                     &mut error,
                 )
             },
@@ -217,6 +218,7 @@ fn exact_profile_bytes_storage_and_dimensions_are_required_before_publication() 
                 REFERENCE_WORKING_BYTES,
                 0,
                 &mut report,
+                std::ptr::null(),
                 &mut error
             ));
             assert!(text(error).contains(reason));
@@ -288,7 +290,8 @@ fn unique_input_union_and_codec_additive_alias_excess_have_exact_admission_bound
                     true,
                     true,
                     limit - 1,
-                    outer
+                    outer,
+                    None,
                 )
                 .is_err());
             assert_eq!(std::fs::read(&path).unwrap(), b"keep");
@@ -300,6 +303,7 @@ fn unique_input_union_and_codec_additive_alias_excess_have_exact_admission_bound
                 true,
                 limit,
                 outer,
+                None,
             )
             .unwrap();
         }
@@ -311,7 +315,8 @@ fn unique_input_union_and_codec_additive_alias_excess_have_exact_admission_bound
                 true,
                 true,
                 REFERENCE_WORKING_BYTES,
-                u64::MAX
+                u64::MAX,
+                None,
             )
             .is_err());
     }
@@ -347,6 +352,7 @@ fn ffi_null_unknown_format_and_filesystem_errors_leave_reports_and_destinations_
                 REFERENCE_WORKING_BYTES,
                 0,
                 &mut report,
+                std::ptr::null(),
                 &mut error
             ));
             assert!(!text(error).is_empty());
@@ -367,6 +373,7 @@ fn ffi_null_unknown_format_and_filesystem_errors_leave_reports_and_destinations_
             0,
             0,
             ptr::null_mut(),
+            std::ptr::null(),
             ptr::null_mut()
         ));
         let missing =
@@ -387,6 +394,7 @@ fn ffi_null_unknown_format_and_filesystem_errors_leave_reports_and_destinations_
                 REFERENCE_WORKING_BYTES,
                 0,
                 &mut report,
+                std::ptr::null(),
                 &mut error
             ));
             assert!(!text(error).is_empty());

@@ -242,6 +242,7 @@ fn save(doc: &PrecisionDocument, path: &Path, container: i32) -> Vec<u8> {
             LAYERS,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

@@ -534,7 +534,8 @@ fn the_32_bit_strokes_and_bands_match_the_closed_forms_in_linear_light() {
 fn save(doc: &DrDocument, path: &std::path::Path) -> Vec<u8> {
     let handle = Box::into_raw(Box::new(doc.clone()));
     let mut err: *mut c_char = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(handle, cpath(path).as_ptr(), &mut err) };
+    let ok =
+        unsafe { dr_doc_save_native(handle, cpath(path).as_ptr(), std::ptr::null(), &mut err) };
     unsafe { dr_doc_free(handle) };
     assert!(ok, "save_native: {}", take_err_string(err));
     std::fs::read(path).expect("the saved file")
@@ -544,7 +545,7 @@ fn open(bytes: &[u8], dir: &TempDir, name: &str) -> Result<DrDocument, String> {
     let path = dir.path().join(name);
     std::fs::write(&path, bytes).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
-    let out = unsafe { dr_doc_open(cpath(&path).as_ptr(), &mut err) };
+    let out = unsafe { dr_doc_open(cpath(&path).as_ptr(), std::ptr::null(), &mut err) };
     if out.is_null() {
         Err(take_err_string(err))
     } else {

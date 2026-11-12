@@ -526,6 +526,7 @@ fn a_cmyk_psd_round_trip_carries_the_angle() {
                 0,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut err,
             )
         };

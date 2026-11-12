@@ -739,6 +739,38 @@ pub(crate) fn save_with_paths(
 ) -> Result<u32, String> {
     let _run = control.map(DrJobControl::begin).transpose()?;
     let job = control.map_or(JobContext::NONE, JobContext::new);
+    let carried = write_with_paths(
+        image,
+        metadata,
+        resolution,
+        path,
+        (format, embed_profile, strip_metadata),
+        (limit, other),
+        job,
+        paths,
+    )?;
+    // The atomic rename committed the complete file. A cancellation arriving
+    // after that commit cannot truthfully turn the successful save into an error.
+    if let Some(control) = control {
+        control.report(1.0, 5);
+    }
+    Ok(carried)
+}
+
+/// [`save_with_paths`] under a job a compound caller has already begun
+/// (`PrecisionDocument::export16`, which renders first): the same admission,
+/// encode and atomic write, polled as the encoded bytes move.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn write_with_paths(
+    image: &PrecisionImage,
+    metadata: &Metadata,
+    resolution: Resolution,
+    path: &str,
+    (format, embed_profile, strip_metadata): (PrecisionFormat, bool, bool),
+    (limit, other): (u64, u64),
+    job: JobContext<'_>,
+    paths: Option<Vec<u8>>,
+) -> Result<u32, String> {
     for packet in [&metadata.exif, &metadata.xmp, &metadata.iptc]
         .into_iter()
         .flatten()
@@ -794,11 +826,6 @@ pub(crate) fn save_with_paths(
         writer.flush().map_err(|e| problem("write", path, e))?;
         job.check()
     })?;
-    // The atomic rename committed the complete file. A cancellation arriving
-    // after that commit cannot truthfully turn the successful save into an error.
-    if let Some(control) = control {
-        control.report(1.0, 5);
-    }
     Ok(carried)
 }
 

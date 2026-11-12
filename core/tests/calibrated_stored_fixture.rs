@@ -145,7 +145,7 @@ fn open_stored(dir: &tempfile::TempDir) -> *mut DrDocument {
     std::fs::write(&path, STORED).expect("write the stored copy");
     let path = CString::new(path.to_str().expect("utf8")).expect("path");
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(path.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "{:?}", unsafe { text(err) });
     doc
 }
@@ -168,7 +168,7 @@ fn the_stored_file_reopens_and_resaves_byte_for_byte() {
     let path = CString::new(resaved.to_str().expect("utf8")).expect("path");
     let mut err = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, path.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, path.as_ptr(), std::ptr::null(), &mut err) },
         "{:?}",
         unsafe { text(err) }
     );

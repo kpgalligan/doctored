@@ -724,7 +724,15 @@ fn strings(value: &Value) -> Vec<String> {
 fn open_psd8(path: &Path) -> DrDocument {
     let fingerprint = CString::new(report(path)["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let doc = unsafe { dr_doc_open_psd(cpath(path).as_ptr(), 0, fingerprint.as_ptr(), &mut error) };
+    let doc = unsafe {
+        dr_doc_open_psd(
+            cpath(path).as_ptr(),
+            0,
+            fingerprint.as_ptr(),
+            std::ptr::null(),
+            &mut error,
+        )
+    };
     assert!(!doc.is_null(), "{:?}", take(error));
     *unsafe { Box::from_raw(doc) }
 }
@@ -749,7 +757,17 @@ fn open_psd16(path: &Path) -> PrecisionDocument {
 
 fn save_psd8(doc: &DrDocument, path: &Path) {
     let mut error = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_psd(doc, ptr::null(), cpath(path).as_ptr(), 0, 0, &mut error) };
+    let ok = unsafe {
+        dr_doc_save_psd(
+            doc,
+            ptr::null(),
+            cpath(path).as_ptr(),
+            0,
+            0,
+            std::ptr::null(),
+            &mut error,
+        )
+    };
     assert!(ok, "{:?}", take(error));
 }
 
@@ -765,6 +783,7 @@ fn save_psd16(doc: &PrecisionDocument, path: &Path) {
             0,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut error,
         )
     };
@@ -1061,8 +1080,15 @@ fn hand_built_1073_bodies_import_with_their_report_sentences() {
         // The stored-composite choice carries them too.
         let fingerprint = CString::new(r["source_fingerprint"].as_str().unwrap()).unwrap();
         let mut error = ptr::null_mut();
-        let composite =
-            unsafe { dr_doc_open_psd(cpath(&path).as_ptr(), 1, fingerprint.as_ptr(), &mut error) };
+        let composite = unsafe {
+            dr_doc_open_psd(
+                cpath(&path).as_ptr(),
+                1,
+                fingerprint.as_ptr(),
+                std::ptr::null(),
+                &mut error,
+            )
+        };
         assert!(!composite.is_null(), "{:?}", take(error));
         let composite = unsafe { Box::from_raw(composite) };
         assert_eq!(byte_list(&composite), case.kept, "{} composite", case.name);

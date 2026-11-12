@@ -87,7 +87,7 @@ fn oracle(name: &str, bytes_per_pixel: usize) -> Vec<Stored> {
 fn open8(name: &str) -> DrDocument {
     let text = CString::new(path(&format!("{name}.rz")).to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let out = unsafe { dr_doc_open(text.as_ptr(), &mut error) };
+    let out = unsafe { dr_doc_open(text.as_ptr(), std::ptr::null(), &mut error) };
     if !error.is_null() {
         let message = unsafe { CStr::from_ptr(error) }
             .to_string_lossy()
@@ -216,7 +216,7 @@ fn refusal(dir: &std::path::Path, bytes: &[u8], typed: bool, case: &str) -> Stri
     std::fs::write(&file, bytes).unwrap();
     let text = CString::new(file.to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let out = unsafe { dr_doc_open(text.as_ptr(), &mut error) };
+    let out = unsafe { dr_doc_open(text.as_ptr(), std::ptr::null(), &mut error) };
     if !out.is_null() {
         drop(unsafe { Box::from_raw(out) });
         panic!("byte, {case}: the file opened");
@@ -349,7 +349,7 @@ fn a_reopened_file_saves_and_reopens_with_the_same_pixels() {
         doc.save_native(out.to_str().unwrap()).unwrap();
         let text = CString::new(out.to_str().unwrap()).unwrap();
         let mut error = ptr::null_mut();
-        let back = unsafe { dr_doc_open(text.as_ptr(), &mut error) };
+        let back = unsafe { dr_doc_open(text.as_ptr(), std::ptr::null(), &mut error) };
         assert!(error.is_null() && !back.is_null(), "{name}: reopens");
         let back = *unsafe { Box::from_raw(back) };
         assert_eq!(back.layers.len(), doc.layers.len(), "{name}");

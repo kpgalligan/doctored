@@ -464,6 +464,7 @@ fn a_cmyk_psd_round_trip_carries_shape_burst_and_dither() {
                 0,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut err,
             )
         };

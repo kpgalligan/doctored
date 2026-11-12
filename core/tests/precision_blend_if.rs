@@ -1382,6 +1382,7 @@ fn blend_if_is_written_as_blending_ranges_through_sixteen_bit_psd() {
                 0,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut err,
             )
         },

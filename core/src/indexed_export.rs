@@ -141,13 +141,17 @@ impl PrecisionDocument {
         }
         let (palette, transparent, indices) =
             (policy.palette(), policy.transparent(), policy.indices());
+        // The encode is the last stage; its codec polls as it writes.
+        job.report(0.9, 1)?;
         let bytes = match format {
             Format::Png => {
-                crate::indexed_encode::encode_png(palette, transparent, indices, dims, &side)?
+                crate::indexed_encode::encode_png(palette, transparent, indices, dims, &side, job)?
             }
-            Format::Gif => crate::indexed_encode::encode_gif(palette, transparent, indices, dims)?,
+            Format::Gif => {
+                crate::indexed_encode::encode_gif(palette, transparent, indices, dims, job)?
+            }
             Format::Tiff => {
-                crate::indexed_encode::encode_tiff(palette, transparent, indices, dims, &side)?
+                crate::indexed_encode::encode_tiff(palette, transparent, indices, dims, &side, job)?
             }
             _ => return Err("a kept-Indexed export is PNG, GIF or TIFF".into()),
         };

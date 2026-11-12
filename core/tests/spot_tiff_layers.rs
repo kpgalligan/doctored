@@ -127,6 +127,7 @@ fn save_cmyk(doc: &PrecisionDocument, path: &Path, mode: i32) {
             mode,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

@@ -370,6 +370,7 @@ fn a_flat_save_never_writes_heic() {
             false,
             true,
             &mut carried,
+            std::ptr::null(),
             &mut err,
         )
     };

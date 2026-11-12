@@ -1002,6 +1002,7 @@ fn a_blended_adjustment_round_trips_through_sixteen_bit_psd() {
                 LAYERS,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut error,
             )
         },

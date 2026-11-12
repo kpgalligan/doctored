@@ -1067,6 +1067,7 @@ fn a_clipped_raster_and_folder_round_trip_through_sixteen_bit_psd() {
                 0,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut err,
             )
         },

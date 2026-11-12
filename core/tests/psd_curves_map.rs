@@ -234,6 +234,7 @@ fn the_export_writes_photoshops_own_curv_body_at_both_depths() {
             cpath(&out).as_ptr(),
             0,
             LAYERS,
+            std::ptr::null(),
             &mut error,
         )
     };
@@ -256,6 +257,7 @@ fn the_export_writes_photoshops_own_curv_body_at_both_depths() {
             LAYERS,
             REFERENCE_WORKING_BYTES,
             0,
+            std::ptr::null(),
             &mut error,
         )
     };

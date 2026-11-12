@@ -348,6 +348,7 @@ fn export16(doc: &PrecisionDocument, format: u32) -> Result<Option<Vec<u8>>, Str
                 LIMIT,
                 0,
                 &mut carried,
+                std::ptr::null(),
                 &mut error,
             )
         };
@@ -375,6 +376,7 @@ fn save_psd(
                 mode,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut error,
             )
         };

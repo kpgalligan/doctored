@@ -142,6 +142,7 @@ fn save_byte(doc: &DrDocument, path: &Path, format: i32) -> Vec<u8> {
             true,
             false,
             ptr::null_mut(),
+            std::ptr::null(),
             &mut err,
         )
     };
@@ -164,6 +165,7 @@ fn save_typed(doc: &PrecisionDocument, path: &Path) -> Vec<u8> {
             LIMIT,
             0,
             ptr::null_mut(),
+            std::ptr::null(),
             &mut err,
         )
     };
@@ -191,7 +193,7 @@ fn save_cmyk(doc: &PrecisionDocument, path: &Path) -> Vec<u8> {
 
 fn open_byte(path: &Path) -> Box<DrDocument> {
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(cpath(path).as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(cpath(path).as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "{}", take_err_string(err));
     unsafe { Box::from_raw(doc) }
 }

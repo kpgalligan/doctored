@@ -966,12 +966,12 @@ fn channel_ids_follow_the_channel_through_renames_deletes_and_duplicates() {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(deleted, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(deleted, c.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
     let mut err: *mut c_char = ptr::null_mut();
-    let back = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let back = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!back.is_null(), "reopen: {}", take_err_string(err));
     assert_eq!(channel_plane(back, 0), channel_plane(deleted, 0));
     assert_ne!(id(back, 0), id(back, 1), "reloaded ids are still distinct");
@@ -1153,12 +1153,12 @@ fn the_channel_count_cap_holds_at_both_ends() {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
     let mut err: *mut c_char = ptr::null_mut();
-    let back = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let back = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!back.is_null(), "reopen: {}", take_err_string(err));
     assert_eq!(channel_count(back), 256);
     assert_eq!(channel_name(back, 255), "Alpha 255");
@@ -1304,7 +1304,7 @@ fn current_drdc_round_trips_channels_byte_for_byte() {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
@@ -1323,7 +1323,7 @@ fn current_drdc_round_trips_channels_byte_for_byte() {
     );
 
     let mut err: *mut c_char = ptr::null_mut();
-    let back = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let back = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!back.is_null(), "reopen: {}", take_err_string(err));
     assert_eq!(channel_count(back), 3);
     for i in 0..3 {
@@ -1345,7 +1345,7 @@ fn current_drdc_round_trips_channels_byte_for_byte() {
     let c2 = cpath(&again);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(back, c2.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(back, c2.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         take_err_string(err)
     );
@@ -1381,7 +1381,7 @@ fn version_4_files_load_with_no_channels_and_version_11_is_refused() {
     let path = dir.path().join("current-empty.drdc");
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) });
+    assert!(unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) });
     // The identity wrapper comes off first, so what is compared and cut here
     // is the byte-for-byte output of the writer this test was written for.
     let current_written = without_identity(&std::fs::read(&path).unwrap(), 1);
@@ -1397,7 +1397,7 @@ fn version_4_files_load_with_no_channels_and_version_11_is_refused() {
     std::fs::write(&v7_path, &v7).unwrap();
     let c7 = cpath(&v7_path);
     let mut err: *mut c_char = ptr::null_mut();
-    let back7 = unsafe { dr_doc_open(c7.as_ptr(), &mut err) };
+    let back7 = unsafe { dr_doc_open(c7.as_ptr(), std::ptr::null(), &mut err) };
     assert!(
         !back7.is_null(),
         "a v7 file must still load: {}",
@@ -1441,7 +1441,7 @@ fn version_4_files_load_with_no_channels_and_version_11_is_refused() {
     std::fs::write(&v6_path, &v6).unwrap();
     let c6 = cpath(&v6_path);
     let mut err: *mut c_char = ptr::null_mut();
-    let back6 = unsafe { dr_doc_open(c6.as_ptr(), &mut err) };
+    let back6 = unsafe { dr_doc_open(c6.as_ptr(), std::ptr::null(), &mut err) };
     assert!(
         !back6.is_null(),
         "a v6 file must still load: {}",
@@ -1455,7 +1455,7 @@ fn version_4_files_load_with_no_channels_and_version_11_is_refused() {
     std::fs::write(&v4_path, &v4).unwrap();
     let c4 = cpath(&v4_path);
     let mut err: *mut c_char = ptr::null_mut();
-    let back = unsafe { dr_doc_open(c4.as_ptr(), &mut err) };
+    let back = unsafe { dr_doc_open(c4.as_ptr(), std::ptr::null(), &mut err) };
     assert!(
         !back.is_null(),
         "a v4 file must load: {}",
@@ -1476,7 +1476,7 @@ fn version_4_files_load_with_no_channels_and_version_11_is_refused() {
     std::fs::write(&v5_path, &v5).unwrap();
     let c5 = cpath(&v5_path);
     let mut err: *mut c_char = ptr::null_mut();
-    let back5 = unsafe { dr_doc_open(c5.as_ptr(), &mut err) };
+    let back5 = unsafe { dr_doc_open(c5.as_ptr(), std::ptr::null(), &mut err) };
     assert!(
         !back5.is_null(),
         "a v5 file must still load: {}",
@@ -1491,7 +1491,7 @@ fn version_4_files_load_with_no_channels_and_version_11_is_refused() {
     std::fs::write(&v11_path, &v11).unwrap();
     let c10 = cpath(&v11_path);
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(unsafe { dr_doc_open(c10.as_ptr(), &mut err) }.is_null());
+    assert!(unsafe { dr_doc_open(c10.as_ptr(), std::ptr::null(), &mut err) }.is_null());
     let msg = take_err_string(err);
     assert!(msg.contains("unsupported DRDC version 11"), "got: {msg}");
 
@@ -1553,7 +1553,7 @@ fn crafted_channel_headers_are_refused_before_anything_is_decoded() {
         std::fs::write(&path, bytes).unwrap();
         let c = cpath(&path);
         let mut err: *mut c_char = ptr::null_mut();
-        let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+        let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
         if doc.is_null() {
             Err(take_err_string(err))
         } else {

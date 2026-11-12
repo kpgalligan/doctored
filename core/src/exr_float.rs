@@ -50,6 +50,8 @@ use exr::meta::header::Header;
 use exr::meta::MetaData;
 use exr::prelude::{ReadChannels, ReadLayers, WritableImage};
 
+use crate::cancel_io::{settle, Polled};
+use crate::job_control::JobContext;
 use crate::precision_image::{pixel_count, reserved_vec};
 use crate::tiff_float::FloatSampleType;
 
@@ -271,6 +273,27 @@ pub fn encode(
     samples: FloatSampleType,
     chromaticities: Chromaticities,
 ) -> Result<Vec<u8>, String> {
+    encode_polled(
+        width,
+        height,
+        rgba,
+        samples,
+        chromaticities,
+        JobContext::NONE,
+    )
+}
+
+/// [`encode`] through `cancel_io::Polled`: the `exr` writer hands each
+/// compressed block to the sink as it is finished, so `job` is polled as the
+/// file grows; a cancel answers exactly `operation cancelled`.
+pub(crate) fn encode_polled(
+    width: u32,
+    height: u32,
+    rgba: &[f32],
+    samples: FloatSampleType,
+    chromaticities: Chromaticities,
+    job: JobContext<'_>,
+) -> Result<Vec<u8>, String> {
     let expected = u64::from(width) * u64::from(height) * 4;
     if width == 0 || height == 0 || rgba.len() as u64 != expected {
         return Err("OpenEXR encode: sample count differs from the declared dimensions".into());
@@ -293,7 +316,8 @@ pub fn encode(
         blue: point(chromaticities[2]),
         white: point(chromaticities[3]),
     };
-    let mut out = Cursor::new(Vec::new());
+    let mut buffer = Cursor::new(Vec::new());
+    let mut out = Polled::new(&mut buffer, job);
     let written = match samples {
         FloatSampleType::F32 => {
             let mut image =
@@ -317,6 +341,9 @@ pub fn encode(
             image.write().to_buffered(&mut out)
         }
     };
-    written.map_err(|e| format!("OpenEXR encode failed: {e}"))?;
-    Ok(out.into_inner())
+    settle(
+        job,
+        written.map_err(|e| format!("OpenEXR encode failed: {e}")),
+    )?;
+    Ok(buffer.into_inner())
 }

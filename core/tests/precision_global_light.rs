@@ -504,6 +504,7 @@ fn a_sixteen_bit_psd_writes_and_reads_the_document_light() {
             0,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut error,
         )
     };

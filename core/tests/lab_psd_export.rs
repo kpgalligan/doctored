@@ -127,6 +127,7 @@ fn save(
             mode,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };
@@ -1005,6 +1006,7 @@ fn a_null_projection_is_refused_by_name() {
             0,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

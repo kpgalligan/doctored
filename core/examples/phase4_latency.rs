@@ -79,11 +79,11 @@ fn main() {
             unsafe { dr_doc_free(transformed) };
             let mut error = ptr::null_mut();
             let saved = timed(width, height, run, "native_save", || unsafe {
-                dr_doc_save_native(document, native.as_ptr(), &mut error)
+                dr_doc_save_native(document, native.as_ptr(), std::ptr::null(), &mut error)
             });
             assert!(saved, "{}", message(error));
             let opened = timed(width, height, run, "native_open", || unsafe {
-                dr_doc_open(native.as_ptr(), &mut error)
+                dr_doc_open(native.as_ptr(), std::ptr::null(), &mut error)
             });
             assert!(!opened.is_null(), "{}", message(error));
             assert_eq!(unsafe { dr_doc_width(opened) }, width);
@@ -104,6 +104,7 @@ fn main() {
                         true,
                         false,
                         ptr::null_mut(),
+                        std::ptr::null(),
                         &mut error,
                     )
                 },

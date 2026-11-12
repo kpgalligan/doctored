@@ -183,6 +183,7 @@ fn main() {
                     0,
                     limit,
                     0,
+                    std::ptr::null(),
                     &mut error,
                 )
             };

@@ -33,8 +33,9 @@ risk was a typed image leaking into a byte API or a byte fallback silently repla
   versioned host archive stores that source plus a bounded manifest. The weak host registry inventories every live
   typed document/image in one deduplicated union (shared profiles across byte/typed families may be counted twice —
   conservative by design). Plans use real sample width, not 4 bytes/pixel.
-- **Execution:** composite and preview loops poll the single-use job; PNG/TIFF dependency calls poll only at stages;
-  the compound export is **declared noncancellable**. Failures keep prior handles and destinations intact.
+- **Execution:** composite and preview loops poll the single-use job; PNG/TIFF dependency calls poll as their bytes
+  move (`cancel_io`), and the compound export takes one control for its render and its encode (since 2026-11-12).
+  Failures keep prior handles and destinations intact.
 
 ## Rejected alternatives
 - Automatic working-space conversion or ImageIO fallback on import — would silently replace source samples.
@@ -51,6 +52,6 @@ risk was a typed image leaking into a byte API or a byte fallback silently repla
   all unavailable in 7B (7C/7D, then carryovers P7-06…P7-20, verified).
 - `DONE` — public mode, central Undo/snapshots/recovery (7E, [public mode](phase-7-public-mode-status.md)).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — uncompressed PNG/native raster payloads and
-  duplicate serialized layers; noncancellable compound export and codec calls (carryover P7-32).
+  duplicate serialized layers; codec calls that still cancel only between stages (carryover P7-32).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — independent multilayer/48 MP sessions (carryover
   P7-33).

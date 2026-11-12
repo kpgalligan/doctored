@@ -36,7 +36,9 @@ use std::io::Cursor;
 use image::codecs::hdr::{HdrDecoder, HdrEncoder, HdrMetadata};
 use image::{ImageDecoder, Rgb};
 
+use crate::cancel_io::{settle, Polled};
 use crate::exr_float::Chromaticities;
+use crate::job_control::JobContext;
 use crate::precision_image::{pixel_count, reserved_vec};
 
 /// The one pixel format this seam reads and writes.
@@ -216,6 +218,19 @@ pub fn encode(
     rgb: &[f32],
     primaries: Chromaticities,
 ) -> Result<Vec<u8>, String> {
+    encode_polled(width, height, rgb, primaries, JobContext::NONE)
+}
+
+/// [`encode`] through `cancel_io::Polled`: `HdrEncoder` writes each scanline
+/// as it is encoded, so `job` is polled throughout; a cancel answers exactly
+/// `operation cancelled`.
+pub(crate) fn encode_polled(
+    width: u32,
+    height: u32,
+    rgb: &[f32],
+    primaries: Chromaticities,
+    job: JobContext<'_>,
+) -> Result<Vec<u8>, String> {
     let expected = u64::from(width) * u64::from(height) * 3;
     if width == 0 || height == 0 || rgb.len() as u64 != expected {
         return Err(
@@ -227,9 +242,10 @@ pub fn encode(
         pixels.push(Rgb(*pixel));
     }
     let mut out = Vec::new();
-    HdrEncoder::new(&mut out)
+    let encoded = HdrEncoder::new(Polled::new(&mut out, job))
         .encode(&pixels, width as usize, height as usize)
-        .map_err(|e| format!("Radiance HDR encode failed: {e}"))?;
+        .map_err(|e| format!("Radiance HDR encode failed: {e}"));
+    settle(job, encoded)?;
     drop(pixels);
     // The header ends at its first blank line; the new line goes before it.
     let blank = out

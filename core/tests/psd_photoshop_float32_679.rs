@@ -499,6 +499,7 @@ fn rasterizes_resave_of_the_fill_and_style_psd_matches_photoshops_lr32_field_by_
             0,
             REFERENCE_WORKING_BYTES,
             0,
+            std::ptr::null(),
             &mut error,
         )
     };

@@ -125,7 +125,7 @@ fn byte_native(doc: &DrDocument, dir: &TempDir) -> Vec<u8> {
     let cpath = CString::new(path.to_str().unwrap()).unwrap();
     let mut err = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, cpath.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, cpath.as_ptr(), std::ptr::null(), &mut err) },
         "{}",
         error(err)
     );
@@ -156,7 +156,7 @@ fn byte_open(bytes: &[u8], dir: &TempDir) -> Result<DrDocument, String> {
     std::fs::write(&path, bytes).unwrap();
     let path = CString::new(path.to_str().unwrap()).unwrap();
     let mut err = ptr::null_mut();
-    let p = unsafe { dr_doc_open(path.as_ptr(), &mut err) };
+    let p = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) };
     if p.is_null() {
         return Err(error(err));
     }

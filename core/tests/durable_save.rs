@@ -142,7 +142,8 @@ fn writers(f: &Fixtures) -> Vec<Writer<'_>> {
             Box::new(move |path: &Path| {
                 let c = cpath(path);
                 let mut err: *mut c_char = ptr::null_mut();
-                let ok = unsafe { dr_doc_save_native(f.doc, c.as_ptr(), &mut err) };
+                let ok =
+                    unsafe { dr_doc_save_native(f.doc, c.as_ptr(), std::ptr::null(), &mut err) };
                 check(ok, err, "dr_doc_save_native", path)
             }),
         ),
@@ -152,7 +153,17 @@ fn writers(f: &Fixtures) -> Vec<Writer<'_>> {
             Box::new(move |path: &Path| {
                 let c = cpath(path);
                 let mut err: *mut c_char = ptr::null_mut();
-                let ok = unsafe { dr_doc_save_psd(f.doc, ptr::null(), c.as_ptr(), 0, 0, &mut err) };
+                let ok = unsafe {
+                    dr_doc_save_psd(
+                        f.doc,
+                        ptr::null(),
+                        c.as_ptr(),
+                        0,
+                        0,
+                        std::ptr::null(),
+                        &mut err,
+                    )
+                };
                 check(ok, err, "dr_doc_save_psd", path)
             }),
         ),
@@ -220,6 +231,7 @@ fn writers(f: &Fixtures) -> Vec<Writer<'_>> {
                         LIMIT,
                         0,
                         ptr::null_mut(),
+                        std::ptr::null(),
                         &mut err,
                     )
                 };

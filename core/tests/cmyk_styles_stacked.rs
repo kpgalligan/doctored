@@ -254,6 +254,7 @@ fn save_psd(doc: *const PrecisionDocument, path: &Path) {
             0,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

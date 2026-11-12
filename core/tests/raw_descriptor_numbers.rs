@@ -143,12 +143,12 @@ fn byte_raw_descriptor_binary64_values_survive_ffi_and_repeated_native_roundtrip
     let file = CString::new(folder.path().join("camera.rz").to_str().unwrap()).unwrap();
     for _ in 0..8 {
         assert!(
-            unsafe { dr_doc_save_native(&raw, file.as_ptr(), &mut error) },
+            unsafe { dr_doc_save_native(&raw, file.as_ptr(), std::ptr::null(), &mut error) },
             "{}",
             unsafe { take_text(error) }
         );
         assert!(error.is_null());
-        let opened = unsafe { dr_doc_open(file.as_ptr(), &mut error) };
+        let opened = unsafe { dr_doc_open(file.as_ptr(), std::ptr::null(), &mut error) };
         assert!(!opened.is_null(), "{}", unsafe { take_text(error) });
         assert!(error.is_null());
         raw = *unsafe { Box::from_raw(opened) };

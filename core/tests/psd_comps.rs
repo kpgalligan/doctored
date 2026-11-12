@@ -167,6 +167,7 @@ fn byte_save(doc: *const DrDocument, path: &Path, container: i32) -> Vec<u8> {
             cpath(path).as_ptr(),
             container,
             LAYERS,
+            std::ptr::null(),
             &mut err,
         )
     };
@@ -186,6 +187,7 @@ fn typed_save(doc: &PrecisionDocument, path: &Path) -> Vec<u8> {
             LAYERS,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

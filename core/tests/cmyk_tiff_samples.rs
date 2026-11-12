@@ -128,7 +128,8 @@ fn every_cmyk_tiff_layout_reads_its_ink_and_transparency() {
                     unsafe { dr_precision_doc_free(doc) };
                     // The flat sRGB open reads the same transparency.
                     let mut err = ptr::null_mut();
-                    let flat = unsafe { dr_doc_open(cpath(&path).as_ptr(), &mut err) };
+                    let flat =
+                        unsafe { dr_doc_open(cpath(&path).as_ptr(), std::ptr::null(), &mut err) };
                     assert!(!flat.is_null(), "{name}: {}", take_err_string(err));
                     let rgba = layer_pixels(flat, 0);
                     for (i, px) in rgba.chunks_exact(4).enumerate() {
@@ -171,7 +172,7 @@ fn a_planar_tiff_missing_a_strip_set_refuses_by_name() {
         0
     );
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(cpath(&path).as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(cpath(&path).as_ptr(), std::ptr::null(), &mut err) };
     assert!(doc.is_null());
     let message = take_err_string(err);
     assert!(

@@ -17,7 +17,7 @@ use common::*;
 fn save_error(doc: &DrDocument, path: &std::path::Path) -> String {
     let path = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(!unsafe { dr_doc_save_native(doc, path.as_ptr(), &mut err) });
+    assert!(!unsafe { dr_doc_save_native(doc, path.as_ptr(), std::ptr::null(), &mut err) });
     take_err_string(err)
 }
 
@@ -26,7 +26,7 @@ fn open_error(bytes: &[u8], dir: &TempDir) -> String {
     std::fs::write(&path, bytes).unwrap();
     let path = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(unsafe { dr_doc_open(path.as_ptr(), &mut err) }.is_null());
+    assert!(unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) }.is_null());
     take_err_string(err)
 }
 
@@ -125,6 +125,7 @@ fn oversized_memory_state_remains_editable_reducible_and_exportable() {
                 true,
                 false,
                 ptr::null_mut(),
+                std::ptr::null(),
                 &mut err,
             )
         },

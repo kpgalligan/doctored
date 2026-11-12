@@ -191,49 +191,80 @@ struct CapturedSave {
         source.precision != nil ? RasterResources.depthJobRemedy : RasterResources.smallerJobRemedy
     }
 
-    func write(to url: URL) throws {
+    /// `control` is single-use: a branch that makes one core call hands it
+    /// over; the CMYK JPEG (a core intermediate, then the host transcode)
+    /// runs each core stage under a child and checks the parent around the
+    /// transcode. A cancel throws `JobCancelled` (or the core's
+    /// `operation cancelled`, which `BackgroundWork.wait` maps to it).
+    func write(to url: URL, control: RasterJobControl? = nil) throws {
         if let cmykFormat, let typed = source.precision {
             let context = try PrecisionWorkContext(source: typed)
             if cmykFormat == "tiff" {
                 try typed.saveCMYK(to: url, format: "tiff", embedProfile: embedProfile,
                                    stripMetadata: stripMetadata, workingLimit: context.limit,
-                                   otherRetained: context.otherRetained)
+                                   otherRetained: context.otherRetained, control: control)
                 return
             }
+            try control?.beginCompoundOperation()
             let intermediate = StagedFile.url(beside: url, kind: .cmykIntermediate)
             defer { try? FileManager.default.removeItem(at: intermediate) }
-            try typed.saveCMYK(to: intermediate, format: "jpeg_intermediate", embedProfile: embedProfile,
-                               stripMetadata: stripMetadata, workingLimit: context.limit,
-                               otherRetained: context.otherRetained)
+            try control.stage(from: 0, to: 0.7) { stage in
+                try typed.saveCMYK(to: intermediate, format: "jpeg_intermediate", embedProfile: embedProfile,
+                                   stripMetadata: stripMetadata, workingLimit: context.limit,
+                                   otherRetained: context.otherRetained, control: stage)
+            }
+            try control?.checkCancelled()
             let jpeg = try HostImageEncoder.cmykJPEG(fromTIFF: Data(contentsOf: intermediate), quality: quality)
+            try control?.checkCancelled()
             try jpeg.write(to: url)
             return
         }
         if let labTiff, let typed = source.precision {
             let context = try PrecisionWorkContext(source: typed, image: labTiff)
             try typed.saveLab(to: url, projection: labTiff, stripMetadata: stripMetadata,
-                              workingLimit: context.limit, otherRetained: context.otherRetained)
+                              workingLimit: context.limit, otherRetained: context.otherRetained,
+                              control: control)
             return
         }
-        if let precisionSave { try precisionSave.write(to: url); return }
-        if let precisionExport { _ = try precisionExport.write(to: url); return }
-        if type == ImageDocument.nativeTypeIdentifier { try source.saveNative(to: url); return }
+        if let precisionSave { try precisionSave.write(to: url, control: control); return }
+        if let precisionExport { _ = try precisionExport.write(to: url, control: control); return }
+        if type == ImageDocument.nativeTypeIdentifier {
+            try source.saveNative(to: url, control: control)
+            return
+        }
         guard let format = ExportFormat.from(fileType: type), let projection else {
             throw DoctoredCoreError(message: "Cannot write files of type \(type).")
         }
         _ = try source.saveImage(projection, to: url, format: format.drFormat, jpegQuality: quality,
-                                 embedProfile: embedProfile, stripMetadata: stripMetadata)
+                                 embedProfile: embedProfile, stripMetadata: stripMetadata,
+                                 control: control)
     }
 
-    func writeSafely(to url: URL) throws {
+    /// Writes a staged file beside `url` and publishes it over `url`. Cancel
+    /// wins until the publication starts: the previous file is kept and the
+    /// staged one removed; once `DurableFile.publish` has begun the save stands.
+    func writeSafely(to url: URL, control: RasterJobControl? = nil) throws {
         StagedFile.sweep(beside: url)
         let staged = StagedFile.url(beside: url, kind: .save)
         let files = FileManager.default
         defer { try? files.removeItem(at: staged) }
-        do { try write(to: staged) }
+        do { try write(to: staged, control: control) }
         catch let error as DoctoredCoreError {
             throw DoctoredCoreError(message: error.message.replacingOccurrences(of: staged.path, with: url.path))
         }
+        try control?.checkCancelled()
         try DurableFile.publish(staged, to: url)
+    }
+
+    /// `writeSafely` on the bounded worker under a fresh control, waited with
+    /// Cancel and Esc: the one wait Save, Save As, Save a Copy and `save_copy`
+    /// use for a capture. A cancel throws `JobCancelled` and keeps the
+    /// previous file.
+    func run(to url: URL, title: String) throws {
+        let control = try RasterJobControl()
+        let task = try WorkerTask(scratchEstimate: scratchEstimate) {
+            try writeSafely(to: url, control: control)
+        }
+        try BackgroundWork.wait(task, title: title, control: control)
     }
 }

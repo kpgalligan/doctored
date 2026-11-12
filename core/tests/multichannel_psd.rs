@@ -113,7 +113,15 @@ fn every_psd_open_refuses_a_multichannel_file_by_name() {
     let print = fingerprint(&byte);
     for mode in [0, 1] {
         let mut err = ptr::null_mut();
-        let doc = unsafe { dr_doc_open_psd(cpath(&byte).as_ptr(), mode, print.as_ptr(), &mut err) };
+        let doc = unsafe {
+            dr_doc_open_psd(
+                cpath(&byte).as_ptr(),
+                mode,
+                print.as_ptr(),
+                std::ptr::null(),
+                &mut err,
+            )
+        };
         if !doc.is_null() {
             unsafe { dr_doc_free(doc) };
             panic!("the byte open admitted a Multichannel file (mode {mode})");

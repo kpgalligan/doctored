@@ -106,7 +106,11 @@ final class HostSourceSnapshot {
         }
         return UInt64(size)
     }
-    static func capture(_ input: HostSourceInput) throws -> HostSourceSnapshot {
+    /// `control` is only read: checked per entry, per 1 MiB of each copy
+    /// (`ImageSourceFile.fingerprint`) and between a copy and its re-hash; a
+    /// cancel throws `JobCancelled` and removes the private folder.
+    static func capture(_ input: HostSourceInput,
+                        control: RasterJobControl? = nil) throws -> HostSourceSnapshot {
         // Reserve all captured originals before the first Data allocation; the
         // first member must stay accounted while the second file is copied.
         let lease = try PrecisionEditPayload.admitted(bytes: input.entries.reduce(UInt64(128 * 1024)) { $0 + $1.bytes })
@@ -114,8 +118,11 @@ final class HostSourceSnapshot {
         do {
             var urls: [URL] = [], bytes: [Data] = [], hashes: [String] = []
             for (index, entry) in input.entries.enumerated() {
+                try control?.checkCancelled()
                 let url = directory.appendingPathComponent("\(index).\(entry.url.pathExtension)")
-                let digest = try ImageSourceFile.fingerprint(entry.url, copyingTo: url, maximumBytes: entry.bytes)
+                let digest = try ImageSourceFile.fingerprint(entry.url, copyingTo: url, maximumBytes: entry.bytes,
+                                                             control: control)
+                try control?.checkCancelled()
                 let captured = try Data(contentsOf: url, options: .uncached)
                 guard captured.count == entry.bytes, HostSourceError.sha256(captured) == digest else {
                     throw HostSourceError.failure("The source changed during capture. Try again.")

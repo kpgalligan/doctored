@@ -293,7 +293,7 @@ impl<'a> Read<'a> {
 fn open(path: &Path) -> *mut DrDocument {
     let path = cpath(path);
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(path.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "{}", take_err_string(err));
     doc
 }
@@ -312,6 +312,7 @@ fn save(doc: *const DrDocument, path: &Path, strip: bool) -> u32 {
                 true,
                 strip,
                 &mut carried,
+                std::ptr::null(),
                 &mut err,
             )
         },

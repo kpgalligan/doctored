@@ -170,6 +170,7 @@ fn heic_carries_four_packets_and_is_never_written_by_a_flat_save() {
             true,
             false,
             &mut carried,
+            std::ptr::null(),
             &mut err,
         )
     });
@@ -855,6 +856,7 @@ fn a_caller_supplied_flat_image_is_what_gets_encoded() {
             true,
             false,
             &mut carried,
+            std::ptr::null(),
             &mut err,
         )
     });
@@ -1389,7 +1391,7 @@ fn an_oversize_chunk_is_skipped_before_its_crc_is_computed() {
         std::fs::write(dir.path().join(name), &file).unwrap();
         let c = cpath(&dir.path().join(name));
         let mut err: *mut c_char = ptr::null_mut();
-        let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+        let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
         assert!(!doc.is_null());
         assert_eq!(packet(doc, METADATA_EXIF), None, "far past the blob cap");
         unsafe { dr_doc_free(doc) };
@@ -1817,7 +1819,7 @@ fn metadata_walked_names_the_containers_the_walk_reads() {
     let native = dir.path().join("w.rz");
     let c = cpath(&native);
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) });
+    assert!(unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) });
     assert!(
         walked("w.rz"),
         "a .doctored stores the packets rather than being walked"
@@ -1853,7 +1855,7 @@ mod bench {
             for _ in 0..3 {
                 let start = std::time::Instant::now();
                 let mut err: *mut c_char = ptr::null_mut();
-                let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+                let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
                 best = best.min(start.elapsed());
                 assert!(!doc.is_null());
                 assert_eq!(packet(doc, METADATA_EXIF), None, "far past the blob cap");

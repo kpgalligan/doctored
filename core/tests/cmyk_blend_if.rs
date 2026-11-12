@@ -608,6 +608,7 @@ fn each_channel_round_trips_through_a_layered_psd() {
                 0,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut err,
             )
         };

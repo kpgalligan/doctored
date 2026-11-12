@@ -482,11 +482,12 @@ final class RasterPrecisionDocument {
 
     @discardableResult
     func export16(to url: URL, format: PrecisionExportFormat, embedProfile: Bool,
-                  stripMetadata: Bool, workingLimit: UInt64, otherRetained: UInt64) throws -> UInt32 {
+                  stripMetadata: Bool, workingLimit: UInt64, otherRetained: UInt64,
+                  control: RasterJobControl? = nil) throws -> UInt32 {
         var error: UnsafeMutablePointer<CChar>?
         var report: UInt32 = 0
         guard dr_precision_doc_export16(ptr, url.path, format.rawValue, embedProfile, stripMetadata,
-                                        workingLimit, otherRetained, &report, &error) else {
+                                        workingLimit, otherRetained, &report, control?.ptr, &error) else {
             throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "High-depth export failed."))
         }
         return report
@@ -503,13 +504,14 @@ final class RasterPrecisionDocument {
     func saveProjection16(_ image: RasterPrecisionImage, to url: URL,
                           format: PrecisionExportFormat, embedProfile: Bool,
                           stripMetadata: Bool, workingLimit: UInt64,
-                          otherRetained: UInt64) throws -> UInt32 {
+                          otherRetained: UInt64, control: RasterJobControl? = nil) throws -> UInt32 {
         let path = url.path
         try precisionCString(path, maximumBytes: 64 * 1024)
         var error: UnsafeMutablePointer<CChar>?
         var report: UInt32 = 0
         guard dr_precision_doc_save_projection16(ptr, image.ptr, path, format.rawValue,
-            embedProfile, stripMetadata, workingLimit, otherRetained, &report, &error) else {
+            embedProfile, stripMetadata, workingLimit, otherRetained, &report, control?.ptr,
+            &error) else {
             throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Captured high-depth projection export failed."))
         }
         return report
@@ -811,14 +813,15 @@ final class RasterDocument {
 
     deinit { if let ptr { dr_doc_free(ptr) } }
 
-    static func open(url: URL) throws -> RasterDocument {
+    static func open(url: URL, control: RasterJobControl? = nil) throws -> RasterDocument {
         if try isPrecisionNative(at: url) {
             let budget = try PrecisionWorkContext()
             return try RasterDocument(precision: RasterPrecisionDocument.openPreserving(
-                url: url, workingLimit: budget.limit, otherRetained: budget.otherRetained))
+                url: url, workingLimit: budget.limit, otherRetained: budget.otherRetained,
+                control: control))
         }
         var err: UnsafeMutablePointer<CChar>? = nil
-        guard let handle = dr_doc_open(url.path, &err) else {
+        guard let handle = dr_doc_open(url.path, control?.ptr, &err) else {
             throw DoctoredCoreError(
                 message: takeErrorMessage(err, fallback: "Could not open \(url.lastPathComponent)."))
         }

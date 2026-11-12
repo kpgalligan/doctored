@@ -67,7 +67,7 @@ per-operation support is the [operation matrix](phase-7-operation-support.md); r
   cutout quality gate is no longer a ship condition and its assisted session is dropped
   ([gate v2](phase-9i-gate-v2-status.md)).
 - `DONE` — linear-light phases 2–3 (carryover P7-24, 2026-11-12).
-- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — live codec cancellation, compression of
-  native/snapshot payloads (carryover P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — live cancellation inside the codecs that still
+  cancel only between stages, compression of native/snapshot payloads (carryover P7-32).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — larger multilayer/history/export workloads
   (carryover P7-33).

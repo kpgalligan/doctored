@@ -288,7 +288,7 @@ pub fn open_file(dir: &TempDir, name: &str, bytes: &[u8]) -> *mut DrDocument {
     std::fs::write(&path, bytes).unwrap();
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "open {name}: {}", take_err_string(err));
     doc
 }
@@ -332,6 +332,7 @@ pub fn save(
                 embed_profile,
                 strip_metadata,
                 &mut carried,
+                std::ptr::null(),
                 &mut err,
             )
         },

@@ -526,7 +526,17 @@ fn reopened(doc: &DrDocument, dir: &TempDir, name: &str) -> Box<DrDocument> {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_psd(doc, ptr::null(), c.as_ptr(), 0, 0, &mut err) },
+        unsafe {
+            dr_doc_save_psd(
+                doc,
+                ptr::null(),
+                c.as_ptr(),
+                0,
+                0,
+                std::ptr::null(),
+                &mut err,
+            )
+        },
         "save: {}",
         take_err_string(err)
     );
@@ -540,7 +550,7 @@ fn reopened(doc: &DrDocument, dir: &TempDir, name: &str) -> Box<DrDocument> {
     let report: Value = serde_json::from_str(&text).unwrap();
     let f = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
-    let out = unsafe { dr_doc_open_psd(c.as_ptr(), 0, f.as_ptr(), &mut err) };
+    let out = unsafe { dr_doc_open_psd(c.as_ptr(), 0, f.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!out.is_null(), "open: {}", take_err_string(err));
     unsafe { Box::from_raw(out) }
 }

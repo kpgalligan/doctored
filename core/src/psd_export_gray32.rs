@@ -97,6 +97,7 @@ impl PrecisionDocument {
     /// destination: the preflight runs first, the whole file is built in
     /// memory and lands through the shared atomic rename. `projection` is the
     /// host's RGBA32 float rendering of THIS revision in the document's twin.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn save_gray_psd32(
         &self,
         projection: Option<&PrecisionImage>,
@@ -105,6 +106,7 @@ impl PrecisionDocument {
         mode: PsdExportMode,
         limit: u64,
         other: u64,
+        job: crate::job_control::JobContext<'_>,
     ) -> Result<(), String> {
         let policy = self
             .gray_policy()
@@ -216,8 +218,7 @@ impl PrecisionDocument {
             &crate::psd_typed_exchange::resources(self, matches!(mode, PsdExportMode::Layers)),
         )?;
         drop(out);
-        crate::dr_image::save_atomically(path, |tmp| {
-            std::fs::write(tmp, &bytes).map_err(|e| format!("failed to write {path}: {e}"))
-        })
+        job.check()?;
+        crate::dr_image::save_bytes_atomically(path, &bytes, job)
     }
 }

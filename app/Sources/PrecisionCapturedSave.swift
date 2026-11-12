@@ -46,41 +46,46 @@ struct PrecisionCapturedSave {
 
     /// Encodes the captured typed source directly. An RGBA8 preview cannot be
     /// supplied to this API. Core admission independently checks the operation.
+    /// `control` is single-use and goes to the one core call.
     @discardableResult
-    func write(to url: URL, additionalRetainedBytes: UInt64 = 0) throws -> UInt32 {
+    func write(to url: URL, additionalRetainedBytes: UInt64 = 0,
+               control: RasterJobControl? = nil) throws -> UInt32 {
         let budget = try PrecisionWorkContext(source: source,
                                               additionalRetainedBytes: additionalRetainedBytes)
         switch destination {
         case .native:
             try source.saveNative(to: url, workingLimit: budget.limit,
-                                  otherRetained: budget.otherRetained)
+                                  otherRetained: budget.otherRetained, control: control)
             return 0
         case .image(let format):
             return try source.export16(to: url, format: format, embedProfile: embedProfile,
                                        stripMetadata: stripMetadata, workingLimit: budget.limit,
-                                       otherRetained: budget.otherRetained)
+                                       otherRetained: budget.otherRetained, control: control)
         }
     }
 
     /// Failed encoding leaves an existing destination intact. Only the staged
-    /// file owned by this call is removed; publication happens after encoding.
+    /// file owned by this call is removed; publication happens after encoding,
+    /// and a cancel before it keeps the previous file.
     @discardableResult
-    func writeSafely(to url: URL) throws -> UInt32 {
+    func writeSafely(to url: URL, control: RasterJobControl? = nil) throws -> UInt32 {
         StagedFile.sweep(beside: url)
         let staged = StagedFile.url(beside: url, kind: .precisionSave)
         defer { try? FileManager.default.removeItem(at: staged) }
         let carried: UInt32
-        do { carried = try write(to: staged) }
+        do { carried = try write(to: staged, control: control) }
+        catch let cancel as JobCancelled { throw cancel }
         catch {
             throw DoctoredCoreError(message: error.localizedDescription
                 .replacingOccurrences(of: staged.path, with: url.path))
         }
+        try control?.checkCancelled()
         try DurableFile.publish(staged, to: url)
         return carried
     }
 
-    /// The internal host path uses the existing bounded worker and makes no
-    /// claim of cooperative codec cancellation. Capture remains value-only.
+    /// The internal host path uses the existing bounded worker; it passes no
+    /// control, so its panel has no Cancel. Capture remains value-only.
     @discardableResult
     func save(to url: URL) throws -> UInt32 {
         _ = try RasterResources.shared.admit(scratch: scratchEstimate)

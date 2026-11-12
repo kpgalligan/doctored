@@ -395,11 +395,11 @@ pub(crate) fn save_rz(doc: &Doc, path: &Path) -> Doc {
     match doc {
         Doc::Byte(d) => {
             assert!(
-                unsafe { dr_doc_save_native(d, target.as_ptr(), &mut err) },
+                unsafe { dr_doc_save_native(d, target.as_ptr(), std::ptr::null(), &mut err) },
                 "{}",
                 take_err_string(err)
             );
-            let out = unsafe { dr_doc_open(target.as_ptr(), &mut err) };
+            let out = unsafe { dr_doc_open(target.as_ptr(), std::ptr::null(), &mut err) };
             assert!(!out.is_null(), "{}", take_err_string(err));
             Doc::Byte(*unsafe { Box::from_raw(out) })
         }
@@ -466,7 +466,17 @@ pub(crate) fn save_psd(doc: &Doc, path: &Path) -> Doc {
     let mut err: *mut c_char = ptr::null_mut();
     match doc {
         Doc::Byte(d) => assert!(
-            unsafe { dr_doc_save_psd(d, ptr::null(), target.as_ptr(), 0, PSD_LAYERS, &mut err) },
+            unsafe {
+                dr_doc_save_psd(
+                    d,
+                    ptr::null(),
+                    target.as_ptr(),
+                    0,
+                    PSD_LAYERS,
+                    std::ptr::null(),
+                    &mut err,
+                )
+            },
             "{}",
             take_err_string(err)
         ),
@@ -482,6 +492,7 @@ pub(crate) fn save_psd(doc: &Doc, path: &Path) -> Doc {
                         PSD_LAYERS,
                         LIMIT,
                         0,
+                        std::ptr::null(),
                         &mut err,
                     )
                 },
@@ -494,8 +505,15 @@ pub(crate) fn save_psd(doc: &Doc, path: &Path) -> Doc {
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     match doc {
         Doc::Byte(_) => {
-            let out =
-                unsafe { dr_doc_open_psd(target.as_ptr(), PSD_LAYERS, token.as_ptr(), &mut err) };
+            let out = unsafe {
+                dr_doc_open_psd(
+                    target.as_ptr(),
+                    PSD_LAYERS,
+                    token.as_ptr(),
+                    std::ptr::null(),
+                    &mut err,
+                )
+            };
             assert!(!out.is_null(), "{}", take_err_string(err));
             Doc::Byte(*unsafe { Box::from_raw(out) })
         }

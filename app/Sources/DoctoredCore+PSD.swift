@@ -69,12 +69,13 @@ extension RasterPrecisionDocument {
     /// 8 or 16 bits from its required RGBA16 projection (#1 phase 3b), and at 32 a PSD or PSB
     /// from its required RGBA32 float projection, its layered TIFF refused (#1 phase 3c).
     func savePSD(_ projection: RasterPrecisionImage?, to url: URL, container: LayeredContainer,
-                 mode: Int, workingLimit: UInt64, otherRetained: UInt64) throws {
+                 mode: Int, workingLimit: UInt64, otherRetained: UInt64,
+                 control: RasterJobControl? = nil) throws {
         let path = url.path
         try precisionCString(path, maximumBytes: 64 * 1024)
         var error: UnsafeMutablePointer<CChar>?
         guard dr_precision_doc_save_psd(ptr, projection?.ptr, path, container.coreValue, Int32(mode),
-                                        workingLimit, otherRetained, &error) else {
+                                        workingLimit, otherRetained, control?.ptr, &error) else {
             throw DoctoredCoreError(
                 message: takeErrorMessage(error, fallback: "Could not export \(url.lastPathComponent)."))
         }
@@ -108,9 +109,11 @@ extension RasterDocument {
         return report
     }
 
-    static func openPSD(at url: URL, mode: Int, fingerprint: String) throws -> RasterDocument {
+    static func openPSD(at url: URL, mode: Int, fingerprint: String,
+                        control: RasterJobControl? = nil) throws -> RasterDocument {
         var error: UnsafeMutablePointer<CChar>?
-        guard let handle = dr_doc_open_psd(url.path, Int32(mode), fingerprint, &error) else {
+        guard let handle = dr_doc_open_psd(url.path, Int32(mode), fingerprint, control?.ptr,
+                                           &error) else {
             throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not import PSD."))
         }
         return RasterDocument(owning: handle)
@@ -150,10 +153,10 @@ extension RasterDocument {
     /// core composite. Atomic, so a refusal leaves an existing destination
     /// byte-identical.
     func savePSD(_ flattened: RasterImage?, to url: URL, container: LayeredContainer,
-                 mode: Int) throws {
+                 mode: Int, control: RasterJobControl? = nil) throws {
         var error: UnsafeMutablePointer<CChar>?
         guard dr_doc_save_psd(ptr, flattened?.ptr, url.path, container.coreValue, Int32(mode),
-                              &error) else {
+                              control?.ptr, &error) else {
             throw DoctoredCoreError(
                 message: takeErrorMessage(error, fallback: "Could not export \(url.lastPathComponent)."))
         }

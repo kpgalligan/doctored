@@ -91,7 +91,17 @@ fn main() {
         }
     };
     let saved = unsafe {
-        dr_precision_doc_save_psd(duotone, &render, out.as_ptr(), 0, 0, LIMIT, 0, &mut err)
+        dr_precision_doc_save_psd(
+            duotone,
+            &render,
+            out.as_ptr(),
+            0,
+            0,
+            LIMIT,
+            0,
+            std::ptr::null(),
+            &mut err,
+        )
     };
     if !saved {
         unsafe { dr_precision_doc_free(duotone) };

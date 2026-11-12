@@ -123,6 +123,7 @@ fn save16(
             mode,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut error,
         )
     } {
@@ -408,6 +409,7 @@ fn a_sixteen_bit_file_reports_its_depth_and_opens_only_as_a_typed_document() {
             cpath(&path).as_ptr(),
             LAYERS,
             fingerprint.as_ptr(),
+            std::ptr::null(),
             &mut error,
         )
     };
@@ -893,6 +895,7 @@ fn the_sixteen_bit_exports_tolerate_null_inputs() {
             LAYERS,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut error,
         )
     });
@@ -907,6 +910,7 @@ fn the_sixteen_bit_exports_tolerate_null_inputs() {
             LAYERS,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut error,
         )
     });
@@ -920,6 +924,7 @@ fn the_sixteen_bit_exports_tolerate_null_inputs() {
             LAYERS,
             LIMIT,
             0,
+            std::ptr::null(),
             ptr::null_mut(),
         )
     });

@@ -1656,6 +1656,7 @@ fn a_styled_raster_is_baked_and_disclosed_through_sixteen_bit_psd() {
                 0,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut err,
             )
         },

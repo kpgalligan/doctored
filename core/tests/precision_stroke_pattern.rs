@@ -405,6 +405,7 @@ fn a_cmyk_psd_round_trip_carries_the_pattern_stroke() {
                 0,
                 LIMIT,
                 0,
+                std::ptr::null(),
                 &mut err,
             )
         };

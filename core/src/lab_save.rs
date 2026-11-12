@@ -161,10 +161,12 @@ impl PrecisionDocument {
         };
         let bytes = self.lab_tiff_bytes(composite, depth, request.strip_metadata, job)?;
         job.check()?;
-        crate::dr_image::save_atomically(path, |tmp| {
-            std::fs::write(tmp, &bytes).map_err(|e| format!("failed to write {path}: {e}"))
-        })?;
-        job.report(1.0, 5)?;
+        crate::dr_image::save_bytes_atomically(path, &bytes, job)?;
+        // Published: a cancel arriving after the rename cannot turn the saved
+        // file into an error.
+        if let Some(control) = control {
+            control.report(1.0, 5);
+        }
         Ok(())
     }
 
@@ -214,8 +216,10 @@ impl PrecisionDocument {
         if let Some(paths) = self.tiff_path_run() {
             crate::tiff_paths::attach(&mut side, paths);
         }
+        // The writer streams through `cancel_io::Polled`, polling `job`.
         let mut out = Cursor::new(Vec::new());
-        match depth {
+        let mut sink = crate::cancel_io::Polled::new(&mut out, job);
+        let written = match depth {
             LabDepth::Eight => {
                 let mut samples = reserved_vec(count)?;
                 for y in 0..h {
@@ -224,7 +228,8 @@ impl PrecisionDocument {
                         crate::lab_encode::tiff_samples8(run, alpha, &mut samples);
                     }
                 }
-                crate::tiff_encode::encode_cielab8(&samples, alpha, (w, h), &mut out, &side)?;
+                job.report(0.9, 1)?;
+                crate::tiff_encode::encode_cielab8(&samples, alpha, (w, h), &mut sink, &side)
             }
             LabDepth::Sixteen => {
                 let mut samples = reserved_vec(count)?;
@@ -234,9 +239,11 @@ impl PrecisionDocument {
                         crate::lab_encode::tiff_samples16(run, alpha, &mut samples);
                     }
                 }
-                crate::tiff_encode::encode_cielab16(&samples, alpha, (w, h), &mut out, &side)?;
+                job.report(0.9, 1)?;
+                crate::tiff_encode::encode_cielab16(&samples, alpha, (w, h), &mut sink, &side)
             }
-        }
+        };
+        crate::cancel_io::settle(job, written)?;
         Ok(out.into_inner())
     }
 }

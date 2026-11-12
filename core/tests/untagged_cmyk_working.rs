@@ -74,7 +74,7 @@ fn write(dir: &TempDir, name: &str, bytes: &[u8]) -> PathBuf {
 fn open_pixels(path: &Path) -> Vec<u8> {
     let c = cpath(path);
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "open {path:?}: {}", take_err_string(err));
     let pixels = layer_pixels(doc, 0);
     unsafe { dr_doc_free(doc) };
@@ -425,7 +425,7 @@ fn an_untagged_cmyk_file_converts_from_the_working_cmyk_profile() {
     // not.
     let c = cpath(&planar_path);
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(
         doc.is_null(),
         "a planar CMYK TIFF short of its strips must not open"

@@ -420,7 +420,7 @@ fn a_32_bit_tiff_carries_the_exif_packet_and_the_run() {
     let source = dir.path().join("source.jpg");
     std::fs::write(&source, file).unwrap();
     let mut err = ptr::null_mut();
-    let byte = unsafe { dr_doc_open(cpath(&source).as_ptr(), &mut err) };
+    let byte = unsafe { dr_doc_open(cpath(&source).as_ptr(), std::ptr::null(), &mut err) };
     assert!(!byte.is_null(), "{}", take_err_string(err));
     let byte = unsafe { Box::from_raw(byte) };
     let float = to_float(&promoted(&byte));

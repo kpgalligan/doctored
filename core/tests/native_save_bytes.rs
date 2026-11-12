@@ -262,7 +262,7 @@ fn byte_file(doc: &DrDocument) -> Vec<u8> {
     let path = directory.path().join("pin.rz");
     let name = CString::new(path.to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let accepted = unsafe { dr_doc_save_native(doc, name.as_ptr(), &mut error) };
+    let accepted = unsafe { dr_doc_save_native(doc, name.as_ptr(), std::ptr::null(), &mut error) };
     if !error.is_null() {
         let message = unsafe { CStr::from_ptr(error) }
             .to_string_lossy()

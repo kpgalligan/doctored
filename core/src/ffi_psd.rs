@@ -7,7 +7,7 @@ use std::ptr;
 use crate::doc::DrDocument;
 use crate::dr_image::DrImage;
 use crate::ffi_util::{boxed, fallible_op, read_cstr, required_handle};
-use crate::job_control::DrJobControl;
+use crate::job_control::{DrJobControl, JobContext};
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::PrecisionImage;
 use crate::psd_framing::{LayeredContainer, UNKNOWN_CONTAINER};
@@ -49,16 +49,21 @@ pub unsafe extern "C" fn dr_psd_import_report(
 
 /// Imports the layers of a PSD, PSB or layered TIFF (mode 0) or its saved
 /// composite (mode 1; a TIFF has none here and refuses). Never falls back
-/// between modes or converts unsupported color/depth implicitly.
+/// between modes or converts unsupported color/depth implicitly. `control`
+/// is optional and single-use, begun once for the whole open: the file is
+/// read through `cancel_io::read_file` and the import checks it per record;
+/// a cancel answers exactly `operation cancelled`.
 ///
 /// # Safety
 /// path and expected_fingerprint must be NULL or NUL-terminated strings;
-/// err_out must be NULL or writable.
+/// control must be NULL or a live single-use token; err_out must be NULL or
+/// writable.
 #[no_mangle]
 pub unsafe extern "C" fn dr_doc_open_psd(
     path: *const c_char,
     mode: c_int,
     expected_fingerprint: *const c_char,
+    control: *const DrJobControl,
     err_out: *mut *mut c_char,
 ) -> *mut DrDocument {
     unsafe {
@@ -68,15 +73,20 @@ pub unsafe extern "C" fn dr_doc_open_psd(
             ptr::null_mut(),
             || {
                 let path = read_cstr(path, "path")?;
-                let bytes =
-                    std::fs::read(&path).map_err(|e| format!("failed to read {path}: {e}"))?;
+                let control = control.as_ref();
+                let _run = control.map(DrJobControl::begin).transpose()?;
+                let job = control.map_or(JobContext::NONE, JobContext::new);
+                let bytes = crate::cancel_io::read_file(&path, job.range(0.0, 0.2))?;
                 let expected = read_cstr(expected_fingerprint, "expected_fingerprint")?;
                 if expected != crate::psd_import::fingerprint(&bytes) {
                     return Err(format!(
                         "PSD {path}: file changed since compatibility preflight; inspect it again"
                     ));
                 }
-                crate::psd_import::open(&bytes, &path, mode)
+                let job = job.range(0.2, 1.0);
+                let document = crate::psd_import::open(&bytes, &path, mode, job)?;
+                job.report(1.0, 5)?;
+                Ok(document)
             },
             boxed,
         )
@@ -121,10 +131,13 @@ pub unsafe extern "C" fn dr_doc_psd_export_report(
 /// DrLayeredContainer). `flat` may be NULL, in which case this
 /// document is composited here; a non-NULL image must be canvas-sized. The
 /// preflight runs again and its refusal is this call's error, so a refused
-/// export leaves an existing destination byte-identical.
+/// export leaves an existing destination byte-identical. `control` is
+/// optional and single-use, begun once for the whole save; a cancel answers
+/// exactly `operation cancelled` and keeps the previous file.
 ///
 /// # Safety
-/// path must be NULL or a NUL-terminated string; err_out NULL or writable.
+/// path must be NULL or a NUL-terminated string; control NULL or a live
+/// single-use token; err_out NULL or writable.
 #[no_mangle]
 pub unsafe extern "C" fn dr_doc_save_psd(
     doc: *const DrDocument,
@@ -132,6 +145,7 @@ pub unsafe extern "C" fn dr_doc_save_psd(
     path: *const c_char,
     container: c_int,
     mode: c_int,
+    control: *const DrJobControl,
     err_out: *mut *mut c_char,
 ) -> bool {
     unsafe {
@@ -145,7 +159,7 @@ pub unsafe extern "C" fn dr_doc_save_psd(
                 let container = LayeredContainer::from_c(container).ok_or(UNKNOWN_CONTAINER)?;
                 let mode = crate::psd_export::PsdExportMode::from_c(mode)
                     .ok_or(crate::psd_export::UNKNOWN_MODE)?;
-                document.save_psd(flat.as_ref(), &path, container, mode)
+                document.save_psd(flat.as_ref(), &path, container, mode, control.as_ref())
             },
             |()| true,
         )
@@ -407,11 +421,15 @@ pub unsafe extern "C" fn dr_precision_doc_psd_export_report(
 /// 8 or 16 bits, no profile embedded, from its REQUIRED canvas-sized RGBA16
 /// projection in its Lab twin (#1 Lab phase 3b). The preflight runs again
 /// and its refusal is this call's error, so a refused export leaves an
-/// existing destination byte-identical.
+/// existing destination byte-identical. `control` is optional and
+/// single-use, begun once for the whole save; a cancel answers exactly
+/// `operation cancelled` and keeps the previous file.
 ///
 /// # Safety
-/// path must be NULL or a NUL-terminated string; err_out NULL or writable.
+/// path must be NULL or a NUL-terminated string; control NULL or a live
+/// single-use token; err_out NULL or writable.
 #[no_mangle]
+#[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn dr_precision_doc_save_psd(
     doc: *const PrecisionDocument,
     projection: *const PrecisionImage,
@@ -420,6 +438,7 @@ pub unsafe extern "C" fn dr_precision_doc_save_psd(
     mode: c_int,
     limit: u64,
     other_retained_bytes: u64,
+    control: *const DrJobControl,
     err_out: *mut *mut c_char,
 ) -> bool {
     unsafe {
@@ -441,6 +460,7 @@ pub unsafe extern "C" fn dr_precision_doc_save_psd(
                     mode,
                     limit,
                     other_retained_bytes,
+                    control.as_ref(),
                 )
             },
             |()| true,

@@ -123,6 +123,7 @@ fn save(
             mode,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };
@@ -778,6 +779,7 @@ fn a_thirty_two_bit_gray_document_refuses_a_layered_tiff_and_a_null_projection()
             0,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

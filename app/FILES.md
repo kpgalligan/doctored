@@ -362,6 +362,7 @@ Detail belongs in the source file's own header comment.
 - `ExportAccessoryController.swift` — the export save panel's accessory: format popup, a JPEG-only quality slider and the two colour/metadata checkboxes.
 - `ExportCapabilities.swift` — what an export format can carry and what a finished save carried: the Export panel's checkboxes and its after-the-fact notice.
 - `ImageDocument+Preservation.swift` — Save routing: ordinary Save keeps editable state; File ▸ Export and MCP `save_copy` may flatten without retargeting or clearing dirty.
+- `ImageDocument+OpenWork.swift` — `openWork`: a core open on the worker under a control, Cancel and Esc, panel after `panelDelay`; inline when the worker is busy.
 - `ImageDocument+Print.swift` — a single printed page: the flattened composite, drawn once as a CGImage tagged with the document's profile.
 - `EditorViewController+Export.swift` / `AgentServer+Export.swift` — menu and MCP halves; `ExportCapture` is the ONE encode path the sheet, MCP and Quick Export share.
 - `QuickExportDefaults.swift` — Quick Export with no setup: the built-in PNG preset, the default's resolution, and the `-2`…`-999` free-name search.

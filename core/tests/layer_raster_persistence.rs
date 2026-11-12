@@ -147,7 +147,7 @@ impl Doc {
     fn save(&self, path: &Path) -> Vec<u8> {
         let c = cpath(path);
         let mut error: *mut c_char = ptr::null_mut();
-        let saved = unsafe { dr_doc_save_native(self.0, c.as_ptr(), &mut error) };
+        let saved = unsafe { dr_doc_save_native(self.0, c.as_ptr(), std::ptr::null(), &mut error) };
         assert!(saved, "save: {}", take_err_string(error));
         std::fs::read(path).expect("the saved file")
     }
@@ -156,8 +156,17 @@ impl Doc {
     fn save_psd(&self, path: &Path) -> Vec<u8> {
         let c = cpath(path);
         let mut error: *mut c_char = ptr::null_mut();
-        let saved =
-            unsafe { dr_doc_save_psd(self.0, ptr::null(), c.as_ptr(), 0, PSD_LAYERS, &mut error) };
+        let saved = unsafe {
+            dr_doc_save_psd(
+                self.0,
+                ptr::null(),
+                c.as_ptr(),
+                0,
+                PSD_LAYERS,
+                std::ptr::null(),
+                &mut error,
+            )
+        };
         assert!(saved, "save_psd: {}", take_err_string(error));
         std::fs::read(path).expect("the saved PSD")
     }
@@ -165,7 +174,7 @@ impl Doc {
     fn open(path: &Path) -> Self {
         let c = cpath(path);
         let mut error: *mut c_char = ptr::null_mut();
-        let out = unsafe { dr_doc_open(c.as_ptr(), &mut error) };
+        let out = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut error) };
         assert!(!out.is_null(), "open: {}", take_err_string(error));
         Self(out)
     }

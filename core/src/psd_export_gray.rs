@@ -81,6 +81,7 @@
 use serde_json::{json, Value};
 
 use crate::gray_document::GrayDepth;
+use crate::job_control::JobContext;
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::{admit, PrecisionImage, PrecisionStorage};
 use crate::precision_style_render::StyleEnv;
@@ -320,15 +321,15 @@ impl PrecisionDocument {
         path: &str,
         container: LayeredContainer,
         mode: PsdExportMode,
-        limit: u64,
-        other: u64,
+        (limit, other): (u64, u64),
+        job: JobContext<'_>,
     ) -> Result<(), String> {
         let policy = self
             .gray_policy()
             .ok_or("a Grayscale PSD export needs a Grayscale document")?
             .clone();
         if policy.depth() == GrayDepth::ThirtyTwo {
-            return self.save_gray_psd32(projection, path, container, mode, limit, other);
+            return self.save_gray_psd32(projection, path, container, mode, limit, other, job);
         }
         if policy.duotone().is_some() && container == LayeredContainer::Tiff {
             return Err(DUOTONE_TIFF_REFUSAL.into());
@@ -348,8 +349,8 @@ impl PrecisionDocument {
                 path,
                 container,
                 mode,
-                limit,
-                other.saturating_add(self.retained_bytes()),
+                (limit, other.saturating_add(self.retained_bytes())),
+                job,
             );
         }
         let report = self.limited_psd_report(
@@ -536,8 +537,7 @@ impl PrecisionDocument {
             Some(inks) => crate::duotone_files::into_duotone_file(bytes, inks)?,
             None => bytes,
         };
-        crate::dr_image::save_atomically(path, |tmp| {
-            std::fs::write(tmp, &bytes).map_err(|e| format!("failed to write {path}: {e}"))
-        })
+        job.check()?;
+        crate::dr_image::save_bytes_atomically(path, &bytes, job)
     }
 }

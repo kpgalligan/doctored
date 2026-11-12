@@ -366,8 +366,10 @@ fn eight_bit_fill_layers_render_and_round_trip() {
         // Save, reopen: the same bytes and the same description.
         let dir = TempDir::new().unwrap();
         let path = CString::new(dir.path().join("fill.rz").to_str().unwrap()).unwrap();
-        assert!(unsafe { dr_doc_save_native(&*published, path.as_ptr(), &mut err) });
-        let back = unsafe { dr_doc_open(path.as_ptr(), &mut err) };
+        assert!(unsafe {
+            dr_doc_save_native(&*published, path.as_ptr(), std::ptr::null(), &mut err)
+        });
+        let back = unsafe { dr_doc_open(path.as_ptr(), std::ptr::null(), &mut err) };
         assert!(!back.is_null(), "{:?}", owned(err));
         let back = unsafe { Box::from_raw(back) };
         assert_eq!(layer_pixels(&*back, 1), pixels);

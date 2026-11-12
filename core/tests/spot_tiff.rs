@@ -357,6 +357,7 @@ pub fn save_byte(doc: &DrDocument, path: &Path, format: i32) {
             true,
             false,
             ptr::null_mut(),
+            std::ptr::null(),
             &mut err,
         )
     };
@@ -366,7 +367,7 @@ pub fn save_byte(doc: &DrDocument, path: &Path, format: i32) {
 /// The byte open of `path`: its error, or the document.
 fn try_open_byte(path: &Path) -> Result<Box<DrDocument>, String> {
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(cpath(path).as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(cpath(path).as_ptr(), std::ptr::null(), &mut err) };
     if doc.is_null() {
         return Err(take_err_string(err));
     }

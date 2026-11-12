@@ -324,6 +324,7 @@ fn the_changed_exports_refuse_null_and_an_unknown_container() {
             path.as_ptr(),
             PSB,
             LAYERS,
+            std::ptr::null(),
             &mut error
         ));
         take_err_string(error);
@@ -334,6 +335,7 @@ fn the_changed_exports_refuse_null_and_an_unknown_container() {
             ptr::null(),
             PSB,
             LAYERS,
+            std::ptr::null(),
             &mut error
         ));
         take_err_string(error);
@@ -344,6 +346,7 @@ fn the_changed_exports_refuse_null_and_an_unknown_container() {
             path.as_ptr(),
             -1,
             LAYERS,
+            std::ptr::null(),
             &mut error
         ));
         assert!(take_err_string(error).contains("unknown layered container"));
@@ -365,6 +368,7 @@ fn the_changed_exports_refuse_null_and_an_unknown_container() {
             LAYERS,
             u64::MAX,
             0,
+            std::ptr::null(),
             &mut error
         ));
         take_err_string(error);
@@ -376,6 +380,7 @@ fn the_changed_exports_refuse_null_and_an_unknown_container() {
             LAYERS,
             0,
             0,
+            std::ptr::null(),
             ptr::null_mut()
         ));
     }

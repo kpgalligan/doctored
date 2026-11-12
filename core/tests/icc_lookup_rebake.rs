@@ -648,7 +648,7 @@ fn byte_save(doc: *const DrDocument, path: &Path) -> Vec<u8> {
     let c = cpath(path);
     let mut err = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "save: {}",
         take_err_string(err)
     );
@@ -658,7 +658,7 @@ fn byte_save(doc: *const DrDocument, path: &Path) -> Vec<u8> {
 fn byte_open(path: &Path) -> Result<*mut DrDocument, String> {
     let c = cpath(path);
     let mut err = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     if doc.is_null() {
         Err(take_err_string(err))
     } else {

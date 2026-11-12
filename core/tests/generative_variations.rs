@@ -384,7 +384,7 @@ fn save(doc: &Doc, dir: &TempDir, name: &str) -> Vec<u8> {
     let mut err: *mut c_char = ptr::null_mut();
     let ok = unsafe {
         match doc {
-            Doc::Byte(d) => dr_doc_save_native(d, c.as_ptr(), &mut err),
+            Doc::Byte(d) => dr_doc_save_native(d, c.as_ptr(), std::ptr::null(), &mut err),
             Doc::Typed(d) => {
                 dr_precision_doc_save_native(d, c.as_ptr(), LIMIT, 0, ptr::null(), &mut err)
             }
@@ -402,7 +402,7 @@ fn open(depth: Depth, bytes: &[u8], dir: &TempDir, name: &str) -> Result<Doc, St
     unsafe {
         match depth {
             Depth::Byte => {
-                let out = dr_doc_open(c.as_ptr(), &mut err);
+                let out = dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err);
                 if out.is_null() {
                     Err(take_err_string(err))
                 } else {

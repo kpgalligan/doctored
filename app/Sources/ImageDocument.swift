@@ -651,7 +651,9 @@ final class ImageDocument: NSDocument {
         }
         // Ordinary image imports retain the established auxiliary-matte pass.
         do {
-            let opened = try RasterDocument.open(url: url)
+            let opened = try openWork(url, scratch: flatCharge ?? 0) { control in
+                try RasterDocument.open(url: url, control: control)
+            }
             let report = RasterDocument.metadataImportReport(at: url)
             return Opened(
                 doc: AuxiliaryMattes.attaching(to: opened, from: url) ?? opened,
@@ -660,6 +662,9 @@ final class ImageDocument: NSDocument {
                 metadataReport: report,
                 profileRefusal: report?["profile_refusal"] as? String,
                 projectionUncharged: flatCharge == nil)
+        } catch let cancel as JobCancelled {
+            // A cancelled open opens nothing; it never reaches the fallback.
+            throw cancel
         } catch {
             // A typed/unsupported native file must keep the core's refusal;
             // ImageIO's byte fallback is only for non-native image containers.

@@ -208,8 +208,12 @@ typedef enum {
  * 1c-2a: trailing extra samples described by resource 1077 in tag 34377)
  * open as spot channels, a 16-bit file's narrowed to 8 bits;
  * dr_path_metadata_import_report names them and any it cannot keep. Errors
- * as in dr_image_open. */
-DrDocument *dr_doc_open(const char *path, char **err_out);
+ * as in dr_image_open. `control` is optional and single-use, begun once for
+ * the whole open: the file's read and its decode are polled as their bytes
+ * move, and a native file's planes, a PSD's records and a TIFF's pages are
+ * checked one by one; a cancel answers exactly "operation cancelled". */
+DrDocument *dr_doc_open(const char *path, const DrJobControl *control,
+                        char **err_out);
 
 /* Wraps an image as a single-"Background"-layer document. NULL if img NULL. */
 DrDocument *dr_doc_from_image(const DrImage *img);
@@ -297,9 +301,14 @@ void dr_doc_free(DrDocument *doc);
  * build knows; the resolution is sanitized rather than refused, exactly like
  * the global light, and so are the ruler origin and each guide position (a
  * non-finite origin component becomes 0, a non-finite position drops that
- * guide, an out-of-canvas value is clamped to the nearest edge). */
+ * guide, an out-of-canvas value is clamped to the nearest edge).
+ * `control` is optional and single-use, begun once for the whole save: the
+ * writer checks it per layer and channel plane and polls the file's write; a
+ * cancel answers exactly "operation cancelled" and keeps the previous file,
+ * and one arriving after the rename leaves the save a success. NULL writes
+ * the same bytes. */
 bool dr_doc_save_native(const DrDocument *doc, const char *path,
-                        char **err_out);
+                        const DrJobControl *control, char **err_out);
 
 /* The 8-bit native writer's planned peak scratch (drdc_save_plan): the
  * encoded-body bound, the tables held beside it, the largest plane's encode
@@ -4742,11 +4751,15 @@ uint32_t dr_format_carries(DrFormat format);
  * channels. Every other format writes `flat` as given.
  *
  * `carried_out` (may be NULL) receives the DR_CARRIES_* bits actually
- * written. Atomic like dr_image_save; errors as in dr_image_save. */
+ * written. Atomic like dr_image_save; errors as in dr_image_save. `control`
+ * is optional and single-use, begun once for the whole save; the encoder is
+ * polled as its bytes move, and a cancel answers exactly "operation
+ * cancelled" and keeps the previous file. */
 bool dr_doc_save_image(const DrDocument *doc, const DrImage *flat,
                        const char *path, DrFormat format, uint8_t jpeg_quality,
                        bool embed_profile, bool strip_metadata,
-                       uint32_t *carried_out, char **err_out);
+                       uint32_t *carried_out, const DrJobControl *control,
+                       char **err_out);
 
 /* Returns a heap JSON array of editable/sidecar state a flat save cannot
  * preserve on reopen, using the same packet limits as dr_doc_save_image.
@@ -4885,9 +4898,13 @@ bool dr_tiff_has_layers(const char *path);
 char *dr_psd_import_report(const char *path, char **err_out);
 /* Explicit choice: mode 0 layers, 1 file-stored composite. Requires the
  * source_fingerprint from preflight; a changed source refuses. No implicit
- * color/depth conversion or fallback between modes. */
+ * color/depth conversion or fallback between modes. `control` is optional
+ * and single-use, begun once for the whole open: the read is polled and the
+ * import checked per record; a cancel answers exactly "operation
+ * cancelled". */
 DrDocument *dr_doc_open_psd(const char *path, int mode,
-                          const char *expected_fingerprint, char **err_out);
+                          const char *expected_fingerprint,
+                          const DrJobControl *control, char **err_out);
 
 /* Layered export preflight for one container (DrLayeredContainer) and mode
  * (0 layers, 1 flattened composite). JSON:
@@ -4919,9 +4936,12 @@ char *dr_doc_psd_export_report(const DrDocument *doc, int container, int mode,
  * (at most 56 channels in all) in Photoshop's layout, and a layered TIFF
  * carries them as its composite's trailing extra samples (#1 1c-2b); alpha
  * channels are not written (#1 spot channels 1b-1). Atomic like
- * dr_image_save. */
+ * dr_image_save. `control` is optional and single-use, begun once for the
+ * whole save; a cancel answers exactly "operation cancelled" and keeps the
+ * previous file. */
 bool dr_doc_save_psd(const DrDocument *doc, const DrImage *flat,
-                     const char *path, int container, int mode, char **err_out);
+                     const char *path, int container, int mode,
+                     const DrJobControl *control, char **err_out);
 
 /* 16-bit RGB PSDs (import report "import_precision":"rgba16") open only as
  * 16-bit documents; the three calls below are declared with the other
@@ -5417,7 +5437,10 @@ char *dr_precision_doc_psd_export_report(const DrPrecisionDocument *doc,
  * takes NULL: a colour-mode-4 file at its declared depth (layers: ink, masks,
  * groups, modes, Fill and its Levels/Curves/Hue/Saturation records; its
  * composite rendered here), admitted against the report's
- * working_memory_plan_bytes (#1). Atomic, noncancellable. A float
+ * working_memory_plan_bytes (#1). Atomic; `control` is optional and
+ * single-use, begun once for the whole save, checked once the records are
+ * built and polled as the file is written; a cancel answers exactly
+ * "operation cancelled" and keeps the previous file. A float
  * document writes a 32-bit RGB PSD or PSB or big-endian layered TIFF
  * from its canvas-sized RGBA32 float projection. A Grayscale document
  * writes a colour-mode-1 PSD, PSB or layered TIFF at its declared 8 or 16
@@ -5435,7 +5458,8 @@ char *dr_precision_doc_psd_export_report(const DrPrecisionDocument *doc,
  * sentence (spot_channel::TIFF_REFUSAL). */
 bool dr_precision_doc_save_psd(const DrPrecisionDocument *doc,
     const DrPrecisionImage *projection, const char *path, int container, int mode,
-    uint64_t limit, uint64_t other_retained_bytes, char **err_out);
+    uint64_t limit, uint64_t other_retained_bytes, const DrJobControl *control,
+    char **err_out);
 /* Select and Mask's New Layer outputs at 16 and 32 bits (native refinement
  * assembly). Foreground is canvas-sized RGBA16, or RGBA32 float in a 32-bit
  * float document, in the exact document profile. Every source
@@ -6869,11 +6893,15 @@ char *dr_precision_doc_calibrated_refusal(const DrPrecisionDocument *document,
 bool dr_precision_doc_save_native(const DrPrecisionDocument *document, const char *path,
     uint64_t limit, uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
 /* format0 PNG16, format1 TIFF16. Render captured source and atomically write.
- * Compound export is noncancellable. Optional report_out receives existing
- * DR_CARRIES_* bits actually written only on success; errors leave it untouched. */
+ * The optional single-use control is begun once for the render and the
+ * encode, which is polled as its bytes move; a cancel answers exactly
+ * "operation cancelled" and keeps the previous file. Optional report_out
+ * receives existing DR_CARRIES_* bits actually written only on success;
+ * errors leave it untouched. */
 bool dr_precision_doc_export16(const DrPrecisionDocument *document, const char *path,
     uint32_t format, bool embed_profile, bool strip_metadata, uint64_t limit,
-    uint64_t other_retained_bytes, uint32_t *report_out, char **err_out);
+    uint64_t other_retained_bytes, uint32_t *report_out, const DrJobControl *control,
+    char **err_out);
 /* Reuse a captured authoritative u16 projection. Both inputs must remain live;
  * storage must be RGBA16 UNORM, dimensions equal the canvas, ICC bytes exact.
  * The host guarantees the projection belongs to this captured source/revision.
@@ -6881,14 +6909,17 @@ bool dr_precision_doc_export16(const DrPrecisionDocument *document, const char *
  * host_scratch_bytes includes codec_scratch_bytes, codec_additive_overhead_bytes
  * and bookkeeping. Also width, height, storage. No pixel allocation/render.
  * Save format 0 PNG16 / 1 TIFF16; path UTF-8 <=64 KiB. other_retained_bytes
- * excludes BOTH inputs' union. Atomic/noncancellable, same packet policy as
- * export16. report_out receives DR_CARRIES_* only on success. NULL/error safe. */
+ * excludes BOTH inputs' union. Atomic, same packet policy as export16; the
+ * save's optional single-use control is polled as the encoded bytes move, and
+ * a cancel answers exactly "operation cancelled". report_out receives
+ * DR_CARRIES_* only on success. NULL/error safe. */
 char *dr_precision_doc_projection_export_plan(const DrPrecisionDocument *document,
     const DrPrecisionImage *image, char **err_out);
 bool dr_precision_doc_save_projection16(const DrPrecisionDocument *document,
     const DrPrecisionImage *image, const char *path, uint32_t format,
     bool embed_profile, bool strip_metadata, uint64_t limit,
-    uint64_t other_retained_bytes, uint32_t *report_out, char **err_out);
+    uint64_t other_retained_bytes, uint32_t *report_out,
+    const DrJobControl *control, char **err_out);
 void dr_precision_image_free(DrPrecisionImage *image);
 uint32_t dr_precision_image_width(const DrPrecisionImage *image);
 uint32_t dr_precision_image_height(const DrPrecisionImage *image);

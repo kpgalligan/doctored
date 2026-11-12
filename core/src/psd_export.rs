@@ -30,6 +30,7 @@ use crate::authored_color::AuthoredColors;
 use crate::doc::{DrDocument, Layer, LayerKind};
 use crate::doc_group;
 use crate::dr_image::DrImage;
+use crate::job_control::{DrJobControl, JobContext};
 use crate::psd_adjustment;
 use crate::psd_export_encode::{
     composite_planes8, encode_plane, image_resources, layer_info, write_psd, MaskBody, Record,
@@ -671,13 +672,20 @@ impl DrDocument {
     /// nothing about the document changes, and a refused export never touches
     /// an existing destination, because the whole file is built in memory
     /// first and lands through the shared atomic temp-file rename.
+    /// `control` is optional and single-use, begun once for the whole save:
+    /// checked after the composite and the records are built, polled as the
+    /// file is written (`cancel_io::write_file`) and checked before the
+    /// rename; a cancel answers exactly `operation cancelled`.
     pub(crate) fn save_psd(
         &self,
         flat: Option<&DrImage>,
         path: &str,
         container: LayeredContainer,
         mode: PsdExportMode,
+        control: Option<&DrJobControl>,
     ) -> Result<(), String> {
+        let _run = control.map(DrJobControl::begin).transpose()?;
+        let job = control.map_or(JobContext::NONE, JobContext::new);
         let report = self.psd_export_report(container, mode);
         if let Some(refusal) = report.refusal {
             return Err(refusal);
@@ -694,6 +702,7 @@ impl DrDocument {
             }
             None => self.flattened()?,
         };
+        job.report(0.2, 1)?;
         // ONE colour transform for the whole export, the way a projection
         // builds one for however many styled layers it holds.
         let colors = self.style_colors();
@@ -714,6 +723,7 @@ impl DrDocument {
                 ranges: Vec::new(),
             }],
         };
+        job.report(0.6, 1)?;
         // Photoshop stores the global light beside the effects that read it.
         let light = records
             .iter()
@@ -789,9 +799,11 @@ impl DrDocument {
                 &extra,
             )?
         };
-        crate::dr_image::save_atomically(path, |tmp| {
-            std::fs::write(tmp, &bytes).map_err(|e| format!("failed to write {path}: {e}"))
-        })
+        crate::dr_image::save_bytes_atomically(path, &bytes, job.range(0.8, 1.0))?;
+        if let Some(control) = control {
+            control.report(1.0, 5);
+        }
+        Ok(())
     }
 }
 

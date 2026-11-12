@@ -443,7 +443,7 @@ fn byte_save(doc: &DrDocument, path: &std::path::Path) -> Vec<u8> {
     let handle = Box::into_raw(Box::new(doc.clone()));
     let c = CString::new(path.to_str().unwrap()).unwrap();
     let mut err = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(handle, c.as_ptr(), &mut err) };
+    let ok = unsafe { dr_doc_save_native(handle, c.as_ptr(), std::ptr::null(), &mut err) };
     unsafe { dr_doc_free(handle) };
     assert!(ok, "{:?}", take_err(err));
     std::fs::read(path).unwrap()
@@ -452,7 +452,7 @@ fn byte_save(doc: &DrDocument, path: &std::path::Path) -> Vec<u8> {
 fn byte_open(path: &std::path::Path) -> DrDocument {
     let c = CString::new(path.to_str().unwrap()).unwrap();
     let mut err = ptr::null_mut();
-    let out = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let out = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!out.is_null(), "{:?}", take_err(err));
     *unsafe { Box::from_raw(out) }
 }

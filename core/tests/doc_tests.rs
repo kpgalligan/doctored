@@ -85,7 +85,7 @@ fn open_single_layer_and_from_image() {
     pattern.save(&path).unwrap();
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "doc open failed: {}", take_err_string(err));
     assert!(err.is_null());
     assert_eq!(unsafe { dr_doc_width(doc) }, 16);
@@ -451,12 +451,12 @@ fn drdc_round_trip_preserves_all_blend_modes() {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "save failed: {}",
         take_err_string(err)
     );
     let mut err: *mut c_char = ptr::null_mut();
-    let reopened = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let reopened = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(
         !reopened.is_null(),
         "reopen failed: {}",
@@ -1438,14 +1438,14 @@ fn drdc_round_trip_preserves_everything() {
     let path = dir.path().join("doc.drdc");
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) };
+    let ok = unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(ok, "save_native failed: {}", take_err_string(err));
     assert!(err.is_null());
     let header = std::fs::read(&path).unwrap();
     assert_eq!(&header[..4], b"DRDC", "file must start with the magic");
 
     let mut err: *mut c_char = ptr::null_mut();
-    let reopened = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let reopened = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(
         !reopened.is_null(),
         "reopen failed: {}",
@@ -1509,7 +1509,7 @@ fn drdc_corrupt_truncated_and_lenient_fields() {
     let path = dir.path().join("doc.drdc");
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) });
+    assert!(unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) });
     unsafe { dr_doc_free(doc) };
     let bytes = std::fs::read(&path).unwrap();
 
@@ -1533,7 +1533,7 @@ fn drdc_corrupt_truncated_and_lenient_fields() {
         std::fs::write(&tpath, &bytes[..cut]).unwrap();
         let tc = cpath(&tpath);
         let mut err: *mut c_char = ptr::null_mut();
-        let p = unsafe { dr_doc_open(tc.as_ptr(), &mut err) };
+        let p = unsafe { dr_doc_open(tc.as_ptr(), std::ptr::null(), &mut err) };
         assert!(p.is_null(), "truncated file (cut {cut}) must not open");
         assert!(!err.is_null(), "truncation (cut {cut}) must set an error");
         assert!(!take_err_string(err).is_empty());
@@ -1546,7 +1546,7 @@ fn drdc_corrupt_truncated_and_lenient_fields() {
     std::fs::write(&bpath, &bad).unwrap();
     let bc = cpath(&bpath);
     let mut err: *mut c_char = ptr::null_mut();
-    let p = unsafe { dr_doc_open(bc.as_ptr(), &mut err) };
+    let p = unsafe { dr_doc_open(bc.as_ptr(), std::ptr::null(), &mut err) };
     assert!(p.is_null(), "bad magic must not open");
     assert!(!take_err_string(err).is_empty());
 
@@ -1557,7 +1557,7 @@ fn drdc_corrupt_truncated_and_lenient_fields() {
     std::fs::write(&zpath, &zero).unwrap();
     let zc = cpath(&zpath);
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(unsafe { dr_doc_open(zc.as_ptr(), &mut err) }.is_null());
+    assert!(unsafe { dr_doc_open(zc.as_ptr(), std::ptr::null(), &mut err) }.is_null());
     assert!(!take_err_string(err).is_empty());
 
     // Hand-crafted file with an unknown blend value and out-of-range opacity:
@@ -1585,7 +1585,7 @@ fn drdc_corrupt_truncated_and_lenient_fields() {
     std::fs::write(&hpath, &crafted).unwrap();
     let hc = cpath(&hpath);
     let mut err: *mut c_char = ptr::null_mut();
-    let lenient = unsafe { dr_doc_open(hc.as_ptr(), &mut err) };
+    let lenient = unsafe { dr_doc_open(hc.as_ptr(), std::ptr::null(), &mut err) };
     assert!(
         !lenient.is_null(),
         "lenient open failed: {}",
@@ -1628,7 +1628,7 @@ fn drdc_rejects_absurd_canvas_dims() {
     std::fs::write(&path, &crafted).unwrap();
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
-    let p = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let p = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(p.is_null(), "absurd canvas dims must not open");
     let msg = take_err_string(err);
     assert!(
@@ -1657,13 +1657,13 @@ fn drdc_save_enforces_reader_caps() {
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(doc, c.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(doc, c.as_ptr(), std::ptr::null(), &mut err) },
         "save with over-long name failed: {}",
         take_err_string(err)
     );
     unsafe { dr_doc_free(doc) };
     let mut err: *mut c_char = ptr::null_mut();
-    let reopened = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let reopened = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(
         !reopened.is_null(),
         "reopen failed: {}",
@@ -1687,7 +1687,7 @@ fn drdc_save_enforces_reader_caps() {
     let ac = cpath(&at_cap);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        unsafe { dr_doc_save_native(big, ac.as_ptr(), &mut err) },
+        unsafe { dr_doc_save_native(big, ac.as_ptr(), std::ptr::null(), &mut err) },
         "1024 layers must save: {}",
         take_err_string(err)
     );
@@ -1706,14 +1706,14 @@ fn drdc_save_enforces_reader_caps() {
     unsupported.layers.push(unsupported.layers[0].clone());
     let previous = std::fs::read(&at_cap).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
-    assert!(!unsafe { dr_doc_save_native(&unsupported, ac.as_ptr(), &mut err) });
+    assert!(!unsafe { dr_doc_save_native(&unsupported, ac.as_ptr(), std::ptr::null(), &mut err) });
     assert!(take_err_string(err).contains("invalid layer count 1025"));
     assert_eq!(std::fs::read(&at_cap).unwrap(), previous);
     let over_cap = dir.path().join("over-cap.drdc");
     let oc = cpath(&over_cap);
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
-        !unsafe { dr_doc_save_native(&unsupported, oc.as_ptr(), &mut err) },
+        !unsafe { dr_doc_save_native(&unsupported, oc.as_ptr(), std::ptr::null(), &mut err) },
         "1025 layers must not save"
     );
     assert!(!take_err_string(err).is_empty());
@@ -1731,7 +1731,7 @@ fn drdc_failed_save_leaves_no_temp_files() {
     // Nonexistent directory.
     let bad = CString::new("/nonexistent-dir-xyz-doctored/doc.drdc").unwrap();
     let mut err: *mut c_char = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(doc, bad.as_ptr(), &mut err) };
+    let ok = unsafe { dr_doc_save_native(doc, bad.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!ok);
     assert!(!take_err_string(err).is_empty());
 
@@ -1742,7 +1742,7 @@ fn drdc_failed_save_leaves_no_temp_files() {
     std::fs::set_permissions(&ro, std::fs::Permissions::from_mode(0o555)).unwrap();
     let target = cpath(&ro.join("doc.drdc"));
     let mut err: *mut c_char = ptr::null_mut();
-    let ok = unsafe { dr_doc_save_native(doc, target.as_ptr(), &mut err) };
+    let ok = unsafe { dr_doc_save_native(doc, target.as_ptr(), std::ptr::null(), &mut err) };
     std::fs::set_permissions(&ro, std::fs::Permissions::from_mode(0o755)).unwrap();
     if !ok {
         assert!(!take_err_string(err).is_empty());
@@ -1823,7 +1823,7 @@ fn psd_layered_import() {
     };
     let c = cpath(&path);
     let mut err: *mut c_char = ptr::null_mut();
-    let doc = unsafe { dr_doc_open(c.as_ptr(), &mut err) };
+    let doc = unsafe { dr_doc_open(c.as_ptr(), std::ptr::null(), &mut err) };
     assert!(!doc.is_null(), "PSD open failed: {}", take_err_string(err));
     assert_eq!(unsafe { (dr_doc_width(doc), dr_doc_height(doc)) }, (40, 30));
     assert_eq!(unsafe { dr_doc_layer_count(doc) }, 2, "expected two layers");
@@ -1933,7 +1933,7 @@ fn psd_layered_import() {
     if matches!(status, Ok(s) if s.success()) {
         let fc = cpath(&flat_psd);
         let mut err: *mut c_char = ptr::null_mut();
-        let fdoc = unsafe { dr_doc_open(fc.as_ptr(), &mut err) };
+        let fdoc = unsafe { dr_doc_open(fc.as_ptr(), std::ptr::null(), &mut err) };
         assert!(
             !fdoc.is_null(),
             "flat PSD open failed: {}",
@@ -2115,16 +2115,22 @@ fn null_safety_sweep() {
             .is_null()
         );
         let mut err: *mut c_char = ptr::null_mut();
-        assert!(dr_doc_open(ptr::null(), &mut err).is_null());
+        assert!(dr_doc_open(ptr::null(), std::ptr::null(), &mut err).is_null());
         assert!(!take_err_string(err).is_empty());
-        assert!(dr_doc_open(ptr::null(), ptr::null_mut()).is_null());
+        assert!(dr_doc_open(ptr::null(), std::ptr::null(), ptr::null_mut()).is_null());
         let path = CString::new("/tmp/never-created.drdc").unwrap();
         let mut err: *mut c_char = ptr::null_mut();
-        assert!(!dr_doc_save_native(null_doc, path.as_ptr(), &mut err));
+        assert!(!dr_doc_save_native(
+            null_doc,
+            path.as_ptr(),
+            std::ptr::null(),
+            &mut err
+        ));
         assert!(!take_err_string(err).is_empty());
         assert!(!dr_doc_save_native(
             null_doc,
             path.as_ptr(),
+            std::ptr::null(),
             ptr::null_mut()
         ));
         let mut err: *mut c_char = ptr::null_mut();
@@ -3476,6 +3482,7 @@ fn null_safety_sweep() {
             true,
             false,
             ptr::null_mut(),
+            std::ptr::null(),
             &mut err
         ));
         assert!(!take_err_string(err).is_empty());
@@ -3488,6 +3495,7 @@ fn null_safety_sweep() {
             true,
             false,
             ptr::null_mut(),
+            std::ptr::null(),
             ptr::null_mut()
         ));
         // Inspecting nothing is "not an ICC profile", with no name.
@@ -4106,7 +4114,12 @@ fn null_safety_sweep() {
             ));
         }
         let mut err: *mut c_char = ptr::null_mut();
-        assert!(!dr_doc_save_native(doc, ptr::null(), &mut err));
+        assert!(!dr_doc_save_native(
+            doc,
+            ptr::null(),
+            std::ptr::null(),
+            &mut err
+        ));
         assert!(!take_err_string(err).is_empty());
 
         // Colour management and metadata, on a valid document.
@@ -4139,6 +4152,7 @@ fn null_safety_sweep() {
                 true,
                 false,
                 ptr::null_mut(),
+                std::ptr::null(),
                 &mut err
             ),
             "a NULL path is an error"
@@ -4162,6 +4176,7 @@ fn null_safety_sweep() {
                 true,
                 false,
                 &mut carried,
+                std::ptr::null(),
                 &mut err,
             )
         },
@@ -4229,6 +4244,7 @@ fn bogus_colour_enum_values_are_refused_rather_than_materialized() {
                     true,
                     false,
                     ptr::null_mut(),
+                    std::ptr::null(),
                     &mut err,
                 )
             },

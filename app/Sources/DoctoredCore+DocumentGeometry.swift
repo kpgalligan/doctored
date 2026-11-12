@@ -230,15 +230,18 @@ extension RasterDocument {
         }
     }
 
-    /// Writes the native DRDC format (all layers preserved).
-    func saveNative(to url: URL) throws {
+    /// Writes the native DRDC format (all layers preserved). `control` is
+    /// single-use: a cancel answers `JobCancelled`'s sentence from the core and
+    /// keeps the previous file.
+    func saveNative(to url: URL, control: RasterJobControl? = nil) throws {
         if let precision {
             let context = try PrecisionWorkContext(source: precision)
-            try precision.saveNative(to: url, workingLimit: context.limit, otherRetained: context.otherRetained)
+            try precision.saveNative(to: url, workingLimit: context.limit,
+                                     otherRetained: context.otherRetained, control: control)
             return
         }
         var err: UnsafeMutablePointer<CChar>? = nil
-        guard dr_doc_save_native(ptr, url.path, &err) else {
+        guard dr_doc_save_native(ptr, url.path, control?.ptr, &err) else {
             throw DoctoredCoreError(
                 message: takeErrorMessage(err, fallback: "Could not save \(url.lastPathComponent)."))
         }

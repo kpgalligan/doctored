@@ -23,7 +23,7 @@ enum HostSourceWork {
         }
         _ = try RasterResources.shared.admit(scratch: input.scratch)
         return try PrecisionCapturedWork.run(scratchEstimate: input.scratch, title: "Capturing Full Media Source") { control in
-            let snapshot = try HostSourceSnapshot.capture(input)
+            let snapshot = try HostSourceSnapshot.capture(input, control: control)
             if let expected, expected != snapshot.hashes {
                 throw HostSourceError.failure("The source bytes differ from the recorded originals. No media decoder was invoked.")
             }

@@ -18,12 +18,18 @@
 //!   (`tiff_encode::encode_palette8`). With t, a second sample tagged
 //!   straight alpha is 0 at t and 255 elsewhere: TIFF records transparency
 //!   per pixel, so a t no pixel uses is not recorded.
+//!
+//! Each writes through `cancel_io::Polled`, polling `job` as its bytes move
+//! (the TIFF while it streams, the PNG and GIF while they copy out); a cancel
+//! answers exactly `operation cancelled`.
 
 use std::borrow::Cow;
 use std::io::Write;
 
+use crate::cancel_io::{settle, Polled};
 use crate::dr_image::Format;
 use crate::indexed_palette::Rgb;
+use crate::job_control::JobContext;
 use crate::metadata_write::EncodeSidecar;
 
 /// The least PNG bit depth whose indices reach every one of `entries`.
@@ -71,6 +77,7 @@ pub(crate) fn encode_png(
     indices: &[u8],
     dims: (u32, u32),
     side: &EncodeSidecar<'_>,
+    job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
     check_plane(palette, indices, dims)?;
     let depth = png_depth(palette.len());
@@ -91,15 +98,17 @@ pub(crate) fn encode_png(
     info.icc_profile = side.icc.map(|icc| Cow::Owned(icc.to_vec()));
     info.exif_metadata = side.exif.clone().map(Cow::Owned);
     let data = packed_rows(indices, dims, depth)?;
-    let mut sink = crate::gray_encode::injector(Format::Png, side);
+    let mut injected = crate::gray_encode::injector(Format::Png, side);
     let fail = |e: png::EncodingError| format!("encoding failed: {e}");
-    {
-        let encoder = png::Encoder::with_info(&mut sink, info).map_err(fail)?;
+    let written = (|| {
+        let encoder =
+            png::Encoder::with_info(Polled::new(&mut injected, job), info).map_err(fail)?;
         let mut writer = encoder.write_header().map_err(fail)?;
         writer.write_image_data(&data).map_err(fail)?;
-        writer.finish().map_err(fail)?;
-    }
-    Ok(sink.finish()?.into_inner())
+        writer.finish().map_err(fail)
+    })();
+    settle(job, written)?;
+    Ok(injected.finish()?.into_inner())
 }
 
 /// A palette GIF (module doc).
@@ -108,6 +117,17 @@ pub(crate) fn encode_gif(
     transparent: Option<u8>,
     indices: &[u8],
     dims: (u32, u32),
+    job: JobContext<'_>,
+) -> Result<Vec<u8>, String> {
+    settle(job, gif_polled(palette, transparent, indices, dims, job))
+}
+
+fn gif_polled(
+    palette: &[Rgb],
+    transparent: Option<u8>,
+    indices: &[u8],
+    dims: (u32, u32),
+    job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
     check_plane(palette, indices, dims)?;
     let (Ok(w), Ok(h)) = (u16::try_from(dims.0), u16::try_from(dims.1)) else {
@@ -116,7 +136,8 @@ pub(crate) fn encode_gif(
     let mut table = palette.concat();
     table.resize(palette.len().next_power_of_two().max(2) * 3, 0);
     let fail = |e: gif::EncodingError| format!("encoding failed: {e}");
-    let mut encoder = gif::Encoder::new(Vec::new(), w, h, &table).map_err(fail)?;
+    let mut encoder =
+        gif::Encoder::new(Polled::new(Vec::new(), job), w, h, &table).map_err(fail)?;
     let frame = gif::Frame {
         width: w,
         height: h,
@@ -127,7 +148,7 @@ pub(crate) fn encode_gif(
     encoder.write_frame(&frame).map_err(fail)?;
     let mut out = encoder.into_inner().map_err(fail)?;
     out.flush().map_err(|e| format!("encoding failed: {e}"))?;
-    Ok(out)
+    Ok(out.into_inner())
 }
 
 /// A palette TIFF (module doc).
@@ -137,6 +158,7 @@ pub(crate) fn encode_tiff(
     indices: &[u8],
     dims: (u32, u32),
     side: &EncodeSidecar<'_>,
+    job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
     check_plane(palette, indices, dims)?;
     let mut map = vec![0u16; 768];
@@ -155,14 +177,15 @@ pub(crate) fn encode_tiff(
             Cow::Owned(both)
         }
     };
-    let mut sink = crate::gray_encode::injector(Format::Tiff, side);
-    crate::tiff_encode::encode_palette8(
+    let mut injected = crate::gray_encode::injector(Format::Tiff, side);
+    let written = crate::tiff_encode::encode_palette8(
         &samples,
         transparent.is_some(),
         &map,
         dims,
-        &mut sink,
+        &mut Polled::new(&mut injected, job),
         side,
-    )?;
-    Ok(sink.finish()?.into_inner())
+    );
+    settle(job, written)?;
+    Ok(injected.finish()?.into_inner())
 }

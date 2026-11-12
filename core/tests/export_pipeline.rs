@@ -471,6 +471,7 @@ fn the_pipeline_is_resample_then_sharpen_then_convert() {
                 true,
                 false,
                 &mut carried,
+                std::ptr::null(),
                 &mut err,
             )
         });
@@ -523,6 +524,7 @@ fn default_requests_reproduce_the_existing_byte_export() {
                     true,
                     false,
                     &mut carried,
+                    std::ptr::null(),
                     &mut err,
                 )
             },
@@ -566,6 +568,7 @@ fn default_requests_reproduce_the_existing_projection16_export() {
                     LIMIT,
                     0,
                     &mut carried,
+                    std::ptr::null(),
                     &mut err,
                 )
             },
@@ -623,6 +626,7 @@ fn convert_only_tiff16_matches_the_shipped_conversion_and_export() {
                 LIMIT,
                 0,
                 &mut carried,
+                std::ptr::null(),
                 &mut err,
             )
         },

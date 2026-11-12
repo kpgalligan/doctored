@@ -110,8 +110,15 @@ fn report(path: &std::path::Path) -> Value {
 fn open(path: &std::path::Path, mode: i32, report: &Value) -> Result<Box<DrDocument>, String> {
     let fingerprint = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let result =
-        unsafe { dr_doc_open_psd(cpath(path).as_ptr(), mode, fingerprint.as_ptr(), &mut error) };
+    let result = unsafe {
+        dr_doc_open_psd(
+            cpath(path).as_ptr(),
+            mode,
+            fingerprint.as_ptr(),
+            std::ptr::null(),
+            &mut error,
+        )
+    };
     if result.is_null() {
         Err(take_err_string(error))
     } else {
@@ -352,10 +359,19 @@ fn stale_preflight_null_arguments_and_bad_composite_refuse_without_panics() {
         assert!(dr_psd_import_report(ptr::null(), &mut error).is_null());
         assert!(take_err_string(error).contains("NULL"));
         error = ptr::null_mut();
-        assert!(dr_doc_open_psd(ptr::null(), 1, ptr::null(), &mut error).is_null());
+        assert!(
+            dr_doc_open_psd(ptr::null(), 1, ptr::null(), std::ptr::null(), &mut error).is_null()
+        );
         assert!(take_err_string(error).contains("NULL"));
         error = ptr::null_mut();
-        assert!(dr_doc_open_psd(cpath(&path).as_ptr(), 1, ptr::null(), &mut error).is_null());
+        assert!(dr_doc_open_psd(
+            cpath(&path).as_ptr(),
+            1,
+            ptr::null(),
+            std::ptr::null(),
+            &mut error
+        )
+        .is_null());
         assert!(take_err_string(error).contains("NULL"));
         dr_doc_free(ptr::null_mut());
     }

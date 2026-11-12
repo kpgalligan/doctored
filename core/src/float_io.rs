@@ -88,6 +88,7 @@ use std::io::Cursor;
 use std::sync::Arc;
 
 use crate::adjust_white_balance::{mat_vec, native_adaptation};
+use crate::cancel_io::{settle, Polled};
 use crate::exr_float::{self, Chromaticities};
 use crate::float_document::{sanitize, ToneMap, FLOAT_RANGE_MAX};
 use crate::float_primaries;
@@ -661,7 +662,8 @@ pub(crate) fn encode_float_gray(
             flat.push(pixel[3]);
         }
     }
-    job.check()?;
+    // The encode is the last stage; its codec polls as it writes.
+    job.report(0.9, 1)?;
     let out = FloatTiff {
         width,
         height,
@@ -673,9 +675,22 @@ pub(crate) fn encode_float_gray(
         metadata: Metadata::default(),
         non_finite: 0,
     };
-    let mut bytes = Cursor::new(Vec::new());
-    tiff_float::encode(&out, &mut bytes, true, samples, side)?;
+    let bytes = float_tiff_bytes(&out, samples, side, job)?;
     job.check()?;
+    Ok(bytes)
+}
+
+/// `tiff_float::encode` (Deflate) into memory through `cancel_io::Polled`,
+/// polling `job` as its strips are written.
+fn float_tiff_bytes(
+    tiff: &FloatTiff,
+    samples: FloatSampleType,
+    side: &EncodeSidecar<'_>,
+    job: JobContext<'_>,
+) -> Result<Vec<u8>, String> {
+    let mut bytes = Cursor::new(Vec::new());
+    let written = tiff_float::encode(tiff, &mut Polled::new(&mut bytes, job), true, samples, side);
+    settle(job, written)?;
     Ok(bytes.into_inner())
 }
 
@@ -721,7 +736,8 @@ pub(crate) fn encode_float(
             }
         }
     }
-    job.check()?;
+    // The encode is the last stage; its codec polls as it writes.
+    job.report(0.9, 1)?;
     let bytes = match container {
         FloatContainer::Tiff => {
             let out = FloatTiff {
@@ -735,19 +751,18 @@ pub(crate) fn encode_float(
                 metadata: Metadata::default(),
                 non_finite: 0,
             };
-            let mut bytes = Cursor::new(Vec::new());
-            tiff_float::encode(&out, &mut bytes, true, samples, side)?;
-            bytes.into_inner()
+            float_tiff_bytes(&out, samples, side, job)?
         }
-        FloatContainer::Exr => exr_float::encode(
+        FloatContainer::Exr => exr_float::encode_polled(
             width,
             height,
             &flat,
             samples,
             primaries_of(image.profile())?,
+            job,
         )?,
         FloatContainer::Radiance => {
-            radiance_hdr::encode(width, height, &flat, primaries_of(image.profile())?)?
+            radiance_hdr::encode_polled(width, height, &flat, primaries_of(image.profile())?, job)?
         }
         FloatContainer::HostStill => {
             return Err("an HDR still is a float source, not a float export container".into())

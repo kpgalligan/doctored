@@ -155,7 +155,7 @@ fn genuine_codes_cross_two_groups_native_reopen_and_both_exports() {
         // This explicit refusal is essential: old document APIs cannot receive
         // a typed v11 file and silently decode its source PNGs to RGBA8.
         let mut err = ptr::null_mut();
-        let byte_doc = dr_doc_open(path(&native).as_ptr(), &mut err);
+        let byte_doc = dr_doc_open(path(&native).as_ptr(), std::ptr::null(), &mut err);
         assert!(byte_doc.is_null());
         assert!(!error(err).is_empty());
         dr_doc_free(byte_doc);
@@ -173,6 +173,7 @@ fn genuine_codes_cross_two_groups_native_reopen_and_both_exports() {
                     LIMIT,
                     0,
                     &mut report,
+                    std::ptr::null(),
                     &mut err
                 ),
                 "{}",
@@ -327,6 +328,7 @@ fn refusal_is_atomic_and_cancelled_render_keeps_sources() {
             LIMIT,
             0,
             &mut report,
+            std::ptr::null(),
             &mut err
         ));
         assert!(!error(err).is_empty());
@@ -513,6 +515,7 @@ fn null_safety_sweep_every_typed_export() {
             LIMIT,
             0,
             ptr::null_mut(),
+            std::ptr::null(),
             e
         ));
         dr_precision_image_free(ptr::null_mut());

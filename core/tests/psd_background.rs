@@ -171,8 +171,17 @@ fn take16(name: &str) -> Vec<f64> {
 
 fn write_psd(doc: *const DrDocument, path: &Path) -> Vec<u8> {
     let mut err: *mut c_char = ptr::null_mut();
-    let ok =
-        unsafe { dr_doc_save_psd(doc, ptr::null(), cpath(path).as_ptr(), 0, LAYERS, &mut err) };
+    let ok = unsafe {
+        dr_doc_save_psd(
+            doc,
+            ptr::null(),
+            cpath(path).as_ptr(),
+            0,
+            LAYERS,
+            std::ptr::null(),
+            &mut err,
+        )
+    };
     assert!(ok, "save_psd: {}", take_err_string(err));
     std::fs::read(path).unwrap()
 }
@@ -189,6 +198,7 @@ fn typed_write_psd(doc: &PrecisionDocument, path: &Path) -> Vec<u8> {
             LAYERS,
             LIMIT,
             0,
+            std::ptr::null(),
             &mut err,
         )
     };

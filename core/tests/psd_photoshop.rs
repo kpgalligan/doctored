@@ -303,6 +303,7 @@ fn the_sixteen_bit_file_imports_layered_with_the_same_twelve_rows() {
             cpath(&fixture("source16.psd")).as_ptr(),
             LAYERS,
             token.as_ptr(),
+            std::ptr::null(),
             &mut error,
         )
     };

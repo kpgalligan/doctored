@@ -87,7 +87,15 @@ fn open_psd(path: &Path) -> Box<DrDocument> {
     let report: Value = serde_json::from_str(&take_err_string(raw)).unwrap();
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
-    let raw = unsafe { dr_doc_open_psd(cpath(path).as_ptr(), 0, token.as_ptr(), &mut error) };
+    let raw = unsafe {
+        dr_doc_open_psd(
+            cpath(path).as_ptr(),
+            0,
+            token.as_ptr(),
+            std::ptr::null(),
+            &mut error,
+        )
+    };
     assert!(!raw.is_null(), "open_psd: {}", take_err_string(error));
     unsafe { Box::from_raw(raw) }
 }

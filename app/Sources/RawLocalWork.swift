@@ -459,9 +459,11 @@ enum RawLocalWork {
         let budget = try restoreScratch(width: Int(PrecisionDocumentDescriptor.integer(info, "width")),
             height: Int(PrecisionDocumentDescriptor.integer(info, "height")), encoded: encoded)
         _ = try RasterResources.shared.admit(scratch: budget)
+        let control = try RasterJobControl()
         let snapshot = try BackgroundWork.wait(try WorkerTask(scratchEstimate: budget) {
-            try RawSourceSnapshot.restore(source, layer: layer, descriptor: descriptor)
-        }, title: "Opening Retained RAW")
+            try RawSourceSnapshot.restore(source, layer: layer, descriptor: descriptor,
+                                          control: control)
+        }, title: "Opening Retained RAW", control: control)
         // Compatibility is checked before opening the controls. Their
         // preview and commit use the same private source and recipe.
         _ = try RetainedRawDecoder.filter(url: snapshot.url, descriptor: descriptor)

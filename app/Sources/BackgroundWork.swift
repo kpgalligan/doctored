@@ -2,8 +2,8 @@ import AppKit
 
 // Final raster transforms (Free Transform, Distort, `transform_layers`, Warp and the 16-bit
 // move/⌘T/crop gestures) carry a `RasterJobControl`, as `DocumentJobs`' jobs do, so Cancel/Esc
-// stops the core kernel; save/export also uses the `BackgroundWork` queue with responsive,
-// noncancellable progress until its kernels expose cancellation. **A user cancel is
+// stops the core kernel; so do Save, Save As, Save a Copy, Open (`ImageDocument+OpenWork`) and the
+// source snapshot and fingerprint stages, whose codecs and file copies poll it. **A user cancel is
 // `JobCancelled`** (this file): `BackgroundWork.wait` maps a failed task under a cancelled control
 // to it, it bridges to `NSUserCancelledError` so no `presentError` alerts (the automation hook
 // mirrors AppKit), a caller that keeps a session open catches it by type, and new code throws it
@@ -130,6 +130,26 @@ struct JobCancelled: LocalizedError, CustomNSError {
     static var errorDomain: String { NSCocoaErrorDomain }
     var errorCode: Int { NSUserCancelledError }
     var errorUserInfo: [String: Any] { [NSLocalizedDescriptionKey: Self.message] }
+}
+
+extension RasterJobControl {
+    /// Throws `JobCancelled` once Cancel was requested: the check a host stage
+    /// (a file copy, a hash, an ImageIO transcode) makes at its own boundaries.
+    func checkCancelled() throws {
+        if isCancelled { throw JobCancelled() }
+    }
+}
+
+extension Optional where Wrapped == RasterJobControl {
+    /// `body` under a single-use child of this control
+    /// (`RasterJobControl.withChildOperation`, after the caller's
+    /// `beginCompoundOperation`), or with no control when there is none: one
+    /// core call of a compound host operation.
+    func stage<T>(from start: Double, to end: Double,
+                  _ body: (RasterJobControl?) throws -> T) throws -> T {
+        guard let control = self else { return try body(nil) }
+        return try control.withChildOperation(from: start, to: end) { try body($0) }
+    }
 }
 
 final class WorkerTask<Value> {
