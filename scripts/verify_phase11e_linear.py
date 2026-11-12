@@ -8,8 +8,9 @@ tolerance is widened after the fact.
   `document_v2` adjustment layer DIRECTLY above it, a Multiply layer at 50 %
   and a masked Screen layer inside a Pass Through group — is switched with
   `set_evaluation` after `get_evaluation preview:true`, and its `render` is
-  compared with an oracle written in this file: decode with the analytic sRGB
-  curve, composite with the W3C formula, replicate the byte adjustment
+  compared with an oracle written in this file: decode through the sRGB
+  profile's sampled curve (`TRC_TABLE`, checked against the export's embedded
+  profile), composite with the W3C formula, replicate the byte adjustment
   transcode's code rounding, re-encode with the same forward-threshold rule.
   **T1** mean |delta| <= 0.05, max <= 1 code. On a second copy of the same
   fixture the base is grouped ON ITS OWN and the group given a Normal blend
@@ -43,8 +44,9 @@ tolerance is widened after the fact.
   succeeds with a null `projection_error`.
 
 Nothing here derives an expectation from Doctored: the fixtures are written
-by this file, the colour arithmetic is written out below, the PNG readers are
-this file's, and the digests come from `hashlib`.
+by this file, the colour arithmetic is written out below (the profile's curve
+rebuilt from the IEC formula and only CHECKED against the file), the PNG
+readers are this file's, and the digests come from `hashlib`.
 """
 import argparse
 import base64
@@ -92,9 +94,12 @@ EVALUATION_BYTE_WORD = 38   # evaluation_native::BYTE_VERSION
 # chain the way core/tests/common/identity.rs peels 45/46 off, and asserts
 # every word it walks past is a KNOWN wrapper, so an unknown word can never be
 # skipped silently: the walk stops at the first non-wrapper word, which is the
-# one the claim below is about. The table must cover every word from 25 up to
-# the core's current `DRDC_VERSION` (core/src/drdc.rs); `wrapped_version`
-# asserts that, so a new wrapper fails loudly here until it is named.
+# one the claim below is about. The table must cover every word from 25 below
+# the next free word `DRDC_VERSION`'s doc names (core/src/drdc.rs): from 90 on
+# each word is a conditional word read ahead of the body version while the
+# constant stays 89, so the constant no longer bounds the chain.
+# `wrapped_version` asserts that, so a new word fails loudly here until it is
+# named. 76, 77, 80 and 81 have no writer in this build.
 WRAPPER_WORDS = {
     25: "channel metadata", 26: "blend basic", 27: "blend separable",
     28: "mask outside (byte)", 29: "mask outside (typed)",
@@ -117,22 +122,40 @@ WRAPPER_WORDS = {
     69: "stack mode (byte)", 70: "stack mode (typed)", 71: "color lookup look",
     72: "float master (byte)", 73: "float contents (byte)",
     74: "paths (byte)", 75: "paths (typed)",
+    76: "no writer", 77: "no writer", 78: "float RAW master (typed)", 79: "RAW locals",
+    80: "no writer", 81: "no writer", 82: "CMYK document (typed)",
+    83: "CMYK edits (typed)", 84: "CMYK structure (typed)",
+    85: "CMYK channels (typed)", 86: "CMYK effects (typed)",
+    87: "CMYK descriptions (typed)", 88: "CMYK stacked effects (typed)",
+    89: "stacked effects", 90: "pattern overlay", 91: "reference point",
+    92: "generated variations", 93: "pattern angle", 94: "gradient options",
+    95: "pattern stroke", 96: "contour", 97: "noise", 98: "texture",
+    99: "glow gradient", 100: "wide colour", 101: "multichannel Blend If",
+    102: "large description", 103: "gradient smoothness",
+    104: "gradient midpoint", 105: "gradient fill alignment",
+    106: "Grayscale document (typed)", 107: "Lab document (typed)",
+    108: "Indexed document (typed)", 109: "Duotone document (typed)",
+    110: "Bitmap document (typed)", 111: "gradient map method",
+    112: "spot channel", 113: "Background mark",
 }
 
 
-def drdc_version():
-    """The newest `.doctored` version word the core writes (`drdc::DRDC_VERSION`)."""
+def next_free_word():
+    """The first `.doctored` word no batch has taken: the sentence "The next
+    free word is N." in core/src/drdc.rs (`DRDC_VERSION`'s doc and the
+    format spec say it, and must agree)."""
     source = (Path(__file__).resolve().parents[1] / "core/src/drdc.rs").read_text()
-    found = re.findall(r"pub\(crate\) const DRDC_VERSION: u32 = (\d+);", source)
+    found = set(re.findall(r"The next free word is (\d+)\.", source))
     assert len(found) == 1, found
-    return int(found[0])
+    return int(found.pop())
 
 
 def wrapped_version(data):
     """The version word the wrapper chain finally carries, and the wrappers
     peeled to reach it (each asserted to be a known one)."""
-    assert set(WRAPPER_WORDS) == set(range(25, drdc_version() + 1)), \
-        ("WRAPPER_WORDS must name every wrapper 25..DRDC_VERSION", sorted(WRAPPER_WORDS), drdc_version())
+    assert set(WRAPPER_WORDS) == set(range(25, next_free_word())), \
+        ("WRAPPER_WORDS must name every word from 25 below the next free word",
+         sorted(WRAPPER_WORDS), next_free_word())
     peeled, at = [], 4
     while True:
         word = struct.unpack_from("<I", data, at)[0]
@@ -146,24 +169,45 @@ def wrapped_version(data):
 
 # --------------------------------------------------------- colour oracle --
 
-def srgb_decode(value):
-    """Encoded [0, 1] -> linear, from the sRGB specification."""
+def iec_decode(value):
+    """Encoded [0, 1] -> linear, from the sRGB specification (IEC 61966-2.1)."""
     if value <= 0.04045:
         return value / 12.92
     return ((value + 0.055) / 1.055) ** 2.4
 
 
+# The document's TRC is NOT the analytic curve: it is its sRGB profile's
+# `curv` tag, the IEC curve sampled 1024 times and rounded to 16 bits (the
+# table Apple's shipped sRGB profile carries), read by linear interpolation
+# between samples (ICC.1 curveType). In the toe one sample's rounding is up to
+# 0.5/65535 linear, which the encode's slope of 12.92 turns into 6.5 codes of
+# 65535: invisible at 8 bits, most of T2 at 16. The table is rebuilt here from
+# the formula, and `embedded_trc` checks it against the exported file's own
+# profile, so the premise is read rather than assumed.
+TRC_TABLE = [math.floor(iec_decode(i / 1023) * 65535 + 0.5) for i in range(1024)]
+assert all(high > low for low, high in zip(TRC_TABLE, TRC_TABLE[1:])), 'the TRC must rise'
+
+
+def srgb_decode(value):
+    """Encoded [0, 1] -> linear through the profile's sampled curve."""
+    position = min(max(value, 0.0), 1.0) * 1023
+    i = min(int(position), 1022)
+    f = position - i
+    return (TRC_TABLE[i] * (1.0 - f) + TRC_TABLE[i + 1] * f) / 65535.0
+
+
 def srgb_encode(linear):
-    """The analytic inverse — the CONTINUOUS encode the typed path uses."""
-    linear = min(max(linear, 0.0), 1.0)
-    if linear <= 0.0031308:
-        return linear * 12.92
-    return 1.055 * linear ** (1 / 2.4) - 0.055
+    """The exact inverse of that piecewise-linear curve (find the sample
+    interval, interpolate back): the CONTINUOUS encode the typed path uses."""
+    y = min(max(linear, 0.0), 1.0) * 65535.0
+    i = min(max(bisect.bisect_right(TRC_TABLE, y) - 1, 0), 1022)
+    low, high = TRC_TABLE[i], TRC_TABLE[i + 1]
+    return (i + (y - low) / (high - low)) / 1023.0
 
 
 # `thresh[k]` is the linear value at which output code k rounds up to k + 1:
-# the curve evaluated FORWARD at (k + 0.5) / 255. The crate has no curve
-# inverter and neither does this oracle.
+# the curve evaluated FORWARD at (k + 0.5) / 255. The crate's byte encode has
+# no curve inverter and neither does this oracle's.
 THRESHOLDS = [srgb_decode((k + 0.5) / 255.0) for k in range(255)]
 
 
@@ -309,6 +353,41 @@ def read_png(data):
                 out.append(tuple(pixel))
         previous = row
     return width, height, out
+
+
+def embedded_trc(data):
+    """The red, green and blue TRC tables of a PNG's embedded ICC profile
+    (`iCCP`), each a `curv` tag's 16-bit entries: what the oracle's
+    `TRC_TABLE` claims the document decodes with."""
+    assert data[:8] == b'\x89PNG\r\n\x1a\n'
+    offset = 8
+    while offset < len(data):
+        size = struct.unpack_from('>I', data, offset)[0]
+        kind = data[offset + 4:offset + 8]
+        if kind == b'iCCP':
+            payload = data[offset + 8:offset + 8 + size]
+            name_end = payload.index(b'\0')
+            assert payload[name_end + 1] == 0, 'iCCP compression method must be 0'
+            profile = zlib.decompress(payload[name_end + 2:])
+            count = struct.unpack_from('>I', profile, 128)[0]
+            tags = {}
+            for t in range(count):
+                signature, at, length = struct.unpack_from('>4sII', profile, 132 + 12 * t)
+                tags[signature] = profile[at:at + length]
+            curves = []
+            for signature in (b'rTRC', b'gTRC', b'bTRC'):
+                tag = tags[signature]
+                assert tag[:4] == b'curv', (signature, tag[:4])
+                entries = struct.unpack_from('>I', tag, 8)[0]
+                curves.append(list(struct.unpack_from(f'>{entries}H', tag, 12)))
+            return curves
+        offset += size + 12
+    raise AssertionError('the export embeds no ICC profile')
+
+
+def assert_oracle_trc(data, gate):
+    assert embedded_trc(data) == [TRC_TABLE] * 3, \
+        f'{gate}: the exported profile is not the sampled curve the oracle decodes with'
 
 
 # ------------------------------------------------------------- fixtures --
@@ -549,6 +628,7 @@ def gate_e1(app, folder, receipts):
     exported = folder / 'e1-linear.png'
     call('export_image', path=str(exported),
          settings={'format': 'png', 'embed_profile': True})
+    assert_oracle_trc(exported.read_bytes(), 'E1')
     _, _, pixels = read_png(exported.read_bytes())
     file_stats = measure(flat(pixels), expected, 'E1 8-bit export vs oracle')
     receipts['e1_export'] = file_stats
@@ -571,6 +651,7 @@ def gate_e2(app, folder, receipts):
     exported = folder / 'e2-linear.png'
     call('export_image', path=str(exported),
          settings={'format': 'png', 'bit_depth': 16, 'embed_profile': True})
+    assert_oracle_trc(exported.read_bytes(), 'E2')
     width, height, pixels = read_png(exported.read_bytes())
     assert (width, height) == (WIDTH, HEIGHT), (width, height)
     expected = oracle(base, 65535, exposure_typed_transcode, exposure_last=True)

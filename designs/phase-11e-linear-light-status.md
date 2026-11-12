@@ -3,7 +3,7 @@
 - **Status:** Accepted — closed: phases 2 and 3 shipped 2026-11-12, nothing is refused by name
 - **Phase / dates:** 11E phase 1, drive run 2026-09-18 (all seven gates E1–E7 pass); phases 2–3, 2026-11-12
 - **Original:** [archive/phase-11e-linear-light-status.md](../archive/phase-11e-linear-light-status.md) — full history, measurements, receipts
-- **Key commits:** `6d4b1b0` (phase 1); phases 2–3: the loop's c2 batch
+- **Key commits:** `6d4b1b0` (phase 1); phases 2–3: `3ea54e60` (the non-separable modes and Dissolve), `ef489702` (the guide), `6123afbb` (styles and Blend If), `032a5e3f` (resampling), `6c94cb46` (closure)
 - **Carryover:** **P7-24**, all three slices
 
 > **Removed 2026-10-10:** smart objects, live filters and non-RAW retained sources (placed images, host
@@ -57,7 +57,8 @@ their evaluation exactly, and each operation is migrated and verified before it 
   geometry edit, replace or profile conversion re-renders them under the policy in force — a conversion through
   the DESTINATION profile's tables.
 - **D9, storage edits take no domain:** paint, fill, gradients, filters, Puppet Warp, Perspective Warp, Liquify and
-  Move/Transform of selected pixels write stored codes under either policy.
+  Move/Transform of selected pixels write stored codes under either policy; whether each family should take the
+  document's domain: [#35](https://github.com/kpgalligan/doctored/issues/35).
 - **D10, no `EVAL` schema bump:** an older build opening a linear-light file that holds a style or a Hue layer
   refuses its render by name, phase 1's disclosure.
 - **D11, a baked style is the layer as the canvas shows it:** Merge Down, the merged-layer paths and PSD export's
@@ -108,7 +109,9 @@ light by construction on top of this policy. Tests: `core/tests/evaluation_{tran
 (1 code gate; 2 for the disclosed fixture; typed 24/65535, derived from the sampled-TRC-vs-analytic bound);
 phases 2–3 `evaluation_{nonseparable,guide,styles,resample,retained_source}.rs` over the shared
 `tests/common/linear_oracle.rs`, each case paired with the regional render where one exists; drives
-`scripts/verify_phase11e_linear.py` (E7 admits every operator) and `verify_phase12e2_adjustments.py` a5.
+`scripts/verify_phase11e_linear.py` (E1–E7; its oracle decodes through the sRGB profile's 1024-sample
+`curv`, checked against the export's embedded profile, so E2 holds T2's 8 codes, which the analytic curve
+cannot in the toe; E7 admits every operator) and `verify_phase12e2_adjustments.py` a5.
 
 ## Open items
 - `DROPPED` — PSD export of a linear document beyond today's behaviour and the style bake (D11); CMYK/Gray

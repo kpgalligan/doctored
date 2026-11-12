@@ -1274,7 +1274,8 @@ The design record behind each area is in the repository's
   layer styles and Blend If — whose ranges, like adjustment kernels, still read
   display levels — and Image Size, Free Transform, Warp and a RAW layer's
   re-render resample in linear light. Painting, fills, filters, Liquify and the
-  mesh warps still edit the stored numbers. An encoded document is
+  mesh warps still edit the stored numbers
+  ([#35](https://github.com/kpgalligan/doctored/issues/35)). An encoded document is
   byte-for-byte what it always was.
   **Image ▸ Tone Map…** is the same kind of question one step further out.
   Opening a genuine floating-point TIFF, a 32-bit RGB PSD or PSB, an OpenEXR

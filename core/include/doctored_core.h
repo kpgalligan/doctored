@@ -9698,14 +9698,20 @@ DrPrecisionDocument *dr_precision_doc_set_file_info(const DrPrecisionDocument *d
  * exactly once at the output. An encoded document takes byte-for-byte the
  * code path it always took.
  *
- * THE PROJECTION IS THE INVARIANT. Only the operators phase 1 migrated are
- * evaluated in linear light; everything else is refused BY NAME — at the
- * switch, at every later edit that would introduce it (the host guards
- * before it commits), and, as the backstop, at every render of a document
- * that carries one: dr_doc_flattened, the typed render and the typed render
- * plan all fail with that sentence. dr_doc_linear_light_refusal /
- * dr_precision_doc_linear_light_refusal is that walk, asked directly;
- * dr_evaluation_operators is the table of what is migrated and what is not.
+ * THE PROJECTION IS THE INVARIANT. Every operator is evaluated in linear
+ * light: only what enters the accumulator is decoded, the rules authored on
+ * encoded numbers (the adjustment transcode, the Shadows/Highlights guide,
+ * Blend If) read the encoded view of a composited sample, and every resample
+ * of layer colour (Image Size, Free Transform, Warp, a retained source's
+ * re-render) interpolates in premultiplied linear light. Nothing is refused
+ * by name. The one refusal left is the STALENESS NET: a linear-light
+ * document whose held tables no longer belong to its colour profile. The
+ * host checks it before it commits an edit, and, as the backstop,
+ * dr_doc_flattened, the typed render and the typed render plan all fail with
+ * that sentence. dr_doc_linear_light_refusal /
+ * dr_precision_doc_linear_light_refusal asks it directly;
+ * dr_evaluation_operators lists every operator as evaluated, with an empty
+ * `refused` list kept for the shape.
  *
  * PERSISTENCE. `.rz` gains an OUTERMOST conditional wrapper written ONLY for
  * a linear-light document: DRDC u32 38 (byte) / 39 (typed) before every prior

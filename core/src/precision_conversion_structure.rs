@@ -17,8 +17,8 @@
 //! carries), and what cannot be carried BLOCKS by name with the input
 //! untouched: host metadata that is neither an adjustment nor a text/shape
 //! description, an adjustment the typed interpreter refuses, a blend mode the
-//! typed target refuses, an oversize style plane, a linear-light policy the
-//! typed walk refuses, and more records than a 16-bit document holds.
+//! typed target refuses, an oversize style plane, and more records than a
+//! 16-bit document holds.
 //!
 //! The PLAN and the OP share one walk ([`Planes`]): the plan builds the same
 //! records over 1×1 placeholder planes — no canvas-sized allocation — and
