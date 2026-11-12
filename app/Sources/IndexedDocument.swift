@@ -362,7 +362,8 @@ enum IndexedDocument {
 
     /// What a copy of `doc` in `format` loses: a format not in `keptFormats` (or nil) is the
     /// `.rz`/PNG/GIF/TIFF line alone; a kept format names, each only when it applies, the saved
-    /// channels, paths, colour samplers, guides and ruler origin, the layer's own state (its name,
+    /// channels, paths (not in a TIFF that keeps them), colour samplers, guides and ruler origin
+    /// (`oneLayerModeCombinedLoss`), the layer's own state (its name,
     /// visibility, lock and label: `oneLayerModeLosses`), the embedded profile, the capture
     /// packets the file strips or has no slot for (`flatPacketLosses`: all in a GIF, IPTC in a
     /// PNG), a GIF's print resolution, the black padding of a GIF or TIFF colour table and a
@@ -376,12 +377,7 @@ enum IndexedDocument {
                 + "PNG, GIF or TIFF"]
         }
         var losses: [String] = []
-        let origin = doc.rulerOrigin
-        if doc.channelCount > 0 || doc.guideCount > 0 || origin.x != 0 || origin.y != 0
-            || !doc.paths.entries.isEmpty || !doc.colorSamplers.items.isEmpty {
-            losses.append("saved channels, paths, colour samplers, guides and the ruler origin "
-                + "(flattened copy)")
-        }
+        if let combined = try doc.oneLayerModeCombinedLoss(format: format) { losses.append(combined) }
         losses += try doc.oneLayerModeLosses()
         let gif = format == .gif
         if doc.iccProfile != nil, !embedProfile || gif { losses.append("embedded color profile") }

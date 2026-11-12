@@ -375,24 +375,50 @@ fn encode_samples<W: Write + Seek, C: colortype::ColorType>(
 where
     [C::Inner]: tiff::encoder::TiffValue,
 {
-    let run = || -> tiff::TiffResult<()> {
-        let mut encoder = TiffEncoder::new(writer)?;
-        let root = side.exif.as_deref().and_then(export_exif);
-        let children = match &root {
-            Some(root) => write_children(&mut encoder, root)?,
-            None => Vec::new(),
-        };
-        let mut image = encoder.new_image::<C>(dimensions.0, dimensions.1)?;
-        side_tags(image.encoder(), side, root.as_ref(), &children, color_map)?;
-        // RGBA already counts its fourth sample (gray + alpha its second).
-        // ImageEncoder::extra_samples would add one more; tag the existing
-        // sample as straight alpha here.
-        if straight_alpha {
-            image.encoder().write_tag(Tag::ExtraSamples, &[2u16][..])?;
-        }
-        image.write_data(samples)
+    let run = || {
+        let alpha = straight_alpha.then_some(2);
+        write_image::<_, C>(
+            TiffEncoder::new(writer)?,
+            samples,
+            dimensions,
+            side,
+            alpha,
+            color_map,
+        )
     };
     run().map_err(|e| format!("encoding TIFF failed: {e}"))
+}
+
+/// One image of colour type `C` through `encoder`, with the sidecar's tags
+/// ([`side_tags`]: the EXIF children first, then the directory's values)
+/// and, when `extra_samples` names one, the meaning of its last sample: the
+/// ONE sidecar writer of every chunky TIFF here and of the float seam's
+/// (`tiff_float`), which brings its own compression and colour types.
+pub(crate) fn write_image<W: Write + Seek, C: colortype::ColorType>(
+    mut encoder: TiffEncoder<W>,
+    samples: &[C::Inner],
+    dimensions: (u32, u32),
+    side: &EncodeSidecar<'_>,
+    extra_samples: Option<u16>,
+    color_map: Option<&[u16]>,
+) -> tiff::TiffResult<()>
+where
+    [C::Inner]: tiff::encoder::TiffValue,
+{
+    let root = side.exif.as_deref().and_then(export_exif);
+    let children = match &root {
+        Some(root) => write_children(&mut encoder, root)?,
+        None => Vec::new(),
+    };
+    let mut image = encoder.new_image::<C>(dimensions.0, dimensions.1)?;
+    side_tags(image.encoder(), side, root.as_ref(), &children, color_map)?;
+    // The colour type already counts the alpha sample (RGBA its fourth,
+    // gray + alpha its second); ImageEncoder::extra_samples would add one
+    // more, so the existing sample's meaning is tagged here.
+    if let Some(kind) = extra_samples {
+        image.encoder().write_tag(Tag::ExtraSamples, &[kind][..])?;
+    }
+    image.write_data(samples)
 }
 
 /// The sidecar's tags every writer here shares, in one fixed order (each

@@ -43,7 +43,8 @@ fn report_bytes(path: &str) -> Result<Vec<u8>, String> {
 /// sentence, which is also the last entry of `warnings`. `tiff_pages`,
 /// present only for a TIFF of more than one page, is its page count
 /// (`tiff_pages`); `warnings` carries the byte open's sentences about a
-/// TIFF's pages.
+/// TIFF's pages, and a turned JPEG's about its path records
+/// (`tiff_paths::jpeg_report_line`).
 /// Free with dr_string_free. NULL on read/input
 /// error, with err_out explaining the failure. Never decodes pixels.
 ///
@@ -133,6 +134,17 @@ pub unsafe extern "C" fn dr_path_metadata_import_report(
                         crate::tiff_paths::report_lines(&bytes, scan.metadata.iptc.as_deref());
                     if let Some(warnings) = report["warnings"].as_array_mut() {
                         warnings.extend(lines.into_iter().map(serde_json::Value::from));
+                    }
+                }
+                // A JPEG's path records, which an open that turns it drops
+                // (`tiff_paths::jpeg_opened`).
+                if container == "jpeg" {
+                    let orientation = orientation.map_or(1, |o| o.to_exif());
+                    let run = scan.metadata.iptc.as_deref();
+                    if let Some(line) = crate::tiff_paths::jpeg_report_line(run, orientation) {
+                        if let Some(warnings) = report["warnings"].as_array_mut() {
+                            warnings.push(serde_json::Value::from(line));
+                        }
                     }
                 }
                 // Header work only, and never a failure of the report: a file

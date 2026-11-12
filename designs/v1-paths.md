@@ -32,15 +32,19 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   is the last before `LIDS`. It is written only when a path or a live vector mask exists, so any other
   document is byte-for-byte the earlier writer's file. Ids are minted on load. A layered PSD, PSB or TIFF
   carries the paths (resources 1025 and 2000–2997, `psd_paths`) at every depth and mode, and a vector mask with
-  no raster part as its `vmsk`, in every mode. A flat RGB or CMYK TIFF (8 and 16 bits) carries them in tag 34377
-  (`tiff_paths`): the byte, typed RGB and CMYK opens read them (none from a file stored rotated, with a
-  sentence) and take every path resource out of the document's 8BIM run, so the model is their one home; every
-  TIFF writer of those documents writes the model's paths after the run. Path resources a run still holds (a
-  JPEG's APP13) are fractions of the canvas that file stored: they pass through a TIFF of a document with no
-  path, give way to one that has paths (a `"paths"` loss), and leave the run at every whole-canvas edit but
-  Image Size (`tiff_paths::canvas_moved`), so no reopen reads them where they no longer belong. Any other flat
-  save names `"paths"` among its losses, and so does a TIFF holding a path past 128 canvases; Grayscale, Lab,
-  Indexed, Bitmap and 32-bit TIFFs read none and pass the run through.
+  no raster part as its `vmsk`, in every mode. A flat TIFF of every mode but Duotone (RGB, CMYK, Grayscale and
+  Lab at 8 and 16 bits, Indexed, Bitmap, 32-bit RGB and Grayscale) carries them in tag 34377 (`tiff_paths`):
+  each mode's open reads them (none from a file stored rotated, with a sentence) and takes every path resource
+  out of the document's 8BIM run, so the model is their one home; each mode's TIFF writer writes the model's
+  paths after the run (the 32-bit TIFF through the integer writer's sidecar tags, so it also holds the EXIF
+  and 8BIM run its `carried` bits report). A trimmed layer export, a part of the canvas, writes none. Path
+  resources a run still holds (a JPEG's APP13) are fractions of the raster that file stored: every JPEG open
+  that turns the raster upright (EXIF Orientation not 1) drops them with a sentence; otherwise they pass
+  through a TIFF of a document with no path, give way to one that has paths (a `"paths"` loss), and leave the
+  run at every whole-canvas edit but Image Size (`tiff_paths::canvas_moved`), so no reopen reads them where
+  they no longer belong. Any other flat save names `"paths"` among its losses, and so does a TIFF holding a
+  path past 128 canvases; Indexed and Bitmap name them in their combined line, which a TIFF that keeps them
+  leaves out.
 - **Clipping path.** At most one SAVED path is the document's clipping path (`doc_path::ClippingPath`, on the
   entry, so rename, delete, geometry and undo carry it). It crosses PSD, PSB and every TIFF as resource 2999,
   the path's name as a Pascal string; the bytes a file holds after the name are kept verbatim and written
@@ -114,11 +118,12 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
 - `DONE` — the clipping path (resource 2999) in PSD, PSB and TIFF, and paths in a flat RGB or CMYK TIFF
   (`core/tests/psd_clipping_path.rs`, `core/tests/tiff_paths.rs`, against the published layouts computed in
   the tests; no authored 2999 is on disk).
+- `DONE` (2026-11-12) — paths in a flat Grayscale, Lab, Indexed, Bitmap and 32-bit TIFF, each mode's own open,
+  writer and loss list (`core/tests/tiff_paths_modes.rs`); a JPEG whose open turns it drops its APP13 path
+  records with a sentence (`core/tests/tiff_paths.rs`). A JPEG's paths are still not read into the model.
 - `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — a vector mask beside a raster mask, an
   inverted one, one whose subpaths subtract or intersect, and `vsms`; the layout of the bytes after a 2999's
-  name (its flatness), which needs an authored sample; paths in a flat Grayscale, Lab, Indexed, Bitmap or
-  32-bit TIFF (each mode's own TIFF open, writer and loss list; `tiff_paths` holds the shared reader and
-  writer).
+  name (its flatness), which needs an authored sample.
 - `DROPPED` (2026-10-30) — Curvature Pen; Freeform and Magnetic pen: the Pen covers authoring, and the Magnetic
   Lasso plus Make Work Path covers edge tracing.
 - `DROPPED` (2026-10-30) — pressure or canonical-dab strokes along a path: Stroke Path ships, and simulated

@@ -11,14 +11,22 @@
 //!   and the clipping path, and each reopens with them.
 //! - A TIFF that brought its paths writes the document's current ones, once:
 //!   cropped, they are the cropped records; deleted, none is written.
-//! - The flat save's "paths" loss is gone for a TIFF that writes every path
-//!   and stays for PNG, JPEG, a path past 128 canvases and a Grayscale TIFF.
+//! - The flat save's "paths" loss is gone for a TIFF that writes every path,
+//!   a Grayscale one included, and stays for PNG, JPEG and a path past 128
+//!   canvases.
 //! - A file stored rotated reads no path and keeps none, at 8 and 16 bits,
 //!   and the report says why.
 //! - A run whose paths no open read (a JPEG's APP13) passes through a TIFF
 //!   of a document with no path, gives way to one with paths, and loses its
 //!   paths at every whole-canvas edit but Image Size, at both depths, even a
 //!   flip that moves no pixel.
+//! - A JPEG whose open turns it upright (EXIF Orientation 6) keeps no path
+//!   resource of its APP13 run, at the byte, the Grayscale and the CMYK
+//!   open, and says so; an upright one (Orientation 1) keeps them.
+//! - A trimmed layer export, a part of the canvas, writes no path record;
+//!   an untrimmed one writes them all.
+//!
+//! The other colour modes' flat TIFFs are `tiff_paths_modes.rs`'.
 
 use std::ffi::{c_char, CString};
 use std::path::Path;
@@ -26,10 +34,13 @@ use std::ptr;
 use std::sync::Arc;
 
 use doctored_core::doc::DrDocument;
+use doctored_core::doc_export::ExportResult;
 use doctored_core::doc_path::PathEntry;
 use doctored_core::ffi_cmyk::dr_precision_doc_save_cmyk;
 use doctored_core::ffi_color::dr_doc_save_image;
 use doctored_core::ffi_doc::dr_doc_open;
+use doctored_core::ffi_export::{dr_doc_export_layer_encode, dr_precision_doc_export_layer_encode};
+use doctored_core::ffi_gray::dr_precision_doc_open_gray;
 use doctored_core::ffi_metadata_report::dr_path_metadata_import_report;
 use doctored_core::ffi_path::{dr_doc_with_paths_json, dr_precision_doc_with_paths_json};
 use doctored_core::ffi_precision::dr_precision_doc_open;
@@ -43,23 +54,26 @@ use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
 use doctored_core::precision_document::PrecisionDocument;
 use doctored_core::precision_image::{PrecisionImage, REFERENCE_WORKING_BYTES as LIMIT};
-use image::{Rgba, RgbaImage};
+use image::codecs::jpeg::JpegEncoder;
+use image::{ExtendedColorType, ImageEncoder, Rgba, RgbaImage};
 use serde_json::{json, Value};
 use tempfile::TempDir;
 
 use crate::cmyk_fixture::press_profile;
+use crate::cmyk_jpeg_builder::{cmyk_jpeg, CmykJpeg};
+use crate::common::metadata_fixtures::{build_exif, jpeg_segments};
 use crate::common::{byte_geometry_edit, cpath, take_err_string};
 use crate::psd_clipping_path::{clipping_body, run_resources, tiff_run};
 use crate::psd_paths::{assert_paths_close, expected_records};
 
-const W: u32 = 60;
-const H: u32 = 40;
+pub(crate) const W: u32 = 60;
+pub(crate) const H: u32 = 40;
 const PNG: i32 = 0;
 const JPEG: i32 = 1;
 const TIFF: i32 = 2;
 
 /// A work path, a curved saved path and "Box", the clipping path.
-fn path_list() -> Value {
+pub(crate) fn path_list() -> Value {
     json!({"paths": [
         {"kind": "work", "fill_rule": "nonzero", "subpaths": [
             {"closed": true, "anchors": [[5, 5], [20, 5], [20, 15]]}]},
@@ -82,7 +96,7 @@ fn with_list(doc: DrDocument, list: &Value) -> Box<DrDocument> {
     unsafe { Box::from_raw(out) }
 }
 
-fn typed_with_list(doc: &PrecisionDocument, list: &Value) -> Box<PrecisionDocument> {
+pub(crate) fn typed_with_list(doc: &PrecisionDocument, list: &Value) -> Box<PrecisionDocument> {
     let text = CString::new(list.to_string()).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
     let out = unsafe { dr_precision_doc_with_paths_json(doc, text.as_ptr(), &mut err) };
@@ -90,14 +104,14 @@ fn typed_with_list(doc: &PrecisionDocument, list: &Value) -> Box<PrecisionDocume
     unsafe { Box::from_raw(out) }
 }
 
-fn byte_doc() -> Box<DrDocument> {
+pub(crate) fn byte_doc() -> Box<DrDocument> {
     let base = DrDocument::from_pixels(RgbaImage::from_fn(W, H, |x, y| {
         Rgba([(x * 4) as u8, (y * 6) as u8, 90, 255])
     }));
     with_list(base, &path_list())
 }
 
-fn promoted(doc: &DrDocument) -> Box<PrecisionDocument> {
+pub(crate) fn promoted(doc: &DrDocument) -> Box<PrecisionDocument> {
     let mut err: *mut c_char = ptr::null_mut();
     let wide = unsafe { dr_doc_promote_structure(doc, LIMIT, 0, ptr::null(), &mut err) };
     assert!(!wide.is_null(), "{}", take_err_string(err));
@@ -190,12 +204,12 @@ fn open_typed(path: &Path) -> Box<PrecisionDocument> {
     unsafe { Box::from_raw(doc) }
 }
 
-fn is_path_id(id: u16) -> bool {
+pub(crate) fn is_path_id(id: u16) -> bool {
     id == 1025 || id == 2999 || (2000..=2997).contains(&id)
 }
 
 /// The path resources of a TIFF's tag 34377, in order, as (id, name, body).
-fn path_resources(file: &[u8]) -> Vec<(u16, String, Vec<u8>)> {
+pub(crate) fn path_resources(file: &[u8]) -> Vec<(u16, String, Vec<u8>)> {
     run_resources(&tiff_run(file))
         .into_iter()
         .filter(|(id, _, _)| is_path_id(*id))
@@ -205,7 +219,10 @@ fn path_resources(file: &[u8]) -> Vec<(u16, String, Vec<u8>)> {
 /// The path resources a TIFF of `paths` on a `canvas` must hold, computed
 /// from the published layouts: the work path, each saved path by its name,
 /// then the clipping path's name.
-fn expected_resources(paths: &[PathEntry], canvas: (u32, u32)) -> Vec<(u16, String, Vec<u8>)> {
+pub(crate) fn expected_resources(
+    paths: &[PathEntry],
+    canvas: (u32, u32),
+) -> Vec<(u16, String, Vec<u8>)> {
     let size = (f64::from(canvas.0), f64::from(canvas.1));
     let mut saved = 2000;
     let mut out = Vec::new();
@@ -224,7 +241,7 @@ fn expected_resources(paths: &[PathEntry], canvas: (u32, u32)) -> Vec<(u16, Stri
     out
 }
 
-fn clipping_names(paths: &[PathEntry]) -> Vec<String> {
+pub(crate) fn clipping_names(paths: &[PathEntry]) -> Vec<String> {
     paths
         .iter()
         .filter(|e| e.clipping.is_some())
@@ -332,7 +349,7 @@ fn byte_losses(doc: &DrDocument, format: i32) -> Vec<String> {
     serde_json::from_str(&take_err_string(losses)).unwrap()
 }
 
-fn typed_losses(doc: &PrecisionDocument, tiff: bool) -> Vec<String> {
+pub(crate) fn typed_losses(doc: &PrecisionDocument, tiff: bool) -> Vec<String> {
     let mut err = ptr::null_mut();
     let losses = unsafe { dr_precision_doc_flat_state_losses(doc, false, tiff, &mut err) };
     assert!(!losses.is_null(), "{}", take_err_string(err));
@@ -341,7 +358,7 @@ fn typed_losses(doc: &PrecisionDocument, tiff: bool) -> Vec<String> {
 
 /// An image resource block by Adobe's layout: `8BIM`, the id, the Pascal
 /// name padded even, the body padded even.
-fn block(id: u16, name: &str, body: &[u8]) -> Vec<u8> {
+pub(crate) fn block(id: u16, name: &str, body: &[u8]) -> Vec<u8> {
     let mut out = b"8BIM".to_vec();
     out.extend_from_slice(&id.to_be_bytes());
     out.push(name.len() as u8);
@@ -359,14 +376,14 @@ fn block(id: u16, name: &str, body: &[u8]) -> Vec<u8> {
 
 /// The records of "Clip", the one path of [`foreign_run`], on the W × H
 /// canvas.
-fn clip_records() -> Vec<u8> {
+pub(crate) fn clip_records() -> Vec<u8> {
     let records = byte_doc().paths()[1].shape.clone();
     expected_records(&records, (f64::from(W), f64::from(H)))
 }
 
 /// A run a file whose open reads no path brought (a JPEG's APP13): an IPTC
 /// caption (1028), then the saved path "Clip" (2000).
-fn foreign_run() -> Arc<[u8]> {
+pub(crate) fn foreign_run() -> Arc<[u8]> {
     let caption = block(1028, "", &[0x1c, 0x02, 0x00, 0x00, 0x00]);
     [caption, block(2000, "Clip", &clip_records())]
         .concat()
@@ -374,7 +391,7 @@ fn foreign_run() -> Arc<[u8]> {
 }
 
 /// The ids of a document's 8BIM run, in order.
-fn held(run: Option<&[u8]>) -> Vec<u16> {
+pub(crate) fn held(run: Option<&[u8]>) -> Vec<u16> {
     run_resources(run.unwrap_or_default())
         .into_iter()
         .map(|(id, _, _)| id)
@@ -451,14 +468,18 @@ fn a_flat_tiff_that_writes_every_path_does_not_list_paths_as_lost() {
     let gray = typed_with_list(&gray, &path_list());
     assert!(gray.is_gray());
     assert!(
-        typed_losses(&gray, true).contains(&paths),
+        !typed_losses(&gray, true).contains(&paths),
         "a Grayscale TIFF"
+    );
+    assert!(
+        typed_losses(&gray, false).contains(&paths),
+        "a Grayscale PNG"
     );
 }
 
 /// `file`, one of this crate's TIFFs, with its Orientation (one SHORT,
 /// value 1) made 6.
-fn rotated(mut file: Vec<u8>) -> Vec<u8> {
+pub(crate) fn rotated(mut file: Vec<u8>) -> Vec<u8> {
     assert_eq!(&file[..2], b"II", "this writer is little-endian");
     let ifd = u32::from_le_bytes(file[4..8].try_into().unwrap()) as usize;
     let entries = usize::from(u16::from_le_bytes([file[ifd], file[ifd + 1]]));
@@ -471,7 +492,7 @@ fn rotated(mut file: Vec<u8>) -> Vec<u8> {
     file
 }
 
-const ROTATED: &str =
+pub(crate) const ROTATED: &str =
     "Paths in this TIFF are not read or kept: it is stored rotated (Orientation 6).";
 
 /// A file stored rotated opens upright, where its records name other
@@ -713,4 +734,252 @@ fn a_flip_that_moves_no_pixel_still_takes_a_runs_unread_paths_out() {
     assert!(out.is_null(), "16 bits: no run, no edit");
     let moved = typed_edit(&typed(Some(foreign_run())), &flip);
     assert_eq!(held(moved.metadata().iptc.as_deref()), [1028], "16 bits");
+}
+
+/// One JPEG marker segment: the marker, the length (itself included), the
+/// payload (ITU-T T.81 B.1.1.4).
+pub(crate) fn segment(marker: u8, payload: &[u8]) -> Vec<u8> {
+    let mut out = vec![0xFF, marker];
+    out.extend_from_slice(&(payload.len() as u16 + 2).to_be_bytes());
+    out.extend_from_slice(payload);
+    out
+}
+
+/// `jpeg` with an APP1 EXIF stating `orientation` and an APP13 holding
+/// [`foreign_run`] after its SOI and any APP0, a camera file's order.
+fn with_exif_and_run(jpeg: &[u8], orientation: u16) -> Vec<u8> {
+    assert_eq!(&jpeg[..2], &[0xFF, 0xD8], "SOI");
+    let at = if jpeg[2..4] == [0xFF, 0xE0] {
+        4 + usize::from(u16::from_be_bytes([jpeg[4], jpeg[5]]))
+    } else {
+        2
+    };
+    let exif = build_exif(false, orientation, (72, 72), None, false).bytes;
+    let app1 = segment(0xE1, &[b"Exif\0\0".as_slice(), &exif].concat());
+    let app13 = segment(
+        0xED,
+        &[b"Photoshop 3.0\0".as_slice(), &foreign_run()].concat(),
+    );
+    [&jpeg[..at], &app1, &app13, &jpeg[at..]].concat()
+}
+
+/// A W × H JPEG of a ramp, three components or one, as `image` encodes it.
+pub(crate) fn ramp_jpeg(gray: bool) -> Vec<u8> {
+    let (kind, per) = if gray {
+        (ExtendedColorType::L8, 1)
+    } else {
+        (ExtendedColorType::Rgb8, 3)
+    };
+    let samples: Vec<u8> = (0..W * H * per).map(|i| (i % 251) as u8).collect();
+    let mut out = Vec::new();
+    JpegEncoder::new_with_quality(&mut out, 90)
+        .write_image(&samples, W, H, kind)
+        .unwrap();
+    out
+}
+
+/// A W × H four-component JPEG under the press profile.
+fn ink_jpeg() -> Vec<u8> {
+    let profile = press_profile("Press Test");
+    cmyk_jpeg(
+        W as u16,
+        H as u16,
+        [200, 150, 100, 20],
+        &CmykJpeg {
+            adobe_transform: Some(0),
+            icc: Some(&profile),
+            exif: None,
+        },
+    )
+}
+
+const TURNED_JPEG: &str = "Paths in this JPEG are not kept: it is stored rotated (Orientation 6).";
+
+fn report_warnings(path: &Path) -> Vec<String> {
+    let mut err = ptr::null_mut();
+    let report = unsafe { dr_path_metadata_import_report(cpath(path).as_ptr(), &mut err) };
+    assert!(!report.is_null(), "{}", take_err_string(err));
+    let report: Value = serde_json::from_str(&take_err_string(report)).unwrap();
+    serde_json::from_value(report["warnings"].clone()).unwrap()
+}
+
+fn import_warnings(doc: &PrecisionDocument) -> Vec<String> {
+    serde_json::from_value(doc.info().unwrap()["import_warnings"].clone()).unwrap()
+}
+
+/// The 8BIM run of a JPEG's `Photoshop 3.0` APP13 segments, joined.
+fn jpeg_run(file: &[u8]) -> Vec<u8> {
+    let prefix = b"Photoshop 3.0\0";
+    jpeg_segments(file)
+        .into_iter()
+        .filter(|(marker, payload)| *marker == 0xED && payload.starts_with(prefix))
+        .flat_map(|(_, payload)| payload[prefix.len()..].to_vec())
+        .collect()
+}
+
+fn open_gray(path: &Path) -> Box<PrecisionDocument> {
+    let working = CString::new("gray_gamma_22").unwrap();
+    let mut err = ptr::null_mut();
+    let doc = unsafe {
+        dr_precision_doc_open_gray(
+            cpath(path).as_ptr(),
+            working.as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut err,
+        )
+    };
+    assert!(!doc.is_null(), "{}", take_err_string(err));
+    unsafe { Box::from_raw(doc) }
+}
+
+/// A JPEG whose open turns it upright (EXIF Orientation 6) keeps no path
+/// resource of its APP13 run, whose records are fractions of the stored
+/// raster, at every JPEG open: the byte open (of an RGB and of a CMYK file),
+/// the Grayscale open and the CMYK open, each with the sentence. So neither
+/// a TIFF nor a JPEG saved from it carries them. Orientation 1 keeps the
+/// run as it was, and a TIFF of it then reopens with "Clip".
+#[test]
+fn a_jpeg_its_open_turns_upright_keeps_no_path_record_and_says_so() {
+    let dir = TempDir::new().unwrap();
+    for orientation in [6u16, 1] {
+        let turned = orientation == 6;
+        let kept: &[u16] = if turned { &[1028] } else { &[1028, 2000] };
+        let says = |warnings: &[String]| warnings.iter().any(|w| w == TURNED_JPEG);
+        let at = |what: &str| format!("{what}, Orientation {orientation}");
+
+        let path = dir.path().join(format!("rgb-{orientation}.jpg"));
+        std::fs::write(&path, with_exif_and_run(&ramp_jpeg(false), orientation)).unwrap();
+        assert_eq!(says(&report_warnings(&path)), turned, "{}", at("report"));
+        let doc = open_byte(&path);
+        assert_eq!(doc.width, if turned { H } else { W }, "{}", at("upright"));
+        assert_eq!(
+            held(doc.metadata.iptc.as_deref()),
+            kept,
+            "{}",
+            at("byte open")
+        );
+        let tiff = dir.path().join(format!("rgb-{orientation}.tif"));
+        let file = save_byte(&doc, &tiff, TIFF);
+        let back = open_byte(&tiff);
+        if turned {
+            assert!(path_resources(&file).is_empty(), "{}", at("TIFF save"));
+            assert!(back.paths().is_empty(), "{}", at("TIFF reopen"));
+        } else {
+            assert_eq!(
+                path_resources(&file),
+                vec![(2000, "Clip".to_string(), clip_records())],
+                "{}",
+                at("TIFF save")
+            );
+            assert_eq!(back.paths().len(), 1, "{}", at("TIFF reopen"));
+            assert_eq!(back.paths()[0].name, "Clip", "{}", at("TIFF reopen"));
+        }
+        let again = dir.path().join(format!("rgb-{orientation}-again.jpg"));
+        let file = save_byte(&doc, &again, JPEG);
+        assert_eq!(held(Some(&jpeg_run(&file))), kept, "{}", at("JPEG save"));
+        let back = open_byte(&again);
+        assert_eq!(
+            held(back.metadata.iptc.as_deref()),
+            kept,
+            "{}",
+            at("JPEG reopen")
+        );
+
+        let path = dir.path().join(format!("gray-{orientation}.jpg"));
+        std::fs::write(&path, with_exif_and_run(&ramp_jpeg(true), orientation)).unwrap();
+        let doc = open_gray(&path);
+        assert!(doc.is_gray(), "{}", at("Grayscale"));
+        let ids = held(doc.metadata().iptc.as_deref());
+        assert_eq!(ids, kept, "{}", at("Grayscale open"));
+        assert_eq!(says(&import_warnings(&doc)), turned, "{}", at("Grayscale"));
+        assert_eq!(
+            says(&report_warnings(&path)),
+            turned,
+            "{}",
+            at("Grayscale report")
+        );
+
+        let path = dir.path().join(format!("cmyk-{orientation}.jpg"));
+        std::fs::write(&path, with_exif_and_run(&ink_jpeg(), orientation)).unwrap();
+        let doc = open_typed(&path);
+        assert!(doc.is_cmyk(), "{}", at("CMYK"));
+        assert_eq!(
+            doc.dimensions().0,
+            if turned { H } else { W },
+            "{}",
+            at("CMYK upright")
+        );
+        let ids = held(doc.metadata().iptc.as_deref());
+        assert_eq!(ids, kept, "{}", at("CMYK open"));
+        assert_eq!(says(&import_warnings(&doc)), turned, "{}", at("CMYK"));
+        let doc = open_byte(&path);
+        let ids = held(doc.metadata.iptc.as_deref());
+        assert_eq!(ids, kept, "{}", at("byte open of the CMYK JPEG"));
+    }
+}
+
+/// A picture opaque only inside (10, 8)–(50, 32), with [`path_list`].
+fn margined() -> Box<DrDocument> {
+    let base = DrDocument::from_pixels(RgbaImage::from_fn(W, H, |x, y| {
+        let inside = (10..50).contains(&x) && (8..32).contains(&y);
+        Rgba([
+            (x * 4) as u8,
+            (y * 6) as u8,
+            90,
+            if inside { 255 } else { 0 },
+        ])
+    }));
+    with_list(base, &path_list())
+}
+
+fn layer_tiff(out: *mut ExportResult, err: *mut c_char, what: &str) -> Vec<u8> {
+    assert!(!out.is_null(), "{what}: {}", take_err_string(err));
+    let result = unsafe { Box::from_raw(out) };
+    result.bytes().to_vec()
+}
+
+/// Export Layers trimmed delivers a part of the canvas, where records that
+/// are fractions of the whole canvas name other places, so it writes none;
+/// untrimmed, the layer is the canvas and the TIFF holds every path, at 8
+/// and 16 bits.
+#[test]
+fn a_trimmed_layer_export_writes_no_path_record() {
+    let doc = margined();
+    let wide = promoted(&doc);
+    let want = expected_resources(doc.paths(), (W, H));
+    for trimmed in [false, true] {
+        let request =
+            CString::new(r#"{"format":"tiff","profile":"document","bit_depth":8}"#).unwrap();
+        let mut err = ptr::null_mut();
+        let out = unsafe {
+            dr_doc_export_layer_encode(&*doc, 0, trimmed, request.as_ptr(), ptr::null(), &mut err)
+        };
+        let file = layer_tiff(out, err, "8 bits");
+        let expected = if trimmed { Vec::new() } else { want.clone() };
+        assert_eq!(path_resources(&file), expected, "8 bits, trimmed {trimmed}");
+
+        let request =
+            CString::new(r#"{"format":"tiff","profile":"document","bit_depth":16}"#).unwrap();
+        let mut err = ptr::null_mut();
+        let out = unsafe {
+            dr_precision_doc_export_layer_encode(
+                &*wide,
+                0,
+                trimmed,
+                request.as_ptr(),
+                LIMIT,
+                0,
+                ptr::null(),
+                &mut err,
+            )
+        };
+        let file = layer_tiff(out, err, "16 bits");
+        assert_eq!(
+            path_resources(&file),
+            expected,
+            "16 bits, trimmed {trimmed}"
+        );
+    }
 }

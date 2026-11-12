@@ -248,15 +248,18 @@ impl PrecisionDocument {
             .unwrap_or_default();
         warnings.splice(0..0, sentence);
         let tiff = container == CmykContainer::Tiff;
-        let doc = single_layer(
-            samples,
-            dims,
-            policy,
-            scan.metadata,
-            resolution,
-            warnings,
-            job,
-        )?;
+        // A JPEG's 8BIM run keeps no path record through an open that
+        // turned it (`tiff_paths::jpeg_opened`); a TIFF's are
+        // `with_tiff_paths`' below.
+        let metadata = if tiff {
+            scan.metadata
+        } else {
+            let (metadata, turned) =
+                crate::tiff_paths::jpeg_opened(scan.metadata, orientation.to_exif());
+            warnings.extend(turned);
+            metadata
+        };
+        let doc = single_layer(samples, dims, policy, metadata, resolution, warnings, job)?;
         if tiff {
             return doc
                 .with_tiff_spots(bytes, limit, other.saturating_add(bytes.len() as u64))?

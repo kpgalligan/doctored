@@ -333,7 +333,8 @@ enum BitmapDocument {
     }
 
     /// What a copy of `doc` in `format` loses. A kept format names, each only when it applies, the
-    /// saved channels, paths, colour samplers, guides and ruler origin, the layer's own state (its
+    /// saved channels, paths (not in a TIFF that keeps them), colour samplers, guides and ruler
+    /// origin (`oneLayerModeCombinedLoss`), the layer's own state (its
     /// name, lock and label: `oneLayerModeLosses`), the profile when it is not embedded or the
     /// file is a BMP, and the capture packets the file strips or has no slot for
     /// (`flatPacketLosses`: all in a BMP, IPTC in a PNG): `[]` only when the copy reopens as the
@@ -349,12 +350,7 @@ enum BitmapDocument {
             losses.append(grayRouteLoss(format))
             losses.append("lossless pixel values (JPEG compresses with loss)")
         }
-        let origin = doc.rulerOrigin
-        if doc.channelCount > 0 || doc.guideCount > 0 || origin.x != 0 || origin.y != 0
-            || !doc.paths.entries.isEmpty || !doc.colorSamplers.items.isEmpty {
-            losses.append("saved channels, paths, colour samplers, guides and the ruler origin "
-                + "(flattened copy)")
-        }
+        if let combined = try doc.oneLayerModeCombinedLoss(format: format) { losses.append(combined) }
         losses += try doc.oneLayerModeLosses()
         let bmp = format == .bmp
         if !embedProfile || bmp { losses.append("embedded color profile") }

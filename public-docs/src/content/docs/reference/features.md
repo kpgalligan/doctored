@@ -308,8 +308,8 @@ The design record behind each area is in the repository's
   canvas rotation, a duplicate, a paste or a merge leaves an ordinary raster
   mask with the same picture. Paths follow crop, Canvas Size, Image Size, rotation
   and Perspective Crop, edit without redrawing the picture, work at 8, 16 and
-  32 bits and are saved in `.doctored` (a flat save other than an RGB or CMYK
-  TIFF names them among its losses). The Paths panel's **Clipping Path** makes
+  32 bits and are saved in `.doctored` (a flat save other than a TIFF names
+  them among its losses). The Paths panel's **Clipping Path** makes
   one saved path the document's clipping path.
   Fourteen MCP tools mirror them (`list_paths`, `set_path`, `rename_path`,
   `duplicate_path`, `delete_path`, `set_clipping_path`, `path_to_selection`,
@@ -317,7 +317,8 @@ The design record behind each area is in the repository's
   `set_vector_mask`, `set_vector_mask_properties`, `remove_vector_mask`) and
   Actions record them.
   A layered PSD, PSB or TIFF carries the paths and the clipping path both ways
-  at every depth, and so does a flat RGB or CMYK TIFF at 8 and 16 bits; a
+  at every depth, and so does a flat TIFF in every colour mode but Duotone,
+  at every depth; a
   layered file in every mode carries a vector mask with no raster mask beside
   it as its path; every other export writes the baked mask. Not built:
   the Curvature, Freeform and Magnetic pens, type on a path, path boolean

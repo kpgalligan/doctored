@@ -23,7 +23,8 @@
 //! (measured against Photoshop by phase 3a's take) or ICCLab (declared from
 //! the published spec, not measured against Photoshop); alpha is the 8-bit
 //! code ×257 or the 16-bit value. Resolution, metadata and the EXIF
-//! orientation are applied as `gray_io::open_gray` applies them. The plan
+//! orientation are applied as `gray_io::open_gray` applies them, and the
+//! paths are read from the 8BIM run (`tiff_paths`). The plan
 //! is [`open_scratch`]: the Lab open's own measured charge
 //! (`lab_limits::OPEN_BYTES_PER_PIXEL`, phase 3b) plus the wider decoded
 //! samples. A multipage TIFF whose first image is page 1 opens each page
@@ -319,6 +320,7 @@ impl PrecisionDocument {
             .unwrap_or_default();
         PrecisionDocument::from_image(image, scan.metadata, resolution)?
             .with_import_warnings(warnings)?
-            .with_lab(Arc::new(policy))
+            .with_lab(Arc::new(policy))?
+            .with_tiff_paths(bytes)
     }
 }

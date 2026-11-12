@@ -91,6 +91,10 @@ impl PrecisionDocument {
         if side.icc.is_some() {
             side.icc = Some(policy.bytes());
         }
+        // A TIFF carries the paths in its 8BIM run (`tiff_paths`).
+        if let Some(paths) = self.tiff_path_run().filter(|_| format == Format::Tiff) {
+            crate::tiff_paths::attach(&mut side, paths);
+        }
         let bytes = if request.bit_depth == 16 {
             let (samples, alpha) = gray16_samples(prepared, job)?;
             crate::gray_encode::encode_gray16(&samples, alpha, (w, h), format, &side)?

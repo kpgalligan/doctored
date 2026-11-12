@@ -358,7 +358,7 @@ Detail belongs in the source file's own header comment.
 - `psd_path_records.rs` (KERNEL) — Adobe's 26-byte path records (8.24 canvas fractions) ↔ `PathShape`, and the `vmsk` body.
 - `psd_paths.rs` — paths in PSD (resources 1025, 2000–2997, the clipping path 2999) at every depth and mode; raster-less vector masks as `vmsk`, both ways.
 - `clipping_path_native.rs` — native word 114: a path is the clipping path (its key rides in the PATH table's entry), checked both ways.
-- `tiff_paths.rs` — paths and the clipping path in a flat RGB or CMYK TIFF's tag 34377: the opens' read, `attach` for the writers, `canvas_moved` for canvas edits, the losses' test.
+- `tiff_paths.rs` — paths and the clipping path in every mode's flat TIFF tag 34377: the opens' read, `attach`, `canvas_moved`, a turned JPEG's drop, the losses' test.
 - `style_knockout_merge.rs` — what a MERGE punches through to at 8 bits (Phase 12E-3b, contract g): the knockout capture, the merge backdrop, and the one excluded set.
 - `precision_style_knockout.rs` — the TYPED twin of `style_knockout` (Phase 12E-3b), restating none of its rules and adding no pixel math; its one typed piece is the knockout SEED.
 - `style_instances.rs` — stacked effect instances: up to 10 of the five repeating kinds, the JSON sentences, native word 89 and its byte/typed predicates.

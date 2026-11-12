@@ -125,7 +125,7 @@ impl PrecisionDocument {
             return Err("the Indexed Color index plane does not match the canvas".into());
         }
         let format = request.format;
-        let (side, carried, outcome) = crate::doc_color::image_sidecar_with_policy(
+        let (mut side, carried, outcome) = crate::doc_color::image_sidecar_with_policy(
             self.profile(),
             self.metadata(),
             self.resolution(),
@@ -135,6 +135,10 @@ impl PrecisionDocument {
             dims,
             &request.metadata,
         );
+        // A TIFF carries the paths in its 8BIM run (`tiff_paths`).
+        if let Some(paths) = self.tiff_path_run().filter(|_| format == Format::Tiff) {
+            crate::tiff_paths::attach(&mut side, paths);
+        }
         let (palette, transparent, indices) =
             (policy.palette(), policy.transparent(), policy.indices());
         let bytes = match format {

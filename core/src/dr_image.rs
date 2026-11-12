@@ -249,6 +249,14 @@ impl DrImage {
         let resolution = scan
             .resolution
             .map(|r| r.transposed_if(quarter_turned(orientation)));
+        // A JPEG's 8BIM run keeps no path record through an open that
+        // turned it (`tiff_paths::jpeg_opened`; the import report gives the
+        // sentence). A TIFF's are `DrDocument::with_tiff_paths`'.
+        let metadata = if crate::metadata_tiff::is_tiff(bytes) {
+            scan.metadata
+        } else {
+            crate::tiff_paths::jpeg_opened(scan.metadata, orientation.to_exif()).0
+        };
         Ok((
             DrImage { pixels },
             Sidecar {
@@ -258,7 +266,7 @@ impl DrImage {
                     ProfileAction::Keep => icc,
                     _ => None,
                 },
-                metadata: scan.metadata,
+                metadata,
                 resolution,
             },
         ))

@@ -5,6 +5,8 @@
 mod asl_layout;
 #[path = "common/cmyk_fixture.rs"]
 mod cmyk_fixture;
+#[path = "common/cmyk_jpeg_builder.rs"]
+mod cmyk_jpeg_builder;
 #[path = "common/cmyk_psd_fixture.rs"]
 mod cmyk_psd_fixture;
 mod common;
@@ -155,3 +157,5 @@ mod psd_zip8;
 mod tiff_layers32;
 #[path = "tiff_paths.rs"]
 mod tiff_paths;
+#[path = "tiff_paths_modes.rs"]
+mod tiff_paths_modes;

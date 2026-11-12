@@ -25,7 +25,9 @@
 //! Encode: f32, or half through this module's own 16-bit colour types
 //! (`half::f16::from_f32`: the nearest half, ties to even), predictor NONE,
 //! 1 to 4 samples (gray + alpha, #1 phase 3c, through this module's own
-//! `GrayA32Float` / `GrayA16Float`), optionally Deflate.
+//! `GrayA32Float` / `GrayA16Float`), optionally Deflate, with the sidecar's
+//! tags (profile, EXIF, XMP, the 8BIM run and its paths, resolution)
+//! written by `tiff_encode`'s one sidecar writer.
 //! The `tiff` crate has no float-predictor ENCODER, so writing predictor 3
 //! would mean writing the byte shuffle here; the acceptance criterion for
 //! that (an owned writer checked against `tiffinfo`) is recorded in the 11D
@@ -449,8 +451,13 @@ pub(crate) fn encode<W: Write + Seek>(
     run().map_err(|e| format!("float TIFF encode failed: {e}"))
 }
 
+/// `image`'s samples (`data`, at the colour type's width) with the
+/// sidecar's tags — the profile, the EXIF, XMP and 8BIM run with the paths,
+/// the resolution and Orientation 1 — through the integer writer's one
+/// sidecar writer (`tiff_encode::write_image`), and an alpha sample's
+/// meaning in ExtraSamples, as the integer encoder states it.
 fn write_image<W: Write + Seek, C: colortype::ColorType>(
-    mut encoder: TiffEncoder<&mut W>,
+    encoder: TiffEncoder<&mut W>,
     image: &FloatTiff,
     side: &EncodeSidecar<'_>,
     data: &[C::Inner],
@@ -458,28 +465,14 @@ fn write_image<W: Write + Seek, C: colortype::ColorType>(
 where
     [C::Inner]: tiff::encoder::TiffValue,
 {
-    let mut out = encoder.new_image::<C>(image.width, image.height)?;
-    let tags = out.encoder();
-    if let Some(icc) = side.icc {
-        tags.write_tag(Tag::Unknown(34675), icc)?;
-    }
-    if let Some(xmp) = &side.xmp {
-        tags.write_tag(Tag::Unknown(700), xmp.as_slice())?;
-    }
-    let dpi = side.dpi.unwrap_or_default().sane();
-    let rational = |ppi: f32| tiff::encoder::Rational {
-        n: (f64::from(ppi) * 10_000.0).round() as u32,
-        d: 10_000,
-    };
-    tags.write_tag(Tag::XResolution, rational(dpi.x))?;
-    tags.write_tag(Tag::YResolution, rational(dpi.y))?;
-    tags.write_tag(Tag::ResolutionUnit, 2u16)?;
-    tags.write_tag(Tag::Orientation, 1u16)?;
-    if matches!(image.channels, 2 | 4) {
-        // The alpha sample is already counted by the colour type; this
-        // states what it MEANS, exactly as the integer encoder does.
-        let kind: u16 = if image.alpha == Some(true) { 1 } else { 2 };
-        tags.write_tag(Tag::ExtraSamples, &[kind][..])?;
-    }
-    out.write_data(data)
+    let alpha =
+        matches!(image.channels, 2 | 4).then_some(if image.alpha == Some(true) { 1 } else { 2 });
+    crate::tiff_encode::write_image::<_, C>(
+        encoder,
+        data,
+        (image.width, image.height),
+        side,
+        alpha,
+        None,
+    )
 }

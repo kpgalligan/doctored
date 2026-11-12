@@ -27,7 +27,9 @@
 //! Codes are copied into R = G = B exactly (8-bit ×257). A usable embedded
 //! Gray ICC is kept verbatim (`GrayPolicy`); a PNG `sRGB` chunk is sGray; no
 //! profile at all is the working Gray, disclosed by [`untagged_sentence`].
-//! The EXIF orientation is applied as the flat open applies it. A multipage
+//! The EXIF orientation is applied as the flat open applies it. A TIFF's
+//! paths are read and a turned JPEG's path records dropped (`tiff_paths`).
+//! A multipage
 //! TIFF whose first image is page 1 (`tiff_pages`) opens each page that
 //! matches page 1 as a hidden layer "Page n" (`doc_tiff_pages`), each page
 //! read by this same open.
@@ -500,6 +502,17 @@ impl PrecisionDocument {
                     .and_then(crate::metadata_tiff::orientation)
             })
             .map_or(1, |o| o.to_exif());
+        // A JPEG's 8BIM run keeps no path record through an open that
+        // turned it (`tiff_paths::jpeg_opened`); a TIFF's are
+        // `with_tiff_paths`' below.
+        let metadata = match source {
+            GraySource::Jpeg => {
+                let (metadata, turned) = crate::tiff_paths::jpeg_opened(scan.metadata, orientation);
+                warnings.extend(turned);
+                metadata
+            }
+            GraySource::Png | GraySource::Tiff => scan.metadata,
+        };
         let (sw, sh) = (decoded.stored.0 as usize, decoded.stored.1 as usize);
         if decoded.samples.len() != sw * sh * decoded.channels {
             return Err(format!(
@@ -536,8 +549,12 @@ impl PrecisionDocument {
             .resolution
             .map(|r| r.transposed_if(quarter))
             .unwrap_or_default();
-        PrecisionDocument::from_image(image, scan.metadata, resolution)?
+        let document = PrecisionDocument::from_image(image, metadata, resolution)?
             .with_import_warnings(warnings)?
-            .with_gray(Arc::new(policy))
+            .with_gray(Arc::new(policy))?;
+        match source {
+            GraySource::Tiff => document.with_tiff_paths(bytes),
+            GraySource::Png | GraySource::Jpeg => Ok(document),
+        }
     }
 }

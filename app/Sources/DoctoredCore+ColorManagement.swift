@@ -306,9 +306,9 @@ extension RasterDocument {
 extension RasterPrecisionDocument {
     /// The editable state a flattened file of this typed document has no place for, in the
     /// byte list's words (`dr_precision_doc_flat_state_losses`); `alphaKept` says whether the
-    /// file carries an alpha sample, `tiff` whether it is a flat TIFF (which keeps an RGB or CMYK
-    /// document's paths). The mode's own lines (profile, metadata, depth, spot channels) are its
-    /// `saveLosses`'.
+    /// file carries an alpha sample, `tiff` whether it is a flat TIFF (which keeps the paths of
+    /// every mode but Duotone). The mode's own lines (profile, metadata, depth, spot channels) are
+    /// its `saveLosses`'.
     func flatStateLosses(alphaKept: Bool, tiff: Bool) throws -> [String] {
         var err: UnsafeMutablePointer<CChar>?
         guard let value = dr_precision_doc_flat_state_losses(ptr, alphaKept, tiff, &err) else {

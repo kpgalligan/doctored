@@ -36,7 +36,9 @@
 //! frame. `trimmed: true` delivers the item's own alpha bounding box, which
 //! is what a sprite or a cut-out wants — and there a fully transparent item
 //! is a REFUSAL, because there is no rectangle to deliver. A 32-bit float
-//! item trims too, and its samples are copied exactly.
+//! item trims too, and its samples are copied exactly. A cut smaller than
+//! the canvas writes no path record, since every record is a fraction of
+//! the whole canvas (`tiff_paths`).
 //!
 //! `top_level_items` reports them in PANEL order (top first), which is where `{index}`'s ordinal
 //! comes from. `isolated_root` builds a document holding ONLY that item's subtree (byte:
@@ -322,7 +324,16 @@ impl DrDocument {
             (rendered, (0, 0), dims)
         };
         job.check()?;
-        Ok(self
+        // A cut smaller than the canvas writes no path record
+        // (`tiff_paths`, WRITE).
+        let part;
+        let exporter = if size == (self.width, self.height) {
+            self
+        } else {
+            part = self.without_canvas_paths();
+            &part
+        };
+        Ok(exporter
             .export_stages(&source, request, job)?
             .with_layer(LayerExportInfo {
                 index: idx,
@@ -479,6 +490,13 @@ impl PrecisionDocument {
             (rendered, (0, 0), dims)
         };
         job.check()?;
+        // A cut smaller than the canvas writes no path record
+        // (`tiff_paths`, WRITE).
+        let isolated = if size == isolated.dimensions() {
+            isolated
+        } else {
+            isolated.without_canvas_paths()
+        };
         Ok(isolated
             .export_stages(&source, request, job)?
             .with_layer(LayerExportInfo {

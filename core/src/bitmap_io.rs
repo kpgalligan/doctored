@@ -10,7 +10,8 @@
 //! [`open_scratch`] before its rows decode (`bitmap_codec::decode`). The
 //! EXIF or TIFF orientation is applied to the bits as `indexed_io` applies
 //! it to the indices. The resolution is the file's (`metadata::scan_report`),
-//! or a BMP's pixels per metre. The profile is the file's Gray ICC, else
+//! or a BMP's pixels per metre. A TIFF's paths are read from its 8BIM run
+//! (`tiff_paths`). The profile is the file's Gray ICC, else
 //! sGray for a PNG `sRGB` chunk, else the working Gray, with NO untagged
 //! warning: Photoshop's Bitmap mode carries no profile, so a 1-bit file
 //! without one is the ordinary case. The document is what
@@ -171,6 +172,11 @@ impl PrecisionDocument {
             warnings,
             job,
         )?;
+        // A TIFF's paths (`tiff_paths`).
+        let document = match facts.source {
+            BitmapSource::Tiff => document.with_tiff_paths(&bytes)?,
+            BitmapSource::Png | BitmapSource::Bmp => document,
+        };
         job.report(1.0, 5)?;
         Ok(document)
     }

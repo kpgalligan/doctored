@@ -58,8 +58,8 @@ extension AgentServer {
                     + "Canvas resizes, crops, rotations and flips move paths with the picture; "
                     + "moving or transforming a layer does not. A PSD, PSB or layered TIFF "
                     + "export writes them and its import reads them back (the work path and "
-                    + "each saved path by name), and so does a flat TIFF of an RGB or CMYK "
-                    + "document; no other flat format carries them. The clipping path's row "
+                    + "each saved path by name), and so does a flat TIFF in every colour mode "
+                    + "but Duotone; no other flat format carries them. The clipping path's row "
                     + "has clipping: true (set_clipping_path). The Paths panel.",
                 ["document_id": doc]),
             tool(

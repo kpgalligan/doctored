@@ -342,6 +342,13 @@ impl PrecisionDocument {
             &request.metadata,
         );
         job.check()?;
+        // A TIFF carries the paths in its 8BIM run (`tiff_paths`).
+        if let Some(paths) = self
+            .tiff_path_run()
+            .filter(|_| container == FloatContainer::Tiff)
+        {
+            crate::tiff_paths::attach(&mut side, paths);
+        }
         // A kept-gray deliverable is a TIFF only (`gray_export_refusal` refuses EXR and HDR first);
         // the container is checked here too, so a skipped refusal can never mislabel TIFF bytes.
         let kept = self

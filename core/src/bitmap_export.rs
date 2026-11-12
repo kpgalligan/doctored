@@ -144,6 +144,10 @@ impl PrecisionDocument {
         if side.icc.is_some() {
             side.icc = Some(gray.bytes());
         }
+        // A TIFF carries the paths in its 8BIM run (`tiff_paths`).
+        if let Some(paths) = self.tiff_path_run().filter(|_| format == Format::Tiff) {
+            crate::tiff_paths::attach(&mut side, paths);
+        }
         let packed = bitmap.packed();
         let bytes = match format {
             Format::Png => crate::bitmap_codec::encode_png(packed, dims, &side)?,

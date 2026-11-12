@@ -8,7 +8,8 @@
 //! render. Its samples are `lab_encode`'s (L\* unsigned, a\*/b\* signed),
 //! three a pixel, or four with straight alpha only when some pixel is not
 //! opaque. The sidecar is the TIFF one every save writes
-//! (`doc_color::image_sidecar`: resolution, EXIF, XMP, IPTC) with no ICC
+//! (`doc_color::image_sidecar`: resolution, EXIF, XMP, IPTC, and the paths,
+//! `tiff_paths`) with no ICC
 //! profile: a CIELab TIFF's samples are CIE L\*a\*b\* (D50) by definition, and
 //! the twin describes Doctored's storage, not the file's encoding. Other
 //! formats refuse: a Lab PSD, PSB or layered TIFF is Export as PSD's
@@ -210,6 +211,9 @@ impl PrecisionDocument {
             (w, h),
         );
         side.icc = None;
+        if let Some(paths) = self.tiff_path_run() {
+            crate::tiff_paths::attach(&mut side, paths);
+        }
         let mut out = Cursor::new(Vec::new());
         match depth {
             LabDepth::Eight => {

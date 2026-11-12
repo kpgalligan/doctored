@@ -24,6 +24,12 @@ mode's tools allow, on a fresh open of the cell's file:
 KEPT cells stay in `save_types`: a Grayscale PNG with transparency and an Indexed
 PNG whose transparent index is used.
 
+KEPT PATH cells: a flat TIFF writes every path it holds (`tiff_paths`), so a
+Grayscale (8 and 16 bits), CMYK, Indexed Color or Bitmap TIFF given a path stays in
+`save_types`, names no line with "paths", and its `save_copy` reopens with the path;
+an Indexed Color or Bitmap TIFF given a guide beside it names the combined line
+without "paths" (`TIFF_COMBINED`).
+
 PACKET cells: a Grayscale, Indexed Color and Bitmap document holding an IPTC packet
 (opened from a JPEG the drive gives one). The core's carry table has no IPTC slot in
 a PNG, so `losses_by_format.png` names "IPTC metadata", PNG is not in `save_as_types`,
@@ -51,6 +57,7 @@ KEYS = {'png': 'png', 'tiff': 'tiff', 'jpeg': 'jpg'}  # `losses_by_format`'s key
 PROPS = 'layer properties'
 GUIDES = 'guides and ruler origin'
 COMBINED = 'saved channels, paths, colour samplers, guides and the ruler origin'
+TIFF_COMBINED = 'saved channels, colour samplers, guides and the ruler origin (flattened copy)'
 BOX = {'closed': True, 'anchors': [[1, 1], [4, 1], [4, 3], [1, 3]]}
 
 # name: (calls, expected line). A call is (tool, arguments).
@@ -84,7 +91,8 @@ ALL_GRAY = ['guide', 'ruler', 'channel', 'sampler', 'path', 'comp', 'mask', 'sty
             'opacity', 'hidden', 'blend', 'lock', 'label', 'rename', 'layer', 'light',
             'offset']
 SOME = ['guide', 'channel', 'mask', 'opacity', 'label']
-ALL_CMYK = ['guide', 'ruler', 'channel', 'sampler', 'path', 'comp', 'mask', 'style',
+# A CMYK TIFF keeps its paths: its `path` cell is `kept_path`'s.
+ALL_CMYK = ['guide', 'ruler', 'channel', 'sampler', 'comp', 'mask', 'style',
             'opacity', 'hidden', 'blend', 'lock', 'label', 'rename', 'layer', 'offset',
             'erase']
 ONE_LAYER = {'guide': COMBINED, 'channel': COMBINED, 'sampler': COMBINED, 'path': COMBINED,
@@ -248,6 +256,47 @@ def main():
             print(f'{"PASS" if ok else "FAIL"} {cell}', flush=True)
             call('close_document', document_id=doc, discard_changes=True)
 
+        def kept_path(cell, base, fmt, guide_line=None):
+            """A flat TIFF that writes every path keeps one: after `set_path` the type
+            stays in `save_types`, no loss line names paths, and the `save_copy`
+            reopens with the path; with a guide beside it, `guide_line` is named."""
+            if not wanted(cell):
+                return
+            ftype = TYPES[fmt]
+            path = folder / f'{cell}.{fmt}'
+            shutil.copyfile(base, path)
+            doc = call('open_document', path=str(path))['document']['id']
+            ok = check(ftype in preservation(doc)['save_types'],
+                       f'{cell}: plain file saves in place')
+            call('set_path', document_id=doc, name='Box', subpaths=[BOX])
+            pres = preservation(doc)
+            lost = pres['losses_by_format'].get(KEYS[fmt], [])
+            ok &= check(ftype in pres['save_types'],
+                        f'{cell}: {ftype} stays in save_types with a path ({lost})')
+            ok &= check(not any('paths' in item for item in lost),
+                        f'{cell}: losses_by_format.{KEYS[fmt]} names no paths ({lost})')
+            copy = folder / f'{cell}-copy.{fmt}'
+            reply = attempt('save_copy', document_id=doc, path=str(copy), format=fmt)
+            if isinstance(reply, tuple):
+                ok &= check(False, f'{cell}: save_copy refused: {reply[1][:160]}')
+            else:
+                ok &= check(reply.get('flat_save_losses') == lost,
+                            f'{cell}: save_copy flat_save_losses {reply.get("flat_save_losses")} '
+                            f'== losses_by_format {lost}')
+                again = call('open_document', path=str(copy))['document']['id']
+                names = [p.get('name') for p in call('list_paths', document_id=again)['paths']]
+                ok &= check('Box' in names, f'{cell}: the copy reopens with the path ({names})')
+                call('close_document', document_id=again, discard_changes=True)
+            if guide_line:
+                call('add_guide', document_id=doc, orientation='vertical', position=2)
+                lost = preservation(doc)['losses_by_format'].get(KEYS[fmt], [])
+                ok &= check(guide_line in lost,
+                            f'{cell}: with a guide, losses_by_format.{KEYS[fmt]} names '
+                            f'"{guide_line}" ({lost})')
+            call('close_document', document_id=doc, discard_changes=True)
+            results.append((cell, 'PASS' if ok else 'FAIL'))
+            print(f'{"PASS" if ok else "FAIL"} {cell}', flush=True)
+
         def base_file(doc, name, fmt, **extra):
             path = folder / f'{name}.{fmt}'
             call('save_copy', document_id=doc, path=str(path), format=fmt, **extra)
@@ -301,8 +350,12 @@ def main():
         gray16 = call('new_document', width=6, height=4, color_mode='gray', depth=16,
                       background='#808080')['document']['id']
         run_cell('gray8-png', base_file(gray8, 'gray8', 'png'), 'png', ALL_GRAY)
-        run_cell('gray8-tiff', base_file(gray8, 'gray8', 'tiff'), 'tiff', SOME)
-        run_cell('gray16-tiff', base_file(gray16, 'gray16', 'tiff'), 'tiff', SOME)
+        gray8_tiff = base_file(gray8, 'gray8', 'tiff')
+        run_cell('gray8-tiff', gray8_tiff, 'tiff', SOME)
+        kept_path('gray8-tiff kept path', gray8_tiff, 'tiff')
+        gray16_tiff = base_file(gray16, 'gray16', 'tiff')
+        run_cell('gray16-tiff', gray16_tiff, 'tiff', SOME)
+        kept_path('gray16-tiff kept path', gray16_tiff, 'tiff')
         gray8_jpeg = base_file(gray8, 'gray8', 'jpeg')
         run_cell('gray8-jpeg', gray8_jpeg, 'jpeg', SOME + ['erase'])
         # Kept: a Grayscale PNG whose one layer has transparency (PNG has alpha).
@@ -317,7 +370,9 @@ def main():
         # ---- CMYK ------------------------------------------------------------------------
         cmyk8 = call('new_document', width=6, height=4, unit='px', color_mode='cmyk', depth=8,
                      background='#808080')['document']['id']
-        run_cell('cmyk8-tiff', base_file(cmyk8, 'cmyk8', 'tiff'), 'tiff', ALL_CMYK)
+        cmyk8_tiff = base_file(cmyk8, 'cmyk8', 'tiff')
+        run_cell('cmyk8-tiff', cmyk8_tiff, 'tiff', ALL_CMYK)
+        kept_path('cmyk8-tiff kept path', cmyk8_tiff, 'tiff')
         run_cell('cmyk-jpeg', base_file(cmyk8, 'cmyk8', 'jpeg'), 'jpeg',
                  SOME + ['erase', 'depth16'])
 
@@ -327,6 +382,8 @@ def main():
              dither='none')
         run_cell('indexed-png', base_file(indexed, 'indexed', 'png'), 'png',
                  list(ONE_LAYER), ONE_LAYER)
+        kept_path('indexed-tiff kept path', base_file(indexed, 'indexed', 'tiff'), 'tiff',
+                  TIFF_COMBINED)
         clear_rgb = call('new_document', width=6, height=4, background='#808080')['document']['id']
         call('eraser_stroke', document_id=clear_rgb, layer=0, points=[[1, 1], [3, 1]], size=2,
              hardness=1)
@@ -339,6 +396,8 @@ def main():
         call('convert_mode', document_id=bitmap, mode='bitmap', method='threshold')
         run_cell('bitmap-png', base_file(bitmap, 'bitmap', 'png'), 'png',
                  ['guide', 'sampler', 'path', 'lock', 'label', 'rename', 'hidden'], ONE_LAYER)
+        kept_path('bitmap-tiff kept path', base_file(bitmap, 'bitmap', 'tiff'), 'tiff',
+                  TIFF_COMBINED)
 
         # ---- Capture packets: the core's carry table has no IPTC slot in a PNG ------------
         gray_iptc = with_iptc(gray8_jpeg, folder / 'gray8-iptc.jpeg')

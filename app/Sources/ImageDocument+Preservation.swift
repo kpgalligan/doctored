@@ -1,16 +1,35 @@
 import AppKit
 
 extension RasterDocument {
-    /// An Indexed Color or Bitmap document's editable-state lines beside its combined line,
-    /// which already names the saved channels, paths, colour samplers, guides and ruler origin:
-    /// the core's other lines (`flatStateLosses`), such as the one layer's name, visibility, lock
-    /// and label. The core reads no pixel line for these modes: the file is the policy's plane.
+    /// An Indexed Color or Bitmap document's editable-state lines beside its combined line
+    /// (`oneLayerModeCombinedLoss`), which already names the saved channels, paths, colour
+    /// samplers, guides and ruler origin: the core's other lines (`flatStateLosses`), such as the
+    /// one layer's name, visibility, lock and label. The core reads no pixel line for these
+    /// modes: the file is the policy's plane.
     func oneLayerModeLosses() throws -> [String] {
         guard let typed = precision else { return [] }
         let combined: Set<String> = [
             "saved selection channels", "guides and ruler origin", "color samplers", "paths",
         ]
         return try typed.flatStateLosses(alphaKept: true, tiff: false).filter { !combined.contains($0) }
+    }
+
+    /// An Indexed Color or Bitmap document's combined line for a kept `format` copy, nil when
+    /// none of its states applies: the saved channels, paths, colour samplers, guides and ruler
+    /// origin a flattened copy drops. A TIFF keeps the paths when it writes every one (the core's
+    /// `flatStateLosses` with `tiff`, `tiff_paths`), so its line leaves "paths" out and a path
+    /// alone adds none; every other format's line is unchanged.
+    func oneLayerModeCombinedLoss(format: ExportFormat) throws -> String? {
+        var tiffKeepsPaths = false
+        if format == .tiff, let typed = precision {
+            tiffKeepsPaths = try !typed.flatStateLosses(alphaKept: true, tiff: true).contains("paths")
+        }
+        let origin = rulerOrigin
+        let pathsLost = !paths.entries.isEmpty && !tiffKeepsPaths
+        guard channelCount > 0 || guideCount > 0 || origin.x != 0 || origin.y != 0 || pathsLost
+            || !colorSamplers.items.isEmpty else { return nil }
+        let states = tiffKeepsPaths ? "saved channels" : "saved channels, paths"
+        return "\(states), colour samplers, guides and the ruler origin (flattened copy)"
     }
 
     /// The capture packets a flat `format` file of this document drops: "capture metadata"

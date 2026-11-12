@@ -1,7 +1,7 @@
 //! The PSD side of the document's PATHS and of VECTOR MASKS: image resources
 //! 2000–2997 (saved paths, each named by its resource's Pascal name), 1025
 //! (the work path) and 2999 (the clipping path) in every PSD, PSB, layered
-//! TIFF and flat RGB or CMYK TIFF (`tiff_paths`), and a layer's `vmsk` in
+//! TIFF and flat TIFF (`tiff_paths`), and a layer's `vmsk` in
 //! every mode the PSD codecs carry layers in (the typed ones through
 //! `psd_typed_exchange`). The records are `psd_path_records`'.
 //!

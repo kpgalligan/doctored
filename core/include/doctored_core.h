@@ -3961,16 +3961,18 @@ DrDocument *dr_doc_with_color_samplers(const DrDocument *doc, const uint32_t *xy
  * space. They never composite and are saved in .rz (versions 74/75 and the
  * PATH table, see the save format above, and word 114 for a clipping path).
  * A PSD, PSB or layered TIFF writes them as image resources 1025 and
- * 2000-2997, and the clipping path as 2999; so does a flat TIFF of an RGB
- * or CMYK document, in tag 34377, whose flat save then reports "paths" in
- * dr_doc_flat_save_losses only for a path past 128 canvases, or for path
- * resources an inherited 8BIM run held (a JPEG's) that the document's own
- * replace. Every other flat save reports "paths". The opens that read a flat
- * TIFF's paths take every path resource out of the document's 8BIM run (the
- * IPTC packet), and read none from a TIFF stored rotated. Path resources a
- * run still holds are fractions of the canvas their file stored, so every
- * whole-canvas edit but Image Size (crop, canvas size, the quarter turns and
- * flips, rotate canvas, straighten, perspective crop) takes them out too.
+ * 2000-2997, and the clipping path as 2999; so does a flat TIFF of every
+ * mode but Duotone, in tag 34377, whose flat save then reports "paths"
+ * (dr_doc_flat_save_losses, dr_precision_doc_flat_state_losses) only for a
+ * path past 128 canvases, or for path resources an inherited 8BIM run held
+ * (a JPEG's) that the document's own replace. Every other flat save reports
+ * "paths". The opens that read a flat TIFF's paths take every path resource
+ * out of the document's 8BIM run (the IPTC packet), and read none from a
+ * TIFF stored rotated. Path resources a run still holds are fractions of the
+ * raster their file stored, so a JPEG open that turns it upright (EXIF
+ * Orientation not 1) takes them out, and every whole-canvas edit but Image
+ * Size (crop, canvas size, the quarter turns and flips, rotate canvas,
+ * straighten, perspective crop) takes them out too.
  *
  * SHAPE JSON:
  *   {"fill_rule":"nonzero"|"evenodd",
@@ -4478,7 +4480,10 @@ bool dr_path_metadata_walked(const char *path);
 /* JSON metadata import report: container, metadata_walked, supported_packets,
  * limitations, warnings. TIFF reports standard capture relocation limits and
  * detected packet losses. A JPEG lists "XMP (including Extended XMP)" and
- * its warnings carry any ExtendedXMP merge that could not be made. `profile_refusal`, present only for a flat file
+ * its warnings carry any ExtendedXMP merge that could not be made, and,
+ * when its EXIF Orientation is not 1 and its APP13 run holds a path
+ * resource, "Paths in this JPEG are not kept: it is stored rotated
+ * (Orientation n)." (every JPEG open drops them). `profile_refusal`, present only for a flat file
  * whose embedded colour profile the open converts from (Gray, CMYK TIFF or
  * JPEG) or ignores, or for an untagged CMYK TIFF or JPEG (converted from the
  * working CMYK profile, which the sentence names, or read without colour
@@ -5253,10 +5258,10 @@ char *dr_precision_doc_layer_comps_json(const DrPrecisionDocument *doc,
  * "hidden pixel colors" when a pixel at alpha 0 holds a colour or ink. The
  * one layer may be named "Background" ("Index" in Indexed Color, "Bitmap"
  * in Bitmap) and Indexed and Bitmap documents get no pixel lines. `tiff`
- * says the file is a flat TIFF: an RGB or CMYK document's TIFF writes its
+ * says the file is a flat TIFF: every mode's TIFF but Duotone's writes its
  * paths (and its clipping path) in tag 34377, so "paths" is left out then
  * unless a path lies past 128 canvases or replaces path resources its 8BIM
- * run held; every other mode keeps the line. No
+ * run held; a Duotone document keeps the line. No
  * profile, density, metadata, depth or spot-channel line: what each mode's
  * formats carry of those is the host's. [] when the flat file reopens as
  * this document. NULL on a NULL document or failure, with err_out. Free with

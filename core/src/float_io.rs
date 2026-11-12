@@ -58,11 +58,14 @@
 //! [`document_of`], its stated primaries through the same [`profile_of`]
 //! rule. It is never a write container.
 //!
+//! A float TIFF's paths are read from its 8BIM run (`tiff_paths`).
+//!
 //! Export: TIFF writes four samples, `ExtraSamples = 2` (unassociated),
-//! Deflate, f32 or half, and the profile/packets from the shared sidecar
-//! (a 32-bit Gray document's kept-gray TIFF writes its R alone, plus its
-//! alpha when any pixel is not opaque, [`encode_float_gray`]) —
-//! the same `EncodeSidecar` every other writer in the crate uses. OpenEXR and
+//! Deflate, f32 or half, and the profile, packets and paths from the shared
+//! sidecar (a 32-bit Gray document's kept-gray TIFF writes its R alone, plus
+//! its alpha when any pixel is not opaque, [`encode_float_gray`]) — the same
+//! `EncodeSidecar` every other writer in the crate uses, written by
+//! `tiff_encode`'s one sidecar writer. OpenEXR and
 //! Radiance convert NO pixel: the file declares the document profile's
 //! primaries ([`primaries_of`]). OpenEXR writes associated alpha (each RGB
 //! sample times alpha), f32 or half; Radiance writes `max(rgb, 0) · alpha`.
@@ -269,10 +272,13 @@ pub(crate) fn from_float_tiff(
         label,
         job,
     )?;
-    match gray {
-        Some(policy) => document.with_gray(Arc::new(policy)),
-        None => Ok(document),
-    }
+    let document = match gray {
+        Some(policy) => document.with_gray(Arc::new(policy))?,
+        None => document,
+    };
+    // Its paths (`tiff_paths`): a file stored rotated reads none, as at
+    // every other flat TIFF open, though this open keeps the stored raster.
+    document.with_tiff_paths(bytes)
 }
 
 /// A row-major linear conversion between two sets of primaries.

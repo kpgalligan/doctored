@@ -31,7 +31,8 @@
 //! entries included, and every index is kept as it is stored. The `iCCP`
 //! profile is kept verbatim; `sRGB` and no profile are the built-in sRGB,
 //! the latter disclosed by the typed open's untagged sentence. The EXIF
-//! orientation is applied to the plane as `gray_io::open_gray` applies it.
+//! orientation is applied to the plane as `gray_io::open_gray` applies it,
+//! and a TIFF's paths are read from its 8BIM run (`tiff_paths`).
 
 use std::fs::File;
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
@@ -490,6 +491,11 @@ impl PrecisionDocument {
             PrecisionDocument::from_image_named(image, scan.metadata, resolution, LAYER_NAME)?
                 .with_import_warnings(warnings)?
                 .with_indexed(Arc::new(policy))?;
+        // A TIFF's paths (`tiff_paths`).
+        let document = match source {
+            IndexedSource::Tiff => document.with_tiff_paths(&bytes)?,
+            IndexedSource::Png | IndexedSource::Gif => document,
+        };
         job.report(1.0, 5)?;
         Ok(document)
     }

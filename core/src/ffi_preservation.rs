@@ -46,7 +46,7 @@ pub unsafe extern "C" fn dr_doc_flat_save_losses(
 /// JSON array of the editable state a flattened file of a typed document
 /// has no place for (`precision_preservation`): `alpha_kept` says whether
 /// the file carries an alpha sample, `tiff` whether it is a flat TIFF (which
-/// keeps an RGB or CMYK document's paths, `tiff_paths`). `[]` when the file
+/// keeps the paths of every mode but Duotone, `tiff_paths`). `[]` when the file
 /// reopens as this document. Free with dr_string_free. NULL on a NULL
 /// document or a panic, with err_out explaining the failure.
 ///
