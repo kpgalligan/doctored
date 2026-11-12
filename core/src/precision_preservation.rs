@@ -32,8 +32,9 @@ fn records(layers: &[PrecisionDocumentLayer]) -> Vec<&PrecisionDocumentLayer> {
 }
 
 /// `(any sample not opaque, any sample at alpha 0 with colour or ink)` of a
-/// pixel record; `(false, false)` for every other record.
-fn alpha_facts(layer: &PrecisionDocumentLayer) -> (bool, bool) {
+/// pixel record; `(false, false)` for every other record. The exact float
+/// TIFF (`doc_export_float`) asks the second for the one layer it writes.
+pub(crate) fn alpha_facts(layer: &PrecisionDocumentLayer) -> (bool, bool) {
     let (mut translucent, mut hidden) = (false, false);
     match &layer.content {
         Content::Raster { image, .. } => {

@@ -74,6 +74,8 @@
 //! Radiance convert NO pixel: the file declares the document profile's
 //! primaries ([`primaries_of`]). OpenEXR writes associated alpha (each RGB
 //! sample times alpha), f32 or half; Radiance writes `max(rgb, 0) · alpha`.
+//! What a TIFF is given is the export's choice: the render, or the one layer
+//! the render only re-derives (`doc_export_float`, "The exact float TIFF").
 //!
 //! # The OpenEXR round trip
 //!

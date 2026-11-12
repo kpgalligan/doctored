@@ -616,7 +616,14 @@ fn a_32_bit_gray_document_exports_a_one_or_two_sample_float_tiff() {
         "dot_gain_20",
     );
     for (doc, channels, what) in [(opaque, 1u8, "opaque"), (transparent, 2, "transparent")] {
-        let want = projection(doc).to_rgba32().unwrap();
+        // The one layer's own samples, not the render, which can move a
+        // translucent sample by an ulp (`doc_export_float`, "The exact
+        // float TIFF").
+        let want = unsafe { &*doc }
+            .layer_source(0)
+            .unwrap()
+            .to_rgba32()
+            .unwrap();
         let out = export(
             doc,
             r#"{"format":"tiff","bit_depth":32,"profile":"document"}"#,

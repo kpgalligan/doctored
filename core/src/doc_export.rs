@@ -1811,10 +1811,14 @@ impl PrecisionDocument {
         job.check()?;
         job.reserve(scratch)?;
 
+        // A float TIFF of a layer the render only re-derives writes that
+        // layer, so it reopens bit for bit (`doc_export_float`, "The exact
+        // float TIFF"); a supplied projection is then not read.
         let rendered;
-        let source = match projection {
-            Some(image) => image,
-            None => {
+        let source = match (self.exact_float_source(request), projection) {
+            (Some(layer), _) => layer,
+            (None, Some(image)) => image,
+            (None, None) => {
                 rendered = self.render_with_context(limit, other, job)?;
                 &rendered
             }

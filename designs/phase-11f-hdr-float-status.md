@@ -121,8 +121,8 @@ image. Byte and u16 modes had to stay byte-identical. Builds on [11D](phase-11d-
   A float TIFF stored rotated (Orientation 2–8) opens upright through `pixel_orientation`, its resolution axes
   swapped for a quarter turn, as every other flat TIFF open. File ▸ Save writes a 32-bit document's TIFF at 32 and
   keeps it in place only while `PrecisionExportCapture.losses` is empty (`designs/grayscale-mode.md`'s rule; a
-  tone map other than clip is a line, the file reopening at clip); a translucent colour sample reopens within the
-  render's 2 ulp, which the list does not count.
+  tone map other than clip is a line, the file reopening at clip). A one-layer document's TIFF is written from the
+  layer's samples, not the render, so it reopens bit for bit (`doc_export_float.rs`, "The exact float TIFF").
 - **Host**: Image ▸ Tone Map… (`ToneMapSheetController`, live preview; one undo step); Convert Precision offers
   16/8-bit; a float TIFF opens only as float (`precision: "rgba8"` refused); Export offers/defaults "32-bit float";
   MCP `get_tone_map` (`nonRecordable`) / `set_tone_map` (step), `get_document.float`, `summary.precision =

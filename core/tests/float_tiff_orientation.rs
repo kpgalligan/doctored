@@ -13,8 +13,12 @@
 //! placement written apart from the crate's inverse lookup.
 //!
 //! A turned document's 32-bit export states Orientation 1 and reopens as the
-//! same document (a translucent colour sample within the render's 2 ulp),
-//! its flat-state list empty.
+//! same document bit for bit, translucent samples included, with or without
+//! its render supplied as the projection, its flat-state list empty: the
+//! export writes the one layer's samples, not the render of them
+//! (`doc_export_float`, "The exact float TIFF"). A one-layer document the
+//! render changes (opacity below 1, hidden, masked, off (0, 0), larger than
+//! the canvas, a colour at alpha 0) still writes its render.
 
 use std::ffi::CString;
 use std::ptr;
@@ -22,10 +26,13 @@ use std::ptr;
 use doctored_core::doc_export::ExportResult;
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_export::dr_precision_doc_export_encode;
-use doctored_core::ffi_precision::dr_precision_doc_open;
+use doctored_core::ffi_precision::{
+    dr_precision_doc_open, dr_precision_doc_render, dr_precision_doc_set_layer_opacity,
+};
+use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
 use doctored_core::ffi_preservation::dr_precision_doc_flat_state_losses;
 use doctored_core::precision_document::PrecisionDocument;
-use doctored_core::precision_image::REFERENCE_WORKING_BYTES as LIMIT;
+use doctored_core::precision_image::{PrecisionImage, REFERENCE_WORKING_BYTES as LIMIT};
 use tempfile::TempDir;
 
 use crate::common::{cpath, take_err_string};
@@ -122,11 +129,23 @@ fn entry(out: &mut Vec<u8>, tag: u16, kind: u16, count: u32, value: u32) {
 /// A little-endian float TIFF of the stored raster at `orientation`, with
 /// the resolution and, when given, an ICC profile.
 fn float_tiff(channels: usize, orientation: u8, icc: Option<&[u8]>) -> Vec<u8> {
+    float_tiff_of(channels, orientation, icc, |r, k, c| {
+        stored_sample(r, k, c, channels)
+    })
+}
+
+/// `float_tiff` with sample `c` of stored pixel `(r, k)` from `sample`.
+fn float_tiff_of(
+    channels: usize,
+    orientation: u8,
+    icc: Option<&[u8]>,
+    sample: impl Fn(usize, usize, usize) -> f32,
+) -> Vec<u8> {
     let mut strip = Vec::new();
     for r in 0..SH {
         for k in 0..SW {
             for c in 0..channels {
-                strip.extend_from_slice(&stored_sample(r, k, c, channels).to_le_bytes());
+                strip.extend_from_slice(&sample(r, k, c).to_le_bytes());
             }
         }
     }
@@ -247,28 +266,53 @@ fn samples(doc: &PrecisionDocument) -> Vec<[f32; 4]> {
     }
 }
 
-/// How far apart two f32 samples are, in units in the last place.
-fn ulps(a: f32, b: f32) -> u32 {
-    (a.to_bits() as i64 - b.to_bits() as i64).unsigned_abs() as u32
+/// Every sample of `a` is `b`'s, bit for bit.
+fn same_bits(a: &[[f32; 4]], b: &[[f32; 4]]) -> bool {
+    a.len() == b.len()
+        && a.iter()
+            .zip(b)
+            .all(|(p, q)| p.iter().zip(q).all(|(x, y)| x.to_bits() == y.to_bits()))
 }
 
-/// `reopened` is `original` as the export writes it: alpha bit-exact, and a
-/// colour sample bit-exact where alpha is 1, else within 2 ulp — the render
-/// the export encodes composites a translucent pixel through one
-/// multiplication and one division by its alpha (`float_io`'s OpenEXR round
-/// trip states the same bound).
-fn same_within_render(reopened: &[[f32; 4]], original: &[[f32; 4]]) -> bool {
-    reopened.len() == original.len()
-        && reopened.iter().zip(original).all(|(r, o)| {
-            r[3].to_bits() == o[3].to_bits()
-                && (0..3).all(|c| {
-                    if o[3] == 1.0 {
-                        r[c].to_bits() == o[c].to_bits()
-                    } else {
-                        ulps(r[c], o[c]) <= 2
-                    }
-                })
-        })
+/// The document's render, through the call the host's projection comes from.
+fn render(doc: &PrecisionDocument) -> Box<PrecisionImage> {
+    let mut err = ptr::null_mut();
+    let out = unsafe { dr_precision_doc_render(doc, LIMIT, 0, ptr::null(), &mut err) };
+    assert!(!out.is_null(), "render: {}", take_err_string(err));
+    unsafe { Box::from_raw(out) }
+}
+
+/// `doc` with layer 0 at `opacity`.
+fn with_opacity(doc: &PrecisionDocument, opacity: f32) -> Box<PrecisionDocument> {
+    let mut err = ptr::null_mut();
+    let out = unsafe { dr_precision_doc_set_layer_opacity(doc, 0, opacity, &mut err) };
+    assert!(!out.is_null(), "opacity: {}", take_err_string(err));
+    unsafe { Box::from_raw(out) }
+}
+
+/// `doc` after one `dr_precision_doc_edit` request.
+fn edited(doc: &PrecisionDocument, request: &str, samples: &[u16]) -> Box<PrecisionDocument> {
+    let text = CString::new(request).unwrap();
+    let input = if samples.is_empty() {
+        ptr::null()
+    } else {
+        samples.as_ptr()
+    };
+    let mut err = ptr::null_mut();
+    let out = unsafe {
+        dr_precision_doc_edit(
+            doc,
+            text.as_ptr(),
+            input,
+            samples.len(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut err,
+        )
+    };
+    assert!(!out.is_null(), "{request}: {}", take_err_string(err));
+    unsafe { Box::from_raw(out) }
 }
 
 fn flat_tiff_losses(doc: &PrecisionDocument) -> Vec<String> {
@@ -283,13 +327,14 @@ fn flat_tiff_losses(doc: &PrecisionDocument) -> Vec<String> {
     serde_json::from_str(&text).unwrap()
 }
 
-fn export_32(doc: &PrecisionDocument) -> Vec<u8> {
+/// The 32-bit TIFF of `doc`, with `projection` supplied as the caller's.
+fn export_32(doc: &PrecisionDocument, projection: Option<&PrecisionImage>) -> Vec<u8> {
     let request = CString::new(r#"{"format":"tiff","profile":"document","bit_depth":32}"#).unwrap();
     let mut err = ptr::null_mut();
     let out = unsafe {
         dr_precision_doc_export_encode(
             doc,
-            ptr::null(),
+            projection.map_or(ptr::null(), |p| p as *const PrecisionImage),
             request.as_ptr(),
             LIMIT,
             0,
@@ -342,12 +387,7 @@ fn a_float_tiff_stored_in_any_orientation_opens_upright() {
                 continue;
             }
             let got = samples(&doc);
-            let same = got.len() == want.len()
-                && got
-                    .iter()
-                    .zip(&want)
-                    .all(|(g, e)| g.iter().zip(e).all(|(a, b)| a.to_bits() == b.to_bits()));
-            if !same {
+            if !same_bits(&got, &want) {
                 failures.push(format!("{tag}: samples {got:?}, want {want:?}"));
             }
             let quarter = w != SW;
@@ -364,41 +404,132 @@ fn a_float_tiff_stored_in_any_orientation_opens_upright() {
                 ));
             }
             // Written upright, the copy states Orientation 1 and reopens as
-            // the same document.
-            let copy = export_32(&doc);
-            if orientation_of(&copy) != Some(1) {
-                failures.push(format!(
-                    "{tag}: the export states Orientation {:?}",
-                    orientation_of(&copy)
-                ));
-            }
-            let again_path = dir
-                .path()
-                .join(format!("again-{orientation}-{channels}-{tagged}.tif"));
-            std::fs::write(&again_path, &copy).unwrap();
-            match open(&again_path) {
-                Ok(again) => {
-                    if again.dimensions() != doc.dimensions()
-                        || !same_within_render(&samples(&again), &got)
-                        || again.is_gray() != doc.is_gray()
-                        || again.resolution().x != resolution.x
-                        || again.resolution().y != resolution.y
-                    {
-                        failures.push(format!(
-                            "{tag}: the export reopens otherwise: {:?} gray {} {:?} {:?}",
-                            again.dimensions(),
-                            again.is_gray(),
-                            again.resolution(),
-                            samples(&again)
-                        ));
+            // the same document, bit for bit, whether or not the caller
+            // supplies the render as the projection (File ▸ Save does).
+            let projection = render(&doc);
+            for (supplied, how) in [(None, "no projection"), (Some(&*projection), "projection")] {
+                let copy = export_32(&doc, supplied);
+                if orientation_of(&copy) != Some(1) {
+                    failures.push(format!(
+                        "{tag}, {how}: the export states Orientation {:?}",
+                        orientation_of(&copy)
+                    ));
+                }
+                let again_path = dir
+                    .path()
+                    .join(format!("again-{orientation}-{channels}-{tagged}-{how}.tif"));
+                std::fs::write(&again_path, &copy).unwrap();
+                match open(&again_path) {
+                    Ok(again) => {
+                        if again.dimensions() != doc.dimensions()
+                            || !same_bits(&samples(&again), &got)
+                            || again.is_gray() != doc.is_gray()
+                            || again.resolution().x != resolution.x
+                            || again.resolution().y != resolution.y
+                        {
+                            failures.push(format!(
+                                "{tag}, {how}: the export reopens otherwise: {:?} gray {} {:?} \
+                                 {:?}",
+                                again.dimensions(),
+                                again.is_gray(),
+                                again.resolution(),
+                                samples(&again)
+                            ));
+                        }
+                    }
+                    Err(e) => {
+                        failures.push(format!("{tag}, {how}: the export reopen refused: {e}"))
                     }
                 }
-                Err(e) => failures.push(format!("{tag}: the export reopen refused: {e}")),
             }
             let losses = flat_tiff_losses(&doc);
             if !losses.is_empty() {
                 failures.push(format!("{tag}: a flat TIFF loses {losses:?}"));
             }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// A one-layer document whose render is not its layer's samples writes the
+/// render: each row's render differs from the layer, and the 32-bit TIFF
+/// reopens as that render bit for bit.
+#[test]
+fn a_float_tiff_of_a_layer_the_render_changes_writes_the_render() {
+    let dir = TempDir::new().unwrap();
+    let base_path = dir.path().join("base.tif");
+    std::fs::write(&base_path, float_tiff(4, 1, None)).unwrap();
+    let base = open(&base_path).expect("the four-sample file opens");
+    // Stored pixel (0, 0) at alpha 0 keeps its colour: the alpha is straight.
+    let hidden_path = dir.path().join("hidden-colour.tif");
+    let hidden = float_tiff_of(4, 1, None, |r, k, c| {
+        if (r, k, c) == (0, 0, 3) {
+            0.0
+        } else {
+            stored_sample(r, k, c, 4)
+        }
+    });
+    std::fs::write(&hidden_path, hidden).unwrap();
+    let coverage = [65535u16, 32768, 0, 65535, 16384, 65535];
+    let rows: [(&str, Box<PrecisionDocument>); 6] = [
+        ("opacity 0.5", with_opacity(&base, 0.5)),
+        (
+            "hidden",
+            edited(
+                &base,
+                r#"{"op":"layer_visible","layer":0,"visible":false}"#,
+                &[],
+            ),
+        ),
+        (
+            "masked",
+            edited(
+                &base,
+                r#"{"op":"set_mask","layer":0,"width":3,"height":2}"#,
+                &coverage,
+            ),
+        ),
+        (
+            "moved to (1, 0)",
+            edited(
+                &base,
+                r#"{"op":"affine_set","layers":[0],"matrix":[1,0,0,1,1,0],"filter":"nearest","follow_links":false}"#,
+                &[],
+            ),
+        ),
+        (
+            "wider than the canvas",
+            edited(
+                &base,
+                r#"{"op":"canvas_size","width":2,"height":2,"x":0,"y":0}"#,
+                &[],
+            ),
+        ),
+        (
+            "a colour at alpha 0",
+            open(&hidden_path).expect("the hidden-colour file opens"),
+        ),
+    ];
+    let mut failures = Vec::new();
+    for (what, doc) in &rows {
+        let want = render(doc).to_rgba32().unwrap();
+        if same_bits(&want, &samples(doc)) {
+            failures.push(format!("{what}: the render is the layer's samples"));
+            continue;
+        }
+        let path = dir.path().join(format!("{what}.tif"));
+        std::fs::write(&path, export_32(doc, None)).unwrap();
+        match open(&path) {
+            Ok(again) => {
+                if again.dimensions() != doc.dimensions() || !same_bits(&samples(&again), &want) {
+                    failures.push(format!(
+                        "{what}: the export reopens as {:?} {:?}, want the render {want:?}",
+                        again.dimensions(),
+                        samples(&again)
+                    ));
+                }
+            }
+            Err(e) => failures.push(format!("{what}: the export reopen refused: {e}")),
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));

@@ -20,6 +20,27 @@
 //! samples through `float_io::encode_float_gray` with its Gray ICC embedded
 //! in place of the twin's, and its preview reads them as R = G = B.
 //!
+//! # The exact float TIFF
+//!
+//! A 32-bit float TIFF at the canvas size, of a document whose render only
+//! re-derives its one layer, is written from that layer's own samples
+//! ([`PrecisionDocument::exact_float_source`]): `export_encoded` then neither
+//! renders nor reads a supplied projection. The render composites a
+//! translucent pixel over the transparent canvas through one multiplication
+//! and one division by its alpha, which can move a colour sample by an ulp
+//! (0.925 came back 0.92499995 at alpha 0.6), so the TIFF File ▸ Save keeps in
+//! place would not reopen as the document its empty flat-save list says it
+//! does. The layer qualifies when it is the one root, a raster at (0, 0) the
+//! canvas's size, visible, opacity 1, Normal, unclipped, with no mask, style
+//! or Blend If, in a document with no spot channel; and when no pixel at
+//! alpha 0 holds a colour, which the render writes as zero and a
+//! straight-alpha TIFF would keep (`precision_preservation::alpha_facts`, the
+//! flat-save list's own test). A 32-bit Gray document's kept-gray TIFF takes
+//! the same source. An alpha below the render's 2^-96 floor, which the render
+//! refuses, is written as stored. OpenEXR and Radiance keep the render: their
+//! writers multiply by alpha and their opens divide, so the layer would not
+//! make them exact.
+//!
 //! # Admission
 //!
 //! Every container charges `export_plan_for`'s existing 32-bit term (the
@@ -118,7 +139,8 @@
 
 use std::sync::Arc;
 
-use crate::doc_export::{ExportRequest, ExportResult};
+use crate::blend::BlendMode;
+use crate::doc_export::{output_dimensions, ExportRequest, ExportResult};
 use crate::float_document::{display_scratch, encoded_u16_gained, sanitize};
 use crate::float_document::{FloatPolicy, FLOAT_RANGE_MAX};
 use crate::float_io::FloatContainer;
@@ -126,8 +148,9 @@ use crate::float_primaries;
 use crate::hdr_transfer;
 use crate::icc::IccProfile;
 use crate::job_control::JobContext;
-use crate::precision_document::PrecisionDocument;
+use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_image::{process_working_limit, reserved_vec, PrecisionImage};
+use crate::precision_preservation::alpha_facts;
 use crate::precision_quantize::PrecisionDither;
 use crate::tiff_float::FloatSampleType;
 use crate::tile_store::TilePlane;
@@ -306,6 +329,38 @@ impl PrecisionDocument {
             profile: self.profile().clone(),
         }
         .preview(bytes)
+    }
+
+    /// The one layer whose samples this document's render only re-derives,
+    /// when `request` writes the samples as they are: a 32-bit float TIFF at
+    /// the canvas size (module doc, "The exact float TIFF"). `None` for any
+    /// other request or document, whose export encodes the render.
+    pub(crate) fn exact_float_source(&self, request: &ExportRequest) -> Option<&PrecisionImage> {
+        let canvas = self.dimensions();
+        if !self.is_float()
+            || request.bit_depth != 32
+            || request.float_container() != Some(FloatContainer::Tiff)
+            || output_dimensions(canvas, request).ok() != Some(canvas)
+            || self.has_spot_channel()
+        {
+            return None;
+        }
+        let [layer] = self.root_layers() else {
+            return None;
+        };
+        let Content::Raster { image, offset } = &layer.content else {
+            return None;
+        };
+        let rendered_as_stored = *offset == (0, 0)
+            && image.dimensions() == canvas
+            && layer.visible
+            && layer.opacity == 1.0
+            && layer.blend_mode == BlendMode::Normal
+            && !layer.clipped
+            && layer.mask.is_none()
+            && layer.style.is_none()
+            && layer.blend_if.is_none();
+        (rendered_as_stored && !alpha_facts(layer).1).then_some(image)
     }
 
     /// The 32-bit deliverable: the float projection's own samples (already

@@ -9303,7 +9303,10 @@ char *dr_precision_doc_export_plan(const DrPrecisionDocument *document,
 /* Encode a typed document as a deliverable at 16 or 8 bits. `projection` MAY
  * BE NULL, in which case the document is rendered here; when non-NULL its
  * storage must be RGBA16 UNORM, its dimensions the canvas and its ICC bytes
- * exact. NO FILE IS WRITTEN. Free the result with dr_export_result_free.
+ * exact. A 32-bit float TIFF at the canvas size of a document whose render
+ * only re-derives its one layer writes that layer's samples and neither
+ * renders nor reads `projection` (doc_export_float.rs, "The exact float
+ * TIFF"). NO FILE IS WRITTEN. Free the result with dr_export_result_free.
  * A CMYK document (#1 phase 5) ignores `projection` in both calls: profile
  * "document" with jpeg or tiff KEEPS CMYK (the CMYK save's bytes, info
  * "cmyk":true; a jpeg is a pending 8-bit CMYK TIFF the host transcodes) and

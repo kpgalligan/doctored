@@ -236,7 +236,10 @@ pub unsafe extern "C" fn dr_precision_doc_export_plan(
 /// owned encoded bytes as a DrExportResult (free with
 /// dr_export_result_free). `projection` MAY BE NULL, in which case the
 /// document is rendered here; when it is non-NULL its storage, dimensions
-/// and exact ICC bytes must match the canvas. `other_retained_bytes`
+/// and exact ICC bytes must match the canvas. A 32-bit float TIFF at the
+/// canvas size of a document whose render only re-derives its one layer
+/// writes that layer's samples and neither renders nor reads `projection`
+/// (`doc_export_float`, "The exact float TIFF"). `other_retained_bytes`
 /// excludes the union of BOTH inputs. No file is written.
 ///
 /// # Safety
