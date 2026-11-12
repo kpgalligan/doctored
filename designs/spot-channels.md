@@ -54,13 +54,15 @@ only, never the printed ink; New Spot Channel's defaults are red at 0 %.
 - **`.doctored`:** conditional word 112 and its `SPOT` table after `LREF`, written only when a channel is spot;
   `DRDC_VERSION` unchanged.
 - **Which files carry them** is ONE rule, `psd_export_preflight::spots_written_for`, asked with the document's real
-  depth by every preflight, report and save: a PSD or PSB of RGB, CMYK, Gray or Duotone at 8 or 16 bits (a 16-bit
-  Duotone document's file is written at 8 bits); a TIFF, flat (`SpotFile::FlatTiff`) or layered
-  (`SpotFile::Layered(Tiff)`, 1c-2b), of RGB or CMYK at 8 or 16 bits. A Lab or 32-bit PSD/PSB refuses with
-  `PSD_REFUSAL`, a Gray, Duotone, Lab or 32-bit TIFF of either kind with `TIFF_REFUSAL`
-  (`preflight::spot_refusal` picks the sentence by container), PDF in the host (`pdfRefusal`, the measured
-  reason). Every other flattened save or export composites the overprint and says so (`flat_save_losses`' line,
-  the `spot_channels` reply key). Alpha (non-spot) channels stay a disclosed loss in PSD, PSB and TIFF.
+  depth by every preflight, report and save; the host's mirror of its flat-TIFF case is
+  `SpotChannels.flatTiffKeeps`, so a flat TIFF save or copy asks the core to keep them only where it writes them.
+  It holds for a PSD or PSB of RGB, CMYK, Gray or Duotone at 8 or 16 bits (a 16-bit Duotone document's file is
+  written at 8 bits); a TIFF, flat (`SpotFile::FlatTiff`) or layered (`SpotFile::Layered(Tiff)`, 1c-2b), of RGB or
+  CMYK at 8 or 16 bits. A Lab or 32-bit PSD/PSB refuses with `PSD_REFUSAL`; a Gray, Duotone, Lab or 32-bit layered
+  TIFF and a Lab TIFF save with `TIFF_REFUSAL` (`preflight::spot_refusal` picks the sentence by container); PDF in
+  the host (`pdfRefusal`, the measured reason). A flat Grayscale or 32-bit TIFF save or copy composites the
+  overprint and names the loss, as every other flattened save or export does (`flat_save_losses`' line, the
+  `spot_channels` reply key). Alpha (non-spot) channels stay a disclosed loss in PSD, PSB and TIFF.
 - **PSD/PSB** (1b-1): a saved channel is spot when its 1077 DisplayInfo kind is 2, its ink colour space 7 (Lab ×
   100, a and b signed), its opacity the Solidity; the plane is stored `max − coverage` (`psd_spot_records::stored`,
   the one map). Resources 1006/1045/1077/1053 (ids from 3), every list led by "Transparency" with a negative

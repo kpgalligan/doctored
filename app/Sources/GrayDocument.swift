@@ -432,15 +432,16 @@ enum GrayDocument {
         return format == .tiff && doc.grayDepth == 32 ? 32 : 16
     }
 
-    /// What a one-channel PNG, TIFF or JPEG of an 8- or 16-bit `doc` written at `bitDepth` loses:
-    /// the core's editable-state list (guides, channels, samplers, paths, comps, the global light,
-    /// layers, masks, styles, layer properties and bounds; transparency in a JPEG, which has no
-    /// alpha), the depth the file is written below the document's, the profile when it is not
-    /// embedded and the capture packets it strips or has no slot for (`flatPacketLosses`: IPTC in
-    /// a PNG). `[]` only when the file reopens as the same document, which Save keeps in place on
+    /// What a one-channel PNG, TIFF or JPEG of `doc` written at `bitDepth` loses: the core's
+    /// editable-state list (guides, channels, samplers, paths, comps, the global light, layers,
+    /// masks, styles, layer properties and bounds; transparency in a JPEG, which has no alpha),
+    /// the depth the file is written below the document's (a 32-bit document's tone-mapped
+    /// values below 32 bits, `PrecisionExportCapture.floatDepthLoss`; its tone map in a 32-bit
+    /// TIFF when it is not clip), the profile when it is not embedded and the capture packets it
+    /// strips or has no slot for (`flatPacketLosses`: IPTC in a PNG). `[]` only when the file
+    /// reopens as the same document, which Save keeps in place on
     /// (`ImageDocument.canPreserveState`). Any other format is the `.doctored`/PNG/TIFF/JPEG
-    /// line. A 32-bit document is not this list's: Save names its own line and a copy its tone
-    /// map (`PrecisionExportCapture.losses`).
+    /// line.
     static func saveLosses(_ doc: RasterDocument, format: ExportFormat?, bitDepth: Int,
                            embedProfile: Bool, stripMetadata: Bool) throws -> [String] {
         guard let format, [.png, .tiff, .jpeg].contains(format) else {
@@ -449,8 +450,13 @@ enum GrayDocument {
         guard let typed = doc.precision else { throw DoctoredCoreError(message: "No Grayscale document is loaded.") }
         var losses = try typed.flatStateLosses(alphaKept: format != .jpeg, tiff: format == .tiff)
         if let depth = doc.grayDepth, bitDepth < depth {
-            losses.append("\(depth)-bit Grayscale precision (" + (format == .jpeg
-                ? "JPEG holds 8 bits)" : "written at \(bitDepth) bits)"))
+            losses.append(depth == 32
+                ? PrecisionExportCapture.floatDepthLoss(bitDepth: bitDepth)
+                    ?? "32-bit float values (written at \(bitDepth) bits)"
+                : "\(depth)-bit Grayscale precision (" + (format == .jpeg
+                    ? "JPEG holds 8 bits)" : "written at \(bitDepth) bits)"))
+        } else if doc.grayDepth == 32, let line = PrecisionExportCapture.toneMapLoss(doc) {
+            losses.append(line)
         }
         if !embedProfile { losses.append("embedded color profile") }
         return losses + doc.flatPacketLosses(format: format, stripMetadata: stripMetadata)

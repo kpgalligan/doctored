@@ -794,6 +794,29 @@ enum LabDocument {
         ]
     }
 
+    /// What a Lab TIFF of `doc` loses (`lab_save`: the composite at the document's own depth,
+    /// straight alpha when a pixel is not opaque, the resolution, packets and paths, no ICC
+    /// profile, which a CIELab file needs none of; `lab_tiff_read` reopens all of them): the
+    /// core's editable-state list and the capture packets it strips (`flatPacketLosses`). `[]`
+    /// only when the file reopens as the same document, which Save keeps in place on
+    /// (`ImageDocument.canPreserveState`). Spot channels are `ImageDocument.saveLosses`'
+    /// (`tiffSpotLoss`). Any other format is the `.doctored`/Lab TIFF line.
+    static func saveLosses(_ doc: RasterDocument, format: ExportFormat?,
+                           stripMetadata: Bool) throws -> [String] {
+        guard format == .tiff else {
+            return ["editable Lab Color document state; a Lab Color document saves as .doctored or Lab TIFF"]
+        }
+        guard let typed = doc.precision else {
+            throw DoctoredCoreError(message: "No Lab Color document is loaded.")
+        }
+        return try typed.flatStateLosses(alphaKept: true, tiff: true)
+            + doc.flatPacketLosses(format: .tiff, stripMetadata: stripMetadata)
+    }
+
+    /// A Lab TIFF's line for a document holding spot channels: the save refuses them
+    /// (`lab_save`, `spot_channel::TIFF_REFUSAL`) rather than compositing their overprint.
+    static let tiffSpotLoss = "spot channels (a Lab TIFF holds none)"
+
     /// Why a Lab TIFF refuses another depth: it keeps the document's own.
     static func tiffDepthRefusal(_ depth: Int) -> String {
         "A Lab TIFF keeps the document's own depth (\(depth) bits per channel)."

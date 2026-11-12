@@ -79,10 +79,16 @@ extension ImageDocument {
         var losses = try modeSaveLosses(for: typeName)
         // #1 1c-1: a typed document's flattened file carries its spot channels' overprint, not
         // the channels (the byte list's `flatSaveLosses` names them in the core); a TIFF keeps
-        // them as extra samples (1c-2a).
-        if typeName != Self.nativeTypeIdentifier, ExportFormat.from(fileType: typeName) != .tiff,
-           let doc, doc.isHighDepth, doc.hasSpotChannels {
-            losses.append(SpotChannels.flatLoss)
+        // them as extra samples where the core writes them (1c-2a, `SpotChannels.flatTiffKeeps`),
+        // and a Lab TIFF refuses them.
+        if typeName != Self.nativeTypeIdentifier, let doc, doc.isHighDepth, doc.hasSpotChannels {
+            let format = ExportFormat.from(fileType: typeName)
+            if format == .tiff && doc.isLab {
+                losses.append(LabDocument.tiffSpotLoss)
+            } else if format != .tiff || !SpotChannels.flatTiffKeeps(doc,
+                bitDepth: PrecisionExportCapture.saveBitDepth(self, format: .tiff)) {
+                losses.append(SpotChannels.flatLoss)
+            }
         }
         return losses
     }
@@ -113,14 +119,10 @@ extension ImageDocument {
                                               stripMetadata: stripMetadata)
         }
         // #1 Lab phase 1b: a Lab Color document saves as .doctored or Lab TIFF
-        // (`LabDocument.saveRefusal`); a TIFF holds the flattened composite and is never
-        // empty-lossed, so Save As keeps `.doctored` and Save a Copy writes the TIFF.
+        // (`LabDocument.saveRefusal`); `[]` only when the TIFF reopens as the same document.
         if doc.isLab {
-            if ExportFormat.from(fileType: typeName) == .tiff {
-                return ["editable Lab Color document state: TIFF holds the flattened composite, and "
-                    + "Doctored opens a Lab TIFF from #1 phase 3"]
-            }
-            return ["editable Lab Color document state; a Lab Color document saves as .doctored or Lab TIFF"]
+            return try LabDocument.saveLosses(doc, format: ExportFormat.from(fileType: typeName),
+                                              stripMetadata: stripMetadata)
         }
         // #1 Duotone phase 1b: a Duotone document saves as .doctored, or as PSD or PSB through
         // File ▸ Export as PSD; every other format is an export through its inks.
@@ -129,25 +131,24 @@ extension ImageDocument {
                 + "PSB through File ▸ Export as PSD"]
         }
         // A Grayscale document writes PNG, TIFF and JPEG as one channel (its composite) at
-        // `GrayDocument.defaultBitDepth`: it loses whatever editable state the core finds and the
-        // file has no place for. A 32-bit document always reports a loss.
+        // `GrayDocument.defaultBitDepth` (a 32-bit document's TIFF at 32): it loses whatever
+        // editable state the core finds and the file has no place for.
         if doc.isGray {
             let format = ExportFormat.from(fileType: typeName)
-            if doc.isFloat, let format, [.png, .tiff, .jpeg].contains(format) {
-                return ["editable 32-bit Grayscale document state; use Export for an explicitly flattened copy"]
-            }
             return try GrayDocument.saveLosses(doc, format: format,
                 bitDepth: format.map { GrayDocument.defaultBitDepth(doc, format: $0) } ?? 8,
                 embedProfile: embedColorProfile, stripMetadata: stripMetadata)
         }
-        if doc.isFloat {
-            return ["editable 32-bit float document state; use Export for an explicitly flattened copy"]
-        }
-        if doc.precision != nil {
-            return ["editable 16-bit document state; use Export for an explicitly flattened copy"]
-        }
         guard let format = ExportFormat.from(fileType: typeName) else {
             throw DoctoredCoreError(message: "Cannot write files of type \(typeName).")
+        }
+        // A 16- or 32-bit RGB document writes its composite at Save's depth
+        // (`PrecisionExportCapture.saveBitDepth`: a 32-bit TIFF at 32): it loses whatever
+        // editable state the core finds and the file has no place for.
+        if doc.precision != nil {
+            return try PrecisionExportCapture.losses(doc, format: format,
+                bitDepth: PrecisionExportCapture.listedBitDepth(self, format: format),
+                embedProfile: embedColorProfile, stripMetadata: stripMetadata)
         }
         return try doc.flatSaveLosses(
             format: format.drFormat, embedProfile: embedColorProfile, stripMetadata: stripMetadata)

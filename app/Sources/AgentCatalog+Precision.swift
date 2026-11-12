@@ -53,7 +53,10 @@ extension AgentServer {
                     format["description"] = "exr (OpenEXR) and hdr (Radiance) are 32-bit float deliverables: written only from a 32-bit float document, at bit_depth 32."
                     properties["format"] = format
                 }
-                note = "16-bit master exports keep the master unchanged and report depth/alpha/structure losses. "
+                note = "16-bit master exports keep the master unchanged and report depth/alpha/structure losses: "
+                    + "flat_save_losses names each kind of editable state the file has no place for, the depth, "
+                    + "a 32-bit tiff's tone map other than clip, the profile and the capture packets, empty when "
+                    + "the copy reopens as the document (File > Save writes a 32-bit document's tiff at 32). "
                     + "A 32-bit float master's flat copy at 8 or 16 bits is tone-mapped through the document's tone map "
                     + "(the export workspace's float stage) and reports master_bit_depth 32. At bit_depth 32 a float "
                     + "master writes its samples untone-mapped as tiff, OpenEXR (.exr: associated alpha, ZIP, the "

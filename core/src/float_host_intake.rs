@@ -200,6 +200,7 @@ impl HostPixelPlan {
                 container: FloatContainer::HostStill,
                 width: self.width,
                 height: self.height,
+                orientation: 1,
                 canvas: (self.width, self.height),
                 offset: (0, 0),
                 channels: 4,

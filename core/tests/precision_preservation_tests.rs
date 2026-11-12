@@ -12,8 +12,10 @@
 use std::ffi::{CStr, CString};
 use std::ptr;
 
+use doctored_core::doc_evaluation::Evaluation;
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_cmyk::dr_precision_doc_save_cmyk;
+use doctored_core::ffi_evaluation::{dr_precision_doc_evaluation, dr_precision_doc_set_evaluation};
 use doctored_core::ffi_export::{
     dr_export_result_bytes, dr_export_result_free, dr_precision_doc_export_encode,
 };
@@ -22,6 +24,7 @@ use doctored_core::ffi_guide::{
     dr_precision_doc_add_guide, dr_precision_doc_guide_count, dr_precision_doc_set_ruler_origin,
 };
 use doctored_core::ffi_precision::dr_precision_doc_open;
+use doctored_core::ffi_precision_conversion::dr_precision_doc_promote_to_float;
 use doctored_core::ffi_preservation::dr_precision_doc_flat_state_losses;
 use doctored_core::ffi_sampler::{
     dr_precision_doc_color_sampler_count, dr_precision_doc_with_color_samplers,
@@ -453,6 +456,40 @@ fn clear_pixels_lose_their_colour_and_a_jpeg_its_transparency() {
     assert_eq!(reopened[3], 65535, "JPEG drops the transparency");
     free(jpeg);
     free(doc);
+}
+
+/// The linear-light evaluation policy of a 16-bit RGB document is persisted
+/// state a flat file has no place for (it reopens `encoded`); an `encoded`
+/// document and a 32-bit float one, linear by construction, name nothing.
+#[test]
+fn a_linear_light_policy_is_named_and_a_float_document_is_not() {
+    let image = PrecisionImage::from_rgba16(W, H, opaque(), IccProfile::srgb(), None).unwrap();
+    let rgb = Box::into_raw(Box::new(
+        PrecisionDocument::from_image(image, Metadata::default(), Resolution::default()).unwrap(),
+    ));
+    assert!(losses(rgb, true).is_empty(), "{:?}", losses(rgb, true));
+    let mut err = ptr::null_mut();
+    let linear =
+        unsafe { dr_precision_doc_set_evaluation(rgb, Evaluation::LinearLight.code(), &mut err) };
+    assert!(!linear.is_null(), "{}", take_err_string(err));
+    for alpha_kept in [true, false] {
+        assert_eq!(
+            losses(linear, alpha_kept),
+            vec!["linear-light evaluation".to_string()]
+        );
+    }
+    let mut err = ptr::null_mut();
+    let float = unsafe { dr_precision_doc_promote_to_float(rgb, LIMIT, 0, ptr::null(), &mut err) };
+    assert!(!float.is_null(), "{}", take_err_string(err));
+    assert_eq!(
+        unsafe { dr_precision_doc_evaluation(float) },
+        Evaluation::LinearLight.code(),
+        "a float document evaluates linear"
+    );
+    assert!(losses(float, true).is_empty(), "{:?}", losses(float, true));
+    free(float);
+    free(linear);
+    free(rgb);
 }
 
 #[test]

@@ -105,6 +105,7 @@ impl DrDocument {
             paths: !paths_kept,
             comps: !self.comps.is_empty(),
             global_light: self.global_light != GlobalLight::default(),
+            evaluation: self.linear_light.is_some(),
         });
 
         let (sidecar, carried) = self.image_sidecar(

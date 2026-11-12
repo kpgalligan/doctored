@@ -1,6 +1,6 @@
-//! Exact EXIF orientation permutation, shared by integer decoder intake paths.
-//!
-//! The existing preserving PNG/TIFF intake shares the orientation mapping.
+//! Exact EXIF orientation permutation, shared by every decoder intake path
+//! that turns a stored raster upright: the integer opens, the preserving
+//! PNG/TIFF intake and the 32-bit float TIFF open (`float_io`).
 pub(crate) fn dimensions(w: usize, h: usize, orientation: u8) -> (usize, usize) {
     if (5..=8).contains(&orientation) {
         (h, w)

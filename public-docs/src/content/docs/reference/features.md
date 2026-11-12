@@ -477,9 +477,10 @@ The design record behind each area is in the repository's
   TIFF at 8 or 16 bits, flat or layered, opens with its spot channels and a
   TIFF save or layered TIFF export keeps them in Photoshop's layout (and
   Photoshop 26.10 opens those files with them too), while a Lab or 32-bit PSD
-  or PSB and a Grayscale, Duotone, Lab or 32-bit TIFF refuse a document
-  holding them, by name, and a PDF refuses them: Doctored's PDF cannot write
-  spot channels as `/Separation` inks.
+  or PSB, a Grayscale, Duotone, Lab or 32-bit layered TIFF and a Lab TIFF
+  save refuse a document holding them, by name (a flat Grayscale or 32-bit
+  TIFF save composites their overprint, naming the loss), and a PDF refuses
+  them: Doctored's PDF cannot write spot channels as `/Separation` inks.
   Every other flattened save or export composites the
   overprint and says so; a CMYK export overprints as ink on paper, through
   the document's CMYK profile. The overprint, the merge and the kind change

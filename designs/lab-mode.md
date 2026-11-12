@@ -53,7 +53,9 @@ phase.
   15-bit grid; TIFF Photometric 8 measured at 8 and 16 bits, Photometric 9 from the spec. Lab files are written
   in the PSD's measured Lab form (colour mode 9, no ICC, adjustment layers as their stamps, a reported loss). The Lab
   TIFF save is TIFF 6.0 CIELab of the composite. `.doctored` word 107 (legacy `.rz` still read) with its `LAB `
-  table; `DRDC_VERSION` unchanged.
+  table; `DRDC_VERSION` unchanged. File ▸ Save keeps a Lab TIFF in place only while `LabDocument.saveLosses` is
+  empty (Grayscale's rule): the core's `flat_state` list and the capture packets; the TIFF keeps alpha, paths,
+  resolution and packets, and a spot channel, which the save refuses, is a line of its own.
 - **The gate.** The core's `lab_document::admit_edit` (first in `ffi_precision_edit::request`) and
   `precision_capability::LAB_FAMILIES`; the host's `LabDocument`, asked first in `DocumentPrecision` and
   `validatePrecisionItem`. Admitted edits run the RGB kernel on the codes; every colour a request names

@@ -40,6 +40,10 @@ pub(crate) struct EditableState {
     pub(crate) comps: bool,
     /// A global light other than the default 120°/30°.
     pub(crate) global_light: bool,
+    /// The `linear_light` evaluation policy: a flat file has no slot for it
+    /// and reopens `encoded`. A 32-bit float document is linear by
+    /// construction, and its file reopens so, so it never sets this.
+    pub(crate) evaluation: bool,
 }
 
 /// The lines of `state`, in the order Save reports them.
@@ -63,6 +67,7 @@ pub(crate) fn losses(state: &EditableState) -> Vec<&'static str> {
         (state.paths, "paths"),
         (state.comps, "layer comps"),
         (state.global_light, "global light settings"),
+        (state.evaluation, "linear-light evaluation"),
     ]
     .into_iter()
     .filter_map(|(lost, line)| lost.then_some(line))

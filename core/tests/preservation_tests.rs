@@ -6,10 +6,12 @@ use std::ptr;
 use std::sync::Arc;
 
 use doctored_core::doc::{BlendMode, DrDocument, LayerKind, LayerRaster};
+use doctored_core::doc_evaluation::Evaluation;
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_color::dr_doc_save_image;
 use doctored_core::ffi_comps::dr_doc_edit_layer_comps;
 use doctored_core::ffi_doc::dr_doc_free;
+use doctored_core::ffi_evaluation::{dr_doc_evaluation, dr_doc_set_evaluation};
 use doctored_core::ffi_preservation::dr_doc_flat_save_losses;
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::Resolution;
@@ -347,6 +349,43 @@ fn a_colour_label_is_lost_by_every_flat_format() {
         );
     }
     assert_eq!(exported(&doc, 0, false).layers[0].label, 0);
+}
+
+/// The linear-light evaluation policy is persisted state a flat file has no
+/// place for: under it every flat format names it, the file reopens
+/// `encoded`, and back under `encoded` the list is empty again.
+#[test]
+fn a_linear_light_policy_is_lost_by_every_flat_format() {
+    let linear = unsafe {
+        let mut err = ptr::null_mut();
+        let out = dr_doc_set_evaluation(&plain(), Evaluation::LinearLight.code(), &mut err);
+        assert!(!out.is_null(), "{}", take_err_string(err));
+        Box::from_raw(out)
+    };
+    assert_eq!(
+        unsafe { dr_doc_evaluation(&*linear) },
+        Evaluation::LinearLight.code()
+    );
+    for format in 0..=5 {
+        assert_eq!(
+            losses(&linear, format, true, false),
+            vec!["linear-light evaluation".to_string()],
+            "format {format}"
+        );
+    }
+    let reopened = exported(&linear, 0, false);
+    assert_eq!(
+        unsafe { dr_doc_evaluation(&reopened) },
+        Evaluation::Encoded.code()
+    );
+    assert!(losses(&reopened, 0, true, false).is_empty());
+    let back = unsafe {
+        let mut err = ptr::null_mut();
+        let out = dr_doc_set_evaluation(&*linear, Evaluation::Encoded.code(), &mut err);
+        assert!(!out.is_null(), "{}", take_err_string(err));
+        Box::from_raw(out)
+    };
+    assert!(losses(&back, 0, true, false).is_empty());
 }
 
 #[test]

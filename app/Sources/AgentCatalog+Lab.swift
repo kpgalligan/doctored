@@ -232,7 +232,12 @@ extension AgentServer {
                 note = " A Lab Color document saves as doctored (or rz) or tiff: a TIFF 6.0 CIELab file of "
                     + "the flattened composite at the document's own depth (another bit_depth "
                     + "refuses), no ICC profile; export_psd writes its PSD, and every other format "
-                    + "refuses (export_image writes an RGB copy)."
+                    + "refuses (export_image writes an RGB copy). Its flat_save_losses is File > "
+                    + "Save's own list: the layers, masks, saved channels, guides, color samplers, "
+                    + "layer properties and other editable state the TIFF has no place for (it "
+                    + "keeps alpha, the paths, the resolution and the capture packets), and spot "
+                    + "channels, which a Lab TIFF refuses; empty when the copy reopens as the "
+                    + "document, which File > Save then keeps in place."
             case "export_psd", "inspect_psd_export":
                 note = " A Lab Color document writes a Lab Color (colour mode 9) "
                     + "PSD, PSB or layered TIFF at its own depth (8 or 16 bits), as Photoshop "

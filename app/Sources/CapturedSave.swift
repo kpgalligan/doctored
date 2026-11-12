@@ -31,8 +31,9 @@ struct CapturedSave {
         self.source = source
         self.type = type
         // #1: a byte flat save composites the spot channels' overprint, except a TIFF, which
-        // keeps them as extra samples (1c-2a, `flatSaveProjection`); a typed one decides in the
-        // core (`keepSpotChannels` below).
+        // keeps them as extra samples (1c-2a, `flatSaveProjection`); a typed one keeps them in a
+        // TIFF where the core writes them (`keepSpotChannels` below,
+        // `SpotChannels.flatTiffKeeps`).
         self.projection = type == ImageDocument.nativeTypeIdentifier || source.precision != nil
             ? nil : try document.flatSaveProjection(format: ExportFormat.from(fileType: type))
         self.quality = document.jpegExportQuality
@@ -149,14 +150,14 @@ struct CapturedSave {
                 guard let format = ExportFormat.from(fileType: type) else {
                     throw DoctoredCoreError(message: "Cannot write files of type \(type).")
                 }
-                let bitDepth = source.isGray
-                    ? GrayDocument.defaultBitDepth(source, format: format)
-                    : document.exportBitDepth == 32 ? 16 : document.exportBitDepth
+                // The depth the loss list is read at, so Save keeps a file in place only when
+                // what it writes reopens as the document (a 32-bit document's TIFF at 32).
+                let bitDepth = PrecisionExportCapture.saveBitDepth(document, format: format)
                 let export = try PrecisionExportCapture(source: PrecisionExportSource(document), format: format,
                     bitDepth: bitDepth,
-                    // Dither applies only to an 8-bit reduction; a gray save's depth is
-                    // `defaultBitDepth`'s, not the export settings', so it drops the setting.
-                    dither: source.isGray && bitDepth != 8 ? "none" : document.exportDither,
+                    // Dither applies only to an 8-bit reduction; a save at any other depth drops
+                    // the export setting.
+                    dither: bitDepth == 8 ? document.exportDither : "none",
                     quality: quality, embedProfile: embedProfile, stripMetadata: stripMetadata,
                     keepSpotChannels: format == .tiff)
                 precisionSave = nil

@@ -58,7 +58,12 @@
 //! [`document_of`], its stated primaries through the same [`profile_of`]
 //! rule. It is never a write container.
 //!
-//! A float TIFF's paths are read from its 8BIM run (`tiff_paths`).
+//! A float TIFF stored rotated (Orientation 2 to 8, or its EXIF packet's)
+//! opens upright, as every other flat TIFF open does: [`document_of`] reads
+//! each upright pixel's stored sample through `pixel_orientation`, and a
+//! quarter turn swaps the canvas and the resolution's axes. Its paths are
+//! read from its 8BIM run (`tiff_paths`), which reads none from a rotated
+//! file.
 //!
 //! Export: TIFF writes four samples, `ExtraSamples = 2` (unassociated),
 //! Deflate, f32 or half, and the profile, packets and paths from the shared
@@ -132,10 +137,15 @@ fn problem(
 /// takes it.
 pub(crate) struct FloatSource {
     pub(crate) container: FloatContainer,
-    /// The layer's own size (an OpenEXR data window).
+    /// The layer's own size AS STORED (an OpenEXR data window); `orientation`
+    /// turns it.
     pub(crate) width: u32,
     pub(crate) height: u32,
-    /// The canvas, and the layer's offset on it.
+    /// The EXIF orientation (1–8) the samples are stored in: the layer is
+    /// turned upright through `pixel_orientation`, so 5 to 8 swap its size.
+    /// Only a TIFF states one; every other source passes 1.
+    pub(crate) orientation: u8,
+    /// The canvas (upright), and the layer's offset on it.
     pub(crate) canvas: (u32, u32),
     pub(crate) offset: (i32, i32),
     /// Samples per pixel in `samples`: 1, 2, 3 or 4.
@@ -253,19 +263,34 @@ pub(crate) fn from_float_tiff(
             IccProfile::srgb()
         }
     };
+    // Stored rotated, the raster opens upright as every other flat TIFF
+    // open turns it (`gray_io`, `lab_tiff_read`): tag 274, else the EXIF
+    // packet's, and the resolution's axes swap with a quarter turn.
+    let orientation = crate::metadata_tiff::orientation_of_file(bytes)
+        .or_else(|| {
+            metadata
+                .exif
+                .as_deref()
+                .and_then(crate::metadata_tiff::orientation)
+        })
+        .map_or(1, |o| o.to_exif());
+    let quarter = (5..=8).contains(&orientation);
+    let (upright_w, upright_h) =
+        crate::pixel_orientation::dimensions(width as usize, height as usize, orientation);
     let document = document_of(
         FloatSource {
             container: FloatContainer::Tiff,
             width,
             height,
-            canvas: (width, height),
+            orientation,
+            canvas: (upright_w as u32, upright_h as u32),
             offset: (0, 0),
             channels: usize::from(channels),
             alpha,
             samples,
             profile,
             matrix: None,
-            resolution: resolution.unwrap_or_default(),
+            resolution: resolution.unwrap_or_default().transposed_if(quarter),
             metadata,
             warnings,
         },
@@ -277,7 +302,7 @@ pub(crate) fn from_float_tiff(
         None => document,
     };
     // Its paths (`tiff_paths`): a file stored rotated reads none, as at
-    // every other flat TIFF open, though this open keeps the stored raster.
+    // every other flat TIFF open, since its records name the stored raster.
     document.with_tiff_paths(bytes)
 }
 
@@ -388,6 +413,7 @@ pub(crate) fn from_exr(
             container: FloatContainer::Exr,
             width: plan.width,
             height: plan.height,
+            orientation: 1,
             canvas: plan.canvas,
             offset: plan.offset,
             channels: 4,
@@ -450,6 +476,7 @@ pub(crate) fn from_radiance(
             container: FloatContainer::Radiance,
             width: plan.width,
             height: plan.height,
+            orientation: 1,
             canvas: (plan.width, plan.height),
             offset: (0, 0),
             channels: 3,
@@ -479,6 +506,7 @@ pub(crate) fn document_of(
         container,
         width,
         height,
+        orientation,
         canvas,
         offset,
         channels,
@@ -508,13 +536,17 @@ pub(crate) fn document_of(
     if alpha == Some(true) {
         warnings.push("associated alpha unpremultiplied".into());
     }
-    let stride = width as usize;
+    // The tiles are filled upright: each output pixel reads its stored
+    // sample through the shared EXIF mapping, so a turned file needs no
+    // second sample buffer and every stored pixel is still read once.
+    let (sw, sh) = (width as usize, height as usize);
+    let (upright_w, upright_h) = crate::pixel_orientation::dimensions(sw, sh, orientation);
     let fill_row = |y: u32, row: &mut [[f32; 4]]| {
-        let first = y as usize * stride;
+        let first = y as usize * upright_w;
         for (x, pixel) in row.iter_mut().enumerate() {
-            let i = first + x;
-            job.every(i)?;
-            let at = i * channels;
+            job.every(first + x)?;
+            let (sx, sy) = crate::pixel_orientation::source(x, y as usize, sw, sh, orientation);
+            let at = (sy * sw + sx) * channels;
             let (rgb, a) = match channels {
                 1 => ([samples[at]; 3], 1.0),
                 2 => ([samples[at]; 3], samples[at + 1]),
@@ -550,7 +582,12 @@ pub(crate) fn document_of(
         }
         Ok(())
     };
-    let plane = TilePlane::from_rows_with_job(width, height, fill_row, JobContext::NONE)?;
+    let plane = TilePlane::from_rows_with_job(
+        upright_w as u32,
+        upright_h as u32,
+        fill_row,
+        JobContext::NONE,
+    )?;
     drop(samples);
     if clamped > 0 {
         warnings.push(format!("{clamped} out-of-range samples clamped"));

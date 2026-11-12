@@ -345,6 +345,8 @@ mod float_smart_selection;
 mod float_smudge_plan;
 #[path = "float_source_selection.rs"]
 mod float_source_selection;
+#[path = "float_tiff_orientation.rs"]
+mod float_tiff_orientation;
 #[path = "float_view.rs"]
 mod float_view;
 #[path = "float_warp.rs"]

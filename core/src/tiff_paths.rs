@@ -15,8 +15,7 @@
 //! back from the run and an edited one is not written twice. A file stored
 //! rotated (Orientation other than 1) opens upright, where those fractions
 //! name other places, so its paths are neither read nor kept, with a
-//! sentence; the 32-bit float open, which does not turn the raster, follows
-//! the same rule. The typed opens join the sentences to the import warnings;
+//! sentence. The typed opens join the sentences to the import warnings;
 //! the byte document has none, so its sentences are the flat import
 //! report's ([`report_lines`]). A multipage TIFF's paths are its first
 //! page's (`doc_tiff_pages`).

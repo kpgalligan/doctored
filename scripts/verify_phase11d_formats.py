@@ -900,8 +900,8 @@ def take_heic(app, output, report, fixtures):
         passed = False
 
     # GATED: a typed 16-bit document's `get_document` carries the
-    # `save_preservation` block through the byte builder, so the typed HEIC
-    # depth sentence (`PrecisionExportCapture.losses`) has its MCP surface.
+    # `save_preservation` block, so the typed HEIC depth sentence
+    # (`PrecisionExportCapture.losses`) has its MCP surface.
     # Its png entry must equal what a flat save_copy actually reports.
     # The byte document's capability report must still list heic.
     typed_preservation = (app.call('get_document', document_id=typed)
@@ -911,9 +911,16 @@ def take_heic(app, output, report, fixtures):
     typed_losses = typed_block.get('losses_by_format')
     if not isinstance(typed_losses, dict):
         typed_losses = {}
+    # File ▸ Save keeps a flat type in place exactly when its list is empty (a plain
+    # one-layer 16-bit PNG reopens as the document), GIF aside, which only Save As writes.
+    save_types = typed_block.get('save_types') or []
+    flat_types = {'png': 'public.png', 'jpg': 'public.jpeg', 'tiff': 'public.tiff',
+                  'bmp': 'com.microsoft.bmp', 'webp': 'org.webmproject.webp'}
     checks = {
         'is_dict': isinstance(typed_preservation, dict),
-        'save_types_native': typed_block.get('save_types') == ['com.kgalligan.doctored-document'],
+        'save_types_native': 'com.kgalligan.doctored-document' in save_types,
+        'save_types_follow_losses': all((uti in save_types) == (typed_losses.get(key) == [])
+                                        for key, uti in flat_types.items()),
         # `avif` and `jxl` are export formats, so the capability
         # report lists them beside heic; AVIF is host-encoded like HEIC and
         # carries the same depth sentence, under its own encoder's name.

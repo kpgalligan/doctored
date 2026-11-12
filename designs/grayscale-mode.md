@@ -90,10 +90,14 @@ tools, from the UI, over MCP and in Actions. Every tool the catalog offers is ad
 - **Saves and exports keep one channel** (`gray_export`): profile `document` with PNG, TIFF or JPEG writes R (and
   alpha when some pixel is not opaque) with the Gray ICC embedded, default depth 16 (8 for JPEG and an 8-bit
   document); a 32-bit TIFF is a one-channel float TIFF; Export Layers takes the same path. PSD/PSB/layered TIFF are
-  `export_psd`'s, in Photoshop's mode-1 layout. File ▸ Save keeps an 8- or 16-bit PNG, TIFF or JPEG in place only
+  `export_psd`'s, in Photoshop's mode-1 layout. File ▸ Save keeps a PNG, TIFF or JPEG in place only
   while `GrayDocument.saveLosses` is empty: the core's `flat_state` list read off the typed records
-  (`dr_precision_doc_flat_state_losses`, the byte list's words), plus depth, profile and metadata; `save_copy` and
-  `get_document.save_preservation` answer from the same list.
+  (`dr_precision_doc_flat_state_losses`, the byte list's words), plus depth, profile and metadata (a 32-bit
+  document's tone map in its 32-bit TIFF); `save_copy` and `get_document.save_preservation` answer from the same
+  list. The same rule holds for a Lab TIFF (`LabDocument.saveLosses`) and a 16- or 32-bit RGB file
+  (`PrecisionExportCapture.losses`, at `saveBitDepth`: a 32-bit document's TIFF is written at 32). A spot channel
+  is a line wherever the flat TIFF rule (`SpotChannels.flatTiffKeeps`) does not keep it, and that save composites
+  its overprint (a Lab TIFF refuses it).
 - **Refused for good, by name**: Remove Red Eye; Auto Color and the adjustments `GRAY_ADJUSTMENTS` marks
   `Unavailable` (Vibrance, Hue/Saturation, Color Balance, Black & White, Photo Filter, Channel Mixer, Color
   Lookup, Selective Color: "<name> is unavailable in a Grayscale document."); Neural Colorize (a Gray layer

@@ -1,10 +1,11 @@
-//! What a flattened file of a typed document (Grayscale, CMYK, Indexed
-//! Color, Bitmap) has no place for: the editable state of `flat_state`'s
-//! inventory, read off the typed records, then the two pixel lines of the
-//! byte list (`doc_preservation`) read over the typed storage's own rows.
-//! What a format carries of the profile, the metadata and the depth is the
-//! host's, per mode, beside this list (`GrayDocument.saveLosses`,
-//! `CmykDocument.saveLosses`).
+//! What a flattened file of a typed document (RGB at 16 or 32 bits,
+//! Grayscale, Lab Color, CMYK, Indexed Color, Bitmap) has no place for: the
+//! editable state of `flat_state`'s inventory, read off the typed records,
+//! then the two pixel lines of the byte list (`doc_preservation`) read over
+//! the typed storage's own rows. What a format carries of the profile, the
+//! metadata, the depth and a 32-bit document's tone map is the host's, per
+//! mode, beside this list (`GrayDocument.saveLosses`, `LabDocument.saveLosses`,
+//! `CmykDocument.saveLosses`, `PrecisionExportCapture.losses`).
 //!
 //! The one layer a flat file reopens with is named "Background", except in
 //! Indexed Color ("Index") and Bitmap ("Bitmap"), whose openers name it
@@ -139,6 +140,9 @@ impl PrecisionDocument {
             paths: !paths_kept,
             comps: !self.comps.is_empty(),
             global_light: self.global_light != crate::style::GlobalLight::default(),
+            // A float document's policy is its own (`linear_light` is
+            // always `None` there), and its file reopens linear.
+            evaluation: self.linear_light.is_some(),
         });
         if self.is_indexed() || self.is_bitmap() {
             return losses;

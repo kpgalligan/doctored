@@ -108,7 +108,9 @@ are the ones fixed before that first run, unchanged.
   BitsPerSample 8/16 and no tag 34675; white's first pixel is (max, 0, 0)
   exactly; gray's |a|, |b| ≤ 1 (8 bits) / ≤ 128 (16 bits, 1/256 units);
   `bit_depth 16` on the 8-bit document refuses with `TIFF_DEPTH_REFUSAL_8`;
-  `get_document`'s `save_preservation.save_types` lacks `public.tiff`.
+  `get_document`'s `save_preservation.save_types` of that plain document holds
+  `public.tiff`, and after `add_guide` lacks it, its `losses_by_format.tiff`
+  naming "guides and ruler origin".
 - **L16 exports.** A Lab document of L3's patches: `export_image png 8 srgb`
   writes colour type 2 or 6 within `EXPORT_BOUND8` (2) codes of `render` per
   patch; `png 16 profile document` writes depth 16, colour type 2 or 6, an
@@ -1086,6 +1088,8 @@ LAB_TOOLS = [
     'select_magic_wand', 'select_similar',
     # #1 spot channels (18b81bc6).
     'add_spot_channel', 'set_spot_channel', 'merge_spot_channel', 'set_channel_kind',
+    # Edit ▸ Define Pattern… (d81a3c71).
+    'define_pattern',
 ]
 # The close (module doc, L93): the 34 tools it lifts and the 24 it refuses for good by name.
 CLOSE_LIFTED = [
@@ -1920,9 +1924,16 @@ def main():
                     refusal = call('save_copy', fail=True, document_id=bdoc,
                                    path=str(folder / 'deep.tif'), format='tiff', bit_depth=16)
                     assert refusal == TIFF_DEPTH_REFUSAL_8, refusal
+                    # A plain one-layer Lab document's TIFF reopens as the document, so Save
+                    # keeps it in place; a guide, which the TIFF has no place for, takes it out.
                     types = call('get_document', document_id=bdoc)['save_preservation']['save_types']
-                    assert 'public.tiff' not in types, types
+                    assert 'public.tiff' in types, types
+                    call('add_guide', document_id=bdoc, orientation='vertical', position=2)
+                    guided = call('get_document', document_id=bdoc)['save_preservation']
+                    assert 'public.tiff' not in guided['save_types'], guided['save_types']
+                    assert 'guides and ruler origin' in guided['losses_by_format']['tiff'], guided
                     tiffs['save_types'] = types
+                    tiffs['save_types_with_guide'] = guided['save_types']
         receipts['l15'] = tiffs
         print('PASS l15: save_copy tiff writes CIELab at 8 and 16 bits', flush=True)
 

@@ -22,11 +22,14 @@ extension AgentServer {
                     embedProfile: document.embedColorProfile, stripMetadata: document.stripMetadata)
                 continue
             }
-            // An 8- or 16-bit Grayscale document's PNG, TIFF and JPEG and a CMYK document's TIFF
-            // and JPEG: the same answer Save asks (`ImageDocument.saveLosses`), so a type is in
+            // A Grayscale document's PNG, TIFF and JPEG, a CMYK document's TIFF and JPEG, a Lab
+            // Color document's TIFF and a 16- or 32-bit RGB document's every flat-save format:
+            // the same answer Save asks (`ImageDocument.saveLosses`), so a type is in
             // `save_types` exactly when its entry here is empty.
-            if (doc.isGray && !doc.isDuotone && !doc.isFloat && [.png, .tiff, .jpeg].contains(format))
-                || (doc.isCmyk && [.tiff, .jpeg].contains(format)) {
+            if (doc.isGray && !doc.isDuotone && [.png, .tiff, .jpeg].contains(format))
+                || (doc.isCmyk && [.tiff, .jpeg].contains(format))
+                || (doc.isLab && format == .tiff)
+                || (doc.isTypedRGB && ExportFormat.flatSaveCases.contains(format)) {
                 formats[format.fileExtension] = try document.saveLosses(for: format.utType.identifier)
                 continue
             }
@@ -37,8 +40,8 @@ extension AgentServer {
                 let bits = format.isFloatOnly ? 32
                     : format == .png || format == .tiff || format == .heic
                     || format == .avif ? 16 : 8
-                formats[format.fileExtension] = PrecisionExportCapture.losses(format: format,
-                    bitDepth: bits, isFloat: doc.isFloat, embedProfile: document.embedColorProfile,
+                formats[format.fileExtension] = try PrecisionExportCapture.losses(doc, format: format,
+                    bitDepth: bits, embedProfile: document.embedColorProfile,
                     stripMetadata: document.stripMetadata)
                 continue
             }

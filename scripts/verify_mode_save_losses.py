@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""File ▸ Save of a flat Grayscale, CMYK, Indexed Color or Bitmap file keeps the flat
-type only while the file can hold the document.
+"""File ▸ Save of a flat Grayscale, CMYK, Indexed Color, Bitmap, Lab Color, 32-bit (RGB
+or Grayscale) or 16-bit RGB file keeps the flat type only while the file can hold the
+document.
 
 The instance is owned by this file (`phase5_support.App`: a scratch MCP socket, a
 dummy API key, private preference folders), and only it is terminated. No key press
@@ -21,8 +22,21 @@ mode's tools allow, on a fresh open of the cell's file:
   named something the file really dropped;
 - a one-call state: `undo` puts the type back in `save_types`.
 
-KEPT cells stay in `save_types`: a Grayscale PNG with transparency and an Indexed
-PNG whose transparent index is used.
+Before and after every state, each flat type is in `save_as_types` (and, GIF aside,
+in `save_types`) exactly when its `losses_by_format` list is empty.
+
+PLAIN cells (Lab Color at 8 and 16 bits, 32-bit RGB and Grayscale, 16-bit RGB): the
+plain file is in `save_types` with an empty list, and its `save_copy` (a 32-bit
+document's at `bit_depth` 32, what Save writes) reports none and reopens with the
+plain file's structure, alpha, evaluation policy and tone map. Their states add the
+tone map (`set_tone_map` reinhard: a 32-bit TIFF reopens at clip), the linear-light
+evaluation policy (`set_evaluation`: a flat file reopens encoded) and a spot channel
+(`add_spot_channel`: a Lab TIFF refuses it; a Grayscale or 32-bit TIFF composites its
+overprint). A ROTATED cell: the app's own 32-bit TIFF, its Orientation made 6, opens
+turned (its canvas transposed) and still saves in place.
+
+KEPT cells stay in `save_types`: a Grayscale PNG with transparency, an Indexed PNG
+whose transparent index is used, and a Lab and a 32-bit TIFF with erased pixels.
 
 KEPT PATH cells: a flat TIFF writes every path it holds (`tiff_paths`), so a
 Grayscale (8 and 16 bits), CMYK, Indexed Color or Bitmap TIFF given a path stays in
@@ -85,7 +99,17 @@ STATES = {
     'erase': ([('eraser_stroke', {'layer': 0, 'points': [[1, 1], [3, 1]], 'size': 2,
                                   'hardness': 1})], 'pixel transparency'),
     'depth16': ([('convert_precision', {'mode': 'cmyk16'})], '16-bit CMYK precision'),
+    'tonemap': ([('set_tone_map', {'operator': 'reinhard'})],
+                'the tone map (a 32-bit TIFF reopens at clip)'),
+    'evaluation': ([('set_evaluation', {'policy': 'linear_light'})], 'linear-light evaluation'),
+    'spot': ([('add_spot_channel', {})], 'spot channels'),
 }
+# Every flat-save type, by its `losses_by_format` key.
+FLAT = {'png': 'public.png', 'jpg': 'public.jpeg', 'tiff': 'public.tiff',
+        'bmp': 'com.microsoft.bmp', 'gif': 'com.compuserve.gif',
+        'webp': 'org.webmproject.webp'}
+# A 32-bit document's copy at the depth File ▸ Save writes its TIFF.
+FLOAT = {'bit_depth': 32}
 
 ALL_GRAY = ['guide', 'ruler', 'channel', 'sampler', 'path', 'comp', 'mask', 'style',
             'opacity', 'hidden', 'blend', 'lock', 'label', 'rename', 'layer', 'light',
@@ -155,6 +179,9 @@ def main():
             shot['ruler'] = {k: v for k, v in (info.get('ruler') or {}).items() if k != 'unit'}
             precision = attempt('get_precision', document_id=doc)
             shot['bits'] = precision.get('bits_per_channel') if isinstance(precision, dict) else None
+            shot['evaluation'] = (info.get('evaluation') or {}).get('policy')
+            tone = attempt('get_tone_map', document_id=doc)
+            shot['tone_map'] = tone.get('tone_map') if isinstance(tone, dict) else None
             # The alpha the erase state clears, in the sample's own unit.
             sample = attempt('sample_color', document_id=doc, x=2, y=1)
             if isinstance(sample, dict):
@@ -174,7 +201,25 @@ def main():
                 print(f'FAIL {what}', flush=True)
             return ok
 
-        def run_cell(cell, base, fmt, states, expected=None):
+        def consistent(pres, tag):
+            """Each flat type is offered exactly when its list is empty: in
+            `save_as_types`, and in `save_types` too but for GIF, which only Save As
+            writes."""
+            ok = True
+            for key, uti in FLAT.items():
+                listed = pres['losses_by_format'].get(key)
+                if listed is None:
+                    continue
+                ok &= check((uti in pres['save_as_types']) == (listed == []),
+                            f'{tag}: {uti} in save_as_types exactly when losses_by_format.{key} '
+                            f'is empty ({listed}, {pres["save_as_types"]})')
+                if key != 'gif':
+                    ok &= check((uti in pres['save_types']) == (listed == []),
+                                f'{tag}: {uti} in save_types exactly when losses_by_format.{key} '
+                                f'is empty ({listed}, {pres["save_types"]})')
+            return ok
+
+        def run_cell(cell, base, fmt, states, expected=None, copy_args=None):
             if not wanted(cell):
                 return
             ftype = TYPES[fmt]
@@ -186,7 +231,9 @@ def main():
                 shutil.copyfile(base, path)
                 doc = call('open_document', path=str(path))['document']['id']
                 before = snapshot(doc)
-                ok = check(ftype in preservation(doc)['save_types'], f'{tag}: plain file saves in place')
+                plain = preservation(doc)
+                ok = check(ftype in plain['save_types'], f'{tag}: plain file saves in place')
+                ok &= consistent(plain, f'{tag} plain')
                 refused = None
                 for tool, arguments in calls:
                     reply = attempt(tool, document_id=doc, **arguments)
@@ -207,8 +254,10 @@ def main():
                             f'{tag}: Save As leads with .doctored ({after["save_as_types"][:2]})')
                 ok &= check(any(line in item for item in lost),
                             f'{tag}: losses_by_format.{KEYS[fmt]} names "{line}" ({lost})')
+                ok &= consistent(after, tag)
                 copy = folder / f'{cell}-{name}-copy.{fmt}'
-                reply = attempt('save_copy', document_id=doc, path=str(copy), format=fmt)
+                reply = attempt('save_copy', document_id=doc, path=str(copy), format=fmt,
+                                **(copy_args or {}))
                 if isinstance(reply, tuple):
                     # The flat write itself refuses (a hidden Index layer): nothing is lost
                     # silently, and there is no copy to reopen.
@@ -252,11 +301,78 @@ def main():
             pres = preservation(doc)
             ok = check(TYPES[fmt] in pres['save_types'],
                        f'{cell}: kept file saves in place ({pres["losses_by_format"].get(KEYS[fmt])})')
+            ok &= consistent(pres, cell)
             results.append((cell, 'PASS' if ok else 'FAIL'))
             print(f'{"PASS" if ok else "FAIL"} {cell}', flush=True)
             call('close_document', document_id=doc, discard_changes=True)
 
-        def kept_path(cell, base, fmt, guide_line=None):
+        def plain_cell(cell, base, fmt, copy_args=None):
+            """The plain file saves in place with an empty list, and its copy at Save's
+            depth names nothing and reopens as the same document."""
+            if not wanted(cell):
+                return
+            ftype = TYPES[fmt]
+            path = folder / f'{cell}.{fmt}'
+            shutil.copyfile(base, path)
+            doc = call('open_document', path=str(path))['document']['id']
+            before = snapshot(doc)
+            pres = preservation(doc)
+            lost = pres['losses_by_format'].get(KEYS[fmt])
+            ok = check(ftype in pres['save_types'] and lost == [],
+                       f'{cell}: plain file saves in place ({lost}, {pres["save_types"]})')
+            ok &= consistent(pres, cell)
+            copy = folder / f'{cell}-copy.{fmt}'
+            reply = attempt('save_copy', document_id=doc, path=str(copy), format=fmt,
+                            **(copy_args or {}))
+            if isinstance(reply, tuple):
+                ok &= check(False, f'{cell}: save_copy refused: {reply[1][:160]}')
+            else:
+                ok &= check(reply.get('flat_save_losses') == [],
+                            f'{cell}: save_copy names no loss ({reply.get("flat_save_losses")})')
+                again = call('open_document', path=str(copy))['document']['id']
+                reopened = snapshot(again)
+                changed = {k: (before[k], reopened.get(k)) for k in before
+                           if before[k] != reopened.get(k)}
+                ok &= check(reopened == before, f'{cell}: the copy reopens as the file ({changed})')
+                call('close_document', document_id=again, discard_changes=True)
+            call('close_document', document_id=doc, discard_changes=True)
+            results.append((cell, 'PASS' if ok else 'FAIL'))
+            print(f'{"PASS" if ok else "FAIL"} {cell}', flush=True)
+
+        def rotated_cell(cell, base):
+            """The app's own TIFF of a 6 × 4 canvas, its Orientation made 6: it opens
+            upright as 4 × 6 and still saves in place."""
+            if not wanted(cell):
+                return
+            data = bytearray(Path(base).read_bytes())
+            ok = check(data[:2] == b'II', f'{cell}: the app writes a little-endian TIFF')
+            ifd = int.from_bytes(data[4:8], 'little')
+            entries = int.from_bytes(data[ifd:ifd + 2], 'little')
+            found = False
+            for e in range(entries):
+                at = ifd + 2 + e * 12
+                if int.from_bytes(data[at:at + 2], 'little') == 274:
+                    ok &= check(int.from_bytes(data[at + 8:at + 10], 'little') == 1,
+                                f'{cell}: the app writes Orientation 1')
+                    data[at + 8:at + 10] = (6).to_bytes(2, 'little')
+                    found = True
+            ok &= check(found, f'{cell}: the TIFF states an Orientation')
+            path = folder / f'{cell}.tiff'
+            path.write_bytes(bytes(data))
+            doc = call('open_document', path=str(path))['document']['id']
+            info = call('get_document', document_id=doc)
+            ok &= check((info.get('width'), info.get('height')) == (4, 6),
+                        f'{cell}: opens turned ({info.get("width")}×{info.get("height")})')
+            pres = preservation(doc)
+            ok &= check(TYPES['tiff'] in pres['save_types'],
+                        f'{cell}: the turned file saves in place '
+                        f'({pres["losses_by_format"].get("tiff")})')
+            ok &= consistent(pres, cell)
+            call('close_document', document_id=doc, discard_changes=True)
+            results.append((cell, 'PASS' if ok else 'FAIL'))
+            print(f'{"PASS" if ok else "FAIL"} {cell}', flush=True)
+
+        def kept_path(cell, base, fmt, guide_line=None, copy_args=None):
             """A flat TIFF that writes every path keeps one: after `set_path` the type
             stays in `save_types`, no loss line names paths, and the `save_copy`
             reopens with the path; with a guide beside it, `guide_line` is named."""
@@ -275,8 +391,10 @@ def main():
                         f'{cell}: {ftype} stays in save_types with a path ({lost})')
             ok &= check(not any('paths' in item for item in lost),
                         f'{cell}: losses_by_format.{KEYS[fmt]} names no paths ({lost})')
+            ok &= consistent(pres, cell)
             copy = folder / f'{cell}-copy.{fmt}'
-            reply = attempt('save_copy', document_id=doc, path=str(copy), format=fmt)
+            reply = attempt('save_copy', document_id=doc, path=str(copy), format=fmt,
+                            **(copy_args or {}))
             if isinstance(reply, tuple):
                 ok &= check(False, f'{cell}: save_copy refused: {reply[1][:160]}')
             else:
@@ -398,6 +516,43 @@ def main():
                  ['guide', 'sampler', 'path', 'lock', 'label', 'rename', 'hidden'], ONE_LAYER)
         kept_path('bitmap-tiff kept path', base_file(bitmap, 'bitmap', 'tiff'), 'tiff',
                   TIFF_COMBINED)
+
+        # ---- Lab Color, 32 bits and 16-bit RGB ------------------------------------------
+        def new(**arguments):
+            return call('new_document', width=6, height=4, background='#808080',
+                        **arguments)['document']['id']
+
+        def erased(doc):
+            call('eraser_stroke', document_id=doc, layer=0, points=[[1, 1], [3, 1]], size=2,
+                 hardness=1)
+            return doc
+
+        # A Grayscale TIFF cannot keep a spot channel: it composites the overprint.
+        run_cell('gray8-tiff-spot', gray8_tiff, 'tiff', ['spot'])
+        for depth in (8, 16):
+            lab = new(color_mode='lab', depth=depth)
+            lab_tiff = base_file(lab, f'lab{depth}', 'tiff')
+            plain_cell(f'lab{depth}-tiff plain', lab_tiff, 'tiff')
+            run_cell(f'lab{depth}-tiff', lab_tiff, 'tiff', SOME + ['spot'])
+            kept_path(f'lab{depth}-tiff kept path', lab_tiff, 'tiff')
+            kept(f'lab{depth}-tiff kept transparency',
+                 base_file(erased(new(color_mode='lab', depth=depth)), f'lab{depth}-alpha', 'tiff'),
+                 'tiff')
+        for mode in ('rgb', 'gray'):
+            cell = f'float-{mode}-tiff'
+            float_tiff = base_file(new(color_mode=mode, depth=32), f'float-{mode}', 'tiff', **FLOAT)
+            plain_cell(f'{cell} plain', float_tiff, 'tiff', FLOAT)
+            run_cell(cell, float_tiff, 'tiff', SOME + ['tonemap', 'spot'], copy_args=FLOAT)
+            kept_path(f'{cell} kept path', float_tiff, 'tiff', copy_args=FLOAT)
+            kept(f'{cell} kept transparency',
+                 base_file(erased(new(color_mode=mode, depth=32)), f'float-{mode}-alpha', 'tiff',
+                           **FLOAT), 'tiff')
+            rotated_cell(f'{cell} rotated', float_tiff)
+        rgb16 = new(depth=16)
+        for fmt in ('tiff', 'png'):
+            rgb16_file = base_file(rgb16, 'rgb16', fmt)
+            plain_cell(f'rgb16-{fmt} plain', rgb16_file, fmt)
+            run_cell(f'rgb16-{fmt}', rgb16_file, fmt, SOME + ['evaluation'])
 
         # ---- Capture packets: the core's carry table has no IPTC slot in a PNG ------------
         gray_iptc = with_iptc(gray8_jpeg, folder / 'gray8-iptc.jpeg')

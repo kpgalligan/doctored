@@ -2,6 +2,14 @@ import AppKit
 
 // Byte encoding reserves metadata copies as well as pixel buffers.
 
+extension RasterDocument {
+    /// A 16- or 32-bit RGB document: typed, and in none of the colour modes, whose flat files
+    /// each mode's own list answers for.
+    var isTypedRGB: Bool {
+        precision != nil && !(isGray || isLab || isCmyk || isIndexed || isBitmap)
+    }
+}
+
 /// Capture the same immutable document and authoritative projection before a
 /// panel or worker can service another edit. This cannot accept a byte preview.
 struct PrecisionExportSource {
@@ -85,7 +93,10 @@ struct PrecisionExportCapture {
         self.embedProfile = embedProfile
         self.stripMetadata = stripMetadata
         self.floatSamples = floatSamples
+        // A TIFF the core cannot keep them in composites their overprint instead, as every
+        // other flat copy does, rather than refusing (`SpotChannels.flatTiffKeeps`).
         self.keepsSpotChannels = keepSpotChannels && format == .tiff && source.hasSpotChannels
+            && SpotChannels.flatTiffKeeps(source, bitDepth: bitDepth)
         if source.isGray || source.isIndexed || source.isBitmap || source.hasSpotChannels {
             // #1 phase 1b: profile document keeps gray (`gray_export`), and an Indexed document's
             // PNG, GIF or TIFF keeps its palette (`indexed_export`); since Bitmap phase 1c a Bitmap
@@ -152,25 +163,84 @@ struct PrecisionExportCapture {
             return try IndexedDocument.saveLosses(source, format: format, embedProfile: embedProfile,
                                               stripMetadata: stripMetadata)
         }
-        // An 8- or 16-bit Grayscale copy (one channel) loses what Save would at its depth
-        // (`GrayDocument.saveLosses`); a 32-bit one names its tone map below.
-        var result = source.isGray && !source.isDuotone && !source.isFloat
-            && [.png, .tiff, .jpeg].contains(format)
-            ? try GrayDocument.saveLosses(source, format: format, bitDepth: bitDepth,
-                                          embedProfile: embedProfile, stripMetadata: stripMetadata)
-            : Self.losses(format: format, bitDepth: bitDepth, isFloat: source.isFloat,
-                          embedProfile: embedProfile, stripMetadata: stripMetadata,
-                          floatSamples: floatSamples)
+        // A Grayscale copy (one channel) loses what Save would at its depth
+        // (`GrayDocument.saveLosses`), a 32-bit one's tone-mapped values included, and a half
+        // float TIFF its rounding.
+        var result: [String]
+        if source.isGray && !source.isDuotone && [.png, .tiff, .jpeg].contains(format) {
+            result = try GrayDocument.saveLosses(source, format: format, bitDepth: bitDepth,
+                                                 embedProfile: embedProfile, stripMetadata: stripMetadata)
+            if bitDepth == 32 && floatSamples == .f16 { result.append(Self.halfLoss) }
+        } else {
+            result = try Self.losses(source, format: format, bitDepth: bitDepth,
+                                     embedProfile: embedProfile, stripMetadata: stripMetadata,
+                                     floatSamples: floatSamples)
+        }
         // #1 1c-1: the flattened copy carries the spot channels' overprint, not the channels;
         // a TIFF that keeps them (1c-2a) loses nothing.
         if source.hasSpotChannels, !keepsSpotChannels { result.append(SpotChannels.flatLoss) }
         return result
     }
 
-    static func losses(format: ExportFormat, bitDepth: Int, isFloat: Bool, embedProfile: Bool,
-                       stripMetadata: Bool,
-                       floatSamples: ExportSettings.FloatSamples = .f32) -> [String] {
-        var result = ["editable document mode, embedded image originals, layers, masks, saved channels, guides, the ruler origin, layer comps and the global light (flattened copy)"]
+    /// The depth Save, Save As and Save a Copy write a typed RGB or Grayscale document's flat
+    /// `format` file at (`CapturedSave`), so the depth its loss list is read at: a Grayscale
+    /// document's `GrayDocument.defaultBitDepth`; a 32-bit document's TIFF at 32, its exact float
+    /// copy, which reopens as the same document; otherwise the Export sheet's remembered depth,
+    /// 16 at most.
+    static func saveBitDepth(_ document: ImageDocument, format: ExportFormat) -> Int {
+        guard let source = document.doc else { return 8 }
+        if source.isGray { return GrayDocument.defaultBitDepth(source, format: format) }
+        if source.isFloat && format == .tiff { return 32 }
+        return document.exportBitDepth == 32 ? 16 : document.exportBitDepth
+    }
+
+    /// The depth a typed RGB document's flat `format` file is listed at (`saveLosses`): Save's
+    /// own (`saveBitDepth`) where the format holds it, else 8, all a JPEG, BMP, GIF or WebP holds.
+    static func listedBitDepth(_ document: ImageDocument, format: ExportFormat) -> Int {
+        [.png, .tiff].contains(format) ? saveBitDepth(document, format: format) : 8
+    }
+
+    /// The line a half-float (f16) copy of a 32-bit document names.
+    static let halfLoss = "32-bit float precision (each sample is rounded to the nearest 16-bit half)"
+
+    /// The line a 32-bit document's below-32-bit copy names for its float values; nil at 32.
+    static func floatDepthLoss(bitDepth: Int) -> String? {
+        switch bitDepth {
+        case 16:
+            return "32-bit float values and the range above white "
+                + "(tone-mapped to 16-bit codes through the document's tone map)"
+        case 8:
+            return "32-bit float values and the range above white "
+                + "(tone-mapped through the document's tone map and reduced to 256 levels)"
+        default:
+            return nil
+        }
+    }
+
+    /// The line a 32-bit document's 32-bit TIFF names for a tone map other than clip, which the
+    /// file has no place for (the float open sets clip); nil for clip.
+    static func toneMapLoss(_ source: RasterDocument) -> String? {
+        guard let map = source.toneMap, map.operator != .clip else { return nil }
+        return "the tone map (a 32-bit TIFF reopens at clip)"
+    }
+
+    /// What a flat `format` copy of `source` at `bitDepth` loses. A typed RGB document (16 or
+    /// 32 bits) names its editable state per kind (the core's `flatStateLosses`, a TIFF keeping
+    /// the paths), the depth, its tone map at 32 bits, the profile and the capture packets
+    /// (`flatPacketLosses`): `[]` only when the file reopens as the same document. Every other
+    /// mode's copy here changes its mode, which the first line names whole.
+    static func losses(_ source: RasterDocument, format: ExportFormat, bitDepth: Int,
+                       embedProfile: Bool, stripMetadata: Bool,
+                       floatSamples: ExportSettings.FloatSamples = .f32) throws -> [String] {
+        let rgb = source.isTypedRGB
+        let isFloat = source.isFloat
+        var result: [String]
+        if rgb, let typed = source.precision {
+            // Transparency is each format's own line below (JPEG, GIF, Radiance).
+            result = try typed.flatStateLosses(alphaKept: true, tiff: format == .tiff)
+        } else {
+            result = ["editable document mode, embedded image originals, layers, masks, saved channels, guides, the ruler origin, layer comps and the global light (flattened copy)"]
+        }
         if isFloat && bitDepth == 32 {
             // The exact copy keeps the float samples; each container names
             // what it has no place for.
@@ -179,19 +249,16 @@ struct PrecisionExportCapture {
                 result.append("values below zero (written as zero)")
                 result.append("32-bit float precision (RGBE keeps an 8-bit mantissa per channel under one shared exponent)")
             } else if floatSamples == .f16 {
-                result.append("32-bit float precision (each sample is rounded to the nearest 16-bit half)")
+                result.append(Self.halfLoss)
             }
             if format.isFloatOnly {
                 result.append("the embedded colour profile, capture metadata and print resolution "
                     + "(\(format.displayName) carries none; the file states the document profile's primaries instead)")
                 return result
             }
-        } else if isFloat && bitDepth == 16 {
-            result.append("32-bit float values and the range above white "
-                + "(tone-mapped to 16-bit codes through the document's tone map)")
-        } else if isFloat && bitDepth == 8 {
-            result.append("32-bit float values and the range above white "
-                + "(tone-mapped through the document's tone map and reduced to 256 levels)")
+            if rgb, format == .tiff, let line = toneMapLoss(source) { result.append(line) }
+        } else if isFloat, let line = floatDepthLoss(bitDepth: bitDepth) {
+            result.append(line)
         } else if bitDepth == 8 {
             result.append("16-bit channel precision (reduced to 256 levels)")
         }
@@ -202,7 +269,11 @@ struct PrecisionExportCapture {
         if format == .jpeg { result.append("transparency (composited onto white) and lossless pixel values") }
         if format == .gif { result.append("full-color and fractional-alpha values (palette encoding)") }
         if !embedProfile || !ExportCapabilities.canEmbedProfile(format) { result.append("embedded color profile") }
-        if stripMetadata { result.append("capture metadata") }
+        if rgb {
+            result += source.flatPacketLosses(format: format, stripMetadata: stripMetadata)
+        } else if stripMetadata {
+            result.append("capture metadata")
+        }
         return result
     }
 

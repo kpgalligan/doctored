@@ -59,6 +59,14 @@ enum SpotChannels {
         + "(each ink at its coverage, Multiply at 0 % solidity toward covering at 100 %), Doctored's "
         + "reading; the file holds no spot channels."
 
+    /// Whether a flat TIFF of `doc` written at `bitDepth` keeps its spot channels as extra
+    /// samples: an RGB or CMYK document at 8 or 16 bits, never Grayscale, Duotone or Lab. The
+    /// core's rule, word for word (`psd_export_preflight::spots_written_for`, `FlatTiff`), so a
+    /// save asks to keep them only where the core writes them.
+    static func flatTiffKeeps(_ doc: RasterDocument, bitDepth: Int) -> Bool {
+        !doc.isLab && !doc.isGray && bitDepth <= 16
+    }
+
     /// The default ink for New Spot Channel: red at 0 % solidity.
     static var defaultInk: SpotInk {
         SpotInk(lab: RasterLab.lab(srgb: [1, 0, 0]) ?? [54.29, 80.81, 69.89], solidity: 0)
