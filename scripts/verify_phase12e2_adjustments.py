@@ -67,6 +67,8 @@ from support import HostApp
 CANVAS = (16, 8)
 SAMPLE = (4, 3)
 MID_OPACITY = 0.25
+# The opacity composites as its BYTE at 8 and 16 bits (`opacity_byte`): 64 / 255.
+MID_UNIT = round(MID_OPACITY * 255) / 255
 FLOAT_FIXTURE = ROOT / 'core/tests/fixtures/float_11f/scene.tiff'
 
 # The fixture's table, bottom-first, as (name, nesting level, clipped).
@@ -74,14 +76,15 @@ FIXTURE_TABLE = [('Background', 0, False), ('Mid', 1, False), ('Group', 0, False
 
 # Where an inserted layer lands and what the composite then reads, per
 # position. The oracle is straight-alpha source-over in f64, written out:
-#   above      over(invert(white), white at 0.25) = 0.25*1 + 0.75*0 = 0.25
-#   into_group over(white, invert(white) at 0.25) = 0.25*0 + 0.75*1 = 0.75
-#   top        invert(white)                                        = 0.0
+#   above      over(invert(white), white at m) = m*1 + (1 - m)*0 = m
+#   into_group over(white, invert(white) at m) = m*0 + (1 - m)*1 = 1 - m
+#   top        invert(white)                                    = 0.0
+# with m = MID_UNIT, the composited opacity byte.
 POSITIONS = {
-    'above': {'anchor': 'Background', 'landing': 1, 'level': 0, 'value': 0.25,
+    'above': {'anchor': 'Background', 'landing': 1, 'level': 0, 'value': MID_UNIT,
               'table': [('Background', 0, False), ('Fx', 0, False),
                         ('Mid', 1, False), ('Group', 0, False)]},
-    'into_group': {'anchor': 'Group', 'landing': 2, 'level': 1, 'value': 0.75,
+    'into_group': {'anchor': 'Group', 'landing': 2, 'level': 1, 'value': 1.0 - MID_UNIT,
                    'table': [('Background', 0, False), ('Mid', 1, False),
                              ('Fx', 1, False), ('Group', 0, False)]},
     'top': {'anchor': 'Background', 'landing': 3, 'level': 0, 'value': 0.0,
@@ -278,7 +281,7 @@ def gate_a5(app, receipts):
         app.call('add_adjustment_layer', document_id=document,
                  op='shadows_highlights', params={'shadows': {'amount': 0.5}, 'radius': 8.0},
                  name='SH', layer=anchor, position='top')
-        names = [row['name'] for row in table(app, document)]
+        names = [name for name, _, _ in table(app, document)]
         assert 'SH' in names, names
         evaluation = app.call('get_evaluation', document_id=document)
         assert evaluation['policy'] == 'linear_light', evaluation

@@ -33,8 +33,9 @@ enum EvaluationCore {
 extension RasterPrecisionDocument {
     var evaluationCode: Int32 { dr_precision_doc_evaluation(ptr) }
 
-    /// The first operator linear-light evaluation cannot evaluate; nil when
-    /// there is nothing to refuse.
+    /// Why the document cannot evaluate under linear light (a float
+    /// document's own table, or a stale transfer); nil when there is nothing
+    /// to refuse.
     func linearLightRefusalText() -> String? {
         guard let raw = dr_precision_doc_linear_light_refusal(ptr) else { return nil }
         defer { dr_string_free(raw) }

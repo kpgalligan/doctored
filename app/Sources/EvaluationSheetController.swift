@@ -10,11 +10,10 @@ import AppKit
 ///
 /// The sheet exists because the choice is consequential and reversible only by
 /// choosing again: linear light changes what every blend, opacity and mask
-/// means, and it REFUSES the operators this phase has not migrated. So the
-/// card carries three things a menu toggle could not: the live preview of the
-/// candidate projection, a measured readout of how far it sits from the one on
-/// screen, and — when the document cannot take the policy — the core's own
-/// sentence naming the layer and the operator.
+/// means. So the card carries three things a menu toggle could not: the live
+/// preview of the candidate projection, a measured readout of how far it sits
+/// from the one on screen, and — when the document cannot take the policy —
+/// the core's own sentence saying why.
 ///
 /// The preview follows `ConvertProfileSheetController`'s rules exactly: the
 /// handle it renders is captured at init (`baseDoc` / `precisionCapture`),

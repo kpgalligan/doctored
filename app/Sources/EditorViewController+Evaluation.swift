@@ -9,8 +9,8 @@ import AppKit
 /// the sheet previewed, so an edit that slipped in while the dialog was open
 /// survives.
 ///
-/// A refusal — a profile the policy cannot decode, or an operator this phase
-/// does not evaluate — is a SENTENCE, not a bare nil, so it is carried out of
+/// A refusal — a profile the policy cannot decode — is a SENTENCE, not a
+/// bare nil, so it is carried out of
 /// the non-throwing transform and presented instead of beeping.
 extension EditorViewController {
     @objc func showEvaluation(_ sender: Any?) {

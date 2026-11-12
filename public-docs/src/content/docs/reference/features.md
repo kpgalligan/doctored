@@ -1269,14 +1269,13 @@ The design record behind each area is in the repository's
   profile, compositing at f32 in linear light and re-encoding once at the
   output. It changes what every blend, opacity and mask means, so the sheet
   previews the result on the canvas and measures how far it sits from the
-  picture behind it. Linear light is deliberately partial and says so: it
-  evaluates Normal and the 19 separable blend modes, opacity, masks, groups,
-  clipping and pointwise adjustment layers, and it REFUSES the rest — the
-  non-separable modes, Dissolve, layer styles, Blend If, a guided
-  Shadows/Highlights and
-  Image Size — by naming the layer and the operator, at the switch and at
-  every later edit that would add one. Switching back to encoded restores
-  them, and an encoded document is byte-for-byte what it always was.
+  picture behind it. Linear light evaluates every blend mode, opacity, masks,
+  groups, clipping, adjustment layers (a guided Shadows/Highlights included),
+  layer styles and Blend If — whose ranges, like adjustment kernels, still read
+  display levels — and Image Size, Free Transform, Warp and a RAW layer's
+  re-render resample in linear light. Painting, fills, filters, Liquify and the
+  mesh warps still edit the stored numbers. An encoded document is
+  byte-for-byte what it always was.
   **Image ▸ Tone Map…** is the same kind of question one step further out.
   Opening a genuine floating-point TIFF, a 32-bit RGB PSD or PSB, an OpenEXR
   file or a Radiance `.hdr` file gives you a **32-bit float document**, and

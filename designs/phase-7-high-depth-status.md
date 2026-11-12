@@ -1,6 +1,6 @@
 # Phase 7 high-depth editing — overview (ADR)
 
-- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11), [#12](https://github.com/kpgalligan/doctored/issues/12))
+- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 7A–7E, 2026-09-10 (downstream notes through Phase 10D/9I)
 - **Original:** [archive/phase-7-high-depth-status.md](../archive/phase-7-high-depth-status.md) — full history, measurements, receipts
 - **Key commits:** `082ccb1` (7A), `2d9bc69` (7B), `4061646` (7C), `7e60190` (7D), `3bd4349` (7E)
@@ -50,7 +50,7 @@ remaining gap to a named later slice. Starting Phase 7 did not close the
 ## Open items (verified 2026-09-26)
 - `DONE` — edge brushing and colour decontamination ship in Select and Mask (2026-10-11; `core/src/edge_refine.rs`,
   `core/src/foreground_solve.rs`); the Phase 6 / 9I quality gate is no longer a ship condition (carryover P7-12).
-- `OPEN` [#12](https://github.com/kpgalligan/doctored/issues/12) — linear-light phases 2–3 (carryover P7-24).
+- `DONE` — linear-light phases 2–3 (carryover P7-24, 2026-11-12; [11E](phase-11e-linear-light-status.md)).
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — full-frame fallbacks and stage-only cancellation,
   slow 24 MP full projections/conversions (carryover P7-31).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — noncancellable compound export/codecs,

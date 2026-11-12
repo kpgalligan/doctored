@@ -890,10 +890,10 @@ final class ImageDocument: NSDocument {
     /// sentence that refuses publishing `updated` over the current `doc`, or
     /// nil. In order: a `record` step's retained source (RetainedImagePolicy);
     /// then, only when `updated` is given, the evaluation policy's
-    /// linear-light refusal (DocumentEvaluation.swift — an edit that would put
-    /// an unmigrated operator into a linear-light document is refused BY NAME,
-    /// so the user meets the sentence on the edit rather than on the next
-    /// render; nil, without any walk, for every encoded document); then a
+    /// linear-light refusal (DocumentEvaluation.swift — a float document's own
+    /// table and the core's stale-transfer net, met on the edit rather than on
+    /// the next render; nil, without any comparison, for every encoded
+    /// document); then a
     /// persisted warp the edit would drop, unless `allowWarpChange` or
     /// `intentionalDepthConversion`. `applyEdit` asks for the record part
     /// before its transform runs (`updated: nil`) and the rest after;

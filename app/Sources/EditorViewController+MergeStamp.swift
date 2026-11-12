@@ -220,7 +220,7 @@ extension EditorViewController {
     /// takes the same narrower floor Merge Visible does above, one leaf
     /// rather than two, so an enabled item can never miss the CONTRIBUTING
     /// RASTER floor. That floor is all this covers: `preflight_raster_addition`'s
-    /// record/capacity refusal and an unmigrated `linear_light` render refusal
+    /// record/capacity refusal and a `linear_light` render refusal (a stale transfer)
     /// still reach the host as nil, and those still beep.
     var canStampVisible: Bool {
         guard let doc = document?.doc else { return false }

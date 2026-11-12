@@ -64,8 +64,8 @@ usual FFI three-file lockstep.
   `core/src/icc*.rs`, `core/src/soft_proof.rs`), high-depth and float documents (Phase 7, 11F). Live filter
   stacks (9A/9B) were also taken up, then removed for v1 on 2026-10-10
   ([removal ADR](convert-to-smart-object-status.md)).
-- `DONE` — Linear-light compositing as a per-document evaluation policy (11E). The remaining migration is
-  [#12](https://github.com/kpgalligan/doctored/issues/12); per-layer blend/composite-space axes are not built.
+- `DONE` — Linear-light compositing as a per-document evaluation policy (11E, every operator since
+  2026-11-12); per-layer blend/composite-space axes are not built.
 - `DONE` — The shared immutable tile store (13B-1, `core/src/tile_store.rs`). The rest of the tiled backing is
   [#10](https://github.com/kpgalligan/doctored/issues/10) and the canvas display through the regional render
   path is [#9](https://github.com/kpgalligan/doctored/issues/9); mipmaps are not planned.

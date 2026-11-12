@@ -18,8 +18,9 @@ tolerance is widened after the fact.
   to the ungrouped one.
 - **E2 a 16-bit document.** The same shape at typed depth, exported through
   `export_image` at `bit_depth: 16` and read by the 16-bit PNG reader below.
-  The typed transcode is CONTINUOUS, so the oracle's adjustment is a plain
-  linear gain. **T2** mean <= 2, max <= 8 codes of 65535. The same
+  The typed transcode is CONTINUOUS, so the oracle's adjustment is
+  `document_v2` Exposure (its pure gamma 2.2) with no rounding between.
+  **T2** mean <= 2, max <= 8 codes of 65535. The same
   isolated-group identity is asserted here on the fixture's own `All` group,
   which typed grouping builds around every top-level layer at once.
 - **E3 persistence.** `save_copy` to `.rz`, whose wrapper chain carries the
@@ -69,6 +70,10 @@ from phase5_support import App
 # ---- the tolerances, fixed here BEFORE anything is measured ----------------
 T1_MEAN_CODES = 0.05
 T1_MAX_CODES = 1
+# A layer opacity of 0.5 composites as its opacity byte (`opacity_byte`).
+OPACITY_HALF = round(0.5 * 255) / 255
+# `document_v2` Exposure's exponent in an sRGB-shaped profile (`adjust_calibrated`).
+EXPOSURE_GAMMA = 2.2
 T2_MEAN_CODES = 2.0
 T2_MAX_CODES = 8
 
@@ -191,22 +196,27 @@ def over(backdrop, source, alpha, mode):
     return out
 
 
+def exposure_kernel(encoded, gain):
+    """`document_v2` Exposure on one encoded channel (`adjust_calibrated`): an
+    sRGB-shaped profile's channel at its effective pure gamma 2.2, the gain,
+    the clamp, and back through the same power."""
+    return min(max(encoded ** EXPOSURE_GAMMA * gain, 0.0), 1.0) ** (1.0 / EXPOSURE_GAMMA)
+
+
 def exposure_byte_transcode(linear, gain):
     """The BYTE adjustment transcode (`doc_evaluation`): the backdrop is
-    re-encoded to a LATTICE code for the kernel, the kernel is
-    `document_v2` exposure (decode, gain, encode) on that code, and its
-    answer is decoded straight back."""
+    re-encoded to a LATTICE code for the kernel, the kernel's answer is
+    rounded to the 8-bit grid (the byte path's rule) and decoded straight
+    back."""
     encoded = encode_code(linear) / 255.0
-    kernel = encode_code(srgb_decode(encoded) * gain) / 255.0
+    kernel = round(exposure_kernel(encoded, gain) * 255.0) / 255.0
     return srgb_decode(kernel)
 
 
 def exposure_typed_transcode(linear, gain):
-    """The TYPED transcode is continuous, so every round trip cancels and
-    the kernel is a plain linear gain."""
-    encoded = srgb_encode(linear)
-    kernel = srgb_encode(srgb_decode(encoded) * gain)
-    return srgb_decode(kernel)
+    """The TYPED transcode is continuous: the kernel's answer is decoded with
+    no rounding between."""
+    return srgb_decode(exposure_kernel(srgb_encode(linear), gain))
 
 
 # ----------------------------------------------------------- PNG plumbing --
@@ -356,8 +366,9 @@ def oracle(base, maximum, transcode, exposure_last):
                                     transcode(value[2], gain), value[3]]
             if not exposure_last:
                 acc = adjust(acc)
-            # The Multiply layer at 50 %.
-            acc = over(acc, source, codes[3] * 0.5, 'multiply')
+            # The Multiply layer at 50 %, which composites at its opacity
+            # BYTE, 128 / 255 (`opacity_byte`).
+            acc = over(acc, source, codes[3] * OPACITY_HALF, 'multiply')
             # The masked Screen layer at 100 %.
             coverage = 1.0 if in_mask(x, y) else 0.0
             acc = over(acc, source, codes[3] * coverage, 'screen')

@@ -19,8 +19,9 @@ import Foundation
 /// `dr_*` call behind these lives in `DoctoredCore+Evaluation.swift`.
 ///
 /// The invariant worth restating here, because two host guards depend on it:
-/// a linear-light document REFUSES every operator this phase has not migrated,
-/// by name, and it refuses at the render as well as at the edit. The guards in
+/// whatever a linear-light document refuses — today only a held transfer that
+/// no longer belongs to its profile — it refuses at the render as well as at
+/// the edit. The guards in
 /// `ImageDocument.applyEdit` and `AgentServer.performGroupedEdit` are there so
 /// the user meets the sentence when they make the edit rather than when the
 /// canvas next tries to draw.
@@ -137,9 +138,9 @@ extension RasterDocument {
         EvaluationPolicy.allCases.first { $0.code == evaluationCode } ?? .encoded
     }
 
-    /// The first operator linear-light evaluation cannot evaluate, as the
-    /// sentence to show; nil when there is nothing to refuse — which the core
-    /// answers without any walk for an encoded document, so this is cheap
+    /// Why the document cannot evaluate under its policy, as the sentence to
+    /// show; nil when there is nothing to refuse — which the core answers
+    /// without any comparison for an encoded document, so this is cheap
     /// enough to ask on every edit.
     func linearLightRefusal() -> String? { linearLightRefusalText() }
 

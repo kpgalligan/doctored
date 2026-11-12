@@ -995,9 +995,9 @@ impl PrecisionDocument {
         if self.cmyk.is_some() {
             return Err(crate::cmyk_document::refused_sentence("RGB compositing"));
         }
-        // The evaluation policy's transfer, and with it the refusal walk: a
-        // `linear_light` document carrying an operator this phase does not
-        // evaluate cannot build a scene at all (`precision_evaluation`).
+        // The evaluation policy's transfer, and with it the staleness net: a
+        // `linear_light` document whose tables no longer belong to its
+        // profile cannot build a scene at all (`precision_evaluation`).
         let transfer = self.transfer()?.cloned();
         // D5 at 16 bits: the Background snapshot is paid for only when some
         // contributing style actually asks for a knockout

@@ -331,7 +331,7 @@ extension EditorViewController {
                 // (`EditorViewController+MergeStamp.swift`), so an enabled
                 // item can never miss the CONTRIBUTING RASTER floor — that
                 // floor only: a capacity refusal from
-                // `preflight_raster_addition` or an unmigrated `linear_light`
+                // `preflight_raster_addition` or a `linear_light` (stale-transfer)
                 // render refusal still lands as nil and beeps.
                 "mergeDown:", "mergeVisible:", "linkLayers:", "unlinkLayers:",
                 "lockTransparency:", "lockPixels:", "lockPosition:", "lockAll:",
@@ -599,8 +599,8 @@ extension EditorViewController {
         // Visible validate against `contributingRasterLeaves()` at depth
         // (`EditorViewController+MergeStamp.swift`), so an enabled item
         // can never miss the CONTRIBUTING RASTER floor — that floor only:
-        // a capacity refusal from `preflight_raster_addition` or an
-        // unmigrated `linear_light` render refusal still lands as nil
+        // a capacity refusal from `preflight_raster_addition` or a
+        // `linear_light` (stale-transfer) render refusal still lands as nil
         // and beeps.
         "mergeDown:", "mergeVisible:", "linkLayers:", "unlinkLayers:",
         "lockTransparency:", "lockPixels:", "lockPosition:", "lockAll:",

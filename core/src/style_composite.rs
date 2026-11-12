@@ -301,9 +301,9 @@ impl DrDocument {
     }
 
     /// The document's compositing environment. `transfer` comes from
-    /// [`DrDocument::transfer`], which is also the evaluation policy's refusal
-    /// walk — every caller asks for it there rather than reading the field, so
-    /// a projection of an unmigrated stack cannot be built at all.
+    /// [`DrDocument::transfer`], which is also the evaluation policy's
+    /// staleness net — every caller asks for it there rather than reading the
+    /// field, so a projection through stale tables cannot be built at all.
     pub(crate) fn composite_env<'a>(
         &'a self,
         colors: Option<&'a AuthoredColors>,

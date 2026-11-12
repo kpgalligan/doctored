@@ -93,7 +93,7 @@ marked "not built" with no issue is inventory, with no owner yet.
 |---|---|---|
 | Files | HEIC export; PDF/SVG raster import; PDF export | DONE (plan §11D; `Export as PDF…`) |
 | Files | AVIF / JPEG XL export | DONE — AVIF and lossless JPEG XL, with OpenEXR and Radiance HDR (`DoctoredCore+Export.swift`) |
-| Files | Linear-light compositing | DONE phase 1 (11E); the rest OPEN → [#12](https://github.com/kpgalligan/doctored/issues/12) |
+| Files | Linear-light compositing | DONE (11E; every operator since 2026-11-12) |
 | Files | 16-bit / float pixels | DONE (Phases 7, 11F) |
 | Files | EXIF on RAW/HEIC/TIFF paths | DONE (plan §3B, §11D host-decoder packet bridge) |
 | Files | ExtendedXMP read/write | DONE — `metadata_xmp_extended.rs` merges on open, `metadata_xmp_split.rs` splits on JPEG export |

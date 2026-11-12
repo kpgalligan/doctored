@@ -901,11 +901,11 @@ impl DrDocument {
         job: crate::job_control::JobContext<'_>,
     ) -> Result<RgbaImage, String> {
         crate::adjust_calibrated::validate_context_with_job(&self.layers, &self.profile, job)?;
-        // The evaluation policy's transfer, and with it the refusal walk: a
-        // `linear_light` document carrying an operator this phase does not
-        // evaluate cannot project at all, and says which layer and which
-        // operator (`doc_evaluation`). An encoded document gets `None` here
-        // and takes byte-for-byte the path it always took.
+        // The evaluation policy's transfer, and with it the staleness net: a
+        // `linear_light` document whose tables no longer belong to its
+        // profile cannot project at all (`doc_evaluation`). An encoded
+        // document gets `None` here and takes byte-for-byte the path it
+        // always took.
         let transfer = self.transfer()?;
         let px = self.width as usize * self.height as usize;
         let mut acc = vec![[0.0f32; 4]; px];

@@ -1,6 +1,6 @@
 # High-depth operation support matrix (ADR)
 
-- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11), [#12](https://github.com/kpgalligan/doctored/issues/12), [#31](https://github.com/kpgalligan/doctored/issues/31)) (the matrix below is the live summary; its float column, masks and RAW rows re-verified against code 2026-10-30)
+- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11), [#31](https://github.com/kpgalligan/doctored/issues/31)) (the matrix below is the live summary; its float column, masks and RAW rows re-verified against code 2026-10-30)
 - **Phase / dates:** 7A audit → 7E public matrix, 2026-09-10; amended through Phases 8–12
 - **Original:** [archive/phase-7-operation-support.md](../archive/phase-7-operation-support.md) — full history, the original RGBA8 boundary audit, per-slice notes
 - **Key commits:** `082ccb1` (audit), `3bd4349` (public gate); later rows `e8af30c` (12E-2c), `07d9153` (12F-2)
@@ -48,7 +48,7 @@ issues; this matrix states only what works today.
 | Clipboard | Cut/Copy/Copy Merged/Paste, New from Clipboard; Layer Via Copy / Via Cut (`layer_via_copy`/`layer_via_cut`) | Cut/Copy/Copy Merged/Paste, New from Clipboard; Layer Via Copy / Via Cut | Layer Via rasterizes at every depth: the new layer keeps no description or style |
 | Readouts | Native sample sums/means; histograms with exact endpoint counts; selection/backdrop scopes | Sample, histogram (scalar: masks/channels) | 256 display bins are not clipping counts |
 | Output | Native save, PNG/TIFF16 from captured projection, export workspace, layer export, PSD; soft proof of the display codes, `render_proof exact` for the full composite | Native save, export | `export_pdf` writes an 8- or 16-bit page; soft proof refused at 32-bit float |
-| Evaluation policy | `encoded` / `linear_light` (11E) | Holds linear light by definition | Under `linear_light`, unmigrated operators refuse by name ([#12](https://github.com/kpgalligan/doctored/issues/12)) |
+| Evaluation policy | `encoded` / `linear_light` (11E) | Holds linear light by definition | Under `linear_light` every operator evaluates; storage edits (paint, fill, filters, mesh warps) still write stored codes ([11E](phase-11e-linear-light-status.md) D9) |
 
 ## Rejected alternatives
 - Per-surface capability lists in UI, MCP and Actions separately — they drift; one host gate over one core table.
@@ -168,7 +168,7 @@ issues; this matrix states only what works today.
 - `DONE` — typed global light and native group open state.
 - `DONE` — advanced cutout refinement: edge brushing and colour decontamination ship in Select and Mask (2026-10-11;
   P7-12).
-- `OPEN` [#12](https://github.com/kpgalligan/doctored/issues/12) — linear-light phases 2–3 (P7-24).
+- `DONE` — linear-light phases 2–3 (P7-24, 2026-11-12).
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — full-frame projection fallback and stage-only
   cancellation (P7-31).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — payload compression and codec cancellation (P7-32);

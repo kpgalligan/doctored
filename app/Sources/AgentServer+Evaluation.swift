@@ -12,12 +12,12 @@ import AppKit
 /// test `AgentServer+Guides.swift`'s header states for the view-preference
 /// exemption, and this passes all four parts of it.
 ///
-/// THE REFUSAL IS THE POINT. Linear-light evaluation refuses every operator
-/// this phase has not migrated, by name, and it refuses at the RENDER as well
-/// as at the switch. `performGroupedEdit`'s pre-check is what turns that into
-/// an in-band `ToolError` on the tool that would have introduced it — a model
-/// that sets a Hue blend mode on a linear document is told which layer and
-/// which operator, and the document is left exactly as it was.
+/// Linear-light evaluation evaluates every operator (P7-24); what it can still
+/// refuse, at the RENDER as well as at the switch, is a profile with no
+/// matrix/TRC model and a held transfer that no longer belongs to the
+/// document's profile. `performGroupedEdit`'s pre-check turns a refusal into
+/// an in-band `ToolError` on the tool that caused it, leaving the document
+/// exactly as it was.
 extension AgentServer {
     /// This file's MCP tools; merged by AgentServer+Registry.swift.
     static let evaluationHandlers: [String: ToolHandler] = [

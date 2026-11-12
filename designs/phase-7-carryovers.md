@@ -1,6 +1,6 @@
 # Phase 7 carryover ledger (closed record)
 
-- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11), [#12](https://github.com/kpgalligan/doctored/issues/12), [#31](https://github.com/kpgalligan/doctored/issues/31)); closed as a ledger 2026-10-30, its open rows tracked as those issues
+- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11), [#31](https://github.com/kpgalligan/doctored/issues/31)); closed as a ledger 2026-10-30, its open rows tracked as those issues
 - **Original:** [archive/phase-7-carryovers.md](../archive/phase-7-carryovers.md) — each row's receiving slice, close criterion and verification evidence
 
 ## Context
@@ -38,7 +38,7 @@ issues. What each depth admits today is in the
 - P7-21 — high-depth PSD import and export of layer effects (`lfx2`), fill opacity (`iOpa`) and Blend If, in both directions at both depths — verified in [10C](phase-10c-constructs-status.md)
 - P7-22 — an explicit appearance-preserving profile conversion (`adjustments: "preserve_appearance"`) beside the keep-parameters default — verified in [11C](phase-11c-output-color-status.md)
 - P7-23 — the 11D format additions' named capability and loss matrix — verified in [11D](phase-11d-format-additions-status.md), whose matrix is the current per-format record
-- P7-24 — linear-light evaluation as an explicit per-document policy — phase 1 verified in [11E](phase-11e-linear-light-status.md); phases 2–3 open: [#12](https://github.com/kpgalligan/doctored/issues/12) (Image Size and premultiplied-linear resampling, which covers a RAW layer's re-render, Free Transform and warp; the non-separable modes, Dissolve, layer styles and Blend If, the Shadows/Highlights guide, and whether destructive paint, fill and blur take a domain (today they are storage edits and are not refused))
+- P7-24 **(closed 2026-11-12)** — linear-light evaluation as an explicit per-document policy — verified in [11E](phase-11e-linear-light-status.md): phase 1, then phases 2–3 (premultiplied-linear resampling for Image Size, Free Transform, warp and a RAW layer's re-render; the non-separable modes, Dissolve, layer styles, Blend If and the Shadows/Highlights guide). Destructive paint, fill and blur stay storage edits (the ADR's D9).
 - P7-25 — the 32-bit float document mode (linear light, extended range, negative components kept until display and SDR output) — verified in [11F](phase-11f-hdr-float-status.md); `convert_precision` mode `rgba32` also promotes an 8- or 16-bit document into it, structure "preserve" only (`core/src/precision_conversion_float.rs`)
 - P7-26 — subset grouping and ungrouping, reorder, delete and merge, locks and links, guides and ruler origin, and PPI-only edits at depth — verified in [12E](phase-12e-layer-ops-status.md), with typed Canvas Size in [12F](phase-12f-geometry-status.md)
 - P7-27 — adjustment insertion at any stack position and continuous opacity preview at depth — verified in [12E](phase-12e-layer-ops-status.md)
