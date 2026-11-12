@@ -55,7 +55,7 @@ use crate::style_composite::{
     composite_pixels_sample, mix_premultiplied, mix_premultiplied_in, PixelPass,
 };
 use crate::style_knockout::{backdrop_at, is_grouped_interior, KnockoutBackdrop};
-use crate::style_render::{Contribution as PlaneContribution, Ink, Shape};
+use crate::style_render::{Contribution as PlaneContribution, Ink, InkDecode, Shape};
 
 impl ResolvedNode<'_> {
     /// One sample of the byte `composite_interior_unit_into` onto
@@ -122,6 +122,7 @@ impl ResolvedNode<'_> {
                 direct: true,
                 opacity: 1.0,
                 fill_blend: fill_blend(BlendMode::Normal, fill_in, false),
+                transfer,
             };
             composite_pixels_sample(&mut unit, 0, &px, 0, coverage, under, &pass, canvas_xy);
         }
@@ -178,6 +179,7 @@ impl ResolvedNode<'_> {
                     &planes.shape,
                     &planes.interior,
                     interior_inks,
+                    InkDecode::byte(transfer),
                     self.layer().offset,
                     canvas_xy,
                 );
@@ -206,13 +208,15 @@ impl ResolvedNode<'_> {
 /// lands on `canvas_xy`, through `contributions_sample` at scale 1 — the
 /// reference's `composite_contribution(.., 1.0, ..)` — with the unit's alpha
 /// restored after each (they recolour, never add coverage). `inks` are the
-/// Interior contributions' [`Ink`]s, index for index.
+/// Interior contributions' [`Ink`]s, index for index; `decode` the scene's.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn grouped_interior_sample(
     unit: &mut [[f32; 4]],
     ti: usize,
     shape: &Shape,
     interior: &[PlaneContribution],
     inks: &[Ink],
+    decode: InkDecode<'_>,
     offset: (i32, i32),
     canvas_xy: (i64, i64),
 ) {
@@ -230,6 +234,7 @@ pub(crate) fn grouped_interior_sample(
             shape,
             std::slice::from_ref(c),
             std::slice::from_ref(ink),
+            decode,
             offset,
             1.0,
             0.0,
@@ -291,6 +296,9 @@ pub(crate) fn unit_pass_sample16(
             opacity: 1.0,
             float: env.float,
             fill_blend: fill_blend(BlendMode::Normal, fill_in, env.float),
+            transfer: env.transfer,
+            // A raster's pixel is its stored sample; a group's is composited.
+            stored: matches!(layer.kind, Kind::Raster { .. }),
         };
         composite_pixels_sample16(&mut unit, 0, px, coverage, under, &pass, xy)?;
     }
@@ -339,6 +347,7 @@ pub(crate) fn unit_pass_sample16(
                 &planes.shape,
                 &planes.interior,
                 interior_inks,
+                env.style_colors().decode(),
                 offset,
                 xy,
             );

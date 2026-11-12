@@ -863,11 +863,20 @@ fn grouped_interiors_on_bases_members_and_groups_match() {
 // --------------------------------------------------------------- policy --
 
 #[test]
-fn a_knockout_document_refuses_linear_light() {
-    let doc = over_background(KNOCKOUTS[0].1, BlendMode::Normal, 1.0);
-    assert!(doc.with_evaluation(Evaluation::LinearLight).is_err());
-    let doc = over_background(&format!("{{{GROUPED}}}"), BlendMode::Normal, 1.0);
-    assert!(doc.with_evaluation(Evaluation::LinearLight).is_err());
+fn a_knockout_document_evaluates_linear_light_regionally() {
+    for style in [KNOCKOUTS[0].1.to_string(), format!("{{{GROUPED}}}")] {
+        let doc = over_background(&style, BlendMode::Normal, 1.0);
+        let linear = doc
+            .with_evaluation(Evaluation::LinearLight)
+            .unwrap()
+            .expect("a policy change");
+        assert_ne!(
+            full(&linear),
+            full(&doc),
+            "the policy changes the projection"
+        );
+        assert_regions_match(&linear, &format!("linear light {style}"));
+    }
 }
 
 #[test]

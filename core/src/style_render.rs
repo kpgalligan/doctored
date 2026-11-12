@@ -67,9 +67,11 @@
 use crate::authored_color::{srgb_numbers, wide_into, AuthoredColors};
 use crate::blend::{blend_kind, BlendKind, BlendMode};
 use crate::doc::{Layer, MAX_PIXELS};
+use crate::doc_evaluation::ByteTransfer;
 use crate::job_control::JobContext;
 use crate::lab_blend::LabGrid;
 use crate::pattern_tile::PatternSampler;
+use crate::precision_evaluation::TypedTransfer;
 use crate::style::{Effect, EffectKind, GlobalLight, LayerStyle};
 use crate::style_float::FloatStyle;
 use crate::style_gradient::GradientSampler;
@@ -367,12 +369,62 @@ impl PlaneColor {
 /// 16-bit code (`style_gradient`) and, in a Lab Color document, its
 /// grid (the kind is `lab_blend`'s), and `Float` a 32-bit float
 /// document's (`style_float`): the colour in the document's LINEAR light and
-/// the measured float kind. A borrow, so composite environments stay `Copy`.
+/// the measured float kind. `Linear8` and `Linear16` are a linear-light byte
+/// and 16-bit scene's: the ink is `Encoded`'s and `Encoded16`'s — the
+/// document-space colour the encoded path draws, a gradient interpolated on
+/// encoded numbers, a pattern tile's codes — and [`StyleColors::decode`]
+/// decodes it per sample, at the one point it enters the accumulator. A
+/// borrow, so composite environments stay `Copy`.
 #[derive(Clone, Copy)]
 pub(crate) enum StyleColors<'a> {
     Encoded(Option<&'a AuthoredColors>),
     Encoded16(Option<&'a AuthoredColors>, Option<LabGrid>),
     Float(&'a FloatStyle),
+    Linear8(Option<&'a AuthoredColors>, &'a ByteTransfer),
+    Linear16(Option<&'a AuthoredColors>, &'a TypedTransfer),
+}
+
+impl<'a> StyleColors<'a> {
+    /// What an ink's colour is decoded through before it composites:
+    /// nothing but on a linear-light scene.
+    pub(crate) fn decode(self) -> InkDecode<'a> {
+        match self {
+            StyleColors::Linear8(_, transfer) => InkDecode::Byte(transfer),
+            StyleColors::Linear16(_, transfer) => InkDecode::Typed(transfer),
+            StyleColors::Encoded(_) | StyleColors::Encoded16(..) | StyleColors::Float(_) => {
+                InkDecode::None
+            }
+        }
+    }
+}
+
+/// The decode a contribution's document-space colour takes into a
+/// linear-light accumulator ([`StyleColors::decode`]): `None` on every
+/// encoded and float scene, whose accumulator already holds the ink's own
+/// numbers. Handed to the per-sample bodies beside the [`Ink`], which stays
+/// owned so the regional compositor can resolve it once per node.
+#[derive(Clone, Copy)]
+pub(crate) enum InkDecode<'a> {
+    None,
+    Byte(&'a ByteTransfer),
+    Typed(&'a TypedTransfer),
+}
+
+impl<'a> InkDecode<'a> {
+    /// A byte scene's decode under its evaluation policy.
+    pub(crate) fn byte(transfer: Option<&'a ByteTransfer>) -> Self {
+        transfer.map_or(InkDecode::None, InkDecode::Byte)
+    }
+
+    /// One ink colour as the accumulator's components.
+    #[inline]
+    pub(crate) fn apply(self, rgb: [f32; 3]) -> [f32; 3] {
+        match self {
+            InkDecode::None => rgb,
+            InkDecode::Byte(transfer) => transfer.decode(rgb),
+            InkDecode::Typed(transfer) => transfer.decode(rgb),
+        }
+    }
 }
 
 /// What one contribution draws with: its colour in the document's numbers
@@ -459,10 +511,13 @@ impl Contribution {
     /// [`FloatStyle`].
     pub(crate) fn ink(&self, colors: StyleColors<'_>) -> Ink {
         match colors {
-            StyleColors::Encoded(transform) => Ink {
+            StyleColors::Encoded(transform) | StyleColors::Linear8(transform, _) => Ink {
                 color: self.color.resolved(transform, false),
                 kind: blend_kind(self.blend),
             },
+            StyleColors::Linear16(transform, _) => {
+                self.ink(StyleColors::Encoded16(transform, None))
+            }
             StyleColors::Encoded16(transform, lab) => Ink {
                 color: match self.color.resolved(transform, true) {
                     PlaneColor::Gradient(sampler) => {

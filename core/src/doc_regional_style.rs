@@ -43,7 +43,7 @@ use crate::style_effects::EffectKind;
 use crate::style_knockout::{
     backdrop_at, grouped_interior, is_grouped_interior, routes_unit, KnockoutBackdrop,
 };
-use crate::style_render::{Contribution as PlaneContribution, Ink, RenderContext, StyleColors};
+use crate::style_render::{Contribution as PlaneContribution, Ink, InkDecode, RenderContext};
 use crate::style_render::{RenderedEffects, Shape};
 
 /// Every contribution of `list` (with its [`Ink`]) whose plane pixel
@@ -53,6 +53,7 @@ use crate::style_render::{RenderedEffects, Shape};
 /// at `offset` lands at `offset + shape.origin + (px, py) + shift` — inverted
 /// at one sample. Index arithmetic only; shared with the typed tree
 /// (`precision_regional_tree`), whose contributions are the same u8 planes.
+/// `decode` is the scene's (`StyleColors::decode`).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn contributions_sample(
     target: &mut [[f32; 4]],
@@ -60,6 +61,7 @@ pub(crate) fn contributions_sample(
     shape: &Shape,
     list: &[PlaneContribution],
     inks: &[Ink],
+    decode: InkDecode<'_>,
     offset: (i32, i32),
     opacity: f32,
     occluding_fill: f32,
@@ -81,6 +83,7 @@ pub(crate) fn contributions_sample(
             shape,
             c,
             ink,
+            decode,
             (px, py),
             scale,
             occluding_fill,
@@ -102,6 +105,7 @@ pub(crate) fn band_sample(
     shape: &Shape,
     c: &PlaneContribution,
     ink: &Ink,
+    decode: InkDecode<'_>,
     offset: (i32, i32),
     opacity: f32,
     canvas_xy: (i64, i64),
@@ -116,7 +120,18 @@ pub(crate) fn band_sample(
     if px < 0 || py < 0 || px >= i64::from(shape.w) || py >= i64::from(shape.h) {
         return;
     }
-    replace_under_band_sample(target, ti, b0, shape, c, ink, (px, py), scale, canvas_xy);
+    replace_under_band_sample(
+        target,
+        ti,
+        b0,
+        shape,
+        c,
+        ink,
+        decode,
+        (px, py),
+        scale,
+        canvas_xy,
+    );
 }
 
 /// An admitted style resolved once per node: `composite_pixels_into`'s
@@ -207,7 +222,7 @@ impl Styled {
                 .below
                 .iter()
                 .chain(&planes.interior)
-                .map(|c| c.ink(StyleColors::Encoded(env.colors)))
+                .map(|c| c.ink(env.style_colors()))
                 .collect();
             // `rel` against origin (0, 0) is canvas coordinates; the
             // reference clips the window to its accumulator.
@@ -314,6 +329,7 @@ impl ResolvedNode<'_> {
         let (below_inks, interior_inks) = style
             .inks
             .split_at(planes.map_or(0, |planes| planes.below.len()));
+        let decode = InkDecode::byte(transfer);
         if let Some(planes) = planes {
             contributions_sample(
                 target,
@@ -321,6 +337,7 @@ impl ResolvedNode<'_> {
                 &planes.shape,
                 &planes.below,
                 below_inks,
+                decode,
                 self.layer().offset,
                 opacity,
                 style.occluding_fill,
@@ -336,10 +353,21 @@ impl ResolvedNode<'_> {
             );
         } else {
             match steps {
-                None => self.pixel_pass(target, ti, under, opacity, self.blend, pixel, canvas_xy),
+                None => self.pixel_pass(
+                    target, ti, under, opacity, self.blend, pixel, transfer, canvas_xy,
+                ),
                 Some(steps) => {
                     let mut buf = [[0.0f32; 4]];
-                    self.pixel_pass(&mut buf, 0, under, 1.0, BlendMode::Normal, pixel, canvas_xy);
+                    self.pixel_pass(
+                        &mut buf,
+                        0,
+                        under,
+                        1.0,
+                        BlendMode::Normal,
+                        pixel,
+                        transfer,
+                        canvas_xy,
+                    );
                     let a = buf[0][3];
                     let limit = self.footprint_limit(pixel, canvas_xy);
                     // `clip_unit`'s Open against the footprint (#2).
@@ -421,6 +449,7 @@ impl ResolvedNode<'_> {
                         &planes.shape,
                         c,
                         ink,
+                        decode,
                         self.layer().offset,
                         opacity,
                         canvas_xy,
@@ -433,6 +462,7 @@ impl ResolvedNode<'_> {
                     &planes.shape,
                     std::slice::from_ref(c),
                     std::slice::from_ref(ink),
+                    decode,
                     self.layer().offset,
                     opacity,
                     style.occluding_fill,
@@ -455,14 +485,13 @@ impl ResolvedNode<'_> {
         opacity: f32,
         mode: BlendMode,
         pixel: Option<[u8; 4]>,
+        transfer: Option<&ByteTransfer>,
         canvas_xy: (i64, i64),
     ) {
         let (Some(style), Some(px)) = (self.style.as_ref(), pixel) else {
             return;
         };
-        // `composite_pixels_into`'s early return. A styled layer is refused
-        // by the 11E walk, so `transfer` is `None` here and the pass decodes
-        // nothing.
+        // `composite_pixels_into`'s early return.
         if style.fill <= 0.0 || opacity <= 0.0 {
             return;
         }
@@ -476,6 +505,7 @@ impl ResolvedNode<'_> {
             direct: mode == BlendMode::Normal,
             opacity,
             fill_blend: fill_blend(mode, style.fill, false),
+            transfer,
         };
         composite_pixels_sample(target, ti, &px, 0, coverage, under, &pass, canvas_xy);
     }

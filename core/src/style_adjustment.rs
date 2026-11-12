@@ -180,8 +180,14 @@ impl Adjusted<'_> {
                             );
                             let code = crate::doc_evaluation::encode_sample(adjusted, env.transfer);
                             let cs = [code[0], code[1], code[2]].map(|v| f32::from(v) / 255.0);
+                            // Both sides encoded (`doc_evaluation::encoded_view`):
+                            // `cs` already is, the Underlying composite is not.
                             let under = snapshot.and_then(|s| s.at(ax, ay)).unwrap_or(before);
-                            source_weight(b, cs, under)
+                            source_weight(
+                                b,
+                                cs,
+                                crate::doc_evaluation::encoded_view(under, env.transfer),
+                            )
                         }
                     };
                     let k = k0 * weight;
@@ -355,7 +361,7 @@ pub(crate) fn composite_styled_adjustment_into(
         guide: adjustment.guide_with_job(
             acc_w,
             acc_h,
-            &|i| crate::doc_evaluation::guide_view(acc[i], env.transfer),
+            &|i| crate::doc_evaluation::encoded_view(acc[i], env.transfer),
             env.job.checkpoints_only(),
         )?,
         guide_origin: origin,

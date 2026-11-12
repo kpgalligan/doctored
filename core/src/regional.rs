@@ -207,8 +207,8 @@
 //! reference snapshots it (`level_wants_shallow`) — Deep riding through;
 //! `NONE` into an isolated or materialized group (the hard stop); and for a
 //! clip MEMBER the unit sample right after the base's pixel pass, as BOTH
-//! planes, in all three member loops (`member_env`). Under `linear_light` a styled layer is refused (11E), so a knockout never
-//! meets a transfer.
+//! planes, in all three member loops (`member_env`). Under `linear_light` the backdrops are the
+//! linear accumulator's own samples, so a knockout needs no transfer of its own.
 //!
 //! STYLES (13A-3b-i). A styled sample runs `composite_styled_into`'s order at
 //! one sample, target-agnostic (the accumulator for a lone node, the unit

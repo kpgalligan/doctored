@@ -870,9 +870,14 @@ fn a_styled_unit_inside_isolated_and_pass_through_levels_matches_at_u16() {
 }
 
 #[test]
-fn linear_light_refuses_a_document_with_a_styled_member_guide_at_u16() {
+fn linear_light_evaluates_a_document_with_a_styled_member_guide_at_u16_regionally() {
     let d = styled_unit(FILL, BlendMode::Normal, 1.0, 1.0, true);
-    assert!(d.with_evaluation(Evaluation::LinearLight).is_err());
+    let linear = d
+        .with_evaluation(Evaluation::LinearLight)
+        .unwrap()
+        .expect("a policy change");
+    assert_ne!(full(&linear), full(&d), "the policy changes the projection");
+    assert_regions_match(&linear, content(), "linear light");
 }
 
 #[test]

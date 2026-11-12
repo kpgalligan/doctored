@@ -11,19 +11,16 @@
 //! by `PrecisionDocument::record_resources` and `PrecisionScene::plan`, so the
 //! bytes are inside admission rather than beside it.
 //!
-//! The refusal walk is the byte walk over the typed tree: postorder,
-//! bottom-first (the `PrecisionDocument::layer` indexing), refusing a layer
-//! style, Blend If, one of the seven unmigrated blend modes and
-//! a Shadows/Highlights kernel that reads a guide.
+//! Every operator evaluates under the policy (P7-24), so the only refusal is
+//! the byte one: a held transfer that does not belong to the document's
+//! current profile. A float document answers with its own narrower table.
 
 use std::sync::Arc;
 
-use crate::doc_evaluation::{
-    linear_light_model, refusal_sentence, stale_transfer_sentence, style_operator, Evaluation,
-};
+use crate::doc_evaluation::{linear_light_model, stale_transfer_sentence, Evaluation};
 use crate::icc::IccProfile;
 use crate::icc_transform::PrecisionToneEncoder;
-use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
+use crate::precision_document::PrecisionDocument;
 use crate::resources::Inventory;
 
 /// Entries in each typed decode table: one per representable u16 code.
@@ -108,10 +105,12 @@ impl TypedTransfer {
     }
 }
 
-/// The typed twin of `doc_evaluation::guide_view`: under `linear_light` the
-/// backdrop sample's RGB re-encoded CONTINUOUSLY ([`TypedTransfer::encode`],
-/// nothing quantized at this depth), alpha kept; `None` is the sample itself.
-pub(crate) fn guide_view16(px: [f32; 4], transfer: Option<&TypedTransfer>) -> [f32; 4] {
+/// The typed twin of `doc_evaluation::encoded_view` (the guide and Blend If
+/// read it): under `linear_light` the composited sample's RGB re-encoded
+/// CONTINUOUSLY ([`TypedTransfer::encode`], nothing quantized at this depth;
+/// Blend If's own reader then rounds to the code it becomes), alpha kept;
+/// `None` is the sample itself.
+pub(crate) fn encoded_view16(px: [f32; 4], transfer: Option<&TypedTransfer>) -> [f32; 4] {
     match transfer {
         None => px,
         Some(transfer) => {
@@ -119,35 +118,6 @@ pub(crate) fn guide_view16(px: [f32; 4], transfer: Option<&TypedTransfer>) -> [f
             [rgb[0], rgb[1], rgb[2], px[3]]
         }
     }
-}
-
-/// The operator this typed ENTRY carries that linear-light evaluation does not
-/// evaluate yet, or `None` — the byte `refused_operator`, over the typed
-/// fields.
-fn refused_operator(layer: &PrecisionDocumentLayer) -> Option<&'static str> {
-    if layer.style.is_some() || layer.blend_if.is_some() {
-        return Some(style_operator());
-    }
-    None
-}
-
-/// The first refused entry in postorder, bottom-first — the same numbering
-/// `PrecisionDocument::layer` uses, so the sentence names the row the host's
-/// layer panel shows.
-fn walk(layers: &[PrecisionDocumentLayer], index: &mut usize) -> Option<String> {
-    for layer in layers {
-        if let Content::Group(children) | Content::PassThrough(children) = &layer.content {
-            if let Some(reason) = walk(children, index) {
-                return Some(reason);
-            }
-        }
-        let here = *index;
-        *index += 1;
-        if let Some(operator) = refused_operator(layer) {
-            return Some(refusal_sentence(here, &layer.name, operator));
-        }
-    }
-    None
 }
 
 impl PrecisionDocument {
@@ -193,8 +163,9 @@ impl PrecisionDocument {
         Ok(Some(out))
     }
 
-    /// The first operator this stack carries that linear-light evaluation
-    /// cannot evaluate; `None`, before any walk, for an encoded document.
+    /// Why this document's render cannot evaluate in linear light: the byte
+    /// answer (a stale transfer) at typed depth; `None`, before anything is
+    /// compared, for an encoded document.
     ///
     /// A FLOAT document answers with its OWN, narrower table
     /// (`float_document::float_refusal`) — which is what makes the two host
@@ -205,10 +176,7 @@ impl PrecisionDocument {
             return self.float_refusal();
         }
         let transfer = self.linear_light.as_ref()?;
-        if !Arc::ptr_eq(transfer.profile(), &self.profile) {
-            return Some(stale_transfer_sentence());
-        }
-        walk(&self.layers, &mut 0)
+        (!Arc::ptr_eq(transfer.profile(), &self.profile)).then(stale_transfer_sentence)
     }
 
     /// The transfer this document's render composites through — the typed

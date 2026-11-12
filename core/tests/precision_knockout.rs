@@ -658,7 +658,7 @@ fn a_float_document_holds_a_knockout_style_and_refuses_by_the_float_sentence() {
 }
 
 #[test]
-fn a_linear_light_typed_document_refuses_a_knockout_style_by_the_evaluation_sentence() {
+fn a_linear_light_typed_document_evaluates_a_knockout_style() {
     let doc = document(vec![
         layer("BG", BG),
         styled(layer("Top", HIGH), &knockout_style("deep", 0.0)),
@@ -667,15 +667,24 @@ fn a_linear_light_typed_document_refuses_a_knockout_style_by_the_evaluation_sent
     let out = unsafe {
         doctored_core::ffi_evaluation::dr_precision_doc_set_evaluation(&doc, 1, &mut err)
     };
-    assert!(out.is_null(), "linear light accepted a knockout style");
-    let message = unsafe { CStr::from_ptr(err) }
-        .to_string_lossy()
-        .into_owned();
-    unsafe { dr_string_free(err) };
     assert!(
-        message.contains("a layer style or Blend If"),
-        "the evaluation policy's own sentence: {message}"
+        !out.is_null() && err.is_null(),
+        "linear light admits a knockout style"
     );
+    let switched = *unsafe { Box::from_raw(out) };
+    // The deep knockout at fill 0 punches through to the opaque backdrop,
+    // whose promoted codes round-trip under either policy.
+    let (a, b) = (render(&switched), render(&doc));
+    for (i, (got, want)) in a.iter().zip(&b).enumerate() {
+        for c in 0..4 {
+            assert!(
+                (i64::from(got[c]) - i64::from(want[c])).abs() <= 24,
+                "pixel {i} channel {c}: {} vs {}",
+                got[c],
+                want[c]
+            );
+        }
+    }
 }
 
 #[test]

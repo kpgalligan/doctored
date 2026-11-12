@@ -736,12 +736,17 @@ fn refusals_inside_a_u16_materialized_group_come_in_order() {
 }
 
 #[test]
-fn a_u16_styled_group_document_refuses_linear_light() {
+fn a_u16_styled_group_document_evaluates_linear_light_regionally() {
     let d = doc(vec![
         base(),
         group_of(pair(), GROUP_STYLE, BlendMode::Normal, 1.0),
     ]);
-    assert!(d.with_evaluation(Evaluation::LinearLight).is_err());
+    let linear = d
+        .with_evaluation(Evaluation::LinearLight)
+        .unwrap()
+        .expect("a policy change");
+    assert_ne!(full(&linear), full(&d), "the policy changes the projection");
+    assert_regions_match(&linear, "linear light");
 }
 
 // --------------------------------------------------------------- float --

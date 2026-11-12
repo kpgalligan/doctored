@@ -89,6 +89,8 @@ mod evaluation_native;
 mod evaluation_nonseparable;
 #[path = "evaluation_retained_source.rs"]
 mod evaluation_retained_source;
+#[path = "evaluation_styles.rs"]
+mod evaluation_styles;
 #[path = "evaluation_transfer.rs"]
 mod evaluation_transfer;
 #[path = "exposure_photoshop_parity.rs"]

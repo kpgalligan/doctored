@@ -360,6 +360,7 @@ pub(crate) fn clip_unit_sample(
             buf[0][3] *= env.blend_if_weight(
                 blend_if,
                 [pixel[0], pixel[1], pixel[2]],
+                false,
                 [under[0], under[1], under[2]],
             );
         }
@@ -463,7 +464,7 @@ fn arm_sample(
                     group[0]
                 }
             };
-            composite_group_sample16(acc, i, group, layer, coverage(), kind, env.float, xy)
+            composite_group_sample16(acc, i, group, layer, coverage(), kind, env, xy)
         }
         Kind::PassThrough(_) => {
             // The children onto a copy of this sample, gated back. D4: a

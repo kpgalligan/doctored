@@ -53,7 +53,7 @@
 //! `composite_env` caller and `scene_cut` obtains its transfer, so an unmigrated operator added
 //! after the switch refuses at the render as well as at the edit. `linear_light_refusal` returns
 //! `None` before walking anything on an encoded document, and `encode_projection(.., None)` IS
-//! `doc::quantize` statement for statement — the encoded path is byte-for-byte what it was. The
+//! `doc::quantize_with_job` statement for statement — the encoded path is byte-for-byte what it was. The
 //! adjustment TRANSCODE rule (`adjusted = decode(kernel(encode(backdrop)))`, then the `k` lerp in
 //! linear) is stated on `ByteTransfer::encode_f32`, and its byte double quantization is disclosed
 //! and measured at 2 codes.
@@ -63,7 +63,7 @@ use std::sync::Arc;
 use image::RgbaImage;
 use serde_json::json;
 
-use crate::doc::{DrDocument, Layer};
+use crate::doc::DrDocument;
 use crate::icc::IccProfile;
 use crate::icc_transform::{MatrixTrc, ToneEncoder};
 use crate::job_control::JobContext;
@@ -158,15 +158,6 @@ pub(crate) fn stale_transfer_sentence() -> String {
         .to_string()
 }
 
-/// The ONE refusal wording, at both depths: the entry's postorder index, its
-/// name and the operator this phase does not evaluate in linear light.
-pub(crate) fn refusal_sentence(index: usize, name: &str, operator: &str) -> String {
-    format!(
-        "Layer {index} “{name}” uses {operator}, which linear-light evaluation does not \
-         support yet. Switch Image ▸ Evaluation back to Encoded, or remove it from the layer."
-    )
-}
-
 /// What the projection evaluates in linear light today.
 const MIGRATED: &[&str] = &[
     "normal",
@@ -214,18 +205,14 @@ const MIGRATED: &[&str] = &[
     "luminosity",
     "dissolve",
     "guided_shadows_highlights",
+    "layer_style",
+    "blend_if",
+    "fill_opacity",
+    "knockout",
 ];
 
-/// The style/Blend If operator's name in [`REFUSED`].
-const STYLE_OPERATOR: &str = "a layer style or Blend If";
-
-/// What it refuses, with the phase that owns each. Phase 2 is resampling;
-/// phase 3 the mixing constructs. A retained source is admitted (phase
-/// 187a0): its re-render resamples in
-/// the stored encoding, as raster Free Transform and warp do, and a
-/// premultiplied-linear resample of all three stays a phase-2 item. The operator strings
-/// are the ones [`refusal_sentence`] names, so a host can match them.
-const REFUSED: &[(&str, u32)] = &[(STYLE_OPERATOR, 3), ("Image Size", 2)];
+/// What it refuses, with the phase that owns each. Phase 2 is resampling.
+const REFUSED: &[(&str, u32)] = &[("Image Size", 2)];
 
 /// The operator table as JSON, for the host's Evaluation sheet and the MCP
 /// `get_evaluation` reply:
@@ -251,11 +238,6 @@ pub fn resize_refusal_sentence() -> String {
     "Image Size resamples in the stored encoding, which linear-light evaluation does not \
      support yet. Switch Image ▸ Evaluation back to Encoded to resize."
         .to_string()
-}
-
-/// The style/Blend If operator name.
-pub(crate) fn style_operator() -> &'static str {
-    STYLE_OPERATOR
 }
 
 // --------------------------------------------------------------- transfer --
@@ -334,7 +316,7 @@ impl ByteTransfer {
 }
 
 /// Quantizes a straight-alpha f32 accumulator to RGBA8 under `transfer`:
-/// `None` is [`crate::doc::quantize`] statement for statement (an encoded
+/// `None` is [`crate::doc::quantize_with_job`] statement for statement (an encoded
 /// document's projection is untouched), `Some` re-encodes RGB through the
 /// profile's curves once and rounds alpha, which is coverage and never
 /// colour. The `NONE` wrapper of [`encode_projection_with_job`].
@@ -391,15 +373,21 @@ pub(crate) fn encode_sample(px: [f32; 4], transfer: Option<&ByteTransfer>) -> [u
     out
 }
 
-/// What a guide-reading kernel (Shadows/Highlights) sees of one backdrop
-/// sample: `None` is the sample as it stands; under `linear_light` its RGB is
-/// re-encoded to the LATTICE value the encoded path would hold
-/// ([`ByteTransfer::encode_f32`]) and its alpha, which is coverage, kept. The
-/// guide is an input of the kernel, so the transcode rule that hands the
-/// kernel encoded numbers hands it an encoded guide too: over an opaque
-/// lattice backdrop a guided adjustment at full opacity then equals the
-/// encoded result, and only its `k` lerp is linear.
-pub(crate) fn guide_view(px: [f32; 4], transfer: Option<&ByteTransfer>) -> [f32; 4] {
+/// One COMPOSITED sample as the encoded numbers a rule authored on encoded
+/// values reads: `None` is the sample as it stands; under `linear_light` its
+/// RGB is re-encoded to the LATTICE value the projection would store
+/// ([`ByteTransfer::encode_f32`]) and its alpha, which is coverage, kept.
+/// Two readers, one rule (the adjustment transcode applied to a kernel's
+/// other inputs):
+///
+/// * the Shadows/Highlights GUIDE is built from the backdrop's encoded view,
+///   so over an opaque lattice backdrop a guided adjustment at full opacity
+///   equals the encoded result and only its `k` lerp is linear;
+/// * BLEND IF reads the Underlying composite (and a composited This Layer)
+///   through it: its ranges are authored in display levels, so a range
+///   selects the pixels it selects in the encoded document over the same
+///   picture. A stored sample is already encoded and is read as it is.
+pub(crate) fn encoded_view(px: [f32; 4], transfer: Option<&ByteTransfer>) -> [f32; 4] {
     match transfer {
         None => px,
         Some(transfer) => {
@@ -410,15 +398,6 @@ pub(crate) fn guide_view(px: [f32; 4], transfer: Option<&ByteTransfer>) -> [f32;
 }
 
 // ------------------------------------------------------------ the policy --
-
-/// The operator this ENTRY carries that linear-light evaluation does not
-/// evaluate yet, or `None`.
-fn refused_operator(layer: &Layer) -> Option<&'static str> {
-    if layer.style.is_some() {
-        return Some(style_operator());
-    }
-    None
-}
 
 impl DrDocument {
     /// This document's evaluation policy — held state, not a guess: the
@@ -433,8 +412,8 @@ impl DrDocument {
 
     /// The document under `policy`. `Ok(None)` when it is already in that
     /// policy — the core's no-op rule, so the host registers no phantom undo
-    /// step; `Err` is the REFUSAL (an unmodellable profile, or an operator
-    /// this phase does not evaluate) named in full.
+    /// step; `Err` is the REFUSAL (a profile with no finite monotone
+    /// matrix/TRC model) named in full.
     pub fn with_evaluation(&self, policy: Evaluation) -> Result<Option<Self>, String> {
         if self.evaluation() == policy {
             return Ok(None);
@@ -452,24 +431,22 @@ impl DrDocument {
         Ok(Some(out))
     }
 
-    /// The first operator in this stack linear-light evaluation cannot
-    /// evaluate, as the sentence the host shows — and `None`, before any
-    /// walk at all, for an ENCODED document, which has nothing to refuse.
+    /// Why this document's projection cannot evaluate in linear light, as the
+    /// sentence the host shows: a held transfer that does not belong to the
+    /// current profile (a profile write that missed its rebind). `None` —
+    /// before anything is compared — for an ENCODED document, and for every
+    /// linear-light stack whose tables are current: every operator is
+    /// evaluated (P7-24).
     pub fn linear_light_refusal(&self) -> Option<String> {
         let transfer = self.linear_light.as_ref()?;
-        if !Arc::ptr_eq(transfer.profile(), &self.profile) {
-            return Some(stale_transfer_sentence());
-        }
-        self.layers.iter().enumerate().find_map(|(index, layer)| {
-            refused_operator(layer).map(|operator| refusal_sentence(index, &layer.name, operator))
-        })
+        (!Arc::ptr_eq(transfer.profile(), &self.profile)).then(stale_transfer_sentence)
     }
 
     /// The transfer this document's projection composites through: `Ok(None)`
-    /// for an encoded document, `Err` for a linear-light one carrying an
-    /// operator this phase does not evaluate. EVERY projection obtains it
-    /// here, which is what makes the refusal the invariant rather than a
-    /// check a later edit could route around.
+    /// for an encoded document, `Err` for a linear-light one whose transfer
+    /// is stale ([`Self::linear_light_refusal`]). EVERY projection obtains it
+    /// here, which is what makes the staleness net the invariant rather than
+    /// a check a later edit could route around.
     pub(crate) fn transfer(&self) -> Result<Option<&ByteTransfer>, String> {
         let Some(transfer) = self.linear_light.as_ref() else {
             return Ok(None);

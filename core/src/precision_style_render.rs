@@ -64,6 +64,7 @@ use crate::icc::IccProfile;
 use crate::job_control::JobContext;
 use crate::lab_blend::{fill_in, kind_in, LabGrid};
 use crate::precision_document::{PrecisionDocument, PrecisionDocumentLayer};
+use crate::precision_evaluation::TypedTransfer;
 use crate::precision_image::{pixel_count, reserved_vec, PrecisionImage, PrecisionStorage};
 use crate::precision_mask::PreparedMask;
 use crate::precision_render::checked_alpha;
@@ -135,6 +136,12 @@ impl StyledPixels<'_> {
                 (x < *width && y < *height).then_some(OPAQUE)
             }
         }
+    }
+    /// Whether these pixels are a raster's STORED samples (encoded under
+    /// `linear_light`), as against a composited buffer or the adjustment
+    /// shape.
+    pub(crate) fn stored(&self) -> bool {
+        matches!(self, StyledPixels::Image { .. })
     }
     /// The alpha of `pixel` (read from `self`) as a 16-bit CODE: the stored
     /// u16 for a raster (exact), the f32 alpha × 65535 for a rendered group.
@@ -219,11 +226,12 @@ pub(crate) struct StyleEnv<'a> {
     pub light: GlobalLight,
     pub canvas: (u32, u32),
     pub colors: Option<&'a AuthoredColors>,
-    /// The scene's EVALUATION POLICY as tables (`precision_evaluation`). A
-    /// layer style is REFUSED under `linear_light`, so nothing in this file
-    /// reads it; the raster and adjustment arms of `precision_render` do, and
-    /// this is the env they already have.
-    pub transfer: Option<&'a crate::precision_evaluation::TypedTransfer>,
+    /// The scene's EVALUATION POLICY as tables (`precision_evaluation`):
+    /// `Some` under `linear_light`, where the accumulator holds linear
+    /// components — a stored pixel and an effect's ink are decoded as they
+    /// enter it ([`StyleEnv::style_colors`], [`PixelPass16::transfer`]) and
+    /// Blend If reads encoded values ([`StyleEnv::blend_if_weight`]).
+    pub transfer: Option<&'a TypedTransfer>,
     /// True for a 32-bit FLOAT scene (`float_document`): [`StyleEnv::kind`]
     /// and [`StyleEnv::blend_if_weight`] read it, and the package mix keeps
     /// extended-range colour unclamped.
@@ -266,11 +274,14 @@ impl<'a> StyleEnv<'a> {
         float.then(|| FloatStyle::for_profile(profile)).transpose()
     }
 
-    /// How a contribution's authored colour and blend become its ink here.
+    /// How a contribution's authored colour and blend become its ink here:
+    /// `Linear16` (the `Encoded16` ink, decoded per sample) under
+    /// `linear_light`.
     pub(crate) fn style_colors(&self) -> StyleColors<'a> {
-        match self.float_style {
-            Some(float) => StyleColors::Float(float),
-            None => StyleColors::Encoded16(self.colors, self.lab),
+        match (self.float_style, self.transfer) {
+            (Some(float), _) => StyleColors::Float(float),
+            (None, Some(transfer)) => StyleColors::Linear16(self.colors, transfer),
+            (None, None) => StyleColors::Encoded16(self.colors, self.lab),
         }
     }
 
@@ -286,30 +297,58 @@ impl<'a> StyleEnv<'a> {
         self.lab
     }
 
-    /// The Blend If weight at this scene's depth: `source_weight_16` on a
-    /// u16 scene, `source_weight_float` on a float one.
+    /// The Blend If weight at this scene's depth ([`blend_if_weight_in`]):
+    /// `source` is the layer's sample — `stored` when it is a raster's own
+    /// stored pixel, false for a composited one (a group's buffer, a styled
+    /// adjustment's adjusted backdrop) — and `backdrop` the accumulator's.
     pub(crate) fn blend_if_weight(
         &self,
         blend_if: &BlendIf,
         source: [f32; 3],
+        stored: bool,
         backdrop: [f32; 3],
     ) -> f32 {
-        blend_if_weight_at(blend_if, source, backdrop, self.float)
+        blend_if_weight_in(
+            blend_if,
+            source,
+            stored,
+            backdrop,
+            self.float,
+            self.transfer,
+        )
     }
 }
 
-/// [`StyleEnv::blend_if_weight`] for the per-sample bodies that carry the
-/// depth as a flag (`PixelPass16::float`, `composite_group_sample16`).
-pub(crate) fn blend_if_weight_at(
+/// The typed Blend If weight: `source_weight_float` on a float scene (the
+/// STORED linear values, measured); `source_weight_16` on a u16 one. Under
+/// `linear_light` both sides are read ENCODED, as the ranges are authored —
+/// a stored `source` is its code already, a composited one and the
+/// accumulator's `backdrop` go through `precision_evaluation::encoded_view16`
+/// — so a range selects the pixels it selects in the encoded document over
+/// the same picture. The ONE typed weight: [`StyleEnv::blend_if_weight`] and
+/// every per-sample body that carries the depth as fields (`PixelPass16`)
+/// call it.
+pub(crate) fn blend_if_weight_in(
     blend_if: &BlendIf,
     source: [f32; 3],
+    stored: bool,
     backdrop: [f32; 3],
     float: bool,
+    transfer: Option<&TypedTransfer>,
 ) -> f32 {
     if float {
-        source_weight_float(blend_if, source, backdrop)
-    } else {
-        source_weight_16(blend_if, source, backdrop)
+        return source_weight_float(blend_if, source, backdrop);
+    }
+    match transfer {
+        None => source_weight_16(blend_if, source, backdrop),
+        Some(transfer) => {
+            let source = if stored {
+                source
+            } else {
+                transfer.encode(source)
+            };
+            source_weight_16(blend_if, source, transfer.encode(backdrop))
+        }
     }
 }
 
@@ -599,8 +638,7 @@ fn composite_direct_into(
                     blend_if,
                     layer.blend,
                     opacity,
-                    env.float,
-                    env.lab(),
+                    env,
                     job,
                 )?,
             },
@@ -619,8 +657,7 @@ fn composite_direct_into(
                         blend_if,
                         BlendMode::Normal,
                         1.0,
-                        env.float,
-                        env.lab(),
+                        env,
                         job,
                     )?;
                 }
@@ -794,7 +831,8 @@ fn composite_package_into(
 /// `fill_opacity` is a PARAMETER rather than `layer.style.fill_opacity`,
 /// because the unit pass of `precision_style_knockout` runs the pixels at fill
 /// 1 when the grouped interiors move inside the unit (D6) and pays the fill
-/// once for the whole unit.
+/// once for the whole unit. The scene's `float`, `lab` and `transfer` come
+/// from its [`StyleEnv`].
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn composite_pixels_into(
     target: &mut [[f32; 4]],
@@ -805,10 +843,10 @@ pub(crate) fn composite_pixels_into(
     blend_if: Option<(&BlendIf, Option<&BackdropSnapshot>)>,
     mode: BlendMode,
     opacity: f32,
-    float: bool,
-    lab: Option<LabGrid>,
+    env: &StyleEnv<'_>,
     job: JobContext<'_>,
 ) -> Result<(), String> {
+    let (float, lab) = (env.float, env.lab());
     let fill = crate::opacity_byte::composite(fill_opacity, float);
     if fill <= 0.0 || opacity <= 0.0 {
         return Ok(());
@@ -832,6 +870,8 @@ pub(crate) fn composite_pixels_into(
         opacity,
         float,
         fill_blend: fill_in(mode, fill, float, lab),
+        transfer: env.transfer,
+        stored: layer.pixels.stored(),
     };
     // The layer-space span, once per layer; `(0, 0)` unless the target span
     // is non-empty, so no negative reaches a `u32`.
@@ -877,6 +917,12 @@ pub(crate) struct PixelPass16<'a> {
     /// The special Fill of five modes (`blend_fill`, #2; never in a float
     /// scene), `None` for the plain one.
     pub fill_blend: Option<FillBlend>,
+    /// The scene's evaluation policy (`StyleEnv::transfer`).
+    pub transfer: Option<&'a TypedTransfer>,
+    /// Whether the pixels are a raster's STORED samples
+    /// ([`StyledPixels::stored`]): under `linear_light` those are decoded as
+    /// they composite, while a group buffer is linear already.
+    pub stored: bool,
 }
 
 /// One sample of the typed `composite_pixels_into`'s loop, statement for
@@ -884,7 +930,9 @@ pub(crate) struct PixelPass16<'a> {
 /// `sa = checked_alpha(alpha, joint, coverage) · weight`, the direct
 /// transparent-target write under Normal, else `composite_source_into`. The
 /// regional compositor (`precision_regional_tree`) runs a styled sample
-/// through this same body.
+/// through this same body. Under `linear_light` the weight reads both sides
+/// encoded ([`blend_if_weight_in`]) and a stored pixel is decoded before it
+/// composites (`precision_render::composite_raster_sample16`'s rule).
 #[inline]
 pub(crate) fn composite_pixels_sample16(
     target: &mut [[f32; 4]],
@@ -895,10 +943,21 @@ pub(crate) fn composite_pixels_sample16(
     pass: &PixelPass16<'_>,
     canvas_xy: (i64, i64),
 ) -> Result<(), String> {
-    let cs = [px[0], px[1], px[2]];
+    let sample = [px[0], px[1], px[2]];
     let weight = match pass.blend_if {
         None => 1.0,
-        Some(b) => blend_if_weight_at(b, cs, [under[0], under[1], under[2]], pass.float),
+        Some(b) => blend_if_weight_in(
+            b,
+            sample,
+            pass.stored,
+            [under[0], under[1], under[2]],
+            pass.float,
+            pass.transfer,
+        ),
+    };
+    let cs = match pass.transfer {
+        Some(transfer) if pass.stored => transfer.decode(sample),
+        _ => sample,
     };
     if let Some(special) = pass.fill_blend {
         // The special Fill (`blend_fill`): `sa` without the Fill.
@@ -1080,9 +1139,8 @@ fn byte_env<'a>(
         // neither a backdrop nor a capture can reach it.
         knockout: crate::style_knockout::KnockoutBackdrop::NONE,
         capture: None,
-        // A typed layer style is refused under `linear_light`, so a styled
-        // typed layer's grown extent is only ever asked of an ENCODED
-        // document (`doc_evaluation`).
+        // `style_grown` is pure geometry, so the evaluation policy cannot
+        // reach it either.
         transfer: None,
         job: JobContext::NONE,
     }
@@ -1237,12 +1295,15 @@ pub(crate) fn bake_style16(
         // narrowing out of `composite_styled_into` to its call site).
         job.range(0.2, 0.9).checkpoints_only(),
     )?;
+    // Under `linear_light` the accumulator is linear: the bake is encoded
+    // back, as the projection is (`precision_render`'s one re-encode).
     let image = PrecisionImage::from_float_samples_unseeded(
         uw,
         uh,
         profile.clone(),
         PrecisionStorage::Rgba16Unorm,
-        acc.into_iter(),
+        acc.into_iter()
+            .map(|px| crate::precision_evaluation::encoded_view16(px, env.transfer)),
         job.range(0.9, 1.0),
     )?;
     Ok((origin, image))

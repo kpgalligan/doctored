@@ -1097,11 +1097,16 @@ fn a_float_knockout_document_renders_regionally_as_in_full() {
 }
 
 #[test]
-fn a_u16_knockout_document_refuses_linear_light() {
-    let d = over_background(KNOCKOUTS[0].1, BlendMode::Normal, 1.0);
-    assert!(d.with_evaluation(Evaluation::LinearLight).is_err());
-    let d = over_background(&format!("{{{GROUPED}}}"), BlendMode::Normal, 1.0);
-    assert!(d.with_evaluation(Evaluation::LinearLight).is_err());
+fn a_u16_knockout_document_evaluates_linear_light_regionally() {
+    for style in [KNOCKOUTS[0].1.to_string(), format!("{{{GROUPED}}}")] {
+        let d = over_background(&style, BlendMode::Normal, 1.0);
+        let linear = d
+            .with_evaluation(Evaluation::LinearLight)
+            .unwrap()
+            .expect("a policy change");
+        assert_ne!(full(&linear), full(&d), "the policy changes the projection");
+        assert_regions_match(&linear, &format!("linear light {style}"));
+    }
 }
 
 #[test]

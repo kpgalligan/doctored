@@ -60,7 +60,7 @@
 //! # A group RENDERS TO A LAYER
 //!
 //! An ISOLATED group is composited into a private f32 buffer over its own
-//! extent, quantized to RGBA8 by the document's own [`crate::doc::quantize`],
+//! extent, quantized to RGBA8 by the document's own [`crate::doc::quantize_with_job`],
 //! and wrapped in a synthetic `Layer` carrying the group's name, opacity,
 //! blend mode, mask (cropped to the extent), style and clipped flag. That
 //! synthetic layer is handed to the existing, unchanged `composite_layer_into`
@@ -974,7 +974,7 @@ fn composite_unit_into(
 /// coverage 0 the accumulator is not written at all.
 ///
 /// In between, the mix is PREMULTIPLIED, which is the whole subtlety. The
-/// accumulator holds STRAIGHT colour beside its alpha (`crate::doc::quantize`
+/// accumulator holds STRAIGHT colour beside its alpha (`crate::doc::quantize_with_job`
 /// and `composite_adjustment_into` both read it that way), and lerping a
 /// straight colour toward a different alpha is wrong: an opaque red child in a
 /// half-opacity group over a TRANSPARENT backdrop would come out as half-dark

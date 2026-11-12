@@ -853,6 +853,59 @@ fn assert_rows_carried(float: &PrecisionDocument, typed: &PrecisionDocument) {
     assert_eq!(typed.ruler_origin(), float.ruler_origin());
 }
 
+/// A float record with a Blend If or a layer style narrows: the narrowed
+/// document is linear light, which evaluates both (P7-24), so nothing
+/// blocks and each such record carries its rendering-difference row — the
+/// float document's Blend If read stored linear values, the narrowed one
+/// reads encoded values.
+#[test]
+fn a_styled_float_record_narrows_with_its_rendering_difference_row() {
+    let directory = TempDir::new().unwrap();
+    let float = float_fixture(&directory);
+    let styled = changed(
+        &float,
+        json!({"op":"layer_blend_if","version":1,"layer":0,
+               "blend_if":{"channel":"gray","this_layer":[0,0,200,255]}}),
+    );
+    let styled = changed(
+        &styled,
+        json!({"op":"layer_style","version":1,"layer":1,
+               "style":{"effects":[{"type":"color_overlay","opacity":0.5}]}}),
+    );
+    for target in [NarrowTarget::Rgba16, NarrowTarget::Rgba8] {
+        let plan = styled.narrow_structure_plan(target).unwrap();
+        assert!(plan.blocked.is_empty(), "{target:?}: {:?}", plan.refusal());
+        for index in [0, 1] {
+            assert!(
+                plan.rendering_differences
+                    .iter()
+                    .any(|row| row.index == index && row.note.contains("Blend If reads encoded")),
+                "{target:?}: the style row on record {index}"
+            );
+        }
+        let unstyled = float.narrow_structure_plan(target).unwrap();
+        assert!(
+            !unstyled
+                .rendering_differences
+                .iter()
+                .any(|row| row.note.contains("Blend If reads encoded")),
+            "{target:?}: no style, no row"
+        );
+    }
+    let typed = styled.narrow_structure_to_u16(LIMIT, 0, None).unwrap();
+    assert_eq!(typed.evaluation(), Evaluation::LinearLight);
+    assert!(typed.linear_light_refusal().is_none());
+    assert!(typed.render_plan().is_ok(), "the narrowed document renders");
+    let byte = styled
+        .narrow_structure_to_u8(PrecisionDither::None, LIMIT, 0, None)
+        .unwrap();
+    assert_eq!(byte.evaluation(), Evaluation::LinearLight);
+    assert!(
+        byte.flattening().is_ok(),
+        "the narrowed byte document projects"
+    );
+}
+
 #[test]
 fn float_to_sixteen_tone_maps_every_record_and_carries_the_rest() {
     let directory = TempDir::new().unwrap();

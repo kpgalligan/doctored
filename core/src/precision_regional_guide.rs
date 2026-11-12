@@ -192,7 +192,7 @@ pub(crate) fn render_staged(
             .guide(
                 built.width,
                 built.height,
-                &|i| crate::precision_evaluation::guide_view16(prev[i], env.transfer),
+                &|i| crate::precision_evaluation::encoded_view16(prev[i], env.transfer),
                 progress.job.range(start, end),
             )?
             .ok_or(MISMATCH)?;

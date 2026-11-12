@@ -43,7 +43,7 @@ use crate::precision_image::{
 use crate::precision_mask::{PrecisionMask, PreparedMask};
 use crate::precision_style_knockout::{knockout_scratch, TypedCapture};
 use crate::precision_style_render::{
-    blend_if_weight_at, composite_styled_into, style_scratch, StyleEnv, StyledLayer, StyledPixels,
+    composite_styled_into, style_scratch, StyleEnv, StyledLayer, StyledPixels,
 };
 use crate::resources::Inventory;
 use crate::style::{BlendIf, GlobalLight, LayerStyle};
@@ -1047,9 +1047,11 @@ pub(crate) fn render_layers(
                     for (j, pixel) in chunk.iter_mut().enumerate() {
                         if pixel[3] > 0.0 {
                             let under = acc[start * 4096 + j];
+                            // The base rendered into `buf`: a composited sample.
                             pixel[3] *= env.blend_if_weight(
                                 blend_if,
                                 [pixel[0], pixel[1], pixel[2]],
+                                false,
                                 [under[0], under[1], under[2]],
                             );
                         }
@@ -1167,7 +1169,7 @@ pub(crate) fn render_layers(
                 let guide = state.kernel.guide(
                     dimensions.0,
                     dimensions.1,
-                    &|i| crate::precision_evaluation::guide_view16(acc[i], env.transfer),
+                    &|i| crate::precision_evaluation::encoded_view16(acc[i], env.transfer),
                     progress.job.range(start, end),
                 )?;
                 progress.advance(guide_work as usize)?;
@@ -1228,7 +1230,7 @@ pub(crate) fn render_layers(
                             layer,
                             coverage,
                             kind,
-                            env.float,
+                            env,
                             (
                                 (i % dimensions.0 as usize) as i64 + gx,
                                 (i / dimensions.0 as usize) as i64 + gy,
@@ -1325,6 +1327,7 @@ pub(crate) fn composite_raster_sample16(
             alpha *= env.blend_if_weight(
                 blend_if,
                 [pixel[0], pixel[1], pixel[2]],
+                true,
                 [under[0], under[1], under[2]],
             );
         }
@@ -1341,7 +1344,8 @@ pub(crate) fn composite_raster_sample16(
 /// order: `pixel` is the group buffer's sample (already composited
 /// components, so nothing is decoded), `coverage` the group's prepared mask
 /// value (1.0 without one), `i` the accumulator index and `xy` the canvas
-/// position; `float` picks the float Blend If weight (`blend_if_weight_at`).
+/// position; the Blend If weight is the scene's (`StyleEnv::blend_if_weight`,
+/// a composited source).
 #[allow(clippy::too_many_arguments)]
 #[inline]
 pub(crate) fn composite_group_sample16(
@@ -1351,18 +1355,18 @@ pub(crate) fn composite_group_sample16(
     layer: &PrecisionLayer,
     coverage: f32,
     kind: BlendKind,
-    float: bool,
+    env: &StyleEnv<'_>,
     xy: (i64, i64),
 ) -> Result<(), String> {
     let mut alpha = checked_alpha(pixel[3], layer.opacity, coverage)?;
     if alpha > 0.0 {
         if let Some(blend_if) = &layer.blend_if {
             let under = acc[i];
-            alpha *= blend_if_weight_at(
+            alpha *= env.blend_if_weight(
                 blend_if,
                 [pixel[0], pixel[1], pixel[2]],
+                false,
                 [under[0], under[1], under[2]],
-                float,
             );
         }
     }
@@ -1521,7 +1525,7 @@ fn render_styled(
             let guide = state.kernel.guide(
                 dimensions.0,
                 dimensions.1,
-                &|i| crate::precision_evaluation::guide_view16(acc[i], env.transfer),
+                &|i| crate::precision_evaluation::encoded_view16(acc[i], env.transfer),
                 progress.job.range(start, end),
             )?;
             progress.advance(guide_work as usize)?;

@@ -522,11 +522,11 @@ fn composite_adjustment_into(
     // built ONCE here, from the accumulator, and read per pixel below; every
     // other op returns None and pays nothing (`adjust::Adjustment::guide`).
     // Under `linear_light` the guide reads the backdrop re-encoded, as the
-    // kernel does (`doc_evaluation::guide_view`).
+    // kernel does (`doc_evaluation::encoded_view`).
     let guide = adjustment.guide_with_job(
         acc_w,
         acc_h,
-        &|i| crate::doc_evaluation::guide_view(acc[i], transfer),
+        &|i| crate::doc_evaluation::encoded_view(acc[i], transfer),
         env.job.checkpoints_only(),
     )?;
     for ay in 0..i64::from(acc_h) {
@@ -763,18 +763,13 @@ impl Geometry {
     }
 }
 
-/// Quantizes a straight-alpha f32 accumulator to RGBA8. The ONE quantizer:
-/// the document's projection and every isolated group's private projection
-/// (`doc_group::rendered_group`) both end here, so a group boundary rounds
-/// exactly the way the canvas does. The `NONE` wrapper of
-/// [`quantize_with_job`].
-pub(crate) fn quantize(acc: &[[f32; 4]], w: u32, h: u32) -> RgbaImage {
-    quantize_with_job(acc, w, h, crate::job_control::JobContext::NONE)
-        .expect("uncancellable context")
-}
-
-/// [`quantize`] polling `job` at the head of every row (Phase 13A-5b-ii-b);
-/// the same row-major samples through the same [`quantize_sample`].
+/// Quantizes a straight-alpha f32 accumulator to RGBA8, polling `job` at the
+/// head of every row (Phase 13A-5b-ii-b). The ONE quantizer: the document's
+/// projection and every isolated group's private projection
+/// (`doc_group::rendered_group`) both end here, through
+/// `doc_evaluation::encode_projection`'s encoded arm, so a group boundary
+/// rounds exactly the way the canvas does; every sample goes through
+/// [`quantize_sample`].
 pub(crate) fn quantize_with_job(
     acc: &[[f32; 4]],
     w: u32,

@@ -163,6 +163,7 @@ use crate::blend::{
 use crate::blend_fill::{fill_blend, FillBlend};
 use crate::clip_unit::{clip_alpha, clip_pass, ClipStep};
 use crate::doc::{composite_layer_into, DrDocument, Layer};
+use crate::doc_evaluation::{encoded_view, ByteTransfer};
 use crate::job_control::JobContext;
 use crate::style::{BlendIf, Effect, GlobalLight, Knockout, LayerStyle, StrokePosition};
 use crate::style_adjustment::Adjusted;
@@ -170,7 +171,7 @@ use crate::style_blend_if::source_weight;
 use crate::style_effects::EffectKind;
 use crate::style_knockout;
 use crate::style_render::{
-    Contribution, Ink, Placement, RenderContext, RenderedEffects, Shape, StyleColors,
+    Contribution, Ink, InkDecode, Placement, RenderContext, RenderedEffects, Shape, StyleColors,
 };
 use crate::style_stroke_distance::band_under_layer;
 
@@ -209,13 +210,25 @@ pub(crate) struct CompositeEnv<'a> {
     /// statement for statement what it was — and `Some` is `linear_light`,
     /// under which the accumulator holds LINEAR components. Obtained by the
     /// caller from `DrDocument::transfer`, never built here (`doc_evaluation`).
-    pub transfer: Option<&'a crate::doc_evaluation::ByteTransfer>,
+    pub transfer: Option<&'a ByteTransfer>,
     /// The job the chain polls (Phase 13A-5b-ii-a): `JobContext::NONE` for
     /// every full-frame composite — so every `?` the chain gained is a
     /// never-taken branch there — and live only inside the regional render's
     /// materialization (`doc_regional_style::resolve_materialized`, narrowed
     /// `checkpoints_only`).
     pub job: JobContext<'a>,
+}
+
+impl<'a> CompositeEnv<'a> {
+    /// How a contribution's authored colour becomes its ink here: the byte
+    /// statements (`Encoded`), decoded per sample into the accumulator under
+    /// `linear_light` (`Linear8`, `style_render::StyleColors`).
+    pub(crate) fn style_colors(&self) -> StyleColors<'a> {
+        match self.transfer {
+            None => StyleColors::Encoded(self.colors),
+            Some(transfer) => StyleColors::Linear8(self.colors, transfer),
+        }
+    }
 }
 
 /// Entries that contribute nothing to one composite — the retouch sampling
@@ -294,7 +307,7 @@ impl DrDocument {
     pub(crate) fn composite_env<'a>(
         &'a self,
         colors: Option<&'a AuthoredColors>,
-        transfer: Option<&'a crate::doc_evaluation::ByteTransfer>,
+        transfer: Option<&'a ByteTransfer>,
     ) -> CompositeEnv<'a> {
         CompositeEnv {
             light: self.global_light,
@@ -441,7 +454,7 @@ fn composite_direct_into(
                 c,
                 opacity,
                 occluding,
-                StyleColors::Encoded(env.colors),
+                env.style_colors(),
                 env.job,
             )?;
         }
@@ -506,6 +519,7 @@ fn composite_direct_into(
                 blend_if,
                 layer.blend,
                 opacity,
+                env.transfer,
                 env.job,
             )?,
         }
@@ -524,6 +538,7 @@ fn composite_direct_into(
                 blend_if,
                 BlendMode::Normal,
                 1.0,
+                env.transfer,
                 env.job,
             )?;
         }
@@ -624,7 +639,7 @@ fn composite_direct_into(
                     c,
                     b0,
                     opacity,
-                    StyleColors::Encoded(env.colors),
+                    env.style_colors(),
                     env.job,
                 )?,
                 None => composite_contribution(
@@ -637,7 +652,7 @@ fn composite_direct_into(
                     c,
                     opacity,
                     occluding,
-                    StyleColors::Encoded(env.colors),
+                    env.style_colors(),
                     env.job,
                 )?,
             }
@@ -759,6 +774,7 @@ impl BandBackdrop {
 /// 16 bits, and at 32 bits it must keep extended-range colour.
 /// The caller guarantees what `composite_contribution_sample`'s does, but
 /// for `scale`, which may be 0 (a band at opacity 0 shows B0 — `Ocut`).
+/// `decode` is the scene's (`StyleColors::decode`).
 #[allow(clippy::too_many_arguments)]
 #[inline]
 pub(crate) fn replace_under_band_sample(
@@ -768,6 +784,7 @@ pub(crate) fn replace_under_band_sample(
     shape: &Shape,
     c: &Contribution,
     ink: &Ink,
+    decode: InkDecode<'_>,
     plane_xy: (i64, i64),
     scale: f32,
     canvas_xy: (i64, i64),
@@ -783,7 +800,7 @@ pub(crate) fn replace_under_band_sample(
     let sa = f32::from(cov) / 255.0 * scale;
     let mut y = [b0];
     if sa > 0.0 {
-        let cs = ink.color.at(px + shape.origin.0, py + shape.origin.1);
+        let cs = decode.apply(ink.color.at(px + shape.origin.0, py + shape.origin.1));
         composite_source_into(&mut y, 0, cs, sa, ink.kind, canvas_xy);
     }
     target[ti] = mix_premultiplied_in(target[ti], y[0], s, false);
@@ -813,6 +830,7 @@ pub(crate) fn replace_under_band(
         return Ok(());
     }
     let ink = c.ink(colors);
+    let decode = colors.decode();
     let (sx, sy) = (i64::from(c.shift.0), i64::from(c.shift.1));
     let base_x = i64::from(rel.0) + shape.origin.0 + sx;
     let base_y = i64::from(rel.1) + shape.origin.1 + sy;
@@ -845,6 +863,7 @@ pub(crate) fn replace_under_band(
                 shape,
                 c,
                 &ink,
+                decode,
                 (px, py),
                 scale,
                 canvas_xy,
@@ -1112,6 +1131,7 @@ pub(crate) fn composite_pixels_into(
     blend_if: Option<(&BlendIf, Option<&BackdropSnapshot>)>,
     mode: BlendMode,
     opacity: f32,
+    transfer: Option<&ByteTransfer>,
     job: JobContext<'_>,
 ) -> Result<(), String> {
     let fill = crate::opacity_byte::composite(fill_opacity, false);
@@ -1144,6 +1164,7 @@ pub(crate) fn composite_pixels_into(
         direct,
         opacity,
         fill_blend: fill_blend(mode, fill, false),
+        transfer,
     };
     for ay in y0..y1 {
         job.check()?;
@@ -1187,6 +1208,9 @@ pub(crate) struct PixelPass<'a> {
     /// The special Fill of five modes (`blend_fill`, #2), `None` for the
     /// plain one.
     pub fill_blend: Option<FillBlend>,
+    /// The document's evaluation policy (`CompositeEnv::transfer`): `Some`
+    /// decodes the stored pixel into the linear-light accumulator.
+    pub transfer: Option<&'a ByteTransfer>,
 }
 
 /// One sample of `composite_pixels_into`'s loop, statement for statement: the
@@ -1195,7 +1219,11 @@ pub(crate) struct PixelPass<'a> {
 /// Normal, else `composite_source_into`; a special Fill (`pass.fill_blend`)
 /// composites at `sa` without the Fill through `FillBlend::composite`, the
 /// ONE route to that rule. The regional compositor (`doc_regional`) runs a
-/// styled sample through this same body.
+/// styled sample through this same body. Under `linear_light` the Blend If
+/// reads the stored pixel as it is and `under` through
+/// `doc_evaluation::encoded_view` — both encoded, as the ranges are — and
+/// only the pixel that composites is decoded (`doc::composite_layer_sample`'s
+/// rule).
 #[allow(clippy::too_many_arguments)]
 #[inline]
 pub(crate) fn composite_pixels_sample(
@@ -1208,15 +1236,16 @@ pub(crate) fn composite_pixels_sample(
     pass: &PixelPass<'_>,
     canvas_xy: (i64, i64),
 ) {
-    let cs = [
+    let stored = [
         f32::from(raw[li]) / 255.0,
         f32::from(raw[li + 1]) / 255.0,
         f32::from(raw[li + 2]) / 255.0,
     ];
     let weight = match pass.blend_if {
         None => 1.0,
-        Some(b) => source_weight(b, cs, under),
+        Some(b) => source_weight(b, stored, encoded_view(under, pass.transfer)),
     };
+    let cs = pass.transfer.map_or(stored, |t| t.decode(stored));
     if let Some(special) = pass.fill_blend {
         let sa = f32::from(raw[li + 3]) / 255.0 * coverage * weight * pass.opacity;
         if sa > 0.0 {
@@ -1243,7 +1272,8 @@ pub(crate) fn composite_pixels_sample(
 /// colour is evaluated at the pixel's layer coordinate. Shared with the
 /// typed styled path, whose contributions are the same u8 planes; `colors`
 /// is how the contribution's authored colour and blend become its [`Ink`]
-/// (`StyleColors::Encoded` at 8 bits, `Encoded16` at 16).
+/// (`StyleColors::Encoded` at 8 bits, `Encoded16` at 16, their `Linear*`
+/// twins under `linear_light`) and what it decodes through.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn composite_contribution(
     target: &mut [[f32; 4]],
@@ -1266,6 +1296,7 @@ pub(crate) fn composite_contribution(
     // the whole contribution (module doc). A gradient converts its stops, so
     // this is a stop list either way, never per-pixel work.
     let ink = c.ink(colors);
+    let decode = colors.decode();
     let (sx, sy) = (i64::from(c.shift.0), i64::from(c.shift.1));
     // Window position of plane pixel (0, 0).
     let base_x = i64::from(rel.0) + shape.origin.0 + sx;
@@ -1290,6 +1321,7 @@ pub(crate) fn composite_contribution(
                 shape,
                 c,
                 &ink,
+                decode,
                 (px, py),
                 scale,
                 occluding_fill,
@@ -1309,6 +1341,8 @@ pub(crate) fn composite_contribution(
 /// loop's own early return (not NaN, > 0) and `c.coverage` is the shape's
 /// size. The regional compositor (`doc_regional_tree`,
 /// `precision_regional_tree`) runs a styled sample through this same body.
+/// `decode` is the scene's (`StyleColors::decode`): the ink's colour enters a
+/// linear-light accumulator decoded, here and nowhere else.
 #[allow(clippy::too_many_arguments)]
 #[inline]
 pub(crate) fn composite_contribution_sample(
@@ -1317,6 +1351,7 @@ pub(crate) fn composite_contribution_sample(
     shape: &Shape,
     c: &Contribution,
     ink: &Ink,
+    decode: InkDecode<'_>,
     plane_xy: (i64, i64),
     scale: f32,
     occluding_fill: f32,
@@ -1327,7 +1362,7 @@ pub(crate) fn composite_contribution_sample(
         return;
     }
     let (px, py) = plane_xy;
-    let cs = ink.color.at(px + shape.origin.0, py + shape.origin.1);
+    let cs = decode.apply(ink.color.at(px + shape.origin.0, py + shape.origin.1));
     composite_source_into(target, ti, cs, sa, ink.kind, canvas_xy);
 }
 

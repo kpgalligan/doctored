@@ -109,6 +109,7 @@ fn direct_sample16(
             false,
         )
     });
+    let decode = env.style_colors().decode();
     if let Some(planes) = &style.planes {
         contributions_sample(
             target,
@@ -116,6 +117,7 @@ fn direct_sample16(
             &planes.shape,
             &planes.below,
             below_inks,
+            decode,
             offset,
             opacity,
             occluding,
@@ -185,6 +187,9 @@ fn direct_sample16(
         opacity,
         float: env.float,
         fill_blend: fill_in(mode, style.fill, env.float, env.lab()),
+        transfer: env.transfer,
+        // A raster's pixel is its stored sample; a group's is composited.
+        stored: matches!(layer.kind, Kind::Raster { .. }),
     };
     // `composite_pixels_into`'s early return, then its sample.
     let pixel_pass = |target: &mut [[f32; 4]], ti: usize, mode: BlendMode, opacity: f32| match pixel
@@ -290,7 +295,18 @@ fn direct_sample16(
             .filter(|(c, _)| !(style.grouped && is_grouped_interior(c.kind)))
         {
             if c.kind == EffectKind::Stroke {
-                band_sample(target, ti, b0, &planes.shape, c, ink, offset, opacity, xy);
+                band_sample(
+                    target,
+                    ti,
+                    b0,
+                    &planes.shape,
+                    c,
+                    ink,
+                    decode,
+                    offset,
+                    opacity,
+                    xy,
+                );
                 continue;
             }
             contributions_sample(
@@ -299,6 +315,7 @@ fn direct_sample16(
                 &planes.shape,
                 std::slice::from_ref(c),
                 std::slice::from_ref(ink),
+                decode,
                 offset,
                 opacity,
                 occluding,

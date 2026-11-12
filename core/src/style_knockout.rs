@@ -232,7 +232,7 @@ use crate::style_composite::{
     BackdropSnapshot, CompositeEnv, Cut,
 };
 use crate::style_effects::{Effect, EffectKind};
-use crate::style_render::{RenderedEffects, Shape, StyleColors};
+use crate::style_render::{RenderedEffects, Shape};
 
 /// Transparent black — what a knockout punches to when its backdrop is absent
 /// (D4: an isolated buffer, a merge, a bake, a document with no Background).
@@ -664,6 +664,7 @@ pub(crate) fn composite_interior_unit_into(
         blend_if,
         BlendMode::Normal,
         1.0,
+        env.transfer,
         env.job,
     )?;
     if group.iter().any(|l| l.visible) {
@@ -725,7 +726,7 @@ pub(crate) fn composite_interior_unit_into(
                     c,
                     1.0,
                     0.0,
-                    StyleColors::Encoded(env.colors),
+                    env.style_colors(),
                     env.job,
                 )?;
                 for (px, &a) in unit.iter_mut().zip(&unit_alpha) {

@@ -839,9 +839,18 @@ fn a_nest_past_the_limit_under_a_styled_outermost_group_refuses_in_its_words() {
 }
 
 #[test]
-fn a_styled_group_document_refuses_linear_light() {
+fn a_styled_group_document_evaluates_linear_light_regionally() {
     let (doc, _) = styled_group(GROUP_STYLE, BlendMode::Normal, 1.0);
-    assert!(doc.with_evaluation(Evaluation::LinearLight).is_err());
+    let linear = doc
+        .with_evaluation(Evaluation::LinearLight)
+        .unwrap()
+        .expect("a policy change");
+    assert_ne!(
+        full(&linear),
+        full(&doc),
+        "the policy changes the projection"
+    );
+    assert_regions_match(&linear, "linear light");
 }
 
 // --------------------------------------------------------------- budget --

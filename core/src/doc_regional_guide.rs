@@ -291,7 +291,7 @@ pub(crate) fn render_staged(
             .guide_with_job(
                 built.width,
                 built.height,
-                &|i| crate::doc_evaluation::guide_view(prev[i], transfer),
+                &|i| crate::doc_evaluation::encoded_view(prev[i], transfer),
                 job.range(start, end),
             )?
             .ok_or(MISMATCH)?;

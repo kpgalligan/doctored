@@ -49,6 +49,8 @@
 //! 26.10.0, which keeps both kinds through 32 -> 16 with its colour re-coded to look the same)
 //! with the note [`DESCRIBED_NOTE`]; description bytes ride verbatim; the host reads them in the
 //! destination's ink (receipt take2 PT/PSH, NR).
+//! A float record with a layer style or Blend If carries [`STYLE_NOTE`]: the narrowed document
+//! is linear light, where Blend If reads encoded values (`doc_evaluation::encoded_view`).
 //! A binding whose master is 32-bit float rides too (measured against
 //! Photoshop 26.10.0, which keeps 32-bit contents through
 //! Convert to 16 and to 8 bits and renders them clipped: receipt
@@ -115,6 +117,12 @@ use crate::warp::WarpBinding8;
 /// shape keeps its description; it re-renders at {16|8} bits on the next
 /// edit``.
 const DESCRIBED_NOTE: &str = "text or shape keeps its description; it re-renders at";
+
+/// The note of a float record with a layer style or Blend If: the narrowed
+/// document evaluates in linear light at 8 or 16 bits, where Blend If reads
+/// encoded values and a gradient effect interpolates its encoded ramp, while
+/// the float document reads stored linear values.
+const STYLE_NOTE: &str = "style and Blend If composite in linear light at the narrowed depth, where Blend If reads encoded values and a gradient effect its encoded ramp; the float document read linear values";
 
 /// The row note and the op's refusal for a record whose retained source is
 /// a 32-bit float Camera RAW development (module doc).
@@ -274,6 +282,17 @@ impl PrecisionDocument {
     fn described_note(&self, layer: &PrecisionDocumentLayer, bits: u32, notes: &mut Vec<String>) {
         if self.is_float() && layer.description.is_some() {
             notes.push(format!("{DESCRIBED_NOTE} {bits} bits on the next edit"));
+        }
+    }
+
+    /// The note a float record with a layer style or Blend If carries
+    /// ([`STYLE_NOTE`]), pushed onto `notes`: the narrowed document is
+    /// linear light, where a style's effects and Blend If read ENCODED values
+    /// (`doc_evaluation::encoded_view`), not the float document's stored
+    /// linear ones.
+    fn style_note(&self, layer: &PrecisionDocumentLayer, notes: &mut Vec<String>) {
+        if self.is_float() && (layer.style.is_some() || layer.blend_if.is_some()) {
+            notes.push(STYLE_NOTE.into());
         }
     }
 
@@ -454,6 +473,7 @@ impl PrecisionDocument {
             label: layer.label,
             reference: layer.reference,
         };
+        self.style_note(layer, notes);
         self.carry_to_byte(layer, job, &mut out, notes, walk)?;
         Ok(out)
     }
@@ -652,6 +672,7 @@ impl PrecisionDocument {
             }
             Content::Group(_) | Content::PassThrough(_) => {}
         }
+        self.style_note(layer, notes);
         if let Some(mask) = &layer.mask {
             let dims = mask.plane.dimensions();
             walk.output = walk.output.saturating_add(area(dims) * 2);

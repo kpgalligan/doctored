@@ -6,8 +6,9 @@
 //!
 //! Nothing here is new pixel math. The bake runs the SHIPPED compositor
 //! (`style_composite::merge_extent` for the grown rectangle,
-//! `doc::composite_layer_into` for the package, `doc::quantize` for the
-//! samples) over a transparent accumulator, where every blend reduces to
+//! `doc::composite_layer_into` for the package, `doc_evaluation::
+//! encode_projection` for the samples — `doc::quantize_with_job` on an encoded
+//! document) over a transparent accumulator, where every blend reduces to
 //! source-over — so the record's own blend key and opacity byte still apply
 //! the whole package in Photoshop, which is the package model
 //! `style_composite` documents. The layer's own opacity, blend mode and Blend
@@ -26,7 +27,7 @@
 //! light at both depths). `psd_export_rasterize.rs` is the FALLBACK rule: a style Photoshop's own
 //! dialog or a PSD mask cannot hold (a sub-1 px stroke, a satin distance outside 1–250 px, an
 //! enabled mask with density or feather) is baked into pixels through the SHIPPED compositor
-//! (`merge_extent`, `composite_layer_into`, `quantize`) over a transparent accumulator, with
+//! (`merge_extent`, `composite_layer_into`, `encode_projection`) over a transparent accumulator, with
 //! opacity/blend/Blend If left to the record's own bytes and an ENABLED mask inside the bake; an
 //! adjustment layer whose op has no Photoshop record, a bake past 100 MP and a GROUP whose style
 //! would need a bake still refuse.
@@ -37,7 +38,7 @@ use image::RgbaImage;
 
 use crate::authored_color::AuthoredColors;
 use crate::blend::BlendMode;
-use crate::doc::{composite_layer_into, quantize, DrDocument, Layer, MAX_PIXELS};
+use crate::doc::{composite_layer_into, DrDocument, Layer, MAX_PIXELS};
 use crate::psd_export_preflight::{mask_bake_reason, ExportStyle};
 use crate::psd_layer_effects::{
     bake_reason, effect_block_bytes, encode_fill, encode_ranges, knockout_blocks,
@@ -67,9 +68,8 @@ impl DrDocument {
     pub(crate) fn style_extent(&self, index: usize) -> Option<(i64, i64, i64, i64)> {
         let layer = self.layers.get(index)?;
         layer.renders_any_style()?;
-        // A layer style is REFUSED under linear-light evaluation, so this can
-        // only be an encoded document; the walk is asked anyway, because the
-        // extent is a projection question (`doc_evaluation`).
+        // The extent is a projection question, so it asks the policy's
+        // transfer as every projection does (`doc_evaluation`).
         Some(merge_extent(
             layer,
             self.composite_env(None, self.transfer().ok()?),
@@ -91,9 +91,10 @@ impl DrDocument {
         let style = layer
             .renders_any_style()
             .ok_or("this layer renders no layer style")?;
-        // Styles are refused under linear-light evaluation (`doc_evaluation`),
-        // so this bake's `quantize` below is reached only on the encoded path
-        // and keeps its exact rounding.
+        // The bake is the layer as the canvas shows it: under linear light it
+        // composites in linear light and is encoded back below
+        // (`doc_evaluation::encode_projection`, which on an encoded document
+        // is `quantize` statement for statement).
         let env = self.composite_env(colors, self.transfer()?);
         let (x0, y0, x1, y1) = merge_extent(layer, env);
         let (uw, uh) = ((x1 - x0).max(0) as u64, (y1 - y0).max(0) as u64);
@@ -138,7 +139,12 @@ impl DrDocument {
         composite_layer_into(&mut acc, uw as u32, uh as u32, origin, &baked, env)?;
         Ok(Bake {
             origin,
-            pixels: quantize(&acc, uw as u32, uh as u32),
+            pixels: crate::doc_evaluation::encode_projection(
+                &acc,
+                uw as u32,
+                uh as u32,
+                env.transfer,
+            ),
         })
     }
 }

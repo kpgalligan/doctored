@@ -1321,10 +1321,10 @@ impl PrecisionDocument {
             light: self.global_light(),
             canvas: (width, height),
             colors: colors.as_ref(),
-            // PSD export writes the STORED planes and bakes styles, both of
-            // which are encoded-domain questions; a styled layer is refused
-            // under `linear_light` anyway (`doc_evaluation`).
-            transfer: None,
+            // PSD export writes the STORED planes; a style BAKE is the layer
+            // as the canvas shows it, so under `linear_light` it composites
+            // in linear light and `bake_style16` encodes it back.
+            transfer: self.linear_light.as_deref(),
             // A float document is written by `psd_export_float`, so this
             // walk only sees u16 records.
             float: false,

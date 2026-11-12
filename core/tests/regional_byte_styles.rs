@@ -516,10 +516,18 @@ fn the_plan_marks_styled_blend_if_rows_and_keeps_its_formulas() {
 }
 
 #[test]
-fn a_styled_document_cannot_take_linear_light() {
-    // Why there is no linear-light case: the 11E walk refuses a style.
+fn a_styled_document_evaluates_linear_light_regionally() {
     let doc = styled(&clip_stack(), 1, "{\"fill_opacity\":0.5}");
-    assert!(doc.with_evaluation(Evaluation::LinearLight).is_err());
+    let linear = doc
+        .with_evaluation(Evaluation::LinearLight)
+        .unwrap()
+        .expect("a policy change");
+    assert_ne!(
+        full(&linear),
+        full(&doc),
+        "the policy changes the projection"
+    );
+    assert_regions_match(&linear, "linear light");
 }
 
 // -------------------------------------------------------- cancellation --

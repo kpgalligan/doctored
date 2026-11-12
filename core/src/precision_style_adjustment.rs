@@ -26,7 +26,7 @@ use crate::job_control::JobContext;
 use crate::precision_adjustment::PrecisionAdjustmentState;
 use crate::precision_image::reserved_vec;
 use crate::precision_render::adjust_backdrop_sample16;
-use crate::precision_style_render::{blend_if_weight_at, StyleEnv, StyledLayer, StyledPixels};
+use crate::precision_style_render::{StyleEnv, StyledLayer, StyledPixels};
 use crate::style::BlendIf;
 use crate::style_composite::{mix_premultiplied_in, BackdropSnapshot};
 
@@ -95,11 +95,12 @@ impl Adjusted16<'_> {
                         let under = snapshot
                             .and_then(|s| s.at(i64::from(x), i64::from(y)))
                             .unwrap_or(before);
-                        blend_if_weight_at(
+                        // The adjusted backdrop is composited, not stored.
+                        env.blend_if_weight(
                             b,
                             [adjusted[0], adjusted[1], adjusted[2]],
+                            false,
                             [under[0], under[1], under[2]],
-                            env.float,
                         )
                     }
                 };

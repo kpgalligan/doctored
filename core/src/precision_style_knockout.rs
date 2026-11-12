@@ -481,8 +481,7 @@ pub(crate) fn composite_interior_unit_into(
         blend_if,
         BlendMode::Normal,
         1.0,
-        env.float,
-        env.lab(),
+        env,
         job,
     )?;
     if let Some((count, render_member)) = members {

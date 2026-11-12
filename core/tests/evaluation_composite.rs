@@ -13,11 +13,11 @@
 //! time — is gated at 2 codes and says so at its assertion.
 //!
 //! The last section is the TYPED twin of three of these measurements — the
-//! separable-mode oracle, the adjustment transcode and the post-switch refusal
+//! separable-mode oracle, the adjustment transcode and the post-switch policy
 //! of `render` / `render_plan` — through `dr_precision_doc_*`, so the typed
-//! decode, the typed continuous transcode and the typed backstop have their
-//! own oracle rather than inheriting the byte one's result. Its gate is
-//! derived at `TYPED_GATE`.
+//! decode and the typed continuous transcode have their own oracle rather
+//! than inheriting the byte one's result. Its gate is derived at
+//! `TYPED_GATE`.
 
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::ptr;
@@ -222,15 +222,6 @@ fn switch(doc: &DrDocument, policy: c_int) -> Result<Option<DrDocument>, String>
     } else {
         assert!(err.is_null(), "err_out set on success");
         Ok(Some(*unsafe { Box::from_raw(out) }))
-    }
-}
-
-/// The refusal `switch` reports, panicking when it unexpectedly succeeds
-/// (`DrDocument` has no `Debug`, so `expect_err` is not available).
-fn refused_switch(doc: &DrDocument, what: &str) -> String {
-    match switch(doc, LINEAR) {
-        Err(message) => message,
-        Ok(_) => panic!("{what} must refuse the switch"),
     }
 }
 
@@ -612,45 +603,70 @@ fn a_pointwise_adjustment_over_a_half_opacity_layer_stays_within_two_codes() {
 
 // ------------------------------------------------------------- the policy --
 
+/// Every operator phase 1 refused — the seven modes, a style, Blend If and a
+/// guided Shadows/Highlights — switches, refuses nothing and projects. Their
+/// numbers are `evaluation_nonseparable`, `evaluation_styles` and
+/// `evaluation_guide`'s.
 #[test]
-fn every_refused_operator_refuses_at_the_switch_by_name() {
+fn every_formerly_refused_operator_is_admitted_at_the_switch() {
     let base = two_layer(255);
-    let styled = with_style(&base, 1, "{\"effects\":[{\"type\":\"color_overlay\"}]}");
-    let message = refused_switch(&styled, "a style");
-    assert!(
-        message.contains("layer style") && message.contains("Layer 1") && message.contains("Top"),
-        "{message}"
-    );
-
-    let blend_if = with_style(
+    let mut docs = Vec::new();
+    for mode in [
+        BlendMode::DarkerColor,
+        BlendMode::LighterColor,
+        BlendMode::Hue,
+        BlendMode::Saturation,
+        BlendMode::Color,
+        BlendMode::Luminosity,
+        BlendMode::Dissolve,
+    ] {
+        docs.push(base.with_layer_blend_mode(1, mode).expect("a new mode"));
+    }
+    docs.push(with_style(
+        &base,
+        1,
+        "{\"effects\":[{\"type\":\"color_overlay\"}]}",
+    ));
+    docs.push(with_style(
         &base,
         1,
         "{\"blend_if\":{\"channel\":\"gray\",\"this_layer\":[0,0,200,255],\
          \"underlying\":[0,0,255,255]}}",
-    );
-    let message = refused_switch(&blend_if, "Blend If");
-    assert!(message.contains("Blend If"), "{message}");
+    ));
+    docs.push(with_meta(
+        &base,
+        1,
+        r#"{"type":"adjust","op":"shadows_highlights","params":{"shadows":{"amount":0.5},"highlights":{"amount":0.2}}}"#,
+    ));
+    for doc in docs {
+        let switched = linear(&doc);
+        assert!(refusal(&switched).is_none(), "nothing is refused");
+        assert!(flatten(&switched).is_ok(), "and it projects");
+    }
 }
 
+/// The one refusal left is the staleness net: a profile replaced without
+/// its rebind refuses every projection with the walk's own sentence.
 #[test]
-fn an_unmigrated_operator_added_after_the_switch_refuses_every_projection() {
+fn a_stale_transfer_refuses_every_projection() {
     let switched = linear(&two_layer(255));
     assert_eq!(policy_of(&switched), LINEAR);
     assert!(
         refusal(&switched).is_none(),
-        "a migrated stack refuses nothing"
+        "a current transfer refuses nothing"
     );
 
-    let broken = with_style(&switched, 1, "{\"effects\":[{\"type\":\"color_overlay\"}]}");
-    let reason = refusal(&broken).expect("the walk names it");
+    let mut stale = switched.clone();
+    stale.profile = IccProfile::display_p3();
+    let reason = refusal(&stale).expect("the net names it");
     assert!(
-        reason.contains("layer style") && reason.contains("Top"),
+        reason.contains("does not belong to its colour profile"),
         "{reason}"
     );
     assert_eq!(
-        flatten(&broken).expect_err("the projection refuses"),
+        flatten(&stale).expect_err("the projection refuses"),
         reason,
-        "the render's sentence IS the walk's"
+        "the render's sentence IS the net's"
     );
 }
 
@@ -1027,37 +1043,28 @@ fn a_typed_adjustment_transcodes_and_lerps_in_linear() {
     }
 }
 
-/// The typed backstop: an unmigrated operator added AFTER the switch refuses
-/// the render and the plan with the walk's own sentence.
+/// The typed policy after the switch: an operator phase 1 refused — a style,
+/// Blend If, Hue — added AFTER the switch renders and plans.
 #[test]
-fn a_typed_unmigrated_operator_after_the_switch_refuses_render_and_plan() {
+fn a_typed_formerly_refused_operator_after_the_switch_renders_and_plans() {
     let switched = typed_linear(&typed_two_layer(65535));
     assert!(
-        switched.linear_light_refusal().is_none(),
-        "a migrated typed stack refuses nothing"
+        typed_render(&switched).is_ok(),
+        "the switched stack renders"
     );
-    assert!(typed_render(&switched).is_ok(), "and it renders");
-
-    let broken = typed_edit(
+    let styled = typed_edit(
         &switched,
         r#"{"op":"layer_style","version":1,"layer":1,"style":{"effects":[{"type":"color_overlay"}]}}"#,
     )
     .expect("the style lands");
-    let reason = broken
-        .linear_light_refusal()
-        .expect("the typed walk names it");
-    assert!(
-        reason.contains("layer style") && reason.contains("Top"),
-        "{reason}"
-    );
-    assert_eq!(
-        typed_render(&broken).expect_err("the typed render refuses"),
-        reason,
-        "the typed render's sentence IS the walk's"
-    );
-    assert_eq!(
-        broken.render_plan().expect_err("the typed plan refuses"),
-        reason,
-        "and so is the plan's"
-    );
+    let blend_if = typed_edit(
+        &switched,
+        r#"{"op":"layer_blend_if","version":1,"layer":1,"blend_if":{"channel":"gray","this_layer":[0,0,200,255]}}"#,
+    )
+    .expect("the Blend If lands");
+    for doc in [styled, blend_if, typed_blend(&switched, 1, BlendMode::Hue)] {
+        assert!(doc.linear_light_refusal().is_none(), "nothing is refused");
+        assert!(typed_render(&doc).is_ok(), "it renders");
+        assert!(doc.render_plan().is_ok(), "and plans");
+    }
 }

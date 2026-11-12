@@ -948,21 +948,25 @@ fn flatten_stamp_and_merge_visible_bake_knockout_exactly() {
 // --------------------------------------------------- policy, cost, identity --
 
 #[test]
-fn a_linear_light_document_refuses_a_knockout_style_by_the_evaluation_sentence() {
+fn a_linear_light_document_evaluates_a_knockout_style() {
     let dir = TempDir::new().unwrap();
     let mut doc = scene(&dir, BG);
     doc = over_layer(&dir, "top.png", doc, 0, HIGH, "Top");
     doc = set_style(doc, 1, &knockout_style("deep", 0.0));
+    let encoded = flat_pixels(doc);
     let mut err: *mut c_char = ptr::null_mut();
     let out = unsafe { dr_doc_set_evaluation(doc, 1, &mut err) };
-    assert!(out.is_null(), "linear light accepted a knockout style");
-    let message = take_err_string(err);
     assert!(
-        message.contains("a layer style or Blend If")
-            && message.contains("linear-light evaluation does not"),
-        "the evaluation policy's own sentence: {message}"
+        !out.is_null() && err.is_null(),
+        "linear light admits a knockout style"
     );
-    unsafe { dr_doc_free(doc) };
+    // A deep knockout at fill 0 punches the layer through to its backdrop,
+    // whose lattice codes round-trip exactly under either policy.
+    assert_eq!(flat_pixels(out), encoded);
+    unsafe {
+        dr_doc_free(out);
+        dr_doc_free(doc);
+    }
 }
 
 #[test]
