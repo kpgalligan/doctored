@@ -26,9 +26,9 @@ Cases:
   flat_save_losses has no "paths", a PNG's does) with their reopens; path
   null clears it; a Grayscale document answers the tool.
 - MODES: a new Grayscale, Lab and CMYK document with a raster-less vector
-  mask on its second layer (and, but in CMYK, which has no comp tools, a
-  comp) exports with no vector-mask loss; its layered reopen marks the bottom
-  "ordinary", keeps the vector mask's corners and lists the comp.
+  mask on its second layer and a comp exports with no vector-mask loss; its
+  layered reopen marks the bottom "ordinary", keeps the vector mask's corners
+  and lists the comp.
 
 Usage: python3 scripts/verify_psd_exchange.py --output DIR
 Prints `PASS <case>` per case and exits 0 when every case passed.
@@ -188,8 +188,7 @@ def modes(drive):
                          depth=8, background='white')['document']['id']
         drive.call('new_layer', document_id=doc, name='Top')
         drive.call('set_vector_mask', document_id=doc, layer=1, subpaths=[square])
-        if mode != 'cmyk':  # a CMYK document offers no Layer Comps tools
-            drive.call('save_layer_comp', document_id=doc, name='Both')
+        drive.call('save_layer_comp', document_id=doc, name='Both')
         report = drive.call('inspect_psd_export', document_id=doc, format='psd', mode='layers')
         assert not any(l.startswith('The vector mask on') for l in report['losses']), report
         path = drive.folder / f'modes-{mode}.psd'
@@ -202,10 +201,8 @@ def modes(drive):
         corners = [[a['x'], a['y']] for a in mask['subpaths'][0]['anchors']]
         assert all(abs(a - b) <= 1e-3 for p, q in zip(corners, square['anchors'])
                    for a, b in zip(p, q)), (mode, corners)
-        names = None
-        if mode != 'cmyk':
-            names = [c['name'] for c in drive.call('list_layer_comps', document_id=back)['comps']]
-            assert names == ['Both'], (mode, names)
+        names = [c['name'] for c in drive.call('list_layer_comps', document_id=back)['comps']]
+        assert names == ['Both'], (mode, names)
         drive.close(doc, back)
         seen[mode] = dict(background=rows[0].get('background'), corners=corners, comps=names)
     return seen

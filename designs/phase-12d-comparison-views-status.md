@@ -133,7 +133,7 @@ which restore the whole editing state.
   (Binding above).
 - `DONE` — PSD `cmls` / image-resource-1065 comps cross with their names, comments and visibility
   (`psd_comps`), at RGB 8/16 and, since 2026-11-12, in the Gray, Lab, CMYK and 32-bit codecs
-  (`psd_typed_exchange`; a CMYK document holds and writes them but has no comp tools); `OPEN`
+  (`psd_typed_exchange`; a CMYK document holds, applies and writes them, `cmyk_comps`); `OPEN`
   [#13](https://github.com/kpgalligan/doctored/issues/13) — position and appearance.
 - `DONE` — host-regenerated text and shape layers (fill layers too, `FillLayer.swift`): after a whole-canvas op the host sends one `{"op":"layer_comp","action":"shift"}` per re-rendered layer
   whose offset differs from the core's (`RasterDocument.followingHostPlacement`, `LayerComps.swift`; core

@@ -68,6 +68,7 @@ mod cmyk_clipboard;
 pub mod cmyk_clipboard_codec;
 pub mod cmyk_color;
 mod cmyk_composite;
+mod cmyk_comps;
 mod cmyk_convert;
 mod cmyk_convert_tree;
 mod cmyk_cutout;

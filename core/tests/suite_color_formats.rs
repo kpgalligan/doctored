@@ -111,6 +111,8 @@ mod cmyk_channels;
 mod cmyk_clipboard;
 #[path = "cmyk_colour_profiles.rs"]
 mod cmyk_colour_profiles;
+#[path = "cmyk_comps.rs"]
+mod cmyk_comps;
 #[path = "cmyk_document.rs"]
 mod cmyk_document;
 #[path = "cmyk_edit.rs"]

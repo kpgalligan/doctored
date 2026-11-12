@@ -35,6 +35,7 @@ Detail belongs in the source file's own header comment.
 - `cmyk_render.rs` — CMYK projections over `cmyk_stack`: the P3 view, regions at any divisor, layer canvas/thumbnail, ink planes, sample, descriptor.
 - `cmyk_convert.rs` — Image ▸ Mode ▸ CMYK Color / RGB Color conversions, plans, refusals; the CMYK flatten; the 3 per-image legs the clipboard shares.
 - `cmyk_convert_tree.rs` — the record tree both mode conversions carry (groups, masks, clipping, modes, Fill), their first blockers and `carry`.
+- `cmyk_comps.rs` — layer comps on CMYK: the Apply skip of a style CMYK cannot hold; recorded inks dropped toward RGB, rewritten by Convert/Assign.
 - `cmyk_merge.rs` — the CMYK merges' pixels: `cmyk_frame_image` (the stack over a frame, D7-seeded), `cmyk_projection_image`, the scratch plans.
 - `cmyk_warp.rs` — Layer ▸ Warp on CMYK ink (applied at once, no binding) and Liquify over two ink views joined; their plans.
 - `cmyk_selected_pixels.rs` — Move/Transform/Puppet/Perspective of a CMYK layer's selected pixels, the one walk over two ink views; bounds.

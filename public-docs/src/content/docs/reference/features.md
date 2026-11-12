@@ -3299,8 +3299,7 @@ does not import (Grayscale, Lab, a gradient or pattern at 32 bits); the
 file's paths (the work path and saved paths) open with the document in every
 mode; layer comps (resource 1065 and each layer's `cmls`) open in every mode
 with their names, comments and visibility, a comp's position and appearance
-reported as not imported (a CMYK document keeps and writes them but has no
-Layer Comps tools).
+reported as not imported.
 Malformed admitted mask rectangles or rows refuse the layered choice. Photoshop
 layer groups retain structure, names, folder opacity, visibility, recognized
 blend modes and open/closed state through a bounded metadata walk. Raster

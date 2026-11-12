@@ -286,10 +286,6 @@ extension RasterDocument {
     /// edit (no undo step of its own); a refusal throws with the edit.
     func followingHostPlacement(of indices: [Int], placedBy core: RasterDocument) throws
         -> RasterDocument {
-        // A CMYK document's comps come only from a PSD and record visibility,
-        // never a position, and its table has no `layer_comp` family to shift
-        // one, so a re-rendered artwork layer has no offset to follow (#1).
-        guard !isCmyk else { return self }
         var result = self
         for index in indices {
             guard let placed = layerInfo(index), let computed = core.layerInfo(index) else {

@@ -8,6 +8,8 @@
 //! applying the comp after the op puts the layer where applying it before the
 //! op would have put it, and a position-locked layer that sits where its comp
 //! says is not reported `locked` merely because the canvas moved under it.
+//! At high depth a raster is either pixel leaf (`is_pixel_leaf`): an RGB one
+//! or a CMYK document's ink.
 //!
 //! This module holds NO per-op geometry. Each op passes the very expression
 //! its own layer loop uses — `doc::translated_offset`, `doc::scaled_offset`,
@@ -111,7 +113,7 @@ use crate::blend::BlendMode;
 use crate::doc::{DrDocument, Layer, LayerKind};
 use crate::doc_comps::{CompAppearance, LayerComp};
 use crate::doc_transform::{transformed_plane_bounds, Affine};
-use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
+use crate::precision_document::{PrecisionDocument, PrecisionDocumentLayer};
 use crate::source_transform::{self, SourceTransform};
 use crate::style::{scaled_style, LayerStyle};
 
@@ -325,7 +327,9 @@ impl PrecisionDocument {
             let i = *index.get(&id)?;
             let layer = records.get(i)?;
             let offset = match recorded {
-                Some(rec) if matches!(layer.content, Content::Raster { .. }) => {
+                // An RGB or a CMYK raster (a CMYK leaf has no retained source,
+                // so it always takes the op's own rule).
+                Some(rec) if layer.is_pixel_leaf() => {
                     let source = rerender.and_then(|incremental| {
                         layer.effective_source()?;
                         Some((incremental, layer.retained_source.as_ref()?))
@@ -359,7 +363,7 @@ impl PrecisionDocument {
             return None;
         }
         let layer = self.layer(index)?;
-        if !matches!(layer.content, Content::Raster { .. }) {
+        if !layer.is_pixel_leaf() {
             return None;
         }
         let next = self.remapped_comps(
@@ -378,7 +382,7 @@ impl PrecisionDocument {
         origin: (i32, i32),
     ) -> Option<Vec<LayerComp>> {
         let layer = self.layer(index)?;
-        if !matches!(layer.content, Content::Raster { .. }) {
+        if !layer.is_pixel_leaf() {
             return None;
         }
         let delta = growth_delta(&self.comps, layer.offset(), origin)?;

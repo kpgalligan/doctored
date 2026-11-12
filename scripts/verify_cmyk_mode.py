@@ -57,6 +57,17 @@ app. The CMYK profile is macOS's Generic CMYK Profile (always installed).
   and with distortion true refuse with "Vignette Removal does not work in
   CMYK." and "Geometric Distortion does not work in CMYK.", the history cursor
   unmoved.
+- **G10 layer comps.** A new 8-bit RGB document (64x48, white) with a layer
+  "Top" filled #c03020 over a rectangle: `save_layer_comp` "A", then
+  `convert_mode cmyk` (one undo step) lists the comp names ["A"] (the carry).
+  `set_layer_properties` hides Top at opacity 0.5 in Multiply; on CMYK
+  `apply_layer_comp` "A" is one undo step and `sample_color` ink16 over the
+  probe grid equals the grid read before the change; `undo` gives the changed
+  grid back and `redo` the restored one. `save_layer_comp` "B",
+  `update_layer_comp` A → A2, `reorder_layer_comp` B to 0 and
+  `delete_layer_comp` B are one undo step each with the names as asked;
+  `get_precision`'s supported_tools holds the six comp tools; `convert_mode
+  rgb` keeps the names ["A2"]. `--only g10` runs this gate alone.
 """
 import argparse
 import json
@@ -264,9 +275,71 @@ def pattern(width, height, bits):
     return [(i * 7919 + c * 104729) % (top + 1) for i in range(width * height) for c in range(4)]
 
 
+COMP_TOOLS = ['list_layer_comps', 'save_layer_comp', 'apply_layer_comp', 'update_layer_comp',
+              'delete_layer_comp', 'reorder_layer_comp']
+COMP_PROBES = [(x, y) for y in (4, 14, 22, 30, 44) for x in (4, 16, 30, 44, 60)]
+
+
+def g10(call):
+    """G10: layer comps on a CMYK document and through Image ▸ Mode (module doc)."""
+    def undo_count(doc):
+        return int(call('list_history', document_id=doc)['undo_count'])
+
+    def counted(doc, tool, **arguments):
+        count = undo_count(doc)
+        reply = call(tool, document_id=doc, **arguments)
+        assert undo_count(doc) == count + 1, (tool, reply)
+        return reply
+
+    def names(doc):
+        return [c['name'] for c in call('list_layer_comps', document_id=doc)['comps']]
+
+    def probe(doc):
+        return [call('sample_color', document_id=doc, x=x, y=y)['ink16'] for x, y in COMP_PROBES]
+
+    doc = call('new_document', width=64, height=48, unit='px', color_mode='rgb', depth=8,
+               background='white')['document']['id']
+    call('new_layer', document_id=doc, name='Top')
+    call('select_rect', document_id=doc, x=10, y=8, width=30, height=24)
+    call('fill_selection', document_id=doc, layer=1, color='#c03020')
+    call('deselect', document_id=doc)
+    counted(doc, 'save_layer_comp', name='A')
+    counted(doc, 'convert_mode', mode='cmyk')
+    assert call('get_color_profile', document_id=doc).get('color_mode') == 'cmyk'
+    carried = names(doc)
+    assert carried == ['A'], carried
+    before = probe(doc)
+    call('set_layer_properties', document_id=doc, index=1, visible=False, opacity=0.5,
+         blend_mode='Multiply')
+    changed = probe(doc)
+    assert changed != before, 'the properties changed the ink'
+    applied = counted(doc, 'apply_layer_comp', name='A')
+    assert probe(doc) == before, 'apply restores the ink'
+    call('undo', document_id=doc)
+    assert probe(doc) == changed, 'undo walks the apply back'
+    call('redo', document_id=doc)
+    assert probe(doc) == before, 'redo applies it again'
+    counted(doc, 'save_layer_comp', name='B')
+    counted(doc, 'update_layer_comp', name='A', new_name='A2')
+    assert names(doc) == ['A2', 'B'], names(doc)
+    counted(doc, 'reorder_layer_comp', name='B', to=0)
+    assert names(doc) == ['B', 'A2'], names(doc)
+    counted(doc, 'delete_layer_comp', name='B')
+    assert names(doc) == ['A2'], names(doc)
+    supported = call('get_precision', document_id=doc)['supported_tools']
+    assert all(tool in supported for tool in COMP_TOOLS), supported
+    call('convert_mode', document_id=doc, mode='rgb')
+    back = names(doc)
+    assert back == ['A2'], back
+    call('close_document', document_id=doc, discard_changes=True)
+    return {'carried': carried, 'applied': applied, 'probe': before, 'to_rgb': back}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--receipts', default=None)
+    parser.add_argument('--only', choices=['g10'], default=None,
+                        help='run one independent gate alone')
     args = parser.parse_args()
     assert GENERIC.is_file(), GENERIC
     profile = GENERIC.read_bytes()
@@ -280,6 +353,14 @@ def main():
 
     with App(folder / 'app', folder / 'recovery', interval=600) as app:
         call = app.call
+        if args.only == 'g10':
+            receipts['g10'] = g10(call)
+            print('PASS g10: layer comps save, apply, update, reorder and delete on CMYK and '
+                  'cross Image ▸ Mode both ways', flush=True)
+            (output / 'receipt.json').write_text(
+                json.dumps(receipts, indent=2, sort_keys=True) + '\n')
+            print('ALL GATES PASS (g10 only)', flush=True)
+            return
 
         # ---- G1: TIFF 8/16, bit-exact ------------------------------------
         for bits in (8, 16):
@@ -519,6 +600,11 @@ def main():
         receipts['g9'] = g9
         print('PASS g9: Auto-Align and Reduce Noise from Stack run on CMYK, the lens refuses',
               flush=True)
+
+        # ---- G10: layer comps ----------------------------------------------
+        receipts['g10'] = g10(call)
+        print('PASS g10: layer comps save, apply, update, reorder and delete on CMYK and '
+              'cross Image ▸ Mode both ways', flush=True)
 
     (output / 'receipt.json').write_text(json.dumps(receipts, indent=2, sort_keys=True) + '\n')
     print(f'receipts: {output / "receipt.json"}', flush=True)

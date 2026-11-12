@@ -387,6 +387,8 @@ const CMYK_FAMILIES: &[(&str, &[&str])] = &[
     ("adjustment_apply", &["channel"]),
     // Stack Modes per ink, over the `L` passes (`cmyk_stack_mode`).
     ("layer_stack_mode", &["raster"]),
+    // Layer comps: save, update, delete, reorder, apply and shift (`cmyk_comps`).
+    ("layer_comp", &["document"]),
 ];
 
 /// The CMYK table's decision for one family and target: admitted when ANY

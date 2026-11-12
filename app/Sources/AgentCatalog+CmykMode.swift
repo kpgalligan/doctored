@@ -37,8 +37,9 @@ extension AgentServer {
                     + "layer, a Blend If on Red, Green or Blue or a blend mode CMYK does not "
                     + "offer must be flattened first (toward RGB: a CMYK adjustment layer or a "
                     + "Blend If on a plate): pass flatten true, else the "
-                    + "refusal names the first such layer. A 32-bit float document refuses. Alpha channels, paths and vector masks "
-                    + "carry both ways. mode \"rgb\" converts a CMYK document's ink into RGB "
+                    + "refusal names the first such layer. A 32-bit float document refuses. Alpha channels, paths, vector masks "
+                    + "and layer comps carry both ways (toward RGB a comp's recorded style loses its "
+                    + "inks, as a layer's own does). mode \"rgb\" converts a CMYK document's ink into RGB "
                     + "(rgb_space \"srgb\" or \"displayP3\", the working space by default) keeping "
                     + "every layer and group. mode \"lab\" converts an 8- or 16-bit RGB, "
                     + "Grayscale or CMYK document to Lab Color (D50, relative colorimetric from the "
@@ -382,6 +383,13 @@ extension AgentServer {
                     + "channel:<name> an alpha channel (ink refuses there)."
             case "fade":
                 note = " Works on a CMYK document's layer ink."
+            case "list_layer_comps", "save_layer_comp", "apply_layer_comp", "update_layer_comp",
+                 "delete_layer_comp", "reorder_layer_comp":
+                note = " A CMYK document holds layer comps, as an RGB document does (position "
+                    + "included), and keeps them in .doctored, through Image ▸ Mode both ways (toward "
+                    + "RGB a recorded style loses its inks) and through Assign / Convert to Profile "
+                    + "(a recorded ink converts as the layer's own); applying one skips a recorded "
+                    + "style CMYK cannot hold (a Blend If on Red, Green or Blue)."
             case "auto_align_layers", "reduce_noise_from_stack":
                 note = " In a CMYK document the registration estimates on each layer's "
                     + "Display P3 view (its ink through the document's CMYK profile) and the warp "

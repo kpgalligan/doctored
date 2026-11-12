@@ -1,7 +1,7 @@
 # CMYK document mode (#1): shipped runs
 
 The settled record of [#1](https://github.com/kpgalligan/doctored/issues/1)'s CMYK phases: decisions in force and
-each shipped phase's few lines, added by the batch that ships it. [cmyk-mode-status.md](cmyk-mode-status.md) keeps the
+each shipped phase's few lines. [cmyk-mode-status.md](cmyk-mode-status.md) keeps the
 head, unshipped contracts and `## Open items`. Takes live under `doctored-fixtures/photoshop/`, runners in the
 private archive `kpgalligan/doctored-dev` (`scripts/photoshop-probe/`).
 
@@ -19,12 +19,9 @@ private archive `kpgalligan/doctored-dev` (`scripts/photoshop-probe/`).
   placed source or a warp refuses by name (`first_refusal`, postorder).
   `rebuilt` routes every CMYK edit through it; `build` refuses a CMYK record, `scene_for` refuses (no RGB scene),
   `dr_precision_doc_edit` refuses every op outside the CMYK set before parsing (`cmyk_route`). The host asks
-  `CmykDocument` FIRST (`DocumentPrecision`). Admitted (`precision_capability::CMYK_FAMILIES` / `.cmykTool`;
-  `require_cmyk` admits a target any line lists): the layer property and structure families; paint and erase; fill_stroke;
-  layer masks; adjustments, Desaturate, filters, Fade; render, sample, export, convert; source selections; the structure
-  families (group, clipped, blend, Fill `layer_style`, merges, Stamp Visible); every geometry family, Transform Mask,
-  selected pixels; the clipboard family, Stamp Selected, Duplicate to Document; `profile`, `proof`, `analysis`; clone,
-  heal, retouch_brush; `global_light`; geometric selections, guides, history, recovery. Everything else: "<op> is unavailable in a CMYK
+  `CmykDocument` FIRST (`DocumentPrecision`). Admitted: the families of `precision_capability::CMYK_FAMILIES`
+  (`cmyk_document`'s operation table, its one list; `require_cmyk` admits a target any line lists) and the `.cmykTool`
+  facts, plus geometric selections, guides, history and recovery. Everything else: "<op> is unavailable in a CMYK
   document".
 - **One compositor.** `cmyk_stack` is the ONE CMYK row compositor over the record TREE in `i64` canvas rows: a raster
   composites through its mode (`over_mode`; Normal is phase 1's `over` bit for bit) at `alpha × opacity × mask × fill`; an
@@ -74,6 +71,9 @@ private archive `kpgalligan/doctored-dev` (`scripts/photoshop-probe/`).
   blocks (first in postorder) an RGB adjustment, a Blend If on Red, Green or Blue, a mode outside `CMYK_BLEND_MODES`, a
   placed image or a warp; a Gray Blend If carries both ways; CMYK → RGB blocks a CMYK adjustment record or a Blend If on
   a plate. Both plans answer `flattens`.
+- **Layer comps on ink** (`cmyk_comps`): a CMYK leaf is a pixel leaf, so position is recorded, applied, remapped and
+  shifted as on RGB; Apply skips a style CMYK cannot hold (no mode); a recorded style crosses Mode, Convert and Assign
+  as its layer's own; a flatten carries none.
 - **Artwork on ink.** A CMYK document's descriptions store ink (text v5, shape v6, fill v2: `[c, m, y, k, alpha]` 0…1, a
   gradient's `stop_inks` one per STORED stop) beside hex fields holding its sRGB appearance (relative + BPC). The core
   renders it (`cmyk_artwork`): coverage is the RGB path's own, fill and interior ink exact, a colour glyph's sRGB
@@ -307,3 +307,5 @@ private archive `kpgalligan/doctored-dev` (`scripts/photoshop-probe/`).
 - **Auto-Align and Reduce Noise from Stack** (2026-10-23): registration on each layer's Display P3 view (its ink
   through the profile), every ink warped, the statistic per ink; Vignette Removal and Geometric Distortion refuse by
   the core's sentences. `cmyk_align_stack.rs`, `verify_cmyk_mode.py` G9. No DRDC change.
+- **Layer comps** (2026-11-12): the comp family and tools on CMYK, carried by every conversion; `cmyk_comps.rs`,
+  `verify_cmyk_mode.py` G10. No DRDC change.

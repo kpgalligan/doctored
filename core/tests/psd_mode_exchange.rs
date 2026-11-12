@@ -14,9 +14,10 @@
 //! - **Comps.** Two visibility comps and one that also records position:
 //!   the file's 1065 names them, every record's `cmls` `LyrI` is its `lyid`,
 //!   and the reopened document, and its `.doctored`, hold the same names,
-//!   comments and per-layer visibility. A CMYK document cannot make a comp,
-//!   so its source is a CMYK file built here carrying the 1065 and `shmd`
-//!   bodies of the RGB document's own 16-bit file.
+//!   comments and per-layer visibility. The CMYK source is a CMYK file built
+//!   here carrying the 1065 and `shmd` bodies of the RGB document's own
+//!   16-bit file, so the comps arrive through a file's records (the comp
+//!   tools on a CMYK document are `cmyk_comps.rs`'s).
 //! - **Vector masks.** A raster-less vector mask on a raster and on a group
 //!   is written as its `vmsk` (this file's records from Adobe's layout,
 //!   `psd_paths::expected_records`) with no `-2` channel, and reopens with

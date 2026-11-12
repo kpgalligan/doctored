@@ -37,7 +37,9 @@
 //! layer styles (effects, knockout, Blend Interior, Fill; toward RGB without
 //! their inks) carry over both ways; so do alpha channels (verbatim),
 //! paths, raster-less vector masks (re-set from their shapes),
-//! metadata, resolution, guides, the ruler origin and the global light.
+//! metadata, resolution, guides, the ruler origin, the global light and the
+//! layer comps (a recorded style as a layer's own: `cmyk_comps`; a flatten
+//! carries none).
 
 use std::sync::Arc;
 
@@ -389,6 +391,9 @@ impl PrecisionDocument {
         // The styles ride along (`cmyk_convert_tree`), so their light does.
         out.global_light = source.global_light;
         out.paths.set_entries(source.paths.entries.to_vec());
+        // The comps cross unchanged, as the layers' own styles do; a
+        // flattened source holds none (`cmyk_comps`).
+        out.comps.clone_from(&source.comps);
         // Raster-less vector masks are re-set from their shapes, as the RGB
         // depth conversions re-set them (`precision_vector_mask_carry`).
         Ok(out.seeding_vector_masks(source.vector_mask_seeds(Clone::clone), limit, other))
@@ -436,7 +441,9 @@ impl PrecisionDocument {
             + if flatten {
                 canvas * 10 + u64::from(self.width) * 20
             } else {
-                0
+                // The comps' recorded styles rewritten without their inks
+                // (`cmyk_comps::rgb_carried`); a flatten carries none.
+                crate::gray_comps::carried_bytes(&self.comps)
             }
             + BOOKKEEPING_BYTES
     }
@@ -511,6 +518,9 @@ impl PrecisionDocument {
         out.ruler_origin = source.ruler_origin;
         out.global_light = source.global_light;
         out.paths.set_entries(source.paths.entries.to_vec());
+        // Each recorded style loses its inks, as the layers' own did above; a
+        // flattened source holds no comps (`cmyk_comps`).
+        out.comps = crate::cmyk_comps::rgb_carried(&source.comps)?;
         let out = out.seeding_vector_masks(source.vector_mask_seeds(Clone::clone), limit, other);
         job.report(1.0, 5)?;
         Ok(out)

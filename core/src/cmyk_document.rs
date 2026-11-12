@@ -78,6 +78,7 @@
 //! | selected Equalize (`equalize_apply`) | raster | retouch batch |
 //! | type, shape and fill layers (`cmyk_artwork`, its own exports); Doctored | document | artwork batch |
 //! | layer stack mode (Stack Modes per ink: `cmyk_stack_mode`) | raster | stacks |
+//! | layer comp (save, update, delete, reorder, apply, shift: `cmyk_comps`) | document | comps |
 //!
 //! Every other family refuses through [`refused_sentence`]: "<operation> is
 //! unavailable in a CMYK document" — a mode outside [`CMYK_BLEND_MODES`] as

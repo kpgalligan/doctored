@@ -2,8 +2,8 @@
 
 - **Status:** Open — open items remain ([#1](https://github.com/kpgalligan/doctored/issues/1),
   [#17](https://github.com/kpgalligan/doctored/issues/17), [#19](https://github.com/kpgalligan/doctored/issues/19));
-  phases 1, 2, 3, 4a, 4b, 4c and 5 shipped, the selection, adjustments-and-filters, channels, retouch, artwork, styles
-  and remaining-gaps batches and round 2 (kept-CMYK export)
+  phases 1, 2, 3, 4a, 4b, 4c and 5 shipped, the selection, adjustments-and-filters, channels, retouch, artwork, styles,
+  remaining-gaps and layer-comps batches and round 2 (kept-CMYK export)
 - **Issue:** [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella: CMYK here; Grayscale,
   Lab, Indexed Color, Duotone, Bitmap, Multichannel and spot channels are closed — their ADRs; PDF/X and spot
   channels' open items are the rest)
@@ -76,4 +76,4 @@
 
 [cmyk-mode-shipped.md](cmyk-mode-shipped.md) — the decisions in force and phases 1, 2, Hue/Saturation, the selections,
 4a, 5, 4b, the black plate, the adjustments and filters, 4c, 3, the channels batch, the retouch batch, round 2, the
-artwork batch, the styles batch, the remaining gaps, Blend If and Hard Mix's exact tie.
+artwork batch, the styles batch, the remaining gaps, Blend If, Hard Mix's exact tie and layer comps.

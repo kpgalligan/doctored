@@ -7,14 +7,15 @@
 //!   the same depth and touches no sample: the ink numbers stay and their
 //!   colour changes, which is what Assign means — a layer style's inks too,
 //!   whose hex is re-canonicalised under the new profile
-//!   (`cmyk_style::canonical_hex`). The same bytes is `None`.
+//!   (`cmyk_style::canonical_hex`), and a layer comp's recorded ones
+//!   (`cmyk_comps`). The same bytes is `None`.
 //! * **Convert** runs every raster record through
 //!   `cmyk_color::CmykToCmyk` (the request's intent and BPC; relative with
 //!   BPC when omitted), memoized per
 //!   distinct ink (`ink_key`), and keeps alpha, masks, adjustment records,
 //!   alpha channels, vector masks, ids, names, metadata and the chrome;
-//!   every layer style's ink goes through the same leg, its hex the new
-//!   profile's; a
+//!   every layer style's ink, and every ink a layer comp recorded, goes
+//!   through the same leg, its hex the new profile's; a
 //!   converted raster's type, shape or fill description is dropped (the host
 //!   re-renders it in the new profile), while Assign and Depth keep it.
 //!   `flatten: true` flattens onto
@@ -277,12 +278,21 @@ pub(crate) fn convert_style_inks(
     leg: &mut CmykToCmyk,
     policy: &CmykPolicy,
 ) -> Result<(), String> {
-    map_inked_styles(layers, &mut |s| {
-        s.map_inks(&mut |ink| {
-            let key = ink_key(ink.map(crate::cmyk_composite::code));
-            let mapped = leg.ink(key, ink.map(f64::from)).map(crate::style_json::q4);
-            Ok((mapped, crate::cmyk_style::hex_of(mapped, policy)?))
-        })
+    map_inked_styles(layers, &mut |s| converted_inks(s, leg, policy))
+}
+
+/// One style with each ink through `leg` (four-decimal quantized) and its hex
+/// the ink's sRGB under `policy`: [`convert_style_inks`]' rewrite, which
+/// Convert to Profile also gives a comp's recorded style (`cmyk_comps`).
+fn converted_inks(
+    style: &crate::style::LayerStyle,
+    leg: &mut CmykToCmyk,
+    policy: &CmykPolicy,
+) -> Result<crate::style::LayerStyle, String> {
+    style.map_inks(&mut |ink| {
+        let key = ink_key(ink.map(crate::cmyk_composite::code));
+        let mapped = leg.ink(key, ink.map(f64::from)).map(crate::style_json::q4);
+        Ok((mapped, crate::cmyk_style::hex_of(mapped, policy)?))
     })
 }
 
@@ -370,9 +380,12 @@ impl PrecisionDocument {
             .as_ref()
             .map_or(0, |p| p.profile.bytes() + p.profile_bytes().len() as u64);
         let view = CmykPolicy::view_bytes();
+        // Assign and Convert rewrite each recorded inked style of the comps
+        // (`cmyk_comps`); Convert's flatten clears them first.
+        let comps = crate::gray_comps::carried_bytes(&self.comps);
         let mut refusal = destination.as_ref().err().cloned();
         let scratch = match request.op {
-            ProfileOp::Assign => display + profile + view,
+            ProfileOp::Assign => display + profile + view + comps,
             ProfileOp::Convert => {
                 if refusal.is_none() {
                     refusal = destination.as_ref().ok().and_then(|p| {
@@ -392,7 +405,7 @@ impl PrecisionDocument {
                 let flatten = if request.flatten {
                     self.cmyk_flatten_scratch_bytes()
                 } else {
-                    0
+                    comps
                 };
                 flatten
                     + pixels.saturating_mul(CONVERT_BYTES_PER_PIXEL)
@@ -454,10 +467,15 @@ impl PrecisionDocument {
                 } else {
                     let mut next = self.clone();
                     // The inks are kept, their hex is the new profile's
-                    // (`cmyk_style::canonical_hex`).
-                    map_inked_styles(Arc::make_mut(&mut next.layers).as_mut_slice(), &mut |s| {
-                        crate::cmyk_style::canonical_hex(s, &policy)
-                    })?;
+                    // (`cmyk_style::canonical_hex`), a comp's recorded ones
+                    // too (`cmyk_comps`).
+                    let mut canonical =
+                        |s: &crate::style::LayerStyle| crate::cmyk_style::canonical_hex(s, &policy);
+                    map_inked_styles(
+                        Arc::make_mut(&mut next.layers).as_mut_slice(),
+                        &mut canonical,
+                    )?;
+                    next.comps = crate::cmyk_comps::inks_mapped(&self.comps, &mut canonical)?;
                     next.cmyk = Some(Arc::new(policy));
                     Some(next)
                 }
@@ -549,10 +567,14 @@ impl PrecisionDocument {
             Ok(next)
         })?;
         // Every ink of every style through the same leg (`cmyk_style`), its
-        // hex the new profile's.
+        // hex the new profile's; a comp's recorded style too (`cmyk_comps`),
+        // so applying it sets the style its layer now holds.
         let mut layers = layers;
         convert_style_inks(&mut layers, &mut leg, &policy)?;
         let mut base = source.clone();
+        base.comps = crate::cmyk_comps::inks_mapped(&source.comps, &mut |s| {
+            converted_inks(s, &mut leg, &policy)
+        })?;
         base.cmyk = Some(Arc::new(policy));
         // Alpha channels carry verbatim (they hold no ink); a raster-less
         // vector mask is re-set from its shape where the rebuild left it

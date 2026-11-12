@@ -379,8 +379,8 @@ enum CmykRoute {
 /// remaining-gaps batch the ink-plate targets of `read_plane` and
 /// `scalar_edit` and `scalar_statistics` on a mask, a channel or a plate.
 /// Since the Blend If batch `layer_blend_if`; also `stack_mode`, per
-/// ink (`cmyk_stack_mode`). Every other op refuses by name
-/// before it is parsed.
+/// ink (`cmyk_stack_mode`), and `layer_comp` (`cmyk_comps`). Every other op
+/// refuses by name before it is parsed.
 fn cmyk_route(text: &str) -> Result<CmykRoute, String> {
     let value: serde_json::Value =
         serde_json::from_str(text).map_err(|e| format!("invalid high-depth edit request: {e}"))?;
@@ -480,6 +480,8 @@ fn cmyk_route(text: &str) -> Result<CmykRoute, String> {
         "global_light" => Ok(CmykRoute::Shared),
         // Stack Modes per ink (`cmyk_stack_mode`).
         "stack_mode" => Ok(CmykRoute::Shared),
+        // Layer comps (`precision_comps`, the mode's skips in `cmyk_comps`).
+        "layer_comp" => Ok(CmykRoute::Shared),
         "read_plane" | "scalar_edit" | "scalar_statistics" => {
             Err(crate::cmyk_document::refused_sentence(&format!(
                 "The \"{op}\" edit of anything but a layer mask, an alpha channel or an ink plate"

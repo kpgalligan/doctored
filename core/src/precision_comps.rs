@@ -6,20 +6,25 @@
 //! validation and the payload cap all come from there, and this file only
 //! restates them against typed layers. The GEOMETRY rule (a whole-canvas op
 //! remaps each bound raster entry's recorded offset) is shared too: it lives
-//! in `comps_geometry` and `precision_geometry` calls it. Since 12E-1b a
-//! typed layer carries `locks` (`precision_lock`), so `comp_entry_locked` is
-//! a real question at both depths and `locked` is no longer always false.
-//! The one remaining difference is recorded here and nowhere else:
+//! in `comps_geometry` and `precision_geometry` calls it. A "raster" here is
+//! a pixel leaf (`is_pixel_leaf`): an RGB raster or a CMYK document's CMYKA16
+//! one, so position is recorded, applied and remapped on ink as on RGB. Since
+//! 12E-1b a typed layer carries `locks` (`precision_lock`), so
+//! `comp_entry_locked` is a real question at both depths and `locked` is no
+//! longer always false. The one remaining difference is recorded here and
+//! nowhere else:
 //!
 //! - The typed style is the layer's two fields merged (`reported_style`), set
 //!   back through `with_layer_style`. A FLOAT document holds no style at all,
 //!   so a recorded style is SKIPPED there rather than refusing the whole
-//!   apply; an RGB adjustment record takes it like a raster (a
-//!   CMYK one refuses it, and is skipped the same way). A GRAYSCALE document
+//!   apply; an adjustment record takes it like a raster. A GRAYSCALE document
 //!   skips the same way a recorded blend mode or style the mode cannot hold
-//!   (`gray_comps::admits_mode` / `admits_style`, #1 phase 6a-ii), and a
-//!   LAB document the same way (`lab_comps::admits_mode` / `admits_style`,
-//!   #1 Lab phase 6a-ii).
+//!   (`gray_comps::admits_mode` / `admits_style`, #1 phase 6a-ii), a LAB
+//!   document the same way (`lab_comps::admits_mode` / `admits_style`, #1 Lab
+//!   phase 6a-ii), a CMYK document a recorded style it cannot hold
+//!   (`cmyk_comps::admits_style`; every leaf mode is a CMYK mode), and an RGB
+//!   document a recorded Blend If on a plate, which only a comp carried from
+//!   CMYK holds (`cmyk_comps::rgb_admits_style`).
 //!
 //! The index vocabulary is the flattened postorder record index
 //! `PrecisionDocument::layer` uses — `LLBL`'s and `LCLP`'s convention.
@@ -93,7 +98,8 @@ impl PrecisionDocument {
     /// Computed BEFORE the apply, because a lock refusal and a zero-length
     /// move are not distinguishable afterwards (`doc_lock.rs`). An entry
     /// recording the offset the record already has is not locked: nothing
-    /// would move. Only a RASTER record has an offset to move at all.
+    /// would move. Only a RASTER record (RGB or CMYK) has an offset to move at
+    /// all.
     pub(crate) fn comp_entry_locked(&self, entry: &LayerCompEntry) -> bool {
         let Some(offset) = entry.offset else {
             return false;
@@ -104,7 +110,7 @@ impl PrecisionDocument {
         let Some(layer) = self.layer(index) else {
             return false;
         };
-        matches!(layer.content, Content::Raster { .. })
+        layer.is_pixel_leaf()
             && layer.offset() != offset
             && self.lock_block(index, crate::doc_lock::EditKind::Position) != 0
     }
@@ -133,8 +139,8 @@ impl PrecisionDocument {
     }
 
     /// Records EVERY record under `captures`. Position is recorded for a
-    /// RASTER record only: a group and an adjustment have no buffer, so
-    /// their offset is a phantom.
+    /// RASTER record only (RGB or CMYK): a group and an adjustment have no
+    /// buffer, so their offset is a phantom.
     fn captured_entries(&self, captures: CompCaptures) -> Vec<LayerCompEntry> {
         (0..self.layer_count())
             .filter_map(|index| {
@@ -143,8 +149,7 @@ impl PrecisionDocument {
                     layer_id: layer.id(),
                     layer_name: layer.name().to_string(),
                     visible: captures.visibility.then_some(layer.visible()),
-                    offset: (captures.position && matches!(layer.content, Content::Raster { .. }))
-                        .then_some(layer.offset()),
+                    offset: (captures.position && layer.is_pixel_leaf()).then_some(layer.offset()),
                     appearance: captures.appearance.then(|| CompAppearance {
                         opacity: layer.opacity(),
                         blend: layer.blend_mode().to_c() as u32,
@@ -278,6 +283,7 @@ impl PrecisionDocument {
                 let float = self.is_float();
                 let gray = self.gray_policy().cloned();
                 let lab = self.is_lab();
+                let cmyk = self.is_cmyk();
                 let mut current = self.clone();
                 let mut changed = false;
                 for entry in &comp.entries {
@@ -297,7 +303,9 @@ impl PrecisionDocument {
                     }
                     if let Some((x, y)) = entry.offset {
                         if !locked {
-                            if let Content::Raster { offset, .. } = &mut layer.content {
+                            if let Content::Raster { offset, .. }
+                            | Content::CmykRaster { offset, .. } = &mut layer.content
+                            {
                                 *offset = (x, y);
                             }
                         }
@@ -325,12 +333,15 @@ impl PrecisionDocument {
                                 Some(json) => Some(LayerStyle::from_json(json)?),
                                 None => None,
                             };
-                            // A Gray or Lab document skips a style its mode
-                            // cannot hold, as a float one skips every style.
+                            // A Gray, Lab, CMYK or RGB document skips a style
+                            // its mode cannot hold, as a float one skips every
+                            // style.
                             let held = match (gray.as_deref(), style.as_ref()) {
                                 (Some(p), Some(s)) => crate::gray_comps::admits_style(p, s),
                                 (None, Some(s)) if lab => crate::lab_comps::admits_style(s),
-                                _ => true,
+                                (None, Some(s)) if cmyk => crate::cmyk_comps::admits_style(s),
+                                (None, Some(s)) => crate::cmyk_comps::rgb_admits_style(s),
+                                (_, None) => true,
                             };
                             if let Some(Ok(next)) =
                                 held.then(|| layer.clone().with_layer_style(style.as_ref(), canvas))

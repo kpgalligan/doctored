@@ -38,12 +38,14 @@ extension AgentServer {
         // a float document admits `layer_name` and `layer_visible` for the
         // same reason. A recorded STYLE is skipped here, because a float
         // document carries none (`precision_comps`).
-        "list_layer_comps": [.nonRecordable, .commonTool, .floatTool],
-        "save_layer_comp": [.commonTool, .floatTool],
-        "apply_layer_comp": [.commonTool, .floatTool],
-        "update_layer_comp": [.commonTool, .floatTool],
-        "delete_layer_comp": [.commonTool, .floatTool],
-        "reorder_layer_comp": [.commonTool, .floatTool],
+        // #1: a CMYK document answers all six too (the core's `layer_comp`
+        // family on ink, `cmyk_comps`), position included.
+        "list_layer_comps": [.nonRecordable, .commonTool, .floatTool, .cmykTool],
+        "save_layer_comp": [.commonTool, .floatTool, .cmykTool],
+        "apply_layer_comp": [.commonTool, .floatTool, .cmykTool],
+        "update_layer_comp": [.commonTool, .floatTool, .cmykTool],
+        "delete_layer_comp": [.commonTool, .floatTool, .cmykTool],
+        "reorder_layer_comp": [.commonTool, .floatTool, .cmykTool],
     ]
 
     /// Mirrors the Layer Comps window's list. A READ: it changes no document.

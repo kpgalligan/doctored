@@ -26,7 +26,9 @@ import AppKit
 // Image ▸ Adjustments ▸ Equalize. The artwork batch adds type, shape and Solid Color / Gradient
 // fill layers in ink (`CmykArtwork.swift`), the Type and shape tools, Artwork Colors… and
 // Rasterize. The styles batch adds layer effects in ink, knockout, Blend Interior and the
-// style clipboard; the Blend If batch Blend If on Gray and the four plates. Auto-Align (registered
+// style clipboard; the Blend If batch Blend If on Gray and the four plates. Layer comps answer
+// through the six comp tools' `.cmykTool` facts; the Layer Comps window is a depth-independent
+// window item, enabled before `selectors`. Auto-Align (registered
 // on the layer's view, every ink warped) and Reduce Noise from Stack (per ink) run too; Red
 // Eye, Auto-Align's Vignette Removal and Geometric Distortion and Auto-Blend refuse by name
 // (`designs/cmyk-mode-status.md`).
@@ -243,7 +245,8 @@ enum CmykDocument {
         + "knockout and Blend Interior, with the Global Light, and Blend If on Gray, Cyan, Magenta, "
         + "Yellow or Black), masked (and the mask applied), grouped "
         + "(Normal or Pass Through), clipped, merged (a group with Merge Group), stamped (Stamp "
-        + "Visible and Stamp Selected) and flattened; Cut, Copy, Copy Merged and Paste (in Place, "
+        + "Visible and Stamp Selected) and flattened, and recorded in layer comps (saved, applied, "
+        + "updated, reordered and deleted); Cut, Copy, Copy Merged and Paste (in Place, "
         + "Into, Outside) work on and between CMYK documents, keeping ink between documents of one "
         + "profile and converting across modes and profiles (relative colorimetric with black-point "
         + "compensation); Layer Via Copy / Cut and Duplicate to Document copy layers; the Brush, "
