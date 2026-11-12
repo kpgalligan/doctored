@@ -324,6 +324,70 @@ autoreleasepool {
         try require(grayDocument.writableTypes(for: .saveAsOperation).first == ImageDocument.nativeTypeIdentifier,
                     "the Grayscale Save As did not lead with native")
         print("PASS Grayscale PNG with a guide: Save refuses the PNG and routes to Save As, native first")
+
+        // A little-endian 8-bit TIFF whose layer block holds a record the core does not read
+        // (`DR_SAVE_PROBE_LAYER_TIFF`, written by verify.py): it opens flat, and File ▸ Save
+        // never writes the flat image over it. A Save a Copy and a failed Save As leave it so;
+        // a Save As that succeeds ends it, after which a TIFF this app wrote saves in place.
+        guard let layeredFixture = ProcessInfo.processInfo.environment["DR_SAVE_PROBE_LAYER_TIFF"],
+              !layeredFixture.isEmpty else {
+            throw ProbeFailure(description: "DR_SAVE_PROBE_LAYER_TIFF is not set")
+        }
+        let tiffType = "public.tiff"
+        let layeredURL = folder.appendingPathComponent("unread-layers.tif")
+        try FileManager.default.copyItem(at: URL(fileURLWithPath: layeredFixture), to: layeredURL)
+        let layeredBytes = try Data(contentsOf: layeredURL)
+        let layered = try ImageDocument(contentsOf: layeredURL, ofType: tiffType)
+        try require(layered.doc?.layerCount == 1 && layered.sourceLayersUnopened,
+                    "the fixture must open flat as one layer, its layer block noted")
+        func tiffSavesInPlace() -> Bool { layered.writableTypes(for: .saveOperation).contains(tiffType) }
+        func saved(to url: URL, _ type: String, _ operation: NSDocument.SaveOperationType) -> Error? {
+            var finished = false
+            var outcome: Error?
+            layered.save(to: url, ofType: type, for: operation) { error in
+                outcome = error
+                finished = true
+            }
+            let deadline = Date().addingTimeInterval(15)
+            while !finished && Date() < deadline {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+            }
+            return finished ? outcome : ProbeFailure(description: "save to \(url.lastPathComponent) never finished")
+        }
+        try require(!tiffSavesInPlace()
+                    && layered.writableTypes(for: .saveAsOperation).first == ImageDocument.nativeTypeIdentifier
+                    && !layered.writableTypes(for: .saveAsOperation).contains(tiffType),
+                    "TIFF must leave Save and Save As, native first: \(layered.writableTypes(for: .saveAsOperation))")
+        var layeredRefusal: String?
+        do {
+            try layered.writeSafely(to: layeredURL, ofType: tiffType, for: .saveOperation)
+        } catch {
+            layeredRefusal = error.localizedDescription
+        }
+        try require(layeredRefusal?.contains(ImageDocument.unopenedLayersLoss) == true,
+                    "Save must refuse naming the layers: \(String(describing: layeredRefusal))")
+        try require(saved(to: layeredURL, tiffType, .saveOperation) != nil, "the Save completion must refuse")
+        let layeredAfter = try Data(contentsOf: layeredURL)
+        try require(layeredAfter == layeredBytes, "a refused Save changed the TIFF")
+        print("PASS TIFF with an unread layer block: Save refuses and leaves the file, Save As leads with native")
+        try require(saved(to: folder.appendingPathComponent("unread-copy.tif"), tiffType, .saveToOperation) == nil
+                    && layered.fileURL == layeredURL && !tiffSavesInPlace(),
+                    "a Save a Copy must leave the document's TIFF guarded")
+        let unwritable = folder.appendingPathComponent("no-such-folder/unread.doctored")
+        try require(saved(to: unwritable, ImageDocument.nativeTypeIdentifier, .saveAsOperation) != nil,
+                    "a Save As into a missing folder must fail")
+        try require(layered.fileURL == layeredURL && layered.sourceLayersUnopened && !tiffSavesInPlace(),
+                    "a failed Save As must leave the document's TIFF guarded")
+        print("PASS Save a Copy and a failed Save As leave the TIFF guarded")
+        let layeredNative = folder.appendingPathComponent("unread.doctored")
+        let layeredNativeError = saved(to: layeredNative, ImageDocument.nativeTypeIdentifier, .saveAsOperation)
+        try require(layeredNativeError == nil && layered.fileURL == layeredNative && !layered.sourceLayersUnopened,
+                    "a Save As to .doctored must end the guard: \(String(describing: layeredNativeError))")
+        let rewritten = folder.appendingPathComponent("unread-rewritten.tif")
+        let tiffError = saved(to: rewritten, tiffType, .saveAsOperation)
+        try require(tiffError == nil && layered.fileURL == rewritten && tiffSavesInPlace(),
+                    "a TIFF this app wrote must save in place: \(String(describing: tiffError))")
+        print("PASS a Save As that succeeds ends the guard; the TIFF it then writes saves in place")
         print("ALL SAVE PROBES PASSED")
     } catch {
         print("FAIL \(error)")

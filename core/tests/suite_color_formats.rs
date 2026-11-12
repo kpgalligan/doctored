@@ -633,6 +633,8 @@ mod spot_tiff_photoshop;
 mod spot_typed_export;
 #[path = "tiff_float_tests.rs"]
 mod tiff_float_tests;
+#[path = "tiff_layer_block.rs"]
+mod tiff_layer_block;
 #[path = "tiff_layers.rs"]
 mod tiff_layers;
 #[path = "tiff_pages_tests.rs"]

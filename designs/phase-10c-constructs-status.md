@@ -80,7 +80,9 @@ and `inspect_psd` / `inspect_psd_export` for the model).
   and mask planes import layered since Run 4 ([depth status](phase-10c-depth-status.md)).
 - **Formats.** The importer reads PSB, ZIP and ZIP-with-prediction at 8 bits and in the stored composite (only the
   kept planes are inflated), `Lr32` (`psd_import_float.rs`), and the layer block of a big-endian unsigned 8- or
-  16-bit RGB TIFF or of a 32-bit float RGB TIFF in either byte order; any other TIFF opens flat.
+  16-bit RGB TIFF or of a 32-bit float RGB TIFF in either byte order; any other TIFF opens flat. A TIFF opened
+  flat whose block holds layers (`tiff_layer_block`: any order, model, depth or BigTIFF; a readable one opened
+  flattened too) gives TIFF a loss line, so File ▸ Save goes to the Save panel instead of writing over them.
 - **Non-goals, fixed:** no per-export choice between preserve/rasterize/refuse; `TySh`, vector/shape and
   smart-object payloads rasterize; the glows' technique, `lrFX` and `clbl` are not interpreted (disclosed in the
   import sentence).

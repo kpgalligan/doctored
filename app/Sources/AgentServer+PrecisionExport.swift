@@ -40,7 +40,8 @@ extension AgentServer {
                 own: captured.ownRetainedBytes, remedy: captured.refusalRemedy)
             try captured.run(to: url, title: "Saving Lab TIFF")
             return try jsonResult(["ok": true, "path": url.path, "format": "TIFF", "bit_depth": depth,
-                                   "flat_save_losses": try document.saveLosses(for: UTType.tiff.identifier),
+                                   "flat_save_losses": try document.flatCopyLosses(for: UTType.tiff.identifier)
+                                       + document.copyOverwriteLosses(format: .tiff, to: url),
                                    "working_memory_plan_bytes": captured.scratchEstimate])
         }
         // The two float deliverables are not flat-save formats; a
@@ -77,8 +78,9 @@ extension AgentServer {
             embedProfile: boolArg(arguments, "embed_profile") ?? document.embedColorProfile,
             stripMetadata: boolArg(arguments, "strip_metadata") ?? document.stripMetadata,
             floatSamples: samples, keepSpotChannels: format == .tiff)
-        // Asked before the write, so a failed answer leaves no copy behind it.
-        let losses = try captured.losses()
+        // Asked before the write, so a failed answer leaves no copy behind it. A TIFF written
+        // over a file whose layer block the document opened flat names that block too.
+        let losses = try captured.losses() + document.copyOverwriteLosses(format: format, to: url)
         let report = try captured.run(to: url)
         // A Bitmap document's kept PNG, TIFF or BMP holds 1 bit a pixel (#1 Bitmap phase 1c).
         let written = source.isBitmap && BitmapDocument.keptFormats.contains(format) ? 1 : bits

@@ -10,16 +10,22 @@ extension AgentServer {
             // OpenEXR and Radiance are 32-bit float deliverables: only
             // a float document can write one, so only it lists them.
             if format.isFloatOnly && !doc.isFloat { continue }
+            // File ▸ Save's TIFF line while the document's file is a TIFF whose layer block it
+            // opened flat (`ImageDocument.sourceOverwriteLosses`), which `saveLosses` already
+            // holds and every other branch adds.
+            let overwrite = document.sourceOverwriteLosses(for: format.utType.identifier)
             // #1 Bitmap phase 1c: the same answer Save As asks (`ImageDocument.saveLosses`).
             if doc.isBitmap {
                 formats[format.fileExtension] = try BitmapDocument.saveLosses(doc, format: format,
                     embedProfile: document.embedColorProfile, stripMetadata: document.stripMetadata)
+                    + overwrite
                 continue
             }
             // #1 Indexed phase 1b: the same answer Save As asks (`ImageDocument.saveLosses`).
             if doc.isIndexed {
                 formats[format.fileExtension] = try IndexedDocument.saveLosses(doc, format: format,
                     embedProfile: document.embedColorProfile, stripMetadata: document.stripMetadata)
+                    + overwrite
                 continue
             }
             // A Grayscale document's PNG, TIFF and JPEG, a CMYK document's TIFF and JPEG, a Lab
@@ -42,12 +48,12 @@ extension AgentServer {
                     || format == .avif ? 16 : 8
                 formats[format.fileExtension] = try PrecisionExportCapture.losses(doc, format: format,
                     bitDepth: bits, embedProfile: document.embedColorProfile,
-                    stripMetadata: document.stripMetadata)
+                    stripMetadata: document.stripMetadata) + overwrite
                 continue
             }
             formats[format.fileExtension] = try doc.flatSaveLosses(
                 format: format.drFormat, embedProfile: document.embedColorProfile,
-                stripMetadata: document.stripMetadata)
+                stripMetadata: document.stripMetadata) + overwrite
         }
         return [
             "losses_by_format": formats,

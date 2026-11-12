@@ -85,6 +85,7 @@ Detail belongs in the source file's own header comment.
 - `tiff_spot_samples.rs` (KERNEL) — a TIFF's spot layout, `saved_chunks_held`, the Multiband read and its chunk-at-a-time check, the polarity; `SpotCoverage`.
 - `tiff_spot.rs` — TIFF spot channels, flat and layered: records from tag 34377, `with_(layered_)tiff_spots`, planes, plan terms, keep refusal.
 - `tiff_layers.rs` — Photoshop's layer block in a TIFF (tags 34377/34675/37724): `ByteOrder`, the locator (8/16 `MM`; 32-bit float RGB `Lr32` in both orders); re-exports the writer.
+- `tiff_layer_block.rs` — whether a TIFF's tag-37724 block holds layers, any order, model, depth or BigTIFF (the unread ones too): Save's question for a TIFF opened flat.
 - `tiff_layers_write.rs` — layered-TIFF writer: `write_with` plans every offset, the caller appends info and strip; `write` 8/16 bits, `write_spots` + spot samples.
 - `tiff_layers_order.rs` — the ONE byte-order walk of a tag-37724 block: a little-endian 32-bit TIFF's big-endian form for the reader, and the little-endian test/take seam.
 - `psd_group_records.rs` / `psd_layer_pixels.rs` / `psd_locks.rs` / `psd_raster_masks.rs` — PSD folder metadata framing, raster storage and decode envelope, the ONE `lspf` codec, ordinary masks.

@@ -50,6 +50,14 @@ a PNG, so `losses_by_format.png` names "IPTC metadata", PNG is not in `save_as_t
 and the PNG copy reopens without the packet; a TIFF, which has the slot, names no
 packet line, and its copy reopens with it.
 
+LAYER BLOCK cells: a hand-built TIFF whose tag-37724 block holds a layer record
+(`layer_block_tiff.layered_tiff`), opened flat by `open_document` without `psd_mode`:
+three the layered open does not read (little-endian RGB at 8 and 16 bits, 32-bit float
+Grayscale) and a big-endian RGB one it reads. Each opens as one layer; TIFF leaves
+`save_types` and `save_as_types` (`.doctored` first) with `LAYERS_LINE` as its whole
+list; a TIFF `save_copy` to another path names nothing and one over the file itself
+names the line. The control, the same big-endian file with no records, saves in place.
+
 Every failing check is printed and the run continues, so a red run lists every cell;
 the exit status is 1 when any check failed. Run with `--output <folder>`; `--cells`
 runs only the cells whose name contains one of its comma-separated words.
@@ -61,6 +69,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from layer_block_tiff import layered_tiff
 from phase5_support import App
 from verify_cmyk_export import iptc_resource
 
@@ -122,6 +131,8 @@ ALL_CMYK = ['guide', 'ruler', 'channel', 'sampler', 'comp', 'mask', 'style',
 ONE_LAYER = {'guide': COMBINED, 'channel': COMBINED, 'sampler': COMBINED, 'path': COMBINED,
              'lock': PROPS, 'label': PROPS, 'rename': PROPS, 'hidden': PROPS}
 IPTC = 'IPTC metadata'
+# `ImageDocument.unopenedLayersLoss`.
+LAYERS_LINE = 'the layers stored in the file on disk, which this document opened flat'
 
 
 def with_iptc(source, path):
@@ -562,6 +573,51 @@ def main():
         rgb_iptc = with_iptc(base_file(rgb, 'rgb8', 'jpeg'), folder / 'rgb8-iptc.jpeg')
         packets('indexed iptc', rgb_iptc,
                 convert={'mode': 'indexed', 'palette': 'exact', 'dither': 'none'})
+
+        # ---- A TIFF opened flat whose layer block holds layers ------------------------------
+        def layer_block(cell, data, holds=True, copy_args=None):
+            """TIFF leaves both lists with `LAYERS_LINE` alone while the block holds a
+            record; a copy elsewhere names nothing, one over the file names the line."""
+            if not wanted(cell):
+                return
+            path = folder / f'{cell.replace(" ", "-")}.tif'
+            path.write_bytes(data)
+            doc = call('open_document', path=str(path))['document']['id']
+            layers = call('get_document', document_id=doc).get('layers') or []
+            ok = check(len(layers) == 1, f'{cell}: opens flat as one layer ({len(layers)})')
+            pres = preservation(doc)
+            lost = pres['losses_by_format'].get('tiff')
+            ok &= consistent(pres, cell)
+            if holds:
+                ok &= check(TYPES['tiff'] not in pres['save_types'],
+                            f'{cell}: TIFF left save_types ({pres["save_types"]})')
+                ok &= check(pres['save_as_types'][:1] == [NATIVE],
+                            f'{cell}: Save As leads with .doctored ({pres["save_as_types"][:2]})')
+                ok &= check(lost == [LAYERS_LINE],
+                            f'{cell}: losses_by_format.tiff is the layers line ({lost})')
+            else:
+                ok &= check(TYPES['tiff'] in pres['save_types'] and lost == [],
+                            f'{cell}: an empty block saves in place ({lost}, {pres["save_types"]})')
+            elsewhere = folder / f'{cell.replace(" ", "-")}-copy.tif'
+            for target, expected in ((elsewhere, []), (path, [LAYERS_LINE] if holds else [])):
+                reply = attempt('save_copy', document_id=doc, path=str(target), format='tiff',
+                                **(copy_args or {}))
+                if isinstance(reply, tuple):
+                    ok &= check(False, f'{cell}: save_copy to {target.name} refused: {reply[1][:160]}')
+                    continue
+                ok &= check(reply.get('flat_save_losses') == expected,
+                            f'{cell}: save_copy to {target.name} flat_save_losses '
+                            f'{reply.get("flat_save_losses")} == {expected}')
+            call('close_document', document_id=doc, discard_changes=True)
+            results.append((cell, 'PASS' if ok else 'FAIL'))
+            print(f'{"PASS" if ok else "FAIL"} {cell}', flush=True)
+
+        layer_block('unread rgb8', layered_tiff('<'))
+        layer_block('unread rgb16', layered_tiff('<', bits=16))
+        layer_block('unread gray32', layered_tiff('<', photometric=1, samples=1, bits=32,
+                                                  float_samples=True), copy_args=FLOAT)
+        layer_block('layered flat', layered_tiff('>'))
+        layer_block('layered empty', layered_tiff('>', count=0), holds=False)
 
     print()
     for tag, outcome in results:

@@ -8,7 +8,8 @@ import AppKit
 // through the chooser's two PSD answers: it is a flat TIFF first, so it opens flat exactly as
 // before unless the user or the caller picks Import Layers (`openLayeredTIFF`, whose `nil` means
 // "take the ordinary open"). Its chooser lists "Open Flattened" FIRST, which is also the answer an
-// automated run gives every alert.
+// automated run gives every alert. A TIFF opened flat whose block holds layers, read here or not,
+// is never written over by File ▸ Save (`ImageDocument.sourceLayersUnopened`).
 //
 // A CMYK file (`import_precision` `"cmyk"`, #1) — PSD, PSB or a big-endian layered CMYK TIFF —
 // opens as a CMYK document with either choice: Import Layers its layers, Stored Composite (or a
@@ -147,7 +148,8 @@ extension ImageDocument {
     /// a big-endian unsigned 8- or 16-bit RGB, CMYK, gray or Lab (#1) TIFF
     /// holding one, or a 32-bit float RGB one of either byte order.
     /// Every other TIFF — a 16-bit float, little-endian at 8 or 16 bits —
-    /// answers false and is never offered the layered open. It is asked before the ordinary CMYK,
+    /// answers false and is never offered the layered open; Save still does not write over
+    /// its block (`ImageDocument.sourceLayersUnopened`). It is asked before the ordinary CMYK,
     /// gray and Lab TIFF opens (`openPrecisionDocumentIfRequested`), so a layered
     /// CMYK, gray or Lab TIFF reaches the chooser and its Open Flattened answer
     /// that open.

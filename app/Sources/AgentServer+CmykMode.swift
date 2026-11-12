@@ -339,8 +339,10 @@ extension AgentServer {
         var scratch: UInt64 = 0
         var losses: [String] = []
         do {
-            // What the copy has no place for: Save's own list (`ImageDocument.saveLosses`).
-            losses = try document.saveLosses(for: type)
+            // What the copy has no place for: Save's own list without the line for the
+            // document's own file, which only a TIFF written over it names.
+            losses = try document.flatCopyLosses(for: type)
+                + document.copyOverwriteLosses(format: ExportFormat.from(fileType: type), to: url)
             let captured = try CapturedSave(document, type: type)
             scratch = captured.scratchEstimate
             _ = try RasterResources.shared.admit(scratch: captured.scratchEstimate,

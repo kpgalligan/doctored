@@ -2173,6 +2173,7 @@ final class AgentServer {
         let strip = boolArg(a, "strip_metadata") ?? document.stripMetadata
         let losses = try doc.flatSaveLosses(
             format: format.drFormat, embedProfile: embed, stripMetadata: strip)
+            + document.copyOverwriteLosses(format: format, to: url)
         let report: RasterSaveReport
         do {
             // The document-level save, so the profile, the EXIF/XMP/IPTC

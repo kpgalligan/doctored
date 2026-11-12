@@ -4834,9 +4834,21 @@ typedef enum {
  * Layr/Lr16 block, or a 32-bit IEEE-float RGB TIFF of either byte order
  * holding an Lr32 block. False for NULL, unreadable, little-endian
  * at 8 or 16 bits, any other model or sample format, or no readable block:
- * each of those opens flat. Reads the header, the first directory and the
+ * each of those opens flat (dr_tiff_has_layer_block says whether its block
+ * holds layers all the same). Reads the header, the first directory and the
  * block keys, never a pixel strip. */
 bool dr_tiff_has_layers(const char *path);
+
+/* True when `path` is a TIFF carrying Photoshop's layer block with layers in
+ * it: tag 37724 holding a Layr, Lr16 or Lr32 entry whose record count is not
+ * zero, in either byte order, classic or BigTIFF, whatever the colour model,
+ * depth and sample format, so a file dr_tiff_has_layers does not read
+ * included. A block whose entries cannot be walked answers true. False for
+ * NULL, unreadable, a non-TIFF, no tag 37724, a value without the block's
+ * prefix, or a block with no records. Save asks it of a TIFF opened flat,
+ * so a flat rewrite never erases those layers. Reads the header, the first
+ * directory and the block's entry heads, never a pixel strip. */
+bool dr_tiff_has_layer_block(const char *path);
 
 /* PSD, PSB and layered-TIFF compatibility preflight ("format" is "PSD", "PSB"
  * or "TIFF"). A layered TIFF has no stored composite here (its flat image is

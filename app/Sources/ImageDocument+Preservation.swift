@@ -75,7 +75,42 @@ extension ImageDocument {
         super.save(withDelegate: delegate, didSave: didSaveSelector, contextInfo: contextInfo)
     }
 
+    /// File ▸ Save's and Save As's answer for writing `typeName`: what a flat file of this
+    /// document has no place for (`flatCopyLosses`), and what writing it over the document's
+    /// own file would erase there (`sourceOverwriteLosses`).
     func saveLosses(for typeName: String) throws -> [String] {
+        try flatCopyLosses(for: typeName) + sourceOverwriteLosses(for: typeName)
+    }
+
+    /// The line for a document opened flat from a TIFF whose layer block holds layers
+    /// (`sourceLayersUnopened`): a flat TIFF written over that file erases them.
+    static let unopenedLayersLoss =
+        "the layers stored in the file on disk, which this document opened flat"
+
+    /// `unopenedLayersLoss` for `typeName` TIFF while the document's file is such a TIFF. Save
+    /// would write over it, and Save As has no destination to tell another path from that one,
+    /// so TIFF leaves both lists until a Save or Save As succeeds. Any other type is written
+    /// under its own extension, never over the TIFF; File ▸ Export and Save a Copy still write
+    /// a flat TIFF wherever they are pointed.
+    func sourceOverwriteLosses(for typeName: String) -> [String] {
+        guard sourceLayersUnopened, fileURL != nil,
+              typeName == ExportFormat.tiff.utType.identifier else { return [] }
+        return [Self.unopenedLayersLoss]
+    }
+
+    /// `save_copy`'s `unopenedLayersLoss`: a TIFF copy written over the document's own file
+    /// (`sourceOverwriteLosses`). A copy anywhere else loses nothing of that file.
+    func copyOverwriteLosses(format: ExportFormat?, to url: URL) -> [String] {
+        guard sourceLayersUnopened, format == .tiff, let fileURL,
+              url.standardizedFileURL.resolvingSymlinksInPath().path
+                == fileURL.standardizedFileURL.resolvingSymlinksInPath().path
+        else { return [] }
+        return [Self.unopenedLayersLoss]
+    }
+
+    /// What a flat `typeName` file of this document has no place for, wherever it is
+    /// written: the mode's list and the spot-channel line.
+    func flatCopyLosses(for typeName: String) throws -> [String] {
         var losses = try modeSaveLosses(for: typeName)
         // #1 1c-1: a typed document's flattened file carries its spot channels' overprint, not
         // the channels (the byte list's `flatSaveLosses` names them in the core); a TIFF keeps

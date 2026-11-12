@@ -475,7 +475,8 @@ pub unsafe extern "C" fn dr_precision_doc_save_psd(
 /// TIFF of either byte order holding an `Lr32` block. False for NULL, an
 /// unreadable path, a little-endian file at 8 or 16 bits, any other colour
 /// model or sample format, and a TIFF with no readable block — each of which
-/// opens flat. Reads the header, the first directory and the block keys,
+/// opens flat (`dr_tiff_has_layer_block` says whether its block holds layers
+/// all the same). Reads the header, the first directory and the block keys,
 /// never a pixel strip.
 ///
 /// # Safety
@@ -490,6 +491,35 @@ pub unsafe extern "C" fn dr_tiff_has_layers(path: *const c_char) -> bool {
             || {
                 let path = read_cstr(path, "path")?;
                 Ok(crate::tiff_layers::has_layers(&path))
+            },
+            |found| found,
+        )
+    }
+}
+
+/// True when the file at `path` is a TIFF carrying Photoshop's layer block
+/// with layers in it: tag 37724 holding a `Layr`, `Lr16` or `Lr32` entry
+/// whose record count is not zero, in either byte order, classic or BigTIFF,
+/// whatever the colour model, depth and sample format — a file
+/// `dr_tiff_has_layers` does not read included. A block whose entries cannot
+/// be walked answers true. False for NULL, an unreadable path, a non-TIFF,
+/// no tag 37724, a value without the block's prefix, and a block with no
+/// records. Save asks it of a TIFF opened flat, so a flat rewrite never
+/// erases those layers. Reads the header, the first directory and the
+/// block's entry heads, never a pixel strip.
+///
+/// # Safety
+/// path must be NULL or a NUL-terminated string.
+#[no_mangle]
+pub unsafe extern "C" fn dr_tiff_has_layer_block(path: *const c_char) -> bool {
+    unsafe {
+        fallible_op(
+            ptr::null_mut(),
+            "inspecting a TIFF layer block",
+            false,
+            || {
+                let path = read_cstr(path, "path")?;
+                Ok(crate::tiff_layer_block::has_layer_block(&path))
             },
             |found| found,
         )

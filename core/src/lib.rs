@@ -789,6 +789,7 @@ mod thumbnail_reduce;
 mod tiff_directory;
 mod tiff_encode;
 pub mod tiff_float;
+mod tiff_layer_block;
 mod tiff_layers;
 mod tiff_layers_order;
 /// Re-exported for `tests/tiff_layers32.rs` and `examples/tiff32_little.rs`:

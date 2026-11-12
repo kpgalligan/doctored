@@ -208,6 +208,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "style_texture.rs",
     "thumbnail_reduce.rs",
     "tiff_directory.rs",
+    "tiff_layer_block.rs",
     "tiff_layers.rs",
     "tiff_pages.rs",
     "tiff_spot_samples.rs",

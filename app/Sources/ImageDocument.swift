@@ -258,6 +258,14 @@ final class ImageDocument: NSDocument {
     /// The pre-edit PSD compatibility report and the user's explicit choice.
     private(set) var psdImport: PSDImportState?
 
+    /// True while the document's file is a TIFF opened flat whose Photoshop layer block holds
+    /// layers (`RasterDocument.tiffHasLayerBlock`): one the core does not read, or one opened
+    /// with Open Flattened or by `open_document` without `psd_mode`. TIFF then has a loss line
+    /// (`sourceOverwriteLosses`), so File ▸ Save never writes the flat image over those layers.
+    /// Set by every read, Revert included; cleared by a Save or Save As that succeeds, after
+    /// which the file is one this app wrote. A fact about the file on disk: never saved.
+    private(set) var sourceLayersUnopened = false
+
     private(set) var metadataNotCaptured = false
     private(set) var metadataImportReport: [String: Any]?
 
@@ -488,6 +496,8 @@ final class ImageDocument: NSDocument {
         rawDevelop = opened.rawDevelop
         hdrRendition = opened.hdrRendition
         psdImport = opened.psdImport
+        sourceLayersUnopened = opened.psdImport == nil && typeName == UTType.tiff.identifier
+            && RasterDocument.tiffHasLayerBlock(at: url)
         profileAdoption = .unchanged
         openProfileRefusal = opened.profileRefusal
         if adopts {
@@ -1708,6 +1718,12 @@ final class ImageDocument: NSDocument {
         super.save(
             to: url, ofType: typeName, for: saveOperation,
             completionHandler: { [weak self] error in
+                // The document's file is now one this app wrote (`sourceLayersUnopened`); a
+                // failed save, a Save a Copy and an autosave leave it the TIFF it was.
+                if error == nil,
+                   saveOperation == .saveOperation || saveOperation == .saveAsOperation {
+                    self?.sourceLayersUnopened = false
+                }
                 self?.refreshWindowDirtyIndicators()
                 completionHandler(error)
             })

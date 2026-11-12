@@ -121,10 +121,19 @@ extension RasterDocument {
 
     /// True when `url` is a TIFF whose Photoshop layer block the core reads as
     /// layers (a big-endian unsigned 8- or 16-bit RGB, CMYK, gray or Lab TIFF
-    /// holding one, #1). Every other TIFF answers false and opens flat.
-    /// Reads no pixel strip.
+    /// holding one, #1, or a 32-bit float RGB one of either byte order). Every
+    /// other TIFF answers false and opens flat; `tiffHasLayerBlock` says whether
+    /// its block holds layers all the same. Reads no pixel strip.
     static func tiffHasLayers(at url: URL) -> Bool {
         dr_tiff_has_layers(url.path)
+    }
+
+    /// True when `url` is a TIFF carrying Photoshop's layer block with layers in it,
+    /// read or not by `tiffHasLayers` (either byte order, BigTIFF, any model, depth or
+    /// sample format); a block whose entries cannot be walked answers true. Asked of a
+    /// TIFF opened flat (`ImageDocument.sourceLayersUnopened`). Reads no pixel strip.
+    static func tiffHasLayerBlock(at url: URL) -> Bool {
+        dr_tiff_has_layer_block(url.path)
     }
 
     /// The export preflight for one container and mode: what the file can

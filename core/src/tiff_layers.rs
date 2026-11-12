@@ -39,10 +39,13 @@
 //! RGB TIFF of 32 bits and SampleFormat 3 (IEEE float) on every sample whose
 //! block is `Lr32`, in EITHER byte order — the only little-endian file read.
 //! [`TiffLayers::color`] is the PSD colour mode that model is (3, 4, 1 or 9),
-//! which is how the block's records are read. Palette, a 16-bit float,
-//! little-endian at 8 or 16 bits and BigTIFF answer nothing, so such a file
-//! opens flat exactly as it always did: the layer records carry no colour
-//! model of their own. One scan serves every entry point — [`locate`] over
+//! which is how the block's records are read. Palette, a 16-bit float, a
+//! 32-bit file that is not float RGB, little-endian at 8 or 16 bits and
+//! BigTIFF answer nothing, so such a file opens flat exactly as it always
+//! did: the layer records carry no colour model of their own. Whether such
+//! a file's block holds layers all the same is `tiff_layer_block`'s answer,
+//! which File ▸ Save asks so that it never writes the flat image over them.
+//! One scan serves every entry point — [`locate`] over
 //! bytes already read (big-endian only, so every `psd_container::Container`
 //! reader sees no `II` input), [`locate_ordered`] (both orders, for
 //! `tiff_layers_order::big_endian_form`), and [`has_layers`] over a file
@@ -85,7 +88,7 @@ pub(crate) const TAG_LAYERS: u16 = 37724;
 /// A directory this large is not a photograph's; refuse rather than walk it.
 const MAX_ENTRIES: usize = 4096;
 /// The block walk's bound: Photoshop writes a handful of blocks.
-const MAX_BLOCKS: usize = 4096;
+pub(crate) const MAX_BLOCKS: usize = 4096;
 
 /// A TIFF's byte order (module doc): `MM` big-endian, `II` little-endian.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -110,6 +113,18 @@ impl ByteOrder {
         match self {
             Self::Big => u32::from_be_bytes(quad),
             Self::Little => u32::from_le_bytes(quad),
+        }
+    }
+
+    /// A u64 from the first eight bytes (a BigTIFF offset or count); the
+    /// caller guarantees them.
+    pub(crate) fn u64(self, bytes: &[u8]) -> u64 {
+        let eight = [
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+        ];
+        match self {
+            Self::Big => u64::from_be_bytes(eight),
+            Self::Little => u64::from_le_bytes(eight),
         }
     }
 

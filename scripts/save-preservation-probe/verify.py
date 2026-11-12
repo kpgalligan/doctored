@@ -32,6 +32,10 @@ preset_environment = _isolation.preset_environment
 _build_spec = importlib.util.spec_from_file_location("probe_build", ROOT / "scripts/probe_build.py")
 probe_build = importlib.util.module_from_spec(_build_spec)
 _build_spec.loader.exec_module(probe_build)
+# The hand-built layered TIFF the unread-layer-block case opens, loaded the same way.
+_tiff_spec = importlib.util.spec_from_file_location("layer_block_tiff", ROOT / "scripts/layer_block_tiff.py")
+layer_block_tiff = importlib.util.module_from_spec(_tiff_spec)
+_tiff_spec.loader.exec_module(layer_block_tiff)
 
 
 def run_logged(command, log_path, environment, timeout):
@@ -50,8 +54,12 @@ def verify(scratch):
         if not required.is_file():
             raise RuntimeError(f"Missing {required}; run `make rust project` first.")
 
+    # A little-endian 8-bit TIFF whose layer block holds one record the core does not read.
+    layer_tiff = scratch / "unread-layers-fixture.tif"
+    layer_tiff.write_bytes(layer_block_tiff.layered_tiff("<"))
     environment = dict(
         os.environ,
+        DR_SAVE_PROBE_LAYER_TIFF=str(layer_tiff),
         CLANG_MODULE_CACHE_PATH=str(scratch / "clang-cache"),
         ANTHROPIC_API_KEY="dummy",
         DR_AUTOMATION_ALERTS="record",
