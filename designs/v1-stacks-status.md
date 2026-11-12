@@ -42,7 +42,10 @@ EDR display shipped in v1.x.
   Local Adaptation (4b) is `hdr_local_adaptation.rs` behind `HdrRequest::Local`: log luminance from the 0.1 %
   alpha-weighted quantile (`equalize::Histogram::quantile`), the Toning Curve through `CurveLuts`, an edge-aware
   base from `sampling_presence::base_delta_in` (Radius above 192 runs at `RADIUS_LIMIT`), the base compressed
-  into eight stops, Detail on the rest, then `adjust_color::Vibrance` and `ShadowsHighlights::sliders`.
+  into eight stops, Detail on the rest, then `adjust_color::Vibrance` and `ShadowsHighlights::sliders`. A pixel's
+  chroma fades to a neutral near the black floor, read from the darkest stop when a quarter of its weight has a
+  channel below zero and the range's top lies at least `56F` over it (the module doc's "The black floor"); a
+  document with no channel below zero maps as before.
 - **HDR Toning measured against Photoshop.**
   Photoshop 26.10.0 takes the method only as `CnvM` with `hdrOptions` {`Vrsn` 6, `method` typed
   `hdrToningMethodType`} (form C1; the `hdrToning` event is refused), members LA `hdrtype4`, EG `hdrtype2`, HC
@@ -281,6 +284,8 @@ Auto-Blend and Auto-Align.
 
 `dbcab40b`, 2026-10-17: `StackLoad.placing` runs the place and the rasterize as two jobs, each under its own
 plan, so a stack of 128 px or smaller canvases loads.
+2026-11-12: the black floor's chroma fade (`FloorEvidence`, `chroma_weight`); a RAW opened `linear_float` lifts
+its floor as a grey instead of a saturated blue, and the pinned take rows are unchanged within their residuals.
 
 ## Phase 4c: HDR Toning presets (shipped)
 

@@ -21,11 +21,20 @@
 //!
 //! # The map
 //!
-//! Each visible pixel (alpha > 0) has linear `c`, clamped to ≥ 0.
+//! Each visible pixel (alpha > 0) has linear `c`, clamped to ≥ 0; `Yˢ` is
+//! `LUMA·c` of the unclamped triple.
 //!
 //! 1. `Y = LUMA·c`, `ℓ = log2(max(Y, LOG_FLOOR))`. The range [`log_range`]
 //!    is `low` (the 0.1 % alpha-weighted quantile of `ℓ`) and `span`
-//!    (`max ℓ − low`, at least [`MIN_SPAN_STOPS`]).
+//!    (`max ℓ − low`, at least [`MIN_SPAN_STOPS`]). The black floor `F`
+//!    ([`FloorEvidence`]): `ℓ₀` is the same quantile over the visible pixels
+//!    that are not exactly black (every channel 0), and the band is those of
+//!    them with `ℓ < ℓ₀ +` [`FLOOR_BAND_STOPS`]. When the band's pixels with a
+//!    channel below zero carry at least [`FLOOR_SHARE`] of its weight, `F` is
+//!    the alpha-weighted median of their `|Yˢ|`, read from 256 levels of
+//!    `log2`, eight a stop up from `LOG_FLOOR`, at the level's centre, and it
+//!    is kept when `2^(max ℓ)` is at least [`FLOOR_TOP_SCALE`]·κF (κ of
+//!    step 5); otherwise `F = 0`.
 //! 2. `t = clamp((ℓ − low)/span, 0, 1)`; `t′` the Toning Curve at `t`.
 //! 3. `d = B(t′) − t′`, the guided base at the Radius
 //!    (`sampling_presence::base_delta_in`, the same filter as Presence, Dehaze
@@ -33,13 +42,45 @@
 //!    (halved with Smooth Edges). Base `B = t′ + d`, detail `D = −d`.
 //! 4. `L = (B − 1)·span·k + (1 + detail/100)·D·span + exposure`, with
 //!    `k = min(1, DISPLAY_STOPS/span)/gamma`; `Y′ = 2^L`.
-//! 5. `c′ = c·Y′/Y` (a neutral `Y′` for `Y = 0`), then Vibrance and
-//!    Saturation (`adjust_color::Vibrance`, linear), then the caller's
-//!    [`DisplayCurve`] (clip and encode).
+//! 5. `S = max(Yˢ, 0)` and the chroma weight `w = S²/(S² + (κF)²)`, κ =
+//!    [`FLOOR_CHROMA_SCALE`]: `w = 0` at `S = 0`, and `w = 1` for `S > 0`
+//!    when `F = 0`. `c′ = Y′·((1 − w) + w·c/Y)` (`c·Y′/Y` at `w = 1`; its
+//!    luminance is `Y′` at every `w`), a neutral `Y′` for `Y = 0`; then
+//!    Vibrance and Saturation (`adjust_color::Vibrance`, linear), then the
+//!    caller's [`DisplayCurve`] (clip and encode).
 //! 6. Shadow and Highlight: `ShadowsHighlights::sliders` on the encoded
 //!    triple, guided by the encoded BASE luminance
 //!    `2^((B − 1)·span·k + exposure)` clamped to 0…1, so the guide is the
 //!    neighbourhood's tone rather than the pixel's own detail.
+//!
+//! # The black floor
+//!
+//! A pixel keeps its colour `c/Y` at its new luminance, and the map lifts the
+//! bottom of the range the most, so a pixel whose channels are a capture's
+//! black level and noise rather than light would come out a saturated
+//! primary. A capture shows where that floor is: its black level and noise
+//! push channels below zero there, while the darkest colours a scene holds
+//! keep every channel at or above zero. So the floor is read from the
+//! darkest stop of the range, and only when pixels below zero make up a real
+//! share of it: a stray pixel, a sliver of colour outside the gamut or an
+//! exact-black border sets no floor, and the median keeps a few large
+//! outliers from setting its level. A pixel whose signed luminance is not
+//! above zero holds no light and lifts as a neutral, as a black one does. The
+//! floor lifts as a neutral grey, and a colour keeps more of its chroma the
+//! further it lies above it: `w` is 0.06 at `2F`, a half at `κF` (`8F`) and
+//! 0.98 at `7κF` (`56F`, about six stops up). A floor lies far under the
+//! picture's light, so one is kept only when the range's top reaches `7κF`:
+//! the fade never reaches the brightest colours, and a picture of a few
+//! stops whose darkest stop is a colour outside the gamut (a field of one
+//! saturated colour) sets none and keeps its colour. A picture of wider range
+//! whose darkest stop is at least a quarter colour outside the gamut (a
+//! render, a document converted to a narrower profile) does read that stop as
+//! a floor, and its colours there fade over the six stops above it as a
+//! capture's noise does. The tone (`Y`, `ℓ`, the range, the base and the
+//! histogram) does not read `F`: only chroma fades. A document with no
+//! channel below zero (every 8- and 16-bit source, every non-negative float)
+//! has `F = 0` and keeps `c·Y′/Y` exactly. A float file whose noise was
+//! clipped at zero before it arrived shows no floor and is mapped as before.
 
 use serde_json::{Map, Value};
 
@@ -81,6 +122,39 @@ const RANGE_LEVELS: usize = 65536;
 
 /// The Toning Curve histogram's bins: one per 8-bit code of the curve editor.
 const HISTOGRAM_BINS: usize = 256;
+
+/// The black floor's band (module doc, "The black floor"): the darkest stop
+/// above `ℓ₀`. A capture's noise spreads its floor over about a stop, and the
+/// darkest colours a scene keeps sit above it.
+const FLOOR_BAND_STOPS: f32 = 1.0;
+
+/// The share of the band's weight its pixels with a channel below zero must
+/// carry to set a floor. At a RAW's floor developed into linear light most of
+/// the darkest stop's pixels hold one (half to three quarters measured on a
+/// real file); a stray pixel or a few colours outside the gamut among the
+/// darkest are a small share of a stop.
+const FLOOR_SHARE: f64 = 0.25;
+
+/// The floor histogram's levels: `equalize::Histogram`'s 256, eight a stop
+/// up from `LOG_FLOOR` (32 stops; a larger `|Yˢ|` counts at the top), so the
+/// median is read to an eighth of a stop.
+const FLOOR_LEVELS: usize = 256;
+const FLOOR_LEVELS_PER_STOP: f32 = 8.0;
+
+/// κ, the chroma weight's scale over the floor (module doc, step 5): a pixel
+/// at `S = κF` keeps half its chroma. At a capture's floor one channel runs
+/// several times the luminance (a RAW's blue up to about eight times), so a
+/// pixel's chroma is the floor's until its luminance is several times the
+/// floor's: at 8 the weight is 0.06 at twice the floor and 0.98 at 56 times.
+const FLOOR_CHROMA_SCALE: f64 = 8.0;
+
+/// How far over the floor the range's top must reach for `F` to be kept, as a
+/// multiple of `κF` (module doc, "The black floor"): at `7κF` the chroma
+/// weight is 0.98, so the fade never reaches a picture's brightest colours.
+/// A capture's floor lies over twelve stops under its highlights on the real
+/// file the rule was measured on, against the 5.8 this asks; a field of one
+/// saturated colour outside the gamut has its darkest stop at its top.
+const FLOOR_TOP_SCALE: f64 = 7.0;
 
 /// The Local Adaptation request (module doc).
 #[derive(Clone)]
@@ -235,6 +309,10 @@ impl LocalAdaptation {
 pub(crate) struct LogRange {
     pub(crate) low: f32,
     pub(crate) span: f32,
+    /// `ℓ₀`, the black floor's band starts from it (module doc, step 1).
+    floor_low: f32,
+    /// `max ℓ`, the top a black floor must lie under (module doc, step 1).
+    high: f32,
 }
 
 impl LogRange {
@@ -251,13 +329,20 @@ fn luminance(linear: [f32; 3]) -> ([f32; 3], f32, f32) {
     (c, y, y.max(LOG_FLOOR).log2())
 }
 
+/// `Yˢ`, the luminance of the unclamped triple (module doc, "The map").
+fn signed_luminance(linear: [f32; 3]) -> f32 {
+    LUMA_R * linear[0] + LUMA_G * linear[1] + LUMA_B * linear[2]
+}
+
 /// The module doc's range from two fresh passes over the pixels: the first
 /// takes the smallest and largest log luminance, the second bins each into a
 /// 65536-level `equalize::Histogram` over that span, weighted by alpha, and
 /// `low` is the lower edge of the level `Histogram::quantile(LOW_QUANTILE)`
 /// answers. Levels are `floor` bins, so every pixel below that edge is in a
-/// lower level and their weight is under the quantile. No visible pixel, or a
-/// single log level, answers its minimum (0 for none).
+/// lower level and their weight is under the quantile. `ℓ₀` reads the same
+/// histogram past the exact-black pixels' weight, which all sits in the
+/// lowest level. No visible pixel, or a single log level, answers its
+/// minimum (0 for none) for both; the top is the largest (0 for none).
 pub(crate) fn log_range<I: Iterator<Item = [f32; 4]>>(pixels: impl Fn() -> I) -> LogRange {
     let (mut min, mut max) = (f32::INFINITY, f32::NEG_INFINITY);
     for pixel in pixels().filter(|p| p[3] > 0.0) {
@@ -269,34 +354,109 @@ pub(crate) fn log_range<I: Iterator<Item = [f32; 4]>>(pixels: impl Fn() -> I) ->
         return LogRange {
             low: 0.0,
             span: MIN_SPAN_STOPS,
+            floor_low: 0.0,
+            high: 0.0,
         };
     }
-    let mut low = min;
+    let (mut low, mut floor_low) = (min, min);
     if max > min {
         if let Ok(mut histogram) = Histogram::new(RANGE_LEVELS) {
             let width = max - min;
             let scale = RANGE_LEVELS as f32 / width;
+            let (mut total, mut black) = (0.0_f64, 0.0_f64);
             for pixel in pixels().filter(|p| p[3] > 0.0) {
                 let (_, _, log) = luminance([pixel[0], pixel[1], pixel[2]]);
                 let level = (((log - min) * scale).max(0.0) as usize).min(RANGE_LEVELS - 1);
-                histogram.add(level, f64::from(pixel[3]));
+                let weight = f64::from(pixel[3]);
+                histogram.add(level, weight);
+                total += weight;
+                if pixel[..3] == [0.0; 3] {
+                    black += weight;
+                }
             }
+            let edge = |level: usize| min + level as f32 * width / RANGE_LEVELS as f32;
             if let Some(level) = histogram.quantile(LOW_QUANTILE) {
-                low = min + level as f32 * width / RANGE_LEVELS as f32;
+                low = edge(level);
+            }
+            floor_low = low;
+            if black > 0.0 && total > black {
+                let fraction = (black + LOW_QUANTILE * (total - black)) / total;
+                if let Some(level) = histogram.quantile(fraction) {
+                    floor_low = edge(level);
+                }
             }
         }
     }
     LogRange {
         low,
         span: (max - low).max(MIN_SPAN_STOPS),
+        floor_low,
+        high: max,
     }
 }
 
-/// What [`adapt`] keeps for the map pass: the range and the base delta `d`
-/// per pixel, in raster order.
+/// The black floor's evidence (module doc, step 1), gathered in [`adapt`]'s
+/// plane pass: the band's weight, and the `|Yˢ|` levels of its pixels with a
+/// channel below zero. Its 2 KB is `plan_bytes`'s 256-bin term.
+struct FloorEvidence {
+    band_top: f32,
+    range_top: f32,
+    band: f64,
+    below_zero: f64,
+    levels: Histogram,
+}
+
+impl FloorEvidence {
+    fn new(range: LogRange) -> Result<Self, String> {
+        Ok(Self {
+            band_top: range.floor_low + FLOOR_BAND_STOPS,
+            range_top: range.high,
+            band: 0.0,
+            below_zero: 0.0,
+            levels: Histogram::new(FLOOR_LEVELS)?,
+        })
+    }
+
+    /// One pixel: its linear triple, its `ℓ` and its alpha.
+    fn add(&mut self, linear: [f32; 3], log: f32, alpha: f32) {
+        if alpha.is_nan() || alpha <= 0.0 || log >= self.band_top || linear == [0.0; 3] {
+            return;
+        }
+        let weight = f64::from(alpha);
+        self.band += weight;
+        if linear.iter().any(|&v| v < 0.0) {
+            self.below_zero += weight;
+            let magnitude = signed_luminance(linear).abs().max(LOG_FLOOR);
+            let level = (magnitude.log2() - LOG_FLOOR.log2()) * FLOOR_LEVELS_PER_STOP;
+            self.levels.add(level as usize, weight);
+        }
+    }
+
+    /// `F`, or 0 when the band's pixels below zero carry under
+    /// [`FLOOR_SHARE`] of its weight or the range's top is under
+    /// [`FLOOR_TOP_SCALE`]·κF.
+    fn floor(&self) -> f32 {
+        if !(self.below_zero > 0.0 && self.below_zero >= FLOOR_SHARE * self.band) {
+            return 0.0;
+        }
+        let Some(level) = self.levels.quantile(0.5) else {
+            return 0.0;
+        };
+        let floor = (LOG_FLOOR.log2() + (level as f32 + 0.5) / FLOOR_LEVELS_PER_STOP).exp2();
+        let reach = FLOOR_TOP_SCALE * FLOOR_CHROMA_SCALE * f64::from(floor);
+        if reach > f64::from(self.range_top).exp2() {
+            return 0.0;
+        }
+        floor
+    }
+}
+
+/// What [`adapt`] keeps for the map pass: the range, the base delta `d` per
+/// pixel in raster order, and the black floor `F` (0 for none).
 pub(crate) struct Adapted {
     range: LogRange,
     delta: Vec<f32>,
+    floor: f32,
 }
 
 /// `t′` of one linear triple: the Toning Curve at `t` (module doc, step 2).
@@ -308,10 +468,11 @@ fn toned(la: &LocalAdaptation, range: LogRange, log: f32) -> f32 {
     }
 }
 
-/// The range pass, then the `(t′, α)` plane, then the guided pass over it at
-/// [`LocalAdaptation::guided_radius`] in `SampleRange::Unit` (`t′` is in 0…1)
-/// with the work ceiling `cap`; the plane is dropped before this returns.
-/// `pixels` yields the linear plane in raster order on each call.
+/// The range pass, then the `(t′, α)` plane with the black floor's evidence,
+/// then the guided pass over the plane at [`LocalAdaptation::guided_radius`]
+/// in `SampleRange::Unit` (`t′` is in 0…1) with the work ceiling `cap`; the
+/// plane is dropped before this returns. `pixels` yields the linear plane in
+/// raster order on each call.
 pub(crate) fn adapt<I: Iterator<Item = [f32; 4]>>(
     la: &LocalAdaptation,
     pixels: impl Fn() -> I,
@@ -324,11 +485,16 @@ pub(crate) fn adapt<I: Iterator<Item = [f32; 4]>>(
     job.range(0.0, 0.2).report(1.0, 5)?;
     let count = pixel_count(dimensions.0, dimensions.1)?;
     let mut plane: Vec<[f32; 2]> = reserved_vec(count)?;
+    let mut evidence = FloorEvidence::new(range)?;
     for (i, pixel) in pixels().enumerate() {
         job.every(i)?;
-        let (_, _, log) = luminance([pixel[0], pixel[1], pixel[2]]);
+        let linear = [pixel[0], pixel[1], pixel[2]];
+        let (_, _, log) = luminance(linear);
         plane.push([toned(la, range, log), pixel[3]]);
+        evidence.add(linear, log, pixel[3]);
     }
+    let floor = evidence.floor();
+    drop(evidence);
     if plane.len() != count {
         job.check()?;
         return Err("hdr toning read a plane of the wrong size".into());
@@ -346,7 +512,26 @@ pub(crate) fn adapt<I: Iterator<Item = [f32; 4]>>(
         job.range(0.2, 1.0),
     )?;
     drop(plane);
-    Ok(Adapted { range, delta })
+    Ok(Adapted {
+        range,
+        delta,
+        floor,
+    })
+}
+
+/// The share of a pixel's own chroma the map keeps (module doc, step 5):
+/// `S²/(S² + (κF)²)` on `S = max(Yˢ, 0)`; 0 at `S = 0`, and 1 above it when
+/// `floor` is 0.
+fn chroma_weight(linear: [f32; 3], floor: f32) -> f64 {
+    let signal = f64::from(signed_luminance(linear));
+    if signal <= 0.0 {
+        0.0
+    } else if floor > 0.0 {
+        let noise = FLOOR_CHROMA_SCALE * f64::from(floor);
+        signal * signal / (signal * signal + noise * noise)
+    } else {
+        1.0
+    }
 }
 
 /// One LINEAR triple as an ENCODED triple in [0, 1] (module doc, steps 1–6);
@@ -367,9 +552,14 @@ pub(crate) fn map_pixel(
     let base = (t + d - 1.0) * span * k + la.exposure;
     let stops = base + (1.0 + la.detail / 100.0) * -d * span;
     let target = stops.exp2();
-    let scaled = if y > 0.0 {
+    let weight = chroma_weight(linear, adapted.floor);
+    let scaled = if y > 0.0 && weight > 0.0 {
         let gain = target / f64::from(y);
-        c.map(|v| (f64::from(v) * gain) as f32)
+        if weight < 1.0 {
+            c.map(|v| (target + (f64::from(v) * gain - target) * weight) as f32)
+        } else {
+            c.map(|v| (f64::from(v) * gain) as f32)
+        }
     } else {
         [target as f32; 3]
     };
@@ -406,7 +596,8 @@ pub(crate) fn histogram<I: Iterator<Item = [f32; 4]>>(
 /// (the 8 B/px `(t′, α)` plane beside `sampling_presence::base_plan` at the
 /// guided radius, under no work ceiling, `CONTROLLED_JOB_WORK`) and the map
 /// stage (the 4 B/px delta beside the 8 B/px u16 output and its tiling,
-/// `adoption_copy_bytes`); then the range histogram and the 256 bins.
+/// `adoption_copy_bytes`); then the range histogram and 256 levels (the
+/// Toning Curve's bins, or the black floor's histogram in the plane pass).
 pub(crate) fn plan_bytes(la: &LocalAdaptation, width: u32, height: u32) -> Result<u64, String> {
     let overflow = || "hdr toning working-memory calculation overflow".to_string();
     let count = pixel_count(width, height)? as u64;

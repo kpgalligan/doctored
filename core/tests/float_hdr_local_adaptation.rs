@@ -12,7 +12,11 @@
 //! clamped-edge box windows (alpha 1, so the alpha weights are plain counts),
 //! `L = (B − 1)·span·k + (1 + detail/100)·D·span + exposure` with
 //! `k = min(1, 8/span)/gamma`, `c·2^L/Y`, and Saturation as the pull about the
-//! ROMM Y row `clamp01(A + (c − A)(1 + s))`. The linear results meet the sRGB
+//! ROMM Y row `clamp01(A + (c − A)(1 + s))`. A scene with a channel below zero
+//! adds the black floor `F` ([`black_floor`], kept only when the range's top
+//! reaches `56F`) and the chroma weight `w = S²/(S² + (8F)²)` on the signed
+//! luminance `S` ([`mapped_over_floor`]).
+//! The linear results meet the sRGB
 //! profile's own forward curve ([`encoded`]: `dr_precision_doc_float_to_u16`
 //! under the clip map, as `float_hdr_toning` does), which is not under test.
 
@@ -87,6 +91,168 @@ fn mapped(c: [f64; 3], t: f64, d: f64, span: f64, tone: Tone) -> [f64; 3] {
         [target; 3]
     };
     saturated(scaled, tone.saturation)
+}
+
+/// κ, the chroma weight's scale over the black floor (the module doc's
+/// `FLOOR_CHROMA_SCALE`).
+const FLOOR_SCALE: f64 = 8.0;
+
+/// The multiple of `κF` the range's top must reach for a floor to be kept
+/// (the module doc's `FLOOR_TOP_SCALE`).
+const FLOOR_TOP: f64 = 7.0;
+
+/// The black floor `F` of the module doc's step 1, from the pixel list: `ℓ₀`
+/// is the 0.1 % alpha-weighted order statistic of `ℓ` over the visible pixels
+/// that are not exactly black (the kernel's 65536-level edge meets it within a
+/// level, and every scene here keeps its pixels clear of the band's edge by
+/// more than that); the band is those pixels with `ℓ < ℓ₀ + 1`; when its
+/// pixels with a channel below zero carry at least a quarter of its weight,
+/// `F` is the weighted median of their `|LUMA·c|` read from 256 levels of
+/// `log2`, eight a stop up from −20, at the level's centre, kept when the
+/// largest `ℓ` of the visible pixels reaches `log2(7κF)`, else 0.
+fn black_floor(pixels: &[[f32; 4]]) -> f64 {
+    let top = pixels
+        .iter()
+        .filter(|p| p[3] > 0.0)
+        .map(|p| log_luma([p[0], p[1], p[2]].map(f64::from)))
+        .fold(f64::NEG_INFINITY, f64::max);
+    let lit: Vec<([f64; 3], f64)> = pixels
+        .iter()
+        .filter(|p| p[3] > 0.0 && (p[0] != 0.0 || p[1] != 0.0 || p[2] != 0.0))
+        .map(|p| ([p[0], p[1], p[2]].map(f64::from), f64::from(p[3])))
+        .collect();
+    let mut logs: Vec<(f64, f64)> = lit.iter().map(|(c, a)| (log_luma(*c), *a)).collect();
+    logs.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let total: f64 = logs.iter().map(|l| l.1).sum();
+    let mut cumulative = 0.0;
+    let Some(&(low, _)) = logs.iter().find(|(_, a)| {
+        cumulative += a;
+        cumulative >= 0.001 * total
+    }) else {
+        return 0.0;
+    };
+    let band: Vec<&([f64; 3], f64)> = lit
+        .iter()
+        .filter(|(c, _)| log_luma(*c) < low + 1.0)
+        .collect();
+    let band_weight: f64 = band.iter().map(|(_, a)| a).sum();
+    let below: Vec<(f64, f64)> = band
+        .iter()
+        .filter(|(c, _)| c.iter().any(|&v| v < 0.0))
+        .map(|(c, a)| (luma(*c).abs(), *a))
+        .collect();
+    let weight: f64 = below.iter().map(|b| b.1).sum();
+    if weight == 0.0 || weight < 0.25 * band_weight {
+        return 0.0;
+    }
+    let mut levels = [0.0f64; 256];
+    for (y, a) in below {
+        let level = ((y.max(2f64.powi(-20)).log2() + 20.0) * 8.0).floor();
+        levels[level.clamp(0.0, 255.0) as usize] += a;
+    }
+    let mut cumulative = 0.0;
+    for (level, w) in levels.iter().enumerate() {
+        cumulative += w;
+        if *w > 0.0 && cumulative >= 0.5 * weight {
+            let floor = (-20.0 + (level as f64 + 0.5) / 8.0).exp2();
+            return if (FLOOR_TOP * FLOOR_SCALE * floor).log2() <= top {
+                floor
+            } else {
+                0.0
+            };
+        }
+    }
+    unreachable!("the median level is occupied")
+}
+
+/// Step 5 over the black floor `floor`: the signed luminance `S` of the
+/// unclamped triple sets `w = S²/(S² + (κF)²)` (0 for `S ≤ 0`, 1 for `F = 0`),
+/// and `c′ = Y′·((1 − w) + w·c/Y)` on the clamped triple, then Saturation;
+/// `mapped` is this at `w = 1` for every pixel.
+fn mapped_over_floor(c: [f64; 3], t: f64, d: f64, span: f64, tone: Tone, floor: f64) -> [f64; 3] {
+    let k = (8.0 / span).min(1.0) / tone.gamma;
+    let stops = (t + d - 1.0) * span * k + (1.0 + tone.detail / 100.0) * -d * span + tone.exposure;
+    let target = stops.exp2();
+    let clamped = c.map(|v| v.max(0.0));
+    let y = luma(clamped);
+    let signal = luma(c);
+    let weight = if signal <= 0.0 {
+        0.0
+    } else if floor > 0.0 {
+        signal * signal / (signal * signal + (FLOOR_SCALE * floor).powi(2))
+    } else {
+        1.0
+    };
+    let scaled = if y > 0.0 {
+        clamped.map(|v| target * ((1.0 - weight) + weight * v / y))
+    } else {
+        [target; 3]
+    };
+    saturated(scaled, tone.saturation)
+}
+
+/// Every pixel of an opaque `w` × `h` scene through the module doc's map at
+/// radius `r` and the default Strength, as linear values after Saturation:
+/// over the floor `floor` ([`mapped_over_floor`]), or by today's `mapped` for
+/// `None`. Each scene holds more than 0.1 % of its pixels at its smallest
+/// log luminance, so `low` is that minimum.
+fn scene_map(
+    pixels: &[[f32; 4]],
+    (w, h, r): (usize, usize, usize),
+    tone: Tone,
+    floor: Option<f64>,
+) -> Vec<[f64; 3]> {
+    let linear: Vec<[f64; 3]> = pixels
+        .iter()
+        .map(|p| [p[0], p[1], p[2]].map(f64::from))
+        .collect();
+    let logs: Vec<f64> = linear.iter().map(|c| log_luma(*c)).collect();
+    let low = logs.iter().copied().fold(f64::INFINITY, f64::min);
+    let high = logs.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let at_low = logs.iter().filter(|&&l| l == low).count();
+    assert!(
+        at_low as f64 > 0.001 * logs.len() as f64,
+        "low is the minimum"
+    );
+    let span = (high - low).max(1.0);
+    let t: Vec<f64> = logs
+        .iter()
+        .map(|l| ((l - low) / span).clamp(0.0, 1.0))
+        .collect();
+    let d = guided_delta(&t, w, h, r, 0.52 / span);
+    (0..w * h)
+        .map(|i| match floor {
+            Some(floor) => mapped_over_floor(linear[i], t[i], d[i], span, tone, floor),
+            None => mapped(linear[i], t[i], d[i], span, tone),
+        })
+        .collect()
+}
+
+/// A deterministic standard normal stream: xorshift32 through Box–Muller.
+struct Normal(u32);
+
+impl Normal {
+    fn uniform(&mut self) -> f64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 17;
+        self.0 ^= self.0 << 5;
+        (f64::from(self.0) + 0.5) / 4_294_967_296.0
+    }
+
+    fn next(&mut self) -> f64 {
+        let (u, v) = (self.uniform(), self.uniform());
+        (-2.0 * u.ln()).sqrt() * (std::f64::consts::TAU * v).cos()
+    }
+}
+
+/// The relative chroma `(max − min)/max` of a pixel's codes.
+fn code_chroma(codes: [i64; 3]) -> f64 {
+    let (high, low) = (codes.iter().max().unwrap(), codes.iter().min().unwrap());
+    if *high == 0 {
+        0.0
+    } else {
+        (high - low) as f64 / *high as f64
+    }
 }
 
 /// The He/Sun/Tang guided filter of `guide` (also the input) in binary64:
@@ -390,6 +556,314 @@ fn the_base_is_a_binary64_guided_filter() {
             );
         }
     }
+}
+
+/// Every pixel of the toned `doc` within 2 codes of the oracle over `floor`,
+/// at the defaults and at Saturation 0, both at the scene's radius.
+fn matches_over_floor(
+    doc: &PrecisionDocument,
+    pixels: &[[f32; 4]],
+    size: (usize, usize, usize),
+    floor: f64,
+) {
+    let grey = Tone {
+        saturation: 0.0,
+        ..DEFAULTS
+    };
+    for (request, tone) in [
+        (la(json!({"radius": size.2})), DEFAULTS),
+        (la(json!({"radius": size.2, "saturation": 0})), grey),
+    ] {
+        let want = encoded(&scene_map(pixels, size, tone, Some(floor)));
+        for (i, pixel) in codes(doc, &request).iter().enumerate() {
+            for ch in 0..3 {
+                within(
+                    i64::from(pixel[ch]),
+                    want[i][ch],
+                    2,
+                    &format!("{request} pixel {i} ch {ch}"),
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn near_black_noise_lifts_as_a_neutral() {
+    let (w, h, r) = (64usize, 48usize, 2usize);
+    let mut normal = Normal(0x9e37_79b9);
+    // Zero-mean noise at black on the left, blue the noisiest channel; a
+    // neutral field on the right.
+    let mut pixels: Vec<[f32; 4]> = (0..w * h)
+        .map(|i| {
+            if i % w < w / 2 {
+                let [r, g, b] = [1.5e-4, 1.0e-4, 4.0e-4].map(|s| (s * normal.next()) as f32);
+                [r, g, b, 1.0]
+            } else {
+                [0.4, 0.4, 0.4, 1.0]
+            }
+        })
+        .collect();
+    let at = |x: usize, y: usize| y * w + x;
+    let (issue, patch, red, outside, partial) =
+        (at(8, 8), at(13, 37), at(44, 10), at(52, 30), at(16, 20));
+    // The issue's pixel: blue over slightly negative red and green.
+    pixels[issue] = [-2e-4, -1e-4, 3e-4, 1.0];
+    // Two large all-negative outliers, which the floor's median passes over.
+    pixels[at(20, 30)] = [-0.3, -0.3, -0.3, 1.0];
+    pixels[at(26, 40)] = [-0.3, -0.3, -0.3, 1.0];
+    // A dark orange patch fifty times the noise, a saturated red, and a
+    // bright blue outside the gamut.
+    for y in 36..39 {
+        for x in 12..15 {
+            pixels[at(x, y)] = [0.012, 0.006, 0.002, 1.0];
+        }
+    }
+    pixels[red] = [0.6, 0.08, 0.03, 1.0];
+    pixels[outside] = [-0.05, -0.02, 0.9, 1.0];
+    pixels[partial] = [1e-3, 1e-3, 1e-3, 1.0];
+    let floor = black_floor(&pixels);
+    let sigma = ((0.2126f64 * 1.5e-4).powi(2)
+        + (0.7152f64 * 1.0e-4).powi(2)
+        + (0.0722f64 * 4.0e-4).powi(2))
+    .sqrt();
+    assert!(
+        floor > sigma / 2.0 && floor < 2.0 * sigma,
+        "the floor {floor} is the noise's {sigma}, not the outliers'"
+    );
+    // A pixel whose signed luminance is κF keeps half its chroma; a pixel
+    // above the band never moves the floor.
+    let scale = FLOOR_SCALE * floor / luma([2.0, 0.8, 0.5]);
+    pixels[partial] = [2.0 * scale, 0.8 * scale, 0.5 * scale, 1.0].map(|v| v as f32);
+    assert_eq!(black_floor(&pixels), floor);
+    let doc = scene(w as u32, h as u32, pixels.clone());
+    let got = codes(&doc, &la(json!({"radius": r})));
+    let code = |i: usize| [0, 1, 2].map(|c| i64::from(got[i][c]));
+    let today = encoded(&scene_map(&pixels, (w, h, r), DEFAULTS, None));
+    assert!(
+        today[issue][2] > today[issue][0] + 10_000,
+        "today's map makes the issue's pixel blue: {:?}",
+        today[issue]
+    );
+    let lifted = code(issue);
+    assert!(
+        lifted.iter().max().unwrap() - lifted.iter().min().unwrap() <= 1 && lifted[0] > 0,
+        "the issue's pixel lifts as a neutral: {lifted:?}"
+    );
+    for (i, label) in [
+        (red, "the saturated red"),
+        (outside, "the blue outside the gamut"),
+    ] {
+        for (ch, (got, want)) in code(i).into_iter().zip(today[i]).enumerate() {
+            within(got, want, 257, &format!("{label} ch {ch}"));
+        }
+    }
+    assert!(
+        code_chroma(code(patch)) > 0.9 * code_chroma(today[patch]),
+        "the dark patch keeps its colour: {:?} against {:?}",
+        code(patch),
+        today[patch]
+    );
+    matches_over_floor(&doc, &pixels, (w, h, r), floor);
+}
+
+#[test]
+fn a_floor_above_zero_luminance_lifts_as_a_neutral() {
+    // A RAW developed into linear light keeps no negative luminance, but its
+    // black floor is blue, with red and green dipping below zero; a black
+    // border sits under it.
+    let (w, h, r) = (64usize, 48usize, 2usize);
+    let mut normal = Normal(0x2545_f491);
+    let mut spread = Normal(0x1b87_3593);
+    let pixels: Vec<[f32; 4]> = (0..w * h)
+        .map(|i| {
+            let (x, y) = (i % w, i / w);
+            if y < 2 {
+                [0.0, 0.0, 0.0, 1.0]
+            } else if x < w / 2 {
+                loop {
+                    let c = [
+                        1.6e-4 + 1.2e-4 * normal.next(),
+                        1.0e-5 + 6.0e-5 * normal.next(),
+                        9.0e-4 + 2.0e-4 * normal.next(),
+                    ];
+                    let y = luma(c.map(|v| v.max(0.0)));
+                    if luma(c) > 0.0 {
+                        let scale = (-13.4 + 0.3 * spread.uniform()).exp2() / y;
+                        break [c[0] * scale, c[1] * scale, c[2] * scale, 1.0].map(|v| v as f32);
+                    }
+                }
+            } else if (y / 8) % 2 == 0 {
+                [0.4, 0.4, 0.4, 1.0]
+            } else {
+                [0.3, 0.12, 0.05, 1.0]
+            }
+        })
+        .collect();
+    let floor = black_floor(&pixels);
+    assert!(floor > 0.0, "the darkest stop is the floor");
+    let doc = scene(w as u32, h as u32, pixels.clone());
+    let got = codes(&doc, &la(json!({"radius": r})));
+    let today = encoded(&scene_map(&pixels, (w, h, r), DEFAULTS, None));
+    let floor_pixels: Vec<usize> = (2 * w..w * h).filter(|i| i % w < w / 2).collect();
+    let mean_chroma = |codes: &dyn Fn(usize) -> [i64; 3]| {
+        floor_pixels
+            .iter()
+            .map(|&i| code_chroma(codes(i)))
+            .sum::<f64>()
+            / floor_pixels.len() as f64
+    };
+    let (now, before) = (
+        mean_chroma(&|i| [0, 1, 2].map(|c| i64::from(got[i][c]))),
+        mean_chroma(&|i| today[i]),
+    );
+    assert!(before > 0.5, "today's map makes the floor blue: {before}");
+    assert!(
+        now < 0.1 * before,
+        "the floor lifts as a neutral: chroma {now} against today's {before}"
+    );
+    let orange = 10 * w + 40;
+    for ch in 0..3 {
+        within(
+            i64::from(got[orange][ch]),
+            today[orange][ch],
+            257,
+            &format!("the orange ch {ch}"),
+        );
+    }
+    matches_over_floor(&doc, &pixels, (w, h, r), floor);
+}
+
+#[test]
+fn a_lone_pixel_below_zero_sets_no_floor() {
+    let (w, h, r) = (192usize, 128usize, 2usize);
+    let mut seed = 0x6d2b_79f5_u32;
+    let mut next = || {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        f64::from(seed % 10_000) / 10_000.0
+    };
+    let mut pixels: Vec<[f32; 4]> = (0..w * h)
+        .map(|_| {
+            let y = (-7.0 + 7.5 * next()).exp2();
+            [y * (0.6 + 0.8 * next()), y, y * (0.5 + next()), 1.0].map(|v| v as f32)
+        })
+        .collect();
+    for pixel in pixels.iter_mut().take(32) {
+        *pixel = [0.0, 0.0, 0.0, 1.0];
+    }
+    // A stray far below black and a blue whose luminance is below zero: two
+    // pixels in a picture of 24576 are no floor.
+    let (stray, below) = (5000, 9000);
+    pixels[stray] = [-0.5, -0.5, -0.5, 1.0];
+    pixels[below] = [-0.02, -0.01, 0.03, 1.0];
+    assert_eq!(black_floor(&pixels), 0.0);
+    let doc = scene(w as u32, h as u32, pixels.clone());
+    let got = codes(&doc, &la(json!({"radius": r})));
+    let today = encoded(&scene_map(&pixels, (w, h, r), DEFAULTS, None));
+    assert!(
+        today[below][2] > today[below][0] + 10_000,
+        "today's map makes it blue: {:?}",
+        today[below]
+    );
+    let lifted = [0, 1, 2].map(|c| i64::from(got[below][c]));
+    assert!(
+        lifted.iter().max().unwrap() - lifted.iter().min().unwrap() <= 1,
+        "a pixel with no light lifts as a neutral: {lifted:?}"
+    );
+    matches_over_floor(&doc, &pixels, (w, h, r), 0.0);
+}
+
+#[test]
+fn a_colour_outside_the_gamut_near_the_top_sets_no_floor() {
+    // A green outside the gamut (red below zero), as a field and as a gradient
+    // over four stops: every pixel of the darkest stop has a channel below
+    // zero, but that stop lies within a few stops of the top, so it is no
+    // floor and every pixel keeps its colour.
+    let (w, h, r) = (32usize, 24usize, 2usize);
+    let colour = [-0.05f32, 0.60, 0.02];
+    let field = vec![[colour[0], colour[1], colour[2], 1.0]; w * h];
+    let gradient: Vec<[f32; 4]> = (0..w * h)
+        .map(|i| {
+            let s = (-4.0 + 4.0 * (i % w) as f32 / (w - 1) as f32).exp2();
+            [colour[0] * s, colour[1] * s, colour[2] * s, 1.0]
+        })
+        .collect();
+    for (label, pixels) in [("the field", field), ("the gradient", gradient)] {
+        assert_eq!(black_floor(&pixels), 0.0, "{label} sets no floor");
+        let doc = scene(w as u32, h as u32, pixels.clone());
+        let got = codes(&doc, &la(json!({"radius": r})));
+        let today = encoded(&scene_map(&pixels, (w, h, r), DEFAULTS, None));
+        for (i, pixel) in got.iter().enumerate() {
+            let now = [0, 1, 2].map(|c| i64::from(pixel[c]));
+            assert!(
+                today[i][1] > today[i][0] + 10_000,
+                "{label} is green today at {i}: {:?}",
+                today[i]
+            );
+            assert!(
+                code_chroma(now) > 0.9 * code_chroma(today[i]),
+                "{label} keeps its colour at {i}: {now:?} against {:?}",
+                today[i]
+            );
+        }
+        matches_over_floor(&doc, &pixels, (w, h, r), 0.0);
+    }
+}
+
+#[test]
+fn a_floor_six_and_a_half_stops_under_the_top_is_kept() {
+    // The noise at black of `near_black_noise_lifts_as_a_neutral` beside a
+    // neutral field 6.5 stops over the floor it sets, a dim capture's range:
+    // the top clears the 7κF (about 5.8 stops) a floor needs.
+    let (w, h, r) = (64usize, 48usize, 2usize);
+    let mut normal = Normal(0x9e37_79b9);
+    let noise = |i: usize| i % w < w / 2;
+    let mut pixels: Vec<[f32; 4]> = (0..w * h)
+        .map(|i| {
+            if noise(i) {
+                let [r, g, b] = [1.5e-4, 1.0e-4, 4.0e-4].map(|s| (s * normal.next()) as f32);
+                [r, g, b, 1.0]
+            } else {
+                [0.4, 0.4, 0.4, 1.0]
+            }
+        })
+        .collect();
+    let floor = black_floor(&pixels);
+    assert!(floor > 0.0, "the darkest stop is the floor");
+    let top = (floor * 6.5f64.exp2()) as f32;
+    for (i, pixel) in pixels.iter_mut().enumerate() {
+        if !noise(i) {
+            *pixel = [top, top, top, 1.0];
+        }
+    }
+    assert_eq!(
+        black_floor(&pixels),
+        floor,
+        "the floor is kept under the top"
+    );
+    let doc = scene(w as u32, h as u32, pixels.clone());
+    let got = codes(&doc, &la(json!({"radius": r})));
+    let today = encoded(&scene_map(&pixels, (w, h, r), DEFAULTS, None));
+    let floor_pixels: Vec<usize> = (0..w * h).filter(|&i| noise(i)).collect();
+    let mean_chroma = |codes: &dyn Fn(usize) -> [i64; 3]| {
+        floor_pixels
+            .iter()
+            .map(|&i| code_chroma(codes(i)))
+            .sum::<f64>()
+            / floor_pixels.len() as f64
+    };
+    let (now, before) = (
+        mean_chroma(&|i| [0, 1, 2].map(|c| i64::from(got[i][c]))),
+        mean_chroma(&|i| today[i]),
+    );
+    assert!(before > 0.5, "today's map colours the floor: {before}");
+    assert!(
+        now < 0.1 * before,
+        "the floor lifts as a neutral: chroma {now} against today's {before}"
+    );
+    matches_over_floor(&doc, &pixels, (w, h, r), floor);
 }
 
 #[test]
