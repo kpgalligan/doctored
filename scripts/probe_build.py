@@ -92,6 +92,7 @@ PROBE_SETS: dict[str, ProbeSet] = {
     "reach-probe": ProbeSet(_listed("reach-probe", "main.swift")),
     "retouch-probe": ProbeSet(_listed("retouch-probe", "main.swift")),
     "save-preservation-probe": ProbeSet(_listed("save-preservation-probe", "main.swift")),
+    "screens-probe": ProbeSet(None),
     "selected-tone-probe": ProbeSet(
         _listed("selected-tone-probe", "main.swift", "info.swift", "adjustment_dialogs.swift")),
     "selection-history-probe": ProbeSet(None),

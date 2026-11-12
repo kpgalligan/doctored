@@ -1,0 +1,24 @@
+{
+  "fixtures": [
+    {
+      "id": "sky",
+      "root": "repo",
+      "path": "core/tests/fixtures/registration_photo/sky.jpg",
+      "kind": "photo",
+      "licence": "CC0-1.0",
+      "author": "Bo Jessen, 2012",
+      "source": "https://commons.wikimedia.org/wiki/File:Blue_sky_behind_rooftops_and_clouds.jpg",
+      "sha256": "c4f4e249cba29671e98a50ad4f911d01248b444fe3ae6c5cfb0359e71bd59375"
+    },
+    {
+      "id": "z6-nef",
+      "root": "fixtures",
+      "path": "raw-pixls/nikon-z6/Z6.NEF",
+      "kind": "raw",
+      "licence": "CC0-1.0",
+      "author": "raw.pixls.us listing 3582 (uploader not recorded)",
+      "source": "https://raw.pixls.us/getfile.php/3582/nice/Nikon%20-%20Z%206%20-%2014bit%2014bit%20lossless%20compressed%20%283%3A2%29.NEF",
+      "sha256": "c079345fc93f53a4f0d322f8ddaae505f920c36015f25b58befccaa61db1af31"
+    }
+  ]
+}

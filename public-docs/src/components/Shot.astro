@@ -1,0 +1,62 @@
+---
+/* One documentation screenshot in both looks. `name` is "<id>.<capture>", an entry of
+   `src/assets/screens/screens.json`, which `scripts/import-screens.mjs` writes along with the
+   WebP files; the alt text is the screen file's prose (`screens/<id>.md`). The dark image shows
+   by default and the light one under Starlight's `data-theme='light'` (ThemeSelect's
+   convention), so the picture follows the site's theme without a script. */
+import screens from '../assets/screens/screens.json';
+
+interface Props {
+	/** "<id>.<capture>", e.g. "editor-window.window". */
+	name: string;
+	caption?: string;
+}
+
+type Shot = { title: string; alt: string; width: number; height: number };
+
+const { name, caption } = Astro.props;
+const entry = (screens as Record<string, Shot>)[name];
+if (!entry) throw new Error(`Shot: no screen "${name}" in src/assets/screens/screens.json`);
+const images = import.meta.glob<{ default: ImageMetadata }>('../assets/screens/*.webp', { eager: true });
+const looks = (['light', 'dark'] as const).map((look) => {
+	const image = images[`../assets/screens/${name}.${look}.webp`];
+	if (!image) throw new Error(`Shot: no ${look} image for "${name}" in src/assets/screens/`);
+	return { look, src: image.default.src };
+});
+---
+
+<figure class="shot">
+	{
+		looks.map(({ look, src }) => (
+			<img
+				class={`shot-${look}`}
+				src={src}
+				width={entry.width}
+				height={entry.height}
+				alt={entry.alt}
+				loading="lazy"
+				decoding="async"
+			/>
+		))
+	}
+	{caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+	.shot img {
+		max-width: 100%;
+		height: auto;
+	}
+
+	.shot-light {
+		display: none;
+	}
+
+	:global(:root[data-theme='light']) .shot-light {
+		display: block;
+	}
+
+	:global(:root[data-theme='light']) .shot-dark {
+		display: none;
+	}
+</style>

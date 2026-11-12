@@ -14,9 +14,12 @@ Run from `public-docs/`:
 | `npm run build` | Build the production site to `./dist/` |
 | `npm run preview` | Preview the built site |
 | `npm run astro ...` | Run CLI commands like `astro add`, `astro check` |
+| `node scripts/import-screens.mjs <out dir>` | Import the screens runner's captures into `src/assets/screens/` |
 
 Pages are `.md`/`.mdx` files under `src/content/docs/`; each one is a route named
 after its path. Images go in `src/assets/`, static files in `public/`.
+`screens/` holds the screen files (the screenshots' scripts and alt text) and
+`src/assets/screens/` the import's output.
 
 ## Theme
 

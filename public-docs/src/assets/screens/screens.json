@@ -1,0 +1,758 @@
+{
+  "adjustment-layers-dodge-burn.panel": {
+    "title": "Curves adjustment layers for dodge and burn",
+    "alt": "The Layers panel with four layers. At the top, B&W helper, a Black & White adjustment layer, is hidden: its eye is crossed out, and its row is the chosen one. Below it are two Curves adjustment layers, Burn and Dodge, each with a black mask that holds one soft white patch: Burn's is a round spot in the middle, Dodge's a smudge at the upper left. Background, the photo, is at the bottom, and the footer counts 4 layers.",
+    "width": 304,
+    "height": 738
+  },
+  "adjustment-layers-dodge-burn.window": {
+    "title": "Curves adjustment layers for dodge and burn",
+    "alt": "The editor with the dodge-and-burn stack over a photo of clouds above dark rooftops. The deep blue sky at the upper left is lifted lighter where Dodge's mask is white, and the bright sun in the middle is toned down to a soft grey glow where Burn's mask is white; the rest of the photo is unchanged. The Layers panel on the right lists B&W helper, hidden, then Burn, Dodge and Background.",
+    "width": 1280,
+    "height": 832
+  },
+  "adjustment-live-preview-posterize.sheet": {
+    "title": "Posterize previewing on the canvas",
+    "alt": "The Posterize dialog: one Levels slider set to 4, and the note one undo step beside Cancel and Apply.",
+    "width": 420,
+    "height": 240
+  },
+  "adjustment-live-preview-posterize.window": {
+    "title": "Posterize previewing on the canvas",
+    "alt": "The Posterize dialog open over the editor, which is dimmed behind it. The photo on the canvas already shows what Apply will commit: the cloudy sky has broken into a few flat colours with hard edges between them, and the rooftops are one flat dark shape. The Layers panel lists a single layer, Background.",
+    "width": 1280,
+    "height": 832
+  },
+  "apply-image.sheet": {
+    "title": "The Apply Image dialog",
+    "alt": "The Apply image dialog. The hint says it blends one source onto the current target: the active layer, one of its colour planes, or an alpha channel. Source is Merged, Channel is RGB, Invert is unchecked, Blending is set to Multiply and Opacity is 100%, a slider beside its field. The footnote reads Target: Background, the layer the result lands on, beside Cancel and Apply.",
+    "width": 420,
+    "height": 325
+  },
+  "artwork-colors.sheet": {
+    "title": "Layer ▸ Artwork Colors…",
+    "alt": "The Artwork Colors dialog for a text layer, set to colour part of its text. A hint says the values are continuous sRGB components from 0 to 1 and that character ranges preserve complete characters, including emoji. The target menu reads Character Range, and the fields read Red 0.91, Green 0.64, Blue 0.24, Alpha 1.0, First character (1-based) 1 and Character count 4. A note says the values stay precise in the editable layer, above Cancel and Apply.",
+    "width": 420,
+    "height": 439
+  },
+  "assistant-panel.panel": {
+    "title": "The Assistant tab",
+    "alt": "The Assistant tab under the tab row (Layers, Channels, Assistant, Info, Navigator, Paths). At the top right are three buttons: Context usage, Clear the conversation and More. The conversation below is empty, and at the bottom a message field reading Ask about or edit this image… sits beside Send.",
+    "width": 304,
+    "height": 738
+  },
+  "assistant-panel.window": {
+    "title": "The Assistant tab",
+    "alt": "The editor with the Assistant tab chosen in the right panel, beside the rooftops photo. The tab holds three small buttons at its top right, an empty conversation, and at its foot a message field reading Ask about or edit this image… with Send beside it.",
+    "width": 1280,
+    "height": 832
+  },
+  "auto-align-sheet.sheet": {
+    "title": "The Auto-Align Layers dialog",
+    "alt": "The Auto-Align Layers dialog. A hint says the bottom selected layer, or the one position-locked layer, stays put while the canvas grows to hold the rest, and explains how Cylindrical and Spherical, Vignette Removal and Geometric Distortion treat the layers. Projection offers six radio buttons, Auto (chosen), Perspective, Collage, Cylindrical, Spherical and Reposition, and Lens Correction two checkboxes, Vignette Removal and Geometric Distortion, both off, above Cancel and Apply.",
+    "width": 420,
+    "height": 416
+  },
+  "batch.card": {
+    "title": "The Batch window",
+    "alt": "The Batch window. A hint says it runs the action on every image in the input folder, its top level only, not sub-folders, and writes each result into the output folder. Action is Web Export Prep, and RAW develop shows a collapsed File defaults row. Input folder and Output folder each have a Choose… button and read None chosen. Format is PNG, with a greyed Quality slider at 90, Embed colour profile checked and Strip metadata off, above a note that every file is written flattened in one of those formats. Deliver with reads Flat copy (format belo…, cut short, and the Metadata policy menu is greyed at Preset's own, above a note on what an export preset supplies. Name as holds {name}, with a note on the {name} and {n} tokens. Overwrite existing files is off and Stop the whole run is on, above a note on what a failed step does. Cancel and Run close the window.",
+    "width": 480,
+    "height": 809
+  },
+  "bitmap-mode.sheet": {
+    "title": "The Bitmap dialog",
+    "alt": "The Bitmap dialog on an 8-bit Grayscale document. A hint says it converts the image to one layer of black and white pixels, and that the 1-bit plane is kept in the document. Input reads 72 Pixels/Inch, and Output is 72 with a Pixels/Inch menu. Method is Diffusion Dither, so the Frequency (53 Lines/Inch), Angle (45°), Shape (Round) and Pattern (Checkerboard) rows are greyed. A note below describes each method and says a different Output resolution resamples the gray first, above a one undo step footnote, Cancel and Apply.",
+    "width": 420,
+    "height": 508
+  },
+  "black-and-white.sheet": {
+    "title": "The Black & White dialog",
+    "alt": "The Black & White dialog. Under a Preset menu reading Default are six colour sliders at their starting weights: Reds 40%, Yellows 60%, Greens 40%, Cyans 60%, Blues 20% and Magentas 80%. Below them are a Tint checkbox, off, and a Tint color swatch, then a paragraph explaining that each weight sets how much of its hue reaches the grey and that Tint is what colours a neutral pixel. The note greys stay grey · one undo step sits beside Cancel and Apply.",
+    "width": 420,
+    "height": 441
+  },
+  "brush-options.more": {
+    "title": "The Brush tip, its options and the More panel",
+    "alt": "The Brush's More panel: Spacing 15 (selected for editing), Angle -45°, Roundness 30%, Smoothing 40%, Pressure size (checked), and Airbrush and Pressure opacity, both unchecked.",
+    "width": 268,
+    "height": 250
+  },
+  "brush-options.window": {
+    "title": "The Brush tip, its options and the More panel",
+    "alt": "An orange calligraphic stroke zigzags across the clouds on a Paint layer, its width changing with its direction as a flat tip's does, and the Brush's flattened, tilted outline hovers in the sky to the right. The options bar reads Preset Calligraphy, Size 220 px, Hardness 95%, Opacity 100%, Flow 100% and the blend mode Normal, and the More panel is open at its right. The colour swatches at the foot of the tool rail are orange over dark blue.",
+    "width": 1280,
+    "height": 832
+  },
+  "canvas-size.sheet": {
+    "title": "The Canvas Size dialog",
+    "alt": "The Canvas size dialog. A hint says it grows or trims the canvas without scaling, and that layers keep their pixels and can be revealed again later. Current size reads 2048 × 1366 px, and Width and Height hold the same numbers. Below them, Anchor is a 3 × 3 grid of buttons: the centre one is chosen, and arrows on the other eight point the way the canvas grows away from it. The ⌥⌘C shortcut sits at the bottom left, beside Cancel and Apply.",
+    "width": 420,
+    "height": 358
+  },
+  "channel-mixer.sheet": {
+    "title": "The Channel Mixer dialog",
+    "alt": "The Channel Mixer dialog, editing the Red output. Preset reads Default, Output reads Red and Monochrome is unchecked. The Red slider is at 100% and Green and Blue are at 0%, a Total readout shows +100%, and Constant is at 0%. A paragraph explains that each output channel is a weighted sum of the source channels plus a constant, and that a total above 100% can clip the output. The note total is advisory · one undo step sits beside Cancel and Apply.",
+    "width": 420,
+    "height": 417
+  },
+  "channels-panel.panel": {
+    "title": "The Channels panel with alpha channels and a rubylith",
+    "alt": "The Channels tab, top to bottom: RGB, the composite, then Red, Green and Blue, each with its eye on; Retouch Mask, the active layer's mask, with its eye off; then the saved alpha channels Rooftops and Sky, each marked 50% masked. Rooftops is the edit target: its row is selected, its name is blue and bold, a blue ring surrounds its thumbnail of a black sky over white rooftops, and its eye is on. Sky's thumbnail is the reverse, and its eye is off. Along the bottom are buttons to load a channel as a selection, save the selection as a channel (dimmed), add a channel and delete one, and the count reads 2 channels.",
+    "width": 304,
+    "height": 738
+  },
+  "channels-panel.window": {
+    "title": "The Channels panel with alpha channels and a rubylith",
+    "alt": "The editor with the alpha channel Rooftops shown over the photo as a rubylith: a translucent red covers the sky, where the channel is black, and the rooftops, where it is white, stay clear. The Channels tab is open on the right with Rooftops as the edit target, and the status bar ends with Channel: Rooftops.",
+    "width": 1280,
+    "height": 832
+  },
+  "clone-stamp.more": {
+    "title": "Clone Stamp with its source, overlay and options",
+    "alt": "The Clone Stamp's More panel: Sample Current & Below, Ignore adjustment layers, Retouch to This Layer, Expand destination, Source overlay (checked), Source scale 100.0 (selected for editing), Source rotation 0.0°, Flip source horizontally and Flip source vertically, then Flow 100%, Blend Normal, Spacing 25%, Angle 0°, Roundness 100%, Smoothing 20%, Pressure size (checked), Airbrush and Pressure opacity.",
+    "width": 268,
+    "height": 591
+  },
+  "clone-stamp.window": {
+    "title": "Clone Stamp with its source, overlay and options",
+    "alt": "The Clone Stamp zoomed to 130% on the small chimney, with Preset Custom, Size 90 px, Hardness 60% and Opacity 100% in the options bar. A crosshair in the clouds up and to the left marks the source point, and the round brush outline over the chimney shows the sky from that source at half strength, lightening the chimney and the roof edge inside it. The More panel hangs under the More button at the right of the bar, over the Layers panel.",
+    "width": 1280,
+    "height": 832
+  },
+  "cloud-consent.card": {
+    "title": "The cloud consent card",
+    "alt": "The Send to OpenAI? card. It says Generative Fill sends the area around your selection, the selection itself and your prompt to OpenAI (gpt-image-2.5-sunburst) with your own API key, and puts the picture it answers on a new layer. Three lines follow. Training: OpenAI does not train its models on API inputs or outputs. Retention: OpenAI keeps API requests in its abuse-monitoring logs for up to 30 days. Billing: Each Generative Fill is billed by OpenAI to your own API key. A link to developers.openai.com/api/docs/guides/your-data comes next, then a line saying that accepting records your consent for these terms and that Settings ▸ Cloud revokes it. The buttons are Cancel and Accept and Send.",
+    "width": 420,
+    "height": 384
+  },
+  "cmyk-channels.panel": {
+    "title": "The Channels panel of a CMYK document",
+    "alt": "The Channels tab of a CMYK document converted from the rooftops photo, under the tab row (Layers, Channels, Assistant, Info, Navigator, Paths). The CMYK composite row is selected, its thumbnail in colour. Cyan, Magenta, Yellow and Black follow, each marked active layer's ink, with a grey thumbnail of that plate: the more ink, the darker, so the rooftops are dark on every plate and the sun is white. Every row has its eye on. The bar at the bottom holds the channel buttons and reads 0 channels.",
+    "width": 304,
+    "height": 738
+  },
+  "color-balance.sheet": {
+    "title": "The Color Balance dialog",
+    "alt": "The Color Balance dialog. Preset reads Default and Tone reads Midtones, above three sliders at 0%: Cyan / Red, Magenta / Green and Yellow / Blue. Preserve Luminosity is checked. A note that begins Preserve renormalises each tone's sits beside Cancel and Apply.",
+    "width": 420,
+    "height": 293
+  },
+  "color-range.sheet": {
+    "title": "The Color Range dialog with a sampled sky colour",
+    "alt": "The Color Range dialog after one click on a blue gap between the clouds. The captured photo is on the left and the coverage preview on the right, where white is selected: the darker blue sky at the left and top and many of the gaps between the clouds are white, while the bright clouds around the sun and the rooftops stay black. The readout says 1 color(s) and gives the sampled RGB values 73, 83, 95, beside Clear Samples. Below are Select set to Sampled Colors and Combine set to Replace, Tolerance ΔE 20 and Softness 10, Lower and Upper L* (dimmed), the Invert and Localized Color Clusters checkboxes, Range % and Fuzziness (dimmed), a note that white selects fully and gray partly, and Cancel and Apply. A long hint at the top explains sampling, the presets and how Tolerance is measured.",
+    "width": 556,
+    "height": 686
+  },
+  "color-samplers.window": {
+    "title": "Color samplers on the canvas and in Info",
+    "alt": "The editor with the Color Sampler tool chosen and three numbered sampler markers on the photo: #1 on the dark blue sky at the left, #2 on the bright clouds beside the sun and #3 on the black rooftops. The options bar shows a Sample pop-up set to Point and a Clear All button. In the Info tab on the right, under Color Samplers with an RGB pop-up, there is one reading for each marker: #1 3×3 11, 30, 47; #2 3×3 253, 252, 250; and #3 1×1 0, 0, 0. The pointer's own readings above them are dashes, because the pointer is not over the canvas.",
+    "width": 1280,
+    "height": 832
+  },
+  "color-settings.card": {
+    "title": "Color Settings",
+    "alt": "The Color Settings window. A hint says it holds the working spaces new documents and conversions use, what opening a file does with its profile, and every conversion's default intent and black point compensation, and that changes affect future opens and conversions, never an open document's pixels. Under Working Spaces, RGB is sRGB, CMYK is Automatic — U.S. Web Coated (SWOP) v2 and Gray is Dot Gain 20%. Under Color Management, the RGB policy is Convert to Working and the CMYK policy is Preserve Embedded Profiles, with Ask When Pasting off. Under Conversion Options, Engine reads Doctored ICC, Intent is Relative Colorimetric and Use Black Point Compensation is checked. Cancel and OK close the window.",
+    "width": 480,
+    "height": 603
+  },
+  "color-table.sheet": {
+    "title": "The Color Table dialog",
+    "alt": "The Color Table dialog of an Indexed Color document converted with a 32-colour Adaptive palette. A hint says it edits the document's palette: every pixel keeps its index and takes its entry's new colour, and Load and Save read and write Adobe Color Table (.act) files. Two rows of sixteen swatches in black, dark slate blues, greys and near whites, the first one, black, selected. Below are a Color well showing that black entry, Transparent set to None, Load… and Save…, a line reading 32 colours, a one undo step footnote, Cancel and OK.",
+    "width": 420,
+    "height": 361
+  },
+  "command-palette.palette": {
+    "title": "The Command Palette",
+    "alt": "The Command Palette, a floating card with levels typed in its search field. It lists four commands, each with its name above its menu path: Levels… under Image ▸ Adjustments, highlighted with a blue ring and showing its shortcut, ⌘L, at the right; Levels… again, under Layer ▸ New Adjustment Layer; and two looser matches, Bevel & Emboss… under Layer ▸ Layer Style and Vertical Centers under Layer ▸ Align. A hint at the bottom of the card says that only commands that can run right now are listed.",
+    "width": 540,
+    "height": 237
+  },
+  "contact-sheet.sheet": {
+    "title": "The Contact Sheet dialog",
+    "alt": "The Contact Sheet dialog for a document with six layers. A hint says cells are 8-bit sRGB and are never upscaled, that a transparent item shows the background colour, and that the sources are not changed. Items is All layers; Columns 4, Cell width 256 and Cell height 256; Gutter 16, Caption strip 24 and Background #ffffff; Caption each cell with its layer name is on; Output is New document, with the Preset menu greyed. The summary reads 6 cells · 2 rows · 1104×608 px, above Cancel and Build Sheet.",
+    "width": 540,
+    "height": 409
+  },
+  "content-aware-fill.sheet": {
+    "title": "The Content-Aware Fill workspace",
+    "alt": "The Content-aware fill dialog for a selection around the tall chimney on the right of the photo. Under a hint on including and excluding source areas and on the size limits are Sample All Layers, an Ignore adjustment layers checkbox and Output This Layer; Ring (px) 48, Seed 0 and Prepare Final Result; then the source tool menu reading Exclude Brush, Radius (px) 20, Include All and Exclude All, and the Source Area, Before and After and the Fit and 100% switches. The large preview tints the whole photo green, the area the fill may sample, with the selection outlined around the chimney. The status line reads Ready, Apply uses this exact result, above Cancel and Apply.",
+    "width": 970,
+    "height": 762
+  },
+  "convert-precision.sheet": {
+    "title": "The Convert Precision dialog",
+    "alt": "The Convert Precision dialog on an 8-bit document with two layers. A hint says Flatten renders the canvas into one raster, Preserve Layers carries every layer to the target precision, and the previews are displayed at 8 bits. Mode is To 16-bit, Structure is set to Preserve Layers rather than Flatten, and Ordered RGB dithering is greyed. A scrolling text lists what the conversion carries, every layer, group, adjustment, text and shape description, mask, saved channel and style among them, and says that widening to 16 bits multiplies each 8-bit value by 257. Below it, a Before thumbnail of the photo sits beside an empty Converted area. Prepare Preview and Cancel sit beside a greyed Apply Conversion.",
+    "width": 420,
+    "height": 634
+  },
+  "convert-to-profile.sheet": {
+    "title": "The Convert to Profile dialog",
+    "alt": "The Convert to profile dialog on an sRGB photo. A hint says Convert transforms every layer's pixels into another space, so each layer keeps its appearance while its numbers change, and that layer masks, alpha channels and layer descriptions are coverage, not colour, and are left exactly as they are. Destination reads sRGB, Intent is Relative Colorimetric, Black point compensation is off, and Adjustment layers is set to Keep parameters. A note says the document is already in sRGB IEC61966-2.1, so there is nothing to convert, and Apply is greyed beside Cancel, with a one undo step footnote.",
+    "width": 420,
+    "height": 387
+  },
+  "crop-past-edge.window": {
+    "title": "A crop box past the image edge",
+    "alt": "The Crop tool with a box drawn larger than the photo. The box's handles and thirds grid extend past every edge of the image, the area between the image and the box is shaded, and the options bar shows the box as 2458 by 1640, larger than the 2048 × 1366 image.",
+    "width": 1280,
+    "height": 832
+  },
+  "crop-straighten.options": {
+    "title": "Straightening with the Crop tool",
+    "alt": "The Crop tool's options bar: Ratio Original, the box's W 1852 and H 1234, Straighten 4.0°, Draw line with its Auto button, Delete cropped pixels unchecked, Fill Background (Default) and More.",
+    "width": 1280,
+    "height": 36
+  },
+  "crop-straighten.window": {
+    "title": "Straightening with the Crop tool",
+    "alt": "The editor with the Crop tool chosen and Straighten set to 4°. The photo is turned under a level crop box with a rule-of-thirds grid and eight square handles. The box started as the whole picture and has shrunk to 1852 × 1234 so that it stays inside the turned photo, whose corners now reach past the canvas.",
+    "width": 1280,
+    "height": 832
+  },
+  "crop.window": {
+    "title": "The Crop tool",
+    "alt": "The editor with the Crop tool chosen. A crop box with eight square handles and a rule-of-thirds grid sits inside the photo, and the options bar shows its size as 1638 by 1092 with the Original ratio, a Straighten angle of 0.0° and Delete cropped pixels unchecked.",
+    "width": 1280,
+    "height": 832
+  },
+  "curves.sheet": {
+    "title": "The Curves dialog with an S-curve",
+    "alt": "The Curves dialog with an S-curve. Under a hint on adding, removing and drawing points, the Preset menu reads Custom, Channel reads RGB and Edit is set to Points rather than Pencil. The curve bends through two added points, darkening the shadows and lifting the highlights, over the photo's histogram, with the straight diagonal behind it. An After histogram follows, then a Point 1 menu with Fine entry Input and Output fields, Reset, a Targeted Adjustment checkbox, a note that the dialog makes one undo step, and Cancel and Apply.",
+    "width": 420,
+    "height": 843
+  },
+  "depth-blur.sheet": {
+    "title": "The Depth Blur dialog",
+    "alt": "The Depth Blur dialog. A hint says to pick a focal point on the image, or let Focus Subject keep the subject sharp. Focus Subject is greyed, since the photo has no subject to find. A thumbnail of the photo labelled Blur Center holds a cross at its middle. Sliders follow: Focal Distance 0, Focal Range 20, Blur Strength 50, Haze 0, Warmth 0, Brightness 0, Saturation 0 and Grain 0. Output Depth Map Only is off and Output is set to Current Layer, above a one undo step footnote, Cancel and Apply.",
+    "width": 420,
+    "height": 585
+  },
+  "depth-blur.window": {
+    "title": "The Depth Blur dialog",
+    "alt": "The editor behind the Depth Blur dialog, dimmed while the dialog is open. The canvas shows the dialog's preview at its starting settings, with the focus on the nearest depth: the cloud pattern of the far sky is blurred into soft grey shapes, while the near rooftops stay dark silhouettes.",
+    "width": 1280,
+    "height": 832
+  },
+  "develop-presence-grain.window": {
+    "title": "Develop RAW: Presence, Grain and 100% detail",
+    "alt": "The Develop RAW window with the preview at 100% on the toy monkey's fur beside a point of the origami star, close enough to judge the added texture and grain. The line under the X and Y sliders reads 100%, x 2512, y 1559, 1024 × 906 native pixels. The controls column shows Sharpness, Detail, Luminance noise and Colour noise, then Presence with Texture +25, Clarity +35 and Dehaze +0, Grain with Amount 30, Size 1.00 px and Roughness 50, Enable Profile Corrections with the lens the file names, and Recover clipped highlights.",
+    "width": 1050,
+    "height": 848
+  },
+  "develop-tone-split.window": {
+    "title": "Develop RAW: tone controls with a Split comparison",
+    "alt": "The Develop RAW window for a Nikon Z 6 file with the preview split down the middle: Before on the left and, on the right, an After that is brighter and much warmer, the white curtain turned yellow. Split is chosen among After, Before and Split above the preview, beside Fit, 100% and Clipping. The controls column is scrolled to the tone controls: Exposure +0.70 EV, White balance Custom with Temperature 5600 K and Tint 12, then Tone curve, Shadows, Local contrast, Sharpness, Detail, Luminance noise and Colour noise, followed by the Presence and Grain groups, Enable Profile Corrections and Recover clipped highlights. Under the preview are the X and Y position sliders, an RGB histogram and the status line Native 16-bit preview ready; Reset, Cancel and Open run along the bottom.",
+    "width": 1050,
+    "height": 848
+  },
+  "develop.window": {
+    "title": "Develop RAW",
+    "alt": "The Develop RAW window for a Nikon Z 6 file of 6048 × 4024 pixels. The left side shows the developed preview of an origami star, a toy monkey, a globe and a toy train wagon on a wooden shelf, with Fit, 100%, After, Before and Split buttons above it and an RGB histogram below. The right side holds a preset menu, Document depth set to 16-bit, Develop output set to sRGB, the camera and manual lens controls, and the explicit lens geometry fields. The status line reads Native 16-bit preview ready, and Reset, Cancel and Open buttons run along the bottom.",
+    "width": 1050,
+    "height": 848
+  },
+  "dodge-burn.bar": {
+    "title": "The Dodge / Burn options",
+    "alt": "The options bar for Dodge / Burn: Preset Hard Round, Size 200 px, Hardness 100%, Exposure 20%, a mode pop-up reading Dodge, Range Midtones and an unchecked Protect Tones, with More at the right end.",
+    "width": 1280,
+    "height": 36
+  },
+  "duotone.sheet": {
+    "title": "The Duotone Options dialog",
+    "alt": "The Duotone Options dialog reopened on a Duotone document. A hint says it prints the gray channel through one to four inks, each ink's curve mapping the gray to its coverage and the inks overprinting on paper, while the pixels stay the Grayscale document's. Type is Duotone. Under a caption reading Name, then L*, a*, b* (D50), Ink 1 is Black at 16, 0, 0 and Ink 2 is Warm Brown at 48, 22, 38, each row ending in a swatch of the ink and a Curve… button. Overprint Colors…, Load…, Save… and a checked Preview sit above a one undo step footnote, Cancel and Apply.",
+    "width": 520,
+    "height": 419
+  },
+  "editor-window.window": {
+    "title": "The editor window",
+    "alt": "The editor window with a photograph of rooftops silhouetted against a cloudy sky. A dashed rectangle selection marks the middle of the photo. The tool rail runs down the left edge, the Rectangle Select options bar runs across the top, and the Layers panel on the right lists two layers, Retouch above Background. The status bar reads 2048 × 1366 px, RGB, 8-bit, and Selection: 682 × 455 px.",
+    "width": 1280,
+    "height": 832
+  },
+  "export-16-bit-sharpening.sheet": {
+    "title": "Export at 16 bits with output sharpening",
+    "alt": "The Export sheet on a 16-bit document with PNG chosen. The status line under the preview reads 2048×1366 px · 16-bit · 22.4 MB encoded. Two rows appear that an 8-bit document does not have: Bit depth, set to 16-bit, and Dither, greyed at No dither because it applies only at 8 bits. JPEG quality is greyed for PNG. Output sharpening is on, so its Method, Unsharp Mask, and its Radius 1, Amount 0.8 and Threshold 0.02 fields can be changed.",
+    "width": 640,
+    "height": 785
+  },
+  "export-jpeg.sheet": {
+    "title": "The Export sheet with JPEG",
+    "alt": "The Export sheet with JPEG chosen. A hint says the preview is decoded from the bytes that will be written, so the file is exactly what you see, and that the document is not changed. On the left is the preview of the photo with a status line under it: 2048×1366 px · 8-bit · 269 KB encoded. On the right, in order: Format JPEG; JPEG quality 90; Size Original size, with an empty Value field and Resample Lanczos3 greyed; Profile Document profile, with Intent Relative Colorimetric and Black point compensation greyed; Output sharpening off, with its Method, Radius, Amount and Threshold greyed; Embed colour profile on; Strip capture metadata off; Metadata policy Custom; Preset Custom; then Save Preset… and Manage…, above Cancel and Export….",
+    "width": 640,
+    "height": 721
+  },
+  "fill-command.sheet": {
+    "title": "Edit ▸ Fill…",
+    "alt": "The Fill dialog. A hint explains that it fills the selection, or the whole target when nothing is selected, with one colour through the blend mode at the opacity, and that Preserve Transparency keeps the layer's alpha as it is. Below are Contents Foreground Color, Mode Normal, Opacity 100% and an unchecked Preserve Transparency, then the note one undo step beside Cancel and Apply.",
+    "width": 420,
+    "height": 331
+  },
+  "filter-in-selection-radial-blur.sheet": {
+    "title": "Radial Blur confined to an elliptical selection",
+    "alt": "The Radial Blur dialog: Amount 10, Blur Method Spin and Quality Good. The Blur Center box shows only the selected part of the photo, dark sky and clouds, with a cross at its centre marking the point the blur turns around. The note one undo step sits beside Cancel and Apply.",
+    "width": 420,
+    "height": 364
+  },
+  "filter-in-selection-radial-blur.window": {
+    "title": "Radial Blur confined to an elliptical selection",
+    "alt": "The Radial Blur dialog open over the editor, which is dimmed behind it. A dashed elliptical selection sits in the sky at the upper left of the photo. Inside it the clouds are already swirled around the ellipse's centre, while the clouds outside it stay sharp. The status bar reads Selection: 640 × 520 px.",
+    "width": 1280,
+    "height": 832
+  },
+  "free-transform.bar": {
+    "title": "Free Transform on a text layer",
+    "alt": "The Free Transform options bar: Angle -8.00°, Scale X and Y at 90.00%, W 975 and H 344, and Sampler set to Bicubic (Catmull-Rom), with More at the right end.",
+    "width": 1280,
+    "height": 36
+  },
+  "free-transform.window": {
+    "title": "Free Transform on a text layer",
+    "alt": "Free Transform on a text layer. The amber word Rooftops over the clouds sits inside a box turned 8° counterclockwise and scaled to 90%, with square handles at its four corners and at the middle of each side, and a small mark at its centre, the point it turns around. The Layers panel lists Rooftops, a text layer, above Background, and the status bar ends with Free Transform.",
+    "width": 1280,
+    "height": 832
+  },
+  "gamut-warning.window": {
+    "title": "Gamut Warning on the canvas",
+    "alt": "The editor with the rooftops photo soft-proofed through U.S. Web Coated (SWOP) v2 with Gamut Warning on. A flat grey covers the colours the press cannot print: the near-black rooftops that fill the lower half of the frame, and the deepest blue of the sky in its upper corners. The lit clouds and the paler sky around the sun can be printed and keep their colour. The status bar reads 2048 × 1366 px · 72 ppi, then RGB · 8-bit · sRGB IEC61966-2.1 · Proof: U.S. Web Coated (SWOP) v2 + gamut.",
+    "width": 1280,
+    "height": 832
+  },
+  "generative-fill.sheet": {
+    "title": "The Generative Fill dialog",
+    "alt": "The Generative Fill dialog, opened on a selection. A hint says it sends the area around the selection to the provider with your own API key, billed to you, and puts the answer on a new layer masked by the selection, keeping three variations to switch between in Layer ▸ Generative Variations…, and that pixels outside the selection do not change. The empty Prompt field shows its placeholder, \"Describe what to add, or leave em\", cut off mid-word at the field's edge, and Provider is OpenAI. Cancel and Generate close it.",
+    "width": 420,
+    "height": 276
+  },
+  "gradient-fill-dialog.sheet": {
+    "title": "The Gradient Fill dialog",
+    "alt": "The Gradient Fill dialog, reopened on a gradient fill layer. A hint says the gradient spans the whole canvas, or with Align with Layer the bounds of the layer's mask, and that painting on the mask chooses where it shows. Below it, the stop editor shows the ramp from navy through rose to amber, with three colour stops under it, the first one selected, and midpoint diamonds between them. The selected stop's Position (0%), Opacity (100%) and Color follow, with the Midpoint field empty because no diamond is selected. Then Style is Linear, Angle 90°, Scale 100% and Smoothness 80%, with Reverse and Align with Layer unchecked, above Cancel and Apply.",
+    "width": 420,
+    "height": 627
+  },
+  "gradient-map.sheet": {
+    "title": "The Gradient Map dialog",
+    "alt": "The Gradient Map dialog. Under a Preset menu reading Default is a bar that runs from black to white. Below the bar is the stop track, with a black stop at its left end, the chosen one, and a white stop at its right; small diamonds above the bar and in the track mark the midpoint. Method reads Classic and the ramp's own Preset reads Black → White. Under Selected stop are Position 0%, Opacity 100%, a black Color swatch, an empty Midpoint field and Smoothness 0%, then Reverse, unchecked, and Dither, checked. The note document-space colours · 1 undo sits beside Cancel and Apply.",
+    "width": 420,
+    "height": 558
+  },
+  "gradient-stops.sheet": {
+    "title": "The Gradient Stops dialog",
+    "alt": "The Gradient Stops dialog. Under a hint on adding, moving and removing stops and moving midpoints, the ramp runs from orange through a translucent white, where a checkerboard shows through, to dark blue, with opacity midpoint diamonds above it. The stop bar below holds three stops, the orange one selected, with colour midpoint diamonds between them; the second sits closer to the white stop. The selected stop's Position 0%, Opacity 100% and Color, an orange well, follow, with the Midpoint field empty until a diamond is chosen, then Smoothness 80%, and Use Foreground → Background, Cancel and Apply.",
+    "width": 420,
+    "height": 434
+  },
+  "hdr-toning.sheet": {
+    "title": "The HDR Toning dialog on a 32-bit document",
+    "alt": "The HDR Toning dialog for a 32-bit document. A paragraph at the top says that it tone maps the document into an 8- or 16-bit image and flattens it, and what each method does. Preset reads Default and Method reads Local Adaptation. Under Edge Glow are Radius 16 px, Strength 0.52 and Smooth Edges, unchecked; under Tone and Detail, Gamma 1.00, Exposure +0.00 and Detail +30%; under Advanced, Shadow, Highlight and Vibrance at +0% and Saturation at +20%. Toning Curve and Histogram shows a straight diagonal curve over the image's histogram. Mode reads 16 Bits/Channel, above the line The 32-bit document becomes 16 bits per channel, and the note flattens · one undo step sits beside Cancel and OK.",
+    "width": 420,
+    "height": 962
+  },
+  "history-window.history": {
+    "title": "The History panel",
+    "alt": "The History panel for an untitled document. A hint says that choosing a state undoes or redoes to it. The list starts with Initial State, marked Saved and with a pencil mark for the History Brush's source, then New Curves Layer, New Vibrance Layer and New Layer, highlighted with a dot as the current state; Selection, the step just undone, waits below it. Under the list, a memory line reads 3 KB additional / 2 GB · 0 older states removed, above the History budget menu set to 2 GiB.",
+    "width": 420,
+    "height": 442
+  },
+  "hue-saturation.sheet": {
+    "title": "The Hue/Saturation dialog",
+    "alt": "The Hue/Saturation dialog. Preset reads Default and Range reads Master, above Hue at 0°, Saturation at 0% and Lightness at 0%, each a slider with its value. Under them are the Colorize and Targeted Adjustment checkboxes, both off, and the note Colorize replaces, not shifts sits beside Cancel and Apply.",
+    "width": 420,
+    "height": 319
+  },
+  "image-size.sheet": {
+    "title": "The Image Size dialog",
+    "alt": "The Image size dialog for the 2048 × 1366 pixel photo, set to 300 pixels per inch. A hint says that with Resample off the pixels stay unchanged and only the print resolution and size change. Current size reads 2048 × 1366 px; Dimensions is Pixels, with Width 2,048 and Height 1,366, a Result size of 2048 × 1366 px and Lock aspect ratio on. Resolution is 300 pixels/inch, which gives a Print size of 6.827 × 4.553 inches, and Resample is on with the Lanczos3 filter. A max 100 MP note sits at the bottom left, beside Cancel and Apply.",
+    "width": 420,
+    "height": 492
+  },
+  "indexed-color.sheet": {
+    "title": "The Indexed Color dialog",
+    "alt": "The Indexed Color dialog on an 8-bit RGB photo. A hint says it converts the image to one layer of at most 256 palette colours, and that the palette, its transparent index and every pixel's index are kept in the document. Palette is Uniform, with Table… greyed beside it; Colors is 256; Forced is None, with Forced Table… greyed; Transparency is checked; Matte is None; Dither is Diffusion at an Amount of 75 %; Preserve Exact Colors is off. A long note below describes each palette and dither method, above a one undo step footnote, Cancel and Apply.",
+    "width": 420,
+    "height": 579
+  },
+  "info-panel.panel": {
+    "title": "The Info tab",
+    "alt": "The Info tab of the right panel, under the tab row (Layers, Channels, Assistant, Info, Navigator, Paths). At the top, a Composite source menu and a Luminosity plot menu sit above Weight by selection, checked, and a histogram of the whole photo with a clipping wedge at each end and a line counting the clipped shadow and highlight pixels. Below it is the reading of a pixel in the sun: Position 1055, 553; RGB 254, 254, 254 and #FEFEFE; HSB 0°, 0%, 100%; Lab 99.7, -0.0, 0.0; CMYK 0% in each ink; Total ink 0%. Selection reads None and Area a dash, and Size 2048 × 1366 px, Resolution 72 ppi and Profile sRGB IEC61966-2.1 close the list, above a note on what the readings use.",
+    "width": 304,
+    "height": 738
+  },
+  "layer-comps-window.comps": {
+    "title": "The Layer Comps window",
+    "alt": "The Layer Comps window for an untitled document. A hint says a comp records each layer's visibility, position and appearance, never pixels, the selection or the history, and that V P A shows what each comp captures. Three comps are listed: Title card and Clean plate, each followed by V P A, and Soft badge, followed by V – A because it leaves positions out. A status line reads 3 comps · 0 stale entries · 0 locked, above the New…, Apply, ◀, ▶, Update, Options… and Delete buttons.",
+    "width": 500,
+    "height": 452
+  },
+  "layer-style-bevel-emboss.sheet": {
+    "title": "Layer Style: Bevel & Emboss with Contour and Texture",
+    "alt": "The Layer Style dialog on Bevel & Emboss, checked and selected in the list down the left. The pane runs from Style Inner Bevel, Technique Smooth, Depth 150%, Direction Up, Size 40 px, Soften 6 px, Angle 120° and Altitude 30° with Use Global Light checked, through Gloss Contour Linear, Highlight Mode Screen with a white colour at 75% opacity, and Shadow Mode Multiply with a black colour at 75%. Below those, the Contour section is checked, with Contour Half Round and Range 50%, and the Texture section is checked, with the Dots pattern, Scale 100%, Link with Layer checked, a Snap to Origin button, Texture Depth +50% and Invert unchecked. Each of the two contour menus has an anti-aliasing checkbox beside it. Reset, Cancel and Apply run along the bottom.",
+    "width": 640,
+    "height": 945
+  },
+  "layer-style-blending-options.sheet": {
+    "title": "Layer Style: Blending Options with Blend If",
+    "alt": "The Layer Style dialog open on Blending Options, selected at the top of the list down the left. Below it the ten effects are listed, all unchecked, and the five that can be added more than once carry a + button. A hint says effects render from the layer's shape every time the canvas composites, and that fill opacity scales the pixels but not the effects. On the right, Fill Opacity is at 80%, Knockout is None and Blend Interior Effects as Group is unchecked. Under Blend If, Channel is Gray. This Layer's ramp keeps its handles at the ends, 0 / 0 and 255 / 255, while Underlying's black handle is split in two, reading 90 / 160: the layer is hidden over darker underlying tones and fades in between those two levels. A note explains the ranges and that Option-dragging a joined handle splits it. Reset sits at the bottom left beside the words one undo step, with Cancel and Apply at the right.",
+    "width": 640,
+    "height": 548
+  },
+  "layer-style-drop-shadow.sheet": {
+    "title": "Layer Style: two stacked Drop Shadows",
+    "alt": "The Layer Style dialog on a shape layer with two drop shadows. In the list down the left, two checked Drop Shadow rows sit at the bottom, and the upper one, the top shadow of the two, is selected. Above the pane, the Instance bar holds up and down arrows and a trash button for moving or removing the selected shadow. The pane shows Blend Mode Multiply, a black Color, Opacity 30%, Angle 120° with Use Global Light checked, Distance 28 px, Spread 5%, Size 60 px, Contour Gaussian with an anti-aliasing checkbox beside it, Noise 0% and Layer Knocks Out Drop Shadow checked. Reset, Cancel and Apply run along the bottom.",
+    "width": 640,
+    "height": 541
+  },
+  "layers-panel-filtered.panel": {
+    "title": "The Layers panel filtered by a colour label",
+    "alt": "The Layers panel with its label filter set to Red: the filter bar under the Opacity slider reads All Kinds and Red. Only the two red-labelled layers are listed, ROOFTOPS, the selected text layer, and Badge, a shape layer, each with a red tint behind its eye. The group, the adjustment and the photo layers are left out of the list, and the count at the bottom reads Filtered 2 of 6 instead of a layer count.",
+    "width": 304,
+    "height": 738
+  },
+  "layers-panel-structure.panel": {
+    "title": "The Layers panel with a group, a clipped adjustment, labels, locks and links",
+    "alt": "The Layers panel with six entries. At the top, ROOFTOPS is a text layer with a layer style: its thumbnail carries fx and T marks and its row reads text · fx. Badge, below it, is a shape layer. Both have a red label tint behind their eye and a link badge at the right end of the row, and Badge also shows an open padlock for its position lock. Next comes the group Sky treatment, open and selected: its eye sits on a blue label tint, its row reads group · 2 items, and the blend mode menu at the top of the panel reads Pass Through. Inside the group, set in under a guide line, Sky contrast is an adjustment layer clipped to the layer below it, shown by a bent arrow before its thumbnail, and its mask thumbnail is struck through because the mask is turned off. Sky, under it, shows the photo beside its mask, white over black. Background is at the bottom, and the count reads 5 layers.",
+    "width": 304,
+    "height": 738
+  },
+  "layers-panel.panel": {
+    "title": "The Layers panel",
+    "alt": "The Layers panel, with its tab row (Layers, Channels, Assistant, Info, Navigator, Paths) above a Normal blend mode menu, an Opacity slider at 100% and the layer filters. It lists two layers: Retouch, which is empty, above Background, which shows the photo's thumbnail and is selected. Buttons for adding, grouping, adjusting, duplicating and deleting layers sit at the bottom beside the count, 2 layers.",
+    "width": 304,
+    "height": 738
+  },
+  "layers-select-and-align.options": {
+    "title": "Several layers selected, with the Move tool's align buttons",
+    "alt": "The Move tool's options bar: Auto-select, off, with its Layer menu dimmed; Show transform controls, off; six align buttons for left edges, horizontal centres, right edges, top edges, vertical centres and bottom edges; two distribute buttons for horizontal and vertical spacing; Snap to layers, on; Nudge set to 1 px; and More at the right end.",
+    "width": 1280,
+    "height": 36
+  },
+  "layers-select-and-align.window": {
+    "title": "Several layers selected, with the Move tool's align buttons",
+    "alt": "The editor with three coloured circles over the rooftop photo, each on its own shape layer: red at the left, orange lower down in the middle and teal at the right. In the Layers panel all three Ellipse rows are selected. The middle one, the orange circle, is the primary layer, with blue text and a ring around its thumbnail; the other two have a lighter highlight. The Move tool is chosen, and its options bar runs along the top of the window.",
+    "width": 1280,
+    "height": 832
+  },
+  "lens-correction.sheet": {
+    "title": "Lens Correction with its alignment grid",
+    "alt": "The Lens Correction dialog: Distortion, Red/Cyan, Blue/Yellow and Vignette at +0, Midpoint at 50, Vertical and Horizontal at +0, Angle 0° and Scale 100%, each a slider with its value. Lens Profile reads None, with the line No lens profile. under it, and Show Grid is checked. The note one undo step sits beside Cancel and Apply.",
+    "width": 420,
+    "height": 429
+  },
+  "lens-correction.window": {
+    "title": "Lens Correction with its alignment grid",
+    "alt": "The Lens Correction dialog open over the editor, which is dimmed behind it. A grid of thin lines in square cells is drawn across the photo, plainest over the sky: the alignment grid Show Grid draws on the canvas while the dialog is open.",
+    "width": 1280,
+    "height": 832
+  },
+  "levels.sheet": {
+    "title": "The Levels dialog",
+    "alt": "The Levels dialog. Preset and Channel menus sit above two histograms of the image, the second labelled After, each with markers at its black and white ends. Below them are sliders for Black, White, Gamma, Output black and Output white, a Fine entry section with the same five values as numbers, and Reset, Cancel and Apply buttons.",
+    "width": 420,
+    "height": 726
+  },
+  "liquify.sheet": {
+    "title": "The Liquify workspace after a Forward Warp stroke",
+    "alt": "The Liquify workspace after one Forward Warp stroke, its preview at 100%. In the preview a roof and its chimney have been pushed up into the clouds as a rounded hump, and the green mesh over the picture bends upward with it, its lines straight again away from the stroke. Beside the preview are Tool Forward Warp, Size 205 px, Pressure 50% and Density 50%, each a field above a slider, Show Mesh and Show Mask, both checked, and the Undo Stroke and Restore All buttons. Under the preview are Fit and 100% and the zoom, 100%; Cancel and Apply are at the bottom right.",
+    "width": 856,
+    "height": 600
+  },
+  "load-selection.sheet": {
+    "title": "The Load Selection dialog",
+    "alt": "The Load selection dialog. Source is set to Rooftops, a selection saved earlier as a channel; below it are an unchecked Invert box and Operation set to Replace. The hint says a channel, a layer's transparency or mask, or a colour plane can be loaded, and that an empty source simply deselects. A note reads selection undo, beside Cancel and Load.",
+    "width": 420,
+    "height": 255
+  },
+  "magic-wand.bar": {
+    "title": "The Magic Wand and its options bar",
+    "alt": "The Magic Wand's options bar: the four selection mode buttons (new, add, subtract and intersect) with the first chosen, Feather 0 px, Sample Size set to Point Sample, Tolerance 32, Contiguous checked, Sample set to All layers, and More at the right end.",
+    "width": 1280,
+    "height": 36
+  },
+  "magic-wand.window": {
+    "title": "The Magic Wand and its options bar",
+    "alt": "The editor after one Magic Wand click in the dark foreground. Marching ants run along the whole roofline, around the chimneys and up the building on the right, and along the edges of the picture: the rooftops and walls are selected as one connected shape, and the sky outside the selection is dimmed. The Magic Wand is chosen in the tool rail, and the status bar reads Selection: 2048 × 1366 px.",
+    "width": 1280,
+    "height": 832
+  },
+  "make-selection-from-path.sheet": {
+    "title": "The Make Selection dialog for a path",
+    "alt": "The Make selection dialog for the current path. The hint says the path's fill becomes the selection and that an open subpath is closed by a straight line. Feather Radius is 0 px, Anti-aliased is checked, and Operation reads New Selection, the only choice while nothing is selected. A note gives the feather range, 0 to 250 px, beside Cancel and Apply.",
+    "width": 420,
+    "height": 257
+  },
+  "mask-edit-overlay.panel": {
+    "title": "Painting a layer mask",
+    "alt": "The Layers panel with two layers. Black & white, selected, shows its picture thumbnail beside its mask thumbnail, a black circle on white, and the blue target ring sits around the mask thumbnail rather than the picture. Background is below it, and the count at the bottom reads 2 layers.",
+    "width": 304,
+    "height": 738
+  },
+  "mask-edit-overlay.status": {
+    "title": "Painting a layer mask",
+    "alt": "The status bar along the bottom of the window: 2048 × 1366 px · 72 ppi, RGB · 8-bit · sRGB IEC61966-2.1 and Selection: none at the left, and Brush · B · Mask at the right end, naming the tool, its key and the edit target.",
+    "width": 1280,
+    "height": 26
+  },
+  "mask-edit-overlay.window": {
+    "title": "Painting a layer mask",
+    "alt": "The editor with two layers: a black-and-white copy of the photo above the original, with a layer mask that hides the copy inside a large circle in the middle. The mask is the edit target and is shown, so a translucent red wash covers the circle, the area the mask hides. The Brush is chosen, its options bar showing Hard Round, a Size of 24 px, Hardness, Opacity and Flow at 100% and the Normal mode, and the status bar ends with Brush · B · Mask.",
+    "width": 1280,
+    "height": 832
+  },
+  "mask-properties.sheet": {
+    "title": "The Mask Properties dialog",
+    "alt": "The Mask Properties dialog. A hint says the original mask stays editable, that a lower density reveals more of the layer and that Feather softens the edge. Density is at 90.0%, Feather at 60.00 px, and Move mask with layer content is checked, above Cancel and Apply.",
+    "width": 420,
+    "height": 297
+  },
+  "mask-properties.window": {
+    "title": "The Mask Properties dialog",
+    "alt": "The editor behind the open dialog, dimmed while it is open. An orange layer, Warm light, sits over the photo with a mask that shows it only inside a circle at the upper left. With a 60 px feather the circle's edge fades softly into the sky, and at 90% density a faint orange cast also covers the rest of the picture. The Layers panel shows the orange layer beside its mask thumbnail, a small white spot on a dark ground, above Background.",
+    "width": 1280,
+    "height": 832
+  },
+  "navigator-zoom.navigator": {
+    "title": "Zoomed in, with the Navigator and the Zoom tool",
+    "alt": "The Navigator tab: a thumbnail of the whole photo, dark rooftops against a cloudy sky with the sun near the middle, and a red-orange rectangle around the sun and the roof below it marking the part shown in the window. Under the thumbnail are a zoom slider, a field reading 200% and a Fit button, then the document's size, 2048 × 1366 px.",
+    "width": 304,
+    "height": 738
+  },
+  "navigator-zoom.options": {
+    "title": "Zoomed in, with the Navigator and the Zoom tool",
+    "alt": "The Zoom tool's options bar: the tool's icon and name, Fit, 100% and Fill buttons, a Zoom field reading 200% with a chevron, the Scrubby zoom checkbox, off, the Rulers and Guides checkboxes, both on, a pop-up for the pixel grid set to Auto, and More at the right end.",
+    "width": 1280,
+    "height": 36
+  },
+  "navigator-zoom.window": {
+    "title": "Zoomed in, with the Navigator and the Zoom tool",
+    "alt": "The editor zoomed to 200% with the Zoom tool chosen. The canvas shows the glow of the sun in the clouds, with a chimney and the dark slope of a roof at the bottom, and the zoom pill at the lower left reads 200%. The options bar holds Fit, 100% and Fill buttons, a Zoom field at 200%, Scrubby zoom, off, Rulers and Guides, both on, and the pixel grid pop-up set to Auto. On the right, the Navigator tab is open, with a red-orange rectangle on its thumbnail marking the part of the photo in view.",
+    "width": 1280,
+    "height": 832
+  },
+  "new-document-card.card": {
+    "title": "New Document with a saved preset",
+    "alt": "The New Document dialog with a saved preset, Letter 300 ppi CMYK, chosen. Under a hint about resolution and about 32-bit and CMYK documents, the Preset menu sits above Save Preset… and Delete Preset, then an empty Name field, Width 8.5 and Height 11 in Inches, Resolution 300 ppi, Color Mode CMYK Color, Profile Working CMYK — U.S. Web Coated (SWOP) v2, Depth 8 bits/channel and Background White. The size in pixels, 2550 × 3300 px, sits below, with Cancel and Create at the bottom.",
+    "width": 460,
+    "height": 605
+  },
+  "options-bar.bar": {
+    "title": "The options bar",
+    "alt": "The options bar with the Gradient tool chosen. At the left are the tool's icon and its name in bold, then a black-to-white gradient strip with an Edit… button, five segments for the gradient's shape (linear, radial, angle, reflected and diamond) with linear chosen, an Opacity field at 100% with a chevron for quick values, a Mode pop-up set to Normal, and the Reverse checkbox, off, and the Transparency checkbox, on. The More button sits at the right end.",
+    "width": 1280,
+    "height": 36
+  },
+  "paths-panel.panel": {
+    "title": "The Paths panel and a path under the Pen",
+    "alt": "The Paths tab with two paths. Work Path, the unsaved scratch path, reads work path · 4 anchors; Sun, highlighted as the current path, reads path · 4 anchors. Each has a small outline thumbnail. Along the bottom are buttons to fill the path, stroke it, make a selection from it, make a work path from the selection (dimmed), add a vector mask from it and delete it, and the count reads 2 paths.",
+    "width": 304,
+    "height": 738
+  },
+  "paths-panel.window": {
+    "title": "The Paths panel and a path under the Pen",
+    "alt": "The editor zoomed to 91% on the sun, with the Pen chosen and its options bar showing Rubber Band checked. The path Sun circles the sun: four square anchors at its top, bottom, left and right, each with a straight handle line running out to a small round handle on both sides, the mark of a smooth anchor. The Paths tab is open on the right, and the status bar ends with Pen · P.",
+    "width": 1280,
+    "height": 832
+  },
+  "proof-setup.sheet": {
+    "title": "The Proof Setup dialog",
+    "alt": "The Proof setup dialog. A hint says a proof shows what the document would look like on another medium and changes nothing: the master, every render and every export are untouched, and there is no undo step. Preset reads Custom, beside Save… and a greyed Delete, above a greyed Default for new windows. Simulate is U.S. Web Coated (SWOP) v2 and Intent is Relative Colorimetric. Below them, Black point compensation is checked, and Preserve CMYK Numbers, Simulate paper white and Simulate black ink are off. Under Show, Proof Colors is checked and Gamut Warning is off, and the Warning colour well holds a mid grey. A note says the canvas is drawn through U.S. Web Coated (SWOP) v2 at Relative Colorimetric, which keeps in-gamut colours exactly and clips the rest, white mapping to white. A view only footnote sits beside Cancel and Apply.",
+    "width": 420,
+    "height": 533
+  },
+  "psd-open-report.notice": {
+    "title": "Opening a PSD: the compatibility notice",
+    "alt": "The notice that opening a PSD file puts up, here for a file named rooftops.psd. Under the app icon, the title reads Open Photoshop document “rooftops.psd”, and a sentence says Stored Composite keeps the file's saved appearance as one raster layer while Import Layers keeps the supported editable layers and may change the appearance. A scrolling compatibility report follows: 8-bit RGB · 2048 × 1366 pixels; Verified losses in this file, with none detected; then Observed in this file, with notes on the rectangle layer's drop shadow, the Curves layer's mask and the Curves adjustment itself, and more below. The buttons are Open Stored Composite, Import Layers and Cancel.",
+    "width": 572,
+    "height": 598
+  },
+  "puppet-warp.bar": {
+    "title": "Puppet Warp with pins and the mesh",
+    "alt": "The Puppet Warp options bar: Mode Normal, Density Normal, Expansion 2 px, Show Mesh checked, the two Pin Depth buttons, Rotate set to Auto at 0.0°, and More at the right end.",
+    "width": 1280,
+    "height": 36
+  },
+  "puppet-warp.window": {
+    "title": "Puppet Warp with pins and the mesh",
+    "alt": "Puppet Warp on a layer holding a long amber bar across the sky. A fine triangle mesh covers the bar. Three pins sit along its middle: the ones at the left end and in the middle, drawn yellow, stay where they were placed, and the one at the right end, drawn black because it is selected, has been dragged upward, so the right half of the bar bends up in a smooth curve while the left half stays straight. The Layers panel lists Ribbon above Background.",
+    "width": 1280,
+    "height": 832
+  },
+  "quick-mask.window": {
+    "title": "Quick Mask Mode over a feathered selection",
+    "alt": "The editor in Quick Mask mode. A red tint covers the whole photo except a wide ellipse in the upper middle, around the sun, where the clouds show clear; the tint fades in gradually across the ellipse's soft, feathered edge. The Brush is chosen, its options bar showing Hard Round, Size 24 px, Hardness, Opacity and Flow at 100% and the Normal mode, black is the foreground colour, and the status bar reads Quick Mask.",
+    "width": 1280,
+    "height": 832
+  },
+  "raw-layer-editor.panel": {
+    "title": "A camera RAW document in the editor",
+    "alt": "The Layers panel for an opened camera file: Retouch, an empty layer of 6048 × 4024, above the selected Background, whose thumbnail carries a diamond badge and whose row reads camera RAW. The count reads 2 layers.",
+    "width": 304,
+    "height": 738
+  },
+  "raw-layer-editor.window": {
+    "title": "A camera RAW document in the editor",
+    "alt": "The Nikon Z 6 file opened in the editor: a photograph of an origami star, a toy monkey, a globe and a yellow toy wagon on a wooden shelf. The title reads Z6.NEF – 6048 × 4024 px and the status bar reads 300 ppi, RGB, 16-bit. The Layers panel lists an empty Retouch layer above Background, which is selected.",
+    "width": 1280,
+    "height": 832
+  },
+  "recover-unsaved-work.recovery": {
+    "title": "Recover Unsaved Work",
+    "alt": "The Recover Unsaved Work window. A line says recovery copies keep unsaved editing state, that Recover opens a new copy, and that original files stay unchanged. One copy is listed and chosen: Rooftops, with the date and time it was taken. Refresh and Save Recovery Now sit at the bottom left, Discard… and Recover Copy at the right.",
+    "width": 640,
+    "height": 392
+  },
+  "redevelop-local-masks.card": {
+    "title": "Redevelop RAW: the Local Masks tab",
+    "alt": "Develop RAW opened from Redevelop RAW on a camera RAW layer, on its Local Masks tab. In the preview the red overlay of the chosen local tints the globe. The sidebar's switch reads Global (final) and Local Masks (canonical, before lens), with Local Masks chosen; below a note on canonical masks are the local menu reading Globe, the New Radial, New Linear, New Empty, New Range, New Subject, New People and New Sky buttons, and the local's name, Globe. The local's rows follow: Enabled with Apply this local checked, Density 1.00, Feather px 40.00, Camera exposure 0.00, White balance Inherit Global with Temperature and Tint greyed out, a note on how tone is applied inside the mask, and the tone sliders Exposure EV 0.60, Contrast, Highlights, Shadows, Whites and Blacks. The status line reads Native development ready, Apply uses this exact result, and Reset, Cancel and Apply run along the bottom.",
+    "width": 1050,
+    "height": 848
+  },
+  "redevelop-local-tools.card": {
+    "title": "Redevelop RAW: mask tools, range and local actions",
+    "alt": "The Local Masks sidebar of Redevelop RAW scrolled to its end. The local's tone rows end with Saturation 30, Clarity, Texture, Sharpness and Noise Reduction. Luminance has Limit to a luminance range checked, with Low 0.20, High 0.90 and both falloffs 0.10, and Invert the luminance range unchecked. Limit to a sampled colour is off, so its Sampled Lab, Amount ΔE, Falloff ΔE and Invert rows are greyed out. Mask tool reads Brush Add, with Radius px 24.00, Hardness 0.70 and Flow 1.00, and Show effective mask overlay is checked. The local's actions follow: Invert, Remap…, Earlier, Later and Remove, Recompute (greyed out), and Copy Settings and Paste Settings. In the preview the mask overlay tints the globe.",
+    "width": 1050,
+    "height": 848
+  },
+  "remove-tool.window": {
+    "title": "The Remove tool with a held stroke",
+    "alt": "The Remove tool zoomed to 168% on the tall chimney, with one stroke held over it as a translucent blue band from above its top down to the roof. The options bar reads Mode Content-Aware, Size 80 px, an unchecked Sample all layers, To Current Layer and an unchecked Remove after each stroke, then a check mark and a cross that apply or drop the held stroke.",
+    "width": 1280,
+    "height": 832
+  },
+  "ruler-tool.options": {
+    "title": "The Ruler tool measuring a roof line",
+    "alt": "The Ruler tool's options bar: X 573.0 and Y 906.0 for the start point, W 415.0 and H -23.0 for the run to the end point, A 3.2° for the angle and L 415.6 for the length, then the Straighten Layer and Clear buttons, with More at the right end.",
+    "width": 1280,
+    "height": 36
+  },
+  "ruler-tool.window": {
+    "title": "The Ruler tool measuring a roof line",
+    "alt": "A close view, at 175%, of the rooftops under the clouds with the Ruler tool chosen. A measuring line with a cross at each end runs along a long roof edge, from a gable at the left to the slope of a taller building at the right, rising gently to the right. The options bar above reads the line's measurements.",
+    "width": 1280,
+    "height": 832
+  },
+  "rulers-guides.window": {
+    "title": "Rulers and guides",
+    "alt": "The editor with rulers along the top and left edges, labelled in pixels every 200, and four cyan guides dividing the photo into thirds, two across and two down. A small wedge marks the corner box where the two rulers meet, and a thin line on each ruler, at 1700 across and near 1100 down, shows where the pointer is.",
+    "width": 1280,
+    "height": 832
+  },
+  "select-and-mask.sheet": {
+    "title": "The Select and Mask workspace",
+    "alt": "The Select and Mask dialog with the sky selected. A large preview on the left shows the cloudy sky over a checkerboard where the rooftops were left out, with the hard roofline along the bottom of the sky. Under the preview are a Checkerboard background menu, a Before checkbox, Fit and 100% buttons and the zoom, 26%. The column on the right holds Edge Radius at 8 px with Smart Radius checked, then Smooth, Feather, Shift and Contrast, each a field and a slider at zero; the Refine Edge Brush menu set to Off, Brush Size 30 px and the Undo Stroke and Clear buttons; Decontaminate Colors unchecked with Amount 100%; and Output set to New Layer Mask, naming Background as the layer it masks. A note under the preview suggests 100% for checking single edges, above Cancel and Apply.",
+    "width": 856,
+    "height": 690
+  },
+  "selective-color.sheet": {
+    "title": "The Selective Color dialog",
+    "alt": "The Selective Color dialog. Preset reads Default and Colors reads Reds, above Cyan, Magenta, Yellow and Black sliders, all at 0%. Method is set to Relative, with Absolute beside it, and a paragraph explains the difference between the two and that the colour ranges overlap. The note ±100 % ink per range · 1 undo sits beside Cancel and Apply.",
+    "width": 420,
+    "height": 376
+  },
+  "shape-edit.bar": {
+    "title": "Re-editing a shape layer",
+    "alt": "The shape options bar for the reopened rectangle: an orange Fill well, a white Stroke well, a stroke weight of 10 px, Radius 36 px, and three pop-ups reading Miter, None and Center for the corner style, the dash pattern and the stroke's alignment, with More at the right end.",
+    "width": 1280,
+    "height": 36
+  },
+  "shape-edit.panel": {
+    "title": "Re-editing a shape layer",
+    "alt": "The Layers panel with two shape layers above Background: Ellipse, with a round blue thumbnail, and the selected Rectangle, with an orange bar for a thumbnail, each reading shape. The count reads 3 layers.",
+    "width": 304,
+    "height": 738
+  },
+  "shape-edit.window": {
+    "title": "Re-editing a shape layer",
+    "alt": "A shape layer reopened for editing: an orange rounded rectangle with a white outline over the dark rooftops sits in a box with eight square handles, and a translucent blue circle with a dashed white outline floats in the sky. The options bar shows the rectangle's own settings, and the Layers panel lists Ellipse and the selected Rectangle, both shape layers, above Background.",
+    "width": 1280,
+    "height": 832
+  },
+  "show-clipping.window": {
+    "title": "Show Clipping over a backlit photo",
+    "alt": "The editor with View ▸ Show Clipping on. The black rooftops, and a few specks of the darkest sky at the top left, are painted solid blue where the photo clips to black, and a ring of red specks around the sun marks the pixels that clip to white; the very centre of the sun is not marked, because there the photo stops just short of white. The Info tab on the right shows the photo's histogram with a clipping wedge at each end and, under it, the line counting the clipped shadow and highlight pixels.",
+    "width": 1280,
+    "height": 832
+  },
+  "sky-replacement.sheet": {
+    "title": "The Sky Replacement dialog",
+    "alt": "The Sky Replacement dialog. A hint says to pick a sky and drag the preview to move it. Sky is set to Kloofendal 38d Partly Cloudy, and the large preview shows the rooftops under that sky, a pale blue with scattered white clouds. Sliders follow: Shift Edge 0, Fade Edge 3, Brightness 0, Temperature 0, Scale 100, Lighting Adjustment 50, Color Adjustment 50 and Edge Lighting 0. Flip is off and Lighting Mode is Multiply, Decontaminate Edge is checked, and Output To is New Layers. A one undo step footnote sits beside Cancel and OK.",
+    "width": 520,
+    "height": 738
+  },
+  "snapshots-window.snapshots": {
+    "title": "The Snapshots panel",
+    "alt": "The Snapshots panel for an untitled document. A hint says snapshots hold the full image, selection and edit target, that saving a .drsnapshot file keeps one after closing, and that ordinary .doctored saves do not include the list. Two session snapshots are listed, Sharpened and Contrast curve, each 2048 × 1366. A line under the list reads 0 MiB additional / 2048 MiB budget, above the New…, Restore, Rename…, Remove, Save… and Load… buttons.",
+    "width": 500,
+    "height": 452
+  },
+  "spot-healing-brush.more": {
+    "title": "Spot Healing Brush and its options",
+    "alt": "The Spot Healing Brush's More panel: Type Content-Aware, Sample Current Layer, Ignore adjustment layers (greyed out), Retouch to New Layer and Expand destination, Flow and Blend greyed out, then Spacing 25, Angle 0°, Roundness 100%, Smoothing 20%, Pressure size (checked), Airbrush and Pressure opacity.",
+    "width": 268,
+    "height": 467
+  },
+  "spot-healing-brush.window": {
+    "title": "Spot Healing Brush and its options",
+    "alt": "The Spot Healing Brush zoomed to 130% on the small chimney, its round 70 px outline circling the chimney, with Preset Custom, Size 70 px, Hardness 80% and Opacity 100% in the options bar and the More panel open at the right of the bar.",
+    "width": 1280,
+    "height": 832
+  },
+  "styles-panel.panel": {
+    "title": "The Styles panel",
+    "alt": "The Styles panel. Under Default Styles, a grid of twelve swatches previews the built-in styles, each on a rounded square: soft and lifted drop shadows, a thin dark frame, inset and pressed bevels, a green neon edge, a warm orange glow, an embossed edge, a brushed-metal finish, a glossy blue fill, a thick white outline and an orange-to-red gradient. Under Client, two swatches preview the styles saved from a card with a soft shadow and a navy inner stroke. New Style…, Import Styles… and Export Styles… run along the bottom.",
+    "width": 308,
+    "height": 444
+  },
+  "super-zoom.sheet": {
+    "title": "The Super Zoom dialog",
+    "alt": "The Super Zoom dialog on a selection around the small chimney. A hint says it enlarges the layer into a new document and that the preview shows the result at 100 %. The preview shows the chimney and its roof against the clouds enlarged two times, with scroll bars to pan the enlarged picture. Zoom is set to ×2, beside ×4; Noise Reduction and Sharpen are at 0; Enhance Image Details is checked and Remove JPEG Artifacts is off. A new document footnote sits beside Cancel and OK.",
+    "width": 420,
+    "height": 589
+  },
+  "text-editing.bar": {
+    "title": "Re-editing a text layer on the canvas",
+    "alt": "The Type tool's options bar for the reopened layer: font Avenir Next, weight Regular, Italic, Underline and Strikethrough buttons, Size 120 pt, Tracking 10, left alignment chosen among left, centre and right, a white colour well, Leading 0 pt and Baseline 0, with More at the right end.",
+    "width": 1280,
+    "height": 36
+  },
+  "text-editing.window": {
+    "title": "Re-editing a text layer on the canvas",
+    "alt": "A text layer reopened for editing on the canvas: white text in Avenir Next, Rooftops under a mackerel sky, wraps onto two lines inside a dashed box over the dark rooftops. The options bar shows the Type tool's settings taken from the layer, and the Layers panel lists the text layer, Rooftops under a mac…, above Background.",
+    "width": 1280,
+    "height": 832
+  },
+  "tilt-shift.sheet": {
+    "title": "Tilt-Shift with its live preview",
+    "alt": "The Tilt-Shift dialog: Blur 40 px, Angle 0°, Focus 15% and Transition 25%, each a slider with its value. The Blur Center box shows the whole photo with a cross at its centre, where the sharp band runs. The note one undo step sits beside Cancel and Apply.",
+    "width": 420,
+    "height": 351
+  },
+  "tilt-shift.window": {
+    "title": "Tilt-Shift with its live preview",
+    "alt": "The Tilt-Shift dialog open over the editor, which is dimmed behind it. The canvas previews the blur: the clouds along the top of the photo are smeared soft, while the clouds just above the rooftops, on either side of the dialog, keep their sharp texture. The dark rooftops fill the lower half of the photo.",
+    "width": 1280,
+    "height": 832
+  },
+  "tool-rail.rail": {
+    "title": "The tool rail",
+    "alt": "The tool rail, a narrow column of thirteen tool slots with the colour swatches at its foot. From the top: the selection slot, which shows the lasso of the Polygonal Lasso because that was the member last used, then Crop, Move, Brush, the healing slot, the toning slot, Fill, Gradient, the shapes, the Pen, Text, the Eyedropper slot and Zoom. A small triangle in the lower right corner marks each slot that holds more than one tool. The Brush slot is the chosen one, with a tinted fill and a blue ring. Below an empty stretch, the black foreground swatch overlaps the white background swatch, with the swap arrows at its upper right and the small default-colours squares at its lower left.",
+    "width": 48,
+    "height": 738
+  },
+  "transform-selection.sheet": {
+    "title": "The Transform Selection dialog",
+    "alt": "The Transform Selection dialog for an elliptical selection over the sun. The captured photo sits on the left and the coverage preview on the right, where the ellipse, white on black, is now wider and turned 20° clockwise. The fields read Horizontal move and Vertical move 0, Horizontal scale 130%, Vertical scale 100% and Clockwise angle 20°, with Interpolation set to Bilinear. A note gives the pivot, 1024, 440 px, and says a negative scale flips the coverage, above Cancel and Apply. The hint at the top says the layer pixels stay in place.",
+    "width": 556,
+    "height": 617
+  },
+  "warp-dialog.sheet": {
+    "title": "The Warp dialog reopened on a stored warp",
+    "alt": "The Warp dialog reopened on a warp stored with the layer. The hint says it edits a displacement field that can be reopened, on the entire layer or its mask. Target is Pixels, Columns 3 and Rows 3, and Node is set to Row 2, Column 2, the centre of the grid, whose dx reads 0.0 and dy -160.0; Sampler is Bicubic. Under them are Reset Field, Remove Warp and Bake Warp, a note that node displacements are in original canvas pixels and that changing the dimensions resets the local field, and Cancel and Apply.",
+    "width": 420,
+    "height": 448
+  },
+  "welcome-window.window": {
+    "title": "The welcome window",
+    "alt": "The Doctored welcome window, shown when nothing is open. The app icon, a heartbeat line across a yellow and green square, sits above the headline Fixing Pixels., with a row of three buttons below it: Open…, New Document… and New from Clipboard. The rest of the window is empty.",
+    "width": 720,
+    "height": 512
+  }
+}

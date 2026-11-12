@@ -18,6 +18,10 @@ Applies to everything under `public-docs/`. The repository's own rules (root
   in the app's catalog (`app/Sources/AgentCatalog*.swift`).
 - **`reference/features.md`** is kept current by the README sweep (root
   `CLAUDE.md`, "README").
+- **Screenshots.** Screens come from `screens/*.md` through the runner
+  (`../scripts/screens-probe/run.py`) and `scripts/import-screens.mjs`. Never
+  hand-edit `src/assets/screens/`. Only fixtures in `screens/fixtures.json`
+  are allowed.
 - **Raw HTML.** `.md` pages render raw HTML, so a literal `<word>` outside code
   swallows text: write it as `&lt;word>` or put it in backticks.
 - **Theme.** `README.md` in this folder describes the theme, the component
