@@ -589,6 +589,8 @@ mod precision_noise;
 mod precision_pattern_angle;
 #[path = "precision_pattern_overlay.rs"]
 mod precision_pattern_overlay;
+#[path = "precision_preservation_tests.rs"]
+mod precision_preservation_tests;
 #[path = "precision_stroke_fill.rs"]
 mod precision_stroke_fill;
 #[path = "precision_stroke_pattern.rs"]

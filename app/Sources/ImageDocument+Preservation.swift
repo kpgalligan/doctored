@@ -1,5 +1,37 @@
 import AppKit
 
+extension RasterDocument {
+    /// An Indexed Color or Bitmap document's editable-state lines beside its combined line,
+    /// which already names the saved channels, paths, colour samplers, guides and ruler origin:
+    /// the core's other lines (`flatStateLosses`), such as the one layer's name, visibility, lock
+    /// and label. The core reads no pixel line for these modes: the file is the policy's plane.
+    func oneLayerModeLosses() throws -> [String] {
+        guard let typed = precision else { return [] }
+        let combined: Set<String> = [
+            "saved selection channels", "guides and ruler origin", "color samplers", "paths",
+        ]
+        return try typed.flatStateLosses(alphaKept: true).filter { !combined.contains($0) }
+    }
+
+    /// The capture packets a flat `format` file of this document drops: "capture metadata"
+    /// when they are stripped or the format has no packet slot at all (GIF, BMP), else each
+    /// packet the core's carry table (`RasterProfile.carried(by:)`) has no slot for, in the byte
+    /// list's words (`DrDocument::flat_save_losses`): a PNG has none for IPTC.
+    func flatPacketLosses(format: ExportFormat, stripMetadata: Bool) -> [String] {
+        let packets: [(kind: DrMetadataKind, bit: UInt32, line: String)] = [
+            (DR_METADATA_EXIF, DR_CARRIES_EXIF, "EXIF metadata"),
+            (DR_METADATA_XMP, DR_CARRIES_XMP, "XMP metadata"),
+            (DR_METADATA_IPTC, DR_CARRIES_IPTC, "IPTC metadata"),
+        ].filter { metadata($0.kind) != nil }
+        guard !packets.isEmpty else { return [] }
+        let carried = RasterProfile.carried(by: format.drFormat)
+        if stripMetadata || carried & (DR_CARRIES_EXIF | DR_CARRIES_XMP | DR_CARRIES_IPTC) == 0 {
+            return ["capture metadata"]
+        }
+        return packets.filter { carried & $0.bit == 0 }.map(\.line)
+    }
+}
+
 /// Ordinary Save preserves editable state. Explicit File > Export and MCP
 /// save_copy may flatten without retargeting the document or clearing dirty.
 extension ImageDocument {
@@ -39,27 +71,25 @@ extension ImageDocument {
     private func modeSaveLosses(for typeName: String) throws -> [String] {
         guard let doc = doc else { throw DoctoredCoreError(message: "No image loaded.") }
         if typeName == Self.nativeTypeIdentifier { return [] }
-        // #1: a CMYK document writes TIFF and JPEG as its composite on
-        // paper, so a one-layer document loses nothing and a layered one its
-        // layers; no other flat format holds CMYK.
+        // A CMYK document writes TIFF and JPEG as its composite on paper, with no alpha: it
+        // loses whatever editable state the core finds and the file has no place for.
         if doc.isCmyk {
-            guard let format = ExportFormat.from(fileType: typeName), format == .tiff || format == .jpeg
-            else { return ["editable CMYK document state; a CMYK document saves as .doctored, TIFF or JPEG"] }
-            return doc.layerCount > 1
-                ? ["editable CMYK layers (\(format.displayName) holds the composite flattened onto paper)"] : []
+            return try CmykDocument.saveLosses(doc, format: ExportFormat.from(fileType: typeName),
+                                               embedProfile: embedColorProfile,
+                                               stripMetadata: stripMetadata)
         }
         // #1 Bitmap phase 1c: a Bitmap document saves as .doctored, a 1-bit PNG, TIFF or BMP
         // keeping its plane, or JPEG through Gray; `[]` only when the copy reopens as the same
         // document.
         if doc.isBitmap {
-            return BitmapDocument.saveLosses(doc, format: ExportFormat.from(fileType: typeName),
+            return try BitmapDocument.saveLosses(doc, format: ExportFormat.from(fileType: typeName),
                                              embedProfile: embedColorProfile,
                                              stripMetadata: stripMetadata)
         }
         // #1 Indexed phase 1b: an Indexed Color document saves as .doctored, PNG, GIF or TIFF
         // keeping its palette; `[]` only when the copy reopens as the same document.
         if doc.isIndexed {
-            return IndexedDocument.saveLosses(doc, format: ExportFormat.from(fileType: typeName),
+            return try IndexedDocument.saveLosses(doc, format: ExportFormat.from(fileType: typeName),
                                               embedProfile: embedColorProfile,
                                               stripMetadata: stripMetadata)
         }
@@ -79,28 +109,17 @@ extension ImageDocument {
             return ["editable Duotone document state; a Duotone document saves as .doctored, or as PSD or "
                 + "PSB through File ▸ Export as PSD"]
         }
-        // #1 phase 1b: a Grayscale document writes PNG, TIFF and JPEG as one channel (its
-        // composite), so only one visible Normal raster layer at full opacity with no mask or
-        // style, at a depth the format holds, loses nothing.
+        // A Grayscale document writes PNG, TIFF and JPEG as one channel (its composite) at
+        // `GrayDocument.defaultBitDepth`: it loses whatever editable state the core finds and the
+        // file has no place for. A 32-bit document always reports a loss.
         if doc.isGray {
-            guard let format = ExportFormat.from(fileType: typeName), [.png, .tiff, .jpeg].contains(format)
-            else { return ["editable Grayscale document state; a Grayscale document saves as .doctored, PNG, TIFF or JPEG"] }
-            if doc.isFloat {
+            let format = ExportFormat.from(fileType: typeName)
+            if doc.isFloat, let format, [.png, .tiff, .jpeg].contains(format) {
                 return ["editable 32-bit Grayscale document state; use Export for an explicitly flattened copy"]
             }
-            if doc.layerCount > 1 {
-                return ["editable Grayscale layers (\(format.displayName) holds the composite)"]
-            }
-            if format == .jpeg, doc.grayDepth == 16 {
-                return ["16-bit Grayscale precision (JPEG holds 8 bits)"]
-            }
-            guard let layer = doc.layerInfo(0), layer.kind == DR_LAYER_RASTER, layer.visible,
-                  layer.opacity == 1, layer.blendMode == DR_BLEND_NORMAL,
-                  !doc.layerHasMask(0), !doc.layerHasStyle(0) else {
-                return ["editable Grayscale layer state: its mask, style, opacity, blend mode or "
-                    + "visibility (\(format.displayName) holds the composite)"]
-            }
-            return []
+            return try GrayDocument.saveLosses(doc, format: format,
+                bitDepth: format.map { GrayDocument.defaultBitDepth(doc, format: $0) } ?? 8,
+                embedProfile: embedColorProfile, stripMetadata: stripMetadata)
         }
         if doc.isFloat {
             return ["editable 32-bit float document state; use Export for an explicitly flattened copy"]

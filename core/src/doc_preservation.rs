@@ -1,6 +1,8 @@
 //! Whether a flat save can preserve the document's editable state. This is
 //! separate from explicit export, which deliberately bakes the projection.
-//! Keep this inventory in step with the native schema. Default Background
+//! Keep this inventory in step with the native schema: its editable-state
+//! lines are `flat_state`'s, shared with typed documents
+//! (`precision_preservation`). Default Background
 //! layer properties and inferred sRGB/72 ppi need no native representation.
 //! JPEG compression and GIF palette quantization remain explicit format
 //! choices; this query protects editing state, alpha and sidecar data.
@@ -8,6 +10,7 @@
 use crate::doc::{BlendMode, DrDocument, LayerKind};
 use crate::doc_color::{CARRIES_EXIF, CARRIES_IPTC, CARRIES_PROFILE, CARRIES_XMP};
 use crate::dr_image::clamp_jfif_density;
+use crate::flat_state::{self, EditableState};
 use crate::metadata::{self, Resolution};
 use crate::metadata_write::{png_phys, EncodeSidecar};
 use crate::style::GlobalLight;
@@ -64,79 +67,42 @@ impl DrDocument {
         embed_profile: bool,
         strip_metadata: bool,
     ) -> Vec<&'static str> {
-        let mut losses = Vec::new();
-        if self
-            .layers
-            .iter()
-            .any(|layer| layer.effective_source(&self.profile).is_some())
-        {
-            losses.push("embedded source images and retained transforms");
-        }
-        if self
-            .layers
-            .iter()
-            .any(|layer| layer.effective_warp(&self.profile).is_some())
-        {
-            losses.push("persisted warp field and pre-warp source");
-        }
-        if self.layers.len() != 1 || self.layers.iter().any(|l| l.kind == LayerKind::Group) {
-            losses.push("layers and groups");
-        }
-        if self
-            .layers
-            .iter()
-            .any(|l| l.mask.is_some() || !l.mask_enabled)
-        {
-            losses.push("layer masks");
-        }
-        if self.layers.iter().any(|l| l.meta.is_some()) {
-            losses.push("editable layer descriptions");
-        }
-        if self.layers.iter().any(|l| l.style.is_some()) {
-            losses.push("layer styles");
-        }
-        if self.layers.iter().any(|l| {
-            l.name != "Background"
-                || !l.visible
-                || l.opacity != 1.0
-                || l.blend != BlendMode::Normal
-                || l.clipped
-                || l.locks != 0
-                || l.link != 0
-                || l.depth != 0
-                || !l.open
-        }) {
-            losses.push("layer properties");
-        }
-        if self
-            .layers
-            .iter()
-            .any(|l| l.offset != (0, 0) || l.pixels.dimensions() != (self.width, self.height))
-        {
-            losses.push("layer bounds and off-canvas pixels");
-        }
-        if self.channels.iter().any(|c| c.spot.is_none()) {
-            losses.push("saved selection channels");
-        }
-        // A flat TIFF keeps them as extra samples (#1 1c-2a, `tiff_spot`).
-        if self.has_spot_channel() && format != Format::Tiff {
-            losses.push(crate::spot_channel::FLAT_LOSS);
-        }
-        if !self.guides.is_empty() || self.ruler_origin != (0.0, 0.0) {
-            losses.push("guides and ruler origin");
-        }
-        if !self.color_samplers.is_empty() {
-            losses.push("color samplers");
-        }
-        if !self.paths.entries.is_empty() {
-            losses.push("paths");
-        }
-        if !self.comps.is_empty() {
-            losses.push("layer comps");
-        }
-        if self.global_light != GlobalLight::default() {
-            losses.push("global light settings");
-        }
+        let layers = &self.layers;
+        let mut losses = flat_state::losses(&EditableState {
+            sources: layers
+                .iter()
+                .any(|layer| layer.effective_source(&self.profile).is_some()),
+            warps: layers
+                .iter()
+                .any(|layer| layer.effective_warp(&self.profile).is_some()),
+            layers: layers.len() != 1 || layers.iter().any(|l| l.kind == LayerKind::Group),
+            masks: layers.iter().any(|l| l.mask.is_some() || !l.mask_enabled),
+            descriptions: layers.iter().any(|l| l.meta.is_some()),
+            styles: layers.iter().any(|l| l.style.is_some()),
+            properties: layers.iter().any(|l| {
+                l.name != "Background"
+                    || !l.visible
+                    || l.opacity != 1.0
+                    || l.blend != BlendMode::Normal
+                    || l.clipped
+                    || l.locks != 0
+                    || l.link != 0
+                    || l.label != 0
+                    || l.depth != 0
+                    || !l.open
+            }),
+            bounds: layers
+                .iter()
+                .any(|l| l.offset != (0, 0) || l.pixels.dimensions() != (self.width, self.height)),
+            channels: self.channels.iter().any(|c| c.spot.is_none()),
+            // A flat TIFF keeps them as extra samples (#1 1c-2a, `tiff_spot`).
+            spot_channels: self.has_spot_channel() && format != Format::Tiff,
+            guides: !self.guides.is_empty() || self.ruler_origin != (0.0, 0.0),
+            samplers: !self.color_samplers.is_empty(),
+            paths: !self.paths.entries.is_empty(),
+            comps: !self.comps.is_empty(),
+            global_light: self.global_light != GlobalLight::default(),
+        });
 
         let (sidecar, carried) = self.image_sidecar(
             format,

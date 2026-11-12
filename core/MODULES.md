@@ -268,6 +268,8 @@ Detail belongs in the source file's own header comment.
 - `doc_color.rs` — assign vs convert, the working-space adoption, the resolution, the metadata packets, the per-format capability table, and the document-level image save.
 - `doc_color_destination.rs` — whether a byte document can live in a destination profile after Convert or Assign (`document_v2` and `linear_light` need a matrix/TRC model).
 - `doc_preservation.rs` / `ffi_preservation.rs` — whether a flat save keeps the document's editable state (`dr_doc_flat_save_losses`), in step with the native schema.
+- `flat_state.rs` — the ONE inventory of editable state a flat file drops, and its loss lines in order; the byte and typed lists both fill it.
+- `precision_preservation.rs` — a typed document's flat-file losses from `flat_state` plus its pixel lines (`dr_precision_doc_flat_state_losses`).
 - `ops.rs` / `ops_filters.rs` / `ops_photographic.rs` — flat-image ops/filters (`pub(crate)`, pure, clone-then-mutate); `ops_photographic.rs`: the photographic filters over `filter_kernels.rs`.
 - `ops_auto.rs` / `ops_stats.rs` — Auto Tone, Auto Contrast and Auto Color as derived Levels parameters; the histogram (Info, Levels/Curves plots) and the eyedropper's block sample.
 - `scoped_auto.rs` — Levels Auto Tone / Auto Color over a BACKDROP (the scoped-analysis `auto` field) at 8 and 16 bits; the math is `ops_auto`'s, this picks the voters.

@@ -181,7 +181,8 @@ private archive `kpgalligan/doctored-dev` (`scripts/photoshop-probe/`).
   (mode 0, `open_cmyk_layers`). Both, and Import Layers, apply the CMYK policy (`openPrecisionPSD`).
 - **Saves.** TIFF (CMYK8/16, no ExtraSamples) and the JPEG intermediate (8-bit CMYK TIFF ImageIO transcodes) write the
   composite flattened onto paper at the declared depth; Export as PSD writes PSD, PSB or layered TIFF, Layers or
-  Flattened; the native `.doctored` keeps every layer.
+  Flattened; the native `.doctored` keeps every layer. Save keeps a TIFF or JPEG in place only while
+  `CmykDocument.saveLosses` is empty.
 - **Files.** Layered import keeps raster ink + transparency (`max − stored`, 8-bit ×257; no −1 channel = opaque), masks,
   Normal/Pass Through/moded groups, clipping, the 27 modes, opacity, Fill, locks, labels, CMYK Levels/Curves (point form;
   `levl`/`curv` records 0–4 = composite, C, M, Y, K, points reflected) and Hue/Saturation (`hue2`); any other adjustment

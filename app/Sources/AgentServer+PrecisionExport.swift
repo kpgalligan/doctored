@@ -81,11 +81,13 @@ extension AgentServer {
             embedProfile: boolArg(arguments, "embed_profile") ?? document.embedColorProfile,
             stripMetadata: boolArg(arguments, "strip_metadata") ?? document.stripMetadata,
             floatSamples: samples, keepSpotChannels: format == .tiff)
+        // Asked before the write, so a failed answer leaves no copy behind it.
+        let losses = try captured.losses()
         let report = try captured.run(to: url)
         // A Bitmap document's kept PNG, TIFF or BMP holds 1 bit a pixel (#1 Bitmap phase 1c).
         let written = source.isBitmap && BitmapDocument.keptFormats.contains(format) ? 1 : bits
         var result: [String: Any] = ["ok": true, "path": url.path, "format": format.displayName,
-            "bit_depth": written, "dither": dither, "flat_save_losses": captured.losses,
+            "bit_depth": written, "dither": dither, "flat_save_losses": losses,
             "master_bit_depth": source.isFloat ? 32 : 16]
         if bits == 32 {
             result["float_samples"] = format == .hdr ? "rgbe" : samples.rawValue

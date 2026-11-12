@@ -445,6 +445,27 @@ enum CmykDocument {
         return nil
     }
 
+    /// What a CMYK TIFF or JPEG of `doc` loses: the file is the composite flattened onto paper,
+    /// with no alpha sample, so the core's editable-state list (layers, masks, styles, layer
+    /// properties and bounds, saved channels, guides, paths, transparency), plus the 16-bit ink
+    /// a JPEG writes at 8 bits, the profile when it is not embedded and the capture metadata when
+    /// it is stripped. The spot channels a JPEG composites are `ImageDocument.saveLosses`' line.
+    /// `[]` only when the file reopens as the same document, which Save keeps in place on
+    /// (`ImageDocument.canPreserveState`); any other format is the `.doctored`/TIFF/JPEG line.
+    static func saveLosses(_ doc: RasterDocument, format: ExportFormat?, embedProfile: Bool,
+                           stripMetadata: Bool) throws -> [String] {
+        guard let format, format == .tiff || format == .jpeg else {
+            return ["editable CMYK document state; a CMYK document saves as .doctored, TIFF or JPEG"]
+        }
+        guard let typed = doc.precision else { throw DoctoredCoreError(message: "No CMYK document is loaded.") }
+        var losses = try typed.flatStateLosses(alphaKept: false)
+        if format == .jpeg, typed.cmykInfo()?["depth"] as? Int == 16 {
+            losses.append("16-bit CMYK precision (JPEG holds 8 bits)")
+        }
+        if !embedProfile { losses.append("embedded color profile") }
+        return losses + doc.flatPacketLosses(format: format, stripMetadata: stripMetadata)
+    }
+
     /// The open's profile sentence of a CMYK document: an untagged file's assignment of the
     /// working CMYK profile (`cmyk_io::untagged_sentence`), carried in its import warnings; nil
     /// for a file that brought its own profile. What `on_open_refusal` reports.

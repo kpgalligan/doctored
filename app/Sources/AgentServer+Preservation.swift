@@ -12,14 +12,22 @@ extension AgentServer {
             if format.isFloatOnly && !doc.isFloat { continue }
             // #1 Bitmap phase 1c: the same answer Save As asks (`ImageDocument.saveLosses`).
             if doc.isBitmap {
-                formats[format.fileExtension] = BitmapDocument.saveLosses(doc, format: format,
+                formats[format.fileExtension] = try BitmapDocument.saveLosses(doc, format: format,
                     embedProfile: document.embedColorProfile, stripMetadata: document.stripMetadata)
                 continue
             }
             // #1 Indexed phase 1b: the same answer Save As asks (`ImageDocument.saveLosses`).
             if doc.isIndexed {
-                formats[format.fileExtension] = IndexedDocument.saveLosses(doc, format: format,
+                formats[format.fileExtension] = try IndexedDocument.saveLosses(doc, format: format,
                     embedProfile: document.embedColorProfile, stripMetadata: document.stripMetadata)
+                continue
+            }
+            // An 8- or 16-bit Grayscale document's PNG, TIFF and JPEG and a CMYK document's TIFF
+            // and JPEG: the same answer Save asks (`ImageDocument.saveLosses`), so a type is in
+            // `save_types` exactly when its entry here is empty.
+            if (doc.isGray && !doc.isDuotone && !doc.isFloat && [.png, .tiff, .jpeg].contains(format))
+                || (doc.isCmyk && [.tiff, .jpeg].contains(format)) {
+                formats[format.fileExtension] = try document.saveLosses(for: format.utType.identifier)
                 continue
             }
             if doc.precision != nil {

@@ -4688,6 +4688,8 @@ bool dr_doc_save_image(const DrDocument *doc, const DrImage *flat,
 char *dr_doc_flat_save_losses(const DrDocument *doc, DrFormat format,
                               bool embed_profile, bool strip_metadata,
                               char **err_out);
+/* Its typed twin is dr_precision_doc_flat_state_losses (after the
+ * DrPrecisionDocument typedef). */
 
 /* ---- Embedded agent (MCP) server, on a Unix socket ----------------------
  *
@@ -5189,6 +5191,23 @@ typedef struct PrecisionImage DrPrecisionImage;
  * Free with dr_string_free. */
 char *dr_precision_doc_layer_comps_json(const DrPrecisionDocument *doc,
                                         char **err_out);
+
+/* dr_doc_flat_save_losses's typed twin, its editable-state half: a heap JSON
+ * array of the state a flattened file of a typed document (Grayscale, CMYK,
+ * Indexed Color, Bitmap) has no place for, in the byte list's words and
+ * order (layers, masks, descriptions, styles, layer properties including
+ * the colour label, bounds, saved selection channels, guides and ruler
+ * origin, color samplers, paths, layer comps, global light), then "pixel
+ * transparency" when alpha_kept is false and a pixel is not opaque, then
+ * "hidden pixel colors" when a pixel at alpha 0 holds a colour or ink. The
+ * one layer may be named "Background" ("Index" in Indexed Color, "Bitmap"
+ * in Bitmap) and Indexed and Bitmap documents get no pixel lines. No
+ * profile, density, metadata, depth or spot-channel line: what each mode's
+ * formats carry of those is the host's. [] when the flat file reopens as
+ * this document. NULL on a NULL document or failure, with err_out. Free with
+ * dr_string_free. */
+char *dr_precision_doc_flat_state_losses(const DrPrecisionDocument *doc, bool alpha_kept,
+                                         char **err_out);
 
 /* GUIDES and the RULER ORIGIN at high depth (12E-1c) — the dr_doc_guide_* /
  * dr_doc_ruler_origin / dr_doc_set_ruler_origin family's twins, each with the

@@ -150,7 +150,10 @@ extension AgentServer {
             case "save_copy":
                 note = " A CMYK document saves as doctored (or rz), tiff or jpeg (CMYK, its composite on paper, "
                     + "at its declared depth; JPEG 8-bit); export_psd writes its layers as a PSD, "
-                    + "PSB or layered TIFF."
+                    + "PSB or layered TIFF. flat_save_losses is File > Save's own list: the layers, "
+                    + "masks, styles, layer properties, bounds, saved channels, guides, paths and "
+                    + "transparency the flat file has no place for, empty when it reopens as the "
+                    + "document."
             case "export_psd", "inspect_psd_export":
                 note = " A CMYK document writes a colour-mode-4 file in every format and both modes "
                     + "at its declared depth (the report's depth \"cmyk\" and bit_depth) with its "

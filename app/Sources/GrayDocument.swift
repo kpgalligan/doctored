@@ -423,6 +423,30 @@ enum GrayDocument {
         return format == .tiff && doc.grayDepth == 32 ? 32 : 16
     }
 
+    /// What a one-channel PNG, TIFF or JPEG of an 8- or 16-bit `doc` written at `bitDepth` loses:
+    /// the core's editable-state list (guides, channels, samplers, paths, comps, the global light,
+    /// layers, masks, styles, layer properties and bounds; transparency in a JPEG, which has no
+    /// alpha), the depth the file is written below the document's, the profile when it is not
+    /// embedded and the capture packets it strips or has no slot for (`flatPacketLosses`: IPTC in
+    /// a PNG). `[]` only when the file reopens as the same document, which Save keeps in place on
+    /// (`ImageDocument.canPreserveState`). Any other format is the `.doctored`/PNG/TIFF/JPEG
+    /// line. A 32-bit document is not this list's: Save names its own line and a copy its tone
+    /// map (`PrecisionExportCapture.losses`).
+    static func saveLosses(_ doc: RasterDocument, format: ExportFormat?, bitDepth: Int,
+                           embedProfile: Bool, stripMetadata: Bool) throws -> [String] {
+        guard let format, [.png, .tiff, .jpeg].contains(format) else {
+            return ["editable Grayscale document state; a Grayscale document saves as .doctored, PNG, TIFF or JPEG"]
+        }
+        guard let typed = doc.precision else { throw DoctoredCoreError(message: "No Grayscale document is loaded.") }
+        var losses = try typed.flatStateLosses(alphaKept: format != .jpeg)
+        if let depth = doc.grayDepth, bitDepth < depth {
+            losses.append("\(depth)-bit Grayscale precision (" + (format == .jpeg
+                ? "JPEG holds 8 bits)" : "written at \(bitDepth) bits)"))
+        }
+        if !embedProfile { losses.append("embedded color profile") }
+        return losses + doc.flatPacketLosses(format: format, stripMetadata: stripMetadata)
+    }
+
     /// The gate's answer for one MCP call: nil to admit it, else the refusal. An adjustment's
     /// permanent refusal comes first (`GrayAdjust.toolRefusal`), then the permanent sets
     /// (`rawTools`, `byteTools`, `evaluationTools`). Admitted tools whose ARGUMENTS can still

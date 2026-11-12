@@ -139,22 +139,28 @@ struct PrecisionExportCapture {
         }
     }
 
-    var losses: [String] {
+    func losses() throws -> [String] {
         // #1 Bitmap phase 1c: a Bitmap copy (1-bit PNG, TIFF or BMP, or JPEG through Gray)
         // loses only what `BitmapDocument.saveLosses` names.
         if source.isBitmap {
-            return BitmapDocument.saveLosses(source, format: format, embedProfile: embedProfile,
+            return try BitmapDocument.saveLosses(source, format: format, embedProfile: embedProfile,
                                              stripMetadata: stripMetadata)
         }
         // #1 Indexed phase 1b: a kept-Indexed copy (PNG, GIF or TIFF with profile document)
         // loses only what `IndexedDocument.saveLosses` names.
         if source.isIndexed, IndexedDocument.keptFormats.contains(format) {
-            return IndexedDocument.saveLosses(source, format: format, embedProfile: embedProfile,
+            return try IndexedDocument.saveLosses(source, format: format, embedProfile: embedProfile,
                                               stripMetadata: stripMetadata)
         }
-        var result = Self.losses(format: format, bitDepth: bitDepth, isFloat: source.isFloat,
-                                 embedProfile: embedProfile, stripMetadata: stripMetadata,
-                                 floatSamples: floatSamples)
+        // An 8- or 16-bit Grayscale copy (one channel) loses what Save would at its depth
+        // (`GrayDocument.saveLosses`); a 32-bit one names its tone map below.
+        var result = source.isGray && !source.isDuotone && !source.isFloat
+            && [.png, .tiff, .jpeg].contains(format)
+            ? try GrayDocument.saveLosses(source, format: format, bitDepth: bitDepth,
+                                          embedProfile: embedProfile, stripMetadata: stripMetadata)
+            : Self.losses(format: format, bitDepth: bitDepth, isFloat: source.isFloat,
+                          embedProfile: embedProfile, stripMetadata: stripMetadata,
+                          floatSamples: floatSamples)
         // #1 1c-1: the flattened copy carries the spot channels' overprint, not the channels;
         // a TIFF that keeps them (1c-2a) loses nothing.
         if source.hasSpotChannels, !keepsSpotChannels { result.append(SpotChannels.flatLoss) }

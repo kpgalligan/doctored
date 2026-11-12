@@ -108,6 +108,7 @@ fn rich_single_layer_properties_require_native_preservation() {
         ("layer properties", |d| d.layers[0].clipped = true),
         ("layer properties", |d| d.layers[0].locks = 1),
         ("layer properties", |d| d.layers[0].link = 1),
+        ("layer properties", |d| d.layers[0].label = 3),
         ("layer bounds and off-canvas pixels", |d| {
             d.layers[0].offset = (-1, 0)
         }),
@@ -330,6 +331,22 @@ fn a_custom_srgb_profile_requires_its_authored_bytes_to_survive() {
     for format in [3, 4] {
         assert!(losses(&doc, format, true, false).contains(&"color profile".into()));
     }
+}
+
+/// The colour label is persisted state a flat file has no place for: the
+/// list names it, and the flat file reopens unlabelled.
+#[test]
+fn a_colour_label_is_lost_by_every_flat_format() {
+    let mut doc = plain();
+    doc.layers[0].label = 3;
+    for format in 0..=5 {
+        assert_eq!(
+            losses(&doc, format, true, false),
+            vec!["layer properties".to_string()],
+            "format {format}"
+        );
+    }
+    assert_eq!(exported(&doc, 0, false).layers[0].label, 0);
 }
 
 #[test]

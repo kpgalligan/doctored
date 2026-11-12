@@ -303,6 +303,21 @@ extension RasterDocument {
     }
 }
 
+extension RasterPrecisionDocument {
+    /// The editable state a flattened file of this typed document has no place for, in the
+    /// byte list's words (`dr_precision_doc_flat_state_losses`); `alphaKept` says whether the
+    /// file carries an alpha sample. The mode's own lines (profile, metadata, depth, spot
+    /// channels) are its `saveLosses`'.
+    func flatStateLosses(alphaKept: Bool) throws -> [String] {
+        var err: UnsafeMutablePointer<CChar>?
+        guard let value = dr_precision_doc_flat_state_losses(ptr, alphaKept, &err) else {
+            throw DoctoredCoreError(message: takeErrorMessage(err, fallback: "Could not check save preservation."))
+        }
+        defer { dr_string_free(value) }
+        return try JSONDecoder().decode([String].self, from: Data(String(cString: value).utf8))
+    }
+}
+
 extension DoctoredCoreProcess {
     /// Sets the process-wide working CMYK profile an untagged CMYK
     /// TIFF or JPEG the core opens is converted from, and which its

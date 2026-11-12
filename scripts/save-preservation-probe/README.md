@@ -25,6 +25,7 @@ The checks cover:
 - Preserved preview `CGImage` identity on render failure, unavailable current projection, and undo clearing the failure.
 - Replacement retaining POSIX permissions and creation date.
 - A 32-bit float document (`core/tests/fixtures/float_11f/scene.tiff`, passed as `DR_SAVE_PROBE_FLOAT_FIXTURE`) whose remembered export depth is 32: a flat PNG Save To writes 16-bit RGBA, a JPEG Save To refuses with the explicit 8-bit sentence, and the remembered depth and dirty state are unchanged.
+- A one-layer Grayscale PNG (written here through ImageIO and opened with `ImageDocument(contentsOf:ofType:)`) given a guide: `writeSafely` for Save refuses naming the guides and leaves the file and dirty flag alone, and Save routes to the native-leading Save As panel. `scripts/verify_mode_save_losses.py` covers every state and mode over MCP.
 
 `oversized.rs` creates an unsupported 1025-layer fixture by sharing one pixel buffer; its mutation is confined to this throwaway process. `main.swift` temporarily intercepts the save-panel entry point so delegated routing can be checked without opening a panel, then restores it. The one-pixel rendering budget exercises refusal with a two-pixel group.
 

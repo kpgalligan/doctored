@@ -279,6 +279,51 @@ autoreleasepool {
         try require(floatDocument.exportBitDepth == 32, "Save To rewrote the remembered export depth")
         try require(floatDocument.isDocumentEdited == floatDirty, "float Save To changed the dirty state")
         print("PASS float Save To JPEG: 8-bit sentence; remembered depth 32 and dirty state unchanged")
+
+        // A one-layer Grayscale PNG with a guide: File ▸ Save must not write the PNG over itself
+        // (a flat file has no guides), and Save routes to the Save As panel, `.doctored` first.
+        let grayURL = folder.appendingPathComponent("gray.png")
+        guard let grayContext = CGContext(data: nil, width: 4, height: 3, bitsPerComponent: 8,
+                                          bytesPerRow: 0, space: CGColorSpaceCreateDeviceGray(),
+                                          bitmapInfo: CGImageAlphaInfo.none.rawValue) else {
+            throw ProbeFailure(description: "gray fixture context")
+        }
+        grayContext.setFillColor(gray: 0.5, alpha: 1)
+        grayContext.fill(CGRect(x: 0, y: 0, width: 4, height: 3))
+        guard let grayImage = grayContext.makeImage(),
+              let grayDestination = CGImageDestinationCreateWithURL(grayURL as CFURL, "public.png" as CFString, 1, nil)
+        else { throw ProbeFailure(description: "gray fixture image") }
+        CGImageDestinationAddImage(grayDestination, grayImage, nil)
+        try require(CGImageDestinationFinalize(grayDestination), "gray fixture PNG not written")
+        let grayBytes = try Data(contentsOf: grayURL)
+        let grayDocument = try ImageDocument(contentsOf: grayURL, ofType: "public.png")
+        try require(grayDocument.doc?.isGray == true && grayDocument.doc?.layerCount == 1,
+                    "the fixture must open as a one-layer Grayscale document")
+        try require(grayDocument.writableTypes(for: .saveOperation).contains("public.png"),
+                    "a plain Grayscale PNG must save in place")
+        grayDocument.applyGuideEdit("New Guide", record: .addGuide(orientation: "vertical", position: 2)) {
+            try $0.addingGuide(.vertical, at: 2)
+        }
+        try require(grayDocument.doc?.guideCount == 1 && grayDocument.isDocumentEdited, "guide not added")
+        var grayRefused = false
+        do {
+            try grayDocument.writeSafely(to: grayURL, ofType: "public.png", for: .saveOperation)
+        } catch {
+            grayRefused = true
+            try require(error.localizedDescription.contains("guides and ruler origin"),
+                        "wrong Grayscale refusal: \(error)")
+        }
+        try require(grayRefused, "Save of a Grayscale PNG with a guide must refuse to write the PNG")
+        let grayAfter = try Data(contentsOf: grayURL)
+        try require(grayAfter == grayBytes && grayDocument.isDocumentEdited,
+                    "the refused Grayscale save changed the file or the dirty flag")
+        seenOperation = UInt.max
+        grayDocument.save(withDelegate: delegate, didSave: callback, contextInfo: context)
+        try require(seenOperation == NSDocument.SaveOperationType.saveAsOperation.rawValue,
+                    "Save of a Grayscale PNG with a guide did not route to Save As")
+        try require(grayDocument.writableTypes(for: .saveAsOperation).first == ImageDocument.nativeTypeIdentifier,
+                    "the Grayscale Save As did not lead with native")
+        print("PASS Grayscale PNG with a guide: Save refuses the PNG and routes to Save As, native first")
         print("ALL SAVE PROBES PASSED")
     } catch {
         print("FAIL \(error)")

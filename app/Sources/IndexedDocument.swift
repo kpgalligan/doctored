@@ -349,13 +349,15 @@ enum IndexedDocument {
 
     /// What a copy of `doc` in `format` loses: a format not in `keptFormats` (or nil) is the
     /// `.rz`/PNG/GIF/TIFF line alone; a kept format names, each only when it applies, the saved
-    /// channels, paths, colour samplers, guides and ruler origin, the embedded profile, the capture
-    /// metadata, a GIF's print resolution, the black padding of a GIF or TIFF colour table and a
+    /// channels, paths, colour samplers, guides and ruler origin, the layer's own state (its name,
+    /// visibility, lock and label: `oneLayerModeLosses`), the embedded profile, the capture
+    /// packets the file strips or has no slot for (`flatPacketLosses`: all in a GIF, IPTC in a
+    /// PNG), a GIF's print resolution, the black padding of a GIF or TIFF colour table and a
     /// TIFF's transparent index.
     /// `[]` only when the copy reopens as the same document, which Save As retargets on
     /// (`ImageDocument.canPreserveState`).
     static func saveLosses(_ doc: RasterDocument, format: ExportFormat?, embedProfile: Bool,
-                           stripMetadata: Bool) -> [String] {
+                           stripMetadata: Bool) throws -> [String] {
         guard let format, keptFormats.contains(format) else {
             return ["editable Indexed Color document state; an Indexed Color document saves as .doctored, "
                 + "PNG, GIF or TIFF"]
@@ -367,12 +369,10 @@ enum IndexedDocument {
             losses.append("saved channels, paths, colour samplers, guides and the ruler origin "
                 + "(flattened copy)")
         }
+        losses += try doc.oneLayerModeLosses()
         let gif = format == .gif
         if doc.iccProfile != nil, !embedProfile || gif { losses.append("embedded color profile") }
-        let packets = [DR_METADATA_EXIF, DR_METADATA_XMP, DR_METADATA_IPTC]
-        if packets.contains(where: { doc.metadata($0) != nil }), stripMetadata || gif {
-            losses.append("capture metadata")
-        }
+        losses += doc.flatPacketLosses(format: format, stripMetadata: stripMetadata)
         let colors = doc.indexedColors ?? 256
         let resolution = doc.resolution
         if gif, resolution.x != 72 || resolution.y != 72 {

@@ -340,7 +340,10 @@ extension AgentServer {
             throw ToolError(message: "A CMYK document saves as doctored, tiff or jpeg.")
         }
         var scratch: UInt64 = 0
+        var losses: [String] = []
         do {
+            // What the copy has no place for: Save's own list (`ImageDocument.saveLosses`).
+            losses = try document.saveLosses(for: type)
             let captured = try CapturedSave(document, type: type)
             scratch = captured.scratchEstimate
             _ = try RasterResources.shared.admit(scratch: captured.scratchEstimate,
@@ -354,7 +357,8 @@ extension AgentServer {
         let info = precision.cmykInfo() ?? [:]
         var result: [String: Any] = ["ok": true, "path": url.path, "format": name, "color_mode": "cmyk",
                                      "bit_depth": name == "jpeg" ? 8 : info["depth"] ?? 16,
-                                     "flattened": name != ImageDocument.nativeFormatName]
+                                     "flattened": name != ImageDocument.nativeFormatName,
+                                     "flat_save_losses": losses]
         // A TIFF keeps the spot channels (#1 1c-2a) and names the plan it was admitted at.
         if name == "tiff", document.doc?.hasSpotChannels == true { result["working_memory_plan_bytes"] = scratch }
         return try jsonResult(result)

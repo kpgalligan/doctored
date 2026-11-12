@@ -321,13 +321,14 @@ enum BitmapDocument {
     }
 
     /// What a copy of `doc` in `format` loses. A kept format names, each only when it applies, the
-    /// saved channels, paths, colour samplers, guides and ruler origin, the profile when it is not
-    /// embedded or the file is a BMP, and the capture metadata when it is stripped or the file is
-    /// a BMP: `[]` only when the copy reopens as the same document, which Save As retargets on
-    /// (`ImageDocument.canPreserveState`). JPEG is `grayRouteLoss` and its compression; any other
-    /// format (or nil) is the `saveRefusal` line.
+    /// saved channels, paths, colour samplers, guides and ruler origin, the layer's own state (its
+    /// name, lock and label: `oneLayerModeLosses`), the profile when it is not embedded or the
+    /// file is a BMP, and the capture packets the file strips or has no slot for
+    /// (`flatPacketLosses`: all in a BMP, IPTC in a PNG): `[]` only when the copy reopens as the
+    /// same document, which Save As retargets on (`ImageDocument.canPreserveState`). JPEG is
+    /// `grayRouteLoss` and its compression; any other format (or nil) is the `saveRefusal` line.
     static func saveLosses(_ doc: RasterDocument, format: ExportFormat?, embedProfile: Bool,
-                           stripMetadata: Bool) -> [String] {
+                           stripMetadata: Bool) throws -> [String] {
         guard let format, keptFormats.contains(format) || format == .jpeg else {
             return [saveRefusal]
         }
@@ -342,13 +343,10 @@ enum BitmapDocument {
             losses.append("saved channels, paths, colour samplers, guides and the ruler origin "
                 + "(flattened copy)")
         }
+        losses += try doc.oneLayerModeLosses()
         let bmp = format == .bmp
         if !embedProfile || bmp { losses.append("embedded color profile") }
-        let packets = [DR_METADATA_EXIF, DR_METADATA_XMP, DR_METADATA_IPTC]
-        if packets.contains(where: { doc.metadata($0) != nil }), stripMetadata || bmp {
-            losses.append("capture metadata")
-        }
-        return losses
+        return losses + doc.flatPacketLosses(format: format, stripMetadata: stripMetadata)
     }
 
     /// Every mode but Grayscale on a Bitmap document.
