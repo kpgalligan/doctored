@@ -52,8 +52,14 @@ EDR display shipped in v1.x.
   `float_hdr_toning_photoshop.rs`). HC-LUM fitted the chart but missed the held-out merged row, so nothing
   swapped and every member ships as declared, its numbers disclosed. Gamma: CLAMPED (Photoshop tones LA gamma
   3.25 as 2); a preset named in the descriptor (`Nm  `) is SELECTED.
-- **HDR Toning's built-in preset is Default (phase 4c).** HDR Toning's built-in preset is Default; user presets
-  are saved from the Preset popup. A recorded call keeps the preset's explicit values, never its name
+- **HDR Toning's built-in presets are Default and eight looks of Doctored's own (phase 4c,
+  [#7](https://github.com/kpgalligan/doctored/issues/7)).** Default is Local Adaptation at its defaults; Natural,
+  Crisp Detail, Soft, Vivid, Black and White, Open Shadows, Hold Highlights and Grading Base are Local Adaptation
+  values chosen from the kernel's map and checked on renders of openly licensed fixtures, never from another
+  application's presets. Each look carries a one-line purpose (`HdrToningPreset.builtIns`), the popup item's
+  tooltip and a caption under the row once chosen, and the catalog builds its `preset` text from the same list. A
+  built-in's name is reserved: a user preset file of that name lists as invalid. User presets are saved from the
+  Preset popup. A recorded call keeps the preset's explicit values, never its name
   (`HdrToningPreset.recordedArguments` in `ActionRecorder.recordAgentCall`).
 - **One implementation per algorithm.** Registration is Vision, then the core's feature fallback
   (`feature_points.rs`, `feature_register.rs`, `dr_feature_register`), which also cross-checks Vision; the warp
@@ -280,11 +286,13 @@ plan, so a stack of 128 px or smaller canvases loads.
 
 `2fcb757b`, 2026-10-19: the Preset popup (Default, the user's own via `HdrToningPresetLibrary` and
 `DR_HDR_TONING_PRESETS_DIR`) and MCP `hdr_toning` `preset`; explicit keys override.
-On 2026-10-29 the eleven built-ins were removed.
+On 2026-10-29 the eleven built-ins were removed. On 2026-11-12 eight looks of Doctored's own joined Default,
+each with its purpose line; `scripts/verify_v1_hdr_toning.py` case (r) pins their values, their differences and
+the recorded step.
 
 ## Open items
 
-- `OPEN` [#7](https://github.com/kpgalligan/doctored/issues/7) — a built-in HDR Toning preset set of Doctored's own.
+- `OPEN` [#7](https://github.com/kpgalligan/doctored/issues/7) — the built-in looks await the owner's review.
 - `OPEN` [#8](https://github.com/kpgalligan/doctored/issues/8) — importing a `.hdt` file the user owns.
 
 ## For the next item

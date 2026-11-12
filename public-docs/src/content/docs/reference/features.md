@@ -914,7 +914,9 @@ The design record behind each area is in the repository's
   Strength, Smooth Edges, Gamma, Exposure, Detail, Shadow, Highlight,
   Vibrance, Saturation and a Toning Curve drawn over the image's histogram),
   Equalize Histogram, Exposure and Gamma, or Highlight Compression; its
-  built-in preset is Default, and user presets are saved from the Preset
+  built-in presets are Default and eight looks (Natural, Crisp Detail, Soft,
+  Vivid, Black and White, Open Shadows, Hold Highlights and Grading Base),
+  each with a line saying what it is for, and user presets are saved from the Preset
   popup, with Save and Delete (MCP `hdr_toning` `preset`; a recorded step keeps the
   preset's values, not its name). A 32-bit
   document becomes 16 bits (or 8), and Image ▸ Mode ▸ 8/16 Bits/Channel on a

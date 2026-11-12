@@ -1,9 +1,11 @@
 import AppKit
 
 /// HDR Toning's preset row, in `DevelopFilterPresetControl.swift`'s pattern:
-/// `Preset: [popup]`, the popup listing the built-in Default (`HdrToningPreset.builtIns`),
-/// the user's presets, Custom (shown once the controls move off the chosen entry), Save Preset…
-/// and Delete Preset… (a user preset only).
+/// `Preset: [popup]`, the popup listing the built-ins (`HdrToningPreset.builtIns`: Default and
+/// the looks), the user's presets, Custom (shown once the controls move off the chosen entry),
+/// Save Preset… and Delete Preset… (a user preset only). A look's purpose is its menu item's
+/// tooltip and, while it is the chosen entry, a muted caption under the row; with Default, a
+/// user preset or Custom chosen the caption is hidden, so the dialog opens as it always has.
 ///
 /// Choosing an entry hands the preset to `load`, and the sheet calls `markCustom()` on any later
 /// change. Save and Delete write the library at once, independent of OK/Cancel: they are
@@ -14,6 +16,8 @@ final class HdrToningPresetControl: NSObject {
     private let current: () -> HdrToningSettings
     private let load: (HdrToningPreset) -> Void
     private let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+    /// The chosen look's purpose, under the popup.
+    private let caption = NSTextField(wrappingLabelWithString: "")
     private var presets: [HdrToningPreset] = []
     /// The built-in the controls were loaded from (Default when the sheet opens).
     private var selectedBuiltIn: String? = HdrToningPreset.defaultName
@@ -31,10 +35,19 @@ final class HdrToningPresetControl: NSObject {
         popup.autoenablesItems = false
         popup.setAccessibilityIdentifier("hdr-toning-preset-popup")
         popup.widthAnchor.constraint(lessThanOrEqualToConstant: 240).isActive = true
-        let stack = NSStackView(views: [fieldLabel("Preset:"), popup])
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 8
+        let line = NSStackView(views: [fieldLabel("Preset:"), popup])
+        line.orientation = .horizontal
+        line.alignment = .centerY
+        line.spacing = 8
+        caption.font = DS.sans(12)
+        caption.textColor = DS.textMuted
+        caption.preferredMaxLayoutWidth = 380
+        caption.isHidden = true
+        caption.setAccessibilityIdentifier("hdr-toning-preset-purpose")
+        let stack = NSStackView(views: [line, caption])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 4
         row = stack
         super.init()
         popup.target = self
@@ -70,6 +83,7 @@ final class HdrToningPresetControl: NSObject {
         for preset in HdrToningPreset.builtIns {
             let entry = item(preset.name, .builtIn)
             entry.representedObject = preset.name
+            entry.toolTip = preset.purpose
             menu.addItem(entry)
         }
         if !presets.isEmpty { menu.addItem(.separator()) }
@@ -107,6 +121,10 @@ final class HdrToningPresetControl: NSObject {
                 && entry.representedObject as? String == selectedBuiltIn
         }
         if let target { popup.select(target) }
+        let look = isCustom || selectedName != nil ? nil
+            : HdrToningPreset.builtIns.first { $0.name == selectedBuiltIn }
+        caption.stringValue = look?.purpose ?? ""
+        caption.isHidden = look?.purpose == nil
     }
 
     @objc private func popupChanged(_ sender: Any?) {

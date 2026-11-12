@@ -1,7 +1,7 @@
 import Foundation
 
-// HDR Toning's presets: the built-in, Default (Local Adaptation at its
-// defaults), and the user's own, saved from the dialog's Preset popup (`HdrToningPresetControl`)
+// HDR Toning's presets: the built-ins, Default (Local Adaptation at its defaults) and the looks
+// after it, and the user's own, saved from the dialog's Preset popup (`HdrToningPresetControl`)
 // into a `PreferenceLibrary` (`DR_HDR_TONING_PRESETS_DIR`). `hdr_toning`'s `preset` names one; a
 // recorded call keeps the preset's explicit values, never its name (`recordedArguments`).
 
@@ -11,6 +11,9 @@ struct HdrToningPreset: Equatable {
     static let schemaVersion = 1
     static let defaultName = "Default"
     let name: String
+    /// A built-in look's one line on what it is for (the popup's caption and tooltip, and the
+    /// catalog's `preset` text); nil for Default and every user preset. Never stored in a file.
+    let purpose: String?
     let method: HdrToningMethod
     /// Exposure and Gamma's own two values; (0, 1) in every built-in.
     let exposure: Double, gamma: Double
@@ -22,11 +25,45 @@ struct HdrToningPreset: Equatable {
     private static let neutral = HdrToningSettings(method: .localAdaptation, exposure: 0, gamma: 1,
                                                    local: HdrLocalAdaptation(), bitDepth: 16)
 
-    /// Default alone (Local Adaptation at its defaults).
+    /// Default (Local Adaptation at its defaults), then the looks, in the popup's order. Every
+    /// look is Local Adaptation, its values chosen from the kernel's map
+    /// (`hdr_local_adaptation.rs`: the base is compressed into at most `8/gamma` stops below
+    /// white, so a smaller gamma gives more contrast; Detail scales the rest by
+    /// `1 + detail/100`; Exposure shifts both) and checked on renders of openly licensed
+    /// fixtures (clipped and crushed fractions, mean level, distance from every other look);
+    /// no other application's presets.
     static let builtIns: [HdrToningPreset] = [
-        HdrToningPreset(name: defaultName, method: .localAdaptation, exposure: 0, gamma: 1,
-                        local: HdrLocalAdaptation()),
+        HdrToningPreset(name: defaultName, purpose: nil, method: .localAdaptation, exposure: 0,
+                        gamma: 1, local: HdrLocalAdaptation()),
+        look("Natural", "Close to the scene: its own colour and local contrast, nothing added.",
+             HdrLocalAdaptation(radius: 32, strength: 0.4, gamma: 0.85, exposure: 0.4, detail: 0,
+                                saturation: 0)),
+        look("Crisp Detail", "Brings out fine texture in stone, foliage and fabric.",
+             HdrLocalAdaptation(radius: 12, strength: 0.8, detail: 120)),
+        look("Soft", "Gentle contrast with smoothed texture, for portraits and mist.",
+             HdrLocalAdaptation(radius: 40, smoothEdges: true, gamma: 1.3, detail: -30,
+                                highlight: -10, saturation: 10)),
+        look("Vivid", "Stronger contrast and richer colour, for landscapes and sunsets.",
+             HdrLocalAdaptation(gamma: 0.85, exposure: 0.5, detail: 50, vibrance: 50,
+                                saturation: 35)),
+        look("Black and White", "A neutral monochrome with firm contrast and texture.",
+             HdrLocalAdaptation(gamma: 0.9, exposure: 0.4, detail: 60, saturation: -100)),
+        look("Open Shadows", "Lifts dark areas, for backlit subjects and interiors.",
+             HdrLocalAdaptation(gamma: 1.3, exposure: 0.2, shadow: 35)),
+        look("Hold Highlights", "Keeps bright skies and windows from washing out.",
+             HdrLocalAdaptation(gamma: 1.2, exposure: -0.15, detail: 20, highlight: -50,
+                                toningCurve: [CurvePoint(x: 0, y: 0), CurvePoint(x: 190, y: 170),
+                                              CurvePoint(x: 255, y: 255)])),
+        look("Grading Base", "Low contrast and plain colour, a starting point for further edits.",
+             HdrLocalAdaptation(gamma: 1.6, detail: 0, saturation: 0)),
     ]
+
+    /// A built-in look: Local Adaptation at `local`.
+    private static func look(_ name: String, _ purpose: String,
+                             _ local: HdrLocalAdaptation) -> HdrToningPreset {
+        HdrToningPreset(name: name, purpose: purpose, method: .localAdaptation, exposure: 0,
+                        gamma: 1, local: local)
+    }
 
     /// `hdr_toning`'s keys of its method, every value explicit, no `bit_depth`.
     var arguments: [String: Any] {
@@ -71,8 +108,9 @@ struct HdrToningPreset: Equatable {
             throw DoctoredCoreError(message: "The HDR Toning preset could not be checked.")
         }
         _ = try probe.hdrToningPlan(settings.coreRequest())
-        return HdrToningPreset(name: normalized, method: settings.method, exposure: settings.exposure,
-                               gamma: settings.gamma, local: settings.local)
+        return HdrToningPreset(name: normalized, purpose: nil, method: settings.method,
+                               exposure: settings.exposure, gamma: settings.gamma,
+                               local: settings.local)
     }
 
     /// Strict: exactly `{schema_version, name, hdr_toning}`, a normalized name, and stored keys
@@ -103,7 +141,14 @@ struct HdrToningPreset: Equatable {
             }
         }
         throw DoctoredCoreError(message: "No HDR Toning preset named “\(normalized ?? name)”. The "
-            + "built-in preset is \(defaultName); a preset saved from the dialog is named as saved.")
+            + "built-in presets are \(builtInList); a preset saved from the dialog is named as saved.")
+    }
+
+    /// Every built-in's name, quoted, in order: “Default”, “Natural”, … and “Grading Base”.
+    private static var builtInList: String {
+        let quoted = builtIns.map { "“\($0.name)”" }
+        guard let last = quoted.last else { return "" }
+        return quoted.count == 1 ? last : quoted.dropLast().joined(separator: ", ") + " and " + last
     }
 
     /// The recorder's step for an `hdr_toning` call (a step records what the UI records):

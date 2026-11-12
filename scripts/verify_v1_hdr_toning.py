@@ -56,12 +56,21 @@ CASES
 - Presets: the built-in Default equals `{method:
   local_adaptation}` on the float chart, and `{preset: Default, detail: 50}`
   equals `{method: local_adaptation, detail: 50}`; an unknown name and
-  "Scott5" refuse with the unknown-preset sentence naming Default; a user
-  preset written into the instance's library applies by name, records its
-  explicit values with no `preset` key, replays the same after its file is
+  "Scott5" refuse with the unknown-preset sentence naming every built-in; a
+  user preset written into the instance's library applies by name, records
+  its explicit values with no `preset` key, replays the same after its file is
   deleted, and then refuses; recording `{preset: Default}` keeps no `preset`
   key and replays to the same codes; a user preset named "Scott5" applies by
   name; a user file with a stray key inside `hdr_toning` does not apply.
+- Built-in looks (`BUILT_IN_LOOKS`, the values restated here): each
+  `{preset: <look>}` equals `{method: local_adaptation, **values}` on the
+  float chart, and every look's codes differ from Default's and from every
+  other look's; Black and White leaves every sample of the tinted row neutral
+  (R = G = B within 1 code: saturation -100 removes the chroma); an explicit
+  key overrides a look; recording a look keeps no `preset` key, every Local
+  Adaptation value explicit and equal to the table, and replays to the same
+  codes; a look's name matches case-insensitively; a user file carrying a
+  look's name does not replace the look.
 
 Usage: python3 scripts/verify_v1_hdr_toning.py [--output DIR]
 Prints `PASS <case>` per case and exits 0 when every case passed.
@@ -87,6 +96,22 @@ LUMA = (0.2126, 0.7152, 0.0722)
 ROMM_Y = (0.288040, 0.711874, 0.000086)
 LOCAL_KEYS = ('radius', 'strength', 'smooth_edges', 'gamma', 'exposure', 'detail', 'shadow',
               'highlight', 'vibrance', 'saturation', 'toning_curve')
+# Local Adaptation's defaults (the catalog's), which a look's unlisted keys keep.
+LOCAL_DEFAULTS = dict(radius=16, strength=0.52, smooth_edges=False, gamma=1, exposure=0, detail=30,
+                      shadow=0, highlight=0, vibrance=0, saturation=20,
+                      toning_curve=[[0, 0], [255, 255]])
+# The built-in looks after Default, in the popup's order: each one's values besides the defaults.
+BUILT_IN_LOOKS = {
+    'Natural': dict(radius=32, strength=0.4, gamma=0.85, exposure=0.4, detail=0, saturation=0),
+    'Crisp Detail': dict(radius=12, strength=0.8, detail=120),
+    'Soft': dict(radius=40, smooth_edges=True, gamma=1.3, detail=-30, highlight=-10, saturation=10),
+    'Vivid': dict(gamma=0.85, exposure=0.5, detail=50, vibrance=50, saturation=35),
+    'Black and White': dict(gamma=0.9, exposure=0.4, detail=60, saturation=-100),
+    'Open Shadows': dict(gamma=1.3, exposure=0.2, shadow=35),
+    'Hold Highlights': dict(gamma=1.2, exposure=-0.15, detail=20, highlight=-50,
+                            toning_curve=[[0, 0], [190, 170], [255, 255]]),
+    'Grading Base': dict(gamma=1.6, detail=0, saturation=0),
+}
 
 
 # ----------------------------------------------------------------- files --
@@ -592,12 +617,15 @@ class Drive:
             close(self.app, again)
 
     def unknown_preset(self, *names):
-        """Each name refuses with the unknown-preset sentence; answers the last refusal."""
+        """Each name refuses with the unknown-preset sentence naming every built-in, Default
+        first; answers the last refusal."""
+        built_ins = ['Default', *BUILT_IN_LOOKS]
+        listed = ', '.join(f'“{name}”' for name in built_ins[:-1]) + f' and “{built_ins[-1]}”'
         document = open_document(self.app, self.chart)
         try:
             for name in names:
                 text = self.app.refused('hdr_toning', 'No HDR Toning preset named',
-                                        'The built-in preset is Default',
+                                        f'The built-in presets are {listed};',
                                         document_id=document, preset=name)
             return text
         finally:
@@ -642,6 +670,41 @@ class Drive:
             close(self.app, document)
         return detail
 
+    def looks(self):
+        """The built-in looks after Default (`BUILT_IN_LOOKS`)."""
+        codes = {'Default': self.toned_codes(method='local_adaptation')}
+        for name, values in BUILT_IN_LOOKS.items():
+            codes[name] = self.toned_codes(preset=name)
+            assert codes[name] == self.toned_codes(method='local_adaptation', **values), \
+                (name, 'a look is local_adaptation at its values')
+        names = list(codes)
+        same = [(a, b) for i, a in enumerate(names) for b in names[i + 1:] if codes[a] == codes[b]]
+        assert not same, ('every look differs from Default and from every other look', same)
+        tinted = codes['Black and White'][CHART[0]:]
+        worst_chroma = max(max(p) - min(p) for p in tinted)
+        assert worst_chroma <= 1, ('Black and White is neutral', worst_chroma)
+        assert self.toned_codes(preset='Vivid', detail=0) == \
+            self.toned_codes(method='local_adaptation', **dict(BUILT_IN_LOOKS['Vivid'], detail=0)), \
+            'an explicit key overrides a look'
+        assert self.toned_codes(preset='crisp detail') == codes['Crisp Detail'], \
+            'a look matches case-insensitively'
+        arguments, first, again = self.recorded_replay('v1 hdr toning look',
+                                                       dict(preset='Crisp Detail'))
+        assert 'preset' not in arguments and arguments.get('method') == 'local_adaptation', arguments
+        expected = dict(LOCAL_DEFAULTS, **BUILT_IN_LOOKS['Crisp Detail'])
+        for key in LOCAL_KEYS:
+            assert key in arguments and arguments[key] == expected[key], \
+                (key, arguments.get(key), expected[key])
+        assert first == codes['Crisp Detail'] and again == first, \
+            'the recorded look replays to the same codes'
+        self.user_preset('Vivid', dict(BUILT_IN_LOOKS['Vivid'], detail=200, gamma=1.5))
+        assert self.toned_codes(preset='Vivid') == codes['Vivid'], \
+            "a user file carrying a look's name does not replace the look"
+        spread = {name: max(c[0] for c in codes[name][:CHART[0]])
+                  - min(c[0] for c in codes[name][:CHART[0]]) for name in names}
+        return dict(looks=len(BUILT_IN_LOOKS), black_and_white_chroma=worst_chroma,
+                    neutral_row_range=spread)
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
@@ -681,6 +744,7 @@ def main():
         run('(o) local adaptation: refusals', drive.la_refusals)
         run('(p) local adaptation: actions record and replay', drive.la_actions)
         run('(q) presets: Default, a user preset, a removed name', drive.presets)
+        run('(r) presets: the built-in looks', drive.looks)
     (output / 'receipt.json').write_text(json.dumps(results, indent=2, default=str) + '\n')
     print(f'receipt: {output / "receipt.json"}')
     if failed:

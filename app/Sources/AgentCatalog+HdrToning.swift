@@ -3,6 +3,15 @@ import Foundation
 extension AgentServer {
     /// `hdr_toning` (AgentServer+HdrToning.swift).
     @inline(never) func hdrToningCatalog() -> [[String: Any]] {
+        // The popup's own list, so the catalog and the dialog cannot drift: each look's purpose
+        // as a clause (its first letter lowered, its full stop dropped).
+        let builtIns = HdrToningPreset.builtIns.map { preset -> String in
+            guard let purpose = preset.purpose else {
+                return "\(preset.name) (local_adaptation at its defaults)"
+            }
+            let clause = purpose.prefix(1).lowercased() + purpose.dropFirst()
+            return "\(preset.name) (\(clause.hasSuffix(".") ? String(clause.dropLast()) : clause))"
+        }.joined(separator: ", ")
         let description = [
             "Tone map the document into an 8- or 16-bit image — Image ▸ Adjustments ▸ HDR ",
             "Toning… (and Image ▸ Mode ▸ 8/16 Bits/Channel on a 32-bit document). It FLATTENS ",
@@ -13,8 +22,9 @@ extension AgentServer {
             "filter of radius pixels, 1 to 500, default 16, run at most 192; strength 0.1 to 4, ",
             "default 0.52, the size in stops of a step the base follows; smooth_edges, default ",
             "false, follows more edges) and its detail; the base is compressed into about eight ",
-            "stops (gamma 0.1 to 2, default 1, a larger gamma flattens less; exposure -5 to 5 ",
-            "stops, default 0), the detail scaled by 1 + detail/100 (detail -100 to 300, default ",
+            "stops (gamma 0.1 to 2, default 1, a larger gamma flattens more and brightens; ",
+            "exposure -5 to 5 stops, default 0), the detail scaled by 1 + detail/100 (detail ",
+            "-100 to 300, default ",
             "30); then vibrance and saturation (-100 to 100, defaults 0 and 20), and shadow and ",
             "highlight (-100 to 100, default 0; positive lifts the shadows or brightens the ",
             "highlights). toning_curve (2 to 16 [in, out] pairs in 0 to 255, default the ",
@@ -29,9 +39,9 @@ extension AgentServer {
             "strength, smooth_edges, detail, shadow, highlight, vibrance, saturation and ",
             "toning_curve by local_adaptation only. Any other method refuses them. bit_depth: ",
             "for a 32-bit document 8 or 16 (default 16); an 8- or 16-bit document keeps its depth ",
-            "(the only value it takes). method is required unless preset is given. preset: ",
-            "Default (the built-in preset: local_adaptation at its defaults) or a preset saved ",
-            "from the dialog's Preset popup; it sets method and every value, and other ",
+            "(the only value it takes). method is required unless preset is given. preset: a ",
+            "built-in, one of \(builtIns), or a preset saved from the dialog's Preset popup, ",
+            "named without regard to case; it sets method and every value, and other ",
             "arguments override it. A recorded call keeps the preset's values, not its ",
             "name. A CMYK document is refused. Recorded into Actions. ",
             "Reply: {ok, method, bit_depth, flattened (whether the source had more than one layer ",

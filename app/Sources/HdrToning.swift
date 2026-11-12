@@ -11,8 +11,8 @@ import AppKit
 // 8- or 16-bit document keeps its depth (an 8-bit one is promoted first and narrowed after).
 // Local Adaptation (phase 4b, the default method) carries its values and Toning Curve in
 // `HdrLocalAdaptation`; its histogram is `HdrToningRun.histogram`. Its presets (phase 4c) are
-// `HdrToningPreset`: the built-in Default and the user's own; `hdr_toning`'s `preset` starts
-// from one and explicit keys override it.
+// `HdrToningPreset`: the built-ins (Default and the looks) and the user's own; `hdr_toning`'s
+// `preset` starts from one and explicit keys override it.
 
 /// The four methods, in the popup's order. The raw value is the core request's name.
 enum HdrToningMethod: String, CaseIterable {
