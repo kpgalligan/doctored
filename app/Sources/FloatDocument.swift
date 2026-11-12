@@ -15,7 +15,7 @@ import AppKit
 // new 32-bit group is Pass Through), the editor's selector whitelist and tool rail admit only the
 // selection/navigation/eyedropper tools plus Move and Crop, and the filtered geometry (Image Size,
 // straighten, arbitrary rotation, Free Transform and its Copy, Distort, Transform Mask, Transform
-// Again with no selection; `EvaluationOperators.resizeRefusal` answers nil for float) and
+// Again with no selection) and
 // Layer ▸ Warp… (`showPersistedWarp:`, MCP `warp_layer`/`get_warp`, family `geometry_warp` in
 // `floatCoreRefusal`), and the Export sheet's size modes at 32 bits (format, profile and
 // sharpen stay pinned and shown disabled), and the Info panel's readouts become linear components

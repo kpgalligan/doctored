@@ -7,6 +7,7 @@
 //! converts through `lut_pipeline` (relative colorimetric, no BPC; `color8`, `color8_image`,
 //! `color16` and `profile_cost`), charged `LUT_COLOR_WORK_FACTOR` times the matrix colour visit.
 use crate::doc::LayerRaster;
+use crate::doc_evaluation::{ByteTransfer, WideByteCodes};
 use crate::doc_transform::{exact_form, resample_rgba_with_context, Affine, Exact, SourceMap};
 use crate::icc::IccProfile;
 use crate::icc_intent::{ColorPipeline, RenderingIntent};
@@ -17,6 +18,7 @@ use crate::precision_image::{
 };
 use crate::precision_sampling::{self, GeometryFilter};
 use crate::retained_source::{RetainedSource16, RetainedSource8, SourceAsset, SourcePlan};
+use crate::sampling_linear::LinearCodes;
 use crate::source_asset::SourcePixels;
 use crate::source_transform::{self, SourceTransform};
 use image::RgbaImage;
@@ -397,14 +399,29 @@ fn convert16_rows(
     }
     PrecisionImage::from_rgba16_unseeded(w, h, pixels, to.clone(), None)
 }
+/// The binding's byte fallback in `profile`. `transfer` is the linear-light
+/// tables of `profile` (a linear-light document's own, or a conversion's
+/// destination's), under which the resample runs in premultiplied LINEAR
+/// light (`sampling_linear`); `None` resamples the stored codes. A 16-bit
+/// master renders at 16 bits through the byte tables
+/// (`doc_evaluation::WideByteCodes`) and quantizes.
 pub(crate) fn render8(
     mut source: RetainedSource8,
     profile: &Arc<IccProfile>,
+    transfer: Option<&ByteTransfer>,
     job: JobContext<'_>,
 ) -> Result<RetainedSource8, String> {
     if source.asset.depth() >= 16 {
-        let (rendered, offset) =
-            render_high_depth(&source.asset, source.transform, source.filter, profile, job)?;
+        let wide = transfer.map(WideByteCodes);
+        let codes = wide.as_ref().map(|w| w as &dyn LinearCodes<u16>);
+        let (rendered, offset) = render_high_depth(
+            &source.asset,
+            source.transform,
+            source.filter,
+            profile,
+            codes,
+            job,
+        )?;
         source.rendered = LayerRaster::unseeded(
             rendered
                 .quantize_with_context(crate::precision_quantize::PrecisionDither::None, job)?,
@@ -440,6 +457,7 @@ pub(crate) fn render8(
                 bounds,
                 &source_map(source.transform, (bounds.0, bounds.1))?,
                 filter.sampler(),
+                transfer,
                 false,
                 job,
             )?)
@@ -449,13 +467,22 @@ pub(crate) fn render8(
     source.rendered_profile = profile.clone();
     Ok(source)
 }
+/// The binding's u16 fallback in `profile`; `codes` as [`render8`]'s
+/// transfer, at 16 bits (`PrecisionDocument::linear_codes`).
 pub(crate) fn render16(
     mut source: RetainedSource16,
     profile: &Arc<IccProfile>,
+    codes: Option<&dyn LinearCodes<u16>>,
     job: JobContext<'_>,
 ) -> Result<RetainedSource16, String> {
-    let (image, offset) =
-        render_high_depth(&source.asset, source.transform, source.filter, profile, job)?;
+    let (image, offset) = render_high_depth(
+        &source.asset,
+        source.transform,
+        source.filter,
+        profile,
+        codes,
+        job,
+    )?;
     source.rendered = image;
     source.rendered_offset = offset;
     Ok(source)
@@ -530,6 +557,7 @@ fn render_high_depth(
     transform: SourceTransform,
     filter: GeometryFilter,
     profile: &Arc<IccProfile>,
+    codes: Option<&dyn LinearCodes<u16>>,
     job: JobContext<'_>,
 ) -> Result<(PrecisionImage, (i32, i32)), String> {
     let colored = source16(asset, profile, job)?;
@@ -550,6 +578,7 @@ fn render_high_depth(
             (bounds.2, bounds.3),
             &source_map(transform, (bounds.0, bounds.1))?,
             filter,
+            codes,
             job,
         )?,
     };

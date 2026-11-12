@@ -50,6 +50,8 @@ struct Walk<'a> {
     size: (u32, u32),
     request: &'a PerspectiveCropRequest,
     factor: f64,
+    /// The document's linear-light tables (`PrecisionDocument::linear_codes`).
+    codes: Option<&'a dyn crate::sampling_linear::LinearCodes<u16>>,
     job: JobContext<'a>,
 }
 
@@ -84,8 +86,14 @@ impl Walk<'_> {
                 }
                 Content::Raster { image, offset } => {
                     let map = SourceMap::projective(&self.map, *offset, (0, 0));
-                    let image =
-                        transform_image(image, self.size, &map, self.request.filter, self.job)?;
+                    let image = transform_image(
+                        image,
+                        self.size,
+                        &map,
+                        self.request.filter,
+                        self.codes,
+                        self.job,
+                    )?;
                     next.content = Content::Raster {
                         image,
                         offset: (0, 0),
@@ -226,6 +234,7 @@ impl PrecisionDocument {
             size,
             request,
             factor: request.style_factor(),
+            codes: self.linear_codes(),
             job,
         };
         let layers = walk.layers(&self.layers)?;

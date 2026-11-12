@@ -627,7 +627,7 @@ pub(crate) fn promoted_layers(
                         .retained_source
                         .take()
                         .ok_or("retained source binding became invalid")?;
-                    let source = render_typed(source, state.profile, true, state.job)?;
+                    let source = render_typed(source, state.profile, true, None, state.job)?;
                     let content = Content::Raster {
                         image: source.rendered.clone(),
                         offset: source.rendered_offset,

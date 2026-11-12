@@ -799,7 +799,15 @@ impl PrecisionDocument {
         } else {
             self.profile.clone()
         };
-        let source = render_typed(prepared.source, &render_profile, self.is_float(), job)?;
+        // A Lab placement renders into ProPhoto, which no transfer belongs to.
+        let codes = if lab_place { None } else { self.linear_codes() };
+        let source = render_typed(
+            prepared.source,
+            &render_profile,
+            self.is_float(),
+            codes,
+            job,
+        )?;
         let result = if let Some(name) = prepared.name {
             let leaf = if self.is_float() {
                 PrecisionDocumentLayer::raster_float

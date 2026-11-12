@@ -1,12 +1,11 @@
 import Foundation
 
 // `EvaluationPolicy` is the one vocabulary the menu, the sheet, the MCP tools and the editing-state
-// archive (v4) speak; `EvaluationOperators.resizeRefusal` reads Image Size's sentence out of the
-// CORE's operator table so the editor's guard and the MCP pre-check cannot drift. TWO GUARDS make
-// the core's refusal arrive on the edit rather than on the next render: one in
-// `ImageDocument.applyEdit` (an alert) and one in `AgentServer.performGroupedEdit` (an in-band
-// `ToolError`); both are `updated.linearLightRefusal()`, which the core answers nil for an encoded
-// document without walking anything.
+// archive (v4) speak. TWO GUARDS make a core refusal arrive on the edit rather than on the next
+// render: one in `ImageDocument.applyEdit` (an alert) and one in `AgentServer.performGroupedEdit`
+// (an in-band `ToolError`); both are `updated.linearLightRefusal()`, which the core answers nil for
+// an encoded document without comparing anything. Linear light evaluates every operator, so what
+// those guards still catch is a float document's own table and the core's stale-transfer net.
 
 /// Image ▸ Evaluation… — the per-document choice between compositing the
 /// stored code values (`encoded`, what every document has always done) and
@@ -114,19 +113,12 @@ struct RefusedOperator: Decodable {
     }
 }
 
-/// The core's operator table: what linear-light evaluation evaluates today and
-/// what it refuses. Constant for the life of the process, so it is read once.
+/// The core's operator table: what linear-light evaluation evaluates — every
+/// operator — and what it refuses by name, an empty list kept for the reply's
+/// shape. Constant for the life of the process, so it is read once.
 struct EvaluationOperators: Decodable {
     let migrated: [String]
     let refused: [RefusedOperator]
-    /// The sentence Image Size carries under linear light — written by the
-    /// core so the two host guards below cannot drift from it.
-    let resizeRefusal: String
-
-    enum CodingKeys: String, CodingKey {
-        case migrated, refused
-        case resizeRefusal = "resize_refusal"
-    }
 
     private static let cached: EvaluationOperators? = try? load()
 
@@ -137,17 +129,6 @@ struct EvaluationOperators: Decodable {
     }
 
     static var table: EvaluationOperators? { cached }
-
-    /// Image Size's refusal for `doc`, or nil when it is allowed. The ONE
-    /// place the host asks the question: `EditorViewController.resizeImage`
-    /// and `AgentServer.imageSize` both call it. A 32-bit float document is
-    /// linear light by construction and resamples in linear light, so
-    /// the encoded-document refusal never applies to it.
-    static func resizeRefusal(_ doc: RasterDocument) -> String? {
-        guard !doc.isFloat, doc.evaluation == .linearLight else { return nil }
-        return cached?.resizeRefusal
-            ?? "Image Size is not available under linear-light evaluation."
-    }
 }
 
 extension RasterDocument {

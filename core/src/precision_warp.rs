@@ -102,11 +102,15 @@ impl PrecisionDocumentLayer {
         Some(b.clone())
     }
 }
+/// The warped image. `transfer` is a linear-light document's
+/// (`sampling_linear`): `Some` interpolates u16 colour in premultiplied
+/// LINEAR light; a float source is linear already.
 fn image(
     source: &PrecisionImage,
     origin: (i32, i32),
     dest: (i32, i32, u32, u32),
     field: &WarpField,
+    transfer: Option<&dyn crate::sampling_linear::LinearCodes<u16>>,
     job: JobContext<'_>,
 ) -> Result<PrecisionImage, String> {
     if source.storage() == PrecisionStorage::Rgba32Float {
@@ -133,16 +137,29 @@ fn image(
     }
     let samples = source.transient_rgba16()?;
     let mut out = vec![[0u16; 4]; dest.2 as usize * dest.3 as usize];
-    warp_into(
-        rect(origin, source.dimensions()),
-        dest,
-        field,
-        |i| samples[i],
-        accumulate_rgba16,
-        finish_rgba16,
-        |i, p| out[i] = p,
-        job,
-    )?;
+    let source_rect = rect(origin, source.dimensions());
+    match transfer {
+        None => warp_into(
+            source_rect,
+            dest,
+            field,
+            |i| samples[i],
+            accumulate_rgba16,
+            finish_rgba16,
+            |i, p| out[i] = p,
+            job,
+        )?,
+        Some(codes) => warp_into(
+            source_rect,
+            dest,
+            field,
+            |i| samples[i],
+            |acc, p, weight| crate::sampling_linear::accumulate_linear_f64(acc, p, weight, codes),
+            |acc| crate::sampling_linear::straight_linear_f64(acc, codes),
+            |i, p| out[i] = p,
+            job,
+        )?,
+    }
     PrecisionImage::from_rgba16_unseeded(dest.2, dest.3, out, source.profile().clone(), None)
 }
 /// The binary64 premultiplied RGBA16 accumulation every typed warp walk
@@ -540,7 +557,8 @@ impl PrecisionDocument {
                             (p.clone(), shifted(so, delta)?)
                         } else {
                             let d = b.field.bounds(rect(so, p.dimensions()))?;
-                            (image(p, so, d, &b.field, job)?, (d.0, d.1))
+                            let codes = self.linear_codes();
+                            (image(p, so, d, &b.field, codes, job)?, (d.0, d.1))
                         };
                         b.rendered_pixels = Some(out.clone());
                         b.rendered_offset = offset;

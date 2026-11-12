@@ -2059,12 +2059,6 @@ final class AgentServer {
         // is right (the size).
         let document = try target(a)
         try requireChannelBudget(document, width: w, height: h)
-        // Image Size resamples in the stored encoding, which linear-light
-        // evaluation does not support yet (EvaluationOperators.resizeRefusal).
-        if let doc = document.doc,
-           let reason = EvaluationOperators.resizeRefusal(doc) {
-            throw ToolError(message: reason)
-        }
         let op = DocumentGeometry.resize(width: w, height: h, filter: filter)
         return try docEdit(a, op.actionName, changesCanvasGeometry: true,
                            resultingSelection: document.selectionCarried(through: op)) { try $0.applyingDocumentGeometry(op) }

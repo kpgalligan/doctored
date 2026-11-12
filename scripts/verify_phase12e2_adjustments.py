@@ -36,8 +36,9 @@ numbers, which is what makes the gate discriminating:
 - **A4 the clip run is JOINED, not split.** With a clipped entry above the
   anchor, the new layer is created clipped and every neighbour's identity and
   clipped flag is unchanged.
-- **A5 linear-light refusal parity.** `shadows_highlights` inserted into a
-  linear-light document refuses with the SAME sentence at 8 and at 16 bits.
+- **A5 linear light admits the insert.** `shadows_highlights`, which reads a
+  guide, inserts into a linear-light document at 8 and at 16 bits, and
+  `get_evaluation` then reports no refusal.
 - **A6 a positional insert replays.** `start_recording` -> insert at
   `into_group` -> `stop_recording` -> `run_action` on a FRESH document gives
   the same table.
@@ -268,21 +269,23 @@ def gate_a4(app, receipts):
 
 
 def gate_a5(app, receipts):
-    gate = 'a5_linear_light_refuses_identically_at_both_depths'
-    sentences = {}
+    gate = 'a5_linear_light_admits_a_guided_insert_at_both_depths'
+    findings = {}
     for depth in (8, 16):
         document = new_stack(app, depth)
         app.call('set_evaluation', document_id=document, policy='linear_light')
         anchor = index_of(app, document, 'Background')
-        sentences[f'depth_{depth}'] = app.call(
-            'add_adjustment_layer', fail=True, document_id=document,
-            op='shadows_highlights', params={'shadows': {'amount': 0.5}, 'radius': 8.0},
-            name='SH', layer=anchor, position='top')
-        assert table(app, document) == FIXTURE_TABLE, 'a refusal published nothing'
-    assert sentences['depth_8'] == sentences['depth_16'], sentences
-    assert 'linear-light evaluation does not support yet' in sentences['depth_8'], sentences
-    receipts[gate] = sentences
-    print('PASS a5: the linear-light refusal is the same sentence at both depths', flush=True)
+        app.call('add_adjustment_layer', document_id=document,
+                 op='shadows_highlights', params={'shadows': {'amount': 0.5}, 'radius': 8.0},
+                 name='SH', layer=anchor, position='top')
+        names = [row['name'] for row in table(app, document)]
+        assert 'SH' in names, names
+        evaluation = app.call('get_evaluation', document_id=document)
+        assert evaluation['policy'] == 'linear_light', evaluation
+        assert evaluation['linear_light_refusal'] is None, evaluation
+        findings[f'depth_{depth}'] = {'inserted': True, 'linear_light_refusal': None}
+    receipts[gate] = findings
+    print('PASS a5: linear light admits a guided Shadows/Highlights at both depths', flush=True)
 
 
 def gate_a6(app, receipts):

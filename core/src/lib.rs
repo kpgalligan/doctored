@@ -835,6 +835,7 @@ mod sampling_disc;
 mod sampling_gaussian;
 mod sampling_gaussian_fast;
 mod sampling_lens;
+mod sampling_linear;
 mod sampling_motion;
 mod sampling_offset;
 mod sampling_presence;

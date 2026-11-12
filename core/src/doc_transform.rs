@@ -24,10 +24,12 @@ use image::imageops::FilterType;
 use image::{GrayImage, RgbaImage};
 
 use crate::doc::{DrDocument, Geometry, Layer, LayerRaster, MAX_PIXELS};
+use crate::doc_evaluation::ByteTransfer;
 use crate::doc_lock::EditKind;
 use crate::job_control::JobContext;
 use crate::reference_point::ReferenceOp;
 use crate::sampling::{accumulate, quantize_coverage, straight, Kernel};
+use crate::sampling_linear::{accumulate_linear, straight_linear};
 use crate::style::scaled_style;
 
 /// Smallest determinant magnitude that still counts as invertible. Anything
@@ -330,18 +332,22 @@ pub(crate) fn covering_pixel(u: f64, v: f64, w: u32, h: u32) -> Option<usize> {
 /// PREMULTIPLIED f32 and unpremultiplying on the way out. Destination pixels
 /// whose source neighbourhood is entirely outside `src` — or that lie on or
 /// beyond `map`'s horizon — come out fully transparent (all four bytes
-/// zero). `dest` must be the extent `map` was built for.
+/// zero). `dest` must be the extent `map` was built for. `transfer` is the
+/// document's evaluation policy: `Some` interpolates in premultiplied LINEAR
+/// light (`sampling_linear`), `None` on the stored codes.
 pub(crate) fn resample_rgba(
     src: &RgbaImage,
     dest: (i32, i32, u32, u32),
     map: &SourceMap,
     sampler: Sampler,
+    transfer: Option<&ByteTransfer>,
 ) -> RgbaImage {
     resample_rgba_with_context(
         src,
         dest,
         map,
         sampler,
+        transfer,
         false,
         crate::job_control::JobContext::NONE,
     )
@@ -350,12 +356,13 @@ pub(crate) fn resample_rgba(
 
 /// `report_progress` reports stage 6 once per destination row across `job`'s
 /// range; a caller whose range is not the resample's own passes
-/// `false`.
+/// `false`. `transfer` as [`resample_rgba`]'s.
 pub(crate) fn resample_rgba_with_context(
     src: &RgbaImage,
     dest: (i32, i32, u32, u32),
     map: &SourceMap,
     sampler: Sampler,
+    transfer: Option<&ByteTransfer>,
     report_progress: bool,
     job: crate::job_control::JobContext<'_>,
 ) -> Result<RgbaImage, String> {
@@ -363,19 +370,36 @@ pub(crate) fn resample_rgba_with_context(
     let raw = src.as_raw();
     let mut out = RgbaImage::new(dw, dh);
     let dst: &mut [u8] = &mut out;
-    crate::sampling::resample_into(
-        src.dimensions(),
-        (dw, dh),
-        map,
-        sampler,
-        |i| [raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2], raw[i * 4 + 3]],
-        |acc, px, weight| accumulate(acc, &px, weight),
-        straight,
-        |i, px| dst[i * 4..i * 4 + 4].copy_from_slice(&px),
-        report_progress,
-        false,
-        job,
-    )?;
+    let read = |i: usize| [raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2], raw[i * 4 + 3]];
+    let write = |i: usize, px: [u8; 4]| dst[i * 4..i * 4 + 4].copy_from_slice(&px);
+    match transfer {
+        None => crate::sampling::resample_into(
+            src.dimensions(),
+            (dw, dh),
+            map,
+            sampler,
+            read,
+            |acc, px, weight| accumulate(acc, &px, weight),
+            straight,
+            write,
+            report_progress,
+            false,
+            job,
+        )?,
+        Some(codes) => crate::sampling::resample_into(
+            src.dimensions(),
+            (dw, dh),
+            map,
+            sampler,
+            read,
+            |acc, px, weight| accumulate_linear(acc, px, weight, codes),
+            |acc| straight_linear(acc, codes),
+            write,
+            report_progress,
+            false,
+            job,
+        )?,
+    }
     Ok(out)
 }
 
@@ -667,7 +691,9 @@ impl DrDocument {
                 } else {
                     job
                 };
-                match resample_rgba_with_context(&image, dest, &map, sampler, true, rows) {
+                let transfer = self.linear_light.as_deref();
+                match resample_rgba_with_context(&image, dest, &map, sampler, transfer, true, rows)
+                {
                     Ok(pixels) => LayerRaster::unseeded(pixels),
                     Err(e) => return cancel_or_refuse(job, e),
                 }

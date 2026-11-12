@@ -105,6 +105,20 @@ impl TypedTransfer {
     }
 }
 
+/// A linear-light 16-bit resample's decode and encode (`sampling_linear`):
+/// the exact table entry per stored code, and the continuous encode rounded
+/// once to a code, as the projection's store rounds it.
+impl crate::sampling_linear::LinearCodes<u16> for TypedTransfer {
+    fn linear(&self, codes: [u16; 3]) -> [f32; 3] {
+        std::array::from_fn(|c| self.decode16[c][usize::from(codes[c])])
+    }
+
+    fn codes(&self, linear: [f32; 3]) -> [u16; 3] {
+        self.encode(linear)
+            .map(|v| <u16 as crate::sampling::Unorm>::quantize(v * 65535.0))
+    }
+}
+
 /// The typed twin of `doc_evaluation::encoded_view` (the guide and Blend If
 /// read it): under `linear_light` the composited sample's RGB re-encoded
 /// CONTINUOUSLY ([`TypedTransfer::encode`], nothing quantized at this depth;
@@ -199,6 +213,17 @@ impl PrecisionDocument {
             Some(reason) => Err(reason),
             None => Ok(Some(transfer)),
         }
+    }
+
+    /// The tables a geometry edit of this document resamples its u16 colour
+    /// through (`sampling_linear`): the held transfer under `linear_light`,
+    /// `None` for an encoded document and for a float one, whose samples are
+    /// linear already. The FIELD, not [`Self::transfer`]: an edit needs the
+    /// tables, not the render's net.
+    pub(crate) fn linear_codes(&self) -> Option<&dyn crate::sampling_linear::LinearCodes<u16>> {
+        self.linear_light
+            .as_deref()
+            .map(|t| t as &dyn crate::sampling_linear::LinearCodes<u16>)
     }
 
     /// Rebuilds the transfer when the document's profile has been replaced.

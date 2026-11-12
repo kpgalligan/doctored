@@ -164,6 +164,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "sampling_gaussian.rs",
     "sampling_gaussian_fast.rs",
     "sampling_lens.rs",
+    "sampling_linear.rs",
     "sampling_motion.rs",
     "sampling_offset.rs",
     "sampling_presence.rs",

@@ -1854,7 +1854,15 @@ impl DrDocument {
                 let mut out = l.clone();
                 out.pixels = {
                     let image = l.pixels.to_contiguous().ok()?;
-                    LayerRaster::unseeded(crate::sampling::resize(&image, nw, nh, filter))
+                    // Under `linear_light` the layer resamples in
+                    // premultiplied linear light (`sampling_linear`).
+                    LayerRaster::unseeded(crate::sampling_linear::resize(
+                        &image,
+                        nw,
+                        nh,
+                        filter,
+                        self.linear_light.as_deref(),
+                    ))
                 };
                 out.offset = group_offset(l).unwrap_or_else(|| scaled_offset(l.offset, fx, fy));
                 out.resize_mask(fx, fy, filter)?;

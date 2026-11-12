@@ -648,11 +648,25 @@ impl DrDocument {
             job.check()?;
         }
 
-        // 2. Convert every layer's pixels.
+        // 2. Convert every layer's pixels. A RAW layer re-renders in the
+        //    DESTINATION, so under linear light it resamples through the
+        //    destination's tables, which then become the document's
+        //    (`rebind_evaluation` finds them current).
+        let destination = match &self.linear_light {
+            Some(_) => Some(Arc::new(crate::doc_evaluation::ByteTransfer::for_profile(
+                p,
+            )?)),
+            None => None,
+        };
         let mut out = source.clone();
         for layer in &mut out.layers {
             if let Some(retained) = layer.effective_source(&source.profile) {
-                let rendered = crate::retained_source_render::render8(retained, p, job)?;
+                let rendered = crate::retained_source_render::render8(
+                    retained,
+                    p,
+                    destination.as_deref(),
+                    job,
+                )?;
                 layer.pixels = rendered.rendered.clone();
                 layer.offset = rendered.rendered_offset;
                 layer.retained_source = Some(rendered);
@@ -673,6 +687,9 @@ impl DrDocument {
             layer.pixels = layer.pixels.rebuilt(pixels);
         }
         out.profile = Arc::clone(p);
+        if destination.is_some() {
+            out.linear_light = destination;
+        }
         // The evaluation policy's tables belong to the profile they were built
         // from, so a profile write rebuilds them (`doc_evaluation`).
         out.rebind_evaluation()?;

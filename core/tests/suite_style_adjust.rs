@@ -87,6 +87,8 @@ mod evaluation_guide;
 mod evaluation_native;
 #[path = "evaluation_nonseparable.rs"]
 mod evaluation_nonseparable;
+#[path = "evaluation_resample.rs"]
+mod evaluation_resample;
 #[path = "evaluation_retained_source.rs"]
 mod evaluation_retained_source;
 #[path = "evaluation_styles.rs"]

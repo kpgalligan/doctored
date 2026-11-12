@@ -166,7 +166,12 @@ impl DrDocument {
                         source.transform,
                     )?;
                     source.filter = filter;
-                    source = crate::retained_source_render::render8(source, &self.profile, member)?;
+                    source = crate::retained_source_render::render8(
+                        source,
+                        &self.profile,
+                        self.linear_light.as_deref(),
+                        member,
+                    )?;
                     target.pixels = source.rendered.clone();
                     target.offset = source.rendered_offset;
                     target.retained_source = Some(source);
@@ -184,6 +189,7 @@ impl DrDocument {
                         destination,
                         &map,
                         filter.sampler(),
+                        self.linear_light.as_deref(),
                         true,
                         rows,
                     )?);

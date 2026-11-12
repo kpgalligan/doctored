@@ -338,7 +338,13 @@ impl DrDocument {
         let map = SourceMap::projective(&inverse.0, layer.offset, (dx, dy));
         let pixels = {
             let image = layer.pixels.to_contiguous().ok()?;
-            LayerRaster::unseeded(resample_rgba(&image, dest, &map, sampler))
+            LayerRaster::unseeded(resample_rgba(
+                &image,
+                dest,
+                &map,
+                sampler,
+                self.linear_light.as_deref(),
+            ))
         };
         let (mask, mask_offset) = if let (Some(raw), Some(mdest)) = (&layer.mask, mask_dest) {
             let offset = (mdest.0, mdest.1);

@@ -186,7 +186,15 @@ impl DrDocument {
             if moves(layer.kind, layer.meta.as_deref()) {
                 let image = layer.pixels.to_contiguous_with_job(job)?;
                 let map = SourceMap::projective(&g, layer.offset, (0, 0));
-                let out = resample_rgba_with_context(&image, dest, &map, sampler, false, step())?;
+                let out = resample_rgba_with_context(
+                    &image,
+                    dest,
+                    &map,
+                    sampler,
+                    self.linear_light.as_deref(),
+                    false,
+                    step(),
+                )?;
                 drop(image);
                 target.pixels = LayerRaster::unseeded(out);
                 target.offset = (0, 0);

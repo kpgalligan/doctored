@@ -5,9 +5,11 @@
 //! W3C Normal step in linear light over the analytic sRGB curve written here
 //! (11E's gates: 1 code at byte depth, 24 of 65535 typed); the re-render
 //! domain is the per-channel weight of a two-colour edge, which is one number
-//! across R, G and B only in the domain the resample ran in — the STORED
-//! encoding, the domain raster Free Transform and warp use under linear light
-//! — and the result must equal the encoded twin's bit for bit.
+//! across R, G and B only in the domain the resample ran in — LINEAR light
+//! under the policy (P7-24 phase 2), the stored encoding in the encoded twin;
+//! and a converted re-render must equal the pointwise conversion of the
+//! fallback, since mixing in linear light commutes with a change of
+//! primaries.
 
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
@@ -306,29 +308,57 @@ fn mixed(row: &[[f64; 3]]) -> Vec<(f64, f64)> {
         .collect()
 }
 
+/// The re-render of a scaled edge resamples in LINEAR light (P7-24 phase 2):
+/// its mixed samples are one weight across R, G and B in linear light — and
+/// not in the stored encoding, where the encoded twin's are.
 #[test]
-fn a_re_render_resamples_in_the_stored_encoding_at_both_depths() {
+fn a_re_render_resamples_in_linear_light_at_both_depths() {
     let base = byte_doc(12, 4, BACKDROP);
     let encoded = byte_edit(&base, Some(&byte_edge()), &place());
-    let linear = byte_edit(
-        &byte_switch(&base, LINEAR).unwrap(),
-        Some(&byte_edge()),
-        &place(),
-    );
-    let (encoded, linear) = (
-        byte_edit(&encoded, None, &transform()),
-        byte_edit(&linear, None, &transform()),
-    );
-    assert!(linear.linear_light_refusal().is_none());
-    assert_eq!(byte_pixels(&linear, 1), byte_pixels(&encoded, 1));
-    let row: Vec<[f64; 3]> = byte_pixels(&linear, 1)
+    let switched = byte_switch(&base, LINEAR).unwrap();
+    // A byte master, and a 16-bit master in the same byte document.
+    let linear = byte_edit(&switched, Some(&byte_edge()), &place());
+    let place_wide = parsed(json!({"op":"place","source_id":"master","revision_id":"v1",
+        "name":"Placed","x":2,"y":0,"depth_conversion":"convert_fallback"}));
+    let wide_master = switched
+        .source_edit_input(
+            Some(SourceInput::Typed(&typed_edge())),
+            &place_wide,
+            LIMIT,
+            0,
+            None,
+        )
+        .unwrap()
+        .expect("a 16-bit master places into a byte document");
+    let encoded = byte_edit(&encoded, None, &transform());
+    let encoded_row: Vec<[f64; 3]> = byte_pixels(&encoded, 1)
         .iter()
         .map(|p| std::array::from_fn(|c| f64::from(p[c]) / 255.0))
         .collect();
-    let samples = mixed(&row);
-    assert!(samples.len() >= 2, "{samples:?}");
-    assert!(samples.iter().all(|(e, _)| *e <= 0.01), "{samples:?}");
-    assert!(samples.iter().any(|(_, l)| *l > 0.05), "{samples:?}");
+    let encoded_samples = mixed(&encoded_row);
+    assert!(
+        encoded_samples.iter().all(|(e, _)| *e <= 0.01),
+        "{encoded_samples:?}"
+    );
+    for (what, doc) in [("byte master", linear), ("16-bit master", wide_master)] {
+        let doc = byte_edit(&doc, None, &transform());
+        assert!(doc.linear_light_refusal().is_none());
+        assert_ne!(byte_pixels(&doc, 1), byte_pixels(&encoded, 1), "{what}");
+        let row: Vec<[f64; 3]> = byte_pixels(&doc, 1)
+            .iter()
+            .map(|p| std::array::from_fn(|c| f64::from(p[c]) / 255.0))
+            .collect();
+        let samples = mixed(&row);
+        assert!(samples.len() >= 2, "{what}: {samples:?}");
+        assert!(
+            samples.iter().all(|(_, l)| *l <= 0.02),
+            "{what}: {samples:?}"
+        );
+        assert!(
+            samples.iter().any(|(e, _)| *e > 0.05),
+            "{what}: {samples:?}"
+        );
+    }
 
     let base = typed_doc(12, 4, |_| wide(BACKDROP));
     let encoded = typed_edit(&base, Some(&typed_edge()), &place());
@@ -342,15 +372,71 @@ fn a_re_render_resamples_in_the_stored_encoding_at_both_depths() {
         typed_edit(&linear, None, &transform()),
     );
     assert!(linear.linear_light_refusal().is_none());
-    assert_eq!(typed_pixels(&linear, 1), typed_pixels(&encoded, 1));
+    assert_ne!(typed_pixels(&linear, 1), typed_pixels(&encoded, 1));
     let row: Vec<[f64; 3]> = typed_pixels(&linear, 1)
         .iter()
         .map(|p| std::array::from_fn(|c| f64::from(p[c]) / 65535.0))
         .collect();
     let samples = mixed(&row);
     assert!(samples.len() >= 2, "{samples:?}");
-    assert!(samples.iter().all(|(e, _)| *e <= 1e-3), "{samples:?}");
-    assert!(samples.iter().any(|(_, l)| *l > 0.05), "{samples:?}");
+    assert!(samples.iter().all(|(_, l)| *l <= 1e-3), "{samples:?}");
+    assert!(samples.iter().any(|(e, _)| *e > 0.05), "{samples:?}");
+}
+
+/// Convert to Profile re-renders a RAW layer in the DESTINATION, through the
+/// destination's own curve: mixing in linear light commutes with a change of
+/// primaries, so the converted re-render equals the pointwise conversion of
+/// the linear-light fallback the document showed before (its rasterized
+/// twin, converted).
+#[test]
+fn a_converted_re_render_mixes_in_the_destinations_linear_light() {
+    let destination = IccProfile::prophoto_rgb();
+    let doc = byte_switch(&byte_doc(12, 4, BACKDROP), LINEAR).unwrap();
+    let doc = byte_edit(&doc, Some(&byte_edge()), &place());
+    let doc = byte_edit(&doc, None, &transform());
+    let raster = byte_edit(&doc, None, &parsed(json!({"op":"rasterize","layer":1})));
+    let converted = doc.convert_to_profile(&destination).unwrap().unwrap();
+    let pointwise = raster.convert_to_profile(&destination).unwrap().unwrap();
+    assert!(converted.layers[1]
+        .effective_source(&converted.profile)
+        .is_some());
+    for (i, (got, want)) in byte_pixels(&converted, 1)
+        .iter()
+        .zip(byte_pixels(&pointwise, 1))
+        .enumerate()
+    {
+        for c in 0..4 {
+            assert!(
+                (i32::from(got[c]) - i32::from(want[c])).abs() <= 1,
+                "byte pixel {i} channel {c}: {got:?} vs {want:?}"
+            );
+        }
+    }
+
+    let doc = typed_switch(&typed_doc(12, 4, |_| wide(BACKDROP)), LINEAR).unwrap();
+    let doc = typed_edit(&doc, Some(&typed_edge()), &place());
+    let doc = typed_edit(&doc, None, &transform());
+    let raster = typed_edit(&doc, None, &parsed(json!({"op":"rasterize","layer":1})));
+    let converted = doc
+        .convert_to_profile(&destination, LIMIT, 0, None)
+        .unwrap()
+        .unwrap();
+    let pointwise = raster
+        .convert_to_profile(&destination, LIMIT, 0, None)
+        .unwrap()
+        .unwrap();
+    for (i, (got, want)) in typed_pixels(&converted, 1)
+        .iter()
+        .zip(typed_pixels(&pointwise, 1))
+        .enumerate()
+    {
+        for c in 0..4 {
+            assert!(
+                (i64::from(got[c]) - i64::from(want[c])).abs() <= TYPED_GATE,
+                "typed pixel {i} channel {c}: {got:?} vs {want:?}"
+            );
+        }
+    }
 }
 
 fn byte_save(doc: &DrDocument, path: &std::path::Path) -> Vec<u8> {

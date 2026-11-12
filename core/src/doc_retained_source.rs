@@ -666,7 +666,12 @@ impl DrDocument {
             }
         }
         let prepared = self.prepare_source(input, edit)?;
-        let source = render8(prepared.source, &self.profile, job)?;
+        let source = render8(
+            prepared.source,
+            &self.profile,
+            self.linear_light.as_deref(),
+            job,
+        )?;
         let mut next = self.clone();
         if let Some(name) = prepared.name {
             let mut layer = Layer::new(image::RgbaImage::new(1, 1), name);

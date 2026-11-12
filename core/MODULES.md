@@ -111,7 +111,7 @@ Detail belongs in the source file's own header comment.
 - `psd_export_bake.rs` — the adjustment stamp: the pixels an adjustment layer with no Photoshop record is exported as, for the byte and the typed document.
 - `psd_export_cmyk.rs` — a CMYK document's PSD/PSB/layered-TIFF export: inventory, record walk (fills as `PtFl`/`SoCo`/`GdFl`), five-plane composite, plan.
 - `jxl_encode.rs` — lossless JPEG XL encoding of an 8-bit RGBA image for the export workspace's `jxl` format (a wrapper over `zune-jpegxl`; nothing decodes one).
-- `doc_evaluation.rs` / `precision_evaluation.rs` / `evaluation_native.rs` / `ffi_evaluation.rs` — the VERSIONED EVALUATION POLICY (11E phase 1): `encoded` (default) or `linear_light`, per document.
+- `doc_evaluation.rs` / `precision_evaluation.rs` / `evaluation_native.rs` / `ffi_evaluation.rs` — the VERSIONED EVALUATION POLICY (P7-24): `encoded` (default) or `linear_light`, per document.
 - `layer_insert.rs` / `precision_insert.rs` / `ffi_insert.rs` — WHERE a newly created entry lands, at BOTH depths (Phase 12E-2): `InsertPosition`, `InsertSlot` and the shared `slot` rule.
 - `doc_identity.rs` / `ffi_identity.rs` — STABLE LAYER IDENTITY at both depths: `NEXT_LAYER_ID`, the minting rule, the id lookups, and the content and mask storage identities.
 - `identity_native.rs` — PERSISTED LAYER IDENTITY at both depths (Phase 12E-1) and the ONE table the native format ALWAYS writes: version 45 (byte) / 46 (typed) and its `LIDS` table.
@@ -548,6 +548,7 @@ Detail belongs in the source file's own header comment.
 - `gaussian_blur_filter.rs` — kernel: Gaussian Blur (measured against Photoshop), the fitted law and its K-pass extended box (the filter's master; not Box Blur's integer box), banded.
 - `sampling_gaussian_fast.rs` — KERNEL: the radius-independent Gaussian: legacy Blur from `LEGACY_FAST_SIGMA` up to the fitted kernel's range, Sharpen at every σ from it, 8 and 16 bits.
 - `sampling.rs` / `sampling_walk.rs` — KERNEL: shared encoded-colour, premultiplied-f32 sampling for transforms, resize and Gaussian blur; the spatial walks (taps, weights, edges).
+- `sampling_linear.rs` — KERNEL: a linear-light document's resample adapters (decode taps, premultiplied linear, encode once) and its Image Size.
 - `gaussian_plane.rs` — KERNEL: the ONE separable Gaussian scalar kernel: `doc_select`'s feather at its byte arithmetic, and f32 for the typed tone guides.
 - `plane_blur.rs` — KERNEL: one multiresolution scalar blur schedule shared by byte styles and typed masks (byte rounding kept, float fields unquantized).
 - `cache_limit.rs` — leaf: resident cache bounds from the working limit: the cache bound limit/16 and the host trim limit/8 (all-or-nothing).

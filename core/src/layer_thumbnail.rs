@@ -478,6 +478,7 @@ pub(crate) fn finish_box_arm(
         tw,
         th,
         GeometryFilter::Bilinear,
+        None,
         job.range(0.8, 0.95),
     )?;
     small.quantize_with_context(PrecisionDither::None, job.range(0.95, 1.0))
@@ -507,7 +508,7 @@ pub(crate) fn fit_u16(
     }
     let k = thumb_box_factor(w, h, tw, th, LAYER_THUMB_BOX_GUARD);
     if k < 2 {
-        return resize_image(image, tw, th, GeometryFilter::Bilinear, job);
+        return resize_image(image, tw, th, GeometryFilter::Bilinear, None, job);
     }
     let rows = |y: u32| {
         image
@@ -526,6 +527,7 @@ pub(crate) fn fit_u16(
         tw,
         th,
         GeometryFilter::Bilinear,
+        None,
         job.range(0.8, 1.0),
     )
 }

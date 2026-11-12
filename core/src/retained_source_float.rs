@@ -445,17 +445,19 @@ pub(crate) fn source_float(
     }
 }
 
-/// `render_float` in a float document, the u16 `render16` otherwise.
+/// `render_float` in a float document, the u16 `render16` otherwise, which
+/// resamples through `codes` (`PrecisionDocument::linear_codes`).
 pub(crate) fn render_typed(
     source: RetainedSource16,
     profile: &Arc<IccProfile>,
     float: bool,
+    codes: Option<&dyn crate::sampling_linear::LinearCodes<u16>>,
     job: JobContext<'_>,
 ) -> Result<RetainedSource16, String> {
     if float {
         render_float(source, profile, job)
     } else {
-        render16(source, profile, job)
+        render16(source, profile, codes, job)
     }
 }
 
@@ -480,11 +482,13 @@ pub(crate) fn render_float(
     };
     source.rendered = match sampling {
         AffineSampling::Shared => linear.reidentified(),
+        // A float master is linear already: no tables to resample through.
         AffineSampling::Sample(filter) => precision_sampling::transform_image(
             &linear,
             (bounds.2, bounds.3),
             &source_map(source.transform, (bounds.0, bounds.1))?,
             filter,
+            None,
             job,
         )?,
     };

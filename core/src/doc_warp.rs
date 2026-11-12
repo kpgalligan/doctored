@@ -103,29 +103,48 @@ pub(crate) fn finish_mask8(acc: [f64; 1], outside: u8) -> u8 {
     (acc[0] + f64::from(outside)).clamp(0.0, 255.0).round() as u8
 }
 
+/// The warped pixels. `transfer` is the document's evaluation policy:
+/// `Some` interpolates in premultiplied LINEAR light (`sampling_linear`'s
+/// binary64 adapters), `None` on the stored codes.
 fn render_pixels(
     source: &LayerRaster,
     origin: (i32, i32),
     dest: (i32, i32, u32, u32),
     field: &WarpField,
+    transfer: Option<&crate::doc_evaluation::ByteTransfer>,
     job: JobContext<'_>,
 ) -> Result<LayerRaster, String> {
     let (sw, sh) = source.dimensions();
     let image = source.to_contiguous_with_job(job)?;
     let mut out = vec![0u8; dest.2 as usize * dest.3 as usize * 4];
-    warp_into(
-        byte_rect(origin, (sw, sh)),
-        dest,
-        field,
-        |i| {
-            let p = &image.as_raw()[i * 4..i * 4 + 4];
-            [p[0], p[1], p[2], p[3]]
-        },
-        accumulate_rgba8,
-        finish_rgba8,
-        |i, p| out[i * 4..i * 4 + 4].copy_from_slice(&p),
-        job,
-    )?;
+    let read = |i: usize| {
+        let p = &image.as_raw()[i * 4..i * 4 + 4];
+        [p[0], p[1], p[2], p[3]]
+    };
+    let write = |i: usize, p: [u8; 4]| out[i * 4..i * 4 + 4].copy_from_slice(&p);
+    let rect = byte_rect(origin, (sw, sh));
+    match transfer {
+        None => warp_into(
+            rect,
+            dest,
+            field,
+            read,
+            accumulate_rgba8,
+            finish_rgba8,
+            write,
+            job,
+        )?,
+        Some(codes) => warp_into(
+            rect,
+            dest,
+            field,
+            read,
+            |acc, p, weight| crate::sampling_linear::accumulate_linear_f64(acc, p, weight, codes),
+            |acc| crate::sampling_linear::straight_linear_f64(acc, codes),
+            write,
+            job,
+        )?,
+    }
     Ok(LayerRaster::unseeded(
         RgbaImage::from_raw(dest.2, dest.3, out)
             .ok_or("warp RGBA output dimensions are invalid")?,
@@ -422,8 +441,14 @@ impl DrDocument {
                         target_layer.offset = add_offset(source_offset, delta)?;
                     } else {
                         let dest = binding.field.bounds(rect)?;
-                        target_layer.pixels =
-                            render_pixels(p, source_offset, dest, &binding.field, job)?;
+                        target_layer.pixels = render_pixels(
+                            p,
+                            source_offset,
+                            dest,
+                            &binding.field,
+                            self.linear_light.as_deref(),
+                            job,
+                        )?;
                         target_layer.offset = (dest.0, dest.1);
                     }
                     binding.rendered_pixels = Some(target_layer.pixels.clone());

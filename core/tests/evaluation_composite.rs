@@ -770,7 +770,7 @@ fn lut_profile_bytes() -> Vec<u8> {
 }
 
 #[test]
-fn the_operator_table_names_what_is_migrated_and_what_is_not() {
+fn the_operator_table_names_every_operator_migrated() {
     let raw = unsafe { dr_evaluation_operators() };
     assert!(!raw.is_null());
     let text = unsafe { CStr::from_ptr(raw) }
@@ -779,16 +779,27 @@ fn the_operator_table_names_what_is_migrated_and_what_is_not() {
     unsafe { dr_string_free(raw) };
     let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
     let migrated = value["migrated"].as_array().expect("migrated");
-    assert!(migrated.iter().any(|v| v == "multiply"));
-    assert!(migrated.iter().any(|v| v == "pointwise_adjustment_layer"));
-    let refused = value["refused"].as_array().expect("refused");
-    assert!(refused
-        .iter()
-        .all(|entry| matches!(entry["phase"].as_u64(), Some(2) | Some(3))));
-    assert!(refused.iter().any(|entry| entry["operator"]
-        .as_str()
-        .is_some_and(|s| s.contains("Image Size"))));
-    assert!(migrated.iter().any(|v| v == "hue"));
+    for operator in [
+        "multiply",
+        "pointwise_adjustment_layer",
+        "hue",
+        "dissolve",
+        "guided_shadows_highlights",
+        "layer_style",
+        "blend_if",
+        "image_size",
+        "free_transform",
+        "warp",
+        "retained_source_rerender",
+    ] {
+        assert!(migrated.iter().any(|v| v == operator), "{operator}");
+    }
+    assert_eq!(
+        value["refused"],
+        serde_json::json!([]),
+        "nothing is refused"
+    );
+    assert!(value.get("resize_refusal").is_none());
 
     for (name, expected) in [("encoded", 0), ("linear_light", 1)] {
         let c = CString::new(name).unwrap();

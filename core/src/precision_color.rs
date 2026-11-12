@@ -387,11 +387,14 @@ impl PrecisionDocument {
             // The rebound tree: its adjustment records are reused, not
             // prepared a second time.
             let rebound = next.layers.clone();
+            // A RAW layer re-renders in the destination, through the
+            // destination's linear-light tables the rebind above built.
             let layers = convert_layers(
                 &self.layers,
                 &rebound,
                 profile,
                 &transform,
+                next.linear_codes(),
                 &mut outputs,
                 job,
                 plan.converted_pixel_bytes / 8,
@@ -443,12 +446,15 @@ const MISMATCH: &str = "internal error: rebound layer tree does not match";
 /// `rebound` is `rebind_layers`' output for the same `layers`: each
 /// adjustment record is taken from it (an `Arc` clone, no preparation) and
 /// groups recurse on the paired children, so a conversion prepares every
-/// record once.
+/// record once. `codes` is the destination's linear-light tables, which a
+/// retained source re-renders through.
+#[allow(clippy::too_many_arguments)]
 fn convert_layers(
     layers: &[PrecisionDocumentLayer],
     rebound: &[PrecisionDocumentLayer],
     profile: &Arc<IccProfile>,
     transform: &PrecisionTransform,
+    codes: Option<&dyn crate::sampling_linear::LinearCodes<u16>>,
     outputs: &mut HashMap<usize, PrecisionImage>,
     job: JobContext<'_>,
     total_pixels: u64,
@@ -461,7 +467,7 @@ fn convert_layers(
         job.check()?;
         let mut next = layer.clone();
         if let Some(source) = layer.effective_source() {
-            let source = crate::retained_source_render::render16(source, profile, job)?;
+            let source = crate::retained_source_render::render16(source, profile, codes, job)?;
             next.content = Content::Raster {
                 image: source.rendered.clone(),
                 offset: source.rendered_offset,
@@ -511,6 +517,7 @@ fn convert_layers(
                     paired,
                     profile,
                     transform,
+                    codes,
                     outputs,
                     job,
                     total_pixels,
@@ -525,6 +532,7 @@ fn convert_layers(
                     paired,
                     profile,
                     transform,
+                    codes,
                     outputs,
                     job,
                     total_pixels,

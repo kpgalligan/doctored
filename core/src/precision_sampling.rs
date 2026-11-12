@@ -34,6 +34,7 @@ use crate::sampling::{
     accumulate_extended, accumulate_planes, accumulate_unorm, resample_into, resample_rows_into,
     resize_into, straight_extended, straight_planes, straight_unorm, ColorRange, Kernel, Unorm,
 };
+use crate::sampling_linear::{accumulate_linear, straight_linear, LinearCodes};
 use crate::tile_store::{TilePlane, TILE_EDGE};
 
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -155,11 +156,15 @@ pub(crate) fn uniform_band_bytes(destination: (u32, u32)) -> Result<u64, String>
 /// non-visible and non-covering pixels unwritten), is walked by
 /// `resample_rows_into` with a constant read and lands in a band of shared
 /// tiles (`uniform_band_bytes`), adopted by `from_rgba16_tiles_unseeded`.
+/// `transfer` is a linear-light document's (`sampling_linear`): `Some`
+/// interpolates u16 colour in premultiplied LINEAR light, `None` on the
+/// stored codes; a float source is linear already and ignores it.
 pub(crate) fn transform_image(
     source: &PrecisionImage,
     destination: (u32, u32),
     map: &SourceMap,
     filter: GeometryFilter,
+    transfer: Option<&dyn LinearCodes<u16>>,
     job: JobContext<'_>,
 ) -> Result<PrecisionImage, String> {
     // 32-bit float storage. `Nearest` — the exact canvas ops' quarter
@@ -191,6 +196,16 @@ pub(crate) fn transform_image(
         return Err("typed geometry requires RGBA16 storage".into());
     }
     let (w, h) = destination;
+    // The u16 tap adapters: the stored codes, or a linear-light document's
+    // decoded premultiplied linear components (`sampling_linear`).
+    let accumulate = |acc: &mut [f32; 4], pixel: [u16; 4], weight: f32| match transfer {
+        None => accumulate_unorm(acc, &pixel, weight),
+        Some(codes) => accumulate_linear(acc, pixel, weight, codes),
+    };
+    let finish = |acc: [f32; 4]| match transfer {
+        None => straight_unorm(acc),
+        Some(codes) => straight_linear(acc, codes),
+    };
     if let Some(value) = uniform_source(source, destination) {
         let plane = TilePlane::from_rows_shared_with_job(
             w,
@@ -205,8 +220,8 @@ pub(crate) fn transform_image(
                     map,
                     filter.sampler(),
                     |_| value,
-                    |acc, pixel, weight| accumulate_unorm(acc, &pixel, weight),
-                    straight_unorm,
+                    accumulate,
+                    finish,
                     |i, pixel| row[i - start] = pixel,
                     true,
                     true,
@@ -225,8 +240,8 @@ pub(crate) fn transform_image(
         map,
         filter.sampler(),
         |i| samples[i],
-        |acc, pixel, weight| accumulate_unorm(acc, &pixel, weight),
-        straight_unorm,
+        accumulate,
+        finish,
         |i, pixel| output[i] = pixel,
         true,
         true,
@@ -334,12 +349,14 @@ fn nearest_into<P: Copy>(
 /// `transform_image`, a typed resize holds its source copy (`source_copy_bytes`
 /// / `float_source_copy_bytes`) while the output is tiled
 /// (`adoption_copy_bytes` / `float_adoption_copy_bytes`); the separable
-/// temporaries are dropped before that adoption.
+/// temporaries are dropped before that adoption. `transfer` as
+/// [`transform_image`]'s; `Nearest` copies codes either way.
 pub(crate) fn resize_image(
     source: &PrecisionImage,
     w: u32,
     h: u32,
     filter: GeometryFilter,
+    transfer: Option<&dyn LinearCodes<u16>>,
     job: JobContext<'_>,
 ) -> Result<PrecisionImage, String> {
     if source.dimensions() == (w, h) {
@@ -371,15 +388,26 @@ pub(crate) fn resize_image(
     }
     let pixels = source.transient_rgba16()?;
     let mut out: Vec<[u16; 4]> = blank(w, h, job)?;
-    match filter.sampler() {
-        Sampler::Nearest => nearest_into(&pixels, source.dimensions(), (w, h), &mut out, job)?,
-        Sampler::Kernel(kernel) => resize_into(
+    match (filter.sampler(), transfer) {
+        (Sampler::Nearest, _) => nearest_into(&pixels, source.dimensions(), (w, h), &mut out, job)?,
+        (Sampler::Kernel(kernel), None) => resize_into(
             source.dimensions(),
             (w, h),
             kernel,
             |i| pixels[i],
             |acc, pixel, weight| accumulate_unorm(acc, &pixel, weight),
             straight_unorm,
+            |i, pixel| out[i] = pixel,
+            true,
+            job,
+        )?,
+        (Sampler::Kernel(kernel), Some(codes)) => resize_into(
+            source.dimensions(),
+            (w, h),
+            kernel,
+            |i| pixels[i],
+            |acc, pixel, weight| accumulate_linear(acc, pixel, weight, codes),
+            |acc| straight_linear(acc, codes),
             |i, pixel| out[i] = pixel,
             true,
             job,

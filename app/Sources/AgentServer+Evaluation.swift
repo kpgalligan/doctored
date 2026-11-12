@@ -56,7 +56,6 @@ extension AgentServer {
             result["operators"] = [
                 "migrated": table.migrated,
                 "refused": table.refused.map { ["operator": $0.name, "phase": $0.phase] },
-                "resize_refusal": table.resizeRefusal,
             ] as [String: Any]
         }
         if boolArg(a, "preview") == true {

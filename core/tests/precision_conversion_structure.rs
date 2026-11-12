@@ -488,11 +488,9 @@ fn each_blocked_kind_refuses_by_name_with_the_input_untouched() {
     meta.layers[5].meta = Some(r#"{"host":1}"#.into());
     let reason = refuses(&meta, "a group carrying host metadata has no 16-bit record");
     assert!(reason.contains("layer 5 \"Isolated\""), "{reason}");
-    // A linear-light byte document holding an operator the typed walk
-    // refuses is UNREACHABLE: the byte `refused_operator` refuses a superset
-    // of the typed one (a style, the seven blend modes, a guided
-    // Shadows/Highlights), so such a document cannot be built. A warp
-    // binding and a retained source now CARRY (the carriage tests below).
+    // Linear light refuses no operator at either depth, so a linear-light
+    // byte document carries its policy to 16 bits whatever it holds. A warp
+    // binding and a retained source CARRY (the carriage tests below).
 
     assert_eq!(base.flattened().unwrap(), before);
     assert_eq!(base.layers.len(), 11);

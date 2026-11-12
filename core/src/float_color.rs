@@ -292,7 +292,7 @@ fn convert_layers(
         job.check()?;
         let mut next = layer.clone();
         if let Some(source) = layer.effective_source() {
-            let source = render_typed(source, profile, true, job)?;
+            let source = render_typed(source, profile, true, None, job)?;
             next.content = Content::Raster {
                 image: source.rendered.clone(),
                 offset: source.rendered_offset,

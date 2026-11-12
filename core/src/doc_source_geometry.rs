@@ -883,9 +883,13 @@ impl DrDocument {
             };
             source.transform = source_transform::compose(map, source.transform).ok()?;
             source.filter = sampler;
-            source =
-                crate::retained_source_render::render8(source, &self.profile, JobContext::NONE)
-                    .ok()?;
+            source = crate::retained_source_render::render8(
+                source,
+                &self.profile,
+                self.linear_light.as_deref(),
+                JobContext::NONE,
+            )
+            .ok()?;
             result.layers[index].pixels = source.rendered.clone();
             result.layers[index].offset = source.rendered_offset;
             result.layers[index].retained_source = Some(source);

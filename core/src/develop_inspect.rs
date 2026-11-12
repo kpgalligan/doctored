@@ -200,6 +200,7 @@ impl PrecisionImage {
             (region.width, region.height),
             &map,
             GeometryFilter::Nearest,
+            None,
             job,
         )?;
         job.report(1., 5)?;

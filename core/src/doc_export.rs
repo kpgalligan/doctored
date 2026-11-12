@@ -1848,8 +1848,14 @@ impl PrecisionDocument {
         let mapped;
         let source = if self.is_float() {
             if request.bit_depth == 32 {
-                let resized =
-                    precision_sampling::resize_image(source, w, h, request.geometry_filter(), job)?;
+                let resized = precision_sampling::resize_image(
+                    source,
+                    w,
+                    h,
+                    request.geometry_filter(),
+                    None,
+                    job,
+                )?;
                 return self.export_float(&resized, request, job);
             }
             mapped = self.tone_mapped_u16(source, job)?;
@@ -1863,7 +1869,7 @@ impl PrecisionDocument {
 
         // 1. Resample, at the document's own depth.
         let resampled =
-            precision_sampling::resize_image(source, w, h, request.geometry_filter(), job)?;
+            precision_sampling::resize_image(source, w, h, request.geometry_filter(), None, job)?;
         job.check()?;
         // A Lab Color document leaves Lab here: the resampled composite
         // through Mode ▸ RGB Color's loop into the destination (`lab_rgb`),

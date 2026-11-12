@@ -33,14 +33,13 @@ tolerance is widened after the fact.
 - **E6 encoded documents are untouched.** An encoded export taken before and
   after the whole run is byte-identical, and an encoded `.rz`'s wrapper chain
   carries no evaluation word.
-- **E7 the refusals.** A document with a Hue blend mode refuses
-  `set_evaluation` naming the layer; on the
-  switched E1 document the layer-style, blend-mode and Blend If
-  tools each refuse naming the layer and the operator, after which
-  `get_document` still reports `linear_light` with a null `projection_error`
-  and `render`'s sha256 is unchanged; `image_size` refuses. A placed image is
-  ADMITTED under linear light: on a fresh switched
-  document `place_image` succeeds with a null `projection_error`.
+- **E7 every operator is admitted.** A document with a Hue blend mode
+  switches; on the switched E1 document a Hue blend mode, a colour overlay, a
+  Blend If, a guided Shadows/Highlights and `image_size` each land, after
+  each `get_evaluation` reports a null `linear_light_refusal` and an empty
+  `refused` list, `render`'s sha256 changes, and one `undo` restores it. A
+  placed image is admitted: on a fresh switched document `place_image`
+  succeeds with a null `projection_error`.
 
 Nothing here derives an expectation from Doctored: the fixtures are written
 by this file, the colour arithmetic is written out below, the PNG readers are
@@ -686,44 +685,63 @@ def gate_e6(app, folder, receipts):
           'and exports stay byte-identical', flush=True)
 
 
-def refused(app, document, tool, **args):
+def render_sha(app, document):
+    """The sha256 of `render`'s PNG at any canvas size."""
     reply = app.client.rpc('tools/call', {
-        'name': tool, 'arguments': {'document_id': document, **args}})
-    assert reply.get('isError'), (tool, reply)
-    return next(block['text'] for block in reply['content'] if block['type'] == 'text')
+        'name': 'render', 'arguments': {'document_id': document, 'max_side': 4096}})
+    assert not reply.get('isError'), reply
+    data = next(item['data'] for item in reply['content'] if item['type'] == 'image')
+    return hashlib.sha256(base64.b64decode(data)).hexdigest()
 
 
-def gate_e7(app, folder, document, render_sha, receipts):
+def gate_e7(app, folder, document, render_sha_before, receipts):
     call = lambda tool, **args: app.call(tool, document_id=document, **args)
     notes = {}
 
-    # A document that already carries an unmigrated operator refuses the switch.
+    # A document that already carries a non-separable mode switches.
     source = folder / 'e7-hue.png'
     png8(source, WIDTH, HEIGHT, base_pixels8())
     other = app.open(source)
     app.call('duplicate_layer', document_id=other, index=0)
     app.call('set_layer_properties', document_id=other, index=1, name='Hue layer',
              blend_mode='hue')
-    message = refused(app, other, 'set_evaluation', policy='linear_light')
-    assert 'Layer' in message, message
-    notes['switch_hue'] = message
+    app.call('set_evaluation', document_id=other, policy='linear_light')
+    assert app.call('get_document', document_id=other)['evaluation']['policy'] == 'linear_light'
+    notes['switch_hue'] = 'admitted'
 
-    # And on the SWITCHED document every tool that would introduce one refuses
-    # by name, leaving the document exactly as it was.
+    # On the SWITCHED document every operator phase 1 refused lands: the
+    # projection changes, nothing is refused, and one undo restores it.
     state = call('get_document')
-    top = len(state['layers']) - 1
     raster = next(layer['index'] for layer in state['layers']
                   if layer.get('name') == 'Mul')
-    notes['blend_mode'] = refused(app, document, 'set_layer_properties', index=raster,
-                                  blend_mode='hue')
-    notes['layer_style'] = refused(app, document, 'set_layer_style', index=raster,
-                                   style={'effects': [{'type': 'color_overlay'}]})
-    notes['blend_if'] = refused(app, document, 'set_layer_style', index=raster,
-                                style={'blend_if': {'channel': 'gray',
-                                                    'this_layer': [0, 0, 200, 255],
-                                                    'underlying': [0, 0, 255, 255]}})
-    notes['image_size'] = refused(app, document, 'image_size',
-                                  width=WIDTH * 2, height=HEIGHT * 2)
+    steps = [
+        ('blend_mode', 'set_layer_properties', {'index': raster, 'blend_mode': 'hue'}),
+        ('layer_style', 'set_layer_style',
+         {'index': raster, 'style': {'effects': [{'type': 'color_overlay', 'opacity': 0.5}]}}),
+        ('blend_if', 'set_layer_style',
+         {'index': raster, 'style': {'blend_if': {'channel': 'gray',
+                                                  'this_layer': [0, 0, 120, 140],
+                                                  'underlying': [0, 0, 255, 255]}}}),
+        ('guided_shadows_highlights', 'add_adjustment_layer',
+         {'op': 'shadows_highlights', 'params': {'shadows': {'amount': 0.5}, 'radius': 8.0},
+          'name': 'SH'}),
+        ('image_size', 'image_size', {'width': WIDTH * 2, 'height': HEIGHT * 2}),
+    ]
+    before = render_sha(app, document)
+    assert before == render_sha_before, 'the switched projection is the one E1 measured'
+    for key, tool, args in steps:
+        call(tool, **args)
+        evaluation = call('get_evaluation')
+        assert evaluation['policy'] == 'linear_light', (key, evaluation)
+        assert evaluation['linear_light_refusal'] is None, (key, evaluation)
+        assert evaluation['operators']['refused'] == [], (key, evaluation)
+        assert 'resize_refusal' not in evaluation['operators'], (key, evaluation)
+        after = render_sha(app, document)
+        assert after != before, f'{key} must change the projection'
+        call('undo')
+        assert render_sha(app, document) == before, f'one undo restores the projection ({key})'
+        notes[key] = 'admitted'
+
     # A placed image is admitted under linear light.
     source = folder / 'e7-placed.png'
     png8(source, WIDTH, HEIGHT, base_pixels8())
@@ -733,18 +751,12 @@ def gate_e7(app, folder, document, render_sha, receipts):
     state = app.call('get_document', document_id=placed)
     assert state['evaluation']['policy'] == 'linear_light', state['evaluation']
     assert state['evaluation']['projection_error'] is None, state['evaluation']
-    for key, message in notes.items():
-        assert message.strip(), key
-    for key in ('switch_hue', 'blend_mode', 'layer_style', 'blend_if',
-                'image_size'):
-        assert 'linear-light evaluation does not support yet' in notes[key], (key, notes[key])
     after = call('get_document')
     assert after['evaluation']['policy'] == 'linear_light', after['evaluation']
     assert after['evaluation']['projection_error'] is None, after['evaluation']
-    _, sha = rendered(app, document)
-    assert sha == render_sha, 'a refused edit must leave the projection untouched'
     receipts['e7'] = notes
-    print('PASS E7: every unmigrated operator refuses by name and changes nothing', flush=True)
+    print('PASS E7: every operator is admitted under linear light, and each step undoes',
+          flush=True)
 
 
 def main():

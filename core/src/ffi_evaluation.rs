@@ -30,8 +30,8 @@ pub unsafe extern "C" fn dr_evaluation_from_name(name: *const c_char) -> c_int {
     Evaluation::parse(&name).map_or(-1, Evaluation::code)
 }
 
-/// The operator table as owned JSON — what linear-light evaluation evaluates
-/// today and what it refuses, with the phase that owns each refusal. Free it
+/// The operator table as owned JSON — what linear-light evaluation evaluates,
+/// every operator, and an empty `refused` list kept for the shape. Free it
 /// with `dr_string_free`; NULL only on an allocation failure.
 ///
 /// # Safety
@@ -57,10 +57,10 @@ pub unsafe extern "C" fn dr_doc_evaluation(doc: *const DrDocument) -> c_int {
     }
 }
 
-/// The first operator in this document linear-light evaluation cannot
-/// evaluate, as an owned sentence; NULL when there is nothing to refuse —
-/// which is every ENCODED document, answered without a walk. Free a non-NULL
-/// result with `dr_string_free`.
+/// Why this document cannot evaluate under linear light — a held transfer
+/// that does not belong to its profile — as an owned sentence; NULL when
+/// there is nothing to refuse, which is every ENCODED document, answered
+/// without comparing anything. Free a non-NULL result with `dr_string_free`.
 ///
 /// # Safety
 /// `doc` must be NULL or a valid pointer to a live `DrDocument`.
@@ -76,8 +76,8 @@ pub unsafe extern "C" fn dr_doc_linear_light_refusal(doc: *const DrDocument) -> 
 }
 
 /// The document under `policy`. NULL WITHOUT an error when it is already in
-/// that policy (the core's no-op rule); NULL WITH one for an unknown policy,
-/// an unmodellable profile or an operator this phase does not evaluate.
+/// that policy (the core's no-op rule); NULL WITH one for an unknown policy
+/// or an unmodellable profile.
 ///
 /// # Safety
 /// `doc` must be NULL or a valid pointer to a live `DrDocument`; `err_out`

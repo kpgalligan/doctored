@@ -1561,13 +1561,6 @@ final class EditorViewController: NSViewController {
             NSSound.beep()
             return
         }
-        // Image Size resamples in the stored encoding, which linear-light
-        // evaluation does not support yet (EvaluationOperators.resizeRefusal).
-        if let doc = document.doc,
-           let reason = EvaluationOperators.resizeRefusal(doc) {
-            document.presentError(DoctoredCoreError(message: reason))
-            return
-        }
         presentAsSheet(ImageSizeSheetController(document: document))
     }
 

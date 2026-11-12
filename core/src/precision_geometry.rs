@@ -39,6 +39,7 @@ use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLay
 use crate::precision_image::{admit, PrecisionImage};
 use crate::precision_mask::{PrecisionChannel, PrecisionMask, PrecisionPlane};
 use crate::precision_sampling::{self, GeometryFilter};
+use crate::sampling_linear::LinearCodes;
 use crate::tile_store::Sample;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -267,22 +268,31 @@ impl PlaneWork {
             _ => None,
         }
     }
+    /// The resampled raster; `codes` is a linear-light document's
+    /// (`PrecisionDocument::linear_codes`).
     fn image(
         &self,
         source: &PrecisionImage,
+        codes: Option<&dyn LinearCodes<u16>>,
         job: JobContext<'_>,
     ) -> Result<PrecisionImage, String> {
         match self.kind {
             WorkKind::Keep => Ok(source.clone()),
-            WorkKind::Resize(filter) => {
-                precision_sampling::resize_image(source, self.dest.2, self.dest.3, filter, job)
-            }
+            WorkKind::Resize(filter) => precision_sampling::resize_image(
+                source,
+                self.dest.2,
+                self.dest.3,
+                filter,
+                codes,
+                job,
+            ),
             WorkKind::Affine { filter, .. } | WorkKind::Perspective { filter, .. } => {
                 precision_sampling::transform_image(
                     source,
                     (self.dest.2, self.dest.3),
                     &self.map().unwrap(),
                     filter,
+                    codes,
                     job,
                 )
             }
@@ -387,6 +397,9 @@ struct Execution<'a> {
     /// shared by every record the recursion reaches.
     tiles: crate::doc_reference::TurnedTiles,
     preserve_exact_set_description: bool,
+    /// The document's linear-light tables (`PrecisionDocument::linear_codes`):
+    /// every u16 raster and re-rendered source resamples through them.
+    codes: Option<&'a dyn LinearCodes<u16>>,
     index: usize,
     completed: u64,
     changed: bool,
@@ -455,6 +468,7 @@ impl Execution<'_> {
                     Some(cost) if !work.source_exact => cost.work_units,
                     _ => image_work.work,
                 };
+                let codes = self.codes;
                 let job = self.range(units);
                 let location = (image_work.dest.0, image_work.dest.1);
                 let (output, binding_changed) = if let Some(transform) = work.source_transform {
@@ -467,7 +481,7 @@ impl Execution<'_> {
                         .source_filter
                         .ok_or("missing retained source geometry sampler")?;
                     if work.source_exact {
-                        source.rendered = image_work.image(image, job)?;
+                        source.rendered = image_work.image(image, codes, job)?;
                         source.rendered_offset = location;
                     } else {
                         source = crate::retained_source_float::render_typed(
@@ -475,6 +489,7 @@ impl Execution<'_> {
                             image.profile(),
                             image.storage()
                                 == crate::precision_image::PrecisionStorage::Rgba32Float,
+                            codes,
                             job,
                         )?;
                         if source.rendered_offset != location
@@ -491,7 +506,7 @@ impl Execution<'_> {
                     next.retained_source = Some(source);
                     (output, changed)
                 } else {
-                    (image_work.image(image, job)?, false)
+                    (image_work.image(image, codes, job)?, false)
                 };
                 // A `Keep` plane IS the input allocation, so it is equal by
                 // construction and never reaches `image_equal`.
@@ -837,6 +852,7 @@ impl PrecisionDocument {
                 edit,
                 GeometryEdit::AffineSet { .. } | GeometryEdit::PerspectiveSet { .. }
             ),
+            codes: self.linear_codes(),
             index: 0,
             completed: 0,
             changed: self.dimensions() != (plan.width, plan.height)

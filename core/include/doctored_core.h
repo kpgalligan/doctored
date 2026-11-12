@@ -9721,27 +9721,24 @@ DrPrecisionDocument *dr_precision_doc_set_file_info(const DrPrecisionDocument *d
  * value; -1 for NULL and for a name this build does not know. */
 int dr_evaluation_from_name(const char *name);
 
-/* The operator table as owned JSON — what linear-light evaluation evaluates
- * and what it refuses, with the phase that owns each refusal:
- * {"migrated":[..],"refused":[{"operator":..,"phase":..}],"resize_refusal":".."}.
- * "resize_refusal" is the sentence Image Size carries under linear-light
- * evaluation, so a host guard never writes a second copy of it.
- * Free with dr_string_free. */
+/* The operator table as owned JSON — what linear-light evaluation evaluates,
+ * which is every operator, and an empty list of refusals kept for the shape:
+ * {"migrated":[..],"refused":[]}. Free with dr_string_free. */
 char *dr_evaluation_operators(void);
 
 /* The document's evaluation policy; DR_EVALUATION_ENCODED for NULL. */
 int dr_doc_evaluation(const DrDocument *doc);
 
-/* The first operator in this document linear-light evaluation cannot
- * evaluate, as an owned sentence naming the layer and the operator; NULL when
- * there is nothing to refuse — which is every encoded document, answered
- * without walking the stack. Free a non-NULL result with dr_string_free. */
+/* Why this document cannot evaluate under linear light, as an owned
+ * sentence: its held linear-light tables no longer belong to its colour
+ * profile. NULL when there is nothing to refuse — every encoded document,
+ * answered without comparing anything, and every linear-light document whose
+ * tables are current. Free a non-NULL result with dr_string_free. */
 char *dr_doc_linear_light_refusal(const DrDocument *doc);
 
 /* The document under `policy`. NULL WITHOUT an error when it is already in
- * that policy; NULL WITH one for an unknown policy, a profile with no
- * matrix/TRC model this build can decode, and an operator this phase does not
- * evaluate (the sentence above). */
+ * that policy; NULL WITH one for an unknown policy and a profile with no
+ * matrix/TRC model this build can decode. */
 DrDocument *dr_doc_set_evaluation(const DrDocument *doc, int policy, char **err_out);
 
 /* The typed twins, same contracts. */

@@ -4,22 +4,25 @@
 //! DECODED through the document profile's tone reproduction curve, blended and
 //! mixed in linear light at f32, and re-encoded exactly once at the output.
 //!
-//! # The projection is the invariant
+//! # One rule for every operator
 //!
-//! A policy is chosen deliberately (Image ▸ Evaluation… / `set_evaluation`) and
-//! only ever holds for a stack this phase actually evaluates in linear light.
-//! [`DrDocument::linear_light_refusal`] is the ONE walk that decides that, and
-//! it runs at three places: at the switch, at every later edit that would
-//! introduce an unmigrated operator (the host's `applyEdit` guard and the MCP
-//! pre-check), and — as the backstop nothing can route around —
-//! [`DrDocument::transfer`], which every `composite_env` caller obtains its
-//! transfer from. A document carrying an unmigrated operator therefore cannot
-//! render at all under this policy; it reports the refusal by name.
+//! A policy is chosen deliberately (Image ▸ Evaluation… / `set_evaluation`).
+//! Under it ONLY what enters the accumulator is decoded — a layer's stored
+//! pixel, an effect's document-space ink — and every alpha, coverage, blend
+//! and mix statement runs unchanged on the linear components; rules authored
+//! on encoded numbers read the encoded view of a composited sample
+//! ([`encoded_view`]: the adjustment transcode, the Shadows/Highlights guide,
+//! Blend If); and every resample of layer colour (Image Size, Free Transform,
+//! Warp, a retained source's re-render) interpolates in premultiplied linear
+//! light (`sampling_linear`). P7-24 evaluated every operator, so nothing is
+//! refused by name: the one refusal left is the staleness net below, which
+//! [`DrDocument::transfer`] — where every `composite_env` caller obtains its
+//! transfer — raises at the render, and the host's guards at the edit.
 //!
 //! An ENCODED document holds no transfer (`linear_light: None`), takes the
 //! `transfer == None` branch everywhere and is byte-for-byte what it was
 //! before this module existed; `linear_light_refusal` returns `None` before it
-//! walks anything.
+//! compares anything.
 //!
 //! # The tables
 //!
@@ -34,10 +37,10 @@
 //! [`ToneEncoder`] threshold search at byte depth and through
 //! [`PrecisionToneEncoder`] at typed depth.
 //!
-//! A retained source is evaluated like any raster (phase 187a0): no compositor reads the binding, so the layer composites its
-//! rendered fallback, and its re-render on transform or replace resamples in
-//! the stored encoding, the domain raster Free Transform (`doc_transform`) and
-//! warp (`doc_warp`) already use in a linear-light document.
+//! A retained source is evaluated like any raster: no compositor reads the
+//! binding, so the layer composites its rendered fallback, and its re-render
+//! on transform, replace or profile conversion resamples in linear light
+//! through the tables of the profile it renders into.
 //!
 //! The typed twin ([`TypedTransfer`]) and the `PrecisionDocument` half of the
 //! policy live in `precision_evaluation`; the `.rz` wrapper in
@@ -48,11 +51,10 @@
 //! `PrecisionDocument::record_resources` and `PrecisionScene::plan`) are filled from the ONE
 //! forward curve evaluator and built ONCE per document — at the switch, at the two native readers,
 //! at depth conversion and at `rebind_evaluation` (every profile write) — never inside a render,
-//! plan, export or composite. **The projection is the invariant**: `DrDocument::transfer` /
-//! `PrecisionDocument::transfer` runs `linear_light_refusal`'s walk and is where every
-//! `composite_env` caller and `scene_cut` obtains its transfer, so an unmigrated operator added
-//! after the switch refuses at the render as well as at the edit. `linear_light_refusal` returns
-//! `None` before walking anything on an encoded document, and `encode_projection(.., None)` IS
+//! plan, export or composite. `DrDocument::transfer` / `PrecisionDocument::transfer` is where
+//! every `composite_env` caller and `scene_cut` obtains its transfer, and raises the staleness
+//! net. `linear_light_refusal` returns `None` before comparing anything on an encoded document,
+//! and `encode_projection(.., None)` IS
 //! `doc::quantize_with_job` statement for statement — the encoded path is byte-for-byte what it was. The
 //! adjustment TRANSCODE rule (`adjusted = decode(kernel(encode(backdrop)))`, then the `k` lerp in
 //! linear) is stated on `ByteTransfer::encode_f32`, and its byte double quantization is disclosed
@@ -158,7 +160,7 @@ pub(crate) fn stale_transfer_sentence() -> String {
         .to_string()
 }
 
-/// What the projection evaluates in linear light today.
+/// What the policy evaluates in linear light: every operator (P7-24).
 const MIGRATED: &[&str] = &[
     "normal",
     "multiply",
@@ -209,35 +211,21 @@ const MIGRATED: &[&str] = &[
     "blend_if",
     "fill_opacity",
     "knockout",
+    "image_size",
+    "free_transform",
+    "warp",
+    "retained_source_rerender",
 ];
 
-/// What it refuses, with the phase that owns each. Phase 2 is resampling.
-const REFUSED: &[(&str, u32)] = &[("Image Size", 2)];
-
 /// The operator table as JSON, for the host's Evaluation sheet and the MCP
-/// `get_evaluation` reply:
-/// `{"migrated":[..],"refused":[{"operator":..,"phase":..}],"resize_refusal":".."}`.
-/// The resize sentence travels HERE rather than being written a second time on
-/// the host side, so the guard and the MCP pre-check cannot drift apart.
+/// `get_evaluation` reply: `{"migrated":[..],"refused":[]}`. Nothing is
+/// refused by name any more; the empty list keeps the reply's shape.
 pub fn operators_json() -> String {
     json!({
         "migrated": MIGRATED,
-        "refused": REFUSED
-            .iter()
-            .map(|(operator, phase)| json!({"operator": operator, "phase": phase}))
-            .collect::<Vec<_>>(),
-        "resize_refusal": resize_refusal_sentence(),
+        "refused": [],
     })
     .to_string()
-}
-
-/// The refusal wording `Image Size` carries at either depth — the one place
-/// its sentence is written, so the host's guard and the MCP pre-check say the
-/// same thing.
-pub fn resize_refusal_sentence() -> String {
-    "Image Size resamples in the stored encoding, which linear-light evaluation does not \
-     support yet. Switch Image ▸ Evaluation back to Encoded to resize."
-        .to_string()
 }
 
 // --------------------------------------------------------------- transfer --
@@ -312,6 +300,37 @@ impl ByteTransfer {
     /// the encoded path shows it.
     pub fn encode_f32(&self, linear: [f32; 3]) -> [f32; 3] {
         self.encode(linear).map(|code| f32::from(code) / 255.0)
+    }
+}
+
+/// A linear-light byte resample's decode and encode (`sampling_linear`):
+/// the exact table entry per stored code, and the forward-threshold encode.
+impl crate::sampling_linear::LinearCodes<u8> for ByteTransfer {
+    fn linear(&self, codes: [u8; 3]) -> [f32; 3] {
+        std::array::from_fn(|c| self.decode8[c][usize::from(codes[c])])
+    }
+
+    fn codes(&self, linear: [f32; 3]) -> [u8; 3] {
+        self.encode(linear)
+    }
+}
+
+/// A byte document's transfer over the 16-bit render it makes of a 16-bit
+/// retained source before quantizing it (`retained_source_render::render8`):
+/// the byte decode ([`ByteTransfer::decode`]: the table entry on the byte
+/// lattice, interpolated between entries elsewhere) and the byte encode
+/// promoted to the u16 code `257·k`, which the nearest quantize returns to
+/// `k` exactly. The fallback lands on the byte document's own encoding and no
+/// 16-bit tables are built for it.
+pub(crate) struct WideByteCodes<'a>(pub(crate) &'a ByteTransfer);
+
+impl crate::sampling_linear::LinearCodes<u16> for WideByteCodes<'_> {
+    fn linear(&self, codes: [u16; 3]) -> [f32; 3] {
+        self.0.decode(codes.map(|v| f32::from(v) / 65535.0))
+    }
+
+    fn codes(&self, linear: [f32; 3]) -> [u16; 3] {
+        self.0.encode(linear).map(|code| u16::from(code) * 257)
     }
 }
 
