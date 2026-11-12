@@ -1392,7 +1392,7 @@ final class ImageDocument: NSDocument {
         case let .text(payload):
             return "It has to rasterize because its font family “\(payload.font)” is not "
                 + "installed here: re-rendering it through the transform would substitute a "
-                + "face."
+                + "face. Layer ▸ Replace Missing Fonts… replaces it."
         case .shape, .fill:
             return nil
         }

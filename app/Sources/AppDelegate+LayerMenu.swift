@@ -18,6 +18,8 @@ extension AppDelegate {
         menu.addItem(item("RAW Source…", #selector(EditorViewController.showRawSource(_:))))
         menu.addItem(item("Rasterize RAW Layer", #selector(EditorViewController.rasterizeEmbeddedImage(_:))))
         menu.addItem(item("Artwork Colors…", #selector(EditorViewController.editArtworkColors(_:))))
+        menu.addItem(
+            item("Replace Missing Fonts…", #selector(EditorViewController.replaceMissingFonts(_:))))
         menu.addItem(item("Rasterize Artwork", #selector(EditorViewController.rasterizeArtwork(_:))))
         // Places a Live Photo's still as an ordinary layer.
         menu.addItem(

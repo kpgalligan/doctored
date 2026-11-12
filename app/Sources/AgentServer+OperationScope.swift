@@ -18,7 +18,7 @@ extension AgentServer {
             "job_status", "cancel_job", "resource_usage",
             "list_documents", "get_document", "get_precision", "render", "sample_color", "sample_pixel",
             "histogram", "get_color_profile", "get_metadata", "list_channels", "list_guides",
-            "list_paths", "get_vector_mask",
+            "list_paths", "get_vector_mask", "list_missing_fonts",
             "get_selection", "list_actions", "get_color_samplers",
             "detect_horizon", "fit_crop",
         ]

@@ -447,6 +447,9 @@ extension EditorViewController {
                 // (`artwork_render::render_float`). MCP twins
                 // `rasterize_artwork` and the text/shape tools, `.floatTool`.
                 "rasterizeArtwork:", "editArtworkColors:",
+                // Layer ▸ Replace Missing Fonts… re-renders text through the
+                // same path. MCP twin `replace_missing_fonts`, `.floatTool`.
+                "replaceMissingFonts:",
                 // Layer ▸ New Fill Layer ▸ Solid Color… / Gradient…
                 // render through the same float artwork path. MCP twins
                 // `add_fill_layer` / `edit_fill_layer`, `.floatTool`.
@@ -546,7 +549,7 @@ extension EditorViewController {
         "showMotionBlur:", "showLensBlur:", "showTiltShift:", "showLiquify:", "showLensCorrection:",
         "showPresence:", "showDevelopFilter:", "showSmartSharpen:", "showDepthBlur:", "removeRedEye:",
         "showSuperZoom:", "showJpegArtifactsRemoval:", "showColorize:", // Neural Filters at 16 bits
-        "rasterizeArtwork:", "editArtworkColors:", "placeLivePhoto:", "showDocumentPrecision:", "convertDocumentPrecision:", "showInfo:", "showHistory:", "showSnapshots:",
+        "rasterizeArtwork:", "editArtworkColors:", "replaceMissingFonts:", "placeLivePhoto:", "showDocumentPrecision:", "convertDocumentPrecision:", "showInfo:", "showHistory:", "showSnapshots:",
         "convertToFloatPrecision:", // Image ▸ Mode ▸ 32 Bits/Channel…
         // Layer ▸ New Fill Layer ▸ Solid Color… / Gradient…, Pattern… and
         // Layer Content Options….

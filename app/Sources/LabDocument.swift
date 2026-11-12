@@ -238,6 +238,8 @@ enum LabDocument {
         "duplicate_path", "delete_path", "selection_to_path", "path_to_selection", "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
         "remove_vector_mask", "set_clipping_path",
+        // Replace Missing Fonts (MissingFonts.swift), authored sRGB kept.
+        "list_missing_fonts", "replace_missing_fonts",
         // Phase 6b: Apply Image and Calculations (`LabAnalysis.swift`), Stack Modes and Merge to HDR.
         "apply_image", "calculations", "stack_mode", "reduce_noise_from_stack", "merge_layers_to_hdr",
         // Phase 6a-ii: links, layer comps (`lab_comps` in the core), snapshots and Edit ▸ Clear:
@@ -312,6 +314,8 @@ enum LabDocument {
         "duplicate_path", "delete_path", "selection_to_path", "path_to_selection", "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
         "remove_vector_mask", "set_clipping_path",
+        // Replace Missing Fonts (MissingFonts.swift), authored sRGB kept.
+        "list_missing_fonts", "replace_missing_fonts",
         // Phase 6b (the same list as `tools`).
         "apply_image", "calculations", "stack_mode", "reduce_noise_from_stack", "merge_layers_to_hdr",
         // Phase 6a-ii: Edit ▸ Clear (the legacy `erase`; a plane, mask or channel the scalar fill).
@@ -394,7 +398,8 @@ enum LabDocument {
         // Phase 6a-i: fill layers, Layer Content Options, Rasterize and Artwork Colors, and the
         // Paths panel, Fill and Stroke Path and the vector masks (Gray 6a-i's list).
         "newSolidColorFillLayer:", "newGradientFillLayer:", "newPatternFillLayer:",
-        "layerContentOptions:", "rasterizeArtwork:", "editArtworkColors:", "makeWorkPath:",
+        "layerContentOptions:", "rasterizeArtwork:", "editArtworkColors:", "replaceMissingFonts:",
+        "makeWorkPath:",
         "makeSelectionFromPath:", "duplicateCurrentPath:", "deleteCurrentPath:", "fillCurrentPath:",
         "strokeCurrentPath:", "toggleClippingPath:", "addVectorMaskFromCurrentPath:",
         "addVectorMaskRevealAll:",

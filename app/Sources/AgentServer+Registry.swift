@@ -122,6 +122,7 @@ extension AgentServer {
         ("indexedColorTableHandlers", indexedColorTableHandlers),
         ("duotoneHandlers", duotoneHandlers),
         ("spotChannelsHandlers", spotChannelsHandlers),
+        ("missingFontsHandlers", missingFontsHandlers),
     ]
 
     /// Tool name → handler: the union of `handlerTables` (the first table
@@ -275,6 +276,7 @@ extension AgentServer {
         ("indexedColorTableToolFacts", indexedColorTableToolFacts),
         ("duotoneToolFacts", duotoneToolFacts),
         ("spotChannelsToolFacts", spotChannelsToolFacts),
+        ("missingFontsToolFacts", missingFontsToolFacts),
     ]
 
     /// Tool name → facts: the union of `factTables` (the first table wins a

@@ -92,6 +92,7 @@ Detail belongs in the source file's own header comment.
 - `AgentCatalog+Painting.swift` — `paintingCatalog`: brush, eraser, clone stamp and dodge/burn strokes.
 - `AgentCatalog+Retouching.swift` — `retouchingCatalog`: heal, spot heal, patch, jobs, content-aware fill and red eye.
 - `AgentCatalog+DescribedLayer.swift` — `describedLayerCatalog`: text and shape layer tools.
+- `AgentCatalog+MissingFonts.swift` — `missingFontsCatalog`: `list_missing_fonts` and `replace_missing_fonts`.
 - `AgentCatalog+BasicSelection.swift` — `basicSelectionCatalog`: marquee, lasso, magic wand, subject, quick mask, modify, fill and gradient.
 - `AgentCatalog+GuideChannel.swift` — `guideChannelCatalog`: guides, ruler origin and alpha channel tools.
 - `AgentCatalog+ChannelMath.swift` — `channelMathCatalog`: Apply Image, Calculations and luminosity masks.
@@ -149,6 +150,7 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+SubjectSelection.swift` — subject segmentation, mirroring Select ▸ Select Subject (every subject) and the Subject tool's press-and-hold (the one under the point).
 - `AgentServer+SubjectTargets.swift` — mirrors Select ▸ Select Objects…, Select People… and All People; instance IDs are ephemeral indices for the captured composite and model.
 - `AgentServer+Text.swift` — `add_text_layer` and `edit_text_layer`, mirroring the text tool's commit and re-open, so either way renders the same layer through its description.
+- `AgentServer+MissingFonts.swift` — `list_missing_fonts` and `replace_missing_fonts`, mirroring Layer ▸ Replace Missing Fonts…'s rows and Apply over the same ops.
 - `AgentServer+TransformJobs.swift` — the final Free Transform / Distort raster commits as worker jobs (only pure affine/perspective resampling) and Transform Again's memory.
 - `SoftBrush.swift` — `SoftBrush` is the dab engine behind the paint tools' tip options.
 - `BrushPreset.swift` — the paint tools' built-in tip presets: named sets of the tip fields (hardness, flow, spacing, angle, roundness, airbrush); size and opacity stay untouched.
@@ -158,6 +160,8 @@ Detail belongs in the source file's own header comment.
 - `TextLayer.swift` — text layers: `TextBox`, `TextStyle`, `TextLayerPayload` (the meta) and `TextLayer`, the one render-and-name entry point the tool and the agent share.
 - `EditorViewController+Text.swift` — the text tool's layer logic: click to open or re-open a text layer, the panel's double-click, and the commit into a re-editable text layer.
 - `EditorViewController+TextTypography.swift` — the style the text tool types with: the live family/size/alignment plus the options store's weight, tracking, leading and decorations.
+- `MissingFonts.swift` — text layers whose family is not installed: `missingFontLayers` and `replacingMissingFonts`, one undo step, with the per-axis placement rule.
+- `ReplaceFontsSheetController.swift` / `EditorViewController+ReplaceFonts.swift` — Layer ▸ Replace Missing Fonts…: one family popup per missing family; the action and its validation.
 - `ShapeLayer.swift` — shape layers: `ShapeLayerPayload`, the JSON description in the layer's meta (the source of truth; the raster is its cache), and `ShapeLayer`'s render.
 - `ShapeTool.swift` — the style a shape drags with: the options bar's fill, stroke, weight and corner radius, resolved to native types.
 - `EditorViewController+Shapes.swift` — the shape tools (U): drag out a rectangle, ellipse or line into a re-editable shape layer; a refused re-edit keeps its session open.

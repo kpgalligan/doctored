@@ -161,7 +161,7 @@ Goal: large high-depth multilayer documents meet declared latency, memory, save 
 - `OPEN` [#16](https://github.com/kpgalligan/doctored/issues/16) — 11C's 16-bit LUT-profile conversion, the rest of the LUT-tagged authored colours and the soft-proof reference miss; 11D's PNG `gAMA` evaluation.
 - `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — 6D's Magnetic Lasso Part B; frequency separation.
 - `OPEN` [#18](https://github.com/kpgalligan/doctored/issues/18) — brush dynamics, the Pencil and erasers, brush, gradient and pattern libraries, Define Pattern.
-- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — font replacement and type on a path.
+- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — type on a path, Warp Text, shape layers from a path, the path tools.
 - `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — 12D's Match Zoom and Location, with 12B's and 12C's open items.
 - `OPEN` [#2](https://github.com/kpgalligan/doctored/issues/2) — 10C's measured adjustment and effect-kernel gaps, and a clip base below 100 % Fill (P7-39).
 - `OPEN` [#3](https://github.com/kpgalligan/doctored/issues/3) — the Pattern Overlay angle.
@@ -178,7 +178,7 @@ Selectable work after the phases. An item with no issue is inventory in the feat
 
 - **Gradients and fills.** Fill layers and Pattern Overlay shipped. Gradient presets, Define Pattern, a pattern library, Pattern fill and multistop style gradients: [#18](https://github.com/kpgalligan/doctored/issues/18); the Pattern Overlay angle: [#3](https://github.com/kpgalligan/doctored/issues/3).
 - **Brushes and swatches.** User brush presets, brush dynamics, the Pencil and the Background and Magic Erasers: [#18](https://github.com/kpgalligan/doctored/issues/18). Sampled tips and swatches are inventory.
-- **Text and paths.** Attributed colour runs (8E), the Pen, the Paths panel and vector masks shipped ([ADR](v1-paths.md)). Font replacement, type on a path, path tools: [#19](https://github.com/kpgalligan/doctored/issues/19); paths, the clipping path and raster-less vector masks cross a layered PSD, PSB or TIFF, and paths and the clipping path a flat RGB or CMYK TIFF too; the `vmsk` forms with no authored sample: [#13](https://github.com/kpgalligan/doctored/issues/13).
+- **Text and paths.** Attributed colour runs (8E), the Pen, the Paths panel and vector masks ([ADR](v1-paths.md)) and Replace Missing Fonts ([ADR](replace-missing-fonts.md)) shipped. Type on a path, path tools: [#19](https://github.com/kpgalligan/doctored/issues/19); paths, the clipping path and raster-less vector masks cross a layered PSD, PSB or TIFF, and paths and the clipping path a flat RGB or CMYK TIFF too; the `vmsk` forms with no authored sample: [#13](https://github.com/kpgalligan/doctored/issues/13).
 - **Styles and blending.** Blend If on adjustment layers, style presets, repeated effects, gradient glows and knockout shipped. Expandable effect rows in the Layers panel are inventory.
 - **Geometry and deformation.** Trim, Reveal All, arbitrary rotation, perspective crop, crop aspect presets, warp and a destructive Liquify shipped; a re-editable Liquify is `DROPPED` (see Phase 9).
 - **Photographic finishing.** The retouch brushes, Motion and Lens Blur, Tilt-Shift, targeted adjustments, Lens Correction ([ADR](v1-lensfun.md)) and Equalize shipped. Frequency separation: [#17](https://github.com/kpgalligan/doctored/issues/17). Match Color is inventory.

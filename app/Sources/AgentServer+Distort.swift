@@ -149,7 +149,8 @@ extension AgentServer {
         switch description {
         case let .text(payload):
             return "It rasterized because its font family “\(payload.font)” is not installed "
-                + "here, so re-rendering it would have substituted a face."
+                + "here, so re-rendering it would have substituted a face. Undo, then "
+                + "replace_missing_fonts replaces it."
         case .shape, .fill:
             return nil
         }

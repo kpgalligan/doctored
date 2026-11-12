@@ -251,6 +251,9 @@ extension AgentServer {
         if let anchor = anchor {
             fields["origin"] = ["x": Double(anchor.x), "y": Double(anchor.y)]
         }
+        // A family this Mac lacks (`TextStyle.isInstalled`): the layer keeps its saved pixels
+        // until replace_missing_fonts replaces it.
+        if !payload.style.isInstalled { fields["font_missing"] = true }
         return fields
     }
 

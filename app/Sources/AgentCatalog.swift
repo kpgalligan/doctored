@@ -196,6 +196,7 @@ extension AgentServer {
         catalog.append(contentsOf: generativeFillCatalog(schema))
         catalog.append(contentsOf: modelSelectionCatalog(schema))
         catalog.append(contentsOf: describedLayerCatalog(schema))
+        catalog.append(contentsOf: missingFontsCatalog(schema))
         catalog.append(contentsOf: basicSelectionCatalog(schema))
         catalog.append(contentsOf: guideChannelCatalog(schema))
         catalog.append(contentsOf: channelMathCatalog(schema))

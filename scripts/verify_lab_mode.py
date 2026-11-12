@@ -1063,6 +1063,8 @@ LAB_TOOLS = [
     'duplicate_path', 'delete_path', 'selection_to_path', 'path_to_selection', 'fill_path',
     'stroke_path', 'get_vector_mask', 'set_vector_mask', 'set_vector_mask_properties',
     'remove_vector_mask', 'set_clipping_path',
+    # Replace Missing Fonts (designs/replace-missing-fonts.md).
+    'list_missing_fonts', 'replace_missing_fonts',
     # Phase 6b-i.
     'apply_image', 'calculations', 'stack_mode', 'reduce_noise_from_stack', 'merge_layers_to_hdr',
     # Phase 6a-ii: Gray 6a-ii's sixteen.

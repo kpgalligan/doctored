@@ -2649,6 +2649,7 @@ extension EditorViewController: NSUserInterfaceValidations {
         case #selector(editArtworkColors(_:)):
             guard let doc = document?.doc else { return false }
             return doc.artworkIndices.contains(document?.activeLayerIndex ?? -1)
+        case #selector(replaceMissingFonts(_:)): return validateReplaceFontsItem()
         case #selector(rasterizeArtwork(_:)):
             guard let doc = document?.doc else { return false }
             let active = document?.activeLayerIndex ?? -1
