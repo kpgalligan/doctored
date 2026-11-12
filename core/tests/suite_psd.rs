@@ -47,6 +47,8 @@ mod psd_background;
 mod psd_bevel_technique;
 #[path = "psd_channel_mixer.rs"]
 mod psd_channel_mixer;
+#[path = "psd_clipping_path.rs"]
+mod psd_clipping_path;
 #[path = "psd_composite_transparency.rs"]
 mod psd_composite_transparency;
 #[path = "psd_comps.rs"]
@@ -149,3 +151,5 @@ mod psd_zip16;
 mod psd_zip8;
 #[path = "tiff_layers32.rs"]
 mod tiff_layers32;
+#[path = "tiff_paths.rs"]
+mod tiff_paths;

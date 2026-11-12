@@ -790,6 +790,11 @@ impl PrecisionDocument {
             self.width,
             self.height,
         )?;
+        // The run's unread path records, which name other places after any
+        // canvas move but Image Size (`tiff_paths`): dropping them counts too.
+        let metadata = crate::tiff_paths::moves_canvas(edit)
+            .then(|| crate::tiff_paths::canvas_moved(&self.metadata))
+            .filter(|metadata| *metadata != self.metadata);
         // The LAYER COMPS a whole-canvas edit remaps (`comps_geometry`): each
         // bound raster entry through the very plane rule its layer takes, a
         // retained source through the source bounds. Per-layer edits leave
@@ -861,6 +866,7 @@ impl PrecisionDocument {
                 || ruler_origin != self.ruler_origin
                 || color_samplers != self.color_samplers
                 || paths != *self.paths.entries
+                || metadata.is_some()
                 || comps != self.comps,
             job,
         };
@@ -889,6 +895,9 @@ impl PrecisionDocument {
             result.ruler_origin = ruler_origin;
             result.color_samplers = color_samplers;
             result.paths.set_entries(paths);
+            if let Some(metadata) = metadata {
+                result.metadata = metadata;
+            }
             result.comps = comps;
             // The vector-mask follow hook (`precision_vector_mask`).
             Some(self.following_geometry(result, edit, limit, other_retained))

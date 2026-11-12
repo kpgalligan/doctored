@@ -183,6 +183,7 @@ enum CmykDocument {
         "makeWorkPath:",
         "makeSelectionFromPath:",
         "duplicateCurrentPath:",
+        "toggleClippingPath:",
         "deleteCurrentPath:",
         "addVectorMaskFromCurrentPath:",
         "addVectorMaskRevealAll:",
@@ -460,7 +461,8 @@ enum CmykDocument {
 
     /// What a CMYK TIFF or JPEG of `doc` loses: the file is the composite flattened onto paper,
     /// with no alpha sample, so the core's editable-state list (layers, masks, styles, layer
-    /// properties and bounds, saved channels, guides, paths, transparency), plus the 16-bit ink
+    /// properties and bounds, saved channels, guides, paths — which a TIFF keeps in its 8BIM run
+    /// unless one lies past 128 canvases — transparency), plus the 16-bit ink
     /// a JPEG writes at 8 bits, the profile when it is not embedded and the capture metadata when
     /// it is stripped. The spot channels a JPEG composites are `ImageDocument.saveLosses`' line.
     /// `[]` only when the file reopens as the same document, which Save keeps in place on
@@ -471,7 +473,7 @@ enum CmykDocument {
             return ["editable CMYK document state; a CMYK document saves as .doctored, TIFF or JPEG"]
         }
         guard let typed = doc.precision else { throw DoctoredCoreError(message: "No CMYK document is loaded.") }
-        var losses = try typed.flatStateLosses(alphaKept: false)
+        var losses = try typed.flatStateLosses(alphaKept: false, tiff: format == .tiff)
         if format == .jpeg, typed.cmykInfo()?["depth"] as? Int == 16 {
             losses.append("16-bit CMYK precision (JPEG holds 8 bits)")
         }

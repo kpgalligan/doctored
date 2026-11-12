@@ -140,7 +140,7 @@ enum GrayDocument {
         "edit_fill_layer", "rasterize_artwork", "list_paths", "set_path", "rename_path",
         "duplicate_path", "delete_path", "selection_to_path", "path_to_selection", "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
-        "remove_vector_mask",
+        "remove_vector_mask", "set_clipping_path",
         // Phase 6a-ii: links, layer comps, snapshots and Edit ▸ Clear.
         "link_layers", "unlink_layers", "list_layer_comps", "save_layer_comp", "apply_layer_comp",
         "update_layer_comp", "delete_layer_comp", "reorder_layer_comp", "list_snapshots",
@@ -203,7 +203,7 @@ enum GrayDocument {
         "edit_fill_layer", "rasterize_artwork", "list_paths", "set_path", "rename_path",
         "duplicate_path", "delete_path", "selection_to_path", "path_to_selection", "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
-        "remove_vector_mask",
+        "remove_vector_mask", "set_clipping_path",
         // Phase 6a-ii: Edit ▸ Clear (the legacy `erase`, u16 storage only).
         "clear_selection",
         // Phase 6b: the Histogram, Apply Image and Calculations, Stack Modes and the stack tools,
@@ -284,7 +284,8 @@ enum GrayDocument {
         "newSolidColorFillLayer:", "newGradientFillLayer:", "newPatternFillLayer:",
         "layerContentOptions:", "rasterizeArtwork:", "editArtworkColors:", "makeWorkPath:",
         "makeSelectionFromPath:", "duplicateCurrentPath:", "deleteCurrentPath:", "fillCurrentPath:",
-        "strokeCurrentPath:", "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
+        "strokeCurrentPath:", "toggleClippingPath:", "addVectorMaskFromCurrentPath:",
+        "addVectorMaskRevealAll:",
         "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
         // Phase 6a-ii: Link and Unlink Layers, the Snapshots window and Edit ▸ Clear (Layer Comps
         // is a depth-independent window action).
@@ -438,7 +439,7 @@ enum GrayDocument {
             return ["editable Grayscale document state; a Grayscale document saves as .doctored, PNG, TIFF or JPEG"]
         }
         guard let typed = doc.precision else { throw DoctoredCoreError(message: "No Grayscale document is loaded.") }
-        var losses = try typed.flatStateLosses(alphaKept: format != .jpeg)
+        var losses = try typed.flatStateLosses(alphaKept: format != .jpeg, tiff: format == .tiff)
         if let depth = doc.grayDepth, bitDepth < depth {
             losses.append("\(depth)-bit Grayscale precision (" + (format == .jpeg
                 ? "JPEG holds 8 bits)" : "written at \(bitDepth) bits)"))

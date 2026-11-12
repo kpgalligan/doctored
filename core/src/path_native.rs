@@ -24,7 +24,9 @@
 //! ```
 //!
 //! with `doc_path::entry_value`'s entries (no ids) and `path_geometry`'s
-//! shape keys. A vector mask names its layer by its bottom-first record
+//! shape keys; the clipping path's entry adds `"clipping":{"tail":hex}`,
+//! which word 114 licenses (`clipping_path_native`, checked by each depth's
+//! reader once this table is read). A vector mask names its layer by its bottom-first record
 //! index, and only a LIVE one is written (`doc_vector_mask`). The layer's
 //! own mask record in the file is the BAKED plane, which is what makes the
 //! picture independent of this table; the table adds the shape, the flags
@@ -85,6 +87,10 @@ const ANCHOR_BYTES: u64 = 118;
 const MASK_BYTES: u64 = 400;
 /// A plane's width and height.
 const PLANE_FRAMING_BYTES: u64 = 8;
+/// The clipping path's key, `,"clipping":{"tail":""}` (24 bytes) and its
+/// tail at two hex digits a byte, charged once: a list holds at most one
+/// (`doc_path::list_refusal`).
+const CLIPPING_BYTES: u64 = 32 + 2 * crate::doc_path::MAX_CLIPPING_TAIL_BYTES as u64;
 
 const INVALID_MASKS: &str = "invalid native path table vector mask section";
 
@@ -196,10 +202,16 @@ pub(crate) fn encoded_bound(list: &[PathEntry], masks: &[TableMask<'_>], sample_
     }
     let (_, subpaths, anchors) = counts(list, masks);
     let names = list.iter().fold(0u64, |n, e| n + 6 * e.name.len() as u64);
+    let clipping = if crate::clipping_path_native::carries(list) {
+        CLIPPING_BYTES
+    } else {
+        0
+    };
     FRAMING_BYTES
         + WRAPPER_BYTES
         + ENTRY_BYTES * list.len() as u64
         + names
+        + clipping
         + MASK_BYTES * masks.len() as u64
         + SUBPATH_BYTES * subpaths
         + ANCHOR_BYTES * anchors

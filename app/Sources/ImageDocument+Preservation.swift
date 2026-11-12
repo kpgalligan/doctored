@@ -10,7 +10,7 @@ extension RasterDocument {
         let combined: Set<String> = [
             "saved selection channels", "guides and ruler origin", "color samplers", "paths",
         ]
-        return try typed.flatStateLosses(alphaKept: true).filter { !combined.contains($0) }
+        return try typed.flatStateLosses(alphaKept: true, tiff: false).filter { !combined.contains($0) }
     }
 
     /// The capture packets a flat `format` file of this document drops: "capture metadata"

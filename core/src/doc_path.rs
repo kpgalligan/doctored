@@ -15,6 +15,12 @@
 //! for the list the document already holds. [`list_refusal`] is the one home
 //! of the rules and of their sentences; the FFI setters report them.
 //!
+//! **The clipping path.** At most one SAVED entry may be the document's
+//! clipping path ([`ClippingPath`]), the designation image resource 2999
+//! names by the path's name (`psd_paths`). It rides on the entry, so it is
+//! kept, moved and removed with its path by every edit below, and it is
+//! stored in the entry's JSON (`clipping`).
+//!
 //! **Identity.** An id is kept across every edit, geometry op, undo and depth
 //! conversion, so a host's current-path selection stays attached to a path
 //! rather than to a position in the list. An entry arriving with id 0 (a new
@@ -34,7 +40,9 @@
 //! lie partly or wholly off the canvas at any time. The result is not rounded
 //! to pixels; it is stored the way `path_geometry` stores every coordinate
 //! (four decimals, inside the ±1,000,000 wall). A per-layer transform moves
-//! nothing about the canvas, so it leaves the paths alone.
+//! nothing about the canvas, so it leaves the paths alone. Each of those
+//! call sites but Image Size also takes the path records no open read out
+//! of the document's 8BIM run (`tiff_paths::canvas_moved`).
 //! `precision_path::edited_paths` is the typed geometry fold's one
 //! dispatcher over a `GeometryEdit`, and the byte Straighten arm's.
 
@@ -90,6 +98,24 @@ pub struct PathEntry {
     pub name: String,
     pub kind: PathKind,
     pub shape: PathShape,
+    /// `Some` when this saved path is the document's CLIPPING PATH (module
+    /// doc).
+    pub clipping: Option<ClippingPath>,
+}
+
+/// The longest [`ClippingPath::tail`], in bytes.
+pub(crate) const MAX_CLIPPING_TAIL_BYTES: usize = 64;
+
+/// The CLIPPING PATH designation: which saved path a file names in image
+/// resource 2999 (`psd_paths`), on the entry itself so that a rename, a
+/// delete, a geometry op, undo and a depth conversion carry it with the
+/// path. `tail` is the bytes a file's resource 2999 holds after the path's
+/// name, kept verbatim and written back after it; it is empty for a
+/// designation made in Doctored, which writes the name alone (no published
+/// layout or authored sample describes those bytes).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ClippingPath {
+    pub tail: Vec<u8>,
 }
 
 /// The byte document's path state: ONE field of `DrDocument`, so every carry
@@ -145,7 +171,9 @@ pub(crate) fn anchor_cap_sentence() -> String {
 /// Why a document may not hold `list`, or `None` — the ONE home of the list
 /// rules: at most [`MAX_PATHS`] entries; at most one work path; every saved
 /// name non-empty, at most [`MAX_PATH_NAME_BYTES`] bytes, not
-/// [`WORK_PATH_NAME`] and unique; and the list's anchors plus
+/// [`WORK_PATH_NAME`] and unique; at most one clipping path, never the work
+/// path (a file names the clipping path by its saved name), its tail at
+/// most [`MAX_CLIPPING_TAIL_BYTES`]; and the list's anchors plus
 /// `vector_mask_anchors` (the document's live vector-mask shapes) at most
 /// [`MAX_DOCUMENT_PATH_ANCHORS`]. The work path's own name is not a rule: it
 /// is always written as [`WORK_PATH_NAME`].
@@ -155,6 +183,24 @@ pub(crate) fn list_refusal(list: &[PathEntry], vector_mask_anchors: usize) -> Op
     }
     if list.iter().filter(|e| e.kind == PathKind::Work).count() > 1 {
         return Some("a document holds at most one work path".into());
+    }
+    if list.iter().filter(|e| e.clipping.is_some()).count() > 1 {
+        return Some("a document holds at most one clipping path".into());
+    }
+    if list
+        .iter()
+        .any(|e| e.kind == PathKind::Work && e.clipping.is_some())
+    {
+        return Some("the work path cannot be the clipping path; save it first".into());
+    }
+    if list.iter().any(|e| {
+        e.clipping
+            .as_ref()
+            .is_some_and(|c| c.tail.len() > MAX_CLIPPING_TAIL_BYTES)
+    }) {
+        return Some(format!(
+            "a clipping path's resource bytes after its name are longer than {MAX_CLIPPING_TAIL_BYTES} bytes"
+        ));
     }
     let mut names = HashSet::new();
     for entry in list.iter().filter(|e| e.kind == PathKind::Saved) {
@@ -234,8 +280,10 @@ pub(crate) fn accepted(
 
 // -------------------------------------------------------------------- JSON --
 
-/// One entry as JSON: the shape's own keys beside `name` and `kind`, and
-/// `id` when `with_id` (the FFI form; `.rz` stores none).
+/// One entry as JSON: the shape's own keys beside `name` and `kind`, `id`
+/// when `with_id` (the FFI form; `.rz` stores none), and for the clipping
+/// path `"clipping":{"tail":"<lowercase hex>"}` (absent on every other
+/// entry, so a list with no clipping path is the prior JSON).
 pub(crate) fn entry_value(entry: &PathEntry, with_id: bool) -> Value {
     let mut value = entry.shape.to_value();
     if let Value::Object(object) = &mut value {
@@ -250,8 +298,42 @@ pub(crate) fn entry_value(entry: &PathEntry, with_id: bool) -> Value {
                 PathKind::Saved => "saved",
             }),
         );
+        if let Some(clipping) = &entry.clipping {
+            let tail: String = clipping.tail.iter().map(|b| format!("{b:02x}")).collect();
+            object.insert("clipping".into(), json!({ "tail": tail }));
+        }
     }
     value
+}
+
+/// An entry's `clipping` key: absent or null is not the clipping path; an
+/// object is, its `tail` (hex, absent for none) the resource's bytes after
+/// the name.
+fn clipping_from_value(v: Option<&Value>) -> Result<Option<ClippingPath>, String> {
+    let wrong = || "a path's clipping must be an object with a hex tail".to_string();
+    let object = match v {
+        None | Some(Value::Null) => return Ok(None),
+        Some(Value::Object(object)) => object,
+        Some(_) => return Err(wrong()),
+    };
+    let text = match object.get("tail") {
+        None | Some(Value::Null) => "",
+        Some(Value::String(text)) => text.as_str(),
+        Some(_) => return Err(wrong()),
+    };
+    // The length cap is `list_refusal`'s, with its own sentence.
+    if text.len() % 2 != 0 || !text.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(wrong());
+    }
+    let tail = (0..text.len())
+        .step_by(2)
+        .map(|at| {
+            text.get(at..at + 2)
+                .and_then(|pair| u8::from_str_radix(pair, 16).ok())
+        })
+        .collect::<Option<Vec<u8>>>()
+        .ok_or_else(wrong)?;
+    Ok(Some(ClippingPath { tail }))
 }
 
 /// One entry out of JSON. `kind` is required; `name` may be absent on the
@@ -279,6 +361,7 @@ fn entry_from_value(v: &Value) -> Result<PathEntry, String> {
         name,
         kind,
         shape: PathShape::from_value(v)?,
+        clipping: clipping_from_value(object.get("clipping"))?,
     })
 }
 

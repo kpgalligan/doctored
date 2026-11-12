@@ -404,7 +404,7 @@ pub(crate) fn cmyk_file_lines(
     if container.merged_alpha && container.channels > 4 && composite_available {
         observations.push(crate::cmyk_io::MERGED_ALPHA.into());
     }
-    let spots = container.spot_records();
+    let spots = container.report_spot_records();
     let extra = spots.alpha;
     if extra > 0 {
         losses.push(format!("{extra} additional saved channels (spot or alpha) detected in the header; the CMYK composite does not retain them."));

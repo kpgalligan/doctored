@@ -286,6 +286,8 @@ impl DrDocument {
             ),
             // Word 113 and its LBKG table (`background_native`).
             crate::background_native::header_bytes(crate::background_native::byte_entry(self)),
+            // Word 114 (`clipping_path_native`), no table.
+            crate::clipping_path_native::header_bytes(&self.paths.entries),
             // Word 90 (`style_pattern`), no table.
             if crate::style_pattern::styles_pattern(self) {
                 4

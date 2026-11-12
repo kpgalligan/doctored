@@ -58,11 +58,11 @@ fn fixed(bytes: &[u8]) -> f64 {
     f64::from(i32::from_be_bytes(bytes.try_into().unwrap())) / 16_777_216.0
 }
 
-fn byte_open(path: &Path) -> *mut DrDocument {
+pub fn byte_open(path: &Path) -> *mut DrDocument {
     Box::into_raw(open_psd(path, &import_report(path), LAYERS))
 }
 
-fn typed_open(path: &Path) -> Box<PrecisionDocument> {
+pub fn typed_open(path: &Path) -> Box<PrecisionDocument> {
     let report = import_report(path);
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
@@ -81,7 +81,7 @@ fn typed_open(path: &Path) -> Box<PrecisionDocument> {
     unsafe { Box::from_raw(doc) }
 }
 
-fn byte_save(doc: *const DrDocument, path: &Path, container: i32) -> Vec<u8> {
+pub fn byte_save(doc: *const DrDocument, path: &Path, container: i32) -> Vec<u8> {
     let mut err: *mut c_char = ptr::null_mut();
     let ok = unsafe {
         dr_doc_save_psd(
@@ -97,7 +97,7 @@ fn byte_save(doc: *const DrDocument, path: &Path, container: i32) -> Vec<u8> {
     std::fs::read(path).unwrap()
 }
 
-fn typed_save(doc: &PrecisionDocument, path: &Path) {
+pub fn typed_save(doc: &PrecisionDocument, path: &Path) {
     let projection = doc.render(LIMIT, 0, None).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
     let ok = unsafe {
@@ -214,7 +214,7 @@ fn with_vector_mask(doc: *mut DrDocument) -> *mut DrDocument {
     out
 }
 
-fn document(dir: &TempDir) -> *mut DrDocument {
+pub fn document(dir: &TempDir) -> *mut DrDocument {
     let doc = doc_from(dir, "base.png", &solid(60, 40, [10, 20, 30, 255]));
     let doc = common::add_layer(
         dir,
@@ -229,7 +229,7 @@ fn document(dir: &TempDir) -> *mut DrDocument {
 
 /// Every coordinate of two path lists equal within the fixed-point step, and
 /// the names, kinds, order, closure and fill rules equal.
-fn assert_paths_close(got: &[PathEntry], want: &[PathEntry], what: &str) {
+pub fn assert_paths_close(got: &[PathEntry], want: &[PathEntry], what: &str) {
     assert_eq!(got.len(), want.len(), "{what}: count");
     for (g, w) in got.iter().zip(want) {
         assert_eq!((&g.name, g.kind), (&w.name, w.kind), "{what}");
@@ -260,7 +260,7 @@ fn assert_shapes_close(got: &PathShape, want: &PathShape, what: &str) {
 }
 
 /// The 26-byte records of one subpath, computed here from Adobe's layout.
-fn expected_records(shape: &PathShape, canvas: (f64, f64)) -> Vec<u8> {
+pub fn expected_records(shape: &PathShape, canvas: (f64, f64)) -> Vec<u8> {
     let mut out = Vec::new();
     let mut record = |selector: u16, body: Vec<u8>| {
         out.extend_from_slice(&selector.to_be_bytes());
@@ -301,7 +301,7 @@ fn expected_records(shape: &PathShape, canvas: (f64, f64)) -> Vec<u8> {
 }
 
 /// Resource `id`'s (Pascal name, body) in a classic PSD, by Adobe's layout.
-fn resource(bytes: &[u8], id: u16) -> Option<(String, Vec<u8>)> {
+pub fn resource(bytes: &[u8], id: u16) -> Option<(String, Vec<u8>)> {
     let be32 = |at: usize| u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
     let mut at = 26;
     at += 4 + be32(at);

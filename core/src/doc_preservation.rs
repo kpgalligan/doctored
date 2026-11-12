@@ -68,6 +68,9 @@ impl DrDocument {
         strip_metadata: bool,
     ) -> Vec<&'static str> {
         let layers = &self.layers;
+        // A flat TIFF keeps the paths in its 8BIM run (`tiff_paths`).
+        let paths_kept =
+            self.paths.entries.is_empty() || (format == Format::Tiff && self.tiff_keeps_paths());
         let mut losses = flat_state::losses(&EditableState {
             sources: layers
                 .iter()
@@ -99,7 +102,7 @@ impl DrDocument {
             spot_channels: self.has_spot_channel() && format != Format::Tiff,
             guides: !self.guides.is_empty() || self.ruler_origin != (0.0, 0.0),
             samplers: !self.color_samplers.is_empty(),
-            paths: !self.paths.entries.is_empty(),
+            paths: !paths_kept,
             comps: !self.comps.is_empty(),
             global_light: self.global_light != GlobalLight::default(),
         });

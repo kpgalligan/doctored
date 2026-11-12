@@ -171,7 +171,11 @@ pub(crate) const MAX_DRDC_BLOB_LEN: u32 = 16 * 1024 * 1024;
 /// the document's mark names a layer it holds): the FIRST word inside 45
 /// (ahead of 112) with its `LBKG` table after `SPOT`, and in a typed file the
 /// word right after the CMYK slot (ahead of 112) with `LBKG` after `SPOT`.
-/// The next free word is 114. The constant stays 89: words 90 to 113 are
+/// 114 is the clipping path word at both depths (`clipping_path_native`:
+/// some path is the clipping path, its key in the PATH table's entry): the
+/// FIRST word inside 45 (ahead of 113), and in a typed file the word right
+/// after the CMYK slot (ahead of 113), with no table.
+/// The next free word is 115. The constant stays 89: words 90 to 114 are
 /// conditional words read ahead of the body version, never a body version
 /// themselves.
 /// Since 2026-10-10 words 65, 66, 68, 69, 70 and 73
@@ -497,10 +501,15 @@ impl DrDocument {
     /// the profile rides inside that record's meta. A document with no such
     /// meta writes nothing here, so its bytes stay exactly the prior
     /// writer's.
-    /// Version 113 is the FIRST word inside 45 (`background_native`), ahead
+    /// Version 114 is the FIRST word inside 45 (`clipping_path_native`),
+    /// ahead of 113, with no table: a document some path of which is the
+    /// clipping path writes 114 after 45 and before every other conditional
+    /// word; the designation rides in the PATH table's entry. The next free
+    /// word is 115.
+    /// Version 113 is the next word inside 45 (`background_native`), ahead
     /// of 112: a document whose Background mark names a layer it holds
-    /// writes 113 after 45 and before every other conditional word, and its
-    /// `LBKG` table after SPOT, before LIDS. The next free word is 114.
+    /// writes 113 after 45 and before every other conditional word but 114,
+    /// and its `LBKG` table after SPOT, before LIDS.
     /// Version 112 is the next word inside 45 (`spot_channel_native`, #1),
     /// ahead of 111: a document some channel of which is a spot channel
     /// writes 112 after 45 and before every other conditional word but 113,
@@ -640,7 +649,13 @@ impl DrDocument {
         // every layer, so there is no "document without the table".
         let ids = crate::identity_native::byte_ids(self);
         buf.extend_from_slice(&crate::identity_native::BYTE_VERSION.to_le_bytes());
-        // Then `background_native`'s word 113 — the FIRST word inside 45,
+        // Then `clipping_path_native`'s word 114 — the FIRST word inside 45,
+        // ahead of 113, with no table, written only when some path is the
+        // clipping path (the key rides in the PATH table's entry).
+        if crate::clipping_path_native::carries(&self.paths.entries) {
+            buf.extend_from_slice(&crate::clipping_path_native::WORD.to_le_bytes());
+        }
+        // Then `background_native`'s word 113 — the next word inside 45,
         // ahead of 112, written only when the Background mark names a layer
         // the document holds; its LBKG table follows SPOT.
         let background = crate::background_native::byte_entry(self);

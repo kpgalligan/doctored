@@ -401,6 +401,8 @@ impl PrecisionDocument {
             + crate::background_native::header_bytes(
                 crate::background_native::precision_entry(self),
             )
+            // Word 114 (`clipping_path_native`), no table.
+            + crate::clipping_path_native::header_bytes(&self.paths.entries)
             + crate::float_native::header_bytes(float)
             + crate::cmyk_native::header_bytes(self.cmyk_policy().map(|p| &**p))
             + crate::gray_native::header_bytes(self.gray_policy().map(|p| &**p))

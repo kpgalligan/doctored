@@ -193,6 +193,14 @@ impl PrecisionDocument {
                 carried |= crate::doc_color::CARRIES_PROFILE;
                 outcome.profile = true;
             }
+            // A kept TIFF carries the paths as the save does (`tiff_paths`);
+            // their records are fractions, so the output size moves nothing.
+            if let Some(paths) = self
+                .tiff_path_run()
+                .filter(|_| request.format == Format::Tiff)
+            {
+                crate::tiff_paths::attach(&mut side, paths);
+            }
             let bytes = crate::cmyk_io::cmyk_tiff_bytes(&samples, dimensions, depth, &side)?;
             drop(samples);
             job.report(1.0, 5)?;

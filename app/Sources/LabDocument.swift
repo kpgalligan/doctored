@@ -237,7 +237,7 @@ enum LabDocument {
         "edit_fill_layer", "rasterize_artwork", "list_paths", "set_path", "rename_path",
         "duplicate_path", "delete_path", "selection_to_path", "path_to_selection", "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
-        "remove_vector_mask",
+        "remove_vector_mask", "set_clipping_path",
         // Phase 6b: Apply Image and Calculations (`LabAnalysis.swift`), Stack Modes and Merge to HDR.
         "apply_image", "calculations", "stack_mode", "reduce_noise_from_stack", "merge_layers_to_hdr",
         // Phase 6a-ii: links, layer comps (`lab_comps` in the core), snapshots and Edit ▸ Clear:
@@ -311,7 +311,7 @@ enum LabDocument {
         "edit_fill_layer", "rasterize_artwork", "list_paths", "set_path", "rename_path",
         "duplicate_path", "delete_path", "selection_to_path", "path_to_selection", "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
-        "remove_vector_mask",
+        "remove_vector_mask", "set_clipping_path",
         // Phase 6b (the same list as `tools`).
         "apply_image", "calculations", "stack_mode", "reduce_noise_from_stack", "merge_layers_to_hdr",
         // Phase 6a-ii: Edit ▸ Clear (the legacy `erase`; a plane, mask or channel the scalar fill).
@@ -396,7 +396,8 @@ enum LabDocument {
         "newSolidColorFillLayer:", "newGradientFillLayer:", "newPatternFillLayer:",
         "layerContentOptions:", "rasterizeArtwork:", "editArtworkColors:", "makeWorkPath:",
         "makeSelectionFromPath:", "duplicateCurrentPath:", "deleteCurrentPath:", "fillCurrentPath:",
-        "strokeCurrentPath:", "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
+        "strokeCurrentPath:", "toggleClippingPath:", "addVectorMaskFromCurrentPath:",
+        "addVectorMaskRevealAll:",
         "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
         // Phase 6b: Apply Image, Calculations, Stack Modes and Merge to HDR.
         "applyImageSheet:", "calculationsSheet:", "stackMode:", "showReduceNoiseFromStack:",

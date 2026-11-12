@@ -92,7 +92,7 @@ fn cmyk(pixels: Vec<[u16; 4]>) -> *mut PrecisionDocument {
 
 fn losses(doc: *const PrecisionDocument, alpha_kept: bool) -> Vec<String> {
     let mut err = ptr::null_mut();
-    let json = unsafe { dr_precision_doc_flat_state_losses(doc, alpha_kept, &mut err) };
+    let json = unsafe { dr_precision_doc_flat_state_losses(doc, alpha_kept, false, &mut err) };
     assert!(!json.is_null(), "{}", take_err_string(err));
     let list = serde_json::from_str(unsafe { CStr::from_ptr(json) }.to_str().unwrap()).unwrap();
     unsafe { dr_string_free(json) };
@@ -458,9 +458,11 @@ fn clear_pixels_lose_their_colour_and_a_jpeg_its_transparency() {
 #[test]
 fn a_null_document_is_refused() {
     unsafe {
-        assert!(dr_precision_doc_flat_state_losses(ptr::null(), true, ptr::null_mut()).is_null());
+        assert!(
+            dr_precision_doc_flat_state_losses(ptr::null(), true, true, ptr::null_mut()).is_null()
+        );
         let mut err = ptr::null_mut();
-        assert!(dr_precision_doc_flat_state_losses(ptr::null(), false, &mut err).is_null());
+        assert!(dr_precision_doc_flat_state_losses(ptr::null(), false, false, &mut err).is_null());
         assert!(take_err_string(err).contains("NULL"));
     }
 }

@@ -78,8 +78,17 @@ pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
     // every file an earlier build wrote, and it mints fresh ids exactly as
     // this reader always did.
     let has_ids = outermost_version == crate::identity_native::BYTE_VERSION;
-    let background_word = if has_ids { r.u32()? } else { outermost_version };
-    // Version 113 is the FIRST word inside 45 (`background_native`), ahead
+    let clipping_word = if has_ids { r.u32()? } else { outermost_version };
+    // Version 114 is the FIRST word inside 45 (`clipping_path_native`),
+    // ahead of 113, with no table: some path is the clipping path. Checked
+    // both ways against the PATH table before any PNG decodes.
+    let has_clipping_path = has_ids && clipping_word == crate::clipping_path_native::WORD;
+    let background_word = if has_clipping_path {
+        r.u32()?
+    } else {
+        clipping_word
+    };
+    // Version 113 is the next word inside 45 (`background_native`), ahead
     // of 112: the Background mark names a layer, and its LBKG table follows
     // SPOT, checked before any PNG decodes.
     let has_background = has_ids && background_word == crate::background_native::WORD;
@@ -920,6 +929,8 @@ pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
     } else {
         crate::path_native::ParsedTable::empty()
     };
+    // Word 114's claim, both ways (`clipping_path_native`).
+    crate::clipping_path_native::check(has_clipping_path, &paths.entries)?;
     // The GVAR table, after PATH and before LREF (`generated_native`): every
     // entry names a generated, masked raster of its own dimensions, checked
     // before any PNG decodes.

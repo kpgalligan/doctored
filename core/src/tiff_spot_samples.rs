@@ -29,9 +29,12 @@
 //! Whether the file still holds the image data that decode reads is
 //! [`saved_chunks_held`]'s answer, from the directory alone, so the records
 //! the import report and every open read can say a cut-short file's planes
-//! are unreadable without decoding a sample.
+//! are unreadable without decoding a sample. Whether a compressed chunk that
+//! starts inside the file decodes is [`saved_planes_decode`]'s answer, the
+//! open's own decode a chunk at a time, which only the layered import report
+//! asks (`tiff_spot`'s LAYERED paragraph).
 
-use tiff::decoder::{Decoder, DecodingResult, Limits};
+use tiff::decoder::{ChunkType, Decoder, DecodingResult, Limits};
 
 use crate::psd_framing::MAX_PSD_CHANNELS;
 use crate::psd_spot_records::stored;
@@ -274,20 +277,28 @@ pub(crate) fn saved_chunks_held(bytes: &[u8], layout: &TiffSpotLayout) -> Result
     Ok(())
 }
 
-/// The saved channels `saved` (indices from [`TiffSpotLayout::first_saved`])
-/// as coverage at the file's depth (0..=255 or 0..=65535), row 0 top, the
-/// polarity undone. `Err` for a planar layout, a file the decoder refuses,
-/// or samples that do not match the layout.
-pub(crate) fn read_saved_planes(
+/// The decoder [`read_saved_planes`] and [`saved_planes_decode`] both read
+/// through, handed to `read`: the saved channels' range, the Photometric
+/// overlay (module doc), the limits and the stored dimensions checked
+/// first, so the two answer every failure but the decode itself in the
+/// same words.
+fn with_saved_decoder<T>(
     bytes: &[u8],
     layout: &TiffSpotLayout,
     saved: &[usize],
-) -> Result<Vec<Vec<u16>>, String> {
+    read: impl FnOnce(&mut Decoder<Overlay<'_>>) -> Result<T, String>,
+) -> Result<T, String> {
     if layout.planar {
         return Err("planar samples are not read".into());
     }
-    let mut read = bytes_reader(bytes);
-    let directory = Directory::first(&mut read).ok_or("the TIFF directory is not readable")?;
+    if saved
+        .iter()
+        .any(|&index| layout.first_saved() + index >= layout.samples)
+    {
+        return Err("the saved channel is out of range".into());
+    }
+    let mut reader = bytes_reader(bytes);
+    let directory = Directory::first(&mut reader).ok_or("the TIFF directory is not readable")?;
     let photometric = directory
         .entry(PHOTOMETRIC)
         .ok_or("the TIFF has no Photometric")?;
@@ -306,16 +317,73 @@ pub(crate) fn read_saved_planes(
     if stored_dimensions != (layout.width, layout.height) {
         return Err("the TIFF's dimensions disagree".into());
     }
+    read(&mut decoder)
+}
+
+/// The largest sample of `raw`, which must be at the layout's depth.
+fn layout_max(raw: &DecodingResult, bytes: usize) -> Result<u16, String> {
+    match (raw, bytes) {
+        (DecodingResult::U8(_), 1) => Ok(255),
+        (DecodingResult::U16(_), 2) => Ok(65535),
+        _ => Err("the TIFF's samples are not the layout's depth".into()),
+    }
+}
+
+/// [`read_saved_planes`]' verdict on `saved`, holding one strip or tile at a
+/// time: the same decoder over the same bytes (`with_saved_decoder`), each
+/// compressed chunk decoded and dropped. A compressed chunk that starts
+/// inside the file but does not decode passes [`saved_chunks_held`] and
+/// fails here, as it fails the open's whole-image read: both expand every
+/// chunk through the decoder's one per-chunk reader, and the whole-image
+/// buffer limit is the image's own size. Uncompressed samples are
+/// [`saved_chunks_held`]'s to judge, from the directory: decoding them would
+/// copy the whole image (Doctored's own layered TIFF is one uncompressed
+/// strip) to learn what the file's length already says. The layered import
+/// report asks it (`tiff_spot::layered_report_records`), so the report names
+/// the planes an open cannot read; an open never does, as it reads them.
+pub(crate) fn saved_planes_decode(
+    bytes: &[u8],
+    layout: &TiffSpotLayout,
+    saved: &[usize],
+) -> Result<(), String> {
+    let uncompressed = Directory::first(&mut bytes_reader(bytes))
+        .is_some_and(|directory| directory.scalar(COMPRESSION).unwrap_or(1) == 1);
+    with_saved_decoder(bytes, layout, saved, |decoder| {
+        if uncompressed {
+            return Ok(());
+        }
+        let chunks = match decoder.get_chunk_type() {
+            ChunkType::Strip => decoder.strip_count(),
+            ChunkType::Tile => decoder.tile_count(),
+        }
+        .map_err(|e| format!("TIFF samples: {e}"))?;
+        for chunk in 0..chunks {
+            let raw = decoder
+                .read_chunk(chunk)
+                .map_err(|e| format!("TIFF samples: {e}"))?;
+            layout_max(&raw, layout.bytes)?;
+        }
+        Ok(())
+    })
+}
+
+/// The saved channels `saved` (indices from [`TiffSpotLayout::first_saved`])
+/// as coverage at the file's depth (0..=255 or 0..=65535), row 0 top, the
+/// polarity undone. `Err` for a planar layout, a file the decoder refuses,
+/// or samples that do not match the layout.
+pub(crate) fn read_saved_planes(
+    bytes: &[u8],
+    layout: &TiffSpotLayout,
+    saved: &[usize],
+) -> Result<Vec<Vec<u16>>, String> {
+    let raw = with_saved_decoder(bytes, layout, saved, |decoder| {
+        decoder
+            .read_image()
+            .map_err(|e| format!("TIFF samples: {e}"))
+    })?;
     let pixels = layout.width as usize * layout.height as usize;
     let first = layout.first_saved();
-    let raw = decoder
-        .read_image()
-        .map_err(|e| format!("TIFF samples: {e}"))?;
-    let max = match (&raw, layout.bytes) {
-        (DecodingResult::U8(_), 1) => 255,
-        (DecodingResult::U16(_), 2) => 65535,
-        _ => return Err("the TIFF's samples are not the layout's depth".into()),
-    };
+    let max = layout_max(&raw, layout.bytes)?;
     let plane_of = |i: usize| match &raw {
         DecodingResult::U8(v) => v.get(i).map(|&s| u16::from(s)),
         DecodingResult::U16(v) => v.get(i).copied(),
@@ -324,9 +392,6 @@ pub(crate) fn read_saved_planes(
     let mut out = Vec::with_capacity(saved.len());
     for &index in saved {
         let sample = first + index;
-        if sample >= layout.samples {
-            return Err("the saved channel is out of range".into());
-        }
         let mut plane = Vec::with_capacity(pixels);
         for p in 0..pixels {
             let v = plane_of(p * layout.samples + sample)

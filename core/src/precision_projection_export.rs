@@ -131,7 +131,8 @@ impl PrecisionDocument {
             )
             .and_then(|v| v.checked_add(BOOKKEEPING_BYTES))
             .ok_or("precision projection export memory overflow")?;
-        precision_codec::save(
+        // A TIFF carries the paths (`tiff_paths`).
+        precision_codec::save_with_paths(
             image,
             self.metadata(),
             self.resolution(),
@@ -139,9 +140,9 @@ impl PrecisionDocument {
             format,
             embed_profile,
             strip_metadata,
-            limit,
-            codec_other,
+            (limit, codec_other),
             None,
+            self.tiff_path_run(),
         )
     }
 }

@@ -695,6 +695,35 @@ pub fn save(
     other: u64,
     control: Option<&DrJobControl>,
 ) -> Result<u32, String> {
+    save_with_paths(
+        image,
+        metadata,
+        resolution,
+        path,
+        format,
+        embed_profile,
+        strip_metadata,
+        (limit, other),
+        control,
+        None,
+    )
+}
+
+/// [`save`] for a document's TIFF: `paths`, when `Some`, are the path
+/// resources it writes in place of the inherited run's (`tiff_paths`).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn save_with_paths(
+    image: &PrecisionImage,
+    metadata: &Metadata,
+    resolution: Resolution,
+    path: &str,
+    format: PrecisionFormat,
+    embed_profile: bool,
+    strip_metadata: bool,
+    (limit, other): (u64, u64),
+    control: Option<&DrJobControl>,
+    paths: Option<Vec<u8>>,
+) -> Result<u32, String> {
     let _run = control.map(DrJobControl::begin).transpose()?;
     let job = control.map_or(JobContext::NONE, JobContext::new);
     for packet in [&metadata.exif, &metadata.xmp, &metadata.iptc]
@@ -720,7 +749,7 @@ pub fn save(
     .map_err(|e| problem("capacity", path, e))?;
     job.reserve(scratch)?;
     let (w, h) = image.dimensions();
-    let (side, carried) = crate::doc_color::image_sidecar(
+    let (mut side, carried) = crate::doc_color::image_sidecar(
         image.profile(),
         metadata,
         resolution,
@@ -729,6 +758,9 @@ pub fn save(
         strip_metadata,
         (w, h),
     );
+    if let Some(paths) = paths.filter(|_| format == PrecisionFormat::Tiff) {
+        crate::tiff_paths::attach(&mut side, paths);
+    }
     crate::dr_image::save_atomically(path, |temporary| {
         job.check()?;
         let file = OpenOptions::new()

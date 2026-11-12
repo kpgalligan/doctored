@@ -9,6 +9,7 @@ import AppKit
 /// | `renamePath` | double-clicking a row in the Paths panel (renaming the work path saves it) |
 /// | `duplicatePath` | Paths panel ▸ Duplicate Path |
 /// | `deletePath` | Paths panel ▸ Delete Path |
+/// | `setClippingPath` | Paths panel ▸ Clipping Path |
 /// | `pathToSelection` | Paths panel ▸ Make Selection… |
 /// | `fillPath` | Paths panel ▸ Fill Path |
 /// | `strokePath` | Paths panel ▸ Stroke Path |
@@ -57,6 +58,7 @@ extension AgentServer {
         "rename_path": { $0.renamePath },
         "duplicate_path": { $0.duplicatePath },
         "delete_path": { $0.deletePath },
+        "set_clipping_path": { $0.setClippingPath },
         "path_to_selection": { $0.pathToSelection },
         "fill_path": { $0.fillPath },
         "stroke_path": { $0.strokePath },
@@ -77,6 +79,7 @@ extension AgentServer {
         "rename_path": [.commonTool, .floatTool, .cmykTool],
         "duplicate_path": [.commonTool, .floatTool, .cmykTool],
         "delete_path": [.commonTool, .floatTool, .cmykTool],
+        "set_clipping_path": [.commonTool, .floatTool, .cmykTool],
         "selection_to_path": [.commonTool, .floatTool, .cmykTool],
         "path_to_selection": [.selectionSensitive, .commonTool, .floatTool, .cmykTool],
         // Admitted at float here and asked again as `stroke_selection`
@@ -111,15 +114,18 @@ extension AgentServer {
         ])
     }
 
-    /// One row per path, in the core's order (the work path first).
+    /// One row per path, in the core's order (the work path first); the clipping path's row
+    /// says `"clipping": true`.
     static func pathFields(_ set: PathSet) -> [[String: Any]] {
         set.entries.map { entry in
-            [
+            var row: [String: Any] = [
                 "name": entry.name, "kind": entry.kind.rawValue,
                 "fill_rule": entry.shape.fillRule.rawValue,
                 "anchors": entry.shape.anchorCount,
                 "subpaths": entry.shape.subpathsJSON,
             ]
+            if entry.clipping != nil { row["clipping"] = true }
+            return row
         }
     }
 
@@ -227,6 +233,45 @@ extension AgentServer {
         let fields: [String: Any] = ["deleted": removed.name]
         guard try editPaths(document, "Delete Path", set) else {
             return try pathNoOp(fields, why: "the path could not be deleted.")
+        }
+        return try pathResult(document, fields)
+    }
+
+    /// Paths panel ▸ Clipping Path: `path` (a saved path's name) becomes the document's clipping
+    /// path, the one a PSD, PSB or TIFF names in resource 2999; `path: null` clears it. The key is
+    /// required, so a call that forgot it changes nothing. One undo step.
+    func setClippingPath(_ a: [String: Any]) throws -> String {
+        let document = try target(a)
+        guard let doc = document.doc else { throw ToolError(message: "Document has no image") }
+        guard a.keys.contains("path") else {
+            throw ToolError(
+                message: "set_clipping_path requires path — a saved path's name, or null to clear "
+                    + "the clipping path.")
+        }
+        let set = doc.paths
+        let index: Int?
+        if let name = try nameArgument(a, "path") {
+            guard let found = set.entries.firstIndex(where: { $0.name == name }) else {
+                throw ToolError(message: Self.noSuchPath(name, set))
+            }
+            guard set.entries[found].kind == .saved else {
+                throw ToolError(
+                    message: "The work path cannot be the clipping path: a file names the "
+                        + "clipping path by its saved name. Save it first with rename_path.")
+            }
+            index = found
+        } else {
+            index = nil
+        }
+        let name = index.map { set.entries[$0].name }
+        let fields: [String: Any] = ["clipping_path": name.map { $0 as Any } ?? NSNull()]
+        let next = set.settingClippingPath(index)
+        guard try editPaths(document, name == nil ? "Clear Clipping Path" : "Set Clipping Path", next)
+        else {
+            return try pathNoOp(
+                fields,
+                why: name.map { "\"\($0)\" already is the clipping path." }
+                    ?? "the document has no clipping path.")
         }
         return try pathResult(document, fields)
     }

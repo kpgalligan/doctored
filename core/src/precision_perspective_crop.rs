@@ -260,6 +260,7 @@ impl PrecisionDocument {
             &self.paths.entries,
             request.destination_map()?,
         ));
+        result.metadata = crate::tiff_paths::canvas_moved(&self.metadata);
         let raster_offset = |i: usize| match self.layer(i).map(|l| &l.content) {
             Some(Content::Raster { offset, .. } | Content::CmykRaster { offset, .. }) => {
                 Some(*offset)

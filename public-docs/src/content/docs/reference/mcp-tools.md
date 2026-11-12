@@ -20,7 +20,7 @@ The helper reaches the app over a Unix socket the app binds at every launch,
 owner can open; `DR_AGENT_SOCKET` names another path for both. There is no TCP
 endpoint.
 
-This build exposes **337 tools**. The reference is generated from the app's
+This build exposes **338 tools**. The reference is generated from the app's
 `tools/list` catalog (live, or the snapshot the build writes from the same code),
 which is authoritative. Tool results are MCP
 content blocks; most calls return a JSON object in a text block, while `render` and
@@ -344,6 +344,7 @@ Add `--check` to either to verify that the checked-in page matches the catalog.
 - [`rename_path`](#rename_path)
 - [`duplicate_path`](#duplicate_path)
 - [`delete_path`](#delete_path)
+- [`set_clipping_path`](#set_clipping_path)
 - [`path_to_selection`](#path_to_selection)
 - [`selection_to_path`](#selection_to_path)
 - [`fill_path`](#fill_path)
@@ -4280,7 +4281,7 @@ Sets the document's file info — File ▸ File Info… ▸ OK. Pass only the fi
 
 ## `list_paths`
 
-Lists the document's paths: Bézier outlines kept with the document — undoable, saved in .doctored, never drawn into the picture until one is filled, stroked or made a selection. Each has name, kind ("work": the one unsaved scratch path, always first and always named "Work Path"; "saved"), fill_rule, anchors (a count) and subpaths (set_path's own shape, so it can be edited and passed back). max_paths is the most a document holds. Canvas resizes, crops, rotations and flips move paths with the picture; moving or transforming a layer does not. A PSD, PSB or layered TIFF export writes them and its import reads them back (the work path and each saved path by name); no flat format carries them. The Paths panel. A Grayscale document holds paths and vector masks, as an RGB document does, and keeps them in .doctored.
+Lists the document's paths: Bézier outlines kept with the document — undoable, saved in .doctored, never drawn into the picture until one is filled, stroked or made a selection. Each has name, kind ("work": the one unsaved scratch path, always first and always named "Work Path"; "saved"), fill_rule, anchors (a count) and subpaths (set_path's own shape, so it can be edited and passed back). max_paths is the most a document holds. Canvas resizes, crops, rotations and flips move paths with the picture; moving or transforming a layer does not. A PSD, PSB or layered TIFF export writes them and its import reads them back (the work path and each saved path by name), and so does a flat TIFF of an RGB or CMYK document; no other flat format carries them. The clipping path's row has clipping: true (set_clipping_path). The Paths panel. A Grayscale document holds paths and vector masks, as an RGB document does, and keeps them in .doctored.
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
@@ -4328,6 +4329,15 @@ Deletes a path. ONE undo step. Paths panel ▸ Delete Path. A Grayscale document
 | :--- | :--- | :---: | :--- | :--- |
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
 | `path` | `string` | yes | — | A stored path by name: a saved path's name, or "Work Path" for the document's unsaved work path (list_paths). |
+
+## `set_clipping_path`
+
+Makes a saved path the document's CLIPPING PATH — the one path a PSD, PSB or TIFF names (image resource 2999) for a layout program to clip the image to — or, with path null, clears it. A document has at most one; setting another moves the designation. The work path cannot be it (save it first with rename_path). Renaming keeps it, deleting the path clears it, a duplicate is not it. Already so answers changed:false. ONE undo step. Paths panel ▸ Clipping Path. A Grayscale document holds paths and vector masks, as an RGB document does, and keeps them in .doctored.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
+| `path` | `['string', 'null']` | yes | — | A saved path's name (list_paths), or null to clear the clipping path. Required. |
 
 ## `path_to_selection`
 

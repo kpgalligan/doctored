@@ -38,6 +38,7 @@ enum PathRow: Equatable {
             return "vector mask · \(state)" + (info.linked ? "" : " · unlinked")
         case .path(let entry):
             return (entry.kind == .work ? "work path · " : "path · ") + anchors
+                + (entry.clipping != nil ? " · clipping path" : "")
         }
     }
 
@@ -419,6 +420,7 @@ extension PathsPanelViewController: NSTableViewDataSource, NSTableViewDelegate, 
                     #selector(renameClickedPath(_:)), target: self)
                 add("Duplicate Path", #selector(EditorViewController.duplicateCurrentPath(_:)))
                 add("Delete Path", #selector(EditorViewController.deleteCurrentPath(_:)))
+                add("Clipping Path", #selector(EditorViewController.toggleClippingPath(_:)))
             } else {
                 add(
                     "Delete Vector Mask",

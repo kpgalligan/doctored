@@ -58,7 +58,9 @@ extension AgentServer {
                     + "Canvas resizes, crops, rotations and flips move paths with the picture; "
                     + "moving or transforming a layer does not. A PSD, PSB or layered TIFF "
                     + "export writes them and its import reads them back (the work path and "
-                    + "each saved path by name); no flat format carries them. The Paths panel.",
+                    + "each saved path by name), and so does a flat TIFF of an RGB or CMYK "
+                    + "document; no other flat format carries them. The clipping path's row "
+                    + "has clipping: true (set_clipping_path). The Paths panel.",
                 ["document_id": doc]),
             tool(
                 "set_path",
@@ -111,6 +113,23 @@ extension AgentServer {
                 "delete_path",
                 "Deletes a path. ONE undo step. Paths panel ▸ Delete Path.",
                 ["path": path, "document_id": doc], required: ["path"]),
+            tool(
+                "set_clipping_path",
+                "Makes a saved path the document's CLIPPING PATH — the one path a PSD, PSB or "
+                    + "TIFF names (image resource 2999) for a layout program to clip the image "
+                    + "to — or, with path null, clears it. A document has at most one; setting "
+                    + "another moves the designation. The work path cannot be it (save it first "
+                    + "with rename_path). Renaming keeps it, deleting the path clears it, a "
+                    + "duplicate is not it. Already so answers changed:false. ONE undo step. "
+                    + "Paths panel ▸ Clipping Path.",
+                [
+                    "path": [
+                        "type": ["string", "null"],
+                        "description": "A saved path's name (list_paths), or null to clear the "
+                            + "clipping path. Required.",
+                    ],
+                    "document_id": doc,
+                ], required: ["path"]),
             tool(
                 "path_to_selection",
                 "Makes the path's fill the selection: every subpath filled by the path's fill "

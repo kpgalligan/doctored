@@ -226,6 +226,7 @@ impl DrDocument {
             &self.paths.entries,
             request.destination_map()?,
         ));
+        doc.metadata = crate::tiff_paths::canvas_moved(&self.metadata);
         doc.comps = self.remapped_comps(
             |layer, rec| {
                 moves(layer.kind, layer.meta.as_deref()).then(|| {

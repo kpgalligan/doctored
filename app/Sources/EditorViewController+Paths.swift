@@ -10,12 +10,13 @@ import AppKit
 /// | rename (double-click) | `rename_path` |
 /// | Duplicate Path | `duplicate_path` |
 /// | Delete Path | `delete_path` |
+/// | Clipping Path | `set_clipping_path` |
 /// | Make Selection… | `path_to_selection` |
 /// | Fill Path | `fill_path` |
 /// | Stroke Path | `stroke_path` |
 /// | Make Work Path… | `selection_to_path` |
 ///
-/// The three list edits are `applyPathEdit` (render-neutral, one undo step each). The four that
+/// The four list edits are `applyPathEdit` (render-neutral, one undo step each). The four that
 /// run a commit of their own — a selection, a fill, a brush stroke, a trace — RUN THEIR MCP STEP
 /// through `ActionPlayer.runSingle`, the way Filters ▸ Repeat Last does, so the panel and an
 /// agent's call are one code path; the step is recorded afterwards, because the player suspends
@@ -265,6 +266,26 @@ extension EditorViewController {
         setCurrentPath(nil)
     }
 
+    /// Paths panel ▸ Clipping Path: the current saved path becomes the document's clipping path
+    /// (the one a PSD, PSB or TIFF names in resource 2999), or, when it already is, stops being
+    /// it. The item is checked on the clipping path's row.
+    @objc func toggleClippingPath(_ sender: Any?) {
+        guard let document, let (set, index) = currentListPath(), set.entries[index].kind == .saved
+        else {
+            NSSound.beep()
+            return
+        }
+        let entry = set.entries[index]
+        let clears = entry.clipping != nil
+        // A clear records `path: null`, the tool's explicit "no clipping path".
+        let path: Any = clears ? NSNull() : entry.name
+        document.applyPathEdit(
+            clears ? "Clear Clipping Path" : "Set Clipping Path",
+            record: .step("set_clipping_path", ["path": path], note: "Paths panel ▸ Clipping Path")
+        ) { _ in set.settingClippingPath(clears ? nil : index) }
+        pathsPanel?.reload()
+    }
+
     // MARK: - Selection
 
     /// Paths panel ▸ Make Selection…: the dialog, then `path_to_selection`.
@@ -425,6 +446,10 @@ extension EditorViewController {
             return !document.quickMaskActive && canvas.selection != nil
         case #selector(duplicateCurrentPath(_:)):
             return currentListPath() != nil
+        case #selector(toggleClippingPath(_:)):
+            let entry = currentListPath().map { $0.set.entries[$0.index] }
+            (item as? NSMenuItem)?.state = entry?.clipping != nil ? .on : .off
+            return entry?.kind == .saved
         case #selector(deleteCurrentPath(_:)):
             return currentPathStep() != nil
         default:

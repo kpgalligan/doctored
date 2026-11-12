@@ -791,18 +791,25 @@ impl DrDocument {
                     self.width,
                     self.height,
                 )?;
+                // …and the run's unread path records leave it
+                // (`tiff_paths::canvas_moved`).
+                let metadata = crate::tiff_paths::canvas_moved(&self.metadata);
                 match moved {
                     Some(mut doc) => {
                         doc.color_samplers = samplers;
                         doc.paths.set_entries(paths);
+                        doc.metadata = metadata;
                         Some(doc)
                     }
                     None if (*x, *y, *width, *height) == (0, 0, self.width, self.height)
-                        && (samplers != self.color_samplers || paths != *self.paths.entries) =>
+                        && (samplers != self.color_samplers
+                            || paths != *self.paths.entries
+                            || metadata != self.metadata) =>
                     {
                         Some(Self {
                             color_samplers: samplers,
                             paths: self.paths.with_entries(paths),
+                            metadata,
                             ..self.clone()
                         })
                     }

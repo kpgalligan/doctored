@@ -17,10 +17,11 @@
 //! coverage (a 16-bit file narrowed by `psd_export_cmyk::Depth`'s
 //! `round(v / 257)`), a typed one u16 (an 8-bit file ×257), admitted first.
 //! A plane that cannot be read is a loss line, never a refused open. The
-//! byte document has no import warnings, so its lines are the records' (the
-//! import report's): a compressed strip that starts inside the file but
-//! does not decode (cut short or corrupt) passes the records, and the byte
-//! open drops its planes with no line, where the typed open adds one (#30).
+//! byte document has no import warnings, so its lines are the import
+//! report's: a compressed strip that starts inside the file but does not
+//! decode (cut short or corrupt) passes the records; a flat file's main
+//! decode then fails on it first, and the layered report decodes it
+//! ([`layered_report_records`]).
 //!
 //! WRITE ([`DrDocument::tiff_spot_planes`],
 //! [`PrecisionDocument::tiff_spot_planes`]). Every spot channel in channel
@@ -37,8 +38,12 @@
 //! samples (ExtraSamples 0, H1), the lists in tag 34377 led by
 //! "Transparency", tag 37724 beside them. So the layered TIFF reads and
 //! writes them under `spots_written_for`'s same TIFF rule. Read:
-//! [`layered_spot_records`] (the container's own `spot_records`, so the
-//! import report names them) and [`DrDocument::with_layered_tiff_spots`] /
+//! [`layered_spot_records`] (the container's own `spot_records`, which the
+//! opens' plans read and which decodes nothing), [`layered_report_records`]
+//! (what the import report names: the same records, and kept planes that do
+//! not decode, a chunk at a time, named as lost; a layered open builds from
+//! the layer block, so no other decode meets that strip first) and
+//! [`DrDocument::with_layered_tiff_spots`] /
 //! [`PrecisionDocument::with_layered_tiff_spots`], the flat open's body on
 //! the container's file and resources. Write: `layered_tiff_spots` borrows
 //! the first `spots_capacity` planes in place for
@@ -65,8 +70,8 @@ use crate::psd_spot_records::encode_resources;
 use crate::spot_channel::{SpotInk, TIFF_REFUSAL};
 use crate::tiff_encode::{TiffSpotPlanes, SPOT_STRIP_BYTES};
 use crate::tiff_spot_samples::{
-    read_saved_planes, saved_chunks_held, tiff_stored, SpotCoverage, TiffSpotLayout,
-    SPOT_EXTRA_SAMPLE, TRANSPARENCY_EXTRA_SAMPLE,
+    read_saved_planes, saved_chunks_held, saved_planes_decode, tiff_stored, SpotCoverage,
+    TiffSpotLayout, SPOT_EXTRA_SAMPLE, TRANSPARENCY_EXTRA_SAMPLE,
 };
 
 /// A typed export request that keeps spot channels, on a CMYK document.
@@ -208,7 +213,8 @@ pub(crate) fn transparent8(image: &image::RgbaImage) -> bool {
 /// A layered TIFF container's saved channels' reading (module doc, LAYERED):
 /// its own file's extra samples described by the resources of its tag 34377;
 /// nothing kept and no saved channel counted for a PSD or PSB, or a TIFF
-/// with no described extra sample.
+/// with no described extra sample. No sample is decoded: every layered
+/// open's plan reads it.
 pub(crate) fn layered_spot_records(container: &Container<'_>) -> SpotRecords {
     container
         .tiff_file
@@ -221,6 +227,27 @@ pub(crate) fn layered_spot_records(container: &Container<'_>) -> SpotRecords {
             },
             |(_, records)| records,
         )
+}
+
+/// [`layered_spot_records`] as the layered import report reads it (module
+/// doc, LAYERED): kept planes that do not decode
+/// ([`saved_planes_decode`], the open's own decode a chunk at a time) are
+/// kept by none, and the report names the loss.
+pub(crate) fn layered_report_records(container: &Container<'_>) -> SpotRecords {
+    let Some((file, (layout, mut records))) = container.tiff_file.and_then(|file| {
+        tiff_spot_records(file, Some(container.resources)).map(|found| (file, found))
+    }) else {
+        return layered_spot_records(container);
+    };
+    if !records.kept.is_empty() {
+        let saved: Vec<usize> = records.kept.iter().map(|(index, _, _)| *index).collect();
+        if let Err(e) = saved_planes_decode(file, &layout, &saved) {
+            records.losses.push(planes_unreadable_loss(&e));
+            records.alpha += records.kept.len();
+            records.kept.clear();
+        }
+    }
+    records
 }
 
 /// The spot channels a layered TIFF writes (module doc, LAYERED): their
@@ -248,8 +275,7 @@ impl LayeredTiffSpots<'_> {
 impl DrDocument {
     /// This document with the TIFF's kept spot channels appended (module
     /// doc); unchanged when the records keep none, and the report names
-    /// why. A plane that still fails to decode is dropped with no line
-    /// (module doc).
+    /// why.
     pub(crate) fn with_tiff_spots(self, bytes: &[u8]) -> Result<Self, String> {
         let found = tiff_spot_records(bytes, self.metadata.iptc.as_deref());
         self.adopt_tiff_spots(bytes, found)
@@ -286,6 +312,9 @@ impl DrDocument {
             return Ok(self);
         }
         let saved: Vec<usize> = records.kept.iter().map(|(index, _, _)| *index).collect();
+        // A plane that does not decode is the report's line: a flat file's
+        // main decode fails on the same strips first, and the layered report
+        // decodes them (`layered_report_records`).
         let Ok(planes) = read_saved_planes(bytes, &layout, &saved) else {
             return Ok(self);
         };
@@ -370,18 +399,19 @@ impl PrecisionDocument {
         else {
             return Ok(self);
         };
-        let (doc, added) = self.adopt_tiff_spots(bytes, &layout, &mut records, limit, other)?;
+        let (doc, added) =
+            self.adopt_tiff_spots(bytes, &layout, &mut records, (limit, other), false)?;
         let mut lines: Vec<String> = records.observation().into_iter().collect();
         lines.extend(records.losses);
         lines.extend(added);
-        doc.with_spot_warnings(lines)
+        doc.with_warning_lines(lines)
     }
 
     /// [`Self::with_tiff_spots`] for a layered TIFF container (module doc,
     /// LAYERED). Only the lines the open itself finds (the document's channel
-    /// limit, an unreadable plane) join the import warnings: the observation
-    /// and the file's own losses are the compatibility report's, as for a
-    /// PSD.
+    /// limit, a canvas the composite does not match) join the import
+    /// warnings: the observation and the file's own losses, planes that do
+    /// not decode among them, are the compatibility report's, as for a PSD.
     pub(crate) fn with_layered_tiff_spots(
         self,
         container: &Container<'_>,
@@ -394,12 +424,13 @@ impl PrecisionDocument {
         let Some((layout, mut records)) = tiff_spot_records(file, Some(container.resources)) else {
             return Ok(self);
         };
-        let (doc, added) = self.adopt_tiff_spots(file, &layout, &mut records, limit, other)?;
-        doc.with_spot_warnings(added)
+        let (doc, added) =
+            self.adopt_tiff_spots(file, &layout, &mut records, (limit, other), true)?;
+        doc.with_warning_lines(added)
     }
 
     /// `lines` joined to the import warnings, within their cap.
-    fn with_spot_warnings(self, lines: Vec<String>) -> Result<Self, String> {
+    pub(crate) fn with_warning_lines(self, lines: Vec<String>) -> Result<Self, String> {
         if lines.is_empty() {
             return Ok(self);
         }
@@ -410,13 +441,14 @@ impl PrecisionDocument {
     /// The flat and the layered open's one body: `records`' kept spot
     /// channels read from `bytes`, admitted and appended, and the loss lines
     /// it finds itself; `records.kept` is cleared when none is retained.
+    /// `layered` leaves a plane that does not decode to the import report.
     fn adopt_tiff_spots(
         mut self,
         bytes: &[u8],
         layout: &TiffSpotLayout,
         records: &mut SpotRecords,
-        limit: u64,
-        other: u64,
+        (limit, other): (u64, u64),
+        layered: bool,
     ) -> Result<(Self, Vec<String>), String> {
         let mut added = Vec::new();
         let (w, h) = self.dimensions();
@@ -426,11 +458,7 @@ impl PrecisionDocument {
             records.kept.clear();
         }
         if !records.kept.is_empty() {
-            let read = if (layout.width, layout.height) == (w, h) {
-                Ok(())
-            } else {
-                Err("the TIFF's dimensions disagree".to_string())
-            };
+            let disagree = (layout.width, layout.height) != (w, h);
             let planes_bytes = (n as u64)
                 .saturating_mul(u64::from(w) * u64::from(h))
                 .saturating_mul(2);
@@ -441,7 +469,12 @@ impl PrecisionDocument {
                 limit,
             )?;
             let saved: Vec<usize> = records.kept.iter().map(|(index, _, _)| *index).collect();
-            match read.and_then(|()| read_saved_planes(bytes, layout, &saved)) {
+            let read = if disagree {
+                Err("the TIFF's dimensions disagree".to_string())
+            } else {
+                read_saved_planes(bytes, layout, &saved)
+            };
+            match read {
                 Ok(planes) => {
                     let channels = Arc::make_mut(&mut self.channels);
                     for ((_, name, ink), plane) in records.kept.iter().zip(planes) {
@@ -459,7 +492,13 @@ impl PrecisionDocument {
                     }
                 }
                 Err(e) => {
-                    added.push(planes_unreadable_loss(&e));
+                    // A layered file's planes that do not decode are the
+                    // import report's line (`layered_report_records`), so
+                    // the layered open adds none; a canvas the composite
+                    // does not match is this open's own finding.
+                    if disagree || !layered {
+                        added.push(planes_unreadable_loss(&e));
+                    }
                     records.kept.clear();
                 }
             }

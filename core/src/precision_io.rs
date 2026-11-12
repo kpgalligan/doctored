@@ -135,9 +135,11 @@ impl PrecisionDocument {
         let decoded = precision_codec::decode_with_context(bytes, path, limit, other, length, job)?;
         let doc = Self::from_image(decoded.image, decoded.metadata, decoded.resolution)?
             .with_import_warnings(decoded.warnings)?;
-        // A TIFF's spot channels (#1 1c-2a, `tiff_spot`).
+        // A TIFF's spot channels (#1 1c-2a, `tiff_spot`) and paths
+        // (`tiff_paths`).
         if spots && crate::metadata_tiff::is_tiff(bytes) {
-            doc.with_tiff_spots(bytes, limit, other.saturating_add(length))
+            doc.with_tiff_spots(bytes, limit, other.saturating_add(length))?
+                .with_tiff_paths(bytes)
         } else {
             Ok(doc)
         }
@@ -175,7 +177,8 @@ impl PrecisionDocument {
         let other = other
             .checked_add(retained)
             .ok_or("precision export memory overflow")?;
-        precision_codec::save(
+        // A TIFF carries the paths (`tiff_paths`).
+        precision_codec::save_with_paths(
             &image,
             self.metadata(),
             self.resolution(),
@@ -183,9 +186,9 @@ impl PrecisionDocument {
             format,
             embed_profile,
             strip_metadata,
-            limit,
-            other,
+            (limit, other),
             None,
+            self.tiff_path_run(),
         )
     }
 }

@@ -20,6 +20,11 @@ Cases:
   (`photoshop.json`, layer_comps[0].steps).
 - PATHS: a saved path and a vector mask set on knockout_bottom's Mid layer
   survive export_psd and a layered reopen (list_paths, get_vector_mask).
+- CLIPPING: set_clipping_path marks one saved path (refusing the work path and
+  a call with no path), undo and redo move the mark, and it survives
+  export_psd, a .doctored save_copy and a flat TIFF save_copy (whose
+  flat_save_losses has no "paths", a PNG's does) with their reopens; path
+  null clears it; a Grayscale document answers the tool.
 
 Usage: python3 scripts/verify_psd_exchange.py --output DIR
 Prints `PASS <case>` per case and exits 0 when every case passed.
@@ -115,6 +120,62 @@ def paths(drive):
     return dict(paths=[p['name'] for p in listed], corners=corners)
 
 
+def clipping_marks(drive, doc):
+    """(name, clipping) for each path list_paths reports."""
+    return [(p['name'], p.get('clipping', False))
+            for p in drive.call('list_paths', document_id=doc)['paths']]
+
+
+def clipping(drive):
+    doc = drive.open_psd(FIXTURES / 'knockout_bottom' / 'source.psd')
+    square = {'closed': True, 'anchors': [[8, 8], [40, 8], [40, 30], [8, 30]]}
+    frame = {'closed': True, 'anchors': [[2, 2], [60, 2], [60, 40], [2, 40]]}
+    drive.call('set_path', document_id=doc, name='Logo', subpaths=[square])
+    drive.call('set_path', document_id=doc, name='Frame', subpaths=[frame])
+    drive.call('set_path', document_id=doc, subpaths=[square])
+    want = [('Work Path', False), ('Logo', True), ('Frame', False)]
+    set_ = drive.call('set_clipping_path', document_id=doc, path='Logo')
+    assert set_['changed'] is True and set_['clipping_path'] == 'Logo', set_
+    assert clipping_marks(drive, doc) == want, clipping_marks(drive, doc)
+    again = drive.call('set_clipping_path', document_id=doc, path='Logo')
+    assert again['changed'] is False, again
+    refused = drive.call('set_clipping_path', fail=True, document_id=doc, path='Work Path')
+    assert 'work path cannot be the clipping path' in refused, refused
+    refused = drive.call('set_clipping_path', fail=True, document_id=doc)
+    assert 'path' in refused, refused
+    drive.call('undo', document_id=doc)
+    assert not any(c for _, c in clipping_marks(drive, doc)), 'undo clears it'
+    drive.call('redo', document_id=doc)
+    assert clipping_marks(drive, doc) == want, 'redo sets it again'
+    seen = {}
+    psd = drive.folder / 'clipping-again.psd'
+    drive.call('export_psd', document_id=doc, path=str(psd), format='psd', mode='layers')
+    native = drive.folder / 'clipping.doctored'
+    drive.call('save_copy', document_id=doc, path=str(native), format='rz')
+    tiff = drive.folder / 'clipping.tif'
+    saved = drive.call('save_copy', document_id=doc, path=str(tiff), format='tiff')
+    assert 'paths' not in saved['flat_save_losses'], saved['flat_save_losses']
+    png = drive.call('save_copy', document_id=doc, path=str(drive.folder / 'clipping.png'),
+                     format='png')
+    assert 'paths' in png['flat_save_losses'], png['flat_save_losses']
+    for name, opened in [('psd', drive.open_psd(psd)), ('native', drive.open_native(native)),
+                         ('tiff', drive.open_native(tiff))]:
+        assert clipping_marks(drive, opened) == want, (name, clipping_marks(drive, opened))
+        seen[name] = clipping_marks(drive, opened)
+        drive.close(opened)
+    cleared = drive.call('set_clipping_path', document_id=doc, path=None)
+    assert cleared['changed'] is True and cleared['clipping_path'] is None, cleared
+    drive.close(doc)
+    # A Grayscale document answers the tool in its closed set.
+    gray = drive.call('new_document', width=64, height=48, unit='px', color_mode='gray',
+                      depth=8, background='white')['document']['id']
+    drive.call('set_path', document_id=gray, name='G', subpaths=[square])
+    drive.call('set_clipping_path', document_id=gray, path='G')
+    assert clipping_marks(drive, gray) == [('G', True)], clipping_marks(drive, gray)
+    drive.close(gray)
+    return seen
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--output', required=True, help='a fresh folder')
@@ -127,7 +188,7 @@ def main():
     results, failed = {}, []
     with App(output / 'app', output / 'recovery', interval=600) as app:
         drive = Drive(app, output)
-        for case in (background, comps, paths):
+        for case in (background, comps, paths, clipping):
             name = case.__name__.upper()
             try:
                 results[name] = dict(passed=True, detail=case(drive))

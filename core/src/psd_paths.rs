@@ -1,7 +1,14 @@
 //! The PSD side of the document's PATHS and of VECTOR MASKS: image resources
-//! 2000–2997 (saved paths, each named by its resource's Pascal name) and
-//! 1025 (the work path) in every PSD, PSB and layered TIFF, and a layer's
-//! `vmsk` at RGB 8 and 16 bits. The records are `psd_path_records`'.
+//! 2000–2997 (saved paths, each named by its resource's Pascal name), 1025
+//! (the work path) and 2999 (the clipping path) in every PSD, PSB, layered
+//! TIFF and flat RGB or CMYK TIFF (`tiff_paths`), and a layer's `vmsk` at
+//! RGB 8 and 16 bits. The records are `psd_path_records`'.
+//!
+//! **The clipping path.** Import marks the kept saved path resource 2999
+//! names as the clipping path (`doc_path::ClippingPath`), keeping the
+//! resource's bytes after the name; a 2999 that names no kept saved path, or
+//! does not parse, is a sentence and no mark. Export writes 2999 after the
+//! paths when the marked path is itself written: its name, then that tail.
 //!
 //! **Paths.** Paths are document state at every depth and in every mode, so
 //! every importer reads them ([`file_paths`]) on both import choices and
@@ -34,25 +41,41 @@
 
 use std::collections::HashSet;
 
-use crate::doc_path::{PathEntry, PathKind, MAX_PATHS, MAX_PATH_NAME_BYTES, WORK_PATH_NAME};
+use crate::doc_path::{
+    ClippingPath, PathEntry, PathKind, MAX_CLIPPING_TAIL_BYTES, MAX_PATHS, MAX_PATH_NAME_BYTES,
+    WORK_PATH_NAME,
+};
 use crate::path_geometry::PathShape;
-use crate::psd_container::Container;
+use crate::psd_container::{resource_entries, Container};
 use crate::psd_export_encode::ResourceBlock;
-use crate::psd_path_records::{decode, encode};
+use crate::psd_path_records::{decode, decode_clipping, encode, encode_clipping};
 
 /// The work path's resource.
 pub(crate) const WORK_PATH_RESOURCE: u16 = 1025;
 /// The first and last saved-path resources.
-const FIRST_SAVED: u16 = 2000;
-const LAST_SAVED: u16 = 2997;
+pub(crate) const FIRST_SAVED: u16 = 2000;
+pub(crate) const LAST_SAVED: u16 = 2997;
+/// The clipping path's resource: the name of the saved path it designates.
+pub(crate) const CLIPPING_PATH_RESOURCE: u16 = 2999;
 
 /// The file's paths and the import report's sentences about them.
 pub(crate) fn file_paths(container: &Container<'_>) -> (Vec<PathEntry>, Vec<String>) {
+    run_paths(container.resources, (container.width, container.height))
+}
+
+/// The paths of an 8BIM `run` (a PSD's resource section, a TIFF's tag
+/// 34377) whose records are fractions of `canvas`, and the import report's
+/// sentences about them (module doc): [`file_paths`]' body, and a flat
+/// TIFF's (`tiff_paths`).
+pub(crate) fn run_paths(run: &[u8], canvas: (u32, u32)) -> (Vec<PathEntry>, Vec<String>) {
     let mut losses = Vec::new();
-    let Ok(resources) = container.resource_entries() else {
+    let Ok(resources) = resource_entries(run) else {
         return (Vec::new(), losses);
     };
-    let canvas = (container.width, container.height);
+    let clipping = resources
+        .iter()
+        .find(|(id, _, _)| *id == CLIPPING_PATH_RESOURCE)
+        .map(|(_, _, body)| *body);
     let mut found: Vec<(u16, &[u8], &[u8])> = resources
         .into_iter()
         .filter(|(id, _, _)| *id == WORK_PATH_RESOURCE || (FIRST_SAVED..=LAST_SAVED).contains(id))
@@ -134,16 +157,50 @@ pub(crate) fn file_paths(container: &Container<'_>) -> (Vec<PathEntry>, Vec<Stri
                 PathKind::Saved
             },
             shape,
+            clipping: None,
         });
+    }
+    if let Some(body) = clipping {
+        if let Some(loss) = mark_clipping(&mut entries, body) {
+            losses.push(loss);
+        }
     }
     (crate::doc_path::normalized(entries), losses)
 }
 
+/// Marks the saved path resource 2999's `body` names as the clipping path,
+/// its tail kept (`doc_path::ClippingPath`); the report's sentence when it
+/// cannot.
+fn mark_clipping(entries: &mut [PathEntry], body: &[u8]) -> Option<String> {
+    let Some((name, tail)) = decode_clipping(body) else {
+        return Some(
+            "The clipping path resource could not be read; no clipping path is set.".into(),
+        );
+    };
+    // Decoded as a saved path's name is (above).
+    let name = String::from_utf8_lossy(name).trim().to_string();
+    if tail.len() > MAX_CLIPPING_TAIL_BYTES {
+        return Some(format!("The clipping path “{name}” carries more than {MAX_CLIPPING_TAIL_BYTES} bytes after its name; no clipping path is set."));
+    }
+    let Some(entry) = entries
+        .iter_mut()
+        .find(|e| e.kind == PathKind::Saved && e.name == name)
+    else {
+        return Some(format!("The clipping path names “{name}”, which is not one of the file's imported paths; no clipping path is set."));
+    };
+    entry.clipping = Some(ClippingPath {
+        tail: tail.to_vec(),
+    });
+    None
+}
+
 /// The path resources a writer writes for `entries` on a `canvas`
-/// (module doc).
+/// (module doc): the clipping path's 2999 after the paths, when its path is
+/// written.
 pub(crate) fn resources(entries: &[PathEntry], canvas: (u32, u32)) -> Vec<ResourceBlock> {
     let mut saved = FIRST_SAVED;
     let mut out = Vec::new();
+    let mut clipping = None;
     for entry in entries {
         let Ok(body) = encode(&entry.shape, canvas, false) else {
             continue;
@@ -161,14 +218,25 @@ pub(crate) fn resources(entries: &[PathEntry], canvas: (u32, u32)) -> Vec<Resour
                     body,
                 });
                 saved += 1;
+                if let Some(mark) = &entry.clipping {
+                    clipping = encode_clipping(entry.name.as_bytes(), &mark.tail);
+                }
             }
         }
+    }
+    if let Some(body) = clipping {
+        out.push(ResourceBlock {
+            id: CLIPPING_PATH_RESOURCE,
+            name: String::new(),
+            body,
+        });
     }
     out
 }
 
 /// The export report's sentences for `entries`: each path [`resources`]
-/// does not write. A name always fits its Pascal string (module doc).
+/// does not write, and the clipping path that goes with it. A name always
+/// fits its Pascal string (module doc).
 pub(crate) fn export_losses(entries: &[PathEntry], canvas: (u32, u32)) -> Vec<String> {
     let mut losses = Vec::new();
     for entry in entries {
@@ -178,9 +246,23 @@ pub(crate) fn export_losses(entries: &[PathEntry], canvas: (u32, u32)) -> Vec<St
         };
         if encode(&entry.shape, canvas, false).is_err() {
             losses.push(format!("{label} reaches past the range a PSD path can hold (128 times the canvas); it is not written."));
+            if entry.clipping.is_some() {
+                losses.push(format!(
+                    "{label} is the clipping path; the file names no clipping path."
+                ));
+            }
         }
     }
     losses
+}
+
+/// Whether every path of `entries` is written ([`resources`]) on a
+/// `canvas`: what a flat TIFF that carries the paths asks before it drops
+/// "paths" from its losses (`tiff_paths`).
+pub(crate) fn all_written(entries: &[PathEntry], canvas: (u32, u32)) -> bool {
+    entries
+        .iter()
+        .all(|entry| encode(&entry.shape, canvas, false).is_ok())
 }
 
 /// The `vmsk` body of the record built layer `k` came from, when the walk

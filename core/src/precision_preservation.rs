@@ -91,13 +91,16 @@ impl PrecisionDocument {
     /// alpha sample (`alpha_kept` false) and a pixel is not opaque, then
     /// "hidden pixel colors" when a pixel at alpha 0 holds a colour or ink
     /// the flattened composite writes as zero. A spot channel is never named
-    /// here: whether a format keeps one is the host's (`saveLosses`). `[]`
-    /// when the file reopens as this document.
-    pub(crate) fn flat_state_losses(&self, alpha_kept: bool) -> Vec<&'static str> {
+    /// here: whether a format keeps one is the host's (`saveLosses`). `tiff`
+    /// says the file is a flat TIFF, which keeps the paths of a document
+    /// kind whose TIFF carries them (`tiff_paths`). `[]` when the file
+    /// reopens as this document.
+    pub(crate) fn flat_state_losses(&self, alpha_kept: bool, tiff: bool) -> Vec<&'static str> {
         let roots = self.root_layers();
         let all = records(roots);
         let canvas = (self.width, self.height);
         let name = self.flat_layer_name();
+        let paths_kept = self.paths.entries.is_empty() || (tiff && self.tiff_keeps_paths());
         let mut losses = flat_state::losses(&EditableState {
             sources: all.iter().any(|l| l.retained_source.is_some()),
             warps: all.iter().any(|l| l.warp.is_some()),
@@ -133,7 +136,7 @@ impl PrecisionDocument {
             spot_channels: false,
             guides: !self.guides.is_empty() || self.ruler_origin != (0.0, 0.0),
             samplers: !self.color_samplers.is_empty(),
-            paths: !self.paths.entries.is_empty(),
+            paths: !paths_kept,
             comps: !self.comps.is_empty(),
             global_light: self.global_light != crate::style::GlobalLight::default(),
         });

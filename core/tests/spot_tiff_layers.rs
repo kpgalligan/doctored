@@ -33,7 +33,7 @@ use crate::psb_fixture::{
 };
 use crate::spot_tiff::{
     byte_spots, import_warnings, open_byte, open_typed, read_tiff, resources, typed_spots,
-    with_strip_last, Tiff, CUT_SHORT,
+    with_last_count_short, with_packbits_strips, with_strip_last, Tiff, CUT_SHORT,
 };
 
 const LIMIT: u64 = 2 * 1024 * 1024 * 1024;
@@ -390,6 +390,77 @@ fn a_layered_tiff_cut_short_opens_without_its_spot_channels_and_says_so() {
                     .any(|w| w.starts_with("Spot channel planes")),
                 "{what}: {warnings:?}"
             );
+        }
+    }
+}
+
+/// A compressed composite strip that starts inside the file but does not
+/// decode passes the directory check, so the import report decodes the kept
+/// planes itself: it names them as lost, as both layered opens find them,
+/// and the typed open adds no second line. Two breaks of a PackBits strip:
+/// its byte count 40 bytes short, and the file cut one byte into it.
+#[test]
+fn a_layered_tiff_whose_compressed_strip_does_not_decode_reports_its_spot_channels_lost() {
+    let dir = TempDir::new().unwrap();
+    let bloc = wide(&bloc8());
+    let typed = with_spots(&rgb16(), &ramp16(), &bloc);
+    for bits in [8, 16] {
+        let saved = dir.path().join(format!("saved{bits}.tif"));
+        if bits == 8 {
+            save8(&byte_doc(), &saved, TIFF, LAYERS).unwrap();
+        } else {
+            save16(&typed, &saved, TIFF, LAYERS).unwrap();
+        }
+        let (packed, last) = with_packbits_strips(&std::fs::read(&saved).unwrap(), 4);
+        // The rewrite, whole, still carries its spot channels.
+        let path = dir.path().join(format!("packed{bits}.tif"));
+        std::fs::write(&path, &packed).unwrap();
+        let report = import_report(&path);
+        assert!(
+            strings(&report, "observations").contains(&observation()),
+            "{bits}-bit whole: {report}"
+        );
+        if bits == 8 {
+            let back = open8(&path, LAYERS).unwrap();
+            assert_eq!(byte_spots(&back), byte_spots(&byte_doc()), "{bits}: whole");
+        } else {
+            let back = open16(&path, LAYERS).unwrap();
+            assert_eq!(typed_spots(&back), typed_spots(&typed), "{bits}: whole");
+        }
+        let broken = [
+            ("short count", with_last_count_short(&packed, 40)),
+            ("cut", packed[..last + 1].to_vec()),
+        ];
+        for (kind, bytes) in broken {
+            let what = format!("{bits}-bit {kind}");
+            let path = dir.path().join(format!("{kind}{bits}.tif"));
+            std::fs::write(&path, &bytes).unwrap();
+            let report = import_report(&path);
+            let losses = strings(&report, "verified_losses");
+            assert!(
+                losses
+                    .iter()
+                    .any(|l| l.starts_with("Spot channel planes in this file are not readable (")),
+                "{what}: {losses:?}"
+            );
+            assert!(
+                !strings(&report, "observations").contains(&observation()),
+                "{what}: {report}"
+            );
+            if bits == 8 {
+                let back = open8(&path, LAYERS).unwrap();
+                assert!(byte_spots(&back).is_empty(), "{what}: byte open");
+            } else {
+                let back = open16(&path, LAYERS).unwrap();
+                assert!(typed_spots(&back).is_empty(), "{what}: typed open");
+                let warnings = import_warnings(&back);
+                assert!(
+                    !warnings
+                        .iter()
+                        .any(|w| w.starts_with("Spot channel planes")),
+                    "{what}: {warnings:?}"
+                );
+            }
         }
     }
 }

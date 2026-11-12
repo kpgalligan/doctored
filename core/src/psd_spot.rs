@@ -44,7 +44,7 @@ use crate::psd_spot_records::{
     read_saved, spot_lab, stored, DISPLAY_INFO, KIND_SPOT, LAB_SPACE, NAMES, UNICODE_NAMES,
 };
 use crate::spot_channel::SpotInk;
-use crate::tiff_spot::layered_spot_records;
+use crate::tiff_spot::{layered_report_records, layered_spot_records};
 
 /// What a file's saved channels give (module doc): the kept spot channels
 /// as (saved index, name, ink), the count of saved channels NOT kept, and the
@@ -195,9 +195,19 @@ impl Container<'_> {
         (first, channels.saturating_sub(first))
     }
 
+    /// [`Self::spot_records`] as the import report reads it: a layered
+    /// TIFF's kept planes that do not decode are named as lost
+    /// (`tiff_spot::layered_report_records`); a PSD's are as they stand.
+    pub(crate) fn report_spot_records(&self) -> SpotRecords {
+        if self.tiff_file.is_some() {
+            return layered_report_records(self);
+        }
+        self.spot_records()
+    }
+
     /// The saved channels' reading (module doc); a layered TIFF's are its
     /// composite's extra samples (`tiff_spot::layered_spot_records`). No
-    /// plane is decoded.
+    /// plane is decoded, so every open's plan reads it.
     pub(crate) fn spot_records(&self) -> SpotRecords {
         if self.tiff_file.is_some() {
             return layered_spot_records(self);

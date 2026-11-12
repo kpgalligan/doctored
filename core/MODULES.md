@@ -80,7 +80,7 @@ Detail belongs in the source file's own header comment.
 - `psd_framing.rs` — leaf: the three layered containers' field widths and limits, PSB's long-length keys, the ONE RLE row-table walk and the ONE PackBits decoder.
 - `psd_spot_records.rs` (KERNEL) — the ONE reader/writer of PSD resources 1006/1045/1077/1053 and the spot plane polarity (`max − coverage`).
 - `psd_spot.rs` — PSD/PSB spot channels: the container read and loss lines, `with_psd_spots` at both depths, `psd_spot_planes` for the writers.
-- `tiff_spot_samples.rs` (KERNEL) — a TIFF's spot layout (trailing extra samples), `saved_chunks_held`, the Multiband read, the polarity; `SpotCoverage`.
+- `tiff_spot_samples.rs` (KERNEL) — a TIFF's spot layout, `saved_chunks_held`, the Multiband read and its chunk-at-a-time check, the polarity; `SpotCoverage`.
 - `tiff_spot.rs` — TIFF spot channels, flat and layered: records from tag 34377, `with_(layered_)tiff_spots`, planes, plan terms, keep refusal.
 - `tiff_layers.rs` — Photoshop's layer block in a TIFF (tags 34377/34675/37724): `ByteOrder`, the locator (8/16 `MM`; 32-bit float RGB `Lr32` in both orders); re-exports the writer.
 - `tiff_layers_write.rs` — layered-TIFF writer: `write_with` plans every offset, the caller appends info and strip; `write` 8/16 bits, `write_spots` + spot samples.
@@ -353,7 +353,9 @@ Detail belongs in the source file's own header comment.
 - `psd_comp_records.rs` (KERNEL) — PSD layer comps as bytes: resource 1065 and a record's `shmd`/`cmls` settings, both directions over `psd_descriptor`.
 - `psd_comps.rs` — PSD layer comps at RGB 8/16: import binds each record's settings to the layer it built; export writes 1065, `lyid` and `cmls`.
 - `psd_path_records.rs` (KERNEL) — Adobe's 26-byte path records (8.24 canvas fractions) ↔ `PathShape`, and the `vmsk` body.
-- `psd_paths.rs` — paths in PSD (resources 1025, 2000–2997) at every depth and mode; RGB 8/16 vector masks as `vmsk`, both ways.
+- `psd_paths.rs` — paths in PSD (resources 1025, 2000–2997, the clipping path 2999) at every depth and mode; RGB 8/16 vector masks as `vmsk`, both ways.
+- `clipping_path_native.rs` — native word 114: a path is the clipping path (its key rides in the PATH table's entry), checked both ways.
+- `tiff_paths.rs` — paths and the clipping path in a flat RGB or CMYK TIFF's tag 34377: the opens' read, `attach` for the writers, `canvas_moved` for canvas edits, the losses' test.
 - `style_knockout_merge.rs` — what a MERGE punches through to at 8 bits (Phase 12E-3b, contract g): the knockout capture, the merge backdrop, and the one excluded set.
 - `precision_style_knockout.rs` — the TYPED twin of `style_knockout` (Phase 12E-3b), restating none of its rules and adding no pixel math; its one typed piece is the knockout SEED.
 - `style_instances.rs` — stacked effect instances: up to 10 of the five repeating kinds, the JSON sentences, native word 89 and its byte/typed predicates.

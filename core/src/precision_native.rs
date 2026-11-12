@@ -207,10 +207,15 @@
 //! parsed. The same two invariants hold. A document with no such sources
 //! writes nothing here, so its bytes stay exactly the prior writer's.
 //!
-//! Version 113 (background_native.rs) is the word right after the CMYK slot
+//! Version 114 (clipping_path_native.rs) is the word right after the CMYK
+//! slot inside 46, ahead of 113, with no table: some path is the clipping
+//! path, its key in the PATH table's entry, checked both ways once that
+//! table is read. The next free word is 115.
+//!
+//! Version 113 (background_native.rs) is the next word after the CMYK slot
 //! inside 46, ahead of 112: the document's Background mark names a record.
 //! Its `LBKG` table follows SPOT and precedes the CMYK table; the reader binds
-//! it to the record's final id. The next free word is 114.
+//! it to the record's final id.
 //!
 //! Version 112 (spot_channel_native.rs, #1) is the next word after the
 //! CMYK slot inside 46, ahead of 111: some channel is a spot channel. Its

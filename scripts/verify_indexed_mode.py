@@ -438,7 +438,7 @@ INDEXED_TOOLS = {
     'open_second_view', 'close_second_view', 'list_views', 'get_color_samplers',
     'set_color_samplers', 'detect_horizon', 'straighten_layers', 'list_paths', 'set_path',
     'rename_path', 'duplicate_path', 'delete_path', 'path_to_selection', 'selection_to_path',
-    'fill_path', 'stroke_path', 'list_lens_profiles', 'separate_color',
+    'fill_path', 'stroke_path', 'set_clipping_path', 'list_lens_profiles', 'separate_color',
     'export_psd', 'inspect_psd_export',
 }
 DISABLED_ALL = {

@@ -152,6 +152,8 @@ pub(crate) fn exact_geometry_changed(before: &DrDocument, after: &DrDocument) ->
         || before.ruler_origin != after.ruler_origin
         || before.color_samplers != after.color_samplers
         || before.paths.entries != after.paths.entries
+        // The run's unread path records (`tiff_paths::canvas_moved`).
+        || before.metadata != after.metadata
         || before.layers.len() != after.layers.len()
         || before.channels.len() != after.channels.len()
         || before.comps != after.comps
@@ -502,6 +504,7 @@ impl DrDocument {
             plan.matrix,
             (0, 0),
         ));
+        doc.metadata = crate::tiff_paths::canvas_moved(&self.metadata);
         // The PPI is untouched on purpose: only an EXACT quarter turn swaps
         // the axes, and this branch is by definition not one.
         validated(doc)

@@ -258,7 +258,9 @@ impl PrecisionDocument {
             job,
         )?;
         if tiff {
-            return doc.with_tiff_spots(bytes, limit, other.saturating_add(bytes.len() as u64));
+            return doc
+                .with_tiff_spots(bytes, limit, other.saturating_add(bytes.len() as u64))?
+                .with_tiff_paths(bytes);
         }
         Ok(doc)
     }
@@ -577,6 +579,14 @@ impl PrecisionDocument {
                 // `tiff_spot`); a CMYK file has no transparency sample.
                 if request.format == SaveFormat::Tiff && !spots.is_empty() {
                     side.spots = Some(self.tiff_spot_planes(depth == CmykDepth::Eight, false));
+                }
+                // …and the paths in its 8BIM run (`tiff_paths`); a JPEG
+                // intermediate passes the inherited run as it is.
+                if let Some(paths) = self
+                    .tiff_path_run()
+                    .filter(|_| request.format == SaveFormat::Tiff)
+                {
+                    crate::tiff_paths::attach(&mut side, paths);
                 }
                 cmyk_tiff_bytes(&samples, (w, h), depth, &side)?
             }

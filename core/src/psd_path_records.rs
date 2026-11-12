@@ -20,6 +20,12 @@
 //! Doctored's stored four decimals; a coordinate past ±128 canvases does not
 //! fit and the path is not written ([`encode`]'s `Err`).
 //!
+//! **The clipping path (2999).** Its body is a Pascal string, the name of
+//! the saved path it designates, as Adobe's file format document lists it;
+//! the bytes a file holds after the name have no published layout and no
+//! authored sample here, so [`decode_clipping`] hands them back as an
+//! opaque tail and [`encode_clipping`] writes a tail back verbatim.
+//!
 //! **Fill rule.** Photoshop combines a path's subpaths by an operation per
 //! subpath; Doctored fills a path by one rule. Every subpath `0` (exclude
 //! overlapping shapes) reads as `evenodd`, every subpath `1` (combine) as
@@ -173,6 +179,25 @@ pub(crate) fn encode(
         }
     }
     Ok(out)
+}
+
+/// Resource 2999's body as `(name bytes, tail)` (module doc). `None` for a
+/// body that ends inside its Pascal string.
+pub(crate) fn decode_clipping(body: &[u8]) -> Option<(&[u8], &[u8])> {
+    let length = usize::from(*body.first()?);
+    let name = body.get(1..1 + length)?;
+    Some((name, &body[1 + length..]))
+}
+
+/// [`decode_clipping`]'s inverse: `name` as a Pascal string, then `tail`.
+/// `None` for a name past the Pascal string's 255 bytes.
+pub(crate) fn encode_clipping(name: &[u8], tail: &[u8]) -> Option<Vec<u8>> {
+    let length = u8::try_from(name.len()).ok()?;
+    let mut out = Vec::with_capacity(1 + name.len() + tail.len());
+    out.push(length);
+    out.extend_from_slice(name);
+    out.extend_from_slice(tail);
+    Some(out)
 }
 
 /// A vector mask's `vmsk` body: version 3, the flags word, the records.

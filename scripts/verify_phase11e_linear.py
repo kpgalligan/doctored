@@ -136,7 +136,7 @@ WRAPPER_WORDS = {
     106: "Grayscale document (typed)", 107: "Lab document (typed)",
     108: "Indexed document (typed)", 109: "Duotone document (typed)",
     110: "Bitmap document (typed)", 111: "gradient map method",
-    112: "spot channel", 113: "Background mark",
+    112: "spot channel", 113: "Background mark", 114: "clipping path",
 }
 
 

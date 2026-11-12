@@ -418,21 +418,16 @@ fn side_tags<W: Write + Seek>(
     if let Some(xmp) = &side.xmp {
         tags.write_tag(Tag::Unknown(700), xmp.as_slice())?;
     }
-    // The spot channels' resources follow the inherited (filtered) run.
+    // The paths' resources (`tiff_paths`), then the spot channels', follow
+    // the inherited (filtered) run.
     let spot_resources = side
         .spots
         .as_ref()
-        .map(|spots| spots.resources.as_slice())
-        .filter(|resources| !resources.is_empty());
-    match (&side.iptc, spot_resources) {
-        (Some(iptc), Some(resources)) => {
-            let mut run = iptc.clone();
-            run.extend_from_slice(resources);
-            tags.write_tag(Tag::Unknown(34377), run.as_slice())?;
-        }
-        (Some(iptc), None) => tags.write_tag(Tag::Unknown(34377), iptc.as_slice())?,
-        (None, Some(resources)) => tags.write_tag(Tag::Unknown(34377), resources)?,
-        (None, None) => {}
+        .map_or(&[][..], |spots| spots.resources.as_slice());
+    let inherited = side.iptc.as_deref().unwrap_or_default();
+    if !inherited.is_empty() || !side.paths.is_empty() || !spot_resources.is_empty() {
+        let run = [inherited, side.paths.as_slice(), spot_resources].concat();
+        tags.write_tag(Tag::Unknown(34377), run.as_slice())?;
     }
     // Use the fallible tag setters: ImageEncoder's resolution helpers
     // internally unwrap I/O errors, which would lose the path diagnostic.

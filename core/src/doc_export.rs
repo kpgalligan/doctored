@@ -1431,7 +1431,7 @@ impl DrDocument {
         // HEIC substitutes its TIFF intermediate HERE (Phase 11D), so the
         // packets, the injector and the encoder all describe the container
         // the bytes really are.
-        let (side, carried, metadata) = crate::doc_color::image_sidecar_with_policy(
+        let (mut side, carried, metadata) = crate::doc_color::image_sidecar_with_policy(
             profile,
             &self.metadata,
             self.resolution,
@@ -1441,6 +1441,11 @@ impl DrDocument {
             (w, h),
             &request.metadata,
         );
+        // A TIFF carries the paths in its 8BIM run (`tiff_paths`); a HEIC or
+        // AVIF intermediate is the host's to transcode, so it does not.
+        if request.format == Format::Tiff {
+            crate::tiff_paths::attach(&mut side, self.tiff_path_run());
+        }
         let bytes = encode_bytes(&converted, request, &side)?;
         job.report(1.0, 5)?;
         Ok(ExportResult {
@@ -1940,6 +1945,12 @@ impl PrecisionDocument {
                 let transparency = crate::tiff_spot::transparent16(&converted);
                 side.spots = Some(self.tiff_spot_planes(false, transparency));
             }
+            if let Some(paths) = self
+                .tiff_path_run()
+                .filter(|_| request.format == Format::Tiff)
+            {
+                crate::tiff_paths::attach(&mut side, paths);
+            }
             // The SAME injector selection `precision_codec::save` makes: a
             // PNG16 without its pHYs and XMP chunks would silently lose the
             // resolution and the packet.
@@ -1968,6 +1979,12 @@ impl PrecisionDocument {
             if keep_spots {
                 let transparency = crate::tiff_spot::transparent8(&reduced);
                 side.spots = Some(self.tiff_spot_planes(true, transparency));
+            }
+            if let Some(paths) = self
+                .tiff_path_run()
+                .filter(|_| request.format == Format::Tiff)
+            {
+                crate::tiff_paths::attach(&mut side, paths);
             }
             (encode_bytes(&reduced, request, &side)?, carried, outcome)
         };

@@ -740,10 +740,10 @@ Detail belongs in the source file's own header comment.
 - `EditorViewController+BucketFill.swift` — the Fill tool's Contents, Mode and Sample all layers, and MCP `fill`'s `blend_mode` / `sample_all_layers`.
 - `ImageCanvasView+EyedropperRing.swift` / `EditorViewController+Eyedropper.swift` — the eyedropper sampling ring, Sample from and recent swatches.
 - `ShapeStrokeStyle.swift` — the shape stroke join, dash and alignment, and `ShapeLayer.strokeOutline`, the one outline every renderer fills.
-- `PathModel.swift` — path values: `PathAnchor`, `PathSubpath`, `PathShape`, `PathEntry`, `PathSet`, `PathTarget`, `PathHit`, `VectorMaskInfo`.
+- `PathModel.swift` — path values: `PathAnchor`, `PathSubpath`, `PathShape`, `PathEntry`, `PathClipping`, `PathSet`, `PathTarget`, `PathHit`, `VectorMaskInfo`.
 - `DoctoredCore+Paths.swift` — `dr_*path*` / `dr_*vector_mask*` calls: `paths`, `withPaths`, the vector-mask edits, `RasterPathCore`, `maskEditBaseline`.
 - `ImageDocument+Paths.swift` — `applyPathEdit`, the Pen's two commits (`commitPenPath`, `commitPenVectorMask`) and `resolvedPath`.
-- `AgentServer+Paths.swift` / `AgentCatalog+Paths.swift` — the thirteen MCP tools: the path list, selection both ways, `fill_path`, `stroke_path`, vector masks.
+- `AgentServer+Paths.swift` / `AgentCatalog+Paths.swift` — the fourteen MCP tools: the path list, the clipping path, selection both ways, `fill_path`, `stroke_path`, vector masks.
 - `PenSession.swift` / `ImageCanvasView+Pen.swift` / `EditorViewController+Pen.swift` — the Pen tool (P): gesture rules, canvas events and overlay, the commit.
 - `PathsPanelViewController.swift` / `EditorViewController+Paths.swift` / `PathSheets.swift` — the Paths panel (the sixth tab), its commands and two sheets.
 - `EditorViewController+VectorMasks.swift` — Layer ▸ Vector Mask: Current Path, Reveal All, Delete, Enable and Link, each recording its MCP twin.

@@ -830,17 +830,18 @@ pub fn with_strip_last(file: &[u8]) -> (Vec<u8>, usize) {
     (out, length)
 }
 
-/// `file`, one uncompressed strip of [`H`] rows ([`hand_tiff`]'s), rewritten
-/// as PackBits strips of `rows` rows (literal runs only), the offset and
-/// count tables before the strips; and where its last strip starts, so a
-/// cut there leaves every other strip whole.
-fn with_packbits_strips(file: &[u8], rows: u32) -> (Vec<u8>, usize) {
+/// `file`, one uncompressed strip ([`hand_tiff`]'s, or the layered
+/// writer's), rewritten as PackBits strips of `rows` rows (literal runs
+/// only), the offset and count tables before the strips; and where its last
+/// strip starts, so a cut there leaves every other strip whole.
+pub fn with_packbits_strips(file: &[u8], rows: u32) -> (Vec<u8>, usize) {
+    let height = read_tiff(file).one(257) as usize;
     let fields = Fields::of(file);
     let (offsets, counts) = (fields.one_long(273), fields.one_long(279));
     let start = fields.u32(offsets) as usize;
     let data = &file[start..start + fields.u32(counts) as usize];
     let strips: Vec<Vec<u8>> = data
-        .chunks(data.len() / H as usize * rows as usize)
+        .chunks(data.len() / height * rows as usize)
         .map(|strip| {
             strip
                 .chunks(128)
@@ -871,6 +872,18 @@ fn with_packbits_strips(file: &[u8], rows: u32) -> (Vec<u8>, usize) {
     let compression = fields.value_at[&259];
     out[compression..compression + 2].copy_from_slice(&fields.put16(32773));
     (out, last)
+}
+
+/// `file` (a [`with_packbits_strips`] rewrite) with its last StripByteCounts
+/// entry `by` bytes short, so that strip's stream ends before its rows do.
+pub fn with_last_count_short(file: &[u8], by: u32) -> Vec<u8> {
+    let fields = Fields::of(file);
+    let field = fields.value_at[&279];
+    let n = fields.u32(field - 4) as usize;
+    let at = fields.u32(field) as usize + 4 * (n - 1);
+    let mut out = file.to_vec();
+    out[at..at + 4].copy_from_slice(&fields.put32(fields.u32(at) - by));
+    out
 }
 
 /// The loss line of a TIFF whose spot planes the file cuts short.

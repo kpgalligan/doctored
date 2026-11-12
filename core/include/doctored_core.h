@@ -3955,9 +3955,19 @@ DrDocument *dr_doc_with_color_samplers(const DrDocument *doc, const uint32_t *xy
 /* ---- Paths --------------------------------------------------------------
  *
  * A document carries a list of PATHS: named Bézier paths in canvas
- * space. They never composite, are saved in .rz (versions 74/75 and the PATH
- * table, see the save format above) and are not written to any other format;
- * a flat 8-bit save reports "paths" in dr_doc_flat_save_losses.
+ * space. They never composite and are saved in .rz (versions 74/75 and the
+ * PATH table, see the save format above, and word 114 for a clipping path).
+ * A PSD, PSB or layered TIFF writes them as image resources 1025 and
+ * 2000-2997, and the clipping path as 2999; so does a flat TIFF of an RGB
+ * or CMYK document, in tag 34377, whose flat save then reports "paths" in
+ * dr_doc_flat_save_losses only for a path past 128 canvases, or for path
+ * resources an inherited 8BIM run held (a JPEG's) that the document's own
+ * replace. Every other flat save reports "paths". The opens that read a flat
+ * TIFF's paths take every path resource out of the document's 8BIM run (the
+ * IPTC packet), and read none from a TIFF stored rotated. Path resources a
+ * run still holds are fractions of the canvas their file stored, so every
+ * whole-canvas edit but Image Size (crop, canvas size, the quarter turns and
+ * flips, rotate canvas, straighten, perspective crop) takes them out too.
  *
  * SHAPE JSON:
  *   {"fill_rule":"nonzero"|"evenodd",
@@ -3977,14 +3987,22 @@ DrDocument *dr_doc_with_color_samplers(const DrDocument *doc, const uint32_t *xy
  * than 4096 subpaths or 32768 anchors in one shape, a subpath with no anchor.
  *
  * PATH-LIST JSON:
- *   {"paths":[{"id":u64,"name":string,"kind":"work"|"saved", ...shape}]}
+ *   {"paths":[{"id":u64,"name":string,"kind":"work"|"saved",
+ *              "clipping":{"tail":hex}?, ...shape}]}
+ * "clipping", present on at most one entry, makes that saved path the
+ * document's CLIPPING PATH; "tail" is the lowercase hex of the bytes a
+ * file's resource 2999 held after the path's name, written back after it
+ * ("" or absent for a designation made here, which writes the name alone).
+ * Absent or null is not the clipping path.
  * LIST RULES, each refused with its own sentence: at most dr_max_paths()
  * entries; at most one "work" entry — the unnamed scratch path, always
  * stored first and always named "Work Path" ("name" may be omitted on it);
  * every "saved" name non-empty, at most 255 UTF-8 bytes, unique and not
- * "Work Path"; and at most 65536 anchors over every path of the document
- * and every vector-mask shape ("too many path anchors in the document (max
- * 65536)").
+ * "Work Path"; at most one clipping path ("a document holds at most one
+ * clipping path"), never the work path ("the work path cannot be the
+ * clipping path; save it first"), its tail at most 64 bytes; and at most
+ * 65536 anchors over every path of the document and every vector-mask
+ * shape ("too many path anchors in the document (max 65536)").
  * An id is process-unique, stable across every edit, geometry op and depth
  * conversion, and never saved. An entry whose "id" is 0 or absent is a new
  * path and is minted one, as is an entry repeating an earlier entry's id.
@@ -4351,7 +4369,8 @@ DrDocument *dr_doc_set_vector_mask_properties(const DrDocument *doc, size_t laye
  *
  * CAPTURE PACKETS. JPEG/PNG retain EXIF and XMP packet bytes; JPEG also
  * retains the whole Photoshop 8BIM resource run, concatenated across APP13
- * segments, and merges its ExtendedXMP chunks into the standard XMP packet,
+ * segments (until a canvas edit takes its path resources out: Paths, above),
+ * and merges its ExtendedXMP chunks into the standard XMP packet,
  * so the XMP slot holds the one LOGICAL packet (a merge that cannot be made
  * keeps the standard packet, and dr_path_metadata_import_report's warnings
  * say why). TIFF (classic or BigTIFF) rebuilds standard IFD0/EXIF/GPS/Interop fields with
@@ -5228,13 +5247,17 @@ char *dr_precision_doc_layer_comps_json(const DrPrecisionDocument *doc,
  * transparency" when alpha_kept is false and a pixel is not opaque, then
  * "hidden pixel colors" when a pixel at alpha 0 holds a colour or ink. The
  * one layer may be named "Background" ("Index" in Indexed Color, "Bitmap"
- * in Bitmap) and Indexed and Bitmap documents get no pixel lines. No
+ * in Bitmap) and Indexed and Bitmap documents get no pixel lines. `tiff`
+ * says the file is a flat TIFF: an RGB or CMYK document's TIFF writes its
+ * paths (and its clipping path) in tag 34377, so "paths" is left out then
+ * unless a path lies past 128 canvases or replaces path resources its 8BIM
+ * run held; every other mode keeps the line. No
  * profile, density, metadata, depth or spot-channel line: what each mode's
  * formats carry of those is the host's. [] when the flat file reopens as
  * this document. NULL on a NULL document or failure, with err_out. Free with
  * dr_string_free. */
 char *dr_precision_doc_flat_state_losses(const DrPrecisionDocument *doc, bool alpha_kept,
-                                         char **err_out);
+                                         bool tiff, char **err_out);
 
 /* The Background mark at high depth — dr_doc_background_role's twin, for root
  * entry 0: 0 no mark applies, 1 Background, 2 ordinary layer; 0 on NULL. */

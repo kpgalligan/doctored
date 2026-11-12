@@ -45,9 +45,10 @@ pub unsafe extern "C" fn dr_doc_flat_save_losses(
 
 /// JSON array of the editable state a flattened file of a typed document
 /// has no place for (`precision_preservation`): `alpha_kept` says whether
-/// the file carries an alpha sample. `[]` when the file reopens as this
-/// document. Free with dr_string_free. NULL on a NULL document or a panic,
-/// with err_out explaining the failure.
+/// the file carries an alpha sample, `tiff` whether it is a flat TIFF (which
+/// keeps an RGB or CMYK document's paths, `tiff_paths`). `[]` when the file
+/// reopens as this document. Free with dr_string_free. NULL on a NULL
+/// document or a panic, with err_out explaining the failure.
 ///
 /// # Safety
 /// doc must be NULL or a live typed document; err_out must be NULL or
@@ -56,6 +57,7 @@ pub unsafe extern "C" fn dr_doc_flat_save_losses(
 pub unsafe extern "C" fn dr_precision_doc_flat_state_losses(
     doc: *const PrecisionDocument,
     alpha_kept: bool,
+    tiff: bool,
     err_out: *mut *mut c_char,
 ) -> *mut c_char {
     unsafe {
@@ -65,7 +67,7 @@ pub unsafe extern "C" fn dr_precision_doc_flat_state_losses(
             ptr::null_mut(),
             || {
                 let doc = doc.as_ref().ok_or("document is NULL")?;
-                let json = serde_json::to_string(&doc.flat_state_losses(alpha_kept))
+                let json = serde_json::to_string(&doc.flat_state_losses(alpha_kept, tiff))
                     .map_err(|e| format!("cannot report save preservation: {e}"))?;
                 CString::new(json).map_err(|e| format!("cannot report save preservation: {e}"))
             },

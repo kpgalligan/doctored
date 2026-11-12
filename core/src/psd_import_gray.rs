@@ -449,7 +449,7 @@ pub(crate) fn gray_file_lines(
     if c.merged_alpha && c.channels > 1 && composite_available {
         observations.push("Saved-composite transparency is decoded from a preview stored against white; faint transparent colors may have less detail than editable layers.".into());
     }
-    let spots = c.spot_records();
+    let spots = c.report_spot_records();
     let extra = spots.alpha;
     if extra > 0 {
         losses.push(format!("{extra} additional saved channels detected in the header; neither import choice retains them as editable channels."));

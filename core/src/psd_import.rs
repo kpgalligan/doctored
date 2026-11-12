@@ -756,7 +756,7 @@ pub(crate) fn report(original: &[u8], path: &str) -> Result<Value, String> {
         {
             observations.push("Saved-composite transparency is decoded from a preview stored against white; faint transparent colors may have less detail than editable layers.".into());
         }
-        let spots = container.spot_records();
+        let spots = container.report_spot_records();
         let extra = spots.alpha;
         if extra > 0 && matches!(container.color, 1 | 3) {
             losses.push(format!("{extra} additional saved channels detected in the header; neither import choice retains them as editable channels."));

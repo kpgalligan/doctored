@@ -122,6 +122,10 @@ pub(crate) struct EncodeSidecar<'a> {
     /// The spot channels a flat RGB or CMYK TIFF keeps (#1 1c-2a,
     /// `tiff_spot`); `None` for every other file.
     pub spots: Option<crate::tiff_encode::TiffSpotPlanes>,
+    /// The path resources a flat TIFF writes after the inherited run
+    /// (`tiff_paths::attach`, which also drops the run's own); empty for
+    /// every other file.
+    pub paths: Vec<u8>,
 }
 
 impl EncodeSidecar<'_> {
@@ -135,6 +139,7 @@ impl EncodeSidecar<'_> {
         iptc: None,
         dpi: None,
         spots: None,
+        paths: Vec::new(),
     };
 
     /// The segments or chunks the `image` encoders cannot write themselves,
@@ -626,6 +631,13 @@ fn push_inline(t: &Tiff<'_>, e: &Entry, value: u32, patches: &mut Vec<Patch>) ->
 /// wrote. `None` when the run is malformed; an EMPTY result means "write no
 /// APP13", which the caller reports by leaving the IPTC bit clear.
 pub(crate) fn iptc_filtered(blob: &[u8]) -> Option<Vec<u8>> {
+    filtered_run(blob, |id| !DROPPED_8BIM.contains(&id))
+}
+
+/// The 8BIM run `blob` holding only the resources whose id `keep` accepts,
+/// each verbatim: [`iptc_filtered`]'s walk, and `tiff_paths::attach`'s.
+/// `None` when the run is malformed.
+pub(crate) fn filtered_run(blob: &[u8], keep: impl Fn(u16) -> bool) -> Option<Vec<u8>> {
     let mut out = Vec::with_capacity(blob.len());
     let mut i = 0usize;
     while i < blob.len() {
@@ -654,7 +666,7 @@ pub(crate) fn iptc_filtered(blob: &[u8]) -> Option<Vec<u8>> {
         if end > blob.len() {
             return None;
         }
-        if !DROPPED_8BIM.contains(&id) {
+        if keep(id) {
             out.extend_from_slice(&blob[i..end]);
         }
         i = end;

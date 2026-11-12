@@ -85,7 +85,8 @@ enum BitmapDocument {
         "get_view", "set_view", "save_workspace", "restore_workspace", "open_second_view",
         "close_second_view", "list_views", "get_color_samplers", "set_color_samplers",
         "list_paths", "set_path", "rename_path", "duplicate_path", "delete_path",
-        "path_to_selection", "selection_to_path", "fill_path", "stroke_path", "list_lens_profiles",
+        "path_to_selection", "selection_to_path", "fill_path", "stroke_path", "set_clipping_path",
+        "list_lens_profiles",
     ]
 
     /// The menu items a Bitmap document enables. Image ▸ Mode ▸ Bitmap… is listed for its check
@@ -114,7 +115,8 @@ enum BitmapDocument {
         "copy:", "toggleQuickMask:", "showLiquify:", "lockTransparency:", "lockPixels:",
         "lockPosition:", "lockAll:", "setLayerLabel:", "revealAllCanvas:", "showFileInfo:",
         "showSnapshots:", "makeWorkPath:", "makeSelectionFromPath:", "deleteCurrentPath:",
-        "duplicateCurrentPath:", "fillCurrentPath:", "strokeCurrentPath:", "toggleColorSamplers:",
+        "duplicateCurrentPath:", "toggleClippingPath:", "fillCurrentPath:", "strokeCurrentPath:",
+        "toggleColorSamplers:",
         "clearColorSamplers:", "newView:", "showProofSetup:", "toggleProofColors:",
         "applyWorkingProof:", "applyProofPresetFromMenu:",
     ]

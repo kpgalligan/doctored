@@ -718,7 +718,7 @@ GRAY_TOOLS = sorted([
     'edit_fill_layer', 'rasterize_artwork', 'list_paths', 'set_path', 'rename_path',
     'duplicate_path', 'delete_path', 'selection_to_path', 'path_to_selection', 'fill_path',
     'stroke_path', 'get_vector_mask', 'set_vector_mask', 'set_vector_mask_properties',
-    'remove_vector_mask',
+    'remove_vector_mask', 'set_clipping_path',
     # Phase 6a-ii.
     'link_layers', 'unlink_layers', 'list_layer_comps', 'save_layer_comp', 'apply_layer_comp',
     'update_layer_comp', 'delete_layer_comp', 'reorder_layer_comp', 'list_snapshots',

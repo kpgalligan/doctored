@@ -63,6 +63,7 @@ fn followed_shape(
                 name: String::new(),
                 kind: PathKind::Saved,
                 shape: shape.clone(),
+                clipping: None,
             };
             crate::precision_path::edited_paths(&[entry], edit, width, height)
                 .ok()?

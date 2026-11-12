@@ -433,13 +433,22 @@ pub(super) fn parse_within(
     // Version 110 in the same slot (`bitmap_native`, #1): a Bitmap
     // document, whose GRAY table then BTMP table are the last before LIDS.
     let has_bitmap = has_ids && cmyk_word == crate::bitmap_native::WORD;
-    let background_word =
+    let clipping_word =
         if has_cmyk || has_gray || has_duotone || has_lab || has_indexed || has_bitmap {
             reader.u32()?
         } else {
             cmyk_word
         };
-    // Version 113 (`background_native`) follows the CMYK slot, ahead of 112:
+    // Version 114 (`clipping_path_native`) follows the CMYK slot, ahead of
+    // 113, with no table: some path is the clipping path. Checked both ways
+    // against the PATH table before any payload decodes.
+    let has_clipping_path = has_ids && clipping_word == crate::clipping_path_native::WORD;
+    let background_word = if has_clipping_path {
+        reader.u32()?
+    } else {
+        clipping_word
+    };
+    // Version 113 (`background_native`) follows the CMYK slot and 114, ahead of 112:
     // the Background mark names a record, its LBKG table after SPOT and
     // before the CMYK table.
     let has_background = has_ids && background_word == crate::background_native::WORD;
@@ -1798,6 +1807,8 @@ pub(super) fn parse_within(
     } else {
         crate::path_native::ParsedTable::empty()
     };
+    // Word 114's claim, both ways (`clipping_path_native`).
+    crate::clipping_path_native::check(has_clipping_path, &paths.entries)?;
     // A vector mask's raster part is one more mask plane of its record: it
     // counts in the mask total and in the decoded bytes the admission below
     // charges. Each record must also agree with the mask its record stores

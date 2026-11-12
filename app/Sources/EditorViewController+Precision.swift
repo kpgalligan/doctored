@@ -313,7 +313,7 @@ extension EditorViewController {
                 // #1: Image ▸ Adjustments ▸ Equalize on the display encoding (`equalize_apply`).
                 "equalize:",
                 "makeSelectionFromPath:", "fillCurrentPath:", "makeWorkPath:",
-                "duplicateCurrentPath:", "deleteCurrentPath:",
+                "duplicateCurrentPath:", "deleteCurrentPath:", "toggleClippingPath:",
                 "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
                 "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
                 // Phase 12E-2b: a transparent canvas-sized leaf is the ONE
@@ -584,7 +584,7 @@ extension EditorViewController {
         // The Paths panel's commands, Select ▸ Make Work Path… and
         // Layer ▸ Vector Mask, over the typed path and vector-mask ops.
         "makeSelectionFromPath:", "fillCurrentPath:", "strokeCurrentPath:", "makeWorkPath:",
-        "duplicateCurrentPath:", "deleteCurrentPath:",
+        "duplicateCurrentPath:", "deleteCurrentPath:", "toggleClippingPath:",
         "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
         "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
         // Phase 12E-2b: Layer ▸ New Layer, through the core's typed

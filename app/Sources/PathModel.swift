@@ -62,12 +62,21 @@ enum PathKind: String {
 
 /// One entry of a document's path list. `id` is the core's process-unique
 /// identity, stable across edits, geometry ops, depth conversion and undo;
-/// 0 marks an entry the core has not seen yet and mints one for.
+/// 0 marks an entry the core has not seen yet and mints one for. `clipping`
+/// is set on the one saved path that is the document's clipping path.
 struct PathEntry: Equatable {
     var id: UInt64
     var name: String
     var kind: PathKind
     var shape: PathShape
+    var clipping: PathClipping? = nil
+}
+
+/// The clipping-path designation (`core/src/doc_path.rs`, `ClippingPath`): the path a file's
+/// resource 2999 names. `tail` is the hex of the bytes that resource held after the name, carried
+/// verbatim so a file's own bytes are written back; empty for a designation made here.
+struct PathClipping: Equatable {
+    var tail: String = ""
 }
 
 /// A document's path list in the core's order: the work path first when
@@ -87,6 +96,19 @@ struct PathSet: Equatable {
     /// The entry called `name`; the work path answers to `workPathName`.
     func entry(named name: String) -> PathEntry? {
         entries.first { $0.name == name }
+    }
+
+    /// The list with the entry at `index` as the one clipping path (nil
+    /// clears the designation). A path that already is keeps its tail.
+    func settingClippingPath(_ index: Int?) -> PathSet {
+        var next = self
+        for i in next.entries.indices where i != index {
+            next.entries[i].clipping = nil
+        }
+        if let index, next.entries.indices.contains(index), next.entries[index].clipping == nil {
+            next.entries[index].clipping = PathClipping()
+        }
+        return next
     }
 
     /// The list with the work path replaced by `shape` (keeping its identity)
@@ -306,10 +328,13 @@ extension PathSet {
             guard let object = entry as? [String: Any],
                   let kind = (object["kind"] as? String).flatMap(PathKind.init(rawValue:))
             else { throw PathFormatError(message: "A path entry needs a kind.") }
+            let clipping = (object["clipping"] as? [String: Any]).map {
+                PathClipping(tail: $0["tail"] as? String ?? "")
+            }
             return PathEntry(
                 id: (object["id"] as? NSNumber)?.uint64Value ?? 0,
                 name: object["name"] as? String ?? (kind == .work ? Self.workPathName : ""),
-                kind: kind, shape: try PathShape(json: object))
+                kind: kind, shape: try PathShape(json: object), clipping: clipping)
         }
     }
 
@@ -322,6 +347,7 @@ extension PathSet {
                 object["name"] = entry.name
                 object["kind"] = entry.kind.rawValue
                 if entry.id != 0 { object["id"] = NSNumber(value: entry.id) }
+                if let clipping = entry.clipping { object["clipping"] = ["tail": clipping.tail] }
                 return object
             },
         ]

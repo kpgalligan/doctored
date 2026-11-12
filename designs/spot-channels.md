@@ -67,9 +67,10 @@ only, never the printed ink; New Spot Channel's defaults are red at 0 %.
   (`spot_candidates`); planar samples, a rotated Orientation, an unread compression and image data the file ends
   inside of (`saved_chunks_held`, from the directory alone: an uncompressed strip or tile short of the samples the
   decoder reads, a compressed one starting at or past the end) are a loss line in the records the import report
-  and every open read. The byte document has no import warnings, so a compressed strip that starts inside the
-  file but does not decode (cut short or corrupt) still loses its planes with no line on a byte open
-  ([#30](https://github.com/kpgalligan/doctored/issues/30)). The writer
+  and every open read. A compressed strip that starts inside the file but does not decode (cut short or
+  corrupt) passes the records: a flat file's main decode fails on it first, and the layered import report decodes
+  a compressed composite itself a strip at a time (`saved_planes_decode`, the open's decoder), so it names the kept planes lost,
+  which is the byte open's one place for that line; the typed layered open adds none. The writer
   lays uncompressed strips, a transparency only when some pixel is not opaque (ExtraSamples 2), then the
   spots, their resources after the filtered inherited run (`DROPPED_8BIM`).
 - **Layered TIFF** (1c-2b): Photoshop's own layered TIFFs (take2's `rgb8_l.tif`, `cmyk16_l.tif`) follow the flat

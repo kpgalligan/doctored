@@ -1645,7 +1645,8 @@ impl DrDocument {
                 .paths
                 .moved(|p| crate::doc_path::geometry_paths(p, geom, self.width, self.height)),
             profile: Arc::clone(&self.profile),
-            metadata: self.metadata.clone(),
+            // The run's unread path records name other places now.
+            metadata: crate::tiff_paths::canvas_moved(&self.metadata),
             // A 300 x 150 ppi document turned 90 degrees is 150 x 300; the
             // other three geometries leave the axes where they were.
             resolution: self.resolution.transposed_if(geom.swaps_axes()),
@@ -1713,7 +1714,8 @@ impl DrDocument {
                 .paths
                 .moved(|p| crate::doc_path::cropped_paths(p, x, y)),
             profile: Arc::clone(&self.profile),
-            metadata: self.metadata.clone(),
+            // The run's unread path records name other places now.
+            metadata: crate::tiff_paths::canvas_moved(&self.metadata),
             resolution: self.resolution,
             linear_light: self.linear_light.clone(),
             comps: self.remapped_comps(
@@ -1780,7 +1782,8 @@ impl DrDocument {
                 .paths
                 .moved(|p| crate::doc_path::padded_paths(p, origin)),
             profile: Arc::clone(&self.profile),
-            metadata: self.metadata.clone(),
+            // The run's unread path records name other places now.
+            metadata: crate::tiff_paths::canvas_moved(&self.metadata),
             resolution: self.resolution,
             linear_light: self.linear_light.clone(),
             comps: self.remapped_comps(
@@ -2242,9 +2245,10 @@ impl DrDocument {
         if let Some(resolution) = sidecar.resolution {
             doc.resolution = resolution;
         }
-        // A TIFF's spot channels (#1 1c-2a, `tiff_spot`).
+        // A TIFF's spot channels (#1 1c-2a, `tiff_spot`) and paths
+        // (`tiff_paths`).
         if crate::metadata_tiff::is_tiff(bytes) {
-            return doc.with_tiff_spots(bytes);
+            return Ok(doc.with_tiff_spots(bytes)?.with_tiff_paths(bytes));
         }
         Ok(doc)
     }

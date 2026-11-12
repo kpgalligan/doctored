@@ -174,8 +174,19 @@ impl PrecisionDocument {
                 job,
             )?;
         }
-        // Then the conditional `background_native` word 113 — right after the
-        // CMYK slot and ahead of 112, written iff the Background mark names a
+        // Then the conditional `clipping_path_native` word 114 — right after
+        // the CMYK slot and ahead of 113, written iff some path is the
+        // clipping path. No table: the key rides in the PATH table's entry.
+        if crate::clipping_path_native::carries(&self.paths.entries) {
+            append(
+                out,
+                &crate::clipping_path_native::WORD.to_le_bytes(),
+                plan.encoded_bound,
+                job,
+            )?;
+        }
+        // Then the conditional `background_native` word 113 — after the
+        // CMYK slot and 114, ahead of 112, written iff the Background mark names a
         // record the document holds. Its LBKG table follows SPOT.
         let background = crate::background_native::precision_entry(self);
         if background.is_some() {

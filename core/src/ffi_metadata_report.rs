@@ -127,6 +127,13 @@ pub unsafe extern "C" fn dr_path_metadata_import_report(
                             warnings.extend(lines.map(serde_json::Value::from));
                         }
                     }
+                    // Its paths (`tiff_paths`): the sentences of the records
+                    // the opens read, from the run alone.
+                    let lines =
+                        crate::tiff_paths::report_lines(&bytes, scan.metadata.iptc.as_deref());
+                    if let Some(warnings) = report["warnings"].as_array_mut() {
+                        warnings.extend(lines.into_iter().map(serde_json::Value::from));
+                    }
                 }
                 // Header work only, and never a failure of the report: a file
                 // the flat decoder cannot read simply has no sentence.

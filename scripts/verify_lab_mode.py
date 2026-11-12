@@ -1062,7 +1062,7 @@ LAB_TOOLS = [
     'edit_fill_layer', 'rasterize_artwork', 'list_paths', 'set_path', 'rename_path',
     'duplicate_path', 'delete_path', 'selection_to_path', 'path_to_selection', 'fill_path',
     'stroke_path', 'get_vector_mask', 'set_vector_mask', 'set_vector_mask_properties',
-    'remove_vector_mask',
+    'remove_vector_mask', 'set_clipping_path',
     # Phase 6b-i.
     'apply_image', 'calculations', 'stack_mode', 'reduce_noise_from_stack', 'merge_layers_to_hdr',
     # Phase 6a-ii: Gray 6a-ii's sixteen.

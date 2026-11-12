@@ -525,11 +525,6 @@ impl<'a> Container<'a> {
         resource_in(self.resources, wanted)
     }
 
-    /// [`resource_entries`] over this container's run.
-    pub(crate) fn resource_entries(&self) -> Result<Vec<ResourceEntry<'a>>, String> {
-        resource_entries(self.resources)
-    }
-
     /// The embedded profile's bytes, verbatim: image resource 1039, else (a
     /// TIFF whose block has none) the IFD's ICC tag. [`Container::profile`]
     /// reads through it; a gray file's policy reads it directly
