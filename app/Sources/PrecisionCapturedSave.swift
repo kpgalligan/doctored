@@ -66,8 +66,8 @@ struct PrecisionCapturedSave {
     /// file owned by this call is removed; publication happens after encoding.
     @discardableResult
     func writeSafely(to url: URL) throws -> UInt32 {
-        let staged = url.deletingLastPathComponent().appendingPathComponent(
-            ".doctored-precision-save-\(UUID().uuidString)")
+        StagedFile.sweep(beside: url)
+        let staged = StagedFile.url(beside: url, kind: .precisionSave)
         defer { try? FileManager.default.removeItem(at: staged) }
         let carried: UInt32
         do { carried = try write(to: staged) }

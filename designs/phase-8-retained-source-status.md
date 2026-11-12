@@ -114,7 +114,7 @@ Reproduction: [`scripts/raw-workflow-probe`](../scripts/raw-workflow-probe/READM
 
 ## Open items (verified 2026-09-26)
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Deduplicating masters across separate snapshot/recovery generations; compressed native/archive payloads (carryover P7-32).
-- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Noncancellable RAW capture/decode, source snapshot copy and fingerprint stages (P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Noncancellable source snapshot copy and fingerprint stages (P7-32). RAW capture/decode is a host call (CIRAWFilter) with no cancel inside; it is cancelled before and after each camera stage.
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Larger source-heavy/multilayer/history workloads, encoded-input budgets, broader camera corpus and migration coverage (P7-33).
 - `DONE` — Floating/HDR RAW development output: the 32-bit float (linear) development (`RawOutputEncoding.linearFloat`) keeps an f32 master beside the camera file in a 32-bit float document, under typed DRDC word 78 (`float_native`); it never narrows into an 8- or 16-bit document. ADR: `phase-8g-raw-enhancements-status.md`.
 - `DONE` — Typed RAW capture packets/PPI (11D typed metadata bridge, `core/src/precision_metadata_edit.rs`; plan §11D).

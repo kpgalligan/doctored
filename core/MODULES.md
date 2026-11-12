@@ -62,6 +62,7 @@ Detail belongs in the source file's own header comment.
 - `cmyk_payload_convert.rs` — the clipboard's conversions across modes and CMYK profiles (RGB→CMYK, CMYK→RGB, CMYK→CMYK), relative + BPC; `from_cmyk_image`.
 - `cmyk_clipboard.rs` — CMYK Copy, Copy Merged, Cut, Paste, New from Clipboard, read allocation and the descriptor's clipboard plans.
 - `ffi_cmyk_clipboard.rs` — `dr_clipboard_payload_icc`, `dr_clipboard_payload_from_cmyk_image` (a CMYK TIFF/JPEG on the pasteboard).
+- `stale_temp.rs` — the core temporary's name `<path>.dr-tmp-<pid>-<seq>`, and the sweep each save runs over its folder: a dead pid's regular file goes.
 - `durable_file.rs` — the core's one flush policy. Only `dr_image::save_atomically` calls it, so every core writer inherits it; never add a writer-local `sync_all`.
 - `doc.rs` — layer model, compositing/projection, document ops, layer masks. **Full — no new concerns.** A new feature area gets a new module.
 - `document_clone.rs` — byte document deep-copy estimates (pixels, profiles, styles, masks `Arc`-shared; records and names copied) and bounded temporary capacity views for plans.
@@ -224,6 +225,7 @@ Detail belongs in the source file's own header comment.
 - `spot_heal_type.rs` — KERNEL of the Spot Healing Brush's Type: Content-Aware dispatch, Proximity Match's patch search, Create Texture's tiling that leaves the blemish out, refusals.
 - `doc_content_aware.rs` / `ffi_content_aware.rs` / `inpaint_source_mask.rs` — exact Content-Aware Fill requests (byte/native), source permission, layer output, opt-in `fill_transparent` pad.
 - `patchmatch.rs` / `patchmatch_nnf.rs` — the ONE PatchMatch (Barnes et al.) search, masked pyramid and Wexler vote, and the sparse nearest-neighbour field with its propagation/random-search sweep.
+- `cancel_io.rs` — `Polled`, the sink/source a codec call writes or reads through: one job poll per 64 KiB moved; `settle` keeps a cancel's sentence.
 - `job_control.rs` / `ffi_jobs.rs` — single-use atomic worker tokens: progress, cooperative cancellation, scratch admission; `dr_job_control_begin_compound` for host-composed child work.
 - `inpaint_source.rs` / `doc_regional_plate.rs` — THE sampling-plate builder, shared by every retouch gesture and the 16-bit promotion, over three arms chosen by `plate_arm`.
 - `retouch_sampling.rs` — the three retouch sampling modes and the ignore-adjustments control, as a `Cut` over the compositor.

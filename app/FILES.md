@@ -296,6 +296,7 @@ Detail belongs in the source file's own header comment.
 - `RecoveryCapacity.swift` — `RecoveryCapacity`: a recovery reopen's decode and projection charged as max(), not a sum; a refused checkpoint shows "Recovery off".
 - `EditorViewController+Recovery.swift` — the status bar's "Recovery off" segment: shown while this document's latest crash-recovery attempt failed, the reason as its tooltip.
 - `DurableFile.swift` — the app's one flush policy for published files, the twin of the core's `durable_file.rs`; `publish` is the only way a save, export, snapshot or package is published.
+- `StagedFile.swift` — the hidden staged names beside a save's destination (`<prefix><pid>-<UUID>`) and the sweep of a killed process's.
 - `DataMigration.swift` — first ordinary launch: Rasterize → Doctored folder, old defaults copied once, Camera Raw Filter Presets → Develop Filter Presets; never under automation (`AutomationLaunch`).
 - `LegacyNames.swift` — old → new names of renamed features (Action step tools, filter ops, shortcut identities, the preset key); read only from persisted files.
 - `SideFileExtensions.swift` — `SideFileExtension`: the snapshot, action bundle, clipboard payload and RAW mask extensions; writers use `current` (`.dr*`), readers also take `legacy` (`.rz*`).

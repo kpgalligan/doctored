@@ -6,10 +6,15 @@
 //! one page at a time (`tiff_pages::with_page`); every other caller still
 //! meets the multipage refusal.
 //!
-//! Codec dependencies decode/compress a frame synchronously and cannot poll our
-//! job token inside that call. Admission precedes pixel allocation; checkpoints
-//! surround those calls and poll our sample conversion loops every4096pixels.
-//! Cancellation drops partial buffers/files and never publishes a partial image.
+//! Codec dependencies decode/compress a frame in one synchronous call that takes
+//! no job; the decoders read their input and the encoders write their output
+//! through `cancel_io::Polled`, so the job is polled every 64 KiB of encoded
+//! bytes moved inside that call (what each codec computes before its first
+//! write is `cancel_io`'s module doc), and a cancel there answers exactly
+//! `operation cancelled` (`cancel_io::settle`). Admission precedes pixel
+//! allocation; checkpoints also surround those calls and poll our sample
+//! conversion loops every 4096 pixels. Cancellation drops partial
+//! buffers/files and never publishes a partial image.
 //!
 //! Byte preview conversion is explicit and cannot enter typed saves. The 7E host selects preserving
 //! import explicitly; a typed refusal never authorizes a byte fallback.
@@ -23,6 +28,7 @@ use image::{ColorType, ExtendedColorType, ImageDecoder, ImageEncoder};
 use tiff::decoder::{Decoder as TiffDecoder, DecodingResult};
 use tiff::tags::Tag;
 
+use crate::cancel_io::{settle, Polled};
 use crate::gray16_import::GrayInterpretation;
 use crate::icc::IccProfile;
 use crate::icc_lut::{DeviceSpace, ProofProfile};
@@ -81,12 +87,15 @@ pub struct DecodedPrecision {
     pub warnings: Vec<String>,
 }
 
+/// The encoded input as a decoder reads it: polled as it moves (`cancel_io`).
+type Source<'a> = Polled<'a, Cursor<&'a [u8]>>;
+
 // Exactly one decoder lives per call. Its sub-KiB stack state is included in
 // the fixed header reservation; boxing either variant adds no useful bound.
 #[allow(clippy::large_enum_variant)]
 enum Decoder<'a> {
-    Png(PngDecoder<Cursor<&'a [u8]>>),
-    Tiff(TiffDecoder<Cursor<&'a [u8]>>),
+    Png(PngDecoder<Source<'a>>),
+    Tiff(TiffDecoder<Source<'a>>),
 }
 
 struct Header<'a> {
@@ -125,18 +134,20 @@ pub(crate) fn png_limits(bytes: u64) -> image::Limits {
 /// Header-only inspection. It never allocates decoded pixels. Bounded codec
 /// headers/metadata can allocate; callers must retain encoded bytes separately.
 pub fn inspect(bytes: &[u8], label: &str) -> Result<PrecisionDecodePlan, String> {
-    Ok(header(bytes, label)?.plan)
+    Ok(header(bytes, label, JobContext::NONE)?.plan)
 }
 
-fn header<'a>(bytes: &'a [u8], label: &str) -> Result<Header<'a>, String> {
+/// Parses the container's header with a decoder that reads `bytes` polled
+/// under `job`.
+fn header<'a>(bytes: &'a [u8], label: &str, job: JobContext<'a>) -> Result<Header<'a>, String> {
     bounded_input(bytes, label)?;
+    let source = || Polled::new(Cursor::new(bytes), job);
     let (decoder, stored, channels, format, profile_bytes, fallback_orientation, interpretation) =
         if bytes.starts_with(&crate::metadata::PNG_SIGNATURE) {
             let ((w, h), source_channels) = png_header(bytes, false)?;
             pixel_count(w, h).map_err(|e| problem("capacity", label, e))?;
-            let mut decoder =
-                PngDecoder::with_limits(Cursor::new(bytes), png_limits(32 * 1024 * 1024))
-                    .map_err(|e| problem("decode", label, e))?;
+            let mut decoder = PngDecoder::with_limits(source(), png_limits(32 * 1024 * 1024))
+                .map_err(|e| problem("decode", label, e))?;
             if decoder.is_apng().map_err(|e| problem("format", label, e))? {
                 return Err(problem("format", label, "animated PNG is unavailable"));
             }
@@ -194,7 +205,7 @@ fn header<'a>(bytes: &'a [u8], label: &str) -> Result<Header<'a>, String> {
             )
         } else if crate::metadata_tiff::is_tiff(bytes) {
             let mut decoder =
-                TiffDecoder::new(Cursor::new(bytes)).map_err(|e| problem("decode", label, e))?;
+                TiffDecoder::new(source()).map_err(|e| problem("decode", label, e))?;
             let stored = decoder
                 .dimensions()
                 .map_err(|e| problem("decode", label, e))?;
@@ -429,8 +440,8 @@ pub(crate) fn gray_interpretation(
 }
 
 /// Decodes genuine16-bit source samples. Input length is counted as retained;
-/// include any spare input capacity in other_retained_bytes. Dependency codec
-/// calls are synchronous cancellation boundaries, not interruptible kernels.
+/// include any spare input capacity in other_retained_bytes. The dependency
+/// decoder reads its input polled under `control` (the module doc).
 pub fn decode(
     bytes: &[u8],
     label: &str,
@@ -462,7 +473,7 @@ pub(crate) fn decode_with_context(
     admit(bytes.len() as u64, DECODE_FIXED, other, limit)
         .map_err(|e| problem("capacity", label, e))?;
     job.reserve(DECODE_FIXED + owned_input_bytes)?;
-    let mut header = header(bytes, label)?;
+    let mut header = settle(job, header(bytes, label, job))?;
     // One image too large to keep at 16 bits refuses in its own sentence
     // before the scratch admission and the decode.
     crate::native_sources::single_image_capacity((header.plan.width, header.plan.height), 16)?;
@@ -478,9 +489,10 @@ pub(crate) fn decode_with_context(
             let mut raw = reserved_vec(decoder.total_bytes() as usize)?;
             raw.resize(decoder.total_bytes() as usize, 0);
             job.check()?;
-            decoder
+            let read = decoder
                 .read_image(&mut raw)
-                .map_err(|e| problem("decode", label, e))?;
+                .map_err(|e| problem("decode", label, e));
+            settle(job, read)?;
             job.report(0.75, 1)?;
             let mut samples = reserved_vec(raw.len() / 2)?;
             for (i, b) in raw.chunks_exact(2).enumerate() {
@@ -498,9 +510,10 @@ pub(crate) fn decode_with_context(
             )?
         }
         Decoder::Tiff(ref mut decoder) => {
-            let raw = decoder
+            let read = decoder
                 .read_image()
-                .map_err(|e| problem("decode", label, e))?;
+                .map_err(|e| problem("decode", label, e));
+            let raw = settle(job, read)?;
             job.report(0.75, 1)?;
             let DecodingResult::U16(samples) = raw else {
                 return Err(problem(
@@ -774,7 +787,9 @@ pub(crate) fn save_with_paths(
         } else {
             MetadataInjector::passthrough(writer)
         };
-        encode(image, &mut injector, format, &side, job).map_err(|e| problem("encode", path, e))?;
+        let encoded = encode(image, &mut injector, format, &side, job)
+            .map_err(|e| problem("encode", path, e));
+        settle(job, encoded)?;
         let mut writer = injector.finish()?;
         writer.flush().map_err(|e| problem("write", path, e))?;
         job.check()
@@ -787,7 +802,21 @@ pub(crate) fn save_with_paths(
     Ok(carried)
 }
 
+/// Encodes `image` into `writer`; the dependency encoder writes through
+/// `cancel_io::Polled`, so `job` is polled as its bytes move, and a cancel
+/// anywhere in here answers exactly `operation cancelled`.
 pub(crate) fn encode<W: Write + Seek>(
+    image: &PrecisionImage,
+    writer: &mut W,
+    format: PrecisionFormat,
+    side: &EncodeSidecar<'_>,
+    job: JobContext<'_>,
+) -> Result<(), String> {
+    let mut sink = Polled::new(writer, job);
+    settle(job, encode_polled(image, &mut sink, format, side, job))
+}
+
+fn encode_polled<W: Write + Seek>(
     image: &PrecisionImage,
     writer: &mut W,
     format: PrecisionFormat,

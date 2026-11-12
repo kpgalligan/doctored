@@ -229,6 +229,8 @@ mod duotone_surfaces;
 mod encode_refusals;
 #[path = "encode_refusals_falling.rs"]
 mod encode_refusals_falling;
+#[path = "export_codec_cancel.rs"]
+mod export_codec_cancel;
 #[path = "export_hdr_photo.rs"]
 mod export_hdr_photo;
 #[path = "export_host_formats.rs"]

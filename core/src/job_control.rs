@@ -33,6 +33,9 @@ use std::time::Duration;
 /// stays the flat walk's.
 pub(crate) const EVERY_INTERVAL: usize = 4096;
 
+/// The one sentence a cancelled operation answers.
+pub(crate) const CANCELLED: &str = "operation cancelled";
+
 /// A thread-safe token. The host retains it until all worker/query calls finish.
 #[derive(Default)]
 pub struct DrJobControl {
@@ -91,7 +94,7 @@ impl DrJobControl {
             self.park();
         }
         if self.cancelled() {
-            Err("operation cancelled".into())
+            Err(CANCELLED.into())
         } else {
             Ok(())
         }

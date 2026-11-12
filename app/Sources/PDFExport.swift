@@ -440,8 +440,8 @@ enum PDFExport {
             throw DoctoredCoreError(
                 message: "\(url.path) already exists. This export never overwrites a file.")
         }
-        let temporary = try DurableFile.writeTemporary(
-            data, beside: url, prefix: ".dr-pdf-\(ProcessInfo.processInfo.processIdentifier)-")
+        StagedFile.sweep(beside: url)
+        let temporary = try DurableFile.writeTemporary(data, beside: url, prefix: StagedFile.prefix(.pdf))
         do {
             try DurableFile.publish(temporary, to: url)
         } catch {

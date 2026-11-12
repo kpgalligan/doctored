@@ -199,8 +199,7 @@ struct CapturedSave {
                                    otherRetained: context.otherRetained)
                 return
             }
-            let intermediate = url.deletingLastPathComponent().appendingPathComponent(
-                ".doctored-cmyk-\(UUID().uuidString).tif")
+            let intermediate = StagedFile.url(beside: url, kind: .cmykIntermediate)
             defer { try? FileManager.default.removeItem(at: intermediate) }
             try typed.saveCMYK(to: intermediate, format: "jpeg_intermediate", embedProfile: embedProfile,
                                stripMetadata: stripMetadata, workingLimit: context.limit,
@@ -226,8 +225,8 @@ struct CapturedSave {
     }
 
     func writeSafely(to url: URL) throws {
-        let staged = url.deletingLastPathComponent().appendingPathComponent(
-            ".doctored-save-\(UUID().uuidString)")
+        StagedFile.sweep(beside: url)
+        let staged = StagedFile.url(beside: url, kind: .save)
         let files = FileManager.default
         defer { try? files.removeItem(at: staged) }
         do { try write(to: staged) }

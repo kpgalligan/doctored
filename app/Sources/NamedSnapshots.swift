@@ -83,7 +83,8 @@ final class NamedSnapshots {
         _ = try RasterResources.shared.admit(scratch: archive.state.scratchEstimate,
             own: archive.state.ownRetainedBytes, remedy: archive.state.refusalRemedy)
         let task = try WorkerTask(scratchEstimate: archive.state.scratchEstimate) {
-            let staged = url.deletingLastPathComponent().appendingPathComponent(".snapshot-\(UUID().uuidString)")
+            StagedFile.sweep(beside: url)
+            let staged = StagedFile.url(beside: url, kind: .snapshot)
             defer { try? FileManager.default.removeItem(at: staged) }
             try Self.write(archive, to: staged)
             try DurableFile.publish(staged, to: url)

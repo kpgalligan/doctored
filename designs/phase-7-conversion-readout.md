@@ -70,5 +70,6 @@ reinterprets a byte handle as typed.
 - `DONE` — structure-preserving conversion in every direction: carryover P7-30, verified 12H-1/12H-2.
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — guided Shadows/Highlights full-frame fallback in
   promotion (the guided sampling plates; carryover P7-31).
-- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — synchronous noncancellable PNG16/TIFF16 encoders
-  (carryover P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — the PNG16/TIFF16 encoders are polled inside their
+  call only under the export workspace's control (PNG16 only while its finished output is copied out);
+  `export16` and `save_projection16` take none (carryover P7-32).

@@ -92,7 +92,8 @@ CANCEL_BENCH_FILES := \
 	regional_byte_pass_through_guide \
 	regional_byte_styled_clip_guide \
 	regional_byte_styled_groups \
-	style_inner_glow_aa_parity
+	style_inner_glow_aa_parity \
+	export_codec_cancel
 
 cancel-bench:
 	@failed=0; for file in $(CANCEL_BENCH_FILES); do \

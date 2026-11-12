@@ -36,6 +36,13 @@ explicit, tested outcome without changing capacity or colour policy.
   fully flushed (`F_FULLFSYNC`, best effort) after it; an unsupported `fcntl` falls back to `fsync` (SQLite's rule).
   Core writers inherit it from `save_atomically` (`core/src/durable_file.rs`); the app publishes through
   `DurableFile.publish`, and preference/library/MCP-artifact `.atomic` writes add the directory flush (`DurableFile.write`).
+- **Leftovers of a killed save** (2026-11-12): a failed write removes its own staged file; a killed one cannot, so
+  each save first sweeps its destination's folder. The core removes `<name>.dr-tmp-<pid>-<seq>` regular files whose
+  pid is not its own and answers `ESRCH` to `kill(pid, 0)` (`core/src/stale_temp.rs`); the app names its staged
+  files `<prefix><pid>-<UUID>` and removes them by the same rule, and a UUID-only file an older build left once it is
+  a day old (`app/Sources/StagedFile.swift`). A `.drsnapshot` package is staged as a directory and swept by pid only;
+  an older build's `.snapshot-<UUID>` directory is too plain a name to delete by and stays. A live pid (another
+  instance) or a symlink is never touched.
 
 ## Rejected alternatives
 - The `layerCount > 1` predicate — misses every single-layer rich-state case.

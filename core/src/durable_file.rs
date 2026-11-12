@@ -14,7 +14,8 @@
 //!
 //! `order_file` barrier-flushes (`F_BARRIERFSYNC`) a finished temporary before its publishing
 //! rename, and `persist_parent_dir` best-effort full-flushes (`F_FULLFSYNC`) the parent directory
-//! after it; an unsupported `fcntl` falls back to `fsync` (SQLite's rule).
+//! after it; an unsupported `fcntl` falls back to `fsync` (SQLite's rule). A temporary a killed
+//! process left is removed by the next save into its folder (`stale_temp::sweep`).
 
 use std::fs::File;
 use std::path::Path;
@@ -32,15 +33,22 @@ pub(crate) fn order_file(file: &File) -> std::io::Result<()> {
     file.sync_all()
 }
 
+/// The directory holding `path`: `.` for a bare file name, `None` for a path
+/// with no parent (`/`, the empty path).
+pub(crate) fn parent_dir(path: &str) -> Option<&Path> {
+    match Path::new(path).parent() {
+        Some(parent) if parent.as_os_str().is_empty() => Some(Path::new(".")),
+        parent => parent,
+    }
+}
+
 /// Full-flushes the directory holding `path` after a rename into it. Best
 /// effort: a directory this process cannot open (write-only permissions, for
 /// one) or flush leaves the already-published file in place and the save
 /// successful.
 pub(crate) fn persist_parent_dir(path: &str) {
-    let directory = match Path::new(path).parent() {
-        Some(parent) if parent.as_os_str().is_empty() => Path::new("."),
-        Some(parent) => parent,
-        None => return,
+    let Some(directory) = parent_dir(path) else {
+        return;
     };
     let Ok(handle) = File::open(directory) else {
         return;

@@ -158,9 +158,9 @@ impl PrecisionDocument {
         limit: u64,
         other: u64,
     ) -> Result<u32, String> {
-        // This compound operation intentionally promises no live cancellation:
-        // codecs cannot poll within their dependency calls. The independently
-        // exposed projection operation remains cooperatively cancellable.
+        // This compound operation takes no job control and promises no live
+        // cancellation. The independently exposed projection operation and
+        // the export workspace's encode remain cooperatively cancellable.
         if self.is_float() {
             return Err(crate::float_document::refused_sentence(
                 "Export at 16 bits without a tone map",

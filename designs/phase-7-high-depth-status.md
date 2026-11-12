@@ -53,8 +53,8 @@ remaining gap to a named later slice. Starting Phase 7 did not close the
 - `DONE` — linear-light phases 2–3 (carryover P7-24, 2026-11-12; [11E](phase-11e-linear-light-status.md)).
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — full-frame fallbacks and stage-only cancellation,
   slow 24 MP full projections/conversions (carryover P7-31).
-- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — noncancellable compound export/codecs,
-  uncompressed native payloads (carryover P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — noncancellable compound export (`export16`,
+  `save_projection16`) and the codecs it and Save run with no control, uncompressed native payloads (carryover P7-32).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — 48 MP and broader multilayer/history/snapshot
   workloads, app residency beyond the declared runs (carryover P7-33).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — stroke/text/canvas caps (50,000 dabs, 4,096

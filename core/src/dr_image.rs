@@ -592,12 +592,14 @@ pub(crate) fn clamp_jfif_density(ppi: f32) -> u16 {
 
 /// Writes a file atomically — the ONE helper behind every save path
 /// (`save_flat` here, `DrDocument::save_native` in `drdc`). `write`
-/// produces the content at a temporary path in the same directory (pid plus
-/// a process-wide sequence number keep concurrent saves distinct), which is
-/// renamed over `path` only on success, so a failed save never truncates or
-/// deletes an existing destination file; the temporary file is removed on
-/// failure. Every core file writer publishes atomically and durably: temp
-/// file, F_BARRIERFSYNC, rename, then a best-effort F_FULLFSYNC of the parent
+/// produces the content at a temporary path in the same directory
+/// (`stale_temp::name`: pid plus a process-wide sequence number keep
+/// concurrent saves distinct), which is renamed over `path` only on success,
+/// so a failed save never truncates or deletes an existing destination file;
+/// the temporary file is removed on failure. Before writing, the folder is
+/// swept of the temporaries a dead process left (`stale_temp::sweep`). Every
+/// core file writer publishes atomically and durably: temp file,
+/// F_BARRIERFSYNC, rename, then a best-effort F_FULLFSYNC of the parent
 /// directory (`durable_file`).
 pub(crate) fn save_atomically(
     path: &str,
@@ -605,7 +607,10 @@ pub(crate) fn save_atomically(
 ) -> Result<(), String> {
     static SAVE_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let seq = SAVE_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let tmp_path = format!("{path}.dr-tmp-{}-{seq}", std::process::id());
+    if let Some(folder) = crate::durable_file::parent_dir(path) {
+        crate::stale_temp::sweep(folder);
+    }
+    let tmp_path = crate::stale_temp::name(path, seq);
     let result = write(&tmp_path)
         .and_then(|()| {
             std::fs::File::open(&tmp_path)

@@ -88,6 +88,7 @@ use image::imageops::FilterType;
 use image::RgbaImage;
 use serde_json::{json, Value};
 
+use crate::cancel_io::{settle, Polled};
 use crate::doc::{DrDocument, MAX_PIXELS};
 use crate::doc_export_float::{FloatDeliverable, HdrDeliverable, HdrExportEncoding};
 use crate::doc_export_layers::LayerExportInfo;
@@ -1446,7 +1447,7 @@ impl DrDocument {
         if request.format == Format::Tiff {
             crate::tiff_paths::attach(&mut side, self.tiff_path_run());
         }
-        let bytes = encode_bytes(&converted, request, &side)?;
+        let bytes = encode_bytes(&converted, request, &side, job)?;
         job.report(1.0, 5)?;
         Ok(ExportResult {
             bytes: bounded(bytes)?,
@@ -1547,11 +1548,13 @@ fn convert16(
 
 /// The byte encoder, behind the SAME `MetadataInjector` selection
 /// `dr_image::save_flat` uses — the only difference is that the sink is a
-/// `Cursor<Vec<u8>>` rather than a `BufWriter<File>`.
+/// `Cursor<Vec<u8>>` rather than a `BufWriter<File>`. The encoder writes
+/// through `cancel_io::Polled`, so `job` is polled as its bytes move.
 fn encode_bytes(
     pixels: &RgbaImage,
     request: &ExportRequest,
     side: &crate::metadata_write::EncodeSidecar<'_>,
+    job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
     let format = request.encode_format();
     let extra = match format {
@@ -1566,7 +1569,10 @@ fn encode_bytes(
         Format::Png => MetadataInjector::png(writer, extra),
         _ => MetadataInjector::passthrough(writer),
     };
-    crate::dr_image::encode_into(pixels, &mut injector, format, request.jpeg_quality, side)?;
+    let mut sink = Polled::new(&mut injector, job);
+    let encoded =
+        crate::dr_image::encode_into(pixels, &mut sink, format, request.jpeg_quality, side);
+    settle(job, encoded)?;
     Ok(injector.finish()?.into_inner())
 }
 
@@ -1986,7 +1992,11 @@ impl PrecisionDocument {
             {
                 crate::tiff_paths::attach(&mut side, paths);
             }
-            (encode_bytes(&reduced, request, &side)?, carried, outcome)
+            (
+                encode_bytes(&reduced, request, &side, job)?,
+                carried,
+                outcome,
+            )
         };
         job.report(1.0, 5)?;
         Ok(ExportResult {

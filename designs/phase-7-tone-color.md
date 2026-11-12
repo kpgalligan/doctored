@@ -73,5 +73,6 @@ legacy byte result.
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — full-frame live projection and stored-source
   conversion at 24 MP (regional work, carryover P7-31); latency targets come from the measured corpus
   ([#11](https://github.com/kpgalligan/doctored/issues/11), P7-33).
-- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — stage-only codec cancellation, noncancellable
-  compound export, uncompressed PNG/native payloads (carryover P7-32).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — codec cancellation inside the call only in the
+  export workspace and the 16-bit opens (PNG's only during its copy-out), noncancellable compound export,
+  uncompressed PNG/native payloads (carryover P7-32).

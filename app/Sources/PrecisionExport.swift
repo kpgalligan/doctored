@@ -240,7 +240,8 @@ struct PrecisionExportCapture {
     }
 
     func writeSafely(to url: URL) throws -> RasterSaveReport {
-        let staged = url.deletingLastPathComponent().appendingPathComponent(".doctored-export-\(UUID().uuidString)")
+        StagedFile.sweep(beside: url)
+        let staged = StagedFile.url(beside: url, kind: .export)
         defer { try? FileManager.default.removeItem(at: staged) }
         let result: RasterSaveReport
         do { result = try write(to: staged) }
