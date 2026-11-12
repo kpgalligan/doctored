@@ -43,8 +43,11 @@ extension RasterPrecisionDocument {
         return RasterPrecisionDocument(owning: handle)
     }
 
+    /// Unescaped slashes: Custom Pattern's inline tile is base64, which an escaped `\/` would
+    /// double past the core's 2 MiB options bound for an opaque white 512² tile.
     private static func bitmapJSON(_ object: [String: Any]) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+        guard let data = try? JSONSerialization.data(withJSONObject: object,
+                                                      options: [.sortedKeys, .withoutEscapingSlashes]),
               let text = String(data: data, encoding: .utf8) else { return "{}" }
         return text
     }

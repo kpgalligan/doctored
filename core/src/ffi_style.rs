@@ -169,6 +169,46 @@ pub unsafe extern "C" fn dr_pattern_presets_json(err_out: *mut *mut c_char) -> *
     }
 }
 
+/// Edit ▸ Define Pattern's tile from a 32-bit float composite
+/// (`pattern_define::tile_from_linear`): `image`'s straight linear RGBA,
+/// each component `round(255 · clamp(v, 0, 1))`, as an RGBA8 image of the
+/// same size (free with `dr_image_free`) — the inverse of the code / 255 a
+/// 32-bit document reads a texel as. NULL with a message through `err_out`
+/// for a NULL `image`, one that is not 32-bit float storage, or a side over
+/// 512 pixels.
+///
+/// # Safety
+/// `image` must be NULL or a valid pointer to a live `PrecisionImage`;
+/// `err_out` must be NULL or a valid pointer to writable `*mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn dr_pattern_tile_from_linear(
+    image: *const crate::precision_image::PrecisionImage,
+    err_out: *mut *mut c_char,
+) -> *mut crate::dr_image::DrImage {
+    unsafe {
+        fallible_op(
+            err_out,
+            "making a pattern tile from linear pixels",
+            ptr::null_mut(),
+            || {
+                let image = crate::ffi_util::required_handle(image)?;
+                if image.storage() != crate::precision_image::PrecisionStorage::Rgba32Float {
+                    return Err("a linear pattern tile is made from 32-bit float pixels".into());
+                }
+                let (width, height) = image.dimensions();
+                let side = crate::pattern_tile::MAX_TILE_SIDE;
+                if width > side || height > side {
+                    return Err(format!("a pattern tile is at most {side} pixels a side"));
+                }
+                let bytes = crate::pattern_define::tile_from_linear(&image.to_rgba32()?);
+                crate::dr_image::DrImage::from_rgba(width, height, bytes)
+                    .ok_or_else(|| "the pattern tile could not be built".to_string())
+            },
+            boxed,
+        )
+    }
+}
+
 /// A style PRESET's canonical JSON (`style_presets::preset_style`):
 /// `style_json` parsed strictly, every CMYK ink and every pattern-fill
 /// anchor dropped, written canonically (heap, free with `dr_string_free`).

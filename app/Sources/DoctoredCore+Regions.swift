@@ -100,6 +100,29 @@ extension RasterDocument {
         }
     }
 
+    /// Edit ▸ Fill… with Pattern contents (`dr_doc_fill_selection_pattern`):
+    /// `selectionFilled` with the straight RGBA8 tile `tile` (`tileWidth` ×
+    /// `tileHeight`, each side 1…512) on the canvas grid in place of one
+    /// colour. nil when nothing would change or on a refusal.
+    func selectionFilledPattern(
+        _ idx: Int, mask: [UInt8]?, tile: [UInt8], tileWidth: Int, tileHeight: Int,
+        mode: DrBlendMode, opacity: Double, preserveTransparency: Bool
+    ) -> RasterDocument? {
+        guard isValidIndex(idx), (1...512).contains(tileWidth), (1...512).contains(tileHeight),
+              tile.count == tileWidth * tileHeight * 4,
+              mask == nil || mask?.count == width * height
+        else { return nil }
+        return withMask(mask) { maskPtr in
+            tile.withUnsafeBufferPointer { texels in
+                wrap(
+                    dr_doc_fill_selection_pattern(
+                        ptr, idx, maskPtr, UInt32(width), UInt32(height), texels.baseAddress,
+                        UInt32(tileWidth), UInt32(tileHeight), mode, Float(opacity),
+                        preserveTransparency))
+            }
+        }
+    }
+
     /// Two-color gradient over layer `idx` (scaled by `mask` if given).
     func gradiented(
         _ idx: Int, from p0: CGPoint, to p1: CGPoint, start: [UInt8], end: [UInt8],

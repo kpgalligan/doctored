@@ -3,7 +3,8 @@ import AppKit
 /// Layer Style > Pattern Overlay: the layer's shape filled with a tiled pattern above
 /// its pixels, below a Gradient and a Color Overlay, at the overlay's OWN blend mode and opacity.
 /// The rows: Blend Mode, Opacity, the Pattern popup (the four presets with their
-/// swatches, plus "Custom: <name>" while the effect holds a custom tile, e.g. from a PSD or MCP),
+/// swatches, the user's library patterns from Edit ▸ Define Pattern…, plus "Custom: <name>" while
+/// the effect holds another custom tile, e.g. from a PSD or MCP),
 /// Angle (turning the tile about its origin), Scale 1–1000 %, Link with Layer, and Snap to Origin. A linked tile starts at the canvas
 /// origin plus the phase plus the layer's moves since it was made (Photoshop's fxrp; the core
 /// keeps where the layer was made as the effect's `anchor`) and then moves with the layer. Snap
@@ -97,18 +98,28 @@ enum PatternFillRows {
     }
 
     /// The presets (`RasterDocument.patternPresets`) as `preset:<id>` items with their swatches,
-    /// and the held custom tile as one `custom` item.
+    /// then the user's library (`PatternLibrary`, re-read as the pane is built) as
+    /// `library:<name>` items after a separator — choosing one embeds its tile — and the held
+    /// custom tile as one `custom` item unless it IS a library pattern (the same name and
+    /// pixels), which then shows as that row.
     private static func patternPopup(held: PatternRef?, binding: EffectBinding<PatternFill>)
         -> PanePopupRow
     {
+        let choices = PatternChoice.all()
         let menu = NSMenu()
-        for preset in RasterDocument.patternPresets() {
-            let item = NSMenuItem(title: preset.name, action: nil, keyEquivalent: "")
-            item.image = preset.image
-            item.representedObject = "preset:" + preset.id
+        var separated = false
+        for choice in choices {
+            if choice.key.hasPrefix("library:"), !separated {
+                menu.addItem(.separator())
+                separated = true
+            }
+            let item = NSMenuItem(title: choice.name, action: nil, keyEquivalent: "")
+            item.image = choice.image
+            item.representedObject = choice.key
             menu.addItem(item)
         }
-        if let held {
+        let heldIsListed = held.map { tile in choices.contains { $0.ref == tile } } ?? false
+        if let held, !heldIsListed {
             let item = NSMenuItem(
                 title: "Custom: " + (held.name ?? "Pattern"), action: nil, keyEquivalent: "")
             item.representedObject = "custom"
@@ -118,15 +129,17 @@ enum PatternFillRows {
             label: "Pattern:", menu: menu,
             get: {
                 let current = binding.read().pattern
-                if current?.isCustom == true { return "custom" }
+                if current?.isCustom == true {
+                    return choices.first { $0.ref == current }?.key ?? "custom"
+                }
                 return "preset:" + (current?.preset ?? "checkerboard")
             },
             set: { value in
                 binding.update { fx in
                     if value == "custom" {
                         fx.pattern = held
-                    } else {
-                        fx.pattern = PatternRef(preset: String(value.dropFirst("preset:".count)))
+                    } else if let choice = choices.first(where: { $0.key == value }) {
+                        fx.pattern = choice.ref
                     }
                 }
             })

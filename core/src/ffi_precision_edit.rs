@@ -21,22 +21,30 @@ use crate::precision_plane_read::PlaneRead;
 use crate::precision_structure::StructureEdit;
 
 const REQUEST_LIMIT: usize = 64 * 1024;
-/// A `layer_style` request alone may be larger: it carries a whole style,
+/// A request that carries a pattern tile may be larger: a `layer_style`,
 /// whose canonical body may reach `MAX_STYLE_JSON_LEN` (2 MiB, for custom
-/// pattern tiles), beside the envelope `REQUEST_LIMIT` bounds.
+/// pattern tiles), or a `paint_blend` with Fill…'s `pattern` (one tile, at
+/// most 512² texels: 1.4 MB of base64), beside the envelope `REQUEST_LIMIT`
+/// bounds.
 const STYLE_REQUEST_LIMIT: usize =
     crate::precision_style_native::MAX_STYLE_JSON_LEN + REQUEST_LIMIT;
 const PARSE_BYTES: u64 = 4 * BOOKKEEPING_BYTES;
 
-/// Whether `text` is a `layer_style` request: the one op admitted past
-/// `REQUEST_LIMIT`. Reads only the `op` key, so nothing is allocated.
-fn is_style_request(text: &str) -> bool {
+/// Whether `text` carries a pattern tile (`STYLE_REQUEST_LIMIT`): a
+/// `layer_style`, or a `paint_blend` with a `pattern` key — the ops admitted
+/// past `REQUEST_LIMIT`. Reads the `op` key and skips the `pattern` value, so
+/// nothing is allocated.
+fn carries_tile(text: &str) -> bool {
     #[derive(Deserialize)]
     struct Tag<'a> {
         #[serde(borrow)]
         op: &'a str,
+        #[serde(default)]
+        pattern: Option<serde::de::IgnoredAny>,
     }
-    serde_json::from_str::<Tag<'_>>(text).is_ok_and(|tag| tag.op == "layer_style")
+    serde_json::from_str::<Tag<'_>>(text).is_ok_and(|tag| {
+        tag.op == "layer_style" || (tag.op == "paint_blend" && tag.pattern.is_some())
+    })
 }
 
 enum Edit {
@@ -282,8 +290,9 @@ unsafe fn request<'a>(
     job.reserve(PARSE_BYTES)?;
     let text = unsafe { borrow_cstr_bounded(text, "request", STYLE_REQUEST_LIMIT) }?;
     // The parsed tree of a request past the common bound (the style's
-    // `Value`, then its decoded tile) is charged at four times the request's
-    // length beside the bookkeeping, before any of it exists. The caller
+    // `Value`, then its decoded tile; a pattern fill's buffered `pattern`
+    // value, then its tile) is charged at four times the request's length
+    // beside the bookkeeping, before any of it exists. The caller
     // raises the plan's scratch to this figure (`covering_parse`), so the
     // host's job limit, set from the plan, admits this reservation.
     // Measured (`precision_pattern_overlay::measure_layer_style_edit`,
@@ -294,7 +303,7 @@ unsafe fn request<'a>(
     // layer's re-edit at E 2,932,760 against 9,796,740 (3.34×).
     let mut parse = 0;
     if text.len() > REQUEST_LIMIT {
-        if !is_style_request(text) {
+        if !carries_tile(text) {
             return Err("request exceeds the supported byte limit".into());
         }
         parse = PARSE_BYTES + 4 * text.len() as u64;

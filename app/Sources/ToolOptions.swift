@@ -258,6 +258,9 @@ struct FillDialogOptions: Codable, Equatable {
     var blendMode = "Normal"
     var opacity: Double = 100
     var preserveTransparency = false
+    /// The last Pattern row chosen (`PatternChoice.key`); optional so options stored before
+    /// Pattern contents still decode.
+    var pattern: String? = nil
 }
 
 /// Select ▸ Color Range…'s sheet values, persisted like Fill…'s and

@@ -8,6 +8,11 @@
 //! blends the exact colour, not one un-premultiplied out of a low-coverage
 //! byte.
 //!
+//! Pattern contents ([`DrDocument::fill_selection_pattern`]) hand the same
+//! walk a tile instead of one colour: canvas pixel (x, y) takes texel (x mod
+//! w, y mod h) through `pattern_tile::canvas_sampler`, whatever the layer's
+//! offset, its alpha multiplying the coverage like a colour's.
+//!
 //! The layer never grows: the walk is clipped to the layer's own buffer
 //! (the painting path's clipping), so a fill on a smaller, offset layer
 //! paints only the pixels that layer already has.
@@ -87,6 +92,7 @@ use crate::doc_lock::EditKind;
 use crate::doc_paint::{Ink, OverlayFrame, PaintMode};
 use crate::doc_select::coverage_byte;
 use crate::job_control::JobContext;
+use crate::pattern_tile::{canvas_sampler, PatternSampler, PatternTile, MAX_TILE_SIDE};
 use crate::retouch_transform::{grown_layer, merged_extent, StorageExtent};
 use crate::style::StrokePosition;
 use crate::style_plane_ops::{inside_stroke_band, outside_stroke_band};
@@ -221,7 +227,70 @@ fn edge_frame(
     Ok((frame, ((width, height), origin)))
 }
 
+/// What a fill paints at each frame sample: one straight colour, or Edit ▸
+/// Fill…'s Pattern contents, a tile read at the sample's CANVAS pixel
+/// (`pattern_tile::canvas_sampler`, whatever the layer's offset).
+#[derive(Clone, Copy)]
+enum FillInk<'a> {
+    Color([u8; 4]),
+    Pattern(&'a PatternSampler),
+}
+
+impl FillInk<'_> {
+    /// The straight RGBA8 at sample `i` of `frame` (`i = sy·width + sx`).
+    fn at(self, frame: OverlayFrame, i: usize) -> [u8; 4] {
+        match self {
+            FillInk::Color(rgba) => rgba,
+            FillInk::Pattern(sampler) => {
+                let w = frame.width.max(1) as usize;
+                let x = frame.x + (i % w) as i64;
+                let y = frame.y + (i / w) as i64;
+                // The sampler's unit channels are a texel's own bytes / 255
+                // (an integer tap at scale 1), so rounding gives them back.
+                sampler
+                    .at(x, y)
+                    .map(|v| (f64::from(v).clamp(0.0, 1.0) * 255.0).round() as u8)
+            }
+        }
+    }
+}
+
 impl DrDocument {
+    /// Edit ▸ Fill… with Pattern contents: [`Self::fill_selection`] with
+    /// `tile` on the canvas grid at 100 %, unturned, in place of one colour —
+    /// canvas pixel (x, y) takes texel (x mod w, y mod h), its alpha
+    /// multiplying the fill's opacity and the coverage, on any layer offset.
+    /// `fill_selection`'s refusals, plus a tile whose sides are outside
+    /// 1..=[`MAX_TILE_SIDE`] or whose bytes are not `width·height·4`.
+    pub fn fill_selection_pattern(
+        &self,
+        idx: usize,
+        mask: Option<&[u8]>,
+        tile: &PatternTile,
+        mode: BlendMode,
+        opacity: f32,
+        preserve_transparency: bool,
+    ) -> Option<Self> {
+        let sides = 1..=MAX_TILE_SIDE;
+        if !sides.contains(&tile.width)
+            || !sides.contains(&tile.height)
+            || tile.rgba.len() != tile.width as usize * tile.height as usize * 4
+        {
+            return None;
+        }
+        let sampler = canvas_sampler(tile);
+        let frame = OverlayFrame::canvas(self.width, self.height);
+        self.fill_in(
+            idx,
+            mask,
+            frame,
+            FillInk::Pattern(&sampler),
+            mode,
+            opacity,
+            preserve_transparency,
+        )
+    }
+
     /// Fills layer `idx` with straight `rgba` through `mode` at `opacity`
     /// (clamped to [0, 1]), weighted by `mask` — a canvas-sized u8 selection
     /// coverage buffer, or `None` for the whole canvas. With
@@ -246,19 +315,28 @@ impl DrDocument {
         preserve_transparency: bool,
     ) -> Option<Self> {
         let frame = OverlayFrame::canvas(self.width, self.height);
-        self.fill_in(idx, mask, frame, rgba, mode, opacity, preserve_transparency)
+        self.fill_in(
+            idx,
+            mask,
+            frame,
+            FillInk::Color(rgba),
+            mode,
+            opacity,
+            preserve_transparency,
+        )
     }
 
     /// [`Self::fill_selection`] with the mask and the walk laid out over
     /// `frame` (`mask` exactly `frame.width·frame.height` bytes) instead of
-    /// the canvas; the same refusals, read against the frame.
+    /// the canvas, and `ink` read per sample; the same refusals, read against
+    /// the frame.
     #[allow(clippy::too_many_arguments)]
     fn fill_in(
         &self,
         idx: usize,
         mask: Option<&[u8]>,
         frame: OverlayFrame,
-        rgba: [u8; 4],
+        ink: FillInk<'_>,
         mode: BlendMode,
         opacity: f32,
         preserve_transparency: bool,
@@ -273,13 +351,13 @@ impl DrDocument {
         } else {
             PaintMode::Blend(mode)
         };
-        let rgb = [rgba[0], rgba[1], rgba[2]];
         let mut out = self.under_locks(idx, EditKind::Pixels, |doc| {
             let frozen = preserve_transparency || doc.alpha_frozen(idx);
             doc.paint_walk(idx, frame, paint, opacity, frozen, |i| {
                 let coverage = mask.map_or(255u32, |m| u32::from(m[i]));
+                let rgba = ink.at(frame, i);
                 Ink::Straight {
-                    rgb,
+                    rgb: [rgba[0], rgba[1], rgba[2]],
                     alpha: ((u32::from(rgba[3]) * coverage + 127) / 255) as u8,
                 }
             })
@@ -442,7 +520,7 @@ impl DrDocument {
             idx,
             Some(&plane),
             frame,
-            rgba,
+            FillInk::Color(rgba),
             mode,
             opacity,
             preserve_transparency,

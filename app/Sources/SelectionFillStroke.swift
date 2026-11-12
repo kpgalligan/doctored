@@ -42,12 +42,15 @@ import AppKit
 /// with nothing selected on a layer the core strokes the layer's own edge in
 /// layer space (`dr_doc_stroke_layer_edge`).
 
-/// The Fill dialog's Contents popup, in its menu order. Content-Aware,
-/// Pattern and History are deliberately absent: Content-Aware Fill has its
-/// own command, this build has no patterns, and filling from a history state
-/// is not built (the History Brush tool paints from one).
+/// The Fill dialog's Contents popup, in its menu order (raw values persist in
+/// `FillDialogOptions.contents`, so a new case goes last). Content-Aware and
+/// History are deliberately absent: Content-Aware Fill has its own command,
+/// and filling from a history state is not built (the History Brush tool
+/// paints from one). Pattern fills a layer's pixels only — a mask, colour
+/// plane, alpha channel or the Quick Mask holds one gray per pixel, so the
+/// sheet omits it there (`offered`).
 enum FillContents: Int, CaseIterable {
-    case foreground, background, color, black, gray50, white
+    case foreground, background, color, black, gray50, white, pattern
 
     var title: String {
         switch self {
@@ -57,14 +60,22 @@ enum FillContents: Int, CaseIterable {
         case .black: return "Black"
         case .gray50: return "50% Gray"
         case .white: return "White"
+        case .pattern: return "Pattern"
         }
+    }
+
+    /// The Contents rows a target takes: every case on a layer, all but
+    /// Pattern on a coverage target or in Quick Mask.
+    static func offered(coverage: Bool) -> [FillContents] {
+        allCases.filter { $0 != .pattern || !coverage }
     }
 
     /// The colour this choice fills with. The swatches and a picked Color…
     /// are AUTHORED colours and pass through as they are (the commit
     /// converts them once, `colorBytes`); Black, 50% Gray and White are the
     /// DOCUMENT's own constants 0 / 128 / 255, so they are built in `space`
-    /// and convert nowhere. nil for Color… with nothing picked.
+    /// and convert nowhere. nil for Color… with nothing picked, and for
+    /// Pattern, which fills with `FillSettings.pattern`'s tile.
     func color(
         foreground: NSColor, background: NSColor, custom: NSColor?, in space: NSColorSpace
     ) -> NSColor? {
@@ -78,6 +89,7 @@ enum FillContents: Int, CaseIterable {
         case .black: return constant(0)
         case .gray50: return constant(128.0 / 255.0)
         case .white: return constant(1)
+        case .pattern: return nil
         }
     }
 }
@@ -87,6 +99,10 @@ struct FillSettings {
     var contents: FillContents
     /// The Color… choice; ignored by every other `contents`.
     var customColor: NSColor? = nil
+    /// Pattern's tile, resolved when the sheet applied (a built-in's
+    /// `{preset}` or the library pattern's custom tile, so the recorded step
+    /// never depends on the library); ignored by every other `contents`.
+    var pattern: PatternRef? = nil
     var mode: DrBlendMode
     /// 0…100, the sheet's unit. The core takes 0…1; `applyFill` divides.
     var opacity: Double
@@ -116,6 +132,11 @@ struct FillSettings {
         + "coverage (target \"quick_mask\"). Omit layer and preserve_transparency and pass "
         + "no other target, or exit Quick Mask (set_quick_mask) to fill layer pixels, a mask "
         + "or a channel."
+
+    /// Why Pattern contents are refused on a coverage target or the Quick Mask.
+    static let patternCoverageRefusal = "Pattern fills a layer's pixels; a mask, colour plane, "
+        + "alpha channel or the Quick Mask holds one gray value per pixel. Target the layer, or "
+        + "fill with a colour."
 
     /// Why a Quick Mask fill opened through Fill… was not applied: the Quick
     /// Mask or its coverage changed while the sheet was open.

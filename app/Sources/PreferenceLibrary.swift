@@ -10,7 +10,7 @@ import Darwin
 // `PreferenceLibraryCodec` (its `noun`, from which EVERY sentence is built so two libraries cannot
 // word one refusal two ways; its bounds, its schema range, and how one item becomes JSON and back)
 // and gets the lock, the bounded reader, the fault table, the duplicate-name post-pass, the
-// occupied-slot refusal, `delete(name:)` and `delete(file:)` for free. The thirteen codecs are
+// occupied-slot refusal, `delete(name:)` and `delete(file:)` for free. The fourteen codecs are
 // `RawPresetCodec` (128 × 8 KiB, schemas 1…2),
 // `ExportPresetCodec` (64 × 4 KiB, 1…2), `MetadataPolicyCodec` (64 × 4 KiB, 1…1),
 // `NewDocumentPresetCodec` (64 × 4 KiB, 1…1, `DR_DOCUMENT_PRESETS_DIR`), `ShortcutCodec` (4 × 32
@@ -19,8 +19,8 @@ import Darwin
 // 16 KiB, 1…1, `DR_ADJUSTMENT_PRESETS_DIR`), `DevelopFilterPresetCodec` (128 × 4 KiB, 1…1,
 // `DR_DEVELOP_FILTER_PRESETS_DIR`), `UserSkyCodec` (64 × 4 KiB, 1…1, `DR_SKIES_DIR`),
 // `StylePresetCodec` (256 × 2.25 MiB, 1…1, `DR_STYLE_PRESETS_DIR`), `HdrToningPresetCodec`
-// (128 × 4 KiB, 1…1, `DR_HDR_TONING_PRESETS_DIR`) and `BrushPresetCodec` (256 × 4 KiB, 1…1,
-// `DR_BRUSH_PRESETS_DIR`).
+// (128 × 4 KiB, 1…1, `DR_HDR_TONING_PRESETS_DIR`), `BrushPresetCodec` (256 × 4 KiB, 1…1,
+// `DR_BRUSH_PRESETS_DIR`) and `PatternLibraryCodec` (128 × 1.5 MiB, 1…1, `DR_PATTERNS_DIR`).
 // `PreferenceLibraryDefault<Codec>`
 // is a library's ONE default entry: its name in a hidden `.default` file (512-byte bound, never a
 // listed or broken row), `name()` answering nil for a name that no longer lists, and
@@ -360,10 +360,15 @@ enum PreferenceLibrary<Codec: PreferenceLibraryCodec> {
     /// — and refuses when some other file already holds that slot, valid or
     /// broken, rather than silently overwriting it. The library's bound counts
     /// `.json` FILES, so a folder full of broken files is full.
+    ///
+    /// Slashes are written unescaped: base64 (a style's or a pattern's tile)
+    /// is a quarter `/` on average and all `/` for opaque white, so an escaped
+    /// `\/` would double a tile past the bound its codec states for it.
     @discardableResult
     static func save(_ item: Item, replace: Bool = false) throws -> Item {
         let name = try normalizedName(Codec.name(of: item))
-        let data = try JSONSerialization.data(withJSONObject: Codec.json(of: item), options: [.sortedKeys])
+        let data = try JSONSerialization.data(withJSONObject: Codec.json(of: item),
+                                              options: [.sortedKeys, .withoutEscapingSlashes])
         guard data.count <= Codec.maximumFileBytes else {
             throw DoctoredCoreError(
                 message: "\(capitalized) exceeds \(Codec.maximumFileBytes / 1024) KiB.")

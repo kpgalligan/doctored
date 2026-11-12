@@ -278,6 +278,33 @@ pub(crate) fn parse_pattern(
     let Some(v) = o.get("pattern") else {
         return Ok(Pattern::default());
     };
+    pattern_from_value(v, &key, strictness)
+}
+
+/// A native paint request's optional `pattern` (Edit ▸ Fill…'s Pattern
+/// contents, `precision_paint_tools` and `cmyk_paint`): absent or null is
+/// `None`, anything else the one `pattern` object read strictly
+/// ([`pattern_from_value`], an unknown preset refused).
+pub(crate) fn paint_pattern<'de, D>(deserializer: D) -> Result<Option<Pattern>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    match Option::<Value>::deserialize(deserializer)? {
+        None | Some(Value::Null) => Ok(None),
+        Some(v) => pattern_from_value(&v, "pattern", Strictness::Strict)
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+    }
+}
+
+/// One `pattern` object (module doc) read from `v`, its errors reported at
+/// `key`: the one reader every effect, fill layer and Fill… shares.
+pub(crate) fn pattern_from_value(
+    v: &Value,
+    key: &str,
+    strictness: Strictness,
+) -> Result<Pattern, String> {
     let p = v
         .as_object()
         .ok_or_else(|| format!("{key} must be an object"))?;

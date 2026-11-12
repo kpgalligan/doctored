@@ -2460,6 +2460,31 @@ fn null_safety_sweep() {
             true
         )
         .is_null());
+        let tile = [9u8; 4];
+        assert!(
+            doctored_core::ffi_fill_stroke::dr_doc_fill_selection_pattern(
+                null_doc,
+                0,
+                mask.as_ptr(),
+                2,
+                2,
+                tile.as_ptr(),
+                1,
+                1,
+                BLEND_NORMAL,
+                1.0,
+                false
+            )
+            .is_null()
+        );
+        let mut pattern_err = ptr::null_mut();
+        assert!(doctored_core::ffi_style::dr_pattern_tile_from_linear(
+            ptr::null(),
+            &mut pattern_err
+        )
+        .is_null());
+        assert!(!pattern_err.is_null());
+        doctored_core::ffi::dr_string_free(pattern_err);
         assert!(!dr_selection_stroke(ptr::null_mut(), 2, 2, 1.0, 1));
         {
             // The Magnetic Lasso tracer: a NULL source, params or scalar

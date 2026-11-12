@@ -107,11 +107,16 @@ struct BevelTexture: Codable, Equatable {
     }
 }
 
-/// One preset as the sheet's popup shows it.
+/// One preset as the sheet's popup shows it, with its tile (`width` × `height`, `rgba` the
+/// standard base64 of its straight RGBA8 bytes) for the paths that need the pixels: Edit ▸ Fill…'s
+/// 8-bit Pattern contents.
 struct PatternPreset {
     let id: String
     let name: String
     let image: NSImage
+    let width: Int
+    let height: Int
+    let rgba: String
 }
 
 extension LayerStyle {

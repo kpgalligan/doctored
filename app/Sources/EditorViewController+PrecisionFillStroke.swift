@@ -78,6 +78,10 @@ extension EditorViewController {
     func applyPrecisionFill(_ s: FillSettings, capture: PrecisionEditorCapture?, note: String) {
         guard let document, let capture = currentPrecisionCapture(capture, document) else { return }
         if capture.target == .layer, refusePrecisionLayerFill(capture) { return }
+        if s.contents == .pattern {
+            applyPrecisionPatternFill(s, capture: capture, document: document, note: note)
+            return
+        }
         guard let picked = s.contents.color(
             foreground: paintColor, background: backgroundColor,
             custom: s.customColor, in: document.nsColorSpace)
@@ -120,6 +124,46 @@ extension EditorViewController {
             if result == nil, !coverage {
                 showUnchangedAlert(
                     preserve: preserve, doc: capture.facade, layer: capture.layer,
+                    noOp: FillSettings.transparentNoOp, clippedNoOp: nil)
+            }
+        } catch {
+            presentPrecisionError(error)
+        }
+    }
+
+    /// Fill… with Pattern contents at 16 and 32 bits and in every colour mode: the typed
+    /// `paint_blend` with the tile as its `pattern` (`PrecisionFillStroke.Request.pattern`), one
+    /// "Fill" step recorded as `fill_selection` with the resolved `pattern`. A coverage target
+    /// refuses by name (`EditorViewController+PatternFill.swift` is the 8-bit twin).
+    private func applyPrecisionPatternFill(
+        _ s: FillSettings, capture: PrecisionEditorCapture, document: ImageDocument, note: String
+    ) {
+        guard !capture.target.isCoverage else {
+            showFillAlert(FillSettings.patternCoverageRefusal)
+            return
+        }
+        guard let pattern = s.pattern else {
+            NSSound.beep()
+            return
+        }
+        guard confirmPrecisionRasterize(capture, document) else { return }
+        let opacity = min(max(s.opacity, 0), 100) / 100
+        var request = PrecisionFillStroke.Request(
+            layer: capture.layer, target: capture.target, color: .black, mode: s.mode,
+            opacity: opacity, preserve: s.preserveTransparency)
+        request.pattern = pattern
+        let record: [ActionStep] = .fillSelection(
+            pattern: pattern, blendMode: s.mode, opacity: opacity * 100,
+            preserveTransparency: s.preserveTransparency,
+            target: capture.target.layerEditAgentName(in: capture.facade), note: note)
+        do {
+            let result = try PrecisionFillStroke.paint(
+                request, coverage: capture.selection?.maskSamples16(), capture: capture,
+                title: "Fill")
+            try capture.publish(result, to: document, name: "Fill", record: record)
+            if result == nil {
+                showUnchangedAlert(
+                    preserve: s.preserveTransparency, doc: capture.facade, layer: capture.layer,
                     noOp: FillSettings.transparentNoOp, clippedNoOp: nil)
             }
         } catch {

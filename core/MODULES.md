@@ -169,7 +169,7 @@ Detail belongs in the source file's own header comment.
 - `doc_perspective.rs` — perspective transform: one layer resampled onto a convex destination QUAD over `doc_transform`'s resamplers, extent rounding and epsilon rules.
 - `doc_content.rs` — atomic layer-content replacement (pixels, offset and mask in one step): the re-render primitive behind described layers (text, shapes).
 - `doc_pixels.rs` / `ffi_pixels.rs` — the agent's `put_pixels` (pixel art): one canvas rect of straight RGBA8 written onto one raster layer with REPLACE semantics.
-- `doc_fill_stroke.rs` / `ffi_fill_stroke.rs` — Edit ▸ Fill… and Edit ▸ Stroke… at 8 bits: `fill_selection`, `stroke_mask`, `stroke_layer_edge`; the byte master, kept byte-identical.
+- `doc_fill_stroke.rs` / `ffi_fill_stroke.rs` — Edit ▸ Fill… and Stroke… at 8 bits: `fill_selection`, Pattern twin `fill_selection_pattern`, `stroke_mask`, `stroke_layer_edge`; the byte master.
 - `doc_paint.rs` — the byte paint walk: brush, eraser, Clone Stamp and Fill… / Stroke… composite through ONE per-pixel walk, `paint_walk`, over an ink closure.
 - `fill_align_box.rs` — KERNEL: a Gradient Fill's Align with Layer box, the mask's raw coverage bounds clipped to the canvas, else the canvas.
 - `doc_fill_align.rs` / `ffi_fill_align.rs` — the align box on a byte and a typed document (CMYK too): `fill_align_box`, `dr_doc_fill_align_box`, `dr_precision_doc_fill_align_box`.
@@ -366,6 +366,7 @@ Detail belongs in the source file's own header comment.
 - `style_pattern_fill.rs` — `PatternFill`: the overlay's, a Pattern stroke's and a bevel texture's (`BevelTexture`) shared fill, its JSON, origin, sampler, Scale Effects.
 - `style_presets.rs` — style PRESETS (Styles panel): `preset_style` (strict, no inks, no anchors) and the twelve original built-ins.
 - `pattern_tile.rs` — KERNEL: the tile, its PYRAMID levels (RGBA, mapped `tile_level_mapped`, CMYK ink `ink_sampler`), the sampler, the rotation sampler (TWO-PASS), presets.
+- `pattern_define.rs` — KERNEL: Define Pattern's float row, `tile_from_linear` (round(255·clamp(v))); its export `dr_pattern_tile_from_linear` is in `ffi_style.rs`.
 - `style_json.rs` / `style_json_write.rs` / `style_names.rs` — the ONE strict/lenient parser (clamp table, four-decimal quantization), the canonical writer, and the name tables both read.
 - `style_json_keys.rs` — the style JSON key table and `unknown_key`: both style setters refuse a key the schema does not name, by its path.
 - `style_render.rs` — the padded shape plane (with sub-planes) and the per-effect dispatch. Its parts: `style_plane_ops.rs`, `style_gradient.rs` (the ONE gradient), `style_cache.rs`, `style_reuse.rs`.

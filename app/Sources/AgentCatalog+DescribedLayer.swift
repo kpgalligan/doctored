@@ -496,7 +496,12 @@ extension AgentServer {
     /// A pattern fill layer's `pattern` argument (AgentServer+FillLayers.swift's
     /// `fillPattern`): the Pattern Overlay's keys without its anchor. `lead` opens the description.
     private static func patternFillProperty(_ lead: String) -> [String: Any] {
-        [
+        let presets: String = RasterDocument.patternPresets().map(\.id).joined(separator: "|")
+        let tile: String = "{\"preset\": " + presets
+            + "}, {\"name\": <a list_patterns library pattern>} (embedded as its "
+            + "tile) or a custom tile {\"name\"?, \"width\", \"height\" 1..512, "
+            + "\"rgba\": standard base64 of width x height x 4 straight RGBA8 bytes}."
+        return [
             "type": "object",
             "description": lead + " The tile repeats over the whole canvas. Linked "
                 + "(link_with_layer true), its origin is the canvas origin + phase + the "
@@ -505,14 +510,7 @@ extension AgentServer {
                 + "refused. Replies echo the tile as {preset} or {name, width, height} without "
                 + "rgba. At 32 bits tile codes / 255 are linear values.",
             "properties": [
-                "pattern": [
-                    "type": "object",
-                    "description": "{\"preset\": "
-                        + RasterDocument.patternPresets().map(\.id).joined(separator: "|")
-                        + "} or a custom tile {\"name\"?, \"width\", \"height\" 1..512, "
-                        + "\"rgba\": standard base64 of width x height x 4 straight RGBA8 "
-                        + "bytes}.",
-                ],
+                "pattern": ["type": "object", "description": tile],
                 "angle": [
                     "type": "number",
                     "description": "The Angle in degrees; turns the tile about its origin.",

@@ -929,6 +929,21 @@ DrDocument *dr_doc_fill_selection(const DrDocument *doc, size_t idx,
                                   const uint8_t *rgba, DrBlendMode mode,
                                   float opacity, bool preserve_transparency);
 
+/* Edit > Fill... with Pattern contents: dr_doc_fill_selection with the
+ * straight RGBA8 tile `tile_rgba` (tile_width x tile_height, each side
+ * 1..512, tile_width*tile_height*4 bytes) on the canvas grid at 100%,
+ * unturned, in place of one colour: canvas pixel (x, y) takes texel
+ * (x mod w, y mod h), its alpha multiplying `opacity` and the coverage,
+ * whatever the layer's offset. NULL on everything dr_doc_fill_selection
+ * refuses, NULL tile_rgba, or a side outside 1..512. */
+DrDocument *dr_doc_fill_selection_pattern(const DrDocument *doc, size_t idx,
+                                          const uint8_t *mask, uint32_t w,
+                                          uint32_t h, const uint8_t *tile_rgba,
+                                          uint32_t tile_width,
+                                          uint32_t tile_height,
+                                          DrBlendMode mode, float opacity,
+                                          bool preserve_transparency);
+
 /* Edit > Stroke...: where the stroke band sits relative to the selection's
  * 50% contour. */
 typedef enum {
@@ -5237,6 +5252,14 @@ char *dr_precision_doc_warp_edit_plan(const DrPrecisionDocument *document, const
 DrPrecisionDocument *dr_precision_doc_warp_edit(const DrPrecisionDocument *document, const char *request, uint64_t limit, uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
 typedef struct PrecisionImage DrPrecisionImage;
 
+/* Edit > Define Pattern's tile from a 32-bit float composite: `image`'s
+ * straight linear RGBA, each component round(255 * clamp(v, 0, 1)), as an
+ * RGBA8 image of the same size (free with dr_image_free) — the inverse of
+ * the code / 255 a 32-bit document reads a pattern texel as. NULL with a
+ * message for a NULL image, one that is not 32-bit float storage, or a side
+ * over 512 pixels. */
+DrImage *dr_pattern_tile_from_linear(const DrPrecisionImage *image, char **err_out);
+
 /* LAYER COMPS at high depth — dr_doc_layer_comps_json's twin, same report
  * schema (see the DR_LAYER_COMPS_MAX block above, which owns every rule).
  * The record indices it reports are the flattened postorder ones
@@ -7883,7 +7906,18 @@ DrPrecisionDocument *dr_precision_doc_fade(const DrPrecisionDocument *document,
  * whatever the pixel's stored alpha, over Normal, Multiply, Darken, Lighten,
  * Difference, Linear Dodge, Subtract and Dissolve; the layer never grows and
  * every other component is untouched. A u16 document refuses it (a 16-bit
- * colour plane is a scalar_edit target). */
+ * colour plane is a scalar_edit target).
+ * paint_blend's optional "pattern" (Edit > Fill...'s Pattern contents) is a
+ * pattern object as a Pattern Overlay takes it ({"preset": id} or {"name",
+ * "width", "height", "rgba"}); each pixel then takes the texel at its canvas
+ * pixel (x mod w, y mod h) in place of color (still required, inert), the
+ * texel's alpha multiplying opacity and coverage, read as the document's
+ * Pattern Overlay reads a tile at 100% and 0 degrees: RGB and Indexed
+ * storage the texel's numbers (32 bits: code/255 linear), Gray greyed
+ * through its twin, Lab via sRGB to Lab codes, CMYK ("ink" inert) via sRGB to
+ * ink. An Indexed fill re-indexes each covered pixel to the entry nearest its
+ * colour; a Bitmap fill thresholds the greyed tile. A request that carries a
+ * pattern may pass 64 KiB (as layer_style does). plane refuses a pattern. */
 /* Additive retouch_clone/retouch_heal/spot_heal selection:true reads stroke then
  * selection canvas planes. Clone multiplies both before source-over. Healing
  * keeps its published stroke half-coverage contour and intersects with positive

@@ -40,6 +40,11 @@
 //! (`indexed_edge::BACKGROUND`). [`split_background`] takes the key off
 //! before the inner kernel's strict parser reads the request.
 //!
+//! Fill… with Pattern contents (a `paint_blend` that carries a `pattern`)
+//! paints the tile on the RGB storage and re-indexes with the `Own` ink, as
+//! the Clone Stamp below does: a covered pixel takes the entry nearest the
+//! colour it lands on.
+//!
 //! Since phase 3c Clone Stamp (`retouch_clone`, in place on the one layer)
 //! and the History Brush ([`history_brush`], asked by
 //! `precision_retouch_brush`) run the same way with the `Own` ink against
@@ -260,6 +265,13 @@ impl IndexedPaintEdit {
     fn ink(&self, rgb: &PrecisionDocument) -> Result<EdgeInk, String> {
         if let IndexedPaintOp::Clone(_) = self.op {
             return Ok(EdgeInk::Own);
+        }
+        // Fill…'s Pattern contents have no one colour: each covered pixel
+        // takes the entry nearest the colour it lands on, as a clone's do.
+        if let IndexedPaintOp::Native(edit) = &self.op {
+            if edit.pattern().is_some() {
+                return Ok(EdgeInk::Own);
+            }
         }
         let Some((color, space)) = self.color else {
             return Ok(EdgeInk::Clear);

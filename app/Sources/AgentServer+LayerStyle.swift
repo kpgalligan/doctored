@@ -138,21 +138,43 @@ extension AgentServer {
         }
     }
 
+    /// `object` with its library pattern references resolved; a name the library does not hold
+    /// refuses in-band.
+    private static func resolvingLibraryPatterns(_ object: [String: Any]) throws -> [String: Any] {
+        do {
+            return try PatternLibrary.resolvingReferences(in: object) as? [String: Any] ?? object
+        } catch {
+            throw ToolError(message: error.localizedDescription)
+        }
+    }
+
     /// The `style` argument as the JSON string the core takes: an object
     /// (re-serialized; the core canonicalizes key order), a JSON string as
-    /// is, or nil for null / absent / empty — which clears.
+    /// is, or nil for null / absent / empty — which clears. A pattern object
+    /// `{"name": …}` naming a library pattern, in either form, becomes that
+    /// pattern's tile (`PatternLibrary.resolvingReferences`; the recorder
+    /// resolves the same way, `PatternLibrary.recordedArguments`).
     private static func styleArgument(_ raw: Any?) throws -> String? {
         switch raw {
         case nil, is NSNull:
             return nil
         case let object as [String: Any]:
-            guard JSONSerialization.isValidJSONObject(object),
-                  let data = try? JSONSerialization.data(withJSONObject: object)
+            let resolved = try resolvingLibraryPatterns(object)
+            guard JSONSerialization.isValidJSONObject(resolved),
+                  let data = try? JSONSerialization.data(withJSONObject: resolved)
             else { throw ToolError(message: "style must be a JSON object or null") }
             return String(decoding: data, as: UTF8.self)
         case let text as String:
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty || trimmed == "null" ? nil : text
+            if trimmed.isEmpty || trimmed == "null" { return nil }
+            guard let parsed = try? JSONSerialization.jsonObject(with: Data(text.utf8)),
+                  let object = parsed as? [String: Any], PatternLibrary.containsReference(object)
+            else { return text }
+            let resolved = try resolvingLibraryPatterns(object)
+            guard let data = try? JSONSerialization.data(withJSONObject: resolved) else {
+                return text
+            }
+            return String(decoding: data, as: UTF8.self)
         default:
             throw ToolError(
                 message: "style must be a JSON object (the shape get_document reports) or "

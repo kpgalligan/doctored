@@ -854,6 +854,23 @@ extension Array where Element == ActionStep {
         return step("fill_selection", arguments, note: note)
     }
 
+    /// Edit ▸ Fill… with Pattern contents: the RESOLVED pattern object — a
+    /// built-in's `{preset}`, else the tile itself (`{name, width, height,
+    /// rgba}`), never a library name — so the step replays without the
+    /// library. `opacity` is the sheet's 0…100; the step carries the tool's 0…1.
+    static func fillSelection(
+        pattern: PatternRef, blendMode: DrBlendMode, opacity: Double,
+        preserveTransparency: Bool, target: String, note: String
+    ) -> [ActionStep] {
+        step("fill_selection", [
+            "pattern": pattern.patternObject,
+            "blend_mode": DrBlendMode.displayName(for: blendMode),
+            "opacity": ActionArgs.number(opacity / 100),
+            "preserve_transparency": preserveTransparency,
+            "layer": ActionArgs.activeLayer, "target": target,
+        ], note: note)
+    }
+
     /// Edit ▸ Fill… and the four ⌥⌫ / ⌘⌫ fills in Quick Mask: the
     /// colour (already quantized to the document's bytes by the caller), the
     /// mode and the opacity, pinned to `target: "quick_mask"` so the step

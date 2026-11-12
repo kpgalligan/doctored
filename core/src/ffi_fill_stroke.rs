@@ -67,6 +67,57 @@ pub unsafe extern "C" fn dr_doc_fill_selection(
     unsafe { doc_op(doc, body) }
 }
 
+/// Edit ▸ Fill… with Pattern contents: `dr_doc_fill_selection` with the
+/// straight RGBA8 tile `tile_rgba` (`tile_width` x `tile_height`, each side
+/// 1..=512, `tile_width*tile_height*4` bytes) on the canvas grid at 100 %,
+/// unturned, in place of one colour: canvas pixel (x, y) takes texel (x mod
+/// w, y mod h), its alpha multiplying `opacity` and the coverage, whatever
+/// the layer's offset. NULL on everything `dr_doc_fill_selection` refuses,
+/// NULL `tile_rgba`, or a side outside 1..=512.
+///
+/// # Safety
+/// `doc` must be NULL or a valid pointer to a live `DrDocument`;
+/// `tile_rgba` must be NULL or valid for `tile_width*tile_height*4` bytes;
+/// `mask` must be NULL or valid for canvas width*height bytes.
+#[allow(clippy::too_many_arguments)]
+#[no_mangle]
+pub unsafe extern "C" fn dr_doc_fill_selection_pattern(
+    doc: *const DrDocument,
+    idx: usize,
+    mask: *const u8,
+    w: u32,
+    h: u32,
+    tile_rgba: *const u8,
+    tile_width: u32,
+    tile_height: u32,
+    mode: c_int,
+    opacity: f32,
+    preserve_transparency: bool,
+) -> *mut DrDocument {
+    let sides = 1..=crate::pattern_tile::MAX_TILE_SIDE;
+    if tile_rgba.is_null() || !sides.contains(&tile_width) || !sides.contains(&tile_height) {
+        return ptr::null_mut();
+    }
+    let body = |d: &DrDocument| {
+        let mode = BlendMode::from_c(mode)?;
+        if w != d.width || h != d.height {
+            return None;
+        }
+        let len = (d.width as usize).checked_mul(d.height as usize)?;
+        let mask = unsafe { mask_slice(mask, len) };
+        // The tile's length is recomputed from its validated sides.
+        let bytes = tile_width as usize * tile_height as usize * 4;
+        let rgba = unsafe { std::slice::from_raw_parts(tile_rgba, bytes) };
+        let tile = crate::pattern_tile::PatternTile {
+            width: tile_width,
+            height: tile_height,
+            rgba: rgba.into(),
+        };
+        d.fill_selection_pattern(idx, mask, &tile, mode, opacity, preserve_transparency)
+    };
+    unsafe { doc_op(doc, body) }
+}
+
 /// Replaces a canvas-sized selection mask in place with the Edit ▸ Stroke…
 /// band `width_px` wide at `location` (`DrStrokeLocation`: 0 Inside,
 /// 1 Center, 2 Outside): Outside `dilate(mask) × (255 − mask)`, Inside

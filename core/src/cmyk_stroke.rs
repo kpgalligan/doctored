@@ -133,6 +133,7 @@ impl CmykLayerEdgeStroke {
             blend_mode: self.blend_mode,
             selection: false,
             preserve_alpha: self.preserve_alpha,
+            pattern: None,
         }
     }
 

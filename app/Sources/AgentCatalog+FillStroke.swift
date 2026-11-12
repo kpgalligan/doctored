@@ -53,7 +53,14 @@ extension AgentServer {
             "(Edit ▸ Fill…, ⌥⌫ / ",
             "⌘⌫ in Quick Mask), ONE undo step \"Fill\" that leaves the file clean, and answers ",
             "get_selection's fields plus changed and target \"quick_mask\"; layer, any other ",
-            "target and preserve_transparency are refused there.",
+            "target and preserve_transparency are refused there. With pattern in place of a ",
+            "colour it is Edit ▸ Fill…'s Pattern contents: the tile on the canvas grid at 100 %, ",
+            "unturned — canvas pixel (x, y) takes texel (x mod width, y mod height) whatever the ",
+            "layer's offset, its alpha multiplying the opacity and the coverage — read as the ",
+            "document's Pattern Overlay reads a tile: RGB numbers as they are (at 32 bits code / ",
+            "255 is linear light), Grayscale greyed, Lab and CMYK through sRGB, Indexed to each ",
+            "pixel's nearest entry, Bitmap thresholded. Layer target only: a mask, colour plane, ",
+            "alpha channel and the Quick Mask refuse it by name. The reply echoes pattern.",
         ].joined()
         let blendNames = DrBlendMode.allBlendModes.map { $0.1 }
         return [
@@ -63,10 +70,20 @@ extension AgentServer {
                     "color": [
                         "type": "string",
                         "description": "Fill colour, #RRGGBB or #RRGGBBAA (its alpha scales "
-                            + "the fill). Required unless rgba32 is passed — the swatches are "
-                            + "not read.",
+                            + "the fill). Required unless rgba32 or pattern is passed — the "
+                            + "swatches are not read.",
                     ],
                     "rgba32": AgentServer.linearInkProperty,
+                    "pattern": [
+                        "type": "object",
+                        "description": "Fill with a pattern instead of a colour (not with color, "
+                            + "rgba32, color_space or ink): {\"preset\": "
+                            + RasterDocument.patternPresets().map(\.id).joined(separator: "|")
+                            + "}, {\"name\": <a list_patterns library pattern>} or a tile "
+                            + "{name?, width, height, rgba} (sides 1–512, rgba standard base64 "
+                            + "of width × height × 4 straight RGBA8 bytes). A recorded step "
+                            + "carries the tile itself, so it replays without the library.",
+                    ],
                     "color_space": [
                         "type": "string", "enum": ["srgb", "document", "display_p3"],
                         "description": "How color is read. srgb (default): an authored sRGB "

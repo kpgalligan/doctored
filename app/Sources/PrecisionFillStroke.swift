@@ -67,6 +67,10 @@ enum PrecisionFillStroke {
         /// #1 Lab phase 4a: `color` is MCP's authored sRGB on a Lab layer, sent as `srgb` ink
         /// so the core converts it by Mode ▸ Lab Color's rule (`AgentServer.labSrgbInk`).
         var srgb = false
+        /// Edit ▸ Fill…'s Pattern contents: the tile `paint_blend` reads per pixel in place of
+        /// `color` (the core's `pattern`, read as the document's Pattern Overlay reads a tile);
+        /// a layer target only.
+        var pattern: PatternRef? = nil
     }
 
     /// Fill / Stroke ink as the core reads it: straight RGBA and how its RGB
@@ -114,6 +118,9 @@ enum PrecisionFillStroke {
         let samples = coverage ?? [UInt16](repeating: 65535, count: width * height)
         var floatPlane: RasterPlane?
         if capture.facade.isFloat, case .plane(let plane) = r.target { floatPlane = plane }
+        if r.pattern != nil, r.target.isCoverage {
+            throw DoctoredCoreError(message: FillSettings.patternCoverageRefusal)
+        }
         if r.target.isCoverage, floatPlane == nil {
             let ink = try PrecisionInk(color: r.color,
                 space: ColorProfile.coverageSpace(capture.facade.nsColorSpace, for: r.color))
@@ -131,11 +138,15 @@ enum PrecisionFillStroke {
         if capture.source.isCmyk {
             // #1: a CMYK layer fills in ink, in the CMYK modes (`cmyk_paint`).
             if let reason = CmykPaint.modeRefusal(r.mode) { throw DoctoredCoreError(message: reason) }
-            let ink = try CmykPaint.ink(r.color, stored: r.cmykInk, in: capture.source)
-            let command = try CmykPaint.command([
+            // A pattern fill's `ink` is inert: each texel goes sRGB → ink in the core.
+            let ink: [Double] = try r.pattern != nil ? [0, 0, 0, 0, 1]
+                : CmykPaint.ink(r.color, stored: r.cmykInk, in: capture.source)
+            var fields: [String: Any] = [
                 "op": "paint_blend", "layer": r.layer, "ink": ink, "opacity": r.opacity,
                 "blend_mode": Int(r.mode.rawValue), "selection": false, "preserve_alpha": r.preserve,
-            ])
+            ]
+            if let pattern = r.pattern { fields["pattern"] = pattern.patternObject }
+            let command = try CmykPaint.command(fields)
             let input = try PrecisionScalarBuffer(samples: samples, width: width, height: height)
             return try PrecisionPixelEdit(capture.source, command: command, input: input).run(title: title)
         }
@@ -147,6 +158,7 @@ enum PrecisionFillStroke {
             "preserve_alpha": floatPlane == nil && r.preserve,
         ]
         if let floatPlane { request["plane"] = floatPlane.agentName }
+        if let pattern = r.pattern { request["pattern"] = pattern.patternObject }
         let command = try PrecisionPixelCommand(request)
         let input = try PrecisionScalarBuffer(samples: samples, width: width, height: height)
         return try PrecisionPixelEdit(capture.source, command: command, input: input).run(title: title)

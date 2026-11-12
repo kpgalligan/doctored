@@ -82,6 +82,20 @@ extension AppDelegate {
         // commit (EditorViewController+FillStroke.swift). No key equivalent;
         // enabled only with a selection, at 8 bits.
         menu.addItem(item("Stroke…", #selector(EditorViewController.strokeSelection(_:))))
+        // Edit ▸ Define Pattern…: the composite in a rectangular selection (or the canvas) into
+        // the user's pattern library (EditorViewController+DefinePattern.swift).
+        menu.addItem(
+            item("Define Pattern…", #selector(EditorViewController.definePattern(_:))))
+        // Edit ▸ Patterns: delete, import and export that library
+        // (EditorViewController+PatternLibrary.swift).
+        let patterns = NSMenu(title: "Patterns")
+        patterns.addItem(
+            item("Delete Pattern…", #selector(EditorViewController.deleteLibraryPattern(_:))))
+        patterns.addItem(
+            item("Import Patterns…", #selector(EditorViewController.importPatternLibrary(_:))))
+        patterns.addItem(
+            item("Export Patterns…", #selector(EditorViewController.exportPatternLibrary(_:))))
+        menu.addItem(submenuItem(patterns))
         // Content-Aware Fill keeps its own item, after the fills.
         menu.addItem(
             item(

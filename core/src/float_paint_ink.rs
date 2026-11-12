@@ -20,9 +20,10 @@
 use crate::gradient_field::{stop_color, styled_parameter, FieldStop, FieldStyle};
 use crate::icc::IccProfile;
 use crate::icc_transform::{LinearInk, PrecisionTransform};
+use crate::pattern_tile::PatternSampler;
 use crate::precision_document::PrecisionDocument;
 use crate::precision_paint::PaintColorSpace;
-use crate::precision_paint_tools::NativePaintEdit;
+use crate::precision_paint_tools::{pattern_sampler, NativePaintEdit};
 
 /// What a float paint walk composites (module doc).
 pub(crate) enum FloatInk {
@@ -38,6 +39,11 @@ pub(crate) enum FloatInk {
         style: FieldStyle,
         smoothness: f32,
     },
+    /// Edit ▸ Fill…'s Pattern contents: the tile on the canvas grid
+    /// (`precision_paint_tools::pattern_sampler`), each texel's code / 255
+    /// read as linear light, as a 32-bit Pattern Overlay reads it (a Gray
+    /// document's tile greyed by the 32-bit rule first).
+    Pattern(PatternSampler),
 }
 
 impl FloatInk {
@@ -52,6 +58,10 @@ impl FloatInk {
         doc: &PrecisionDocument,
     ) -> Result<Option<Self>, String> {
         match edit {
+            NativePaintEdit::PaintBlend {
+                pattern: Some(pattern),
+                ..
+            } => Ok(Some(Self::Pattern(pattern_sampler(pattern, doc)?))),
             NativePaintEdit::PaintBlend {
                 color, color_space, ..
             }
@@ -133,6 +143,8 @@ impl FloatInk {
                 *style,
                 *smoothness,
             ),
+            // The pixel whose centre `point` is.
+            Self::Pattern(sampler) => sampler.at(point[0].floor() as i64, point[1].floor() as i64),
         }
     }
 }

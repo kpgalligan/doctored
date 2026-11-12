@@ -63,6 +63,19 @@ extension RasterDocument {
         precisionMetadata?.globalLight.altitude ?? Double(dr_doc_global_light_altitude(ptr))
     }
 
+    /// Edit ▸ Define Pattern's tile from a 32-bit float composite
+    /// (`dr_pattern_tile_from_linear`): each linear component of `image`
+    /// clamped to 0…1 and rounded to a code, the inverse of the code / 255 a
+    /// float document reads a texel as.
+    static func patternTile(fromLinear image: RasterPrecisionImage) throws -> RasterImage {
+        var error: UnsafeMutablePointer<CChar>?
+        guard let result = dr_pattern_tile_from_linear(image.ptr, &error) else {
+            throw DoctoredCoreError(message: takeErrorMessage(
+                error, fallback: "The float pattern tile could not be made."))
+        }
+        return RasterImage(owning: result)
+    }
+
     /// The four frozen Pattern Overlay presets, in the popup's order, each with its tile
     /// as an image (the swatch) — read once from the core (`dr_pattern_presets_json`).
     static func patternPresets() -> [PatternPreset] { cachedPatternPresets }
@@ -88,7 +101,8 @@ extension RasterDocument {
             bytes.copyBytes(to: pixels, count: bytes.count)
             let image = NSImage(size: NSSize(width: 16, height: 16))
             image.addRepresentation(rep)
-            return PatternPreset(id: id, name: name, image: image)
+            return PatternPreset(id: id, name: name, image: image, width: width, height: height,
+                                 rgba: text)
         }
     }()
 

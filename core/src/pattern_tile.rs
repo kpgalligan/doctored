@@ -592,6 +592,25 @@ impl PatternSampler {
     }
 }
 
+/// `tile` on the CANVAS grid at 100 %, unturned: Edit ▸ Fill…'s Pattern
+/// contents, read at a canvas pixel. At scale 1 every bilinear tap lands on
+/// an integer index, so pixel (x, y) reads texel (x mod w, y mod h) exactly,
+/// the read a Pattern Overlay at 100 % and 0 degrees makes.
+pub fn canvas_sampler(tile: &PatternTile) -> PatternSampler {
+    PatternSampler {
+        level: Arc::new(tile_level(tile, 1.0, 0.0)),
+        origin: (0.0, 0.0),
+    }
+}
+
+/// The bytes a fill's [`canvas_sampler`] (or its ink twin) holds for a
+/// `width` x `height` tile beside the parsed tile: the decoded tile, a
+/// mapped copy of it (a Gray document's greyed tile, a Lab document's codes)
+/// and the level, 20 bytes a texel at most (an ink level) — 28 a texel.
+pub fn fill_scratch_bytes(width: u32, height: u32) -> u64 {
+    28 * u64::from(width.max(1)) * u64::from(height.max(1))
+}
+
 /// An ink level placed on a CMYK layer: what a rendered plane's ink
 /// evaluates per pixel (`cmyk_style_row::InkColor::Pattern`).
 #[derive(Clone, Debug, PartialEq)]

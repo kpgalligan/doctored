@@ -44,7 +44,8 @@ final class BitmapModeSheetController: NSViewController {
     private let angleField = NSTextField(string: "45")
     private let shapePopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let patternPopup = NSPopUpButton(frame: .zero, pullsDown: false)
-    private let patterns = RasterDocument.patternPresets()
+    /// The built-ins, then the user's library (Edit ▸ Define Pattern…), re-read as the sheet opens.
+    private let patterns = PatternChoice.all()
     private let note = NSTextField(wrappingLabelWithString: "")
     private var applyButton: NSButton!
     /// The unit the field's value is currently in.
@@ -99,7 +100,11 @@ final class BitmapModeSheetController: NSViewController {
         }
         lineUnitPopup.addItems(withTitles: Self.lineUnits.map(\.title))
         shapePopup.addItems(withTitles: Self.shapes.map(\.title))
-        patternPopup.addItems(withTitles: patterns.map(\.name))
+        for choice in patterns {
+            let item = NSMenuItem(title: choice.name, action: nil, keyEquivalent: "")
+            item.image = choice.image
+            patternPopup.menu?.addItem(item)
+        }
         for (popup, identifier) in [(lineUnitPopup, "bitmap-mode-line-unit"),
                                     (shapePopup, "bitmap-mode-shape"),
                                     (patternPopup, "bitmap-mode-pattern")] {
@@ -214,7 +219,8 @@ final class BitmapModeSheetController: NSViewController {
             options["shape"] = Self.shapes.indices.contains(shape) ? Self.shapes[shape].name : "round"
         }
         if method == "custom", patterns.indices.contains(patternPopup.indexOfSelectedItem) {
-            options["pattern"] = ["preset": patterns[patternPopup.indexOfSelectedItem].id]
+            // A built-in's `{preset}`, or a library pattern's tile itself.
+            options["pattern"] = patterns[patternPopup.indexOfSelectedItem].ref.patternObject
         }
         let text = outputField.stringValue.trimmingCharacters(in: .whitespaces)
         // The document's own value sends no resolution: each axis keeps its pixels and ppi.

@@ -32,7 +32,8 @@ extension AgentServer {
                             + "{\"preset\": \"checkerboard\"|\"stripes\"|\"dots\"|\"grid\"} or an "
                             + "inline tile {\"name\"?, \"width\", \"height\", \"rgba\"} (base64 of "
                             + "width × height × 4 straight RGBA8 bytes, each side 1–512), the "
-                            + "pattern object Pattern Overlay takes; checkerboard by default."],
+                            + "pattern object Pattern Overlay takes, or {\"name\": <a "
+                            + "list_patterns library pattern>}; checkerboard by default."],
             "resolution": ["type": "number", "minimum": 1, "maximum": 30000,
                            "description": "Toward Bitmap: the Output resolution in pixels per inch; "
                             + "omitted keeps the document's pixels and resolution."],

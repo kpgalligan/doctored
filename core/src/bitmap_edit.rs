@@ -158,13 +158,19 @@ impl BitmapOp {
 
     /// Whether the op paints an ink (the ink snap, module doc): the erasers,
     /// the geometry, the selected pixels' edits, Perspective Crop and the
-    /// Clone Stamp carry none, and the Gradient's stops are prepared by the
-    /// inner op and thresholded, not snapped.
+    /// Clone Stamp carry none, and the Gradient's stops and Fill…'s Pattern
+    /// tile are greyed by the inner op and thresholded, not snapped.
     fn has_ink(&self) -> bool {
         !matches!(
             self,
-            Self::Native(NativePaintEdit::EraseNative { .. } | NativePaintEdit::Gradient { .. })
-                | Self::Legacy(PaintEdit::Erase { .. })
+            Self::Native(
+                NativePaintEdit::EraseNative { .. }
+                    | NativePaintEdit::Gradient { .. }
+                    | NativePaintEdit::PaintBlend {
+                        pattern: Some(_),
+                        ..
+                    }
+            ) | Self::Legacy(PaintEdit::Erase { .. })
                 | Self::Geometry(_)
                 | Self::Selected(_)
                 | Self::PerspectiveCrop(_)

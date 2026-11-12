@@ -243,6 +243,8 @@ mod export_production;
 mod export_side_limits;
 #[path = "export_smart_sharpen.rs"]
 mod export_smart_sharpen;
+#[path = "fill_pattern.rs"]
+mod fill_pattern;
 #[path = "float_adjust_apply.rs"]
 mod float_adjust_apply;
 #[path = "float_adjustments.rs"]

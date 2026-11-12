@@ -15,10 +15,16 @@ extension AgentServer {
     func precisionFillSelection(_ a: [String: Any], _ document: ImageDocument) throws -> String {
         let (index, planeTarget, capture) = try precisionSelectionPaintCapture(
             a, document, tool: "fill_selection")
+        // Edit ▸ Fill…'s Pattern contents (`applyPrecisionPatternFill`): the tile replaces the
+        // colour, whose arguments then refuse beside it.
+        let pattern = try fillPatternArgument(a, coverage: planeTarget.isCoverage)
         // #1: a CMYK layer takes `ink` (C, M, Y, K percent) in place of `color`.
-        let ink = capture.source.isCmyk && !planeTarget.isCoverage ? try cmykInkArgument(a, "ink") : nil
+        let ink = capture.source.isCmyk && !planeTarget.isCoverage && pattern == nil
+            ? try cmykInkArgument(a, "ink") : nil
         var arguments = a
-        if ink != nil, arguments["color"] == nil { arguments["color"] = "#000000" }
+        if ink != nil || pattern != nil, arguments["color"] == nil {
+            arguments["color"] = "#000000"
+        }
         let paint = try selectionPaintArguments(
             arguments, document, coverage: planeTarget.isCoverage, tool: "fill_selection")
         var request = PrecisionFillStroke.Request(
@@ -26,6 +32,7 @@ extension AgentServer {
             opacity: paint.opacity, preserve: paint.preserve, linear: paint.linear)
         request.cmykInk = ink
         request.srgb = try labSrgbInk(a, document, coverage: planeTarget.isCoverage)
+        request.pattern = pattern
         let result = try precisionToolErrors {
             try PrecisionFillStroke.paint(
                 request, coverage: capture.selection?.maskSamples16(), capture: capture,
@@ -33,7 +40,8 @@ extension AgentServer {
         }
         return try precisionSelectionPaintReply(
             document, capture: capture, request: request, result: result, actionName: "Fill",
-            noOp: FillSettings.transparentNoOp, extra: [:])
+            noOp: FillSettings.transparentNoOp,
+            extra: pattern.map { ["pattern": $0.echo] } ?? [:])
     }
 
     func precisionStrokeSelection(

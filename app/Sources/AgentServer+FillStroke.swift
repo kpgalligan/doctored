@@ -51,11 +51,17 @@ extension AgentServer {
     func fillSelection(_ a: [String: Any]) throws -> String {
         let document = try target(a)
         if document.quickMaskActive || stringArg(a, "target") == "quick_mask" {
+            guard a["pattern"] == nil else {
+                throw ToolError(message: FillSettings.patternCoverageRefusal)
+            }
             return try fillQuickMask(a, document)
         }
         if document.doc?.isHighDepth == true { return try precisionFillSelection(a, document) }
         let index = try structuralLayerIndex(a, document)
         let planeTarget = try paintTarget(a, document)
+        if let pattern = try fillPatternArgument(a, coverage: planeTarget.isCoverage) {
+            return try fillSelectionPattern(a, document, pattern: pattern, index: index)
+        }
         let paint = try selectionPaintArguments(
             a, document, coverage: planeTarget.isCoverage, tool: "fill_selection")
         let capture = try operationCapture(
@@ -71,6 +77,51 @@ extension AgentServer {
             document, capture: capture, rgba: paint.rgba, mode: paint.mode,
             opacity: paint.opacity, preserve: paint.preserve, mask: capture.selection,
             actionName: "Fill", noOp: FillSettings.transparentNoOp, extra: [:], base: base)
+    }
+
+    /// `fill_selection`'s `pattern` (Edit ▸ Fill…'s Pattern contents), nil when the call passes
+    /// none: `{preset}`, a library pattern `{name}` (its tile) or a custom tile
+    /// (`patternTile(_:at:)`). It replaces the colour, so `color`, `rgba32`, `color_space` and
+    /// `ink` refuse beside it, and a `coverage` target refuses it by name.
+    func fillPatternArgument(_ a: [String: Any], coverage: Bool) throws -> PatternRef? {
+        guard let raw = a["pattern"] else { return nil }
+        guard a["color"] == nil, a["rgba32"] == nil, a["color_space"] == nil, a["ink"] == nil else {
+            throw ToolError(message: "Pass pattern or a colour (color, rgba32 or ink), not both; "
+                + "pattern takes no color_space.")
+        }
+        guard !coverage else { throw ToolError(message: FillSettings.patternCoverageRefusal) }
+        return try patternTile(raw, at: "pattern")
+    }
+
+    /// Edit ▸ Fill… with Pattern contents at 8 bits (`EditorViewController.applyPatternFill`):
+    /// the tile on the canvas grid, through the mode at the opacity, over the selection's
+    /// coverage, growing a trimmed layer as a colour fill does; one undo step named "Fill". The
+    /// reply echoes the pattern (`{preset}` or the tile's name and size).
+    private func fillSelectionPattern(
+        _ a: [String: Any], _ document: ImageDocument, pattern: PatternRef, index: Int
+    ) throws -> String {
+        var arguments = a
+        arguments["color"] = "#000000"
+        let paint = try selectionPaintArguments(
+            arguments, document, coverage: false, tool: "fill_selection")
+        guard let tile = pattern.tileBytes() else {
+            throw ToolError(message: "The pattern's tile could not be read.")
+        }
+        let capture = try operationCapture(document, operation: .fill, target: .layer, layer: index)
+        let base: RasterDocument
+        do {
+            base = try capture.paintDestination(mask: capture.selection, preserve: paint.preserve)
+        } catch {
+            throw ToolError(message: error.localizedDescription)
+        }
+        let updated = base.selectionFilledPattern(
+            index, mask: capture.selection, tile: tile.rgba, tileWidth: tile.width,
+            tileHeight: tile.height, mode: paint.mode, opacity: paint.opacity,
+            preserveTransparency: paint.preserve)
+        return try selectionPaintReply(
+            document, capture: capture, updated: updated, preserve: paint.preserve,
+            actionName: "Fill", noOp: FillSettings.transparentNoOp,
+            extra: ["pattern": pattern.echo])
     }
 
     /// Edit ▸ Fill…, ⌥⌫ and ⌘⌫ in Quick Mask

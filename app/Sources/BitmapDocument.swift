@@ -63,6 +63,8 @@ enum BitmapDocument {
         // Canvas Size, Trim, the quarter turns and the flips.
         "brush_stroke", "eraser_stroke", "fill", "fill_selection", "stroke_selection",
         "clear_selection", "crop", "canvas_size", "rotate", "flip",
+        // Edit ▸ Define Pattern… (black and white codes, `DefinePattern`).
+        "define_pattern",
         // Phase 2a-ii: Image Size and Move (resampled, then thresholded), the selected pixels'
         // moves, Inverse, Modify and Transform Selection, and Cut. Phase 2b took out
         // Free Transform, Distort, Transform Again, the selected pixels' transforms and Trim
@@ -107,7 +109,8 @@ enum BitmapDocument {
         "showExportWorkspace:", "quickExport:",
         "clearSelection:", "fillSelection:", "fillSelectionFromDeleteKey:", "fillWithForeground:",
         "fillWithBackground:", "fillWithForegroundPreserving:", "fillWithBackgroundPreserving:",
-        "strokeSelection:", "showCanvasSize:", "rotateCW:", "rotateCCW:", "rotate180:",
+        "strokeSelection:", "definePattern:", "showCanvasSize:", "rotateCW:", "rotateCCW:",
+        "rotate180:",
         "flipH:", "flipV:", "cropToSelection:",
         "cut:", "resizeImage:",
         "invertSelection:", "featherSelection:", "growSelection:", "shrinkSelection:",
@@ -456,8 +459,10 @@ enum BitmapDocument {
             }
             options[key] = number
         }
-        for key in ["shape", "pattern"] {
-            if let value = arguments[key] { options[key] = value }
+        if let value = arguments["shape"] { options["shape"] = value }
+        // A library pattern `{"name": …}` goes to the core as its tile (`PatternLibrary`).
+        if let value = arguments["pattern"] {
+            options["pattern"] = try PatternLibrary.resolvedPatternArgument(value)
         }
         return options
     }

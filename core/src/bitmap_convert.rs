@@ -12,8 +12,8 @@
 //!   pattern object, the one every Pattern Overlay, Pattern stroke and
 //!   pattern fill layer takes: `{"preset"}` of `pattern_tile::PRESETS` or an
 //!   inline `{"name"?, "width", "height", "rgba"}` tile (checkerboard when
-//!   omitted); the app holds no other pattern library. Its gray is
-//!   [`threshold_tile`]'s.
+//!   omitted); a pattern from the app's user library arrives here as such
+//!   an inline tile. Its gray is [`threshold_tile`]'s.
 //!
 //! * **Gray → Bitmap** converts an 8-bit Grayscale document of ONE plain
 //!   layer (`indexed_convert::plain_image`, Indexed's rule); any other

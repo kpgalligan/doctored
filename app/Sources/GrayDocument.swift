@@ -167,6 +167,8 @@ enum GrayDocument {
         "separate_color", "export_layers", "export_pdf", "contact_sheet",
         "contact_sheet_from_sources", "get_tone_map", "set_tone_map", "place_image",
         "add_live_photo_layer",
+        // Edit ▸ Define Pattern… (the gray code at 8 bits, `DefinePattern`).
+        "define_pattern",
     ]
 
     /// The admitted tools that then answer the depth's own rules (`DocumentPrecision.refusal`):
@@ -271,6 +273,7 @@ enum GrayDocument {
         "showLiquify:", "alignLeft:", "alignCenterX:", "alignRight:", "alignTop:",
         "alignCenterY:", "alignBottom:", "distributeHorizontally:", "distributeVertically:",
         "copy:", "copyMerged:", "cut:", "paste:", "pasteAsNewLayer:", "pasteInPlace:",
+        "definePattern:",
         "pasteInto:", "pasteOutside:", "layerViaCopy:", "layerViaCut:", "duplicateToNewDocument:",
         "stampSelected:",
         "showColorRange:", "refineSelection:", "selectSubject:", "showSubjectTargets:",

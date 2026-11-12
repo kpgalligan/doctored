@@ -169,6 +169,7 @@ const LINEAR_RANGE: &str =
 const PLANE_FLOAT: &str = "paint_blend's plane is a 32-bit float document's target; a 16-bit colour plane is a scalar_edit target";
 const PLANE_PRESERVE: &str = "a colour-plane fill takes no preserve_alpha";
 const PLANE_INK: &str = "a colour-plane fill takes document ink";
+const PLANE_PATTERN: &str = "a colour-plane fill takes one colour, not a pattern";
 
 /// The ink and plane refusals of a native paint request, asked FIRST by
 /// `NativePaintEdit::plan_in` and by the float walk (`applying_unlocked`)
@@ -213,6 +214,9 @@ pub(crate) fn admit_ink(edit: &NativePaintEdit, doc: &PrecisionDocument) -> Resu
     }
     if !doc.is_float() {
         return Err(PLANE_FLOAT.into());
+    }
+    if edit.pattern().is_some() {
+        return Err(PLANE_PATTERN.into());
     }
     if edit.preserves_alpha() {
         return Err(PLANE_PRESERVE.into());
@@ -276,6 +280,7 @@ pub(crate) fn plan_in(
         // The alpha restore's two rect reads and its output rect.
         scratch += output * 48;
     }
+    scratch += edit.pattern_scratch();
     let (colors, space) = edit.colors();
     if matches!(space, PaintColorSpace::Srgb) && !colors.is_empty() {
         let source = IccProfile::srgb();

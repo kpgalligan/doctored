@@ -63,8 +63,10 @@ struct PrecisionPixelCommand {
     let request: String
 
     /// The core's request bounds (`ffi_precision_edit.rs`): `REQUEST_LIMIT` for every op, and
-    /// `STYLE_REQUEST_LIMIT` for `layer_style`, whose whole style may reach `MAX_STYLE_JSON_LEN`
-    /// (2 MiB, a Pattern Overlay's custom tile) beside that envelope.
+    /// `STYLE_REQUEST_LIMIT` for a request that carries a pattern tile — `layer_style`, whose
+    /// whole style may reach `MAX_STYLE_JSON_LEN` (2 MiB, a Pattern Overlay's custom tile), and a
+    /// `paint_blend` with Fill…'s `pattern` (one tile, at most 1.4 MB of base64) — beside that
+    /// envelope.
     static let maximumBytes = 64 * 1024
     static let maximumStyleBytes = 2 * 1024 * 1024 + maximumBytes
 
@@ -74,7 +76,8 @@ struct PrecisionPixelCommand {
         }
         // Unescaped slashes: an escaped `/` doubles a base64 tile's opaque texels.
         let bytes = try JSONSerialization.data(withJSONObject: fields, options: [.sortedKeys, .withoutEscapingSlashes])
-        let maximum = op == "layer_style" ? Self.maximumStyleBytes : Self.maximumBytes
+        let carriesTile = op == "layer_style" || (op == "paint_blend" && fields["pattern"] != nil)
+        let maximum = carriesTile ? Self.maximumStyleBytes : Self.maximumBytes
         guard bytes.count <= maximum, let request = String(data: bytes, encoding: .utf8) else {
             throw DoctoredCoreError(message: "High-depth pixel request exceeds \(maximum / 1024) KiB.")
         }

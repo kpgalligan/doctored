@@ -229,6 +229,8 @@ enum LabDocument {
         // core), Duplicate to New Document and copying layers to another document.
         "copy", "cut", "copy_merged", "paste", "duplicate_to_new_document",
         "copy_layers_to_document",
+        // Edit ▸ Define Pattern… (the composite in sRGB, `DefinePattern`).
+        "define_pattern",
         // Phase 5b: Edit ▸ Convert to Profile… (`dispatchLabColour`).
         "convert_profile",
         // Phase 6a-i: type, shape and fill layers (authored sRGB, rendered as L*a*b* codes in the
@@ -392,6 +394,7 @@ enum LabDocument {
         "selectGrow:", "selectSimilar:",
         // Phase 4c: Copy, Copy Merged, Cut, the Pastes and Duplicate to New Document (Gray's set).
         "copy:", "copyMerged:", "cut:", "paste:", "pasteAsNewLayer:", "pasteInPlace:",
+        "definePattern:",
         "pasteInto:", "pasteOutside:", "duplicateToNewDocument:",
         // Phase 5b: Edit ▸ Convert to Profile… (`presentLabProfileSheet`).
         "convertToProfile:",

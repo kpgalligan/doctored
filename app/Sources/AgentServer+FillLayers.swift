@@ -268,7 +268,7 @@ extension AgentServer {
         var fill = base
         fill.anchor = nil
         if let tile = object["pattern"] {
-            fill.pattern = try fillPatternTile(tile)
+            fill.pattern = try patternTile(tile, at: "pattern.pattern")
         }
         if object["angle"] != nil {
             guard let value = doubleArg(object, "angle"), value.isFinite else {
@@ -301,39 +301,44 @@ extension AgentServer {
         return fill
     }
 
-    /// `pattern.pattern`: `{preset}` or `{name?, width, height, rgba}`.
-    private func fillPatternTile(_ raw: Any) throws -> PatternRef {
+    /// One pattern object at `path` (`pattern.pattern` here, `pattern` for `fill_selection`):
+    /// `{preset}`, `{name}` alone — a library pattern, embedded as its tile
+    /// (`PatternLibrary`) — or a custom tile `{name?, width, height, rgba}`.
+    func patternTile(_ raw: Any, at path: String) throws -> PatternRef {
         let ids = RasterDocument.patternPresets().map(\.id)
         guard let tile = raw as? [String: Any] else {
-            throw ToolError(message: "pattern.pattern must be {preset} or {name?, width, height, "
-                + "rgba}")
+            throw ToolError(message: "\(path) must be {preset}, {name} (a library pattern) or "
+                + "{name?, width, height, rgba}")
+        }
+        if tile.count == 1, let name = tile["name"] as? String {
+            return try libraryPattern(name).ref
         }
         if tile["preset"] != nil {
             guard tile.count == 1, let preset = tile["preset"] as? String, ids.contains(preset) else {
-                throw ToolError(message: "pattern.pattern.preset must be one of "
+                throw ToolError(message: "\(path).preset must be one of "
                     + ids.joined(separator: ", ") + ", alone")
             }
             return PatternRef(preset: preset)
         }
         let known: Set<String> = ["name", "width", "height", "rgba"]
         if let stray = tile.keys.sorted().first(where: { !known.contains($0) }) {
-            throw ToolError(message: "pattern.pattern has no key \"\(stray)\"; a custom tile's "
+            throw ToolError(message: "\(path) has no key \"\(stray)\"; a custom tile's "
                 + "keys are name, width, height and rgba.")
         }
-        try refuseNullOrBooleanNumbers(tile, ["width", "height"], in: "pattern.pattern")
+        try refuseNullOrBooleanNumbers(tile, ["width", "height"], in: path)
         guard let width = intArg(tile, "width"), let height = intArg(tile, "height"),
               (1...512).contains(width), (1...512).contains(height)
         else {
-            throw ToolError(message: "pattern.pattern.width and height must be integers 1…512")
+            throw ToolError(message: "\(path).width and height must be integers 1…512")
         }
         guard let rgba = tile["rgba"] as? String,
               Data(base64Encoded: rgba)?.count == width * height * 4
         else {
-            throw ToolError(message: "pattern.pattern.rgba must be standard base64 of width × "
+            throw ToolError(message: "\(path).rgba must be standard base64 of width × "
                 + "height × 4 straight RGBA8 bytes")
         }
         if tile["name"] != nil, !(tile["name"] is String) {
-            throw ToolError(message: "pattern.pattern.name must be a string")
+            throw ToolError(message: "\(path).name must be a string")
         }
         return PatternRef(name: (tile["name"] as? String) ?? "Custom", width: width,
                           height: height, rgba: rgba)

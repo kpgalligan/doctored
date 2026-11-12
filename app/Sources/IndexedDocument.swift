@@ -78,6 +78,8 @@ enum IndexedDocument {
         // Phase 2c: the clipboard, Fill, Stroke, the Paint Bucket, the Eraser and the Image-menu
         // geometry.
         "copy", "copy_merged", "cut", "clear_selection", "fill", "fill_selection",
+        // Edit ▸ Define Pattern… (the codes at 8 bits, `DefinePattern`).
+        "define_pattern",
         "stroke_selection", "eraser_stroke", "image_size", "canvas_size", "trim", "rotate", "flip",
         "crop", "perspective_crop", "fit_crop",
         // Phase 2d: Paste, the transforms, Warp and the layer row.
@@ -130,6 +132,8 @@ enum IndexedDocument {
         "cut:", "copy:", "copyMerged:", "clearSelection:", "fillSelection:",
         "fillSelectionFromDeleteKey:", "fillWithForeground:", "fillWithBackground:",
         "fillWithForegroundPreserving:", "fillWithBackgroundPreserving:", "strokeSelection:",
+        // Edit ▸ Define Pattern… (EditorViewController+DefinePattern.swift).
+        "definePattern:",
         "resizeImage:", "showCanvasSize:", "showTrim:", "rotateCW:", "rotateCCW:", "rotate180:",
         "rotateArbitrary:", "flipH:", "flipV:", "cropToSelection:",
         // Phase 2d: Edit ▸ Paste and Paste Special, Free Transform, Transform Again, Warp; the

@@ -115,6 +115,7 @@ impl LayerEdgeStroke {
             selection: false,
             preserve_alpha: self.preserve_alpha,
             plane: None,
+            pattern: None,
         }
     }
 

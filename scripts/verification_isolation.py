@@ -52,7 +52,9 @@ PRESET_DIRECTORIES = {"DR_RAW_PRESETS_DIR": "raw-presets",
                       # A recorded Synchronize RAW Settings Masking step's masks.
                       "DR_RAW_LOCAL_MASKS_DIR": "raw-local-masks",
                       # The paint options bar's Preset popup: the user's brush presets.
-                      "DR_BRUSH_PRESETS_DIR": "brush-presets"}
+                      "DR_BRUSH_PRESETS_DIR": "brush-presets",
+                      # Edit ▸ Define Pattern…: the user's pattern library.
+                      "DR_PATTERNS_DIR": "patterns"}
 
 # Every cloud provider's base URL, pointed at port 9 on loopback (nothing listens there:
 # the connection is refused at once), so an owned instance that reaches a provider by

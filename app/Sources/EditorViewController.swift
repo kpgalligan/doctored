@@ -2602,6 +2602,7 @@ extension EditorViewController: NSUserInterfaceValidations {
 
         // Edit ▸ Fill… and its ⌫ chords (EditorViewController+FillStroke.swift).
         if let handled = validateFillItem(item) { return handled }
+        if let handled = validateDefinePatternItem(item) { return handled }
         // New Fill Layer (+FillLayers.swift) and Blur in Quick Mask (+QuickMaskEdits.swift).
         if let handled = validateFillLayerItem(item) ?? validateQuickMaskEditItem(item)
             ?? validatePathsItem(item) { return handled }

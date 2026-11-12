@@ -30,12 +30,15 @@ extension EditorViewController {
     /// - Navigator: `get_view`/`set_view`.
     /// - Proof Setup ▸ Delete Broken File: a proof-preset library write
     ///   (`delete_proof_preset {file}`, document-free).
+    /// - Edit ▸ Patterns: pattern-library writes (`delete_pattern`,
+    ///   `import_patterns`, `export_patterns`, document-free).
     /// - Assistant: no MCP twin. Its tab is already reachable at every depth
     ///   through the panels' `onShowAssistant` closures, and every tool it
     ///   runs passes `execute`'s depth gate.
     private static let depthIndependentWindowActions: Set<String> = ["showLayerComps:",
         "saveWorkspace:", "restoreWorkspace:", "deleteWorkspace:", "deleteWorkspaceFile:",
         "showNavigator:", "showAssistant:", "deleteProofPresetFile:",
+        "deleteLibraryPattern:", "importPatternLibrary:", "exportPatternLibrary:",
         // View ▸ Clear Color Samplers writes view state, never pixels.
         "clearColorSamplers:"]
 
@@ -375,6 +378,8 @@ extension EditorViewController {
                 // `clipboard_paste`). Phase 12G-2 admits Cut: its float
                 // erase is the core's own f32 alpha erase (`clipboard_cut`).
                 "copy:", "copyMerged:", "paste:", "pasteAsNewLayer:", "pasteInPlace:", "cut:",
+                // Edit ▸ Define Pattern…: the composite's tile, linear codes at float.
+                "definePattern:",
                 // Paste Into / Outside add the typed `set_mask`.
                 "pasteInto:", "pasteOutside:",
                 // File ▸ Export… and Quick Export. MCP twins
@@ -627,6 +632,8 @@ extension EditorViewController {
         // Phase 12G-1: the typed clipboard (`precision_clipboard`).
         "cut:", "copy:", "copyMerged:", "paste:", "pasteAsNewLayer:", "pasteInPlace:",
         "pasteInto:", "pasteOutside:",
+        // Edit ▸ Define Pattern… (the composite's tile, `DefinePattern`).
+        "definePattern:",
         // View ▸ Proof Setup…, Proof Colors and Gamut Warning. MCP
         // twins `get_proof_setup` / `set_proof_setup` / `render_proof`;
         // the canvas proofs the projection's display codes.

@@ -317,6 +317,9 @@ Detail belongs in the source file's own header comment.
 - `LayerStyleList.swift` — the Layer Style sheet's checklist row (`StyleListRow`, with "+" on a repeating kind) and `LayerStyleInstanceBar` (↑, ↓, trash).
 - `PatternOverlay.swift` — pattern value types (`PatternRef`, `PatternFill`, `BevelTexture`, `PatternOverlayEffect`, `PatternPreset`) and `LayerStyle.droppingPatternAnchors()`.
 - `PatternOverlayPane.swift` — the Pattern Overlay pane, and `PatternFillRows` (preset popup, Angle, Scale, Link, Snap to Origin) a Pattern stroke and the bevel's Texture share.
+- `PatternLibrary.swift` — the user pattern library (`DR_PATTERNS_DIR`): `LibraryPattern`, picker rows (`PatternChoice`), `{name}` resolution, `.doctoredpatterns` files.
+- `DefinePattern.swift` / `EditorViewController+DefinePattern.swift` — Edit ▸ Define Pattern…: the composite's tile per depth and mode, its sheet and validation.
+- `EditorViewController+PatternLibrary.swift` — Edit ▸ Patterns: Delete Pattern…, Import Patterns… and Export Patterns… for the pattern library.
 - `GlowFillRows.swift` — the Outer and Inner Glow's Fill rows (colour or gradient end stops) and Jitter, `GlowFillEffect`; Gradient seeds Foreground to Transparent.
 - `LayerStyleContour.swift` — `ContourValue` / `ContourPointValue`: a contour as the core's style JSON holds it, the ten preset ids and titles.
 - `ContourRow.swift` — the Layer Style Contour row (presets, Custom… popover over `CurveEditorView`, Anti-aliased) and `PaneRows.range`.
@@ -679,6 +682,7 @@ Detail belongs in the source file's own header comment.
 - `ColorSamplers.swift` / `ImageCanvasView+ColorSamplers.swift` / `EditorViewController+ColorSamplers.swift` — the Color Sampler (the Eyedropper's I slot; ⇧-click with the Eyedropper adds one).
 - `ColorSamplerReadoutView.swift` / `AgentServer+ColorSamplers.swift` — the samplers' Info readout and MCP `get_color_samplers` / `set_color_samplers`.
 - `SelectionFillStroke.swift` / `FillSheetController.swift` / `StrokeSheetController.swift` / `EditorViewController+FillStroke.swift` — Edit ▸ Fill… and Edit ▸ Stroke…, and the fill chords.
+- `EditorViewController+PatternFill.swift` — Edit ▸ Fill…'s Pattern contents at 8 bits (`applyPatternFill`); the typed commit is `+PrecisionFillStroke`'s.
 - `AgentServer+FillStroke.swift` / `AgentCatalog+FillStroke.swift` / `QuickMaskFill.swift` — MCP `fill_selection` / `stroke_selection`; the Quick Mask fill.
 - `PrecisionFillStroke.swift` / `EditorViewController+PrecisionFillStroke.swift` / `AgentServer+PrecisionFillStroke.swift` — the 16-bit and 32-bit float Fill and Stroke branches.
 - `FillLayer.swift` — fill layers (pattern; moves, turns, CMYK): `FillLayerPayload`, its drawing, `refittingFillLayers`, `positionPin(refitting:)`, `carriesPatternFill`.
@@ -711,6 +715,7 @@ Detail belongs in the source file's own header comment.
 - `StylesPanelController.swift` / `NewStyleSheetController.swift` / `EditorViewController+StylePresets.swift` — Window ▸ Styles: the grid panel, New Style…, export, apply.
 - `AgentServer+StylePresets.swift` / `AgentCatalog+StylePresets.swift` — the seven style-preset MCP tools and their catalog entries.
 - `AgentServer+BrushPresets.swift` / `AgentCatalog+BrushPresets.swift` — the five brush-preset MCP tools and their catalog entries.
+- `AgentServer+Patterns.swift` / `AgentCatalog+Patterns.swift` — `define_pattern` and the four pattern-library MCP tools, and their catalog entries.
 - `BrightnessContrastSheet.swift` / `ReplaceColorSheet.swift` — Brightness/Contrast (Use Legacy; modern curve by default) and Replace Color; both `AdjustmentSheet` subclasses.
 - `EditorViewController+Adjustments.swift` — the one ordered list of adjustment ops that Image ▸ Adjustments, Layer ▸ New Adjustment Layer and the Layers footer menu build from.
 - `EditorViewController+AutoAdjust.swift` — Image ▸ Auto Tone / Auto Contrast / Auto Color: Levels parameters from the active layer's histogram, applied through the one Levels math.

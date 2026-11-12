@@ -133,6 +133,10 @@ extension EditorViewController {
             guard !refuseLockedEdit(layer: capture.layerIndex, kind: DR_EDIT_PIXELS)
             else { return }
         }
+        if settings.contents == .pattern {
+            applyPatternFill(settings, capture: capture, document: document, note: note)
+            return
+        }
         guard let color = settings.contents.color(
             foreground: paintColor, background: backgroundColor,
             custom: settings.customColor, in: document.nsColorSpace)

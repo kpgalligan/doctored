@@ -24,6 +24,12 @@
 //! * erase: alpha through `blend::erase_alpha` at `s × opacity`, ink
 //!   untouched; a transparency-locked layer erases nothing (its alpha is
 //!   frozen, as the RGB restore leaves it);
+//! * fill with a `pattern` (Edit ▸ Fill…'s Pattern contents): the same
+//!   composite with the ink of the tile's texel at the canvas pixel, its
+//!   alpha in place of the ink's: `pattern_tile::ink_sampler` at 100 %,
+//!   unturned, from the canvas origin, each sRGB texel through the
+//!   document's one sRGB → ink leg (`cmyk_style::TexelInk`), as a CMYK
+//!   Pattern Overlay reads it;
 //! * gradient: the stops' straight CMYKA between the two that bracket `t`
 //!   (`gradient_field::segment`; the inks through the Classic ramp blended
 //!   with the linear one by the request's `smoothness`, a fraction defaulting
@@ -51,10 +57,12 @@ use crate::doc_lock::LOCK_TRANSPARENCY;
 use crate::gradient_field::{FieldStop, FieldStyle};
 use crate::job_control::JobContext;
 use crate::layer_rect::{canvas_rect_on_plane, coverage_rect16, plane_rect_offset};
+use crate::pattern_tile::InkSampler;
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{admit, pixel_count, reserved_vec, BOOKKEEPING_BYTES};
 use crate::precision_paint::canvas_index;
 use crate::retouch_transform::{merged_extent, StorageExtent};
+use crate::style_pattern::Pattern;
 
 /// A canvas pixel's charge beside the layer planes: the walk's CMYKA16 rect
 /// (10 B), the host's coverage and selection planes (4 B) and the host's
@@ -91,6 +99,10 @@ pub(crate) enum CmykPaintEdit {
         selection: bool,
         #[serde(default)]
         preserve_alpha: bool,
+        /// Edit ▸ Fill…'s Pattern contents (module doc): the tile read per
+        /// pixel in ink, in place of `ink` (required and inert).
+        #[serde(default, deserialize_with = "crate::style_pattern_fill::paint_pattern")]
+        pattern: Option<Pattern>,
     },
     BucketFill {
         layer: usize,
@@ -258,6 +270,31 @@ impl CmykPaintEdit {
         )
     }
 
+    /// `PaintBlend`'s pattern, if it carries one.
+    fn pattern(&self) -> Option<&Pattern> {
+        match self {
+            Self::PaintBlend { pattern, .. } => pattern.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// The pattern's ink sampler on the canvas grid (module doc), built once
+    /// per walk; `None` with no pattern.
+    fn ink_pattern(&self, doc: &PrecisionDocument) -> Result<Option<InkSampler>, String> {
+        let Some(pattern) = self.pattern() else {
+            return Ok(None);
+        };
+        let policy = doc.require_cmyk_policy("CMYK paint")?;
+        let mut texel = crate::cmyk_style::TexelInk::new(policy)?;
+        Ok(Some(crate::pattern_tile::ink_sampler(
+            &pattern.tile,
+            1.0,
+            0.0,
+            (0.0, 0.0),
+            &mut |rgb| texel.ink(rgb),
+        )))
+    }
+
     /// Whether changed ink may grow the layer: never for the Eraser, under
     /// Preserve Transparency or on a transparency-locked layer.
     fn expands(&self, doc: &PrecisionDocument) -> bool {
@@ -356,6 +393,11 @@ impl CmykPaintEdit {
         let output = pixel_count(extent.0 .0, extent.0 .1)? as u64;
         let (lw, lh) = image.dimensions();
         let mut scratch = 8 * BOOKKEEPING_BYTES + n * CANVAS_BYTES_PER_PIXEL + output * 10;
+        if let Some(pattern) = self.pattern() {
+            let (w, h) = (pattern.tile.width, pattern.tile.height);
+            scratch += crate::pattern_tile::fill_scratch_bytes(w, h)
+                + crate::pattern_tile::ink_scratch_bytes(w, h, 1.0, 0.0);
+        }
         if matches!(self, Self::BucketFill { .. }) {
             // The layer's contiguous copy the flood reads and the region.
             scratch += pixel_count(lw, lh)? as u64 * 10 + n * 2;
@@ -494,6 +536,7 @@ impl CmykPaintEdit {
         }
         let mut bounds = [doc.width, doc.height, 0, 0];
         let mut changed = false;
+        let pattern = self.ink_pattern(doc)?;
         for (k, slot) in rect.iter_mut().enumerate() {
             job.every(k)?;
             if k & 65535 == 0 {
@@ -512,12 +555,13 @@ impl CmykPaintEdit {
             if coverage <= 0. || region.as_ref().is_some_and(|r| r[i] == 0) {
                 continue;
             }
-            let result = self.pixel(
+            let result = self.pixel_with(
                 original,
                 coverage,
                 opacity,
                 frozen,
                 (i64::from(x), i64::from(y)),
+                pattern.as_ref(),
             );
             if result != original {
                 *slot = result;
@@ -622,7 +666,21 @@ impl CmykPaintEdit {
         s: f64,
         opacity: f32,
         frozen: bool,
+        xy: (i64, i64),
+    ) -> CmykSample {
+        self.pixel_with(original, s, opacity, frozen, xy, None)
+    }
+
+    /// [`Self::pixel`] with a fill's `pattern` sampler (`ink_pattern`): its
+    /// ink and alpha at the canvas pixel replace the request's `ink`.
+    fn pixel_with(
+        &self,
+        original: CmykSample,
+        s: f64,
+        opacity: f32,
+        frozen: bool,
         (x, y): (i64, i64),
+        pattern: Option<&InkSampler>,
     ) -> CmykSample {
         if let Self::EraseNative { .. } = self {
             let mut out = original;
@@ -646,7 +704,8 @@ impl CmykPaintEdit {
                 let t = crate::gradient_field::styled_parameter(point, *from, *to, style);
                 stop_ink(stops, t as f32, style, *smoothness)
             }
-            Self::PaintBlend { ink, .. } | Self::BucketFill { ink, .. } => *ink,
+            Self::PaintBlend { ink, .. } => pattern.map_or(*ink, |sampler| sampler.at(x, y)),
+            Self::BucketFill { ink, .. } => *ink,
             Self::EraseNative { .. } => return original,
         };
         let sa = (f64::from(ink[4]) * f64::from(opacity) * s) as f32;

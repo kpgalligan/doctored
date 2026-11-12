@@ -10,13 +10,22 @@ import AppKit
 /// Preserve Transparency is disabled, because a plane has no transparency
 /// of its own to keep. In Quick Mask the sheet fills the Quick Mask,
 /// a coverage target like the others, and its hint says so.
+///
+/// Contents Pattern (a layer target only: `FillContents.offered`) shows a
+/// Pattern popup of the four built-ins and then the user's library
+/// (`PatternChoice.all`, re-read when the sheet opens); Apply embeds the
+/// chosen tile in the `FillSettings`.
 final class FillSheetController: NSViewController {
     private let coverage: Bool
     private let quickMask: Bool
     private let options: FillDialogOptions
     private let onApply: (FillSettings) -> Void
+    private let offered: [FillContents]
+    private let patterns: [PatternChoice]
 
     private let contentsPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let patternPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private var patternRow: NSGridRow?
     private let colorWell = NSColorWell(frame: .zero)
     private let modePopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let opacityField = NSTextField(string: "100")
@@ -32,6 +41,8 @@ final class FillSheetController: NSViewController {
         self.quickMask = quickMask
         self.options = options
         self.onApply = onApply
+        offered = FillContents.offered(coverage: coverage || quickMask)
+        patterns = coverage || quickMask ? [] : PatternChoice.all()
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -41,11 +52,24 @@ final class FillSheetController: NSViewController {
     }
 
     override func loadView() {
-        contentsPopup.addItems(withTitles: FillContents.allCases.map(\.title))
-        contentsPopup.selectItem(at: FillContents(rawValue: options.contents)?.rawValue ?? 0)
+        contentsPopup.addItems(withTitles: offered.map(\.title))
+        let saved = FillContents(rawValue: options.contents)
+        contentsPopup.selectItem(at: offered.firstIndex(where: { $0 == saved }) ?? 0)
         contentsPopup.target = self
         contentsPopup.action = #selector(contentsChanged(_:))
         contentsPopup.font = DS.sans(12)
+
+        patternPopup.font = DS.sans(12)
+        patternPopup.setAccessibilityIdentifier("fill-pattern")
+        for choice in patterns {
+            let item = NSMenuItem(title: choice.name, action: nil, keyEquivalent: "")
+            item.image = choice.image
+            item.representedObject = choice.key
+            patternPopup.menu?.addItem(item)
+        }
+        if let key = options.pattern, let index = patterns.firstIndex(where: { $0.key == key }) {
+            patternPopup.selectItem(at: index)
+        }
 
         colorWell.color = TextLayer.color(fromHex: options.customColor) ?? .black
         colorWell.widthAnchor.constraint(equalToConstant: 54).isActive = true
@@ -87,6 +111,7 @@ final class FillSheetController: NSViewController {
 
         let grid = NSGridView(views: [
             [fieldLabel("Contents:"), contentsRow],
+            [fieldLabel("Pattern:"), patternPopup],
             [fieldLabel("Mode:"), modePopup],
             [fieldLabel("Opacity:"), opacityRow],
             [NSGridCell.emptyContentView, preserveBox],
@@ -96,18 +121,21 @@ final class FillSheetController: NSViewController {
         grid.columnSpacing = 12
         grid.column(at: 0).xPlacement = .trailing
         grid.column(at: 0).width = 106
+        patternRow = grid.row(at: 1)
         updateColorWell()
 
         let cancelButton = sheetCancelButton(target: self, action: #selector(cancelClicked(_:)))
         let applyButton = sheetApplyButton(target: self, action: #selector(applyClicked(_:)))
+        let contentsWords: String = coverage ? "with one colour" : "with one colour or a pattern"
+        let hint: String = quickMask
+            ? "Fills the whole Quick Mask with the colour's gray, through the blend "
+                + "mode at the opacity: white adds to the selection, black removes it."
+            : "Fills the selection — or the whole target when nothing is selected — "
+                + contentsWords + ", through the blend mode at the opacity. "
+                + "Preserve Transparency keeps the layer's alpha as it is."
         view = makeSheetView(
             title: "Fill",
-            hint: quickMask
-                ? "Fills the whole Quick Mask with the colour's gray, through the blend "
-                    + "mode at the opacity: white adds to the selection, black removes it."
-                : "Fills the selection — or the whole target when nothing is selected — "
-                    + "with one colour, through the blend mode at the opacity. "
-                    + "Preserve Transparency keeps the layer's alpha as it is.",
+            hint: hint,
             content: grid,
             buttonRow: makeButtonRow(
                 cancel: cancelButton, apply: applyButton,
@@ -120,14 +148,23 @@ final class FillSheetController: NSViewController {
         updateColorWell()
     }
 
-    /// The well is shown only for Color…, the one choice it names.
+    /// The well is shown only for Color…, the one choice it names; the
+    /// Pattern row only for Pattern.
     private func updateColorWell() {
         colorWell.isHidden = selectedContents != .color
         if colorWell.isHidden { colorWell.deactivate() }
+        patternRow?.isHidden = selectedContents != .pattern
     }
 
     private var selectedContents: FillContents {
-        FillContents(rawValue: contentsPopup.indexOfSelectedItem) ?? .foreground
+        let index = contentsPopup.indexOfSelectedItem
+        return offered.indices.contains(index) ? offered[index] : .foreground
+    }
+
+    /// The chosen Pattern row, nil when there is none to choose.
+    private var selectedPattern: PatternChoice? {
+        let index = patternPopup.indexOfSelectedItem
+        return patterns.indices.contains(index) ? patterns[index] : nil
     }
 
     @objc private func applyClicked(_ sender: Any?) {
@@ -143,14 +180,22 @@ final class FillSheetController: NSViewController {
         let mode = ChannelMathControls.blendMode(modePopup)
         let preserve = preserveBox.isEnabled && preserveBox.state == .on
         let custom = colorWell.color
-        let settings = FillSettings(
+        let pattern = selectedContents == .pattern ? selectedPattern : nil
+        if selectedContents == .pattern, pattern == nil {
+            NSSound.beep()
+            status.stringValue = "Choose a pattern."
+            return
+        }
+        var settings = FillSettings(
             contents: selectedContents, customColor: custom, mode: mode, opacity: opacity,
             preserveTransparency: preserve)
+        settings.pattern = pattern?.ref
         ToolOptionsStore.shared.fillDialog = FillDialogOptions(
             contents: selectedContents.rawValue, customColor: TextLayer.hex(custom),
             blendMode: DrBlendMode.displayName(for: mode), opacity: opacity,
             preserveTransparency: coverage
-                ? options.preserveTransparency : preserve)
+                ? options.preserveTransparency : preserve,
+            pattern: pattern?.key ?? options.pattern)
         colorWell.deactivate()
         dismiss(self)
         onApply(settings)

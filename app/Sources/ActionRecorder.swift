@@ -434,6 +434,9 @@ final class ActionRecorder {
         // is only a stale-inspection guard for the original call.
         if tool == "select_subjects" { arguments.removeValue(forKey: "expected_revision") }
         if tool == "hdr_toning" { arguments = HdrToningPreset.recordedArguments(arguments) }
+        // A library pattern `{"name": …}` records as its tile, so the step replays without the
+        // library (`PatternLibrary.recordedArguments`).
+        arguments = PatternLibrary.recordedArguments(tool, arguments)
         // A history state id names THIS session's history, which no
         // replay can resolve; the replay paints from the History panel's source.
         if tool == "art_history_brush_stroke" { arguments.removeValue(forKey: "state_id") }

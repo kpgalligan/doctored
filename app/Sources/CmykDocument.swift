@@ -149,6 +149,8 @@ enum CmykDocument {
         // Phase 4c: copy and paste, Layer Via, Duplicate to Document, Stamp Selected.
         "copy:",
         "copyMerged:",
+        // Edit ▸ Define Pattern… (its tile is the composite in sRGB, `DefinePattern`).
+        "definePattern:",
         "cut:",
         "paste:",
         "pasteAsNewLayer:",

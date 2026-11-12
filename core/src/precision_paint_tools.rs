@@ -2,6 +2,12 @@
 //! Canvas ink is evaluated once at native depth, then only changed ink expands
 //! raw raster storage. Mask placement and every untouched sample stay exact.
 //!
+//! A `paint_blend` that carries a `pattern` is Edit ▸ Fill…'s Pattern
+//! contents: each pixel's colour is the tile's texel at its CANVAS pixel, in
+//! the document's reading of the tile ([`pattern_sampler`]), the texel's
+//! alpha multiplying the opacity and coverage; the request's `color` is
+//! inert, and a `plane` target refuses it (`float_paint::admit_ink`).
+//!
 //! The walk runs over a [`PaintFrame`]: the canvas for every request this
 //! API parses (`plan` / `apply`), or another canvas-space rect for a caller
 //! that lays its coverage out there (`precision_fill_stroke`'s layer-edge
@@ -32,10 +38,12 @@ use crate::gradient_field::{FieldStop, FieldStyle};
 use crate::job_control::JobContext;
 use crate::lab_blend::kind_in;
 use crate::layer_rect::{canvas_rect_on_plane, coverage_rect16, plane_rect_offset};
+use crate::pattern_tile::PatternSampler;
 use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_image::{admit, pixel_count, reserved_vec, PrecisionRun, BOOKKEEPING_BYTES};
 use crate::precision_paint::{canvas_index, store, PaintColorSpace};
 use crate::retouch_transform::{merged_extent, StorageExtent};
+use crate::style_pattern::Pattern;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -55,6 +63,11 @@ pub(crate) enum NativePaintEdit {
         /// One colour channel of a float layer as the target (`float_paint`).
         #[serde(default)]
         plane: Option<PaintPlane>,
+        /// Edit ▸ Fill…'s Pattern contents: `style_pattern_fill`'s `pattern`
+        /// object, read per pixel in place of `color` (which stays required
+        /// and is inert) through [`pattern_sampler`]. Never with `plane`.
+        #[serde(default, deserialize_with = "crate::style_pattern_fill::paint_pattern")]
+        pattern: Option<Pattern>,
     },
     BucketFill {
         layer: usize,
@@ -147,6 +160,36 @@ impl PaintFrame {
     }
 }
 
+/// Edit ▸ Fill…'s Pattern contents in `doc`: the tile on the canvas grid at
+/// 100 %, unturned (`pattern_tile::canvas_sampler`), read as the document's
+/// Pattern Overlay reads a tile, so a pixel takes its texel's unit values:
+/// RGB and Indexed storage the texel's own numbers (at 32 bits code / 255 is
+/// linear light); a Gray document (Duotone and Bitmap's Gray storage too)
+/// the tile greyed through its twin first (`gray_style::grey_pattern`, the
+/// pattern fill layer's rule); a Lab document each sRGB texel as 8-bit Lab
+/// codes (`lab_style::twin_tile_sampler`). A CMYK document reads the ink
+/// twin instead (`cmyk_paint`).
+pub(crate) fn pattern_sampler(
+    pattern: &Pattern,
+    doc: &PrecisionDocument,
+) -> Result<PatternSampler, String> {
+    if let Some(policy) = doc.gray_policy() {
+        let greyed = crate::gray_style::grey_pattern(pattern, policy.twin(), policy, false)?;
+        return Ok(crate::pattern_tile::canvas_sampler(&greyed.tile));
+    }
+    if doc.is_lab() {
+        let fill = crate::style_pattern_fill::PatternFill {
+            pattern: pattern.clone(),
+            ..Default::default()
+        };
+        // The default fill is linked with no anchor at phase 0, so its origin
+        // is phase − the given offset: (0, 0), the canvas origin.
+        return crate::lab_style::twin_tile_sampler(&fill, (0, 0))
+            .ok_or_else(|| "the Lab pattern tile's conversion could not be built".to_string());
+    }
+    Ok(crate::pattern_tile::canvas_sampler(&pattern.tile))
+}
+
 /// `value − origin` as an `i32` (a layer offset in frame-local coordinates,
 /// or back with a negated origin).
 pub(crate) fn shifted(value: i32, origin: i64) -> Result<i32, String> {
@@ -234,6 +277,21 @@ impl NativePaintEdit {
             Self::PaintBlend { plane, .. } => plane,
             _ => None,
         }
+    }
+    /// `PaintBlend`'s pattern (Edit ▸ Fill…'s Pattern contents), if it
+    /// carries one.
+    pub(crate) fn pattern(&self) -> Option<&Pattern> {
+        match self {
+            Self::PaintBlend { pattern, .. } => pattern.as_ref(),
+            _ => None,
+        }
+    }
+    /// The bytes the pattern's sampler holds (`pattern_tile::fill_scratch_bytes`);
+    /// 0 with no pattern.
+    pub(crate) fn pattern_scratch(&self) -> u64 {
+        self.pattern().map_or(0, |p| {
+            crate::pattern_tile::fill_scratch_bytes(p.tile.width, p.tile.height)
+        })
     }
     /// Whether changed ink may grow the layer: never for the two tools that
     /// only rework existing pixels, under Preserve Transparency, on a
@@ -367,6 +425,7 @@ impl NativePaintEdit {
         if matches!(space, PaintColorSpace::Srgb) && !colors.is_empty() {
             scratch += crate::precision_paint::srgb_ink_scratch(doc.profile())?;
         }
+        scratch += self.pattern_scratch();
         let (mut rasters, masks) = doc.native_dimensions();
         let raster = (0..layer)
             .filter(|&i| doc.layer_source(i).is_some())
@@ -460,6 +519,12 @@ impl NativePaintEdit {
                 .collect(),
             _ => Vec::new(),
         };
+        // Pattern contents: the tile on the canvas grid, in the document's
+        // reading of it (`pattern_sampler`).
+        let pattern = self
+            .pattern()
+            .map(|pattern| pattern_sampler(pattern, doc))
+            .transpose()?;
         let layer = doc.layer(index).unwrap();
         let image = layer.source().unwrap();
         let (w, h) = image.dimensions();
@@ -615,7 +680,9 @@ impl NativePaintEdit {
                         }
                     }
                 } else {
-                    let color = if let Self::Gradient {
+                    let color = if let Some(sampler) = &pattern {
+                        sampler.at(i64::from(x) + frame.x, i64::from(y) + frame.y)
+                    } else if let Self::Gradient {
                         from,
                         to,
                         radial,
