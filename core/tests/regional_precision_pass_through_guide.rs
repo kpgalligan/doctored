@@ -929,13 +929,18 @@ fn a_pass_through_guide_inside_a_materialized_group_is_rendered_unstaged_at_u16(
 }
 
 #[test]
-fn linear_light_refuses_a_document_with_a_pass_through_guide_at_u16() {
+fn linear_light_evaluates_a_document_with_a_pass_through_guide_at_u16_regionally() {
     let d = doc(
         53,
         50,
         vec![backdrop(53, 50), pass(children(4.0, (7, 5), (30, 25)), 0.6)],
     );
-    assert!(d.with_evaluation(Evaluation::LinearLight).is_err());
+    let linear = d
+        .with_evaluation(Evaluation::LinearLight)
+        .unwrap()
+        .expect("a policy change");
+    assert_ne!(full(&linear), full(&d), "the policy changes the projection");
+    assert_regions_match(&linear, (0, 0, 53, 50), "linear light");
 }
 
 #[test]

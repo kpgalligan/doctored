@@ -1167,7 +1167,7 @@ pub(crate) fn render_layers(
                 let guide = state.kernel.guide(
                     dimensions.0,
                     dimensions.1,
-                    &|i| acc[i],
+                    &|i| crate::precision_evaluation::guide_view16(acc[i], env.transfer),
                     progress.job.range(start, end),
                 )?;
                 progress.advance(guide_work as usize)?;
@@ -1521,7 +1521,7 @@ fn render_styled(
             let guide = state.kernel.guide(
                 dimensions.0,
                 dimensions.1,
-                &|i| acc[i],
+                &|i| crate::precision_evaluation::guide_view16(acc[i], env.transfer),
                 progress.job.range(start, end),
             )?;
             progress.advance(guide_work as usize)?;

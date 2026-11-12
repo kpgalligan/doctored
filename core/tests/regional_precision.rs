@@ -81,13 +81,6 @@ fn full(doc: &PrecisionDocument) -> (u32, u32, Vec<u32>) {
     samples(image)
 }
 
-fn full_error(doc: &PrecisionDocument) -> String {
-    let mut err: *mut c_char = ptr::null_mut();
-    let image = unsafe { dr_precision_doc_render(doc, LIMIT, 0, ptr::null(), &mut err) };
-    assert!(image.is_null(), "the full render must refuse");
-    take(err)
-}
-
 fn region(
     doc: &PrecisionDocument,
     (x, y, w, h): (u32, u32, u32, u32),
@@ -305,7 +298,7 @@ fn pointwise_adjustments_match_the_u16_projection() {
 }
 
 #[test]
-fn a_linear_light_u16_document_matches_and_its_11e_refusal_is_identical() {
+fn a_linear_light_u16_document_matches_with_a_non_separable_mode() {
     let d = doc(vec![
         base(),
         raster("Top", (-2, 4), BlendMode::Multiply, 0.75),
@@ -317,17 +310,14 @@ fn a_linear_light_u16_document_matches_and_its_11e_refusal_is_identical() {
         .expect("a policy change");
     assert_ne!(full(&linear), full(&d), "the policy changes the projection");
     assert_regions_match(&linear, "linear light");
-    // A blend mode the 11E policy refuses, set after the switch: the plan and
-    // the render both return the policy's own sentence, the full render's.
-    let refused = edit(
+    // A non-separable mode set after the switch evaluates in linear light,
+    // and the regional render follows it sample for sample.
+    let hue = edit(
         &linear,
         json!({"op":"layer_blend","version":1,"layer":1,"blend_mode":BlendMode::Hue.to_c()}),
     );
-    let from_plan = plan(&refused, (1, 1, 4, 4), 1).unwrap_err();
-    let from_render = region(&refused, (1, 1, 4, 4), 1, LIMIT).unwrap_err();
-    assert_eq!(from_plan, from_render);
-    assert_eq!(from_plan, full_error(&refused));
-    assert!(from_plan.contains("Top"), "{from_plan}");
+    assert_ne!(full(&hue), full(&linear), "Hue changes the projection");
+    assert_regions_match(&hue, "linear light, Hue");
 }
 
 fn mask() -> PrecisionMask {

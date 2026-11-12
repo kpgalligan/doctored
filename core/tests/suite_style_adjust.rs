@@ -81,6 +81,8 @@ mod curves_native;
 mod evaluation_composite;
 #[path = "evaluation_ffi.rs"]
 mod evaluation_ffi;
+#[path = "evaluation_guide.rs"]
+mod evaluation_guide;
 #[path = "evaluation_native.rs"]
 mod evaluation_native;
 #[path = "evaluation_nonseparable.rs"]

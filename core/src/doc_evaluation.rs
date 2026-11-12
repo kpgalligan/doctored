@@ -63,8 +63,7 @@ use std::sync::Arc;
 use image::RgbaImage;
 use serde_json::json;
 
-use crate::adjust::Adjustment;
-use crate::doc::{DrDocument, Layer, LayerKind};
+use crate::doc::{DrDocument, Layer};
 use crate::icc::IccProfile;
 use crate::icc_transform::{MatrixTrc, ToneEncoder};
 use crate::job_control::JobContext;
@@ -214,13 +213,11 @@ const MIGRATED: &[&str] = &[
     "color",
     "luminosity",
     "dissolve",
+    "guided_shadows_highlights",
 ];
 
 /// The style/Blend If operator's name in [`REFUSED`].
 const STYLE_OPERATOR: &str = "a layer style or Blend If";
-
-/// The guided Shadows/Highlights operator's name in [`REFUSED`].
-const GUIDE_OPERATOR: &str = "Shadows/Highlights with a guide";
 
 /// What it refuses, with the phase that owns each. Phase 2 is resampling;
 /// phase 3 the mixing constructs. A retained source is admitted (phase
@@ -228,7 +225,7 @@ const GUIDE_OPERATOR: &str = "Shadows/Highlights with a guide";
 /// the stored encoding, as raster Free Transform and warp do, and a
 /// premultiplied-linear resample of all three stays a phase-2 item. The operator strings
 /// are the ones [`refusal_sentence`] names, so a host can match them.
-const REFUSED: &[(&str, u32)] = &[(STYLE_OPERATOR, 3), (GUIDE_OPERATOR, 3), ("Image Size", 2)];
+const REFUSED: &[(&str, u32)] = &[(STYLE_OPERATOR, 3), ("Image Size", 2)];
 
 /// The operator table as JSON, for the host's Evaluation sheet and the MCP
 /// `get_evaluation` reply:
@@ -259,11 +256,6 @@ pub fn resize_refusal_sentence() -> String {
 /// The style/Blend If operator name.
 pub(crate) fn style_operator() -> &'static str {
     STYLE_OPERATOR
-}
-
-/// The guided Shadows/Highlights operator name.
-pub(crate) fn guide_operator() -> &'static str {
-    GUIDE_OPERATOR
 }
 
 // --------------------------------------------------------------- transfer --
@@ -399,26 +391,31 @@ pub(crate) fn encode_sample(px: [f32; 4], transfer: Option<&ByteTransfer>) -> [u
     out
 }
 
+/// What a guide-reading kernel (Shadows/Highlights) sees of one backdrop
+/// sample: `None` is the sample as it stands; under `linear_light` its RGB is
+/// re-encoded to the LATTICE value the encoded path would hold
+/// ([`ByteTransfer::encode_f32`]) and its alpha, which is coverage, kept. The
+/// guide is an input of the kernel, so the transcode rule that hands the
+/// kernel encoded numbers hands it an encoded guide too: over an opaque
+/// lattice backdrop a guided adjustment at full opacity then equals the
+/// encoded result, and only its `k` lerp is linear.
+pub(crate) fn guide_view(px: [f32; 4], transfer: Option<&ByteTransfer>) -> [f32; 4] {
+    match transfer {
+        None => px,
+        Some(transfer) => {
+            let rgb = transfer.encode_f32([px[0], px[1], px[2]]);
+            [rgb[0], rgb[1], rgb[2], px[3]]
+        }
+    }
+}
+
 // ------------------------------------------------------------ the policy --
 
 /// The operator this ENTRY carries that linear-light evaluation does not
-/// evaluate yet, or `None`. The order is the order the refusal reads best in:
-/// a style is what the layer wears, the blend mode how it meets the stack, the
-/// guide what its kernel reads.
+/// evaluate yet, or `None`.
 fn refused_operator(layer: &Layer) -> Option<&'static str> {
     if layer.style.is_some() {
         return Some(style_operator());
-    }
-    // A GROUP's meta is the host's alone (`doc::composite_layer_into`), so a
-    // blob that happens to parse as an adjustment is not one here either.
-    if layer.kind != LayerKind::Group {
-        if let Some(Adjustment::ShadowsHighlights(op)) =
-            layer.meta.as_deref().and_then(Adjustment::from_meta)
-        {
-            if op.reads_guide() {
-                return Some(guide_operator());
-            }
-        }
     }
     None
 }

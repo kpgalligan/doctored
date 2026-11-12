@@ -352,7 +352,12 @@ pub(crate) fn composite_styled_adjustment_into(
     let shape = shape_layer(layer, env);
     let adjusted = Adjusted {
         adjustment,
-        guide: adjustment.guide_with_job(acc_w, acc_h, &|i| acc[i], env.job.checkpoints_only())?,
+        guide: adjustment.guide_with_job(
+            acc_w,
+            acc_h,
+            &|i| crate::doc_evaluation::guide_view(acc[i], env.transfer),
+            env.job.checkpoints_only(),
+        )?,
         guide_origin: origin,
         guide_size: (acc_w, acc_h),
     };

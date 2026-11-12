@@ -551,7 +551,7 @@ fn e_an_insert_above_a_clip_base_joins_the_run() {
 // ------------------------------------------------------ (f) linear light --
 
 #[test]
-fn f_linear_light_evaluates_and_refuses_the_same_way() {
+fn f_linear_light_evaluates_every_position_the_same_way() {
     let doc = linear_fixture();
     assert_eq!(doc.linear_light_refusal(), None, "the fixture is admitted");
 
@@ -571,21 +571,12 @@ fn f_linear_light_evaluates_and_refuses_the_same_way() {
     assert_eq!(table(&into), table(&moved));
     assert_eq!(render(&into), render(&moved));
 
-    // Shadows/Highlights is unmigrated: the refusal walk names it at every
-    // position, with the same operator and the same tail, differing only in
-    // the INDEX the record landed at (which is the sentence's whole point).
-    for (anchor, position, landing) in [(1, ABOVE, 2usize), (group, INTO, 4), (0, TOP, 5)] {
+    // A guided Shadows/Highlights evaluates under linear light: admitted at
+    // every position, and the inserted document renders.
+    for (anchor, position) in [(1, ABOVE), (group, INTO), (0, TOP)] {
         let out = add_at(&doc, "SH", &shadows_highlights(), 1.0, anchor, position);
-        let sentence = out.linear_light_refusal().expect("a refusal");
-        assert_eq!(
-            sentence,
-            format!(
-                "Layer {landing} “SH” uses Shadows/Highlights with a guide, which linear-light \
-                 evaluation does not support yet. Switch Image ▸ Evaluation back to Encoded, or \
-                 remove it from the layer."
-            ),
-            "{position:?}"
-        );
+        assert_eq!(out.linear_light_refusal(), None, "{position:?}");
+        assert_eq!(render(&out).len(), render(&doc).len(), "{position:?}");
     }
 }
 

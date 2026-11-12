@@ -630,14 +630,6 @@ fn every_refused_operator_refuses_at_the_switch_by_name() {
     );
     let message = refused_switch(&blend_if, "Blend If");
     assert!(message.contains("Blend If"), "{message}");
-
-    let guided = with_meta(
-        &base,
-        1,
-        r#"{"type":"adjust","op":"shadows_highlights","params":{"shadows":{"amount":0.5},"highlights":{"amount":0.2}}}"#,
-    );
-    let message = refused_switch(&guided, "a guided kernel");
-    assert!(message.contains("Shadows/Highlights"), "{message}");
 }
 
 #[test]

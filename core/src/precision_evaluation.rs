@@ -19,8 +19,7 @@
 use std::sync::Arc;
 
 use crate::doc_evaluation::{
-    guide_operator, linear_light_model, refusal_sentence, stale_transfer_sentence, style_operator,
-    Evaluation,
+    linear_light_model, refusal_sentence, stale_transfer_sentence, style_operator, Evaluation,
 };
 use crate::icc::IccProfile;
 use crate::icc_transform::PrecisionToneEncoder;
@@ -109,22 +108,25 @@ impl TypedTransfer {
     }
 }
 
+/// The typed twin of `doc_evaluation::guide_view`: under `linear_light` the
+/// backdrop sample's RGB re-encoded CONTINUOUSLY ([`TypedTransfer::encode`],
+/// nothing quantized at this depth), alpha kept; `None` is the sample itself.
+pub(crate) fn guide_view16(px: [f32; 4], transfer: Option<&TypedTransfer>) -> [f32; 4] {
+    match transfer {
+        None => px,
+        Some(transfer) => {
+            let rgb = transfer.encode([px[0], px[1], px[2]]);
+            [rgb[0], rgb[1], rgb[2], px[3]]
+        }
+    }
+}
+
 /// The operator this typed ENTRY carries that linear-light evaluation does not
 /// evaluate yet, or `None` — the byte `refused_operator`, over the typed
-/// fields. A guide-reading kernel is named by its work units: a
-/// Shadows/Highlights whose amounts are zero reads no guide and plans none.
-fn refused_operator(layer: &PrecisionDocumentLayer, canvas: (u32, u32)) -> Option<&'static str> {
+/// fields.
+fn refused_operator(layer: &PrecisionDocumentLayer) -> Option<&'static str> {
     if layer.style.is_some() || layer.blend_if.is_some() {
         return Some(style_operator());
-    }
-    if let Content::Adjustment(state) = &layer.content {
-        if state
-            .kernel
-            .guide_work_units(canvas.0, canvas.1)
-            .is_ok_and(|units| units > 0)
-        {
-            return Some(guide_operator());
-        }
     }
     None
 }
@@ -132,20 +134,16 @@ fn refused_operator(layer: &PrecisionDocumentLayer, canvas: (u32, u32)) -> Optio
 /// The first refused entry in postorder, bottom-first — the same numbering
 /// `PrecisionDocument::layer` uses, so the sentence names the row the host's
 /// layer panel shows.
-fn walk(
-    layers: &[PrecisionDocumentLayer],
-    canvas: (u32, u32),
-    index: &mut usize,
-) -> Option<String> {
+fn walk(layers: &[PrecisionDocumentLayer], index: &mut usize) -> Option<String> {
     for layer in layers {
         if let Content::Group(children) | Content::PassThrough(children) = &layer.content {
-            if let Some(reason) = walk(children, canvas, index) {
+            if let Some(reason) = walk(children, index) {
                 return Some(reason);
             }
         }
         let here = *index;
         *index += 1;
-        if let Some(operator) = refused_operator(layer, canvas) {
+        if let Some(operator) = refused_operator(layer) {
             return Some(refusal_sentence(here, &layer.name, operator));
         }
     }
@@ -210,7 +208,7 @@ impl PrecisionDocument {
         if !Arc::ptr_eq(transfer.profile(), &self.profile) {
             return Some(stale_transfer_sentence());
         }
-        walk(&self.layers, (self.width, self.height), &mut 0)
+        walk(&self.layers, &mut 0)
     }
 
     /// The transfer this document's render composites through — the typed

@@ -694,9 +694,14 @@ fn the_typed_input_halo_composes_each_rows_halo_with_the_guides_above_it() {
 }
 
 #[test]
-fn linear_light_refuses_a_guided_u16_document() {
+fn linear_light_evaluates_a_guided_u16_document_regionally() {
     let d = doc(53, 50, layers(53, 50, 4.0));
-    assert!(d.with_evaluation(Evaluation::LinearLight).is_err());
+    let linear = d
+        .with_evaluation(Evaluation::LinearLight)
+        .unwrap()
+        .expect("a policy change");
+    assert_ne!(full(&linear), full(&d), "the policy changes the projection");
+    assert_regions_match(&linear, "linear light");
 }
 
 #[test]

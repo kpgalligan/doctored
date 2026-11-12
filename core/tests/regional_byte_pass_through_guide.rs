@@ -973,9 +973,18 @@ fn a_pass_through_guide_inside_a_materialized_group_is_rendered_unstaged() {
 }
 
 #[test]
-fn linear_light_refuses_a_document_with_a_pass_through_guide() {
+fn linear_light_evaluates_a_document_with_a_pass_through_guide_regionally() {
     let doc = passed(53, 50, 4.0, (7, 5), (30, 25));
-    assert!(doc.with_evaluation(Evaluation::LinearLight).is_err());
+    let linear = doc
+        .with_evaluation(Evaluation::LinearLight)
+        .unwrap()
+        .expect("a policy change");
+    assert_ne!(
+        full(&linear),
+        full(&doc),
+        "the policy changes the projection"
+    );
+    assert_regions_match(&linear, (0, 0, 53, 50), "linear light");
 }
 
 // ------------------------------------------------ measured cancellation --

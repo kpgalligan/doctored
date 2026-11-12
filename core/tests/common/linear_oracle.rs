@@ -29,6 +29,7 @@ use doctored_core::ffi_precision::{
     dr_precision_image_pixels_rgba16, dr_precision_image_width,
 };
 use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
+use doctored_core::ffi_regional::{dr_doc_render_region, dr_precision_doc_render_region};
 use doctored_core::precision_document::PrecisionDocument;
 use doctored_core::precision_image::REFERENCE_WORKING_BYTES;
 
@@ -275,6 +276,33 @@ pub fn flatten(doc: &DrDocument) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+/// `dr_doc_render_region` over the whole canvas at divisor 1: the regional
+/// compositor's answer, which must equal [`flatten`]'s.
+pub fn region(doc: &DrDocument) -> Result<Vec<u8>, String> {
+    let mut err: *mut c_char = ptr::null_mut();
+    let out = unsafe {
+        dr_doc_render_region(
+            doc,
+            0,
+            0,
+            doc.width,
+            doc.height,
+            1,
+            u64::MAX,
+            ptr::null(),
+            &mut err,
+        )
+    };
+    if out.is_null() {
+        return Err(take_err(err));
+    }
+    let (w, h) = unsafe { (dr_image_width(out), dr_image_height(out)) };
+    let pixels = unsafe { dr_image_pixels_rgba(out) };
+    let bytes = unsafe { std::slice::from_raw_parts(pixels, (w * h * 4) as usize) }.to_vec();
+    unsafe { dr_image_free(out) };
+    Ok(bytes)
+}
+
 /// Pixel `i` (row-major) of an RGBA8 buffer.
 pub fn pixel(bytes: &[u8], i: usize) -> [u8; 4] {
     [
@@ -330,6 +358,39 @@ pub fn typed_render(doc: &PrecisionDocument) -> Result<Vec<[u16; 4]>, String> {
         unsafe { dr_precision_image_width(image) * dr_precision_image_height(image) } as usize;
     let samples = unsafe { dr_precision_image_pixels_rgba16(image) };
     assert!(!samples.is_null(), "a u16 projection");
+    let samples = unsafe { std::slice::from_raw_parts(samples, count * 4) }.to_vec();
+    unsafe { dr_precision_image_free(image) };
+    Ok(samples
+        .chunks_exact(4)
+        .map(|c| [c[0], c[1], c[2], c[3]])
+        .collect())
+}
+
+/// `dr_precision_doc_render_region` over the whole canvas at divisor 1.
+pub fn typed_region(doc: &PrecisionDocument) -> Result<Vec<[u16; 4]>, String> {
+    let (w, h) = doc.dimensions();
+    let mut err: *mut c_char = ptr::null_mut();
+    let image = unsafe {
+        dr_precision_doc_render_region(
+            doc,
+            0,
+            0,
+            w,
+            h,
+            1,
+            REFERENCE_WORKING_BYTES,
+            0,
+            ptr::null(),
+            &mut err,
+        )
+    };
+    if image.is_null() {
+        return Err(take_err(err));
+    }
+    let count =
+        unsafe { dr_precision_image_width(image) * dr_precision_image_height(image) } as usize;
+    let samples = unsafe { dr_precision_image_pixels_rgba16(image) };
+    assert!(!samples.is_null(), "a u16 region");
     let samples = unsafe { std::slice::from_raw_parts(samples, count * 4) }.to_vec();
     unsafe { dr_precision_image_free(image) };
     Ok(samples

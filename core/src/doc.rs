@@ -521,7 +521,14 @@ fn composite_adjustment_into(
     // large-radius ALPHA-WEIGHTED blur of the backdrop's luma. The plane is
     // built ONCE here, from the accumulator, and read per pixel below; every
     // other op returns None and pays nothing (`adjust::Adjustment::guide`).
-    let guide = adjustment.guide_with_job(acc_w, acc_h, &|i| acc[i], env.job.checkpoints_only())?;
+    // Under `linear_light` the guide reads the backdrop re-encoded, as the
+    // kernel does (`doc_evaluation::guide_view`).
+    let guide = adjustment.guide_with_job(
+        acc_w,
+        acc_h,
+        &|i| crate::doc_evaluation::guide_view(acc[i], transfer),
+        env.job.checkpoints_only(),
+    )?;
     for ay in 0..i64::from(acc_h) {
         env.job.check()?;
         for ax in 0..i64::from(acc_w) {

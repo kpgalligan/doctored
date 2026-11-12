@@ -1030,11 +1030,16 @@ fn styled_bases_equal_the_reference_at_u16() {
 }
 
 #[test]
-fn linear_light_refuses_a_document_with_a_member_guide_at_u16() {
+fn linear_light_evaluates_a_document_with_a_member_guide_at_u16_regionally() {
     let mut layers = vec![backdrop(53, 50)];
     layers.extend(unit(4.0, (7, 5), (30, 25)));
     let d = doc(53, 50, layers);
-    assert!(d.with_evaluation(Evaluation::LinearLight).is_err());
+    let linear = d
+        .with_evaluation(Evaluation::LinearLight)
+        .unwrap()
+        .expect("a policy change");
+    assert_ne!(full(&linear), full(&d), "the policy changes the projection");
+    assert_regions_match(&linear, (0, 0, 53, 50), "linear light");
 }
 
 #[test]
