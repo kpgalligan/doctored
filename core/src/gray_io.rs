@@ -27,7 +27,10 @@
 //! Codes are copied into R = G = B exactly (8-bit ×257). A usable embedded
 //! Gray ICC is kept verbatim (`GrayPolicy`); a PNG `sRGB` chunk is sGray; no
 //! profile at all is the working Gray, disclosed by [`untagged_sentence`].
-//! The EXIF orientation is applied as the flat open applies it.
+//! The EXIF orientation is applied as the flat open applies it. A multipage
+//! TIFF whose first image is page 1 (`tiff_pages`) opens each page that
+//! matches page 1 as a hidden layer "Page n" (`doc_tiff_pages`), each page
+//! read by this same open.
 
 use std::fs::File;
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
@@ -433,21 +436,50 @@ impl PrecisionDocument {
         let job = control.map_or(JobContext::NONE, JobContext::new);
         let working = GrayWorkingSpace::from_name(working)
             .ok_or_else(|| format!("\"{working}\" is not a Gray working space"))?;
-        let bytes = crate::precision_codec::read_regular(path, limit, other, job)?;
-        let source = gray_source(&bytes).ok_or_else(|| {
+        let mut bytes = crate::precision_codec::read_regular(path, limit, other, job)?;
+        // A multipage TIFF whose first image is page 1 opens every page that
+        // matches it (`doc_tiff_pages`).
+        let pages = crate::metadata_tiff::is_tiff(&bytes)
+            .then(|| crate::tiff_pages::read(&bytes))
+            .flatten()
+            .filter(crate::tiff_pages::Pages::first_image_is_page_one);
+        let document = match pages {
+            Some(pages) => {
+                Self::stack_tiff_pages(&mut bytes, &pages, path, other, |page, other, _| {
+                    Self::open_gray_bytes(page, path, working, limit, other, job)
+                })?
+            }
+            None => Self::open_gray_bytes(&bytes, path, working, limit, other, job)?,
+        };
+        job.report(1.0, 5)?;
+        Ok(document)
+    }
+
+    /// [`Self::open_gray`] of one file's bytes already read: a one-image
+    /// file, or one page of a multipage TIFF made the file's only page
+    /// (`tiff_pages::with_page`).
+    fn open_gray_bytes(
+        bytes: &[u8],
+        path: &str,
+        working: GrayWorkingSpace,
+        limit: u64,
+        other: u64,
+        job: JobContext<'_>,
+    ) -> Result<Self, String> {
+        let source = gray_source(bytes).ok_or_else(|| {
             format!("failed to decode {path}: the file is not a grayscale PNG, TIFF or JPEG")
         })?;
         let (icc, srgb) = match source {
             GraySource::Png => {
-                let head = png_head(&bytes).ok_or_else(|| format!("failed to decode {path}"))?;
+                let head = png_head(bytes).ok_or_else(|| format!("failed to decode {path}"))?;
                 let (_, srgb, icc) =
                     png_facts(head).ok_or_else(|| format!("failed to decode {path}"))?;
                 (icc, srgb)
             }
-            GraySource::Tiff => (tiff_icc(Cursor::new(&bytes[..])).flatten(), false),
-            GraySource::Jpeg => (crate::dr_image::embedded_icc(&bytes), false),
+            GraySource::Tiff => (tiff_icc(Cursor::new(bytes)).flatten(), false),
+            GraySource::Jpeg => (crate::dr_image::embedded_icc(bytes), false),
         };
-        let decoded = decode_samples(&bytes, source, path, limit, other, job)?;
+        let decoded = decode_samples(bytes, source, path, limit, other, job)?;
         let mut warnings = Vec::new();
         let policy = match (icc, srgb) {
             (Some(icc), _) => GrayPolicy::new(&icc, decoded.depth)?,
@@ -458,9 +490,9 @@ impl PrecisionDocument {
                 policy
             }
         };
-        let (scan, scan_warnings) = crate::metadata::scan_report(&bytes);
+        let (scan, scan_warnings) = crate::metadata::scan_report(bytes);
         warnings.extend(scan_warnings.into_iter().map(str::to_owned));
-        let orientation = crate::metadata_tiff::orientation_of_file(&bytes)
+        let orientation = crate::metadata_tiff::orientation_of_file(bytes)
             .or_else(|| {
                 scan.metadata
                     .exif
@@ -504,10 +536,8 @@ impl PrecisionDocument {
             .resolution
             .map(|r| r.transposed_if(quarter))
             .unwrap_or_default();
-        let document = PrecisionDocument::from_image(image, scan.metadata, resolution)?
+        PrecisionDocument::from_image(image, scan.metadata, resolution)?
             .with_import_warnings(warnings)?
-            .with_gray(Arc::new(policy))?;
-        job.report(1.0, 5)?;
-        Ok(document)
+            .with_gray(Arc::new(policy))
     }
 }

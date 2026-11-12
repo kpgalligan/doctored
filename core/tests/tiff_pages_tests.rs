@@ -763,18 +763,15 @@ fn two_pages(page: impl Fn(u32) -> Page, photometric: u16) -> Vec<u8> {
     write_tiff(&pages, false).0
 }
 
-/// The 8/16-bit Grayscale, Lab Color, Indexed Color and Bitmap opens read a TIFF's
-/// first directory alone. A multipage TIFF whose page 1 one of them claims
-/// (the app asks each mode's source test before the RGB opens) opens page 1
-/// alone, and the metadata scan's first-image sentence says so.
-#[test]
-fn a_gray_lab_indexed_or_bitmap_first_page_opens_alone_and_says_so() {
-    let dir = TempDir::new().unwrap();
-    let working = CString::new("gray_gamma_22").unwrap();
+/// The working Gray the Grayscale opens here assign to an untagged file.
+const WORKING_GRAY: &str = "gray_gamma_22";
 
-    let path = save(&dir, "gray8.tif", &two_pages(|p| page8(p, 4, 2, 1), 1));
-    let c = cpath(&path);
-    assert_ne!(unsafe { dr_path_gray_source(c.as_ptr()) }, 0);
+/// The 8/16-bit Grayscale open (`dr_precision_doc_open_gray`) of a file its
+/// source test claims, as the app asks it before the RGB opens.
+fn open_gray(path: &Path) -> Result<*mut PrecisionDocument, String> {
+    let c = cpath(path);
+    assert_ne!(unsafe { dr_path_gray_source(c.as_ptr()) }, 0, "{path:?}");
+    let working = CString::new(WORKING_GRAY).unwrap();
     let mut err = ptr::null_mut();
     let doc = unsafe {
         dr_precision_doc_open_gray(
@@ -786,14 +783,390 @@ fn a_gray_lab_indexed_or_bitmap_first_page_opens_alone_and_says_so() {
             &mut err,
         )
     };
-    assert_page_one_alone(typed(doc, err), "gray", FIRST_ONLY);
+    typed(doc, err)
+}
 
-    let path = save(&dir, "lab8.tif", &two_pages(|p| page8(p, 4, 2, 3), 8));
-    let c = cpath(&path);
-    assert_ne!(unsafe { dr_path_lab_source(c.as_ptr()) }, 0);
+/// The Lab Color open (`dr_precision_doc_open_lab`) of a file its source
+/// test claims.
+fn open_lab(path: &Path) -> Result<*mut PrecisionDocument, String> {
+    let c = cpath(path);
+    assert_ne!(unsafe { dr_path_lab_source(c.as_ptr()) }, 0, "{path:?}");
     let mut err = ptr::null_mut();
     let doc = unsafe { dr_precision_doc_open_lab(c.as_ptr(), LIMIT, 0, ptr::null(), &mut err) };
-    assert_page_one_alone(typed(doc, err), "lab", FIRST_ONLY);
+    typed(doc, err)
+}
+
+/// A gray page `p` (BlackIsZero) at `bits`: the gray sample is channel 0's
+/// value and, when `samples` is 2, the unassociated alpha channel 3's, so
+/// no alpha is zero.
+fn gray_page(p: u32, w: u32, h: u32, bits: u16, samples: u16) -> Page {
+    let mut data = Vec::new();
+    for y in 0..h {
+        for x in 0..w {
+            for c in [0, 3].into_iter().take(usize::from(samples)) {
+                if bits == 8 {
+                    data.push(v8(p, x, y, c));
+                } else {
+                    data.extend_from_slice(&v16(p, x, y, c).to_le_bytes());
+                }
+            }
+        }
+    }
+    let mut page = Page::new(w, h, bits, samples, 1, data);
+    page.photometric = 1;
+    page.extras = if samples == 2 { vec![2] } else { vec![] };
+    page
+}
+
+/// [`gray_page`]'s pixels as a Grayscale document stores them: the code in
+/// R = G = B (8-bit ×257) and the alpha, or opaque.
+fn gray_expected(p: u32, w: u32, h: u32, bits: u16, samples: u16) -> Vec<[u16; 4]> {
+    let code = |x: u32, y: u32, c: u32| {
+        if bits == 8 {
+            u16::from(v8(p, x, y, c)) * 257
+        } else {
+            v16(p, x, y, c)
+        }
+    };
+    let mut out = Vec::new();
+    for y in 0..h {
+        for x in 0..w {
+            let g = code(x, y, 0);
+            let a = if samples == 2 { code(x, y, 3) } else { 65535 };
+            out.push([g, g, g, a]);
+        }
+    }
+    out
+}
+
+/// A three-sample Lab page `p` at `bits` with `photometric` 8 (CIELab) or
+/// 9 (ICCLab).
+fn lab_page(p: u32, w: u32, h: u32, bits: u16, photometric: u16) -> Page {
+    let mut page = if bits == 8 {
+        page8(p, w, h, 3)
+    } else {
+        page16(p, w, h, 3)
+    };
+    page.photometric = photometric;
+    page
+}
+
+/// A four-ink CMYK page `p` at `bits` under `profile`.
+fn cmyk_page(p: u32, w: u32, h: u32, bits: u16, profile: &[u8]) -> Page {
+    let mut page = if bits == 8 {
+        page8(p, w, h, 4)
+    } else {
+        page16(p, w, h, 4)
+    };
+    page.photometric = 5;
+    page.extras = vec![];
+    page.icc = Some(profile.to_vec());
+    page
+}
+
+/// [`cmyk_page`]'s samples as a CMYK document stores them: each ink the
+/// written value (8-bit ×257), opaque.
+fn cmyk_expected(p: u32, w: u32, h: u32, bits: u16) -> Vec<[u16; 5]> {
+    let ink = |x: u32, y: u32, c: u32| {
+        if bits == 8 {
+            u16::from(v8(p, x, y, c)) * 257
+        } else {
+            v16(p, x, y, c)
+        }
+    };
+    let mut out = Vec::new();
+    for y in 0..h {
+        for x in 0..w {
+            out.push([
+                ink(x, y, 0),
+                ink(x, y, 1),
+                ink(x, y, 2),
+                ink(x, y, 3),
+                65535,
+            ]);
+        }
+    }
+    out
+}
+
+/// The 8/16-bit Grayscale open takes every page that matches page 1, each
+/// as a hidden layer "Page n" holding its own samples, a smaller one at
+/// the canvas's top-left; the first-image sentence is gone.
+#[test]
+fn a_gray_tiff_opens_every_page_as_layers() {
+    let dir = TempDir::new().unwrap();
+    for bits in [8u16, 16] {
+        let shapes = [(1, 5, 3, 1), (2, 5, 3, 2), (3, 2, 2, 1)];
+        let pages: Vec<Page> = shapes
+            .iter()
+            .map(|&(p, w, h, s)| gray_page(p, w, h, bits, s))
+            .collect();
+        let path = save(
+            &dir,
+            &format!("gray{bits}.tif"),
+            &write_tiff(&pages, false).0,
+        );
+        let doc = open_gray(&path).expect("open");
+        let typed = unsafe { &*doc };
+        assert_eq!(typed.info().unwrap()["color_mode"], "gray", "{bits}-bit");
+        assert_eq!(typed.dimensions(), (5, 3), "{bits}-bit");
+        assert_eq!(
+            typed_layers(doc),
+            names(&[("Page 1", true), ("Page 2", false), ("Page 3", false)]),
+            "{bits}-bit"
+        );
+        for (index, &(p, w, h, s)) in shapes.iter().enumerate() {
+            let layer = typed.layer(index).unwrap();
+            assert_eq!(layer.offset(), (0, 0), "{bits}-bit page {p}");
+            assert_eq!(
+                layer.source().expect("raster").to_rgba16().unwrap(),
+                gray_expected(p, w, h, bits, s),
+                "{bits}-bit page {p}"
+            );
+        }
+        let warnings = typed_warnings(doc);
+        assert!(warnings.iter().any(|w| w.contains(OPENED)), "{warnings:?}");
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.starts_with("Page 3 is a different size")),
+            "{warnings:?}"
+        );
+        assert!(
+            !warnings.iter().any(|w| w.starts_with(FIRST_ONLY)),
+            "{warnings:?}"
+        );
+        unsafe { dr_precision_doc_free(doc) };
+    }
+}
+
+/// The Lab Color open takes every page that matches page 1. Each layer
+/// holds what the same page opens to as a one-page file, so the Lab
+/// decode's own oracle (the Lab suite) covers the samples.
+#[test]
+fn a_lab_tiff_opens_every_page_as_layers() {
+    let dir = TempDir::new().unwrap();
+    for bits in [8u16, 16] {
+        let pages = [lab_page(1, 4, 3, bits, 8), lab_page(2, 4, 3, bits, 8)];
+        let path = save(
+            &dir,
+            &format!("lab{bits}.tif"),
+            &write_tiff(&pages, false).0,
+        );
+        let doc = open_lab(&path).expect("open");
+        let typed = unsafe { &*doc };
+        assert_eq!(typed.info().unwrap()["color_mode"], "lab", "{bits}-bit");
+        assert_eq!(
+            typed_layers(doc),
+            names(&[("Page 1", true), ("Page 2", false)]),
+            "{bits}-bit"
+        );
+        let mut layers = Vec::new();
+        for (index, page) in pages.iter().enumerate() {
+            let one = save(
+                &dir,
+                &format!("lab{bits}-page{}.tif", index + 1),
+                &write_tiff(std::slice::from_ref(page), false).0,
+            );
+            let alone = open_lab(&one).expect("one page");
+            let want = unsafe { &*alone }.layer(0).unwrap().source().unwrap();
+            let got = typed.layer(index).unwrap().source().expect("raster");
+            let got = got.to_rgba16().unwrap();
+            assert_eq!(
+                got,
+                want.to_rgba16().unwrap(),
+                "{bits}-bit page {}",
+                index + 1
+            );
+            layers.push(got);
+            unsafe { dr_precision_doc_free(alone) };
+        }
+        assert_ne!(layers[0], layers[1], "{bits}-bit: the pages differ");
+        let warnings = typed_warnings(doc);
+        assert!(warnings.iter().any(|w| w.contains(OPENED)), "{warnings:?}");
+        assert!(
+            !warnings.iter().any(|w| w.starts_with(FIRST_ONLY)),
+            "{warnings:?}"
+        );
+        unsafe { dr_precision_doc_free(doc) };
+    }
+}
+
+/// A CMYK document holds layers, so a multipage TIFF whose page 1 opens as
+/// one takes every matching page as a CMYK layer of its written ink.
+#[test]
+fn a_cmyk_tiff_opens_every_page_as_layers() {
+    let dir = TempDir::new().unwrap();
+    let profile = press_profile("Multipage Press");
+    for bits in [8u16, 16] {
+        let pages = [
+            cmyk_page(1, 4, 2, bits, &profile),
+            cmyk_page(2, 4, 2, bits, &profile),
+        ];
+        let path = save(
+            &dir,
+            &format!("cmyk{bits}.tif"),
+            &write_tiff(&pages, false).0,
+        );
+        assert_eq!(unsafe { dr_path_cmyk_source(cpath(&path).as_ptr()) }, 1);
+        let doc = open_typed(&path).expect("open");
+        let typed = unsafe { &*doc };
+        assert!(typed.is_cmyk(), "{bits}-bit");
+        assert_eq!(
+            typed_layers(doc),
+            names(&[("Page 1", true), ("Page 2", false)]),
+            "{bits}-bit"
+        );
+        for (index, p) in [1, 2].into_iter().enumerate() {
+            assert_eq!(
+                typed.cmyk_layer_samples(index).expect("cmyk raster"),
+                cmyk_expected(p, 4, 2, bits),
+                "{bits}-bit page {p}"
+            );
+        }
+        let warnings = typed_warnings(doc);
+        assert!(warnings.iter().any(|w| w.contains(OPENED)), "{warnings:?}");
+        assert!(
+            !warnings.iter().any(|w| w.starts_with("Only page 1")),
+            "{warnings:?}"
+        );
+        unsafe { dr_precision_doc_free(doc) };
+    }
+}
+
+/// The header rule holds in the colour modes: a page whose colour model
+/// differs from page 1's is named and left out, and the three Lab
+/// encodings are told apart by name.
+#[test]
+fn a_colour_mode_page_unlike_page_one_is_skipped_and_named() {
+    let dir = TempDir::new().unwrap();
+    let pages = [
+        gray_page(1, 4, 2, 8, 1),
+        page8(2, 4, 2, 3),
+        gray_page(3, 4, 2, 8, 1),
+    ];
+    let path = save(&dir, "gray-rgb-gray.tif", &write_tiff(&pages, false).0);
+    let doc = open_gray(&path).expect("open");
+    assert_eq!(
+        typed_layers(doc),
+        names(&[("Page 1", true), ("Page 3", false)])
+    );
+    let source = unsafe { &*doc }.layer(1).unwrap().source().unwrap();
+    assert_eq!(source.to_rgba16().unwrap(), gray_expected(3, 4, 2, 8, 1));
+    let warnings = typed_warnings(doc);
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.starts_with("Page 2 was not opened") && w.contains("RGB")),
+        "{warnings:?}"
+    );
+    unsafe { dr_precision_doc_free(doc) };
+
+    let pages = [lab_page(1, 4, 2, 8, 9), lab_page(2, 4, 2, 8, 8)];
+    let path = save(&dir, "icclab-cielab.tif", &write_tiff(&pages, false).0);
+    let doc = open_lab(&path).expect("open");
+    assert_eq!(unsafe { &*doc }.layer_count(), 1);
+    let warnings = typed_warnings(doc);
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.starts_with("Page 2 was not opened")
+                && w.contains("CIE Lab")
+                && w.contains("ICC Lab")),
+        "{warnings:?}"
+    );
+    unsafe { dr_precision_doc_free(doc) };
+}
+
+/// A later page that passes the header rule but that the mode's own open
+/// refuses fails the open, naming the page, as the RGB opens do.
+#[test]
+fn a_colour_mode_page_that_fails_to_decode_fails_the_open_naming_it() {
+    let dir = TempDir::new().unwrap();
+    let mut broken = gray_page(2, 4, 2, 8, 1);
+    broken.compression = 99;
+    let pages = [gray_page(1, 4, 2, 8, 1), broken];
+    let path = save(&dir, "broken-gray.tif", &write_tiff(&pages, false).0);
+    let error = open_gray(&path).expect_err("a page that cannot decode");
+    assert!(error.starts_with("page 2 of "), "{error}");
+
+    let mut broken = lab_page(2, 4, 2, 8, 8);
+    broken.compression = 99;
+    let pages = [lab_page(1, 4, 2, 8, 8), broken];
+    let path = save(&dir, "broken-lab.tif", &write_tiff(&pages, false).0);
+    let error = open_lab(&path).expect_err("a page that cannot decode");
+    assert!(error.starts_with("page 2 of "), "{error}");
+}
+
+/// The Grayscale and Lab opens, and the app's source tests, read the
+/// file's first image. When that image is not a page (here a
+/// reduced-resolution copy before the page), the open keeps reading it
+/// alone, and the first-image sentence says so.
+#[test]
+fn a_first_image_that_is_not_a_page_keeps_the_one_directory_open() {
+    let dir = TempDir::new().unwrap();
+    let mut reduced = gray_page(1, 4, 2, 8, 1);
+    reduced.new_subfile = Some(1);
+    let pages = [reduced, gray_page(2, 4, 2, 8, 1)];
+    let path = save(&dir, "reduced-first.tif", &write_tiff(&pages, false).0);
+    let doc = open_gray(&path).expect("open");
+    let typed = unsafe { &*doc };
+    assert_eq!(typed.layer_count(), 1);
+    let source = typed.layer(0).unwrap().source().unwrap();
+    assert_eq!(source.to_rgba16().unwrap(), gray_expected(1, 4, 2, 8, 1));
+    let warnings = typed_warnings(doc);
+    assert!(
+        warnings.iter().any(|w| w.starts_with(FIRST_ONLY)),
+        "{warnings:?}"
+    );
+    unsafe { dr_precision_doc_free(doc) };
+
+    let mut reduced = lab_page(1, 4, 2, 8, 8);
+    reduced.new_subfile = Some(1);
+    let first = save(
+        &dir,
+        "lab-first-alone.tif",
+        &write_tiff(&[reduced.clone()], false).0,
+    );
+    let pages = [reduced, lab_page(2, 4, 2, 8, 8)];
+    let path = save(&dir, "reduced-first-lab.tif", &write_tiff(&pages, false).0);
+    let doc = open_lab(&path).expect("open");
+    let alone = open_lab(&first).expect("open the first image alone");
+    let typed = unsafe { &*doc };
+    assert_eq!(typed.layer_count(), 1);
+    assert_eq!(
+        typed
+            .layer(0)
+            .unwrap()
+            .source()
+            .unwrap()
+            .to_rgba16()
+            .unwrap(),
+        unsafe { &*alone }
+            .layer(0)
+            .unwrap()
+            .source()
+            .unwrap()
+            .to_rgba16()
+            .unwrap()
+    );
+    let warnings = typed_warnings(doc);
+    assert!(
+        warnings.iter().any(|w| w.starts_with(FIRST_ONLY)),
+        "{warnings:?}"
+    );
+    unsafe { dr_precision_doc_free(alone) };
+    unsafe { dr_precision_doc_free(doc) };
+}
+
+/// The Indexed Color and Bitmap opens read a TIFF's first directory alone,
+/// as each document holds one layer. A multipage TIFF whose page 1 one of
+/// them claims opens page 1 alone, and the metadata scan's first-image
+/// sentence says so.
+#[test]
+fn an_indexed_or_bitmap_first_page_opens_alone_and_says_so() {
+    let dir = TempDir::new().unwrap();
+    let working = CString::new(WORKING_GRAY).unwrap();
 
     let palette = |p: u32| {
         let mut page = page8(p, 4, 2, 1);
@@ -851,29 +1224,4 @@ fn a_32_bit_gray_tiff_opens_every_page_as_layers() {
     let warnings = typed_warnings(doc);
     assert!(warnings.iter().any(|w| w.contains(OPENED)), "{warnings:?}");
     unsafe { dr_precision_doc_free(doc) };
-}
-
-/// A CMYK document holds one page: a multipage TIFF whose page 1 opens as
-/// one opens page 1 alone and says so.
-#[test]
-fn a_cmyk_first_page_opens_alone_and_says_so() {
-    let dir = TempDir::new().unwrap();
-    let profile = press_profile("Multipage Press");
-    let cmyk = |p: u32| {
-        let mut page = page8(p, 4, 2, 4);
-        page.extras = vec![];
-        page.icc = Some(profile.clone());
-        page
-    };
-    let path = save(&dir, "cmyk8.tif", &two_pages(cmyk, 5));
-    assert_eq!(unsafe { dr_path_cmyk_source(cpath(&path).as_ptr()) }, 1);
-    let opened = open_typed(&path);
-    if let Ok(doc) = &opened {
-        assert!(unsafe { &**doc }.is_cmyk());
-    }
-    assert_page_one_alone(
-        opened,
-        "cmyk",
-        "Only page 1 of the file's 2 pages was opened: a CMYK document holds one page.",
-    );
 }

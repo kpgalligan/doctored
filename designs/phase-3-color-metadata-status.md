@@ -68,11 +68,12 @@ versioned the colour evaluation so old documents keep their look, and surfaced P
 - `DONE` — BigTIFF opens at 8-bit, 16-bit and float with ICC, XMP, IPTC,
   EXIF and ppi read as for classic TIFF (`core/src/tiff_view.rs`'s `Tiff::file`); it saves back as classic TIFF.
 - `DONE` — Multipage TIFF opens each page that matches page 1 as a hidden layer "Page n" at 8, 16 and 32
-  bits (`core/src/tiff_pages.rs`, `core/src/doc_tiff_pages.rs`) and names every page it leaves out; a
-  first page the 8/16-bit Grayscale, Lab, Indexed or Bitmap open takes, or a typed CMYK one, opens
-  alone (a 32-bit Gray float file takes every page).
-- `OPEN` [#34](https://github.com/kpgalligan/doctored/issues/34) — every page of a multipage TIFF whose first
-  page opens in a colour mode, and Place of a multipage TIFF (`ImageSourceFile.swift` requires one image).
+  bits (`core/src/tiff_pages.rs`, `core/src/doc_tiff_pages.rs`) and names every page it leaves out. The
+  Grayscale, Lab Color and CMYK opens stack pages the same way (`stack_tiff_pages` takes the mode's
+  one-page open); Gray and Lab do so only when the file's first image is page 1, as their source tests
+  read the first image. A first page the Indexed or Bitmap open takes opens alone (one layer each).
+- `OPEN` [#34](https://github.com/kpgalligan/doctored/issues/34) — a chosen page for Indexed Color and Bitmap
+  (each holds one layer), and Place of a multipage TIFF (`ImageSourceFile.swift` requires one image).
 - `DONE` — High-depth TIFF (Phase 7, `core/src/precision_codec.rs`) and float TIFF (11F, `core/src/tiff_float.rs`).
 - `DONE` — Detailed per-file PSD record reporting → 10A (`core/src/psd_feature_markers.rs`); 16-bit PSD → 10C
   (`core/src/psd_import16.rs`).

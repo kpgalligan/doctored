@@ -26,7 +26,8 @@
 //! orientation are applied as `gray_io::open_gray` applies them. The plan
 //! is [`open_scratch`]: the Lab open's own measured charge
 //! (`lab_limits::OPEN_BYTES_PER_PIXEL`, phase 3b) plus the wider decoded
-//! samples.
+//! samples. A multipage TIFF whose first image is page 1 opens each page
+//! that matches page 1 as a hidden layer "Page n", as `open_gray` does.
 
 use std::sync::Arc;
 
@@ -197,16 +198,42 @@ impl PrecisionDocument {
     ) -> Result<Self, String> {
         let _run = control.map(DrJobControl::begin).transpose()?;
         let job = control.map_or(JobContext::NONE, JobContext::new);
-        let bytes = crate::precision_codec::read_regular(path, limit, other, job)?;
+        let mut bytes = crate::precision_codec::read_regular(path, limit, other, job)?;
+        // A multipage TIFF whose first image is page 1 opens every page that
+        // matches it (`doc_tiff_pages`).
+        let pages = crate::tiff_pages::read(&bytes)
+            .filter(crate::tiff_pages::Pages::first_image_is_page_one);
+        let document = match pages {
+            Some(pages) => {
+                Self::stack_tiff_pages(&mut bytes, &pages, path, other, |page, other, _| {
+                    Self::open_lab_bytes(page, path, limit, other, job)
+                })?
+            }
+            None => Self::open_lab_bytes(&bytes, path, limit, other, job)?,
+        };
+        job.report(1.0, 5)?;
+        Ok(document)
+    }
+
+    /// [`Self::open_lab`] of one file's bytes already read: a one-image
+    /// file, or one page of a multipage TIFF made the file's only page
+    /// (`tiff_pages::with_page`).
+    fn open_lab_bytes(
+        bytes: &[u8],
+        path: &str,
+        limit: u64,
+        other: u64,
+        job: JobContext<'_>,
+    ) -> Result<Self, String> {
         let fail = |what: String| format!("failed to decode {path}: {what}");
         let header =
-            header(&bytes).ok_or_else(|| fail("the file is not a Lab Color TIFF".into()))?;
+            header(bytes).ok_or_else(|| fail("the file is not a Lab Color TIFF".into()))?;
         let facts = header.tiff;
         let samples = 3 + usize::from(facts.alpha);
         let scratch = open_plan(&facts, bytes.len() as u64)?;
         admit(0, scratch, other, limit)?;
         job.reserve(scratch)?;
-        let overlay = Overlay::new(&bytes, &header.patches);
+        let overlay = Overlay::new(bytes, &header.patches);
         let decoder = TiffDecoder::new(overlay).map_err(|e| fail(e.to_string()))?;
         let mut limits = tiff::decoder::Limits::default();
         limits.decoding_buffer_size = ((u64::from(facts.width)
@@ -251,9 +278,9 @@ impl PrecisionDocument {
         if codes.len() != sw * sh * samples {
             return Err(fail("the sample count differs from the dimensions".into()));
         }
-        let (scan, scan_warnings) = crate::metadata::scan_report(&bytes);
+        let (scan, scan_warnings) = crate::metadata::scan_report(bytes);
         let warnings: Vec<String> = scan_warnings.into_iter().map(str::to_owned).collect();
-        let orientation = crate::metadata_tiff::orientation_of_file(&bytes)
+        let orientation = crate::metadata_tiff::orientation_of_file(bytes)
             .or_else(|| {
                 scan.metadata
                     .exif
@@ -290,10 +317,8 @@ impl PrecisionDocument {
             .resolution
             .map(|r| r.transposed_if(quarter))
             .unwrap_or_default();
-        let document = PrecisionDocument::from_image(image, scan.metadata, resolution)?
+        PrecisionDocument::from_image(image, scan.metadata, resolution)?
             .with_import_warnings(warnings)?
-            .with_lab(Arc::new(policy))?;
-        job.report(1.0, 5)?;
-        Ok(document)
+            .with_lab(Arc::new(policy))
     }
 }

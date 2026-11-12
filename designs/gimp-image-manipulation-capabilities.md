@@ -83,10 +83,10 @@ The study records no to-do items of its own. Catalog gaps and where they stand:
 - `OPEN` [#1](https://github.com/kpgalligan/doctored/issues/1) — CMYK mode's remaining items and PDF/X
   ([status](cmyk-mode-status.md)).
 - `DONE` — AVIF and lossless JPEG XL export, OpenEXR and Radiance HDR (§14).
-- `DONE` — Opening multipage TIFF files: each page that matches page 1 opens as a layer at 8, 16 and 32 bits;
-  a first page that opens as an 8/16-bit Grayscale, Lab, Indexed, Bitmap or CMYK document opens alone.
-- `OPEN` [#34](https://github.com/kpgalligan/doctored/issues/34) — Every page of a multipage TIFF in the colour
-  modes, and Place of a multipage TIFF.
+- `DONE` — Opening multipage TIFF files: each page that matches page 1 opens as a layer at 8, 16 and 32 bits,
+  in RGB, Grayscale, Lab Color and CMYK; a first page that opens as an Indexed or Bitmap document opens alone.
+- `OPEN` [#34](https://github.com/kpgalligan/doctored/issues/34) — A chosen page of a multipage TIFF in Indexed
+  Color and Bitmap, and Place of a multipage TIFF.
 - `DONE` — Magnetic lasso (Intelligent Scissors' live-wire trace) at 8, 16 and 32 bits.
 - `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — Magnetic Lasso part B: ⌥-drag freehand
   segments, the Caps Lock cursor, contrast keys and stylus pressure.

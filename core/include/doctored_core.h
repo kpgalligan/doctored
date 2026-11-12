@@ -5685,8 +5685,9 @@ DrPrecisionDocument *dr_precision_doc_retouch_from(const DrPrecisionDocument *do
  * "RGBA TIFF must declare one unassociated alpha sample". A multipage 16-bit
  * or float TIFF opens its pages as dr_doc_open does, each later page
  * admitted against `limit` with the pages before it retained, and the
- * sentences about its pages join import_warnings; a CMYK page 1 opens alone
- * and says so. */
+ * sentences about its pages join import_warnings; a multipage CMYK TIFF
+ * opens its matching pages as CMYK layers the same way, under page 1's
+ * profile policy. */
 DrPrecisionDocument *dr_precision_doc_open(const char *path, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
 void dr_precision_doc_free(DrPrecisionDocument *document);
@@ -5826,7 +5827,10 @@ DrPrecisionDocument *dr_precision_doc_convert_cmyk_to_rgb(const DrPrecisionDocum
 int32_t dr_path_gray_source(const char *path);
 /* working_gray: the working Gray's wire name ("dot_gain_20", "sgray", ...),
  * assigned (with an import warning) to a file with no profile; a PNG sRGB
- * chunk is sGray; an embedded Gray ICC is kept verbatim. */
+ * chunk is sGray; an embedded Gray ICC is kept verbatim. A multipage TIFF
+ * whose first image is page 1 opens each page that matches page 1 as a
+ * hidden layer "Page n" by dr_precision_doc_open's page rule; one whose
+ * first image is not a page opens that image alone and says so. */
 DrPrecisionDocument *dr_precision_doc_open_gray(const char *path, const char *working_gray,
     uint64_t limit, uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
 /* request: {"depth":8|16|32,"space"?:"<gray space>","fill_srgb":[r,g,b,a] in 0..1,
@@ -6364,8 +6368,9 @@ int32_t dr_path_lab_source(const char *path);
  * TIFF 6.0 (measured against Photoshop), ICCLab by TIFF Technote 4 (8 bits
  * as the PSD, 16 bits L* 100v/65280, a* v/256 - 128: declared from the
  * published spec, not measured against Photoshop); resolution, metadata and
- * orientation as dr_precision_doc_open_gray. Optional single-use control
- * begun once. Free with dr_precision_doc_free. */
+ * orientation as dr_precision_doc_open_gray, and a multipage TIFF's pages
+ * as it takes them. Optional single-use control begun once. Free with
+ * dr_precision_doc_free. */
 DrPrecisionDocument *dr_precision_doc_open_lab(const char *path, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
 /* request: {"depth":8|16,"fill_srgb":[r,g,b,a] in 0..1,"layer_name":"...",

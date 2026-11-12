@@ -1,15 +1,18 @@
-//! Multipage TIFF opens: the two thin adapters over `tiff_pages`, one
-//! per document kind. Each opens page 1 through its ordinary one-page open
+//! Multipage TIFF opens: the thin adapters over `tiff_pages`, one per
+//! document kind. Each opens page 1 through its ordinary one-page open
 //! with page 1 made the file's only page, then each further admitted page
 //! the same way, and stacks those pages above it as layers "Page n", hidden,
-//! at the canvas's top-left; `tiff_pages`' module doc states the rules.
+//! at the canvas's top-left; `tiff_pages`' module doc states the rules. The
+//! typed adapter, [`PrecisionDocument::stack_tiff_pages`], takes the
+//! one-page open as a parameter, so the RGB, float and CMYK opens
+//! (`open_preserving`) and the 8/16-bit Grayscale and Lab Color opens
+//! (`gray_io`, `lab_tiff_read`) stack pages by the same code.
 //!
 //! A page that passes the header rule but fails its own decode fails the
 //! open, naming the page (`page 3 of <path>: <the decoder's sentence>`), so
 //! no page is dropped without a sentence. The byte open's sentences reach the
 //! user through the import report (`dr_path_metadata_import_report`), the
-//! typed open's through its import warnings. A typed CMYK page 1 opens alone,
-//! as a CMYK document holds one page, and says so.
+//! typed open's through its import warnings.
 
 use std::sync::Arc;
 
@@ -72,9 +75,8 @@ impl DrDocument {
 
 impl PrecisionDocument {
     /// `PrecisionDocument::open_preserving` of a TIFF `tiff_pages::read`
-    /// found more than one image in (module doc). Each later page is
-    /// admitted against `limit` with the pages already built counted as
-    /// retained. `bytes` is restored before this returns.
+    /// found more than one image in (module doc): [`Self::stack_tiff_pages`]
+    /// over its one-page route, which reads spot channels for page 1 alone.
     pub(crate) fn open_tiff_pages(
         bytes: &mut [u8],
         pages: &Pages,
@@ -83,14 +85,28 @@ impl PrecisionDocument {
         other: u64,
         job: JobContext<'_>,
     ) -> Result<Self, String> {
+        Self::stack_tiff_pages(bytes, pages, path, other, |page, other, first| {
+            Self::open_flat_bytes(page, path, limit, other, job, first)
+        })
+    }
+
+    /// The pages of a multipage TIFF as one typed document (module doc).
+    /// `open(page, other, first)` is the caller's one-page open over `page`,
+    /// the file with one page made its only page; `other` counts the pages
+    /// already built as retained, so each later page is admitted by the
+    /// open's own plan beside them, and `first` is true for page 1 alone.
+    /// Page 1's document sets the canvas, mode, profile, policy, metadata
+    /// and channels; a later page gives its one root record. `bytes` is
+    /// restored before this returns.
+    pub(crate) fn stack_tiff_pages(
+        bytes: &mut [u8],
+        pages: &Pages,
+        path: &str,
+        other: u64,
+        open: impl Fn(&[u8], u64, bool) -> Result<Self, String>,
+    ) -> Result<Self, String> {
         let admitted = pages.admitted();
-        let doc = with_page(bytes, pages, admitted[0], |page| {
-            Self::open_flat_bytes(page, path, limit, other, job, true)
-        })?;
-        if doc.is_cmyk() {
-            let notes = pages.first_only_notes("a CMYK document holds one page");
-            return doc.adding_import_warnings(notes);
-        }
+        let doc = with_page(bytes, pages, admitted[0], |page| open(page, other, true))?;
         let notes = pages.notes();
         if admitted.len() == 1 {
             return doc.adding_import_warnings(notes);
@@ -107,7 +123,7 @@ impl PrecisionDocument {
         let mut held = doc.retained_bytes();
         for &number in &admitted[1..] {
             let page = with_page(bytes, pages, number, |page| {
-                Self::open_flat_bytes(page, path, limit, other.saturating_add(held), job, false)
+                open(page, other.saturating_add(held), false)
             })
             .map_err(|e| page_error(number, path, e))?;
             held = held.saturating_add(page.retained_bytes());
@@ -121,20 +137,28 @@ impl PrecisionDocument {
                     ))
                 }
             };
-            // The record takes the document's profile handle: the header
-            // rule admitted only a page whose profile bytes are page 1's
-            // (`tiff_pages`), and a document holds one captured handle.
-            let Content::Raster { image, offset } = &record.content else {
-                return Err(page_error(
-                    number,
-                    path,
-                    "the page did not open as a raster layer".into(),
-                ));
-            };
-            record.content = Content::Raster {
-                image: image.with_profile(doc.profile().clone()),
-                offset: *offset,
-            };
+            match (&record.content, doc.is_cmyk()) {
+                // A raster record takes the document's profile handle: the
+                // header rule admitted only a page whose profile bytes are
+                // page 1's (`tiff_pages`), and a document holds one
+                // captured handle.
+                (Content::Raster { image, offset }, false) => {
+                    record.content = Content::Raster {
+                        image: image.with_profile(doc.profile().clone()),
+                        offset: *offset,
+                    };
+                }
+                // A CMYK record carries no profile; the document's policy,
+                // page 1's, is the one profile its pages share.
+                (Content::CmykRaster { .. }, true) => {}
+                _ => {
+                    return Err(page_error(
+                        number,
+                        path,
+                        "the page did not open as a layer of this document".into(),
+                    ))
+                }
+            }
             record.name = Arc::new(page_name(number));
             record.visible = false;
             layers.push(record);

@@ -696,8 +696,8 @@ The design record behind each area is in the repository's
   `export_style_presets`; Actions record applying one)
 - Open PNG, JPEG, Photoshop (PSD and Large Document PSB, layered), TIFF (including BigTIFF, a
   TIFF with Photoshop layers as its layers, and a multipage TIFF's pages as
-  layers, or page 1 alone when it opens as an 8- or 16-bit Grayscale, Lab
-  Color, Indexed Color, Bitmap or CMYK document), BMP, GIF, WebP, HEIC/HEIF, AVIF,
+  layers, or page 1 alone when it opens as an Indexed Color or Bitmap
+  document), BMP, GIF, WebP, HEIC/HEIF, AVIF,
   JPEG 2000, JPEG XL, OpenEXR and Radiance `.hdr` (each as a 32-bit float
   document), Apple Live Photos, supported SDR H.264/HEVC/ProRes 4444
   movies, HLG and PQ HEVC movies (as a 32-bit float document), and camera RAW (CR3, CR2, NEF, ARW, DNG, Apple ProRAW,
@@ -3491,9 +3491,10 @@ on a GIF deliberately routes through Save As instead of overwriting the
 animation in place. A multipage TIFF opens each page that matches page 1 as a
 hidden layer "Page n" (page 1 visible), and the open's warnings name any page
 left out; ⌘S then routes through Save As, as for any layered document. A
-multipage TIFF whose first page opens as an 8- or 16-bit Grayscale, a Lab Color,
-an Indexed Color, a Bitmap or a CMYK document opens that page alone, and its
-import warnings say so. Document-level rotate,
+multipage TIFF whose first page opens as a Grayscale, a Lab Color or a CMYK
+document opens its pages the same way in that mode. One whose first page opens
+as an Indexed Color or a Bitmap document opens that page alone, and its import
+warnings say so. Document-level rotate,
 flip and resize compose into text and shape descriptions,
 so a re-edit after one lands in place. A RAW layer's source geometry uses
 its explicit source-layer transform. At 8 and 16 bits, Canvas Size, Image

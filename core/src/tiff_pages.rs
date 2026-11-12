@@ -15,6 +15,11 @@
 //! a STREAM the `tiff` decoder reads; every reader here takes a byte slice,
 //! so the owned buffer itself is patched.)
 //!
+//! The byte open, the typed open (RGB, float and CMYK) and the 8/16-bit
+//! Grayscale and Lab Color opens take pages this way (`doc_tiff_pages`).
+//! The Indexed Color and Bitmap opens read the first image alone, as each
+//! of those documents holds one layer.
+//!
 //! # What is a page
 //!
 //! An image in the main chain (SubIFDs are never walked) that has strip or
@@ -261,6 +266,13 @@ impl Pages {
         &self.admitted
     }
 
+    /// Whether page 1 is the file's first image. The Grayscale and Lab
+    /// Color opens, and the app's source tests that choose them, read the
+    /// first image, so they take pages only when it is page 1.
+    pub(crate) fn first_image_is_page_one(&self) -> bool {
+        self.pages[0] == 0
+    }
+
     /// Page `number`'s size.
     pub(crate) fn size(&self, number: usize) -> (u32, u32) {
         let image = &self.images[self.pages[number - 1]];
@@ -300,23 +312,6 @@ impl Pages {
             };
             notes.push(format!(
                 "{opened} opened as layers named by page number, page 1 at the bottom; only Page 1 is visible."
-            ));
-        }
-        notes
-    }
-
-    /// The sentences an open that takes page 1 alone reports (a CMYK
-    /// document holds one page): the walk's stop, and that the others were
-    /// not opened.
-    pub(crate) fn first_only_notes(&self, why: &str) -> Vec<String> {
-        let mut notes = Vec::new();
-        if let Some(stop) = self.stop_note() {
-            notes.push(stop);
-        }
-        if self.count() > 1 {
-            notes.push(format!(
-                "Only page 1 of the file's {} pages was opened: {why}.",
-                self.count()
             ));
         }
         notes
@@ -428,7 +423,9 @@ fn photometric_name(photometric: Option<u16>) -> String {
         Some(4) => "a transparency mask".into(),
         Some(5) => "CMYK".into(),
         Some(6) => "YCbCr".into(),
-        Some(8..=10) => "Lab".into(),
+        Some(8) => "CIE Lab".into(),
+        Some(9) => "ICC Lab".into(),
+        Some(10) => "ITU Lab".into(),
         Some(other) => format!("of photometric interpretation {other}"),
         None => "of no stated photometric interpretation".into(),
     }

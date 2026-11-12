@@ -10,8 +10,10 @@ file's arithmetic, not an encoder's. Cases:
   colour, the canvas page 1's size, and the import warnings saying so;
 - an 8-bit file whose second page cannot be decoded opens page 1 through
   the platform decoder and says which pages are missing and why;
-- a two-page grayscale file opens page 1 alone as a Grayscale document, and
-  its import warnings say only the first image was imported;
+- two-page 8-bit grayscale, CIELab and CMYK (Generic CMYK Profile) files
+  open as one Grayscale, Lab Color or CMYK document holding both pages as
+  layers "Page 1" and "Page 2", only Page 1 visible, each grayscale layer
+  holding its own page's grey, and no first-page-only sentence;
 - a contact sheet of the three-page 8-bit file shows page 1 alone.
 
 Launches its own instance (the root CLAUDE.md's recipe) and never another.
@@ -33,12 +35,14 @@ SMALL = (32, 24)
 COLOURS8 = [(200, 30, 40), (20, 180, 60), (30, 40, 190)]
 COLOURS16 = [(51400, 7710, 10280), (5140, 46260, 15420), (7710, 10280, 48830)]
 COLOURSF = [(2.5, -0.25, 0.75), (0.125, 1.5, 0.5), (0.25, 0.375, 3.0)]
+GENERIC_CMYK = Path('/System/Library/ColorSync/Profiles/Generic CMYK Profile.icc')
+OPENED = 'opened as layers named by page number'
 
 
 def tiff(pages):
     """pages: dicts of width, height, bits, fmt (1 int, 3 float), pixel (a
-    tuple per sample), compression, photometric (2, RGB, by default).
-    Returns the file's bytes."""
+    tuple per sample), compression, photometric (2, RGB, by default), icc
+    (the profile's bytes, absent by default). Returns the file's bytes."""
     body = bytearray(b'\0' * 8)
     directories = []
     for page in pages:
@@ -63,6 +67,8 @@ def tiff(pages):
             (284, 3, 1, struct.pack('<H', 1)),
             (339, 3, samples, struct.pack('<' + 'H' * samples, *([page['fmt']] * samples))),
         ]
+        if page.get('icc'):
+            fields.append((34675, 7, len(page['icc']), page['icc']))
         placed = []
         for tag, kind, count, value in fields:
             if len(value) > 4:
@@ -160,7 +166,7 @@ def pages_case(app, results, folder, name, data, colours, extra=None, close=None
                 case.check(f'page {index + 1} colour', close(got[:3], colour), got)
         notes = warnings_of(document)
         case.check('warnings say the pages opened as layers',
-                   any('opened as layers named by page number' in w for w in notes), notes)
+                   any(OPENED in w for w in notes), notes)
         case.check('warnings name page 3 size',
                    any(w.startswith('Page 3 is a different size') for w in notes), notes)
         case.check('the first-image-only sentence is gone',
@@ -187,25 +193,35 @@ def broken_case(app, results, folder):
     case.finish()
 
 
-def gray_case(app, results, folder):
-    """A two-page grayscale file's page 1 opens as a Grayscale document, alone,
-    and get_document's import warnings say only the first image opened."""
-    case = Case(results, 'tiff8-gray-first-page-alone')
-    path = folder / 'gray8.tif'
-    path.write_bytes(tiff([dict(width=W, height=H, bits=8, fmt=1, pixel=(grey,), photometric=1)
-                           for grey in (60, 190)]))
+def mode_pages_case(app, results, folder, name, mode, pixels, photometric, icc=None,
+                    greys=False):
+    """A two-page 8-bit file whose page 1 opens in colour mode `mode` opens
+    both pages as layers of one document of that mode. `greys`: each page's
+    one sample is a grey, which its layer's stored codes repeat (x257)."""
+    case = Case(results, name)
+    path = folder / f'{name}.tif'
+    path.write_bytes(tiff([dict(width=W, height=H, bits=8, fmt=1, pixel=pixel,
+                                photometric=photometric, icc=icc) for pixel in pixels]))
     ok, reply = call(app, 'open_document', path=str(path))
     if case.check('opens', ok, reply):
         doc = reply['document']['id']
         ok, document = call(app, 'get_document', document_id=doc)
         assert ok, document
-        case.check('a Grayscale document', document.get('color_mode') == 'gray',
+        case.check(f'a {mode} document', document.get('color_mode') == mode,
                    document.get('color_mode'))
-        case.check('one layer', len(document['layers']) == 1, document['layers'])
+        layers = [(l['name'], l['visible']) for l in document['layers']]
+        case.check('layers', layers == [('Page 1', True), ('Page 2', False)], layers)
+        if greys and len(layers) == 2:
+            for index, (grey,) in enumerate(pixels):
+                got = layer_sample(app, doc, index, 4, 4)
+                case.check(f'page {index + 1} grey', list(got) == [grey * 257] * 3 + [65535],
+                           got)
         notes = warnings_of(document)
-        case.check('the warnings say only the first image opened',
-                   any(w.startswith('Only the first TIFF image is imported') for w in notes),
-                   notes)
+        case.check('warnings say the pages opened as layers',
+                   any(OPENED in w for w in notes), notes)
+        case.check('no first-page-only sentence',
+                   not any(w.startswith(('Only the first TIFF image', 'Only page 1'))
+                           for w in notes), notes)
     case.finish()
 
 
@@ -245,7 +261,12 @@ def main():
         pages_case(app, results, folder, 'tiff32-three-pages', three(32, 3, COLOURSF), COLOURSF,
                    close=near)
         broken_case(app, results, folder)
-        gray_case(app, results, folder)
+        mode_pages_case(app, results, folder, 'tiff8-gray-pages', 'gray', [(60,), (190,)], 1,
+                        greys=True)
+        mode_pages_case(app, results, folder, 'tiff8-lab-pages', 'lab',
+                        [(128, 10, 20), (200, 240, 30)], 8)
+        mode_pages_case(app, results, folder, 'tiff8-cmyk-pages', 'cmyk',
+                        [(200, 20, 0, 0), (0, 150, 30, 10)], 5, icc=GENERIC_CMYK.read_bytes())
         sheet_case(app, results, folder)
     failed = [name for name, state in results.items() if state != 'PASS']
     print(json.dumps(results, indent=1))
