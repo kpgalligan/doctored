@@ -16,12 +16,25 @@ extension AgentServer {
     func getPrecision(_ a: [String: Any]) throws -> String {
         let document = try target(a)
         guard let doc = document.doc else { throw ToolError(message: "Document has no image") }
+        // A Bitmap or Indexed Color document answers its own gate's list, its mode named
+        // `bitmap1` or `indexed8` (`precisionName`).
+        if doc.isBitmap || doc.isIndexed {
+            var result = doc.isBitmap ? BitmapDocument.support(doc) : IndexedDocument.support(doc)
+            result["document"] = summary(document)
+            result["mode"] = doc.precisionName
+            result["mode_description"] = doc.isBitmap ? "Bitmap, 1-bit"
+                : "Indexed Color, 8-bit, \(doc.indexedColors ?? 0) colors"
+            if let projection = try? doc.projectionScratchEstimate() {
+                result["plans"] = ["projection_scratch_bytes": projection]
+            }
+            return try jsonResult(result)
+        }
         // #1 phase 1c: a Grayscale document answers its own gate's list.
         if doc.isGray {
             var result = GrayDocument.support(doc)
             let depth = doc.grayDepth ?? 0
             result["document"] = summary(document)
-            result["mode"] = "gray\(depth)"
+            result["mode"] = doc.precisionName
             result["bits_per_channel"] = depth
             result["mode_description"] = "Grayscale, \(depth)-bit, \(doc.profileName)"
             if let projection = try? doc.projectionScratchEstimate() {
@@ -34,7 +47,7 @@ extension AgentServer {
             var result = LabDocument.support(doc)
             let depth = doc.labDepth ?? 0
             result["document"] = summary(document)
-            result["mode"] = "lab\(depth)"
+            result["mode"] = doc.precisionName
             result["bits_per_channel"] = depth
             result["mode_description"] = "Lab Color, \(depth)-bit, D50"
             if let projection = try? doc.projectionScratchEstimate() {

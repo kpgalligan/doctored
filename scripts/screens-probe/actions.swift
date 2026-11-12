@@ -361,13 +361,12 @@ func setLayersFilter(label: LayerLabel, _ editor: EditorViewController) throws {
     popup.sendAction(action, to: popup.target)
 }
 
-/// `open_command_palette`: Tools ▸ Command Palette… over the editor, with `query` typed. The probe
-/// has no app delegate, so it installs the main menu the app builds at launch. The probe is never
-/// active and has no key window to resolve a nil-target item through, so each one is pointed at
-/// the first object of the editor's responder chain that answers it, the object the chain would
-/// have found (scripts/native-paint-probe/workspace.swift). The palette is a floating panel: it
-/// is shown at the normal level, transparent, and ordered behind every other app's windows.
-func openCommandPalette(_ query: String, _ context: Context) throws {
+/// The main menu the app builds at launch, installed over the screen's editor until teardown:
+/// the probe has no app delegate, so `NSApp.mainMenu` is otherwise nil. The probe is never active
+/// and has no key window to resolve a nil-target item through, so each one is pointed at the
+/// first object of the editor's responder chain that answers it, the object the chain would have
+/// found (scripts/native-paint-probe/workspace.swift).
+func installMainMenu(_ context: Context) throws {
     let editor = try context.requireEditor()
     let document = try context.requireDocument()
     // Read before the build: the builder assigns the Window and Help menus as it builds, and the
@@ -391,6 +390,13 @@ func openCommandPalette(_ query: String, _ context: Context) throws {
             NSApp.helpMenu = previous.help
         }
     }
+}
+
+/// `open_command_palette`: Tools ▸ Command Palette… over the editor, with `query` typed, under the
+/// app's main menu (`installMainMenu`), which the palette lists. The palette is a floating panel:
+/// it is shown at the normal level, transparent, and ordered behind every other app's windows.
+func openCommandPalette(_ query: String, _ context: Context) throws {
+    try installMainMenu(context)
     let controller = CommandPaletteWindowController.shared
     guard let panel = controller.window else { throw ProbeFailure(description: "the palette was not built") }
     let level = panel.level
@@ -454,11 +460,14 @@ func control<T: NSView>(_ root: NSView, id: String, as type: T.Type) -> T? {
     }.compactMap { $0 as? T }.first
 }
 
-/// The Cancel of a sheet or card: the button whose action is `cancelClicked:` or `cancel:`.
+/// The Cancel of a sheet or card: the shown, enabled button whose action is `cancelClicked:` or
+/// `cancel:`. A disabled one is a row's own Cancel, not the dialog's (Settings ▸ Models' per-model
+/// Cancel, enabled only while that model downloads), and clicking it would end nothing.
 func cancelButton(_ root: NSView) throws -> NSButton {
     let actions: Set<String> = ["cancelClicked:", "cancel:"]
     guard let button = buttons(root).first(where: {
-        $0.action.map(NSStringFromSelector).map(actions.contains) == true
+        $0.action.map(NSStringFromSelector).map(actions.contains) == true && $0.isEnabled
+            && !$0.isHiddenOrHasHiddenAncestor
     }) else { throw ProbeFailure(description: "no Cancel button") }
     return button
 }

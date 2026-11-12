@@ -33,7 +33,13 @@ final class ModelsSettingsPane: NSObject {
         let delete: NSButton
     }
 
-    override init() {
+    override convenience init() {
+        self.init(home: NSHomeDirectory())
+    }
+
+    /// The pane over `ModelStore.shared`, its intro writing the store's folder from `~` when it
+    /// lies under `home` (`displayPath`); probes pass a home of their own.
+    init(home: String) {
         store = ModelStore.shared
         view = NSStackView()
         super.init()
@@ -43,7 +49,9 @@ final class ModelsSettingsPane: NSObject {
         view.setAccessibilityIdentifier("models-pane")
         let intro = NSTextField(wrappingLabelWithString:
             "Models download on demand from their official host into "
-            + store.directory.path + ". Each is checked against its published SHA-256 before use.")
+            + Self.displayPath(store.directory, home: home)
+            + ". Each is checked against its published SHA-256 before use.")
+        intro.setAccessibilityIdentifier("models-intro")
         intro.font = DS.sans(12)
         intro.textColor = DS.textMuted
         intro.preferredMaxLayoutWidth = 420
@@ -67,6 +75,17 @@ final class ModelsSettingsPane: NSObject {
 
     deinit {
         if let observer { NotificationCenter.default.removeObserver(observer) }
+    }
+
+    /// `directory` as the intro writes it: a folder under `home` from `~`
+    /// ("~/Library/Application Support/Doctored/Models"), any other folder in full. Only whole
+    /// path components match, so a sibling whose name merely starts with the home's is written in
+    /// full, and so is everything when the home is `/`.
+    static func displayPath(_ directory: URL, home: String) -> String {
+        let path = directory.path
+        let root = home.hasSuffix("/") ? String(home.dropLast()) : home
+        guard !root.isEmpty, path == root || path.hasPrefix(root + "/") else { return path }
+        return "~" + path.dropFirst(root.count)
     }
 
     private func label(_ text: String, size: CGFloat = 11, color: NSColor = DS.textMuted) -> NSTextField {
@@ -93,9 +112,11 @@ final class ModelsSettingsPane: NSObject {
         rows.translatesAutoresizingMaskIntoConstraints = false
         document.addSubview(rows)
         scroll.documentView = document
-        // Below required, so the cap wins once the rows are taller than it.
+        // Below required, so the cap wins once the rows are taller than it, and below the rows'
+        // labels' compression resistance (750), so the list scrolls them rather than squeezing a
+        // wrapping label (a model's name, tier and training line) to no height to fit the cap.
         let fit = scroll.heightAnchor.constraint(equalTo: document.heightAnchor)
-        fit.priority = .defaultHigh
+        fit.priority = .init(NSLayoutConstraint.Priority.defaultHigh.rawValue - 1)
         let scroller = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
         NSLayoutConstraint.activate([
             scroll.widthAnchor.constraint(equalToConstant: 420 + scroller),
@@ -115,6 +136,7 @@ final class ModelsSettingsPane: NSObject {
     private func makeRow(_ entry: ModelCatalogEntry) -> NSView {
         let title = label(entry.name, size: 13, color: DS.textStrong)
         title.font = DS.sans(13, weight: .semibold)
+        title.setAccessibilityIdentifier("model-name-\(entry.id)")
         let state = label("")
         state.setAccessibilityIdentifier("model-state-\(entry.id)")
         let progress = NSProgressIndicator()

@@ -10,7 +10,10 @@ extension AgentServer {
         return [
             tool(
                 "list_documents",
-                "Lists the images open in Doctored with their ids, sizes, and layer counts.",
+                "Lists the images open in Doctored with their ids, sizes, and layer counts. Each "
+                    + "document's color_mode names its mode and precision its mode and depth: rgba8, "
+                    + "rgba16 or rgba32_float on an RGB document, gray8, gray16 or gray32 on a "
+                    + "Grayscale or Duotone one, lab8 or lab16, cmyk8 or cmyk16, indexed8, or bitmap1.",
                 [:]),
             tool(
                 "inspect_psd",

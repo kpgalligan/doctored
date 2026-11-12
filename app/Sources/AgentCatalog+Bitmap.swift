@@ -141,6 +141,10 @@ extension AgentServer {
             case "get_document":
                 catalog[index]["description"] = existing + " A Bitmap document reports "
                     + "color_mode bitmap."
+            case "get_precision":
+                catalog[index]["description"] = existing + " A Bitmap document answers "
+                    + "color_mode bitmap, mode bitmap1, bits_per_channel 1, and its own "
+                    + "supported_tools and supported_menu_items."
             case "save_copy":
                 catalog[index]["description"] = existing + " A Bitmap document "
                     + "saves doctored (or rz), a 1-bit png, tif or bmp keeping its plane (the reply's bit_depth "

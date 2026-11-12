@@ -1105,7 +1105,7 @@ def plans_of(app, document):
         # `render-stacked-rgb16`: a 16-bit RGB document's `plans` hold
         # its projection charge alone.
         return precision['plans']
-    assert ok and precision.get('mode') == 'cmyk', precision
+    assert ok and precision.get('mode') in ('cmyk8', 'cmyk16'), precision
     return precision['plans']
 
 

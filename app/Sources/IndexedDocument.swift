@@ -156,6 +156,18 @@ enum IndexedDocument {
         "applyProofPresetFromMenu:",
     ]
 
+    /// `get_precision`'s (and `get_document`'s `precision_support`) answer for an Indexed Color
+    /// document: its storage (the descriptor's), colour mode, depth and palette size, and this
+    /// gate's tools and menu items.
+    static func support(_ doc: RasterDocument) -> [String: Any] {
+        [
+            "storage": doc.precisionInfo?["storage"] ?? NSNull(), "color_mode": "indexed",
+            "bits_per_channel": doc.bitsPerChannel ?? 8,
+            "colors": doc.indexedColors.map { $0 as Any } ?? NSNull(),
+            "supported_tools": tools.sorted(), "supported_menu_items": selectors.sorted(),
+        ]
+    }
+
     /// What is not available in Indexed Color, for good (`indexed_document`'s `DISABLED_OPS` by
     /// tool): since phase 2a new layers, Layer via Copy and Cut, Duplicate Layer, New Fill Layer,
     /// Perspective Warp, Content-Aware and Generative Fill, Sky Replacement, Apply Image,

@@ -234,6 +234,55 @@ func verifyModelsPane() throws {
         + "the Shortcuts, Models, MCP and Cloud tabs")
 }
 
+/// "models intro path": Settings ▸ Models' intro writes the models folder from `~` when it lies
+/// under the home, so no picture of the pane shows a home or scratch path. `displayPath` is asked
+/// with literal homes outside `/Users/` (a folder under it, the home itself, a trailing slash, a
+/// folder outside it, a sibling whose name only starts with the home's, the root as home), and a
+/// pane built over a scratch store under a scratch home must show the `~` folder and not the
+/// store's full path. Every row is checked before the case fails.
+func verifyModelsIntroPath() throws {
+    let tag = "[models intro path]"
+    let home = "/Volumes/probe/home"
+    let rows: [(directory: String, home: String, expected: String)] = [
+        ("/Volumes/probe/home/Library/Application Support/Doctored/Models", home,
+         "~/Library/Application Support/Doctored/Models"),
+        ("/Volumes/probe/home", home, "~"),
+        ("/Volumes/probe/home/Library/Application Support/Doctored/Models", home + "/",
+         "~/Library/Application Support/Doctored/Models"),
+        ("/Volumes/other/Models", home, "/Volumes/other/Models"),
+        ("/Volumes/probe/home2/Models", home, "/Volumes/probe/home2/Models"),
+        ("/Volumes/probe/home/Models", "/", "/Volumes/probe/home/Models"),
+    ]
+    var failures: [String] = []
+    for row in rows {
+        let shown = ModelsSettingsPane.displayPath(URL(fileURLWithPath: row.directory, isDirectory: true),
+                                                   home: row.home)
+        if shown != row.expected {
+            failures.append("\(row.directory) under home \(row.home) is \"\(shown)\", not \"\(row.expected)\"")
+        }
+    }
+    let scratchHome = directory.appendingPathComponent("models-home", isDirectory: true)
+    let folder = scratchHome.appendingPathComponent("Library/Application Support/Doctored/Models",
+                                                    isDirectory: true)
+    let previous = ModelStore.shared
+    ModelStore.shared = ModelStore(directory: folder, catalog: ModelCatalog.entries)
+    defer { ModelStore.shared = previous }
+    let pane = ModelsSettingsPane(home: scratchHome.path)
+    let intro = try uiControl(pane.view, id: "models-intro", as: NSTextField.self).stringValue
+    print("\(tag) the pane's intro: \"\(intro)\"")
+    if !intro.contains(" into ~/Library/Application Support/Doctored/Models.") {
+        failures.append("the pane's intro names no ~/Library/Application Support/Doctored/Models")
+    }
+    if intro.contains(folder.path) || intro.contains(directory.path) {
+        failures.append("the pane's intro shows the scratch path")
+    }
+    try require(failures.isEmpty, "\(tag) " + failures.joined(separator: "; "))
+    print("PASS: models intro path — displayPath writes a folder under the home (with or without a "
+        + "trailing slash) and the home itself from ~, and a folder outside it, a sibling sharing the "
+        + "home's prefix and any folder under the root home in full; a pane over a scratch store under "
+        + "a scratch home names ~/Library/Application Support/Doctored/Models and no scratch path")
+}
+
 /// "settings card height": the Settings card built over the real catalogue (a scratch store,
 /// nothing downloaded) fits a laptop screen: at most 700 pt tall, the visible height of a
 /// 1280 × 800 point screen less the menu bar and the Dock, and no taller than the main screen's
@@ -282,14 +331,29 @@ func verifySettingsCardHeight() throws {
     } catch {
         failures.append("\(error)")
     }
+    var squeezed: [String] = []
     for entry in entries {
         do { _ = try uiControl(settings.models.view, id: "model-download-\(entry.id)", as: NSButton.self) }
         catch { failures.append("\(entry.id): \(error)") }
+        // Each row names its model: the name line keeps its own height inside the scrolled list
+        // rather than being squeezed to fit the list's viewport.
+        do {
+            let name = try uiControl(settings.models.view, id: "model-name-\(entry.id)", as: NSTextField.self)
+            let wanted = name.intrinsicContentSize.height
+            if !(wanted > 0 && name.frame.height + 0.5 >= wanted) {
+                squeezed.append("\(entry.id) \(Int(name.frame.height)) of \(Int(wanted)) pt")
+            }
+        } catch {
+            failures.append("\(entry.id): \(error)")
+        }
+    }
+    if !squeezed.isEmpty {
+        failures.append("\(squeezed.count) model names are squeezed: " + squeezed.joined(separator: ", "))
     }
     try require(failures.isEmpty, "\(tag) " + failures.joined(separator: "; "))
     print("PASS: settings card height — over the \(entries.count)-model catalogue the Settings card is "
         + "\(Int(size.height)) pt tall (at most 700 and within the screen), the model rows scroll inside "
-        + "models-list and every Download button is in the pane")
+        + "models-list, every Download button is in the pane and every model's name keeps its height")
 }
 
 /// "model catalog release urls" (the Doctored rename): every file and licence URL names no

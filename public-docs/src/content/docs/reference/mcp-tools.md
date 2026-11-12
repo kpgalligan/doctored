@@ -379,7 +379,7 @@ Add `--check` to either to verify that the checked-in page matches the catalog.
 
 ## `list_documents`
 
-Lists the images open in Doctored with their ids, sizes, and layer counts.
+Lists the images open in Doctored with their ids, sizes, and layer counts. Each document's color_mode names its mode and precision its mode and depth: rgba8, rgba16 or rgba32_float on an RGB document, gray8, gray16 or gray32 on a Grayscale or Duotone one, lab8 or lab16, cmyk8 or cmyk16, indexed8, or bitmap1.
 
 Takes no arguments.
 
@@ -3126,7 +3126,7 @@ Colour-based, NOT a pixel-radius expand (that is modify_selection grow): Select 
 
 ## `get_precision`
 
-Document precision and the qualified operation/target matrix shared by UI, MCP and Actions. A Grayscale document answers color_mode gray, mode gray8, gray16 or gray32, its gray_profile, and its own supported_tools, supported_menu_items and blend_modes; every other tool refuses for good, by name. A Lab Color document answers its own lists: color_mode lab, mode lab8 or lab16, white_point D50, channels lightness, a and b, and the supported_tools, supported_menu_items and blend_modes of its gate.
+Document precision and the qualified operation/target matrix shared by UI, MCP and Actions. A CMYK document answers color_mode cmyk, mode cmyk8 or cmyk16 with its bits_per_channel, its CMYK and view profiles, its own supported_tools and limitations, and plans: each CMYK operation's admitted scratch bytes. A Grayscale document answers color_mode gray, mode gray8, gray16 or gray32, its gray_profile, and its own supported_tools, supported_menu_items and blend_modes; every other tool refuses for good, by name. A Lab Color document answers its own lists: color_mode lab, mode lab8 or lab16, white_point D50, channels lightness, a and b, and the supported_tools, supported_menu_items and blend_modes of its gate. An Indexed Color document answers color_mode indexed, mode indexed8, bits_per_channel 8, its palette's colors, and its own supported_tools and supported_menu_items. A Bitmap document answers color_mode bitmap, mode bitmap1, bits_per_channel 1, and its own supported_tools and supported_menu_items.
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |

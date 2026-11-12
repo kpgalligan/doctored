@@ -271,6 +271,19 @@ enum CmykDocument {
         + "are not available in CMYK: use Image ▸ Mode ▸ RGB Color to edit in RGB, and CMYK Color "
         + "to return."
 
+    /// `get_precision`'s (and `get_document`'s `precision_support`) answer for a CMYK document:
+    /// its colour mode, the core's depth, storage, CMYK and view profiles, this gate's tools and
+    /// what the mode cannot do yet (`limitation`).
+    static func support(_ doc: RasterDocument) -> [String: Any] {
+        let info = doc.precision?.cmykInfo() ?? [:]
+        return [
+            "color_mode": "cmyk", "bits_per_channel": info["depth"] ?? 16,
+            "storage": info["storage"] ?? NSNull(), "cmyk_profile": info["profile"] ?? NSNull(),
+            "view_profile": info["view_profile"] ?? NSNull(), "supported_tools": tools.sorted(),
+            "limitations": limitation,
+        ]
+    }
+
     /// The refusal of an ink key (`ink`, `start_ink`, `end_ink`) on one ink plate or an alpha
     /// channel: a single plane holds a grey, so the colour's grey is painted, as on a colour plane.
     static let plateInkRefusal = "A plate or alpha channel paints in grey: pass color (its grey is "

@@ -249,6 +249,10 @@ extension AgentServer {
             case "get_document":
                 catalog[index]["description"] = existing + " An Indexed Color document "
                     + "reports color_mode indexed and indexed {colors, transparent_index}."
+            case "get_precision":
+                catalog[index]["description"] = existing + " An Indexed Color document answers "
+                    + "color_mode indexed, mode indexed8, bits_per_channel 8, its palette's colors, "
+                    + "and its own supported_tools and supported_menu_items."
             case "export_image", "export_preview", "quick_export":
                 catalog[index]["description"] = existing + exportNote
             case "save_copy":

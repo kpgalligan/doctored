@@ -86,6 +86,13 @@ let cards: [String: CardSpec] = [
     "cloud_consent": CardSpec(title: "Send to \(CloudProviders.provider(.openai).displayName)?") { _ in
         _ = CloudConsentCard.present(CloudProviders.provider(.openai))
     },
+    // Doctored ▸ Settings… on the Shortcuts tab: the card lists the live main menu's commands, so
+    // the app's menu is installed first (`installMainMenu`, actions.swift); without one `run()`
+    // only beeps. A `tab` capture selects another tab.
+    "settings": CardSpec(title: "Settings") { context in
+        try installMainMenu(context)
+        SettingsWindowController.run()
+    },
 ]
 
 let panels: [String: PanelSpec] = [

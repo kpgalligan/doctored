@@ -1,7 +1,8 @@
 import AppKit
 
 /// The document's colour mode and declared sample format, as the status bar's mode segment
-/// names them ("Grayscale · 16-bit", "RGB · 32-bit float", "Bitmap · 1-bit"). Each fact is read
+/// names them ("Grayscale · 16-bit", "RGB · 32-bit float", "Bitmap · 1-bit") and MCP's precision
+/// name does ("gray16", "rgba32_float", "bitmap1"). Each fact is read
 /// through the property its mode already has (`colorMode`, `grayDepth`, `labDepth`,
 /// `CmykAdjustFilter.depth(of:)`, `isFloat`): from the captured descriptor, except the RGB arm's
 /// float test and the CMYK fallback when the descriptor names no depth, which ask the core.
@@ -19,6 +20,26 @@ extension RasterDocument {
         case .lab: return labDepth
         case .cmyk: return CmykAdjustFilter.depth(of: self)
         case .rgb: return isFloat ? 32 : isHighDepth ? 16 : 8
+        }
+    }
+
+    /// The document's mode and depth as MCP names them: the summary's `precision`
+    /// (`AgentServer.summary`) and `get_precision`'s `mode` on a colour-mode document. An RGB
+    /// document answers its storage (`rgba8`, `rgba16`, `rgba32_float`); every other mode
+    /// `<mode><bitsPerChannel>`, which is that mode's `convert_precision` name where it has one
+    /// (`gray8`…`gray32`, `lab8`, `lab16`, `cmyk8`, `cmyk16`), and `indexed8` and `bitmap1`. A
+    /// Duotone document answers its Gray storage's name, the one `convert_precision` takes there
+    /// (`color_mode` says duotone). A Grayscale or Lab descriptor that names no depth answers
+    /// `gray0` or `lab0`.
+    var precisionName: String {
+        let bits = bitsPerChannel ?? 0
+        switch colorMode {
+        case .rgb: return isFloat ? "rgba32_float" : isHighDepth ? "rgba16" : "rgba8"
+        case .gray, .duotone: return "gray\(bits)"
+        case .lab: return "lab\(bits)"
+        case .cmyk: return "cmyk\(bits)"
+        case .indexed: return "indexed\(bits)"
+        case .bitmap: return "bitmap\(bits)"
         }
     }
 

@@ -237,6 +237,11 @@ rotate5-bitmap`, then `--cases transform-bitmap`) for the resampled geometry, un
   flip) and each reaches the core; the one error, `save_proof_preset` over the working CMYK profile ("A proof
   preset needs a profile that came from a file…"), is a Gray twin's word for word. B33 sweeps the whole catalog
   on a Bitmap document and pins each refusal's class; no refusal names a phase. No gap was found.
+- **The MCP precision names** (2026-11-12): `get_precision` answers `mode` bitmap1, `bits_per_channel` 1 and
+  this gate's own lists (`BitmapDocument.support`, also `get_document`'s `precision_support`), and the document
+  summary's `precision` is bitmap1 (`RasterDocument.precisionName`, which names every mode: indexed8, gray8 to
+  gray32, lab8, lab16, cmyk8, cmyk16, and RGB's rgba8, rgba16, rgba32_float). Jobs-probe case "precision reply
+  modes".
 
 ## Open items
 

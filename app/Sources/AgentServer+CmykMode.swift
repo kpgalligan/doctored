@@ -241,7 +241,6 @@ extension AgentServer {
         case "save_copy":
             return try saveCMYKCopy(a, document: document, precision: precision)
         case "get_precision":
-            let info = precision.cmykInfo() ?? [:]
             // The plans each CMYK operation admits (`scripts/cmyk-admission`'s figures).
             let descriptor = (try? precision.descriptor()) ?? [:]
             var plans = ["render_scratch_bytes", "cmyk_save_scratch_bytes", "cmyk_psd_save_scratch_bytes",
@@ -308,14 +307,12 @@ extension AgentServer {
             // its output, with `ProjectionMargin` (`projectionScratchEstimate`).
             let projection = try? doc.projectionScratchEstimate()
             plans["projection_scratch_bytes"] = projection.map { $0 as Any } ?? NSNull()
-            return try jsonResult([
-                "plans": plans,
-                "document": summary(document), "mode": "cmyk", "color_mode": "cmyk",
-                "bits_per_channel": info["depth"] ?? 16, "storage": info["storage"] ?? NSNull(),
-                "cmyk_profile": info["profile"] ?? NSNull(), "view_profile": info["view_profile"] ?? NSNull(),
-                "mode_description": "CMYK ink, displayed through its profile in Display P3",
-                "supported_tools": CmykDocument.tools.sorted(), "limitations": CmykDocument.limitation,
-            ])
+            var result = CmykDocument.support(doc)
+            result["plans"] = plans
+            result["document"] = summary(document)
+            result["mode"] = doc.precisionName
+            result["mode_description"] = "CMYK ink, displayed through its profile in Display P3"
+            return try jsonResult(result)
         default:
             return nil
         }

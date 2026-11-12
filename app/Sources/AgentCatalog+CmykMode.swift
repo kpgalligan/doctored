@@ -129,6 +129,10 @@ extension AgentServer {
                     + "depth; its pixels are shown through a Display P3 view. Its text, shape and "
                     + "fill objects report their colours as ink in percent (ink, fill_ink, "
                     + "stroke_ink, a stop's ink) beside the sRGB appearance hex."
+            case "get_precision":
+                note = " A CMYK document answers color_mode cmyk, mode cmyk8 or cmyk16 with its "
+                    + "bits_per_channel, its CMYK and view profiles, its own supported_tools and "
+                    + "limitations, and plans: each CMYK operation's admitted scratch bytes."
             case "add_text_layer", "edit_text_layer", "add_shape_layer", "edit_shape_layer",
                  "add_fill_layer", "edit_fill_layer", "rasterize_artwork":
                 note = " Works on a CMYK document: the layer's colours are stored as ink in "

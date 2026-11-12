@@ -298,7 +298,7 @@ Detail belongs in the source file's own header comment.
 - `PrecisionCapturedSave.swift` / `PrecisionStateArchive.swift` / `ImageDocument+PrecisionGuard.swift` — typed save captures, internal compatibility archives, preserving import/publication guards.
 - `RasterDocument+PrecisionMetadata.swift` / `RasterDocument+PrecisionOperations.swift` — one `RasterDocument` facade owns either a legacy pointer or a typed owner, never a byte surrogate.
 - `DocumentPrecision.swift` — the public mode's shared UI/MCP/Actions depth guard (`refusal(tool:…)`, `documentFreeTools`).
-- `DocumentSampleFormat.swift` — `bitsPerChannel` (the mode's declared depth) and `modeStatusText`, the status bar's mode and sample format ("Lab · 16-bit").
+- `DocumentSampleFormat.swift` — `bitsPerChannel` (the mode's declared depth), `precisionName` (MCP's `precision`, "lab16") and `modeStatusText` (the status bar's "Lab · 16-bit").
 - `PrecisionEditorCapture.swift` / `PrecisionImportRequest.swift` / `PrecisionModeConversion.swift` — full revision/target/selection capture, preserving import choice, deliberate flattened conversion.
 - `AgentServer+DocumentReply.swift` — `get_document`'s ONE document-level block: `documentFields`, `selectionFields` and `typedDocumentReply`.
 - `PrecisionModeConversion.swift` / `ConvertPrecisionSheetController.swift` — 12H: Image ▸ Mode ▸ Convert Precision… and 32 Bits/Channel… are ONE sheet; MCP `convert_precision`.

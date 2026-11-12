@@ -212,10 +212,16 @@ extension AgentServer {
         // The byte reply's own `global_light` fields: the core's info
         // object, read through the facade and rounded as the byte one is.
         info["global_light"] = Self.globalLightFields(doc)
-        info["precision_support"] = doc.isGray ? GrayDocument.support(doc)
-            : doc.isFloat ? FloatDocument.support : DocumentPrecision.support
-        // #1 Lab phase 1c: a Lab Color document's own lists.
-        if doc.isLab { info["precision_support"] = LabDocument.support(doc) }
+        // Each colour mode's own lists, `get_precision`'s (#1 Lab phase 1c: Lab's).
+        switch doc.colorMode {
+        case .gray, .duotone: info["precision_support"] = GrayDocument.support(doc)
+        case .lab: info["precision_support"] = LabDocument.support(doc)
+        case .cmyk: info["precision_support"] = CmykDocument.support(doc)
+        case .indexed: info["precision_support"] = IndexedDocument.support(doc)
+        case .bitmap: info["precision_support"] = BitmapDocument.support(doc)
+        case .rgb:
+            info["precision_support"] = doc.isFloat ? FloatDocument.support : DocumentPrecision.support
+        }
         return try jsonResult(info)
     }
 }

@@ -8,9 +8,11 @@ Run `make rust project` first. The screens are `public-docs/screens/*.md` (INDEX
 catalog), or the screen files of --screens (a trial folder outside the repository); their pictures
 are the fixtures of `public-docs/screens/fixtures.json`, each checked by sha256 before use. A
 fixture whose root is "fixtures" is found under --fixtures (the fixtures store, e.g.
-~/devel/doctored-fixtures); a screen whose fixture is absent is skipped, not failed. A screen that
-`needs` "models" runs with DR_MODELS_DIR at the store's read-only `models/` folder, and is skipped
-without it.
+~/devel/doctored-fixtures); a screen whose fixture is absent is skipped, not failed. Each look's
+DR_MODELS_DIR is the default models folder under its private home, so Settings ▸ Models names it
+`~/Library/Application Support/Doctored/Models` and never a scratch or store path: a link to the
+store's read-only `models/` folder when a screen `needs` "models" (such a screen is skipped without
+it), else absent.
 
 This script checks a screen file's shape only. Every name in it (window kinds, cards, panels,
 sheets, views, UI actions and their arguments) is the probe's: the probe parses the whole plan
@@ -62,6 +64,8 @@ SCREEN_KEYS = {"id", "title", "fixture", "window", "steps", "captures"}
 OPTIONAL_SCREEN_KEYS = {"needs"}
 # What a screen may need besides its fixture: "models" is the store's model folder.
 NEEDS = {"models"}
+# The app's default models folder under a home (`ModelStore`'s default directory).
+MODELS_UNDER_HOME = Path("Library/Application Support/Doctored/Models")
 FIXTURE_KEYS = {"id", "root", "path", "kind", "licence", "author", "source", "sha256"}
 FENCE_OPEN = "```json screen"
 FENCE_CLOSE = "```"
@@ -345,9 +349,13 @@ def run(arguments, scratch, out, fixtures_root):
         child = dict(environment, DR_SCREENS_OUT=str(folder), DR_SCREENS_LOOK=look,
                      DR_ACTIONS_DIR=str(private / "actions"), DR_RECOVERY_DIR=str(private / "recovery"),
                      CFFIXED_USER_HOME=str(private / "home"), **isolation.preset_environment(private))
+        # The app's default models folder under the look's home (module doc), which the Models
+        # pane's intro writes from `~`. Read-only: no screen downloads a model.
+        models = private / "home" / MODELS_UNDER_HOME
+        child["DR_MODELS_DIR"] = str(models)
         if needs_models:
-            # Read-only: no screen downloads a model.
-            child["DR_MODELS_DIR"] = str(models_store(fixtures_root))
+            models.parent.mkdir(parents=True)
+            models.symlink_to(models_store(fixtures_root), target_is_directory=True)
         if email:
             child["DR_SCREENS_EMAIL"] = email
         locked = screen_locked()

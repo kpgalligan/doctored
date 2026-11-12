@@ -272,8 +272,7 @@ final class AgentServer {
             "unsaved_changes": document.isDocumentEdited,
             "projection_error": document.projectionError ?? NSNull(),
             "preview_is_current": document.doc?.isHighDepth == true ? document.precisionProjection != nil : document.projection != nil,
-            "precision": document.doc?.isFloat == true
-                ? "rgba32_float" : document.doc?.isHighDepth == true ? "rgba16" : "rgba8",
+            "precision": document.doc?.precisionName ?? "rgba8",
             "color_mode": document.doc?.colorMode.rawValue ?? "rgb",
         ]
     }

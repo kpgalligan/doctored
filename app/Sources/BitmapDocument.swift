@@ -179,6 +179,16 @@ enum BitmapDocument {
         "set_channel_options", "invert_channel", "load_selection", "add_luminosity_masks",
     ]
 
+    /// `get_precision`'s (and `get_document`'s `precision_support`) answer for a Bitmap document:
+    /// its storage (the descriptor's), colour mode and depth, and this gate's tools and menu items.
+    static func support(_ doc: RasterDocument) -> [String: Any] {
+        [
+            "storage": doc.precisionInfo?["storage"] ?? NSNull(), "color_mode": "bitmap",
+            "bits_per_channel": doc.bitsPerChannel ?? 1,
+            "supported_tools": tools.sorted(), "supported_menu_items": selectors.sorted(),
+        ]
+    }
+
     /// The core's disabled-in-Bitmap-mode sentence (`bitmap_document::refused_sentence`) for a
     /// tool or op name.
     static func disabledSentence(_ name: String) -> String {

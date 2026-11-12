@@ -477,6 +477,7 @@ do {
         ("model store sha refusal", verifyModelStoreShaRefusal),
         ("model store resume", verifyModelStoreResume),
         ("models pane", verifyModelsPane),
+        ("models intro path", verifyModelsIntroPath),
         ("settings card height", verifySettingsCardHeight),
         ("model catalog release urls", verifyModelCatalogReleaseURLs),
         ("model store legacy id", verifyModelStoreLegacyID),
@@ -493,6 +494,8 @@ do {
         ("indexed background key", verifyIndexedBackgroundKey),
         // The status bar's mode segment on every colour mode and depth.
         ("status mode segment", verifyStatusModeSegment),
+        // get_precision's mode and the summary's precision on every colour mode and depth.
+        ("precision reply modes", verifyPrecisionReplyModes),
     ]
     // Opt-in measurements: run only when named in DR_JOBS_PROBE_CASES.
     let measurements: [(String, () throws -> Void)] = [

@@ -263,6 +263,12 @@
     "width": 520,
     "height": 419
   },
+  "editor-32.window": {
+    "title": "The editor on a 32-bit float document",
+    "alt": "The editor window on the photograph of rooftops against a cloudy sky after it became a 32-bit float document. The tool rail runs down the left edge, the Rectangle Select options bar across the top, and the Layers panel on the right lists one layer, Background. The status bar reads 2048 × 1366 px, 72 ppi, RGB · 32-bit float · sRGB IEC61966-2.1, and Selection: none.",
+    "width": 1280,
+    "height": 832
+  },
   "editor-window.window": {
     "title": "The editor window",
     "alt": "The editor window with a photograph of rooftops silhouetted against a cloudy sky. A dashed rectangle selection marks the middle of the photo. The tool rail runs down the left edge, the Rectangle Select options bar runs across the top, and the Layers panel on the right lists two layers, Retouch above Background. The status bar reads 2048 × 1366 px, RGB, 8-bit, and Selection: 682 × 455 px.",
@@ -646,6 +652,18 @@
     "alt": "The Selective Color dialog. Preset reads Default and Colors reads Reds, above Cyan, Magenta, Yellow and Black sliders, all at 0%. Method is set to Relative, with Absolute beside it, and a paragraph explains the difference between the two and that the colour ranges overlap. The note ±100 % ink per range · 1 undo sits beside Cancel and Apply.",
     "width": 420,
     "height": 376
+  },
+  "settings-models.card": {
+    "title": "Settings ▸ Models",
+    "alt": "The Settings window on its Models tab. A hint says models download on demand from their official host into ~/Library/Application Support/Doctored/Models and that each is checked against its published SHA-256 before use. A scrolling list shows each model: Depth Anything V2 Small (Core ML, F16) reads Ready with its size on disk, a Licence: Apache-2.0 link, its tier (clean code and weights, training data encumbered) and a note on its training data, above Download and Cancel, greyed, and Delete. Sky Segmentation, U²-Net small (Core ML) follows, Ready under an MIT licence. Close and Done close the window.",
+    "width": 520,
+    "height": 696
+  },
+  "settings.card": {
+    "title": "Settings",
+    "alt": "The Settings window on its Shortcuts tab, beside the Models, MCP and Cloud tabs. A hint says to select a command, click the recorder and press the chord, that a shortcut must include ⌘ or be a function key, that a chord another command already holds is refused naming it, and that edits apply immediately. Below a Search commands field, a table lists each command by its menu path with its shortcut: File ▸ New… ⌘N, File ▸ New from Clipboard ⌥⌘N, File ▸ Open… ⌘O, File ▸ Automate ▸ Actions… ⌥F9, and a dash for commands with none. Under the table are the shortcut recorder, None and Reset All, and Close and Done close the window.",
+    "width": 520,
+    "height": 696
   },
   "shape-edit.bar": {
     "title": "Re-editing a shape layer",

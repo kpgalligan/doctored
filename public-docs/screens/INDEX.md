@@ -140,13 +140,6 @@ is the section under a `## ` heading that names it).
 | `super-zoom` | `sky` | `sheet` | Super Zoom previewing the small chimney at ×2 (needs the models) |
 | `generative-fill` | `sky` | `sheet` | The Generative Fill dialog on a selection |
 | `cloud-consent` | `sky` | `card` | The consent card before the first send to OpenAI |
-
-## Not yet captured
-
-Tracked in [#32](https://github.com/kpgalligan/doctored/issues/32).
-
-- `editor-32`: the editor on a 32-bit float document, whose status bar reads "RGB · 32-bit float".
-- `settings`: the Settings card, which fits a laptop screen (Settings ▸ Models scrolls its model
-  rows); it needs a `settings` entry in `cards` (`scripts/screens-probe/windows.swift`) first.
-- Settings ▸ Models: its intro prints the models folder's full path, which under isolation is the
-  runner's scratch folder, so the screen needs a cut or a neutral `DR_MODELS_DIR`.
+| `editor-32` | `sky` | `window` | The editor on a 32-bit float document, its status bar reading RGB · 32-bit float |
+| `settings` | `sky` | `card` | The Settings card on its Shortcuts tab |
+| `settings-models` | `sky` | `card` | Settings ▸ Models listing the catalogue's models (needs the models) |

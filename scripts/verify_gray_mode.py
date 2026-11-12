@@ -581,7 +581,7 @@ gate).
   composite) is R = G = B within `STACK_LOAD_BOUND16` of the RGB file opened,
   taken to 16 bits and through `convert_mode gray` (both the working Gray);
   `merge_to_hdr` of two gray PNGs (evs [0, 1], align false) and
-  `merge_layers_to_hdr` of their stack each give a Grayscale `rgba32_float`
+  `merge_layers_to_hdr` of their stack each give a 32-bit Grayscale (`gray32`)
   document; `merge_panorama` of the two clears the gate.
 - **G77 neural and generative.** On the textured document `super_zoom` clears
   the gate (on ok the new document is Grayscale), `jpeg_artifacts_removal`
@@ -1168,7 +1168,7 @@ def main():
         got = center(made[16], 2, 2)
         assert got[0] == got[1] == got[2] and abs(got[0] - expected) <= BOUND16, (got, expected)
         assert next(d for d in call('list_documents')['documents']
-                    if d['id'] == made[32])['precision'] == 'rgba32_float'
+                    if d['id'] == made[32])['precision'] == 'gray32'
         receipts['g1'] = {'fill16': got, 'oracle16': expected}
         print('PASS g1: New Grayscale at 8, 16 and 32 bits', flush=True)
 
@@ -3538,12 +3538,12 @@ def main():
         assert worst76 <= STACK_LOAD_BOUND16, worst76
         hdr76 = call('merge_to_hdr', paths=[str(gray76), str(gray76b)], evs=[0, 1], align=False)
         hdoc76 = hdr76['document']['id']
-        assert mode(hdoc76) == 'gray' and doc_info(hdoc76)['precision'] == 'rgba32_float', hdr76
+        assert mode(hdoc76) == 'gray' and doc_info(hdoc76)['precision'] == 'gray32', hdr76
         pair76 = call('load_files_into_stack', paths=[str(gray76), str(gray76b)])['document']['id']
         hdr76b = call('merge_layers_to_hdr', document_id=pair76, layers=[0, 1], evs=[0, 1],
                       align=False)
         hdoc76b = hdr76b['document']['id']
-        assert mode(hdoc76b) == 'gray' and doc_info(hdoc76b)['precision'] == 'rgba32_float', hdr76b
+        assert mode(hdoc76b) == 'gray' and doc_info(hdoc76b)['precision'] == 'gray32', hdr76b
         photo76 = attempt('merge_panorama', paths=[str(gray76), str(gray76b)])
         receipts['g76'] = {'worst16': worst76, 'hdr_profile': hdr76.get('profile'),
                            'merge_panorama': 'ok' if photo76[0] else photo76[1]}

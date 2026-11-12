@@ -207,6 +207,10 @@ Photoshop 26.10.0.
   Export), fixtures `indexed_547`, take2 PASS; `dr_precision_doc_open_indexed_psd`; drive I60. The
   jobs-probe case "indexed background key" runs `PrecisionGeometryWork.compute`'s merged-key branch
   (move, transform, crop past the canvas) with and without the swatch.
+- **The MCP precision names** (2026-11-12): `get_precision` answers `mode` indexed8, `bits_per_channel` 8, the
+  palette's `colors` and this gate's own lists (`IndexedDocument.support`, also `get_document`'s
+  `precision_support`), and the document summary's `precision` is indexed8 (`RasterDocument.precisionName`).
+  Jobs-probe case "precision reply modes".
 
 ## Open items
 
