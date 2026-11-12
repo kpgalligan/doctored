@@ -50,6 +50,9 @@ struct NativeBrushStroke {
               tip.angleDegrees.isFinite, (-180...180).contains(tip.angleDegrees) else {
             throw DoctoredCoreError(message: "Invalid native stroke tip or dab tuples; no partial stroke was applied.")
         }
+        guard !tip.aliased || tip.hardness >= 1 else {
+            throw DoctoredCoreError(message: Self.aliasedHardnessRefusal)
+        }
         for i in stride(from: 0, to: dabs.count, by: 4) {
             guard abs(dabs[i]) <= 1_000_000, abs(dabs[i + 1]) <= 1_000_000,
                   (1...Self.maximumDiameter).contains(dabs[i + 2]), (0...1).contains(dabs[i + 3]) else {
@@ -62,9 +65,33 @@ struct NativeBrushStroke {
 
     var request: String {
         get throws {
-            try NativeSelectionWork.encoding(["version": 1, "hardness": Double(tip.hardness),
-                "roundness": Double(tip.roundness), "angle_degrees": Double(tip.angleDegrees), "pixel": pixel])
+            try NativeSelectionWork.encoding(tipFields)
         }
+    }
+
+    /// The core request's tip: `aliased` is written only for the Pencil, so
+    /// every other request keeps its earlier bytes.
+    private var tipFields: [String: Any] {
+        var fields: [String: Any] = ["version": 1, "hardness": Double(tip.hardness),
+            "roundness": Double(tip.roundness), "angle_degrees": Double(tip.angleDegrees), "pixel": pixel]
+        if tip.aliased { fields["aliased"] = true }
+        return fields
+    }
+
+    static let aliasedHardnessRefusal = "An aliased (Pencil) stroke takes a hard tip: hardness must be 100."
+
+    /// The Pencil's dab geometry: the diameter rounded to whole pixels (at
+    /// least one) and the centre snapped so the dab's box lands on the pixel
+    /// grid — a pixel centre for an odd diameter, a pixel corner for an even
+    /// one. Every snapped dab of one diameter then covers the same pixel
+    /// pattern wherever it lands, so a stroke's edge cannot shimmer as the
+    /// pointer moves by a fraction of a pixel, and the canvas preview can draw
+    /// the core's own dab image 1:1.
+    static func aliasedGeometry(_ point: CGPoint, diameter: CGFloat) -> (point: CGPoint, diameter: CGFloat) {
+        let d = diameter.isFinite ? max(1, diameter.rounded()) : 1
+        let odd = Int(d) % 2 == 1
+        func snap(_ v: CGFloat) -> CGFloat { odd ? floor(v) + 0.5 : v.rounded() }
+        return (CGPoint(x: snap(point.x), y: snap(point.y)), d)
     }
 
     func healBounds(width: Int, height: Int) -> (x: Int, y: Int, width: Int, height: Int) {
@@ -87,15 +114,20 @@ struct NativeBrushStroke {
             var bits = value.bitPattern.littleEndian
             withUnsafeBytes(of: &bits) { data.append(contentsOf: $0) }
         }
-        return ["version": 1, "encoding": "le_f64_xy_diameter_opacity", "dabs": data.base64EncodedString(),
+        var out: [String: Any] = ["version": 1, "encoding": "le_f64_xy_diameter_opacity",
+                "dabs": data.base64EncodedString(),
                 "hardness": Double(tip.hardness), "roundness": Double(tip.roundness),
                 "angle_degrees": Double(tip.angleDegrees), "pixel": pixel]
+        // Written only for the Pencil, so every other recorded stroke keeps its bytes.
+        if tip.aliased { out["aliased"] = true }
+        return out
         }
     }
 
     init(canonical: [String: Any]) throws {
         let allowed: Set<String> = ["version", "encoding", "dabs", "hardness", "roundness", "angle_degrees", "pixel"]
-        guard Set(canonical.keys) == allowed,
+        let aliased = canonical["aliased"].map { Self.jsonBoolean($0) }
+        guard Set(canonical.keys).subtracting(["aliased"]) == allowed, aliased != .some(nil),
               Self.jsonNumber(canonical["version"]) == 1,
               canonical["encoding"] as? String == "le_f64_xy_diameter_opacity",
               let text = canonical["dabs"] as? String,
@@ -122,12 +154,25 @@ struct NativeBrushStroke {
             }
         }
         try self.init(tip: BrushTip(hardness: CGFloat(hardness),
-            angleDegrees: CGFloat(angle), roundness: CGFloat(roundness)), pixel: pixel, dabs: values)
+            angleDegrees: CGFloat(angle), roundness: CGFloat(roundness),
+            aliased: aliased.flatMap { $0 } ?? false), pixel: pixel, dabs: values)
     }
 
     private func footprintRequest(opacity: Double = 1) throws -> String {
-        try NativeSelectionWork.encoding(["version": 1, "hardness": Double(tip.hardness),
-            "roundness": Double(tip.roundness), "angle_degrees": Double(tip.angleDegrees), "pixel": pixel, "opacity": opacity])
+        var fields = tipFields
+        fields["opacity"] = opacity
+        return try NativeSelectionWork.encoding(fields)
+    }
+
+    /// The byte path's overlay of an aliased (Pencil) stroke: the core's
+    /// coverage at `opacity` in `rgb`'s straight ink, multiplied by
+    /// `selection` (canvas bytes). `BytePaintRasterizer.pixels` admits it.
+    func aliasedOverlay(width: Int, height: Int, rgb: [UInt8], selection: [UInt8]?,
+                        opacity: Double) throws -> [UInt8] {
+        let context = try NativeSelectionWork.context(nil)
+        return try RasterSelection.nativeBrushOverlay(width: width, height: height,
+            request: footprintRequest(opacity: opacity), dabs: dabs, rgb: rgb, selection: selection,
+            workingLimit: context.limit, otherRetained: context.other)
     }
 
     /// The core's scratch estimate for `footprint`, planned on main.
@@ -203,6 +248,8 @@ struct NativeBrushStrokeSession {
     private var usedSmudgeWork: UInt64 = 0
     /// `.stopInk` and `smudging` only: the last dab laid and its `workCharge`.
     private var lastSmudgeDab: (point: CGPoint, charge: UInt64)?
+    /// An aliased tip only: the last snapped dab, which a repeat is dropped against.
+    private var lastAliasedDab: (point: CGPoint, diameter: CGFloat)?
 
     /// Whether a stamp would still lay ink: no refusal and no cap reached.
     var acceptsInk: Bool { refusal == nil && !isFull }
@@ -264,6 +311,16 @@ struct NativeBrushStrokeSession {
 
     mutating func stamp(at point: CGPoint, diameter: CGFloat, pressure: CGFloat) {
         guard acceptsInk else { return }
+        var point = point, diameter = diameter
+        if tip.aliased {
+            // The Pencil lays snapped dabs (`NativeBrushStroke.aliasedGeometry`),
+            // and one that repeats the dab before it is dropped: it would paint
+            // the same pixels again, building up a pressure-opacity stroke
+            // wherever the hand slowed.
+            (point, diameter) = NativeBrushStroke.aliasedGeometry(point, diameter: diameter)
+            if let last = lastAliasedDab, last.point == point, last.diameter == diameter { return }
+            lastAliasedDab = (point, diameter)
+        }
         switch overflow {
         case .refuse:
             guard dabs.count / 4 < NativeBrushStroke.maximumDabs else {

@@ -12,7 +12,8 @@ extension EditorViewController {
             return false
         }
         guard let doc = document.doc, doc.precision == nil else { return false }
-        self.strokeTool = self.currentTool
+        // The Pencil strokes as the Brush from here on (`EditorTool.strokeFamily`).
+        self.strokeTool = self.currentTool.strokeFamily
         let idx = document.activeLayerIndex
         let isAdjustment = doc.layerIsAdjustment(idx)
         // Only brush and eraser ever paint COVERAGE; clone and dodge run

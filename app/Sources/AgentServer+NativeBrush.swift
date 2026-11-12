@@ -29,8 +29,18 @@ extension AgentServer {
             "blur_stroke", "sharpen_stroke", "smudge_stroke", "sponge_stroke", "history_brush_stroke",
             "art_history_brush_stroke"]
         let keys: Set<String> = ["stroke_version", "native_stroke", "pressures", "times", "duration",
-                                 "pressure_size", "pressure_opacity", "airbrush"]
-        guard !keys.isDisjoint(with: arguments.keys) else { return arguments }
+                                 "pressure_size", "pressure_opacity", "airbrush", "aliased"]
+        // The brush preset tools' `airbrush` is a stored tip value, not a stroke's.
+        guard !keys.isDisjoint(with: arguments.keys), Self.brushPresetsHandlers[tool] == nil else {
+            return arguments
+        }
+        let aliased = try aliasedArgument(tool: tool, arguments: arguments)
+        // `aliased: false` alone is the plain stroke it always was.
+        if !aliased, keys.intersection(arguments.keys) == ["aliased"] {
+            var plain = arguments
+            plain.removeValue(forKey: "aliased")
+            return plain
+        }
         // Phase 12A: a BYTE document admits canonical dabs for the two LAYER
         // paint tools, so a recorded pressure/airbrush byte stroke replays as
         // the dabs it actually deposited. The pixel brush (size <= 1, canonical
@@ -44,6 +54,9 @@ extension AgentServer {
                 throw ToolError(message: "Canonical native_stroke cannot also contain stroke generation options.")
             }
             let stroke = try NativeBrushStroke(canonical: canonical)
+            guard !stroke.tip.aliased || Self.aliasedStrokeTools.contains(tool) else {
+                throw ToolError(message: Self.aliasedToolRefusal(tool))
+            }
             // A canonical stroke takes the mirrored UI tool's ceiling too (5,000 px, 200 for
             // the healing and retouch brushes). Upper bound only: a pressure-sized canvas dab
             // goes below the tool's minimum.
@@ -54,7 +67,9 @@ extension AgentServer {
             }
             return arguments
         }
+        // `aliased` (the Pencil) generates version-1 dabs whether or not the call says so.
         let version = NativeBrushStroke.jsonNumber(arguments["stroke_version"])
+            ?? (aliased && arguments["stroke_version"] == nil ? 1 : nil)
         guard version == 1, arguments["native_stroke"] == nil else {
             throw ToolError(message: "Generated native strokes require stroke_version=1; unknown versions refuse.")
         }
@@ -69,7 +84,7 @@ extension AgentServer {
             throw ToolError(message: "Native stroke size is outside the supported range "
                 + "(\(Int(range.lowerBound))–\(Int(range.upperBound)) px for \(tool)).")
         }
-        var tip = try strokeTip(arguments)
+        var tip = aliased ? Self.pencilTip : try strokeTip(arguments)
         if heal { tip.flow = 1 }
         func samples(_ key: String, fallback: [Double]) throws -> [Double] {
             guard let raw = arguments[key] else { return fallback }
@@ -131,5 +146,47 @@ extension AgentServer {
     func capturedNativeStroke(_ arguments: [String: Any]) throws -> NativeBrushStroke? {
         guard let value = arguments["native_stroke"] as? [String: Any] else { return nil }
         return try NativeBrushStroke(canonical: value)
+    }
+
+    /// The tools an aliased tip strokes: the Pencil on a layer, a mask, a
+    /// plane or a channel (`brush_stroke`) and in Quick Mask
+    /// (`quick_mask_stroke`), the canvas's two Pencil routes.
+    static let aliasedStrokeTools: Set<String> = ["brush_stroke", "quick_mask_stroke"]
+
+    /// The Pencil's tip, as the canvas latches it (`ToolOptionsStore.pencilTip`).
+    static let pencilTip = BrushTip(hardness: 1, flow: 1, spacingPercent: BrushTip.aliasedSpacingPercent,
+                                    angleDegrees: 0, roundness: 1, aliased: true)
+
+    static func aliasedToolRefusal(_ tool: String) -> String {
+        "aliased is the Pencil's tip, which brush_stroke and quick_mask_stroke take; \(tool) has none."
+    }
+
+    /// `aliased` (mirrors the Pencil tool: Brush's slot ▸ Pencil): true strokes
+    /// the Pencil's hard, two-valued tip on `brush_stroke` or
+    /// `quick_mask_stroke`. Its tip is fixed, so a tip key the call sets to
+    /// anything but the Pencil's own refuses by name rather than being
+    /// ignored.
+    private func aliasedArgument(tool: String, arguments: [String: Any]) throws -> Bool {
+        guard let raw = arguments["aliased"] else { return false }
+        let value: Bool
+        if let flag = NativeBrushStroke.jsonBoolean(raw) {
+            value = flag
+        } else if let text = raw as? String, ["true", "false"].contains(text.lowercased()) {
+            value = text.lowercased() == "true"
+        } else {
+            throw ToolError(message: "aliased must be boolean.")
+        }
+        guard value else { return false }
+        guard Self.aliasedStrokeTools.contains(tool) else {
+            throw ToolError(message: Self.aliasedToolRefusal(tool))
+        }
+        for key in ["hardness", "flow"] where arguments[key] != nil && doubleArg(arguments, key) != 100 {
+            throw ToolError(message: "An aliased (Pencil) stroke is hard at full flow: omit \(key) or pass 100.")
+        }
+        for key in ["spacing", "angle", "roundness", "airbrush"] where arguments[key] != nil {
+            throw ToolError(message: "An aliased (Pencil) stroke takes size, opacity and the pressures; "
+                + "its tip has no \(key).")
+        }
+        return true
     }
 }

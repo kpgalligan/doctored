@@ -1,4 +1,5 @@
-//! Standalone bounded native brush geometry transfer, with atomic u16 output.
+//! Standalone bounded native brush geometry transfer, with atomic u16 output
+//! and, for the byte path, the same coverage as an RGBA8 paint overlay.
 use crate::brush_coverage::{BrushPlan, BrushRequest, MAX_BRUSH_DABS};
 use crate::ffi_util::{borrow_cstr_bounded, fallible_op};
 use crate::job_control::{DrJobControl, JobContext};
@@ -113,6 +114,76 @@ pub unsafe extern "C" fn dr_brush_u16(
                 let output = request.rasterize((width, height), dabs, job)?;
                 job.report(1., 5)?;
                 ptr::copy_nonoverlapping(output.as_ptr(), out, plan.output_samples);
+                Ok(())
+            },
+            |()| true,
+        )
+    }
+}
+/// Rasterize the same bounded brush as `dr_brush_u16` and write it as the
+/// canvas-sized premultiplied RGBA8 overlay `dr_doc_painting_layer` takes:
+/// `rgb` (three bytes) is the straight ink, `selection` (NULL with length 0,
+/// or `width*height` bytes) multiplies the coverage, and `out` holds
+/// `width*height*4` bytes (`brush_overlay`'s rule). Scratch is the brush
+/// plan's; errors and cancellation leave `out` unchanged.
+/// # Safety
+/// text/dabs follow the plan contract; rgb NULL or readable for 3 bytes;
+/// selection NULL or readable for selection_len bytes; out NULL or writable
+/// for out_len bytes and not aliasing any input; control NULL/live; err_out
+/// NULL/writable.
+#[no_mangle]
+pub unsafe extern "C" fn dr_brush_overlay_rgba8(
+    width: u32,
+    height: u32,
+    text: *const c_char,
+    dabs: *const f64,
+    count: usize,
+    rgb: *const u8,
+    selection: *const u8,
+    selection_len: usize,
+    out: *mut u8,
+    out_len: usize,
+    limit: u64,
+    other: u64,
+    control: *const DrJobControl,
+    err_out: *mut *mut c_char,
+) -> bool {
+    unsafe {
+        fallible_op(
+            err_out,
+            "rasterizing native brush overlay",
+            false,
+            || {
+                let control = control.as_ref();
+                let _run = control.map(DrJobControl::begin).transpose()?;
+                let job = control.map_or(JobContext::NONE, JobContext::new);
+                let (request, dabs, plan) =
+                    request(width, height, text, dabs, count, limit, other, job)?;
+                let samples = plan.output_samples;
+                if rgb.is_null() {
+                    return Err("native brush overlay requires an RGB ink".into());
+                }
+                let mask_ok = if selection.is_null() {
+                    selection_len == 0
+                } else {
+                    selection_len == samples
+                };
+                if !mask_ok {
+                    return Err("native brush overlay selection length differs from canvas".into());
+                }
+                if out.is_null() || Some(out_len) != samples.checked_mul(4) {
+                    return Err("native brush overlay output length differs from canvas".into());
+                }
+                let ink = [*rgb, *rgb.add(1), *rgb.add(2)];
+                let coverage = request.rasterize((width, height), dabs, job)?;
+                job.report(1., 5)?;
+                let mask = if selection.is_null() {
+                    None
+                } else {
+                    Some(std::slice::from_raw_parts(selection, samples))
+                };
+                let out = std::slice::from_raw_parts_mut(out, samples * 4);
+                crate::brush_overlay::overlay_rgba8(&coverage, ink, mask, out);
                 Ok(())
             },
             |()| true,

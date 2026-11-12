@@ -216,7 +216,7 @@ struct ShapeToolPreview {
             .magneticLasso, .colorSampler, .ruler, .perspectiveCrop, .blurBrush, .sharpenBrush,
             .smudge, .sponge, .historyBrush, .objectSelect, .pen, .remove, .contentAwareMove:
             name = "rect"
-        case .artHistoryBrush:
+        case .artHistoryBrush, .pencil:
             name = "rect"
         }
         return ShapeLayerPayload(

@@ -53,6 +53,10 @@ enum BytePaintRasterizer {
               coverageOpacity.map({ $0.isFinite && (0...1).contains($0) }) ?? true else {
             throw DoctoredCoreError(message: "Invalid byte stroke extent, size or coverage opacity.")
         }
+        if stroke.tip.aliased {
+            return try aliasedPixels(stroke: stroke, ink: ink, width: width, height: height,
+                space: space, selection: selection, coverageOpacity: coverageOpacity)
+        }
         let count = width * height * 4
         // The overlay and, unless the size-1 pixel brush fills squares, the one
         // dab image or mask `rasterizeDabs` builds at `size`.
@@ -76,5 +80,37 @@ enum BytePaintRasterizer {
             for i in pixels.indices { pixels[i] = UInt8(Int(pixels[i]) * factor / 255) }
         }
         return pixels
+    }
+
+    /// An aliased (Pencil) stroke's overlay: the core rasterizes its dabs
+    /// (`dr_brush_overlay_rgba8`), so every byte target — layer, mask, plane,
+    /// channel and the byte Quick Mask — takes exactly the coverage a typed
+    /// document's Pencil does. A coverage target's opacity rides in the
+    /// request; a selection multiplies the coverage by its bytes.
+    private static func aliasedPixels(
+        stroke: NativeBrushStroke, ink: ByteDabInk, width: Int, height: Int,
+        space: CGColorSpace, selection: CanvasSelection?, coverageOpacity: Double?
+    ) throws -> [UInt8] {
+        guard case .color(let color) = ink else {
+            throw DoctoredCoreError(message: "An aliased tip paints a colour; a sampled dab has none.")
+        }
+        guard let bytes = ColorProfile.bytes(color, in: NSColorSpace(cgColorSpace: space) ?? .sRGB) else {
+            throw DoctoredCoreError(message: "Could not convert the paint color.")
+        }
+        _ = try RasterResources.shared.admit(scratch: aliasedScratch(width: width, height: height,
+            dabs: stroke.dabs.count / 4))
+        return try stroke.aliasedOverlay(width: width, height: height, rgb: Array(bytes.prefix(3)),
+            selection: selection?.maskBytes(), opacity: coverageOpacity ?? 1)
+    }
+
+    /// The most an aliased overlay of `dabs` dabs over a `width × height`
+    /// canvas asks: its RGBA8 output, the selection bytes, and the core's
+    /// brush plan (master: `brush_coverage::plan`, `4 · BOOKKEEPING_BYTES +
+    /// 8 · |F| + 2 · n + 32 · dabs` with the footprint `|F| ≤ n`). The canvas
+    /// admits the whole-canvas figure at mouse-down, so the commit never asks
+    /// for more than the gesture was admitted with.
+    static func aliasedScratch(width: Int, height: Int, dabs: Int) -> UInt64 {
+        let n = UInt64(max(width, 0)) * UInt64(max(height, 0))
+        return 4 * n + n + 4096 + 4 * 1_048_576 + 10 * n + 32 * UInt64(max(dabs, 0))
     }
 }

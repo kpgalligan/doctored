@@ -94,6 +94,7 @@ struct AgentPathGuard {
         "DR_DEVELOP_FILTER_PRESETS_DIR", "DR_CLIPBOARD_PAYLOADS_DIR", "DR_PRINTERS_DIR",
         "DR_MODELS_DIR", "DR_SKIES_DIR", "DR_COLOR_SETTINGS_DIR", "DR_CLOUD_DIR",
         "DR_STYLE_PRESETS_DIR", "DR_HDR_TONING_PRESETS_DIR", "DR_RAW_LOCAL_MASKS_DIR",
+        "DR_BRUSH_PRESETS_DIR",
     ]
 
     /// Every tool argument that names a file or folder, by tool.
@@ -110,7 +111,7 @@ struct AgentPathGuard {
              "add_live_photo_layer", "describe_profile", "assign_profile", "convert_profile",
              "set_proof_setup", "render_proof", "read_photoshop_adjustment_preset",
              "load_snapshot", "import_action", "convert_mode", "import_style_presets",
-             "set_color_table", "set_duotone"], ["path"], .read)
+             "set_color_table", "set_duotone", "import_brush_presets"], ["path"], .read)
         add(["load_files_into_stack", "merge_to_hdr", "merge_panorama"], ["paths"], .read)
         add(["contact_sheet_from_sources"], ["files"], .read)
         add(["paste"], ["payload_path"], .read)
@@ -126,7 +127,8 @@ struct AgentPathGuard {
         add(["contact_sheet", "contact_sheet_from_sources"],
             ["output", "settings", "profile_path"], .read)
         add(["save_copy", "export_image", "export_psd", "export_pdf", "save_snapshot",
-             "get_raw_local_mask", "export_style_presets", "get_color_table", "get_duotone"],
+             "get_raw_local_mask", "export_style_presets", "get_color_table", "get_duotone",
+             "export_brush_presets"],
             ["path"], .write)
         add(["copy", "cut", "copy_merged"], ["public_copy_path"], .write)
         add(["quick_export", "save_export_preset", "export_layers", "package_action"],

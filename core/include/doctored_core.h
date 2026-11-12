@@ -7545,7 +7545,19 @@ bool dr_selection_u16(uint32_t width, uint32_t height, const char *request,
  * exactly (interior 1, exterior 0) and integrate 8x8 only on the edge band, and
  * work_units = n + |footprint| + per dab (0 zero dabs, box pixel/soft,
  * min(64*box, box + 64*band bound) hard): never above the earlier figure; the
- * output is still canvas-sized and equal to the canvas-field path. */
+ * output is still canvas-sized and equal to the canvas-field path.
+ * Optional aliased:bool (default false; true requires hardness 1, else "native
+ * brush aliased tip requires hardness 1") is the Pencil's tip: each pixel's
+ * coverage before the dab's opacity becomes 1 where it is at least one half
+ * (32 of the 8x8 samples, half of pixel mode's square) and 0 below.
+ *
+ * dr_brush_overlay_rgba8 rasterizes the same request and dabs (the same plan,
+ * scratch and refusals) and writes the canvas-sized PREMULTIPLIED RGBA8 overlay
+ * dr_doc_painting_layer takes: rgb is the straight ink (3 bytes), selection is
+ * NULL with selection_length 0 or width*height bytes that multiply the coverage,
+ * out holds width*height*4 bytes. Per pixel, each step rounded half up once:
+ * a = round(coverage*255/65535), a = round(a*selection/255), and each colour
+ * byte round(ink*a/255). Errors/cancellation leave out untouched. */
 char *dr_brush_u16_plan(uint32_t width, uint32_t height, const char *request,
     const double *dabs, size_t dab_count, uint64_t limit,
     uint64_t other_retained, char **err_out);
@@ -7553,6 +7565,11 @@ bool dr_brush_u16(uint32_t width, uint32_t height, const char *request,
     const double *dabs, size_t dab_count, uint16_t *out, size_t out_length,
     uint64_t limit, uint64_t other_retained, const DrJobControl *control,
     char **err_out);
+bool dr_brush_overlay_rgba8(uint32_t width, uint32_t height, const char *request,
+    const double *dabs, size_t dab_count, const uint8_t *rgb,
+    const uint8_t *selection, size_t selection_length,
+    uint8_t *out, size_t out_length, uint64_t limit, uint64_t other_retained,
+    const DrJobControl *control, char **err_out);
 
 /* The retouch brushes (ffi_retouch_brush.rs). Pure: each returns a new
  * document, or NULL when nothing would change.

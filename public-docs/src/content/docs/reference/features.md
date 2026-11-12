@@ -2470,7 +2470,8 @@ The design record behind each area is in the repository's
 - Brush and eraser with the full tip option set, shared with the clone
   stamp and dodge/burn (per-tool size, opacity/exposure, hardness, flow,
   spacing, angle, roundness, smoothing, pressure size and airbrush, plus
-  built-in tip presets: hardness below 100% stamps soft airbrushed dabs;
+  tip presets, built-in and the user's own, which the Preset popup saves,
+  deletes, imports and exports: hardness below 100% stamps soft airbrushed dabs;
   flow deposits per dab so a stroke builds up where it crosses itself,
   with opacity still capping the stroke once; spacing sets the dab
   rhythm — 150%+ reads as a dotted line; angle and roundness squash the
@@ -2480,8 +2481,8 @@ The design record behind each area is in the repository's
   hovers; and the brush and clone stamp composite their paint through
   the full layer blend-mode set; shared color; `[`/`]` resize, up to
   5,000 px for the brush, eraser, clone stamp and dodge/burn, `{`/`}`
-  step hardness through 0/25/50/75/100%, `,`/`.` step through the built-in
-  presets (wrapping) and Shift+`,`/Shift+`.` jump to the first/last; the
+  step hardness through 0/25/50/75/100%, `,`/`.` step through the presets,
+  built-in then the user's (wrapping), and Shift+`,`/Shift+`.` jump to the first/last; the
   pointer becomes an outline of the tip's full footprint, scaled by size,
   angle, roundness and zoom (the crosshair returns below 6 screen points
   and while ⌥ samples a pixel); 1 px
@@ -2496,8 +2497,8 @@ The design record behind each area is in the repository's
   shared tool key cycles its tools in rail order, first returning to the
   one last used. Tool keys still switch after
   an options-bar edit or preset pick. Related tools share one
-  rail slot: the nine selection tools, Crop and Perspective Crop, the five
-  paint tools (brush, eraser, clone, history brush, art history brush), the six healing tools
+  rail slot: the nine selection tools, Crop and Perspective Crop, the six
+  paint tools (brush, pencil, eraser, clone, history brush, art history brush), the six healing tools
   (spot healing, remove, healing, patch, content-aware move, red eye),
   the five toning and focus tools (dodge, sponge, blur, sharpen, smudge),
   the three shapes, the eyedropper with the color sampler and ruler, and

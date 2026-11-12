@@ -27,6 +27,32 @@ extension RasterSelection {
         return output
     }
 
+    /// `dr_brush_overlay_rgba8`: the same brush as `nativeBrush`, written as the
+    /// canvas-sized premultiplied RGBA8 overlay the byte paint ops take, in
+    /// `rgb`'s straight ink and multiplied by `selection` (canvas-sized bytes).
+    static func nativeBrushOverlay(width: Int, height: Int, request: String, dabs: [Double],
+                                   rgb: [UInt8], selection: [UInt8]?,
+                                   workingLimit: UInt64, otherRetained: UInt64) throws -> [UInt8] {
+        guard rgb.count == 3 else { throw DoctoredCoreError(message: "Native brush overlay ink needs three bytes.") }
+        var error: UnsafeMutablePointer<CChar>?
+        var output = [UInt8](repeating: 0, count: width * height * 4)
+        let ok = dabs.withUnsafeBufferPointer { input in
+            rgb.withUnsafeBufferPointer { ink in
+                output.withUnsafeMutableBufferPointer { out in
+                    func call(_ mask: UnsafePointer<UInt8>?, _ maskCount: Int) -> Bool {
+                        dr_brush_overlay_rgba8(UInt32(width), UInt32(height), request, input.baseAddress,
+                            dabs.count / 4, ink.baseAddress, mask, maskCount, out.baseAddress, out.count,
+                            workingLimit, otherRetained, nil, &error)
+                    }
+                    guard let selection else { return call(nil, 0) }
+                    return selection.withUnsafeBufferPointer { call($0.baseAddress, $0.count) }
+                }
+            }
+        }
+        guard ok else { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Native brush overlay failed.")) }
+        return output
+    }
+
     static func nativePlan(width: Int, height: Int, request: String,
                            workingLimit: UInt64, otherRetained: UInt64) throws -> [String: Any] {
         guard width > 0, height > 0, width <= RasterImage.maxResizePixels / height else {

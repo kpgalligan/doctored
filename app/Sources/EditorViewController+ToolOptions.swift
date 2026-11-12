@@ -78,6 +78,8 @@ extension EditorViewController {
             return paintClusters(tool)
         case .artHistoryBrush:
             return paintClusters(tool)
+        case .pencil:
+            return pencilClusters()
         case .remove:
             return removeClusters()
         case .patch:
@@ -479,7 +481,7 @@ extension EditorViewController {
     /// layer pixels), Normal for everything else. Called from
     /// onStrokeBegin, which latches it for the stroke's lifetime.
     func paintStrokeBlendMode() -> DrBlendMode {
-        guard currentTool == .brush || currentTool == .clone,
+        guard currentTool.strokeFamily == .brush || currentTool == .clone,
               let paint = ToolOptionsStore.shared.paintOptions(for: currentTool)
         else { return DR_BLEND_NORMAL }
         // On a Grayscale or Lab Color document a stored mode outside its list strokes as Normal,
@@ -519,7 +521,7 @@ extension EditorViewController {
         let gray = document?.doc?.isGray == true
         let lab = document?.doc?.isLab == true
         let wanted: String
-        if currentTool == .brush || currentTool == .clone {
+        if currentTool.strokeFamily == .brush || currentTool == .clone {
             wanted = lab ? "paint.blend.lab" : gray ? "paint.blend.gray" : "paint.blend"
         } else if currentTool == .artHistoryBrush {
             wanted = lab ? "paint.artMode.lab" : gray ? "paint.artMode.gray" : "paint.artMode"
@@ -623,7 +625,7 @@ extension EditorViewController {
         ])
     }
 
-    private func paintClusters(_ tool: EditorTool) -> [OptionCluster] {
+    func paintClusters(_ tool: EditorTool) -> [OptionCluster] {
         let read: () -> PaintToolOptions = {
             ToolOptionsStore.shared.paintOptions(for: tool) ?? PaintToolOptions()
         }
@@ -636,27 +638,9 @@ extension EditorViewController {
         let blendChoicesID = document?.doc?.isLab == true ? "paint.blend.lab"
             : document?.doc?.isGray == true ? "paint.blend.gray" : "paint.blend"
         var clusters: [OptionCluster] = [
-            OptionCluster([
-                OptionDescriptor(
-                    id: "paint.preset", overflowLabel: "Preset",
-                    kind: .popup(
-                        width: 100, items: BrushPreset.popupItems,
-                        get: { BrushPreset.matchIndex(of: read()) },
-                        set: { [weak self] index in
-                            // Row 0 is "Custom" — what shows when the values
-                            // match no preset; picking it changes nothing.
-                            guard index >= 1,
-                                  BrushPreset.builtIns.indices.contains(index - 1)
-                            else { return }
-                            // End any live field edit FIRST: a field editor
-                            // skips value refreshes while active, and its
-                            // stale text would commit right back over the
-                            // preset at the next blur.
-                            self?.view.window?.makeFirstResponder(nil)
-                            write(BrushPreset.builtIns[index - 1].applied(to: read()))
-                            self?.syncCanvasPaintState()
-                        })),
-            ]),
+            // The built-in and user presets and the library's four actions
+            // (EditorViewController+BrushPresets.swift).
+            OptionCluster([brushPresetDescriptor(read: read, write: write)]),
             OptionCluster([
                 OptionDescriptor(
                     id: "paint.size", microLabel: "Size", overflowLabel: "Size",
@@ -898,7 +882,7 @@ extension EditorViewController {
                     // Blend applies where a stroke PAINTS layer pixels. The
                     // eraser is its own composite op and dodge a retouch op,
                     // so their popups stay pinned to Normal.
-                    isEnabled: { tool == .brush || tool == .clone }),
+                    isEnabled: { tool.strokeFamily == .brush || tool == .clone }),
             ]),
             OptionCluster([
                 OptionDescriptor(

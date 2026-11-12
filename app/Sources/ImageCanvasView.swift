@@ -720,7 +720,7 @@ final class ImageCanvasView: NSView {
     var onBrushSizeKey: ((CGFloat) -> Void)?
     /// Bare { (false) / } (true): steps the brush tip's hardness.
     var onBrushHardnessKey: ((_ up: Bool) -> Void)?
-    /// Bare , . and Shift+, Shift+. (< >): steps through the built-in presets.
+    /// Bare , . and Shift+, Shift+. (< >): steps through the presets.
     var onBrushPresetKey: ((BrushPreset.Step) -> Void)?
     /// Bare /: toggles the active layer's Lock Transparency.
     var onLockTransparencyKey: (() -> Void)?
@@ -1790,7 +1790,7 @@ final class ImageCanvasView: NSView {
         // and pinch); every other tool's canvas interaction is inert.
         if quickMaskActive {
             switch tool {
-            case .brush, .eraser:
+            case .brush, .pencil, .eraser:
                 beginStrokePress(
                     at: clamp(point: convert(event.locationInWindow, from: nil)),
                     pressure: Self.tabletPressure(of: event), modifiers: event.modifierFlags)
@@ -1815,7 +1815,7 @@ final class ImageCanvasView: NSView {
         }
         if tool == .eyedropper
             || (event.modifierFlags.contains(.option)
-                && (tool == .brush || tool == .fill || tool == .gradient)) {
+                && (tool.strokeFamily == .brush || tool == .fill || tool == .gradient)) {
             eyedropperDragActive = true
             onEyedropper?(convert(event.locationInWindow, from: nil))
             return
@@ -1901,7 +1901,7 @@ final class ImageCanvasView: NSView {
             moveDragDuplicate = event.modifierFlags.contains(.option)
             moveDragCursor.set()
             onMoveBegin?(point, event.modifierFlags)
-        case .brush, .eraser:
+        case .brush, .pencil, .eraser:
             beginStrokePress(at: point, pressure: Self.tabletPressure(of: event),
                              modifiers: event.modifierFlags)
         case .text:
@@ -2133,7 +2133,7 @@ final class ImageCanvasView: NSView {
                 Int((raw.x - origin.x).rounded()), Int((raw.y - origin.y).rounded()),
                 event.modifierFlags)
         case .brush, .eraser, .clone, .dodge, .heal, .spotHeal, .blurBrush, .sharpenBrush,
-            .smudge, .sponge, .historyBrush, .artHistoryBrush:
+            .smudge, .sponge, .historyBrush, .artHistoryBrush, .pencil:
             // No clamping: the image-sized overlay context clips naturally,
             // so a stroke that leaves the canvas paints up to the edge and
             // stops instead of smearing along the border.
@@ -2318,7 +2318,7 @@ final class ImageCanvasView: NSView {
             window?.invalidateCursorRects(for: self)
             onMoveEnd?()
         case .brush, .eraser, .clone, .dodge, .heal, .spotHeal, .blurBrush, .sharpenBrush,
-            .smudge, .sponge, .historyBrush, .artHistoryBrush:
+            .smudge, .sponge, .historyBrush, .artHistoryBrush, .pencil:
             endStroke(at: convert(event.locationInWindow, from: nil))
         case .patch, .contentAwareMove:
             let up = clamp(point: convert(event.locationInWindow, from: nil))
@@ -2532,7 +2532,8 @@ final class ImageCanvasView: NSView {
             // flowed-down dab would empty it, so strength lives in the op.
             flow: strokeHealKind == nil ? brushFlow : 1,
             spacingPercent: brushSpacingPercent, angleDegrees: brushAngle,
-            roundness: brushRoundness)
+            roundness: brushRoundness, aliased: tool.aliasedTip)
+        if strokeTip.aliased { beginPencilStroke(in: context) }
         strokeUsesPressure = brushPressureSize && pressure != nil && brushSize > 1
         nativeStrokeSession = (nativeBrushEnabled
             || byteDabSessionWanted(coverage: onCoverage, pressure: pressure))
@@ -2561,9 +2562,15 @@ final class ImageCanvasView: NSView {
             }
         } else if stamped {
             if onCoverage { strokeCoverageScale = brushOpacity }
-            strokeSoftDab = SoftBrush.dab(
-                color: color.withAlphaComponent(strokeTip.flow),
-                diameter: brushSize, hardness: brushHardness, space: documentColorSpace)
+            if strokeTip.aliased {
+                // A Pencil dab that cannot be built refuses the stroke (`pencilDab`).
+                do { strokeSoftDab = try pencilDab(color: color) }
+                catch { strokeActive = true; cancelStroke(); NSApp.presentError(error); return }
+            } else {
+                strokeSoftDab = SoftBrush.dab(
+                    color: color.withAlphaComponent(strokeTip.flow),
+                    diameter: brushSize, hardness: brushHardness, space: documentColorSpace)
+            }
         }
         strokeActive = true
         strokeLastPoint = point
@@ -2754,12 +2761,15 @@ final class ImageCanvasView: NSView {
     private func stampSoftDab(
         _ dab: CGImage, in context: CGContext, at point: CGPoint, pressure: CGFloat = 1
     ) {
-        nativeStrokeSession?.stamp(at: point, diameter: dabDiameter(pressure), pressure: pressure)
+        // The Pencil's dab lands snapped, where its session records it.
+        let (point, diameter) = strokeTip.aliased
+            ? NativeBrushStroke.aliasedGeometry(point, diameter: dabDiameter(pressure))
+            : (point, dabDiameter(pressure))
+        nativeStrokeSession?.stamp(at: point, diameter: diameter, pressure: pressure)
         if nativeStrokeSession?.acceptsInk == false { return }
         context.saveGState()
         if nativeStrokeSession?.pressureOpacity == true { context.setAlpha(pressure) }
-        SoftBrush.stamp(
-            dab, in: context, at: point, diameter: dabDiameter(pressure), tip: strokeTip)
+        SoftBrush.stamp(dab, in: context, at: point, diameter: diameter, tip: strokeTip)
         context.restoreGState()
     }
 
@@ -2908,6 +2918,7 @@ final class ImageCanvasView: NSView {
         case .sponge: return "Sponge"
         case .historyBrush: return "History Brush"
         case .artHistoryBrush: return "Art History Brush"
+        case .pencil: return "Pencil"
         case .heal: return "Healing Brush"
         case .spotHeal: return "Spot Healing"
         default: return "Brush Stroke"

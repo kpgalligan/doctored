@@ -106,6 +106,8 @@ extension AgentServer {
 
 extension EditorViewController {
     func beginPrecisionScalarStroke(_ capture: PrecisionEditorCapture) throws -> Bool {
+        // The Pencil strokes as the Brush (`EditorTool.strokeFamily`).
+        let currentTool = self.currentTool.strokeFamily
         // A one-plane target has no saturation for the Sponge to change.
         if currentTool == .sponge, !capture.quickMask, !capture.target.isPlane {
             throw DoctoredCoreError(message: FloatRetouch.spongeCoverageRefusal)

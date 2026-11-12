@@ -11,8 +11,9 @@ extension ImageCanvasView {
     func byteDabSessionWanted(coverage: Bool, pressure: CGFloat?) -> Bool {
         guard !nativeBrushEnabled else { return false }
         // Smudge is computed from the stroke's dabs, never from its overlay,
-        // so it always needs them.
-        if tool == .clone || tool == .heal || tool == .smudge { return true }
+        // so it always needs them; the Pencil commits the core's rasterization
+        // of its dabs (`BytePaintRasterizer.pixels`), at every size.
+        if tool == .clone || tool == .heal || tool == .smudge || tool.aliasedTip { return true }
         // The Art History Brush's clicks are its dabs, as Smudge's are.
         if tool == .artHistoryBrush { return true }
         let eligible: Set<EditorTool> = [.brush, .eraser, .dodge, .spotHeal,
@@ -34,6 +35,7 @@ extension ImageCanvasView {
     /// beside it for a byte dab session, so the commit never asks for more
     /// than the gesture was admitted with.
     func admitDabImages(diameter: CGFloat) throws {
+        if strokeTip.aliased { return try admitPencilImages(diameter: diameter) }
         guard diameter > 1 else { return }
         let byteSession = !nativeBrushEnabled && nativeStrokeSession != nil
         let builds = (tool == .clone || tool == .heal)

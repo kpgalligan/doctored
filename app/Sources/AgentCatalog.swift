@@ -241,6 +241,7 @@ extension AgentServer {
         catalog.append(contentsOf: horizonCatalog())
         catalog.append(contentsOf: pixelArtCatalog())
         catalog.append(contentsOf: adjustmentPresetCatalog())
+        catalog.append(contentsOf: brushPresetCatalog())
         catalog.append(contentsOf: stylePresetCatalog())
         catalog.append(contentsOf: canvasFramingCatalog())
         catalog.append(contentsOf: layerDragCatalog())

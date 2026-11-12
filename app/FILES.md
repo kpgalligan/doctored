@@ -153,7 +153,10 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+MissingFonts.swift` — `list_missing_fonts` and `replace_missing_fonts`, mirroring Layer ▸ Replace Missing Fonts…'s rows and Apply over the same ops.
 - `AgentServer+TransformJobs.swift` — the final Free Transform / Distort raster commits as worker jobs (only pure affine/perspective resampling) and Transform Again's memory.
 - `SoftBrush.swift` — `SoftBrush` is the dab engine behind the paint tools' tip options.
-- `BrushPreset.swift` — the paint tools' built-in tip presets: named sets of the tip fields (hardness, flow, spacing, angle, roundness, airbrush); size and opacity stay untouched.
+- `BrushPreset.swift` — the paint tools' tip presets (built-ins, then the user's): named sets of the six tip fields, the file schema; size and opacity stay untouched.
+- `BrushPresetLibrary.swift` — the user brush preset library (`DR_BRUSH_PRESETS_DIR`), its held list, and the `.doctoredbrushes` import and export.
+- `EditorViewController+BrushPresets.swift` — the paint bar's Preset popup: presets, Save, Delete, Import and Export Presets…, the rebuild on change.
+- `EditorViewController+Pencil.swift` / `ImageCanvasView+Pencil.swift` — the Pencil: its options bar, its core-made preview dab and its admission.
 - `StrokeSpline.swift` — `StrokeSpline`, the centripetal Catmull-Rom smoother for canvas strokes, and `StrokeLeash`, the Smoothing stabilizer; agent strokes keep their exact polyline.
 - `QuickMaskStroke.swift` — a Quick Mask stroke's canonical source-over coverage after pressure, smoothing and timed dabs, stored as RLE (byte, or the native u16 encoding).
 - `PaintTarget.swift` — `RasterPlane` (one 8-bit plane, mirroring `DrPlane`) and `PaintTarget`, what a stroke, fill or adjustment edits: the layer, its mask, a plane or a channel.
@@ -707,6 +710,7 @@ Detail belongs in the source file's own header comment.
 - `StylePreset.swift` / `StylePresetThumbnail.swift` — style presets: model, codec, library (built-ins, groups, `.asl` import/export, apply/merge), swatch render + cache.
 - `StylesPanelController.swift` / `NewStyleSheetController.swift` / `EditorViewController+StylePresets.swift` — Window ▸ Styles: the grid panel, New Style…, export, apply.
 - `AgentServer+StylePresets.swift` / `AgentCatalog+StylePresets.swift` — the seven style-preset MCP tools and their catalog entries.
+- `AgentServer+BrushPresets.swift` / `AgentCatalog+BrushPresets.swift` — the five brush-preset MCP tools and their catalog entries.
 - `BrightnessContrastSheet.swift` / `ReplaceColorSheet.swift` — Brightness/Contrast (Use Legacy; modern curve by default) and Replace Color; both `AdjustmentSheet` subclasses.
 - `EditorViewController+Adjustments.swift` — the one ordered list of adjustment ops that Image ▸ Adjustments, Layer ▸ New Adjustment Layer and the Layers footer menu build from.
 - `EditorViewController+AutoAdjust.swift` — Image ▸ Auto Tone / Auto Contrast / Auto Color: Levels parameters from the active layer's histogram, applied through the one Levels math.

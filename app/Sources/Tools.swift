@@ -62,6 +62,18 @@ enum EditorTool: Int, CaseIterable {
     case contentAwareMove
     // Paints the History Brush's source as stylized strokes; shares its slot.
     case artHistoryBrush
+    // The Brush's stroke with an aliased tip; shares the Brush's slot.
+    case pencil
+
+    /// The tool whose stroke this one IS: its targets, refusals, blend list,
+    /// commit, MCP tool and recording. The Pencil strokes as the Brush (with
+    /// `aliasedTip`), so every gate and latch past mouse-down reads this
+    /// rather than the tool itself; every other tool is its own.
+    var strokeFamily: EditorTool { self == .pencil ? .brush : self }
+
+    /// True for the tool whose stroke uses the Pencil's aliased tip
+    /// (`BrushTip.aliased`): hard, every pixel painted fully or not at all.
+    var aliasedTip: Bool { self == .pencil }
 
     /// The status bar's (and tool menu's) name for the tool.
     var displayName: String {
@@ -106,6 +118,7 @@ enum EditorTool: Int, CaseIterable {
         case .remove: return "Remove"
         case .contentAwareMove: return "Content-Aware Move"
         case .artHistoryBrush: return "Art History Brush"
+        case .pencil: return "Pencil"
         }
     }
 
@@ -154,6 +167,7 @@ enum EditorTool: Int, CaseIterable {
         case .remove: return "eraser.line.dashed"
         case .contentAwareMove: return "arrow.up.and.down.and.sparkles"
         case .artHistoryBrush: return "scribble.variable"
+        case .pencil: return "pencil"
         }
     }
 
@@ -219,6 +233,8 @@ enum EditorTool: Int, CaseIterable {
         case .contentAwareMove: return "V"
         // Art: H is the Hand tool's; A is free in the paint group.
         case .artHistoryBrush: return "A"
+        // P is the Pen's and Patch's; peNcil's N is free in the paint group.
+        case .pencil: return "N"
         }
     }
 
@@ -268,6 +284,7 @@ enum EditorTool: Int, CaseIterable {
         case .contentAwareMove:
             return #selector(EditorViewController.selectContentAwareMoveTool(_:))
         case .artHistoryBrush: return #selector(EditorViewController.selectArtHistoryBrushTool(_:))
+        case .pencil: return #selector(EditorViewController.selectPencilTool(_:))
         }
     }
 
@@ -283,7 +300,7 @@ enum EditorTool: Int, CaseIterable {
             .sharpenBrush, .smudge, .sponge, .historyBrush, .objectSelect, .pen, .remove,
             .contentAwareMove:
             return .crosshair
-        case .artHistoryBrush: return .crosshair
+        case .artHistoryBrush, .pencil: return .crosshair
         case .move, .hand:
             return .openHand
         case .text:
@@ -315,7 +332,8 @@ enum EditorTool: Int, CaseIterable {
         case .lasso, .freehandLasso, .magneticLasso: return "l"
         case .wand, .quickSelect, .objectSelect, .subject: return "w"
         case .move: return "v"
-        case .brush: return "b"
+        // The Brush and the Pencil share B and cycle in rail order.
+        case .brush, .pencil: return "b"
         case .eraser: return "e"
         // The G slot: Paint Bucket and Gradient share it and cycle.
         case .fill, .gradient: return "g"
@@ -394,7 +412,7 @@ enum EditorTool: Int, CaseIterable {
             .magneticLasso, .colorSampler, .ruler, .perspectiveCrop, .blurBrush, .sharpenBrush,
             .smudge, .sponge, .historyBrush, .objectSelect, .pen, .remove, .contentAwareMove:
             return 1
-        case .artHistoryBrush: return 1
+        case .artHistoryBrush, .pencil: return 1
         }
     }
 
@@ -414,7 +432,7 @@ enum EditorTool: Int, CaseIterable {
     /// size and answers 200, the value the shared clamp had.
     var maximumBrushSize: Double {
         switch self {
-        case .brush, .eraser, .clone, .dodge:
+        case .brush, .eraser, .clone, .dodge, .pencil:
             return 5000
         case .remove:
             return 1000
@@ -442,7 +460,7 @@ enum EditorTool: Int, CaseIterable {
         case .brush, .eraser, .clone, .dodge, .heal, .spotHeal, .blurBrush, .sharpenBrush,
             .smudge, .sponge, .historyBrush, .remove:
             return true
-        case .artHistoryBrush: return true
+        case .artHistoryBrush, .pencil: return true
         case .select, .ellipseSelect, .lasso, .wand, .subject, .move, .fill, .gradient,
             .text, .eyedropper, .crop, .patch, .redEye, .shapeRect, .shapeEllipse,
             .shapeLine, .zoom, .hand, .freehandLasso, .quickSelect, .magneticLasso,
@@ -465,7 +483,7 @@ enum EditorTool: Int, CaseIterable {
             .perspectiveCrop, .blurBrush, .sharpenBrush, .smudge, .sponge, .historyBrush, .pen,
             .remove, .contentAwareMove:
             return false
-        case .artHistoryBrush: return false
+        case .artHistoryBrush, .pencil: return false
         }
     }
 
@@ -482,7 +500,7 @@ enum EditorTool: Int, CaseIterable {
             .subject, .move, .fill, .gradient, .text, .eyedropper, .crop, .patch, .redEye,
             .shapeRect, .shapeEllipse, .shapeLine, .zoom, .hand, .freehandLasso, .quickSelect,
             .magneticLasso, .colorSampler, .ruler, .perspectiveCrop, .objectSelect, .pen, .remove,
-            .contentAwareMove:
+            .contentAwareMove, .pencil:
             return false
         }
     }
@@ -505,7 +523,7 @@ enum EditorTool: Int, CaseIterable {
          .objectSelect, .subject],
         [.crop, .perspectiveCrop],
         [.move],
-        [.brush, .eraser, .clone, .historyBrush, .artHistoryBrush],
+        [.brush, .pencil, .eraser, .clone, .historyBrush, .artHistoryBrush],
         // The healing slot, immediately below the paint group.
         [.spotHeal, .remove, .heal, .patch, .contentAwareMove, .redEye],
         // The toning and focus tools in one slot.

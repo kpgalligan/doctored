@@ -13,15 +13,24 @@ import AppKit
 /// stroke; the stroke's Opacity still caps exactly once, where the overlay
 /// is consumed); `spacingPercent` is dab spacing as a percentage of the
 /// diameter; `roundness` compresses the dab's minor axis and
-/// `angleDegrees` rotates it counter-clockwise on screen.
+/// `angleDegrees` rotates it counter-clockwise on screen. `aliased` is the
+/// Pencil's tip (`EditorTool.aliasedTip`): hard (hardness 1), each pixel
+/// fully painted or not at all, the core's half-coverage cut
+/// (`brush_coverage`, THE ALIASED TIP).
 struct BrushTip: Equatable {
     static let defaultSpacingPercent: CGFloat = 25
+    /// The Pencil's dab rhythm, as a percentage of the diameter: dense enough
+    /// that consecutive snapped dabs leave no notch in a stroke's edge (the
+    /// rim moves 0.06 % of the diameter between dabs, under a pixel up to
+    /// about 1,600 px), and floored at 1 px by `SoftBrush.spacing`.
+    static let aliasedSpacingPercent: CGFloat = 5
 
     var hardness: CGFloat = 1
     var flow: CGFloat = 1
     var spacingPercent: CGFloat = defaultSpacingPercent
     var angleDegrees: CGFloat = 0
     var roundness: CGFloat = 1
+    var aliased = false
 }
 
 /// The soft-brush dab engine behind the paint tools' Hardness option, shared

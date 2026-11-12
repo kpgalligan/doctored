@@ -1,7 +1,7 @@
 import AppKit
 
 // Bare `{`/`}` step the paint tool's hardness along `BrushPreset.steppedHardness`'s 0/25/50/75/100
-// ladder, `,`/`.` and Shift+`,`/Shift+`.` step the built-in presets
+// ladder, `,`/`.` and Shift+`,`/Shift+`.` step the presets, built-in then the user's
 // (`BrushPreset.stepped(from:_:)`, the popup's store write), and `/` toggles Lock Transparency
 // through that menu item's own validation and `lockTransparency(_:)`.
 //
@@ -13,7 +13,7 @@ import AppKit
 // (⌫ removes its last anchor in `handleMagneticLassoKey`) — one predicate, never a second guard.
 
 /// The canvas's brush and lock keys: bare { } step
-/// the tip's hardness, , . < > step the built-in presets, and / toggles
+/// the tip's hardness, , . < > step the presets, and / toggles
 /// Lock Transparency. The canvas only reports the key; these do the work.
 extension EditorViewController {
     /// Bare { and }: steps the active paint tool's hardness along the
@@ -26,7 +26,7 @@ extension EditorViewController {
         optionsBar.refreshValues()
     }
 
-    /// Bare , . and Shift+, Shift+.: applies the stepped built-in preset
+    /// Bare , . and Shift+, Shift+.: applies the stepped preset
     /// the way the options bar's preset popup does (size and opacity kept).
     func brushPresetKeyStepped(_ step: BrushPreset.Step) {
         guard var paint = ToolOptionsStore.shared.paintOptions(for: currentTool) else { return }

@@ -80,7 +80,12 @@ extension AgentServer {
             properties["pressure_opacity"] = ["type": "boolean", "description": "Scale each dab deposit by pressure; stroke opacity still applies once."]
             properties["airbrush"] = ["type": "boolean", "description": "Generate 20 Hz held deposits using the declared sample times/duration."]
             properties["native_stroke"] = ["type": "object",
-                "description": "Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning."]
+                "description": "Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning."]
+        }
+        // The Pencil (the Brush's slot ▸ Pencil): its tip on the Brush's stroke.
+        if AgentServer.aliasedStrokeTools.contains(name) {
+            properties["aliased"] = ["type": "boolean",
+                "description": "The Pencil: a hard tip that paints each pixel fully or not at all (a pixel at least half inside a dab is painted), at every depth and on every target this tool takes. Generates stroke_version=1 dabs (stroke_version may be omitted): dabs snapped to whole-pixel diameters on the pixel grid, 5% spacing. Takes size, opacity and the pressures (and brush_stroke's colour and blend_mode); hardness and flow other than 100, spacing, angle, roundness and airbrush refuse by name, as does aliased on any other stroke tool."]
         }
         if AgentServer.precisionStrokeJobTools.contains(name) {
             properties["background"] = ["type": "boolean", "description": "16-bit or 32-bit float layer strokes: return a job_id immediately for job_status/cancel_job (default false waits; Actions always wait). Ignored at 8 bits; refused for mask, channel, Quick Mask and adjustment-layer strokes."]

@@ -65,9 +65,10 @@ struct BrushOutline: Equatable {
 }
 
 extension ImageCanvasView {
-    /// Tools whose ⌥-press needs a one-pixel pointer: brush (eyedropper),
-    /// clone and heal (source point). Eraser, dodge and spotHeal have no ⌥ meaning.
-    static let brushOutlineOptionPrecisionTools: Set<EditorTool> = [.brush, .clone, .heal]
+    /// Tools whose ⌥-press needs a one-pixel pointer: brush and pencil
+    /// (eyedropper), clone and heal (source point). Eraser, dodge and spotHeal
+    /// have no ⌥ meaning.
+    static let brushOutlineOptionPrecisionTools: Set<EditorTool> = [.brush, .pencil, .clone, .heal]
 
     /// 1×1 fully transparent image, hotspot (0,0); built once. A stable
     /// instance keeps the identity-guarded cursor-rect invalidation cheap.

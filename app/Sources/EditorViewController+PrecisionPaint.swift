@@ -34,6 +34,9 @@ struct PrecisionCanvasStroke {
 
 extension EditorViewController {
     func beginPrecisionStroke() -> Bool {
+        // The Pencil strokes as the Brush from here on (`EditorTool.strokeFamily`);
+        // its aliased tip rides the canvas's stroke session.
+        let currentTool = self.currentTool.strokeFamily
         guard let document else { return false }
         // A 16-bit stroke commits through the one worker, so it is refused
         // while any job holds it (after settling a finished one).

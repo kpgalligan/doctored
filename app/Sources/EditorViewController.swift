@@ -746,6 +746,8 @@ final class EditorViewController: NSViewController {
             self, selector: #selector(viewChromeDidChange(_:)),
             name: .editorViewChromeDidChange, object: nil)
         installHDRPreviewObservers()
+        center.addObserver(self, selector: #selector(brushPresetsDidChange(_:)),
+                           name: BrushPresetLibrary.didChange, object: nil)
         updateStatus()
         updateActiveLayerRect()
         updateZoomLabel()
@@ -990,6 +992,7 @@ final class EditorViewController: NSViewController {
     @objc func selectSpongeTool(_ sender: Any?) { selectTool(.sponge) }
     @objc func selectHistoryBrushTool(_ sender: Any?) { selectTool(.historyBrush) }
     @objc func selectArtHistoryBrushTool(_ sender: Any?) { selectTool(.artHistoryBrush) }
+    @objc func selectPencilTool(_ sender: Any?) { selectTool(.pencil) }
     @objc func selectHealTool(_ sender: Any?) { selectTool(.heal) }
     @objc func selectSpotHealTool(_ sender: Any?) { selectTool(.spotHeal) }
     @objc func selectPatchTool(_ sender: Any?) { selectTool(.patch) }
@@ -2497,6 +2500,7 @@ extension EditorViewController: NSUserInterfaceValidations {
         #selector(selectSpongeTool(_:)): .sponge,
         #selector(selectHistoryBrushTool(_:)): .historyBrush,
         #selector(selectArtHistoryBrushTool(_:)): .artHistoryBrush,
+        #selector(selectPencilTool(_:)): .pencil,
         #selector(selectHealTool(_:)): .heal,
         #selector(selectSpotHealTool(_:)): .spotHeal,
         #selector(selectPatchTool(_:)): .patch,

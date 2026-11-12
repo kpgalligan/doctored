@@ -100,6 +100,18 @@
 //! canvas-field path `reference_rasterize` (with `band_count` / `band_bound` / `footprint`) is the
 //! `tests/bounded_brush_footprint.rs` oracle; this module doc is the exactness, margin,
 //! monotonicity and band-bound argument.
+//!
+//! THE ALIASED TIP (the Pencil). A request with `aliased: true` (hardness 1 only) cuts each
+//! pixel's coverage, before the dab's opacity, to 1 where `evaluate` gives at least one half
+//! and to 0 below: the 8×8 sum's 32 of 64 samples, pixel mode's half square. The cut lives in
+//! `evaluate`, so the product, the reference and `dab_coverage` share it, and it agrees with the
+//! classifier (INTERIOR's 1 and EXTERIOR's 0 are fixed points of the cut), so the exactness
+//! argument above holds unchanged. A half is the rule because it keeps a dab's painted area the
+//! hard dab's area to within its band: a pixel more than half inside is painted, one more than
+//! half outside is not. The dab's opacity, the source-over accumulation and the one quantization
+//! are untouched, so a deposit-1 aliased stroke is two-valued (0 or the request's opacity) and
+//! a pressure-opacity one accumulates as any other. `plan` is unchanged: the cut costs nothing
+//! beyond the band sum it already charges. Absent, the key keeps every earlier request's bytes.
 use crate::job_control::JobContext;
 use crate::precision_image::{pixel_count, reserved_vec, BOOKKEEPING_BYTES};
 use serde::Deserialize;
@@ -137,6 +149,9 @@ pub struct BrushRequest {
     pixel: bool,
     #[serde(default = "one")]
     opacity: f64,
+    /// The Pencil's tip: coverage cut at one half (module doc, THE ALIASED TIP).
+    #[serde(default)]
+    aliased: bool,
 }
 pub struct BrushPlan {
     pub scratch_bytes: u64,
@@ -219,6 +234,9 @@ impl BrushRequest {
             || !(-180. ..=180.).contains(&request.angle_degrees)
         {
             return Err("native brush requires version1 and normalized valid geometry".into());
+        }
+        if request.aliased && request.hardness < 1. {
+            return Err("native brush aliased tip requires hardness 1".into());
         }
         Ok(request)
     }
@@ -429,8 +447,19 @@ impl BrushRequest {
         }
     }
     /// THE per-pixel coverage expression, before the dab's opacity: the
-    /// reference and the product both call it.
+    /// reference and the product both call it. An aliased tip cuts it at
+    /// one half (module doc, THE ALIASED TIP).
     fn evaluate(&self, tip: &Tip<'_>, x: usize, y: usize) -> f64 {
+        let coverage = self.continuous(tip, x, y);
+        if !self.aliased {
+            coverage
+        } else if coverage >= 0.5 {
+            1.
+        } else {
+            0.
+        }
+    }
+    fn continuous(&self, tip: &Tip<'_>, x: usize, y: usize) -> f64 {
         let d = tip.d;
         if self.pixel {
             // Pixel mode integrates an axis-aligned square exactly;

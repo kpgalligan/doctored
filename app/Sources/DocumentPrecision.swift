@@ -636,6 +636,8 @@ enum DocumentPrecision {
     }
 
     static func allows(_ tool: EditorTool, document: ImageDocument?) -> Bool {
+        // The Pencil is offered wherever the Brush is: its stroke is the Brush's.
+        let tool = tool.strokeFamily
         guard RetainedImagePolicy.allows(tool, document: document) else { return false }
         // #1 Bitmap phase 1a: a Bitmap document admits its own closed tool list, asked first.
         if document?.doc?.isBitmap == true { return BitmapDocument.allows(tool) }
@@ -692,6 +694,8 @@ enum DocumentPrecision {
         switch tool {
         case .select, .ellipseSelect, .lasso, .freehandLasso, .hand, .zoom, .eyedropper, .colorSampler,
              .brush, .eraser, .clone, .heal, .spotHeal, .redEye, .patch, .text, .shapeRect, .shapeEllipse, .shapeLine: return true
+        // Reached as `.brush` (`strokeFamily`, above); named for the exhaustive switch.
+        case .pencil: return true
         // Object Selection refines at u16 (`refine_edge`); float admits it above, its
         // refinement opt-in there (rule E).
         case .wand, .subject, .quickSelect, .objectSelect: return true

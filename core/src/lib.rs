@@ -51,6 +51,7 @@ mod blend_fill;
 mod blend_float;
 mod blend_if_channels_native;
 pub mod brush_coverage;
+mod brush_overlay;
 mod cache_limit;
 mod clip_display;
 mod clip_unit;

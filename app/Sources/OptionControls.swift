@@ -322,6 +322,10 @@ final class OptionDisplayControl: NSView, OptionControl {
 /// Field-styled popup: the current item in mono with an up/down chevron at
 /// the right; clicking pops an NSMenu with a checkmark on the current item.
 final class OptionPopupControl: NSView, OptionControl {
+    /// An item with this title is drawn as a menu separator; its index is
+    /// still counted, so the rows after it keep their indices.
+    static let separatorTitle = "\u{2014}separator\u{2014}"
+
     private let fixedWidth: CGFloat
     private let items: [String]
     private let read: () -> Int
@@ -392,6 +396,10 @@ final class OptionPopupControl: NSView, OptionControl {
         let menu = NSMenu()
         let current = read()
         for (index, title) in items.enumerated() {
+            if title == Self.separatorTitle {
+                menu.addItem(.separator())
+                continue
+            }
             let item = NSMenuItem(title: title, action: #selector(itemPicked(_:)), keyEquivalent: "")
             item.target = self
             item.tag = index

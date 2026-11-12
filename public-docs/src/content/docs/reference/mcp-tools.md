@@ -20,7 +20,7 @@ The helper reaches the app over a Unix socket the app binds at every launch,
 owner can open; `DR_AGENT_SOCKET` names another path for both. There is no TCP
 endpoint.
 
-This build exposes **340 tools**. The reference is generated from the app's
+This build exposes **345 tools**. The reference is generated from the app's
 `tools/list` catalog (live, or the snapshot the build writes from the same code),
 which is authoritative. Tool results are MCP
 content blocks; most calls return a JSON object in a text block, while `render` and
@@ -327,6 +327,11 @@ Add `--check` to either to verify that the checked-in page matches the catalog.
 - [`save_adjustment_preset`](#save_adjustment_preset)
 - [`rename_adjustment_preset`](#rename_adjustment_preset)
 - [`delete_adjustment_preset`](#delete_adjustment_preset)
+- [`list_brush_presets`](#list_brush_presets)
+- [`save_brush_preset`](#save_brush_preset)
+- [`delete_brush_preset`](#delete_brush_preset)
+- [`import_brush_presets`](#import_brush_presets)
+- [`export_brush_presets`](#export_brush_presets)
 - [`list_style_presets`](#list_style_presets)
 - [`apply_style_preset`](#apply_style_preset)
 - [`save_style_preset`](#save_style_preset)
@@ -874,6 +879,7 @@ Paints a brush stroke onto a layer's pixels: a smooth polyline through points (c
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `airbrush` | `boolean` | no | — | Generate 20 Hz held deposits using the declared sample times/duration. |
+| `aliased` | `boolean` | no | — | The Pencil: a hard tip that paints each pixel fully or not at all (a pixel at least half inside a dab is painted), at every depth and on every target this tool takes. Generates stroke_version=1 dabs (stroke_version may be omitted): dabs snapped to whole-pixel diameters on the pixel grid, 5% spacing. Takes size, opacity and the pressures (and brush_stroke's colour and blend_mode); hardness and flow other than 100, spacing, angle, roundness and airbrush refuse by name, as does aliased on any other stroke tool. |
 | `angle` | `number` | no | -180–180 | Tip rotation in degrees, counter-clockwise (default 0). Visible only when roundness is below 100. |
 | `background` | `boolean` | no | — | 16-bit or 32-bit float layer strokes: return a job_id immediately for job_status/cancel_job (default false waits; Actions always wait). Ignored at 8 bits; refused for mask, channel, Quick Mask and adjustment-layer strokes. |
 | `blend_mode` | `string` | no | one of `Normal`, `Dissolve`, `Darken`, `Multiply`, `Color Burn`, `Linear Burn`, `Darker Color`, `Lighten`, `Screen`, `Color Dodge`, `Linear Dodge (Add)`, `Lighter Color`, `Overlay`, `Soft Light`, `Hard Light`, `Vivid Light`, `Linear Light`, `Pin Light`, `Hard Mix`, `Difference`, `Exclusion`, `Subtract`, `Divide`, `Hue`, `Saturation`, `Color`, `Luminosity` | Blend mode the stroke's paint composites with (default Normal) — the layer blend-mode names. Not valid with a coverage target — a mask, a colour plane or a channel. |
@@ -885,7 +891,7 @@ Paints a brush stroke onto a layer's pixels: a smooth polyline through points (c
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100 = crisp). Below 100 the stroke stamps soft round dabs whose alpha fades from hardness% of the radius out to the rim — an airbrushed edge. |
 | `ink` | `array<number>` | no | 4–4 items | CMYK document only: C, M, Y, K ink in percent 0–100. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `opacity` | `number` | no | 0–1 | — |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
 | `pressure_opacity` | `boolean` | no | — | Scale each dab deposit by pressure; stroke opacity still applies once. |
@@ -914,7 +920,7 @@ Erases along a polyline (same geometry as brush_stroke): pixels under the stroke
 | `flow` | `number` | no | 1–100 | Per-dab deposit in percent (default 100). Below 100 the stroke builds up where it overlaps itself instead of landing at full strength at once. |
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100 = crisp). Below 100 the erase feathers out from hardness% of the radius to the rim. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `opacity` | `number` | no | 0–1 | — |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
 | `pressure_opacity` | `boolean` | no | — | Scale each dab deposit by pressure; stroke opacity still applies once. |
@@ -945,7 +951,7 @@ Clones pixels from one part of the picture onto a layer — the Clone Stamp tool
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100 = crisp). Below 100 the cloned paint feathers out from hardness% of the dab radius to the rim, blending it into the surroundings. |
 | `ignore_adjustments` | `boolean` | no | — | Leave adjustment LAYERS above the target out of the sampled picture (default false). A provable no-op with sample current or current_and_below, which already exclude everything above the target, so it is the meaningful control with sample all: take the texture of the layers stacked above me, but not the grade they are read through. Only an adjustment ENTRY is dropped — a layer style, a Blend If, and a plain raster layer in a tone blend mode are ordinary content and stay in. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `opacity` | `number` | no | 0–1 | Strength of the cloned paint (default 1). |
 | `output` | `string` | no | one of `layer`, `new_layer` | Where the repair lands (default layer: into the target's own pixels). new_layer puts it on a fresh raster layer directly above the target — same depth, same group, inheriting its clipped flag — so the original pixels stay exactly as they were. Refused with a reason when the target sits inside a group carrying its own blending, opacity, mask or style, where the repair would be gated twice: once in the sampled picture and again by the group. Native-depth output preserves the original raster samples. |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
@@ -980,7 +986,7 @@ Lightens (dodge) or, with burn: true, darkens a layer's pixels where a round-cap
 | `flow` | `number` | no | 1–100 | Per-dab deposit in percent (default 100). Below 100 the stroke builds up where it overlaps itself instead of landing at full strength at once. |
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100 = crisp). Below 100 the effect feathers out from hardness% of the radius to the rim. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
 | `pressure_opacity` | `boolean` | no | — | Scale each dab deposit by pressure; stroke opacity still applies once. |
 | `pressure_size` | `boolean` | no | — | Scale dab size by pressure, with a one-pixel floor. |
@@ -1010,7 +1016,7 @@ Heals a stroke from a sampled source — the Healing Brush tool. The pixels unde
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100). Below 100 it SHRINKS the healed footprint inside the brush circle; it does not fade the heal, which is seamless at the edge either way. |
 | `ignore_adjustments` | `boolean` | no | — | Leave adjustment LAYERS above the target out of the sampled picture (default false). A provable no-op with sample current or current_and_below, which already exclude everything above the target, so it is the meaningful control with sample all: take the texture of the layers stacked above me, but not the grade they are read through. Only an adjustment ENTRY is dropped — a layer style, a Blend If, and a plain raster layer in a tone blend mode are ordinary content and stay in. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `opacity` | `number` | no | 1–100 | The heal's strength in percent (1-100, default 100): how far the covered pixels move toward the blended result. |
 | `output` | `string` | no | one of `layer`, `new_layer` | Where the repair lands (default layer: into the target's own pixels). new_layer puts it on a fresh raster layer directly above the target — same depth, same group, inheriting its clipped flag — so the original pixels stay exactly as they were. Refused with a reason when the target sits inside a group carrying its own blending, opacity, mask or style, where the repair would be gated twice: once in the sampled picture and again by the group. Native-depth output preserves the original raster samples. |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
@@ -1045,7 +1051,7 @@ Heals a stroke with NO sampled source — the Spot Healing Brush tool. With type
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100). Below 100 it shrinks the healed footprint inside the brush circle rather than fading the heal. |
 | `ignore_adjustments` | `boolean` | no | — | Leave adjustment LAYERS above the target out of the sampled picture (default false). A provable no-op with sample current or current_and_below, which already exclude everything above the target, so it is the meaningful control with sample all: take the texture of the layers stacked above me, but not the grade they are read through. Only an adjustment ENTRY is dropped — a layer style, a Blend If, and a plain raster layer in a tone blend mode are ordinary content and stay in. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `opacity` | `number` | no | 1–100 | The heal's strength in percent (1-100, default 100). |
 | `output` | `string` | no | one of `layer`, `new_layer` | Where the repair lands (default layer: into the target's own pixels). new_layer puts it on a fresh raster layer directly above the target — same depth, same group, inheriting its clipped flag — so the original pixels stay exactly as they were. Refused with a reason when the target sits inside a group carrying its own blending, opacity, mask or style, where the repair would be gated twice: once in the sampled picture and again by the group. Native-depth output preserves the original raster samples. |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
@@ -1239,7 +1245,7 @@ Softens a layer's pixels where a round-capped stroke along points covers them �
 | `flow` | `number` | no | 1–100 | Per-dab deposit in percent (default 100). Below 100 the stroke builds up where it overlaps itself instead of landing at full strength at once. |
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100 = crisp). Below 100 the effect feathers out from hardness% of the radius to the rim. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
 | `pressure_opacity` | `boolean` | no | — | Scale each dab deposit by pressure; stroke opacity still applies once. |
 | `pressure_size` | `boolean` | no | — | Scale dab size by pressure, with a one-pixel floor. |
@@ -1266,7 +1272,7 @@ Sharpens a layer's pixels under a stroke — the Sharpen tool: an unsharp mask (
 | `flow` | `number` | no | 1–100 | Per-dab deposit in percent (default 100). Below 100 the stroke builds up where it overlaps itself instead of landing at full strength at once. |
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100 = crisp). Below 100 the effect feathers out from hardness% of the radius to the rim. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
 | `pressure_opacity` | `boolean` | no | — | Scale each dab deposit by pressure; stroke opacity still applies once. |
 | `pressure_size` | `boolean` | no | — | Scale dab size by pressure, with a one-pixel floor. |
@@ -1293,7 +1299,7 @@ Drags a layer's pixels along a stroke — the Smudge tool. The picture under the
 | `flow` | `number` | no | 1–100 | Per-dab deposit in percent (default 100). Below 100 the stroke builds up where it overlaps itself instead of landing at full strength at once. |
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100 = crisp). Below 100 the effect feathers out from hardness% of the radius to the rim. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
 | `pressure_opacity` | `boolean` | no | — | Scale each dab deposit by pressure; stroke opacity still applies once. |
 | `pressure_size` | `boolean` | no | — | Scale dab size by pressure, with a one-pixel floor. |
@@ -1321,7 +1327,7 @@ Changes colour saturation under a stroke — the Sponge tool and its Mode: desat
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100 = crisp). Below 100 the effect feathers out from hardness% of the radius to the rim. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
 | `mode` | `string` | no | one of `desaturate`, `saturate` | desaturate (default) moves colour toward its luma; saturate moves it away. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
 | `pressure_opacity` | `boolean` | no | — | Scale each dab deposit by pressure; stroke opacity still applies once. |
 | `pressure_size` | `boolean` | no | — | Scale dab size by pressure, with a one-pixel floor. |
@@ -1348,7 +1354,7 @@ Paints a layer back toward what it held in an earlier history state — the Hist
 | `flow` | `number` | no | 1–100 | Per-dab deposit in percent (default 100). Below 100 the stroke builds up where it overlaps itself instead of landing at full strength at once. |
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100 = crisp). Below 100 the effect feathers out from hardness% of the radius to the rim. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `opacity` | `number` | no | 0–100 | How far the stroke paints the state back, in percent (0-100, default 100 = exactly the state's pixels under full coverage). |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
 | `pressure_opacity` | `boolean` | no | — | Scale each dab deposit by pressure; stroke opacity still applies once. |
@@ -1377,7 +1383,7 @@ Paints a layer from an earlier history state in stylized strokes — the Art His
 | `flow` | `number` | no | 1–100 | Per-dab deposit in percent (default 100). Below 100 the stroke builds up where it overlaps itself instead of landing at full strength at once. |
 | `hardness` | `number` | no | 0–100 | Edge hardness in percent (default 100 = crisp). Below 100 the effect feathers out from hardness% of the radius to the rim. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `opacity` | `number` | no | 0–100 | Opacity in percent (0-100, default 100). |
 | `points` | `array<array<number>>` | yes | 1–10000 items | [[x, y], …] along the stroke, in canvas px. |
 | `pressure_opacity` | `boolean` | no | — | Scale each dab deposit by pressure; stroke opacity still applies once. |
@@ -1937,6 +1943,7 @@ Applies one canonical Quick Mask coverage stroke to the transient selection. Sup
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `airbrush` | `boolean` | no | — | Generate 20 Hz held deposits using the declared sample times/duration. |
+| `aliased` | `boolean` | no | — | The Pencil: a hard tip that paints each pixel fully or not at all (a pixel at least half inside a dab is painted), at every depth and on every target this tool takes. Generates stroke_version=1 dabs (stroke_version may be omitted): dabs snapped to whole-pixel diameters on the pixel grid, 5% spacing. Takes size, opacity and the pressures (and brush_stroke's colour and blend_mode); hardness and flow other than 100, spacing, angle, roundness and airbrush refuse by name, as does aliased on any other stroke tool. |
 | `coverage_rle` | `string` | no | — | — |
 | `coverage_rle16` | `string` | no | — | — |
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
@@ -1945,7 +1952,7 @@ Applies one canonical Quick Mask coverage stroke to the transient selection. Sup
 | `flow` | `number` | no | 1–100 | — |
 | `hardness` | `number` | no | 0–100 | — |
 | `height` | `integer` | yes | — | — |
-| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel. Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
+| `native_stroke` | `object` | no | — | Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning. |
 | `opacity` | `number` | no | 0–1 | — |
 | `points` | `array<array<number>>` | no | 0–10000 items | — |
 | `pressure_opacity` | `boolean` | no | — | Scale each dab deposit by pressure; stroke opacity still applies once. |
@@ -4146,6 +4153,53 @@ An adjustment dialog's Preset popup > Delete Preset…: remove ONE library file.
 | `file` | `string` | no | — | A library file basename from list_adjustment_presets (a row's `file`). Pass exactly one of name or file; a broken entry has no name. |
 | `name` | `string` | no | — | Adjustment preset name, 1–100 characters. |
 | `op` | `string` | no | one of `bcs`, `black_and_white`, `channel_mixer`, `color_balance`, `curves`, `exposure`, `gradient_map`, `hue_saturation`, `levels`, `photo_filter`, `replace_color`, `selective_color`, `shadows_highlights`, `vibrance`, `white_balance` | The adjustment op the preset belongs to. Names are unique per op. |
+
+## `list_brush_presets`
+
+The paint options bar's Preset popup: every brush tip preset, the built-ins (builtin true) and then the user's library, each {name, builtin, hardness, flow, spacing, angle, roundness, airbrush, file?}. A preset is a TIP — never size, opacity or blend — so LOADING one is passing its six values to a stroke tool (brush_stroke, eraser_stroke, clone_stamp, dodge_burn and the rest take them by these names). No two presets hold the same six values. A file that is not a readable preset is a `broken` row — {file, code, reason, repairable} with code one of unreadable, oversize, not_json, unknown_version, invalid_schema, duplicate_name — instead of refusing the whole library; repairable is always false here. Resolves no document.
+
+Takes no arguments.
+
+## `save_brush_preset`
+
+The Preset popup's Save Preset…: store a tip under a name. A built-in's name refuses, a name in use refuses unless replace is true, and values another preset (built-in or saved) already holds refuse by that preset's name, since the popup finds a preset by its values. A library write is a preference: no Undo step, no Action step, and no document changes.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `airbrush` | `boolean` | no | default `False` | — |
+| `angle` | `number` | yes | — | Tip angle in degrees, -180–180 (the options bar's field). |
+| `flow` | `number` | yes | — | Flow percent, 1–100 (the options bar's field). |
+| `hardness` | `number` | yes | — | Hardness percent, 0–100 (the options bar's field). |
+| `name` | `string` | yes | — | Preset name, 1–120 characters. |
+| `replace` | `boolean` | no | default `False` | — |
+| `roundness` | `number` | yes | — | Roundness percent, 1–100 (the options bar's field). |
+| `spacing` | `number` | yes | — | Spacing, percent of the diameter, 1–200 (the options bar's field). |
+
+## `delete_brush_preset`
+
+The Preset popup's Delete Preset…: remove ONE library file. Pass either name (a saved preset; a built-in cannot be deleted) or file alone (any library file, including a broken one that has no name). A library write is a preference: no Undo step, no Action step, and no document changes.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `file` | `string` | no | — | A library file basename from list_brush_presets (a row's `file`). Pass exactly one of name or file; a broken entry has no name. |
+| `name` | `string` | no | — | A saved preset's name. |
+
+## `import_brush_presets`
+
+The Preset popup's Import Presets…: read Doctored's own brush preset file (.doctoredbrushes): JSON {"doctored_brush_presets": 1, "presets": [{schema_version 1, name, hardness, flow, spacing, angle, roundness, airbrush}, …]}, at most 256 presets and 1 MiB, into the library. Each entry is checked as a library file is; one that fails, or that repeats a listed preset's values, is listed in skipped {name, reason} and the rest import. A name already in use gets " 2", " 3"…. A library write is a preference: no Undo step, no Action step, and no document changes.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `path` | `string` | yes | — | The preset file to read. |
+
+## `export_brush_presets`
+
+The Preset popup's Export Presets…: write the user's presets (all, or those names lists) as Doctored's own brush preset file (.doctoredbrushes): JSON {"doctored_brush_presets": 1, "presets": [{schema_version 1, name, hardness, flow, spacing, angle, roundness, airbrush}, …]}. The built-ins are every copy's, so they are not written; naming one refuses. An empty library refuses. A library write is a preference: no Undo step, no Action step, and no document changes.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `names` | `array<string>` | no | — | Saved preset names to export; default all. |
+| `path` | `string` | yes | — | Where to write the preset file. |
 
 ## `list_style_presets`
 

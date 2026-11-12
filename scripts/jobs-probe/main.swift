@@ -351,6 +351,8 @@ do {
         ("copy preview tick cost", verifyCopyPreviewTickCost),
         ("preview own lease", verifyPreviewOwnLease),
         ("stroke layer edge", verifyStrokeLayerEdge),
+        ("pencil", verifyPencil),
+        ("pencil canvas", verifyPencilCanvases),
         ("action failure prompt", verifyActionFailurePrompt),
         ("inverse no selection", verifyInverseNoSelection),
         ("progress panel reuse", verifyProgressPanelReuse),

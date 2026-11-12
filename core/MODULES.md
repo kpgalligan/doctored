@@ -190,6 +190,7 @@ Detail belongs in the source file's own header comment.
 - `color_range_band.rs` — kernel: Color Range's hue bands (amount × (2 − max)), Skin Tones (Lab ramp, take3 MISS), the one ramp, Localized Color Clusters' weight.
 - `color_range_gamut.rs` — Color Range ▸ Out Of Gamut: `soft_proof`'s one gamut rule over RGBA8 codes as coverage (source alpha where outside XOR invert).
 - `ffi_color_range_gamut.rs` — `dr_selection_out_of_gamut` and its scratch figure (`byte_proof_scratch_pixels` plus the output), on `ffi_output_color`'s parsers.
+- `brush_overlay.rs` — kernel: native brush u16 coverage, an RGB8 ink and a u8 selection to the byte path's premultiplied RGBA8 overlay (the 8-bit Pencil).
 - `brush_coverage.rs` / `ffi_brush.rs` / `precision_paint_tools.rs` / `gradient_field.rs` — version-1 native brush dabs (packed binary64 transfer, 50,000-dab cap), native paint tools, gradient field.
 - `foreground_estimate.rs` / `ffi_foreground.rs` — foreground RGB estimation from an opaque captured composite and a supplied matte (Decontaminate Colors); byte adapter and both depths' FFI.
 - `foreground_solve.rs` — kernel of the foreground estimate: the multi-level pyramid, sweeps and the two-variable relaxation, shared by both depths.

@@ -530,6 +530,9 @@ final class ToolOptionsStore {
     var historyBrush: PaintToolOptions { didSet { save(historyBrush, "historyBrush") } }
     /// `opacity` is the Art History Brush's Opacity.
     var artHistoryBrush: PaintToolOptions { didSet { save(artHistoryBrush, "artHistoryBrush") } }
+    /// The Pencil reads size, opacity, blend, smoothing and the two pressure
+    /// toggles; its tip is pinned (`pencilTip`), whatever a blob holds.
+    var pencil: PaintToolOptions { didSet { save(pencil, "pencil") } }
     /// The Remove tool reads `size`, `sample` (All Layers or Current
     /// Layer) and `outputToNewLayer` alone; `setPaintOptions` keeps the rest
     /// at their defaults.
@@ -583,10 +586,26 @@ final class ToolOptionsStore {
         case .historyBrush: options = historyBrush
         case .artHistoryBrush: options = artHistoryBrush
         case .remove: options = remove
+        case .pencil: options = Self.pencilTip(pencil)
         default: return nil
         }
         options.size = min(max(options.size, tool.minimumBrushSize), tool.maximumBrushSize)
         return options
+    }
+
+    /// The Pencil's options with its tip pinned: hardness and flow 100, the
+    /// aliased rhythm (`BrushTip.aliasedSpacingPercent`), round, no angle and
+    /// no airbrush. Pinned on the way out AND in, so the tip keys (`{` `}` `,`
+    /// `.`) and a stale blob cannot bend the one tip the tool has.
+    static func pencilTip(_ options: PaintToolOptions) -> PaintToolOptions {
+        var out = options
+        out.hardness = 100
+        out.flow = 100
+        out.spacing = Double(BrushTip.aliasedSpacingPercent)
+        out.angle = 0
+        out.roundness = 100
+        out.airbrush = false
+        return out
     }
 
     func setPaintOptions(_ options: PaintToolOptions, for tool: EditorTool) {
@@ -605,6 +624,7 @@ final class ToolOptionsStore {
         case .sponge: sponge = options
         case .historyBrush: historyBrush = options
         case .artHistoryBrush: artHistoryBrush = options
+        case .pencil: pencil = Self.pencilTip(options)
         case .remove:
             // Size, Sample and the output are the whole tool. The tip keys
             // (`{` `}` `,` `.`) reach here through the shared paint path, and
@@ -649,6 +669,9 @@ final class ToolOptionsStore {
         sponge = Self.retouchBrush("sponge", strength: 50)
         historyBrush = Self.retouchBrush("historyBrush", strength: 100)
         artHistoryBrush = Self.retouchBrush("artHistoryBrush", strength: 100)
+        // A small hard pencil, as pixel work wants it.
+        pencil = Self.pencilTip(Self.load(
+            "pencil", default: PaintToolOptions(size: 1, smoothing: 0), droppingStale: Self.paintStale))
         // A 40 px brush, and the layer's own pixels as Content-Aware Fill
         // samples them by default.
         remove = Self.load(

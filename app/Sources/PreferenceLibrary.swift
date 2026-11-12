@@ -10,7 +10,7 @@ import Darwin
 // `PreferenceLibraryCodec` (its `noun`, from which EVERY sentence is built so two libraries cannot
 // word one refusal two ways; its bounds, its schema range, and how one item becomes JSON and back)
 // and gets the lock, the bounded reader, the fault table, the duplicate-name post-pass, the
-// occupied-slot refusal, `delete(name:)` and `delete(file:)` for free. The twelve codecs are
+// occupied-slot refusal, `delete(name:)` and `delete(file:)` for free. The thirteen codecs are
 // `RawPresetCodec` (128 × 8 KiB, schemas 1…2),
 // `ExportPresetCodec` (64 × 4 KiB, 1…2), `MetadataPolicyCodec` (64 × 4 KiB, 1…1),
 // `NewDocumentPresetCodec` (64 × 4 KiB, 1…1, `DR_DOCUMENT_PRESETS_DIR`), `ShortcutCodec` (4 × 32
@@ -18,8 +18,9 @@ import Darwin
 // `ProofPresetCodec` (64 × 4 KiB, 1…1, `DR_PROOF_PRESETS_DIR`), `AdjustmentPresetCodec` (256 ×
 // 16 KiB, 1…1, `DR_ADJUSTMENT_PRESETS_DIR`), `DevelopFilterPresetCodec` (128 × 4 KiB, 1…1,
 // `DR_DEVELOP_FILTER_PRESETS_DIR`), `UserSkyCodec` (64 × 4 KiB, 1…1, `DR_SKIES_DIR`),
-// `StylePresetCodec` (256 × 2.25 MiB, 1…1, `DR_STYLE_PRESETS_DIR`) and `HdrToningPresetCodec`
-// (128 × 4 KiB, 1…1, `DR_HDR_TONING_PRESETS_DIR`).
+// `StylePresetCodec` (256 × 2.25 MiB, 1…1, `DR_STYLE_PRESETS_DIR`), `HdrToningPresetCodec`
+// (128 × 4 KiB, 1…1, `DR_HDR_TONING_PRESETS_DIR`) and `BrushPresetCodec` (256 × 4 KiB, 1…1,
+// `DR_BRUSH_PRESETS_DIR`).
 // `PreferenceLibraryDefault<Codec>`
 // is a library's ONE default entry: its name in a hidden `.default` file (512-byte bound, never a
 // listed or broken row), `name()` answering nil for a name that no longer lists, and
