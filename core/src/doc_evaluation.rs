@@ -13,7 +13,8 @@
 //! on encoded numbers read the encoded view of a composited sample
 //! ([`encoded_view`]: the adjustment transcode, the Shadows/Highlights guide,
 //! Blend If); and every resample of layer colour (Image Size, Free Transform,
-//! Warp, a retained source's re-render) interpolates in premultiplied linear
+//! Warp, Puppet Warp, Perspective Warp, Liquify, a transform of selected
+//! pixels, a retained source's re-render) interpolates in premultiplied linear
 //! light (`sampling_linear`). P7-24 evaluated every operator, so nothing is
 //! refused by name: the one refusal left is the staleness net below, which
 //! [`DrDocument::transfer`] — where every `composite_env` caller obtains its
@@ -215,6 +216,10 @@ const MIGRATED: &[&str] = &[
     "free_transform",
     "warp",
     "retained_source_rerender",
+    "puppet_warp",
+    "perspective_warp",
+    "liquify",
+    "transform_selected_pixels",
 ];
 
 /// The operator table as JSON, for the host's Evaluation sheet and the MCP
@@ -312,6 +317,20 @@ impl crate::sampling_linear::LinearCodes<u8> for ByteTransfer {
 
     fn codes(&self, linear: [f32; 3]) -> [u8; 3] {
         self.encode(linear)
+    }
+}
+
+/// A linear-light byte walk over unit samples (`sampling_linear::LinearUnit`):
+/// [`ByteTransfer::decode`] (the table entry on a stored byte's lattice
+/// value) and [`ByteTransfer::encode_f32`], whose lattice value the byte
+/// store's round returns as the encoder's code exactly.
+impl crate::sampling_linear::LinearUnit for ByteTransfer {
+    fn linear(&self, encoded: [f32; 3]) -> [f32; 3] {
+        self.decode(encoded)
+    }
+
+    fn encoded(&self, linear: [f32; 3]) -> [f32; 3] {
+        self.encode_f32(linear)
     }
 }
 
@@ -474,6 +493,16 @@ impl DrDocument {
             Some(reason) => Err(reason),
             None => Ok(Some(transfer)),
         }
+    }
+
+    /// The tables an edit that resamples straight unit samples (a float of
+    /// selected pixels, Liquify) runs through: the held transfer under
+    /// `linear_light`, `None` for an encoded document. The FIELD, as the
+    /// geometry edits read it, not [`Self::transfer`]'s render net.
+    pub(crate) fn linear_unit(&self) -> Option<&dyn crate::sampling_linear::LinearUnit> {
+        self.linear_light
+            .as_deref()
+            .map(|t| t as &dyn crate::sampling_linear::LinearUnit)
     }
 
     /// Rebuilds the transfer when the document's profile has been replaced.

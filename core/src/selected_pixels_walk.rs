@@ -10,10 +10,12 @@
 //! consumers keep importing through `selected_pixels`'s `pub(crate) use`.
 
 use crate::blend::{blend_kind, composite_source_into, erase_alpha, BlendMode};
+use crate::doc_transform::Sampler;
 use crate::job_control::JobContext;
 use crate::layer_rect::coverage_rect16;
 use crate::precision_image::reserved_vec;
 use crate::precision_sampling::visible_range;
+use crate::sampling_linear::LinearUnit;
 use crate::selected_pixels::{OUTSIDE_BOUNDS, PLAN_BOOKKEEPING};
 use crate::selected_pixels_float::float_rect;
 use crate::selected_pixels_perspective::PerspectiveLanding;
@@ -203,6 +205,15 @@ pub(crate) fn plan_scratch(canvas: (u32, u32), layer: CanvasRect, sample_bytes: 
 /// (F grown by the kernel reach, see `selected_pixels_transform`). Both reach the same
 /// per-pixel walk, [`land_samples`]. `hole` [`Hole::Keep`] is the ⌥-drag duplicate;
 /// `bounds` is the request's promise, checked before any read.
+///
+/// `linear` is a linear-light 8- or 16-bit layer's transfer (`None` for an
+/// encoded document, a float layer, a plane and ink). It is read only by a
+/// landing that interpolates — a kernel transform, Puppet Warp, Perspective
+/// Warp — whose float decodes each original's RGB before premultiplying and
+/// encodes each landed sample's RGB once after clamping
+/// (`sampling_linear`'s rule). The move and a Nearest transform (every exact
+/// form) copy codes. The hole and the source-over landing stay writes into
+/// stored samples.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn move_samples<S: StoredSample>(
     read: impl Fn(u32, u32, u32, u32) -> Option<Vec<S>>,
@@ -213,8 +224,15 @@ pub(crate) fn move_samples<S: StoredSample>(
     empty: &'static str,
     hole: Hole,
     bounds: Option<CanvasRect>,
+    linear: Option<&dyn LinearUnit>,
     job: JobContext<'_>,
 ) -> Result<MovedSamples<S>, String> {
+    let interpolates = match landing {
+        Landing::Offset(_) => false,
+        Landing::Transform(transform) => matches!(transform.sampler, Sampler::Kernel(_)),
+        Landing::Puppet(_) | Landing::Perspective(_) => true,
+    };
+    let linear = linear.filter(|_| interpolates && !S::EXTENDED);
     let alloc = || "could not allocate the moved selected pixels".to_string();
     let origin = (
         i32::try_from(layer.0).map_err(|_| "layer offset overflow")?,
@@ -289,15 +307,16 @@ pub(crate) fn move_samples<S: StoredSample>(
                     job,
                 );
             };
-            let floated = floated_samples(float, &at, &original, job)?;
+            let floated = floated_samples(float, &at, &original, linear, job)?;
             let resampled = transform.resample(&floated, float, dest, job)?;
             drop(floated);
             land_resampled(
-                &read, layer, canvas, coverage, float, dest, resampled, &at, &original, hole, job,
+                &read, layer, canvas, coverage, float, dest, resampled, &at, &original, hole,
+                linear, job,
             )
         }
         Landing::Puppet(puppet) => {
-            let floated = floated_samples(float, &at, &original, job)?;
+            let floated = floated_samples(float, &at, &original, linear, job)?;
             let opaque = |qx: i64, qy: i64| {
                 at(qx, qy).is_some_and(|qi| {
                     let (rgba, c) = original(qx, qy, qi);
@@ -320,11 +339,12 @@ pub(crate) fn move_samples<S: StoredSample>(
                 );
             };
             land_resampled(
-                &read, layer, canvas, coverage, float, dest, resampled, &at, &original, hole, job,
+                &read, layer, canvas, coverage, float, dest, resampled, &at, &original, hole,
+                linear, job,
             )
         }
         Landing::Perspective(perspective) => {
-            let floated = floated_samples(float, &at, &original, job)?;
+            let floated = floated_samples(float, &at, &original, linear, job)?;
             let landed = perspective.resample(&floated, float, layer, canvas, job)?;
             drop(floated);
             let Some((dest, resampled)) = landed else {
@@ -341,18 +361,21 @@ pub(crate) fn move_samples<S: StoredSample>(
                 );
             };
             land_resampled(
-                &read, layer, canvas, coverage, float, dest, resampled, &at, &original, hole, job,
+                &read, layer, canvas, coverage, float, dest, resampled, &at, &original, hole,
+                linear, job,
             )
         }
     }
 }
 
 /// The float's premultiplied f32 samples over `float` (`float_sample` of
-/// each on-canvas pixel's original `(rgba, c)`, zero off the canvas).
+/// each on-canvas pixel's original `(rgba, c)`, zero off the canvas). With
+/// `linear`, each original's RGB is decoded first.
 fn floated_samples(
     float: CanvasRect,
     at: &impl Fn(i64, i64) -> Option<usize>,
     original: &impl Fn(i64, i64, usize) -> ([f32; 4], f32),
+    linear: Option<&dyn LinearUnit>,
     job: JobContext<'_>,
 ) -> Result<Vec<[f32; 4]>, String> {
     let mut floated = reserved_vec(area(float) as usize)?;
@@ -362,6 +385,13 @@ fn floated_samples(
         for col in 0..float.2 {
             let qx = float.0 + i64::from(col);
             let (rgba, c) = at(qx, qy).map_or(([0.0; 4], 0.0), |qi| original(qx, qy, qi));
+            let rgba = match linear {
+                Some(transfer) => {
+                    let rgb = transfer.linear([rgba[0], rgba[1], rgba[2]]);
+                    [rgb[0], rgb[1], rgb[2], rgba[3]]
+                }
+                None => rgba,
+            };
             floated.push(float_sample(rgba, c));
         }
     }
@@ -371,7 +401,8 @@ fn floated_samples(
 /// The resampling landings' shared tail (the transform and Puppet
 /// Warp): at f32 D3's clamp range (the float's own visible range), each
 /// landed premultiplied sample through `landing_sample` / `landing_extended`,
-/// then [`land_samples`].
+/// then [`land_samples`]. With `linear`, each landed sample's clamped RGB is
+/// encoded once before it reaches `moved_pixel`.
 #[allow(clippy::too_many_arguments)]
 fn land_resampled<S: StoredSample>(
     read: &impl Fn(u32, u32, u32, u32) -> Option<Vec<S>>,
@@ -384,6 +415,7 @@ fn land_resampled<S: StoredSample>(
     at: &impl Fn(i64, i64) -> Option<usize>,
     original: &impl Fn(i64, i64, usize) -> ([f32; 4], f32),
     hole: Hole,
+    linear: Option<&dyn LinearUnit>,
     job: JobContext<'_>,
 ) -> Result<MovedSamples<S>, String> {
     // f32: D3's clamp range is the float's own visible range, the RGB of F's
@@ -406,9 +438,13 @@ fn land_resampled<S: StoredSample>(
             return None;
         }
         let k = (y - dest.1) as usize * dest.2 as usize + (x - dest.0) as usize;
-        match &range {
-            Some(range) => landing_extended(resampled[k], range),
-            None => landing_sample(resampled[k]),
+        match (&range, linear) {
+            (Some(range), _) => landing_extended(resampled[k], range),
+            (None, None) => landing_sample(resampled[k]),
+            (None, Some(transfer)) => landing_sample(resampled[k]).map(|(rgba, fc)| {
+                let rgb = transfer.encoded([rgba[0], rgba[1], rgba[2]]);
+                ([rgb[0], rgb[1], rgb[2], rgba[3]], fc)
+            }),
         }
     };
     land_samples(

@@ -698,6 +698,7 @@ impl DrDocument {
             edit.empty_area(),
             edit.hole(),
             edit.bounds(),
+            self.linear_unit(),
             job,
         )?;
         let grown_comps = match &moved {

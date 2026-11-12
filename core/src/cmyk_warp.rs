@@ -309,6 +309,8 @@ impl PrecisionDocument {
                 (w, h),
                 (0, 0, w, h),
                 &SampleRange::Unit,
+                // Ink has no transfer.
+                None,
                 part,
             )
         };

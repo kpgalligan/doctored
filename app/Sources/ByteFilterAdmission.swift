@@ -16,9 +16,13 @@ import AppKit
 
 /// One `dr_image_filter_op` call. A sheet's preview and Apply, and
 /// `apply_filter`, build it from the same params, so what is admitted is what runs.
+/// `evaluation` is the document whose layer the image is, for an op that
+/// follows that document's evaluation policy (`dr_doc_filter_op`: Liquify on a
+/// linear-light document); nil is the bare image call.
 struct ByteFilterRequest {
     let op: String
     let params: [String: Any]
+    var evaluation: RasterDocument? = nil
 }
 
 /// The 8-bit `dr_image_filter_op` filters' host admission: Gaussian Blur, Box Blur,
@@ -76,13 +80,15 @@ enum ByteFilterAdmission {
                     title: String, waitForSlot: Bool = true) throws -> RasterImage? {
         assert(Thread.isMainThread)
         let plan = try admit(request, on: image, in: document)
-        let (op, params) = (request.op, request.params)
-        guard plan > 0 else { return try image.filterOp(op, params: params) }
+        let (op, params, evaluation) = (request.op, request.params, request.evaluation)
+        guard plan > 0 else { return try image.filterOp(op, params: params, evaluation: evaluation) }
         if waitForSlot { BackgroundWork.waitForAnonymousOccupant() }
         let control = try RasterJobControl()
         let result = try BackgroundWork.wait(title: title, control: control,
                                              revealAfter: DocumentJobs.panelDelay) {
-            try WorkerTask(scratchEstimate: plan) { try image.filterOp(op, params: params, control: control) }
+            try WorkerTask(scratchEstimate: plan) {
+                try image.filterOp(op, params: params, control: control, evaluation: evaluation)
+            }
         }
         guard !control.isCancelled else { throw JobCancelled() }
         return result
@@ -105,14 +111,14 @@ enum ByteFilterAdmission {
         let plan = try admit(request, on: capture.source, in: capture.doc)
         guard plan > 0 else { return nil }
         BackgroundWork.waitForAnonymousOccupant()
-        let (op, params) = (request.op, request.params)
+        let (op, params, evaluation) = (request.op, request.params, request.evaluation)
         let control = try RasterJobControl()
         let prepared = try BackgroundWork.wait(title: title, control: control,
                                                revealAfter: DocumentJobs.panelDelay) {
             try WorkerTask(scratchEstimate: plan) { () -> PreparedDocumentEdit? in
                 try control.beginCompoundOperation()
                 let filtered = try control.withChildOperation(from: 0, to: 0.8) { child in
-                    try capture.source.filterOp(op, params: params, control: child)
+                    try capture.source.filterOp(op, params: params, control: child, evaluation: evaluation)
                 }
                 // A nil write is unchanged bytes (or a lock): the quiet path.
                 guard let filtered,

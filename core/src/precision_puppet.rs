@@ -2,9 +2,11 @@
 //! document's thin adapter over the kernels, the twin of `doc_puppet` with
 //! the same request, refusals, plan shape and write-back. The 16-bit arm
 //! resamples with the persisted warp's RGBA16 accumulate/finish
-//! (`precision_warp`); the float arm accumulates premultiplied extended
-//! samples in binary64 (`precision_warp::accumulate_extended_f64`) and
-//! finishes through `sampling::straight_extended` against the layer's own
+//! (`precision_warp`), or on a linear-light document with
+//! `sampling_linear`'s binary64 pair (11E D7); the float arm accumulates
+//! premultiplied extended samples in binary64
+//! (`precision_warp::accumulate_extended_f64`) and finishes through
+//! `sampling::straight_extended` against the layer's own
 //! visible range (`float_document`'s D3), as the float warp does. A linked
 //! mask warps through the same map at u16; the persisted warp binding is
 //! dropped. Family `geometry_puppet` (`precision_capability`). On a CMYK
@@ -37,6 +39,7 @@ use crate::precision_warp::{
 use crate::puppet_mesh::{build, mesh_plan_bytes, MeshOptions, PuppetMesh, Rect};
 use crate::puppet_render::{render, InverseMap, PoseMap};
 use crate::sampling::straight_extended;
+use crate::sampling_linear::{accumulate_linear_f64, straight_linear_f64};
 
 /// The feature name the shared refusals carry.
 const NAME: &str = "Puppet Warp";
@@ -223,16 +226,28 @@ impl PrecisionDocument {
         } else {
             let samples = source.transient_rgba16()?;
             let mut out = vec![[0u16; 4]; count];
-            render(
-                map,
-                rect,
-                dest,
-                |i| samples[i],
-                accumulate_rgba16,
-                finish_rgba16,
-                |i, p| out[i] = p,
-                job,
-            )?;
+            match self.linear_codes() {
+                None => render(
+                    map,
+                    rect,
+                    dest,
+                    |i| samples[i],
+                    accumulate_rgba16,
+                    finish_rgba16,
+                    |i, p| out[i] = p,
+                    job,
+                )?,
+                Some(codes) => render(
+                    map,
+                    rect,
+                    dest,
+                    |i| samples[i],
+                    |acc, p, weight| accumulate_linear_f64(acc, p, weight, codes),
+                    |acc| straight_linear_f64(acc, codes),
+                    |i, p| out[i] = p,
+                    job,
+                )?,
+            }
             drop(samples);
             PrecisionImage::from_rgba16_unseeded(
                 dest.2,

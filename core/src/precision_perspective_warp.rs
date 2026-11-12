@@ -2,7 +2,8 @@
 //! document's thin adapter, the twin of `doc_perspective_warp` with the same
 //! request, refusals, plan shape and write-back, through Puppet Warp's typed
 //! helpers (`precision_puppet`'s `mesh_warp_*`: the RGBA16 accumulate/finish,
-//! and the float arm's binary64 premultiplied extended samples finished
+//! in premultiplied linear light on a linear-light document (11E D7), and
+//! the float arm's binary64 premultiplied extended samples finished
 //! against the layer's own visible range, D3). Family
 //! `geometry_perspective_warp` (`precision_capability`); on a CMYK document
 //! (#1 phase 4b) the same helpers' CMYKA16 arm (`MeshPixels::Cmyk`).

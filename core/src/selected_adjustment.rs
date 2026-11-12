@@ -347,7 +347,7 @@ impl PrecisionDocument {
         } else {
             filter
                 .as_ref()
-                .map(|f| f.plane(image, job.range(0.05, 0.65)))
+                .map(|f| f.plane(image, self.linear_unit(), job.range(0.05, 0.65)))
                 .transpose()?
                 .flatten()
         };

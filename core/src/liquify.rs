@@ -20,6 +20,10 @@
 //! sample from beyond the plane repeats the edge pixel, and taps outside the
 //! picture are dropped and the rest renormalized. A pixel whose `D` is exactly
 //! zero is its source sample as read, hidden colour under alpha 0 included.
+//! On a linear-light 8- or 16-bit document the caller hands the transfer
+//! (`sampling_linear::LinearUnit`): each tap's RGB is decoded before it is
+//! premultiplied and the clamped result encoded once (11E D7); a pixel whose
+//! `D` is zero is still its sample as read.
 //!
 //! A STROKE is a list of points and becomes dabs: with `r = max(size / 2,
 //! 1.5·cell)` (a brush smaller than three nodes across would miss the grid)
@@ -56,6 +60,7 @@ use crate::filter_kernels::SampleRange;
 use crate::job_control::JobContext;
 use crate::precision_image::{pixel_count, reserved_vec, BOOKKEEPING_BYTES};
 use crate::sampling::{map_into, Kernel, Unorm};
+use crate::sampling_linear::LinearUnit;
 use image::RgbaImage;
 use serde_json::{Map, Value};
 use std::cell::Cell;
@@ -352,23 +357,25 @@ pub(crate) fn plan(dimensions: (u32, u32), strokes: &[LiquifyStroke]) -> Result<
 /// 0…1). `None`: the field is still the identity, so nothing would change.
 /// Refuses as [`plan`] does, before any allocation. Progress: the strokes over
 /// 0…0.3, the render over 0.3…1. The 8- and 16-bit form: [`plane_in`] at
-/// `SampleRange::Unit`.
+/// `SampleRange::Unit`, with the document's `linear` transfer.
 pub(crate) fn plane(
     read: impl Fn(usize) -> [f32; 4],
     dimensions: (u32, u32),
     strokes: &[LiquifyStroke],
+    linear: Option<&dyn LinearUnit>,
     job: JobContext<'_>,
 ) -> Result<Option<Vec<[f32; 4]>>, String> {
-    plane_in(read, dimensions, strokes, &SampleRange::Unit, job)
+    plane_in(read, dimensions, strokes, &SampleRange::Unit, linear, job)
 }
 
-/// [`plane`] in `range` ([`LiquifyField::render`] says what it changes). The
-/// field, the strokes and the taps are the same at every depth.
+/// [`plane`] in `range` ([`LiquifyField::render`] says what it and `linear`
+/// change). The field, the strokes and the taps are the same at every depth.
 pub(crate) fn plane_in(
     read: impl Fn(usize) -> [f32; 4],
     dimensions: (u32, u32),
     strokes: &[LiquifyStroke],
     range: &SampleRange,
+    linear: Option<&dyn LinearUnit>,
     job: JobContext<'_>,
 ) -> Result<Option<Vec<[f32; 4]>>, String> {
     plan(dimensions, strokes)?;
@@ -383,6 +390,7 @@ pub(crate) fn plane_in(
             dimensions,
             (0, 0, dimensions.0, dimensions.1),
             range,
+            linear,
             job.range(0.3, 1.0),
         )
         .map(Some)
@@ -717,13 +725,17 @@ impl LiquifyField {
     /// picture's straight pixel `i`. The picture may be any size: a pixel
     /// centre is scaled to the plane to read `D`, and the displaced point is
     /// scaled back. `Err`: an empty rect or one not inside the picture, or a
-    /// cancelled job. Progress 0…1 over the rect's rows.
+    /// cancelled job. Progress 0…1 over the rect's rows. `linear` (a
+    /// linear-light 8- or 16-bit document's transfer, `Unit` only) decodes
+    /// each tap's RGB before the premultiplied sum and encodes the clamped
+    /// result once; an untouched pixel is still `read(i)`.
     pub(crate) fn render(
         &self,
         read: impl Fn(usize) -> [f32; 4],
         source: (u32, u32),
         rect: (u32, u32, u32, u32),
         range: &SampleRange,
+        linear: Option<&dyn LinearUnit>,
         job: JobContext<'_>,
     ) -> Result<Vec<[f32; 4]>, String> {
         let (sw, sh) = source;
@@ -772,9 +784,13 @@ impl LiquifyField {
             // Premultiplied, as `doc_warp::render_pixels` accumulates; the
             // fifth sum is the weight of the taps that were inside.
             |acc: &mut [f64; 5], p: [f32; 4], weight| {
+                let rgb = match linear {
+                    Some(transfer) => transfer.linear([p[0], p[1], p[2]]),
+                    None => [p[0], p[1], p[2]],
+                };
                 let alpha = weight * f64::from(p[3]);
                 for c in 0..3 {
-                    acc[c] += alpha * f64::from(p[c]);
+                    acc[c] += alpha * f64::from(rgb[c]);
                 }
                 acc[3] += alpha;
                 acc[4] += weight;
@@ -783,12 +799,12 @@ impl LiquifyField {
                 if acc[4] <= 0.0 || acc[3] / acc[4] < floor {
                     return [0.0_f32; 4];
                 }
-                [
-                    range.resampled(0, acc[0] / acc[3]) as f32,
-                    range.resampled(1, acc[1] / acc[3]) as f32,
-                    range.resampled(2, acc[2] / acc[3]) as f32,
-                    (acc[3] / acc[4]).min(1.0) as f32,
-                ]
+                let rgb = [0, 1, 2].map(|c| range.resampled(c, acc[c] / acc[3]) as f32);
+                let rgb = match linear {
+                    Some(transfer) => transfer.encoded(rgb),
+                    None => rgb,
+                };
+                [rgb[0], rgb[1], rgb[2], (acc[3] / acc[4]).min(1.0) as f32]
             },
             |i, value| {
                 out[i] = if untouched.get() {
@@ -846,6 +862,7 @@ impl LiquifyField {
                 (w, h),
                 (rx, top, rw, rows),
                 &SampleRange::Unit,
+                None,
                 JobContext::NONE,
             )?;
             for (row, samples) in band.chunks_exact(rw as usize).enumerate() {

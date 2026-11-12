@@ -109,7 +109,7 @@ pub(crate) fn evaluate(
     };
     let neighborhood = filter
         .as_ref()
-        .map(|f| f.plane(&image, job.range(0., 0.7)))
+        .map(|f| f.plane(&image, None, job.range(0., 0.7)))
         .transpose()?
         .flatten();
     let mut rng = crate::rng::SplitMix64::new(filter.as_ref().map_or(0, SelectedFilter::seed));

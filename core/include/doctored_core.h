@@ -1853,6 +1853,18 @@ DrImage *dr_image_emboss(const DrImage *img);
 DrImage *dr_image_filter_op(const DrImage *img, const char *op,
     const char *params_json, const DrJobControl *control, char **err_out);
 
+/* dr_image_filter_op on img (a layer of doc, or a picture made from one) under
+ * doc's evaluation policy: the same ops, keys, caps, control, bypasses and
+ * refusals. On a linear_light document "liquify" resamples in premultiplied
+ * linear light (each tap decoded through the document's transfer, the result
+ * encoded once; a pixel the field leaves in place is its stored sample). Every
+ * other op, and every op on an encoded document, is dr_image_filter_op's
+ * result byte for byte: the other filters still edit the stored codes. NULL
+ * doc or img returns NULL with no error, before control is read.
+ * dr_image_filter_op_scratch_bytes is the plan for both. */
+DrImage *dr_doc_filter_op(const DrDocument *doc, const DrImage *img, const char *op,
+    const char *params_json, const DrJobControl *control, char **err_out);
+
 /* dr_image_filter_op's planned peak scratch for the same op and params_json on img
  * (ops_spatial::filter_op_scratch_bytes): the kernel's plan or its held float plane plus the
  * output, whichever is larger, plus 4 MiB, plus a quarter. "blur" holds no float plane beside its
@@ -1873,9 +1885,10 @@ uint64_t dr_image_filter_op_scratch_bytes(const DrImage *img, const char *op,
 
 /* A plane's displacement and freeze field with the strokes applied so far.
  * Immutable: dr_liquify_field_apply returns a new one. The Liquify workspace
- * previews through it; the committed edit is dr_image_filter_op "liquify" (8
+ * previews through it; the committed edit is dr_doc_filter_op "liquify" (8
  * bits) or the selected edit {"layer","op":"liquify","params"} (16 bits) over
- * the same strokes, which build the same field. */
+ * the same strokes, which build the same field. Both resample in linear light
+ * on a linear_light document; the preview renders the stored codes. */
 typedef struct LiquifyField DrLiquifyField;
 
 /* The identity field of a width x height plane. NULL with a message through
@@ -9702,9 +9715,11 @@ DrPrecisionDocument *dr_precision_doc_set_file_info(const DrPrecisionDocument *d
  * light: only what enters the accumulator is decoded, the rules authored on
  * encoded numbers (the adjustment transcode, the Shadows/Highlights guide,
  * Blend If) read the encoded view of a composited sample, and every resample
- * of layer colour (Image Size, Free Transform, Warp, a retained source's
- * re-render) interpolates in premultiplied linear light. Nothing is refused
- * by name. The one refusal left is the STALENESS NET: a linear-light
+ * of layer colour (Image Size, Free Transform, Warp, Puppet Warp, Perspective
+ * Warp, Liquify, a transform of selected pixels, a retained source's
+ * re-render) interpolates in premultiplied linear light. Painting, fills,
+ * gradients and the other filters still edit the stored codes. Nothing is
+ * refused by name. The one refusal left is the STALENESS NET: a linear-light
  * document whose held tables no longer belong to its colour profile. The
  * host checks it before it commits an edit, and, as the backstop,
  * dr_doc_flattened, the typed render and the typed render plan all fail with

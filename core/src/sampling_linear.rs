@@ -21,6 +21,13 @@
 //! translation, quarter turns and flips) — a permutation of stored samples
 //! has no domain. Masks, alpha channels and selections are coverage and
 //! never come here.
+//!
+//! The walks that carry straight UNIT samples rather than stored codes (the
+//! float of selected pixels, Liquify's render) take the same rule through
+//! [`LinearUnit`]: each tap's RGB is decoded before it is premultiplied and
+//! accumulated, and the clamped, unpremultiplied result is encoded once,
+//! to the value the storage's own single quantize turns into the encoder's
+//! code.
 
 use image::imageops::FilterType;
 use image::{Rgba, RgbaImage};
@@ -37,6 +44,18 @@ pub(crate) trait LinearCodes<T: Unorm> {
     fn linear(&self, codes: [T; 3]) -> [f32; 3];
     /// Three linear components in [0, 1] as the stored codes.
     fn codes(&self, linear: [f32; 3]) -> [T; 3];
+}
+
+/// [`LinearCodes`] for the walks over straight UNIT samples (module doc): a
+/// byte document's `ByteTransfer`, a 16-bit document's `TypedTransfer`.
+pub(crate) trait LinearUnit {
+    /// Straight encoded RGB in [0, 1] as LINEAR components (the table entry
+    /// on a stored code's lattice value).
+    fn linear(&self, encoded: [f32; 3]) -> [f32; 3];
+    /// Linear RGB in [0, 1] as straight encoded RGB in [0, 1]: the byte
+    /// encoder's LATTICE value, or the typed encoder's continuous value that
+    /// the store rounds once.
+    fn encoded(&self, linear: [f32; 3]) -> [f32; 3];
 }
 
 /// The bounds a linear-light finish clamps to: the storage's own [0, 1].

@@ -52,13 +52,20 @@ their evaluation exactly, and each operation is migrated and verified before it 
   extended adapters, unpremultiply, clamp to [0, 1], encode once. Nearest and the exact forms (identity, integer
   translation, quarter turns, flips) still copy codes; masks, alpha channels and selections are coverage and
   unchanged. A byte document's 16-bit RAW master renders through the byte tables (`WideByteCodes`), so no 16-bit
-  tables are built for it.
+  tables are built for it. It also covers Puppet Warp, Perspective Warp, Liquify and a
+  Free Transform / Puppet Warp / Perspective Warp of selected pixels at 8 and 16 bits: a float of selected pixels
+  decodes before its resample and encodes once after it (`sampling_linear::LinearUnit`), and its hole and
+  source-over landing, like the coverage mix after a 16-bit Liquify, stay writes of stored codes (D9); the move
+  and a Nearest transform copy codes; a Liquify pixel with zero displacement is its stored sample. The 8-bit
+  Liquify takes the document through `dr_doc_filter_op`, which no other op reads. The workspace previews
+  (`dr_liquify_field_render`, `dr_puppet_pose_render`, `dr_perspective_warp_preview`) still render codes.
 - **D8, a policy switch re-renders nothing:** a RAW fallback and a warped layer are stored rasters; the next
   geometry edit, replace or profile conversion re-renders them under the policy in force — a conversion through
   the DESTINATION profile's tables.
-- **D9, storage edits take no domain:** paint, fill, gradients, filters, Puppet Warp, Perspective Warp, Liquify and
-  Move/Transform of selected pixels write stored codes under either policy; whether each family should take the
-  document's domain: [#35](https://github.com/kpgalligan/doctored/issues/35).
+- **D9, storage edits take no domain:** paint, fill, gradients and the destructive filters (Liquify aside, D7),
+  and the compositing writes of the resampling edits (the selected-pixels hole and landing, a selection's coverage
+  mix), write stored codes under either policy; whether each family should take the document's domain:
+  [#35](https://github.com/kpgalligan/doctored/issues/35).
 - **D10, no `EVAL` schema bump:** an older build opening a linear-light file that holds a style or a Hue layer
   refuses its render by name, phase 1's disclosure.
 - **D11, a baked style is the layer as the canvas shows it:** Merge Down, the merged-layer paths and PSD export's
@@ -108,7 +115,9 @@ A new operator or resample path follows D1–D11 and comes with an independent o
 light by construction on top of this policy. Tests: `core/tests/evaluation_{transfer,composite,native,ffi}.rs`
 (1 code gate; 2 for the disclosed fixture; typed 24/65535, derived from the sampled-TRC-vs-analytic bound);
 phases 2–3 `evaluation_{nonseparable,guide,styles,resample,retained_source}.rs` over the shared
-`tests/common/linear_oracle.rs`, each case paired with the regional render where one exists; drives
+`tests/common/linear_oracle.rs`, each case paired with the regional render where one exists, and
+`evaluation_storage_resample.rs` for the mesh warps, selected pixels and Liquify (closed-form half-pixel taps;
+Liquify by a one-w feasibility test over a two-colour picture); drives
 `scripts/verify_phase11e_linear.py` (E1–E7; its oracle decodes through the sRGB profile's 1024-sample
 `curv`, checked against the export's embedded profile, so E2 holds T2's 8 codes, which the analytic curve
 cannot in the toe; E7 admits every operator) and `verify_phase12e2_adjustments.py` a5.

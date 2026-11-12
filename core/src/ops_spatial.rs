@@ -906,11 +906,28 @@ pub(crate) fn filter_op_scratch_bytes(
 /// exact bypass (a zero grain amount, a zero offset, an all-default lens
 /// correction, Presence or Develop Filter with every control at 0, a photographic filter's
 /// `bypass`, or liquify strokes that leave the field the identity), reported
-/// as "nothing changed" rather than a copy.
+/// as "nothing changed" rather than a copy. An encoded document's form: the
+/// `None` of [`filter_op_in`].
 pub(crate) fn filter_op(
     img: &RgbaImage,
     op: &str,
     params: &Map<String, Value>,
+    job: JobContext<'_>,
+) -> Result<Option<RgbaImage>, String> {
+    filter_op_in(img, op, params, None, job)
+}
+
+/// [`filter_op`] under a document's evaluation policy (`dr_doc_filter_op`):
+/// `linear` is a linear-light document's transfer, which only `liquify`
+/// reads — its resample decodes each tap and encodes once
+/// (`LiquifyField::render`). Every other op, and `liquify` with `None`, is
+/// [`filter_op`]'s arm byte for byte: the other filters still edit the stored
+/// codes (11E D9).
+pub(crate) fn filter_op_in(
+    img: &RgbaImage,
+    op: &str,
+    params: &Map<String, Value>,
+    linear: Option<&dyn crate::sampling_linear::LinearUnit>,
     job: JobContext<'_>,
 ) -> Result<Option<RgbaImage>, String> {
     let kernel = match dispatch(op, params)? {
@@ -935,7 +952,7 @@ pub(crate) fn filter_op(
                     Some(depth.plane_in(read, dimensions, &SampleRange::Unit, None, job)?)
                 }
                 ByteFilter::Liquify(strokes) => {
-                    crate::liquify::plane(read, dimensions, &strokes, job)?
+                    crate::liquify::plane(read, dimensions, &strokes, linear, job)?
                 }
                 ByteFilter::DevelopFilterMasked(masked) => {
                     let cap = destructive_work_cap(job);

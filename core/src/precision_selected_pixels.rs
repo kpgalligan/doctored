@@ -187,6 +187,7 @@ impl PrecisionDocument {
                     edit.empty_area(),
                     edit.hole(),
                     edit.bounds(),
+                    self.linear_unit(),
                     job,
                 )?;
                 match moved {
@@ -212,6 +213,8 @@ impl PrecisionDocument {
                     edit.empty_area(),
                     edit.hole(),
                     edit.bounds(),
+                    // Float samples are linear already.
+                    None,
                     job,
                 )?;
                 match moved {

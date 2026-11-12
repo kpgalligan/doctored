@@ -16,7 +16,9 @@ extension EditorViewController {
 
     /// Runs `strokes` (canvas pixels) on the captured layer at full size as
     /// one undo step named "Liquify", as a cancellable job: at 8 bits the byte
-    /// filter `liquify` through `applyCapturedByteFilter`, at 16 and 32 bits
+    /// filter `liquify` through `applyCapturedByteFilter` (under the captured
+    /// document's evaluation, so a linear-light document resamples in linear
+    /// light), at 16 and 32 bits
     /// the selected edit of the same name, as
     /// `PrecisionAdjustmentSession.commit(filter:)` runs a filter (a float
     /// layer's resample is clamped to its visible range, not to 0…1). Both
@@ -49,9 +51,11 @@ extension EditorViewController {
             }
         }
         guard let byte, let placement = byte.placement else { NSSound.beep(); return false }
+        // The captured document's evaluation decides the resample's domain.
         document.applyCapturedByteFilter(byte, "Liquify", record: record, request: ByteFilterRequest(
             op: "liquify",
-            params: LiquifyStroke.kernelParameters(strokes, origin: (placement.x, placement.y))))
+            params: LiquifyStroke.kernelParameters(strokes, origin: (placement.x, placement.y)),
+            evaluation: byte.doc))
         return document.doc !== byte.doc
     }
 }

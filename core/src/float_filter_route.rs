@@ -380,7 +380,8 @@ impl Route {
             }
             Self::Noise { .. } => PlaneOutcome::Pointwise,
             Self::Liquify(strokes) => {
-                match crate::liquify::plane_in(read, dimensions, strokes, range, job)? {
+                // Float samples are linear already: no transfer.
+                match crate::liquify::plane_in(read, dimensions, strokes, range, None, job)? {
                     Some(plane) => PlaneOutcome::Samples(plane),
                     None => PlaneOutcome::Identity,
                 }

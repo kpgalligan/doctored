@@ -691,9 +691,13 @@ impl SelectedFilter {
             _ => Err("selected filter has no banded plane".into()),
         }
     }
-    pub fn plane(
+    /// The filter's plane over `image`. `linear` is a linear-light 16-bit
+    /// document's transfer, which only Liquify reads (its resample mixes in
+    /// linear light, 11E D7); the other filters edit the stored codes (D9).
+    pub(crate) fn plane(
         &self,
         image: &PrecisionImage,
+        linear: Option<&dyn crate::sampling_linear::LinearUnit>,
         job: JobContext<'_>,
     ) -> Result<Option<Vec<[f32; 4]>>, String> {
         let (w, h) = image.dimensions();
@@ -775,7 +779,7 @@ impl SelectedFilter {
                 Some(k.plane(|i| image.pixel(i), (w, h), destructive_work_cap(job), job)?)
             }
             Self::Liquify(strokes) => {
-                crate::liquify::plane(|i| image.pixel(i), (w, h), strokes, job)?
+                crate::liquify::plane(|i| image.pixel(i), (w, h), strokes, linear, job)?
             }
             Self::DepthBlur(d) => {
                 Some(d.plane_in(|i| image.pixel(i), (w, h), &SampleRange::Unit, None, job)?)

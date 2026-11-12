@@ -5,6 +5,7 @@
 //! [`pure_op`] wrapper (`ffi_util`) so no unwinding ever crosses the FFI
 //! boundary. NULL images and invalid arguments yield NULL results.
 
+use crate::doc::DrDocument;
 use crate::ffi_util::pure_op;
 use crate::job_control::{DrJobControl, JobContext};
 use crate::{ops_filters, DrImage};
@@ -202,6 +203,51 @@ pub unsafe extern "C" fn dr_image_filter_op(
     control: *const DrJobControl,
     err_out: *mut *mut std::ffi::c_char,
 ) -> *mut DrImage {
+    unsafe { filter_op_under(None, img, op, params_json, control, err_out) }
+}
+
+/// `dr_image_filter_op` on `img` (a layer of `doc`, or a picture made from
+/// one) under `doc`'s evaluation policy: the same ops, keys, caps, control,
+/// bypasses and refusals. On a `linear_light` document `liquify` resamples
+/// in premultiplied linear light (each tap decoded through the document's
+/// transfer, the result encoded once; a pixel the field leaves in place is
+/// its stored sample); every other op, and every op on an encoded document,
+/// is `dr_image_filter_op`'s result byte for byte. NULL `doc` or `img`
+/// returns NULL with no error, before `control` is read.
+/// `dr_image_filter_op_scratch_bytes` is the plan for both.
+///
+/// # Safety
+/// `doc` must be NULL or a valid pointer to a live `DrDocument`; the rest is
+/// `dr_image_filter_op`'s.
+#[no_mangle]
+pub unsafe extern "C" fn dr_doc_filter_op(
+    doc: *const DrDocument,
+    img: *const DrImage,
+    op: *const std::ffi::c_char,
+    params_json: *const std::ffi::c_char,
+    control: *const DrJobControl,
+    err_out: *mut *mut std::ffi::c_char,
+) -> *mut DrImage {
+    let Some(doc) = (unsafe { doc.as_ref() }) else {
+        return std::ptr::null_mut();
+    };
+    unsafe { filter_op_under(doc.linear_unit(), img, op, params_json, control, err_out) }
+}
+
+/// The body of both filter exports: `linear` is `None` for the bare image
+/// (`dr_image_filter_op`) and for an encoded document, and a linear-light
+/// document's transfer (`dr_doc_filter_op`).
+///
+/// # Safety
+/// The exports' contracts.
+unsafe fn filter_op_under(
+    linear: Option<&dyn crate::sampling_linear::LinearUnit>,
+    img: *const DrImage,
+    op: *const std::ffi::c_char,
+    params_json: *const std::ffi::c_char,
+    control: *const DrJobControl,
+    err_out: *mut *mut std::ffi::c_char,
+) -> *mut DrImage {
     unsafe {
         crate::ffi_util::fallible_op(
             err_out,
@@ -216,7 +262,8 @@ pub unsafe extern "C" fn dr_image_filter_op(
                 let job = token.map_or(JobContext::NONE, JobContext::new);
                 let op = crate::ffi_util::borrow_cstr_bounded(op, "filter op", 64)?;
                 let params = filter_params(params_json, filter_params_cap(op))?;
-                let result = crate::ops_spatial::filter_op(&image.pixels, op, &params, job)?;
+                let result =
+                    crate::ops_spatial::filter_op_in(&image.pixels, op, &params, linear, job)?;
                 job.check()?;
                 job.report(1.0, 5)?;
                 Ok(result)

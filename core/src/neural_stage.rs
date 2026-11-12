@@ -346,7 +346,7 @@ fn reduce_noise_wide(
     if filter.identity() {
         return Ok(None);
     }
-    let Some(plane) = filter.plane(image, job.range(0.0, 0.8))? else {
+    let Some(plane) = filter.plane(image, None, job.range(0.0, 0.8))? else {
         return Ok(None);
     };
     let (w, h) = image.dimensions();

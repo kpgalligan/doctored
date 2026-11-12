@@ -48,7 +48,7 @@ issues; this matrix states only what works today.
 | Clipboard | Cut/Copy/Copy Merged/Paste, New from Clipboard; Layer Via Copy / Via Cut (`layer_via_copy`/`layer_via_cut`) | Cut/Copy/Copy Merged/Paste, New from Clipboard; Layer Via Copy / Via Cut | Layer Via rasterizes at every depth: the new layer keeps no description or style |
 | Readouts | Native sample sums/means; histograms with exact endpoint counts; selection/backdrop scopes | Sample, histogram (scalar: masks/channels) | 256 display bins are not clipping counts |
 | Output | Native save, PNG/TIFF16 from captured projection, export workspace, layer export, PSD; soft proof of the display codes, `render_proof exact` for the full composite | Native save, export | `export_pdf` writes an 8- or 16-bit page; soft proof refused at 32-bit float |
-| Evaluation policy | `encoded` / `linear_light` (11E) | Holds linear light by definition | Under `linear_light` every operator evaluates; storage edits (paint, fill, filters, mesh warps) still write stored codes ([11E](phase-11e-linear-light-status.md) D9; [#35](https://github.com/kpgalligan/doctored/issues/35)) |
+| Evaluation policy | `encoded` / `linear_light` (11E) | Holds linear light by definition | Under `linear_light` every operator evaluates; storage edits (paint, fill, gradients, filters but Liquify) still write stored codes ([11E](phase-11e-linear-light-status.md) D9; [#35](https://github.com/kpgalligan/doctored/issues/35)) |
 
 ## Rejected alternatives
 - Per-surface capability lists in UI, MCP and Actions separately — they drift; one host gate over one core table.

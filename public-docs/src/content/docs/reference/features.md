@@ -1272,9 +1272,10 @@ The design record behind each area is in the repository's
   picture behind it. Linear light evaluates every blend mode, opacity, masks,
   groups, clipping, adjustment layers (a guided Shadows/Highlights included),
   layer styles and Blend If — whose ranges, like adjustment kernels, still read
-  display levels — and Image Size, Free Transform, Warp and a RAW layer's
-  re-render resample in linear light. Painting, fills, filters, Liquify and the
-  mesh warps still edit the stored numbers
+  display levels — and Image Size, Free Transform, Warp, Puppet Warp,
+  Perspective Warp, Liquify, a transform of selected pixels and a RAW layer's
+  re-render resample in linear light. Painting, fills, gradients and the other
+  filters still edit the stored numbers
   ([#35](https://github.com/kpgalligan/doctored/issues/35)). An encoded document is
   byte-for-byte what it always was.
   **Image ▸ Tone Map…** is the same kind of question one step further out.

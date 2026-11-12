@@ -91,6 +91,8 @@ mod evaluation_nonseparable;
 mod evaluation_resample;
 #[path = "evaluation_retained_source.rs"]
 mod evaluation_retained_source;
+#[path = "evaluation_storage_resample.rs"]
+mod evaluation_storage_resample;
 #[path = "evaluation_styles.rs"]
 mod evaluation_styles;
 #[path = "evaluation_transfer.rs"]

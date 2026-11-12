@@ -119,6 +119,19 @@ impl crate::sampling_linear::LinearCodes<u16> for TypedTransfer {
     }
 }
 
+/// A linear-light 16-bit walk over unit samples
+/// (`sampling_linear::LinearUnit`): [`TypedTransfer::decode`] and the
+/// continuous [`TypedTransfer::encode`], rounded once by the walk's store.
+impl crate::sampling_linear::LinearUnit for TypedTransfer {
+    fn linear(&self, encoded: [f32; 3]) -> [f32; 3] {
+        self.decode(encoded)
+    }
+
+    fn encoded(&self, linear: [f32; 3]) -> [f32; 3] {
+        self.encode(linear)
+    }
+}
+
 /// The typed twin of `doc_evaluation::encoded_view` (the guide and Blend If
 /// read it): under `linear_light` the composited sample's RGB re-encoded
 /// CONTINUOUSLY ([`TypedTransfer::encode`], nothing quantized at this depth;
@@ -224,6 +237,14 @@ impl PrecisionDocument {
         self.linear_light
             .as_deref()
             .map(|t| t as &dyn crate::sampling_linear::LinearCodes<u16>)
+    }
+
+    /// [`Self::linear_codes`] for the walks over straight unit samples (a
+    /// float of selected pixels, Liquify): the same field, the same `None`s.
+    pub(crate) fn linear_unit(&self) -> Option<&dyn crate::sampling_linear::LinearUnit> {
+        self.linear_light
+            .as_deref()
+            .map(|t| t as &dyn crate::sampling_linear::LinearUnit)
     }
 
     /// Rebuilds the transfer when the document's profile has been replaced.

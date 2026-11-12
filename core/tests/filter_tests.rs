@@ -413,6 +413,33 @@ fn null_safety_all_filters() {
         );
     }
 
+    // dr_doc_filter_op: a NULL document or a NULL image refuses without
+    // writing an error, with and without an err_out, before anything else
+    // is read.
+    let doc = doctored_core::doc::DrDocument::from_pixels(RgbaImage::new(2, 2));
+    let raw = [0u8; 16];
+    let live = unsafe { doctored_core::ffi::dr_image_from_rgba(raw.as_ptr(), 2, 2) };
+    assert!(!live.is_null());
+    let op = CString::new("liquify").unwrap();
+    let pairs: [(*const doctored_core::doc::DrDocument, *const DrImage); 3] =
+        [(ptr::null(), live), (&doc, null), (ptr::null(), null)];
+    for (d, i) in pairs {
+        let mut err: *mut c_char = ptr::null_mut();
+        assert!(
+            unsafe { dr_doc_filter_op(d, i, op.as_ptr(), ptr::null(), ptr::null(), &mut err) }
+                .is_null()
+        );
+        assert!(
+            err.is_null(),
+            "a NULL document or image is a refusal, not an error"
+        );
+        assert!(unsafe {
+            dr_doc_filter_op(d, i, op.as_ptr(), ptr::null(), ptr::null(), ptr::null_mut())
+        }
+        .is_null());
+    }
+    unsafe { doctored_core::ffi::dr_image_free(live) };
+
     // The adjustment, statistics and readout exports of `ffi_adjust` join
     // the same sweep: a NULL image is a refusal everywhere, and the two
     // fallible ones tolerate a NULL err_out as well.

@@ -53,7 +53,8 @@ extension AgentServer {
             "false and add no undo step. The reply carries strokes, the count that ran, and at ",
             "16 and 32 bits storage. 8-, 16- and 32-bit float documents: a float layer is ",
             "resampled in linear light with each colour clamped to the range its visible pixels ",
-            "hold (not to 0 to 1), on the layer's own pixels only. Errors on a group or an ",
+            "hold (not to 0 to 1), on the layer's own pixels only; at 8 and 16 bits a document ",
+            "whose evaluation is linear_light resamples in linear light too. Errors on a group or an ",
             "adjustment layer. This rewrites the layer's pixels, so a re-editable text or shape ",
             "layer drops its description (undo restores it).",
         ].joined()

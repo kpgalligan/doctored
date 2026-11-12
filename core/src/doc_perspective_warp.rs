@@ -9,7 +9,8 @@
 //! at most 64 KiB, strict. The target checks, the plan accounting and the
 //! edit tail are Puppet Warp's (`doc_puppet`'s `mesh_warp_*`): the layer is
 //! resampled through the map onto its destination (not clipped to the
-//! canvas), a LINKED mask warps along with its outside coverage, an unlinked
+//! canvas), in premultiplied linear light on a linear-light document (11E
+//! D7), a LINKED mask warps along with its outside coverage, an unlinked
 //! mask stays, and the persisted warp binding is dropped. An identity
 //! layout plans 0 scratch bytes and edits nothing.
 use serde_json::Value;

@@ -167,6 +167,8 @@ impl PrecisionDocument {
                 edit.empty_area(),
                 edit.hole(),
                 edit.bounds(),
+                // Ink has no transfer.
+                None,
                 job,
             )
         };

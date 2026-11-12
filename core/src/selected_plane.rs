@@ -169,6 +169,8 @@ impl<S: StoredSample + PartialEq> Source<'_, S> {
             edit.empty_area(),
             hole,
             edit.bounds(),
+            // Coverage, or one colour component edited as a plane of codes.
+            None,
             job,
         )?;
         // V ⊇ canvas ⊇ landing, so the extent never grows past V.

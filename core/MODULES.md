@@ -548,7 +548,7 @@ Detail belongs in the source file's own header comment.
 - `gaussian_blur_filter.rs` — kernel: Gaussian Blur (measured against Photoshop), the fitted law and its K-pass extended box (the filter's master; not Box Blur's integer box), banded.
 - `sampling_gaussian_fast.rs` — KERNEL: the radius-independent Gaussian: legacy Blur from `LEGACY_FAST_SIGMA` up to the fitted kernel's range, Sharpen at every σ from it, 8 and 16 bits.
 - `sampling.rs` / `sampling_walk.rs` — KERNEL: shared encoded-colour, premultiplied-f32 sampling for transforms, resize and Gaussian blur; the spatial walks (taps, weights, edges).
-- `sampling_linear.rs` — KERNEL: a linear-light document's resample adapters (decode taps, premultiplied linear, encode once) and its Image Size.
+- `sampling_linear.rs` — KERNEL: a linear-light document's resample adapters (decode taps, premultiplied linear, encode once), `LinearUnit` for unit-sample walks, and its Image Size.
 - `gaussian_plane.rs` — KERNEL: the ONE separable Gaussian scalar kernel: `doc_select`'s feather at its byte arithmetic, and f32 for the typed tone guides.
 - `plane_blur.rs` — KERNEL: one multiresolution scalar blur schedule shared by byte styles and typed masks (byte rounding kept, float fields unquantized).
 - `cache_limit.rs` — leaf: resident cache bounds from the working limit: the cache bound limit/16 and the host trim limit/8 (all-or-nothing).

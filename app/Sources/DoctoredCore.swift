@@ -677,11 +677,19 @@ final class RasterImage {
     /// pixel or a threshold of 1 for Dust & Scratches; a zero radius or both
     /// halves off for Reduce Noise; liquify strokes that move nothing), so the
     /// caller adds no undo step; every refusal explains itself. `control` (single-use) makes the preview and
-    /// the Apply job cancellable; a cancel throws `operation cancelled`.
-    func filterOp(_ op: String, params: [String: Any], control: RasterJobControl? = nil) throws -> RasterImage? {
+    /// the Apply job cancellable; a cancel throws `operation cancelled`. With `evaluation` (the
+    /// document this image is a layer of) it is `dr_doc_filter_op`: `liquify` follows that
+    /// document's evaluation policy, and every other op is the same bytes.
+    func filterOp(_ op: String, params: [String: Any], control: RasterJobControl? = nil,
+                  evaluation: RasterDocument? = nil) throws -> RasterImage? {
         let json = try Self.filterParamsJSON(params)
         var error: UnsafeMutablePointer<CChar>?
-        let result = dr_image_filter_op(ptr, op, json, control?.ptr, &error)
+        let result: OpaquePointer?
+        if let evaluation {
+            result = dr_doc_filter_op(evaluation.ptr, ptr, op, json, control?.ptr, &error)
+        } else {
+            result = dr_image_filter_op(ptr, op, json, control?.ptr, &error)
+        }
         if let error { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not apply \(op).")) }
         return result.map { RasterImage(owning: $0) }
     }

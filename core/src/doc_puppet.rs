@@ -7,7 +7,9 @@
 //! The request is `{"op":"puppet_warp","layer":N,"mode":…,"density":…,
 //! "expansion":…,"pins":[…]}` in canvas pixels, at most 64 KiB, strict. The
 //! edit warps the layer's current pixels through the solved pose with the
-//! persisted warp's byte accumulate/finish (`doc_warp`), writes the result at
+//! persisted warp's byte accumulate/finish (`doc_warp`) — on a linear-light
+//! document `sampling_linear`'s binary64 pair, so the colour mixes in
+//! premultiplied linear light (11E D7) — writes the result at
 //! the deformed mesh's outward-rounded box (not clipped to the canvas) and
 //! drops any persisted warp binding, as a warp Set rewrites the layer. A
 //! LINKED mask warps through the same map, filling outside the mesh with its
@@ -23,6 +25,7 @@ use crate::precision_image::admit;
 use crate::puppet_arap::{solve, PuppetPose, PuppetSpec, SOLVER_BYTES};
 use crate::puppet_mesh::{build, mesh_plan_bytes, outward_bounds, MeshOptions, PuppetMesh, Rect};
 use crate::puppet_render::{render, InverseMap, PoseMap, MAP_BYTES, MARGIN_BYTES_PER_PIXEL};
+use crate::sampling_linear::{accumulate_linear_f64, straight_linear_f64};
 
 /// The request bound, the one every strict geometry request uses.
 pub(crate) const REQUEST_LIMIT: usize = 64 * 1024;
@@ -271,16 +274,30 @@ impl DrDocument {
         let image = entry.pixels.to_contiguous_with_job(job)?;
         let raw = image.as_raw();
         let mut out = vec![0u8; dest.2 as usize * dest.3 as usize * 4];
-        render(
-            map,
-            rect,
-            dest,
-            |i| [raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2], raw[i * 4 + 3]],
-            accumulate_rgba8,
-            finish_rgba8,
-            |i, p: [u8; 4]| out[i * 4..i * 4 + 4].copy_from_slice(&p),
-            job,
-        )?;
+        let read = |i: usize| [raw[i * 4], raw[i * 4 + 1], raw[i * 4 + 2], raw[i * 4 + 3]];
+        let write = |i: usize, p: [u8; 4]| out[i * 4..i * 4 + 4].copy_from_slice(&p);
+        match self.linear_light.as_deref() {
+            None => render(
+                map,
+                rect,
+                dest,
+                read,
+                accumulate_rgba8,
+                finish_rgba8,
+                write,
+                job,
+            )?,
+            Some(codes) => render(
+                map,
+                rect,
+                dest,
+                read,
+                |acc, p, weight| accumulate_linear_f64(acc, p, weight, codes),
+                |acc| straight_linear_f64(acc, codes),
+                write,
+                job,
+            )?,
+        }
         drop(image);
         let origin = (dest.0 as i32, dest.1 as i32);
         let pixels = LayerRaster::unseeded(

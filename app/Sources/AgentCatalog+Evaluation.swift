@@ -42,10 +42,11 @@ extension AgentServer {
                     + "mask means: each layer's pixels and each layer-style effect's colour "
                     + "are decoded as they composite; Blend If ranges, adjustment kernels and "
                     + "the Shadows/Highlights guide still read display levels; and Image Size, "
-                    + "Free Transform, Warp and a RAW layer's re-render resample in linear "
-                    + "light. Painting, fills, filters, Liquify, Puppet Warp and Perspective "
-                    + "Warp still edit the stored numbers. It refuses only a colour profile "
-                    + "with no matrix/TRC model.",
+                    + "Free Transform, Warp, Puppet Warp, Perspective Warp, Liquify, a "
+                    + "transform of selected pixels and a RAW layer's re-render resample in "
+                    + "linear light. Painting, fills, gradients and the other filters still "
+                    + "edit the stored numbers. It refuses only a colour profile with no "
+                    + "matrix/TRC model.",
                 [
                     "document_id": docID,
                     "policy": [

@@ -20,7 +20,8 @@ extension AgentServer {
 
     /// liquify — mirrors Filters ▸ Liquify… and its Apply: `strokes` (canvas
     /// pixels, amounts in percent) on `layer`'s own raster, written through
-    /// the selection. At 8 bits the byte filter `liquify`, admitted and run as
+    /// the selection. At 8 bits the byte filter `liquify` under the captured
+    /// document's evaluation (`dr_doc_filter_op`), admitted and run as
     /// a cancellable job like `apply_filter`'s filters; at 16 and 32 bits the
     /// selected edit of the same name. Both subtract the layer's canvas offset from the
     /// points. Strokes that move nothing answer `changed: false` and add no
@@ -48,7 +49,8 @@ extension AgentServer {
         let state = document.captureEditingState()
         let request = ByteFilterRequest(
             op: "liquify",
-            params: LiquifyStroke.kernelParameters(strokes, origin: (placement.x, placement.y)))
+            params: LiquifyStroke.kernelParameters(strokes, origin: (placement.x, placement.y)),
+            evaluation: capture.doc)
         let result = try byteFiltered(capture.source, request, in: document)
         // The job services other calls while it runs, so a selection
         // (or other editing-state) change during it refuses here rather than
