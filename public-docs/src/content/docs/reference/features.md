@@ -690,11 +690,13 @@ The design record behind each area is in the repository's
   model (MCP `list_style_presets`, `apply_style_preset`, `save_style_preset`,
   `rename_style_preset`, `delete_style_preset`, `import_style_presets` and
   `export_style_presets`; Actions record applying one)
-- Open PNG, JPEG, Photoshop (PSD and Large Document PSB, layered), TIFF (including BigTIFF, and a
-  TIFF with Photoshop layers as its layers), BMP, GIF, WebP, HEIC/HEIF, AVIF,
+- Open PNG, JPEG, Photoshop (PSD and Large Document PSB, layered), TIFF (including BigTIFF, a
+  TIFF with Photoshop layers as its layers, and a multipage TIFF's pages as
+  layers, or page 1 alone when it opens as an 8- or 16-bit Grayscale, Lab
+  Color, Indexed Color, Bitmap or CMYK document), BMP, GIF, WebP, HEIC/HEIF, AVIF,
   JPEG 2000, JPEG XL, OpenEXR and Radiance `.hdr` (each as a 32-bit float
-  document), Apple Live Photos, supported SDR H.264/ProRes 4444
-  movies, and camera RAW (CR3, CR2, NEF, ARW, DNG, Apple ProRAW,
+  document), Apple Live Photos, supported SDR H.264/HEVC/ProRes 4444
+  movies, HLG and PQ HEVC movies (as a 32-bit float document), and camera RAW (CR3, CR2, NEF, ARW, DNG, Apple ProRAW,
   ORF, RW2, RAF, SRW, PEF) — EXIF orientation is applied on open, so camera
   photos display upright. A GRAYSCALE PNG, TIFF or JPEG (8 or 16 bits, no
   profile or a Gray ICC) opens as a Grayscale document: its
@@ -2556,7 +2558,8 @@ The design record behind each area is in the repository's
   and the work charged for a row is linear in its length, so a
   1,000-character line of prose at 24 px renders
 - **Live Photo and movie frames**: open a JPEG/HEIC still and movie sharing
-  one basename, or a supported SDR H.264/ProRes 4444 movie. Pairing uses the
+  one basename, or a supported SDR H.264/HEVC/ProRes 4444 movie (an HLG or
+  PQ HEVC movie opens as a 32-bit float document and does not place). Pairing uses the
   filename; it does not verify an Apple asset ID. A pair opens as its
   original full-resolution still, a bare movie as its first frame. Layer >
   Place Live Photo adds one to an existing document. Either way the frame
@@ -3471,9 +3474,14 @@ smart/placed, vector and advanced blending metadata markers. It distinguishes
 documented defaults from discarded nondefault or unrecognized settings;
 marker presence does not imply an active effect. Unknown keys and global
 additional-info blocks remain outside this finite inspection.
-Animated GIFs and multi-page TIFFs load their first frame/page only, so ⌘S
+Animated GIFs load their first frame only, so ⌘S
 on a GIF deliberately routes through Save As instead of overwriting the
-animation in place. Document-level rotate,
+animation in place. A multipage TIFF opens each page that matches page 1 as a
+hidden layer "Page n" (page 1 visible), and the open's warnings name any page
+left out; ⌘S then routes through Save As, as for any layered document. A
+multipage TIFF whose first page opens as an 8- or 16-bit Grayscale, a Lab Color,
+an Indexed Color, a Bitmap or a CMYK document opens that page alone, and its
+import warnings say so. Document-level rotate,
 flip and resize compose into text and shape descriptions,
 so a re-edit after one lands in place. A RAW layer's source geometry uses
 its explicit source-layer transform. At 8 and 16 bits, Canvas Size, Image
@@ -3482,7 +3490,8 @@ RAW masters and compose their source maps; linked files are not read
 to reopen the native document. Crop straighten, filtered rotation and Image Size regenerate text
 and shape artwork from its description at native depth; missing fonts refuse
 preservation. A Live Photo layer from an earlier build opens as its saved
-pixels. Movie and Live Photo input is SDR frames from selected codecs; HDR
+pixels. Movie and Live Photo input is SDR frames from selected codecs, and an
+HLG or PQ HEVC frame opened as a 32-bit float document; Dolby Vision
 video, animation disposal and broader cross-decoder conformance remain later work. Metadata preservation is per container
 and packet: JPEG and PNG retain their existing packet conventions; TIFF adds
 standard EXIF/GPS/Interop, XMP and IPTC with embedded ICC and actual document

@@ -457,6 +457,8 @@ Detail belongs in the source file's own header comment.
 - `lab_save.rs` — the Lab TIFF save, its request and plan (`save_lab`, `save_lab_plan`; no ICC, alpha only when not opaque).
 - `lab_tiff_read.rs` — which flat Lab TIFFs open (Photometric 8/9, header only over `tiff_directory`, `lab_source_at`) and `open_lab`; `open_plan`.
 - `tiff_directory.rs` — KERNEL leaf: a classic TIFF's first directory (header only), the bytes/file readers and the patching `Overlay` (Lab and palette TIFF opens).
+- `tiff_pages.rs` (KERNEL) — multipage TIFF: which images are pages, which open as layers, their sentences, and `with_page`, the patch making one page the file.
+- `doc_tiff_pages.rs` — the byte and typed multipage TIFF opens over `tiff_pages`: page 1 as the file, each later page a hidden layer "Page n".
 - `lab_limits.rs` — leaf: the flat Lab TIFF open's measured `OPEN_BYTES_PER_PIXEL`.
 - `lab_native.rs` — the Lab document in the native format: word 107 in the CMYK slot and the `LAB ` table before LIDS.
 - `lab_neural.rs` — a model's input through the Display P3 view and its result back by the Mode rule (`published`), their plan terms.

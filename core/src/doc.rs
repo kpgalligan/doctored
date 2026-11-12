@@ -2173,7 +2173,9 @@ impl DrDocument {
     /// Opens a document, sniffing the container: "DRDC" (written; legacy
     /// "RZDC" read) is the native format,
     /// "8BPS" a Photoshop document (layered import), anything else decodes
-    /// via the `DrImage::open_bytes` rules to a single "Background" layer.
+    /// via the `DrImage::open_bytes` rules to a single "Background" layer —
+    /// except a multipage TIFF, whose pages become layers "Page 1"… with only
+    /// page 1 visible (`doc_tiff_pages`).
     ///
     /// A FLAT open also lifts the file's sidecar onto the document: its
     /// embedded ICC profile (from the decoder, which reassembles JPEG APP2
@@ -2191,35 +2193,49 @@ impl DrDocument {
     /// Gray profile on a grayscale image, a CMYK profile on a CMYK TIFF —
     /// whose pixels `open_bytes` has already converted to sRGB.
     pub fn open(path: &str) -> Result<Self, String> {
-        let bytes = std::fs::read(path).map_err(|e| format!("failed to read {path}: {e}"))?;
+        let mut bytes = std::fs::read(path).map_err(|e| format!("failed to read {path}: {e}"))?;
         if crate::native_magic::is_native_magic(&bytes) {
             crate::drdc::parse_native(&bytes)
                 .map_err(|e| format!("failed to read document {path}: {e}"))
         } else if bytes.len() >= 4 && &bytes[..4] == b"8BPS" {
             crate::psd::open_psd(&bytes, path)
         } else {
-            let (image, sidecar) = DrImage::open_bytes(&bytes, path)?;
-            let mut doc = DrDocument::from_pixels(image.pixels);
-            // The sidecar carries only a profile the open KEPT: one it
-            // converted from (Gray, CMYK) or ignored (any other non-RGB
-            // profile, or one past the blob cap, which a zlib-compressed PNG
-            // `iCCP` can inflate to) is absent, the pixels are sRGB's
-            // numbers, and the import report names it (`open_profile`).
-            // Parsing again here is the backstop: `IccProfile::parse`
-            // is where every refusal lives, so this path can never build a
-            // document the native writer would refuse to save.
-            if let Some(profile) = sidecar.icc.as_deref().and_then(IccProfile::parse) {
-                doc.profile = Arc::new(profile);
-            }
-            doc.metadata = sidecar.metadata;
-            if let Some(resolution) = sidecar.resolution {
-                doc.resolution = resolution;
-            }
-            // A TIFF's spot channels (#1 1c-2a, `tiff_spot`).
+            // A TIFF holding more than one image opens each page as a layer
+            // (`tiff_pages`, `doc_tiff_pages`).
             if crate::metadata_tiff::is_tiff(&bytes) {
-                return doc.with_tiff_spots(&bytes);
+                if let Some(pages) = crate::tiff_pages::read(&bytes) {
+                    return Self::open_tiff_pages(&mut bytes, &pages, path);
+                }
             }
-            Ok(doc)
+            Self::open_flat(&bytes, path)
         }
+    }
+
+    /// The flat branch of [`Self::open`] over bytes already read: a one-image
+    /// file, or page 1 of a multipage TIFF made the file's only page
+    /// (`tiff_pages::with_page`).
+    pub(crate) fn open_flat(bytes: &[u8], path: &str) -> Result<Self, String> {
+        let (image, sidecar) = DrImage::open_bytes(bytes, path)?;
+        let mut doc = DrDocument::from_pixels(image.pixels);
+        // The sidecar carries only a profile the open KEPT: one it
+        // converted from (Gray, CMYK) or ignored (any other non-RGB
+        // profile, or one past the blob cap, which a zlib-compressed PNG
+        // `iCCP` can inflate to) is absent, the pixels are sRGB's
+        // numbers, and the import report names it (`open_profile`).
+        // Parsing again here is the backstop: `IccProfile::parse`
+        // is where every refusal lives, so this path can never build a
+        // document the native writer would refuse to save.
+        if let Some(profile) = sidecar.icc.as_deref().and_then(IccProfile::parse) {
+            doc.profile = Arc::new(profile);
+        }
+        doc.metadata = sidecar.metadata;
+        if let Some(resolution) = sidecar.resolution {
+            doc.resolution = resolution;
+        }
+        // A TIFF's spot channels (#1 1c-2a, `tiff_spot`).
+        if crate::metadata_tiff::is_tiff(bytes) {
+            return doc.with_tiff_spots(bytes);
+        }
+        Ok(doc)
     }
 }

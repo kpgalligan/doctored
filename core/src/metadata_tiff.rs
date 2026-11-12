@@ -345,10 +345,17 @@ pub(crate) fn scan(bytes: &[u8]) -> (Scan, Vec<&'static str>) {
         warnings.push("TIFF private capture fields were not retained");
     }
     if t.offset_at(link).is_some_and(|next| next != 0) {
-        warnings.push("Only the first TIFF image is imported; additional images or thumbnails are not retained");
+        warnings.push(FIRST_IMAGE_ONLY);
     }
     (scan, warnings)
 }
+
+/// The scan's sentence for a TIFF whose first image links to another. The
+/// opens that take every page (`tiff_pages`) never meet it, as they scan one
+/// page made the file's only one; the import report drops it for a file the
+/// page rule reads, whose own sentences replace it.
+pub(crate) const FIRST_IMAGE_ONLY: &str =
+    "Only the first TIFF image is imported; additional images or thumbnails are not retained";
 
 /// Orientation is a scalar TIFF tag; this supplements the image adapter's
 /// optional orientation implementation without interpreting EXIF twice.

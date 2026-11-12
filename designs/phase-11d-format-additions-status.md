@@ -1,6 +1,6 @@
 # Format additions — HEIC, Gray16, typed metadata bridge, float TIFF seam, PDF/SVG (ADR)
 
-- **Status:** Accepted — open items remain ([#15](https://github.com/kpgalligan/doctored/issues/15), [#16](https://github.com/kpgalligan/doctored/issues/16), [#1](https://github.com/kpgalligan/doctored/issues/1))
+- **Status:** Accepted — open items remain ([#16](https://github.com/kpgalligan/doctored/issues/16), [#1](https://github.com/kpgalligan/doctored/issues/1))
 - **Phase / dates:** 11D, drive run 2026-09-18 (all seven gates D1–D7 pass)
 - **Originals:** [archive/phase-11d-format-additions-status.md](../archive/phase-11d-format-additions-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-11d-format-additions-status.md](../archive/2026-10/phase-11d-format-additions-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `0e1c496`
@@ -91,8 +91,8 @@ reach disk or preview. Tests:
 `scripts/verify_phase11d_formats.py`.
 
 ## Open items (verified 2026-10-30)
-- `OPEN` [#15](https://github.com/kpgalligan/doctored/issues/15) — SDR HEVC (`hvc1`/`hev1`) movie frames
-  (`HostVideoDecoder.swift` admits no HEVC; needs a preflight and an `ffmpeg` ≤ 4-code gate).
+- `DONE` — SDR HEVC (`hvc1`) movie frames, with an `hvcC` gate and a NAL-header preflight, within
+  4 codes of ffmpeg's decode (`scripts/verify_movie_frames.py`); `hev1` refuses by name.
 - `DROPPED` (2026-10-30) — an expanded multiframe ProRes cross-decoder comparison: it re-qualifies a shipped
   decode, and frames land as pixels with no re-render, so the figure gates nothing.
 - `DROPPED` (2026-10-30) — float-predictor (predictor 3) TIFF encoding: not written; a Deflate float TIFF without

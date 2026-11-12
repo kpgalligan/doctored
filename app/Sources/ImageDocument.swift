@@ -534,16 +534,18 @@ final class ImageDocument: NSDocument {
     /// The app's open path, most specific first:
     ///
     /// 1. A host still or movie the platform decodes at full precision (HEIC,
-    ///    JPEG XL, AVIF, JPEG 2000, H.264, ProRes 4444, either half of a Live
-    ///    Photo pair) becomes one raster layer of its decoded samples
-    ///    (`openHostSource`).
+    ///    JPEG XL, AVIF, JPEG 2000, H.264, SDR HEVC, ProRes 4444, either half
+    ///    of a Live Photo pair) becomes one raster layer of its decoded samples
+    ///    (`openHostSource`); an HLG or PQ HEVC movie's frame a 32-bit float
+    ///    document (`openHDRMovieFrame`).
     /// 2. A CAMERA RAW — tested by TYPE, never by a failed decode — is
     ///    developed by Core Image, with the Develop dialog choosing the
     ///    settings first unless `RawImportRequest.mode` says otherwise
     ///    (`RawImage.isRawFile` says why the type is the test and the
     ///    failure is not).
     /// 3. The core's own `dr_doc_open`, which transparently handles `.rz`,
-    ///    layered PSD, and the flat formats (single "Background" layer).
+    ///    layered PSD, and the flat formats (single "Background" layer; a
+    ///    multipage TIFF one hidden layer per later page).
     /// 4. Formats the core has no decoder for (HEIC, HEIF) fall back to the
     ///    platform's, as one flat layer.
     /// 5. COLOUR, on every one of those paths: the document is assigned the
@@ -686,6 +688,15 @@ final class ImageDocument: NSDocument {
             var report = captured.report
             if let refusal = decoded.refusal {
                 report["warnings"] = ((report["warnings"] as? [String]) ?? []) + [refusal]
+            }
+            // The platform decodes one image: a multipage TIFF the core could
+            // not open says which pages are missing and why (`tiff_pages`).
+            if let pages = RasterDocument.metadataImportReport(at: url)?["tiff_pages"] as? Int,
+               pages > 1 {
+                report["warnings"] = ((report["warnings"] as? [String]) ?? [])
+                    + ["Only page 1 of the file's \(pages) pages was opened, by the system "
+                        + "decoder, because the file's own open failed: "
+                        + error.localizedDescription]
             }
             return Opened(
                 doc: AuxiliaryMattes.attaching(to: doc, from: url) ?? doc,

@@ -183,7 +183,7 @@ extension RasterDocument {
         let byteLayouts: Set<String> = ["rgba8", "rgba8_premultiplied", "rgb8", "bgra8", "bgra8_opaque", "rgba8_opaque"]
         let typedLayouts: Set<String> = ["rgba16_le", "rgba16_le_premultiplied", "rgb16_le", "rgba16_le_opaque",
                                          "rgb10_packed_le", "argb16_be", "argb16_be_premultiplied",
-                                         "rgba16_le_left12", "rgba16_le_opaque_left12",
+                                         "argb16_be_opaque", "rgba16_le_left12", "rgba16_le_opaque_left12",
                                          "rgba16_le_premultiplied_left12"]
         guard byteLayouts.contains(layout) || typedLayouts.contains(layout),
               let width = UInt32(exactly: width), let height = UInt32(exactly: height),

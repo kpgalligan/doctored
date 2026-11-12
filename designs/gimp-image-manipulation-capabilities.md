@@ -1,6 +1,6 @@
 # GIMP architecture study — lessons and capability catalog (ADR)
 
-- **Status:** Accepted — reference study; open items remain ([#1](https://github.com/kpgalligan/doctored/issues/1), [#5](https://github.com/kpgalligan/doctored/issues/5), [#9](https://github.com/kpgalligan/doctored/issues/9), [#10](https://github.com/kpgalligan/doctored/issues/10), [#12](https://github.com/kpgalligan/doctored/issues/12), [#15](https://github.com/kpgalligan/doctored/issues/15), [#17](https://github.com/kpgalligan/doctored/issues/17), [#19](https://github.com/kpgalligan/doctored/issues/19)). The study has no work items of its own; those are the catalog gaps that have an issue.
+- **Status:** Accepted — reference study; open items remain ([#1](https://github.com/kpgalligan/doctored/issues/1), [#5](https://github.com/kpgalligan/doctored/issues/5), [#9](https://github.com/kpgalligan/doctored/issues/9), [#10](https://github.com/kpgalligan/doctored/issues/10), [#12](https://github.com/kpgalligan/doctored/issues/12), [#17](https://github.com/kpgalligan/doctored/issues/17), [#19](https://github.com/kpgalligan/doctored/issues/19), [#34](https://github.com/kpgalligan/doctored/issues/34)). The study has no work items of its own; those are the catalog gaps that have an issue.
 - **Phase / dates:** pre-plan architecture study of the GIMP 3.3 development tree, 2026-08-10
 - **Original:** [archive/gimp-image-manipulation-capabilities.md](../archive/gimp-image-manipulation-capabilities.md) — the full 14-section study with per-section implementation notes
 - **Key commits:** `bc949f5` (study); it seeded [high-leverage-roadmap.md](high-leverage-roadmap.md) (`4f56283`) and [next-features.md](next-features.md) (`d0b0d26`)
@@ -51,7 +51,7 @@ Lessons adopted, and where Doctored applied them:
 | §11 Text/paths | Pango text with transforms; Bézier paths; vector layers | CoreText text layers with symbolic transforms; shape layers; Bézier paths with a Pen tool, a Paths panel and vector masks ([ADR](v1-paths.md)). No vector layers, text-to-path or text on path |
 | §12 Undo | Swap-based command objects, tile-aligned snapshots, disk spill | Immutable full states + byte budget (Phase 5); tiled undo pending |
 | §13 Performance | Tiled COW buffers, disk swap, mipmaps, runtime-dispatched SIMD | Arc-shared immutable planes, 13B tile store; no mipmaps, no disk swap, no hand SIMD |
-| §14 Extensibility | PDB, out-of-process plug-ins, Script-Fu, 60+ formats | MCP server + built-in assistant + Actions/Batch; no plug-in API. Formats: PNG, JPEG, TIFF (8/16/float), BMP, GIF, WebP (lossless), HEIC and AVIF (host), JPEG XL export (lossless), OpenEXR, Radiance HDR, PSD/PSB 8/16/32, PDF export, RAW import; multipage TIFF not supported |
+| §14 Extensibility | PDB, out-of-process plug-ins, Script-Fu, 60+ formats | MCP server + built-in assistant + Actions/Batch; no plug-in API. Formats: PNG, JPEG, TIFF (8/16/float), BMP, GIF, WebP (lossless), HEIC and AVIF (host), JPEG XL export (lossless), OpenEXR, Radiance HDR, PSD/PSB 8/16/32, PDF export, RAW import; a multipage RGB TIFF opens each page as a layer |
 
 ## Rejected alternatives
 - **Fusing the document model with a live render graph** (§1) — Doctored keeps pure immutable documents and
@@ -83,7 +83,10 @@ The study records no to-do items of its own. Catalog gaps and where they stand:
 - `OPEN` [#1](https://github.com/kpgalligan/doctored/issues/1) — CMYK mode's remaining items and PDF/X
   ([status](cmyk-mode-status.md)).
 - `DONE` — AVIF and lossless JPEG XL export, OpenEXR and Radiance HDR (§14).
-- `OPEN` [#15](https://github.com/kpgalligan/doctored/issues/15) — Opening multipage TIFF files.
+- `DONE` — Opening multipage TIFF files: each page that matches page 1 opens as a layer at 8, 16 and 32 bits;
+  a first page that opens as an 8/16-bit Grayscale, Lab, Indexed, Bitmap or CMYK document opens alone.
+- `OPEN` [#34](https://github.com/kpgalligan/doctored/issues/34) — Every page of a multipage TIFF in the colour
+  modes, and Place of a multipage TIFF.
 - `DONE` — Magnetic lasso (Intelligent Scissors' live-wire trace) at 8, 16 and 32 bits.
 - `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — Magnetic Lasso part B: ⌥-drag freehand
   segments, the Caps Lock cursor, contrast keys and stylus pressure.

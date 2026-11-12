@@ -15,6 +15,12 @@ struct PreparedHostSource {
 enum HostSourceWork {
     static func capture(_ input: HostSourceInput, selection: HostFrameSelection? = nil,
                         expected: [String]? = nil) throws -> PreparedHostSource {
+        // A pair holding an HDR movie refuses as a pair: opening either half
+        // opens the pair, so the bare movie's advice would not help.
+        if input.entries.count == 2, let movie = input.entries.first(where: { $0.role == "video" }),
+           let signal = try HostVideoDecoder.inspect(movie.url).hdr {
+            throw HostSourceError.failure(HostVideoDecoder.hdrPairRefusal(signal))
+        }
         _ = try RasterResources.shared.admit(scratch: input.scratch)
         return try PrecisionCapturedWork.run(scratchEstimate: input.scratch, title: "Capturing Full Media Source") { control in
             let snapshot = try HostSourceSnapshot.capture(input)

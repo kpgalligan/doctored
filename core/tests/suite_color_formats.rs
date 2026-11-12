@@ -623,3 +623,5 @@ mod spot_typed_export;
 mod tiff_float_tests;
 #[path = "tiff_layers.rs"]
 mod tiff_layers;
+#[path = "tiff_pages_tests.rs"]
+mod tiff_pages_tests;

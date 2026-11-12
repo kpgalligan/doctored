@@ -40,7 +40,10 @@ fn report_bytes(path: &str) -> Result<Vec<u8>, String> {
 /// The density query also supports TIFF-based RAW without decoding pixels.
 /// `profile_refusal`, present only for a flat file whose embedded colour
 /// profile the open converts from or ignores (`open_profile`), is that
-/// sentence, which is also the last entry of `warnings`.
+/// sentence, which is also the last entry of `warnings`. `tiff_pages`,
+/// present only for a TIFF of more than one page, is its page count
+/// (`tiff_pages`); `warnings` carries the byte open's sentences about a
+/// TIFF's pages.
 /// Free with dr_string_free. NULL on read/input
 /// error, with err_out explaining the failure. Never decodes pixels.
 ///
@@ -98,6 +101,20 @@ pub unsafe extern "C" fn dr_path_metadata_import_report(
             "limitations": limitations, "warnings":warnings});
                 if let Some(resolution) = resolution {
                     report["resolution"] = serde_json::json!({"x":resolution.x,"y":resolution.y});
+                }
+                // A multipage TIFF (`tiff_pages`): how many pages it has, and
+                // the byte open's sentences about them, read from headers as
+                // the open decides them.
+                if container == "tiff" {
+                    if let Some(pages) = crate::tiff_pages::read(&bytes) {
+                        if pages.count() > 1 {
+                            report["tiff_pages"] = serde_json::Value::from(pages.count());
+                        }
+                        if let Some(warnings) = report["warnings"].as_array_mut() {
+                            warnings.retain(|w| w != crate::metadata_tiff::FIRST_IMAGE_ONLY);
+                            warnings.extend(pages.notes().into_iter().map(serde_json::Value::from));
+                        }
+                    }
                 }
                 // A TIFF's spot channels (#1 1c-2a, `tiff_spot`): the
                 // observation and loss lines of the records every open reads.

@@ -1,6 +1,6 @@
 # Phase 3 — TIFF, color and capture metadata (ADR)
 
-- **Status:** Accepted — open items remain ([#15](https://github.com/kpgalligan/doctored/issues/15))
+- **Status:** Accepted — open items remain ([#34](https://github.com/kpgalligan/doctored/issues/34))
 - **Phase / dates:** Phase 3 (3A–3D) of the [implementation plan](professional-photo-editor-implementation-plan.md), 2026-09-09
 - **Original:** [archive/phase-3-color-metadata-status.md](../archive/phase-3-color-metadata-status.md) — full history, measurements, receipts
 - **Key commits:** `f34201b`
@@ -67,8 +67,12 @@ versioned the colour evaluation so old documents keep their look, and surfaced P
 ## Open items (verified 2026-09-26)
 - `DONE` — BigTIFF opens at 8-bit, 16-bit and float with ICC, XMP, IPTC,
   EXIF and ppi read as for classic TIFF (`core/src/tiff_view.rs`'s `Tiff::file`); it saves back as classic TIFF.
-- `OPEN` [#15](https://github.com/kpgalligan/doctored/issues/15) — Multipage TIFF: refused at 16 and 32 bits
-  (`core/src/precision_codec.rs`, `core/src/tiff_float.rs`); the 8-bit open reads only the first page.
+- `DONE` — Multipage TIFF opens each page that matches page 1 as a hidden layer "Page n" at 8, 16 and 32
+  bits (`core/src/tiff_pages.rs`, `core/src/doc_tiff_pages.rs`) and names every page it leaves out; a
+  first page the 8/16-bit Grayscale, Lab, Indexed or Bitmap open takes, or a typed CMYK one, opens
+  alone (a 32-bit Gray float file takes every page).
+- `OPEN` [#34](https://github.com/kpgalligan/doctored/issues/34) — every page of a multipage TIFF whose first
+  page opens in a colour mode, and Place of a multipage TIFF (`ImageSourceFile.swift` requires one image).
 - `DONE` — High-depth TIFF (Phase 7, `core/src/precision_codec.rs`) and float TIFF (11F, `core/src/tiff_float.rs`).
 - `DONE` — Detailed per-file PSD record reporting → 10A (`core/src/psd_feature_markers.rs`); 16-bit PSD → 10C
   (`core/src/psd_import16.rs`).

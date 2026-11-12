@@ -45,7 +45,8 @@
 //! 4 samples with optional Deflate and predictor NONE (the crate has no float-predictor
 //! ENCODER). NaN and infinity are COUNTED in `non_finite` and passed through unchanged — a
 //! finite-value policy is 11F's. Every refusal names its element: SampleFormat ≠ 3, bits ∉ {16,
-//! 32}, planar, > 4 samples, mixed widths, multipage, a bad `ExtraSamples`.
+//! 32}, planar, > 4 samples, mixed widths, multipage, a bad `ExtraSamples`. The file open never
+//! meets the multipage refusal: it hands this seam one page at a time (`tiff_pages::with_page`).
 
 use std::io::{Seek, Write};
 

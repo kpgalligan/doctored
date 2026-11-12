@@ -420,8 +420,10 @@ Detail belongs in the source file's own header comment.
 - `EditorViewController+LivePhoto.swift` — Layer ▸ Place Live Photo…: the still (or a clip's first frame) lands as an ordinary layer above the active one; MCP `add_live_photo_layer`.
 - `RetainedSourceInspection.swift` — compact stack inspection of retained sources, shared by byte and typed owners; dense recipes and mask pixels only through their own inspection.
 - `HostSourceDescriptor.swift` / `HostSourceInput.swift` / `HostSourceWork.swift` — strict still/movie contracts and private snapshots; the decode opens or places as a raster layer.
-- `HostStillDecoder.swift` / `HostVideoDecoder.swift` / `HostAVCPrecision.swift` / `HostAVCPreflight.swift` — bounded full ImageIO/AVFoundation SDR decoding into explicit integer packing layouts.
+- `HostStillDecoder.swift` / `HostVideoDecoder.swift` / `HostAVCPrecision.swift` / `HostAVCPreflight.swift` — bounded full ImageIO/AVFoundation decoding into explicit integer packing layouts.
+- `HostHEVCPrecision.swift` / `HostHEVCPreflight.swift` — the `hvcC` gate (8- or 10-bit 4:2:0) and the NAL-header pass over a compressed HEVC track before its frame decodes.
 - `HDRPhotoRequest.swift` / `HDRStillDecoder.swift` / `HDRStillOpen.swift` — an HDR photo (gain map, PQ, HLG) opened as 32-bit float or its SDR rendition.
+- `HostVideoDecoder+HDR.swift` / `HDRMovieFrameOpen.swift` — an HLG or PQ HEVC movie's frame decoded and opened as a 32-bit float document by the PQ/HLG still rule.
 - `HostSourceImport.swift` — File ▸ Open of host media as one raster layer, with a deliberate 16/8-bit depth choice.
 - `ImageIOMetadata.swift` — the capture metadata ImageIO exposes for HEIC/HEIF and camera RAW (fields, XMP) attached on open; `Bitmap.declaredCaptureDPI` asks the core scanner.
 - `AuxiliaryMattes.swift` — iPhone auxiliary images (depth/disparity, portrait-effects and semantic mattes) read off a HEIC or JPEG at open and attached as named alpha channels.

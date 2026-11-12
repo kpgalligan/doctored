@@ -198,7 +198,13 @@ typedef enum {
  * imported as one layer per PSD raster layer (name, visibility, opacity,
  * best-effort blend-mode mapping; on any per-layer failure falls back to a
  * single flattened layer); anything else decodes via dr_image_open rules to
- * a single "Background" layer. An RGB or CMYK TIFF's spot channels (#1
+ * a single "Background" layer. A multipage TIFF opens each page that
+ * matches page 1's depth, sample format, photometric and profile as a layer
+ * "Page n" at the canvas's top-left, only page 1 visible; the canvas and
+ * everything else are page 1's, reduced-resolution, mask and Exif thumbnail
+ * images are not pages, and a later page that fails to decode fails the open
+ * ("page n of <path>: ..."). dr_path_metadata_import_report names the pages
+ * left out. An RGB or CMYK TIFF's spot channels (#1
  * 1c-2a: trailing extra samples described by resource 1077 in tag 34377)
  * open as spot channels, a 16-bit file's narrowed to 8 bits;
  * dr_path_metadata_import_report names them and any it cannot keep. Errors
@@ -4442,7 +4448,9 @@ bool dr_path_metadata_walked(const char *path);
  * JPEG) or ignores, or for an untagged CMYK TIFF or JPEG (converted from the
  * working CMYK profile, which the sentence names, or read without colour
  * management when none is set — dr_set_working_cmyk_profile), is that one
- * sentence, also the last entry of `warnings`.
+ * sentence, also the last entry of `warnings`. `tiff_pages`, present only
+ * for a TIFF of more than one page, is its page count; `warnings` carries
+ * dr_doc_open's sentences about a TIFF's pages.
  * A CMYK file dr_image_open refuses has no `profile_refusal`; a host that
  * decodes it itself words that conversion with
  * dr_platform_conversion_sentence. Never decodes pixels. Free with
@@ -5633,7 +5641,11 @@ DrPrecisionDocument *dr_precision_doc_retouch_from(const DrPrecisionDocument *do
  * and the planes; the observation and any loss line join import_warnings.
  * A 16-bit RGB TIFF with extra samples beyond one straight alpha opens only
  * when every one of them is a kept spot channel; otherwise it still refuses
- * "RGBA TIFF must declare one unassociated alpha sample". */
+ * "RGBA TIFF must declare one unassociated alpha sample". A multipage 16-bit
+ * or float TIFF opens its pages as dr_doc_open does, each later page
+ * admitted against `limit` with the pages before it retained, and the
+ * sentences about its pages join import_warnings; a CMYK page 1 opens alone
+ * and says so. */
 DrPrecisionDocument *dr_precision_doc_open(const char *path, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
 void dr_precision_doc_free(DrPrecisionDocument *document);
@@ -8733,9 +8745,10 @@ DrPrecisionDocument *dr_precision_doc_artwork_metadata(const DrPrecisionDocument
  * conversion. Layout tokens: rgba8, rgba8_premultiplied, rgb8, bgra8,
  * bgra8_opaque, rgba8_opaque, rgba16_le, rgba16_le_premultiplied, rgb16_le,
  * rgba16_le_opaque, rgb10_packed_le, argb16_be, argb16_be_premultiplied,
- * rgba16_le_left12, rgba16_le_opaque_left12, rgba16_le_premultiplied_left12.
+ * argb16_be_opaque, rgba16_le_left12, rgba16_le_opaque_left12,
+ * rgba16_le_premultiplied_left12.
  * Each owner accepts only its actual sample depth. The *_opaque RGBX layouts
- * ignore the X sample. rgb10_packed_le is one little-endian u32 per pixel
+ * (argb16_be_opaque: XRGB) ignore the X sample. rgb10_packed_le is one little-endian u32 per pixel
  * (bits 31..30 ignored, R 29..20, G 19..10, B 9..0; minimum row width*4
  * bytes); each 10-bit code widens to (v*65535+511)/1023 with alpha 65535, so
  * its output depth is 16 and only the precision owner accepts it.

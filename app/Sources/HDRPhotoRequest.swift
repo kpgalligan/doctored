@@ -54,6 +54,15 @@ enum HDRPhotoRequest {
             + "it to 16 bits with Image ▸ Mode ▸ Convert Precision…."
     }
 
+    /// An HLG or PQ movie asked for as SDR or 8 bits: `noSDRRendition`'s
+    /// rule for a movie frame (`HDRMovieFrameOpen.swift`).
+    static func noSDRMovieRendition(_ kind: HDRStillKind) -> String {
+        let name = kind == .pq ? "PQ" : "HLG"
+        return "This movie is HDR video coded in \(name), which has no SDR or 8-bit rendition to "
+            + "open. Open it as HDR (File ▸ Open HDR Photos as HDR, or hdr_photo \"hdr\") and "
+            + "convert the frame to 16 bits with Image ▸ Mode ▸ Convert Precision…."
+    }
+
     /// The disclosure on a gain-map photo opened as its SDR base.
     static let sdrBaseDisclosure = "This HDR gain-map photo was opened as its SDR base: the gain "
         + "map was not applied. Turn on File ▸ Open HDR Photos as HDR (or pass hdr_photo \"hdr\") "

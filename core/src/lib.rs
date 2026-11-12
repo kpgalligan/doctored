@@ -202,6 +202,7 @@ mod doc_source_geometry;
 mod doc_stack_mode;
 pub mod doc_structure;
 mod doc_structure_sets;
+mod doc_tiff_pages;
 pub mod doc_transform;
 pub mod doc_vector_mask;
 pub mod doc_vector_mask_carry;
@@ -788,6 +789,7 @@ mod tiff_layers_order;
 #[doc(hidden)]
 pub use tiff_layers_order::layered_tiff_little_endian;
 mod tiff_layers_write;
+mod tiff_pages;
 mod tiff_spot;
 mod tiff_spot_samples;
 mod tiff_view;

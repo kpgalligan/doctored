@@ -2,6 +2,9 @@
 //! No implicit byte promotion, profile conversion, associated-alpha conversion,
 //! planar TIFF, animation, multipage or HDR interpretation. Orientation only
 //! permutes samples. Packet policy is shared with doc_color's byte writer.
+//! `PrecisionDocument::open_preserving` hands a multipage TIFF to this codec
+//! one page at a time (`tiff_pages::with_page`); every other caller still
+//! meets the multipage refusal.
 //!
 //! Codec dependencies decode/compress a frame synchronously and cannot poll our
 //! job token inside that call. Admission precedes pixel allocation; checkpoints

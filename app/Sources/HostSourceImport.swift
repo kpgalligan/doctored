@@ -8,6 +8,11 @@ import ImageIO
 extension ImageDocument {
     static func openHostSource(_ url: URL) throws -> Opened {
         let input = try HostSourceInput(url: url)
+        // An HLG or PQ movie opens as a 32-bit float document (`HDRMovieFrameOpen.swift`).
+        if input.entries.count == 1, let movie = input.entries.first, movie.role == "video",
+           let signal = try HostVideoDecoder.inspect(movie.url).hdr {
+            return try openHDRMovieFrame(movie.url, signal: signal, encoded: movie.bytes)
+        }
         // A single 8-bit still is charged its whole open up front
         // (`HostStillDecoder.openScratch`'s record): the first projection
         // peaks above the capture figure `input.scratch` charges.

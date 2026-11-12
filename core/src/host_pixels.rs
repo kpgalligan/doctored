@@ -8,7 +8,7 @@
 //! full scale by bit replication (see `expand12`).
 //!
 //! explicit integer RGBA8/RGBA16, RGB, BGRA, RGBX8/RGBX16 (`rgba8_opaque` / `rgba16_le_opaque`) and
-//! big-endian ARGB packing, plus packed little-endian 10:10:10 (`rgb10_packed_le`),
+//! big-endian ARGB/XRGB packing (`argb16_be_opaque`), plus packed little-endian 10:10:10 (`rgb10_packed_le`),
 //! straight/premultiplied/opaque alpha policy, padded rows and exact EXIF permutation. This is an
 //! admitted platform-buffer seam, not a decoder or color transform, and it has TWO depth
 //! expansions, both output depth 16, typed owner only: `rgb10_packed_le`'s, where each 10-bit code
@@ -126,11 +126,14 @@ impl HostLayout {
                 layout.float = true;
                 layout.opaque = true;
             }
-            "argb16_be" | "argb16_be_premultiplied" => {
+            // `_opaque` ignores the stored alpha (an opaque movie decode's
+            // 64ARGB buffer), as `bgra8_opaque` does at 8 bits.
+            "argb16_be" | "argb16_be_premultiplied" | "argb16_be_opaque" => {
                 layout.depth = 16;
                 layout.big_endian = true;
                 layout.order = [1, 2, 3, 0];
                 layout.premultiplied = name.ends_with("_premultiplied");
+                layout.opaque = name.ends_with("_opaque");
             }
             _ => return Err("unsupported host integer sample layout".into()),
         }

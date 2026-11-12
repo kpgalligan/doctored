@@ -141,7 +141,7 @@ marked "not built" with no issue is inventory, with no owner yet.
 | Exchange | PSD group opacity/blend/visibility on import | DONE (10A folder properties) |
 | Exchange | PSD layer locks (`lspf`) on import | DONE — `psd_locks.rs` carries `lspf` on import and writes it on export at 8 and 16 bits; inherited folder locks are DONE — a group's locks cover its contents at both depths (`doc_lock.rs`), and refusals name the group |
 | Exchange | Export for Web, Quick Export, export layers, contact sheet, batch export | DONE (11A/11B) |
-| Exchange | Drag a layer out / Share menu; multipage TIFF/GIF; animation export | Opening multipage TIFF OPEN → [#15](https://github.com/kpgalligan/doctored/issues/15); not built: dragging a layer out of Doctored (layer drag works between Doctored documents), a Share menu, multi-frame GIF and animation export |
+| Exchange | Drag a layer out / Share menu; multipage TIFF/GIF; animation export | A multipage RGB TIFF opens each page as a layer (colour-mode pages and Place OPEN → [#34](https://github.com/kpgalligan/doctored/issues/34)); not built: dragging a layer out of Doctored (layer drag works between Doctored documents), a Share menu, multi-frame GIF and animation export |
 | Exchange | Autosave / recovery | DONE (5A/5B, `RecoveryCoordinator.swift`) |
 | Actions | Paste, Quick Mask, multi-layer Move, relative move | DONE (12A relative `move_layers`, 12G-2 `$asset` Paste, 2D) |
 | Deferred | Bézier paths / vector masks | DONE — Pen tool, Paths panel, Make Selection / Fill Path / Stroke Path / Make Work Path and vector masks at 8, 16 and 32 bits ([ADR](v1-paths.md)); text on a path OPEN → [#19](https://github.com/kpgalligan/doctored/issues/19) |

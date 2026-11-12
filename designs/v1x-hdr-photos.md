@@ -68,6 +68,11 @@
   `kCGContextTypeDisplayList` (no bitmap) that Core Animation rasterizes into the 16-bit float backing store,
   so `ExtendedDrawRecord` reads depth 0 there; the jobs-probe renders the layer into a float extended bitmap
   (`CALayer.render(in:)`, which runs `draw(_:)` with that bitmap) and reads the drawn 4.0 back.
+- **An HLG or PQ HEVC movie's frame opens by the PQ/HLG still rule** (`HDRMovieFrameOpen.swift`): AVFoundation's
+  `64ARGB` decode carries the BT.2100 signal untouched (measured on authored HLG and PQ Main10), which goes to the
+  same intake as `argb16_be_opaque`, under the same preference, refusal and `hdr_open` record (plus `source`
+  `movie_frame`) and the PQ still's admission plan. Static mastering metadata is noted, not applied; placing an HDR
+  frame refuses. `scripts/verify_movie_frames.py`.
 
 ## Fixtures and oracles
 

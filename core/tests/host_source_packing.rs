@@ -197,6 +197,7 @@ fn all_straight_layouts_preserve_exact_samples_original_profile_and_hidden_rgb()
         "rgb16_le",
         "rgba16_le_opaque",
         "argb16_be",
+        "argb16_be_opaque",
     ] {
         let maximum = if layout.contains("16") { 65535 } else { 255 };
         let pixels = [
@@ -213,7 +214,8 @@ fn all_straight_layouts_preserve_exact_samples_original_profile_and_hidden_rgb()
             || layout == "rgb16_le"
             || layout == "bgra8_opaque"
             || layout == "rgba8_opaque"
-            || layout == "rgba16_le_opaque";
+            || layout == "rgba16_le_opaque"
+            || layout == "argb16_be_opaque";
         let expected = pixels.map(|mut pixel| {
             if opaque {
                 pixel[3] = maximum;

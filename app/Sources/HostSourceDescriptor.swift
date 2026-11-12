@@ -100,6 +100,7 @@ struct HostDecodedContract: Codable, Equatable {
         "rgb16_le": (16, "opaque"), "rgba16_le_opaque": (16, "opaque"),
         "rgb10_packed_le": (16, "opaque"),
         "argb16_be": (16, "straight"), "argb16_be_premultiplied": (16, "premultiplied"),
+        "argb16_be_opaque": (16, "opaque"),
         "rgba16_le_left12": (16, "straight"), "rgba16_le_opaque_left12": (16, "opaque"),
         "rgba16_le_premultiplied_left12": (16, "premultiplied")]
     var valid: Bool {

@@ -122,7 +122,7 @@ extension AgentServer {
         let target: [String: Any] = ["document_id": Self.docIDProperty,
             "layer": ["type": "integer", "minimum": 0, "description": "Layer index; default active layer."]]
         return [
-            tool("place_image", "Layer > Place Embedded… / Place Linked…: place an image file as a new layer. A PNG, JPEG or TIFF (8-bit, 16-bit or floating-point), a JPEG XL/HEIC/AVIF/JPEG 2000 still, or an H.264/ProRes 4444 movie frame lands as an ordinary raster layer: its pixels are converted into the document's profile and depth, and nothing of the file is kept, so the reply's source is null. When the ordinary open converted from or ignored the file's embedded colour profile, the reply's disclosures names it. " + Self.cameraRawSourceSentence + " " + LayerInsertPosition.catalogSentence,
+            tool("place_image", "Layer > Place Embedded… / Place Linked…: place an image file as a new layer. A PNG, JPEG or TIFF (8-bit, 16-bit or floating-point), a JPEG XL/HEIC/AVIF/JPEG 2000 still, or an H.264, SDR HEVC (hvc1, 8- or 10-bit) or ProRes 4444 movie frame lands as an ordinary raster layer (an HLG or PQ movie refuses by name: its frame opens only through open_document): its pixels are converted into the document's profile and depth, and nothing of the file is kept, so the reply's source is null. When the ordinary open converted from or ignored the file's embedded colour profile, the reply's disclosures names it. " + Self.cameraRawSourceSentence + " " + LayerInsertPosition.catalogSentence,
                  ["document_id": Self.docIDProperty,
                   "path": ["type": "string", "description": "Local image, movie or camera RAW file."],
                   "storage": Self.imageSourceStorageProperty,
