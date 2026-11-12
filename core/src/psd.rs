@@ -390,7 +390,7 @@ pub(crate) fn import_layers(
         });
     }
     // FILE record 0, when kept, is entry 0 (`psd_background::import_role`).
-    if let Some(role) = crate::psd_background::import_role(records) {
+    if let Some(role) = crate::psd_background::import_role(records, |i| !records.omitted(i)) {
         document.mark_background(0, role);
     }
     document.native_save_preflight()?;

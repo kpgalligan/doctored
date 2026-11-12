@@ -1,6 +1,6 @@
 # Layer comps, view rotation and synchronized second views (ADR)
 
-- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13), [#20](https://github.com/kpgalligan/doctored/issues/20), [#22](https://github.com/kpgalligan/doctored/issues/22), [#31](https://github.com/kpgalligan/doctored/issues/31))
+- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13), [#20](https://github.com/kpgalligan/doctored/issues/20), [#22](https://github.com/kpgalligan/doctored/issues/22))
 - **Phase / dates:** 12D-1 (layer comps) and 12D-2 (view rotation + second view), both shipped 2026-09-19
 - **Originals:** [archive/phase-12d-comparison-views-status.md](../archive/phase-12d-comparison-views-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-12d-comparison-views-status.md](../archive/2026-10/phase-12d-comparison-views-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `5adcb8d` (12D-1), `8c99934` (12D-2)
@@ -131,9 +131,10 @@ which restore the whole editing state.
 ## Open items (verified 2026-10-07)
 - `DONE` — apply hides unrecorded non-group layers
   (Binding above).
-- `DONE` at RGB 8/16 — PSD `cmls` / image-resource-1065 comps cross with their names, comments and visibility
-  (`psd_comps`); `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — position and appearance;
-  `OPEN` [#31](https://github.com/kpgalligan/doctored/issues/31) — the colour modes.
+- `DONE` — PSD `cmls` / image-resource-1065 comps cross with their names, comments and visibility
+  (`psd_comps`), at RGB 8/16 and, since 2026-11-12, in the Gray, Lab, CMYK and 32-bit codecs
+  (`psd_typed_exchange`; a CMYK document holds and writes them but has no comp tools); `OPEN`
+  [#13](https://github.com/kpgalligan/doctored/issues/13) — position and appearance.
 - `DONE` — host-regenerated text and shape layers (fill layers too, `FillLayer.swift`): after a whole-canvas op the host sends one `{"op":"layer_comp","action":"shift"}` per re-rendered layer
   whose offset differs from the core's (`RasterDocument.followingHostPlacement`, `LayerComps.swift`; core
   `comps_shifted`, `../core/src/comps_geometry.rs`), inside the same edit. Measured by gate C9 of

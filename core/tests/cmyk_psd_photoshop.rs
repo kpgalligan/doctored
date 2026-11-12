@@ -6,8 +6,9 @@
 //!
 //! Per file: the manifest's structure EXACTLY (Photoshop's own readback:
 //! names, order and depth, kinds, Pass Through, clipping, modes, opacity and
-//! Fill bytes, visibility, mask presence and enabled); every imported raster
-//! and mask plane equal to the independent reader's
+//! Fill bytes, visibility, mask presence and enabled, and the Shape's vector
+//! mask); every imported raster and mask plane equal to the independent
+//! reader's, and the Shape's fill within one 8-bit code of its stored ink
 //! (`common/cmyk_psd_fixture.rs`); the authored region inks exactly at 8 bits
 //! and within 1 code of `code × 257` at 16; the `layers*` composite within 1
 //! code per plate (8-bit) of Photoshop's stored composite at every cell's
@@ -98,6 +99,13 @@ fn rows<'a>(
     }
 }
 
+/// `layer`'s postorder index in `doc`.
+fn index_of(doc: &PrecisionDocument, layer: &PrecisionDocumentLayer) -> usize {
+    (0..doc.layer_count())
+        .find(|&i| std::ptr::eq(doc.layer(i).unwrap(), layer))
+        .unwrap()
+}
+
 fn kind_of(doc: &PrecisionDocument, layer: &PrecisionDocumentLayer) -> &'static str {
     if layer.children().is_some() {
         return "LayerKind.LAYERSET";
@@ -105,9 +113,7 @@ fn kind_of(doc: &PrecisionDocument, layer: &PrecisionDocumentLayer) -> &'static 
     if layer.cmyk_source().is_some() {
         return "raster";
     }
-    let index = (0..doc.layer_count())
-        .find(|&i| std::ptr::eq(doc.layer(i).unwrap(), layer))
-        .unwrap();
+    let index = index_of(doc, layer);
     let description: Value =
         serde_json::from_str(doc.adjustment_description(index).unwrap()).unwrap();
     match description["op"].as_str().unwrap() {
@@ -148,7 +154,8 @@ fn assert_structure(file: &str, entry: &Value, doc: &PrecisionDocument) {
             | "LayerKind.CURVES"
             | "LayerKind.HUESATURATION"
             | "LayerKind.BRIGHTNESSCONTRAST" => kind,
-            // Type, shape and smart-object records import as their pixels.
+            // Type and smart-object records import as their pixels, and the
+            // Shape as its Solid Color fill (a raster and its description).
             "LayerKind.NORMAL"
             | "LayerKind.TEXT"
             | "LayerKind.SOLIDFILL"
@@ -184,12 +191,16 @@ fn assert_structure(file: &str, entry: &Value, doc: &PrecisionDocument) {
             row["clipped"].as_bool().unwrap_or(false),
             "{what}: clipped"
         );
+        // A Solid Color fill record under its `vmsk` (the Shape) imports as
+        // the fill under its vector mask, whose bake holds the mask slot.
+        let vector = doc.vector_mask(index_of(doc, layer)).is_some();
+        assert_eq!(vector, kind == "LayerKind.SOLIDFILL", "{what}: vector mask");
         assert_eq!(
-            layer.mask().is_some(),
+            layer.mask().is_some() && !vector,
             row["has_user_mask"].as_bool().unwrap_or(false),
             "{what}: mask"
         );
-        if let Some(mask) = layer.mask() {
+        if let Some(mask) = layer.mask().filter(|_| !vector) {
             assert_eq!(
                 mask.enabled(),
                 row["user_mask_enabled"].as_bool().unwrap(),
@@ -206,6 +217,22 @@ fn assert_planes(file: &str, doc: &PrecisionDocument, read: &ReadFile) {
     for (_, layer) in got {
         let record = read.by_name(layer.name());
         let what = format!("{file}: {}", layer.name());
+        // The Shape: Photoshop stores its fill already masked over the
+        // record's rectangle, and the import renders the fill over the canvas
+        // under its vector mask, so the two inks agree inside the shape,
+        // within one 8-bit code.
+        if doc.vector_mask(index_of(doc, layer)).is_some() {
+            let [top, left, bottom, right] = record.bounds;
+            let (x, y) = ((left + right) / 2, (top + bottom) / 2);
+            let width = (right - left) as usize;
+            let stored = record.ink(read.depth)[(y - top) as usize * width + (x - left) as usize];
+            let got = sample(layer, x, y);
+            for c in 0..5 {
+                let diff = (i64::from(got[c]) - i64::from(stored[c])).abs();
+                assert!(diff <= 257, "{what}: plate {c} {} vs {}", got[c], stored[c]);
+            }
+            continue;
+        }
         if let Some(image) = layer.cmyk_source() {
             assert_eq!(
                 layer.offset(),
@@ -517,12 +544,17 @@ fn photoshops_layered_cmyk_files_import_exactly() {
                 for line in [
                     "(“Type”) has text/type metadata; layered import discards these records and does not retain editable text.",
                     "(“Shape”) has vector stroke/origination metadata",
-                    "(“Shape”) has a raster mask channel or advanced mask metadata; layered import drops it: vector, real-user (-3), or advanced mask behavior is unsupported.",
                     "(“Smart”) has placed/smart-object or linked-layer metadata; layered import discards these records",
                     "2 colour samplers are not imported into a CMYK document.",
                 ] {
                     assert!(has(losses, line), "{file}: no “{line}” in {losses}");
                 }
+                // The Shape's `vmsk` is carried as its vector mask, so no
+                // mask is dropped.
+                assert!(
+                    !has(losses, "(“Shape”) has a raster mask channel"),
+                    "{file}: {losses}"
+                );
                 // The drop shadow's CMYK colour CARRIES since the styles
                 // batch (#1), the gray Blend If since the Blend If batch.
                 let observations = &r["observations"];

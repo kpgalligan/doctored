@@ -30,7 +30,11 @@
 //! from its description (`psd_fill_layer::render_float`), with its mask,
 //! label, reference and kept style, and its render scratch charged
 //! (`GroupRecords::fill_scratch_bytes`); a carried Gradient or Pattern fill
-//! refuses the layered choice ([`layered_refusal`]). The stored
+//! refuses the layered choice ([`layered_refusal`]), except under a `vmsk`,
+//! where it stays the shape layer's stored pixels
+//! (`psd_group_records::vector_mask_usable`). The layered choice ends as
+//! every typed open does (`psd_typed_exchange`: the Background mark on the
+//! records this open builds, the carried vector masks, the comps). The stored
 //! composite is the white-matted `c·a + (1 − a)` of `psd_export_float`,
 //! un-matted by [`composite32`].
 //!
@@ -498,13 +502,19 @@ pub(crate) fn open32(
     let canvas = (cw, ch);
     let mut repairs = Repairs::default();
     let absent = StyleBody::Absent;
+    // The record each built entry came from, in the order the tree is
+    // emitted (`psd_typed_exchange`).
+    let sources = std::cell::RefCell::new(Vec::new());
     let roots = emit_typed_tree(
         &psd,
         &records,
         &mut |index, dissolved| {
-            if records.omitted(index) {
+            if !builds(&psd, &records, index, &profile) {
                 return Ok(None);
             }
+            sources
+                .borrow_mut()
+                .push(crate::psd_comps::CompSource::Layer(index));
             job.check()?;
             let layer = &psd.layers()[index];
             let style = kept_style(
@@ -514,9 +524,6 @@ pub(crate) fn open32(
             );
             let (_, blend) = float_blend(layer);
             let built = if let Some(carried) = records.carried(index) {
-                if adjustment_refusal(layer, carried, &profile).is_some() {
-                    return Ok(None);
-                }
                 adjustment_layer(
                     layer,
                     carried,
@@ -599,6 +606,9 @@ pub(crate) fn open32(
             )))
         },
         &mut |id, children| {
+            sources
+                .borrow_mut()
+                .push(crate::psd_comps::CompSource::Group(id));
             let group = &records.groups[id as usize - 1];
             let built = group_layer(
                 psd.groups()[&id].name(),
@@ -634,6 +644,35 @@ pub(crate) fn open32(
         ToneMap::Clip,
     )?;
     let document = finish(document, &repairs)?;
+    // The Background mark, the carried vector masks and the comps
+    // (`psd_typed_exchange`), on the records this open built.
+    let document = crate::psd_typed_exchange::install(
+        document,
+        &container,
+        &records,
+        &sources.borrow(),
+        |index| builds(&psd, &records, index, &profile),
+        limit,
+        other,
+    )?;
     job.report(1.0, 5)?;
     Ok(document)
+}
+
+/// True when the 32-bit open builds record `index`: the walk keeps it
+/// (`GroupRecords::omitted`), and a carried adjustment's float form is not
+/// refused ([`adjustment_refusal`]). The open's emit and its Background mark
+/// ask this one question.
+fn builds(
+    psd: &psd::Psd,
+    records: &GroupRecords<'_>,
+    index: usize,
+    profile: &Arc<IccProfile>,
+) -> bool {
+    !records.omitted(index)
+        && records.carried(index).is_none_or(|carried| {
+            psd.layers()
+                .get(index)
+                .is_some_and(|layer| adjustment_refusal(layer, carried, profile).is_none())
+        })
 }

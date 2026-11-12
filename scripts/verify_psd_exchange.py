@@ -25,6 +25,10 @@ Cases:
   export_psd, a .doctored save_copy and a flat TIFF save_copy (whose
   flat_save_losses has no "paths", a PNG's does) with their reopens; path
   null clears it; a Grayscale document answers the tool.
+- MODES: a new Grayscale, Lab and CMYK document with a raster-less vector
+  mask on its second layer (and, but in CMYK, which has no comp tools, a
+  comp) exports with no vector-mask loss; its layered reopen marks the bottom
+  "ordinary", keeps the vector mask's corners and lists the comp.
 
 Usage: python3 scripts/verify_psd_exchange.py --output DIR
 Prints `PASS <case>` per case and exits 0 when every case passed.
@@ -176,6 +180,37 @@ def clipping(drive):
     return seen
 
 
+def modes(drive):
+    square = {'closed': True, 'anchors': [[8, 8], [40, 8], [40, 30], [8, 30]]}
+    seen = {}
+    for mode in ('gray', 'lab', 'cmyk'):
+        doc = drive.call('new_document', width=64, height=48, unit='px', color_mode=mode,
+                         depth=8, background='white')['document']['id']
+        drive.call('new_layer', document_id=doc, name='Top')
+        drive.call('set_vector_mask', document_id=doc, layer=1, subpaths=[square])
+        if mode != 'cmyk':  # a CMYK document offers no Layer Comps tools
+            drive.call('save_layer_comp', document_id=doc, name='Both')
+        report = drive.call('inspect_psd_export', document_id=doc, format='psd', mode='layers')
+        assert not any(l.startswith('The vector mask on') for l in report['losses']), report
+        path = drive.folder / f'modes-{mode}.psd'
+        drive.call('export_psd', document_id=doc, path=str(path), format='psd', mode='layers')
+        back = drive.open_psd(path)
+        rows = drive.layers(back)
+        assert rows[0].get('background') == 'ordinary', (mode, rows[0])
+        mask = drive.call('get_vector_mask', document_id=back, layer=1)
+        assert mask['vector_mask'] is True and mask['has_raster_mask'] is False, (mode, mask)
+        corners = [[a['x'], a['y']] for a in mask['subpaths'][0]['anchors']]
+        assert all(abs(a - b) <= 1e-3 for p, q in zip(corners, square['anchors'])
+                   for a, b in zip(p, q)), (mode, corners)
+        names = None
+        if mode != 'cmyk':
+            names = [c['name'] for c in drive.call('list_layer_comps', document_id=back)['comps']]
+            assert names == ['Both'], (mode, names)
+        drive.close(doc, back)
+        seen[mode] = dict(background=rows[0].get('background'), corners=corners, comps=names)
+    return seen
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--output', required=True, help='a fresh folder')
@@ -188,7 +223,7 @@ def main():
     results, failed = {}, []
     with App(output / 'app', output / 'recovery', interval=600) as app:
         drive = Drive(app, output)
-        for case in (background, comps, paths, clipping):
+        for case in (background, comps, paths, clipping, modes):
             name = case.__name__.upper()
             try:
                 results[name] = dict(passed=True, detail=case(drive))

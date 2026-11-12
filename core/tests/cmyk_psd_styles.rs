@@ -762,19 +762,19 @@ fn what_photoshop_cannot_hold_refuses_the_layers_mode_alike_in_report_and_save()
     }
 }
 
-/// D13 in a CMYK file: the CMYK writer stores no Photoshop Background
-/// record and the CMYK import sets no Background mark, so a Deep knockout
-/// over a plain, opaque, canvas-sized bottom is disclosed by the export
-/// report and again by the import report of the file it wrote.
+/// D13 in a CMYK file: a Deep knockout over a plain, opaque, canvas-sized
+/// bottom is written as Photoshop's Background record (no channel `-1`,
+/// `lnsr bgnd`, `psd_background`), so neither the export report nor the
+/// import report of the file it wrote has anything to say, and the reopened
+/// bottom is marked Background.
 #[test]
-fn a_deep_knockout_over_a_plain_bottom_is_disclosed_on_export_and_import() {
-    const EXPORT: &str = "A layer uses knockout over this document's bottom layer, which Doctored treats as the Background. A PSD written by Doctored stores it as an ordinary layer, and Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show transparency in Photoshop where it shows the bottom layer here.";
-    const IMPORT: &str = "This file has no Photoshop Background layer, and a knockout can reach its bottom layer, which Doctored treats as the Background because it is visible, Normal, 100 % opacity, unmasked, unstyled, canvas-sized and at the origin. Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show the bottom layer here where it shows transparency in Photoshop. This is a deliberate Doctored rule, not an import error.";
-    let has = |list: &Value, sentence: &str| {
+fn a_deep_knockout_over_a_plain_bottom_is_written_as_the_background() {
+    const SAID: &str = "which Doctored treats as the Background";
+    let says = |list: &Value| {
         list.as_array()
             .unwrap()
             .iter()
-            .any(|line| line.as_str() == Some(sentence))
+            .any(|line| line.as_str().is_some_and(|line| line.contains(SAID)))
     };
     let dir = TempDir::new().unwrap();
     let doc = layer(
@@ -785,11 +785,23 @@ fn a_deep_knockout_over_a_plain_bottom_is_disclosed_on_export_and_import() {
     );
     let doc = styled(doc, index(doc, "Knock"), &json!({"knockout":"deep"}));
     let exported = report(doc, LAYERS);
-    assert!(has(&exported["losses"], EXPORT), "{exported}");
+    assert!(!says(&exported["losses"]), "{exported}");
     let path = dir.path().join("knock.psd");
     save(doc, &path, LAYERS).unwrap();
+    let record = &crate::cmyk_psd_fixture::read(&std::fs::read(&path).unwrap()).records[0];
+    assert!(
+        record.plane(-1).is_none() && record.block(b"lnsr") == Some(b"bgnd".as_slice()),
+        "record 0 is the Background"
+    );
     let imported = import_report(&path);
-    assert!(has(&imported["verified_losses"], IMPORT), "{imported}");
+    assert!(!says(&imported["verified_losses"]), "{imported}");
+    let back = open_psd(&path, LAYERS).unwrap();
+    assert_eq!(
+        unsafe { doctored_core::ffi_background::dr_precision_doc_background_role(back) },
+        1,
+        "the reopened bottom is the Background"
+    );
+    free(back);
     free(doc);
 }
 

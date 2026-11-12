@@ -173,7 +173,6 @@ impl DrDocument {
             // D13: this writer stores a qualifying bottom as Photoshop's
             // Background record (`psd_background`), so only a bottom that
             // cannot be one is said.
-            structural_background_knockout: false,
             background_unwritable: self.bottom_export()
                 == crate::psd_background::BottomExport::Unwritable,
             entries: self

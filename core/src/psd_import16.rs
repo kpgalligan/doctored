@@ -672,20 +672,17 @@ pub(crate) fn open16(
     document
         .paths
         .set_entries(crate::psd_paths::file_paths(&container).0);
-    // FILE record 0, when kept, is root entry 0 (`psd_background`).
-    if let Some(role) = crate::psd_background::import_role(&records) {
-        document.mark_bottom(role);
-    }
-    // The vector masks the walk carried (`psd_paths`), each on the record
-    // built from its file record.
-    for (k, &source) in sources.borrow().iter().enumerate() {
-        if let Some(body) = crate::psd_paths::source_vmsk(&records, source) {
-            document = document.importing_vector_mask(k, body, limit, other)?;
-        }
-    }
-    document.comps = crate::psd_comps::imported(&container, &records, &sources.borrow(), |k| {
-        Some((document.layer_id(k)?, document.layer(k)?.name().to_string()))
-    });
+    // The Background mark, the carried vector masks and the comps
+    // (`psd_typed_exchange`).
+    let document = crate::psd_typed_exchange::install(
+        document,
+        &container,
+        &records,
+        &sources.borrow(),
+        |index| !records.omitted(index),
+        limit,
+        other,
+    )?;
     let document = document.with_psd_spots(&container, limit, other)?;
     job.report(1.0, 5)?;
     Ok(document)

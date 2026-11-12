@@ -15,11 +15,12 @@
 //! - (c) setting a key and clearing it restores the exact bytes.
 //! - (d) a BAKED style writes neither block and reports the narrowed loss.
 //! - (e) D13 at RGB: a qualifying bottom under a Deep raster is written as
-//!   Photoshop's Background record (`psd_background`), so neither old
-//!   sentence fires for it, nor for a true Background, a trimmed bottom, a
-//!   hidden bottom, a Shallow inside a group or a Deep whose style is BAKED
-//!   (no `knko` is written, so that file punches nothing in Photoshop).
-//!   `psd_background.rs` holds the rest of the Background mark's checks.
+//!   Photoshop's Background record (`psd_background`), with nothing to say;
+//!   a trimmed bottom, a hidden bottom, a Shallow inside a group and a Deep
+//!   whose style is BAKED (no `knko` is written, so that file punches
+//!   nothing in Photoshop) write none and say nothing either.
+//!   `psd_background.rs` and `psd_mode_exchange.rs` hold the rest of the
+//!   Background mark's checks.
 //! - (f) the framings that are NOT carried, and the closing divider whose
 //!   `knko` marker loss stays.
 //! - (g) P7-39: D6's clip-base narrowing is lifted, so neither side
@@ -522,27 +523,34 @@ fn a_baked_style_writes_neither_block_and_carries_the_narrowed_loss() {
 
 // ------------------------------------------------------------- (e) D13 --
 
-const IMPORT_SENTENCE: &str = "This file has no Photoshop Background layer, and a knockout can reach its bottom layer, which Doctored treats as the Background because it is visible, Normal, 100 % opacity, unmasked, unstyled, canvas-sized and at the origin. Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show the bottom layer here where it shows transparency in Photoshop. This is a deliberate Doctored rule, not an import error.";
-const EXPORT_SENTENCE: &str = "A layer uses knockout over this document's bottom layer, which Doctored treats as the Background. A PSD written by Doctored stores it as an ordinary layer, and Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show transparency in Photoshop where it shows the bottom layer here.";
+/// D13's one sentence: a bottom a written knockout reaches that cannot be a
+/// Background record (`psd_background`).
+const UNWRITABLE: &str = "so a PSD cannot store it as a Photoshop Background layer";
 
-/// The two old sentences of one Doctored-written PSD: (export, import), and
-/// whether its file record 0 is Photoshop's Background (an `lnsr` of
-/// `bgnd`, which only that record carries).
+/// One Doctored-written PSD's D13 facts: whether its export report states
+/// the unwritable bottom, and whether its file record 0 is Photoshop's
+/// Background (an `lnsr` of `bgnd`, which only that record carries).
 fn d13(doc: *const DrDocument, dir: &TempDir, name: &str) -> (bool, bool) {
-    d13_written(doc, dir, name).0
+    let said = strings(&export_report(doc), "losses")
+        .iter()
+        .any(|text| text.contains(UNWRITABLE));
+    let bytes = write_psd(doc, &dir.path().join(name));
+    (
+        said,
+        scan(&bytes, b"lnsr").iter().any(|body| body == b"bgnd"),
+    )
 }
 
-fn d13_written(doc: *const DrDocument, dir: &TempDir, name: &str) -> ((bool, bool), bool) {
-    let exported = strings(&export_report(doc), "losses")
+/// [`d13`] at the typed depth.
+fn typed_d13(doc: &PrecisionDocument, dir: &TempDir, name: &str) -> (bool, bool) {
+    let said = strings(&typed_export_report(doc), "losses")
         .iter()
-        .any(|text| text == EXPORT_SENTENCE);
-    let path = dir.path().join(name);
-    let bytes = write_psd(doc, &path);
-    let imported = strings(&import_report(&path), "verified_losses")
-        .iter()
-        .any(|text| text == IMPORT_SENTENCE);
-    let background = scan(&bytes, b"lnsr").iter().any(|body| body == b"bgnd");
-    ((exported, imported), background)
+        .any(|text| text.contains(UNWRITABLE));
+    let bytes = typed_write_psd(doc, &dir.path().join(name));
+    (
+        said,
+        scan(&bytes, b"lnsr").iter().any(|body| body == b"bgnd"),
+    )
 }
 
 #[test]
@@ -550,7 +558,7 @@ fn d13_a_qualifying_bottom_under_a_deep_raster_is_written_as_the_background() {
     let dir = TempDir::new().unwrap();
 
     // WRITTEN AS THE BACKGROUND: a plain canvas-sized bottom under a Deep
-    // raster (`psd_background`), so neither sentence has anything to say.
+    // raster (`psd_background`), so there is nothing to say.
     let mut doc = doc_from(&dir, "b.png", &solid(W, H, [20, 40, 60, 255]));
     doc = add_layer(
         &dir,
@@ -562,8 +570,8 @@ fn d13_a_qualifying_bottom_under_a_deep_raster_is_written_as_the_background() {
     );
     doc = set_style(doc, 1, "{\"knockout\":\"deep\"}");
     assert_eq!(
-        d13_written(doc, &dir, "present.psd"),
-        ((false, false), true),
+        d13(doc, &dir, "present.psd"),
+        (false, true),
         "a qualifying bottom is written as Photoshop's Background"
     );
 
@@ -633,63 +641,24 @@ fn d13_a_qualifying_bottom_under_a_deep_raster_is_written_as_the_background() {
     assert_eq!(d13(baked, &dir, "baked13.psd"), (false, false));
     unsafe { dr_doc_free(baked) };
 
-    // The TYPED depth answers the same way, from its own predicate.
+    // The TYPED depth answers the same way, from its own predicate: the
+    // Background is written only when a WRITTEN knockout reaches the bottom
+    // (the baked twin writes no `knko`).
     let typed = typed_document(vec![
         typed_raster("Bottom", None),
         typed_raster("Top", Some("{\"knockout\":\"deep\"}")),
     ]);
-    assert!(
-        !strings(&typed_export_report(&typed), "losses")
-            .iter()
-            .any(|text| text == EXPORT_SENTENCE),
-        "the 16-bit export writes the Background too, so it says nothing"
-    );
-    let typed_path = dir.path().join("present16.psd");
-    let typed_bytes = typed_write_psd(&typed, &typed_path);
-    assert!(
-        scan(&typed_bytes, b"lnsr")
-            .iter()
-            .any(|body| body == b"bgnd"),
-        "and its record 0 is the Background"
-    );
-    assert!(
-        !strings(&import_report(&typed_path), "verified_losses")
-            .iter()
-            .any(|text| text == IMPORT_SENTENCE),
-        "and the 16-bit file it wrote says nothing on the way back in"
-    );
+    assert_eq!(typed_d13(&typed, &dir, "present16.psd"), (false, true));
     let typed_plain = typed_document(vec![
         typed_raster("Bottom", None),
         typed_raster("Top", None),
     ]);
-    assert!(
-        !strings(&typed_export_report(&typed_plain), "losses")
-            .iter()
-            .any(|text| text == EXPORT_SENTENCE),
-        "and only when a knockout reaches the bottom"
-    );
-    // The typed twin of the baked case above: nothing is written, so nothing
-    // is disclosed.
+    assert_eq!(typed_d13(&typed_plain, &dir, "plain16.psd"), (false, false));
     let typed_baked = typed_document(vec![
         typed_raster("Bottom", None),
         typed_raster("Top", Some(BAKED_STYLE)),
     ]);
-    assert!(
-        !strings(&typed_export_report(&typed_baked), "losses")
-            .iter()
-            .any(|text| text == EXPORT_SENTENCE),
-        "and never for a knockout whose style is rasterized"
-    );
-
-    // ABSENT: the committed Photoshop file, whose record 0 IS a true
-    // Background — the evidence D13 was decided on.
-    let source = family_file("knockout", "source.psd");
-    assert!(
-        !strings(&import_report(&source), "verified_losses")
-            .iter()
-            .any(|text| text == IMPORT_SENTENCE),
-        "a true Photoshop Background never fires the disclosure"
-    );
+    assert_eq!(typed_d13(&typed_baked, &dir, "baked16.psd"), (false, false));
 }
 
 /// `Bottom` with a Shallow knockout raster INSIDE a group: no knockout of

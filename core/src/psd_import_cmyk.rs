@@ -45,8 +45,13 @@
 //!   Magenta, Yellow or Black (`style_blend_if::source_weight_ink`).
 //!
 //! A carried style is observed with the RGB import's sentence
-//! ([`cmyk_report_lines`], `psd_import::report_style`); type, shape and
-//! smart-object records import as their pixels with their marker sentences. The document
+//! ([`cmyk_report_lines`], `psd_import::report_style`); type and
+//! smart-object records import as their pixels with their marker sentences,
+//! and a shape layer (a fill under a carried `vmsk`) as its fill layer under
+//! its vector mask. The open ends as every typed open does
+//! (`psd_typed_exchange`: the Background mark, the carried vector masks and
+//! the visibility comps, which a CMYK document holds and writes back but
+//! offers no Layer Comps tool to apply). The document
 //! takes the file's CMYK profile (`cmyk_io::psd_policy`: a PSD's resource
 //! 1039, a TIFF's ICC tag, else the working CMYK under the untagged
 //! sentence) and its declared depth. Colour samplers, guides and saved alpha
@@ -86,8 +91,8 @@ pub(crate) const CMYK_GENERAL_LIMITATIONS: &[&str] = &[
     "A CMYK file opens as a CMYK document with its own ink numbers, declared depth and embedded CMYK profile (an untagged file takes the working CMYK profile), whichever choice is made.",
     "Raster layers keep their ink and transparency, rectangle and signed offset; groups keep Normal or Pass Through, their own blend mode, opacity, visibility, mask and open state; every record keeps its name, opacity, visibility, all 27 CMYK blend modes, clipping, ordinary 20-byte mask, colour label, locks and Fill (fill opacity) where it can hold one. Groups deeper than 10 levels are dissolved.",
     "Levels, Curves (point curves), Hue/Saturation, Brightness/Contrast, Color Balance, Selective Color, Channel Mixer, Photo Filter, Invert, Posterize, Threshold and Gradient Map adjustment layers are carried as Doctored CMYK adjustment layers; a Pattern Fill layer (PtFl) is carried as a Doctored pattern fill layer with its pattern from the same Patt/Pat2 table, a Solid Color Fill layer (SoCo) as a Doctored solid color fill layer and a Gradient Fill layer (GdFl) as a Doctored gradient fill layer; every other adjustment or fill layer carries no pixels and is omitted, reported per record. A drawn (mapped) curve is omitted. The stored composite keeps their appearance.",
-    "Layer effects (their colours in ink), knockout and Blend Interior Effects as Group are carried as a Doctored layer style on rasters, adjustment layers and every group (a styled Pass Through group composites isolated). Blend If ranges (Gray, Cyan, Magenta, Yellow and Black, one range per restricted channel) carry on rasters, adjustment layers and every group. Type, shape and smart-object layers import as their pixels only.",
-    "Saved alpha and spot channels, colour samplers, guides and the ruler origin are not imported; a saved composite's merged transparency is not read.",
+    "Layer effects (their colours in ink), knockout and Blend Interior Effects as Group are carried as a Doctored layer style on rasters, adjustment layers and every group (a styled Pass Through group composites isolated). Blend If ranges (Gray, Cyan, Magenta, Yellow and Black, one range per restricted channel) carry on rasters, adjustment layers and every group. Type and smart-object layers import as their pixels only; a shape layer imports as its fill layer under its vector mask, unless its fill does not decode or it has an enabled stroke.",
+    "Saved alpha and spot channels, colour samplers, guides and the ruler origin are not imported; a saved composite's merged transparency is not read. The file's layer comps (image resource 1065 and each layer's cmls settings) are kept with their names, comments and per-layer visibility and written back on export, though a CMYK document offers no Layer Comps tools to apply them, and a vector mask (vmsk) with no raster mask beside it arrives as the layer's vector mask.",
 ];
 
 /// The layered open's plan, `(retained, scratch)`, before a single plane is
@@ -204,6 +209,9 @@ pub(crate) fn open_cmyk_layers(
     job.reserve(scratch)?;
     let sample_bytes = container.sample_bytes() as usize;
     let canvas = (container.width, container.height);
+    // The record each built entry came from, in the order the tree is
+    // emitted (`psd_typed_exchange`).
+    let sources = std::cell::RefCell::new(Vec::new());
     let roots = emit_typed_tree(
         &psd,
         &records,
@@ -211,6 +219,9 @@ pub(crate) fn open_cmyk_layers(
             if records.omitted(index) {
                 return Ok(None);
             }
+            sources
+                .borrow_mut()
+                .push(crate::psd_comps::CompSource::Layer(index));
             job.check()?;
             let layer = &psd.layers()[index];
             let blend = typed_blend(crate::psd::map_psd_blend(layer.blend_mode() as i32), false)
@@ -290,6 +301,9 @@ pub(crate) fn open_cmyk_layers(
             )))
         },
         &mut |id, children| {
+            sources
+                .borrow_mut()
+                .push(crate::psd_comps::CompSource::Group(id));
             let group = &records.groups[id as usize - 1];
             let name = psd.groups()[&id].name();
             let blend = typed_blend(group.blend, true);
@@ -346,6 +360,18 @@ pub(crate) fn open_cmyk_layers(
     document
         .paths
         .set_entries(crate::psd_paths::file_paths(&container).0);
+    // The Background mark, the carried vector masks and the comps
+    // (`psd_typed_exchange`). A CMYK document holds and writes its comps
+    // but offers no Layer Comps tool to apply them.
+    let document = crate::psd_typed_exchange::install(
+        document,
+        &container,
+        &records,
+        &sources.borrow(),
+        |index| !records.omitted(index),
+        limit,
+        other,
+    )?;
     let document = document.with_psd_spots(&container, limit, other)?;
     job.report(1.0, 5)?;
     Ok(document)

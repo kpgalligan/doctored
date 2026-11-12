@@ -587,8 +587,9 @@ pub(crate) fn opaque(image: &PrecisionImage) -> bool {
     false
 }
 
-/// Every CMYK alpha code at 65535.
-fn opaque_cmyk(image: &CmykImage) -> bool {
+/// Every CMYK alpha code at 65535. Also the CMYK twin of [`opaque`]'s
+/// Background-record scan (`psd_background`).
+pub(crate) fn opaque_cmyk(image: &CmykImage) -> bool {
     let (w, h) = image.dimensions();
     (0..h).all(|y| {
         image

@@ -16,7 +16,8 @@
 //! * **Records** — `psd_export16::records` with `Walk { float: true, gray }`:
 //!   every raster's R (R = G = B) and alpha as Raw big-endian f32, ids `-1`
 //!   and `0` ([`channels_gray32`]), masks as the float walk's f32 coverage,
-//!   two placeholder planes on a pixel-less record; then
+//!   two placeholder planes on a pixel-less record; the comps, raster-less
+//!   vector masks and Background record (`psd_typed_exchange`); then
 //!   `psd_export_gray::photoshop_form` (M3–M5).
 //! * **Composite** — ONE Raw plane, the projection's gray matted over white,
 //!   `c·a + (1 − a)` in f64 rounded once to f32 ([`append_composite_gray32`],
@@ -33,7 +34,7 @@ use crate::icc_builtin::gray_linear_twin;
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::PrecisionImage;
 use crate::precision_style_render::StyleEnv;
-use crate::psd_export16::{record_styles, records, Walk};
+use crate::psd_export16::{knockout_written16, record_styles, records, Walk};
 use crate::psd_export_cmyk::Depth;
 use crate::psd_export_encode::{raw_plane, write_psd32, Record};
 use crate::psd_export_gray::photoshop_form;
@@ -141,22 +142,28 @@ impl PrecisionDocument {
         };
         let mut out = Vec::new();
         match mode {
-            PsdExportMode::Layers => records(
-                self.root_layers(),
-                self.profile(),
-                &env,
-                &Walk {
-                    document: self,
-                    limit,
-                    other,
-                    large,
-                    float: true,
-                    gray: Some((Depth { eight: false }, &policy)),
-                },
-                &mut 0,
-                &mut out,
-            )
-            .map(|()| photoshop_form(&mut out))?,
+            PsdExportMode::Layers => {
+                records(
+                    self.root_layers(),
+                    self.profile(),
+                    &env,
+                    &Walk {
+                        document: self,
+                        limit,
+                        other,
+                        large,
+                        float: true,
+                        gray: Some((Depth { eight: false }, &policy)),
+                    },
+                    &mut 0,
+                    &mut out,
+                )?;
+                // The comps, the raster-less vector masks and the Background
+                // record (`psd_typed_exchange`), before Photoshop's own form
+                // (`psd_export_gray`'s order).
+                crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16);
+                photoshop_form(&mut out);
+            }
             PsdExportMode::Flattened => out.push(Record {
                 bounds: [0, 0, height as i32, width as i32],
                 channels: channels_gray32(projection)
@@ -205,7 +212,8 @@ impl PrecisionDocument {
             &tail,
             true,
             &|file| append_composite_gray32(projection, width, height, file),
-            &crate::psd_paths::resources(self.paths(), self.dimensions()),
+            // The paths' resources, and the layered mode's 1065.
+            &crate::psd_typed_exchange::resources(self, matches!(mode, PsdExportMode::Layers)),
         )?;
         drop(out);
         crate::dr_image::save_atomically(path, |tmp| {

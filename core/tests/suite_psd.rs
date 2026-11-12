@@ -101,6 +101,8 @@ mod psd_layer_pixels;
 mod psd_levels;
 #[path = "psd_locks.rs"]
 mod psd_locks;
+#[path = "psd_mode_exchange.rs"]
+mod psd_mode_exchange;
 #[path = "psd_noise.rs"]
 mod psd_noise;
 #[path = "psd_paths.rs"]

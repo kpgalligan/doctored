@@ -35,7 +35,10 @@
 //!   mask, flags `0x18`, `fxrp` = its reference, and its tile in the
 //!   pattern table as an RGB pattern record; a solid one → `SoCo`
 //!   the same way, its `CMYC` the stored ink and its `fxrp` the usual rule;
-//!   a gradient one → `GdFl`, its stops' `CMYC`, pixel-less at 16 bits.
+//!   a gradient one → `GdFl`, its stops' `CMYC`, pixel-less at 16 bits;
+//! * then, as the RGB writer: the comps' `lyid`/`shmd` and resource 1065,
+//!   each raster-less vector mask as its `vmsk`, and record 0 as
+//!   Photoshop's Background record when it is one (`psd_typed_exchange`).
 //!
 //! The LAYERED file's composite is five planes — the stack's composite
 //! flattened onto paper (`on_paper`), stored inverted, and its alpha — under
@@ -99,6 +102,17 @@ fn written_style(
         return Ok(None);
     };
     crate::cmyk_style::with_all_inks(&merged, policy).map(Some)
+}
+
+/// Whether this writer writes `layer`'s knockout: its style is written, not
+/// baked — the CMYK twin of `psd_export16::knockout_written16`, which
+/// `psd_background` asks.
+fn knockout_written(
+    layer: &PrecisionDocumentLayer,
+    policy: &crate::cmyk_document::CmykPolicy,
+    light: GlobalLight,
+) -> bool {
+    export_style(layer, false, policy, light).is_some_and(|style| style.bake.is_none())
 }
 
 /// The record's style as the preflight sees it (`psd_export16`'s
@@ -180,8 +194,8 @@ fn exported_fills(layers: &[PrecisionDocumentLayer], out: &mut Vec<Exported>) {
 }
 
 /// One entry per record, bottom-first, a folder's contents before it — the
-/// `psd_export16::entries` order. `vector` holds the ids of the layers with
-/// a live vector mask.
+/// `psd_export16::entries` order. `vector` holds the ids of the layers whose
+/// live vector mask is written as pixels.
 fn entries(
     layers: &[PrecisionDocumentLayer],
     vector: &[u64],
@@ -548,11 +562,9 @@ impl PrecisionDocument {
     fn cmyk_export_inventory(&self) -> Result<ExportInventory, String> {
         let policy = self.require_cmyk_policy("A CMYK PSD export")?;
         let mut out = Vec::new();
-        let vector: Vec<u64> = self
-            .live_vector_masks()
-            .into_iter()
-            .map(|(_, record)| record.layer_id)
-            .collect();
+        // The vector masks written as pixels: a raster-less one a PSD path
+        // can hold is written as its `vmsk` (`psd_typed_exchange`).
+        let vector = crate::psd_typed_exchange::baked_vector_masks(self);
         entries(
             self.root_layers(),
             &vector,
@@ -590,33 +602,18 @@ impl PrecisionDocument {
             has_guides: !self.guides().is_empty() || self.ruler_origin() != (0.0, 0.0),
             sampler_sizes_lost: false,
             comps: self.layer_comps().len(),
-            // The CMYK writer writes no comp (`psd_comps`).
-            comps_written: 0,
-            comps_narrowed: 0,
+            // The visibility comps the layered mode writes (`psd_comps`).
+            comps_written: crate::psd_comps::counts(self.layer_comps()).0,
+            comps_narrowed: crate::psd_comps::counts(self.layer_comps()).1,
             path_losses: crate::psd_paths::export_losses(self.paths(), self.dimensions()),
             has_metadata: !self.metadata().is_empty(),
             nondefault_global_light: self.global_light != GlobalLight::default(),
-            // D13 on ink (`psd_export16`'s rule): record 0 is the Background
-            // by D5's structural rule and a written knockout reaches it.
-            // The CMYK writer stores no Background record (`psd_background`).
-            background_unwritable: false,
-            structural_background_knockout: crate::precision_style_knockout::background_record(
-                self.root_layers(),
-                self.dimensions(),
-                crate::style_composite::Cut::NONE,
-                // CMYK quantizes always (`opacity_byte`).
-                false,
-                self.background,
-            )
-                && crate::precision_style_knockout::document_reaches_background16(
-                    self.root_layers(),
-                    0,
-                    crate::style_composite::Cut::NONE,
-                    &|layer| {
-                        export_style(layer, false, policy, self.global_light)
-                            .is_some_and(|style| style.bake.is_none())
-                    },
-                ),
+            // D13 on ink: a qualifying bottom is written as Photoshop's
+            // Background record (`psd_background`), so only one that cannot
+            // be one is said.
+            background_unwritable: self
+                .bottom_export(&|layer| knockout_written(layer, policy, self.global_light))
+                == crate::psd_background::BottomExport::Unwritable,
             entries: out,
         })
     }
@@ -780,6 +777,12 @@ impl PrecisionDocument {
                     canvas: (w, h),
                 };
                 records(self.root_layers(), depth, large, &walk, job, &mut out)?;
+                // The comps' `lyid`/`shmd`, the raster-less vector masks'
+                // `vmsk` and the Background record (`psd_typed_exchange`).
+                crate::psd_typed_exchange::stamp(self, &mut out, &|layer| {
+                    knockout_written(layer, &policy, self.global_light)
+                });
+                let extra = crate::psd_typed_exchange::resources(self, true);
                 // The pattern table every written pattern overlay resolves
                 // through (`psd_patterns`: RGB pattern records, `Patt` at 8
                 // bits and `Pat2` at 16); no block without one.
@@ -810,7 +813,7 @@ impl PrecisionDocument {
                         self.resolution(),
                         light,
                         &[],
-                        &crate::psd_paths::resources(self.paths(), self.dimensions()),
+                        &extra,
                     );
                     resources.extend_from_slice(&spots.resources);
                     crate::tiff_layers::write_spots(
@@ -841,7 +844,7 @@ impl PrecisionDocument {
                         large,
                         &tail,
                         &self.psd_spot_planes(depth.eight),
-                        &crate::psd_paths::resources(self.paths(), self.dimensions()),
+                        &extra,
                     )?
                 }
             }

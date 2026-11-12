@@ -60,6 +60,12 @@
 //! open's (`psd_import16::budget` and `composite_plan`): RGBA16 retained, the
 //! Gray document's own storage.
 //!
+//! The layered choice ends as every typed open does (`psd_typed_exchange`):
+//! file record 0's Background mark when the open keeps it ([`dropped`] is
+//! the answer), each carried `vmsk` as its layer's vector mask (never over a
+//! fill record, which the open drops: `psd_group_records::vector_mask_usable`)
+//! and the file's visibility comps.
+//!
 //! A Duotone file (colour mode 8 at 8 or 16 bits, #1 Duotone phase 1b)
 //! opens here too: `Container::duotone_gray` is the Gray file it stores, and
 //! its inks (`duotone_files::container_inks`, carrying the file block) go on
@@ -94,7 +100,7 @@ pub(crate) const GRAY_GENERAL_LIMITATIONS: &[&str] = &[
     "Raster layers keep their gray and transparency, rectangle and signed offset; groups keep Normal or Pass Through, their own blend mode, opacity, visibility, mask and open state; every record keeps its name, opacity, visibility, clipping, ordinary 20-byte mask, colour label, locks and Fill (fill opacity) where it can hold one, and a blend mode from the 21 Photoshop offers in Grayscale (any other opens as Normal). Groups deeper than 10 levels are dissolved.",
     "Levels, Curves, Brightness/Contrast, Exposure, Invert, Posterize, Threshold and Gradient Map adjustment layers are carried as Doctored adjustment layers on the gray values; every other adjustment layer, and every fill layer, carries no pixels and is omitted, reported per record. The stored composite keeps their appearance.",
     "Layer effects (their colours as gray), knockout and Blend Interior Effects as Group are carried as a Doctored layer style on rasters, adjustment layers and every group, and Blend If ranges on Gray; a style a Grayscale document cannot hold (an effect mode outside the Grayscale list, a range on another channel) is discarded, reported per record. Type, shape and smart-object layers import as their pixels only.",
-    "Saved alpha and spot channels, guides and the ruler origin are not imported; colour samplers and the global light are.",
+    "Saved alpha and spot channels, guides and the ruler origin are not imported; colour samplers and the global light are. The file's layer comps (image resource 1065 and each layer's cmls settings) arrive with their names, comments and per-layer visibility, and a vector mask (vmsk) with no raster mask beside it, on any layer but a shape layer, as the layer's vector mask.",
 ];
 
 /// The gray depth of a container's declared depth.
@@ -532,7 +538,11 @@ impl PrecisionDocument {
             .kept;
         let (cw, ch) = (container.width, container.height);
         let warnings: Vec<String> = sentence.into_iter().collect();
-        let finish = |document: PrecisionDocument| -> Result<PrecisionDocument, String> {
+        // `layered` installs a layered open's mark, vector masks and comps
+        // on the finished Gray document (`psd_typed_exchange`).
+        let finish = |document: PrecisionDocument,
+                      layered: &dyn Fn(PrecisionDocument) -> Result<PrecisionDocument, String>|
+         -> Result<PrecisionDocument, String> {
             let mut document = document.with_import_warnings(warnings.clone())?;
             document.global_light = light;
             document.color_samplers.clone_from(&color_samplers);
@@ -546,8 +556,8 @@ impl PrecisionDocument {
             };
             let document = document
                 .with_gray(Arc::new(policy))
-                .map_err(|e| format!("PSD {path}: {e}"))?
-                .with_psd_spots(&container, limit, other)?;
+                .map_err(|e| format!("PSD {path}: {e}"))?;
+            let document = layered(document)?.with_psd_spots(&container, limit, other)?;
             job.report(1.0, 5)?;
             Ok(document)
         };
@@ -572,17 +582,20 @@ impl PrecisionDocument {
             PrecisionDocument::from_image(image, Metadata::default(), resolution)
         };
         if mode == 1 {
-            return finish(composite()?);
+            return finish(composite()?, &Ok);
         }
         let (psd, records) = crate::psd_import::parse_with(bytes, &container, Some(&policy))
             .map_err(|e| format!("PSD {path}: {e}; inspect the saved-composite option"))?;
         let (retained, scratch) = budget(&container, &records, bytes.len(), &twin)?;
         admit(retained, scratch, other, limit)?;
         if imports_nothing(&psd, &records, None) {
-            return finish(composite()?);
+            return finish(composite()?, &Ok);
         }
         let sample_bytes = container.sample_bytes() as usize;
         let canvas = (cw, ch);
+        // The record each built entry came from, in the order the tree is
+        // emitted (`psd_typed_exchange`).
+        let sources = std::cell::RefCell::new(Vec::new());
         let roots = emit_typed_tree(
             &psd,
             &records,
@@ -590,6 +603,9 @@ impl PrecisionDocument {
                 if dropped(&psd, &records, index, None) {
                     return Ok(None);
                 }
+                sources
+                    .borrow_mut()
+                    .push(crate::psd_comps::CompSource::Layer(index));
                 job.check()?;
                 let layer = &psd.layers()[index];
                 let plane = record_plane(&records, index, canvas);
@@ -629,6 +645,9 @@ impl PrecisionDocument {
                 )))
             },
             &mut |id, children| {
+                sources
+                    .borrow_mut()
+                    .push(crate::psd_comps::CompSource::Group(id));
                 let built = group_layer(
                     psd.groups()[&id].name(),
                     &records.groups[id as usize - 1],
@@ -649,13 +668,26 @@ impl PrecisionDocument {
         let mut roots = roots;
         crate::gray_style::grey_records(&mut roots, &twin, &policy)
             .map_err(|e| format!("PSD {path}: {e}"))?;
-        finish(PrecisionDocument::from_parts(
-            cw,
-            ch,
-            Arc::clone(&twin),
-            Metadata::default(),
-            resolution,
-            roots,
-        )?)
+        finish(
+            PrecisionDocument::from_parts(
+                cw,
+                ch,
+                Arc::clone(&twin),
+                Metadata::default(),
+                resolution,
+                roots,
+            )?,
+            &|document| {
+                crate::psd_typed_exchange::install(
+                    document,
+                    &container,
+                    &records,
+                    &sources.borrow(),
+                    |index| !dropped(&psd, &records, index, None),
+                    limit,
+                    other,
+                )
+            },
+        )
     }
 }

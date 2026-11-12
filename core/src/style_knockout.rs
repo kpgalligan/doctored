@@ -85,12 +85,10 @@
 //! its record 0 (`psd_background`), so a knockout over the bottom of an
 //! imported file punches where its author saw it punch (the committed take
 //! `knockout_bottom/deep_over_ordinary_bottom`), and every other document
-//! keeps the structural rule. The RGB PSD writers store a qualifying bottom a
-//! written knockout reaches as Photoshop's Background record; a bottom that
-//! cannot be one, and the Gray, Lab, CMYK and 32-bit float files, whose
-//! codecs carry no mark, keep the disclosure: [`document_reaches_background`]
-//! here and `psd_group_records::structural_background_knockout` on the way
-//! in.
+//! keeps the structural rule. Every PSD writer, in every mode, stores a
+//! qualifying bottom a written knockout reaches as Photoshop's Background
+//! record; a bottom that cannot be one keeps the export's disclosure
+//! ([`document_reaches_background`] here and its typed twin).
 //!
 //! The TYPED twin (`precision_style_knockout::background_record`) is this rule
 //! verbatim plus ONE clause the byte rule gets for free: **no Blend If**. The
@@ -214,11 +212,10 @@
 //! transparency, and THAT residual is what `LayerStyle.knockoutMergeResidualNote` discloses on the
 //! `merge_down` reply. **Phase 12E-3c** carries PSD `knko`/`infx` in both directions and at both depths
 //! through the ONE blending-options codec (`psd_layer_effects.rs`) and records **D13**, which the
-//! Background mark (`doc_background`, `psd_background`) now resolves at RGB: a PSD's record 0 sets
-//! the mark, and the RGB writers store a qualifying bottom as Photoshop's Background record; the
-//! remaining disclosure — `document_reaches_background` here and
-//! `psd_group_records::structural_background_knockout` on the way in — covers a bottom that
-//! cannot be a Background record and the modes whose codecs carry no mark. **12E-3d** measured D6's clip-base narrowing
+//! Background mark (`doc_background`, `psd_background`) now resolves in every mode: a PSD's
+//! record 0 sets the mark, and every writer stores a qualifying bottom as Photoshop's Background
+//! record; the remaining disclosure — `document_reaches_background` here, on the export —
+//! covers a bottom that cannot be a Background record. **12E-3d** measured D6's clip-base narrowing
 //! against Photoshop (Photoshop evaluates `blend_interior_as_group` on a clip base with visible
 //! members); P7-39 then LIFTED the narrowing at both depths, and its PSD disclosures went with it.
 

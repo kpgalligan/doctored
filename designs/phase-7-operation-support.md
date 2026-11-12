@@ -1,6 +1,6 @@
 # High-depth operation support matrix (ADR)
 
-- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11), [#31](https://github.com/kpgalligan/doctored/issues/31)) (the matrix below is the live summary; its float column, masks and RAW rows re-verified against code 2026-10-30)
+- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11)) (the matrix below is the live summary; its float column, masks and RAW rows re-verified against code 2026-10-30)
 - **Phase / dates:** 7A audit → 7E public matrix, 2026-09-10; amended through Phases 8–12
 - **Original:** [archive/phase-7-operation-support.md](../archive/phase-7-operation-support.md) — full history, the original RGBA8 boundary audit, per-slice notes
 - **Key commits:** `082ccb1` (audit), `3bd4349` (public gate); later rows `e8af30c` (12E-2c), `07d9153` (12F-2)
@@ -173,8 +173,8 @@ issues; this matrix states only what works today.
   cancellation (P7-31).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — payload compression and codec cancellation (P7-32);
   large-document workloads and the broader camera corpus (P7-33); dab/text/plane caps (P7-34).
-- `DONE` at RGB 8/16 — a Background layer kind (P7-38): the Background mark, set by PSD import, written by PSD
-  export, `.doctored` word 113. `OPEN` [#31](https://github.com/kpgalligan/doctored/issues/31) — the same in the
-  Gray, Lab, CMYK and 32-bit float PSD codecs.
+- `DONE` — a Background layer kind (P7-38): the Background mark, set by PSD import, written by PSD export,
+  `.doctored` word 113; at RGB 8/16 first, and since 2026-11-12 in the Gray, Lab, CMYK and 32-bit float PSD
+  codecs too (`psd_typed_exchange`).
 - `OPEN` [#2](https://github.com/kpgalligan/doctored/issues/2) — `blend_interior_as_group` on a clip base below 100 %
   Fill.

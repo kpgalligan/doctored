@@ -2,7 +2,7 @@
 """The #1 kept-CMYK export drive (round 2): a CMYK document exported with
 profile "document" as TIFF or JPEG — resized on ink, output-sharpened, at the
 other depth, under a metadata policy — and the files read back; the Export
-workspace's preview and plan; and the PSD export's vector-mask loss line.
+workspace's preview and plan; and the PSD export's vector mask and channels.
 
 The gates are FIXED here BEFORE anything is measured; a failed gate IS the
 receipt and no bound is widened afterwards. The instance is owned by this file
@@ -42,12 +42,12 @@ Every written TIFF and JPEG is parsed here, never by the app.
   answers a 16 × 12 PNG and bit_depth 16; of a kept JPEG, bit_depth 8.
   `export_image`'s `working_memory_plan_bytes` at scale 1.5 exceeds the one at
   size none.
-- **X6 PSD.** On a CMYK document and an RGB document, each with a vector mask
-  (`set_vector_mask`) on layer 0 and an alpha channel: `inspect_psd_export`'s
-  losses hold "The vector mask on “<layer 0's name>” is written as pixels, an
-  ordinary layer mask of its rendered shape; its path is not written." and "1
-  saved channels are not written; this export stores no PSD alpha channels.",
-  and `export_psd`'s reply has the same two lines.
+- **X6 PSD.** On a CMYK document and an RGB document, each with a raster-less
+  vector mask (`set_vector_mask`) on layer 0 and an alpha channel:
+  `inspect_psd_export`'s losses hold "1 saved channels are not written; this
+  export stores no PSD alpha channels." and not "The vector mask on “<layer
+  0's name>” is written as pixels, …", `export_psd`'s reply the same, and the
+  written file holds the mask as its path (an `8BIMvmsk` block).
 """
 import argparse
 import base64
@@ -402,14 +402,16 @@ def main():
             sentence = VECTOR.format(name=name)
             report = call('inspect_psd_export', document_id=document, format='psd', mode='layers')
             losses = report.get('losses') or []
-            assert sentence in losses and CHANNELS in losses, (label, losses)
-            written = call('export_psd', document_id=document, path=str(folder / f'{label}.psd'),
+            assert sentence not in losses and CHANNELS in losses, (label, losses)
+            target = folder / f'{label}.psd'
+            written = call('export_psd', document_id=document, path=str(target),
                            format='psd', mode='layers')
-            assert sentence in written['losses'] and CHANNELS in written['losses'], (label, written)
+            assert sentence not in written['losses'] and CHANNELS in written['losses'], (label, written)
+            assert b'8BIMvmsk' in target.read_bytes(), (label, 'no vmsk block')
             psd[label] = losses
             call('close_document', document_id=document, discard_changes=True)
         receipts['x6'] = psd
-        print('PASS x6: the PSD export names the vector mask written as pixels and the channels',
+        print('PASS x6: the PSD export writes the vector mask as its path and names the channels',
               flush=True)
 
     (output / 'receipt.json').write_text(json.dumps(receipts, indent=2, sort_keys=True, default=str) + '\n')

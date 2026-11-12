@@ -21,6 +21,9 @@
 //!   reference and locks, a blend mode the 32-bit Gray document offers
 //!   (`psd_import_gray::gray_blend`, else Normal) and a style it can hold.
 //!
+//! The layered choice ends as the gray open's does (`psd_typed_exchange`:
+//! the Background mark, the carried vector masks, the comps).
+//!
 //! A file that imports no record, and mode 1, open the stored composite
 //! (`psd_import_float::composite32`, one plane into R = G = B, un-matted) as
 //! one "Background". Every layer is in the policy's ONE twin handle; the
@@ -108,22 +111,28 @@ pub(crate) fn open_gray32(
         .map_err(|e| format!("PSD {path}: {e}"))?
         .kept;
     let (cw, ch) = (container.width, container.height);
-    let finish = |document: PrecisionDocument, repairs: &Repairs| {
-        let mut all = warnings.clone();
-        all.extend(repairs.warnings());
-        let mut document = document.with_import_warnings(all)?;
-        document.global_light = light;
-        document.color_samplers.clone_from(&color_samplers);
-        // Resources 1025 and 2000–2997 (`psd_paths`).
-        document
-            .paths
-            .set_entries(crate::psd_paths::file_paths(container).0);
-        let document = document
-            .with_gray(Arc::new(policy.clone()))
-            .map_err(|e| format!("PSD {path}: {e}"))?;
-        job.report(1.0, 5)?;
-        Ok::<_, String>(document)
-    };
+    // `layered` installs a layered open's mark, vector masks and comps on
+    // the finished Gray document (`psd_typed_exchange`).
+    let finish =
+        |document: PrecisionDocument,
+         repairs: &Repairs,
+         layered: &dyn Fn(PrecisionDocument) -> Result<PrecisionDocument, String>| {
+            let mut all = warnings.clone();
+            all.extend(repairs.warnings());
+            let mut document = document.with_import_warnings(all)?;
+            document.global_light = light;
+            document.color_samplers.clone_from(&color_samplers);
+            // Resources 1025 and 2000–2997 (`psd_paths`).
+            document
+                .paths
+                .set_entries(crate::psd_paths::file_paths(container).0);
+            let document = document
+                .with_gray(Arc::new(policy.clone()))
+                .map_err(|e| format!("PSD {path}: {e}"))?;
+            let document = layered(document)?;
+            job.report(1.0, 5)?;
+            Ok::<_, String>(document)
+        };
     let composite = || -> Result<PrecisionDocument, String> {
         job.check()?;
         let (retained, scratch) = composite_plan32(container, bytes.len() as u64);
@@ -144,7 +153,7 @@ pub(crate) fn open_gray32(
             Vec::new(),
             ToneMap::Clip,
         )?;
-        finish(document, &repairs)
+        finish(document, &repairs, &Ok)
     };
     if mode == 1 {
         return composite();
@@ -160,6 +169,9 @@ pub(crate) fn open_gray32(
     }
     let canvas = (cw, ch);
     let mut repairs = Repairs::default();
+    // The record each built entry came from, in the order the tree is
+    // emitted (`psd_typed_exchange`).
+    let sources = std::cell::RefCell::new(Vec::new());
     let roots = emit_typed_tree(
         &psd,
         &records,
@@ -167,6 +179,9 @@ pub(crate) fn open_gray32(
             if dropped(&psd, &records, index, float) {
                 return Ok(None);
             }
+            sources
+                .borrow_mut()
+                .push(crate::psd_comps::CompSource::Layer(index));
             job.check()?;
             let layer = &psd.layers()[index];
             let body = gray_body(
@@ -232,6 +247,9 @@ pub(crate) fn open_gray32(
             )))
         },
         &mut |id, children| {
+            sources
+                .borrow_mut()
+                .push(crate::psd_comps::CompSource::Group(id));
             let built = group_layer(
                 psd.groups()[&id].name(),
                 &records.groups[id as usize - 1],
@@ -262,5 +280,15 @@ pub(crate) fn open_gray32(
         Vec::new(),
         ToneMap::Clip,
     )?;
-    finish(document, &repairs)
+    finish(document, &repairs, &|document| {
+        crate::psd_typed_exchange::install(
+            document,
+            container,
+            &records,
+            &sources.borrow(),
+            |index| !dropped(&psd, &records, index, float),
+            limit,
+            other,
+        )
+    })
 }

@@ -89,31 +89,19 @@ pub(crate) struct GroupRecords<'a> {
     /// Parallel to `layers`: the record's carried `vmsk` body (`Group::vmsk`).
     pub layer_vmsk: Vec<Option<&'a [u8]>>,
     pub divider_features: FeatureMarkers,
-    /// FILE record 0 — the bottom entry — as the structural Background rule
-    /// (D5) reads it. `None` when there are no records at all, or when record
-    /// 0 is not an ordinary layer record (divider 0).
+    /// FILE record 0 — the bottom entry — as the Background mark reads it
+    /// (`psd_background`). `None` when there are no records at all, or when
+    /// record 0 is not an ordinary layer record (divider 0).
     pub bottom: Option<BottomRecord>,
-    /// Some visible non-adjustment divider-0/1/2 record carries a CARRIED
-    /// knockout that REACHES the document's bottom: Deep, or Shallow with no
-    /// parent group. Recorded during the walk, where the parent stack is the
-    /// only place a record's enclosing folder is known.
-    reaching_knockout: bool,
     metadata: Vec<&'a [u8]>, // original record bytes after the channel table
     metadata_bytes: usize,
 }
 
-/// FILE record 0, in the three terms D5's disclosure reads.
+/// FILE record 0, as the Background mark reads it.
 pub(crate) struct BottomRecord {
     /// A true Photoshop Background record: a non-empty rectangle with NO
-    /// channel id `-1` (the RGB importers mark it, `psd_background`).
+    /// channel id `-1` (every layered import marks it, `psd_background`).
     pub background: bool,
-    /// The record satisfies D5's own clauses as far as a framed record can
-    /// state them: not an adjustment record, visible, base blend key `norm`,
-    /// opacity byte 255, no ENABLED mask, and file record 1 (if any)
-    /// unclipped.
-    pub plain: bool,
-    /// The record's rectangle, `[top, left, bottom, right]`.
-    pub bounds: [i32; 4],
 }
 
 struct Record<'a> {
@@ -146,15 +134,8 @@ struct Record<'a> {
     /// point (`psd_pattern_fill`).
     reference_block: Option<&'a [u8]>,
     style: StyleBody,
-    /// The record's own bytes the structural Background rule reads directly,
-    /// because a divider-0 record's blend key and opacity byte never reach
-    /// `Group` (its blend is forced Normal there).
-    base_blend: [u8; 4],
-    opacity_byte: u8,
+    /// The record's flags byte, which a fill's form reads (bit 4).
     flags: u8,
-    /// The record is a pixel-less adjustment/fill record, so it carries no
-    /// style at either depth.
-    adjustment_record: bool,
 }
 
 struct Cursor<'a> {
@@ -209,9 +190,10 @@ impl<'a> GroupRecords<'a> {
     /// layer-information section at 8 bits, or the `Lr16` tail block a
     /// Photoshop 16-bit file keeps its records in, or a TIFF's block.
     /// `sample_bytes` is the container's 1, 2 or 4; every compression word
-    /// is admitted at each depth, and it decides only whether a `vmsk` is
-    /// carried (`vector_mask_usable`, 8 and 16 bits), which `room` (the
-    /// canvas and the file's path anchors, `psd_paths::MaskRoom`) bounds.
+    /// is admitted at each depth, and with `color` it decides only whether a
+    /// `vmsk` over a fill record is carried (`vector_mask_usable`), which
+    /// `room` (the canvas and the file's path anchors, `psd_paths::MaskRoom`)
+    /// bounds.
     /// `large` is a PSB: channel lengths are u64, and a record
     /// holding a `LONG_LENGTH_KEYS` block refuses. `color` is the
     /// container's colour mode: a CMYK file (4) admits channel id 3, its
@@ -261,7 +243,6 @@ impl<'a> GroupRecords<'a> {
             layer_vmsk: Vec::new(),
             divider_features: FeatureMarkers::default(),
             bottom: None,
-            reaching_knockout: false,
             metadata: Vec::new(),
             metadata_bytes: 0,
         };
@@ -475,8 +456,8 @@ impl<'a> GroupRecords<'a> {
                 let Some(anchors) = vector_mask_usable(
                     body,
                     vstk,
-                    color,
-                    sample_bytes,
+                    (color, sample_bytes),
+                    adjustment_block.map(|(key, _)| key),
                     mask_body,
                     &lengths,
                     room.canvas,
@@ -553,10 +534,7 @@ impl<'a> GroupRecords<'a> {
                 interior_block,
                 reference_block,
                 style: StyleBody::Absent,
-                base_blend,
-                opacity_byte,
                 flags,
-                adjustment_record: false,
                 group: Group {
                     opacity,
                     blend,
@@ -596,7 +574,6 @@ impl<'a> GroupRecords<'a> {
             let adjustment_record = record.divider == 0
                 && record.pixels.is_empty()
                 && record.group.features.adjustment_key().is_some();
-            record.adjustment_record = adjustment_record;
             // A Pattern Fill (CMYK included), Solid Color Fill or Gradient
             // Fill layer in any of its forms (`psd_fill_layer::Form`):
             // carried as a Doctored fill layer. A pixel-less one that does
@@ -727,12 +704,6 @@ impl<'a> GroupRecords<'a> {
         }
         let mut stack = Vec::new();
         for record in records.into_iter().rev() {
-            // D5's "a REACHING knockout exists": a visible non-adjustment
-            // record whose CARRIED style is Deep, or Shallow with no parent
-            // group. The parent stack is live only here.
-            if record.divider != 3 && record.group.visible && !record.adjustment_record {
-                out.reaching_knockout |= reaches_background(&record.style, stack.last().is_none());
-            }
             match record.divider {
                 1 | 2 => {
                     if stack.len() >= MAX_RECORD_DEPTH {
@@ -786,27 +757,6 @@ impl<'a> GroupRecords<'a> {
             ));
         }
         Ok(out)
-    }
-
-    /// D5's disclosure predicate on the FRAMED records alone — no pixel is
-    /// decoded, which is `psd_import::report`'s standing rule — asked only
-    /// for the modes whose importers set no Background mark. True when this
-    /// file has no true Photoshop Background record, its bottom entry
-    /// satisfies D5, and a knockout REACHES it. `canvas` is the container's
-    /// own dimensions.
-    pub(crate) fn structural_background_knockout(&self, canvas: (u32, u32)) -> bool {
-        let Some(bottom) = self.bottom.as_ref() else {
-            return false;
-        };
-        let (width, height) = canvas;
-        bottom.plain
-            && !bottom.background
-            && bottom.bounds == [0, 0, height as i32, width as i32]
-            // The bottom raster is FILE record 0, which the reversed walk
-            // below pushes LAST. D5 refuses a styled entry, and a `Declined`
-            // body carries nothing, so only `Carried` disqualifies it.
-            && !matches!(self.layer_styles.last(), Some(StyleBody::Carried(_)))
-            && self.reaching_knockout
     }
 
     /// The exact framed record metadata this walk measured, the input the
@@ -980,17 +930,21 @@ impl<'a> GroupRecords<'a> {
 }
 
 /// The anchors of a record's `vmsk` when it is a vector mask Doctored
-/// carries (`psd_paths`), before the document's anchor cap is weighed: an
-/// RGB file at 8 or 16 bits (`sample_bytes` 1 or 2), a body whose path
-/// Doctored holds exactly on the file's `canvas` (`psd_paths::vmsk_shape`),
-/// no raster mask beside it (no mask section, no `-2` channel), and no
-/// ENABLED vector stroke (`vstk`), whose shape layer's pixels show a stroke
-/// a fill under the path would not. `None` for every other `vmsk`.
+/// carries (`psd_paths`), before the document's anchor cap is weighed: a
+/// Grayscale (a Duotone file's included), RGB, CMYK or Lab file at any
+/// depth its open reads, a body whose path Doctored holds exactly on the
+/// file's `canvas` (`psd_paths::vmsk_shape`), no raster mask beside it (no
+/// mask section, no `-2` channel), no ENABLED vector stroke (`vstk`), whose
+/// shape layer's pixels show a stroke a fill under the path would not, and
+/// — on a record whose first adjustment key `adjustment` is a fill's — a
+/// fill the file's open imports as a fill layer ([`fill_imported`]): carried
+/// over any other, the path would leave a shape layer neither its fill nor
+/// the pixels it stores. `None` for every other `vmsk`.
 fn vector_mask_usable(
     body: &[u8],
     vstk: Option<&[u8]>,
-    color: u16,
-    sample_bytes: u64,
+    (color, sample_bytes): (u16, u64),
+    adjustment: Option<[u8; 4]>,
     mask_body: &[u8],
     lengths: &[(i16, usize)],
     canvas: (u32, u32),
@@ -1001,8 +955,10 @@ fn vector_mask_usable(
             .and_then(|d| d.bool(b"strokeEnabled").ok().flatten())
             .is_none_or(|enabled| enabled)
     });
-    let usable = color == 3
-        && matches!(sample_bytes, 1 | 2)
+    let usable = matches!(color, 1 | 3 | 4 | 9)
+        && adjustment.is_none_or(|key| {
+            !crate::psd_fill_layer::is_key(key) || fill_imported(color, sample_bytes, key)
+        })
         && mask_body.is_empty()
         && !lengths.iter().any(|(id, _)| *id == -2)
         && !stroked;
@@ -1011,6 +967,20 @@ fn vector_mask_usable(
     }
     let (shape, _) = crate::psd_paths::vmsk_shape(body, canvas)?;
     Some(shape.anchor_count())
+}
+
+/// Whether the layered open of a `color` file at `sample_bytes` imports a
+/// fill record keyed `key` as a fill layer: RGB at 8 and 16 bits and CMYK
+/// every kind, 32-bit RGB a Solid Color fill (`psd_import_float`, which
+/// refuses the layered choice over a Gradient or Pattern fill); a Grayscale
+/// or Lab open, at any depth, imports none (`psd_import_gray::dropped`,
+/// `psd_import_lab::dropped`).
+fn fill_imported(color: u16, sample_bytes: u64, key: [u8; 4]) -> bool {
+    match (color, sample_bytes) {
+        (3, 1 | 2) | (4, _) => true,
+        (3, _) => &key == b"SoCo",
+        _ => false,
+    }
 }
 
 /// A layer record whose first adjustment key `key` is a Pattern Fill, a
@@ -1038,8 +1008,8 @@ fn reference_point(body: Option<&[u8]>) -> (i32, i32) {
         .map_or((0, 0), |(x, y)| (clamp(x), clamp(y)))
 }
 
-/// FILE record 0 in D5's own terms, or `None` when there is no record 0 or it
-/// is not an ordinary layer record. Every clause is framed metadata.
+/// FILE record 0 as the Background mark reads it, or `None` when there is
+/// no record 0 or it is not an ordinary layer record. Framed metadata only.
 fn bottom_record(records: &[Record<'_>]) -> Option<BottomRecord> {
     let first = records.first()?;
     if first.divider != 0 {
@@ -1048,30 +1018,7 @@ fn bottom_record(records: &[Record<'_>]) -> Option<BottomRecord> {
     // A true Photoshop Background has a rectangle and ONLY the colour
     // channels: no id `-1` at all. Every ordinary bottom layer has one.
     let background = !first.pixels.is_empty() && !first.lengths.iter().any(|(id, _)| *id == -1);
-    let plain = !first.adjustment_record
-        && first.flags & 2 == 0
-        && first.base_blend == *b"norm"
-        && first.opacity_byte == 255
-        && !first.group.mask.enabled()
-        && records.get(1).is_none_or(|next| !next.group.clipped);
-    Some(BottomRecord {
-        background,
-        plain,
-        bounds: first.pixels.bounds,
-    })
-}
-
-/// Whether ONE record's carried style punches all the way to the document's
-/// bottom: Deep always, Shallow only with no parent group.
-fn reaches_background(style: &StyleBody, root: bool) -> bool {
-    let StyleBody::Carried(carried) = style else {
-        return false;
-    };
-    match carried.style.knockout {
-        crate::style::Knockout::Deep => true,
-        crate::style::Knockout::Shallow => root,
-        crate::style::Knockout::None => false,
-    }
+    Some(BottomRecord { background })
 }
 
 /// The dependency's documented blend discriminants as file keys, in

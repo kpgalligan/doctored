@@ -344,10 +344,11 @@ extension AgentServer {
                     + "half) leaves an ordinary raster mask and no vector mask, as do "
                     + "duplicating or merging the layer. The same shape again answers "
                     + "changed:false. Lock All refuses. The shapes count toward the "
-                    + "document's 65536 anchors. ONE undo step. Saved in .doctored; an 8- or "
-                    + "16-bit RGB PSD, PSB or layered TIFF writes one with no raster half as its "
-                    + "path (and reads it back), and every other PSD and TIFF export "
-                    + "gets the baked mask. 8-, 16-bit and 32-bit float documents. Layer ▸ "
+                    + "document's 65536 anchors. ONE undo step. Saved in .doctored; a layered "
+                    + "PSD, PSB or TIFF, in every mode, writes one with no raster half as its "
+                    + "path (and reads it back); one beside a raster half, "
+                    + "and a flattened export, get the baked mask. 8-, 16-bit and 32-bit "
+                    + "float documents. Layer ▸ "
                     + "Vector Mask ▸ Current Path / Reveal All.",
                 [
                     "layer": layer, "path": path, "subpaths": subpaths, "fill_rule": fillRule,

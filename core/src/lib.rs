@@ -664,6 +664,7 @@ mod psd_raster_masks;
 mod psd_samplers;
 mod psd_spot;
 mod psd_spot_records;
+mod psd_typed_exchange;
 pub mod psd_zip;
 pub mod radiance_hdr;
 mod raw_float_develop;

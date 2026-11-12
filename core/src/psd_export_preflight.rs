@@ -77,8 +77,8 @@ fn general_limitations(container: LayeredContainer, depth: u16) -> Vec<&'static 
     // `general_limitations[1]` by position (`psd_export_lab::lab_psd_report_json`).
     out.extend_from_slice(&[
         "Layer styles are rasterized into their layer's pixels only when Photoshop's own dialog or a PSD mask cannot hold them, and are otherwise written as Photoshop layer effects and blending options (lfx2, lfxs on a group, iOpa, blending ranges) with the document's global light; either way they are reported per layer, and the effect setting Doctored does not model (the glows' technique) is not written. Invert, Threshold, Posterize, Levels, Curves, Color Balance, Hue/Saturation, Photo Filter, Exposure, Vibrance, Black & White, Channel Mixer, Selective Color and Brightness/Contrast (without saturation) adjustment layers are written as Photoshop adjustment records with their parameters mapped onto Photoshop's own arithmetic, and every other adjustment layer is written as a pixel layer holding the picture up to that layer, reported per layer; editable text, shapes and RAW layers are written as pixels only. No Photoshop type descriptor is written. Knockout and Blend Interior Effects as Group are written as Photoshop's own knko and infx records whenever the style itself is written, and only when they are not at their defaults.",
-        "Alpha channels, guides, the ruler origin, link groups, EXIF/XMP/IPTC packets and capture packets are not written; layer comps are written only in the layered mode of an 8- or 16-bit RGB export, with their names, comments and per-layer visibility; spot channels are written to a PSD or PSB in RGB, CMYK, Grayscale or Duotone at 8 or 16 bits, and to a TIFF in RGB or CMYK at 8 or 16 bits.",
-        "Layer and group masks are written as ordinary absolute 20-byte masks with their samples, outside default and enabled state. Mask density, feather and PSD link state are not written. The document's paths are written as Photoshop paths (the work path and each saved path by name); in an 8- or 16-bit RGB layered export a vector mask with no raster mask beside it is written as its path (vmsk), and every other vector mask as its rendered mask.",
+        "Alpha channels, guides, the ruler origin, link groups, EXIF/XMP/IPTC packets and capture packets are not written; layer comps are written only in the layered mode, with their names, comments and per-layer visibility; spot channels are written to a PSD or PSB in RGB, CMYK, Grayscale or Duotone at 8 or 16 bits, and to a TIFF in RGB or CMYK at 8 or 16 bits.",
+        "Layer and group masks are written as ordinary absolute 20-byte masks with their samples, outside default and enabled state. Mask density, feather and PSD link state are not written. The document's paths are written as Photoshop paths (the work path and each saved path by name); in the layered mode a vector mask with no raster mask beside it is written as its path (vmsk), and every other vector mask as its rendered mask.",
         "Persisted warp fields and their pre-warp source planes are not written; PSD receives the current rendered planes only.",
         match container {
             Psd => "The classic format limits every side to 30000 pixels and the file to 2 GiB; the large-document format (PSB) holds up to 300000 pixels per side and has no such file limit.",
@@ -191,8 +191,9 @@ pub(crate) fn blend_key(mode: BlendMode) -> [u8; 4] {
 }
 
 /// One mask as the preflight sees it: its extent and the properties a PSD mask
-/// cannot hold. `vector` is a live vector mask, which the record walks write
-/// as its rendered raster (no `vmsk`).
+/// cannot hold. `vector` is a live vector mask the record walks write as its
+/// rendered raster (no `vmsk`): one with a raster part, or one a PSD path
+/// cannot hold (`psd_typed_exchange::baked_vector_masks` at high depth).
 pub(crate) struct ExportMask {
     pub width: u32,
     pub height: u32,
@@ -379,9 +380,8 @@ pub(crate) struct ExportInventory {
     /// The document's layer comps.
     pub comps: usize,
     /// Of them, the comps the LAYERED mode writes (resource 1065 and each
-    /// record's `cmls`, `psd_comps`): those that record visibility, at RGB
-    /// 8 and 16 bits; 0 for every other writer. The flattened mode writes no
-    /// comp.
+    /// record's `cmls`, `psd_comps`): those that record visibility. The
+    /// flattened mode writes no comp.
     pub comps_written: usize,
     /// Of the written comps, those that also record position or appearance,
     /// which is not written.
@@ -391,18 +391,11 @@ pub(crate) struct ExportInventory {
     pub path_losses: Vec<String>,
     pub has_metadata: bool,
     pub nondefault_global_light: bool,
-    /// D13, for the writers that write no Background record (Gray, Lab, CMYK
-    /// and 32-bit float): this document's bottom entry satisfies D5 and a
-    /// WRITTEN knockout REACHES it (a baked one writes no `knko`, so its file
-    /// punches nothing in Photoshop). The file stores that entry as an
-    /// ordinary layer, so the hole this file opens shows the bottom layer here
-    /// and transparency in Photoshop — disclosed once per file, never
-    /// silently.
-    pub structural_background_knockout: bool,
-    /// The RGB writers' remainder of D13 (`psd_background`, `BottomExport::
-    /// Unwritable`): the bottom satisfies D5 and a written knockout reaches
-    /// it, but it cannot be written as a Background record (a transparent
-    /// pixel, a mask or a description), so the file stores an ordinary layer.
+    /// D13 (`psd_background`, `BottomExport::Unwritable`): the bottom
+    /// satisfies D5 and a WRITTEN knockout reaches it (a baked one writes no
+    /// `knko`), but it cannot be written as a Background record (a
+    /// transparent pixel, a mask or a description), so the file stores an
+    /// ordinary layer — disclosed once per file, never silently.
     pub background_unwritable: bool,
     /// Bottom-first, in the layered mode's own order.
     pub entries: Vec<ExportEntry>,
@@ -930,15 +923,12 @@ fn layer_losses(
         }
     }
     // D13, once per file: the layered file stores Doctored's Background as
-    // an ordinary layer — in a mode whose writer has no Background record, or
-    // at RGB when the bottom cannot be one. The FLATTENED mode carries no
-    // knockout at all — the composite already holds Doctored's own answer —
-    // so the sentences are stated here and not in `document_losses`.
+    // an ordinary layer when the bottom cannot be a Background record. The
+    // FLATTENED mode carries no knockout at all — the composite already
+    // holds Doctored's own answer — so the sentence is stated here and not in
+    // `document_losses`.
     if inventory.background_unwritable {
         losses.push("A layer uses knockout over this document's bottom layer, which Doctored treats as the Background. That layer has transparent pixels, a mask or a type, shape or fill description, so a PSD cannot store it as a Photoshop Background layer: it is written as an ordinary layer, and Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show transparency in Photoshop where it shows the bottom layer here.".into());
-    }
-    if inventory.structural_background_knockout {
-        losses.push("A layer uses knockout over this document's bottom layer, which Doctored treats as the Background. A PSD written by Doctored stores it as an ordinary layer, and Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show transparency in Photoshop where it shows the bottom layer here.".into());
     }
     document_losses(
         inventory,

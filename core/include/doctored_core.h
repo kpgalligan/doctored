@@ -476,10 +476,10 @@ uint32_t dr_doc_layer_label(const DrDocument *doc, size_t idx);
  * file can bind by coincidence. A repeated non-zero id within one comp
  * refuses. SCHEMA 1 is still READ exactly as before — {"layer": N|null} bound
  * by INDEX + NAME — and is never written again, so a reopened schema-1 file
- * resaves as schema 2. Photoshop's own `cmls` layer comps are NOT imported or
- * exported: a recorded gap, owner 10C-3. 12E-3c measured the structure of a
- * Photoshop-authored comps family and did not import it; the import keeps no
- * comp.
+ * resaves as schema 2. A layered PSD, PSB or TIFF carries a document's
+ * comps as Photoshop's own (resource 1065 and each record's `cmls`), their
+ * visibility only, both ways and in every mode the PSD codecs carry layers
+ * in (`psd_comps`).
  *
  * PERSISTED LAYER IDENTITY. Version 45 (byte) / 46 (typed) is the OUTERMOST
  * .rz version word and the ONE table this format ALWAYS writes: 45/46 sits
@@ -2996,9 +2996,12 @@ DrDocument *dr_doc_set_layer_content(const DrDocument *doc, size_t idx,
  * `infx` records at BOTH depths, on rasters and on folder records, whenever
  * the layer's style is written rather than rasterized and the key is not at
  * its default; a rasterized (baked) style writes neither and says so per
- * layer. A file whose bottom layer is Doctored's structural Background but
- * not a true Photoshop Background carries a per-file loss in BOTH the import
- * and the export report (D13, carryover P7-38): Photoshop punches such a
+ * layer. PSD import marks the bottom layer from file record 0 (Photoshop's
+ * Background, or an ordinary layer a knockout punches through) and PSD export
+ * writes a qualifying bottom as Photoshop's Background record, in every mode
+ * (the Background mark); a bottom a written knockout reaches that cannot be
+ * a Background record (a transparent pixel, a mask, a description) carries a
+ * per-file loss in the export report (D13): Photoshop punches such a
  * knockout through to transparency where Doctored shows that bottom layer.
  * A byte document whose style uses either key saves as DRDC
  * version 49, a word nested inside 45 with no table of its own; a TYPED one
@@ -4812,9 +4815,10 @@ bool dr_tiff_has_layers(const char *path);
  * and general_limitations, and reports availability of each import choice.
  * A record's knko (shallow/deep) and infx ride the ONE carried layer style at
  * both depths and are named in that record's style observation; clbl is never
- * interpreted. A file with no true Photoshop Background record whose bottom
- * entry is Doctored's structural Background, under a knockout that reaches
- * it, carries ONE verified loss stating the divergence (D13 / P7-38).
+ * interpreted. Import Layers marks file record 0 Background or ordinary, and
+ * imports the file's visibility layer comps (resource 1065, named in the
+ * losses where they narrow) and each raster-less `vmsk` as its layer's
+ * vector mask, in every colour mode and depth it opens.
  * A CMYK file (colour mode 4: PSD, PSB or a layered CMYK TIFF) answers
  * "import_precision":"cmyk" at 8 and 16 bits, its layered availability and
  * "layered_plan_bytes" (the Import Layers plan), its saved composite's
@@ -4879,8 +4883,9 @@ DrDocument *dr_doc_open_psd(const char *path, int mode,
  * document's depth, 0 when nothing bakes.
  * A written style's knockout keys are named per layer in "observations"; a
  * BAKED one's are a per-layer loss (neither key is written beside baked
- * pixels), and a knockout over this document's structural Background is ONE
- * per-file loss (D13 / P7-38). Free with dr_string_free; NULL + err_out on
+ * pixels), and a knockout reaching a bottom that cannot be written as
+ * Photoshop's Background record is ONE per-file loss (D13). Free with
+ * dr_string_free; NULL + err_out on
  * NULL doc / bad container / bad mode. */
 char *dr_doc_psd_export_report(const DrDocument *doc, int container, int mode,
                                char **err_out);

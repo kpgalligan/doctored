@@ -111,6 +111,14 @@ pub(crate) fn merged_style(layer: &PrecisionDocumentLayer) -> Option<LayerStyle>
     })
 }
 
+/// Whether this writer writes `layer`'s knockout: its style is written, not
+/// baked (a BAKED style writes no `knko`, so its file punches nothing in
+/// Photoshop). The typed writers' answer to `psd_background`'s "a written
+/// knockout reaches the bottom", every typed writer's but CMYK's.
+pub(crate) fn knockout_written16(layer: &PrecisionDocumentLayer) -> bool {
+    export_style16(layer, false).is_some_and(|style| style.bake.is_none())
+}
+
 /// What one typed entry's style costs the export, or `None` for an unstyled
 /// layer with no Blend If. Built DIRECTLY rather than through
 /// `psd_export_rasterize::export_style`, whose Blend If reads `style.blend_if`
@@ -895,36 +903,14 @@ pub(crate) fn records(
 }
 
 impl PrecisionDocument {
-    /// Whether this document's PSD writer is the RGB 16-bit one, the typed
-    /// writer that stores a Background record (`psd_background`) and layer
-    /// comps (`psd_comps`).
-    fn is_rgb16_writer(&self) -> bool {
-        !self.is_gray() && !self.is_lab() && !self.is_float() && !self.is_cmyk()
-    }
-
     /// This typed document as the depth-agnostic preflight sees it, without
-    /// reading a single pixel: `sample_bytes` 2, or 4 for a float document.
+    /// reading a single pixel: `sample_bytes` 2, or 4 for a float document
+    /// (1 for an 8-bit Gray or Lab one).
     fn export_inventory(&self, sample_bytes: u64) -> ExportInventory {
         let mut out = Vec::new();
-        // The vector masks written as pixels: the RGB 16-bit writer writes a
-        // raster-less one a PSD path can hold as its `vmsk` (`psd_paths`),
-        // every other typed writer bakes them all.
-        let vector: Vec<u64> = self
-            .live_vector_masks()
-            .into_iter()
-            .filter(|(_, record)| {
-                record.raster.is_some()
-                    || !self.is_rgb16_writer()
-                    || crate::psd_paths::vmsk_body(
-                        &record.shape,
-                        record.enabled,
-                        record.linked,
-                        self.dimensions(),
-                    )
-                    .is_none()
-            })
-            .map(|(_, record)| record.layer_id)
-            .collect();
+        // The vector masks written as pixels: a raster-less one a PSD path
+        // can hold is written as its `vmsk` (`psd_typed_exchange`).
+        let vector = crate::psd_typed_exchange::baked_vector_masks(self);
         entries(
             self.root_layers(),
             self.profile(),
@@ -997,44 +983,17 @@ impl PrecisionDocument {
             has_guides: !self.guides().is_empty() || self.ruler_origin() != (0.0, 0.0),
             sampler_sizes_lost: self.color_samplers().iter().any(|s| s.sample_size != 1),
             comps: self.layer_comps().len(),
-            // The visibility comps the RGB 16-bit writer writes (`psd_comps`).
-            comps_written: if self.is_rgb16_writer() {
-                crate::psd_comps::counts(self.layer_comps()).0
-            } else {
-                0
-            },
-            comps_narrowed: if self.is_rgb16_writer() {
-                crate::psd_comps::counts(self.layer_comps()).1
-            } else {
-                0
-            },
+            // The visibility comps the layered mode writes (`psd_comps`).
+            comps_written: crate::psd_comps::counts(self.layer_comps()).0,
+            comps_narrowed: crate::psd_comps::counts(self.layer_comps()).1,
             path_losses: crate::psd_paths::export_losses(self.paths(), self.dimensions()),
             has_metadata: !self.metadata().is_empty(),
             nondefault_global_light: self.global_light() != GlobalLight::default(),
-            // D13, the typed twin: the RGB 16-bit writer stores a qualifying
-            // bottom as Photoshop's Background record (`psd_background`), so
-            // only one that cannot be one is said; the Gray, Lab and float
-            // writers write no Background record, so record 0 IS the
-            // Background by D5 and a knockout reaches it, but the file will
-            // carry it as an ordinary layer record.
-            background_unwritable: self.is_rgb16_writer()
-                && self.bottom_export() == crate::psd_background::BottomExport::Unwritable,
-            structural_background_knockout: !self.is_rgb16_writer()
-                && crate::precision_style_knockout::background_record(
-                    self.root_layers(),
-                    self.dimensions(),
-                    crate::style_composite::Cut::NONE,
-                    self.float.is_some(),
-                    self.background,
-                )
-                && crate::precision_style_knockout::document_reaches_background16(
-                    self.root_layers(),
-                    0,
-                    crate::style_composite::Cut::NONE,
-                    // A BAKED style writes no `knko`, so such a file punches
-                    // nothing in Photoshop and D13 must stay silent about it.
-                    &|layer| export_style16(layer, false).is_some_and(|style| style.bake.is_none()),
-                ),
+            // D13: a qualifying bottom is written as Photoshop's Background
+            // record (`psd_background`), so only one that cannot be one is
+            // said.
+            background_unwritable: self.bottom_export(&knockout_written16)
+                == crate::psd_background::BottomExport::Unwritable,
             entries: out,
         }
     }
@@ -1369,33 +1328,10 @@ impl PrecisionDocument {
                 ranges: Vec::new(),
             }),
         }
-        // The layer comps' `lyid`/`shmd` on every record (`psd_comps`).
+        // The comps' `lyid`/`shmd`, the raster-less vector masks' `vmsk` and
+        // the Background record (`psd_typed_exchange`).
         if matches!(mode, PsdExportMode::Layers) {
-            let mut owners = Vec::new();
-            crate::psd_comps::typed_owners(self.root_layers(), &mut owners);
-            crate::psd_comps::stamp_records(&mut out, &owners, self.layer_comps());
-            // A live vector mask with no raster part is written as its
-            // `vmsk` (`psd_paths`), in place of the baked mask.
-            let masks: Vec<Option<crate::psd_paths::WrittenMask>> = owners
-                .iter()
-                .map(|owner| {
-                    let (id, _) = (*owner)?;
-                    let index = self.layer_index_by_id(id)?;
-                    self.live_vector_mask(index)
-                        .filter(|record| record.raster.is_none())
-                        .map(|record| (record.shape, record.enabled, record.linked))
-                })
-                .collect();
-            crate::psd_paths::stamp_vector_masks(&mut out, &masks, self.dimensions());
-        }
-        // Root entry 0 as Photoshop's Background record, when it is one: FILE
-        // record 0, as at 8 bits (`psd_background`).
-        if matches!(mode, PsdExportMode::Layers)
-            && self.bottom_export() == crate::psd_background::BottomExport::Background
-        {
-            if let (Some(record), Some(layer)) = (out.first_mut(), self.root_layers().first()) {
-                crate::psd_background::shape_record(record, layer.locks());
-            }
+            crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16);
         }
         // The document's light, declared only when some record writes
         // effects — the byte `psd_export` rule.
@@ -1424,13 +1360,10 @@ impl PrecisionDocument {
             }
             PsdExportMode::Flattened => Vec::new(),
         };
-        // Image resource 1065, the layer comps the records' `cmls` name
-        // (`psd_comps`); the flattened mode writes no layer, so none.
-        // …and, in both modes, the paths' resources (`psd_paths`).
-        let mut extra = crate::psd_paths::resources(self.paths(), self.dimensions());
-        if matches!(mode, PsdExportMode::Layers) {
-            extra.extend(crate::psd_comps::resource(self.layer_comps()));
-        }
+        // The paths' resources, and the layered mode's 1065
+        // (`psd_typed_exchange`).
+        let extra =
+            crate::psd_typed_exchange::resources(self, matches!(mode, PsdExportMode::Layers));
         let bytes = if container == LayeredContainer::Tiff {
             // The flat picture is the TIFF's own strip: the projection's
             // straight RGBA16, big-endian. The records and resources ride in

@@ -237,7 +237,7 @@ pub fn assert_paths_close(got: &[PathEntry], want: &[PathEntry], what: &str) {
     }
 }
 
-fn assert_shapes_close(got: &PathShape, want: &PathShape, what: &str) {
+pub fn assert_shapes_close(got: &PathShape, want: &PathShape, what: &str) {
     assert_eq!(got.fill_rule, want.fill_rule, "{what}: fill rule");
     assert_eq!(got.subpaths.len(), want.subpaths.len(), "{what}");
     for (g, w) in got.subpaths.iter().zip(&want.subpaths) {
@@ -505,7 +505,7 @@ fn a_refused_path_is_dropped_alone() {
 // ------------------------------------------- a `vmsk` that is not carried --
 
 /// The report's sentence for a record whose mask the layered import drops.
-const DROPPED: &str = "(“Duplicate”) has a raster mask channel or advanced mask metadata; layered import drops it: vector, real-user (-3), or advanced mask behavior is unsupported.";
+pub const DROPPED: &str = "(“Duplicate”) has a raster mask channel or advanced mask metadata; layered import drops it: vector, real-user (-3), or advanced mask behavior is unsupported.";
 
 /// One 26-byte path record: the selector, then `body`, zero-padded.
 fn path_record(selector: u16, body: &[u8]) -> Vec<u8> {
@@ -519,7 +519,7 @@ fn path_record(selector: u16, body: &[u8]) -> Vec<u8> {
 /// the combine `operation`, then 1) and an unlinked knot per corner, each of
 /// its three points the corner as a (vertical, horizontal) pair of 8.24
 /// fractions of a `canvas`.
-fn closed_subpath(corners: &[(f64, f64)], operation: i16, canvas: (f64, f64)) -> Vec<u8> {
+pub fn closed_subpath(corners: &[(f64, f64)], operation: i16, canvas: (f64, f64)) -> Vec<u8> {
     let mut length = (corners.len() as u16).to_be_bytes().to_vec();
     length.extend_from_slice(&operation.to_be_bytes());
     length.extend_from_slice(&1u16.to_be_bytes());
@@ -548,7 +548,7 @@ fn path_body(initial: u16, subpaths: &[Vec<u8>]) -> Vec<u8> {
 
 /// A `vmsk` body: version 3, flags 0 (enabled, linked, not inverted), then
 /// the path's records.
-fn vmsk(initial: u16, subpaths: &[Vec<u8>]) -> Vec<u8> {
+pub fn vmsk(initial: u16, subpaths: &[Vec<u8>]) -> Vec<u8> {
     let mut out = 3u32.to_be_bytes().to_vec();
     out.extend_from_slice(&0u32.to_be_bytes());
     out.extend(path_body(initial, subpaths));

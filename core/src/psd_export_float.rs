@@ -22,7 +22,8 @@
 //!
 //! The record walk is `psd_export16`'s (`Walk::float`): a group, a raster, a
 //! written adjustment record and a preserved style travel exactly as at 16
-//! bits. Every style and fill colour is written as Photoshop's 32-bit
+//! bits, and so do the comps, raster-less vector masks and the Background
+//! record (`psd_typed_exchange`). Every style and fill colour is written as Photoshop's 32-bit
 //! numbers, the document's LINEAR light × 255 (`FxColours::Float`, through
 //! the save's `style_float::FloatStyle`), and a solid color fill is
 //! Photoshop's PIXEL-LESS 32-bit `SoCo` record (`fill_style32.psd`'s form,
@@ -71,7 +72,8 @@ use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLay
 use crate::precision_image::{admit, PrecisionImage, PrecisionStorage};
 use crate::precision_style_render::StyleEnv;
 use crate::psd_export16::{
-    export_style16, exported_fill16, exported_fills16, record_styles, records, Walk,
+    export_style16, exported_fill16, exported_fills16, knockout_written16, record_styles, records,
+    Walk,
 };
 use crate::psd_export_encode::{
     image_resources, layer_info_counted_into, layer_info_len, raw_plane, write_psd32, Record,
@@ -299,21 +301,26 @@ impl PrecisionDocument {
         };
         let mut out = Vec::new();
         match mode {
-            PsdExportMode::Layers => records(
-                self.root_layers(),
-                self.profile(),
-                &env,
-                &Walk {
-                    document: self,
-                    limit,
-                    other,
-                    large,
-                    float: true,
-                    gray: None,
-                },
-                &mut 0,
-                &mut out,
-            )?,
+            PsdExportMode::Layers => {
+                records(
+                    self.root_layers(),
+                    self.profile(),
+                    &env,
+                    &Walk {
+                        document: self,
+                        limit,
+                        other,
+                        large,
+                        float: true,
+                        gray: None,
+                    },
+                    &mut 0,
+                    &mut out,
+                )?;
+                // The comps' `lyid`/`shmd`, the raster-less vector masks'
+                // `vmsk` and the Background record (`psd_typed_exchange`).
+                crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16);
+            }
             PsdExportMode::Flattened => out.push(Record {
                 bounds: [0, 0, height as i32, width as i32],
                 channels: channels32(projection)
@@ -351,6 +358,10 @@ impl PrecisionDocument {
         };
         // Photoshop's 32-bit convention: the profile's linear-light twin.
         let twin = linear_twin(self.profile());
+        // The paths' resources, and the layered mode's 1065
+        // (`psd_typed_exchange`).
+        let extra =
+            crate::psd_typed_exchange::resources(self, matches!(mode, PsdExportMode::Layers));
         let bytes = if container == LayeredContainer::Tiff {
             // Photoshop's `layered32.tif`: a positive count, no
             // `Mt32`, the records beside an IEEE-float flat image.
@@ -359,7 +370,7 @@ impl PrecisionDocument {
                 self.resolution(),
                 light,
                 self.color_samplers(),
-                &crate::psd_paths::resources(self.paths(), self.dimensions()),
+                &extra,
             );
             let flat = width as usize * height as usize * 16;
             write_with(
@@ -393,7 +404,7 @@ impl PrecisionDocument {
                 &tail,
                 false,
                 &|file| append_composite32(projection, width, height, file),
-                &crate::psd_paths::resources(self.paths(), self.dimensions()),
+                &extra,
             )?
         };
         drop(out);

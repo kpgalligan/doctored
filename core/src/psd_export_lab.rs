@@ -52,6 +52,10 @@
 //! 0x28), and RLE composite planes (Photoshop's 16-bit: Raw). Blend If needs
 //! no move: a Lab document refuses a Gray range, so slot 0 is the default
 //! and slots 1 to 3 hold Lightness, a and b, as Photoshop writes them (H-B).
+//!
+//! The layered mode carries the comps (`lyid`/`shmd`, 1065), raster-less
+//! vector masks (`vmsk`) and the Background record as the RGB writer does
+//! (`psd_typed_exchange`, stamped before L3).
 
 use serde_json::{json, Value};
 
@@ -60,7 +64,7 @@ use crate::lab_encode::{matte_white, psd_sample, tiff_samples16, tiff_samples8};
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::{admit, PrecisionImage, PrecisionStorage};
 use crate::precision_style_render::StyleEnv;
-use crate::psd_export16::{exported_fills16, record_styles, records, Walk};
+use crate::psd_export16::{exported_fills16, knockout_written16, record_styles, records, Walk};
 use crate::psd_export_cmyk::Depth;
 use crate::psd_export_encode::{
     encode_plane, image_resources, layer_info_counted, photoshop_folder_lsct, write_psd, Record,
@@ -347,22 +351,28 @@ impl PrecisionDocument {
         };
         let mut out = Vec::new();
         match mode {
-            PsdExportMode::Layers => records(
-                self.root_layers(),
-                self.profile(),
-                &env,
-                &Walk {
-                    document: self,
-                    limit,
-                    other,
-                    large,
-                    float: false,
-                    gray: None,
-                },
-                &mut 0,
-                &mut out,
-            )
-            .map(|()| photoshop_form_lab(&mut out))?,
+            PsdExportMode::Layers => {
+                records(
+                    self.root_layers(),
+                    self.profile(),
+                    &env,
+                    &Walk {
+                        document: self,
+                        limit,
+                        other,
+                        large,
+                        float: false,
+                        gray: None,
+                    },
+                    &mut 0,
+                    &mut out,
+                )?;
+                // The comps, the raster-less vector masks and the Background
+                // record (`psd_typed_exchange`), before Photoshop's own form
+                // (`psd_export_gray`'s order).
+                crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16);
+                photoshop_form_lab(&mut out);
+            }
             PsdExportMode::Flattened => out.push(Record {
                 bounds: [0, 0, height as i32, width as i32],
                 channels: channels_lab(projection, depth, large).ok_or(PROJECTION)?,
@@ -405,6 +415,10 @@ impl PrecisionDocument {
             }
             PsdExportMode::Flattened => Vec::new(),
         };
+        // The paths' resources, and the layered mode's 1065
+        // (`psd_typed_exchange`).
+        let extra =
+            crate::psd_typed_exchange::resources(self, matches!(mode, PsdExportMode::Layers));
         // L2: no profile anywhere.
         let bytes = if container == LayeredContainer::Tiff {
             crate::tiff_layers::write(
@@ -414,13 +428,7 @@ impl PrecisionDocument {
                 9,
                 &[],
                 self.resolution(),
-                &image_resources(
-                    &[],
-                    self.resolution(),
-                    light,
-                    self.color_samplers(),
-                    &crate::psd_paths::resources(self.paths(), self.dimensions()),
-                ),
+                &image_resources(&[], self.resolution(), light, self.color_samplers(), &extra),
                 &layer_info_counted(&out, false, false)?,
                 &composite_strip_lab(projection, width, height, depth)?,
                 &tail,
@@ -440,7 +448,7 @@ impl PrecisionDocument {
                 large,
                 &tail,
                 &crate::psd_spot::SpotPlanes::default(),
-                &crate::psd_paths::resources(self.paths(), self.dimensions()),
+                &extra,
             )?
         };
         crate::dr_image::save_atomically(path, |tmp| {

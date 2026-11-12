@@ -1,6 +1,7 @@
-//! The PSD side of LAYER COMPS (`doc_comps`) at RGB 8 and 16 bits: what a
+//! The PSD side of LAYER COMPS (`doc_comps`) in every mode the PSD codecs
+//! carry layers in (the typed ones through `psd_typed_exchange`): what a
 //! layered import installs from image resource 1065 and each record's `cmls`
-//! settings, and what the RGB writers write back. The bytes are
+//! settings, and what the writers write back. The bytes are
 //! `psd_comp_records`'.
 //!
 //! **Import.** A layer's settings ride in its OWN record, so an entry binds
@@ -142,9 +143,9 @@ fn source_settings<'a>(records: &GroupRecords<'a>, source: CompSource) -> Option
     }
 }
 
-/// The import report's comp sentences for an RGB 8- or 16-bit file
-/// (module doc): the comp-level ones, then one per record whose settings do
-/// not decode. Decodes no pixel.
+/// The import report's comp sentences for a layered file (module doc): the
+/// comp-level ones, then one per record whose settings do not decode.
+/// Decodes no pixel.
 pub(crate) fn report_losses(container: &Container<'_>, records: &GroupRecords<'_>) -> Vec<String> {
     let (kept, mut losses) = file_comps(container);
     if kept.is_empty() {
@@ -168,7 +169,7 @@ pub(crate) fn report_losses(container: &Container<'_>, records: &GroupRecords<'_
     losses
 }
 
-/// The comps a layered RGB import installs. `sources[k]` is the record the
+/// The comps a layered import installs. `sources[k]` is the record the
 /// k-th built layer came from, and `layer(k)` its id and name.
 pub(crate) fn imported(
     container: &Container<'_>,
@@ -220,15 +221,15 @@ pub(crate) fn imported(
     comps
 }
 
-/// The comps the RGB writers write (module doc), as their indices.
+/// The comps the writers write (module doc), as their indices.
 pub(crate) fn written(comps: &[LayerComp]) -> Vec<usize> {
     (0..comps.len())
         .filter(|&i| comps[i].captures.visibility)
         .collect()
 }
 
-/// `(written, narrowed)`: how many comps the RGB layered writer writes, and
-/// how many of those also record position or appearance it does not write.
+/// `(written, narrowed)`: how many comps a layered writer writes, and how
+/// many of those also record position or appearance it does not write.
 pub(crate) fn counts(comps: &[LayerComp]) -> (usize, usize) {
     let written = written(comps);
     let narrowed = written

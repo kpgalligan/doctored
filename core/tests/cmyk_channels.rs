@@ -551,11 +551,12 @@ fn psd_losses(doc: *const PrecisionDocument, mode: i32) -> Vec<String> {
         .collect()
 }
 
-/// A CMYK PSD names Top's vector mask written as pixels, not Bottom's
-/// ordinary mask, and says its two alpha channels are not written; the
-/// Flattened mode's sentence already bakes every mask.
+/// A CMYK PSD writes Top's raster-less vector mask as its path (`vmsk`), so
+/// it names no vector mask written as pixels, Top's or Bottom's ordinary
+/// mask, and says its two alpha channels are not written; the Flattened
+/// mode's sentence already bakes every mask.
 #[test]
-fn cmyk_psd_export_names_vector_masks_and_channels() {
+fn cmyk_psd_export_writes_a_vector_mask_as_its_path_and_names_channels() {
     let doc = then(
         carried(),
         r#"{"op":"set_mask","layer":0,"x":0,"y":0,"width":16,"height":12}"#,
@@ -563,16 +564,9 @@ fn cmyk_psd_export_names_vector_masks_and_channels() {
     );
     let losses = psd_losses(doc, 0);
     assert!(
-        losses.contains(
-            &"The vector mask on “Top” is written as pixels, an ordinary layer mask of its rendered shape; its path is not written."
-                .to_string()
-        ),
-        "{losses:?}"
-    );
-    assert!(
         !losses
             .iter()
-            .any(|line| line.contains("vector mask on “Bottom”")),
+            .any(|line| line.starts_with("The vector mask on")),
         "{losses:?}"
     );
     assert!(

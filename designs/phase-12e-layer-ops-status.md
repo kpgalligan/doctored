@@ -1,6 +1,6 @@
 # High-depth layer and document operations (ADR)
 
-- **Status:** Accepted — open items remain ([#31](https://github.com/kpgalligan/doctored/issues/31): the Background mark and PSD layer comps in the colour modes; [#13](https://github.com/kpgalligan/doctored/issues/13): comp position and appearance)
+- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13): comp position and appearance)
 - **Phase / dates:** 12E (12E-1 … 12E-3d), 2026-09-19 → 2026-09-20; closes P7-26, P7-27, P7-37
 - **Original:** [archive/phase-12e-layer-ops-status.md](../archive/phase-12e-layer-ops-status.md): full history, measurement tables (M1–M7, P16/PD/PX), F1–F11 pre-registration, receipts, drive gate lists
 - **Key commits:** `ab5c193` (12E-1), `9d49b2c` (1b), `a03fca9` (1c), `50b2d67` (2), `d8a0538` (2b), `e8af30c` (2c), `78cb0ba` (3), `1a69abb` (3b), `1063561` (3c), `e03026e` (3d)
@@ -145,10 +145,10 @@ byte op is always the specification: each typed twin restates it and adds no rul
   depths on rasters and opening folders (never closing dividers), after `iOpa`, `infx` first, before `lclr`.
   `clbl` is observation-only. Baked styles write neither and report a loss.
 - **D13 / E3 (owner decision): no Background layer kind.** D5 stays structural, so a Deep knockout over an
-  ordinary opaque bottom layer shows that layer where Photoshop shows transparency. Disclosed on import
-  (`psd_group_records::structural_background_knockout`) and export (`document_reaches_background[16]`). A true
-  Photoshop Background: lowest record, no `-1` channel, flags `0x09`, `lnsr bgnd`. Host mirror:
-  `RasterDocument.hasQualifyingBackground`. Superseded at RGB 8/16 by P7-38's Background mark (open items).
+  ordinary opaque bottom layer shows that layer where Photoshop shows transparency. A true Photoshop Background:
+  lowest record, no `-1` channel, flags `0x09`, `lnsr bgnd`. Host mirror: `RasterDocument.hasQualifyingBackground`.
+  Superseded by P7-38's Background mark (open items); only a bottom that cannot be written as one keeps the export
+  sentence.
 - **E9** tracks `clbl` and `infx` separately. **E7** leaves `cmls` unimported (premise unverified). Pad
   handling in `psd_records.py` reads both Photoshop's 4-pad and Doctored's even pad.
 
@@ -177,18 +177,20 @@ byte op is always the specification: each typed twin restates it and adds no rul
 - `DONE` at RGB 8/16: **P7-38**, the Background mark (`doc_background`): PSD import marks record 0 Background or
   ordinary, an ordinary mark vetoes D5, RGB PSD export writes Photoshop's Background record, `.doctored` word 113
   (`LBKG`) at both depths; `deep_over_ordinary_bottom` matches at both depths. No UI sets a mark.
-- `OPEN` [#31](https://github.com/kpgalligan/doctored/issues/31): the Background mark in the Gray, Lab, CMYK and
-  32-bit float PSD codecs, which keep D13's disclosure ([the carryover ledger](phase-7-carryovers.md) P7-38).
+- `DONE` (2026-11-12): the Background mark, the comps and raster-less vector masks in the Gray (Duotone),
+  Gray 32, Lab, CMYK and 32-bit float PSD codecs through one seam, `psd_typed_exchange`; D13's structural
+  import and export sentences are gone, leaving the unwritable-bottom one in every mode
+  (`core/tests/psd_mode_exchange.rs`).
 - `DONE`: **P7-39** (2026-10-13), D6's clip-base narrowing lifted at both depths; the f64 oracle was extended
   first and `interior_on_clip_base` matches the `knockout_bottom` renders (max 2 / mean 0.5); the PSD disclosures
   and `clipBaseNote` are gone ([the carryover ledger](phase-7-carryovers.md) P7-39).
-- `DONE` at RGB 8/16: **PSD `cmls` import/export** (`psd_comps`, `psd_comp_records`): resource 1065 and each
-  record's `shmd`/`cmls`; a layer's settings ride in its own record, so an entry binds to the layer built from it.
+- `DONE` at RGB 8/16 (every mode since 2026-11-12, above): **PSD `cmls` import/export** (`psd_comps`,
+  `psd_comp_records`): resource 1065 and each record's `shmd`/`cmls`; a layer's settings ride in its own record, so
+  an entry binds to the layer built from it.
   Comps that record visibility import as visibility comps, applying as Photoshop's take did
   (`core/tests/fixtures/psd_photoshop/layer_comps`, from layer-comps-521); export writes 1065, `lyid` and `cmls`.
 - `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13): a comp's position and appearance in either
-  direction (no authored sample of a moved layer, a changed style or a comment); `OPEN`
-  [#31](https://github.com/kpgalligan/doctored/issues/31): comps in the Gray, Lab, CMYK and 32-bit float codecs.
+  direction (no authored sample of a moved layer, a changed style or a comment).
 - `DONE`: stale module docs in `core/src/precision_layer_blend.rs` and `core/src/style_knockout.rs` now point at
   the knockout implementation and P7-39 (2026-09-26).
 - `DONE`: dead export `dr_precision_doc_group_all` / `groupingAll` / `layer_group_all` deleted end to end

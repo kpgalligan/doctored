@@ -211,7 +211,7 @@ fn be32(bytes: &[u8], at: usize) -> usize {
 }
 
 /// Image resource `id`'s body in a classic PSD, by Adobe's layout.
-fn resource_body(bytes: &[u8], id: u16) -> Option<Vec<u8>> {
+pub fn resource_body(bytes: &[u8], id: u16) -> Option<Vec<u8>> {
     let mut at = 26;
     at += 4 + be32(bytes, at);
     let end = at + 4 + be32(bytes, at);
@@ -230,7 +230,7 @@ fn resource_body(bytes: &[u8], id: u16) -> Option<Vec<u8>> {
 }
 
 /// Every layer record's additional blocks, in FILE order, by Adobe's layout.
-fn record_blocks(bytes: &[u8]) -> Vec<Vec<([u8; 4], Vec<u8>)>> {
+pub fn record_blocks(bytes: &[u8]) -> Vec<Vec<([u8; 4], Vec<u8>)>> {
     let mut at = 26;
     at += 4 + be32(bytes, at);
     at += 4 + be32(bytes, at);
@@ -261,7 +261,7 @@ fn record_blocks(bytes: &[u8]) -> Vec<Vec<([u8; 4], Vec<u8>)>> {
 }
 
 /// The `LyrI` long of a `cmls` item inside a `shmd` body.
-fn lyr_i(shmd: &[u8]) -> i32 {
+pub fn lyr_i(shmd: &[u8]) -> i32 {
     let at = shmd
         .windows(8)
         .position(|w| w == b"LyrIlong")
@@ -270,7 +270,7 @@ fn lyr_i(shmd: &[u8]) -> i32 {
 }
 
 /// Every comp name of a 1065 body: each `Nm  TEXT` unicode string.
-fn names_in_1065(body: &[u8]) -> Vec<String> {
+pub fn names_in_1065(body: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     let mut at = 0;
     while let Some(found) = body[at..].windows(8).position(|w| w == b"Nm  TEXT") {

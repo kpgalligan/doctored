@@ -69,9 +69,14 @@
 //! Forms the RGB writer shares and Photoshop opens are kept: untrimmed
 //! record bounds, ranges only on a record with Blend If, the `luni`
 //! padding, the 292-byte `levl` without its `Lvls` tail, `pass` in a Pass
-//! Through folder's key, the absent `lyid`/`shmd` blocks, a 16-bit file's
-//! records in the layer-information section rather than an `Lr16` block,
-//! and RLE composite planes.
+//! Through folder's key, the absent `lyid`/`shmd` blocks of a document with
+//! no layer comp, a 16-bit file's records in the layer-information section
+//! rather than an `Lr16` block, and RLE composite planes.
+//!
+//! The layered mode carries the comps, raster-less vector masks and the
+//! Background record as the RGB writer does (`psd_typed_exchange`, stamped
+//! before Photoshop's own form above); a 16-bit Duotone document's 8-bit copy
+//! keeps all three.
 
 use serde_json::{json, Value};
 
@@ -79,7 +84,7 @@ use crate::gray_document::GrayDepth;
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::{admit, PrecisionImage, PrecisionStorage};
 use crate::precision_style_render::StyleEnv;
-use crate::psd_export16::{exported_fills16, record_styles, records, Walk};
+use crate::psd_export16::{exported_fills16, knockout_written16, record_styles, records, Walk};
 use crate::psd_export_cmyk::Depth;
 use crate::psd_export_encode::{
     encode_plane, image_resources, layer_info_counted, matte, matte16, write_psd, Record,
@@ -416,22 +421,29 @@ impl PrecisionDocument {
         };
         let mut out = Vec::new();
         match mode {
-            PsdExportMode::Layers => records(
-                self.root_layers(),
-                self.profile(),
-                &env,
-                &Walk {
-                    document: self,
-                    limit,
-                    other,
-                    large,
-                    float: false,
-                    gray: Some((depth, &policy)),
-                },
-                &mut 0,
-                &mut out,
-            )
-            .map(|()| photoshop_form(&mut out))?,
+            PsdExportMode::Layers => {
+                records(
+                    self.root_layers(),
+                    self.profile(),
+                    &env,
+                    &Walk {
+                        document: self,
+                        limit,
+                        other,
+                        large,
+                        float: false,
+                        gray: Some((depth, &policy)),
+                    },
+                    &mut 0,
+                    &mut out,
+                )?;
+                // The comps, the raster-less vector masks and the Background
+                // record (`psd_typed_exchange`), before Photoshop's own form,
+                // so a folder's `lsct` stays ahead of its `lyid` as in the
+                // RGB writer's records.
+                crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16);
+                photoshop_form(&mut out);
+            }
             PsdExportMode::Flattened => out.push(Record {
                 bounds: [0, 0, height as i32, width as i32],
                 channels: channels_gray(projection, depth, large)
@@ -475,6 +487,10 @@ impl PrecisionDocument {
             PsdExportMode::Flattened => Vec::new(),
         };
         let bits = (depth.bytes() * 8) as u16;
+        // The paths' resources, and the layered mode's 1065
+        // (`psd_typed_exchange`).
+        let extra =
+            crate::psd_typed_exchange::resources(self, matches!(mode, PsdExportMode::Layers));
         let bytes = if container == LayeredContainer::Tiff {
             // M6: the flat picture is the TIFF's own ONE-sample strip, the
             // white-matted gray of the PSD's composite plane, big-endian,
@@ -492,7 +508,7 @@ impl PrecisionDocument {
                     self.resolution(),
                     light,
                     self.color_samplers(),
-                    &crate::psd_paths::resources(self.paths(), self.dimensions()),
+                    &extra,
                 ),
                 &layer_info_counted(&out, false, false)?,
                 &flat,
@@ -513,7 +529,7 @@ impl PrecisionDocument {
                 large,
                 &tail,
                 &self.psd_spot_planes(depth.eight),
-                &crate::psd_paths::resources(self.paths(), self.dimensions()),
+                &extra,
             )?
         };
         let bytes = match policy.duotone() {

@@ -1,8 +1,9 @@
 //! The PSD side of the document's PATHS and of VECTOR MASKS: image resources
 //! 2000–2997 (saved paths, each named by its resource's Pascal name), 1025
 //! (the work path) and 2999 (the clipping path) in every PSD, PSB, layered
-//! TIFF and flat RGB or CMYK TIFF (`tiff_paths`), and a layer's `vmsk` at
-//! RGB 8 and 16 bits. The records are `psd_path_records`'.
+//! TIFF and flat RGB or CMYK TIFF (`tiff_paths`), and a layer's `vmsk` in
+//! every mode the PSD codecs carry layers in (the typed ones through
+//! `psd_typed_exchange`). The records are `psd_path_records`'.
 //!
 //! **The clipping path.** Import marks the kept saved path resource 2999
 //! names as the clipping path (`doc_path::ClippingPath`), keeping the
@@ -30,11 +31,13 @@
 //! fits the document's anchor cap beside the file's paths and the masks
 //! before it ([`MaskRoom`]). Every other `vmsk` — beside a raster mask,
 //! starting from all pixels, combining subpaths by subtracting or
-//! intersecting, not decoding, past the cap — and a `vsms` keep the
-//! importer's prior answer: the record's mask is dropped with its sentence,
-//! and a shape layer keeps the pixels Photoshop stored, already masked. The
-//! decision is the record walk's (`psd_group_records::vector_mask_usable`),
-//! so the report and both depths' opens agree. The writers write a live
+//! intersecting, not decoding, past the cap, or over a fill the mode's open
+//! does not import as a fill layer (every fill at Gray and Lab, a Gradient
+//! or Pattern fill at 32 bits) — and a `vsms` keep the importer's prior
+//! answer: the record's mask is dropped with its sentence, and a shape layer
+//! keeps the pixels Photoshop stored, already masked. The decision is the
+//! record walk's (`psd_group_records::vector_mask_usable`), so the report and
+//! every mode's open agree. The writers write a live
 //! vector mask with NO raster part as a `vmsk` and no mask channel, the
 //! authored form; one with a raster part, or one a PSD path cannot hold,
 //! keeps its baked mask and a sentence.

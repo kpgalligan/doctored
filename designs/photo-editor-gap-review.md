@@ -118,8 +118,8 @@ marked "not built" with no issue is inventory, with no owner yet.
 | Layers | Labels, filter, search | DONE (12C-1) |
 | Layers | Linked image layers / Replace Contents | REMOVED for v1 on 2026-10-10 ([removal ADR](convert-to-smart-object-status.md)); shipped in 8A/8B (P7-35). A camera RAW layer still places linked |
 | Layers | Layer comps; History panel; snapshots | DONE (12D-1; 5C/5D; `levelsOfUndo = 0` memory budget) |
-| Layers | PSD `cmls` comps carriage | DONE at RGB 8/16 (names, comments, visibility); position and appearance OPEN → [#13](https://github.com/kpgalligan/doctored/issues/13) |
-| Styles | Knockout | DONE (12E-3, P7-37); clip-base interior DONE (P7-39; a clip base below 100 % Fill is unqualified → [#2](https://github.com/kpgalligan/doctored/issues/2)); the Background divergence (a true Background layer kind, P7-38) DONE at RGB 8/16 (the Background mark); the colour modes OPEN → [#31](https://github.com/kpgalligan/doctored/issues/31) |
+| Layers | PSD `cmls` comps carriage | DONE (names, comments, visibility; at RGB 8/16 and since 2026-11-12 in the colour modes and at 32 bits); position and appearance OPEN → [#13](https://github.com/kpgalligan/doctored/issues/13) |
+| Styles | Knockout | DONE (12E-3, P7-37); clip-base interior DONE (P7-39; a clip base below 100 % Fill is unqualified → [#2](https://github.com/kpgalligan/doctored/issues/2)); the Background divergence (a true Background layer kind, P7-38) DONE (the Background mark, at RGB 8/16 and since 2026-11-12 in the colour modes and at 32 bits) |
 | Styles | PSD `lfx2` import/export | DONE (10C-2, P7-21) |
 | Styles | Expandable effect rows in the layers panel (only an "fx" chip today) | Not built — the Layers panel draws an fx badge (`LayerCellView.swift`) |
 | Styles | Pass-through group kept pass-through when it is only a clip base | Not built — clipping isolates the group, a published and tested cost (Groups and locks above) |

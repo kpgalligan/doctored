@@ -139,13 +139,6 @@ impl<'a> MaskRecord<'a> {
         !matches!(self, Self::Absent)
     }
 
-    /// True only for an ORDINARY mask whose enabled flag is set — the one
-    /// form that actually shapes the record's pixels, and so the one D5's
-    /// "no enabled mask" clause refuses.
-    pub fn enabled(self) -> bool {
-        matches!(self, Self::Ordinary(mask) if mask.enabled)
-    }
-
     /// A Gradient Fill layer's Align with Layer box `[x, y, w, h]` over this
     /// record (`fill_align_box::align_box`): an Ordinary mask's plane
     /// decoded as [`MaskRecord::attach`] (`sample_bytes` 1) or

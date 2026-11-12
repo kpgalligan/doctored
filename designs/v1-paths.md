@@ -1,7 +1,7 @@
 # Paths, the Pen tool and vector masks (ADR)
 
 - **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13),
-  [#19](https://github.com/kpgalligan/doctored/issues/19), [#31](https://github.com/kpgalligan/doctored/issues/31))
+  [#19](https://github.com/kpgalligan/doctored/issues/19))
 - **Date:** 2026-10-11
 - **Closes the track items:** "Pen/Bézier node editing" and "path operations/vector masks" of *Text and paths* in the
   [plan](professional-photo-editor-implementation-plan.md)
@@ -31,8 +31,8 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   the conditional word 79 (`raw_locals_native`), and the `PATH` table
   is the last before `LIDS`. It is written only when a path or a live vector mask exists, so any other
   document is byte-for-byte the earlier writer's file. Ids are minted on load. A layered PSD, PSB or TIFF
-  carries the paths (resources 1025 and 2000–2997, `psd_paths`) at every depth and mode, and at RGB 8/16 a vector
-  mask with no raster part as its `vmsk`. A flat RGB or CMYK TIFF (8 and 16 bits) carries them in tag 34377
+  carries the paths (resources 1025 and 2000–2997, `psd_paths`) at every depth and mode, and a vector mask with
+  no raster part as its `vmsk`, in every mode. A flat RGB or CMYK TIFF (8 and 16 bits) carries them in tag 34377
   (`tiff_paths`): the byte, typed RGB and CMYK opens read them (none from a file stored rotated, with a
   sentence) and take every path resource out of the document's 8BIM run, so the model is their one home; every
   TIFF writer of those documents writes the model's paths after the run. Path resources a run still holds (a
@@ -107,6 +107,10 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   Photoshop's own `vmsk` bytes). The record walk decides which `vmsk` is carried (`psd_paths::vmsk_shape`,
   `MaskRoom`): one that starts from all pixels, subtracts or intersects its subpaths, or would take the file's
   paths and vector masks past the 65,536-anchor cap keeps the record's pixels and the dropped-mask sentence.
+- `DONE` (2026-11-12) — the same `vmsk` exchange in the Gray (Duotone), Lab, CMYK and 32-bit codecs
+  (`psd_typed_exchange`, `core/tests/psd_mode_exchange.rs`); a `vmsk` over a fill the mode's open does not import
+  as a fill layer (every fill at Gray and Lab, a Gradient or Pattern fill at 32 bits) is not carried, so that
+  shape layer keeps its stored pixels.
 - `DONE` — the clipping path (resource 2999) in PSD, PSB and TIFF, and paths in a flat RGB or CMYK TIFF
   (`core/tests/psd_clipping_path.rs`, `core/tests/tiff_paths.rs`, against the published layouts computed in
   the tests; no authored 2999 is on disk).
@@ -114,8 +118,7 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   inverted one, one whose subpaths subtract or intersect, and `vsms`; the layout of the bytes after a 2999's
   name (its flatness), which needs an authored sample; paths in a flat Grayscale, Lab, Indexed, Bitmap or
   32-bit TIFF (each mode's own TIFF open, writer and loss list; `tiff_paths` holds the shared reader and
-  writer); `OPEN` [#31](https://github.com/kpgalligan/doctored/issues/31)
-  — vector masks in the colour modes and at 32 bits.
+  writer).
 - `DROPPED` (2026-10-30) — Curvature Pen; Freeform and Magnetic pen: the Pen covers authoring, and the Magnetic
   Lasso plus Make Work Path covers edge tracing.
 - `DROPPED` (2026-10-30) — pressure or canonical-dab strokes along a path: Stroke Path ships, and simulated

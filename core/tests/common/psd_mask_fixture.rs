@@ -117,7 +117,7 @@ impl Record {
         );
         self
     }
-    fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
         for v in self.bounds {
             bytes.extend(v.to_be_bytes());
