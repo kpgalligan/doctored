@@ -20,6 +20,8 @@ mod icc_lut_builders;
 mod identify_578;
 #[path = "common/identity.rs"]
 mod identity;
+#[path = "common/linear_oracle.rs"]
+mod linear_oracle;
 #[path = "common/psd_descriptor_fixture.rs"]
 mod psd_descriptor_fixture;
 #[path = "common/vibrance_reference.rs"]
@@ -81,6 +83,8 @@ mod evaluation_composite;
 mod evaluation_ffi;
 #[path = "evaluation_native.rs"]
 mod evaluation_native;
+#[path = "evaluation_nonseparable.rs"]
+mod evaluation_nonseparable;
 #[path = "evaluation_retained_source.rs"]
 mod evaluation_retained_source;
 #[path = "evaluation_transfer.rs"]

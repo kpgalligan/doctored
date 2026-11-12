@@ -64,7 +64,6 @@ use image::RgbaImage;
 use serde_json::json;
 
 use crate::adjust::Adjustment;
-use crate::blend::BlendMode;
 use crate::doc::{DrDocument, Layer, LayerKind};
 use crate::icc::IccProfile;
 use crate::icc_transform::{MatrixTrc, ToneEncoder};
@@ -208,7 +207,20 @@ const MIGRATED: &[&str] = &[
     "convert_profile",
     "depth_conversion",
     "retained_source",
+    "darker_color",
+    "lighter_color",
+    "hue",
+    "saturation",
+    "color",
+    "luminosity",
+    "dissolve",
 ];
+
+/// The style/Blend If operator's name in [`REFUSED`].
+const STYLE_OPERATOR: &str = "a layer style or Blend If";
+
+/// The guided Shadows/Highlights operator's name in [`REFUSED`].
+const GUIDE_OPERATOR: &str = "Shadows/Highlights with a guide";
 
 /// What it refuses, with the phase that owns each. Phase 2 is resampling;
 /// phase 3 the mixing constructs. A retained source is admitted (phase
@@ -216,18 +228,7 @@ const MIGRATED: &[&str] = &[
 /// the stored encoding, as raster Free Transform and warp do, and a
 /// premultiplied-linear resample of all three stays a phase-2 item. The operator strings
 /// are the ones [`refusal_sentence`] names, so a host can match them.
-const REFUSED: &[(&str, u32)] = &[
-    ("the Darker Color blend mode", 3),
-    ("the Lighter Color blend mode", 3),
-    ("the Hue blend mode", 3),
-    ("the Saturation blend mode", 3),
-    ("the Color blend mode", 3),
-    ("the Luminosity blend mode", 3),
-    ("the Dissolve blend mode", 3),
-    ("a layer style or Blend If", 3),
-    ("Shadows/Highlights with a guide", 3),
-    ("Image Size", 2),
-];
+const REFUSED: &[(&str, u32)] = &[(STYLE_OPERATOR, 3), (GUIDE_OPERATOR, 3), ("Image Size", 2)];
 
 /// The operator table as JSON, for the host's Evaluation sheet and the MCP
 /// `get_evaluation` reply:
@@ -255,28 +256,14 @@ pub fn resize_refusal_sentence() -> String {
         .to_string()
 }
 
-/// The refused blend modes, by name — the seven this phase does not evaluate.
-pub(crate) fn refused_blend(mode: BlendMode) -> Option<&'static str> {
-    match mode {
-        BlendMode::DarkerColor => Some(REFUSED[0].0),
-        BlendMode::LighterColor => Some(REFUSED[1].0),
-        BlendMode::Hue => Some(REFUSED[2].0),
-        BlendMode::Saturation => Some(REFUSED[3].0),
-        BlendMode::Color => Some(REFUSED[4].0),
-        BlendMode::Luminosity => Some(REFUSED[5].0),
-        BlendMode::Dissolve => Some(REFUSED[6].0),
-        _ => None,
-    }
-}
-
 /// The style/Blend If operator name.
 pub(crate) fn style_operator() -> &'static str {
-    REFUSED[7].0
+    STYLE_OPERATOR
 }
 
 /// The guided Shadows/Highlights operator name.
 pub(crate) fn guide_operator() -> &'static str {
-    REFUSED[8].0
+    GUIDE_OPERATOR
 }
 
 // --------------------------------------------------------------- transfer --
@@ -421,9 +408,6 @@ pub(crate) fn encode_sample(px: [f32; 4], transfer: Option<&ByteTransfer>) -> [u
 fn refused_operator(layer: &Layer) -> Option<&'static str> {
     if layer.style.is_some() {
         return Some(style_operator());
-    }
-    if let Some(mode) = refused_blend(layer.blend) {
-        return Some(mode);
     }
     // A GROUP's meta is the host's alone (`doc::composite_layer_into`), so a
     // blob that happens to parse as an adjustment is not one here either.

@@ -615,26 +615,12 @@ fn a_pointwise_adjustment_over_a_half_opacity_layer_stays_within_two_codes() {
 #[test]
 fn every_refused_operator_refuses_at_the_switch_by_name() {
     let base = two_layer(255);
-    for (mode, operator) in [
-        (BlendMode::DarkerColor, "Darker Color"),
-        (BlendMode::LighterColor, "Lighter Color"),
-        (BlendMode::Hue, "Hue"),
-        (BlendMode::Saturation, "Saturation"),
-        (BlendMode::Color, "Color"),
-        (BlendMode::Luminosity, "Luminosity"),
-        (BlendMode::Dissolve, "Dissolve"),
-    ] {
-        let doc = base.with_layer_blend_mode(1, mode).expect("a new mode");
-        let message = refused_switch(&doc, "an unmigrated mode");
-        assert!(
-            message.contains(operator) && message.contains("Layer 1") && message.contains("Top"),
-            "{mode:?}: {message}"
-        );
-    }
-
     let styled = with_style(&base, 1, "{\"effects\":[{\"type\":\"color_overlay\"}]}");
     let message = refused_switch(&styled, "a style");
-    assert!(message.contains("layer style"), "{message}");
+    assert!(
+        message.contains("layer style") && message.contains("Layer 1") && message.contains("Top"),
+        "{message}"
+    );
 
     let blend_if = with_style(
         &base,
@@ -663,21 +649,16 @@ fn an_unmigrated_operator_added_after_the_switch_refuses_every_projection() {
         "a migrated stack refuses nothing"
     );
 
-    let broken = switched
-        .with_layer_blend_mode(1, BlendMode::Hue)
-        .expect("the mode lands on the handle");
+    let broken = with_style(&switched, 1, "{\"effects\":[{\"type\":\"color_overlay\"}]}");
     let reason = refusal(&broken).expect("the walk names it");
-    assert!(reason.contains("Hue") && reason.contains("Top"), "{reason}");
+    assert!(
+        reason.contains("layer style") && reason.contains("Top"),
+        "{reason}"
+    );
     assert_eq!(
         flatten(&broken).expect_err("the projection refuses"),
         reason,
         "the render's sentence IS the walk's"
-    );
-
-    let styled = with_style(&switched, 1, "{\"effects\":[{\"type\":\"color_overlay\"}]}");
-    assert!(
-        flatten(&styled).is_err(),
-        "a style added later still refuses"
     );
 }
 
@@ -798,7 +779,8 @@ fn the_operator_table_names_what_is_migrated_and_what_is_not() {
         .all(|entry| matches!(entry["phase"].as_u64(), Some(2) | Some(3))));
     assert!(refused.iter().any(|entry| entry["operator"]
         .as_str()
-        .is_some_and(|s| s.contains("Hue"))));
+        .is_some_and(|s| s.contains("Image Size"))));
+    assert!(migrated.iter().any(|v| v == "hue"));
 
     for (name, expected) in [("encoded", 0), ("linear_light", 1)] {
         let c = CString::new(name).unwrap();
@@ -1064,11 +1046,18 @@ fn a_typed_unmigrated_operator_after_the_switch_refuses_render_and_plan() {
     );
     assert!(typed_render(&switched).is_ok(), "and it renders");
 
-    let broken = typed_blend(&switched, 1, BlendMode::Hue);
+    let broken = typed_edit(
+        &switched,
+        r#"{"op":"layer_style","version":1,"layer":1,"style":{"effects":[{"type":"color_overlay"}]}}"#,
+    )
+    .expect("the style lands");
     let reason = broken
         .linear_light_refusal()
         .expect("the typed walk names it");
-    assert!(reason.contains("Hue") && reason.contains("Top"), "{reason}");
+    assert!(
+        reason.contains("layer style") && reason.contains("Top"),
+        "{reason}"
+    );
     assert_eq!(
         typed_render(&broken).expect_err("the typed render refuses"),
         reason,

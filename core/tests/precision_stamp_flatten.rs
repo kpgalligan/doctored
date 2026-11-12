@@ -1112,7 +1112,7 @@ fn d_the_plan_charges_at_least_what_a_merge_visible_does() {
 // ------------------------------------------------------ (e) 11E and 11F --
 
 #[test]
-fn e_an_unmigrated_linear_light_operator_refuses_both_ops_with_the_walks_sentence() {
+fn e_both_ops_answer_on_a_linear_light_stack_and_keep_its_policy() {
     let encoded = PrecisionDocument::from_parts(
         W,
         H,
@@ -1145,25 +1145,25 @@ fn e_an_unmigrated_linear_light_operator_refuses_both_ops_with_the_walks_sentenc
         3,
     );
 
-    let broken = must(
+    // A Hue layer, refused under linear light before P7-24's phase 3, now
+    // evaluates there: both ops answer on it and keep the policy.
+    let hue = must(
         &linear,
         json!({"op": "layer_blend", "version": 1, "layer": 1, "blend_mode": HUE}),
     );
-    let sentence = broken
-        .linear_light_refusal()
-        .expect("the walk names the operator");
+    assert!(hue.linear_light_refusal().is_none(), "Hue is evaluated");
     for request in [
         json!({"op": "stamp_visible", "name": "S", "anchor": 0}),
         json!({"op": "flatten"}),
     ] {
-        assert_eq!(
-            refusal(&broken, request.clone()),
-            sentence,
-            "{request} answers the walk's own sentence"
+        assert!(
+            plan_result(&hue, request.clone()).is_ok(),
+            "{request} plans"
         );
         assert_eq!(
-            plan_result(&broken, request.clone()).expect_err("the plan refuses"),
-            sentence,
+            must(&hue, request.clone()).evaluation(),
+            Evaluation::LinearLight,
+            "{request} keeps the policy"
         );
     }
 }

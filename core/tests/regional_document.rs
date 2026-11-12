@@ -304,9 +304,10 @@ fn a_linear_light_document_matches_its_projection() {
         "the policy changes the projection"
     );
     assert_regions_match(&linear, "linear light");
-    // The policy's own refusal is raised by both calls, verbatim.
+    // The policy's own refusal is raised by both calls, verbatim: a profile
+    // replaced without its rebind leaves the transfer stale.
     let mut refused_mode = linear.clone();
-    refused_mode.layers[1].blend = BlendMode::Hue;
+    refused_mode.profile = doctored_core::icc::IccProfile::display_p3();
     let reference = {
         let h = handle(&refused_mode);
         let mut err: *mut c_char = ptr::null_mut();

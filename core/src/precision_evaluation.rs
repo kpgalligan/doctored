@@ -19,8 +19,8 @@
 use std::sync::Arc;
 
 use crate::doc_evaluation::{
-    guide_operator, linear_light_model, refusal_sentence, refused_blend, stale_transfer_sentence,
-    style_operator, Evaluation,
+    guide_operator, linear_light_model, refusal_sentence, stale_transfer_sentence, style_operator,
+    Evaluation,
 };
 use crate::icc::IccProfile;
 use crate::icc_transform::PrecisionToneEncoder;
@@ -116,9 +116,6 @@ impl TypedTransfer {
 fn refused_operator(layer: &PrecisionDocumentLayer, canvas: (u32, u32)) -> Option<&'static str> {
     if layer.style.is_some() || layer.blend_if.is_some() {
         return Some(style_operator());
-    }
-    if let Some(mode) = refused_blend(layer.blend_mode) {
-        return Some(mode);
     }
     if let Content::Adjustment(state) = &layer.content {
         if state
