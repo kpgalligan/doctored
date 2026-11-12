@@ -11,6 +11,10 @@
 //!   CLAMP to 0…1 before encoding: a tolerance or a classification compares
 //!   what the display shows, and a value above white compares as white.
 //!
+//! The 32-bit spot-channel overprint (`spot_typed`) reads it as the first
+//! family does: the kernel on an encoded copy, continued above white, its
+//! result decoded back.
+//!
 //! A kernel module: free functions and small structs over an encoder, a
 //! profile model and plain samples; the adapters (`float_filter_route`,
 //! `float_retouch`, `float_paint_tone`, `precision_selection`,

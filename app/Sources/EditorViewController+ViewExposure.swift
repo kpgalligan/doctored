@@ -9,7 +9,10 @@ import AppKit
 // either. Since v1.x the same slot carries the EXTENDED-RANGE view on an EDR screen
 // (`EditorViewController+HDRPreview.swift` owns the engage rule): `requestedFloatView` says which,
 // the core's `dr_precision_doc_display_extended` renders it, and a refused extended render falls
-// back to the SDR view.
+// back to the SDR view. The one other image drawn at the window's view is a shown spot channel's
+// overprint base (`spotOverprintBase`, `EditorViewController+SpotChannels.swift`), which the canvas
+// draws instead of the slot; it is built on the main thread as every channel display is, and
+// `spotViewDidChange` rebuilds it when the exposure or candidate map changes.
 
 /// View ▸ 32-bit Exposure… / Reset 32-bit Exposure.
 ///
@@ -91,6 +94,7 @@ extension EditorViewController {
         if let refusal = viewExposureRefusal(stops) { throw DoctoredCoreError(message: refusal) }
         viewExposure.stops = stops
         refreshProofImage()
+        spotViewDidChange()
         updateStatus()
     }
 
@@ -99,6 +103,7 @@ extension EditorViewController {
     func setToneMapCandidate(_ map: ToneMap?) {
         viewExposure.candidateToneMap = map == document?.doc?.toneMap ? nil : map
         refreshProofImage()
+        spotViewDidChange()
     }
 
     /// The float arm of `refreshProofImage()`; no other caller.

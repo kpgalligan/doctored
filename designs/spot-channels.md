@@ -16,7 +16,8 @@
   `psd_spot.rs`, `spot_typed.rs`, `spot_cmyk.rs`, `spot_merge.rs`, `ffi_spot_merge.rs`, `tiff_spot_samples.rs`
   (KERNEL), `tiff_spot.rs`, `tiff_layers_write.rs`'s `write_spots`; tests `core/tests/spot_*.rs`; host
   `app/Sources/SpotChannel.swift` and its siblings (`app/FILES.md`); drive `scripts/verify_spot_channels.py`
-  S1–S14; admission `scripts/spot-admission/measure.py`.
+  S1–S16; probe cases "float spot view" and "hdr spot view" (`scripts/jobs-probe/ui_float_spot.swift`);
+  admission `scripts/spot-admission/measure.py`.
 
 ## Context
 
@@ -32,16 +33,22 @@ only, never the printed ink; New Spot Channel's defaults are red at 0 %.
   the alpha channel's storage and everything built on it: the `MAX_CHANNELS` cap and pixel budget, the geometry
   ops, duplicate, delete, load-as-selection. The plane is ink COVERAGE at the document's channel depth (255 byte,
   65535 typed = 100 % ink). The ink is D50 CIE Lab in f64 (`duotone_ink`'s range rule) plus an integer Solidity.
-- **Modes.** Byte RGB and typed RGB 16/32, CMYK, Gray, Lab and Duotone (32-bit admitted, its display path not
-  verified). Indexed and Bitmap refuse the add by name, and a conversion into either refuses while a spot channel
-  exists; every other mode and depth conversion carries the ink, `convert_precision`'s flattening steps included.
+- **Modes.** Byte RGB and typed RGB 16/32, CMYK, Gray (8/16/32), Lab and Duotone. Indexed and Bitmap refuse the
+  add by name, and a conversion into either refuses while a spot channel exists; every other mode and depth
+  conversion carries the ink, `convert_precision`'s flattening steps included.
 - **The overprint** (`spot_overprint`, Doctored's own rule, unmeasured): each spot channel in list order, the ink
   source-over the composite at weight coverage / max, blended `B = (1 − s)·Multiply(Cb, ink) + s·ink` on encoded
   values; coverage 0 leaves a pixel exactly as it was. The ink is encoded through `ColorPipeline` from its Lab
-  twin into the composite's profile (relative, no BPC). Typed (`spot_typed`): RGB 16/32 (f32 unclamped), Duotone
-  on its RGB view, Gray by the ink's L*, Lab through ProPhoto with coverage-0 pixels' codes kept. CMYK overprints
-  in INK on paper (`spot_cmyk`: the ink's CMYK through the profile's B2A; no B2A refuses by name).
+  twin into the composite's profile (relative, no BPC). Typed (`spot_typed`): RGB 16/32, Duotone on its RGB view,
+  Gray by the ink's L*, Lab through ProPhoto with coverage-0 pixels' codes kept. A 32-bit composite (RGB or Gray)
+  is linear light, so the rule runs on its display encoding (`display_encoding`: the profile's curve, a logarithm
+  above white, no tone map or exposure) and is decoded back unclamped, as a display-referred filter runs: its
+  flattened exports and Merge Spot Channel keep what the view shows, and a value above white survives. CMYK
+  overprints in INK on paper (`spot_cmyk`: the ink's CMYK through the profile's B2A; no B2A refuses by name).
 - **The composite view** overprints each visible spot channel; `render` (full, region, preview_divisor) the same.
+  A 16- or 32-bit document's view lays each ink on its 8-bit display (`spot_view`, once per channel); a float
+  window's at its own exposure and candidate tone map, and HDR Preview stands down while a spot overprint shows,
+  since that is drawn on the SDR view over the view slot.
   **Merge Spot Channel** flattens first (Flatten Image's rules), bakes the one ink and deletes it, one undo step;
   Duotone refuses. **Alpha ↔ spot** inverts the plane both ways (`max − v`), one undo step each.
 - **`.doctored`:** conditional word 112 and its `SPOT` table after `LREF`, written only when a channel is spot;
@@ -127,13 +134,16 @@ Photoshop 26.10.0 throughout.
 - **1c-2b** (2026-10-26, the closing batch): the layered TIFF in and out (`write_spots`, `SpotCoverage`,
   `layered_spot_records`, `with_layered_tiff_spots`, `spot_refusal`), the TIFF readback take PASS; tests
   `spot_tiff_layers.rs` and the layered fixtures' test in `spot_tiff_photoshop.rs`; drive S14.
+- **32-bit verified** (2026-11-12): the float arm runs on the display encoding (it had laid an encoded ink on
+  linear samples); a float window's overprint follows its exposure and candidate map and stands HDR Preview down;
+  `get_view`'s image is the drawn channel base; Mode ▸ Grayscale from 32-bit RGB builds the twin's float policy (it
+  kept the source's curve). Tests `spot_float.rs` and `gray_export.rs`'s converted 32-bit case; drive S15–S16;
+  probe "float spot view", "hdr spot view".
 
 ## Open items
 
 - The overprint rule is Doctored's own, not measured against Photoshop
   ([#1](https://github.com/kpgalligan/doctored/issues/1)).
-- 32-bit documents admit spot channels without verification of the display path; the export's overprint is
-  tested (`spot_typed`'s f32 arm) ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - Merge Spot Channel and the alpha ↔ spot kind change are declared, not measured against Photoshop
   ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - A 16-bit Duotone PSD/PSB export's 8-bit copy is admitted at the depth step's own plan (1.68 GB planned against

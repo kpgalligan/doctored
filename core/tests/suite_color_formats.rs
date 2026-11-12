@@ -605,6 +605,8 @@ mod soft_proof_tests;
 mod spot_channel_ffi;
 #[path = "spot_channels.rs"]
 mod spot_channels;
+#[path = "spot_float.rs"]
+mod spot_float;
 #[path = "spot_merge.rs"]
 mod spot_merge;
 #[path = "spot_psd.rs"]

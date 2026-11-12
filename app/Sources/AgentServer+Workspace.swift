@@ -272,7 +272,8 @@ extension AgentServer {
                 + "values above 1.0 brighter than white, with the view exposure applied and no "
                 + "tone map; off, or on any other screen, the tone-mapped view stays as it is. "
                 + "Accepted at every depth, it acts only on a 32-bit float document, and never "
-                + "while the Tone Map sheet previews a map. View state only: readouts, render, "
+                + "while the Tone Map sheet previews a map or a spot channel's overprint is shown "
+                + "(that is drawn on the SDR view). View state only: readouts, render, "
                 + "exports and saves never see it. The redraw is asynchronous "
                 + "(hdr_preview_displayed).",
         ]
@@ -287,7 +288,9 @@ extension AgentServer {
                  + "there is nothing to render, unless HDR Preview shows the extended-range "
                  + "view), and View > HDR Preview: hdr_preview (the "
                  + "window's switch), hdr_preview_displayed (true once the extended-range image "
-                 + "is on screen), edr_headroom (the screen's potential EDR headroom; above 1 "
+                 + "is on screen; false while a spot channel's overprint is shown, which is drawn "
+                 + "on the SDR view at the window's exposure), edr_headroom (the screen's "
+                 + "potential EDR headroom; above 1 "
                  + "means HDR Preview can engage), edr_layer (the canvas layer is EDR-configured), "
                  + "edr_content_peak (the largest RGB value of the extended-range image on screen, "
                  + "null when none); with image_hash true the reply adds view_image_sha256 "

@@ -393,3 +393,39 @@ fn srgb_writes_rgb_and_the_unkept_requests_refuse_by_name() {
     assert_profile(&embedded, &icc, "32-bit");
     free(doc);
 }
+
+/// Mode ▸ Grayscale from a 32-bit RGB document: the result's float policy is
+/// built for its Gray twin, as every float document's is built for its own
+/// profile, so its 16-bit export holds `kTRC⁻¹(Y)` and never the RGB
+/// source's curve. The fixture's `kTRC` is the count-1 `curv` 461/256; the
+/// bound, 2 codes for the encoder's inversion and the rounding, is declared
+/// before measuring.
+#[test]
+fn a_converted_32_bit_document_encodes_through_its_own_gray_curve() {
+    let icc = gray_icc("Test Gray 1.8", 1.8);
+    let doc = gray_doc(&icc, 32, false);
+    let linear = unsafe { &*doc }
+        .render(LIMIT, 0, None)
+        .unwrap()
+        .to_rgba32()
+        .unwrap();
+    let (bytes, _) = export(
+        doc,
+        r#"{"format":"png","bit_depth":16,"profile":"document","dither":"none"}"#,
+    )
+    .unwrap();
+    let image::DynamicImage::ImageLuma16(read) = image::load_from_memory(&bytes).unwrap() else {
+        panic!("a one-channel 16-bit PNG")
+    };
+    let gamma = (1.8f64 * 256.0).round() / 256.0;
+    for (i, (got, sample)) in read.pixels().zip(&linear).enumerate() {
+        let y = f64::from(sample[0]).clamp(0.0, 1.0);
+        let want = 65535.0 * y.powf(1.0 / gamma);
+        let value = f64::from(got.0[0]);
+        assert!(
+            (value - want).abs() <= 2.0,
+            "px {i} (Y {y}): {value} vs {want}"
+        );
+    }
+    free(doc);
+}

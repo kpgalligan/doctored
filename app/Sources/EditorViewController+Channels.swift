@@ -135,7 +135,7 @@ extension EditorViewController {
             // The canvas draws its own projection; only washes come from here,
             // unless a visible spot channel overprints it (`spotOverprintBase`,
             // nil on failure, which keeps the canvas's own image).
-            base = spotOverprintBase(document, doc, visible: visibility.channels.filter(spots.contains).sorted())
+            base = spotOverprintBase(document, doc, visible: shownSpotChannels(doc))
             replacesComposite = base != nil
         case .plane(let plane):
             // A colour plane is document channel values replicated into
@@ -260,12 +260,14 @@ extension EditorViewController {
     func channelViewChanged(_ visibility: ChannelVisibility) {
         document?.channelVisibility = visibility
         refreshChannelDisplay()
+        spotVisibilityDidChange()
     }
 
     func restoreChannelVisibility(_ visibility: ChannelVisibility) {
         document?.channelVisibility = visibility
         channelsPanel?.restoreVisibility(visibility)
         refreshChannelDisplay()
+        spotVisibilityDidChange()
     }
 
     // MARK: - Coverage stroke commit

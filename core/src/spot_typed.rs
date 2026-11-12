@@ -10,8 +10,7 @@
 //!
 //! * **RGB 16 / 32-bit**: the ink encoded under the composite's profile
 //!   (`spot_view::ink_encoded`, the byte view's rule), then
-//!   `overprint_rgba16` or `overprint_rgba32f` by storage; a float
-//!   composite's range above white survives.
+//!   `overprint_rgba16` or `overprint_rgba32f` by storage.
 //! * **Duotone**: the caller passes the RGB view (`duotone_view_job`), so
 //!   the RGB rule under the view's profile — the inks print over what the
 //!   Duotone inks show.
@@ -28,6 +27,19 @@
 //!   coverage is above 0 and keeps the original Lab codes everywhere else: a
 //!   coverage of 0 leaves the pixel exact, the kernel's own promise.
 //!
+//! The rule runs on ENCODED values (`spot_overprint`'s contract), so a
+//! 32-bit composite, RGB or Gray, whose samples are linear light, is handed
+//! to the kernel in its document's display encoding
+//! (`display_encoding::DisplayEncoding`: the profile's own curve on 0…1, the
+//! logarithm above white) and decoded back, the way a display-referred
+//! filter runs (`float_filter_route`). The ink and the samples then meet on
+//! the numbers the 8-bit display and the 16-bit twin hold, so the file and
+//! Merge Spot Channel keep what the composite view shows, and a value above
+//! white survives. Only a pixel some channel covers is encoded, and only a
+//! component the kernel changed is decoded (`decode_changed`), so coverage 0
+//! keeps every bit. A profile whose curve is flat at white has no such
+//! encoding and refuses by `DisplayEncoding`'s sentence.
+//!
 //! # Memory
 //!
 //! [`PrecisionDocument::spot_overprint_scratch_bytes`]: the canvas at the
@@ -37,6 +49,7 @@
 //! `scripts/spot-admission/measure.py`; a miss raises only the arm's own
 //! constant here.
 
+use crate::display_encoding::DisplayEncoding;
 use crate::doc_export::{ExportRequest, ExportResult};
 use crate::icc::IccProfile;
 use crate::icc_intent::RenderingIntent;
@@ -132,7 +145,13 @@ impl PrecisionDocument {
                 solidity: f32::from(ink.solidity()) / 100.0,
             });
         }
-        overprinted(composite, &passes, job)
+        // A float composite is this document's render in its profile, so the
+        // document's own display encoding is the composite's (module doc).
+        let encoding = match composite.storage() {
+            PrecisionStorage::Rgba32Float => Some(self.display_encoding()?),
+            PrecisionStorage::Rgba16Unorm => None,
+        };
+        overprinted(composite, &passes, encoding.as_ref(), job)
     }
 
     /// Channel `index`'s coverage plane and ink; `Err` for an index out of
@@ -178,7 +197,7 @@ impl PrecisionDocument {
                 solidity: f32::from(ink.solidity()) / 100.0,
             });
         }
-        let printed = overprinted(&rgb, &passes, job.range(0.3, 0.5))?;
+        let printed = overprinted(&rgb, &passes, None, job.range(0.3, 0.5))?;
         drop(rgb);
         // The converted-back image lives only until its owned samples exist,
         // so at most three canvas planes are ever alive at once here.
@@ -269,10 +288,12 @@ impl PrecisionDocument {
 }
 
 /// `image` with every pass run by its storage's arm, the result rebuilt
-/// over `image`'s tiles (an untouched tile stays shared).
+/// over `image`'s tiles (an untouched tile stays shared). A float `image`
+/// runs on `encoding` (module doc), which it requires.
 fn overprinted(
     image: &PrecisionImage,
     passes: &[Pass<'_>],
+    encoding: Option<&DisplayEncoding<'_>>,
     job: JobContext<'_>,
 ) -> Result<PrecisionImage, String> {
     let (w, h) = image.dimensions();
@@ -295,17 +316,31 @@ fn overprinted(
             image.rebuilt_rgba16(w, h, samples, image.profile().clone())
         }
         PrecisionStorage::Rgba32Float => {
+            let encoding =
+                encoding.ok_or("a float composite overprints through its display encoding")?;
             let mut samples = image.to_rgba32()?;
-            for pass in passes {
-                job.check()?;
-                if !overprint_rgba32f(
-                    samples.as_flattened_mut(),
-                    pass.coverage,
-                    pass.ink,
-                    pass.solidity,
-                ) {
-                    return Err(mismatch());
+            if passes
+                .iter()
+                .any(|pass| pass.coverage.len() != samples.len())
+            {
+                return Err(mismatch());
+            }
+            // Pixel by pixel, so the encoded copy is one pixel, never a
+            // second canvas plane (`FLOAT_BYTES_PER_PIXEL` is unchanged).
+            for (p, pixel) in samples.iter_mut().enumerate() {
+                job.every(p)?;
+                if passes.iter().all(|pass| pass.coverage[p] == 0) {
+                    continue;
                 }
+                let code = encoding.encode(*pixel);
+                let mut result = code;
+                for pass in passes {
+                    let coverage = &pass.coverage[p..=p];
+                    if !overprint_rgba32f(&mut result, coverage, pass.ink, pass.solidity) {
+                        return Err(mismatch());
+                    }
+                }
+                *pixel = encoding.decode_changed(*pixel, code, result);
             }
             job.check()?;
             image.rebuilt_rgba32_extended(w, h, samples, image.profile().clone())

@@ -469,6 +469,9 @@ do {
         ("hdr revert keeps rendition", verifyHDRRevertKeepsRendition),
         ("hdr preview toggle", verifyHDRPreviewToggle),
         ("hdr export rows", verifyHDRExportRows),
+        // #1: a float window's spot overprint at its own view, and HDR Preview standing down.
+        ("float spot view", verifyFloatSpotView),
+        ("hdr spot view", verifyHDRSpotView),
         // Edit ▸ Perspective Warp's on-canvas session.
         ("perspective warp", verifyPerspectiveWarp),
         // The model store against the loopback server, Settings ▸ Models and the
@@ -530,6 +533,7 @@ do {
     // EDR screen. `EDRDisplay` reads the variable on every call.
     let edrCases: Set<String> = [
         "hdr open choice", "hdr revert keeps rendition", "hdr preview toggle", "hdr export rows",
+        "hdr spot view",
     ]
     var failures = 0
     for _ in 0..<repeats {

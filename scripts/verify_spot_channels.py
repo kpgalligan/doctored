@@ -117,6 +117,34 @@ primaries) → the sRGB curve, clamped.
   psd_mode layers and inspect_psd's source_fingerprint lists exactly one spot
   channel, "Red", with spot {lab [54.29, 80.81, 69.89], solidity 60}, and its
   coverage equals the source's at ALL.
+- **S15 a 32-bit document (#1).** On a fresh copy, convert_precision rgba32
+  structure preserve; render (full, and exposure 1) before any spot channel is
+  the spotless display. select_rect (6, 5, 14, 10) feathered 2 and
+  add_spot_channel "Ink" lab [60, 30, -20] (a mid ink: no channel at 0 or 1,
+  so its encoded and linear values differ) solidity 60. (a) render equals the
+  oracle over the spotless render within 2 codes at ALL, its text naming "1
+  spot channel overprinted" and "32-bit float"; (b) a region render equals the
+  full render's crop and a preview_divisor 2 render its top-left samples,
+  EXACTLY; (c) render exposure 1 equals the oracle over the spotless render at
+  exposure 1 within 2 codes; (d) save_copy png equals the same oracle as (a)
+  within 2 codes (the file keeps what the view shows) and lists the spot loss
+  line; (e) merge_spot_channel "Ink" leaves 1 layer and 0 channels, and its
+  render equals (d)'s PNG within 1 code and the oracle within 2; one undo
+  gives the channel back with its ink and (a)'s render exactly.
+- **S16 a 32-bit Grayscale document (#1).** On a fresh copy, convert_precision
+  rgba32 structure preserve and convert_mode gray gray_space gray_gamma_22
+  (precision gray32); render before any spot channel; the same feathered
+  selection and add_spot_channel "Grey" lab [50, 0, 0] solidity 60. The render
+  is the twin's codes converted to sRGB, so its oracle runs on the twin's
+  values: per plane `t = sRGB⁻¹(c)^(1/2.2)`, the ink `Y(L* 50)^(1/2.2)`, the
+  overprint on `t`, then `sRGB((·)^2.2)`; the render after equals it within 3
+  codes at ALL (two 8-bit roundings and the display conversion), its text
+  naming "1 spot channel overprinted". merge_spot_channel "Grey", then render
+  equals the render before the merge within 3 codes; one undo gives that
+  render exactly.
+
+S15 and S16 record every sub-check, print each section's failures, and assert
+once after both, so a run lists every failed bound together.
 """
 import argparse
 import base64
@@ -158,6 +186,10 @@ DEEP_BOUND = 514
 MASK_OVERLAY = '#00c800'
 MASK_OPACITY = 0.35
 ROW_KEYS = ('index', 'name', 'overlay_color', 'overlay_opacity', 'color_indicates', 'spot')
+FLOAT_INK = [60.0, 30.0, -20.0]
+GREY_INK = [50.0, 0.0, 0.0]
+FLOAT_NOTE = '32-bit float'
+GRAY_BOUND = 3
 
 D50 = (0.9642, 1.0, 0.8249)
 # The ICC sRGB profile's D50-adapted primaries (XYZ = M · linear RGB).
@@ -280,6 +312,32 @@ def oracle(c, cov, ink, solidity):
     return tuple(out)
 
 
+def srgb_decode(v):
+    return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+
+
+def srgb_encode(v):
+    return 12.92 * v if v <= 0.0031308 else 1.055 * v ** (1 / 2.4) - 0.055
+
+
+def lab_luminance(l_star):
+    """D50 Lab L* alone → relative luminance Y (CIE's inverse)."""
+    fy = (l_star + 16) / 116
+    return fy ** 3 if fy ** 3 > 216 / 24389 else l_star * 27 / 24389
+
+
+def gray_oracle(c, cov, ink, solidity):
+    """S16: the overprint on a Gray Gamma 2.2 twin's codes, read from and written back to an
+    sRGB render: per plane t = sRGB⁻¹(c)^(1/2.2), the rule on t, then sRGB((·)^2.2)."""
+    w, s = cov / 255, solidity / 100
+    out = []
+    for plane in range(3):
+        t = srgb_decode(c[plane] / 255) ** (1 / 2.2)
+        printed = (1 - w) * t + w * ((1 - s) * t * ink + s * ink)
+        out.append(int(255 * srgb_encode(max(printed, 0.0) ** 2.2) + 0.5))
+    return tuple(out)
+
+
 def worst(got, want, points=range(W * H)):
     return max(max(abs(g - e) for g, e in zip(got[i], want[i])) for i in points)
 
@@ -294,7 +352,7 @@ def main():
     receipts = {'expectations': 'fixed in scripts/verify_spot_channels.py before any measurement'}
     copies = {}
     for name in ('base', 'red', 'typed', 'default', 'kind', 'deep', 'convert', 'tiff8', 'tiff16',
-                 'layered8', 'layered16'):
+                 'layered8', 'layered16', 'float32', 'gray32'):
         copies[name] = folder / f'{name}.png'
         copies[name].write_bytes(fixture())
     base = [base_pixel(x, y) for x, y in ALL]
@@ -672,7 +730,125 @@ def main():
         print('PASS S14: export_psd tiff layers keeps the spot channel at 8 and 16 bits (the '
               'report names it; ink and coverage reopen layered equal)', flush=True)
 
+        def checker(record):
+            """A sub-check recorder: (name, ok, detail) into `record`; returns the failures."""
+            failed = []
+
+            def check(name, ok, detail):
+                record[name] = {'ok': bool(ok), 'detail': detail}
+                if not ok:
+                    failed.append(f'{name}: {detail}')
+            return check, failed
+
+        def zero_exact(got, want, cov):
+            return all(got[i] == want[i] for i, v in enumerate(cov) if v == 0)
+
+        # ---- S15: a 32-bit document's spot channel (#1) -----------------------------
+        s15 = {}
+        check, failed = checker(s15)
+        flt = call('open_document', path=str(copies['float32']))['document']['id']
+        call('convert_precision', document_id=flt, mode='rgba32', structure='preserve')
+        check('precision', precision(flt) == 'rgba32_float', precision(flt))
+        bare, _ = render(flt)
+        bare1, _ = render(flt, exposure=1)
+        call('select_rect', document_id=flt, x=rx, y=ry, width=rw, height=rh)
+        call('modify_selection', document_id=flt, operation='feather', radius=2)
+        call('add_spot_channel', document_id=flt, name='Ink', lab=FLOAT_INK, solidity=60)
+        call('deselect', document_id=flt)
+        flt_cov = coverage(flt, 'Ink')
+        check('partial coverage', any(0 < v < 255 for v in flt_cov), 'the feather')
+        flt_ink = lab_to_srgb(FLOAT_INK)
+        flt_want = [oracle(bare[i], flt_cov[i], flt_ink, 60) for i in range(W * H)]
+        # (a) the full render.
+        shown, shown_text = render(flt)
+        a_worst = worst(shown, flt_want)
+        check('a render', a_worst <= RED_BOUND and zero_exact(shown, bare, flt_cov),
+              {'worst': a_worst, 'zero_exact': zero_exact(shown, bare, flt_cov)})
+        check('a text', SPOT_NOTE in shown_text and FLOAT_NOTE in shown_text, shown_text)
+        # (b) region and preview_divisor.
+        gx, gy, gw, gh = REGION
+        region_png, region_text = render(flt, region={'x': gx, 'y': gy, 'width': gw, 'height': gh})
+        crop = [shown[(gy + j) * W + gx + i] for j in range(gh) for i in range(gw)]
+        check('b region', region_png == crop and SPOT_NOTE in region_text,
+              {'exact': region_png == crop, 'text': region_text})
+        preview_png, preview_text = render(flt, preview_divisor=2)
+        sampled = [shown[(2 * j) * W + 2 * i] for j in range(H // 2) for i in range(W // 2)]
+        check('b preview', preview_png == sampled and SPOT_NOTE in preview_text,
+              {'exact': preview_png == sampled, 'text': preview_text})
+        # (c) the render's exposure.
+        shown1, _ = render(flt, exposure=1)
+        want1 = [oracle(bare1[i], flt_cov[i], flt_ink, 60) for i in range(W * H)]
+        c_worst = worst(shown1, want1)
+        check('c exposure 1', c_worst <= RED_BOUND and zero_exact(shown1, bare1, flt_cov),
+              {'worst': c_worst, 'zero_exact': zero_exact(shown1, bare1, flt_cov)})
+        # (d) the flattened PNG keeps what the view shows (8 bits, undithered, as the render).
+        flt_path = folder / 'float32.png'
+        flt_reply = call('save_copy', document_id=flt, path=str(flt_path), format='png',
+                         bit_depth=8, dither='none')
+        flt_png = read_png(flt_path.read_bytes())
+        d_worst = worst(flt_png, flt_want)
+        check('d png', d_worst <= RED_BOUND, {'worst': d_worst})
+        check('d loss line', LOSS in flt_reply['flat_save_losses'], flt_reply['flat_save_losses'])
+        # (e) Merge Spot Channel keeps it too, and undoes.
+        merged = call('merge_spot_channel', document_id=flt, channel='Ink')
+        check('e reply', merged['ok'] and merged['layers'] == 1 and merged['channels'] == 0, merged)
+        flt_merged, _ = render(flt)
+        e_png, e_want = worst(flt_merged, flt_png), worst(flt_merged, flt_want)
+        check('e merged render', e_png <= RENDER_BOUND and e_want <= RED_BOUND,
+              {'against_png': e_png, 'against_oracle': e_want})
+        call('undo', document_id=flt)
+        check('e undo ink', spot_row(flt, 'Ink')['spot'] == {'lab': FLOAT_INK, 'solidity': 60},
+              spot_row(flt, 'Ink')['spot'])
+        flt_restored, _ = render(flt)
+        check('e undo render', flt_restored == shown, 'exactly (a)')
+        receipts['s15'] = s15
+        failed15 = failed
+        if failed15:
+            print(f'FAIL S15: {failed15}', flush=True)
+        else:
+            print(f'PASS S15: a 32-bit document overprints its spot channel in render ({a_worst} '
+                  f'codes; region and preview exact; exposure 1 {c_worst}), its PNG ({d_worst}) '
+                  f'and its merge ({e_want} against the oracle, {e_png} against the PNG), and '
+                  'undoes', flush=True)
+
+        # ---- S16: a 32-bit Grayscale document's spot channel (#1) -------------------
+        s16 = {}
+        check, failed = checker(s16)
+        gry = call('open_document', path=str(copies['gray32']))['document']['id']
+        call('convert_precision', document_id=gry, mode='rgba32', structure='preserve')
+        call('convert_mode', document_id=gry, mode='gray', gray_space='gray_gamma_22')
+        check('precision', precision(gry) == 'gray32', precision(gry))
+        gray_bare, _ = render(gry)
+        call('select_rect', document_id=gry, x=rx, y=ry, width=rw, height=rh)
+        call('modify_selection', document_id=gry, operation='feather', radius=2)
+        call('add_spot_channel', document_id=gry, name='Grey', lab=GREY_INK, solidity=60)
+        call('deselect', document_id=gry)
+        gray_cov = coverage(gry, 'Grey')
+        grey_ink = lab_luminance(GREY_INK[0]) ** (1 / 2.2)
+        gray_want = [gray_oracle(gray_bare[i], gray_cov[i], grey_ink, 60) for i in range(W * H)]
+        gray_shown, gray_text = render(gry)
+        g_worst = worst(gray_shown, gray_want)
+        check('render', g_worst <= GRAY_BOUND and zero_exact(gray_shown, gray_bare, gray_cov),
+              {'worst': g_worst, 'zero_exact': zero_exact(gray_shown, gray_bare, gray_cov)})
+        check('text', SPOT_NOTE in gray_text, gray_text)
+        gray_merged_reply = call('merge_spot_channel', document_id=gry, channel='Grey')
+        check('merge reply', gray_merged_reply['ok'] and gray_merged_reply['channels'] == 0,
+              gray_merged_reply)
+        gray_merged, _ = render(gry)
+        m_worst = worst(gray_merged, gray_shown)
+        check('merged render', m_worst <= GRAY_BOUND, {'against_view': m_worst})
+        call('undo', document_id=gry)
+        gray_restored, _ = render(gry)
+        check('undo render', gray_restored == gray_shown, 'exactly the render before the merge')
+        receipts['s16'] = s16
+        if failed:
+            print(f'FAIL S16: {failed}', flush=True)
+        else:
+            print(f'PASS S16: a 32-bit Grayscale document overprints its spot channel in render '
+                  f'({g_worst} codes) and its merge keeps it ({m_worst}), and undoes', flush=True)
+
     (output / 'receipts.json').write_text(json.dumps(receipts, indent=2))
+    assert not (failed15 + failed), failed15 + failed
     print('verify_spot_channels: all gates PASS', flush=True)
 
 

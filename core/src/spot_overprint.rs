@@ -20,8 +20,10 @@
 //! [`b_multiply`] and the ink per plane, the master copies in `blend`), and
 //! written back by the arm's own quantization: RGBA8 and RGBA16 with
 //! `clamp × max` rounded, `source_over_rgba8`'s rule; f32 RGBA as computed,
-//! NOT clamped, so a float composite's range above white survives the step
-//! (the ink itself is always in `[0, 1]`).
+//! NOT clamped (the ink itself is always in `[0, 1]`). A 32-bit document's
+//! samples are linear light, so its caller (`spot_typed`) hands this arm
+//! their display encoding, which continues above white, and decodes the
+//! result: a value above white survives the step.
 //!
 //! The CMYK arm (#1 1c-1) is ink on paper: each plate's `L = 1 − ink`
 //! (the domain `cmyk_filter`'s passes and the selection a plate loads use)
@@ -71,9 +73,10 @@ pub fn overprint_rgba16(
 }
 
 /// [`overprint_rgba8`] on straight f32 RGBA pixels (a 32-bit document's
-/// composite, `v` read as itself) with one u16 coverage sample a pixel
-/// (65535 = full ink). The result is NOT clamped: a sample above white or
-/// below black stays where the step puts it (module doc).
+/// composite in its display encoding, `v` read as itself) with one u16
+/// coverage sample a pixel (65535 = full ink). The result is NOT clamped: a
+/// sample above white or below black stays where the step puts it (module
+/// doc).
 pub fn overprint_rgba32f(
     composite: &mut [f32],
     coverage: &[u16],

@@ -476,6 +476,20 @@ final class ChannelsPanelViewController: NSViewController {
         return visibility
     }
 
+    /// The spot channels overprinted on the colour composite, as indices into
+    /// the CURRENT channel list: every spot channel whose eye is not off, and
+    /// none unless the RGB eye is on (the `.composite` base). What
+    /// `resolvedVisibility()` lists for them, read without writing anything,
+    /// so the editor's HDR Preview rule may ask it during a document change
+    /// before the channel display is rebuilt (#1).
+    func visibleSpotChannels() -> [Int] {
+        guard visibility.rgb, let doc = document?.doc else { return [] }
+        let identities = channelIdentities()
+        return doc.spotIndices().filter {
+            identities.indices.contains($0) && !hiddenSpotChannels.contains(identities[$0])
+        }
+    }
+
     /// Turns channel `index`'s eye on or off, by identity. A 0 id is the
     /// core's "no such channel" and never enters the set.
     private func setChannelEye(_ index: Int, on: Bool) {

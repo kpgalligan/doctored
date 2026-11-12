@@ -148,8 +148,9 @@ func verifyHDRRevertKeepsRendition() throws {
     print("\(tag) PASS")
 }
 
-/// A uniform 4.0 float document, installed the way `floatFixture` installs one.
-private func uniformFloat(_ value: Float, width: Int = 64, height: Int = 48) throws -> ImageDocument {
+/// A uniform float document of `value` in sRGB, installed the way `floatFixture` installs one
+/// (also `ui_float_spot.swift`'s).
+func uniformFloat(_ value: Float, width: Int = 64, height: Int = 48) throws -> ImageDocument {
     var bytes = Data(count: width * height * 16)
     bytes.withUnsafeMutableBytes { raw in
         let p = raw.bindMemory(to: Float.self)

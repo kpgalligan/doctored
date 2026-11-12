@@ -14,11 +14,14 @@ extension EditorViewController {
 
     /// The engage rule: HDR Preview is on, the window's screen can show more
     /// than SDR white (`EDRDisplay.potentialHeadroom`, which a test instance
-    /// overrides with `DR_EDR_HEADROOM`), the document is 32-bit float, and
-    /// no candidate tone map is pending (the Tone Map sheet previews SDR).
+    /// overrides with `DR_EDR_HEADROOM`), the document is 32-bit float, no
+    /// candidate tone map is pending (the Tone Map sheet previews SDR), and no
+    /// spot channel's overprint is shown: that is drawn on the SDR view
+    /// (`spotOverprintBase`), over the slot, so HDR Preview stands down.
     var hdrPreviewEngages: Bool {
-        guard viewExposure.hdrPreview, document?.doc?.isFloat == true,
-              viewExposure.candidateToneMap == nil else { return false }
+        guard viewExposure.hdrPreview, let doc = document?.doc, doc.isFloat,
+              viewExposure.candidateToneMap == nil, shownSpotChannels(doc).isEmpty
+        else { return false }
         return edrHeadroom > 1
     }
 

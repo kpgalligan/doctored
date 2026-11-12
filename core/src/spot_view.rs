@@ -5,6 +5,15 @@
 //! spot channel, in the channel list's order. Display only: a document's
 //! layers and its projection never include the overprint; a host draws it
 //! over the composite view and composites it into a flattened byte export.
+//! It is also the composite view of a 16-bit or 32-bit document: the host
+//! runs [`image_spot_overprint`] or [`image_spot_overprint_region`] once per
+//! spot channel on that document's 8-bit display (a float one's after its
+//! tone map at the window's or the render's exposure), the coverage the
+//! channel's display bytes and the ink encoded under the display's profile.
+//! Those are the encoded values `spot_typed` runs the rule on in a typed
+//! document's file and merge (a float one's display encoding, which no tone
+//! map or exposure enters), so the view and the file agree within the 8-bit
+//! display's rounding wherever the view's tone map leaves a value as it is.
 //! A `region` / `preview_divisor` render (1c-1) overprints the same samples
 //! the full render's crop does: its output (i, j) reads canvas
 //! (x + i·d, y + j·d), `regional`'s rule, and the full overprint is that

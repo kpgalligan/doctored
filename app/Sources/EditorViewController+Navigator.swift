@@ -54,7 +54,8 @@ struct EditorViewState: Equatable {
     let edrLayer: Bool
     /// The largest RGB component of the landed extended-range image.
     let edrContentPeak: Float?
-    /// The image the canvas draws (the view slot, else the projection).
+    /// The image the canvas draws (`canvasDrawnImage`: a channel display's base,
+    /// else the view slot, else the projection).
     /// `json` never hashes it; only MCP `get_view` with `image_hash` true does
     /// (`sha256(of:)`), because the hash reads the whole image.
     let viewImage: CGImage?
@@ -115,7 +116,17 @@ extension EditorViewController {
             exposureDisplayed: viewExposureDisplayed,
             hdrPreview: viewExposure.hdrPreview, hdrPreviewDisplayed: hdrPreviewDisplayed,
             edrHeadroom: edrHeadroom, edrLayer: canvas.extendedRangeLayerConfigured,
-            edrContentPeak: extendedContentPeak, viewImage: canvas.proofImage ?? canvas.image)
+            edrContentPeak: extendedContentPeak, viewImage: canvasDrawnImage)
+    }
+
+    /// The image `ImageCanvasView.draw` draws as the picture: a channel display's base when it
+    /// replaces the composite outside a crop (a plane, a channel, the mask, a spot overprint; nil
+    /// for every eye off), else the view slot, else the projection.
+    var canvasDrawnImage: CGImage? {
+        if canvas.cropOverlay == nil, let display = canvas.channelDisplay, display.replacesComposite {
+            return display.base
+        }
+        return canvas.proofImage ?? canvas.image
     }
 
     // MARK: - Writing

@@ -141,7 +141,7 @@ Detail belongs in the source file's own header comment.
 - `spot_channel_native.rs` — spot channels in the native format: word 112 and its `SPOT` table at both depths.
 - `spot_view.rs` — the ink's Lab in the composite's encoding (sRGB fallback), a byte image's and document's overprint, full or a region/divisor's samples.
 - `ffi_spot_channel.rs` — `dr_doc_add/set_spot_channel`, `dr_doc_channel_spot`, the doc/image overprint, the typed add/set.
-- `spot_typed.rs` — the typed overprint per mode (RGB/float, Gray's L* gray, Lab via ProPhoto, Duotone's view), its plan term, the flattened export hook.
+- `spot_typed.rs` — the typed overprint per mode (RGB, Gray's L* gray, Lab via ProPhoto, Duotone's view; float on its display encoding), its plan term, the export hook.
 - `spot_cmyk.rs` — a spot ink's CMYK through the document profile and the on-paper composite with spot inks overprinted in ink; its plan term.
 - `spot_merge.rs` — Merge Spot Channel (flatten, bake one ink, delete) and alpha ↔ spot (plane inverted) at byte and typed depth; the typed plan.
 - `ffi_spot_merge.rs` — merge and kind change at both depths, the typed merge plan, the doc/image region overprint.
@@ -230,7 +230,7 @@ Detail belongs in the source file's own header comment.
 - `float_retouch.rs` — the f32 arm of the typed retouch: staging, the linear clone walk, encode → shared kernel → decode for heal, spot heal and fill.
 - `float_retouch_brush.rs` — the f32 arm of the Blur, Sharpen, Sponge, Smudge and History brushes: plans, walks over the shared kernels, admission record.
 - `retouch_encoding.rs` — kernel: W, the sRGB-only encoding a float heal or fill solves in (log above white, ±65535); not `display_encoding`'s E.
-- `display_encoding.rs` — kernel: E/D (log above white) for display-referred float filters; R1–R5, E, M, A, `scaled`; X, the EDR view's binary16 sample.
+- `display_encoding.rs` — kernel: E/D (log above white) for display-referred float filters and the float spot overprint; R1–R5, E, M, A, `scaled`; X, the EDR sample.
 - `retouch_brush.rs` — kernel of the Blur, Sharpen and Sponge brushes: per-pixel targets, Vibrance, the mix and `mix_over`.
 - `retouch_smudge.rs` — kernel of the Smudge brush: the sub-stepped drag over a premultiplied f32 field, and its work charge.
 - `doc_retouch_brush.rs` — byte adapters: `retouch_brush_layer` (Blur / Sharpen / Sponge, Vibrance, Sample All Layers) and `history_brush_layer`.

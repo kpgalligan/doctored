@@ -16,7 +16,7 @@ empty runs every case; an unknown name fails before any case runs), and
 `DR_JOBS_PROBE_REPEAT` a positive integer, the number of times the selected list
 runs (default 1). For example
 `DR_JOBS_PROBE_CASES="agent serve-thread wait,agent release mid-call" DR_JOBS_PROBE_REPEAT=10 python3 scripts/jobs-probe/verify.py`.
-The loop sets `DR_EDR_HEADROOM` before each case, replacing any inherited value: 4 for the four
+The loop sets `DR_EDR_HEADROOM` before each case, replacing any inherited value: 4 for the five
 `hdr …` cases, 1 for every other, so HDR Preview engages only where a case asserts it.
 
 After every case the loop checks the preview registry (`registry_drain.swift`): it reads
@@ -1225,6 +1225,15 @@ status bar's `status-mode` segment to start with the row's literal mode and samp
 ("Lab · 16-bit · ", "Bitmap · 1-bit · ") followed by a profile name, and Image ▸ Mode's
 checked Bits/Channel item to be the row's literal depth (none on float RGB, Indexed and
 Bitmap). Every row is checked before the case fails.
+
+"float spot view" and "hdr spot view" (`ui_float_spot.swift`, #1) add a spot channel (black,
+Solidity 100, the left half) to a uniform float window with its Channels panel loaded. The first,
+on 0.25, reads the canvas's overprint base: the ink half 0, the other half the sRGB code of 0.25
+within 1, then of 0.5 at +1 stop and of Reinhard's (white 4) 0.5 under that candidate map, the
+exposure reporting displayed and `viewState.viewImage` being the base. The second, on 4.0 at
+headroom 4, sees HDR Preview displayed without the channel, standing down with it (an RGBA8 layer,
+the base 255 beside the ink), engaging again when the spot row's eye is off and standing down when
+it is on, and engaging after one undo of the add.
 
 All fixtures, settings, Actions, logs and the copy of the probe binary that runs
 are confined to a private temporary directory, retained on failure or with `--keep`.

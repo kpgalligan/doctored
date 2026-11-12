@@ -9,7 +9,11 @@
 //!   policy's twin (`GrayPolicy::encode`) and written R = G = B, rounded to
 //!   the ×257 grid at depth 8; at 32 bits (linear-light float) `y` is the
 //!   source profile's Y row over the linear channels, written R = G = B as
-//!   linear `Y` and never encoded. Alpha is kept. The record tree is carried
+//!   linear `Y` and never encoded, and the float policy is rebuilt for the
+//!   twin under the source's tone map (`FloatPolicy::for_profile`, as every
+//!   float document's is built for its own profile), so the display, the SDR
+//!   exports and the display-referred edits encode through the Gray profile's
+//!   curve, not the RGB source's. Alpha is kept. The record tree is carried
 //!   by `cmyk_convert_tree::map_tree` (groups, masks, clipping, modes, every
 //!   panel property), every leaf in the twin profile; alpha channels, paths,
 //!   guides, samplers, metadata, resolution and the light carry, and every
@@ -52,6 +56,7 @@ use crate::blend::BlendMode;
 use crate::cmyk_convert_tree::{leaf_count, map_tree};
 use crate::doc_color_policy::ConversionOptions;
 use crate::doc_gen_variations::{GeneratedBinding16, GeneratedPlane16};
+use crate::float_document::FloatPolicy;
 use crate::gray_document::{GrayDepth, GrayPolicy};
 use crate::gray_working::GrayWorkingSpace;
 use crate::icc::IccProfile;
@@ -331,10 +336,12 @@ impl PrecisionDocument {
         } else {
             Self::gray_raster_pixels(self.root_layers())
         };
+        // A float source also builds the twin's float policy, one more encoder.
+        let encoders = if self.is_float() { 2 } else { 1 };
         let profile = policy.map_or(0, |p| {
             p.twin().bytes().len() as u64
                 + p.bytes().len() as u64
-                + crate::icc_transform::PrecisionToneEncoder::scratch_bytes()
+                + encoders * crate::icc_transform::PrecisionToneEncoder::scratch_bytes()
         });
         let flattening = if flatten {
             self.render_plan().map(|p| p.scratch_bytes).unwrap_or(0)
@@ -518,6 +525,12 @@ impl PrecisionDocument {
             Ok(record)
         })?;
         crate::gray_style::grey_records(&mut layers, &tiles_in, &policy)?;
+        // The float policy follows the profile the result carries (module doc).
+        let float = source
+            .float
+            .as_ref()
+            .map(|float| FloatPolicy::for_profile(policy.twin(), float.tone_map()).map(Arc::new))
+            .transpose()?;
         let mut out = PrecisionDocument::build(
             source.width,
             source.height,
@@ -526,7 +539,7 @@ impl PrecisionDocument {
             source.resolution,
             layers,
             source.channels().to_vec(),
-            source.float.clone(),
+            float,
         )?;
         out.guides.clone_from(&source.guides);
         out.ruler_origin = source.ruler_origin;
