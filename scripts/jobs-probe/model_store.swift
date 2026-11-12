@@ -234,6 +234,64 @@ func verifyModelsPane() throws {
         + "the Shortcuts, Models, MCP and Cloud tabs")
 }
 
+/// "settings card height": the Settings card built over the real catalogue (a scratch store,
+/// nothing downloaded) fits a laptop screen: at most 700 pt tall, the visible height of a
+/// 1280 × 800 point screen less the menu bar and the Dock, and no taller than the main screen's
+/// visible frame when there is one. The Models tab's rows scroll inside `models-list`, whose
+/// document is taller than its viewport, and every model's Download button is still in the pane.
+/// The card is built as `run()` builds it, without running it modally; the size printed is the
+/// window's frame.
+func verifySettingsCardHeight() throws {
+    let tag = "[settings card height]"
+    let entries = ModelCatalog.entries
+    let store = scratchStore("settings-card", entries)
+    let previous = ModelStore.shared
+    ModelStore.shared = store
+    defer { ModelStore.shared = previous }
+    let settings = SettingsWindowController(menu: NSApp.mainMenu ?? NSMenu())
+    guard let window = settings.makeWindow().window else {
+        throw ProbeFailure(description: "\(tag) the card has no window")
+    }
+    let size = window.frame.size
+    let screen = NSScreen.main?.visibleFrame.size
+    print("\(tag) the Settings card is \(Int(size.width)) × \(Int(size.height)) pt over \(entries.count) "
+        + "models; the main screen's visible frame is "
+        + (screen.map { "\(Int($0.width)) × \(Int($0.height)) pt" } ?? "absent"))
+    // Which pane sets the card's height: each tab's content at its fitting height.
+    print("\(tag) the tabs' content heights: " + settings.tabs.tabViewItems.map { item in
+        "\(item.label) \(Int(item.view?.subviews.first?.fittingSize.height ?? 0)) pt"
+    }.joined(separator: ", "))
+    var failures: [String] = []
+    if size.height > 700 { failures.append("the card is \(Int(size.height)) pt tall, over 700") }
+    if let screen, size.height > screen.height {
+        failures.append("the card is taller than the screen's visible \(Int(screen.height)) pt")
+    }
+    settings.tabs.selectTabViewItem(withIdentifier: "Models")
+    window.contentView?.layoutSubtreeIfNeeded()
+    if window.frame.size != size {
+        failures.append("selecting Models resized the card to \(window.frame.size)")
+    }
+    do {
+        let list = try uiControl(settings.models.view, id: "models-list", as: NSScrollView.self)
+        let viewport = list.contentView.bounds.height
+        let document = list.documentView?.frame.height ?? 0
+        print("\(tag) models-list shows \(Int(viewport)) of \(Int(document)) pt")
+        if !(viewport > 0 && document > viewport) {
+            failures.append("models-list does not scroll: \(Int(viewport)) of \(Int(document)) pt")
+        }
+    } catch {
+        failures.append("\(error)")
+    }
+    for entry in entries {
+        do { _ = try uiControl(settings.models.view, id: "model-download-\(entry.id)", as: NSButton.self) }
+        catch { failures.append("\(entry.id): \(error)") }
+    }
+    try require(failures.isEmpty, "\(tag) " + failures.joined(separator: "; "))
+    print("PASS: settings card height — over the \(entries.count)-model catalogue the Settings card is "
+        + "\(Int(size.height)) pt tall (at most 700 and within the screen), the model rows scroll inside "
+        + "models-list and every Download button is in the pane")
+}
+
 /// "model catalog release urls" (the Doctored rename): every file and licence URL names no
 /// old release repo (the legacy prefix's name + "-models", spelled so a repo grep for the old
 /// name finds nothing); the 40 release assets are on kpgalligan/doctored-models and belong to the

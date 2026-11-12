@@ -229,7 +229,7 @@ Detail belongs in the source file's own header comment.
 - `ModelCatalog.swift` / `ModelStore.swift` — the local model catalogue (data) and store: states, licence acceptance per version, delete, `DR_MODELS_DIR`; legacy `rasterize/` ids read in place.
 - `ModelDownloader.swift` — the `URLSession` delegate seam: Range resume, streamed SHA-256, atomic rename, Core ML compile, events to main.
 - `CoreMLRuntime.swift` — `CoreMLRuntime` (load at `.all`, image input, output → `ModelPlane`) and `DepthEstimator`; worker thread only.
-- `SettingsWindowController.swift` / `ModelsSettingsPane.swift` — Settings (⌘,): the Shortcuts, Models, MCP and Cloud tabs; the Models pane and its licence card.
+- `SettingsWindowController.swift` / `ModelsSettingsPane.swift` — Settings (⌘,): the Shortcuts, Models, MCP and Cloud tabs; the Models pane (rows scroll in `models-list`) and its licence card.
 - `CloudStore.swift` — `DR_CLOUD_DIR`: per-provider key files, `cloud.json` (consents, the agent switch) and `SecretFile`, the 0600 writer `APIKeyStore` shares.
 - `CloudProviders.swift` — the `GenerativeFillProvider` protocol, `GenerativeFillAnswer`, `CloudMaskStyle`, `OpenAIImageProvider`, the shared base-URL rule, `CloudHTTP` and `CloudImageCodec`.
 - `CloudProviders+Gemini.swift` / `CloudProviders+Fal.swift` — the providers: Gemini Interactions (`DR_GEMINI_BASE_URL`), fal FLUX Fill (`DR_FAL_BASE_URL`).
@@ -298,6 +298,7 @@ Detail belongs in the source file's own header comment.
 - `PrecisionCapturedSave.swift` / `PrecisionStateArchive.swift` / `ImageDocument+PrecisionGuard.swift` — typed save captures, internal compatibility archives, preserving import/publication guards.
 - `RasterDocument+PrecisionMetadata.swift` / `RasterDocument+PrecisionOperations.swift` — one `RasterDocument` facade owns either a legacy pointer or a typed owner, never a byte surrogate.
 - `DocumentPrecision.swift` — the public mode's shared UI/MCP/Actions depth guard (`refusal(tool:…)`, `documentFreeTools`).
+- `DocumentSampleFormat.swift` — `bitsPerChannel` (the mode's declared depth) and `modeStatusText`, the status bar's mode and sample format ("Lab · 16-bit").
 - `PrecisionEditorCapture.swift` / `PrecisionImportRequest.swift` / `PrecisionModeConversion.swift` — full revision/target/selection capture, preserving import choice, deliberate flattened conversion.
 - `AgentServer+DocumentReply.swift` — `get_document`'s ONE document-level block: `documentFields`, `selectionFields` and `typedDocumentReply`.
 - `PrecisionModeConversion.swift` / `ConvertPrecisionSheetController.swift` — 12H: Image ▸ Mode ▸ Convert Precision… and 32 Bits/Channel… are ONE sheet; MCP `convert_precision`.

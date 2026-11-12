@@ -105,14 +105,7 @@ extension EditorViewController {
         guard eight || sixteen || float else { return nil }
         guard let document, let doc = document.doc else { return false }
         if float, !doc.isGray { return nil }
-        let current: Int? = doc.isLab
-            ? doc.labDepth
-            : doc.isGray
-            ? doc.grayDepth
-            : doc.isCmyk
-            ? doc.precision?.cmykInfo()?["depth"] as? Int
-            : doc.isFloat ? nil : doc.isHighDepth ? 16 : 8
-        let isCurrent = current == (eight ? 8 : sixteen ? 16 : 32)
+        let isCurrent = doc.bitsPerChannel == (eight ? 8 : sixteen ? 16 : 32)
         (item as? NSMenuItem)?.state = isCurrent ? .on : .off
         return !isCurrent && !document.isLiveEditing && !BackgroundWork.occupied
     }

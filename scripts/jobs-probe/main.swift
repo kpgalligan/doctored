@@ -477,6 +477,7 @@ do {
         ("model store sha refusal", verifyModelStoreShaRefusal),
         ("model store resume", verifyModelStoreResume),
         ("models pane", verifyModelsPane),
+        ("settings card height", verifySettingsCardHeight),
         ("model catalog release urls", verifyModelCatalogReleaseURLs),
         ("model store legacy id", verifyModelStoreLegacyID),
         ("depth blur sheet", verifyDepthBlurSheet),
@@ -490,6 +491,8 @@ do {
         ("sky replacement sheet", verifySkyReplacementSheet),
         // PrecisionGeometryWork's merged-key branch on an Indexed Color document.
         ("indexed background key", verifyIndexedBackgroundKey),
+        // The status bar's mode segment on every colour mode and depth.
+        ("status mode segment", verifyStatusModeSegment),
     ]
     // Opt-in measurements: run only when named in DR_JOBS_PROBE_CASES.
     let measurements: [(String, () throws -> Void)] = [

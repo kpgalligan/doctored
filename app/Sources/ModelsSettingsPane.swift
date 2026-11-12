@@ -7,7 +7,12 @@ import AppKit
 /// records the acceptance in the store. It reads `ModelStore.shared` and follows its
 /// `didChange`. There is no MCP twin for a download: it fetches tens of MB from a third-party
 /// host under a licence the user must accept (`list_models` reports the state).
+/// The model rows scroll inside `models-list`, between the intro and the message line, so the
+/// pane keeps one bounded height however long the catalogue grows.
 final class ModelsSettingsPane: NSObject {
+    /// The list's tallest viewport, the Shortcuts table's height: the Settings card gives every
+    /// tab its tallest pane's height, so an unbounded list would push the card past the screen.
+    static let listHeight: CGFloat = 320
     let view: NSStackView
     /// The pane grew or shrank (a failure line appeared): the host refits.
     var onResize: (() -> Void)?
@@ -43,7 +48,12 @@ final class ModelsSettingsPane: NSObject {
         intro.textColor = DS.textMuted
         intro.preferredMaxLayoutWidth = 420
         view.addArrangedSubview(intro)
-        for entry in store.catalog { view.addArrangedSubview(makeRow(entry)) }
+        let list = NSStackView()
+        list.orientation = .vertical
+        list.alignment = .leading
+        list.spacing = 14
+        for entry in store.catalog { list.addArrangedSubview(makeRow(entry)) }
+        view.addArrangedSubview(makeList(list))
         message.font = DS.sans(11)
         message.textColor = DS.warningText
         message.preferredMaxLayoutWidth = 420
@@ -65,6 +75,41 @@ final class ModelsSettingsPane: NSObject {
         field.textColor = color
         field.preferredMaxLayoutWidth = 420
         return field
+    }
+
+    /// `rows` in a vertical scroll view (`models-list`) as tall as the rows up to `listHeight`, so
+    /// a short catalogue keeps a short pane. Its document is flipped, so the first model sits at
+    /// the top, and as wide as the viewport, which leaves the rows' 420 pt beside a legacy scroller.
+    private func makeList(_ rows: NSStackView) -> NSScrollView {
+        let scroll = NSScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.setAccessibilityIdentifier("models-list")
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.drawsBackground = false
+        scroll.borderType = .noBorder
+        let document = ModelsListDocument()
+        document.translatesAutoresizingMaskIntoConstraints = false
+        rows.translatesAutoresizingMaskIntoConstraints = false
+        document.addSubview(rows)
+        scroll.documentView = document
+        // Below required, so the cap wins once the rows are taller than it.
+        let fit = scroll.heightAnchor.constraint(equalTo: document.heightAnchor)
+        fit.priority = .defaultHigh
+        let scroller = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
+        NSLayoutConstraint.activate([
+            scroll.widthAnchor.constraint(equalToConstant: 420 + scroller),
+            scroll.heightAnchor.constraint(lessThanOrEqualToConstant: Self.listHeight),
+            fit,
+            document.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
+            document.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor),
+            document.trailingAnchor.constraint(equalTo: scroll.contentView.trailingAnchor),
+            rows.topAnchor.constraint(equalTo: document.topAnchor),
+            rows.leadingAnchor.constraint(equalTo: document.leadingAnchor),
+            rows.trailingAnchor.constraint(lessThanOrEqualTo: document.trailingAnchor),
+            rows.bottomAnchor.constraint(equalTo: document.bottomAnchor),
+        ])
+        return scroll
     }
 
     private func makeRow(_ entry: ModelCatalogEntry) -> NSView {
@@ -194,6 +239,20 @@ final class ModelsSettingsPane: NSObject {
     static func presentLicenseCard(_ entry: ModelCatalogEntry) -> Bool {
         let card = LicenseCard(entry)
         return card.run()
+    }
+}
+
+/// The model list's scroll document: flipped, so the list opens at its first model.
+private final class ModelsListDocument: NSView {
+    override var isFlipped: Bool { true }
+
+    init() {
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("ModelsListDocument does not support NSCoder")
     }
 }
 

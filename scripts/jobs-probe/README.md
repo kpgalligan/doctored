@@ -1202,7 +1202,14 @@ step adding one active layer, one recorded `sky_replacement` step naming the sky
 `decontaminate` true and a note naming the model, and one undo; at 8 bits it keeps
 Output To's default New Layers (the active Sky Replacement Group, five new entries,
 "Foreground Edge" first), at 16 bits it picks Duplicate Layer in the popup.
-"model selection entries" lists the six catalogue entries, the sky library last.
+"model selection entries" lists the catalogue's ten entries in order, each Not downloaded
+with its licence link, tier and training-data note.
+
+"settings card height" (`model_store.swift`) builds the Settings card over the real
+catalogue in a scratch store, without running it modally, and prints its frame and each
+tab's content height: at most 700 pt tall and within the main screen's visible frame, the
+same size with the Models tab selected, the model rows scrolling inside `models-list` (its
+document taller than its viewport) and every model's Download button still in the pane.
 
 "indexed background key" (`indexed_background_key.swift`) converts an 8 × 4 PNG of four
 colour columns to an Exact Indexed Color document with no transparent index and runs
@@ -1210,6 +1217,14 @@ colour columns to an Exact Indexed Color document with no transparent index and 
 background swatch: every uncovered pixel holds the entry nearest the swatch (the case's own
 least-squares oracle), and the twin with no swatch holds white's nearest, which differs; no event
 and no window.
+
+"status mode segment" (`status_mode.swift`) converts a 64 × 48 fixture through the MCP
+tools into RGB at 8, 16 and 32 bits, Grayscale at 8, 16 and 32, Duotone, Lab and CMYK at 8
+and 16, Indexed and Bitmap, confirms each landed through the descriptor, and requires the
+status bar's `status-mode` segment to start with the row's literal mode and sample format
+("Lab · 16-bit · ", "Bitmap · 1-bit · ") followed by a profile name, and Image ▸ Mode's
+checked Bits/Channel item to be the row's literal depth (none on float RGB, Indexed and
+Bitmap). Every row is checked before the case fails.
 
 All fixtures, settings, Actions, logs and the copy of the probe binary that runs
 are confined to a private temporary directory, retained on failure or with `--keep`.

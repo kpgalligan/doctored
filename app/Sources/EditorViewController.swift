@@ -463,6 +463,7 @@ final class EditorViewController: NSViewController {
 
         let statusBar = BarView(border: .top)
         statusBar.translatesAutoresizingMaskIntoConstraints = false
+        statusMode.setAccessibilityIdentifier("status-mode")
         let statusLeft = NSStackView(views: [statusDims, statusMode, statusSelection])
         statusLeft.translatesAutoresizingMaskIntoConstraints = false
         statusLeft.orientation = .horizontal
@@ -1399,7 +1400,7 @@ final class EditorViewController: NSViewController {
         statusDims.text =
             "\(doc.width) × \(doc.height) px · \(PrintSize.resolutionText(doc.resolution))"
         statusMode.text = document.projectionError == nil
-            ? "RGB · \(doc.isHighDepth ? "16" : "8")-bit · \(doc.profileName)" : "Preview failed — Save as .doctored"
+            ? "\(doc.modeStatusText) · \(doc.profileName)" : "Preview failed — Save as .doctored"
         // The soft proof's state, or why it turned itself off.
         if let proof = proofStatusText { statusMode.text += " · \(proof)" }
         if let exposure = viewExposureStatusText { statusMode.text += " · \(exposure)" }

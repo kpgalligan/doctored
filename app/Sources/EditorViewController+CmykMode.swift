@@ -66,6 +66,19 @@ enum ColorModeTarget: String {
         case .bitmap: return "Bitmap"
         }
     }
+
+    /// The status bar's short name for the mode (`RasterDocument.modeStatusText`).
+    var statusName: String {
+        switch self {
+        case .cmyk: return "CMYK"
+        case .rgb: return "RGB"
+        case .gray: return "Grayscale"
+        case .lab: return "Lab"
+        case .indexed: return "Indexed"
+        case .duotone: return "Duotone"
+        case .bitmap: return "Bitmap"
+        }
+    }
 }
 
 /// A Grayscale or Lab Color conversion that must flatten first, found inside the job (an 8-bit

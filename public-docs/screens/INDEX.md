@@ -141,11 +141,12 @@ is the section under a `## ` heading that names it).
 | `generative-fill` | `sky` | `sheet` | The Generative Fill dialog on a selection |
 | `cloud-consent` | `sky` | `card` | The consent card before the first send to OpenAI |
 
-## Blocked
+## Not yet captured
 
-- `editor-32`: the editor on a 32-bit float document. Its status bar says "RGB · 16-bit" for a
-  32-bit document ([#27](https://github.com/kpgalligan/doctored/issues/27)).
-- `settings`: the Settings card. It is 2240 pt tall, taller than a laptop screen, because
-  `resizeTabs` sizes every tab to the tallest pane ([#28](https://github.com/kpgalligan/doctored/issues/28)).
-- Settings ▸ Models, when `settings` is unblocked: its intro prints the models folder's full path, which
-  under isolation is the runner's scratch folder, so the screen needs a cut or a neutral `DR_MODELS_DIR`.
+Tracked in [#32](https://github.com/kpgalligan/doctored/issues/32).
+
+- `editor-32`: the editor on a 32-bit float document, whose status bar reads "RGB · 32-bit float".
+- `settings`: the Settings card, which fits a laptop screen (Settings ▸ Models scrolls its model
+  rows); it needs a `settings` entry in `cards` (`scripts/screens-probe/windows.swift`) first.
+- Settings ▸ Models: its intro prints the models folder's full path, which under isolation is the
+  runner's scratch folder, so the screen needs a cut or a neutral `DR_MODELS_DIR`.
