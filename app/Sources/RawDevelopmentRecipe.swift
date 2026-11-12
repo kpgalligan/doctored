@@ -540,6 +540,33 @@ enum RetainedRawDecoder {
         return frame
     }
 
+    /// Half a 16-bit code: the 16-bit development stores an alpha this close to 1 as 65535.
+    static let opaqueAlphaTolerance: Float = 0.5 / 65535
+
+    /// The float development's opacity rule, the twin of the 16-bit development's `UInt16.max`
+    /// check, so up to 1 the two encodings of one recipe count the same alphas as opaque (above
+    /// 1, where the 16-bit render clamps, one past the tolerance still refuses). Every alpha (each
+    /// fourth sample of straight RGBA) within `opaqueAlphaTolerance` of 1, above or below, is
+    /// stored as exactly 1 and the answer is true; any other alpha, NaN included, answers false
+    /// (a real partial alpha, which the caller refuses), leaving the buffer partly rewritten for
+    /// the caller to discard. RGB is untouched: the decode context renders unpremultiplied, so no
+    /// colour was scaled by the alpha. The decoder renders some cameras' files with alphas a few
+    /// float ulps either side of 1 across the whole frame (a Nikon Z 6 NEF: 61 % of its alphas,
+    /// all within 4e-7 of 1).
+    static func normalizeOpaqueAlpha(_ samples: inout [Float]) -> Bool {
+        let tolerance = opaqueAlphaTolerance
+        return samples.withUnsafeMutableBufferPointer { buffer in
+            var index = 3
+            while index < buffer.count {
+                // A NaN fails the comparison.
+                guard abs(buffer[index] - 1) <= tolerance else { return false }
+                buffer[index] = 1
+                index += 4
+            }
+            return true
+        }
+    }
+
     static func develop(url: URL, descriptor: RawSourceDescriptor, maximumScratch: UInt64 = UInt64.max,
                         whiteBalanceChanged: Bool = false, cameraOnly: Bool = false) throws -> (RasterDocument, RawSourceDescriptor) {
         guard cameraOnly || descriptor.recipe.enhancements?.locals.isEmpty != false else {
@@ -567,9 +594,11 @@ enum RetainedRawDecoder {
         if linearFloat {
             // The 32-bit float (linear) development: the same filter
             // rendered as f32 into the output space's primaries with a linear
-            // transfer and no clamp. Nothing is repaired: an alpha that is not
-            // 1 is refused here, and a non-finite sample or an RGB magnitude
-            // above 65504 by the core's float intake.
+            // transfer and no clamp. Its alphas pass `normalizeOpaqueAlpha`,
+            // the twin of the 16-bit development's check below: an alpha
+            // within half a 16-bit code of 1 is stored as exactly 1 and any
+            // other is refused here; a non-finite sample or an RGB magnitude
+            // above 65504 is refused by the core's float intake.
             guard let space = outputSpace.linearCGSpace else {
                 throw RawImportError(url: url, reason: "the platform has no linear \(outputSpace.displayName) "
                     + "space for a 32-bit float (linear) development")
@@ -584,7 +613,7 @@ enum RetainedRawDecoder {
                 }
                 renderer.clearCaches()
             }
-            guard stride(from: 3, to: samples.count, by: 4).allSatisfy({ samples[$0] == 1 }) else {
+            guard normalizeOpaqueAlpha(&samples) else {
                 throw RawImportError(url: url, reason: "the platform did not produce an opaque 32-bit float camera rendering")
             }
             document = try RasterDocument.fromRawRGBA32(samples, width: width, height: height,

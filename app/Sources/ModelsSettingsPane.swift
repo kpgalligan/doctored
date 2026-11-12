@@ -197,8 +197,8 @@ final class ModelsSettingsPane: NSObject {
                 row.progress.isHidden = true
             }
             let bytes = store.bytesOnDisk(entry.id)
-            row.size.stringValue = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
-                + " of " + ByteCountFormatter.string(fromByteCount: entry.totalBytes, countStyle: .file)
+            row.size.stringValue = Self.sizeLine(state: state, bytesOnDisk: bytes,
+                                                 downloadBytes: entry.totalBytes)
             let downloading: Bool = { if case .downloading = state { return true } else { return false } }()
             row.download.isEnabled = !downloading && state != .ready
             row.cancel.isEnabled = downloading
@@ -206,6 +206,18 @@ final class ModelsSettingsPane: NSObject {
             // then writes `verified.json`, which a Delete during it could not stop (Cancel first).
             row.delete.isEnabled = !downloading && (bytes > 0 || state == .ready)
         }
+    }
+
+    /// A row's size line. "X of Y" is a progress form: the bytes on disk of the download's size,
+    /// right while a download runs or a partial waits. Once the model is ready the line is its
+    /// disk total alone, "<bytes> on disk": a Core ML model's compiled copy sits beside its
+    /// package, so the total passes the download, and it is what Delete frees and what
+    /// `list_models` reports as `bytes_on_disk`.
+    static func sizeLine(state: ModelState, bytesOnDisk: Int64, downloadBytes: Int64) -> String {
+        let disk = ByteCountFormatter.string(fromByteCount: bytesOnDisk, countStyle: .file)
+        if state == .ready { return disk + " on disk" }
+        let download = ByteCountFormatter.string(fromByteCount: downloadBytes, countStyle: .file)
+        return disk + " of " + download
     }
 
     private func entry(_ sender: Any?) -> ModelCatalogEntry? {

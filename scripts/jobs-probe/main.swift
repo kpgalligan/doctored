@@ -406,6 +406,8 @@ do {
         ("develop range rows", verifyDevelopRangeRows),
         ("develop generated masks", verifyDevelopGeneratedMasks),
         ("develop output space", verifyDevelopOutputSpace),
+        // The 32-bit float RAW development's opacity rule on hand-made buffers.
+        ("raw float alpha rule", verifyRawFloatAlphaRule),
         ("develop lens line", verifyDevelopLensLine),
         // v1 shortcuts and Fade: the default chord table and tool letters,
         // Edit ▸ Fade…'s sheet, and Curves… on ⌘M.
@@ -482,6 +484,7 @@ do {
         ("model store sha refusal", verifyModelStoreShaRefusal),
         ("model store resume", verifyModelStoreResume),
         ("models pane", verifyModelsPane),
+        ("models pane ready size", verifyModelsPaneReadySize),
         ("models intro path", verifyModelsIntroPath),
         ("settings card height", verifySettingsCardHeight),
         ("model catalog release urls", verifyModelCatalogReleaseURLs),

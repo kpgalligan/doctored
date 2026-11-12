@@ -73,7 +73,7 @@ extension AgentServer {
         var reply: [String: Any] = [
             "ok": true,
             "document": summary(document),
-            "depth": made.isFloat ? "rgba32_float" : made.isHighDepth ? "rgba16" : "rgba8",
+            "depth": made.precisionName,
             "profile": outcome.load.profileName,
             "layout": options.layout.projectionName,
             "canvas": ["width": made.width, "height": made.height],

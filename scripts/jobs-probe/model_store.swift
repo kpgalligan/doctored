@@ -37,9 +37,9 @@ private func modelBytes(_ count: Int, seed: UInt8) -> Data {
 }
 
 /// A catalogue entry for `files`, served under `<id>/`; `wrong` gives the first file a hash
-/// that does not match its bytes.
+/// that does not match its bytes; `packages` are the Core ML packages it compiles.
 private func modelEntry(_ id: String, version: String = "v1", _ files: [(String, Data)],
-                        wrong: Bool = false) throws -> ModelCatalogEntry {
+                        wrong: Bool = false, packages: [String] = []) throws -> ModelCatalogEntry {
     let server = try modelServer()
     var catalogued: [ModelFile] = []
     for (index, (path, data)) in files.enumerated() {
@@ -55,7 +55,7 @@ private func modelEntry(_ id: String, version: String = "v1", _ files: [(String,
         id: id, name: "Probe Model \(id)", capability: "probe-\(id)", version: version, files: catalogued,
         runtime: .coreml, minimumMacOS: "15.0",
         license: ModelLicense(name: "Apache-2.0", url: URL(fileURLWithPath: "/dev/null"), tier: .clean),
-        trainingData: "synthetic probe bytes", inferenceBytes: 1 << 20, packages: [])
+        trainingData: "synthetic probe bytes", inferenceBytes: 1 << 20, packages: packages)
 }
 
 /// A store over `entries` in a fresh scratch folder.
@@ -232,6 +232,66 @@ func verifyModelsPane() throws {
         + "requests nothing; an accepted one records the acceptance and Download reaches Ready; Delete removes "
         + "the files and keeps the acceptance, so the next Download asks no card; the Settings card holds "
         + "the Shortcuts, Models, MCP and Cloud tabs")
+}
+
+/// "models pane ready size": a row's size line once a Core ML model is ready, and while one is
+/// partial. A scratch store holds two entries laid out on disk by hand, with no download: a
+/// ready one (its package's files, a compiled `.mlmodelc` folder at least as large again and
+/// `verified.json`), whose line is its disk total "on disk" with no " of ", and one holding only a
+/// `.partial` file, whose line stays "<partial> of <download>". The oracle is the bytes this case
+/// wrote, not `bytesOnDisk`.
+func verifyModelsPaneReadySize() throws {
+    let tag = "[models pane ready size]"
+    let package = "Probe.mlpackage"
+    let packageFiles = [("\(package)/Data/weights.bin", modelBytes(180_000, seed: 7)),
+                        ("\(package)/Manifest.json", Data("{\"probe\":\"ready\"}".utf8))]
+    let ready = try modelEntry("readysize", packageFiles, packages: [package])
+    let partial = try modelEntry("partialsize", [("pkg/weights.bin", modelBytes(300_000, seed: 8))])
+    let store = scratchStore("ready-size", [ready, partial])
+    var written: Int64 = 0
+    func write(_ data: Data, _ url: URL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
+        try data.write(to: url)
+        written += Int64(data.count)
+    }
+    let folder = store.versionDirectory(ready)
+    for (path, data) in packageFiles { try write(data, folder.appendingPathComponent(path)) }
+    let compiled = store.compiledLocation(ready, package: package)
+    try write(modelBytes(200_000, seed: 9), compiled.appendingPathComponent("weights/weight.bin"))
+    try write(modelBytes(4_000, seed: 10), compiled.appendingPathComponent("coremldata.bin"))
+    let marker = try JSONSerialization.data(withJSONObject: [
+        "version": ready.version, "files": ready.files.map(\.sha256),
+    ])
+    try write(marker, folder.appendingPathComponent("verified.json"))
+    let partialData = modelBytes(120_000, seed: 8)
+    try write(partialData, store.versionDirectory(partial).appendingPathComponent("pkg/weights.bin.partial"))
+    let readyBytes = written - Int64(partialData.count)
+    try require(store.state(ready.id) == .ready, "\(tag) the hand-made store is ready: \(store.state(ready.id))")
+    try require(store.state(partial.id) == .notDownloaded,
+                "\(tag) the partial entry is not downloaded: \(store.state(partial.id))")
+
+    let previous = ModelStore.shared
+    ModelStore.shared = store
+    defer { ModelStore.shared = previous }
+    let pane = ModelsSettingsPane()
+    func size(_ bytes: Int64) -> String { ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) }
+    let readyLine = try uiControl(pane.view, id: "model-size-readysize", as: NSTextField.self).stringValue
+    let partialLine = try uiControl(pane.view, id: "model-size-partialsize", as: NSTextField.self).stringValue
+    print("\(tag) the ready row reads \"\(readyLine)\" (\(readyBytes) bytes written, download "
+        + "\(ready.totalBytes)); the partial row reads \"\(partialLine)\"")
+    var failures: [String] = []
+    if readyLine != size(readyBytes) + " on disk" || readyLine.contains(" of ") {
+        failures.append("the ready row reads \"\(readyLine)\", not \"\(size(readyBytes)) on disk\"")
+    }
+    let partialWanted = size(Int64(partialData.count)) + " of " + size(partial.totalBytes)
+    if partialLine != partialWanted {
+        failures.append("the partial row reads \"\(partialLine)\", not \"\(partialWanted)\"")
+    }
+    try require(failures.isEmpty, "\(tag) " + failures.joined(separator: "; "))
+    print("PASS: models pane ready size — a ready Core ML model (package, compiled folder and marker) "
+        + "reads \"\(readyLine)\", its disk total with no \" of \"; a partial download reads "
+        + "\"\(partialLine)\"")
 }
 
 /// "models intro path": Settings ▸ Models' intro writes the models folder from `~` when it lies

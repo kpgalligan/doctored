@@ -68,8 +68,7 @@ extension AgentServer {
         var reply: [String: Any] = [
             "ok": true,
             "document": summary(loaded.document),
-            "depth": outcome.document.isFloat ? "rgba32_float"
-                : outcome.document.isHighDepth ? "rgba16" : "rgba8",
+            "depth": outcome.document.precisionName,
             "profile": outcome.profileName,
             "canvas": ["width": outcome.document.width, "height": outcome.document.height],
             "layers": stackLayerRows(outcome),

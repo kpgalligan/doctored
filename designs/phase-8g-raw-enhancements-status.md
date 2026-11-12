@@ -49,7 +49,10 @@ introducing a linear/HDR document mode, and with persisted masks that survive mi
   Document depth "32-bit float (linear)"; Layer ▸ Redevelop RAW… ▸ Development in a float document). The one decode
   seam renders `.RGBAf` into the output space's extended linear twin (`CGColorSpaceCreateExtendedLinearized`) with
   `extendedDynamicRangeAmount` 1 (`scripts/raw-probe/float_edr.py`); the f32 master is tagged with the space's
-  built-in profile (a float document holds linear light in its profile's primaries). It exists only in a 32-bit
+  built-in profile (a float document holds linear light in its profile's primaries). An alpha within half a 16-bit
+  code of 1 is stored as exactly 1, the alphas the 16-bit development stores as 65535, and any other refuses the
+  development (`RetainedRawDecoder.normalizeOpaqueAlpha`; the decoder renders a Nikon Z 6 NEF with 61 % of its
+  alphas a few ulps off 1; `scripts/verify_raw_float_cameras.py`). It exists only in a 32-bit
   float document (typed DRDC word 78, `float_native`) and never narrows out of one (`convert_precision` preserve
   and a layers paste refuse it by name until it is redeveloped `sdr16`). Recipe: a policy string
   (`<space>-rgba32f-linear-v1`; `-v2` when the tone curve is above 0) beside its `extendedDynamicRange`. The

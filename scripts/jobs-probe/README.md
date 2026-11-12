@@ -1210,6 +1210,14 @@ catalogue in a scratch store, without running it modally, and prints its frame a
 tab's content height: at most 700 pt tall and within the main screen's visible frame, the
 same size with the Models tab selected, the model rows scrolling inside `models-list` (its
 document taller than its viewport) and every model's Download button still in the pane.
+"models pane ready size" (`model_store.swift`) lays out a ready Core ML model (package, compiled
+`.mlmodelc` and `verified.json`) and a `.partial` download by hand in a scratch store: the ready
+row's size line is the bytes the case wrote followed by " on disk", the partial row's stays
+"<partial> of <download>".
+
+"raw float alpha rule" (`raw_float_alpha.swift`) calls `RetainedRawDecoder.normalizeOpaqueAlpha`
+on one-pixel buffers: alphas within half a 16-bit code of 1 become exactly 1 with RGB unchanged,
+and code 65534, 0.9999, 0.5, 0, 1.5, NaN and infinity refuse.
 
 "indexed background key" (`indexed_background_key.swift`) converts an 8 × 4 PNG of four
 colour columns to an Exact Indexed Color document with no transparent index and runs
