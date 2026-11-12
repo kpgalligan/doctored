@@ -89,9 +89,10 @@ private func alphaCentroid(_ bytes: [UInt8], width: Int, height: Int) throws -> 
 
 /// The case's own oracle, in the flipped host space: H = hostCentre +
 /// R(θ)·(P − canvasCentre) with R = [[cos, −sin], [sin, cos]], a clockwise
-/// turn on screen, converted to a WINDOW point.
-private func rotatedWindowPoint(editor: EditorViewController, canvasSize: CGSize,
-                                target: CGPoint, degrees: Double) -> CGPoint {
+/// turn on screen, converted to a WINDOW point. `rotated-text-editor-ui`
+/// aims its text-tool clicks with it too.
+func rotatedWindowPoint(editor: EditorViewController, canvasSize: CGSize,
+                        target: CGPoint, degrees: Double) -> CGPoint {
     let host = editor.canvasHost.frame.size
     let radians = degrees * Double.pi / 180
     let dx = Double(target.x) - Double(canvasSize.width) / 2

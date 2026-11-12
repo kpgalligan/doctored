@@ -104,7 +104,7 @@ left as written.
 in `build/probe-cache/<key>/` (eight entries) and a persistent module cache. The gain is the reuse on unchanged sources, not the
 compile. The `probes` gate step type-checks changed or last-failed probe directories only, so a committed one is checked by hand.
 Existing failures found: `color-metadata-probe` and `test_provenance_manifests.py` (fixed since) and `verify_phase8c.py --host-only`,
-whose host probe still hangs ([#22](https://github.com/kpgalligan/doctored/issues/22)).
+whose host probe hung; it passed 2026-11-12 under `DR_BACKGROUND=1`, the hang's cause unrecorded.
 
 ## Phase 7a
 `6e5d2e6`: `DoctoredCore.swift` keeps the handle classes and error plumbing; its other sections moved verbatim into 44
@@ -173,6 +173,5 @@ time instead of sharing the pool (Phase 5 measured 234 s, about 20 s over Phase 
 ## Open items
 None. `DROPPED`: the re-profile after about 20 batches, the owner's Developer Tools first-launch experiment, the
 owner's choice of which `image` decoders to keep, the 8B and 8C drives' frozen tool-catalog count, and the eleven drives with no
-inputs on this machine. The 8C host probe's hang is open as [#22](https://github.com/kpgalligan/doctored/issues/22)
-([phase-8g-raw-enhancements-status.md](phase-8g-raw-enhancements-status.md) owns it); every other failure Phases 3 and 6 found
-was fixed.
+inputs on this machine. Every failure Phases 3 and 6 found was fixed, and the 8C host probe's hang did not recur
+([phase-8g-raw-enhancements-status.md](phase-8g-raw-enhancements-status.md), 2026-11-12).

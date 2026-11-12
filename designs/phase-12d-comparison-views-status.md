@@ -142,8 +142,11 @@ which restore the whole editing state.
   real HID events and Accessibility permission, so it stays a manual check; hover and hit-testing are gated by
   the 9H case `rotate-view-hover-ui` (below).
 - `OPEN` [#22](https://github.com/kpgalligan/doctored/issues/22) — typing and committing a text edit while
-  the view is rotated: the 9H case `rotated-text-editor-ui` opens a text session at −30° and checks the mapping
-  and hit test, but resets the rotation before its commit steps.
+  the view is rotated: since 2026-11-12 the 9H case `rotated-text-editor-ui` runs each of its four trials level
+  and at −30° (eight), keeps the turned view through every commit, opens the re-edit and a new entry by
+  text-tool clicks aimed at the turned view, and requires the turned trial's document to equal the level one's.
+  The case is type-checked and links; its first run is the owner's hand check (`verify_phase9h_ui.py` takes the
+  focus).
 - `DONE` — hover and hit-testing under a rotated
   view are gated by the 9H case `rotate-view-hover-ui`; `setViewRotation` re-derives the brush ring's hover point
   after every turn (a turn need not scroll).

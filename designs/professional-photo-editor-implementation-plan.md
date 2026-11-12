@@ -170,7 +170,7 @@ Goal: large high-depth multilayer documents meet declared latency, memory, save 
 - `OPEN` [#30](https://github.com/kpgalligan/doctored/issues/30) — a layered TIFF's compressed spot strip that does not decode, dropped with no loss line on a byte open.
 - `OPEN` [#7](https://github.com/kpgalligan/doctored/issues/7), [#8](https://github.com/kpgalligan/doctored/issues/8) — HDR Toning's built-in presets and `.hdt` import.
 - `OPEN` [#21](https://github.com/kpgalligan/doctored/issues/21) — local models for Select by text and Generative Fill and Expand.
-- `OPEN` [#22](https://github.com/kpgalligan/doctored/issues/22) — 8G, 12D and 13A test gaps: the hanging 8C host probe, a rotated-view text commit, six load-sensitive test files.
+- `OPEN` [#22](https://github.com/kpgalligan/doctored/issues/22) — 12D test gap: the first run of `rotated-text-editor-ui`, which now types and commits under a rotated view, a hand check.
 
 ## Follow-on tracks
 

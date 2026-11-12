@@ -126,5 +126,6 @@ must match an f64 reference, and float must never resample extended-range sample
   no-ops (`7f9d55a`); interactive drag at depth (`f285a29`); set/group/retained geometry (`07d9153`; no `whole` set in
   `../app/Sources/RetainedImagePolicy.swift`); warp, source geometry, byte paint recordability (`6400648`).
 - `DONE` — `get_document` offset spelled two ways (fixed in 12F-1c).
-- `DROPPED` — Cancellation-test "never observed live" hole in `phase8e_coverage` / `precision_layer_blending` /
-  `refinement_cutout`: deliberately left, since widening it would stop proving mid-work atomicity (original §12F-1b3).
+- `DONE` — Cancellation-test "never observed live" hole in `phase8e_coverage` / `precision_layer_blending` /
+  `refinement_cutout`: their default cancel tests now park the worker mid-work and cancel it there
+  (`common::probe::cancelled_parked_at`, build-velocity Phase 10), so every run observes the cancel live.

@@ -1,6 +1,6 @@
 # Phase 8G — camera controls and local RAW development (ADR)
 
-- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11), [#22](https://github.com/kpgalligan/doctored/issues/22))
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 8G, 2026-09-11 (completes Phase 8)
 - **Originals:** [archive/phase-8g-raw-enhancements-status.md](../archive/phase-8g-raw-enhancements-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-8g-raw-enhancements-status.md](../archive/2026-10/phase-8g-raw-enhancements-status.md) — this doc as of 2026-10-07, with every measurement table and issue record; [archive/phase-8g-raw-enhancements-shipped.md](../archive/phase-8g-raw-enhancements-shipped.md) — the shipped companion, condensed into this ADR on 2026-10-30; [archive/2026-10-30/phase-8g-raw-enhancements-status.md](../archive/2026-10-30/phase-8g-raw-enhancements-status.md) — this doc as of 2026-10-30, before the companion fold
 - **Key commits:** `e386448` (follows 8F `9b3f65c`)
@@ -178,7 +178,10 @@ code over 577.5 M components; native masters exact over 192.5 M components; mask
 - `DONE` — the 32-bit float (linear) RAW development, generated and Sky locals, the Develop Filter and its masks and syncing locals across pictures (Decisions above).
 - `DROPPED` (2026-10-30) — expanded ProRes cross-decoder comparison (from 8F): retained host sources were removed 2026-10-10 and frames land as plain pixels, so decoder agreement has no user-visible effect.
 - `DROPPED` (2026-10-30) — measuring decoder migration's `RawLocalWork.scratch` envelope as its own stage: it re-measures a shipped charge that covers every measured four-local case at ≥ 1.25×, with no failure recorded.
-- `OPEN` [#22](https://github.com/kpgalligan/doctored/issues/22) — `scripts/verify_phase8c.py` fails: its host probe hangs.
+- `DONE` (2026-11-12) — `scripts/verify_phase8c.py --host-only`'s host probe hang: under the test-launch convention
+  (`DR_BACKGROUND=1 python3 scripts/verify_phase8c.py --host-only`) the drive passes, both depths, the probe in
+  6.69 s. The October 600 s hang did not recur and its cause was never recorded; a run without `DR_BACKGROUND=1`
+  activates the probe at each Develop RAW card and was not repeated.
 - `DONE` — Lens distortion / transverse CA as source-stage geometry and geometry-changing local-plane remap (12F-4, `6400648`; `raw_local_remap.rs`, `RawLocalRemapSheetController.swift`).
 - `DONE` — Typed capture packets/PPI for RAW (11D typed metadata bridge); typed auxiliary mattes (9G, P7-08).
 - `DONE` — Per-entry RAW preset repair (12B: `broken` rows, `repair_raw_preset`, schema 2 on write).

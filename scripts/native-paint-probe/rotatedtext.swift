@@ -6,6 +6,9 @@ import AppKit
 // glyphs do; the text tool's hit test uses the transformed quad; and the
 // commit keeps the layer's transform and exact anchor. Mirrored, off-canvas
 // and untransformed layers keep the upright editor at the earlier clamp.
+// Every trial also runs under a view turned −30° (the 12D view rotation):
+// typing, committing and the text tool's clicks must leave exactly the
+// document the level run leaves.
 
 /// The line fragments a layout manager has laid out.
 private func rotatedLineCount(_ manager: NSLayoutManager) -> Int {
@@ -67,17 +70,77 @@ private func rotatedPlacementPure(canvas: ImageCanvasView) throws -> [String: An
     return ["off_canvas_quad_upright": true, "bbox_intersects": true]
 }
 
+/// A text-tool press and release at canvas point `target`, sent at the WINDOW
+/// point the views case's own rotation oracle computes for the angle the case
+/// set (`rotatedWindowPoint`), so the press goes through the canvas's
+/// window-to-document conversion: the path a user's click takes under a
+/// turned view.
+private func rotatedTextClick(_ editor: EditorViewController, at target: CGPoint,
+                              degrees: Double, _ label: String) throws {
+    guard let doc = editor.document?.doc else {
+        throw DoctoredCoreError(message: "\(label): document missing")
+    }
+    let size = CGSize(width: CGFloat(doc.width), height: CGFloat(doc.height))
+    let inWindow = rotatedWindowPoint(editor: editor, canvasSize: size, target: target,
+                                      degrees: degrees)
+    let mapped = editor.canvas.convert(inWindow, from: nil)
+    try require(hypot(mapped.x - target.x, mapped.y - target.y) <= 0.01,
+        "\(label): window point \(inWindow) maps to \(mapped), want \(target)")
+    try require(editor.canvas.tool == .text && !editor.canvas.hasActiveTextSession,
+        "\(label): the click needs the text tool and no open session")
+    try sendWindow(editor.canvas, .leftMouseDown, windowPoint: inWindow)
+    try sendWindow(editor.canvas, .leftMouseUp, windowPoint: inWindow)
+    pump()
+}
+
+/// Every layer of `doc` as one line: its name, raster size and offset, a text
+/// layer's string, map, box and anchor, and a SHA-256 of its stored samples.
+/// A view rotation is view state, so a trial run under a turned view must
+/// leave exactly the document its level twin leaves.
+private func rotatedTextFingerprint(_ doc: RasterDocument) throws -> [String] {
+    try (0..<doc.layerCount).map { index in
+        guard let info = doc.layerInfo(index) else {
+            throw DoctoredCoreError(message: "Fingerprint: layer \(index) missing")
+        }
+        var parts = ["\(index) \(info.name)",
+                     "\(info.width)x\(info.height)@\(info.offsetX),\(info.offsetY)"]
+        if let payload = doc.textPayload(index) {
+            parts += [payload.string.debugDescription, "\(payload.transform.array)", "\(payload.box)"]
+        }
+        if let anchor = doc.describedAnchor(index) { parts.append("anchor \(anchor.x),\(anchor.y)") }
+        if let source = doc.precision?.layerSource(index) {
+            parts.append(hashSamples(try source.withRGBA16 { Array($0) }))
+        } else if let pixels = doc.layerPixels(index) {
+            parts.append(hashBytes(pixels))
+        } else {
+            parts.append("no samples")
+        }
+        return parts.joined(separator: " | ")
+    }
+}
+
 /// rotated-text-editor-ui.
+///
+/// Eight trials: 8- and 16-bit, point and box text, each LEVEL and TURNED. A
+/// turned trial sets the view to −30° once its session is open and keeps it
+/// for every later step: the unchanged commit, the typed edit and the append
+/// with their commits, the 8-bit hit tests and upright fallbacks, and a NEW
+/// entry. The edit's re-open and the new entry are text-tool clicks aimed
+/// with the views case's oracle at the trial's angle, so they take the
+/// canvas's own window-to-document path. A turned trial must leave exactly
+/// the document its level twin left (`rotatedTextFingerprint`).
 func rotatedTextEditorUI() throws -> [String: Any] {
     var trials: [[String: Any]] = []
     var pure: [String: Any] = [:]
+    var levelPrints: [String: [String]] = [:]
     let wire: [Double] = [1.5 * cos(Double.pi / 6), -1.5 * sin(Double.pi / 6),
                           1.5 * sin(Double.pi / 6), 1.5 * cos(Double.pi / 6)]
     guard let map = LinearMap(array: wire) else {
         throw DoctoredCoreError(message: "Probe map invalid")
     }
     for typed in [false, true] {
-        for point in [false, true] {
+        // Each level trial runs before its turned twin, which compares against it.
+        for (point, turned) in [(false, false), (false, true), (true, false), (true, true)] {
             let (document, editor, _) = typed
                 ? try openDocument(width: 240, height: 180)
                 : try openByteDocument(width: 240, height: 180)
@@ -88,7 +151,13 @@ func rotatedTextEditorUI() throws -> [String: Any] {
             }
             let canvas = editor.canvas
             if pure.isEmpty { pure = try rotatedPlacementPure(canvas: canvas) }
-            let label = "\(typed ? "16" : "8")-bit \(point ? "point" : "box")"
+            let label = "\(typed ? "16" : "8")-bit \(point ? "point" : "box") "
+                + (turned ? "turned" : "level")
+            let angle: Double = turned ? -30 : 0
+            func viewHeld(_ step: String) throws {
+                try require(editor.viewRotation == angle,
+                    "\(label) \(step): the view is at \(editor.viewRotation)°, want \(angle)°")
+            }
             let added = try geometryCall("add_text_layer",
                 ["text": point ? "Turn me" : "Tilted", "x": 60, "y": 40, "size": 16,
                  "wrap_width": point ? 0 : 120, "transform": wire], document)
@@ -123,8 +192,10 @@ func rotatedTextEditorUI() throws -> [String: Any] {
             try require(canvas.textSessionOrigin == anchor, "\(label): session not at the anchor")
             try mapCheck("open")
 
-            // (3) a turned view changes neither the map nor the hit.
-            if !typed {
+            // (3) a turned view changes neither the map nor the hit. A turned
+            // trial keeps the view turned from here on; a level 8-bit trial
+            // turns it and back.
+            if turned || !typed {
                 editor.setViewRotation(-30); editor.view.layoutSubtreeIfNeeded(); pump()
                 try mapCheck("view -30°")
                 guard let textView = canvas.activeTextView, let window = textView.window,
@@ -136,8 +207,11 @@ func rotatedTextEditorUI() throws -> [String: Any] {
                 let hit = content.hitTest(content.superview?.convert(centre, from: nil) ?? centre)
                 try require(hit.map { $0 === textView || $0.isDescendant(of: textView) } == true,
                     "\(label): centre hit \(String(describing: hit))")
-                editor.setViewRotation(0); editor.view.layoutSubtreeIfNeeded(); pump()
+                if !turned {
+                    editor.setViewRotation(0); editor.view.layoutSubtreeIfNeeded(); pump()
+                }
             }
+            try viewHeld("before the commits")
 
             // (4) an unchanged ⌘Return registers nothing.
             let before = document.doc
@@ -146,12 +220,27 @@ func rotatedTextEditorUI() throws -> [String: Any] {
             pump()
             try require(document.doc === before && document.history.entries.count == steps,
                 "\(label): an unchanged commit edited the document")
+            try viewHeld("unchanged commit")
 
             // (5) a real edit re-syncs the host and keeps the map and anchor.
-            editor.editTextLayer(idx); pump()
+            // The session is re-opened by a text-tool click on the centroid of
+            // the layer's quad: it must open layer `idx`, not a new entry.
+            guard let shown = document.doc, let shownDescription = shown.layerDescription(idx),
+                  let shownSource = shownDescription.sourceRect() else {
+                throw DoctoredCoreError(message: "\(label): layer geometry missing before re-open")
+            }
+            let shownQuad = shownDescription.transform.quad(of: shownSource, anchor: anchor)
+            let shownCentroid = CGPoint(x: shownQuad.map(\.x).reduce(0, +) / 4,
+                                        y: shownQuad.map(\.y).reduce(0, +) / 4)
+            try rotatedTextClick(editor, at: shownCentroid, degrees: angle, "\(label) re-open")
             guard let textView = canvas.activeTextView else {
                 throw DoctoredCoreError(message: "\(label): reopen failed")
             }
+            try require(canvas.textSessionOrigin == anchor
+                && canvas.textSessionHost?.placement == TextSessionPlacement(map: stored)
+                && textView.string == payload.string,
+                "\(label): the click on the quad opened \(textView.string.debugDescription) at "
+                    + "\(String(describing: canvas.textSessionOrigin)), want layer \(idx) at \(anchor)")
             let length = (textView.string as NSString).length
             textView.setSelectedRange(NSRange(location: length, length: 0))
             textView.insertText("\nOK", replacementRange: NSRange(location: NSNotFound, length: 0))
@@ -159,6 +248,7 @@ func rotatedTextEditorUI() throws -> [String: Any] {
             try mapCheck("after typing")
             try require(canvas.commitTextSession(), "\(label): edit refused")
             pump()
+            try viewHeld("edit commit")
             try require(document.history.entries.count == steps + 1
                 && document.history.entries.last?.name == "Edit Text Layer",
                 "\(label): edit history \(document.history.entries.map(\.name))")
@@ -185,6 +275,7 @@ func rotatedTextEditorUI() throws -> [String: Any] {
             try mapCheck("after append")
             try require(canvas.commitTextSession(), "\(label): append refused")
             pump()
+            try viewHeld("append commit")
             guard let appended = document.doc?.textPayload(idx) else {
                 throw DoctoredCoreError(message: "\(label): appended layer missing")
             }
@@ -195,7 +286,7 @@ func rotatedTextEditorUI() throws -> [String: Any] {
                 try require(committedLines == 2, "\(label): point text wrapped to \(committedLines)")
             }
 
-            var trial: [String: Any] = ["label": label, "editor_lines": editorLines,
+            var trial: [String: Any] = ["label": label, "turned": turned, "editor_lines": editorLines,
                                         "committed_lines": committedLines]
             if !typed {
                 // (6) the hit test uses the quad, not the bounding box.
@@ -242,10 +333,68 @@ func rotatedTextEditorUI() throws -> [String: Any] {
                     try require(canvas.commitTextSession() && document.history.entries.count == flatSteps,
                         "\(label) \(name): unchanged commit edited")
                     pump()
+                    try viewHeld("\(name) commit")
                 }
                 trial["quad_hit_test"] = true
                 trial["upright_fallbacks"] = ["mirrored", "upright"]
             }
+
+            // (9) a NEW entry, opened by a text-tool click clear of every text
+            // layer (at x ≤ 200 the default box is 240 − x wide, so the upright
+            // clamp does not shift it): its session opens at the click, and the
+            // commit adds one text layer at the whole-pixel placement of it.
+            let fresh = CGPoint(x: 20.25, y: 150.25)
+            guard let beforeFresh = document.doc else {
+                throw DoctoredCoreError(message: "\(label): document missing before the new entry")
+            }
+            try require(editor.topmostTextLayer(at: fresh, in: beforeFresh) == nil,
+                "\(label): the new entry's point \(fresh) hits a text layer")
+            let freshSteps = document.history.entries.count
+            let freshCount = beforeFresh.layerCount
+            try rotatedTextClick(editor, at: fresh, degrees: angle, "\(label) new entry")
+            guard let freshView = canvas.activeTextView, let freshOrigin = canvas.textSessionOrigin else {
+                throw DoctoredCoreError(message: "\(label): the click opened no new entry")
+            }
+            try require(freshView.string.isEmpty && canvas.textSessionHost?.placement == .identity
+                && hypot(freshOrigin.x - fresh.x, freshOrigin.y - fresh.y) <= 0.01,
+                "\(label): the new entry opened at \(freshOrigin) holding "
+                    + "\(freshView.string.debugDescription), want an empty entry at \(fresh)")
+            freshView.insertText("New", replacementRange: NSRange(location: NSNotFound, length: 0))
+            pump()
+            try require(canvas.commitTextSession(), "\(label): new entry refused")
+            pump()
+            try viewHeld("new entry commit")
+            guard let entered = document.doc else {
+                throw DoctoredCoreError(message: "\(label): document missing after the new entry")
+            }
+            let newIdx = document.activeLayerIndex
+            let wantAnchor = DescribedLayer.placementAnchor(fresh, transform: .identity)
+            try require(entered.layerCount == freshCount + 1
+                && document.history.entries.count == freshSteps + 1
+                && document.history.entries.last?.name == "Add Text Layer"
+                && entered.textPayload(newIdx)?.string == "New"
+                && entered.describedAnchor(newIdx) == wantAnchor,
+                "\(label): the new entry committed \(entered.layerCount - freshCount) layer(s), "
+                    + "history \(document.history.entries.map(\.name).suffix(2)), "
+                    + "anchor \(String(describing: entered.describedAnchor(newIdx))), want \(wantAnchor)")
+            trial["new_entry_anchor"] = [Double(wantAnchor.x), Double(wantAnchor.y)]
+
+            // The oracle: the turned trial's document is its level twin's.
+            let fingerprint = try rotatedTextFingerprint(entered)
+            let twin = "\(typed)-\(point)"
+            if turned {
+                guard let level = levelPrints[twin] else {
+                    throw DoctoredCoreError(message: "\(label): the level twin did not run")
+                }
+                let differing = zip(fingerprint, level).filter { $0 != $1 }
+                try require(fingerprint == level,
+                    "\(label): the document differs from its level twin (\(fingerprint.count) vs "
+                        + "\(level.count) layers): \(differing.prefix(2))")
+                trial["matches_level_twin"] = true
+            } else {
+                levelPrints[twin] = fingerprint
+            }
+            trial["layers"] = fingerprint.count
             trials.append(trial)
         }
     }
