@@ -1022,7 +1022,9 @@ fn threshold_modes_round_trip_through_sixteen_bit_psd_and_import_a_hard_mix_fold
             source.layer_source(index).unwrap().to_rgba16().ok()
         );
     }
-    assert_eq!(&encoded(&back)[4..8], &34u32.to_le_bytes());
+    // A PSD import marks record 0 (word 113, `background_native`) first.
+    assert_eq!(&encoded(&back)[4..8], &113u32.to_le_bytes());
+    assert_eq!(&encoded(&back)[8..12], &34u32.to_le_bytes());
 
     // An independently authored closed `hMix` folder at opacity 128.
     let child: Vec<[u16; 4]> = colors[13..17].to_vec();

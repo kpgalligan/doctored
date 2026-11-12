@@ -320,7 +320,13 @@ impl DrDocument {
         // style asks for a knockout, entry 0 qualifies as the Background and
         // the root level's first unit is entry 0 alone.
         level.background = document_wants_background(&self.layers)
-            && background_entry(&self.layers, (self.width, self.height), cut).is_some()
+            && background_entry(
+                &self.layers,
+                (self.width, self.height),
+                cut,
+                self.background,
+            )
+            .is_some()
             && doc_group::top_level(&self.layers)
                 .first()
                 .is_some_and(|u| u.idx == 0 && u.start == 0);

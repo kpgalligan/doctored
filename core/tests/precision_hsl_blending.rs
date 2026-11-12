@@ -695,7 +695,9 @@ fn hsl_modes_round_trip_through_sixteen_bit_psd_and_import_a_saturation_folder()
             source.layer_source(index).unwrap().to_rgba16().ok()
         );
     }
-    assert_eq!(&encoded(&back)[4..8], &33u32.to_le_bytes());
+    // A PSD import marks record 0 (word 113, `background_native`) first.
+    assert_eq!(&encoded(&back)[4..8], &113u32.to_le_bytes());
+    assert_eq!(&encoded(&back)[8..12], &33u32.to_le_bytes());
 
     // An independently authored closed `sat ` folder at opacity 128.
     let child: Vec<[u16; 4]> = colors[13..17].to_vec();

@@ -534,6 +534,7 @@ impl PrecisionDocument {
         out.global_light = source.global_light;
         out.paths.set_entries(source.paths.entries.to_vec());
         out.comps = crate::gray_comps::carried_comps(&source.comps, &tiles_in, &policy)?;
+        out.background = source.background;
         let out = out
             .seeding_vector_masks(source.vector_mask_seeds(Clone::clone), limit, other)
             .with_gray(Arc::new(policy))?;

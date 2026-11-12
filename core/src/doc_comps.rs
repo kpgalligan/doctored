@@ -76,9 +76,10 @@
 //! `dx`/`dy`, lock-exempt bookkeeping the host sends after it re-renders a described layer),
 //! and naming ANY capture flag states the whole set.
 //! `rebind` runs after construction — at the typed depth on BOTH reader exits, because the pending
-//! nodes have no ids until `materialize` mints them. No PSD `cmls` in either direction: a recorded
-//! gap, owner 10C-3 — 12E-3c measured that the premise ("comps name layers by record index"/"by a
-//! persisted id") is unverified and authored no codec.
+//! nodes have no ids until `materialize` mints them. PSD comps (resource 1065 and each record's
+//! `cmls`) cross at RGB 8 and 16 bits with their names, comments and visibility (`psd_comps`):
+//! a layer's settings ride in its own record, so an imported entry binds to the layer built from
+//! that record.
 
 use serde::Deserialize;
 

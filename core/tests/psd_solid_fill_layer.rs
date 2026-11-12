@@ -941,15 +941,16 @@ fn a_soco_that_does_not_decode_is_omitted_or_stays_a_raster() {
     raster.blocks = fixture8::block(b"SoCo", &cmyc_body([10.0, 20.0, 30.0, 0.0]));
     let mut bad = rgbc_body([1.0, 2.0, 3.0]);
     bad[3] = 15;
-    // Photoshop's SHAPE layer: a good `SoCo` under a vector mask (`vmsk`,
-    // version 3, no path records), which layered import does not carry.
+    // Photoshop's SHAPE layer under an INVERTED vector mask (`vmsk`, version
+    // 3, flags bit 0, no path records), which layered import does not carry
+    // (`psd_paths`; a carried one is `psd_paths.rs`'s).
     let mut shape = fixture8::Record::raster([0, 0, 2, 2], &[60; 16], false);
     shape.name = "Shape";
     shape.flags = 0x18;
     shape.blocks = fixture8::block(b"SoCo", &rgbc_body([40.0, 90.0, 200.0]));
     shape
         .blocks
-        .extend(fixture8::block(b"vmsk", &[0, 0, 0, 3, 0, 0, 0, 0]));
+        .extend(fixture8::block(b"vmsk", &[0, 0, 0, 3, 0, 0, 0, 1]));
     let records = vec![
         base,
         empty8("Ink", b"SoCo", &cmyc_body([10.0, 20.0, 30.0, 0.0])),

@@ -557,6 +557,10 @@ pub(crate) fn open16(
         let mut document = PrecisionDocument::from_image(image, Metadata::default(), resolution)?;
         document.global_light = light;
         document.color_samplers.clone_from(&color_samplers);
+        // Resources 1025 and 2000–2997 (`psd_paths`).
+        document
+            .paths
+            .set_entries(crate::psd_paths::file_paths(&container).0);
         document.with_psd_spots(&container, limit, other)
     };
     if mode == 1 {
@@ -579,6 +583,9 @@ pub(crate) fn open16(
         return Ok(document);
     }
 
+    // The record each built entry came from, in postorder (the order the
+    // tree is emitted in), for its layer comp settings (`psd_comps`).
+    let sources = std::cell::RefCell::new(Vec::new());
     let roots = emit_typed_tree(
         &psd,
         &records,
@@ -587,6 +594,9 @@ pub(crate) fn open16(
             if records.omitted(index) {
                 return Ok(None);
             }
+            sources
+                .borrow_mut()
+                .push(crate::psd_comps::CompSource::Layer(index));
             let built = if let Some(carried) = records.carried(index) {
                 job.check().and_then(|()| {
                     adjustment_layer(
@@ -629,6 +639,9 @@ pub(crate) fn open16(
                 .map(Some)
         },
         &mut |id, children| {
+            sources
+                .borrow_mut()
+                .push(crate::psd_comps::CompSource::Group(id));
             group_layer(
                 psd.groups()[&id].name(),
                 &records.groups[id as usize - 1],
@@ -655,6 +668,24 @@ pub(crate) fn open16(
     )?;
     document.global_light = light;
     document.color_samplers = color_samplers;
+    // Resources 1025 and 2000–2997 (`psd_paths`).
+    document
+        .paths
+        .set_entries(crate::psd_paths::file_paths(&container).0);
+    // FILE record 0, when kept, is root entry 0 (`psd_background`).
+    if let Some(role) = crate::psd_background::import_role(&records) {
+        document.mark_bottom(role);
+    }
+    // The vector masks the walk carried (`psd_paths`), each on the record
+    // built from its file record.
+    for (k, &source) in sources.borrow().iter().enumerate() {
+        if let Some(body) = crate::psd_paths::source_vmsk(&records, source) {
+            document = document.importing_vector_mask(k, body, limit, other)?;
+        }
+    }
+    document.comps = crate::psd_comps::imported(&container, &records, &sources.borrow(), |k| {
+        Some((document.layer_id(k)?, document.layer(k)?.name().to_string()))
+    });
     let document = document.with_psd_spots(&container, limit, other)?;
     job.report(1.0, 5)?;
     Ok(document)

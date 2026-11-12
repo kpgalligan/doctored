@@ -167,7 +167,11 @@ pub(crate) const MAX_DRDC_BLOB_LEN: u32 = 16 * 1024 * 1024;
 /// some channel is a spot channel): the FIRST word inside 45 (ahead of 111)
 /// with its `SPOT` table after `LREF`, and in a typed file the word right
 /// after the CMYK slot (ahead of 111) with `SPOT` after `LREF`.
-/// The next free word is 113. The constant stays 89: words 90 to 112 are
+/// 113 is the Background mark word at both depths (`background_native`:
+/// the document's mark names a layer it holds): the FIRST word inside 45
+/// (ahead of 112) with its `LBKG` table after `SPOT`, and in a typed file the
+/// word right after the CMYK slot (ahead of 112) with `LBKG` after `SPOT`.
+/// The next free word is 114. The constant stays 89: words 90 to 113 are
 /// conditional words read ahead of the body version, never a body version
 /// themselves.
 /// Since 2026-10-10 words 65, 66, 68, 69, 70 and 73
@@ -493,10 +497,14 @@ impl DrDocument {
     /// the profile rides inside that record's meta. A document with no such
     /// meta writes nothing here, so its bytes stay exactly the prior
     /// writer's.
-    /// Version 112 is the FIRST word inside 45 (`spot_channel_native`, #1),
+    /// Version 113 is the FIRST word inside 45 (`background_native`), ahead
+    /// of 112: a document whose Background mark names a layer it holds
+    /// writes 113 after 45 and before every other conditional word, and its
+    /// `LBKG` table after SPOT, before LIDS. The next free word is 114.
+    /// Version 112 is the next word inside 45 (`spot_channel_native`, #1),
     /// ahead of 111: a document some channel of which is a spot channel
-    /// writes 112 after 45 and before every other conditional word, and its
-    /// `SPOT` table after LREF, before LIDS. The next free word is 113.
+    /// writes 112 after 45 and before every other conditional word but 113,
+    /// and its `SPOT` table after LREF, before LBKG and LIDS.
     /// Version 111 is the next word inside 45 (`gradient_map_method_native`),
     /// ahead of 105, with no table: a document some layer meta of
     /// which is a Gradient Map with a `method` writes 111. Version 105 is the next
@@ -632,7 +640,14 @@ impl DrDocument {
         // every layer, so there is no "document without the table".
         let ids = crate::identity_native::byte_ids(self);
         buf.extend_from_slice(&crate::identity_native::BYTE_VERSION.to_le_bytes());
-        // Then `spot_channel_native`'s word 112 — the FIRST word inside 45,
+        // Then `background_native`'s word 113 — the FIRST word inside 45,
+        // ahead of 112, written only when the Background mark names a layer
+        // the document holds; its LBKG table follows SPOT.
+        let background = crate::background_native::byte_entry(self);
+        if background.is_some() {
+            buf.extend_from_slice(&crate::background_native::WORD.to_le_bytes());
+        }
+        // Then `spot_channel_native`'s word 112 — the next word inside 45,
         // ahead of 111, written only when some channel is a spot channel;
         // its SPOT table follows LREF (#1).
         let spots = crate::spot_channel_native::byte_entries(&self.channels);
@@ -1062,6 +1077,12 @@ impl DrDocument {
         )?;
         crate::spot_channel_native::encode(
             &spots,
+            &mut buf,
+            u64::MAX,
+            crate::job_control::JobContext::NONE,
+        )?;
+        crate::background_native::encode(
+            background,
             &mut buf,
             u64::MAX,
             crate::job_control::JobContext::NONE,

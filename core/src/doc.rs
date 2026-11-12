@@ -298,6 +298,11 @@ pub struct DrDocument {
     /// pixels. See `doc_comps`, which owns every rule; `doc.rs` only carries
     /// the list through the ops that rebuild the document.
     pub(crate) comps: Vec<crate::doc_comps::LayerComp>,
+    /// The BACKGROUND MARK (`doc_background`): whether the bottom layer is a
+    /// Background or an ordinary layer, when the source file said so; `None`
+    /// keeps D5's structural rule. It names a layer by id, so every op that
+    /// rebuilds the document carries it verbatim.
+    pub(crate) background: Option<crate::doc_background::BackgroundMark>,
 }
 
 /// Clamps opacity to [0, 1], mapping non-finite values to 1.
@@ -827,6 +832,8 @@ impl DrDocument {
             linear_light: None,
             // Bare pixels carry no comp; `doc_comps` adds them deliberately.
             comps: Vec::new(),
+            // …and no Background mark: D5 is structural (`doc_background`).
+            background: None,
         }
     }
 
@@ -921,9 +928,9 @@ impl DrDocument {
         // stack this is `composite_level_into` on the whole level, unchanged.
         crate::style_knockout::composite_projection_into(
             &mut acc,
-            self.width,
-            self.height,
+            (self.width, self.height),
             &self.layers,
+            self.background,
             &level,
             env,
             &budget,
@@ -1649,6 +1656,7 @@ impl DrDocument {
                 None,
                 |_| 1.0,
             ),
+            background: self.background,
         };
         crate::doc_rotate::exact_geometry_changed(self, &result).then(|| following(result))
     }
@@ -1711,6 +1719,7 @@ impl DrDocument {
                 None,
                 |_| 1.0,
             ),
+            background: self.background,
         };
         Some(self.following_translation(out, crate::reference_point::ReferenceOp::Crop, dx, dy))
     }
@@ -1777,6 +1786,7 @@ impl DrDocument {
                 None,
                 |_| 1.0,
             ),
+            background: self.background,
         };
         let op = crate::reference_point::ReferenceOp::CanvasSize;
         Some(self.following_translation(out, op, dx, dy))
@@ -1880,6 +1890,7 @@ impl DrDocument {
                 None,
                 |_| (fx * fy).sqrt(),
             ),
+            background: self.background,
         };
         // The follow hook (`doc_vector_mask`): a raster-less vector mask is
         // rebuilt from its shape scaled by the canvas's own factors, as

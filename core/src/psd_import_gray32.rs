@@ -114,6 +114,10 @@ pub(crate) fn open_gray32(
         let mut document = document.with_import_warnings(all)?;
         document.global_light = light;
         document.color_samplers.clone_from(&color_samplers);
+        // Resources 1025 and 2000–2997 (`psd_paths`).
+        document
+            .paths
+            .set_entries(crate::psd_paths::file_paths(container).0);
         let document = document
             .with_gray(Arc::new(policy.clone()))
             .map_err(|e| format!("PSD {path}: {e}"))?;

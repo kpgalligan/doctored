@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "family": "layer_comps",
+  "application": {
+    "name": "Adobe Photoshop",
+    "version": "26.10.0",
+    "app_sha256": "a502d3b62279299a77f85d69a3d8f3d5379e0fb406d40d746a00ee49031bfa04"
+  },
+  "take": "~/devel/doctored-fixtures/photoshop/layer-comps-521/take1/job/last_state",
+  "files": {
+    "source.psd": {
+      "from": "last_state_reopen.psd",
+      "sha256": "24931d88b807e5437a416e129efab0be1072745a70a697c00fa409aba2754109"
+    },
+    "photoshop.json": {
+      "from": "photoshop.json",
+      "sha256": "531fe674fe244eb5d9d1dbcf5da0634433bb8048772a310ef5c4497f35d96013"
+    }
+  },
+  "content": "Layers Background (a Photoshop Background record), LA, LB, group G holding GC, and LX, added after the comps; five comps in resource 1065: All (capturedInfo 7), PosOnly (2), AppOnly (4), HA (7) and HB (7), each record's shmd carrying its cmls settings. photoshop.json's layer_comps steps are Photoshop's own visibility after applying HA and HB."
+}

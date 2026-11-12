@@ -27,8 +27,10 @@
 //! reason, nesting past 16 and counts past 4096 decline, and nothing panics.
 //! The writer emits a four-byte id as `len = 0` + the bytes and any other
 //! length explicitly (an [`Item::EnumStringId`]'s enum id always
-//! explicitly), unicode as `chars + 1` with the trailing 0, and skips
-//! `Item::Other` without counting it.
+//! explicitly, and under [`write_with_string_ids`] each id it names, the way
+//! Photoshop writes resource 1065's `list` and `Comp`, `psd_comp_records`),
+//! unicode as `chars + 1` with the trailing 0, and skips `Item::Other`
+//! without counting it.
 //!
 //! `psd_descriptor.rs` is the ONE Photoshop descriptor-structure reader/writer (version 16, the
 //! `Objc` grammar: `long`/`doub`/`bool`/`TEXT`/`Objc`/`UntF`/`enum`/`VlLs` read,
@@ -395,8 +397,11 @@ pub(crate) fn read_with_references(body: &[u8]) -> Result<Descriptor, String> {
 
 // --------------------------------------------------------------- writing --
 
-fn push_id(out: &mut Vec<u8>, id: &[u8]) {
-    let len = if id.len() == 4 { 0 } else { id.len() as u32 };
+/// `string_ids` are the four-byte ids written as STRING ids (an explicit
+/// length) rather than as char ids (length 0), [`write_with_string_ids`].
+fn push_id(out: &mut Vec<u8>, id: &[u8], string_ids: &[[u8; 4]]) {
+    let char_id = id.len() == 4 && !string_ids.iter().any(|s| s.as_slice() == id);
+    let len = if char_id { 0 } else { id.len() as u32 };
     out.extend_from_slice(&len.to_be_bytes());
     out.extend_from_slice(id);
 }
@@ -414,9 +419,9 @@ fn written(item: &Item) -> bool {
     !matches!(item, Item::Other)
 }
 
-fn write_descriptor(out: &mut Vec<u8>, descriptor: &Descriptor) {
+fn write_descriptor(out: &mut Vec<u8>, descriptor: &Descriptor, ids: &[[u8; 4]]) {
     push_unicode(out, "");
-    push_id(out, &descriptor.class);
+    push_id(out, &descriptor.class, ids);
     let count = descriptor
         .items
         .iter()
@@ -425,13 +430,13 @@ fn write_descriptor(out: &mut Vec<u8>, descriptor: &Descriptor) {
     out.extend_from_slice(&(count as u32).to_be_bytes());
     for (key, item) in &descriptor.items {
         if written(item) {
-            push_id(out, key);
-            write_item(out, item);
+            push_id(out, key, ids);
+            write_item(out, item, ids);
         }
     }
 }
 
-fn write_item(out: &mut Vec<u8>, item: &Item) {
+fn write_item(out: &mut Vec<u8>, item: &Item, ids: &[[u8; 4]]) {
     match item {
         Item::Long(value) => {
             out.extend_from_slice(b"long");
@@ -451,7 +456,7 @@ fn write_item(out: &mut Vec<u8>, item: &Item) {
         }
         Item::Object(descriptor) => {
             out.extend_from_slice(b"Objc");
-            write_descriptor(out, descriptor);
+            write_descriptor(out, descriptor, ids);
         }
         Item::Unit(unit, value) => {
             out.extend_from_slice(b"UntF");
@@ -460,12 +465,12 @@ fn write_item(out: &mut Vec<u8>, item: &Item) {
         }
         Item::Enum(type_id, enum_id) => {
             out.extend_from_slice(b"enum");
-            push_id(out, type_id);
-            push_id(out, enum_id);
+            push_id(out, type_id, ids);
+            push_id(out, enum_id, ids);
         }
         Item::EnumStringId(type_id, enum_id) => {
             out.extend_from_slice(b"enum");
-            push_id(out, type_id);
+            push_id(out, type_id, ids);
             out.extend_from_slice(&(enum_id.len() as u32).to_be_bytes());
             out.extend_from_slice(enum_id);
         }
@@ -475,7 +480,7 @@ fn write_item(out: &mut Vec<u8>, item: &Item) {
             out.extend_from_slice(&(count as u32).to_be_bytes());
             for value in values {
                 if written(value) {
-                    write_item(out, value);
+                    write_item(out, value, ids);
                 }
             }
         }
@@ -490,9 +495,9 @@ fn write_item(out: &mut Vec<u8>, item: &Item) {
                 if let RefItem::Enumerated { class, kind, value } = item {
                     out.extend_from_slice(b"Enmr");
                     push_unicode(out, "");
-                    push_id(out, class);
-                    push_id(out, kind);
-                    push_id(out, value);
+                    push_id(out, class, ids);
+                    push_id(out, kind, ids);
+                    push_id(out, value, ids);
                 }
             }
         }
@@ -502,7 +507,15 @@ fn write_item(out: &mut Vec<u8>, item: &Item) {
 
 /// Version 16 then the structure, name "" on every descriptor. Never fails.
 pub(crate) fn write(descriptor: &Descriptor) -> Vec<u8> {
+    write_with_string_ids(descriptor, &[])
+}
+
+/// [`write`], with each four-byte id in `string_ids` written as a STRING
+/// id (explicit length 4) wherever it appears as a class or key: Photoshop
+/// writes `list` and `Comp` that way in resource 1065 (`psd_comp_records`),
+/// where a char id would be a different id.
+pub(crate) fn write_with_string_ids(descriptor: &Descriptor, string_ids: &[[u8; 4]]) -> Vec<u8> {
     let mut out = 16u32.to_be_bytes().to_vec();
-    write_descriptor(&mut out, descriptor);
+    write_descriptor(&mut out, descriptor, string_ids);
     out
 }

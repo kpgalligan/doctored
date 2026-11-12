@@ -47,6 +47,7 @@ impl DrDocument {
             // A CAPACITY VIEW measures serialized planes; a comp holds no
             // plane, so the view carries none.
             comps: Vec::new(),
+            background: self.background,
             ruler_origin: self.ruler_origin,
             color_samplers: self.color_samplers.clone(),
             paths: self.paths.clone(),
@@ -182,6 +183,7 @@ impl DrDocument {
             resolution: self.resolution,
             linear_light: self.linear_light.clone(),
             comps: self.comps.clone(),
+            background: self.background,
         })
     }
 }

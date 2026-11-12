@@ -292,9 +292,9 @@ impl DrDocument {
             let level = top_level(&self.layers);
             crate::style_knockout::composite_projection_into(
                 &mut acc,
-                self.width,
-                self.height,
+                (self.width, self.height),
                 &self.layers,
+                self.background,
                 &level,
                 env,
                 budget,

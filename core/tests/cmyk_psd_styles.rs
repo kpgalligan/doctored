@@ -762,6 +762,37 @@ fn what_photoshop_cannot_hold_refuses_the_layers_mode_alike_in_report_and_save()
     }
 }
 
+/// D13 in a CMYK file: the CMYK writer stores no Photoshop Background
+/// record and the CMYK import sets no Background mark, so a Deep knockout
+/// over a plain, opaque, canvas-sized bottom is disclosed by the export
+/// report and again by the import report of the file it wrote.
+#[test]
+fn a_deep_knockout_over_a_plain_bottom_is_disclosed_on_export_and_import() {
+    const EXPORT: &str = "A layer uses knockout over this document's bottom layer, which Doctored treats as the Background. A PSD written by Doctored stores it as an ordinary layer, and Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show transparency in Photoshop where it shows the bottom layer here.";
+    const IMPORT: &str = "This file has no Photoshop Background layer, and a knockout can reach its bottom layer, which Doctored treats as the Background because it is visible, Normal, 100 % opacity, unmasked, unstyled, canvas-sized and at the origin. Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show the bottom layer here where it shows transparency in Photoshop. This is a deliberate Doctored rule, not an import error.";
+    let has = |list: &Value, sentence: &str| {
+        list.as_array()
+            .unwrap()
+            .iter()
+            .any(|line| line.as_str() == Some(sentence))
+    };
+    let dir = TempDir::new().unwrap();
+    let doc = layer(
+        backdrop(W, H, 16, &[[0.0; 4]]),
+        "Knock",
+        [0.0, 0.0, 100.0, 0.0],
+        &hard_rect(W, H, (2, 2, 10, 10)),
+    );
+    let doc = styled(doc, index(doc, "Knock"), &json!({"knockout":"deep"}));
+    let exported = report(doc, LAYERS);
+    assert!(has(&exported["losses"], EXPORT), "{exported}");
+    let path = dir.path().join("knock.psd");
+    save(doc, &path, LAYERS).unwrap();
+    let imported = import_report(&path);
+    assert!(has(&imported["verified_losses"], IMPORT), "{imported}");
+    free(doc);
+}
+
 #[test]
 fn a_cmyk_files_pattern_overlay_is_carried_with_its_pattern() {
     let dir = TempDir::new().unwrap();

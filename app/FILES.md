@@ -21,6 +21,7 @@ Detail belongs in the source file's own header comment.
 - `DoctoredCore+Guides.swift` — guides and the ruler origin (`GuideInfo`) and the `GuideOrientation` enum.
 - `DoctoredCore+ColorSamplers.swift` — colour sampler sets on a document.
 - `DoctoredCore+ClippingMasks.swift` — per-layer clipping mask flag.
+- `DoctoredCore+Background.swift` — the Background mark's role of the bottom layer (`BackgroundRole`), set by PSD import.
 - `DoctoredCore+ColorLabels.swift` — per-layer colour label codes.
 - `DoctoredCore+LayerComps.swift` — layer comps JSON and edits.
 - `DoctoredCore+LayerStyles.swift` — layer style JSON and global light.

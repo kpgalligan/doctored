@@ -65,6 +65,7 @@ impl PrecisionDocument {
                 (self.width, self.height),
                 Cut::NONE,
                 self.float.is_some(),
+                self.background,
             );
         let (levels, stage_scratch, stage_work) =
             plan_levels(&record, request.region(), &walk.needs, pixels, background)?;

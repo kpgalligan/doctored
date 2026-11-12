@@ -160,12 +160,16 @@ impl DrDocument {
         let links: Vec<u32> = self.layers.iter().map(|l| l.link).collect();
         let plan = plan(&depths, &clipped, &links, &roots);
         let mut layers = Vec::new();
+        let mut background = None;
         for (range, &root) in plan.ranges.iter().zip(&roots) {
             let shift = self.layers[root].depth;
             for i in range.clone() {
                 let source = &self.layers[i];
                 let mut layer = source.clone();
                 layer.id = mint_layer_id();
+                // The Background mark follows its layer into the copy under
+                // the copy's new id (`doc_background`).
+                background = background.or(carried_mark(self.background, source.id, layer.id));
                 layer.depth = source.depth - shift;
                 if !plan.kept_links.contains(&layer.link) {
                     layer.link = 0;
@@ -191,8 +195,20 @@ impl DrDocument {
             resolution: self.resolution,
             linear_light: self.linear_light.clone(),
             comps: Vec::new(),
+            background,
         })
     }
+}
+
+/// `mark` re-pointed at `copy` when it names `source`, else `None`: how a
+/// duplicate keeps the Background mark of the layer it copies.
+fn carried_mark(
+    mark: Option<crate::doc_background::BackgroundMark>,
+    source: u64,
+    copy: u64,
+) -> Option<crate::doc_background::BackgroundMark> {
+    mark.filter(|m| m.layer == source)
+        .map(|m| crate::doc_background::BackgroundMark { layer: copy, ..m })
 }
 
 impl PrecisionDocument {
@@ -210,11 +226,14 @@ impl PrecisionDocument {
         let links: Vec<u32> = flat.iter().map(|r| r.layer.link).collect();
         let plan = plan(&depths, &clipped, &links, &roots);
         let mut copied: Vec<FlatRecord> = Vec::new();
+        let mut background = None;
         for (range, &root) in plan.ranges.iter().zip(&roots) {
             let shift = flat[root].depth;
             for i in range.clone() {
                 let mut layer = flat[i].layer.clone();
                 layer.id = mint_layer_id();
+                background =
+                    background.or(carried_mark(self.background, flat[i].layer.id, layer.id));
                 if !plan.kept_links.contains(&layer.link) {
                     layer.link = 0;
                 }
@@ -258,6 +277,7 @@ impl PrecisionDocument {
         next.lab = self.lab.clone();
         next.linear_light = self.linear_light.clone();
         next.global_light = self.global_light;
+        next.background = background;
         Ok(next)
     }
 }

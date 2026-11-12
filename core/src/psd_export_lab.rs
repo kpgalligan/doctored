@@ -414,7 +414,13 @@ impl PrecisionDocument {
                 9,
                 &[],
                 self.resolution(),
-                &image_resources(&[], self.resolution(), light, self.color_samplers()),
+                &image_resources(
+                    &[],
+                    self.resolution(),
+                    light,
+                    self.color_samplers(),
+                    &crate::psd_paths::resources(self.paths(), self.dimensions()),
+                ),
                 &layer_info_counted(&out, false, false)?,
                 &composite_strip_lab(projection, width, height, depth)?,
                 &tail,
@@ -434,6 +440,7 @@ impl PrecisionDocument {
                 large,
                 &tail,
                 &crate::psd_spot::SpotPlanes::default(),
+                &crate::psd_paths::resources(self.paths(), self.dimensions()),
             )?
         };
         crate::dr_image::save_atomically(path, |tmp| {

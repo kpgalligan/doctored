@@ -967,12 +967,13 @@ extension RasterDocument {
     /// Background rule, named as such: entry 0 is at depth 0, is a raster and
     /// not an adjustment, visible, Normal, opacity ≥ 1, has no ENABLED mask,
     /// carries no style (at 16 bits that row also covers Blend If), sits at
-    /// (0, 0), is exactly canvas-sized, and entry 1 (if any) is unclipped.
-    ///
-    /// Doctored has no Background layer KIND, so this is the only Background
-    /// either depth knows (D13). It is what R4 below asks before it claims a
-    /// root knockout had nothing to punch through to.
+    /// (0, 0), is exactly canvas-sized, and entry 1 (if any) is unclipped —
+    /// unless the document's Background mark says entry 0 is an ORDINARY
+    /// layer (`backgroundRole`, set by a PSD import), which vetoes it at both
+    /// depths. It is what R4 below asks before it claims a root knockout had
+    /// nothing to punch through to.
     func hasQualifyingBackground() -> Bool {
+        if backgroundRole == .ordinary { return false }
         guard let entry = layerInfo(0) else { return false }
         guard entry.depth == 0, entry.kind == DR_LAYER_RASTER, !layerIsAdjustment(0) else {
             return false

@@ -1026,5 +1026,7 @@ fn a_blended_adjustment_round_trips_through_sixteen_bit_psd() {
         back.render(LIMIT, 0, None).unwrap().to_rgba16().ok(),
         projection.to_rgba16().ok()
     );
-    assert_eq!(&bytes(&back)[8..12], &37u32.to_le_bytes());
+    // A PSD import marks record 0 (word 113, `background_native`) first.
+    assert_eq!(&bytes(&back)[8..12], &113u32.to_le_bytes());
+    assert_eq!(&bytes(&back)[12..16], &37u32.to_le_bytes());
 }

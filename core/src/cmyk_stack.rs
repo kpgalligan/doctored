@@ -586,6 +586,7 @@ impl PrecisionDocument {
                     Cut::NONE,
                     // CMYK quantizes always (`opacity_byte`).
                     false,
+                    self.background,
                 );
         Ok(CmykStack {
             entries: level(roots, &ctx, job)?,

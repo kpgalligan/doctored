@@ -266,7 +266,7 @@ impl FeatureMarkers {
             (BLEND_OPTIONS, "has additional clipping/interior blending metadata; its payload is not interpreted or retained, and its presence alone does not establish an active effect"),
             (FILL_OPACITY, "has fill-opacity metadata; its payload is not interpreted or retained, and its presence alone does not establish nondefault opacity"),
             (FILL_OPACITY_DEFAULT, "has fill-opacity metadata at its 100 % default; its presence alone does not establish nondefault opacity"),
-            (BACKGROUND_LOCKS, "is Photoshop's Background layer; its implicit transparency and position locks are not carried — Doctored has no Background layer kind"),
+            (BACKGROUND_LOCKS, "is Photoshop's Background layer; it is kept as the document's Background, and its implicit transparency and position locks are not carried as Doctored locks"),
         ] {
             // Conflicting duplicate simple fields must not produce a benign
             // default observation alongside a discarded-setting disclosure.

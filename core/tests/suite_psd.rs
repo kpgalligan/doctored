@@ -41,12 +41,16 @@ mod psd_asl_layout;
 mod psd_asl_open_668;
 #[path = "psd_asl_photoshop.rs"]
 mod psd_asl_photoshop;
+#[path = "psd_background.rs"]
+mod psd_background;
 #[path = "psd_bevel_technique.rs"]
 mod psd_bevel_technique;
 #[path = "psd_channel_mixer.rs"]
 mod psd_channel_mixer;
 #[path = "psd_composite_transparency.rs"]
 mod psd_composite_transparency;
+#[path = "psd_comps.rs"]
+mod psd_comps;
 #[path = "psd_constructs.rs"]
 mod psd_constructs;
 #[path = "psd_contour.rs"]
@@ -97,6 +101,8 @@ mod psd_levels;
 mod psd_locks;
 #[path = "psd_noise.rs"]
 mod psd_noise;
+#[path = "psd_paths.rs"]
+mod psd_paths;
 #[path = "psd_pattern_fill_cmyk.rs"]
 mod psd_pattern_fill_cmyk;
 #[path = "psd_pattern_fill_layer.rs"]

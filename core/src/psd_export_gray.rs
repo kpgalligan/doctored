@@ -492,6 +492,7 @@ impl PrecisionDocument {
                     self.resolution(),
                     light,
                     self.color_samplers(),
+                    &crate::psd_paths::resources(self.paths(), self.dimensions()),
                 ),
                 &layer_info_counted(&out, false, false)?,
                 &flat,
@@ -512,6 +513,7 @@ impl PrecisionDocument {
                 large,
                 &tail,
                 &self.psd_spot_planes(depth.eight),
+                &crate::psd_paths::resources(self.paths(), self.dimensions()),
             )?
         };
         let bytes = match policy.duotone() {

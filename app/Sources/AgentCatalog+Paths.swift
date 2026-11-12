@@ -56,8 +56,9 @@ extension AgentServer {
                     + "fill_rule, anchors (a count) and subpaths (set_path's own shape, so it "
                     + "can be edited and passed back). max_paths is the most a document holds. "
                     + "Canvas resizes, crops, rotations and flips move paths with the picture; "
-                    + "moving or transforming a layer does not. Paths are not written to PSD, "
-                    + "TIFF or any flat format. The Paths panel.",
+                    + "moving or transforming a layer does not. A PSD, PSB or layered TIFF "
+                    + "export writes them and its import reads them back (the work path and "
+                    + "each saved path by name); no flat format carries them. The Paths panel.",
                 ["document_id": doc]),
             tool(
                 "set_path",
@@ -324,8 +325,10 @@ extension AgentServer {
                     + "half) leaves an ordinary raster mask and no vector mask, as do "
                     + "duplicating or merging the layer. The same shape again answers "
                     + "changed:false. Lock All refuses. The shapes count toward the "
-                    + "document's 65536 anchors. ONE undo step. Saved in .doctored; PSD and TIFF "
-                    + "get the baked mask. 8-, 16-bit and 32-bit float documents. Layer ▸ "
+                    + "document's 65536 anchors. ONE undo step. Saved in .doctored; an 8- or "
+                    + "16-bit RGB PSD, PSB or layered TIFF writes one with no raster half as its "
+                    + "path (and reads it back), and every other PSD and TIFF export "
+                    + "gets the baked mask. 8-, 16-bit and 32-bit float documents. Layer ▸ "
                     + "Vector Mask ▸ Current Path / Reveal All.",
                 [
                     "layer": layer, "path": path, "subpaths": subpaths, "fill_rule": fillRule,

@@ -184,6 +184,40 @@ fn section<'a>(bytes: &'a [u8], cursor: &mut usize) -> Result<&'a [u8], String> 
     section_of(bytes, cursor, false)
 }
 
+/// One image resource: its id, its Pascal name's bytes and its body.
+pub(crate) type ResourceEntry<'a> = (u16, &'a [u8], &'a [u8]);
+
+/// Every image resource of an 8BIM run as `(id, Pascal name bytes, body)`,
+/// in file order — the walk [`resource_in`] makes, for the resources whose
+/// NAME is data (a saved path's, `psd_paths`).
+pub(crate) fn resource_entries(resources: &[u8]) -> Result<Vec<ResourceEntry<'_>>, String> {
+    let mut cursor = 0;
+    let mut out = Vec::new();
+    while cursor < resources.len() {
+        if resources.get(cursor..cursor + 4) != Some(b"8BIM") {
+            return Err("invalid PSD image resource signature".into());
+        }
+        let id = u16_at(resources, cursor + 4)?;
+        cursor += 6;
+        let name_len = *resources.get(cursor).ok_or("truncated PSD resource name")? as usize;
+        let name = resources
+            .get(cursor + 1..cursor + 1 + name_len)
+            .ok_or("truncated PSD resource name")?;
+        cursor = cursor
+            .checked_add((name_len + 2) & !1)
+            .ok_or("PSD resource overflow")?;
+        let body = section(resources, &mut cursor)?;
+        if body.len() % 2 != 0 {
+            cursor += 1;
+        }
+        if cursor > resources.len() {
+            return Err("truncated PSD resource padding".into());
+        }
+        out.push((id, name, body));
+    }
+    Ok(out)
+}
+
 /// Image resource `wanted`'s body in an 8BIM run (a PSD's resource section,
 /// a TIFF's tag 34377): `None` when absent, `Err` for a malformed run or a
 /// duplicate. [`Container::resource`] and `tiff_spot` both walk through it.
@@ -491,6 +525,11 @@ impl<'a> Container<'a> {
         resource_in(self.resources, wanted)
     }
 
+    /// [`resource_entries`] over this container's run.
+    pub(crate) fn resource_entries(&self) -> Result<Vec<ResourceEntry<'a>>, String> {
+        resource_entries(self.resources)
+    }
+
     /// The embedded profile's bytes, verbatim: image resource 1039, else (a
     /// TIFF whose block has none) the IFD's ICC tag. [`Container::profile`]
     /// reads through it; a gray file's policy reads it directly
@@ -584,6 +623,10 @@ impl<'a> Container<'a> {
             document.global_light = light;
         }
         document.color_samplers = self.color_samplers()?.kept;
+        // Resources 1025 and 2000–2997, on both import choices (`psd_paths`).
+        document
+            .paths
+            .set_entries(crate::psd_paths::file_paths(self).0);
         document.with_psd_spots(self)
     }
 

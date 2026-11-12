@@ -243,6 +243,7 @@ impl PrecisionDocument {
         out.global_light = self.global_light;
         out.paths.set_entries(self.paths.entries.to_vec());
         out.comps.clone_from(&self.comps);
+        out.background = self.background;
         Ok(out.seeding_vector_masks(self.vector_mask_seeds(Clone::clone), limit, other))
     }
 

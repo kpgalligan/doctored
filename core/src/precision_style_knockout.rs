@@ -16,9 +16,9 @@
 //! `style_blend_if::source_weight_16`. No new pixel math is written here.
 //!
 //! Since 12E-3c the PSD `knko`/`infx` records travel at this depth too, and
-//! D5's Background divergence is recorded as **D13** — a deliberate product
-//! decision, not a measurement (`style_knockout`'s module doc states it
-//! verbatim). [`document_reaches_background16`] is the export half here.
+//! D5 reads the document's Background mark exactly as the byte rule does
+//! (**D13**, `style_knockout`'s module doc).
+//! [`document_reaches_background16`] is the export half here.
 //!
 //! # The one genuinely typed piece: the SEED
 //!
@@ -136,16 +136,21 @@ pub(crate) fn styles_carry_keys16(document: &PrecisionDocument) -> bool {
 /// is [`crate::style_knockout::background_entry`]'s, plus ONE the byte rule
 /// gets for free — **no Blend If**. The byte model carries Blend If INSIDE the
 /// style, so its "no style" clause covers it; at this depth Blend If is a
-/// LAYER field and has to be named.
+/// LAYER field and has to be named. `mark` is the document's Background mark
+/// (`doc_background`): an applicable `Ordinary` one vetoes, as at 8 bits.
 pub(crate) fn background_record(
     layers: &[PrecisionDocumentLayer],
     canvas: (u32, u32),
     cut: Cut<'_>,
     float: bool,
+    mark: Option<crate::doc_background::BackgroundMark>,
 ) -> bool {
     let Some(entry) = layers.first() else {
         return false;
     };
+    if crate::doc_background::vetoes(mark, Some(entry.id)) {
+        return false;
+    }
     // A CMYK raster qualifies on the same clauses (#1, `cmyk_stack`'s D5).
     let (dimensions, offset) = match &entry.content {
         Content::Raster { image, offset } => (image.dimensions(), offset),

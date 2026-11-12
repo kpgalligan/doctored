@@ -332,6 +332,12 @@ int32_t dr_doc_layer_offset_y(const DrDocument *doc, size_t idx);
  * origin follows; 0 on NULL doc or out-of-range idx. */
 int32_t dr_doc_layer_reference_x(const DrDocument *doc, size_t idx);
 int32_t dr_doc_layer_reference_y(const DrDocument *doc, size_t idx);
+/* The Background mark (doc_background): the role the document's mark gives
+ * its bottom entry — 0 when no mark applies (the structural rule), 1 the
+ * file's Background layer, 2 an ordinary bottom layer, which a Deep knockout
+ * punches through. Only PSD import sets one. 0 on NULL doc. The typed twin is
+ * dr_precision_doc_background_role, in the high-depth section. */
+int32_t dr_doc_background_role(const DrDocument *doc);
 /* A pattern fill layer's tile after a canvas turn or flip: `pattern`
  * is the fill's pattern object as UTF-8 JSON ({"preset"} or {"name", "width",
  * "height", "rgba"}, at most 16 MiB) and (a, b, c, d) the turn's linear part,
@@ -5208,6 +5214,10 @@ char *dr_precision_doc_layer_comps_json(const DrPrecisionDocument *doc,
  * dr_string_free. */
 char *dr_precision_doc_flat_state_losses(const DrPrecisionDocument *doc, bool alpha_kept,
                                          char **err_out);
+
+/* The Background mark at high depth — dr_doc_background_role's twin, for root
+ * entry 0: 0 no mark applies, 1 Background, 2 ordinary layer; 0 on NULL. */
+int32_t dr_precision_doc_background_role(const DrPrecisionDocument *doc);
 
 /* GUIDES and the RULER ORIGIN at high depth (12E-1c) — the dr_doc_guide_* /
  * dr_doc_ruler_origin / dr_doc_set_ruler_origin family's twins, each with the

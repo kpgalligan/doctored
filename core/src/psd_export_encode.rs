@@ -244,12 +244,35 @@ fn block(key: &[u8; 4], body: &[u8]) -> Vec<u8> {
     out
 }
 
+/// One further image resource a document carries beside the writer's own
+/// ([`image_resources`]' `extra`): its id, its Pascal name — empty but for a
+/// saved path's (`psd_paths`) — and its body.
+pub(crate) struct ResourceBlock {
+    pub id: u16,
+    pub name: String,
+    pub body: Vec<u8>,
+}
+
 /// One image resource: signature, id, an empty Pascal name and an even-padded
 /// body.
 pub(crate) fn resource(id: u16, body: &[u8]) -> Vec<u8> {
+    resource_named(id, "", body)
+}
+
+/// [`resource`] with a Pascal name: its UTF-8 bytes, cut on a character
+/// boundary at 255, the length byte and the name padded to an even size.
+pub(crate) fn resource_named(id: u16, name: &str, body: &[u8]) -> Vec<u8> {
+    let mut end = name.len().min(255);
+    while !name.is_char_boundary(end) {
+        end -= 1;
+    }
     let mut out = b"8BIM".to_vec();
     out.extend_from_slice(&id.to_be_bytes());
-    out.extend_from_slice(&[0, 0]);
+    out.push(end as u8);
+    out.extend_from_slice(&name.as_bytes()[..end]);
+    if end.is_multiple_of(2) {
+        out.push(0);
+    }
     out.extend_from_slice(&(body.len() as u32).to_be_bytes());
     out.extend_from_slice(body);
     if !body.len().is_multiple_of(2) {
@@ -362,12 +385,16 @@ pub(crate) fn layer_info_len(records: &[Record], large: bool) -> Result<usize, S
 /// empty (a CMYK save without its profile passes none) and print resolution
 /// (1005) always; `global_light` writes 1037/1049 and is `Some` exactly when
 /// a record carries an `lfx2` block; `color_samplers` writes 1073
-/// (`psd_samplers`) when it is non-empty.
+/// (`psd_samplers`) when it is non-empty; `extra` is every further
+/// `(id, body)` the caller's document carries (layer comps' 1065,
+/// `psd_comps`), written last and in order, so an empty slice keeps the prior
+/// writer's bytes.
 pub(crate) fn image_resources(
     icc: &[u8],
     resolution: Resolution,
     global_light: Option<GlobalLight>,
     color_samplers: &[ColorSampler],
+    extra: &[ResourceBlock],
 ) -> Vec<u8> {
     let mut resources = if icc.is_empty() {
         Vec::new()
@@ -392,6 +419,9 @@ pub(crate) fn image_resources(
             1073,
             &crate::psd_samplers::encode(color_samplers),
         ));
+    }
+    for block in extra {
+        resources.extend_from_slice(&resource_named(block.id, &block.name, &block.body));
     }
     resources
 }
@@ -424,7 +454,7 @@ fn push_section_len(out: &mut Vec<u8>, len: usize, what: &str, large: bool) -> R
 /// after the composite: their planes' rows follow its rows in the RLE table
 /// and body, and their resources (`psd_spot_records::encode_resources`)
 /// follow the others, leading with the merged transparency's entry when the
-/// count is negative.
+/// count is negative. `extra_resources` are [`image_resources`]' `extra`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn write_psd(
     width: u32,
@@ -440,6 +470,7 @@ pub(crate) fn write_psd(
     large: bool,
     tail: &[crate::psd_layer_effects::Block],
     spots: &crate::psd_spot::SpotPlanes,
+    extra_resources: &[ResourceBlock],
 ) -> Result<Vec<u8>, String> {
     let kind = if large {
         LayeredContainer::Psb
@@ -481,7 +512,13 @@ pub(crate) fn write_psd(
     // No colour-mode data: neither RGB, CMYK, Grayscale nor Lab mode has any.
     out.extend_from_slice(&0u32.to_be_bytes());
 
-    let mut resources = image_resources(icc, resolution, global_light, color_samplers);
+    let mut resources = image_resources(
+        icc,
+        resolution,
+        global_light,
+        color_samplers,
+        extra_resources,
+    );
     let inks: Vec<(&str, [f64; 3], u8)> = spots
         .inks
         .iter()
@@ -599,6 +636,7 @@ pub(crate) fn write_psd32(
     tail: &[crate::psd_layer_effects::Block],
     gray: bool,
     composite: &dyn Fn(&mut Vec<u8>) -> Result<(), String>,
+    extra_resources: &[ResourceBlock],
 ) -> Result<Vec<u8>, String> {
     let kind = if large {
         LayeredContainer::Psb
@@ -634,7 +672,13 @@ pub(crate) fn write_psd32(
     // The `Mt32` block's 8-byte signature and key and its zero length.
     let merged_block = if gray { 0 } else { 8 + field };
     let section_len = field + 4 + merged_block + 8 + field + info_len + block_pad + tail.len();
-    let resources = image_resources(icc, resolution, global_light, color_samplers);
+    let resources = image_resources(
+        icc,
+        resolution,
+        global_light,
+        color_samplers,
+        extra_resources,
+    );
     let planes = if gray { 1 } else { 4 };
     let composite_len = 2 + 4 * planes * width as usize * height as usize;
     let total = 26

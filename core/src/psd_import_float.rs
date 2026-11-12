@@ -446,6 +446,10 @@ pub(crate) fn open32(
         let mut document = document.with_import_warnings(repairs.warnings())?;
         document.global_light = light;
         document.color_samplers.clone_from(&color_samplers);
+        // Resources 1025 and 2000–2997 (`psd_paths`).
+        document
+            .paths
+            .set_entries(crate::psd_paths::file_paths(&container).0);
         Ok::<_, String>(document)
     };
 

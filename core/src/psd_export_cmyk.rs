@@ -590,16 +590,23 @@ impl PrecisionDocument {
             has_guides: !self.guides().is_empty() || self.ruler_origin() != (0.0, 0.0),
             sampler_sizes_lost: false,
             comps: self.layer_comps().len(),
+            // The CMYK writer writes no comp (`psd_comps`).
+            comps_written: 0,
+            comps_narrowed: 0,
+            path_losses: crate::psd_paths::export_losses(self.paths(), self.dimensions()),
             has_metadata: !self.metadata().is_empty(),
             nondefault_global_light: self.global_light != GlobalLight::default(),
             // D13 on ink (`psd_export16`'s rule): record 0 is the Background
             // by D5's structural rule and a written knockout reaches it.
+            // The CMYK writer stores no Background record (`psd_background`).
+            background_unwritable: false,
             structural_background_knockout: crate::precision_style_knockout::background_record(
                 self.root_layers(),
                 self.dimensions(),
                 crate::style_composite::Cut::NONE,
                 // CMYK quantizes always (`opacity_byte`).
                 false,
+                self.background,
             )
                 && crate::precision_style_knockout::document_reaches_background16(
                     self.root_layers(),
@@ -798,8 +805,13 @@ impl PrecisionDocument {
                 let bits = (depth.bytes() * 8) as u16;
                 if tiff {
                     let spots = self.layered_tiff_spots();
-                    let mut resources =
-                        image_resources(policy.profile_bytes(), self.resolution(), light, &[]);
+                    let mut resources = image_resources(
+                        policy.profile_bytes(),
+                        self.resolution(),
+                        light,
+                        &[],
+                        &crate::psd_paths::resources(self.paths(), self.dimensions()),
+                    );
                     resources.extend_from_slice(&spots.resources);
                     crate::tiff_layers::write_spots(
                         w,
@@ -829,6 +841,7 @@ impl PrecisionDocument {
                         large,
                         &tail,
                         &self.psd_spot_planes(depth.eight),
+                        &crate::psd_paths::resources(self.paths(), self.dimensions()),
                     )?
                 }
             }

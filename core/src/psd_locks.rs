@@ -15,9 +15,11 @@
 //! `tests/fixtures/psd_photoshop/knockout/source.psd` and `source16.psd` — the
 //! Background — carries `lspf 0x0d` (transparency | position | nesting) with
 //! header flags `0x09`, and every other record, the section dividers
-//! included, carries `lspf 0`. Those are the Background's IMPLICIT locks,
-//! which Doctored has no Background layer kind to hold, so [`background`]
-//! masks them off and keeps only what the user could have added (pixels).
+//! included, carries `lspf 0`. Those are the Background's IMPLICIT locks:
+//! Doctored's Background mark (`doc_background`) locks nothing, so
+//! [`background`] masks them off and keeps only what the user could have
+//! added (pixels), and [`background_body`] puts them back on a written
+//! Background record (`psd_background`).
 //! ImageMagick's `samples/layered.psd` sets header flag bit 0 with no `lspf`
 //! at all, so header bit 0 is never read as a lock here.
 //!
@@ -90,4 +92,17 @@ pub(crate) fn encode(locks: u32) -> Option<[u8; 4]> {
 /// The writers' one call: the `lspf` block for a record, if it is locked.
 pub(crate) fn block(locks: u32) -> Option<([u8; 4], Vec<u8>)> {
     Some((*b"lspf", encode(locks)?.to_vec()))
+}
+
+/// A Background record's `lspf` body (`psd_background`): the layer's own
+/// bits with the Background's implicit `0x0d` OR'd in, Photoshop's form; an
+/// explicit Lock All stays the complete lock, which [`background`] keeps on
+/// the way back in.
+pub(crate) fn background_body(locks: u32) -> [u8; 4] {
+    let word = match encode(locks) {
+        Some(bytes) if u32::from_be_bytes(bytes) == LOCK_ALL_WORD => LOCK_ALL_WORD,
+        Some(bytes) => u32::from_be_bytes(bytes) | BACKGROUND_IMPLICIT,
+        None => BACKGROUND_IMPLICIT,
+    };
+    word.to_be_bytes()
 }

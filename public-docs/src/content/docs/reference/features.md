@@ -313,9 +313,11 @@ The design record behind each area is in the repository's
   `duplicate_path`, `delete_path`, `path_to_selection`, `selection_to_path`,
   `fill_path`, `stroke_path`, `get_vector_mask`, `set_vector_mask`,
   `set_vector_mask_properties`, `remove_vector_mask`) and Actions record them.
-  Not built: the Curvature, Freeform and Magnetic pens, type on a path, path
-  boolean operations, Convert Path to Shape, and reading or writing paths in
-  PSD or TIFF — an export writes the baked mask
+  A layered PSD, PSB or TIFF carries the paths both ways at every depth, and
+  at 8 and 16 bits RGB a vector mask with no raster mask beside it as its path;
+  every other export writes the baked mask. Not built: the Curvature, Freeform
+  and Magnetic pens, type on a path, path boolean operations, Convert Path to
+  Shape, clipping paths, and paths in a flat TIFF
   ([record](https://github.com/kpgalligan/doctored/blob/main/designs/v1-paths.md))
 - **Fill layers** (Layer > New Fill Layer ▸ Solid Color… / Gradient… /
   Pattern…): a re-editable layer that is one colour, one gradient or one
@@ -2729,7 +2731,8 @@ The design record behind each area is in the repository's
   alone, Shallow inside a Pass Through group punches to what that group's
   contents started from, and Deep punches to the Background layer — the bottom
   layer when it is a plain, visible, unmasked, unstyled, Normal, opacity-1,
-  canvas-sized layer at (0, 0) — or to transparency when there is none.
+  canvas-sized layer at (0, 0), unless the PSD it came from made it an
+  ordinary layer — or to transparency when there is none.
   "Blend Interior Effects as Group" makes the layer's own blend mode apply to
   Inner Glow, Satin and the two Overlays. Layer ▸ Flatten Image, Stamp
   Visible and Merge Visible bake a knockout EXACTLY, because all three render
@@ -2745,11 +2748,15 @@ The design record behind each area is in the repository's
   and on group records — whenever the style itself is written rather than
   rasterized into pixels, and only when the key is not at its default; a
   rasterized style writes neither and the export report says so per layer.
-  Doctored has no Background layer KIND, so a file whose bottom layer is
-  Doctored's structural Background but not a true Photoshop Background
-  carries one disclosure sentence in both the import and the export report:
-  Photoshop punches such a knockout through to transparency where Doctored
-  shows that bottom layer. Blend Interior Effects as Group applies on a
+  An 8- or 16-bit RGB PSD's bottom layer keeps what the file says it is —
+  Photoshop's Background layer, or an ordinary layer a Deep knockout punches
+  through to transparency (`get_document` reports it) — through `.doctored`,
+  and the export writes such a Background, or an unmarked opaque bottom a
+  written knockout reaches, as Photoshop's Background layer. A bottom that
+  cannot be one (transparent pixels, a mask) and the Gray, Lab, CMYK and
+  32-bit files keep one disclosure sentence in the report: Photoshop punches
+  such a knockout through to transparency where Doctored shows that bottom
+  layer. Blend Interior Effects as Group applies on a
   clipping base that has visible clipped layers too: the
   grouped interior effects recolour the base and its clipped layers together,
   which then meet the backdrop once with the layer's blend mode.
@@ -3270,8 +3277,15 @@ as canvas coordinates on rasters and folders alike; the PSD position-relative
 flag is recorded in the import report and not applied, which is how Photoshop
 reads it. Coverage stays exact, including off-canvas samples.
 Imported masks are explicitly unlinked; PSD linkage is not inferred.
-Extended/vector masks, parameters and unsupported mask codecs
-produce specific per-file losses.
+Extended masks, parameters and unsupported mask codecs produce specific
+per-file losses. An 8- or 16-bit RGB file's vector mask (`vmsk`) with no
+raster mask beside it opens as the layer's vector mask — a shape layer as its
+fill layer under the path — unless its path starts from all pixels or
+subtracts or intersects its subpaths, which keeps the layer's stored pixels
+with a loss; the file's paths (the work path and saved
+paths) open with the document in every mode; layer comps (resource 1065 and
+each layer's `cmls`) open in an RGB file with their names, comments and
+visibility, a comp's position and appearance reported as not imported.
 Malformed admitted mask rectangles or rows refuse the layered choice. Photoshop
 layer groups retain structure, names, folder opacity, visibility, recognized
 blend modes and open/closed state through a bounded metadata walk. Raster
@@ -3425,8 +3439,10 @@ among them: PSD has records for both, but the published format does not define
 them well enough to write without a Photoshop-written sample). A rasterization
 past 100 MP and a group whose style
 must be rasterized refuse instead. Editable text, shapes, alpha
-channels, guides, layer comps, link groups and metadata packets are not
-written as live constructs, and a RAW layer is written as its pixels; layer locks are written as Photoshop's `lspf`. A 16-bit
+channels, guides, link groups and metadata packets are not
+written as live constructs (layer comps are written at 8 and 16 bits RGB with
+their visibility, the paths in every mode, and a vector mask with no raster
+mask beside it as its path), and a RAW layer is written as its pixels; layer locks are written as Photoshop's `lspf`. A 16-bit
 document's clipping is written and evaluated exactly as an 8-bit one's. Appearance in
 Photoshop is claimed, at 8 and 16 bits, for Normal, Darken, Multiply, Color
 Burn, Linear Burn, Lighten, Screen, Color Dodge, Linear Dodge, Overlay, Soft

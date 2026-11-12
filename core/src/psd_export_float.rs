@@ -354,7 +354,13 @@ impl PrecisionDocument {
         let bytes = if container == LayeredContainer::Tiff {
             // Photoshop's `layered32.tif`: a positive count, no
             // `Mt32`, the records beside an IEEE-float flat image.
-            let resources = image_resources(&twin, self.resolution(), light, self.color_samplers());
+            let resources = image_resources(
+                &twin,
+                self.resolution(),
+                light,
+                self.color_samplers(),
+                &crate::psd_paths::resources(self.paths(), self.dimensions()),
+            );
             let flat = width as usize * height as usize * 16;
             write_with(
                 &LayeredTiff {
@@ -387,6 +393,7 @@ impl PrecisionDocument {
                 &tail,
                 false,
                 &|file| append_composite32(projection, width, height, file),
+                &crate::psd_paths::resources(self.paths(), self.dimensions()),
             )?
         };
         drop(out);

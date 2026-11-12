@@ -53,6 +53,12 @@ pub(crate) struct Group<'a> {
     /// The record's reference point (`Layer::reference`): its FIRST `fxrp`,
     /// rounded and clamped to i32, (0, 0) when it carries none.
     pub reference: (i32, i32),
+    /// The record's FIRST `shmd` body, verbatim: its layer comp settings
+    /// (`psd_comps`).
+    pub shmd: Option<&'a [u8]>,
+    /// The record's `vmsk` body when it is a vector mask Doctored carries
+    /// (`vector_mask_usable`): the layer's vector mask (`psd_paths`).
+    pub vmsk: Option<&'a [u8]>,
 }
 
 pub(crate) struct GroupRecords<'a> {
@@ -78,6 +84,10 @@ pub(crate) struct GroupRecords<'a> {
     pub layer_labels: Vec<u8>,
     /// Parallel to `layers`: the record's reference point (`Group::reference`'s rule).
     pub layer_references: Vec<(i32, i32)>,
+    /// Parallel to `layers`: the record's first `shmd` body (`Group::shmd`).
+    pub layer_shmd: Vec<Option<&'a [u8]>>,
+    /// Parallel to `layers`: the record's carried `vmsk` body (`Group::vmsk`).
+    pub layer_vmsk: Vec<Option<&'a [u8]>>,
     pub divider_features: FeatureMarkers,
     /// FILE record 0 — the bottom entry — as the structural Background rule
     /// (D5) reads it. `None` when there are no records at all, or when record
@@ -95,7 +105,7 @@ pub(crate) struct GroupRecords<'a> {
 /// FILE record 0, in the three terms D5's disclosure reads.
 pub(crate) struct BottomRecord {
     /// A true Photoshop Background record: a non-empty rectangle with NO
-    /// channel id `-1`. Doctored never writes one.
+    /// channel id `-1` (the RGB importers mark it, `psd_background`).
     pub background: bool,
     /// The record satisfies D5's own clauses as far as a framed record can
     /// state them: not an adjustment record, visible, base blend key `norm`,
@@ -198,9 +208,11 @@ impl<'a> GroupRecords<'a> {
     /// `info` is the body `Container::layer_info` located — the ordinary
     /// layer-information section at 8 bits, or the `Lr16` tail block a
     /// Photoshop 16-bit file keeps its records in, or a TIFF's block.
-    /// `_sample_bytes` is the container's 1 or 2; it no longer decides
-    /// anything here, because every compression word is admitted at both
-    /// depths. `large` is a PSB: channel lengths are u64, and a record
+    /// `sample_bytes` is the container's 1, 2 or 4; every compression word
+    /// is admitted at each depth, and it decides only whether a `vmsk` is
+    /// carried (`vector_mask_usable`, 8 and 16 bits), which `room` (the
+    /// canvas and the file's path anchors, `psd_paths::MaskRoom`) bounds.
+    /// `large` is a PSB: channel lengths are u64, and a record
     /// holding a `LONG_LENGTH_KEYS` block refuses. `color` is the
     /// container's colour mode: a CMYK file (4) admits channel id 3, its
     /// black plane, and decodes its adjustment bodies through
@@ -221,7 +233,8 @@ impl<'a> GroupRecords<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn read(
         info: &'a [u8],
-        _sample_bytes: u64,
+        sample_bytes: u64,
+        room: crate::psd_paths::MaskRoom,
         large: bool,
         color: u16,
         colors: Option<&AuthoredColors>,
@@ -244,6 +257,8 @@ impl<'a> GroupRecords<'a> {
             group_styles: Vec::new(),
             layer_labels: Vec::new(),
             layer_references: Vec::new(),
+            layer_shmd: Vec::new(),
+            layer_vmsk: Vec::new(),
             divider_features: FeatureMarkers::default(),
             bottom: None,
             reaching_knockout: false,
@@ -263,6 +278,9 @@ impl<'a> GroupRecords<'a> {
         let mut records = Vec::with_capacity(count);
         let (mut extra_bytes, mut blocks) = (0usize, 0usize);
         let mut total_pixels = 0u64;
+        // The anchors of the vector masks carried so far, which share the
+        // document's cap with the file's paths (`psd_paths::MaskRoom`).
+        let mut carried_anchors = room.path_anchors;
         for _ in 0..count {
             let bounds = [
                 cursor.long()? as i32,
@@ -325,6 +343,8 @@ impl<'a> GroupRecords<'a> {
             let mut stacked_block = None;
             let (mut knockout_block, mut interior_block) = (None, None);
             let mut reference_block = None;
+            let mut shmd = None;
+            let (mut vmsk, mut vstk) = (None, None);
             let mut companion_block = None;
             while extra.remaining() > 0 {
                 blocks += 1;
@@ -376,6 +396,15 @@ impl<'a> GroupRecords<'a> {
                 if key == b"infx" && interior_block.is_none() {
                     interior_block = Some(body);
                 }
+                if key == b"shmd" && shmd.is_none() {
+                    shmd = Some(body);
+                }
+                if key == b"vmsk" && vmsk.is_none() {
+                    vmsk = Some(body);
+                }
+                if key == b"vstk" && vstk.is_none() {
+                    vstk = Some(body);
+                }
                 if key == b"fxrp" && reference_block.is_none() {
                     reference_block = Some(body);
                 }
@@ -392,7 +421,9 @@ impl<'a> GroupRecords<'a> {
                         }
                     }
                 }
-                advanced_mask |= matches!(key, b"vmsk" | b"vsms" | b"lmgm" | b"vmgm");
+                // A `vmsk` is weighed once the record is read
+                // (`vector_mask_usable`); the others are never carried.
+                advanced_mask |= matches!(key, b"vsms" | b"lmgm" | b"vmgm");
                 if key == b"luni" {
                     // The decoder trusts the internal UTF-16 count, then seeks
                     // back to the block end. Bound that count so a name cannot
@@ -438,6 +469,29 @@ impl<'a> GroupRecords<'a> {
                 }
             }
             let divider = divider.unwrap_or(0);
+            // A vector mask Doctored carries leaves the record's mask to it;
+            // any other `vmsk` drops the mask with its sentence, as before.
+            let carried = vmsk.filter(|body| {
+                let Some(anchors) = vector_mask_usable(
+                    body,
+                    vstk,
+                    color,
+                    sample_bytes,
+                    mask_body,
+                    &lengths,
+                    room.canvas,
+                ) else {
+                    return false;
+                };
+                let held = carried_anchors.saturating_add(anchors);
+                let fits = held <= crate::doc_path::MAX_DOCUMENT_PATH_ANCHORS;
+                if fits {
+                    carried_anchors = held;
+                }
+                fits
+            });
+            advanced_mask |= vmsk.is_some() && carried.is_none();
+            let vmsk = carried;
             let pixels = LayerPixels {
                 bounds,
                 channels: Vec::new(),
@@ -515,6 +569,8 @@ impl<'a> GroupRecords<'a> {
                     features,
                     label,
                     reference: reference_point(reference_block),
+                    shmd,
+                    vmsk,
                 },
             });
         }
@@ -584,7 +640,15 @@ impl<'a> GroupRecords<'a> {
                             reason,
                         }
                     }
-                    Err(_) => {}
+                    // A raster stays its pixels, which a shape layer stores
+                    // already masked: its vector mask is not applied again.
+                    Err(_) => {
+                        if record.group.vmsk.take().is_some() {
+                            record.group.mask = MaskRecord::Dropped(
+                                "vector, real-user (-3), or advanced mask behavior is unsupported",
+                            );
+                        }
+                    }
                 }
             } else if adjustment_record {
                 if let Some((key, body)) = record.adjustment_block {
@@ -707,6 +771,8 @@ impl<'a> GroupRecords<'a> {
                     out.layer_styles.push(record.style);
                     out.layer_labels.push(record.group.label);
                     out.layer_references.push(record.group.reference);
+                    out.layer_shmd.push(record.group.shmd);
+                    out.layer_vmsk.push(record.group.vmsk);
                     out.layers.push(record.pixels);
                 }
             }
@@ -723,7 +789,8 @@ impl<'a> GroupRecords<'a> {
     }
 
     /// D5's disclosure predicate on the FRAMED records alone — no pixel is
-    /// decoded, which is `psd_import::report`'s standing rule. True when this
+    /// decoded, which is `psd_import::report`'s standing rule — asked only
+    /// for the modes whose importers set no Background mark. True when this
     /// file has no true Photoshop Background record, its bottom entry
     /// satisfies D5, and a knockout REACHES it. `canvas` is the container's
     /// own dimensions.
@@ -912,15 +979,51 @@ impl<'a> GroupRecords<'a> {
     }
 }
 
+/// The anchors of a record's `vmsk` when it is a vector mask Doctored
+/// carries (`psd_paths`), before the document's anchor cap is weighed: an
+/// RGB file at 8 or 16 bits (`sample_bytes` 1 or 2), a body whose path
+/// Doctored holds exactly on the file's `canvas` (`psd_paths::vmsk_shape`),
+/// no raster mask beside it (no mask section, no `-2` channel), and no
+/// ENABLED vector stroke (`vstk`), whose shape layer's pixels show a stroke
+/// a fill under the path would not. `None` for every other `vmsk`.
+fn vector_mask_usable(
+    body: &[u8],
+    vstk: Option<&[u8]>,
+    color: u16,
+    sample_bytes: u64,
+    mask_body: &[u8],
+    lengths: &[(i16, usize)],
+    canvas: (u32, u32),
+) -> Option<usize> {
+    let stroked = vstk.is_some_and(|body| {
+        crate::psd_descriptor::read(body)
+            .ok()
+            .and_then(|d| d.bool(b"strokeEnabled").ok().flatten())
+            .is_none_or(|enabled| enabled)
+    });
+    let usable = color == 3
+        && matches!(sample_bytes, 1 | 2)
+        && mask_body.is_empty()
+        && !lengths.iter().any(|(id, _)| *id == -2)
+        && !stroked;
+    if !usable {
+        return None;
+    }
+    let (shape, _) = crate::psd_paths::vmsk_shape(body, canvas)?;
+    Some(shape.anchor_count())
+}
+
 /// A layer record whose first adjustment key `key` is a Pattern Fill, a
 /// Solid Color Fill or a Gradient Fill, RGB or CMYK:
 /// the walk decodes it
 /// in every form (`psd_fill_layer::Form`) and its pixel precheck defers it
 /// to `admit`'s canvas-raster charge. A record with an advanced mask
-/// (`advanced`: a vector mask `vmsk`/`vsms`, or `lmgm`/`vmgm`) is not one:
-/// Photoshop's SHAPE layer is a `SoCo` under a vector mask, which layered
-/// import does not carry, so a fill there would cover the canvas; it keeps
-/// its pixels and marker losses (a pixel-less one is omitted), as before.
+/// (`advanced`: a `vmsk` Doctored does not carry, a `vsms`, or
+/// `lmgm`/`vmgm`) is not one: a fill there would cover the canvas, so it
+/// keeps its pixels and marker losses (a pixel-less one is omitted), as
+/// before. Photoshop's SHAPE layer — a fill under a CARRIED `vmsk`
+/// (`vector_mask_usable`) — is one: it imports as the fill layer under its
+/// vector mask (`psd_paths`), or as its pixels when its fill does not decode.
 fn fill_candidate(divider: u32, key: [u8; 4], advanced: bool) -> bool {
     divider == 0 && !advanced && crate::psd_fill_layer::is_key(key)
 }

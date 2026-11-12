@@ -284,6 +284,8 @@ impl DrDocument {
             crate::spot_channel_native::header_bytes(
                 crate::spot_channel_native::byte_entries(&self.channels).len(),
             ),
+            // Word 113 and its LBKG table (`background_native`).
+            crate::background_native::header_bytes(crate::background_native::byte_entry(self)),
             // Word 90 (`style_pattern`), no table.
             if crate::style_pattern::styles_pattern(self) {
                 4

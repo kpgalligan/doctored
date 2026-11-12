@@ -348,6 +348,12 @@ Detail belongs in the source file's own header comment.
 - `style.rs` — layer styles: `LayerStyle`, `scaled_style`/`quad_mean_scale`, the `impl DrDocument` block; its module doc IS the style JSON schema table. `style::` is the one public path.
 - `style_model.rs` / `style_effects.rs` — the model's value types (global light, Blend If, gradient fill, the enums, `Strictness`) and the nine effect structs with `EffectKind`/`Effect`.
 - `style_knockout.rs` — KNOCKOUT and "Blend Interior Effects as Group" at 8 bits (12E-3): its module doc IS the design; `style_composite` / `doc_group` / `doc.rs` only WIRE IT UP.
+- `doc_background.rs` / `background_native.rs` / `ffi_background.rs` — the BACKGROUND MARK (bottom layer Background or ordinary; D5's veto), native word 113 and `LBKG`, the role query.
+- `psd_background.rs` — the PSD side of the Background mark at RGB 8/16: the import role of record 0, and when export writes Photoshop's Background record.
+- `psd_comp_records.rs` (KERNEL) — PSD layer comps as bytes: resource 1065 and a record's `shmd`/`cmls` settings, both directions over `psd_descriptor`.
+- `psd_comps.rs` — PSD layer comps at RGB 8/16: import binds each record's settings to the layer it built; export writes 1065, `lyid` and `cmls`.
+- `psd_path_records.rs` (KERNEL) — Adobe's 26-byte path records (8.24 canvas fractions) ↔ `PathShape`, and the `vmsk` body.
+- `psd_paths.rs` — paths in PSD (resources 1025, 2000–2997) at every depth and mode; RGB 8/16 vector masks as `vmsk`, both ways.
 - `style_knockout_merge.rs` — what a MERGE punches through to at 8 bits (Phase 12E-3b, contract g): the knockout capture, the merge backdrop, and the one excluded set.
 - `precision_style_knockout.rs` — the TYPED twin of `style_knockout` (Phase 12E-3b), restating none of its rules and adding no pixel math; its one typed piece is the knockout SEED.
 - `style_instances.rs` — stacked effect instances: up to 10 of the five repeating kinds, the JSON sentences, native word 89 and its byte/typed predicates.

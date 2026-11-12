@@ -138,7 +138,9 @@ impl DrDocument {
             255,
         ];
         let canvas = (self.width, self.height);
-        if crate::style_knockout::background_entry(&self.layers, canvas, Cut::NONE) != Some(0) {
+        if crate::style_knockout::background_entry(&self.layers, canvas, Cut::NONE, self.background)
+            != Some(0)
+        {
             return Ok(None);
         }
         let layer = &self.layers[0];
@@ -364,6 +366,7 @@ impl PrecisionDocument {
             self.dimensions(),
             Cut::NONE,
             self.float.is_some(),
+            self.background,
         ) {
             return Ok(None);
         }
@@ -572,8 +575,9 @@ fn extent_of(dimensions: (u32, u32), offset: (i32, i32)) -> Rect {
     )
 }
 
-/// Every alpha sample at its maximum (65535, float 1.0).
-fn opaque(image: &PrecisionImage) -> bool {
+/// Every alpha sample at its maximum (65535, float 1.0). Also the PSD
+/// writer's "can this bottom be a Background record" scan (`psd_background`).
+pub(crate) fn opaque(image: &PrecisionImage) -> bool {
     if let Some(mut runs) = image.runs_rgba16() {
         return runs.all(|run| run.iter().all(|p| p[3] == 65535));
     }

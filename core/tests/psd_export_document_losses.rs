@@ -40,6 +40,11 @@ const GUIDES: &str = "Guides and the ruler origin are not written.";
 const ONE_COMP: &str = "1 layer comp is not written; this export stores no Photoshop layer comps.";
 const TWO_COMPS: &str =
     "2 layer comps are not written; this export stores no Photoshop layer comps.";
+/// The layered RGB writers write a comp's visibility (`psd_comps`); a Save
+/// with no flags records all three, so its position and appearance are what
+/// is lost there.
+const ONE_NARROWED: &str = "1 layer comp is written with its visibility only; the layer position and appearance it records are not written.";
+const TWO_NARROWED: &str = "2 layer comps are written with their visibility only; the layer positions and appearances they record are not written.";
 
 #[derive(Clone, Copy)]
 enum Edit {
@@ -156,6 +161,12 @@ fn strings(report: &Value, key: &str) -> Vec<String> {
 /// At both depths and in both modes, the edited document's losses are the
 /// plain document's losses followed by exactly `expected`.
 fn assert_appended(edits: &[Edit], expected: &[&str]) {
+    assert_appended_by_mode(edits, expected, expected);
+}
+
+/// [`assert_appended`] with the LAYERED mode's sentences apart from the
+/// flattened mode's.
+fn assert_appended_by_mode(edits: &[Edit], layered: &[&str], flattened: &[&str]) {
     let depths = [
         ("8-bit", byte_reports(&[]), byte_reports(edits)),
         ("16-bit", typed_reports(&[]), typed_reports(edits)),
@@ -166,6 +177,11 @@ fn assert_appended(edits: &[Edit], expected: &[&str]) {
             .zip(plain.iter().zip(&edited))
         {
             assert_eq!(edited["mode"], *mode);
+            let expected = if *mode == "layers" {
+                layered
+            } else {
+                flattened
+            };
             let mut want = strings(plain, "losses");
             want.extend(expected.iter().map(|s| s.to_string()));
             assert_eq!(strings(edited, "losses"), want, "{depth} {mode}");
@@ -185,17 +201,25 @@ fn a_moved_ruler_origin_alone_is_disclosed_at_both_depths() {
 
 #[test]
 fn one_layer_comp_is_disclosed_in_the_singular() {
-    assert_appended(&[Edit::Comp("A")], &[ONE_COMP]);
+    assert_appended_by_mode(&[Edit::Comp("A")], &[ONE_NARROWED], &[ONE_COMP]);
 }
 
 #[test]
 fn two_layer_comps_are_counted() {
-    assert_appended(&[Edit::Comp("A"), Edit::Comp("B")], &[TWO_COMPS]);
+    assert_appended_by_mode(
+        &[Edit::Comp("A"), Edit::Comp("B")],
+        &[TWO_NARROWED],
+        &[TWO_COMPS],
+    );
 }
 
 #[test]
 fn a_guide_and_a_comp_are_disclosed_in_order() {
-    assert_appended(&[Edit::Guide, Edit::Comp("A")], &[GUIDES, ONE_COMP]);
+    assert_appended_by_mode(
+        &[Edit::Guide, Edit::Comp("A")],
+        &[GUIDES, ONE_NARROWED],
+        &[GUIDES, ONE_COMP],
+    );
 }
 
 #[test]

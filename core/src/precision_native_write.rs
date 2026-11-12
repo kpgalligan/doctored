@@ -174,8 +174,20 @@ impl PrecisionDocument {
                 job,
             )?;
         }
-        // Then the conditional `spot_channel_native` word 112 (#1) — right
-        // after the CMYK slot and ahead of 111, written iff some channel is a
+        // Then the conditional `background_native` word 113 — right after the
+        // CMYK slot and ahead of 112, written iff the Background mark names a
+        // record the document holds. Its LBKG table follows SPOT.
+        let background = crate::background_native::precision_entry(self);
+        if background.is_some() {
+            append(
+                out,
+                &crate::background_native::WORD.to_le_bytes(),
+                plan.encoded_bound,
+                job,
+            )?;
+        }
+        // Then the conditional `spot_channel_native` word 112 (#1) — after
+        // the CMYK slot and 113, ahead of 111, written iff some channel is a
         // spot channel. Its SPOT table follows LREF, before the CMYK table.
         let spots = crate::spot_channel_native::precision_entries(self);
         if !spots.is_empty() {
@@ -922,6 +934,9 @@ impl PrecisionDocument {
         })?;
         table(out, &mut scratch, plan.encoded_bound, job, |t, room| {
             crate::spot_channel_native::encode(&spots, t, room, job)
+        })?;
+        table(out, &mut scratch, plan.encoded_bound, job, |t, room| {
+            crate::background_native::encode(background, t, room, job)
         })?;
         table(out, &mut scratch, plan.encoded_bound, job, |t, room| {
             crate::cmyk_native::encode(cmyk, t, room, job)

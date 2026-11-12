@@ -1027,9 +1027,11 @@ fn psd_losses(doc: &DrDocument) -> Vec<String> {
         .collect()
 }
 
-/// A layered PSD writes a vector mask as its rendered raster, and the
-/// preflight says so by the layer's name; an ordinary raster mask is not
-/// named.
+/// A layered PSD writes a vector mask with no raster part as its `vmsk`
+/// (`psd_paths`), so nothing is said; one beside a raster mask, and one
+/// reaching past the 128 canvases a PSD path can hold, are written as their
+/// rendered raster, and the preflight says so by the layer's name; an
+/// ordinary raster mask is not named.
 #[test]
 fn psd_export_names_a_vector_mask_written_as_pixels() {
     let doc = masked();
@@ -1038,6 +1040,11 @@ fn psd_export_names_a_vector_mask_written_as_pixels() {
         "The vector mask on “{name}” is written as pixels, an ordinary layer mask of its rendered shape; its path is not written."
     );
     let losses = psd_losses(&doc);
+    assert!(!losses.contains(&sentence), "{losses:?}");
+    // 128 × 48 = 6,144 px: an anchor at x 7,000 has no 8.24 fraction.
+    let far = json!({"fill_rule": "nonzero", "subpaths": [
+        {"closed": true, "anchors": [[4, 4], [44, 4], [7000, 36]]}]});
+    let losses = psd_losses(&changed(set_shape(&byte(W, H), 0, &far)));
     assert!(losses.contains(&sentence), "{losses:?}");
     let ordinary = byte(W, H)
         .add_mask(0, MaskKind::FromSelection(&selection(W, H, pattern)))
@@ -1049,4 +1056,7 @@ fn psd_export_names_a_vector_mask_written_as_pixels() {
             .any(|line| line.starts_with("The vector mask on")),
         "{losses:?}"
     );
+    let both = changed(set_shape(&ordinary, 0, &shape_of(&blob())));
+    let losses = psd_losses(&both);
+    assert!(losses.contains(&sentence), "{losses:?}");
 }

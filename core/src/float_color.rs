@@ -493,6 +493,7 @@ impl PrecisionDocument {
         next.paths.clone_from(&self.paths);
         next.global_light = self.global_light;
         next.comps.clone_from(&self.comps);
+        next.background = self.background;
         next.native_preflight()?;
         job.report(1.0, 5)?;
         Ok(Some(next))

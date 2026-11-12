@@ -67,9 +67,9 @@ use crate::psd_layer_effects::{channel_list, knockout_clause, StyleBody};
 
 const GENERAL_LIMITATIONS: &[&str] = &[
     "Layer styles arrive as Photoshop layer effects (lfx2, lfxs on a group, or lmfx for stacked instances: up to 10 each of Drop Shadow, Inner Shadow, Stroke, Color Overlay and Gradient Overlay), fill opacity (iOpa) and Blend If blending ranges, and are carried as one Doctored layer style whose parameters are mapped onto Doctored's own renderer; a Pattern Overlay (patternFill) and a Stroke filled with a pattern (FrFX PntT Ptrn) arrive with their pattern from the file's Patt table (8- or 16-bit RGB or Gray tiles up to 512 px); contours with their Anti-aliased (TrnS, MpgS), the glows' Range and the bevel's Contour sub-panel are carried too, and so is the shadows' and glows' Noise (Nose), the glows' gradient fill and Jitter (Grad, ShdN) and the bevel's Texture (useTexture, with its pattern from the same table); legacy effects (lrFX) and the glows' technique are not imported, and an effect Doctored cannot render is discarded with its reason. Text/shape descriptions, smart objects and other live Photoshop constructs are not imported as editable state. Photoshop Invert, Threshold, Posterize, Levels, Curves, Color Balance, Hue/Saturation, Photo Filter, Exposure, Vibrance, Black & White, Channel Mixer, Selective Color and Brightness/Contrast adjustment layers are carried as Doctored adjustment layers with their parameters mapped onto Doctored's own arithmetic, so their appearance can differ from Photoshop's; a Pattern Fill layer (PtFl) is carried as a Doctored pattern fill layer with its pattern from the same Patt/Pat2 table, a Solid Color Fill layer (SoCo) as a Doctored solid color fill layer and a Gradient Fill layer (GdFl) as a Doctored gradient fill layer; every other adjustment or fill layer carries no pixels and is omitted from Import Layers, reported per record; the stored composite keeps their appearance. Knockout (knko: shallow or deep) and Blend Interior Effects as Group (infx) are carried on that same layer style at both depths; clbl is not interpreted.",
-    "Layer/group masks retain ordinary 20-byte -2 Raw/RLE/ZIP masks with default0/255 and enabled state. Mask rectangles are read as canvas coordinates; the PSD position-relative flag is recorded but not applied, matching Photoshop. Imported masks are independent (unlinked); PSD linkage, extended/vector masks and density/feather parameters are not retained. Saved alpha channels are not retained; spot channels are, at 8 and 16 bits.",
+    "Layer/group masks retain ordinary 20-byte -2 Raw/RLE/ZIP masks with default0/255 and enabled state. Mask rectangles are read as canvas coordinates; the PSD position-relative flag is recorded but not applied, matching Photoshop. Imported masks are independent (unlinked); PSD linkage, extended masks and density/feather parameters are not retained. An 8- or 16-bit RGB file's vector mask (vmsk) with no raster mask beside it, whose path neither starts from all pixels nor subtracts or intersects its subpaths, is retained as the layer's vector mask — a shape layer's as its fill layer under the path, unless its fill does not decode or it has an enabled stroke — while the file's paths and vector masks fit the document's 65,536-anchor cap, and every other vector mask is not. The file's paths (the work path and each saved path) are retained on both import choices. Saved alpha channels are not retained; spot channels are, at 8 and 16 bits.",
     "Group folder opacity, visibility, open/closed state, clipping and recognized blend keys are retained; both depths evaluate clipping. Blending ranges restricting gray, red, green or blue are imported as Blend If, one range per restricted channel; ranges on alpha, advanced masks and other advanced Photoshop blending options are not.",
-    "Layer locks (lspf) are carried: transparency, pixels, position and Lock All. A folder dissolved beyond the 10-level nesting limit adds its locks to each layer it held. Photoshop's artboard-nesting lock, a Background layer's implicit transparency and position locks and the legacy header protection flag are not. Guides, ruler origin and capture metadata are not imported. Embedded RGB ICC and print resolution are retained.",
+    "Layer locks (lspf) are carried: transparency, pixels, position and Lock All. A folder dissolved beyond the 10-level nesting limit adds its locks to each layer it held. Photoshop's artboard-nesting lock, a Background layer's implicit transparency and position locks and the legacy header protection flag are not. Guides, ruler origin and capture metadata are not imported. Embedded RGB ICC and print resolution are retained. An 8- or 16-bit RGB file's layer comps (image resource 1065 and each layer's cmls settings) arrive with their names, comments and per-layer visibility; a comp's recorded position and appearance are not imported.",
     "Full admitted raster rectangles and signed offsets are retained, including hidden RGB and off-canvas pixels. Reversed or one-side-zero raster rectangles, incomplete color channels, unsupported compression and exceeded decode limits refuse layers — Raw, RLE and ZIP/ZIP-with-prediction channels are read at both depths, including from the `Lr16` tail block Photoshop's 16-bit files keep their records in, from a large-document PSB (up to 300000 pixels per side) and from the Photoshop layer block of a big-endian 8- or 16-bit RGB TIFF or of a 32-bit float RGB TIFF in either byte order (a little-endian one's descriptor blocks, such as layer effects, fills and adjustments, refuse layers by name); a PSB layer record holding a 64-bit-length block refuses layers, and a layered TIFF has no stored composite here because its flat image opens as an ordinary TIFF; a rectangle that is zero on both sides carries no pixels and is an adjustment/fill or empty record, handled per record; groups deeper than 10 levels are dissolved.",
     "These are general importer limits, not a claim that this file contains every listed feature. The bounded record walk additionally recognizes a finite set of style, adjustment/fill, text, smart/placed, vector and blending metadata markers. Marker presence does not establish active settings or matching appearance; descriptor payloads other than the carried adjustment kinds, unknown keys and global additional-info blocks are not interpreted.",
 ];
@@ -171,6 +171,7 @@ pub(crate) fn parse_with<'a>(
     let records = GroupRecords::read(
         container.layer_info()?,
         container.sample_bytes(),
+        crate::psd_paths::MaskRoom::of(container),
         container.kind.large(),
         container.color,
         colors.as_ref(),
@@ -673,12 +674,21 @@ pub(crate) fn report(original: &[u8], path: &str) -> Result<Value, String> {
             );
             float_refusal = crate::psd_import_float::layered_refusal(psd, records);
         }
-        // D13, once per file: Doctored has no Background LAYER KIND, so it
-        // reads a plain bottom entry as the Background structurally. A file
-        // with no true Background record and a knockout that reaches that
-        // entry therefore renders the hole differently here than in
-        // Photoshop. Framed records only — this report decodes no pixels.
-        if records.structural_background_knockout((container.width, container.height)) {
+        // Layer comps (resource 1065 and each record's `cmls`), which the RGB
+        // 8- and 16-bit opens import (`psd_comps`).
+        if !cmyk && !gray && !lab && !float {
+            losses.extend(crate::psd_comps::report_losses(&container, records));
+        }
+        // D13, once per file, for the importers that set no Background mark
+        // (CMYK, Gray, Lab and 32-bit float; the RGB 8- and 16-bit ones mark
+        // record 0, `psd_background`): they read a plain bottom entry as the
+        // Background structurally, so a file with no true Background record
+        // and a knockout that reaches that entry renders the hole
+        // differently here than in Photoshop. Framed records only — this
+        // report decodes no pixels.
+        if (cmyk || gray || lab || float)
+            && records.structural_background_knockout((container.width, container.height))
+        {
             losses.push("This file has no Photoshop Background layer, and a knockout can reach its bottom layer, which Doctored treats as the Background because it is visible, Normal, 100 % opacity, unmasked, unstyled, canvas-sized and at the origin. Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show the bottom layer here where it shows transparency in Photoshop. This is a deliberate Doctored rule, not an import error.".into());
         }
         records.divider_features.report(
@@ -763,6 +773,9 @@ pub(crate) fn report(original: &[u8], path: &str) -> Result<Value, String> {
             observations.extend(samplers.observations);
         }
     }
+    // Resources 1025 and 2000–2997: every importer carries the paths on both
+    // choices (`psd_paths`), so their sentences are the file's too.
+    losses.extend(crate::psd_paths::file_paths(&container).1);
     let mut layer_error = common_refusal
         .clone()
         .or_else(|| parsed.as_ref().and_then(|p| p.as_ref().err().cloned()))

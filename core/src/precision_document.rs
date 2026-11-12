@@ -538,6 +538,10 @@ pub struct PrecisionDocument {
     /// default 120°/30°; a REBUILT one carries the light it came from. A
     /// float document always holds the default (it refuses the edit).
     pub(crate) global_light: crate::style::GlobalLight,
+    /// The BACKGROUND MARK (`doc_background`, the byte twin's
+    /// `DrDocument.background`). A freshly BUILT document has none; a
+    /// REBUILT one carries it.
+    pub(crate) background: Option<crate::doc_background::BackgroundMark>,
 }
 
 impl PrecisionDocument {
@@ -733,6 +737,7 @@ impl PrecisionDocument {
             // …and the default light, which is what every document before
             // the typed global light rendered with.
             global_light: crate::style::GlobalLight::default(),
+            background: None,
             float,
             cmyk,
             gray: None,
@@ -799,6 +804,7 @@ impl PrecisionDocument {
         // …and the comps: a rebuild is the SAME document with changed
         // records, and every comp entry binds by an id the records kept.
         next.comps.clone_from(&self.comps);
+        next.background = self.background;
         // …and the guides and the ruler origin, VERBATIM: a rebuild changes
         // records, and the one caller that also changes the CANVAS
         // (`precision_geometry`) overwrites both with the moved chrome right
@@ -1003,6 +1009,7 @@ impl PrecisionDocument {
                     (self.width, self.height),
                     cut,
                     self.float.is_some(),
+                    self.background,
                 );
         let scene = PrecisionScene::new(
             self.width,

@@ -19,7 +19,8 @@
 //! (`style_knockout.rs` at 8 bits, `precision_style_knockout.rs` at 16, Phase 12E-3 / 12E-3b) and
 //! its PSD `knko`/`infx` records cross both ways at both depths since 12E-3c; P7-37 is VERIFIED
 //! since 12E-3d, whose Photoshop block measured the 16-bit re-measurement (ten MATCH under T3), the
-//! `deep_over_ordinary_bottom` divergence (DIVERGENCE (disclosed) at both depths), the per-record
+//! `deep_over_ordinary_bottom` case (a divergence then, matched at both depths since the
+//! Background mark, `doc_background`), the per-record
 //! export verification (eight MATCH plus PX-PAD) and both contract observations.
 use crate::blend::BlendMode;
 use crate::job_control::JobContext;

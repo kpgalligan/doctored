@@ -647,6 +647,7 @@ fn carried(
     // style is authored sRGB both ways, so the comps carry unchanged and
     // need no plan term (`lab_comps`).
     out.comps.clone_from(&source.comps);
+    out.background = source.background;
     Ok(out.seeding_vector_masks(source.vector_mask_seeds(Clone::clone), limit, other))
 }
 

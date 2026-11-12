@@ -1,7 +1,7 @@
 # Paths, the Pen tool and vector masks (ADR)
 
 - **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13),
-  [#19](https://github.com/kpgalligan/doctored/issues/19))
+  [#19](https://github.com/kpgalligan/doctored/issues/19), [#31](https://github.com/kpgalligan/doctored/issues/31))
 - **Date:** 2026-10-11
 - **Closes the track items:** "Pen/Bézier node editing" and "path operations/vector masks" of *Text and paths* in the
   [plan](professional-photo-editor-implementation-plan.md)
@@ -31,7 +31,8 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   the conditional word 79 (`raw_locals_native`), and the `PATH` table
   is the last before `LIDS`. It is written only when a path or a live vector mask exists, so any other
   document is byte-for-byte the earlier writer's file. Ids are minted on load. A flat save names `"paths"`
-  among its losses. PSD and TIFF carry no path.
+  among its losses. A layered PSD, PSB or TIFF carries the paths (resources 1025 and 2000–2997, `psd_paths`) at
+  every depth and mode, and at RGB 8/16 a vector mask with no raster part as its `vmsk`; a flat TIFF carries none.
 - **Operations**, each a core function with an MCP tool (`AgentServer+Paths.swift`):
   - coverage: `artwork_coverage::rasterize` over the path's commands, the one rasterizer shapes use;
     `anti_alias: false` cuts at half coverage. `path_to_selection` commits it with mode and feather.
@@ -85,9 +86,17 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   hold only rectangle, ellipse and line geometry).
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Path Selection and Direct Selection as
   separate tools; path boolean operations; per-path fill and stroke dialogs.
-- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — reading or writing paths, vector masks and
-  clipping paths in PSD or TIFF: export writes the baked mask, and an imported PSD's `vmsk`/`vsms` stays a
-  reported loss.
+- `DONE` — paths in PSD, PSB and layered TIFF, both directions, every depth and mode (`psd_paths`,
+  `psd_path_records`: Adobe's 26-byte records, saved paths by name, the work path, entry-by-entry import); at RGB
+  8/16 a `vmsk` with no raster mask beside it imports as the layer's vector mask (a shape layer as its fill
+  under the path) and a raster-less vector mask exports as its `vmsk` (`core/tests/psd_paths.rs`, against
+  Photoshop's own `vmsk` bytes). The record walk decides which `vmsk` is carried (`psd_paths::vmsk_shape`,
+  `MaskRoom`): one that starts from all pixels, subtracts or intersects its subpaths, or would take the file's
+  paths and vector masks past the 65,536-anchor cap keeps the record's pixels and the dropped-mask sentence.
+- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — clipping paths (resource 2999), paths in a flat
+  TIFF, a vector mask beside a raster mask, an inverted one, one whose subpaths subtract or intersect, and
+  `vsms`; `OPEN` [#31](https://github.com/kpgalligan/doctored/issues/31) — vector masks in the colour modes and
+  at 32 bits.
 - `DROPPED` (2026-10-30) — Curvature Pen; Freeform and Magnetic pen: the Pen covers authoring, and the Magnetic
   Lasso plus Make Work Path covers edge tracing.
 - `DROPPED` (2026-10-30) — pressure or canonical-dab strokes along a path: Stroke Path ships, and simulated

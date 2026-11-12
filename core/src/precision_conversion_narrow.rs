@@ -701,6 +701,8 @@ impl PrecisionDocument {
             resolution: self.resolution,
             linear_light: None,
             comps: self.comps.clone(),
+            // Layer ids survive the narrowing, so the mark does too.
+            background: self.background,
         };
         let document = crate::doc_group::validated(document)
             .ok_or("the narrowed layer structure is malformed")?;
@@ -733,6 +735,7 @@ impl PrecisionDocument {
             }
         }
         result.comps.clone_from(&self.comps);
+        result.background = self.background;
         result.guides.clone_from(&self.guides);
         result.ruler_origin = self.ruler_origin;
         result.color_samplers.clone_from(&self.color_samplers);

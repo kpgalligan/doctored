@@ -71,26 +71,26 @@
 //! * Deep through any chain of pass-through groups is the BACKGROUND (D5),
 //!   else transparent.
 //!
-//! # D5 — the Background, which Doctored has no kind for
+//! # D5 — the Background
 //!
 //! Entry 0 qualifies as the Background iff it is at depth 0, Raster and not an
 //! adjustment, visible, not cut, Normal, opacity 1, without an enabled mask,
 //! without a style, at offset (0, 0), exactly canvas-sized, and entry 1 (if
-//! any) is unclipped ([`background_entry`]). `B0` is then the root accumulator
-//! right after entry 0 composited.
+//! any) is unclipped ([`background_entry`]) — unless the document's
+//! BACKGROUND MARK (`doc_background`) says entry 0 is an ordinary layer,
+//! which vetoes it. `B0` is then the root accumulator right after entry 0
+//! composited.
 //!
-//! DISCLOSED DIVERGENCE (**D13**, decided by 12E-3c): Photoshop tells a true
-//! Background layer from an ordinary opaque bottom layer and Doctored cannot
-//! — the PSD record is where a Background is recognizable. D5 is KEPT
-//! STRUCTURAL: `D5's Background divergence is a DELIBERATE PRODUCT DECISION,
-//! not a measurement result: Doctored keeps the structural Background rule
-//! and has no Background layer kind, so a Deep knockout (or a root Shallow
-//! one) over an ordinary opaque canvas-sized bottom layer shows that layer in
-//! Doctored and transparency in Photoshop. It is disclosed on PSD import and
-//! export, measured as the DIVERGENCE case deep_over_ordinary_bottom, and
-//! owned as carryover P7-38 (10C-3).` The two sides of the disclosure are
-//! [`document_reaches_background`] here and
-//! `psd_group_records::structural_background_knockout` on the way in.
+//! **D13** (12E-3c, then the Background mark): only a PSD sets a mark, from
+//! its record 0 (`psd_background`), so a knockout over the bottom of an
+//! imported file punches where its author saw it punch (the committed take
+//! `knockout_bottom/deep_over_ordinary_bottom`), and every other document
+//! keeps the structural rule. The RGB PSD writers store a qualifying bottom a
+//! written knockout reaches as Photoshop's Background record; a bottom that
+//! cannot be one, and the Gray, Lab, CMYK and 32-bit float files, whose
+//! codecs carry no mark, keep the disclosure: [`document_reaches_background`]
+//! here and `psd_group_records::structural_background_knockout` on the way
+//! in.
 //!
 //! The TYPED twin (`precision_style_knockout::background_record`) is this rule
 //! verbatim plus ONE clause the byte rule gets for free: **no Blend If**. The
@@ -213,11 +213,12 @@
 //! merged pass-through group, or clipped to a base outside the merge) does it still bake as
 //! transparency, and THAT residual is what `LayerStyle.knockoutMergeResidualNote` discloses on the
 //! `merge_down` reply. **Phase 12E-3c** carries PSD `knko`/`infx` in both directions and at both depths
-//! through the ONE blending-options codec (`psd_layer_effects.rs`) and records **D13**: D5's
-//! Background divergence is a DELIBERATE PRODUCT DECISION, disclosed once per file on BOTH import
-//! and export — `document_reaches_background` here and
-//! `psd_group_records::structural_background_knockout` on the way in are the two halves of that one
-//! predicate — and owned as carryover P7-38 (10C-3). **12E-3d** measured D6's clip-base narrowing
+//! through the ONE blending-options codec (`psd_layer_effects.rs`) and records **D13**, which the
+//! Background mark (`doc_background`, `psd_background`) now resolves at RGB: a PSD's record 0 sets
+//! the mark, and the RGB writers store a qualifying bottom as Photoshop's Background record; the
+//! remaining disclosure — `document_reaches_background` here and
+//! `psd_group_records::structural_background_knockout` on the way in — covers a bottom that
+//! cannot be a Background record and the modes whose codecs carry no mark. **12E-3d** measured D6's clip-base narrowing
 //! against Photoshop (Photoshop evaluates `blend_interior_as_group` on a clip base with visible
 //! members); P7-39 then LIFTED the narrowing at both depths, and its PSD disclosures went with it.
 
@@ -400,13 +401,18 @@ pub(crate) fn document_reaches_background(
 
 /// D5: the index of the entry that qualifies as the BACKGROUND, or `None`.
 /// Only entry 0 can ever qualify, and every clause is a property the
-/// projection can read without rendering anything.
+/// projection can read without rendering anything. `mark` is the document's
+/// Background mark (`doc_background`): an applicable `Ordinary` one vetoes.
 pub(crate) fn background_entry(
     layers: &[Layer],
     canvas: (u32, u32),
     cut: Cut<'_>,
+    mark: Option<crate::doc_background::BackgroundMark>,
 ) -> Option<usize> {
     let entry = layers.first()?;
+    if crate::doc_background::vetoes(mark, Some(entry.id)) {
+        return None;
+    }
     if entry.depth != 0 || entry.kind != LayerKind::Raster {
         return None;
     }
@@ -453,8 +459,15 @@ pub(crate) fn snapshot_pixels(doc: &DrDocument) -> u64 {
     }
     let canvas = u64::from(doc.width) * u64::from(doc.height);
     // The Background snapshot, when entry 0 qualifies.
-    let mut snapshots =
-        u64::from(background_entry(&doc.layers, (doc.width, doc.height), Cut::NONE).is_some());
+    let mut snapshots = u64::from(
+        background_entry(
+            &doc.layers,
+            (doc.width, doc.height),
+            Cut::NONE,
+            doc.background,
+        )
+        .is_some(),
+    );
     if doc
         .layers
         .iter()
@@ -533,17 +546,20 @@ pub(crate) fn windowed(
 ///
 /// A document that wants no knockout, or whose entry 0 does not qualify, runs
 /// `doc_group::composite_level_into` on the whole level exactly as before.
+/// `canvas` is the accumulator's `(w, h)` and `mark` the document's
+/// Background mark (`doc_background`).
 pub(crate) fn composite_projection_into(
     acc: &mut [[f32; 4]],
-    w: u32,
-    h: u32,
+    canvas: (u32, u32),
     layers: &[Layer],
+    mark: Option<crate::doc_background::BackgroundMark>,
     level: &[Unit],
     env: CompositeEnv<'_>,
     budget: &RenderBudget,
 ) -> Result<(), String> {
+    let (w, h) = canvas;
     let background = document_wants_background(layers)
-        .then(|| background_entry(layers, (w, h), env.cut))
+        .then(|| background_entry(layers, (w, h), env.cut, mark))
         .flatten()
         // Only the bottom unit of the level can be the Background, and D5's
         // "entry 1 unclipped" is what guarantees that unit is entry 0 alone.

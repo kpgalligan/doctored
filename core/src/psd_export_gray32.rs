@@ -205,6 +205,7 @@ impl PrecisionDocument {
             &tail,
             true,
             &|file| append_composite_gray32(projection, width, height, file),
+            &crate::psd_paths::resources(self.paths(), self.dimensions()),
         )?;
         drop(out);
         crate::dr_image::save_atomically(path, |tmp| {

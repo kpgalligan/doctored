@@ -719,6 +719,7 @@ impl DrDocument {
             result = switched;
         }
         result.comps.clone_from(&self.comps);
+        result.background = self.background;
         result.guides.clone_from(&self.guides);
         result.ruler_origin = self.ruler_origin;
         result.color_samplers = self.color_samplers().to_vec();

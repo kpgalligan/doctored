@@ -44,7 +44,6 @@ use crate::psd_layer_effects::{
     effect_blocks, encode_fill, encode_fill_for, encode_ranges, knockout_blocks,
 };
 use crate::psd_layer_pixels::import_envelope_bytes;
-use crate::style_composite::Cut;
 use crate::style_model::GlobalLight;
 
 pub(crate) use crate::psd_export_preflight::{PsdExportMode, PsdExportReport, UNKNOWN_MODE};
@@ -162,22 +161,21 @@ impl DrDocument {
             has_guides: !self.guides.is_empty() || self.ruler_origin != (0.0, 0.0),
             sampler_sizes_lost: self.color_samplers.iter().any(|s| s.sample_size != 1),
             comps: self.comps.len(),
+            // The visibility comps this writer writes (`psd_comps`).
+            comps_written: crate::psd_comps::counts(&self.comps).0,
+            comps_narrowed: crate::psd_comps::counts(&self.comps).1,
+            path_losses: crate::psd_paths::export_losses(
+                &self.paths.entries,
+                (self.width, self.height),
+            ),
             has_metadata: !self.metadata.is_empty(),
             nondefault_global_light: self.global_light != GlobalLight::default(),
-            // D13: this document's bottom entry IS the Background by D5's
-            // structural rule, and a knockout reaches it — but the file will
-            // carry it as an ordinary layer record.
-            structural_background_knockout: crate::style_knockout::background_entry(
-                &self.layers,
-                (self.width, self.height),
-                Cut::NONE,
-            )
-            .is_some()
-                && crate::style_knockout::document_reaches_background(&self.layers, |layer| {
-                    // A BAKED style writes no `knko`, so such a file punches
-                    // nothing in Photoshop and D13 must stay silent about it.
-                    export_style(layer, false).is_some_and(|style| style.bake.is_none())
-                }),
+            // D13: this writer stores a qualifying bottom as Photoshop's
+            // Background record (`psd_background`), so only a bottom that
+            // cannot be one is said.
+            structural_background_knockout: false,
+            background_unwritable: self.bottom_export()
+                == crate::psd_background::BottomExport::Unwritable,
             entries: self
                 .layers
                 .iter()
@@ -272,7 +270,19 @@ impl DrDocument {
                                 density: layer.mask_properties.density,
                                 feather: layer.mask_properties.feather,
                                 linked: layer.mask_properties.linked,
-                                vector: self.live_vector_mask(index).is_some(),
+                                // Written as pixels beside a raster part,
+                                // or when a PSD path cannot hold its shape;
+                                // any other is its `vmsk` (`psd_paths`).
+                                vector: self.live_vector_mask(index).is_some_and(|record| {
+                                    record.raster.is_some()
+                                        || crate::psd_paths::vmsk_body(
+                                            &record.shape,
+                                            record.enabled,
+                                            record.linked,
+                                            (self.width, self.height),
+                                        )
+                                        .is_none()
+                                }),
                             }),
                         described: layer.meta.is_some() && adjustment.is_none() && !fill_record,
                         adjustment,
@@ -351,6 +361,9 @@ impl DrDocument {
         large: bool,
     ) -> Result<Vec<Record>, String> {
         let mut out = Vec::new();
+        // Each record's layer as (id, visible), `None` for a closer: what
+        // the layer comps' `cmls` settings bind to (`psd_comps`).
+        let mut owners = Vec::new();
         for index in 0..self.layers.len() {
             let mut closing: Vec<u16> = self
                 .layers
@@ -378,8 +391,31 @@ impl DrDocument {
                     blocks: Vec::new(),
                     ranges: Vec::new(),
                 });
+                owners.push(None);
             }
             out.push(self.entry_record(index, colors, large)?);
+            owners.push(Some((self.layers[index].id, self.layers[index].visible)));
+        }
+        crate::psd_comps::stamp_records(&mut out, &owners, &self.comps);
+        // A live vector mask with no raster part is written as its `vmsk`
+        // (`psd_paths`), in place of the baked mask the walk wrote.
+        let masks: Vec<Option<crate::psd_paths::WrittenMask>> = owners
+            .iter()
+            .map(|owner| {
+                let (id, _) = (*owner)?;
+                let index = self.layers.iter().position(|l| l.id == id)?;
+                self.live_vector_mask(index)
+                    .filter(|record| record.raster.is_none())
+                    .map(|record| (record.shape, record.enabled, record.linked))
+            })
+            .collect();
+        crate::psd_paths::stamp_vector_masks(&mut out, &masks, (self.width, self.height));
+        // Entry 0 as Photoshop's Background record, when it is one: it is
+        // FILE record 0, since a group's closer comes before its contents.
+        if self.bottom_export() == crate::psd_background::BottomExport::Background {
+            if let (Some(record), Some(layer)) = (out.first_mut(), self.layers.first()) {
+                crate::psd_background::shape_record(record, layer.locks);
+            }
         }
         Ok(out)
     }
@@ -704,6 +740,13 @@ impl DrDocument {
             ),
             PsdExportMode::Flattened => Vec::new(),
         };
+        // Image resource 1065, the layer comps the records' `cmls` name
+        // (`psd_comps`); the flattened mode writes no layer, so none.
+        // …and, in both modes, the paths' resources (`psd_paths`).
+        let mut extra = crate::psd_paths::resources(&self.paths.entries, (self.width, self.height));
+        if matches!(mode, PsdExportMode::Layers) {
+            extra.extend(crate::psd_comps::resource(&self.comps));
+        }
         let bytes = if container == LayeredContainer::Tiff {
             // The flat picture is the TIFF's own strip, straight RGBA; the
             // records and resources ride in Photoshop's tags.
@@ -713,6 +756,7 @@ impl DrDocument {
                 self.resolution,
                 light,
                 &self.color_samplers,
+                &extra,
             );
             resources.extend_from_slice(&spots.resources);
             crate::tiff_layers::write_spots(
@@ -743,6 +787,7 @@ impl DrDocument {
                 large,
                 &tail,
                 &self.psd_spot_planes(),
+                &extra,
             )?
         };
         crate::dr_image::save_atomically(path, |tmp| {

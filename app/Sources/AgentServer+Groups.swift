@@ -1072,6 +1072,8 @@ extension AgentServer {
         // Whether the row's mask is a VECTOR mask (`get_vector_mask`).
         // Written here, the one builder both depths' rows pass through.
         fields["vector_mask"] = doc.vectorMask(index) != nil
+        // The bottom row's Background mark, when a PSD import set one.
+        if index == 0, let role = doc.backgroundRole { fields["background"] = role.name }
         if let bounds = contentBox {
             fields["content_x"] = bounds.x
             fields["content_y"] = bounds.y

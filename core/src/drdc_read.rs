@@ -78,8 +78,17 @@ pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
     // every file an earlier build wrote, and it mints fresh ids exactly as
     // this reader always did.
     let has_ids = outermost_version == crate::identity_native::BYTE_VERSION;
-    let spot_word = if has_ids { r.u32()? } else { outermost_version };
-    // Version 112 is the FIRST word inside 45 (`spot_channel_native`, #1),
+    let background_word = if has_ids { r.u32()? } else { outermost_version };
+    // Version 113 is the FIRST word inside 45 (`background_native`), ahead
+    // of 112: the Background mark names a layer, and its LBKG table follows
+    // SPOT, checked before any PNG decodes.
+    let has_background = has_ids && background_word == crate::background_native::WORD;
+    let spot_word = if has_background {
+        r.u32()?
+    } else {
+        background_word
+    };
+    // Version 112 is the next word inside 45 (`spot_channel_native`, #1),
     // ahead of 111: some channel is a spot channel, and its SPOT table
     // follows LREF, every entry checked before any PNG decodes.
     let has_spot = has_ids && spot_word == crate::spot_channel_native::WORD;
@@ -956,6 +965,14 @@ pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
             channels[index].spot = Some(ink);
         }
     }
+    // The LBKG table, after SPOT and before LIDS: a bad schema, index or
+    // role refuses here, before any PNG decodes (`background_native`). It
+    // binds to the record's final id below, once LIDS is read.
+    let background_entry = if has_background {
+        Some(crate::background_native::parse(&mut r, layers.len())?)
+    } else {
+        None
+    };
     // A vector mask's raster part is one more mask plane of its layer, and
     // each record must agree with the mask its layer stores
     // (`doc_vector_mask`) — both before the first PNG decodes.
@@ -1184,6 +1201,10 @@ pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
     // The vector-mask records, bound to the layers' final ids and to the
     // mask planes just built: each stored mask is the plane its record baked.
     let vector_masks = crate::doc_vector_mask_carry::adopted_records(&layers, paths.masks)?;
+    let background = background_entry.map(|(index, role)| crate::doc_background::BackgroundMark {
+        layer: layers[index].id,
+        role,
+    });
     Ok(DrDocument {
         width,
         height,
@@ -1202,6 +1223,7 @@ pub(crate) fn parse_native(bytes: &[u8]) -> Result<DrDocument, String> {
         resolution,
         linear_light,
         comps,
+        background,
     })
 }
 

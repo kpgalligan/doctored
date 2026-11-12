@@ -557,6 +557,7 @@ impl PrecisionDocument {
         // no record, so every comp entry still binds by the id its layer
         // kept (`precision_comps`).
         next.comps.clone_from(&self.comps);
+        next.background = self.background;
         next.rebind_evaluation()?;
         next.native_preflight()?;
         Ok(next)
@@ -644,6 +645,7 @@ impl PrecisionDocument {
         // no record, so every comp entry still binds by the id its layer
         // kept (`precision_comps`).
         next.comps.clone_from(&self.comps);
+        next.background = self.background;
         Ok(next)
     }
 }

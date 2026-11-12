@@ -433,10 +433,20 @@ pub(super) fn parse_within(
     // Version 110 in the same slot (`bitmap_native`, #1): a Bitmap
     // document, whose GRAY table then BTMP table are the last before LIDS.
     let has_bitmap = has_ids && cmyk_word == crate::bitmap_native::WORD;
-    let spot_word = if has_cmyk || has_gray || has_duotone || has_lab || has_indexed || has_bitmap {
+    let background_word =
+        if has_cmyk || has_gray || has_duotone || has_lab || has_indexed || has_bitmap {
+            reader.u32()?
+        } else {
+            cmyk_word
+        };
+    // Version 113 (`background_native`) follows the CMYK slot, ahead of 112:
+    // the Background mark names a record, its LBKG table after SPOT and
+    // before the CMYK table.
+    let has_background = has_ids && background_word == crate::background_native::WORD;
+    let spot_word = if has_background {
         reader.u32()?
     } else {
-        cmyk_word
+        background_word
     };
     // Version 112 (`spot_channel_native`, #1) follows the CMYK slot, ahead
     // of 111: some channel is a spot channel, its SPOT table after LREF and
@@ -1902,6 +1912,14 @@ pub(super) fn parse_within(
     } else {
         Vec::new()
     };
+    // The LBKG table, after SPOT and before the CMYK table
+    // (`background_native`): a bad schema, index or role refuses here,
+    // before any pixel decodes. Bound to the record's final id at each exit.
+    let background_entry = if has_background {
+        Some(crate::background_native::parse(&mut reader, declared)?)
+    } else {
+        None
+    };
     // The LIDS table, last of all and the ONE this format always writes
     // (`identity_native`), still before the single count/trailing check
     // below, which is therefore unchanged. A bad schema, a count that is not
@@ -2264,6 +2282,7 @@ pub(super) fn parse_within(
             crate::identity_native::adopt(&mut document, ids)?;
         }
         bind_comps(&mut comps, &comp_bindings, &document);
+        document.background = bound_background(background_entry, &document);
         document.comps = comps;
         adopt_chrome(&mut document, chrome);
         document.global_light = light;
@@ -2296,6 +2315,7 @@ pub(super) fn parse_within(
             crate::identity_native::adopt(&mut document, ids)?;
         }
         bind_comps(&mut comps, &comp_bindings, &document);
+        document.background = bound_background(background_entry, &document);
         document.comps = comps;
         adopt_chrome(&mut document, chrome);
         document.global_light = light;
@@ -2332,6 +2352,7 @@ pub(super) fn parse_within(
         crate::identity_native::adopt(&mut document, ids)?;
     }
     bind_comps(&mut comps, &comp_bindings, &document);
+    document.background = bound_background(background_entry, &document);
     document.comps = comps;
     adopt_chrome(&mut document, chrome);
     document.global_light = light;
@@ -2379,6 +2400,19 @@ fn adopt_chrome(
         document.guides = guides;
         document.ruler_origin = origin;
     }
+}
+
+/// The LBKG entry bound to the id the finished document's record holds
+/// (`background_native`). Separate for the same reason as [`bind_comps`].
+fn bound_background(
+    entry: Option<crate::background_native::Entry>,
+    document: &PrecisionDocument,
+) -> Option<crate::doc_background::BackgroundMark> {
+    let (index, role) = entry?;
+    Some(crate::doc_background::BackgroundMark {
+        layer: document.layer_id(index)?,
+        role,
+    })
 }
 
 /// Binds parsed comp entries to the records the finished document holds.

@@ -1,6 +1,6 @@
 # High-depth layer and document operations (ADR)
 
-- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13): the Background layer kind and PSD layer comps)
+- **Status:** Accepted — open items remain ([#31](https://github.com/kpgalligan/doctored/issues/31): the Background mark and PSD layer comps in the colour modes; [#13](https://github.com/kpgalligan/doctored/issues/13): comp position and appearance)
 - **Phase / dates:** 12E (12E-1 … 12E-3d), 2026-09-19 → 2026-09-20; closes P7-26, P7-27, P7-37
 - **Original:** [archive/phase-12e-layer-ops-status.md](../archive/phase-12e-layer-ops-status.md): full history, measurement tables (M1–M7, P16/PD/PX), F1–F11 pre-registration, receipts, drive gate lists
 - **Key commits:** `ab5c193` (12E-1), `9d49b2c` (1b), `a03fca9` (1c), `50b2d67` (2), `d8a0538` (2b), `e8af30c` (2c), `78cb0ba` (3), `1a69abb` (3b), `1063561` (3c), `e03026e` (3d)
@@ -148,7 +148,7 @@ byte op is always the specification: each typed twin restates it and adds no rul
   ordinary opaque bottom layer shows that layer where Photoshop shows transparency. Disclosed on import
   (`psd_group_records::structural_background_knockout`) and export (`document_reaches_background[16]`). A true
   Photoshop Background: lowest record, no `-1` channel, flags `0x09`, `lnsr bgnd`. Host mirror:
-  `RasterDocument.hasQualifyingBackground`.
+  `RasterDocument.hasQualifyingBackground`. Superseded at RGB 8/16 by P7-38's Background mark (open items).
 - **E9** tracks `clbl` and `infx` separately. **E7** leaves `cmls` unimported (premise unverified). Pad
   handling in `psd_records.py` reads both Photoshop's 4-pad and Doctored's even pad.
 
@@ -162,7 +162,8 @@ byte op is always the specification: each typed twin restates it and adds no rul
 
 ## Rejected alternatives
 - New outer words for `LLNK`/`LGDE`/50: would break the first-word and last-table invariants.
-- A Background flag in 12E: D5 kept structural, divergence disclosed (D13, now P7-38, [#13](https://github.com/kpgalligan/doctored/issues/13)).
+- A Background flag in 12E: D5 kept structural, divergence disclosed (D13); P7-38 later added the Background
+  mark, which only a PSD sets, so a Doctored-made document keeps the structural rule.
 - `!members.is_empty()` for D6's visible test: copies a byte deviation.
 - Gating on Photoshop's `getd` read-back: 26.10.0 never answers it.
 
@@ -173,19 +174,21 @@ byte op is always the specification: each typed twin restates it and adds no rul
   (`hasQualifyingBackground`, `isIsolatedGroup`) follow it, and the f64 oracle is extended before any rule change.
 
 ## Open items (verified 2026-09-26)
-- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13): **P7-38**, a true Background kind/flag through
-  PSD in/out and `.doctored` (conditional word inside 45/46); also clears D13's disclosure inexactnesses
-  ([the carryover ledger](phase-7-carryovers.md) P7-38).
+- `DONE` at RGB 8/16: **P7-38**, the Background mark (`doc_background`): PSD import marks record 0 Background or
+  ordinary, an ordinary mark vetoes D5, RGB PSD export writes Photoshop's Background record, `.doctored` word 113
+  (`LBKG`) at both depths; `deep_over_ordinary_bottom` matches at both depths. No UI sets a mark.
+- `OPEN` [#31](https://github.com/kpgalligan/doctored/issues/31): the Background mark in the Gray, Lab, CMYK and
+  32-bit float PSD codecs, which keep D13's disclosure ([the carryover ledger](phase-7-carryovers.md) P7-38).
 - `DONE`: **P7-39** (2026-10-13), D6's clip-base narrowing lifted at both depths; the f64 oracle was extended
   first and `interior_on_clip_base` matches the `knockout_bottom` renders (max 2 / mean 0.5); the PSD disclosures
   and `clipBaseNote` are gone ([the carryover ledger](phase-7-carryovers.md) P7-39).
-- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13): **`cmls` evidence** (never a gate): a `comps`
-  family (3 rasters; comps `VisOnly`/`All`, one offset and one opacity change) and `comps.json` (resource 1065
-  hex, per-record `shmd` keys and `cmls` hex), which needs `resource_bodies`/`shmd` in `scripts/psd_records.py`
-  and a `comps` key in the private harness's `photoshop.jsx`.
-- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13): **PSD `cmls` import/export**: names,
-  comments, capture flags and visibility bound by id (`LCMP` schema 2); position/appearance carried or dropped
-  with a per-comp loss; Photoshop fixture test.
+- `DONE` at RGB 8/16: **PSD `cmls` import/export** (`psd_comps`, `psd_comp_records`): resource 1065 and each
+  record's `shmd`/`cmls`; a layer's settings ride in its own record, so an entry binds to the layer built from it.
+  Comps that record visibility import as visibility comps, applying as Photoshop's take did
+  (`core/tests/fixtures/psd_photoshop/layer_comps`, from layer-comps-521); export writes 1065, `lyid` and `cmls`.
+- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13): a comp's position and appearance in either
+  direction (no authored sample of a moved layer, a changed style or a comment); `OPEN`
+  [#31](https://github.com/kpgalligan/doctored/issues/31): comps in the Gray, Lab, CMYK and 32-bit float codecs.
 - `DONE`: stale module docs in `core/src/precision_layer_blend.rs` and `core/src/style_knockout.rs` now point at
   the knockout implementation and P7-39 (2026-09-26).
 - `DONE`: dead export `dr_precision_doc_group_all` / `groupingAll` / `layer_group_all` deleted end to end

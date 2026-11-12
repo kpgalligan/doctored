@@ -207,11 +207,15 @@
 //! parsed. The same two invariants hold. A document with no such sources
 //! writes nothing here, so its bytes stay exactly the prior writer's.
 //!
-//! Version 112 (spot_channel_native.rs, #1) is the word right after the
+//! Version 113 (background_native.rs) is the word right after the CMYK slot
+//! inside 46, ahead of 112: the document's Background mark names a record.
+//! Its `LBKG` table follows SPOT and precedes the CMYK table; the reader binds
+//! it to the record's final id. The next free word is 114.
+//!
+//! Version 112 (spot_channel_native.rs, #1) is the next word after the
 //! CMYK slot inside 46, ahead of 111: some channel is a spot channel. Its
-//! `SPOT` table follows LREF and precedes the CMYK table; the reader applies
-//! it after CHPR and refuses it in an Indexed or Bitmap file. The next free
-//! word is 113.
+//! `SPOT` table follows LREF and precedes LBKG and the CMYK table; the reader
+//! applies it after CHPR and refuses it in an Indexed or Bitmap file.
 //!
 //! Version 111 (gradient_map_method_native.rs) is the next word after
 //! the CMYK slot inside 46, ahead of 105, with no table: some adjustment

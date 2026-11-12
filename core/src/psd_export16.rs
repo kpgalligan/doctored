@@ -895,13 +895,34 @@ pub(crate) fn records(
 }
 
 impl PrecisionDocument {
+    /// Whether this document's PSD writer is the RGB 16-bit one, the typed
+    /// writer that stores a Background record (`psd_background`) and layer
+    /// comps (`psd_comps`).
+    fn is_rgb16_writer(&self) -> bool {
+        !self.is_gray() && !self.is_lab() && !self.is_float() && !self.is_cmyk()
+    }
+
     /// This typed document as the depth-agnostic preflight sees it, without
     /// reading a single pixel: `sample_bytes` 2, or 4 for a float document.
     fn export_inventory(&self, sample_bytes: u64) -> ExportInventory {
         let mut out = Vec::new();
+        // The vector masks written as pixels: the RGB 16-bit writer writes a
+        // raster-less one a PSD path can hold as its `vmsk` (`psd_paths`),
+        // every other typed writer bakes them all.
         let vector: Vec<u64> = self
             .live_vector_masks()
             .into_iter()
+            .filter(|(_, record)| {
+                record.raster.is_some()
+                    || !self.is_rgb16_writer()
+                    || crate::psd_paths::vmsk_body(
+                        &record.shape,
+                        record.enabled,
+                        record.linked,
+                        self.dimensions(),
+                    )
+                    .is_none()
+            })
             .map(|(_, record)| record.layer_id)
             .collect();
         entries(
@@ -976,17 +997,36 @@ impl PrecisionDocument {
             has_guides: !self.guides().is_empty() || self.ruler_origin() != (0.0, 0.0),
             sampler_sizes_lost: self.color_samplers().iter().any(|s| s.sample_size != 1),
             comps: self.layer_comps().len(),
+            // The visibility comps the RGB 16-bit writer writes (`psd_comps`).
+            comps_written: if self.is_rgb16_writer() {
+                crate::psd_comps::counts(self.layer_comps()).0
+            } else {
+                0
+            },
+            comps_narrowed: if self.is_rgb16_writer() {
+                crate::psd_comps::counts(self.layer_comps()).1
+            } else {
+                0
+            },
+            path_losses: crate::psd_paths::export_losses(self.paths(), self.dimensions()),
             has_metadata: !self.metadata().is_empty(),
             nondefault_global_light: self.global_light() != GlobalLight::default(),
-            // D13, the typed twin: record 0 IS the Background by D5's
-            // structural rule and a knockout reaches it, but the file will
+            // D13, the typed twin: the RGB 16-bit writer stores a qualifying
+            // bottom as Photoshop's Background record (`psd_background`), so
+            // only one that cannot be one is said; the Gray, Lab and float
+            // writers write no Background record, so record 0 IS the
+            // Background by D5 and a knockout reaches it, but the file will
             // carry it as an ordinary layer record.
-            structural_background_knockout: crate::precision_style_knockout::background_record(
-                self.root_layers(),
-                self.dimensions(),
-                crate::style_composite::Cut::NONE,
-                self.float.is_some(),
-            )
+            background_unwritable: self.is_rgb16_writer()
+                && self.bottom_export() == crate::psd_background::BottomExport::Unwritable,
+            structural_background_knockout: !self.is_rgb16_writer()
+                && crate::precision_style_knockout::background_record(
+                    self.root_layers(),
+                    self.dimensions(),
+                    crate::style_composite::Cut::NONE,
+                    self.float.is_some(),
+                    self.background,
+                )
                 && crate::precision_style_knockout::document_reaches_background16(
                     self.root_layers(),
                     0,
@@ -1329,6 +1369,34 @@ impl PrecisionDocument {
                 ranges: Vec::new(),
             }),
         }
+        // The layer comps' `lyid`/`shmd` on every record (`psd_comps`).
+        if matches!(mode, PsdExportMode::Layers) {
+            let mut owners = Vec::new();
+            crate::psd_comps::typed_owners(self.root_layers(), &mut owners);
+            crate::psd_comps::stamp_records(&mut out, &owners, self.layer_comps());
+            // A live vector mask with no raster part is written as its
+            // `vmsk` (`psd_paths`), in place of the baked mask.
+            let masks: Vec<Option<crate::psd_paths::WrittenMask>> = owners
+                .iter()
+                .map(|owner| {
+                    let (id, _) = (*owner)?;
+                    let index = self.layer_index_by_id(id)?;
+                    self.live_vector_mask(index)
+                        .filter(|record| record.raster.is_none())
+                        .map(|record| (record.shape, record.enabled, record.linked))
+                })
+                .collect();
+            crate::psd_paths::stamp_vector_masks(&mut out, &masks, self.dimensions());
+        }
+        // Root entry 0 as Photoshop's Background record, when it is one: FILE
+        // record 0, as at 8 bits (`psd_background`).
+        if matches!(mode, PsdExportMode::Layers)
+            && self.bottom_export() == crate::psd_background::BottomExport::Background
+        {
+            if let (Some(record), Some(layer)) = (out.first_mut(), self.root_layers().first()) {
+                crate::psd_background::shape_record(record, layer.locks());
+            }
+        }
         // The document's light, declared only when some record writes
         // effects — the byte `psd_export` rule.
         let light = out
@@ -1356,6 +1424,13 @@ impl PrecisionDocument {
             }
             PsdExportMode::Flattened => Vec::new(),
         };
+        // Image resource 1065, the layer comps the records' `cmls` name
+        // (`psd_comps`); the flattened mode writes no layer, so none.
+        // …and, in both modes, the paths' resources (`psd_paths`).
+        let mut extra = crate::psd_paths::resources(self.paths(), self.dimensions());
+        if matches!(mode, PsdExportMode::Layers) {
+            extra.extend(crate::psd_comps::resource(self.layer_comps()));
+        }
         let bytes = if container == LayeredContainer::Tiff {
             // The flat picture is the TIFF's own strip: the projection's
             // straight RGBA16, big-endian. The records and resources ride in
@@ -1377,6 +1452,7 @@ impl PrecisionDocument {
                 self.resolution(),
                 light,
                 self.color_samplers(),
+                &extra,
             );
             resources.extend_from_slice(&spots.resources);
             crate::tiff_layers::write_spots(
@@ -1407,6 +1483,7 @@ impl PrecisionDocument {
                 large,
                 &tail,
                 &self.psd_spot_planes(false),
+                &extra,
             )?
         };
         crate::dr_image::save_atomically(path, |tmp| {

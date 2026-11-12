@@ -14,10 +14,12 @@
 //!   overlay.
 //! - (c) setting a key and clearing it restores the exact bytes.
 //! - (d) a BAKED style writes neither block and reports the narrowed loss.
-//! - (e) D13's two sentences: present for a qualifying bottom under a Deep
-//!   raster, absent for a true Background, a trimmed bottom, a hidden bottom,
-//!   a Shallow inside a group and a Deep whose style is BAKED (no `knko` is
-//!   written, so that file punches nothing in Photoshop).
+//! - (e) D13 at RGB: a qualifying bottom under a Deep raster is written as
+//!   Photoshop's Background record (`psd_background`), so neither old
+//!   sentence fires for it, nor for a true Background, a trimmed bottom, a
+//!   hidden bottom, a Shallow inside a group or a Deep whose style is BAKED
+//!   (no `knko` is written, so that file punches nothing in Photoshop).
+//!   `psd_background.rs` holds the rest of the Background mark's checks.
 //! - (f) the framings that are NOT carried, and the closing divider whose
 //!   `knko` marker loss stays.
 //! - (g) P7-39: D6's clip-base narrowing is lifted, so neither side
@@ -523,24 +525,32 @@ fn a_baked_style_writes_neither_block_and_carries_the_narrowed_loss() {
 const IMPORT_SENTENCE: &str = "This file has no Photoshop Background layer, and a knockout can reach its bottom layer, which Doctored treats as the Background because it is visible, Normal, 100 % opacity, unmasked, unstyled, canvas-sized and at the origin. Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show the bottom layer here where it shows transparency in Photoshop. This is a deliberate Doctored rule, not an import error.";
 const EXPORT_SENTENCE: &str = "A layer uses knockout over this document's bottom layer, which Doctored treats as the Background. A PSD written by Doctored stores it as an ordinary layer, and Photoshop punches a Deep knockout (or a Shallow one outside every group) through to transparency when a file has no Background layer, so the hole can show transparency in Photoshop where it shows the bottom layer here.";
 
-/// The two sentences of one Doctored-written PSD: (export, import).
+/// The two old sentences of one Doctored-written PSD: (export, import), and
+/// whether its file record 0 is Photoshop's Background (an `lnsr` of
+/// `bgnd`, which only that record carries).
 fn d13(doc: *const DrDocument, dir: &TempDir, name: &str) -> (bool, bool) {
+    d13_written(doc, dir, name).0
+}
+
+fn d13_written(doc: *const DrDocument, dir: &TempDir, name: &str) -> ((bool, bool), bool) {
     let exported = strings(&export_report(doc), "losses")
         .iter()
         .any(|text| text == EXPORT_SENTENCE);
     let path = dir.path().join(name);
-    write_psd(doc, &path);
+    let bytes = write_psd(doc, &path);
     let imported = strings(&import_report(&path), "verified_losses")
         .iter()
         .any(|text| text == IMPORT_SENTENCE);
-    (exported, imported)
+    let background = scan(&bytes, b"lnsr").iter().any(|body| body == b"bgnd");
+    ((exported, imported), background)
 }
 
 #[test]
-fn d13_fires_for_a_qualifying_bottom_under_a_deep_raster_and_for_nothing_else() {
+fn d13_a_qualifying_bottom_under_a_deep_raster_is_written_as_the_background() {
     let dir = TempDir::new().unwrap();
 
-    // PRESENT: a plain canvas-sized bottom under a Deep raster.
+    // WRITTEN AS THE BACKGROUND: a plain canvas-sized bottom under a Deep
+    // raster (`psd_background`), so neither sentence has anything to say.
     let mut doc = doc_from(&dir, "b.png", &solid(W, H, [20, 40, 60, 255]));
     doc = add_layer(
         &dir,
@@ -552,9 +562,9 @@ fn d13_fires_for_a_qualifying_bottom_under_a_deep_raster_and_for_nothing_else() 
     );
     doc = set_style(doc, 1, "{\"knockout\":\"deep\"}");
     assert_eq!(
-        d13(doc, &dir, "present.psd"),
-        (true, true),
-        "both sentences fire on a qualifying bottom"
+        d13_written(doc, &dir, "present.psd"),
+        ((false, false), true),
+        "a qualifying bottom is written as Photoshop's Background"
     );
 
     // ABSENT: a bottom SMALLER than the canvas cannot be the Background. The
@@ -629,18 +639,24 @@ fn d13_fires_for_a_qualifying_bottom_under_a_deep_raster_and_for_nothing_else() 
         typed_raster("Top", Some("{\"knockout\":\"deep\"}")),
     ]);
     assert!(
-        strings(&typed_export_report(&typed), "losses")
+        !strings(&typed_export_report(&typed), "losses")
             .iter()
             .any(|text| text == EXPORT_SENTENCE),
-        "the 16-bit export states D13 too"
+        "the 16-bit export writes the Background too, so it says nothing"
     );
     let typed_path = dir.path().join("present16.psd");
-    typed_write_psd(&typed, &typed_path);
+    let typed_bytes = typed_write_psd(&typed, &typed_path);
     assert!(
-        strings(&import_report(&typed_path), "verified_losses")
+        scan(&typed_bytes, b"lnsr")
+            .iter()
+            .any(|body| body == b"bgnd"),
+        "and its record 0 is the Background"
+    );
+    assert!(
+        !strings(&import_report(&typed_path), "verified_losses")
             .iter()
             .any(|text| text == IMPORT_SENTENCE),
-        "and the 16-bit file it wrote reports it on the way back in"
+        "and the 16-bit file it wrote says nothing on the way back in"
     );
     let typed_plain = typed_document(vec![
         typed_raster("Bottom", None),

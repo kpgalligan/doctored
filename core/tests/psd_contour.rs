@@ -456,10 +456,15 @@ fn photoshops_disabled_glow_slots_carry_their_range_and_claim_word_96() {
     assert_eq!(&bytes[4..8], &45u32.to_le_bytes());
     assert_eq!(
         &bytes[8..12],
-        &99u32.to_le_bytes(),
-        "word 99 (the slots' Jitter) first inside 45"
+        &113u32.to_le_bytes(),
+        "word 113 (the Background mark a layered PSD import sets) first inside 45"
     );
-    assert_eq!(&bytes[12..16], &96u32.to_le_bytes(), "then word 96");
+    assert_eq!(
+        &bytes[12..16],
+        &99u32.to_le_bytes(),
+        "then word 99 (the slots' Jitter)"
+    );
+    assert_eq!(&bytes[16..20], &96u32.to_le_bytes(), "then word 96");
     let reopened = DrDocument::open(saved.to_str().unwrap()).unwrap();
     for (a, b) in reopened.layers.iter().zip(&doc.layers) {
         assert_eq!(

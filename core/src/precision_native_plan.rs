@@ -398,6 +398,9 @@ impl PrecisionDocument {
             + crate::spot_channel_native::header_bytes(
                 crate::spot_channel_native::precision_entries(self).len(),
             )
+            + crate::background_native::header_bytes(
+                crate::background_native::precision_entry(self),
+            )
             + crate::float_native::header_bytes(float)
             + crate::cmyk_native::header_bytes(self.cmyk_policy().map(|p| &**p))
             + crate::gray_native::header_bytes(self.gray_policy().map(|p| &**p))

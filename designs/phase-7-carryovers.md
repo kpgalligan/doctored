@@ -1,6 +1,6 @@
 # Phase 7 carryover ledger (closed record)
 
-- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11), [#12](https://github.com/kpgalligan/doctored/issues/12), [#13](https://github.com/kpgalligan/doctored/issues/13)); closed as a ledger 2026-10-30, its open rows tracked as those issues
+- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11), [#12](https://github.com/kpgalligan/doctored/issues/12), [#31](https://github.com/kpgalligan/doctored/issues/31)); closed as a ledger 2026-10-30, its open rows tracked as those issues
 - **Original:** [archive/phase-7-carryovers.md](../archive/phase-7-carryovers.md) — each row's receiving slice, close criterion and verification evidence
 
 ## Context
@@ -52,7 +52,7 @@ issues. What each depth admits today is in the
 - P7-35 — typed replacement, relinking, refresh, embed/package and cross-depth placement of placed sources — removed 2026-10-10 ([removal ADR](convert-to-smart-object-status.md); verified earlier in [8B](phase-8-retained-source-status.md))
 - P7-36 — genuine floating-point TIFF import, 32-bit float TIFF export and deliberate tone-mapped SDR delivery — verified in [11F](phase-11f-hdr-float-status.md); F16 TIFF and OpenEXR export also shipped (`core/src/doc_export_float.rs`, `core/src/exr_float.rs`); float-predictor TIFF encoding dropped (2026-10-30): Predictor 3 is not written, and a Deflate float TIFF without it is valid and reopens bit-exact, only larger
 - P7-37 — Knockout (None/Shallow/Deep) and `blend_interior_as_group` at both depths, with PSD `knko`/`infx` carriage — verified in [12E](phase-12e-layer-ops-status.md)
-- P7-38 — a Background layer kind that PSD import sets, PSD export writes and `.doctored` persists, so a Deep knockout over an ordinary opaque bottom layer (`deep_over_ordinary_bottom`) matches; today there is no such kind and PSD import and export disclose the difference — open: [#13](https://github.com/kpgalligan/doctored/issues/13)
+- P7-38 — a Background layer kind that PSD import sets, PSD export writes and `.doctored` persists, so a Deep knockout over an ordinary opaque bottom layer (`deep_over_ordinary_bottom`) matches — verified at RGB 8 and 16 bits as the Background mark (`core/src/doc_background.rs`, native word 113; `core/tests/psd_background.rs` matches the take at both depths, max 2 / mean 0.5); the Gray, Lab, CMYK and 32-bit float PSD codecs set and write no mark and keep the disclosure — open: [#31](https://github.com/kpgalligan/doctored/issues/31)
 - P7-39 — `blend_interior_as_group` on a clip base with visible members, at both depths in the full, regional and budget paths — verified in [12E](phase-12e-layer-ops-status.md) (2026-10-13); a clip base below 100 % Fill is still unqualified — open: [#2](https://github.com/kpgalligan/doctored/issues/2)
 
 ## Contracts that remain intentional

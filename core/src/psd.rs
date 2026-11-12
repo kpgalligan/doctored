@@ -161,6 +161,7 @@ pub(crate) fn import_layers(
         .flatten()
         .unwrap_or_else(IccProfile::srgb);
     let mut layers = Vec::with_capacity(psd.layers().len() + psd.groups().len());
+    let mut sources = Vec::with_capacity(layers.capacity());
     let mut failure = None;
     let group_locks = |id: u32| records.groups[id as usize - 1].features.locks();
     tree.emit(None, 0, 0, &group_locks, &mut |node, depth, dissolved| {
@@ -314,6 +315,12 @@ pub(crate) fn import_layers(
                 });
             }
         }
+        // The record this entry was built from, for its layer comp settings
+        // (`psd_comps`).
+        sources.push(match node {
+            Node::Group(id) => crate::psd_comps::CompSource::Group(id),
+            Node::Layer(index) => crate::psd_comps::CompSource::Layer(index),
+        });
         let mask = match node {
             Node::Group(id) => records.groups[id as usize - 1].mask,
             Node::Layer(index) => records.masks[index],
@@ -353,7 +360,7 @@ pub(crate) fn import_layers(
         // Image resource 1073's samplers are set by `Container::tag`.
         color_samplers: Vec::new(),
         // A PSD's path resources (2000–2997, and 1025 for the work path) are
-        // not read.
+        // set by `Container::tag` (`psd_paths`); the vector masks below.
         paths: crate::doc_path::DocPaths::default(),
         profile: IccProfile::srgb(),
         metadata: Metadata::default(),
@@ -361,11 +368,31 @@ pub(crate) fn import_layers(
         // An imported PSD is an ENCODED document; the policy is only ever
         // chosen deliberately (`doc_evaluation`).
         linear_light: None,
-        // A PSD carries no comp: Photoshop's own `cmls` is a recorded gap
-        // (owner 10C-3 — 12E-3c measured the evidence and did not import it),
-        // so an import starts with none.
+        // Set below from resource 1065 and each record's `cmls`
+        // (`psd_comps`).
         comps: Vec::new(),
+        // Set below from record 0 (`psd_background`).
+        background: None,
     };
+    let mut document = document;
+    // The vector masks the walk carried (`psd_paths`), each on the entry
+    // built from its record. The walk counted them against the file's paths,
+    // which `Container::tag` sets afterwards (`psd_paths::MaskRoom`), so the
+    // two together fit the document's anchor cap.
+    for (k, &source) in sources.iter().enumerate() {
+        if let Some(body) = crate::psd_paths::source_vmsk(records, source) {
+            document = document.importing_vector_mask(k, body);
+        }
+    }
+    if container.color == 3 {
+        document.comps = crate::psd_comps::imported(container, records, &sources, |k| {
+            document.layers.get(k).map(|l| (l.id, l.name.clone()))
+        });
+    }
+    // FILE record 0, when kept, is entry 0 (`psd_background::import_role`).
+    if let Some(role) = crate::psd_background::import_role(records) {
+        document.mark_background(0, role);
+    }
     document.native_save_preflight()?;
     Ok(document)
 }

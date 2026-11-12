@@ -1,6 +1,6 @@
 # High-depth geometry (ADR)
 
-- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#13](https://github.com/kpgalligan/doctored/issues/13))
+- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2), [#13](https://github.com/kpgalligan/doctored/issues/13), [#31](https://github.com/kpgalligan/doctored/issues/31))
 - **Phase / dates:** 12F (carryover P7-28), runs 12F-1 … 12F-5, 2026-09-20 → 2026-09-22
 - **Original:** [archive/phase-12f-geometry-status.md](../archive/phase-12f-geometry-status.md) — full history, measurements, receipts
 - **Key commits:** `c83614f` (12F-1), `dd1c7fc` (12F-1b), `3e56019` (12F-1b2), `8e42353` (12F-1b3), `7f9d55a` (12F-1b4), `f285a29` (12F-1c), `07d9153` (12F-2), `6400648` (12F-3 … 12F-5), `3ae0c80`
@@ -116,8 +116,9 @@ must match an f64 reference, and float must never resample extended-range sample
   contributions) is unqualified there.
 - `DONE` — Stale module doc in `../core/src/doc_rotate.rs` (R10 and the `rotate_canvas` refusal list) now says
   retained sources ride since 12F-2 (2026-09-26).
-- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — P7-38 (Background layer kind) and PSD `cmls`
-  (layer comps) import/export.
+- `DONE` at RGB 8/16 — P7-38 (the Background mark) and PSD `cmls` (layer comps' names, comments and
+  visibility); `OPEN` [#31](https://github.com/kpgalligan/doctored/issues/31) — both in the colour modes;
+  `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — a comp's position and appearance.
 - `DONE` — P7-39 (`blend_interior_as_group` on clip bases), 2026-10-13: see
   [phase-12e-layer-ops-status.md](phase-12e-layer-ops-status.md).
 - `DONE` — Lens/camera database and calibration for 12F-4: `../core/src/lens_db.rs`, `../core/src/lens_model.rs`,

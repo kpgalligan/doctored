@@ -536,6 +536,10 @@ impl PrecisionDocument {
             let mut document = document.with_import_warnings(warnings.clone())?;
             document.global_light = light;
             document.color_samplers.clone_from(&color_samplers);
+            // Resources 1025 and 2000–2997 (`psd_paths`).
+            document
+                .paths
+                .set_entries(crate::psd_paths::file_paths(&container).0);
             let policy = match &inks {
                 Some(inks) => policy.with_duotone(Some(Arc::new(inks.clone()))),
                 None => policy.clone(),

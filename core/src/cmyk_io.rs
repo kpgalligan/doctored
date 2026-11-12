@@ -691,5 +691,6 @@ fn flat_psd(
         large,
         &[],
         spots,
+        &[],
     )
 }

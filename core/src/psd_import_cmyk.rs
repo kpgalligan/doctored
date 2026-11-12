@@ -342,6 +342,10 @@ pub(crate) fn open_cmyk_layers(
     {
         document.global_light = light;
     }
+    // Resources 1025 and 2000–2997 (`psd_paths`).
+    document
+        .paths
+        .set_entries(crate::psd_paths::file_paths(&container).0);
     let document = document.with_psd_spots(&container, limit, other)?;
     job.report(1.0, 5)?;
     Ok(document)
