@@ -28,7 +28,7 @@
 //!   max 2 / mean 0.5 codes (the view's luma LV mean 11.97, max 23; PN7's
 //!   naive RGB LN mean 13.22, max 72; this sRGB LP mean 11.78, max 42 — each
 //!   brighter than Photoshop's), so LP ships as the smallest mean, fitted on
-//!   one take and disclosed (`designs/cmyk-mode-shipped.md`).
+//!   one take and disclosed (`designs/cmyk-mode.md`).
 //! * `color_range`, `quick` and `refine_edge` read the VIEW: the CMYK →
 //!   Display P3 leg (`CmykViewLink`) over the composite's straight ink with
 //!   its alpha kept, exactly as `cmyk_view_window` renders it, in RGBA16

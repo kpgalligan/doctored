@@ -47,8 +47,8 @@
   the Gray Gamma case read exactly what Dot Gain 20 % did, so the tone does not follow the Gray working space. T-K stays
   ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - **Adjustment residuals.** Brightness/Contrast, Selective Color, Photo Filter (Photoshop moves K under Cooling),
-  Shadows/Highlights and Replace Color MISS the take's bound and ship as built (the shipped record's adjustments entry);
-  Gradient Map had no valid case, and Add Noise and the Clouds miss the statistical gate
+  Shadows/Highlights and Replace Color MISS the take's bound and ship as built ([cmyk-mode.md](cmyk-mode.md)'s
+  adjustments entry); Gradient Map had no valid case, and Add Noise and the Clouds miss the statistical gate
   ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - **Dodge/Burn/Sponge/Protect Tones on ink ship as built: take2 cannot separate the tone rule from the stroke footprint.**
   take2 (`cmyk-retouch-547`) max / mean codes, H0 vs the best alternative: Dodge/Burn 73 / 9.1 vs `twin` 71 / 9.1 (midtone
@@ -59,7 +59,7 @@
   Image modal even with dialogs off (take1 stalled there), so neither choice is measured
   ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - **Blend If's 16-bit form is extrapolated, not measured.** The 8-bit fit (take1) was confirmed by take2 on every
-  channel (the shipped record's Blend If entries); the 16-bit knees are its ×257
+  channel ([cmyk-mode.md](cmyk-mode.md)'s Blend If entries); the 16-bit knees are its ×257
   ([#1](https://github.com/kpgalligan/doctored/issues/1)).
 - **Styled CMYK PSD composites outside the bound.** Doctored reading Photoshop's case PSDs (take2 judge): 66 of 89
   within the bound, every Blend If case among them; the bevel MISSES by the shared renderer's bevel geometry, the
@@ -74,6 +74,9 @@
 
 ## Shipped runs
 
-[cmyk-mode-shipped.md](cmyk-mode-shipped.md) — the decisions in force and phases 1, 2, Hue/Saturation, the selections,
-4a, 5, 4b, the black plate, the adjustments and filters, 4c, 3, the channels batch, the retouch batch, round 2, the
-artwork batch, the styles batch, the remaining gaps, Blend If, Hard Mix's exact tie and layer comps.
+[cmyk-mode.md](cmyk-mode.md) — the ADR holding the settled record as of 2026-11-12: the decisions in force and phases 1,
+2, Hue/Saturation, the selections, 4a, 5, 4b, the black plate, the adjustments and filters, 4c, 3, the channels batch,
+the retouch batch, round 2, the artwork batch, the styles batch, the remaining gaps, Blend If, Hard Mix's exact tie and
+layer comps. A sub-slice shipped after that puts its few lines and decisions in this section; they move to a new
+`cmyk-mode-shipped.md` under the companion rule, and the closing batch condenses this doc and any such companion into
+the ADR.

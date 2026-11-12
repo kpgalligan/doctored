@@ -115,7 +115,7 @@ reach disk or preview. Tests:
   and gate-refused files (ImageIO's own Generic CMYK). Drive:
   `scripts/verify_issue327_untagged_cmyk.py`.
 - `DONE` — a Gray, CMYK or Lab paste into an open document reports its conversion: the reply's `color_conversion`
-  and the history row's suffix (CMYK phase 4c, [cmyk-mode-shipped.md](cmyk-mode-shipped.md)).
+  and the history row's suffix (CMYK phase 4c, [cmyk-mode.md](cmyk-mode.md)).
 - `DONE` — a premultiplied AVIF (an `iref` `prem` from the primary) opens with straight alpha. ImageIO drops its
   alpha at 8/10/12 bits, lossless and lossy, so `HostStillDecoder.decode` reads a copy whose `prem` reference's
   `from_item_ID` bytes are 0xFF (`HeifContainer.detachingPremultipliedReference` over the core's

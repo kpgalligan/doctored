@@ -183,6 +183,10 @@ Links inside these files are historical: sibling links point at other archived o
 
 - [spot-channels-status.md](spot-channels-status.md) — the working record of #1's spot channels at close (2026-10-26) — the status head with 1a-1 to 1c-2a, the sources, the decisions in force (model, overprint, saves, PSD/PSB, flat TIFF, PDF), the plan, 1c-2b's contract, open items and the shipped runs. ([ADR](../designs/spot-channels.md))
 
+## CMYK mode — settled record condensed 2026-11-12 (phase open)
+
+- [cmyk-mode-shipped.md](cmyk-mode-shipped.md) — its shipped companion at the 32 KB cap — every decision in force and the shipped lines of phases 1 to 5 and the later batches through layer comps. ([ADR](../designs/cmyk-mode.md))
+
 ## Retired assets
 
 - [rasterize-app-icon/](rasterize-app-icon/) — The retired Rasterize "1a Overlap" app icon (three multiplying circles in a squircle): SVG master, appiconset and notes; replaced by the Doctored icon. ([current](../designs/new-icon/README.md))

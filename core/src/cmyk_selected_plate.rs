@@ -24,7 +24,7 @@
 //!   pixel (translate and both turns) for the swatch RGB (220, 30, 170), where
 //!   HG read 153 (residual 3 codes, not exact), HP (Photoshop's own
 //!   separation of the swatch, 17.7 %) 45 and H0 0. The residual is disclosed
-//!   in `designs/cmyk-mode-shipped.md`. A duplicate leaves no hole.
+//!   in `designs/cmyk-mode.md`. A duplicate leaves no hole.
 //! * THE LIFT. Coverage is scaled by the stored alpha (0 outside R), so an
 //!   all-transparent lift is the walk's empty float and refuses with
 //!   `selected_color_plane::COLOR_EMPTY_AREA`'s sentence (take1's `lift`

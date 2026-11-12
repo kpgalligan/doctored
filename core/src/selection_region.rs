@@ -34,7 +34,7 @@
 //! PN7 was fitted on `scripts/photoshop-probe/cmyk_select_take.py`'s take1 (0 regions mismatched
 //! of 12 cases, where the shipped 11-projection ink box missed 336 and the five-plate box 136; the
 //! unrounded RGB missed 16, so the 8-bit rounding is part of the rule) and confirmed by
-//! `cmyk_k_take.py`'s take; the record is in `designs/cmyk-mode-shipped.md`.
+//! `cmyk_k_take.py`'s take; the record is in `designs/cmyk-mode.md`.
 //!
 //! **Sample Size.** The wand's reference is the seed pixel (`sample_size` 1, Point
 //! Sample, which the Paint Bucket always passes) or the per-channel truncating mean of the

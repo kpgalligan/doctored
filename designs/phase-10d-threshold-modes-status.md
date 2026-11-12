@@ -16,7 +16,7 @@ mode the byte compositor offers is qualified at native depth.
 - **Kernel definitions** (`core/src/blend.rs`, over encoded document RGB, used as-is):
   - Hard Mix per channel: `B(cb, cs) = 1` if `cb + cs > 1`, else 0; at the exact tie
     (`|cb + cs − 1| ≤ 2⁻²²`, `HARD_MIX_TIE`) 1 iff `cb − cs > 1/32768`, else 0
-    ([cmyk-mode-shipped.md](cmyk-mode-shipped.md), "Hard Mix's exact tie").
+    ([cmyk-mode.md](cmyk-mode.md), "Hard Mix's exact tie").
   - Darker / Lighter Color: whole triple with lower / higher `lum = 0.3R + 0.59G + 0.11B` (f32 constants);
     backdrop on a tie.
   - Dissolve replaces compositing: the source shows fully opaque (straight colour, alpha 1) when
@@ -64,7 +64,7 @@ mode the byte compositor offers is qualified at native depth.
   this policy by name.
 - Changing any f32 intermediate in these kernels changes the frozen v34 evaluation; the one change since,
   Hard Mix's exact tie (2026-10-15), was made without a DRDC version
-  ([cmyk-mode-shipped.md](cmyk-mode-shipped.md)).
+  ([cmyk-mode.md](cmyk-mode.md)).
 - Qualified by [`core/tests/precision_threshold_blending.rs`](../core/tests/precision_threshold_blending.rs)
   (exhaustive direct Hard Mix over 65,536 codes: the exact-sum in-band row follows the tie rule; every
   mask code; nested groups; Dissolve at two offsets/opacities, raster shown/hidden pixels exact),
