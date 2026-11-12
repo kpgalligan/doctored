@@ -52,11 +52,11 @@ final class TurnTests: XCTestCase {
         XCTAssertEqual(h.sink.errors, [])
     }
 
-    func testRefusalAndMaxTokensReportAfterTheReply() async {
+    func testStopReasonsReportAfterTheReply() async {
         let h = Harness(ScriptedAPI([
             .sse(SSE.reply(SSE.text(0, "I can't"), stop: "refusal")),
             .sse(SSE.reply(SSE.text(0, "Long"), stop: "max_tokens")),
-            .sse(SSE.reply(stop: "model_context_window_exceeded")),
+            .sse(SSE.reply(SSE.text(0, "Full"), stop: "model_context_window_exceeded")),
         ]))
         await h.configure()
         await h.turn("a")
@@ -64,7 +64,9 @@ final class TurnTests: XCTestCase {
         await h.turn("b")
         XCTAssertEqual(Array(h.sink.lastTurn.suffix(2)), [.error("The reply was cut off at the output limit."), .turnFinished])
         await h.turn("c")
-        XCTAssertEqual(h.sink.errors.count, 2)  // a full context window ends the turn silently
+        XCTAssertEqual(Array(h.sink.lastTurn.suffix(2)), [
+            .error("The reply was cut off because the conversation filled the model's context window."), .turnFinished,
+        ])
     }
 
     func testA429IsRetriedAfterItsRetryAfter() async throws {

@@ -32,7 +32,8 @@ use crate::psb_fixture::{
     FLATTENED, LAYERS, TIFF,
 };
 use crate::spot_tiff::{
-    byte_spots, open_byte, open_typed, read_tiff, resources, typed_spots, Tiff,
+    byte_spots, import_warnings, open_byte, open_typed, read_tiff, resources, typed_spots,
+    with_strip_last, Tiff, CUT_SHORT,
 };
 
 const LIMIT: u64 = 2 * 1024 * 1024 * 1024;
@@ -327,6 +328,69 @@ fn a_cmyk_flattened_tiff_export_is_admitted_at_the_flat_tiff_saves_plan() {
             plan(&doc) > plan(&base),
             "{bits}: the spot planes are charged"
         );
+    }
+}
+
+/// The layered open builds its layers from the layer block, not the
+/// composite strip, so a layered TIFF cut short inside its strip still opens
+/// by its layers: its spot channels, the strip's trailing samples, are not
+/// retained, and the import report says so rather than naming them as
+/// opened.
+#[test]
+fn a_layered_tiff_cut_short_opens_without_its_spot_channels_and_says_so() {
+    let dir = TempDir::new().unwrap();
+    let bloc = wide(&bloc8());
+    let typed = with_spots(&rgb16(), &ramp16(), &bloc);
+    for bits in [8, 16] {
+        let what = format!("{bits}-bit");
+        let saved = dir.path().join(format!("saved{bits}.tif"));
+        if bits == 8 {
+            save8(&byte_doc(), &saved, TIFF, LAYERS).unwrap();
+        } else {
+            save16(&typed, &saved, TIFF, LAYERS).unwrap();
+        }
+        let (moved, strip) = with_strip_last(&std::fs::read(&saved).unwrap());
+        // The rewrite, whole, still carries its spot channels.
+        let path = dir.path().join(format!("whole{bits}.tif"));
+        std::fs::write(&path, &moved).unwrap();
+        assert!(
+            strings(&import_report(&path), "observations").contains(&observation()),
+            "{what}: whole"
+        );
+        if bits == 8 {
+            let back = open8(&path, LAYERS).unwrap();
+            assert_eq!(byte_spots(&back), byte_spots(&byte_doc()), "{what}: whole");
+        } else {
+            let back = open16(&path, LAYERS).unwrap();
+            assert_eq!(typed_spots(&back), typed_spots(&typed), "{what}: whole");
+        }
+        let path = dir.path().join(format!("cut{bits}.tif"));
+        std::fs::write(&path, &moved[..moved.len() - strip / 2]).unwrap();
+        let report = import_report(&path);
+        let losses = strings(&report, "verified_losses");
+        assert!(
+            losses.contains(&CUT_SHORT.to_string()),
+            "{what}: {losses:?}"
+        );
+        assert!(
+            !strings(&report, "observations").contains(&observation()),
+            "{what}: {report}"
+        );
+        if bits == 8 {
+            let back = open8(&path, LAYERS).unwrap();
+            assert!(byte_spots(&back).is_empty(), "{what}: layered open");
+        } else {
+            // The report holds the file's loss; the open adds no second line.
+            let back = open16(&path, LAYERS).unwrap();
+            assert!(typed_spots(&back).is_empty(), "{what}: layered open");
+            let warnings = import_warnings(&back);
+            assert!(
+                !warnings
+                    .iter()
+                    .any(|w| w.starts_with("Spot channel planes")),
+                "{what}: {warnings:?}"
+            );
+        }
     }
 }
 

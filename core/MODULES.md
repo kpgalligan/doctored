@@ -80,7 +80,7 @@ Detail belongs in the source file's own header comment.
 - `psd_framing.rs` — leaf: the three layered containers' field widths and limits, PSB's long-length keys, the ONE RLE row-table walk and the ONE PackBits decoder.
 - `psd_spot_records.rs` (KERNEL) — the ONE reader/writer of PSD resources 1006/1045/1077/1053 and the spot plane polarity (`max − coverage`).
 - `psd_spot.rs` — PSD/PSB spot channels: the container read and loss lines, `with_psd_spots` at both depths, `psd_spot_planes` for the writers.
-- `tiff_spot_samples.rs` (KERNEL) — a TIFF's spot layout (trailing extra samples), the Multiband read, the polarity; `SpotCoverage`.
+- `tiff_spot_samples.rs` (KERNEL) — a TIFF's spot layout (trailing extra samples), `saved_chunks_held`, the Multiband read, the polarity; `SpotCoverage`.
 - `tiff_spot.rs` — TIFF spot channels, flat and layered: records from tag 34377, `with_(layered_)tiff_spots`, planes, plan terms, keep refusal.
 - `tiff_layers.rs` — Photoshop's layer block in a TIFF (tags 34377/34675/37724): `ByteOrder`, the locator (8/16 `MM`; 32-bit float RGB `Lr32` in both orders); re-exports the writer.
 - `tiff_layers_write.rs` — layered-TIFF writer: `write_with` plans every offset, the caller appends info and strip; `write` 8/16 bits, `write_spots` + spot samples.

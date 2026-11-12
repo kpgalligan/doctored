@@ -64,8 +64,13 @@ only, never the printed ink; New Spot Channel's defaults are red at 0 %.
   ExtraSamples 0, chunky, stored `max − coverage` in RGB and CMYK alike (`tiff_spot_samples::tiff_stored`); names
   and inks are the PSD's four resources in tag 34377, led by "Transparency" when the file has one. The reader
   keeps every lossless compression (`tiff_directory::Overlay`, one Multiband decode) by the PSD reader's rules
-  (`spot_candidates`); planar samples, a rotated Orientation and an unread compression are a loss line. The
-  writer lays uncompressed strips, a transparency only when some pixel is not opaque (ExtraSamples 2), then the
+  (`spot_candidates`); planar samples, a rotated Orientation, an unread compression and image data the file ends
+  inside of (`saved_chunks_held`, from the directory alone: an uncompressed strip or tile short of the samples the
+  decoder reads, a compressed one starting at or past the end) are a loss line in the records the import report
+  and every open read. The byte document has no import warnings, so a compressed strip that starts inside the
+  file but does not decode (cut short or corrupt) still loses its planes with no line on a byte open
+  ([#30](https://github.com/kpgalligan/doctored/issues/30)). The writer
+  lays uncompressed strips, a transparency only when some pixel is not opaque (ExtraSamples 2), then the
   spots, their resources after the filtered inherited run (`DROPPED_8BIM`).
 - **Layered TIFF** (1c-2b): Photoshop's own layered TIFFs (take2's `rgb8_l.tif`, `cmyk16_l.tif`) follow the flat
   rule, so the layered TIFF reads and writes spot channels under it. Write (`tiff_layers_write::write_spots`):

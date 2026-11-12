@@ -363,16 +363,18 @@ pub fn save_byte(doc: &DrDocument, path: &Path, format: i32) {
     assert!(ok, "{}: {}", path.display(), take_err_string(err));
 }
 
-pub fn open_byte(path: &Path) -> Box<DrDocument> {
+/// The byte open of `path`: its error, or the document.
+fn try_open_byte(path: &Path) -> Result<Box<DrDocument>, String> {
     let mut err = ptr::null_mut();
     let doc = unsafe { dr_doc_open(cpath(path).as_ptr(), &mut err) };
-    assert!(
-        !doc.is_null(),
-        "{}: {}",
-        path.display(),
-        take_err_string(err)
-    );
-    unsafe { Box::from_raw(doc) }
+    if doc.is_null() {
+        return Err(take_err_string(err));
+    }
+    Ok(unsafe { Box::from_raw(doc) })
+}
+
+pub fn open_byte(path: &Path) -> Box<DrDocument> {
+    try_open_byte(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
 }
 
 pub fn open_typed(path: &Path) -> Result<Box<PrecisionDocument>, String> {
@@ -742,6 +744,152 @@ fn hand_tiff(
     out
 }
 
+/// A TIFF's byte order and where each first-directory entry's value field
+/// sits: this file's own walk, for the strip rewrites below.
+struct Fields<'a> {
+    file: &'a [u8],
+    little: bool,
+    value_at: HashMap<u16, usize>,
+}
+
+impl Fields<'_> {
+    fn of(file: &[u8]) -> Fields<'_> {
+        let mut fields = Fields {
+            file,
+            little: &file[..2] == b"II",
+            value_at: HashMap::new(),
+        };
+        let ifd = fields.u32(4) as usize;
+        for e in 0..usize::from(fields.u16(ifd)) {
+            let at = ifd + 2 + e * 12;
+            fields.value_at.insert(fields.u16(at), at + 8);
+        }
+        fields
+    }
+
+    fn u16(&self, at: usize) -> u16 {
+        let v = [self.file[at], self.file[at + 1]];
+        if self.little {
+            u16::from_le_bytes(v)
+        } else {
+            u16::from_be_bytes(v)
+        }
+    }
+
+    fn u32(&self, at: usize) -> u32 {
+        let v: [u8; 4] = self.file[at..at + 4].try_into().unwrap();
+        if self.little {
+            u32::from_le_bytes(v)
+        } else {
+            u32::from_be_bytes(v)
+        }
+    }
+
+    fn put16(&self, v: u16) -> [u8; 2] {
+        if self.little {
+            v.to_le_bytes()
+        } else {
+            v.to_be_bytes()
+        }
+    }
+
+    fn put32(&self, v: u32) -> [u8; 4] {
+        if self.little {
+            v.to_le_bytes()
+        } else {
+            v.to_be_bytes()
+        }
+    }
+
+    /// The value field of `tag`, which must be one LONG.
+    fn one_long(&self, tag: u16) -> usize {
+        let at = self.value_at[&tag];
+        assert_eq!(
+            (self.u16(at - 6), self.u32(at - 4)),
+            (4, 1),
+            "tag {tag}: one LONG"
+        );
+        at
+    }
+}
+
+/// `file` with its one strip copied to its end and StripOffsets pointing
+/// at the copy, and the strip's length: a cut of the tail then falls inside
+/// the strip and leaves the directory and every other value whole
+/// ([`hand_tiff`] and the layered writer both place the strip first).
+pub fn with_strip_last(file: &[u8]) -> (Vec<u8>, usize) {
+    let fields = Fields::of(file);
+    let offset = fields.one_long(273);
+    let (start, length) = (
+        fields.u32(offset) as usize,
+        fields.u32(fields.one_long(279)) as usize,
+    );
+    let mut out = file.to_vec();
+    out[offset..offset + 4].copy_from_slice(&fields.put32(file.len() as u32));
+    out.extend_from_slice(&file[start..start + length]);
+    (out, length)
+}
+
+/// `file`, one uncompressed strip of [`H`] rows ([`hand_tiff`]'s), rewritten
+/// as PackBits strips of `rows` rows (literal runs only), the offset and
+/// count tables before the strips; and where its last strip starts, so a
+/// cut there leaves every other strip whole.
+fn with_packbits_strips(file: &[u8], rows: u32) -> (Vec<u8>, usize) {
+    let fields = Fields::of(file);
+    let (offsets, counts) = (fields.one_long(273), fields.one_long(279));
+    let start = fields.u32(offsets) as usize;
+    let data = &file[start..start + fields.u32(counts) as usize];
+    let strips: Vec<Vec<u8>> = data
+        .chunks(data.len() / H as usize * rows as usize)
+        .map(|strip| {
+            strip
+                .chunks(128)
+                .flat_map(|run| [&[(run.len() - 1) as u8][..], run].concat())
+                .collect()
+        })
+        .collect();
+    let n = strips.len();
+    let mut out = file.to_vec();
+    let tables = out.len();
+    out.resize(tables + 8 * n, 0);
+    let mut last = 0;
+    for (k, strip) in strips.iter().enumerate() {
+        last = out.len();
+        let (offset_at, count_at) = (tables + 4 * k, tables + 4 * (n + k));
+        out[offset_at..offset_at + 4].copy_from_slice(&fields.put32(last as u32));
+        out[count_at..count_at + 4].copy_from_slice(&fields.put32(strip.len() as u32));
+        out.extend_from_slice(strip);
+    }
+    // StripOffsets and StripByteCounts become the two tables: count, then
+    // the table's offset.
+    for (field, table) in [(offsets, tables), (counts, tables + 4 * n)] {
+        out[field - 4..field].copy_from_slice(&fields.put32(n as u32));
+        out[field..field + 4].copy_from_slice(&fields.put32(table as u32));
+    }
+    let rows_at = fields.one_long(278);
+    out[rows_at..rows_at + 4].copy_from_slice(&fields.put32(rows));
+    let compression = fields.value_at[&259];
+    out[compression..compression + 2].copy_from_slice(&fields.put16(32773));
+    (out, last)
+}
+
+/// The loss line of a TIFF whose spot planes the file cuts short.
+pub const CUT_SHORT: &str = "Spot channel planes in this file are not readable (the file ends inside its image data); no spot channel is retained.";
+
+/// An RGB file's entries: `bits` on every sample, uncompressed, chunky, and
+/// `extra` the ExtraSamples after the three colour samples.
+fn rgb_shape(bits: u16, extra: Vec<u16>) -> Vec<(u16, Vec<u16>)> {
+    let n = 3 + extra.len();
+    vec![
+        (258, vec![bits; n]),
+        (259, vec![1]),
+        (262, vec![2]),
+        (277, vec![n as u16]),
+        (284, vec![1]),
+        (338, extra),
+    ]
+}
+
 fn rgb_with_spots(bits: u16) -> Vec<u16> {
     let (ramp, bloc) = (ramp8(), bloc8());
     let scale = if bits == 16 { 257 } else { 1 };
@@ -766,17 +914,7 @@ fn hand_built_files_keep_their_spot_channels_or_say_why_not() {
         (BLOC, spot_display(bloc_ink())),
     ];
     let run = channel_run(&spots, false);
-    let shape = |bits: u16, extra: Vec<u16>| -> Vec<(u16, Vec<u16>)> {
-        let n = 3 + extra.len();
-        vec![
-            (258, vec![bits; n]),
-            (259, vec![1]),
-            (262, vec![2]),
-            (277, vec![n as u16]),
-            (284, vec![1]),
-            (338, extra),
-        ]
-    };
+    let shape = rgb_shape;
     // Photoshop's layout, little-endian here (its own files are `MM`,
     // `spot_tiff_photoshop.rs`), opens with its spot channels at both depths.
     for bits in [8u16, 16] {
@@ -838,4 +976,71 @@ fn hand_built_files_keep_their_spot_channels_or_say_why_not() {
         error.contains("RGBA TIFF must declare one unassociated alpha sample"),
         "{error}"
     );
+}
+
+#[test]
+fn a_tiff_cut_short_inside_its_image_data_reports_its_spot_channels_unread() {
+    let dir = TempDir::new().unwrap();
+    let spots = [
+        (RAMP, spot_display(ramp_ink())),
+        (BLOC, spot_display(bloc_ink())),
+    ];
+    let run = channel_run(&spots, false);
+    let both = vec![
+        (RAMP.to_string(), Some(ramp_ink()), ramp8()),
+        (BLOC.to_string(), Some(bloc_ink()), bloc8()),
+    ];
+    for bits in [8u16, 16] {
+        let file = hand_tiff(
+            bits,
+            &rgb_with_spots(bits),
+            &rgb_shape(bits, vec![0, 0]),
+            Some(&run),
+        );
+        // The decoder never reads an uncompressed strip's byte count, so a
+        // count that understates the strip loses nothing.
+        let mut understated = file.clone();
+        let fields = Fields::of(&file);
+        let count = fields.one_long(279);
+        understated[count..count + 4].copy_from_slice(&fields.put32(1));
+        let path = dir.path().join(format!("understated{bits}.tif"));
+        std::fs::write(&path, &understated).unwrap();
+        assert!(report_warnings(&path).contains(&observation()), "{bits}");
+        assert_eq!(byte_spots(&open_byte(&path)), both, "{bits}: understated");
+        // Each rewrite, whole, still opens with its spot channels, and its
+        // report says so; cut short, the report names the loss instead.
+        let (moved, strip) = with_strip_last(&file);
+        let inside = moved.len() - strip / 2;
+        let (packed, last) = with_packbits_strips(&file, 4);
+        let cuts = [("uncompressed", moved, inside), ("packbits", packed, last)];
+        for (kind, whole, cut) in cuts {
+            let what = format!("{bits}-bit {kind}");
+            let path = dir.path().join(format!("whole{bits}{kind}.tif"));
+            std::fs::write(&path, &whole).unwrap();
+            assert!(report_warnings(&path).contains(&observation()), "{what}");
+            assert_eq!(byte_spots(&open_byte(&path)), both, "{what}: whole");
+            let path = dir.path().join(format!("cut{bits}{kind}.tif"));
+            std::fs::write(&path, &whole[..cut]).unwrap();
+            let warnings = report_warnings(&path);
+            assert!(
+                warnings.contains(&CUT_SHORT.to_string()),
+                "{what}: {warnings:?}"
+            );
+            assert!(!warnings.contains(&observation()), "{what}: {warnings:?}");
+            // The byte open decodes the same strips first, so the cut file
+            // does not open at all.
+            assert!(try_open_byte(&path).is_err(), "{what}: byte open");
+            if bits == 16 {
+                // The typed open admits the file by its description and fails
+                // at the decode with the decoder's own error, not a refusal
+                // of samples the file does declare.
+                let error = open_typed(&path).err().unwrap_or_default();
+                assert!(!error.is_empty(), "{what}: typed open");
+                assert!(
+                    !error.contains("RGBA TIFF must declare one unassociated alpha sample"),
+                    "{what}: {error}"
+                );
+            }
+        }
+    }
 }

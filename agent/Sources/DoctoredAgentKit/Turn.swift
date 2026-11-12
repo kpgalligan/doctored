@@ -88,6 +88,8 @@ extension AgentSession {
             switch last?.stopReason {
             case "max_tokens": emit(.error("The reply was cut off at the output limit."))
             case "refusal": emit(.error("The model declined this request."))
+            case "model_context_window_exceeded":
+                emit(.error("The reply was cut off because the conversation filled the model's context window."))
             default: break
             }
         } catch {

@@ -36,7 +36,7 @@ Cases, one PASS/FAIL line each:
   reply: its text merges into the user message.
 - cancel-tools: a cancel while a tool call waits. Every tool_use still gets a tool_result
   ("Cancelled by the user."), no request follows, and the next send merges into that message.
-- refusal and max-tokens: the exact user-visible error strings.
+- refusal, max-tokens and context-window: the exact user-visible error strings.
 - rate-limit-retry: a 429 with retry-after 0, then success. The stub sees one retry with the same
   body and the helper reports no error.
 - retries-exhausted: four 429s give "API error 429: ..." after 1 + 3 attempts (maxRetries 3).
@@ -127,6 +127,7 @@ BODY_FIELDS = set(FIXED_FIELDS) | {"system", "tools", "messages", "context_manag
 SAMPLING_FIELDS = {"temperature", "top_p", "top_k"}  # a 400 on 2026-10-21
 REFUSAL_ERROR = "The model declined this request."
 MAX_TOKENS_ERROR = "The reply was cut off at the output limit."
+CONTEXT_WINDOW_ERROR = "The reply was cut off because the conversation filled the model's context window."
 NOT_CONFIGURED_ERROR = "The assistant helper was not configured."
 BUSY_ERROR = "The assistant is busy."
 BAD_MESSAGE_PREFIX = "Bad message from the app: "
@@ -1262,6 +1263,10 @@ def case_max_tokens(ctx):
     return case_stop_error(ctx, "max_tokens", MAX_TOKENS_ERROR)
 
 
+def case_context_window(ctx):
+    return case_stop_error(ctx, "model_context_window_exceeded", CONTEXT_WINDOW_ERROR)
+
+
 RATE_MESSAGE = "Number of request tokens has exceeded your per-minute rate limit"
 
 
@@ -1391,7 +1396,8 @@ def case_framing(ctx):
 
 CASES = [("text-turn", case_text_turn), ("settings", case_settings), ("tool-round-trip", case_tool_round_trip),
          ("cancel-stream", case_cancel_stream), ("cancel-tools", case_cancel_tools), ("refusal", case_refusal),
-         ("max-tokens", case_max_tokens), ("rate-limit-retry", case_rate_limit_retry),
+         ("max-tokens", case_max_tokens), ("context-window", case_context_window),
+         ("rate-limit-retry", case_rate_limit_retry),
          ("retries-exhausted", case_retries_exhausted), ("stream-error", case_stream_error),
          ("two-processes", case_two_processes), ("framing", case_framing)]
 

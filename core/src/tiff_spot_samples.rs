@@ -25,6 +25,11 @@
 //! pattern), which makes the `tiff` decoder hand back every sample of a
 //! pixel as one Multiband image in each of its lossless compressions; the
 //! file is never copied.
+//!
+//! Whether the file still holds the image data that decode reads is
+//! [`saved_chunks_held`]'s answer, from the directory alone, so the records
+//! the import report and every open read can say a cut-short file's planes
+//! are unreadable without decoding a sample.
 
 use tiff::decoder::{Decoder, DecodingResult, Limits};
 
@@ -44,9 +49,14 @@ const IMAGE_LENGTH: u16 = 257;
 const BITS_PER_SAMPLE: u16 = 258;
 const COMPRESSION: u16 = 259;
 const PHOTOMETRIC: u16 = 262;
+const STRIP_OFFSETS: u16 = 273;
 const ORIENTATION: u16 = 274;
 const SAMPLES_PER_PIXEL: u16 = 277;
+const ROWS_PER_STRIP: u16 = 278;
 const PLANAR: u16 = 284;
+const TILE_WIDTH: u16 = 322;
+const TILE_LENGTH: u16 = 323;
+const TILE_OFFSETS: u16 = 324;
 const INK_SET: u16 = 332;
 const EXTRA_SAMPLES: u16 = 338;
 const SAMPLE_FORMAT: u16 = 339;
@@ -190,6 +200,78 @@ impl SpotCoverage<'_> {
             (SpotCoverage::Sixteen(v), _) => tiff_stored(v[p], 65535),
         }
     }
+}
+
+/// `Err` when `bytes` end before image data [`read_saved_planes`]' decode
+/// must read (module doc): the first directory's strips or tiles, chunky,
+/// checked against the file's length without decoding. It errs only on a
+/// failure that decode is certain to meet, so a file it passes is left to
+/// the decoder and a file the decoder reads always passes:
+///
+/// - An uncompressed chunk needs `(rows − 1)` whole chunk rows plus its last
+///   row's samples from its offset. The `tiff` decoder (0.11) reads each row
+///   with `read_exact` and only skips an edge tile's right padding, so that
+///   is the least it reads; StripByteCounts and TileByteCounts are never
+///   read, as the decoder ignores them here and a file that understates
+///   them still decodes.
+/// - A compressed chunk errs only when it starts at or past the end: its
+///   stream may end before its declared count, so a count that passes the
+///   end is not certain to fail, but a stream with no byte always does.
+///
+/// A table this cannot read, or one whose length is not the geometry's
+/// chunk count, is the decoder's to judge (`Ok`).
+pub(crate) fn saved_chunks_held(bytes: &[u8], layout: &TiffSpotLayout) -> Result<(), String> {
+    let mut read = bytes_reader(bytes);
+    let Some(directory) = Directory::first(&mut read) else {
+        return Ok(());
+    };
+    let (width, height) = (u64::from(layout.width), u64::from(layout.height));
+    // The chunk's width and height, and its offsets' tag.
+    let (chunk_w, chunk_h, table) = if directory.entry(TILE_OFFSETS).is_some() {
+        match (directory.scalar(TILE_WIDTH), directory.scalar(TILE_LENGTH)) {
+            (Some(w), Some(h)) if w > 0 && h > 0 => (u64::from(w), u64::from(h), TILE_OFFSETS),
+            _ => return Ok(()),
+        }
+    } else {
+        // RowsPerStrip absent is the whole image in one strip.
+        match directory.scalar(ROWS_PER_STRIP).map_or(height, u64::from) {
+            0 => return Ok(()),
+            rows => (width, rows.min(height), STRIP_OFFSETS),
+        }
+    };
+    let across = width.div_ceil(chunk_w);
+    let Some(count) = across
+        .checked_mul(height.div_ceil(chunk_h))
+        .and_then(|n| u32::try_from(n).ok())
+    else {
+        return Ok(());
+    };
+    let Some(Some(offsets)) = directory.unsigned(table, count, &mut read) else {
+        return Ok(());
+    };
+    if offsets.len() != count as usize {
+        return Ok(());
+    }
+    let pixel = (layout.samples * layout.bytes) as u64;
+    let uncompressed = directory.scalar(COMPRESSION).unwrap_or(1) == 1;
+    let end = bytes.len() as u64;
+    for (index, &offset) in (0u64..).zip(&offsets) {
+        let needed = if uncompressed {
+            // Both are at least 1: the chunk's column and row are inside the image.
+            let cols = chunk_w.min(width - index % across * chunk_w);
+            let rows = chunk_h.min(height - index / across * chunk_h);
+            (rows - 1)
+                .saturating_mul(chunk_w)
+                .saturating_add(cols)
+                .saturating_mul(pixel)
+        } else {
+            1
+        };
+        if offset.saturating_add(needed) > end {
+            return Err("the file ends inside its image data".into());
+        }
+    }
+    Ok(())
 }
 
 /// The saved channels `saved` (indices from [`TiffSpotLayout::first_saved`])

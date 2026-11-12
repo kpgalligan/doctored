@@ -9,13 +9,18 @@
 //! transparency — are described by its 8BIM run: those of kind spot with a
 //! Lab ink are KEPT, by the PSD reader's own rules and loss sentences
 //! (`psd_spot::spot_candidates`; the run's lists lead with "Transparency"
-//! when the file has one). Planar samples, an Orientation other than 1 and
-//! a compression the decoder does not read are a loss line with nothing
-//! kept. Every open site calls [`DrDocument::with_tiff_spots`] or
+//! when the file has one). Planar samples, an Orientation other than 1, a
+//! compression the decoder does not read and image data the file ends
+//! inside of (`tiff_spot_samples::saved_chunks_held`) are a loss line with
+//! nothing kept. Every open site calls [`DrDocument::with_tiff_spots`] or
 //! [`PrecisionDocument::with_tiff_spots`]: the byte document keeps 8-bit
 //! coverage (a 16-bit file narrowed by `psd_export_cmyk::Depth`'s
 //! `round(v / 257)`), a typed one u16 (an 8-bit file ×257), admitted first.
-//! A plane that cannot be read is a loss line, never a refused open.
+//! A plane that cannot be read is a loss line, never a refused open. The
+//! byte document has no import warnings, so its lines are the records' (the
+//! import report's): a compressed strip that starts inside the file but
+//! does not decode (cut short or corrupt) passes the records, and the byte
+//! open drops its planes with no line, where the typed open adds one (#30).
 //!
 //! WRITE ([`DrDocument::tiff_spot_planes`],
 //! [`PrecisionDocument::tiff_spot_planes`]). Every spot channel in channel
@@ -53,13 +58,15 @@ use crate::precision_mask::{PrecisionChannel, PrecisionPlane};
 use crate::psd_container::{resource_in, Container};
 use crate::psd_export_cmyk::Depth;
 use crate::psd_export_preflight::{spots_capacity, spots_written_for, SpotFile};
-use crate::psd_spot::{channel_limit_loss, native_name, spot_candidates, SpotRecords};
+use crate::psd_spot::{
+    channel_limit_loss, native_name, planes_unreadable_loss, spot_candidates, SpotRecords,
+};
 use crate::psd_spot_records::encode_resources;
 use crate::spot_channel::{SpotInk, TIFF_REFUSAL};
 use crate::tiff_encode::{TiffSpotPlanes, SPOT_STRIP_BYTES};
 use crate::tiff_spot_samples::{
-    read_saved_planes, tiff_stored, SpotCoverage, TiffSpotLayout, SPOT_EXTRA_SAMPLE,
-    TRANSPARENCY_EXTRA_SAMPLE,
+    read_saved_planes, saved_chunks_held, tiff_stored, SpotCoverage, TiffSpotLayout,
+    SPOT_EXTRA_SAMPLE, TRANSPARENCY_EXTRA_SAMPLE,
 };
 
 /// A typed export request that keeps spot channels, on a CMYK document.
@@ -72,8 +79,27 @@ const MAX_IMPORT_WARNINGS: usize = 64;
 /// The file's layout and its saved channels' reading (module doc): `None`
 /// when the bytes are not an RGB or CMYK TIFF with saved channels described
 /// by a DisplayInfo in `run` (the file's 8BIM run, `metadata::scan`'s
-/// `iptc`). No sample is decoded.
+/// `iptc`). The import report, both opens and the layered container read
+/// these records, so none names a spot channel as opened from image data
+/// the file no longer holds ([`saved_chunks_held`]). No sample is decoded.
 pub(crate) fn tiff_spot_records(
+    bytes: &[u8],
+    run: Option<&[u8]>,
+) -> Option<(TiffSpotLayout, SpotRecords)> {
+    let (layout, mut out) = described_spot_records(bytes, run)?;
+    if !out.kept.is_empty() {
+        if let Err(e) = saved_chunks_held(bytes, &layout) {
+            out.losses.push(planes_unreadable_loss(&e));
+            out.alpha += out.kept.len();
+            out.kept.clear();
+        }
+    }
+    Some((layout, out))
+}
+
+/// [`tiff_spot_records`] from the file's description alone: what its
+/// resources and layout keep, before the image data is checked.
+fn described_spot_records(
     bytes: &[u8],
     run: Option<&[u8]>,
 ) -> Option<(TiffSpotLayout, SpotRecords)> {
@@ -124,12 +150,15 @@ pub(crate) fn tiff_spot_records(
     Some((layout, out))
 }
 
-/// True when the file's every extra sample past its transparency is a kept
-/// spot channel ([`tiff_spot_records`]): the one case `precision_codec`
-/// admits a 16-bit RGB TIFF with extra samples.
+/// True when the file's every extra sample past its transparency is
+/// described as a kept spot channel ([`described_spot_records`]): the one
+/// case `precision_codec` admits a 16-bit RGB TIFF with extra samples. The
+/// description alone decides, so a file cut short is admitted and its
+/// decode reports the decoder's own error, not a refusal of samples the
+/// file does declare.
 pub(crate) fn tiff_spot_extras_accounted(bytes: &[u8]) -> bool {
     let run = crate::metadata::scan(bytes).metadata.iptc;
-    tiff_spot_records(bytes, run.as_deref())
+    described_spot_records(bytes, run.as_deref())
         .is_some_and(|(layout, records)| layout.saved() > 0 && records.kept.len() == layout.saved())
 }
 
@@ -218,8 +247,9 @@ impl LayeredTiffSpots<'_> {
 
 impl DrDocument {
     /// This document with the TIFF's kept spot channels appended (module
-    /// doc); unchanged when there are none, the channel caps would break or
-    /// a plane cannot be read (the report names it).
+    /// doc); unchanged when the records keep none, and the report names
+    /// why. A plane that still fails to decode is dropped with no line
+    /// (module doc).
     pub(crate) fn with_tiff_spots(self, bytes: &[u8]) -> Result<Self, String> {
         let found = tiff_spot_records(bytes, self.metadata.iptc.as_deref());
         self.adopt_tiff_spots(bytes, found)
@@ -245,6 +275,10 @@ impl DrDocument {
         let Some((layout, records)) = found else {
             return Ok(self);
         };
+        // The records already applied the channel limit at the file's own
+        // size, and a byte open adopts no other channel first; the layout
+        // and the canvas come from the same directory. So only a file the
+        // records keep nothing of returns here.
         if records.kept.is_empty()
             || (layout.width, layout.height) != (self.width, self.height)
             || !self.channels_fit(records.kept.len())
@@ -425,9 +459,7 @@ impl PrecisionDocument {
                     }
                 }
                 Err(e) => {
-                    added.push(format!(
-                        "Spot channel planes in this file are not readable ({e}); no spot channel is retained."
-                    ));
+                    added.push(planes_unreadable_loss(&e));
                     records.kept.clear();
                 }
             }

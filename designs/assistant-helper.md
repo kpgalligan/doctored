@@ -144,7 +144,7 @@ Newline-delimited JSON, one object per line in each direction. The type name `to
 - **At the end.**
   - Auto-compaction runs if due (below).
   - `max_tokens` then emits `error` "The reply was cut off at the output limit.", and `refusal` emits `error` "The model declined this request."
-  - `model_context_window_exceeded` ends silently.
+  - `model_context_window_exceeded` emits `error` "The reply was cut off because the conversation filled the model's context window."
   - `turn_finished` is always emitted, even after an error or a cancel.
 - **Tools.**
   - For every `tool_use` block of a response at once, the helper emits `tool_call` and `tool_request`, then waits for every answer. The app runs the requests one at a time, in arrival order, each a separate hop to main under `AppActivity.userInitiated`.
@@ -250,7 +250,7 @@ Newline-delimited JSON, one object per line in each direction. The type name `to
   - the tool-result conversion;
   - the `send` merge, the compaction accounting and the context arithmetic;
   - the busy and unconfigured refusals;
-  - full turns: deltas; a multi-tool round trip with an image; a cancel mid-stream and one with tools pending; `refusal` and `max_tokens`; a final reply's unrun tool calls answered, and the next request valid; 429/529 with `retry-after`; a mid-stream error event; `pause_turn`; compaction success, failure and an empty summary; settings changed mid-turn applying from the next turn;
+  - full turns: deltas; a multi-tool round trip with an image; a cancel mid-stream and one with tools pending; `refusal`, `max_tokens` and `model_context_window_exceeded`; a final reply's unrun tool calls answered, and the next request valid; 429/529 with `retry-after`; a mid-stream error event; `pause_turn`; compaction success, failure and an empty summary; settings changed mid-turn applying from the next turn;
   - byte-identical replay of thinking, signature and tool-search blocks in the next request body.
 - **`make gate`:**
   - The `agent-tests` step runs `make agent-test`. Its inputs are `agent/Package.swift`, `Package.resolved`, `Sources` and `Tests`, the Makefile and `scripts/gate.py`. It needs no core, so it starts beside both legs. It shares `build/agent-swift` with the app build's Build Agent Helper phase, and SwiftPM's lock on a scratch path serializes the two: whichever starts second waits for the first.
@@ -259,7 +259,7 @@ Newline-delimited JSON, one object per line in each direction. The type name `to
   - The Swift leg's inputs name the helper's package and the build script.
   - `wait` waits for this checkout's `swift-build` and `swift-test` processes.
 - **Freshness.** `scripts/app_under_test.py` refuses an app older than `agent/Sources`, `Package.swift` or `Package.resolved`.
-- **`scripts/verify_agent_helper.py`**, the stdio conformance drive: it runs a built helper (the Debug bundle's by default, `--helper` for another) as the app does, under the app's scrubbed environment, against a loopback Messages API, with the bundle's catalog. Its 12 cases are text-turn, settings, tool-round-trip, cancel-stream, cancel-tools, refusal, max-tokens, rate-limit-retry, retries-exhausted, stream-error, two-processes and framing. The gate runs only text-turn and framing (above); the whole drive is the loop's check after a helper change.
+- **`scripts/verify_agent_helper.py`**, the stdio conformance drive: it runs a built helper (the Debug bundle's by default, `--helper` for another) as the app does, under the app's scrubbed environment, against a loopback Messages API, with the bundle's catalog. Its 13 cases are text-turn, settings, tool-round-trip, cancel-stream, cancel-tools, refusal, max-tokens, context-window, rate-limit-retry, retries-exhausted, stream-error, two-processes and framing. The gate runs only text-turn and framing (above); the whole drive is the loop's check after a helper change.
 
 - **`scripts/live_assistant_acceptance.py --live --yes-spend`**, the owner-approved acceptance run against the real API (it spends money; `--budget-usd`, default $5, stops it). A recording proxy between the helper and the API keeps every body and its usage, never a header; an owned instance runs the tools. Six scenarios: three tool turns, a relaunch, a cancel mid-stream, a cancel with tools pending, eight turns, and compaction at the app's 20,000-token minimum; `--self-test` runs them against the loopback stub. Refusal and `max_tokens` are left to the scripted cases. Run 2026-11-04 on the Release build (`build/live-acceptance/20261104T012253Z`), all six PASS, 36 requests, all 200, no error event, $1.18 at Opus 5.5 rates:
   - every request after a conversation's first read the cache, growing across turns (S1's turn-opening reads 0 → 23,006 → 34,724, the larger figures summing the API's tool-search iterations); eight turns read 82.3% of their input from it;

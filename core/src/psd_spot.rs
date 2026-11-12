@@ -173,6 +173,12 @@ pub(crate) fn channel_limit_loss(n: usize) -> String {
     format!("{n} spot channels exceed Doctored's channel limits; none is retained.")
 }
 
+/// The loss line for a file's spot channel planes that Doctored cannot
+/// read, for `reason`; shared by the PSD and TIFF spot readers.
+pub(crate) fn planes_unreadable_loss(reason: &str) -> String {
+    format!("Spot channel planes in this file are not readable ({reason}); no spot channel is retained.")
+}
+
 fn word_at(bytes: &[u8]) -> Result<u16, String> {
     bytes
         .get(..2)
@@ -226,9 +232,7 @@ impl Container<'_> {
                 return out;
             }
             Err(e) => {
-                out.losses.push(format!(
-                    "Spot channel planes in this file are not readable ({e}); no spot channel is retained."
-                ));
+                out.losses.push(planes_unreadable_loss(&e));
                 return out;
             }
         }

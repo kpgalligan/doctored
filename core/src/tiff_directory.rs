@@ -10,9 +10,9 @@
 //! bounded by its size so a forged count cannot size an allocation). Each
 //! caller applies its own checks over the entries: `scalar` reads a SHORT
 //! or LONG of count 1, `shorts` a SHORT array and where each value lives
-//! in the file, so a caller can patch it. The [`Overlay`] lays those
-//! patches over the file's bytes as the decoder reads them, the file itself
-//! untouched and never copied.
+//! in the file, so a caller can patch it, and `unsigned` a SHORT or LONG
+//! array's values. The [`Overlay`] lays those patches over the file's bytes
+//! as the decoder reads them, the file itself untouched and never copied.
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -139,6 +139,47 @@ impl Directory {
                 .chunks_exact(2)
                 .enumerate()
                 .map(|(i, b)| (self.u16_of(b), start + i as u64 * 2))
+                .collect(),
+        ))
+    }
+
+    /// A SHORT or LONG array's values (a strip or tile table's):
+    /// `Some(None)` when the tag is absent, `None` when it is not a SHORT
+    /// or LONG array of 1..=`max` values or its values cannot be read.
+    pub(crate) fn unsigned(
+        &self,
+        tag: u16,
+        max: u32,
+        read: &mut dyn FnMut(u64, usize) -> Option<Vec<u8>>,
+    ) -> Option<Option<Vec<u64>>> {
+        let Some(entry) = self.entries.get(&tag).copied() else {
+            return Some(None);
+        };
+        let size = match entry.kind {
+            3 => 2,
+            4 => 4,
+            _ => return None,
+        };
+        let n = entry.count;
+        if n == 0 || n > max {
+            return None;
+        }
+        let length = n as usize * size;
+        let bytes = if length <= 4 {
+            entry.value[..length].to_vec()
+        } else {
+            read(u64::from(self.u32_of(&entry.value)), length)?
+        };
+        Some(Some(
+            bytes
+                .chunks_exact(size)
+                .map(|b| {
+                    if size == 2 {
+                        u64::from(self.u16_of(b))
+                    } else {
+                        u64::from(self.u32_of(b))
+                    }
+                })
                 .collect(),
         ))
     }
