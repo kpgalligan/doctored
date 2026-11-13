@@ -62,26 +62,34 @@
 //! bit-identical to before.
 //!
 //! Each instance is clamped at its own edges, which is what take1's and
-//! take2's A90 show (tile column 0 doubled at every seam: 0 codes). The fit
-//! ranked bilinear, Keys a = −0.5 and −0.75, Lanczos-2 and -3 on the level,
-//! TWO-PASS, a Paeth three-shear and supersampled NEAREST, all with that
-//! clamp, on take1 to take3's eighteen rotation rows; TWO-PASS ranks first
-//! (worst mean 81.2 codes against the previous ROT-CONTINUOUS's 90.4), and
-//! no sharper filter helps. It is still NOT Photoshop: the two A90s are
-//! exact and every other angle misses the declared bound (6 codes max, 1.5
-//! mean) by 21.7 to 81.2 codes mean. take4, the one confirming take on
-//! held-out angles (10, 65, 120 and −20 degrees at 100 % and 45 %, the odd
-//! 9 x 5 tile at 40), MISSES too (21.5 to 74.3 codes mean), and the refit on
-//! all 28 rows keeps TWO-PASS first. TAKE5's fit (sharper and smoother
-//! two-pass kernels, a Catmull-Smith shear, a centred raster, 8-bit
-//! intermediates) passed nothing, and its held-out rows (5, 50, 150 and −35
-//! degrees, a 13 x 10 tile at 25) read 34.7 to 75.3 codes mean. TAKE6
-//! (`pattern_overlay_669_take.py`: one-pass Keys and Automatic, scale then
-//! rotate, a supersampled turn, a whole-pixel shear) passed nothing either,
-//! and its confirm take on a 112 x 80 canvas (35, 80, 145 and −50 degrees on
-//! a 16 x 10 tile, 110 on a 7 x 11 tile, at 100 % and 60 %) reads 19.7 to
-//! 58.2 codes mean. The residual is an open item of #3
-//! (`designs/phase-10c-constructs-status.md`).
+//! take2's A90 show (tile column 0 doubled at every seam: 0 codes). Away from
+//! the quarter turns TWO-PASS is NOT the measured render: the TAKE4 to TAKE6
+//! fits, every candidate on the exact lattice, missed the bound (6 codes max,
+//! 1.5 mean) on every row away from the quarter turns, by 19.7 to 81.2 codes
+//! mean. Ruled out that way: bilinear, Keys a = −0.5 and −0.75, Lanczos-2
+//! and -3 on the level, a Paeth three-shear and supersampled NEAREST
+//! (TAKE4); sharper and smoother two-pass kernels, a Catmull-Smith shear, a
+//! centred raster and 8-bit intermediates (TAKE5); one-pass Keys and
+//! Automatic, scale then rotate, a supersampled turn and a whole-pixel shear
+//! (TAKE6, `pattern_overlay_669_take.py`).
+//!
+//! What a take designed to identify it measured (`pattern_overlay_3_take.py`:
+//! impulse, edge and natural tiles): every instance is ONE turned stamp drawn
+//! at a whole-pixel position. At 100 % (s' = 1) that position is its centre
+//! O + a v1 + b v2 + R(−t)(floor(w / 2), floor(h / 2)) rounded half up, plus
+//! a whole-pixel offset not yet found. The stamp is the level turned by
+//! exact quarter turns until the residual angle lies in [−45, 45] degrees,
+//! then a two-pass rotation by that residual (rows, then columns), Keys'
+//! cubic a = −0.75 in both passes, the tile's rows and the intermediate
+//! raster's rows clamped; each pixel reads its exact-lattice instance's
+//! stamp, and the one 16-bit case read it in whole 8-bit codes. At a
+//! registration fitted per row this reads every 100 % row (and a 50 % one,
+//! an exact PYRAMID level) at 0.4 to 0.65 codes mean. Not yet measured well
+//! enough to replace TWO-PASS, so the sampler stays (open item of #3,
+//! `designs/phase-10c-constructs-status.md`): the stamp's vertical
+//! registration at a negative residual angle, its whole-pixel offset, Scale
+//! off an exact PYRAMID level (s' other than 1), odd levels, and the corner
+//! pixels where neighbouring stamps meet.
 //!
 //! # Depths and CMYK
 //!
