@@ -611,4 +611,29 @@ fn null_inputs_return_null_without_an_error() {
             .is_null()
     );
     assert!(err.is_null());
+    assert!(
+        unsafe { dr_doc_render_region_plan(ptr::null(), 0, 0, 1, 1, 1, 4, &mut err) }.is_null()
+    );
+    assert!(err.is_null());
+}
+
+/// 13B-7: the plan export answers the render's own request refusals with
+/// the render's sentences, and a NULL `err_out` is tolerated.
+#[test]
+fn the_plan_export_refuses_with_the_render_sentences() {
+    let doc = base();
+    for (window, d, budget) in [
+        ((0, 0, 0, 4), 1, u64::MAX),
+        ((0, 0, W + 1, 4), 1, u64::MAX),
+        ((0, 0, 4, 4), 0, u64::MAX),
+        ((0, 0, 4, 4), 1, 63),
+    ] {
+        let from_plan = plan(&doc, window, d, budget).expect_err("the plan must refuse");
+        let from_render = region(&doc, window, d, budget).expect_err("the render must refuse");
+        assert_eq!(from_plan, from_render, "{window:?}/{d}/{budget}");
+    }
+    let hd = handle(&doc);
+    let out = unsafe { dr_doc_render_region_plan(hd, 0, 0, 0, 4, 1, u64::MAX, ptr::null_mut()) };
+    assert!(out.is_null());
+    unsafe { dr_doc_free(hd) };
 }

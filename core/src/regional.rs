@@ -332,8 +332,12 @@
 //! top-left pixel of each d×d cell, the Phase 4 contract's convention
 //! (`nearest_top_left_cell`); the output is ceil(w/d) × ceil(h/d). Divisor 1 is
 //! authoritative; any larger divisor is a preview. The window is walked
-//! SAMPLE-MAJOR: each ROOT sample evaluates the whole tree (every row) before
-//! the next, so a cancel returns within 4096 samples of the running stage loop
+//! SAMPLE-MAJOR — each ROOT sample evaluates the whole tree (every row) before
+//! the next — except the byte unstaged loop and the byte sampling plate, which
+//! since 13A-latency walk RUN-MAJOR within one output row (`doc_regional_run`:
+//! every unit over a run of samples, a run never crossing a multiple of 4096
+//! root samples; with D5's Background still per sample), so either way a
+//! cancel returns within 4096 samples of the running stage loop
 //! (nested and pass-through paths and hold fills included), within one
 //! checkpoint of the running byte mask or guide blur (13A-5a) or style plane
 //! render at either depth (13A-5b-i), or within one checkpoint of the running
@@ -583,7 +587,8 @@
 //! and the byte sampler branches on the base's CONTRIBUTION first — a pass-through base composites
 //! straight or gated whatever its positional `clip_run` — then on `clip_run` (hidden members
 //! included) for a raster/adjustment/isolated base; the typed unit test is the scene builder's
-//! `clipped_members.is_empty()`. The window is walked SAMPLE-MAJOR, so a cancel returns within 4096
+//! `clipped_members.is_empty()`. The window is walked SAMPLE-MAJOR (the byte unstaged loop RUN-MAJOR
+//! within a row, runs cut at multiples of 4096 root samples — SAMPLING), so a cancel returns within 4096
 //! samples of the running stage loop (nested and pass-through paths and hold fills included; a byte
 //! hold fill also reports progress since 13A-5a), within one checkpoint of the running byte mask or
 //! guide blur (13A-5a: `MaskProperties::derived_with_job` polls, and a cancelled mask blur caches

@@ -6,12 +6,20 @@
 //! one pointwise Levels adjustment. Every regional output is checked against
 //! the full projection before its time is reported. A synthetic timing probe,
 //! not a quality or peak-memory qualification.
+//!
+//! Options (13A-latency): `--storage tiled|contiguous|both` (default `tiled`,
+//! the production representation; `contiguous` re-adopts every raster through
+//! `LayerRaster::shared`, the single-run arm, so the tiled / contiguous ratio
+//! is the per-sample tile reads' share) and `--loop N` (after the timed runs,
+//! N untimed repetitions of the regional calls at 24 MP, so a profiler such as
+//! `/usr/bin/sample` can attach to this process).
 
 use std::ffi::{c_char, CStr};
 use std::ptr;
+use std::sync::Arc;
 use std::time::Instant;
 
-use doctored_core::doc::{BlendMode, DrDocument};
+use doctored_core::doc::{BlendMode, DrDocument, LayerRaster};
 use doctored_core::ffi::*;
 use doctored_core::ffi_doc::*;
 use doctored_core::ffi_regional::dr_doc_render_region;
@@ -82,60 +90,117 @@ fn median(mut values: Vec<f64>) -> f64 {
     values[values.len() / 2]
 }
 
+/// Every raster re-adopted as CONTIGUOUS (`LayerRaster::shared` of an owned
+/// copy): the same pixels, read through the single-run arm.
+fn contiguous(mut doc: DrDocument) -> DrDocument {
+    for layer in &mut doc.layers {
+        let copy = layer.pixels.to_contiguous().expect("a contiguous copy");
+        layer.pixels = LayerRaster::shared(Arc::new(copy));
+    }
+    doc
+}
+
+/// `--storage` and `--loop` (module doc).
+fn options() -> (Vec<&'static str>, u32) {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let value = |name: &str| {
+        args.iter()
+            .position(|a| a == name)
+            .and_then(|i| args.get(i + 1))
+            .cloned()
+    };
+    let storage = match value("--storage").as_deref() {
+        None | Some("tiled") => vec!["tiled"],
+        Some("contiguous") => vec!["contiguous"],
+        Some("both") => vec!["tiled", "contiguous"],
+        Some(other) => panic!("--storage takes tiled, contiguous or both, not {other}"),
+    };
+    let repeat = value("--loop").map_or(0, |n| n.parse().expect("--loop takes a count"));
+    (storage, repeat)
+}
+
 fn main() {
+    let (storages, repeat) = options();
     for (width, height) in phase4_corpus::DIMENSIONS {
-        let doc = stack(width, height);
-        let handle = Box::into_raw(Box::new(doc));
-        let windows = [
-            ("full_projection", None),
-            (
-                "region_512",
-                Some(((width / 2, height / 2, 512, 512), 1u32)),
-            ),
-            ("preview_divisor_8", Some(((0, 0, width, height), 8u32))),
-        ];
-        let mut times: Vec<Vec<f64>> = vec![Vec::new(); windows.len()];
-        for run in 0..3 {
+        for storage in &storages {
+            measure(width, height, storage, repeat);
+        }
+    }
+}
+
+fn measure(width: u32, height: u32, storage: &str, repeat: u32) {
+    let doc = match storage {
+        "contiguous" => contiguous(stack(width, height)),
+        _ => stack(width, height),
+    };
+    let handle = Box::into_raw(Box::new(doc));
+    let windows = [
+        ("full_projection", None),
+        (
+            "region_512",
+            Some(((width / 2, height / 2, 512, 512), 1u32)),
+        ),
+        ("preview_divisor_8", Some(((0, 0, width, height), 8u32))),
+    ];
+    let mut times: Vec<Vec<f64>> = vec![Vec::new(); windows.len()];
+    for run in 0..3 {
+        let mut error = ptr::null_mut();
+        let start = Instant::now();
+        let full = unsafe { dr_doc_flattened(handle, 0, std::ptr::null(), &mut error) };
+        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+        assert!(!full.is_null(), "{}", message(error));
+        let full = pixels(full);
+        times[0].push(elapsed);
+        println!(
+            "{}",
+            json!({"width":width,"height":height,"storage":storage,"run":run,
+            "operation":windows[0].0,"elapsed_ms":elapsed})
+        );
+        for (slot, (operation, request)) in windows.iter().enumerate().skip(1) {
+            let ((x, y, w, h), d) = request.expect("a regional request");
             let mut error = ptr::null_mut();
             let start = Instant::now();
-            let full = unsafe { dr_doc_flattened(handle, 0, std::ptr::null(), &mut error) };
+            let region = unsafe {
+                dr_doc_render_region(handle, x, y, w, h, d, u64::MAX, ptr::null(), &mut error)
+            };
             let elapsed = start.elapsed().as_secs_f64() * 1000.0;
-            assert!(!full.is_null(), "{}", message(error));
-            let full = pixels(full);
-            times[0].push(elapsed);
+            assert!(!region.is_null(), "{}", message(error));
+            assert!(
+                pixels(region) == crop(&full, width, (x, y, w, h), d),
+                "{operation} differs from the full projection"
+            );
+            times[slot].push(elapsed);
             println!(
                 "{}",
-                json!({"width":width,"height":height,"run":run,"operation":windows[0].0,
-                "elapsed_ms":elapsed})
+                json!({"width":width,"height":height,"storage":storage,"run":run,
+                "operation":operation,"elapsed_ms":elapsed,"equals_reference":true})
             );
-            for (slot, (operation, request)) in windows.iter().enumerate().skip(1) {
+        }
+    }
+    for ((operation, _), samples) in windows.iter().zip(times) {
+        println!(
+            "{}",
+            json!({"width":width,"height":height,"storage":storage,"operation":operation,
+            "median_ms":median(samples),"runs":3,"layers":"3 rasters + levels"})
+        );
+    }
+    // `--loop`: untimed repetitions for a profiler, at the first size only.
+    if repeat > 0 && (width, height) == phase4_corpus::DIMENSIONS[0] {
+        for _ in 0..repeat {
+            for (_, request) in windows.iter().skip(1) {
                 let ((x, y, w, h), d) = request.expect("a regional request");
                 let mut error = ptr::null_mut();
-                let start = Instant::now();
                 let region = unsafe {
                     dr_doc_render_region(handle, x, y, w, h, d, u64::MAX, ptr::null(), &mut error)
                 };
-                let elapsed = start.elapsed().as_secs_f64() * 1000.0;
                 assert!(!region.is_null(), "{}", message(error));
-                assert!(
-                    pixels(region) == crop(&full, width, (x, y, w, h), d),
-                    "{operation} differs from the full projection"
-                );
-                times[slot].push(elapsed);
-                println!(
-                    "{}",
-                    json!({"width":width,"height":height,"run":run,"operation":operation,
-                    "elapsed_ms":elapsed,"equals_reference":true})
-                );
+                unsafe { dr_image_free(region) };
             }
         }
-        for ((operation, _), samples) in windows.iter().zip(times) {
-            println!(
-                "{}",
-                json!({"width":width,"height":height,"operation":operation,
-                "median_ms":median(samples),"runs":3,"layers":"3 rasters + levels"})
-            );
-        }
-        unsafe { dr_doc_free(handle) };
+        println!(
+            "{}",
+            json!({"width":width,"height":height,"storage":storage,"loop":repeat})
+        );
     }
+    unsafe { dr_doc_free(handle) };
 }

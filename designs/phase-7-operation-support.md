@@ -169,8 +169,8 @@ issues; this matrix states only what works today.
 - `DONE` — advanced cutout refinement: edge brushing and colour decontamination ship in Select and Mask (2026-10-11;
   P7-12).
 - `DONE` — linear-light phases 2–3 (P7-24, 2026-11-12).
-- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — full-frame projection fallback and stage-only
-  cancellation (P7-31).
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — the canvas display and previews still render the
+  full projection (13B-7; carryover P7-31 closed 2026-11-12).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — payload compression and codec cancellation (P7-32);
   large-document workloads and the broader camera corpus (P7-33); dab/text/plane caps (P7-34).
 - `DONE` — a Background layer kind (P7-38): the Background mark, set by PSD import, written by PSD export,

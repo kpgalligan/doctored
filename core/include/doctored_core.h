@@ -758,6 +758,19 @@ DrImage *dr_doc_flattened(const DrDocument *doc, uint64_t group_buffer_pixels,
 DrImage *dr_doc_render_region(const DrDocument *doc, uint32_t x, uint32_t y,
     uint32_t w, uint32_t h, uint32_t preview_divisor, uint64_t max_output_bytes,
     const DrJobControl *control, char **err_out);
+/* The PLAN of dr_doc_render_region for the same arguments (13B-7): its
+ * admission, allocating no pixels, as an owned JSON string —
+ * contract_version, depth "rgba8", requested_region, required_input_region
+ * (the window grown by the input halo and clamped to the canvas, or the whole
+ * canvas when global_analysis lists an analysis), neighborhood,
+ * global_analysis (false or the distinct analyses), stages, output,
+ * scratch_heap_bytes, work_units, max_output_bytes and one "layers" row per
+ * contributing layer. A request or stack the render would refuse returns NULL
+ * with the render's own sentence in err_out. NULL doc -> NULL, no error. Free
+ * with dr_string_free. */
+char *dr_doc_render_region_plan(const DrDocument *doc, uint32_t x, uint32_t y,
+    uint32_t w, uint32_t h, uint32_t preview_divisor, uint64_t max_output_bytes,
+    char **err_out);
 
 /* Pure per-layer setters: return a NEW document (input untouched), NULL on
  * out-of-range idx or NULL args. Opacity is clamped to [0,1]. Each also
@@ -6731,6 +6744,15 @@ DrPrecisionImage *dr_precision_doc_layer_canvas_image(const DrPrecisionDocument 
 DrPrecisionImage *dr_precision_doc_render_region(const DrPrecisionDocument *document,
     uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t preview_divisor,
     uint64_t limit, uint64_t other_retained_bytes, const DrJobControl *control,
+    char **err_out);
+/* The PLAN of dr_precision_doc_render_region (CMYK included) for the same
+ * window (13B-7): dr_doc_render_region_plan's JSON with depth "rgba16" or
+ * "rgba32f" and no max_output_bytes (the typed render is admitted against its
+ * working limit instead). A request or stack the render would refuse returns
+ * NULL with the render's own sentence. NULL document -> NULL, no error. Free
+ * with dr_string_free. */
+char *dr_precision_doc_render_region_plan(const DrPrecisionDocument *document,
+    uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t preview_divisor,
     char **err_out);
 /* Pure neutral edits. Unchanged opacity returns NULL without an error.
  * duplicate_layer matches the byte dr_doc_duplicate_layers: the copy (and every

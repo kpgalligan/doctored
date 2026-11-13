@@ -21,9 +21,8 @@ P4 (8 and 16 bits): a guide clipped (`set_layer_clipped`) to a raster inside a
 Pass Through group equals the crop (admitted since 13A-4b-ii-b-1).
 F1: the float fixture refuses Shadows/Highlights by the float policy's
 sentence.
-The plan is not reachable over MCP (13B owns a plan surface); the Rust tests
-`regional_byte_pass_through_guide` / `regional_precision_pass_through_guide`
-assert it.
+The plan is asserted by the Rust tests `regional_byte_pass_through_guide` /
+`regional_precision_pass_through_guide` (`render` reports it since 13B-7).
 A failure exits nonzero and leaves a JSON receipt in --receipts.
 """
 import argparse

@@ -868,7 +868,8 @@ fn a_pre_cancelled_grouped_render_returns_no_output() {
 
 /// The 8-bit concurrent cancel. With `bench`, a wall-clock record:
 /// DECLARED BOUND (before measuring): a cancel returns within 4096 ROOT
-/// samples — one checkpoint of the sample-major loop, each root sample
+/// samples — one checkpoint of the window loop (run-major within a row since
+/// 13A-latency, a run never crossing a checkpoint), each root sample
 /// evaluating every row. Measured: the cancel-to-return latency and, from an
 /// uncancelled render of the same document, the time per root sample; their
 /// quotient estimates the root samples processed after the cancel, printed

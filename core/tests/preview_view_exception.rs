@@ -1,5 +1,6 @@
 //! Black-box suite for 13B-3e-4c-1: the ONE whole-plane view read left, the
-//! kept exception (owner 13A-latency) the two interactive previews bind.
+//! exception kept by decision (13B-3e-4c-1 D2) that the Develop preview binds
+//! (the live-filter preview, its other reader, was removed 2026-10-10).
 //! The develop preview (`dr_precision_image_develop_preview`) is its public
 //! reader here, so this suite pins the view-cache contract through it:
 //!

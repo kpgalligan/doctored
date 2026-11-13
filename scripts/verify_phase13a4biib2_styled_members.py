@@ -22,9 +22,9 @@ S5: the guide clipped to a Normal (isolated) group holding the holey raster,
 the group given the S2 effects, equals the crop.
 F1: the float fixture refuses Shadows/Highlights by the float policy's
 sentence.
-The plan is not reachable over MCP (13B owns a plan surface); the Rust tests
-`regional_byte_styled_clip_guide` / `regional_precision_styled_clip_guide`
-assert it. A failure exits nonzero and leaves a JSON receipt in --receipts.
+The plan is asserted by the Rust tests `regional_byte_styled_clip_guide` /
+`regional_precision_styled_clip_guide` (`render` reports it since 13B-7). A
+failure exits nonzero and leaves a JSON receipt in --receipts.
 """
 import argparse
 import json

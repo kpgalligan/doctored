@@ -395,6 +395,7 @@ Detail belongs in the source file's own header comment.
 - `resources_cache.rs` — pinned style-cache inventory snapshots, kept apart from the cache lookup so accounting cannot change its keys or pixels.
 - `regional.rs` / `regional_plan.rs` / `doc_regional.rs` / `doc_regional_walk.rs` — Phase 13A's REGIONAL COMPOSITOR, 8/16/float (`regional.rs`'s module doc IS the contract); plan types; byte walk.
 - `doc_regional_tree.rs` / `doc_regional_sample.rs` / `doc_regional_style.rs` / `doc_regional_budget.rs` / `doc_regional_progress.rs` — byte tree, per-sample bodies, budget dry run, progress.
+- `doc_regional_run.rs` — the byte window's and plate's RUN-MAJOR walk: a row run unit by unit, plain raster/adjustment units hoisted onto row segments, the rest per sample.
 - `regional_knockout.rs` / `regional_guide.rs` / `doc_regional_guide.rs` / `precision_regional_guide.rs` — knockout per sample; guided Shadows/Highlights stages (geometry, byte and typed drivers).
 - `precision_regional.rs` / `precision_regional_walk.rs` / `precision_regional_tree.rs` / `precision_regional_sample.rs` — the typed compositor: entry, admission walk, tree, cursor blocks.
 - `precision_regional_style.rs` / `ffi_regional.rs` — typed styled per-sample bodies; FFI. The tree/sample/style files hold no admission logic and no pixel math (they call the full frame's bodies).

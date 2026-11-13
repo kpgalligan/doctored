@@ -186,6 +186,7 @@ mod doc_regional_budget;
 mod doc_regional_guide;
 mod doc_regional_plate;
 mod doc_regional_progress;
+mod doc_regional_run;
 mod doc_regional_sample;
 mod doc_regional_style;
 mod doc_regional_tree;
@@ -820,10 +821,9 @@ pub(crate) use dr_image::Format;
 #[doc(hidden)]
 pub use drdc::warp_decoded_capacity;
 /// The regional window request, re-exported so black-box tests can reach
-/// the `#[doc(hidden)]` `…_with_group_budget` twins (13A-3b-ii) and the plan
-/// methods `DrDocument::render_region_plan` /
-/// `PrecisionDocument::render_region_plan`, the tests' plan oracle (the app
-/// exports only the render).
+/// the `#[doc(hidden)]` `…_with_group_budget` twins (13A-3b-ii); the plan
+/// itself is read through `dr_doc_render_region_plan` /
+/// `dr_precision_doc_render_region_plan` (13B-7).
 #[doc(hidden)]
 pub use regional::RegionRequest;
 pub mod artwork_coverage;

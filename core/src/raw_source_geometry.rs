@@ -9,7 +9,7 @@
 //! Since 13B-3e-4a the source is a `storage()` gate at HEAD's position (HEAD's sentence) and ONE
 //! `transient_rgba16` after the `plan.unchanged` return (an identity copies nothing; a failed copy
 //! answers "could not allocate precision output"); the output (now `:471`) stays Seeded, feeding
-//! `preview_view_rgba16`, kept exception (13B-3e-4c-1, owner 13A-latency).
+//! `preview_view_rgba16`, kept exception by decision (13B-3e-4c-1 D2).
 use crate::job_control::{DrJobControl, JobContext};
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::{admit, reserved_vec, PrecisionImage, BOOKKEEPING_BYTES};
@@ -491,7 +491,7 @@ impl PrecisionDocument {
             }
         }
         job.check()?;
-        // Seeded: feeds `preview_view_rgba16` (kept exception, 13A-latency).
+        // Seeded: feeds `preview_view_rgba16` (kept exception, 13B-3e-4c-1 D2).
         let result = PrecisionImage::from_rgba16(dw, dh, output, image.profile().clone(), None)?;
         let doc = PrecisionDocument::from_image(
             result,

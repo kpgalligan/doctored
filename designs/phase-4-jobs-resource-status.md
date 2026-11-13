@@ -228,8 +228,8 @@ Each `DONE` entry keeps what shipped and what a later batch must hold. The measu
   (`CapturedSave.run`, `ImageDocument.openWork`). The float and colour-mode decoders cancel at their stage
   boundaries. RAW (CIRAWFilter) and movie-frame (AVFoundation) decodes are host calls with no cancel inside: they are
   cancelled before and after each camera or frame stage.
-- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — Broader cancellable/regional processing: the
-  remaining full-frame fallbacks, stage-only render and preparation cancellation, and the regional latency regression.
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — Broader regional processing: the canvas display and
+  the UI previews still render the full frame (13B-7); the guided sampling plates are 13B-9's ([#10](https://github.com/kpgalligan/doctored/issues/10)).
 - `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled document storage: masks, channels and typed
   mask planes on tiles, a measured history budget and one bounded cache registry.
 - `DONE` — Higher precision storage — Phase 7 (typed 16-bit) and 11F (float).

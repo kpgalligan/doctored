@@ -19,9 +19,8 @@ equals the crop, then the group set to Multiply (isolated: the hard stop).
 K4 (8 and 16 bits): `{blend_interior_as_group: true, effects: [color_overlay
 multiply]}` on a lone Multiply raster equals the crop, then the same raster as
 a clip base with a visible member (D6 evaluates off there).
-The plan is not reachable over MCP (`render` returns the image, not the plan;
-13B owns a plan surface); the Rust tests `regional_byte_knockout` /
-`regional_precision_knockout` assert it.
+The plan is asserted by the Rust tests `regional_byte_knockout` /
+`regional_precision_knockout` (`render` reports it since 13B-7).
 A failure exits nonzero and leaves a JSON receipt in --receipts.
 """
 import argparse

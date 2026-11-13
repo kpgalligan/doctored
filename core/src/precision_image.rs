@@ -28,7 +28,7 @@
 //! ACCESSOR CONTRACT (13B-3a). There is NO borrowed-slice read accessor, no
 //! `Deref`, no `PartialEq` and no `AsRef<[_]>`, and no public whole-plane
 //! view: since 13B-3e-4c-1 the ONE view read left is the crate-private
-//! `preview_view_rgba16`, the kept exception (owner 13A-latency) bound ONCE
+//! `preview_view_rgba16`, the exception kept by decision (13B-3e-4c-1 D2), bound ONCE
 //! per call by the Develop preview (`develop_inspect.rs`; its other caller,
 //! the live-filter preview, was removed on 2026-10-10); a miss is a
 //! whole-plane materialization,
@@ -116,7 +116,7 @@
 //! decision and later qualification live in `designs/phase-7-high-depth-status.md`. **Accessor rule
 //! (13B-3a):** no whole-plane view is read — samples go through the tile reads or an owned
 //! `to_rgba16/32` copy; the ONE named exception is the crate-private `preview_view_rgba16`, kept
-//! exception (13B-3e-4c-1, owner 13A-latency), bound ONCE per call by the Develop preview
+//! exception by decision (13B-3e-4c-1 D2), bound ONCE per call by the Develop preview
 //! (`develop_inspect.rs`) — never inside a per-row or per-sample
 //! loop or closure. **Since 13B-3c-2c-1** a tap walk (ONE random-access read per operation —
 //! `precision_sampling`'s resample inputs, the retouch source's bilinear tap walks) binds
@@ -230,7 +230,7 @@
 //! (13B-3e-2's `live_filter_preview.rs:164`, 13B-3e-3b's `develop_inspect.rs:136`) and the geometry
 //! source bind `raw_source_geometry.rs:392`; 2 after 13B-3e-4a, `rg -c` 4 — the two kept preview
 //! reads; 0 after 13B-3e-4c-1, `rg -c` 0 — the accessor removed, the two reads on
-//! `preview_view_rgba16`, kept exception (13B-3e-4c-1, owner 13A-latency); one read since
+//! `preview_view_rgba16`, kept exception by decision (13B-3e-4c-1 D2); one read since
 //! 2026-10-10, when the live-filter preview was removed). **Since 13B-3e-4b**
 //! every reader-side typed DECODER — the typed `.rz` layer / master PNG (`precision_png`), the WARP
 //! original (`warp_native`), the f32 `.rz` raster (`float_native`), the PNG16 / TIFF16 open
@@ -242,7 +242,7 @@
 //! the narrowing's base raster, WARP original and 1×1 placeholders are `LayerRaster::unseeded`, so
 //! an open, a reopen, a paste or a narrowing seeds no view; the seeded constructor site left
 //! outside `precision_image*` is in `raw_source_geometry.rs`,
-//! feeding `preview_view_rgba16`, kept exception (13B-3e-4c-1, owner 13A-latency). **Since
+//! feeding `preview_view_rgba16`, kept exception by decision (13B-3e-4c-1 D2). **Since
 //! 13B-3e-1** the typed EXPORT chain, the 16-bit PSD writer and the float writers read tiles and
 //! seed nothing: the export renders (`export_encoded`, `export_layer_encoded`),
 //! `export_stages`' tone map and resize, the `convert16` / sharpen /
@@ -523,8 +523,8 @@ impl PrecisionImage {
             Pixels::F32(_) => PrecisionStorage::Rgba32Float,
         }
     }
-    /// The ONE whole-plane view read left: the 13B-3e-4c-1 kept exception,
-    /// owner 13A-latency. Its only caller is
+    /// The ONE whole-plane view read left: an exception kept by decision
+    /// (13B-3e-4c-1 D2). Its only caller is
     /// `PrecisionImage::develop_preview` (`develop_inspect.rs`), which
     /// binds it ONCE per call; its feeding seed is in
     /// `raw_source_geometry.rs`. Tiled:

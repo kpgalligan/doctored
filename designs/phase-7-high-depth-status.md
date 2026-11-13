@@ -51,8 +51,8 @@ remaining gap to a named later slice. Starting Phase 7 did not close the
 - `DONE` — edge brushing and colour decontamination ship in Select and Mask (2026-10-11; `core/src/edge_refine.rs`,
   `core/src/foreground_solve.rs`); the Phase 6 / 9I quality gate is no longer a ship condition (carryover P7-12).
 - `DONE` — linear-light phases 2–3 (carryover P7-24, 2026-11-12; [11E](phase-11e-linear-light-status.md)).
-- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — full-frame fallbacks and stage-only cancellation,
-  slow 24 MP full projections/conversions (carryover P7-31).
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — the canvas display's full 24 MP projection on every
+  edit (13B-7; carryover P7-31 closed 2026-11-12).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — uncompressed native payloads, and the PNG16
   encoder's compute before its first write (carryover P7-32); `save_projection16` and Save take a control since
   2026-11-12.

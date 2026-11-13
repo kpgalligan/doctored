@@ -8,7 +8,7 @@ The settled record of Phase 13A's shipped runs, moved from [phase-13a-regional-s
 
 ## Runs
 
-The 31 shipped runs (`Owns` / `Exit` cells and split lineage: archived original):
+The 32 shipped runs (`Owns` / `Exit` cells and split lineage: archived original; 13A-latency's: the status doc's `## Measured latency`):
 
 | Run | Commit | Implemented (2026) |
 |---|---|---|
@@ -43,6 +43,7 @@ The 31 shipped runs (`Owns` / `Exit` cells and split lineage: archived original)
 | 13A-6c-1 | `49c8401` | 09-24 |
 | 13A-6c-2 | `ab4664e` | 09-25 |
 | 13A-7 | `576f69f` | 09-25 |
+| 13A-latency | the #9 batch (2026-11-12) | 11-12 |
 
 ## 13A-1 contract
 
@@ -58,7 +59,7 @@ Shipped: byte Blend If and fill opacity (a style with no enabled effect). Home: 
 
 ## 13A-3a contract deltas
 
-Shipped: groups at every depth, isolated and pass-through, gated, nested to the depth cap. Home: `regional.rs` (GROUPS, SAMPLING). The byte sampler tests the base's contribution before `clip_run`; an empty-extent group renders nothing; the window is walked sample-major.
+Shipped: groups at every depth, isolated and pass-through, gated, nested to the depth cap. Home: `regional.rs` (GROUPS, SAMPLING). The byte sampler tests the base's contribution before `clip_run`; an empty-extent group renders nothing; the window is walked sample-major (the byte unstaged loop run-major within a row since 13A-latency).
 
 ## 13A-3b-i contract deltas
 
@@ -168,6 +169,10 @@ Shipped (Swift): one `NativeBrushStroke.dabLimitRefusal` sentence, thrown where 
 
 Shipped: `scripts/verify_phase12e2b_placement.py` runs every gate in one owned instance and adds P11 (the parked `NSAnimation _runBlocking` thread count stays at its starting value over 200 worker-backed edits). The close of 13A and P7-31 moved to 13A-latency.
 
+## 13A-latency contract deltas
+
+Shipped: the byte unstaged window loop and the sampling plate's tile rows walk RUN-MAJOR (`core/src/doc_regional_run.rs`): one row's run, unit by unit, a plain raster or adjustment unit (no clip run, style or staged guide) hoisted onto `LayerRaster::row_segments`, every other unit per sample; a D5 Background level stays per sample. Runs are cut at the multiples of 4096 root samples, so the checkpoints fire where the per-sample loop's did (`core/tests/regional_run_path.rs` pins them row by row). The 8-bit Levels memoizes `apply8`'s output half per code (`Codes8`, `core/src/adjust_levels.rs`), bit for bit. A later byte fast path keeps both rules: no unit reads another sample, and a run never crosses a checkpoint. The typed path is untouched.
+
 ## Decisions
 
 Only the decisions in force that code does not state. The others are stated by the files named above; the split lineage is in the archived original.
@@ -183,7 +188,7 @@ Only the decisions in force that code does not state. The others are stated by t
 - **`assert_ramp`'s whole-range clause precedes its bounds clause (13A-5b-iii-b-1),** so a whole-range miss reports before any scan; it names a stall unambiguously only when the first value above the start is past the advance (`> end + 1e-6`); a first value AT the advance names both the stall and the `checkpoints_only` regression and demands a serial re-run. The bounds clause can still fail on a missed range END: bench-only, recorded.
 - **The bench is `--no-fail-fast` (13A-5b-iii-b-1),** so one binary's panic never hides the others' record; its pass criterion is "every binary ran, every line recorded", not exit 0.
 - **The plate still reports no progress (13A-5c-2a).** Every caller (`dr_doc_retouch_source`, `doc_inpaint`, `doc_content_aware` ×2, the promotion) runs it as a preparation whose work its own progress does not count, so both envs take `checkpoints_only()`; a per-tile / per-row report is 13B-9's (handed item 16, [#10](https://github.com/kpgalligan/doctored/issues/10)).
-- **The tree, not the tile loop (13A-5c-2b).** Rejected: tiling `composite_level_into`, which would need a per-tile D5 / Shallow snapshot origin rule, full-extent materialization of nested styled groups and index-rewriting substitution, a second compositor. The tree's cost is the sample-major cancel unit, declared as `c_tree_row` and measured, not gated.
+- **The tree, not the tile loop (13A-5c-2b).** Rejected: tiling `composite_level_into`, which would need a per-tile D5 / Shallow snapshot origin rule, full-extent materialization of nested styled groups and index-rewriting substitution, a second compositor. The tree's cost is its cancel unit, one tile row of root samples (one run-major run since 13A-latency), declared as `c_tree_row` and measured, not gated.
 - **D5 / Shallow snapshots stay a stated difference, with cause (13A-5c-3).** The budget bounds memory a nest holds; the regional path holds neither snapshot (per-sample one-element backdrops; where the staged path does hold `S` or a pass-through hold over `R_0`, `stage_scratch` charges it). A dry-run charge for an allocation that never happens would refuse renders that fit, the opposite of 13A's purpose, so regional admits a superset by design; `the_background_and_pass_through_snapshot_charges_are_a_stated_difference` (`core/tests/regional_byte_knockout.rs`) stays the pin.
 - **The 64M render aggregate stays: extent-bounded input, windowed components are 13D's ([#11](https://github.com/kpgalligan/doctored/issues/11); 13A-6b).** `dr_artwork_render` is a pointwise pass over planes the host already built at the artwork's own extent; the aggregate bounds that input, which regional evaluation cannot shrink. Only a per-component window in the contract could, and that is a new interface.
 - **The WHOLE-STROKE dab model stays (13A-6c-1).** One quantization after the complete stroke is RZBR v1's contract; a per-batch model would quantize per batch and change recorded replays. The 50,000-dab cap and `raw_local_coverage`'s 4,096 are 13D's ([#11](https://github.com/kpgalligan/doctored/issues/11)).
@@ -213,4 +218,4 @@ Receipts, tables and run logs of every run: the archived original. The drives, e
 | 13A-6c-2 | `scripts/verify_phase13a6c2_stroke_refusals.py` | T1–T4, T4b, B1–B3, Q1, C1 |
 | 13A-7 | `scripts/verify_phase12e2b_placement.py` | P1–P11 |
 
-The 13A-5 runs (cancellation, progress, sampling plates and their accounting) had no drive; the core suites and `make cancel-bench` verify them. 13A-5b-iii-c-1 measured and bisected the latency regression (the status doc's `## Measured latency`). What still stands is an item of the status doc's `## Open items`: the latency regression and the tree plate's T(1) / T(6) at unequal load ([#9](https://github.com/kpgalligan/doctored/issues/9)); the load flakes the records named are closed there (2026-11-12). The `scripts/verify_phase9h_ui.py` activation failures in four records were a locked screen (the 13B status's `DROPPED` item).
+The 13A-5 runs (cancellation, progress, sampling plates and their accounting) had no drive; the core suites and `make cancel-bench` verify them. 13A-5b-iii-c-1 measured and bisected the latency regression, and 13A-latency fixed it or stated its residual (the status doc's `## Measured latency`, which also holds the tree plate's equal-load T(1) / T(6)); the load flakes the records named are closed there (2026-11-12). The `scripts/verify_phase9h_ui.py` activation failures in four records were a locked screen (the 13B status's `DROPPED` item).

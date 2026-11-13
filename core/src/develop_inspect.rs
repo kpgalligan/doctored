@@ -15,7 +15,7 @@
 //! byte fallback. The broader Phase 8D UI/automation qualification remains separate from kernel
 //! tests; camera decoding and recipe interpretation stay in the host. The preview still binds its
 //! source's view: its tile band walk MISSED the 13B-3e-3b warm bound, so the read stays on
-//! `preview_view_rgba16`, kept exception (13B-3e-4c-1, owner 13A-latency) (13B-3e-3b D4); since
+//! `preview_view_rgba16`, kept exception by decision (13B-3e-4c-1 D2) (13B-3e-3b D4); since
 //! 13B-3e-4a the host intakes and the develop output are unseeded, so the FIRST preview of such a
 //! plane materializes that view (later calls hit the cache).
 //!
@@ -240,7 +240,7 @@ impl PrecisionImage {
         let scratch = BOOKKEEPING_BYTES + u64::from(width) * u64::from(height) * 4;
         admit(self.retained_bytes(), scratch, other, limit)?;
         job.reserve(scratch)?;
-        // The kept exception (13B-3e-4c-1, owner 13A-latency), bound once.
+        // The exception kept by decision (13B-3e-4c-1 D2), bound once.
         let pixels = self
             .preview_view_rgba16()
             .ok_or("develop inspection requires u16 pixels")?;

@@ -493,4 +493,9 @@ fn null_inputs_return_null_without_an_error() {
     }
     .is_null());
     assert!(err.is_null());
+    assert!(
+        unsafe { dr_precision_doc_render_region_plan(ptr::null(), 0, 0, 1, 1, 1, &mut err) }
+            .is_null()
+    );
+    assert!(err.is_null());
 }

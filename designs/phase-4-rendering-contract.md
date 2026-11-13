@@ -87,5 +87,5 @@ rendered full frames. It also records the 4D measurements used to decide which s
   [phase-4-jobs-resource-status.md](phase-4-jobs-resource-status.md)).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Cooperative cancellation for platform RAW, and
   inside the encoders that compute before their first write and the decoders that cancel only between stages.
-- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — Remaining regional/preparation cancellation and
-  latency.
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — The canvas display and previews on the regional
+  path (13B-7); the regional latency was fixed, or its residual stated with its cause, 2026-11-12 (13A-latency).

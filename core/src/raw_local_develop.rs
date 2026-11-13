@@ -17,7 +17,7 @@
 //! `tests/raw_develop_reads.rs`). Since 13B-3e-4a the output (`develop`'s
 //! `PrecisionImage::from_rgba16_unseeded` call) is
 //! UNSEEDED: its geometry reader copies ONE transient, and the develop preview's first call
-//! materializes a view (`preview_view_rgba16`, kept exception (13B-3e-4c-1, owner 13A-latency);
+//! materializes a view (`preview_view_rgba16`, kept exception by decision (13B-3e-4c-1 D2);
 //! `tests/host_intake_unseeded.rs`).
 use crate::icc_transform::PrecisionToneEncoder;
 use crate::job_control::{DrJobControl, JobContext, EVERY_INTERVAL};

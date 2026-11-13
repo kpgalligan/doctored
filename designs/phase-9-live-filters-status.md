@@ -85,7 +85,7 @@ transform`).
 
 ## Open items (verified 2026-10-30)
 - `DONE` — P7-12's other half: edge brushing and colour decontamination shipped 2026-10-11 in Select and Mask; the quality gate ([gate v2](phase-9i-gate-v2-status.md)) is no longer a ship condition.
-- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11) — Larger interactive filter/retouch workloads beyond the stated ceilings: regional spatial neighbourhoods (P7-31) and the measured 24/48 MP corpus (P7-33).
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11) — Larger interactive filter/retouch workloads beyond the stated ceilings: regional spatial neighbourhoods (the canvas on the regional path, 13B-7) and the measured 24/48 MP corpus (P7-33).
 - `DONE` — 9D-1's two confirmed review findings: plate host admission (`DoctoredCore.retouchSource` admits scratch and passes a real `RasterJobControl`) and the 16-bit ghost latch (`EditorViewController+Heal.strokeSourceImage` uses the native `precisionStroke.sourcePlate`) — `bf706bb`.
 - `DONE` — Typed destructive spatial filters (9F, P7-06); P7-16/P7-17 typed retouch (9D).
 - `DONE` — Reduce Noise streams its guided-filter statistics through row rings (`sampling_box::BoxRows`), bit-identical; Dust & Scratches and Reduce Noise carry measured work charges (`phase-9f-selected-tone-status.md`, "Reduce Noise statistics in row rings").

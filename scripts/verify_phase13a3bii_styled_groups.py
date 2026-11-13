@@ -21,9 +21,9 @@ crop.
 SG4 (8 and 16 bits): `{knockout: "shallow", effects}` on the group — refused
 "carries a knockout" until 13A-3c — equals the crop.
 The plan's `global_analysis` (`"group_materialization"`) and
-`required_input_region` are not reachable over MCP (`render` returns the
-image, not the plan); the Rust tests `regional_byte_styled_groups` /
-`regional_precision_styled_groups` assert them.
+`required_input_region` are asserted by the Rust tests
+`regional_byte_styled_groups` / `regional_precision_styled_groups`; `render`
+reports them over MCP since 13B-7 (scripts/verify_regional_plan.py).
 A failure exits nonzero and leaves a JSON receipt in --receipts.
 """
 import argparse

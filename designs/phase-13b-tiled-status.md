@@ -2,7 +2,7 @@
 
 Section **13B** of the [implementation plan](professional-photo-editor-implementation-plan.md) ("13. Scale to large production documents").
 
-- **State:** 30 runs were implemented 2026-09-25 to 09-26; 13B-4, 13B-5, 13B-6 and 13B-9 are planned ([#10](https://github.com/kpgalligan/doctored/issues/10)) and 13B-7 is planned ([#9](https://github.com/kpgalligan/doctored/issues/9)); 13B-8 is dropped; 13B is not closed. Open items: [#9](https://github.com/kpgalligan/doctored/issues/9), [#10](https://github.com/kpgalligan/doctored/issues/10), [#11](https://github.com/kpgalligan/doctored/issues/11).
+- **State:** 30 runs were implemented 2026-09-25 to 09-26; 13B-4, 13B-5, 13B-6 and 13B-9 are planned ([#10](https://github.com/kpgalligan/doctored/issues/10)); of 13B-7 ([#9](https://github.com/kpgalligan/doctored/issues/9)) MCP `render`'s plan shipped 2026-11-12, the canvas display waits for the owner's display-model decision and the packaged base's guided member is open; 13B-8 is dropped; 13B is not closed. Open items: [#9](https://github.com/kpgalligan/doctored/issues/9), [#10](https://github.com/kpgalligan/doctored/issues/10), [#11](https://github.com/kpgalligan/doctored/issues/11).
 - **Original:** [archive/2026-10/phase-13b-tiled-status.md](../archive/2026-10/phase-13b-tiled-status.md) holds the full plan table and survey, every contract, all 198 decisions, the verification records with their tables, and the 48 closed open items.
 - **Contract:** the module docs of `core/src/tile_store.rs`, `core/src/layer_raster.rs`, `core/src/contiguous_views.rs` and `core/src/precision_image.rs`, named below without their path. Measurements: `core/examples/phase13b_tile_sharing.rs`.
 - **Receipts:** `~/devel/doctored-fixtures/phase13-receipts/13b/`.
@@ -29,7 +29,7 @@ The six runs not shipped, verbatim:
 | **13B-4** ([#10](https://github.com/kpgalligan/doctored/issues/10)) | Byte masks/channels (`Arc<GrayImage>`) and typed `PrecisionPlane` → `TilePlane<u8>` / `<u16>`; mask derived/aligned caches per tile. | Mask/channel suites green; byte-identical persistence; mask-paint dab retains ≤ 4 tiles. |
 | **13B-5** ([#10](https://github.com/kpgalligan/doctored/issues/10)) | History: measured per-edit incremental bytes (history report `incremental_history_bytes`) before/after for brush, mask-paint, adjust and move on the 24 MP corpus; `NamedSnapshots` budget re-measured. Recovery / `.drsnapshot` on-disk sharing stays 13C ([#11](https://github.com/kpgalligan/doctored/issues/11)). | Measured before/after figures recorded with load; budget decision recorded. |
 | **13B-6** ([#10](https://github.com/kpgalligan/doctored/issues/10)) | One process-wide byte-bounded resident-cache registry (style planes, mask caches, LUT, content-box) with eviction order and a report section, shared across documents/jobs. | Every cache bounded in bytes; report section present; eviction order tested. |
-| **13B-7** ([#9](https://github.com/kpgalligan/doctored/issues/9)) | The regional path for the canvas display / UI previews; MCP `render` exposing the plan (`global_analysis`, `required_input_region`); the packaged byte base's guided member. | Owned MCP drive; regional display equals full projection. |
+| **13B-7** ([#9](https://github.com/kpgalligan/doctored/issues/9)) | The regional path for the canvas display / UI previews (HELD for the owner: the canvas draws one canvas-sized image from the full projection `refreshProjection` renders on every edit, read by about 42 files, so a regional canvas needs a lazy projection, a display model only the owner can choose); the packaged byte base's guided member (open: its guide is built per 256-row strip of a window known only after the style's planes render, so it needs a per-strip stage and exact plan-time geometry). MCP `render`'s plan shipped 2026-11-12 (`## Shipped runs`). | Owned MCP drive; regional display equals full projection. |
 | **13B-8** | `DROPPED` (won't-do under the 16 GB minimum; the f32 item shipped separately). Tighter regional plan/progress figures (split at its spec). | Each handed figure tightened or its residual stated with cause. |
 | **13B-9** ([#10](https://github.com/kpgalligan/doctored/issues/10)) | Sampling plates. | Plates regional or their full-frame cost stated and bounded. |
 
@@ -37,9 +37,9 @@ The six runs not shipped, verbatim:
 
 None moves outside 13B.
 
-| # | Item (from the [13A status](phase-13a-regional-status.md#open-items)) | Placed in |
+| # | Item (from the [13A ADR](phase-13a-regional-status.md#open-items)) | Placed in |
 | --- | --- | --- |
-| 1 | MCP `render` exposing the regional plan | 13B-7 ([#9](https://github.com/kpgalligan/doctored/issues/9)) |
+| 1 | MCP `render` exposing the regional plan | 13B-7, shipped 2026-11-12 |
 | 2 | Canvas display on the regional path | 13B-7 ([#9](https://github.com/kpgalligan/doctored/issues/9)) |
 | 3 | Packaged byte base's guided member | 13B-7 ([#9](https://github.com/kpgalligan/doctored/issues/9)) |
 | 4 | `Global` style row's layer-rect input region | `DROPPED` with 13B-8 |
@@ -66,8 +66,7 @@ The run table, contracts, `## Decisions` (the decisions in force) and the closed
 
 Verified 2026-10-07; fates set 2026-10-30. One bullet per standing row of the archived original, plus the residue its sections left; its 48 closed rows are history.
 
-- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — owner 13A-latency — Regional render latency regression (13B-2c-1: `regional_window` warm 1.06–1.10 × with per-sample tile reads, cold 0.77 ×) (not re-measured here; the 13A status's latency item).
-- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — owner 13B-7 — Handed 13A items 1–3 (the table above; items 4–12 were dropped with 13B-8, 13–16 are 13B-9's): (1) MCP `render` does not expose the regional plan, so drives cannot read `global_analysis` / `required_input_region`; (2) the regional path is not used for the canvas display or UI previews; (3) a guided member of a PACKAGED byte base (`composite_package_into`'s per-strip member loop) refuses by name, "is Shadows/Highlights with a guide under a packaged styled base (8-bit effects below opacity 1)" (13A-4b-ii-b-1/-2); tiled backing.
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — owner 13B-7 — Handed 13A items 2 and 3 (the table above; item 1 shipped, 4–12 were dropped with 13B-8, 13–16 are 13B-9's): (2) the regional path is not used for the canvas display or UI previews, held for the owner's display-model decision (the 13B-7 row); (3) a guided member of a PACKAGED byte base (`composite_package_into`'s per-strip member loop) refuses by name, "is Shadows/Highlights with a guide under a packaged styled base (8-bit effects below opacity 1)" (13A-4b-ii-b-1/-2); tiled backing.
 - `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — owner 13B-4 — Byte masks/channels and typed planes onto tiles; per-tile mask caches (the plan row). The mask and channel raw-address test oracles (`plane().samples().as_ptr()`, seven suites) wait for it (13B-3b-1).
 - `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — owner 13B-5 — Measured history/snapshot sharing and budget re-measure (the plan row).
 - `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — owner 13B-6 — Byte-bounded shared resident-cache registry (the plan row).

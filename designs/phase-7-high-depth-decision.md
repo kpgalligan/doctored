@@ -72,7 +72,7 @@ exposing a document mode, to pick the representation for the rest of Phase 7. Th
   [public mode](phase-7-public-mode-status.md)).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — 48 MP grouped workflow (refused at 2 GiB in 7A;
   qualification is now at the 8 GiB minimum) and broader large multilayer/history residency (carryover P7-33).
-- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — the regional render path those workloads need
-  (carryover P7-31).
+- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — the canvas display on the regional render path
+  those workloads need (13B-7; carryover P7-31 closed 2026-11-12).
 - `DROPPED` — "float prototype is comparison-only, no second public mode": superseded by the 11F 32-bit float
   document mode (carryover P7-25, verified).

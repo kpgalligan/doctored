@@ -56,8 +56,8 @@
 //! Tiled: `T_f + c_tile_row` — a cancel returns within one row of ONE layer's
 //! tile composite (≤ 1024 samples), since the tile loop, the context parse and
 //! every compositor row poll the job (unchanged). Tree: `T_f + c_tree_row` —
-//! one full tile row of ROOT samples through the WHOLE tree (sample-major,
-//! ≤ 1024 samples), polled at every tile row's head and per encode row; its
+//! one full tile row of ROOT samples through the WHOLE tree (one run-major
+//! run, ≤ 1024 samples), polled at every tile row's head and per encode row; its
 //! preparation runs under the regional stages' own measured bounds (mask blur
 //! 13A-5a, style planes 13A-5b-i, materialization chain 13A-5b-ii-a/b,
 //! description parse 13A-5c-1). Fallback: `T_f + c_row` — one row of the

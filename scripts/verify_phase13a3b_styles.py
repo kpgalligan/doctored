@@ -20,9 +20,9 @@ E4: `{knockout: "shallow"}` and `{blend_interior_as_group: true, effects:
 a group" until 13A-3c — each equal the crop; an 8-bit group with a drop shadow
 (refused "is a group with layer-style effects" until 13A-3b-ii) equals the
 crop.
-The plan's `global_analysis` / `required_input_region` are not reachable over
-MCP (`render` returns the image, not the plan); the Rust tests
-`regional_byte_effects` / `regional_precision_styles` assert them.
+The plan's `global_analysis` / `required_input_region` are asserted by the
+Rust tests `regional_byte_effects` / `regional_precision_styles`; `render`
+reports them over MCP since 13B-7 (scripts/verify_regional_plan.py).
 A failure exits nonzero and leaves a JSON receipt in --receipts.
 """
 import argparse

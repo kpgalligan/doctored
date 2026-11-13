@@ -69,6 +69,8 @@
 //! `tests/psd_levels.rs`, and `tests/psd_photoshop_channels.rs`'s render-parity gate against the
 //! committed Photoshop renders (3 codes).
 
+use std::sync::Arc;
+
 use serde_json::{Map, Value};
 
 use crate::adjust::num;
@@ -196,17 +198,34 @@ impl LevelsStage {
     /// (in_hi − in_lo), 0, 255)` rounded half up to a code; the curve
     /// ([`stage_curve`]) at that code, rounded half up to a code; then the
     /// output line. Two points closer than [`CODE_SNAP`] that snap to one
-    /// code keep their unsnapped values, so the span is never zero.
+    /// code keep their unsnapped values, so the span is never zero. The
+    /// statements are split into [`Self::span8`], [`Self::code8`] and
+    /// [`Self::value8`] so [`Codes8`] can memoize the output half.
     pub(crate) fn apply8(&self, v: f32) -> f32 {
-        let c = snap_code(255.0 * f64::from(v));
+        self.value8(Self::code8(self.span8(), v))
+    }
+
+    /// [`Self::apply8`]'s snapped input span `(in_lo, in_hi)`.
+    fn span8(&self) -> (f64, f64) {
         let lo = 255.0 * f64::from(self.black);
         let hi = 255.0 * (f64::from(self.black) + f64::from(self.range));
-        let (in_lo, in_hi) = match (snap_code(lo), snap_code(hi)) {
+        match (snap_code(lo), snap_code(hi)) {
             (l, h) if h > l => (l, h),
             _ => (lo, hi),
-        };
+        }
+    }
+
+    /// [`Self::apply8`]'s input half: the code `s` rounds to, an integer in
+    /// 0..=255, or NaN for a NaN `v` (the clamp passes NaN through).
+    fn code8((in_lo, in_hi): (f64, f64), v: f32) -> f64 {
+        let c = snap_code(255.0 * f64::from(v));
         let s = ((c - in_lo) * 255.0 / (in_hi - in_lo)).clamp(0.0, 255.0);
-        let code = (s + 0.5).floor();
+        (s + 0.5).floor()
+    }
+
+    /// [`Self::apply8`]'s output half at `code`: the curve, rounded half up
+    /// to a code, then the output line.
+    fn value8(&self, code: f64) -> f32 {
         let f = f64::from(stage_curve(
             (code / 255.0) as f32,
             self.inv_gamma,
@@ -232,14 +251,46 @@ impl LevelsStage {
     }
 }
 
+/// [`LevelsStage::apply8`] memoized for one stage (13A-latency): its input
+/// span snapped once and its output half at each of the 256 codes the input
+/// half rounds to, so a component costs the input half and one load instead
+/// of the curve's power. Bit for bit `apply8`: the table is filled by
+/// [`LevelsStage::value8`] itself at each code, and a code outside 0..=255
+/// (a NaN input) takes `value8` directly.
+#[derive(Clone)]
+struct Codes8 {
+    span: (f64, f64),
+    out: [f32; 256],
+}
+
+impl Codes8 {
+    fn new(stage: &LevelsStage) -> Codes8 {
+        Codes8 {
+            span: stage.span8(),
+            out: std::array::from_fn(|code| stage.value8(code as f64)),
+        }
+    }
+
+    fn apply(&self, stage: &LevelsStage, v: f32) -> f32 {
+        let code = LevelsStage::code8(self.span, v);
+        if (0.0..=255.0).contains(&code) {
+            self.out[code as usize]
+        } else {
+            stage.value8(code)
+        }
+    }
+}
+
 /// A parsed `levels` op: the master stage and the red, green and blue
-/// stages (identity when absent), and whether it runs the 8-bit form
-/// (`eight_bit`, true at parse; derived, never persisted).
+/// stages (identity when absent), and — in the 8-bit form, set at parse;
+/// derived, never persisted — each non-identity stage's [`Codes8`] memo
+/// (red, green, blue, then the master; `None` for an identity stage, which
+/// is skipped). `eight_bit` is `None` in the 16-bit form.
 #[derive(Clone)]
 pub(crate) struct Levels {
     master: LevelsStage,
     channels: [LevelsStage; 3],
-    eight_bit: bool,
+    eight_bit: Option<Arc<[Option<Codes8>; 4]>>,
 }
 
 impl Levels {
@@ -256,10 +307,12 @@ impl Levels {
                 *stage = LevelsStage::parse(value.as_object()?)?;
             }
         }
+        let stages = [&channels[0], &channels[1], &channels[2], &master];
+        let codes = stages.map(|stage| (!stage.is_identity()).then(|| Codes8::new(stage)));
         Some(Levels {
             master,
             channels,
-            eight_bit: true,
+            eight_bit: Some(Arc::new(codes)),
         })
     }
 
@@ -267,30 +320,30 @@ impl Levels {
     /// `PrecisionAdjustment::parse` calls it; the byte parse keeps the 8-bit
     /// form.
     pub(crate) fn use_precision(&mut self) {
-        self.eight_bit = false;
+        self.eight_bit = None;
     }
 
     /// One straight RGB triple in [0, 1]: each channel's stage, then the
     /// master's (the module doc's measured order), through
-    /// [`LevelsStage::apply8`] in the 8-bit form, the channel's output passed
-    /// on unrounded. Identity stages are skipped.
+    /// [`LevelsStage::apply8`] in the 8-bit form (its [`Codes8`] memo), the
+    /// channel's output passed on unrounded. Identity stages are skipped.
     pub(crate) fn apply(&self, rgb: [f32; 3]) -> [f32; 3] {
         let master = (!self.master.is_identity()).then_some(&self.master);
-        let run = |stage: &LevelsStage, v: f32| {
-            if self.eight_bit {
-                stage.apply8(v)
-            } else {
-                stage.apply(v)
-            }
+        let run = |at: usize, stage: &LevelsStage, v: f32| match self.eight_bit.as_deref() {
+            Some(codes) => match &codes[at] {
+                Some(memo) => memo.apply(stage, v),
+                None => stage.apply8(v),
+            },
+            None => stage.apply(v),
         };
         std::array::from_fn(|c| {
             let channel = &self.channels[c];
             let mut v = rgb[c];
             if !channel.is_identity() {
-                v = run(channel, v);
+                v = run(c, channel, v);
             }
             match master {
-                Some(stage) => run(stage, v),
+                Some(stage) => run(3, stage, v),
                 None => v,
             }
         })

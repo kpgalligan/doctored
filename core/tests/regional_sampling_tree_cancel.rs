@@ -20,8 +20,8 @@
 //!
 //! DECLARED before measuring (`inpaint_source`'s module doc): a cancel issued
 //! inside the tree's TILE LOOP returns within `T_f + c_tree_row` — one full
-//! tile row of ROOT samples through the WHOLE tree (sample-major, ≤ 1024
-//! samples). `T_f` = 1 ms the return floor. Calibration (the `#[ignore]`d
+//! tile row of ROOT samples through the WHOLE tree (one run-major run since
+//! 13A-latency, ≤ 1024 samples). `T_f` = 1 ms the return floor. Calibration (the `#[ignore]`d
 //! bench, `make cancel-bench`): `T(n)` is the minimum of three uncancelled
 //! plate renders of a fresh fixture — `n` canvas-sized rasters inside an
 //! isolated group on a 3000×2000 canvas — and `c_tree_row = 1024 · T(6) /

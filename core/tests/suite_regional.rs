@@ -73,6 +73,8 @@ mod regional_precision_styled_groups;
 mod regional_precision_styles;
 #[path = "regional_resource_accounting.rs"]
 mod regional_resource_accounting;
+#[path = "regional_run_path.rs"]
+mod regional_run_path;
 #[path = "regional_sampling_fallback_cancel.rs"]
 mod regional_sampling_fallback_cancel;
 #[path = "regional_sampling_tree_cancel.rs"]

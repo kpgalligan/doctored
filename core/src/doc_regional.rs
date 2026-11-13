@@ -5,7 +5,8 @@
 //! 13A-3c):
 //! `DrDocument::render_region` and its plan. The contract — admitted tree,
 //! units, refusal order, sampling, evaluation needs — is `regional`'s module
-//! doc; this file is the plan and the sample-major window loop. The
+//! doc; this file is the plan and the window loop (run-major within a row
+//! since 13A-latency: `doc_regional_run`). The
 //! admission walk over the bottom-first stack's LEVELS (recursing into each
 //! contributing group, as `doc_group::composite_level_into` does) lives in
 //! `doc_regional_walk` (13A-4b-ii-a). The tree it builds and every per-sample
@@ -31,9 +32,10 @@ use crate::doc_group::{self, RenderBudget, MAX_GROUP_BUFFER_PIXELS};
 use crate::doc_regional_budget::materialization_charges;
 use crate::doc_regional_guide::{render_staged, stage_nested};
 use crate::doc_regional_progress::Run;
+use crate::doc_regional_run::SampleRun;
 use crate::doc_regional_tree::Level;
 use crate::doc_regional_walk::{renders_planes, style_of, Walk};
-use crate::job_control::{DrJobControl, JobContext};
+use crate::job_control::{DrJobControl, JobContext, EVERY_INTERVAL};
 use crate::precision_style_render::style_scratch;
 use crate::regional::{RegionRequest, RegionalPlan};
 use crate::regional_guide::{input_halo, plan_levels, Enclosure, Last};
@@ -226,24 +228,44 @@ impl DrDocument {
         )?;
         let rows = plan.layers.len() as f64;
         let mut sample = 0usize;
-        // SAMPLE-MAJOR: each root sample evaluates the whole tree —
-        // `composite_level_into`'s units at every level, one sample at a time
-        // — so the checkpoint every 4096 samples bounds a cancel by 4096 ROOT
-        // samples. Index arithmetic only; the bodies are the reference's.
+        // RUN-MAJOR within a row (13A-latency, `doc_regional_run`): each row
+        // is cut into runs at the multiples of 4096 of the root sample
+        // counter, and `job.every` is called at each run's first sample, so
+        // the checkpoints fire at the same root samples, as many times, as a
+        // per-sample loop's — a cancel still returns within 4096 ROOT samples
+        // through the whole tree. With D5's Background the root is sampled
+        // per sample (its later units read a per-sample snapshot). Index
+        // arithmetic only; the bodies are the reference's.
         if !plan.layers.is_empty() {
+            let (ow_us, d) = (ow as usize, i64::from(request.preview_divisor));
             for j in 0..oh {
-                for i in 0..ow {
+                let mut i = 0usize;
+                while i < ow_us {
                     job.every(sample)?;
-                    sample += 1;
-                    let canvas_xy = request.sample(i, j);
-                    let ai = j as usize * ow as usize + i as usize;
-                    root.sample(
-                        &mut acc,
-                        ai,
-                        env.transfer,
-                        canvas_xy,
-                        KnockoutBackdrop::NONE,
-                    );
+                    let count = (ow_us - i).min(EVERY_INTERVAL - sample % EVERY_INTERVAL);
+                    let first = j as usize * ow_us + i;
+                    let origin = request.sample(i as u32, j);
+                    if root.background {
+                        for k in 0..count {
+                            root.sample(
+                                &mut acc,
+                                first + k,
+                                env.transfer,
+                                (origin.0 + k as i64 * d, origin.1),
+                                KnockoutBackdrop::NONE,
+                            );
+                        }
+                    } else {
+                        let run = SampleRun {
+                            first,
+                            count,
+                            origin,
+                            step: d,
+                        };
+                        root.sample_run(&mut acc, run, env.transfer);
+                    }
+                    sample += count;
+                    i += count;
                 }
                 done += rows * f64::from(ow);
                 job.report(done / total, 6)?;

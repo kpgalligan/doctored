@@ -1,6 +1,6 @@
 # Precision conversion, quantization and authoritative readout (ADR)
 
-- **Status:** Accepted — open items remain ([#9](https://github.com/kpgalligan/doctored/issues/9), [#11](https://github.com/kpgalligan/doctored/issues/11))
+- **Status:** Accepted — open items remain ([#10](https://github.com/kpgalligan/doctored/issues/10), [#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** 7E core contract, 2026-09-10 (regional-fallback notes 13A-5c; structure-preserving addendum 12H-1/12H-2)
 - **Original:** [archive/phase-7-conversion-readout.md](../archive/phase-7-conversion-readout.md) — full history, measurements, receipts
 - **Key commits:** `3bd4349`
@@ -69,8 +69,8 @@ reinterprets a byte handle as typed.
   (`scoped_analysis`).
 - `DONE` — public-app and native 24 MP workflow checks (7E, [public mode](phase-7-public-mode-status.md)).
 - `DONE` — structure-preserving conversion in every direction: carryover P7-30, verified 12H-1/12H-2.
-- `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — guided Shadows/Highlights full-frame fallback in
-  promotion (the guided sampling plates; carryover P7-31).
+- `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — guided Shadows/Highlights full-frame fallback in
+  promotion (the guided sampling plates, 13B-9; carryover P7-31 closed 2026-11-12).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — the PNG16 encoder is polled only while its
   finished output is copied out (carryover P7-32); the export workspace and `save_projection16` both poll the
   PNG16/TIFF16 encoders under their control.

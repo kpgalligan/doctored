@@ -23,9 +23,8 @@ set to Normal — isolated) below the radius-30 layer equals the crop.
 F1: the float fixture refuses Shadows/Highlights by the float policy's
 sentence (at the edit, or — if the edit lands — identically at the full and
 the regional render).
-The plan is not reachable over MCP (`render` returns the image, not the plan;
-13B owns a plan surface); the Rust tests `regional_byte_guide` /
-`regional_precision_guide` assert it.
+The plan is asserted by the Rust tests `regional_byte_guide` /
+`regional_precision_guide` (`render` reports it since 13B-7).
 A failure exits nonzero and leaves a JSON receipt in --receipts.
 """
 import argparse

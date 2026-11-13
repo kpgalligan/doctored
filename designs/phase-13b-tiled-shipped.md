@@ -208,6 +208,8 @@ The 19-site Seeded / Unseeded classification with each site's readers is in the 
 - `DONE` — The typed geometry plan charged no input transient (was 13B-8's): `source_copy_bytes`, `adoption_copy_bytes`, `float_source_copy_bytes` and `float_adoption_copy_bytes` (`core/src/precision_sampling.rs`) are in the plan.
 - `DONE` — `evict_caches`' `scope` string (`core/src/resources.rs`) says it drops every contiguous layer view and that `removed_cache_bytes` counts only the supplied documents' views.
 - `DONE` — `develop_inspection::histogram_and_full_cell_marker_scans_cancel_and_release_reservations` parks the worker (`cancelled_parked_at`) instead of racing a poller, so its load failure is gone.
+- `DONE` (2026-11-12) — 13B-7's plan item: `dr_doc_render_region_plan` / `dr_precision_doc_render_region_plan` (`core/src/ffi_regional.rs`) return the plan JSON, and MCP `render` with `region` or `preview_divisor` adds `{"regional_plan": {…}}` without the `layers` rows (`AgentServer+RegionalPlan.swift`), read before the render so a refusal surfaces once. Drive: `scripts/verify_regional_plan.py` P1–P7.
+- `DONE` (2026-11-12) — the regional latency item (13B-2c-1's unmeasured warm 1.06–1.10×): re-measured by 13A-latency, the per-sample tile reads cost nothing at divisor 1 (tiled / contiguous 0.98–1.01) and 1.30–1.35× on a divisor-8 preview's strided reads, the residual stated in the [13A ADR](phase-13a-regional-status.md#measured-latency).
 
 ## Verification records
 

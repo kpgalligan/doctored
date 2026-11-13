@@ -71,7 +71,7 @@ legacy byte result.
   the live source shapes) BEFORE building it, against the op's own limit; a conversion reuses `rebind_layers`'
   records, so `color_plan` charges them once for assign and convert alike.
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — full-frame live projection and stored-source
-  conversion at 24 MP (regional work, carryover P7-31); latency targets come from the measured corpus
+  conversion at 24 MP (the canvas on the regional path, 13B-7; carryover P7-31 closed 2026-11-12); latency targets come from the measured corpus
   ([#11](https://github.com/kpgalligan/doctored/issues/11), P7-33).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — codec cancellation inside the call for the
   encoders that compute before their first write (PNG's only during its copy-out) and the decoders that cancel only

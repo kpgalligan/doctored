@@ -160,11 +160,12 @@
 //! accepted cost is the WARM path: a repeated edit on one input plane (a second `warp_edit`
 //! re-reads `binding.source_pixels`) pays a full transient copy per edit where it used to hit the
 //! view cache — measured by `phase13b_tile_sharing`'s `transforms/warm` rows (6 MP: `warp_edit#2`
-//! 699.6 → 686.2 ms, one sample; views held 72064016 bytes → 0), mitigation owned by
-//! 13A-latency. `contiguous_image()` (no production caller since 13B-2c-3b — the cache's read path,
-//! kept for the test oracles and 13B-6; an `Arc` BY VALUE) is served from ONE process-wide bounded
-//! view cache (since 13B-3b-1 in `contiguous_views.rs`, shared with the typed `PrecisionImage`;
-//! `layer_raster` re-exports `contiguous_view_bytes` and the two bounds; `CONTIGUOUS_CACHE_BYTES` 1
+//! 699.6 → 686.2 ms, one sample; views held 72064016 bytes → 0); it missed no bound, so no
+//! mitigation is planned (dropped 2026-10-30, the 13B status). `contiguous_image()` (no
+//! production caller since 13B-2c-3b — the cache's read path, kept for the test oracles and
+//! 13B-6; an `Arc` BY VALUE) is served from ONE process-wide bounded view cache (since 13B-3b-1
+//! in `contiguous_views.rs`, shared with the typed `PrecisionImage`; `layer_raster` re-exports
+//! `contiguous_view_bytes` and the two bounds; `CONTIGUOUS_CACHE_BYTES` 1
 //! GiB = one projection's working set, `CONTIGUOUS_CACHE_ENTRIES` 256, LRU, one live entry per
 //! plane, keyed on the plane INDEX via `TilePlane::weak_index` so `weak_count` is unaffected,
 //! seeded by `new` / `rebuilt` — `LayerRaster::unseeded` is `new` without the seed, for the planes

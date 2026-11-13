@@ -440,6 +440,7 @@ final class AgentServer {
         var source: RasterImage?
         var what: String
         var spotNote = ""
+        var planItem: [String: Any]?  // 13B-7: AgentServer+RegionalPlan.swift
         // The space the SOURCE pixels are in: a colour plane rendered as
         // grey is coverage and is sRGB by construction; everything else is
         // the document's.
@@ -476,6 +477,7 @@ final class AgentServer {
             what = "\(doc.layerIsGroup(layer) ? "group" : "layer") \(layer) "
                 + "(\(doc.layerInfo(layer)?.name ?? ""))"
         } else if let region {
+            planItem = try Self.regionalPlanItem(doc, region: region)
             if let precision = doc.precision {
                 let context = try PrecisionWorkContext(source: precision)
                 let image = try precision.renderRegion(region, workingLimit: context.limit,
@@ -536,11 +538,12 @@ final class AgentServer {
         }
         text += spotNote
         if converted { text += ", sRGB (document profile: \(doc.profileName))" }
-        return try callResult(
-            content: [
-                ["type": "image", "data": png.base64EncodedString(), "mimeType": "image/png"],
-                ["type": "text", "text": text],
-            ], isError: false)
+        var content: [[String: Any]] = [
+            ["type": "image", "data": png.base64EncodedString(), "mimeType": "image/png"],
+            ["type": "text", "text": text],
+        ]
+        if let planItem { content.append(planItem) }
+        return try callResult(content: content, isError: false)
     }
 
     /// `render`'s optional `region` / `preview_divisor` (Phase 13A-1), or nil

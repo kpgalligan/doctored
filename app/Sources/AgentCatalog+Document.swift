@@ -219,7 +219,12 @@ extension AgentServer {
                             + "styled base too) and inside groups with style effects. Any other "
                             + "stack is refused by name (at 8 bits a Shadows/Highlights with a "
                             + "guide clipped to a base whose style effects sit below opacity "
-                            + "1 (not Dissolve)). Not with layer or channel.",
+                            + "1 (not Dissolve)). Not with layer or channel. A region or "
+                            + "preview render also returns a second text item, "
+                            + "{\"regional_plan\": {...}}: the plan it ran, with "
+                            + "global_analysis (false, or the whole-layer analyses that read the "
+                            + "whole canvas), required_input_region, neighborhood, stages, "
+                            + "preview_only, scratch_heap_bytes and work_units (no per-layer rows).",
                         "properties": [
                             "x": ["type": "integer"], "y": ["type": "integer"],
                             "width": ["type": "integer"], "height": ["type": "integer"],

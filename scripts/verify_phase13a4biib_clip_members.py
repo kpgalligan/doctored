@@ -20,8 +20,8 @@ C4 (8 and 16 bits): the base given `set_layer_style`
 a styled base; it refused "… under a styled base" before).
 F1: the float fixture refuses Shadows/Highlights by the float policy's
 sentence.
-The plan is not reachable over MCP (13B owns a plan surface); the Rust tests
-`regional_byte_clip_guide` / `regional_precision_clip_guide` assert it.
+The plan is asserted by the Rust tests `regional_byte_clip_guide` /
+`regional_precision_clip_guide` (`render` reports it since 13B-7).
 A failure exits nonzero and leaves a JSON receipt in --receipts.
 """
 import argparse

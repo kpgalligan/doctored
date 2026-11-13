@@ -327,8 +327,9 @@ impl ResolvedUnit<'_> {
     /// One sample of `composite_unit_into`. The FIRST branch is the base's
     /// contribution, as the reference tests `!is_isolated` before anything
     /// else; `clip_run` is inspected only for a raster, adjustment or
-    /// isolated base.
-    fn sample(
+    /// isolated base. `doc_regional_run` runs it per sample for every unit
+    /// its run-major walk does not hoist.
+    pub(crate) fn sample(
         &self,
         acc: &mut [[f32; 4]],
         ai: usize,

@@ -1,11 +1,11 @@
 //! C entry points for the Phase 13A regional document render (`regional`,
-//! `doc_regional`, `precision_regional`): one render at 8 bits and one at
-//! 16 bits / 32-bit float. The plan is `DrDocument::render_region_plan` /
-//! `PrecisionDocument::render_region_plan` — no export; the render shares its
-//! admission, so a plan that succeeds names a render that will not refuse for
-//! structure.
+//! `doc_regional`, `precision_regional`): one render and one plan at 8 bits,
+//! and one of each at 16 bits / 32-bit float (CMYK included). The plan
+//! exports (13B-7) return `RegionalPlan::json` — what MCP `render` reports
+//! beside a regional image; the render shares the plan's admission, so a plan
+//! that succeeds names a render that will not refuse for structure.
 
-use std::ffi::c_char;
+use std::ffi::{c_char, CString};
 use std::ptr;
 
 use crate::doc::DrDocument;
@@ -13,7 +13,7 @@ use crate::ffi_util::{boxed, fallible_op, required_handle};
 use crate::job_control::DrJobControl;
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::PrecisionImage;
-use crate::regional::RegionRequest;
+use crate::regional::{RegionRequest, RegionalPlan};
 use crate::DrImage;
 
 fn request(x: u32, y: u32, width: u32, height: u32, preview_divisor: u32) -> RegionRequest {
@@ -23,6 +23,104 @@ fn request(x: u32, y: u32, width: u32, height: u32, preview_divisor: u32) -> Reg
         width,
         height,
         preview_divisor,
+    }
+}
+
+/// The plan's JSON as an owned C string (`dr_string_free`); JSON holds no
+/// NUL, so the conversion cannot fail in practice.
+fn plan_string(plan: RegionalPlan) -> Result<*mut c_char, String> {
+    CString::new(plan.json().to_string())
+        .map(CString::into_raw)
+        .map_err(|e| e.to_string())
+}
+
+/// The 8-bit regional render's PLAN (`dr_doc_render_region`'s admission,
+/// allocating no pixels) as JSON: `RegionalPlan::json`'s contract —
+/// `contract_version`, `depth` "rgba8", `requested_region`,
+/// `required_input_region`, `neighborhood`, `global_analysis`, `stages`,
+/// `output`, `scratch_heap_bytes`, `work_units`, `max_output_bytes`, one
+/// `layers` row per contributing layer and the rest. A request or stack the
+/// render would refuse returns NULL with the render's own sentence; NULL
+/// document returns NULL without an error.
+///
+/// # Safety
+/// `doc` must be NULL or live for the whole call. `err_out` must be NULL or
+/// writable for one pointer. Free the string and errors with
+/// `dr_string_free`.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn dr_doc_render_region_plan(
+    doc: *const DrDocument,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    preview_divisor: u32,
+    max_output_bytes: u64,
+    err_out: *mut *mut c_char,
+) -> *mut c_char {
+    if doc.is_null() {
+        return ptr::null_mut();
+    }
+    unsafe {
+        fallible_op(
+            err_out,
+            "panic while planning a document region",
+            ptr::null_mut(),
+            || {
+                plan_string(
+                    required_handle(doc)?.render_region_plan(
+                        request(x, y, w, h, preview_divisor),
+                        max_output_bytes,
+                    )?,
+                )
+            },
+            |s| s,
+        )
+    }
+}
+
+/// The typed regional render's PLAN (`dr_precision_doc_render_region`'s
+/// admission, CMYK's included, allocating no pixels) as JSON: the byte
+/// plan's contract with `depth` "rgba16" or "rgba32f" and no
+/// `max_output_bytes` — the typed render is admitted against its working
+/// limit instead. A request or stack the render would refuse returns
+/// NULL with the render's own sentence; NULL document returns NULL without
+/// an error.
+///
+/// # Safety
+/// `document` must be NULL or live for the whole call. `err_out` must be
+/// NULL or writable for one pointer. Free the string and errors with
+/// `dr_string_free`.
+#[no_mangle]
+pub unsafe extern "C" fn dr_precision_doc_render_region_plan(
+    document: *const PrecisionDocument,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    preview_divisor: u32,
+    err_out: *mut *mut c_char,
+) -> *mut c_char {
+    if document.is_null() {
+        return ptr::null_mut();
+    }
+    unsafe {
+        fallible_op(
+            err_out,
+            "panic while planning a high-depth region",
+            ptr::null_mut(),
+            || {
+                plan_string(required_handle(document)?.render_region_plan(request(
+                    x,
+                    y,
+                    w,
+                    h,
+                    preview_divisor,
+                ))?)
+            },
+            |s| s,
+        )
     }
 }
 

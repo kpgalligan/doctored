@@ -12,8 +12,10 @@
 //! materialized group rendered exactly as the regional render does — so D5 /
 //! Shallow snapshots are taken per SAMPLE, materialization runs over the
 //! CANVAS clip and the group budget is charged once, as the reference
-//! charges it. The resolved tree is then sampled SAMPLE-MAJOR in tiles of
-//! at most [`TILE_WIDTH`] × [`TILE_HEIGHT`], each tile's f32 accumulator
+//! charges it. The resolved tree is then sampled in tiles of at most
+//! [`TILE_WIDTH`] × [`TILE_HEIGHT`], each tile row RUN-MAJOR as one run
+//! (`doc_regional_run`, 13A-latency; with D5's Background sample-major, its
+//! later units reading a per-sample snapshot), each tile's f32 accumulator
 //! quantized by the full projection's own quantizer
 //! (`doc_evaluation::encode_projection_with_job`) and copied into the plate.
 //!
@@ -43,6 +45,7 @@ use crate::doc::DrDocument;
 use crate::doc_evaluation::encode_projection_with_job;
 use crate::doc_group::RenderBudget;
 use crate::doc_regional_progress::Run;
+use crate::doc_regional_run::SampleRun;
 use crate::job_control::JobContext;
 use crate::regional::RegionRequest;
 use crate::style_composite::{CompositeEnv, Cut};
@@ -122,19 +125,32 @@ impl DrDocument {
                 let w = (width - x).min(TILE_WIDTH);
                 let h = (height - y).min(TILE_HEIGHT);
                 let mut acc = vec![[0f32; 4]; w as usize * h as usize];
-                // SAMPLE-MAJOR: each root sample evaluates the whole tree, so
-                // one tile row (≤ 1024 root samples) is the cancel unit.
+                // One tile row (≤ 1024 root samples through the whole tree)
+                // is the cancel unit, walked RUN-MAJOR as one run
+                // (`doc_regional_run`, 13A-latency) — per sample with D5's
+                // Background, whose later units read a per-sample snapshot.
                 for j in 0..h {
                     control.check()?;
-                    for i in 0..w {
-                        let ai = j as usize * w as usize + i as usize;
-                        root.sample(
-                            &mut acc,
-                            ai,
-                            transfer,
-                            (i64::from(x + i), i64::from(y + j)),
-                            KnockoutBackdrop::NONE,
-                        );
+                    let first = j as usize * w as usize;
+                    let origin = (i64::from(x), i64::from(y + j));
+                    if root.background {
+                        for i in 0..w {
+                            root.sample(
+                                &mut acc,
+                                first + i as usize,
+                                transfer,
+                                (origin.0 + i64::from(i), origin.1),
+                                KnockoutBackdrop::NONE,
+                            );
+                        }
+                    } else {
+                        let run = SampleRun {
+                            first,
+                            count: w as usize,
+                            origin,
+                            step: 1,
+                        };
+                        root.sample_run(&mut acc, run, transfer);
                     }
                 }
                 let encoded = encode_projection_with_job(&acc, w, h, transfer, control)?;

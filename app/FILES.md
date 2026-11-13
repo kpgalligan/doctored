@@ -302,6 +302,7 @@ Detail belongs in the source file's own header comment.
 - `SideFileExtensions.swift` — `SideFileExtension`: the snapshot, action bundle, clipboard payload and RAW mask extensions; writers use `current` (`.dr*`), readers also take `legacy` (`.rz*`).
 - `CapturedSave.swift` / `PreparedDocumentEdit.swift` — immutable save source/settings and precomputed final projection.
 - `RegionRenderRequest.swift` — a canvas window of a layered document's projection: the region in canvas pixels and a preview divisor (1 is authoritative).
+- `DoctoredCore+Regional.swift` / `AgentServer+RegionalPlan.swift` — the regional render's plan at every depth, and `render`'s `regional_plan` item for a region or preview.
 - `ProjectionMargin.swift` / `FlatOpenAdmission.swift` — the display projection's charge and the core flat JPEG/PNG open's.
 - `PrecisionCapturedSave.swift` / `PrecisionStateArchive.swift` / `ImageDocument+PrecisionGuard.swift` — typed save captures, internal compatibility archives, preserving import/publication guards.
 - `RasterDocument+PrecisionMetadata.swift` / `RasterDocument+PrecisionOperations.swift` — one `RasterDocument` facade owns either a legacy pointer or a typed owner, never a byte surrogate.
