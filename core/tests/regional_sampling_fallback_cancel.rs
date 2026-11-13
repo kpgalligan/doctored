@@ -30,10 +30,12 @@
 //! bench, `make cancel-bench`): `T(n)` is the minimum of three uncancelled
 //! plate renders of a fresh `n`-layer fixture on a 3000×2000 canvas — `n`
 //! canvas-sized rasters inside an isolated group under a guided
-//! Shadows/Highlights (fallback) or `n` canvas-sized rasters under aligned,
-//! unmodified masks (tiled, no derivation, so the difference is compositing
-//! only); `c_row = (T(6) − T(1)) / (5·H)`, `c_tile_row = (T(6) − T(1)) /
-//! (5·H·⌈W/1024⌉)`. The probe enters at half the uncancelled twin's
+//! Shadows/Highlights (fallback; 13A-5c-2b's fixture, whose T(n) carry the
+//! guided adjustment's whole-canvas cost and so are not comparable with
+//! 13A-5c-2a's bare group, now a tree plate) or `n` canvas-sized rasters
+//! under aligned, unmodified masks (tiled, no derivation, so the difference
+//! is compositing only); `c_row = (T(6) − T(1)) / (5·H)`, `c_tile_row =
+//! (T(6) − T(1)) / (5·H·⌈W/1024⌉)`. The probe enters at half the uncancelled twin's
 //! checkpoint count (past the preparation) and cancels one checkpoint later.
 //! Misses are recorded, never widened.
 
@@ -653,7 +655,18 @@ fn calibrated(build: &dyn Fn() -> DrDocument) -> Duration {
         .unwrap()
 }
 
-fn bench(what: &str, bound_name: &str, rows: f64, build: &dyn Fn(usize) -> DrDocument) {
+/// One measured probe line. `run` names the run whose fixture `build` makes,
+/// so the line is read against that run's record only: the fallback's
+/// fixture is 13A-5c-2b's (`n` rasters in an isolated group under a guided
+/// Shadows/Highlights), not 13A-5c-2a's bare group.
+fn bench(
+    run: &str,
+    what: &str,
+    fixture: &str,
+    bound_name: &str,
+    rows: f64,
+    build: &dyn Fn(usize) -> DrDocument,
+) {
     let t1 = calibrated(&|| build(1));
     let t6 = calibrated(&|| build(N));
     let c = (t6.saturating_sub(t1)).as_secs_f64() / ((N - 1) as f64 * rows);
@@ -666,7 +679,7 @@ fn bench(what: &str, bound_name: &str, rows: f64, build: &dyn Fn(usize) -> DrDoc
     );
     let bound = RETURN_FLOOR_S + c;
     eprintln!(
-        "13A-5c-2a byte cancel inside the {what} ({BW}×{BH}, {N} layers): {:.3} ms \
+        "{run} byte cancel inside the {what} ({BW}×{BH}, {N} layers {fixture}): {:.3} ms \
          cancel-to-return (issued at {:.1} ms; {}); T(1) {:.1} ms, T({N}) {:.1} ms, {bound_name} \
          {:.4} ms; bound T_f + {bound_name} = {:.3} ms (T_f 1 ms); ≈{:.2} units past the floor; {}",
         p.latency.as_secs_f64() * 1e3,
@@ -684,9 +697,14 @@ fn bench(what: &str, bound_name: &str, rows: f64, build: &dyn Fn(usize) -> DrDoc
 #[test]
 #[ignore = "make cancel-bench: a wall-clock verdict (13A-5c-2a)"]
 fn a_concurrently_cancelled_fallback_returns_within_one_chain_row() {
-    bench("full-frame fallback", "c_row", f64::from(BH), &|n| {
-        guided_over(&bench_group(n))
-    });
+    bench(
+        "13A-5c-2b",
+        "full-frame fallback",
+        "in an isolated group under a guided Shadows/Highlights",
+        "c_row",
+        f64::from(BH),
+        &|n| guided_over(&bench_group(n)),
+    );
 }
 
 #[test]
@@ -694,7 +712,9 @@ fn a_concurrently_cancelled_fallback_returns_within_one_chain_row() {
 fn a_concurrently_cancelled_tile_loop_returns_within_one_tile_row() {
     let columns = f64::from(BW.div_ceil(1024));
     bench(
+        "13A-5c-2a",
         "tile loop",
+        "under aligned masks",
         "c_tile_row",
         f64::from(BH) * columns,
         &bench_masked,

@@ -233,6 +233,8 @@ The region is inside the bound (0.85–0.87×, round by round). The tiled previe
 
 The tree plate against the chain, `make cancel-bench`'s calibrations (`a_concurrently_cancelled_tree_plate_returns_within_one_tree_row`, `a_concurrently_cancelled_fallback_returns_within_one_chain_row`), back to back in three rounds at load 8–14: before, the tree T(1) / T(6) 397–404 / 932–944 ms and the chain 407–412 / 565–573 ms (T_tree(6) / T_chain(6) ≈ 1.65); after, the tree 264–266 / 840–848 ms, the chain unchanged. Under the issue's 3× at equal load, so nothing further was built.
 
+The chain's figures are not comparable with 13A-5c-2a's 114.6 / 283.3 ms: that record measured a bare isolated group, and since 13A-5c-2b the fallback bench has put the group under a guided Shadows/Highlights (the one form the fallback still takes), which printed 400.9 / 564.6 ms the day it changed (2026-09-24, load ≈ 40). Re-measured on a quiet machine on 2026-11-13 (`python3 scripts/run_test_file.py regional_sampling_fallback_cancel a_concurrently_cancelled_fallback --ignored --test-threads=1 --nocapture`, five rounds, Release, no build running, 1-minute load 2.7–9.1): T(1) 398.4–415.0, T(6) 565.2–575.6 ms, PASS each, and `make cancel-bench` whole 411.2 / 574.9 ms; T(6) − T(1) 158–169 ms against 13A-5c-2a's 168.7, so the per-layer cost is unchanged. The bare Background under the same adjustment (`calibrated(&|| guided_over(&background(BW, BH)))`, added to the bench for one run) rendered in 337.2 ms (load 5.1), where that run's T(1) was 408.0: the constant is the guided adjustment, not a regression, and no code changed.
+
 ## Verification records
 
 Receipts, tables and run logs of every run: the archived original. The drives, each gate's text being its script's docstring:
