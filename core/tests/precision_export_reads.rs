@@ -41,7 +41,7 @@ use std::ptr;
 use doctored_core::contiguous_views::contiguous_view_bytes;
 use doctored_core::doc_export::ExportRequest;
 use doctored_core::ffi::dr_string_free;
-use doctored_core::ffi_precision::dr_precision_doc_export16;
+use doctored_core::ffi_precision_export::dr_precision_doc_save_projection16;
 use doctored_core::ffi_psd::dr_precision_doc_save_psd;
 use doctored_core::icc::IccProfile;
 use doctored_core::job_control::DrJobControl;
@@ -279,8 +279,8 @@ const SITES: [(&str, bool); 18] = [
     ("layer/tiff16_p3_trimmed", true),
     ("layer/png16_canvas", true),
     ("layer/empty_trimmed", true),
-    ("export16/png", false),
-    ("export16/tiff", false),
+    ("projection16/png", false),
+    ("projection16/tiff", false),
     ("psd/flattened", false),
     ("psd/layers_baked", false),
     ("float/tiff32", true),
@@ -329,7 +329,13 @@ fn written(
     Ok(Some(std::fs::read(&path).unwrap()))
 }
 
-fn export16(doc: &PrecisionDocument, format: u32) -> Result<Option<Vec<u8>>, String> {
+/// The app's 16-bit PNG/TIFF save: the captured projection written with the
+/// document's profile, packets and resolution.
+fn projection16(
+    doc: &PrecisionDocument,
+    projection: &PrecisionImage,
+    format: u32,
+) -> Result<Option<Vec<u8>>, String> {
     let name = if format == 0 {
         "export.png"
     } else {
@@ -339,8 +345,9 @@ fn export16(doc: &PrecisionDocument, format: u32) -> Result<Option<Vec<u8>>, Str
         let mut error = ptr::null_mut();
         let mut carried = 0_u32;
         let ok = unsafe {
-            dr_precision_doc_export16(
+            dr_precision_doc_save_projection16(
                 doc,
+                projection,
                 path.as_ptr(),
                 format,
                 true,
@@ -447,8 +454,8 @@ fn site(
             r#"{"format":"png","bit_depth":16}"#,
             control,
         ),
-        "export16/png" => export16(doc, 0),
-        "export16/tiff" => export16(doc, 1),
+        "projection16/png" => projection16(doc, projection, 0),
+        "projection16/tiff" => projection16(doc, projection, 1),
         "psd/flattened" => save_psd(&inputs.styled, &inputs.styled_projection, 1),
         "psd/layers_baked" => save_psd(&inputs.styled, &inputs.styled_projection, 0),
         "float/tiff32" => encoded(

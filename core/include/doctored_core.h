@@ -6904,16 +6904,6 @@ char *dr_precision_doc_calibrated_refusal(const DrPrecisionDocument *document,
     const char *op);
 bool dr_precision_doc_save_native(const DrPrecisionDocument *document, const char *path,
     uint64_t limit, uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
-/* format0 PNG16, format1 TIFF16. Render captured source and atomically write.
- * The optional single-use control is begun once for the render and the
- * encode, which is polled as its bytes move; a cancel answers exactly
- * "operation cancelled" and keeps the previous file. Optional report_out
- * receives existing DR_CARRIES_* bits actually written only on success;
- * errors leave it untouched. */
-bool dr_precision_doc_export16(const DrPrecisionDocument *document, const char *path,
-    uint32_t format, bool embed_profile, bool strip_metadata, uint64_t limit,
-    uint64_t other_retained_bytes, uint32_t *report_out, const DrJobControl *control,
-    char **err_out);
 /* Reuse a captured authoritative u16 projection. Both inputs must remain live;
  * storage must be RGBA16 UNORM, dimensions equal the canvas, ICC bytes exact.
  * The host guarantees the projection belongs to this captured source/revision.
@@ -6921,10 +6911,11 @@ bool dr_precision_doc_export16(const DrPrecisionDocument *document, const char *
  * host_scratch_bytes includes codec_scratch_bytes, codec_additive_overhead_bytes
  * and bookkeeping. Also width, height, storage. No pixel allocation/render.
  * Save format 0 PNG16 / 1 TIFF16; path UTF-8 <=64 KiB. other_retained_bytes
- * excludes BOTH inputs' union. Atomic, same packet policy as export16; the
- * save's optional single-use control is polled as the encoded bytes move, and
- * a cancel answers exactly "operation cancelled". report_out receives
- * DR_CARRIES_* only on success. NULL/error safe. */
+ * excludes BOTH inputs' union. Atomic; the profile, the EXIF/XMP/IPTC packets
+ * and the resolution follow dr_doc_save_image's embed_profile/strip_metadata
+ * policy. The save's optional single-use control is polled as the encoded
+ * bytes move, and a cancel answers exactly "operation cancelled". report_out
+ * receives DR_CARRIES_* only on success. NULL/error safe. */
 char *dr_precision_doc_projection_export_plan(const DrPrecisionDocument *document,
     const DrPrecisionImage *image, char **err_out);
 bool dr_precision_doc_save_projection16(const DrPrecisionDocument *document,

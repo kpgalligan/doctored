@@ -605,7 +605,7 @@ impl PrecisionDocument {
             "render_refusal":render.as_ref().err(),
             "native_scratch_bytes":native.write_scratch_bytes,"reopen_retained_bytes":native.reopen_retained_bytes,
             "decode_scratch_bytes":native.decode_scratch_bytes,"native_open_scratch_bytes":native.decode_scratch_bytes,
-            "export_scratch_bytes":save,"cmyk_save_scratch_bytes":save,
+            "cmyk_save_scratch_bytes":save,
             "cmyk_flatten_scratch_bytes":self.cmyk_flatten_scratch_bytes(),
             "cmyk_psd_save_scratch_bytes":self.cmyk_psd_save_scratch_bytes().ok(),
             "cmyk_open_bytes_per_pixel":crate::cmyk_io::OPEN_BYTES_PER_PIXEL,

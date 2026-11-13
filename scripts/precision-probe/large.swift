@@ -76,18 +76,19 @@ func verifyLargeWorkflow() throws {
     let nativeURL = directory.appendingPathComponent("large-grouped.rz")
     stage("captured grouped native save") {
         guard let grouped else { throw ProbeFailure(description: "Prior group unavailable") }
-        try PrecisionCapturedSave(grouped, destination: .native).save(to: nativeURL)
+        try PrecisionCapturedSave(grouped).save(to: nativeURL)
     }
     stage("native reopen and source precision") {
         let reopened = try openTyped(nativeURL)
         try verifySource(reopened, at: 0, width: 6000, height: 4000, allPixels: false)
         try verifySource(reopened, at: 1, width: 6000, height: 4000, allPixels: false)
     }
-    for (format, filename) in [(PrecisionExportFormat.png16, "large-export16.png"), (.tiff16, "large-export16.tiff")] {
+    for (format, filename) in [(PrecisionExportFormat.png16, "large-captured-projection16.png"),
+                               (.tiff16, "large-captured-projection16.tiff")] {
         stage("captured \(filename)") {
             guard let grouped else { throw ProbeFailure(description: "Prior group unavailable") }
-            try PrecisionCapturedSave(grouped, destination: .image(format))
-                .save(to: directory.appendingPathComponent(filename))
+            try saveCapturedProjection16(grouped, format: format,
+                                         to: directory.appendingPathComponent(filename))
         }
     }
     let archiveURL = directory.appendingPathComponent("large-archive", isDirectory: true)

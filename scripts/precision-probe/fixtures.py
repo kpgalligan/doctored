@@ -1,11 +1,18 @@
 """Independent small PNG16 fixture and PNG/TIFF16 output checks; standard library only."""
 
 import json
+import math
 import struct
 import zlib
 
 
 WIDTH, HEIGHT = 32, 12
+
+
+def byte_unit(value):
+    """The byte a unit layer Opacity composites at below 32 bits (`opacity_byte`):
+    floor(255 v + 0.5 + 1e-3) / 255, written from the integer rule, never from the core."""
+    return math.floor(min(max(value, 0.0), 1.0) * 255 + 0.5 + 1e-3) / 255
 XMP = b'<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:dc="http://purl.org/dc/elements/1.1/" dc:title="Phase 7 preserving source"/></rdf:RDF></x:xmpmeta>'
 
 
@@ -290,8 +297,8 @@ def read_tiff(path):
 
 def verify(directory, profile):
     expected = [v if v[3] else (0, 0, 0, 0) for v in pixels()]
-    png, chunks = read_png(directory / 'export16.png')
-    tiff, tags = read_tiff(directory / 'export16.tiff')
+    png, chunks = read_png(directory / 'captured-projection16.png')
+    tiff, tags = read_tiff(directory / 'captured-projection16.tiff')
     for actual in [png, tiff]:
         assert len(actual) == len(expected)
         assert max(abs(a - b) for p, q in zip(actual, expected) for a, b in zip(p, q)) <= 1
@@ -301,13 +308,15 @@ def verify(directory, profile):
     assert tags[700] == XMP
     assert tags[296] == (2,)
     for tag, expected_ppi in [(282, 300), (283, 150)]:
-        n, d = struct.unpack(('<' if (directory / 'export16.tiff').read_bytes()[:2] == b'II' else '>') + 'II', tags[tag])
+        n, d = struct.unpack(('<' if (directory / 'captured-projection16.tiff').read_bytes()[:2] == b'II' else '>') + 'II', tags[tag])
         assert abs(n / d - expected_ppi) < 0.02
     old_projection, old_chunks = read_png(directory / 'public-captured-projection16.png')
     current_projection, current_tags = read_tiff(directory / 'public-current-projection16.tiff')
+    # The later edit's Opacity 0.5 composites at its byte, 128/255.
+    later = byte_unit(0.5)
     for old, current, source in zip(old_projection, current_projection, pixels(), strict=True):
         assert old[3] == source[3]
-        assert current[3] == (source[3] + 1) // 2
+        assert abs(current[3] - round(source[3] * later)) <= 1
         for c in range(3):
             expected_color = source[c] if source[3] else 0
             assert abs(old[c] - expected_color) <= 1
@@ -317,11 +326,13 @@ def verify(directory, profile):
     assert any(XMP in value for value in old_chunks.get(b'iTXt', []))
     print('PASS: independent RGB16 PNG/TIFF, profile/PPI/XMP, alpha, captured projection reuse and later opacity oracle')
     captured, _ = read_png(directory / 'captured-adjustment16.png')
+    # The Invert's Opacity 0.375 composites at its byte, 96/255.
+    invert = byte_unit(0.375)
     for actual, source in zip(captured, pixels(), strict=True):
         assert actual[3] == source[3]
         for c in range(3):
             x = source[c] / 65535
-            reference = x * 0.625 + (1 - x) * 0.375 if source[3] else 0
+            reference = x * (1 - invert) + (1 - x) * invert if source[3] else 0
             assert abs(actual[c] / 65535 - reference) <= 2e-6 + 0.5 / 65535
     native = read_native_adjustments(directory / 'adjusted-current.rz')
     archived = read_native_adjustments(directory / 'adjusted-archive/image.rz')

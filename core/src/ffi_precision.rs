@@ -9,7 +9,6 @@ use std::ptr;
 use crate::ffi_resources::handles;
 use crate::ffi_util::{boxed, fallible_op, free_handle, handle_get, read_cstr, required_handle};
 use crate::job_control::DrJobControl;
-use crate::precision_codec::PrecisionFormat;
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::PrecisionImage;
 use crate::resources::Inventory;
@@ -234,58 +233,6 @@ pub unsafe extern "C" fn dr_precision_doc_save_native(
                 )
             },
             |()| true,
-        )
-    }
-}
-
-/// Export authoritative PNG16 (0) or TIFF16 (1), returning DR_CARRIES_* bits
-/// through report_out only on success. The optional single-use control is
-/// begun once for the render and the encode; a cancel answers exactly
-/// `operation cancelled`.
-/// # Safety
-/// document/control NULL/live, control single-use, path NULL/terminated UTF-8;
-/// report_out/err_out NULL/writable.
-#[no_mangle]
-#[allow(clippy::too_many_arguments)]
-pub unsafe extern "C" fn dr_precision_doc_export16(
-    document: *const PrecisionDocument,
-    path: *const c_char,
-    format: u32,
-    embed_profile: bool,
-    strip_metadata: bool,
-    limit: u64,
-    other: u64,
-    report_out: *mut u32,
-    control: *const DrJobControl,
-    err_out: *mut *mut c_char,
-) -> bool {
-    unsafe {
-        fallible_op(
-            err_out,
-            "exporting high-depth document",
-            false,
-            || {
-                let format = match format {
-                    0 => PrecisionFormat::Png,
-                    1 => PrecisionFormat::Tiff,
-                    _ => return Err("unsupported high-depth export format".into()),
-                };
-                required_handle(document)?.export16(
-                    &read_cstr(path, "path")?,
-                    format,
-                    embed_profile,
-                    strip_metadata,
-                    limit,
-                    other,
-                    control.as_ref(),
-                )
-            },
-            |report| {
-                if !report_out.is_null() {
-                    *report_out = report;
-                }
-                true
-            },
         )
     }
 }

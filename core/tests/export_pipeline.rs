@@ -32,8 +32,7 @@ use doctored_core::ffi_export::*;
 use doctored_core::ffi_filters::dr_image_filter_op;
 use doctored_core::ffi_jobs::{dr_job_control_cancel, dr_job_control_create, dr_job_control_free};
 use doctored_core::ffi_precision::{
-    dr_precision_doc_export16, dr_precision_doc_free, dr_precision_doc_render,
-    dr_precision_image_free,
+    dr_precision_doc_free, dr_precision_doc_render, dr_precision_image_free,
 };
 use doctored_core::ffi_precision_color::dr_precision_doc_convert_to_profile;
 use doctored_core::ffi_precision_export::dr_precision_doc_save_projection16;
@@ -612,13 +611,15 @@ fn convert_only_tiff16_matches_the_shipped_conversion_and_export() {
         )
     };
     assert!(!converted.is_null(), "{}", take_err_string(err));
+    let projection = typed_projection(converted);
     let path = dir.path().join("converted.tiff");
     let c = cpath(&path);
     let mut carried = 0u32;
     assert!(
         unsafe {
-            dr_precision_doc_export16(
+            dr_precision_doc_save_projection16(
                 converted,
+                projection,
                 c.as_ptr(),
                 1,
                 true,
@@ -642,6 +643,7 @@ fn convert_only_tiff16_matches_the_shipped_conversion_and_export() {
     .expect("encode");
     assert_eq!(result_bytes(result), expected);
     unsafe { dr_export_result_free(result) };
+    unsafe { dr_precision_image_free(projection) };
     unsafe { dr_precision_doc_free(converted) };
     unsafe { dr_precision_doc_free(document) };
 }

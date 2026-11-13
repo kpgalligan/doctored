@@ -308,25 +308,6 @@ fn float_to_u16_carries_the_map_and_stays_linear_light() {
     }
 }
 
-#[test]
-fn a_float_document_refuses_the_untone_mapped_sixteen_bit_writer() {
-    let directory = tempfile::TempDir::new().unwrap();
-    let path = directory.path().join("refused.tiff");
-    let error = fixture_document()
-        .export16(
-            path.to_str().unwrap(),
-            doctored_core::precision_codec::PrecisionFormat::Tiff,
-            true,
-            false,
-            LIMIT,
-            0,
-            None,
-        )
-        .expect_err("the untone-mapped writer refuses");
-    assert!(error.contains("Export"), "{error}");
-    assert!(!path.exists());
-}
-
 // ---------------------------------------------------- 32-bit export resize --
 
 /// A 23×17 float layer with negatives, ±65504, partial alpha and alpha-0

@@ -233,9 +233,14 @@ private func verifyPublicPrecisionTargetConversion() throws {
         let prepared = try conversion.compute()
         try conversion.publish(prepared, to: document, record: .notACommand)
         try require(document.planeEditTarget == .layer && document.activeLayerIndex == 0
-            && document.selectedLayerIndices == [0] && document.doc?.channelCount == 0
-            && document.doc?.layerHasMask(0) == false,
-            "Flattened conversion installs a valid layer target after discarding scalar state")
+            && document.selectedLayerIndices == [0],
+            "Flattened conversion installs a valid layer target")
+        // The flatten discards the layer mask and keeps the saved channel at the new
+        // depth (`PrecisionDocument::downconvert`, `narrow_channels`).
+        try require(document.doc?.layerHasMask(0) == false,
+                    "Flattened conversion discards the layer mask")
+        try require(document.doc?.channelCount == 1,
+                    "Flattened conversion keeps the saved channel")
         document.undoManager?.undo()
         try require(document.doc === original && document.planeEditTarget == target
             && document.doc?.channelCount == 1 && document.doc?.layerHasMask(0) == true,

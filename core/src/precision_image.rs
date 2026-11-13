@@ -244,8 +244,8 @@
 //! outside `precision_image*` is in `raw_source_geometry.rs`,
 //! feeding `preview_view_rgba16`, kept exception (13B-3e-4c-1, owner 13A-latency). **Since
 //! 13B-3e-1** the typed EXPORT chain, the 16-bit PSD writer and the float writers read tiles and
-//! seed nothing: the export renders (`export_encoded`, `export_layer_encoded`,
-//! `precision_io::export16`), `export_stages`' tone map and resize, the `convert16` / sharpen /
+//! seed nothing: the export renders (`export_encoded`, `export_layer_encoded`),
+//! `export_stages`' tone map and resize, the `convert16` / sharpen /
 //! trim-crop outputs (`from_rgba16_unseeded`) and the style bake (`bake_style16`,
 //! `from_float_samples_unseeded`) are UNSEEDED; `convert16` walks `runs_rgba16` with its
 //! `job.every(i)` sequence, the sharpen feeds the resampled runs to

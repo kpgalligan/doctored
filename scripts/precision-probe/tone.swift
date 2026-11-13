@@ -155,8 +155,10 @@ func verifyPrecisionTonePersistence() throws {
     let source = try openTyped(files.appendingPathComponent("source16.png"))
     let invert = try PrecisionAdjustment(op: .invert)
     let live = try changed(source, .add(name: "Captured Invert", adjustment: invert, opacity: 0.375, anchor: 0, position: .top))
-    let oldNative = try PrecisionCapturedSave(live, destination: .native)
-    let oldExport = try PrecisionCapturedSave(live, destination: .image(.png16))
+    let oldNative = try PrecisionCapturedSave(live)
+    // The flat save's capture: the source and its authoritative projection, held across the
+    // later edit as the app's `PrecisionExportSource` holds them.
+    let oldPixels = try projected(live)
     let archive = try PrecisionStateArchive.capture(live, name: "Captured live adjustment")
     let curved = try PrecisionAdjustment(op: .curves, params: ["rgb": [[0.0, 0.0], [255.0, 127.5]]])
     let latest = try changed(live, .set(index: 1, adjustment: curved))
@@ -175,21 +177,21 @@ func verifyPrecisionTonePersistence() throws {
     try require(compact["layers"] == nil && compact["import_warnings"] == nil,
                 "Capture descriptor omits unbounded layer/detail lists")
     try verifySource(reopened)
-    let oldPixels = try projected(live)
     let reopenedPixels = try projected(reopened)
     try oldPixels.withRGBA16 { before in
         try reopenedPixels.withRGBA16 { after in
             try require(before.elementsEqual(after), "Native live rendering is exactly reproducible")
         }
     }
-    try oldExport.save(to: files.appendingPathComponent("captured-adjustment16.png"))
+    try saveCapturedProjection16(live, projection: oldPixels, format: .png16,
+                                 to: files.appendingPathComponent("captured-adjustment16.png"))
     let exported = try openTyped(files.appendingPathComponent("captured-adjustment16.png"))
     guard let exportPixels = exported.layerSource(0) else {
         throw ProbeFailure(description: "Missing captured export source")
     }
     try oldPixels.withRGBA16 { before in
         try exportPixels.withRGBA16 { after in
-            try require(before.elementsEqual(after), "Flat export renders the captured old adjustment")
+            try require(before.elementsEqual(after), "Flat save writes the captured old adjustment")
         }
     }
     let package = files.appendingPathComponent("adjusted-archive")
@@ -207,15 +209,17 @@ func verifyPrecisionTonePersistence() throws {
             throw ProbeFailure(description: "Missing adjusted group")
         }
         let image = try projected(group)
+        // The Invert's 0.375 and the group's 0.625, each at its byte.
+        let (invertOpacity, groupOpacity) = (byteUnit(0.375), byteUnit(0.625))
         try image.withRGBA16 { output in
             for i in 0..<(32 * 12) {
                 let input = expected(i)
                 let alpha = Double(input[3]) / 65535
-                try require(abs(Double(output[i * 4 + 3]) / 65535 - alpha * 0.625) <= toneErrorBound,
+                try require(abs(Double(output[i * 4 + 3]) / 65535 - alpha * groupOpacity) <= toneErrorBound,
                             "Adjusted group exact alpha gate")
                 for c in 0..<3 {
                     let x = Double(input[c]) / 65535
-                    let reference = alpha == 0 ? 0 : x * 0.625 + (1 - x) * 0.375
+                    let reference = alpha == 0 ? 0 : x * (1 - invertOpacity) + (1 - x) * invertOpacity
                     try require(abs(Double(output[i * 4 + c]) / 65535 - reference) <= toneErrorBound,
                                 "Adjusted group independent backdrop scalar reference")
                 }

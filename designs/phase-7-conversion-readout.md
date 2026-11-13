@@ -72,5 +72,5 @@ reinterprets a byte handle as typed.
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — guided Shadows/Highlights full-frame fallback in
   promotion (the guided sampling plates; carryover P7-31).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — the PNG16 encoder is polled only while its
-  finished output is copied out (carryover P7-32); the export workspace, `export16` and `save_projection16` all poll
-  the PNG16/TIFF16 encoders under their control.
+  finished output is copied out (carryover P7-32); the export workspace and `save_projection16` both poll the
+  PNG16/TIFF16 encoders under their control.

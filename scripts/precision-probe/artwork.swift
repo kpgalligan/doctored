@@ -70,7 +70,7 @@ func verifyPrecisionArtwork() throws {
     try require(try nativeSamples(shape, layer: 0) == nativeSamples(source),
                 "Artwork leaves the captured photograph exact")
     let native = try root().appendingPathComponent("artwork-v13.rz")
-    try PrecisionCapturedSave(shape, destination: .native).save(to: native)
+    try PrecisionCapturedSave(shape).save(to: native)
     let reopened = try openTyped(native)
     try require(try nativeSamples(reopened, layer: 1) == nativeSamples(shape, layer: 1)
         && nativeSamples(reopened, layer: 2) == nativeSamples(shape, layer: 2),

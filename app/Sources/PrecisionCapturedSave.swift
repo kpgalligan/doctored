@@ -6,74 +6,42 @@ import Foundation
 // resource registry includes typed captures/projections; core admission enforces typed codec/native
 // plans.
 
-/// Internal typed capture, separate from ImageDocument and its byte projection.
-/// No editor mode, Undo registration or saved-file marker is created here.
+/// Internal typed capture of a native save, separate from ImageDocument and its
+/// byte projection. No editor mode, Undo registration or saved-file marker is
+/// created here. A typed flat file is `PrecisionExportCapture`'s.
 struct PrecisionCapturedSave {
-    enum Destination {
-        case native
-        case image(PrecisionExportFormat)
-    }
-
     let source: RasterPrecisionDocument
-    let destination: Destination
-    let embedProfile: Bool
-    let stripMetadata: Bool
     let descriptor: PrecisionDocumentDescriptor
     let scratchEstimate: UInt64
     let ownRetainedBytes: UInt64
 
-    init(_ source: RasterPrecisionDocument, destination: Destination,
-         embedProfile: Bool = true, stripMetadata: Bool = false) throws {
+    init(_ source: RasterPrecisionDocument) throws {
         self.source = source
-        self.destination = destination
-        self.embedProfile = embedProfile
-        self.stripMetadata = stripMetadata
         let info = try source.descriptor()
         descriptor = try PrecisionDocumentDescriptor(info)
-        switch destination {
-        case .native:
-            scratchEstimate = descriptor.nativeScratchBytes
-            ownRetainedBytes = try PrecisionDocumentDescriptor.integer(info, "retained_bytes")
-        case .image:
-            ownRetainedBytes = 0
-            guard let estimate = descriptor.exportScratchBytes else {
-                throw DoctoredCoreError(message: descriptor.renderRefusal
-                    ?? "This high-depth document cannot be rendered for export.")
-            }
-            scratchEstimate = estimate
-        }
+        scratchEstimate = descriptor.nativeScratchBytes
+        ownRetainedBytes = try PrecisionDocumentDescriptor.integer(info, "retained_bytes")
     }
 
     /// Encodes the captured typed source directly. An RGBA8 preview cannot be
     /// supplied to this API. Core admission independently checks the operation.
     /// `control` is single-use and goes to the one core call.
-    @discardableResult
     func write(to url: URL, additionalRetainedBytes: UInt64 = 0,
-               control: RasterJobControl? = nil) throws -> UInt32 {
+               control: RasterJobControl? = nil) throws {
         let budget = try PrecisionWorkContext(source: source,
                                               additionalRetainedBytes: additionalRetainedBytes)
-        switch destination {
-        case .native:
-            try source.saveNative(to: url, workingLimit: budget.limit,
-                                  otherRetained: budget.otherRetained, control: control)
-            return 0
-        case .image(let format):
-            return try source.export16(to: url, format: format, embedProfile: embedProfile,
-                                       stripMetadata: stripMetadata, workingLimit: budget.limit,
-                                       otherRetained: budget.otherRetained, control: control)
-        }
+        try source.saveNative(to: url, workingLimit: budget.limit,
+                              otherRetained: budget.otherRetained, control: control)
     }
 
     /// Failed encoding leaves an existing destination intact. Only the staged
     /// file owned by this call is removed; publication happens after encoding,
     /// and a cancel before it keeps the previous file.
-    @discardableResult
-    func writeSafely(to url: URL, control: RasterJobControl? = nil) throws -> UInt32 {
+    func writeSafely(to url: URL, control: RasterJobControl? = nil) throws {
         StagedFile.sweep(beside: url)
         let staged = StagedFile.url(beside: url, kind: .precisionSave)
         defer { try? FileManager.default.removeItem(at: staged) }
-        let carried: UInt32
-        do { carried = try write(to: staged, control: control) }
+        do { try write(to: staged, control: control) }
         catch let cancel as JobCancelled { throw cancel }
         catch {
             throw DoctoredCoreError(message: error.localizedDescription
@@ -81,16 +49,14 @@ struct PrecisionCapturedSave {
         }
         try control?.checkCancelled()
         try DurableFile.publish(staged, to: url)
-        return carried
     }
 
     /// The internal host path uses the existing bounded worker; it passes no
     /// control, so its panel has no Cancel. Capture remains value-only.
-    @discardableResult
-    func save(to url: URL) throws -> UInt32 {
+    func save(to url: URL) throws {
         _ = try RasterResources.shared.admit(scratch: scratchEstimate)
         let task = try WorkerTask(scratchEstimate: scratchEstimate) { try writeSafely(to: url) }
-        return try BackgroundWork.wait(task, title: "Saving Captured High-Depth Source")
+        try BackgroundWork.wait(task, title: "Saving Captured High-Depth Source")
     }
 }
 
@@ -119,8 +85,6 @@ struct PrecisionDocumentDescriptor {
     let width: Int
     let height: Int
     let nativeScratchBytes: UInt64
-    let exportScratchBytes: UInt64?
-    let renderRefusal: String?
     let decodeScratchBytes: UInt64
     let reopenedRetainedBytes: UInt64
 
@@ -141,9 +105,6 @@ struct PrecisionDocumentDescriptor {
         self.width = Int(width)
         self.height = Int(height)
         nativeScratchBytes = try Self.integer(info, "native_scratch_bytes")
-        exportScratchBytes = info["export_scratch_bytes"] is NSNull
-            ? nil : try Self.integer(info, "export_scratch_bytes")
-        renderRefusal = info["render_refusal"] as? String
         decodeScratchBytes = try Self.integer(info, "decode_scratch_bytes")
         reopenedRetainedBytes = try Self.integer(info, "reopen_retained_bytes")
     }

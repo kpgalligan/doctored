@@ -480,19 +480,6 @@ final class RasterPrecisionDocument {
         }
     }
 
-    @discardableResult
-    func export16(to url: URL, format: PrecisionExportFormat, embedProfile: Bool,
-                  stripMetadata: Bool, workingLimit: UInt64, otherRetained: UInt64,
-                  control: RasterJobControl? = nil) throws -> UInt32 {
-        var error: UnsafeMutablePointer<CChar>?
-        var report: UInt32 = 0
-        guard dr_precision_doc_export16(ptr, url.path, format.rawValue, embedProfile, stripMetadata,
-                                        workingLimit, otherRetained, &report, control?.ptr, &error) else {
-            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "High-depth export failed."))
-        }
-        return report
-    }
-
     /// Reuse an already captured authoritative projection. Core validates its
     /// u16 extent/profile; the editor capture owns its document provenance.
     func projectionExportPlan(_ image: RasterPrecisionImage) throws -> [String: Any] {

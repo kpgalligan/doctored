@@ -114,7 +114,7 @@ func verifyLargePixelWorkflow() throws {
     }
     let native = directory.appendingPathComponent("large-pixels-geometry.rz")
     stage("captured geometry/mask/channel native save", "current state and captured alias; native encoding scratch only") {
-        try PrecisionCapturedSave(requireSource(), destination: .native).save(to: native)
+        try PrecisionCapturedSave(requireSource()).save(to: native)
     }
     stage("geometry/mask/channel native reopen", "current state plus independent reopened source/mask/channel, released after checks") {
         let reopened = try openTyped(native)
@@ -234,7 +234,7 @@ func verifyLargePixelWorkflow() throws {
     }
     let edited = directory.appendingPathComponent("large-pixels-edited.rz")
     stage("captured paint/artwork native save", "current source and two small rasters; native encoder scratch only") {
-        try PrecisionCapturedSave(requireSource(), destination: .native).save(to: edited)
+        try PrecisionCapturedSave(requireSource()).save(to: edited)
     }
     stage("paint/artwork native reopen", "current and reopened source states overlap only while checking distributed samples") {
         let original = try requireSource(), reopened = try openTyped(edited)

@@ -18,12 +18,13 @@ use doctored_core::ffi_export::{
     dr_doc_export_encode, dr_export_result_free, dr_export_result_write,
 };
 use doctored_core::ffi_precision::{
-    dr_precision_doc_export16, dr_precision_doc_free, dr_precision_doc_open,
-    dr_precision_doc_save_native,
+    dr_precision_doc_free, dr_precision_doc_open, dr_precision_doc_render,
+    dr_precision_doc_save_native, dr_precision_image_free,
 };
+use doctored_core::ffi_precision_export::dr_precision_doc_save_projection16;
 use doctored_core::ffi_psd::dr_doc_save_psd;
 use doctored_core::precision_document::PrecisionDocument;
-use doctored_core::precision_image::REFERENCE_WORKING_BYTES;
+use doctored_core::precision_image::{PrecisionImage, REFERENCE_WORKING_BYTES};
 use doctored_core::DrImage;
 use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 use std::ffi::{c_char, c_int, CString};
@@ -47,6 +48,8 @@ struct Fixtures {
     flat: *mut DrImage,
     export: *mut ExportResult,
     u16_doc: *mut PrecisionDocument,
+    /// `u16_doc`'s rendered projection, the 16-bit save's pixels.
+    u16_projection: *mut PrecisionImage,
     float_doc: *mut PrecisionDocument,
 }
 
@@ -56,6 +59,7 @@ impl Drop for Fixtures {
             dr_export_result_free(self.export);
             dr_image_free(self.flat);
             dr_doc_free(self.doc);
+            dr_precision_image_free(self.u16_projection);
             dr_precision_doc_free(self.u16_doc);
             dr_precision_doc_free(self.float_doc);
         }
@@ -93,6 +97,9 @@ fn fixtures() -> Fixtures {
     let u16_path = dir.path().join("deep.png");
     std::fs::write(&u16_path, encoded).unwrap();
     let u16_doc = open_precision(&u16_path);
+    let u16_projection =
+        unsafe { dr_precision_doc_render(u16_doc, LIMIT, 0, ptr::null(), &mut err) };
+    assert!(!u16_projection.is_null(), "{}", take_err_string(err));
     let float_doc = open_precision(Path::new(FLOAT_FIXTURE));
     Fixtures {
         _dir: dir,
@@ -100,6 +107,7 @@ fn fixtures() -> Fixtures {
         flat,
         export,
         u16_doc,
+        u16_projection,
         float_doc,
     }
 }
@@ -216,14 +224,15 @@ fn writers(f: &Fixtures) -> Vec<Writer<'_>> {
             }),
         ),
         (
-            "dr_precision_doc_export16",
+            "dr_precision_doc_save_projection16",
             "16.png",
             Box::new(move |path: &Path| {
                 let c = cpath(path);
                 let mut err: *mut c_char = ptr::null_mut();
                 let ok = unsafe {
-                    dr_precision_doc_export16(
+                    dr_precision_doc_save_projection16(
                         f.u16_doc,
+                        f.u16_projection,
                         c.as_ptr(),
                         0,
                         true,
@@ -235,7 +244,7 @@ fn writers(f: &Fixtures) -> Vec<Writer<'_>> {
                         &mut err,
                     )
                 };
-                check(ok, err, "dr_precision_doc_export16", path)
+                check(ok, err, "dr_precision_doc_save_projection16", path)
             }),
         ),
     ]

@@ -1219,26 +1219,6 @@ fn bake_extent(
     Ok(((x0 as i32, y0 as i32), (uw as u32, uh as u32)))
 }
 
-/// Peak scratch of [`bake_style16`]: the f32 accumulator, the u16 output,
-/// the style's own planes and the mask preparation.
-pub(crate) fn bake_style16_scratch(
-    layer: &PrecisionDocumentLayer,
-    profile: &IccProfile,
-    canvas: (u32, u32),
-    light: GlobalLight,
-) -> Result<u64, String> {
-    let (_, (uw, uh)) = bake_extent(layer, profile, canvas, light)?;
-    let style = layer.style().ok_or("this layer renders no layer style")?;
-    let image = layer.source().ok_or("this layer has no raster pixels")?;
-    let pixels = pixel_count(uw, uh)? as u64;
-    let mask = layer
-        .mask()
-        .map(|m| m.plan())
-        .transpose()?
-        .map_or(0, |p| p.0);
-    Ok(pixels * 24 + style_scratch(style, image.dimensions(), false, None)?.0 + mask)
-}
-
 /// Layer `layer` (a styled raster) with its style rendered into u16 pixels
 /// over a transparent accumulator at opacity 1, Normal and no Blend If —
 /// the byte `rasterized_style` rule, with an ENABLED mask inside the bake.

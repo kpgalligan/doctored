@@ -22,9 +22,10 @@ use doctored_core::ffi_color::{
 use doctored_core::ffi_doc::{dr_doc_free, dr_doc_from_image};
 use doctored_core::ffi_metadata_import::dr_doc_import_metadata;
 use doctored_core::ffi_precision::{
-    dr_precision_doc_export16, dr_precision_doc_free, dr_precision_doc_info, dr_precision_doc_open,
-    dr_precision_doc_save_native,
+    dr_precision_doc_free, dr_precision_doc_info, dr_precision_doc_open, dr_precision_doc_render,
+    dr_precision_doc_save_native, dr_precision_image_free,
 };
+use doctored_core::ffi_precision_export::dr_precision_doc_save_projection16;
 use doctored_core::ffi_precision_input::dr_precision_doc_from_rgba16;
 use doctored_core::ffi_precision_inspect::dr_precision_doc_metadata;
 use doctored_core::ffi_precision_metadata::{
@@ -430,15 +431,20 @@ fn reconstructed_packets_survive_a_native_round_trip_and_reach_an_export() {
     let info = typed_info(reopened);
     assert_eq!(info["resolution"]["x_ppi"], 300.0);
 
-    // A typed export writes them.
+    // A typed export (the app's 16-bit save of the rendered projection)
+    // writes them.
+    let mut err: *mut c_char = ptr::null_mut();
+    let projection = unsafe { dr_precision_doc_render(reopened, LIMIT, 0, ptr::null(), &mut err) };
+    assert!(!projection.is_null(), "{}", take_err_string(err));
     let exported = dir.path().join("bridge.tiff");
     let c = cpath(&exported);
     let mut report: u32 = 0;
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
         unsafe {
-            dr_precision_doc_export16(
+            dr_precision_doc_save_projection16(
                 reopened,
+                projection,
                 c.as_ptr(),
                 1,
                 true,
@@ -477,6 +483,7 @@ fn reconstructed_packets_survive_a_native_round_trip_and_reach_an_export() {
 
     unsafe { dr_doc_free(round) };
     unsafe { dr_doc_free(plain) };
+    unsafe { dr_precision_image_free(projection) };
     unsafe { dr_precision_doc_free(reopened) };
     unsafe { dr_precision_doc_free(with_ppi) };
     unsafe { dr_precision_doc_free(imported) };

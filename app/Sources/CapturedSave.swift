@@ -44,7 +44,7 @@ struct CapturedSave {
             // paper for the two image formats; everything else refuses by name.
             precisionExport = nil
             if type == ImageDocument.nativeTypeIdentifier {
-                let save = try PrecisionCapturedSave(typed, destination: .native)
+                let save = try PrecisionCapturedSave(typed)
                 precisionSave = save
                 cmykFormat = nil
                 scratchEstimate = save.scratchEstimate
@@ -141,7 +141,7 @@ struct CapturedSave {
         }
         if let typed = source.precision {
             if type == ImageDocument.nativeTypeIdentifier {
-                let save = try PrecisionCapturedSave(typed, destination: .native)
+                let save = try PrecisionCapturedSave(typed)
                 precisionSave = save
                 precisionExport = nil
                 scratchEstimate = save.scratchEstimate

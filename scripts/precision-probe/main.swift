@@ -24,6 +24,11 @@ func openTyped(_ url: URL) throws -> RasterPrecisionDocument {
 func value(_ info: [String: Any], _ key: String) throws -> UInt64 {
     try PrecisionDocumentDescriptor.integer(info, key)
 }
+/// The byte a unit layer Opacity composites at below 32 bits (`opacity_byte`):
+/// `floor(255 v + 0.5 + 1e-3) / 255`, written here from the integer rule, never from the core.
+func byteUnit(_ value: Double) -> Double {
+    (min(max(value, 0), 1) * 255 + 0.5 + 1e-3).rounded(.down) / 255
+}
 func expected(_ index: Int) -> [UInt16] {
     let alpha: [UInt16] = [0, 1, 2, 255, 256, 257, 32767, 65535]
     return [UInt16((30000 + index) % 65536), UInt16((12345 + index) % 65536),
@@ -48,6 +53,32 @@ func verifySource(_ document: RasterPrecisionDocument, at index: Int = 0,
     }
 }
 
+/// The app's 16-bit PNG/TIFF save over a bare typed document: the 16-bit branch of
+/// `PrecisionExportCapture.write`, run on the bounded worker after the core's projection plan is
+/// admitted. `projection` is the authoritative projection the caller captured with the source;
+/// nil renders it here. Answers the DR_CARRIES_* bits written.
+@discardableResult
+func saveCapturedProjection16(_ source: RasterPrecisionDocument,
+                              projection captured: RasterPrecisionImage? = nil,
+                              format: PrecisionExportFormat, to url: URL) throws -> UInt32 {
+    let projection: RasterPrecisionImage
+    if let captured {
+        projection = captured
+    } else {
+        let budget = try PrecisionWorkContext(source: source)
+        projection = try source.render(workingLimit: budget.limit, otherRetained: budget.otherRetained)
+    }
+    let scratch = try value(source.projectionExportPlan(projection), "host_scratch_bytes")
+    _ = try RasterResources.shared.admit(scratch: scratch)
+    let task = try WorkerTask(scratchEstimate: scratch) { () throws -> UInt32 in
+        let context = try PrecisionWorkContext(source: source, image: projection)
+        return try source.saveProjection16(projection, to: url, format: format, embedProfile: true,
+                                           stripMetadata: false, workingLimit: context.limit,
+                                           otherRetained: context.otherRetained)
+    }
+    return try BackgroundWork.wait(task, title: "Saving Captured High-Depth Projection")
+}
+
 func verifyCapturedWrites() throws {
     let files = try root()
     let original = try openTyped(files.appendingPathComponent("source16.png"))
@@ -58,7 +89,7 @@ func verifyCapturedWrites() throws {
                 "Input horizontal PPI retained")
     try require(abs((resolution["y_ppi"] as? Double ?? 0) - 150) < 0.02,
                 "Input vertical PPI retained")
-    let capture = try PrecisionCapturedSave(original, destination: .native)
+    let capture = try PrecisionCapturedSave(original)
     var current = original
     guard let duplicate = try current.duplicateLayer(0),
           let edited = try duplicate.settingLayerOpacity(1, opacity: 0.5),
@@ -71,7 +102,7 @@ func verifyCapturedWrites() throws {
     let reopened = try openTyped(files.appendingPathComponent("captured.rz"))
     try require(try value(reopened.info(), "layer_count") == 1, "Save encoded captured old state")
     try verifySource(reopened)
-    let groupedSave = try PrecisionCapturedSave(current, destination: .native)
+    let groupedSave = try PrecisionCapturedSave(current)
     try groupedSave.save(to: files.appendingPathComponent("grouped.rz"))
     let grouped = try openTyped(files.appendingPathComponent("grouped.rz"))
     try require(try value(grouped.info(), "layer_count") == 3, "Typed group and children persist")
@@ -81,7 +112,7 @@ func verifyCapturedWrites() throws {
         throw ProbeFailure(description: "Pass-through group was not created")
     }
     let passURL = files.appendingPathComponent("pass-through.rz")
-    try PrecisionCapturedSave(passThrough, destination: .native).save(to: passURL)
+    try PrecisionCapturedSave(passThrough).save(to: passURL)
     let passReopened = try openTyped(passURL)
     let passInfo = try passThrough.info()
     let passReopenedInfo = try passReopened.info()
@@ -96,9 +127,10 @@ func verifyCapturedWrites() throws {
             let input = expected(i)
             let alpha = Double(input[3]) / 65535
             // Independent premultiplied Normal source-over followed by group
-            // backdrop/result interpolation. Both children use this RGB value.
-            let childrenAlpha = alpha + alpha * 0.5 * (1 - alpha)
-            let wantedAlpha = Int((childrenAlpha * 0.625 * 65535).rounded())
+            // backdrop/result interpolation, each opacity at its byte. Both
+            // children use this RGB value.
+            let childrenAlpha = alpha + alpha * byteUnit(0.5) * (1 - alpha)
+            let wantedAlpha = Int((childrenAlpha * byteUnit(0.625) * 65535).rounded())
             try require(abs(Int(output[i * 4 + 3]) - wantedAlpha) <= 1,
                         "Pass-through alpha agrees with independent scalar reference")
             for channel in 0..<3 {
@@ -108,11 +140,12 @@ func verifyCapturedWrites() throws {
             }
         }
     }
-    for (format, filename) in [(PrecisionExportFormat.png16, "export16.png"), (.tiff16, "export16.tiff")] {
-        let export = try PrecisionCapturedSave(original, destination: .image(format))
+    for (format, filename) in [(PrecisionExportFormat.png16, "captured-projection16.png"),
+                               (.tiff16, "captured-projection16.tiff")] {
         let expectedCarried = UInt32(DR_CARRIES_PROFILE | DR_CARRIES_XMP | DR_CARRIES_RESOLUTION)
-        try require(try export.save(to: files.appendingPathComponent(filename)) == expectedCarried,
-                    "ICC/PPI/XMP export reports every carried field")
+        let carried = try saveCapturedProjection16(original, format: format,
+                                                   to: files.appendingPathComponent(filename))
+        try require(carried == expectedCarried, "ICC/PPI/XMP export reports every carried field")
     }
     try require(try original.settingLayerOpacity(0, opacity: 1) == nil, "Neutral opacity no-op")
     try require(!BackgroundWork.occupied && BackgroundWork.scratchEstimate == 0,

@@ -7,6 +7,7 @@ use doctored_core::ffi::{dr_image_free, dr_image_pixels_rgba, dr_string_free};
 use doctored_core::ffi_doc::{dr_doc_free, dr_doc_open};
 use doctored_core::ffi_precision::*;
 use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
+use doctored_core::ffi_precision_export::dr_precision_doc_save_projection16;
 use doctored_core::job_control::DrJobControl;
 use doctored_core::precision_document::PrecisionDocument;
 use doctored_core::precision_image::{PrecisionImage, REFERENCE_WORKING_BYTES};
@@ -159,13 +160,15 @@ fn genuine_codes_cross_two_groups_native_reopen_and_both_exports() {
         assert!(byte_doc.is_null());
         assert!(!error(err).is_empty());
         dr_doc_free(byte_doc);
+        let projection = render(&reopened);
         for (format, name) in [(0, "out.png"), (1, "out.tiff")] {
             let file = directory.path().join(name);
             let mut err = ptr::null_mut();
             let mut report = u32::MAX;
             assert!(
-                dr_precision_doc_export16(
+                dr_precision_doc_save_projection16(
                     reopened.0,
+                    projection.0,
                     path(&file).as_ptr(),
                     format,
                     true,
@@ -317,26 +320,6 @@ fn refusal_is_atomic_and_cancelled_render_keeps_sources() {
     let destination = directory.path().join("protected.tiff");
     std::fs::write(&destination, b"keep this old destination").unwrap();
     unsafe {
-        let mut err = ptr::null_mut();
-        let mut report = 123;
-        assert!(!dr_precision_doc_export16(
-            doc.0,
-            path(&destination).as_ptr(),
-            99,
-            true,
-            false,
-            LIMIT,
-            0,
-            &mut report,
-            std::ptr::null(),
-            &mut err
-        ));
-        assert!(!error(err).is_empty());
-        assert_eq!(report, 123);
-        assert_eq!(
-            std::fs::read(&destination).unwrap(),
-            b"keep this old destination"
-        );
         let mut err = ptr::null_mut();
         assert!(!dr_precision_doc_save_native(
             doc.0,
@@ -504,18 +487,6 @@ fn null_safety_sweep_every_typed_export() {
             LIMIT,
             0,
             ptr::null(),
-            e
-        ));
-        assert!(!dr_precision_doc_export16(
-            n,
-            ptr::null(),
-            0,
-            true,
-            false,
-            LIMIT,
-            0,
-            ptr::null_mut(),
-            std::ptr::null(),
             e
         ));
         dr_precision_image_free(ptr::null_mut());

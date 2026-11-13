@@ -113,7 +113,7 @@ func verifyLargeColorWorkflow() throws {
     let native = files.appendingPathComponent("large-color-live.rz")
     stage("captured live native save", scope: "current source and captured alias share pixels; native encoding scratch only") {
         guard let current else { throw ProbeFailure(description: "Live stack unavailable") }
-        try PrecisionCapturedSave(current, destination: .native).save(to: native)
+        try PrecisionCapturedSave(current).save(to: native)
     }
     stage("live native reopen", scope: "current source plus independent reopened 192 MB source; reopened owner released after checks") {
         let reopened = try openTyped(native)
@@ -158,7 +158,7 @@ func verifyLargeColorWorkflow() throws {
     let convertedNative = files.appendingPathComponent("large-color-converted.rz")
     stage("converted captured native save", scope: "current converted 192 MB source; native encoding scratch only") {
         guard let current else { throw ProbeFailure(description: "Converted input unavailable") }
-        try PrecisionCapturedSave(current, destination: .native).save(to: convertedNative)
+        try PrecisionCapturedSave(current).save(to: convertedNative)
     }
     stage("converted native reopen", scope: "current converted source plus independent reopened 192 MB source, then released") {
         let reopened = try openTyped(convertedNative)

@@ -36,7 +36,7 @@ enum PrecisionStateArchive {
 
     static func capture(_ source: RasterPrecisionDocument, name: String) throws -> Captured {
         let name = try validatedName(name)
-        let save = try PrecisionCapturedSave(source, destination: .native)
+        let save = try PrecisionCapturedSave(source)
         let descriptor = save.descriptor
         let decode = try PrecisionDocumentDescriptor.sum(
             PrecisionDocumentDescriptor.sum(descriptor.reopenedRetainedBytes,

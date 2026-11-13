@@ -33,7 +33,7 @@
 //! `dr_precision_doc_edit` (family `global_light`, target `document`, in the float table) and
 //! read as `dr_precision_doc_info`'s `global_light` object. The scene carries it
 //! (`PrecisionScene::with_light`, chained in `scene_for`) and the style extents take it
-//! (`style_extent16_of`, `bake_style16_scratch`), so a promoted document renders bit-identically to
+//! (`style_extent16_of`, `bake_style16`), so a promoted document renders bit-identically to
 //! its byte source. Carried by every rebuild, profile edit, 8↔16 conversion (`global_light` is
 //! PRESERVED; flatten too), `float_to_u16` and 16-bit PSD import/export (1037/1049).
 

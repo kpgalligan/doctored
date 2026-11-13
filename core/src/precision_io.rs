@@ -1,66 +1,18 @@
-//! File orchestration for the internal neutral high-depth document path.
-//! Native state and authoritative u16 projections never pass through DrImage.
-//! Container I/O has stage cancellation boundaries and the 16-bit codecs are
-//! polled as their bytes move (`cancel_io`); compositing uses the separately
-//! cancellable renderer.
+//! File orchestration for the internal neutral high-depth document path: the
+//! preserving open and its flat-file routes. Native state never passes through
+//! DrImage. Container reads have stage cancellation boundaries and the 16-bit
+//! decoders are polled as their bytes move (`cancel_io`).
 //!
-//! Core and caller retained state participate in bounded decode/render/encode plans.
+//! Core and caller retained state participate in bounded decode plans.
 
 use std::fs::File;
 use std::io::Read;
 
 use crate::job_control::{DrJobControl, JobContext};
-use crate::precision_codec::{self, PrecisionFormat};
+use crate::precision_codec;
 use crate::precision_document::PrecisionDocument;
-use crate::precision_image::{admit, BOOKKEEPING_BYTES};
-use crate::resources::Inventory;
 
 impl PrecisionDocument {
-    /// Peak additional memory for render followed by either 16-bit writer.
-    /// The document remains retained through both stages. The standalone codec
-    /// also charges its borrowed profile/metadata; keep that conservative charge
-    /// here so host admission agrees with the actual compound call.
-    pub fn export_scratch_bytes(&self) -> Result<u64, String> {
-        let plan = self.render_plan()?;
-        let (width, height) = self.dimensions();
-        let mut profile = Inventory::default();
-        profile.object(&**self.profile(), "profile", false);
-        self.profile().record_resources(&mut profile);
-        let packets: u64 = [
-            &self.metadata().exif,
-            &self.metadata().xmp,
-            &self.metadata().iptc,
-        ]
-        .into_iter()
-        .flatten()
-        .map(|bytes| bytes.len() as u64)
-        .sum();
-        let encoded = precision_codec::encode_dimensions_scratch((width, height))?
-            + u64::from(width) * u64::from(height) * 8
-            + profile.unique_bytes()
-            + packets
-            + BOOKKEEPING_BYTES;
-        let rendered = plan.scratch_bytes
-            + plan
-                .unique_retained_bytes
-                .saturating_sub(self.retained_bytes());
-        // The 16-bit PSD export bakes each styled raster's style into its
-        // own pixels; the largest such bake bounds that path.
-        let mut baked = 0u64;
-        for index in 0..self.layer_count() {
-            let layer = self.layer(index).ok_or("invalid typed layer")?;
-            if layer.style().is_some() && layer.source().is_some() {
-                baked = baked.max(crate::precision_style_render::bake_style16_scratch(
-                    layer,
-                    self.profile(),
-                    (width, height),
-                    self.global_light(),
-                )?);
-            }
-        }
-        Ok(encoded.max(rendered).max(baked + BOOKKEEPING_BYTES))
-    }
-
     /// Strict preserving import. Refusals never request a platform byte fallback
     /// or an automatic conversion to a host working space.
     pub fn open_preserving(
@@ -144,61 +96,5 @@ impl PrecisionDocument {
         } else {
             Ok(doc)
         }
-    }
-
-    /// Capture-style export renders this immutable source in u16, then writes
-    /// it through the shared metadata policy. No preview argument is accepted.
-    /// Returned CARRIES bits identify the packets actually written, so a host
-    /// can compare them with the source's packets and disclose any omission.
-    ///
-    /// The optional single-use `control` is begun once for the compound call:
-    /// the render takes the first half of its progress and the encode, polled
-    /// as its bytes move, the second. A cancel answers exactly
-    /// `operation cancelled` and keeps the previous file; one arriving after
-    /// the rename leaves the published file a success.
-    #[allow(clippy::too_many_arguments)]
-    pub fn export16(
-        &self,
-        path: &str,
-        format: PrecisionFormat,
-        embed_profile: bool,
-        strip_metadata: bool,
-        limit: u64,
-        other: u64,
-        control: Option<&DrJobControl>,
-    ) -> Result<u32, String> {
-        let _run = control.map(DrJobControl::begin).transpose()?;
-        let job = control.map_or(JobContext::NONE, JobContext::new);
-        if self.is_float() {
-            return Err(crate::float_document::refused_sentence(
-                "Export at 16 bits without a tone map",
-            ));
-        }
-        if self.is_cmyk() {
-            return Err(crate::cmyk_document::refused_sentence(
-                "Export as a 16-bit RGB file",
-            ));
-        }
-        let retained = self.retained_bytes();
-        admit(retained, self.export_scratch_bytes()?, other, limit)?;
-        let image = self.render_with_context(limit, other, job.range(0.0, 0.5))?;
-        let other = other
-            .checked_add(retained)
-            .ok_or("precision export memory overflow")?;
-        // A TIFF carries the paths (`tiff_paths`).
-        let carried = precision_codec::write_with_paths(
-            &image,
-            self.metadata(),
-            self.resolution(),
-            path,
-            (format, embed_profile, strip_metadata),
-            (limit, other),
-            job.range(0.5, 1.0),
-            self.tiff_path_run(),
-        )?;
-        if let Some(control) = control {
-            control.report(1.0, 5);
-        }
-        Ok(carried)
     }
 }

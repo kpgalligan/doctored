@@ -62,7 +62,7 @@ func verifyPrecisionScalarStorage() throws {
     let promoted = try PrecisionScalarBuffer.promoting([0, 1, 128, 255], width: 4, height: 1)
     try require(promoted.samples == [0, 257, 32896, 65535] && promoted.provenance == .promotedU8,
                 "Scalar byte promotion is exact and explicitly marked")
-    let native = try PrecisionCapturedSave(withChannel, destination: .native)
+    let native = try PrecisionCapturedSave(withChannel)
     let archive = try PrecisionStateArchive.capture(withChannel, name: "Native scalar state")
     let later = try pixelEdit(withChannel, .removeMask(layer: 0))
     _ = try pixelEdit(later, .removeChannel(index: 0))

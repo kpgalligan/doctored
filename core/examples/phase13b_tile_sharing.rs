@@ -311,8 +311,7 @@
 //! `export_tiff16_p3` (TIFF16, `"profile":"display-p3"`),
 //! `export_png16_render` (PNG16, NULL projection: the export renders),
 //! `export_layer_trimmed` (`export_layer_encoded` of layer 1, trimmed,
-//! PNG16), `export16_png` (`dr_precision_doc_export16`, PNG, the file's
-//! bytes), `save_psd_flattened` (`dr_precision_doc_save_psd` mode 1) and
+//! PNG16), `save_psd_flattened` (`dr_precision_doc_save_psd` mode 1) and
 //! `save_psd_layers_baked` (mode 0, layer 1 styled
 //! `{"effects":[{"type":"stroke","size":0.5}]}` through `layer_style`, so
 //! the style is baked); over `float_corpus_document` at 3000×2000:
@@ -466,8 +465,8 @@ use doctored_core::ffi_output_color::{
 };
 use doctored_core::ffi_precision::dr_precision_image_preview_rgba8;
 use doctored_core::ffi_precision::{
-    dr_precision_doc_export16, dr_precision_doc_free, dr_precision_doc_render,
-    dr_precision_doc_save_native, dr_precision_image_free, dr_precision_image_pixels_rgba16,
+    dr_precision_doc_free, dr_precision_doc_render, dr_precision_doc_save_native,
+    dr_precision_image_free, dr_precision_image_pixels_rgba16,
 };
 use doctored_core::ffi_precision_conversion::dr_doc_promote_structure;
 use doctored_core::ffi_precision_conversion::dr_doc_promote_structure_preview;
@@ -3134,31 +3133,6 @@ fn typed_exports() {
         |doc| {
             doc.export_layer_encoded(1, true, &layer_request, REFERENCE_WORKING_BYTES, 0, None)
                 .map(|result| result.bytes().to_vec())
-        },
-        bytes,
-    );
-    timed_line(
-        "typed/exports",
-        "export16_png",
-        "u16",
-        &sizes,
-        plates_document,
-        |doc| {
-            exports_file("export16.png", |path, error| unsafe {
-                let mut carried = 0_u32;
-                dr_precision_doc_export16(
-                    doc,
-                    path.as_ptr(),
-                    0,
-                    true,
-                    false,
-                    REFERENCE_WORKING_BYTES,
-                    0,
-                    &mut carried,
-                    std::ptr::null(),
-                    error,
-                )
-            })
         },
         bytes,
     );

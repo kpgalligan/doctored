@@ -1,6 +1,6 @@
 //! Save and Open take a job control: the byte open (`dr_doc_open`), the
-//! native, flat and PSD saves, the byte PSD open, the typed PSD save,
-//! `export16` and `save_projection16`. Black-box through the FFI.
+//! native, flat and PSD saves, the byte PSD open, the typed PSD save and
+//! `save_projection16`. Black-box through the FFI.
 //!
 //! Oracles:
 //! - A pre-cancelled control answers exactly `operation cancelled` and
@@ -29,8 +29,7 @@ use doctored_core::ffi::{dr_image_free, dr_image_from_rgba};
 use doctored_core::ffi_color::{dr_builtin_profile, dr_builtin_profile_len, dr_doc_save_image};
 use doctored_core::ffi_doc::{dr_doc_free, dr_doc_from_image, dr_doc_open, dr_doc_save_native};
 use doctored_core::ffi_precision::{
-    dr_precision_doc_export16, dr_precision_doc_free, dr_precision_doc_render,
-    dr_precision_image_free,
+    dr_precision_doc_free, dr_precision_doc_render, dr_precision_image_free,
 };
 use doctored_core::ffi_precision_export::dr_precision_doc_save_projection16;
 use doctored_core::ffi_precision_input::dr_precision_doc_from_rgba16;
@@ -179,7 +178,6 @@ enum Save {
     Flat(Bytes, i32),
     Psd(Bytes),
     TypedPsd(Typed),
-    Export16(Typed),
     Projection16(Typed),
 }
 
@@ -190,7 +188,6 @@ impl Save {
             Save::Flat(_, format) => format!("flat {format}"),
             Save::Psd(_) => "PSD".into(),
             Save::TypedPsd(_) => "16-bit PSD".into(),
-            Save::Export16(_) => "export16".into(),
             Save::Projection16(_) => "save_projection16".into(),
         }
     }
@@ -202,7 +199,7 @@ impl Save {
             Save::Flat(_, FMT_TIFF) => "out.tif",
             Save::Flat(_, FMT_BMP) => "out.bmp",
             Save::Psd(_) | Save::TypedPsd(_) => "out.psd",
-            Save::Flat(..) | Save::Export16(_) | Save::Projection16(_) => "out.png",
+            Save::Flat(..) | Save::Projection16(_) => "out.png",
         }
     }
 
@@ -213,7 +210,6 @@ impl Save {
             Save::Flat(_, format) => Save::Flat(bytes, format),
             Save::Psd(_) => Save::Psd(bytes),
             Save::TypedPsd(_) => Save::TypedPsd(typed),
-            Save::Export16(_) => Save::Export16(typed),
             Save::Projection16(_) => Save::Projection16(typed),
         }
     }
@@ -250,18 +246,6 @@ impl Save {
                     control,
                     &mut err,
                 ),
-                Save::Export16(t) => dr_precision_doc_export16(
-                    t.doc(),
-                    path.as_ptr(),
-                    0,
-                    true,
-                    false,
-                    LIMIT,
-                    0,
-                    ptr::null_mut(),
-                    control,
-                    &mut err,
-                ),
                 Save::Projection16(t) => dr_precision_doc_save_projection16(
                     t.doc(),
                     t.projection(),
@@ -290,7 +274,6 @@ fn saves(bytes: Bytes, typed: Typed) -> Vec<Save> {
         Save::Flat(bytes, FMT_BMP),
         Save::Psd(bytes),
         Save::TypedPsd(typed),
-        Save::Export16(typed),
         Save::Projection16(typed),
     ]
 }
@@ -482,18 +465,6 @@ fn null_inputs_with_a_live_control_fail_without_a_panic() {
             0,
             LIMIT,
             0,
-            c,
-            ptr::null_mut(),
-        ));
-        assert!(!dr_precision_doc_export16(
-            ptr::null(),
-            path.as_ptr(),
-            0,
-            true,
-            false,
-            LIMIT,
-            0,
-            ptr::null_mut(),
             c,
             ptr::null_mut(),
         ));
