@@ -1,6 +1,9 @@
 # Color and metadata source probe
 
-Run `make rust project`, then `python3 scripts/color-metadata-probe/verify.py`.
+`make gate` runs this runner (every check) as its `color-metadata-probe` step, with
+`DR_BACKGROUND=1`, whenever the app sources, the header, this directory, the Python
+helpers it loads or the core library changed since its last pass (`PROBE_RUNS` in
+`scripts/gate.py`). By hand, run `make rust project`, then `python3 scripts/color-metadata-probe/verify.py`.
 The runner compiles the real app sources with a probe entry point, dummy
 credentials, temporary fixtures, and a private preferences domain. `--keep`
 retains the independent ImageIO reads, TIFF/HEIC/DNG fixtures and logs.

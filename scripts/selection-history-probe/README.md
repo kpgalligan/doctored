@@ -1,6 +1,9 @@
 # Phase 2 AppKit regression probe
 
-Run from the repository root on Apple Silicon macOS:
+`make gate` runs this runner as its `selection-history-probe` step, with `DR_BACKGROUND=1`,
+whenever the app sources, the header, this directory or the core library changed
+since its last pass (`PROBE_RUNS` in `scripts/gate.py`). By hand, run from the repository
+root on Apple Silicon macOS:
 
 ```sh
 make rust project

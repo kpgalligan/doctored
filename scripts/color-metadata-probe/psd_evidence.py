@@ -67,6 +67,11 @@ def verify(files):
                 pixel = native.png_samples(document["fallbacks"][0])
                 assert (pixel["width"], pixel["height"], pixel["depth"]) == (1, 1, 8)
                 assert tuple(pixel["samples"]) == rgba
+                # A layered import marks file record 0, Ordinary (role 2) here because the fixture's record
+                # carries a transparency channel; the stored-composite choice sets no mark
+                # (`core/src/psd_background.rs`).
+                mark = native.png_module.background_mark(path.read_bytes())
+                assert mark == ((0, 2) if mode == "layers" else None), (path.name, mark)
                 results.append({"path": path.name, "sha256": digest(path),
                                 "profile_sha256": hashlib.sha256(profile).hexdigest(),
                                 "resolution": list(document["resolution"]), "rgba": list(rgba)})

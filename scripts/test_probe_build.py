@@ -284,6 +284,23 @@ class ProbeBuildTests(unittest.TestCase):
         self.assertIn("error:", self.log.read_text())
 
 
+class TakeBuildOnlyTests(unittest.TestCase):
+    def test_it_takes_the_variable_from_both_environments(self):
+        with mock.patch.dict(os.environ, {probe_build.BUILD_ONLY_ENV: "1"}):
+            child = {probe_build.BUILD_ONLY_ENV: "1", "OTHER": "kept"}
+            self.assertTrue(probe_build.take_build_only(child))
+            self.assertNotIn(probe_build.BUILD_ONLY_ENV, os.environ)
+            self.assertEqual(child, {"OTHER": "kept"})
+            # Taken once: the build that follows runs to its end in this process.
+            self.assertFalse(probe_build.take_build_only())
+
+    def test_any_other_value_is_not_build_only(self):
+        for value in ("0", "", "yes"):
+            with mock.patch.dict(os.environ, {probe_build.BUILD_ONLY_ENV: value}):
+                self.assertFalse(probe_build.take_build_only({}))
+                self.assertNotIn(probe_build.BUILD_ONLY_ENV, os.environ)
+
+
 class CaseClashTests(unittest.TestCase):
     def test_sources_sharing_a_case_folded_basename_clash(self):
         clashing = [Path("app/Sources/Selection.swift"), Path("app/Sources/Workspace.swift"),

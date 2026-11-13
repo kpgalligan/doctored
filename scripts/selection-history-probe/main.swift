@@ -62,19 +62,34 @@ func verifyHistory() throws {
     try require(coverage(document) == soft.maskBytes() && !document.isDocumentEdited, "reselect coverage/dirty")
     resetHistory(document)
     let before = coverage(document)
+    // Crop to Selection carries the selection into the cropped canvas (`SelectionCanvasMap.swift`): a
+    // whole-number translation only moves samples, so the carried coverage is exactly the window of the
+    // old coverage that the selection's bounds name.
+    guard let window = editor.canvas.selectionRect, let old = before else {
+        throw ProbeFailure(description: "Crop window")
+    }
+    let (cropX, cropY, cropWidth, cropHeight) =
+        (Int(window.minX), Int(window.minY), Int(window.width), Int(window.height))
+    let cropped: [UInt8] = (0..<cropHeight).flatMap { row in
+        old[((cropY + row) * 12 + cropX)..<((cropY + row) * 12 + cropX + cropWidth)]
+    }
     edit(document) { editor.cropToSelection(nil) }
-    try require(document.canvasSelection == nil && document.isDocumentEdited, "crop invalidates selection")
+    try require(document.doc.width == cropWidth && document.doc.height == cropHeight
+                && coverage(document) == cropped && editor.canvas.selection?.maskBytes() == cropped
+                && document.isDocumentEdited, "crop carries the selection into the cropped canvas")
     document.undoManager?.undo()
     try require(document.doc.width == 12 && document.doc.height == 10, "undo crop dimensions")
     try require(coverage(document) == before && editor.canvas.selection?.maskBytes() == before,
                 "undo crop restores model and canvas coverage")
     try require(!document.isDocumentEdited, "undo crop returns file clean")
     document.undoManager?.redo()
-    try require(document.canvasSelection == nil, "redo crop selection")
+    try require(coverage(document) == cropped, "redo crop selection")
     document.undoManager?.undo()
     resetHistory(document)
     edit(document) { editor.rotate180(nil) }
-    try require(document.canvasSelection == nil && document.doc.width == 12, "same-size rotate clears selection")
+    // A half turn of the 12 × 10 canvas moves sample (x, y) to (11 − x, 9 − y): the row-major coverage reversed.
+    try require(document.doc.width == 12 && coverage(document) == Array(old.reversed()),
+                "same-size rotate carries the selection through the half turn")
     document.undoManager?.undo()
     try require(coverage(document) == before && !document.isDocumentEdited, "rotate undo selection/dirty")
     // A live document update must not discard unchanged transient coverage.

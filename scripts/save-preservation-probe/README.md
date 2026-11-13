@@ -2,7 +2,7 @@
 
 This AppKit regression probe calls the real `ImageDocument` save methods. It caught an existing-destination deletion when AppKit's default `writeSafely` received a Save As refusal from the lower write override. The staged writer must preserve that destination.
 
-Run on an Apple Silicon Mac with Xcode and Rust installed:
+`make gate` runs this runner as its `save-preservation-probe` step, with `DR_BACKGROUND=1`, whenever the app sources, the header, this directory, its fixtures or the core library changed since its last pass (`PROBE_RUNS` in `scripts/gate.py`). By hand, run on an Apple Silicon Mac with Xcode and Rust installed:
 
 ```sh
 make rust project

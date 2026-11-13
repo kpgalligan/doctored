@@ -14,7 +14,9 @@ and stops before SILGen, like `make typecheck`.
 
 With `DR_PROBE_BUILD_ONLY=1` in the environment, `build` ends the process with
 status 0 right after it delivers the probe and prints `build only: <output>`, so
-a runner's build is checked without launching anything it would run next.
+a runner's build is checked without launching anything it would run next. A
+runner that removes its scratch folder takes the variable first
+(`take_build_only`) and stops after the build on its own.
 
 Standard library only; imports nothing from `scripts/`.
 """
@@ -41,7 +43,10 @@ CACHE = ROOT / "build/probe-cache"
 MODULE_CACHE = ROOT / "build/probe-module-cache"
 # The file in MODULE_CACHE that names the path the cache was made at (`_module_cache`).
 MODULE_CACHE_PATH_FILE = "made-at"
-KEEP_ENTRIES = 8
+# `make gate` builds each of its probe runs (`PROBE_RUNS` in `scripts/gate.py`) and later reuses that build, so the
+# cache must hold all of them beside a few hand runs; with fewer entries than gate probes, each build prunes an
+# earlier one and every reuse becomes another whole-app compile. About 75 MB an entry.
+KEEP_ENTRIES = 16
 TARGET = "arm64-apple-macos15.0"
 BRIDGING_HEADER = "app/Bridging/Doctored-Bridging-Header.h"
 KEY_ENVIRONMENT = ("MACOSX_DEPLOYMENT_TARGET", "SDKROOT", "TOOLCHAINS", "DEVELOPER_DIR")
@@ -333,6 +338,18 @@ def _compile(argv: list[str], build_log: Path, log: Path, env: Mapping[str, str]
             _append(log, build_log.read_text(errors="replace"))
     if status:
         raise subprocess.CalledProcessError(status, argv)
+
+
+def take_build_only(environment: dict[str, str] | None = None) -> bool:
+    """Whether `os.environ` held `DR_PROBE_BUILD_ONLY=1`, once the variable is removed from it and from
+    `environment` (the runner's child environment).
+
+    `build` ends the process under that variable, so a runner that removes its scratch folder afterwards calls
+    this first, builds, and returns after the build itself when it is true, launching nothing."""
+    build_only = os.environ.pop(BUILD_ONLY_ENV, None) == "1"
+    if environment is not None:
+        environment.pop(BUILD_ONLY_ENV, None)
+    return build_only
 
 
 def build(*, sources: Sequence[Path], bridging_header: Path, library: Path, output: Path, log: Path,

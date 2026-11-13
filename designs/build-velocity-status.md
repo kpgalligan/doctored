@@ -101,8 +101,8 @@ left as written.
 
 ## Phase 6
 `fa47689` (6a), `ad33e84` (6b): all 20 of the plan's probe runners build through `scripts/probe_build.py`, which keeps the linked probe
-in `build/probe-cache/<key>/` (eight entries) and a persistent module cache. The gain is the reuse on unchanged sources, not the
-compile. The `probes` gate step type-checks changed or last-failed probe directories only, so a committed one is checked by hand.
+in `build/probe-cache/<key>/` (sixteen entries since 2026-11-12, eight before) and a persistent module cache. The gain is the reuse
+on unchanged sources, not the compile. The `probes` gate step type-checks changed or last-failed probe directories only, so a committed one is checked by hand.
 Existing failures found: `color-metadata-probe` and `test_provenance_manifests.py` (fixed since) and `verify_phase8c.py --host-only`,
 whose host probe hung; it passed 2026-11-12 under `DR_BACKGROUND=1`, the hang's cause unrecorded.
 
@@ -110,11 +110,27 @@ Since 2026-11-12 the gate's `precision-probe` step runs `scripts/precision-probe
 and its oracles went stale unseen until a batch ran it by hand. A gate step, not a periodic runner, because the tree has no periodic
 probe runner and a new one would have no owner. The probe compiles under `DR_PROBE_BUILD_ONLY=1` beside the legs and runs under
 `DR_BACKGROUND=1` once every leg has ended, since its verdicts include wall-clock bounds; the step is skipped while the app sources,
-the header, the probe directory, `app/Info.plist` and the core library are unchanged since its last pass. Another runner's small run
+the header, the probe directory, the sources of `app/Info.plist` and the core library are unchanged since its last pass. Another runner's small run
 would be one more `PROBE_RUNS` entry in `gate.py`. The `--large*` modes measure time and memory on 24 MP sources and stay out of the
 gate. `probe_build.py` makes `build/probe-module-cache` again when it was made at another path, since a `build/` copied from another
 checkout failed every probe compile. `make gate GATE_ARGS=--force` with the cached probe moved aside: the step 103.9 s (compile 99.1 s
 beside the suite's 110.2 s, run 4.8 s), `gate: PASS 146.6s`; with the probe cached, `make gate` ran the step in 5.3 s.
+
+Also since 2026-11-12, nine runners' small runs are `PROBE_RUNS` steps: `precision-probe`, `history-probe`,
+`selection-history-probe`, `selection-probe --synthetic` (it skips the three checks that read private photo folders),
+`save-preservation-probe`, `color-metadata-probe`, `data-migration-probe`, `path-guard-probe` and `updater-probe`. The eight that
+joined read only the tree and system profiles and never came to the front under `DR_BACKGROUND=1` in any watched run; the precision
+probe did, for a second, until it stopped calling `finishLaunching` (which activates the app) under that variable. Each takes
+`DR_PROBE_BUILD_ONLY` itself (`probe_build.take_build_only`) and is keyed on its directory, the helpers it loads, and `project.yml`
+and `VERSION` for the generated, git-ignored `app/Info.plist`, which `core-build` (now `make rust project`) writes before any leg
+reads it. Left out: `jobs-probe`, which has no small run (about 234 s, reads `~/devel/doctored-fixtures`, has `ui_*` event
+cases); the sets that are not verifiers (`screens-probe`, `reach-probe`, `raw-local-probe`, `artwork-text-probe`,
+`raw-decode-probe`, `model-fixtures`); and the eight run only from a `scripts/*_ui.py` drive, which takes the focus. Joining found two stale oracles, fixed: Crop to Selection and a half turn carry the selection now,
+and the PSD evidence's native reader peels the Background mark word 113. Each build is a whole-app compile, so at most
+`PROBE_BUILD_JOBS = 2` run at once, and the cache keeps 16 builds so all nine survive to their runs (the gate refuses more runs
+than that). `make gate GATE_ARGS=--force` with the probe cache moved aside: at 2, `gate: PASS 685.7s` (the app built warm, 8.0 s;
+the nine builds over 12–484 s; each step 85.2–137.1 s); at 1, 1209.5 s (a cold app build, 471.3 s; the builds over 13–1000 s).
+After a Swift change the probe compiles are the gate's critical path, past the 8-minute look.
 
 ## Phase 7a
 `6e5d2e6`: `DoctoredCore.swift` keeps the handle classes and error plumbing; its other sections moved verbatim into 44

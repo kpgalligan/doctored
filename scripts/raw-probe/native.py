@@ -52,6 +52,7 @@ TYPED_PROJECTIVE = core_word('core/src/source_transform_native.rs', 'PRECISION_V
 BYTE_WARP = core_word('core/src/warp_native.rs', 'BYTE_VERSION')
 TYPED_WARP = core_word('core/src/warp_native.rs', 'PRECISION_VERSION')
 BYTE_KNOCKOUT = core_word('core/src/style_knockout.rs', 'BYTE_VERSION')
+BACKGROUND_MARK = core_word('core/src/background_native.rs', 'WORD')
 
 
 def digest(data):
@@ -248,12 +249,17 @@ def _warp_entries(data, at, end, records, sample_bytes):
 
 
 def _peel(data, inner=None):
-    """-> (body, shift, ids, identity_word, projective, refusals, warp, knockout); see `identity_body`."""
+    """-> (body, shift, ids, identity_word, projective, refusals, warp, knockout, background); see
+    `identity_body`."""
     assert len(data) >= 8 and data[:4] in (b'RZDC', b'DRDC')
     outer = struct.unpack_from('<I', data, 4)[0]
     if outer not in (BYTE_IDENTITY, TYPED_IDENTITY):
-        return data, 0, None, None, {}, {}, {}, False
+        return data, 0, None, None, {}, {}, {}, False, None
     start = 8
+    background_word = (outer == BYTE_IDENTITY and len(data) >= 12
+                       and struct.unpack_from('<I', data, 8)[0] == BACKGROUND_MARK)
+    if background_word:
+        start = 12
     light_word = (outer == TYPED_IDENTITY and len(data) >= 12
                   and struct.unpack_from('<I', data, 8)[0] == TYPED_GLOBAL_LIGHT)
     if light_word:
@@ -288,8 +294,16 @@ def _peel(data, inner=None):
         assert start + 4 <= lids
         version = struct.unpack_from('<I', data, start)[0]
         assert version in inner.get(outer, ()), (outer, version)
-    projective, refusals, warp = {}, {}, {}
+    projective, refusals, warp, background = {}, {}, {}, None
     end = lids
+    if background_word:
+        # LBKG: tag, u32 schema 1, u32 bottom-first layer index, u32 role (1 Background, 2 Ordinary) —
+        # fixed 16 bytes, the last table before LIDS.
+        assert end - 16 >= start and data[end - 16:end - 12] == b'LBKG'
+        schema, index, role = struct.unpack_from('<III', data, end - 12)
+        assert schema == 1 and index < len(ids) and role in (1, 2), (schema, index, role)
+        background = (index, role)
+        end -= 16
     if light_word:
         # LGLT: tag, u32 schema 1, f32 angle, f32 altitude — fixed 16 bytes,
         # the last table before LIDS.
@@ -315,7 +329,7 @@ def _peel(data, inner=None):
             assert layer not in projective
             projective[layer] = list(struct.unpack_from('<9d', data, offset + 4))
         end = marker
-    return data[:4] + data[start:end], start - 4, ids, outer, projective, refusals, warp, knockout
+    return data[:4] + data[start:end], start - 4, ids, outer, projective, refusals, warp, knockout, background
 
 
 def identity_body(data, inner=None):
@@ -323,7 +337,10 @@ def identity_body(data, inner=None):
 
     Word BYTE_IDENTITY/TYPED_IDENTITY (45/46) at offset 4 wraps an older body
     and appends one LIDS table (schema 1, count, count nonzero unique u64 ids)
-    as the file's last bytes. Typed word TYPED_GLOBAL_LIGHT (58), when it is
+    as the file's last bytes. Byte word BACKGROUND_MARK (113), when it is the
+    first word inside, adds one fixed 16-byte LBKG table (tag, u32 schema 1,
+    u32 layer index, u32 role) just before LIDS, which is peeled and set aside
+    (`background_mark` returns it). Typed word TYPED_GLOBAL_LIGHT (58), when it is
     the first word inside, adds one fixed 16-byte LGLT table (tag, u32 schema
     1, f32 angle, f32 altitude) just before LIDS, which is peeled and dropped.
     Word BYTE_REFUSAL/TYPED_REFUSAL (56/57), next inside, adds one RSPR table
@@ -337,7 +354,7 @@ def identity_body(data, inner=None):
     BYTE_PROJECTIVE/TYPED_PROJECTIVE (51/52) word after those adds one RSPJ
     table (schema 1, count, count entries of u32 layer + 9 f64) just before
     WARP, LOPN, RSPR or LIDS. A byte BYTE_KNOCKOUT (49) word last adds no table
-    (`knockout_word` reports it). All eleven words come from the core source
+    (`knockout_word` reports it). All twelve words come from the core source
     constants (`core_word`). `body` is the DRDC magic
     plus the inner body, so body[4:8] is the inner version word; body position
     p >= 4 is file position p + shift. Any other outer word returns the data
@@ -362,6 +379,12 @@ def warp_entries(data):
 def knockout_word(data):
     """Whether a byte file carries the style-knockout word 49 inside 45."""
     return _peel(data)[7]
+
+
+def background_mark(data):
+    """(layer index, role) from a byte file's LBKG table, role 1 Background or
+    2 Ordinary; None without word 113."""
+    return _peel(data)[8]
 
 
 def read_native(path, *, pixels=True):

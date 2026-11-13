@@ -1,6 +1,8 @@
 # Recovery, history and snapshot AppKit probe
 
-Run `make rust project`, then:
+`make gate` runs this runner as its `history-probe` step, with `DR_BACKGROUND=1`,
+whenever the app sources, the header, this directory or the core library changed
+since its last pass (`PROBE_RUNS` in `scripts/gate.py`). By hand, run `make rust project`, then:
 
 ```sh
 python3 scripts/history-probe/verify.py --keep

@@ -287,7 +287,20 @@ if !requested.isEmpty, selectedChecks.count != requested.count {
     fputs("Unknown probe check name\n", stderr)
     exit(1)
 }
+// The checks that read the photo folders `--photos-dir` and `--people-dir` name. `--synthetic`
+// (`DR_SELECTION_PROBE_SYNTHETIC=1`, make gate's selection-probe step) skips them; any other run
+// without the folders fails them, so a hand run that forgot a folder is not silently thinner.
+let photoChecks: Set<String> = ["float subject targeting", "face parts", "people instances"]
+let synthetic = ProcessInfo.processInfo.environment["DR_SELECTION_PROBE_SYNTHETIC"] == "1"
+if !photoChecks.isSubset(of: Set(checks.map(\.0))) {
+    fputs("photoChecks names a check this probe does not have\n", stderr)
+    exit(1)
+}
 for (name, check) in selectedChecks {
+    if synthetic, photoChecks.contains(name) {
+        print("SKIP: \(name): needs the photo folders")
+        continue
+    }
     print("RUN: \(name)")
     fflush(stdout)
     do { try check() }

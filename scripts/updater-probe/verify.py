@@ -3,7 +3,10 @@
 
 Run `make rust project` first. The linked probe is built by `scripts/probe_build.py`
 and cached under `build/probe-cache`; the copy that runs and its logs live in a
-temporary directory, retained on failure or with --keep.
+temporary directory, retained on failure or with --keep. With
+`DR_PROBE_BUILD_ONLY=1` the runner stops after the build, launching nothing,
+and removes its scratch directory unless --keep. `make gate`'s `updater-probe`
+step runs it this way and then again in full.
 
 Like every probe, it compiles the app sources without `DR_UPDATER` and without a
 Sparkle module. It calls `AppUpdater.availability` and `isPublicKey` on in-memory
@@ -67,11 +70,15 @@ def verify(scratch):
 
     build_log = scratch / "build.log"
     binary = scratch / "probe"
+    build_only = probe_build.take_build_only(environment)
     probe_build.build(
         sources=[*probe_build.app_sources(), *probe_build.probe_sources("updater-probe")],
         bridging_header=ROOT / "app/Bridging/Doctored-Bridging-Header.h",
         library=library / "libdoctored_core.a", info_plist=info_copy,
         output=binary, log=build_log, env=environment, timeout=600)
+    if build_only:
+        print(f"build only: {binary}", flush=True)
+        return
 
     run_log = scratch / "run.log"
     command = [str(binary)]

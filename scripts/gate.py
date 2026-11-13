@@ -3,10 +3,14 @@
 
 Steps: `wait`, `docs`, `release`, `fmt`, `core-build`, then the Rust leg
 (`clippy`, `tests`, `mcp-tests`) beside the Swift leg (`app`, `launch`) and the
-agent leg (`agent-tests`), then `precision-probe`, then `probes`. `docs` is
-`scripts/check_docs.py` and `release` is `make release-check` (the release
-tools' selftests: `scripts/appcast.py` and `scripts/updater_check.py`, about a
-second); both run every time. `fmt` checks both crates (`core/` and the `doctored-mcp` helper's
+agent leg (`agent-tests`), then one step per probe run (`PROBE_RUNS`), then
+`probes`. `docs` is `scripts/check_docs.py` and `release` is `make
+release-check` (the release tools' selftests: `scripts/appcast.py` and
+`scripts/updater_check.py`, about a second); both run every time. `core-build`
+is `make rust project`: the release core, whose hash the Swift and probe legs
+fold in, and the generated `app/Info.plist` the probe runs embed, made before
+any leg reads it (the `app` step's own `make project` then leaves the unchanged
+file alone). `fmt` checks both crates (`core/` and the `doctored-mcp` helper's
 `mcp-proxy/`). `clippy` is `make lint`: `scripts/check_layers.py`, then cargo
 clippy on both crates. `mcp-tests` is `make mcp-test`, the helper's own suite.
 `agent-tests` is `make agent-test`, the assistant helper's own suite (`swift
@@ -31,18 +35,28 @@ hardened runtime, has run, where the `agent-tests` suite runs SwiftPM's debug
 build. A leg whose inputs hash to the value stored at its last pass is
 skipped.
 
-`precision-probe` is the precision probe's small run,
-`scripts/precision-probe/verify.py` with no flag (its `--large*` modes measure
-time and memory on 24 MP sources and never run here), and the one entry of
-`PROBE_RUNS`. Such a step runs its runner twice under `DR_BACKGROUND=1`, into
-one log: under `DR_PROBE_BUILD_ONLY=1` beside the Rust and Swift legs, which
-compiles the probe into `build/probe-cache` and launches nothing, then once
-every leg has ended, which reuses that build, runs the probe and checks its
-oracles. The run waits because the probe's verdicts include wall-clock bounds
+The probe-run steps are `PROBE_RUNS`, each a probe runner's small run, named
+after its directory: `precision-probe` (no flag; its `--large*` modes measure
+time and memory on 24 MP sources and never run here), `history-probe`,
+`selection-history-probe`, `selection-probe` (`--synthetic`: the checks that
+read private photo folders are skipped), `save-preservation-probe`,
+`color-metadata-probe`, `data-migration-probe`, `path-guard-probe` and
+`updater-probe`. Such a step runs its runner twice under `DR_BACKGROUND=1`,
+into one log: under `DR_PROBE_BUILD_ONLY=1` beside the Rust and Swift legs,
+which compiles the probe into `build/probe-cache` and launches nothing, then
+once every leg has ended, which reuses that build, runs the probe and checks
+its oracles. Each build phase compiles the whole app with its probe, so at most
+`PROBE_BUILD_JOBS` of them run at once; the others wait for a slot before their
+runner starts, so a runner's own compile timeout never counts the wait. The
+runs wait for the legs because the probes' verdicts include wall-clock bounds
 (a closed window gets two seconds of event turns to release its document), and
-they must not depend on the load of the gate's own legs. The step is skipped
-while its inputs (`ProbeRun.inputs`) and the core library hash to its last
-pass; a failure stores nothing, so the next gate runs it again.
+they must not depend on the load of the gate's own legs; they run one at a
+time, in `PROBE_RUNS` order. A step is skipped while its inputs
+(`ProbeRun.inputs`) and the core library hash to its last pass; a failure
+stores nothing, so the next gate runs it again. The gate refuses to start with
+more probe runs than `build/probe-cache` keeps builds
+(`probe_build.KEEP_ENTRIES`), since each build would then prune an earlier one
+before its run reused it.
 
 `probes` type-checks, through
 `scripts/probe_build.py --typecheck`, each probe set whose directory under
@@ -123,8 +137,8 @@ BUILD_TOOLS = ("cargo", "rustc", "clippy-driver", "xcodebuild", "swift-build", "
 GATE_SCRIPTS = ("run_tests.py", "gate.py")
 TIMES_HEADER = "utc\tcommit\tstep\tseconds\texit\tswift_files\ttest_binaries\n"
 # A diagnostic's `error:` / `error[E0308]:`, not xcodebuild's `...=YES_ERROR` setting lines; a probe's failed
-# group (`FAIL: <group>: …`) and its runner's `Probe failed: …` line.
-FIRST_ERRORS = re.compile(r"(?i:\berror)(?:\[\w+\])?:|panicked at|FAILED|failed binaries|^FAIL: |Probe failed:")
+# group or case (`FAIL: <group>: …`, `FAIL [<check>]: …`, `FAIL <case>`) and its runner's `Probe failed: …` line.
+FIRST_ERRORS = re.compile(r"(?i:\berror)(?:\[\w+\])?:|panicked at|FAILED|failed binaries|^FAIL\b|Probe failed:")
 LAUNCH_TIMEOUT_S = 60
 # Stored under "probe:<set name>" after a failing type check; never equal to an input hash (64 hex characters).
 PROBE_FAILED = "failed"
@@ -140,13 +154,44 @@ class ProbeRun(NamedTuple):
     inputs: tuple[str, ...]
 
 
-# The probe runs that are gate steps, each a runner's small run; a mode that measures time or memory never is.
+# What every probe run reads besides its own directory: the app sources and the header it compiles
+# (PROBE_INPUTS), the private-directory list it loads, and the `app/Info.plist` it embeds, which `make project`
+# generates from `project.yml` and `VERSION`; git ignores that file, so `input_hash` could not see it.
+RUNNER_INPUTS = (*PROBE_INPUTS, "scripts/verification_isolation.py", "project.yml", "VERSION")
+
+
+def probe_run(step: str, *flags: str, reads: tuple[str, ...] = ()) -> ProbeRun:
+    """The probe run `step`: `scripts/<step>/verify.py` with `flags`, whose inputs are RUNNER_INPUTS, its own
+    directory and `reads`."""
+    return ProbeRun(step, ("python3", "-B", f"scripts/{step}/verify.py", *flags),
+                    (*RUNNER_INPUTS, f"scripts/{step}/", *reads))
+
+
+# The probe runs that are gate steps, each a runner's small run; a mode that measures time or memory never is,
+# and neither is a runner that reads private photos or fixtures outside the tree or sends synthesized events.
 PROBE_RUNS = (
-    # `verify.py` compiles the app sources with the probe, embeds `app/Info.plist` in it and loads
-    # `scripts/verification_isolation.py`.
-    ProbeRun("precision-probe", ("python3", "-B", "scripts/precision-probe/verify.py"),
-             (*PROBE_INPUTS, "scripts/precision-probe/", "scripts/verification_isolation.py", "app/Info.plist")),
+    probe_run("precision-probe"),
+    probe_run("history-probe"),
+    probe_run("selection-history-probe"),
+    # It writes its fixtures with two other probes' helpers.
+    probe_run("selection-probe", "--synthetic",
+              reads=("scripts/retouch-probe/fixtures.py", "scripts/mask-probe/fixtures.py")),
+    # The layered TIFF writer and the float fixture; its `oversized.rs` links the core's rlib, which cargo builds
+    # with the archive the core library's hash covers.
+    probe_run("save-preservation-probe",
+              reads=("scripts/layer_block_tiff.py", "core/tests/fixtures/float_11f/scene.tiff")),
+    # The DNG writer, and the native reader `psd_evidence.py` loads with the PNG reader that one loads.
+    probe_run("color-metadata-probe",
+              reads=("scripts/phase3_fixtures.py", "scripts/live-filter-probe/native.py",
+                     "scripts/raw-probe/native.py")),
+    probe_run("data-migration-probe"),
+    probe_run("path-guard-probe"),
+    probe_run("updater-probe"),
 )
+# Each build phase is a whole-app compile beside the Release build and the suite, so at most this many run at
+# once; designs/build-velocity-status.md (Phase 6) has the forced gates measured at 1 and 2.
+PROBE_BUILD_JOBS = 2
+probe_build_slots = threading.BoundedSemaphore(PROBE_BUILD_JOBS)
 STEPS = ("wait", "docs", "release", "fmt", "core-build", "clippy", "tests", "mcp-tests", "agent-tests", "app",
          "launch", *(probe.step for probe in PROBE_RUNS), "probes")
 
@@ -536,10 +581,14 @@ def probe_run_phase(probe: ProbeRun, phase: str, environment: dict[str, str], lo
 def probe_build_phase(probe: ProbeRun, outcome: dict) -> None:
     """`probe`'s first phase, beside the Rust and Swift legs: its runner under `DR_PROBE_BUILD_ONLY=1`, which
     compiles the probe into `build/probe-cache` (or finds it there) and launches nothing. It starts the step's
-    log and puts the phase's `code` and `seconds` in `outcome`."""
+    log, waits for one of the `PROBE_BUILD_JOBS` build slots before the runner starts, and puts the phase's
+    `code` and `seconds` (the wait left out) in `outcome`."""
     environment = dict(os.environ, DR_BACKGROUND="1", **{probe_build.BUILD_ONLY_ENV: "1"})
     with log_path(probe.step).open("wb") as log:
-        outcome["code"], outcome["seconds"] = probe_run_phase(probe, "build", environment, log)
+        waiting = time.monotonic()
+        with probe_build_slots:
+            log.write(f"{probe.step}: waited {time.monotonic() - waiting:.1f}s for a probe build slot\n".encode())
+            outcome["code"], outcome["seconds"] = probe_run_phase(probe, "build", environment, log)
 
 
 def probe_run_finish(probe: ProbeRun, wanted: str, outcome: dict) -> None:
@@ -660,12 +709,13 @@ def gate() -> int:
                                                  "core build, clippy, the whole suite, the doctored-mcp suite, "
                                                  "the assistant helper's suite, the Release app build, a launch "
                                                  "over a scratch socket with the Release bundle's updater check "
-                                                 "(R1–R5), the precision probe's small run "
-                                                 "(scripts/precision-probe/verify.py) and the probes step (a type "
-                                                 "check of each changed probe directory); skip a leg whose inputs "
-                                                 "are unchanged since its last pass.")
+                                                 "(R1–R5), the probe runs (PROBE_RUNS: each a probe runner's "
+                                                 "small run, built beside the legs at most PROBE_BUILD_JOBS at a "
+                                                 "time and run once they end) and the probes step (a type check of "
+                                                 "each changed probe directory); skip a leg whose inputs are "
+                                                 "unchanged since its last pass.")
     parser.add_argument("--force", action="store_true",
-                        help="ignore stored hashes; run every step, the precision-probe step included (the probes "
+                        help="ignore stored hashes; run every step, the probe-run steps included (the probes "
                              "step still checks only probe directories that changed or failed last time)")
     parser.add_argument("--wait", type=float, default=120, metavar="SECONDS",
                         help="seconds to wait for this checkout's build/gate.lock and for builds, whole-suite "
@@ -676,6 +726,9 @@ def gate() -> int:
                              "a Swift pass is then not stored, and the updater check's rows R1–R5 apply "
                              "only to the Release bundle, so they are not run")
     args = parser.parse_args()
+    if len(PROBE_RUNS) > probe_build.KEEP_ENTRIES:
+        raise RuntimeError(f"{len(PROBE_RUNS)} probe runs, but build/probe-cache keeps {probe_build.KEEP_ENTRIES} "
+                           "builds: each build would prune an earlier one before its run reused it")
 
     started = time.monotonic()
     deadline = started + args.wait
@@ -724,7 +777,7 @@ def gate() -> int:
         fmt_code = "skip"
 
     probe_runs: list[tuple[ProbeRun, str, dict]] = []
-    if run("core-build", ["cargo", "build", "--release"], CORE) != 0:
+    if run("core-build", ["make", "rust", "project"], ROOT) != 0:
         for step in ("clippy", "tests", "mcp-tests", "app", "launch", *(probe.step for probe in PROBE_RUNS)):
             skip(step, "the core build failed")
     else:

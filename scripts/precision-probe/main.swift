@@ -257,7 +257,9 @@ func verifyTypedResources() throws {
 let app = NSApplication.shared
 AutomationAlerts.installIfEnabled()
 app.setActivationPolicy(.accessory)
-app.finishLaunching()
+// `finishLaunching` activates the app (AppKit's documented behaviour), which brought this probe to the
+// front during make gate's precision-probe step; under DR_BACKGROUND=1 it never takes the focus.
+if !BackgroundLaunch.isEnabled { app.finishLaunching() }
 if ProcessInfo.processInfo.environment["DR_PRECISION_LARGE_PUBLIC"] == "1" {
     do { try verifyLargePublicWorkflow(); exit(0) }
     catch { print("FAIL: large public report: \(error)"); exit(1) }

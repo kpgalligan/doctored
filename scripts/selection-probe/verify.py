@@ -4,6 +4,11 @@
 Run `make rust project` first. The linked probe is built by `scripts/probe_build.py`
 and cached under `build/probe-cache`; the copy that runs, fixtures and logs
 live in a temporary directory, retained on failure or with --keep.
+`--synthetic` skips the checks that read the photo folders; without it, those
+checks fail unless --photos-dir and --people-dir name them. With
+`DR_PROBE_BUILD_ONLY=1` the runner stops after the build, launching nothing,
+and removes its scratch directory unless --keep. `make gate`'s
+`selection-probe` step runs `--synthetic` this way and then again in full.
 """
 
 import argparse
@@ -46,7 +51,7 @@ def run_logged(command, log_path, environment, timeout):
         )
 
 
-def verify(scratch, photos_dir=None, checks=None, people_dir=None):
+def verify(scratch, photos_dir=None, checks=None, people_dir=None, synthetic=False):
     library = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "core/target")) / "release"
     info = ROOT / "app/Info.plist"
     for required in [library / "libdoctored_core.a", info]:
@@ -66,6 +71,9 @@ def verify(scratch, photos_dir=None, checks=None, people_dir=None):
     )
     if checks:
         environment["DR_SELECTION_PROBE_CHECKS"] = checks
+    environment.pop("DR_SELECTION_PROBE_SYNTHETIC", None)
+    if synthetic:
+        environment["DR_SELECTION_PROBE_SYNTHETIC"] = "1"
     if photos_dir:
         environment["DR_SELECTION_PHOTO_DIR"] = str(photos_dir.resolve())
     if people_dir:
@@ -102,11 +110,15 @@ def verify(scratch, photos_dir=None, checks=None, people_dir=None):
 
     build_log = scratch / "build.log"
     binary = scratch / "probe"
+    build_only = probe_build.take_build_only(environment)
     probe_build.build(
         sources=[*probe_build.app_sources(), *probe_build.probe_sources("selection-probe")],
         bridging_header=ROOT / "app/Bridging/Doctored-Bridging-Header.h",
         library=library / "libdoctored_core.a", info_plist=info_copy,
         output=binary, log=build_log, env=environment, timeout=600)
+    if build_only:
+        print(f"build only: {binary}", flush=True)
+        return
 
     run_log = scratch / "run.log"
     run_logged([
@@ -122,14 +134,19 @@ def main():
     parser.add_argument("--photos-dir", type=Path, help="Pinned photos from scripts/phase6_quality_fixtures.py for Vision qualification.")
     parser.add_argument("--people-dir", type=Path, help="The group photos for the people instances check, read in place.")
     parser.add_argument("--checks", help="Comma-separated check names for diagnosis; omit for the complete suite.")
+    parser.add_argument("--synthetic", action="store_true",
+                        help="Skip the checks that read the photo folders (make gate's selection-probe step).")
     arguments = parser.parse_args()
     if platform.system() != "Darwin":
         parser.error("This probe requires macOS, AppKit and the Apple Silicon build toolchain.")
+    if arguments.synthetic and (arguments.photos_dir or arguments.people_dir or arguments.checks):
+        parser.error("--synthetic runs every check that reads no photo folder; it takes no --photos-dir, "
+                     "--people-dir or --checks.")
 
     scratch = Path(tempfile.mkdtemp(prefix="doctored-selection-probe-"))
     print(f"Probe scratch directory: {scratch}", flush=True)
     try:
-        verify(scratch, arguments.photos_dir, arguments.checks, arguments.people_dir)
+        verify(scratch, arguments.photos_dir, arguments.checks, arguments.people_dir, arguments.synthetic)
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
         reason = str(error)
         if isinstance(error, subprocess.CalledProcessError):
