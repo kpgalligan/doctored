@@ -327,7 +327,7 @@ def run(arguments, scratch, out, fixtures_root):
     environment.pop(probe_build.BUILD_ONLY_ENV, None)
     binary = scratch / "probe"
     probe_build.build(
-        sources=[*probe_build.app_sources(), *probe_build.probe_sources(PROBE)],
+        app_sources=probe_build.app_sources(), sources=probe_build.probe_sources(PROBE),
         bridging_header=ROOT / probe_build.BRIDGING_HEADER, library=library, info_plist=info_copy,
         output=binary, log=scratch / "build.log", env=environment, timeout=600)
     if build_only:

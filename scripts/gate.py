@@ -45,9 +45,11 @@ read private photo folders are skipped), `save-preservation-probe`,
 into one log: under `DR_PROBE_BUILD_ONLY=1` beside the Rust and Swift legs,
 which compiles the probe into `build/probe-cache` and launches nothing, then
 once every leg has ended, which reuses that build, runs the probe and checks
-its oracles. Each build phase compiles the whole app with its probe, so at most
-`PROBE_BUILD_JOBS` of them run at once; the others wait for a slot before their
-runner starts, so a runner's own compile timeout never counts the wait. The
+its oracles. The build phases share one compile of the app sources (the app
+part, `probe_build.py`): the first to need it compiles it, the others wait on its
+lock, and each then compiles only its own probe against it. At most
+`PROBE_BUILD_JOBS` build phases run at once; the others wait for a slot before
+their runner starts, so a runner's own compile timeout never counts that wait. The
 runs wait for the legs because the probes' verdicts include wall-clock bounds
 (a closed window gets two seconds of event turns to release its document), and
 they must not depend on the load of the gate's own legs; they run one at a
@@ -188,8 +190,9 @@ PROBE_RUNS = (
     probe_run("path-guard-probe"),
     probe_run("updater-probe"),
 )
-# Each build phase is a whole-app compile beside the Release build and the suite, so at most this many run at
-# once; designs/build-velocity-status.md (Phase 6) has the forced gates measured at 1 and 2.
+# The first build phase compiles the app part beside the Release build and the suite while the others wait on its
+# lock; then each is a compile of its own probe of seconds, so more slots would buy little. At most this many run at
+# once; designs/build-velocity-status.md (Phase 6) has the forced gates measured.
 PROBE_BUILD_JOBS = 2
 probe_build_slots = threading.BoundedSemaphore(PROBE_BUILD_JOBS)
 STEPS = ("wait", "docs", "release", "fmt", "core-build", "clippy", "tests", "mcp-tests", "agent-tests", "app",
@@ -711,7 +714,8 @@ def gate() -> int:
                                                  "over a scratch socket with the Release bundle's updater check "
                                                  "(R1–R5), the probe runs (PROBE_RUNS: each a probe runner's "
                                                  "small run, built beside the legs at most PROBE_BUILD_JOBS at a "
-                                                 "time and run once they end) and the probes step (a type check of "
+                                                 "time against one compile of the app sources, and run once they "
+                                                 "end) and the probes step (a type check of "
                                                  "each changed probe directory); skip a leg whose inputs are "
                                                  "unchanged since its last pass.")
     parser.add_argument("--force", action="store_true",

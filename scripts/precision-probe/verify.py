@@ -121,7 +121,7 @@ def run(scratch, large, large_color, large_pixels, large_public, library_source)
     build_only = os.environ.pop(probe_build.BUILD_ONLY_ENV, None) == '1'
     environment.pop(probe_build.BUILD_ONLY_ENV, None)
     probe_build.build(
-        sources=[*probe_build.app_sources(), *probe_build.probe_sources('precision-probe')],
+        app_sources=probe_build.app_sources(), sources=probe_build.probe_sources('precision-probe'),
         bridging_header=ROOT / 'app/Bridging/Doctored-Bridging-Header.h', library=library,
         info_plist=scratch / 'Info.plist', output=binary, log=scratch / 'build.log',
         env=environment, timeout=900)

@@ -129,7 +129,8 @@ def verify(scratch, archive, checks):
     binary = scratch / "probe"
     build_only = probe_build.take_build_only(environment)
     probe_build.build(
-        sources=[*probe_build.app_sources(frozen), *probe_build.probe_sources("color-metadata-probe", frozen)],
+        app_sources=probe_build.app_sources(frozen),
+        sources=probe_build.probe_sources("color-metadata-probe", frozen),
         bridging_header=frozen / "app/Bridging/Doctored-Bridging-Header.h",
         library=library, link_library="file", info_plist=info_copy,
         output=binary, log=build_log, env=environment, timeout=600)

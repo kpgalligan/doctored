@@ -97,7 +97,8 @@ def host(scratch, library):
         assert file_hash(copied) == provenance[str(path.relative_to(ROOT))] == file_hash(path)
     binary = scratch / 'host-probe'
     probe_build.build(
-        sources=[snapshot / p.relative_to(ROOT) for p in sources + probes],
+        app_sources=[snapshot / p.relative_to(ROOT) for p in sources],
+        sources=[snapshot / p.relative_to(ROOT) for p in probes],
         bridging_header=snapshot / 'app/Bridging/Doctored-Bridging-Header.h',
         library=scratch / 'libdoctored_core.a', info_plist=scratch / 'Info.plist',
         output=binary, log=scratch / 'host-build.log', env=environment, timeout=900)

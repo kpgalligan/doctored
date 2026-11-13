@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Tests of `scripts/probe_build.py` on a synthetic two-file module in a temporary directory.
+"""Tests of `scripts/probe_build.py` on a synthetic module in a temporary directory: `helper.swift` is its
+app source, compiled as the app part, and `main.swift` its probe.
 
 Run: `python3 -B scripts/test_probe_build.py -v`. Needs the Swift toolchain; it never
 touches `build/probe-cache` or the app sources.
 """
 
 import contextlib
+import fcntl
 import importlib.util
 import io
 import json
@@ -43,8 +45,9 @@ probe_build = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(probe_build)
 probe_build.CACHE, probe_build.MODULE_CACHE = Path(sys.argv[2]), Path(sys.argv[3])
 inputs = json.loads(sys.argv[4])
-probe_build.build(sources=inputs["sources"], bridging_header=inputs["bridging_header"],
-                  library=inputs["library"], info_plist=inputs["info_plist"], objects=inputs["objects"],
+probe_build.build(app_sources=inputs["app_sources"], sources=inputs["sources"],
+                  bridging_header=inputs["bridging_header"], library=inputs["library"],
+                  info_plist=inputs["info_plist"], objects=inputs["objects"],
                   env=dict(os.environ), output=sys.argv[5], log=sys.argv[6], timeout=300)
 print("after build", flush=True)
 '''
@@ -71,9 +74,14 @@ def write_module(folder: Path) -> dict:
 
 
 def inputs_of(folder: Path) -> dict:
-    return dict(sources=[folder / "helper.swift", folder / "main.swift"], bridging_header=folder / "bridge.h",
-                library=folder / "lib/libdoctored_core.a", info_plist=folder / "Info.plist",
-                objects=[folder / "extra.o"], env=dict(os.environ))
+    return dict(app_sources=[folder / "helper.swift"], sources=[folder / "main.swift"],
+                bridging_header=folder / "bridge.h", library=folder / "lib/libdoctored_core.a",
+                info_plist=folder / "Info.plist", objects=[folder / "extra.o"], env=dict(os.environ))
+
+
+def jsonable(inputs: dict) -> str:
+    return json.dumps({name: (str(value) if isinstance(value, Path) else [str(path) for path in value])
+                       for name, value in inputs.items() if name != "env"})
 
 
 class ProbeBuildTests(unittest.TestCase):
@@ -89,12 +97,24 @@ class ProbeBuildTests(unittest.TestCase):
         self.log = self.scratch / "build.log"
 
     def build(self, output, **changes):
-        """`(Built, the stdout line)` of one `build` call."""
+        """`(Built, what it printed)` of one `build` call."""
         printed = io.StringIO()
         with contextlib.redirect_stdout(printed):
             built = probe_build.build(**{**self.inputs, **changes}, output=self.scratch / output, log=self.log,
                                       timeout=TIMEOUT_S)
         return built, printed.getvalue()
+
+    def child(self, output, inputs=None, build_only=False):
+        """A `BUILD_CHILD` process building `inputs` (the module's by default) to `output`, started."""
+        env = dict(os.environ)
+        env.pop(probe_build.BUILD_ONLY_ENV, None)
+        if build_only:
+            env[probe_build.BUILD_ONLY_ENV] = "1"
+        return subprocess.Popen(
+            [sys.executable, "-B", "-c", BUILD_CHILD, str(HERE / "probe_build.py"), str(self.scratch / "cache"),
+             str(self.scratch / "module-cache"), jsonable(inputs or self.inputs), str(self.scratch / output),
+             str(self.scratch / f"{output}.log")],
+            env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
     def run_probe(self, output):
         return subprocess.run([str(self.scratch / output)], stdout=subprocess.PIPE, text=True, check=True).stdout
@@ -103,14 +123,29 @@ class ProbeBuildTests(unittest.TestCase):
         cache = self.scratch / "cache"
         return sorted(child.name for child in cache.iterdir()) if cache.is_dir() else []
 
+    def probe_entries(self):
+        return [name for name in self.entries() if (self.scratch / "cache" / name).is_dir()
+                and not name.startswith(("app-", "tmp-"))]
+
+    def app_entries(self):
+        return [name for name in self.entries() if (self.scratch / "cache" / name).is_dir()
+                and name.startswith("app-")]
+
+    def write_probe(self, text, folder=None):
+        ((folder or self.module) / "main.swift").write_text(text)
+
     def test_first_build_is_stored_and_the_next_ones_reuse_it(self):
         first, printed = self.build("first")
         self.assertFalse(first.reused)
         self.assertRegex(first.key, r"^[0-9a-f]{16}$")
-        self.assertEqual(printed, f"built {first.key}\n")
+        self.assertRegex(first.app_key, r"^[0-9a-f]{16}$")
+        self.assertEqual(printed, f"built app part {first.app_key}\nbuilt {first.key}\n")
         self.assertEqual(first.entry, self.scratch / "cache" / first.key)
         self.assertEqual(sorted(child.name for child in first.entry.iterdir()),
                          ["build.log", "manifest.json", "probe"])
+        app_entry = self.scratch / "cache" / f"app-{first.app_key}"
+        self.assertLessEqual({"Doctored.swiftmodule", "libDoctoredApp.a", "manifest.json", "build.log"},
+                             {child.name for child in app_entry.iterdir()})
         self.assertEqual(self.run_probe("first"), "value 41 note one\n")
         sections = subprocess.run(["xcrun", "otool", "-l", str(self.scratch / "first")], stdout=subprocess.PIPE,
                                   text=True, check=True).stdout
@@ -131,7 +166,8 @@ class ProbeBuildTests(unittest.TestCase):
         third, _ = self.build("third", **inputs_of(elsewhere))
         self.assertTrue(third.reused)
         self.assertEqual(third.key, first.key)
-        self.assertEqual(self.entries(), [first.key])
+        self.assertEqual(self.probe_entries(), [first.key])
+        self.assertEqual(self.app_entries(), [f"app-{first.app_key}"])
 
     def test_key_changes_with_every_input(self):
         base = probe_build.cache_key(**self.inputs)
@@ -148,7 +184,8 @@ class ProbeBuildTests(unittest.TestCase):
         expect_new("link_library", link_library="file")
         expect_new("no Info.plist", info_plist=None)
         expect_new("no object", objects=[])
-        for name in ("helper.swift", "bridge.h", "inner/core.h", "lib/libdoctored_core.a", "Info.plist", "extra.o"):
+        for name in ("helper.swift", "main.swift", "bridge.h", "inner/core.h", "lib/libdoctored_core.a",
+                     "Info.plist", "extra.o"):
             with (self.module / name).open("ab") as stream:
                 stream.write(b"\n")
             expect_new(name)
@@ -196,22 +233,134 @@ class ProbeBuildTests(unittest.TestCase):
         probe_build._prune()
         self.assertEqual(self.entries(), [live.name])
 
-    def test_rebuild_after_a_source_edit_runs_the_new_code(self):
+    def test_a_probe_only_change_reuses_the_app_part(self):
+        first, _ = self.build("first")
+        self.write_probe('print(greeting() + " again")\n')
+        second, printed = self.build("second")
+        self.assertNotEqual(second.key, first.key)
+        self.assertEqual(second.app_key, first.app_key)
+        self.assertEqual(printed, f"reused app part {first.app_key}\nbuilt {second.key}\n")
+        self.assertEqual(self.app_entries(), [f"app-{first.app_key}"])
+        self.assertEqual(self.run_probe("second"), "value 41 note one again\n")
+
+    def test_an_app_source_change_rebuilds_the_app_part(self):
         first, _ = self.build("first")
         (self.module / "helper.swift").write_text(HELPER.replace("{note}", "two"))
         second, printed = self.build("second")
         self.assertFalse(second.reused)
         self.assertNotEqual(second.key, first.key)
-        self.assertEqual(printed, f"built {second.key}\n")
+        self.assertNotEqual(second.app_key, first.app_key)
+        self.assertEqual(printed, f"built app part {second.app_key}\nbuilt {second.key}\n")
         self.assertEqual(self.run_probe("first"), "value 41 note one\n")
         self.assertEqual(self.run_probe("second"), "value 41 note two\n")
-        self.assertEqual(self.entries(), sorted([first.key, second.key]))
+        self.assertEqual(self.probe_entries(), sorted([first.key, second.key]))
+        self.assertEqual(self.app_entries(), sorted([f"app-{first.app_key}", f"app-{second.app_key}"]))
+
+    def test_two_builds_racing_on_one_app_key_compile_it_once(self):
+        racer = self.scratch / "racer"
+        racer.mkdir()
+        self.write_probe('print("racer " + greeting())\n', racer)
+        racing = [self.child("one"), self.child("two", {**self.inputs, "sources": [racer / "main.swift"]})]
+        outputs = [process.communicate(timeout=TIMEOUT_S)[0] for process in racing]
+        for process, output in zip(racing, outputs):
+            self.assertEqual(process.returncode, 0, output)
+        printed = "".join(outputs)
+        self.assertEqual(printed.count("built app part "), 1, printed)
+        self.assertEqual(printed.count("reused app part "), 1, printed)
+        self.assertEqual(len(self.app_entries()), 1)
+        self.assertEqual(self.run_probe("one"), "value 41 note one\n")
+        self.assertEqual(self.run_probe("two"), "racer value 41 note one\n")
+
+    def test_a_copy_of_the_app_sources_elsewhere_reuses_the_app_part(self):
+        first, _ = self.build("first")
+        elsewhere = self.scratch / "elsewhere"
+        shutil.copytree(self.module, elsewhere)
+        self.write_probe('print("elsewhere " + greeting())\n', elsewhere)
+        second, printed = self.build("second", **inputs_of(elsewhere))
+        self.assertEqual(printed, f"reused app part {first.app_key}\nbuilt {second.key}\n")
+        self.assertEqual(self.run_probe("second"), "elsewhere value 41 note one\n")
+
+    def test_an_app_type_reached_only_by_name_is_linked(self):
+        # A source of its own, so its object is an archive member the probe never names by symbol.
+        (self.module / "named.swift").write_text('import Foundation\n@objc(ProbeBuildNamed) final class Named: '
+                                                 'NSObject {}\n')
+        self.write_probe('import Foundation\nprint(NSClassFromString("ProbeBuildNamed") == nil ? "missing" : '
+                         '"linked")\n')
+        self.build("probe", app_sources=[self.module / "helper.swift", self.module / "named.swift"])
+        self.assertEqual(self.run_probe("probe"), "linked\n")
+
+    def test_an_optimized_build_is_one_compile(self):
+        built, printed = self.build("probe", optimization="-O")
+        self.assertIsNone(built.app_key)
+        self.assertEqual(printed, f"built {built.key}\n")
+        self.assertEqual(self.app_entries(), [])
+        commands = [line for line in self.log.read_text().splitlines() if line.startswith("$ ")]
+        self.assertEqual(len(commands), 1, commands)
+        self.assertTrue(commands[0].startswith("$ xcrun swiftc -O -whole-module-optimization -module-name Doctored "))
+        self.assertIn(f" {self.module / 'helper.swift'} {self.module / 'main.swift'} ", commands[0])
+        self.assertEqual(self.run_probe("probe"), "value 41 note one\n")
+
+    def test_a_probe_sharing_a_basename_with_an_app_source_builds_threaded(self):
+        (self.module / "probe").mkdir()
+        (self.module / "probe/Helper.swift").write_text('func probeNote() -> String { "note" }\n')
+        built, printed = self.build("probe", sources=[self.module / "main.swift", self.module / "probe/Helper.swift"])
+        self.assertNotIn("no -num-threads", printed)
+        command = (built.entry / "build.log").read_text().splitlines()[0]
+        self.assertIn(" -num-threads ", command)
+        self.assertIn(" -module-name DoctoredProbe ", command)
+        self.assertEqual(self.run_probe("probe"), "value 41 note one\n")
+
+    def test_an_app_part_in_use_is_not_pruned_and_older_ones_are(self):
+        cache = self.scratch / "cache"
+        with mock.patch.object(probe_build, "KEEP_APP_ENTRIES", 1):
+            first, _ = self.build("first")
+            with open(cache / f"app-{first.app_key}.lock", "a") as held:
+                fcntl.flock(held, fcntl.LOCK_SH)     # a probe of another process compiling or linking against it
+                (self.module / "helper.swift").write_text(HELPER.replace("{note}", "two"))
+                second, _ = self.build("second")
+                self.assertEqual(self.app_entries(), sorted([f"app-{first.app_key}", f"app-{second.app_key}"]))
+            (self.module / "helper.swift").write_text(HELPER.replace("{note}", "three"))
+            third, _ = self.build("third")
+        self.assertEqual(self.app_entries(), [f"app-{third.app_key}"])
+        self.assertEqual(sorted(path.name for path in cache.glob("app-*.lock")), [f"app-{third.app_key}.lock"])
+        self.assertEqual(self.run_probe("third"), "value 41 note three\n")
+
+    def test_an_app_part_found_complete_is_not_pruned_before_its_probe_links(self):
+        first, _ = self.build("first")
+        self.write_probe('print(greeting() + " again")\n')
+        is_app_entry = probe_build._is_app_entry
+        pruned = []
+
+        def found_then_pruned(entry):
+            # Another process's prune, with nothing to keep, right after the build first finds the part.
+            found = is_app_entry(entry)
+            if not pruned:
+                pruned.append(entry)
+                with mock.patch.object(probe_build, "KEEP_APP_ENTRIES", 0):
+                    probe_build._prune()
+            return found
+
+        with mock.patch.object(probe_build, "_is_app_entry", found_then_pruned):
+            second, printed = self.build("second")
+        self.assertEqual(printed, f"reused app part {first.app_key}\nbuilt {second.key}\n")
+        self.assertEqual(self.run_probe("second"), "value 41 note one again\n")
+
+    def test_the_deployment_target_the_command_names_shares_the_app_part(self):
+        environment = dict(os.environ)
+        environment.pop("MACOSX_DEPLOYMENT_TARGET", None)
+        first, _ = self.build("first", env=environment)
+        second, printed = self.build("second", env=dict(environment, MACOSX_DEPLOYMENT_TARGET="15.0"))
+        self.assertEqual(printed, f"reused app part {first.app_key}\nbuilt {second.key}\n")
+        third, printed = self.build("third", env=dict(environment, MACOSX_DEPLOYMENT_TARGET="14.0"))
+        self.assertNotEqual(third.app_key, first.app_key)
+        self.assertEqual(printed, f"built app part {third.app_key}\nbuilt {third.key}\n")
 
     def test_only_the_newest_entries_are_kept(self):
         with mock.patch.object(probe_build, "KEEP_ENTRIES", 2):
             keys = [self.build(f"probe-{define}", defines=(define,))[0].key for define in ("A", "B", "C")]
         self.assertEqual(len(set(keys)), 3)
-        self.assertEqual(self.entries(), sorted(keys[1:]))
+        self.assertEqual(self.probe_entries(), sorted(keys[1:]))
+        self.assertEqual(len(self.app_entries()), 1)
 
     def test_source_rewritten_while_the_compiler_runs_stores_nothing(self):
         compile_once = probe_build._compile
@@ -223,34 +372,24 @@ class ProbeBuildTests(unittest.TestCase):
         with mock.patch.object(probe_build, "_compile", compile_then_rewrite), \
                 self.assertRaises(probe_build.ProbeBuildError):
             self.build("probe")
-        self.assertEqual(self.entries(), [])
+        self.assertEqual(self.probe_entries(), [])
+        self.assertEqual(self.app_entries(), [])
         self.assertFalse((self.scratch / "probe").exists())
 
     def test_build_only_exits_after_delivering_the_probe(self):
-        inputs = {name: (str(value) if isinstance(value, Path) else [str(path) for path in value])
-                  for name, value in self.inputs.items() if name != "env"}
-
-        def child(output, build_only):
-            env = dict(os.environ)
-            env.pop(probe_build.BUILD_ONLY_ENV, None)
-            if build_only:
-                env[probe_build.BUILD_ONLY_ENV] = "1"
-            return subprocess.run(
-                [sys.executable, "-B", "-c", BUILD_CHILD, str(HERE / "probe_build.py"), str(self.scratch / "cache"),
-                 str(self.scratch / "module-cache"), json.dumps(inputs), str(self.scratch / output), str(self.log)],
-                env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=TIMEOUT_S)
-
-        only = child("only", True)
-        self.assertEqual(only.returncode, 0, only.stdout)
-        self.assertIn(f"build only: {self.scratch / 'only'}\n", only.stdout)
-        self.assertNotIn("after build", only.stdout)
+        only = self.child("only", build_only=True)
+        printed = only.communicate(timeout=TIMEOUT_S)[0]
+        self.assertEqual(only.returncode, 0, printed)
+        self.assertIn(f"build only: {self.scratch / 'only'}\n", printed)
+        self.assertNotIn("after build", printed)
         self.assertTrue((self.scratch / "only").is_file())
-        self.assertIn(f"build only: {self.scratch / 'only'}\n", self.log.read_text())
+        self.assertIn(f"build only: {self.scratch / 'only'}\n", (self.scratch / "only.log").read_text())
 
-        full = child("full", False)
-        self.assertEqual(full.returncode, 0, full.stdout)
-        self.assertIn("after build", full.stdout)
-        self.assertNotIn("build only:", full.stdout)
+        full = self.child("full")
+        printed = full.communicate(timeout=TIMEOUT_S)[0]
+        self.assertEqual(full.returncode, 0, printed)
+        self.assertIn("after build", printed)
+        self.assertNotIn("build only:", printed)
 
     def test_a_module_cache_made_at_another_path_is_replaced(self):
         # Clang records the module cache's absolute path, so a copy at another path (a worktree's `build/`
@@ -280,8 +419,40 @@ class ProbeBuildTests(unittest.TestCase):
         (self.module / "helper.swift").write_text("func greeting() -> String { 1 }\n")
         with self.assertRaises(subprocess.CalledProcessError):
             self.build("probe")
-        self.assertEqual(self.entries(), [])
+        self.assertEqual(self.probe_entries(), [])
+        self.assertEqual(self.app_entries(), [])
         self.assertIn("error:", self.log.read_text())
+
+
+class TypeCheckTests(unittest.TestCase):
+    def setUp(self):
+        self.scratch = Path(tempfile.mkdtemp(prefix="rz-probe-check-test-")).resolve()
+        self.addCleanup(shutil.rmtree, self.scratch, ignore_errors=True)
+        for name, folder in (("CACHE", "cache"), ("MODULE_CACHE", "module-cache")):
+            patcher = mock.patch.object(probe_build, name, self.scratch / folder)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.module = self.scratch / "module"
+        inputs = write_module(self.module)
+        self.inputs = dict(app_sources=inputs["app_sources"], bridging_header=inputs["bridging_header"],
+                           env=inputs["env"])
+
+    def check(self, text, **changes):
+        """The type check's status for a probe of `text`."""
+        probe = self.scratch / "main.swift"
+        probe.write_text(text)
+        with contextlib.redirect_stdout(io.StringIO()):
+            return probe_build.typecheck_sources(sources=[probe], **{**self.inputs, **changes})
+
+    def test_the_type_check_fails_on_a_probe_error_and_passes_a_clean_probe(self):
+        self.assertNotEqual(self.check('let value: Int = greeting()\n'), 0)
+        self.assertEqual(self.check('print(greeting())\n'), 0)
+
+    def test_a_one_module_type_check_refuses_a_redeclared_app_name(self):
+        # The probe's own declaration shadows the app part's, but in one module it is a redeclaration.
+        redeclared = 'func greeting() -> String { "probe" }\nprint(greeting())\n'
+        self.assertNotEqual(self.check(redeclared, optimization="-O"), 0)
+        self.assertEqual(self.check(redeclared), 0)
 
 
 class TakeBuildOnlyTests(unittest.TestCase):

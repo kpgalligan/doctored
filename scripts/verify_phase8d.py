@@ -125,7 +125,8 @@ def host(folder, library):
         DR_RAW_WORKFLOW_PROBE_DIR=str(files), CLANG_MODULE_CACHE_PATH=str(folder / 'clang-cache'))
     binary = folder / 'host-probe'
     probe_build.build(
-        sources=[snapshot / p.relative_to(ROOT) for p in sources + probes],
+        app_sources=[snapshot / p.relative_to(ROOT) for p in sources],
+        sources=[snapshot / p.relative_to(ROOT) for p in probes],
         bridging_header=snapshot / 'app/Bridging/Doctored-Bridging-Header.h',
         library=folder / 'libdoctored_core.a', info_plist=folder / 'Info.plist',
         output=binary, log=folder / 'host-build.log', env=env, timeout=900)

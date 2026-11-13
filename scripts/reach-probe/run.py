@@ -78,7 +78,7 @@ def build(output, env):
         raise SystemExit("Missing the release core; run `cd core && cargo build --release` first.")
     binary = output / "reach-probe"
     (output / "build.log").write_text("")
-    probe_build.build(sources=probe_build.app_sources() + probe_build.probe_sources("reach-probe"),
+    probe_build.build(app_sources=probe_build.app_sources(), sources=probe_build.probe_sources("reach-probe"),
                       bridging_header=ROOT / "app/Bridging/Doctored-Bridging-Header.h",
                       library=library / "libdoctored_core.a", optimization="-O", output=binary,
                       log=output / "build.log", env=env, timeout=1800)

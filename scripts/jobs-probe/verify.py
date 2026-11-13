@@ -117,7 +117,7 @@ def verify(scratch):
     build_log = scratch / "build.log"
     binary = scratch / "probe"
     probe_build.build(
-        sources=[*probe_build.app_sources(), *probe_build.probe_sources("jobs-probe")],
+        app_sources=probe_build.app_sources(), sources=probe_build.probe_sources("jobs-probe"),
         bridging_header=ROOT / "app/Bridging/Doctored-Bridging-Header.h",
         library=library / "libdoctored_core.a", info_plist=info_copy,
         output=binary, log=build_log, env=environment, timeout=600)

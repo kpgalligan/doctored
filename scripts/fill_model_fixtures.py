@@ -98,7 +98,7 @@ def main() -> int:
     print(f"building scripts/model-fixtures (log {build_log})", flush=True)
     try:
         probe_build.build(
-            sources=[*probe_build.app_sources(), *probe_build.probe_sources("model-fixtures")],
+            app_sources=probe_build.app_sources(), sources=probe_build.probe_sources("model-fixtures"),
             bridging_header=ROOT / "app/Bridging/Doctored-Bridging-Header.h",
             library=library, info_plist=info_copy, output=binary, log=build_log,
             env=environment, timeout=900)

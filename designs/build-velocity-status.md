@@ -101,8 +101,9 @@ left as written.
 
 ## Phase 6
 `fa47689` (6a), `ad33e84` (6b): all 20 of the plan's probe runners build through `scripts/probe_build.py`, which keeps the linked probe
-in `build/probe-cache/<key>/` (sixteen entries since 2026-11-12, eight before) and a persistent module cache. The gain is the reuse
-on unchanged sources, not the compile. The `probes` gate step type-checks changed or last-failed probe directories only, so a committed one is checked by hand.
+in `build/probe-cache/<key>/` (sixteen entries since 2026-11-12, eight before), the compiled app sources in
+`build/probe-cache/app-<key>/` (since 2026-11-13, three kept), and a persistent module cache. The gain is the reuse on unchanged
+sources. The `probes` gate step type-checks changed or last-failed probe directories only, so a committed one is checked by hand.
 Existing failures found: `color-metadata-probe` and `test_provenance_manifests.py` (fixed since) and `verify_phase8c.py --host-only`,
 whose host probe hung; it passed 2026-11-12 under `DR_BACKGROUND=1`, the hang's cause unrecorded.
 
@@ -126,11 +127,20 @@ and `VERSION` for the generated, git-ignored `app/Info.plist`, which `core-build
 reads it. Left out: `jobs-probe`, which has no small run (about 234 s, reads `~/devel/doctored-fixtures`, has `ui_*` event
 cases); the sets that are not verifiers (`screens-probe`, `reach-probe`, `raw-local-probe`, `artwork-text-probe`,
 `raw-decode-probe`, `model-fixtures`); and the eight run only from a `scripts/*_ui.py` drive, which takes the focus. Joining found two stale oracles, fixed: Crop to Selection and a half turn carry the selection now,
-and the PSD evidence's native reader peels the Background mark word 113. Each build is a whole-app compile, so at most
-`PROBE_BUILD_JOBS = 2` run at once, and the cache keeps 16 builds so all nine survive to their runs (the gate refuses more runs
-than that). `make gate GATE_ARGS=--force` with the probe cache moved aside: at 2, `gate: PASS 685.7s` (the app built warm, 8.0 s;
-the nine builds over 12–484 s; each step 85.2–137.1 s); at 1, 1209.5 s (a cold app build, 471.3 s; the builds over 13–1000 s).
-After a Swift change the probe compiles are the gate's critical path, past the 8-minute look.
+and the PSD evidence's native reader peels the Background mark word 113. At most `PROBE_BUILD_JOBS = 2` builds run at once, and
+the cache keeps 16 linked probes so all nine survive to their runs (the gate refuses more runs than that).
+
+Since 2026-11-13 a probe build is two compiles (`scripts/probe_build.py`'s docstring): the app sources once per key as the testable
+module `Doctored` with a static archive (the app part), and each probe's own files as the module `DoctoredProbe` against it
+(`-testable-import-module`, so no probe file imports anything), linked with `-force_load` so app objects a probe reaches only at run
+time are still linked. The app part's key names no path, so a runner's snapshot copy reuses it, and builds of one key compile it once
+behind its lock. The `-O` runners (`reach-probe`, `raw-decode-probe`) stay one compile, since cross-module inlining would change what
+they measure. `--typecheck` checks each set in the shape its runner builds: against the app part (compiled first when no build has
+it, about 95 s), or with the app sources for the `-O` sets, where a probe that redeclares an app name must fail. The app target
+itself is still one module, so the rejected module split stands. `make gate GATE_ARGS=--force` with the probe cache moved aside, on
+an idle machine: before, `gate: PASS 618.7s` (nine builds 80.2–175.0 s each, the last ending 543 s in; the suite 338.8 s beside
+them); after, `gate: PASS 256.1s` (one app part, 114.3 s with its probe; the other eight 1.5–116.4 s, the longest waiting on it;
+the suite 114.6 s; the `probes` step, 52.4 s, ran only because the batch edited fourteen probe directories).
 
 ## Phase 7a
 `6e5d2e6`: `DoctoredCore.swift` keeps the handle classes and error plumbing; its other sections moved verbatim into 44

@@ -278,7 +278,8 @@ def build(output, env):
     probes = probe_build.probe_sources("raw-decode-probe")
     binary = output / "raw-decode-probe"
     (output / "build.log").write_text("")
-    probe_build.build(sources=sources + probes, bridging_header=ROOT / "app/Bridging/Doctored-Bridging-Header.h",
+    probe_build.build(app_sources=sources, sources=probes,
+                      bridging_header=ROOT / "app/Bridging/Doctored-Bridging-Header.h",
                       library=library / "libdoctored_core.a", info_plist=info_copy, optimization="-O",
                       output=binary, log=output / "build.log", env=env, timeout=1800)
     return binary

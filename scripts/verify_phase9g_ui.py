@@ -97,7 +97,8 @@ def main():
               'fixture_hashes': {p.name: digest(p) for p in sorted(args.fixtures.glob('fixture-*-opaque.png'))}}
     try:
         probe_build.build(
-            sources=[snapshot / p.relative_to(ROOT) for p in sources + probes],
+            app_sources=[snapshot / p.relative_to(ROOT) for p in sources],
+            sources=[snapshot / p.relative_to(ROOT) for p in probes],
             bridging_header=snapshot / 'app/Bridging/Doctored-Bridging-Header.h',
             library=folder / 'libdoctored_core.a', info_plist=folder / 'Info.plist',
             output=binary, log=folder / 'build.log', env=env, timeout=1200)

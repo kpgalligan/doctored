@@ -112,7 +112,7 @@ def verify(scratch, photos_dir=None, checks=None, people_dir=None, synthetic=Fal
     binary = scratch / "probe"
     build_only = probe_build.take_build_only(environment)
     probe_build.build(
-        sources=[*probe_build.app_sources(), *probe_build.probe_sources("selection-probe")],
+        app_sources=probe_build.app_sources(), sources=probe_build.probe_sources("selection-probe"),
         bridging_header=ROOT / "app/Bridging/Doctored-Bridging-Header.h",
         library=library / "libdoctored_core.a", info_plist=info_copy,
         output=binary, log=build_log, env=environment, timeout=600)

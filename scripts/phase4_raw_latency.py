@@ -80,7 +80,7 @@ def run(scratch):
     (scratch / "main.swift").write_text(MAIN)
     sources = probe_build.app_sources()
     binary = scratch / "probe"
-    probe_build.build(sources=[*sources, scratch / "main.swift"],
+    probe_build.build(app_sources=sources, sources=[scratch / "main.swift"],
                       bridging_header=ROOT / "app/Bridging/Doctored-Bridging-Header.h",
                       library=archive, link_library="file", output=binary, log=scratch / "build.log",
                       env=environment, timeout=600)
