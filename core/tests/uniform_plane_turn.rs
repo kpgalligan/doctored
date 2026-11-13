@@ -480,6 +480,11 @@ const RECORD_GENERATED: u64 = 240;
 /// 64 B with the record's padding, counted twice by the term): 128 B per
 /// record, of which a filtered turn takes 5/4.
 const RECORD_BLEND_IF: u64 = 160;
+/// What the same term grew by when each of the record's five inline images
+/// (its content and the source, two warp and generated renders) gained its
+/// 8 B alpha-fact cell (the flat-save list's per-plane memo): 40 B, counted
+/// twice by the term, 80 B per record, of which a filtered turn takes 5/4.
+const RECORD_ALPHA_FACTS: u64 = 100;
 
 fn at_head(head: (u64, u64)) -> (u64, u64) {
     (
@@ -490,6 +495,7 @@ fn at_head(head: (u64, u64)) -> (u64, u64) {
             + REFERENCE_MAP_GROWTH
             + RECORD_GENERATED
             + RECORD_BLEND_IF
+            + RECORD_ALPHA_FACTS
             - RECORD_SHRINK,
         head.1,
     )

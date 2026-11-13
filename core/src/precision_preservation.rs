@@ -13,10 +13,21 @@
 //! Indexed and Bitmap files are written from the policy's plane, never the
 //! layer's samples, so the pixel lines are not theirs: what their formats
 //! keep of transparency is the host's mode list.
+//!
+//! The pixel lines read every sample of an opaque plane, and the host asks
+//! for this list about 25 times per `get_document` and up to 9 times per
+//! File ▸ Save. So each plane scans once: its two facts live in the plane
+//! itself (`PrecisionImage::alpha_facts_once`, `CmykImage`'s twin), shared by
+//! every clone, which is every later handle that kept the layer's pixels. A
+//! plane's samples never change after it is built and every writer builds a
+//! new plane, whose cell starts empty, so a kept answer is always the
+//! samples' own; after a pixel edit only the planes it wrote scan again.
 
 use crate::blend::BlendMode;
+use crate::cmyk_image::CmykImage;
 use crate::flat_state::{self, EditableState};
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
+use crate::precision_image::PrecisionImage;
 
 /// Every record of `layers`, children after their group.
 fn records(layers: &[PrecisionDocumentLayer]) -> Vec<&PrecisionDocumentLayer> {
@@ -32,50 +43,94 @@ fn records(layers: &[PrecisionDocumentLayer]) -> Vec<&PrecisionDocumentLayer> {
 }
 
 /// `(any sample not opaque, any sample at alpha 0 with colour or ink)` of a
-/// pixel record; `(false, false)` for every other record. The exact float
-/// TIFF (`doc_export_float`) asks the second for the one layer it writes.
+/// pixel record, scanned once per plane (module doc); `(false, false)` for
+/// every other record. The exact float TIFF (`doc_export_float`) asks the
+/// second for the one layer it writes.
 pub(crate) fn alpha_facts(layer: &PrecisionDocumentLayer) -> (bool, bool) {
-    let (mut translucent, mut hidden) = (false, false);
     match &layer.content {
-        Content::Raster { image, .. } => {
-            if let Some(runs) = image.runs_rgba16() {
-                for p in runs.flatten() {
-                    translucent |= p[3] != u16::MAX;
-                    hidden |= p[3] == 0 && p[..3].iter().any(|&c| c != 0);
-                    if translucent && hidden {
-                        break;
-                    }
-                }
-            } else if let Some(runs) = image.runs_rgba32() {
-                for p in runs.flatten() {
-                    translucent |= p[3] != 1.0;
-                    hidden |= p[3] == 0.0 && p[..3].iter().any(|&c| c != 0.0);
-                    if translucent && hidden {
-                        break;
-                    }
-                }
+        Content::Raster { image, .. } => image.alpha_facts_once(|| scan(image)),
+        Content::CmykRaster { image, .. } => image.alpha_facts_once(|| scan_cmyk(image)),
+        _ => (false, false),
+    }
+}
+
+/// [`alpha_facts`] of an RGB plane, read whole unless both facts turn up.
+/// Each run is folded without branching (an AND of the alphas, an OR of the
+/// colours at alpha 0), so the compiler can vectorize it, and the early exit
+/// is tested once per run: the facts only ever turn true, so the answer is
+/// the per-sample walk's.
+fn scan(image: &PrecisionImage) -> (bool, bool) {
+    let (mut translucent, mut hidden) = (false, false);
+    if let Some(runs) = image.runs_rgba16() {
+        for run in runs {
+            let (mut alpha, mut colour) = (u16::MAX, 0u16);
+            for p in run {
+                alpha &= p[3];
+                colour |= if p[3] == 0 { p[0] | p[1] | p[2] } else { 0 };
+            }
+            translucent |= alpha != u16::MAX;
+            hidden |= colour != 0;
+            if translucent && hidden {
+                break;
             }
         }
-        Content::CmykRaster { image, .. } => {
-            let (w, h) = image.dimensions();
-            'rows: for y in 0..h {
-                for (_, run) in image.row_segments(y, 0, w) {
-                    for p in run {
-                        translucent |= p[4] != u16::MAX;
-                        hidden |= p[4] == 0 && p[..4].iter().any(|&c| c != 0);
-                        if translucent && hidden {
-                            break 'rows;
-                        }
-                    }
-                }
+    } else if let Some(runs) = image.runs_rgba32() {
+        for run in runs {
+            let (mut not_opaque, mut coloured) = (false, false);
+            for p in run {
+                not_opaque |= p[3] != 1.0;
+                coloured |= (p[3] == 0.0) & ((p[0] != 0.0) | (p[1] != 0.0) | (p[2] != 0.0));
+            }
+            translucent |= not_opaque;
+            hidden |= coloured;
+            if translucent && hidden {
+                break;
             }
         }
-        _ => {}
+    }
+    (translucent, hidden)
+}
+
+/// [`alpha_facts`] of a CMYK plane, folded per run as [`scan`] is.
+fn scan_cmyk(image: &CmykImage) -> (bool, bool) {
+    let (mut translucent, mut hidden) = (false, false);
+    let (w, h) = image.dimensions();
+    'rows: for y in 0..h {
+        for (_, run) in image.row_segments(y, 0, w) {
+            let (mut alpha, mut ink) = (u16::MAX, 0u16);
+            for p in run {
+                alpha &= p[4];
+                ink |= if p[4] == 0 {
+                    p[0] | p[1] | p[2] | p[3]
+                } else {
+                    0
+                };
+            }
+            translucent |= alpha != u16::MAX;
+            hidden |= ink != 0;
+            if translucent && hidden {
+                break 'rows;
+            }
+        }
     }
     (translucent, hidden)
 }
 
 impl PrecisionDocument {
+    /// The pixel records whose plane has not yet answered [`alpha_facts`]:
+    /// the scans the next list would run (module doc). A test seam.
+    #[doc(hidden)]
+    pub fn alpha_scans_pending(&self) -> usize {
+        records(self.root_layers())
+            .into_iter()
+            .filter(|layer| match &layer.content {
+                Content::Raster { image, .. } => !image.alpha_facts_known(),
+                Content::CmykRaster { image, .. } => !image.alpha_facts_known(),
+                _ => false,
+            })
+            .count()
+    }
+
     /// The name of the one layer a flat file of this document reopens with
     /// (module doc).
     fn flat_layer_name(&self) -> &'static str {

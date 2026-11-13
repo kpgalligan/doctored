@@ -385,11 +385,14 @@ pub struct PrecisionImage {
     pixels: Pixels,
     identity: Arc<()>,
     pinned: OnceLock<Arc<Vec<[u16; 4]>>>,
+    /// The flat-save list's alpha facts of `pixels` (`alpha_facts_once`).
+    alpha: Arc<OnceLock<(bool, bool)>>,
 }
 
-/// Shares the samples, the profile and the identity; the clone starts with
-/// NO pinned copy (a handle owns the private copy the FFI lend pins, module
-/// doc).
+/// Shares the samples, the profile, the identity and the alpha facts (a fact
+/// about the shared samples, so every clone may answer it); the clone starts
+/// with NO pinned copy (a handle owns the private copy the FFI lend pins,
+/// module doc).
 impl Clone for PrecisionImage {
     fn clone(&self) -> Self {
         Self {
@@ -399,6 +402,7 @@ impl Clone for PrecisionImage {
             pixels: self.pixels.clone(),
             identity: self.identity.clone(),
             pinned: OnceLock::new(),
+            alpha: Arc::clone(&self.alpha),
         }
     }
 }
@@ -563,6 +567,19 @@ impl PrecisionImage {
             let _ = self.pinned.set(lent);
         }
         self.pinned.get().map(|samples| samples.as_slice())
+    }
+    /// The flat-save list's alpha facts of these samples
+    /// (`precision_preservation::alpha_facts`): `scan` runs on the first ask
+    /// and its answer is kept for this image and every clone, which share the
+    /// samples. It cannot go stale: nothing writes a built image's samples,
+    /// and every writer answers a new image (`assembled`), whose cell starts
+    /// empty. A concurrent first ask waits for the one scan.
+    pub(crate) fn alpha_facts_once(&self, scan: impl FnOnce() -> (bool, bool)) -> (bool, bool) {
+        *self.alpha.get_or_init(scan)
+    }
+    /// Whether [`Self::alpha_facts_once`] has answered for these samples.
+    pub(crate) fn alpha_facts_known(&self) -> bool {
+        self.alpha.get().is_some()
     }
     /// The whole u16 plane for ONE random-access read per operation (a tap
     /// walk, a per-index closure): a contiguous plane borrows its own buffer,

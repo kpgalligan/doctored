@@ -53,7 +53,8 @@ enum Tiling<'a> {
 }
 
 impl PrecisionImage {
-    /// A fresh, uniquely identified image over `pixels` (no pinned view).
+    /// A fresh, uniquely identified image over `pixels` (no pinned view, no
+    /// alpha facts known).
     pub(super) fn assembled(w: u32, h: u32, profile: Arc<IccProfile>, pixels: Pixels) -> Self {
         Self {
             width: w,
@@ -62,6 +63,7 @@ impl PrecisionImage {
             pixels,
             identity: Arc::new(()),
             pinned: OnceLock::new(),
+            alpha: Arc::new(OnceLock::new()),
         }
     }
 

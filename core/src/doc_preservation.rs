@@ -7,7 +7,7 @@
 //! JPEG compression and GIF palette quantization remain explicit format
 //! choices; this query protects editing state, alpha and sidecar data.
 
-use crate::doc::{BlendMode, DrDocument, LayerKind};
+use crate::doc::{BlendMode, DrDocument, LayerKind, LayerRaster};
 use crate::doc_color::{CARRIES_EXIF, CARRIES_IPTC, CARRIES_PROFILE, CARRIES_XMP};
 use crate::dr_image::clamp_jfif_density;
 use crate::flat_state::{self, EditableState};
@@ -150,13 +150,12 @@ impl DrDocument {
         // alpha; GIF only carries a binary transparent palette index.
         if matches!(format, Format::Jpeg | Format::Gif)
             && self.layers.iter().any(|l| {
-                l.pixels.runs().flatten().any(|p| {
-                    if format == Format::Jpeg {
-                        p[3] != 255
-                    } else {
-                        p[3] != 0 && p[3] != 255
-                    }
-                })
+                let (not_opaque, fractional, _) = alpha_facts(&l.pixels);
+                if format == Format::Jpeg {
+                    not_opaque
+                } else {
+                    fractional
+                }
             })
         {
             losses.push("pixel transparency");
@@ -164,14 +163,53 @@ impl DrDocument {
         // Flat writes encode the projection, whose fully transparent pixels
         // have zero RGB. Even a plain PNG layer can contain hidden color that
         // an alpha edit could reveal; native preserves those stored bytes.
-        if self.layers.iter().any(|l| {
-            l.pixels
-                .runs()
-                .flatten()
-                .any(|p| p[3] == 0 && p[..3].iter().any(|&c| c != 0))
-        }) {
+        if self.layers.iter().any(|l| alpha_facts(&l.pixels).2) {
             losses.push("hidden pixel colors");
         }
         losses
     }
+
+    /// The layers whose raster has not yet answered [`alpha_facts`]: the
+    /// scans the next list would run. A test seam.
+    #[doc(hidden)]
+    pub fn alpha_scans_pending(&self) -> usize {
+        self.layers
+            .iter()
+            .filter(|l| !l.pixels.alpha_facts_known())
+            .count()
+    }
+}
+
+/// `(any alpha below 255, any alpha strictly between 0 and 255, any alpha 0
+/// with colour)` of a raster: the transparency JPEG and GIF drop and the
+/// hidden colours every flat write zeroes. The host asks for this list about
+/// 25 times per `get_document`, so each raster scans once and keeps the
+/// answer (`LayerRaster::alpha_facts_once`, which says why it cannot go
+/// stale). Each run folds without branching and the early exit is tested
+/// once per run, as `precision_preservation`'s scan does; a fractional alpha
+/// is also a non-opaque one, so the walk ends once the last two turn up.
+fn alpha_facts(pixels: &LayerRaster) -> (bool, bool, bool) {
+    pixels.alpha_facts_once(|| {
+        let (mut not_opaque, mut fractional, mut hidden) = (false, false, false);
+        for run in pixels.runs() {
+            // Each sample as one little-endian word, alpha in the top byte:
+            // below 2^24 is alpha 0, and then the word is the colour.
+            let (mut all, mut lifted, mut colour) = (u32::MAX, 0u32, 0u32);
+            for p in run {
+                let word = u32::from_le_bytes(*p);
+                all &= word;
+                // Alpha + 1 in one byte: 0 and 255 lift to 1 and 0, every
+                // alpha between them to 2 or more, so a max is the GIF fact.
+                lifted = lifted.max(((word >> 24) + 1) & 0xFF);
+                colour |= if word < 1 << 24 { word } else { 0 };
+            }
+            not_opaque |= all >> 24 != 0xFF;
+            fractional |= lifted > 1;
+            hidden |= colour != 0;
+            if fractional && hidden {
+                break;
+            }
+        }
+        (not_opaque, fractional, hidden)
+    })
 }

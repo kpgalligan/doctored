@@ -7,7 +7,9 @@
 //! reopened document holds none of what the list named (read through the
 //! guide, sampler, channel and layer accessors), while a plain document
 //! reopens with nothing to name. The byte list's words and order are
-//! `preservation_tests.rs`'s.
+//! `preservation_tests.rs`'s. The pixel lines' scan runs once per plane
+//! (`alpha_scans_pending`), and an erased plane answers for its own samples
+//! while the handle it came from keeps its answer.
 
 use std::ffi::{CStr, CString};
 use std::ptr;
@@ -31,12 +33,12 @@ use doctored_core::ffi_sampler::{
 };
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
-use doctored_core::precision_document::PrecisionDocument;
+use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer};
 use doctored_core::precision_image::PrecisionImage;
 use tempfile::TempDir;
 
 use crate::cmyk_structure_fixture::{
-    cmyk_layers, free, then, with_levels, with_mask, with_opacity, RgbLayer, LIMIT,
+    cmyk_layers, free, then, try_edit, with_levels, with_mask, with_opacity, RgbLayer, LIMIT,
 };
 use crate::common::{cpath, take_err_string};
 use crate::gray_fixture::gray_icc;
@@ -56,9 +58,13 @@ fn opaque() -> Vec<[u16; 4]> {
 /// A one-layer 16-bit Grayscale document ("Background") of `pixels`.
 fn gray(pixels: Vec<[u16; 4]>) -> *mut PrecisionDocument {
     let image = PrecisionImage::from_rgba16(W, H, pixels, IccProfile::srgb(), None).unwrap();
-    let rgb = Box::into_raw(Box::new(
+    to_gray(Box::into_raw(Box::new(
         PrecisionDocument::from_image(image, Metadata::default(), Resolution::default()).unwrap(),
-    ));
+    )))
+}
+
+/// `rgb` converted to 16-bit Grayscale, `rgb` freed.
+fn to_gray(rgb: *mut PrecisionDocument) -> *mut PrecisionDocument {
     let icc = gray_icc("Preservation Gray", 2.2);
     let mut err = ptr::null_mut();
     let out = unsafe {
@@ -501,5 +507,314 @@ fn a_null_document_is_refused() {
         let mut err = ptr::null_mut();
         assert!(dr_precision_doc_flat_state_losses(ptr::null(), false, false, &mut err).is_null());
         assert!(take_err_string(err).contains("NULL"));
+    }
+}
+
+/// A 16-bit RGB document of three `opaque()` layers, each named
+/// "Background", so its plain list is "layers and groups" alone.
+fn rgb_three() -> *mut PrecisionDocument {
+    let srgb = IccProfile::srgb();
+    let layers = (0..3)
+        .map(|_| {
+            let image = PrecisionImage::from_rgba16(W, H, opaque(), srgb.clone(), None).unwrap();
+            PrecisionDocumentLayer::raster("Background", image, (0, 0), 1.0, true).unwrap()
+        })
+        .collect();
+    Box::into_raw(Box::new(
+        PrecisionDocument::from_parts(
+            W,
+            H,
+            srgb,
+            Metadata::default(),
+            Resolution::default(),
+            layers,
+        )
+        .unwrap(),
+    ))
+}
+
+fn float_three() -> *mut PrecisionDocument {
+    let rgb = rgb_three();
+    let mut err = ptr::null_mut();
+    let float = unsafe { dr_precision_doc_promote_to_float(rgb, LIMIT, 0, ptr::null(), &mut err) };
+    swap(rgb, float, &format!("to float: {}", take_err_string(err)))
+}
+
+fn gray_three() -> *mut PrecisionDocument {
+    to_gray(rgb_three())
+}
+
+fn cmyk_three() -> *mut PrecisionDocument {
+    let layer = || RgbLayer {
+        name: "Background",
+        w: W,
+        h: H,
+        offset: (0, 0),
+        pixels: opaque(),
+    };
+    cmyk_layers(W, H, vec![layer(), layer(), layer()])
+}
+
+type Make = fn() -> *mut PrecisionDocument;
+
+/// Every typed storage the scan reads: u16 and f32 RGB, Grayscale, CMYK.
+const THREE_LAYERS: [(&str, Make); 4] = [
+    ("16-bit RGB", rgb_three),
+    ("32-bit RGB", float_three),
+    ("Gray", gray_three),
+    ("CMYK", cmyk_three),
+];
+
+/// The Eraser at full strength on pixel 5 of the middle layer: alpha 0 with
+/// the colour (or ink) kept, which a flat file writes as zero.
+fn erase_one(doc: *const PrecisionDocument) -> *mut PrecisionDocument {
+    let mut stroke = vec![0u16; (W * H) as usize];
+    stroke[5] = u16::MAX;
+    let out = try_edit(
+        doc,
+        r#"{"op":"erase_native","layer":1,"opacity":1}"#,
+        &stroke,
+    )
+    .unwrap();
+    assert!(!out.is_null(), "the erase changed nothing");
+    out
+}
+
+fn pending(doc: *const PrecisionDocument) -> usize {
+    unsafe { &*doc }.alpha_scans_pending()
+}
+
+/// The pixel scan behind the list runs once per plane, not once per call: a
+/// list leaves no plane pending, a pixel edit leaves only the plane it
+/// rewrote, and a property edit or the first handle leaves none.
+#[test]
+fn each_plane_is_scanned_once_and_a_pixel_edit_rescans_only_its_own() {
+    for (mode, make) in THREE_LAYERS {
+        let doc = make();
+        assert_eq!(pending(doc), 3, "{mode}: a fresh document");
+        assert_eq!(losses(doc, true), ["layers and groups"], "{mode}");
+        assert_eq!(pending(doc), 0, "{mode}: one list scans every plane");
+        let erased = erase_one(doc);
+        assert_eq!(pending(erased), 1, "{mode}: the erase rewrote one plane");
+        assert_eq!(
+            pending(doc),
+            0,
+            "{mode}: the first handle keeps its answers"
+        );
+        let renamed = try_edit(
+            doc,
+            r#"{"op":"rename_layer","layer":2,"name":"Retouch"}"#,
+            &[],
+        )
+        .unwrap();
+        assert!(!renamed.is_null(), "{mode}: the rename changed nothing");
+        assert_eq!(
+            pending(renamed),
+            0,
+            "{mode}: a property edit shares every plane"
+        );
+        for d in [renamed, erased, doc] {
+            free(d);
+        }
+    }
+}
+
+/// A plane's answer is its own samples': the erased handle names the hidden
+/// colour (and, with no alpha in the file, the transparency) while the
+/// handle it came from, asked again, still names neither, and both facts are
+/// kept, so `alpha_kept` false then true on one handle gives the two lists.
+#[test]
+fn an_edited_plane_answers_for_its_own_samples() {
+    for (mode, make) in THREE_LAYERS {
+        let doc = make();
+        assert_eq!(losses(doc, false), ["layers and groups"], "{mode}");
+        let erased = erase_one(doc);
+        assert_eq!(
+            losses(erased, false),
+            [
+                "layers and groups",
+                "pixel transparency",
+                "hidden pixel colors"
+            ],
+            "{mode}: erased, no alpha"
+        );
+        assert_eq!(
+            losses(erased, true),
+            ["layers and groups", "hidden pixel colors"],
+            "{mode}: erased, alpha kept"
+        );
+        assert_eq!(
+            losses(doc, true),
+            ["layers and groups"],
+            "{mode}: the first handle"
+        );
+        free(erased);
+        free(doc);
+    }
+}
+
+/// The list's wall-clock record on a 24 MP layered opaque document: the
+/// first call, the rest of one `get_document`'s calls (23 at 16 bits, 25 at
+/// 32, 11 in Grayscale: a document opened from a flat file, whose
+/// `writableTypes` also asks about its own type), and File ▸ Save's at most
+/// 9 calls on a freshly built document. Every layer's samples vary per pixel,
+/// so no tile is shared or filled. The 32-bit document has two layers: the
+/// promotion's reopen admission refuses a third at the 2 GiB process limit
+/// this binary keeps.
+mod bench {
+    use std::ptr;
+    use std::time::{Duration, Instant};
+
+    use doctored_core::ffi_gray::dr_precision_doc_convert_to_gray;
+    use doctored_core::ffi_precision_conversion::dr_precision_doc_promote_to_float;
+    use doctored_core::icc::IccProfile;
+    use doctored_core::metadata::{Metadata, Resolution};
+    use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer};
+    use doctored_core::precision_image::PrecisionImage;
+
+    use super::losses;
+    use crate::cmyk_structure_fixture::free;
+    use crate::common::take_err_string;
+    use crate::gray_fixture::gray_icc;
+
+    const BW: u32 = 6000;
+    const BH: u32 = 4000;
+    const LAYERS: u32 = 4;
+    const FLOAT_LAYERS: u32 = 2;
+    /// The working limit the conversions are admitted under: the bench
+    /// measures the list, not admission.
+    const BIG: u64 = 16 << 30;
+    /// Calls 2 to N of one `get_document` on an unchanged document read no
+    /// pixel, declared before measuring.
+    const REST_BOUND: Duration = Duration::from_millis(5);
+
+    /// Opaque samples varying per pixel, seeded by `seed`.
+    fn opaque_varied(seed: u32) -> Vec<[u16; 4]> {
+        (0..BW * BH)
+            .map(|i| {
+                let j = i
+                    .wrapping_mul(2_654_435_761)
+                    .wrapping_add(seed.wrapping_mul(40_503));
+                [j as u16, (j >> 8) as u16, (j >> 16) as u16, u16::MAX]
+            })
+            .collect()
+    }
+
+    fn rgb16() -> *mut PrecisionDocument {
+        rgb16_of(LAYERS)
+    }
+
+    /// A 16-bit RGB document of `count` such layers, built fresh.
+    fn rgb16_of(count: u32) -> *mut PrecisionDocument {
+        let srgb = IccProfile::srgb();
+        let layers = (0..count)
+            .map(|k| {
+                let image = PrecisionImage::from_rgba16_unseeded(
+                    BW,
+                    BH,
+                    opaque_varied(k),
+                    srgb.clone(),
+                    None,
+                )
+                .unwrap();
+                PrecisionDocumentLayer::raster("Background", image, (0, 0), 1.0, true).unwrap()
+            })
+            .collect();
+        Box::into_raw(Box::new(
+            PrecisionDocument::from_parts(
+                BW,
+                BH,
+                srgb,
+                Metadata::default(),
+                Resolution::default(),
+                layers,
+            )
+            .unwrap(),
+        ))
+    }
+
+    fn float32() -> *mut PrecisionDocument {
+        let rgb = rgb16_of(FLOAT_LAYERS);
+        let mut err = ptr::null_mut();
+        let out = unsafe { dr_precision_doc_promote_to_float(rgb, BIG, 0, ptr::null(), &mut err) };
+        assert!(!out.is_null(), "to float: {}", take_err_string(err));
+        free(rgb);
+        out
+    }
+
+    fn gray16() -> *mut PrecisionDocument {
+        let rgb = rgb16();
+        let icc = gray_icc("Bench Gray", 2.2);
+        let mut err = ptr::null_mut();
+        let out = unsafe {
+            dr_precision_doc_convert_to_gray(
+                rgb,
+                icc.as_ptr(),
+                icc.len(),
+                c"{\"depth\":16}".as_ptr(),
+                BIG,
+                0,
+                ptr::null(),
+                &mut err,
+            )
+        };
+        assert!(!out.is_null(), "to Gray: {}", take_err_string(err));
+        free(rgb);
+        out
+    }
+
+    /// Each of `calls` lists of `doc` timed, alternating `alpha_kept`.
+    fn timed(doc: *const PrecisionDocument, calls: usize) -> (Vec<Duration>, Vec<String>) {
+        let mut times = Vec::new();
+        let mut first = Vec::new();
+        for i in 0..calls {
+            let began = Instant::now();
+            let list = losses(doc, i % 2 == 0);
+            times.push(began.elapsed());
+            if i == 0 {
+                first = list;
+            }
+        }
+        (times, first)
+    }
+
+    fn record(what: &str, layers: u32, make: fn() -> *mut PrecisionDocument, calls: usize) {
+        let doc = make();
+        let (times, list) = timed(doc, calls);
+        free(doc);
+        let rest: Duration = times[1..].iter().sum();
+        let doc = make();
+        let (save, _) = timed(doc, 9);
+        free(doc);
+        let save: Duration = save.iter().sum();
+        eprintln!(
+            "flat-save list, {what}, {BW}x{BH}, {layers} opaque layers: first call {:?}; \
+             calls 2..{calls} {rest:?}; get_document's {calls} {:?}; Save's 9 on a fresh \
+             document {save:?}; list {list:?}",
+            times[0],
+            times[0] + rest,
+        );
+        assert!(
+            rest <= REST_BOUND,
+            "{what}: calls 2..{calls} took {rest:?}, over {REST_BOUND:?}"
+        );
+    }
+
+    #[test]
+    #[ignore = "make cancel-bench: a wall-clock verdict"]
+    fn rgb16_lists_after_the_first_read_no_pixel() {
+        record("16-bit RGB", LAYERS, rgb16, 23);
+    }
+
+    #[test]
+    #[ignore = "make cancel-bench: a wall-clock verdict"]
+    fn float32_lists_after_the_first_read_no_pixel() {
+        record("32-bit RGB", FLOAT_LAYERS, float32, 25);
+    }
+
+    #[test]
+    #[ignore = "make cancel-bench: a wall-clock verdict"]
+    fn gray16_lists_after_the_first_read_no_pixel() {
+        record("16-bit Gray", LAYERS, gray16, 11);
     }
 }

@@ -1,5 +1,8 @@
 //! Flat-save protection through the C contract. Each fixture changes one
 //! independent persisted property of a plain, otherwise saveable document.
+//! The pixel lines' scans run once per raster (`alpha_scans_pending`), and a
+//! written raster answers for its own bytes while the handle it came from
+//! keeps its answer.
 
 use std::ffi::{CStr, CString};
 use std::ptr;
@@ -7,10 +10,10 @@ use std::sync::Arc;
 
 use doctored_core::doc::{BlendMode, DrDocument, LayerKind, LayerRaster};
 use doctored_core::doc_evaluation::Evaluation;
-use doctored_core::ffi::dr_string_free;
+use doctored_core::ffi::{dr_image_free, dr_image_from_rgba, dr_string_free};
 use doctored_core::ffi_color::dr_doc_save_image;
 use doctored_core::ffi_comps::dr_doc_edit_layer_comps;
-use doctored_core::ffi_doc::dr_doc_free;
+use doctored_core::ffi_doc::{dr_doc_free, dr_doc_with_layer_name, dr_doc_with_layer_pixels};
 use doctored_core::ffi_evaluation::{dr_doc_evaluation, dr_doc_set_evaluation};
 use doctored_core::ffi_preservation::dr_doc_flat_save_losses;
 use doctored_core::icc::IccProfile;
@@ -389,6 +392,96 @@ fn a_linear_light_policy_is_lost_by_every_flat_format() {
     assert!(losses(&back, 0, true, false).is_empty());
 }
 
+/// `plain()` with two more opaque layers named "Background", each its own
+/// raster, so its plain list is "layers and groups" alone.
+fn three_layers() -> *mut DrDocument {
+    let mut doc = plain();
+    for _ in 0..2 {
+        doc = doc
+            .adding_layer(doc.layers.len() - 1, "Background")
+            .unwrap();
+        let top = doc.layers.len() - 1;
+        doc = doc
+            .with_layer_pixels(top, RgbaImage::from_pixel(3, 2, Rgba([23, 91, 166, 255])))
+            .unwrap();
+    }
+    Box::into_raw(Box::new(doc))
+}
+
+/// Layer 1's pixels with pixel (0, 0) at alpha 0 holding a colour, through
+/// the FFI's pixel write.
+fn hide_one(doc: *const DrDocument) -> *mut DrDocument {
+    let mut bytes = [23u8, 91, 166, 255].repeat(6);
+    bytes[..4].copy_from_slice(&[251, 17, 180, 0]);
+    unsafe {
+        let image = dr_image_from_rgba(bytes.as_ptr(), 3, 2);
+        assert!(!image.is_null());
+        let out = dr_doc_with_layer_pixels(doc, 1, image);
+        dr_image_free(image);
+        assert!(!out.is_null(), "the pixel write changed nothing");
+        out
+    }
+}
+
+/// The pixel scans behind the list run once per raster, not once per call:
+/// one list leaves no raster pending, a pixel write leaves only the raster it
+/// wrote, and a rename or the first handle leaves none.
+#[test]
+fn each_raster_is_scanned_once_and_a_pixel_write_rescans_only_its_own() {
+    let doc = three_layers();
+    let pending = |d: *const DrDocument| unsafe { &*d }.alpha_scans_pending();
+    assert_eq!(pending(doc), 3, "a fresh document");
+    assert_eq!(
+        losses(unsafe { &*doc }, 1, true, false),
+        ["layers and groups"]
+    );
+    assert_eq!(pending(doc), 0, "one list scans every raster");
+    let hidden = hide_one(doc);
+    assert_eq!(pending(hidden), 1, "the write made one raster");
+    assert_eq!(pending(doc), 0, "the first handle keeps its answers");
+    let name = CString::new("Retouch").unwrap();
+    let renamed = unsafe { dr_doc_with_layer_name(doc, 2, name.as_ptr()) };
+    assert!(!renamed.is_null());
+    assert_eq!(pending(renamed), 0, "a rename shares every raster");
+    unsafe {
+        dr_doc_free(renamed);
+        dr_doc_free(hidden);
+        dr_doc_free(doc);
+    }
+}
+
+/// A raster's answer is its own bytes': the written handle names the hidden
+/// colour everywhere and the transparency in JPEG, and none in GIF, whose
+/// palette keeps alpha 0, so all three facts are kept apart; the handle it
+/// came from, asked again, names neither.
+#[test]
+fn a_written_raster_answers_for_its_own_bytes() {
+    let doc = three_layers();
+    let hidden = hide_one(doc);
+    let (png, jpeg, gif) = (0, 1, 4);
+    let lists = |d: *const DrDocument| {
+        let d = unsafe { &*d };
+        [png, jpeg, gif].map(|format| losses(d, format, true, false))
+    };
+    assert_eq!(
+        lists(hidden),
+        [
+            vec!["layers and groups", "hidden pixel colors"],
+            vec![
+                "layers and groups",
+                "pixel transparency",
+                "hidden pixel colors"
+            ],
+            vec!["layers and groups", "hidden pixel colors"],
+        ]
+    );
+    assert_eq!(lists(doc), [["layers and groups"]; 3], "the first handle");
+    unsafe {
+        dr_doc_free(hidden);
+        dr_doc_free(doc);
+    }
+}
+
 #[test]
 fn null_safety_sweep_and_invalid_format() {
     unsafe {
@@ -396,5 +489,82 @@ fn null_safety_sweep_and_invalid_format() {
         let mut err = ptr::null_mut();
         assert!(dr_doc_flat_save_losses(&plain(), 999, true, false, &mut err).is_null());
         assert!(take_err_string(err).contains("format"));
+    }
+}
+
+/// The byte list's wall-clock record on a 24 MP document of four opaque
+/// layers whose bytes vary per pixel: the first call, the rest of one
+/// `get_document`'s 23 calls (the six flat formats and the three
+/// host-encoded ones, then each `writableTypes` call's six), and File ▸
+/// Save's 9 on a freshly built document.
+mod bench {
+    use std::time::{Duration, Instant};
+
+    use doctored_core::doc::{DrDocument, LayerRaster};
+    use image::RgbaImage;
+
+    use super::losses;
+
+    const W: u32 = 6000;
+    const H: u32 = 4000;
+    const LAYERS: u32 = 4;
+    /// Calls 2 to 23 on an unchanged document read no pixel, declared
+    /// before measuring.
+    const REST_BOUND: Duration = Duration::from_millis(5);
+
+    /// Opaque bytes varying per pixel, seeded by `seed`.
+    fn opaque_varied(seed: u32) -> RgbaImage {
+        let bytes = (0..W * H)
+            .flat_map(|i| {
+                let j = i
+                    .wrapping_mul(2_654_435_761)
+                    .wrapping_add(seed.wrapping_mul(40_503));
+                [j as u8, (j >> 8) as u8, (j >> 16) as u8, u8::MAX]
+            })
+            .collect();
+        RgbaImage::from_raw(W, H, bytes).unwrap()
+    }
+
+    fn document() -> DrDocument {
+        let mut doc = DrDocument::from_pixels(RgbaImage::new(W, H));
+        doc.layers[0].pixels = LayerRaster::unseeded(opaque_varied(0));
+        for k in 1..LAYERS {
+            doc = doc
+                .adding_layer(doc.layers.len() - 1, "Background")
+                .unwrap();
+            let top = doc.layers.len() - 1;
+            doc.layers[top].pixels = LayerRaster::unseeded(opaque_varied(k));
+        }
+        doc
+    }
+
+    /// Each of `calls` lists of `doc` timed, cycling through PNG to WebP.
+    fn timed(doc: &DrDocument, calls: usize) -> Vec<Duration> {
+        (0..calls)
+            .map(|i| {
+                let began = Instant::now();
+                losses(doc, (i % 6) as i32, true, false);
+                began.elapsed()
+            })
+            .collect()
+    }
+
+    #[test]
+    #[ignore = "make cancel-bench: a wall-clock verdict"]
+    fn byte_lists_after_the_first_read_no_pixel() {
+        let times = timed(&document(), 23);
+        let rest: Duration = times[1..].iter().sum();
+        let save: Duration = timed(&document(), 9).iter().sum();
+        eprintln!(
+            "flat-save list, 8-bit RGB, {W}x{H}, {LAYERS} opaque layers: first call {:?}; \
+             calls 2..23 {rest:?}; get_document's 23 {:?}; Save's 9 on a fresh document \
+             {save:?}",
+            times[0],
+            times[0] + rest,
+        );
+        assert!(
+            rest <= REST_BOUND,
+            "calls 2..23 took {rest:?}, over {REST_BOUND:?}"
+        );
     }
 }

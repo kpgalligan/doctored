@@ -125,10 +125,12 @@ fn the_turn_plans_pin_their_measured_figures() {
     // symmetric box was 4704 × 4040: the rotate's plan charges 12 B per
     // output canvas pixel (growth × 8 plus the canvas-sized layer's 4 B
     // scaled by growth), so it fell by 12 × (19,004,160 − 18,995,417) =
-    // 104,916 from 404,262,482.
+    // 104,916 from 404,262,482. Each is 120 B above that since each of the
+    // record's five inline rasters (its pixels and the source, warp and
+    // generated renders) gained its 8 B alpha-fact cell, counted three times.
     for (edit, figure, floor) in [
-        (rotate(), 404_157_566, 250_982_640),
-        (straighten(), 320_212_562, 251_003_120),
+        (rotate(), 404_157_686, 250_982_640),
+        (straighten(), 320_212_682, 251_003_120),
     ] {
         let plan = doc.geometry_edit_plan(&edit).unwrap();
         assert_eq!(plan.scratch_bytes, figure);
@@ -215,9 +217,9 @@ fn a_channel_heavy_12_mp_straighten_charges_both_channel_planes() {
         plan.scratch_bytes,
         // + the 40 channel records' cloned structure (93 bytes each: the
         // record, its spot ink slot included, and the five-byte name).
-        320_212_562 + 40 * (12_000_000 + 9_720_000) * 5 / 4 + 40 * 93
+        320_212_682 + 40 * (12_000_000 + 9_720_000) * 5 / 4 + 40 * 93
     );
-    assert_eq!(plan.scratch_bytes, 1_406_216_282);
+    assert_eq!(plan.scratch_bytes, 1_406_216_402);
     assert!(plan.scratch_bytes >= 1_325_241_430);
 }
 

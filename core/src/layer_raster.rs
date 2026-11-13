@@ -108,8 +108,10 @@
 //! oracles). Identity (`ptr_eq` / `key` / `weak_count`, and `storage_identity` — the token's
 //! address as a `u64`, what `dr_doc_layer_storage_identity` exports) is a private `Arc<()>`
 //! token minted by `new` / `shared` / `rebuilt` / `with_rect` (`Some`) / `reidentified`, never the
-//! bytes or a tile. Whole-image writers go through `rebuilt(image)` (shares every bitwise-unchanged
-//! tile, fresh identity even for equal bytes — `with_layer_pixels` relies on that), the two paint
+//! bytes or a tile; each mint also starts an empty cell for the flat-save list's alpha facts
+//! (`alpha_facts_once`), which clones share. Whole-image writers go through `rebuilt(image)`
+//! (shares every bitwise-unchanged tile, fresh identity even for equal bytes —
+//! `with_layer_pixels` relies on that), the two paint
 //! writers through `read_rect` + `with_rect` over the overlay's nonzero rect
 //! (`doc_paint::overlay_rect`), so a 300×300 dab retains ≤ 4 new tiles. Since 13B-2c-2a the RECT
 //! WRITERS — heal (the union of its component windows), content-aware/spot fill (the union of its
@@ -203,7 +205,7 @@
 //! `Arc`; `record_resources` records the index as `tile_structure` and the tiles under the caller's
 //! category (contiguous: 2a's two records).
 
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, OnceLock, Weak};
 
 use image::{Rgba, RgbaImage};
 
@@ -227,6 +229,9 @@ pub(crate) const ALLOCATION: &str = "could not allocate layer raster storage";
 pub struct LayerRaster {
     repr: Repr,
     identity: Arc<()>,
+    /// The flat-save list's alpha facts of these bytes (`alpha_facts_once`),
+    /// shared by every clone; every minted identity starts with an empty one.
+    alpha: Arc<OnceLock<(bool, bool, bool)>>,
 }
 
 #[derive(Clone)]
@@ -399,6 +404,7 @@ impl LayerRaster {
         Self {
             repr: self.repr.clone(),
             identity: Arc::new(()),
+            alpha: Arc::new(OnceLock::new()),
         }
     }
 
@@ -675,10 +681,28 @@ impl LayerRaster {
         }
     }
 
+    /// The flat-save list's alpha facts of these bytes
+    /// (`doc_preservation::alpha_facts`): `scan` runs on the first ask and
+    /// its answer is kept for this raster and every clone, which share the
+    /// bytes. It cannot go stale: nothing writes a built raster's bytes, and
+    /// every writer answers a new identity, whose cell starts empty.
+    pub(crate) fn alpha_facts_once(
+        &self,
+        scan: impl FnOnce() -> (bool, bool, bool),
+    ) -> (bool, bool, bool) {
+        *self.alpha.get_or_init(scan)
+    }
+
+    /// Whether [`Self::alpha_facts_once`] has answered for these bytes.
+    pub(crate) fn alpha_facts_known(&self) -> bool {
+        self.alpha.get().is_some()
+    }
+
     fn tiled(plane: TilePlane<[u8; 4]>) -> Self {
         Self {
             repr: Repr::Tiled(plane),
             identity: Arc::new(()),
+            alpha: Arc::new(OnceLock::new()),
         }
     }
 
@@ -686,6 +710,7 @@ impl LayerRaster {
         Self {
             repr: Repr::Contiguous(image),
             identity: Arc::new(()),
+            alpha: Arc::new(OnceLock::new()),
         }
     }
 }

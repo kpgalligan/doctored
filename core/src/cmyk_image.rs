@@ -7,12 +7,13 @@
 //! as ink, not as the inverted "dot gain" form PSD and some TIFF writers use;
 //! the readers and writers in `cmyk_io` flip at the file boundary only.
 //!
-//! The image is pure: every constructor mints a fresh identity, clones share
-//! the tiles and the identity, and nothing mutates a built plane. The
-//! identity (`identity_key`) is what the Layers panel's thumbnail cache and
+//! The image is pure: every constructor mints a fresh identity and an empty
+//! alpha-fact cell (`minted`), clones share the tiles, the identity and the
+//! cell, and nothing mutates a built plane. The identity (`identity_key`) is
+//! what the Layers panel's thumbnail cache and
 //! `dr_precision_doc_cmyk_layer_identity` key on, `PrecisionImage`'s twin.
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use crate::job_control::JobContext;
 use crate::precision_image::{admit, pixel_count, process_working_limit, BOOKKEEPING_BYTES};
@@ -32,9 +33,21 @@ pub const PAPER: CmykSample = [0, 0, 0, 0, 0];
 pub struct CmykImage {
     plane: TilePlane<CmykSample>,
     identity: Arc<()>,
+    /// The flat-save list's alpha facts of `plane` (`alpha_facts_once`).
+    alpha: Arc<OnceLock<(bool, bool)>>,
 }
 
 impl CmykImage {
+    /// A fresh identity and an empty alpha-fact cell over `plane`: every
+    /// constructor's image.
+    fn minted(plane: TilePlane<CmykSample>) -> Self {
+        Self {
+            plane,
+            identity: Arc::new(()),
+            alpha: Arc::new(OnceLock::new()),
+        }
+    }
+
     /// Builds the image row by row: `fill(y, row)` writes row `y`
     /// (`row.len() == width`). Admits the plane's `10·w·h` bytes beside
     /// bookkeeping first, against the process working limit, the way every
@@ -56,10 +69,7 @@ impl CmykImage {
         let bytes = pixel_count(width, height)? as u64 * CMYK_BYTES_PER_PIXEL;
         admit(bytes, BOOKKEEPING_BYTES, 0, process_working_limit())?;
         let plane = TilePlane::from_rows_shared_with_job(width, height, fill, job)?;
-        Ok(Self {
-            plane,
-            identity: Arc::new(()),
-        })
+        Ok(Self::minted(plane))
     }
 
     /// Tiles a row-major contiguous plane (`samples.len() == w·h`), minting
@@ -72,18 +82,14 @@ impl CmykImage {
         samples: &[CmykSample],
         job: JobContext<'_>,
     ) -> Result<Self, String> {
-        Ok(Self {
-            plane: TilePlane::from_contiguous_with_job(width, height, samples, job)?,
-            identity: Arc::new(()),
-        })
+        Ok(Self::minted(TilePlane::from_contiguous_with_job(
+            width, height, samples, job,
+        )?))
     }
 
     /// `value` everywhere: at most four tile allocations.
     pub fn filled(width: u32, height: u32, value: CmykSample) -> Result<Self, String> {
-        Ok(Self {
-            plane: TilePlane::filled(width, height, value)?,
-            identity: Arc::new(()),
-        })
+        Ok(Self::minted(TilePlane::filled(width, height, value)?))
     }
 
     pub fn dimensions(&self) -> (u32, u32) {
@@ -126,15 +132,24 @@ impl CmykImage {
         Ok(self
             .plane
             .with_rect_with_job(x, y, w, h, samples, job)?
-            .map(|plane| Self {
-                plane,
-                identity: Arc::new(()),
-            }))
+            .map(Self::minted))
     }
 
     /// Bitwise sample equality (the tile store's only equality).
     pub fn same_samples(&self, other: &Self) -> bool {
         self.plane.same_bits(&other.plane)
+    }
+
+    /// `PrecisionImage::alpha_facts_once`'s twin: `scan` runs on the first
+    /// ask and every clone shares its answer; a written plane is a new image
+    /// (`minted`), whose cell starts empty.
+    pub(crate) fn alpha_facts_once(&self, scan: impl FnOnce() -> (bool, bool)) -> (bool, bool) {
+        *self.alpha.get_or_init(scan)
+    }
+
+    /// Whether [`Self::alpha_facts_once`] has answered for these samples.
+    pub(crate) fn alpha_facts_known(&self) -> bool {
+        self.alpha.get().is_some()
     }
 
     /// Identity: the same construction (clones included).

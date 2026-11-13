@@ -93,7 +93,10 @@ CANCEL_BENCH_FILES := \
 	regional_byte_styled_clip_guide \
 	regional_byte_styled_groups \
 	style_inner_glow_aa_parity \
-	export_codec_cancel
+	export_codec_cancel \
+	save_open_cancel \
+	preservation_tests \
+	precision_preservation_tests
 
 cancel-bench:
 	@failed=0; for file in $(CANCEL_BENCH_FILES); do \

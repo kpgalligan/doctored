@@ -18,6 +18,11 @@
 //! twin `#[ignore = "make cancel-bench: …"]`. A call to a
 //! `tests/common/` helper whose verdict is a duration (`CLOCK_VERDICTS`:
 //! `assert_pin`, `assert_ramp`) counts as one too.
+//!
+//! `every_bench_twin_runs_in_make_cancel_bench` fails on a test file holding an
+//! `#[ignore = "make cancel-bench: …"]` test that the Makefile's
+//! `CANCEL_BENCH_FILES` does not name: `make cancel-bench` runs only the files
+//! that list names, so such a verdict would never run.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -798,4 +803,67 @@ fn no_default_test_asserts_a_duration() {
         }
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+const BENCH_IGNORE: &str = "#[ignore = \"make cancel-bench";
+const BENCH_LIST: &str = "CANCEL_BENCH_FILES :=";
+
+/// The stems the Makefile's `CANCEL_BENCH_FILES` names: the words of its
+/// backslash-continued assignment.
+fn cancel_bench_files() -> BTreeSet<String> {
+    let makefile = manifest_dir()
+        .parent()
+        .expect("core/ has a parent")
+        .join("Makefile");
+    let source = fs::read_to_string(&makefile).expect("the Makefile reads");
+    let mut lines = source.lines();
+    let mut line = lines
+        .by_ref()
+        .find_map(|line| line.strip_prefix(BENCH_LIST))
+        .expect("the Makefile assigns CANCEL_BENCH_FILES");
+    let mut names = BTreeSet::new();
+    loop {
+        let continued = line.trim_end().ends_with('\\');
+        names.extend(
+            line.trim_end()
+                .trim_end_matches('\\')
+                .split_whitespace()
+                .map(str::to_string),
+        );
+        match lines.next() {
+            Some(next) if continued => line = next,
+            _ => break,
+        }
+    }
+    names
+}
+
+#[test]
+fn every_bench_twin_runs_in_make_cancel_bench() {
+    let listed = cancel_bench_files();
+    let mut missing = Vec::new();
+    for entry in fs::read_dir(tests_dir()).expect("tests/ lists") {
+        let path = entry.expect("a tests/ entry").path();
+        if !path.is_file() || path.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .expect("a UTF-8 file name");
+        if stem == "test_layout" || listed.contains(stem) {
+            continue;
+        }
+        let source = fs::read_to_string(&path).expect("a test file reads");
+        if source
+            .lines()
+            .any(|line| line.trim_start().starts_with(BENCH_IGNORE))
+        {
+            missing.push(format!(
+                "tests/{stem}.rs holds a `make cancel-bench` test, but the Makefile's CANCEL_BENCH_FILES does not name `{stem}`, so the bench never runs it"
+            ));
+        }
+    }
+    missing.sort();
+    assert!(missing.is_empty(), "{}", missing.join("\n"));
 }
