@@ -424,6 +424,81 @@ class ProbeBuildTests(unittest.TestCase):
         self.assertIn("error:", self.log.read_text())
 
 
+class RemakeIfMovedTests(unittest.TestCase):
+    """`remake_if_moved`, the module caches' one rule, on plain folders: no compiler."""
+
+    def setUp(self):
+        self.scratch = Path(tempfile.mkdtemp(prefix="rz-remake-if-moved-test-")).resolve()
+        self.addCleanup(shutil.rmtree, self.scratch, ignore_errors=True)
+        # Neither the lock's folder nor the marker's exists yet, as in a checkout with no `build/`.
+        self.here = self.scratch / "build/scratch"
+        self.marker = self.here / "made-at"
+        self.lock = self.scratch / "build/scratch.lock"
+        self.caches = [self.here / "triple/debug/ModuleCache", self.here / "triple/release/ModuleCache"]
+
+    def fill(self):
+        for cache in self.caches:
+            cache.mkdir(parents=True, exist_ok=True)
+            (cache / "sentinel").write_text("old")
+
+    def remake(self, caches=None):
+        return probe_build.remake_if_moved(self.marker, self.here, self.caches if caches is None else caches,
+                                           self.lock)
+
+    def test_caches_made_at_another_path_are_removed_once_then_kept(self):
+        self.fill()
+        self.marker.write_text("/elsewhere/build/scratch")
+        # A generator is read under the lock.
+        self.assertEqual(self.remake(self.here.glob("*/*/ModuleCache")), "/elsewhere/build/scratch")
+        for cache in self.caches:
+            self.assertFalse(cache.exists(), cache)
+        self.assertEqual(self.marker.read_text(), str(self.here))
+        self.fill()
+        self.assertIsNone(self.remake())
+        for cache in self.caches:
+            self.assertEqual((cache / "sentinel").read_text(), "old")
+
+    def test_an_absent_marker_removes_the_caches_and_makes_the_folders(self):
+        self.assertEqual(self.remake(), "")
+        self.assertTrue(self.lock.is_file())
+        self.assertEqual(self.marker.read_text(), str(self.here))
+        self.fill()
+        self.marker.unlink()
+        self.assertEqual(self.remake(), "")
+        for cache in self.caches:
+            self.assertFalse(cache.exists(), cache)
+
+    def test_the_agent_check_removes_each_configuration_s_module_cache_and_nothing_else(self):
+        spec = importlib.util.spec_from_file_location("agent_module_cache", HERE / "agent_module_cache.py")
+        agent = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(agent)
+        scratch = self.scratch / "build/agent-swift"
+        caches = [scratch / f"arm64-apple-macosx/{name}/ModuleCache" for name in ("debug", "release")]
+        for cache in caches:
+            cache.mkdir(parents=True)
+            # SwiftPM's `debug` and `release` links at the root.
+            (scratch / cache.parent.name).symlink_to(f"arm64-apple-macosx/{cache.parent.name}")
+        kept = scratch / "checkouts/package/ModuleCache"
+        kept.mkdir(parents=True)
+        (scratch / "build.db").write_text("kept")
+        marker = scratch / "module-cache-made-at"
+        marker.write_text("/elsewhere/build/agent-swift")
+        printed = io.StringIO()
+        with mock.patch.multiple(agent, SCRATCH=scratch, MARKER=marker,
+                                 LOCK=self.scratch / "build/agent-swift.module-cache.lock"):
+            with contextlib.redirect_stdout(printed):
+                self.assertEqual(agent.main(), 0)
+                self.assertEqual(agent.main(), 0)
+        self.assertEqual(printed.getvalue(), "agent_module_cache: build/agent-swift was made at "
+                         "/elsewhere/build/agent-swift; its module caches are made again\n")
+        for cache in caches:
+            self.assertFalse(cache.exists(), cache)
+            self.assertTrue(cache.parent.is_dir(), cache.parent)
+        self.assertTrue(kept.is_dir())
+        self.assertEqual((scratch / "build.db").read_text(), "kept")
+        self.assertEqual(marker.read_text(), str(scratch))
+
+
 class TypeCheckTests(unittest.TestCase):
     def setUp(self):
         self.scratch = Path(tempfile.mkdtemp(prefix="rz-probe-check-test-")).resolve()

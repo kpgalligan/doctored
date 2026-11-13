@@ -117,15 +117,17 @@ LIBRARY = CORE / "target/release/libdoctored_core.a"
 
 RUST_INPUTS = ("core/", "mcp-proxy/", "scripts/run_tests.py", "scripts/gate.py", "Makefile",
                "scripts/check_layers.py")
-# The app bundle carries the assistant's helper, so its package and build script are Swift inputs; its
-# tests are not (AGENT_INPUTS).
+# The app bundle carries the assistant's helper, so its package and build script are Swift inputs, with the
+# module cache check the script runs first (`scripts/agent_module_cache.py` and the rule it imports from
+# `scripts/probe_build.py`); its tests are not (AGENT_INPUTS).
+AGENT_CACHE_CHECK = ("scripts/agent_module_cache.py", "scripts/probe_build.py")
 SWIFT_INPUTS = ("app/", "agent/Package.swift", "agent/Package.resolved", "agent/Sources/",
-                "scripts/build_agent_helper.sh", "scripts/verify_agent_helper.py", "mcp-proxy/",
-                "core/include/doctored_core.h", "project.yml", "Makefile", "VERSION", "scripts/gate.py",
-                "scripts/app_under_test.py", "scripts/verification_isolation.py", "scripts/mcp_client.py",
-                "scripts/updater_check.py")
+                "scripts/build_agent_helper.sh", *AGENT_CACHE_CHECK, "scripts/verify_agent_helper.py",
+                "mcp-proxy/", "core/include/doctored_core.h", "project.yml", "Makefile", "VERSION",
+                "scripts/gate.py", "scripts/app_under_test.py", "scripts/verification_isolation.py",
+                "scripts/mcp_client.py", "scripts/updater_check.py")
 AGENT_INPUTS = ("agent/Package.swift", "agent/Package.resolved", "agent/Sources/", "agent/Tests/", "Makefile",
-                "scripts/gate.py")
+                *AGENT_CACHE_CHECK, "scripts/gate.py")
 MCP_HELPER = "Contents/Helpers/doctored-mcp"
 AGENT_HELPER = "Contents/Helpers/doctored-agent"
 # `codesign --display --verbose=2`'s line for the code directory, e.g. `flags=0x10002(adhoc,runtime)`.

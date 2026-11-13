@@ -120,7 +120,10 @@ agent:
 # The assistant helper's own suite (agent/Tests; no network, no real key), on the scratch
 # path the app build's helper uses; the gate's `agent-tests` step. DR_AGENT_STRICT=1 holds the
 # helper's own targets to -warnings-as-errors (agent/Package.swift); the shipping build is not.
+# scripts/agent_module_cache.py first makes the scratch path's module caches again when they were
+# made at another path (a build/ copied from another checkout), which fails every compile.
 agent-test:
+	python3 -B scripts/agent_module_cache.py
 	DR_AGENT_STRICT=1 swift test --package-path agent --scratch-path build/agent-swift
 
 project:

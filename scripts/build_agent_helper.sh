@@ -32,6 +32,12 @@
 # one being edited in place (`swift package edit`, checked out under agent/Packages) or a local
 # `.package(path:)` one, which build/agent-swift/workspace-state.json records.
 #
+# Before SwiftPM runs, scripts/agent_module_cache.py removes the scratch path's Clang module
+# caches when they were made at another path (a build/ copied from another checkout): each records
+# its own absolute path, and a copy fails every compile. `make agent-test` runs the same check.
+# When the stamp matches, SwiftPM does not run and reads no cache, so the check waits for the
+# next build that does.
+#
 # Signing is the "Build MCP Helper" phase's: Xcode's EXPANDED_CODE_SIGN_IDENTITY, else ad hoc
 # ("-"); --timestamp for a real identity; the hardened runtime; no entitlements.
 set -euo pipefail
@@ -97,6 +103,7 @@ if [ -f "$PRODUCT" ] && [ -f "$STAMP" ] \
     echo "build_agent_helper: agent/ is unchanged since the $CONFIG build of $(date -r "$STAMP" '+%F %T'); SwiftPM skipped"
 else
     rm -f "$STAMP"
+    "${SCRUBBED[@]}" python3 -B "$ROOT/scripts/agent_module_cache.py"
     # SwiftPM's release passes `-num-threads`, which batch mode cannot use; the driver ignores it
     # and says so on one `warning:` line per module, which Xcode would count as a build warning.
     # That exact line is dropped; pipefail keeps SwiftPM's exit status.

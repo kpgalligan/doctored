@@ -25,7 +25,7 @@ only the probe's compile, and the core library, `Info.plist` and `objects` only 
 `KEEP_APP_ENTRIES` newest app parts are kept; `_prune` removes an older one only while no build holds
 its lock. The Clang module cache is `build/probe-module-cache`, shared by every
 build and type check, and made again when it was made at another path (a worktree's `build/` copied
-from another checkout; `_module_cache`).
+from another checkout; `remake_if_moved`, which `scripts/agent_module_cache.py` also uses).
 
 `python3 scripts/probe_build.py --typecheck scripts/<probe dir>` type-checks that directory's probe
 set in the shape its runner builds: against the app part (compiled first when no build has it, and
@@ -60,7 +60,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Callable, Iterator, Mapping, NamedTuple, Sequence, TextIO
+from typing import Callable, Iterable, Iterator, Mapping, NamedTuple, Sequence, TextIO
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / "build/probe-cache"
@@ -219,27 +219,44 @@ def _sdk(env: Mapping[str, str]) -> str:
     return _query(["xcrun", "--show-sdk-path", "--sdk", "macosx"], env).strip()
 
 
-def _module_cache() -> Path:
-    """`MODULE_CACHE`, made again first when it was made at another path.
+def remake_if_moved(marker: Path, here: Path, caches: Iterable[Path], lock: Path) -> str | None:
+    """Removes `caches` when `marker` does not name `here`, then writes `here`'s path to it.
 
     Clang's module cache records its own absolute path, so a copy of it elsewhere (a worktree's
     `build/` copied from another checkout) fails every compile with "PCH was compiled with module
-    cache path …". The cache's `MODULE_CACHE_PATH_FILE` names the path it was made at; when that
-    file is missing or names another path, the folder is removed and made again. The check holds
-    a lock beside the folder, so a build that starts meanwhile finds the new file and keeps the cache.
+    cache path …". `marker` names the path its folder was made at; when it is missing or names
+    another path, each of `caches` is removed, for its compiler to make again, and `marker` is
+    written. The check holds `lock` exclusively, so a build that starts meanwhile finds the new
+    marker and keeps the caches; `caches` is read under it, so a generator sees the folder as it is
+    then. The one rule for every module cache the tools keep: `_module_cache` (the probe builds')
+    and `scripts/agent_module_cache.py` (the assistant helper's SwiftPM scratch path).
+
+    Returns None when the caches were kept, else what `marker` held before ("" when it was absent).
     """
-    MODULE_CACHE.parent.mkdir(parents=True, exist_ok=True)
-    here = str(MODULE_CACHE.resolve())
-    with open(MODULE_CACHE.with_name(MODULE_CACHE.name + ".lock"), "a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    expected = str(here.resolve())
+    with open(lock, "a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
         try:
-            made_at = (MODULE_CACHE / MODULE_CACHE_PATH_FILE).read_text()
+            made_at = marker.read_text()
         except OSError:
-            made_at = None
-        if made_at != here:
-            shutil.rmtree(MODULE_CACHE, ignore_errors=True)
-            MODULE_CACHE.mkdir(exist_ok=True)
-            (MODULE_CACHE / MODULE_CACHE_PATH_FILE).write_text(here)
+            made_at = ""
+        if made_at == expected:
+            return None
+        for cache in list(caches):
+            shutil.rmtree(cache, ignore_errors=True)
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(expected)
+    return made_at
+
+
+def _module_cache() -> Path:
+    """`MODULE_CACHE`, made again first when it was made at another path (`remake_if_moved`).
+
+    The cache's `MODULE_CACHE_PATH_FILE` names the path it was made at, and its lock lies beside it.
+    """
+    remake_if_moved(MODULE_CACHE / MODULE_CACHE_PATH_FILE, MODULE_CACHE, [MODULE_CACHE],
+                    MODULE_CACHE.with_name(MODULE_CACHE.name + ".lock"))
     return MODULE_CACHE
 
 
