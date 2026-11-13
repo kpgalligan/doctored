@@ -1,7 +1,11 @@
 # Internal high-depth host probe
 
-After the coordinated release Rust library is current, run
-`python3 -B scripts/precision-probe/verify.py --keep` on macOS. This compiles the
+`make gate` runs the small run (no `--large*` flag) as its `precision-probe` step,
+with `DR_BACKGROUND=1`, whenever the app sources, the header, this directory or the
+core library changed since its last pass. By hand, after the coordinated release
+Rust library is current, run `python3 -B scripts/precision-probe/verify.py --keep`
+on macOS (`--keep` keeps the scratch directory after a pass); the `--large*` modes
+below measure time and memory and run only by hand. This compiles the
 actual app sources and exercises the internal typed wrappers and captured
 save/archive path. Phase 7E also exercises the real ImageDocument owner, central Undo, public editing-state
 archives and the private recovery writer/reader. It does not launch a separate

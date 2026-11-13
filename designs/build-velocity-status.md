@@ -106,6 +106,16 @@ compile. The `probes` gate step type-checks changed or last-failed probe directo
 Existing failures found: `color-metadata-probe` and `test_provenance_manifests.py` (fixed since) and `verify_phase8c.py --host-only`,
 whose host probe hung; it passed 2026-11-12 under `DR_BACKGROUND=1`, the hang's cause unrecorded.
 
+Since 2026-11-12 the gate's `precision-probe` step runs `scripts/precision-probe/verify.py`'s small run (no flag): no gate ran it,
+and its oracles went stale unseen until a batch ran it by hand. A gate step, not a periodic runner, because the tree has no periodic
+probe runner and a new one would have no owner. The probe compiles under `DR_PROBE_BUILD_ONLY=1` beside the legs and runs under
+`DR_BACKGROUND=1` once every leg has ended, since its verdicts include wall-clock bounds; the step is skipped while the app sources,
+the header, the probe directory, `app/Info.plist` and the core library are unchanged since its last pass. Another runner's small run
+would be one more `PROBE_RUNS` entry in `gate.py`. The `--large*` modes measure time and memory on 24 MP sources and stay out of the
+gate. `probe_build.py` makes `build/probe-module-cache` again when it was made at another path, since a `build/` copied from another
+checkout failed every probe compile. `make gate GATE_ARGS=--force` with the cached probe moved aside: the step 103.9 s (compile 99.1 s
+beside the suite's 110.2 s, run 4.8 s), `gate: PASS 146.6s`; with the probe cached, `make gate` ran the step in 5.3 s.
+
 ## Phase 7a
 `6e5d2e6`: `DoctoredCore.swift` keeps the handle classes and error plumbing; its other sections moved verbatim into 44
 `DoctoredCore+<Area>.swift` files, and `AgentCatalog.swift`'s 14 area builders into `AgentCatalog+<Area>.swift`. 36 declarations lost

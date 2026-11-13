@@ -3,6 +3,10 @@
 
 The linked probe is built by `scripts/probe_build.py` and cached under
 `build/probe-cache`; the copy that runs is in the private scratch directory.
+With `DR_PROBE_BUILD_ONLY=1` the runner stops after that build, launching
+nothing, and removes its scratch directory unless `--keep`. `make gate`'s
+`precision-probe` step runs the small run (no `--large*` flag) this way and
+then again in full.
 
 Run after the coordinated release Rust library is current. --large adds a fresh
 process for native24MP resource qualification. Its report marks every refusal as
@@ -23,6 +27,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import traceback
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -111,11 +116,18 @@ def run(scratch, large, large_color, large_pixels, large_public, library_source)
     binary = scratch / 'probe'
     source_provenance = {str(p.relative_to(ROOT)): digest(p) for p in measured_sources()}
     (scratch / 'source-provenance.json').write_text(json.dumps(source_provenance, indent=2, sort_keys=True))
+    # probe_build.build would end this process under DR_PROBE_BUILD_ONLY=1 and leave the scratch
+    # folder behind; the runner handles that mode itself (the gate's precision-probe step builds so).
+    build_only = os.environ.pop(probe_build.BUILD_ONLY_ENV, None) == '1'
+    environment.pop(probe_build.BUILD_ONLY_ENV, None)
     probe_build.build(
         sources=[*probe_build.app_sources(), *probe_build.probe_sources('precision-probe')],
         bridging_header=ROOT / 'app/Bridging/Doctored-Bridging-Header.h', library=library,
         info_plist=scratch / 'Info.plist', output=binary, log=scratch / 'build.log',
         env=environment, timeout=900)
+    if build_only:
+        print(f'build only: {binary}', flush=True)
+        return
     command = ['/usr/bin/time', '-l', binary, '-ApplePersistenceIgnoreState', 'YES',
                '-RecoveryDiscoverySuppressed', 'YES',
                '-ColorWorkingSpace', 'srgb']
@@ -222,8 +234,22 @@ def main():
         run(scratch, args.large, args.large_color, args.large_pixels, args.large_public,
             args.library.resolve())
     except (OSError, RuntimeError, AssertionError, subprocess.SubprocessError) as error:
-        print('Probe failed:', error, '\nArtifacts retained at', scratch, file=sys.stderr)
-        for name in ['build.log', 'run.log', 'large-run.log', 'large-color-run.log', 'large-pixels-run.log', 'large-public-run.log']:
+        sys.stdout.flush()
+        # Where it was raised, since a failed `fixtures.verify` assert has no message.
+        where = traceback.extract_tb(error.__traceback__)[-1]
+        print(f'Probe failed: {type(error).__name__} at {Path(where.filename).name}:{where.lineno}:', error,
+              '\nArtifacts retained at', scratch, file=sys.stderr)
+        traceback.print_exc()
+        logs = ['build.log', 'run.log', 'large-run.log', 'large-color-run.log', 'large-pixels-run.log',
+                'large-public-run.log']
+        # A failed group's `FAIL:` line can sit above a run log's last 30 lines, most of which are
+        # `/usr/bin/time -l`'s table, so each one is printed first.
+        for name in logs[1:]:
+            if (scratch / name).is_file():
+                for line in (scratch / name).read_text(errors='replace').splitlines():
+                    if line.startswith('FAIL: '):
+                        print(line, file=sys.stderr)
+        for name in logs:
             if (scratch / name).is_file():
                 print(name, '\n'.join((scratch / name).read_text(errors='replace').splitlines()[-30:]), file=sys.stderr)
         return 1

@@ -5,7 +5,8 @@
 `build/probe-cache/<key>/probe` and copies that file to the caller's path. The key
 covers every input, so a second call with the same inputs copies and compiles
 nothing. The Clang module cache is `build/probe-module-cache`, shared by every
-build and type check.
+build and type check, and made again when it was made at another path (a
+worktree's `build/` copied from another checkout; `_module_cache`).
 
 `python3 scripts/probe_build.py --typecheck scripts/<probe dir>` type-checks the
 app sources with that directory's probe set in batch mode. It writes no artifact
@@ -21,6 +22,7 @@ Standard library only; imports nothing from `scripts/`.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
@@ -37,6 +39,8 @@ from typing import Mapping, NamedTuple, Sequence
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / "build/probe-cache"
 MODULE_CACHE = ROOT / "build/probe-module-cache"
+# The file in MODULE_CACHE that names the path the cache was made at (`_module_cache`).
+MODULE_CACHE_PATH_FILE = "made-at"
 KEEP_ENTRIES = 8
 TARGET = "arm64-apple-macos15.0"
 BRIDGING_HEADER = "app/Bridging/Doctored-Bridging-Header.h"
@@ -161,6 +165,30 @@ def _query(argv: list[str], env: Mapping[str, str]) -> str:
 
 def _sdk(env: Mapping[str, str]) -> str:
     return _query(["xcrun", "--show-sdk-path", "--sdk", "macosx"], env).strip()
+
+
+def _module_cache() -> Path:
+    """`MODULE_CACHE`, made again first when it was made at another path.
+
+    Clang's module cache records its own absolute path, so a copy of it elsewhere (a worktree's
+    `build/` copied from another checkout) fails every compile with "PCH was compiled with module
+    cache path …". The cache's `MODULE_CACHE_PATH_FILE` names the path it was made at; when that
+    file is missing or names another path, the folder is removed and made again. The check holds
+    a lock beside the folder, so a build that starts meanwhile finds the new file and keeps the cache.
+    """
+    MODULE_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    here = str(MODULE_CACHE.resolve())
+    with open(MODULE_CACHE.with_name(MODULE_CACHE.name + ".lock"), "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            made_at = (MODULE_CACHE / MODULE_CACHE_PATH_FILE).read_text()
+        except OSError:
+            made_at = None
+        if made_at != here:
+            shutil.rmtree(MODULE_CACHE, ignore_errors=True)
+            MODULE_CACHE.mkdir(exist_ok=True)
+            (MODULE_CACHE / MODULE_CACHE_PATH_FILE).write_text(here)
+    return MODULE_CACHE
 
 
 def _library_arguments(library: str, directory: str, link_library: str) -> list[str]:
@@ -350,7 +378,7 @@ def _build(inputs: dict, output: Path, log: Path, timeout: float) -> Built:
             return Built(key, True, entry)
 
     CACHE.mkdir(parents=True, exist_ok=True)
-    MODULE_CACHE.mkdir(parents=True, exist_ok=True)
+    module_cache = _module_cache()
     scratch = CACHE / f"tmp-{os.getpid()}-{secrets.token_hex(4)}"
     scratch.mkdir()
     # Threaded WMO writes one object per source, named after its basename; on a case-insensitive
@@ -363,7 +391,7 @@ def _build(inputs: dict, output: Path, log: Path, timeout: float) -> Built:
         library = inputs["library"]
         argv = _arguments(
             optimization=inputs["optimization"], defines=inputs["defines"], sdk=sdk,
-            module_cache=str(MODULE_CACHE), bridging_header=str(inputs["bridging_header"]),
+            module_cache=str(module_cache), bridging_header=str(inputs["bridging_header"]),
             sources=[str(path) for path in inputs["sources"]],
             library=_library_arguments(str(library), str(library.parent), inputs["link_library"]),
             objects=[str(path) for path in inputs["objects"]],
@@ -391,12 +419,12 @@ def _build(inputs: dict, output: Path, log: Path, timeout: float) -> Built:
 
 def typecheck(name: str) -> int:
     """Type-check the app sources with probe set `name` in batch mode; returns swiftc's exit status."""
-    MODULE_CACHE.mkdir(parents=True, exist_ok=True)
+    module_cache = _module_cache()
     argv = ["xcrun", "swiftc", "-typecheck", "-enable-batch-mode", "-j", str(os.cpu_count() or 1),
             "-module-name", "Doctored"]
     for define in PROBE_SETS[name].defines:
         argv += ["-D", define]
-    argv += ["-sdk", _sdk(os.environ), "-target", TARGET, "-module-cache-path", str(MODULE_CACHE),
+    argv += ["-sdk", _sdk(os.environ), "-target", TARGET, "-module-cache-path", str(module_cache),
              "-import-objc-header", BRIDGING_HEADER,
              *(str(path.relative_to(ROOT)) for path in (*app_sources(), *probe_sources(name)))]
     return subprocess.run(argv, cwd=ROOT, stdin=subprocess.DEVNULL).returncode

@@ -3,10 +3,10 @@
 
 Steps: `wait`, `docs`, `release`, `fmt`, `core-build`, then the Rust leg
 (`clippy`, `tests`, `mcp-tests`) beside the Swift leg (`app`, `launch`) and the
-agent leg (`agent-tests`), then `probes`. `docs` is `scripts/check_docs.py` and
-`release` is `make release-check` (the release tools' selftests:
-`scripts/appcast.py` and `scripts/updater_check.py`, about a second); both run
-every time. `fmt` checks both crates (`core/` and the `doctored-mcp` helper's
+agent leg (`agent-tests`), then `precision-probe`, then `probes`. `docs` is
+`scripts/check_docs.py` and `release` is `make release-check` (the release
+tools' selftests: `scripts/appcast.py` and `scripts/updater_check.py`, about a
+second); both run every time. `fmt` checks both crates (`core/` and the `doctored-mcp` helper's
 `mcp-proxy/`). `clippy` is `make lint`: `scripts/check_layers.py`, then cargo
 clippy on both crates. `mcp-tests` is `make mcp-test`, the helper's own suite.
 `agent-tests` is `make agent-test`, the assistant helper's own suite (`swift
@@ -29,7 +29,22 @@ R1–R5. Once the app has stopped, `launch` also runs the bundle's own
 the copy that ships, built -O in batches, stripped and re-signed with the
 hardened runtime, has run, where the `agent-tests` suite runs SwiftPM's debug
 build. A leg whose inputs hash to the value stored at its last pass is
-skipped. `probes` type-checks, through
+skipped.
+
+`precision-probe` is the precision probe's small run,
+`scripts/precision-probe/verify.py` with no flag (its `--large*` modes measure
+time and memory on 24 MP sources and never run here), and the one entry of
+`PROBE_RUNS`. Such a step runs its runner twice under `DR_BACKGROUND=1`, into
+one log: under `DR_PROBE_BUILD_ONLY=1` beside the Rust and Swift legs, which
+compiles the probe into `build/probe-cache` and launches nothing, then once
+every leg has ended, which reuses that build, runs the probe and checks its
+oracles. The run waits because the probe's verdicts include wall-clock bounds
+(a closed window gets two seconds of event turns to release its document), and
+they must not depend on the load of the gate's own legs. The step is skipped
+while its inputs (`ProbeRun.inputs`) and the core library hash to its last
+pass; a failure stores nothing, so the next gate runs it again.
+
+`probes` type-checks, through
 `scripts/probe_build.py --typecheck`, each probe set whose directory under
 `scripts/` has uncommitted changes or whose last type check failed, and fails
 on a `scripts/` directory that holds Swift and is not registered in
@@ -66,6 +81,7 @@ import threading
 import time
 import traceback
 from pathlib import Path
+from typing import NamedTuple
 
 import app_under_test
 import mcp_client
@@ -83,8 +99,6 @@ TIMES = BUILD / "gate-times.tsv"
 TESTS_SUMMARY = LOGS / "tests.json"
 LIBRARY = CORE / "target/release/libdoctored_core.a"
 
-STEPS = ("wait", "docs", "release", "fmt", "core-build", "clippy", "tests", "mcp-tests", "agent-tests", "app",
-         "launch", "probes")
 RUST_INPUTS = ("core/", "mcp-proxy/", "scripts/run_tests.py", "scripts/gate.py", "Makefile",
                "scripts/check_layers.py")
 # The app bundle carries the assistant's helper, so its package and build script are Swift inputs; its
@@ -108,13 +122,33 @@ AGENT_SMOKE_TIMEOUT_S = 120
 BUILD_TOOLS = ("cargo", "rustc", "clippy-driver", "xcodebuild", "swift-build", "swift-test")
 GATE_SCRIPTS = ("run_tests.py", "gate.py")
 TIMES_HEADER = "utc\tcommit\tstep\tseconds\texit\tswift_files\ttest_binaries\n"
-# A diagnostic's `error:` / `error[E0308]:`, not xcodebuild's `...=YES_ERROR` setting lines.
-FIRST_ERRORS = re.compile(r"(?i:\berror)(?:\[\w+\])?:|panicked at|FAILED|failed binaries")
+# A diagnostic's `error:` / `error[E0308]:`, not xcodebuild's `...=YES_ERROR` setting lines; a probe's failed
+# group (`FAIL: <group>: …`) and its runner's `Probe failed: …` line.
+FIRST_ERRORS = re.compile(r"(?i:\berror)(?:\[\w+\])?:|panicked at|FAILED|failed binaries|^FAIL: |Probe failed:")
 LAUNCH_TIMEOUT_S = 60
 # Stored under "probe:<set name>" after a failing type check; never equal to an input hash (64 hex characters).
 PROBE_FAILED = "failed"
 PROBE_INPUTS = ("app/Sources/", "app/Bridging/", "core/include/doctored_core.h", "scripts/probe_build.py",
                 "scripts/gate.py")
+
+
+class ProbeRun(NamedTuple):
+    """A probe runner the gate runs as the step `step`: `argv` from the checkout's root, skipped while `inputs`
+    and the core library (`swift_hash`) hash to the value stored at its last pass."""
+    step: str
+    argv: tuple[str, ...]
+    inputs: tuple[str, ...]
+
+
+# The probe runs that are gate steps, each a runner's small run; a mode that measures time or memory never is.
+PROBE_RUNS = (
+    # `verify.py` compiles the app sources with the probe, embeds `app/Info.plist` in it and loads
+    # `scripts/verification_isolation.py`.
+    ProbeRun("precision-probe", ("python3", "-B", "scripts/precision-probe/verify.py"),
+             (*PROBE_INPUTS, "scripts/precision-probe/", "scripts/verification_isolation.py", "app/Info.plist")),
+)
+STEPS = ("wait", "docs", "release", "fmt", "core-build", "clippy", "tests", "mcp-tests", "agent-tests", "app",
+         "launch", *(probe.step for probe in PROBE_RUNS), "probes")
 
 results: dict[str, dict] = {}
 output_lock = threading.Lock()
@@ -473,6 +507,57 @@ def swift_leg(run_it: bool, wanted: str, app: Path | None) -> None:
         store("swift", wanted)
 
 
+def probe_run_key(probe: ProbeRun) -> str:
+    """The state key of `probe`'s step, apart from the type check's `probe:<set name>`."""
+    return f"probe-run:{probe.step}"
+
+
+def probe_run_phase(probe: ProbeRun, phase: str, environment: dict[str, str], log) -> tuple[int, float]:
+    """Run `probe`'s runner once with `environment`, its output into `log`; its exit status and seconds.
+
+    No timeout of the gate's own: the runner bounds its compile and its run and kills its child's process
+    group, which a kill of the runner from here would orphan."""
+    started = time.monotonic()
+    log.write(("$ " + " ".join(probe.argv) + f"  ({phase})\n").encode())
+    log.flush()
+    try:
+        code = subprocess.run(list(probe.argv), cwd=ROOT, env=environment, stdin=subprocess.DEVNULL, stdout=log,
+                              stderr=subprocess.STDOUT).returncode
+    except OSError as error:
+        log.write(f"error: could not start {probe.argv[0]}: {error}\n".encode())
+        code = 127
+    seconds = time.monotonic() - started
+    log.seek(0, os.SEEK_END)
+    log.write(f"{probe.step}: {phase} exit {code} {seconds:.1f}s\n".encode())
+    log.flush()
+    return code, seconds
+
+
+def probe_build_phase(probe: ProbeRun, outcome: dict) -> None:
+    """`probe`'s first phase, beside the Rust and Swift legs: its runner under `DR_PROBE_BUILD_ONLY=1`, which
+    compiles the probe into `build/probe-cache` (or finds it there) and launches nothing. It starts the step's
+    log and puts the phase's `code` and `seconds` in `outcome`."""
+    environment = dict(os.environ, DR_BACKGROUND="1", **{probe_build.BUILD_ONLY_ENV: "1"})
+    with log_path(probe.step).open("wb") as log:
+        outcome["code"], outcome["seconds"] = probe_run_phase(probe, "build", environment, log)
+
+
+def probe_run_finish(probe: ProbeRun, wanted: str, outcome: dict) -> None:
+    """`probe`'s second phase, once every leg has ended, when the first passed: its runner without
+    `DR_PROBE_BUILD_ONLY`, which reuses the cached build, runs the probe and checks its oracles. Records the step
+    with the failing phase's exit and both phases' seconds, and stores `wanted` only on a pass."""
+    code, seconds = outcome.get("code", 1), outcome.get("seconds", 0.0)
+    if code == 0:
+        environment = dict(os.environ, DR_BACKGROUND="1")
+        environment.pop(probe_build.BUILD_ONLY_ENV, None)
+        with log_path(probe.step).open("ab") as log:
+            code, ran = probe_run_phase(probe, "run", environment, log)
+        seconds += ran
+    record(probe.step, code, seconds)
+    if code == 0:
+        store(probe_run_key(probe), wanted)
+
+
 def git(*argv: str) -> str:
     return subprocess.run(["git", *argv], cwd=ROOT, stdout=subprocess.PIPE, text=True).stdout
 
@@ -575,12 +660,13 @@ def gate() -> int:
                                                  "core build, clippy, the whole suite, the doctored-mcp suite, "
                                                  "the assistant helper's suite, the Release app build, a launch "
                                                  "over a scratch socket with the Release bundle's updater check "
-                                                 "(R1–R5) and the probes step (a type check of each changed probe "
-                                                 "directory); skip a leg whose inputs are unchanged since its last "
-                                                 "pass.")
+                                                 "(R1–R5), the precision probe's small run "
+                                                 "(scripts/precision-probe/verify.py) and the probes step (a type "
+                                                 "check of each changed probe directory); skip a leg whose inputs "
+                                                 "are unchanged since its last pass.")
     parser.add_argument("--force", action="store_true",
-                        help="ignore stored hashes; run every step (the probes step still checks only probe "
-                             "directories that changed or failed last time)")
+                        help="ignore stored hashes; run every step, the precision-probe step included (the probes "
+                             "step still checks only probe directories that changed or failed last time)")
     parser.add_argument("--wait", type=float, default=120, metavar="SECONDS",
                         help="seconds to wait for this checkout's build/gate.lock and for builds, whole-suite "
                              "runs and gates in this checkout (other worktrees' builds are not waited for), "
@@ -637,19 +723,35 @@ def gate() -> int:
         skip("fmt", "the Rust inputs are unchanged since the last pass")
         fmt_code = "skip"
 
+    probe_runs: list[tuple[ProbeRun, str, dict]] = []
     if run("core-build", ["cargo", "build", "--release"], CORE) != 0:
-        for step in ("clippy", "tests", "mcp-tests", "app", "launch"):
+        for step in ("clippy", "tests", "mcp-tests", "app", "launch", *(probe.step for probe in PROBE_RUNS)):
             skip(step, "the core build failed")
     else:
         swift_wanted = swift_hash(swift_sources)
         run_swift = state.get("swift") != swift_wanted
         legs = [threading.Thread(target=rust_leg, args=(run_rust, fmt_code, rust_wanted)),
                 threading.Thread(target=swift_leg, args=(run_swift, swift_wanted, args.app))]
+        for probe in PROBE_RUNS:
+            probe_wanted = swift_hash(input_hash(probe.inputs))
+            if state.get(probe_run_key(probe)) == probe_wanted:
+                skip(probe.step, "the probe run's inputs and the core library are unchanged since the last pass")
+                continue
+            outcome: dict = {}
+            probe_runs.append((probe, probe_wanted, outcome))
+            legs.append(threading.Thread(target=probe_build_phase, args=(probe, outcome)))
         for leg in legs:
             leg.start()
         for leg in legs:
             leg.join()
     agent.join()
+    # Every leg has ended, so a probe's wall-clock bounds are not measured beside the gate's own load.
+    for probe, wanted, outcome in probe_runs:
+        try:
+            probe_run_finish(probe, wanted, outcome)
+        except Exception:
+            traceback.print_exc()
+            sys.stderr.flush()
     try:
         probe_leg(args.force)
     except Exception:

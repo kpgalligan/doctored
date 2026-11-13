@@ -252,6 +252,30 @@ class ProbeBuildTests(unittest.TestCase):
         self.assertIn("after build", full.stdout)
         self.assertNotIn("build only:", full.stdout)
 
+    def test_a_module_cache_made_at_another_path_is_replaced(self):
+        # Clang records the module cache's absolute path, so a copy at another path (a worktree's `build/`
+        # copied from another checkout) fails every compile until it is made again.
+        self.build("first")
+        original = self.scratch / "module-cache"
+        (original / "sentinel").write_text("kept")
+        copied = self.scratch / "copied-module-cache"
+        shutil.copytree(original, copied)
+        (self.module / "helper.swift").write_text(HELPER.replace("{note}", "two"))
+        with mock.patch.object(probe_build, "MODULE_CACHE", copied):
+            try:
+                second, _ = self.build("second")
+            except subprocess.CalledProcessError:
+                self.fail("the compile with the copied module cache failed:\n" + self.log.read_text()[-1500:])
+        self.assertFalse(second.reused)
+        self.assertEqual(self.run_probe("second"), "value 41 note two\n")
+        self.assertFalse((copied / "sentinel").exists())
+        # A cache used at the path it was made at is kept.
+        (self.module / "helper.swift").write_text(HELPER.replace("{note}", "three"))
+        third, _ = self.build("third")
+        self.assertFalse(third.reused)
+        self.assertEqual(self.run_probe("third"), "value 41 note three\n")
+        self.assertEqual((original / "sentinel").read_text(), "kept")
+
     def test_compiler_failure_raises_called_process_error_and_keeps_its_output(self):
         (self.module / "helper.swift").write_text("func greeting() -> String { 1 }\n")
         with self.assertRaises(subprocess.CalledProcessError):
