@@ -21,7 +21,7 @@
 //!   code, and its hue (reds, blues) and skin modes equal the same request
 //!   on the document's 16-bit ProPhoto RGB conversion (relative, no black
 //!   point compensation) within 257 coverage codes, at 8 and 16 bits; the
-//!   Magic Wand runs and Select Similar refuses at 8 bits naming #5;
+//!   Magic Wand and Select Similar run at both depths;
 //! * (d) take1, read IN PLACE (`~/devel/doctored-fixtures/photoshop/
 //!   lab-select-547/take1`; skipped with a note when absent, a panic unless
 //!   its `decided.json` is `valid` with Color Range `C2`): each saved scene
@@ -211,7 +211,7 @@ fn prophoto_twin(doc: *const PrecisionDocument) -> *mut PrecisionDocument {
 }
 
 #[test]
-fn lab_color_range_runs_every_range_and_similar_waits_at_8_bits() {
+fn lab_color_range_runs_every_range_and_similar_at_both_depths() {
     for bits in DEPTHS {
         let pixels = scene(bits);
         let doc = lab_document(pixels.clone(), bits);
@@ -255,22 +255,20 @@ fn lab_color_range_runs_every_range_and_similar_waits_at_8_bits() {
         }
         free(rgb);
         free(colourful);
-        // The Magic Wand runs at both depths (`lab_wand.rs` holds its
-        // oracle); #5: Select Similar waits at 8 bits only.
+        // The Magic Wand and Select Similar run at both depths (`lab_wand.rs`
+        // holds their oracle).
         let wand = json!({"kind":"magic_wand","x":3,"y":2,"tolerance":10,"contiguous":true});
         select(doc, &wand).unwrap_or_else(|e| panic!("the wand at {bits} bits: {e}"));
-        if bits == 8 {
-            assert_eq!(
-                select(
-                    doc,
-                    &json!({"kind":"similar","tolerance":10,"contiguous":false})
-                )
-                .unwrap_err(),
-                "select_similar is unavailable in an 8-bit Lab Color document until its Lab \
-                 tolerance rule is measured (#5).",
-                "select_similar at {bits} bits"
-            );
-        }
+        let cover: Vec<u16> = (0..W * H)
+            .map(|i| if i % W < 4 && i / W < 4 { 65535 } else { 0 })
+            .collect();
+        let similar = json!({"kind":"similar","tolerance":257 * 10,"contiguous":false});
+        let got = crate::precision_select::select(doc, &similar, &cover)
+            .unwrap_or_else(|e| panic!("select_similar at {bits} bits: {e}"));
+        assert!(
+            got.contains(&65535),
+            "select_similar at {bits} bits selects"
+        );
         free(doc);
     }
 }

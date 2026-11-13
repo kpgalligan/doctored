@@ -48,10 +48,9 @@ import AppKit
 // and Modify, each the RGB kernel on the codes. Phase 4b-ii adds Select ▸ Color Range's Sampled
 // Colors (`select_color_range` range `sampled`; its samples the L*a*b* codes, its distance the
 // largest per-channel L*a*b* difference the take measured: `lab_select` in the core; every other
-// range since 6b-i). The Magic Wand and the Paint Bucket at both depths and Select ▸ Similar and
-// Grow at 16 bits (#5) run by the rule `lab_select_682_take.py`'s take fitted
-// (`lab_select` in the core); Similar and Grow at 8 bits refuse naming #5
-// (`selectionRefusals`). Phase 4c, which closes phase 4, adds Copy,
+// range since 6b-i). The Magic Wand, the Paint Bucket and Select ▸ Similar and Grow run at both
+// depths by the rules `lab_select_682_take.py`'s and `lab_select_5_take.py`'s takes fitted
+// (`lab_select` in the core). Phase 4c, which closes phase 4, adds Copy,
 // Cut, Copy Merged and Paste (the payload keeps the Lab codes, `lab_clipboard` in the core; pixels
 // pasted across modes convert by the Mode rules, a layers clip through `LabLayerClip`), Duplicate
 // to New Document and copying layers to another document. Phase 5a adds
@@ -89,7 +88,7 @@ import AppKit
 // refuses for good (`disabledTools`). No refusal names a
 // phase: a tool outside `tools` refuses for good by name — `disabledTools`, `skyRefusal`,
 // `rawTools`, `byteTools`, `evaluationTools`, `toneMapTools`, else "Doctored offers it on RGB
-// documents only" — and a selection of `selectionRefusals` refuses at its depth (#5). Phase 1c
+// documents only". Phase 1c
 // adds the readouts, never labelling Lab codes as RGB: the Channels panel's Lightness, a and b rows (the R,
 // G and B planes of the raw codes, `plane(named:)`, through `labCodeThumbnail`), the Info panel's
 // L*a*b* row and Lightness/a/b histogram, `sample_color` / `sample_pixel` (`readingFields`),
@@ -222,8 +221,8 @@ enum LabDocument {
         "convert_precision",
         // Phase 4b-ii: sampled Color Range by the measured Lab rule (`lab_select` in the core).
         "select_color_range",
-        // The Magic Wand and Select ▸ Similar and Grow (#5) by the take's Lab rule
-        // (`lab_select` in the core), wherever `selectionRefusals` admits them.
+        // The Magic Wand and Select ▸ Similar and Grow by the takes' Lab rules (`lab_select` in
+        // the core), at both depths.
         "select_magic_wand", "select_similar",
         // Phase 4c: the clipboard across modes (`LabClipboard.swift`, `lab_clipboard` in the
         // core), Duplicate to New Document and copying layers to another document.
@@ -305,7 +304,7 @@ enum LabDocument {
         "stamp_selected", "save_selection", "load_selection", "modify_selection",
         // Phase 4b-ii.
         "select_color_range",
-        // #5 (the same list as `tools`).
+        // The Magic Wand, Similar and Grow (the same list as `tools`).
         "select_magic_wand", "select_similar",
         // Phase 4c (the same list as `tools`).
         "copy", "cut", "copy_merged", "paste", "duplicate_to_new_document",
@@ -389,8 +388,8 @@ enum LabDocument {
         "growSelection:", "shrinkSelection:", "borderSelection:", "smoothSelection:",
         // Phase 4b-ii: Select ▸ Color Range (Sampled Colors only, `ColorRangeSheetController`).
         "showColorRange:",
-        // #5: Select ▸ Grow and Similar, each disabled where `selectionRefusals` refuses it at
-        // the document's depth (`EditorViewController+Precision`).
+        // Select ▸ Grow and Similar, by the takes' Lab rule at both depths (`lab_select` in the
+        // core).
         "selectGrow:", "selectSimilar:",
         // Phase 4c: Copy, Copy Merged, Cut, the Pastes and Duplicate to New Document (Gray's set).
         "copy:", "copyMerged:", "cut:", "paste:", "pasteAsNewLayer:", "pasteInPlace:",
@@ -469,61 +468,6 @@ enum LabDocument {
             + "Lab Color is 8 or 16 bits per channel."
     }
 
-    /// The selections a Lab document refuses, one row per (key, fate): the core's
-    /// `lab_document::SELECTION_REFUSALS`. `depths` are the bits it refuses at; `issue` names the
-    /// issue awaiting a fitted Lab tolerance rule, nil where it is disabled for good. A key absent
-    /// here is admitted at both depths. `select_grow` is `select_similar` with `contiguous` true,
-    /// a key and never a tool name. `lab_select_682_take.py`'s take fitted the Magic Wand at both
-    /// depths and Similar and Grow at 16 bits only.
-    static let selectionRefusals: [(key: String, depths: Set<Int>, issue: String?)] = [
-        (key: "select_similar", depths: [8], issue: "#5"),
-        (key: "select_grow", depths: [8], issue: "#5"),
-    ]
-
-    /// `key`'s refusal at `depth` (`selectionRefusals`), or nil where it is admitted: the core's
-    /// `lab_document::selection_refusal`, sentence for sentence. A row of one depth names it ("an
-    /// 8-bit" or "a 16-bit" Lab Color document).
-    static func selectionRefusal(key: String, depth: Int?) -> String? {
-        guard let row = selectionRefusals.first(where: {
-            $0.key == key && depth.map($0.depths.contains) == true
-        }) else { return nil }
-        let label = key == "select_grow" ? "select_similar with contiguous true (Grow)" : key
-        let document: String
-        switch (row.depths.count, depth) {
-        case (1, 8): document = "an 8-bit Lab Color document"
-        case (1, 16): document = "a 16-bit Lab Color document"
-        default: document = "a Lab Color document"
-        }
-        guard let issue = row.issue else {
-            return "\(label) is unavailable in \(document)."
-        }
-        return "\(label) is unavailable in \(document) until its Lab tolerance rule is measured "
-            + "(\(issue))."
-    }
-
-    /// The `selectionRefusals` key of an MCP selection call: `select_magic_wand`, or
-    /// `select_similar` / `select_grow` by its `contiguous` (false when absent, as
-    /// `AgentServer+SelectSimilar.swift` reads it); nil for any other tool.
-    static func selectionKey(tool: String, arguments: [String: Any]) -> String? {
-        switch tool {
-        case "select_magic_wand": return tool
-        case "select_similar":
-            return (boolArgument(arguments["contiguous"]) ?? false) ? "select_grow" : "select_similar"
-        default: return nil
-        }
-    }
-
-    /// A boolean argument read as `AgentServer.boolArg` reads it (a number, or "true"/"1" and
-    /// "false"/"0").
-    private static func boolArgument(_ value: Any?) -> Bool? {
-        if let number = value as? NSNumber { return number.boolValue }
-        switch value as? String {
-        case "true", "1": return true
-        case "false", "0": return false
-        default: return nil
-        }
-    }
-
     /// The refusal of a tool outside `tools`, never naming a phase: a tool in `disabledTools`
     /// refuses for good (`disabledRefusal`), then Sky Replacement, the four refused-for-good
     /// sets, and any other tool the core's default sentence (`lab_document::refused_sentence`).
@@ -538,15 +482,10 @@ enum LabDocument {
             + "documents only."
     }
 
-    /// The gate's answer for one MCP call at the document's `depth` (8 or 16): nil to admit it,
-    /// else the refusal. A selection of `selectionRefusals` answers first, then an adjustment's
-    /// table refusal (`LabAdjust.toolRefusal`). Admitted tools whose ARGUMENTS can still reach a
-    /// path the mode does not hold yet are narrowed here.
-    static func refusal(tool: String, arguments: [String: Any], depth: Int?) -> String? {
-        if let key = selectionKey(tool: tool, arguments: arguments),
-           let reason = selectionRefusal(key: key, depth: depth) {
-            return reason
-        }
+    /// The gate's answer for one MCP call at either depth: nil to admit it, else the refusal. An
+    /// adjustment's table refusal (`LabAdjust.toolRefusal`) answers first. Admitted tools whose
+    /// ARGUMENTS can still reach a path the mode does not hold yet are narrowed here.
+    static func refusal(tool: String, arguments: [String: Any]) -> String? {
         if let reason = LabAdjust.toolRefusal(tool: tool, arguments: arguments) { return reason }
         guard tools.contains(tool) else { return refusal(tool: tool) }
         // A blend mode outside `labModes`; Pass Through is left to the group rule
@@ -867,7 +806,7 @@ enum LabDocument {
     /// (phase 6a-i) the Text, Shape and Pen tools, (phase 6b-ii) the Quick Selection, Object
     /// Selection and Select Subject tools, (the close) the Magnetic Lasso, whose edges read the
     /// Display P3 analysis composite, and the Magic Wand, by the take's Lab rule at both
-    /// depths (`selectionRefusal` refuses no `select_magic_wand`).
+    /// depths.
     static func allows(_ tool: EditorTool) -> Bool {
         switch tool {
         case .select, .ellipseSelect, .lasso, .freehandLasso, .hand, .zoom, .move,

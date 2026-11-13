@@ -146,12 +146,6 @@ extension EditorViewController {
                 return DocumentPrecision.refusal(
                     tool: step.tool, arguments: step.arguments, document: document) == nil ? nil : false
             }
-            // #5: Select ▸ Similar and Grow where `LabDocument.selectionRefusal` admits them at
-            // the document's depth.
-            if let key = ["selectSimilar:": "select_similar", "selectGrow:": "select_grow"][action],
-               LabDocument.selectionRefusal(key: key, depth: document.doc?.labDepth) != nil {
-                return false
-            }
             // Phase 2b: the adjustment items by `LabAdjust`'s table.
             let adjusts = LabAdjust.allowsAction(action, tag: item.tag)
             return LabDocument.selectors.contains(action) || adjusts == true ? nil : false

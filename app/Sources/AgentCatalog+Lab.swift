@@ -13,7 +13,7 @@ import Foundation
 /// pixels, Layer Via, Stamp Selected, Select ▸ Modify and the Lightness, a and b planes of
 /// `load_selection` and `add_channel` (`annotateLabSchema`); `select_color_range` on the codes;
 /// the clipboard across modes, `duplicate_to_new_document`, `copy_layers_to_document`, the Magic
-/// Wand's Lab rule and Select Similar's and Grow's at 16 bits and refusal at 8 (#5);
+/// Wand's, Select Similar's and Grow's Lab rules;
 /// `convert_mode cmyk` directly, `convert_precision` lab8/lab16, the proof tools on the Display P3
 /// view, `convert_profile` as a mode conversion and `assign_profile`'s refusal; the type, shape
 /// and fill layer, path and vector mask tools, their colours authored sRGB rendered as L*a*b*
@@ -375,10 +375,12 @@ extension AgentServer {
                     + "half the tolerance; a 16-bit document's codes are read through "
                     + "Photoshop's 15-bit Lab grid. The Paint Bucket fills the same region."
             case "select_similar":
-                note = " In a Lab Color document at 16 bits, global and contiguous (Grow) "
-                    + "compare the Magic Wand's Lab rule against the box of the selected pixels' "
-                    + "codes (measured against Photoshop). At 8 bits both are unavailable until their "
-                    + "Lab tolerance rule is measured (#5)."
+                note = " In a Lab Color document, at 8 and 16 bits, global and contiguous (Grow) "
+                    + "compare the Magic Wand's Lab rule against the selected pixels' codes with "
+                    + "each code's extremes trimmed: of N selected pixels, each of L, a, b, the "
+                    + "three halved differences and alpha drops its N/10 lowest and N/10 highest "
+                    + "values (rounded down) before the tolerance widens what is left, so a colour "
+                    + "few selected pixels carry widens nothing (measured against Photoshop)."
             case "get_proof_setup", "set_proof_setup", "render_proof", "save_proof_preset":
                 note = " A Lab Color document proofs as RGB: its Display P3 view "
                     + "(what the canvas shows) through the proof profile, so render_proof answers "

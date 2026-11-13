@@ -1,29 +1,33 @@
-//! The Magic Wand, the Paint Bucket and Select ▸ Similar and Grow (#5) on a
-//! Lab Color document, through the FFI (`dr_precision_doc_select`,
-//! `dr_precision_doc_edit`). The rule is the one
+//! The Magic Wand, the Paint Bucket and Select ▸ Similar and Grow on a Lab
+//! Color document, through the FFI (`dr_precision_doc_select`,
+//! `dr_precision_doc_edit`). The wand's rule is the one
 //! `scripts/photoshop-probe/lab_select_682_take.py`'s take fitted (C6 at 8
-//! bits, C9 at 16). This file's oracle is written from that docstring, in
-//! f64: each code becomes a byte (8 bits: v / 257 rounded; 16 bits:
-//! Photoshop's 15-bit grid, v·32768/65535 for L\* and v·32640/65535 for
-//! a\*/b\* rounded half up, then ⌊(i·255 + 16384)/32768⌋); a pixel is
-//! admitted when L, a and b lie within ± t of the references' range, the
-//! halved cyclic differences ⌊(a − L + 255)/2⌋, ⌊(b − a + 255)/2⌋ and
-//! ⌊(L − b + 255)/2⌋ within ± ⌊t/2⌋, and alpha within ± 257·t (the host's
-//! ×257 tolerance). Bounds, declared before measuring, exact on every
-//! pixel, at 8 and 16 bits:
+//! bits, C9 at 16), Similar's and Grow's range the per-key trim
+//! `lab_select_5_take.py`'s takes measured. This file's oracle is written
+//! from those docstrings, in f64: each code becomes a byte (8 bits: v / 257
+//! rounded; 16 bits: Photoshop's 15-bit grid, v·32768/65535 for L\* and
+//! v·32640/65535 for a\*/b\* rounded half up, then ⌊(i·255 + 16384)/32768⌋);
+//! a pixel is admitted when L, a and b lie within ± t of the references'
+//! range, the halved cyclic differences ⌊(a − L + 255)/2⌋, ⌊(b − a + 255)/2⌋
+//! and ⌊(L − b + 255)/2⌋ within ± ⌊t/2⌋, and alpha within ± 257·t (the
+//! host's ×257 tolerance). The wand's range is its seed's keys; Similar's
+//! and Grow's is each key's sorted values over the N references with
+//! ⌊N/10⌋ dropped from each end, every key on its own. Bounds, declared
+//! before measuring, exact on every pixel, at 8 and 16 bits:
 //!
 //! * (a) the wand (seeds (3, 2) and (12, 9), t 0, 5, 15 and 30, Contiguous
 //!   on and off) equals the oracle's single-seed region, flooded
 //!   four-connected from the seed when Contiguous;
 //! * (b) the Paint Bucket (t 15, Contiguous on and off) changes exactly the
 //!   oracle's wand region and nothing else;
-//! * (c) at 16 bits Select ▸ Similar (global) and Grow (contiguous) from a
-//!   coverage whose references are every pixel at least half selected
-//!   (32768 is one, 32767 is not) equal the oracle's box over those
-//!   references; no reference refuses with "No pixel is more than half
-//!   selected, so there is no colour to match.";
-//! * (d) at 8 bits Similar and Grow refuse naming #5, in their exact
-//!   sentences.
+//! * (c) Select ▸ Similar (global) and Grow (contiguous) from a coverage
+//!   whose references are every pixel at least half selected (32768 is one,
+//!   32767 is not; 21 of them, so each key loses 2 at each end), and from a
+//!   coverage of 9 (no trim), equal the oracle's trimmed range over those
+//!   references at t 0, 5 and 15; the trim is informative (the 21
+//!   references' trimmed range is not their full box, and some case's region
+//!   differs from the full box's); no reference refuses with "No pixel is
+//!   more than half selected, so there is no colour to match.".
 use std::collections::VecDeque;
 
 use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer as Layer};
@@ -116,18 +120,31 @@ fn admitted(p: [u16; 4], low: &[f64; 7], high: &[f64; 7], t: u32, bits: u32) -> 
     (0..7).all(|c| k[c] >= low[c] - bound[c] && k[c] <= high[c] + bound[c])
 }
 
-/// The references' key box.
-fn key_box(pixels: &[[u16; 4]], references: &[usize], bits: u32) -> ([f64; 7], [f64; 7]) {
-    let mut low = [f64::INFINITY; 7];
-    let mut high = [f64::NEG_INFINITY; 7];
-    for &i in references {
-        let k = keys(pixels[i], bits);
-        for c in 0..7 {
-            low[c] = low[c].min(k[c]);
-            high[c] = high[c].max(k[c]);
-        }
+/// The references' key range: each key's values sorted, `trim` dropped from
+/// each end (0: the full box).
+fn key_range(
+    pixels: &[[u16; 4]],
+    references: &[usize],
+    bits: u32,
+    trim: usize,
+) -> ([f64; 7], [f64; 7]) {
+    let mut low = [0.0; 7];
+    let mut high = [0.0; 7];
+    for c in 0..7 {
+        let mut values: Vec<f64> = references
+            .iter()
+            .map(|&i| keys(pixels[i], bits)[c])
+            .collect();
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        low[c] = values[trim];
+        high[c] = values[values.len() - 1 - trim];
     }
     (low, high)
+}
+
+/// The wand's range: its one seed's keys.
+fn key_box(pixels: &[[u16; 4]], references: &[usize], bits: u32) -> ([f64; 7], [f64; 7]) {
+    key_range(pixels, references, bits, 0)
 }
 
 /// The oracle's region: global, or flooded four-connected from `seeds`
@@ -303,57 +320,76 @@ fn coverage() -> Vec<u16> {
         .collect()
 }
 
-#[test]
-fn lab_similar_and_grow_at_16_bits_equal_the_key_oracle() {
-    let bits = 16;
-    let pixels = scene(bits);
-    let doc = lab_document(pixels.clone(), bits);
-    let cover = coverage();
-    let references: Vec<usize> = (0..cover.len()).filter(|&i| cover[i] >= 32768).collect();
-    assert_eq!(references.len(), 21, "the references");
-    let (low, high) = key_box(&pixels, &references, bits);
-    for t in [0u32, 5, 15] {
-        for contiguous in [false, true] {
-            let what = format!("similar t {t} contiguous {contiguous}");
-            let operation = json!({"kind":"similar","tolerance":257 * t,"contiguous":contiguous});
-            let got = select(doc, &operation, &cover).unwrap_or_else(|e| panic!("{what}: {e}"));
-            let want = region(
-                |i| admitted(pixels[i], &low, &high, t, bits),
-                &references,
-                contiguous,
-            );
-            assert_region(&got, &want, &what);
-        }
-    }
-    let none = vec![32767u16; cover.len()];
-    assert_eq!(
-        select(
-            doc,
-            &json!({"kind":"similar","tolerance":257 * 5,"contiguous":false}),
-            &none
-        )
-        .unwrap_err(),
-        "No pixel is more than half selected, so there is no colour to match."
-    );
-    free(doc);
+/// (c)'s second coverage: a full 3 × 3 rectangle at (12, 4), 9 references,
+/// so ⌊9/10⌋ = 0 and nothing is trimmed.
+fn small_coverage() -> Vec<u16> {
+    (0..W * H)
+        .map(|i| {
+            let (x, y) = (i % W, i / W);
+            if (12..15).contains(&x) && (4..7).contains(&y) {
+                65535
+            } else {
+                0
+            }
+        })
+        .collect()
 }
 
 #[test]
-fn lab_similar_and_grow_refuse_at_8_bits() {
-    let doc = lab_document(scene(8), 8);
-    let cover = coverage();
-    for (contiguous, label) in [
-        (false, "select_similar"),
-        (true, "select_similar with contiguous true (Grow)"),
-    ] {
-        let operation = json!({"kind":"similar","tolerance":257 * 10,"contiguous":contiguous});
-        assert_eq!(
-            select(doc, &operation, &cover).unwrap_err(),
-            format!(
-                "{label} is unavailable in an 8-bit Lab Color document until its Lab tolerance \
-                 rule is measured (#5)."
-            )
+fn lab_similar_and_grow_equal_the_trimmed_key_oracle() {
+    for bits in DEPTHS {
+        let pixels = scene(bits);
+        let doc = lab_document(pixels.clone(), bits);
+        let mut differs = false;
+        for (cover, count) in [(coverage(), 21usize), (small_coverage(), 9)] {
+            let references: Vec<usize> = (0..cover.len()).filter(|&i| cover[i] >= 32768).collect();
+            assert_eq!(references.len(), count, "the references at {bits} bits");
+            let trim = count / 10;
+            let (low, high) = key_range(&pixels, &references, bits, trim);
+            let (full_low, full_high) = key_range(&pixels, &references, bits, 0);
+            if trim > 0 {
+                assert!(
+                    (low, high) != (full_low, full_high),
+                    "{bits} bits: the trim changes the 21 references' range"
+                );
+            }
+            for t in [0u32, 5, 15] {
+                for contiguous in [false, true] {
+                    let what = format!(
+                        "{count} references, t {t}, contiguous {contiguous}, at \
+                                        {bits} bits"
+                    );
+                    let operation =
+                        json!({"kind":"similar","tolerance":257 * t,"contiguous":contiguous});
+                    let got =
+                        select(doc, &operation, &cover).unwrap_or_else(|e| panic!("{what}: {e}"));
+                    let admit = |l: &[f64; 7], h: &[f64; 7]| {
+                        region(
+                            |i| admitted(pixels[i], l, h, t, bits),
+                            &references,
+                            contiguous,
+                        )
+                    };
+                    let want = admit(&low, &high);
+                    differs |= want != admit(&full_low, &full_high);
+                    assert_region(&got, &want, &what);
+                }
+            }
+        }
+        assert!(
+            differs,
+            "{bits} bits: some case's trimmed region differs from the full box's"
         );
+        let none = vec![32767u16; (W * H) as usize];
+        assert_eq!(
+            select(
+                doc,
+                &json!({"kind":"similar","tolerance":257 * 5,"contiguous":false}),
+                &none
+            )
+            .unwrap_err(),
+            "No pixel is more than half selected, so there is no colour to match."
+        );
+        free(doc);
     }
-    free(doc);
 }

@@ -1,8 +1,7 @@
-//! The Lab Color document's colour-selection rules (#1 phase 4b-ii,
-//! #5): how sampled Color Range measures a pixel's distance from a sample,
-//! and how the Magic Wand, the Paint Bucket and Select ▸ Similar and Grow
-//! admit a pixel, on a Lab document's codes. A kernel: it names no document
-//! type.
+//! The Lab Color document's colour-selection rules (#1 phase 4b-ii): how
+//! sampled Color Range measures a pixel's distance from a sample, and how the
+//! Magic Wand, the Paint Bucket and Select ▸ Similar and Grow admit a pixel,
+//! on a Lab document's codes. A kernel: it names no document type.
 //!
 //! **The take.** `scripts/photoshop-probe/lab_select_take.py`'s take1
 //! (Photoshop 26.10.0, `lab-select-547/take1`, 8 and 16 bits) measured
@@ -17,7 +16,7 @@
 //! so Color Range ships [`LabRule::Units`]: the largest of |ΔL\*|, |Δa\*| and
 //! |Δb\*|, compared with the tolerance in those same units.
 //!
-//! **The wand (#5).** `scripts/photoshop-probe/lab_select_682_take.py`
+//! **The wand.** `scripts/photoshop-probe/lab_select_682_take.py`
 //! re-scored take1's wand in place against eleven candidates and took a new
 //! scene (field (60, −12, 18), t 15 and 25, 8 and 16 bits; `lab-select-682`)
 //! with Select ▸ Similar and Grow run by `executeAction` of their events. The
@@ -30,14 +29,33 @@
 //! Lab grid (L\* 32768 v/65535, a\*/b\* 32640 v/65535, rounded half up)
 //! reduced to bytes, ⌊(i·255 + 16384)/32768⌋ — the 16-bit wand compares at
 //! 8-bit resolution, which no form on the u16 codes matched (the best missed
-//! 256 pixels). Both takes meet it exactly at both depths, for the wand and
-//! (16 bits) for Similar and Grow. t is the host's tolerance read back from
-//! its ×257 form; alpha is a seventh bound in u16 codes (RGB's choice, not
-//! measured). Similar's references are every pixel at least half selected
-//! (`selection_similar`'s rule), their keys' box widened by the same bounds;
-//! Grow floods that admission four-connected from them. At 8 bits Similar and
-//! Grow fit nothing (the box over a dithered 8-bit field admits a code more
-//! than Photoshop does), so they refuse there (`lab_document`).
+//! 256 pixels). Both takes meet it exactly at both depths. t is the host's
+//! tolerance read back from its ×257 form; alpha is a seventh bound in u16
+//! codes (RGB's choice, not measured).
+//!
+//! **Similar and Grow.** Their references are every pixel at least half
+//! selected (`selection_similar`'s rule), and the range is NOT the box of
+//! all their keys: each of the seven keys' values over the N references,
+//! sorted, loses ⌊N/10⌋ at each end, every key on its own
+//! ([`LabWandRange::from_reference`], [`TRIM_DIVISOR`]); what is left is
+//! widened by the wand's bounds. Grow floods that admission four-connected
+//! from the references, Similar admits over the whole canvas. A pixel colour
+//! that only a few references carry therefore widens nothing, as on a
+//! dithered field, where the full box admitted a code more than the selected
+//! colours do. `scripts/photoshop-probe/lab_select_5_take.py` (Photoshop
+//! 26.10.0, `lab-select-5`) measured it with exact membership on every pixel:
+//! take1 laid 37 reference rectangles of the field (120, 140, 110) with
+//! 4-code variants in patterns, counts and sizes beside 1748 single-pixel
+//! probes on rays from the field, t 15 and 25, at 8 and 16 bits. None of its
+//! declared reference rules (every reference, box and block means, strides,
+//! and count, share, percentile and sigma thresholds over triples or
+//! channels) met it; its fitted boxes showed each key trimmed on its own,
+//! and that trim at a share between 9.77 % and 10.06 % met every case. take2,
+//! held out (field (135, 118, 147), the variants' signs flipped, t 13 and 27,
+//! other counts and sizes), met it at ⌊N/10⌋ alone, at both depths; the
+//! wand's take (`lab-select-682`) meets it too. Measured on hard rectangles
+//! only: partial coverage keeps the half-selected rule, and alpha's trim is
+//! the same rule, unmeasured (every take is opaque).
 
 use crate::job_control::JobContext;
 use crate::lab_blend::LabGrid;
@@ -130,9 +148,41 @@ fn bounds(tolerance: u16) -> [i32; 7] {
     [t, t, t, t / 2, t / 2, t / 2, i32::from(tolerance)]
 }
 
+/// Similar's and Grow's trim (module doc, **Similar and Grow**): of N
+/// references, each key drops its ⌊N/10⌋ lowest and ⌊N/10⌋ highest values.
+/// take2's rects pin the divisor: a 60-value tail of 600 references is
+/// dropped and a 109-value tail of 1089 kept, which no other share between
+/// 9.77 % and 10.06 % (take1's interval) does.
+const TRIM_DIVISOR: u64 = 10;
+
+/// The smallest and largest value of histogram `counts` once `trim` values
+/// are dropped from each end. `trim` is under half the total
+/// (⌊N/10⌋ ≤ ⌊(N − 1)/2⌋ for every N ≥ 1), so a value is left at each end.
+fn trimmed(counts: &[u64], trim: u64) -> (i32, i32) {
+    let mut seen = 0;
+    let mut low = 0;
+    for (v, &c) in counts.iter().enumerate() {
+        seen += c;
+        if seen > trim {
+            low = v;
+            break;
+        }
+    }
+    seen = 0;
+    let mut high = low;
+    for (v, &c) in counts.iter().enumerate().rev() {
+        seen += c;
+        if seen > trim {
+            high = v;
+            break;
+        }
+    }
+    (low as i32, high as i32)
+}
+
 /// The [min, max] of the references' wand keys (module doc): one seed for the
-/// wand and the bucket, every at-least-half-selected pixel for Similar and
-/// Grow.
+/// wand and the bucket; for Similar and Grow, every at-least-half-selected
+/// pixel's keys, each trimmed on its own ([`LabWandRange::from_reference`]).
 pub(crate) struct LabWandRange {
     min: [i32; 7],
     max: [i32; 7],
@@ -145,32 +195,46 @@ impl LabWandRange {
         Self { min: key, max: key }
     }
 
-    /// The box of every reference pixel's key (`selection_similar`'s
-    /// half-selected rule); `None` when no pixel is a reference.
+    /// Similar's and Grow's range (module doc, **Similar and Grow**): over
+    /// every reference pixel (`selection_similar`'s half-selected rule), each
+    /// key's values sorted and ⌊N/[`TRIM_DIVISOR`]⌋ of them dropped from EACH
+    /// end, every key on its own; `None` when no pixel is a reference.
     pub(crate) fn from_reference(
         pixel: &impl Fn(usize) -> [u16; 4],
         coverage: &[u16],
         grid: LabGrid,
         job: JobContext<'_>,
     ) -> Result<Option<Self>, String> {
-        let mut range: Option<Self> = None;
+        // A count per value: the six byte keys lie in 0…255 (`wand_key`),
+        // alpha in 0…65535, so the trim reads histograms rather than holding
+        // every reference's key.
+        let mut bytes = vec![[0u64; 256]; 6];
+        let mut alpha = vec![0u64; 65536];
+        let mut n = 0u64;
         for (i, &c) in coverage.iter().enumerate() {
             job.every(i)?;
             if !is_reference(c) {
                 continue;
             }
             let key = wand_key(pixel(i), grid);
-            match &mut range {
-                None => range = Some(Self { min: key, max: key }),
-                Some(r) => {
-                    for (k, &v) in key.iter().enumerate() {
-                        r.min[k] = r.min[k].min(v);
-                        r.max[k] = r.max[k].max(v);
-                    }
-                }
+            for (counts, &v) in bytes.iter_mut().zip(&key) {
+                // Always in range; the clamp only keeps an index from panicking.
+                counts[v.clamp(0, 255) as usize] += 1;
             }
+            alpha[key[6].clamp(0, 65535) as usize] += 1;
+            n += 1;
         }
-        Ok(range)
+        if n == 0 {
+            return Ok(None);
+        }
+        let trim = n / TRIM_DIVISOR;
+        let mut min = [0; 7];
+        let mut max = [0; 7];
+        for (k, counts) in bytes.iter().enumerate() {
+            (min[k], max[k]) = trimmed(counts, trim);
+        }
+        (min[6], max[6]) = trimmed(&alpha, trim);
+        Ok(Some(Self { min, max }))
     }
 
     /// True when every key of `p` lies within the range widened by

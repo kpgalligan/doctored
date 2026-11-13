@@ -1,6 +1,6 @@
 # GIMP architecture study — lessons and capability catalog (ADR)
 
-- **Status:** Accepted — reference study; open items remain ([#1](https://github.com/kpgalligan/doctored/issues/1), [#5](https://github.com/kpgalligan/doctored/issues/5), [#9](https://github.com/kpgalligan/doctored/issues/9), [#10](https://github.com/kpgalligan/doctored/issues/10), [#17](https://github.com/kpgalligan/doctored/issues/17), [#19](https://github.com/kpgalligan/doctored/issues/19), [#34](https://github.com/kpgalligan/doctored/issues/34)). The study has no work items of its own; those are the catalog gaps that have an issue.
+- **Status:** Accepted — reference study; open items remain ([#1](https://github.com/kpgalligan/doctored/issues/1), [#9](https://github.com/kpgalligan/doctored/issues/9), [#10](https://github.com/kpgalligan/doctored/issues/10), [#17](https://github.com/kpgalligan/doctored/issues/17), [#19](https://github.com/kpgalligan/doctored/issues/19), [#34](https://github.com/kpgalligan/doctored/issues/34)). The study has no work items of its own; those are the catalog gaps that have an issue.
 - **Phase / dates:** pre-plan architecture study of the GIMP 3.3 development tree, 2026-08-10
 - **Original:** [archive/gimp-image-manipulation-capabilities.md](../archive/gimp-image-manipulation-capabilities.md) — the full 14-section study with per-section implementation notes
 - **Key commits:** `bc949f5` (study); it seeded [high-leverage-roadmap.md](high-leverage-roadmap.md) (`4f56283`) and [next-features.md](next-features.md) (`d0b0d26`)
@@ -79,7 +79,7 @@ The study records no to-do items of its own. Catalog gaps and where they stand:
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Text on a path (§11).
 - `DONE` — Liquify, and Smudge and the other per-dab retouch brushes at 8 and 16 bits
   (`core/src/retouch_brush.rs`, `core/src/retouch_smudge.rs`).
-- `DONE` — Lab Color, Grayscale, Indexed Color, Duotone and Bitmap document modes (their ADRs); Lab's 8-bit Select Similar/Grow is [#5](https://github.com/kpgalligan/doctored/issues/5).
+- `DONE` — Lab Color, Grayscale, Indexed Color, Duotone and Bitmap document modes (their ADRs).
 - `OPEN` [#1](https://github.com/kpgalligan/doctored/issues/1) — CMYK mode's remaining items and PDF/X
   ([status](cmyk-mode-status.md)).
 - `DONE` — AVIF and lossless JPEG XL export, OpenEXR and Radiance HDR (§14).

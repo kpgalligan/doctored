@@ -329,8 +329,8 @@ unsafe fn request<'a>(
         };
         return Ok((doc, edit, parse));
     }
-    if let Some(policy) = doc.lab_policy() {
-        crate::lab_document::admit_edit(text, policy.depth())?;
+    if doc.lab_policy().is_some() {
+        crate::lab_document::admit_edit(text)?;
     }
     if doc.is_indexed() {
         let edit = match crate::indexed_document::admit_edit(text)? {

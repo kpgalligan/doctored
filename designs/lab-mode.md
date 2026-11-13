@@ -1,7 +1,7 @@
 # Lab Color document mode (ADR)
 
-- **Status:** Accepted — open items remain ([#5](https://github.com/kpgalligan/doctored/issues/5)); the mode closed
-  2026-10-22. [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella) stays open (see
+- **Status:** Accepted — the mode closed 2026-10-22; Select Similar and Grow at 8 bits shipped 2026-11-13.
+  [#1](https://github.com/kpgalligan/doctored/issues/1) (the colour-mode umbrella) stays open (see
   [cmyk-mode-status.md](cmyk-mode-status.md)). Grayscale is `designs/grayscale-mode.md`, Indexed Color
   `designs/indexed-mode.md`.
 - **Originals:** [archive/lab-mode-status.md](../archive/lab-mode-status.md) (the working record at close) and
@@ -23,8 +23,7 @@ Image ▸ Mode ▸ Lab Color at 8 and 16 bits: New, both conversions (RGB, Gray,
 layer structure, paint, adjustments, filters, retouch, effects, Lab TIFF/PSD/PSB in and out, geometry,
 selections, clipboard, Bits/Channel, proof and the profile commands, type/shape/fill layers, comps, analysis,
 multi-image, neural and generative tools, from the UI, over MCP and in Actions. Every tool the catalog offers is
-admitted, refused for good by name, or (Select Similar and Grow at 8 bits) names its issue. No refusal names a
-phase.
+admitted or refused for good by name. No refusal names a phase.
 
 ## Decisions in force
 
@@ -81,10 +80,11 @@ phase.
 - **Effects and patterns are authored sRGB,** converted at composite (`AuthoredColors::LabTwin`); Blend If on
   Lightness, a and b (Gray refuses). **Artwork is authored sRGB** (`lab_artwork`), rendered into the twin.
 - **Geometry, selections, clipboard:** the RGB kernels on the codes; a Lab warp applies at once with no
-  binding; sampled Color Range by the measured `RANGE_RULE`, the other ranges by their space; the Magic Wand
-  and Paint Bucket (both depths) and Similar and Grow (16 bits) by `lab_select::wand_key`; Quick Selection
-  ΔE76 on the codes; the model selections, the Magnetic Lasso and Detect Horizon read the Display P3 analysis
-  composite; the clipboard keeps the codes (RZCB v6) and converts across modes by the Mode rules.
+  binding; sampled Color Range by the measured `RANGE_RULE`, the other ranges by their space; the Magic Wand,
+  Paint Bucket, Similar and Grow (both depths) by `lab_select::wand_key`, Similar's and Grow's range trimmed per
+  key; Quick Selection ΔE76 on the codes; the model selections, the Magnetic Lasso and Detect Horizon read the
+  Display P3 analysis composite; the clipboard keeps the codes (RZCB v6) and converts across modes by the Mode
+  rules.
 - **Channel math, stacks, multi-image:** Apply Image and Calculations blend each channel's codes alone; Stack
   Modes per channel; Merge to HDR through ProPhoto (no 32-bit Lab); Auto-Align fits CIE Y; Merge Panorama blends a
   Lab stack on L\* alone (`precision_auto_blend`'s Lab arm, kept for it).
@@ -123,6 +123,7 @@ Photoshop 26.10.0.
   `executeAction` of `Smlr`/`Grow` with no descriptor, smoke1): exact on every pixel, the wand by C6 (8-bit
   codes, halved cyclic differences) at 8 bits and C9 (C6 on bytes from Photoshop's 15-bit grid) at 16, both
   takes; Similar and Grow C9 at 16 bits; at 8 bits they fit nothing (best C6, 512/609 and 525/626 px over).
+  `lab-select-5`'s per-key trim (Shipped, below) superseded both depths' Similar and Grow rules.
 - **Lab → Grayscale** (`lab-gray-547/take1`): L\* direct, max |r| 0.267 code at 8 bits, 0.011 at 16.
 - **Lab → CMYK and the profile items** (`lab-cmyk-547/take1`): MISS, max/mean 6.06/1.04 codes at 8 bits,
   5.88/1.02 at 16; Assign Profile disabled, Convert to Profile and the proof items enabled.
@@ -158,9 +159,13 @@ Photoshop 26.10.0.
   admitted; Place through ProPhoto (`LAB_FAMILIES` `source_place`); a Generative Layer converts; Auto-Blend
   Layers refused for good; a contact sheet cell tagged Display P3. Tests `core/tests/lab_close.rs`,
   `lab_close_photoshop.rs`; drive `scripts/verify_lab_mode.py` L93–L98.
-- **The Wand, Paint Bucket, Similar and Grow**: the Magic Wand and Paint Bucket at 8 and 16 bits and Select
-  Similar and Grow at 16 by `lab_select`'s key; Similar and Grow at 8 bits refuse naming #5 (`SELECTION_REFUSALS`). Tests
-  `core/tests/lab_wand.rs`, `lab_wand_photoshop.rs`; drive L99–L101.
+- **The Wand, Paint Bucket, Similar and Grow**: the Magic Wand, Paint Bucket, Select Similar and Grow at 8 and 16
+  bits by `lab_select`'s key. Similar's and Grow's range trims each key on its own: of N references, each of the
+  seven keys drops its ⌊N/10⌋ lowest and highest values before the bounds widen it (`LabWandRange::from_reference`).
+  `lab_select_5_take.py` (Photoshop 26.10.0, `lab-select-5`) fitted it: take1's 37 reference rects met none of
+  the declared rules and its fitted boxes showed the per-key trim; take2, held out, pinned ⌊N/10⌋ at both depths
+  and replaced the full box the 16-bit pair had shipped. Tests `core/tests/lab_wand.rs`,
+  `lab_wand_photoshop.rs`; drive L99–L101.
 
 ## The close's fates
 
@@ -181,11 +186,9 @@ Photoshop 26.10.0.
 | `get_tone_map`, `set_tone_map` | refused for good: a 32-bit document's |
 | `depth_blur`, `auto_color`, `hdr_toning`, `assign_profile`, `sky_replacement` | refused for good (earlier phases) |
 | `select_magic_wand` (and the Paint Bucket) | lifted: `lab_select` at both depths |
-| `select_similar` (and Grow) | lifted at 16 bits; at 8 bits refuse naming #5 |
+| `select_similar` (and Grow) | lifted: `lab_select`'s per-key trim at both depths |
 
 ## Open items
 
-- `OPEN` [#5](https://github.com/kpgalligan/doctored/issues/5) — Lab Select Similar and Grow at 8 bits fit no
-  declared rule; Photoshop selects less than the references' box over a dithered field.
 - `DROPPED` (2026-10-30) — confirming Lab → CMYK against a take (`lab_cmyk_photoshop.rs` records its MISS): it
   would re-measure a shipped conversion whose CMS residual the owner accepted (`rgb-cmyk-684/take1`).

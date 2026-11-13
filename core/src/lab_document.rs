@@ -36,10 +36,9 @@
 //! - **Blend modes.** [`LAB_BLEND_MODES`] is every mode a Lab document
 //!   offers, each with a Lab arm; [`LAB_NOT_OFFERED`] refuses for good.
 //! - **Selections.** `alpha`, `color` (the planes), every Color Range range,
-//!   `quick`, `refine_edge` and the Magic Wand are admitted, and Select ▸
-//!   Similar and Grow at 16 bits (`lab_select`, #5); `luminance`
-//!   answers [`LUMINANCE_REFUSAL`]; Similar and Grow at 8 bits refuse naming
-//!   #5 ([`SELECTION_REFUSALS`]).
+//!   `quick`, `refine_edge`, the Magic Wand and Select ▸ Similar and Grow
+//!   (`lab_select`) are admitted at both depths; `luminance` answers
+//!   [`LUMINANCE_REFUSAL`].
 //! - **No document profile.** The ops of [`NO_PROFILE_OPS`] refuse for good,
 //!   and the four profile exports answer
 //!   [`PROFILE_EDIT_REFUSAL`]; the document converts through Image ▸ Mode.
@@ -67,59 +66,6 @@ use crate::precision_image::{admit, pixel_count, PrecisionImage};
 
 /// The storage-free name this mode reports in descriptors.
 pub(crate) const COLOR_MODE_LAB: &str = "lab";
-
-/// The selections a Lab document refuses, one row per (key, fate): the key,
-/// the depths it refuses at, and `Some(issue)` while it awaits a Lab
-/// tolerance rule a Photoshop take has yet to fit, `None` where it refuses
-/// for good. A key absent from the table is admitted at both depths. The
-/// keys are `select_magic_wand`, `select_similar` (global) and `select_grow`
-/// (`select_similar` with `contiguous` true; a key, never a tool name).
-/// `lab_select_682_take.py`'s take fitted the wand at both depths and
-/// Similar and Grow at 16 bits only (`lab_select`'s module doc).
-const SELECTION_REFUSALS: &[(&str, &[LabDepth], Option<&str>)] = &[
-    ("select_similar", &[LabDepth::Eight], Some("#5")),
-    ("select_grow", &[LabDepth::Eight], Some("#5")),
-];
-
-/// The [`SELECTION_REFUSALS`] key of a source selection's `kind` and
-/// `contiguous`, or `None` for a kind the table never names.
-pub(crate) fn selection_key(kind: &str, contiguous: bool) -> Option<&'static str> {
-    match kind {
-        "magic_wand" => Some("select_magic_wand"),
-        "similar" if contiguous => Some("select_grow"),
-        "similar" => Some("select_similar"),
-        _ => None,
-    }
-}
-
-/// `key`'s refusal at `depth` from [`SELECTION_REFUSALS`], or `None` when it
-/// is admitted there. A row that lists one depth names it ("an 8-bit" or
-/// "a 16-bit" Lab Color document); `select_grow` reads `select_similar with
-/// contiguous true (Grow)`. Awaiting a take: `"{label} is unavailable in
-/// {document} until its Lab tolerance rule is measured ({issue})."`;
-/// refused for good: `"{label} is unavailable in {document}."`.
-pub(crate) fn selection_refusal(key: &str, depth: LabDepth) -> Option<String> {
-    let (_, depths, issue) = SELECTION_REFUSALS
-        .iter()
-        .find(|(name, depths, _)| *name == key && depths.contains(&depth))?;
-    let label = if key == "select_grow" {
-        "select_similar with contiguous true (Grow)"
-    } else {
-        key
-    };
-    let document = match (depths.len(), depth) {
-        (1, LabDepth::Eight) => "an 8-bit Lab Color document",
-        (1, LabDepth::Sixteen) => "a 16-bit Lab Color document",
-        _ => "a Lab Color document",
-    };
-    Some(match issue {
-        Some(issue) => format!(
-            "{label} is unavailable in {document} until its Lab tolerance rule is measured \
-             ({issue})."
-        ),
-        None => format!("{label} is unavailable in {document}."),
-    })
-}
 
 /// The profile edits a Lab document refuses for good: it has no document
 /// profile (phase 5b; [`refused_sentence`]).
@@ -297,8 +243,7 @@ pub(crate) const LUMINANCE_REFUSAL: &str =
 /// answers `"{operation} is unavailable in a Lab Color document, which has no
 /// document profile."`; any other
 /// `lab_adjust::rgb_only_sentence`'s `"{operation} is unavailable in a Lab
-/// Color document: Doctored offers it on RGB documents only."`. The
-/// selections' sentences are [`selection_refusal`]'s.
+/// Color document: Doctored offers it on RGB documents only."`.
 pub(crate) fn refused_sentence(operation: &str) -> String {
     if NO_PROFILE_OPS.contains(&operation) {
         return format!(
@@ -332,8 +277,8 @@ fn scalar_target_refusal(op: &str) -> String {
 /// [`LAB_BLEND_MODES`]; Red Eye since 2f's third part), each of them on a colour
 /// or alpha plane too (phase 2e), the `alpha`, `color`, `color_range`
 /// (phases 4b-i to 6b-i), `quick` and `refine_edge` (phase 6b-ii) source
-/// selections, `magic_wand` and `similar` wherever [`selection_refusal`]
-/// admits them at the document's `depth` (#5), a layer style (phase 2e: its effects are
+/// selections, `magic_wand` and `similar` (`lab_select`, at both depths), a
+/// layer style (phase 2e: its effects are
 /// `LayerStyleEdit::target`'s, `lab_style`; patterns since 2f's second
 /// part) and a layer's Blend If whose
 /// channels are Lightness, a and b (phase 2f: `lab_style::blend_if_refusal`
@@ -347,7 +292,7 @@ fn scalar_target_refusal(op: &str) -> String {
 /// [`NO_PROFILE_OPS`] its sentence, and every other op (an unknown one, a
 /// malformed style, an unknown selection kind) reaches its own parser, which
 /// answers as on RGB.
-pub(crate) fn admit_edit(text: &str, depth: LabDepth) -> Result<(), String> {
+pub(crate) fn admit_edit(text: &str) -> Result<(), String> {
     let value: Value =
         serde_json::from_str(text).map_err(|e| format!("invalid high-depth edit request: {e}"))?;
     let op = value["op"].as_str().unwrap_or("");
@@ -381,15 +326,13 @@ pub(crate) fn admit_edit(text: &str, depth: LabDepth) -> Result<(), String> {
         // sampled Color Range (`lab_select`), phase 6b-i every other range
         // (`selection_tools`); phase 6b-ii Quick Selection on the codes'
         // L*a*b* and Select and Mask's edge stage on the codes; the wand,
-        // Similar and Grow by `lab_select`'s rule where `SELECTION_REFUSALS`
-        // admits them (#5).
+        // Similar and Grow by `lab_select`'s rules.
         "selection" => match value["operation"]["kind"].as_str() {
-            Some("alpha" | "color" | "color_range" | "quick" | "refine_edge") => None,
+            Some(
+                "alpha" | "color" | "color_range" | "quick" | "refine_edge" | "magic_wand"
+                | "similar",
+            ) => None,
             Some("luminance") => Some(LUMINANCE_REFUSAL.to_string()),
-            Some(kind @ ("magic_wand" | "similar")) => {
-                let contiguous = value["operation"]["contiguous"].as_bool().unwrap_or(false);
-                selection_key(kind, contiguous).and_then(|key| selection_refusal(key, depth))
-            }
             // Any other kind is left to the selection's own parser.
             _ => None,
         },

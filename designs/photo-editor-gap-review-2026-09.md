@@ -64,7 +64,7 @@ issue is inventory, with no owner yet.
 Gaps this review added beyond the first catalog:
 
 - `DONE` — Registration/Auto-Align, focus stack, panorama, HDR merge/deghost and multi-frame denoise ([merge and stacks ADR](v1-stacks-status.md)). HDR Toning's built-in preset set is [#7](https://github.com/kpgalligan/doctored/issues/7) and its `.hdt` import [#8](https://github.com/kpgalligan/doctored/issues/8).
-- `DONE` — Lab Color mode ([ADR](lab-mode.md); 8-bit Select Similar/Grow → [#5](https://github.com/kpgalligan/doctored/issues/5)), spot channels ([ADR](spot-channels.md); open items under [#1](https://github.com/kpgalligan/doctored/issues/1)) and optional generative editing through cloud providers (Edit ▸ Generative Fill…, Generative Expand…; [neural models](neural-models.md)); local models → [#21](https://github.com/kpgalligan/doctored/issues/21).
+- `DONE` — Lab Color mode ([ADR](lab-mode.md)), spot channels ([ADR](spot-channels.md); open items under [#1](https://github.com/kpgalligan/doctored/issues/1)) and optional generative editing through cloud providers (Edit ▸ Generative Fill…, Generative Expand…; [neural models](neural-models.md)); local models → [#21](https://github.com/kpgalligan/doctored/issues/21).
 - `OPEN` [#1](https://github.com/kpgalligan/doctored/issues/1) — CMYK document mode shipped ([status](cmyk-mode-status.md)) and separations come from its CMYK and spot-channel output; PDF/X and CMYK's remaining items are open.
 - Artboards — not built (a design-tool workflow that needs an explicit choice); templates are covered by New Document presets.
 - `DONE` — Signed and notarized distribution: `.github/workflows/publish.yml` signs the DMG with Developer ID and notarizes it (`project.yml`'s `CODE_SIGN_IDENTITY: "-"` is the local build).

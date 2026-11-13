@@ -451,7 +451,7 @@ Detail belongs in the source file's own header comment.
 - `ffi_gray_clipboard.rs` — `dr_clipboard_payload_gray_tiff`, `dr_clipboard_payload_from_gray_image` (a gray TIFF on the pasteboard).
 - `lab_document.rs` — the Lab Color mode (`designs/lab-mode.md`): `LabPolicy`, `is_lab_twin`, the edit gate (codes, colours, modes, selections, no profile), sentences, New.
 - `lab_retouch.rs` — Sponge neutral, History Brush and clone-plate refusals, Art History arm (`LAB_ART`), Red Eye through ProPhoto (`red_eye`).
-- `lab_select.rs` — Lab selection kernel: Color Range's `RANGE_RULE`; the wand/bucket/Similar/Grow `wand_key` (#5), `LabWandRange`, `grow`, `similar`.
+- `lab_select.rs` — Lab selection kernel: Color Range's `RANGE_RULE`; the wand/bucket/Similar/Grow `wand_key`, `LabWandRange` (Similar's per-key N/10 trim), `grow`, `similar`.
 - `lab_stack.rs` — kernel: a Lab layer's CIE Y (`linear_y`), the vignette gain on the codes' XYZ, Auto-Blend's L*-only luma and gains.
 - `lab_style.rs` — `style_refusal` (effect modes outside the Lab list); Blend If on L, a, b; `painted_sampler` (sRGB tile → Lab codes before the pyramid).
 - `lab_tone.rs` — KERNEL: `LabForm` (Lightness, Channels, Threshold, Split, Chroma, Desaturate, Color in the op's space), a kernel's rule on L*a*b*.

@@ -22,11 +22,10 @@
 //! * (d) the `selection` request's `color` red, green and blue on a
 //!   one-layer opaque Lab document equal that layer's stored codes, `alpha`
 //!   equals a one-layer document's alpha, `luminance` answers
-//!   `LUMINANCE_REFUSAL`, the Magic Wand runs (its oracle is
-//!   `lab_wand.rs`'s) and Select Similar and Grow at 8 bits answer their
-//!   sentence naming #5, whose take did not fit them there (sampled
-//!   Color Range, shipped in 4b-ii, is `lab_color_select.rs`'s; Quick
-//!   Selection, shipped in 6b-ii, `lab_model_select.rs`'s);
+//!   `LUMINANCE_REFUSAL`, and the Magic Wand, Select Similar and Grow run at
+//!   both depths (their oracle is `lab_wand.rs`'s; sampled Color Range,
+//!   shipped in 4b-ii, is `lab_color_select.rs`'s; Quick Selection, shipped
+//!   in 6b-ii, `lab_model_select.rs`'s);
 //! * (e) since phase 6b-i `move_selected` and `transform_selected` with
 //!   target red, green, blue (Lightness, a, b) and alpha, with and without a
 //!   swatch, equal the same request on an sRGB-tagged RGB16 document holding
@@ -302,7 +301,7 @@ pub(crate) fn select(doc: *const PrecisionDocument, operation: &Value) -> Result
 }
 
 #[test]
-fn the_source_selections_read_the_codes_and_the_colour_kinds_wait() {
+fn the_source_selections_read_the_codes_and_the_colour_kinds_run() {
     for bits in DEPTHS {
         let doc = single(opaque(bits), bits, "Background");
         let codes = layer(doc, 0, bits);
@@ -324,25 +323,25 @@ fn the_source_selections_read_the_codes_and_the_colour_kinds_wait() {
             select(doc, &json!({"kind":"luminance"})).unwrap_err(),
             LUMINANCE
         );
-        // The wand runs (`lab_wand.rs`); #5: Similar and Grow wait at
-        // 8 bits.
+        // The wand, Select Similar and Grow run at both depths (`lab_wand.rs`
+        // holds their oracle).
         let wand = json!({"kind":"magic_wand","x":3,"y":2,"tolerance":40,"contiguous":true});
         select(doc, &wand).unwrap_or_else(|e| panic!("{wand} at {bits} bits: {e}"));
-        if bits == 8 {
-            for (contiguous, label) in [
-                (false, "select_similar"),
-                (true, "select_similar with contiguous true (Grow)"),
-            ] {
-                let operation = json!({"kind":"similar","tolerance":30,"contiguous":contiguous});
-                assert_eq!(
-                    select(doc, &operation).unwrap_err(),
-                    format!(
-                        "{label} is unavailable in an 8-bit Lab Color document until its Lab \
-                         tolerance rule is measured (#5)."
-                    ),
-                    "{operation}"
-                );
-            }
+        let cover: Vec<u16> = (0..W * H)
+            .map(|i| {
+                let inside = (1..5).contains(&(i % W)) && (1..5).contains(&(i / W));
+                if inside {
+                    65535
+                } else {
+                    0
+                }
+            })
+            .collect();
+        for contiguous in [false, true] {
+            let operation = json!({"kind":"similar","tolerance":257 * 10,"contiguous":contiguous});
+            let got = crate::precision_select::select(doc, &operation, &cover)
+                .unwrap_or_else(|e| panic!("{operation} at {bits} bits: {e}"));
+            assert!(got.contains(&65535), "{operation} at {bits} bits selects");
         }
         free(doc);
     }

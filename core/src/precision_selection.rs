@@ -24,8 +24,7 @@
 //! kinds on the view; an ink plate refuses on an RGB document. On a Lab
 //! document `color_range` reads the stored L\*a\*b\* codes by `selection_tools`'
 //! Lab arm (#1 phase 4b-ii, `lab_select`); its wand, Similar and Grow
-//! compare `lab_select::wand_key` (#5) wherever
-//! `lab_document::selection_refusal` admits them. Since phase 6b-ii `quick` reads the codes'
+//! compare `lab_select::wand_key` at both depths. Since phase 6b-ii `quick` reads the codes'
 //! own L\*a\*b\* (`selection_tools::quick_samples`), and `refine_edge` guides
 //! on the codes per channel, the RGB kernel with no Lab arm.
 use crate::cmyk_color::document_xyz;
@@ -294,7 +293,7 @@ impl SelectionRequest {
         if doc.is_cmyk() {
             return self.cmyk_compute(doc, input, limit, other, job);
         }
-        let lab = self.lab_grid(doc)?;
+        let lab = self.lab_grid(doc);
         let plan = self.plan(doc)?;
         let scratch = plan["scratch_bytes"].as_u64().unwrap();
         admit(doc.retained_bytes(), scratch, other, limit)?;
@@ -463,27 +462,12 @@ impl SelectionRequest {
         Ok(out)
     }
     /// The Lab grid a Lab document's wand or Similar/Grow compares
-    /// `lab_select`'s key on (#5), `None` for every other kind and
-    /// document; the refusal of a (key, depth) `lab_document`'s table refuses.
-    fn lab_grid(
-        &self,
-        doc: &PrecisionDocument,
-    ) -> Result<Option<crate::lab_blend::LabGrid>, String> {
-        let (kind, contiguous) = match self.operation {
-            SourceSelection::MagicWand { contiguous, .. } => ("magic_wand", contiguous),
-            SourceSelection::Similar { contiguous, .. } => ("similar", contiguous),
-            _ => return Ok(None),
-        };
-        let Some(policy) = doc.lab_policy() else {
-            return Ok(None);
-        };
-        let key = crate::lab_document::selection_key(kind, contiguous);
-        if let Some(refusal) =
-            key.and_then(|key| crate::lab_document::selection_refusal(key, policy.depth()))
-        {
-            return Err(refusal);
+    /// `lab_select`'s key on, `None` for every other kind and document.
+    fn lab_grid(&self, doc: &PrecisionDocument) -> Option<crate::lab_blend::LabGrid> {
+        match self.operation {
+            SourceSelection::MagicWand { .. } | SourceSelection::Similar { .. } => doc.lab_grid(),
+            _ => None,
         }
-        Ok(doc.lab_grid())
     }
 }
 

@@ -170,8 +170,7 @@ enum DocumentPrecision {
         // #1 Lab phase 1: a Lab Color document's own table (`LabDocument`), asked first; since
         // phase 2a its paint and adjustment tools (`depthRuled`) then answer the 16-bit rules.
         if doc.isLab {
-            if let reason = LabDocument.refusal(tool: tool, arguments: arguments,
-                                                depth: doc.labDepth) { return reason }
+            if let reason = LabDocument.refusal(tool: tool, arguments: arguments) { return reason }
             guard LabDocument.depthRuled.contains(tool) else { return nil }
         }
         // #1 phase 1a: a Grayscale document's own table (`GrayDocument`), asked first; since

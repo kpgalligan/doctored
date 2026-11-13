@@ -170,8 +170,8 @@ pub unsafe extern "C" fn dr_precision_doc_retouch_from(
                         return Err(crate::gray_filter::CLONE_SOURCE_REFUSAL.into());
                     }
                 }
-                if let Some(policy) = doc.lab_policy() {
-                    crate::lab_document::admit_edit(text, policy.depth())?;
+                if doc.lab_policy().is_some() {
+                    crate::lab_document::admit_edit(text)?;
                     if !plates.is_lab() {
                         return Err(crate::lab_retouch::CLONE_SOURCE_REFUSAL.into());
                     }

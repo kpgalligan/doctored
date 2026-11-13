@@ -23,10 +23,9 @@ every mode; phase 3a's Lab TIFF, PSD, PSB and layered TIFF files open as
 Lab Color documents; phase 3b's Export as PSD writes them; phase 4a's
 resamples and transforms run on the codes; phase 4a-ii's warps, Liquify,
 Align and Distribute and the Move tool run on the codes; since the close
-(L93–L98), no refusal names a phase: every tool is lifted, refused for good
-by name, or names its issue; and since L99–L101 the Magic Wand and the Paint
-Bucket run at both depths and Select ▸ Similar and Grow (#5) at 16 bits by
-the take's Lab rule, Similar and Grow refusing at 8 bits (#5).
+(L93–L98), no refusal names a phase; and since L99–L101 every tool is lifted
+or refused for good by name: the Magic Wand, the Paint Bucket and Select ▸
+Similar and Grow run at both depths by the takes' Lab rules.
 
 The gates are FIXED here BEFORE anything is measured; a failed gate IS the
 receipt and no bound is widened afterwards. The instance is owned by this file
@@ -148,7 +147,7 @@ are the ones fixed before that first run, unchanged.
   `auto_blend_layers`, `quick_select`, the Select Subject family,
   `object_select`, `refine_selection`, `set_quick_mask`, `quick_mask_stroke`,
   `select_sky`, `select_person_parts` and `object_finder_select`, updated
-  before 6b-ii's run, + `select_magic_wand` and #5's `select_similar`,
+  before 6b-ii's run, + `select_magic_wand` and `select_similar`,
   updated before L99's run)
   sorted and holds `clone_stamp` (phase 2e; it lacked it before);
   `blend_modes` equals `LAB_BLEND_NAMES` + "Pass Through (groups)"; and
@@ -628,8 +627,8 @@ is closed first (setup only).
   `COLOR_RANGE_REFUSAL`); and, after `deselect`, `select_magic_wand` (5, 3)
   tolerance 10 answers ok with `get_selection`'s bounds equal to the rect's,
   then `select_similar` tolerance 10 answers ok with the same bounds (updated
-  before L99's run for the wand and #5: they answered `AWAITING`,
-  `select_similar` with #5; updated before 4c's run, which closes phase 4:
+  before L99's run for the wand and Similar: they answered a sentence
+  awaiting their take; updated before 4c's run, which closes phase 4:
   they answered "<tool> " + phase 4's sentence).
 
 Phase 5a-ii, L69 (numbered after 4b-ii's L68), fixed before the run. Every earlier document is closed
@@ -923,9 +922,11 @@ Every earlier document is closed first (setup only, `close_all`).
   `get_precision`'s `supported_menu_items` (Sky Replacement, the take's other
   refuse_for_good row, keeps L91's sentence, unchanged).
 
-The Magic Wand and #5, L99–L101, fixed before the run: `lab_select_682_take.py`'s
-take fitted the wand at both depths and Select ▸ Similar and Grow at 16 bits.
-Every earlier document is closed first (setup only, `close_all`). The SCENE is
+The Magic Wand, Similar and Grow, L99–L101, fixed before the run:
+`lab_select_682_take.py`'s take fitted the wand at both depths and
+`lab_select_5_take.py`'s takes Select ▸ Similar and Grow at both depths
+(updated before that batch's run: they had run at 16 bits only, over the full
+box). Every earlier document is closed first (setup only, `close_all`). The SCENE is
 an 8 × 4 Lab `new_document` of `#808080` at the depth with `select_rect` +
 `fill_selection` (then `deselect`) of `SCENE99` (x, y, w, h, colour); its
 codes are `sample_pixel`'s `mean_rgba_codes` at every pixel. The ORACLE is
@@ -934,7 +935,9 @@ bits: round-half-up(v·32768/65535) for L, (v·32640/65535) for a and b, then
 ⌊(i·255 + 16384)/32768⌋), the key L, a, b and ⌊(a − L + 255)/2⌋, ⌊(b − a +
 255)/2⌋, ⌊(L − b + 255)/2⌋; a pixel is admitted when L, a and b lie within ±
 t of the references' range and the three halves within ± ⌊t/2⌋ (alpha is
-opaque throughout); the wand floods four-connected from its seed, Grow from
+opaque throughout), the range Similar's and Grow's each key's values over the
+N references, sorted, with ⌊N/10⌋ dropped at each end; the wand floods
+four-connected from its seed, Grow from
 every reference, Similar is global. A selection is read by `get_selection`
 `points` (every pixel), selected = `coverage16` 65535, unselected = 0.
 
@@ -942,11 +945,15 @@ every reference, Similar is global. A selection is read by `get_selection`
   (0, 0) at each t of `TOLERANCES99`, contiguous true and false, is ONE undo
   step, the mode stays lab, and the selection equals the oracle exactly; at
   each depth some case selects some pixels and leaves others.
-- **L100 Similar and Grow.** At 16 bits, after `select_rect` (0, 0, 2, 2),
-  `select_similar` at each t of `TOLERANCES99` with contiguous false and true
-  is ONE undo step and the selection equals the oracle (the references the
-  rectangle's pixels); at 8 bits both answer exactly `AWAITING8.format(label)`
-  (label `select_similar`, and `select_similar with contiguous true (Grow)`).
+- **L100 Similar and Grow.** At 8 and 16 bits, after `select_rect` (0, 0, 5,
+  4) (20 references, so each key drops 2 at each end), `select_similar` at
+  each t of `TOLERANCES99` with contiguous false and true is ONE undo step
+  (or, when the oracle admits nothing outside the rectangle, answers changed
+  false and adds none) and the selection equals the oracle (the references the
+  rectangle's pixels) added to the rectangle, which stays selected; at each depth some case's
+  oracle differs from the full box's (updated before
+  `lab_select_5_take.py`'s batch's run: a (0, 0, 2, 2) rectangle at 16 bits,
+  and at 8 bits a refusal).
 - **L101 the Paint Bucket.** At 8 and 16 bits `fill` (0, 0) `#0000ff`
   tolerance 12, `fill_mode` color_match, contiguous true and false, is ONE undo
   step and changes exactly the oracle's wand region at that t, every changed
@@ -979,11 +986,6 @@ SAMPLE_BOUND8 = 1
 NEUTRAL_BOUND8 = 1
 WHITE_FLOOR = 254
 NEW_32_REFUSAL = 'A Lab Color document is 8 or 16 bits per channel.'
-# Phase 4c: the Magic Wand and Select Similar (#5) waited for their takes; since L99
-# only Similar and Grow at 8 bits wait (#5).
-AWAITING = '{} is unavailable in a Lab Color document until its Lab tolerance rule is measured ({}).'
-AWAITING8 = ('{} is unavailable in an 8-bit Lab Color document until its Lab tolerance rule is '
-             'measured (#5).')
 # L99–L101 (module doc): the scene's rectangles over #808080 and the tolerances.
 SCENE99 = [(2, 0, 2, 4, '#848484'), (4, 0, 2, 2, '#8c8080'), (4, 2, 2, 2, '#808c80'),
            (6, 0, 2, 4, '#a0a0a0')]
@@ -1084,7 +1086,7 @@ LAB_TOOLS = [
     'super_zoom', 'jpeg_artifacts_removal', 'neural_colorize', 'generative_fill',
     'generative_expand', 'generative_variations', 'select_generative_variation',
     'generate_variations',
-    # The Magic Wand and #5's Select Similar (L99).
+    # The Magic Wand and Select Similar (L99).
     'select_magic_wand', 'select_similar',
     # #1 spot channels (18b81bc6).
     'add_spot_channel', 'set_spot_channel', 'merge_spot_channel', 'set_channel_kind',
@@ -1606,13 +1608,15 @@ def wand_key99(codes, depth):
             (lightness - b + 255) // 2)
 
 
-def region99(codes, references, t, depth, contiguous):
+def region99(codes, references, t, depth, contiguous, trim=0):
     """L99–L101's oracle region over row-major `codes` (W99 × H99): admitted when every key
-    lies within the references' range ± t (channels) or ± t // 2 (the halves); flooded
+    lies within the references' range ± t (channels) or ± t // 2 (the halves), each key's
+    values sorted with `trim` dropped at each end (Similar and Grow: N // 10); flooded
     four-connected from `references` when `contiguous`."""
     keys = [wand_key99(p, depth) for p in codes]
-    low = [min(keys[i][k] for i in references) for k in range(6)]
-    high = [max(keys[i][k] for i in references) for k in range(6)]
+    columns = [sorted(keys[i][k] for i in references) for k in range(6)]
+    low = [column[trim] for column in columns]
+    high = [column[len(column) - 1 - trim] for column in columns]
     bound = (t, t, t, t // 2, t // 2, t // 2)
 
     def admit(i):
@@ -3693,7 +3697,7 @@ def main():
         got = call('select_color_range', document_id=rdoc68, range='highlights')
         assert got.get('ok') is True and mode(rdoc68) == 'lab', got
         l68['highlights'] = got
-        # Updated before L99's run: the wand and (16 bits, #5) Similar run.
+        # Updated before L99's run: the wand and Similar run.
         call('deselect', document_id=rdoc68)
         for tool, arguments in [('select_magic_wand', dict(x=5, y=3, tolerance=10)),
                                 ('select_similar', dict(tolerance=10))]:
@@ -3703,7 +3707,7 @@ def main():
             l68[tool] = bounds
         receipts['l68'] = l68
         print('PASS l68: sampled Color Range selects the rect on Lab; highlights runs (6b-i); '
-              'the Magic Wand and Select Similar (#5) select the rect', flush=True)
+              'the Magic Wand and Select Similar select the rect', flush=True)
 
         # ---- L70–L71: phase 4c ------------------------------------------------------------
         close_all()
@@ -4783,7 +4787,7 @@ def main():
         print('PASS l98: Auto-Blend Layers refuses for good, and its menu item '
               'is disabled', flush=True)
 
-        # ---- L99–L101: the Magic Wand and #5 -------------------------------------------
+        # ---- L99–L101: the Magic Wand, Similar and Grow ---------------------------------
         close_all()
         everywhere99 = [(x, y) for y in range(H99) for x in range(W99)]
 
@@ -4818,23 +4822,35 @@ def main():
                     sizes99.append(sum(want))
             assert any(0 < s < W99 * H99 for s in sizes99), (depth, sizes99)
             l99[str(depth)] = sizes99
-            references100 = [y * W99 + x for y in range(2) for x in range(2)]
+            references100 = [y * W99 + x for y in range(4) for x in range(5)]
+            trim100 = len(references100) // 10
+
+            def added100(region):
+                # The admitted region is ADDED to the selection (the catalog's rule), so a
+                # selected pixel the trimmed range leaves out stays selected.
+                return [w or i in references100 for i, w in enumerate(region)]
+            differs100 = False
+            rectangle100 = added100([False] * (W99 * H99))
             for t in TOLERANCES99:
                 for contiguous in (False, True):
-                    call('select_rect', document_id=doc99, x=0, y=0, width=2, height=2)
-                    if depth == 8:
-                        label = ('select_similar with contiguous true (Grow)' if contiguous
-                                 else 'select_similar')
-                        got = call('select_similar', fail=True, document_id=doc99, tolerance=t,
-                                   contiguous=contiguous)
-                        assert got == AWAITING8.format(label), (t, contiguous, got)
-                        l100[f'8/{t}/{contiguous}'] = got
-                        continue
-                    counted(doc99, 'select_similar', tolerance=t, contiguous=contiguous)
-                    want = region99(codes99, references100, t, depth, contiguous)
+                    call('select_rect', document_id=doc99, x=0, y=0, width=5, height=4)
+                    want = added100(region99(codes99, references100, t, depth, contiguous,
+                                             trim100))
+                    differs100 |= want != added100(region99(codes99, references100, t, depth,
+                                                            contiguous))
+                    if want == rectangle100:
+                        # Nothing admitted outside the rectangle: unchanged, no undo step.
+                        steps = undo_count(doc99)
+                        reply = call('select_similar', document_id=doc99, tolerance=t,
+                                     contiguous=contiguous)
+                        assert reply['changed'] is False, (depth, t, contiguous, reply)
+                        assert undo_count(doc99) == steps, (depth, t, contiguous)
+                    else:
+                        counted(doc99, 'select_similar', tolerance=t, contiguous=contiguous)
                     got = selected99(doc99)
-                    assert got == want, (t, contiguous, got, want, codes99)
-                    l100[f'16/{t}/{contiguous}'] = sum(want)
+                    assert got == want, (depth, t, contiguous, got, want, codes99)
+                    l100[f'{depth}/{t}/{contiguous}'] = sum(want)
+            assert differs100, (depth, 'some case trims')
             call('deselect', document_id=doc99)
             for contiguous in (True, False):
                 before101 = codes_at(doc99, everywhere99)
@@ -4854,8 +4870,8 @@ def main():
         receipts['l99'], receipts['l100'], receipts['l101'] = l99, l100, l101
         print(f'PASS l99: the Magic Wand selects the Lab key oracle at 8 and 16 bits {l99}',
               flush=True)
-        print(f'PASS l100: Similar and Grow select the oracle at 16 bits and refuse at 8 (#5) '
-              f'{ {k: v for k, v in l100.items() if k.startswith("16")} }', flush=True)
+        print(f'PASS l100: Similar and Grow select the trimmed oracle at 8 and 16 bits {l100}',
+              flush=True)
         print(f'PASS l101: the Paint Bucket fills the wand oracle\'s region {l101}', flush=True)
 
     (output / 'receipts.json').write_text(json.dumps(receipts, indent=2, default=str))

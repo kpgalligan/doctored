@@ -1105,11 +1105,10 @@ The design record behind each area is in the repository's
   profile of its own, so Assign Profile is refused, and Auto-Blend Layers,
   Sky Replacement, 32 Bits/Channel, some adjustments and filters and the
   other eight blend modes are refused; the Magic Wand and Paint Bucket compare Lab
-  codes by the rule a Photoshop take measured, as do Select Similar and Grow
-  at 16 bits, which at 8 bits refuse by name pending their issue
-  ([#5](https://github.com/kpgalligan/doctored/issues/5)); and every
-  other tool (the RAW and image-source tools among them) is refused for good
-  by name.
+  codes by the rule a Photoshop take measured, as do Select Similar and Grow at
+  8 and 16 bits, whose range first drops, code by code, the tenth of the
+  selected pixels at either extreme (also measured); and every other tool (the
+  RAW and image-source tools among them) is refused for good by name.
   An INDEXED COLOR document holds a palette of 2 to 256 colours, an
   optional transparent index and one index a pixel, at 8 bits in one layer
   ([#1](https://github.com/kpgalligan/doctored/issues/1),
