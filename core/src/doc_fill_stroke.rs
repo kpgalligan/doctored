@@ -23,6 +23,11 @@
 //! coverage, not boosted. `doc_lock`'s one alpha restore
 //! ([`DrDocument::restoring_alpha`]) still runs after it, as a backstop.
 //!
+//! The mode is a `paint_mode::PaintBlend`: a layer mode, or Behind or Clear
+//! (`paint_mode`'s rule), each the walk's own arm. Both answer `None` under
+//! Preserve Transparency or a transparency lock, and a Clear layer-edge
+//! stroke never grows the layer.
+//!
 //! Edit ▸ Stroke… is [`stroke_mask`] plus that same fill: the
 //! selection is turned into a canvas-sized band —
 //! `style_plane_ops::outside_stroke_band` / `inside_stroke_band`; Layer
@@ -85,13 +90,13 @@
 //! retained-source layer refuses by name. The 16-bit twins are `precision_fill_stroke.rs`, the
 //! selection-plane `stroke` kind and native paint's `preserve_alpha`.
 
-use crate::blend::BlendMode;
 use crate::doc::{DrDocument, Layer};
 use crate::doc_group_query::{alpha_edge_bounds, edge_bounds, runs_extent};
 use crate::doc_lock::EditKind;
 use crate::doc_paint::{Ink, OverlayFrame, PaintMode};
 use crate::doc_select::coverage_byte;
 use crate::job_control::JobContext;
+use crate::paint_mode::PaintBlend;
 use crate::pattern_tile::{canvas_sampler, PatternSampler, PatternTile, MAX_TILE_SIDE};
 use crate::retouch_transform::{grown_layer, merged_extent, StorageExtent};
 use crate::style::StrokePosition;
@@ -267,7 +272,7 @@ impl DrDocument {
         idx: usize,
         mask: Option<&[u8]>,
         tile: &PatternTile,
-        mode: BlendMode,
+        mode: PaintBlend,
         opacity: f32,
         preserve_transparency: bool,
     ) -> Option<Self> {
@@ -301,16 +306,17 @@ impl DrDocument {
     /// Domain refusals (`None`): `idx` out of range or not a raster layer; a
     /// `mask` that is not exactly canvas w·h bytes; NaN `opacity`; a
     /// group-only `mode` (Pass Through); a pixel-locked layer; a layer extent
-    /// that misses the canvas; and — since an identical copy would register a
-    /// phantom undo step — any fill that leaves the layer's bytes unchanged
-    /// (an empty mask, a same-colour Normal fill, a preserved fill over a
-    /// fully transparent area).
+    /// that misses the canvas; Behind or Clear with the alpha kept; and —
+    /// since an identical copy would register a phantom undo step — any fill
+    /// that leaves the layer's bytes unchanged (an empty mask, a same-colour
+    /// Normal fill, a preserved fill over a fully transparent area, Behind
+    /// over opaque pixels).
     pub fn fill_selection(
         &self,
         idx: usize,
         mask: Option<&[u8]>,
         rgba: [u8; 4],
-        mode: BlendMode,
+        mode: PaintBlend,
         opacity: f32,
         preserve_transparency: bool,
     ) -> Option<Self> {
@@ -337,20 +343,16 @@ impl DrDocument {
         mask: Option<&[u8]>,
         frame: OverlayFrame,
         ink: FillInk<'_>,
-        mode: BlendMode,
+        mode: PaintBlend,
         opacity: f32,
         preserve_transparency: bool,
     ) -> Option<Self> {
         self.raster_layer(idx)?;
         let pixels = (frame.width as usize).checked_mul(frame.height as usize)?;
-        if mask.is_some_and(|m| m.len() != pixels) || opacity.is_nan() || mode.is_group_only() {
+        if mask.is_some_and(|m| m.len() != pixels) || opacity.is_nan() {
             return None;
         }
-        let paint = if mode == BlendMode::Normal {
-            PaintMode::Over
-        } else {
-            PaintMode::Blend(mode)
-        };
+        let paint = PaintMode::of(mode)?;
         let mut out = self.under_locks(idx, EditKind::Pixels, |doc| {
             let frozen = preserve_transparency || doc.alpha_frozen(idx);
             doc.paint_walk(idx, frame, paint, opacity, frozen, |i| {
@@ -416,7 +418,8 @@ impl DrDocument {
     /// space, with straight `rgba` through `mode` at `opacity` (clamped to
     /// [0, 1]). The layer grows to its union with the band's bounds — past
     /// the canvas if the band reaches there — unless `preserve_transparency`
-    /// or a transparency lock keeps its alpha, in which case nothing grows.
+    /// or a transparency lock keeps its alpha, in which case nothing grows,
+    /// or `mode` is Clear, which only takes alpha away.
     ///
     /// `Err`: an index that is out of range or not raster; a layer bound to a
     /// retained source ("Rasterize the retained source before stroking its
@@ -432,7 +435,7 @@ impl DrDocument {
         width_px: f32,
         location: StrokePosition,
         rgba: [u8; 4],
-        mode: BlendMode,
+        mode: PaintBlend,
         opacity: f32,
         preserve_transparency: bool,
         job: JobContext<'_>,
@@ -493,7 +496,8 @@ impl DrDocument {
             return Ok(None);
         };
         job.check()?;
-        let grow = !preserve_transparency && !self.alpha_frozen(idx);
+        // Clear only takes alpha away, so it never grows the layer.
+        let grow = !preserve_transparency && !self.alpha_frozen(idx) && mode != PaintBlend::Clear;
         let grown;
         let base = if grow {
             let too_large = || "the stroke's frame exceeds the supported size".to_string();

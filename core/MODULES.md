@@ -173,6 +173,7 @@ Detail belongs in the source file's own header comment.
 - `doc_pixels.rs` / `ffi_pixels.rs` — the agent's `put_pixels` (pixel art): one canvas rect of straight RGBA8 written onto one raster layer with REPLACE semantics.
 - `doc_fill_stroke.rs` / `ffi_fill_stroke.rs` — Edit ▸ Fill… and Stroke… at 8 bits: `fill_selection`, Pattern twin `fill_selection_pattern`, `stroke_mask`, `stroke_layer_edge`; the byte master.
 - `doc_paint.rs` — the byte paint walk: brush, eraser, Clone Stamp and Fill… / Stroke… composite through ONE per-pixel walk, `paint_walk`, over an ink closure.
+- `paint_mode.rs` — KERNEL: `PaintBlend`, a layer mode or the paint-only Behind (28) and Clear (29); their rule, codes and refusal sentences.
 - `fill_align_box.rs` — KERNEL: a Gradient Fill's Align with Layer box, the mask's raw coverage bounds clipped to the canvas, else the canvas.
 - `doc_fill_align.rs` / `ffi_fill_align.rs` — the align box on a byte and a typed document (CMYK too): `fill_align_box`, `dr_doc_fill_align_box`, `dr_precision_doc_fill_align_box`.
 - `precision_fill_stroke.rs` — Edit ▸ Fill… / Stroke… at 16 bits and, through `float_paint`, at 32-bit float.

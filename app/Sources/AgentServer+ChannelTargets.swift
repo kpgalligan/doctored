@@ -117,6 +117,12 @@ extension AgentServer {
                 message: "blend_mode does not apply to a \(Self.coverageName(target)) stroke "
                     + "— coverage is not color. Stroke the layer target instead.")
         }
+        // Behind and Clear on the layer: a transparency lock refuses them by
+        // name before the core (`PaintOnlyBlend`).
+        if let blend, let reason = PaintOnlyBlend.refusal(
+            blend, doc: document.doc, layer: layer, coverage: target.isCoverage, preserve: false) {
+            throw ToolError(message: reason)
+        }
         // A coverage stroke carries its opacity in the stroke's own alpha:
         // the coverage ops take no separate alpha. Same clamp paintStroke
         // uses for the composite alpha, read from the same argument.

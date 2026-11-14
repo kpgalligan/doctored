@@ -513,6 +513,14 @@ extension AgentServer {
                 message: "stroke_path with tool \"eraser\" takes no \(key): erasing removes "
                     + "alpha. Omit it, or use tool \"brush\".")
         }
+        // The inner brush_stroke reads Behind and Clear; a path stroke keeps
+        // the layer modes (`PaintOnlyBlend`).
+        if let name = stringArg(a, "blend_mode"), DrBlendMode.paintOnlyModes.contains(where: {
+            $0.1.caseInsensitiveCompare(name) == .orderedSame
+        }) {
+            throw ToolError(
+                message: "stroke_path takes no blend_mode \"\(name)\". " + PaintOnlyBlend.toolsClause)
+        }
         // (a) The inner call's arguments, minus the points.
         var arguments: [String: Any] = [:]
         for key in Self.strokeKeys + (erase ? [] : Self.brushOnlyKeys) where Self.present(a[key]) {

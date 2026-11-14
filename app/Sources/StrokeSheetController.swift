@@ -9,11 +9,14 @@ import AppKit
 /// well opens on the foreground colour and is not persisted; the other
 /// values are (`ToolOptionsStore.strokeDialog`). On a coverage target the
 /// Mode popup omits the four HSL modes and Preserve Transparency is
-/// disabled, as in Fill….
+/// disabled, as in Fill…. On a layer it lists Behind and Clear where the
+/// colour mode offers them (`paintOnly`), and choosing either turns Preserve
+/// Transparency off, as in Fill….
 final class StrokeSheetController: NSViewController {
     private let target: PaintTarget
     private let initialColor: NSColor
     private let options: StrokeDialogOptions
+    private let paintOnly: Bool
     private let onApply: (StrokeSettings) -> Void
 
     private let widthField = NSTextField(string: "1")
@@ -29,11 +32,12 @@ final class StrokeSheetController: NSViewController {
 
     init(
         target: PaintTarget, color: NSColor, options: StrokeDialogOptions,
-        onApply: @escaping (StrokeSettings) -> Void
+        paintOnly: Bool = false, onApply: @escaping (StrokeSettings) -> Void
     ) {
         self.target = target
         self.initialColor = color
         self.options = options
+        self.paintOnly = paintOnly && !target.isCoverage
         self.onApply = onApply
         super.init(nibName: nil, bundle: nil)
     }
@@ -76,14 +80,18 @@ final class StrokeSheetController: NSViewController {
         locationRow.orientation = .horizontal
         locationRow.spacing = 14
 
-        ChannelMathControls.fillBlendModes(modePopup, singlePlane: target.isCoverage)
-        if let mode = DrBlendMode.allBlendModes.first(where: {
+        ChannelMathControls.fillBlendModes(
+            modePopup, singlePlane: target.isCoverage, paintOnly: paintOnly)
+        if let mode = DrBlendMode.paintBlendModes.first(where: {
             $0.1.caseInsensitiveCompare(options.blendMode) == .orderedSame
         })?.0 {
-            // A saved HSL mode is absent from a coverage target's menu, so
-            // the popup keeps the Normal the builder selected.
+            // A saved HSL mode is absent from a coverage target's menu (and a
+            // saved Behind or Clear wherever they are not offered), so the
+            // popup keeps the Normal the builder selected.
             modePopup.selectItem(withTag: Int(mode.rawValue))
         }
+        modePopup.target = self
+        modePopup.action = #selector(modeChanged(_:))
 
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -103,6 +111,7 @@ final class StrokeSheetController: NSViewController {
         preserveBox.font = DS.sans(13)
         preserveBox.isEnabled = !target.isCoverage
         preserveBox.state = options.preserveTransparency && !target.isCoverage ? .on : .off
+        modeChanged(nil)
 
         status.font = DS.sans(12)
         status.textColor = DS.textMuted
@@ -136,6 +145,14 @@ final class StrokeSheetController: NSViewController {
     }
 
     // MARK: - Actions
+
+    /// Behind and Clear change the layer's alpha, so either disables and
+    /// clears Preserve Transparency; any other mode enables it again.
+    @objc private func modeChanged(_ sender: Any?) {
+        let changesAlpha = DrBlendMode.isPaintOnly(ChannelMathControls.blendMode(modePopup))
+        if changesAlpha { preserveBox.state = .off }
+        preserveBox.isEnabled = !target.isCoverage && !changesAlpha
+    }
 
     @objc private func locationChanged(_ sender: Any?) {
         guard let sender = sender as? NSButton else { return }

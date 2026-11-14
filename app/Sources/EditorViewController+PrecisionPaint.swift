@@ -63,11 +63,19 @@ extension EditorViewController {
                 throw DoctoredCoreError(message: capture.facade.isFloat
                     ? FloatRetouch.normalOnly : "16-bit retouch supports Normal blending only.")
             }
-            // A float layer Brush blends in the float modes only, refused
+            // The Brush's Behind and Clear: a transparency lock refuses them
+            // by name before the stroke starts (`PaintOnlyBlend`).
+            if currentTool == .brush, let reason = PaintOnlyBlend.refusal(
+                paintStrokeBlendMode(), doc: capture.facade, layer: capture.layer,
+                coverage: false, preserve: false) {
+                throw DoctoredCoreError(message: reason)
+            }
+            // A float layer Brush blends in the float modes or the paint-only
+            // two (alpha arithmetic, defined on any float sample), refused
             // before the stroke starts; a foreground above white is linear ink.
             var linear: [Double]?
             if capture.facade.isFloat, currentTool == .brush {
-                if let reason = FloatPaint.modeRefusal(paintStrokeBlendMode()) {
+                if let reason = FloatPaint.brushModeRefusal(paintStrokeBlendMode()) {
                     throw DoctoredCoreError(message: reason)
                 }
                 linear = ExtendedRangeColor.aboveWhite(canvas.paintColor, in: capture.facade)

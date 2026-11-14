@@ -108,6 +108,8 @@ mod matting_qualification;
 mod matting_soft_prior;
 #[path = "move_selected_pixels.rs"]
 mod move_selected_pixels;
+#[path = "paint_behind_clear.rs"]
+mod paint_behind_clear;
 #[path = "paint_walk.rs"]
 mod paint_walk;
 #[path = "pixel_art.rs"]

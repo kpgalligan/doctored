@@ -242,13 +242,18 @@ extension AgentServer {
             } else if cmyk {
                 // #1: the Brush in ink on a CMYK layer, in the CMYK modes
                 // (EditorViewController.finishPrecisionStroke's CMYK branch).
-                let blend = try blendModeArg(a) ?? DR_BLEND_NORMAL
+                let blend = try blendModeArg(a, paintOnly: tool == "brush_stroke") ?? DR_BLEND_NORMAL
                 if let reason = CmykPaint.modeRefusal(blend) { throw ToolError(message: reason) }
                 command = try CmykPaint.command(["op": "paint_blend", "layer": layer,
                     "ink": cmykPaintInk(a, "ink", colorKey: "color", fallback: .black, precision: capture.source),
                     "opacity": opacity, "blend_mode": Int(blend.rawValue), "selection": selected])
             } else {
-                let blend = try blendModeArg(a) ?? DR_BLEND_NORMAL
+                let blend = try blendModeArg(a, paintOnly: tool == "brush_stroke") ?? DR_BLEND_NORMAL
+                // Behind and Clear by name before the core (`PaintOnlyBlend`).
+                if let reason = PaintOnlyBlend.refusal(
+                    blend, doc: document.doc, layer: layer, coverage: false, preserve: false) {
+                    throw ToolError(message: reason)
+                }
                 // A float layer's `rgba32` is linear ink, used as it is.
                 let linear = try linearInkArgument(a, document)
                 if linear != nil, a["rgba"] != nil {

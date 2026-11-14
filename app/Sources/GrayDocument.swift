@@ -590,7 +590,9 @@ enum GrayDocument {
             "gray_profile": doc.profileName,
             "supported_tools": tools.sorted(), "supported_menu_items": selectors.sorted(),
             "paint_targets": ["layer", "mask", "saved channel"],
-            "blend_modes": blendNames + ["Pass Through (groups)"], "paint_blend_modes": blendNames,
+            "blend_modes": blendNames + ["Pass Through (groups)"],
+            // The Brush, Fill and Stroke add Behind and Clear (`PaintOnlyBlend`).
+            "paint_blend_modes": EditorViewController.paintBlendChoices(for: doc).map { $0.1 },
             "effect_blend_modes": effectModes(for: doc).map { DrBlendMode.displayName(for: $0) },
             "blend_if_channels": ["gray"],
         ]

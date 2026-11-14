@@ -19,6 +19,13 @@
 //! The alpha restore (`PrecisionDocument::restoring_alpha`) still runs
 //! after, as a backstop.
 //!
+//! `paint_blend` (the Brush, Fill and Stroke) also takes the paint-only Behind and Clear
+//! (`paint_mode`'s rule): Behind is the W3C step with `blend::BEHIND` that never writes an opaque
+//! sample, Clear the Eraser's binary64 rule at `color` alpha × opacity × coverage that never grows
+//! the layer. Either answers `None` under Preserve Transparency or a transparency lock; the bucket
+//! and the gradient refuse both by name (`paint_mode::tool_refusal`), a colour plane too
+//! (`float_paint::admit_ink`).
+//!
 //! Native paint shares all 27 blend kernels and continuous authored ICC conversion, bucket matching
 //! shares `selection_region`, and dodge/burn shares `doc_retouch::shaped`. Paint/fill expands only
 //! to changed canvas ink while preserving raw samples and independent masks; native erasure never
@@ -31,13 +38,14 @@
 //! `transient_rgba16` — and only a GROWN extent (changed ink leaving the layer) still rebuilds
 //! whole (`rebuilt_rgba16` from rows — new dimensions, so nothing is shared — which since 13B-3d-3a
 //! seeds no view).
-use crate::blend::{composite_source_frozen, composite_source_into, BlendMode};
+use crate::blend::{composite_source_frozen, composite_source_into, BlendMode, BEHIND};
 use crate::doc_lock::LOCK_TRANSPARENCY;
 use crate::float_paint::PaintPlane;
 use crate::gradient_field::{FieldStop, FieldStyle};
 use crate::job_control::JobContext;
 use crate::lab_blend::kind_in;
 use crate::layer_rect::{canvas_rect_on_plane, coverage_rect16, plane_rect_offset};
+use crate::paint_mode::PaintBlend;
 use crate::pattern_tile::PatternSampler;
 use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_image::{admit, pixel_count, reserved_vec, PrecisionRun, BOOKKEEPING_BYTES};
@@ -271,6 +279,11 @@ impl NativePaintEdit {
             }
         )
     }
+    /// The request's blend as a [`PaintBlend`] (Normal for an unknown
+    /// code, which `plan_in` has refused already).
+    pub(crate) fn blend(&self) -> PaintBlend {
+        PaintBlend::from_u32(self.target().2).unwrap_or(PaintBlend::Mode(BlendMode::Normal))
+    }
     /// `PaintBlend`'s colour-channel target, if it names one.
     pub(crate) fn plane(&self) -> Option<PaintPlane> {
         match *self {
@@ -294,11 +307,13 @@ impl NativePaintEdit {
         })
     }
     /// Whether changed ink may grow the layer: never for the two tools that
-    /// only rework existing pixels, under Preserve Transparency, on a
+    /// only rework existing pixels or for Clear (which only takes alpha
+    /// away), under Preserve Transparency, on a
     /// transparency-locked layer (whose alpha, and so its extent, is frozen),
     /// or with a colour-plane target (one channel of the pixels it has).
     pub(crate) fn expands(&self, doc: &PrecisionDocument) -> bool {
         !matches!(self, Self::DodgeBurn { .. } | Self::EraseNative { .. })
+            && self.blend() != PaintBlend::Clear
             && !self.preserves_alpha()
             && self.plane().is_none()
             && doc.lock_owner(self.target().0, LOCK_TRANSPARENCY).is_none()
@@ -361,8 +376,13 @@ impl NativePaintEdit {
         {
             return Err("native bucket fill and gradient paint over the canvas only".into());
         }
-        if !opacity.is_finite() || !(0. ..=1.).contains(&opacity) || mode > 26 {
+        let blend = PaintBlend::from_u32(mode).filter(|b| !b.is_group_only());
+        let Some(blend) = blend.filter(|_| opacity.is_finite() && (0. ..=1.).contains(&opacity))
+        else {
             return Err("native paint opacity or blend mode is invalid".into());
+        };
+        if blend.is_paint_only() && !matches!(self, Self::PaintBlend { .. }) {
+            return Err(crate::paint_mode::tool_refusal(blend));
         }
         let (colors, space) = self.colors();
         // Linear ink's own range is `admit_ink`'s (above).
@@ -487,8 +507,16 @@ impl NativePaintEdit {
         if input.len() != plan["input_samples"].as_u64().unwrap() as usize {
             return Err("native paint input length differs from plan".into());
         }
-        let (index, opacity, mode, selected) = self.target();
-        if opacity == 0. || matches!(self, Self::DodgeBurn { exposure, .. } if *exposure == 0.) {
+        let (index, opacity, _, selected) = self.target();
+        // Preserve Transparency or a transparency lock: the frozen-alpha
+        // colour rule; the restore below stays as the backstop. Behind and
+        // Clear change nothing with the alpha frozen (`paint_mode`).
+        let frozen = self.preserves_alpha() || doc.lock_owner(index, LOCK_TRANSPARENCY).is_some();
+        let blend = self.blend();
+        if opacity == 0.
+            || matches!(self, Self::DodgeBurn { exposure, .. } if *exposure == 0.)
+            || (frozen && blend.is_paint_only())
+        {
             job.report(1., 5)?;
             return Ok(None);
         }
@@ -613,14 +641,12 @@ impl NativePaintEdit {
         }
         let mut bounds = [frame.width, frame.height, 0, 0];
         let mut changed = false;
-        let kind = kind_in(
-            BlendMode::from_c(mode as i32).unwrap(),
-            false,
-            doc.lab_grid(),
-        );
-        // Preserve Transparency or a transparency lock: the frozen-alpha
-        // colour rule; the restore below stays as the backstop.
-        let frozen = self.preserves_alpha() || doc.lock_owner(index, LOCK_TRANSPARENCY).is_some();
+        let kind = match blend {
+            PaintBlend::Mode(mode) => kind_in(mode, false, doc.lab_grid()),
+            // Destination-over is the same in every colour model's codes.
+            PaintBlend::Behind => BEHIND,
+            PaintBlend::Clear => kind_in(BlendMode::Normal, false, None),
+        };
         let lab = doc.is_lab();
         for (k, slot) in canvas_rect.iter_mut().enumerate() {
             job.every(k)?;
@@ -731,7 +757,14 @@ impl NativePaintEdit {
                         colors[0]
                     };
                     let alpha = (f64::from(color[3]) * f64::from(opacity) * coverage) as f32;
-                    if alpha > 0. {
+                    if blend == PaintBlend::Clear {
+                        // The Eraser arm's rule above at the ink's own alpha;
+                        // colour is neither read nor written.
+                        let sa = f64::from(color[3]) * f64::from(opacity) * coverage;
+                        result[3] = (f64::from(original[3]) * (1. - sa)).round() as u16;
+                    } else if blend == PaintBlend::Behind && original[3] == 65535 {
+                        // Nothing shows under an opaque sample.
+                    } else if alpha > 0. {
                         let mut pixel = original.map(|v| f32::from(v) / 65535.);
                         let rgb = [color[0], color[1], color[2]];
                         let xy = (i64::from(x) + frame.x, i64::from(y) + frame.y);

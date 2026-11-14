@@ -66,10 +66,12 @@ extension AgentServer {
             a, document, coverage: planeTarget.isCoverage, tool: "fill_selection")
         let capture = try operationCapture(
             document, operation: .fill, target: planeTarget, layer: index)
-        // A fill reaching past a trimmed layer grows it, as applyFill does.
+        // A fill reaching past a trimmed layer grows it, as applyFill does
+        // (never for Clear, which only takes alpha away).
         let base: RasterDocument
         do {
-            base = try capture.paintDestination(mask: capture.selection, preserve: paint.preserve)
+            base = try capture.paintDestination(
+                mask: capture.selection, preserve: paint.preserve || paint.mode == DR_BLEND_CLEAR)
         } catch {
             throw ToolError(message: error.localizedDescription)
         }
@@ -110,7 +112,8 @@ extension AgentServer {
         let capture = try operationCapture(document, operation: .fill, target: .layer, layer: index)
         let base: RasterDocument
         do {
-            base = try capture.paintDestination(mask: capture.selection, preserve: paint.preserve)
+            base = try capture.paintDestination(
+                mask: capture.selection, preserve: paint.preserve || paint.mode == DR_BLEND_CLEAR)
         } catch {
             throw ToolError(message: error.localizedDescription)
         }
@@ -259,7 +262,8 @@ extension AgentServer {
     ) throws -> String {
         let base: RasterDocument
         do {
-            base = try capture.paintDestination(mask: band, preserve: preserve)
+            base = try capture.paintDestination(
+                mask: band, preserve: preserve || mode == DR_BLEND_CLEAR)
         } catch {
             throw ToolError(message: error.localizedDescription)
         }
@@ -305,7 +309,10 @@ extension AgentServer {
         }
         let rgba = try coverage
             ? coverageRGBA(color, in: document) : colorRGBA(color, in: document)
-        let mode = try blendModeArg(a) ?? DR_BLEND_NORMAL
+        // Fill… and Stroke… take Behind and Clear (`PaintOnlyBlend`); Fill
+        // Path refuses them as it refuses any unknown mode.
+        let paintOnly = tool == "fill_selection" || tool == "stroke_selection"
+        let mode = try blendModeArg(a, paintOnly: paintOnly) ?? DR_BLEND_NORMAL
         if coverage, DrBlendMode.degeneratesOnGray(mode) {
             throw ToolError(message: FillSettings.coverageBlendRefusal)
         }
@@ -322,6 +329,13 @@ extension AgentServer {
                 message: "preserve_transparency applies to layer pixels only; a mask, colour "
                     + "plane or alpha channel has no transparency of its own to keep. "
                     + "Omit it, or pass target \"layer\".")
+        }
+        if DrBlendMode.isPaintOnly(mode) {
+            let layer = coverage ? document.activeLayerIndex : try structuralLayerIndex(a, document)
+            if let reason = PaintOnlyBlend.refusal(
+                mode, doc: document.doc, layer: layer, coverage: coverage, preserve: preserve) {
+                throw ToolError(message: reason)
+            }
         }
         return (color, rgba, mode, opacity, preserve, linear)
     }

@@ -7,7 +7,7 @@ Detail belongs in the source file's own header comment.
 - `DoctoredCore+Adjustments.swift` — `RasterImage` adjustments, histogram, sampling, auto tone, levels, masking, save and `CGImage`; `RasterDocument.applyingAdjustment`.
 - `DoctoredCore+PixelSampling.swift` — composite pixel sampling for the eyedropper (`pixelRGBA`, `matchesRGBA`, `hexString`).
 - `DoctoredCore+AgentServer.swift` — `RasterAgentServer`: the agent socket's bind/release and the trampoline's core-owned result strings.
-- `DoctoredCore+BlendModes.swift` — `DrBlendMode` blend-mode groups, group blend names, display names and gray degeneracy.
+- `DoctoredCore+BlendModes.swift` — `DrBlendMode` blend-mode groups, group blend names, the paint list with Behind and Clear, display names and gray degeneracy.
 - `DoctoredCore+LayerEdits.swift` — pure per-layer edits: name, opacity, blend mode, visibility, offset, pixels, masks and planes.
 - `DoctoredCore+LayerMetadata.swift` — per-layer metadata JSON and the adjustment-layer query.
 - `DoctoredCore+LayerReference.swift` — `layerReference`, a layer's `fxrp` (byte getters, typed info row); `turnedPattern`, a linked fill's turned tile.
@@ -694,6 +694,8 @@ Detail belongs in the source file's own header comment.
 - `ColorSamplerReadoutView.swift` / `AgentServer+ColorSamplers.swift` — the samplers' Info readout and MCP `get_color_samplers` / `set_color_samplers`.
 - `SelectionFillStroke.swift` / `FillSheetController.swift` / `StrokeSheetController.swift` / `EditorViewController+FillStroke.swift` — Edit ▸ Fill… and Edit ▸ Stroke…, and the fill chords.
 - `EditorViewController+PatternFill.swift` — Edit ▸ Fill…'s Pattern contents at 8 bits (`applyPatternFill`); the typed commit is `+PrecisionFillStroke`'s.
+- `PaintOnlyBlend.swift` — Behind and Clear, the paint-only modes: which colour modes offer them and the one refusal UI and MCP ask before the core.
+- `EditorViewController+PaintOnlyBlend.swift` — the UI's Behind and Clear refusal (fill alert) and whether the Fill… and Stroke… sheets list them.
 - `AgentServer+FillStroke.swift` / `AgentCatalog+FillStroke.swift` / `QuickMaskFill.swift` — MCP `fill_selection` / `stroke_selection`; the Quick Mask fill.
 - `PrecisionFillStroke.swift` / `EditorViewController+PrecisionFillStroke.swift` / `AgentServer+PrecisionFillStroke.swift` — the 16-bit and 32-bit float Fill and Stroke branches.
 - `FillLayer.swift` — fill layers (pattern; moves, turns, CMYK): `FillLayerPayload`, its drawing, `refittingFillLayers`, `positionPin(refitting:)`, `carriesPatternFill`.

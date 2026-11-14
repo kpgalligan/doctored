@@ -417,7 +417,7 @@ fn peak_60mp_fill() {
         0,
         Some(&mask),
         [200, 100, 50, 255],
-        BlendMode::Normal,
+        BlendMode::Normal.into(),
         1.0,
         false,
     );

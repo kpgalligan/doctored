@@ -66,6 +66,33 @@ extension DrBlendMode {
     /// `groupBlendModes`' names alone, in the same order.
     static let groupBlendNames: [String] = groupBlendModes.map { $0.1 }
 
+    /// The two PAINT-ONLY modes (`PaintOnlyBlend`): Behind and Clear act on a
+    /// layer's alpha, so they are no layer's mode and stay out of
+    /// `allBlendModes` — every layer popup, the Clone Stamp, the Gradient,
+    /// the Paint Bucket and every other mode argument keep that list.
+    static let paintOnlyModes: [(DrBlendMode, String)] = [
+        (DR_BLEND_BEHIND, "Behind"), (DR_BLEND_CLEAR, "Clear"),
+    ]
+
+    /// True for Behind and Clear.
+    static func isPaintOnly(_ mode: DrBlendMode) -> Bool {
+        paintOnlyModes.contains { $0.0 == mode }
+    }
+
+    /// `list` with Behind and Clear after Dissolve (after Normal when the
+    /// list has no Dissolve): the Brush's, Fill…'s and Stroke…'s order.
+    static func withPaintOnly(_ list: [(DrBlendMode, String)]) -> [(DrBlendMode, String)] {
+        let at = list.firstIndex { $0.0 == DR_BLEND_DISSOLVE }
+            ?? list.firstIndex { $0.0 == DR_BLEND_NORMAL } ?? -1
+        var out = list
+        out.insert(contentsOf: paintOnlyModes, at: at + 1)
+        return out
+    }
+
+    /// The vocabulary `brush_stroke`, `fill_selection` and `stroke_selection`
+    /// read: every layer mode plus Behind and Clear.
+    static let paintBlendModes: [(DrBlendMode, String)] = withPaintOnly(allBlendModes)
+
     /// The four HSL modes, which carry NO information on a SINGLE 8-bit
     /// plane: the W3C defines them over an RGB triple, and a gray triple has
     /// zero saturation, so Hue, Saturation and Color answer the base verbatim
@@ -91,8 +118,10 @@ extension DrBlendMode {
     /// would otherwise report a pass-through group as Normal — which is the
     /// one thing it is not, and would make `get_document` contradict the
     /// core.
+    /// Behind and Clear are answered too, so a recorded Brush, Fill or Stroke
+    /// step names the mode it painted in.
     static func displayName(for mode: DrBlendMode) -> String {
         if mode == DR_BLEND_PASS_THROUGH { return "Pass Through" }
-        return allBlendModes.first { $0.0 == mode }?.1 ?? "Normal"
+        return paintBlendModes.first { $0.0 == mode }?.1 ?? "Normal"
     }
 }

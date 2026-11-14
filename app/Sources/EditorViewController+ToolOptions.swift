@@ -485,21 +485,38 @@ extension EditorViewController {
               let paint = ToolOptionsStore.shared.paintOptions(for: currentTool)
         else { return DR_BLEND_NORMAL }
         // On a Grayscale or Lab Color document a stored mode outside its list strokes as Normal,
-        // as the popup shows it (#1 phase 2e, Lab phase 2e); the store is not rewritten.
+        // as the popup shows it (#1 phase 2e, Lab phase 2e); the store is not rewritten. A
+        // stored Behind or Clear does too for the Clone Stamp and in CMYK, Indexed and Bitmap.
         let mode = Self.blendMode(fromStored: paint.blendIndex)
-        return Self.paintBlendChoices(for: document?.doc).contains { $0.0 == mode }
-            ? mode : DR_BLEND_NORMAL
+        return Self.paintBlendChoices(for: document?.doc, tool: currentTool.strokeFamily)
+            .contains { $0.0 == mode } ? mode : DR_BLEND_NORMAL
     }
 
     /// The Brush's and Clone Stamp's Mode list on `doc`: on a Grayscale document its modes
     /// (`NativeLayerBlending.grayModes(for:)`, #1 phase 2e), on a Lab Color document the Lab
-    /// list (`NativeLayerBlending.labModes`, #1 Lab phase 2e), else every mode.
-    static func paintBlendChoices(for doc: RasterDocument?) -> [(DrBlendMode, String)] {
+    /// list (`NativeLayerBlending.labModes`, #1 Lab phase 2e), else every mode. The Brush's
+    /// list adds Behind and Clear where the colour mode offers them (`PaintOnlyBlend`).
+    static func paintBlendChoices(
+        for doc: RasterDocument?, tool: EditorTool = .brush
+    ) -> [(DrBlendMode, String)] {
+        let modes: [(DrBlendMode, String)]
         if let doc, doc.isLab {
-            return NativeLayerBlending.labModes.map { ($0, DrBlendMode.displayName(for: $0)) }
+            modes = NativeLayerBlending.labModes.map { ($0, DrBlendMode.displayName(for: $0)) }
+        } else if let doc, doc.isGray {
+            modes = NativeLayerBlending.grayModes(for: doc)
+                .map { ($0, DrBlendMode.displayName(for: $0)) }
+        } else {
+            modes = DrBlendMode.allBlendModes
         }
-        guard let doc, doc.isGray else { return DrBlendMode.allBlendModes }
-        return NativeLayerBlending.grayModes(for: doc).map { ($0, DrBlendMode.displayName(for: $0)) }
+        guard tool == .brush, PaintOnlyBlend.offered(in: doc) else { return modes }
+        return DrBlendMode.withPaintOnly(modes)
+    }
+
+    /// The Brush and Clone Stamp Mode popup's identity on `doc`, which the bar rebuilds on when
+    /// a mode conversion changes it.
+    static func paintBlendChoicesID(for doc: RasterDocument?) -> String {
+        doc?.isLab == true ? "paint.blend.lab" : doc?.isGray == true ? "paint.blend.gray"
+            : PaintOnlyBlend.offered(in: doc) ? "paint.blend" : "paint.blend.layer"
     }
 
     /// The Fill and Gradient tools' Mode list on `doc`: on a Lab Color document the Lab list
@@ -522,7 +539,7 @@ extension EditorViewController {
         let lab = document?.doc?.isLab == true
         let wanted: String
         if currentTool.strokeFamily == .brush || currentTool == .clone {
-            wanted = lab ? "paint.blend.lab" : gray ? "paint.blend.gray" : "paint.blend"
+            wanted = Self.paintBlendChoicesID(for: document?.doc)
         } else if currentTool == .artHistoryBrush {
             wanted = lab ? "paint.artMode.lab" : gray ? "paint.artMode.gray" : "paint.artMode"
         } else if currentTool == .fill {
@@ -539,11 +556,12 @@ extension EditorViewController {
     }
 
     /// The stored `blendIndex` — a raw DrBlendMode value, stable across
-    /// releases — as a mode; Normal for anything unrecognized.
+    /// releases — as a mode; Normal for anything unrecognized. Behind and
+    /// Clear are recognized; each tool's list decides whether it paints in them.
     static func blendMode(fromStored raw: Int) -> DrBlendMode {
         guard raw >= 0, raw <= Int(UInt32.max) else { return DR_BLEND_NORMAL }
         let mode = DrBlendMode(rawValue: UInt32(raw))
-        return DrBlendMode.allBlendModes.contains { $0.0 == mode } ? mode : DR_BLEND_NORMAL
+        return DrBlendMode.paintBlendModes.contains { $0.0 == mode } ? mode : DR_BLEND_NORMAL
     }
 
     /// The flat blend-popup row for a stored raw mode (Normal for junk) in `choices`.
@@ -634,9 +652,8 @@ extension EditorViewController {
         }
         // The Blend popup's list: the Grayscale modes on a Gray document (#1 phase 2e), the
         // Lab modes on a Lab document (#1 Lab phase 2e).
-        let blendChoices = Self.paintBlendChoices(for: document?.doc)
-        let blendChoicesID = document?.doc?.isLab == true ? "paint.blend.lab"
-            : document?.doc?.isGray == true ? "paint.blend.gray" : "paint.blend"
+        let blendChoices = Self.paintBlendChoices(for: document?.doc, tool: tool.strokeFamily)
+        let blendChoicesID = Self.paintBlendChoicesID(for: document?.doc)
         var clusters: [OptionCluster] = [
             // The built-in and user presets and the library's four actions
             // (EditorViewController+BrushPresets.swift).

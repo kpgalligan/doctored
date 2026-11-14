@@ -511,6 +511,7 @@ mod ops_filters;
 mod ops_photographic;
 mod ops_spatial;
 mod ops_stats;
+pub mod paint_mode;
 mod panorama_gain;
 mod panorama_seam;
 mod patchmatch;

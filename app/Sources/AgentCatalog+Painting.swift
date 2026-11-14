@@ -9,7 +9,12 @@ extension AgentServer {
         let spacingProperty = schema.spacingProperty
         let angleProperty = schema.angleProperty
         let roundnessProperty = schema.roundnessProperty
-        let strokeBlendProperty = schema.strokeBlendProperty
+        // The Brush's vocabulary adds Behind and Clear (`PaintOnlyBlend`).
+        var strokeBlendProperty = schema.strokeBlendProperty
+        strokeBlendProperty["enum"] = DrBlendMode.paintBlendModes.map { $0.1 }
+        strokeBlendProperty["description"] =
+            (schema.strokeBlendProperty["description"] as? String ?? "") + " "
+            + Self.paintOnlyBlendSentence
         let targetVocabulary = schema.targetVocabulary
         let cloneBlendProperty = schema.cloneBlendProperty
         let sampleProperty = schema.sampleProperty

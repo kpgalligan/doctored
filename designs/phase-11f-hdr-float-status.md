@@ -148,8 +148,13 @@ plane above `CONTIGUOUS_CACHE_BYTES` is refused at the 2 GiB pin but admitted at
 it is tiled. Tests: `core/tests/float_{document,native,interchange}.rs`; drive `scripts/verify_phase11f_float.py`.
 
 ## Open items (verified 2026-10-30)
-- `OPEN` [#18](https://github.com/kpgalligan/doctored/issues/18) — Behind and Clear for Fill/Stroke and painting,
-  which Doctored has at no depth (not a float-only gap).
+- `DONE` (2026-11-14) — Behind and Clear, paint-only modes 28 and 29 (`core/src/paint_mode.rs` holds the rule). With
+  `sa` = ink alpha × opacity × coverage: Behind `ao = ab + sa(1 − ab)`, `Co = (Cb·ab + Cs·sa(1 − ab)) / ao` (the W3C
+  step with `B = Cb`), an opaque pixel never written; Clear `ao = ab(1 − sa)`, colour neither read nor written, never
+  grows a layer. 8/16-bit codes round once; float is linear, colour unclamped, opaque and colour samples bit-exact.
+  Under Preserve Transparency or a lock both change nothing and the app refuses by name. The Brush (and Pencil),
+  Fill… and Stroke… in RGB, Gray, Duotone and Lab; CMYK, Indexed, Bitmap, a coverage target and every other mode
+  setting refuse them. Operator rows `behind_paint`, `clear_paint`; tests `core/tests/{paint,native,float}_behind_clear.rs`.
 - `DROPPED` (2026-10-30) — the operations still refused at 32 bits, each by name with its reason in the operator
   table: Apply Image (its blend runs on u16 planes clamped to 0…1), Assign or Convert with a profile that has no
   matrix/TRC model or whose curves fail the precision check, Convert with absolute colorimetric, black-point

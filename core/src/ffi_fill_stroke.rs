@@ -5,10 +5,10 @@ use std::ffi::{c_char, c_int};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr;
 
-use crate::blend::BlendMode;
 use crate::doc::DrDocument;
 use crate::ffi_util::{doc_get, doc_op, fallible_doc_op, mask_slice};
 use crate::job_control::{DrJobControl, JobContext};
+use crate::paint_mode::PaintBlend;
 use crate::style::StrokePosition;
 
 /// `DrStrokeLocation`'s three codes, as `dr_selection_stroke` reads them.
@@ -22,13 +22,15 @@ fn stroke_location(location: c_int) -> Option<StrokePosition> {
 }
 
 /// Fills layer `idx` with the straight RGBA8 colour `rgba` through blend
-/// mode `mode` (`DrBlendMode`) at `opacity` (clamped to [0, 1]), weighted by
+/// mode `mode` (`DrBlendMode`, the paint-only Behind and Clear included:
+/// `paint_mode`) at `opacity` (clamped to [0, 1]), weighted by
 /// `mask` — a canvas-sized selection coverage buffer, or NULL for the whole
 /// canvas (`w`/`h` must equal the canvas size either way). With
 /// `preserve_transparency` the layer's original alpha is restored after the
 /// blend. The layer never grows. NULL on NULL `doc`/`rgba`, dimension
 /// mismatch, unknown or Pass Through mode, NaN opacity, a non-raster or
-/// out-of-range idx, a pixel-locked layer, or when no pixel would change.
+/// out-of-range idx, a pixel-locked layer, Behind or Clear with the alpha
+/// kept, or when no pixel would change.
 ///
 /// # Safety
 /// `doc` must be NULL or a valid pointer to a live `DrDocument`; `rgba` must
@@ -54,7 +56,7 @@ pub unsafe extern "C" fn dr_doc_fill_selection(
     }
     let color = unsafe { [*rgba, *rgba.add(1), *rgba.add(2), *rgba.add(3)] };
     let body = |d: &DrDocument| {
-        let mode = BlendMode::from_c(mode)?;
+        let mode = PaintBlend::from_c(mode)?;
         // Validate against the canvas dimensions before touching `mask`, so
         // the raw read below is bounded by the canvas buffer size.
         if w != d.width || h != d.height {
@@ -99,7 +101,7 @@ pub unsafe extern "C" fn dr_doc_fill_selection_pattern(
         return ptr::null_mut();
     }
     let body = |d: &DrDocument| {
-        let mode = BlendMode::from_c(mode)?;
+        let mode = PaintBlend::from_c(mode)?;
         if w != d.width || h != d.height {
             return None;
         }
@@ -172,11 +174,12 @@ pub unsafe extern "C" fn dr_doc_stroke_layer_edge_scratch(
 /// Edit ▸ Stroke… with nothing selected: strokes layer `idx`'s own alpha
 /// edge `width_px` wide at `location` (`DrStrokeLocation`) in LAYER space,
 /// including any part beyond the canvas, with the straight RGBA8 `rgba`
-/// through `mode` (`DrBlendMode`) at `opacity` (clamped to [0, 1]). The
-/// layer grows to its union with the band's bounds — past the canvas if the
-/// band reaches there; recorded comp offsets follow the grown origin —
-/// unless `preserve_transparency` or a transparency lock keeps its alpha,
-/// in which case it never grows.
+/// through `mode` (`DrBlendMode`, Behind and Clear included) at `opacity`
+/// (clamped to [0, 1]). The layer grows to its union with the band's bounds
+/// — past the canvas if the band reaches there; recorded comp offsets follow
+/// the grown origin — unless `preserve_transparency` or a transparency lock
+/// keeps its alpha, in which case it never grows (and Behind or Clear changes
+/// nothing), or `mode` is Clear.
 ///
 /// NULL with `err_out` untouched: a NULL doc, and no change (a layer with
 /// no alpha > 0 pixel, an empty band, or a result identical to the grown
@@ -214,7 +217,7 @@ pub unsafe extern "C" fn dr_doc_stroke_layer_edge(
                 return Err("a stroke colour is required".into());
             }
             let color = [*rgba, *rgba.add(1), *rgba.add(2), *rgba.add(3)];
-            let mode = BlendMode::from_c(mode).ok_or("unknown blend mode")?;
+            let mode = PaintBlend::from_c(mode).ok_or("unknown blend mode")?;
             let control = control.as_ref();
             let _run = control.map(DrJobControl::begin).transpose()?;
             let job = control.map_or(JobContext::NONE, JobContext::new);

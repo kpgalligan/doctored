@@ -88,6 +88,14 @@ enum FloatPaint {
             + NativeLayerBlending.floatModeNames.joined(separator: ", ") + "."
     }
 
+    /// The Brush's gate: `modeRefusal`, with the paint-only Behind and Clear
+    /// admitted (`PaintOnlyBlend`; their alpha rule needs no float decision).
+    /// They stay out of `NativeLayerBlending.floatModes`, which layers, the
+    /// Fill and Gradient tools and the Clone Stamp read.
+    static func brushModeRefusal(_ mode: DrBlendMode) -> String? {
+        DrBlendMode.isPaintOnly(mode) ? nil : modeRefusal(mode)
+    }
+
     /// The pre-dispatch gate (`DocumentPrecision.refusal`); nil for any tool
     /// outside `tools`, and for every call the handlers themselves answer.
     /// In order: another tool's linear-ink argument, at every depth; the

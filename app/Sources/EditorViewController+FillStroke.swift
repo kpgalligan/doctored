@@ -59,7 +59,9 @@ extension EditorViewController {
         }
         let sheet = FillSheetController(
             coverage: captured.target.isCoverage, quickMask: false,
-            options: ToolOptionsStore.shared.fillDialog
+            options: ToolOptionsStore.shared.fillDialog,
+            paintOnly: Self.sheetOffersPaintOnly(
+                doc: captured.doc, coverage: captured.target.isCoverage)
         ) { [weak self] in self?.applyFill($0, capture: captured) }
         presentAsSheet(sheet)
     }
@@ -93,7 +95,9 @@ extension EditorViewController {
         }
         let sheet = StrokeSheetController(
             target: captured.target, color: paintColor,
-            options: ToolOptionsStore.shared.strokeDialog
+            options: ToolOptionsStore.shared.strokeDialog,
+            paintOnly: Self.sheetOffersPaintOnly(
+                doc: captured.doc, coverage: captured.target.isCoverage)
         ) { [weak self] in self?.applyStroke($0, capture: captured) }
         presentAsSheet(sheet)
     }
@@ -133,6 +137,8 @@ extension EditorViewController {
             guard !refuseLockedEdit(layer: capture.layerIndex, kind: DR_EDIT_PIXELS)
             else { return }
         }
+        guard !refusePaintOnlyBlend(settings.mode, capture: capture,
+                                    preserve: settings.preserveTransparency) else { return }
         if settings.contents == .pattern {
             applyPatternFill(settings, capture: capture, document: document, note: note)
             return
@@ -152,10 +158,12 @@ extension EditorViewController {
             preserveTransparency: preserve,
             target: capture.target.layerEditAgentName(in: capture.doc),
             space: document.nsColorSpace, note: note)
-        // A fill reaching past a trimmed layer grows it, as Stroke… does.
+        // A fill reaching past a trimmed layer grows it, as Stroke… does
+        // (never for Clear, which only takes alpha away).
         let base: RasterDocument
         do {
-            base = try capture.paintDestination(mask: capture.selection, preserve: preserve)
+            base = try capture.paintDestination(
+                mask: capture.selection, preserve: preserve || settings.mode == DR_BLEND_CLEAR)
         } catch {
             document.presentError(error)
             NSSound.beep()
@@ -202,6 +210,12 @@ extension EditorViewController {
             showFillAlert(FillSettings.coverageBlendRefusal)
             return
         }
+        // Behind and Clear: the Quick Mask has no transparency of its own.
+        if let reason = PaintOnlyBlend.refusal(
+            settings.mode, doc: document.doc, layer: 0, coverage: true, preserve: false) {
+            showFillAlert(reason)
+            return
+        }
         let opacity = min(max(settings.opacity, 0), 100)
         do {
             let fill = try QuickMaskFill(color: color, mode: settings.mode, opacity: opacity / 100)
@@ -239,6 +253,8 @@ extension EditorViewController {
             guard !refuseLockedEdit(layer: capture.layerIndex, kind: DR_EDIT_PIXELS)
             else { return }
         }
+        guard !refusePaintOnlyBlend(settings.mode, capture: capture,
+                                    preserve: settings.preserveTransparency) else { return }
         guard let outline = StrokeSettings.outline(of: capture) else {
             showFillAlert(StrokeSettings.noSelection)
             return
@@ -278,7 +294,8 @@ extension EditorViewController {
         }
         let base: RasterDocument
         do {
-            base = try capture.paintDestination(mask: band, preserve: preserve)
+            base = try capture.paintDestination(
+                mask: band, preserve: preserve || settings.mode == DR_BLEND_CLEAR)
         } catch {
             document.presentError(error)
             NSSound.beep()

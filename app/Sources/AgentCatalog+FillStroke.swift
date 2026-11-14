@@ -14,6 +14,16 @@ extension AgentServer {
             + "document and Quick Mask refuse it.",
     ]
 
+    /// The paint-only modes' rule (`PaintOnlyBlend`), stated once for
+    /// `brush_stroke`, `fill_selection` and `stroke_selection`.
+    static let paintOnlyBlendSentence =
+        "Behind paints only under what the layer holds (alpha ab + sa(1 − ab), sa = the paint's "
+        + "alpha × opacity × coverage) and never changes an opaque pixel; Clear takes sa off the "
+        + "layer's alpha (ab(1 − sa)), ignores the colour and never grows the layer. Both need "
+        + "the layer's own pixels and a free alpha: a mask, colour plane, alpha channel or "
+        + "Quick Mask target, preserve_transparency, Lock Transparency and a CMYK, Indexed or "
+        + "Bitmap document refuse them by name."
+
     @inline(never) func fillSelectionCatalog() -> [[String: Any]] {
         let description = [
             "Fills the active selection — or the whole target when nothing is selected — ",
@@ -62,7 +72,7 @@ extension AgentServer {
             "pixel's nearest entry, Bitmap thresholded. Layer target only: a mask, colour plane, ",
             "alpha channel and the Quick Mask refuse it by name. The reply echoes pattern.",
         ].joined()
-        let blendNames = DrBlendMode.allBlendModes.map { $0.1 }
+        let blendNames = DrBlendMode.paintBlendModes.map { $0.1 }
         return [
             tool(
                 "fill_selection", description,
@@ -93,7 +103,8 @@ extension AgentServer {
                     ],
                     "blend_mode": [
                         "type": "string", "enum": blendNames,
-                        "description": "Blend mode (default Normal). The four HSL modes "
+                        "description": "Blend mode (default Normal). "
+                            + Self.paintOnlyBlendSentence + " The four HSL modes "
                             + "refuse on a mask, colour plane or alpha channel.",
                     ],
                     "opacity": [
@@ -160,7 +171,7 @@ extension AgentServer {
             "channel with fill_selection's value, modes and refusals, and rgba32 replaces ",
             "color with linear-light numbers, above white included.",
         ].joined()
-        let blendNames = DrBlendMode.allBlendModes.map { $0.1 }
+        let blendNames = DrBlendMode.paintBlendModes.map { $0.1 }
         return [
             tool(
                 "stroke_selection", description,
@@ -190,7 +201,8 @@ extension AgentServer {
                     ],
                     "blend_mode": [
                         "type": "string", "enum": blendNames,
-                        "description": "Blend mode (default Normal). The four HSL modes "
+                        "description": "Blend mode (default Normal). "
+                            + Self.paintOnlyBlendSentence + " The four HSL modes "
                             + "refuse on a mask, colour plane or alpha channel.",
                     ],
                     "opacity": [

@@ -207,6 +207,10 @@ impl CmykPaintEdit {
                     .into(),
             );
         }
+        // Behind and Clear are RGB, Gray and Lab's (`paint_mode`).
+        if let Some(mode) = crate::paint_mode::requested(&value) {
+            return Err(refused_sentence(&crate::paint_mode::mode_phrase(mode)));
+        }
         let edit: Self =
             serde_json::from_value(value).map_err(|e| format!("invalid CMYK paint tool: {e}"))?;
         if let Some(mode) = BlendMode::from_c(edit.blend_mode() as i32) {

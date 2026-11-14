@@ -1591,7 +1591,7 @@ final class AgentServer {
         let size = CGFloat(min(max(doubleArg(a, "size") ?? 16, 1), EditorTool.brush.maximumBrushSize))
         let opacity = min(max(doubleArg(a, "opacity") ?? 1, 0), 1)
         let tip = try strokeTip(a)
-        let blend = try blendModeArg(a)
+        let blend = try blendModeArg(a, paintOnly: !erase)
         if blend != nil, erase {
             throw ToolError(
                 message: "eraser_stroke has no blend_mode — erasing removes alpha; blend "

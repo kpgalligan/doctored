@@ -2178,7 +2178,9 @@ The design record behind each area is in the repository's
   trimmed layer grows to the pixels the fill changes, as the 16-bit brush does
   (not under Preserve Transparency or Lock Transparency), and at 8 bits
   Fill…, ⌥⌫, ⌘⌫ and `fill_selection` grow a trimmed layer to its union with
-  the canvas when the fill reaches past it, with the same two exceptions.
+  the canvas when the fill reaches past it, with the same two exceptions; a
+  fill in Clear mode never grows a layer at either depth, since it only
+  removes pixels.
   In 32-bit float documents Fill… works on a layer, its
   mask or an alpha channel: the colour fills as linear light (diffuse white is
   1.0, so a full Normal fill shows the colour you chose under Clip to white,

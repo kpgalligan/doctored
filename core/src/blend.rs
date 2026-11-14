@@ -101,7 +101,10 @@ pub enum BlendMode {
 }
 
 impl BlendMode {
-    /// Maps a raw `DrBlendMode` value coming across the FFI.
+    /// Maps a raw `DrBlendMode` value coming across the FFI. 28 (Behind) and
+    /// 29 (Clear) are paint-only codes, not layer modes, and stay `None` here:
+    /// the Brush, Fill and Stroke entry points read them through
+    /// `paint_mode::PaintBlend::from_c`.
     pub fn from_c(value: i32) -> Option<Self> {
         match value {
             0 => Some(BlendMode::Normal),
@@ -429,6 +432,18 @@ pub(crate) enum BlendKind {
     NonSeparable(fn([f32; 3], [f32; 3]) -> [f32; 3]),
     Dissolve,
 }
+
+/// `B(Cb, Cs) = Cb`: the paint-only Behind mode (`paint_mode`). Put into the
+/// W3C step it gives `co·ao = sa(1 − ab)Cs + sa·ab·Cb + (1 − sa)ab·Cb =
+/// sa(1 − ab)Cs + ab·Cb` with `ao = ab + sa(1 − ab)` — destination-over, the
+/// paint landing only where the backdrop is transparent. Not a `BlendMode`:
+/// no layer can carry it.
+fn b_behind(cb: f32, _cs: f32) -> f32 {
+    cb
+}
+
+/// The Behind kind every paint walk composites through (`b_behind`).
+pub(crate) const BEHIND: BlendKind = BlendKind::Separable(b_behind);
 
 /// The blend behavior for a mode (data table, resolved once per layer rather
 /// than per pixel).

@@ -26,13 +26,20 @@
 //! `lerp(Cb, B(Cb, Cs), sa)` and keeps its alpha, an opaque one is unchanged
 //! from the free path. `doc_lock`'s alpha restore still runs after the walk
 //! and is then a backstop that finds nothing to undo.
+//!
+//! The two paint-only modes (`paint_mode`'s rule): BEHIND is Blend with
+//! `blend::BEHIND` (destination-over) that never writes an opaque pixel, and
+//! CLEAR is Erase at the paint's own alpha. Both need a free alpha, so the
+//! walk answers `None` for either under `preserve` — the frozen form of each
+//! changes nothing.
 
 use crate::blend::{
-    blend_kind, composite_source_frozen, composite_source_into, paint_pixel, BlendMode,
+    blend_kind, composite_source_frozen, composite_source_into, paint_pixel, BlendMode, BEHIND,
 };
 use crate::doc::{DrDocument, Layer};
 use crate::doc_lock::EditKind;
 use crate::ops::CompositeMode;
+use crate::paint_mode::PaintBlend;
 
 /// The canvas-coordinate rect an overlay buffer covers: `width·height`
 /// samples, row-major, whose top-left sample sits at canvas `(x, y)` (either
@@ -105,6 +112,25 @@ pub(crate) enum PaintMode {
     Over,
     Erase,
     Blend(BlendMode),
+    /// The paint-only Behind (module doc).
+    Behind,
+    /// The paint-only Clear: Erase that refuses a frozen alpha.
+    Clear,
+}
+
+impl PaintMode {
+    /// The walk mode a Brush, Fill or Stroke `blend` composites through:
+    /// Normal is Over, any other layer mode Blend. `None` for a group's Pass
+    /// Through.
+    pub(crate) fn of(blend: PaintBlend) -> Option<Self> {
+        Some(match blend {
+            PaintBlend::Mode(mode) if mode.is_group_only() => return None,
+            PaintBlend::Mode(BlendMode::Normal) => PaintMode::Over,
+            PaintBlend::Mode(mode) => PaintMode::Blend(mode),
+            PaintBlend::Behind => PaintMode::Behind,
+            PaintBlend::Clear => PaintMode::Clear,
+        })
+    }
 }
 
 /// The layer-local `(x, y, w, h)` bounding box of the `frame` samples for
@@ -197,9 +223,10 @@ impl DrDocument {
     ///
     /// Unlocked: callers wrap it in `under_locks`. Refusals (`None`): a
     /// non-raster `idx`, NaN `alpha`, a layer extent that misses the frame,
-    /// and — Blend only — no byte changing. Over and Erase with no nonzero
-    /// ink on the layer return the layer reidentified, which the callers'
-    /// latches turn into their own no-op answer.
+    /// Behind or Clear under `preserve` (each one's frozen form changes
+    /// nothing), and — Blend, Behind and Clear — no byte changing. Over and
+    /// Erase with no nonzero ink on the layer return the layer reidentified,
+    /// which the callers' latches turn into their own no-op answer.
     pub(crate) fn paint_walk(
         &self,
         idx: usize,
@@ -210,7 +237,7 @@ impl DrDocument {
         ink: impl Fn(usize) -> Ink,
     ) -> Option<Self> {
         let layer = self.raster_layer(idx)?;
-        if alpha.is_nan() {
+        if alpha.is_nan() || (preserve && matches!(mode, PaintMode::Behind | PaintMode::Clear)) {
             return None;
         }
         let a = alpha.clamp(0.0, 1.0);
@@ -232,14 +259,15 @@ impl DrDocument {
             source_rect_in(frame, layer, |i| ink(i).premultiplied() != [0; 4])
         else {
             return match mode {
-                PaintMode::Blend(_) => None,
+                PaintMode::Blend(_) | PaintMode::Behind | PaintMode::Clear => None,
                 _ => self.with_layer_raster(idx, layer.pixels.reidentified()),
             };
         };
-        let kind = blend_kind(match mode {
-            PaintMode::Blend(m) => m,
-            _ => BlendMode::Normal,
-        });
+        let kind = match mode {
+            PaintMode::Blend(m) => blend_kind(m),
+            PaintMode::Behind => BEHIND,
+            _ => blend_kind(BlendMode::Normal),
+        };
         // With the alpha frozen only RGB is written back; the walk's alpha
         // byte is the layer's own.
         let channels = if preserve { 3 } else { 4 };
@@ -256,13 +284,22 @@ impl DrDocument {
                         paint_pixel(&mut dp[..], sample.premultiplied(), CompositeMode::Erase, a);
                         continue;
                     }
+                    PaintMode::Clear => {
+                        let before = dp[3];
+                        paint_pixel(&mut dp[..], sample.premultiplied(), CompositeMode::Erase, a);
+                        changed |= dp[3] != before;
+                        continue;
+                    }
                     PaintMode::Over if !preserve || dp[3] == 255 => {
                         paint_pixel(&mut dp[..], sample.premultiplied(), CompositeMode::Over, a);
                         continue;
                     }
                     // Nothing there to recolour, and the alpha may not move.
                     PaintMode::Over if dp[3] == 0 => continue,
-                    PaintMode::Over | PaintMode::Blend(_) => {}
+                    // Behind never writes an opaque pixel: nothing shows
+                    // under it.
+                    PaintMode::Behind if dp[3] == 255 => continue,
+                    PaintMode::Over | PaintMode::Blend(_) | PaintMode::Behind => {}
                 }
                 let coverage = sample.premultiplied()[3];
                 if coverage == 0 {
@@ -294,10 +331,12 @@ impl DrDocument {
                 }
             }
         }
-        if let PaintMode::Blend(_) = mode {
-            if !changed {
-                return None;
-            }
+        let latched = matches!(
+            mode,
+            PaintMode::Blend(_) | PaintMode::Behind | PaintMode::Clear
+        );
+        if latched && !changed {
+            return None;
         }
         let pixels = match layer.pixels.with_rect(rx, ry, rw, rh, &px) {
             Err(_) => return None,
@@ -431,29 +470,30 @@ impl DrDocument {
     /// exact colour, not one un-premultiplied out of a few overlay codes.
     /// Normal delegates to [`Self::painting_layer`] with the overlay
     /// itself (premultiplied, byte-identical); the refusals are
-    /// `painting_layer_blend`'s. (`pub(crate)`; the public surface is
+    /// `painting_layer_blend`'s. The Brush's two paint-only modes come here
+    /// too (`paint_mode`): Behind blends the straight ink under the layer's
+    /// pixels, Clear takes the coverage × `alpha` off the layer's alpha, and
+    /// either answers `None` on a transparency-locked layer.
+    /// (`pub(crate)`; the public surface is
     /// `dr_doc_painting_layer_blend_color`.)
     pub(crate) fn painting_layer_blend_color(
         &self,
         idx: usize,
         src: &[u8],
         rgb: [u8; 3],
-        mode: BlendMode,
+        mode: PaintBlend,
         alpha: f32,
     ) -> Option<Self> {
-        if mode == BlendMode::Normal {
+        let walk = PaintMode::of(mode)?;
+        if walk == PaintMode::Over {
             return self.painting_layer(idx, src, CompositeMode::Over, alpha);
-        }
-        if mode.is_group_only() {
-            return None;
         }
         let frame = OverlayFrame::canvas(self.width, self.height);
         self.under_locks(idx, EditKind::Pixels, |doc| {
             if !frame_sized(src, frame) {
                 return None;
             }
-            let mode = PaintMode::Blend(mode);
-            doc.paint_walk(idx, frame, mode, alpha, doc.alpha_frozen(idx), |i| {
+            doc.paint_walk(idx, frame, walk, alpha, doc.alpha_frozen(idx), |i| {
                 Ink::Straight {
                     rgb,
                     alpha: src[4 * i + 3],

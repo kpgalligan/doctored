@@ -829,8 +829,10 @@ pub unsafe extern "C" fn dr_doc_painting_layer_blend(
 /// (`src`, `w`/`h` must equal the canvas size; byte `4i + 3` per pixel) read,
 /// as coverage — so a low-coverage stroke blends the exact colour.
 /// `DR_BLEND_NORMAL` delegates to `dr_doc_painting_layer` with
-/// `DR_COMPOSITE_OVER` and the overlay itself (byte-identical). NULL on the
-/// refusals `dr_doc_painting_layer_blend` names, plus a NULL `rgb`.
+/// `DR_COMPOSITE_OVER` and the overlay itself (byte-identical). It also takes
+/// the paint-only `DR_BLEND_BEHIND` and `DR_BLEND_CLEAR` (`paint_mode`), each
+/// NULL on a transparency-locked layer. NULL on the refusals
+/// `dr_doc_painting_layer_blend` names, plus a NULL `rgb`.
 ///
 /// # Safety
 /// `doc` must be NULL or a valid pointer to a live `DrDocument`; `src` must
@@ -852,7 +854,7 @@ pub unsafe extern "C" fn dr_doc_painting_layer_blend_color(
         return ptr::null_mut();
     }
     let body = |d: &DrDocument| {
-        let mode = BlendMode::from_c(mode)?;
+        let mode = crate::paint_mode::PaintBlend::from_c(mode)?;
         // Validate against the canvas dimensions before touching `src`, so
         // the raw read below is bounded by the canvas buffer size.
         if w != d.width || h != d.height {

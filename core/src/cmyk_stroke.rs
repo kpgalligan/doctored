@@ -111,6 +111,12 @@ impl CmykLayerEdgeStroke {
                     .into(),
             );
         }
+        // Behind and Clear are RGB, Gray and Lab's (`paint_mode`).
+        if let Some(mode) = crate::paint_mode::requested(&value) {
+            return Err(crate::cmyk_document::refused_sentence(
+                &crate::paint_mode::mode_phrase(mode),
+            ));
+        }
         let edit: Self = serde_json::from_value(value)
             .map_err(|e| format!("invalid layer-edge stroke request: {e}"))?;
         if edit.op != "stroke_layer_edge" {

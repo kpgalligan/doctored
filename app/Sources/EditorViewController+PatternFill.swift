@@ -26,10 +26,12 @@ extension EditorViewController {
             pattern: pattern, blendMode: settings.mode, opacity: opacity * 100,
             preserveTransparency: preserve,
             target: capture.target.layerEditAgentName(in: capture.doc), note: note)
-        // A fill reaching past a trimmed layer grows it, as a colour fill does.
+        // A fill reaching past a trimmed layer grows it, as a colour fill does
+        // (never for Clear, which only takes alpha away).
         let base: RasterDocument
         do {
-            base = try capture.paintDestination(mask: capture.selection, preserve: preserve)
+            base = try capture.paintDestination(
+                mask: capture.selection, preserve: preserve || settings.mode == DR_BLEND_CLEAR)
         } catch {
             document.presentError(error)
             NSSound.beep()

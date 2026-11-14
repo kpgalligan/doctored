@@ -255,6 +255,8 @@ mod float_adjust_apply;
 mod float_adjustments;
 #[path = "float_artwork.rs"]
 mod float_artwork;
+#[path = "float_behind_clear.rs"]
+mod float_behind_clear;
 #[path = "float_blend_modes.rs"]
 mod float_blend_modes;
 #[path = "float_brush_tools.rs"]
@@ -581,6 +583,8 @@ mod mode_codec_cancel;
 mod multichannel_psd;
 #[path = "native_banded_reopen.rs"]
 mod native_banded_reopen;
+#[path = "native_behind_clear.rs"]
+mod native_behind_clear;
 #[path = "native_capacity.rs"]
 mod native_capacity;
 #[path = "native_png_bound.rs"]

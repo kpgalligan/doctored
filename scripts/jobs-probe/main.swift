@@ -356,6 +356,7 @@ do {
         ("pencil", verifyPencil),
         ("pencil canvas", verifyPencilCanvases),
         ("pattern library", verifyPatternLibrary),
+        ("behind clear", verifyBehindClear),
         ("action failure prompt", verifyActionFailurePrompt),
         ("inverse no selection", verifyInverseNoSelection),
         ("progress panel reuse", verifyProgressPanelReuse),

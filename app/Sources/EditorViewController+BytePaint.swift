@@ -83,6 +83,12 @@ extension EditorViewController {
             self.strokeBase = nil
             return true
         }
+        // The Brush's Behind and Clear on a transparency-locked layer refuse
+        // by name while refusing is still free (`PaintOnlyBlend`).
+        if self.strokeTool == .brush, self.refusePaintOnlyBlend(
+            self.paintStrokeBlendMode(), doc: doc, layer: idx, coverage: false, preserve: false) {
+            return false
+        }
         // The sampling plate, before the session opens: a retouch tool
         // that cannot build one must refuse here, where refusing is
         // still free, rather than fall back to the canvas's display

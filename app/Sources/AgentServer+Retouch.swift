@@ -139,9 +139,17 @@ extension AgentServer {
     /// belongs to the core's `with_layer_blend_mode`, which refuses it, and
     /// the sentence below tells a model which half of the pair was wrong
     /// before it retries.
-    func blendModeArg(_ a: [String: Any], allowPassThrough: Bool = false) throws -> DrBlendMode? {
+    ///
+    /// `paintOnly` is `brush_stroke`'s, `fill_selection`'s and
+    /// `stroke_selection`'s vocabulary, which adds Behind and Clear
+    /// (`PaintOnlyBlend`); every other caller's refusal of either names where
+    /// they apply.
+    func blendModeArg(
+        _ a: [String: Any], allowPassThrough: Bool = false, paintOnly: Bool = false
+    ) throws -> DrBlendMode? {
         guard let name = stringArg(a, "blend_mode") else { return nil }
-        let vocabulary = allowPassThrough ? DrBlendMode.groupBlendModes : DrBlendMode.allBlendModes
+        let vocabulary = allowPassThrough ? DrBlendMode.groupBlendModes
+            : paintOnly ? DrBlendMode.paintBlendModes : DrBlendMode.allBlendModes
         guard let mode = vocabulary.first(where: {
             $0.1.caseInsensitiveCompare(name) == .orderedSame
         })?.0
@@ -156,6 +164,11 @@ extension AgentServer {
                "Pass Through".caseInsensitiveCompare(name) == .orderedSame {
                 message += ". Pass Through applies to GROUPS only — set it with "
                     + "set_layer_properties on a group entry."
+            }
+            if DrBlendMode.paintOnlyModes.contains(where: {
+                $0.1.caseInsensitiveCompare(name) == .orderedSame
+            }) {
+                message += ". " + PaintOnlyBlend.toolsClause
             }
             throw ToolError(message: message)
         }

@@ -28,7 +28,9 @@ extension EditorViewController {
         }
         let sheet = FillSheetController(
             coverage: capture.target.isCoverage, quickMask: false,
-            options: ToolOptionsStore.shared.fillDialog
+            options: ToolOptionsStore.shared.fillDialog,
+            paintOnly: Self.sheetOffersPaintOnly(
+                doc: capture.facade, coverage: capture.target.isCoverage)
         ) { [weak self] in self?.applyPrecisionFill($0, capture: capture, note: "Edit ▸ Fill…") }
         presentAsSheet(sheet)
     }
@@ -67,7 +69,9 @@ extension EditorViewController {
         }
         let sheet = StrokeSheetController(
             target: capture.target, color: paintColor,
-            options: ToolOptionsStore.shared.strokeDialog
+            options: ToolOptionsStore.shared.strokeDialog,
+            paintOnly: Self.sheetOffersPaintOnly(
+                doc: capture.facade, coverage: capture.target.isCoverage)
         ) { [weak self] in self?.applyPrecisionStroke($0, capture: capture) }
         presentAsSheet(sheet)
     }
@@ -78,6 +82,9 @@ extension EditorViewController {
     func applyPrecisionFill(_ s: FillSettings, capture: PrecisionEditorCapture?, note: String) {
         guard let document, let capture = currentPrecisionCapture(capture, document) else { return }
         if capture.target == .layer, refusePrecisionLayerFill(capture) { return }
+        guard !refusePaintOnlyBlend(s.mode, doc: capture.facade, layer: capture.layer,
+                                    coverage: capture.target.isCoverage,
+                                    preserve: s.preserveTransparency) else { return }
         if s.contents == .pattern {
             applyPrecisionPatternFill(s, capture: capture, document: document, note: note)
             return
@@ -178,6 +185,9 @@ extension EditorViewController {
     func applyPrecisionStroke(_ s: StrokeSettings, capture: PrecisionEditorCapture?) {
         guard let document, let capture = currentPrecisionCapture(capture, document) else { return }
         if capture.target == .layer, refusePrecisionLayerFill(capture) { return }
+        guard !refusePaintOnlyBlend(s.mode, doc: capture.facade, layer: capture.layer,
+                                    coverage: capture.target.isCoverage,
+                                    preserve: s.preserveTransparency) else { return }
         guard capture.selection != nil || capture.target == .layer else {
             showFillAlert(StrokeSettings.noSelection)
             return

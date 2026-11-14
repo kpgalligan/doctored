@@ -670,6 +670,10 @@ const ADMITTED: &[&str] = &[
     "fill_stroke",
     "paint",
     "erase",
+    // The paint-only Behind and Clear of the Brush, Fill… and Stroke…:
+    // alpha arithmetic on straight f32, colour unclamped (`float_paint`).
+    "behind_paint",
+    "clear_paint",
     "gradient",
     "clone",
     "heal",

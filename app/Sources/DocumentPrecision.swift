@@ -729,7 +729,7 @@ enum DocumentPrecision {
          "supported_tools": typedTools.sorted(), "shared_tools": commonTools.union(documentFreeTools).sorted(),
          "paint_targets": ["layer", "mask", "red", "green", "blue", "alpha", "saved channel"], "blend_modes": NativeLayerBlending.modeNames + ["Pass Through (groups)"],
          "layer_blend_version": 1, "adjustment_blend_modes": NativeLayerBlending.modeNames,
-         "paint_blend_modes": DrBlendMode.allBlendModes.map { $0.1 },
+         "paint_blend_modes": DrBlendMode.paintBlendModes.map { $0.1 },
          "coverage": "Authoritative native selections, Quick Mask, masks and channels retain 65,536 coverage levels. Legacy geometric/AppKit inputs and Vision segmentation retain their disclosed byte precision; display derivatives never replace native data.",
          "artwork": NativeArtwork.information, "limitations": limitation]
     }

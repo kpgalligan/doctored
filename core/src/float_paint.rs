@@ -59,6 +59,19 @@
 //! Stroke's only. Tests: `tests/float_brush_tools.rs`,
 //! `tests/float_fill_stroke.rs`, `tests/float_plane_fill.rs`.
 //!
+//! # Behind and Clear
+//!
+//! `paint_blend` also takes the paint-only modes (`paint_mode`'s rule), which
+//! need no admission decision: each is alpha arithmetic on the straight f32
+//! sample, defined on the whole real line. Behind is the W3C step with
+//! `blend::BEHIND` (destination-over), colour unclamped, and an opaque pixel
+//! (alpha ≥ 1) is skipped, so it stays bit for bit; Clear is the Eraser's
+//! `erase_alpha` at the ink's alpha × opacity × coverage and never grows the
+//! layer. Under Preserve Transparency or a transparency lock either is
+//! `None`, and a colour plane refuses both (`paint_mode::plane_refusal`). The
+//! operator table lists them as `behind_paint` and `clear_paint`. Tests:
+//! `tests/float_behind_clear.rs`.
+//!
 //! All three plan the layer fill's figure (`# Admission`). Measured in
 //! Release, one case per process, `MallocLargeCache=0`, a baseline twin and
 //! three runs (`examples/float_paint_admission.rs`), on a 6000×4000 opaque
@@ -116,7 +129,9 @@
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::blend::{composite_source_frozen, composite_source_into, erase_alpha, BlendMode};
+use crate::blend::{
+    composite_source_frozen, composite_source_into, erase_alpha, BlendMode, BEHIND,
+};
 use crate::blend_float::blend_kind_at;
 use crate::doc_lock::{EditKind, LOCK_TRANSPARENCY};
 use crate::doc_plane::{blend_triple, degenerates_on_gray};
@@ -127,6 +142,7 @@ use crate::icc::IccProfile;
 use crate::icc_transform::PrecisionTransform;
 use crate::job_control::JobContext;
 use crate::layer_rect::{canvas_rect_on_plane, coverage_rect16, plane_rect_offset};
+use crate::paint_mode::PaintBlend;
 use crate::plane_swatch::plane_fill_value;
 use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_image::{
@@ -225,6 +241,9 @@ pub(crate) fn admit_ink(edit: &NativePaintEdit, doc: &PrecisionDocument) -> Resu
         return Err(PLANE_INK.into());
     }
     let (_, opacity, mode, _) = edit.target();
+    if let Some(paint) = PaintBlend::from_u32(mode).filter(|b| b.is_paint_only()) {
+        return Err(crate::paint_mode::plane_refusal(paint));
+    }
     let Some((code, blend)) = i32::try_from(mode)
         .ok()
         .and_then(|code| Some((code, BlendMode::from_c(code)?)))
@@ -260,12 +279,14 @@ pub(crate) fn plan_in(
     frame: PaintFrame,
 ) -> Result<Value, String> {
     let (layer, _, mode, selection) = edit.target();
-    let blend = i32::try_from(mode)
-        .ok()
-        .and_then(BlendMode::from_c)
-        .ok_or("native paint opacity or blend mode is invalid")?;
-    if !admitted_blend(blend) {
-        return Err(blend_refusal(blend));
+    let paint =
+        PaintBlend::from_u32(mode).ok_or("native paint opacity or blend mode is invalid")?;
+    // Behind and Clear are `paint_mode`'s alpha rules, defined on any
+    // straight float sample (module doc, `# Behind and Clear`).
+    if let PaintBlend::Mode(blend) = paint {
+        if !admitted_blend(blend) {
+            return Err(blend_refusal(blend));
+        }
     }
     let extent = edit.extent(doc, frame)?;
     let n = pixel_count(frame.width, frame.height)? as u64;
@@ -340,9 +361,14 @@ fn applying_unlocked(
     if input.len() as u64 != plan["input_samples"].as_u64().unwrap_or(u64::MAX) {
         return Err("native paint input length differs from plan".into());
     }
-    let (index, opacity, mode, selected) = edit.target();
+    let (index, opacity, _, selected) = edit.target();
     let n = pixel_count(frame.width, frame.height)?;
-    if opacity == 0. || idle(edit, doc, input, n, selected) {
+    // The master's frozen-alpha rule: Preserve Transparency or a
+    // transparency lock; the restore below stays as the backstop. Behind and
+    // Clear change nothing with the alpha frozen (`paint_mode`).
+    let frozen = edit.preserves_alpha() || doc.lock_owner(index, LOCK_TRANSPARENCY).is_some();
+    let blend = edit.blend();
+    if opacity == 0. || idle(edit, doc, input, n, selected) || (frozen && blend.is_paint_only()) {
         job.report(1., 5)?;
         return Ok(None);
     }
@@ -407,13 +433,11 @@ fn applying_unlocked(
     }
     let mut bounds = [frame.width, frame.height, 0, 0];
     let mut changed = false;
-    let kind = blend_kind_at(
-        BlendMode::from_c(mode as i32).unwrap_or(BlendMode::Normal),
-        true,
-    );
-    // The master's frozen-alpha rule: Preserve Transparency or a
-    // transparency lock; the restore below stays as the backstop.
-    let frozen = edit.preserves_alpha() || doc.lock_owner(index, LOCK_TRANSPARENCY).is_some();
+    let kind = match blend {
+        PaintBlend::Mode(mode) => blend_kind_at(mode, true),
+        PaintBlend::Behind => BEHIND,
+        PaintBlend::Clear => blend_kind_at(BlendMode::Normal, true),
+    };
     for (k, slot) in canvas_rect.iter_mut().enumerate() {
         job.every(k)?;
         if k & 65535 == 0 {
@@ -496,6 +520,28 @@ fn applying_unlocked(
                 bounds[2] = bounds[2].max(x + 1);
                 bounds[3] = bounds[3].max(y + 1);
             }
+            continue;
+        }
+        if blend == PaintBlend::Clear {
+            // The Eraser's rule at the ink's own alpha: colour above white,
+            // below zero or hidden under alpha 0 stays bit for bit.
+            let before = slot[3];
+            let after = erase_alpha(
+                before,
+                (f64::from(ink[3]) * f64::from(opacity) * coverage) as f32,
+            );
+            if after.to_bits() != before.to_bits() {
+                slot[3] = after;
+                changed = true;
+                bounds[0] = bounds[0].min(x);
+                bounds[1] = bounds[1].min(y);
+                bounds[2] = bounds[2].max(x + 1);
+                bounds[3] = bounds[3].max(y + 1);
+            }
+            continue;
+        }
+        // Behind never writes an opaque pixel, so it stays bit for bit.
+        if blend == PaintBlend::Behind && slot[3] >= 1.0 {
             continue;
         }
         // Filtered geometry's floor: ink this faint changes an opaque pixel

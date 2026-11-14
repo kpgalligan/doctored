@@ -18,6 +18,10 @@ import AppKit
 final class FillSheetController: NSViewController {
     private let coverage: Bool
     private let quickMask: Bool
+    /// Whether the Mode popup lists Behind and Clear (a layer target in a
+    /// colour mode that offers them, `PaintOnlyBlend`); choosing either turns
+    /// Preserve Transparency off, since both change the layer's alpha.
+    private let paintOnly: Bool
     private let options: FillDialogOptions
     private let onApply: (FillSettings) -> Void
     private let offered: [FillContents]
@@ -34,11 +38,12 @@ final class FillSheetController: NSViewController {
     private let status = NSTextField(labelWithString: "")
 
     init(
-        coverage: Bool, quickMask: Bool, options: FillDialogOptions,
+        coverage: Bool, quickMask: Bool, options: FillDialogOptions, paintOnly: Bool = false,
         onApply: @escaping (FillSettings) -> Void
     ) {
         self.coverage = coverage
         self.quickMask = quickMask
+        self.paintOnly = paintOnly && !coverage && !quickMask
         self.options = options
         self.onApply = onApply
         offered = FillContents.offered(coverage: coverage || quickMask)
@@ -78,14 +83,17 @@ final class FillSheetController: NSViewController {
         contentsRow.orientation = .horizontal
         contentsRow.spacing = 8
 
-        ChannelMathControls.fillBlendModes(modePopup, singlePlane: coverage)
-        if let mode = DrBlendMode.allBlendModes.first(where: {
+        ChannelMathControls.fillBlendModes(modePopup, singlePlane: coverage, paintOnly: paintOnly)
+        if let mode = DrBlendMode.paintBlendModes.first(where: {
             $0.1.caseInsensitiveCompare(options.blendMode) == .orderedSame
         })?.0 {
-            // A saved HSL mode is absent from a coverage target's menu, so
-            // the popup keeps the Normal the builder selected.
+            // A saved HSL mode is absent from a coverage target's menu (and a
+            // saved Behind or Clear wherever they are not offered), so the
+            // popup keeps the Normal the builder selected.
             modePopup.selectItem(withTag: Int(mode.rawValue))
         }
+        modePopup.target = self
+        modePopup.action = #selector(modeChanged(_:))
 
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -105,6 +113,7 @@ final class FillSheetController: NSViewController {
         preserveBox.font = DS.sans(13)
         preserveBox.isEnabled = !coverage
         preserveBox.state = options.preserveTransparency && !coverage ? .on : .off
+        modeChanged(nil)
 
         status.font = DS.sans(12)
         status.textColor = DS.textMuted
@@ -146,6 +155,14 @@ final class FillSheetController: NSViewController {
 
     @objc private func contentsChanged(_ sender: Any?) {
         updateColorWell()
+    }
+
+    /// Behind and Clear change the layer's alpha, so either disables and
+    /// clears Preserve Transparency; any other mode enables it again.
+    @objc private func modeChanged(_ sender: Any?) {
+        let changesAlpha = DrBlendMode.isPaintOnly(ChannelMathControls.blendMode(modePopup))
+        if changesAlpha { preserveBox.state = .off }
+        preserveBox.isEnabled = !coverage && !changesAlpha
     }
 
     /// The well is shown only for Color…, the one choice it names; the

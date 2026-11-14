@@ -176,6 +176,11 @@ impl IndexedPaintEdit {
         let text = stripped.as_str();
         let value: Value = serde_json::from_str(text)
             .map_err(|e| format!("invalid high-depth edit request: {e}"))?;
+        // Behind and Clear (`paint_mode`), before the inner RGB kernel and the
+        // edge ink would take them.
+        if let Some(mode) = crate::paint_mode::requested(&value) {
+            return Err(refused_sentence(&crate::paint_mode::mode_phrase(mode)));
+        }
         let op = value["op"].as_str().unwrap_or("edit");
         let op = match op {
             "paint_blend" | "bucket_fill" | "erase_native" => {

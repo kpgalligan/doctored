@@ -190,6 +190,19 @@ typedef enum {
      dr_doc_with_layer_blend_mode on a raster layer and by every plane and
      paint blend. */
   DR_BLEND_PASS_THROUGH = 27,
+  /* The two PAINT-ONLY modes, which act on a layer's alpha and so are no
+     layer's own mode. BEHIND paints under the layer's pixels:
+     ao = ab + sa(1 - ab), Co = (Cb*ab + Cs*sa(1 - ab)) / ao, an opaque pixel
+     never written. CLEAR takes the paint's alpha off the layer's:
+     ao = ab(1 - sa), colour neither read nor written. Both change nothing
+     under Preserve Transparency or a transparency lock. Taken only by
+     dr_doc_painting_layer_blend_color, dr_doc_fill_selection,
+     dr_doc_fill_selection_pattern, dr_doc_stroke_layer_edge and the typed
+     paint_blend and stroke_layer_edge requests (RGB, Grayscale, Duotone and
+     Lab; CMYK, Indexed and Bitmap refuse them by name); every other export
+     refuses them as an unknown mode. */
+  DR_BLEND_BEHIND = 28,
+  DR_BLEND_CLEAR = 29,
 } DrBlendMode;
 
 /* Opens a document. Sniffing order: files starting "DRDC" (written; legacy
@@ -925,8 +938,9 @@ DrDocument *dr_doc_painting_layer_blend(const DrDocument *doc, size_t idx,
  * low-coverage stroke blends the exact colour rather than one
  * un-premultiplied out of a few overlay codes. DR_BLEND_NORMAL
  * delegates to dr_doc_painting_layer with DR_COMPOSITE_OVER and the overlay
- * itself (byte-identical). Refusals are dr_doc_painting_layer_blend's, plus
- * NULL rgb. */
+ * itself (byte-identical). It also takes DR_BLEND_BEHIND and DR_BLEND_CLEAR,
+ * each NULL on a transparency-locked layer. Refusals are
+ * dr_doc_painting_layer_blend's, plus NULL rgb. */
 DrDocument *dr_doc_painting_layer_blend_color(const DrDocument *doc,
                                               size_t idx, const uint8_t *src,
                                               uint32_t w, uint32_t h,
@@ -942,11 +956,12 @@ DrDocument *dr_doc_painting_layer_blend_color(const DrDocument *doc,
  * preserve_transparency (or a transparency lock) keeps every pixel's alpha:
  * an alpha-0 pixel stays, a semi-transparent one takes
  * lerp(Cb, B(Cb, Cs), sa) — the fill at its own opacity x coverage.
+ * mode may be DR_BLEND_BEHIND or DR_BLEND_CLEAR, which need a free alpha.
  * The layer never grows. NULL on NULL doc/rgba, dimension
  * mismatch, unknown or Pass Through mode, NaN opacity, a non-raster or
- * out-of-range idx, a pixel-locked layer, or when no pixel would change
- * (empty mask, same-colour Normal fill, a preserved fill over a fully
- * transparent area). */
+ * out-of-range idx, a pixel-locked layer, Behind or Clear with the alpha
+ * kept, or when no pixel would change (empty mask, same-colour Normal fill,
+ * a preserved fill over a fully transparent area). */
 DrDocument *dr_doc_fill_selection(const DrDocument *doc, size_t idx,
                                   const uint8_t *mask, uint32_t w, uint32_t h,
                                   const uint8_t *rgba, DrBlendMode mode,
@@ -1008,7 +1023,8 @@ uint64_t dr_doc_stroke_layer_edge_scratch(const DrDocument *doc, size_t idx,
  * and recorded layer-comp offsets follow the grown origin — unless
  * preserve_transparency or a transparency lock keeps its alpha, in which
  * case it never grows and a semi-transparent pixel takes the fill's
- * lerp(Cb, B(Cb, Cs), sa) rule. control (NULL or a fresh job control) bounds the
+ * lerp(Cb, B(Cb, Cs), sa) rule (Behind and Clear then change nothing), or
+ * mode is DR_BLEND_CLEAR, which never grows it. control (NULL or a fresh job control) bounds the
  * reservation and polls cancellation, once per row during the alpha-bounds
  * scan too; that scan is shared with dr_doc_stroke_layer_edge_scratch on the
  * same layer pixels, and a cancelled scan caches nothing.

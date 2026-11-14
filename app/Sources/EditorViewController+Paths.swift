@@ -450,9 +450,12 @@ extension EditorViewController {
         guard cmykPathInk(&arguments, document: document) else { return }
         // A mask, a colour plane and a channel are coverage: `brush_stroke`
         // refuses a blend mode there, as a recorded stroke omits it.
+        // A Brush set to Behind or Clear strokes a path as Normal: Stroke Path
+        // keeps the layer modes (`PaintOnlyBlend`).
         if !paintTarget.isCoverage {
+            let mode = Self.blendMode(fromStored: brush.blendIndex)
             arguments["blend_mode"] = DrBlendMode.displayName(
-                for: Self.blendMode(fromStored: brush.blendIndex))
+                for: DrBlendMode.isPaintOnly(mode) ? DR_BLEND_NORMAL : mode)
         }
         runPathStep(
             "stroke_path", arguments, undoName: "Stroke Path", note: "Paths panel ▸ Stroke Path")

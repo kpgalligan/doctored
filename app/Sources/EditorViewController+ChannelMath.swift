@@ -257,13 +257,19 @@ enum ChannelMathControls {
     /// them there, so offering them would advertise four modes that answer
     /// the base unchanged. `allowed`, when given, keeps only those modes (a Grayscale document's
     /// list, #1 phase 6b).
-    static func fillBlendModes(_ popup: NSPopUpButton, singlePlane: Bool, allowed: [DrBlendMode]? = nil) {
+    /// `paintOnly` adds Behind and Clear after the first group's modes (Fill…
+    /// and Stroke… on a layer, `PaintOnlyBlend`).
+    static func fillBlendModes(
+        _ popup: NSPopUpButton, singlePlane: Bool, allowed: [DrBlendMode]? = nil,
+        paintOnly: Bool = false
+    ) {
         let menu = NSMenu()
-        for group in DrBlendMode.blendModeGroups {
+        for (index, group) in DrBlendMode.blendModeGroups.enumerated() {
             let offered = allowed.map { list in group.filter { list.contains($0.0) } } ?? group
-            let usable = singlePlane
+            var usable = singlePlane
                 ? offered.filter { !DrBlendMode.degeneratesOnGray($0.0) }
                 : offered
+            if paintOnly, index == 0 { usable += DrBlendMode.paintOnlyModes }
             guard !usable.isEmpty else { continue }
             if menu.numberOfItems > 0 {
                 menu.addItem(.separator())
@@ -293,7 +299,8 @@ enum ChannelMathControls {
 
     static func blendMode(_ popup: NSPopUpButton) -> DrBlendMode {
         let tag = popup.selectedItem?.tag ?? Int(DR_BLEND_NORMAL.rawValue)
-        return DrBlendMode.allBlendModes.first { Int($0.0.rawValue) == tag }?.0 ?? DR_BLEND_NORMAL
+        // Behind and Clear are read too: only Fill…'s and Stroke…'s popups list them.
+        return DrBlendMode.paintBlendModes.first { Int($0.0.rawValue) == tag }?.0 ?? DR_BLEND_NORMAL
     }
 
     /// 0–100 slider plus its whole-number field, styled and laid out as one

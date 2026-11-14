@@ -127,6 +127,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "ops_spatial.rs",
     "panorama_gain.rs",
     "panorama_seam.rs",
+    "paint_mode.rs",
     "patchmatch.rs",
     "patchmatch_nnf.rs",
     "path_edit.rs",
