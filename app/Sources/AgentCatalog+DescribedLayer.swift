@@ -388,7 +388,8 @@ extension AgentServer {
                         "description": "Gradient only. stops is required: 2 to 32 colors, each at a position 0 to 1 with its own opacity and optional midpoints. style defaults to linear, angle to 90, scale to 1, reverse to false, smoothness to 1 and align_with_layer to false. The gradient spans the whole canvas; with align_with_layer true it spans the bounds of the layer's mask (none yet on a new layer: add_layer_mask, then edit_fill_layer re-renders it over the mask).",
                         "properties": [
                             "stops": [
-                                "type": "array", "minItems": 2, "maxItems": 32,
+                                "type": ["array", "object"], "minItems": 2, "maxItems": 32,
+                                "description": "The stops, or {\"name\": <library gradient>} (list_gradients): its stops, and its smoothness unless gradient.smoothness is given.",
                                 "items": [
                                     "type": "object",
                                     "properties": [
@@ -463,7 +464,8 @@ extension AgentServer {
                         "description": "Gradient fill only: the keys to change (default: keep each). stops replaces the whole ramp.",
                         "properties": [
                             "stops": [
-                                "type": "array", "minItems": 2, "maxItems": 32,
+                                "type": ["array", "object"], "minItems": 2, "maxItems": 32,
+                                "description": "The stops, or {\"name\": <library gradient>} (list_gradients): its stops, and its smoothness unless gradient.smoothness is given.",
                                 "items": [
                                     "type": "object",
                                     "properties": [

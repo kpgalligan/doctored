@@ -97,6 +97,8 @@ final class FillLayerSheetController: NSViewController, NSTextFieldDelegate {
     private func gradientContent(_ gradient: GradientFill) -> NSView {
         let pane = GradientStopsPane(fill: gradient)
         self.pane = pane
+        pane.onPresetSmoothness = { [weak self] in self?.showSmoothness($0) }
+        pane.currentSmoothness = { [weak self] in self?.typedSmoothness() ?? 1 }
         stylePopup.addItems(withTitles: Self.styleTitles)
         stylePopup.selectItem(at: GradientFill.styles.firstIndex(of: gradient.style) ?? 0)
         stylePopup.identifier = NSUserInterfaceItemIdentifier("fill-layer-style")
@@ -204,6 +206,17 @@ final class FillLayerSheetController: NSViewController, NSTextFieldDelegate {
             out.color = rgba
         }
         return out
+    }
+
+    /// The Smoothness field as a fraction clamped to 0…1 (Save Preset… stores it).
+    private func typedSmoothness() -> Double {
+        let smoothness = smoothnessField.doubleValue / 100
+        return smoothness.isFinite ? min(max(smoothness, 0), 1) : 1
+    }
+
+    /// A chosen preset's Smoothness, shown in the field (`GradientStopsPane`'s Preset row).
+    private func showSmoothness(_ smoothness: Double) {
+        smoothnessField.doubleValue = smoothness * 100
     }
 
     @objc private func applyClicked(_ sender: Any?) {

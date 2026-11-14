@@ -46,6 +46,9 @@ def markdown_text(value: object) -> str:
 
 def schema_type(schema: dict) -> str:
     kind = schema.get("type", "any")
+    if isinstance(kind, list):
+        # A union, such as stops that are an array or a {"name": …} object.
+        return " or ".join(schema_type(dict(schema, type=one)) for one in kind)
     if kind == "array":
         return f"array<{schema_type(schema.get('items', {}))}>"
     return str(kind)

@@ -495,7 +495,8 @@ DOCUMENT_FREE = {
     'save_brush_preset', 'delete_brush_preset', 'import_brush_presets', 'export_brush_presets',
     'list_patterns', 'delete_pattern', 'import_patterns', 'export_patterns',
     'import_hdr_toning_preset', 'list_hdr_toning_presets', 'save_hdr_toning_preset',
-    'delete_hdr_toning_preset',
+    'delete_hdr_toning_preset', 'list_gradients', 'save_gradient', 'delete_gradient',
+    'import_gradients', 'export_gradients',
 }
 DUOTONE_TOOLS = ['get_duotone', 'set_duotone']
 ONE_LAYER = ('{} needs more than one layer, and an Indexed Color document holds one.')

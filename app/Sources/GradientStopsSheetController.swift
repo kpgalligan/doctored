@@ -42,6 +42,8 @@ final class GradientStopsSheetController: NSViewController {
         fill.stops = ToolOptionsStore.shared.gradient.stops ?? swatches
         let pane = GradientStopsPane(fill: fill)
         self.pane = pane
+        pane.onPresetSmoothness = { [weak self] in self?.showSmoothness($0) }
+        pane.currentSmoothness = { [weak self] in self?.typedSmoothness() ?? 1 }
 
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -100,11 +102,22 @@ final class GradientStopsSheetController: NSViewController {
     /// The Smoothness field, 0 to 100 %, stored as a fraction. An empty field leaves the
     /// stored value as it is (`doubleValue` would read it as 0 %).
     private func storeSmoothness() {
+        guard let smoothness = typedSmoothness() else { return }
+        ToolOptionsStore.shared.gradient.smoothness = smoothness
+    }
+
+    /// The Smoothness field as a fraction clamped to 0…1; nil when it is empty or not finite.
+    private func typedSmoothness() -> Double? {
         let typed = smoothnessField.stringValue.trimmingCharacters(in: .whitespaces)
-        guard !typed.isEmpty else { return }
+        guard !typed.isEmpty else { return nil }
         let smoothness = smoothnessField.doubleValue / 100
-        guard smoothness.isFinite else { return }
-        ToolOptionsStore.shared.gradient.smoothness = min(max(smoothness, 0), 1)
+        guard smoothness.isFinite else { return nil }
+        return min(max(smoothness, 0), 1)
+    }
+
+    /// A chosen preset's Smoothness, shown in the field (`GradientStopsPane`'s Preset row).
+    private func showSmoothness(_ smoothness: Double) {
+        smoothnessField.doubleValue = smoothness * 100
     }
 
     @objc private func cancelClicked(_ sender: Any?) {

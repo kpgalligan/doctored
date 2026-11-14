@@ -15,8 +15,14 @@ import AppKit
 ///
 /// One value in (`fill`), one closure out (`onChange`, fired for an edit made
 /// here and never for an assignment from outside).
+///
+/// The Preset row (`GradientPresetRow`) lists the user's gradient library and
+/// Save Preset…: choosing a gradient replaces the stops (`onChange`) and hands
+/// its Smoothness to the host (`onPresetSmoothness`); Save reads the stops here
+/// and the host's Smoothness (`currentSmoothness`).
 final class GradientStopsPane: NSView, NSTextFieldDelegate {
     private let editor = GradientEditorView(frame: NSRect(x: 0, y: 0, width: 376, height: 72))
+    private let presetPopup = NSPopUpButton(frame: .zero, pullsDown: true)
     private let positionField = NSTextField(string: "")
     private let opacityField = NSTextField(string: "")
     /// The selected diamond's midpoint, 5…95 % of its segment; disabled with
@@ -30,6 +36,10 @@ final class GradientStopsPane: NSView, NSTextFieldDelegate {
 
     /// Fires for a stop added, moved, removed, recoloured or faded here, or a midpoint moved.
     var onChange: ((GradientFill) -> Void)?
+    /// A chosen preset's Smoothness, a fraction, for the host's own field.
+    var onPresetSmoothness: ((Double) -> Void)?
+    /// The host's Smoothness as a fraction, which Save Preset… stores.
+    var currentSmoothness: (() -> Double)?
 
     var fill: GradientFill {
         get { editor.fill }
@@ -63,8 +73,14 @@ final class GradientStopsPane: NSView, NSTextFieldDelegate {
         colorWell.action = #selector(colorPicked(_:))
         colorWell.identifier = NSUserInterfaceItemIdentifier("gradient-stop-color")
         colorWell.translatesAutoresizingMaskIntoConstraints = false
+        GradientPresetRow.fill(presetPopup)
+        presetPopup.target = self
+        presetPopup.action = #selector(presetChosen(_:))
+        presetPopup.font = DS.sans(12)
+        presetPopup.identifier = NSUserInterfaceItemIdentifier("gradient-preset")
 
         let grid = NSGridView(views: [
+            [fieldLabel("Preset:"), presetPopup],
             [fieldLabel("Position:"), percentRow(positionField)],
             [fieldLabel("Opacity:"), percentRow(opacityField)],
             [fieldLabel("Color:"), colorWell],
@@ -104,6 +120,32 @@ final class GradientStopsPane: NSView, NSTextFieldDelegate {
         syncStopControls()
         onChange?(editor.fill)
     }
+
+    /// The Preset row: a library gradient, or Save Preset….
+    @objc private func presetChosen(_ sender: NSPopUpButton) {
+        if sender.selectedItem?.title == GradientPresetRow.saveTitle {
+            let saved = GradientPresetRow.promptSave(
+                stops: editor.fill.stops, smoothness: currentSmoothness?() ?? 1)
+            if saved != nil { GradientPresetRow.fill(presetPopup) }
+            return
+        }
+        guard let preset = GradientPresetRow.preset(for: sender.selectedItem) else { return }
+        applyPreset(preset)
+    }
+
+    /// `preset`'s stops in place of the pane's, as an edit made here (`onChange`), and its
+    /// Smoothness to the host.
+    func applyPreset(_ preset: GradientPreset) {
+        var fill = editor.fill
+        fill.stops = preset.stops
+        editor.fill = fill
+        editor.selectedStop = 0
+        editorChanged()
+        onPresetSmoothness?(preset.smoothness)
+    }
+
+    /// The Preset row's titles, for a probe: the face, the library, Save Preset….
+    var presetTitles: [String] { presetPopup.itemTitles }
 
     @objc private func colorPicked(_ sender: NSColorWell) {
         guard !isSyncing, selectedStop() != nil else { return }

@@ -39,6 +39,9 @@ extension EditorViewController {
         "saveWorkspace:", "restoreWorkspace:", "deleteWorkspace:", "deleteWorkspaceFile:",
         "showNavigator:", "showAssistant:", "deleteProofPresetFile:",
         "deleteLibraryPattern:", "importPatternLibrary:", "exportPatternLibrary:",
+        // Edit ▸ Gradients: gradient-library writes (`delete_gradient`, `import_gradients`,
+        // `export_gradients`, document-free).
+        "deleteLibraryGradient:", "importGradientLibrary:", "exportGradientLibrary:",
         // View ▸ Clear Color Samplers writes view state, never pixels.
         "clearColorSamplers:"]
 

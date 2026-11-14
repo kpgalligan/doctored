@@ -236,11 +236,12 @@ extension AgentServer {
                         "description": "Hex color; omit to fade to transparent.",
                     ],
                     "stops": [
-                        "type": "array", "minItems": 2, "maxItems": 32,
+                        "type": ["array", "object"], "minItems": 2, "maxItems": 32,
                         "description": "The ramp's stops, replacing start_color and "
                             + "end_color, in order of position. Colors interpolate "
                             + "between neighbouring stops, half way at the left stop's "
-                            + "midpoint.",
+                            + "midpoint. Or {\"name\": <library gradient>} (list_gradients): "
+                            + "its stops, and its smoothness unless smoothness is given.",
                         "items": [
                             "type": "object",
                             "properties": [

@@ -82,6 +82,7 @@ final class AgentServer {
                 throw ToolError(message: "An editing state is being published. Wait for the current operation to finish.")
             }
             try refuseLiveGestureMutation(tool: tool, document: before)
+            arguments = try gradientPresetArguments(tool: tool, arguments: arguments)
             if let before, let reason = DocumentPrecision.refusal(tool: tool, arguments: arguments, document: before) { throw ToolError(message: reason) }
             arguments = try scopedToneArguments(tool: tool, arguments: arguments)
             arguments = try levelsAutoArguments(tool: tool, arguments: arguments, document: before)

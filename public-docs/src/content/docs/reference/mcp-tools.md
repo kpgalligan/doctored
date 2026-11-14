@@ -20,7 +20,7 @@ The helper reaches the app over a Unix socket the app binds at every launch,
 owner can open; `DR_AGENT_SOCKET` names another path for both. There is no TCP
 endpoint.
 
-This build exposes **357 tools**. The reference is generated from the app's
+This build exposes **362 tools**. The reference is generated from the app's
 `tools/list` catalog (live, or the snapshot the build writes from the same code),
 which is authoritative. Tool results are MCP
 content blocks; most calls return a JSON object in a text block, while `render` and
@@ -339,6 +339,11 @@ Add `--check` to either to verify that the checked-in page matches the catalog.
 - [`delete_pattern`](#delete_pattern)
 - [`import_patterns`](#import_patterns)
 - [`export_patterns`](#export_patterns)
+- [`list_gradients`](#list_gradients)
+- [`save_gradient`](#save_gradient)
+- [`delete_gradient`](#delete_gradient)
+- [`import_gradients`](#import_gradients)
+- [`export_gradients`](#export_gradients)
 - [`list_style_presets`](#list_style_presets)
 - [`apply_style_preset`](#apply_style_preset)
 - [`save_style_preset`](#save_style_preset)
@@ -722,7 +727,7 @@ Replaces a layer's WHOLE layer style — the effect stack plus blending options 
 | :--- | :--- | :---: | :--- | :--- |
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
-| `style` | `['object', 'null']` | no | — | The whole style object described above, or null to clear. |
+| `style` | `object or null` | no | — | The whole style object described above, or null to clear. |
 
 ## `set_global_light`
 
@@ -853,7 +858,7 @@ Applies a filter or adjustment DESTRUCTIVELY through active selection coverage, 
 | `output_black` | `number` | no | — | — |
 | `output_white` | `number` | no | — | — |
 | `params` | `object` | no | — | Parameters for the adjustment ops (see add_adjustment_layer); the older filters take their arguments flat. |
-| `profile` | `['string', 'object']` | no | — | — |
+| `profile` | `string or object` | no | — | — |
 | `quality` | `string` | no | one of `draft`, `good`, `best` | — |
 | `r` | `object` | no | — | levels only: one channel's stage (r red, g green, b blue) — black, white, gamma, output_black, output_white, as at the top level. |
 | `radius` | `number` | no | — | — |
@@ -1705,7 +1710,7 @@ Adds a RE-EDITABLE shape layer above the active layer and selects it — the sam
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
 | `fill` | `string` | no | — | Hex fill color, #RRGGBB or #RRGGBBAA; omit for no fill. Ignored for lines. |
 | `fill_ink` | `array<number>` | no | 4–4 items; items: 0–100 | CMYK document only: the fill as ink, C, M, Y, K in percent 0–100, stored exactly (a colour argument instead separates through the document's profile; its alpha still applies). Replies report ink beside the appearance hex. An RGB document refuses it. |
-| `fill_rgba` | `['array', 'null']` | no | 4–4 items | Continuous normalized sRGB fill, alternative to fill; null removes it. sample_color's srgb_rgba is this spelling of a sampled pixel. |
+| `fill_rgba` | `array<number> or null` | no | 4–4 items | Continuous normalized sRGB fill, alternative to fill; null removes it. sample_color's srgb_rgba is this spelling of a sampled pixel. |
 | `fill_rule` | `string` | no | one of `nonzero`, `evenodd` | With subpaths: how overlapping subpaths fill. nonzero (default) fills everything a subpath winds around; evenodd makes a subpath inside another a hole. |
 | `flipped` | `boolean` | no | — | Line only (default false): false runs top-left to bottom-right across the box, true bottom-left to top-right. |
 | `h` | `number` | no | — | Shape box height in px (>= 1; a line may have 0 on one axis). |
@@ -1719,7 +1724,7 @@ Adds a RE-EDITABLE shape layer above the active layer and selects it — the sam
 | `stroke_dash` | `string` | no | one of `none`, `dashed`, `dotted` | The stroke's dash pattern (default none): dashed is 4 stroke widths on, 2 off; dotted is round dots one stroke width across, every 2 widths. |
 | `stroke_ink` | `array<number>` | no | 4–4 items; items: 0–100 | CMYK document only: the stroke as ink, C, M, Y, K in percent 0–100, stored exactly (a colour argument instead separates through the document's profile; its alpha still applies). Replies report ink beside the appearance hex. An RGB document refuses it. |
 | `stroke_join` | `string` | no | one of `miter`, `round`, `bevel` | How the stroke's corners meet (default miter). |
-| `stroke_rgba` | `['array', 'null']` | no | 4–4 items | Continuous normalized sRGB stroke, alternative to stroke; null removes it. sample_color's srgb_rgba is this spelling of a sampled pixel. |
+| `stroke_rgba` | `array<number> or null` | no | 4–4 items | Continuous normalized sRGB stroke, alternative to stroke; null removes it. sample_color's srgb_rgba is this spelling of a sampled pixel. |
 | `stroke_width` | `number` | no | — | Stroke width in px, centered on the path (0-200, default 2; a line needs at least 1). |
 | `subpaths` | `array<object>` | no | — | The shape, in absolute canvas pixels (y down from the top-left; it may lie outside the canvas): [{closed, anchors}, …]. The segment from one anchor to the next is the cubic Bézier (point, out, next in, next point), a straight line when both handles sit on their points; a closed subpath also joins its last anchor to its first. Coordinates are kept to four decimals. At most 4096 subpaths and 32768 anchors, each coordinate within ±1000000. |
 | `subpaths[].anchors` | `array<any>` | with parent | 1–unbounded items | — |
@@ -1738,7 +1743,7 @@ Changes an existing SHAPE layer's description and re-renders its pixels — the 
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
 | `fill` | `string` | no | — | Hex fill color, #RRGGBB or #RRGGBBAA; "" removes the fill (default: keep). Ignored for lines. |
 | `fill_ink` | `array<number>` | no | 4–4 items; items: 0–100 | CMYK document only: the fill as ink, C, M, Y, K in percent 0–100, stored exactly (a colour argument instead separates through the document's profile; its alpha still applies). Replies report ink beside the appearance hex. An RGB document refuses it. |
-| `fill_rgba` | `['array', 'null']` | no | 4–4 items | Continuous normalized sRGB fill, alternative to fill; null removes it. sample_color's srgb_rgba is this spelling of a sampled pixel. |
+| `fill_rgba` | `array<number> or null` | no | 4–4 items | Continuous normalized sRGB fill, alternative to fill; null removes it. sample_color's srgb_rgba is this spelling of a sampled pixel. |
 | `flipped` | `boolean` | no | — | Line only: false runs top-left to bottom-right across the box, true bottom-left to top-right (default: keep). |
 | `h` | `number` | no | — | New box height in px (default: keep). |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
@@ -1748,7 +1753,7 @@ Changes an existing SHAPE layer's description and re-renders its pixels — the 
 | `stroke_dash` | `string` | no | one of `none`, `dashed`, `dotted` | The stroke's dash pattern (default: keep; new shapes use none): dashed is 4 stroke widths on, 2 off; dotted is round dots one stroke width across, every 2 widths. |
 | `stroke_ink` | `array<number>` | no | 4–4 items; items: 0–100 | CMYK document only: the stroke as ink, C, M, Y, K in percent 0–100, stored exactly (a colour argument instead separates through the document's profile; its alpha still applies). Replies report ink beside the appearance hex. An RGB document refuses it. |
 | `stroke_join` | `string` | no | one of `miter`, `round`, `bevel` | How the stroke's corners meet (default: keep; new shapes use miter). |
-| `stroke_rgba` | `['array', 'null']` | no | 4–4 items | Continuous normalized sRGB stroke, alternative to stroke; null removes it. sample_color's srgb_rgba is this spelling of a sampled pixel. |
+| `stroke_rgba` | `array<number> or null` | no | 4–4 items | Continuous normalized sRGB stroke, alternative to stroke; null removes it. sample_color's srgb_rgba is this spelling of a sampled pixel. |
 | `stroke_width` | `number` | no | — | Stroke width in px, centered on the path (0-200; default: keep). |
 | `transform` | `array<number>` | no | 4–4 items | The layer's 2×2 linear map [a, b, c, d], row-major — (x, y) maps to (a·x + b·y, c·x + d·y) — replacing the layer's current one (default: keep it); default [1, 0, 0, 1]. Rotation by θ clockwise is [cos θ, -sin θ, sin θ, cos θ]. transform_layer composes onto it; get_document reports it. |
 | `w` | `number` | no | — | New box width in px (default: keep). |
@@ -1769,13 +1774,7 @@ Adds a FILL layer and selects it: one color (kind solid), one gradient (kind gra
 | `gradient.reverse` | `boolean` | no | — | — |
 | `gradient.scale` | `number` | no | 0.1–1.5 | — |
 | `gradient.smoothness` | `number` | no | 0–1 | Smoothness as a fraction: 1 (100 %) is the Classic ramp, 0 the linear one, between them the two blended. |
-| `gradient.stops` | `array<object>` | no | 2–32 items | — |
-| `gradient.stops[].color` | `string` | no | — | Hex color, #RRGGBB or #RRGGBBAA (or ink in a CMYK document). |
-| `gradient.stops[].ink` | `array<number>` | no | 4–4 items; items: 0–100 | CMYK document only: the stop's colour as ink, C, M, Y, K in percent 0–100, stored exactly (a colour argument instead separates through the document's profile; its alpha still applies). Replies report ink beside the appearance hex. An RGB document refuses it. |
-| `gradient.stops[].midpoint` | `number` | no | 0.05–0.95 | The colour midpoint toward the next stop as a fraction: where the colour is half way between this stop and the next (default 0.5, 50 %; rounded to 0.01; the last stop's is ignored). Outside 0.05…0.95 is refused. |
-| `gradient.stops[].opacity` | `number` | no | 0–1 | Default 1. |
-| `gradient.stops[].opacity_midpoint` | `number` | no | 0.05–0.95 | The opacity midpoint toward the next stop as a fraction: where the opacity is half way between this stop and the next (default 0.5, 50 %; rounded to 0.01; the last stop's is ignored). Outside 0.05…0.95 is refused. |
-| `gradient.stops[].position` | `number` | with parent | 0–1 | — |
+| `gradient.stops` | `array<object> or object` | no | 2–32 items | The stops, or {"name": <library gradient>} (list_gradients): its stops, and its smoothness unless gradient.smoothness is given. |
 | `gradient.style` | `string` | no | one of `linear`, `radial`, `angle`, `reflected`, `diamond` | — |
 | `ink` | `array<number>` | no | 4–4 items; items: 0–100 | CMYK document only: a solid fill's colour as ink, C, M, Y, K in percent 0–100, stored exactly (a colour argument instead separates through the document's profile; its alpha still applies). Replies report ink beside the appearance hex. An RGB document refuses it. |
 | `kind` | `string` | yes | one of `solid`, `gradient`, `pattern` | solid takes color; gradient takes gradient; pattern takes pattern. |
@@ -1803,13 +1802,7 @@ Changes an existing FILL layer's color, gradient or pattern and re-renders it ov
 | `gradient.reverse` | `boolean` | no | — | — |
 | `gradient.scale` | `number` | no | 0.1–1.5 | — |
 | `gradient.smoothness` | `number` | no | 0–1 | Smoothness as a fraction: 1 (100 %) is the Classic ramp, 0 the linear one, between them the two blended. |
-| `gradient.stops` | `array<object>` | no | 2–32 items | — |
-| `gradient.stops[].color` | `string` | no | — | Hex color, #RRGGBB or #RRGGBBAA (or ink in a CMYK document). |
-| `gradient.stops[].ink` | `array<number>` | no | 4–4 items; items: 0–100 | CMYK document only: the stop's colour as ink, C, M, Y, K in percent 0–100, stored exactly (a colour argument instead separates through the document's profile; its alpha still applies). Replies report ink beside the appearance hex. An RGB document refuses it. |
-| `gradient.stops[].midpoint` | `number` | no | 0.05–0.95 | The colour midpoint toward the next stop as a fraction: where the colour is half way between this stop and the next (default 0.5, 50 %; rounded to 0.01; the last stop's is ignored). Outside 0.05…0.95 is refused. |
-| `gradient.stops[].opacity` | `number` | no | 0–1 | Default 1. |
-| `gradient.stops[].opacity_midpoint` | `number` | no | 0.05–0.95 | The opacity midpoint toward the next stop as a fraction: where the opacity is half way between this stop and the next (default 0.5, 50 %; rounded to 0.01; the last stop's is ignored). Outside 0.05…0.95 is refused. |
-| `gradient.stops[].position` | `number` | with parent | 0–1 | — |
+| `gradient.stops` | `array<object> or object` | no | 2–32 items | The stops, or {"name": <library gradient>} (list_gradients): its stops, and its smoothness unless gradient.smoothness is given. |
 | `gradient.style` | `string` | no | one of `linear`, `radial`, `angle`, `reflected`, `diamond` | — |
 | `ink` | `array<number>` | no | 4–4 items; items: 0–100 | CMYK document only: a solid fill's colour as ink, C, M, Y, K in percent 0–100, stored exactly (a colour argument instead separates through the document's profile; its alpha still applies). Replies report ink beside the appearance hex. An RGB document refuses it. |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
@@ -2035,12 +2028,7 @@ Paints a gradient over a layer (the whole layer, or the active selection if one 
 | `start_ink` | `array<number>` | no | 4–4 items | CMYK document only: C, M, Y, K ink in percent 0–100. |
 | `start_rgba` | `array<number>` | no | 4–4 items; items: 0–1 | 16-bit continuous normalized RGBA endpoint, including alpha. |
 | `start_rgba32` | `array<number>` | no | 4–4 items | 32-bit float documents only, instead of start_color and always with end_rgba32: [red, green, blue, alpha] as linear light in the document's primaries (sample_color's center_rgba32 / mean_rgba32), red, green and blue 0–65504 (above 1 is above white) and alpha 0–1, used as they are. Takes no color_space, stops or other endpoint; layer target only; an 8- or 16-bit document and Quick Mask refuse it. |
-| `stops` | `array<object>` | no | 2–32 items | The ramp's stops, replacing start_color and end_color, in order of position. Colors interpolate between neighbouring stops, half way at the left stop's midpoint. |
-| `stops[].color` | `string` | with parent | — | Hex color, #RRGGBB or #RRGGBBAA. |
-| `stops[].midpoint` | `number` | no | 0.05–0.95 | The colour midpoint toward the next stop as a fraction: where the colour is half way between this stop and the next (default 0.5, 50 %; rounded to 0.01; the last stop's is ignored). Outside 0.05…0.95 is refused. |
-| `stops[].opacity` | `number` | no | 0–1 | Scales the color's alpha (default 1). |
-| `stops[].opacity_midpoint` | `number` | no | 0.05–0.95 | The opacity midpoint toward the next stop as a fraction: where the opacity is half way between this stop and the next (default 0.5, 50 %; rounded to 0.01; the last stop's is ignored). Outside 0.05…0.95 is refused. |
-| `stops[].position` | `number` | with parent | 0–1 | 0 at (x0,y0), 1 at (x1,y1); never below the stop before it. |
+| `stops` | `array<object> or object` | no | 2–32 items | The ramp's stops, replacing start_color and end_color, in order of position. Colors interpolate between neighbouring stops, half way at the left stop's midpoint. Or {"name": <library gradient>} (list_gradients): its stops, and its smoothness unless smoothness is given. |
 | `target` | `string` | no | — | What the ramp lands on: "layer" (default) the layer's own pixels, "mask" the layer's mask, "red"/"green"/"blue"/"alpha" ONE colour plane of that layer's pixels, or "channel:<name>" one of the document's alpha channels (list_channels names them). On a mask, plane or channel the colors enter as their grays — coverage, not color — with their alpha as the strength. Writing "alpha" is the one exception to that: every pixel whose new alpha is 0 loses its colour bytes as well, so re-running the edit does not bring them back. "quick_mask" paints the Quick Mask coverage instead (refused when Quick Mask is off); while Quick Mask is on, a call with no target paints it too. |
 | `x0` | `number` | yes | — | — |
 | `x1` | `number` | yes | — | — |
@@ -2573,7 +2561,7 @@ Bends a layer by pins on a triangle mesh — Edit ▸ Puppet Warp. The mesh cove
 | `pins` | `array<object>` | yes | 1–256 items | The pins, 1-256. |
 | `pins[].depth` | `integer` | no | -1000–1000 | Pin Depth (default 0): where the mesh overlaps itself, the part nearest the higher-depth pin draws on top. |
 | `pins[].from` | `array<number>` | with parent | 2–2 items | [x, y] in canvas px, inside the mesh: the pin snaps to the nearest vertex of the mesh triangle there. |
-| `pins[].rotate` | `['number', 'null']` | no | — | Fixed rotation in degrees, clockwise on the canvas, of the mesh at the pin; null or absent is Auto. |
+| `pins[].rotate` | `number or null` | no | — | Fixed rotation in degrees, clockwise on the canvas, of the mesh at the pin; null or absent is Auto. |
 | `pins[].to` | `array<number>` | with parent | 2–2 items | [x, y] in canvas px where that vertex lands, moved by to - from when from is not exactly the vertex. |
 
 ## `perspective_warp`
@@ -2588,7 +2576,7 @@ Warps a layer by planes — Edit ▸ Perspective Warp. Each quad names a plane o
 | `quads[].from` | `array<number>` | with parent | 8–8 items | [x0, y0, x1, y1, x2, y2, x3, y3] in canvas px: the plane's four corners in the picture, any consistent winding, convex with no three in a line. |
 | `quads[].to` | `array<number>` | with parent | 8–8 items | The same four corners where they go (the pins), in the same order; convex, turning the same way. |
 | `straighten` | `array<object>` | no | 0–256 items | Edges to level or plumb (Shift-click in Warp). |
-| `straighten[].direction` | `['string', 'number']` | no | — | auto (default: horizontal within 30° of level, vertical within 30° of plumb, else as drawn), near_horizontal or near_vertical (only when within 30° of that axis), horizontal, vertical, or an angle in degrees, clockwise on the canvas. |
+| `straighten[].direction` | `string or number` | no | — | auto (default: horizontal within 30° of level, vertical within 30° of plumb, else as drawn), near_horizontal or near_vertical (only when within 30° of that axis), horizontal, vertical, or an angle in degrees, clockwise on the canvas. |
 | `straighten[].edge` | `integer` | with parent | 0–3 | Edge k runs from corner k to corner k + 1 (mod 4). |
 | `straighten[].quad` | `integer` | with parent | 0–∞ | The quad's index. |
 
@@ -2772,7 +2760,7 @@ File > Export… > Manage… > Set as Quick Export: choose the preset File > Qui
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `name` | `['string', 'null']` | no | — | Preset name, or null to clear the default. |
+| `name` | `string or null` | no | — | Preset name, or null to clear the default. |
 
 ## `export_layers`
 
@@ -3620,7 +3608,7 @@ View > Proof Setup > Custom… > Default for new windows: choose the preset a wi
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `name` | `['string', 'null']` | no | — | Preset name, or null to clear the default. |
+| `name` | `string or null` | no | — | Preset name, or null to clear the default. |
 
 ## `export_pdf`
 
@@ -4285,6 +4273,54 @@ Write the user's patterns (all, or those names lists; at most 64) as Doctored's 
 | `names` | `array<string>` | no | — | Library pattern names to export; default all. |
 | `path` | `string` | yes | — | Where to write the pattern file. |
 
+## `list_gradients`
+
+Every gradient in the user's library, as the stop editor's Preset popup lists them: {name, stops: [{position, color, opacity, midpoint?, opacity_midpoint?}], smoothness, file}. There are no built-ins. gradient's stops and add_fill_layer / edit_fill_layer's gradient.stops accept {"name": <name>} for a library gradient: its stops, and its smoothness unless the call gives one. The call is resolved before it runs, so a recorded step holds the stops and never depends on the library. Stop colours are authored sRGB (a CMYK document converts them as any authored colour; a preset keeps no ink). A file that is not a readable gradient is a `broken` row — {file, code, reason, repairable} with code one of unreadable, oversize, not_json, unknown_version, invalid_schema, duplicate_name — instead of refusing the whole library. Resolves no document.
+
+Takes no arguments.
+
+## `save_gradient`
+
+The stop editor's Save Preset…: save stops (2–32, positions 0–1 never decreasing, opacity 0–1, midpoints 0.05–0.95, colour #RRGGBB) and smoothness (0–1, default 1) in the user's library under name. A name in use refuses unless replace. Answers {gradient: {name, stops, smoothness}}. A library write is a preference: no Undo step, no Action step, and no document changes.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `name` | `string` | yes | — | Gradient name, 1–120 characters. |
+| `replace` | `boolean` | no | default `False` | Overwrite the library gradient of that name. |
+| `smoothness` | `number` | no | default `1`; 0–1 | — |
+| `stops` | `array<object>` | yes | 2–32 items | — |
+| `stops[].color` | `string` | with parent | — | #RRGGBB, or #RRGGBBAA whose alpha scales opacity. |
+| `stops[].midpoint` | `number` | no | 0.05–0.95 | — |
+| `stops[].opacity` | `number` | no | default `1`; 0–1 | — |
+| `stops[].opacity_midpoint` | `number` | no | 0.05–0.95 | — |
+| `stops[].position` | `number` | with parent | 0–1 | — |
+
+## `delete_gradient`
+
+Edit ▸ Gradients ▸ Delete Gradient…: remove ONE library file. Pass either name (a library gradient) or file alone (any library file, including a broken one that has no name). Layers and recorded steps keep their own stops. A library write is a preference: no Undo step, no Action step, and no document changes.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `file` | `string` | no | — | A library file basename from list_gradients (a row's `file`). Pass exactly one of name or file; a broken entry has no name. |
+| `name` | `string` | no | — | A library gradient's name. |
+
+## `import_gradients`
+
+Edit ▸ Gradients ▸ Import Gradients…: read Doctored's own gradient file (.doctoredgradients): JSON {"doctored_gradients": 1, "gradients": [{schema_version 1, name, stops, smoothness}, …]}, at most 256 gradients and 1 MiB, into the library. Each entry is checked as a library file is; one that fails is listed in skipped {name, reason} and the rest import. A name already in use gets " 2", " 3"…. A library write is a preference: no Undo step, no Action step, and no document changes.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `path` | `string` | yes | — | The gradient file to read. |
+
+## `export_gradients`
+
+Edit ▸ Gradients ▸ Export Gradients…: write the user's gradients (all, or those names lists; at most 256) as Doctored's own gradient file (.doctoredgradients): JSON {"doctored_gradients": 1, "gradients": [{schema_version 1, name, stops, smoothness}, …]}. An empty library refuses. A library write is a preference: no Undo step, no Action step, and no document changes.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `names` | `array<string>` | no | — | Library gradient names to export; default all. |
+| `path` | `string` | yes | — | Where to write the gradient file. |
+
 ## `list_style_presets`
 
 Window > Styles: list the style presets — the twelve built-ins (group “Default Styles”, read-only, builtin true, file null) first, then the user's groups A–Z, then ungrouped presets. Each row is {name, group, builtin, file, effects (the effect types), blending ({mode, opacity} or null: a preset saved with blending options also sets the layer's blend mode and opacity), style (the preset's style JSON, with include_style)}. A file that is not a readable preset is a `broken` row {file, code, reason, repairable}. Also answers `groups`. Resolves no document.
@@ -4508,7 +4544,7 @@ Makes a saved path the document's CLIPPING PATH — the one path a PSD, PSB or T
 | :--- | :--- | :---: | :--- | :--- |
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
 | `flatness` | `number` | no | — | Device pixels: 0 for none, or from 0.2 to 100. Omitted, the path keeps the flatness it has as the clipping path, and a path newly made it has none. A file's own value outside the range is kept as read (list_paths' clipping_flatness). Needs a path. |
-| `path` | `['string', 'null']` | yes | — | A saved path's name (list_paths), or null to clear the clipping path. Required. |
+| `path` | `string or null` | yes | — | A saved path's name (list_paths), or null to clear the clipping path. Required. |
 
 ## `path_to_selection`
 
@@ -4775,7 +4811,7 @@ Converts the document's colour mode — Image ▸ Mode ▸ Grayscale / RGB Color
 | `frequency` | `number` | no | 1–999.999 | Method halftone: the screen frequency in lines per inch of the output (53 by default). |
 | `gray_space` | `string` | no | one of `dot_gain_10`, `dot_gain_15`, `dot_gain_20`, `dot_gain_25`, `dot_gain_30`, `gray_gamma_18`, `gray_gamma_22`, `sgray` | Toward Grayscale: the Gray space; Edit ▸ Color Settings' working Gray by default. |
 | `inks` | `array<object>` | no | 1–4 items | Toward Duotone: 1 to 4 inks (Monotone, Duotone, Tritone, Quadtone), each a name, a D50 Lab colour and a 13-slot curve. |
-| `inks[].curve` | `array<['number', 'null']>` | with parent | 13–13 items; items: 0–100 | Output percent at the inputs 0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95 and 100 %; null is blank; the first and last must be set. |
+| `inks[].curve` | `array<number or null>` | with parent | 13–13 items; items: 0–100 | Output percent at the inputs 0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95 and 100 %; null is blank; the first and last must be set. |
 | `inks[].lab` | `array<number>` | with parent | 3–3 items | D50 CIE Lab: L* 0–100, a* and b* −128–127. |
 | `inks[].name` | `string` | with parent | — | — |
 | `intent` | `string` | no | one of `perceptual`, `relative`, `saturation`, `absolute` | — |
@@ -4932,7 +4968,7 @@ Replaces a Duotone document's inks, curves and overprint colours, as Image ▸ M
 | :--- | :--- | :---: | :--- | :--- |
 | `document_id` | `string` | no | — | Which open document; defaults to the frontmost. |
 | `inks` | `array<object>` | no | 1–4 items | Toward Duotone: 1 to 4 inks (Monotone, Duotone, Tritone, Quadtone), each a name, a D50 Lab colour and a 13-slot curve. |
-| `inks[].curve` | `array<['number', 'null']>` | with parent | 13–13 items; items: 0–100 | Output percent at the inputs 0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95 and 100 %; null is blank; the first and last must be set. |
+| `inks[].curve` | `array<number or null>` | with parent | 13–13 items; items: 0–100 | Output percent at the inputs 0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95 and 100 %; null is blank; the first and last must be set. |
 | `inks[].lab` | `array<number>` | with parent | 3–3 items | D50 CIE Lab: L* 0–100, a* and b* −128–127. |
 | `inks[].name` | `string` | with parent | — | — |
 | `overprints` | `object` | no | — | Toward Duotone: authored overprint colours as [L, a, b] by combination key ("1+2", "1+3", "2+3", "1+2+3", …: every combination of two or more inks); missing or null is the default, the inks' product over paper. |

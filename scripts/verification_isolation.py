@@ -54,7 +54,9 @@ PRESET_DIRECTORIES = {"DR_RAW_PRESETS_DIR": "raw-presets",
                       # The paint options bar's Preset popup: the user's brush presets.
                       "DR_BRUSH_PRESETS_DIR": "brush-presets",
                       # Edit ▸ Define Pattern…: the user's pattern library.
-                      "DR_PATTERNS_DIR": "patterns"}
+                      "DR_PATTERNS_DIR": "patterns",
+                      # The stop editor's Preset popup: the user's gradient library.
+                      "DR_GRADIENTS_DIR": "gradients"}
 
 # Every cloud provider's base URL, pointed at port 9 on loopback (nothing listens there:
 # the connection is refused at once), so an owned instance that reaches a provider by

@@ -96,6 +96,16 @@ extension AppDelegate {
         patterns.addItem(
             item("Export Patterns…", #selector(EditorViewController.exportPatternLibrary(_:))))
         menu.addItem(submenuItem(patterns))
+        // Edit ▸ Gradients: delete, import and export the gradient library the stop editor's
+        // Preset popup saves to (EditorViewController+GradientLibrary.swift).
+        let gradients = NSMenu(title: "Gradients")
+        gradients.addItem(
+            item("Delete Gradient…", #selector(EditorViewController.deleteLibraryGradient(_:))))
+        gradients.addItem(
+            item("Import Gradients…", #selector(EditorViewController.importGradientLibrary(_:))))
+        gradients.addItem(
+            item("Export Gradients…", #selector(EditorViewController.exportGradientLibrary(_:))))
+        menu.addItem(submenuItem(gradients))
         // Content-Aware Fill keeps its own item, after the fills.
         menu.addItem(
             item(

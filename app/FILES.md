@@ -695,13 +695,17 @@ Detail belongs in the source file's own header comment.
 - `SelectionFillStroke.swift` / `FillSheetController.swift` / `StrokeSheetController.swift` / `EditorViewController+FillStroke.swift` — Edit ▸ Fill… and Edit ▸ Stroke…, and the fill chords.
 - `EditorViewController+PatternFill.swift` — Edit ▸ Fill…'s Pattern contents at 8 bits (`applyPatternFill`); the typed commit is `+PrecisionFillStroke`'s.
 - `PaintOnlyBlend.swift` — Behind and Clear, the paint-only modes: which colour modes offer them and the one refusal UI and MCP ask before the core.
+- `GradientPresetLibrary.swift` — the user gradient library (`DR_GRADIENTS_DIR`): `GradientPreset`, its codec, `.doctoredgradients` files, `{name}` resolution for the dispatcher.
+- `EditorViewController+GradientLibrary.swift` — Edit ▸ Gradients (Delete, Import, Export) and `GradientPresetRow`, the stop editor's Preset popup and Save Preset….
+- `AgentServer+Gradients.swift` — the gradient library's MCP tools (`list_`/`save_`/`delete_gradient`, `import_`/`export_gradients`) and the dispatcher's `{name}` pass.
+- `AgentCatalog+Gradients.swift` — the catalog entries for the five gradient library tools.
 - `EditorViewController+PaintOnlyBlend.swift` — the UI's Behind and Clear refusal (fill alert) and whether the Fill… and Stroke… sheets list them.
 - `AgentServer+FillStroke.swift` / `AgentCatalog+FillStroke.swift` / `QuickMaskFill.swift` — MCP `fill_selection` / `stroke_selection`; the Quick Mask fill.
 - `PrecisionFillStroke.swift` / `EditorViewController+PrecisionFillStroke.swift` / `AgentServer+PrecisionFillStroke.swift` — the 16-bit and 32-bit float Fill and Stroke branches.
 - `FillLayer.swift` — fill layers (pattern; moves, turns, CMYK): `FillLayerPayload`, its drawing, `refittingFillLayers`, `positionPin(refitting:)`, `carriesPatternFill`.
 - `FillLayerSheetController.swift` / `EditorViewController+FillLayers.swift` / `AgentServer+FillLayers.swift` — Layer ▸ New Fill Layer, the dialog, MCP `add_fill_layer` / `edit_fill_layer`.
 - `GradientRamp.swift` / `EditorViewController+GradientTool.swift` — the Gradient tool's resolved ramp (stops, shape, legacy two-colour path) and its 8-bit layer commit.
-- `GradientStopsPane.swift` / `GradientStopsSheetController.swift` — the stop editor the fill-layer dialog and the Gradient tool's Edit… sheet share.
+- `GradientStopsPane.swift` / `GradientStopsSheetController.swift` — the stop editor the fill-layer dialog and the Gradient tool's Edit… sheet share, with its Preset row.
 - `QuickMaskEdits.swift` / `EditorViewController+QuickMaskEdits.swift` / `AgentServer+QuickMaskEdits.swift` — Gaussian Blur and Gradient in Quick Mask, UI and MCP.
 - `SelectionCanvasMap.swift` — the selection carried through crop, canvas size, rotate, flip and image size: `CanvasSelection.carried`, `selectionCarried`.
 - `EditorViewController+ScreenChrome.swift` — the screen keys (Tab, Shift+Tab, F); `setToolChromeVisible` is the ONE writer of `toolChromeVisible`.
