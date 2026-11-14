@@ -12,7 +12,9 @@
 //! past them is dropped with the dropped-mask sentence. A drawn mask is
 //! planned as a canvas plane (`psd_raster_masks::MaskBudget`), drawn under
 //! the open's job, and a mask the rasterizer refuses refuses the layered
-//! open by the layer's name, never leaving the layer unmasked.
+//! open by the layer's name, never leaving the layer unmasked. A window's
+//! size alone never makes the rasterizer refuse (the assert beside
+//! [`MAX_BAKE_SAMPLES`]); only an outline's row work can.
 
 use crate::path_geometry::PathShape;
 use crate::vector_mask_combine::{charge, Accumulator, SubpathOp, Window};
@@ -28,6 +30,21 @@ use crate::vector_mask_combine::{charge, Accumulator, SubpathOp, Window};
 /// a 4 MP one: far past any mask a person draws, and a bound on what one
 /// record of a crafted file can cost the open.
 pub(crate) const MAX_BAKE_SAMPLES: u64 = 1 << 30;
+
+// Why the caps above need no per-window rule: every window lies inside the
+// canvas ([`hull`]), and the container refuses a PSD, PSB or layered-TIFF
+// canvas over `doc::MAX_PIXELS` before any record is walked
+// (`psd_container`). The rasterizer refuses a window over that same
+// `MAX_PIXELS` (`precision_image::pixel_count`) and charges its pixels up
+// front against `artwork_coverage::MAX_SCAN_WORK`, so while this holds no
+// window the bake draws is refused for its size, and each leaves at least
+// `MAX_SCAN_WORK - MAX_PIXELS` for row work. Row work is the outline's
+// (the edges crossing each row), known only by running the sweep, so the
+// report cannot predict it, and a mask past it refuses the open by the
+// layer's name ([`undrawn`]). Raising `MAX_PIXELS` past `MAX_SCAN_WORK`
+// stops the build here: the bake would then need to drop a mask with a
+// window past the cap.
+const _: () = assert!(crate::doc::MAX_PIXELS <= crate::artwork_coverage::MAX_SCAN_WORK);
 
 /// A `vmsk` body as the bake draws it: each subpath of two or more anchors
 /// as its own shape beside its operation (one of a single anchor is skipped
@@ -125,7 +142,9 @@ fn hull(one: &PathShape, canvas: (u32, u32)) -> Window {
 /// (flag bit 2 clear), names only known operations and is within the
 /// drawing caps — one shape's own (`path_geometry::MAX_SUBPATHS`,
 /// `MAX_PATH_ANCHORS`) and [`MAX_BAKE_SAMPLES`] of the windows its
-/// subpaths are drawn over on `canvas`.
+/// subpaths are drawn over on `canvas`. No window is checked on its own: on
+/// a canvas the container admits, none is past the rasterizer's pixel
+/// limits (the assert beside [`MAX_BAKE_SAMPLES`]).
 pub(crate) fn bakes(body: &[u8], canvas: (u32, u32)) -> bool {
     use crate::path_geometry::{MAX_PATH_ANCHORS, MAX_SUBPATHS};
     Bake::read(body, canvas).is_some_and(|(bake, subpaths, anchors)| {

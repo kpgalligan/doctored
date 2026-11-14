@@ -135,7 +135,13 @@ pub const MAX_PATH_POINTS: usize = 262_144;
 /// `dr_artwork_path_coverage` reserves (`ffi_artwork.rs`), so the two move
 /// together.
 pub const MAX_PATH_EDGES: usize = 524_288;
-const MAX_SCAN_WORK: u64 = 256_000_000;
+/// The work one [`rasterize`] call may charge (`charge`): the window's pixel
+/// count up front, then each visited row's active edges and the row body's
+/// pair and interval terms (module doc, MONOTONICITY). The up-front term is
+/// at most `doc::MAX_PIXELS`, because `pixel_count` refuses a larger window
+/// first, so a window's size alone never reaches this cap; what can is an
+/// outline's row work, known only by running the sweep.
+pub(crate) const MAX_SCAN_WORK: u64 = 256_000_000;
 type Point = [f64; 2];
 pub(crate) type Edge = [Point; 2];
 

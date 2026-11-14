@@ -117,9 +117,10 @@ def _listed(directory: str, *names: str) -> tuple[str, ...]:
 
 # Key = directory name under scripts/. Each set is what its runner compiles against the app sources.
 PROBE_SETS: dict[str, ProbeSet] = {
-    "artwork-text-probe": ProbeSet(_listed("artwork-text-probe", "main.swift", "host.swift", "comparison.swift")),
+    "artwork-text-probe": ProbeSet(
+        _listed("artwork-text-probe", "main.swift", "host.swift", "comparison.swift", "glyph_windows.swift")),
     "artwork-workflow-probe": ProbeSet(
-        (*_listed("artwork-text-probe", "main.swift", "host.swift", "comparison.swift"),
+        (*_listed("artwork-text-probe", "main.swift", "host.swift", "comparison.swift", "glyph_windows.swift"),
          "artwork-workflow-probe/ui.swift"),
         defines=("ARTWORK_WORKFLOW_UI",)),
     "color-metadata-probe": ProbeSet(None),

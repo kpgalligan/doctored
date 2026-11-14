@@ -179,8 +179,9 @@
 //! the list renders as if its planes were whole-raster with the window's
 //! samples embedded in zeros. Absent, the window is the raster. The bound is
 //! [`MAX_COMPONENT_SAMPLES`] per component; there is no whole-layer total
-//! (the host windows each path part to its bounds,
-//! `NativeArtworkEvaluation`). The planeless components are unchanged.
+//! (the host windows each path part to its bounds, `NativeArtworkEvaluation`,
+//! and each colour or bitmap glyph part to its glyphs' box,
+//! `ArtworkTextCapture`). The planeless components are unchanged.
 use crate::artwork_window::{totals, Window};
 use crate::authored_color::lut_ink;
 use crate::icc::IccProfile;

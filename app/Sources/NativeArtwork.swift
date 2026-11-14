@@ -31,8 +31,11 @@ enum NativeArtworkPart {
     /// `evenOdd`: the path fills by the even-odd rule (a path shape's own,
     /// ShapeOutline.swift); every other part fills by nonzero winding.
     case path(CGPath, rgba: [Double], evenOdd: Bool = false)
-    case intrinsic(pixels: [UInt8], opacity: Double)
-    case coverage(pixels: [UInt8], rgba: [Double])
+    /// A colour glyph run's pixels over `window` of the drawing, row-major
+    /// (`ArtworkTextCapture`); transparent outside it.
+    case intrinsic(pixels: [UInt8], opacity: Double, window: NativeArtworkEvaluation.Window)
+    /// A bitmap glyph's A8 coverage over `window`, row-major; 0 outside it.
+    case coverage(pixels: [UInt8], rgba: [Double], window: NativeArtworkEvaluation.Window)
     /// A fill layer's one colour over the whole drawing. No plane.
     /// `linear` is the colour as linear sRGB components beyond sRGB
     /// (an imported Photoshop `SoCo`), which the core renders in its place;

@@ -7,13 +7,32 @@ import CoreText
 /// TextKit supplies resolved glyphs, positions and decorations. Intrinsic
 /// glyph assets retain their byte color/coverage; authored ink stays continuous.
 enum ArtworkTextCapture {
-    static func capture(payload: TextLayerPayload, anchor: CGPoint) throws -> NativeArtworkDrawing {
+    /// How far a colour or bitmap glyph part's window reaches past its
+    /// glyphs' reported bounds, in pixels (`glyphRect`). The text probe
+    /// measures how far TextKit's ink reaches past those bounds
+    /// (`glyph_box_containment` in `scripts/artwork-text-probe`): at most 1 px,
+    /// over Apple Color Emoji from 9 to 512 pt, scaled 0.5 to 3 and sheared.
+    /// So the window's outer ring is clear of ink, which is what the capture's
+    /// edge guard checks before it keeps a window.
+    static let glyphMargin = 2
+
+    /// How capture windows its glyph parts. The app always takes the
+    /// default. The text probe narrows `margin` to reach the edge guard, and
+    /// sets `colorAsCoverage` to draw colour glyphs through the bitmap-glyph
+    /// (A8) branch, which no installed font reaches with ink.
+    struct Windowing {
+        var margin = ArtworkTextCapture.glyphMargin
+        var colorAsCoverage = false
+    }
+
+    static func capture(payload: TextLayerPayload, anchor: CGPoint,
+                        windowing: Windowing = Windowing()) throws -> NativeArtworkDrawing {
         guard Thread.isMainThread, !BackgroundWork.occupied,
               !payload.string.isEmpty, payload.string.utf16.count <= 4096 else {
             throw DoctoredCoreError(message: "Prepare at most 4096 UTF-16 text units on the main thread after background work finishes.")
         }
         _ = try RasterResources.shared.admit(scratch: TextArtworkLayout.platformAllowance)
-        let manager = TextArtworkLayout()
+        let manager = TextArtworkLayout(windowing: windowing)
         manager.ink = payload.ink
         guard let plan = TextLayer.drawingPlan(payload, anchor: anchor, color: nil, layoutManager: manager),
               plan.width > 0, plan.height > 0,
@@ -35,9 +54,37 @@ enum ArtworkTextCapture {
         return NativeArtworkDrawing(width: plan.width, height: plan.height,
             offsetX: plan.offsetX, offsetY: plan.offsetY, parts: parts)
     }
+
+    /// The map from glyph space to the raster (pixels, y down) of a glyph
+    /// TextKit draws at `position` under `textMatrix`, in a context whose CTM
+    /// is `ctm` over a raster `height` rows tall.
+    static func glyphMap(textMatrix: CGAffineTransform, position: CGPoint, ctm: CGAffineTransform,
+                         height: Int) -> CGAffineTransform {
+        var map = textMatrix
+        map.tx += position.x
+        map.ty += position.y
+        return map.concatenating(ctm)
+            .concatenating(CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: CGFloat(height)))
+    }
+
+    /// The raster rect `glyph`'s reported bounds cover under `glyphMap`:
+    /// `.null` for empty bounds, nil when a number is not finite. The text
+    /// probe measures ink against this same rect.
+    static func glyphRect(_ glyph: CGGlyph, at position: CGPoint, font: CTFont,
+                          textMatrix: CGAffineTransform, ctm: CGAffineTransform, height: Int) -> CGRect? {
+        var glyph = glyph
+        let bounds = CTFontGetBoundingRectsForGlyphs(font, .default, &glyph, nil, 1)
+        guard !bounds.isEmpty else { return .null }
+        let map = glyphMap(textMatrix: textMatrix, position: position, ctm: ctm, height: height)
+        let rect = bounds.applying(map)
+        guard [map.a, map.b, map.c, map.d, map.tx, map.ty, rect.minX, rect.minY, rect.maxX, rect.maxY]
+            .allSatisfy({ $0.isFinite }) else { return nil }
+        return rect
+    }
 }
 
 private final class TextArtworkLayout: NSLayoutManager {
+    private typealias Window = NativeArtworkEvaluation.Window
     static let platformAllowance: UInt64 = 32 * 1024 * 1024
     private static let maximumParts = 256
     private static let maximumSamples = 64_000_000
@@ -54,8 +101,12 @@ private final class TextArtworkLayout: NSLayoutManager {
     /// The ink the payload's numbers are in: attribute colours
     /// are read back in it.
     var ink: ArtworkInk = .srgb
+    private let windowing: ArtworkTextCapture.Windowing
 
-    override init() { super.init() }
+    init(windowing: ArtworkTextCapture.Windowing) {
+        self.windowing = windowing
+        super.init()
+    }
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("TextArtworkLayout does not support NSCoder") }
 
@@ -81,17 +132,19 @@ private final class TextArtworkLayout: NSLayoutManager {
             + UInt64(width * height) + intrinsicBytes + UInt64(pointCount) * 64 + extra)
     }
 
-    /// One more part of `planes` samples a pixel over the text box. The bound
-    /// is the core's, per component (`artwork_window`): there is no total
-    /// across parts, and a path part's plane is windowed to its own glyphs
-    /// downstream (`NativeArtworkEvaluation.Window`).
-    private func admitPart(planes: Int) throws {
-        let count = width * height
+    private var partRefusal: DoctoredCoreError {
+        error("Text artwork exceeds 256 ordered parts or 64 million samples in one component.")
+    }
+
+    /// One more part holding `samples` samples: a path part is charged the
+    /// text box here (its plane is windowed to its own glyphs downstream,
+    /// `NativeArtworkEvaluation.Window`), a glyph part its plane's bytes over
+    /// its own window (`glyphPlane`). The bound is the core's, per component
+    /// (`artwork_window`); there is no total across parts.
+    private func admitPart(samples: Int) throws {
         guard parts.count + (pendingColor == nil ? 0 : 1) < Self.maximumParts,
-              count <= Self.maximumSamples / planes else {
-            throw error("Text artwork exceeds 256 ordered parts or 64 million samples in one component.")
-        }
-        try admit(extra: UInt64(count * planes) * 2)
+              samples <= Self.maximumSamples else { throw partRefusal }
+        try admit(extra: UInt64(samples) * 2)
     }
 
     private func flush() {
@@ -126,7 +179,7 @@ private final class TextArtworkLayout: NSLayoutManager {
         // decorations retain their original drawing order and opacity layers.
         if pendingColor != color || pendingBounds.intersects(bounds) { flush() }
         if pendingColor == nil {
-            try admitPart(planes: 1)
+            try admitPart(samples: width * height)
             pendingColor = color
         }
         try admit(extra: UInt64(points) * 64)
@@ -144,10 +197,6 @@ private final class TextArtworkLayout: NSLayoutManager {
         return values
     }
 
-    private var pageToOutput: CGAffineTransform {
-        CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: CGFloat(height))
-    }
-
     override func showCGGlyphs(_ glyphs: UnsafePointer<CGGlyph>, positions: UnsafePointer<CGPoint>,
         count: Int, font: NSFont, textMatrix: CGAffineTransform,
         attributes: [NSAttributedString.Key: Any], in context: CGContext) {
@@ -156,13 +205,15 @@ private final class TextArtworkLayout: NSLayoutManager {
             guard count >= 0, count <= 4096 else { throw error("TextKit returned too many glyphs.") }
             let rgba = try color(attributes)
             let ctFont = font as CTFont
-            if CTFontGetSymbolicTraits(ctFont).contains(.traitColorGlyphs) {
+            let colorGlyphs = CTFontGetSymbolicTraits(ctFont).contains(.traitColorGlyphs)
+            if colorGlyphs, !windowing.colorAsCoverage {
                 try intrinsic(glyphs, positions: positions, count: count, font: font,
                     textMatrix: textMatrix, attributes: attributes, context: context, rgba: rgba)
                 return
             }
             for i in 0..<count {
-                guard let path = CTFontCreatePathForGlyph(ctFont, glyphs[i], nil) else {
+                // A colour glyph comes here only under the probe's `colorAsCoverage`.
+                guard !colorGlyphs, let path = CTFontCreatePathForGlyph(ctFont, glyphs[i], nil) else {
                     var glyph = glyphs[i]
                     let bounds = CTFontGetBoundingRectsForGlyphs(ctFont, .default, &glyph, nil, 1)
                     if !bounds.isEmpty {
@@ -171,10 +222,8 @@ private final class TextArtworkLayout: NSLayoutManager {
                     }
                     continue
                 }
-                var map = textMatrix
-                map.tx += positions[i].x
-                map.ty += positions[i].y
-                map = map.concatenating(context.ctm).concatenating(pageToOutput)
+                var map = ArtworkTextCapture.glyphMap(textMatrix: textMatrix, position: positions[i],
+                                                      ctm: context.ctm, height: height)
                 guard [map.a, map.b, map.c, map.d, map.tx, map.ty].allSatisfy({ $0.isFinite && abs($0) <= 10_000_000 }) else {
                     throw error("TextKit produced an unsupported glyph transform.")
                 }
@@ -188,10 +237,6 @@ private final class TextArtworkLayout: NSLayoutManager {
         font: NSFont, textMatrix: CGAffineTransform, attributes: [NSAttributedString.Key: Any],
         context original: CGContext, rgba: [Double]) throws {
         flush()
-        try admitPart(planes: 4)
-        let countBytes = width * height * 4
-        try admit(extra: UInt64(countBytes))
-        var pixels = [UInt8](repeating: 0, count: countBytes)
         var opaqueAttributes = attributes
         // The colour's own numbers with alpha 1 — all four inks in a CMYK
         // document (#1), where alpha is the fifth (`ArtworkColor.alpha`).
@@ -199,19 +244,12 @@ private final class TextArtworkLayout: NSLayoutManager {
             throw error("TextKit returned unsupported text ink.")
         }
         opaqueAttributes[.foregroundColor] = opaque
-        let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
-            guard let space = CGColorSpace(name: CGColorSpace.sRGB),
-                  let context = CGContext(data: buffer.baseAddress, width: width, height: height,
-                    bitsPerComponent: 8, bytesPerRow: width * 4, space: space,
-                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
-            drawSuperclass(glyphs, positions: positions, count: count, font: font, textMatrix: textMatrix,
-                attributes: opaqueAttributes, original: original, context: context, ink: opaque)
-            return true
-        }
-        guard drawn else { throw error("Could not capture intrinsic glyph pixels.") }
-        Bitmap.unpremultiply(&pixels)
-        intrinsicBytes += UInt64(countBytes)
-        parts.append(.intrinsic(pixels: pixels, opacity: ArtworkColor.alpha(rgba)))
+        guard var plane = try glyphPlane(glyphs, positions: positions, count: count, font: font,
+            textMatrix: textMatrix, attributes: opaqueAttributes, original: original, planes: 4,
+            ink: opaque, dropsInkless: false) else { return }
+        Bitmap.unpremultiply(&plane.bytes)
+        parts.append(.intrinsic(pixels: plane.bytes, opacity: ArtworkColor.alpha(rgba),
+                                window: plane.window))
     }
 
     private func intrinsicCoverage(_ glyphs: UnsafePointer<CGGlyph>, positions: UnsafePointer<CGPoint>, count: Int,
@@ -219,57 +257,100 @@ private final class TextArtworkLayout: NSLayoutManager {
         context original: CGContext, rgba: [Double]) throws {
         var opaqueAttributes = attributes
         opaqueAttributes[.foregroundColor] = NSColor.white
-        // An outline-less glyph that draws no ink (Apple Chancery's
-        // U+0338 reports bounds but has neither outline nor bitmap) adds no
-        // part: its glyph box is probed first, in a box-sized A8 plane placed
-        // by the path branch's map. Only a glyph that inks keeps the full
-        // A8 coverage part below.
-        var glyph = glyphs[0]
-        let bounds = CTFontGetBoundingRectsForGlyphs(font as CTFont, .default, &glyph, nil, 1)
-        var map = textMatrix
-        map.tx += positions[0].x
-        map.ty += positions[0].y
-        map = map.concatenating(original.ctm).concatenating(pageToOutput)
-        let mapped = bounds.applying(map)
-        if [map.a, map.b, map.c, map.d, map.tx, map.ty].allSatisfy({ $0.isFinite }),
-           [mapped.minX, mapped.minY, mapped.maxX, mapped.maxY].allSatisfy({ $0.isFinite }) {
-            let box = mapped.integral.insetBy(dx: -2, dy: -2)
-                .intersection(CGRect(x: 0, y: 0, width: width, height: height))
-            guard !box.isEmpty else { return }
-            let boxWidth = Int(box.width)
-            let boxHeight = Int(box.height)
-            try admit(extra: UInt64(boxWidth * boxHeight))
-            var probe = [UInt8](repeating: 0, count: boxWidth * boxHeight)
-            let probed = probe.withUnsafeMutableBytes { buffer -> Bool in
-                guard let context = CGContext(data: buffer.baseAddress, width: boxWidth,
-                    height: boxHeight, bitsPerComponent: 8, bytesPerRow: boxWidth,
-                    space: CGColorSpaceCreateDeviceGray(),
-                    bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue) else { return false }
-                drawSuperclass(glyphs, positions: positions, count: count, font: font,
-                    textMatrix: textMatrix, attributes: opaqueAttributes, original: original,
-                    context: context, ink: .white,
-                    deviceOrigin: CGPoint(x: box.minX, y: CGFloat(height) - box.maxY))
-                return true
-            }
-            guard probed else { throw error("Could not capture intrinsic monochrome glyph coverage.") }
-            guard probe.contains(where: { $0 != 0 }) else { return }
-        }
+        // An outline-less glyph that draws no ink in its window (Apple
+        // Chancery's U+0338 reports bounds but has neither outline nor
+        // bitmap) adds no part.
+        guard let plane = try glyphPlane(glyphs, positions: positions, count: count, font: font,
+            textMatrix: textMatrix, attributes: opaqueAttributes, original: original, planes: 1,
+            ink: .white, dropsInkless: true) else { return }
         flush()
-        try admitPart(planes: 1)
-        let countBytes = width * height
-        try admit(extra: UInt64(countBytes))
-        var pixels = [UInt8](repeating: 0, count: countBytes)
-        let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
-            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height,
-                bitsPerComponent: 8, bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
-                bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue) else { return false }
+        parts.append(.coverage(pixels: plane.bytes, rgba: rgba, window: plane.window))
+    }
+
+    /// The window a call's glyphs ink: the union of their reported bounds in
+    /// the raster (`ArtworkTextCapture.glyphRect`), grown by the margin and
+    /// clipped to it. The whole raster when a number is not finite or no
+    /// glyph reports bounds.
+    private func glyphWindow(_ glyphs: UnsafePointer<CGGlyph>, positions: UnsafePointer<CGPoint>, count: Int,
+        font: NSFont, textMatrix: CGAffineTransform, ctm: CGAffineTransform) -> Window {
+        var union = CGRect.null
+        for i in 0..<count {
+            guard let rect = ArtworkTextCapture.glyphRect(glyphs[i], at: positions[i], font: font as CTFont,
+                textMatrix: textMatrix, ctm: ctm, height: height) else {
+                return Window(x: 0, y: 0, width: width, height: height)
+            }
+            union = union.union(rect)
+        }
+        return .covering(union, margin: windowing.margin, width: width, height: height)
+    }
+
+    /// The superclass's drawing of `glyphs` as one part's plane, `planes`
+    /// bytes a pixel (4: premultiplied sRGB RGBA8; 1: A8), over the window
+    /// they ink (`glyphWindow`), admitted as a part. Ink is never clipped:
+    /// when ink touches the window's outer ring on a side the raster does not
+    /// bound, it may continue past the window, so the plane is drawn again
+    /// over the whole raster. nil when `dropsInkless` and the plane holds no
+    /// ink: that glyph adds no part.
+    private func glyphPlane(_ glyphs: UnsafePointer<CGGlyph>, positions: UnsafePointer<CGPoint>, count: Int,
+        font: NSFont, textMatrix: CGAffineTransform, attributes: [NSAttributedString.Key: Any],
+        original: CGContext, planes: Int, ink: NSColor,
+        dropsInkless: Bool) throws -> (window: Window, bytes: [UInt8])? {
+        let whole = Window(x: 0, y: 0, width: width, height: height)
+        var window = glyphWindow(glyphs, positions: positions, count: count, font: font,
+                                 textMatrix: textMatrix, ctm: original.ctm)
+        func draw(_ window: Window) throws -> [UInt8] {
+            try drawPlane(glyphs, positions: positions, count: count, font: font, textMatrix: textMatrix,
+                attributes: attributes, original: original, window: window, planes: planes, ink: ink)
+        }
+        var bytes = try draw(window)
+        if window != whole, inksRing(bytes, window: window, planes: planes) {
+            window = whole
+            bytes = try draw(whole)
+        }
+        let alphas = stride(from: planes - 1, to: bytes.count, by: planes)
+        if dropsInkless, !alphas.contains(where: { bytes[$0] != 0 }) { return nil }
+        try admitPart(samples: bytes.count)
+        intrinsicBytes += UInt64(bytes.count)
+        return (window, bytes)
+    }
+
+    /// `glyphs` drawn by the superclass into a plane of `window`'s pixels,
+    /// row 0 at the window's top (`glyphPlane`).
+    private func drawPlane(_ glyphs: UnsafePointer<CGGlyph>, positions: UnsafePointer<CGPoint>, count: Int,
+        font: NSFont, textMatrix: CGAffineTransform, attributes: [NSAttributedString.Key: Any],
+        original: CGContext, window: Window, planes: Int, ink: NSColor) throws -> [UInt8] {
+        let samples = window.pixels * planes
+        guard samples <= Self.maximumSamples else { throw partRefusal }
+        try admit(extra: UInt64(samples))
+        var bytes = [UInt8](repeating: 0, count: samples)
+        let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
+            let space = planes == 4 ? CGColorSpace(name: CGColorSpace.sRGB) : CGColorSpaceCreateDeviceGray()
+            let alpha = planes == 4 ? CGImageAlphaInfo.premultipliedLast : .alphaOnly
+            guard let space, let context = CGContext(data: buffer.baseAddress, width: window.width,
+                height: window.height, bitsPerComponent: 8, bytesPerRow: window.width * planes,
+                space: space, bitmapInfo: alpha.rawValue) else { return false }
+            // The window's lower-left corner in the raster's device space (y up).
             drawSuperclass(glyphs, positions: positions, count: count, font: font, textMatrix: textMatrix,
-                attributes: opaqueAttributes, original: original, context: context, ink: .white)
+                attributes: attributes, original: original, context: context, ink: ink,
+                deviceOrigin: CGPoint(x: window.x, y: height - window.y - window.height))
             return true
         }
-        guard drawn else { throw error("Could not capture intrinsic monochrome glyph coverage.") }
-        intrinsicBytes += UInt64(countBytes)
-        parts.append(.coverage(pixels: pixels, rgba: rgba))
+        guard drawn else {
+            throw error(planes == 4 ? "Could not capture intrinsic glyph pixels."
+                : "Could not capture intrinsic monochrome glyph coverage.")
+        }
+        return bytes
+    }
+
+    /// Whether `bytes` (`planes` a pixel, alpha last) inks `window`'s outer
+    /// ring on a side the raster does not bound.
+    private func inksRing(_ bytes: [UInt8], window: Window, planes: Int) -> Bool {
+        func inked(_ x: Int, _ y: Int) -> Bool { bytes[(y * window.width + x) * planes + planes - 1] != 0 }
+        let rows = 0..<window.height, columns = 0..<window.width
+        return (window.x > 0 && rows.contains { inked(0, $0) })
+            || (window.x + window.width < width && rows.contains { inked(window.width - 1, $0) })
+            || (window.y > 0 && columns.contains { inked($0, 0) })
+            || (window.y + window.height < height && columns.contains { inked($0, window.height - 1) })
     }
 
     private func drawSuperclass(_ glyphs: UnsafePointer<CGGlyph>, positions: UnsafePointer<CGPoint>, count: Int,

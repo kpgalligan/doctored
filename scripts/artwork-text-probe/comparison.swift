@@ -50,6 +50,19 @@ func textCaptureWithLayoutManager(_ manager: NSLayoutManager, payload: TextLayer
         guard plan.draw(context) else { throw TextCaptureProbeError(message: "Reference TextKit draw failed") }
     }
 }
+/// A windowed plane (`planes` bytes a pixel, row-major over `window`) embedded
+/// in zeros over the whole `width`×`height` raster: what the core composites
+/// for a component with that `window` (`artwork_window`).
+func textCaptureEmbedded(_ bytes: [UInt8], window: NativeArtworkEvaluation.Window, planes: Int,
+                         width: Int, height: Int) -> [UInt8] {
+    var whole = [UInt8](repeating: 0, count: width * height * planes)
+    let row = window.width * planes
+    for y in 0..<window.height {
+        let target = ((window.y + y) * width + window.x) * planes
+        whole.replaceSubrange(target..<target + row, with: bytes[y * row..<(y + 1) * row])
+    }
+    return whole
+}
 func textCaptureRendered(_ drawing: NativeArtworkDrawing, pathsOnly: Bool = false) throws -> [UInt8] {
     try textProbePixels(width: drawing.width, height: drawing.height) { context in
         for part in drawing.parts {
@@ -61,8 +74,10 @@ func textCaptureRendered(_ drawing: NativeArtworkDrawing, pathsOnly: Bool = fals
                 // A text drawing's paths fill by nonzero winding.
                 context.setFillColor(red: rgba[0], green: rgba[1], blue: rgba[2], alpha: rgba[3])
                 context.addPath(path); context.fillPath()
-            case let .intrinsic(pixels, opacity):
+            case let .intrinsic(windowed, opacity, window):
                 if pathsOnly { continue }
+                let pixels = textCaptureEmbedded(windowed, window: window, planes: 4,
+                                                 width: drawing.width, height: drawing.height)
                 guard let space = CGColorSpace(name: CGColorSpace.sRGB),
                       let provider = CGDataProvider(data: Data(pixels) as CFData),
                       let image = CGImage(width: drawing.width, height: drawing.height, bitsPerComponent: 8,
@@ -75,14 +90,17 @@ func textCaptureRendered(_ drawing: NativeArtworkDrawing, pathsOnly: Bool = fals
                 context.translateBy(x: 0, y: CGFloat(drawing.height)); context.scaleBy(x: 1, y: -1)
                 context.draw(image, in: CGRect(x: 0, y: 0, width: drawing.width, height: drawing.height))
                 context.restoreGState()
-            case let .coverage(pixels, rgba):
+            case let .coverage(windowed, rgba, window):
+                let pixels = textCaptureEmbedded(windowed, window: window, planes: 1,
+                                                 width: drawing.width, height: drawing.height)
                 var colored = [UInt8](repeating: 0, count: pixels.count * 4)
                 for i in pixels.indices {
                     for c in 0..<3 { colored[i * 4 + c] = UInt8((rgba[c] * 255).rounded()) }
                     colored[i * 4 + 3] = pixels[i]
                 }
+                let raster = NativeArtworkEvaluation.Window(x: 0, y: 0, width: drawing.width, height: drawing.height)
                 let scalar = NativeArtworkDrawing(width: drawing.width, height: drawing.height, offsetX: 0, offsetY: 0,
-                    parts: [.intrinsic(pixels: colored, opacity: rgba[3])])
+                    parts: [.intrinsic(pixels: colored, opacity: rgba[3], window: raster)])
                 let values = try textCaptureRendered(scalar)
                 guard let space = CGColorSpace(name: CGColorSpace.sRGB),
                       let provider = CGDataProvider(data: Data(values) as CFData),

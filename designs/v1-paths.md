@@ -168,7 +168,8 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   draw's (`core/tests/psd_vector_mask_bake.rs`). It draws only a mask within 4,096 subpaths, 32,768 anchors and
   2³⁰ samples of those windows (an intersect charged the box it clears, no subpath more than the canvas);
   past them the mask is dropped with the dropped-mask sentence, and a mask the rasterizer refuses refuses the
-  layered open. Every
+  layered open. The canvas is at most 100 MP, inside the rasterizer's per-window limits (a compile-time
+  assert ties the two), so only an outline's row work can refuse one. Every
   layer composites as the file's stored composite (8 bits) and every 16-bit bake equals the 8-bit rendering
   within one 8-bit step. A stroked shape writes `vsms` in the `vmsk` layout and keeps its pixels. Photoshop
   read Doctored's raster-less vector masks (plain, disabled, unlinked) back as vector masks in a take.

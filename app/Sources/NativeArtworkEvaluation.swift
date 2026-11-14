@@ -3,29 +3,38 @@ import AppKit
 /// TextKit/CGPath preparation ends on main. Workers capture only immutable
 /// commands, numeric colors and declared intrinsic bytes, never layout objects.
 struct NativeArtworkEvaluation {
-    /// The raster pixels a path part's coverage plane covers (the core's
-    /// component `window`, `artwork_window`): `x`, `y`, `width`, `height`.
+    /// The raster pixels a part's plane covers (the core's component
+    /// `window`, `artwork_window`): `x`, `y`, `width`, `height`, y down.
     struct Window: Equatable {
         let x: Int, y: Int, width: Int, height: Int
         var pixels: Int { width * height }
         var json: [Int] { [x, y, width, height] }
 
-        /// `bounds` (raster pixels, y down) made integral, grown 1 px and
-        /// clipped to the `width`×`height` raster: every pixel the path's
-        /// flattened outline can ink, since its vertices lie on the path and
-        /// the path inside its control points' box. A box that is not finite
+        /// `bounds` (raster pixels, y down) made integral, grown `margin` px
+        /// and clipped to the `width`×`height` raster. A path part's margin
+        /// is 1: its window then holds every pixel the path's flattened
+        /// outline can ink, since its vertices lie on the path and the path
+        /// inside its control points' box. A glyph part's is
+        /// `ArtworkTextCapture.glyphMargin`. A box that is null or not finite
         /// takes the whole raster; one that misses the raster, a 1×1 window
         /// at the origin (its coverage is zero either way).
-        static func covering(_ bounds: CGRect, width: Int, height: Int) -> Window {
+        static func covering(_ bounds: CGRect, margin: Int = 1, width: Int, height: Int) -> Window {
             let whole = Window(x: 0, y: 0, width: width, height: height)
             guard !bounds.isNull, [bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]
                 .allSatisfy({ $0.isFinite && abs($0) <= 1e9 }) else { return whole }
-            let x0 = max(Int(bounds.minX.rounded(.down)) - 1, 0)
-            let y0 = max(Int(bounds.minY.rounded(.down)) - 1, 0)
-            let x1 = min(Int(bounds.maxX.rounded(.up)) + 1, width)
-            let y1 = min(Int(bounds.maxY.rounded(.up)) + 1, height)
+            let x0 = max(Int(bounds.minX.rounded(.down)) - margin, 0)
+            let y0 = max(Int(bounds.minY.rounded(.down)) - margin, 0)
+            let x1 = min(Int(bounds.maxX.rounded(.up)) + margin, width)
+            let y1 = min(Int(bounds.maxY.rounded(.up)) + margin, height)
             guard x1 > x0, y1 > y0 else { return Window(x: 0, y: 0, width: 1, height: 1) }
             return Window(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
+        }
+
+        /// Whether the window has a positive size inside a `width`×`height`
+        /// raster: the core's own rule (`artwork_window::Window::place`).
+        func lies(inWidth rasterWidth: Int, height rasterHeight: Int) -> Bool {
+            x >= 0 && y >= 0 && width >= 1 && height >= 1
+                && width <= rasterWidth - x && height <= rasterHeight - y
         }
     }
 
@@ -34,8 +43,10 @@ struct NativeArtworkEvaluation {
         /// computed at the window's size, by the even-odd rule when `evenOdd`.
         case path(commands: [UInt8], points: [Double], rgba: [Double], window: Window,
                   evenOdd: Bool = false)
-        case intrinsic([UInt8], opacity: Double)
-        case coverage([UInt8], rgba: [Double])
+        /// A colour glyph run's straight RGBA8 over `window`, row-major.
+        case intrinsic([UInt8], opacity: Double, window: Window)
+        /// A bitmap glyph's A8 coverage over `window`, row-major.
+        case coverage([UInt8], rgba: [Double], window: Window)
         /// A fill layer's colour or gradient: the render component
         /// itself, which owns no sample plane.
         case planeless([String: Any])
@@ -45,8 +56,8 @@ struct NativeArtworkEvaluation {
     let offsetX: Int
     let offsetY: Int
     let parts: [Part]
-    /// The coverage samples every plane-owning part holds: a path part its
-    /// window's pixels, a bitmap coverage part the raster's.
+    /// The coverage samples every plane-owning part holds: its window's
+    /// pixels.
     let scalarCount: Int
     let intrinsicCount: Int
     /// How many parts own no sample plane (a fill layer's). Each is charged
@@ -90,7 +101,6 @@ struct NativeArtworkEvaluation {
               drawing.parts.count <= 256 else { throw Self.failure("Artwork exceeds its component or raster bounds.") }
         width = drawing.width; height = drawing.height
         offsetX = drawing.offsetX; offsetY = drawing.offsetY
-        let count = width * height
         // A float render's numbers are linear light and may be above white;
         // a CMYK render's are ink (#1).
         let ink: ArtworkInk = cmyk ? .cmyk : float ? .linearSRGB : .srgb
@@ -138,19 +148,23 @@ struct NativeArtworkEvaluation {
                 captured.append(.path(commands: commands, points: points, rgba: rgba, window: window,
                                       evenOdd: evenOdd))
                 scalar += window.pixels; bytes += UInt64(commands.count + points.count * 8)
-            case let .coverage(pixels, rgba):
-                guard pixels.count == count, ArtworkColor.valid(rgba, in: ink) else {
+            // A glyph part's plane covers only its window (the core's
+            // per-component window), so it is charged its glyphs' extent.
+            case let .coverage(pixels, rgba, window):
+                guard window.lies(inWidth: width, height: height), pixels.count == window.pixels,
+                      ArtworkColor.valid(rgba, in: ink) else {
                     throw Self.failure("Intrinsic monochrome coverage does not match its extent or ink.")
                 }
-                guard count <= Self.maximumComponentSamples else { throw Self.componentRefusal }
-                captured.append(.coverage(pixels, rgba: rgba))
-                scalar += count; bytes += UInt64(pixels.count)
-            case let .intrinsic(pixels, opacity):
-                guard pixels.count == count * 4, opacity.isFinite, (0...1).contains(opacity) else {
+                guard window.pixels <= Self.maximumComponentSamples else { throw Self.componentRefusal }
+                captured.append(.coverage(pixels, rgba: rgba, window: window))
+                scalar += window.pixels; bytes += UInt64(pixels.count)
+            case let .intrinsic(pixels, opacity, window):
+                guard window.lies(inWidth: width, height: height), pixels.count == window.pixels * 4,
+                      opacity.isFinite, (0...1).contains(opacity) else {
                     throw Self.failure("Intrinsic glyph data does not match its declared extent or opacity.")
                 }
                 guard pixels.count <= Self.maximumComponentSamples else { throw Self.componentRefusal }
-                captured.append(.intrinsic(pixels, opacity: opacity))
+                captured.append(.intrinsic(pixels, opacity: opacity, window: window))
                 intrinsic += pixels.count; bytes += UInt64(pixels.count)
             case let .fill(rgba, linear):
                 guard ArtworkColor.valid(rgba, in: ink) else { throw Self.failure(colorRefusal) }
@@ -260,13 +274,14 @@ struct NativeArtworkEvaluation {
                 }
                 coverage.append(contentsOf: plane)
                 descriptors.append(["kind": "coverage", colorKey: rgba, "window": window.json])
-            case let .coverage(bytes, rgba):
-                let promoted = try PrecisionScalarBuffer.promoting(bytes, width: width, height: height)
+            case let .coverage(bytes, rgba, window):
+                let promoted = try PrecisionScalarBuffer.promoting(bytes, width: window.width,
+                                                                   height: window.height)
                 coverage.append(contentsOf: promoted.samples)
-                descriptors.append(["kind": "coverage", colorKey: rgba])
-            case let .intrinsic(bytes, opacity):
+                descriptors.append(["kind": "coverage", colorKey: rgba, "window": window.json])
+            case let .intrinsic(bytes, opacity, window):
                 intrinsic.append(contentsOf: bytes)
-                descriptors.append(["kind": "intrinsic_rgba8", "opacity": opacity])
+                descriptors.append(["kind": "intrinsic_rgba8", "opacity": opacity, "window": window.json])
             case let .planeless(component):
                 descriptors.append(component)
             }

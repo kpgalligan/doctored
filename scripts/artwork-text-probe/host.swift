@@ -1,4 +1,3 @@
-#if !ARTWORK_CAPTURE_STANDALONE
 import AppKit
 import CoreText
 
@@ -59,8 +58,9 @@ func runArtworkTextCaptureProbe(directory: URL) throws -> [String: Any] {
             opaque.artwork?.rgba[3] = 1
             let original = try textCaptureReference(payload: opaque, anchor: anchor)
             let intrinsic = captured.parts.compactMap { part -> ([UInt8], Double)? in
-                if case let .intrinsic(pixels, opacity) = part { return (pixels, opacity) }
-                return nil
+                guard case let .intrinsic(pixels, opacity, window) = part else { return nil }
+                return (textCaptureEmbedded(pixels, window: window, planes: 4, width: captured.width,
+                                            height: captured.height), opacity)
             }
             guard intrinsic.count == 1, intrinsic[0].0 == original, intrinsic[0].1 == rgba[3] else {
                 throw DoctoredCoreError(message: "Intrinsic superclass pixels or independent opacity changed: \(name)")
@@ -84,7 +84,7 @@ func runArtworkTextCaptureProbe(directory: URL) throws -> [String: Any] {
             }
             if name == "color_runs" {
                 let inks = captured.parts.compactMap { part -> [Double]? in
-                    switch part { case let .path(_, rgba, _), let .coverage(_, rgba), let .fill(rgba, _): return rgba; case .intrinsic, .gradient, .pattern: return nil }
+                    switch part { case let .path(_, rgba, _), let .coverage(_, rgba, _), let .fill(rgba, _): return rgba; case .intrinsic, .gradient, .pattern: return nil }
                 }
                 guard inks.contains([0.76, 0.12, 0.31, 0.613]), inks.contains(rgba) else {
                     throw DoctoredCoreError(message: "Continuous attributed ink was rounded during capture")
@@ -95,6 +95,7 @@ func runArtworkTextCaptureProbe(directory: URL) throws -> [String: Any] {
         results.append(report)
     }
     results.append(try outlineLessNoInk())
+    results += try runGlyphWindowProbe(directory: directory)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     results += try editorIntrinsicParity(directory: directory)
     results.append(try artworkDeniedReadIntegrity())
@@ -326,4 +327,3 @@ private func artworkDeniedReadIntegrity() throws -> [String: Any] {
         "accounting_reservation_bytes": available - 1, "fixture_canvas_pixels": width * height,
         "denied_operations": ["metadata_read", "crop", "integral_affine", "profile_assignment", "metadata_restoration"]]
 }
-#endif

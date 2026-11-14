@@ -794,6 +794,56 @@ fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
     unsafe { dr_doc_free(doc) };
 }
 
+/// The bake checks no window on its own: each lies inside the canvas, and
+/// the container refuses a canvas past the 100 MP editing limit before any
+/// record is walked, so no window reaches the rasterizer's pixel limits
+/// (`psd_vector_mask_bake`). A mask of a large add and a small subtract on
+/// a 30000 × 30000 canvas (an add window of about 20000 × 20000), and on a
+/// canvas one row past 100 MP, never reaches the bake: the report refuses
+/// the file at its header.
+#[test]
+fn a_canvas_past_the_editing_limit_never_reaches_the_bake() {
+    let canvas = (64.0, 48.0);
+    let rectangle = |x0: f64, y0: f64, x1: f64, y1: f64, operation: i16| {
+        closed_subpath(&[(x0, y0), (x1, y0), (x1, y1), (x0, y1)], operation, canvas)
+    };
+    let body = vmsk(
+        0,
+        &[
+            rectangle(0.0, 0.0, 43.0, 32.0, 1),
+            rectangle(2.0, 2.0, 4.0, 4.0, 2),
+        ],
+    );
+    let small = masked_raster([64, 48], &body);
+    let dir = TempDir::new().unwrap();
+    // Within the limit the same file reports, its mask drawn from its path.
+    let file = dir.path().join("small.psd");
+    std::fs::write(&file, &small).unwrap();
+    let losses = common::psd_photoshop::strings(&import_report(&file), "verified_losses");
+    assert!(
+        losses.iter().any(|l| l.contains("drawn from its path")),
+        "{losses:?}"
+    );
+    for (width, height) in [(30_000u32, 30_000u32), (10_000, 10_001)] {
+        let mut bytes = small.clone();
+        // The PSD header: height at byte 14, width at byte 18, big-endian.
+        bytes[14..18].copy_from_slice(&height.to_be_bytes());
+        bytes[18..22].copy_from_slice(&width.to_be_bytes());
+        let file = dir.path().join(format!("{width}x{height}.psd"));
+        std::fs::write(&file, &bytes).unwrap();
+        let mut err: *mut c_char = ptr::null_mut();
+        let raw = unsafe {
+            doctored_core::ffi_psd::dr_psd_import_report(cpath(&file).as_ptr(), &mut err)
+        };
+        assert!(raw.is_null(), "{width} × {height} reported");
+        let reason = take_err_string(err);
+        assert!(
+            reason.contains("exceeds the 100 MP editing limit"),
+            "{width} × {height}: {reason}"
+        );
+    }
+}
+
 /// A vector mask within the drawing caps that the rasterizer refuses (32,760
 /// edges that each cross all 8,000 rows are past its work limit) refuses the
 /// layered open by name: the report said the mask is drawn, so the layer
