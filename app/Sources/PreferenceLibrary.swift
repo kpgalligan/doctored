@@ -57,6 +57,9 @@ protocol PreferenceLibraryCodec {
     static var noun: String { get }
     /// Its plural, for the two sentences that count things.
     static var plural: String { get }
+    /// Its indefinite article at the start of a sentence: "A RAW preset", "An export preset". By
+    /// the noun's first letter unless the codec states it (an initialism read as letters).
+    static var article: String { get }
     /// The environment variable a test instance sets to isolate the folder.
     static var directoryEnvironment: String { get }
     /// The folder under Application Support, e.g. `Doctored/RAW Presets`.
@@ -77,6 +80,7 @@ protocol PreferenceLibraryCodec {
 
 extension PreferenceLibraryCodec {
     static var plural: String { noun + "s" }
+    static var article: String { "aeiou".contains(noun.lowercased().prefix(1)) ? "An" : "A" }
 }
 
 /// Why ONE file is not a listed entry. The raw values are the MCP `code`
@@ -125,10 +129,8 @@ enum PreferenceLibrary<Codec: PreferenceLibraryCodec> {
     private static var capitalized: String {
         Codec.noun.prefix(1).uppercased() + Codec.noun.dropFirst()
     }
-    /// "A RAW preset" / "An export preset" — the article the noun asks for.
-    private static var article: String {
-        "aeiou".contains(Codec.noun.lowercased().prefix(1)) ? "An" : "A"
-    }
+    /// "A RAW preset" / "An export preset" — the article the noun asks for (`Codec.article`).
+    private static var article: String { Codec.article }
 
     static var directory: URL {
         if let path = ProcessInfo.processInfo.environment[Codec.directoryEnvironment], !path.isEmpty {
@@ -144,7 +146,8 @@ enum PreferenceLibrary<Codec: PreferenceLibraryCodec> {
         guard !result.isEmpty, result.count <= 120, result.utf8.count <= 512,
               result.rangeOfCharacter(from: .controlCharacters) == nil else {
             throw DoctoredCoreError(
-                message: "Use a \(Codec.noun) name of 1–120 characters without control characters.")
+                message: "Use \(article.lowercased()) \(Codec.noun) name of 1–120 characters "
+                    + "without control characters.")
         }
         return result.precomposedStringWithCanonicalMapping
     }
@@ -173,7 +176,8 @@ enum PreferenceLibrary<Codec: PreferenceLibraryCodec> {
               file.rangeOfCharacter(from: .controlCharacters) == nil,
               file == (file as NSString).lastPathComponent else {
             throw DoctoredCoreError(
-                message: "Use a \(Codec.noun) file name from the listing: a “.json” basename with no “/”.")
+                message: "Use \(article.lowercased()) \(Codec.noun) file name from the listing: a "
+                    + "“.json” basename with no “/”.")
         }
         return file
     }
@@ -259,7 +263,8 @@ enum PreferenceLibrary<Codec: PreferenceLibraryCodec> {
             return broken(.unknownVersion, "\(file) carries no supported schema_version (\(range)).")
         }
         guard let item = try? Codec.decode(object, schemaVersion: version.intValue) else {
-            return broken(.invalidSchema, "\(file) is not a \(Codec.noun) this build can read.")
+            return broken(.invalidSchema,
+                          "\(file) is not \(article.lowercased()) \(Codec.noun) this build can read.")
         }
         guard (try? normalizedName(Codec.name(of: item))) == Codec.name(of: item) else {
             return broken(.invalidSchema, "\(file) carries no valid normalized \(Codec.noun) name.")

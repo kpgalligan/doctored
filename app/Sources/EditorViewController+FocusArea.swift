@@ -13,7 +13,8 @@ extension EditorViewController {
         })
     }
 
-    /// Enabled where Color Range is, on an RGB document.
+    /// Enabled where Color Range is, in a mode `FocusArea.modes` names; a colour-mode
+    /// document's own whitelist (`validatePrecisionItem`) is asked first.
     func validateFocusAreaItem() -> Bool {
         guard let doc = document?.doc, !isTransforming, document?.quickMaskActive == false else { return false }
         return FocusArea.refusal(doc) == nil

@@ -143,8 +143,9 @@ extension AgentServer {
                     + "proofing off."
             case "assign_profile", "convert_profile", "get_proof_setup", "render_proof",
                  "content_aware_fill", "preview_content_aware_fill", "discard_content_aware_fill_preview",
-                 "puppet_warp", "perspective_warp", "select_subject", "select_sky", "depth_blur",
-                 "super_zoom", "jpeg_artifacts_removal", "neural_colorize":
+                 "puppet_warp", "perspective_warp", "select_subject", "select_sky",
+                 "select_focus_area", "depth_blur", "super_zoom", "jpeg_artifacts_removal",
+                 "neural_colorize":
                 catalog[index]["description"] = existing + disabled
             case "apply_filter":
                 catalog[index]["description"] = existing + " A Duotone document refuses filter "

@@ -79,6 +79,21 @@ CASES
   a truncated file, a missing file and a path under ~/.ssh refuse and write
   nothing; a second import of one name refuses and `replace` overwrites it; a
   file named for a built-in refuses and imports under `name`.
+- The library over MCP (`list_hdr_toning_presets`, `save_hdr_toning_preset`,
+  `delete_hdr_toning_preset`: the dialog's Preset popup rows, Save Preset...
+  and Delete Preset...): the list names Default and the looks first, in order,
+  each `hdr_toning` the table's values, then every library file as a saved row
+  (its stored name and values) or a broken one; a save writes one file of
+  `{schema_version, name, hdr_toning}` with every value explicit, lists with
+  `builtin` false and its `file`, and applies like its values; a value not
+  given is the method's default; a second save refuses and `replace`
+  overwrites the one file; a built-in's name, no method, `bit_depth`,
+  `preset`, a stray key, a value out of range, a key the method does not take
+  and no name refuse and write nothing; a delete by name removes the file, then
+  `hdr_toning preset` and a second delete refuse; a built-in's name (any case)
+  and both or neither of `name` and `file` refuse; a broken file is a broken
+  row that only `file` deletes, and a name outside the library refuses; the
+  library's sentences say "an HDR Toning preset".
 
 Usage: python3 scripts/verify_v1_hdr_toning.py [--output DIR]
 Prints `PASS <case>` per case and exits 0 when every case passed.
@@ -815,6 +830,129 @@ class Drive:
             self.toned_codes(method='local_adaptation', detail=10), 'a renamed import applies'
         return detail
 
+    # ---------------------------------------------------- the library over MCP --
+
+    def listed(self):
+        return self.app.call('list_hdr_toning_presets')
+
+    def preset_library(self):
+        """(t) `list_hdr_toning_presets`, `save_hdr_toning_preset` and `delete_hdr_toning_preset`:
+        the dialog's Preset popup rows, Save Preset... and Delete Preset...."""
+        detail = {}
+        # The list: the built-ins first in the popup's order, then every library file as a
+        # saved row or a broken one (the earlier cases left both kinds).
+        built_ins = ['Default', *BUILT_IN_LOOKS]
+        listing = self.listed()
+        rows_ = listing['presets']
+        assert [row['name'] for row in rows_[:len(built_ins)]] == built_ins, rows_
+        for row in rows_[:len(built_ins)]:
+            values = dict(LOCAL_DEFAULTS, **BUILT_IN_LOOKS.get(row['name'], {}))
+            assert row['builtin'] is True and 'file' not in row, row
+            assert row['hdr_toning'] == dict(method='local_adaptation', **values), row
+            assert ('purpose' in row) == (row['name'] != 'Default'), row
+        library = self.library()
+        saved = rows_[len(built_ins):]
+        for row in saved:
+            assert row['builtin'] is False and row['file'] in library, row
+            stored = library[row['file']]
+            assert (row['name'], row['hdr_toning']) == (stored['name'], stored['hdr_toning']), row
+        broken = {row['file'] for row in listing['broken']}
+        assert {row['file'] for row in saved} | broken == set(library), (saved, broken, library)
+        assert (listing['maximum_presets'], listing['maximum_file_bytes']) == (128, 4096), listing
+        detail['listed'] = dict(saved=len(saved), broken=sorted(broken))
+        # Save: one library file holding every value explicit; it lists and applies by name.
+        mine = dict(radius=24, strength=0.9, smooth_edges=True, gamma=1.2, exposure=-0.3,
+                    detail=45, shadow=10, highlight=-15, vibrance=5, saturation=12,
+                    toning_curve=[[0, 0], [128, 140], [255, 255]])
+        expected = dict(method='local_adaptation', **mine)
+        before = self.library()
+        reply = self.app.call('save_hdr_toning_preset', name='Drive Saved', **expected)
+        assert reply == dict(ok=True, name='Drive Saved', hdr_toning=expected), reply
+        digest = hashlib.sha256(b'drive saved').hexdigest() + '.json'
+        after = self.library()
+        assert set(after) - set(before) == {digest}, (sorted(before), sorted(after))
+        assert after[digest] == dict(schema_version=1, name='Drive Saved', hdr_toning=expected), \
+            after[digest]
+        row = next(row for row in self.listed()['presets'] if row['name'] == 'Drive Saved')
+        assert row == dict(name='Drive Saved', builtin=False, file=digest, hdr_toning=expected), row
+        assert self.toned_codes(preset='Drive Saved') == \
+            self.toned_codes(method='local_adaptation', **mine), 'a saved preset applies'
+        # A value not given is the method's default.
+        reply = self.app.call('save_hdr_toning_preset', name='Drive Exposure',
+                              method='exposure_gamma', exposure=1.5)
+        assert reply['hdr_toning'] == dict(method='exposure_gamma', exposure=1.5, gamma=1), reply
+        detail['defaults'] = reply['hdr_toning']
+        # A second save refuses; replace overwrites the one file.
+        unchanged = self.library()
+        self.app.refused('save_hdr_toning_preset',
+                         'An HDR Toning preset named “Drive Saved” already exists',
+                         name='Drive Saved', **dict(expected, detail=99))
+        assert self.library() == unchanged, 'a refused save writes nothing'
+        reply = self.app.call('save_hdr_toning_preset', name='Drive Saved', replace=True,
+                              **dict(expected, detail=99))
+        assert reply['hdr_toning']['detail'] == 99, reply
+        assert set(self.library()) == set(unchanged), 'replace writes the same file'
+        assert self.library()[digest]['hdr_toning']['detail'] == 99
+        # Refusals write nothing: a built-in's name, no method, a depth, a preset, a stray key,
+        # a value out of range.
+        unchanged = self.library()
+        refusals = [
+            (dict(name='Vivid', method='local_adaptation'),
+             '“Vivid” is a built-in HDR Toning preset'),
+            (dict(name='Drive Refused', detail=10), 'Missing required argument: method'),
+            (dict(name='Drive Refused', method='local_adaptation', bit_depth=16), 'not bit_depth'),
+            (dict(name='Drive Refused', method='local_adaptation', preset='Vivid'), 'not preset'),
+            (dict(name='Drive Refused', method='local_adaptation', radious=3), 'not radious'),
+            (dict(name='Drive Refused', method='local_adaptation', radius=0), 'radius'),
+            (dict(name='Drive Refused', method='highlight_compression', exposure=1),
+             'exposure applies to methods exposure_gamma and local_adaptation only'),
+            (dict(method='local_adaptation'), 'name'),
+        ]
+        detail['save_refusals'] = [self.app.refused('save_hdr_toning_preset', needle, **arguments)
+                                   for arguments, needle in refusals]
+        assert self.library() == unchanged, 'a refused save writes nothing'
+        # Delete by name removes the file, after which the name neither applies nor deletes.
+        reply = self.app.call('delete_hdr_toning_preset', name='Drive Saved')
+        assert reply == dict(ok=True, name='Drive Saved'), reply
+        assert digest not in self.library() and len(self.library()) == len(unchanged) - 1
+        assert 'Drive Saved' not in [row['name'] for row in self.listed()['presets']]
+        document = open_document(self.app, self.chart)
+        try:
+            self.app.refused('hdr_toning', 'No HDR Toning preset named “Drive Saved”',
+                             document_id=document, preset='Drive Saved')
+        finally:
+            close(self.app, document)
+        self.app.refused('delete_hdr_toning_preset', 'No HDR Toning preset named “Drive Saved”',
+                         name='Drive Saved')
+        # A built-in refuses by name, any case; both or neither of name and file refuse.
+        detail['built_in'] = self.app.refused(
+            'delete_hdr_toning_preset',
+            '“Vivid” is a built-in HDR Toning preset; only a saved preset can be deleted.',
+            name='vivid')
+        both = self.app.refused('delete_hdr_toning_preset', 'exactly one of name or file',
+                                name='Drive Exposure', file=digest)
+        neither = self.app.refused('delete_hdr_toning_preset', 'exactly one of name or file')
+        assert both == neither, (both, neither)
+        # A broken file is a broken row, and only `file` clears it.
+        stray = self.user_preset('Drive Broken', mine, extra=dict(bit_depth=16))
+        listing = self.listed()
+        row = next(row for row in listing['broken'] if row['file'] == stray.name)
+        assert row['code'] == 'invalid_schema' and row['repairable'] is False, row
+        assert row['reason'] == \
+            f'{stray.name} is not an HDR Toning preset this build can read.', row
+        assert 'Drive Broken' not in [row['name'] for row in listing['presets']]
+        self.app.refused('delete_hdr_toning_preset', 'No HDR Toning preset named',
+                         name='Drive Broken')
+        reply = self.app.call('delete_hdr_toning_preset', file=stray.name)
+        assert reply == dict(ok=True, file=stray.name), reply
+        assert not stray.exists() and stray.name not in {r['file'] for r in self.listed()['broken']}
+        self.app.refused('delete_hdr_toning_preset', 'No HDR Toning preset file', file=stray.name)
+        detail['outside'] = self.app.refused('delete_hdr_toning_preset',
+                                             'Use an HDR Toning preset file name from the listing',
+                                             file='../outside.json')
+        detail['broken'] = row
+        return detail
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
@@ -856,6 +994,7 @@ def main():
         run('(q) presets: Default, a user preset, a removed name', drive.presets)
         run('(r) presets: the built-in looks', drive.looks)
         run('(s) presets: import a .hdt file', drive.preset_import)
+        run('(t) presets: list, save and delete over MCP', drive.preset_library)
     (output / 'receipt.json').write_text(json.dumps(results, indent=2, default=str) + '\n')
     print(f'receipt: {output / "receipt.json"}')
     if failed:

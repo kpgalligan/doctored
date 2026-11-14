@@ -68,6 +68,11 @@ app. The CMYK profile is macOS's Generic CMYK Profile (always installed).
   `delete_layer_comp` B are one undo step each with the names as asked;
   `get_precision`'s supported_tools holds the six comp tools; `convert_mode
   rgb` keeps the names ["A2"]. `--only g10` runs this gate alone.
+- **G11 Focus Area.** `verify_focus_area.mode_check`'s half-sharp picture
+  converted to CMYK at 8 and 16 bits answers `select_focus_area` (on the
+  document's Display P3 view) with a non-empty selection whose bounds start at
+  x 0 and end left of the seam band, and `get_precision`'s supported_tools
+  holds it. `--only g11` runs this gate alone.
 """
 import argparse
 import json
@@ -85,6 +90,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 
 import phase5_support
 from phase5_support import App
+import verify_focus_area
 from verify_phase1 import png
 from verify_v1_stack_align import (
     BOUND_PX, Picture, apply, centre_grid, corner_grid, fixture, inverse, translation)
@@ -335,10 +341,15 @@ def g10(call):
     return {'carried': carried, 'applied': applied, 'probe': before, 'to_rgb': back}
 
 
+def g11(app, folder):
+    """G11: Select ▸ Focus Area on CMYK at 8 and 16 bits (module doc)."""
+    return {depth: verify_focus_area.mode_check(app, folder, 'cmyk', depth) for depth in (8, 16)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--receipts', default=None)
-    parser.add_argument('--only', choices=['g10'], default=None,
+    parser.add_argument('--only', choices=['g10', 'g11'], default=None,
                         help='run one independent gate alone')
     args = parser.parse_args()
     assert GENERIC.is_file(), GENERIC
@@ -360,6 +371,14 @@ def main():
             (output / 'receipt.json').write_text(
                 json.dumps(receipts, indent=2, sort_keys=True) + '\n')
             print('ALL GATES PASS (g10 only)', flush=True)
+            return
+        if args.only == 'g11':
+            receipts['g11'] = g11(app, folder)
+            print(f'PASS g11: Focus Area selects the sharp half on CMYK at 8 and 16 bits '
+                  f'{receipts["g11"]}', flush=True)
+            (output / 'receipt.json').write_text(
+                json.dumps(receipts, indent=2, sort_keys=True) + '\n')
+            print('ALL GATES PASS (g11 only)', flush=True)
             return
 
         # ---- G1: TIFF 8/16, bit-exact ------------------------------------
@@ -605,6 +624,11 @@ def main():
         receipts['g10'] = g10(call)
         print('PASS g10: layer comps save, apply, update, reorder and delete on CMYK and '
               'cross Image ▸ Mode both ways', flush=True)
+
+        # ---- G11: Focus Area -------------------------------------------------
+        receipts['g11'] = g11(app, folder)
+        print(f'PASS g11: Focus Area selects the sharp half on CMYK at 8 and 16 bits '
+              f'{receipts["g11"]}', flush=True)
 
     (output / 'receipt.json').write_text(json.dumps(receipts, indent=2, sort_keys=True) + '\n')
     print(f'receipts: {output / "receipt.json"}', flush=True)

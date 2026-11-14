@@ -845,7 +845,11 @@ an error of its own whose text contains none of `GATE_PARTS` ('Lab Color',
   `refine_selection` (decontaminate, feather 2, output new_layer) answers ok
   with one more layer and the mode stays lab; `select_subject`, `select_sky`,
   `select_person_parts` (hair) and `object_finder_select` (a box) clear the
-  gate (the models from `DR_MODELS_DIR`).
+  gate (the models from `DR_MODELS_DIR`). Select ▸ Focus Area:
+  `verify_focus_area.mode_check`'s half-sharp picture in Lab at 8 and 16 bits
+  answers `select_focus_area` with a non-empty selection whose bounds start at
+  x 0 and end left of the seam band, and `supported_menu_items` lists
+  `showFocusArea:`.
 - **L89 nit (b).** On a Lab document `convert_profile profile bogus` answers
   text containing `working_gray` and `dot_gain_20`.
 
@@ -979,6 +983,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 
 import model_store_paths
 from phase5_support import App
+import verify_focus_area
 
 # ---- the expectations, fixed here BEFORE anything is measured -------------
 RENDER_BOUND8 = 2
@@ -1094,6 +1099,8 @@ LAB_TOOLS = [
     'add_spot_channel', 'set_spot_channel', 'merge_spot_channel', 'set_channel_kind',
     # Edit ▸ Define Pattern… (d81a3c71).
     'define_pattern',
+    # Select ▸ Focus Area (L88; designs/focus-area.md).
+    'select_focus_area',
 ]
 # The close (module doc, L93): the 34 tools it lifts and the 24 it refuses for good by name.
 CLOSE_LIFTED = [
@@ -4521,11 +4528,13 @@ def main():
             'object_finder_select': attempt('object_finder_select', document_id=sdoc88,
                                             box={'x': 2, 'y': 2, 'width': 12, 'height': 8}),
         }
-        l88.update(rect=rect88, quick=bounds88, refined=refined88,
+        focus88 = {depth: verify_focus_area.mode_check(app, folder, 'lab', depth)
+                   for depth in (8, 16)}
+        l88.update(rect=rect88, quick=bounds88, refined=refined88, focus_area=focus88,
                    models={k: 'ok' if v[0] else v[1] for k, v in models88.items()})
         receipts['l88'] = l88
-        print(f'PASS l88: Quick Mask, Quick Selection and Select and Mask run on Lab; the model '
-              f'selections clear the gate {l88["models"]}', flush=True)
+        print(f'PASS l88: Quick Mask, Quick Selection, Select and Mask and Focus Area run on Lab; '
+              f'the model selections clear the gate {l88["models"]}', flush=True)
 
         # L89: nit (b), the Gray choices named.
         bogus89 = call('convert_profile', fail=True, document_id=new_lab(16), profile='bogus')

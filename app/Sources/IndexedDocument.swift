@@ -103,6 +103,8 @@ enum IndexedDocument {
         "get_precision", "set_ruler_origin", "list_channels", "add_channel", "delete_channel",
         "duplicate_channel", "rename_channel", "set_channel_options", "invert_channel",
         "select_magic_wand", "quick_select", "select_magnetic", "clone_stamp",
+        // Select ▸ Focus Area, on the palette colours (`designs/focus-area.md`).
+        "select_focus_area",
         "history_brush_stroke", "auto_select_layer", "run_action", "contact_sheet",
         "contact_sheet_from_sources", "list_snapshots", "create_snapshot", "rename_snapshot",
         "delete_snapshot", "restore_snapshot", "save_snapshot", "load_snapshot",
@@ -151,6 +153,8 @@ enum IndexedDocument {
         "invertSelection:", "featherSelection:", "growSelection:", "shrinkSelection:",
         "borderSelection:", "smoothSelection:", "saveSelectionSheet:", "loadSelectionSheet:",
         "toggleQuickMask:",
+        // Select ▸ Focus Area (`select_focus_area`).
+        "showFocusArea:",
         // Phase 3c: the Channels panel's commands, File Info, Snapshots, the paths, the colour
         // samplers, a second view and the proof.
         "newChannel:", "deleteChannel:", "duplicateChannel:", "channelOptions:", "invertChannel:",

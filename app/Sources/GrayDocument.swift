@@ -129,6 +129,8 @@ enum GrayDocument {
         "select_face_parts", "inspect_faces", "object_select", "refine_selection",
         "select_magnetic", "modify_selection", "save_selection", "load_selection",
         "set_quick_mask", "quick_mask_stroke", "add_luminosity_masks",
+        // Select ▸ Focus Area on the R = G = B analysis source (`designs/focus-area.md`).
+        "select_focus_area",
         // Phase 5a: Assign and Convert to Profile between Gray profiles, 8/16/32 Bits/Channel
         // (`AgentServer+GrayColour.swift`).
         "assign_profile", "convert_profile", "convert_precision",
@@ -200,6 +202,8 @@ enum GrayDocument {
         "select_face_parts", "inspect_faces", "object_select", "refine_selection",
         "select_magnetic", "modify_selection", "save_selection", "load_selection",
         "set_quick_mask", "quick_mask_stroke", "add_luminosity_masks",
+        // Select ▸ Focus Area (the same list as `tools`).
+        "select_focus_area",
         // Phase 5b: the proof tools refuse a 32-bit document as a float document.
         "get_proof_setup", "set_proof_setup", "render_proof",
         // Phase 6a-i: type, shape and fill layers (each colour stored as its gray,
@@ -279,7 +283,7 @@ enum GrayDocument {
         "pasteInto:", "pasteOutside:", "layerViaCopy:", "layerViaCut:", "duplicateToNewDocument:",
         "stampSelected:",
         "showColorRange:", "refineSelection:", "selectSubject:", "showSubjectTargets:",
-        "showPeopleTargets:", "selectPeople:", "showFaceParts:",
+        "showPeopleTargets:", "selectPeople:", "showFaceParts:", "showFocusArea:",
         "invertSelection:", "featherSelection:", "growSelection:", "shrinkSelection:",
         "borderSelection:", "smoothSelection:", "selectGrow:", "selectSimilar:",
         "transformSelection:", "toggleQuickMask:", "saveSelectionSheet:", "loadSelectionSheet:",

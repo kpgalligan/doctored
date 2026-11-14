@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """MCP drive for Select > Focus Area (`select_focus_area`, designs/focus-area.md)
-at 8, 16 and 32 bits.
+at 8, 16 and 32 bits, in RGB and in the colour modes that answer it.
 
 The script owns one app instance (`verify_v1_lens.App`): the Debug app (or
 `DR_VERIFY_APP`) on its own scratch MCP socket with `DR_BACKGROUND=1`, a
@@ -9,7 +9,9 @@ It terminates only that process.
 
 The fixture is a 96x64 opaque picture: the left half a one-pixel checker of
 two greys (sharp), the right half the same checker box-blurred over 7x7 here
-(defocused). At each depth (16 and 32 bits by `convert_precision`):
+(defocused). Each case opens it, converts it (`prepare`: 16 and 32 bits by
+`convert_precision`, then the mode by `convert_mode`; Indexed Color with
+`palette exact`, `dither none`, so the indices are the picture), and:
 - Auto selects the sharp half: coverage >= 250 left of the seam band and 0
   right of it (`get_selection` on a grid), the reply's bounds start at x 0 and
   end left of the band's far side, and the reply carries `range`;
@@ -17,7 +19,15 @@ two greys (sharp), the right half the same checker box-blurred over 7x7 here
   step's replay);
 - one `undo` removes the selection;
 - `mode add` keeps a rectangle selected first on the blurred half;
-- a Grayscale document refuses.
+- in Grayscale, Lab Color and Indexed Color `get_precision` lists
+  `showFocusArea:` in `supported_menu_items`, and in CMYK `select_focus_area`
+  in `supported_tools`.
+The cases are RGB at 8, 16 and 32 bits, Grayscale at 8, 16 and 32, Lab Color
+at 8 and 16, Indexed Color at 8 and CMYK at 8 and 16. Duotone refuses with
+`DUOTONE_REFUSAL` and Bitmap with `BITMAP_REFUSAL` (decision 7).
+
+`mode_check` is the one call each colour-mode drive makes (`verify_gray_mode.py`,
+`verify_lab_mode.py`, `verify_indexed_mode.py`, `verify_cmyk_mode.py`).
 
 Usage: python3 scripts/verify_focus_area.py [--output DIR]
 Prints `PASS <case>` per case and `ALL CASES PASS` when every case passed.
@@ -33,6 +43,12 @@ from verify_v1_lens import App  # noqa: E402
 
 W, H = 96, 64
 SEAM = 24
+DUOTONE_REFUSAL = 'select_focus_area is not available in Duotone.'
+BITMAP_REFUSAL = ('select_focus_area is unavailable in a Bitmap document: Doctored offers it on '
+                  'Grayscale and colour documents only; convert to Grayscale first.')
+MONOTONE = [{'name': 'Black', 'lab': [0, 0, 0], 'curve': [0] + [None] * 11 + [100]}]
+# The modes whose `get_precision` lists its menu items.
+MENU_MODES = ('gray', 'lab', 'indexed')
 
 
 def checker(x, y):
@@ -75,26 +91,80 @@ def check_half(cover, label):
             assert value == 0, (label, 'blurred', x, y, value)
 
 
-def depth_case(app, path, depth):
+def color_mode(app, document):
+    rows = app.call('list_documents')['documents']
+    return next(row for row in rows if row['id'] == document)['color_mode']
+
+
+def prepare(app, document, depth, mode):
+    """The opened RGB picture at `depth`, then in `mode` (None keeps RGB)."""
+    if depth == 16:
+        app.call('convert_precision', document_id=document, mode='rgba16', structure='preserve')
+    if depth == 32:
+        app.call('convert_precision', document_id=document, mode='rgba32', structure='preserve')
+    if mode == 'indexed':
+        app.call('convert_mode', document_id=document, mode='indexed', palette='exact',
+                 dither='none')
+    elif mode == 'bitmap':
+        app.call('convert_mode', document_id=document, mode='gray')
+        app.call('convert_mode', document_id=document, mode='bitmap', method='threshold')
+    elif mode == 'duotone':
+        app.call('convert_mode', document_id=document, mode='gray')
+        app.call('convert_mode', document_id=document, mode='duotone', inks=MONOTONE)
+    elif mode:
+        app.call('convert_mode', document_id=document, mode=mode)
+    got = color_mode(app, document)
+    assert got == (mode or 'rgb'), (mode, depth, got)
+
+
+def answers(app, document, label):
+    """One Auto call: a non-empty selection whose bounds start at x 0 and end left of the
+    seam band's far side. Answers the reply."""
+    reply = app.call('select_focus_area', document_id=document)
+    assert reply['selection_empty'] is False, (label, reply)
+    bounds = reply['bounds']
+    assert bounds['x'] == 0 and bounds['x'] + bounds['width'] <= W // 2 + SEAM, (label, bounds)
+    return reply
+
+
+def listed(app, document, mode):
+    """`get_precision` admits Focus Area by name: the menu item where the mode lists its menu
+    items, else the tool."""
+    precision = app.call('get_precision', document_id=document)
+    if mode in MENU_MODES:
+        assert 'showFocusArea:' in precision['supported_menu_items'], precision
+    if mode == 'cmyk':
+        assert 'select_focus_area' in precision['supported_tools'], precision
+
+
+def mode_check(app, folder, mode, depth):
+    """The colour-mode drives' call: the half-sharp picture in `mode` at `depth` answers
+    `select_focus_area` with a non-empty selection on the sharp half, and `get_precision` lists
+    it. The document is closed whatever happens. Answers the reply's bounds and range."""
+    document = app.call('open_document', path=str(write(folder)))['document']['id']
+    try:
+        prepare(app, document, depth, mode)
+        reply = answers(app, document, f'{mode} {depth}')
+        listed(app, document, mode)
+        return dict(bounds=reply['bounds'], range=reply['range'])
+    finally:
+        app.call('close_document', document_id=document, discard_changes=True)
+
+
+def depth_case(app, path, depth, mode=None):
     document = app.call('open_document', path=str(path))['document']['id']
     try:
-        return depth_checks(app, document, depth)
+        prepare(app, document, depth, mode)
+        return depth_checks(app, document, f'{mode or "rgb"} {depth}', mode)
     finally:
         # Closed whatever happened, so the next case opens the file afresh.
         app.call('close_document', document_id=document, discard_changes=True)
 
 
-def depth_checks(app, document, depth):
-    if depth == 16:
-        app.call('convert_precision', document_id=document, mode='rgba16', structure='preserve')
-    if depth == 32:
-        app.call('convert_precision', document_id=document, mode='rgba32', structure='preserve')
-    reply = app.call('select_focus_area', document_id=document)
-    assert reply['selection_empty'] is False, reply
-    bounds = reply['bounds']
-    assert bounds['x'] == 0 and bounds['x'] + bounds['width'] <= W // 2 + SEAM, bounds
+def depth_checks(app, document, label, mode):
+    reply = answers(app, document, label)
     auto = coverage(app, document)
-    check_half(auto, f'{depth} auto')
+    check_half(auto, f'{label} auto')
     app.call('undo', document_id=document)
     left = [point for point, v in coverage(app, document).items() if v]
     assert not left, ('undo left a selection', left[:5])
@@ -105,15 +175,19 @@ def depth_checks(app, document, depth):
     app.call('select_focus_area', document_id=document, mode='add')
     combined = coverage(app, document)
     assert combined[(W - 6, 3)] == 255 and combined[(3, 3)] >= 250, 'add lost a part'
-    return dict(range=reply['range'], bounds=bounds)
+    listed(app, document, mode)
+    return dict(range=reply['range'], bounds=reply['bounds'])
 
 
-def refusal_case(app, path):
+def refusal_case(app, path, mode, sentence):
     document = app.call('open_document', path=str(path))['document']['id']
-    app.call('convert_mode', document_id=document, mode='gray')
-    text = app.refused('select_focus_area', '', document_id=document)
-    app.call('close_document', document_id=document, discard_changes=True)
-    return text[:80]
+    try:
+        prepare(app, document, 8, mode)
+        text = app.call('select_focus_area', fail=True, document_id=document)
+        assert text == sentence, (mode, text)
+        return text
+    finally:
+        app.call('close_document', document_id=document, discard_changes=True)
 
 
 def main():
@@ -124,10 +198,15 @@ def main():
     folder.mkdir(parents=True, exist_ok=True)
     path = write(folder)
     failures = 0
+    answering = [(None, (8, 16, 32)), ('gray', (8, 16, 32)), ('lab', (8, 16)),
+                 ('indexed', (8,)), ('cmyk', (8, 16))]
     with App(folder / 'instance', 2 * 1024 ** 3) as app:
-        cases = [(f'select_focus_area {depth}-bit', lambda depth=depth: depth_case(app, path, depth))
-                 for depth in (8, 16, 32)]
-        cases.append(('select_focus_area refused in Grayscale', lambda: refusal_case(app, path)))
+        cases = [(f'select_focus_area {mode or "rgb"} {depth}-bit',
+                  lambda depth=depth, mode=mode: depth_case(app, path, depth, mode))
+                 for mode, depths in answering for depth in depths]
+        cases += [(f'select_focus_area refused in {mode}',
+                   lambda mode=mode, sentence=sentence: refusal_case(app, path, mode, sentence))
+                  for mode, sentence in (('duotone', DUOTONE_REFUSAL), ('bitmap', BITMAP_REFUSAL))]
         for name, run in cases:
             try:
                 detail = run()

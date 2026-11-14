@@ -16,8 +16,12 @@ extension AgentServer {
                     + "subject keeps its smooth interior; transparent pixels stay outside. "
                     + "soften_edge (default true) feathers the edge. A flat picture selects "
                     + "nothing. Selection-only, one Undo; recorded with the range used. "
-                    + "Answers in RGB documents at 8, 16 and 32 bits (at 16 bits the display "
-                    + "derivative, at 32 the display codes); the colour modes refuse it.",
+                    + "Answers in RGB and Grayscale documents at 8, 16 and 32 bits and in Lab "
+                    + "Color, Indexed Color and CMYK documents, reading an 8-bit display picture "
+                    + "of the document (at 16 bits its display derivative, at 32 the document's "
+                    + "own tone-mapped display, never the window's exposure; Lab and CMYK their "
+                    + "Display P3 view, Indexed the palette colours); Duotone and Bitmap refuse "
+                    + "it.",
                 [
                     "range": ["type": "number", "minimum": 0, "maximum": 100],
                     "soften_edge": ["type": "boolean"],

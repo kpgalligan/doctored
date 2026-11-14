@@ -258,6 +258,8 @@ enum LabDocument {
         "select_face_parts", "inspect_faces", "object_select", "refine_selection",
         "set_quick_mask", "quick_mask_stroke",
         "select_sky", "select_person_parts", "object_finder_select",
+        // Select ▸ Focus Area on the Display P3 analysis composite (`designs/focus-area.md`).
+        "select_focus_area",
         // Phase 6b-iii: the neural and generative tools (the model or provider reads the Display
         // P3 view; the result returns to L*a*b* codes by the Mode rule in the core, `lab_neural`).
         "super_zoom", "jpeg_artifacts_removal", "neural_colorize", "generative_fill",
@@ -329,6 +331,8 @@ enum LabDocument {
         "select_face_parts", "inspect_faces", "object_select", "refine_selection",
         "set_quick_mask", "quick_mask_stroke",
         "select_sky", "select_person_parts", "object_finder_select",
+        // Select ▸ Focus Area (the same list as `tools`).
+        "select_focus_area",
         // Phase 6b-iii (the same list as `tools`).
         "super_zoom", "jpeg_artifacts_removal", "neural_colorize", "generative_fill",
         "generative_expand", "generative_variations", "select_generative_variation",
@@ -420,6 +424,8 @@ enum LabDocument {
         "autoAlignLayers:", "refineSelection:", "selectSubject:",
         "showSubjectTargets:", "showPeopleTargets:", "selectPeople:", "showFaceParts:",
         "toggleQuickMask:", "selectSky:", "showPersonParts:",
+        // Select ▸ Focus Area (`select_focus_area`).
+        "showFocusArea:",
         // Phase 6b-iii: Super Zoom, JPEG Artifacts Removal, Colorize and Generative Fill, Expand
         // and Variations (Sky Replacement refuses for good, `skyRefusal`).
         "showSuperZoom:", "showJpegArtifactsRemoval:", "showColorize:", "showGenerativeFill:",

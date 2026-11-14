@@ -76,7 +76,7 @@ refused in Duotone, from the UI, over MCP and in Actions. No refusal or catalog 
   Refused for good, "<tool> is not available in Duotone." (`DuotoneDocument.disabledTools`, `disabledFilters`,
   `refusedSelectors`): Assign and Convert to Profile (the core refuses them too, `ASSIGN_REFUSAL`,
   `CONVERT_REFUSAL`), Proof Setup, Proof Colors and `render_proof`, Content-Aware Fill, Puppet Warp, Perspective
-  Warp, Select Subject and Sky, Depth Blur, Super Zoom, JPEG Artifacts Removal and Colorize, and the filters
+  Warp, Select Subject, Sky and Focus Area, Depth Blur, Super Zoom, JPEG Artifacts Removal and Colorize, and the filters
   `develop_filter`, `lens_correction` and `tilt_shift`; 16 Bits/Channel (`DEPTH16_REFUSAL`) and 32 Bits/Channel
   (`DEPTH32_REFUSAL`); 16 → 8 keeps the inks. **Proof Colors is let through while proofing is on**, so a
   document converted into Duotone with Proof Colors on can turn it off; over MCP `set_proof_setup` is admitted
@@ -139,6 +139,7 @@ reaches each:
 | Image ▸ Mode ▸ 16 Bits/Channel | `convert_precision` rgba16 and gray16 from 8 bits, `convertToSixteenBits:` |
 | Select ▸ Subject | `select_subject`, `selectSubject:` |
 | Select ▸ Sky | `select_sky`, `selectSky:` |
+| Select ▸ Focus Area (2026-11-14, when its tool shipped; [focus-area.md](focus-area.md), decision 7) | `select_focus_area`, `showFocusArea:` |
 | Filter ▸ Neural Filters | `depth_blur`, `super_zoom`, `jpeg_artifacts_removal`, `neural_colorize` and their four sheets |
 | Filter ▸ Develop Filter | `apply_filter` develop_filter, `showDevelopFilter:` |
 | Filter ▸ Lens Correction | `apply_filter` lens_correction, `showLensCorrection:`; `list_lens_profiles` stays admitted (a read) |
@@ -146,9 +147,8 @@ reaches each:
 | View ▸ Proof Setup (the submenu) | refused before the close, with Proof Colors' way off above |
 
 take1's menu walk (Photoshop 26.10.0) read 25 paths enabled in Gray and disabled in Duotone that no row of it
-names: the eleven above; File ▸ Save and File ▸ Revert, disabled only because the walked document was unmodified
-(both admitted); Select ▸ Focus Area, whose `select_focus_area` and `showFocusArea:` Duotone refuses through its
-closed sets, as every colour mode does (`designs/focus-area.md`, decision 7); and eleven that reach no Doctored tool
+names: the twelve above; File ▸ Save and File ▸ Revert, disabled only because the walked document was unmodified
+(both admitted); and eleven that reach no Doctored tool
 (File ▸ Automate ▸ Crop and Straighten Photos, Edit ▸ Content-Aware Scale, Layer ▸ Mask All Objects, Filter ▸
 Adaptive Wide Angle, Filter ▸ Blur Gallery and its Field, Iris, Path and Spin Blur, Filter ▸ Video and Video ▸
 De-Interlace).

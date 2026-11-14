@@ -331,7 +331,7 @@ extension AgentServer {
                     + " this refuses for good."
             case "select_color_range", "select_similar", "modify_selection", "transform_selection",
                  "set_quick_mask", "quick_mask_stroke", "save_selection", "load_selection",
-                 "select_magic_wand", "quick_select", "select_magnetic":
+                 "select_magic_wand", "quick_select", "select_magnetic", "select_focus_area":
                 catalog[index]["description"] = existing + selectNote
             case "render":
                 catalog[index]["description"] = existing + " On an Indexed Color document"

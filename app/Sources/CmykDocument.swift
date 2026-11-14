@@ -72,6 +72,8 @@ enum CmykDocument {
         "showPeopleTargets:",
         "selectPeople:",
         "showFaceParts:",
+        // Select ▸ Focus Area… on the view (`select_focus_area`, `designs/focus-area.md`).
+        "showFocusArea:",
         "strokeSelection:",
         "applyLayerMask:",
         // Phase 4a: groups, clipping masks, merges, Stamp Visible and Blending Options (Fill).
@@ -264,8 +266,8 @@ enum CmykDocument {
         + "Correction, the Develop Filter, Depth Blur or Remove Red Eye), with Edit ▸ Fade and "
         + "Repeat Last Filter; "
         + "the Magic Wand (on ink), Quick Selection, Object Selection, Select Subject, People, Face "
-        + "Parts, Color Range, Select and Mask, the Magnetic Lasso, Select ▸ Inverse, Grow, "
-        + "Similar, Modify and Transform Selection, Quick Mask, alpha channels (Save/Load "
+        + "Parts, Color Range, Focus Area, Select and Mask, the Magnetic Lasso, Select ▸ Inverse, "
+        + "Grow, Similar, Modify and Transform Selection, Quick Mask, alpha channels (Save/Load "
         + "Selection, from a plate or the composite) and luminosity masks make selections; paths "
         + "and vector masks work; Image Size, Canvas Size, Crop, Perspective Crop, Trim, Reveal "
         + "All, rotation, flips, Free Transform, Warp, Puppet Warp, Perspective Warp, Liquify, the "

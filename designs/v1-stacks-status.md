@@ -299,6 +299,9 @@ the recorded step.
 (every sample stores "Default"). Local Adaptation only; a file that does not parse exactly refuses whole; a
 gamma above 2 imports as 2 and corner points as smooth ones, each with a report line. The curve's pair order
 (output first) and the point flag's polarity (0 a corner) are inferences the module doc states. Case (s) pins it.
+2026-11-14: MCP `list_hdr_toning_presets`, `save_hdr_toning_preset` and `delete_hdr_toning_preset` mirror the
+popup's rows, Save Preset… and Delete Preset… (`nonRecordable`, `documentFree`); a built-in's name refuses to
+delete before the library is asked, and `file` clears a broken row. Case (t) pins them.
 
 ## Open items
 

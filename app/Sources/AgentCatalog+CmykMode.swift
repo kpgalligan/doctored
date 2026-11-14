@@ -205,7 +205,7 @@ extension AgentServer {
                     + "Magic Wand does, the Magnetic Lasso reads the view, and the rest edit coverage."
             case "select_color_range", "quick_select", "object_select", "select_subject",
                  "inspect_subjects", "select_subjects", "select_people", "inspect_faces",
-                 "select_face_parts":
+                 "select_face_parts", "select_focus_area":
                 note = " In a CMYK document this reads the document's Display P3 view of its ink "
                     + "(sample_color's center_rgba16 are that view's codes), and the selection is "
                     + "coverage at document size."

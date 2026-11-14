@@ -290,7 +290,11 @@ through the descriptor).
   seeds [[15, 5]] selects something; `add_channel`, `rename_channel`,
   `duplicate_channel`, `set_channel_options`, `invert_channel` and
   `delete_channel` each leave `render` and `get_color_table`, and
-  `list_channels` counts +1, 0, +1, 0, 0, −1.
+  `list_channels` counts +1, 0, +1, 0, 0, −1. Select ▸ Focus Area:
+  `verify_focus_area.mode_check`'s half-sharp picture converted `palette
+  exact`, `dither none` answers `select_focus_area` with a non-empty
+  selection whose bounds start at x 0 and end left of the seam band, and
+  `supported_menu_items` lists `showFocusArea:`.
 - **I56 Clone Stamp and the History Brush.** On an Exact copy of I24's bands,
   `clone_stamp` size 5, hardness 100, opacity 1 along (13, 6)–(17, 6) from
   (3, 6): every pixel a table entry, each pixel whose centre lies within 1 px
@@ -336,6 +340,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 
 from phase5_support import App
+import verify_focus_area
 
 # ---- the expectations, fixed here BEFORE anything is measured -------------
 # Phase 3c: every tool the gate neither admits nor refuses with `DISABLED` or `ONE_LAYER` is
@@ -439,7 +444,7 @@ INDEXED_TOOLS = {
     'set_color_samplers', 'detect_horizon', 'straighten_layers', 'list_paths', 'set_path',
     'rename_path', 'duplicate_path', 'delete_path', 'path_to_selection', 'selection_to_path',
     'fill_path', 'stroke_path', 'set_clipping_path', 'list_lens_profiles', 'separate_color',
-    'export_psd', 'inspect_psd_export', 'combine_paths', 'define_pattern',
+    'export_psd', 'inspect_psd_export', 'combine_paths', 'define_pattern', 'select_focus_area',
 }
 DISABLED_ALL = {
     'new_layer', 'group_layers', 'ungroup_layers', 'merge_down', 'merge_visible',
@@ -489,7 +494,8 @@ DOCUMENT_FREE = {
     'export_style_presets', 'list_workspaces', 'delete_workspace', 'list_brush_presets',
     'save_brush_preset', 'delete_brush_preset', 'import_brush_presets', 'export_brush_presets',
     'list_patterns', 'delete_pattern', 'import_patterns', 'export_patterns',
-    'import_hdr_toning_preset',
+    'import_hdr_toning_preset', 'list_hdr_toning_presets', 'save_hdr_toning_preset',
+    'delete_hdr_toning_preset',
 }
 DUOTONE_TOOLS = ['get_duotone', 'set_duotone']
 ONE_LAYER = ('{} needs more than one layer, and an Indexed Color document holds one.')
@@ -2108,9 +2114,11 @@ def main():
             assert channel_count() == expected_count, tool
             assert render(doc55) == held55 and table_of(doc55) == table55, tool
             assert mode(doc55) == 'indexed', tool
-        receipts['i55'] = {'channels': expected_count}
+        focus55 = verify_focus_area.mode_check(app, folder, 'indexed', 8)
+        receipts['i55'] = {'channels': expected_count, 'focus_area': focus55}
         print('PASS i55: the Magic Wand selects an entry\'s pixels, Quick Selection only the '
-              'selection; the channel commands keep the render and the table', flush=True)
+              'selection; the channel commands keep the render and the table; Focus Area selects '
+              'the sharp half', flush=True)
 
         # ---- I56: Clone Stamp and the History Brush (phase 3c) ----------------------------
         doc56, _ = fresh(bands_png, 'bands-56.png')

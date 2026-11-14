@@ -2,7 +2,8 @@ import AppKit
 
 /// Select ▸ Focus Area… and `select_focus_area` (`designs/focus-area.md`): byte coverage of
 /// the in-focus part of the picture, computed by the core over the selection capture's 8-bit
-/// analysis source at every depth.
+/// analysis source at every depth, in RGB and in the colour modes whose source is a plain
+/// picture of the document (`FocusArea.modes`).
 struct FocusAreaParameters: Equatable {
     /// The In-Focus Range, 0–100 (lower selects more); nil is Auto.
     var range: Double?
@@ -25,10 +26,17 @@ private final class FocusAreaRange {
 enum FocusArea {
     static let actionName = "Focus Area"
 
-    /// Why Focus Area does not answer on `doc`, or nil: the colour modes refuse until each
-    /// mode's analysis source is checked (the ADR's decision 7).
+    /// The colour modes Focus Area answers, each in its sets too (`GrayDocument`, `LabDocument`,
+    /// `IndexedDocument`, the `.cmykTool` fact): the modes whose analysis source is a picture of
+    /// the document. Duotone and Bitmap refuse (the ADR's decision 7).
+    static let modes: Set<ColorModeTarget> = [.rgb, .gray, .lab, .indexed, .cmyk]
+
+    /// Why Focus Area does not answer on `doc`, or nil. Duotone and Bitmap are refused first by
+    /// their own gates, so this sentence is the menu's and the commit's backstop.
     static func refusal(_ doc: RasterDocument) -> String? {
-        doc.colorMode == .rgb ? nil : "Select ▸ Focus Area answers in RGB documents."
+        modes.contains(doc.colorMode) ? nil
+            : "Select ▸ Focus Area answers in RGB, Grayscale, Lab Color, Indexed Color and CMYK "
+                + "documents."
     }
 
     /// The recorded step: the resolved range, so a replay makes the same cut.

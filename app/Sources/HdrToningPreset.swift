@@ -128,11 +128,17 @@ struct HdrToningPreset: Equatable {
         return preset
     }
 
+    /// The built-in `name` names, by library key (so without regard to case); nil for any other.
+    static func builtIn(named name: String) -> HdrToningPreset? {
+        guard let normalized = try? Library.normalizedName(name) else { return nil }
+        return builtIns.first { Library.key($0.name) == Library.key(normalized) }
+    }
+
     /// A built-in by library key, else the user's library.
     static func named(_ name: String) throws -> HdrToningPreset {
         let normalized = try? Library.normalizedName(name)
         if let normalized {
-            if let builtIn = builtIns.first(where: { Library.key($0.name) == Library.key(normalized) }) {
+            if let builtIn = builtIn(named: normalized) {
                 return builtIn
             }
             if let saved = try HdrToningPresetLibrary.entries().first(where: {
@@ -176,6 +182,8 @@ enum HdrToningPresetCodec: PreferenceLibraryCodec {
     typealias Item = HdrToningPreset
 
     static let noun = "HDR Toning preset"
+    /// "HDR" is read as letters: "An HDR Toning preset".
+    static let article = "An"
     static let directoryEnvironment = "DR_HDR_TONING_PRESETS_DIR"
     static let directoryName = "Doctored/HDR Toning Presets"
     static let maximumEntries = 128
@@ -202,6 +210,11 @@ enum HdrToningPresetLibrary {
         try Library.entries()
     }
 
+    /// The library's presets and its broken files (`list_hdr_toning_presets`).
+    static func listing() throws -> PreferenceLibraryListing<HdrToningPreset> {
+        try Library.listing()
+    }
+
     /// Saves `settings`' method and values (never its depth) under `name`.
     @discardableResult
     static func save(name: String, settings: HdrToningSettings, replace: Bool) throws -> HdrToningPreset {
@@ -220,5 +233,11 @@ enum HdrToningPresetLibrary {
 
     static func delete(name: String) throws {
         try Library.delete(name: name)
+    }
+
+    /// Removes one library file by its listing basename, valid or broken: the only way to clear
+    /// a file that has no preset name (`delete_hdr_toning_preset`'s `file`).
+    static func delete(file: String) throws {
+        try Library.delete(file: file)
     }
 }

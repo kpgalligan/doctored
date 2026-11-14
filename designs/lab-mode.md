@@ -82,8 +82,8 @@ admitted or refused for good by name. No refusal names a phase.
 - **Geometry, selections, clipboard:** the RGB kernels on the codes; a Lab warp applies at once with no
   binding; sampled Color Range by the measured `RANGE_RULE`, the other ranges by their space; the Magic Wand,
   Paint Bucket, Similar and Grow (both depths) by `lab_select::wand_key`, Similar's and Grow's range trimmed per
-  key; Quick Selection ΔE76 on the codes; the model selections, the Magnetic Lasso and Detect Horizon read the
-  Display P3 analysis composite; the clipboard keeps the codes (RZCB v6) and converts across modes by the Mode
+  key; Quick Selection ΔE76 on the codes; the model selections, the Magnetic Lasso, Detect Horizon and Focus Area
+  read the Display P3 analysis composite; the clipboard keeps the codes (RZCB v6) and converts across modes by the Mode
   rules.
 - **Channel math, stacks, multi-image:** Apply Image and Calculations blend each channel's codes alone; Stack
   Modes per channel; Merge to HDR through ProPhoto (no 32-bit Lab); Auto-Align fits CIE Y; Merge Panorama blends a

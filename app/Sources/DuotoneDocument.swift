@@ -40,14 +40,14 @@ enum DuotoneDocument {
     static let tools: Set<String> = ["get_duotone", "set_duotone"]
 
     /// What Duotone refuses for good: Edit ▸ Assign Profile and Convert to Profile, View ▸ Proof
-    /// Setup and Proof Colors, Content-Aware Fill, Puppet Warp, Perspective Warp, Select ▸ Subject
-    /// and Sky, and the Neural Filters Doctored has: Depth Blur, Super Zoom, JPEG Artifacts
-    /// Removal and Colorize.
+    /// Setup and Proof Colors, Content-Aware Fill, Puppet Warp, Perspective Warp, Select ▸ Subject,
+    /// Sky and Focus Area (`designs/focus-area.md`, decision 7), and the Neural Filters Doctored
+    /// has: Depth Blur, Super Zoom, JPEG Artifacts Removal and Colorize.
     static let disabledTools: Set<String> = [
         "assign_profile", "convert_profile", "get_proof_setup", "set_proof_setup", "render_proof",
         "content_aware_fill", "preview_content_aware_fill", "discard_content_aware_fill_preview",
-        "puppet_warp", "perspective_warp", "select_subject", "select_sky", "depth_blur", "super_zoom",
-        "jpeg_artifacts_removal", "neural_colorize",
+        "puppet_warp", "perspective_warp", "select_subject", "select_sky", "select_focus_area",
+        "depth_blur", "super_zoom", "jpeg_artifacts_removal", "neural_colorize",
     ]
 
     /// The `apply_filter` filters Duotone refuses for good: Develop Filter, Lens Correction and
@@ -62,7 +62,7 @@ enum DuotoneDocument {
         "convertToFloatPrecision:", "convertToSixteenBits:", "assignProfile:", "convertToProfile:",
         "showProofSetup:", "toggleProofColors:", "applyProofPresetFromMenu:", "applyWorkingProof:",
         "toggleGamutWarning:", "contentAwareFill:", "showPuppetWarp:", "showPerspectiveWarp:",
-        "selectSubject:", "selectSky:", "showDepthBlur:", "showSuperZoom:",
+        "selectSubject:", "selectSky:", "showFocusArea:", "showDepthBlur:", "showSuperZoom:",
         "showJpegArtifactsRemoval:", "showColorize:", "showDevelopFilter:", "showLensCorrection:",
         "showTiltShift:",
     ]

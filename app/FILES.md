@@ -795,7 +795,7 @@ Detail belongs in the source file's own header comment.
 - `HdrLocalAdaptation.swift` — the Local Adaptation values and Toning Curve: the core request fields and their MCP parse.
 - `HdrToningSheetController.swift` / `EditorViewController+HdrToning.swift` — the dialog with live preview and the one histogram load, Image ▸ Adjustments ▸ HDR Toning… and its validation.
 - `HdrToningLocalAdaptationPane.swift` — Local Adaptation's dialog rows (Edge Glow, Tone and Detail, Advanced) and the Toning Curve editor over its histogram.
-- `AgentServer+HdrToning.swift` / `AgentCatalog+HdrToning.swift` — the MCP tools `hdr_toning` (and its `preset`) and `import_hdr_toning_preset`.
+- `AgentServer+HdrToning.swift` / `AgentCatalog+HdrToning.swift` — MCP `hdr_toning` (and its `preset`) and the preset library's list, save, import and delete tools (the dialog's Preset popup).
 - `HdrToningPreset.swift` / `HdrToningPresetControl.swift` — HDR Toning presets (Default and the built-in looks, the user library), the recorded step, the dialog's popup and look caption.
 - `HdrToningPresetImport.swift` — Preset ▸ Import Preset…'s body: a `.hdt` file's bounded read, the core decode, the preset named after the file and saved.
 - `AutoBlend.swift` / `DoctoredCore+AutoBlend.swift` — Edit ▸ Auto-Blend Layers… (Panorama, Stack Images): `AutoBlend` (method, eligibility, outcome), `AutoBlendWork`, the core wrappers.

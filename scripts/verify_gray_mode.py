@@ -366,7 +366,11 @@ exactly. The clipboard is the drive's own private pasteboard
   8-bit Gray Gamma 2.2 document of known codes (the working Gray is Color
   Settings' default, not Gray Gamma 2.2), `load_selection from: "plane"
   plane: "gray"` gives coverage16 equal to each pixel's own code exactly;
-  `load_selection` plane red refuses with `LOAD_PLANE_RED`.
+  `load_selection` plane red refuses with `LOAD_PLANE_RED`. Select ▸ Focus
+  Area: `verify_focus_area.mode_check`'s half-sharp picture in Grayscale at
+  8, 16 and 32 bits answers `select_focus_area` with a non-empty selection
+  whose bounds start at x 0 and end left of the seam band, and
+  `supported_menu_items` lists `showFocusArea:`.
 - **G44 within Gray.** `copy` of a 10 × 6 selection of a 16-bit textured
   document, then `paste` in_place into a 16-bit Gray Gamma 2.2 document, is
   one undo step; the pasted layer's samples equal the source's exactly;
@@ -650,6 +654,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 
 from phase5_support import App
+import verify_focus_area
 
 # ---- the expectations, fixed here BEFORE anything is measured -------------
 BOUND16 = 4
@@ -709,6 +714,8 @@ GRAY_TOOLS = sorted([
     'select_face_parts', 'inspect_faces', 'object_select', 'refine_selection', 'select_magnetic',
     'modify_selection', 'save_selection', 'load_selection', 'set_quick_mask', 'quick_mask_stroke',
     'add_luminosity_masks',
+    # Select ▸ Focus Area (designs/focus-area.md).
+    'select_focus_area',
     # Phase 5a.
     'assign_profile', 'convert_profile', 'convert_precision',
     # Phase 5b.
@@ -2623,9 +2630,12 @@ def main():
         assert own == [center(kdoc43, x, 0)[0] for x in range(6)], own
         assert own == [c * 257 for c in codes43], own
         g43['gray_row'] = own
+        g43['focus_area'] = {depth: verify_focus_area.mode_check(app, folder, 'gray', depth)
+                             for depth in (8, 16, 32)}
         receipts['g43'] = g43
-        print('PASS g43: the wand, Color Range, Similar, Subject, Quick Mask, Save/Load Selection '
-              'and the Gray row (its own codes) on Grayscale', flush=True)
+        print('PASS g43: the wand, Color Range, Similar, Subject, Quick Mask, Save/Load Selection, '
+              'the Gray row (its own codes) and Focus Area at 8, 16 and 32 bits on Grayscale',
+              flush=True)
 
         # G44: copy and paste within Grayscale.
         src44 = textured(16)

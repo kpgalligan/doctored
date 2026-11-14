@@ -8,12 +8,14 @@ extension AgentServer {
         "select_focus_area": { $0.selectFocusArea },
     ]
 
-    /// Facts for this file's tools; merged in AgentServer+Registry.swift. RGB at 8, 16 and 32
-    /// bits: a selection is canvas coverage, read off the capture's 8-bit analysis source (at
-    /// 32 bits the R1 display codes, as Color Range reads them). The colour modes refuse
-    /// through their closed sets (`designs/focus-area.md`, decision 7).
+    /// Facts for this file's tools; merged in AgentServer+Registry.swift. A selection is canvas
+    /// coverage, read off the capture's 8-bit analysis source (`ImageDocument.analysisComposite`):
+    /// RGB at 8 and 16 bits its composite, at 32 bits the document's own tone-mapped display;
+    /// Grayscale the same (R = G = B); Lab Color and CMYK their Display P3 view; Indexed Color
+    /// the palette colours. Grayscale, Lab and Indexed admit it through their closed sets, CMYK
+    /// by `.cmykTool`; Duotone and Bitmap refuse (`designs/focus-area.md`, decision 7).
     static let focusAreaToolFacts: [String: ToolFacts] = [
-        "select_focus_area": [.commonTool, .floatTool],
+        "select_focus_area": [.commonTool, .floatTool, .cmykTool],
     ]
 
     /// Select ▸ Focus Area…

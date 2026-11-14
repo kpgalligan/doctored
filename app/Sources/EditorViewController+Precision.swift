@@ -295,7 +295,8 @@ extension EditorViewController {
                 // Color Range, Grow and Similar compare the R1 display copy
                 // (`display_encoding`); MCP twins `select_color_range`, `select_similar`.
                 "showColorRange:", "selectGrow:", "selectSimilar:",
-                // Select ▸ Focus Area… reads the same R1 codes; MCP twin `select_focus_area`.
+                // Select ▸ Focus Area… reads the document's own tone-mapped display
+                // (`analysisComposite`, as the Vision selections); MCP twin `select_focus_area`.
                 "showFocusArea:",
                 // Select ▸ Select and Mask… — the edge stage reads the same R1 codes (rule E),
                 // the New Layer outputs keep the float composite; MCP twin `refine_selection`.

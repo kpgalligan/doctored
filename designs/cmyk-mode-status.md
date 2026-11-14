@@ -28,7 +28,7 @@
   Exposure, Vibrance, Black & White, Lens Correction, the Develop Filter with Presence and Add Grain, Auto-Blend
   Layers, the RGB-only Hue Rotate, Grayscale, Sepia, White Balance, Depth Blur, Remove Red Eye and the Red Eye tool,
   Auto-Align's Vignette Removal and Geometric Distortion, Shadows/Highlights and Replace Color as layers,
-  Brightness/Contrast's Saturation, HDR Toning, Select ▸ Focus Area ([ADR](focus-area.md)); the Pass Through paint mode, Blend If on Red, Green or Blue; the retouch
+  Brightness/Contrast's Saturation, HDR Toning; the Pass Through paint mode, Blend If on Red, Green or Blue; the retouch
   tools on one ink plate (as on an RGB colour plane).
 - **Not in Doctored at any depth** (not CMYK gaps):
   - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Warp Text. (Shape layers from a Pen path

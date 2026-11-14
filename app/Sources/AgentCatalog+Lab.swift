@@ -449,6 +449,10 @@ extension AgentServer {
                 note = " In a Lab Color document the model reads the document's "
                     + "Display P3 view (what the canvas shows); the selection is colour-free "
                     + "coverage."
+            case "select_focus_area":
+                note = " In a Lab Color document the sharpness is read off the document's "
+                    + "Display P3 view (what the canvas shows), not the codes; the selection is "
+                    + "colour-free coverage."
             case "super_zoom", "jpeg_artifacts_removal", "neural_colorize":
                 note = " In a Lab Color document the model reads the layer's "
                     + "Display P3 view (what the canvas shows) and its result returns to L*a*b* "

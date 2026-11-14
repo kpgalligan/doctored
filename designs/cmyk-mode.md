@@ -129,7 +129,7 @@
   Y), through 8-bit codes on an 8-bit document, then the `ReferenceRange` (u16 codes, the host's 8-bit t × 257),
   four-connected through the one `flood`; source `composite` or `layer`. The All Layers bucket is that composite region,
   then a CMYK `paint_blend`. Color Range, Quick Selection and the edge stage read the VIEW (`cmyk_view_canvas`, Display P3
-  as the Lab profile); the Vision selections are given the view. `alpha`, `color` (a plate: `1 − ink`) and `similar` (PN7)
+  as the Lab profile); the Vision selections and Focus Area are given the view. `alpha`, `color` (a plate: `1 − ink`) and `similar` (PN7)
   read ink, `luminance` the composite's sRGB luma (LP), a backdrop is `cmyk_backdrop`. Select and Mask's New Layer
   (`cmyk_cutout`) is the composite's ink as a new top raster masked by the matte; Decontaminate Colors runs
   `foreground_solve` on C/M/Y then K. Stroke… with nothing selected strokes the alpha edge (`cmyk_stroke`), with a

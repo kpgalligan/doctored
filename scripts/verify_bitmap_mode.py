@@ -388,7 +388,8 @@ DOCUMENT_FREE = {
     'export_style_presets', 'list_workspaces', 'delete_workspace', 'list_brush_presets',
     'save_brush_preset', 'delete_brush_preset', 'import_brush_presets', 'export_brush_presets',
     'list_patterns', 'delete_pattern', 'import_patterns', 'export_patterns',
-    'import_hdr_toning_preset',
+    'import_hdr_toning_preset', 'list_hdr_toning_presets', 'save_hdr_toning_preset',
+    'delete_hdr_toning_preset',
 }
 
 

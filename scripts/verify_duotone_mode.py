@@ -141,11 +141,12 @@ BITMAP = ('Bitmap converts an 8-bit Grayscale document; convert to 8 '
           'Bits/Channel first.')
 SIXTEEN = '16 Bits/Channel is not available in Duotone.'
 GRAY_TOLERANCE = 2
-# The close's ruling 3: the walk's unmapped paths with a Doctored tool, refused for good.
+# The close's ruling 3: the walk's unmapped paths with a Doctored tool, refused for good; Select ▸
+# Focus Area joined when its tool shipped (designs/focus-area.md, decision 7).
 CLOSED_TOOLS = ['content_aware_fill', 'preview_content_aware_fill',
                 'discard_content_aware_fill_preview', 'puppet_warp', 'perspective_warp',
                 'select_subject', 'select_sky', 'depth_blur', 'super_zoom', 'jpeg_artifacts_removal',
-                'neural_colorize']
+                'neural_colorize', 'select_focus_area']
 CLOSED_FILTERS = ['develop_filter', 'lens_correction', 'tilt_shift']
 SAVE = ('A Duotone document saves as .doctored, or as PSD or PSB through File ▸ Export as '
         'PSD; File ▸ Export renders its inks to RGB.')
