@@ -1,13 +1,13 @@
-//! Convert to Profile to or from a LUT (A2B/B2A) profile on an 8-bit
+//! Convert to Profile to or from a LUT (A2B/B2A) profile on an 8- or 16-bit
 //! document holding a retained source.
 //!
 //! The rule under test: relative colorimetric with BPC off converts, keeps
-//! every binding, and re-renders each source through the same relative/no-BPC
-//! pipeline the raster pixels use; perceptual, saturation, absolute and BPC
-//! with a LUT side refuse with `settings_sentence`'s text; a typed document
-//! still refuses a LUT destination at its colour plan. The LUT is the
-//! synthetic identity profile `conversion_lut_destination.rs` builds (never an
-//! installed profile, except in the ignored cost probe).
+//! every binding at every adjustment policy, and re-renders each source
+//! through the same relative/no-BPC pipeline the raster pixels use;
+//! perceptual, saturation, absolute and BPC with a LUT side refuse with
+//! `settings_sentence`'s text. The LUT is the synthetic identity profile
+//! `conversion_lut_destination.rs` builds (never an installed profile, except
+//! in the ignored cost probe).
 use crate::live_filter_support;
 use doctored_core::doc::DrDocument;
 use doctored_core::ffi_output_color::*;
@@ -25,7 +25,6 @@ use builders::{build, tag_desc, tag_mft2, tag_wtpt};
 const W: u32 = 8;
 const H: u32 = 6;
 const SETTINGS_SOURCE: &str = "converting with these settings cannot keep 1 image source bound; convert at relative colorimetric with black point compensation off";
-const HIGH_DEPTH: &str = "high-depth conversion requires an RGB matrix/TRC destination profile";
 const INSTALLED_LUT: &str = "/Library/Application Support/Adobe/Color/Profiles/VideoHD16-235.icc";
 
 /// The LUT-only profile (`conversion_lut_destination.rs`'s `lut_profile`).
@@ -335,8 +334,7 @@ fn lut_tagged_asset_renders_at_both_depths() {
 }
 
 /// (f) Every setting a source render cannot follow refuses into the LUT with
-/// the one settings sentence; a typed document refuses a LUT destination at
-/// its colour plan.
+/// the one settings sentence, at both depths.
 #[test]
 fn lut_refusals_name_the_keeping_setting() {
     let lut = lut_profile();
@@ -362,9 +360,42 @@ fn lut_refusals_name_the_keeping_setting() {
             assert_eq!(refused, *sentence, "{what}");
         }
     }
-    let typed = typed_source_doc();
-    let refused = refusal(convert(&typed, &lut, "{}"));
-    assert!(refused.contains(HIGH_DEPTH), "{refused}");
+}
+
+/// (g) A typed document converts into the LUT at every adjustment policy and
+/// whatever `rasterize_sources` says, keeping its source bound — settings the
+/// source can follow never rasterize it — and its re-render is the oracle
+/// within one 8-bit code.
+#[test]
+fn a_typed_document_converts_into_a_lut_keeping_its_source() {
+    let lut = lut_profile();
+    let model = ProofProfile::parse(&lut).unwrap();
+    for options in [
+        "{}",
+        "{\"adjustments\":\"preserve_appearance\"}",
+        "{\"rasterize_sources\":true}",
+    ] {
+        let typed = typed_source_doc();
+        assert_eq!(
+            preflight(&typed, &lut, options),
+            Ok(Value::Array(vec![])),
+            "{options}"
+        );
+        let result = convert(&typed, &lut, options)
+            .unwrap_or_else(|e| panic!("{options}: {e}"))
+            .expect("the conversion changes the document");
+        assert!(binding(&result), "{options}: the source stays bound");
+        assert_eq!(profile_bytes(&result), lut, "{options}");
+        for (i, (got, source)) in result.pixels().into_iter().zip(opaque(W, H)).enumerate() {
+            let input: [f64; 3] = std::array::from_fn(|c| f64::from(source[c]) / 65535.0);
+            let [r, g, b] = oracle(&model, input);
+            assert!(
+                within_one(got.map(to8), [r, g, b, 255]),
+                "{options} pixel {i}: {got:?} vs {:?}",
+                [r, g, b]
+            );
+        }
+    }
 }
 
 /// The per-pixel cost of `ColorPipeline::color8` through a LUT side over the

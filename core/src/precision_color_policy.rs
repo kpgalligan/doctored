@@ -66,6 +66,8 @@
 
 use std::sync::Arc;
 
+use crate::adjust_calibrated::evaluates_in;
+use crate::doc_color_destination::{calibrated_bake_reason, calibrated_sentence};
 use crate::doc_color_policy::{
     adjustment_op, appearance_invariant, source_sentence, AdjustmentOutcome, AdjustmentPolicy,
     ConversionOptions, ConversionReport,
@@ -73,7 +75,7 @@ use crate::doc_color_policy::{
 use crate::icc::IccProfile;
 use crate::icc_intent::ColorPipeline;
 use crate::job_control::{DrJobControl, JobContext};
-use crate::precision_color::PrecisionColorPlan;
+use crate::precision_color::{PrecisionColorPlan, U16Conversion};
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{admit, reserved_vec, PrecisionImage};
 use crate::retained_source::SourceEdit;
@@ -210,6 +212,7 @@ impl PrecisionDocument {
                 &op,
                 evaluation.as_deref(),
                 options,
+                profile,
                 limit,
                 other,
                 job,
@@ -251,7 +254,7 @@ impl PrecisionDocument {
             let Some((op, evaluation)) = adjustment_op(Some(&description)) else {
                 continue;
             };
-            if keep_reason(layer, &op, evaluation.as_deref(), options).is_none() {
+            if keep_reason(layer, &op, evaluation.as_deref(), options, profile).is_none() {
                 baked += 1;
             }
         }
@@ -313,6 +316,7 @@ impl PrecisionDocument {
         op: &str,
         evaluation: Option<&str>,
         options: &ConversionOptions,
+        profile: &IccProfile,
         limit: u64,
         other: u64,
         job: JobContext<'_>,
@@ -325,7 +329,37 @@ impl PrecisionDocument {
             action: "kept",
             reason,
         };
-        if let Some(reason) = keep_reason(layer, op, evaluation, options) {
+        // A document_v2 Exposure/White Balance the destination cannot
+        // evaluate, under the byte path's rule (`doc_color_destination`, whose
+        // sentences these are): keep refuses, offering the bake only where it
+        // would succeed, a hidden one refuses, and preserve bakes it.
+        let unevaluable = appearance_invariant(op, evaluation) && !evaluates_in(profile);
+        if unevaluable && options.adjustments == AdjustmentPolicy::KeepParameters {
+            let offer_bake = layer.visible
+                && layer.depth == 0
+                && !layer.clipped
+                && self
+                    .baked_projection(index, &name, limit, other, job)
+                    .is_ok();
+            // A cancelled projection folds into `is_ok() == false` above;
+            // it surfaces as the cancel, not as a refusal.
+            job.check()?;
+            return Err(calibrated_sentence(
+                &name,
+                profile.name(),
+                "convert to",
+                offer_bake,
+            ));
+        }
+        if unevaluable && !layer.visible {
+            return Err(calibrated_sentence(
+                &name,
+                profile.name(),
+                "convert to",
+                false,
+            ));
+        }
+        if let Some(reason) = keep_reason(layer, op, evaluation, options, profile) {
             return Ok(keep(reason));
         }
         if layer.depth != 0 {
@@ -343,14 +377,19 @@ impl PrecisionDocument {
         // time would have already reported the layer as "baked" and left the
         // host's Apply enabled. `bake_adjustment` keeps the same check.
         self.baked_projection(index, &name, limit, other, job)?;
+        let reason = if unevaluable {
+            calibrated_bake_reason(op, &name, profile.name())
+        } else {
+            format!(
+                "{op} is defined on the encoded numbers of its own space, so it is baked into \"{name} (baked)\""
+            )
+        };
         Ok(AdjustmentOutcome {
             index,
             name: name.clone(),
             op: op.to_string(),
             action: "baked",
-            reason: format!(
-                "{op} is defined on the encoded numbers of its own space, so it is baked into \"{name} (baked)\""
-            ),
+            reason,
         })
     }
 
@@ -446,11 +485,13 @@ impl PrecisionDocument {
             held = held.saturating_add(canvas);
             job.check()?;
         }
-        if self.retained_source_count() > 0 && pipeline.is_shipped() {
-            // The source preflight admits nothing else on a bound document,
-            // and the shipped pipeline's bytes are the default conversion's,
-            // so the shipped typed path converts it: bindings kept, each one
-            // re-rendered into the destination (`render16`).
+        if self.retained_source_count() > 0 {
+            // The source preflight admitted these settings (or the call
+            // rasterized first and holds no source), and every setting it
+            // admits is the default conversion's arithmetic — the shipped
+            // pipeline for a matrix pair, relative/no-BPC `lut_pipeline` for
+            // a LUT side — so the default typed path converts it: bindings
+            // kept, each one re-rendered into the destination (`render16`).
             return Ok(source
                 .color_edit_with_context(profile, true, limit, other, job)?
                 .map(|document| (document, report)));
@@ -497,20 +538,9 @@ impl PrecisionDocument {
                                 if i & 4095 == 0 {
                                     job.check()?;
                                 }
-                                let rgb = pipeline
-                                    .color(std::array::from_fn(|c| f32::from(pixel[c]) / 65535.0));
-                                if rgb
-                                    .iter()
-                                    .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-                                {
-                                    return Err("high-depth color transform produced a nonfinite or out-of-range component".into());
-                                }
-                                pixels.push([
-                                    (rgb[0] * 65535.0).round() as u16,
-                                    (rgb[1] * 65535.0).round() as u16,
-                                    (rgb[2] * 65535.0).round() as u16,
-                                    pixel[3],
-                                ]);
+                                // The one typed conversion rule
+                                // (`precision_color`).
+                                pixels.push(U16Conversion::Pipeline(pipeline).pixel(*pixel)?);
                             }
                         }
                         Content::Raster {
@@ -652,13 +682,16 @@ impl PrecisionDocument {
 
 /// Why preserve-appearance KEEPS this adjustment's parameters, or `None` when
 /// it must be baked (or refused): the policy, a hidden layer, an
-/// appearance-invariant operator — in that order. Shared by the preflight's
-/// report and `conversion_plan`'s count of bakes, so the two cannot disagree.
+/// appearance-invariant operator `destination` can evaluate — in that order.
+/// Shared by the preflight's report and `conversion_plan`'s count of bakes,
+/// so the two cannot disagree; the preflight refuses a kept or hidden one
+/// `destination` cannot evaluate before it asks.
 fn keep_reason(
     layer: &PrecisionDocumentLayer,
     op: &str,
     evaluation: Option<&str>,
     options: &ConversionOptions,
+    destination: &IccProfile,
 ) -> Option<String> {
     if options.adjustments == AdjustmentPolicy::KeepParameters {
         return Some(
@@ -668,7 +701,7 @@ fn keep_reason(
     if !layer.visible {
         return Some("a hidden adjustment contributes nothing to the appearance".into());
     }
-    if appearance_invariant(op, evaluation) {
+    if appearance_invariant(op, evaluation) && evaluates_in(destination) {
         return Some(format!(
             "{op} with document_v2 evaluation is a light-linear operation through the document's own profile"
         ));

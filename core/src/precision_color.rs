@@ -13,6 +13,7 @@ use crate::icc::IccProfile;
 use crate::icc_encode_refusal::{
     artwork_assign_refusal, calibrated_assign_refusal, linear_light_assign_refusal,
 };
+use crate::icc_intent::ColorPipeline;
 use crate::icc_transform::PrecisionTransform;
 use crate::job_control::{DrJobControl, JobContext};
 use crate::precision_adjustment::AdjustmentAdmission;
@@ -37,7 +38,13 @@ impl PrecisionDocument {
     /// A conversion refuses here when the DESTINATION's matrix model fails
     /// `validate_precision` and is encoded into, so the preflight names
     /// the same sentence the transform would; a failing SOURCE converts out
-    /// through its decoder's repairs. Assignment validates only where
+    /// through its decoder's repairs. A pair with a LUT side (a profile
+    /// with no matrix/TRC model) plans the relative/no-BPC pipeline the
+    /// conversion runs (`retained_source_render::lut_pipeline`), whose `Err`
+    /// refuses a side that cannot decode or encode; a Lab document refuses
+    /// with its own sentence and a `linear_light` document refuses a
+    /// destination with no model (`doc_evaluation::linear_light_model`), as
+    /// at 8 bits. Assignment validates only where
     /// the document must then encode into the destination: a
     /// `linear_light` document, then one holding text or shape artwork, then
     /// one holding a calibrated (`document_v2`) Exposure/White Balance layer,
@@ -120,17 +127,30 @@ impl PrecisionDocument {
                 }
             }
             if convert {
-                let src = self
-                    .profile
-                    .model()
-                    .ok_or("high-depth conversion requires an RGB matrix/TRC source profile")?;
-                let dst = profile.model().ok_or(
-                    "high-depth conversion requires an RGB matrix/TRC destination profile",
-                )?;
-                if !src.exact_eq(dst) {
-                    dst.validate_precision()?;
+                // A Lab document's numbers are its codes, not colours of its
+                // twin (`lab_convert` is its route between modes).
+                if self.is_lab() {
+                    return Err(crate::lab_document::PROFILE_EDIT_REFUSAL.into());
                 }
-                scratch += PrecisionTransform::prepare_scratch_bytes(src, dst);
+                // The evaluation policy's transfer needs the destination's
+                // matrix/TRC model, as at 8 bits (`doc_color_destination`).
+                if self.linear_light.is_some() && profile.model().is_none() {
+                    crate::doc_evaluation::linear_light_model(profile)?;
+                }
+                match crate::retained_source_render::lut_pipeline(&self.profile, profile)? {
+                    // A LUT side converts through the relative/no-BPC
+                    // pipeline every default conversion with one runs; its
+                    // `Err` refused a side that cannot decode or encode.
+                    Some(pipeline) => scratch += pipeline.scratch_bytes(),
+                    None => {
+                        let src = self.profile.model().ok_or(MATRIX_SOURCE)?;
+                        let dst = profile.model().ok_or(MATRIX_DESTINATION)?;
+                        if !src.exact_eq(dst) {
+                            dst.validate_precision()?;
+                        }
+                        scratch += PrecisionTransform::prepare_scratch_bytes(src, dst);
+                    }
+                }
             }
             /// Each source's interactive re-render plan is summed.
             #[allow(clippy::too_many_arguments)]
@@ -272,7 +292,10 @@ impl PrecisionDocument {
 
     /// Convert every distinct stored RGB source, preserving alpha and source
     /// sharing. Matrix/TRC conversion is bounded SDR with destination gamut
-    /// clipping; no implicit HDR mapping or byte preview participates.
+    /// clipping; a pair with a LUT side runs the relative/no-BPC pipeline,
+    /// each component clamped to 0…1 before its one rounding
+    /// ([`U16Conversion`]); no implicit HDR mapping or byte preview
+    /// participates.
     /// Since Phase 11C this is `convert_to_profile_with` at its DEFAULT
     /// options, which takes the branch below unchanged — the bytes an
     /// existing 16-bit conversion writes are its bytes.
@@ -374,14 +397,23 @@ impl PrecisionDocument {
         next.background = self.background;
         next.rebind_evaluation()?;
         if convert {
-            let src = self
-                .profile
-                .model()
-                .ok_or("high-depth conversion requires an RGB matrix/TRC source profile")?;
-            let dst = profile
-                .model()
-                .ok_or("high-depth conversion requires an RGB matrix/TRC destination profile")?;
-            let transform = PrecisionTransform::new(src, dst)?;
+            // The shipped matrix/TRC transform for a matrix pair, else a LUT
+            // side's relative/no-BPC pipeline (`lut_pipeline`, the one place
+            // that choice is written).
+            let pipeline = crate::retained_source_render::lut_pipeline(&self.profile, profile)?;
+            let matrix = match pipeline {
+                Some(_) => None,
+                None => {
+                    let src = self.profile.model().ok_or(MATRIX_SOURCE)?;
+                    let dst = profile.model().ok_or(MATRIX_DESTINATION)?;
+                    Some(PrecisionTransform::new(src, dst)?)
+                }
+            };
+            let transform = match (&pipeline, &matrix) {
+                (Some(pipeline), _) => U16Conversion::Pipeline(pipeline),
+                (None, Some(matrix)) => U16Conversion::Matrix(matrix),
+                (None, None) => return Err(MATRIX_SOURCE.into()),
+            };
             job.report(0.05, 2)?;
             let mut outputs = HashMap::new();
             // The rebound tree: its adjustment records are reused, not
@@ -453,7 +485,7 @@ fn convert_layers(
     layers: &[PrecisionDocumentLayer],
     rebound: &[PrecisionDocumentLayer],
     profile: &Arc<IccProfile>,
-    transform: &PrecisionTransform,
+    transform: &U16Conversion<'_>,
     codes: Option<&dyn crate::sampling_linear::LinearCodes<u16>>,
     outputs: &mut HashMap<usize, PrecisionImage>,
     job: JobContext<'_>,
@@ -497,7 +529,7 @@ fn convert_layers(
                             u64::from(w) * u64::from(h)
                         })
                         .sum();
-                    convert_u16_pixels(&mut pixels, transform, job, completed, total_pixels)?;
+                    convert_u16_pixels(&mut pixels, *transform, job, completed, total_pixels)?;
                     let (w, h) = image.dimensions();
                     let converted = image.rebuilt_rgba16(w, h, pixels, profile.clone())?;
                     outputs.insert(key, converted.clone());
@@ -550,14 +582,69 @@ fn convert_layers(
     Ok(out)
 }
 
-/// The ONE typed profile-conversion kernel over u16 samples, in place: each
-/// RGB triple through `transform`, rounded once to u16, with alpha kept
-/// exactly. Shared by `convert_layers` and the clipboard's convert arm
-/// (`precision_clipboard_convert`). Progress runs over
-/// `0.05 + 0.9 · (completed + i) / total_pixels`.
+/// The model-less side's sentences, which a matrix pair never reaches: a
+/// pair with a side that has no matrix/TRC model takes `lut_pipeline`.
+const MATRIX_SOURCE: &str = "high-depth conversion requires an RGB matrix/TRC source profile";
+const MATRIX_DESTINATION: &str =
+    "high-depth conversion requires an RGB matrix/TRC destination profile";
+
+/// What the ONE typed conversion rule ([`U16Conversion::pixel`]) runs a
+/// triple through.
+#[derive(Clone, Copy)]
+pub(crate) enum U16Conversion<'a> {
+    /// The shipped matrix/TRC transform. Its encoder answers 0…1, so a
+    /// component outside it is a defect and refuses.
+    Matrix(&'a PrecisionTransform),
+    /// A prepared pipeline: a LUT side, or settings other than the
+    /// defaults. A LUT side answers continuous values, so each is clamped to
+    /// 0…1 before the one rounding (`retained_source_render::color16`'s
+    /// rule); only a non-finite component refuses.
+    Pipeline(&'a ColorPipeline),
+}
+
+impl U16Conversion<'_> {
+    /// One straight RGBA16 pixel converted: the RGB triple as unit values,
+    /// rounded once to u16, alpha kept exactly.
+    pub(crate) fn pixel(&self, pixel: [u16; 4]) -> Result<[u16; 4], String> {
+        const INVALID: &str =
+            "high-depth color transform produced a nonfinite or out-of-range component";
+        let input = std::array::from_fn(|c| f32::from(pixel[c]) / 65535.0);
+        let rgb = match self {
+            U16Conversion::Matrix(transform) => {
+                let rgb = transform.color(input);
+                if rgb
+                    .iter()
+                    .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+                {
+                    return Err(INVALID.into());
+                }
+                rgb
+            }
+            U16Conversion::Pipeline(pipeline) => {
+                let rgb = pipeline.color(input);
+                if rgb.iter().any(|v| !v.is_finite()) {
+                    return Err(INVALID.into());
+                }
+                rgb.map(|v| v.clamp(0.0, 1.0))
+            }
+        };
+        Ok([
+            (rgb[0] * 65535.0).round() as u16,
+            (rgb[1] * 65535.0).round() as u16,
+            (rgb[2] * 65535.0).round() as u16,
+            pixel[3],
+        ])
+    }
+}
+
+/// The typed profile-conversion walk over u16 samples, in place: each pixel
+/// through [`U16Conversion::pixel`]. Shared by `convert_layers` and the
+/// clipboard's convert arm (`precision_clipboard_convert`); the non-default
+/// options' walk (`precision_color_policy`) runs the same rule. Progress runs
+/// over `0.05 + 0.9 · (completed + i) / total_pixels`.
 pub(crate) fn convert_u16_pixels(
     pixels: &mut [[u16; 4]],
-    transform: &PrecisionTransform,
+    transform: U16Conversion<'_>,
     job: JobContext<'_>,
     completed: u64,
     total_pixels: u64,
@@ -569,21 +656,7 @@ pub(crate) fn convert_u16_pixels(
                 6,
             )?;
         }
-        let rgb = transform.color(std::array::from_fn(|c| f32::from(pixel[c]) / 65535.0));
-        if rgb
-            .iter()
-            .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-        {
-            return Err(
-                "high-depth color transform produced a nonfinite or out-of-range component".into(),
-            );
-        }
-        *pixel = [
-            (rgb[0] * 65535.0).round() as u16,
-            (rgb[1] * 65535.0).round() as u16,
-            (rgb[2] * 65535.0).round() as u16,
-            pixel[3],
-        ];
+        *pixel = transform.pixel(*pixel)?;
     }
     Ok(())
 }

@@ -381,9 +381,10 @@ pub fn inspect(bytes: &[u8], name_out: &mut String) -> Inspect {
 /// Two keys answer narrower questions than `refusal`: `proof_refusal` is why
 /// the profile cannot be proofed through (null exactly when `proofable`; it
 /// names the missing A2B/B2A direction and its floating-point twin, or is
-/// the parser's own sentence), and `high_depth_destination` is whether a
-/// 16/32-bit Convert accepts it as a destination — `precision_model`'s
-/// answer, asked only of a profile with a matrix/TRC model.
+/// the parser's own sentence), and `high_depth_destination` is whether every
+/// typed Convert, 32-bit float included, accepts it as a destination —
+/// `precision_model`'s answer, asked only of a profile with a matrix/TRC
+/// model (a 16-bit Convert also accepts a LUT profile that can encode).
 pub fn describe_json(bytes: &[u8]) -> serde_json::Value {
     use crate::adjust_calibrated::precision_model;
     use crate::icc_intent::RenderingIntent;

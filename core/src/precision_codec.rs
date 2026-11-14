@@ -151,15 +151,21 @@ fn header<'a>(bytes: &'a [u8], label: &str, job: JobContext<'a>) -> Result<Heade
             if decoder.is_apng().map_err(|e| problem("format", label, e))? {
                 return Err(problem("format", label, "animated PNG is unavailable"));
             }
-            let icc = decoder
+            let gray = source_channels == 1 || source_channels == 2;
+            // The `iCCP`, else the profile a bare `gAMA`/`cHRM` describes
+            // (`png_declared`), read exactly as an `iCCP` holding it.
+            let icc = match decoder
                 .icc_profile()
-                .map_err(|e| problem("profile", label, e))?;
+                .map_err(|e| problem("profile", label, e))?
+            {
+                Some(icc) => Some(icc),
+                None => crate::png_declared::profile(bytes, gray),
+            };
             // The GRAY branch is taken BEFORE the shared `IccProfile::parse`
             // step below, which gray never reaches: a Gray ICC has no primaries
             // and `IccProfile::parse` would refuse it, so the profile is read
             // through `ProofProfile` here and the document's own profile is
             // sRGB (`gray16_import`'s module doc says why).
-            let gray = source_channels == 1 || source_channels == 2;
             let interpretation = if gray {
                 Some(gray_interpretation(icc.as_deref(), label)?)
             } else {

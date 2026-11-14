@@ -190,26 +190,20 @@ extension AgentServer {
         // names the side that is actually unconvertible — the core's single
         // nil covers three different situations, and "one of them" would send
         // a model guessing which.
-        // At 16 and 32 bits the typed conversion needs a matrix/TRC model on
-        // BOTH sides (`profileCanDecode` asks for one there; a source whose
-        // curves fail the precision check still converts out), so a
-        // LUT profile is answered in band with that rule before the
+        // At 8 and 16 bits a LUT profile with a readable table converts like
+        // a matrix/TRC one (the core's relative/no-BPC pipeline); a 32-bit
+        // float document needs a matrix/TRC model on both sides
+        // (`profileCanDecode`; a source whose curves fail the precision check
+        // still converts out). Each side is answered in band before the
         // preflight backstop below.
         guard doc.profileCanDecode else {
-            if doc.isHighDepth {
-                return try noOpColorResult(
-                    ["profile": previous],
-                    why: "Doctored cannot convert a high-depth document from “\(previous)” — at "
-                        + "16 and 32 bits both profiles must be matrix/TRC. "
-                        + "assign_profile can still relabel the document.")
-            }
             return try noOpColorResult(
                 ["profile": previous],
                 why: "Doctored cannot convert from “\(previous)” — it carries neither a "
                     + "matrix/TRC model nor a colour table this build can read. "
                     + "assign_profile can still relabel the document.")
         }
-        guard doc.isHighDepth ? profile.matrix : profile.convertible else {
+        guard doc.isFloat ? profile.matrix : profile.convertible else {
             // A float document cannot be relabelled with a LUT profile
             // either, so its sentence (the core's `float_model_sentence`)
             // points at no Assign.
@@ -219,13 +213,6 @@ extension AgentServer {
                     why: "Doctored cannot convert a 32-bit float document into “\(profile.name)” — "
                         + "it has no matrix/TRC model, and a float document's linear values are "
                         + "defined by its profile's primaries. Choose a matrix/TRC RGB profile.")
-            }
-            if doc.isHighDepth {
-                return try noOpColorResult(
-                    ["profile": previous],
-                    why: "Doctored cannot convert a high-depth document into “\(profile.name)” — "
-                        + "at 16 and 32 bits both profiles must be matrix/TRC. "
-                        + "assign_profile can still relabel the document with it.")
             }
             return try noOpColorResult(
                 ["profile": previous],
@@ -361,12 +348,12 @@ extension AgentServer {
             // answers, adding the high-depth precision checks.
             "convertible": doc.profileIsConvertible,
             // The wider Phase 11C question: can this build turn the
-            // document's numbers into PCS colour for a conversion? At 8 bits
-            // true for a LUT profile with a readable A2B table, which
-            // `convertible` is false for. At 16 and 32 bits a conversion's
-            // source must be matrix/TRC; any matrix/TRC model decodes, so a
-            // profile whose curves fail the precision check is true here and
-            // false for `convertible`.
+            // document's numbers into PCS colour for a conversion? At 8 and
+            // 16 bits true for a LUT profile with a readable A2B table, which
+            // `convertible` is false for. At 32 bits a conversion's source
+            // must be matrix/TRC. Any matrix/TRC model decodes, so a profile
+            // whose curves fail the precision check is true here and false
+            // for `convertible`.
             "can_decode": doc.profileCanDecode,
             "on_open": adoptionName(document.profileAdoption),
             // Beside `on_open`: the sentence the Assign Profile sheet shows
@@ -506,8 +493,8 @@ extension AgentServer {
         /// Whether the core can convert INTO it: a matrix/TRC model, or
         /// (Phase 11C) a LUT profile with a readable B2A table.
         let convertible: Bool
-        /// Whether it is an RGB matrix/TRC model — the high-depth conversion
-        /// destination rule (`info.kind == .rgbMatrix`).
+        /// Whether it is an RGB matrix/TRC model — the 32-bit float
+        /// conversion destination rule (`info.kind == .rgbMatrix`).
         let matrix: Bool
         /// The absolute path, when the profile came from one.
         let path: String?

@@ -523,6 +523,7 @@ pub mod perspective_crop;
 mod pixel_orientation;
 mod plane_blur;
 mod plane_swatch;
+mod png_declared;
 pub mod poisson;
 pub mod precision_adjustment;
 mod precision_align;

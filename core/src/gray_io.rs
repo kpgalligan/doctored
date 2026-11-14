@@ -10,8 +10,10 @@
 //! * PNG colour type 0 or 4 at bit depth 8 or 16, no `cICP`/`mDCV`/`cLLI`,
 //!   and the gray profile contract the typed open already applies — no
 //!   `iCCP`, or one `ProofProfile` reads as Gray with a tone curve
-//!   (`precision_codec::gray_interpretation`); `gAMA`/`cHRM` only beside
-//!   `sRGB` or that Gray `iCCP` (`precision_png::png_profile_contract`).
+//!   (`precision_codec::gray_interpretation`); with neither an `iCCP` nor
+//!   `sRGB`, a usable bare `gAMA` is the Gray profile it describes
+//!   (`png_declared`) and an unusable one refuses
+//!   (`precision_png::png_profile_contract`).
 //! * TIFF IFD0 Photometric BlackIsZero, SamplesPerPixel 1 or 2 (the second
 //!   one declared an unassociated alpha, chunky), BitsPerSample 8 or 16,
 //!   SampleFormat unsigned (absent counts as unsigned), its ICC absent or
@@ -19,14 +21,15 @@
 //! * JPEG with one component at 8-bit precision, its APP2 ICC absent or Gray.
 //!
 //! Every other file answers `None` and keeps today's path, so a gray PNG
-//! with an RGB `iCCP` or a bare `gAMA` refuses (16-bit) or opens flat (8-bit)
-//! exactly as before.
+//! with an RGB `iCCP` or an unusable `gAMA` refuses (16-bit) or opens flat
+//! (8-bit).
 //!
 //! # The open
 //!
 //! Codes are copied into R = G = B exactly (8-bit ×257). A usable embedded
-//! Gray ICC is kept verbatim (`GrayPolicy`); a PNG `sRGB` chunk is sGray; no
-//! profile at all is the working Gray, disclosed by [`untagged_sentence`].
+//! Gray ICC, or the one a bare `gAMA` describes, is kept verbatim
+//! (`GrayPolicy`); a PNG `sRGB` chunk is sGray; no profile at all is the
+//! working Gray, disclosed by [`untagged_sentence`].
 //! The EXIF orientation is applied as the flat open applies it. A TIFF's
 //! paths are read and a turned JPEG's path records dropped (`tiff_paths`).
 //! A multipage
@@ -174,7 +177,8 @@ pub(crate) fn png_chunk_data(head: &[u8]) -> Vec<(&[u8], &[u8])> {
     out
 }
 
-/// The facts of a gray PNG head: (bit depth, has `sRGB`, the `iCCP` profile).
+/// The facts of a gray PNG head: (bit depth, has `sRGB`, the `iCCP` profile
+/// or the one a bare `gAMA` describes).
 type PngFacts = (u8, bool, Option<Vec<u8>>);
 
 /// The head's facts when it is a gray PNG `open_gray` accepts (module doc).
@@ -190,7 +194,7 @@ fn png_facts(head: &[u8]) -> Option<PngFacts> {
     let srgb = chunks.iter().any(|(kind, _)| *kind == b"sRGB");
     let icc = match chunks.iter().find(|(kind, _)| *kind == b"iCCP") {
         Some((_, data)) => Some(iccp_profile(data)?),
-        None => None,
+        None => crate::png_declared::profile(head, true),
     };
     crate::precision_codec::gray_interpretation(icc.as_deref(), "the file").ok()?;
     crate::precision_png::png_profile_contract(head, icc.is_some(), true).ok()?;

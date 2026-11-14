@@ -31,7 +31,9 @@ struct RasterProfileDescription: Equatable {
     /// Why it cannot be proofed through — nil exactly when `proofable`. Names
     /// the missing A2B/B2A direction and its floating-point twin.
     let proofRefusal: String?
-    /// True when a 16/32-bit Convert accepts it as a destination.
+    /// True when every typed Convert, 32-bit float included, accepts it as a
+    /// destination (a matrix/TRC model that passes the precision checks); a
+    /// 16-bit Convert also accepts a LUT profile that can encode.
     let highDepthDestination: Bool
     /// The core's sentence refusing an export into it (a matrix/TRC profile
     /// that fails the precision check), nil when one converts.
@@ -102,16 +104,30 @@ extension RasterProfile {
 
 extension RasterDocument {
     /// True when the core can turn this document's pixel numbers into PCS
-    /// colour for a conversion — at 8 bits a matrix/TRC profile OR a LUT
-    /// profile with an A2B table. This is the Convert to Profile source gate;
+    /// colour for a conversion — at 8 and 16 bits a matrix/TRC profile OR a
+    /// LUT profile with an A2B table (a 16-bit RGB or Indexed document
+    /// converts through the core's relative/no-BPC pipeline, as an 8-bit one
+    /// does). This is the Convert to Profile source gate;
     /// `profileIsConvertible` keeps its narrower matrix/TRC meaning for the
-    /// calibrated adjustments. At 16 and 32 bits a conversion's source must be
-    /// matrix/TRC, and ANY matrix/TRC model decodes — one whose curves fail the
-    /// precision check converts out through the parser's repairs, so
-    /// this is "has a matrix/TRC model", not `profileIsConvertible`.
+    /// calibrated adjustments. ANY matrix/TRC model decodes — one whose curves
+    /// fail the precision check converts out through the parser's repairs, so
+    /// this is not `profileIsConvertible`. A 32-bit float document's values are
+    /// defined by its profile's primaries, and the other colour modes keep
+    /// their own profile edits, so for them it is "has a matrix/TRC model".
     var profileCanDecode: Bool {
-        guard precision != nil else { return dr_doc_profile_can_decode(ptr) }
-        return RasterProfile.inspect(iccProfile ?? Data()).kind == .rgbMatrix
+        guard let precision else { return dr_doc_profile_can_decode(ptr) }
+        let bytes = iccProfile ?? Data()
+        if RasterProfile.inspect(bytes).kind == .rgbMatrix { return true }
+        guard !precision.isFloat, colorMode == .rgb || colorMode == .indexed else { return false }
+        return RasterProfile.describe(bytes)?.canDecode ?? false
+    }
+
+    /// Whether a Convert to Profile can encode into a profile of `kind`: at 8
+    /// and 16 bits a matrix/TRC model or a LUT with a B2A table, at 32 bits a
+    /// matrix/TRC model only (a float document's values are its profile's
+    /// primaries'). The sheet's and `convert_profile`'s destination gate.
+    func canConvert(into kind: RasterProfileKind) -> Bool {
+        isFloat ? kind == .rgbMatrix : kind.canBeDestination
     }
 
     /// Why an Assign would reinterpret a retained source, and the counts the

@@ -19,7 +19,7 @@ use crate::doc::MAX_PIXELS;
 use crate::job_control::JobContext;
 use crate::metadata::{self, Metadata, Resolution};
 use crate::metadata_write::{EncodeSidecar, MetadataInjector};
-use crate::open_profile::{self, CmykContainer, ProfileAction, SourceSamples};
+use crate::open_profile::{self, CmykContainer, OpenProfile, ProfileAction, SourceSamples};
 
 /// Opaque image handle exposed through the FFI. Holds a non-premultiplied
 /// RGBA8 buffer (row-major, no row padding).
@@ -222,11 +222,10 @@ impl DrImage {
         // its profile (a corrupt one is absence, not a failure to open the
         // file) and its sample kind, which together decide what the open
         // does with the colour (`open_profile`).
-        let (icc, source) = embedded_color(&mut decoder, bytes, scan.icc.take());
+        let (icc, source, decision) = embedded_color(&mut decoder, bytes, scan.icc.take());
         if let SourceSamples::Cmyk(container) = source {
             open_profile::cmyk_gate(bytes, path, container)?;
         }
-        let decision = open_profile::decide(icc.as_deref(), source);
         let pixels = match &decision.action {
             ProfileAction::ConvertCmyk(profile, container) => {
                 // `image` has already turned CMYK into RGB naively by the
@@ -367,18 +366,36 @@ fn flat_decoder<'a>(
         .map_err(|e| format!("failed to decode {path}: {e}"))
 }
 
-/// The embedded profile — the container walk's (`scan_icc`, TIFF only) ahead
-/// of the decoder's, which reassembles JPEG APP2 chunks and inflates PNG
-/// `iCCP` — and what kind of samples the file holds (`SourceSamples::of`).
-/// `.ok().flatten()`, never `?`: a corrupt profile is absence, not a failure
-/// to open the file.
+/// What the flat open does with the file's colour (`open_profile::decide`):
+/// from the embedded profile — the container walk's (`scan_icc`, TIFF only)
+/// ahead of the decoder's, which reassembles JPEG APP2 chunks and inflates
+/// PNG `iCCP` — and what kind of samples the file holds
+/// (`SourceSamples::of`). `.ok().flatten()`, never `?`: a corrupt profile is
+/// absence, not a failure to open the file. A PNG with no `iCCP` and no
+/// `sRGB` is read through the profile its bare `gAMA`/`cHRM` describes
+/// (`png_declared`), exactly as through an `iCCP`; an unusable declaration
+/// is ignored under its clause (`open_profile::declaration_ignored`). The
+/// profile rides beside the decision for the kept case.
 fn embedded_color(
     decoder: &mut impl ImageDecoder,
     bytes: &[u8],
     scan_icc: Option<Vec<u8>>,
-) -> (Option<Vec<u8>>, SourceSamples) {
+) -> (Option<Vec<u8>>, SourceSamples, OpenProfile) {
     let decoded = decoder.icc_profile().ok().flatten();
-    (scan_icc.or(decoded), SourceSamples::of(decoder, bytes))
+    let source = SourceSamples::of(decoder, bytes);
+    let mut icc = scan_icc.or(decoded);
+    if icc.is_none() && bytes.starts_with(&metadata::PNG_SIGNATURE) {
+        let gray = source == SourceSamples::Gray;
+        match crate::png_declared::declared(bytes, gray) {
+            Ok(Some(_)) => icc = crate::png_declared::profile(bytes, gray),
+            Ok(None) => {}
+            Err(clause) => {
+                return (None, source, open_profile::declaration_ignored(&clause));
+            }
+        }
+    }
+    let decision = open_profile::decide(icc.as_deref(), source);
+    (icc, source, decision)
 }
 
 /// The import report's `profile_refusal` for `bytes`: the sentence for a
@@ -415,8 +432,7 @@ pub(crate) fn embedded_profile_report(bytes: &[u8], scan_icc: Option<Vec<u8>>) -
         };
     }
     let mut decoder = flat_decoder(bytes, "the file", JobContext::NONE).ok()?;
-    let (icc, source) = embedded_color(&mut decoder, bytes, scan_icc);
-    open_profile::decide(icc.as_deref(), source).sentence
+    embedded_color(&mut decoder, bytes, scan_icc).2.sentence
 }
 
 /// The profile embedded in an encoded flat image, header work only: the

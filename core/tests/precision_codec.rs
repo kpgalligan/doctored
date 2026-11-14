@@ -465,13 +465,9 @@ fn typed_depth_alpha_profile_and_container_refusals_never_promote_or_convert() {
             .unwrap()
             .contains("depth")
     );
-    let gamma = png(
-        3,
-        2,
-        &pixels,
-        4,
-        vec![chunk(b"gAMA", &45455_u32.to_be_bytes())],
-    );
+    // A usable bare gAMA is the profile it describes (`png_declared`); a
+    // zero one declares nothing and refuses.
+    let gamma = png(3, 2, &pixels, 4, vec![chunk(b"gAMA", &0_u32.to_be_bytes())]);
     assert!(
         precision_codec::decode(&gamma, "gamma", REFERENCE_WORKING_BYTES, 0, None)
             .err()

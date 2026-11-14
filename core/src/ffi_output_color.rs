@@ -88,8 +88,10 @@ pub(crate) unsafe fn proof_arg(bytes: *const u8, len: usize) -> Result<ProofProf
 /// `model`, `can_decode`, `can_encode`, `intents`, `media_white`, `proofable`,
 /// `refusal`, `proof_refusal` (why it cannot be proofed through — null exactly
 /// when `proofable`, naming the missing A2B/B2A direction and its
-/// floating-point twin) and `high_depth_destination` (whether a 16/32-bit
-/// Convert accepts it as a destination). Unlike `dr_icc_inspect` this reads
+/// floating-point twin) and `high_depth_destination` (whether every typed
+/// Convert, 32-bit float included, accepts it as a destination; a 16-bit
+/// Convert also accepts a LUT profile that can encode). Unlike
+/// `dr_icc_inspect` this reads
 /// Gray and CMYK profiles too, because a proof setup may name one. NULL on a
 /// NULL buffer.
 ///

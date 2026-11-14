@@ -118,8 +118,9 @@ fn xyz_of(xy: [f32; 2]) -> Option<[f64; 3]> {
 }
 
 /// The linear RGB → XYZ matrix of a set of primaries, row-major, and its
-/// white as XYZ. `None` when the primaries are not a basis.
-fn rgb_to_xyz(c: &Chromaticities) -> Option<([[f64; 3]; 3], [f64; 3])> {
+/// white as XYZ. `None` when the primaries are not a basis. A PNG's `cHRM`
+/// reaches its profile through it too (`png_declared`).
+pub(crate) fn rgb_to_xyz(c: &Chromaticities) -> Option<([[f64; 3]; 3], [f64; 3])> {
     let primaries = [xyz_of(c[0])?, xyz_of(c[1])?, xyz_of(c[2])?];
     let white = xyz_of(c[3])?;
     // `primaries[k]` is COLUMN k, which is what `invert` takes.

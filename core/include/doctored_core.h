@@ -5914,8 +5914,9 @@ DrPrecisionDocument *dr_precision_doc_convert_cmyk_to_rgb(const DrPrecisionDocum
  * Grayscale document through dr_precision_doc_open_gray — a PNG of colour
  * type 0/4 at 8/16 bits, a BlackIsZero TIFF of 1-2 unsigned 8/16-bit
  * samples, a one-component 8-bit JPEG — each with no profile or a usable
- * Gray ICC (a PNG's gAMA/cHRM only beside sRGB or that ICC). NONE for every
- * other file, which keeps today's open. */
+ * Gray ICC (a PNG with neither an iCCP nor sRGB: a usable bare gAMA, read as
+ * the Gray profile it describes). NONE for every other file, which keeps
+ * today's open. */
 int32_t dr_path_gray_source(const char *path);
 /* working_gray: the working Gray's wire name ("dot_gain_20", "sgray", ...),
  * assigned (with an import warning) to a file with no profile; a PNG sRGB
@@ -6168,8 +6169,8 @@ DrImage *dr_precision_doc_duotone_thumbnail_rgba8(const DrPrecisionDocument *doc
 #define DR_INDEXED_SOURCE_TIFF 3
 /* Header work only: PNG for a PNG of colour type 3 at depth 1/2/4/8 with a
  * PLTE of 2..256 entries, a tRNS (if any) of alphas 0 or 255 with at most one
- * 0, no acTL, and an RGB iCCP, sRGB or no profile (gAMA/cHRM only beside
- * them); GIF for a GIF of exactly one image descriptor at (0,0) covering the
+ * 0, no acTL, and an RGB iCCP, sRGB, a usable bare gAMA/cHRM (read as the
+ * profile it describes) or no profile; GIF for a GIF of exactly one image descriptor at (0,0) covering the
  * logical screen, with a colour table and no ICC extension (a Graphic
  * Control transparent index inside the table); TIFF for a classic TIFF of
  * Photometric 3 (a SHORT), one sample of 1/2/4/8 bits or [8,8] with
@@ -6922,7 +6923,13 @@ char *dr_precision_doc_conversion_plan(const DrPrecisionDocument *document,
  * index, the table's codes and every sample; Convert converts each colour
  * table entry (the RGB conversion, read at 8-bit codes) and keeps every index
  * and the transparent index. Its color_plan is the storage's assign plan,
- * plus the Color Table edit's re-render for a Convert. */
+ * plus the Color Table edit's re-render for a Convert.
+ * A 16-bit Convert to or from a LUT profile (no matrix/TRC model) runs the
+ * relative-colorimetric, BPC-off pipeline an 8-bit one runs, each component
+ * clamped to 0…1 before its one rounding; color_plan charges that pipeline's
+ * tables, a decode-only or unreadable side refuses with the pipeline's
+ * sentence, a linear-light document refuses a destination with no model,
+ * and a Lab Color document refuses as above. */
 DrPrecisionDocument *dr_precision_doc_assign_profile(const DrPrecisionDocument *document,
     const uint8_t *icc, size_t length, uint64_t limit, uint64_t other_retained_bytes,
     const DrJobControl *control, char **err_out);
@@ -6931,7 +6938,8 @@ DrPrecisionDocument *dr_precision_doc_convert_to_profile(const DrPrecisionDocume
     const DrJobControl *control, char **err_out);
 /* True when the typed document's profile is an RGB matrix/TRC model passing the high-depth
  * precision checks: the precondition of document_v2 calibrated Exposure/White Balance and of
- * a high-depth conversion's DESTINATION (a source that fails them still converts out).
+ * a 32-bit float conversion's DESTINATION (a source that fails them still converts out; a
+ * 16-bit conversion also converts into a LUT profile that can encode).
  * False on a NULL document and for a LUT or other unmodelled profile. Typed twin of
  * dr_doc_profile_is_convertible. */
 bool dr_precision_doc_profile_is_convertible(const DrPrecisionDocument *document);
@@ -9600,10 +9608,11 @@ char *dr_metadata_policy_validate(const char *policy_json, char **err_out);
  * when "proofable"; the parser's sentence, or the missing direction ("it has
  * no A2B (device-to-PCS) table" / "it has no B2A (PCS-to-device) table")
  * followed by "; its <TAG> is floating-point, which this build does not read"
- * when a D2Bx/B2Dx twin exists. "high_depth_destination" is whether a
- * 16/32-bit Convert accepts the profile as a destination (a matrix/TRC model
- * that passes the precision checks, the answer of
- * dr_precision_doc_profile_is_convertible). "export_refusal" and
+ * when a D2Bx/B2Dx twin exists. "high_depth_destination" is whether every
+ * typed Convert, 32-bit float included, accepts the profile as a destination
+ * (a matrix/TRC model that passes the precision checks, the answer of
+ * dr_precision_doc_profile_is_convertible); a 16-bit Convert also accepts a
+ * LUT profile that can encode, as an 8-bit one does. "export_refusal" and
  * "convert_refusal" are the sentences the core's export and convert
  * preflights refuse with when an export or a Convert would encode INTO the
  * profile — null unless "model" is "matrix" and "high_depth_destination" is

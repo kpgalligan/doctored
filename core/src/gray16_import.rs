@@ -42,14 +42,14 @@
 //! same per-code rule, rounded to 8 bits. This module is the TYPED import.
 //!
 //! `GrayInterpretation` is either `SrgbCodes` (no ICC, or an `sRGB` chunk — the codes are copied
-//! into R = G = B unchanged, so nothing is converted) or `GrayProfile(curve)` (a Gray ICC — `y =
-//! curve(g/65535)`, re-encoded through the DOCUMENT profile's forward curve, `round(65535·c)` in
-//! all three channels). `precision_codec::header` takes the gray branch BEFORE the shared
-//! `IccProfile::parse` step, which gray never reaches — a Gray ICC is read with
-//! `icc_lut::ProofProfile` and must present `DeviceSpace::Gray` with a `kTRC`, so an RGB ICC on a
-//! gray image refuses by sentence — and `png_profile_contract(bytes, has_icc, gray)` only changes
-//! which profile kind its gamma/chromaticity refusal names. The RGB path's bytes and sentences are
-//! untouched.
+//! into R = G = B unchanged, so nothing is converted) or `GrayProfile(curve)` (a Gray ICC, or the
+//! Gray profile a PNG's bare `gAMA` describes (`png_declared`) — `y = curve(g/65535)`, re-encoded
+//! through the DOCUMENT profile's forward curve, `round(65535·c)` in all three channels).
+//! `precision_codec::header` takes the gray branch BEFORE the shared `IccProfile::parse` step,
+//! which gray never reaches — a Gray ICC is read with `icc_lut::ProofProfile` and must present
+//! `DeviceSpace::Gray` with a `kTRC`, so an RGB ICC on a gray image refuses by sentence — and
+//! `png_profile_contract(bytes, has_icc, gray)` tells it that a gray image reads `gAMA` alone. The
+//! RGB path's bytes and sentences are untouched.
 
 use crate::icc::IccProfile;
 use crate::icc_transform::{Curve, PrecisionToneEncoder};

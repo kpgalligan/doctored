@@ -328,10 +328,11 @@ enum InstalledProfiles {
         all.filter { $0.description.space == "rgb" && $0.description.canEncode }
     }
 
-    /// The `rgb` profiles a 16- or 32-bit conversion accepts as a destination:
+    /// The `rgb` profiles a 32-bit float conversion accepts as a destination:
     /// the core's `high_depth_destination` answer (a matrix/TRC model that
-    /// passes the precision checks), so a matrix profile whose curves fail
-    /// them is not offered.
+    /// passes the precision checks), so neither a LUT profile nor a matrix
+    /// profile whose curves fail them is offered. A 16-bit conversion takes
+    /// `exportDestinations`, as an 8-bit one does.
     static var highDepthDestinations: [InstalledProfile] {
         rgb.filter { $0.description.highDepthDestination }
     }

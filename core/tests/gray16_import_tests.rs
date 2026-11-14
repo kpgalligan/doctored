@@ -561,7 +561,7 @@ fn a_png_gray16_with_a_sampled_gray_icc_follows_the_table() {
 }
 
 #[test]
-fn a_gray_png_refuses_an_rgb_icc_and_a_bare_gama() {
+fn a_gray_png_refuses_an_rgb_icc_and_an_unusable_gama() {
     let rgb = rgb_profile("sRGB IEC61966-2.1");
     let bytes = png(W, H, 0, &codes(), vec![iccp_chunk("sRGB", &rgb)]);
     assert!(
@@ -571,13 +571,32 @@ fn a_gray_png_refuses_an_rgb_icc_and_a_bare_gama() {
         "an RGB ICC on a gray image is refused"
     );
 
-    let bytes = png(W, H, 0, &codes(), vec![gama_chunk(2.2)]);
+    let bytes = png(W, H, 0, &codes(), vec![gama_chunk(0.0)]);
     assert!(
         open(&bytes, "graygama.png")
             .unwrap_err()
-            .contains("PNG gamma/chromaticities require an explicit Gray ICC or sRGB declaration"),
-        "a bare gAMA on a gray image is refused with the Gray sentence"
+            .contains("high-depth profile: the PNG's gAMA chunk is 0, which declares no gamma"),
+        "a gAMA of 0 declares no curve and is refused by that clause"
     );
+}
+
+#[test]
+fn a_png_gray16_with_a_bare_gama_is_converted_through_the_declared_curve() {
+    // gAMA 220000: a file exponent of 2.2, so the decode exponent is 1/2.2.
+    let bytes = png(W, H, 0, &codes(), vec![gama_chunk(2.2)]);
+    let document = open(&bytes, "graygama.png").expect("a bare gAMA opens");
+    let samples = pixels(document);
+    assert_neutral(&samples);
+    for (pixel, code) in samples.iter().zip(codes()) {
+        let want = expected_gray_profile(code, |x| x.powf(100_000.0 / 220_000.0));
+        let delta = i32::from(pixel[0]) - i32::from(want);
+        assert!(
+            delta.abs() <= TRC_TOLERANCE,
+            "code {code}: got {} want {want}",
+            pixel[0]
+        );
+    }
+    unsafe { dr_precision_doc_free(document) };
 }
 
 #[test]

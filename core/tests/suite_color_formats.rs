@@ -587,12 +587,16 @@ mod native_save_bytes;
 mod open_profile_tests;
 #[path = "pattern_fill_cmyk.rs"]
 mod pattern_fill_cmyk;
+#[path = "png_declared_gamma.rs"]
+mod png_declared_gamma;
 #[path = "precision_blend_if_multichannel.rs"]
 mod precision_blend_if_multichannel;
 #[path = "precision_contour.rs"]
 mod precision_contour;
 #[path = "precision_glow_gradient.rs"]
 mod precision_glow_gradient;
+#[path = "precision_lut_conversion.rs"]
+mod precision_lut_conversion;
 #[path = "precision_noise.rs"]
 mod precision_noise;
 #[path = "precision_pattern_angle.rs"]

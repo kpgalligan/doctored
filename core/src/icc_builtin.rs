@@ -143,7 +143,7 @@ impl Builtin {
     /// three built-ins whose native white is D65, the identity for ProPhoto,
     /// whose native white is the PCS D50 and whose columns are therefore not
     /// adapted at all.
-    fn chad(self) -> [i32; 9] {
+    pub(crate) fn chad(self) -> [i32; 9] {
         match self {
             Builtin::Srgb | Builtin::DisplayP3 | Builtin::AdobeRgb => CHAD,
             Builtin::ProPhotoRgb => [0x0001_0000, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x0001_0000],
@@ -156,7 +156,7 @@ impl Builtin {
     /// white is D50 already — by
     /// `color_tests::builtin_matrix_columns_match_the_published_primaries`
     /// and `builtin_wide_profiles`.
-    fn columns(self) -> [[i32; 3]; 3] {
+    pub(crate) fn columns(self) -> [[i32; 3]; 3] {
         match self {
             // 0.436035  0.222485  0.013916
             // 0.385117  0.716888  0.097061
@@ -203,7 +203,7 @@ impl Builtin {
 
 /// The D50 PCS white point, fixed by the ICC spec and identical in every
 /// profile macOS ships: 0.9642, 1.0, 0.8249 as s15Fixed16.
-const D50: [i32; 3] = [0x0000_F6D6, 0x0001_0000, 0x0000_D32D];
+pub(crate) const D50: [i32; 3] = [0x0000_F6D6, 0x0001_0000, 0x0000_D32D];
 
 /// The Bradford chromatic adaptation from D65 to D50, row-major s15Fixed16 —
 ///
@@ -253,7 +253,7 @@ fn srgb_transfer(x: f64) -> f64 {
 /// Anchors a reviewer can spot-check against Apple's shipped
 /// `sRGB Profile.icc`: `[0] = 0x0000`, `[1] = 0x0005`, `[2] = 0x000A`,
 /// `[256] = 0x0D0D`, `[512] = 0x36E9`, `[1023] = 0xFFFF`.
-fn trc_table() -> Vec<u16> {
+pub(crate) fn trc_table() -> Vec<u16> {
     (0..TRC_ENTRIES)
         .map(|i| {
             let x = i as f64 / (TRC_ENTRIES - 1) as f64;
@@ -663,8 +663,9 @@ pub(crate) fn gray_linear_twin_source(gray_icc: &[u8]) -> Option<GrayWorkingSpac
 /// The header, tag table and tag data of a `mntr` profile over `space` with
 /// the `pcs` connection space (`XYZ ` for every built-in but the Lab twin):
 /// each blob padded to a 4-byte boundary (padding is NOT counted in a tag's
-/// size) and IDENTICAL blobs shared.
-fn assemble(
+/// size) and IDENTICAL blobs shared. `png_declared` builds its two profiles
+/// through it too.
+pub(crate) fn assemble(
     tags: &[(&[u8; 4], Vec<u8>)],
     version: [u8; 4],
     space: &[u8; 4],
@@ -731,7 +732,7 @@ fn assemble(
 }
 
 /// `XYZType`: signature, four reserved zero bytes, three s15Fixed16.
-fn xyz_tag(v: [i32; 3]) -> Vec<u8> {
+pub(crate) fn xyz_tag(v: [i32; 3]) -> Vec<u8> {
     let mut t = Vec::with_capacity(20);
     t.extend_from_slice(b"XYZ ");
     t.extend_from_slice(&[0; 4]);
@@ -744,7 +745,7 @@ fn xyz_tag(v: [i32; 3]) -> Vec<u8> {
 /// `curveType`: signature, reserved, u32 count, then that many big-endian
 /// u16 samples. A count of 1 is the gamma form: its one entry is a u8Fixed8
 /// exponent.
-fn curv_tag(table: &[u16]) -> Vec<u8> {
+pub(crate) fn curv_tag(table: &[u16]) -> Vec<u8> {
     let mut t = Vec::with_capacity(12 + 2 * table.len());
     t.extend_from_slice(b"curv");
     t.extend_from_slice(&[0; 4]);
@@ -755,8 +756,21 @@ fn curv_tag(table: &[u16]) -> Vec<u8> {
     t
 }
 
+/// `parametricCurveType` of function type 0, `Y = X^g`: signature,
+/// reserved, u16 function type, u16 reserved, then `g` as raw s15Fixed16. A
+/// v4 tag type (module doc), so only a v4 header carries it
+/// (`png_declared`).
+pub(crate) fn para_tag(g: i32) -> Vec<u8> {
+    let mut t = Vec::with_capacity(16);
+    t.extend_from_slice(b"para");
+    t.extend_from_slice(&[0; 4]);
+    t.extend_from_slice(&[0; 4]);
+    t.extend_from_slice(&g.to_be_bytes());
+    t
+}
+
 /// `s15Fixed16ArrayType`: the `chad` matrix, row-major.
-fn sf32_tag(v: &[i32; 9]) -> Vec<u8> {
+pub(crate) fn sf32_tag(v: &[i32; 9]) -> Vec<u8> {
     let mut t = Vec::with_capacity(8 + 36);
     t.extend_from_slice(b"sf32");
     t.extend_from_slice(&[0; 4]);
@@ -802,7 +816,7 @@ fn desc_tag(s: &str) -> Vec<u8> {
 /// record of 12 bytes (language "en", country "US", the string's byte length
 /// and its offset from the tag's start, 28), then the string as UTF-16BE
 /// with no terminator.
-fn mluc_tag(s: &str) -> Vec<u8> {
+pub(crate) fn mluc_tag(s: &str) -> Vec<u8> {
     let units: Vec<u16> = s.encode_utf16().collect();
     let mut t = Vec::with_capacity(28 + 2 * units.len());
     t.extend_from_slice(b"mluc");

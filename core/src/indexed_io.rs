@@ -12,7 +12,8 @@
 //!   entries, a `tRNS` (if any) whose every alpha is 0 or 255 with at most
 //!   one 0, no `acTL`, and the RGB profile contract the typed open applies
 //!   (`precision_png::png_profile_contract`): an `iCCP` that
-//!   `IccProfile::parse`s as an RGB profile, else `sRGB` or nothing.
+//!   `IccProfile::parse`s as an RGB profile, else `sRGB`, a usable bare
+//!   `gAMA`/`cHRM` (`png_declared`), or nothing.
 //! * GIF with exactly one image descriptor, at (0, 0), covering the logical
 //!   screen, a colour table (the local one, else the global one), and no
 //!   ICC application extension. A Graphic Control Extension's transparent
@@ -29,7 +30,8 @@
 //!
 //! The palette and the transparent index are kept exactly, duplicate
 //! entries included, and every index is kept as it is stored. The `iCCP`
-//! profile is kept verbatim; `sRGB` and no profile are the built-in sRGB,
+//! profile, or the one a bare `gAMA`/`cHRM` describes, is kept verbatim;
+//! `sRGB` and no profile are the built-in sRGB,
 //! the latter disclosed by the typed open's untagged sentence. The EXIF
 //! orientation is applied to the plane as `gray_io::open_gray` applies it,
 //! and a TIFF's paths are read from its 8BIM run (`tiff_paths`).
@@ -80,7 +82,8 @@ struct Facts {
     /// The PNG `tRNS` or GIF transparent index; a palette TIFF's comes from
     /// its decode (`indexed_tiff::decode`).
     transparent: Option<u8>,
-    /// The PNG `iCCP` or TIFF ICC profile; never for a GIF.
+    /// The PNG `iCCP` (or the profile its bare `gAMA`/`cHRM` describes) or
+    /// TIFF ICC profile; never for a GIF.
     icc: Option<Vec<u8>>,
     /// A palette TIFF's own facts, for its decode.
     tiff: Option<PaletteTiff>,
@@ -191,7 +194,7 @@ fn png_facts(head: &[u8]) -> Option<Facts> {
             }
             Some(icc)
         }
-        None => None,
+        None => crate::png_declared::profile(head, false),
     };
     crate::precision_png::png_profile_contract(head, icc.is_some(), false).ok()?;
     Some(Facts {

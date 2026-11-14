@@ -45,9 +45,11 @@ tolerance is widened after the fact.
   `magick -profile` (lcms). The untagged, `sRGB`-chunk and GrayA cases were a
   copy (EXACT) before phase 1a and are now a gray → sRGB conversion: a new
   operation's gate, max <= 1 u16 code (`T2_GRAY_CONVERTED_MAX_U16`), alpha
-  exact. The sRGB-ICC-on-gray and bare-`gAMA` refusals are checked by
-  sentence, unchanged: `dr_path_gray_source` answers none for both, so
-  today's open refuses them.
+  exact. The sRGB-ICC-on-gray refusal is checked by sentence, unchanged:
+  `dr_path_gray_source` answers none for it, so today's open refuses it. A
+  bare `gAMA` is the Gray profile it describes (`png_declared`): that case
+  opens as a Grayscale document and converts on its declared curve, max <=
+  8 u16 codes (`T2_GRAY_DECLARED_MAX_U16`).
 - **D3 the typed bridge.** A typed host still and a typed RAW (the synthetic
   DNG from `scripts/phase3_fixtures.py`) reconstruct packets and PPI. **T4**:
   the exported TIFF16's IFD0/EXIF fields (Make, Model, DateTimeOriginal,
@@ -145,6 +147,10 @@ T2_GRAY_MEAN_U16 = 128
 # conversion now (an sGray Grayscale document through RGB Color), no longer a
 # copy: a new operation's gate, declared before its first run.
 T2_GRAY_CONVERTED_MAX_U16 = 1
+# A bare gAMA is the Gray profile it describes (`png_declared`): the
+# `gray_gama` case converts through that curve, within the core test's bound
+# (`core/tests/png_declared_gamma.rs`), declared before its first run.
+T2_GRAY_DECLARED_MAX_U16 = 8
 # RECORDED DECISION (11D, after the first run): T2's GATE is lcms
 # (`magick -profile`), whose source profile and destination this drive pins.
 # `sips --matchTo` is ColorSync at its own default — it exposes no intent or
@@ -467,6 +473,14 @@ def stats(a, b):
         return dict(max=0, mean=0.0, p99=0)
     return dict(max=deltas[-1], mean=sum(deltas) / len(deltas),
                 p99=deltas[min(len(deltas) - 1, int(0.99 * len(deltas)))])
+
+
+def srgb_encode(linear):
+    """The IEC 61966-2-1 encode, on a value clamped to 0..1."""
+    linear = min(max(linear, 0.0), 1.0)
+    if linear <= 0.0031308:
+        return 12.92 * linear
+    return 1.055 * linear ** (1 / 2.4) - 0.055
 
 
 def rgb_of(samples, colour):
@@ -1279,9 +1293,32 @@ def take_gray16(app, output, report, fixtures):
         passed = False
     detail['cases']['gray_icc'] = entry
 
-    # The two refusals, by sentence.
-    for key, needle in (('gray_rgb_icc', 'Gray ICC profile'),
-                        ('gray_gama', 'Gray ICC or sRGB')):
+    # A bare gAMA (2.2, so a decode exponent of 1/2.2): a Grayscale document
+    # in the Gray profile it describes, converted to sRGB on that curve.
+    if 'gray_gama' in fixtures:
+        entry = {}
+        try:
+            document = open_document(app, fixtures['gray_gama'],
+                                     precision='preserve')['document']
+            gray_to_srgb(app, document, entry)
+            back = output / 'gray-gama.png'
+            entry['export'] = export_png(app, document['id'], back, bit_depth=16)
+            mine = read_png(back)
+            source = read_png(fixtures['gray_gama'])
+            wanted = [round(65535 * srgb_encode((value / 65535) ** (1 / 2.2)))
+                      for value in source['samples']]
+            measure = stats(rgb_of(mine['samples'], mine['colour'])[0::3], wanted)
+            entry['T2_declared'] = measure
+            ok = measure['max'] <= T2_GRAY_DECLARED_MAX_U16
+            entry['gated'] = ok
+            passed &= ok
+        except Exception as error:
+            entry['error'] = repr(error)[:400]
+            passed = False
+        detail['cases']['gray_gama'] = entry
+
+    # The refusal, by sentence.
+    for key, needle in (('gray_rgb_icc', 'Gray ICC profile'),):
         if key not in fixtures:
             continue
         outcome = {}

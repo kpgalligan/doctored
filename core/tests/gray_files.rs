@@ -21,7 +21,7 @@ use serde_json::Value;
 use tempfile::TempDir;
 
 use crate::common::{cpath, take_err_string};
-use crate::gray_fixture::{gama_chunk, gray_icc, gray_tiff, iccp, png, srgb_chunk};
+use crate::gray_fixture::{chunk, gama_chunk, gray_icc, gray_tiff, iccp, png, srgb_chunk};
 
 const LIMIT: u64 = 2 * 1024 * 1024 * 1024;
 
@@ -100,8 +100,16 @@ fn the_source_question_answers_exactly_the_gray_files_open_gray_accepts() {
             png(4, 4, 8, 0, 1, &gray8, &[iccp(&rgb_icc)]),
         ),
         (
-            "bare_gama.png",
-            png(4, 4, 16, 0, 1, &gray16, &[gama_chunk()]),
+            "unusable_gama.png",
+            png(
+                4,
+                4,
+                16,
+                0,
+                1,
+                &gray16,
+                &[chunk(b"gAMA", &0u32.to_be_bytes())],
+            ),
         ),
         ("rgb.png", png(2, 2, 8, 2, 3, &ramp(12, 20), &[])),
         (
@@ -126,6 +134,12 @@ fn the_source_question_answers_exactly_the_gray_files_open_gray_accepts() {
         ("gray8.png", png(4, 4, 8, 0, 1, &gray8, &[]), 1),
         ("gray16.png", png(4, 4, 16, 0, 1, &gray16, &[]), 1),
         ("gray_a16.png", png(4, 4, 16, 4, 2, &gray_a16, &[]), 1),
+        // A bare gAMA is the Gray profile it describes (`png_declared`).
+        (
+            "bare_gama.png",
+            png(4, 4, 16, 0, 1, &gray16, &[gama_chunk()]),
+            1,
+        ),
         (
             "gray16.tif",
             gray_tiff(4, 4, 16, 1, 1, None, None, &tiff16, None),

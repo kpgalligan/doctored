@@ -32,6 +32,11 @@
 //!
 //! "Ignored" means today's pixels, labelled sRGB — now with a sentence.
 //!
+//! A PNG with no `iCCP` and no `sRGB` reaches [`decide`] with the profile its
+//! bare `gAMA`/`cHRM` describes (`png_declared`, read by
+//! `dr_image::embedded_color`) as if an `iCCP` held it; a declaration that
+//! profile cannot be built from is ignored under [`declaration_ignored`].
+//!
 //! # The intent, and why
 //!
 //! * GRAY runs `gray16_import`'s rule, the typed 16-bit import's master
@@ -357,6 +362,18 @@ fn plain_platform_sentence(source: PlatformSource) -> String {
          converted to sRGB as it was read.",
         source.name()
     )
+}
+
+/// A PNG whose bare `gAMA`/`cHRM` `png_declared` cannot use, `clause` its
+/// reason ("the PNG's gAMA chunk is 0, …"): today's numbers, read as sRGB,
+/// under a sentence that says so.
+pub(crate) fn declaration_ignored(clause: &str) -> OpenProfile {
+    let mut letters = clause.chars();
+    let opening: String = letters
+        .next()
+        .map(|c| c.to_uppercase().collect())
+        .unwrap_or_default();
+    ignore(format!("{opening}{}, {READ_AS_SRGB}", letters.as_str()))
 }
 
 /// S6.

@@ -18,13 +18,13 @@ import AppKit
 /// the question.
 ///
 /// Three refusals live in the copy rather than in a disabled menu item,
-/// because a beep cannot tell them apart: a document whose own profile is
-/// LUT-based cannot be converted FROM, a loaded LUT-based profile cannot be
-/// converted INTO, and a destination that describes the space the document
-/// is already in has nothing to convert. The first two are real ICC profiles
-/// Doctored will happily display, embed and assign — it is only the
-/// transform that needs a matrix/TRC model — so the sheet names the reason
-/// and points at Assign.
+/// because a beep cannot tell them apart: a document whose own profile has
+/// no table this build can convert FROM, a loaded profile it cannot convert
+/// INTO (at 32 bits any profile with no matrix/TRC model), and a destination
+/// that describes the space the document is already in has nothing to
+/// convert. The first two are real ICC profiles Doctored will happily
+/// display, embed and assign — it is only the transform that cannot run —
+/// so the sheet names the reason and points at Assign.
 ///
 /// The third is the one that has to be asked of the CORE. "Is this the space
 /// we are in?" is not "are these the same bytes": the "sRGB IEC61966-2.1"
@@ -47,9 +47,9 @@ final class ConvertProfileSheetController: NSViewController {
     private let currentProfile: Data
     private let currentName: String
     /// Whether the core can DECODE this document's profile for a conversion:
-    /// at 8 bits a matrix/TRC model, or (Phase 11C) a LUT profile with a
-    /// readable A2B table; at 16 and 32 bits a matrix/TRC model only. This
-    /// is `profileCanDecode`, which asks the typed document at depth.
+    /// at 8 and 16 bits a matrix/TRC model, or (Phase 11C) a LUT profile with
+    /// a readable A2B table; at 32 bits a matrix/TRC model only. This is
+    /// `profileCanDecode`, which asks the typed document at depth.
     private let sourceIsConvertible: Bool
 
     private let profilePopup = NSPopUpButton(frame: .zero, pullsDown: false)
@@ -115,12 +115,11 @@ final class ConvertProfileSheetController: NSViewController {
             WorkingSpace.allCases.first { $0.profileData == profile }
             .map { ProfileChoice.builtin($0) } ?? ProfileChoice.file(profile, doc.profileName, nil)
         self.choice = initial
-        // The opening selection IS the document's profile, and the core has
-        // already classified that one through `profileCanDecode` (at depth
-        // exactly the matrix/TRC question), so the blob need not be parsed
-        // again here — and neither does the same-space question, whose
-        // answer for a profile against itself is yes.
-        self.choiceKind = doc.profileCanDecode ? .rgbMatrix : .rgbUnconvertible
+        // The opening selection IS the document's profile, and the same-space
+        // question's answer for a profile against itself is yes, so Apply
+        // starts disabled whatever its kind; the kind is the core's own
+        // classification of the blob.
+        self.choiceKind = RasterProfile.inspect(profile).kind
         self.choiceIsCurrentSpace = true
         super.init(nibName: nil, bundle: nil)
         renderer.onRender = { [weak self] cgImage in
@@ -138,7 +137,7 @@ final class ConvertProfileSheetController: NSViewController {
     override func loadView() {
         ColorProfileControls.fillProfiles(
             profilePopup, current: currentProfile, currentName: currentName,
-            installed: baseDoc.isHighDepth
+            installed: baseDoc.isFloat
                 ? InstalledProfiles.highDepthDestinations : InstalledProfiles.exportDestinations)
         profilePopup.target = self
         profilePopup.action = #selector(profileChanged(_:))
@@ -220,25 +219,19 @@ final class ConvertProfileSheetController: NSViewController {
         return !choiceIsCurrentSpace || !options.isDefault
     }
 
-    /// Whether the selection can be converted INTO. At 16 and 32 bits the
-    /// typed conversion needs a matrix/TRC model on both sides, so a LUT
-    /// picked through "Load from file…" refuses here rather than in the core.
-    private var choiceIsDestination: Bool {
-        baseDoc.isHighDepth ? choiceKind == .rgbMatrix : choiceKind.canBeDestination
-    }
+    /// Whether the selection can be converted INTO (`canConvert(into:)`): at
+    /// 32 bits a matrix/TRC model, so a LUT picked through "Load from file…"
+    /// refuses here rather than in the core.
+    private var choiceIsDestination: Bool { baseDoc.canConvert(into: choiceKind) }
 
     /// The line under the popup. It carries the refusals in full, because it
     /// is the one label in the card that grows to fit a sentence and the one
     /// place a user can find out why Apply is grey.
     private var noteText: String {
         guard sourceIsConvertible else {
-            if baseDoc.isHighDepth {
-                return "Doctored cannot convert a high-depth document from “\(currentName)” — at 16 "
-                    + "and 32 bits both profiles must be matrix/TRC. Assign Profile can still "
-                    + "relabel the document."
-            }
-            return "Doctored cannot convert from “\(currentName)” — it is not a matrix/TRC "
-                + "profile. Assign Profile can still relabel the document."
+            return "Doctored cannot convert from “\(currentName)” — it carries neither a "
+                + "matrix/TRC model nor a colour table this build can read. Assign Profile can "
+                + "still relabel the document."
         }
         guard choiceIsDestination else {
             // A float document cannot be relabelled with a LUT profile
@@ -248,11 +241,6 @@ final class ConvertProfileSheetController: NSViewController {
                 return "Doctored cannot convert a 32-bit float document into “\(choice.name)” — it "
                     + "has no matrix/TRC model, and a float document's linear values are defined "
                     + "by its profile's primaries. Choose a matrix/TRC RGB profile."
-            }
-            if baseDoc.isHighDepth {
-                return "Doctored cannot convert a high-depth document into “\(choice.name)” — at 16 "
-                    + "and 32 bits both profiles must be matrix/TRC. Assign Profile can still "
-                    + "relabel the document."
             }
             return "Doctored cannot convert into “\(choice.name)” — it carries neither a "
                 + "matrix/TRC model nor a colour table this build can read. Assign Profile "

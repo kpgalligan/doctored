@@ -34,7 +34,7 @@ use crate::icc_transform::{PrecisionToneEncoder, PrecisionTransform};
 use crate::job_control::{DrJobControl, JobContext};
 use crate::precision_clipboard::PasteProfile;
 use crate::precision_clipboard_codec::{payload_bytes, ClipboardPayload};
-use crate::precision_color::convert_u16_pixels;
+use crate::precision_color::{convert_u16_pixels, U16Conversion};
 use crate::precision_evaluation::TypedTransfer;
 use crate::precision_image::{
     admit, pixel_count, reserved_vec, PrecisionImage, PrecisionStorage, BOOKKEEPING_BYTES,
@@ -194,7 +194,13 @@ impl ClipboardPayload {
         if let Some((src, dst)) = models {
             let transform = PrecisionTransform::new(src, dst)
                 .map_err(|e| crate::icc_encode_refusal::own_profile_error(profile, e))?;
-            convert_u16_pixels(&mut pixels, &transform, job, 0, count as u64)?;
+            convert_u16_pixels(
+                &mut pixels,
+                U16Conversion::Matrix(&transform),
+                job,
+                0,
+                count as u64,
+            )?;
         }
         let image = PrecisionImage::from_rgba16_unseeded(w, h, pixels, profile.clone(), None)?;
         job.report(1.0, 5)?;

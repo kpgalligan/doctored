@@ -266,8 +266,10 @@ extension AgentServer {
                     + "painting that hex back gives a duller colour, and there is no sRGB "
                     + "string that gives the sampled one. Also returns \"srgb_rgba\" "
                     + "(the pixel as continuous normalized sRGB numbers, for a text or shape "
-                    + "layer's rgba/fill_rgba/stroke_rgba) and \"srgb_in_gamut\". Errors when "
-                    + "the point is outside the canvas.",
+                    + "layer's rgba/fill_rgba/stroke_rgba) and \"srgb_in_gamut\"; on a "
+                    + "document tagged with a LUT profile, srgb_rgba is the core's decode "
+                    + "clamped to 0…1 and srgb_in_gamut is whether it encodes back within one "
+                    + "code. Errors when the point is outside the canvas.",
                 [
                     "x": [
                         "type": "integer",

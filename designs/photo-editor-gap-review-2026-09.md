@@ -49,7 +49,7 @@ issue is inventory, with no owner yet.
 | F03 | P0 | No verified autosave/recovery; 24-level undo | DONE — plan §5A–5D; `RecoveryCoordinator.swift`, History…, Snapshots… |
 | F04 | P0 | Straight-alpha resize/blur darkens edges | DONE — plan §1D; `ops::resize` → `sampling::resize` |
 | F05 | P0/P1 | TIFF drops ICC/PPI on reopen; PSD import lossy without notice | DONE — plan §3A, §3D, §10A |
-| F06 | P1 | 8-bit storage; uncalibrated Exposure/White Balance | DONE — Phase 7, 11F, plan §3C; the soft-proof ΔE miss OPEN → [#16](https://github.com/kpgalligan/doctored/issues/16) |
+| F06 | P1 | 8-bit storage; uncalibrated Exposure/White Balance | DONE — Phase 7, 11F, plan §3C; the soft-proof ΔE gate re-derived against Little CMS (11C ADR, 2026-11-14) |
 | F07 | P1 | RAW/placed sources not retained | DONE for camera RAW (8C, P7-02); placed-image and host retained sources (P7-01, P7-03, P7-35) were built and REMOVED 2026-10-10 ([removal ADR](convert-to-smart-object-status.md)) |
 | F08 | P1 | Selection undo, Reselect, Color Range, refinement, independent masks, mask targeting | DONE — Phases 2, 6 and 9I; the matting quality gate stopped being a ship condition on 2026-10-10 ([selection and mask ADR](phase-6-selection-mask-status.md)) |
 | F09 | P1 | Spatial filters; selection-scoped destructive edits | DONE for USM, High Pass, denoise, median, D&S and scoping (9B/9C/9F, 2B); remaining filters listed in the Filters rows of [photo-editor-gap-review.md](photo-editor-gap-review.md) |

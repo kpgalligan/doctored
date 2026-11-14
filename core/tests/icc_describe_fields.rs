@@ -3,9 +3,11 @@
 //! - `proof_refusal`: why a profile cannot be proofed through — null
 //!   exactly when `proofable`, naming the missing A2B/B2A direction and its
 //!   floating-point D2Bx/B2Dx twin, or the parser's own sentence;
-//! - `high_depth_destination`: whether a 16/32-bit Convert accepts the
-//!   profile as a destination. Its oracle is the typed conversion preflight
-//!   itself, so the field cannot drift from the rule it reports;
+//! - `high_depth_destination`: whether every typed Convert, 32-bit float
+//!   included, accepts the profile as a destination; a 16-bit Convert also
+//!   accepts a LUT profile that can encode. Its oracle is the typed
+//!   conversion preflight itself at both depths, so the field cannot drift
+//!   from the rule it reports;
 //! - the export destination rule: an export into a profile file
 //!   converts exactly when `model` is not `matrix` or `high_depth_destination`
 //!   holds, at 16 bits, at 8 bits and from a byte document alike;
@@ -209,8 +211,19 @@ fn srgb_u16_document() -> *mut PrecisionDocument {
     Box::into_raw(Box::new(doc))
 }
 
-/// Whether the typed conversion preflight of an sRGB u16 document accepts
-/// `profile` as its destination.
+/// Two pixels as a 32-bit float sRGB document (`float_fixture`).
+fn srgb_f32_document() -> *mut PrecisionDocument {
+    let doc = crate::float_fixture::float_doc(
+        2,
+        1,
+        &IccProfile::srgb(),
+        &[vec![[0.49, 0.19, 0.87, 1.0], [0.015, 0.92, 0.46, 1.0]]],
+    );
+    Box::into_raw(Box::new(doc))
+}
+
+/// Whether the typed conversion preflight of `doc` accepts `profile` as its
+/// destination.
 fn typed_preflight_accepts(doc: *const PrecisionDocument, profile: &[u8]) -> bool {
     let mut err = ptr::null_mut();
     let raw = unsafe {
@@ -264,18 +277,32 @@ fn high_depth_destination_is_the_typed_preflights_answer() {
     assert_eq!(describe(&bad_gamma)["model"], "matrix");
 
     let doc = srgb_u16_document();
+    let float = srgb_f32_document();
     for (what, bytes) in [
         ("Display P3", &p3),
         ("gamma-0 matrix", &bad_gamma),
         ("LUT RGB", &lut),
     ] {
+        let d = describe(bytes);
+        // Every typed Convert, 32-bit float included, accepts exactly these.
         assert_eq!(
-            describe(bytes)["high_depth_destination"].as_bool(),
-            Some(typed_preflight_accepts(doc, bytes)),
-            "{what}"
+            d["high_depth_destination"].as_bool(),
+            Some(typed_preflight_accepts(float, bytes)),
+            "{what} at 32 bits"
+        );
+        // A 16-bit Convert also accepts a LUT profile that can encode.
+        let sixteen =
+            d["high_depth_destination"] == true || (d["model"] == "lut" && d["can_encode"] == true);
+        assert_eq!(
+            typed_preflight_accepts(doc, bytes),
+            sixteen,
+            "{what} at 16 bits"
         );
     }
-    unsafe { doctored_core::ffi_precision::dr_precision_doc_free(doc) };
+    unsafe {
+        doctored_core::ffi_precision::dr_precision_doc_free(doc);
+        doctored_core::ffi_precision::dr_precision_doc_free(float);
+    }
 }
 
 // ------------------------------------------ export destinations --

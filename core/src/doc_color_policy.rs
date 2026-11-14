@@ -68,9 +68,10 @@
 //! at relative; black-point compensation and absolute refuse everywhere. The
 //! refusal ([`settings_sentence`]) names the setting that keeps the sources
 //! bound — relative colorimetric with BPC off — which holds for both kinds of
-//! pair. Preserve appearance is admitted beside a source. At 16 bits a LUT
-//! side still refuses at the typed colour plan (high-depth conversion needs a
-//! matrix/TRC destination).
+//! pair. Preserve appearance is admitted beside a source. Both depths convert
+//! a LUT side the same way: a 16-bit document's default conversion runs the
+//! same relative/no-BPC pipeline (`precision_color`), and an admitted setting
+//! keeps the sources bound under any adjustment policy.
 //!
 //! [`ConversionOptions::rasterize_sources`] is the disclosed way past
 //! that refusal, as `assign_profile_rasterizing` is for Assign: when the

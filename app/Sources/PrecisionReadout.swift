@@ -84,7 +84,7 @@ extension AgentServer {
            let reading = SRGBReading(documentComponents: normalized, in: document.nsColorSpace) {
             report.merge(reading.fields) { _, new in new }
             if !reading.inGamut {
-                report["note"] = [report["note"] as? String, SRGBReading.outOfGamutNote]
+                report["note"] = [report["note"] as? String, reading.outOfGamutNote]
                     .compactMap { $0 }.joined(separator: " ")
             }
         }

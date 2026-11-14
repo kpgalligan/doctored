@@ -579,6 +579,7 @@ Detail belongs in the source file's own header comment.
 - `develop_inspect.rs` / `ffi_develop_inspect.rs` — read-only inspection of retained u16/f32 masters before geometry or retouch; the f32 rule-X preview at Fit/100 % with float clipping.
 - `clip_display.rs` / `ffi_clip_display.rs` — the ⌥-drag Levels/Curves clipping display: a transient threshold image of an edited composite; u16 0/65535, f32 >= 1.0 / <= 0.0.
 - `precision_codec.rs` / `precision_png.rs` / `precision_io.rs` / `ffi_precision.rs` — preserving RGB/RGBA16 PNG/TIFF input, metadata sidecar/TIFF encoder, native pixel payloads, typed C owners.
+- `png_declared.rs` — kernel: a PNG's bare `gAMA`/`cHRM` (no `iCCP`, no `sRGB`) as the v4 RGB or Gray profile it describes, read in an `iCCP`'s place by every PNG open.
 - `precision_png_rows.rs` — the banded native RGBA16 PNG reader: rows decoded straight into 256×256 tiles, with no whole-plane decode buffer beside them.
 - `artwork_coverage.rs` / `artwork_render.rs` / `artwork_document.rs` / `ffi_artwork.rs` — bounded coverage; ink assembly into RGBA16 (linear f32 at 32 bits); a document-depth publication.
 - `authored_color.rs` / `ffi_authored_color.rs` — the one sRGB ↔ document decision for authored colours (`LabTwin` converts tiles), wide colours in and out.

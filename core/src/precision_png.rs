@@ -292,12 +292,15 @@ pub(crate) fn png_chunks(
 
 /// Which PNG colour chunks may sit beside which profile declaration.
 ///
-/// `has_icc` means "an embedded profile that PARSED" — for a gray image that
-/// is a GRAY ICC read through `icc_lut::ProofProfile` (`gray` true), for an
-/// RGB one the `IccProfile` the decoder handed back. The only thing `gray`
-/// changes is the sentence the gamma/chromaticity refusal names: a grayscale
-/// file has to carry a Gray ICC, and telling its author to embed an RGB one
-/// would be advice that refuses again.
+/// `has_icc` means "a profile that PARSED" — for a gray image a GRAY ICC
+/// read through `icc_lut::ProofProfile` (`gray` true), for an RGB one the
+/// `IccProfile` the open reads — the `iCCP`'s, or the one a bare
+/// `gAMA`/`cHRM` describes (`png_declared::profile`), which the caller reads
+/// in its place. So `gAMA`/`cHRM` with no parsed profile and no `sRGB` is
+/// either a declaration `png_declared` could not use, refused with its
+/// clause, or a gray image's lone `cHRM`, which is not read: it declares
+/// nothing, so the file opens untagged. `gray` decides which chunks a gray
+/// image reads (`png_declared`'s module doc).
 pub(crate) fn png_profile_contract(bytes: &[u8], has_icc: bool, gray: bool) -> Result<(), String> {
     let (mut srgb, mut transfer, mut icc) = (false, false, false);
     png_chunks(bytes, |kind| {
@@ -316,11 +319,8 @@ pub(crate) fn png_profile_contract(bytes: &[u8], has_icc: bool, gray: bool) -> R
         return Err("high-depth profile: embedded PNG profile could not be decoded".into());
     }
     if transfer && !has_icc && !srgb {
-        return Err(if gray {
-            "high-depth profile: PNG gamma/chromaticities require an explicit Gray ICC or sRGB declaration".into()
-        } else {
-            "high-depth profile: PNG gamma/chromaticities require an explicit RGB ICC or sRGB declaration".to_string()
-        });
+        crate::png_declared::declared(bytes, gray)
+            .map_err(|clause| format!("high-depth profile: {clause}"))?;
     }
     Ok(())
 }

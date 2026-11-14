@@ -630,7 +630,7 @@ final class AgentServer {
         if let reading = SRGBReading(documentComponents: components, in: doc.nsColorSpace) {
             result.merge(reading.fields) { _, new in new }
             if !reading.inGamut {
-                result["note"] = [result["note"] as? String, SRGBReading.outOfGamutNote]
+                result["note"] = [result["note"] as? String, reading.outOfGamutNote]
                     .compactMap { $0 }.joined(separator: " ")
             }
         }

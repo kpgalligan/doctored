@@ -390,6 +390,8 @@ pub unsafe extern "C" fn dr_precision_doc_assign_profile(
 }
 
 /// Convert stored RGB through the shared ICC kernel, preserving exact source alpha.
+/// A 16-bit document with a LUT side runs the relative/no-BPC pipeline, each
+/// component clamped to 0…1 before its one rounding (`precision_color`).
 /// In a 32-bit float document the conversion is the matrix between the
 /// two profiles' primaries on linear RGB in f64, rounded once to f32, with no
 /// clamp and alpha kept; a profile with no matrix/TRC model, a destination

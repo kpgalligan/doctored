@@ -44,31 +44,63 @@ enum ColorSpaceArgument: String {
 /// A document-space sample as continuous extended-sRGB numbers.
 struct SRGBReading {
     static let epsilon = 1e-6
-    static let outOfGamutNote =
+    static let extendedNote =
         "srgb_rgba is outside 0…1, so a text or shape colour cannot hold this pixel either."
+    static let lutNote =
+        "This pixel is outside the sRGB gamut and a LUT profile has no extended form, so "
+        + "srgb_rgba is the nearest sRGB colour and a text or shape colour cannot hold this "
+        + "pixel either."
 
     /// 4 values; RGB clamped to 0...1 when in gamut, the raw extended values
-    /// otherwise; alpha passed through.
+    /// otherwise (in a LUT-mode space, always clamped); alpha passed through.
     let rgba: [Double]
-    /// Every RGB component within [-epsilon, 1+epsilon].
+    /// Every RGB component within [-epsilon, 1+epsilon]; in a LUT-mode space,
+    /// the reading encodes back to the sample within one 8-bit code a
+    /// component.
     let inGamut: Bool
+    /// The note `sample_color` adds when the pixel is outside sRGB.
+    let outOfGamutNote: String
 
     /// nil when `space` cannot convert to `.extendedSRGB` (e.g. a LUT profile
-    /// with no usable tables) or converts through the core
-    /// (`ColorProfile.convertsThroughCore`, a LUT-mode profile), which
-    /// has no extended form. `.extendedSRGB`, never `.sRGB`, which would clip.
+    /// with no usable tables). `.extendedSRGB`, never `.sRGB`, which would
+    /// clip. In a LUT-mode space (`ColorProfile.convertsThroughCore`) the
+    /// CORE decodes the sample to sRGB (`ColorProfile.converted(_:into:)`:
+    /// relative colorimetric, BPC off, clamped to 0…1, since a LUT has no
+    /// extended form), and the sample is in gamut when that reading encodes
+    /// back into the space within one 8-bit code a component — the rule
+    /// `ColorProfile.paintBytes` decides `paint_hex_exact` by.
     init?(documentComponents: [Double], in space: NSColorSpace) {
-        guard documentComponents.count == 4, !ColorProfile.convertsThroughCore(space)
-        else { return nil }
+        guard documentComponents.count == 4 else { return nil }
         let components = documentComponents.map { CGFloat($0) }
-        guard let converted = NSColor(colorSpace: space, components: components, count: 4)
-            .usingColorSpace(.extendedSRGB) else { return nil }
+        let sample = NSColor(colorSpace: space, components: components, count: 4)
+        if ColorProfile.convertsThroughCore(space) {
+            guard let srgb = ColorProfile.converted(sample, into: .sRGB),
+                  let back = ColorProfile.converted(
+                    NSColor(srgbRed: srgb.redComponent, green: srgb.greenComponent,
+                            blue: srgb.blueComponent, alpha: 1),
+                    into: space)
+            else { return nil }
+            let rgb = [srgb.redComponent, srgb.greenComponent, srgb.blueComponent]
+                .map { min(max(Double($0), 0), 1) }
+            let round = [back.redComponent, back.greenComponent, back.blueComponent]
+                .map { Double($0) }
+            guard rgb.allSatisfy({ $0.isFinite }), round.allSatisfy({ $0.isFinite }) else {
+                return nil
+            }
+            inGamut = zip(documentComponents.prefix(3), round)
+                .allSatisfy { abs($0 - $1) * 255 <= 1 + Self.epsilon }
+            rgba = rgb + [documentComponents[3]]
+            outOfGamutNote = Self.lutNote
+            return
+        }
+        guard let converted = sample.usingColorSpace(.extendedSRGB) else { return nil }
         let rgb = [converted.redComponent, converted.greenComponent, converted.blueComponent]
             .map { Double($0) }
         guard rgb.allSatisfy({ $0.isFinite }) else { return nil }
         let inside = rgb.allSatisfy { $0 >= -Self.epsilon && $0 <= 1 + Self.epsilon }
         inGamut = inside
         rgba = (inside ? rgb.map { min(max($0, 0), 1) } : rgb) + [documentComponents[3]]
+        outOfGamutNote = Self.extendedNote
     }
 
     var fields: [String: Any] { ["srgb_rgba": rgba, "srgb_in_gamut": inGamut] }

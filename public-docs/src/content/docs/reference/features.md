@@ -705,7 +705,7 @@ The design record behind each area is in the repository's
   movies, HLG and PQ HEVC movies (as a 32-bit float document), and camera RAW (CR3, CR2, NEF, ARW, DNG, Apple ProRAW,
   ORF, RW2, RAF, SRW, PEF) — EXIF orientation is applied on open, so camera
   photos display upright. A GRAYSCALE PNG, TIFF or JPEG (8 or 16 bits, no
-  profile or a Gray ICC) opens as a Grayscale document: its
+  profile, a Gray ICC or a PNG's bare `gAMA`) opens as a Grayscale document: its
   codes are kept exactly, an embedded Gray ICC is kept, a PNG `sRGB` chunk is
   sGray and a file with no profile takes the working Gray; a one-channel float
   TIFF with a Gray ICC opens as a 32-bit Grayscale document. A palette PNG,
@@ -951,6 +951,9 @@ The design record behind each area is in the repository's
   Working Space — sRGB by default, or Display P3; it affects future opens
   only). Native documents and explicit PSD imports retain their source profile
   and decoded samples, including single-layer PSDs and the saved-composite choice.
+  A PNG with no ICC profile and no `sRGB` chunk but a `gAMA` or `cHRM` chunk is read in the
+  profile those declare (its gamma, its primaries, sRGB's for the half it leaves out), at 8
+  and 16 bits, gray and palette PNGs included.
   An ordinary flat RGB or grayscale image with no profile is assumed sRGB, which is what every reader
   does — so with the working space set to Display P3 an untagged file is
   converted too, and opening one and saving it straight back will not
@@ -3575,7 +3578,7 @@ relabelling would reinterpret the RAW layer's developed master, and offers
 "Rasterize N RAW layers, then assign" as one undo step. Convert to Profile on such a
 document keeps every source bound when it converts at relative, perceptual or
 saturation between two matrix/TRC profiles, or at relative colorimetric to or
-from a LUT profile at 8 bits (each source re-renders through the same
+from a LUT profile at 8 and 16 bits (each source re-renders through the same
 relative, no-BPC transform as the pixels); black point compensation, absolute
 colorimetric, and perceptual or saturation with a LUT side refuse with a
 sentence naming how many sources it cannot keep bound and the setting that
@@ -3594,12 +3597,13 @@ fill and gradient colours are converted from sRGB into the profile at 8 and
 mask, Quick Mask or channel still reads its gray in sRGB, so white writes
 255. A LUT profile whose tables
 this build CAN read (v2 `lut8`/`lut16`, v4 `mAB `/`mBA `) is a full conversion
-source and destination at 8 bits only, and `get_color_profile` reports both bits:
+source and destination at 8 and 16 bits, and `get_color_profile` reports both bits:
 `convertible` stays the narrower matrix/TRC question the calibrated adjustments
-ask, and `can_decode` is the wider one. At 16 and 32 bits both profiles of a
-conversion must be matrix/TRC, so there `can_decode` asks the matrix/TRC
-question, `convertible` adds the high-depth precision checks, and the Convert
-sheet offers only matrix/TRC destinations that pass them. A matrix/TRC profile
+ask, and `can_decode` is the wider one. On such a document `sample_color` reports
+`srgb_rgba` as the profile's colour in sRGB, clamped to 0…1. At 32 bits both
+profiles of a conversion must be matrix/TRC, so there `can_decode` asks the
+matrix/TRC question, `convertible` adds the high-depth precision checks, and the
+Convert sheet offers only matrix/TRC destinations that pass them. A matrix/TRC profile
 whose tone curves fail those checks can be assigned and converted OUT of at
 every depth (gamma 0 reads as linear, a falling table as its running maximum),
 while Convert to Profile into it is refused up front with a sentence naming

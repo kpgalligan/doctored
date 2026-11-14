@@ -1,6 +1,6 @@
 # Format additions — HEIC, Gray16, typed metadata bridge, float TIFF seam, PDF/SVG (ADR)
 
-- **Status:** Accepted — open items remain ([#16](https://github.com/kpgalligan/doctored/issues/16), [#1](https://github.com/kpgalligan/doctored/issues/1))
+- **Status:** Accepted — open items remain ([#1](https://github.com/kpgalligan/doctored/issues/1))
 - **Phase / dates:** 11D, drive run 2026-09-18 (all seven gates D1–D7 pass)
 - **Originals:** [archive/phase-11d-format-additions-status.md](../archive/phase-11d-format-additions-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-11d-format-additions-status.md](../archive/2026-10/phase-11d-format-additions-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `0e1c496`
@@ -41,8 +41,9 @@ claim alone is insufficient": every depth/profile/packet claim must come from an
   `embed_profile` is measured from the file's `colr` box (ImageIO writes `nclx` when ICC-less), never the flag.
 - **Gray16 → RGB** (`core/src/gray16_import.rs`), two rules: `SrgbCodes` (no ICC or `sRGB` chunk; codes copied to
   R=G=B unchanged) and `GrayProfile` (Gray ICC: `y = kTRC(g)`, re-encoded through the document's sRGB forward
-  curve). Document is always sRGB (a Gray profile has no primaries). Refused: bare `gAMA`/`cHRM`; an RGB ICC on a
-  gray image; `cICP`/`mDCV`/`cLLI`. Gray ICC is parsed with `icc_lut::ProofProfile`, **never** `IccProfile::parse`,
+  curve). Document is always sRGB (a Gray profile has no primaries). A bare `gAMA` is the Gray profile it
+  describes (`png_declared`, below). Refused: an unusable `gAMA`; an RGB ICC on a gray image;
+  `cICP`/`mDCV`/`cLLI`. Gray ICC is parsed with `icc_lut::ProofProfile`, **never** `IccProfile::parse`,
   so the RGB path is untouched. TIFF `GrayA` needs exactly one unassociated alpha. A `.rgba8` import choice opens
   through the core's flat open, which converts a Gray ICC through the same per-code rule
   (`gray16_import::encoded_gray`) from the 16-bit samples, rounded to 8 bits. (Superseded: a gray file untagged
@@ -99,8 +100,15 @@ reach disk or preview. Tests:
   the predictor is valid, opens everywhere and reopens bit-exact, only larger. F16 TIFF export shipped (11F).
 - `DONE` — Gray as a convert/export destination and a Gray document mode (`gray_convert.rs`, `gray_document.rs`,
   `gray_export.rs`; [grayscale-mode.md](grayscale-mode.md)).
-- `OPEN` [#16](https://github.com/kpgalligan/doctored/issues/16) — evaluating a PNG's bare `gAMA` (and `cHRM`):
-  refused at 16 bits, not evaluated at 8.
+- `DONE` (2026-11-14) — a PNG's bare `gAMA`/`cHRM` (no `iCCP`, no `sRGB`; precedence `iCCP`, `sRGB`, then
+  these) is read as the v4.3 matrix/TRC profile it describes, a `para` curve of `100000 / gAMA` and the file's
+  primaries Bradford-adapted to D50, each undeclared half sRGB's (`core/src/png_declared.rs`); a gray image reads
+  `gAMA` alone. Every PNG open reads it in an `iCCP`'s place, samples unconverted: 8-bit flat, 16-bit typed, Gray
+  and Indexed (which now open as Gray / Indexed documents). An unusable value (`gAMA` 0, a decode exponent
+  outside 0.1–10, a degenerate `cHRM`) refuses the typed opens and is ignored, by sentence, in the flat open.
+  `core/tests/png_declared_gamma.rs`: within 1 code at 8 bits and 8 of 65535 at 16 bits of the oracle after a
+  conversion to sRGB (measured worst 1); Little CMS 2.19.1 and CoreGraphics both read the profile (within 5 and
+  1 codes of 65535 of the oracle, recorded in the batch handoff).
 - `REMOVED` — PDF/SVG as retained re-rasterizable sources: non-RAW retained sources were removed 2026-10-10;
   PDF/SVG open or place as pixels.
 - `OPEN` [#1](https://github.com/kpgalligan/doctored/issues/1) — PDF/X output.
