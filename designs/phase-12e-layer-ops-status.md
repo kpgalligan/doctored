@@ -1,6 +1,6 @@
 # High-depth layer and document operations (ADR)
 
-- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13): comp position and appearance)
+- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13): a PSD comp's position)
 - **Phase / dates:** 12E (12E-1 … 12E-3d), 2026-09-19 → 2026-09-20; closes P7-26, P7-27, P7-37
 - **Original:** [archive/phase-12e-layer-ops-status.md](../archive/phase-12e-layer-ops-status.md): full history, measurement tables (M1–M7, P16/PD/PX), F1–F11 pre-registration, receipts, drive gate lists
 - **Key commits:** `ab5c193` (12E-1), `9d49b2c` (1b), `a03fca9` (1c), `50b2d67` (2), `d8a0538` (2b), `e8af30c` (2c), `78cb0ba` (3), `1a69abb` (3b), `1063561` (3c), `e03026e` (3d)
@@ -187,10 +187,20 @@ byte op is always the specification: each typed twin restates it and adds no rul
 - `DONE` at RGB 8/16 (every mode since 2026-11-12, above): **PSD `cmls` import/export** (`psd_comps`,
   `psd_comp_records`): resource 1065 and each record's `shmd`/`cmls`; a layer's settings ride in its own record, so
   an entry binds to the layer built from it.
-  Comps that record visibility import as visibility comps, applying as Photoshop's take did
+  The comps import and apply as Photoshop's take did
   (`core/tests/fixtures/psd_photoshop/layer_comps`, from layer-comps-521); export writes 1065, `lyid` and `cmls`.
-- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13): a comp's position and appearance in either
-  direction (no authored sample of a moved layer, a changed style or a comment).
+- `DONE` (2026-11-13): every comp crosses with its capture flags, comment and appearance (opacity, fill, mode,
+  style), read as a CHAIN (an absent key is the previous entry's value), which reproduced every step of
+  Photoshop's own applies on the `authored_exchange` family (RGB, Gray and Lab at 8 and 16 bits, held-out
+  files); export writes every key of every entry (`Lefx` only for a comp that records appearance), and Photoshop
+  read Doctored's files back to the same steps. A PSD comp holds no Blend If, knockout or interior flag: an
+  imported comp's style takes its layer's own, and the export names a comp whose recorded three differ. A record
+  whose style is rasterized writes no style in any setting, with a sentence. A comp's patterns ride in the file's
+  pattern table. Comps past the 8 MiB `LCMP` payload are imported without their appearance, or not at all, each
+  with a sentence (`psd_comp_limits`).
+- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13): a PSD comp's position. The import keeps
+  none: no scripted apply moved a pixel layer in Photoshop's own files or in a session, yet one moved once in
+  Doctored's file; a hand check in the UI decides.
 - `DONE`: stale module docs in `core/src/precision_layer_blend.rs` and `core/src/style_knockout.rs` now point at
   the knockout implementation and P7-39 (2026-09-26).
 - `DONE`: dead export `dr_precision_doc_group_all` / `groupingAll` / `layer_group_all` deleted end to end

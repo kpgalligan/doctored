@@ -21,10 +21,16 @@
 //! fit and the path is not written ([`encode`]'s `Err`).
 //!
 //! **The clipping path (2999).** Its body is a Pascal string, the name of
-//! the saved path it designates, as Adobe's file format document lists it;
-//! the bytes a file holds after the name have no published layout and no
-//! authored sample here, so [`decode_clipping`] hands them back as an
-//! opaque tail and [`encode_clipping`] writes a tail back verbatim.
+//! the saved path it designates, then, with NO pad after the name, the
+//! flatness as a 16.16 fixed-point number of device pixels (0 when none is
+//! set) and a u16 1: the five files of the `authored_exchange` family, authored
+//! by Photoshop 26.10.0 with names of 4 and 5 bytes and flatness none, 0.5
+//! and 3, PSD and flat TIFF alike. [`decode_clipping`] hands the bytes after
+//! the name back as the tail, which the caller keeps verbatim (no pad means
+//! a rename never moves it) but for the no-flatness tail, kept empty as a
+//! mark made in Doctored is ([`kept_clipping_tail`]); [`encode_clipping`]
+//! writes a kept tail back verbatim and an empty one (also what a build that
+//! wrote the name alone kept) as the authored no-flatness tail.
 //!
 //! **Fill rule.** Photoshop combines a path's subpaths by an operation per
 //! subpath; Doctored fills a path by one rule. Every subpath `0` (exclude
@@ -51,6 +57,8 @@ pub(crate) struct Decoded {
     /// The subpaths' operations are not all one of the two Doctored reads
     /// exactly (module doc).
     pub combined: bool,
+    /// Each subpath's operation word, in order (`vector_mask_combine`).
+    pub operations: Vec<i16>,
 }
 
 fn word(bytes: &[u8], at: usize) -> u16 {
@@ -126,6 +134,7 @@ pub(crate) fn decode(bytes: &[u8], canvas: (u32, u32)) -> Result<Decoded, String
         },
         inverted,
         combined: !even && !operations.iter().all(|&op| op == 1),
+        operations,
     })
 }
 
@@ -189,10 +198,31 @@ pub(crate) fn decode_clipping(body: &[u8]) -> Option<(&[u8], &[u8])> {
     Some((name, &body[1 + length..]))
 }
 
-/// [`decode_clipping`]'s inverse: `name` as a Pascal string, then `tail`.
-/// `None` for a name past the Pascal string's 255 bytes.
+/// The tail an authored 2999 holds after the name when no flatness is set:
+/// flatness 0 (16.16), then u16 1 (module doc).
+const CLIPPING_TAIL_NONE: [u8; 6] = [0, 0, 0, 0, 0, 1];
+
+/// The tail a document keeps for a file's `tail`: empty for the authored
+/// no-flatness tail, the form a mark made in Doctored keeps (so a mark's
+/// round trip through a file is itself), else the bytes verbatim.
+pub(crate) fn kept_clipping_tail(tail: &[u8]) -> Vec<u8> {
+    if tail == CLIPPING_TAIL_NONE {
+        Vec::new()
+    } else {
+        tail.to_vec()
+    }
+}
+
+/// [`decode_clipping`]'s inverse: `name` as a Pascal string, then `tail`, or
+/// the no-flatness tail for an empty one (module doc). `None` for a name past
+/// the Pascal string's 255 bytes.
 pub(crate) fn encode_clipping(name: &[u8], tail: &[u8]) -> Option<Vec<u8>> {
     let length = u8::try_from(name.len()).ok()?;
+    let tail = if tail.is_empty() {
+        &CLIPPING_TAIL_NONE[..]
+    } else {
+        tail
+    };
     let mut out = Vec::with_capacity(1 + name.len() + tail.len());
     out.push(length);
     out.extend_from_slice(name);

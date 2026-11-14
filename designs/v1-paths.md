@@ -47,8 +47,10 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   leaves out.
 - **Clipping path.** At most one SAVED path is the document's clipping path (`doc_path::ClippingPath`, on the
   entry, so rename, delete, geometry and undo carry it). It crosses PSD, PSB and every TIFF as resource 2999,
-  the path's name as a Pascal string; the bytes a file holds after the name are kept verbatim and written
-  back, and a designation made here writes the name alone. `.doctored` word 114 (`clipping_path_native`, no
+  the path's name as a Pascal string, then (no pad) a 16.16 flatness, 0 for none, and a u16 1, as Photoshop
+  26.10.0 wrote the `authored_exchange` files; the bytes after the name are kept verbatim and written back,
+  but the no-flatness tail, kept empty as a designation made here is, and an empty tail writes the
+  no-flatness one. Photoshop read both forms back in a take. `.doctored` word 114 (`clipping_path_native`, no
   table, the key in the `PATH` entry) is written only when a path is the clipping path. Paths panel ▸ Clipping
   Path and `set_clipping_path`.
 - **Operations**, each a core function with an MCP tool (`AgentServer+Paths.swift`):
@@ -110,7 +112,21 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   under the path) and a raster-less vector mask exports as its `vmsk` (`core/tests/psd_paths.rs`, against
   Photoshop's own `vmsk` bytes). The record walk decides which `vmsk` is carried (`psd_paths::vmsk_shape`,
   `MaskRoom`): one that starts from all pixels, subtracts or intersects its subpaths, or would take the file's
-  paths and vector masks past the 65,536-anchor cap keeps the record's pixels and the dropped-mask sentence.
+  paths and vector masks past the 65,536-anchor cap is not carried. A shape layer then keeps the record's pixels
+  and the dropped-mask sentence; a raster layer's becomes a raster mask (next item).
+- `DONE` (2026-11-13) — `vmsk` on RASTER layers, against Photoshop-authored files (`authored_exchange`,
+  `core/tests/psd_authored_exchange.rs`). An enabled vector mask carries, at 8 bits, a `-2` Photoshop rendered
+  from the path (mask flag bit 3), and the user's raster mask as `-3` under a 36-byte mask body; at 16 bits
+  no rendering, and the user's mask as an ordinary `-2`. A path Doctored holds is the layer's vector mask
+  (the rendering dropped, the user's mask its raster part); any other (subpaths that subtract, intersect or
+  exclude, a first subpath that subtracts, the anchor cap) becomes a raster mask: the file's rendering, or
+  at 16 bits a bake of the path under its operations (`vector_mask_combine`), each with a sentence. The bake
+  draws only a mask within 4,096 subpaths, 32,768 anchors and 2³⁰ samples of canvas passes (one pass a subpath);
+  past them the mask is dropped with the dropped-mask sentence, and a mask the rasterizer refuses refuses the
+  layered open. Every
+  layer composites as the file's stored composite (8 bits) and every 16-bit bake equals the 8-bit rendering
+  within one 8-bit step. A stroked shape writes `vsms` in the `vmsk` layout and keeps its pixels. Photoshop
+  read Doctored's raster-less vector masks (plain, disabled, unlinked) back as vector masks in a take.
 - `DONE` (2026-11-12) — the same `vmsk` exchange in the Gray (Duotone), Lab, CMYK and 32-bit codecs
   (`psd_typed_exchange`, `core/tests/psd_mode_exchange.rs`); a `vmsk` over a fill the mode's open does not import
   as a fill layer (every fill at Gray and Lab, a Gradient or Pattern fill at 32 bits) is not carried, so that
@@ -121,9 +137,9 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
 - `DONE` (2026-11-12) — paths in a flat Grayscale, Lab, Indexed, Bitmap and 32-bit TIFF, each mode's own open,
   writer and loss list (`core/tests/tiff_paths_modes.rs`); a JPEG whose open turns it drops its APP13 path
   records with a sentence (`core/tests/tiff_paths.rs`). A JPEG's paths are still not read into the model.
-- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — a vector mask beside a raster mask, an
-  inverted one, one whose subpaths subtract or intersect, and `vsms`; the layout of the bytes after a 2999's
-  name (its flatness), which needs an authored sample.
+- `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — export of a vector mask beside a raster
+  mask as Photoshop's form (`vmsk`, the rendered `-2`, the user's `-3`; written baked today), and an inverted
+  vector mask (flag bit 0), which no script could author.
 - `DROPPED` (2026-10-30) — Curvature Pen; Freeform and Magnetic pen: the Pen covers authoring, and the Magnetic
   Lasso plus Make Work Path covers edge tracing.
 - `DROPPED` (2026-10-30) — pressure or canonical-dab strokes along a path: Stroke Path ships, and simulated

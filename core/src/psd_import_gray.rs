@@ -64,7 +64,7 @@
 //! file record 0's Background mark when the open keeps it ([`dropped`] is
 //! the answer), each carried `vmsk` as its layer's vector mask (never over a
 //! fill record, which the open drops: `psd_group_records::vector_mask_usable`)
-//! and the file's visibility comps.
+//! and the file's layer comps.
 //!
 //! A Duotone file (colour mode 8 at 8 or 16 bits, #1 Duotone phase 1b)
 //! opens here too: `Container::duotone_gray` is the Gray file it stores, and
@@ -686,6 +686,7 @@ impl PrecisionDocument {
                     |index| !dropped(&psd, &records, index, None),
                     limit,
                     other,
+                    job,
                 )
             },
         )

@@ -15,9 +15,17 @@ Cases:
   is Photoshop's Background record, so get_document's bottom row reports
   background "ordinary" and "background"; both survive a .doctored save and
   reopen, and export_psd and a layered reopen.
-- COMPS: layer_comps' comps that record visibility (All, HA, HB) are
+- COMPS: layer_comps' five comps (All, PosOnly, AppOnly, HA, HB) are
   listed, and applying HA then HB gives the take's own visibilities
   (`photoshop.json`, layer_comps[0].steps).
+- AUTHORED: the `authored_exchange` family. comps_rgb8's comps list with
+  their comments, and applying each in order gives the
+  step table's visibility and opacity (`photoshop.json`); paths_rgb8's Va is
+  a vector mask with no raster part, Vb one with a raster part, and Vc (its
+  subpaths subtract) is a raster mask, no vector mask. comps_rgb8,
+  comps_rgb16, paths_rgb8, clip_a and clip_b are each exported with
+  export_psd into `<output>/readback/` with an `expected.json` naming them,
+  the files a Photoshop readback opens.
 - PATHS: a saved path and a vector mask set on knockout_bottom's Mid layer
   survive export_psd and a layered reopen (list_paths, get_vector_mask).
 - CLIPPING: set_clipping_path marks one saved path (refusing the work path and
@@ -93,7 +101,7 @@ def comps(drive):
     steps = {s['step']: s['after'] for s in take['layer_comps'][0]['steps']}
     doc = drive.open_psd(FIXTURES / 'layer_comps' / 'source.psd')
     names = [c['name'] for c in drive.call('list_layer_comps', document_id=doc)['comps']]
-    assert names == ['All', 'HA', 'HB'], names
+    assert names == ['All', 'PosOnly', 'AppOnly', 'HA', 'HB'], names
     seen = {}
     for comp, step in [('HA', 'apply_ha'), ('HB', 'apply_hb')]:
         drive.call('apply_layer_comp', document_id=doc, name=comp)
@@ -208,6 +216,49 @@ def modes(drive):
     return seen
 
 
+AUTHORED = FIXTURES / 'authored_exchange'
+
+
+def authored(drive):
+    take = json.loads((AUTHORED / 'photoshop.json').read_text())
+    table = take['comps']['comps_rgb8.psd']
+    doc = drive.open_psd(AUTHORED / 'comps_rgb8.psd')
+    listed = drive.call('list_layer_comps', document_id=doc)['comps']
+    want = [(c['name'], c['comment'] or '') for c in table['comps']]
+    assert [(c['name'], c.get('comment') or '') for c in listed] == want, listed
+    seen = {}
+    for step in table['steps'][1:]:
+        drive.call('apply_layer_comp', document_id=doc, name=step['state'])
+        rows = {r['name']: r for r in drive.layers(doc)}
+        for name, row in step['layers'].items():
+            got = rows[name]
+            assert got['visible'] == row['visible'], (step['state'], name, got)
+            assert round(got['opacity'] * 100) == row['opacity'], (step['state'], name, got)
+        seen[step['state']] = {n: [r['visible'], r['opacity']] for n, r in rows.items()}
+    drive.close(doc)
+    paths = drive.open_psd(AUTHORED / 'paths_rgb8.psd')
+    names = [r['name'] for r in drive.layers(paths)]
+    for name, vector, raster in [('Va', True, False), ('Vb', True, True), ('Vc', False, None)]:
+        mask = drive.call('get_vector_mask', document_id=paths, layer=names.index(name))
+        assert mask['vector_mask'] is vector, (name, mask)
+        if raster is not None:
+            assert mask['has_raster_mask'] is raster, (name, mask)
+    drive.close(paths)
+    folder = drive.folder / 'readback'
+    folder.mkdir()
+    files = []
+    for source in ('comps_rgb8.psd', 'comps_rgb16.psd', 'paths_rgb8.psd', 'clip_a.psd',
+                   'clip_b.psd'):
+        opened = drive.open_psd(AUTHORED / source)
+        target = folder / f'dr_{source}'
+        drive.call('export_psd', document_id=opened, path=str(target), format='psd',
+                   mode='layers')
+        drive.close(opened)
+        files.append(dict(name=Path(source).stem, file=target.name, source=source))
+    (folder / 'expected.json').write_text(json.dumps(dict(files=files), indent=2) + '\n')
+    return dict(steps=seen, readback=[f['file'] for f in files])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--output', required=True, help='a fresh folder')
@@ -220,7 +271,7 @@ def main():
     results, failed = {}, []
     with App(output / 'app', output / 'recovery', interval=600) as app:
         drive = Drive(app, output)
-        for case in (background, comps, paths, clipping, modes):
+        for case in (background, comps, paths, clipping, modes, authored):
             name = case.__name__.upper()
             try:
                 results[name] = dict(passed=True, detail=case(drive))

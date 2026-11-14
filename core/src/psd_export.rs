@@ -103,6 +103,40 @@ impl DrDocument {
             .collect()
     }
 
+    /// Entry `index` as the layer comps' writer reads it; its style and the
+    /// writer's decisions are read only when the document has a comp to
+    /// write.
+    fn comp_owner(&self, index: usize) -> crate::psd_comps::Owner {
+        let layer = &self.layers[index];
+        let comps = !self.comps.is_empty();
+        // The record walk's own answers (`entry_record`): a style that is
+        // baked, and an adjustment layer written as its stamp.
+        let baked = comps && export_style(layer, false).is_some_and(|style| style.bake.is_some());
+        let stamped = comps
+            && crate::retouch_sampling::is_adjustment(layer)
+            && (baked
+                || psd_adjustment::encode(layer.meta.as_deref().unwrap_or_default()).is_none());
+        crate::psd_comps::Owner {
+            id: layer.id,
+            visible: layer.visible,
+            offset: layer.offset,
+            pixel: layer.kind == LayerKind::Raster,
+            opacity: layer.opacity,
+            blend: layer.blend,
+            style: layer.style.as_ref().filter(|_| comps).map(|s| s.to_json()),
+            baked,
+            stamped,
+        }
+    }
+
+    /// Every entry's [`Self::comp_owner`]: what the preflight and the
+    /// pattern table read the comps against (`psd_comp_limits`).
+    fn comp_owners(&self) -> Vec<Option<crate::psd_comps::Owner>> {
+        (0..self.layers.len())
+            .map(|index| Some(self.comp_owner(index)))
+            .collect()
+    }
+
     /// True when a visible SIBLING in the contiguous clipped run directly
     /// above `index`, at the same depth, is clipped to it — the run a styled
     /// base's rasterized effects end up underneath in the written file.
@@ -131,6 +165,8 @@ impl DrDocument {
     /// This document as the depth-agnostic preflight sees it: one entry per
     /// layer, bottom-first, without reading a single pixel.
     fn export_inventory(&self) -> ExportInventory {
+        let owners = self.comp_owners();
+        let comp_styles = crate::psd_comp_limits::recorded_styles(&self.comps, &owners);
         let fills = self.exported_fills();
         let fills: Vec<_> = fills
             .iter()
@@ -151,7 +187,10 @@ impl DrDocument {
             lab: false,
             profile_bytes: self.profile.bytes().len() as u64,
             tail_bytes: crate::psd_patterns::tail_bytes_with(
-                self.layers.iter().filter_map(|l| l.renders_any_style()),
+                self.layers
+                    .iter()
+                    .filter_map(|l| l.renders_any_style())
+                    .chain(comp_styles.iter()),
                 &fills,
             ),
             profile_name: self.profile.name().to_string(),
@@ -162,9 +201,11 @@ impl DrDocument {
             has_guides: !self.guides.is_empty() || self.ruler_origin != (0.0, 0.0),
             sampler_sizes_lost: self.color_samplers.iter().any(|s| s.sample_size != 1),
             comps: self.comps.len(),
-            // The visibility comps this writer writes (`psd_comps`).
-            comps_written: crate::psd_comps::counts(&self.comps).0,
-            comps_narrowed: crate::psd_comps::counts(&self.comps).1,
+            // The layered mode writes every comp (`psd_comps`).
+            comps_written: self.comps.len(),
+            comps_narrowed: crate::psd_comp_limits::narrowed(&self.comps, &owners, &|style| {
+                crate::psd_layer_effects::bake_reason(style).is_some()
+            }),
             path_losses: crate::psd_paths::export_losses(
                 &self.paths.entries,
                 (self.width, self.height),
@@ -361,7 +402,7 @@ impl DrDocument {
         large: bool,
     ) -> Result<Vec<Record>, String> {
         let mut out = Vec::new();
-        // Each record's layer as (id, visible), `None` for a closer: what
+        // Each record's layer (`psd_comps::Owner`), `None` for a closer: what
         // the layer comps' `cmls` settings bind to (`psd_comps`).
         let mut owners = Vec::new();
         for index in 0..self.layers.len() {
@@ -394,15 +435,23 @@ impl DrDocument {
                 owners.push(None);
             }
             out.push(self.entry_record(index, colors, large)?);
-            owners.push(Some((self.layers[index].id, self.layers[index].visible)));
+            owners.push(Some(self.comp_owner(index)));
         }
-        crate::psd_comps::stamp_records(&mut out, &owners, &self.comps);
+        // A comp's style through the records' own effects codec and colours.
+        let light = self.global_light;
+        crate::psd_comps::stamp_records(&mut out, &owners, &self.comps, &|style| {
+            crate::psd_comps::effect_style_items(
+                style,
+                light,
+                crate::psd_layer_effects::FxColours::Rgb(colors),
+            )
+        });
         // A live vector mask with no raster part is written as its `vmsk`
         // (`psd_paths`), in place of the baked mask the walk wrote.
         let masks: Vec<Option<crate::psd_paths::WrittenMask>> = owners
             .iter()
             .map(|owner| {
-                let (id, _) = (*owner)?;
+                let id = owner.as_ref()?.id;
                 let index = self.layers.iter().position(|l| l.id == id)?;
                 self.live_vector_mask(index)
                     .filter(|record| record.raster.is_none())
@@ -741,9 +790,15 @@ impl DrDocument {
             .iter()
             .filter_map(crate::psd_fill_layer::Exported::pattern)
             .collect();
+        // The comps' recorded styles after the layers' own: their patterns
+        // ride in the same table (`psd_comp_limits::recorded_styles`).
+        let comp_styles = crate::psd_comp_limits::recorded_styles(&self.comps, &self.comp_owners());
         let tail = match mode {
             PsdExportMode::Layers => crate::psd_patterns::tail_blocks_with(
-                self.layers.iter().filter_map(|l| l.renders_any_style()),
+                self.layers
+                    .iter()
+                    .filter_map(|l| l.renders_any_style())
+                    .chain(comp_styles.iter()),
                 &fills,
                 false,
             ),

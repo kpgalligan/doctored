@@ -2,14 +2,19 @@
 //! `clipping_path_native`), through the FFI.
 //!
 //! Oracle: Adobe's file format document lists image resource 2999 as the
-//! name of the clipping path, a Pascal string; the body is computed here
-//! from that layout (no authored 2999 is on disk). The bytes a file holds
-//! after the name are carried as an opaque tail, so the test writes its own
-//! and checks they come back byte for byte.
+//! name of the clipping path, a Pascal string, and the `authored_exchange`
+//! family's files (Photoshop 26.10.0) show what follows it: no pad, a 16.16
+//! flatness (0 for none) and a u16 1. The bodies below are computed from
+//! that layout; a file's own tail is carried byte for byte, so the test
+//! also writes one of its own and checks it comes back.
 //!
 //! - A document whose saved path is the clipping path writes 2999 in a PSD,
 //!   a PSB and a layered TIFF at 8 bits and a PSD, a PSB and a layered TIFF
-//!   at 16, and each reopens with the mark on that path.
+//!   at 16, the authored no-flatness tail after the name, and each reopens
+//!   with the mark on that path.
+//! - Photoshop's own clipping paths (no flatness, 0.5 and 3; names of 4 and
+//!   5 bytes; PSD and flat TIFF) are marked, a save writes Photoshop's body
+//!   back, and a rename to a name of the other length keeps the flatness.
 //! - A file's own 2999 with a tail marks its path, and a save writes the
 //!   tail back; a 2999 naming no path of the file is a sentence and no mark.
 //! - `.doctored` claims word 114 exactly when a path is the clipping path,
@@ -41,6 +46,16 @@ use crate::psd_paths::{byte_open, byte_save, document, resource, typed_open};
 
 /// The tail this file's hand-built 2999 carries after the name.
 const TAIL: [u8; 6] = [0x00, 0x01, 0x00, 0x00, 0x00, 0x00];
+
+/// The tail after the name with no flatness set: 16.16 zero, then u16 1.
+pub const NO_FLATNESS: [u8; 6] = [0, 0, 0, 0, 0, 1];
+
+/// The tail after the name for a `flatness` in device pixels (16.16).
+fn flatness_tail(flatness: f64) -> Vec<u8> {
+    let mut out = ((flatness * 65536.0).round() as i32).to_be_bytes().to_vec();
+    out.extend_from_slice(&1u16.to_be_bytes());
+    out
+}
 
 /// Resource 2999's body by the published layout: the name as a Pascal
 /// string, then `tail`.
@@ -206,7 +221,7 @@ fn a_clipping_path_crosses_psd_psb_and_the_layered_tiff_as_resource_2999() {
         let bytes = byte_save(doc, &path, container);
         assert_eq!(
             body_of(&bytes, 2999),
-            Some(clipping_body("Box", &[])),
+            Some(clipping_body("Box", &NO_FLATNESS)),
             "{name}: resource 2999"
         );
         let back = byte_open(&path);
@@ -223,7 +238,7 @@ fn a_clipping_path_crosses_psd_psb_and_the_layered_tiff_as_resource_2999() {
         let bytes = typed_save_in(&wide, &path, container);
         assert_eq!(
             body_of(&bytes, 2999),
-            Some(clipping_body("Box", &[])),
+            Some(clipping_body("Box", &NO_FLATNESS)),
             "{name}: resource 2999"
         );
         assert_eq!(marks(typed_open(&path).paths()), want, "{name}: reopened");
@@ -257,6 +272,74 @@ fn block(id: u16, body: &[u8]) -> Vec<u8> {
         out.push(0);
     }
     out
+}
+
+#[test]
+fn photoshops_clipping_paths_cross_with_their_flatness() {
+    use crate::common::psd_photoshop::fixture;
+    let dir = TempDir::new().unwrap();
+    for (name, path_name, flatness) in [
+        ("clip_a.psd", "Clip", 0.0),
+        ("clip_b.psd", "Clip5", 0.5),
+        ("clip_c.tif", "Clip", 3.0),
+    ] {
+        let source = fixture("authored_exchange", name);
+        let bytes = std::fs::read(&source).unwrap();
+        let tail = flatness_tail(flatness);
+        let authored = clipping_body(path_name, &tail);
+        assert_eq!(
+            body_of(&bytes, 2999),
+            Some(authored.clone()),
+            "{name}: the layout"
+        );
+        // Read through the flat TIFF's own open or the PSD's.
+        let doc = if name.ends_with(".tif") {
+            let mut err: *mut c_char = ptr::null_mut();
+            let doc = unsafe {
+                doctored_core::ffi_doc::dr_doc_open(cpath(&source).as_ptr(), ptr::null(), &mut err)
+            };
+            assert!(!doc.is_null(), "{}", take_err_string(err));
+            doc
+        } else {
+            byte_open(&source)
+        };
+        // No flatness is kept as a mark made here is: no tail.
+        let kept = if flatness == 0.0 {
+            Vec::new()
+        } else {
+            tail.clone()
+        };
+        assert_eq!(
+            marks(unsafe { &*doc }.paths()),
+            vec![(path_name.to_string(), kept)],
+            "{name}: marked"
+        );
+        let again = byte_save(doc, &dir.path().join(format!("{name}.psd")), 0);
+        assert_eq!(
+            body_of(&again, 2999),
+            Some(authored),
+            "{name}: written back"
+        );
+        // A rename to a name of the other length keeps the flatness after it.
+        let renamed_name = if path_name.len() == 4 {
+            "Clip55"
+        } else {
+            "Clp"
+        };
+        let json =
+            paths_json(doc).replace(&format!("\"{path_name}\""), &format!("\"{renamed_name}\""));
+        let renamed = set_paths(doc, &json).unwrap();
+        let bytes = byte_save(renamed, &dir.path().join(format!("{name}-renamed.psd")), 0);
+        assert_eq!(
+            body_of(&bytes, 2999),
+            Some(clipping_body(renamed_name, &tail)),
+            "{name}: renamed"
+        );
+        unsafe {
+            dr_doc_free(renamed);
+            dr_doc_free(doc);
+        }
+    }
 }
 
 #[test]

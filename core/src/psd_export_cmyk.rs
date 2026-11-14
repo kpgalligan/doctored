@@ -573,8 +573,14 @@ impl PrecisionDocument {
             self.dimensions(),
             &mut out,
         );
+        // The comps' recorded styles after the layers' own: their patterns
+        // ride in the same table (`psd_comp_limits::recorded_styles`).
+        let comp_styles = crate::psd_typed_exchange::comp_styles(self, &|layer| {
+            knockout_written(layer, policy, self.global_light)
+        });
         let mut styles = Vec::new();
         crate::psd_export16::record_styles(self.root_layers(), &mut styles);
+        styles.extend(comp_styles.iter());
         let mut fills = Vec::new();
         exported_fills(self.root_layers(), &mut fills);
         let fills: Vec<_> = fills.iter().filter_map(Exported::pattern).collect();
@@ -602,9 +608,18 @@ impl PrecisionDocument {
             has_guides: !self.guides().is_empty() || self.ruler_origin() != (0.0, 0.0),
             sampler_sizes_lost: false,
             comps: self.layer_comps().len(),
-            // The visibility comps the layered mode writes (`psd_comps`).
-            comps_written: crate::psd_comps::counts(self.layer_comps()).0,
-            comps_narrowed: crate::psd_comps::counts(self.layer_comps()).1,
+            // The layered mode writes every comp (`psd_comps`). A comp's
+            // style crosses as ink, as a record's own does, so one whose
+            // inks cannot be resolved is refused with the codec's.
+            comps_written: self.layer_comps().len(),
+            comps_narrowed: crate::psd_typed_exchange::comps_narrowed(
+                self,
+                &|layer| knockout_written(layer, policy, self.global_light),
+                &|style| {
+                    crate::cmyk_style::with_all_inks(style, policy)
+                        .map_or(true, |inked| bake_reason(&inked).is_some())
+                },
+            ),
             path_losses: crate::psd_paths::export_losses(self.paths(), self.dimensions()),
             has_metadata: !self.metadata().is_empty(),
             nondefault_global_light: self.global_light != GlobalLight::default(),
@@ -783,15 +798,33 @@ impl PrecisionDocument {
                 records(self.root_layers(), depth, large, &walk, job, &mut out)?;
                 // The comps' `lyid`/`shmd`, the raster-less vector masks'
                 // `vmsk` and the Background record (`psd_typed_exchange`).
-                crate::psd_typed_exchange::stamp(self, &mut out, &|layer| {
-                    knockout_written(layer, &policy, self.global_light)
-                });
+                crate::psd_typed_exchange::stamp(
+                    self,
+                    &mut out,
+                    &|layer| knockout_written(layer, &policy, self.global_light),
+                    // A comp's style with every colour as ink, as a record's
+                    // own (`cmyk_style::with_all_inks`).
+                    &|style| {
+                        let inked = crate::cmyk_style::with_all_inks(style, &policy).ok()?;
+                        crate::psd_comps::effect_style_items(
+                            &inked,
+                            self.global_light,
+                            crate::psd_layer_effects::FxColours::Cmyk,
+                        )
+                    },
+                );
                 let extra = crate::psd_typed_exchange::resources(self, true);
                 // The pattern table every written pattern overlay resolves
                 // through (`psd_patterns`: RGB pattern records, `Patt` at 8
                 // bits and `Pat2` at 16); no block without one.
+                // The comps' recorded styles after the layers' own: their patterns
+                // ride in the same table (`psd_comp_limits::recorded_styles`).
+                let comp_styles = crate::psd_typed_exchange::comp_styles(self, &|layer| {
+                    knockout_written(layer, &policy, self.global_light)
+                });
                 let mut styles = Vec::new();
                 crate::psd_export16::record_styles(self.root_layers(), &mut styles);
+                styles.extend(comp_styles.iter());
                 let mut fills = Vec::new();
                 exported_fills(self.root_layers(), &mut fills);
                 let fills: Vec<_> = fills.iter().filter_map(Exported::pattern).collect();

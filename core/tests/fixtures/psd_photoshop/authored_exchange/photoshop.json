@@ -1,0 +1,2795 @@
+{
+ "schema": 1,
+ "family": "authored_exchange",
+ "comps": {
+  "comps_rgb8.psd": {
+   "comps": [
+    {
+     "name": "Base",
+     "comment": "first, with a comment",
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "Moved",
+     "comment": null,
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "PosOnly",
+     "comment": null,
+     "visibility": false,
+     "position": true,
+     "appearance": false
+    },
+    {
+     "name": "AppOnly",
+     "comment": null,
+     "visibility": false,
+     "position": false,
+     "appearance": true
+    }
+   ],
+   "steps": [
+    {
+     "state": "opened",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 9
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 80,
+       "fill": 60,
+       "mode": "SCREEN",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "Base",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        40,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 3
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "Moved",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 6
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 100,
+       "mode": "MULTIPLY",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "PosOnly",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 6
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 100,
+       "mode": "MULTIPLY",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "AppOnly",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 9
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 60,
+       "mode": "SCREEN",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    }
+   ]
+  },
+  "comps_rgb16.psd": {
+   "comps": [
+    {
+     "name": "Base",
+     "comment": "first, with a comment",
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "Moved",
+     "comment": null,
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "PosOnly",
+     "comment": null,
+     "visibility": false,
+     "position": true,
+     "appearance": false
+    },
+    {
+     "name": "AppOnly",
+     "comment": null,
+     "visibility": false,
+     "position": false,
+     "appearance": true
+    }
+   ],
+   "steps": [
+    {
+     "state": "opened",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 9
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 80,
+       "fill": 60,
+       "mode": "SCREEN",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "Base",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        40,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 3
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "Moved",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 6
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 100,
+       "mode": "MULTIPLY",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "PosOnly",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 6
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 100,
+       "mode": "MULTIPLY",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "AppOnly",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 9
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 60,
+       "mode": "SCREEN",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    }
+   ]
+  },
+  "comps_gray8.psd": {
+   "comps": [
+    {
+     "name": "Base",
+     "comment": "first, with a comment",
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "Moved",
+     "comment": null,
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "PosOnly",
+     "comment": null,
+     "visibility": false,
+     "position": true,
+     "appearance": false
+    },
+    {
+     "name": "AppOnly",
+     "comment": null,
+     "visibility": false,
+     "position": false,
+     "appearance": true
+    }
+   ],
+   "steps": [
+    {
+     "state": "opened",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 9
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 80,
+       "fill": 60,
+       "mode": "SCREEN",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "Base",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        40,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 3
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "Moved",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 6
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 100,
+       "mode": "MULTIPLY",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "PosOnly",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 6
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 100,
+       "mode": "MULTIPLY",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "AppOnly",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 9
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 60,
+       "mode": "SCREEN",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    }
+   ]
+  },
+  "comps_lab8.psd": {
+   "comps": [
+    {
+     "name": "Base",
+     "comment": "first, with a comment",
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "Moved",
+     "comment": null,
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "PosOnly",
+     "comment": null,
+     "visibility": false,
+     "position": true,
+     "appearance": false
+    },
+    {
+     "name": "AppOnly",
+     "comment": null,
+     "visibility": false,
+     "position": false,
+     "appearance": true
+    }
+   ],
+   "steps": [
+    {
+     "state": "opened",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 9
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 80,
+       "fill": 60,
+       "mode": "SCREEN",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "Base",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        40,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 3
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "Moved",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 6
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 100,
+       "mode": "MULTIPLY",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "PosOnly",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 6
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 100,
+       "mode": "MULTIPLY",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "AppOnly",
+     "layers": {
+      "SH": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        43,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LS": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        4,
+        18
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 9
+      },
+      "G": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        0,
+        0
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "GC": {
+       "group": false,
+       "visible": false,
+       "origin": [
+        42,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "LB": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        20,
+        4
+       ],
+       "opacity": 40,
+       "fill": 60,
+       "mode": "SCREEN",
+       "shadow": null
+      },
+      "LA": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        2,
+        11
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    }
+   ]
+  },
+  "heldout_rgb8.psd": {
+   "comps": [
+    {
+     "name": "C1",
+     "comment": "held out",
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "C3",
+     "comment": null,
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "C4",
+     "comment": null,
+     "visibility": true,
+     "position": true,
+     "appearance": false
+    }
+   ],
+   "steps": [
+    {
+     "state": "opened",
+     "layers": {
+      "HG": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "HC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H3": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        22,
+        12
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H2": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        12,
+        2
+       ],
+       "opacity": 100,
+       "fill": 30,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H1": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        3,
+        3
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "C1",
+     "layers": {
+      "HG": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "HC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H3": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        22,
+        12
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 2
+      },
+      "H2": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        12,
+        2
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H1": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        3,
+        3
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "C3",
+     "layers": {
+      "HG": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "HC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H3": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        22,
+        12
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 2
+      },
+      "H2": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        12,
+        2
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H1": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        3,
+        3
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "C4",
+     "layers": {
+      "HG": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "HC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H3": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        22,
+        12
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 2
+      },
+      "H2": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        12,
+        2
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H1": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        3,
+        3
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    }
+   ]
+  },
+  "heldout_gray16.psd": {
+   "comps": [
+    {
+     "name": "C1",
+     "comment": "held out",
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "C3",
+     "comment": null,
+     "visibility": true,
+     "position": true,
+     "appearance": true
+    },
+    {
+     "name": "C4",
+     "comment": null,
+     "visibility": true,
+     "position": true,
+     "appearance": false
+    }
+   ],
+   "steps": [
+    {
+     "state": "opened",
+     "layers": {
+      "HG": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "HC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H3": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        22,
+        12
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H2": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        12,
+        2
+       ],
+       "opacity": 100,
+       "fill": 30,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H1": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        3,
+        3
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "C1",
+     "layers": {
+      "HG": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "HC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H3": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        22,
+        12
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 2
+      },
+      "H2": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        12,
+        2
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H1": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        3,
+        3
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "C3",
+     "layers": {
+      "HG": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "HC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H3": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        22,
+        12
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 2
+      },
+      "H2": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        12,
+        2
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H1": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        3,
+        3
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    },
+    {
+     "state": "C4",
+     "layers": {
+      "HG": {
+       "group": true,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": null,
+       "mode": "PASSTHROUGH",
+       "shadow": null
+      },
+      "HC": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        38,
+        5
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H3": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        22,
+        12
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": 2
+      },
+      "H2": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        12,
+        2
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      },
+      "H1": {
+       "group": false,
+       "visible": true,
+       "origin": [
+        3,
+        3
+       ],
+       "opacity": 100,
+       "fill": 100,
+       "mode": "NORMAL",
+       "shadow": null
+      }
+     }
+    }
+   ]
+  }
+ },
+ "paths": {
+  "paths_rgb8.psd": {
+   "constructs": [
+    {
+     "name": "Va",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vb",
+     "error": null,
+     "steps": [
+      "user mask",
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vc",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vd",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vx",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Ve",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vf",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": [
+      {
+       "form": "Invr of the vector mask path",
+       "error": null
+      }
+     ]
+    },
+    {
+     "name": "Vg",
+     "error": null,
+     "steps": [
+      "shape",
+      "stroke"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vh",
+     "error": null,
+     "steps": [
+      "vector mask",
+      "disabled"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vi",
+     "error": null,
+     "steps": [
+      "vector mask",
+      "unlinked"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vj",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    }
+   ],
+   "layers": {
+    "Vj": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vi": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": false,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vh": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": false,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vg": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vf": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Ve": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vx": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vd": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vc": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vb": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": true,
+      "hasVectorMask": true,
+      "userMaskEnabled": true,
+      "userMaskLinked": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Va": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    }
+   }
+  },
+  "paths_rgb16.psd": {
+   "constructs": [
+    {
+     "name": "Va",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vb",
+     "error": null,
+     "steps": [
+      "user mask",
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vc",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vd",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vx",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Ve",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vf",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": [
+      {
+       "form": "Invr of the vector mask path",
+       "error": null
+      }
+     ]
+    },
+    {
+     "name": "Vg",
+     "error": null,
+     "steps": [
+      "shape",
+      "stroke"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vh",
+     "error": null,
+     "steps": [
+      "vector mask",
+      "disabled"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vi",
+     "error": null,
+     "steps": [
+      "vector mask",
+      "unlinked"
+     ],
+     "invert": null
+    },
+    {
+     "name": "Vj",
+     "error": null,
+     "steps": [
+      "vector mask"
+     ],
+     "invert": null
+    }
+   ],
+   "layers": {
+    "Vj": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vi": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": false,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vh": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": false,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vg": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vf": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Ve": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vx": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vd": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vc": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Vb": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": true,
+      "hasVectorMask": true,
+      "userMaskEnabled": true,
+      "userMaskLinked": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    },
+    "Va": {
+     "visible": true,
+     "masks": {
+      "hasUserMask": false,
+      "hasVectorMask": true,
+      "vectorMaskEnabled": true,
+      "vectorMaskLinked": true,
+      "vectorMaskDensity": 255,
+      "vectorMaskFeather": 0,
+      "userMaskDensity": 255,
+      "userMaskFeather": 0
+     }
+    }
+   }
+  }
+ },
+ "clipping": {
+  "clip_a.psd": {
+   "paths": [
+    {
+     "name": "Other",
+     "kind": "PathKind.NORMALPATH"
+    },
+    {
+     "name": "Clip",
+     "kind": "PathKind.CLIPPINGPATH"
+    }
+   ],
+   "flatness": null
+  },
+  "clip_b.psd": {
+   "paths": [
+    {
+     "name": "Other",
+     "kind": "PathKind.NORMALPATH"
+    },
+    {
+     "name": "Clip5",
+     "kind": "PathKind.CLIPPINGPATH"
+    }
+   ],
+   "flatness": 0.5
+  },
+  "clip_c.tif": {
+   "paths": [
+    {
+     "name": "Other",
+     "kind": "PathKind.NORMALPATH"
+    },
+    {
+     "name": "Clip",
+     "kind": "PathKind.CLIPPINGPATH"
+    }
+   ],
+   "flatness": 3
+  }
+ }
+}

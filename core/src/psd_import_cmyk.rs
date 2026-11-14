@@ -50,7 +50,7 @@
 //! and a shape layer (a fill under a carried `vmsk`) as its fill layer under
 //! its vector mask. The open ends as every typed open does
 //! (`psd_typed_exchange`: the Background mark, the carried vector masks and
-//! the visibility comps, which a CMYK document holds, applies and writes
+//! the layer comps, which a CMYK document holds, applies and writes
 //! back, `cmyk_comps`). The document
 //! takes the file's CMYK profile (`cmyk_io::psd_policy`: a PSD's resource
 //! 1039, a TIFF's ICC tag, else the working CMYK under the untagged
@@ -371,6 +371,7 @@ pub(crate) fn open_cmyk_layers(
         |index| !records.omitted(index),
         limit,
         other,
+        job,
     )?;
     let document = document.with_psd_spots(&container, limit, other)?;
     job.report(1.0, 5)?;

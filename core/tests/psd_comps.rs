@@ -1,15 +1,18 @@
 //! PSD layer comps (`psd_comps`, `psd_comp_records`) through the FFI.
 //!
 //! - The committed Photoshop family `layer_comps` (`provenance.json`): its
-//!   five comps import as the three that record visibility, and applying HA
-//!   then HB gives Photoshop's own visibilities from the take's step table
-//!   (`photoshop.json`, `layer_comps[0].steps`), at 8 and 16 bits.
+//!   five comps import with their capture flags, and applying HA then HB
+//!   gives Photoshop's own visibilities from the take's step table
+//!   (`photoshop.json`, `layer_comps[0].steps`), at 8 and 16 bits. (The
+//!   `authored_exchange` family covers position, appearance and comments,
+//!   `psd_authored_exchange`.)
 //! - Resource 1065 decoded and re-encoded is Photoshop's 494 bytes.
 //! - A document's visibility comps round-trip through PSD at 8 and 16 bits,
 //!   PSB and the layered TIFF, bound to the same layers after a rename and a
 //!   reorder; this file's own walker reads 1065 and checks every record's
 //!   `cmls` `LyrI` against its `lyid`.
-//! - The export report names what it narrows or drops.
+//! - The export report names what it drops: every comp in the flattened
+//!   mode, none in the layered one.
 
 use std::ffi::{c_char, CStr, CString};
 use std::path::Path;
@@ -318,27 +321,43 @@ fn step_after(step: &str) -> Vec<(String, bool)> {
 fn photoshops_comps_import_and_apply_as_photoshop_applied_them() {
     let path = family_file("layer_comps", "source.psd");
     let losses = strings(&import_report(&path), "verified_losses");
-    for name in ["PosOnly", "AppOnly"] {
-        assert!(
-            losses.iter().any(|l| l.starts_with(&format!("Layer comp “{name}” records no layer visibility"))),
-            "{name}: {losses:?}"
-        );
-    }
     assert!(
-        losses
-            .iter()
-            .any(|l| l == "Layer comp “All” also records layer position and appearance, which is not imported; it is imported with its visibility."),
+        !losses.iter().any(|l| l.starts_with("Layer comp")),
         "{losses:?}"
     );
 
     let doc = byte_open(&path);
-    let names: Vec<String> = comp_rows(&comps_json(doc))
-        .into_iter()
-        .map(|c| c.0)
+    let comps = comps_json(doc);
+    let flags: Vec<(String, Value)> = comps["comps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            (
+                c["name"].as_str().unwrap().to_string(),
+                c["captures"].clone(),
+            )
+        })
         .collect();
-    assert_eq!(names, ["All", "HA", "HB"]);
+    let all = json!({"visibility": true, "position": true, "appearance": true});
+    assert_eq!(
+        flags,
+        [
+            ("All".to_string(), all.clone()),
+            (
+                "PosOnly".to_string(),
+                json!({"visibility": false, "position": true, "appearance": false})
+            ),
+            (
+                "AppOnly".to_string(),
+                json!({"visibility": false, "position": false, "appearance": true})
+            ),
+            ("HA".to_string(), all.clone()),
+            ("HB".to_string(), all),
+        ]
+    );
     let mut doc = doc;
-    for (comp, step) in [(1, "apply_ha"), (2, "apply_hb")] {
+    for (comp, step) in [(3, "apply_ha"), (4, "apply_hb")] {
         doc = comp_edit(
             doc,
             json!({"op": "layer_comp", "action": "apply", "comp": comp}),
@@ -367,13 +386,15 @@ fn photoshops_comps_import_and_apply_as_photoshop_applied_them() {
     typed_save(&wide, &file16);
     let mut typed = typed_open(&file16);
     assert_eq!(
-        comp_rows(&typed_comps_json(&typed))
-            .into_iter()
-            .map(|c| c.0)
+        typed_comps_json(&typed)["comps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["name"].as_str().unwrap().to_string())
             .collect::<Vec<_>>(),
-        ["All", "HA", "HB"]
+        ["All", "PosOnly", "AppOnly", "HA", "HB"]
     );
-    for (comp, step) in [(1, "apply_ha"), (2, "apply_hb")] {
+    for (comp, step) in [(3, "apply_ha"), (4, "apply_hb")] {
         typed = typed_edit(
             &typed,
             json!({"op": "layer_comp", "action": "apply", "comp": comp}),
@@ -470,7 +491,7 @@ fn visibility_comps_round_trip_through_every_rgb_container() {
 }
 
 #[test]
-fn the_export_report_names_what_it_narrows_and_drops() {
+fn the_export_report_names_what_it_drops() {
     let dir = TempDir::new().unwrap();
     let mut doc = doc_from(&dir, "p.png", &solid(4, 4, [1, 2, 3, 255]));
     doc = comp_edit(
@@ -482,13 +503,10 @@ fn the_export_report_names_what_it_narrows_and_drops() {
         json!({"op": "layer_comp", "action": "save", "name": "Where",
                "visibility": false, "position": true, "appearance": false}),
     );
+    // The layered mode writes both comps whole.
     let layered = export_losses(doc, LAYERS);
     assert!(
-        layered.contains(&"1 layer comp records no layer visibility and is not written; this export writes a layer comp's visibility only.".to_string()),
-        "{layered:?}"
-    );
-    assert!(
-        layered.contains(&"1 layer comp is written with its visibility only; the layer position and appearance it records are not written.".to_string()),
+        !layered.iter().any(|l| l.contains("layer comp")),
         "{layered:?}"
     );
     let flattened = export_losses(doc, 1);

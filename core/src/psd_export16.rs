@@ -923,8 +923,12 @@ impl PrecisionDocument {
             if sample_bytes == 4 { 32 } else { 16 },
             &mut out,
         );
+        // The comps' recorded styles after the layers' own: their patterns
+        // ride in the same table (`psd_comp_limits::recorded_styles`).
+        let comp_styles = crate::psd_typed_exchange::comp_styles(self, &knockout_written16);
         let mut styles = Vec::new();
         record_styles(self.root_layers(), &mut styles);
+        styles.extend(comp_styles.iter());
         let mut fills = Vec::new();
         exported_fills16(self.root_layers(), &mut fills);
         let fills: Vec<_> = fills
@@ -983,9 +987,13 @@ impl PrecisionDocument {
             has_guides: !self.guides().is_empty() || self.ruler_origin() != (0.0, 0.0),
             sampler_sizes_lost: self.color_samplers().iter().any(|s| s.sample_size != 1),
             comps: self.layer_comps().len(),
-            // The visibility comps the layered mode writes (`psd_comps`).
-            comps_written: crate::psd_comps::counts(self.layer_comps()).0,
-            comps_narrowed: crate::psd_comps::counts(self.layer_comps()).1,
+            // The layered mode writes every comp (`psd_comps`).
+            comps_written: self.layer_comps().len(),
+            comps_narrowed: crate::psd_typed_exchange::comps_narrowed(
+                self,
+                &knockout_written16,
+                &|style| bake_reason(style).is_some(),
+            ),
             path_losses: crate::psd_paths::export_losses(self.paths(), self.dimensions()),
             has_metadata: !self.metadata().is_empty(),
             nondefault_global_light: self.global_light() != GlobalLight::default(),
@@ -1361,7 +1369,13 @@ impl PrecisionDocument {
         // The comps' `lyid`/`shmd`, the raster-less vector masks' `vmsk` and
         // the Background record (`psd_typed_exchange`).
         if matches!(mode, PsdExportMode::Layers) {
-            crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16);
+            crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16, &|style| {
+                crate::psd_comps::effect_style_items(
+                    style,
+                    self.global_light(),
+                    crate::psd_layer_effects::FxColours::Rgb16(colors.as_ref()),
+                )
+            });
         }
         // The document's light, declared only when some record writes
         // effects — the byte `psd_export` rule.
@@ -1378,8 +1392,12 @@ impl PrecisionDocument {
         // (`psd_patterns`); no block without one.
         let tail = match mode {
             PsdExportMode::Layers => {
+                // The comps' recorded styles after the layers' own: their patterns
+                // ride in the same table (`psd_comp_limits::recorded_styles`).
+                let comp_styles = crate::psd_typed_exchange::comp_styles(self, &knockout_written16);
                 let mut styles = Vec::new();
                 record_styles(self.root_layers(), &mut styles);
+                styles.extend(comp_styles.iter());
                 let mut fills = Vec::new();
                 exported_fills16(self.root_layers(), &mut fills);
                 let fills: Vec<_> = fills

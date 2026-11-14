@@ -289,6 +289,7 @@ pub(crate) fn open_gray32(
             |index| !dropped(&psd, &records, index, float),
             limit,
             other,
+            job,
         )
     })
 }

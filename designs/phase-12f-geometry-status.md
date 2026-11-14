@@ -118,7 +118,8 @@ must match an f64 reference, and float must never resample extended-range sample
   retained sources ride since 12F-2 (2026-09-26).
 - `DONE` — P7-38 (the Background mark) and PSD `cmls` (layer comps' names, comments and visibility), at RGB 8/16
   and, since 2026-11-12, in the colour modes and at 32 bits (`psd_typed_exchange`);
-  `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — a comp's position and appearance.
+  `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — a PSD comp's position (appearance and
+  comments cross since 2026-11-13).
 - `DONE` — P7-39 (`blend_interior_as_group` on clip bases), 2026-10-13: see
   [phase-12e-layer-ops-status.md](phase-12e-layer-ops-status.md).
 - `DONE` — Lens/camera database and calibration for 12F-4: `../core/src/lens_db.rs`, `../core/src/lens_model.rs`,

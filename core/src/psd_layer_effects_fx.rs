@@ -45,6 +45,7 @@
 use serde_json::{json, Map, Value};
 
 use crate::authored_color::{hex_equivalent, wide_into, wide_out, AuthoredColors};
+use crate::blend::BlendMode;
 use crate::psd_contour::{anti_alias_item, shpc_item};
 use crate::psd_descriptor::{Descriptor, Item};
 use crate::style::{
@@ -214,6 +215,22 @@ pub(crate) fn blend(d: &Descriptor, key: &[u8]) -> Result<Option<&'static str>, 
         .iter()
         .position(|candidate| *candidate == id)
         .map(|index| Some(blend_mode_name(crate::psd::map_psd_blend(index as i32 + 1))))
+        .ok_or_else(|| unknown(key))
+}
+
+/// One `BlnM` key as a blend mode, a group's `passThrough` included: a
+/// layer comp's recorded mode (`psd_comp_records`).
+pub(crate) fn blend_mode(d: &Descriptor, key: &[u8]) -> Result<Option<BlendMode>, String> {
+    let Some(id) = d.enumeration(key)? else {
+        return Ok(None);
+    };
+    if id == b"passThrough" {
+        return Ok(Some(BlendMode::PassThrough));
+    }
+    BLEND_IDS
+        .iter()
+        .position(|candidate| *candidate == id)
+        .map(|index| Some(crate::psd::map_psd_blend(index as i32 + 1)))
         .ok_or_else(|| unknown(key))
 }
 
@@ -607,6 +624,15 @@ pub(crate) fn blend_item(mode: crate::blend::BlendMode) -> Item {
         .find(|index| crate::psd::map_psd_blend(*index as i32 + 1) == mode)
         .unwrap_or(0);
     enumeration(b"BlnM", BLEND_IDS[index])
+}
+
+/// [`blend_item`], and a group's pass-through as Photoshop writes it in a
+/// layer comp's `blendOptions`: `passThrough`, a string id.
+pub(crate) fn comp_blend_item(mode: BlendMode) -> Item {
+    if mode == BlendMode::PassThrough {
+        return enumeration(b"BlnM", b"passThrough");
+    }
+    blend_item(mode)
 }
 
 fn named_item(type_id: &[u8], table: &Ids, name: &str) -> Item {

@@ -86,7 +86,7 @@ const BACKGROUND_SENTENCES: &str = "which Doctored treats as the Background";
 // ------------------------------------------------------------- the modes --
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Mode {
+pub enum Mode {
     Gray8,
     Gray16,
     Duotone8,
@@ -205,7 +205,7 @@ fn to_duotone(gray: &PrecisionDocument) -> Box<PrecisionDocument> {
 
 /// The 16-bit sRGB `source` as a `mode` document, by the mode's own
 /// conversion.
-fn convert(source: &PrecisionDocument, mode: Mode) -> Box<PrecisionDocument> {
+pub fn convert(source: &PrecisionDocument, mode: Mode) -> Box<PrecisionDocument> {
     let gray = |depth: u32| {
         to_gray(
             source,
@@ -228,7 +228,7 @@ fn convert(source: &PrecisionDocument, mode: Mode) -> Box<PrecisionDocument> {
 
 /// The layered file of `doc` in `container`, its own render the projection
 /// (a CMYK document renders its own composite).
-fn save(doc: &PrecisionDocument, path: &Path, container: i32) -> Vec<u8> {
+pub fn save(doc: &PrecisionDocument, path: &Path, container: i32) -> Vec<u8> {
     let projection = (!doc.is_cmyk()).then(|| doc.render(LIMIT, 0, None).expect("a projection"));
     let mut err: *mut c_char = ptr::null_mut();
     let ok = unsafe {
@@ -251,7 +251,7 @@ fn save(doc: &PrecisionDocument, path: &Path, container: i32) -> Vec<u8> {
 }
 
 /// Import Layers of `path` through the open its report names.
-fn open(path: &Path) -> Box<PrecisionDocument> {
+pub fn open(path: &Path) -> Box<PrecisionDocument> {
     let report = import_report(path);
     let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
     let file = cpath(path);
@@ -301,7 +301,7 @@ fn role(doc: &PrecisionDocument) -> i32 {
     unsafe { dr_precision_doc_background_role(doc) }
 }
 
-fn export_losses(doc: &PrecisionDocument) -> Vec<String> {
+pub fn export_losses(doc: &PrecisionDocument) -> Vec<String> {
     let mut err: *mut c_char = ptr::null_mut();
     let text = unsafe { dr_precision_doc_psd_export_report(doc, PSD, LAYERS, &mut err) };
     assert!(!text.is_null(), "export report: {}", take_err_string(err));
@@ -311,7 +311,7 @@ fn export_losses(doc: &PrecisionDocument) -> Vec<String> {
     strings(&value, "losses")
 }
 
-fn edit(doc: &PrecisionDocument, request: Value) -> Box<PrecisionDocument> {
+pub fn edit(doc: &PrecisionDocument, request: Value) -> Box<PrecisionDocument> {
     let text = CString::new(request.to_string()).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
     let out = unsafe {
@@ -329,7 +329,7 @@ fn edit(doc: &PrecisionDocument, request: Value) -> Box<PrecisionDocument> {
     owned(out, err, &request.to_string())
 }
 
-fn index(doc: &PrecisionDocument, name: &str) -> usize {
+pub fn index(doc: &PrecisionDocument, name: &str) -> usize {
     (0..doc.layer_count())
         .find(|&i| doc.layer(i).is_some_and(|l| l.name() == name))
         .unwrap_or_else(|| panic!("no layer {name}"))
@@ -338,14 +338,14 @@ fn index(doc: &PrecisionDocument, name: &str) -> usize {
 // ------------------------------------------------------ the source docs --
 
 /// A canvas-sized sRGB raster of `rgba`, its pixel (0, 0) at `corner_alpha`.
-fn raster(name: &str, rgba: [u16; 4], corner_alpha: u16) -> Layer {
+pub fn raster(name: &str, rgba: [u16; 4], corner_alpha: u16) -> Layer {
     let mut pixels = vec![rgba; (W * H) as usize];
     pixels[0][3] = corner_alpha;
     let image = PrecisionImage::from_rgba16(W, H, pixels, IccProfile::srgb(), None).unwrap();
     Layer::raster(name, image, (0, 0), 1.0, true).unwrap()
 }
 
-fn document(layers: Vec<Layer>) -> PrecisionDocument {
+pub fn document(layers: Vec<Layer>) -> PrecisionDocument {
     PrecisionDocument::from_parts(
         W,
         H,
@@ -726,13 +726,11 @@ fn layer_comps_cross_every_mode() {
                 .any(|l| l.contains("stores no Photoshop layer comps")),
             "{what}: {losses:?}"
         );
-        if !mode.cmyk() {
-            // The CMYK source came through a PSD, which already narrowed it.
-            assert!(
-                losses.iter().any(|l| l == "1 layer comp is written with its visibility only; the layer position and appearance it records are not written."),
-                "{what}: {losses:?}"
-            );
-        }
+        // A layered PSD writes every comp whole.
+        assert!(
+            !losses.iter().any(|l| l.contains("layer comp")),
+            "{what}: {losses:?}"
+        );
         for &(container, ext) in mode.containers() {
             let path = dir.path().join(format!("comps-{what}.{ext}"));
             let bytes = save(&doc, &path, container);
@@ -1119,5 +1117,74 @@ fn record_0_the_open_drops_marks_no_bottom() {
     assert!(
         doc.vector_mask(0).is_some(),
         "record 1's vector mask is on its layer"
+    );
+}
+
+/// A vector mask the import draws (its second subpath subtracts) is a
+/// canvas-sized mask the document keeps, so the layered plan charges it as
+/// one: the same file with the block under a key no reader knows plans at
+/// least the mask's two bytes a pixel less.
+#[test]
+fn a_drawn_vector_mask_is_planned_as_a_canvas_mask() {
+    const SIDE: u32 = 256;
+    let canvas = (f64::from(SIDE), f64::from(SIDE));
+    let body = vmsk(
+        0,
+        &[
+            closed_subpath(
+                &[(8.0, 8.0), (200.0, 8.0), (200.0, 200.0), (8.0, 200.0)],
+                1,
+                canvas,
+            ),
+            closed_subpath(
+                &[(40.0, 40.0), (90.0, 40.0), (90.0, 90.0), (40.0, 90.0)],
+                2,
+                canvas,
+            ),
+        ],
+    );
+    let pixels = (SIDE * SIDE) as usize;
+    let ink = vec![[20_000u16, 30_000, 10_000, 5_000, 65535]; pixels];
+    let profile = press_profile("Press Test");
+    let dir = TempDir::new().unwrap();
+    let plan = |key: &[u8; 4]| {
+        let record = cmyk_file::Rec::raster(
+            "Layer",
+            [0, 0, SIDE as i32, SIDE as i32],
+            cmyk_file::ink_channels(&ink, SIDE as usize, 16, true, cmyk_file::Comp::Rle, false),
+        )
+        .with_block(key, &body);
+        let bytes = cmyk_file::psd(
+            &cmyk_file::PsdSpec {
+                canvas: (SIDE, SIDE),
+                depth: 16,
+                icc: Some(&profile),
+                composite: vec![vec![65535; pixels]; 4],
+                merged_alpha: false,
+                large: false,
+                lr16: false,
+                resources: Vec::new(),
+            },
+            &[record],
+        );
+        let path = dir
+            .path()
+            .join(format!("{}.psd", String::from_utf8_lossy(key)));
+        std::fs::write(&path, bytes).unwrap();
+        let report = import_report(&path);
+        (
+            report["layered_plan_bytes"].as_u64().expect("a plan"),
+            strings(&report, "verified_losses"),
+        )
+    };
+    let (drawn, losses) = plan(b"vmsk");
+    assert!(
+        losses.iter().any(|l| l.contains("drawn from its path")),
+        "{losses:?}"
+    );
+    let (plain, _) = plan(b"vmsX");
+    assert!(
+        drawn >= plain + 2 * u64::from(SIDE * SIDE),
+        "drawn {drawn}, without the mask {plain}"
     );
 }

@@ -43,6 +43,8 @@ mod psd_asl_layout;
 mod psd_asl_open_668;
 #[path = "psd_asl_photoshop.rs"]
 mod psd_asl_photoshop;
+#[path = "psd_authored_exchange.rs"]
+mod psd_authored_exchange;
 #[path = "psd_background.rs"]
 mod psd_background;
 #[path = "psd_bevel_technique.rs"]
@@ -51,6 +53,8 @@ mod psd_bevel_technique;
 mod psd_channel_mixer;
 #[path = "psd_clipping_path.rs"]
 mod psd_clipping_path;
+#[path = "psd_comp_styles.rs"]
+mod psd_comp_styles;
 #[path = "psd_composite_transparency.rs"]
 mod psd_composite_transparency;
 #[path = "psd_comps.rs"]

@@ -77,8 +77,9 @@
 //! and naming ANY capture flag states the whole set.
 //! `rebind` runs after construction — at the typed depth on BOTH reader exits, because the pending
 //! nodes have no ids until `materialize` mints them. PSD comps (resource 1065 and each record's
-//! `cmls`) cross in every mode the PSD codecs carry layers in, with their names, comments and
-//! visibility (`psd_comps`):
+//! `cmls`) cross in every mode the PSD codecs carry layers in, with their names, comments, capture
+//! flags, visibility and appearance (`psd_comps`; a recorded position is written and not imported,
+//! and a style's Blend If, knockout and interior flag stay the layer's own):
 //! a layer's settings ride in its own record, so an imported entry binds to the layer built from
 //! that record.
 

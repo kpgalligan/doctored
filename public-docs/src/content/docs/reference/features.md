@@ -3290,17 +3290,22 @@ flag is recorded in the import report and not applied, which is how Photoshop
 reads it. Coverage stays exact, including off-canvas samples.
 Imported masks are explicitly unlinked; PSD linkage is not inferred.
 Extended masks, parameters and unsupported mask codecs produce specific
-per-file losses. A vector mask (`vmsk`) with no raster mask beside it opens as
-the layer's vector mask in every colour mode and at every depth — a shape
-layer as its fill layer under the path where the mode's open imports that
-fill (RGB and CMYK, a Solid Color fill at 32 bits) — unless its path starts
-from all pixels or subtracts or intersects its subpaths, which keeps the
-layer's stored pixels with a loss, as does a shape layer whose fill the mode
-does not import (Grayscale, Lab, a gradient or pattern at 32 bits); the
+per-file losses. A vector mask (`vmsk`) opens as the layer's vector mask in
+every colour mode and at every depth — a shape layer as its fill layer under
+the path where the mode's open imports that fill (RGB and CMYK, a Solid Color
+fill at 32 bits), a raster layer with the user's own raster mask, when it has
+one, as the vector mask's raster part — unless its path starts from all
+pixels or subtracts, intersects or excludes its subpaths: on a raster layer
+it then opens as a raster mask (the mask the file rendered from it, or the
+path drawn under its operations), with a loss, and a shape layer keeps its
+stored pixels with a loss, as does a shape layer whose fill the mode does not
+import (Grayscale, Lab, a gradient or pattern at 32 bits); the
 file's paths (the work path and saved paths) open with the document in every
 mode; layer comps (resource 1065 and each layer's `cmls`) open in every mode
-with their names, comments and visibility, a comp's position and appearance
-reported as not imported.
+with their names, comments, capture flags, visibility and appearance
+(opacity, fill, blend mode and style), and a comp's recorded positions are
+not imported, with a loss.
+A clipping path's flatness (resource 2999) is kept and written back.
 Malformed admitted mask rectangles or rows refuse the layered choice. Photoshop
 layer groups retain structure, names, folder opacity, visibility, recognized
 blend modes and open/closed state through a bounded metadata walk. Raster
@@ -3456,7 +3461,8 @@ past 100 MP and a group whose style
 must be rasterized refuse instead. Editable text, shapes, alpha
 channels, guides, link groups and metadata packets are not
 written as live constructs (layer comps are written in every mode with
-their visibility, the paths in every mode, and a vector mask with no raster
+their visibility, appearance and recorded offsets, the paths in every mode,
+and a vector mask with no raster
 mask beside it as its path), and a RAW layer is written as its pixels; layer locks are written as Photoshop's `lspf`. A 16-bit
 document's clipping is written and evaluated exactly as an 8-bit one's. Appearance in
 Photoshop is claimed, at 8 and 16 bits, for Normal, Darken, Multiply, Color

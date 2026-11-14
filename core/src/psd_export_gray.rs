@@ -442,7 +442,13 @@ impl PrecisionDocument {
                 // record (`psd_typed_exchange`), before Photoshop's own form,
                 // so a folder's `lsct` stays ahead of its `lyid` as in the
                 // RGB writer's records.
-                crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16);
+                crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16, &|style| {
+                    crate::psd_comps::effect_style_items(
+                        style,
+                        self.global_light(),
+                        crate::psd_layer_effects::FxColours::Gray(&policy),
+                    )
+                });
                 photoshop_form(&mut out);
             }
             PsdExportMode::Flattened => out.push(Record {
@@ -475,8 +481,12 @@ impl PrecisionDocument {
         // The pattern table (`psd_patterns`: `Patt` at 8 bits, `Pat2` at 16).
         let tail = match mode {
             PsdExportMode::Layers => {
+                // The comps' recorded styles after the layers' own: their patterns
+                // ride in the same table (`psd_comp_limits::recorded_styles`).
+                let comp_styles = crate::psd_typed_exchange::comp_styles(self, &knockout_written16);
                 let mut styles = Vec::new();
                 record_styles(self.root_layers(), &mut styles);
+                styles.extend(comp_styles.iter());
                 let mut fills = Vec::new();
                 exported_fills16(self.root_layers(), &mut fills);
                 let fills: Vec<_> = fills

@@ -53,7 +53,7 @@
 //! The layered choice ends as every typed open does (`psd_typed_exchange`):
 //! file record 0's Background mark when the open keeps it ([`dropped`] is
 //! the answer), each carried `vmsk` as its layer's vector mask (never over a
-//! fill record, which the open drops) and the file's visibility comps.
+//! fill record, which the open drops) and the file's layer comps.
 //!
 //! **Not observed by the take (H-L):** Photoshop's Image ▸ Mode ▸ Lab Color
 //! (`Mrge` false) DISCARDED the RGB-authored Levels adjustment layer, so no
@@ -610,6 +610,7 @@ impl PrecisionDocument {
                     |index| !dropped(&psd, &records, index),
                     limit,
                     other,
+                    job,
                 )
             },
         )

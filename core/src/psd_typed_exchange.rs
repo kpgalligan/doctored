@@ -33,7 +33,10 @@ use crate::psd_group_records::GroupRecords;
 /// `document` with file record 0's mark, the carried vector masks and the
 /// comps installed (module doc). `kept(index)` is the importer's "record
 /// `index` of `records.layers` was built" answer. A refused vector-mask
-/// admission refuses the open, as every other import charge does.
+/// admission refuses the open, as every other import charge does, and so
+/// does a vector mask the import draws under `job` and the rasterizer
+/// refuses (`psd_paths`).
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn install(
     mut document: PrecisionDocument,
     container: &Container<'_>,
@@ -42,6 +45,7 @@ pub(crate) fn install(
     kept: impl Fn(usize) -> bool,
     limit: u64,
     other: u64,
+    job: crate::job_control::JobContext<'_>,
 ) -> Result<PrecisionDocument, String> {
     // FILE record 0, when kept, is root entry 0 (`psd_background`).
     if let Some(role) = crate::psd_background::import_role(records, kept) {
@@ -53,31 +57,93 @@ pub(crate) fn install(
         if let Some(body) = crate::psd_paths::source_vmsk(records, source) {
             document = document.importing_vector_mask(k, body, limit, other)?;
         }
+        // A vector mask the file holds no rendering of, baked (`psd_paths`).
+        if let Some(body) = crate::psd_paths::source_bake(records, source) {
+            document = document.importing_baked_vector_mask(k, body, limit, other, job)?;
+        }
     }
     document.comps = crate::psd_comps::imported(container, records, sources, |k| {
-        Some((document.layer_id(k)?, document.layer(k)?.name().to_string()))
+        let layer = document.layer(k)?;
+        Some(crate::psd_comps::BuiltLayer {
+            id: document.layer_id(k)?,
+            name: layer.name().to_string(),
+            style: layer.reported_style(),
+        })
     });
     Ok(document)
 }
 
+/// The layered walk's owners in FILE order (`psd_comps::typed_owners`). A
+/// record's style is rasterized into its pixels when the layer has one and
+/// `written`, the writer's "this style is written, not baked", says no; and
+/// an adjustment layer is written as its stamp when its style is baked, it
+/// has no PSD record, or the document is Lab (`psd_export16::records`; a
+/// CMYK document's adjustment layers are `CmykAdjustment`s, never stamped).
+fn owners(
+    document: &PrecisionDocument,
+    written: &dyn Fn(&PrecisionDocumentLayer) -> bool,
+) -> Vec<Option<crate::psd_comps::Owner>> {
+    // Only a document with a comp to write reads a style or a decision.
+    let comps = !document.layer_comps().is_empty();
+    let mut owners = Vec::new();
+    crate::psd_comps::typed_owners(
+        document.root_layers(),
+        &|layer| {
+            let baked =
+                comps && crate::psd_export16::merged_style(layer).is_some() && !written(layer);
+            let stamped = match &layer.content {
+                crate::precision_document::Content::Adjustment(state) if comps => {
+                    baked
+                        || document.is_lab()
+                        || crate::psd_adjustment::encode(state.description()).is_none()
+                }
+                _ => false,
+            };
+            (baked, stamped)
+        },
+        comps,
+        &mut owners,
+    );
+    owners
+}
+
+/// The comps' recorded styles whose patterns the layered file's pattern
+/// table holds beside the layers' own (`psd_comp_limits::recorded_styles`).
+pub(crate) fn comp_styles(
+    document: &PrecisionDocument,
+    written: &dyn Fn(&PrecisionDocumentLayer) -> bool,
+) -> Vec<crate::style::LayerStyle> {
+    crate::psd_comp_limits::recorded_styles(document.layer_comps(), &owners(document, written))
+}
+
+/// What the layered writer does not write of the comps' recorded styles
+/// (`psd_comp_limits::narrowed`); `refuses` is its effects codec's refusal.
+pub(crate) fn comps_narrowed(
+    document: &PrecisionDocument,
+    written: &dyn Fn(&PrecisionDocumentLayer) -> bool,
+    refuses: &dyn Fn(&crate::style::LayerStyle) -> bool,
+) -> crate::psd_comp_limits::Narrowed {
+    crate::psd_comp_limits::narrowed(document.layer_comps(), &owners(document, written), refuses)
+}
+
 /// Adds the comps' `lyid`/`shmd`, the raster-less vector masks' `vmsk` and
 /// the Background record to `records`, the layered mode's walk of
-/// `document` in FILE order (module doc).
+/// `document` in FILE order (module doc). `styles` writes a comp's style
+/// (`psd_comps::CompStyles`).
 pub(crate) fn stamp(
     document: &PrecisionDocument,
     records: &mut [Record],
     written: &dyn Fn(&PrecisionDocumentLayer) -> bool,
+    styles: crate::psd_comps::CompStyles<'_>,
 ) {
-    let mut owners = Vec::new();
-    crate::psd_comps::typed_owners(document.root_layers(), &mut owners);
-    crate::psd_comps::stamp_records(records, &owners, document.layer_comps());
+    let owners = owners(document, written);
+    crate::psd_comps::stamp_records(records, &owners, document.layer_comps(), styles);
     // A live vector mask with no raster part is written as its `vmsk`
     // (`psd_paths`), in place of the baked mask.
     let masks: Vec<Option<crate::psd_paths::WrittenMask>> = owners
         .iter()
         .map(|owner| {
-            let (id, _) = (*owner)?;
-            let index = document.layer_index_by_id(id)?;
+            let index = document.layer_index_by_id(owner.as_ref()?.id)?;
             document
                 .live_vector_mask(index)
                 .filter(|record| record.raster.is_none())

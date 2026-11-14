@@ -215,6 +215,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "tiled_soft_matting.rs",
     "trim_bounds.rs",
     "trimap_strokes.rs",
+    "vector_mask_combine.rs",
     "vibrance_law.rs",
 )
 FORBIDDEN: tuple[str, ...] = ("DrDocument", "Layer", "PrecisionDocument", "PrecisionDocumentLayer",

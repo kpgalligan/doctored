@@ -657,6 +657,28 @@ pub(crate) fn decode(record: RecordStyle<'_>, colors: FxColours<'_>) -> StyleBod
     }
 }
 
+/// A layer comp's recorded style (`psd_comp_records::chain`): its `Lefx`
+/// and fill percent through the same codec as a record's own, `Ok(None)`
+/// for no style. A `Lefx` whose `masterFXSwitch` is off is no style (the
+/// comp writer's form for one). A pattern overlay's pattern is looked up in
+/// `patterns` with no reference point.
+pub(crate) fn comp_style(
+    effects: Option<&Descriptor>,
+    fill_percent: f64,
+    colors: FxColours<'_>,
+    patterns: &crate::psd_patterns::PatternTable,
+) -> Result<Option<LayerStyle>, String> {
+    let effects = effects.filter(|d| d.bool(b"masterFXSwitch").ok().flatten() != Some(false));
+    let fill = (fill_percent / 100.0) as f32;
+    let fill = ((fill - 1.0).abs() > f32::EPSILON).then_some(fill);
+    let pattern = PatternContext {
+        patterns,
+        reference: None,
+        top_left: (0, 0),
+    };
+    Ok(build(effects, fill, None, (None, None), colors, &pattern)?.map(|carried| carried.style))
+}
+
 // -------------------------------------------------------------- encoding --
 
 /// Why this style cannot be written as Photoshop layer effects at all, from

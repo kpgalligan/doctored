@@ -5,7 +5,8 @@
 //! Oracles: this file's own TIFF tag and 8BIM readers
 //! (`psd_clipping_path::tiff_run`, `run_resources`), the 26-byte records
 //! computed from Adobe's layout (`psd_paths::expected_records`) and the
-//! Pascal-string 2999 body (`psd_clipping_path::clipping_body`).
+//! Pascal-string 2999 body with its tail, the no-flatness one for a mark
+//! made here (`psd_clipping_path::clipping_body`).
 //!
 //! - A byte RGB save, a 16-bit RGB save and a CMYK save write every path
 //!   and the clipping path, and each reopens with them.
@@ -63,7 +64,7 @@ use crate::cmyk_fixture::press_profile;
 use crate::cmyk_jpeg_builder::{cmyk_jpeg, CmykJpeg};
 use crate::common::metadata_fixtures::{build_exif, jpeg_segments};
 use crate::common::{byte_geometry_edit, cpath, take_err_string};
-use crate::psd_clipping_path::{clipping_body, run_resources, tiff_run};
+use crate::psd_clipping_path::{clipping_body, run_resources, tiff_run, NO_FLATNESS};
 use crate::psd_paths::{assert_paths_close, expected_records};
 
 pub(crate) const W: u32 = 60;
@@ -238,7 +239,14 @@ pub(crate) fn expected_resources(
         }
     }
     if let Some(entry) = paths.iter().find(|e| e.clipping.is_some()) {
-        out.push((2999, String::new(), clipping_body(&entry.name, &[])));
+        // A kept tail after the name, or the no-flatness tail for none.
+        let tail = entry.clipping.as_ref().map_or(&[][..], |c| &c.tail[..]);
+        let tail = if tail.is_empty() {
+            &NO_FLATNESS[..]
+        } else {
+            tail
+        };
+        out.push((2999, String::new(), clipping_body(&entry.name, tail)));
     }
     out
 }

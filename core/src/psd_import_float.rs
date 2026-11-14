@@ -654,6 +654,7 @@ pub(crate) fn open32(
         |index| builds(&psd, &records, index, &profile),
         limit,
         other,
+        job,
     )?;
     job.report(1.0, 5)?;
     Ok(document)

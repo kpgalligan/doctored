@@ -40,11 +40,6 @@ const GUIDES: &str = "Guides and the ruler origin are not written.";
 const ONE_COMP: &str = "1 layer comp is not written; this export stores no Photoshop layer comps.";
 const TWO_COMPS: &str =
     "2 layer comps are not written; this export stores no Photoshop layer comps.";
-/// The layered RGB writers write a comp's visibility (`psd_comps`); a Save
-/// with no flags records all three, so its position and appearance are what
-/// is lost there.
-const ONE_NARROWED: &str = "1 layer comp is written with its visibility only; the layer position and appearance it records are not written.";
-const TWO_NARROWED: &str = "2 layer comps are written with their visibility only; the layer positions and appearances they record are not written.";
 
 #[derive(Clone, Copy)]
 enum Edit {
@@ -201,23 +196,20 @@ fn a_moved_ruler_origin_alone_is_disclosed_at_both_depths() {
 
 #[test]
 fn one_layer_comp_is_disclosed_in_the_singular() {
-    assert_appended_by_mode(&[Edit::Comp("A")], &[ONE_NARROWED], &[ONE_COMP]);
+    // The layered mode writes the comp whole: no sentence.
+    assert_appended_by_mode(&[Edit::Comp("A")], &[], &[ONE_COMP]);
 }
 
 #[test]
 fn two_layer_comps_are_counted() {
-    assert_appended_by_mode(
-        &[Edit::Comp("A"), Edit::Comp("B")],
-        &[TWO_NARROWED],
-        &[TWO_COMPS],
-    );
+    assert_appended_by_mode(&[Edit::Comp("A"), Edit::Comp("B")], &[], &[TWO_COMPS]);
 }
 
 #[test]
 fn a_guide_and_a_comp_are_disclosed_in_order() {
     assert_appended_by_mode(
         &[Edit::Guide, Edit::Comp("A")],
-        &[GUIDES, ONE_NARROWED],
+        &[GUIDES],
         &[GUIDES, ONE_COMP],
     );
 }

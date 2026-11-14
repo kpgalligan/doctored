@@ -110,9 +110,9 @@ pub(crate) const MAX_CLIPPING_TAIL_BYTES: usize = 64;
 /// resource 2999 (`psd_paths`), on the entry itself so that a rename, a
 /// delete, a geometry op, undo and a depth conversion carry it with the
 /// path. `tail` is the bytes a file's resource 2999 holds after the path's
-/// name, kept verbatim and written back after it; it is empty for a
-/// designation made in Doctored, which writes the name alone (no published
-/// layout or authored sample describes those bytes).
+/// name (its flatness and fill word, `psd_path_records`), kept verbatim and
+/// written back after it; it is empty for a designation made in Doctored
+/// and for a file's no-flatness tail, both written as that tail.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ClippingPath {
     pub tail: Vec<u8>,

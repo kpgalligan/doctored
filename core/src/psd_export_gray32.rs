@@ -163,7 +163,13 @@ impl PrecisionDocument {
                 // The comps, the raster-less vector masks and the Background
                 // record (`psd_typed_exchange`), before Photoshop's own form
                 // (`psd_export_gray`'s order).
-                crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16);
+                crate::psd_typed_exchange::stamp(self, &mut out, &knockout_written16, &|style| {
+                    crate::psd_comps::effect_style_items(
+                        style,
+                        self.global_light(),
+                        crate::psd_layer_effects::FxColours::Gray(&policy),
+                    )
+                });
                 photoshop_form(&mut out);
             }
             PsdExportMode::Flattened => out.push(Record {
@@ -195,8 +201,12 @@ impl PrecisionDocument {
             .then_some(self.global_light());
         let tail = match mode {
             PsdExportMode::Layers => {
+                // The comps' recorded styles after the layers' own: their patterns
+                // ride in the same table (`psd_comp_limits::recorded_styles`).
+                let comp_styles = crate::psd_typed_exchange::comp_styles(self, &knockout_written16);
                 let mut styles = Vec::new();
                 record_styles(self.root_layers(), &mut styles);
+                styles.extend(comp_styles.iter());
                 crate::psd_patterns::tail_blocks_with(styles, &[], true)
             }
             PsdExportMode::Flattened => Vec::new(),

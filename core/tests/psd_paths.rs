@@ -15,8 +15,9 @@
 //!   sentence.
 //! - A `vmsk` whose subpaths subtract, or that starts from all pixels, is not
 //!   carried: the shape record keeps its own pixels and the dropped-mask
-//!   sentence. So is one that would take the file's paths and vector masks
-//!   past the document's anchor cap, and the opened file then saves.
+//!   sentence. One that would take the file's paths and vector masks past
+//!   the document's anchor cap is not carried either: on a raster record it
+//!   is drawn into the raster mask, and the opened file then saves.
 
 use std::ffi::{c_char, CString};
 use std::path::Path;
@@ -632,8 +633,8 @@ fn a_vector_mask_one_fill_rule_cannot_hold_keeps_the_records_pixels() {
 
 /// The file's paths and its vector masks share the document's one anchor
 /// cap (65,536). Two saved paths of 32,768 anchors fill it, so a raster
-/// record's 4-anchor `vmsk` is not carried: the record keeps its pixels
-/// with the dropped-mask sentence, both paths are kept, and the opened
+/// record's 4-anchor `vmsk` is not carried: it is drawn into the layer's
+/// raster mask with its sentence, both paths are kept, and the opened
 /// document saves as `.doctored`, which refuses a document past the cap.
 #[test]
 fn a_vector_mask_past_the_anchor_cap_the_paths_fill_is_not_carried() {
@@ -662,15 +663,126 @@ fn a_vector_mask_past_the_anchor_cap_the_paths_fill_is_not_carried() {
         with_resources(&fixture::fixture(&[record], [64, 48], false), &resources),
     )
     .unwrap();
+    // Not carried, the path is drawn into a raster mask with its sentence.
     let losses = common::psd_photoshop::strings(&import_report(&file), "verified_losses");
-    assert!(losses.iter().any(|l| l.contains(DROPPED)), "{losses:?}");
+    assert!(
+        losses
+            .iter()
+            .any(|l| l.contains("is imported as a raster mask drawn from its path")),
+        "{losses:?}"
+    );
     let doc = byte_open(&file);
     let document = unsafe { &*doc };
     assert!(document.vector_mask(0).is_none());
+    let flat = common::flat_pixels(doc);
+    assert_eq!(
+        common::pixel(&flat, 64, 30, 20)[3],
+        255,
+        "inside the rectangle"
+    );
+    assert_eq!(common::pixel(&flat, 64, 2, 2)[3], 0, "outside it");
     assert_eq!(document.paths().len(), 2, "both paths are kept");
     let native = dir.path().join("cap.doctored");
     document
         .save_native(native.to_str().unwrap())
         .expect("the opened file saves");
     unsafe { dr_doc_free(doc) };
+}
+
+/// A raster record (the fixture's “Duplicate”) over a `canvas`, under `body`
+/// as its `vmsk`.
+fn masked_raster(canvas: [u32; 2], body: &[u8]) -> Vec<u8> {
+    let mut record = fixture::Record::raster([0, 0, 4, 4], &[9, 9, 9, 255].repeat(16), false);
+    record.blocks = fixture::block(b"vmsk", body);
+    fixture::fixture(&[record], canvas, false)
+}
+
+/// The import draws a vector mask it does not carry one subpath at a time,
+/// each a pass over the canvas, so it draws only a mask within the path
+/// caps (4,096 subpaths, 32,768 anchors) and within 2³⁰ samples of passes;
+/// any other is dropped with the dropped-mask sentence and never drawn.
+#[test]
+fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
+    let canvas = (64.0, 48.0);
+    let triangle = |k: usize, operation: i16| {
+        let x = (k % 60) as f64;
+        closed_subpath(
+            &[(x, 2.0), (x + 3.0, 2.0), (x + 1.5, 40.0)],
+            operation,
+            canvas,
+        )
+    };
+    // Two subpaths, the second subtracting: drawn on a small canvas, and not
+    // on one where two passes are past the sample cap.
+    let two = vmsk(0, &[triangle(0, 1), triangle(1, 2)]);
+    assert!(doctored_core::psd_paths::vmsk_bakes(&two, (64, 48)));
+    assert!(!doctored_core::psd_paths::vmsk_bakes(
+        &two,
+        (30_000, 30_000)
+    ));
+    // One subpath past the subpath cap.
+    let many: Vec<Vec<u8>> = (0..4097)
+        .map(|k| triangle(k, if k == 0 { 1 } else { 2 }))
+        .collect();
+    let body = vmsk(0, &many);
+    assert!(!doctored_core::psd_paths::vmsk_bakes(&body, (64, 48)));
+    let dir = TempDir::new().unwrap();
+    let file = dir.path().join("many.psd");
+    std::fs::write(&file, masked_raster([64, 48], &body)).unwrap();
+    let losses = common::psd_photoshop::strings(&import_report(&file), "verified_losses");
+    assert!(losses.iter().any(|l| l.contains(DROPPED)), "{losses:?}");
+    assert!(
+        !losses.iter().any(|l| l.contains("drawn from its path")),
+        "{losses:?}"
+    );
+    let doc = byte_open(&file);
+    assert!(
+        unsafe { &*doc }.layers[0].mask.is_none(),
+        "no mask is drawn"
+    );
+    unsafe { dr_doc_free(doc) };
+}
+
+/// A vector mask within the drawing caps that the rasterizer refuses (32,760
+/// edges that each cross all 8,000 rows are past its work limit) refuses the
+/// layered open by name: the report said the mask is drawn, so the layer
+/// must not open unmasked.
+#[test]
+fn a_vector_mask_the_rasterizer_refuses_refuses_the_layered_open() {
+    let canvas = (8.0, 8000.0);
+    let zigzag: Vec<(f64, f64)> = (0..32_760u32)
+        .map(|k| (f64::from(k % 8), if k % 2 == 0 { 0.0 } else { 8000.0 }))
+        .collect();
+    let hole = closed_subpath(&[(1.0, 10.0), (6.0, 10.0), (3.0, 90.0)], 2, canvas);
+    let body = vmsk(0, &[closed_subpath(&zigzag, 1, canvas), hole]);
+    let dir = TempDir::new().unwrap();
+    let file = dir.path().join("zigzag.psd");
+    std::fs::write(&file, masked_raster([8, 8000], &body)).unwrap();
+    let report = import_report(&file);
+    let losses = common::psd_photoshop::strings(&report, "verified_losses");
+    assert!(
+        losses.iter().any(|l| l.contains("drawn from its path")),
+        "{losses:?}"
+    );
+    let token = CString::new(report["source_fingerprint"].as_str().unwrap()).unwrap();
+    let mut err: *mut c_char = ptr::null_mut();
+    let doc = unsafe {
+        doctored_core::ffi_psd::dr_doc_open_psd(
+            cpath(&file).as_ptr(),
+            LAYERS,
+            token.as_ptr(),
+            ptr::null(),
+            &mut err,
+        )
+    };
+    if !doc.is_null() {
+        let masked = unsafe { &*doc }.layers[0].mask.is_some();
+        unsafe { dr_doc_free(doc) };
+        panic!("the open must refuse; it opened with a mask: {masked}");
+    }
+    let reason = take_err_string(err);
+    assert!(
+        reason.contains("PSD vector mask on layer “Duplicate” could not be drawn"),
+        "{reason}"
+    );
 }

@@ -25,7 +25,7 @@ use crate::psd_feature_markers::FeatureMarkers;
 use crate::psd_framing::LONG_LENGTH_KEYS;
 use crate::psd_layer_effects::{self, RecordStyle, StyleBody};
 use crate::psd_layer_pixels::{Channel, LayerPixels};
-use crate::psd_raster_masks::{MaskBudget, MaskRecord};
+use crate::psd_raster_masks::{MaskBudget, MaskRecord, VectorMaskRole};
 
 // A native row can require both a folder and a closing record. Bound parser
 // metadata/work independently of pixel sizes, before invoking the decoder.
@@ -59,7 +59,18 @@ pub(crate) struct Group<'a> {
     /// The record's `vmsk` body when it is a vector mask Doctored carries
     /// (`vector_mask_usable`): the layer's vector mask (`psd_paths`).
     pub vmsk: Option<&'a [u8]>,
+    /// The record's `vmsk` body when the import bakes it into the layer's
+    /// mask instead (`VectorMaskRole::Baked`).
+    pub bake: Option<&'a [u8]>,
 }
+
+/// A record's layer comp settings as `psd_comp_records::chain` reads them:
+/// `None` when the record carries none, `Err` when they do not decode; each
+/// state's style is its style JSON (`Ok(None)` for none) or why it does not
+/// decode.
+pub(crate) type CompChain = Option<
+    Result<Vec<crate::psd_comp_records::ChainState<Result<Option<String>, String>>>, String>,
+>;
 
 pub(crate) struct GroupRecords<'a> {
     pub groups: Vec<Group<'a>>, // index + 1 is psd 0.3.5's top-down folder ID
@@ -79,6 +90,10 @@ pub(crate) struct GroupRecords<'a> {
     /// stays `Copy`.
     pub layer_styles: Vec<StyleBody>,
     pub group_styles: Vec<StyleBody>,
+    /// Parallel to `layers` and to `groups`: the record's layer comp
+    /// settings (`CompChain`, `psd_comps`).
+    pub layer_comps: Vec<CompChain>,
+    pub group_comps: Vec<CompChain>,
     /// Parallel to `layers`: the record's `lclr` colour code, 0 when it
     /// carries none.
     pub layer_labels: Vec<u8>,
@@ -88,6 +103,8 @@ pub(crate) struct GroupRecords<'a> {
     pub layer_shmd: Vec<Option<&'a [u8]>>,
     /// Parallel to `layers`: the record's carried `vmsk` body (`Group::vmsk`).
     pub layer_vmsk: Vec<Option<&'a [u8]>>,
+    /// Parallel to `layers`: the `vmsk` body the import bakes (`Group::bake`).
+    pub layer_bake: Vec<Option<&'a [u8]>>,
     pub divider_features: FeatureMarkers,
     /// FILE record 0 — the bottom entry — as the Background mark reads it
     /// (`psd_background`). `None` when there are no records at all, or when
@@ -111,6 +128,8 @@ struct Record<'a> {
     group: Group<'a>,
     mask_body: &'a [u8],
     advanced_mask: bool,
+    /// What the record's `vmsk` makes of its mask channels.
+    vector_role: VectorMaskRole,
     /// The FIRST adjustment/fill block's key and body, verbatim.
     adjustment_block: Option<([u8; 4], &'a [u8])>,
     /// The FIRST `CgEd` body, verbatim: the descriptor Photoshop writes beside
@@ -134,6 +153,9 @@ struct Record<'a> {
     /// point (`psd_pattern_fill`).
     reference_block: Option<&'a [u8]>,
     style: StyleBody,
+    /// The record's layer comp settings as the chain reads them
+    /// (`CompChain`).
+    comps: CompChain,
     /// The record's flags byte, which a fill's form reads (bit 4).
     flags: u8,
 }
@@ -237,10 +259,13 @@ impl<'a> GroupRecords<'a> {
             fills: Vec::new(),
             layer_styles: Vec::new(),
             group_styles: Vec::new(),
+            layer_comps: Vec::new(),
+            group_comps: Vec::new(),
             layer_labels: Vec::new(),
             layer_references: Vec::new(),
             layer_shmd: Vec::new(),
             layer_vmsk: Vec::new(),
+            layer_bake: Vec::new(),
             divider_features: FeatureMarkers::default(),
             bottom: None,
             metadata: Vec::new(),
@@ -471,7 +496,32 @@ impl<'a> GroupRecords<'a> {
                 }
                 fits
             });
-            advanced_mask |= vmsk.is_some() && carried.is_none();
+            // A vector mask the import does not carry leaves, on a raster
+            // record, the mask Photoshop rendered from it; any other drops
+            // the mask with its sentence, as before.
+            let vector_role = match (vmsk, carried) {
+                (_, Some(_)) => VectorMaskRole::Carried,
+                (Some(_), None)
+                    if adjustment_block.is_none() && rendered_mask(mask_body, &lengths) =>
+                {
+                    VectorMaskRole::Rendered
+                }
+                (Some(body), None)
+                    if adjustment_block.is_none()
+                        && divider == 0
+                        && mask_body.is_empty()
+                        && !lengths.iter().any(|(id, _)| matches!(id, -2 | -3))
+                        && crate::psd_paths::bakes(body, room.canvas) =>
+                {
+                    VectorMaskRole::Baked
+                }
+                (Some(_), None) => {
+                    advanced_mask = true;
+                    VectorMaskRole::None
+                }
+                (None, None) => VectorMaskRole::None,
+            };
+            let bake = vmsk.filter(|_| vector_role == VectorMaskRole::Baked);
             let vmsk = carried;
             let pixels = LayerPixels {
                 bounds,
@@ -522,6 +572,7 @@ impl<'a> GroupRecords<'a> {
                 divider,
                 mask_body,
                 advanced_mask,
+                vector_role,
                 adjustment_block,
                 companion_block,
                 adjustment: AdjustmentBody::Absent,
@@ -534,6 +585,7 @@ impl<'a> GroupRecords<'a> {
                 interior_block,
                 reference_block,
                 style: StyleBody::Absent,
+                comps: None,
                 flags,
                 group: Group {
                     opacity,
@@ -549,6 +601,7 @@ impl<'a> GroupRecords<'a> {
                     reference: reference_point(reference_block),
                     shmd,
                     vmsk,
+                    bake,
                 },
             });
         }
@@ -568,6 +621,7 @@ impl<'a> GroupRecords<'a> {
                 &record.pixels.channels,
                 record.advanced_mask,
                 large,
+                record.vector_role,
             )?;
             // Only a pixel-less raster record is an adjustment layer; the
             // same key on a raster stays a marker loss.
@@ -647,6 +701,22 @@ impl<'a> GroupRecords<'a> {
             // (the `3` arm below discards it), so it is never offered the
             // two knockout keys and its `knko` marker loss stays.
             let carries_keys = matches!(record.divider, 0..=2);
+            let colours = match (color, gray) {
+                (4, _) => psd_layer_effects::FxColours::Cmyk,
+                (1, Some(policy)) => psd_layer_effects::FxColours::Gray(policy),
+                // A Lab file's `LbCl` colours (#1 Lab phase 3a).
+                (9, _) => psd_layer_effects::FxColours::Lab,
+                _ => psd_layer_effects::FxColours::Rgb(colors),
+            };
+            // The layer comps' recorded styles decode through the record's
+            // own codec and colours (`psd_comps`).
+            record.comps = record.group.shmd.and_then(|shmd| {
+                crate::psd_comp_records::chain(shmd, |effects, fill| {
+                    psd_layer_effects::comp_style(effects, fill, colours, patterns)
+                        .map(|style| style.map(|s| s.to_json()))
+                })
+                .transpose()
+            });
             record.style = psd_layer_effects::decode(
                 RecordStyle {
                     effects: record.effects_block,
@@ -659,13 +729,7 @@ impl<'a> GroupRecords<'a> {
                     top_left: (record.pixels.bounds[1], record.pixels.bounds[0]),
                     patterns,
                 },
-                match (color, gray) {
-                    (4, _) => psd_layer_effects::FxColours::Cmyk,
-                    (1, Some(policy)) => psd_layer_effects::FxColours::Gray(policy),
-                    // A Lab file's `LbCl` colours (#1 Lab phase 3a).
-                    (9, _) => psd_layer_effects::FxColours::Lab,
-                    _ => psd_layer_effects::FxColours::Rgb(colors),
-                },
+                colours,
             );
             // An adjustment or fill record the build omits carries no style
             // (P7-19): its markers stay, and the report names the discard. A
@@ -720,6 +784,7 @@ impl<'a> GroupRecords<'a> {
                     group.parent = stack.last().copied();
                     out.groups.push(group);
                     out.group_styles.push(record.style);
+                    out.group_comps.push(record.comps);
                     stack.push(out.groups.len() as u32);
                 }
                 3 => {
@@ -740,10 +805,12 @@ impl<'a> GroupRecords<'a> {
                     out.adjustments.push(record.adjustment);
                     out.fills.push(record.fill);
                     out.layer_styles.push(record.style);
+                    out.layer_comps.push(record.comps);
                     out.layer_labels.push(record.group.label);
                     out.layer_references.push(record.group.reference);
                     out.layer_shmd.push(record.group.shmd);
                     out.layer_vmsk.push(record.group.vmsk);
+                    out.layer_bake.push(record.group.bake);
                     out.layers.push(record.pixels);
                 }
             }
@@ -850,8 +917,9 @@ impl<'a> GroupRecords<'a> {
         profile: Option<&crate::icc::IccProfile>,
     ) -> Result<(), String> {
         let mut masks = MaskBudget::default();
+        let canvas_pixels = u64::from(container.width) * u64::from(container.height);
         for mask in self.masks.iter().chain(self.groups.iter().map(|g| &g.mask)) {
-            masks.add(*mask)?;
+            masks.add(*mask, canvas_pixels)?;
         }
         let omitted: Vec<bool> = (0..self.layers.len()).map(|i| self.omitted(i)).collect();
         let canvas: Vec<bool> = (0..self.layers.len())
@@ -933,8 +1001,9 @@ impl<'a> GroupRecords<'a> {
 /// carries (`psd_paths`), before the document's anchor cap is weighed: a
 /// Grayscale (a Duotone file's included), RGB, CMYK or Lab file at any
 /// depth its open reads, a body whose path Doctored holds exactly on the
-/// file's `canvas` (`psd_paths::vmsk_shape`), no raster mask beside it (no
-/// mask section, no `-2` channel), no ENABLED vector stroke (`vstk`), whose
+/// file's `canvas` (`psd_paths::vmsk_shape`), mask channels beside it in a
+/// form the import reads ([`beside_vector_mask`]), no ENABLED vector stroke
+/// (`vstk`), whose
 /// shape layer's pixels show a stroke a fill under the path would not, and
 /// — on a record whose first adjustment key `adjustment` is a fill's — a
 /// fill the file's open imports as a fill layer ([`fill_imported`]): carried
@@ -959,14 +1028,36 @@ fn vector_mask_usable(
         && adjustment.is_none_or(|key| {
             !crate::psd_fill_layer::is_key(key) || fill_imported(color, sample_bytes, key)
         })
-        && mask_body.is_empty()
-        && !lengths.iter().any(|(id, _)| *id == -2)
+        && beside_vector_mask(mask_body, lengths)
         && !stroked;
     if !usable {
         return None;
     }
     let (shape, _) = crate::psd_paths::vmsk_shape(body, canvas)?;
     Some(shape.anchor_count())
+}
+
+/// Whether a record's mask channels sit beside its `vmsk` in a form the
+/// import reads (`psd_raster_masks::VectorMaskRole`): none at all, or
+/// Photoshop's `-2` rendered from the path (a 20-byte body, flag bit 3),
+/// with the user's own `-3` and the 36-byte body when the layer has both.
+fn beside_vector_mask(mask_body: &[u8], lengths: &[(i16, usize)]) -> bool {
+    let real = lengths.iter().any(|(id, _)| *id == -3);
+    if !lengths.iter().any(|(id, _)| *id == -2) {
+        return !real && mask_body.is_empty();
+    }
+    // A lone `-2` is the rendering or, unrendered, the user's own mask.
+    if real {
+        rendered_mask(mask_body, lengths) && mask_body.len() == 36
+    } else {
+        mask_body.len() == 20
+    }
+}
+
+/// Whether a record's `-2` is a mask Photoshop rendered from its vector mask
+/// (mask flag bit 3 on a body of at least 20 bytes).
+fn rendered_mask(mask_body: &[u8], lengths: &[(i16, usize)]) -> bool {
+    lengths.iter().any(|(id, _)| *id == -2) && mask_body.len() >= 20 && mask_body[17] & 8 != 0
 }
 
 /// Whether the layered open of a `color` file at `sample_bytes` imports a

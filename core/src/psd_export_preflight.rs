@@ -380,12 +380,14 @@ pub(crate) struct ExportInventory {
     /// The document's layer comps.
     pub comps: usize,
     /// Of them, the comps the LAYERED mode writes (resource 1065 and each
-    /// record's `cmls`, `psd_comps`): those that record visibility. The
-    /// flattened mode writes no comp.
+    /// record's `cmls`, `psd_comps`): every one. The flattened mode writes
+    /// no comp.
     pub comps_written: usize,
-    /// Of the written comps, those that also record position or appearance,
-    /// which is not written.
-    pub comps_narrowed: usize,
+    /// Of the written comps, how many record something a setting is written
+    /// without (`psd_comp_limits::Narrowed`): a style the effects codec
+    /// cannot write, an appearance on a record whose pixels hold it, and
+    /// a Blend If, knockout or interior flag that is not the layer's own.
+    pub comps_narrowed: crate::psd_comp_limits::Narrowed,
     /// The document's paths each writer writes as resources 1025 and
     /// 2000–2997 in both modes (`psd_paths`): one sentence per path it cannot.
     pub path_losses: Vec<String>,
@@ -1031,23 +1033,42 @@ fn document_losses(
         (1, 0) => losses.push(
             "1 layer comp is not written; this export stores no Photoshop layer comps.".into(),
         ),
-        (n, 0) => losses.push(format!(
+        (n, _) => losses.push(format!(
             "{n} layer comps are not written; this export stores no Photoshop layer comps."
         )),
-        (1, _) => losses.push(
-            "1 layer comp records no layer visibility and is not written; this export writes a layer comp's visibility only.".into(),
-        ),
-        (n, _) => losses.push(format!(
-            "{n} layer comps record no layer visibility and are not written; this export writes a layer comp's visibility only."
-        )),
     }
-    match if layered { inventory.comps_narrowed } else { 0 } {
+    // What the written comps' settings do not hold (`psd_comps`), one
+    // sentence a kind.
+    let narrowed = if layered {
+        inventory.comps_narrowed
+    } else {
+        Default::default()
+    };
+    match narrowed.refused {
         0 => {}
         1 => losses.push(
-            "1 layer comp is written with its visibility only; the layer position and appearance it records are not written.".into(),
+            "1 layer comp records a layer style a PSD layer comp cannot hold; it is written without that style.".into(),
         ),
         n => losses.push(format!(
-            "{n} layer comps are written with their visibility only; the layer positions and appearances they record are not written."
+            "{n} layer comps record a layer style a PSD layer comp cannot hold; they are written without those styles."
+        )),
+    }
+    match narrowed.rasterized {
+        0 => {}
+        1 => losses.push(
+            "1 layer comp records the appearance of a layer this file stores as rasterized pixels (a rasterized layer style, or an adjustment layer written as a pixel layer); it is written without what those pixels already hold, so applying it leaves that layer as the file stores it.".into(),
+        ),
+        n => losses.push(format!(
+            "{n} layer comps record the appearance of a layer this file stores as rasterized pixels (a rasterized layer style, or an adjustment layer written as a pixel layer); they are written without what those pixels already hold, so applying them leaves that layer as the file stores it."
+        )),
+    }
+    match narrowed.keys {
+        0 => {}
+        1 => losses.push(
+            "1 layer comp records a Blend If, knockout or Blend Interior Effects as Group setting that differs from its layer's current one; a PSD layer comp holds none of the three, so applying it after reopening this file keeps the layer's current ones.".into(),
+        ),
+        n => losses.push(format!(
+            "{n} layer comps record a Blend If, knockout or Blend Interior Effects as Group setting that differs from its layer's current one; a PSD layer comp holds none of the three, so applying them after reopening this file keeps the layer's current ones."
         )),
     }
     if inventory.has_metadata {

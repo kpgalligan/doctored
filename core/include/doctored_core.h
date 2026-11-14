@@ -486,9 +486,10 @@ uint32_t dr_doc_layer_label(const DrDocument *doc, size_t idx);
  * refuses. SCHEMA 1 is still READ exactly as before — {"layer": N|null} bound
  * by INDEX + NAME — and is never written again, so a reopened schema-1 file
  * resaves as schema 2. A layered PSD, PSB or TIFF carries a document's
- * comps as Photoshop's own (resource 1065 and each record's `cmls`), their
- * visibility only, both ways and in every mode the PSD codecs carry layers
- * in (`psd_comps`).
+ * comps as Photoshop's own (resource 1065 and each record's `cmls`), with
+ * their capture flags, comment, visibility and appearance both ways (a
+ * recorded position is written and not imported), in every mode the PSD
+ * codecs carry layers in (`psd_comps`).
  *
  * PERSISTED LAYER IDENTITY. Version 45 (byte) / 46 (typed) is the OUTERMOST
  * .rz version word and the ONE table this format ALWAYS writes: 45/46 sits

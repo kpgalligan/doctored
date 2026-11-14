@@ -25,18 +25,28 @@
 //! a path whose coordinates leave the fixed-point range is not written, with
 //! a sentence.
 //!
-//! **Vector masks.** A `vmsk` on a raster record with no raster mask is that
-//! layer's vector mask (`set_vector_mask`), enabled and linked from its
-//! flags, when its path is one Doctored holds exactly ([`vmsk_shape`]) and
-//! fits the document's anchor cap beside the file's paths and the masks
-//! before it ([`MaskRoom`]). Every other `vmsk` — beside a raster mask,
-//! starting from all pixels, combining subpaths by subtracting or
-//! intersecting, not decoding, past the cap, or over a fill the mode's open
-//! does not import as a fill layer (every fill at Gray and Lab, a Gradient
-//! or Pattern fill at 32 bits) — and a `vsms` keep the importer's prior
-//! answer: the record's mask is dropped with its sentence, and a shape layer
-//! keeps the pixels Photoshop stored, already masked. The decision is the
-//! record walk's (`psd_group_records::vector_mask_usable`), so the report and
+//! **Vector masks.** A `vmsk` is that layer's vector mask (`set_vector_mask`),
+//! enabled and linked from its flags, when its path is one Doctored holds
+//! exactly ([`vmsk_shape`]), it fits the document's anchor cap beside the
+//! file's paths and the masks before it ([`MaskRoom`]), and its record's mask
+//! channels are a form the import reads (`psd_raster_masks::VectorMaskRole`):
+//! none, Photoshop's `-2` rendered from the path (dropped), or the user's own
+//! mask (`-3`, or at 16 bits an unrendered `-2`), which becomes the vector
+//! mask's raster part. On a raster record, any other `vmsk` becomes a raster
+//! mask: the `-2` the file rendered from it, or with none the path drawn
+//! under its operations ([`vmsk_coverage`]), each with a sentence. The
+//! import draws only a mask within the drawing caps ([`bakes`]: one shape's
+//! subpath and anchor caps, and [`MAX_BAKE_SAMPLES`] of canvas passes); one
+//! past them is dropped with the dropped-mask sentence. A drawn mask is
+//! planned as a canvas plane (`psd_raster_masks::MaskBudget`), drawn under
+//! the open's job, and a mask the rasterizer refuses refuses the layered
+//! open by the layer's name, never leaving the layer unmasked. A `vmsk`
+//! over a fill the mode's open does not import as a fill layer (every fill at
+//! Gray and Lab, a Gradient or Pattern fill at 32 bits), any other on a shape
+//! layer, and a `vsms` keep the importer's prior answer: the record's mask is
+//! dropped with its sentence, and a shape layer keeps the pixels Photoshop
+//! stored, already masked. The decision is the record walk's
+//! (`psd_group_records::vector_mask_usable` and the role), so the report and
 //! every mode's open agree. The writers write a live
 //! vector mask with NO raster part as a `vmsk` and no mask channel, the
 //! authored form; one with a raster part, or one a PSD path cannot hold,
@@ -192,7 +202,7 @@ fn mark_clipping(entries: &mut [PathEntry], body: &[u8]) -> Option<String> {
         return Some(format!("The clipping path names “{name}”, which is not one of the file's imported paths; no clipping path is set."));
     };
     entry.clipping = Some(ClippingPath {
-        tail: tail.to_vec(),
+        tail: crate::psd_path_records::kept_clipping_tail(tail),
     });
     None
 }
@@ -280,6 +290,18 @@ pub(crate) fn source_vmsk<'a>(
     }
 }
 
+/// The `vmsk` body the import bakes into the mask of the layer built from
+/// `source` (`psd_group_records`, `VectorMaskRole::Baked`): raster records only.
+pub(crate) fn source_bake<'a>(
+    records: &crate::psd_group_records::GroupRecords<'a>,
+    source: crate::psd_comps::CompSource,
+) -> Option<&'a [u8]> {
+    match source {
+        crate::psd_comps::CompSource::Layer(index) => records.layer_bake.get(index).copied()?,
+        crate::psd_comps::CompSource::Group(_) => None,
+    }
+}
+
 /// What the record walk weighs each `vmsk` against
 /// (`psd_group_records::vector_mask_usable`): the canvas its records are
 /// fractions of, and the anchors the file's kept paths ([`file_paths`])
@@ -319,6 +341,91 @@ pub(crate) fn vmsk_shape(body: &[u8], canvas: (u32, u32)) -> Option<(PathShape, 
     Some((decoded.shape.validated().ok()?, flags))
 }
 
+/// The most samples the import spends drawing one vector mask it does not
+/// carry ([`vmsk_coverage`]): each subpath is a pass over the whole canvas
+/// (a rasterization and a combine), so the work is subpaths × canvas
+/// pixels. 2³⁰ is ten passes over a 100 MP canvas and over 250 over a 4 MP
+/// one: far past any mask a person draws, and a bound on what one record of
+/// a crafted file can cost the open.
+pub(crate) const MAX_BAKE_SAMPLES: u64 = 1 << 30;
+
+/// Whether a `vmsk` body bakes ([`vmsk_coverage`]): it decodes, is enabled
+/// (flag bit 2 clear), names only known operations and is within the
+/// drawing caps — one shape's own (`path_geometry::MAX_SUBPATHS`,
+/// `MAX_PATH_ANCHORS`) and [`MAX_BAKE_SAMPLES`] of passes over `canvas`.
+pub(crate) fn bakes(body: &[u8], canvas: (u32, u32)) -> bool {
+    use crate::path_geometry::{MAX_PATH_ANCHORS, MAX_SUBPATHS};
+    crate::psd_path_records::decode_vmsk(body, canvas).is_ok_and(|(decoded, flags)| {
+        let subpaths = decoded.shape.subpaths.len();
+        let passes = (subpaths as u64)
+            .saturating_mul(u64::from(canvas.0))
+            .saturating_mul(u64::from(canvas.1));
+        flags & 4 == 0
+            && subpaths <= MAX_SUBPATHS
+            && decoded.shape.anchor_count() <= MAX_PATH_ANCHORS
+            && passes <= MAX_BAKE_SAMPLES
+            && decoded
+                .operations
+                .iter()
+                .all(|&word| crate::vector_mask_combine::SubpathOp::from_word(word).is_some())
+    })
+}
+
+/// The refusal of a layered open whose vector mask on layer `name` the
+/// rasterizer does not draw: the report said the mask is drawn, so the
+/// layer does not open unmasked instead.
+fn undrawn(name: &str, reason: &str) -> String {
+    format!("PSD vector mask on layer “{name}” could not be drawn: {reason}")
+}
+
+/// [`bakes`]: the seam a black-box test reads the drawing caps through.
+#[doc(hidden)]
+pub fn vmsk_bakes(body: &[u8], canvas: (u32, u32)) -> bool {
+    bakes(body, canvas)
+}
+
+/// The coverage over the whole `canvas` of a `vmsk` body Doctored does not
+/// hold as a live vector mask, under its per-subpath operations, initial
+/// fill and inverted flag (`vector_mask_combine`), for an import that keeps
+/// the picture as a raster mask. `None` for a body that does not decode,
+/// names an unknown operation or is disabled (flag bit 2: it masks
+/// nothing); `Some(Err)` is the rasterizer's refusal or a cancellation.
+pub(crate) fn vmsk_coverage(
+    body: &[u8],
+    canvas: (u32, u32),
+    job: crate::job_control::JobContext<'_>,
+) -> Option<Result<Vec<u16>, String>> {
+    use crate::vector_mask_combine::{apply, finish, start, SubpathOp};
+    let (decoded, flags) = crate::psd_path_records::decode_vmsk(body, canvas).ok()?;
+    if flags & 4 != 0 {
+        return None;
+    }
+    let operations: Vec<SubpathOp> = decoded
+        .operations
+        .iter()
+        .map(|&word| SubpathOp::from_word(word))
+        .collect::<Option<_>>()?;
+    let (w, h) = canvas;
+    // A first subpath that subtracts starts from all pixels (`vector_mask_combine`).
+    let full = decoded.inverted || operations.first() == Some(&SubpathOp::Subtract);
+    let mut acc = start(w as usize * h as usize, full);
+    for (subpath, op) in decoded.shape.subpaths.into_iter().zip(operations) {
+        let one = PathShape {
+            subpaths: vec![subpath],
+            fill_rule: crate::path_geometry::FillRule::NonZero,
+        };
+        if one.subpaths[0].anchors.len() < 2 {
+            continue;
+        }
+        match one.coverage((0, 0), w, h, true, job) {
+            Ok(coverage) => apply(&mut acc, op, &coverage),
+            Err(reason) => return Some(Err(reason)),
+        }
+    }
+    finish(&mut acc, flags & 1 != 0);
+    Some(Ok(acc))
+}
+
 /// The record a vector mask imported from `body` installs on a `canvas`
 /// already holding `held` path anchors, as `(shape, enabled, linked)`. The
 /// walk carried `body` only when [`vmsk_shape`] holds it within the cap
@@ -350,12 +457,21 @@ impl crate::doc::DrDocument {
         else {
             return self;
         };
+        // The user's raster mask the file keeps beside the path (its `-3`
+        // channel, `psd_raster_masks`), already attached, is the raster part.
         let record = crate::doc_vector_mask::VectorMaskRecord {
             layer_id: layer.id,
             shape,
             enabled,
             linked,
-            raster: None,
+            raster: layer
+                .mask
+                .as_ref()
+                .map(|plane| crate::doc_vector_mask::RasterPart {
+                    plane: std::sync::Arc::clone(plane),
+                    properties: layer.mask_properties.clone(),
+                    enabled: layer.mask_enabled,
+                }),
             baked: None,
             baked_offset: (0, 0),
         };
@@ -364,7 +480,91 @@ impl crate::doc::DrDocument {
     }
 }
 
+impl crate::doc::DrDocument {
+    /// Entry `idx` with the raster mask a `vmsk` Doctored cannot hold as a
+    /// vector mask draws ([`vmsk_coverage`]) over the canvas, independent
+    /// (unlinked) and enabled; the document unchanged when the body does not
+    /// bake. Installed past the layer's locks, as the vector masks are.
+    /// `Err` is a cancellation, or the rasterizer's refusal by the layer's
+    /// name (the open is refused, never left unmasked).
+    pub(crate) fn importing_baked_vector_mask(
+        mut self,
+        idx: usize,
+        body: &[u8],
+        job: crate::job_control::JobContext<'_>,
+    ) -> Result<Self, String> {
+        let (w, h) = (self.width, self.height);
+        let coverage = match vmsk_coverage(body, (w, h), job) {
+            None => return Ok(self),
+            Some(Ok(coverage)) => coverage,
+            Some(Err(reason)) => {
+                job.check()?;
+                let name = self.layers.get(idx).map_or("", |layer| layer.name.as_str());
+                return Err(undrawn(name, &reason));
+            }
+        };
+        // A u16 sample as a byte, rounded to nearest (`doc_vector_mask`'s).
+        let bytes: Vec<u8> = coverage
+            .iter()
+            .map(|&c| ((u32::from(c) * 255 + 32767) / 65535) as u8)
+            .collect();
+        let (Some(plane), Some(layer)) = (
+            image::GrayImage::from_raw(w, h, bytes),
+            self.layers.get_mut(idx),
+        ) else {
+            return Ok(self);
+        };
+        let mut properties = crate::doc_mask::MaskProperties::at((0, 0));
+        properties.linked = false;
+        layer.mask = Some(std::sync::Arc::new(plane));
+        layer.mask_enabled = true;
+        layer.mask_properties = properties;
+        Ok(self)
+    }
+}
+
 impl crate::precision_document::PrecisionDocument {
+    /// The typed twin of `DrDocument::importing_baked_vector_mask`: a
+    /// canvas-sized u16 mask, its planes admitted against `limit` / `other`
+    /// (a refused admission refuses the open, as every other import charge
+    /// does). `Err` is also a cancellation, or the rasterizer's refusal by
+    /// the layer's name.
+    pub(crate) fn importing_baked_vector_mask(
+        self,
+        index: usize,
+        body: &[u8],
+        limit: u64,
+        other: u64,
+        job: crate::job_control::JobContext<'_>,
+    ) -> Result<Self, String> {
+        let (w, h) = self.dimensions();
+        // One subpath's coverage (the rasterizer's charge), then the
+        // accumulator and the mask the layer keeps, two u16 planes.
+        let scratch = crate::path_geometry::coverage_scratch(w, h)
+            .saturating_add(4 * u64::from(w) * u64::from(h));
+        crate::precision_image::admit(self.retained_bytes(), scratch, other, limit)?;
+        let coverage = match vmsk_coverage(body, (w, h), job) {
+            None => return Ok(self),
+            Some(Ok(coverage)) => coverage,
+            Some(Err(reason)) => {
+                job.check()?;
+                let name = self.layer(index).map_or("", |layer| layer.name());
+                return Err(undrawn(name, &reason));
+            }
+        };
+        let Some(mut layer) = self.layer(index).cloned() else {
+            return Ok(self);
+        };
+        let mut properties = crate::doc_mask::MaskProperties::at((0, 0));
+        properties.linked = false;
+        layer.mask = Some(crate::precision_mask::PrecisionMask::new(
+            crate::precision_mask::PrecisionPlane::adopt(w, h, coverage)?,
+            properties,
+            true,
+        )?);
+        Ok(self.replacing_layer(index, layer)?.unwrap_or(self))
+    }
+
     /// The typed twin of `DrDocument::importing_vector_mask`, its bake
     /// admitted against `limit` / `other` (a refused admission refuses the
     /// open, as every other import charge does).
@@ -381,7 +581,7 @@ impl crate::precision_document::PrecisionDocument {
                 .iter()
                 .map(|e| e.shape.anchor_count())
                 .sum::<usize>();
-        let Some(layer_id) = self.layer_id(index) else {
+        let (Some(layer_id), Some(layer)) = (self.layer_id(index), self.layer(index)) else {
             return Ok(self);
         };
         let Some((shape, enabled, linked)) = imported_shape(body, self.dimensions(), held) else {
@@ -392,7 +592,8 @@ impl crate::precision_document::PrecisionDocument {
             shape,
             enabled,
             linked,
-            raster: None,
+            // The `-3` user mask the import attached (`DrDocument`'s twin).
+            raster: layer.mask.clone(),
             baked: None,
             baked_offset: (0, 0),
         };

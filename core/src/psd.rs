@@ -395,10 +395,21 @@ pub(crate) fn import_layers(
         if let Some(body) = crate::psd_paths::source_vmsk(records, source) {
             document = document.importing_vector_mask(k, body);
         }
+        // A vector mask the file holds no rendering of, baked (`psd_paths`).
+        if let Some(body) = crate::psd_paths::source_bake(records, source) {
+            document = document.importing_baked_vector_mask(k, body, job)?;
+        }
     }
     if container.color == 3 {
         document.comps = crate::psd_comps::imported(container, records, &sources, |k| {
-            document.layers.get(k).map(|l| (l.id, l.name.clone()))
+            document
+                .layers
+                .get(k)
+                .map(|l| crate::psd_comps::BuiltLayer {
+                    id: l.id,
+                    name: l.name.clone(),
+                    style: l.style.as_ref().map(|s| s.to_json()),
+                })
         });
     }
     // FILE record 0, when kept, is entry 0 (`psd_background::import_role`).

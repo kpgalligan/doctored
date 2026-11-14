@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "family": "authored_exchange",
+  "application": {
+    "name": "Adobe Photoshop",
+    "version": "26.10.0",
+    "app_sha256": "a502d3b62279299a77f85d69a3d8f3d5379e0fb406d40d746a00ee49031bfa04"
+  },
+  "take": "~/devel/doctored-fixtures/photoshop/psd-exchange-13/take2",
+  "runner": "psd_exchange_13_take.py and psd_exchange_13.jsx in the private archive checkout (~/devel/doctored-dev/scripts/photoshop-probe)",
+  "files": {
+    "comps_rgb8.psd": {
+      "from": "jobs/comps_rgb8/comps_rgb8.psd",
+      "sha256": "913fdb7169724bc2829b7760635f71700af3675db575d037b5daf5e76e196297"
+    },
+    "comps_rgb16.psd": {
+      "from": "jobs/comps_rgb16/comps_rgb16.psd",
+      "sha256": "42eb2c3d1caa5bc417736317a6f2faf00fc16e0d32d3a01c48c049484b4ad835"
+    },
+    "comps_gray8.psd": {
+      "from": "jobs/comps_gray8/comps_gray8.psd",
+      "sha256": "26c1473c7ceb2a19acf20762f0ac20b244de30997730a470526ec28a9e04ff6b"
+    },
+    "comps_lab8.psd": {
+      "from": "jobs/comps_lab8/comps_lab8.psd",
+      "sha256": "0c9b2c7f2854d30e2b907e10e58707187f79a9e55b30490df2ee6d9939ec66be"
+    },
+    "heldout_rgb8.psd": {
+      "from": "jobs/heldout_rgb8/heldout_rgb8.psd",
+      "sha256": "1a00d55a6e7c21cf66442e11a13001eb33dbfd1095695b7d5db3b3d28da889f6"
+    },
+    "heldout_gray16.psd": {
+      "from": "jobs/heldout_gray16/heldout_gray16.psd",
+      "sha256": "a1dfc5a97ce5cd80c84f7b3c59a51101806b9b68f07cb452c35ad59d4eff5998"
+    },
+    "paths_rgb8.psd": {
+      "from": "jobs/paths_rgb8/paths_rgb8.psd",
+      "sha256": "04541ca05aeb25a241bce55564bc8db80ba701be435ac2281d04895909b6377c"
+    },
+    "paths_rgb16.psd": {
+      "from": "jobs/paths_rgb16/paths_rgb16.psd",
+      "sha256": "86be7927efe269b861352320aea2d5b5c36c645f00aa6873c8108db280f35aa7"
+    },
+    "clip_a.psd": {
+      "from": "jobs/clip_a/clip_a.psd",
+      "sha256": "359ea80ad1bc617d3ab6f5604564f49bbb25b781276a6fb1166dca18d996e504"
+    },
+    "clip_b.psd": {
+      "from": "jobs/clip_b/clip_b.psd",
+      "sha256": "31b5a9ae37889a866731f503fbdda8970387060a3ce315f50791725c6aead0ca"
+    },
+    "clip_c.tif": {
+      "from": "jobs/clip_c/clip_c.tif",
+      "sha256": "ebe8cc309a5800db024a92ee9cfd6ec35a7f6608c77d9a3ef91aeaf1a9d6e449"
+    },
+    "photoshop.json": {
+      "from": "measured.json (the jobs' step tables and readings, trimmed)",
+      "sha256": "c3768289c70e16beca9b406c17797829a37627f4effbfd2ee1af2bf0a8b95f3b"
+    }
+  },
+  "content": "Synthetic documents Photoshop authored by script. comps_*: 64 x 32, Background, LA, LB, group G (GC), LS (drop shadow + colour overlay), SH (a solid colour shape layer); comps Base (all three, comment \"first, with a comment\"), Moved (all three), PosOnly (position), AppOnly (appearance) captured between moves, opacity, fill, mode, visibility and style edits; each made in its own mode by documents.add. heldout_*: 48 x 24, H1, H2, H3 (styled), group HG (HC); C1, C2 (deleted before save), C3 (H3 style cleared), C4 (visibility and position). photoshop.json steps are Photoshop's own layer state when each file is opened and after applying each comp in file order (LayerComp.apply). paths_*: 120 x 48, raster layers under vector masks: Va one add, Vb beside a user mask, Vc subtract, Vd intersect, Vx xor, Ve first subpath subtract, Vf invert attempted (not authorable by script), Vg a stroked shape (vsms), Vh disabled, Vi unlinked, Vj two adds. clip_*: a saved path made the clipping path: clip_a \"Clip\" no flatness, clip_b \"Clip5\" flatness 0.5, clip_c \"Clip\" flatness 3 in a flat TIFF."
+}

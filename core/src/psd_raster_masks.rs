@@ -17,8 +17,9 @@
 //! row-count width (`large` for a PSB). The rectangle is read as canvas coordinates
 //! on rasters and folders alike: the position-relative flag (bit 0) is recorded for the report and
 //! never applied, which is how Photoshop itself reads a file that sets it. Mask admission
-//! includes native caps and codec scratch. Unsupported extended/vector/parameter forms remain
-//! explicit losses; malformed admitted mask data refuses layers.
+//! includes native caps and codec scratch. Beside a vector mask, Photoshop's rendered `-2` and the
+//! 36-byte body's real `-3` are read by [`VectorMaskRole`]. Other extended and parameter forms
+//! remain explicit losses; malformed admitted mask data refuses layers.
 
 use std::sync::Arc;
 
@@ -30,11 +31,35 @@ use crate::drdc::MAX_DRDC_TOTAL_MASK_PIXELS;
 use crate::precision_mask::{PrecisionMask, PrecisionPlane};
 use crate::psd_layer_pixels::{mask_plane_bytes, validate_channel, Channel, LayerPixels};
 
+/// What a record's `vmsk` makes of its mask channels (`psd_group_records`).
+/// Photoshop writes, beside an ENABLED vector mask on a raster record, a `-2`
+/// channel it RENDERED from the path (mask flag bit 3), and the user's own
+/// raster mask, when the layer has one, as `-3` with the 36-byte body's
+/// "real" flags, background and rectangle (the `authored_exchange` family).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum VectorMaskRole {
+    /// No vector mask is weighed: the ordinary rules.
+    None,
+    /// The vector mask is carried live: the rendered `-2` is dropped and the
+    /// `-3` user mask, when present, is the layer's mask (the raster part).
+    Carried,
+    /// The vector mask is not carried but Photoshop's rendering of it is the
+    /// layer's mask: the rendered `-2` as an ordinary mask.
+    Rendered,
+    /// The vector mask is not carried and the file holds no rendering of it
+    /// (Photoshop's 16-bit files): the import bakes the path
+    /// (`psd_paths::vmsk_coverage`) into the layer's mask.
+    Baked,
+}
+
 #[derive(Clone, Copy)]
 pub(crate) enum MaskRecord<'a> {
     Absent,
     Dropped(&'static str),
     Ordinary(OrdinaryMask<'a>),
+    /// The mask the import bakes from the record's vector mask
+    /// ([`VectorMaskRole::Baked`]); nothing here attaches it.
+    FromPath,
 }
 
 #[derive(Clone, Copy)]
@@ -46,6 +71,9 @@ pub(crate) struct OrdinaryMask<'a> {
     bytes: &'a [u8],
     /// The record came from a PSB (`LayerPixels::large`).
     large: bool,
+    /// The plane is Photoshop's rendering of a vector mask the import does
+    /// not carry ([`VectorMaskRole::Rendered`]).
+    rendered: bool,
 }
 
 impl<'a> MaskRecord<'a> {
@@ -57,7 +85,67 @@ impl<'a> MaskRecord<'a> {
         channels: &[Channel<'a>],
         advanced: bool,
         large: bool,
+        role: VectorMaskRole,
     ) -> Result<Self, String> {
+        match role {
+            VectorMaskRole::None => {}
+            VectorMaskRole::Baked => return Ok(Self::FromPath),
+            VectorMaskRole::Carried => {
+                // The `-3` user mask under the body's "real" fields, as an
+                // ordinary 20-byte body; with no `-3`, a `-2` Photoshop did
+                // not render (flag bit 3 clear, its 16-bit files) is the
+                // user's own; else no raster part.
+                let Some(real) = channels.iter().find(|c| c.kind == -3) else {
+                    let own = body.len() == 20 && body[17] & 8 == 0;
+                    if own && channels.iter().any(|c| c.kind == -2) {
+                        return Self::classify(body, channels, false, large, VectorMaskRole::None);
+                    }
+                    return Ok(Self::Absent);
+                };
+                let Some(fields) = body.get(18..36) else {
+                    return Ok(Self::Dropped(
+                        "a real user mask (-3) without its extended mask metadata is unsupported",
+                    ));
+                };
+                let mut ordinary = [0u8; 20];
+                ordinary[..16].copy_from_slice(&fields[2..18]);
+                ordinary[16] = fields[1];
+                ordinary[17] = fields[0];
+                let user = Channel {
+                    kind: -2,
+                    bytes: real.bytes,
+                };
+                return Self::classify(&ordinary, &[user], false, large, VectorMaskRole::None);
+            }
+            VectorMaskRole::Rendered => {
+                // The rendered `-2` under the body's first 20 bytes, its
+                // "rendered" flag (bit 3) cleared; a `-3` is already in it.
+                let Some(head) = body.get(..20) else {
+                    return Ok(Self::Dropped(
+                        "mask metadata and ordinary -2 channel are not both present",
+                    ));
+                };
+                let mut ordinary = [0u8; 20];
+                ordinary.copy_from_slice(head);
+                ordinary[17] &= !8;
+                let rendered: Vec<Channel<'a>> = channels
+                    .iter()
+                    .filter(|c| c.kind == -2)
+                    .map(|c| Channel {
+                        kind: c.kind,
+                        bytes: c.bytes,
+                    })
+                    .collect();
+                return Self::classify(&ordinary, &rendered, advanced, large, VectorMaskRole::None)
+                    .map(|record| match record {
+                        Self::Ordinary(mask) => Self::Ordinary(OrdinaryMask {
+                            rendered: true,
+                            ..mask
+                        }),
+                        other => other,
+                    });
+            }
+        }
         let user = channels.iter().find(|c| c.kind == -2);
         let real = channels.iter().any(|c| c.kind == -3);
         if advanced || real {
@@ -132,6 +220,7 @@ impl<'a> MaskRecord<'a> {
             enabled: flags & 2 == 0,
             bytes: user.bytes,
             large,
+            rendered: false,
         }))
     }
 
@@ -273,10 +362,18 @@ impl<'a> MaskRecord<'a> {
     ) {
         match self {
             Self::Absent => {}
+            Self::FromPath => losses.push(format!(
+                "{target} has a vector mask Doctored does not keep as a path (its subpaths combine in a way one fill rule cannot hold, it starts from all pixels, or the document's paths reach their anchor cap); it is imported as a raster mask drawn from its path."
+            )),
             Self::Dropped(reason) => losses.push(format!(
                 "{target} has a {kind} or advanced mask metadata; layered import drops it: {reason}."
             )),
             Self::Ordinary(mask) => {
+                if mask.rendered {
+                    losses.push(format!(
+                        "{target} has a vector mask Doctored does not keep as a path (its subpaths combine in a way one fill rule cannot hold, it starts from all pixels, or the document's paths reach their anchor cap); the mask the file rendered from it is imported as a raster mask."
+                    ));
+                }
                 let placement = if mask.position_relative_flag {
                     "placement at its stored rectangle (the PSD position-relative flag, bit 0, is set and not applied, as Photoshop reads it)"
                 } else { "absolute placement" };
@@ -321,16 +418,22 @@ pub(crate) struct MaskBudget {
 impl MaskBudget {
     /// Before any row validation, wrapper copy or output allocation. Count only
     /// retained masks; dropped payloads stay borrowed and are never decoded.
-    pub fn add(&mut self, record: MaskRecord<'_>) -> Result<(), String> {
-        if let MaskRecord::Ordinary(mask) = record {
-            let (w, h) = mask.dimensions()?;
-            let pixels = u64::from(w) * u64::from(h);
-            self.pixels = self.pixels.saturating_add(pixels);
-            self.largest = self.largest.max(pixels);
-            self.encoded = self.encoded.max(mask.bytes.len() as u64);
-            if self.pixels > MAX_DRDC_TOTAL_MASK_PIXELS {
-                return Err("PSD aggregate mask pixels exceed the native mask limit".into());
+    /// A mask the import draws from a path ([`MaskRecord::FromPath`]) is a
+    /// plane of `canvas_pixels` with no encoded channel.
+    pub fn add(&mut self, record: MaskRecord<'_>, canvas_pixels: u64) -> Result<(), String> {
+        let (pixels, encoded) = match record {
+            MaskRecord::Ordinary(mask) => {
+                let (w, h) = mask.dimensions()?;
+                (u64::from(w) * u64::from(h), mask.bytes.len() as u64)
             }
+            MaskRecord::FromPath => (canvas_pixels, 0),
+            MaskRecord::Absent | MaskRecord::Dropped(_) => return Ok(()),
+        };
+        self.pixels = self.pixels.saturating_add(pixels);
+        self.largest = self.largest.max(pixels);
+        self.encoded = self.encoded.max(encoded);
+        if self.pixels > MAX_DRDC_TOTAL_MASK_PIXELS {
+            return Err("PSD aggregate mask pixels exceed the native mask limit".into());
         }
         Ok(())
     }

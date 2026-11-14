@@ -187,14 +187,14 @@ pub(crate) fn layered_counts(
     records: &GroupRecords<'_>,
 ) -> Result<(u64, MaskBudget, u64, u64), String> {
     let mut masks = MaskBudget::default();
+    let canvas_pixels = u64::from(container.width) * u64::from(container.height);
     for mask in records
         .masks
         .iter()
         .chain(records.groups.iter().map(|g| &g.mask))
     {
-        masks.add(*mask)?;
+        masks.add(*mask, canvas_pixels)?;
     }
-    let canvas_pixels = u64::from(container.width) * u64::from(container.height);
     let (mut pixels, mut largest, mut encoded) = (0u64, masks.largest, masks.encoded);
     for (index, layer) in records.layers.iter().enumerate() {
         // Exactly the byte walk's arithmetic: an omitted record retains
@@ -682,6 +682,7 @@ pub(crate) fn open16(
         |index| !records.omitted(index),
         limit,
         other,
+        job,
     )?;
     let document = document.with_psd_spots(&container, limit, other)?;
     job.report(1.0, 5)?;
