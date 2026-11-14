@@ -1,6 +1,7 @@
 //! Photo Filter at 8 and 16 bits: the density multiply in the
 //! document profile's own D50 PCS XYZ, then encode, then — Preserve
-//! Luminosity — Photoshop's Luminosity blend against the input.
+//! Luminosity — Photoshop's Luminosity blend against the input (at 8 bits on
+//! the codes, `oracle8`).
 //!
 //! The oracle is written here in binary64 from the form fitted to Photoshop
 //! 26.10.0 (`adjust_photo_filter`'s module doc), with its own s15Fixed16 tag
@@ -215,11 +216,57 @@ fn oracle(space: &Space, ratio: [f64; 3], density: f64, preserve: bool, v: [f64;
     oracle_on(space, ratio, density, preserve, v, |e| e)
 }
 
-/// [`oracle`] with `e` put on the 8-bit grid before the Luminosity blend, as
-/// the byte path encodes (`adjust_calibrated`: to the document's 8-bit grid).
+/// [`oracle`] at 8 bits: `e` put on the 8-bit grid, as the byte path encodes
+/// (`adjust_calibrated`: to the document's 8-bit grid), and — Preserve
+/// Luminosity — the Luminosity blend on CODES ([`set_lum8`]), the form
+/// `adjust-render-2` take2 confirmed. [`lum8`] and [`set_lum8`] restate the
+/// shipped kernel's own steps and rounding (`adjust_bw8::set_lum8`,
+/// `blend::lum_fixed`), so for the 8-bit blend this oracle checks agreement
+/// with that statement; its independent check is Photoshop's own render,
+/// `adjust_render_take.rs`'s committed take2 fixture.
 fn oracle8(space: &Space, ratio: [f64; 3], density: f64, preserve: bool, v: [f64; 3]) -> [f64; 3] {
-    oracle_on(space, ratio, density, preserve, v, |e| {
+    let e = oracle_on(space, ratio, density, false, v, |e| {
         (e * 255.0).round() / 255.0
+    });
+    if !preserve {
+        return e;
+    }
+    let codes = |c: [f64; 3]| c.map(|k| (k * 255.0).round() as i64);
+    set_lum8(codes(e), lum8(codes(v))).map(|k| k as f64 / 255.0)
+}
+
+/// The 30/59/11 luma of 8-bit codes in 2^15 fixed point — 0.30 and 0.11
+/// floored, green the remainder — rounded half up.
+fn lum8(c: [i64; 3]) -> i64 {
+    let r = (0.30_f64 * 32768.0).floor() as i64;
+    let b = (0.11_f64 * 32768.0).floor() as i64;
+    (r * c[0] + (32768 - r - b) * c[1] + b * c[2] + 16384) / 32768
+}
+
+/// The Luminosity blend on codes: `e` shifted to the luminosity `target`;
+/// out of 0..=255, ClipColor in f64 about `target` (the minimum's branch,
+/// then the maximum's against 255), each component rounded half up and one
+/// code added, at most to `target`, below it.
+fn set_lum8(e: [i64; 3], target: i64) -> [i64; 3] {
+    let shift = target - lum8(e);
+    let c = e.map(|k| k + shift);
+    if c.iter().all(|k| (0..=255).contains(k)) {
+        return c;
+    }
+    let l = target as f64;
+    let mut c = c.map(|k| k as f64);
+    let low = c[0].min(c[1]).min(c[2]);
+    if low < 0.0 {
+        c = c.map(|k| l + (k - l) * l / (l - low));
+    }
+    let high = c[0].max(c[1]).max(c[2]);
+    if high > 255.0 && high > l {
+        c = c.map(|k| l + (k - l) * (255.0 - l) / (high - l));
+    }
+    c.map(|k| {
+        let q = (k + 0.5).floor() as i64;
+        let q = if k < l { (q + 1).min(target) } else { q };
+        q.clamp(0, 255)
     })
 }
 
@@ -447,20 +494,19 @@ fn lut_profile() -> Arc<IccProfile> {
 
 // ------------------------------------------------------------- renders --
 
-/// Why the bound is `|out − round(255·oracle)| ≤ 1` and never against the
-/// unrounded `255·oracle`: the byte path quantizes the encoded `e` to codes
-/// BEFORE SetLum, which then shifts every channel by `Lum(v) − Lum(q)`; with
-/// the weights 0.3/0.59/0.11 that moves a channel by up to 0.89 code (on
-/// blue) against the oracle's continuous `e`, and the final u8 rounding adds
-/// up to 0.5 more. Against the rounded oracle the two stay within 1 code;
-/// against the unrounded one about 2% of a colour grid would fail.
+/// Why the bound is `|out − round(255·oracle8)| ≤ 1`: the byte path
+/// quantizes the encoded `e` to codes BEFORE the Luminosity blend, and
+/// [`oracle8`] does too, but through its own transfer formula where the
+/// byte encoder reads the profile's sampled thresholds, so a value a hair
+/// from a half code can land one code apart; with Preserve Luminosity on,
+/// the blend on codes carries that code through.
 ///
-/// Why the oracle puts `e` on the 8-bit grid too ([`oracle8`]): near black,
-/// SetLum lands below 0 and ClipColor's `n < 0` branch rescales about a tiny
-/// `Lum(v)`, which amplifies that quantization past the shift above —
-/// measured: input (0, 0, 37) under `#006dff` at density 0.9, preserve on, is
-/// 32 on blue against 33.7 from a continuous `e`, and 32.08 from a quantized
-/// one.
+/// Why the oracle puts `e` on the 8-bit grid at all: near black, the blend
+/// lands below 0 and ClipColor's minimum branch rescales about a tiny
+/// luminosity, which amplifies any difference in `e` — measured under the
+/// float blend this replaced: input (0, 0, 37) under `#006dff` at density
+/// 0.9, preserve on, is 32 on blue against 33.7 from a continuous `e`, and
+/// 32.08 from a quantized one.
 #[test]
 fn eight_bit_renders_follow_the_oracle_and_the_layer_render_equals_them() {
     let src = byte_grid();

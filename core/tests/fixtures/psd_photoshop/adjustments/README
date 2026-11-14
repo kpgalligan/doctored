@@ -1,3 +1,20 @@
 expA_8.png / expA_16.png (#2): verbatim from `~/devel/doctored-fixtures/photoshop/adjustments/photoshop/`
 (Photoshop's Exposure 1.5, Offset -0.25, Gamma 2 over base_8.png / base_16.png, whose pixels equal
 base.png / base_16.png here): expA_8.png bb1cd397e33f5d6386095542d7e854fd2035314e7b6cbe4f7e45537cb6453351, expA_16.png 8da98568e9bbd8194fb07c667adb23477fd62df04f0e69ddba2a6be7d8545f01.
+
+The other seven layers' renders (#2), verbatim from the same folder, each layer's descriptor in
+photoshop.json (`psd_photoshop_appearance.rs` measures all eleven kinds):
+nvrt_8.png 9d0420346557cc58a016a634b3663d0fd8013aed902459176b217ab44e2b5ed2
+nvrt_16.png cb098e9a27576c47ea60a4ddee729efe6b06c3a33ae56120ca7631eeee63d8cb
+thrs_8.png c49d80fc69ff5801d46448442f78a149d592dc6810a7770a2af64cb7f4061158
+thrs_16.png b0aea2b4e8b7cf4889aa33b733d0b64c24540eb3cb35f3bdfd5db2b4c134f6f4
+levl_8.png f9b9e2513ad504bdbdc8b3cdcfbe45a9908418806e0ade7cb558abff7493b6ba
+levl_16.png 67116b3af2e925ff03713356160141de9959f4dfd35b105937942c4db70b3f70
+curv_8.png 7ff3936fce717bf163eec4783b1fbcaccb441225dcc1aa9336aea15c8402d076
+curv_16.png 2f234e07f45a3606c5afd8d22719bdf83d17501e7a5287a3ed14786bb733b353
+blnc_8.png 7736fa97c8ead2c36b4b9aa7679ef98548f457a69a300f28106467f19cf6cead
+blnc_16.png 166e1e50ac205b72db5648f6727c04a503b31682190fd8131013539f99813c93
+phfl_8.png 2de78553915556ac3cd5c7ed1a29b8ac81e8b6f5655c84fe3e370be71c5d1830
+phfl_16.png f43dbcba868a0ef657b2e92ceee9ea255956fcc4eb656bf71dfce0e4c6324c91
+blwh_8.png 487dd8b8a9348f1342ec8e2d369c3d1ffc36b98c59d8f171223d2bd5c16ee2f3
+blwh_16.png fbb4ea5db9ca6b372289ee3591cd3f0405ebfe78f6d80136c2f096ba74a9dfd8

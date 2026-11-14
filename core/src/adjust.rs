@@ -59,8 +59,12 @@
 //! |               | `adjust_levels`.                                         |
 //! | `"hue_rotate"`| `degrees`: float, any finite angle, default 0. Mirrors   |
 //! |               | `dr_image_hue_rotate` (SVG feColorMatrix hueRotate).     |
-//! | `"threshold"` | `level`: float in [0, 1], default 0.5. Mirrors           |
-//! |               | `dr_image_threshold` (Rec. 709 luma >= level).           |
+//! | `"threshold"` | `level`: float in [0, 1], default 0.5. White where the   |
+//! |               | `0.30 r + 0.59 g + 0.11 b` luma reaches the level: at 8  |
+//! |               | bits on the codes, at 16 on Photoshop's 15-bit grid,     |
+//! |               | in fixed point rounded to that grid (`blend::lum_fixed`) |
+//! |               | against the level on the same grid. Mirrors              |
+//! |               | `dr_image_threshold` (`adjust_math::threshold`).         |
 //! | `"posterize"` | `levels`: integer in [2, 64], REQUIRED (a float with a   |
 //! |               | zero fraction, e.g. `5.0`, is accepted). Photoshop's     |
 //! |               | bins: at 8 bits `k = floor(c*n/256)` of the code `c`,    |
@@ -324,7 +328,7 @@ use crate::adjust_hue_saturation::HueSaturation;
 use crate::adjust_levels::Levels;
 use crate::adjust_lut::{self, CubeLut, MEMO_MIN_META_LEN};
 use crate::adjust_map::GradientMap;
-use crate::adjust_math::{luma, posterize};
+use crate::adjust_math::{luma, posterize, threshold};
 use crate::adjust_mix::{
     brightness_contrast_modern, brightness_contrast_saturation, BlackAndWhite, ChannelMixer,
     PhotoFilter, SelectiveColor,
@@ -369,8 +373,10 @@ pub(crate) enum Adjustment {
     Levels(Box<Levels>),
     /// Hue rotation, mirroring `ops_filters::hue_rotate`.
     HueRotate { matrix: [[f32; 3]; 3] },
-    /// Luma threshold, mirroring `ops_filters::threshold`.
-    Threshold { level: f32 },
+    /// Luma threshold (`adjust_math::threshold`) at the depth whose code
+    /// range is `top`: 255 as parsed, 65535 once `PrecisionAdjustment::parse`
+    /// prepares it for a 16-bit document. Mirrors `ops_filters::threshold`.
+    Threshold { level: f32, top: u32 },
     /// Posterize to `levels` values (`adjust_math::posterize`) at the depth
     /// whose code range is `top`: 255 as parsed, 65535 once
     /// `PrecisionAdjustment::parse` prepares it for a 16-bit document.
@@ -533,7 +539,7 @@ impl Adjustment {
                 if !(0.0..=1.0).contains(&level) {
                     return None;
                 }
-                Some(Adjustment::Threshold { level })
+                Some(Adjustment::Threshold { level, top: 255 })
             }
             "posterize" => {
                 // Required; integral floats (e.g. 5.0) are accepted, the
@@ -728,11 +734,8 @@ impl Adjustment {
             Adjustment::HueRotate { matrix } => {
                 matrix.map(|row| row[0] * rgb[0] + row[1] * rgb[1] + row[2] * rgb[2])
             }
-            // `ops_filters::threshold`: Rec. 709 luma against the level.
-            Adjustment::Threshold { level } => {
-                let v = if luma(rgb) >= *level { 1.0 } else { 0.0 };
-                [v, v, v]
-            }
+            // `adjust_math::threshold`: the 30/59/11 luma against the level.
+            Adjustment::Threshold { level, top } => [threshold(rgb, *level, *top); 3],
             // `adjust_math::posterize`: Photoshop's bins at this depth.
             Adjustment::Posterize { levels, top } => rgb.map(|v| posterize(v, *levels, *top)),
             // `adjust_curves`: the per-channel table, then the master one.

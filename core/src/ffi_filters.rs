@@ -24,8 +24,10 @@ pub unsafe extern "C" fn dr_image_hue_rotate(img: *const DrImage, degrees: f32) 
     }
 }
 
-/// Luma threshold at `level` in [0, 1]: color channels become black or white
-/// by Rec. 709 luma; NULL if `level` is NaN or out of range. Alpha untouched.
+/// Luma threshold at `level` in [0, 1]: color channels become white where
+/// the codes' `0.30 r + 0.59 g + 0.11 b` luma, in 2^15 fixed point rounded
+/// half up to a code, reaches the level's code, else black; NULL if `level`
+/// is NaN or out of range. Alpha untouched.
 ///
 /// # Safety
 /// `img` must be NULL or a valid pointer to a live `DrImage`.

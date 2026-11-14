@@ -12,6 +12,10 @@
 //! four unused sets confirmed it (`eight-bit-578/take1`: 1 / 0.016 codes,
 //! `setlum-clip8` 3 / 0.58). `adjust_mix::BlackAndWhite` runs it only in its
 //! 8-bit form, with Tint on.
+//!
+//! [`set_lum8`], tint8's integer SetLum, is also Photo Filter's Preserve
+//! Luminosity at 8 bits (`adjust_mix::PhotoFilter::preserve_codes`), with
+//! `blend::lum_fixed` as the luminosity in place of `L8`.
 
 use crate::adjust_math::decompose;
 
@@ -31,20 +35,28 @@ pub(crate) fn gray8(codes: [u8; 3], percents: [i32; 6]) -> u8 {
     (whole + i32::from(up)) as u8
 }
 
-/// The tint's `numbers` set to the grey `g8`: `c = g8 + N − L8` with
-/// `L8 = (77·N_r + 150·N_g + 28·N_b + 128) >> 8`, returned as is when every
-/// component lies in 0..=255. Otherwise ClipColor in f64 about `l = g8`: a
-/// component below 0 pulls every one by `l/(l − min)`, then a maximum above
-/// 255 (and above `l`) by `(255 − l)/(max − l)`; each is rounded half up,
-/// one code is added (at most up to `g8`) to a component below `l`, and the
-/// result is clamped to 0..=255. The ClipColor is a variant of
-/// [`crate::blend::set_lum_within`], its master, on codes with the ceiling at
-/// 255: the same two branches in the same order and expression order.
+/// The tint's `numbers` set to the grey `g8` through [`set_lum8`], with the
+/// numbers' luminosity `L8 = (77·N_r + 150·N_g + 28·N_b + 128) >> 8`.
 pub(crate) fn tint8(numbers: [u8; 3], g8: u8) -> [u8; 3] {
     let n = numbers.map(i32::from);
-    let big_l = (77 * n[0] + 150 * n[1] + 28 * n[2] + 128) >> 8;
+    set_lum8(numbers, (77 * n[0] + 150 * n[1] + 28 * n[2] + 128) >> 8, g8)
+}
+
+/// The 8-bit integer SetLum Black & White's Tint and Photo Filter's
+/// Preserve Luminosity share: `numbers` (codes) whose luminosity is `luma`
+/// moved to the luminosity `g8`. `c = g8 + N − luma`, returned as is when
+/// every component lies in 0..=255. Otherwise ClipColor in f64 about `l =
+/// g8`: a component below 0 pulls every one by `l/(l − min)`, then a maximum
+/// above 255 (and above `l`) by `(255 − l)/(max − l)`; each is rounded half
+/// up, one code is added (at most up to `g8`) to a component below `l`, and
+/// the result is clamped to 0..=255. The ClipColor is a variant of
+/// [`crate::blend::set_lum_within`], its master, on codes with the ceiling at
+/// 255: the same two branches in the same order and expression order. Each
+/// caller supplies its own `luma`, the one each was measured with.
+pub(crate) fn set_lum8(numbers: [u8; 3], luma: i32, g8: u8) -> [u8; 3] {
+    let n = numbers.map(i32::from);
     let g = i32::from(g8);
-    let c = n.map(|k| g + k - big_l);
+    let c = n.map(|k| g + k - luma);
     if c.iter().all(|k| (0..=255).contains(k)) {
         return c.map(|k| k as u8);
     }

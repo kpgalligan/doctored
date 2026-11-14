@@ -8,6 +8,10 @@
 //!   sepia matrix).
 //! - Threshold and Posterize (display-mapped): `D(master(E(clamp(v,0,1))))`,
 //!   against their closed forms through the sRGB curve written out.
+//!   Threshold's is white where `0.30 r + 0.59 g + 0.11 b` of the display
+//!   value reaches the level, held on colours on which Rec. 709 luma
+//!   disagrees and on the two greys either side of a level by one display
+//!   step (E there is the profile's own encoder, so the step is exact).
 //! - Vibrance, Selective Color, Replace Color, Gradient Map and a
 //!   Hue/Saturation band (display-scaled, Gradient Map display-mapped): the
 //!   oracle is the master run by a 16-bit ENCODED document's render of the
@@ -29,6 +33,7 @@ use std::ffi::CStr;
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_float::dr_float_operators;
 use doctored_core::icc::IccProfile;
+use doctored_core::icc_transform::PrecisionToneEncoder;
 use doctored_core::precision_image::REFERENCE_WORKING_BYTES;
 use serde_json::{json, Value};
 
@@ -161,18 +166,17 @@ fn hue_rotate_sepia_and_grayscale_follow_their_closed_forms_unclamped() {
 
 #[test]
 fn threshold_and_posterize_map_through_the_display_curve() {
-    let luma = |e: [f64; 3]| 0.2126 * e[0] + 0.7152 * e[1] + 0.0722 * e[2];
     // No patch's encoded luma lies within 0.01 of the level.
     let level = 0.5;
     for patch in PATCHES {
         assert!(
-            (luma(wide(patch).map(encode)) - level).abs() > 0.01,
+            (lum30(wide(patch).map(encode)) - level).abs() > 0.01,
             "{patch:?}"
         );
     }
     let out = rendered("threshold", &json!({"level": level}));
     for (patch, got) in PATCHES.iter().zip(&out) {
-        let v = if luma(wide(*patch).map(encode)) >= level {
+        let v = if lum30(wide(*patch).map(encode)) >= level {
             1.0
         } else {
             0.0
@@ -187,6 +191,83 @@ fn threshold_and_posterize_map_through_the_display_curve() {
         let want = wide(*patch).map(|v| decode((encode(v) * 4.0).floor().clamp(0.0, 3.0) / 3.0));
         assert_near(*got, want, 5e-5, &format!("posterize {patch:?}"));
     }
+}
+
+/// Threshold's luma of a display value, `0.30 r + 0.59 g + 0.11 b`.
+fn lum30(e: [f64; 3]) -> f64 {
+    0.30 * e[0] + 0.59 * e[1] + 0.11 * e[2]
+}
+
+#[test]
+fn threshold_reads_the_30_59_11_luma_of_the_display_value() {
+    let rec709 = |e: [f64; 3]| 0.2126 * e[0] + 0.7152 * e[1] + 0.0722 * e[2];
+    // Display colours, declared before running, on which the two lumas fall
+    // on opposite sides of the level, each more than 0.02 from it under both.
+    let level = 0.35;
+    let patches = [
+        [1.0, 0.0, 0.9],
+        [0.9, 0.0, 1.0],
+        [0.0, 0.55, 0.0],
+        [0.0, 0.5, 0.2],
+    ]
+    .map(|d: [f64; 3]| d.map(|e| decode(e) as f32));
+    for patch in patches {
+        let e = wide(patch).map(encode);
+        assert_ne!(lum30(e) >= level, rec709(e) >= level, "{patch:?}");
+        assert!(
+            (lum30(e) - level).abs() > 0.02 && (rec709(e) - level).abs() > 0.02,
+            "{patch:?}"
+        );
+    }
+    let srgb = IccProfile::srgb();
+    let threshold = |pixels: &[[f32; 3]], level: f64| {
+        let doc = float_row(srgb.bytes(), pixels);
+        render(&add(&doc, "threshold", &json!({"level": level}), 1.0))
+    };
+    let out = threshold(&patches, level);
+    for (patch, got) in patches.iter().zip(&out) {
+        let v = if lum30(wide(*patch).map(encode)) >= level {
+            1.0
+        } else {
+            0.0
+        };
+        assert_near(*got, [v; 3], 1e-6, &format!("threshold {patch:?}"));
+    }
+
+    // The two stored greys either side of display 0.5 through the profile's
+    // own E (the encoder the display form builds): `at` the smallest whose
+    // display value reaches 0.5, `below` the one before it. With the level
+    // at `at`'s display value exactly, the rule puts `at` white (a grey's
+    // luma is the grey) and `below` black; both lie within 1e-6 of 0.5,
+    // inside the one 15-bit step centred there (±1.5e-5), so the 16-bit
+    // form's 15-bit grid would put both white.
+    let model = srgb.model().expect("a matrix/TRC model");
+    let encoder = PrecisionToneEncoder::new(model).expect("the sRGB encoder");
+    let shown = |v: f32| encoder.rgb([f64::from(v); 3])[0];
+    let (mut below, mut at) = (0.0_f32.to_bits(), 1.0_f32.to_bits());
+    while at - below > 1 {
+        let mid = below + (at - below) / 2;
+        if shown(f32::from_bits(mid)) < 0.5 {
+            below = mid;
+        } else {
+            at = mid;
+        }
+    }
+    let (below, at) = (f32::from_bits(below), f32::from_bits(at));
+    let level = shown(at);
+    assert!(
+        shown(below) < level && level - shown(below) < 1e-6,
+        "{below} shows {}, {at} shows {level}",
+        shown(below)
+    );
+    let out = threshold(&[[below; 3], [at; 3]], f64::from(level));
+    assert_near(out[0], [0.0; 3], 1e-6, &format!("the grey {below} below"));
+    assert_near(
+        out[1],
+        [1.0; 3],
+        1e-6,
+        &format!("the grey {at} at the level"),
+    );
 }
 
 // --------------------------------------------- the 16-bit master oracle --

@@ -1,6 +1,6 @@
 # Genuine 16-bit RGB PSD import and export (ADR)
 
-- **Status:** Accepted — open items remain ([#2](https://github.com/kpgalligan/doctored/issues/2))
+- **Status:** Accepted
 - **Phase / dates:** 10C-1, 2026-09; Photoshop 16-bit import (Run 4) 2026-09-16
 - **Original:** [archive/phase-10c-depth-status.md](../archive/phase-10c-depth-status.md) — full history, measurements, receipts
 - **Key commits:** `a3d29b7` (16-bit import/export, depth-agnostic preflight), `5e0ed4d` (`Lr16` + ZIP, Photoshop fixture)
@@ -79,5 +79,5 @@ Per-construct preserve/rasterize/refuse rules are a separate slice
 - `DONE` — Independent reopen of 16-bit exports (GIMP `psd_10b/depth16`) and third-party-authored 16-bit import (Photoshop Run 4).
 - `DONE` — `SoCo` and `GdFl` carriage and `brit`: all carried at 8 and 16 bits (a 16-bit `GdFl` is written pixel-less, as Photoshop writes it).
 - `DONE` — 8-bit ZIP channels and ZIP composites (`22ea5a9f`, `core/tests/psd_zip8.rs`); `Lr32` read and written (`psd_import_float.rs`, `psd_export_float.rs`).
-- `OPEN` [#2](https://github.com/kpgalligan/doctored/issues/2) — measured adjustment-arithmetic gaps against Photoshop (e.g. `curves` 5 codes).
+- `DONE` — Run 4's adjustment-arithmetic gaps: every carried kind of the Photoshop-authored fixture is measured at both depths (`psd_photoshop_appearance.rs`); `curves` is now 0 codes at 8 bits and 0.008 at 16. The two kinds still over the bound (Vibrance, 8-bit Black & White Tint) are tracked in [phase-10c-constructs-status.md](phase-10c-constructs-status.md).
 - `DONE` — Gray, CMYK and Lab PSDs ([grayscale-mode.md](grayscale-mode.md), [cmyk-mode-status.md](cmyk-mode-status.md), [lab-mode.md](lab-mode.md)); PSB (`22ea5a9f`).

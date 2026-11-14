@@ -3331,9 +3331,10 @@ writes. Their parameters are mapped
 onto Doctored's own arithmetic, and how far that appearance differs from
 Photoshop's is measured: against a Photoshop 2025
 26.10.0 document holding the original eleven, every kind carried its
-parameters, Invert matched exactly, Threshold and Curves matched within
-tolerances fixed before the run, and the other eight differ by 6 to 127 code
-units at their worst pixel. Channel Mixer
+parameters, and at 8 and 16 bits nine kinds render within 2 code units of
+Photoshop's own render at every pixel (Invert and Threshold exactly), while
+Vibrance differs by up to 8 code units at its worst pixel and Black & White
+with Tint by up to 4 at 8 bits. Channel Mixer
 was measured separately against Photoshop-authored files: both are the same linear mix on
 encoded values, and Doctored's render of a carried mixer is within one 8-bit
 code of Photoshop's own. An imported Exposure layer

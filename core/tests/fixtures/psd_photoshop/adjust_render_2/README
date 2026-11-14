@@ -1,0 +1,32 @@
+Photoshop 26.10.0 Threshold and Photo Filter adjustment-layer renders, one pixel per 2 x 2 block (every
+block's spread 0), 64 samples a row, 16-bit RGBA PNG (8-bit documents x 257; alpha 0 past the last
+sample). take2 of #2's `adjust-render-2` (`scripts/photoshop-probe/adjust_render_2_take2.py`, receipt
+`~/devel/doctored-fixtures/photoshop/adjust-render-2/take2`): sRGB documents thr8b (8 bits), thr16b
+(16 bits) and pf8b (8 bits); Threshold at levels 25, 77, 150, 205, 240 on each threshold document;
+Photo Filter F6 #8040ff 50 %, F7 #c0a000 70 %, F8 #00ff80 35 %, F9 #ff6000 95 %, F10 #4080c0 20 %, each
+with Preserve Luminosity on and off (the read-back colours round to those codes). Sources and their
+sha256:
+
+thr8b_in.png  <-  inputs/thr8b.tif  16a69630639f52fad9487740cb3806b7cba4f2e48f0f79da140db09884167af1  (476 samples)
+thr16b_in.png  <-  inputs/thr16b.tif  c907d6de8facd34774ee82032a8a0be348b5052ee822d598f67e8c3591a797ab  (224 samples)
+pf8b_in.png  <-  inputs/pf8b.tif  df5ff64b2194ec148682b70eecbaa480b0e0eb1eaac9e04b0dd3de88c08bb36c  (640 samples)
+thr_25_thr8b.png  <-  job/job00/thr_25_thr8b.tif  4e7b971331323e8a115b066ed95493b152ea344e37bea5f46c026800fa1b9ed5  (476 samples)
+thr_77_thr8b.png  <-  job/job00/thr_77_thr8b.tif  4a68cca83db65058edd17e64f0a746b50965f6b84fd43e9ade2a2afdac694568  (476 samples)
+thr_150_thr8b.png  <-  job/job00/thr_150_thr8b.tif  0f2377e084eec08992353415e5dfb9d4a868745dc505aa2e09f47174091e3b9d  (476 samples)
+thr_205_thr8b.png  <-  job/job00/thr_205_thr8b.tif  6eb3ef435d153c3554a2307a8c4274a8d85d8b4610aca9cbe023a5a9af55ea9f  (476 samples)
+thr_240_thr8b.png  <-  job/job00/thr_240_thr8b.tif  8f2547f15317cf4d78937a7862ebcd59a15c0837a295c8795f95a16e6de4a7c7  (476 samples)
+thr_25_thr16b.png  <-  job/job00/thr_25_thr16b.tif  2db5b1e615c4d517307450ba0bdd7d4b18300fdf9bdd2cd6c688bf4de10efd28  (224 samples)
+thr_77_thr16b.png  <-  job/job00/thr_77_thr16b.tif  23617156e929ed36245bac389dcdbf3eb8465e67bac672782ec1c747ce877b4f  (224 samples)
+thr_150_thr16b.png  <-  job/job00/thr_150_thr16b.tif  2bf1d48a9b2d6cf2d81138132e51b1699acb18ca2624e0ccb0f844268e23e385  (224 samples)
+thr_205_thr16b.png  <-  job/job00/thr_205_thr16b.tif  f4a8a18f76a7a81cd0ba8d0725903b7f007576585a83c353dbf88d5ea20c78ff  (224 samples)
+thr_240_thr16b.png  <-  job/job00/thr_240_thr16b.tif  a2809b1844794cf406eca6c2bcca8e2453165e35e5ede08b6d6f2decf78032ee  (224 samples)
+pf_F6_on.png  <-  job/job01/pf_F6_on.tif  cb08ab358b33fb5d8527bca745be89f0eecefcddd5000b722f5bef5dbce63aea  (640 samples)
+pf_F6_off.png  <-  job/job01/pf_F6_off.tif  314ee1163b58b31b1a37ccc760ce20539c4c30ba45b9d304987d5b68f1b051aa  (640 samples)
+pf_F7_on.png  <-  job/job01/pf_F7_on.tif  49f1ec58e7bb76d8eded57ec8c7433703a273d2a8ebf87e545598645a4971b55  (640 samples)
+pf_F7_off.png  <-  job/job01/pf_F7_off.tif  c003c016a42f27a7ddaf4e1fee8d141b67863bd19da7102c64747ddedbd7bef5  (640 samples)
+pf_F8_on.png  <-  job/job01/pf_F8_on.tif  f93fd8b11d9415c5ea43fc629be4a0879c40193163eca7116c95fa512030e5c0  (640 samples)
+pf_F8_off.png  <-  job/job01/pf_F8_off.tif  a0241dfd73ff0bcb2bad2fc0941d4b1674382c328001b6e00274d0ee0d5ca741  (640 samples)
+pf_F9_on.png  <-  job/job01/pf_F9_on.tif  7d6bcaa3a3410ee9193c0a6bceace80a832804768cef8d74c592bb4d8c51cf55  (640 samples)
+pf_F9_off.png  <-  job/job01/pf_F9_off.tif  a8d91406df64a2dd1e8af6bbcf67353f6d1776c4dc1575bc440f7877d0d8b8cc  (640 samples)
+pf_F10_on.png  <-  job/job01/pf_F10_on.tif  67a7aee6492647a69b88d532cf4dd9d80e54c66d259d42763c35d1da1606f44e  (640 samples)
+pf_F10_off.png  <-  job/job01/pf_F10_off.tif  e920f50a3d7833cbd2bc5a9433917758cee8d333a455b5babd57abec03e9f4d0  (640 samples)

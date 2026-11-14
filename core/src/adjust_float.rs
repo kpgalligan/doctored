@@ -70,7 +70,7 @@
 //! (`adjust_photo_filter`): Photoshop renders the depths differently.
 
 use crate::adjust::{Adjustment, SEPIA};
-use crate::adjust_math::posterize;
+use crate::adjust_math::{posterize, threshold};
 use crate::adjust_mix::{brightness_contrast_modern, brightness_contrast_saturation};
 use crate::adjust_tone::Exposure;
 use crate::adjust_white_balance::{mat_mul, mat_vec, native_adaptation};
@@ -318,6 +318,18 @@ pub(crate) fn apply(
             Adjustment::Posterize { levels, .. },
         ) => Ok(through_display(*rule, rgb, encoder, model, |c| {
             c.map(|v| posterize(v, *levels, 1))
+        })),
+        // The continuous Threshold luma (`top` 1, `adjust_math::threshold`):
+        // the 16-bit form's 15-bit grid is Photoshop's 16-bit storage.
+        (
+            FloatForm::Display {
+                rule,
+                encoder,
+                model,
+            },
+            Adjustment::Threshold { level, .. },
+        ) => Ok(through_display(*rule, rgb, encoder, model, |c| {
+            [threshold(c, *level, 1); 3]
         })),
         (
             FloatForm::Display {

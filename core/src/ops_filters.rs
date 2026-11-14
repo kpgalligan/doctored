@@ -96,18 +96,21 @@ pub(crate) fn levels_channels(
 }
 
 /// Luma threshold: every color channel becomes 0 or 255 depending on whether
-/// the pixel's Rec. 709 luma (on normalized channels) is >= `level`. Requires
-/// `level` in [0, 1]; alpha untouched.
+/// the pixel's 8-bit luma reaches `level` — the ONE kernel the adjustment
+/// layer also runs ([`adjust_math::threshold`]). Requires `level` in
+/// [0, 1]; alpha untouched.
 pub(crate) fn threshold(img: &RgbaImage, level: f32) -> Option<RgbaImage> {
     if !(0.0..=1.0).contains(&level) {
         return None;
     }
     let mut out = img.clone();
     for px in out.pixels_mut() {
-        let luma =
-            (LUMA_R * f32::from(px[0]) + LUMA_G * f32::from(px[1]) + LUMA_B * f32::from(px[2]))
-                / 255.0;
-        let v = if luma >= level { 255 } else { 0 };
+        let rgb = [px[0], px[1], px[2]].map(|c| f32::from(c) / 255.0);
+        let v = if adjust_math::threshold(rgb, level, 255) > 0.5 {
+            255
+        } else {
+            0
+        };
         px[0] = v;
         px[1] = v;
         px[2] = v;

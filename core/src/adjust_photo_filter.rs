@@ -17,7 +17,14 @@
 //!
 //! SetLum is the W3C/PDF SetLum+ClipColor with `Lum = 0.3R + 0.59G + 0.11B`
 //! on ENCODED values (`blend::set_lum`): Photoshop's Luminosity blend of the
-//! filtered result over the input.
+//! filtered result over the input. At 8 bits it runs on the CODES instead
+//! (`PhotoFilter::preserve_codes`): `e`'s codes moved to `v`'s luminosity by
+//! the integer SetLum Black & White's Tint uses (`adjust_bw8::set_lum8`),
+//! each luminosity that Lum in fixed point (`blend::lum_fixed`). On the
+//! phase-10 picture below that is 2 / 0.014 codes, where the float SetLum
+//! missed by 6 / 0.34 (max 7.3, p99 2.9 unrounded, the worst all in
+//! ClipColor's `x > 1` branch); `adjust-render-2` take2's five fresh filters
+//! confirmed it (`core/tests/adjust_render_take.rs` holds the core to them).
 //!
 //! Receipts: the take2 16-bit twins
 //! (`doctored-fixtures/photoshop/float-adjust-473/take2/job/photo_filter/*_create_{srgb,wide}16.tif`)
@@ -26,10 +33,9 @@
 //! sRGB, `#ec8a00`, density 0.4, preserve on). Max abs error, encoded units:
 //! take2 16-bit sRGB 7e-4 (Lab, d 1, off), 6e-4 (`#ec8a00`, d 1, off), 6e-4
 //! (Lab, d 0.25, on); ROMM median 5e-5, worst 3.4e-3 at the toe. Phase-10,
-//! all 4096 pixels: 16-bit max 9.0e-4 (0.23 codes), median 4.8e-5; 8-bit max
-//! 7.3 codes, p99 2.9, median 0.6, the worst all in ClipColor's `x > 1`
-//! branch. The per-channel multiply with a Rec. 709 rescale this replaced
-//! missed by 105 codes on phase-10.
+//! all 4096 pixels: 16-bit max 9.0e-4 (0.23 codes), median 4.8e-5. The
+//! per-channel multiply with a Rec. 709 rescale this replaced missed by 105
+//! codes on phase-10.
 //!
 //! Why D50 PCS here and the NATIVE basis at 32 bits (`adjust_float`):
 //! Photoshop itself renders the two depths differently. The 32-bit form
@@ -174,7 +180,17 @@ impl BoundPhotoFilter {
         let x = basis.source.to_pcs_xyz64(rgb.map(f64::from));
         let y = self.filter.multiply_xyz(x, self.ratio);
         let e = basis.encoder.rgb(basis.source.pcs_to_linear(y));
-        self.filter.preserve_encoded(rgb, e)
+        match basis.encoder {
+            // 8 bits: the byte encoder's `e` is already `code / 255`, and
+            // Preserve Luminosity runs on the codes (module doc).
+            Encoder::Byte(_) => {
+                let codes = |v: [f32; 3]| v.map(|c| (c.clamp(0.0, 1.0) * 255.0).round() as u8);
+                self.filter
+                    .preserve_codes(codes(rgb), codes(e))
+                    .map(|c| f32::from(c) / 255.0)
+            }
+            Encoder::Precision(_) => self.filter.preserve_encoded(rgb, e),
+        }
     }
 
     /// An ADMISSION input (`PrecisionAdjustment::record_resources`): the

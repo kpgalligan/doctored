@@ -66,7 +66,7 @@ Detail belongs in the source file's own header comment.
 - `durable_file.rs` — the core's one flush policy. Only `dr_image::save_atomically` calls it, so every core writer inherits it; never add a writer-local `sync_all`.
 - `doc.rs` — layer model, compositing/projection, document ops, layer masks. **Full — no new concerns.** A new feature area gets a new module.
 - `document_clone.rs` — byte document deep-copy estimates (pixels, profiles, styles, masks `Arc`-shared; records and names copied) and bounded temporary capacity views for plans.
-- `blend.rs` — `BlendMode` + blend math, source-over/erase primitives, `LUMA_*` constants, and `composite_source_frozen`, THE frozen-alpha rule every paint path at 8, 16 and 32 bits routes through.
+- `blend.rs` — `BlendMode` + blend math, source-over/erase primitives, `LUMA_*`, `lum_fixed`, and `composite_source_frozen`, THE frozen-alpha rule every paint path routes through.
 - `clip_unit.rs` — KERNEL: the clip unit's member rule (CL2): Open / Settle / Close of the footprint-relative alpha, `composite_source_frozen` through the member kernel.
 - `blend_fill.rs` — KERNEL: Fill on Color/Linear Burn, Color/Linear Dodge and Vivid Light (measured against Photoshop): the source pulled to the neutral, the split composite.
 - `blend_float.rs` — `blend_kind_at`: float blend variants (unclamped Linear Dodge/Subtract/Burn/Light, floored Divide; HSL with no ClipColor), else `blend_kind`.
@@ -339,7 +339,7 @@ Detail belongs in the source file's own header comment.
 - `adjust_vibrance.rs` — Vibrance at 8/16 bits bound to the profile's TRC (`BoundVibrance`); adapter over `adjust_color`'s kernel. Fits in its doc.
 - `vibrance_law.rs` — kernel: the Vibrance law (V3t-P), K and A/M tables over linear chroma × √max at five slider knots, a skin term above 0; read by `adjust_color`.
 - `adjust_color_balance.rs` — Color Balance as measured against Photoshop (take6): per-channel Levels, whole units, 32-bit stage end slopes. Kernel; form in its doc.
-- `adjust_bw8.rs` — kernel: Black & White's 8-bit Tint on integers (h8a-LE): `gray8` half to even on codes, `tint8` with L8 and a one-code lift.
+- `adjust_bw8.rs` — kernel: Black & White's 8-bit Tint on integers (h8a-LE): `gray8` on codes, `tint8` over `set_lum8` (also Photo Filter's 8-bit Preserve Luminosity).
 - `adjust_hue_saturation.rs` — Hue/Saturation as measured against Photoshop (take4's R0) at 8/16 bits, C16 Colorize, the 32-bit closed forms. Kernel; form in its doc.
 - `oklab.rs` — KERNEL leaf: Oklab to and from linear sRGB (Ottosson's published M1/M2 and inverses, f32); the Gradient Map's Perceptual method.
 - `adjust_replace_color.rs` — Replace Color: Hue/Saturation weighted by distance (0…255 encoded units) to 1…8 sampled colours; core 1 to f/2, linear to 0 at f. Kernel module.

@@ -96,10 +96,10 @@
 
 use serde_json::{Map, Value};
 
-use crate::adjust_bw8::{gray8, tint8};
+use crate::adjust_bw8::{gray8, set_lum8, tint8};
 use crate::adjust_math::{cmyk_to_rgb, decompose, luma, rgb_to_cmyk, HUE_WHEEL};
 use crate::adjust_parse::{boolean, color, nested, num_in, string_enum};
-use crate::blend::{lum, set_lum, set_lum_within};
+use crate::blend::{lum, lum_fixed, set_lum, set_lum_within};
 
 // ----------------------------------------------------- black and white --
 
@@ -291,6 +291,24 @@ impl PhotoFilter {
     pub(crate) fn preserve_encoded(&self, original: [f32; 3], filtered: [f32; 3]) -> [f32; 3] {
         if self.preserve_luminosity {
             set_lum(filtered, lum(original))
+        } else {
+            filtered
+        }
+    }
+
+    /// Preserve Luminosity at 8 bits, on codes: the integer SetLum
+    /// ([`set_lum8`]) of the `filtered` codes to the `original` codes'
+    /// luminosity, each luminosity [`lum_fixed`] of the codes; `filtered`
+    /// unchanged when the option is off. Measured against Photoshop 26.10.0
+    /// (`scripts/photoshop-probe/adjust_render_2_take.py` and `_take2.py`):
+    /// on Photoshop's own filtered codes it is within 1 code (mean at most
+    /// 0.0026) of every filter of takes 1 and 2, where
+    /// [`PhotoFilter::preserve_encoded`]'s float SetLum missed by 3 to 6 /
+    /// 0.25 to 0.39, its worst in ClipColor's upper branch.
+    pub(crate) fn preserve_codes(&self, original: [u8; 3], filtered: [u8; 3]) -> [u8; 3] {
+        if self.preserve_luminosity {
+            let luma = |c: [u8; 3]| lum_fixed(c.map(u32::from));
+            set_lum8(filtered, luma(filtered) as i32, luma(original) as u8)
         } else {
             filtered
         }

@@ -6,6 +6,7 @@
 //! ever unused and `cargo clippy -D warnings` stays green at every step.
 //! Present: the Rec. 709 luma (over `blend`'s `LUMA_*`, the one home for
 //! those constants), the sRGB transfer function pair, [`apply_to_image`],
+//! [`posterize`] and [`threshold`] (each the ONE kernel of its op),
 //! and — added with the colour and mapping ops that first needed them — the
 //! HSL round trip and the [`hexcone`] under it, [`hue_distance`],
 //! [`two_sided`] and the [`two_sided_extended`] under it,
@@ -25,7 +26,7 @@
 use image::RgbaImage;
 
 use crate::adjust::Adjustment;
-use crate::blend::{LUMA_B, LUMA_G, LUMA_R};
+use crate::blend::{lum_fixed, LUM100, LUMA_B, LUMA_G, LUMA_R};
 
 /// Rec. 709 luma of a straight RGB triple in [0, 1] — the ONE luma in this
 /// crate, over `blend`'s shared coefficients.
@@ -132,9 +133,7 @@ pub(crate) fn apply_to_image(adjustment: &Adjustment, img: &RgbaImage) -> RgbaIm
 pub(crate) fn posterize(v: f32, levels: u32, top: u32) -> f32 {
     let n = u64::from(levels);
     if top == u32::from(u16::MAX) {
-        let code = (f64::from(v.clamp(0.0, 1.0)) * 65535.0).round() as u64;
-        let v15 = (code * 65536 + 65535) / 131_070;
-        let k = ((v15 * n) / 32768).min(n - 1);
+        let k = ((grid15(v) * n) / 32768).min(n - 1);
         return (k as f64 / f64::from(levels - 1)) as f32;
     }
     if top == 255 {
@@ -147,6 +146,56 @@ pub(crate) fn posterize(v: f32, levels: u32, top: u32) -> f32 {
         .floor()
         .clamp(0.0, top_bin);
     (k / top_bin) as f32
+}
+
+/// A 16-bit sample's value on Photoshop's 15-bit grid, `round(c·32768/
+/// 65535)` half up over the code `c = round(v·65535)`: the one conversion
+/// [`posterize`] and [`threshold`] read their 16-bit bins and luma on.
+fn grid15(v: f32) -> u64 {
+    let code = (f64::from(v.clamp(0.0, 1.0)) * 65535.0).round() as u64;
+    (code * 65536 + 65535) / 131_070
+}
+
+/// Threshold at `level` (in [0, 1]) at the depth whose code range is `top`:
+/// 1.0 (white) when the pixel's `0.30 r + 0.59 g + 0.11 b` luma reaches the
+/// level, else 0.0, measured against Photoshop 26.10.0 (#2;
+/// `scripts/photoshop-probe/adjust_render_2_take.py` and `_take2.py`, takes
+/// 1-2 of `adjust-render-2`):
+///
+/// * `top` 255 (8 bits): [`lum_fixed`] of the pixel's codes against the
+///   level rounded to a code.
+/// * `top` 65535 (16 bits): [`lum_fixed`] of the pixel's 15-bit values
+///   ([`grid15`]) against `round(level·32768)`.
+/// * `top` 1 (the 32-bit Mapped display value): the luma unrounded against
+///   the level, summed in f64 over the whole-number weights (`LUM100`), so a
+///   grey's luma is the grey itself bit for bit.
+///
+/// Rec. 709 luma, which this replaced, put 5.3 % of the phase-10 `thrs`
+/// picture on the wrong side; the fixed-point form is exact on every
+/// sample of take2 at both depths, the half-code ties included, where the
+/// `LUM100` rounding of the same luma missed 6 ties of take1. The ONE
+/// threshold: the destructive filter and the adjustment layer both call it.
+pub(crate) fn threshold(rgb: [f32; 3], level: f32, top: u32) -> f32 {
+    let level = f64::from(level.clamp(0.0, 1.0));
+    let white = if top == 255 {
+        let codes = rgb.map(|v| (f64::from(v.clamp(0.0, 1.0)) * 255.0).round() as u32);
+        f64::from(lum_fixed(codes)) >= (level * 255.0).round()
+    } else if top == u32::from(u16::MAX) {
+        let grid = rgb.map(|v| grid15(v) as u32);
+        f64::from(lum_fixed(grid)) >= (level * 32768.0).round()
+    } else {
+        let sum: f64 = rgb
+            .iter()
+            .zip(LUM100)
+            .map(|(&v, w)| f64::from(w) * f64::from(v))
+            .sum();
+        sum / 100.0 >= level
+    };
+    if white {
+        1.0
+    } else {
+        0.0
+    }
 }
 
 // ------------------------------------------------------- the HSL family --

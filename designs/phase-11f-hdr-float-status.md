@@ -184,8 +184,9 @@ it is tiled. Tests: `core/tests/float_{document,native,interchange}.rs`; drive `
   as destructive applies; Exposure's `1/gamma` at every depth (slice 3b: every saved Exposure with gamma ≠ 1
   re-renders); Curves the NATURAL cubic spline at every depth (`adjust_curves::Spline`; slice 3d: every saved curve
   with 3 or more points re-renders). Photo Filter at 8/16 bits is the D50 PCS multiply and Luminosity blend
-  (`adjust_photo_filter`, `adjust_photo_filter_tests.rs`; every saved 8/16-bit Photo Filter re-renders; residuals
-  8-bit ClipColor highlights ≤ 7.3 codes, ROMM toe 3.4e-3). Later takes (`float-adjust-473/take3`–`take7`,
+  (`adjust_photo_filter`, `adjust_photo_filter_tests.rs`; every saved 8/16-bit Photo Filter re-renders; at 8 bits
+  the blend is the integer SetLum on codes, `adjust_bw8::set_lum8`, within 2 codes of the phase-10 picture;
+  residual ROMM toe 3.4e-3). Later takes (`float-adjust-473/take3`–`take7`,
   `adjust-parity-535-536/take4`–`take6`): Color Lookup's one 3D lookup is tetrahedral at every depth
   (`adjust_lut::sample_3d`) and a plain-grid device link of at most 33 nodes is stored at its own grid
   (`LutPipeline::plain_grid`); 16-bit map Curves reads 15-bit stage tables (`adjust_curves::stage15`); the map form

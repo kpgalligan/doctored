@@ -55,6 +55,8 @@ mod adjust_mix_tests;
 mod adjust_parity_578_take;
 #[path = "adjust_photo_filter_tests.rs"]
 mod adjust_photo_filter_tests;
+#[path = "adjust_render_take.rs"]
+mod adjust_render_take;
 #[path = "adjust_replace_color_tests.rs"]
 mod adjust_replace_color_tests;
 #[path = "adjust_tone_tests.rs"]

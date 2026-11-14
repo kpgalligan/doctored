@@ -174,6 +174,9 @@ fn precision_kernel(
         Adjustment::Vibrance(op) => Adjustment::Vibrance(op.prepare_precision(profile)?),
         // Photoshop's 16-bit bins read the 15-bit grid (`adjust_math::posterize`).
         Adjustment::Posterize { levels, .. } => Adjustment::Posterize { levels, top: 65535 },
+        // Photoshop's 16-bit Threshold reads its luma on the 15-bit grid
+        // (`adjust_math::threshold`).
+        Adjustment::Threshold { level, .. } => Adjustment::Threshold { level, top: 65535 },
         // Photoshop rounds Levels' stages to codes and runs Black & White's
         // Tint on integers only at 8 bits (#2 phase 4).
         Adjustment::Levels(mut op) => {

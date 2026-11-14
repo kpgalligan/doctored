@@ -1540,8 +1540,9 @@ DrDocument *dr_doc_perspective_layer(const DrDocument *doc, size_t idx,
 /* Rotates hue by degrees (any finite value; NULL on NaN). Alpha untouched. */
 DrImage *dr_image_hue_rotate(const DrImage *img, float degrees);
 
-/* Luma threshold at level in [0,1]: output pixels become opaque-preserving
- * black or white by Rec.709 luma; alpha untouched. */
+/* Luma threshold at level in [0,1]: output pixels become white where the
+ * codes' 0.30 r + 0.59 g + 0.11 b luma, in 2^15 fixed point rounded half up
+ * to a code, reaches the level's code, else black; alpha untouched. */
 DrImage *dr_image_threshold(const DrImage *img, float level);
 
 /* Reduces each color channel to `levels` values (2..=64) by the rule

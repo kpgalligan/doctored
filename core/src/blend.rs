@@ -35,8 +35,25 @@ pub(crate) fn luma_code(p: [u16; 4]) -> u16 {
 /// copy; this is the same triple as whole numbers, for the one caller that
 /// rounds the luma of 8-bit codes to a code (`plane_swatch::plane_ink_u8`):
 /// integer weights make that rounding exact, where the f32 sum of a `.5` luma
-/// could land on either side.
+/// could land on either side. `adjust_math::threshold`'s continuous form
+/// sums over them in f64, so a grey's luma is the grey itself.
 pub(crate) const LUM100: [u32; 3] = [30, 59, 11];
+
+/// [`lum`]'s weights in 2^15 fixed point: 0.30 and 0.11 floored, green the
+/// remainder, so the three sum to 32768 and a grey's luma is the grey
+/// itself. [`lum_fixed`] is their one use.
+const LUM32768: [u32; 3] = [9830, 19334, 3604];
+
+/// The 30/59/11 luma of one pixel's codes on an integer grid, rounded half
+/// up to that grid: `(9830 r + 19334 g + 3604 b + 16384) >> 15`. 8-bit codes
+/// give an 8-bit code and 15-bit values a 15-bit value. Photoshop 26.10.0's
+/// Threshold (8-bit codes; 16-bit documents on its 15-bit grid) and Photo
+/// Filter's 8-bit Preserve Luminosity were measured to this form, which
+/// differs from [`LUM100`]'s rounding only on a pixel whose luma is an
+/// exact half code (`adjust_math::threshold` has the takes).
+pub(crate) fn lum_fixed(c: [u32; 3]) -> u32 {
+    (LUM32768[0] * c[0] + LUM32768[1] * c[1] + LUM32768[2] * c[2] + 16384) >> 15
+}
 
 /// The blend-mode set, mirroring `DrBlendMode` in the C header: 0-13 and
 /// 15-22 are separable (per-channel W3C formulas), 23-26 non-separable
