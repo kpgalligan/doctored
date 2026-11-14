@@ -215,15 +215,24 @@ func verifyQuickAndCapture() throws {
     try require((try? SelectionCapture(document: document)) == nil, "Capture refuses an active live edit before its first revision")
     document.endLiveEdit("No-op", record: .notACommand)
     let workerCapture = try SelectionCapture(document: document)
-    let timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: false) { _ in
+    // The worker returns only after the first tick inside `BackgroundWork.wait` has changed the
+    // selection (capped at 5 s), so the stale check after the wait sees the change however soon
+    // main first takes the mailbox.
+    let changed = DispatchSemaphore(value: 0)
+    let timer = Timer.scheduledTimer(withTimeInterval: 0.001, repeats: true) { timer in
+        guard BackgroundWork.isWaiting else { return }
         document.setCanvasSelection(CanvasSelection(shape: .rect(CGRect(x: 1, y: 1, width: 4, height: 4)),
             canvasWidth: 90, canvasHeight: 60))
+        timer.invalidate()
+        changed.signal()
     }
-    defer { timer.invalidate() }
+    defer { timer.invalidate(); changed.signal() }
     RunLoop.main.add(timer, forMode: .modalPanel)
     do {
         _ = try workerCapture.run(in: document, title: "Captured selection test", scratchBytes: 100_000) { _ in
-            Thread.sleep(forTimeInterval: 0.1)
+            guard changed.wait(timeout: .now() + 5) == .success else {
+                throw ProbeFailure(description: "The selection did not change inside the worker wait")
+            }
             return [UInt8](repeating: 255, count: 90 * 60)
         }
         throw ProbeFailure(description: "Worker result applied across a changed selection")

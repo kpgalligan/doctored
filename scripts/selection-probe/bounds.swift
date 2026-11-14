@@ -34,15 +34,24 @@ func verifySelectionConstructionBounds() throws {
     let capture = try SelectionCapture(document: document, needsSource: false)
     let newSelection = CanvasSelection(shape: .rect(CGRect(x: 1, y: 1, width: 4, height: 4)),
                                       canvasWidth: 600, canvasHeight: 400)
+    // The worker queue is held (capped at 10 s) ahead of the feather's `WorkerTask`, and the
+    // first tick inside `BackgroundWork.wait` changes the selection and only then releases it.
+    // The queue is serial, so the feather cannot even start before main has changed the
+    // selection inside the wait, however fast the kernel is; the refusal can only come from the
+    // stale check after the wait. A wait that never services the run loop still fails, after the
+    // cap. The same hold as `jobs-probe/transforms.swift`'s transform commit.
     var serviced = false
+    let hold = DispatchSemaphore(value: 0)
     let timer = Timer.scheduledTimer(withTimeInterval: 0.001, repeats: true) { timer in
         guard BackgroundWork.isWaiting else { return }
         serviced = true
         document.setCanvasSelection(newSelection)
         timer.invalidate()
+        hold.signal()
     }
     RunLoop.main.add(timer, forMode: .modalPanel)
-    defer { timer.invalidate() }
+    defer { timer.invalidate(); hold.signal() }
+    BackgroundWork.queue.async { _ = hold.wait(timeout: .now() + 10) }
     do {
         try capture.commit(.rect(CGRect(x: 30, y: 30, width: 200, height: 180)),
                            in: document, name: "Feather stale test", feather: 25)
