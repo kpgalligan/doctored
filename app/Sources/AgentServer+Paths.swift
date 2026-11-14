@@ -9,6 +9,7 @@ import AppKit
 /// | `renamePath` | double-clicking a row in the Paths panel (renaming the work path saves it) |
 /// | `duplicatePath` | Paths panel ▸ Duplicate Path |
 /// | `deletePath` | Paths panel ▸ Delete Path |
+/// | `combinePaths` (AgentServer+PathCombine.swift) | Paths panel ▸ Combine with Path… |
 /// | `setClippingPath` | Paths panel ▸ Clipping Path, and ▸ Clipping Path Flatness… (`flatness`) |
 /// | `pathToSelection` | Paths panel ▸ Make Selection… |
 /// | `fillPath` | Paths panel ▸ Fill Path |
@@ -746,8 +747,9 @@ extension AgentServer {
 
     /// One path-list edit as one undo step, off the event path. false when
     /// the core answered "the same list" — nothing changed, no group opened.
-    /// The core's refusal sentence is thrown as the tool's error.
-    private func editPaths(
+    /// The core's refusal sentence is thrown as the tool's error. Shared with
+    /// AgentServer+PathCombine.swift, as are the helpers below it.
+    func editPaths(
         _ document: ImageDocument, _ actionName: String, _ next: PathSet
     ) throws -> Bool {
         guard let current = document.doc else {
@@ -768,7 +770,7 @@ extension AgentServer {
     }
 
     /// A mutator's reply: its own fields, and the list's size after it.
-    private func pathResult(_ document: ImageDocument, _ fields: [String: Any]) throws -> String {
+    func pathResult(_ document: ImageDocument, _ fields: [String: Any]) throws -> String {
         try jsonResult(
             fields.merging([
                 "ok": true, "changed": true, "paths": document.doc?.paths.entries.count ?? 0,
@@ -777,7 +779,7 @@ extension AgentServer {
 
     /// The in-band "nothing changed" answer (`AgentServer+Guides.noOpResult`'s
     /// shape): never an error, no undo step.
-    private func pathNoOp(_ fields: [String: Any], why: String) throws -> String {
+    func pathNoOp(_ fields: [String: Any], why: String) throws -> String {
         try jsonResult(
             fields.merging([
                 "ok": true, "changed": false,
@@ -786,12 +788,12 @@ extension AgentServer {
     }
 
     /// Whether an argument was passed at all (JSON null is "not passed").
-    private static func present(_ value: Any?) -> Bool {
+    static func present(_ value: Any?) -> Bool {
         value != nil && !(value is NSNull)
     }
 
     /// A name argument: nil when absent, refused when it is not a string.
-    private func nameArgument(_ a: [String: Any], _ key: String) throws -> String? {
+    func nameArgument(_ a: [String: Any], _ key: String) throws -> String? {
         guard Self.present(a[key]) else { return nil }
         guard let name = a[key] as? String else {
             throw ToolError(message: "\(key) must be a string — a path's name.")
@@ -811,7 +813,7 @@ extension AgentServer {
         return index
     }
 
-    private static func noSuchPath(_ name: String, _ set: PathSet) -> String {
+    static func noSuchPath(_ name: String, _ set: PathSet) -> String {
         guard !set.entries.isEmpty else {
             return "This document has no paths, so \"\(name)\" names nothing. Create one with "
                 + "set_path or selection_to_path."
@@ -834,7 +836,7 @@ extension AgentServer {
     /// The shape an operation tool works on: `path` (a saved path's name or
     /// "Work Path") or an explicit `subpaths` with an optional `fill_rule` —
     /// exactly one of the two.
-    private func pathArgument(
+    func pathArgument(
         _ a: [String: Any], _ doc: RasterDocument, tool: String
     ) throws -> PathShape {
         let named = try nameArgument(a, "path")
@@ -860,7 +862,7 @@ extension AgentServer {
         }
     }
 
-    private func refuseEmpty(_ shape: PathShape, _ verb: String) throws {
+    func refuseEmpty(_ shape: PathShape, _ verb: String) throws {
         guard shape.isEmpty else { return }
         throw ToolError(message: "The path is empty: it has no subpath to \(verb).")
     }

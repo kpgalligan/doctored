@@ -31,8 +31,9 @@ struct NativeArtworkEvaluation {
 
     enum Part {
         /// `points` are relative to `window`'s origin; the coverage is
-        /// computed at the window's size.
-        case path(commands: [UInt8], points: [Double], rgba: [Double], window: Window)
+        /// computed at the window's size, by the even-odd rule when `evenOdd`.
+        case path(commands: [UInt8], points: [Double], rgba: [Double], window: Window,
+                  evenOdd: Bool = false)
         case intrinsic([UInt8], opacity: Double)
         case coverage([UInt8], rgba: [Double])
         /// A fill layer's colour or gradient: the render component
@@ -105,7 +106,7 @@ struct NativeArtworkEvaluation {
         let colorKey = cmyk ? "ink" : "color"
         for part in drawing.parts {
             switch part {
-            case let .path(path, rgba):
+            case let .path(path, rgba, evenOdd):
                 guard ArtworkColor.valid(rgba, in: ink) else { throw Self.failure(colorRefusal) }
                 // The plane covers only the path's box (the core's
                 // per-component window), so a part costs its own extent,
@@ -134,7 +135,8 @@ struct NativeArtworkEvaluation {
                 }
                 guard valid else { throw Self.failure("Artwork outline exceeds its bounded path command limit.") }
                 guard window.pixels <= Self.maximumComponentSamples else { throw Self.componentRefusal }
-                captured.append(.path(commands: commands, points: points, rgba: rgba, window: window))
+                captured.append(.path(commands: commands, points: points, rgba: rgba, window: window,
+                                      evenOdd: evenOdd))
                 scalar += window.pixels; bytes += UInt64(commands.count + points.count * 8)
             case let .coverage(pixels, rgba):
                 guard pixels.count == count, ArtworkColor.valid(rgba, in: ink) else {
@@ -251,10 +253,10 @@ struct NativeArtworkEvaluation {
             let end = Double(index + 1) / Double(parts.count + 2)
             guard !control.isCancelled else { throw JobCancelled() }
             switch part {
-            case let .path(commands, points, rgba, window):
+            case let .path(commands, points, rgba, window, evenOdd):
                 let plane = try control.withChildOperation(from: start, to: end) {
                     try RasterArtworkCore.coverage(commands: commands, points: points,
-                        width: window.width, height: window.height, control: $0)
+                        width: window.width, height: window.height, evenOdd: evenOdd, control: $0)
                 }
                 coverage.append(contentsOf: plane)
                 descriptors.append(["kind": "coverage", colorKey: rgba, "window": window.json])
@@ -328,9 +330,13 @@ enum NativeArtwork {
         transform.tx = fraction.x - CGFloat(rect.originX)
         transform.ty = fraction.y - CGFloat(rect.originY)
         var parts: [NativeArtworkPart] = []
+        // The fill takes the payload's rule (a path's own); the stroke's
+        // outline always fills by winding (`ShapeLayer.strokeOutline`).
         if payload.kind != "line", let fill = payload.fillColor,
            let rgba = ArtworkColor.rgba(fill, in: payload.ink),
-           let mapped = path.copy(using: &transform) { parts.append(.path(mapped, rgba: rgba)) }
+           let mapped = path.copy(using: &transform) {
+            parts.append(.path(mapped, rgba: rgba, evenOdd: ShapeLayer.fillRule(payload) == .evenOdd))
+        }
         if let stroke = payload.strokeColor, payload.strokeWidth > 0,
            let rgba = ArtworkColor.rgba(stroke, in: payload.ink) {
             // A styled stroke is `ShapeLayer.strokeOutline`'s outline,

@@ -34,10 +34,14 @@ extension AgentServer {
         let ink = doc.authoringInk
         let kind = try requiredString(a, "kind")
         guard ShapeLayerPayload.kinds.contains(kind) else {
-            throw ToolError(message: "kind must be rect, ellipse, or line (got \"\(kind)\")")
+            throw ToolError(message: "kind must be rect, ellipse, line, or path (got \"\(kind)\")")
         }
-        guard let x = doubleArg(a, "x"), let y = doubleArg(a, "y"),
-            let w = doubleArg(a, "w"), let h = doubleArg(a, "h"),
+        // A path shape's box is its outline's (AgentServer+PathShapes.swift).
+        let placed = try pathShapePlacement(a, doc: doc, kind: kind)
+        guard let x = placed.map({ Double($0.box.minX) }) ?? doubleArg(a, "x"),
+            let y = placed.map({ Double($0.box.minY) }) ?? doubleArg(a, "y"),
+            let w = placed.map({ Double($0.box.width) }) ?? doubleArg(a, "w"),
+            let h = placed.map({ Double($0.box.height) }) ?? doubleArg(a, "h"),
             x.isFinite, y.isFinite, w.isFinite, h.isFinite
         else {
             throw ToolError(
@@ -52,6 +56,7 @@ extension AgentServer {
         let radius = doubleArg(a, "radius") ?? 0
         try Self.validateShapeStyle(
             kind: kind, fill: fill, stroke: stroke, strokeWidth: strokeWidth, radius: radius)
+        try Self.validatePathShapeArea(kind: kind, w: w, h: h, stroke: stroke, strokeWidth: strokeWidth)
 
         let transform = try linearMapArg(a, "transform") ?? .identity
         let styles = try Self.shapeStrokeStyles(a, kind: kind, current: nil)
@@ -59,7 +64,8 @@ extension AgentServer {
             kind: kind, w: w, h: h, flipped: boolArg(a, "flipped") ?? false,
             fill: fill, stroke: stroke, strokeWidth: strokeWidth, radius: radius,
             transform: transform, ink: ink,
-            strokeJoin: styles.join, strokeDash: styles.dash, strokeAlign: styles.align)
+            strokeJoin: styles.join, strokeDash: styles.dash, strokeAlign: styles.align,
+            path: placed?.outline)
         let name = ShapeLayer.layerName(for: payload)
         // The shape box lands with its top-left at (x, y) — whole pixels for
         // an untransformed box, exact otherwise: commitShapeLayer's rule.
@@ -98,7 +104,7 @@ extension AgentServer {
             "ok": true, "layer": index, "name": name,
             "position": placement.position.rawValue,
             "shape": Self.shapeFields(document.doc?.shapePayload(index) ?? payload,
-                                      anchor: document.doc?.describedAnchor(index)),
+                                      anchor: document.doc?.describedAnchor(index), outline: true),
         ], doc: document.doc))
     }
 
@@ -157,6 +163,7 @@ extension AgentServer {
             throw ToolError(message: "x, y, w and h must be finite numbers")
         }
         try Self.validateShapeGeometry(kind: kind, x: x, y: y, w: w, h: h)
+        let outline = try Self.reboxedOutline(current, w: w, h: h)
         let transform = try linearMapArg(a, "transform") ?? current.transform
 
         // Paints: an ABSENT argument keeps the layer's paint; a present
@@ -171,13 +178,15 @@ extension AgentServer {
         let radius = doubleArg(a, "radius") ?? current.radius
         try Self.validateShapeStyle(
             kind: kind, fill: fill, stroke: stroke, strokeWidth: strokeWidth, radius: radius)
+        try Self.validatePathShapeArea(kind: kind, w: w, h: h, stroke: stroke, strokeWidth: strokeWidth)
 
         let styles = try Self.shapeStrokeStyles(a, kind: kind, current: current)
         let payload = ShapeLayerPayload(
             kind: kind, w: w, h: h, flipped: boolArg(a, "flipped") ?? current.flipped,
             fill: fill, stroke: stroke, strokeWidth: strokeWidth, radius: radius,
             transform: transform, ink: ink,
-            strokeJoin: styles.join, strokeDash: styles.dash, strokeAlign: styles.align)
+            strokeJoin: styles.join, strokeDash: styles.dash, strokeAlign: styles.align,
+            path: outline)
         // A given x,y is a placement (whole pixels while untransformed, exact
         // otherwise); an omitted one keeps the exact anchor as it is.
         let anchor = a["x"] == nil && a["y"] == nil
@@ -206,15 +215,20 @@ extension AgentServer {
         return try jsonResult(Self.withCmykPlan([
             "ok": true, "layer": index,
             "shape": Self.shapeFields(document.doc?.shapePayload(index) ?? payload,
-                                      anchor: document.doc?.describedAnchor(index)),
+                                      anchor: document.doc?.describedAnchor(index), outline: true),
         ], doc: document.doc))
     }
 
     /// The shape object get_document and the shape tools report: the
     /// description, `transform` row-major (`LinearMap.array`), and `origin` —
     /// the exact canvas position of the box's top-left (fractional after a
-    /// transform) — when the anchor is known.
-    static func shapeFields(_ payload: ShapeLayerPayload, anchor: CGPoint?) -> [String: Any] {
+    /// transform) — when the anchor is known. A path shape adds `fill_rule`,
+    /// `anchors` and `subpath_count`, and with `outline` its `subpaths`
+    /// (`pathShapeFields`); get_document leaves the outline out, so a layer of
+    /// thousands of anchors does not ride along in every document reply.
+    static func shapeFields(
+        _ payload: ShapeLayerPayload, anchor: CGPoint?, outline: Bool = false
+    ) -> [String: Any] {
         var shape: [String: Any] = [
             "kind": payload.kind,
             "w": payload.w,
@@ -243,6 +257,7 @@ extension AgentServer {
         }
         if payload.kind == "rect" { shape["radius"] = payload.radius }
         if payload.kind == "line" { shape["flipped"] = payload.flipped }
+        shape.merge(pathShapeFields(payload, outline: outline)) { _, path in path }
         // The stroke styles, and the payload version they are stored at
         // (5 only when a style is off its default).
         shape["stroke_join"] = payload.strokeJoin.rawValue
@@ -298,7 +313,13 @@ extension AgentServer {
                 message: "x and y must land within the coordinates the core can address; "
                     + "keep the shape near the canvas.")
         }
-        if kind == "line" {
+        if kind == "path" {
+            guard w >= 0, h >= 0, max(w, h) >= 1 else {
+                throw ToolError(
+                    message: "A path shape's outline must span at least 1 px on one axis, and w "
+                        + "and h may not be negative.")
+            }
+        } else if kind == "line" {
             guard w >= 0, h >= 0, max(w, h) >= 1 else {
                 throw ToolError(
                     message: "A line's box needs w and h of at least 0 px with at least one "

@@ -146,6 +146,7 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+SelectionHistory.swift` — `reselect`, `get_selection`, `set_quick_mask` and `quick_mask_stroke`, in parity with the float whitelist in `EditorViewController+Precision.swift`.
 - `AgentServer+SelectionRefinement.swift` — mirrors Select ▸ Select and Mask… over the same captured coverage and validation as the UI.
 - `AgentServer+Shapes.swift` — `add_shape_layer` and `edit_shape_layer`, mirroring the shape tools' commit and the Layers panel's double-click re-edit, so either way renders the same layer.
+- `AgentServer+PathShapes.swift` — the two shape tools on the `path` kind: the outline from `subpaths` or a named path, its refusals, the re-box scale, its fields.
 - `AgentServer+Snapshots.swift` — mirrors Window ▸ Snapshots…, including the portable Save/Load files.
 - `AgentServer+SubjectSelection.swift` — subject segmentation, mirroring Select ▸ Select Subject (every subject) and the Subject tool's press-and-hold (the one under the point).
 - `AgentServer+SubjectTargets.swift` — mirrors Select ▸ Select Objects…, Select People… and All People; instance IDs are ephemeral indices for the captured composite and model.
@@ -166,6 +167,7 @@ Detail belongs in the source file's own header comment.
 - `MissingFonts.swift` — text layers whose family is not installed: `missingFontLayers` and `replacingMissingFonts`, one undo step, with the per-axis placement rule.
 - `ReplaceFontsSheetController.swift` / `EditorViewController+ReplaceFonts.swift` — Layer ▸ Replace Missing Fonts…: one family popup per missing family; the action and its validation.
 - `ShapeLayer.swift` — shape layers: `ShapeLayerPayload`, the JSON description in the layer's meta (the source of truth; the raster is its cache), and `ShapeLayer`'s render.
+- `ShapeOutline.swift` — the `path` shape kind's outline (payload version 7): box-local anchors, `placed`, re-box scaling, the stroker-free source rect.
 - `ShapeTool.swift` — the style a shape drags with: the options bar's fill, stroke, weight and corner radius, resolved to native types.
 - `EditorViewController+Shapes.swift` — the shape tools (U): drag out a rectangle, ellipse or line into a re-editable shape layer; a refused re-edit keeps its session open.
 - `DescribedLayer.swift` — the shared geometry of described layers (text, shapes) under a `LinearMap`, `LayerDescription`, and the two pure document ops every described-layer commit runs.
@@ -757,11 +759,15 @@ Detail belongs in the source file's own header comment.
 - `ImageCanvasView+EyedropperRing.swift` / `EditorViewController+Eyedropper.swift` — the eyedropper sampling ring, Sample from and recent swatches.
 - `ShapeStrokeStyle.swift` — the shape stroke join, dash and alignment, and `ShapeLayer.strokeOutline`, the one outline every renderer fills.
 - `PathModel.swift` — path values: `PathAnchor`, `PathSubpath`, `PathShape`, `PathEntry`, `PathClipping`, `PathSet`, `PathTarget`, `PathHit`, `VectorMaskInfo`.
+- `PathShape+CGPath.swift` — the one `PathShape` ↔ `CGPath` converter: the core's outline rule out, a boolean result's elements back (merge, drop).
+- `PathCombine.swift` — path booleans: `PathCombineOperation` and `PathCombine.combine`, two fill regions combined by CoreGraphics into an ordinary path.
 - `DoctoredCore+Paths.swift` — `dr_*path*` / `dr_*vector_mask*` calls: `paths`, `withPaths`, the vector-mask edits, `RasterPathCore`, `maskEditBaseline`.
 - `ImageDocument+Paths.swift` — `applyPathEdit`, the Pen's two commits (`commitPenPath`, `commitPenVectorMask`) and `resolvedPath`.
-- `AgentServer+Paths.swift` / `AgentCatalog+Paths.swift` — the fourteen MCP tools: the path list, the clipping path, selection both ways, `fill_path`, `stroke_path`, vector masks.
+- `AgentServer+Paths.swift` / `AgentCatalog+Paths.swift` — fourteen MCP tools (the catalog also `combine_paths`): the path list, the clipping path, selection both ways, fill, stroke, vector masks.
+- `AgentServer+PathCombine.swift` — `combine_paths`, mirroring Paths panel ▸ Combine with Path… through the Paths tools' one list edit.
 - `PenSession.swift` / `ImageCanvasView+Pen.swift` / `EditorViewController+Pen.swift` — the Pen tool (P): gesture rules, canvas events and overlay, the commit.
-- `PathsPanelViewController.swift` / `EditorViewController+Paths.swift` / `PathSheets.swift` — the Paths panel (the sixth tab), its commands and three sheets.
+- `PathsPanelViewController.swift` / `EditorViewController+Paths.swift` / `PathSheets.swift` — the Paths panel (the sixth tab), its commands and four sheets.
+- `EditorViewController+PathCommands.swift` — Paths panel ▸ Convert to Shape Layer and Combine with Path…: the commands, their validation and the steps they record.
 - `EditorViewController+VectorMasks.swift` — Layer ▸ Vector Mask: Current Path, Reveal All, Delete, Enable and Link, each recording its MCP twin.
 - `AgentServer+StrictNumbers.swift` — `refuseNullOrBooleanNumbers`: the v1 handlers refuse JSON null or a boolean where they read a number, naming the key.
 - `LoadFilesIntoStack.swift` / `AppDelegate+LoadFilesIntoStack.swift` — File ▸ Load Files into Stack…: `StackLoad` (probe, plan, build), `makeStack`, `openStack`.

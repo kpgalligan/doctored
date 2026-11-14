@@ -84,7 +84,7 @@ func runArtworkTextCaptureProbe(directory: URL) throws -> [String: Any] {
             }
             if name == "color_runs" {
                 let inks = captured.parts.compactMap { part -> [Double]? in
-                    switch part { case let .path(_, rgba), let .coverage(_, rgba), let .fill(rgba, _): return rgba; case .intrinsic, .gradient, .pattern: return nil }
+                    switch part { case let .path(_, rgba, _), let .coverage(_, rgba), let .fill(rgba, _): return rgba; case .intrinsic, .gradient, .pattern: return nil }
                 }
                 guard inks.contains([0.76, 0.12, 0.31, 0.613]), inks.contains(rgba) else {
                     throw DoctoredCoreError(message: "Continuous attributed ink was rounded during capture")

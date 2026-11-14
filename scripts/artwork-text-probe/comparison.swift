@@ -57,7 +57,8 @@ func textCaptureRendered(_ drawing: NativeArtworkDrawing, pathsOnly: Bool = fals
             case .fill, .gradient, .pattern:
                 // Fill-layer parts; a text drawing never has one.
                 throw TextCaptureProbeError(message: "A text drawing holds a fill-layer part")
-            case let .path(path, rgba):
+            case let .path(path, rgba, _):
+                // A text drawing's paths fill by nonzero winding.
                 context.setFillColor(red: rgba[0], green: rgba[1], blue: rgba[2], alpha: rgba[3])
                 context.addPath(path); context.fillPath()
             case let .intrinsic(pixels, opacity):

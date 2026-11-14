@@ -96,14 +96,37 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   on another anchor deletes. With no current path the Pen creates or replaces the work path. Each gesture is
   one undo step. `dr_path_hit` takes a `handles` flag so a plain click reaches the segment under a handle tip.
 - **Paths panel**, the right panel's sixth tab: the active layer's vector mask (when it has one), the work
-  path and the saved paths; rename (which saves the work path), duplicate, delete, Clipping Path, Clipping
-  Path Flatness…, Make Selection…, Fill Path, Stroke Path, Make Work Path… and Add Vector Mask. Fill uses the foreground colour; Stroke uses the
+  path and the saved paths; rename (which saves the work path), duplicate, Combine with Path…, delete,
+  Clipping Path, Clipping Path Flatness…, Make Selection…, Fill Path, Stroke Path, Convert to Shape Layer, Make
+  Work Path… and Add Vector Mask. Fill uses the foreground colour; Stroke uses the
   Brush tool's stored options. Layer ▸ Vector Mask has Current Path, Reveal All, Delete, Enable and Link;
   Select ▸ Make Work Path… traces the selection.
-- **MCP** (fourteen tools): `list_paths`, `set_path`, `rename_path`, `duplicate_path`, `delete_path`,
-  `set_clipping_path`, `path_to_selection`, `selection_to_path`, `fill_path`, `stroke_path`, `get_vector_mask`, `set_vector_mask`,
+- **MCP** (fifteen tools): `list_paths`, `set_path`, `rename_path`, `duplicate_path`, `delete_path`,
+  `combine_paths`, `set_clipping_path`, `path_to_selection`, `selection_to_path`, `fill_path`, `stroke_path`,
+  `get_vector_mask`, `set_vector_mask`,
   `set_vector_mask_properties`, `remove_vector_mask`. An operation tool takes `path` (a name) or explicit
   `subpaths` + `fill_rule`. `get_document` reports a `paths` count and a per-layer `vector_mask` flag.
+- **Path shape layers** (2026-11-14, `ShapeOutline.swift`). A shape layer's fourth kind, `path`, is a path's
+  outline: payload version 7 (any ink; the box kinds keep 1–6 byte for byte) holds it in the box's local space
+  as compact `[x, y, inX, inY, outX, outY, smooth]` anchors, and its box is the outline's tight box with the
+  origin moved down to a whole pixel (the fractions stay in the outline, so an untransformed placement does
+  not move it), every coordinate first quantized as the path model quantizes. The fill takes the path's own
+  rule (`dr_artwork_path_coverage`'s `even_odd`); a stroke's outline always fills by winding, an even-odd
+  region normalized first for an inside or outside stroke. Its source rect is computed from the payload's
+  numbers alone — the box grown by the stroke's reach plus each miter tip within the limit, then 2 px — so the
+  anchor recovery never depends on a stroker. A re-box scales the outline with the box along each axis the
+  drawn outline spans; along one a straight path does not span, the box (0, or the fraction past its
+  whole-pixel origin) keeps its size under every handle and `edit_shape_layer` refuses another. Paths panel ▸ Convert
+  to Shape Layer (the shape options bar's style, the current path or vector mask) and `add_shape_layer` with
+  kind `path` (`subpaths` + `fill_rule`, or `path`; the box arguments refused) make one; the recorded step
+  carries the outline in canvas pixels and is absolute-only.
+- **A path operation produces a path** (2026-11-14, `PathCombine.swift`). Paths panel ▸ Combine with Path…
+  and `combine_paths` replace a path with its fill region united with, less, intersected with or excluding
+  another's, through CoreGraphics' geometric booleans: shared edges stay exact and a curve's result stays
+  within 0.1 px of its inputs (0.075 px measured). Each operand is its region under its own rule, an open
+  subpath closed straight; the result is closed, nonzero, corner anchors with the curves' handles, a segment
+  returning to its start merged into it. An empty result refuses. Nothing new is stored, so it fills, strokes,
+  selects and becomes a shape layer like any path.
 - **Actions.** Every UI entry records the tool step it is: the Pen records the whole shape (`set_path`, or
   `set_vector_mask` when it edits a mask), the panel and the menus record their tool with the path's NAME,
   and layer arguments are `{"$layer": "active"}`. An action that names a path therefore needs that path in
@@ -111,10 +134,20 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
 
 ## Not in v1
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Type on a path.
-- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Convert Path to Shape layer (shape layers
-  hold only rectangle, ellipse and line geometry).
+- `DONE` (2026-11-14) — Convert Path to Shape layer (Decisions, "Path shape layers";
+  `scripts/verify_path_shape_layers.py`).
+- `DONE` (2026-11-14) — path boolean operations on two paths of the list (Decisions, "A path operation
+  produces a path"; `scripts/verify_path_combine.py`).
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Path Selection and Direct Selection as
-  separate tools; path boolean operations; per-path fill and stroke dialogs.
+  separate tools (about 25 compiler-flagged switch sites, one session struct and a subpath-fill hit export in
+  the core), booleans on the selected subpaths against the rest, and per-path fill and stroke dialogs.
+- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — a path shape's outline as an editing target
+  (Direct Selection on the layer, re-rendering per gesture) and read back over MCP without an edit; until then
+  an outline is replaced by deleting the layer and adding it again.
+- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — per-subpath operations held on the path (and
+  with them a subtracting `vmsk` carried instead of baked): a model change, a DRDC word, three coverage callers
+  and the PSD and TIFF codecs, with a quarter-pixel seam wherever two subpaths share an edge (measured: 0.25 of
+  full coverage at every pixel of a shared 25 px edge) and no stroke.
 - `DONE` — paths in PSD, PSB and layered TIFF, both directions, every depth and mode (`psd_paths`,
   `psd_path_records`: Adobe's 26-byte records, saved paths by name, the work path, entry-by-entry import); at RGB
   8/16 a `vmsk` with no raster mask beside it imports as the layer's vector mask (a shape layer as its fill
@@ -176,7 +209,10 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
 - App: `python3 scripts/verify_v1_paths.py` drives the Debug app over MCP: the list and undo, selections
   both ways, fill and stroke at 8 and 16 bits, `stroke_path`'s refusals, vector masks at 8, 16 and 32 bits,
   `.rz` save and reopen, and recorded Actions replayed, including the steps the Pen, the panel and the menus
-  record.
+  record. `scripts/verify_path_shape_layers.py` (path shapes reopened and re-rendered in RGB 8/16/32, Gray,
+  Lab and CMYK; the fill against `fill_path`) and `scripts/verify_path_combine.py` (exact and Green's-theorem
+  areas, the per-pixel algebra); the panel commands in `scripts/jobs-probe` ("convert path to shape",
+  "combine paths").
 - Memory: `core/examples/path_admission.rs` measures the charges of `dr_path_coverage`, `dr_path_trace` and
   the 16-bit vector-mask bake (with and without a feathered raster mask) at 24 MP near their caps (Release,
   one case per process, `MallocLargeCache=0`); each charge is at least 2.2 × the call's measured peak.

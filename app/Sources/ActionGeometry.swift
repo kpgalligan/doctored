@@ -332,7 +332,10 @@ enum ActionGeometry {
                 + "its instance ids and whole-image form address the picture, not the canvas — "
                 + "so put the geometry mode on a step that carries coordinates"
         }
-        if unqualified.contains(tool) {
+        // A path shape's outline is a path's anchors and handles, which the
+        // path tools above do not remap either.
+        if unqualified.contains(tool)
+            || (tool == "add_shape_layer" && ["subpaths", "path"].contains { arguments[$0] != nil }) {
             return "\"\(tool)\" supports absolute geometry only; relative and anchor "
                 + "remapping of its canvas coordinates is not qualified."
         }

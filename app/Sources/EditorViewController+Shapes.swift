@@ -24,7 +24,7 @@ extension EditorViewController {
     /// bar's style and add the layer above the active one — the same
     /// addingDescribedLayer op a text commit uses.
     func commitShapeLayer(box: CGRect, flipped: Bool) {
-        guard let document = document, let doc = document.doc else { return }
+        guard let doc = document?.doc else { return }
         let kind: String
         switch currentTool {
         case .shapeEllipse: kind = "ellipse"
@@ -43,13 +43,21 @@ extension EditorViewController {
             ink: doc.authoringInk,
             strokeJoin: options.strokeJoin, strokeDash: options.strokeDash,
             strokeAlign: options.strokeAlign)
+        // The box's top-left lands on whole pixels (a new shape is never
+        // transformed) — the placement rule every interactive commit follows.
+        commitNewShapeLayer(
+            payload, anchor: DescribedLayer.placementAnchor(box.origin, transform: .identity))
+    }
+
+    /// Adds `payload` as a new shape layer above the active one with its box's top-left at
+    /// `anchor`, as one undo step that records `add_shape_layer`, and selects it: the shape tools'
+    /// commit and Paths panel ▸ Convert to Shape Layer's (EditorViewController+PathCommands.swift).
+    func commitNewShapeLayer(_ payload: ShapeLayerPayload, anchor: CGPoint) {
+        guard let document = document, let doc = document.doc else { return }
         let name = ShapeLayer.layerName(for: payload)
         // A CMYK document records and renders the shape in ink (#1): the picked fill and
         // stroke inks and the swatches' stored ones are kept exactly.
         guard let committed = inkedShape(payload, in: doc, replacing: nil) else { return }
-        // The box's top-left lands on whole pixels (a new shape is never
-        // transformed) — the placement rule every interactive commit follows.
-        let anchor = DescribedLayer.placementAnchor(box.origin, transform: .identity)
 
         let below = document.activeLayerIndex
         let before = document.doc
@@ -166,12 +174,15 @@ extension EditorViewController {
         // session keeps it EXACT: a transformed shape's anchor is
         // fractional, and rounding it here would shift the reopened quad
         // off the layer's pixels and register a phantom edit on commit.
+        let size = CGSize(width: CGFloat(payload.w), height: CGFloat(payload.h))
         shapeEditSession = ShapeEditSession(
             layer: idx, kind: payload.kind,
             anchor: anchor, openedAnchor: anchor,
-            size: CGSize(width: CGFloat(payload.w), height: CGFloat(payload.h)),
+            size: size,
             transform: payload.transform,
-            flipped: payload.flipped)
+            flipped: payload.flipped,
+            outline: payload.path, openedSize: size,
+            outlineAxes: payload.path?.scalingAxes(in: size) ?? (true, true))
         // Hide the layer's raster under the session, or the old shape
         // ghosts behind every adjustment — the text session's rule. An
         // already-hidden layer has nothing to hide (nil is correct).
@@ -195,7 +206,8 @@ extension EditorViewController {
         }
         canvas.shapeEditOverlay = ShapeToolPreview(
             kind: Self.shapeTool(for: session.kind), box: session.localBox,
-            placement: session.placement, flipped: session.flipped, style: canvas.shapeStyle)
+            placement: session.placement, flipped: session.flipped, style: canvas.shapeStyle,
+            outline: session.scaledOutline)
     }
 
     // MARK: - Re-edit gesture
@@ -305,19 +317,21 @@ extension EditorViewController {
                 CGPoint(x: point.x - start.anchor.x, y: point.y - start.anchor.y))
             var box = CropSession.resizing(
                 CGRect(origin: .zero, size: start.size), handle: index, to: local, ratio: nil)
-            // A degenerate axis is legitimate for a line: resizing's 1 px
-            // floor would bend an axis-aligned line, so restore the axis
-            // an edge-handle drag never moved (in local space, where the
-            // axis is still an axis).
-            if session.kind == "line" {
-                if start.size.height == 0, index == 5 || index == 7 {
-                    box.origin.y = 0
-                    box.size.height = 0
-                }
-                if start.size.width == 0, index == 4 || index == 6 {
-                    box.origin.x = 0
-                    box.size.width = 0
-                }
+            // An edge handle drags one axis, yet resizing floors the other
+            // to 1 px: a box under that on the axis the handle leaves alone
+            // (an axis-aligned line's 0, a path shape's sliver) keeps its
+            // size there, in local space where the axis is still an axis.
+            // An axis a path shape's outline does not span (a straight
+            // path, whose box there is 0 or the fraction past its
+            // whole-pixel origin) has nothing to scale, so it keeps its
+            // size under every handle (`ShapeOutline.scalingAxes`).
+            if index == 4 || index == 6 || !session.outlineAxes.x {
+                box.origin.x = 0
+                box.size.width = start.size.width
+            }
+            if index == 5 || index == 7 || !session.outlineAxes.y {
+                box.origin.y = 0
+                box.size.height = start.size.height
             }
             // Renormalize: the local box's origin moved when a top/left
             // handle was dragged (or a drag crossed the opposite edge), so
@@ -382,7 +396,8 @@ extension EditorViewController {
             radius: Double(style.radius),
             transform: transform,
             ink: doc.authoringInk,
-            strokeJoin: style.join, strokeDash: style.dash, strokeAlign: style.align)
+            strokeJoin: style.join, strokeDash: style.dash, strokeAlign: style.align,
+            path: session.scaledOutline)
         // The layer's own EXACT anchor unless a drag moved it — a restyle
         // from the bar must not nudge the shape by the half pixel the
         // whole-pixel rule would round a fraction left by a Free Transform

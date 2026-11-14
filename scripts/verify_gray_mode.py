@@ -719,6 +719,8 @@ GRAY_TOOLS = sorted([
     'duplicate_path', 'delete_path', 'selection_to_path', 'path_to_selection', 'fill_path',
     'stroke_path', 'get_vector_mask', 'set_vector_mask', 'set_vector_mask_properties',
     'remove_vector_mask', 'set_clipping_path',
+    # Paths panel ▸ Combine with Path….
+    'combine_paths',
     # Replace Missing Fonts (designs/replace-missing-fonts.md).
     'list_missing_fonts', 'replace_missing_fonts',
     # Phase 6a-ii.
@@ -741,6 +743,8 @@ GRAY_TOOLS = sorted([
     'list_lens_profiles', 'modify_scalar', 'save_proof_preset', 'separate_color', 'export_layers',
     'export_pdf', 'contact_sheet', 'contact_sheet_from_sources', 'get_tone_map', 'set_tone_map',
     'place_image', 'add_live_photo_layer',
+    # Edit ▸ Define Pattern… (the gray code at 8 bits).
+    'define_pattern',
     # #1 spot channels (18b81bc6).
     'add_spot_channel', 'set_spot_channel', 'merge_spot_channel', 'set_channel_kind'])
 GRAY_MODES = ['Normal', 'Dissolve', 'Darken', 'Multiply', 'Color Burn', 'Linear Burn', 'Lighten',

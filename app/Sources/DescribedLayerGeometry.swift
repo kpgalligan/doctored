@@ -265,8 +265,9 @@ private extension LayerDescription {
     /// commits, because the core's exact ops keep its offset consistent
     /// with the real face's rule. Only such a layout's ORIGIN is
     /// font-independent (and only under the identity), which is all the
-    /// anchor recovery needs. A shape's rect is exact, so it is always
-    /// trustworthy.
+    /// anchor recovery needs. A shape's rect is exact — a path shape's is
+    /// computed from its payload's numbers alone, never by a stroker
+    /// (`ShapeOutline.sourceRect`) — so it is always trustworthy.
     var hasTrustworthyRect: Bool {
         if case .text = self { return isRenderable }
         return true

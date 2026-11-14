@@ -439,7 +439,7 @@ INDEXED_TOOLS = {
     'set_color_samplers', 'detect_horizon', 'straighten_layers', 'list_paths', 'set_path',
     'rename_path', 'duplicate_path', 'delete_path', 'path_to_selection', 'selection_to_path',
     'fill_path', 'stroke_path', 'set_clipping_path', 'list_lens_profiles', 'separate_color',
-    'export_psd', 'inspect_psd_export',
+    'export_psd', 'inspect_psd_export', 'combine_paths', 'define_pattern',
 }
 DISABLED_ALL = {
     'new_layer', 'group_layers', 'ungroup_layers', 'merge_down', 'merge_visible',

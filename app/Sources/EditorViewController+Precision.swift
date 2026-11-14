@@ -311,7 +311,7 @@ extension EditorViewController {
                 "equalize:",
                 "makeSelectionFromPath:", "fillCurrentPath:", "makeWorkPath:",
                 "duplicateCurrentPath:", "deleteCurrentPath:", "toggleClippingPath:",
-                "editClippingPathFlatness:",
+                "editClippingPathFlatness:", "combinePaths:", "convertPathToShape:",
                 "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
                 "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
                 // Phase 12E-2b: a transparent canvas-sized leaf is the ONE
@@ -588,6 +588,7 @@ extension EditorViewController {
         // Layer ▸ Vector Mask, over the typed path and vector-mask ops.
         "makeSelectionFromPath:", "fillCurrentPath:", "strokeCurrentPath:", "makeWorkPath:",
         "duplicateCurrentPath:", "deleteCurrentPath:", "toggleClippingPath:",
+        "combinePaths:", "convertPathToShape:",
         "editClippingPathFlatness:", "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
         "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
         // Phase 12E-2b: Layer ▸ New Layer, through the core's typed

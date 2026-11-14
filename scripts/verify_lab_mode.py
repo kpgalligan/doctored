@@ -1067,6 +1067,8 @@ LAB_TOOLS = [
     'duplicate_path', 'delete_path', 'selection_to_path', 'path_to_selection', 'fill_path',
     'stroke_path', 'get_vector_mask', 'set_vector_mask', 'set_vector_mask_properties',
     'remove_vector_mask', 'set_clipping_path',
+    # Paths panel ▸ Combine with Path….
+    'combine_paths',
     # Replace Missing Fonts (designs/replace-missing-fonts.md).
     'list_missing_fonts', 'replace_missing_fonts',
     # Phase 6b-i.

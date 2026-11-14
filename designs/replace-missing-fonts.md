@@ -1,6 +1,6 @@
 # Replace a text layer's missing font family (ADR)
 
-- **Status:** Accepted — shipped 2026-11-12, the first item of [#19](https://github.com/kpgalligan/doctored/issues/19) (type on a path, Warp Text, Convert Path to Shape and the path tools stay open there).
+- **Status:** Accepted — shipped 2026-11-12, the first item of [#19](https://github.com/kpgalligan/doctored/issues/19) (type on a path, Warp Text and the path tools stay open there; Convert Path to Shape and two-path booleans shipped 2026-11-14, [v1-paths.md](v1-paths.md)).
 - **Code:** `app/Sources/MissingFonts.swift` (the ops), `ReplaceFontsSheetController.swift` and `EditorViewController+ReplaceFonts.swift` (Layer ▸ Replace Missing Fonts…), `AgentServer+MissingFonts.swift` and `AgentCatalog+MissingFonts.swift` (MCP).
 - **Proof:** `scripts/verify_replace_missing_fonts.py`, on an owned Debug instance in RGB 8, 16 and 32 bits, Grayscale, Lab and CMYK.
 

@@ -1,6 +1,6 @@
 import AppKit
 
-// The Paths panel's three dialogs. Each only CHOOSES: its commit closure is handed the values
+// The Paths panel's four dialogs. Each only CHOOSES: its commit closure is handed the values
 // and the editor runs the MCP step they describe (`EditorViewController+Paths.swift`), so the
 // sheet, the recorded Action and an agent's call are one path.
 
@@ -250,6 +250,73 @@ final class ClippingFlatnessSheetController: NSViewController {
         }
         dismiss(self)
         onCommit(value)
+    }
+
+    @objc private func cancelClicked(_ sender: Any?) {
+        dismiss(self)
+    }
+}
+
+/// Paths panel ▸ Combine with Path…: the other path and what to do with it. `combine_paths`'s
+/// `with` and `operation`; the current path is its `path`.
+final class PathCombineSheetController: NSViewController {
+    private let path: String
+    private let others: [String]
+    private let onCommit: (_ with: String, _ operation: PathCombineOperation) -> Void
+    private let pathPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let operationPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+
+    /// `path` is the current path's name, `others` every other path's, in the list's order.
+    init(path: String, others: [String],
+         onCommit: @escaping (_ with: String, _ operation: PathCombineOperation) -> Void) {
+        self.path = path
+        self.others = others
+        self.onCommit = onCommit
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("PathCombineSheetController does not support NSCoder")
+    }
+
+    override func loadView() {
+        pathPopup.addItems(withTitles: others)
+        pathPopup.selectItem(at: 0)
+        pathPopup.font = DS.sans(13)
+        operationPopup.addItems(withTitles: PathCombineOperation.allCases.map(\.title))
+        operationPopup.selectItem(at: 0)
+        operationPopup.font = DS.sans(13)
+
+        let grid = NSGridView(views: [
+            [fieldLabel("With:"), pathPopup],
+            [fieldLabel("Operation:"), operationPopup],
+        ])
+        grid.rowSpacing = 10
+        grid.columnSpacing = 12
+        grid.column(at: 0).xPlacement = .trailing
+        grid.column(at: 0).width = 106
+
+        let cancelButton = sheetCancelButton(target: self, action: #selector(cancelClicked(_:)))
+        let applyButton = sheetApplyButton(target: self, action: #selector(applyClicked(_:)))
+        view = makeSheetView(
+            title: "Combine paths",
+            hint: "Replaces “\(path)” with its fill combined with the other path's. The other "
+                + "path is unchanged; the result's subpaths are closed.",
+            content: grid,
+            buttonRow: makeButtonRow(cancel: cancelButton, apply: applyButton))
+    }
+
+    @objc private func applyClicked(_ sender: Any?) {
+        let index = pathPopup.indexOfSelectedItem
+        guard others.indices.contains(index) else {
+            NSSound.beep()
+            return
+        }
+        let operations = PathCombineOperation.allCases
+        let operation = operations[min(max(operationPopup.indexOfSelectedItem, 0), operations.count - 1)]
+        dismiss(self)
+        onCommit(others[index], operation)
     }
 
     @objc private func cancelClicked(_ sender: Any?) {

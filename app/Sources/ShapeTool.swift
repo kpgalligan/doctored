@@ -93,6 +93,9 @@ struct ShapeToolPreview {
     /// Line only: true when it runs bottom-left → top-right.
     let flipped: Bool
     let style: ShapeToolStyle
+    /// A path shape's outline in `box`'s space, already scaled to it (a reopened path shape's
+    /// session, `ShapeEditSession.scaledOutline`); nil for the box kinds.
+    var outline: ShapeOutline?
 
     /// Geometry from a drag: Shift constrains rect/ellipse to a square and
     /// a line to the nearer of horizontal / vertical / 45°.
@@ -192,14 +195,15 @@ struct ShapeToolPreview {
     }
 
     /// Direct geometry (no drag): the shape-edit session's overlay — the
-    /// LOCAL box under the session's placement.
+    /// LOCAL box under the session's placement, and a path shape's outline.
     init(kind: EditorTool, box: CGRect, placement: CGAffineTransform, flipped: Bool,
-         style: ShapeToolStyle) {
+         style: ShapeToolStyle, outline: ShapeOutline? = nil) {
         self.kind = kind
         self.box = box
         self.placement = placement
         self.flipped = kind == .shapeLine ? flipped : false
         self.style = style
+        self.outline = outline
     }
 
     /// The payload a commit of this preview renders from, colours aside: the
@@ -220,10 +224,25 @@ struct ShapeToolPreview {
             name = "rect"
         }
         return ShapeLayerPayload(
-            kind: name, w: Double(box.width), h: Double(box.height), flipped: flipped,
+            kind: outline == nil ? name : "path", w: Double(box.width), h: Double(box.height),
+            flipped: flipped,
             fill: nil, stroke: .black, strokeWidth: Double(style.strokeWidth),
             radius: Double(style.radius),
-            strokeJoin: style.join, strokeDash: style.dash, strokeAlign: style.align)
+            strokeJoin: style.join, strokeDash: style.dash, strokeAlign: style.align,
+            path: outline)
+    }
+
+    /// A path shape's outline as the preview fills and strokes it, in `box`'s space (moved to the
+    /// box's corner) with its own fill rule and butt ends, as the commit renders it; nil for the
+    /// box kinds.
+    func outlinePath() -> NSBezierPath? {
+        guard let outline else { return nil }
+        var shift = CGAffineTransform(translationX: box.minX, y: box.minY)
+        let local = outline.cgPath()
+        let path = NSBezierPath(cgPath: local.copy(using: &shift) ?? local)
+        path.windingRule = outline.evenOdd ? .evenOdd : .nonZero
+        path.lineCapStyle = .butt
+        return path
     }
 
     /// The stroke's filled outline in `box`'s space when a style is off its
@@ -291,10 +310,24 @@ struct ShapeEditSession {
     /// True once the box or the style changed; an untouched session
     /// commits nothing (no phantom undo step).
     var dirty = false
+    /// A path shape's outline as the session opened it, and the box size it
+    /// was opened at; nil for the box kinds. A re-box scales it with the box.
+    var outline: ShapeOutline? = nil
+    var openedSize: CGSize = .zero
+    /// The axes a re-box scales the outline along
+    /// (`ShapeOutline.scalingAxes(in: openedSize)`), taken once at open; a
+    /// handle drag keeps the size of any other. Both for the box kinds.
+    var outlineAxes: (x: Bool, y: Bool) = (true, true)
 
     /// The local box: the origin is the anchor by construction.
     var localBox: CGRect {
         CGRect(origin: .zero, size: size)
+    }
+
+    /// The outline scaled to the current box (`ShapeOutline.reboxed`, the rule
+    /// `edit_shape_layer` applies too).
+    var scaledOutline: ShapeOutline? {
+        outline?.reboxed(from: openedSize, to: size, axes: outlineAxes)
     }
 
     /// Local space → canvas: the map with the anchor as its translation —
@@ -328,6 +361,33 @@ extension ImageCanvasView {
         context.concatenate(preview.placement)
 
         let path: NSBezierPath
+        if let outline = preview.outlinePath() {
+            path = outline
+        } else {
+            path = Self.boxPreviewPath(preview)
+        }
+        if preview.kind != .shapeLine, let fill = preview.style.fill {
+            fill.setFill()
+            path.fill()
+        }
+        if let stroke = preview.style.stroke, preview.style.strokeWidth > 0,
+           let outline = preview.styledStrokeOutline() {
+            // A styled stroke previews as the outline the commit fills.
+            context.setFillColor(stroke.cgColor)
+            context.addPath(outline)
+            context.fillPath()
+        } else if let stroke = preview.style.stroke, preview.style.strokeWidth > 0 {
+            path.lineWidth = preview.style.strokeWidth
+            // A path shape's ends are butt, as its commit strokes them.
+            if preview.outline == nil { path.lineCapStyle = .round }
+            stroke.setStroke()
+            path.stroke()
+        }
+    }
+
+    /// A box kind's preview path: the ellipse, the line across the box, or the rounded rect.
+    private static func boxPreviewPath(_ preview: ShapeToolPreview) -> NSBezierPath {
+        let path: NSBezierPath
         switch preview.kind {
         case .shapeEllipse:
             path = NSBezierPath(ovalIn: preview.box)
@@ -345,22 +405,7 @@ extension ImageCanvasView {
             let radius = min(preview.style.radius, min(preview.box.width, preview.box.height) / 2)
             path = NSBezierPath(roundedRect: preview.box, xRadius: radius, yRadius: radius)
         }
-        if preview.kind != .shapeLine, let fill = preview.style.fill {
-            fill.setFill()
-            path.fill()
-        }
-        if let stroke = preview.style.stroke, preview.style.strokeWidth > 0,
-           let outline = preview.styledStrokeOutline() {
-            // A styled stroke previews as the outline the commit fills.
-            context.setFillColor(stroke.cgColor)
-            context.addPath(outline)
-            context.fillPath()
-        } else if let stroke = preview.style.stroke, preview.style.strokeWidth > 0 {
-            path.lineWidth = preview.style.strokeWidth
-            path.lineCapStyle = .round
-            stroke.setStroke()
-            path.stroke()
-        }
+        return path
     }
 
     /// A reopened shape's editing chrome: the live preview plus a hairline

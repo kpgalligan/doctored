@@ -147,6 +147,7 @@ struct AgentPathGuard {
         "set_path": ["path"], "rename_path": ["path"], "duplicate_path": ["path"],
         "delete_path": ["path"], "path_to_selection": ["path"], "fill_path": ["path"],
         "stroke_path": ["path"], "set_vector_mask": ["path"], "set_clipping_path": ["path"],
+        "add_shape_layer": ["path"], "combine_paths": ["path"],
     ]
 
     /// The argument names `catalogFailure` treats as naming a file.

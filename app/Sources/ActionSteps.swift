@@ -1069,9 +1069,18 @@ extension Array where Element == ActionStep {
 
     /// The Shape tool's commit, from the payload the layer renders from.
     /// `anchor` is the shape box's top-left in canvas pixels.
+    /// A path shape (Paths panel ▸ Convert to Shape Layer) records its outline
+    /// as `subpaths` in canvas pixels with its `fill_rule`, and none of the box
+    /// arguments `add_shape_layer` refuses for it: the outline places itself.
     static func addShapeLayer(_ payload: ShapeLayerPayload, at anchor: CGPoint) -> [ActionStep] {
         var arguments = shapeArguments(payload)
         arguments["kind"] = payload.kind
+        if payload.kind == "path", let outline = payload.path {
+            for key in ["w", "h", "flipped", "radius"] { arguments.removeValue(forKey: key) }
+            arguments["subpaths"] = outline.shape(origin: anchor).subpathsJSON
+            arguments["fill_rule"] = outline.fillRule
+            return step("add_shape_layer", arguments, note: "Paths panel ▸ Convert to Shape Layer")
+        }
         arguments["x"] = Double(anchor.x)
         arguments["y"] = Double(anchor.y)
         return step("add_shape_layer", arguments, note: "Shape tool: new shape layer")

@@ -310,9 +310,13 @@ The design record behind each area is in the repository's
   and Perspective Crop, edit without redrawing the picture, work at 8, 16 and
   32 bits and are saved in `.doctored` (a flat save other than a TIFF names
   them among its losses). The Paths panel's **Clipping Path** makes
-  one saved path the document's clipping path.
-  Fourteen MCP tools mirror them (`list_paths`, `set_path`, `rename_path`,
-  `duplicate_path`, `delete_path`, `set_clipping_path`, `path_to_selection`,
+  one saved path the document's clipping path. **Combine with Path…** replaces
+  a path with its fill united with, less, intersected with or excluding
+  another path's, as an ordinary path, and **Convert to Shape Layer** makes
+  the current path a re-editable shape layer styled from the shape options bar
+  (`add_shape_layer` kind `path`).
+  Fifteen MCP tools mirror them (`list_paths`, `set_path`, `rename_path`,
+  `duplicate_path`, `delete_path`, `combine_paths`, `set_clipping_path`, `path_to_selection`,
   `selection_to_path`, `fill_path`, `stroke_path`, `get_vector_mask`,
   `set_vector_mask`, `set_vector_mask_properties`, `remove_vector_mask`) and
   Actions record them.
@@ -321,8 +325,8 @@ The design record behind each area is in the repository's
   at every depth; a
   layered file in every mode carries a vector mask with no raster mask beside
   it as its path; every other export writes the baked mask. Not built:
-  the Curvature, Freeform and Magnetic pens, type on a path, path boolean
-  operations and Convert Path to Shape
+  the Curvature, Freeform and Magnetic pens, type on a path, and the Path
+  Selection and Direct Selection tools
   ([record](https://github.com/kpgalligan/doctored/blob/main/designs/v1-paths.md))
 - **Fill layers** (Layer > New Fill Layer ▸ Solid Color… / Gradient… /
   Pattern…): a re-editable layer that is one colour, one gradient or one

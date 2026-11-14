@@ -28,7 +28,9 @@ import AppKit
 /// Paths use output coordinates, row zero at the top. Intrinsic samples are
 /// straight RGBA8 sRGB; authored opacity is applied continuously in the core.
 enum NativeArtworkPart {
-    case path(CGPath, rgba: [Double])
+    /// `evenOdd`: the path fills by the even-odd rule (a path shape's own,
+    /// ShapeOutline.swift); every other part fills by nonzero winding.
+    case path(CGPath, rgba: [Double], evenOdd: Bool = false)
     case intrinsic(pixels: [UInt8], opacity: Double)
     case coverage(pixels: [UInt8], rgba: [Double])
     /// A fill layer's one colour over the whole drawing. No plane.

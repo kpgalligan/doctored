@@ -111,7 +111,8 @@ enum IndexedDocument {
         "list_layer_comps", "get_view", "set_view", "save_workspace", "restore_workspace",
         "open_second_view", "close_second_view", "list_views", "get_color_samplers",
         "set_color_samplers", "detect_horizon", "straighten_layers", "list_paths", "set_path",
-        "rename_path", "duplicate_path", "delete_path", "path_to_selection", "selection_to_path",
+        "rename_path", "duplicate_path", "combine_paths", "delete_path", "path_to_selection",
+        "selection_to_path",
         "fill_path", "stroke_path", "set_clipping_path", "list_lens_profiles", "separate_color",
         // #1 Indexed Color PSD: File ▸ Export as PSD… writes a colour-mode-2 PSD or PSB.
         "export_psd", "inspect_psd_export",
@@ -154,7 +155,7 @@ enum IndexedDocument {
         // samplers, a second view and the proof.
         "newChannel:", "deleteChannel:", "duplicateChannel:", "channelOptions:", "invertChannel:",
         "loadChannelAsSelection:", "showFileInfo:", "showSnapshots:", "makeWorkPath:",
-        "makeSelectionFromPath:", "deleteCurrentPath:", "duplicateCurrentPath:",
+        "makeSelectionFromPath:", "deleteCurrentPath:", "duplicateCurrentPath:", "combinePaths:",
         "fillCurrentPath:", "strokeCurrentPath:", "toggleClippingPath:",
         "editClippingPathFlatness:", "toggleColorSamplers:", "clearColorSamplers:",
         "newView:", "showProofSetup:", "toggleProofColors:", "applyWorkingProof:",

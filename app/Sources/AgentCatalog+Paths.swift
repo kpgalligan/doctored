@@ -4,8 +4,8 @@ import Foundation
 /// `AgentServer+Paths.swift`), in their own file behind an explicit
 /// non-inlining boundary for the reason `AgentCatalog.swift`'s header gives.
 extension AgentServer {
-    @inline(never) func pathsCatalog() -> [[String: Any]] {
-        let doc = Self.docIDProperty
+    /// The `subpaths` argument's schema, shared with `add_shape_layer`'s path kind.
+    static var pathSubpathsProperty: [String: Any] {
         // No `type`: an anchor is a pair OR an object, and no other schema in
         // the catalog uses a union keyword, so the description carries it.
         let anchor: [String: Any] = [
@@ -15,7 +15,7 @@ extension AgentServer {
                 + "leaving, default the point), smooth (boolean, an editing hint, default "
                 + "false). Handles are absolute canvas coordinates, not offsets.",
         ]
-        let subpaths: [String: Any] = [
+        return [
             "type": "array",
             "description": "The shape, in absolute canvas pixels (y down from the top-left; it "
                 + "may lie outside the canvas): [{closed, anchors}, …]. The segment from one "
@@ -32,12 +32,20 @@ extension AgentServer {
                 "required": ["anchors"],
             ] as [String: Any],
         ]
-        let fillRule: [String: Any] = [
-            "type": "string", "enum": ["nonzero", "evenodd"],
-            "description": "With subpaths: how overlapping subpaths fill. nonzero (default) "
-                + "fills everything a subpath winds around; evenodd makes a subpath inside "
-                + "another a hole.",
-        ]
+    }
+
+    /// The `fill_rule` argument's schema, shared with `add_shape_layer`'s path kind.
+    static let pathFillRuleProperty: [String: Any] = [
+        "type": "string", "enum": ["nonzero", "evenodd"],
+        "description": "With subpaths: how overlapping subpaths fill. nonzero (default) "
+            + "fills everything a subpath winds around; evenodd makes a subpath inside "
+            + "another a hole.",
+    ]
+
+    @inline(never) func pathsCatalog() -> [[String: Any]] {
+        let doc = Self.docIDProperty
+        let subpaths = Self.pathSubpathsProperty
+        let fillRule = Self.pathFillRuleProperty
         let path: [String: Any] = [
             "type": "string",
             "description": "A stored path by name: a saved path's name, or \"Work Path\" for "
@@ -114,6 +122,30 @@ extension AgentServer {
                 "delete_path",
                 "Deletes a path. ONE undo step. Paths panel ▸ Delete Path.",
                 ["path": path, "document_id": doc], required: ["path"]),
+            tool(
+                "combine_paths",
+                "Replaces path with its fill region combined with another path's: unite (what "
+                    + "either fills), subtract (path less with), intersect (what both fill) or "
+                    + "exclude (what exactly one fills). Each is its fill region under its own "
+                    + "fill_rule, an open subpath closed by a straight line. The result is an "
+                    + "ordinary path — closed subpaths, fill_rule nonzero, corner anchors whose "
+                    + "handles keep the curves — that keeps path's name and clipping-path "
+                    + "designation; with is unchanged. Geometric, so shared edges stay exact; a "
+                    + "curve's result stays within about a tenth of a pixel of its inputs. An empty "
+                    + "result refuses; a result equal to the path answers changed:false. ONE undo "
+                    + "step. Paths panel ▸ Combine with Path….",
+                [
+                    "path": path,
+                    "with": [
+                        "type": "string",
+                        "description": "The other path, by name (list_paths); not path itself.",
+                    ],
+                    "operation": [
+                        "type": "string", "enum": PathCombineOperation.allCases.map(\.rawValue),
+                        "description": "unite, subtract, intersect or exclude.",
+                    ],
+                    "document_id": doc,
+                ], required: ["path", "with", "operation"]),
             tool(
                 "set_clipping_path",
                 "Makes a saved path the document's CLIPPING PATH — the one path a PSD, PSB or "

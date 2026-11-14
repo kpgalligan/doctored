@@ -195,7 +195,12 @@ extension AgentServer {
                     + "and antialiasing), through transform when one is given. rect and ellipse "
                     + "take fill and/or stroke — pass at least one; a line is stroke-only "
                     + "and runs across the box's diagonal, top-left to bottom-right, or "
-                    + "bottom-left to top-right with flipped: true. Returns the new layer's "
+                    + "bottom-left to top-right with flipped: true. kind path is a Pen path's "
+                    + "outline as a shape (Paths panel ▸ Convert to Shape Layer): pass subpaths "
+                    + "(with an optional fill_rule) in canvas px, or path, a stored path's name — "
+                    + "one of the two — and no x, y, w, h, radius or flipped: the box is the "
+                    + "outline's own, and the reply's shape carries the outline relative to its "
+                    + "origin. Returns the new layer's "
                     + "index and name. NOTE: painting on the layer afterwards drops the "
                     + "shape description and leaves plain pixels. "
                     + floatInk + " "
@@ -204,11 +209,19 @@ extension AgentServer {
                     "kind": [
                         "type": "string",
                         "enum": ShapeLayerPayload.kinds,
-                        "description": "What to draw: rect, ellipse, or line.",
+                        "description": "What to draw: rect, ellipse, line, or path.",
+                    ],
+                    "subpaths": Self.pathSubpathsProperty,
+                    "fill_rule": Self.pathFillRuleProperty,
+                    "path": [
+                        "type": "string",
+                        "description": "kind path: a stored path by name (list_paths), in place "
+                            + "of subpaths.",
                     ],
                     "x": [
                         "type": "number",
-                        "description": "Shape box top-left x, canvas px.",
+                        "description": "Shape box top-left x, canvas px. Required, except for "
+                            + "kind path, which refuses it (as y, w and h).",
                     ],
                     "y": [
                         "type": "number",
@@ -261,15 +274,19 @@ extension AgentServer {
                     "document_id": docID,
                 ].merging(Self.shapeStrokeStyleProperties("default")) { current, _ in current }
                     .merging(LayerInsertPosition.catalogProperties) { current, _ in current },
-                required: ["kind", "x", "y", "w", "h"]),
+                required: ["kind"]),
             tool(
                 "edit_shape_layer",
                 "Changes an existing SHAPE layer's description and re-renders its pixels "
                     + "— the box, fill, stroke, stroke width, corner radius, line "
                     + "direction or transform — as one undo step, the way double-clicking "
                     + "the layer in the app reopens it. Works only on layers get_document "
-                    + "reports a \"shape\" object for; the kind (rect / ellipse / line) is "
-                    + "fixed at creation. Omitted arguments keep the layer's current values "
+                    + "reports a \"shape\" object for; the kind (rect / ellipse / line / path) is "
+                    + "fixed at creation, and a path shape's outline too: w and h scale it with "
+                    + "its box (along an axis a straight outline does not span, w or h keeps its "
+                    + "size, 0 or the fraction past the box's whole-pixel origin, and refuses "
+                    + "another). Omitted arguments keep the "
+                    + "layer's current values "
                     + "(x,y default to its origin, transform to its current map); the mask "
                     + "and style ride along. Pass fill or stroke as \"\" to remove that "
                     + "paint (at least one visible paint must remain). "

@@ -31,7 +31,8 @@
   Brightness/Contrast's Saturation, HDR Toning; the Pass Through paint mode, Blend If on Red, Green or Blue; the retouch
   tools on one ink plate (as on an RGB colour plane).
 - **Not in Doctored at any depth** (not CMYK gaps):
-  - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Warp Text, and shape layers from a Pen path.
+  - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Warp Text. (Shape layers from a Pen path
+    shipped 2026-11-14, in ink as everywhere: [v1-paths.md](v1-paths.md).)
   - `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — Select ▸ Focus Area.
   - Match Color and Content-Aware Scale: not built (rows of [photo-editor-gap-review.md](photo-editor-gap-review.md)).
   - `DROPPED` (2026-10-30) — a backdrop selection from a menu or MCP (core `source: backdrop` stays internal): no

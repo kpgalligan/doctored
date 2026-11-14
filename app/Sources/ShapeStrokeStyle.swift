@@ -131,6 +131,12 @@ extension ShapeLayer {
     /// TWICE the width and keep the half on that side of the path:
     /// `stroke(2w) ∩ path` and `stroke(2w) − path`. Dashed ends are butt,
     /// dotted ones round; a line keeps its round caps.
+    ///
+    /// Both booleans run under the WINDING rule, the only one the stroked
+    /// outline fills correctly by (its segment bodies and joins overlap). An
+    /// even-odd path's fill region is therefore taken first as a path that
+    /// fills the same region by winding (`normalized(using: .evenOdd)`), so
+    /// its holes are honoured without notching the stroke.
     static func strokeOutline(_ payload: ShapeLayerPayload, path: CGPath) -> CGPath? {
         guard payload.hasStrokeStyle, payload.strokeWidth.isFinite, payload.strokeWidth > 0
         else { return nil }
@@ -143,10 +149,11 @@ extension ShapeLayer {
         let stroked = source.copy(
             strokingWithWidth: align == .center ? width : 2 * width,
             lineCap: cap, lineJoin: payload.strokeJoin.cgJoin, miterLimit: 10)
+        let region = ShapeLayer.fillRule(payload) == .evenOdd ? path.normalized(using: .evenOdd) : path
         switch align {
         case .center: return stroked
-        case .inside: return stroked.intersection(path, using: .winding)
-        case .outside: return stroked.subtracting(path, using: .winding)
+        case .inside: return stroked.intersection(region, using: .winding)
+        case .outside: return stroked.subtracting(region, using: .winding)
         }
     }
 }

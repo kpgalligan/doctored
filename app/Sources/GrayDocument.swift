@@ -138,7 +138,8 @@ enum GrayDocument {
         // `GrayArtwork.swift`), paths and vector masks.
         "add_text_layer", "edit_text_layer", "add_shape_layer", "edit_shape_layer", "add_fill_layer",
         "edit_fill_layer", "rasterize_artwork", "list_paths", "set_path", "rename_path",
-        "duplicate_path", "delete_path", "selection_to_path", "path_to_selection", "fill_path",
+        "duplicate_path", "combine_paths", "delete_path", "selection_to_path", "path_to_selection",
+        "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
         "remove_vector_mask", "set_clipping_path",
         // Replace Missing Fonts (MissingFonts.swift), each colour kept as its gray.
@@ -205,7 +206,8 @@ enum GrayDocument {
         // `GrayArtwork.swift`), paths and vector masks.
         "add_text_layer", "edit_text_layer", "add_shape_layer", "edit_shape_layer", "add_fill_layer",
         "edit_fill_layer", "rasterize_artwork", "list_paths", "set_path", "rename_path",
-        "duplicate_path", "delete_path", "selection_to_path", "path_to_selection", "fill_path",
+        "duplicate_path", "combine_paths", "delete_path", "selection_to_path", "path_to_selection",
+        "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
         "remove_vector_mask", "set_clipping_path",
         // Replace Missing Fonts (MissingFonts.swift), each colour kept as its gray.
@@ -292,6 +294,7 @@ enum GrayDocument {
         "layerContentOptions:", "rasterizeArtwork:", "editArtworkColors:", "replaceMissingFonts:",
         "makeWorkPath:",
         "makeSelectionFromPath:", "duplicateCurrentPath:", "deleteCurrentPath:", "fillCurrentPath:",
+        "combinePaths:", "convertPathToShape:",
         "strokeCurrentPath:", "toggleClippingPath:", "editClippingPathFlatness:",
         "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
         "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",

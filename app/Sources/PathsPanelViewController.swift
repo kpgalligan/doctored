@@ -426,6 +426,7 @@ extension PathsPanelViewController: NSTableViewDataSource, NSTableViewDelegate, 
                     entry.kind == .work ? "Save Path…" : "Rename",
                     #selector(renameClickedPath(_:)), target: self)
                 add("Duplicate Path", #selector(EditorViewController.duplicateCurrentPath(_:)))
+                add("Combine with Path…", #selector(EditorViewController.combinePaths(_:)))
                 add("Delete Path", #selector(EditorViewController.deleteCurrentPath(_:)))
                 add("Clipping Path", #selector(EditorViewController.toggleClippingPath(_:)))
                 add(
@@ -440,6 +441,9 @@ extension PathsPanelViewController: NSTableViewDataSource, NSTableViewDelegate, 
             add("Make Selection…", #selector(EditorViewController.makeSelectionFromPath(_:)))
             add("Fill Path", #selector(EditorViewController.fillCurrentPath(_:)))
             add("Stroke Path", #selector(EditorViewController.strokeCurrentPath(_:)))
+            add(
+                "Convert to Shape Layer",
+                #selector(EditorViewController.convertPathToShape(_:)))
             if case .path = rows[row] {
                 add(
                     "Add Vector Mask",

@@ -251,8 +251,9 @@ extension AgentServer {
                     + "Image ▸ Mode ▸ Grayscale's rule, R = G = B; ink refuses, and its blend mode "
                     + "takes the Grayscale modes."
             case "list_paths", "set_path", "rename_path", "duplicate_path", "delete_path",
-                 "selection_to_path", "path_to_selection", "get_vector_mask", "set_vector_mask",
-                 "set_vector_mask_properties", "remove_vector_mask", "set_clipping_path":
+                 "combine_paths", "selection_to_path", "path_to_selection", "get_vector_mask",
+                 "set_vector_mask", "set_vector_mask_properties", "remove_vector_mask",
+                 "set_clipping_path":
                 note = " A Grayscale document holds paths and vector masks, as an RGB "
                     + "document does, and keeps them in .doctored."
             case "list_layer_comps", "save_layer_comp", "apply_layer_comp", "update_layer_comp",

@@ -16,6 +16,7 @@ import AppKit
 /// | Fill Path | `fill_path` |
 /// | Stroke Path | `stroke_path` |
 /// | Make Work Path… | `selection_to_path` |
+/// | Combine with Path…, Convert to Shape Layer | `combine_paths`, `add_shape_layer` (+PathCommands) |
 ///
 /// The four list edits are `applyPathEdit` (render-neutral, one undo step each). The four that
 /// run a commit of their own — a selection, a fill, a brush stroke, a trace — RUN THEIR MCP STEP
@@ -143,7 +144,7 @@ extension EditorViewController {
     }
 
     /// The current path when it is one of the list's, with its index there.
-    private func currentListPath() -> (set: PathSet, index: Int)? {
+    func currentListPath() -> (set: PathSet, index: Int)? {
         guard let document, let doc = document.doc, case .path(let id)? = document.currentPath
         else { return nil }
         let set = doc.paths
@@ -158,7 +159,7 @@ extension EditorViewController {
     /// `undoName`, then records it. A refusal is shown in the tool's own
     /// words and records nothing. True when the step ran.
     @discardableResult
-    private func runPathStep(
+    func runPathStep(
         _ tool: String, _ arguments: [String: Any], undoName: String, note: String
     ) -> Bool {
         guard let document else {
@@ -484,7 +485,7 @@ extension EditorViewController {
         case #selector(deleteCurrentPath(_:)):
             return currentPathStep() != nil
         default:
-            return validateVectorMaskItem(item)
+            return validatePathCommandItem(item) ?? validateVectorMaskItem(item)
         }
     }
 }

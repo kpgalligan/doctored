@@ -45,7 +45,7 @@ from verify_phase1 import APP, Client, png  # noqa: E402
 TOOLS = ['list_paths', 'set_path', 'rename_path', 'duplicate_path', 'delete_path',
          'path_to_selection', 'fill_path', 'stroke_path', 'selection_to_path',
          'get_vector_mask', 'set_vector_mask', 'set_vector_mask_properties',
-         'remove_vector_mask']
+         'remove_vector_mask', 'combine_paths']
 WIDTH, HEIGHT = 128, 96
 GRAY = '#C8C8C8'
 RED = '#FF0000'
@@ -131,7 +131,7 @@ def take_catalog(drive):
     names = {tool['name'] for tool in drive.client.rpc('tools/list', {})['tools']}
     missing = [name for name in TOOLS if name not in names]
     assert not missing, missing
-    ok('the thirteen path and vector-mask tools are in the catalog')
+    ok('the fourteen path and vector-mask tools are in the catalog')
 
 
 def take_list(drive):

@@ -44,6 +44,14 @@ import AppKit
 /// `fill` and `stroke` are `[c, m, y, k, alpha]` in the CMYK document's
 /// profile, and the hex `fill`/`stroke` are that ink's sRGB APPEARANCE through
 /// the profile (CmykArtwork.swift). An ink payload is always version 6.
+///
+/// Version 7 is the `path` kind, in any ink (`artwork.ink` says which, as at
+/// version 5): a Pen path's outline, `path` = `{"fill_rule", "subpaths":
+/// [{"closed", "anchors": [[x, y, inX, inY, outX, outY, smooth]]}]}` in the
+/// box's local space (ShapeOutline.swift), with `w` × `h` its box. A payload is
+/// version 7 exactly when its kind is `path`, so the three box kinds keep
+/// encoding as 1–6 byte for byte, and a build that knows only those keeps a
+/// path shape's pixels and refuses to re-render it.
 struct ShapeLayerPayload: Codable, Equatable {
     /// The only `type` this app understands; anything else (or nothing) means
     /// the layer's metadata was written by something that is not a shape
@@ -51,10 +59,12 @@ struct ShapeLayerPayload: Codable, Equatable {
     static let typeName = "shape"
     /// The newest schema this app writes; older builds read layers at it as
     /// plain rasters — the graceful degradation the format is designed for.
-    static let currentVersion = 6
+    static let currentVersion = 7
     /// The stroke-style schema and the ink one (#1).
     static let styledVersion = 5
     static let cmykVersion = 6
+    /// The `path` kind's schema.
+    static let pathVersion = 7
     /// The schema a linear-ink payload with default stroke styles is written
     /// at (version 3 for sRGB ink): what version 4 has always meant.
     static let linearVersion = 4
@@ -62,11 +72,13 @@ struct ShapeLayerPayload: Codable, Equatable {
     /// is whole-pixel.
     static let legacyVersion = 1
     /// The values `kind` may take.
-    static let kinds = ["rect", "ellipse", "line"]
+    static let kinds = ["rect", "ellipse", "line", "path"]
 
-    /// "rect" | "ellipse" | "line".
     var artwork: ArtworkShapeStyle?
+    /// "rect" | "ellipse" | "line" | "path".
     var kind: String
+    /// The `path` kind's outline in box-local coordinates; nil for every other kind.
+    var path: ShapeOutline?
     /// Shape box size in pixels — the SHAPE's box, not the raster's (the
     /// raster is the box plus `ShapeLayer.padding(for:)` on every side,
     /// mapped through the transform).
@@ -99,22 +111,24 @@ struct ShapeLayerPayload: Codable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case type, version, kind, w, h, flipped, fill, stroke, strokeWidth, radius, transform, artwork
-        case strokeJoin, strokeDash, strokeAlign
+        case strokeJoin, strokeDash, strokeAlign, path
         case originFraction = "origin_frac"
     }
 
     /// Builds a payload with canonical bytes: `fill` is forced to "" for
     /// lines, `flipped` to false for rect/ellipse, `radius` to 0 for
-    /// anything but a rect and `strokeAlign` to centre for a line, so
-    /// re-encoding never carries fields the kind ignores.
+    /// anything but a rect, `strokeAlign` to centre for a line and `path`
+    /// to nil for anything but a path, so re-encoding never carries fields
+    /// the kind ignores.
     init(
         kind: String, w: Double, h: Double, flipped: Bool = false,
         fill: NSColor?, stroke: NSColor?, strokeWidth: Double, radius: Double = 0,
         transform: LinearMap = .identity, ink: ArtworkInk = .srgb,
         strokeJoin: ShapeStrokeJoin = .miter, strokeDash: ShapeStrokeDash = .none,
-        strokeAlign: ShapeStrokeAlign = .center
+        strokeAlign: ShapeStrokeAlign = .center, path: ShapeOutline? = nil
     ) {
         self.kind = kind
+        self.path = kind == "path" ? path : nil
         let isLine = kind == "line"
         let fillNumbers = isLine ? nil : fill.map { ArtworkColor.authored($0, in: ink) }
         let strokeNumbers = stroke.map { ArtworkColor.authored($0, in: ink) }
@@ -148,13 +162,18 @@ struct ShapeLayerPayload: Codable, Equatable {
         kind = try container.decode(String.self, forKey: .kind)
         artwork = try container.decodeIfPresent(ArtworkShapeStyle.self, forKey: .artwork)
         // Version 5 takes its ink from `artwork.ink`; the version-4 equality
-        // (4 = linear, 3 = sRGB) applies only to versions 3 and 4.
+        // (4 = linear, 3 = sRGB) applies only to versions 3 and 4. Version 7
+        // is the path kind in any ink, and only that kind.
         guard (version >= 3) == (artwork != nil), artwork?.ink != .srgb,
               version >= 5 || (version == Self.linearVersion) == (artwork?.ink == .linearSRGB),
-              (version == Self.cmykVersion) == (artwork?.ink == .cmyk)
+              version == Self.pathVersion || (version == Self.cmykVersion) == (artwork?.ink == .cmyk),
+              (version == Self.pathVersion) == (kind == "path")
         else {
             throw DecodingError.dataCorruptedError(forKey: .artwork, in: container,
                 debugDescription: "native artwork semantics require version 3 (sRGB), 4 (linear) or 5")
+        }
+        if version == Self.pathVersion {
+            path = try container.decode(ShapeOutline.self, forKey: .path)
         }
         if version >= 5 {
             strokeJoin = try container.decodeIfPresent(ShapeStrokeJoin.self, forKey: .strokeJoin) ?? .miter
@@ -190,12 +209,16 @@ struct ShapeLayerPayload: Codable, Equatable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(Self.typeName, forKey: .type)
         let legacy = isLegacyEncodable
-        // A styled stroke is version 5, which always carries `artwork`: a
-        // payload that somehow has none takes it from its sRGB hex colours.
+        // A styled stroke is version 5, and a path version 7, which always
+        // carry `artwork`: a payload that somehow has none takes it from its
+        // sRGB hex colours.
         let styled = hasStrokeStyle
-        let style = self.artwork ?? (styled ? withStrokeStyle(
-            join: strokeJoin, dash: strokeDash, align: strokeAlign).artwork : nil)
-        let version = style?.ink == .cmyk ? Self.cmykVersion
+        let isPath = kind == "path"
+        let style = self.artwork ?? (styled || isPath ? ArtworkShapeStyle(
+            fill: fillColor.map(ArtworkColor.authored),
+            stroke: strokeColor.map(ArtworkColor.authored), in: .srgb) : nil)
+        let version = isPath ? Self.pathVersion
+            : style?.ink == .cmyk ? Self.cmykVersion
             : styled ? Self.styledVersion
             : style.map { $0.ink == .linearSRGB ? Self.linearVersion : 3 }
                 ?? (legacy ? Self.legacyVersion : 2)
@@ -205,6 +228,7 @@ struct ShapeLayerPayload: Codable, Equatable {
         if strokeDash != .none { try container.encode(strokeDash, forKey: .strokeDash) }
         if strokeAlign != .center { try container.encode(strokeAlign, forKey: .strokeAlign) }
         try container.encode(kind, forKey: .kind)
+        if isPath { try container.encodeIfPresent(path, forKey: .path) }
         try container.encode(w, forKey: .w)
         try container.encode(h, forKey: .h)
         try container.encode(flipped, forKey: .flipped)
@@ -221,6 +245,7 @@ struct ShapeLayerPayload: Codable, Equatable {
     /// so the payload can be written as version 1.
     var isLegacyEncodable: Bool {
         artwork == nil && transform.isIdentity && originFraction == .zero && !hasStrokeStyle
+            && kind != "path"
     }
 
     /// The fill as a color, or nil when the shape has none ("" or an
@@ -282,7 +307,9 @@ struct ShapeLayerPayload: Codable, Equatable {
     /// Per-kind floors: rect/ellipse need a box at least 1 px each way; a
     /// line needs at least one axis ≥ 1 px (an axis-aligned line has a zero
     /// dimension), a stroke width ≥ 1, and a stroke color — a line with no
-    /// stroke is nothing.
+    /// stroke is nothing. A path needs a valid outline (`ShapeOutline.isValid`)
+    /// and a box of 1 px on some axis, on both when it has no stroke (a straight
+    /// open path has no area to fill).
     static func decode(_ json: String) -> ShapeLayerPayload? {
         guard let data = json.data(using: .utf8),
               let payload = try? JSONDecoder().decode(ShapeLayerPayload.self, from: data),
@@ -298,9 +325,15 @@ struct ShapeLayerPayload: Codable, Equatable {
               payload.transform.isInvertible,
               TextLayer.isValidFraction(payload.originFraction)
         else { return nil }
+        guard (payload.kind == "path") == (payload.path != nil), payload.path?.isValid != false
+        else { return nil }
         if payload.kind == "line" {
             guard max(payload.w, payload.h) >= 1, payload.strokeWidth >= 1,
                   !payload.stroke.isEmpty, payload.strokeAlign == .center
+            else { return nil }
+        } else if payload.kind == "path" {
+            guard max(payload.w, payload.h) >= 1,
+                  min(payload.w, payload.h) >= 1 || (!payload.stroke.isEmpty && payload.strokeWidth > 0)
             else { return nil }
         } else {
             guard payload.w >= 1, payload.h >= 1 else { return nil }
@@ -327,15 +360,27 @@ enum ShapeLayer {
             return radius > 0 ? CGPath(roundedRect: box, cornerWidth: radius, cornerHeight: radius, transform: nil)
                 : CGPath(rect: box, transform: nil)
         case "ellipse": return CGPath(ellipseIn: box, transform: nil)
+        case "path": return payload.path?.cgPath()
         default: return nil
         }
+    }
+
+    /// The rule a payload's fill takes: a path's own, nonzero for every other kind. A stroke is
+    /// always filled by the winding rule (`strokeOutline`), whatever the path's.
+    static func fillRule(_ payload: ShapeLayerPayload) -> CGPathFillRule {
+        payload.path?.evenOdd == true ? .evenOdd : .winding
     }
 
     // MARK: - Rendering
 
     /// The padded source rect (DescribedLayer.swift): the box `(0, 0, w, h)`
-    /// inset by −`padding(for:)` on every side.
+    /// inset by −`padding(for:)` on every side; a path's is
+    /// `ShapeOutline.sourceRect`, which takes its miter tips into account.
     static func sourceRect(_ payload: ShapeLayerPayload) -> CGRect {
+        if payload.kind == "path", let outline = payload.path {
+            return outline.sourceRect(w: payload.w, h: payload.h, strokeWidth: payload.strokeWidth,
+                                      join: payload.strokeJoin, align: payload.strokeAlign)
+        }
         let pad = CGFloat(padding(for: payload))
         return CGRect(x: 0, y: 0, width: CGFloat(payload.w), height: CGFloat(payload.h))
             .insetBy(dx: -pad, dy: -pad)
@@ -391,6 +436,11 @@ enum ShapeLayer {
             guard max(payload.w, payload.h) >= 1, payload.strokeWidth >= 1,
                   strokeColor != nil
             else { return nil }
+        } else if payload.kind == "path" {
+            guard payload.path != nil, max(payload.w, payload.h) >= 1,
+                  min(payload.w, payload.h) >= 1 || strokeColor != nil,
+                  fillColor != nil || strokeColor != nil
+            else { return nil }
         } else {
             guard payload.w >= 1, payload.h >= 1, fillColor != nil || strokeColor != nil
             else { return nil }
@@ -413,7 +463,8 @@ enum ShapeLayer {
             context.setShouldAntialias(true)
             guard let path = vectorPath(payload) else { return false }
             if payload.kind != "line", let fill = fillColor {
-                context.setFillColor(fill.cgColor); context.addPath(path); context.fillPath()
+                context.setFillColor(fill.cgColor); context.addPath(path)
+                context.fillPath(using: fillRule(payload))
             }
             if let stroke = strokeColor, let outline = strokeOutline(payload, path: path) {
                 // A styled stroke is its filled outline, the same one
@@ -472,6 +523,7 @@ enum ShapeLayer {
         switch payload.kind {
         case "ellipse": return "Ellipse"
         case "line": return "Line"
+        case "path": return "Shape"
         default: return "Rectangle"
         }
     }

@@ -389,6 +389,9 @@ do {
         ("float lens correction sheet", verifyFloatLensCorrectionSheet),
         ("float liquify sheet", verifyFloatLiquifySheet),
         ("paths panel stroke float", verifyPathsPanelStrokeFloat),
+        // Paths panel ▸ Convert to Shape Layer and Combine with Path… (path_commands.swift).
+        ("convert path to shape", verifyConvertPathToShape),
+        ("combine paths", verifyCombinePaths),
         // Round 2: File ▸ New at 32 bits, Convert Precision, Select People,
         // Lens Correction's profile, the float canvas tools, Select and Mask,
         // the Magnetic Lasso, Presence and the Develop Filter at 32 bits.
