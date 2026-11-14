@@ -361,6 +361,7 @@ Detail belongs in the source file's own header comment.
 - `psd_typed_exchange.rs` — every typed PSD codec's one seam for the Background mark, layer comps and raster-less vector masks: `install` on import, `stamp` and `resources` on export.
 - `psd_path_records.rs` (KERNEL) — Adobe's 26-byte path records (8.24 canvas fractions) ↔ `PathShape`, the `vmsk` body, 2999's flatness tail.
 - `psd_paths.rs` — paths in PSD (resources 1025, 2000–2997, the clipping path 2999) at every depth and mode; raster-less vector masks as `vmsk`, both ways.
+- `psd_vector_mask_bake.rs` — a raster record's `vmsk` Doctored does not carry, drawn into its raster mask at every depth; the drawing caps (`bakes`).
 - `clipping_path_native.rs` — native word 114: a path is the clipping path (its key rides in the PATH table's entry), checked both ways.
 - `tiff_paths.rs` — paths and the clipping path in every mode's flat TIFF tag 34377: the opens' read, `attach`, `canvas_moved`, a turned JPEG's drop, the losses' test.
 - `style_knockout_merge.rs` — what a MERGE punches through to at 8 bits (Phase 12E-3b, contract g): the knockout capture, the merge backdrop, and the one excluded set.

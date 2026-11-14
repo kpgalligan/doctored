@@ -511,7 +511,7 @@ impl<'a> GroupRecords<'a> {
                         && divider == 0
                         && mask_body.is_empty()
                         && !lengths.iter().any(|(id, _)| matches!(id, -2 | -3))
-                        && crate::psd_paths::bakes(body, room.canvas) =>
+                        && crate::psd_vector_mask_bake::bakes(body, room.canvas) =>
                 {
                     VectorMaskRole::Baked
                 }

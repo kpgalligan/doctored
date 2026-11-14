@@ -48,7 +48,7 @@ pub(crate) enum VectorMaskRole {
     Rendered,
     /// The vector mask is not carried and the file holds no rendering of it
     /// (Photoshop's 16-bit files): the import bakes the path
-    /// (`psd_paths::vmsk_coverage`) into the layer's mask.
+    /// (`psd_vector_mask_bake::vmsk_coverage`) into the layer's mask.
     Baked,
 }
 

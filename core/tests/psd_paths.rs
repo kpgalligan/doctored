@@ -715,8 +715,11 @@ fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
     // Two subpaths, the second subtracting: drawn on a small canvas, and not
     // on one where two passes are past the sample cap.
     let two = vmsk(0, &[triangle(0, 1), triangle(1, 2)]);
-    assert!(doctored_core::psd_paths::vmsk_bakes(&two, (64, 48)));
-    assert!(!doctored_core::psd_paths::vmsk_bakes(
+    assert!(doctored_core::psd_vector_mask_bake::vmsk_bakes(
+        &two,
+        (64, 48)
+    ));
+    assert!(!doctored_core::psd_vector_mask_bake::vmsk_bakes(
         &two,
         (30_000, 30_000)
     ));
@@ -725,7 +728,10 @@ fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
         .map(|k| triangle(k, if k == 0 { 1 } else { 2 }))
         .collect();
     let body = vmsk(0, &many);
-    assert!(!doctored_core::psd_paths::vmsk_bakes(&body, (64, 48)));
+    assert!(!doctored_core::psd_vector_mask_bake::vmsk_bakes(
+        &body,
+        (64, 48)
+    ));
     let dir = TempDir::new().unwrap();
     let file = dir.path().join("many.psd");
     std::fs::write(&file, masked_raster([64, 48], &body)).unwrap();
