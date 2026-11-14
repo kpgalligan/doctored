@@ -2270,11 +2270,6 @@ DrDocument *dr_doc_clear_selection(const DrDocument *doc, size_t idx,
 DrDocument *dr_doc_put_pixels(const DrDocument *doc, size_t idx, uint32_t x, uint32_t y,
                               uint32_t w, uint32_t h, const uint8_t *rgba, const uint8_t *mask);
 
-/* Gaussian-feathers a selection mask in place (width*height coverage
- * bytes, row 0 top). Sampling clamps to the canvas edges, so a
- * selection touching the border keeps full coverage there. false on
- * NULL mask, zero dimensions, or a non-finite radius; radius <= 0
- * returns true and leaves the mask untouched. */
 /* Quick Mask source-over on transient coverage. The raw overlay is canvas-sized
  * premultiplied RGBA (red is gray); scale applies with integer /255 rounding.
  * RLE runs are UInt32LE count + premultiplied gray + alpha, already scaled.
@@ -2284,6 +2279,15 @@ bool dr_selection_paint_quick_mask(uint8_t *mask, const uint8_t *overlay,
 bool dr_selection_paint_quick_mask_rle(uint8_t *mask, uint32_t width, uint32_t height,
                                        const uint8_t *runs, size_t runs_len);
 
+/* Gaussian-feathers a selection mask in place (width*height coverage
+ * bytes, row 0 top). Sampling clamps to the canvas edges, so a
+ * selection touching the border keeps full coverage there. The work is
+ * bounded by the selection: the kernel runs over the nonzero bytes'
+ * bounding rect grown by its half width, which equals the whole-canvas
+ * result byte for byte. false, the mask untouched, on NULL mask, zero
+ * dimensions, or a radius that is not finite or is above 250 (the typed
+ * selection's limit); radius <= 0 returns true and leaves the mask
+ * untouched. */
 bool dr_selection_feather(uint8_t *mask, uint32_t width, uint32_t height,
                           float radius);
 
@@ -2300,8 +2304,9 @@ bool dr_selection_feather(uint8_t *mask, uint32_t width, uint32_t height,
  * with a fresh ~1px anti-aliased ramp.
  *
  * All four return false on a NULL mask, zero dimensions, or a non-finite
- * parameter; a parameter <= 0 returns true and leaves the mask untouched,
- * exactly as dr_selection_feather treats its radius. */
+ * parameter (smooth, like dr_selection_feather, also above 250); a
+ * parameter <= 0 returns true and leaves the mask untouched, exactly as
+ * dr_selection_feather treats its radius. */
 
 /* Grows (dilates) the selection by radius pixels of true Euclidean
  * distance: coverage' = clamp(s + radius + 0.5, 0, 1) * 255, so edges move
@@ -2324,7 +2329,9 @@ bool dr_selection_border(uint8_t *mask, uint32_t width, uint32_t height,
  * v' = round(255 * t^2 * (3 - 2t))). Corners round and jagged edges
  * reconcile while a long straight edge stays put — the blur is symmetric
  * across it and smoothstep fixes 1/2. Unlike grow/shrink/border this never
- * binarizes: soft coverage stays soft. */
+ * binarizes: soft coverage stays soft. The blur is bounded by the
+ * selection as dr_selection_feather's is; a radius above 250 returns
+ * false with the mask untouched. */
 bool dr_selection_smooth(uint8_t *mask, uint32_t width, uint32_t height,
                          float radius);
 
@@ -6631,14 +6638,15 @@ char *dr_cmyk_color(const DrPrecisionDocument *document, const char *request, ch
  * through the document's CMYK profile, relative + BPC) into a CMYKA16 raster and publish it with
  * description: replacing rewrites layer (under its Pixels lock, mask kept); else a NEW leaf at
  * position (0 above, 1 top, 2 into_group) relative to anchor `layer`. NULL, no error: no change.
- * components: [{"kind":"coverage","ink":[c,m,y,k,a]},{"kind":"intrinsic_rgba8","opacity":o},
+ * components: [{"kind":"coverage","ink":[c,m,y,k,a]},{"kind":"intrinsic_rgba8","opacity":o}
+ * (either with dr_artwork_render's optional "window":[x,y,w,h]),
  * {"kind":"fill","ink":[c,m,y,k,a]},{"kind":"gradient","gradient":{GradientFill},
  * "inks":[[c,m,y,k],...],"box":[x,y,w,h] (optional, as dr_artwork_render's)},
  * {"kind":"pattern","fill":{pattern fill keys}}], 0..1; a pattern's
  * texels are separated sRGB -> ink at render, as a Pattern Overlay's. components and
  * description are each at most 16 MiB (a large custom tile); the component count and samples
  * are bounded as dr_artwork_render's; sample_count and
- * intrinsic_count must be exactly what the list names over width*height. RGB artwork
+ * intrinsic_count must be exactly what the list's windows name. RGB artwork
  * (dr_precision_doc_artwork/_at) on a CMYK document refuses "RGB artwork is unavailable in a CMYK
  * document". Free with dr_precision_doc_free. */
 DrPrecisionDocument *dr_precision_doc_cmyk_artwork(const DrPrecisionDocument *document, size_t layer,
@@ -8830,18 +8838,28 @@ DrImage *dr_precision_image_clip_display(const DrPrecisionImage *image, uint32_t
  * 0..4, with point_count xy pairs. Output is atomic u16 coverage. Curves flatten
  * within1/4096pixel control distance; polygon areas integrate continuously.
  * Caps 262144 points, 524288 flattened edges, 256M work; scratch
- * 106MiB+2*w*h+24*w before flattening.
+ * 118MiB+2*w*h+24*w before flattening.
  * Since 13A-6b the scan is an active-edge sweep (work n + Σ active per row, rows
  * outside the outline skipped); caps and sentences unchanged; equal to the full
- * scan and never charged above it. */
+ * scan and never charged above it. Two edges that both span a whole row are
+ * charged only when they cross in it, and Cancel is polled every 4096 pair
+ * tests. */
 bool dr_artwork_path_coverage(const uint8_t *commands, size_t command_count,
     const double *points, size_t point_count, uint32_t width, uint32_t height,
     bool even_odd, uint16_t *output, size_t output_count, uint64_t limit,
     uint64_t other_retained, const DrJobControl *control, char **err_out);
 /* Component JSON array (max256): {kind:"coverage",color:[r,g,b,a]} uses one
  * u16 plane; {kind:"intrinsic_rgba8",opacity:1} uses separate straight RGBA8
- * intrinsic bytes. Ordered assembly uses continuous authored sRGB/opacity and
- * the exact supplied RGB ICC. Total<=64Mscalar samples; returned genuineu16
+ * intrinsic bytes. Either may add window:[x,y,w,h], the raster pixels its
+ * plane covers (w*h u16 samples or w*h*4 bytes, row-major); absent, the whole
+ * raster. Planes follow one another in list order; outside its window a
+ * plane reads coverage 0 / a transparent pixel. A window must have w, h >= 1
+ * and lie inside the raster, each component holds at most 64,000,000 samples
+ * (intrinsic bytes count), and sample_count / intrinsic_count must be exactly
+ * the windows' sums, checked before admission reads either count ("artwork
+ * samples do not match their bounded component layout"). Ordered assembly
+ * uses continuous authored sRGB/opacity and the exact supplied RGB ICC;
+ * returned genuine u16
  * owner uses dr_precision_image_free. Caller pixels never become display input.
  * Fill layers, neither owning a plane: {kind:"fill",color:[r,g,b,a]}
  * is that colour over the whole raster; {kind:"gradient",gradient:{...},

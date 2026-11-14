@@ -82,7 +82,10 @@ use std::sync::Arc;
 use serde_json::{json, Value};
 
 use crate::artwork_document::{validate, ArtworkPublication};
-use crate::cmyk_artwork_render::{assemble_cmyk, cmyk_components, pattern_scratch, CmykComponent};
+use crate::artwork_window::totals;
+use crate::cmyk_artwork_render::{
+    assemble_cmyk, cmyk_components, cmyk_windows, pattern_scratch, CmykComponent,
+};
 use crate::cmyk_color::{ink_key, CmykToCmyk, CmykToRgb, ConversionOptions, RgbToCmyk};
 use crate::cmyk_image::CmykImage;
 use crate::cmyk_style::TexelInk;
@@ -105,16 +108,19 @@ pub(crate) struct CmykArtwork<'a> {
     pub intrinsic: &'a [u8],
 }
 
-/// How many coverage planes and intrinsic RGBA8 planes `components` names:
-/// what the FFI recomputes its slice lengths from.
-pub(crate) fn component_planes(components: &[CmykComponent]) -> (usize, usize) {
-    components
-        .iter()
-        .fold((0, 0), |(planes, assets), c| match c {
-            CmykComponent::Coverage { .. } => (planes + 1, assets),
-            CmykComponent::IntrinsicRgba8 { .. } => (planes, assets + 1),
-            _ => (planes, assets),
-        })
+/// The coverage samples and intrinsic RGBA8 bytes `components` names over a
+/// `width × height` raster, by their windows (`artwork_window`): what the FFI
+/// recomputes its slice lengths from. Refuses a window the raster cannot hold.
+pub(crate) fn component_lengths(
+    components: &[CmykComponent],
+    width: u32,
+    height: u32,
+) -> Result<(usize, usize), String> {
+    Ok(totals(
+        cmyk_windows(components, width, height)?
+            .into_iter()
+            .flatten(),
+    ))
 }
 
 impl PrecisionDocument {

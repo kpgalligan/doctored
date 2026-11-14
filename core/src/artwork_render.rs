@@ -166,9 +166,22 @@
 //! 16 KiB page, not the 0 × 3 187a read; it is noise against the
 //! gigabyte-scale cases, recorded as measured.
 //!
-//! `scratchBytes`' fixed term is now 120 MiB, not the 48 MiB of this
-//! record (the coverage scan's 524,288-edge buffers): A is 75,497,472 above
-//! the table's figures, and the measured E is what it was.
+//! `scratchBytes`' fixed term is now 132 MiB, not the 48 MiB of this
+//! record (the coverage scan's 524,288-edge buffers and its pair stage's
+//! full-edge sweep): A is 88,080,384 above the table's figures, and the
+//! measured E is what it was.
+//!
+//! # Component windows
+//!
+//! A `coverage` or `intrinsic_rgba8` component may declare `"window": [x, y,
+//! w, h]` in raster pixels (`artwork_window`): its plane then holds only those
+//! pixels, and outside them it reads as coverage 0 or a transparent pixel, so
+//! the list renders as if its planes were whole-raster with the window's
+//! samples embedded in zeros. Absent, the window is the raster. The bound is
+//! [`MAX_COMPONENT_SAMPLES`] per component; there is no whole-layer total
+//! (the host windows each path part to its bounds,
+//! `NativeArtworkEvaluation`). The planeless components are unchanged.
+use crate::artwork_window::{totals, Window};
 use crate::authored_color::lut_ink;
 use crate::icc::IccProfile;
 use crate::icc_intent::ColorPipeline;
@@ -186,10 +199,17 @@ use std::sync::Arc;
 pub enum Component {
     Coverage {
         color: [f32; 4],
+        /// The pixels its plane covers, `[x, y, w, h]` (module doc,
+        /// "Component windows"); absent: the raster.
+        #[serde(default)]
+        window: Option<[i64; 4]>,
     },
     IntrinsicRgba8 {
         #[serde(default = "full_opacity")]
         opacity: f32,
+        /// As `Coverage`'s.
+        #[serde(default)]
+        window: Option<[i64; 4]>,
     },
     /// One colour at full coverage over the whole raster (module doc, "Fill
     /// layers"). Owns no sample plane.
@@ -217,16 +237,14 @@ pub enum Component {
     },
     /// A pattern tiled over the whole raster, `fill` the pattern fill's keys
     /// (module doc, "Pattern fill layers"). Owns no sample plane.
-    Pattern {
-        fill: serde_json::Value,
-    },
+    Pattern { fill: serde_json::Value },
 }
 
 /// The bounds every component list is held to (the RGB render's and
-/// `cmyk_artwork_render`'s): the component count and the coverage plus
-/// intrinsic samples. The JSON's bound is
-/// `artwork_document::MAX_LARGE_DESCRIPTION` at both (module doc,
-/// "Pattern fill layers").
+/// `cmyk_artwork_render`'s): the component count and each component's
+/// coverage or intrinsic samples over its window (module doc, "Component
+/// windows"). The JSON's bound is `artwork_document::MAX_LARGE_DESCRIPTION`
+/// at both (module doc, "Pattern fill layers").
 pub(crate) const MAX_COMPONENTS: usize = 256;
 pub(crate) const MAX_COMPONENT_SAMPLES: usize = 64_000_000;
 
@@ -330,7 +348,7 @@ pub fn components(json: &str, extended: bool) -> Result<Vec<Component>, String> 
         return Err("artwork requires between 1 and 256 ordered components".into());
     }
     for component in &c {
-        if let Component::IntrinsicRgba8 { opacity } = component {
+        if let Component::IntrinsicRgba8 { opacity, .. } = component {
             if !opacity.is_finite() || !(0.0..=1.0).contains(opacity) {
                 return Err("intrinsic glyph opacity must be normalized".into());
             }
@@ -367,7 +385,7 @@ pub fn components(json: &str, extended: bool) -> Result<Vec<Component>, String> 
             }
         }
         let checked: Vec<[f32; 4]> = match component {
-            Component::Coverage { color } | Component::Fill { color, .. } => vec![*color],
+            Component::Coverage { color, .. } | Component::Fill { color, .. } => vec![*color],
             Component::Gradient {
                 gradient,
                 colors,
@@ -529,6 +547,35 @@ pub(crate) fn render_float_scratch(pixels: u64) -> u64 {
     pixels.saturating_mul(16)
 }
 
+/// Each plane-owning component's window over a `width × height` raster
+/// (module doc, "Component windows"), `None` for the planeless ones, once the
+/// `given` (coverage samples, intrinsic bytes) lengths are exactly what the
+/// windows name: refuses a window `Window::place` refuses, and lengths that
+/// differ. `dr_artwork_render` asks it before admission and before it builds
+/// any slice, so the slices' lengths are the core's own layout, never the
+/// caller's counts; the assembly loop reads by the windows it returns.
+pub(crate) fn component_windows(
+    components: &[Component],
+    width: u32,
+    height: u32,
+    given: (usize, usize),
+) -> Result<Vec<Option<(Window, bool)>>, String> {
+    let windows = components
+        .iter()
+        .map(|c| match c {
+            Component::Coverage { window, .. } => Window::plane(*window, (width, height), false),
+            Component::IntrinsicRgba8 { window, .. } => {
+                Window::plane(*window, (width, height), true)
+            }
+            _ => Ok(None),
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    if totals(windows.iter().flatten().copied()) != given {
+        return Err("artwork samples do not match their bounded component layout".into());
+    }
+    Ok(windows)
+}
+
 /// The ONE assembly loop: each component's colour by `ink`, composited in
 /// order with `precision_paint::over`, each finished pixel through `finish`.
 #[allow(clippy::too_many_arguments)]
@@ -544,20 +591,7 @@ fn assemble<T>(
     finish: impl Fn([f32; 4]) -> T,
 ) -> Result<Vec<T>, String> {
     let n = pixel_count(width, height)?;
-    let planes = components
-        .iter()
-        .filter(|c| matches!(c, Component::Coverage { .. }))
-        .count();
-    let assets = components
-        .iter()
-        .filter(|c| matches!(c, Component::IntrinsicRgba8 { .. }))
-        .count();
-    if n.checked_mul(planes) != Some(samples.len())
-        || n.checked_mul(assets * 4) != Some(intrinsic.len())
-        || samples.len() + intrinsic.len() > MAX_COMPONENT_SAMPLES
-    {
-        return Err("artwork samples do not match their bounded component layout".into());
-    }
+    let windows = component_windows(components, width, height, (samples.len(), intrinsic.len()))?;
     let srgb = IccProfile::srgb();
     let conversion = match (profile.model(), ink) {
         (Some(model), _) => Conversion::Matrix(
@@ -594,7 +628,8 @@ fn assemble<T>(
     let mut patterns: Vec<Option<PatternSampler>> = Vec::with_capacity(components.len());
     let mut offset = 0;
     let mut intrinsic_offset = 0;
-    for c in components {
+    for (c, window) in components.iter().zip(&windows) {
+        let pixels = window.map_or(0, |(w, _)| w.pixels());
         offsets.push(match c {
             Component::Coverage { .. } => offset,
             Component::IntrinsicRgba8 { .. } => intrinsic_offset,
@@ -613,16 +648,16 @@ fn assemble<T>(
             _ => None,
         });
         match c {
-            Component::Coverage { color } => {
+            Component::Coverage { color, .. } => {
                 let rgb = conversion.coverage([color[0], color[1], color[2]], ink);
                 colors.push([rgb[0], rgb[1], rgb[2], color[3]]);
                 gradients.push(None);
-                offset += n;
+                offset += pixels;
             }
             Component::IntrinsicRgba8 { .. } => {
                 colors.push([0.0; 4]);
                 gradients.push(None);
-                intrinsic_offset += n * 4;
+                intrinsic_offset += pixels * 4;
             }
             Component::Fill { color, linear } => {
                 let wide = wide.as_ref().and_then(Option::as_ref);
@@ -663,25 +698,39 @@ fn assemble<T>(
         }
     }
     let mut out = reserved_vec(n)?;
+    let w = width as usize;
+    let (mut px, mut py) = (0usize, 0usize);
     for i in 0..n {
         job.every(i)?;
         let mut pixel = [0.0; 4];
         for (index, c) in components.iter().enumerate() {
             let color = colors[index];
             let offset = offsets[index];
+            // Outside its window a plane reads 0 (module doc, "Component
+            // windows").
+            let at = windows[index].and_then(|(window, _)| window.at(px, py));
             match c {
                 Component::Coverage { .. } => {
+                    let coverage = at.map_or(0, |k| samples[offset + k]);
                     let alpha = crate::precision_render::checked_alpha(
                         color[3],
                         1.0,
-                        f32::from(samples[offset + i]) / 65535.0,
+                        f32::from(coverage) / 65535.0,
                     )?;
                     if alpha > 0.0 {
                         over(&mut pixel, color, alpha);
                     }
                 }
-                Component::IntrinsicRgba8 { opacity } => {
-                    let s = &intrinsic[offset + i * 4..offset + i * 4 + 4];
+                Component::IntrinsicRgba8 { opacity, .. } => {
+                    let s = at.map_or([0; 4], |k| {
+                        let at = offset + k * 4;
+                        [
+                            intrinsic[at],
+                            intrinsic[at + 1],
+                            intrinsic[at + 2],
+                            intrinsic[at + 3],
+                        ]
+                    });
                     let alpha = crate::precision_render::checked_alpha(
                         *opacity,
                         1.0,
@@ -707,8 +756,7 @@ fn assemble<T>(
                     let Some((sampler, stops)) = gradients[index].as_ref() else {
                         return Err("artwork gradient component has no sampler".into());
                     };
-                    let x = (i % width as usize) as f32 + 0.5;
-                    let y = (i / width as usize) as f32 + 0.5;
+                    let (x, y) = (px as f32 + 0.5, py as f32 + 0.5);
                     let (rgb, opacity) = sampler.color_with(sampler.t(x, y), |k| stops[k]);
                     let alpha = crate::precision_render::checked_alpha(opacity, 1.0, 1.0)?;
                     if alpha > 0.0 {
@@ -721,9 +769,7 @@ fn assemble<T>(
                     };
                     // Document values at every ink (module doc): no
                     // `Conversion`.
-                    let x = (i % width as usize) as i64;
-                    let y = (i / width as usize) as i64;
-                    let s = sampler.at(x, y);
+                    let s = sampler.at(px as i64, py as i64);
                     let alpha = crate::precision_render::checked_alpha(s[3], 1.0, 1.0)?;
                     if alpha > 0.0 {
                         over(&mut pixel, [s[0], s[1], s[2], alpha], alpha);
@@ -732,6 +778,10 @@ fn assemble<T>(
             }
         }
         out.push(finish(pixel));
+        px += 1;
+        if px == w {
+            (px, py) = (0, py + 1);
+        }
     }
     Ok(out)
 }

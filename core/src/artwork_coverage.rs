@@ -23,10 +23,13 @@
 //! retained full-scan reference `reference_rasterize` runs the earlier
 //! all-pairs body verbatim, `reference_row_coverage` (all pairs, every active
 //! edge per interval); both bodies share `edge_breaks`, `accumulate_interval`
-//! and `emit_row`. The PAIR SWEEP walks the edges in order, keeping an OPEN
-//! list: before edge `b` it drops each open `a` whose `min(max y_a, row + 1)`
-//! is at or below `max(min y_b, row)`, crosses `b` with every open `a` that
-//! remains, then opens `b`. The INTERVAL SWEEP walks the sorted breakpoints'
+//! and `emit_row`. The PAIR STAGE (`artwork_pair_sweep`) walks the edges
+//! in order, keeping an OPEN list: before edge `b` it drops each open `a`
+//! whose `min(max y_a, row + 1)` is at or below `max(min y_b, row)`, crosses
+//! `b` with every open `a` that remains, then opens `b`; except that a pair of
+//! FULL edges (both spanning the whole row) is not crossed there but found by
+//! an inversion sweep over their x at the row's top and bottom, so parallel
+//! edges that all overlap in y no longer cost `active²`. The INTERVAL SWEEP walks the sorted breakpoints'
 //! midpoints `y` with a SPANNING list: a cursor admits edges with `min y ≤ y`,
 //! then each with `max y ≤ y` is dropped, and the survivors' intersections
 //! are accumulated.
@@ -60,7 +63,10 @@
 //! (the order), `low = max(min y_b, row)`, and `max y_b > low` holds for every
 //! active, non-horizontal `b`, so `high > low` iff `min(max y_a, row + 1) >
 //! low` — the open-list predicate — and because `low` never decreases along
-//! the order, an `a` dropped once never pairs with a later `b`. The
+//! the order, an `a` dropped once never pairs with a later `b`. A full × full
+//! pair adds a break only when the two edges' x order at the row's top and
+//! bottom is strictly reversed, which is the set the inversion sweep reports
+//! (`artwork_pair_sweep`'s EXACTNESS). The
 //! PER-INTERVAL SET is exactly `min y ≤ y < max y` (the reference's test): the
 //! midpoints strictly increase over sorted, deduplicated breaks, so an
 //! admitted edge stays admitted and a dropped one never returns. Equal-x
@@ -77,10 +83,10 @@
 //! same set; within a row they come in sorted-by-top order, not outline
 //! order), `active²` and `breaks·(active + 1)`. Per row of `A` active edges,
 //! `B` reference breakpoints and `C` clusters of `A_c` edges and `B_c`
-//! breakpoints: the pair sweep charges `2·|open| + 1` per edge with `|open|`
-//! taken before the drop, at most `2i + 1` for a cluster's `i`-th edge, so at
-//! most `Σ A_c² ≤ A²` (equality when every edge overlaps every other in y in
-//! one cluster); the interval sweep charges `|spanning|` per interval and 1 per
+//! breakpoints: the pair stage charges at most `2·|open| + 1` per edge with
+//! `|open|` taken before the drop (`artwork_pair_sweep`'s WORK: a full edge's
+//! full pairs are charged 2 each only when reported), at most `2i + 1` for a
+//! cluster's `i`-th edge, so at most `Σ A_c² ≤ A²`; the interval sweep charges `|spanning|` per interval and 1 per
 //! cluster, at most `Σ (B_c − 1)·A_c + C ≤ (B − 1)·A + A = B·A < B(A + 1)`,
 //! because a cluster's breakpoints are a subset of the reference's (the same
 //! expressions over a subset of its pairs and edges) and each cluster holds
@@ -89,21 +95,24 @@
 //! so at every `charge` checkpoint the sweep's running total is at most the
 //! full scan's: nothing the full scan accepts is refused, and the caps and
 //! the refusal sentence are unchanged. The at-the-cap boundary fixture keeps
-//! its verdict, and the 18,000-edge pair-term refusal too: its loops all
-//! overlap, so they are one cluster. (Charging `n + E` up front would break
+//! its verdict. The 18,000-edge outline of parallel full edges, one cluster,
+//! now finishes: none of its pairs is inverted, so its pair term is `E`, not
+//! `E²`; an outline whose full edges all cross still refuses. (Charging `n + E` up front would break
 //! this: an outline whose every edge spans every row has `Σ active = E·H`, and
 //! the full scan's total may sit exactly at `MAX_SCAN_WORK`, which `charge`
 //! accepts.) A line of separate glyphs is charged `Σ_rows (active + C)` plus
 //! its glyphs' own pair and interval terms, so a long line is bounded by
 //! `MAX_PATH_EDGES` before the work cap. Polling: one `every(i)` per edge in
-//! the grouping, edge and pair loops and one `check()` per interval.
+//! the grouping, edge and pair loops, one `every` per 4096 pair tests of a
+//! cluster, and one `check()` per interval.
 //!
 //! Analytic flattened-edge area handles fractional x/y coverage, winding and crossings; curve
 //! flatness uses point-to-segment distance so backtracking controls cannot collapse. Since 13A-6b
 //! `artwork_coverage::rasterize` is an active-edge sweep (edges sorted by top, rows outside the
 //! outline skipped, `n` charged up front then the active count per row) over `row_coverage`, THE
-//! row body; that body is a y-ordered sweep (a PAIR SWEEP over an open list charged
-//! `2·|open| + 1` per edge, then an INTERVAL SWEEP over a spanning list), and it runs
+//! row body; that body is a y-ordered sweep (the PAIR STAGE, `artwork_pair_sweep`: an open list
+//! charged at most `2·|open| + 1` per edge and an inversion sweep for full × full pairs, then an
+//! INTERVAL SWEEP over a spanning list), and it runs
 //! per X-CLUSTER of closed loops (`|spanning|` per interval, 1 per cluster), so one long line of
 //! glyphs costs linear in its length. The `#[doc(hidden)]` full-scan reference
 //! `reference_rasterize` (the pre-13A-6b scan over a row band, the
@@ -112,6 +121,7 @@
 //! module doc is the exactness and never-charged-above-the-reference argument. Caller coverage
 //! outputs remain untouched on refusal/cancellation; flattening, area, assembly and publication
 //! have admission/work/polling bounds.
+use crate::artwork_pair_sweep::{pair_breaks, PairScratch};
 use crate::job_control::JobContext;
 use crate::precision_image::{pixel_count, reserved_vec};
 
@@ -127,7 +137,7 @@ pub const MAX_PATH_POINTS: usize = 262_144;
 pub const MAX_PATH_EDGES: usize = 524_288;
 const MAX_SCAN_WORK: u64 = 256_000_000;
 type Point = [f64; 2];
-type Edge = [Point; 2];
+pub(crate) type Edge = [Point; 2];
 
 fn midpoint(a: Point, b: Point) -> Point {
     [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5]
@@ -286,7 +296,7 @@ fn span(left: f64, right: f64, weight: f64, width: usize, ends: &mut [f64], fill
         fills[last] -= weight;
     }
 }
-fn charge(work: &mut u64, amount: u64) -> Result<(), String> {
+pub(crate) fn charge(work: &mut u64, amount: u64) -> Result<(), String> {
     *work = work.saturating_add(amount);
     if *work > MAX_SCAN_WORK {
         return Err(
@@ -296,10 +306,15 @@ fn charge(work: &mut u64, amount: u64) -> Result<(), String> {
     }
     Ok(())
 }
-fn x_at(e: Edge, y: f64) -> f64 {
+pub(crate) fn x_at(e: Edge, y: f64) -> f64 {
     e[0][0] + (y - e[0][1]) * (e[1][0] - e[0][0]) / (e[1][1] - e[0][1])
 }
-fn add_break(breaks: &mut Vec<f64>, y: f64, top: f64, bottom: f64) -> Result<(), String> {
+pub(crate) fn add_break(
+    breaks: &mut Vec<f64>,
+    y: f64,
+    top: f64,
+    bottom: f64,
+) -> Result<(), String> {
     if y > top && y < bottom {
         if breaks.len() >= MAX_PATH_EDGES {
             return Err("artwork row exceeds its integration breakpoint limit".into());
@@ -310,11 +325,12 @@ fn add_break(breaks: &mut Vec<f64>, y: f64, top: f64, bottom: f64) -> Result<(),
 }
 
 /// The per-cluster working buffers, reused across clusters and rows: the
-/// pair sweep's open list and the interval sweep's spanning list (indices
-/// into the cluster's edges), the breakpoints, the per-interval intersections
-/// and the two accumulation planes (shared by every cluster of a row).
+/// pair stage's (`artwork_pair_sweep::PairScratch`) and the interval sweep's
+/// spanning list (indices into the cluster's edges), the breakpoints, the
+/// per-interval intersections and the two accumulation planes (shared by
+/// every cluster of a row).
 struct BodyScratch {
-    open: Vec<u32>,
+    pairs: PairScratch,
     spanning: Vec<u32>,
     breaks: Vec<f64>,
     intersections: Vec<(f64, i32)>,
@@ -347,7 +363,7 @@ impl RowScratch {
             extents: Vec::with_capacity(tagged),
             cluster: Vec::with_capacity(tagged),
             body: BodyScratch {
-                open: Vec::with_capacity(edges),
+                pairs: PairScratch::new(tagged),
                 spanning: Vec::with_capacity(edges),
                 breaks: Vec::new(),
                 intersections: Vec::with_capacity(edges),
@@ -524,9 +540,11 @@ fn row_coverage(
 
 /// One x-cluster of a row (the y-ordered sweep body, run per cluster): `edges`
 /// SORTED BY `min y` (ties in any order); the cluster's own edge breakpoints,
-/// then a PAIR SWEEP for its pairwise crossings (each edge charged `2·|open|
-/// + 1`) and an INTERVAL SWEEP over its own breakpoints (each interval charged
-/// `|spanning|`), accumulated into `body`'s planes.
+/// then the PAIR STAGE for its pairwise crossings
+/// (`artwork_pair_sweep::pair_breaks`: the open-list sweep for pairs with a
+/// partial edge, the inversion sweep for full × full pairs) and an INTERVAL
+/// SWEEP over its own breakpoints (each interval charged `|spanning|`),
+/// accumulated into `body`'s planes.
 fn cluster_coverage(
     top: f64,
     width: u32,
@@ -539,7 +557,7 @@ fn cluster_coverage(
     let w = width as usize;
     let bottom = top + 1.0;
     let BodyScratch {
-        open,
+        pairs,
         spanning,
         breaks,
         intersections,
@@ -547,27 +565,7 @@ fn cluster_coverage(
         fills,
     } = body;
     edge_breaks(top, bottom, width, edges, breaks, work, job)?;
-    open.clear();
-    for (i, &b) in edges.iter().enumerate() {
-        job.every(i)?;
-        charge(work, 2 * open.len() as u64 + 1)?;
-        let floor = min_y(&b).max(top);
-        open.retain(|&a| max_y(&edges[a as usize]).min(bottom) > floor);
-        for &index in open.iter() {
-            let a = edges[index as usize];
-            let low = top.max(a[0][1].min(a[1][1])).max(b[0][1].min(b[1][1]));
-            let high = bottom.min(a[0][1].max(a[1][1])).min(b[0][1].max(b[1][1]));
-            if high <= low {
-                continue;
-            }
-            let d0 = x_at(a, low) - x_at(b, low);
-            let d1 = x_at(a, high) - x_at(b, high);
-            if d0 != d1 {
-                add_break(breaks, low - d0 * (high - low) / (d1 - d0), low, high)?;
-            }
-        }
-        open.push(i as u32);
-    }
+    pair_breaks(top, edges, pairs, breaks, work, job)?;
     breaks.sort_unstable_by(f64::total_cmp);
     breaks.dedup();
     spanning.clear();
@@ -662,10 +660,10 @@ fn reference_row_coverage(
     Ok(())
 }
 
-fn min_y(e: &Edge) -> f64 {
+pub(crate) fn min_y(e: &Edge) -> f64 {
     e[0][1].min(e[1][1])
 }
-fn max_y(e: &Edge) -> f64 {
+pub(crate) fn max_y(e: &Edge) -> f64 {
     e[0][1].max(e[1][1])
 }
 

@@ -11,6 +11,7 @@ use crate::precision_mask::PrecisionPlane;
 use crate::precision_sampling::{transform_plane, GeometryFilter};
 use crate::precision_selection_support as support;
 use crate::selected_pixels_transform::CanvasMap;
+use crate::selection_limits::MAX_SELECTION_RADIUS;
 use crate::style_model::StrokePosition;
 use serde::Deserialize;
 
@@ -150,12 +151,12 @@ impl PlaneOperation {
             | Self::Grow { radius }
             | Self::Shrink { radius }
             | Self::Border { radius } => {
-                if !radius.is_finite() || !(0. ..=250.).contains(radius) {
+                if !radius.is_finite() || !(0. ..=MAX_SELECTION_RADIUS).contains(radius) {
                     return Err("selection radius must be finite in [0,250]".into());
                 }
             }
             Self::Stroke { width, .. } => {
-                if !width.is_finite() || *width <= 0. || *width > 250. {
+                if !width.is_finite() || *width <= 0. || *width > MAX_SELECTION_RADIUS {
                     return Err("selection stroke width must be finite in (0,250]".into());
                 }
             }

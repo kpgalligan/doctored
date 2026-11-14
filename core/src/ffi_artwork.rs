@@ -60,12 +60,14 @@ pub unsafe extern "C" fn dr_artwork_path_coverage(
                 // the x-clusters: 2 MiB edge loop indices + 2 MiB
                 // top-order permutation + 2 MiB active loop indices + 4 MiB
                 // (cluster, index) order + 12 MiB loop extents + 16 MiB
-                // cluster edges; 20 MiB covers growth/old allocation overlap.
-                // The figure is 172 bytes per edge plus that margin, so it
-                // moves with MAX_PATH_EDGES (53 MiB at the earlier
-                // 262,144); the host's lease mirrors it
+                // cluster edges; the pair stage's full-edge sweep
+                // (`artwork_pair_sweep`): 2 MiB full-edge list + 2 MiB merge
+                // buffer + 8 MiB of x at the row's top and bottom; 20 MiB
+                // covers growth/old allocation overlap. The figure is 196
+                // bytes per edge plus that margin, so it moves with
+                // MAX_PATH_EDGES; the host's lease mirrors it
                 // (`NativeArtworkEvaluation.coverageBookkeepingBytes`).
-                let scratch = 106 * BOOKKEEPING_BYTES + n as u64 * 2 + u64::from(width) * 24;
+                let scratch = 118 * BOOKKEEPING_BYTES + n as u64 * 2 + u64::from(width) * 24;
                 admit(input, scratch, other, limit)?;
                 job.reserve(scratch)?;
                 let commands = if command_count == 0 {
@@ -92,6 +94,8 @@ pub unsafe extern "C" fn dr_artwork_path_coverage(
 /// Assemble ordered native coverage/continuous sRGB ink and declared intrinsic
 /// RGBA8 glyph components into genuine u16 pixels in the supplied exact ICC.
 /// Coverage is component-major u16; intrinsic pixels are separate RGBA8 bytes.
+/// Each plane covers its component's window; both counts must be exactly the
+/// windows' sums, refused before admission or any read when they are not.
 /// # Safety
 /// Input pointers NULL/readable for lengths, description NUL-terminated;
 /// control NULL/live single-use and err_out NULL/writable.
@@ -224,21 +228,31 @@ unsafe fn artwork_render(
                 )?;
                 if (samples.is_null() && sample_count != 0)
                     || (intrinsic.is_null() && intrinsic_count != 0)
-                    || sample_count.saturating_add(intrinsic_count) > 64_000_000
                     || profile.is_null()
                     || profile_length == 0
                     || profile_length > crate::drdc::MAX_DRDC_BLOB_LEN as usize
                 {
                     return Err("invalid artwork component or ICC buffers".into());
                 }
-                let input = sample_count as u64 * 2
-                    + intrinsic_count as u64
-                    + profile_length as u64
-                    + text.len() as u64;
                 let components = crate::artwork_render::components(
                     text,
                     matches!(output, ArtworkOutput::Float),
                 )?;
+                // The lengths must be exactly what the raster's size and the
+                // windows its component list names (`artwork_render`'s
+                // "Component windows", each component bounded on its own)
+                // hold, before anything counts or reads them: from here on
+                // both counts are the core's own layout, never the caller's.
+                crate::artwork_render::component_windows(
+                    &components,
+                    width,
+                    height,
+                    (sample_count, intrinsic_count),
+                )?;
+                let input = sample_count as u64 * 2
+                    + intrinsic_count as u64
+                    + profile_length as u64
+                    + text.len() as u64;
                 // A wide fill colour at 8/16 bits builds one high-depth
                 // encoder (`artwork_render`'s "Fill layers").
                 let plane = match output {

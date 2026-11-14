@@ -204,13 +204,13 @@ impl Subpath {
 
 /// The working memory [`PathShape::coverage`] may hold over a `width` x
 /// `height` window, beyond the shape itself: the rasterizer's edge and
-/// cluster lists at `artwork_coverage::MAX_PATH_EDGES` (172 bytes an edge,
-/// 106 MiB with its growth margin), the u16 plane it answers and its
+/// cluster lists at `artwork_coverage::MAX_PATH_EDGES` (196 bytes an edge,
+/// 118 MiB with its growth margin), the u16 plane it answers and its
 /// per-row accumulation planes. The master copy of this figure, with its
 /// itemization, is `ffi_artwork::dr_artwork_path_coverage`; the two move
 /// together with `MAX_PATH_EDGES`.
 pub(crate) fn coverage_scratch(width: u32, height: u32) -> u64 {
-    106 * 1024 * 1024 + u64::from(width) * u64::from(height) * 2 + u64::from(width) * 24
+    118 * 1024 * 1024 + u64::from(width) * u64::from(height) * 2 + u64::from(width) * 24
 }
 
 /// A coordinate as the model stores it: quantized, with `-0.0` folded into

@@ -5,14 +5,15 @@
 //! The components are `artwork_render`'s four with INK in place of colour:
 //! `{"kind":"coverage","ink":[c,m,y,k,a]}` (one u16 coverage plane, the RGB
 //! path's own `artwork_coverage` planes), `{"kind":"intrinsic_rgba8",
-//! "opacity":o}` (one RGBA8 sRGB colour-glyph plane), `{"kind":"fill",
+//! "opacity":o}` (one RGBA8 sRGB colour-glyph plane), both with the RGB
+//! component's optional `window` (`artwork_window`), `{"kind":"fill",
 //! "ink":[c,m,y,k,a]}` and `{"kind":"gradient","gradient":{GradientFill},
 //! "inks":[[c,m,y,k],…]}` (with the RGB component's optional `box`),
 //! every ink and alpha in [0, 1] (1 = 100 %), and
 //! `{"kind":"pattern","fill":{…}}`, the RGB render's own
 //! pattern component with no ink key. The bounds (16 MiB of JSON,
 //! `artwork_document::MAX_LARGE_DESCRIPTION`, so a large custom tile is
-//! admitted; 1–256 components; 64,000,000 samples), the gradient's parse
+//! admitted; 1–256 components; 64,000,000 samples per component), the gradient's parse
 //! (`artwork_render::gradient_fill`: Strict, one entry per stop, stops listed
 //! in non-decreasing position) and the pattern's (`artwork_render::
 //! pattern_fill`, Strict) are the RGB render's.
@@ -42,9 +43,8 @@
 //! [`assemble_cmyk`] read it there, parsing only a component built without
 //! one. The finished sample is `cmyk_composite::codes`.
 
-use crate::artwork_render::{
-    gradient_fill, gradient_frame, pattern_fill, MAX_COMPONENTS, MAX_COMPONENT_SAMPLES,
-};
+use crate::artwork_render::{gradient_fill, gradient_frame, pattern_fill, MAX_COMPONENTS};
+use crate::artwork_window::{totals, Window};
 use crate::cmyk_composite::{codes, over};
 use crate::job_control::JobContext;
 use crate::pattern_tile::{ink_sampler, ink_scratch_bytes, InkSampler};
@@ -60,10 +60,17 @@ use serde::Deserialize;
 pub(crate) enum CmykComponent {
     Coverage {
         ink: [f32; 5],
+        /// The RGB component's `window` (`artwork_window`); absent: the
+        /// raster.
+        #[serde(default)]
+        window: Option<[i64; 4]>,
     },
     IntrinsicRgba8 {
         #[serde(default = "full_opacity")]
         opacity: f32,
+        /// As `Coverage`'s.
+        #[serde(default)]
+        window: Option<[i64; 4]>,
     },
     Fill {
         ink: [f32; 5],
@@ -109,8 +116,10 @@ pub(crate) fn cmyk_components(json: &str) -> Result<Vec<CmykComponent>, String> 
     let unit = |v: &f32| v.is_finite() && (0.0..=1.0).contains(v);
     for component in &mut list {
         let valid = match component {
-            CmykComponent::Coverage { ink } | CmykComponent::Fill { ink } => ink.iter().all(unit),
-            CmykComponent::IntrinsicRgba8 { opacity } => {
+            CmykComponent::Coverage { ink, .. } | CmykComponent::Fill { ink } => {
+                ink.iter().all(unit)
+            }
+            CmykComponent::IntrinsicRgba8 { opacity, .. } => {
                 if !unit(opacity) {
                     return Err("intrinsic glyph opacity must be normalized".into());
                 }
@@ -171,11 +180,34 @@ pub(crate) fn pattern_scratch(components: &[CmykComponent]) -> u64 {
         .sum()
 }
 
+/// Each plane-owning component's window over a `width × height` raster
+/// (`artwork_window`), `None` for the planeless ones: what the FFI recomputes
+/// its slice lengths from (`artwork_window::totals`) and the loop reads by.
+pub(crate) fn cmyk_windows(
+    components: &[CmykComponent],
+    width: u32,
+    height: u32,
+) -> Result<Vec<Option<(Window, bool)>>, String> {
+    components
+        .iter()
+        .map(|c| match c {
+            CmykComponent::Coverage { window, .. } => {
+                Window::plane(*window, (width, height), false)
+            }
+            CmykComponent::IntrinsicRgba8 { window, .. } => {
+                Window::plane(*window, (width, height), true)
+            }
+            _ => Ok(None),
+        })
+        .collect()
+}
+
 /// The ONE ink assembly loop (module doc): straight CMYKA16, row-major.
-/// `samples` holds one `width × height` coverage plane per coverage
-/// component, component-major; `intrinsic` one RGBA8 plane per intrinsic
-/// component. `intrinsic_ink` answers a glyph pixel's sRGB as `[c, m, y, k]`;
-/// `texel_ink` a pattern texel's sRGB, on the document's grid.
+/// `samples` holds one coverage plane per coverage component over its window
+/// (`artwork_window`), component-major; `intrinsic` one RGBA8 plane per
+/// intrinsic component, likewise. `intrinsic_ink` answers a glyph pixel's
+/// sRGB as `[c, m, y, k]`; `texel_ink` a pattern texel's sRGB, on the
+/// document's grid.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn assemble_cmyk(
     width: u32,
@@ -188,18 +220,8 @@ pub(crate) fn assemble_cmyk(
     job: JobContext<'_>,
 ) -> Result<Vec<[u16; 5]>, String> {
     let n = pixel_count(width, height)?;
-    let planes = components
-        .iter()
-        .filter(|c| matches!(c, CmykComponent::Coverage { .. }))
-        .count();
-    let assets = components
-        .iter()
-        .filter(|c| matches!(c, CmykComponent::IntrinsicRgba8 { .. }))
-        .count();
-    if n.checked_mul(planes) != Some(samples.len())
-        || n.checked_mul(assets * 4) != Some(intrinsic.len())
-        || samples.len() + intrinsic.len() > MAX_COMPONENT_SAMPLES
-    {
+    let windows = cmyk_windows(components, width, height)?;
+    if totals(windows.iter().flatten().copied()) != (samples.len(), intrinsic.len()) {
         return Err("artwork samples do not match their bounded component layout".into());
     }
     // Each component's plane offset, and a gradient's sampler over the raster.
@@ -207,7 +229,8 @@ pub(crate) fn assemble_cmyk(
     let mut samplers: Vec<Option<GradientSampler>> = Vec::with_capacity(components.len());
     let mut patterns: Vec<Option<InkSampler>> = Vec::with_capacity(components.len());
     let (mut plane, mut asset) = (0, 0);
-    for component in components {
+    for (component, window) in components.iter().zip(&windows) {
+        let pixels = window.map_or(0, |(w, _)| w.pixels());
         patterns.push(match component {
             CmykComponent::Pattern { fill, parsed } => {
                 let fill = parsed_fill(fill, parsed)?;
@@ -224,12 +247,12 @@ pub(crate) fn assemble_cmyk(
         match component {
             CmykComponent::Coverage { .. } => {
                 offsets.push(plane);
-                plane += n;
+                plane += pixels;
                 samplers.push(None);
             }
             CmykComponent::IntrinsicRgba8 { .. } => {
                 offsets.push(asset);
-                asset += n * 4;
+                asset += pixels * 4;
                 samplers.push(None);
             }
             CmykComponent::Fill { .. } | CmykComponent::Pattern { .. } => {
@@ -252,19 +275,31 @@ pub(crate) fn assemble_cmyk(
         }
     }
     let mut out = reserved_vec(n)?;
+    let w = width as usize;
+    let (mut px, mut py) = (0usize, 0usize);
     for i in 0..n {
         job.every(i)?;
         let mut pixel = [0.0f32; 5];
         for (index, component) in components.iter().enumerate() {
             let offset = offsets[index];
+            // Outside its window a plane reads 0 (`artwork_window`).
+            let at = windows[index].and_then(|(window, _)| window.at(px, py));
             match component {
-                CmykComponent::Coverage { ink } => {
-                    let alpha =
-                        checked_alpha(ink[4], 1.0, f32::from(samples[offset + i]) / 65535.0)?;
+                CmykComponent::Coverage { ink, .. } => {
+                    let coverage = at.map_or(0, |k| samples[offset + k]);
+                    let alpha = checked_alpha(ink[4], 1.0, f32::from(coverage) / 65535.0)?;
                     over(&mut pixel, [ink[0], ink[1], ink[2], ink[3]], alpha);
                 }
-                CmykComponent::IntrinsicRgba8 { opacity } => {
-                    let s = &intrinsic[offset + i * 4..offset + i * 4 + 4];
+                CmykComponent::IntrinsicRgba8 { opacity, .. } => {
+                    let s = at.map_or([0; 4], |k| {
+                        let at = offset + k * 4;
+                        [
+                            intrinsic[at],
+                            intrinsic[at + 1],
+                            intrinsic[at + 2],
+                            intrinsic[at + 3],
+                        ]
+                    });
                     let alpha = checked_alpha(*opacity, 1.0, f32::from(s[3]) / 255.0)?;
                     if alpha > 0.0 {
                         over(&mut pixel, intrinsic_ink([s[0], s[1], s[2]]), alpha);
@@ -278,9 +313,7 @@ pub(crate) fn assemble_cmyk(
                     let Some(sampler) = samplers[index].as_ref() else {
                         return Err("artwork gradient component has no sampler".into());
                     };
-                    let x = (i % width as usize) as f32 + 0.5;
-                    let y = (i / width as usize) as f32 + 0.5;
-                    let t = sampler.t(x, y);
+                    let t = sampler.t(px as f32 + 0.5, py as f32 + 0.5);
                     let (cmy, opacity) =
                         sampler.color_with(t, |k| [inks[k][0], inks[k][1], inks[k][2]]);
                     let (k, _) = sampler.color_with(t, |k| [inks[k][3]; 3]);
@@ -291,9 +324,7 @@ pub(crate) fn assemble_cmyk(
                     let Some(sampler) = patterns[index].as_ref() else {
                         return Err("artwork pattern component has no sampler".into());
                     };
-                    let x = (i % width as usize) as i64;
-                    let y = (i / width as usize) as i64;
-                    let s = sampler.at(x, y);
+                    let s = sampler.at(px as i64, py as i64);
                     let alpha = checked_alpha(s[4], 1.0, 1.0)?;
                     if alpha > 0.0 {
                         over(&mut pixel, [s[0], s[1], s[2], s[3]], alpha);
@@ -302,6 +333,10 @@ pub(crate) fn assemble_cmyk(
             }
         }
         out.push(codes(pixel));
+        px += 1;
+        if px == w {
+            (px, py) = (0, py + 1);
+        }
     }
     Ok(out)
 }

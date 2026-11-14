@@ -55,9 +55,11 @@ Shared retained-source rules are in [phase-8-retained-source-status.md](phase-8-
   arrays then enter the single worker, where flattening/coverage/composition cooperate. A latched parent token
   hands cancellation to each fresh child token so it cannot be lost between stages; publication rechecks
   source identity/revision/target/selection (including modal color-sheet state).
-- **Limits (refusals, not an RSS ceiling):** 4,096 UTF-16 units, 64 color runs, 256 components, 64 M combined
-  component samples, 262,144 path points, 524,288 flattened edges (formerly 262,144), 256 M scan-work,
-  64 KiB descriptions; coverage reserves 106 MiB plus output/row storage before flattening.
+- **Limits (refusals, not an RSS ceiling):** 4,096 UTF-16 units, 64 color runs, 256 components, 64 M
+  samples per component (each path part windowed to its bounds; the combined total is gone), 262,144
+  path points, 524,288 flattened edges (formerly 262,144), 256 M scan-work (full × full edge pairs charged
+  only when they cross), 64 KiB descriptions; coverage reserves 118 MiB plus output/row storage before
+  flattening.
 
 ## Rejected alternatives
 - Rounding authored color to hex / byte coverage for typed documents — defeats P7-05.

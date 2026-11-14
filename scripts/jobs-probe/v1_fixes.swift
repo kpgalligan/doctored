@@ -665,7 +665,7 @@ func verifyLongTextLine() throws {
                 && document.doc === base && document.undoManager?.canUndo != true,
                 "\(tag) (b) 2,000 characters of prose refuse at the edge bound only: \(over.text)")
 
-    // (c) The bound's coverage bookkeeping (106 MiB) is reserved by one
+    // (c) The bound's coverage bookkeeping (118 MiB) is reserved by one
     // coverage call at a time, so a geometry job over two text layers charges
     // it once beside each layer's own planes, and the straighten still
     // re-renders both.
@@ -681,7 +681,7 @@ func verifyLongTextLine() throws {
                                        canvas: (two.width, two.height))
     let bookkeeping = NativeArtworkEvaluation.coverageBookkeepingBytes
     let own = work.members.reduce(UInt64(0)) { $0 + $1.evaluation.ownScratchBytes }
-    try require(work.members.count == 2 && bookkeeping == 106 * 1024 * 1024
+    try require(work.members.count == 2 && bookkeeping == 118 * 1024 * 1024
                 && work.scratchBytes == bookkeeping + own
                 && work.members.allSatisfy {
                     $0.evaluation.scratchBytes == bookkeeping + $0.evaluation.ownScratchBytes

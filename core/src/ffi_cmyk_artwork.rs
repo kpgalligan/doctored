@@ -9,7 +9,7 @@ use std::ffi::{c_char, CString};
 use std::ptr;
 
 use crate::artwork_document::{ArtworkPublication, MAX_LARGE_DESCRIPTION};
-use crate::cmyk_artwork::{artwork_colors, component_planes, CmykArtwork};
+use crate::cmyk_artwork::{artwork_colors, component_lengths, CmykArtwork};
 use crate::cmyk_artwork_render::cmyk_components;
 use crate::ffi_util::{borrow_cstr_bounded, boxed, fallible_op, required_handle};
 use crate::job_control::{DrJobControl, JobContext};
@@ -75,30 +75,28 @@ pub unsafe extern "C" fn dr_precision_doc_cmyk_artwork(
                 } else {
                     Some(crate::layer_insert::InsertPosition::from_code(position)?)
                 };
-                // The lengths come from the raster's own size and the planes
-                // its component list names, never from the caller.
-                let n = pixel_count(width, height)?;
-                let (planes, assets) = component_planes(&cmyk_components(text)?);
-                let expected_samples = n.checked_mul(planes);
-                let expected_intrinsic = n.checked_mul(assets * 4);
-                if expected_samples != Some(sample_count)
-                    || expected_intrinsic != Some(intrinsic_count)
+                // The lengths come from the raster's own size and the
+                // windows its component list names (`artwork_window`, each
+                // component bounded on its own), never from the caller.
+                pixel_count(width, height)?;
+                let (expected_samples, expected_intrinsic) =
+                    component_lengths(&cmyk_components(text)?, width, height)?;
+                if expected_samples != sample_count
+                    || expected_intrinsic != intrinsic_count
                     || (samples.is_null() && sample_count != 0)
                     || (intrinsic.is_null() && intrinsic_count != 0)
-                    || sample_count.saturating_add(intrinsic_count)
-                        > crate::artwork_render::MAX_COMPONENT_SAMPLES
                 {
                     return Err("CMYK artwork samples do not match their component layout".into());
                 }
-                let samples = if planes == 0 {
+                let samples = if expected_samples == 0 {
                     &[][..]
                 } else {
-                    std::slice::from_raw_parts(samples, n * planes)
+                    std::slice::from_raw_parts(samples, expected_samples)
                 };
-                let intrinsic = if assets == 0 {
+                let intrinsic = if expected_intrinsic == 0 {
                     &[][..]
                 } else {
-                    std::slice::from_raw_parts(intrinsic, n * assets * 4)
+                    std::slice::from_raw_parts(intrinsic, expected_intrinsic)
                 };
                 let control = control.as_ref();
                 let _run = control.map(DrJobControl::begin).transpose()?;

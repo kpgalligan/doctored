@@ -13,6 +13,8 @@ mod resource_report;
 mod bounded_artwork_coverage;
 #[path = "bounded_brush_footprint.rs"]
 mod bounded_brush_footprint;
+#[path = "bounded_byte_feather.rs"]
+mod bounded_byte_feather;
 #[path = "bounded_selection_support.rs"]
 mod bounded_selection_support;
 #[path = "job_control_park.rs"]

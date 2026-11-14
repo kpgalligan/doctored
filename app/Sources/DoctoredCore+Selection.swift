@@ -31,8 +31,10 @@ enum RasterSelection {
 
     /// Gaussian-feathers a coverage mask in place. Sampling clamps to the
     /// canvas edges, so a selection touching the border keeps full
-    /// coverage there; radius <= 0 leaves the mask untouched. false on a
-    /// size mismatch or a non-finite radius.
+    /// coverage there; radius <= 0 leaves the mask untouched. The core works
+    /// over the selection's bounding rect grown by the kernel, not the
+    /// canvas. false on a size mismatch, or a radius that is not finite or
+    /// is above 250 (every caller offers at most 250).
     static func featherMask(
         _ mask: inout [UInt8], width: Int, height: Int, radius: Double
     ) -> Bool {
@@ -101,7 +103,8 @@ enum RasterSelection {
 
     /// Smooths the coverage mask in place: featherMask's Gaussian blur
     /// followed by a smoothstep remap, so corners round and jagged edges
-    /// reconcile while soft coverage stays soft.
+    /// reconcile while soft coverage stays soft. false above 250, as
+    /// featherMask.
     static func smoothMask(
         _ mask: inout [UInt8], width: Int, height: Int, radius: Double
     ) -> Bool {

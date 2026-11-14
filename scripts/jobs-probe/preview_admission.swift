@@ -52,7 +52,7 @@ func verifyPreviewOwnLease() throws {
 
 /// The artwork stage's scratch stays counted: while a text
 /// layer's ⌘T preview is in flight, its payload lease holds at least
-/// `NativeArtworkEvaluation.scratchBytes`' 120 MiB floor (once 48) beside the core
+/// `NativeArtworkEvaluation.scratchBytes`' 132 MiB floor (once 48) beside the core
 /// reservation; the preview lands, and both leave once the session ends.
 private func verifyArtworkLease(depth: Int) throws {
     let tag = "[preview own lease, \(depth)-bit artwork]"
@@ -98,9 +98,9 @@ private func verifyArtworkLease(depth: Int) throws {
     let held = try payloads() - payload0
     let registered = SelectionWorkBudget.scratchBytes
     let reserved = registered > reserved0 ? registered - reserved0 : 0
-    try require(pending() && reserved > 0 && held >= 120 * 1024 * 1024,
+    try require(pending() && reserved > 0 && held >= 132 * 1024 * 1024,
                 "\(tag) the in-flight preview holds its artwork stage as a payload lease "
-                + "(\(held) bytes ≥ 120 MiB) beside its core reservation (\(reserved))")
+                + "(\(held) bytes ≥ 132 MiB) beside its core reservation (\(reserved))")
     try pumpUntil({ !pending() }, seconds: 60)
     try require(status() == "Preview current", "\(tag) the preview lands: \(status())")
     controller.endTransformSession()

@@ -3,8 +3,36 @@ import AppKit
 /// TextKit/CGPath preparation ends on main. Workers capture only immutable
 /// commands, numeric colors and declared intrinsic bytes, never layout objects.
 struct NativeArtworkEvaluation {
+    /// The raster pixels a path part's coverage plane covers (the core's
+    /// component `window`, `artwork_window`): `x`, `y`, `width`, `height`.
+    struct Window: Equatable {
+        let x: Int, y: Int, width: Int, height: Int
+        var pixels: Int { width * height }
+        var json: [Int] { [x, y, width, height] }
+
+        /// `bounds` (raster pixels, y down) made integral, grown 1 px and
+        /// clipped to the `width`×`height` raster: every pixel the path's
+        /// flattened outline can ink, since its vertices lie on the path and
+        /// the path inside its control points' box. A box that is not finite
+        /// takes the whole raster; one that misses the raster, a 1×1 window
+        /// at the origin (its coverage is zero either way).
+        static func covering(_ bounds: CGRect, width: Int, height: Int) -> Window {
+            let whole = Window(x: 0, y: 0, width: width, height: height)
+            guard !bounds.isNull, [bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]
+                .allSatisfy({ $0.isFinite && abs($0) <= 1e9 }) else { return whole }
+            let x0 = max(Int(bounds.minX.rounded(.down)) - 1, 0)
+            let y0 = max(Int(bounds.minY.rounded(.down)) - 1, 0)
+            let x1 = min(Int(bounds.maxX.rounded(.up)) + 1, width)
+            let y1 = min(Int(bounds.maxY.rounded(.up)) + 1, height)
+            guard x1 > x0, y1 > y0 else { return Window(x: 0, y: 0, width: 1, height: 1) }
+            return Window(x: x0, y: y0, width: x1 - x0, height: y1 - y0)
+        }
+    }
+
     enum Part {
-        case path(commands: [UInt8], points: [Double], rgba: [Double])
+        /// `points` are relative to `window`'s origin; the coverage is
+        /// computed at the window's size.
+        case path(commands: [UInt8], points: [Double], rgba: [Double], window: Window)
         case intrinsic([UInt8], opacity: Double)
         case coverage([UInt8], rgba: [Double])
         /// A fill layer's colour or gradient: the render component
@@ -16,11 +44,13 @@ struct NativeArtworkEvaluation {
     let offsetX: Int
     let offsetY: Int
     let parts: [Part]
+    /// The coverage samples every plane-owning part holds: a path part its
+    /// window's pixels, a bitmap coverage part the raster's.
     let scalarCount: Int
     let intrinsicCount: Int
     /// How many parts own no sample plane (a fill layer's). Each is charged
     /// in `scratchBytes` as one coverage plane, and none counts against the
-    /// 64-million-sample budget: they hold no samples.
+    /// per-component 64-million-sample bound: they hold no samples.
     let planelessCount: Int
     let lease: PrecisionEditPayload
     /// True in a 32-bit float document: `compute` renders through
@@ -44,6 +74,12 @@ struct NativeArtworkEvaluation {
     /// at 14–15 B/px (`core/src/cmyk_artwork.rs`' measurement record: the
     /// first build's 40 over-charged it 3.8×); a miss raises it.
     static let cmykMarginPerPixel: UInt64 = 10
+
+    /// The core's per-component bound (`artwork_render::MAX_COMPONENT_SAMPLES`):
+    /// a coverage plane's samples, or an intrinsic plane's bytes. There is no
+    /// whole-layer total.
+    static let maximumComponentSamples = 64_000_000
+    static let componentRefusal = failure("Artwork exceeds 64 million samples in one component.")
 
     init(_ drawing: NativeArtworkDrawing, float: Bool, cmyk: Bool = false) throws {
         self.float = float
@@ -71,6 +107,11 @@ struct NativeArtworkEvaluation {
             switch part {
             case let .path(path, rgba):
                 guard ArtworkColor.valid(rgba, in: ink) else { throw Self.failure(colorRefusal) }
+                // The plane covers only the path's box (the core's
+                // per-component window), so a part costs its own extent,
+                // not the raster's.
+                let window = Window.covering(path.boundingBox, width: width, height: height)
+                let (dx, dy) = (Double(window.x), Double(window.y))
                 var commands: [UInt8] = [], points: [Double] = []
                 var valid = true
                 path.applyWithBlock { pointer in
@@ -87,22 +128,26 @@ struct NativeArtworkEvaluation {
                     guard commands.count < 262_144, points.count / 2 + length <= 262_144 else { valid = false; return }
                     commands.append(command)
                     for index in 0..<length {
-                        points.append(Double(element.points[index].x)); points.append(Double(element.points[index].y))
+                        points.append(Double(element.points[index].x) - dx)
+                        points.append(Double(element.points[index].y) - dy)
                     }
                 }
                 guard valid else { throw Self.failure("Artwork outline exceeds its bounded path command limit.") }
-                captured.append(.path(commands: commands, points: points, rgba: rgba))
-                scalar += count; bytes += UInt64(commands.count + points.count * 8)
+                guard window.pixels <= Self.maximumComponentSamples else { throw Self.componentRefusal }
+                captured.append(.path(commands: commands, points: points, rgba: rgba, window: window))
+                scalar += window.pixels; bytes += UInt64(commands.count + points.count * 8)
             case let .coverage(pixels, rgba):
                 guard pixels.count == count, ArtworkColor.valid(rgba, in: ink) else {
                     throw Self.failure("Intrinsic monochrome coverage does not match its extent or ink.")
                 }
+                guard count <= Self.maximumComponentSamples else { throw Self.componentRefusal }
                 captured.append(.coverage(pixels, rgba: rgba))
                 scalar += count; bytes += UInt64(pixels.count)
             case let .intrinsic(pixels, opacity):
                 guard pixels.count == count * 4, opacity.isFinite, (0...1).contains(opacity) else {
                     throw Self.failure("Intrinsic glyph data does not match its declared extent or opacity.")
                 }
+                guard pixels.count <= Self.maximumComponentSamples else { throw Self.componentRefusal }
                 captured.append(.intrinsic(pixels, opacity: opacity))
                 intrinsic += pixels.count; bytes += UInt64(pixels.count)
             case let .fill(rgba, linear):
@@ -146,23 +191,25 @@ struct NativeArtworkEvaluation {
                 let rgba = ((fill["pattern"] as? [String: Any])?["rgba"] as? String)?.utf8.count ?? 0
                 planeless += 1; bytes += UInt64(rgba) + 4096
             }
-            guard scalar + intrinsic <= 64_000_000 else { throw Self.failure("Artwork exceeds the 64-million-sample component budget.") }
         }
         if captured.isEmpty {
-            captured = [.path(commands: [], points: [], rgba: cmyk ? [0, 0, 0, 0, 0] : [0, 0, 0, 0])]
-            scalar = count
+            // One empty outline: its coverage is zero, so one pixel holds it.
+            captured = [.path(commands: [], points: [], rgba: cmyk ? [0, 0, 0, 0, 0] : [0, 0, 0, 0],
+                              window: Window(x: 0, y: 0, width: 1, height: 1))]
+            scalar = 1
         }
         parts = captured; scalarCount = scalar; intrinsicCount = intrinsic
         planelessCount = planeless
         lease = try PrecisionEditPayload.admitted(bytes: bytes)
     }
 
-    /// The core's coverage bookkeeping (`dr_artwork_path_coverage`: 106 MiB
-    /// since the x-cluster buffers and their 524,288-edge bound, 34 MiB
-    /// before). One coverage call reserves it and releases it on return, and
-    /// parts and members render one after another, so a set of evaluations
-    /// needs it once (`ArtworkGeometryWork.scratchBytes`).
-    static let coverageBookkeepingBytes: UInt64 = 106 * 1024 * 1024
+    /// The core's coverage bookkeeping (`dr_artwork_path_coverage`: 118 MiB
+    /// since the pair stage's full-edge sweep, 106 MiB with the x-cluster
+    /// buffers and their 524,288-edge bound, 34 MiB before). One coverage
+    /// call reserves it and releases it on return, and parts and members
+    /// render one after another, so a set of evaluations needs it once
+    /// (`ArtworkGeometryWork.scratchBytes`).
+    static let coverageBookkeepingBytes: UInt64 = 118 * 1024 * 1024
 
     /// What this evaluation needs beside the coverage bookkeeping: its own
     /// planes, and the 14 MiB the fixed term has always had above the core's
@@ -177,7 +224,7 @@ struct NativeArtworkEvaluation {
             + UInt64(intrinsicCount) * 2 + float
     }
 
-    /// One evaluation's stage: 120 MiB (the bookkeeping and the 14 MiB) plus
+    /// One evaluation's stage: 132 MiB (the bookkeeping and the 14 MiB) plus
     /// its planes; under the bookkeeping a small layer's coverage reservation
     /// would not fit this stage.
     var scratchBytes: UInt64 { Self.coverageBookkeepingBytes + ownScratchBytes }
@@ -204,13 +251,13 @@ struct NativeArtworkEvaluation {
             let end = Double(index + 1) / Double(parts.count + 2)
             guard !control.isCancelled else { throw JobCancelled() }
             switch part {
-            case let .path(commands, points, rgba):
+            case let .path(commands, points, rgba, window):
                 let plane = try control.withChildOperation(from: start, to: end) {
                     try RasterArtworkCore.coverage(commands: commands, points: points,
-                        width: width, height: height, control: $0)
+                        width: window.width, height: window.height, control: $0)
                 }
                 coverage.append(contentsOf: plane)
-                descriptors.append(["kind": "coverage", colorKey: rgba])
+                descriptors.append(["kind": "coverage", colorKey: rgba, "window": window.json])
             case let .coverage(bytes, rgba):
                 let promoted = try PrecisionScalarBuffer.promoting(bytes, width: width, height: height)
                 coverage.append(contentsOf: promoted.samples)

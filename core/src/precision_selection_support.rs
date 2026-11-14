@@ -22,6 +22,10 @@
 //!   canvas), and the horizontal intermediate is exactly 0.0 on every row
 //!   outside the support's rows, so the crop is f32-bit-identical inside the
 //!   window and the full plane is exactly 0 outside it (Smooth maps 0 → 0).
+//!   The argument is the kernel's, not the sample type's: the BYTE feather
+//!   and smooth (`doc_select::feather_mask_with_context`, 8-bit Select ▸
+//!   Modify and Refine) run the same `support`, `gaussian_reach`, `window`
+//!   and `crop` over u8 coverage, where `Scalar::from_filtered(0.0)` is 0 too.
 //! * Grow / Shrink / Border (needs the f64 envelope in `doc_select::edt_1d`).
 //!   Membership is `sample >= 32768`, so every inside pixel lies in the
 //!   support. A window pixel's nearest inside pixel is therefore in the crop,
@@ -77,9 +81,10 @@ use crate::precision_selection_plane::PlaneOperation;
 pub(crate) type Rect = (u32, u32, u32, u32);
 
 /// Bounding rect of the NONZERO samples; `None` when every sample is 0.
-/// Polls `job.every(i)`.
-pub(crate) fn support(
-    input: &[u16],
+/// Polls `job.every(i)`. Generic over the sample so the byte feather
+/// (`doc_select::feather_mask_with_context`) runs the same scan on u8.
+pub(crate) fn support<T: Copy + Default + PartialEq>(
+    input: &[T],
     width: u32,
     height: u32,
     job: JobContext<'_>,
@@ -88,11 +93,12 @@ pub(crate) fn support(
     if w == 0 || h == 0 {
         return Ok(None);
     }
+    let zero = T::default();
     let (mut x0, mut y0, mut x1, mut y1) = (usize::MAX, usize::MAX, 0usize, 0usize);
     let (mut x, mut y) = (0usize, 0usize);
     for (i, &value) in input.iter().take(w * h).enumerate() {
         job.every(i)?;
-        if value != 0 {
+        if value != zero {
             x0 = x0.min(x);
             y0 = y0.min(y);
             x1 = x1.max(x + 1);
@@ -114,7 +120,7 @@ pub(crate) fn support(
 pub(crate) fn reach(op: &PlaneOperation) -> Option<u32> {
     match op {
         PlaneOperation::Feather { radius } | PlaneOperation::Smooth { radius } => {
-            Some(nearest_odd(radius * 2. + 1.).max(3) / 2)
+            Some(gaussian_reach(*radius))
         }
         PlaneOperation::Grow { radius }
         | PlaneOperation::Shrink { radius }
@@ -122,6 +128,13 @@ pub(crate) fn reach(op: &PlaneOperation) -> Option<u32> {
         PlaneOperation::Stroke { width, .. } => Some(width.ceil() as u32 + 1),
         _ => None,
     }
+}
+
+/// The Gaussian's half width at `radius`, `nearest_odd(radius·2+1).max(3) /
+/// 2` (`gaussian_plane::feather`'s taps): Feather's and Smooth's reach at
+/// both depths.
+pub(crate) fn gaussian_reach(radius: f32) -> u32 {
+    nearest_odd(radius * 2. + 1.).max(3) / 2
 }
 
 /// `support` grown by `reach` on every side, clamped to the canvas.
@@ -151,13 +164,14 @@ pub(crate) fn work(op: &PlaneOperation, window: Rect) -> u64 {
     }
 }
 
-/// The window's samples of a `width`-wide plane, row-major.
-pub(crate) fn crop(
-    input: &[u16],
+/// The window's samples of a `width`-wide plane, row-major (u16 here, u8 in
+/// the byte feather).
+pub(crate) fn crop<T: Copy>(
+    input: &[T],
     width: u32,
     window: Rect,
     job: JobContext<'_>,
-) -> Result<Vec<u16>, String> {
+) -> Result<Vec<T>, String> {
     let (x0, y0, x1, y1) = (
         window.0 as usize,
         window.1 as usize,

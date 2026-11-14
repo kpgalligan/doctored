@@ -450,6 +450,14 @@ impl DrDocument {
 ///
 /// `radius <= 0` (or NaN/inf), a zero dimension, or a mask length that
 /// does not match `width * height` is a no-op.
+///
+/// The work is bounded by the selection, not the canvas: the kernel runs
+/// over the SUPPORT (the bounding rect of the nonzero bytes) grown by the
+/// Gaussian's half width and clamped to the canvas, and the window is
+/// written back in place. That equals the whole-plane kernel byte for byte
+/// (`precision_selection_support`'s Feather argument, which is the
+/// kernel's and holds for u8): outside the window the result is 0, as the
+/// mask already is there. An all-zero mask is left as it is.
 pub fn feather_mask(mask: &mut [u8], width: u32, height: u32, radius: f32) {
     feather_mask_with_context(
         mask,
@@ -461,6 +469,9 @@ pub fn feather_mask(mask: &mut [u8], width: u32, height: u32, radius: f32) {
     .expect("uncancellable context");
 }
 
+/// [`feather_mask`] under a job control: the support scan and the crop poll
+/// every 4096 bytes, the kernel per row and per 4096 cells of the window,
+/// and its stage-6 reports run over the window's rows.
 pub(crate) fn feather_mask_with_context(
     mask: &mut [u8],
     width: u32,
@@ -468,7 +479,26 @@ pub(crate) fn feather_mask_with_context(
     radius: f32,
     control: crate::job_control::JobContext<'_>,
 ) -> Result<(), String> {
-    crate::gaussian_plane::feather(mask, width, height, radius, control)
+    use crate::precision_selection_support as support;
+    let (w, h) = (width as usize, height as usize);
+    if !radius.is_finite() || radius <= 0.0 || w == 0 || h == 0 || mask.len() != w * h {
+        return Ok(());
+    }
+    let Some(bounds) = support::support(mask, width, height, control)? else {
+        return Ok(());
+    };
+    let window = support::window(bounds, support::gaussian_reach(radius), width, height);
+    if window == (0, 0, width, height) {
+        return crate::gaussian_plane::feather(mask, width, height, radius, control);
+    }
+    let (ww, wh) = (window.2 - window.0, window.3 - window.1);
+    let mut crop = support::crop(mask, width, window, control)?;
+    crate::gaussian_plane::feather(&mut crop, ww, wh, radius, control)?;
+    for (row, samples) in crop.chunks_exact(ww as usize).enumerate() {
+        let at = (window.1 as usize + row) * w + window.0 as usize;
+        mask[at..at + ww as usize].copy_from_slice(samples);
+    }
+    Ok(())
 }
 
 // -------------------------------------------------- selection morphology --

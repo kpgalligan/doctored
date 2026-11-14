@@ -46,7 +46,6 @@ private final class TextArtworkLayout: NSLayoutManager {
     private var height = 0
     private var parts: [NativeArtworkPart] = []
     private var failure: Error?
-    private var samples = 0
     private var pointCount = 0
     private var intrinsicBytes: UInt64 = 0
     private var pending = CGMutablePath()
@@ -64,7 +63,7 @@ private final class TextArtworkLayout: NSLayoutManager {
         self.width = width
         self.height = height
         guard width <= Self.maximumSamples / height else {
-            throw error("Text artwork exceeds the 64-million-sample limit.")
+            throw error("Text artwork exceeds the 64-million-sample limit of one component.")
         }
         try admit()
     }
@@ -82,14 +81,17 @@ private final class TextArtworkLayout: NSLayoutManager {
             + UInt64(width * height) + intrinsicBytes + UInt64(pointCount) * 64 + extra)
     }
 
+    /// One more part of `planes` samples a pixel over the text box. The bound
+    /// is the core's, per component (`artwork_window`): there is no total
+    /// across parts, and a path part's plane is windowed to its own glyphs
+    /// downstream (`NativeArtworkEvaluation.Window`).
     private func admitPart(planes: Int) throws {
         let count = width * height
         guard parts.count + (pendingColor == nil ? 0 : 1) < Self.maximumParts,
-              count <= (Self.maximumSamples - samples) / planes else {
-            throw error("Text artwork exceeds 256 ordered parts or 64 million component samples.")
+              count <= Self.maximumSamples / planes else {
+            throw error("Text artwork exceeds 256 ordered parts or 64 million samples in one component.")
         }
         try admit(extra: UInt64(count * planes) * 2)
-        samples += count * planes
     }
 
     private func flush() {

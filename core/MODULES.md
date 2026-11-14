@@ -182,7 +182,8 @@ Detail belongs in the source file's own header comment.
 - `doc_rotate.rs` / `ffi_rotate.rs` — DESTRUCTIVE whole-canvas rotation by any finite angle at BYTE depth (Phase 12F-1b3), and the single place an angle is CLASSIFIED and a rotated canvas SIZED.
 - `precision_scalar_edit.rs` / `precision_scalar_filter.rs` / `precision_scalar_statistics.rs` — native scalar editing: mask/channel/RGBA/plate writes, Dodge/Burn (R4m), filters, statistics.
 - `precision_selection.rs` / `precision_selection_plane.rs` / `ffi_selection_u16.rs` — native source-derived selection and the independent u16 selection-plane kinds.
-- `precision_selection_support.rs` — Phase 13A-6a's SUPPORT-BOUNDED typed Modify Selection: index arithmetic only (support rect, reach, window, work figure, crop, embed).
+- `precision_selection_support.rs` — SUPPORT-BOUNDED Modify Selection, typed and the byte feather/smooth: index arithmetic only (support rect, reach, window, work figure, crop, embed).
+- `selection_limits.rs` — leaf: `MAX_SELECTION_RADIUS` (250), the radius limit the typed plane operations and the byte feather and smooth exports share.
 - `precision_selection_refine.rs` — native u16 refinement: smooth, contour shift, feather, then contrast about 32768; each geometric stage is the existing `PlaneOperation` of its kind.
 - `edge_trace.rs` / `edge_trace_corridor.rs` — the Magnetic Lasso's live-wire tracer, exported as `dr_selection_trace_edge` from `ffi_selection_tools.rs`.
 - `selection_tools.rs` / `selection_refine.rs` / `ffi_selection_tools.rs` — profile-aware Color Range, Quick Selection's adapter, selection-only affine transforms, Select and Mask's refinement.
@@ -582,6 +583,8 @@ Detail belongs in the source file's own header comment.
 - `png_declared.rs` — kernel: a PNG's bare `gAMA`/`cHRM` (no `iCCP`, no `sRGB`) as the v4 RGB or Gray profile it describes, read in an `iCCP`'s place by every PNG open.
 - `precision_png_rows.rs` — the banded native RGBA16 PNG reader: rows decoded straight into 256×256 tiles, with no whole-plane decode buffer beside them.
 - `artwork_coverage.rs` / `artwork_render.rs` / `artwork_document.rs` / `ffi_artwork.rs` — bounded coverage; ink assembly into RGBA16 (linear f32 at 32 bits); a document-depth publication.
+- `artwork_pair_sweep.rs` — KERNEL: an artwork row cluster's pair crossings: open-list sweep for partial edges, inversion sweep for full × full pairs (charged only when they cross).
+- `artwork_window.rs` — KERNEL: a coverage/intrinsic component's `window` (the pixels its plane covers), the per-component 64M bound and the windows' sample totals.
 - `authored_color.rs` / `ffi_authored_color.rs` — the one sRGB ↔ document decision for authored colours (`LabTwin` converts tiles), wide colours in and out.
 - `artwork_native.rs` and the typed native reader/writer — v20 postorder `ADSC` references and bounded opaque UTF-8 descriptions; source bindings and descriptions are mutually exclusive.
 - `ffi.rs` / `ffi_doc.rs` / `ffi_filters.rs` / `ffi_agent.rs` / `ffi_style.rs` / `ffi_color.rs` / `ffi_heal.rs` — thin shims only; shared plumbing lives in `ffi_util.rs`, never copy-pasted.

@@ -12,7 +12,12 @@
 //! own breakpoints: a one-cluster row is still bit-identical, a row of several
 //! may differ by one code (`assert_within_one`, the 1,000-glyph line).
 //! The boundary fixture pins MONOTONICITY: an outline whose full-scan total
-//! is exactly the cap is accepted by both. The pair term still refuses.
+//! is exactly the cap is accepted by both. The pair stage charges a
+//! pair of full edges only when the two cross (`artwork_pair_sweep`), so an
+//! outline of parallel full edges past the reference's `active²` cap finishes
+//! (zero area, and a hatch with a closed-form area), crossing full edges
+//! equal the full scan, and an outline whose full edges all cross still
+//! refuses. The pair stage polls every 4,096 pair tests.
 //!
 //! Default tests are load-independent (13A-5b-iii-b-1): a pre-cancelled
 //! token, a cancel PARKED inside the row loop (13A-5b-iii-b-3's seam) and a
@@ -571,12 +576,15 @@ fn an_outline_at_exactly_the_cap_is_accepted_by_both_paths() {
     assert!(actual.iter().all(|&v| v == 0));
 }
 
-/// `phase8e_coverage.rs`'s 18,000-edge 1×1 fixture: every edge spans the one
-/// row, so the reference's up-front `active²` term (324M) and the pair
-/// sweep's running `Σ (2·|open| + 1)` (reaching the same 324M) both refuse,
-/// with the same sentence.
+/// `phase8e_coverage.rs`'s 18,000-edge 1×1 fixture: 9,000 zero-area loops of
+/// two parallel edges, every edge spanning the one row in one x-cluster. The
+/// reference's up-front `active²` term (324M) refuses. The sweep used to
+/// refuse too, its running `Σ (2·|open| + 1)` reaching the same 324M with no
+/// crossing to find; now full × full pairs are charged only when the
+/// inversion sweep reports them, and no pair here is inverted, so it
+/// finishes with the loops' zero area.
 #[test]
-fn the_pair_term_still_refuses_on_both_paths() {
+fn the_parallel_outline_finishes_on_the_sweep_and_still_refuses_on_the_full_scan() {
     let mut path = Path::new();
     for index in 0..9000 {
         let x = f64::from(index) / 9000.0;
@@ -587,7 +595,116 @@ fn the_pair_term_still_refuses_on_both_paths() {
         reference(&path, 1, 1, false).err().as_deref(),
         Some(SENTENCE)
     );
-    assert_eq!(product(&path, 1, 1, false).err().as_deref(), Some(SENTENCE));
+    assert_eq!(product(&path, 1, 1, false), Ok(vec![0]));
+}
+
+/// A hatch past the reference's cap with an area to integrate: 9,000
+/// parallelogram strips of width `w = 1/36,000` at `x = k/18,000`, slanted
+/// half a pixel across the 1×1 row, 18,000 full edges in one cluster, none
+/// crossing. Each strip lies inside the pixel (its right end is below 1), so
+/// the covered area is `9,000·w` exactly in real arithmetic and the sample is
+/// that times 65535, rounded; the sweep's float summation may differ by one
+/// code. The reference refuses at `active²`.
+#[test]
+fn a_hatch_of_parallel_strips_past_the_cap_integrates_its_area() {
+    const STRIPS: u32 = 9000;
+    let w = 1.0 / 36_000.0;
+    let mut path = Path::new();
+    for k in 0..STRIPS {
+        let x = f64::from(k) / 18_000.0;
+        path = path.polygon(&[[x, 0.0], [x + w, 0.0], [x + w + 0.5, 1.0], [x + 0.5, 1.0]]);
+    }
+    assert_eq!(
+        reference(&path, 1, 1, false).err().as_deref(),
+        Some(SENTENCE)
+    );
+    let expected = (f64::from(STRIPS) * w * 65535.0).round() as u16;
+    let actual = product(&path, 1, 1, false).unwrap_or_else(|e| panic!("the sweep refused: {e}"));
+    assert_within_one(&actual, &[expected], 1, "the hatch");
+}
+
+/// A small deterministic generator for the crossing fixtures.
+struct Lcg(u64);
+
+impl Lcg {
+    fn next(&mut self) -> f64 {
+        self.0 = self
+            .0
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        (self.0 >> 11) as f64 / (1u64 << 53) as f64
+    }
+
+    fn within(&mut self, low: f64, high: f64) -> f64 {
+        low + (high - low) * self.next()
+    }
+}
+
+/// `count` triangles whose two slanted edges span every row of `[0, h)`
+/// (vertices at y = −0.5 and h + 0.5, x seeded across `[−4, w + 4]`), so
+/// their full edges cross one another many times inside rows, plus `small`
+/// triangles with every vertex inside one row (partial edges).
+fn crossing_field(seed: u64, count: u32, small: u32, w: u32, h: u32) -> Path {
+    let mut rng = Lcg(seed);
+    let (left, right) = (-4.0, f64::from(w) + 4.0);
+    let below = f64::from(h) + 0.5;
+    let mut path = Path::new();
+    for _ in 0..count {
+        let a = rng.within(left, right);
+        let b = rng.within(left, right);
+        let c = rng.within(left, right);
+        path = path.polygon(&[[a, -0.5], [b, below], [c, below]]);
+    }
+    for _ in 0..small {
+        let row = (rng.next() * f64::from(h)).floor();
+        let x = rng.within(0.0, f64::from(w));
+        let y = |v: f64| row + 0.1 + 0.8 * v;
+        let (p, q, r) = (rng.next(), rng.next(), rng.next());
+        path = path.polygon(&[
+            [x, y(p)],
+            [x + rng.within(-3.0, 3.0), y(q)],
+            [x + 1.5, y(r)],
+        ]);
+    }
+    path
+}
+
+/// Crossing full edges inside the cap, equal to the full scan sample for
+/// sample: 300 triangles (600 full edges, about a quarter of their pairs
+/// crossing inside the row) on a wide one-row canvas, then 100 on six rows,
+/// each with partial triangles mixed in. A pair stage that reported no full ×
+/// full pair would miss those breakpoints, and the interval sweep would
+/// integrate across the crossings.
+#[test]
+fn crossing_full_edges_equal_the_full_scan() {
+    let one_row = crossing_field(0x5eed_0001, 300, 40, 64, 1);
+    assert_exact_both(&one_row, 64, 1, "300 crossing triangles on one row");
+    let rows = crossing_field(0x5eed_0002, 100, 30, 48, 6);
+    assert_exact_both(&rows, 48, 6, "100 crossing triangles on six rows");
+}
+
+/// The cap is still a cap: 9,000 zero-area loops whose lines all pass through
+/// (0.5, 0.5), so every pair of loops crosses inside the 1×1 row. The full
+/// scan refuses at `active²`; the sweep reports every pair, charged 2 each,
+/// and refuses too, at the work limit or, first, at the row's breakpoint
+/// limit, its output untouched.
+#[test]
+fn a_fan_whose_full_edges_all_cross_still_refuses() {
+    let mut path = Path::new();
+    for index in 0..9000 {
+        let x = f64::from(index) / 9000.0;
+        path.points.extend([[x, 0.0], [1.0 - x, 1.0]]);
+        path.commands.extend([0, 1, 4]);
+    }
+    assert_eq!(
+        reference(&path, 1, 1, false).err().as_deref(),
+        Some(SENTENCE)
+    );
+    let refusal = product(&path, 1, 1, false).expect_err("the fan finished");
+    assert!(
+        refusal == SENTENCE || refusal == "artwork row exceeds its integration breakpoint limit",
+        "{refusal}"
+    );
 }
 
 #[test]
@@ -665,6 +782,56 @@ fn a_cancel_parked_inside_the_row_loop_returns_nothing_then_completes_exactly() 
     let again = product_with(&parked_path(), PW, PH, false, control);
     unsafe { dr_job_control_free(control) };
     let expected = reference(&parked_path(), PW, PH, false).unwrap();
+    assert!(again.unwrap() == expected, "the completed re-run differs");
+}
+
+/// A one-row cluster whose pair stage is nearly all of its work: a rectangle
+/// spanning the 1×1 row (two full vertical edges) around 1,500 zero-area
+/// loops of two vertical partial edges from y = 0.25 to 0.75, so the 3,000
+/// partial edges all overlap in y, none crosses another, and the row has
+/// three intervals and no column breaks. The pair stage runs 4,504,500 pair
+/// tests.
+fn pair_loop_path() -> Path {
+    let mut path = rect_path(0.0, -1.0, 1.0, 2.0);
+    for k in 0..1500 {
+        let x = f64::from(k + 1) / 1502.0;
+        path.points.extend([[x, 0.25], [x, 0.75]]);
+        path.commands.extend([0, 1, 4]);
+    }
+    path
+}
+
+/// The pair stage polls every 4,096 pair tests, not once per 4,096 edges. The
+/// outline polls once per path command, and everything else in this 1×1 row
+/// a handful of times, so the run's checkpoints beyond its command count are
+/// the pair stage's: about 1,100 (4,504,500 / 4,096), where the earlier
+/// stage polled once for the row's 3,002 edges. A cancel PARKED 500
+/// checkpoints past the outline lands inside the pair loop (no report has
+/// come yet: stage 1, progress 0), returns "operation cancelled" with the
+/// output untouched, and a fresh run equals the full scan.
+#[test]
+fn the_pair_stage_polls_inside_its_loop_and_a_cancel_parked_there_returns_nothing() {
+    let commands = pair_loop_path().commands.len() as u64;
+    let total = entry_count(
+        &|progress, stage, _| stage == 5 && progress >= 1.0,
+        edit(pair_loop_path(), 1, 1),
+    );
+    assert!(
+        total >= commands + 1000,
+        "the run polled {} times beyond its {commands} path commands",
+        total.saturating_sub(commands)
+    );
+    let p = cancelled_parked_at(
+        commands + 500,
+        &|progress, stage| stage == 1 && progress == 0.0,
+        edit(pair_loop_path(), 1, 1),
+    );
+    eprintln!("parked cancel inside the pair stage: {}", parked_line(&p));
+    let control = unsafe { dr_job_control_create() };
+    let again = product_with(&pair_loop_path(), 1, 1, false, control);
+    unsafe { dr_job_control_free(control) };
+    let expected = reference(&pair_loop_path(), 1, 1, false).unwrap();
+    assert_eq!(expected, vec![65535]);
     assert!(again.unwrap() == expected, "the completed re-run differs");
 }
 

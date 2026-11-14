@@ -724,7 +724,7 @@ admits P beside its own P + 64 KiB reservation unless it runs that reservation
 as its own lease, so with the drag on `run` the case fails. The ballast is then
 released, the drag cancelled, and the registry must drain. Then a 16-bit and a
 masked 8-bit text-layer ⌘T 17° must each hold, while the preview is in flight,
-at least 120 MiB of payload bytes (the artwork stage's lease, which every
+at least 132 MiB of payload bytes (the artwork stage's lease, which every
 admission counts on every thread) beside a nonzero core reservation, land, and
 release both once the session ends.
 
@@ -781,7 +781,7 @@ and ink in its last tenth, and one undo must remove it; 2,000 characters must
 refuse with "artwork outline exceeds the flattened edge limit" and change
 nothing (the bound is 524,288 edges, and the pangram is about 450 a character
 at 24 px). `ArtworkGeometryWork.scratchBytes` over two text layers must be the
-106 MiB coverage bookkeeping once plus each layer's own planes, and an MCP 3°
+118 MiB coverage bookkeeping once plus each layer's own planes, and an MCP 3°
 straighten of that document must re-render both.
 
 "late busy reopen", "typed style preview" and "layer via typed"

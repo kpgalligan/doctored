@@ -429,13 +429,17 @@ fn path_work_and_command_caps_refuse_atomically_without_raising_limits() {
     let mut out = [0x4a4a; 4];
     assert!(coverage_request(&commands, &points, 2, 2, false, &mut out, LIMIT, 0, None).is_err());
     assert_eq!(out, [0x4a4a; 4]);
-    // Enough concurrent edges to exceed the declared work cap. The fixture
-    // remains small in pixels and input bytes; no giant allocation is needed.
+    // Enough concurrent edges to exceed the declared work cap. Each edge has
+    // a vertex inside the row, so every pair overlapping in y is tested and
+    // charged whether or not it crosses (a pair of edges that both span the
+    // row is charged only when the two cross, `artwork_pair_sweep`). The
+    // fixture remains small in pixels and input bytes; no giant allocation
+    // is needed.
     let mut points = Vec::new();
     let mut commands = Vec::new();
     for index in 0..9000 {
         let x = f64::from(index) / 9000.0;
-        points.extend([[x, 0.0], [x + 0.5, 1.0]]);
+        points.extend([[x, 0.25], [x + 0.5, 0.75]]);
         commands.extend([0, 1, 4]);
     }
     let mut out = [0x4a4a; 1];

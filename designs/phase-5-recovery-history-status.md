@@ -85,7 +85,7 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
   the evidence for `DONE` (one before run did too, so the medians overstate the contrast). What remains is
   `dropHistoryUndo`'s NSUndoManager walk, AppKit's residual (`levelsOfUndo` stays 0).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Snapshot/recovery payload compression and
-  cross-generation dedupe.
+  cross-generation dedupe; designed in [phase-13c-incremental-io-status.md](phase-13c-incremental-io-status.md).
 - `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled undo backing: per-edit history bytes measured
   with tiles, then the history budget and the 32-snapshot cap re-decided.
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Broader history/snapshot workloads at 24/48 MP.

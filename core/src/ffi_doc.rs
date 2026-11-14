@@ -1267,9 +1267,13 @@ pub unsafe extern "C" fn dr_doc_clear_selection(
 
 /// Gaussian-feathers a selection mask in place (width*height coverage
 /// bytes, row 0 top). Sampling clamps to the canvas edges, so a
-/// selection touching the border keeps full coverage there. Returns
-/// false on NULL mask, zero dimensions, or a non-finite radius;
-/// `radius <= 0` returns true and leaves the mask untouched.
+/// selection touching the border keeps full coverage there. The work is
+/// bounded by the selection: the kernel runs over the nonzero bytes'
+/// bounding rect grown by its half width. Returns false, the mask
+/// untouched, on NULL mask, zero dimensions, or a radius that is not
+/// finite or is above 250 (the typed selection's limit,
+/// `selection_limits::MAX_SELECTION_RADIUS`); `radius <= 0` returns true
+/// and leaves the mask untouched.
 ///
 /// # Safety
 /// `mask` must be NULL or valid and writable for width*height bytes.
@@ -1280,7 +1284,12 @@ pub unsafe extern "C" fn dr_selection_feather(
     height: u32,
     radius: f32,
 ) -> bool {
-    if mask.is_null() || width == 0 || height == 0 || !radius.is_finite() {
+    if mask.is_null()
+        || width == 0
+        || height == 0
+        || !radius.is_finite()
+        || radius > crate::selection_limits::MAX_SELECTION_RADIUS
+    {
         return false;
     }
     let len = width as usize * height as usize;
@@ -1375,8 +1384,10 @@ pub unsafe extern "C" fn dr_selection_border(
 /// `dr_selection_feather`'s sigma mapping followed by a smoothstep contrast
 /// remap (`t = v/255`, `v' = round(255 * t^2 * (3 - 2t))`) — corners round
 /// and jagged edges reconcile while a long straight edge stays put. Never
-/// binarizes. Returns false on NULL mask, zero dimensions, or a non-finite
-/// radius; `radius <= 0` returns true and leaves the mask untouched.
+/// binarizes. The blur is bounded by the selection, as in
+/// `dr_selection_feather`. Returns false, the mask untouched, on NULL mask,
+/// zero dimensions, or a radius that is not finite or is above 250;
+/// `radius <= 0` returns true and leaves the mask untouched.
 ///
 /// # Safety
 /// `mask` must be NULL or valid and writable for width*height bytes.
@@ -1387,7 +1398,12 @@ pub unsafe extern "C" fn dr_selection_smooth(
     height: u32,
     radius: f32,
 ) -> bool {
-    if mask.is_null() || width == 0 || height == 0 || !radius.is_finite() {
+    if mask.is_null()
+        || width == 0
+        || height == 0
+        || !radius.is_finite()
+        || radius > crate::selection_limits::MAX_SELECTION_RADIUS
+    {
         return false;
     }
     let len = width as usize * height as usize;

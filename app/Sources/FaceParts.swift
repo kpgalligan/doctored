@@ -218,13 +218,13 @@ enum FaceParts {
     /// What one landmark coverage pass may hold over a `width` x `height`
     /// canvas. The core figure, whose master copy is
     /// `landmark_region::coverage_scratch` (`path_geometry::coverage_scratch`
-    /// — 106 MiB of rasterizer edge lists, the plane it answers and 24 bytes
+    /// — 118 MiB of rasterizer edge lists, the plane it answers and 24 bytes
     /// a column — plus three more u16 planes), then the u16 output this side
     /// holds and 32 MiB for parsing the request (`ffi_path::shape_scratch`,
     /// 24 bytes a byte of JSON, over a request of a hundred faces).
     static func coverageScratch(width: Int, height: Int) -> UInt64 {
         let pixels = UInt64(width) * UInt64(height)
-        let core = 106 * 1024 * 1024 + pixels * 2 + UInt64(width) * 24 + 3 * pixels * 2
+        let core = 118 * 1024 * 1024 + pixels * 2 + UInt64(width) * 24 + 3 * pixels * 2
         return core + pixels * 2 + 32 * 1024 * 1024
     }
 
