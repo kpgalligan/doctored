@@ -510,6 +510,8 @@ do {
         ("status mode segment", verifyStatusModeSegment),
         // get_precision's mode and the summary's precision on every colour mode and depth.
         ("precision reply modes", verifyPrecisionReplyModes),
+        // Image ▸ Apply Image…'s Scale and Offset typed without Return and applied.
+        ("apply image typed scale", verifyApplyImageTypedScale),
     ]
     // Opt-in measurements: run only when named in DR_JOBS_PROBE_CASES.
     let measurements: [(String, () throws -> Void)] = [

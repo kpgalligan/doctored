@@ -147,9 +147,11 @@ reaches each:
 
 take1's menu walk (Photoshop 26.10.0) read 25 paths enabled in Gray and disabled in Duotone that no row of it
 names: the eleven above; File ▸ Save and File ▸ Revert, disabled only because the walked document was unmodified
-(both admitted); and twelve that reach no Doctored tool (File ▸ Automate ▸ Crop and Straighten Photos, Edit ▸
-Content-Aware Scale, Layer ▸ Mask All Objects, Select ▸ Focus Area, Filter ▸ Adaptive Wide Angle, Filter ▸ Blur
-Gallery and its Field, Iris, Path and Spin Blur, Filter ▸ Video and Video ▸ De-Interlace).
+(both admitted); Select ▸ Focus Area, whose `select_focus_area` and `showFocusArea:` Duotone refuses through its
+closed sets, as every colour mode does (`designs/focus-area.md`, decision 7); and eleven that reach no Doctored tool
+(File ▸ Automate ▸ Crop and Straighten Photos, Edit ▸ Content-Aware Scale, Layer ▸ Mask All Objects, Filter ▸
+Adaptive Wide Angle, Filter ▸ Blur Gallery and its Field, Iris, Path and Spin Blur, Filter ▸ Video and Video ▸
+De-Interlace).
 
 ## Open items
 

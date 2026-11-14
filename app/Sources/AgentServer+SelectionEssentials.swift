@@ -72,7 +72,7 @@ extension AgentServer {
         ]
     }
 
-    private func selectionNumber(_ a: [String: Any], _ key: String, default fallback: Double) throws -> Double {
+    func selectionNumber(_ a: [String: Any], _ key: String, default fallback: Double) throws -> Double {
         guard let raw = a[key] else { return fallback }
         guard !Self.isJSONBoolean(raw), let value = doubleArg(a, key), value.isFinite else {
             throw ToolError(message: "\(key) must be a finite number.")
@@ -84,7 +84,7 @@ extension AgentServer {
         try jsonResult(selectionReplyFields(document))
     }
 
-    private func selectionReplyFields(_ document: ImageDocument) -> [String: Any] {
+    func selectionReplyFields(_ document: ImageDocument) -> [String: Any] {
         guard let selection = document.canvasSelection else {
             return ["ok": true, "selection_empty": true]
         }

@@ -4,6 +4,7 @@ extension AgentServer {
     @inline(never)
     func advancedSelectionCatalog() -> [[String: Any]] {
         var catalog = selectionEssentialsCatalog
+        catalog.append(contentsOf: focusAreaCatalog)
         catalog.append(contentsOf: independentMaskCatalog)
         catalog.append(contentsOf: subjectTargetingCatalog)
         catalog.append(contentsOf: facePartsCatalog)

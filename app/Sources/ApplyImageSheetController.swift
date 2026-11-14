@@ -38,6 +38,10 @@ final class ApplyImageSheetController: NSViewController {
     private let opacitySlider = NSSlider(
         value: 100, minValue: 0, maxValue: 100, target: nil, action: nil)
     private let opacityField = NSTextField(string: "100")
+    /// Add and Subtract's Scale (1…2) and Offset (−255…255 levels); enabled
+    /// only while Blending is one of the two, and back at 1 and 0 otherwise.
+    private let scaleField = NSTextField(string: "1")
+    private let offsetField = NSTextField(string: "0")
     private let renderer = PreviewRenderer()
     private var didRequestInitialPreview = false
 
@@ -98,6 +102,12 @@ final class ApplyImageSheetController: NSViewController {
         opacityField.action = #selector(fieldChanged(_:))
         let opacityRow = ChannelMathControls.opacityRow(
             slider: opacitySlider, field: opacityField)
+        for field in [scaleField, offsetField] {
+            field.target = self
+            field.action = #selector(scaleOffsetChanged(_:))
+            field.widthAnchor.constraint(equalToConstant: 56).isActive = true
+            DSField.style(field)
+        }
 
         let grid = NSGridView(views: [
             [fieldLabel("Source:"), sourcePopup],
@@ -105,6 +115,8 @@ final class ApplyImageSheetController: NSViewController {
             [NSGridCell.emptyContentView, invertCheckbox],
             [fieldLabel("Blending:"), blendPopup],
             [fieldLabel("Opacity:"), opacityRow],
+            [fieldLabel("Scale:"), scaleField],
+            [fieldLabel("Offset:"), offsetField],
         ])
         grid.rowSpacing = 10
         grid.columnSpacing = 12
@@ -112,6 +124,7 @@ final class ApplyImageSheetController: NSViewController {
         grid.column(at: 0).width = 106
 
         syncSourceEnabled()
+        syncScaleOffsetEnabled()
         let cancelButton = sheetCancelButton(target: self, action: #selector(cancelClicked(_:)))
         let applyButton = sheetApplyButton(target: self, action: #selector(applyClicked(_:)))
         applyButton.isEnabled = canApply
@@ -157,6 +170,8 @@ final class ApplyImageSheetController: NSViewController {
         }
     }
 
+    /// Scale and Offset are read clamped, so a value typed without Return
+    /// (a preview, or Apply) blends at the value the field would echo.
     private func parameters() -> ApplyImageParameters {
         ApplyImageParameters(
             source: ChannelMathControls.sourceLayer(sourcePopup),
@@ -165,7 +180,27 @@ final class ApplyImageSheetController: NSViewController {
             blend: ChannelMathControls.blendMode(blendPopup),
             opacity: ChannelMathControls.opacity(opacitySlider),
             target: target,
-            targetLayer: targetLayer)
+            targetLayer: targetLayer,
+            scale: Self.clamped(scaleField, ApplyImageParameters.scaleRange),
+            offset: Self.clamped(offsetField, ApplyImageParameters.offsetRange))
+    }
+
+    /// `field`'s value clamped into `range`; an empty field reads 0.
+    private static func clamped(_ field: NSTextField, _ range: ClosedRange<Double>) -> Double {
+        min(max(field.doubleValue, range.lowerBound), range.upperBound)
+    }
+
+    /// Scale and Offset are Add and Subtract's only: greyed and reset to the
+    /// identity for every other mode, so the parameters never carry a pair
+    /// the core would refuse.
+    private func syncScaleOffsetEnabled() {
+        let enabled = ApplyImageParameters.takesScaleOffset(ChannelMathControls.blendMode(blendPopup))
+        scaleField.isEnabled = enabled
+        offsetField.isEnabled = enabled
+        if !enabled {
+            scaleField.stringValue = "1"
+            offsetField.stringValue = "0"
+        }
     }
 
     /// A channel source ignores the layer popup — a channel is document
@@ -268,6 +303,17 @@ final class ApplyImageSheetController: NSViewController {
 
     @objc private func controlChanged(_ sender: Any?) {
         syncSourceEnabled()
+        syncScaleOffsetEnabled()
+        requestPreview()
+    }
+
+    /// A typed Scale or Offset, clamped into its range and echoed back so the
+    /// field never shows a value the blend does not use. The offset keeps a
+    /// fraction: Subtract at Scale 2 and Offset 127.5 keeps a whole difference
+    /// within half a level (`FrequencySeparation`).
+    @objc private func scaleOffsetChanged(_ sender: Any?) {
+        scaleField.doubleValue = Self.clamped(scaleField, ApplyImageParameters.scaleRange)
+        offsetField.doubleValue = Self.clamped(offsetField, ApplyImageParameters.offsetRange)
         requestPreview()
     }
 

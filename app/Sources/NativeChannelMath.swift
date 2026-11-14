@@ -86,15 +86,20 @@ final class NativePlaneReader {
         leases.append(try PrecisionEditPayload.admitted(bytes: UInt64(output.count) * 2 + 512))
         cached[key] = output; return output
     }
+    /// `scaled` is Apply Image's Scale and Offset (`ApplyImageParameters`; offset in levels),
+    /// sent only when it is not the identity.
     func blend(base: [[UInt16]], source: [[UInt16]], mode: DrBlendMode, opacity: Double,
-               invertBase: Bool = false, invertSource: Bool = false) throws -> [[UInt16]] {
+               invertBase: Bool = false, invertSource: Bool = false,
+               scaled: ApplyImageParameters? = nil) throws -> [[UInt16]] {
         guard base.count == source.count, [1, 3].contains(base.count) else { throw DoctoredCoreError(message: "Channel blend needs one plane or an RGB triple.") }
         let n = doc.width * doc.height
         guard (base + source).allSatisfy({ $0.count == n }) else {
             throw DoctoredCoreError(message: "Channel blend inputs must match the canvas.")
         }
-        let request = try NativeSelectionWork.encoding(["kind": "blend", "channels": base.count,
-            "mode": Int(mode.rawValue), "opacity": opacity, "invert_base": invertBase, "invert_source": invertSource])
+        var operation: [String: Any] = ["kind": "blend", "channels": base.count,
+            "mode": Int(mode.rawValue), "opacity": opacity, "invert_base": invertBase, "invert_source": invertSource]
+        if let scaled, scaled.isScaled { operation["scale"] = scaled.scale; operation["offset"] = scaled.offset / 255 }
+        let request = try NativeSelectionWork.encoding(operation)
         // Admit before flattening, including the split output's overlap with
         // the returned contiguous buffer. Appending avoids two flatMap copies.
         let payload = try PrecisionEditPayload.admitted(bytes: UInt64(n) * UInt64(base.count) * 8 + 512)
@@ -157,7 +162,15 @@ enum NativeChannelMath {
                 return try applyGray(capture, parameters: p, control: control, ownReservation: ownReservation)
             }
         }
-        let reader = NativePlaneReader(capture.facade, control: control, ownReservation: ownReservation)
+        return try applyRGB(capture.facade, source: capture.source, selection: capture.selection,
+                            parameters: p, control: control, ownReservation: ownReservation)
+    }
+    /// Apply Image's RGB arms over any typed handle and its facade: the captured editor's, or a
+    /// handle a compound edit made on the way (`FrequencySeparation`'s blurred duplicate).
+    static func applyRGB(_ facade: RasterDocument, source: RasterPrecisionDocument, selection: CanvasSelection?,
+                         parameters p: ApplyImageParameters, control: RasterJobControl,
+                         ownReservation: UInt64 = 0) throws -> RasterPrecisionDocument? {
+        let reader = NativePlaneReader(facade, control: control, ownReservation: ownReservation)
         let components: [RasterPlane?] = p.target == .layer ? [.red, .green, .blue] : [nil]
         var originals: [[UInt16]] = [], incoming: [[UInt16]] = []
         for component in components {
@@ -174,12 +187,13 @@ enum NativeChannelMath {
             originals.append(try reader.plane(layer: p.targetLayer, choice: choice))
             incoming.append(try reader.plane(layer: p.source, choice: p.sourcePlane, component: component))
         }
-        let blended = try reader.blend(base: originals, source: incoming, mode: p.blend, opacity: p.opacity, invertSource: p.invert)
-        var current = capture.source
+        let blended = try reader.blend(base: originals, source: incoming, mode: p.blend, opacity: p.opacity,
+            invertSource: p.invert, scaled: p)
+        var current = source
         var changed = false
         for (index, component) in components.enumerated() {
             if let next = try reader.write(blended[index], to: current, target: component.map(PaintTarget.plane) ?? p.target,
-                layer: p.targetLayer, selection: capture.selection) { current = next; changed = true }
+                layer: p.targetLayer, selection: selection) { current = next; changed = true }
         }
         return changed ? current : nil
     }
@@ -208,7 +222,7 @@ enum NativeChannelMath {
             }
             let incoming = try reader.plane(layer: p.source, choice: p.sourcePlane, plate: plate)
             let blended = try reader.blend(base: [original], source: [incoming], mode: p.blend,
-                opacity: p.opacity, invertSource: p.invert)
+                opacity: p.opacity, invertSource: p.invert, scaled: p)
             if let next = try reader.write(blended[0], to: current, target: target, layer: p.targetLayer,
                 selection: capture.selection) { current = next; changed = true }
         }
@@ -226,7 +240,7 @@ enum NativeChannelMath {
         let original = try reader.plane(layer: p.targetLayer, choice: .rgb)
         let incoming = try reader.plane(layer: p.source, choice: p.sourcePlane)
         let blended = try reader.blend(base: [original], source: [incoming], mode: p.blend,
-            opacity: p.opacity, invertSource: p.invert)
+            opacity: p.opacity, invertSource: p.invert, scaled: p)
         return try reader.writeGray(blended[0], to: capture.source, layer: p.targetLayer,
             selection: capture.selection)
     }

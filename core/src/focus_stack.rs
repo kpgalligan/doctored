@@ -340,6 +340,56 @@ pub(crate) fn winners(
     )
 }
 
+/// One picture's sharpness score, row-major: the fine and the coarse band
+/// summed exactly as [`winners`] ranks a frame by (module doc), 0 where the
+/// picture is transparent. Select ▸ Focus Area's measure
+/// (`focus_area`): one score, so the two features can never disagree on
+/// what is sharp. `read` is frame 0's row reader. Also answers the coarse
+/// band's radius and the vote's box radius at `size`.
+pub(crate) fn sharpness(
+    size: (u32, u32),
+    read: ReadRow<'_>,
+    luma: [f32; 3],
+    job: JobContext<'_>,
+) -> Result<(Vec<f32>, usize, usize), String> {
+    let (w, h, _) = checked(size, 1)?;
+    let radii = radii(size);
+    let mut score = filled(w * h, 0.0f32)?;
+    band(
+        (w, h),
+        0,
+        radii.fine,
+        read,
+        luma,
+        &mut |y, energy, _| score[y * w..(y + 1) * w].copy_from_slice(energy),
+        job.range(0.0, 0.5),
+    )?;
+    band(
+        (w, h),
+        0,
+        radii.coarse,
+        read,
+        luma,
+        &mut |y, energy, _| {
+            for (total, e) in score[y * w..(y + 1) * w].iter_mut().zip(energy) {
+                *total += e;
+            }
+        },
+        job.range(0.5, 1.0),
+    )?;
+    Ok((score, radii.coarse, radii.vote))
+}
+
+/// [`sharpness`]'s scratch bytes beyond its output plane: the coarse band's
+/// rings.
+pub(crate) fn sharpness_ring_bytes(size: (u32, u32)) -> u64 {
+    band_ring_bytes(
+        u64::from(size.0),
+        u64::from(size.1),
+        radii(size).coarse as u64,
+    )
+}
+
 /// What [`band`] hands each finished row to: `(y, energy, samples)`.
 type RowSink<'a> = &'a mut dyn FnMut(usize, &[f32], &[[f32; 2]]);
 

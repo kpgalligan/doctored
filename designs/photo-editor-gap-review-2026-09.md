@@ -54,7 +54,7 @@ issue is inventory, with no owner yet.
 | F08 | P1 | Selection undo, Reselect, Color Range, refinement, independent masks, mask targeting | DONE — Phases 2, 6 and 9I; the matting quality gate stopped being a ship condition on 2026-10-10 ([selection and mask ADR](phase-6-selection-mask-status.md)) |
 | F09 | P1 | Spatial filters; selection-scoped destructive edits | DONE for USM, High Pass, denoise, median, D&S and scoping (9B/9C/9F, 2B); remaining filters listed in the Filters rows of [photo-editor-gap-review.md](photo-editor-gap-review.md) |
 | F10 | P0/P1 | Silent group omission; blocking heal/fill; memory | DONE — plan §1C, Phase 4; large-document scale OPEN → [#9](https://github.com/kpgalligan/doctored/issues/9), [#10](https://github.com/kpgalligan/doctored/issues/10), [#11](https://github.com/kpgalligan/doctored/issues/11) |
-| F11 | P1 | Retouch sampling policy, CAF source exclusion/output | DONE — 9D/9E (P7-15–P7-18); retouch brushes DONE; frequency separation OPEN → [#17](https://github.com/kpgalligan/doctored/issues/17) |
+| F11 | P1 | Retouch sampling policy, CAF source exclusion/output | DONE — 9D/9E (P7-15–P7-18); retouch brushes DONE; frequency separation DONE (8 and 16 bits, `frequency_separation`) |
 | F12 | P1/P2 | Export workspace, PSD export, metadata, formats, proofing | DONE — 10B/10C, 11A–11D; linear light closed in 11E (2026-11-12) |
 | F13 | P1/P2 | Replay gaps, pressure/timing, assets, relative geometry, colour-space args | DONE — 2D, 9H, 12A (`color_space`), 12B |
 | F14 | P2 | History, snapshots, labels/search, comps, New Document, Navigator, view rotation, second view, shortcuts, workspaces | DONE — 5C/5D, 12C, 12D |

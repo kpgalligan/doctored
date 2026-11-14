@@ -216,6 +216,7 @@ Detail belongs in the source file's own header comment.
 - `doc_gray_plane.rs` / `ffi_gray_plane.rs` — `dr_doc_composite_gray_plane`: the composite's grey in a Gray working space, 8-bit Load Selection luminosity.
 - `doc_channel.rs` / `ffi_channel.rs` — ALPHA CHANNELS: named canvas-sized u8 saved selections that never composite (overlay colour, opacity, polarity are display); the Channels FFI.
 - `doc_plane.rs` / `precision_plane_math.rs` — colour planes: one plane of a composite, layer or image as u8, write-back, paint, the blend behind Apply Image and Calculations; typed adapters.
+- `plane_scale_offset.rs` — kernel: Apply Image's Scale and Offset for Add and Subtract on the unclamped sum (`PlaneBlend`, the plane blenders' per-pixel blend).
 - `doc_scope.rs` / `ffi_scope.rs` — full-storage destructive result writeback through canvas selection coverage for pixels, masks, RGBA planes and saved channels.
 - `poisson.rs` — the ONE membrane (Poisson) solver every healing op shares: free functions over window-sized buffers, red-black multigrid, and the one classification rule stated on `Region`.
 - `doc_heal.rs` — healing on the document: `heal_layer`, the shared write-back `heal_window_into_pixels_with_context`, two measured caps. The component items live in `heal_components.rs`.
@@ -616,6 +617,7 @@ Detail belongs in the source file's own header comment.
 - `stack_moments.rs` — KERNEL of the per-pixel statistic: the twelve modes' rule (bounded skewness/kurtosis, 256-bin entropy, majority), integer and f64.
 - `cmyk_stack_mode.rs` — Stack Modes in a CMYK document: per ink over `cmyk_passes`' L domain, two passes through `stack_row`, joined on paper.
 - `focus_stack.rs` — kernel of Auto-Blend's Stack Images: two-band sharpness score, one majority vote, Laplacian-pyramid blend, their plans.
+- `focus_area.rs` / `ffi_focus_area.rs` — Select ▸ Focus Area's kernel over `focus_stack::sharpness` (floor, Otsu Auto, vote, hole fill, soft edge) and `dr_selection_focus_area`.
 - `doc_auto_blend.rs` / `precision_auto_blend.rs` — Auto-Blend Layers at 8 bits and 16/float: request, method, report, masks, Stack Images' merged layer, Panorama's branch.
 - `graph_cut.rs` — KERNEL (`#[doc(hidden)] pub`): one binary min s-t cut on a 4-connected grid (Boykov–Kolmogorov), `cut_bytes`.
 - `panorama_seam.rs` — kernel of Auto-Blend's Panorama: analysis grid, bottom-up min-cut seams through each overlap (Lower preference), full-res labels, plan.

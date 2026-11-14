@@ -1317,20 +1317,23 @@ extension Array where Element == ActionStep {
         step(tool, arguments, note: note)
     }
 
-    /// Image ▸ Apply Image…
+    /// Image ▸ Apply Image… Scale and Offset are recorded only when they are not
+    /// the identity, so an older recording and a plain blend read the same.
     static func applyImage(_ p: ApplyImageParameters, in doc: RasterDocument) -> [ActionStep] {
-        step(
-            "apply_image",
-            [
-                "source": ActionArgs.sourceLayer(p.source, in: doc),
-                "source_plane": ActionArgs.planeChoice(p.sourcePlane, in: doc),
-                "invert": p.invert,
-                "blend_mode": DrBlendMode.displayName(for: p.blend),
-                "opacity": ActionArgs.number(p.opacity),
-                "target": p.target.agentName(in: doc),
-                "layer": ActionArgs.layer(doc.layerRef(p.targetLayer)),
-            ],
-            note: "Image ▸ Apply Image…")
+        var arguments: [String: Any] = [
+            "source": ActionArgs.sourceLayer(p.source, in: doc),
+            "source_plane": ActionArgs.planeChoice(p.sourcePlane, in: doc),
+            "invert": p.invert,
+            "blend_mode": DrBlendMode.displayName(for: p.blend),
+            "opacity": ActionArgs.number(p.opacity),
+            "target": p.target.agentName(in: doc),
+            "layer": ActionArgs.layer(doc.layerRef(p.targetLayer)),
+        ]
+        if p.isScaled {
+            arguments["scale"] = ActionArgs.number(p.scale)
+            arguments["offset"] = ActionArgs.number(p.offset)
+        }
+        return step("apply_image", arguments, note: "Image ▸ Apply Image…")
     }
 
     /// Image ▸ Calculations… — the new-channel result. The SELECTION result

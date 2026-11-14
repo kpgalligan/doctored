@@ -17,13 +17,12 @@ use std::sync::Arc;
 
 use image::RgbaImage;
 
-use crate::blend::{
-    blend_kind, composite_source_into, BlendKind, BlendMode, LUMA_B, LUMA_G, LUMA_R,
-};
+use crate::blend::{composite_source_into, BlendKind, BlendMode, LUMA_B, LUMA_G, LUMA_R};
 use crate::doc::{DrDocument, Layer};
 use crate::doc_lock::EditKind;
 use crate::doc_paint::overlay_rect;
 use crate::layer_rect::canvas_clip;
+use crate::plane_scale_offset::PlaneBlend;
 
 /// One 8-bit plane of a colour image. Mirrors `DrPlane` in the C header.
 ///
@@ -478,12 +477,16 @@ fn unit_byte(v: f32) -> u8 {
 /// complement is both the blend input and the value lerped from ("work on the
 /// complement", which is what the Invert checkbox means).
 ///
+/// `scale` and `offset` are Apply Image's Scale and Offset for Add and
+/// Subtract (`plane_scale_offset`); `(1, 0)` is the table unchanged.
+///
 /// In place on a CALLER-owned buffer: the documented exception to the purity
 /// rule that the `dr_selection_*` family already uses. Returns `false` (and
 /// leaves `base` untouched) on a zero dimension, a buffer whose length is not
-/// exactly `w * h`, a non-finite opacity, one of the four HSL modes, or Pass
+/// exactly `w * h`, a non-finite opacity, one of the four HSL modes, Pass
 /// Through, which is a group's declaration and not a blend function at all
-/// ([`crate::blend::BlendMode::is_group_only`]).
+/// ([`crate::blend::BlendMode::is_group_only`]), or a scale and offset
+/// `PlaneBlend::new` refuses.
 // Apply Image's own vocabulary, one parameter each; bundling them into a
 // struct would only move the count somewhere else, and the FFI shim mirrors
 // this list one-for-one.
@@ -497,6 +500,8 @@ pub fn blend_planes(
     opacity: f32,
     invert_base: bool,
     invert_source: bool,
+    scale: f32,
+    offset: f32,
 ) -> bool {
     if w == 0 || h == 0 || !opacity.is_finite() || degenerates_on_gray(mode) || mode.is_group_only()
     {
@@ -510,7 +515,9 @@ pub fn blend_planes(
         return false;
     }
     let opacity = opacity.clamp(0.0, 1.0);
-    let kind = blend_kind(mode);
+    let Ok(blend) = PlaneBlend::new(mode, scale, offset) else {
+        return false;
+    };
     for y in 0..i64::from(h) {
         for x in 0..i64::from(w) {
             let i = (y as u64 * u64::from(w) + x as u64) as usize;
@@ -524,7 +531,7 @@ pub fn blend_planes(
             };
             let b = f32::from(bv) / 255.0;
             let s = f32::from(sv) / 255.0;
-            base[i] = unit_byte(blend_triple([b, b, b], [s, s, s], opacity, kind, (x, y))[0]);
+            base[i] = unit_byte(blend.triple([b, b, b], [s, s, s], opacity, (x, y))[0]);
         }
     }
     true
@@ -544,9 +551,10 @@ pub fn blend_planes(
 ///
 /// PURE, unlike its in-place sibling: three fresh planes come back, in
 /// red-green-blue order. `None` on a zero dimension, any buffer whose length
-/// is not exactly `w * h`, a non-finite opacity, or Pass Through (a group's
-/// declaration, not a blend function). Every other mode is accepted — the
-/// four HSL ones are what this function exists for.
+/// is not exactly `w * h`, a non-finite opacity, Pass Through (a group's
+/// declaration, not a blend function), or a scale and offset
+/// `PlaneBlend::new` refuses. Every other mode is accepted — the four HSL
+/// ones are what this function exists for.
 // Apply Image's own vocabulary, one parameter each; the FFI shim mirrors this
 // list one-for-one.
 #[allow(clippy::too_many_arguments)]
@@ -559,6 +567,8 @@ pub fn blend_planes_rgb(
     opacity: f32,
     invert_base: bool,
     invert_source: bool,
+    scale: f32,
+    offset: f32,
 ) -> Option<[Vec<u8>; 3]> {
     if w == 0 || h == 0 || !opacity.is_finite() || mode.is_group_only() {
         return None;
@@ -568,7 +578,7 @@ pub fn blend_planes_rgb(
         return None;
     }
     let opacity = opacity.clamp(0.0, 1.0);
-    let kind = blend_kind(mode);
+    let blend = PlaneBlend::new(mode, scale, offset).ok()?;
     let mut out = [
         vec![0u8; expected],
         vec![0u8; expected],
@@ -593,7 +603,7 @@ pub fn blend_planes_rgb(
                 b[c] = f32::from(bv) / 255.0;
                 s[c] = f32::from(sv) / 255.0;
             }
-            let blended = blend_triple(b, s, opacity, kind, (x, y));
+            let blended = blend.triple(b, s, opacity, (x, y));
             for c in 0..3 {
                 out[c][i] = unit_byte(blended[c]);
             }

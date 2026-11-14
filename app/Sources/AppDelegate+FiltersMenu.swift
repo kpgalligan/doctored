@@ -60,6 +60,7 @@ extension AppDelegate {
         menu.addItem(submenuItem(noise))
         let other = NSMenu(title: "Other")
         other.addItem(item("High Pass…", #selector(EditorViewController.showHighPass(_:))))
+        other.addItem(item("Frequency Separation…", #selector(EditorViewController.showFrequencySeparation(_:))))
         other.addItem(item("Offset…", #selector(EditorViewController.showOffset(_:))))
         menu.addItem(submenuItem(other))
         let pixelate = NSMenu(title: "Pixelate")

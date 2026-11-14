@@ -177,6 +177,8 @@ fn blended(base: &[u8], source: &[u8], w: u32, h: u32, mode: c_int, opacity: f32
                 opacity,
                 false,
                 false,
+                1.0,
+                0.0,
             )
         },
         "dr_blend_planes refused a well-formed call"
@@ -246,6 +248,8 @@ fn blend_planes_inverts_an_operand_before_blending_and_lerping() {
                     0.5,
                     invert_b,
                     invert_s,
+                    1.0,
+                    0.0,
                 )
             });
             for (i, &v) in got.iter().enumerate() {
@@ -268,6 +272,8 @@ fn blend_planes_inverts_an_operand_before_blending_and_lerping() {
             0.5,
             true,
             false,
+            1.0,
+            0.0,
         )
     });
     for (i, &v) in got.iter().enumerate() {
@@ -1915,6 +1921,8 @@ fn bogus_plane_values_are_refused_rather_than_materialized() {
                     1.0,
                     false,
                     false,
+                    1.0,
+                    0.0,
                 )
             },
             "mode {mode} must be refused"
@@ -1945,7 +1953,9 @@ fn non_document_exports_reject_null_zero_size_and_non_finite() {
             BLEND_NORMAL,
             1.0,
             false,
-            false
+            false,
+            1.0,
+            0.0
         ));
         assert!(!dr_blend_planes(
             base.as_mut_ptr(),
@@ -1955,7 +1965,9 @@ fn non_document_exports_reject_null_zero_size_and_non_finite() {
             BLEND_NORMAL,
             1.0,
             false,
-            false
+            false,
+            1.0,
+            0.0
         ));
         for (w, h) in [(0u32, 3u32), (4, 0), (0, 0)] {
             assert!(!dr_blend_planes(
@@ -1966,7 +1978,9 @@ fn non_document_exports_reject_null_zero_size_and_non_finite() {
                 BLEND_NORMAL,
                 1.0,
                 false,
-                false
+                false,
+                1.0,
+                0.0
             ));
         }
         assert!(
@@ -1978,7 +1992,9 @@ fn non_document_exports_reject_null_zero_size_and_non_finite() {
                 BLEND_NORMAL,
                 1.0,
                 false,
-                false
+                false,
+                1.0,
+                0.0
             ),
             "absurd dimensions are refused before any slice is built"
         );
@@ -1991,7 +2007,9 @@ fn non_document_exports_reject_null_zero_size_and_non_finite() {
                 BLEND_NORMAL,
                 opacity,
                 false,
-                false
+                false,
+                1.0,
+                0.0
             ));
         }
         assert!(
@@ -2130,6 +2148,8 @@ fn blended_rgb(
             opacity,
             false,
             false,
+            1.0,
+            0.0,
         )
     };
     assert!(ok, "dr_blend_planes_rgb refused a well-formed call");
@@ -2158,6 +2178,8 @@ fn blend_planes_refuses_the_modes_that_carry_nothing_on_one_gray_plane() {
                     1.0,
                     false,
                     false,
+                    1.0,
+                    0.0,
                 )
             },
             "mode {mode} must be refused on a single plane"
@@ -2267,6 +2289,8 @@ fn blend_planes_rgb_refuses_a_bad_call_and_leaves_the_buffers_alone() {
                     opacity,
                     false,
                     false,
+                    1.0,
+                    0.0,
                 )
             },
             "({cw}, {ch}, {opacity}) should be refused"
@@ -2287,6 +2311,8 @@ fn blend_planes_rgb_refuses_a_bad_call_and_leaves_the_buffers_alone() {
             1.0,
             false,
             false,
+            1.0,
+            0.0,
         )
     });
     assert!(

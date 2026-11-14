@@ -18,6 +18,8 @@ use serde::Deserialize;
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PlaneOperation {
+    /// `scale` and `offset` are Apply Image's Scale and Offset for Add and
+    /// Subtract (`plane_scale_offset`); absent, they are the identity.
     Blend {
         channels: usize,
         mode: i32,
@@ -26,6 +28,10 @@ pub enum PlaneOperation {
         invert_base: bool,
         #[serde(default)]
         invert_source: bool,
+        #[serde(default = "full")]
+        scale: f64,
+        #[serde(default)]
+        offset: f64,
     },
     Luminosity {
         band: crate::precision_plane_math::LuminosityBand,
@@ -137,9 +143,13 @@ impl PlaneOperation {
                 channels,
                 mode,
                 opacity,
+                scale,
+                offset,
                 ..
             } => {
-                crate::precision_plane_math::validate(*channels, *mode, *opacity)?;
+                crate::precision_plane_math::validate_scaled(
+                    *channels, *mode, *opacity, *scale, *offset,
+                )?;
             }
             Self::Luminosity { level, .. } => {
                 if !(1..=3).contains(level) {
@@ -230,6 +240,8 @@ impl PlaneOperation {
             opacity,
             invert_base,
             invert_source,
+            scale,
+            offset,
         } = self
         {
             return crate::precision_plane_math::blend(
@@ -238,6 +250,7 @@ impl PlaneOperation {
                 *channels,
                 *mode,
                 *opacity,
+                (*scale, *offset),
                 *invert_base,
                 *invert_source,
                 job,

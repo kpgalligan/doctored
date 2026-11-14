@@ -148,18 +148,18 @@ fn smooth<T: SelectionSample>(
     Ok(())
 }
 
-/// Stage 4 (module doc). `list` is the growth's queue, reused as the
-/// component list; it is left empty.
-fn fill_holes<T: SelectionSample>(
+/// Stage 4 (module doc): a hole of at most `cap` pixels is filled with the
+/// source alpha. `list` is the growth's queue, reused as the component list;
+/// it is left empty. Select ▸ Focus Area fills with no cap (`focus_area`).
+pub(crate) fn fill_holes<T: SelectionSample>(
     out: &mut [T],
     (w, h): (usize, usize),
     alpha_at: &impl Fn(usize) -> T,
-    radius: f32,
+    cap: usize,
     list: &mut Vec<(u32, u32)>,
     job: JobContext<'_>,
 ) -> Result<(), String> {
     let n = w * h;
-    let cap = (std::f64::consts::PI * f64::from(radius) * f64::from(radius)).ceil() as usize;
     let mut visited = vec![0_u8; n.div_ceil(8)];
     let open = |out: &[T], i: usize| out[i].code() == 0. && alpha_at(i).code() > 0.;
     for start in 0..n {
@@ -301,7 +301,8 @@ pub(crate) fn grow<T: SelectionSample>(
     }
     drop(colors);
     if radius > 0.0 {
-        fill_holes(&mut out, size, &alpha_at, radius, &mut queue, job)?;
+        let cap = (std::f64::consts::PI * f64::from(radius) * f64::from(radius)).ceil() as usize;
+        fill_holes(&mut out, size, &alpha_at, cap, &mut queue, job)?;
     }
     job.report(1.0, 5)?;
     Ok(out)

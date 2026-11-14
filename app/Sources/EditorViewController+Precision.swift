@@ -295,6 +295,8 @@ extension EditorViewController {
                 // Color Range, Grow and Similar compare the R1 display copy
                 // (`display_encoding`); MCP twins `select_color_range`, `select_similar`.
                 "showColorRange:", "selectGrow:", "selectSimilar:",
+                // Select ▸ Focus Area… reads the same R1 codes; MCP twin `select_focus_area`.
+                "showFocusArea:",
                 // Select ▸ Select and Mask… — the edge stage reads the same R1 codes (rule E),
                 // the New Layer outputs keep the float composite; MCP twin `refine_selection`.
                 "refineSelection:",
@@ -539,11 +541,11 @@ extension EditorViewController {
 
     /// The 16-bit document's whitelist (`validatePrecisionItem`'s last rule).
     private static let sixteenBitActions: Set<String> = [
-        "showColorRange:", "transformSelection:", "selectSubject:", "showSubjectTargets:", "showPeopleTargets:", "selectPeople:",
+        "showColorRange:", "showFocusArea:", "transformSelection:", "selectSubject:", "showSubjectTargets:", "showPeopleTargets:", "selectPeople:",
         "showFaceParts:", "selectSky:", "showPersonParts:", "applyImageSheet:", "calculationsSheet:", "addLuminosityMasks:", "applyLayerMask:",
         "loadSelectionSheet:", "loadPortraitMatte:", "newChannel:", "duplicateChannel:", "renameChannel:", "invertChannel:", "channelOptions:", "modifyNativePlane:",
         "contentAwareFill:", "autoTone:", "autoContrast:", "autoColor:", "showBlur:", "applySharpen:",
-        "showUnsharpMask:", "showHighPass:", "showReduceNoise:", "showDustAndScratches:", "applyEdgeDetect:",
+        "showUnsharpMask:", "showHighPass:", "showFrequencySeparation:", "showReduceNoise:", "showDustAndScratches:", "applyEdgeDetect:",
         "applyEmboss:", "showPixelate:", "showAddNoise:", "showBoxBlur:", "showSurfaceBlur:", "showAddGrain:",
         "showRadialBlur:", "showOffset:", "applyClouds:", "applyDifferenceClouds:",
         "showMotionBlur:", "showLensBlur:", "showTiltShift:", "showLiquify:", "showLensCorrection:",

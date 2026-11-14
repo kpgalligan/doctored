@@ -413,10 +413,15 @@ extension AgentServer {
         // 1 = the blend at full strength; the value is a fraction, matching
         // every other opacity the agent speaks.
         parameters.opacity = min(max(doubleArg(a, "opacity") ?? 1, 0), 1)
+        // The sheet's Scale and Offset fields: Add and Subtract only, refused
+        // with the core's rule rather than clamped.
+        parameters.scale = doubleArg(a, "scale") ?? 1
+        parameters.offset = doubleArg(a, "offset") ?? 0
+        if let refusal = parameters.scaleOffsetRefusal { throw ToolError(message: refusal) }
         parameters.target = paint
         parameters.targetLayer = layer
         if doc.isHighDepth { return try nativeApplyImage(document, parameters: parameters) }
-        let applied: [String: Any] = [
+        var applied: [String: Any] = [
             "source": parameters.source.map(String.init) ?? "merged",
             "source_plane": Self.planeChoiceName(parameters.sourcePlane, doc),
             "invert": parameters.invert,
@@ -424,6 +429,10 @@ extension AgentServer {
             "opacity": (parameters.opacity * 100).rounded() / 100,
             "target": paint.agentName(in: doc),
         ]
+        if parameters.isScaled {
+            applied["scale"] = parameters.scale
+            applied["offset"] = parameters.offset
+        }
         if case .channel = paint {
             // A channel is document state: no layer pixels move, so no
             // described layer is rasterized.

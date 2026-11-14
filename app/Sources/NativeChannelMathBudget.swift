@@ -81,7 +81,8 @@ extension NativeChannelMath {
             "mode": Int((apply?.blend ?? calculations?.blend ?? DR_BLEND_NORMAL).rawValue),
             "opacity": apply?.opacity ?? calculations?.opacity ?? 1,
             "invert_base": calculations?.source2.invert ?? false,
-            "invert_source": apply?.invert ?? calculations?.source1.invert ?? false]))
+            "invert_source": apply?.invert ?? calculations?.source1.invert ?? false,
+            "scale": apply?.scale ?? 1, "offset": (apply?.offset ?? 0) / 255]))
         // Six cached planes, flattened blend input/output and split arrays,
         // selected write payloads, Swift COW overlap and the nine-channel
         // luminosity result remain covered while a child kernel runs. Newly

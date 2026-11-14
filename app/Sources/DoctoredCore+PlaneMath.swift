@@ -36,13 +36,16 @@ enum RasterPlaneMath {
     /// `base = lerp(base, blend(base, source), opacity)` per pixel, through
     /// the same blend table the projection uses. `invertBase`/`invertSource`
     /// invert an operand FIRST, so the complement is both blended and lerped
-    /// from. false on a length mismatch, a non-finite opacity, or one of the
-    /// four HSL modes (`DrBlendMode.grayDegenerateModes`), which say nothing
-    /// about a single gray plane — blend three planes as one colour with
-    /// `blendRGB` for those.
+    /// from. `scale` (1…2) and `offset` (−1…1, plane units) are Apply Image's
+    /// Scale and Offset, Add and Subtract's only; 1 and 0 are the table.
+    /// false on a length mismatch, a non-finite opacity, a refused scale and
+    /// offset, or one of the four HSL modes (`DrBlendMode.grayDegenerateModes`),
+    /// which say nothing about a single gray plane — blend three planes as one
+    /// colour with `blendRGB` for those.
     static func blend(
         _ base: inout [UInt8], with source: [UInt8], width: Int, height: Int,
-        mode: DrBlendMode, opacity: Double, invertBase: Bool, invertSource: Bool
+        mode: DrBlendMode, opacity: Double, invertBase: Bool, invertSource: Bool,
+        scale: Double = 1, offset: Double = 0
     ) -> Bool {
         guard width > 0, height > 0, base.count == width * height,
               source.count == width * height
@@ -51,7 +54,7 @@ enum RasterPlaneMath {
             source.withUnsafeBufferPointer { s in
                 dr_blend_planes(
                     b.baseAddress, s.baseAddress, UInt32(width), UInt32(height),
-                    mode, Float(opacity), invertBase, invertSource)
+                    mode, Float(opacity), invertBase, invertSource, Float(scale), Float(offset))
             }
         }
     }
@@ -61,7 +64,7 @@ enum RasterPlaneMath {
     /// as `blend`, and the one form in which the four HSL modes mean anything
     /// (blending the planes independently would hand each of them a gray
     /// triple, which is what made three of the four the identity). false on a
-    /// length mismatch or a non-finite opacity.
+    /// length mismatch, a non-finite opacity or a refused scale and offset.
     /// The three planes are separate `inout` parameters rather than one array
     /// of three: `base[0].withUnsafeMutableBufferPointer { base[1]… }` would
     /// be overlapping access to the same array, which Swift's exclusivity
@@ -73,7 +76,7 @@ enum RasterPlaneMath {
         red: inout [UInt8], green: inout [UInt8], blue: inout [UInt8],
         withRed sourceRed: [UInt8], green sourceGreen: [UInt8], blue sourceBlue: [UInt8],
         width: Int, height: Int, mode: DrBlendMode, opacity: Double,
-        invertBase: Bool, invertSource: Bool
+        invertBase: Bool, invertSource: Bool, scale: Double = 1, offset: Double = 0
     ) -> Bool {
         let count = width * height
         guard width > 0, height > 0,
@@ -93,7 +96,7 @@ enum RasterPlaneMath {
                                     r.baseAddress, g.baseAddress, b.baseAddress,
                                     sr.baseAddress, sg.baseAddress, sb.baseAddress,
                                     UInt32(width), UInt32(height), mode, Float(opacity),
-                                    invertBase, invertSource)
+                                    invertBase, invertSource, Float(scale), Float(offset))
                             }
                         }
                     }

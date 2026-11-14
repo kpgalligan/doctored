@@ -2579,6 +2579,53 @@ fn null_safety_sweep() {
             assert_eq!((count, fasten, corridor), (7, 7, 7));
             doctored_core::ffi::dr_image_free(image);
         }
+        {
+            // Select ▸ Focus Area: a NULL source, params, mask or range
+            // refuses with err_out and both outputs untouched.
+            use doctored_core::ffi_focus_area::dr_selection_focus_area;
+            let params = CString::new("{}").unwrap();
+            let src = [0u8; 16];
+            let image = doctored_core::ffi::dr_image_from_rgba(src.as_ptr(), 2, 2);
+            let mut mask = [7u8; 4];
+            let mut range = 7.0f64;
+            let mut err: *mut c_char = ptr::null_mut();
+            let (m, r) = (mask.as_mut_ptr(), &mut range as *mut f64);
+            assert!(!dr_selection_focus_area(
+                null_img,
+                params.as_ptr(),
+                m,
+                r,
+                ptr::null(),
+                &mut err
+            ));
+            assert!(!dr_selection_focus_area(
+                image,
+                ptr::null(),
+                m,
+                r,
+                ptr::null(),
+                &mut err
+            ));
+            assert!(!dr_selection_focus_area(
+                image,
+                params.as_ptr(),
+                ptr::null_mut(),
+                r,
+                ptr::null(),
+                &mut err
+            ));
+            assert!(!dr_selection_focus_area(
+                image,
+                params.as_ptr(),
+                m,
+                ptr::null_mut(),
+                ptr::null(),
+                &mut err
+            ));
+            assert!(err.is_null());
+            assert_eq!((mask, range), ([7u8; 4], 7.0));
+            doctored_core::ffi::dr_image_free(image);
+        }
 
         // Retouching: healing and spot healing. A NULL document is a
         // refusal, not an error, so both leave err_out NULL; each also takes
@@ -3287,7 +3334,9 @@ fn null_safety_sweep() {
             BLEND_NORMAL,
             1.0,
             false,
-            false
+            false,
+            1.0,
+            0.0
         ));
         assert!(!dr_blend_planes(
             base.as_mut_ptr(),
@@ -3297,7 +3346,9 @@ fn null_safety_sweep() {
             BLEND_NORMAL,
             1.0,
             false,
-            false
+            false,
+            1.0,
+            0.0
         ));
         assert!(!dr_blend_planes(
             base.as_mut_ptr(),
@@ -3307,7 +3358,9 @@ fn null_safety_sweep() {
             BLEND_NORMAL,
             1.0,
             false,
-            false
+            false,
+            1.0,
+            0.0
         ));
         // The RGB twin refuses a NULL in any of its six buffers.
         let mut base_g = [0u8; 4];
@@ -3334,7 +3387,9 @@ fn null_safety_sweep() {
                     BLEND_NORMAL,
                     1.0,
                     false,
-                    false
+                    false,
+                    1.0,
+                    0.0
                 ),
                 "NULL buffer {hole} must be refused"
             );
@@ -3351,7 +3406,9 @@ fn null_safety_sweep() {
             BLEND_NORMAL,
             1.0,
             false,
-            false
+            false,
+            1.0,
+            0.0
         ));
 
         // Colour management and metadata.

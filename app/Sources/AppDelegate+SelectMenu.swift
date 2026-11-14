@@ -16,6 +16,7 @@ extension AppDelegate {
         menu.addItem(.separator())
         menu.addItem(item("Reselect", #selector(EditorViewController.reselect(_:)), "d", [.command, .shift]))
         menu.addItem(item("Color Range…", #selector(EditorViewController.showColorRange(_:))))
+        menu.addItem(item("Focus Area…", #selector(EditorViewController.showFocusArea(_:))))
         menu.addItem(item("Transform Selection…", #selector(EditorViewController.transformSelection(_:))))
         menu.addItem(
             item(

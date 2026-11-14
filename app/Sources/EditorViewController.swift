@@ -2754,6 +2754,8 @@ extension EditorViewController: NSUserInterfaceValidations {
             // targeted they rewrite that channel instead of any layer, so
             // the active layer's kind is irrelevant (§0.4).
             return supportsOperationScope(.filter)
+        case #selector(showFrequencySeparation(_:)): return validateFrequencySeparationItem()
+        case #selector(showFocusArea(_:)): return validateFocusAreaItem()
         case #selector(showLiquify(_:)): return supportsOperationScope(.pixelOnly)
         case #selector(showPuppetWarp(_:)): return supportsOperationScope(.pixelOnly)
         case #selector(showPerspectiveWarp(_:)): return supportsOperationScope(.pixelOnly)

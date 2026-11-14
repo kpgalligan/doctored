@@ -2697,9 +2697,14 @@ DrDocument *dr_doc_painting_layer_plane(const DrDocument *doc, size_t idx,
  * the complement is both blended and lerped from. These two are the ONE
  * arithmetic behind Apply Image and Calculations; Apply Image passes the
  * target plane as `base`, Calculations passes Source 2 as `base` and Source 1
- * as `source`. false on NULL, a zero dimension,
- * w*h > 100000000, an unknown mode, or a non-finite opacity; on false every
- * buffer is left untouched.
+ * as `source`. scale (1…2) and offset (−1…1, in plane units: levels / 255)
+ * are Apply Image's Scale and Offset: with DR_BLEND_ADDITION or
+ * DR_BLEND_SUBTRACT the blend is clamp((base ± source) / scale + offset) on
+ * the UNCLAMPED sum, then the fade by opacity; scale 1 with offset 0 is the
+ * blend table unchanged, and any other pair with another mode is refused.
+ * false on NULL, a zero dimension, w*h > 100000000, an unknown mode, a
+ * non-finite opacity, or a refused scale and offset; on false every buffer
+ * is left untouched.
  *
  * dr_blend_planes_rgb takes red, green and blue as three separate planes
  * (base and source alike), blends them AS ONE COLOUR and writes the three
@@ -2709,12 +2714,13 @@ DrDocument *dr_doc_painting_layer_plane(const DrDocument *doc, size_t idx,
  * answers whichever write lands last. */
 bool dr_blend_planes(uint8_t *base, const uint8_t *source, uint32_t w,
                      uint32_t h, DrBlendMode mode, float opacity,
-                     bool invert_base, bool invert_source);
+                     bool invert_base, bool invert_source, float scale,
+                     float offset);
 bool dr_blend_planes_rgb(uint8_t *base_r, uint8_t *base_g, uint8_t *base_b,
                          const uint8_t *source_r, const uint8_t *source_g,
                          const uint8_t *source_b, uint32_t w, uint32_t h,
                          DrBlendMode mode, float opacity, bool invert_base,
-                         bool invert_source);
+                         bool invert_source, float scale, float offset);
 
 /* ---- Spot channels (#1 phase 1a-2, ffi_spot_channel.rs) -----------------
  *
@@ -5144,6 +5150,18 @@ DrDocument *dr_doc_set_layer_content_preserving_mask(const DrDocument *doc, size
  * profile context; see selection_tools module documentation for JSON schema. */
 bool dr_selection_color_range(const DrDocument *doc, const DrImage *source,
     const char *params, uint8_t *out_mask, const DrJobControl *control, char **err_out);
+/* Select > Focus Area (ffi_focus_area.rs, designs/focus-area.md): byte
+ * coverage of the in-focus part of `source` (straight RGBA8) from the two-band
+ * sharpness score Stack Images uses. Strict JSON {range?: 0..100 (absent or
+ * null: Auto), soften_edge?: bool (true)}; lower range selects more. Writes
+ * w*h bytes (the source's dimensions) to out_mask and the range used to
+ * *out_range (Auto's resolved value maps back onto the same cut). Flat areas
+ * are never selected by the measure; enclosed unselected regions are filled;
+ * transparent pixels stay 0. NULL source/params/out_mask/out_range return
+ * false with err_out untouched; other failures and a cancel leave both
+ * outputs untouched. control may be NULL. */
+bool dr_selection_focus_area(const DrImage *source, const char *params,
+    uint8_t *out_mask, double *out_range, const DrJobControl *control, char **err_out);
 /* Quick Selection. Strict JSON {seeds:[[x,y],...] 1..4096 integer canvas
  * points, tolerance 0..200 (25), edge 0..200 (12), radius 0..256 (0), smooth
  * integer 0..4 (0)}. Every opaque pixel whose centre is within radius of a
@@ -7620,7 +7638,9 @@ bool dr_precision_doc_select(const DrPrecisionDocument *document, const char *re
  * perspective takes source_rect [x,y,w,h], quad [x0,y0,...,x3,y3] (TL,TR,BR,BL)
  * and filter; a parallelogram quad is its affine, a concave quad refuses.
  * blend takes numeric mode0...26, channels1 or3, opacity[0,1] and optional
- * invert_base/invert_source. Planar input: baseR/G/B then sourceR/G/B, or
+ * invert_base/invert_source, and optional scale [1,2] and offset [-1,1]
+ * (default 1 and 0), dr_blend_planes' Scale and Offset for Addition and
+ * Subtract. Planar input: baseR/G/B then sourceR/G/B, or
  * base/source forscalar. Output is PLANAR channels*N; fourHSLmodes requireRGB.
  * luminosity takes band lights/darks/midtones and level1...3 on one plane.
  * refine composes one coverage plane through smooth[0,64], shift[-64,64],

@@ -721,8 +721,13 @@ pub unsafe extern "C" fn dr_doc_painting_layer_plane(
 /// caller-owned buffers (the `dr_selection_*` convention), through the same
 /// blend table the projection uses. `invert_*` invert an operand FIRST, so
 /// the complement is both blended and lerped from. The ONE function behind
-/// Apply Image and Calculations. false on NULL args, a zero dimension,
-/// dimensions past the 100 MP cap, an unknown mode, or a non-finite opacity.
+/// Apply Image and Calculations. `scale` (1…2) and `offset` (−1…1, plane
+/// units) are Apply Image's Scale and Offset: with Addition or Subtract the
+/// blend is `clamp((base ± source) / scale + offset)` on the unclamped sum;
+/// `(1, 0)` is the blend table unchanged, and any other pair with another
+/// mode is refused. false on NULL args, a zero dimension, dimensions past
+/// the 100 MP cap, an unknown mode, a non-finite opacity, or a refused scale
+/// and offset.
 ///
 /// # Safety
 /// `base` must be NULL or writable for `w * h` bytes; `source` must be NULL
@@ -740,6 +745,8 @@ pub unsafe extern "C" fn dr_blend_planes(
     opacity: f32,
     invert_base: bool,
     invert_source: bool,
+    scale: f32,
+    offset: f32,
 ) -> bool {
     // The in-place caller-owned-buffer shape, guard for guard: the master
     // copy is the `dr_selection_*` family in `ffi_doc` (there is no handle
@@ -770,6 +777,8 @@ pub unsafe extern "C" fn dr_blend_planes(
             opacity,
             invert_base,
             invert_source,
+            scale,
+            offset,
         )
     }))
     .unwrap_or(false)
@@ -780,9 +789,11 @@ pub unsafe extern "C" fn dr_blend_planes(
 /// caller-owned base buffers. This is Apply Image with an RGB source onto an
 /// RGB target, and the only form in which the four non-separable modes (Hue,
 /// Saturation, Color, Luminosity) mean anything — which is exactly why
-/// `dr_blend_planes` refuses them and this one accepts them. false on a NULL
-/// argument, a zero dimension, dimensions past the 100 MP cap, an unknown
-/// mode, or a non-finite opacity; on false every buffer is left untouched.
+/// `dr_blend_planes` refuses them and this one accepts them. `scale` and
+/// `offset` as `dr_blend_planes`. false on a NULL argument, a zero
+/// dimension, dimensions past the 100 MP cap, an unknown mode, a non-finite
+/// opacity, or a refused scale and offset; on false every buffer is left
+/// untouched.
 ///
 /// # Safety
 /// The three `base_*` pointers must be writable for `w * h` bytes and the
@@ -808,6 +819,8 @@ pub unsafe extern "C" fn dr_blend_planes_rgb(
     opacity: f32,
     invert_base: bool,
     invert_source: bool,
+    scale: f32,
+    offset: f32,
 ) -> bool {
     if base_r.is_null() || base_g.is_null() || base_b.is_null() {
         return false;
@@ -847,6 +860,8 @@ pub unsafe extern "C" fn dr_blend_planes_rgb(
             opacity,
             invert_base,
             invert_source,
+            scale,
+            offset,
         )
     }))
     .unwrap_or(None);

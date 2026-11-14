@@ -29,12 +29,39 @@ struct ApplyImageParameters: Equatable {
     var target: PaintTarget = .layer
     /// The layer `.layer` and `.plane` write into.
     var targetLayer = 0
+    /// Add and Subtract's Scale (1…2): the unclamped sum is divided by it.
+    var scale: Double = 1
+    /// Add and Subtract's Offset in 8-bit levels (−255…255) at every depth,
+    /// added after the scale; the core takes it over 255.
+    var offset: Double = 0
+
+    static let scaleRange = 1.0...2.0
+    static let offsetRange = -255.0...255.0
 
     /// True when the source is a plane of Merged, so the caller resolves the
     /// composite (`MergedComposite`) before the edit. A channel source never
     /// renders.
     var readsMerged: Bool {
         source == nil && PlaneChoice.readsComposite(sourcePlane)
+    }
+
+    /// True for any Scale and Offset but the identity 1 and 0.
+    var isScaled: Bool { scale != 1 || offset != 0 }
+
+    /// The core's rule in words, or nil when it holds: Scale and Offset in
+    /// range, and a non-identity pair only with Add or Subtract.
+    var scaleOffsetRefusal: String? {
+        guard Self.scaleRange.contains(scale) else { return "Scale must be from 1 to 2." }
+        guard Self.offsetRange.contains(offset) else { return "Offset must be from -255 to 255." }
+        guard !isScaled || Self.takesScaleOffset(blend) else {
+            return "Scale and Offset apply to the Add and Subtract blend modes only."
+        }
+        return nil
+    }
+
+    /// Add and Subtract, the two modes Scale and Offset apply to.
+    static func takesScaleOffset(_ mode: DrBlendMode) -> Bool {
+        mode == DR_BLEND_ADDITION || mode == DR_BLEND_SUBTRACT
     }
 }
 
@@ -322,7 +349,7 @@ enum ChannelMath {
                 // The inversion was already folded into the source by
                 // sourcePlane — the same "invert first" rule the core's flags
                 // implement, and applying it twice would undo it.
-                invertBase: false, invertSource: false)
+                invertBase: false, invertSource: false, scale: p.scale, offset: p.offset / 255)
         else { return nil }
         return [red, green, blue]
     }
@@ -341,7 +368,8 @@ enum ChannelMath {
         guard
             RasterPlaneMath.blend(
                 &base, with: source, width: doc.width, height: doc.height,
-                mode: p.blend, opacity: p.opacity, invertBase: false, invertSource: false)
+                mode: p.blend, opacity: p.opacity, invertBase: false, invertSource: false,
+                scale: p.scale, offset: p.offset / 255)
         else { return nil }
         return base
     }

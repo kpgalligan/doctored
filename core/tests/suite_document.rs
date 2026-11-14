@@ -56,6 +56,8 @@ mod byte_merge_extent;
 mod canvas_geometry_admission;
 #[path = "canvas_rotation.rs"]
 mod canvas_rotation;
+#[path = "channel_scale_offset.rs"]
+mod channel_scale_offset;
 #[path = "channel_tests.rs"]
 mod channel_tests;
 #[path = "clip_display.rs"]
@@ -76,6 +78,8 @@ mod delete_cropped_pixels;
 mod duplicate_to_new_document;
 #[path = "feature_register.rs"]
 mod feature_register;
+#[path = "frequency_separation.rs"]
+mod frequency_separation;
 #[path = "generative_expand.rs"]
 mod generative_expand;
 #[path = "generative_fill.rs"]

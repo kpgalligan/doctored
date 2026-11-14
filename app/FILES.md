@@ -190,6 +190,9 @@ Detail belongs in the source file's own header comment.
 - `ImageCanvasView+SelectionFeedback.swift` — view-only feedback for selection gestures: the committed selection stays visible while a new shape is dragged.
 - `SelectionPreviewView.swift` — a fit-to-view preview in the canvas's top-left pixel coordinates; Color Range samples the immutable source, never the shown mask.
 - `ColorRangeSheetController.swift` — Select ▸ Color Range…: Sampled Colors, hue presets, tones, Skin Tones, Out Of Gamut, Custom; candidate coverage previewed, re-checked on Apply.
+- `FocusArea.swift` / `DoctoredCore+FocusArea.swift` — Select ▸ Focus Area…: parameters, the capture's core call (`dr_selection_focus_area`), the refusal and the recorded step.
+- `FocusAreaSheetController.swift` / `EditorViewController+FocusArea.swift` — the Focus Area… sheet (Auto, In-Focus Range, Soften Edge), its validation and commit.
+- `AgentServer+FocusArea.swift` / `AgentCatalog+FocusArea.swift` — MCP `select_focus_area`: handler, facts and catalog entry over `FocusArea.swift`.
 - `SelectionTransformSheetController.swift` — Select ▸ Transform Selection…: numeric affine controls on the coverage alone, pivot at the captured bounds' centre by default.
 - `LoadSelectionSheetController.swift` — Select ▸ Load Selection…: a channel, the layer's transparency or mask, or a composite plane, with Replace/Add/Subtract/Intersect and Invert.
 - `SaveSelectionSheetController.swift` — Select ▸ Save Selection…: the selection into a new alpha channel, or combined into an existing one under Load Selection's four-way algebra.
@@ -600,6 +603,9 @@ Detail belongs in the source file's own header comment.
 - `CalculationsSheetController.swift` — Image ▸ Calculations…: two source planes blended into a new plane, an alpha channel or the selection (Source 1 is the blend, Source 2 the base).
 - `EditorViewController+ChannelMath.swift` — Image ▸ Apply Image… / Calculations… and Select ▸ Add Luminosity Masks: sheets, live previews and edit wrappers over `ChannelMath`.
 - `NativeChannelMath.swift` / `NativeChannelMathBudget.swift` / `NativeChannelMathSession.swift` — native Apply Image (CMYK plates too), Calculations and luminosity masks, on core plane-blend math.
+- `FrequencySeparation.swift` — Filters ▸ Other ▸ Frequency Separation…'s split at 8 and 16 bits: blurred Low, Apply Image detail High (Linear Light, clipped), refusals, recorded step.
+- `FrequencySeparationSheetController.swift` / `EditorViewController+FrequencySeparation.swift` — the Frequency Separation… sheet (radius), its menu validation and commit.
+- `AgentServer+FrequencySeparation.swift` / `AgentCatalog+FrequencySeparation.swift` — MCP `frequency_separation`: handler, facts and catalog entry over `FrequencySeparation`.
 - `NativeAuxiliaryMattes.swift` / `NativePlaneDisplay.swift` / `NativeLayerDisplay.swift` — auxiliary scalar matte intake at declared precision, core alignment, provenance, display-only reductions.
 - `DocumentEvaluation.swift` / `EvaluationSheetController.swift` / `EditorViewController+Evaluation.swift` — the per-document EVALUATION POLICY: `encoded` or `linear_light`.
 - `AgentServer+Evaluation.swift` / `AgentCatalog+Evaluation.swift` — Image ▸ Evaluation…'s MCP twins `get_evaluation` / `set_evaluation`; the core owns every decision.

@@ -11,9 +11,11 @@ extension AgentServer {
             try NativeChannelMath.apply(capture, parameters: parameters, control: $0)
         }
         let changed = try capture.publish(result, to: document, name: "Apply Image")
-        return try jsonResult(["ok": true, "changed": changed, "target": parameters.target.agentName(in: capture.facade),
+        var reply: [String: Any] = ["ok": true, "changed": changed, "target": parameters.target.agentName(in: capture.facade),
             "layer": parameters.targetLayer, "storage": "u16", "write_scope": capture.selection == nil ? "whole_target" : "selection",
-            "working_memory_plan_bytes": scratch])
+            "working_memory_plan_bytes": scratch]
+        if parameters.isScaled { reply["scale"] = parameters.scale; reply["offset"] = parameters.offset }
+        return try jsonResult(reply)
     }
 
     /// Image > Calculations: native output stays scalar through either landing.

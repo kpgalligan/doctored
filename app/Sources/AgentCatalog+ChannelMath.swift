@@ -12,7 +12,8 @@ extension AgentServer {
                 "apply_image",
                 "Image > Apply Image…: blends ONE source plane onto the target — a layer's "
                     + "pixels (as one colour, plane for plane), one colour plane of them, or "
-                    + "an alpha channel — at an opacity. The source "
+                    + "an alpha channel — at an opacity. Add and Subtract also take a scale "
+                    + "and an offset: clamp((target ± source) / scale + offset). The source "
                     + "is a layer or the flattened composite (\"merged\"), read as its whole "
                     + "colour image, one plane, or a channel; source_plane \"rgb\" against a "
                     + "single-plane target uses the source's luma. Writes layer pixels "
@@ -51,6 +52,20 @@ extension AgentServer {
                             + "about one 8-bit plane.",
                     ],
                     "opacity": ["type": "number", "minimum": 0, "maximum": 1],
+                    "scale": [
+                        "type": "number", "minimum": 1, "maximum": 2,
+                        "description": "Add and Subtract only (default 1): the unclamped sum "
+                            + "or difference is divided by it before the offset is added and "
+                            + "the result clamped. Subtract at scale 2 with offset 127.5 keeps a "
+                            + "whole difference. On a CMYK plate it works on the stored 1 − ink. "
+                            + "Any other mode refuses a value other than 1.",
+                    ],
+                    "offset": [
+                        "type": "number", "minimum": -255, "maximum": 255,
+                        "description": "Add and Subtract only (default 0), in 8-bit levels at "
+                            + "every depth: added after the scale. Any other mode refuses a "
+                            + "value other than 0.",
+                    ],
                     "target": [
                         "type": "string",
                         "description": "\"layer\" (default), \"red\"/\"green\"/\"blue\"/"

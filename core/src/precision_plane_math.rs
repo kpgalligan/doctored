@@ -1,8 +1,9 @@
 //! Native storage adapters for Apply Image/Calculations and luminosity masks.
 //! The blend table and Dissolve coordinates are doc_plane's existing operator;
 //! grayscale HSL refusal and operand inversion retain the byte contract.
-use crate::blend::{blend_kind, BlendMode};
+use crate::blend::BlendMode;
 use crate::job_control::JobContext;
+use crate::plane_scale_offset::PlaneBlend;
 use crate::precision_image::reserved_vec;
 use serde::Deserialize;
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -34,6 +35,18 @@ pub(crate) fn validate(channels: usize, mode: i32, opacity: f64) -> Result<Blend
     }
     Ok(mode)
 }
+/// [`validate`] plus Apply Image's Scale and Offset (`plane_scale_offset`):
+/// the blend one native plane pixel runs.
+pub(crate) fn validate_scaled(
+    channels: usize,
+    mode: i32,
+    opacity: f64,
+    scale: f64,
+    offset: f64,
+) -> Result<PlaneBlend, String> {
+    let mode = validate(channels, mode, opacity)?;
+    Ok(PlaneBlend::new(mode, scale as f32, offset as f32)?)
+}
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn blend(
     input: &[u16],
@@ -41,12 +54,12 @@ pub(crate) fn blend(
     channels: usize,
     mode: i32,
     opacity: f64,
+    (scale, offset): (f64, f64),
     invert_base: bool,
     invert_source: bool,
     job: JobContext<'_>,
 ) -> Result<Vec<u16>, String> {
-    let mode = validate(channels, mode, opacity)?;
-    let kind = blend_kind(mode);
+    let blend = validate_scaled(channels, mode, opacity, scale, offset)?;
     let (w, h) = dimensions;
     let n = w as usize * h as usize;
     if input.len() != n * channels * 2 {
@@ -74,11 +87,10 @@ pub(crate) fn blend(
         });
         let b = base.map(|v| f32::from(v) / 65535.);
         let s = source.map(|v| f32::from(v) / 65535.);
-        let result = crate::doc_plane::blend_triple(
+        let result = blend.triple(
             b,
             s,
             opacity as f32,
-            kind,
             ((i % w as usize) as i64, (i / w as usize) as i64),
         );
         for c in 0..channels {

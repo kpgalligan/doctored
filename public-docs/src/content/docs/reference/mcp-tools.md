@@ -20,7 +20,7 @@ The helper reaches the app over a Unix socket the app binds at every launch,
 owner can open; `DR_AGENT_SOCKET` names another path for both. There is no TCP
 endpoint.
 
-This build exposes **352 tools**. The reference is generated from the app's
+This build exposes **354 tools**. The reference is generated from the app's
 `tools/list` catalog (live, or the snapshot the build writes from the same code),
 which is authoritative. Tool results are MCP
 content blocks; most calls return a JSON object in a text block, while `render` and
@@ -161,6 +161,7 @@ Add `--check` to either to verify that the checked-in page matches the catalog.
 - [`apply_image`](#apply_image)
 - [`calculations`](#calculations)
 - [`add_luminosity_masks`](#add_luminosity_masks)
+- [`frequency_separation`](#frequency_separation)
 - [`rotate`](#rotate)
 - [`flip`](#flip)
 - [`crop`](#crop)
@@ -228,6 +229,7 @@ Add `--check` to either to verify that the checked-in page matches the catalog.
 - [`select_color_range`](#select_color_range)
 - [`quick_select`](#quick_select)
 - [`transform_selection`](#transform_selection)
+- [`select_focus_area`](#select_focus_area)
 - [`get_mask_properties`](#get_mask_properties)
 - [`set_mask_properties`](#set_mask_properties)
 - [`transform_mask`](#transform_mask)
@@ -2262,7 +2264,7 @@ Writes the current selection into an alpha channel — Select > Save Selection�
 
 ## `apply_image`
 
-Image > Apply Image…: blends ONE source plane onto the target — a layer's pixels (as one colour, plane for plane), one colour plane of them, or an alpha channel — at an opacity. The source is a layer or the flattened composite ("merged"), read as its whole colour image, one plane, or a channel; source_plane "rgb" against a single-plane target uses the source's luma. Writes layer pixels destructively for a layer or plane target, so a re-editable text or shape layer drops its description. One undo step. Answers at 8 and 16 bits; a 32-bit float document refuses it by name (its blend runs on planes clamped to 0…1, which float pixels are not) — use calculations there, which writes a channel or a selection. On a CMYK document the target is the layer (its four ink plates, plate for plate, each a one-plane blend, so the HSL modes refuse), one ink plate (its stored 1 − ink) or an alpha channel, and source_plane "cmyk" is the CMYK composite: its matching plate onto the layer, its luminosity onto one plate or channel. In a Grayscale document target is layer (its Gray, blended as one plane and written R = G = B, one undo step) or channel:<name>; source_plane is gray, alpha or an alpha channel's name; blend_mode takes the Grayscale modes; a 32-bit Grayscale document refuses, as a float document. In a Lab Color document each channel's codes blend alone: target is layer (Lightness, a and b each from the source's own), lightness, a, b, alpha or channel:<name>; source_plane is lab (the composite or layer, channel for channel; Lightness onto one plane), lightness, a, b, alpha or an alpha channel's name; blend_mode takes Normal, Dissolve, Multiply, Linear Burn, Screen, Linear Dodge (Add), Overlay, Soft Light, Hard Light, Vivid Light, Linear Light, Pin Light and Hard Mix (a layer set to the same mode composites by its Lab arm instead).
+Image > Apply Image…: blends ONE source plane onto the target — a layer's pixels (as one colour, plane for plane), one colour plane of them, or an alpha channel — at an opacity. Add and Subtract also take a scale and an offset: clamp((target ± source) / scale + offset). The source is a layer or the flattened composite ("merged"), read as its whole colour image, one plane, or a channel; source_plane "rgb" against a single-plane target uses the source's luma. Writes layer pixels destructively for a layer or plane target, so a re-editable text or shape layer drops its description. One undo step. Answers at 8 and 16 bits; a 32-bit float document refuses it by name (its blend runs on planes clamped to 0…1, which float pixels are not) — use calculations there, which writes a channel or a selection. On a CMYK document the target is the layer (its four ink plates, plate for plate, each a one-plane blend, so the HSL modes refuse), one ink plate (its stored 1 − ink) or an alpha channel, and source_plane "cmyk" is the CMYK composite: its matching plate onto the layer, its luminosity onto one plate or channel. In a Grayscale document target is layer (its Gray, blended as one plane and written R = G = B, one undo step) or channel:<name>; source_plane is gray, alpha or an alpha channel's name; blend_mode takes the Grayscale modes; a 32-bit Grayscale document refuses, as a float document. In a Lab Color document each channel's codes blend alone: target is layer (Lightness, a and b each from the source's own), lightness, a, b, alpha or channel:<name>; source_plane is lab (the composite or layer, channel for channel; Lightness onto one plane), lightness, a, b, alpha or an alpha channel's name; blend_mode takes Normal, Dissolve, Multiply, Linear Burn, Screen, Linear Dodge (Add), Overlay, Soft Light, Hard Light, Vivid Light, Linear Light, Pin Light and Hard Mix (a layer set to the same mode composites by its Lab arm instead).
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
@@ -2270,7 +2272,9 @@ Image > Apply Image…: blends ONE source plane onto the target — a layer's pi
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
 | `invert` | `boolean` | no | — | Invert the source plane first (default false). |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
+| `offset` | `number` | no | -255–255 | Add and Subtract only (default 0), in 8-bit levels at every depth: added after the scale. Any other mode refuses a value other than 0. |
 | `opacity` | `number` | no | 0–1 | — |
+| `scale` | `number` | no | 1–2 | Add and Subtract only (default 1): the unclamped sum or difference is divided by it before the offset is added and the result clamped. Subtract at scale 2 with offset 127.5 keeps a whole difference. On a CMYK plate it works on the stored 1 − ink. Any other mode refuses a value other than 1. |
 | `source` | `string` | no | — | "merged" (default) or a layer index. |
 | `source_plane` | `string` | no | — | "rgb" (default), "red", "green", "blue", "luma", "alpha", or an alpha channel's name. On a CMYK document: "cmyk" (default), "cyan"/"magenta"/"yellow"/"black", "luma", "alpha" or an alpha channel's name. |
 | `target` | `string` | no | — | "layer" (default), "red"/"green"/"blue"/"alpha", or "channel:<name>"; on a CMYK document "layer", "cyan"/"magenta"/"yellow"/"black" or "channel:<name>". |
@@ -2300,6 +2304,16 @@ Select > Add Luminosity Masks: appends nine channels built from the composite's 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
+
+## `frequency_separation`
+
+Filters > Other > Frequency Separation…: splits one raster layer into a LOW layer (the layer itself, Gaussian Blurred at radius, keeping its name + " Low", mask, opacity, blend mode and style) and a HIGH layer above it (name + " High": apply_image's Subtract of the low layer at scale 2 and offset 127.5, so (source − low) / 2 + ½; Linear Light, clipped to the low layer, no mask or style). The pair recomposes the original within one code where the layer is opaque; where the blur changes alpha it is close, not exact. Retouch tone on the low layer and texture on the high one; Merge Down on the high layer bakes the pair. The selection is ignored. One undo step. Answers at 8 and 16 bits on an RGB document; a 32-bit float document, the colour modes, a document evaluated in linear light (set_evaluation "encoded" first: the detail is a difference of stored codes), a group, an adjustment layer, a clipped layer, a text, shape, fill or placed layer and a pixel-locked layer refuse by name. Replies low_layer and high_layer.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
+| `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
+| `radius` | `number` | no | 0.5–64 | The low layer's Gaussian Blur radius (sigma) in pixels (default 4): detail finer than it goes to the high layer. |
 
 ## `rotate`
 
@@ -3023,6 +3037,17 @@ Transform current coverage only; layer pixels stay fixed. Translation uses px, s
 | `scale_y` | `number` | no | — | — |
 | `translate_x` | `number` | no | — | — |
 | `translate_y` | `number` | no | — | — |
+
+## `select_focus_area`
+
+Select > Focus Area…: selects the in-focus part of the picture from its local sharpness (the two-band score Stack Images ranks frames by, over the composite's luma). range 0–100 places the cut along the picture's own sharpness scale, and a lower range selects more; without range, Auto takes Otsu's cut and the reply's range is the value it used (pass it back to repeat the same cut), 0 when the picture has one focus. Flat areas (under one level of detail) are never selected by the measure, but an unselected area a selected one encloses is filled, so a sharp subject keeps its smooth interior; transparent pixels stay outside. soften_edge (default true) feathers the edge. A flat picture selects nothing. Selection-only, one Undo; recorded with the range used. Answers in RGB documents at 8, 16 and 32 bits (at 16 bits the display derivative, at 32 the display codes); the colour modes refuse it.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
+| `mode` | `string` | no | one of `replace`, `add`, `subtract`, `intersect` | — |
+| `range` | `number` | no | 0–100 | — |
+| `soften_edge` | `boolean` | no | — | — |
 
 ## `get_mask_properties`
 

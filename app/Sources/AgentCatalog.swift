@@ -200,6 +200,7 @@ extension AgentServer {
         catalog.append(contentsOf: basicSelectionCatalog(schema))
         catalog.append(contentsOf: guideChannelCatalog(schema))
         catalog.append(contentsOf: channelMathCatalog(schema))
+        catalog.append(contentsOf: frequencySeparationCatalog(schema))
         catalog.append(contentsOf: geometryLayerCatalog(schema))
         catalog.append(contentsOf: geometrySetCatalog())
         catalog.append(contentsOf: persistedWarpCatalog())

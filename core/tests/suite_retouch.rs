@@ -84,6 +84,8 @@ mod external_matte_inputs;
 mod fade;
 #[path = "fill_stroke_tests.rs"]
 mod fill_stroke_tests;
+#[path = "focus_area.rs"]
+mod focus_area;
 #[path = "foreground_ambiguity.rs"]
 mod foreground_ambiguity;
 #[path = "foreground_estimation.rs"]
