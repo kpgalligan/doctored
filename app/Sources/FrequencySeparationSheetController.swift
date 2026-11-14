@@ -1,17 +1,35 @@
 import AppKit
 
 /// Filters ▸ Other ▸ Frequency Separation…: the low layer's blur radius. Apply hands it to
-/// `onApply` (`EditorViewController.commitFrequencySeparation`).
+/// `onApply` (`EditorViewController.commitFrequencySeparation`). The hint names the document's
+/// form's high-layer mode and bound (`FrequencySeparation.form(of:)`).
 final class FrequencySeparationSheetController: NSViewController {
+    private let form: FrequencySeparation.Form
     private let onApply: (Double) -> Void
     private let radiusSlider = NSSlider(
         value: 4, minValue: FrequencySeparationParameters.radiusRange.lowerBound,
         maxValue: FrequencySeparationParameters.radiusRange.upperBound, target: nil, action: nil)
     private let radiusField = NSTextField(string: "4.0")
 
-    init(onApply: @escaping (Double) -> Void) {
+    init(form: FrequencySeparation.Form, onApply: @escaping (Double) -> Void) {
+        self.form = form
         self.onApply = onApply
         super.init(nibName: nil, bundle: nil)
+    }
+
+    /// The hint's clause for `form`: the high layer's blend mode and the pair's bound
+    /// (`FrequencySeparation`'s type comment states each).
+    private static func recomposition(_ form: FrequencySeparation.Form) -> String {
+        let mode = "(" + DrBlendMode.displayName(for: form.highBlendMode)
+            + ", clipped), which together recompose it within "
+        switch form {
+        case .codes:
+            return mode + "one level"
+        case .difference:
+            return mode + "float rounding"
+        case .decoded:
+            return mode + "a few codes in linear light, up to about two levels in the deepest shadows,"
+        }
     }
 
     @available(*, unavailable)
@@ -42,8 +60,8 @@ final class FrequencySeparationSheetController: NSViewController {
         view = makeSheetView(
             title: "Frequency separation",
             hint: "Splits the layer into a blurred Low layer and a High detail layer above it "
-                + "(Linear Light, clipped), which together recompose it within one level where "
-                + "it is opaque. Retouch tone on Low and texture on High. The selection is ignored.",
+                + Self.recomposition(form) + " where it is opaque. Retouch tone on Low and texture "
+                + "on High. The selection is ignored.",
             content: grid,
             buttonRow: makeButtonRow(cancel: cancelButton, apply: applyButton))
     }

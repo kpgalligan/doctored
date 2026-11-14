@@ -217,6 +217,8 @@ Detail belongs in the source file's own header comment.
 - `doc_channel.rs` / `ffi_channel.rs` — ALPHA CHANNELS: named canvas-sized u8 saved selections that never composite (overlay colour, opacity, polarity are display); the Channels FFI.
 - `doc_plane.rs` / `precision_plane_math.rs` — colour planes: one plane of a composite, layer or image as u8, write-back, paint, the blend behind Apply Image and Calculations; typed adapters.
 - `plane_scale_offset.rs` — kernel: Apply Image's Scale and Offset for Add and Subtract on the unclamped sum (`PlaneBlend`, the plane blenders' per-pixel blend).
+- `layer_detail.rs` — kernel: frequency separation's detail at 32 bits (`t − s`) and under linear light (the scaled Subtract on decoded components); both bounds.
+- `precision_layer_detail.rs` — the typed `layer_detail` edit (`LayerDetailEdit`): the adapter over `layer_detail`, its refusals and borrowed admission.
 - `doc_scope.rs` / `ffi_scope.rs` — full-storage destructive result writeback through canvas selection coverage for pixels, masks, RGBA planes and saved channels.
 - `poisson.rs` — the ONE membrane (Poisson) solver every healing op shares: free functions over window-sized buffers, red-black multigrid, and the one classification rule stated on `Region`.
 - `doc_heal.rs` — healing on the document: `heal_layer`, the shared write-back `heal_window_into_pixels_with_context`, two measured caps. The component items live in `heal_components.rs`.

@@ -107,7 +107,8 @@ pub(crate) const COLOR_MODE_GRAY: &str = "gray";
 /// channels' New, Delete, Rename, Duplicate and Channel Options, and phase
 /// 2e's Import Channel; phase 4's geometry, Perspective Crop, align and
 /// distribute, Duplicate to Document, Layer Via and Stamp Selected; phase
-/// 6a-ii's links and layer comps; phase 6b's Stack Modes. The
+/// 6a-ii's links and layer comps; phase 6b's Stack Modes; frequency
+/// separation's `layer_detail` (its 32-bit form). The
 /// conditional edits (blend modes, styles, Blend If, Fill, the scalar
 /// targets) are [`admit_edit`]'s own arms.
 const ADMITTED_EDITS: &[&str] = &[
@@ -170,6 +171,10 @@ const ADMITTED_EDITS: &[&str] = &[
     // Phase 6b: Stack Modes, on R = G = B through the RGB stack kernel (a
     // per-channel statistic of equal channels stays equal).
     "stack_mode",
+    // Frequency separation's detail (`precision_layer_detail`): a 32-bit
+    // Gray layer's `t − s` per component keeps R = G = B; the op itself
+    // refuses an 8- or 16-bit Gray document, whose detail is Apply Image's.
+    "layer_detail",
 ];
 
 /// The blend modes a Gray document offers, Normal first, in the layer menu's

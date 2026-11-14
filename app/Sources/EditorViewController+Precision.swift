@@ -347,6 +347,10 @@ extension EditorViewController {
                 "assignProfile:", "convertToProfile:",
                 // Calculations… and Add Luminosity Masks read planes and write a channel or selection.
                 "calculationsSheet:", "addLuminosityMasks:",
+                // Filters ▸ Other ▸ Frequency Separation…: the detail is the core's float
+                // `layer_detail` (t − s), recombined by Linear Dodge (Add); MCP twin
+                // `frequency_separation`, `.floatTool`.
+                "showFrequencySeparation:",
                 // File ▸ Contact Sheet… lays out each document's tone-mapped 8-bit rendering.
                 "showContactSheet:",
                 // Phase 12F-1: Image ▸ Canvas Size…, the first canvas-geometry

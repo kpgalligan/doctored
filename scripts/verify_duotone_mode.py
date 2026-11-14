@@ -107,6 +107,9 @@ The close (#1, `designs/duotone-mode.md`), each on a fresh 8-bit Duotone documen
 - **D27 Proof Colors off.** On a Gray document `set_proof_setup proof_colors true`, then
   `convert_mode duotone`: `set_proof_setup proof_colors true` and `get_proof_setup` refuse by
   `DISABLED`, and `set_proof_setup proof_colors false` answers ok with the undo_count unchanged.
+- **D28 Frequency Separation.** `verify_frequency_separation.mode_check`'s picture in an 8-bit
+  Duotone (Grayscale, then one black ink) splits as Grayscale does: the composite's gray codes
+  within one code of the original's, R = G = B.
 """
 
 import argparse
@@ -123,6 +126,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 
 from phase5_support import App
+import verify_frequency_separation
 
 # ---- the expectations, fixed here BEFORE anything is measured -------------
 CODES = [0, 20, 45, 70, 96, 128, 150, 175, 200, 225, 245, 255]
@@ -780,6 +784,10 @@ def main():
                            'off': {k: off.get(k) for k in ('ok', 'proof_colors')}}
         print('PASS d27: a Duotone document converted with Proof Colors on can turn it off',
               flush=True)
+
+        # ---- D28 -----------------------------------------------------------
+        receipts['d28'] = verify_frequency_separation.mode_check(app, folder, 'duotone', 8)
+        print('PASS d28: Frequency Separation recomposes the gray of a Duotone layer', flush=True)
 
     (output / 'receipts.json').write_text(json.dumps(receipts, indent=2, default=str))
     print('verify_duotone_mode: every D-case PASS', flush=True)

@@ -70,6 +70,11 @@ their evaluation exactly, and each operation is migrated and verified before it 
   refuses its render by name, phase 1's disclosure.
 - **D11, a baked style is the layer as the canvas shows it:** Merge Down, the merged-layer paths and PSD export's
   style bake (`psd_export_rasterize`, `bake_style16`) composite under the transfer and encode through it.
+- **D12, Frequency Separation's detail is computed in the decoded domain** (2026-11-14, `layer_detail`): at 16
+  bits Apply Image's scaled Subtract runs on the decoded triples and is encoded once, so the clipped Linear Light
+  pair rebuilds the layer within 4 codes of 65535 in linear light (stored: 22 sRGB, 503 Adobe RGB at black); an
+  8-bit document refuses, its rounding being up to about twenty levels in the shadows
+  (`frequency_separation_modes.rs`).
 - **Not measured:** no timing was taken for phases 2–3 (lanes ran in parallel); a linear-light Blend If costs one
   accumulator encode per pixel, and a linear byte Image Size no longer takes the `image` crate's opaque path.
 - **Encoded documents take the `transfer == None` branch everywhere** and are byte-for-byte unchanged;

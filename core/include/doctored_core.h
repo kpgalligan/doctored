@@ -7512,6 +7512,21 @@ char *dr_precision_doc_edit_plan(const DrPrecisionDocument *document, const char
  * mapped back to ink; the record is a CMYK raster, paper at alpha 0 where no
  * member covers. Errors by name as at 8 bits, plus a member whose storage is
  * not the document's own. Never NULL with no error. */
+/* Frequency separation's detail (family layer_detail, 32-bit float RGB and
+ * Grayscale, and 16-bit RGB evaluated in linear light):
+ * {"op":"layer_detail","version":1,"layer":T,"source":S} — every key REQUIRED,
+ * an unknown key refuses; no samples (input_samples = 0). Raster T's colour
+ * becomes its detail against raster S read at the same canvas position (S's
+ * colour is 0 outside its bounds); T's alpha and every property are kept and
+ * a pixel of T at alpha 0 is left as it is. In a float document the detail is
+ * t − s per component, unclamped (recombined by Linear Dodge (Add)); a result
+ * outside ±65504 refuses. Under linear light it is
+ * codes(clamp((lin(t) − lin(s))/2 + ½)) through the document's own transfer
+ * (recombined by Linear Light). Every other document refuses by name (its
+ * detail is Apply Image's Subtract at scale 2, offset 127.5 levels), and so do
+ * T == S, an index out of range, a group or adjustment, a layer with a
+ * retained source or a description, and the layer's Pixels lock. A
+ * bitwise-unchanged result is NULL with no error. */
 /* Move Selected Pixels: {op:"move_selected",layer,dx,dy} with the
  * canvas-sized u16 selection coverage as samples (input_samples = width*height)
  * — dr_doc_selected_pixels_edit's contract at 16 bits, quantized once to u16.

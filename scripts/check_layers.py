@@ -106,6 +106,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "lab_stack.rs",
     "lab_tone.rs",
     "landmark_region.rs",
+    "layer_detail.rs",
     "lens_db.rs",
     "lens_interp.rs",
     "lens_model.rs",

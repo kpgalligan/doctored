@@ -1,17 +1,18 @@
 import AppKit
 
 /// Mirrors Filters ▸ Other ▸ Frequency Separation…: the same `FrequencySeparation` split the
-/// sheet commits, as one undo step at 8 and 16 bits.
+/// sheet commits, as one undo step, in each form its type comment names.
 extension AgentServer {
     /// This file's MCP tools; merged by AgentServer+Registry.swift.
     static let frequencySeparationHandlers: [String: ToolHandler] = [
         "frequency_separation": { $0.frequencySeparation },
     ]
 
-    /// Facts for this file's tools; merged in AgentServer+Registry.swift. 8 and 16 bits only: a
-    /// 32-bit float document and the colour modes refuse it through their closed sets.
+    /// Facts for this file's tools; merged in AgentServer+Registry.swift. A 32-bit float document
+    /// answers it (the difference form); the Grayscale and Lab Color sets list it, and the other
+    /// colour modes refuse it through their closed sets.
     static let frequencySeparationToolFacts: [String: ToolFacts] = [
-        "frequency_separation": [.commonTool],
+        "frequency_separation": [.commonTool, .floatTool],
     ]
 
     /// Filters ▸ Other ▸ Frequency Separation… (`EditorViewController.commitFrequencySeparation`).
@@ -27,6 +28,7 @@ extension AgentServer {
         if let reason = FrequencySeparation.refusal(doc, layer: layer, quickMask: document.quickMaskActive) {
             throw ToolError(message: reason)
         }
+        let form = FrequencySeparation.form(of: doc)
         if doc.isHighDepth {
             let capture = try PrecisionEditorCapture(document)
             let result = try FrequencySeparation.nativeSplit(capture, p)
@@ -41,6 +43,7 @@ extension AgentServer {
             }
         }
         return try jsonResult(["ok": true, "action": FrequencySeparation.actionName, "low_layer": layer,
-                               "high_layer": layer + 1, "radius": radius])
+                               "high_layer": layer + 1, "radius": radius,
+                               "high_blend_mode": DrBlendMode.displayName(for: form.highBlendMode)])
     }
 }

@@ -159,7 +159,8 @@ enum NativeChannelMath {
         // #1 phase 6b: a Gray layer is one plane; an alpha channel target takes the RGB path.
         if capture.facade.isGray {
             if case .channel = p.target {} else {
-                return try applyGray(capture, parameters: p, control: control, ownReservation: ownReservation)
+                return try applyGray(capture.facade, source: capture.source, selection: capture.selection,
+                                     parameters: p, control: control, ownReservation: ownReservation)
             }
         }
         return try applyRGB(capture.facade, source: capture.source, selection: capture.selection,
@@ -230,19 +231,20 @@ enum NativeChannelMath {
     }
     /// Apply Image onto a Grayscale layer (#1 phase 6b): the layer's luminance (its Gray, R = G =
     /// B) blended with the source plane as ONE plane, written to R, G and B by `writeGray`, so the
-    /// layer keeps R = G = B. An alpha channel target takes `apply`'s RGB path.
-    private static func applyGray(_ capture: PrecisionEditorCapture, parameters p: ApplyImageParameters,
-                                  control: RasterJobControl, ownReservation: UInt64) throws -> RasterPrecisionDocument? {
+    /// layer keeps R = G = B. An alpha channel target takes `apply`'s RGB path. Over any typed
+    /// handle and its facade, as `applyRGB` (`FrequencySeparation`'s Gray detail).
+    static func applyGray(_ facade: RasterDocument, source: RasterPrecisionDocument, selection: CanvasSelection?,
+                          parameters p: ApplyImageParameters, control: RasterJobControl,
+                          ownReservation: UInt64 = 0) throws -> RasterPrecisionDocument? {
         guard p.target == .layer else {
             throw DoctoredCoreError(message: "Apply Image on a Grayscale document targets its layer or an alpha channel.")
         }
-        let reader = NativePlaneReader(capture.facade, control: control, ownReservation: ownReservation)
+        let reader = NativePlaneReader(facade, control: control, ownReservation: ownReservation)
         let original = try reader.plane(layer: p.targetLayer, choice: .rgb)
         let incoming = try reader.plane(layer: p.source, choice: p.sourcePlane)
         let blended = try reader.blend(base: [original], source: [incoming], mode: p.blend,
             opacity: p.opacity, invertSource: p.invert, scaled: p)
-        return try reader.writeGray(blended[0], to: capture.source, layer: p.targetLayer,
-            selection: capture.selection)
+        return try reader.writeGray(blended[0], to: source, layer: p.targetLayer, selection: selection)
     }
     static func calculated(_ doc: RasterDocument, parameters p: CalculationsParameters,
                            control: RasterJobControl, ownReservation: UInt64 = 0) throws -> [UInt16] {

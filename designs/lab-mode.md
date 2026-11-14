@@ -85,7 +85,8 @@ admitted or refused for good by name. No refusal names a phase.
   key; Quick Selection ΔE76 on the codes; the model selections, the Magnetic Lasso, Detect Horizon and Focus Area
   read the Display P3 analysis composite; the clipboard keeps the codes (RZCB v6) and converts across modes by the Mode
   rules.
-- **Channel math, stacks, multi-image:** Apply Image and Calculations blend each channel's codes alone; Stack
+- **Channel math, stacks, multi-image:** Apply Image and Calculations blend each channel's codes alone (so
+  Frequency Separation's detail rebuilds L\*, a\* and b\* within one code each, `frequency_separation_modes.rs`); Stack
   Modes per channel; Merge to HDR through ProPhoto (no 32-bit Lab); Auto-Align fits CIE Y; Merge Panorama blends a
   Lab stack on L\* alone (`precision_auto_blend`'s Lab arm, kept for it).
 - **Neural and generative tools: the view in, the Mode rule out** (`lab_neural`): the model or provider reads

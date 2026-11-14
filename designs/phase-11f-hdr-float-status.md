@@ -247,3 +247,6 @@ it is tiled. Tests: `core/tests/float_{document,native,interchange}.rs`; drive `
   The v1 float gaps: Apply Layer Mask (`precision_mask_apply`), Layer Via Copy / Cut (`precision_layer_via`), Assign
   Profile (the linear samples relabelled) and Convert to Profile (the matrix between the primaries in linear light,
   no clamp; `float_color`), Calculations, Add Luminosity Masks and Contact Sheet (`scripts/verify_v1_float_gaps.py`).
+  Frequency Separation (2026-11-14): the detail is the new float operator `layer_detail`, `t − s` unclamped through
+  the float Subtract, recombined by Linear Dodge (Add) within 2^-22 of the larger magnitude; f64 oracle on values
+  above white and below zero (`frequency_separation_modes.rs`), family `layer_detail` in `FLOAT_FAMILIES`.

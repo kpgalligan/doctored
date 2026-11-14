@@ -561,6 +561,10 @@ gate).
   pixel, R = G = B, one undo step; target `channel:M` answers ok; Hue answers
   the Grayscale blend sentence, `source_plane` red `SOURCE_PLANE_REFUSAL`
   exactly, and a 32-bit document text containing `FLOAT_TOOL_PART`.
+- **G70b Frequency Separation.** `verify_frequency_separation.mode_check`'s
+  picture in Grayscale at 8, 16 and 32 bits splits: the composite within one
+  code of the original (its float bound at 32), R = G = B, and
+  `supported_menu_items` lists `showFrequencySeparation:`.
 - **G71 Calculations.** gray × gray Multiply into a new channel "Calc" renders
   within `CALC_BOUND8` of c·c/65535/257 at every pixel; `result: selection`
   answers ok.
@@ -655,6 +659,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 
 from phase5_support import App
 import verify_focus_area
+import verify_frequency_separation
 
 # ---- the expectations, fixed here BEFORE anything is measured -------------
 BOUND16 = 4
@@ -716,6 +721,8 @@ GRAY_TOOLS = sorted([
     'add_luminosity_masks',
     # Select ▸ Focus Area (designs/focus-area.md).
     'select_focus_area',
+    # Filters ▸ Other ▸ Frequency Separation… (G70b).
+    'frequency_separation',
     # Phase 5a.
     'assign_profile', 'convert_profile', 'convert_precision',
     # Phase 5b.
@@ -3435,6 +3442,12 @@ def main():
                            'channel': channel70.get('action'), 'float': float70}
         print('PASS g70: Apply Image multiplies the Gray layer in one undo step; a channel target '
               'works; Hue, a colour plane and 32 bits refuse', flush=True)
+
+        # G70b: Filters ▸ Other ▸ Frequency Separation… at every depth.
+        receipts['g70b'] = {depth: verify_frequency_separation.mode_check(app, folder, 'gray', depth)
+                            for depth in (8, 16, 32)}
+        print('PASS g70b: Frequency Separation recomposes a Grayscale layer at 8, 16 and 32 bits',
+              flush=True)
 
         # G71: Calculations into a new channel and as the selection.
         cdoc71 = new_gray(16, w=6, h=4)

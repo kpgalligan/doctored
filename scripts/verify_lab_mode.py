@@ -852,6 +852,10 @@ an error of its own whose text contains none of `GATE_PARTS` ('Lab Color',
   `showFocusArea:`.
 - **L89 nit (b).** On a Lab document `convert_profile profile bogus` answers
   text containing `working_gray` and `dot_gain_20`.
+- **L89b Frequency Separation.** `verify_frequency_separation.mode_check`'s
+  picture in Lab at 8 and 16 bits splits: the composite's L*, a* and b* codes
+  within one code of the original's, and `supported_menu_items` lists
+  `showFrequencySeparation:`.
 
 Phase 6b-iii, L90–L92, fixed before the run: the model or provider reads the
 Display P3 view and its result lands as L*a*b* codes by the Mode rule. L90 and
@@ -984,6 +988,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 import model_store_paths
 from phase5_support import App
 import verify_focus_area
+import verify_frequency_separation
 
 # ---- the expectations, fixed here BEFORE anything is measured -------------
 RENDER_BOUND8 = 2
@@ -1101,6 +1106,8 @@ LAB_TOOLS = [
     'define_pattern',
     # Select ▸ Focus Area (L88; designs/focus-area.md).
     'select_focus_area',
+    # Filters ▸ Other ▸ Frequency Separation… (L89b).
+    'frequency_separation',
 ]
 # The close (module doc, L93): the 34 tools it lifts and the 24 it refuses for good by name.
 CLOSE_LIFTED = [
@@ -4541,6 +4548,12 @@ def main():
         assert 'working_gray' in bogus89 and 'dot_gain_20' in bogus89, bogus89
         receipts['l89'] = bogus89
         print('PASS l89: an unknown convert_profile profile names the Gray choices', flush=True)
+
+        # L89b: Filters ▸ Other ▸ Frequency Separation… at 8 and 16 bits.
+        receipts['l89b'] = {depth: verify_frequency_separation.mode_check(app, folder, 'lab', depth)
+                            for depth in (8, 16)}
+        print('PASS l89b: Frequency Separation recomposes a Lab layer within one code per channel',
+              flush=True)
 
         # ---- L90–L92: phase 6b-iii -------------------------------------------------------
         def lab_of(doc, x, y):

@@ -45,6 +45,9 @@ const FAMILIES: &[(&str, &[&str])] = &[
     ("layer_via", &["raster"]),
     // Stack Modes (`precision_stack_mode`), 16 bits and float alike.
     ("layer_stack_mode", &["raster"]),
+    // Frequency separation's detail under linear-light evaluation
+    // (`precision_layer_detail`); also in `FLOAT_FAMILIES`.
+    ("layer_detail", &["raster"]),
     ("geometry_affine", &["raster", "mask"]),
     ("geometry_perspective", &["raster", "mask"]),
     ("geometry_warp", &["raster", "mask"]),
@@ -179,6 +182,9 @@ const FLOAT_FAMILIES: &[(&str, &[&str])] = &[
     ("layer_via", &["raster"]),
     // Stack Modes on float layers (`precision_stack_mode`'s f32 arm).
     ("layer_stack_mode", &["raster"]),
+    // Frequency separation's detail, `t − s` unclamped
+    // (`precision_layer_detail`).
+    ("layer_detail", &["raster"]),
     // Assign Profile relabels the linear samples (`float_color`).
     ("color_assign", &["document"]),
     // Convert to Profile in linear light with no clamp (`float_color`).
@@ -436,7 +442,8 @@ pub(crate) fn cmyk_operations() -> Vec<&'static str> {
 /// (`gray_artwork`), and phase 6a-ii's links and layer comps (`gray_comps`;
 /// the legacy paint ops are the `paint`, `erase`, `clone` and `heal` lines
 /// above), and phase 6b's Histogram and Stack Modes, and the close's Place
-/// (its rendered pixels folded to gray, no retained source kept). Every
+/// (its rendered pixels folded to gray, no retained source kept), and
+/// frequency separation's 32-bit `layer_detail`. Every
 /// other family is one Doctored offers on RGB documents only, and refuses
 /// for good by name through `gray_document::refused_sentence`.
 const GRAY_FAMILIES: &[(&str, &[&str])] = &[
@@ -530,6 +537,8 @@ const GRAY_FAMILIES: &[(&str, &[&str])] = &[
     // The close: Place, folded to gray with no retained source
     // (`precision_retained_source`'s Gray arm).
     ("source_place", &["document"]),
+    // Frequency separation's detail at 32 bits (`precision_layer_detail`).
+    ("layer_detail", &["raster"]),
 ];
 
 /// The Gray table's decision for one family and target.

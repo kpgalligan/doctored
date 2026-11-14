@@ -426,7 +426,8 @@ enum FloatDocument {
         + "profiles' primaries in linear light with no clamp, at relative, perceptual or "
         + "saturation intent with black-point compensation off and adjustment parameters "
         + "kept), Calculations (to a channel or a selection), Add Luminosity Masks, Contact "
-        + "Sheet (each cell is the tone-mapped 8-bit rendering), "
+        + "Sheet (each cell is the tone-mapped 8-bit rendering), Frequency Separation (the detail "
+        + "is the layer minus its blurred low, unclamped, recombined by Linear Dodge (Add)), "
 
     /// `limitation`'s clause for the Brush, Eraser and Gradient.
     private static let limitationPaint: String = FloatPaint.limitationClause

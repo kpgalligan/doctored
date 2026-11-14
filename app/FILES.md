@@ -603,7 +603,7 @@ Detail belongs in the source file's own header comment.
 - `CalculationsSheetController.swift` — Image ▸ Calculations…: two source planes blended into a new plane, an alpha channel or the selection (Source 1 is the blend, Source 2 the base).
 - `EditorViewController+ChannelMath.swift` — Image ▸ Apply Image… / Calculations… and Select ▸ Add Luminosity Masks: sheets, live previews and edit wrappers over `ChannelMath`.
 - `NativeChannelMath.swift` / `NativeChannelMathBudget.swift` / `NativeChannelMathSession.swift` — native Apply Image (CMYK plates too), Calculations and luminosity masks, on core plane-blend math.
-- `FrequencySeparation.swift` — Filters ▸ Other ▸ Frequency Separation…'s split at 8 and 16 bits: blurred Low, Apply Image detail High (Linear Light, clipped), refusals, recorded step.
+- `FrequencySeparation.swift` — Frequency Separation…'s split: blurred Low, detail High in three forms (Apply Image codes; core `layer_detail` at 32 bits and in linear light), refusals, step.
 - `FrequencySeparationSheetController.swift` / `EditorViewController+FrequencySeparation.swift` — the Frequency Separation… sheet (radius), its menu validation and commit.
 - `AgentServer+FrequencySeparation.swift` / `AgentCatalog+FrequencySeparation.swift` — MCP `frequency_separation`: handler, facts and catalog entry over `FrequencySeparation`.
 - `NativeAuxiliaryMattes.swift` / `NativePlaneDisplay.swift` / `NativeLayerDisplay.swift` — auxiliary scalar matte intake at declared precision, core alignment, provenance, display-only reductions.

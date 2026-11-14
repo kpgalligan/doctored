@@ -80,6 +80,8 @@ mod duplicate_to_new_document;
 mod feature_register;
 #[path = "frequency_separation.rs"]
 mod frequency_separation;
+#[path = "frequency_separation_modes.rs"]
+mod frequency_separation_modes;
 #[path = "generative_expand.rs"]
 mod generative_expand;
 #[path = "generative_fill.rs"]

@@ -78,6 +78,9 @@ enum Edit {
     Structure(StructureEdit),
     Comp(crate::precision_comps::CompEdit),
     LayerBlend(crate::precision_layer_blend::LayerBlendEdit),
+    /// Frequency separation's detail in a float or linear-light document
+    /// (`precision_layer_detail`).
+    LayerDetail(crate::precision_layer_detail::LayerDetailEdit),
     BlendIf(crate::precision_blend_if::LayerBlendIfEdit),
     Style(crate::precision_style::LayerStyleEdit),
     LayerVia(crate::precision_layer_via::LayerViaEdit),
@@ -132,6 +135,9 @@ impl Edit {
             }
             "layer_blend_if" => {
                 crate::precision_blend_if::LayerBlendIfEdit::parse(text).map(Self::BlendIf)
+            }
+            "layer_detail" => {
+                crate::precision_layer_detail::LayerDetailEdit::parse(text).map(Self::LayerDetail)
             }
             "layer_style" => crate::precision_style::LayerStyleEdit::parse(text).map(Self::Style),
             "layer_via" => {
@@ -208,6 +214,7 @@ impl Edit {
             Self::LayerBlend(edit) => {
                 json!({"retained_bytes":doc.retained_bytes(), "scratch_bytes":edit.scratch_bytes(doc)?, "input_samples":0})
             }
+            Self::LayerDetail(edit) => edit.plan(doc)?,
             Self::BlendIf(edit) => {
                 json!({"retained_bytes":doc.retained_bytes(), "scratch_bytes":edit.scratch_bytes(doc)?, "input_samples":0})
             }
@@ -619,6 +626,7 @@ pub unsafe extern "C" fn dr_precision_doc_edit(
                     Edit::Comp(edit) => edit.apply(doc, limit, other, job),
                     Edit::GlobalLight(edit) => edit.apply(doc, limit, other, job),
                     Edit::LayerBlend(edit) => edit.apply(doc, limit, other, job),
+                    Edit::LayerDetail(edit) => edit.apply(doc, limit, other, job),
                     Edit::BlendIf(edit) => edit.apply(doc, limit, other, job),
                     Edit::Style(edit) => edit.apply(doc, limit, other, job),
                     Edit::LayerVia(edit) => edit.apply(doc, samples, limit, other, job),

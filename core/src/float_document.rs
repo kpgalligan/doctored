@@ -554,6 +554,8 @@ const ADMITTED: &[&str] = &[
     "layer_via",
     // Stack Modes in linear f64, stored unclamped (`precision_stack_mode`).
     "layer_stack_mode",
+    // Frequency separation's detail, `t − s` unclamped (`precision_layer_detail`).
+    "layer_detail",
     // Assign Profile, the linear samples relabelled (`float_color`).
     "color_assign",
     // Convert to Profile in linear light with no clamp (`float_color`).

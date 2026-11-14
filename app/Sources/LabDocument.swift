@@ -260,6 +260,9 @@ enum LabDocument {
         "select_sky", "select_person_parts", "object_finder_select",
         // Select ▸ Focus Area on the Display P3 analysis composite (`designs/focus-area.md`).
         "select_focus_area",
+        // Filters ▸ Other ▸ Frequency Separation…: Apply Image's detail on the L*, a* and b*
+        // codes, Linear Light on every code, so the pair rebuilds each within one code.
+        "frequency_separation",
         // Phase 6b-iii: the neural and generative tools (the model or provider reads the Display
         // P3 view; the result returns to L*a*b* codes by the Mode rule in the core, `lab_neural`).
         "super_zoom", "jpeg_artifacts_removal", "neural_colorize", "generative_fill",
@@ -333,6 +336,8 @@ enum LabDocument {
         "select_sky", "select_person_parts", "object_finder_select",
         // Select ▸ Focus Area (the same list as `tools`).
         "select_focus_area",
+        // Frequency Separation (the same list as `tools`).
+        "frequency_separation",
         // Phase 6b-iii (the same list as `tools`).
         "super_zoom", "jpeg_artifacts_removal", "neural_colorize", "generative_fill",
         "generative_expand", "generative_variations", "select_generative_variation",
@@ -426,6 +431,8 @@ enum LabDocument {
         "toggleQuickMask:", "selectSky:", "showPersonParts:",
         // Select ▸ Focus Area (`select_focus_area`).
         "showFocusArea:",
+        // Filters ▸ Other ▸ Frequency Separation… (`frequency_separation`).
+        "showFrequencySeparation:",
         // Phase 6b-iii: Super Zoom, JPEG Artifacts Removal, Colorize and Generative Fill, Expand
         // and Variations (Sky Replacement refuses for good, `skyRefusal`).
         "showSuperZoom:", "showJpegArtifactsRemoval:", "showColorize:", "showGenerativeFill:",

@@ -131,6 +131,9 @@ enum GrayDocument {
         "set_quick_mask", "quick_mask_stroke", "add_luminosity_masks",
         // Select ▸ Focus Area on the R = G = B analysis source (`designs/focus-area.md`).
         "select_focus_area",
+        // Filters ▸ Other ▸ Frequency Separation…: Apply Image's detail on the one Gray plane at
+        // 8 and 16 bits, the core's `layer_detail` difference at 32 (`FrequencySeparation`).
+        "frequency_separation",
         // Phase 5a: Assign and Convert to Profile between Gray profiles, 8/16/32 Bits/Channel
         // (`AgentServer+GrayColour.swift`).
         "assign_profile", "convert_profile", "convert_precision",
@@ -204,6 +207,8 @@ enum GrayDocument {
         "set_quick_mask", "quick_mask_stroke", "add_luminosity_masks",
         // Select ▸ Focus Area (the same list as `tools`).
         "select_focus_area",
+        // Frequency Separation (the same list as `tools`).
+        "frequency_separation",
         // Phase 5b: the proof tools refuse a 32-bit document as a float document.
         "get_proof_setup", "set_proof_setup", "render_proof",
         // Phase 6a-i: type, shape and fill layers (each colour stored as its gray,
@@ -284,6 +289,8 @@ enum GrayDocument {
         "stampSelected:",
         "showColorRange:", "refineSelection:", "selectSubject:", "showSubjectTargets:",
         "showPeopleTargets:", "selectPeople:", "showFaceParts:", "showFocusArea:",
+        // Filters ▸ Other ▸ Frequency Separation… at every depth (`frequency_separation`).
+        "showFrequencySeparation:",
         "invertSelection:", "featherSelection:", "growSelection:", "shrinkSelection:",
         "borderSelection:", "smoothSelection:", "selectGrow:", "selectSimilar:",
         "transformSelection:", "toggleQuickMask:", "saveSelectionSheet:", "loadSelectionSheet:",

@@ -13,20 +13,23 @@ extension EditorViewController {
             document.presentError(DoctoredCoreError(message: reason))
             return
         }
-        presentAsSheet(FrequencySeparationSheetController { [weak self] radius in
+        let form = FrequencySeparation.form(of: doc)
+        presentAsSheet(FrequencySeparationSheetController(form: form) { [weak self] radius in
             self?.commitFrequencySeparation(FrequencySeparationParameters(layer: layer, radius: radius))
         })
     }
 
-    /// Enabled on an RGB layer target whose active layer `FrequencySeparation.refusal` accepts.
+    /// Enabled on a layer target whose active layer `FrequencySeparation.refusal` accepts (an RGB,
+    /// Grayscale, Duotone or Lab Color document; the mode and float whitelists admit the item).
     func validateFrequencySeparationItem() -> Bool {
         guard let document, let doc = document.doc, paintTarget == .layer else { return false }
         return FrequencySeparation.refusal(doc, layer: document.activeLayerIndex,
                                            quickMask: canvas.quickMaskActive) == nil
     }
 
-    /// One undo step at either depth: the 8-bit low layer is blurred under admission first and
-    /// the split published through `applyEdit`; the 16-bit split runs as one captured job.
+    /// One undo step at every depth: the 8-bit RGB low layer is blurred under admission first and
+    /// the split published through `applyEdit`; a typed document's split (16 and 32 bits, and every
+    /// colour mode) runs as one captured job.
     func commitFrequencySeparation(_ p: FrequencySeparationParameters) {
         guard let document, let doc = document.doc else {
             NSSound.beep()

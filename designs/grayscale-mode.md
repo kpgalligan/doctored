@@ -150,6 +150,9 @@ tools, from the UI, over MCP and in Actions. Every tool the catalog offers is ad
   source (`GRAY_FAMILIES` `source_place`); RGB → Gray carries a Generative Layer; RGB's own errors for requests RGB
   rejects; this ADR. Tests `core/tests/gray_close.rs` (each against the RGB twin, exact); drive
   `scripts/verify_gray_mode.py` G78–G85.
+- **Frequency Separation** (2026-11-14): Apply Image's detail on the one Gray plane at 8 and 16 bits (one code),
+  the core's `layer_detail` difference in Linear Dodge (Add) at 32 (float rounding); Duotone follows. Tests
+  `core/tests/frequency_separation_modes.rs`; drive G70b.
 
 ## The close's fates
 
