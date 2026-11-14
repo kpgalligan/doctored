@@ -12,6 +12,10 @@
 //! Clipping markers (#4): a cell any of whose alpha-positive samples has an
 //! RGB channel ≤ 0.0 (flag 1) or ≥ 1.0 (flag 2) is opaque binary16 blue, red
 //! or magenta; the marked count and planted endpoints are hand-counted.
+//! Visualize HDR: a cell any of whose alpha-positive samples has an RGB
+//! channel strictly above 1.0 is the caller's colour (nearest-even binary16,
+//! alpha 1), over any Clipping marker, counted apart; a NULL colour writes
+//! exactly the bytes above.
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_develop_inspect::{
     dr_precision_image_develop_preview_extended, dr_precision_image_storage,
@@ -118,7 +122,7 @@ fn call(
     )
 }
 
-/// One call with `clipping` flags; answers `(peak, marked)`.
+/// One call with `clipping` flags and no HDR marker; answers `(peak, marked)`.
 fn call_clipping(
     image: &PrecisionImage,
     region: [u32; 4],
@@ -128,9 +132,36 @@ fn call_clipping(
     limit: u64,
     control: Option<&DrJobControl>,
 ) -> (Result<(f32, u64), String>, Vec<u8>) {
+    let (result, out) = call_marked(image, region, divisor, clipping, None, len, limit, control);
+    (
+        result.map(|(peak, marked, hdr_marked)| {
+            assert_eq!(hdr_marked, 0, "no HDR marker marks nothing");
+            (peak, marked)
+        }),
+        out,
+    )
+}
+
+/// `(peak, marked, hdr_marked)`, or the refusal's text.
+type Marked = Result<(f32, u64, u64), String>;
+
+/// One call with `clipping` flags and Visualize HDR's `hdr` colour (None
+/// passes NULL); answers `(peak, marked, hdr_marked)`.
+#[allow(clippy::too_many_arguments)]
+fn call_marked(
+    image: &PrecisionImage,
+    region: [u32; 4],
+    divisor: u32,
+    clipping: u32,
+    hdr: Option<[f32; 3]>,
+    len: usize,
+    limit: u64,
+    control: Option<&DrJobControl>,
+) -> (Marked, Vec<u8>) {
     let mut out = vec![UNTOUCHED; len];
     let mut peak = -1f32;
     let mut marked = u64::MAX;
+    let mut hdr_marked = u64::MAX;
     let mut error = ptr::null_mut();
     let ok = unsafe {
         dr_precision_image_develop_preview_extended(
@@ -141,10 +172,12 @@ fn call_clipping(
             region[3],
             divisor,
             clipping,
+            hdr.as_ref().map_or(ptr::null(), |c| c.as_ptr()),
             out.as_mut_ptr(),
             out.len(),
             &mut peak,
             &mut marked,
+            &mut hdr_marked,
             limit,
             0,
             control.map_or(ptr::null(), |c| c as *const DrJobControl),
@@ -154,10 +187,11 @@ fn call_clipping(
     let message = taken(error);
     if ok {
         assert!(message.is_none());
-        (Ok((peak, marked)), out)
+        (Ok((peak, marked, hdr_marked)), out)
     } else {
         assert_eq!(peak, -1.0, "a refusal writes no peak");
         assert_eq!(marked, u64::MAX, "a refusal writes no count");
+        assert_eq!(hdr_marked, u64::MAX, "a refusal writes no HDR count");
         (Err(message.expect("a refusal names its reason")), out)
     }
 }
@@ -284,6 +318,186 @@ fn clipping_marks_every_cell_holding_an_endpoint_sample_and_the_peak_ignores_mar
     // though its centre (4,1) is mid-grey.
     let (_, out) = call_clipping(&image, [0, 0, 9, 6], 3, 2, 3 * 2 * 8, LIMIT, None);
     assert_eq!(&out[8..16], &[0, 0x3C, 0, 0, 0, 0, 0, 0x3C]);
+}
+
+/// The oracle's Visualize HDR colour bytes: each component nearest-even
+/// binary16 (`half`), alpha binary16 1.0, little-endian.
+fn hdr_bytes(hdr: [f32; 3]) -> [u8; 8] {
+    let mut m = [0u8; 8];
+    for (c, v) in hdr.iter().enumerate() {
+        m[c * 2..c * 2 + 2].copy_from_slice(&half::f16::from_f32(*v).to_bits().to_le_bytes());
+    }
+    m[6..8].copy_from_slice(&H1);
+    m
+}
+
+/// The oracle bytes, peak, Clipping count and HDR count for `clipping` and
+/// the HDR colour `hdr`: a cell any of whose alpha-positive samples has an
+/// RGB channel strictly above 1.0 is the HDR colour, whatever Clipping says;
+/// any other cell is `expected_clipping`'s.
+fn expected_hdr(
+    image: &PrecisionImage,
+    region: [u32; 4],
+    divisor: u32,
+    clipping: u32,
+    hdr: [f32; 3],
+) -> (Vec<u8>, f32, u64, u64) {
+    let (mut bytes, peak, _) = expected_clipping(image, region, divisor, clipping);
+    let pixels = image.to_rgba32().unwrap();
+    let width = image.dimensions().0;
+    let columns = region[2].div_ceil(divisor);
+    let (mut marked, mut hdr_marked) = (0, 0);
+    for row in 0..region[3].div_ceil(divisor) {
+        for column in 0..columns {
+            let x0 = region[0] + column * divisor;
+            let x1 = (x0 + divisor).min(region[0] + region[2]);
+            let y0 = region[1] + row * divisor;
+            let y1 = (y0 + divisor).min(region[1] + region[3]);
+            let cell: Vec<[f32; 4]> = (y0..y1)
+                .flat_map(|y| (x0..x1).map(move |x| (x, y)))
+                .map(|(x, y)| pixels[(y * width + x) as usize])
+                .collect();
+            let above = cell
+                .iter()
+                .any(|p| p[3] > 0.0 && p[..3].iter().any(|v| *v > 1.0));
+            let at = ((row * columns + column) * 8) as usize;
+            if above {
+                bytes[at..at + 8].copy_from_slice(&hdr_bytes(hdr));
+                hdr_marked += 1;
+            } else if marker(&cell, clipping).is_some() {
+                marked += 1;
+            }
+        }
+    }
+    (bytes, peak, marked, hdr_marked)
+}
+
+/// A green that is no binary16 value as given (0.3 and 0.1 round), so the
+/// marker's rounding is compared too.
+const GREEN: [f32; 3] = [0.1, 0.3, 0.0625];
+
+#[test]
+fn visualize_hdr_marks_every_cell_holding_a_sample_above_white_over_clipping() {
+    let image = planted_image(9, 6);
+    for (region, divisor) in [([0, 0, 9, 6], 1), ([0, 0, 9, 6], 3), ([1, 1, 7, 4], 2)] {
+        let (_, plain_peak) = expected(&image, region, divisor);
+        for clipping in 0..=3 {
+            let (bytes, peak, marked, hdr_marked) =
+                expected_hdr(&image, region, divisor, clipping, GREEN);
+            let (result, out) = call_marked(
+                &image,
+                region,
+                divisor,
+                clipping,
+                Some(GREEN),
+                bytes.len(),
+                LIMIT,
+                None,
+            );
+            assert_eq!(
+                result.unwrap(),
+                (peak, marked, hdr_marked),
+                "{region:?} /{divisor} c{clipping}"
+            );
+            assert_eq!(out, bytes, "{region:?} /{divisor} c{clipping}");
+            assert_eq!(peak, plain_peak, "the HDR marker never moves the peak");
+        }
+    }
+    // Hand counts at divisor 1 over the whole image: (5,2) at 2.5 and (7,4)
+    // at 3.0 are above white; (1,1) is exactly 1.0, white and not above;
+    // (4,0) holds 4.0 at alpha 0 and is never marked.
+    let len = 9 * 6 * 8;
+    let counts = |clipping| {
+        call_marked(
+            &image,
+            [0, 0, 9, 6],
+            1,
+            clipping,
+            Some(GREEN),
+            len,
+            LIMIT,
+            None,
+        )
+        .0
+        .unwrap()
+    };
+    assert_eq!(counts(0).1, 0);
+    assert_eq!(counts(0).2, 2);
+    // Clipping highlights: red is left only on (1,1), exactly at white.
+    assert_eq!(counts(2).1, 1);
+    assert_eq!(counts(2).2, 2);
+    // Both: (1,1) red and (2,4) blue; (7,4), below zero and above white,
+    // is the HDR colour, not magenta.
+    assert_eq!(counts(3).1, 2);
+    assert_eq!(counts(3).2, 2);
+    let pixel = |out: &[u8], x: u32, y: u32| {
+        let at = ((y * 9 + x) * 8) as usize;
+        out[at..at + 8].to_vec()
+    };
+    let (_, out) = call_marked(&image, [0, 0, 9, 6], 1, 3, Some(GREEN), len, LIMIT, None);
+    assert_eq!(pixel(&out, 7, 4), hdr_bytes(GREEN));
+    assert_eq!(pixel(&out, 5, 2), hdr_bytes(GREEN));
+    assert_eq!(pixel(&out, 1, 1), [0, 0x3C, 0, 0, 0, 0, 0, 0x3C]);
+    // With no Clipping the white sample at (1,1) and the alpha-0 4.0 at (4,0)
+    // are drawn as the picture.
+    let (plain, _) = expected(&image, [0, 0, 9, 6], 1);
+    let (_, out) = call_marked(&image, [0, 0, 9, 6], 1, 0, Some(GREEN), len, LIMIT, None);
+    assert_eq!(pixel(&out, 1, 1), pixel(&plain, 1, 1));
+    assert_eq!(pixel(&out, 4, 0), pixel(&plain, 4, 0));
+    // At divisor 3 the (5,2) sample marks the middle top cell although its
+    // centre (4,1) is mid-grey.
+    let (_, out) = call_marked(
+        &image,
+        [0, 0, 9, 6],
+        3,
+        0,
+        Some(GREEN),
+        3 * 2 * 8,
+        LIMIT,
+        None,
+    );
+    assert_eq!(&out[8..16], &hdr_bytes(GREEN));
+}
+
+#[test]
+fn an_hdr_marker_outside_zero_to_one_is_refused_and_leaves_the_buffer_untouched() {
+    let image = planted_image(9, 6);
+    for hdr in [
+        [f32::NAN, 0.5, 0.5],
+        [0.5, -0.01, 0.5],
+        [0.5, 0.5, 1.01],
+        [f32::INFINITY, 0.0, 0.0],
+    ] {
+        let (result, out) = call_marked(
+            &image,
+            [0, 0, 9, 6],
+            1,
+            2,
+            Some(hdr),
+            9 * 6 * 8,
+            LIMIT,
+            None,
+        );
+        assert!(
+            result
+                .unwrap_err()
+                .contains("HDR marker components from 0 to 1"),
+            "{hdr:?}"
+        );
+        assert!(out.iter().all(|b| *b == UNTOUCHED), "{hdr:?}");
+    }
+    // The ends of the range are colours.
+    let (result, _) = call_marked(
+        &image,
+        [0, 0, 9, 6],
+        1,
+        0,
+        Some([0.0, 1.0, 0.0]),
+        9 * 6 * 8,
+        LIMIT,
+        None,
+    );
+    assert_eq!(result.unwrap().2, 2);
 }
 
 #[test]

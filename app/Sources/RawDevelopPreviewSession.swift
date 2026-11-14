@@ -6,10 +6,12 @@ import AppKit
 // means "at or above white". On a screen with headroom, Fit and 100 %, Clipping on or off, draw
 // each f32 side's extended image from its retained f32 master instead (`RawDevelopHDRPreview.swift`,
 // #4): values above white show brighter than white, and Clipping marks samples at or below
-// 0.0 and at or above 1.0. An f32 side's histogram reads its float samples (stop bins, above-white
-// counts) either way; a u16 side's reads every genuine u16 source pixel. Fit colours are an
-// explicitly approximate preview and clipping checks every source cell. A viewport-only frame
-// charges `extendedFramePerPixel` per output pixel of each f32 side drawn extended. Native
+// 0.0 and at or above 1.0. Visualize HDR draws the extended image on any screen, with every cell
+// holding a value above 1.0 in `DS.hdrMarker`. An f32 side's histogram reads its float samples
+// (stop bins, above-white counts) either way; a u16 side's reads every genuine u16 source pixel.
+// Fit colours are an explicitly approximate preview and clipping checks every source cell. A
+// viewport-only frame charges `extendedFramePerPixel` per output pixel of each f32 side drawn
+// extended, and so does the locals session (`RawLocalDevelopSession`). Native
 // detail displays one source pixel per backing pixel, including Retina. One shared `WorkerTask`
 // runs at a time, requests coalesce and generations reject stale results. Closing a modal clears display/master references; a cancelled
 // window's task owner remains until its mailbox is consumed and the worker slot released. Do not
@@ -64,19 +66,33 @@ struct RawDevelopViewport: Equatable {
     /// The window's screen has headroom (#4): Fit and 100 %, Clipping
     /// on or off, then draw an f32 side's extended image.
     var extendedRange = false
+    /// Visualize HDR (`RawDevelopHDRPreview.swift`): an f32 side is drawn
+    /// from its extended image on any screen, every cell holding a value
+    /// above white in `DS.hdrMarker`.
+    var visualizeHDR = false
+
+    /// An f32 side is drawn from its extended image: on a screen with
+    /// headroom, or with Visualize HDR on any screen.
+    var drawsExtended: Bool { extendedRange || visualizeHDR }
 
     func region(_ image: RasterPrecisionImage) -> (x: Int, y: Int, width: Int, height: Int, divisor: Int) {
+        region(width: image.width, height: image.height)
+    }
+
+    /// The region of a `width` × `height` image this viewport draws.
+    func region(width imageWidth: Int, height imageHeight: Int)
+        -> (x: Int, y: Int, width: Int, height: Int, divisor: Int) {
         guard nativeDetail else {
-            let divisor = max(1, Int(ceil(Double(max(image.width, image.height)) / 1600)))
-            return (0, 0, image.width, image.height, divisor)
+            let divisor = max(1, Int(ceil(Double(max(imageWidth, imageHeight)) / 1600)))
+            return (0, 0, imageWidth, imageHeight, divisor)
         }
         // The core bounds a detail crop to 1024 samples on each side. Smaller
         // panes request exactly their backing-pixel extent; larger panes center
         // a bounded crop without magnifying it or silently reducing detail.
-        let width = min(image.width, max(1, min(1024, Int(backingSize.width.rounded(.down)))))
-        let height = min(image.height, max(1, min(1024, Int(backingSize.height.rounded(.down)))))
-        let x = min(max(0, Int((center.x * CGFloat(image.width)).rounded()) - width / 2), image.width - width)
-        let y = min(max(0, Int((center.y * CGFloat(image.height)).rounded()) - height / 2), image.height - height)
+        let width = min(imageWidth, max(1, min(1024, Int(backingSize.width.rounded(.down)))))
+        let height = min(imageHeight, max(1, min(1024, Int(backingSize.height.rounded(.down)))))
+        let x = min(max(0, Int((center.x * CGFloat(imageWidth)).rounded()) - width / 2), imageWidth - width)
+        let y = min(max(0, Int((center.y * CGFloat(imageHeight)).rounded()) - height / 2), imageHeight - height)
         return (x, y, width, height, 1)
     }
 
@@ -103,12 +119,18 @@ struct RawDevelopPreviewFrame {
     let afterDisplay: CGImage
     let viewport: RawDevelopViewport
     let detailRegion: (x: Int, y: Int, width: Int, height: Int, divisor: Int)?
-    /// The largest RGB value of the extended images drawn; nil when
-    /// none is, so the canvas engages EDR exactly while one shows.
+    /// The largest RGB value of the extended images drawn on a screen with
+    /// headroom; nil when none is, so the canvas engages EDR exactly while
+    /// one shows there.
     let extendedPeak: Float?
-    /// Each side's extended peak (#4); nil for a side drawn SDR.
+    /// Each side's extended peak (#4); nil for a side drawn SDR, and for one
+    /// drawn extended only for Visualize HDR on a screen without headroom.
     let beforeExtendedPeak: Float?
     let afterExtendedPeak: Float?
+    /// Each side's count of output pixels in `DS.hdrMarker` (Visualize HDR);
+    /// nil for a side drawn SDR, 0 with the toggle off.
+    let beforeHDRMarked: UInt64?
+    let afterHDRMarked: UInt64?
 
     init(before: RawDevelopInspectionSource, after: RawDevelopInspectionSource,
          viewport: RawDevelopViewport, control: RasterJobControl? = nil) throws {
@@ -116,27 +138,32 @@ struct RawDevelopPreviewFrame {
             viewport.nativeDetail && (before.image.width != after.image.width
                 || before.image.height != after.image.height)
                 ? try viewport.comparisonRegion(before: before.image, after: after.image) : nil
-        // An f32 side on a screen with headroom draws its extended image of
-        // the same region at any zoom, with Clipping's float markers. A side
-        // whose extended image cannot be made falls back to its SDR view and
-        // is left out of the peak; the fallback then runs without the token
-        // the refused attempt consumed. A cancel is not a refusal: it ends
-        // the frame rather than falling back.
+        // An f32 side on a screen with headroom, or with Visualize HDR, draws
+        // its extended image of the same region at any zoom, with Clipping's
+        // float markers and the HDR marker. Its peak is reported only on a
+        // screen with headroom, so EDR engages exactly there: with Visualize
+        // HDR every value above white is under the marker, so the image holds
+        // nothing above SDR white. A side whose extended image cannot be made
+        // falls back to its SDR view and is left out of the peak and the HDR
+        // count; the fallback then runs without the token the refused attempt
+        // consumed. A cancel is not a refusal: it ends the frame rather than
+        // falling back.
         func display(_ source: RawDevelopInspectionSource,
-                     token: RasterJobControl?) throws -> (CGImage, Float?) {
+                     token: RasterJobControl?) throws -> (CGImage, Float?, UInt64?) {
             let r = sharedDetail ?? viewport.region(source.image)
             var token = token
-            if viewport.extendedRange, let master = source.extendedMaster {
+            if viewport.drawsExtended, let master = source.extendedMaster {
                 let made: RawDevelopExtendedImage?
                 do {
                     made = try RawDevelopExtendedImage.make(master, region: r,
-                        clipping: viewport.clipping, control: token)
+                        clipping: viewport.clipping, visualizeHDR: viewport.visualizeHDR,
+                        control: token)
                 } catch {
                     if token?.isCancelled == true { throw error }
                     made = nil
                 }
                 if let made, let cgImage = made.image(profileData: source.image.profileData) {
-                    return (cgImage, made.peak)
+                    return (cgImage, viewport.extendedRange ? made.peak : nil, made.hdrMarked)
                 }
                 token = nil
             }
@@ -146,13 +173,13 @@ struct RawDevelopPreviewFrame {
                   let cgImage = image.makeCGImage(in: space) else {
                 throw DoctoredCoreError(message: "The RAW detail preview could not be displayed.")
             }
-            return (cgImage, nil)
+            return (cgImage, nil, nil)
         }
         self.before = before
         self.after = after
         self.viewport = viewport
         detailRegion = sharedDetail
-        let beforeShown: (CGImage, Float?), afterShown: (CGImage, Float?)
+        let beforeShown: (CGImage, Float?, UInt64?), afterShown: (CGImage, Float?, UInt64?)
         if let control {
             beforeShown = try control.withChildOperation(from: 0, to: 0.5) {
                 try display(before, token: $0)
@@ -169,22 +196,30 @@ struct RawDevelopPreviewFrame {
         beforeExtendedPeak = beforeShown.1
         afterExtendedPeak = afterShown.1
         extendedPeak = [beforeShown.1, afterShown.1].compactMap { $0 }.max()
+        beforeHDRMarked = beforeShown.2
+        afterHDRMarked = afterShown.2
     }
 
     /// The output pixels of one f32 side's extended image for `viewport`
     /// (#4): `ceil(w / divisor) × ceil(h / divisor)` of its Fit region, or
     /// at 100 % the pane's detail extent (at most 1024 per side), which bounds
-    /// every detail region the frame can draw. 0 for a u16 image or a screen
-    /// without headroom.
+    /// every detail region the frame can draw. 0 for a u16 image or a
+    /// viewport that draws no extended image (`drawsExtended`).
     static func extendedOutputPixels(_ image: RasterPrecisionImage?,
                                      viewport: RawDevelopViewport) -> UInt64 {
-        guard viewport.extendedRange, let image, image.isFloatStorage else { return 0 }
+        guard let image, image.isFloatStorage else { return 0 }
+        return extendedOutputPixels(width: image.width, height: image.height, viewport: viewport)
+    }
+
+    /// `extendedOutputPixels` of a `width` × `height` f32 side.
+    static func extendedOutputPixels(width: Int, height: Int, viewport: RawDevelopViewport) -> UInt64 {
+        guard viewport.drawsExtended else { return 0 }
         if viewport.nativeDetail {
             let width = max(1, min(1024, Int(viewport.backingSize.width.rounded(.down))))
             let height = max(1, min(1024, Int(viewport.backingSize.height.rounded(.down))))
             return UInt64(width) * UInt64(height)
         }
-        let r = viewport.region(image)
+        let r = viewport.region(width: width, height: height)
         return UInt64((r.width + r.divisor - 1) / r.divisor) * UInt64((r.height + r.divisor - 1) / r.divisor)
     }
 }
@@ -345,8 +380,9 @@ final class RawDevelopPreviewSession {
                     float ? UInt64(width) * UInt64(height) * 24 : 0)
             } else {
                 // #4: a viewport-only frame of known sides draws each f32
-                // side's extended image on a screen with headroom, charged
-                // per output pixel beside the fixed figure.
+                // side's extended image on a screen with headroom or with
+                // Visualize HDR, charged per output pixel beside the fixed
+                // figure.
                 let shownAfter = self.afterDescriptor == request.descriptor ? self.after : nil
                 let sides = [self.before.map { $0.extendedMaster ?? $0.image } ?? self.initialBefore,
                              shownAfter.map { $0.extendedMaster ?? $0.image } ?? self.fixedAfter]

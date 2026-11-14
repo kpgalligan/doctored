@@ -10,6 +10,10 @@ final class RawDevelopPreviewPanel: NSView {
     private let comparison = NSSegmentedControl(labels: ["After", "Before", "Split"], trackingMode: .selectOne,
         target: nil, action: nil)
     private let clipping = NSButton(checkboxWithTitle: "Clipping", target: nil, action: nil)
+    /// Visualize HDR (`RawDevelopHDRPreview.swift`), enabled while a side is
+    /// a 32-bit float development; its swatch is the marker's colour.
+    private let visualizeHDR = NSButton(checkboxWithTitle: "Visualize HDR", target: nil, action: nil)
+    private let hdrSwatch = NSView()
     private let horizontal = NSSlider(value: 0.5, minValue: 0, maxValue: 1, target: nil, action: nil)
     private let vertical = NSSlider(value: 0.5, minValue: 0, maxValue: 1, target: nil, action: nil)
     private let location = NSTextField(labelWithString: "Fit — entire image")
@@ -38,6 +42,7 @@ final class RawDevelopPreviewPanel: NSView {
         clipping.toolTip = "Blue: any RGB component is 0 (at or below 0.0 in a 32-bit float development). "
             + "Red: any RGB component is 65535 (at or above white, 1.0, in a 32-bit float development). "
             + "Magenta: both. Uses all native pixels."
+        configureVisualizeHDR()
         for (index, slider) in [horizontal, vertical].enumerated() {
             slider.isContinuous = true
             slider.target = self
@@ -50,6 +55,10 @@ final class RawDevelopPreviewPanel: NSView {
         toolbar.orientation = .horizontal
         toolbar.spacing = 8
         toolbar.alignment = .centerY
+        let hdrRow = NSStackView(views: [visualizeHDR, hdrSwatch])
+        hdrRow.orientation = .horizontal
+        hdrRow.spacing = 6
+        hdrRow.alignment = .centerY
         let navigation = NSStackView(views: [fieldLabel("X"), horizontal, fieldLabel("Y"), vertical])
         navigation.orientation = .horizontal
         navigation.spacing = 6
@@ -70,7 +79,8 @@ final class RawDevelopPreviewPanel: NSView {
         status.setAccessibilityIdentifier("raw-develop-status")
         location.setAccessibilityIdentifier("raw-develop-location")
         endpoints.setAccessibilityIdentifier("raw-develop-endpoints")
-        let stack = NSStackView(views: [toolbar, canvas, navigation, location, histogramTitle, histogram, endpoints, status])
+        let stack = NSStackView(views: [toolbar, hdrRow, canvas, navigation, location, histogramTitle,
+                                        histogram, endpoints, status])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 7
@@ -120,6 +130,8 @@ final class RawDevelopPreviewPanel: NSView {
     func present(_ frame: RawDevelopPreviewFrame) {
         self.previewFrame = frame
         canvas.preview = frame
+        // Only a 32-bit float side holds values above white.
+        visualizeHDR.isEnabled = frame.before.extendedMaster != nil || frame.after.extendedMaster != nil
         updateReadout()
     }
 
@@ -151,9 +163,11 @@ final class RawDevelopPreviewPanel: NSView {
         canvas.comparison = RawDevelopCanvasView.Comparison(rawValue: comparison.selectedSegment) ?? .after
         let detail = zoom.selectedSegment == 1
         let clip: UInt32 = clipping.state == .on ? 3 : 0
-        if detail != viewport.nativeDetail || clip != viewport.clipping {
+        let hdr = visualizeHDR.state == .on
+        if detail != viewport.nativeDetail || clip != viewport.clipping || hdr != viewport.visualizeHDR {
             viewport.nativeDetail = detail
             viewport.clipping = clip
+            viewport.visualizeHDR = hdr
             horizontal.isEnabled = detail
             vertical.isEnabled = detail
             requestChange()
@@ -185,19 +199,46 @@ final class RawDevelopPreviewPanel: NSView {
             // inclusive counts, the clipping markers' rule.
             endpoints.stringValue = "RGB endpoints — ≤ 0: \(counts(["exact_zero_rgba", "below_zero_rgba"]))"
                 + " · ≥ 1.0 (at or above white): \(counts(["exact_one_rgba", "above_white_rgba"]))"
+                + " · > 1.0 (HDR): \(counts(["above_white_rgba"]))"
         } else {
             endpoints.stringValue = "Exact RGB endpoints — 0: \(counts(["exact_zero_rgba"]))"
                 + " · 65535: \(counts(["exact_max_rgba"]))"
         }
         let r = frame.detailRegion ?? frame.viewport.region(source.image)
-        // An f32 side says whether it shows values above white (#4).
+        // An f32 side says whether it shows values above white (#4), and
+        // with Visualize HDR how many output pixels mark them.
         let range: String
         if float {
             let peak = before ? frame.beforeExtendedPeak : frame.afterExtendedPeak
-            range = peak.map { String(format: " · HDR, peak %.2f", $0) } ?? " · clipped to SDR"
+            let marked = frame.viewport.visualizeHDR ? (before ? frame.beforeHDRMarked : frame.afterHDRMarked) : nil
+            range = (peak.map { String(format: " · HDR, peak %.2f", $0) } ?? " · clipped to SDR")
+                + (marked.map { " · \($0) above white marked" } ?? "")
         } else { range = "" }
         location.stringValue = frame.viewport.nativeDetail
             ? "100% · x \(r.x), y \(r.y) · \(r.width) × \(r.height) native pixels · drag to pan\(range)"
             : "Fit · entire image · histogram counts every native pixel\(range)"
+    }
+
+    /// The Visualize HDR checkbox, its tooltip (the rule) and its swatch (the
+    /// legend). Disabled until a frame shows a 32-bit float side.
+    private func configureVisualizeHDR() {
+        visualizeHDR.setAccessibilityIdentifier("raw-develop-visualize-hdr")
+        visualizeHDR.target = self
+        visualizeHDR.action = #selector(controlChanged(_:))
+        visualizeHDR.isEnabled = false
+        let rule = "Marks in this colour every cell holding a value above SDR white (an RGB component "
+            + "above 1.0) in a 32-bit float development, on any screen. Exactly 1.0 is white, not "
+            + "above it. With Clipping on, this marker wins, so red means at white with nothing "
+            + "above. Uses all native pixels."
+        visualizeHDR.toolTip = rule
+        hdrSwatch.wantsLayer = true
+        hdrSwatch.layer?.backgroundColor = DS.hdrMarker.cgColor
+        hdrSwatch.toolTip = rule
+        hdrSwatch.setAccessibilityElement(true)
+        hdrSwatch.setAccessibilityRole(.image)
+        hdrSwatch.setAccessibilityLabel("Visualize HDR marker colour")
+        hdrSwatch.setAccessibilityIdentifier("raw-develop-hdr-swatch")
+        hdrSwatch.widthAnchor.constraint(equalToConstant: 12).isActive = true
+        hdrSwatch.heightAnchor.constraint(equalToConstant: 12).isActive = true
     }
 }

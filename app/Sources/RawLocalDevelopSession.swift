@@ -243,6 +243,32 @@ final class RawLocalDevelopSession {
                 displayScratch = try PrecisionDocumentDescriptor.sum(displayScratch,
                     UInt64(state.width) * UInt64(state.height) * 24)
             }
+            // An f32 side drawn from its extended image (a screen with
+            // headroom, or Visualize HDR) is charged the viewport-only frame's
+            // measured term per output pixel (`RawDevelopPreviewSession
+            // .extendedFramePerPixel`), as that session charges it. Without it
+            // a reused candidate's 64 MiB refused a Fit extended image past
+            // 1.4 MP of output, and the side fell back to its SDR view. The
+            // before side is the saved master, the after side the candidate's
+            // or, before one exists, the request's encoding.
+            let viewport = request.viewport
+            if viewport.drawsExtended {
+                let savedMaster: RasterPrecisionImage?
+                if let shown = known?.before ?? previousBefore { savedMaster = shown.extendedMaster }
+                else { savedMaster = try self.source.sourceMaster(self.layer) }
+                let beforePixels = RawDevelopPreviewFrame.extendedOutputPixels(savedMaster, viewport: viewport)
+                let afterPixels: UInt64
+                if let known {
+                    let shown = request.canonicalEditing ? known.editing : known.after
+                    afterPixels = RawDevelopPreviewFrame.extendedOutputPixels(shown.extendedMaster,
+                                                                              viewport: viewport)
+                } else if plan?.desired.isLinearFloat == true {
+                    afterPixels = RawDevelopPreviewFrame.extendedOutputPixels(width: state.width,
+                        height: state.height, viewport: viewport)
+                } else { afterPixels = 0 }
+                displayScratch = try PrecisionDocumentDescriptor.sum(displayScratch,
+                    RawDevelopPreviewSession.extendedFramePerPixel * (beforePixels + afterPixels))
+            }
             let scratch = try PrecisionDocumentDescriptor.sum(plan?.scratchEstimate ?? 0, displayScratch)
             _ = try RasterResources.shared.admit(scratch: scratch)
             let control = try RasterJobControl()

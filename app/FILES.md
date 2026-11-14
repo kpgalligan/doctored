@@ -518,7 +518,7 @@ Detail belongs in the source file's own header comment.
 - `RawSourcePlacement.swift` / `RawSidecar.swift` — Place/Replace/Update of a camera RAW file as a retained RAW layer, sized by resolution; the `.xmp` sidecar's exposure.
 - `EditorViewController+RawSource.swift` / `AgentServer+RawSource.swift` — the retained RAW source's menu and MCP halves.
 - `RawLocalRecipe.swift` / `RawLocalState.swift` / `RawLocalWork.swift` / `RawLocalEvaluation.swift` / `RawLocalVariantCache.swift` / `RawGrain.swift` — RAW recipe 3, develop grain.
-- `RawPresence.swift` — Develop Texture, Clarity and Dehaze: the Presence kernels on the finished 16-bit development, just before grain.
+- `RawPresence.swift` — Develop Texture, Clarity and Dehaze: the Presence kernels on the finished 16-bit or 32-bit float development, just before grain.
 - `RawLocalRecipe.swift` — recipe 3 camera-relative baseline, qualified moiré, profile-aware vignette and up to 16 ordered locals, at most four camera variants.
 - `RawDevelopWindowController+Locals.swift` / `RawLocalDevelopSession.swift` / `RawLocalGestureView.swift` — retained Develop locals, native overlay and Fit/100%/pan source-coordinate gestures.
 - `RawLocalControls.swift` / `RawEnhancementControls.swift` — the Develop local and enhancement controls.
@@ -530,7 +530,7 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+RawLocals.swift` — mirrors edits and explicit control-only copy with guarded canonical Actions.
 - `RawDevelopWindowController+Workflow.swift` / `RawDevelopPreviewSession.swift` — the Develop workspace's full-source histogram, exact RGB endpoint readouts and Fit/100% native detail.
 - `RawDevelopPreviewPanel.swift` / `RawDevelopCanvasView.swift` — the Develop preview panel and canvas: pan and Before/After/Split comparison.
-- `RawDevelopHDRPreview.swift` — Develop's HDR preview: the f32 extended image at Fit or 100 % with Clipping, the canvas's EDR layer and window colour space.
+- `RawDevelopHDRPreview.swift` — Develop's HDR preview: the f32 extended image at Fit or 100 % with Clipping and Visualize HDR, the canvas's EDR layer and window colour space.
 - `RawImage.swift` — camera RAW platform inspection and the legacy preview/latency-probe decoder; public import uses `RetainedRawDecoder`'s UInt16 output.
 - `RawDevelopSettings.swift` — the develop request a camera RAW open takes: `RawImage` decodes with it, the Develop window edits it, `AgentServer+Raw.swift` parses it.
 - `RawDevelopWindowController.swift` — the RAW Develop window: initial development and redevelopment controls over a retained snapshot and captured decoder recipe.

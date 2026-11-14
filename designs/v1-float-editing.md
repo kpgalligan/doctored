@@ -1,7 +1,6 @@
 # v1 float editing (ADR)
 
-- **Status:** Accepted — open items remain ([#4](https://github.com/kpgalligan/doctored/issues/4),
-  [#14](https://github.com/kpgalligan/doctored/issues/14)); 2026-10-12. The working record is [archive/v1-float-editing.md](../archive/v1-float-editing.md).
+- **Status:** Accepted — open items remain ([#14](https://github.com/kpgalligan/doctored/issues/14)); 2026-10-12. The working record is [archive/v1-float-editing.md](../archive/v1-float-editing.md).
 - **Contract:** [phase-11f-hdr-float-status.md](phase-11f-hdr-float-status.md) still holds (its shipped companion was folded into it on 2026-10-30); this ADR adds the v1 batches that made 32-bit float a full editing depth.
 
 ## Context
@@ -26,9 +25,9 @@ Phase 11F shipped a float document that opened, rendered, tone-mapped, converted
 ### Filters (`float_filter_route.rs`, `float_filter_apply.rs`)
 
 - **Linear light:** Gaussian, Box, Motion, Radial, Lens Blur, Tilt-Shift, Offset, Lens Correction, Liquify, Unsharp Mask, High Pass, Pixelate (premultiplied cell mean) and Add Noise (`v·(1 + δ)`, the 16-bit draw).
-- **On the encoded copy:** Surface Blur (its histogram spans `[min(0, lo), max(1, hi)]` of the copy), Dust & Scratches, Reduce Noise, Add Grain, Clouds, Difference Clouds, Emboss and Edge Detect (finished inside the copy's own range), legacy Sharpen, Presence, Smart Sharpen and the Develop Filter's display stages, and Red Eye.
+- **On the encoded copy:** Surface Blur (its histogram spans `[min(0, lo), max(1, hi)]` of the copy), Dust & Scratches, Reduce Noise, Add Grain, Clouds, Difference Clouds, Emboss and Edge Detect (finished inside the copy's own range), legacy Sharpen, Presence (Filter ▸ Presence, and RAW Develop's Texture, Clarity and Dehaze on a 32-bit float development, the same request on the finished development, `RawPresence.swift`), Smart Sharpen and the Develop Filter's display stages, and Red Eye.
 - **S, Smart Sharpen** (`sampling_smart_sharpen`): the whole filter on the encoded copy, as legacy Sharpen and Reduce Noise. Reduce Noise's level, Lens Blur's 2/255 overshoot and the tonal widths mean their 16-bit values inside 0…1; the fade classifier reads the encoded luma clamped to 0…1 (above white is `L = 1`); nothing is clamped, so a value above white is sharpened in code and decoded back. Its Gaussian is the float FIR at every σ, so Gaussian removal at noise 0 with no fade is legacy Sharpen's float route bit for bit, not the 16-bit result encoded.
-- **D, Dehaze** (`sampling_dehaze`; Presence and the Develop Filter): on the encoded copy. Airlight and veil are measured with RGB clamped to 0…1 (`unit_rgb`), so `A ≤ 1` and an above-white highlight cannot drag the airlight. Positive amount: a component `I ≤ 1` takes the 16-bit `clamp((I − A)/t + A, min(I, 0), 1)`, a component `I > 1` is returned as read. Negative amount: the 16-bit mix toward `A`, unclamped. No component moves above `max(I, 1)`. Linear-light application was rejected: a veil measured on encoded values overstates the linear veil below the airlight.
+- **D, Dehaze** (`sampling_dehaze`; Presence, RAW Develop's Dehaze and the Develop Filter): on the encoded copy. Airlight and veil are measured with RGB clamped to 0…1 (`unit_rgb`), so `A ≤ 1` and an above-white highlight cannot drag the airlight. Positive amount: a component `I ≤ 1` takes the 16-bit `clamp((I − A)/t + A, min(I, 0), 1)`, a component `I > 1` is returned as read. Negative amount: the 16-bit mix toward `A`, unclamped. No component moves above `max(I, 1)`. Linear-light application was rejected: a veil measured on encoded values overstates the linear veil below the airlight.
 - **H, Highlights and Shadows** (`ShadowsHighlights::apply_float`, Develop Filter stage 4 on the copy): the guide as at 16 bits; a pixel whose luma is at or above 1 is returned unchanged (`L^e` fixes white); any other takes the 16-bit expression without its final clamp.
 - **The Develop Filter** (`sampling_develop_filter`, `DevelopFilter::split_float`): Temperature, Tint (`WhiteBalance::apply_linear`) and Exposure (`v·2^e`) on the stored values; Contrast, Highlights, Shadows, Whites, Blacks (`Levels::apply_float`), Texture, Clarity and Dehaze on the encoded copy; then **V**, Vibrance and Saturation, on the decoded linear value through the Scaled form below with the 16-bit `Vibrance` master (`Route::back`), the form Image ▸ Adjustments ▸ Vibrance takes at float.
 
@@ -93,7 +92,6 @@ The operator table (`float_document.rs`, `get_precision` / `get_tone_map` `opera
 Not built:
 
 - `OPEN` [#14](https://github.com/kpgalligan/doctored/issues/14) — a proxy preview stage at float; Image ▸ Adjustments, Auto and Invert on a float mask, channel or colour plane; filters on the Quick Mask at float beyond Gaussian Blur.
-- `OPEN` [#4](https://github.com/kpgalligan/doctored/issues/4) — RAW Develop's own Presence on a 32-bit float development.
 
 ## After v1
 

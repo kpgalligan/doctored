@@ -2607,8 +2607,10 @@ The design record behind each area is in the repository's
   curve, Shadows, detail, noise, lens and highlight controls act as at 16 bits
   (the curve keeps values above white), and Grain applies on the display
   encoding (a pixel at or above white keeps its value; Doctored's own rule,
-  not measured against Adobe Camera Raw), while the local tone map,
-  Texture/Clarity/Dehaze and local tone controls are disabled there; on a
+  not measured against Adobe Camera Raw), and so do Texture, Clarity and
+  Dehaze (Filter > Presence's float rule: a positive Dehaze leaves a value
+  above white as it is), while the local tone map and local tone controls are
+  disabled there; on a
   screen with headroom the Fit and 100 % previews show values above white, with
   Clipping marking samples at or below 0.0 and at or above white, and the
   histogram reads the float samples in stops, above white included. A RAW placed into a float document develops

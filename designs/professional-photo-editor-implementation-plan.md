@@ -83,7 +83,7 @@ Goal: RAW development and artwork can be revised after reopen at native precisio
 - **8D — Develop workflow.** 100% inspection, histogram and clipping, before/after, presets and sync, Display P3 output, explicit decoder migration.
 - **8E — Retained artwork.** Text and shape descriptions re-render at native depth, with attributed colour runs and intrinsic colour glyphs.
 - **8F — Host image and frame sources.** `REMOVED` — the feature was removed 2026-10-10; host stills and movie and Live Photo frames place as raster layers, SDR HEVC frames included, and an HLG or PQ HEVC frame opens as a 32-bit float document. Dolby Vision frames: [#15](https://github.com/kpgalligan/doctored/issues/15).
-- **8G — Camera controls and local RAW.** Camera and lens controls, moiré, a profile-aware vignette and up to sixteen local masks in source coordinates with local tone, at most four of them changing white balance or camera exposure. Develop at 32-bit float (local tone map, Presence, Visualize HDR): [#4](https://github.com/kpgalligan/doctored/issues/4).
+- **8G — Camera controls and local RAW.** Camera and lens controls, moiré, a profile-aware vignette and up to sixteen local masks in source coordinates with local tone, at most four of them changing white balance or camera exposure. Develop at 32-bit float (local tone map): [#4](https://github.com/kpgalligan/doctored/issues/4).
 
 ### 9. Editable photographic filters and retouching
 
@@ -163,7 +163,7 @@ Goal: large high-depth multilayer documents meet declared latency, memory, save 
 - `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — 12D's Match Zoom and Location, with 12B's and 12C's open items.
 - `OPEN` [#2](https://github.com/kpgalligan/doctored/issues/2) — 10C's measured adjustment and effect-kernel gaps, and a clip base below 100 % Fill (P7-39).
 - `OPEN` [#3](https://github.com/kpgalligan/doctored/issues/3) — the Pattern Overlay angle.
-- `OPEN` [#4](https://github.com/kpgalligan/doctored/issues/4) — 8G and 11F: Develop at 32-bit float (local tone map, Presence, Visualize HDR).
+- `OPEN` [#4](https://github.com/kpgalligan/doctored/issues/4) — 8G and 11F: Develop at 32-bit float (local tone map).
 - `OPEN` [#1](https://github.com/kpgalligan/doctored/issues/1) — PDF/X and the CMYK and spot-channel open items.
 - `OPEN` [#7](https://github.com/kpgalligan/doctored/issues/7) — HDR Toning's built-in presets.
 - `OPEN` [#21](https://github.com/kpgalligan/doctored/issues/21) — local models for Select by text and Generative Fill and Expand.

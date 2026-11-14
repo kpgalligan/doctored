@@ -154,18 +154,12 @@ struct RawDevelopmentRecipe: Codable, Equatable {
             updated.version = max(updated.version, 2)
         }
         if encoding == .linearFloat {
-            // The tone curve and Shadows apply, and so does grain, on
-            // the display encoding (#4, `RawGrain.swift`). Presence is
-            // defined on display-referred values and is refused: the
-            // request's amounts over the saved ones must all be 0. Every
-            // float path (Develop, Redevelop RAW, presets, Sync Settings, the
-            // MCP raw tools) reaches this one check.
-            let presence = (enhancements?.presence ?? .neutral).patched(
-                texture: settings.texture, clarity: settings.clarity, dehaze: settings.dehaze)
-            if !presence.isNeutral {
-                throw DoctoredCoreError(message: RawPresenceSettings.floatRefusal)
-            }
-            // A saved local tone is display-referred in the same way.
+            // The tone curve and Shadows apply, and so do Presence and grain
+            // on the display encoding (`RawPresence.swift`, `RawGrain.swift`).
+            // A saved local tone is refused: its kernels are display-referred
+            // and have no float route in the locals stage. Every float path
+            // (Develop, Redevelop RAW, presets, Sync Settings, the MCP raw
+            // tools) reaches this one check.
             try RawLocalTone.refuseAtFloat(nodes: enhancements?.locals ?? [])
         }
         if let compensation = settings.baselineCompensation {

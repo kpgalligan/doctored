@@ -8826,20 +8826,26 @@ DrImage *dr_precision_image_develop_preview(const DrPrecisionImage *image,
  * wraps it in the profile's extended-linearized space). Clipping flags 0/1/2/3
  * select none/shadows/highlights/both: a cell any of whose alpha-positive
  * samples has an RGB channel <= 0.0 (shadows) or >= 1.0 (highlights) is written
- * opaque binary16 blue (0,0,1,1), red (1,0,0,1) or magenta (1,0,1,1). out_len
- * must equal out_w*out_h*8 (recomputed by the core). peak_out (nullable)
- * receives the largest RGB component of the picture (markers excluded);
- * marked_out (nullable) the count of marked output pixels. Its plan is the
- * extended display view's (46 bytes a pixel plus bookkeeping, float_view.rs)
- * at the output size, admitted under limit beside other_retained_bytes. false
- * with err_out set for u16 storage, a bad region, divisor, clipping or out_len,
- * admission and a cancel; `out` is written only on success. control is
- * single-use. */
+ * opaque binary16 blue (0,0,1,1), red (1,0,0,1) or magenta (1,0,1,1).
+ * hdr_marker (Visualize HDR) is NULL for none, else three floats, linear RGB in
+ * the image's primaries, each 0..1 (anything else refuses): a cell any of whose
+ * alpha-positive samples has an RGB channel strictly above 1.0 is written in
+ * that colour (each component nearest-even binary16, alpha 1), over any
+ * Clipping marker. out_len must equal out_w*out_h*8 (recomputed by the core).
+ * peak_out (nullable) receives the largest RGB component of the picture
+ * (markers excluded); marked_out (nullable) the count of pixels written in a
+ * Clipping colour; hdr_marked_out (nullable) the count written in the HDR
+ * colour (the two are disjoint). Its plan is the extended display view's (46
+ * bytes a pixel plus bookkeeping, float_view.rs) at the output size, admitted
+ * under limit beside other_retained_bytes. false with err_out set for u16
+ * storage, a bad region, divisor, clipping, hdr_marker or out_len, admission
+ * and a cancel; `out` is written only on success. control is single-use. */
 bool dr_precision_image_develop_preview_extended(const DrPrecisionImage *image,
     uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t divisor,
-    uint32_t clipping, uint8_t *out, size_t out_len, float *peak_out,
-    uint64_t *marked_out, uint64_t limit, uint64_t other_retained_bytes,
-    const DrJobControl *control, char **err_out);
+    uint32_t clipping, const float *hdr_marker, uint8_t *out, size_t out_len,
+    float *peak_out, uint64_t *marked_out, uint64_t *hdr_marked_out,
+    uint64_t limit, uint64_t other_retained_bytes, const DrJobControl *control,
+    char **err_out);
 /* Bits per channel of the image's sample storage: 16 for rgba16_unorm, 32 for
  * rgba32_float (it says which developed masters have an extended Fit preview).
  * 0 for NULL. Reads no pixel, allocates nothing. */

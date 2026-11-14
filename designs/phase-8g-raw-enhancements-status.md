@@ -60,13 +60,23 @@ introducing a linear/HDR document mode, and with persisted masks that survive mi
   extended range, values above white kept; `scripts/raw-probe/float_tone.py`); a float development starts at tone
   curve 0; local tone map 0 (the float local tone map is open:
   [#4](https://github.com/kpgalligan/doctored/issues/4)); manual vignette a linear gain; lens geometry resampled in
-  linear float; grain on the display encoding (Doctored's rule, not measured against Adobe Camera Raw: the one Add
-  Grain kernel on E, continued as a logarithm above white, so a channel in 0…1 gets the 16-bit grain of its encoded
-  value and a pixel at or above white keeps its value; `tests/raw_float_grain.rs`); locals blend f32 variants in f32;
+  linear float; Presence (Texture, Clarity, Dehaze) on the display encoding by Filter ▸ Presence's float rule
+  ([v1-float-editing.md](v1-float-editing.md): only changed components decoded back, nothing clamped; rule D holds a
+  component above white at a positive Dehaze); grain on the display encoding (Doctored's rule, not measured against
+  Adobe Camera Raw: the one Add Grain kernel on E, continued as a logarithm above white, so a channel in 0…1 gets the
+  16-bit grain of its encoded value and a pixel at or above white keeps its value; `tests/raw_float_grain.rs`);
+  locals blend f32 variants in f32;
   a range reads Lab of the f32 base (above white is L\* 100). It is linear in exposure with no highlight shoulder:
   tone mapping, not clipping, is how it is meant to be viewed. Inspection shows it clipped to SDR, except on a screen
   with headroom, where Develop's Fit and 100 % views draw rule X's binary16 image (`develop_preview_extended`; MCP
-  `hdr_preview`); its histogram reads the f32 master in stops. Admission, fixed before measuring: decode
+  `hdr_preview`); its histogram reads the f32 master in stops. **Visualize HDR** (a preview checkbox under the
+  Clipping row; MCP `inspect_raw_development` `visualize_hdr`, counted as `hdr_preview`'s `*_hdr_marked`) is view state
+  only: a cell any of whose alpha-positive samples has an RGB channel strictly above 1.0 (exactly 1.0 is white) is
+  one flat opaque colour, `DS.hdrMarker` (the forest ink, a green unlike Clipping's blue, red and magenta, drawn at
+  SDR level), and wins over a Clipping marker, so red then means "at white, nothing above". It draws the extended
+  image on any screen; every value above white is under the marker, so EDR still engages only with headroom. Legend:
+  the checkbox's swatch and tooltip; the float endpoints line adds the count above 1.0. A 16-bit side is never marked.
+  Admission, fixed before measuring: decode
   `RawSourceWork.scratch` + 16·px; local `measuredScratch` + (8·(k + 2) + 8 + 8e)·px; `replaceScratch`
   16·(k + 2)·px; a Develop session + 24·px; every charge ≥ 1.25 × the measured peak (records beside the constants).
   Drives `scripts/verify_v1_raw_float.py`, `scripts/verify_v1x_raw_hdr.py`.
@@ -96,15 +106,18 @@ introducing a linear/HDR document mode, and with persisted masks that survive mi
   `DevelopFilterMasks.swift`, `DevelopFilterMaskPanel.swift`, `AgentServer+DevelopFilterMasks.swift`; tests
   `filter_develop_filter_masks.rs`.
 - **Develop Presence:** Texture, Clarity and Dehaze (−100…100, 0 = off) run the Filter ▸ Presence kernel
-  (`selected_edit` op `presence`, 16-bit, a controlled job) on the finished development, after explicit optics and
-  before grain; locals get none. *Why:* the kernels read the developed, display-encoded u16 tones; after locals,
+  (`selected_edit` op `presence`, a controlled job) on the finished development, after explicit optics and
+  before grain; locals get none. *Why:* the kernels read the developed, display-encoded tones; after locals,
   vignette and optics the bands and airlight are the published frame's; before grain they never amplify synthetic
   grain. The radii scale with the long side (`presence_radii`, pinned by `tests/filter_presence_scale.rs`), and both
   Develop previews run the full-size pipeline, so the preview is the Apply result. Persistence: an optional recipe
   `presence`, absent when all three are 0 (an older build refuses the unknown key and keeps the saved rendering).
-  Presets are schema 4. The 32-bit float development refuses nonzero values (`RawPresenceSettings.floatRefusal` in
-  `RawDevelopmentRecipe.updating`) and Develop disables the rows there. Code: `RawPresence.swift`; drive
-  `scripts/verify_v1_raw_presence.py`.
+  Presets are schema 4. On the 32-bit float development the same request runs Filter ▸ Presence's float rule
+  (above); its stage is admitted by the core's float plan, and float grain stands for it in the host's float decode
+  and locals charges, measured with grain: at 24 MP the two stages' footprints are 1,152,697,160 and 1,152,664,416
+  bytes, each one `selectedEdit` after optics, run one after the other (a record with Presence itself:
+  [#72](https://github.com/kpgalligan/doctored/issues/72)). Code:
+  `RawPresence.swift`; drives `scripts/verify_v1_raw_presence.py`, `scripts/verify_v1x_raw_hdr.py` (rule D).
 - **Local tone path:** a local may carry a `tone` (Exposure −4…4 stops, Contrast, Highlights, Shadows, Whites,
   Blacks, Saturation, Clarity, Texture), applied in the core to the 16-bit development through the existing kernels
   (precision_v1 `exposure` under `document_v2`, `bcs` modern, `shadows_highlights` at the Presence coarse radius,
@@ -117,8 +130,8 @@ introducing a linear/HDR document mode, and with persisted masks that survive mi
   locals inside its coverage); this appears only after a user edit moves the recipe to version 3
   (`core/tests/raw_local_tone.rs` pins both contracts).
   A tone on the 32-bit float development refuses by name (`RawLocalTone.floatRefusal`): the tone kernels are
-  display-referred. Dehaze is not a local control (it needs a global haze estimate). The combined RAW + attachment
-  resource cap is 1 GiB (RAW originals alone keep 512 MiB), refused up front by `RawLocalWork.request`; a document
+  display-referred (a float route: [#73](https://github.com/kpgalligan/doctored/issues/73)). Dehaze is not a
+  local control (it needs a global haze estimate). The combined RAW + attachment resource cap is 1 GiB (RAW originals alone keep 512 MiB), refused up front by `RawLocalWork.request`; a document
   whose attachment holds more than four masks or passes 512 MiB writes DRDC word 79 (`raw_locals_native.rs`). Local
   Sharpness (−100…100) and Noise Reduction (0…100) run last through `local_detail.rs`, stored only when not 0, so an
   older build refuses a recipe that names them. Code: `raw_local_tone*.rs`, `raw_local_limits.rs`,

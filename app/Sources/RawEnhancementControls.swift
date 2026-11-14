@@ -23,11 +23,6 @@ final class RawEnhancementControls {
     private let originalPresence: RawPresenceSettings
     private var presence: RawPresenceSettings
     private var presenceRows: [CardControlRow] = []
-    /// False at the 32-bit float (linear) encoding: Presence is defined
-    /// on display-referred values (`RawPresenceSettings.floatRefusal`), so its
-    /// rows are disabled there and the request removes any Presence the
-    /// recipe has saved.
-    var presenceAvailable = true { didSet { updatePresenceEnablement() } }
 
     init(recipe: RawDevelopmentRecipe) {
         originalBaseline = recipe.enhancements?.baselineCompensation ?? 0
@@ -79,7 +74,6 @@ final class RawEnhancementControls {
         addPresence("Texture:", "texture", presence.texture) { $0.presence.texture = $1.rounded() }
         addPresence("Clarity:", "clarity", presence.clarity) { $0.presence.clarity = $1.rounded() }
         addPresence("Dehaze:", "dehaze", presence.dehaze) { $0.presence.dehaze = $1.rounded() }
-        updatePresenceEnablement()
     }
 
     var settings: RawDevelopSettings {
@@ -91,13 +85,9 @@ final class RawEnhancementControls {
         if grain != originalGrain, !(grain.isNeutral && originalGrain.isNeutral) {
             value.grain = grain
         }
-        if !presenceAvailable {
-            if !originalPresence.isNeutral { value.texture = 0; value.clarity = 0; value.dehaze = 0 }
-        } else {
-            if presence.texture != originalPresence.texture { value.texture = presence.texture }
-            if presence.clarity != originalPresence.clarity { value.clarity = presence.clarity }
-            if presence.dehaze != originalPresence.dehaze { value.dehaze = presence.dehaze }
-        }
+        if presence.texture != originalPresence.texture { value.texture = presence.texture }
+        if presence.clarity != originalPresence.clarity { value.clarity = presence.clarity }
+        if presence.dehaze != originalPresence.dehaze { value.dehaze = presence.dehaze }
         value.sourceGeometry = lensControls.settings
         return value
     }
@@ -130,10 +120,6 @@ final class RawEnhancementControls {
             row.setValue(value)
         }
         updateGrainEnablement()
-        updatePresenceEnablement()
-    }
-    private func updatePresenceEnablement() {
-        for row in presenceRows { row.isEnabled = presenceAvailable }
     }
     /// Size and Roughness are inert while Amount is 0.
     private func updateGrainEnablement() {

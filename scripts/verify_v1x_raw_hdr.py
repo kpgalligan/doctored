@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""MCP drive for RAW HDR output (#4): the tone curve, Shadows
-and grain on the 32-bit float (linear) RAW development, and the Develop
-window's HDR preview at Fit and 100 % with Clipping and its float histogram
-as `inspect_raw_development`'s `hdr_preview` and `after_histogram`, on the
-real NEF.
+"""MCP drive for RAW HDR output (#4): the tone curve, Shadows,
+grain and Presence on the 32-bit float (linear) RAW development, and the
+Develop window's HDR preview at Fit and 100 % with Clipping and Visualize HDR
+and its float histogram as `inspect_raw_development`'s `hdr_preview` and
+`after_histogram`, on the real NEF.
 
 The script owns its one app instance through `verify_v1_raw_float`'s `Run`
 and `verify_v1_lens.App`: the Debug app (or `DR_VERIFY_APP`) on its own
@@ -57,18 +57,41 @@ Bounds, fixed before the first run and never widened (M2's, restated here):
   unchanged; `after_histogram.storage` is `rgba32_float` and its
   `above_white_rgba` equals the MCP `histogram` (source layer, stride 1) of
   that layer.
+- visualize hdr: on the +2 EV float layer, `inspect_raw_development` with a
+  16×16 `region` about the brightest lattice point and `visualize_hdr: true`
+  answers `after_hdr_marked` equal to the count of the region's 256
+  `sample_pixel` values (alpha > 0) with a channel > 1.0, at least 1, and
+  `before_hdr_marked` the same (no raw patch); with `clipping: highlights`
+  too, `after_marked` equals the count with a channel equal to 1.0 and none
+  above, `after_hdr_marked` is unchanged and `after_peak` equals the peak
+  without either; `clipping: highlights` alone marks the sum of both counts;
+  omitted or `false`, `after_hdr_marked` is 0; at Fit it is in 1…the output
+  pixel count; `visualize_hdr: "yes"` is refused by name; a 16-bit document
+  accepts `visualize_hdr: true` and answers no `hdr_preview`.
 - grain (#4): `redevelop_raw grain {amount 20}` on that layer keeps a float
   master and >= 20 lattice points with a channel > 1.0; every lattice point
   whose centre sample has all channels >= 1.0 is bit-identical to the no-grain
   lattice; some point with all channels < 1.0 changed; an `open_document`
   with the same grain equals the redeveloped lattice; grain amount 0 restores
   the no-grain lattice exactly.
+- presence (rule D of `designs/v1-float-editing.md`): `redevelop_raw
+  dehaze 50` on that layer keeps a float master; every lattice component
+  above 1.0 is bit-identical after; every component is finite and at most
+  `max(before, 1) × (1 + 1e-6)` (the core test's bound for the decode's f32
+  rounding at white); some component below 1.0 changed. `texture 50,
+  clarity 50` (dehaze 0): every value finite, >= 20 lattice points with a
+  channel > 1.0, some point changed, and an `open_document` with the same
+  Presence equals the redeveloped lattice. Presence 0 restores the no-Presence
+  lattice exactly.
 
 Not exercised: the Develop window itself (no `scripts/*_ui.py`); its HDR view
 is the same `RawDevelopExtendedImage` this reply reads.
 
-Usage: python3 scripts/verify_v1x_raw_hdr.py [--output DIR]
+Usage: python3 scripts/verify_v1x_raw_hdr.py [--output DIR] [--cases NAME,...]
 Prints `PASS <case>` per case and `ALL CASES PASS`; exits 1 on any failure.
+`--cases` runs only the named cases, in the drive's order; `highlights` opens
+the +2 EV layer that `hdr preview`, `hdr detail`, `visualize hdr`, `grain` and
+`presence` read.
 """
 import argparse
 import json
@@ -81,12 +104,18 @@ import time
 
 sys.dont_write_bytecode = True
 from verify_v1_lens import App, SlowClient  # noqa: E402
-from verify_v1_raw_float import BUSY, FIXTURE, LIMIT, MIN_CLASS, Run  # noqa: E402
+from verify_v1_raw_float import (  # noqa: E402
+    BUSY, FIXTURE, LIMIT, MIN_CLASS, Run, selected_cases)
 
 SAME_SIGN = 0.90
 MOVE = 0.01
 DETAIL_SIDE = 256
+VISUALIZE_SIDE = 16
 GRAIN_AMOUNT = 20
+PRESENCE_AMOUNT = 50
+# The core's rule-D test bound for the decode's f32 rounding at white
+# (`core/tests/float_filters_develop.rs`).
+WHITE_ROUNDING = 1e-6
 V1_POLICY = 'srgb-rgba32f-linear-v1'
 V2_POLICY = 'srgb-rgba32f-linear-v2'
 
@@ -347,6 +376,54 @@ def hdr_detail_case(run):
                 above_white=histogram['above_white_rgba'])
 
 
+def visualize_hdr_case(run):
+    lattice = run.float_lattice(run.bright)
+    brightest = max(range(len(lattice)), key=lambda index: max(lattice[index][:3]))
+    width, height = run.size
+    x, y = run.points[brightest]
+    side = VISUALIZE_SIDE
+    region = dict(x=min(max(0, x - side // 2), width - side),
+                  y=min(max(0, y - side // 2), height - side), width=side, height=side)
+    # The oracle: every sample of the region, one per 100 % output pixel.
+    samples = [run.sample(run.bright, region['x'] + dx, region['y'] + dy)['center_rgba32']
+               for dy in range(side) for dx in range(side)]
+    lit = [value for value in samples if value[3] > 0]
+    above = sum(1 for value in lit if max(value[:3]) > 1.0)
+    at_white = sum(1 for value in lit if max(value[:3]) == 1.0)
+    assert above >= 1, (above, at_white)
+    plain = run.inspect(run.bright, region=region)['hdr_preview']
+    assert plain['after_hdr_marked'] == 0 and plain['before_hdr_marked'] == 0, plain
+    off = run.inspect(run.bright, region=region, visualize_hdr=False)['hdr_preview']
+    assert off['after_hdr_marked'] == 0 and off['after_marked'] == 0, off
+    shown = run.inspect(run.bright, region=region, visualize_hdr=True)['hdr_preview']
+    assert shown['after_divisor'] == 1, shown
+    assert shown['after_hdr_marked'] == above, (shown, above)
+    assert shown['before_hdr_marked'] == above, (shown, above)
+    assert shown['after_marked'] == 0, shown
+    assert shown['after_peak'] == plain['after_peak'], (shown, plain)
+    both = run.inspect(run.bright, region=region, visualize_hdr=True,
+                       clipping='highlights')['hdr_preview']
+    assert both['after_hdr_marked'] == above, (both, above)
+    assert both['after_marked'] == at_white, (both, at_white)
+    assert both['after_peak'] == plain['after_peak'], (both, plain)
+    clipped = run.inspect(run.bright, region=region, clipping='highlights')['hdr_preview']
+    assert clipped['after_marked'] == above + at_white, (clipped, above, at_white)
+    assert clipped['after_hdr_marked'] == 0, clipped
+    fit = run.inspect(run.bright, visualize_hdr=True)['hdr_preview']
+    divisor = fit['after_divisor']
+    pixels = math.ceil(width / divisor) * math.ceil(height / divisor)
+    assert 1 <= fit['after_hdr_marked'] <= pixels, (fit, pixels)
+    text = run.app.refused('inspect_raw_development', 'visualize_hdr must be true or false',
+                           document_id=run.bright, layer=0, visualize_hdr='yes')
+    sixteen = run.open('sdr-visualize', tone_curve=0)
+    assert sixteen['precision'] == 'rgba16', sixteen
+    report = run.inspect(sixteen['id'], visualize_hdr=True)
+    assert 'hdr_preview' not in report, report.get('hdr_preview')
+    run.close(sixteen['id'])
+    return dict(region=region, above=above, at_white=at_white, fit=fit['after_hdr_marked'],
+                fit_pixels=pixels, refusal=text)
+
+
 def grain_case(run):
     base = run.float_lattice(run.bright)
     reply = run.app.call('redevelop_raw', document_id=run.bright, layer=0,
@@ -373,12 +450,61 @@ def grain_case(run):
                 darker=len(darker))
 
 
+def presence_case(run):
+    base = run.float_lattice(run.bright)
+    reply = run.app.call('redevelop_raw', document_id=run.bright, layer=0,
+                         raw=dict(dehaze=PRESENCE_AMOUNT))
+    assert reply['ok'] is True and run.is_float_master(run.bright), reply
+    dehazed = run.float_lattice(run.bright)
+    held = changed = 0
+    for index, (got, was) in enumerate(zip(dehazed, base)):
+        assert all(math.isfinite(value) for value in got), (index, got)
+        for channel in range(3):
+            bound = max(was[channel], 1.0) * (1 + WHITE_ROUNDING)
+            assert got[channel] <= bound, (index, channel, got[channel], was[channel])
+            if was[channel] > 1.0:
+                assert got[channel] == was[channel], (index, channel, got[channel], was[channel])
+                held += 1
+            elif was[channel] < 1.0 and got[channel] != was[channel]:
+                changed += 1
+    assert held >= 1 and changed >= 1, (held, changed)
+    reply = run.app.call('redevelop_raw', document_id=run.bright, layer=0,
+                         raw=dict(dehaze=0, texture=PRESENCE_AMOUNT, clarity=PRESENCE_AMOUNT))
+    assert reply['ok'] is True and run.is_float_master(run.bright), reply
+    detailed = run.float_lattice(run.bright)
+    assert all(math.isfinite(value) for point in detailed for value in point)
+    above = sum(1 for point in detailed if max(point[:3]) > 1.0)
+    assert above >= MIN_CLASS, above
+    moved = sum(1 for got, was in zip(detailed, base) if got != was)
+    assert moved >= 1, moved
+    opened = run.open_float('bright-presence', tone_curve=1, exposure=2, lens_correction=False,
+                            texture=PRESENCE_AMOUNT, clarity=PRESENCE_AMOUNT)
+    assert run.float_lattice(opened) == detailed, 'the open with Presence differs from the redevelop'
+    run.close(opened)
+    reply = run.app.call('redevelop_raw', document_id=run.bright, layer=0,
+                         raw=dict(texture=0, clarity=0))
+    assert reply['ok'] is True and run.is_float_master(run.bright), reply
+    assert run.float_lattice(run.bright) == base, 'Presence 0 did not restore the lattice'
+    return dict(components_held_above_white=held, components_changed_below_white=changed,
+                points_above_one=above, points_moved=moved)
+
+
 # ----------------------------------------------------------------- main --
+
+CASES = (('highlights', highlights_case), ('curve', curve_case), ('shadows', shadows_case),
+         ('linear again', linear_again_case), ('locals', locals_case), ('rz', rz_case),
+         ('action', action_case), ('preset and sync', preset_sync_case), ('place', place_case),
+         ('hdr preview', hdr_preview_case), ('hdr detail', hdr_detail_case),
+         ('visualize hdr', visualize_hdr_case), ('grain', grain_case),
+         ('presence', presence_case))
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--output', help='folder for the instance, the copies and the receipt')
+    parser.add_argument('--cases', help='comma-separated case names to run (all by default)')
     arguments = parser.parse_args()
+    cases = selected_cases(CASES, arguments.cases)
     output = Path(arguments.output) if arguments.output else Path(
         tempfile.mkdtemp(prefix='rz-v1x-raw-hdr-'))
     output.mkdir(parents=True, exist_ok=True)
@@ -401,18 +527,8 @@ def main():
     else:
         with App(output / 'instance', LIMIT, SlowClient) as app:
             run = HDRRun(app, output)
-            run_case('highlights', lambda: highlights_case(run))
-            run_case('curve', lambda: curve_case(run))
-            run_case('shadows', lambda: shadows_case(run))
-            run_case('linear again', lambda: linear_again_case(run))
-            run_case('locals', lambda: locals_case(run))
-            run_case('rz', lambda: rz_case(run))
-            run_case('action', lambda: action_case(run))
-            run_case('preset and sync', lambda: preset_sync_case(run))
-            run_case('place', lambda: place_case(run))
-            run_case('hdr preview', lambda: hdr_preview_case(run))
-            run_case('hdr detail', lambda: hdr_detail_case(run))
-            run_case('grain', lambda: grain_case(run))
+            for name, step in cases:
+                run_case(name, lambda: step(run))
 
     (output / 'receipt.json').write_text(json.dumps(results, indent=2, default=str) + '\n')
     print(f'receipt: {output / "receipt.json"}')

@@ -28,12 +28,18 @@ enum DS {
     // MARK: - Fixed colors
 
     /// Brand inks. Forest strokes Select and Mask's add strokes
-    /// (`RefinementCanvasView`) and draws Liquify's mesh grid
-    /// (`LiquifySession`); coral strokes Select and Mask's subtract strokes,
-    /// fills Liquify's frozen-area overlay (`LiquifyCanvasView`) and is
-    /// `marquee`'s ink.
+    /// (`RefinementCanvasView`), draws Liquify's mesh grid
+    /// (`LiquifySession`) and is `hdrMarker`'s ink; coral strokes Select and
+    /// Mask's subtract strokes, fills Liquify's frozen-area overlay
+    /// (`LiquifyCanvasView`) and is `marquee`'s ink.
     static let forest = NSColor(srgbRed: 0x1F / 255, green: 0x85 / 255, blue: 0x64 / 255, alpha: 1)
     static let coral = NSColor(srgbRed: 0xF4 / 255, green: 0x65 / 255, blue: 0x3F / 255, alpha: 1)
+
+    /// Develop's Visualize HDR marker (`RawDevelopHDRPreview.swift`): one flat
+    /// opaque colour over every preview cell holding a value above SDR white.
+    /// Forest is a green, unlike Clipping's blue, red and magenta, and dark
+    /// against the highlights it covers.
+    static var hdrMarker: NSColor { forest }
 
     /// Coral at 0.9: the canvas's one accent-colored mark. It strokes the
     /// selection's marching ants, the proposed rectangle or ellipse, the

@@ -381,6 +381,14 @@ HDR-frame cases:
   100 % region (D); gated on the preview session's own charge, 48 MiB +
   `extendedFramePerPixel` × the f32 sides' output pixels. A frame that did not
   draw both sides extended is a STOP.
+- HL: mode `hdrlocal` (depth 32, no shape), a functional check that
+  `measure.py` does not run and that measures nothing: Layer ▸ Redevelop
+  RAW…'s locals session with Visualize HDR at Fit, a fresh request at exposure
+  2, then the same request with Clipping on, which reuses the candidate. Its
+  JSON's `hdr_local_ok` is true when both frames drew the after side's
+  extended image with a positive `afterHDRMarked`; build the probe as
+  `measure.py`'s `build()` does and run `<probe> hdrlocal <camera.NEF> 32`
+  under its `environment()`.
 
 Same method, three runs plus a twin. It fits
 nothing: each case is gated on the charge the app itself computes, which the

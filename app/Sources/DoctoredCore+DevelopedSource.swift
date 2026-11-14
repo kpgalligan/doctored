@@ -128,11 +128,18 @@ extension RasterPrecisionImage {
     /// little-endian premultiplied pixels (ceil(region/divisor) per side, at
     /// most 1600) linear in this image's primaries. Clipping bits 1/2 mark a
     /// cell holding an RGB sample at or below 0.0 / at or above 1.0 as opaque
-    /// blue/red/magenta. Answers the largest RGB value of the picture
-    /// (markers excluded) and the marked pixel count. Refuses a u16 image.
+    /// blue/red/magenta. `hdrMarker` (Visualize HDR: three linear components
+    /// in this image's primaries, each 0…1) marks a cell holding an RGB sample
+    /// above 1.0 in that colour, over any Clipping marker. Answers the largest
+    /// RGB value of the picture (markers excluded), the Clipping-marked and the
+    /// HDR-marked pixel counts. Refuses a u16 image.
     func developPreviewExtended(x: Int, y: Int, width: Int, height: Int, divisor: Int,
-                                clipping: UInt32 = 0, control: RasterJobControl? = nil) throws
-        -> (pixels: Data, peak: Float, marked: UInt64) {
+                                clipping: UInt32 = 0, hdrMarker: [Float]? = nil,
+                                control: RasterJobControl? = nil) throws
+        -> (pixels: Data, peak: Float, marked: UInt64, hdrMarked: UInt64) {
+        if let hdrMarker, hdrMarker.count != 3 {
+            throw DoctoredCoreError(message: "The HDR marker needs three components.")
+        }
         let region = try developRegion(x: x, y: y, width: width, height: height)
         guard (1...Int(UInt32.max)).contains(divisor), clipping <= 3 else {
             throw DoctoredCoreError(message: "Invalid develop preview scale or clipping mode.")
@@ -147,16 +154,22 @@ extension RasterPrecisionImage {
         var pixels = Data(count: length)
         var peak: Float = 0
         var marked: UInt64 = 0
+        var hdrMarked: UInt64 = 0
         var error: UnsafeMutablePointer<CChar>?
         let ok = pixels.withUnsafeMutableBytes { out in
-            dr_precision_image_develop_preview_extended(ptr, region.x, region.y, region.width,
-                region.height, UInt32(divisor), clipping, out.bindMemory(to: UInt8.self).baseAddress,
-                out.count, &peak, &marked, context.limit, context.otherRetained, control?.ptr, &error)
+            func render(_ marker: UnsafePointer<Float>?) -> Bool {
+                dr_precision_image_develop_preview_extended(ptr, region.x, region.y, region.width,
+                    region.height, UInt32(divisor), clipping, marker,
+                    out.bindMemory(to: UInt8.self).baseAddress, out.count, &peak, &marked,
+                    &hdrMarked, context.limit, context.otherRetained, control?.ptr, &error)
+            }
+            guard let hdrMarker else { return render(nil) }
+            return hdrMarker.withUnsafeBufferPointer { render($0.baseAddress) }
         }
         guard ok else {
             throw DoctoredCoreError(message: takeErrorMessage(
                 error, fallback: "Could not render the extended develop preview."))
         }
-        return (pixels, peak, marked)
+        return (pixels, peak, marked, hdrMarked)
     }
 }

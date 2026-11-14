@@ -213,17 +213,23 @@ pub unsafe extern "C" fn dr_precision_image_develop_preview(
 /// X at gain 1, written into `out` as RGBA binary16 little-endian,
 /// premultiplied, linear in the image's primaries. Clipping flags 0/1/2/3
 /// select none/RGB ≤ 0.0/RGB ≥ 1.0/both over every alpha-positive sample of
-/// the cell; a marked cell is opaque binary16 blue/red/magenta. `out_len`
-/// must equal out_w·out_h·8 (recomputed by the core). `peak_out` (nullable)
-/// receives the largest RGB component of the picture (markers excluded);
-/// `marked_out` (nullable) the count of marked output pixels. Admits the
-/// extended display plan at the output size under `limit` beside
-/// `other_retained_bytes`. false with err_out set for u16 storage, a bad
-/// region, divisor, clipping or length, admission and a cancel.
+/// the cell; a marked cell is opaque binary16 blue/red/magenta. `hdr_marker`
+/// (NULL for none, else three floats, linear RGB in the image's primaries,
+/// each 0…1) is Visualize HDR's colour: a cell any of whose alpha-positive
+/// samples has an RGB channel strictly above 1.0 is written in it, opaque,
+/// over any Clipping marker. `out_len` must equal out_w·out_h·8 (recomputed
+/// by the core). `peak_out` (nullable) receives the largest RGB component of
+/// the picture (markers excluded); `marked_out` (nullable) the count of
+/// pixels written in a Clipping colour; `hdr_marked_out` (nullable) the count
+/// written in the HDR colour. Admits the extended display plan at the output
+/// size under `limit` beside `other_retained_bytes`. false with err_out set
+/// for u16 storage, a bad region, divisor, clipping, HDR marker or length,
+/// admission and a cancel.
 /// # Safety
-/// image/control NULL/live; control single-use; `out` NULL or writable for
-/// `out_len` bytes; `peak_out` NULL or a writable `float`; `marked_out` NULL
-/// or a writable `uint64_t`; err_out NULL/writable.
+/// image/control NULL/live; control single-use; `hdr_marker` NULL or
+/// readable for 3 floats; `out` NULL or writable for `out_len` bytes;
+/// `peak_out` NULL or a writable `float`; `marked_out` and `hdr_marked_out`
+/// NULL or a writable `uint64_t`; err_out NULL/writable.
 #[no_mangle]
 pub unsafe extern "C" fn dr_precision_image_develop_preview_extended(
     image: *const PrecisionImage,
@@ -233,10 +239,12 @@ pub unsafe extern "C" fn dr_precision_image_develop_preview_extended(
     height: u32,
     divisor: u32,
     clipping: u32,
+    hdr_marker: *const f32,
     out: *mut u8,
     out_len: usize,
     peak_out: *mut f32,
     marked_out: *mut u64,
+    hdr_marked_out: *mut u64,
     limit: u64,
     other_retained_bytes: u64,
     control: *const DrJobControl,
@@ -252,6 +260,10 @@ pub unsafe extern "C" fn dr_precision_image_develop_preview_extended(
                 if out.is_null() {
                     return Err("the develop extended preview buffer is NULL".into());
                 }
+                let marker = (!hdr_marker.is_null()).then(|| {
+                    let rgb = std::slice::from_raw_parts(hdr_marker, 3);
+                    [rgb[0], rgb[1], rgb[2]]
+                });
                 let region = DevelopRegion {
                     x,
                     y,
@@ -272,18 +284,22 @@ pub unsafe extern "C" fn dr_precision_image_develop_preview_extended(
                         divisor,
                         clipping,
                     },
+                    marker,
                     buffer,
                     limit,
                     other_retained_bytes,
                     control.as_ref(),
                 )
             },
-            |(peak, marked)| {
+            |(peak, marked, hdr_marked)| {
                 if !peak_out.is_null() {
                     *peak_out = peak;
                 }
                 if !marked_out.is_null() {
                     *marked_out = marked;
+                }
+                if !hdr_marked_out.is_null() {
+                    *hdr_marked_out = hdr_marked;
                 }
                 true
             },

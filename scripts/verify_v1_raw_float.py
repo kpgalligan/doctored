@@ -72,13 +72,18 @@ succeed after the switch to `sdr16`), refusals (by name:
 `precision: rgba8` with `linear_float`; `linear_float` on a 16-bit
 document's layer; `output_encoding` in `apply_raw_settings` and in
 `save_raw_preset`'s `raw`; a tone curve applies at float, and grain
-since #4, and `scripts/verify_v1x_raw_hdr.py` drives both), presence (nonzero Texture, Clarity or Dehaze
-refused with `RawPresenceSettings.floatRefusal` by `open_document`,
-`redevelop_raw`, `edit_raw_development` and `apply_raw_settings`; all three
-at 0 opens and redevelops), local tone (a local `tone` refused with
-`RawLocalTone.floatRefusal` by `edit_raw_development` on the float layer, and
-a 16-bit development holding a tone local refuses `redevelop_raw` to
-`linear_float`; the layers unchanged).
+since #4, and `scripts/verify_v1x_raw_hdr.py` drives both), presence
+(Texture, Clarity and Dehaze develop on the float layer through every MCP
+path: an `open_document` with clarity 20 records it and its lattice differs
+from the plain one; `redevelop_raw` with the same clarity equals that open;
+`edit_raw_development` texture 20 and `apply_raw_settings` dehaze 20 each
+record their value and keep a float master; all three back at 0 restore the
+plain lattice exactly and leave no `presence`; a layer redeveloped `sdr16`
+with clarity 20 and back to `linear_float` keeps it and equals the open;
+`scripts/verify_v1x_raw_hdr.py` drives rule D above white), local tone (a
+local `tone` refused with `RawLocalTone.floatRefusal` by
+`edit_raw_development` on the float layer, and a 16-bit development holding a
+tone local refuses `redevelop_raw` to `linear_float`; the layers unchanged).
 
 Profile Corrections. camera.NEF (NIKON D70s, Tamron AF 18-250mm A18 at 35 mm)
 matches a Lensfun profile and the decoder has none of its own, so a new
@@ -97,11 +102,14 @@ outside exact.
 Not exercised: the Develop window's rows, and the recorded place step's
 missing default.
 
-Usage: python3 scripts/verify_v1_raw_float.py [--output DIR]
+Usage: python3 scripts/verify_v1_raw_float.py [--output DIR] [--cases NAME,...]
 Prints `PASS <case>` per case and `ALL CASES PASS`; exits 1 on any failure.
+`--cases` runs only the named cases, in the drive's order; most cases read
+what `open` left, and `presence` needs no other case.
 """
 import argparse
 import json
+import math
 import time
 import os
 from pathlib import Path
@@ -131,9 +139,6 @@ SRGB_TO_PCS = to_pcs(SRGB_PRIMARIES, 'D65')
 NARROW_REFUSAL = ('holds a 32-bit float Camera RAW development; redevelop it as a 16-bit SDR '
                   'master or rasterize it first')
 FLOAT_POLICY = 'srgb-rgba32f-linear-v1'
-# `RawPresenceSettings.floatRefusal`, word for word.
-PRESENCE_REFUSAL = ('Texture, Clarity and Dehaze are defined on display-referred values and are '
-                    'not available in a 32-bit float RAW development.')
 # `RawLocalTone.floatRefusal`, the core's `FLOAT_TONE_REFUSAL`, word for word.
 LOCAL_TONE_REFUSAL = 'RAW local tone controls are not available for a 32-bit float development.'
 
@@ -676,36 +681,55 @@ def refusal_case(run):
     return dict(refusals=texts)
 
 
+def presence_of(run, document):
+    """The recipe's saved Presence, or None when it has none."""
+    return (run.source(document)['raw']['recipe'].get('enhancements') or {}).get('presence')
+
+
 def presence_case(run):
-    """Nonzero Texture, Clarity or Dehaze is refused at the float development
-    by `RawPresenceSettings.floatRefusal` on every MCP path; all three at 0
-    develops."""
-    texts = []
-    before = len(run.app.call('list_documents')['documents'])
-    texts.append(run.app.refused('open_document', PRESENCE_REFUSAL,
-                                 path=str(run.copy('presence-refused')),
-                                 raw=dict(output_encoding='linear_float', clarity=20)))
-    assert len(run.app.call('list_documents')['documents']) == before, 'a refusal opened a document'
-    float_source = run.source(run.floats[0])
-    texts.append(run.app.refused('redevelop_raw', PRESENCE_REFUSAL, document_id=run.floats[0],
-                                 layer=0, raw=dict(clarity=20)))
-    texts.append(run.app.refused('edit_raw_development', PRESENCE_REFUSAL,
-                                 document_id=run.floats[0], layer=0, operations=[],
-                                 raw=dict(texture=20)))
-    texts.append(run.app.refused('apply_raw_settings', PRESENCE_REFUSAL, document_id=run.floats[0],
-                                 layer=0, raw=dict(dehaze=20)))
-    assert run.source(run.floats[0]) == float_source, 'a refusal changed the float layer'
-    document = run.open_float('presence-zero', texture=0, clarity=0, dehaze=0)
-    assert run.is_float_master(document)
-    reply = run.app.call('redevelop_raw', document_id=document, layer=0,
-                         raw=dict(exposure=0.5, texture=0, clarity=0, dehaze=0))
-    assert reply['ok'] is True, reply
-    assert run.is_float_master(document)
-    recipe = run.source(document)['raw']['recipe']
-    assert recipe['values']['exposure'] == 0.5, recipe['values']
-    assert not (recipe.get('enhancements') or {}).get('presence'), recipe.get('enhancements')
-    run.close(document)
-    return dict(refusals=texts)
+    """Texture, Clarity and Dehaze develop on the float layer through every MCP
+    path (module docstring); the values above white follow rule D, which
+    `scripts/verify_v1x_raw_hdr.py` drives."""
+    plain = run.open_float('presence-plain', lens_correction=False)
+    base = run.float_lattice(plain)
+    opened = run.open_float('presence-open', clarity=20, lens_correction=False)
+    assert run.is_float_master(opened)
+    assert presence_of(run, opened) == dict(texture=0, clarity=20, dehaze=0), presence_of(run, opened)
+    clarity = run.float_lattice(opened)
+    moved = sum(1 for a, b in zip(clarity, base) if a != b)
+    assert moved >= 1, 'clarity 20 changed no lattice point'
+    assert all(all(math.isfinite(v) for v in point) for point in clarity)
+    run.close(opened)
+    steps = {}
+    for tool, raw, expected in (
+            ('redevelop_raw', dict(clarity=20), dict(texture=0, clarity=20, dehaze=0)),
+            ('edit_raw_development', dict(texture=20), dict(texture=20, clarity=20, dehaze=0)),
+            ('apply_raw_settings', dict(dehaze=20), dict(texture=20, clarity=20, dehaze=20))):
+        extra = dict(operations=[]) if tool == 'edit_raw_development' else {}
+        reply = run.app.call(tool, document_id=plain, layer=0, raw=raw, **extra)
+        assert reply.get('ok', True) is True, (tool, reply)
+        assert run.is_float_master(plain), tool
+        assert presence_of(run, plain) == expected, (tool, presence_of(run, plain))
+        lattice = run.float_lattice(plain)
+        if tool == 'redevelop_raw':
+            assert lattice == clarity, 'the redevelop with clarity 20 differs from the open'
+        steps[tool] = sum(1 for a, b in zip(lattice, base) if a != b)
+    reply = run.app.call('redevelop_raw', document_id=plain, layer=0,
+                         raw=dict(texture=0, clarity=0, dehaze=0))
+    assert reply['ok'] is True and run.is_float_master(plain), reply
+    assert presence_of(run, plain) is None, presence_of(run, plain)
+    assert run.float_lattice(plain) == base, 'Presence 0 did not restore the plain lattice'
+    # Through the 16-bit encoding and back: the Presence is kept.
+    reply = run.app.call('redevelop_raw', document_id=plain, layer=0,
+                         raw=dict(output_encoding='sdr16', clarity=20))
+    assert reply['ok'] is True and not run.is_float_master(plain), reply
+    reply = run.app.call('redevelop_raw', document_id=plain, layer=0,
+                         raw=dict(output_encoding='linear_float'))
+    assert reply['ok'] is True and run.is_float_master(plain), reply
+    assert presence_of(run, plain) == dict(texture=0, clarity=20, dehaze=0), presence_of(run, plain)
+    assert run.float_lattice(plain) == clarity, 'the switch back lost or changed the Presence'
+    run.close(plain)
+    return dict(points_moved_by_clarity=moved, points_moved=steps)
 
 
 def local_tone_case(run):
@@ -737,10 +761,33 @@ def local_tone_case(run):
 
 # ----------------------------------------------------------------- main --
 
+CASES = (('open', open_case), ('highlights', highlights_case), ('doubling', doubling_case),
+         ('sdr agreement', agreement_case), ('undo', undo_case), ('rz', rz_case),
+         ('preset and sync', preset_sync_case), ('place', place_case),
+         ('range local', range_case), ('radial local', radial_case),
+         ('encoding switch', switch_case), ('p3', p3_case), ('narrowing', narrowing_case),
+         ('refusals', refusal_case), ('presence', presence_case),
+         ('local tone', local_tone_case))
+
+
+def selected_cases(cases, value):
+    """The (name, step) pairs `--cases` names, in the drive's order; all when
+    it is omitted. An unknown name exits."""
+    if not value:
+        return list(cases)
+    names = [name.strip() for name in value.split(',')]
+    unknown = sorted(set(names) - {name for name, _ in cases})
+    if unknown:
+        raise SystemExit(f'unknown case(s): {", ".join(unknown)}')
+    return [(name, step) for name, step in cases if name in names]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--output', help='folder for the instance, the copies and the receipt')
+    parser.add_argument('--cases', help='comma-separated case names to run (all by default)')
     arguments = parser.parse_args()
+    cases = selected_cases(CASES, arguments.cases)
     output = Path(arguments.output) if arguments.output else Path(
         tempfile.mkdtemp(prefix='rz-v1-raw-float-'))
     output.mkdir(parents=True, exist_ok=True)
@@ -763,22 +810,8 @@ def main():
     else:
         with App(output / 'instance', LIMIT, SlowClient) as app:
             run = Run(app, output)
-            run_case('open', lambda: open_case(run))
-            run_case('highlights', lambda: highlights_case(run))
-            run_case('doubling', lambda: doubling_case(run))
-            run_case('sdr agreement', lambda: agreement_case(run))
-            run_case('undo', lambda: undo_case(run))
-            run_case('rz', lambda: rz_case(run))
-            run_case('preset and sync', lambda: preset_sync_case(run))
-            run_case('place', lambda: place_case(run))
-            run_case('range local', lambda: range_case(run))
-            run_case('radial local', lambda: radial_case(run))
-            run_case('encoding switch', lambda: switch_case(run))
-            run_case('p3', lambda: p3_case(run))
-            run_case('narrowing', lambda: narrowing_case(run))
-            run_case('refusals', lambda: refusal_case(run))
-            run_case('presence', lambda: presence_case(run))
-            run_case('local tone', lambda: local_tone_case(run))
+            for name, step in cases:
+                run_case(name, lambda: step(run))
 
     (output / 'receipt.json').write_text(json.dumps(results, indent=2, default=str) + '\n')
     print(f'receipt: {output / "receipt.json"}')

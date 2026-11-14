@@ -18,7 +18,7 @@ final class RawLocalControls: NSObject, NSTextFieldDelegate {
     private let rangeRows = RawLocalRangeControls()
     private let toneRows = RawLocalToneControls()
     /// False at the 32-bit float (linear) encoding: a local tone refuses there
-    /// (`RawLocalTone.floatRefusal`), so its rows are disabled, as the global Presence rows are.
+    /// (`RawLocalTone.floatRefusal`), so its rows are disabled.
     var toneAvailable = true { didSet { setReady(ready) } }
     private var toolRow: CardControlRow?
     private var buttons: [NSButton] = []

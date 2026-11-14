@@ -26,6 +26,8 @@
 //! continues past a white end point but holds an inside black end point flat at exactly its output
 //! (`Spline::value_float`), so the test includes the points themselves, the float counterpart of
 //! the u16 endpoint test. A NaN or non-positive alpha shows the ground; a NaN channel is not clipped.
+//! [`above_white_float`] (a channel strictly above 1.0) is the one home of Develop's Visualize HDR
+//! test, beside the float endpoint predicate.
 use crate::precision_image::{
     admit, reserved_vec, PrecisionImage, PrecisionStorage, BOOKKEEPING_BYTES,
 };
@@ -135,6 +137,17 @@ pub(crate) fn clipped_channels_float(rgba: [f32; 4], want_high: bool) -> u8 {
             bits
         }
     })
+}
+
+/// True when alpha > 0 and some RGB channel is strictly above 1.0: a value
+/// past SDR white, which Develop's Visualize HDR marks. Exactly 1.0 is white,
+/// not above it (it stays [`clipped_channels_float`]'s highlight). The alpha
+/// rule is that predicate's, and a NaN channel is never above white.
+pub(crate) fn above_white_float(rgba: [f32; 4]) -> bool {
+    if rgba[3].is_nan() || rgba[3] <= 0.0 {
+        return false;
+    }
+    rgba[..3].iter().any(|v| *v > 1.0)
 }
 
 /// The byte display of `image` (straight RGBA8) in `mode`.

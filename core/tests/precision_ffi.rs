@@ -418,6 +418,7 @@ fn null_safety_sweep_every_typed_export() {
         );
         let mut peak = 0f32;
         let mut marked = 0u64;
+        let mut hdr_marked = 0u64;
         assert!(
             !doctored_core::ffi_develop_inspect::dr_precision_image_develop_preview_extended(
                 ptr::null(),
@@ -427,10 +428,12 @@ fn null_safety_sweep_every_typed_export() {
                 1,
                 1,
                 0,
+                ptr::null(),
                 ptr::null_mut(),
                 8,
                 &mut peak,
                 &mut marked,
+                &mut hdr_marked,
                 LIMIT,
                 0,
                 ptr::null(),

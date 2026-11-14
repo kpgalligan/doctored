@@ -1,15 +1,22 @@
 import Foundation
 
-// Develop Presence runs the Filter ▸ Presence kernels on the finished 16-bit development, after
-// locals, vignette and explicit optics and before grain.
+// Develop Presence runs the Filter ▸ Presence kernels on the finished development, 16-bit or
+// 32-bit float, after locals, vignette and explicit optics and before grain.
 
 /// Develop Texture, Clarity and Dehaze: the core `presence` kernel (Dehaze, then Texture
-/// and Clarity of the dehazed picture) applied to the developed, display-encoded u16 output, so
-/// its midtone weight and airlight read the developed tones. It runs after locals, vignette and
-/// explicit source geometry, so the bands and airlight are measured on the frame as published,
-/// and before grain, so it never amplifies synthetic grain. Its radii scale with the long side
-/// (`presence_radii`), which keeps the look the same at any resolution. All three at 0 is off and
-/// is stored as an absent key, never a neutral value.
+/// and Clarity of the dehazed picture) applied to the developed output on its display encoding,
+/// so its midtone weight and airlight read the developed tones. It runs after locals, vignette
+/// and explicit source geometry, so the bands and airlight are measured on the frame as
+/// published, and before grain, so it never amplifies synthetic grain. Its radii scale with the
+/// long side (`presence_radii`), which keeps the look the same at any resolution. All three at 0
+/// is off and is stored as an absent key, never a neutral value.
+///
+/// A 32-bit float (linear) development takes the same request through Filter ▸ Presence's
+/// float rule (`designs/v1-float-editing.md`, rule D): the kernel runs on the layer's display
+/// encoding (the profile's curve on 0…1, continued as a logarithm above white) and only the
+/// components it changed are decoded back, nothing clamped. Dehaze measures its airlight and veil
+/// with RGB clamped to 0…1, so at a positive amount a component above white is returned as read,
+/// and no component moves above `max(value, 1)`.
 struct RawPresenceSettings: Codable, Equatable {
     var texture: Double = 0
     var clarity: Double = 0
@@ -17,8 +24,6 @@ struct RawPresenceSettings: Codable, Equatable {
 
     static let neutral = RawPresenceSettings()
     static let range = -100.0...100.0
-    /// The sentence a 32-bit float (linear) RAW development throws for a nonzero amount.
-    static let floatRefusal = "Texture, Clarity and Dehaze are defined on display-referred values and are not available in a 32-bit float RAW development."
 
     var isNeutral: Bool { texture == 0 && clarity == 0 && dehaze == 0 }
 
@@ -40,16 +45,24 @@ struct RawPresenceSettings: Codable, Equatable {
 }
 
 extension RasterDocument {
-    /// Returns self for nil/neutral Presence or a core no-op; throws without RGBA16 storage.
-    /// With no `control` it runs under a fresh one: an uncontrolled core call is capped at
-    /// `MAX_DESTRUCTIVE_WORK`, which refuses a 45 MP development, while a controlled job is
-    /// admitted by memory (`destructive_work_cap`).
+    /// Returns self for nil/neutral Presence or a core no-op; throws without RGBA16 or 32-bit
+    /// float storage. With no `control` it runs under a fresh one: an uncontrolled core call is
+    /// capped at `MAX_DESTRUCTIVE_WORK`, which refuses a 45 MP development, while a controlled job
+    /// is admitted by memory (`destructive_work_cap`).
+    ///
+    /// At float its charge is the core's own float selected-edit plan for `presence`
+    /// (`float_filter_apply`, measured at 24 MP). The host charges around it (the decode's
+    /// `RawSourceWork.scratch` with `floatPerPixel`, a Develop session's 24 B/px) were measured
+    /// with float grain, not with float Presence. The two stages' measured footprints at 24 MP
+    /// are 1,152,697,160 (Presence) and 1,152,664,416 bytes (grain), each runs as one
+    /// `selectedEdit` stage after optics, and they run one after the other, so the peak is one
+    /// stage's.
     func applyingRawPresence(_ presence: RawPresenceSettings?,
                              control: RasterJobControl? = nil) throws -> RasterDocument {
         guard let presence, !presence.isNeutral else { return self }
         try presence.validate()
         guard let precision else {
-            throw DoctoredCoreError(message: "RAW Presence requires genuine RGBA16 storage.")
+            throw DoctoredCoreError(message: "RAW Presence requires genuine RGBA16 or 32-bit float storage.")
         }
         let request = try RawLocalJSON.string(["layer": 0, "op": "presence", "params": [
             "texture": presence.texture, "clarity": presence.clarity, "dehaze": presence.dehaze]])

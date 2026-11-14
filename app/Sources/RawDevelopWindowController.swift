@@ -308,7 +308,6 @@ final class RawDevelopWindowController: NSObject {
         }
         if let descriptor {
             let enhancements = RawEnhancementControls(recipe: descriptor.recipe)
-            enhancements.presenceAvailable = encoding != .linearFloat
             enhancements.onChange = { [weak self] in self?.requestPreview() }
             enhancementControls = enhancements
             rows.append(enhancements.view)
@@ -510,10 +509,9 @@ final class RawDevelopWindowController: NSObject {
     /// Switches the card between the 16-bit SDR master and the 32-bit float
     /// (linear) development. Entering float sets the tone curve to 0,
     /// scene-linear, and leaves its row live (Shadows stays inert while
-    /// it is 0); grain stays live (#4, on the display encoding); the
-    /// Presence rows (Texture, Clarity, Dehaze) and the local tone rows are
-    /// disabled. Back at 16 bits the curve
-    /// returns to the value it had, or the file's own.
+    /// it is 0); grain and the Presence rows (Texture, Clarity, Dehaze) stay
+    /// live, on the display encoding; the local tone rows are disabled. Back
+    /// at 16 bits the curve returns to the value it had, or the file's own.
     func setEncoding(_ next: RawOutputEncoding) {
         guard next != encoding else { return }
         encoding = next
@@ -536,7 +534,6 @@ final class RawDevelopWindowController: NSObject {
         for (index, knob) in knobs.enumerated() where knob.startsAtZeroAtFloat {
             knobRows[index].setValue(knob.read(values))
         }
-        enhancementControls?.presenceAvailable = encoding != .linearFloat
         localControls?.toneAvailable = encoding != .linearFloat
         encodingRow?.setSelected(RawOutputEncoding.allCases.firstIndex(of: encoding) ?? 0)
         if let row = floatNoteRow, row.isHidden != (encoding != .linearFloat) {

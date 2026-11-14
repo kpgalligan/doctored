@@ -119,7 +119,7 @@ extension RawLocalTone {
 }
 
 extension RawLocalTone {
-    /// The float depth's one check, beside `RawPresenceSettings.floatRefusal`: no saved
+    /// The float depth's one check: no saved
     /// local and no requested `create`/`update` may carry a tone. `RawDevelopmentRecipe.updating`
     /// runs it over the saved locals when the encoding is `linearFloat` (Develop, Redevelop RAW,
     /// presets, Sync Settings), and `RawLocalWork.request` over the operations (Develop's local

@@ -579,8 +579,8 @@ Detail belongs in the source file's own header comment.
 - `raw_source_geometry.rs` / `raw_local_remap.rs` / `ffi_raw_geometry.rs` — strict inverse EXIF/affine/lens maps, exact permutation copies, f64 u16 image/mask sampling, plans; normalised mask resize.
 - `host_pixels.rs` / `pixel_orientation.rs` / `ffi_host_pixels.rs` — RGBA8/16, RGB, BGRA, RGBX, ARGB16 BE, packed 10:10:10, rgba32f (HDR); alpha policy, padded rows, EXIF permutation.
 - `heif_container.rs` / `ffi_heif_container.rs` — the primary item's colour facts and `prem` reference from an ISO-BMFF/HEIF file's own boxes, no decode.
-- `develop_inspect.rs` / `ffi_develop_inspect.rs` — read-only inspection of retained u16/f32 masters before geometry or retouch; the f32 rule-X preview at Fit/100 % with float clipping.
-- `clip_display.rs` / `ffi_clip_display.rs` — the ⌥-drag Levels/Curves clipping display: a transient threshold image of an edited composite; u16 0/65535, f32 >= 1.0 / <= 0.0.
+- `develop_inspect.rs` / `ffi_develop_inspect.rs` — read-only inspection of retained u16/f32 masters before geometry or retouch; the f32 rule-X preview at Fit/100 %, float clipping, HDR marker.
+- `clip_display.rs` / `ffi_clip_display.rs` — the ⌥-drag Levels/Curves clipping display: a transient threshold image of an edited composite; u16 0/65535, f32 >= 1.0 / <= 0.0; the > 1.0 HDR predicate.
 - `precision_codec.rs` / `precision_png.rs` / `precision_io.rs` / `ffi_precision.rs` — preserving RGB/RGBA16 PNG/TIFF input, metadata sidecar/TIFF encoder, native pixel payloads, typed C owners.
 - `png_declared.rs` — kernel: a PNG's bare `gAMA`/`cHRM` (no `iCCP`, no `sRGB`) as the v4 RGB or Gray profile it describes, read in an `iCCP`'s place by every PNG open.
 - `precision_png_rows.rs` — the banded native RGBA16 PNG reader: rows decoded straight into 256×256 tiles, with no whole-plane decode buffer beside them.

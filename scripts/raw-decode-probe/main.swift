@@ -187,7 +187,8 @@ if first == "calibrate" { calibrate(); exit(0) }
 let baseline = first == "baseline"
 let rest = baseline ? Array(arguments.dropFirst()) : arguments
 guard rest.count >= 3, let depth = Int(rest[2]), depth == 8 || depth == 16 || depth == 32 else {
-    fail("usage: probe [baseline] <open|warm|cold|prep|preview|resident|save|restore|local|publish|menu> "
+    fail("usage: probe [baseline] <open|warm|cold|prep|preview|resident|save|restore|local|publish|menu|"
+        + "grain|frame|hdrlocal> "
         + "<file> <16|8|32> [out.rz|shape]")
 }
 /// The float development's cases (`measure.py --float`).
@@ -756,8 +757,56 @@ func floatFrame() throws {
     withExtendedLifetime((snapshot, first, before, after)) {}
 }
 
+/// HL (a functional check, not a measurement; no twin, no interval): Layer ▸ Redevelop RAW…'s
+/// locals session on the float development with Visualize HDR at Fit. The first request
+/// (exposure 2) develops a fresh candidate; the second only turns Clipping on, so the session
+/// reuses that candidate and charges a viewport-only frame. `hdr_local_ok` is true when both
+/// frames drew the after side's extended image with a positive HDR count, false when either fell
+/// back to the SDR view (a reused candidate once charged 64 MiB, below the extended Fit image's
+/// own reserve). `probe hdrlocal <camera.NEF> 32`.
+func hdrLocal() throws {
+    guard floatDepth else { fail("hdrlocal runs at depth 32") }
+    let source = try openPhase2Source()
+    let session = try step { try RawLocalDevelopSession(source: source, layer: 0) }
+    var settings = RawDevelopSettings()
+    settings.exposure = 2
+    var viewport = RawDevelopViewport()
+    viewport.visualizeHDR = true
+    func frame(_ viewport: RawDevelopViewport, _ label: String) -> RawDevelopPreviewFrame? {
+        var shown: RawDevelopPreviewFrame?
+        var done = false
+        session.onFrame = { frame, _, _ in shown = frame }
+        session.onStatus = { status, ready in
+            guard ready || status != "Updating native RAW development…" else { return }
+            done = true
+            if !ready { fields["\(label)_status"] = status }
+        }
+        session.request(settings: settings, viewport: viewport, selected: nil, overlay: false)
+        let deadline = Date().addingTimeInterval(600)
+        while !done, Date() < deadline {
+            _ = RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.02))
+        }
+        session.onFrame = nil
+        session.onStatus = nil
+        return shown
+    }
+    let first = frame(viewport, "first")
+    viewport.clipping = 2
+    let second = frame(viewport, "second")
+    // nil (JSON null) for a frame that never came or drew the after side SDR.
+    func count(_ frame: RawDevelopPreviewFrame?) -> Any {
+        (frame?.afterHDRMarked).map { NSNumber(value: $0) as Any } ?? NSNull()
+    }
+    fields["first_hdr_marked"] = count(first)
+    fields["second_hdr_marked"] = count(second)
+    fields["hdr_local_ok"] = (first?.afterHDRMarked ?? 0) > 0 && (second?.afterHDRMarked ?? 0) > 0
+    withExtendedLifetime((source, session)) {}
+}
+
 do {
     switch mode {
+    case "hdrlocal":
+        try hdrLocal()
     case "grain":
         try floatGrain()
     case "frame":
@@ -855,7 +904,7 @@ do {
         if floatDepth { requested.outputEncoding = .linearFloat }
         var desired = captured
         // VP: the after develop runs Presence too, as the import preview does once a
-        // slider moved (16/8 only: the float development refuses nonzero Presence).
+        // slider moved (`measure.py` lists VP16 only; the float encoding runs it as well).
         if shapeName == "VL" { requested.lensCorrection = true }
         // VG: the after develop runs grain, at the float encoding too.
         if shapeName == "VG" { requested.grain = probeGrain }

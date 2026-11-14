@@ -28,8 +28,14 @@ extension AgentServer {
     /// 32-bit float (linear) master is inspected as the window shows it,
     /// clipped to SDR (`RasterPrecisionImage.developInspection`), and the
     /// reply's `hdr_preview` mirrors the window's HDR Fit preview.
+    /// `visualize_hdr` mirrors the preview's Visualize HDR checkbox.
     func inspectRawDevelopment(_ arguments: [String: Any]) throws -> String {
-        try rawWorkflowKeys(arguments, allowed: ["document_id", "layer", "raw", "region", "clipping"])
+        try rawWorkflowKeys(arguments, allowed: ["document_id", "layer", "raw", "region", "clipping",
+                                                 "visualize_hdr"])
+        let visualizeHDR: Bool
+        if arguments["visualize_hdr"] == nil { visualizeHDR = false }
+        else if let value = boolArg(arguments, "visualize_hdr") { visualizeHDR = value }
+        else { throw ToolError(message: "visualize_hdr must be true or false.") }
         let document = try target(arguments)
         let capture = try ImageSourceCapture(document)
         let layer = try rawWorkflowLayer(arguments, document: document)
@@ -55,15 +61,17 @@ extension AgentServer {
         // The Develop window's HDR preview (#4): each f32 side's
         // extended image at the window's Fit, or at the 100 % `region`
         // (divisor 1), with `clipping`'s float markers (at or below 0.0, at
-        // or above 1.0): its peak (markers excluded), divisor and marked
-        // pixel count; null for a u16 side, and for a side whose extended
-        // image is refused (the window falls back to SDR there, so the
-        // mirror reports, never fails).
+        // or above 1.0) and, with `visualize_hdr`, the HDR marker (above
+        // 1.0, winning over a Clipping marker): its peak (markers excluded),
+        // divisor, Clipping-marked and HDR-marked pixel counts; null for a u16
+        // side, and for a side whose extended image is refused (the window
+        // falls back to SDR there, so the mirror reports, never fails).
         if before.isFloatStorage || after.isFloatStorage {
             func extended(_ image: RasterPrecisionImage) -> RawDevelopExtendedImage? {
                 let r = inspection.detail.map { ($0.x, $0.y, $0.width, $0.height, 1) }
                     ?? RawDevelopViewport().region(image)
-                return try? RawDevelopExtendedImage.make(image, region: r, clipping: inspection.clipping)
+                return try? RawDevelopExtendedImage.make(image, region: r, clipping: inspection.clipping,
+                                                         visualizeHDR: visualizeHDR)
             }
             let beforeImage = extended(before)
             let afterImage = after === before ? beforeImage : extended(after)
@@ -72,9 +80,11 @@ extension AgentServer {
                 "before_peak": number(beforeImage.map { Double($0.peak) }),
                 "before_divisor": number(beforeImage?.divisor),
                 "before_marked": number(beforeImage?.marked),
+                "before_hdr_marked": number(beforeImage?.hdrMarked),
                 "after_peak": number(afterImage.map { Double($0.peak) }),
                 "after_divisor": number(afterImage?.divisor),
-                "after_marked": number(afterImage?.marked)]
+                "after_marked": number(afterImage?.marked),
+                "after_hdr_marked": number(afterImage?.hdrMarked)]
         }
         return try rawInspectionResult(inspection, report: report)
     }

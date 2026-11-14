@@ -26,8 +26,10 @@
 //! plan (`float_view::extended_display_scratch`) at the preview's own size. Its clipping markers
 //! OR every alpha-positive sample of the cell through `clipped_channels_float` (at or below 0.0,
 //! at or above 1.0: the ⌥ display's inclusive float rule) and are written as opaque binary16
-//! blue/red/magenta; the peak it returns excludes them.
-use crate::clip_display::{clipped_channels, clipped_channels_float};
+//! blue/red/magenta; the peak it returns excludes them. Visualize HDR's marker ORs the same
+//! samples through `above_white_float` (strictly above 1.0) and writes the host's one colour,
+//! winning over a Clipping marker in its cells; its count is kept apart from Clipping's.
+use crate::clip_display::{above_white_float, clipped_channels, clipped_channels_float};
 use crate::display_encoding::extended_display_sample;
 use crate::doc::DrDocument;
 use crate::doc_transform::{Affine, SourceMap};
@@ -293,24 +295,32 @@ impl PrecisionImage {
     /// samples has an RGB channel at or below 0.0 / at or above 1.0
     /// (`clipped_channels_float`, the ⌥ display's inclusive float rule): the
     /// cell is written opaque binary16 blue (0,0,1,1), red (1,0,0,1) or
-    /// magenta (1,0,1,1). Returns `(peak, marked)`: the largest RGB component
-    /// of the picture samples (markers excluded, so clipping 0 writes exactly
-    /// what it always did) and the count of marked output pixels. Admits
+    /// magenta (1,0,1,1). `hdr_marker` (Visualize HDR) marks a cell any of
+    /// whose alpha-positive samples has an RGB channel strictly above 1.0
+    /// (`above_white_float`) in that one colour, linear RGB in the image's
+    /// primaries, written opaque at binary16 nearest-even; it wins over a
+    /// Clipping marker in the cells it marks. Returns `(peak, marked,
+    /// hdr_marked)`: the largest RGB component of the picture samples
+    /// (markers excluded, so clipping 0 with no HDR marker writes exactly
+    /// what it always did), the count of output pixels written in a Clipping
+    /// colour and the count written in the HDR one (disjoint). Admits
     /// `extended_display_scratch` at the output size, the EDR view's measured
     /// plan. Refuses a region outside the image, u16 storage, clipping past 3,
-    /// divisor 0, an output side past 1600, an `out` that is not exactly the
-    /// output's bytes, scratch past `limit` beside `other` and a cancel. The
-    /// walk writes a private buffer (inside the plan) copied into `out` only
-    /// once it completes, so every refusal, a cancel included, leaves `out`
-    /// as it was.
+    /// an HDR marker component that is not finite or outside 0…1, divisor 0,
+    /// an output side past 1600, an `out` that is not exactly the output's
+    /// bytes, scratch past `limit` beside `other` and a cancel. The walk
+    /// writes a private buffer (inside the plan) copied into `out` only once
+    /// it completes, so every refusal, a cancel included, leaves `out` as it
+    /// was.
     pub fn develop_preview_extended(
         &self,
         preview: DevelopPreview,
+        hdr_marker: Option<[f32; 3]>,
         out: &mut [u8],
         limit: u64,
         other: u64,
         control: Option<&DrJobControl>,
-    ) -> Result<(f32, u64), String> {
+    ) -> Result<(f32, u64, u64), String> {
         let DevelopPreview {
             region,
             divisor,
@@ -326,6 +336,22 @@ impl PrecisionImage {
         if clipping > 3 {
             return Err("develop extended preview needs clipping flags 0 to 3".into());
         }
+        // Binary16 0.0 and 1.0: the markers are opaque display primaries.
+        const ZERO: u16 = 0x0000;
+        const ONE: u16 = 0x3C00;
+        // The HDR marker: opaque, each component rounded once to binary16.
+        let hdr = match hdr_marker {
+            Some([r, g, b]) if [r, g, b].iter().all(|v| (0.0..=1.0).contains(v)) => {
+                let bits = |v: f32| half::f16::from_f32(v).to_bits();
+                Some([bits(r), bits(g), bits(b), ONE])
+            }
+            Some(_) => {
+                return Err(
+                    "develop extended preview needs HDR marker components from 0 to 1".into(),
+                )
+            }
+            None => None,
+        };
         let expected = extended_preview_len(region, divisor)?;
         if out.len() != expected {
             return Err(
@@ -337,11 +363,9 @@ impl PrecisionImage {
         let scratch = extended_display_scratch(width, height)?;
         admit(self.retained_bytes(), scratch, other, limit)?;
         job.reserve(scratch)?;
-        // Binary16 0.0 and 1.0: the markers are opaque display primaries.
-        const ZERO: u16 = 0x0000;
-        const ONE: u16 = 0x3C00;
         let mut peak = f32::NEG_INFINITY;
         let mut marked = 0u64;
+        let mut hdr_marked = 0u64;
         let mut visited = 0;
         let mut written = reserved_vec(expected)?;
         for row in 0..height {
@@ -357,8 +381,8 @@ impl PrecisionImage {
                 for bits in &sample[..3] {
                     peak = peak.max(half::f16::from_bits(*bits).to_f32());
                 }
-                if clipping != 0 {
-                    let (mut low, mut high) = (false, false);
+                if clipping != 0 || hdr.is_some() {
+                    let (mut low, mut high, mut above) = (false, false, false);
                     for y in y0..y1 {
                         for x in x0..x1 {
                             job.every(visited)?;
@@ -368,17 +392,27 @@ impl PrecisionImage {
                                 .ok_or("develop extended preview sample outside its source")?;
                             low |= clipping & 1 != 0 && clipped_channels_float(p, false) != 0;
                             high |= clipping & 2 != 0 && clipped_channels_float(p, true) != 0;
+                            above |= hdr.is_some() && above_white_float(p);
                         }
                     }
-                    let marker = match (low, high) {
+                    let clipped = match (low, high) {
                         (true, true) => Some([ONE, ZERO, ONE, ONE]),
                         (true, false) => Some([ZERO, ZERO, ONE, ONE]),
                         (false, true) => Some([ONE, ZERO, ZERO, ONE]),
                         _ => None,
                     };
-                    if let Some(marker) = marker {
-                        sample = marker;
-                        marked += 1;
+                    // Visualize HDR wins in a cell it marks, so red elsewhere
+                    // means "at white, nothing above".
+                    match (hdr.filter(|_| above), clipped) {
+                        (Some(colour), _) => {
+                            sample = colour;
+                            hdr_marked += 1;
+                        }
+                        (None, Some(marker)) => {
+                            sample = marker;
+                            marked += 1;
+                        }
+                        (None, None) => {}
                     }
                 }
                 for bits in sample {
@@ -388,6 +422,6 @@ impl PrecisionImage {
         }
         job.report(1., 5)?;
         out.copy_from_slice(&written);
-        Ok((peak, marked))
+        Ok((peak, marked, hdr_marked))
     }
 }
