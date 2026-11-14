@@ -53,6 +53,15 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   no-flatness one. Photoshop read both forms back in a take. `.doctored` word 114 (`clipping_path_native`, no
   table, the key in the `PATH` entry) is written only when a path is the clipping path. Paths panel ▸ Clipping
   Path and `set_clipping_path`.
+  - **Flatness.** The core reads it from the tail (`psd_path_records::clipping_flatness`: the first four bytes
+    as 16.16, none under four bytes or at 0 or less) and sets it there, keeping every later byte; the FFI
+    list carries it as `clipping.flatness` (the `.doctored` entry keeps the tail alone, so no DRDC word). An
+    edit is 0 (none) or 0.2–100 device pixels, the range PostScript's `setflat` takes, refused otherwise; a
+    file's own value outside it is kept, shown as it is, and handed back unchanged. A value whose 16.16 word
+    the tail already holds changes nothing, so the app writing the list back never rewrites a file's tail.
+    `list_paths` shows `clipping_flatness`, the panel's subtitle "flatness N px", and Paths panel ▸ Clipping
+    Path Flatness… (a sheet) and `set_clipping_path`'s `flatness` edit it; a path newly made the clipping
+    path has none.
 - **Operations**, each a core function with an MCP tool (`AgentServer+Paths.swift`):
   - coverage: `artwork_coverage::rasterize` over the path's commands, the one rasterizer shapes use;
     `anti_alias: false` cuts at half coverage. `path_to_selection` commits it with mode and feather.
@@ -87,8 +96,8 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   on another anchor deletes. With no current path the Pen creates or replaces the work path. Each gesture is
   one undo step. `dr_path_hit` takes a `handles` flag so a plain click reaches the segment under a handle tip.
 - **Paths panel**, the right panel's sixth tab: the active layer's vector mask (when it has one), the work
-  path and the saved paths; rename (which saves the work path), duplicate, delete, Clipping Path, Make
-  Selection…, Fill Path, Stroke Path, Make Work Path… and Add Vector Mask. Fill uses the foreground colour; Stroke uses the
+  path and the saved paths; rename (which saves the work path), duplicate, delete, Clipping Path, Clipping
+  Path Flatness…, Make Selection…, Fill Path, Stroke Path, Make Work Path… and Add Vector Mask. Fill uses the foreground colour; Stroke uses the
   Brush tool's stored options. Layer ▸ Vector Mask has Current Path, Reveal All, Delete, Enable and Link;
   Select ▸ Make Work Path… traces the selection.
 - **MCP** (fourteen tools): `list_paths`, `set_path`, `rename_path`, `duplicate_path`, `delete_path`,
@@ -121,7 +130,10 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   (the rendering dropped, the user's mask its raster part); any other (subpaths that subtract, intersect or
   exclude, a first subpath that subtracts, the anchor cap) becomes a raster mask: the file's rendering, or
   at 16 bits a bake of the path under its operations (`vector_mask_combine`), each with a sentence. The bake
-  draws only a mask within 4,096 subpaths, 32,768 anchors and 2³⁰ samples of canvas passes (one pass a subpath);
+  (`psd_vector_mask_bake`) draws each subpath over its own window, its control hull padded one pixel and clamped
+  to the canvas, and an intersect also clears what the mask held outside it; the picture is the whole-canvas
+  draw's (`core/tests/psd_vector_mask_bake.rs`). It draws only a mask within 4,096 subpaths, 32,768 anchors and
+  2³⁰ samples of those windows (an intersect charged the box it clears, no subpath more than the canvas);
   past them the mask is dropped with the dropped-mask sentence, and a mask the rasterizer refuses refuses the
   layered open. Every
   layer composites as the file's stored composite (8 bits) and every 16-bit bake equals the 8-bit rendering

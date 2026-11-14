@@ -118,8 +118,8 @@ enum BitmapDocument {
         "copy:", "toggleQuickMask:", "showLiquify:", "lockTransparency:", "lockPixels:",
         "lockPosition:", "lockAll:", "setLayerLabel:", "revealAllCanvas:", "showFileInfo:",
         "showSnapshots:", "makeWorkPath:", "makeSelectionFromPath:", "deleteCurrentPath:",
-        "duplicateCurrentPath:", "toggleClippingPath:", "fillCurrentPath:", "strokeCurrentPath:",
-        "toggleColorSamplers:",
+        "duplicateCurrentPath:", "toggleClippingPath:", "editClippingPathFlatness:",
+        "fillCurrentPath:", "strokeCurrentPath:", "toggleColorSamplers:",
         "clearColorSamplers:", "newView:", "showProofSetup:", "toggleProofColors:",
         "applyWorkingProof:", "applyProofPresetFromMenu:",
     ]

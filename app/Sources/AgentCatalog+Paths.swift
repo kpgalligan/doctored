@@ -60,7 +60,8 @@ extension AgentServer {
                     + "export writes them and its import reads them back (the work path and "
                     + "each saved path by name), and so does a flat TIFF in every colour mode "
                     + "but Duotone; no other flat format carries them. The clipping path's row "
-                    + "has clipping: true (set_clipping_path). The Paths panel.",
+                    + "has clipping: true and clipping_flatness, its flatness in device pixels "
+                    + "(0 for none; set_clipping_path). The Paths panel.",
                 ["document_id": doc]),
             tool(
                 "set_path",
@@ -120,13 +121,22 @@ extension AgentServer {
                     + "to — or, with path null, clears it. A document has at most one; setting "
                     + "another moves the designation. The work path cannot be it (save it first "
                     + "with rename_path). Renaming keeps it, deleting the path clears it, a "
-                    + "duplicate is not it. Already so answers changed:false. ONE undo step. "
-                    + "Paths panel ▸ Clipping Path.",
+                    + "duplicate is not it. flatness sets the clipping path's flatness, which "
+                    + "the file carries for the output device (the reply reads it back). "
+                    + "Already so answers changed:false. ONE undo step. Paths panel ▸ Clipping "
+                    + "Path, and ▸ Clipping Path Flatness….",
                 [
                     "path": [
                         "type": ["string", "null"],
                         "description": "A saved path's name (list_paths), or null to clear the "
                             + "clipping path. Required.",
+                    ],
+                    "flatness": [
+                        "type": "number",
+                        "description": "Device pixels: 0 for none, or from 0.2 to 100. Omitted, "
+                            + "the path keeps the flatness it has as the clipping path, and a "
+                            + "path newly made it has none. A file's own value outside the range "
+                            + "is kept as read (list_paths' clipping_flatness). Needs a path.",
                     ],
                     "document_id": doc,
                 ], required: ["path"]),

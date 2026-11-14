@@ -151,6 +151,8 @@ mod psd_stroke_pattern;
 mod psd_tests;
 #[path = "psd_texture.rs"]
 mod psd_texture;
+#[path = "psd_vector_mask_bake.rs"]
+mod psd_vector_mask_bake;
 #[path = "psd_wide_color.rs"]
 mod psd_wide_color;
 #[path = "psd_zip16.rs"]

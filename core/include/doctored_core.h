@@ -4032,12 +4032,25 @@ DrDocument *dr_doc_with_color_samplers(const DrDocument *doc, const uint32_t *xy
  *
  * PATH-LIST JSON:
  *   {"paths":[{"id":u64,"name":string,"kind":"work"|"saved",
- *              "clipping":{"tail":hex}?, ...shape}]}
+ *              "clipping":{"tail":hex,"flatness":f}?, ...shape}]}
  * "clipping", present on at most one entry, makes that saved path the
  * document's CLIPPING PATH; "tail" is the lowercase hex of the bytes a
  * file's resource 2999 held after the path's name, written back after it
  * ("" or absent for a designation made here, which writes the name alone).
- * Absent or null is not the clipping path.
+ * Absent or null is not the clipping path. "flatness" is the tail's
+ * flatness in device pixels as the core reads it (a 16.16 number, shown to
+ * four decimals when that reads back to the same word; 0 for none, a tail
+ * under four bytes or a value of 0 or less). On input it may be omitted or
+ * null (the tail as given), or a number that sets the flatness: the tail's
+ * first four bytes become its 16.16 word and every later byte is kept (a
+ * tail under four bytes gets the u16 1 after it; flatness 0 with that u16 1
+ * is the empty tail). A value whose word the tail already holds changes
+ * nothing, so a list read and handed back is unchanged. A new value must be
+ * 0 or from 0.2 to 100 ("a clipping path's flatness must be 0 (none) or
+ * from 0.2 to 100 device pixels"); a file's own value outside that range is
+ * read as it is and handed back unchanged. A "flatness" that is not a number
+ * is refused with "a path's clipping must be an object with a hex tail and a
+ * numeric flatness". The saved form (.rz's PATH table) keeps "tail" alone.
  * LIST RULES, each refused with its own sentence: at most dr_max_paths()
  * entries; at most one "work" entry — the unnamed scratch path, always
  * stored first and always named "Work Path" ("name" may be omitted on it);

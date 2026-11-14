@@ -698,11 +698,14 @@ fn masked_raster(canvas: [u32; 2], body: &[u8]) -> Vec<u8> {
 }
 
 /// The import draws a vector mask it does not carry one subpath at a time,
-/// each a pass over the canvas, so it draws only a mask within the path
-/// caps (4,096 subpaths, 32,768 anchors) and within 2³⁰ samples of passes;
-/// any other is dropped with the dropped-mask sentence and never drawn.
+/// each over its own window (its control hull, padded and clamped to the
+/// canvas; an Intersect also clears the rest of what the mask held so far),
+/// so it draws only a mask within the path caps (4,096 subpaths, 32,768
+/// anchors) and within 2³⁰ samples of those windows; any other is dropped
+/// with the dropped-mask sentence and never drawn.
 #[test]
 fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
+    use doctored_core::psd_vector_mask_bake::vmsk_bakes;
     let canvas = (64.0, 48.0);
     let triangle = |k: usize, operation: i16| {
         let x = (k % 60) as f64;
@@ -712,27 +715,69 @@ fn a_vector_mask_past_the_drawing_caps_is_dropped_with_its_sentence() {
             canvas,
         )
     };
-    // Two subpaths, the second subtracting: drawn on a small canvas, and not
-    // on one where two passes are past the sample cap.
+    let rectangle = |x0: f64, y0: f64, x1: f64, y1: f64, operation: i16| {
+        closed_subpath(&[(x0, y0), (x1, y0), (x1, y1), (x0, y1)], operation, canvas)
+    };
+    let huge = (30_000, 30_000);
+    // Two small subpaths, the second subtracting: drawn on a small canvas,
+    // and on a large one, where their windows are a small part of it.
     let two = vmsk(0, &[triangle(0, 1), triangle(1, 2)]);
-    assert!(doctored_core::psd_vector_mask_bake::vmsk_bakes(
-        &two,
-        (64, 48)
-    ));
-    assert!(!doctored_core::psd_vector_mask_bake::vmsk_bakes(
-        &two,
-        (30_000, 30_000)
-    ));
+    assert!(vmsk_bakes(&two, (64, 48)));
+    assert!(vmsk_bakes(&two, huge), "two small windows on 30000 × 30000");
+    // Two subpaths over the whole canvas are two canvases, past 2³⁰ there.
+    let whole = vmsk(
+        0,
+        &[
+            rectangle(0.0, 0.0, 64.0, 48.0, 1),
+            rectangle(0.0, 0.0, 64.0, 48.0, 2),
+        ],
+    );
+    assert!(vmsk_bakes(&whole, (64, 48)));
+    assert!(!vmsk_bakes(&whole, huge), "two whole-canvas windows");
+    // A first subpath that subtracts starts from all pixels: the first
+    // Intersect clears the canvas outside its window (one canvas), and the
+    // second is charged only the small window the first left.
+    let narrowed = vmsk(
+        0,
+        &[
+            rectangle(8.0, 8.0, 12.0, 12.0, 2),
+            rectangle(20.0, 20.0, 24.0, 24.0, 3),
+            rectangle(21.0, 21.0, 23.0, 23.0, 3),
+        ],
+    );
+    assert!(
+        vmsk_bakes(&narrowed, huge),
+        "one canvas, then small windows"
+    );
+    // From all pixels, a whole-canvas add, then an Intersect that clears
+    // the whole canvas: two canvases.
+    let widened = vmsk(
+        1,
+        &[
+            rectangle(0.0, 0.0, 64.0, 48.0, 1),
+            rectangle(20.0, 20.0, 24.0, 24.0, 3),
+        ],
+    );
+    assert!(!vmsk_bakes(&widened, huge), "an Intersect over a full mask");
+    // 513 whole-canvas windows on 2048 × 1024 are past 2³⁰ (512 of them
+    // reach it): the import drops that mask with its sentence.
+    let full: Vec<Vec<u8>> = (0..513)
+        .map(|k| rectangle(0.0, 0.0, 64.0, 48.0, if k == 0 { 1 } else { 2 }))
+        .collect();
+    let body = vmsk(0, &full);
+    assert!(vmsk_bakes(&vmsk(0, &full[..512]), (2048, 1024)));
+    assert!(!vmsk_bakes(&body, (2048, 1024)));
+    let dir = TempDir::new().unwrap();
+    let file = dir.path().join("passes.psd");
+    std::fs::write(&file, masked_raster([2048, 1024], &body)).unwrap();
+    let losses = common::psd_photoshop::strings(&import_report(&file), "verified_losses");
+    assert!(losses.iter().any(|l| l.contains(DROPPED)), "{losses:?}");
     // One subpath past the subpath cap.
     let many: Vec<Vec<u8>> = (0..4097)
         .map(|k| triangle(k, if k == 0 { 1 } else { 2 }))
         .collect();
     let body = vmsk(0, &many);
-    assert!(!doctored_core::psd_vector_mask_bake::vmsk_bakes(
-        &body,
-        (64, 48)
-    ));
-    let dir = TempDir::new().unwrap();
+    assert!(!vmsk_bakes(&body, (64, 48)));
     let file = dir.path().join("many.psd");
     std::fs::write(&file, masked_raster([64, 48], &body)).unwrap();
     let losses = common::psd_photoshop::strings(&import_report(&file), "verified_losses");

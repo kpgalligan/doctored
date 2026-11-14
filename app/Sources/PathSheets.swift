@@ -1,6 +1,6 @@
 import AppKit
 
-// The Paths panel's two dialogs. Each only CHOOSES: its commit closure is handed the values
+// The Paths panel's three dialogs. Each only CHOOSES: its commit closure is handed the values
 // and the editor runs the MCP step they describe (`EditorViewController+Paths.swift`), so the
 // sheet, the recorded Action and an agent's call are one path.
 
@@ -170,6 +170,86 @@ final class MakeWorkPathSheetController: NSViewController {
         }
         dismiss(self)
         onCommit(tolerance)
+    }
+
+    @objc private func cancelClicked(_ sender: Any?) {
+        dismiss(self)
+    }
+}
+
+/// Paths panel ▸ Clipping Path Flatness…: the clipping path's flatness, the
+/// tolerance in device pixels an output device flattens its curves to.
+/// `set_clipping_path`'s `flatness`.
+final class ClippingFlatnessSheetController: NSViewController {
+    private let flatness: Double
+    private let onCommit: (_ flatness: Double) -> Void
+    private let flatnessField = NSTextField(string: "")
+    /// The field's value as first shown, so Apply on an untouched field
+    /// (a file's own value, which may lie outside the range) changes nothing.
+    private var shown = 0.0
+
+    /// `flatness` is the clipping path's current one, 0 for none.
+    init(flatness: Double, onCommit: @escaping (_ flatness: Double) -> Void) {
+        self.flatness = flatness
+        self.onCommit = onCommit
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("ClippingFlatnessSheetController does not support NSCoder")
+    }
+
+    override func loadView() {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 4
+        flatnessField.formatter = formatter
+        if flatness > 0 { flatnessField.doubleValue = flatness }
+        shown = flatnessField.doubleValue
+        flatnessField.placeholderString = "none"
+        flatnessField.widthAnchor.constraint(equalToConstant: 80).isActive = true
+        DSField.style(flatnessField)
+        let unit = NSTextField(labelWithString: "px")
+        unit.font = DS.mono(13)
+        unit.textColor = DS.textMuted
+        let row = NSStackView(views: [flatnessField, unit])
+        row.orientation = .horizontal
+        row.spacing = 8
+
+        let grid = NSGridView(views: [[fieldLabel("Flatness:"), row]])
+        grid.rowSpacing = 10
+        grid.columnSpacing = 12
+        grid.column(at: 0).xPlacement = .trailing
+        grid.column(at: 0).width = 106
+
+        let cancelButton = sheetCancelButton(target: self, action: #selector(cancelClicked(_:)))
+        let applyButton = sheetApplyButton(target: self, action: #selector(applyClicked(_:)))
+        view = makeSheetView(
+            title: "Clipping path flatness",
+            hint: "The tolerance, in device pixels, an output device flattens the clipping "
+                + "path's curves to. A PSD, PSB or TIFF carries it with the clipping path. Empty "
+                + "or 0 sets none.",
+            content: grid,
+            buttonRow: makeButtonRow(
+                cancel: cancelButton, apply: applyButton,
+                leading: [sheetFootnote("0.2 – 100 px, empty for none")]))
+    }
+
+    @objc private func applyClicked(_ sender: Any?) {
+        let empty = flatnessField.stringValue.trimmingCharacters(in: .whitespaces).isEmpty
+        let value = empty ? 0 : flatnessField.doubleValue
+        guard value != shown else {
+            dismiss(self)
+            return
+        }
+        guard value.isFinite, value == 0 || (0.2...100).contains(value) else {
+            NSSound.beep()
+            return
+        }
+        dismiss(self)
+        onCommit(value)
     }
 
     @objc private func cancelClicked(_ sender: Any?) {

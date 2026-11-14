@@ -761,7 +761,7 @@ Detail belongs in the source file's own header comment.
 - `ImageDocument+Paths.swift` — `applyPathEdit`, the Pen's two commits (`commitPenPath`, `commitPenVectorMask`) and `resolvedPath`.
 - `AgentServer+Paths.swift` / `AgentCatalog+Paths.swift` — the fourteen MCP tools: the path list, the clipping path, selection both ways, `fill_path`, `stroke_path`, vector masks.
 - `PenSession.swift` / `ImageCanvasView+Pen.swift` / `EditorViewController+Pen.swift` — the Pen tool (P): gesture rules, canvas events and overlay, the commit.
-- `PathsPanelViewController.swift` / `EditorViewController+Paths.swift` / `PathSheets.swift` — the Paths panel (the sixth tab), its commands and two sheets.
+- `PathsPanelViewController.swift` / `EditorViewController+Paths.swift` / `PathSheets.swift` — the Paths panel (the sixth tab), its commands and three sheets.
 - `EditorViewController+VectorMasks.swift` — Layer ▸ Vector Mask: Current Path, Reveal All, Delete, Enable and Link, each recording its MCP twin.
 - `AgentServer+StrictNumbers.swift` — `refuseNullOrBooleanNumbers`: the v1 handlers refuse JSON null or a boolean where they read a number, naming the key.
 - `LoadFilesIntoStack.swift` / `AppDelegate+LoadFilesIntoStack.swift` — File ▸ Load Files into Stack…: `StackLoad` (probe, plan, build), `makeStack`, `openStack`.

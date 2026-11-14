@@ -33,6 +33,15 @@ Cases:
   export_psd, a .doctored save_copy and a flat TIFF save_copy (whose
   flat_save_losses has no "paths", a PNG's does) with their reopens; path
   null clears it; a Grayscale document answers the tool.
+- FLATNESS: list_paths gives the clipping path's clipping_flatness (0 for
+  none); set_clipping_path's flatness sets it (0.5, then 3, the same value
+  again a no-op, omitted keeps it), refuses 150, a boolean, a word and a
+  flatness with no path, and undo and redo move it. A rename and a geometry
+  edit keep it; the exported PSD's resource 2999 is the name then
+  `00 03 00 00 00 01` (Adobe's layout, parsed here), and the PSD, .doctored
+  and TIFF reopens list 3. Moving the mark gives the new path none. The
+  authored clip_b.psd lists 0.5, and renamed then exported writes its own
+  bytes after the new name.
 - MODES: a new Grayscale, Lab and CMYK document with a raster-less vector
   mask on its second layer and a comp exports with no vector-mask loss; its
   layered reopen marks the bottom "ordinary", keeps the vector mask's corners
@@ -188,6 +197,100 @@ def clipping(drive):
     return seen
 
 
+def psd_resource(path, wanted):
+    """Image resource `wanted`'s body in a classic PSD, by Adobe's layout: the
+    26-byte header, the colour-mode section, then 8BIM blocks (id, a Pascal
+    name padded even, a u32 size, the body padded even)."""
+    data = Path(path).read_bytes()
+    at = 26
+    at += 4 + int.from_bytes(data[at:at + 4], 'big')
+    end = at + 4 + int.from_bytes(data[at:at + 4], 'big')
+    at += 4
+    while at < end:
+        assert data[at:at + 4] == b'8BIM', (path, at)
+        rid = int.from_bytes(data[at + 4:at + 6], 'big')
+        name = data[at + 6]
+        at += 6 + (name + 2) // 2 * 2
+        size = int.from_bytes(data[at:at + 4], 'big')
+        body = data[at + 4:at + 4 + size]
+        if rid == wanted:
+            return body
+        at += 4 + size + size % 2
+    return None
+
+
+def flatness_rows(drive, doc):
+    """(name, clipping_flatness) for each path list_paths marks as the clipping path."""
+    return [(p['name'], p.get('clipping_flatness'))
+            for p in drive.call('list_paths', document_id=doc)['paths'] if p.get('clipping')]
+
+
+def flatness(drive):
+    doc = drive.open_psd(FIXTURES / 'knockout_bottom' / 'source.psd')
+    square = {'closed': True, 'anchors': [[8, 8], [40, 8], [40, 30], [8, 30]]}
+    frame = {'closed': True, 'anchors': [[2, 2], [60, 2], [60, 40], [2, 40]]}
+    drive.call('set_path', document_id=doc, name='Logo', subpaths=[square])
+    drive.call('set_path', document_id=doc, name='Frame', subpaths=[frame])
+    drive.call('set_clipping_path', document_id=doc, path='Logo')
+    assert flatness_rows(drive, doc) == [('Logo', 0)], flatness_rows(drive, doc)
+    seen = {}
+    half = drive.call('set_clipping_path', document_id=doc, path='Logo', flatness=0.5)
+    assert half['changed'] is True and half['flatness'] == 0.5, half
+    assert flatness_rows(drive, doc) == [('Logo', 0.5)], flatness_rows(drive, doc)
+    same = drive.call('set_clipping_path', document_id=doc, path='Logo', flatness=0.5)
+    assert same['changed'] is False and 'with that flatness' in same['note'], same
+    three = drive.call('set_clipping_path', document_id=doc, path='Logo', flatness=3)
+    assert three['changed'] is True and three['flatness'] == 3, three
+    kept = drive.call('set_clipping_path', document_id=doc, path='Logo')
+    assert kept['changed'] is False and kept['flatness'] == 3, kept
+    for arguments, words in [
+        (dict(path='Logo', flatness=150), 'flatness must be 0 (none) or from 0.2 to 100'),
+        (dict(path='Logo', flatness=True), 'flatness must be a number, not true'),
+        (dict(path='Logo', flatness='steep'), 'flatness must be a number'),
+        (dict(path=None, flatness=1), 'flatness goes with a path'),
+    ]:
+        refused = drive.call('set_clipping_path', fail=True, document_id=doc, **arguments)
+        assert words in refused, (arguments, refused)
+    assert flatness_rows(drive, doc) == [('Logo', 3)], 'a refusal changes nothing'
+    drive.call('undo', document_id=doc)
+    assert flatness_rows(drive, doc) == [('Logo', 0.5)], 'undo'
+    drive.call('redo', document_id=doc)
+    assert flatness_rows(drive, doc) == [('Logo', 3)], 'redo'
+    # A rename and a geometry edit hand the list back with the reading in it.
+    drive.call('rename_path', document_id=doc, path='Logo', name='Mark')
+    drive.call('set_path', document_id=doc, path='Mark', subpaths=[frame])
+    assert flatness_rows(drive, doc) == [('Mark', 3)], flatness_rows(drive, doc)
+    psd = drive.folder / 'flatness.psd'
+    drive.call('export_psd', document_id=doc, path=str(psd), format='psd', mode='layers')
+    body = psd_resource(psd, 2999)
+    assert body == bytes([4]) + b'Mark' + bytes([0, 3, 0, 0, 0, 1]), body
+    native = drive.folder / 'flatness.doctored'
+    drive.call('save_copy', document_id=doc, path=str(native), format='rz')
+    tiff = drive.folder / 'flatness.tif'
+    drive.call('save_copy', document_id=doc, path=str(tiff), format='tiff')
+    for name, opened in [('psd', drive.open_psd(psd)), ('native', drive.open_native(native)),
+                         ('tiff', drive.open_native(tiff))]:
+        assert flatness_rows(drive, opened) == [('Mark', 3)], (name, flatness_rows(drive, opened))
+        seen[name] = flatness_rows(drive, opened)
+        drive.close(opened)
+    moved = drive.call('set_clipping_path', document_id=doc, path='Frame')
+    assert moved['changed'] is True and moved['flatness'] == 0, moved
+    assert flatness_rows(drive, doc) == [('Frame', 0)], flatness_rows(drive, doc)
+    drive.close(doc)
+    # Photoshop's own 0.5: listed, and a rename writes the file's bytes after the new name.
+    authored = drive.open_psd(AUTHORED / 'clip_b.psd')
+    assert flatness_rows(drive, authored) == [('Clip5', 0.5)], flatness_rows(drive, authored)
+    source = psd_resource(AUTHORED / 'clip_b.psd', 2999)
+    drive.call('rename_path', document_id=authored, path='Clip5', name='Renamed')
+    out = drive.folder / 'clip_b-renamed.psd'
+    drive.call('export_psd', document_id=authored, path=str(out), format='psd', mode='layers')
+    written = psd_resource(out, 2999)
+    assert written == bytes([7]) + b'Renamed' + source[1 + source[0]:], (source, written)
+    drive.close(authored)
+    seen['authored_tail'] = written[1 + written[0]:].hex()
+    return seen
+
+
 def modes(drive):
     square = {'closed': True, 'anchors': [[8, 8], [40, 8], [40, 30], [8, 30]]}
     seen = {}
@@ -271,7 +374,7 @@ def main():
     results, failed = {}, []
     with App(output / 'app', output / 'recovery', interval=600) as app:
         drive = Drive(app, output)
-        for case in (background, comps, paths, clipping, modes, authored):
+        for case in (background, comps, paths, clipping, flatness, modes, authored):
             name = case.__name__.upper()
             try:
                 results[name] = dict(passed=True, detail=case(drive))

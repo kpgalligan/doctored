@@ -75,8 +75,12 @@ struct PathEntry: Equatable {
 /// The clipping-path designation (`core/src/doc_path.rs`, `ClippingPath`): the path a file's
 /// resource 2999 names. `tail` is the hex of the bytes that resource held after the name, carried
 /// verbatim so a file's own bytes are written back; empty for a designation made here.
+/// `flatness` is the core's reading of the tail's flatness in device pixels, 0 for none. The core
+/// owns the tail's format: changing `flatness` is the edit (the core rebuilds the tail's first
+/// four bytes and keeps the rest), and the reading handed back unchanged changes nothing.
 struct PathClipping: Equatable {
     var tail: String = ""
+    var flatness: Double = 0
 }
 
 /// A document's path list in the core's order: the work path first when
@@ -99,17 +103,25 @@ struct PathSet: Equatable {
     }
 
     /// The list with the entry at `index` as the one clipping path (nil
-    /// clears the designation). A path that already is keeps its tail.
-    func settingClippingPath(_ index: Int?) -> PathSet {
+    /// clears the designation). A path that already is keeps its tail and
+    /// its flatness; a new designation has none. A non-nil `flatness` (device
+    /// pixels, 0 for none) is then set on it, which the core validates.
+    func settingClippingPath(_ index: Int?, flatness: Double? = nil) -> PathSet {
         var next = self
         for i in next.entries.indices where i != index {
             next.entries[i].clipping = nil
         }
-        if let index, next.entries.indices.contains(index), next.entries[index].clipping == nil {
-            next.entries[index].clipping = PathClipping()
+        if let index, next.entries.indices.contains(index) {
+            if next.entries[index].clipping == nil {
+                next.entries[index].clipping = PathClipping()
+            }
+            if let flatness { next.entries[index].clipping?.flatness = flatness }
         }
         return next
     }
+
+    /// The clipping path's entry, nil when the document has none.
+    var clippingPath: PathEntry? { entries.first { $0.clipping != nil } }
 
     /// The list with the work path replaced by `shape` (keeping its identity)
     /// or created from it, first in the list as the core stores it.
@@ -329,7 +341,9 @@ extension PathSet {
                   let kind = (object["kind"] as? String).flatMap(PathKind.init(rawValue:))
             else { throw PathFormatError(message: "A path entry needs a kind.") }
             let clipping = (object["clipping"] as? [String: Any]).map {
-                PathClipping(tail: $0["tail"] as? String ?? "")
+                PathClipping(
+                    tail: $0["tail"] as? String ?? "",
+                    flatness: ($0["flatness"] as? NSNumber)?.doubleValue ?? 0)
             }
             return PathEntry(
                 id: (object["id"] as? NSNumber)?.uint64Value ?? 0,
@@ -347,7 +361,14 @@ extension PathSet {
                 object["name"] = entry.name
                 object["kind"] = entry.kind.rawValue
                 if entry.id != 0 { object["id"] = NSNumber(value: entry.id) }
-                if let clipping = entry.clipping { object["clipping"] = ["tail": clipping.tail] }
+                if let clipping = entry.clipping {
+                    // The core compares the flatness's 16.16 word, so the
+                    // reading it wrote comes back as no change.
+                    object["clipping"] = [
+                        "tail": clipping.tail,
+                        "flatness": PathShape.jsonNumber(CGFloat(clipping.flatness)),
+                    ]
+                }
                 return object
             },
         ]

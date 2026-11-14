@@ -38,8 +38,15 @@ enum PathRow: Equatable {
             return "vector mask · \(state)" + (info.linked ? "" : " · unlinked")
         case .path(let entry):
             return (entry.kind == .work ? "work path · " : "path · ") + anchors
-                + (entry.clipping != nil ? " · clipping path" : "")
+                + (entry.clipping.map(Self.clippingNote) ?? "")
         }
+    }
+
+    /// The clipping path's part of the subtitle, its flatness when it has one.
+    private static func clippingNote(_ clipping: PathClipping) -> String {
+        guard clipping.flatness > 0 else { return " · clipping path" }
+        let flatness = clipping.flatness.formatted(.number.precision(.fractionLength(0...4)))
+        return " · clipping path, flatness \(flatness) px"
     }
 
     var isVectorMask: Bool {
@@ -421,6 +428,9 @@ extension PathsPanelViewController: NSTableViewDataSource, NSTableViewDelegate, 
                 add("Duplicate Path", #selector(EditorViewController.duplicateCurrentPath(_:)))
                 add("Delete Path", #selector(EditorViewController.deleteCurrentPath(_:)))
                 add("Clipping Path", #selector(EditorViewController.toggleClippingPath(_:)))
+                add(
+                    "Clipping Path Flatness…",
+                    #selector(EditorViewController.editClippingPathFlatness(_:)))
             } else {
                 add(
                     "Delete Vector Mask",

@@ -596,7 +596,7 @@ Detail belongs in the source file's own header comment.
 - `doc_path.rs` / `precision_path.rs` — PATHS at both depths: `PathEntry`, `DocPaths` / `TypedPaths`, `list_refusal` (the one home of the list rules), `with_paths`.
 - `path_native.rs` — the native `PATH` table, words 74 (byte) / 75 (typed): the path list and the vector-mask section with its raster planes.
 - `doc_vector_mask.rs` / `precision_vector_mask.rs` — VECTOR MASKS: a shape baked into the layer's ordinary mask; records, live or dead, bake, expose/rebake, edits.
-- `vector_mask_combine.rs` (KERNEL) — a PSD vector mask's coverage under its per-subpath add/subtract/intersect/xor operations, for an import that bakes it.
+- `vector_mask_combine.rs` (KERNEL) — a PSD vector mask's coverage under its per-subpath add/subtract/intersect/xor ops, each over its own window (`charge`), for an import that bakes it.
 - `vector_mask_common.rs` — vector masks' depth-neutral half: `VectorMaskView` and its JSON, `VectorMaskSeed`, `bake_rect`, `anchor_refusal`, `table_mask_agrees`.
 - `doc_vector_mask_carry.rs` — byte vector masks carried across ops: seeds, the follow hook, the native table written and `adopted_records`.
 - `precision_vector_mask_carry.rs` — typed vector masks carried across ops: seeds, `following_geometry`, the native table and `adopt_vector_masks`.

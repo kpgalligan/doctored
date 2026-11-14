@@ -21,6 +21,11 @@
 //!   at both depths, keeps the mark and the tail, and refuses the key
 //!   without the word and the word without the key.
 //! - The list rules, and rename, delete and crop.
+//! - The list reads the flatness from the tail's first four bytes (16.16,
+//!   none under four bytes) and a number sets it, keeping every later byte,
+//!   at both depths; a reading handed back changes nothing, `.doctored`
+//!   keeps the tail alone, and an edit outside 0 or 0.2–100 px is refused
+//!   unless it hands back a file's own value.
 
 use std::ffi::{c_char, CString};
 use std::path::Path;
@@ -144,6 +149,39 @@ fn list_with_clipping(json: &str, name: &str, tail: &str) -> String {
     }
     list.to_string()
 }
+
+/// The `flatness` the list JSON gives `name`'s clipping object.
+fn listed_flatness(json: &str, name: &str) -> f64 {
+    let list: Value = serde_json::from_str(json).unwrap();
+    let entry = list["paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["name"] == name)
+        .unwrap_or_else(|| panic!("no path {name}"));
+    entry["clipping"]["flatness"]
+        .as_f64()
+        .unwrap_or_else(|| panic!("{name}'s clipping has no flatness: {entry}"))
+}
+
+/// The list JSON with `flatness` beside the tail `name`'s clipping object
+/// already lists.
+fn with_flatness(json: &str, name: &str, flatness: Value) -> String {
+    let mut list: Value = serde_json::from_str(json).unwrap();
+    for entry in list["paths"].as_array_mut().unwrap() {
+        if entry["name"] == name {
+            entry["clipping"]["flatness"] = flatness.clone();
+        }
+    }
+    list.to_string()
+}
+
+/// What `dr_doc_with_paths_json` answers for the list a document already
+/// holds: NULL and no sentence, so no undo step.
+const UNCHANGED: &str = "<no error message>";
+
+/// The range's sentence.
+const RANGE: &str = "a clipping path's flatness must be 0 (none) or from 0.2 to 100 device pixels";
 
 fn paths_json(doc: *const DrDocument) -> String {
     take_err_string(unsafe { dr_doc_paths_json(doc) })
@@ -314,6 +352,29 @@ fn photoshops_clipping_paths_cross_with_their_flatness() {
             vec![(path_name.to_string(), kept)],
             "{name}: marked"
         );
+        assert_eq!(
+            listed_flatness(&paths_json(doc), path_name),
+            flatness,
+            "{name}"
+        );
+        if flatness != 0.0 {
+            // Set to none, the tail is the empty one and writes the
+            // authored no-flatness body.
+            let none =
+                set_paths(doc, &with_flatness(&paths_json(doc), path_name, 0.0.into())).unwrap();
+            assert_eq!(
+                marks(unsafe { &*none }.paths()),
+                vec![(path_name.to_string(), Vec::new())],
+                "{name}: none"
+            );
+            let bytes = byte_save(none, &dir.path().join(format!("{name}-none.psd")), 0);
+            assert_eq!(
+                body_of(&bytes, 2999),
+                Some(clipping_body(path_name, &NO_FLATNESS)),
+                "{name}: none written"
+            );
+            unsafe { dr_doc_free(none) };
+        }
         let again = byte_save(doc, &dir.path().join(format!("{name}.psd")), 0);
         assert_eq!(
             body_of(&again, 2999),
@@ -542,6 +603,203 @@ fn the_list_rules_hold_one_saved_clipping_path_that_follows_its_path() {
     unsafe {
         dr_doc_free(renamed);
         dr_doc_free(deleted);
+        dr_doc_free(doc);
+    }
+}
+
+/// `doc` with `flatness` beside the tail "Box"'s clipping object lists:
+/// the new document, or the core's sentence.
+fn set_flatness(doc: *const DrDocument, flatness: Value) -> Result<*mut DrDocument, String> {
+    set_paths(doc, &with_flatness(&paths_json(doc), "Box", flatness))
+}
+
+#[test]
+fn the_list_reads_the_flatness_and_a_number_sets_it() {
+    let dir = TempDir::new().unwrap();
+    let doc = clipped(&dir, "");
+    assert_eq!(listed_flatness(&paths_json(doc), "Box"), 0.0, "none");
+    // 3 px: the 16.16 word then the u16 1, written in a PSD, and the list
+    // handed back is the same list.
+    let three = set_flatness(doc, 3.into()).unwrap();
+    assert_eq!(
+        marks(unsafe { &*three }.paths()),
+        vec![("Box".to_string(), flatness_tail(3.0))]
+    );
+    assert_eq!(listed_flatness(&paths_json(three), "Box"), 3.0);
+    let bytes = byte_save(three, &dir.path().join("three.psd"), 0);
+    assert_eq!(
+        body_of(&bytes, 2999),
+        Some(clipping_body("Box", &flatness_tail(3.0)))
+    );
+    assert_eq!(
+        set_paths(three, &paths_json(three)).err().as_deref(),
+        Some(UNCHANGED),
+        "3 handed back"
+    );
+    // A rename keeps it.
+    let renamed = set_paths(three, &paths_json(three).replace("\"Box\"", "\"Frame\"")).unwrap();
+    assert_eq!(
+        marks(unsafe { &*renamed }.paths()),
+        vec![("Frame".to_string(), flatness_tail(3.0))]
+    );
+    // 3 → 0 is the empty tail.
+    let none = set_flatness(three, 0.into()).unwrap();
+    assert_eq!(
+        marks(unsafe { &*none }.paths()),
+        vec![("Box".to_string(), Vec::new())]
+    );
+    // 0.3 reads 0.3, and is the same list handed back.
+    let point3 = set_flatness(doc, serde_json::json!(0.3)).unwrap();
+    assert_eq!(listed_flatness(&paths_json(point3), "Box"), 0.3);
+    assert_eq!(
+        marks(unsafe { &*point3 }.paths()),
+        vec![("Box".to_string(), flatness_tail(0.3))]
+    );
+    assert_eq!(
+        set_paths(point3, &paths_json(point3)).err().as_deref(),
+        Some(UNCHANGED),
+        "0.3 handed back"
+    );
+    // A tail with a byte past the u16 keeps it.
+    let long = clipped(&dir, "0001000000ff");
+    assert_eq!(listed_flatness(&paths_json(long), "Box"), 1.0);
+    let changed = set_flatness(long, serde_json::json!(2.5)).unwrap();
+    assert_eq!(
+        marks(unsafe { &*changed }.paths()),
+        vec![("Box".to_string(), vec![0, 2, 0x80, 0, 0, 0xff])]
+    );
+    // A tail under four bytes reads none, is kept by a hand-back and a
+    // rename, and a flatness gives it the authored form.
+    let short = clipped(&dir, "1234");
+    let json = paths_json(short);
+    assert_eq!(listed_flatness(&json, "Box"), 0.0, "a short tail");
+    assert_eq!(set_paths(short, &json).err().as_deref(), Some(UNCHANGED));
+    let renamed_short = set_paths(short, &json.replace("\"Box\"", "\"Frame\"")).unwrap();
+    assert_eq!(
+        marks(unsafe { &*renamed_short }.paths()),
+        vec![("Frame".to_string(), vec![0x12, 0x34])]
+    );
+    let set_short = set_flatness(short, 3.into()).unwrap();
+    assert_eq!(
+        marks(unsafe { &*set_short }.paths()),
+        vec![("Box".to_string(), flatness_tail(3.0))]
+    );
+    // A file's own value past the range (200 px) reads as it is and is
+    // handed back unchanged; an edit is still held to the range.
+    let wide = clipped(&dir, "00c800000001");
+    let json = paths_json(wide);
+    assert_eq!(listed_flatness(&json, "Box"), 200.0);
+    assert_eq!(set_paths(wide, &json).err().as_deref(), Some(UNCHANGED));
+    assert_eq!(set_flatness(wide, 150.into()).err().as_deref(), Some(RANGE));
+    let narrowed = set_flatness(wide, 50.into()).unwrap();
+    assert_eq!(
+        marks(unsafe { &*narrowed }.paths()),
+        vec![("Box".to_string(), flatness_tail(50.0))]
+    );
+    // The typed twin reads and sets the same way.
+    let mut err: *mut c_char = ptr::null_mut();
+    let wide16 = unsafe { dr_doc_promote_structure(three, LIMIT, 0, ptr::null(), &mut err) };
+    assert!(!wide16.is_null(), "{}", take_err_string(err));
+    let wide16 = unsafe { Box::from_raw(wide16) };
+    let json = typed_json(&wide16);
+    assert_eq!(listed_flatness(&json, "Box"), 3.0, "typed");
+    let half = typed_set_paths(
+        &wide16,
+        &with_flatness(&json, "Box", serde_json::json!(0.5)),
+    )
+    .unwrap();
+    assert_eq!(
+        marks(half.paths()),
+        vec![("Box".to_string(), flatness_tail(0.5))]
+    );
+    assert_eq!(
+        typed_set_paths(&half, &typed_json(&half)).err().as_deref(),
+        Some(UNCHANGED),
+        "typed hand-back"
+    );
+    unsafe {
+        for d in [
+            doc,
+            three,
+            renamed,
+            none,
+            point3,
+            long,
+            changed,
+            short,
+            renamed_short,
+            set_short,
+            wide,
+            narrowed,
+        ] {
+            dr_doc_free(d);
+        }
+    }
+}
+
+#[test]
+fn a_flatness_outside_the_range_or_not_a_number_is_refused_at_both_depths() {
+    let dir = TempDir::new().unwrap();
+    let doc = clipped(&dir, "");
+    let mut err: *mut c_char = ptr::null_mut();
+    let wide = unsafe { dr_doc_promote_structure(doc, LIMIT, 0, ptr::null(), &mut err) };
+    assert!(!wide.is_null(), "{}", take_err_string(err));
+    let wide = unsafe { Box::from_raw(wide) };
+    let shape = "a path's clipping must be an object with a hex tail and a numeric flatness";
+    for (value, want) in [
+        (serde_json::json!(0.1), RANGE),
+        (serde_json::json!(100.5), RANGE),
+        (serde_json::json!(-1), RANGE),
+        // Each rounds to the 16.16 word of none, which the tail holds, but
+        // is no reading it gave.
+        (serde_json::json!(0.000001), RANGE),
+        (serde_json::json!(-0.000001), RANGE),
+        (serde_json::json!(1e12), RANGE),
+        (serde_json::json!("3"), shape),
+        (serde_json::json!(true), shape),
+    ] {
+        assert_eq!(
+            set_flatness(doc, value.clone()).err().as_deref(),
+            Some(want),
+            "{value}"
+        );
+        let json = with_flatness(&typed_json(&wide), "Box", value.clone());
+        assert_eq!(
+            typed_set_paths(&wide, &json).err().as_deref(),
+            Some(want),
+            "typed {value}"
+        );
+    }
+    // The ends of the range are edits.
+    for value in [0.2, 100.0] {
+        let edited = set_flatness(doc, value.into()).unwrap();
+        assert_eq!(listed_flatness(&paths_json(edited), "Box"), value);
+        unsafe { dr_doc_free(edited) };
+    }
+    unsafe { dr_doc_free(doc) };
+}
+
+#[test]
+fn the_native_file_keeps_the_tail_alone() {
+    let dir = TempDir::new().unwrap();
+    let doc = clipped(&dir, "");
+    let three = set_flatness(doc, 3.into()).unwrap();
+    let path = dir.path().join("flat.doctored");
+    unsafe { &*three }
+        .save_native(path.to_str().unwrap())
+        .unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    assert!(
+        !bytes.windows(8).any(|w| w == b"flatness"),
+        "the PATH table writes no flatness key"
+    );
+    let back = DrDocument::open(path.to_str().unwrap()).unwrap();
+    assert_eq!(
+        marks(back.paths()),
+        vec![("Box".to_string(), flatness_tail(3.0))]
+    );
+    unsafe {
+        dr_doc_free(three);
         dr_doc_free(doc);
     }
 }

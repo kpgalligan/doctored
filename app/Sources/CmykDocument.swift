@@ -187,7 +187,7 @@ enum CmykDocument {
         "makeWorkPath:",
         "makeSelectionFromPath:",
         "duplicateCurrentPath:",
-        "toggleClippingPath:",
+        "toggleClippingPath:", "editClippingPathFlatness:",
         "deleteCurrentPath:",
         "addVectorMaskFromCurrentPath:",
         "addVectorMaskRevealAll:",

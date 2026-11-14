@@ -292,8 +292,8 @@ enum GrayDocument {
         "layerContentOptions:", "rasterizeArtwork:", "editArtworkColors:", "replaceMissingFonts:",
         "makeWorkPath:",
         "makeSelectionFromPath:", "duplicateCurrentPath:", "deleteCurrentPath:", "fillCurrentPath:",
-        "strokeCurrentPath:", "toggleClippingPath:", "addVectorMaskFromCurrentPath:",
-        "addVectorMaskRevealAll:",
+        "strokeCurrentPath:", "toggleClippingPath:", "editClippingPathFlatness:",
+        "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
         "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
         // Phase 6a-ii: Link and Unlink Layers, the Snapshots window and Edit ▸ Clear (Layer Comps
         // is a depth-independent window action).

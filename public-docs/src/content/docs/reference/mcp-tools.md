@@ -4404,7 +4404,7 @@ Sets the document's file info — File ▸ File Info… ▸ OK. Pass only the fi
 
 ## `list_paths`
 
-Lists the document's paths: Bézier outlines kept with the document — undoable, saved in .doctored, never drawn into the picture until one is filled, stroked or made a selection. Each has name, kind ("work": the one unsaved scratch path, always first and always named "Work Path"; "saved"), fill_rule, anchors (a count) and subpaths (set_path's own shape, so it can be edited and passed back). max_paths is the most a document holds. Canvas resizes, crops, rotations and flips move paths with the picture; moving or transforming a layer does not. A PSD, PSB or layered TIFF export writes them and its import reads them back (the work path and each saved path by name), and so does a flat TIFF in every colour mode but Duotone; no other flat format carries them. The clipping path's row has clipping: true (set_clipping_path). The Paths panel. A Grayscale document holds paths and vector masks, as an RGB document does, and keeps them in .doctored.
+Lists the document's paths: Bézier outlines kept with the document — undoable, saved in .doctored, never drawn into the picture until one is filled, stroked or made a selection. Each has name, kind ("work": the one unsaved scratch path, always first and always named "Work Path"; "saved"), fill_rule, anchors (a count) and subpaths (set_path's own shape, so it can be edited and passed back). max_paths is the most a document holds. Canvas resizes, crops, rotations and flips move paths with the picture; moving or transforming a layer does not. A PSD, PSB or layered TIFF export writes them and its import reads them back (the work path and each saved path by name), and so does a flat TIFF in every colour mode but Duotone; no other flat format carries them. The clipping path's row has clipping: true and clipping_flatness, its flatness in device pixels (0 for none; set_clipping_path). The Paths panel. A Grayscale document holds paths and vector masks, as an RGB document does, and keeps them in .doctored.
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
@@ -4455,11 +4455,12 @@ Deletes a path. ONE undo step. Paths panel ▸ Delete Path. A Grayscale document
 
 ## `set_clipping_path`
 
-Makes a saved path the document's CLIPPING PATH — the one path a PSD, PSB or TIFF names (image resource 2999) for a layout program to clip the image to — or, with path null, clears it. A document has at most one; setting another moves the designation. The work path cannot be it (save it first with rename_path). Renaming keeps it, deleting the path clears it, a duplicate is not it. Already so answers changed:false. ONE undo step. Paths panel ▸ Clipping Path. A Grayscale document holds paths and vector masks, as an RGB document does, and keeps them in .doctored.
+Makes a saved path the document's CLIPPING PATH — the one path a PSD, PSB or TIFF names (image resource 2999) for a layout program to clip the image to — or, with path null, clears it. A document has at most one; setting another moves the designation. The work path cannot be it (save it first with rename_path). Renaming keeps it, deleting the path clears it, a duplicate is not it. flatness sets the clipping path's flatness, which the file carries for the output device (the reply reads it back). Already so answers changed:false. ONE undo step. Paths panel ▸ Clipping Path, and ▸ Clipping Path Flatness…. A Grayscale document holds paths and vector masks, as an RGB document does, and keeps them in .doctored.
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
+| `flatness` | `number` | no | — | Device pixels: 0 for none, or from 0.2 to 100. Omitted, the path keeps the flatness it has as the clipping path, and a path newly made it has none. A file's own value outside the range is kept as read (list_paths' clipping_flatness). Needs a path. |
 | `path` | `['string', 'null']` | yes | — | A saved path's name (list_paths), or null to clear the clipping path. Required. |
 
 ## `path_to_selection`

@@ -403,8 +403,8 @@ enum LabDocument {
         "layerContentOptions:", "rasterizeArtwork:", "editArtworkColors:", "replaceMissingFonts:",
         "makeWorkPath:",
         "makeSelectionFromPath:", "duplicateCurrentPath:", "deleteCurrentPath:", "fillCurrentPath:",
-        "strokeCurrentPath:", "toggleClippingPath:", "addVectorMaskFromCurrentPath:",
-        "addVectorMaskRevealAll:",
+        "strokeCurrentPath:", "toggleClippingPath:", "editClippingPathFlatness:",
+        "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
         "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
         // Phase 6b: Apply Image, Calculations, Stack Modes and Merge to HDR.
         "applyImageSheet:", "calculationsSheet:", "stackMode:", "showReduceNoiseFromStack:",

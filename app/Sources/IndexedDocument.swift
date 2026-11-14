@@ -155,8 +155,8 @@ enum IndexedDocument {
         "newChannel:", "deleteChannel:", "duplicateChannel:", "channelOptions:", "invertChannel:",
         "loadChannelAsSelection:", "showFileInfo:", "showSnapshots:", "makeWorkPath:",
         "makeSelectionFromPath:", "deleteCurrentPath:", "duplicateCurrentPath:",
-        "fillCurrentPath:", "strokeCurrentPath:", "toggleClippingPath:", "toggleColorSamplers:",
-        "clearColorSamplers:",
+        "fillCurrentPath:", "strokeCurrentPath:", "toggleClippingPath:",
+        "editClippingPathFlatness:", "toggleColorSamplers:", "clearColorSamplers:",
         "newView:", "showProofSetup:", "toggleProofColors:", "applyWorkingProof:",
         "applyProofPresetFromMenu:",
     ]

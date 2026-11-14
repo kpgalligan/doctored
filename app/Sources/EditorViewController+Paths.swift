@@ -11,6 +11,7 @@ import AppKit
 /// | Duplicate Path | `duplicate_path` |
 /// | Delete Path | `delete_path` |
 /// | Clipping Path | `set_clipping_path` |
+/// | Clipping Path Flatness… | `set_clipping_path` with `flatness` |
 /// | Make Selection… | `path_to_selection` |
 /// | Fill Path | `fill_path` |
 /// | Stroke Path | `stroke_path` |
@@ -20,9 +21,10 @@ import AppKit
 /// run a commit of their own — a selection, a fill, a brush stroke, a trace — RUN THEIR MCP STEP
 /// through `ActionPlayer.runSingle`, the way Filters ▸ Repeat Last does, so the panel and an
 /// agent's call are one code path; the step is recorded afterwards, because the player suspends
-/// the recorder for the length of every replay. A menu command ASKS before it rasterizes a text
-/// or shape layer, so Fill Path and Stroke Path prompt here first (`confirmRasterize`); the
-/// agent's dispatch never would.
+/// the recorder for the length of every replay. Clipping Path Flatness… runs its step the same
+/// way, so the core's range refusal is the alert's text. A menu command ASKS before it
+/// rasterizes a text or shape layer, so Fill Path and Stroke Path prompt here first
+/// (`confirmRasterize`); the agent's dispatch never would.
 extension EditorViewController {
     // MARK: - The panel
 
@@ -286,6 +288,33 @@ extension EditorViewController {
         pathsPanel?.reload()
     }
 
+    /// Paths panel ▸ Clipping Path Flatness…: the sheet, then `set_clipping_path` with the
+    /// clipping path's name and its new `flatness`. Enabled on the clipping path's row.
+    @objc func editClippingPathFlatness(_ sender: Any?) {
+        guard let (set, index) = currentListPath(), let mark = set.entries[index].clipping else {
+            NSSound.beep()
+            return
+        }
+        let sheet = ClippingFlatnessSheetController(flatness: mark.flatness) { [weak self] value in
+            self?.commitClippingFlatness(value)
+        }
+        presentAsSheet(sheet)
+    }
+
+    /// The sheet's commit. The current path is read again: the sheet does not stop the run
+    /// loop, and an agent may have moved or cleared the designation meanwhile.
+    private func commitClippingFlatness(_ flatness: Double) {
+        guard let (set, index) = currentListPath(), set.entries[index].clipping != nil else {
+            NSSound.beep()
+            return
+        }
+        runPathStep(
+            "set_clipping_path",
+            ["path": set.entries[index].name, "flatness": ActionArgs.number(flatness)],
+            undoName: "Clipping Path Flatness", note: "Paths panel ▸ Clipping Path Flatness…")
+        pathsPanel?.reload()
+    }
+
     // MARK: - Selection
 
     /// Paths panel ▸ Make Selection…: the dialog, then `path_to_selection`.
@@ -450,6 +479,8 @@ extension EditorViewController {
             let entry = currentListPath().map { $0.set.entries[$0.index] }
             (item as? NSMenuItem)?.state = entry?.clipping != nil ? .on : .off
             return entry?.kind == .saved
+        case #selector(editClippingPathFlatness(_:)):
+            return currentListPath().map { $0.set.entries[$0.index].clipping != nil } ?? false
         case #selector(deleteCurrentPath(_:)):
             return currentPathStep() != nil
         default:

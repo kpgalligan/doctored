@@ -31,6 +31,16 @@
 //! mark made in Doctored is ([`kept_clipping_tail`]); [`encode_clipping`]
 //! writes a kept tail back verbatim and an empty one (also what a build that
 //! wrote the name alone kept) as the authored no-flatness tail.
+//! [`clipping_flatness`] reads a kept tail's flatness (none for a tail under
+//! four bytes or a value of 0 or less) and [`clipping_tail_with_flatness`]
+//! sets it, keeping every byte after the first four.
+//!
+//! **Flatness range.** Flatness is the operand of PostScript's `setflat`,
+//! which that language limits to 0.2–100 device pixels, so an EDIT sets 0
+//! (none) or a value in that range ([`MIN_CLIPPING_FLATNESS`],
+//! [`MAX_CLIPPING_FLATNESS`]) and anything else is refused. A file's own
+//! value outside it is kept and read as it is, and an edit that hands that
+//! reading back (the same 16.16 word) changes nothing.
 //!
 //! **Fill rule.** Photoshop combines a path's subpaths by an operation per
 //! subpath; Doctored fills a path by one rule. Every subpath `0` (exclude
@@ -211,6 +221,81 @@ pub(crate) fn kept_clipping_tail(tail: &[u8]) -> Vec<u8> {
     } else {
         tail.to_vec()
     }
+}
+
+/// The smallest flatness an edit sets besides 0, in device pixels (module
+/// doc).
+pub(crate) const MIN_CLIPPING_FLATNESS: f64 = 0.2;
+/// The largest (module doc).
+pub(crate) const MAX_CLIPPING_FLATNESS: f64 = 100.0;
+
+/// A flatness in device pixels as the 16.16 word that holds it, rounded to
+/// nearest; `None` for a value no 16.16 word holds (not finite, or past
+/// ±32768).
+fn flatness_word(flatness: f64) -> Option<i32> {
+    let word = (flatness * 65536.0).round();
+    (word >= f64::from(i32::MIN) && word <= f64::from(i32::MAX)).then_some(word as i32)
+}
+
+/// The flatness word a kept `tail` holds: its first four bytes as a signed
+/// 16.16 number; 0 (none) for a tail under four bytes or a value of 0 or
+/// less (module doc).
+fn clipping_flatness_word(tail: &[u8]) -> i32 {
+    match tail.first_chunk::<4>() {
+        Some(bytes) => i32::from_be_bytes(*bytes).max(0),
+        None => 0,
+    }
+}
+
+/// A kept `tail`'s flatness in device pixels, 0 for none: its 16.16 word
+/// rounded to four decimals when that decimal converts back to the same word
+/// (0.3 reads 0.3, not 0.3000030517578125), else the word's exact value. So
+/// a reading handed back always converts to the word it came from.
+pub(crate) fn clipping_flatness(tail: &[u8]) -> f64 {
+    let word = clipping_flatness_word(tail);
+    let exact = f64::from(word) / 65536.0;
+    let rounded = (exact * 10_000.0).round() / 10_000.0;
+    if flatness_word(rounded) == Some(word) {
+        rounded
+    } else {
+        exact
+    }
+}
+
+/// Whether an edit may set `flatness` (module doc).
+fn flatness_allowed(flatness: f64) -> bool {
+    flatness == 0.0 || (MIN_CLIPPING_FLATNESS..=MAX_CLIPPING_FLATNESS).contains(&flatness)
+}
+
+/// A kept `tail` with its flatness set to `flatness` device pixels: the
+/// 16.16 word, then every byte after the tail's first four, or the authored
+/// `u16 1` for a tail under four bytes, kept as [`kept_clipping_tail`]
+/// keeps a file's (so flatness 0 with that remainder is the empty tail). A
+/// value whose word is the tail's own is a reading handed back and returns
+/// the tail unchanged. `Err` is the range's sentence for a value that is not
+/// a finite 0 or within the range (module doc), unless it hands back a
+/// file's own out-of-range reading.
+pub(crate) fn clipping_tail_with_flatness(tail: &[u8], flatness: f64) -> Result<Vec<u8>, String> {
+    let allowed = flatness_allowed(flatness);
+    let word = flatness_word(flatness);
+    if word == Some(clipping_flatness_word(tail)) {
+        // A file's own reading outside the range is handed back unchanged;
+        // a value outside it that only rounds to an allowed word is not.
+        if allowed || !flatness_allowed(clipping_flatness(tail)) {
+            return Ok(tail.to_vec());
+        }
+    }
+    let (true, Some(word)) = (allowed, word) else {
+        return Err(format!(
+            "a clipping path's flatness must be 0 (none) or from {MIN_CLIPPING_FLATNESS} to {MAX_CLIPPING_FLATNESS} device pixels"
+        ));
+    };
+    let mut out = word.to_be_bytes().to_vec();
+    match tail.get(4..) {
+        Some(rest) => out.extend_from_slice(rest),
+        None => out.extend_from_slice(&CLIPPING_TAIL_NONE[4..]),
+    }
+    Ok(kept_clipping_tail(&out))
 }
 
 /// [`decode_clipping`]'s inverse: `name` as a Pascal string, then `tail`, or

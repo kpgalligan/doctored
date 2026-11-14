@@ -112,7 +112,9 @@ pub(crate) const MAX_CLIPPING_TAIL_BYTES: usize = 64;
 /// path. `tail` is the bytes a file's resource 2999 holds after the path's
 /// name (its flatness and fill word, `psd_path_records`), kept verbatim and
 /// written back after it; it is empty for a designation made in Doctored
-/// and for a file's no-flatness tail, both written as that tail.
+/// and for a file's no-flatness tail, both written as that tail. Its
+/// flatness is read and set only through `psd_path_records`, the tail's one
+/// home ([`entry_value`], `clipping_from_value`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ClippingPath {
     pub tail: Vec<u8>,
@@ -283,7 +285,10 @@ pub(crate) fn accepted(
 /// One entry as JSON: the shape's own keys beside `name` and `kind`, `id`
 /// when `with_id` (the FFI form; `.rz` stores none), and for the clipping
 /// path `"clipping":{"tail":"<lowercase hex>"}` (absent on every other
-/// entry, so a list with no clipping path is the prior JSON).
+/// entry, so a list with no clipping path is the prior JSON). The FFI form's
+/// `clipping` also carries `"flatness"`, the tail's reading in device pixels
+/// (`psd_path_records::clipping_flatness`, 0 for none); the stored form
+/// keeps the tail alone, so `.doctored`'s bytes are the prior writer's.
 pub(crate) fn entry_value(entry: &PathEntry, with_id: bool) -> Value {
     let mut value = entry.shape.to_value();
     if let Value::Object(object) = &mut value {
@@ -300,7 +305,12 @@ pub(crate) fn entry_value(entry: &PathEntry, with_id: bool) -> Value {
         );
         if let Some(clipping) = &entry.clipping {
             let tail: String = clipping.tail.iter().map(|b| format!("{b:02x}")).collect();
-            object.insert("clipping".into(), json!({ "tail": tail }));
+            let mut mark = json!({ "tail": tail });
+            if with_id {
+                mark["flatness"] =
+                    json!(crate::psd_path_records::clipping_flatness(&clipping.tail));
+            }
+            object.insert("clipping".into(), mark);
         }
     }
     value
@@ -308,9 +318,13 @@ pub(crate) fn entry_value(entry: &PathEntry, with_id: bool) -> Value {
 
 /// An entry's `clipping` key: absent or null is not the clipping path; an
 /// object is, its `tail` (hex, absent for none) the resource's bytes after
-/// the name.
+/// the name. A numeric `flatness` beside it (device pixels, 0 for none) sets
+/// the tail's flatness (`psd_path_records::clipping_tail_with_flatness`):
+/// the reading [`entry_value`] wrote, handed back, changes nothing, and an
+/// edit outside the range is refused with its sentence.
 fn clipping_from_value(v: Option<&Value>) -> Result<Option<ClippingPath>, String> {
-    let wrong = || "a path's clipping must be an object with a hex tail".to_string();
+    let wrong =
+        || "a path's clipping must be an object with a hex tail and a numeric flatness".to_string();
     let object = match v {
         None | Some(Value::Null) => return Ok(None),
         Some(Value::Object(object)) => object,
@@ -333,6 +347,14 @@ fn clipping_from_value(v: Option<&Value>) -> Result<Option<ClippingPath>, String
         })
         .collect::<Option<Vec<u8>>>()
         .ok_or_else(wrong)?;
+    let tail = match object.get("flatness") {
+        None | Some(Value::Null) => tail,
+        Some(Value::Number(n)) => {
+            let flatness = n.as_f64().ok_or_else(wrong)?;
+            crate::psd_path_records::clipping_tail_with_flatness(&tail, flatness)?
+        }
+        Some(_) => return Err(wrong()),
+    };
     Ok(Some(ClippingPath { tail }))
 }
 

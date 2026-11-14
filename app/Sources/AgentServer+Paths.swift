@@ -9,7 +9,7 @@ import AppKit
 /// | `renamePath` | double-clicking a row in the Paths panel (renaming the work path saves it) |
 /// | `duplicatePath` | Paths panel ▸ Duplicate Path |
 /// | `deletePath` | Paths panel ▸ Delete Path |
-/// | `setClippingPath` | Paths panel ▸ Clipping Path |
+/// | `setClippingPath` | Paths panel ▸ Clipping Path, and ▸ Clipping Path Flatness… (`flatness`) |
 /// | `pathToSelection` | Paths panel ▸ Make Selection… |
 /// | `fillPath` | Paths panel ▸ Fill Path |
 /// | `strokePath` | Paths panel ▸ Stroke Path |
@@ -115,7 +115,7 @@ extension AgentServer {
     }
 
     /// One row per path, in the core's order (the work path first); the clipping path's row
-    /// says `"clipping": true`.
+    /// says `"clipping": true` and its `"clipping_flatness"` (device pixels, 0 for none).
     static func pathFields(_ set: PathSet) -> [[String: Any]] {
         set.entries.map { entry in
             var row: [String: Any] = [
@@ -124,7 +124,10 @@ extension AgentServer {
                 "anchors": entry.shape.anchorCount,
                 "subpaths": entry.shape.subpathsJSON,
             ]
-            if entry.clipping != nil { row["clipping"] = true }
+            if let clipping = entry.clipping {
+                row["clipping"] = true
+                row["clipping_flatness"] = PathShape.jsonNumber(CGFloat(clipping.flatness))
+            }
             return row
         }
     }
@@ -239,14 +242,27 @@ extension AgentServer {
 
     /// Paths panel ▸ Clipping Path: `path` (a saved path's name) becomes the document's clipping
     /// path, the one a PSD, PSB or TIFF names in resource 2999; `path: null` clears it. The key is
-    /// required, so a call that forgot it changes nothing. One undo step.
+    /// required, so a call that forgot it changes nothing. `flatness` (device pixels, 0 for none)
+    /// is Paths panel ▸ Clipping Path Flatness…: set on the designation, whose range the core
+    /// refuses with its own sentence; omitted, an existing designation keeps its flatness and a
+    /// new one has none. One undo step.
     func setClippingPath(_ a: [String: Any]) throws -> String {
         let document = try target(a)
+        try refuseNullOrBooleanNumbers(a, ["flatness"], in: "set_clipping_path")
         guard let doc = document.doc else { throw ToolError(message: "Document has no image") }
         guard a.keys.contains("path") else {
             throw ToolError(
                 message: "set_clipping_path requires path — a saved path's name, or null to clear "
                     + "the clipping path.")
+        }
+        var flatness: Double?
+        if a["flatness"] != nil {
+            guard let value = doubleArg(a, "flatness"), value.isFinite else {
+                throw ToolError(
+                    message: "flatness must be a number of device pixels: 0 for none, or from 0.2 "
+                        + "to 100.")
+            }
+            flatness = value
         }
         let set = doc.paths
         let index: Int?
@@ -261,16 +277,33 @@ extension AgentServer {
             }
             index = found
         } else {
+            guard flatness == nil else {
+                throw ToolError(
+                    message: "flatness goes with a path: pass the clipping path's name beside it.")
+            }
             index = nil
         }
         let name = index.map { set.entries[$0].name }
-        let fields: [String: Any] = ["clipping_path": name.map { $0 as Any } ?? NSNull()]
-        let next = set.settingClippingPath(index)
-        guard try editPaths(document, name == nil ? "Clear Clipping Path" : "Set Clipping Path", next)
-        else {
+        let next = set.settingClippingPath(index, flatness: flatness)
+        let actionName: String
+        if let index {
+            // A flatness on the path that already is the clipping path is the sheet's edit.
+            actionName = flatness != nil && set.entries[index].clipping != nil
+                ? "Clipping Path Flatness" : "Set Clipping Path"
+        } else {
+            actionName = "Clear Clipping Path"
+        }
+        let changed = try editPaths(document, actionName, next)
+        var fields: [String: Any] = ["clipping_path": name.map { $0 as Any } ?? NSNull()]
+        if name != nil, let mark = document.doc?.paths.clippingPath?.clipping {
+            // Read back: the core's reading of the tail it now holds.
+            fields["flatness"] = PathShape.jsonNumber(CGFloat(mark.flatness))
+        }
+        guard changed else {
+            let with = flatness == nil ? "" : " with that flatness"
             return try pathNoOp(
                 fields,
-                why: name.map { "\"\($0)\" already is the clipping path." }
+                why: name.map { "\"\($0)\" already is the clipping path\(with)." }
                     ?? "the document has no clipping path.")
         }
         return try pathResult(document, fields)
