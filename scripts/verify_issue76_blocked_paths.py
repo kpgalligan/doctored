@@ -12,9 +12,11 @@ error that is not the guard's (a PNG is not a movie, the document has no RAW
 layer, the assisted experiment is off, two identical frames do not register,
 no sky model is installed). Allowed inputs are the app's own outputs: a
 `save_copy` PNG, `export_psd` -> `inspect_psd`, `export_pdf` ->
-`inspect_vector`, a copied sRGB ICC, a hand-written `.cube` and `.acv`,
-`package_action` -> `import_action`, `export_style_presets` ->
-`import_style_presets`, `get_color_table` -> `set_color_table` and
+`inspect_vector`, a copied sRGB ICC, a hand-written `.cube`, `.acv` and `.hdt`
+(`verify_v1_hdr_toning.hdt`), `package_action` -> `import_action`,
+`export_style_presets` -> `import_style_presets`, `export_brush_presets` ->
+`import_brush_presets` and `export_patterns` -> `import_patterns` (of a preset
+and a pattern saved first), `get_color_table` -> `set_color_table` and
 `get_duotone` -> `set_duotone`.
 
 It also checks the export-preset folder and profile read at use (a preset JSON
@@ -45,6 +47,8 @@ import sys
 import tempfile
 import time
 import uuid
+
+from verify_v1_hdr_toning import hdt
 
 ROOT = Path(__file__).resolve().parents[1]
 GUARD = ROOT / "app/Sources/AgentPathGuard.swift"
@@ -388,6 +392,31 @@ def run(drive):
     path, label = d.aws("a.asl")
     d.refused("import_style_presets", "path", label, path=path, group="Issue 76")
     d.succeeded("import_style_presets", "path", path=str(asl), group="Issue 76")
+
+    # Brush presets and patterns: export -> import of a preset and a pattern saved first.
+    d.call("save_brush_preset", name="Issue 76", hardness=40, flow=90, spacing=30, angle=10,
+           roundness=80)
+    brushes = a / "issue76.doctoredbrushes"
+    path, label = d.ssh("out.doctoredbrushes")
+    d.refused("export_brush_presets", "path", label, path=path)
+    d.succeeded("export_brush_presets", "path", path=str(brushes))
+    path, label = d.gnupg("a.doctoredbrushes")
+    d.refused("import_brush_presets", "path", label, path=path)
+    d.succeeded("import_brush_presets", "path", path=str(brushes))
+    d.call("define_pattern", document_id=doc, name="Issue 76")
+    patterns = a / "issue76.doctoredpatterns"
+    path, label = d.aws("out.doctoredpatterns")
+    d.refused("export_patterns", "path", label, path=path)
+    d.succeeded("export_patterns", "path", path=str(patterns))
+    path, label = d.cookies("a.doctoredpatterns")
+    d.refused("import_patterns", "path", label, path=path)
+    d.succeeded("import_patterns", "path", path=str(patterns))
+
+    # HDR Toning presets: a hand-written .hdt into the user library.
+    toning = hdt(a / "Issue 76.hdt")
+    path, label = d.ssh("a.hdt")
+    d.refused("import_hdr_toning_preset", "path", label, path=path)
+    d.succeeded("import_hdr_toning_preset", "path", path=str(toning))
     path, label = d.keychains("sky.png")
     d.refused("sky_replacement", "sky_path", label, document_id=second, layer=0, sky_path=path)
     d.succeeded("sky_replacement", "sky_path", document_id=second, layer=0, sky_path=str(png))

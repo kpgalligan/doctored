@@ -156,6 +156,13 @@ const FLOOR_CHROMA_SCALE: f64 = 8.0;
 /// saturated colour outside the gamut has its darkest stop at its top.
 const FLOOR_TOP_SCALE: f64 = 7.0;
 
+/// The request's largest `gamma` (module doc). `hdr_toning_preset_file`
+/// clamps a preset file's larger gamma to it.
+pub(crate) const MAX_GAMMA: f64 = 2.0;
+
+/// The point counts the request's `toning_curve` takes (module doc).
+pub(crate) const TONING_CURVE_POINTS: std::ops::RangeInclusive<usize> = 2..=16;
+
 /// The Local Adaptation request (module doc).
 #[derive(Clone)]
 pub(crate) struct LocalAdaptation {
@@ -203,7 +210,7 @@ fn toning_curve(value: &Value) -> Result<Option<CurveLuts>, String> {
     let refusal =
         || "hdr toning toning_curve must be 2 to 16 [in, out] points in 0…255".to_string();
     let points = value.as_array().ok_or_else(refusal)?;
-    if !(2..=16).contains(&points.len()) {
+    if !TONING_CURVE_POINTS.contains(&points.len()) {
         return Err(refusal());
     }
     for point in points {
@@ -261,7 +268,7 @@ impl LocalAdaptation {
             radius: number(object, "radius", 1.0..=500.0, 16.0, " pixels")?,
             strength: number(object, "strength", 0.1..=4.0, 0.52, "")?,
             smooth_edges,
-            gamma: number(object, "gamma", 0.1..=2.0, 1.0, "")?,
+            gamma: number(object, "gamma", 0.1..=MAX_GAMMA, 1.0, "")?,
             exposure: number(object, "exposure", -5.0..=5.0, 0.0, " stops")?,
             detail: number(object, "detail", -100.0..=300.0, 30.0, "")?,
             curve: object

@@ -111,7 +111,8 @@ struct AgentPathGuard {
              "add_live_photo_layer", "describe_profile", "assign_profile", "convert_profile",
              "set_proof_setup", "render_proof", "read_photoshop_adjustment_preset",
              "load_snapshot", "import_action", "convert_mode", "import_style_presets",
-             "set_color_table", "set_duotone", "import_brush_presets", "import_patterns"],
+             "set_color_table", "set_duotone", "import_brush_presets", "import_patterns",
+             "import_hdr_toning_preset"],
             ["path"], .read)
         add(["load_files_into_stack", "merge_to_hdr", "merge_panorama"], ["paths"], .read)
         add(["contact_sheet_from_sources"], ["files"], .read)

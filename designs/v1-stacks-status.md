@@ -1,7 +1,7 @@
 # Merge and stacks (ADR)
 
 - **Status:** Accepted — open items remain ([#7](https://github.com/kpgalligan/doctored/issues/7),
-  [#8](https://github.com/kpgalligan/doctored/issues/8)); the phase closed 2026-10-19.
+  [#66](https://github.com/kpgalligan/doctored/issues/66)); the phase closed 2026-10-19.
 - **Phase / dates:** first wave 2026-10-11 to 2026-10-12, phases 1 to 4c 2026-10-16 to 2026-10-19.
 - **Originals:** [archive/v1-stacks-status.md](../archive/v1-stacks-status.md) (the working record at close) and
   [archive/v1-stacks-shipped.md](../archive/v1-stacks-shipped.md) (its shipped companion).
@@ -294,11 +294,17 @@ its floor as a grey instead of a saturated blue, and the pinned take rows are un
 On 2026-10-29 the eleven built-ins were removed. On 2026-11-12 eight looks of Doctored's own joined Default,
 each with its purpose line; `scripts/verify_v1_hdr_toning.py` case (r) pins their values, their differences and
 the recorded step.
+2026-11-14: Preset ▸ Import Preset… and MCP `import_hdr_toning_preset` read a `.hdt` file
+(`hdr_toning_preset_file.rs`, `dr_hdr_toning_preset_file_decode`) into the user library, named after the file
+(every sample stores "Default"). Local Adaptation only; a file that does not parse exactly refuses whole; a
+gamma above 2 imports as 2 and corner points as smooth ones, each with a report line. The curve's pair order
+(output first) and the point flag's polarity (0 a corner) are inferences the module doc states. Case (s) pins it.
 
 ## Open items
 
 - `OPEN` [#7](https://github.com/kpgalligan/doctored/issues/7) — the built-in looks await the owner's review.
-- `OPEN` [#8](https://github.com/kpgalligan/doctored/issues/8) — importing a `.hdt` file the user owns.
+- `OPEN` [#66](https://github.com/kpgalligan/doctored/issues/66) — confirm the `.hdt` Toning Curve pair order and
+  point-flag polarity with a recorded take.
 
 ## For the next item
 

@@ -71,6 +71,14 @@ CASES
   Adaptation value explicit and equal to the table, and replays to the same
   codes; a look's name matches case-insensitively; a user file carrying a
   look's name does not replace the look.
+- Import (`import_hdr_toning_preset`, the dialog's Preset > Import Preset...):
+  a `.hdt` written here (`hdt`) imports under its file's name with the values
+  it holds, writes one library file, and applies like
+  `{method: local_adaptation, **values}`; a gamma of 3.25 imports as 2 with
+  the report line; two corner points are named in the report; another method,
+  a truncated file, a missing file and a path under ~/.ssh refuse and write
+  nothing; a second import of one name refuses and `replace` overwrites it; a
+  file named for a built-in refuses and imports under `name`.
 
 Usage: python3 scripts/verify_v1_hdr_toning.py [--output DIR]
 Prints `PASS <case>` per case and exits 0 when every case passed.
@@ -179,6 +187,27 @@ def chart_pixels():
 
 def png8(path, size, codes):
     png(path, size[0], size[1], bytes(c for p in codes for c in (*p, 255)))
+    return Path(path)
+
+
+def hdt(path, curve=((0, 0), (255, 255)), corners=None, method=3, strength=0.52, radius=16,
+        exposure=0, saturation=20, detail=30, shadow=0, highlight=0, gamma=1, vibrance=0,
+        smooth_edges=False):
+    """A `.hdt` HDR Toning preset in the layout `core/src/hdr_toning_preset_file.rs` reads,
+    written field by field here: `curve` is [in, out] pairs, stored as (output, input) u16
+    pairs; `corners` is one flag per point (1 smooth, 0 a corner), every point smooth unless
+    given; the stored name is "Default" and a NUL, as in every sample file."""
+    name = 'Default\0'.encode('utf-16-be')
+    out = b'hdrt' + struct.pack('>IfII', 3, strength, 2, len(name) // 2) + name
+    out += struct.pack('>HH', 2, len(curve))
+    for x, y in curve:
+        out += struct.pack('>HH', y, x)
+    out += bytes(corners if corners is not None else [1] * len(curve)) + bytes(8)
+    out += struct.pack('>fIff', radius, method, 0.0, 1.0)
+    out += b'hdra' + struct.pack('>I7f', 6, exposure, saturation, detail, shadow, highlight,
+                                 gamma, vibrance)
+    out += bytes([int(smooth_edges), 0])
+    Path(path).write_bytes(out)
     return Path(path)
 
 
@@ -705,6 +734,87 @@ class Drive:
         return dict(looks=len(BUILT_IN_LOOKS), black_and_white_chroma=worst_chroma,
                     neutral_row_range=spread)
 
+    # ------------------------------------------------------------ .hdt import --
+
+    def library(self):
+        """The instance's HDR Toning library files, by file name."""
+        folder = self.app.folder / 'hdr-toning-presets'
+        if not folder.exists():
+            return {}
+        return {path.name: json.loads(path.read_text()) for path in folder.glob('*.json')}
+
+    def preset_import(self):
+        """(s) `import_hdr_toning_preset`, the dialog's Preset > Import Preset...."""
+        folder = self.folder / 'hdt'
+        folder.mkdir(exist_ok=True)
+        values = dict(radius=40, strength=1.15, smooth_edges=True, gamma=0.9, exposure=0.25,
+                      detail=80, shadow=-20, highlight=30, vibrance=10, saturation=-15,
+                      toning_curve=[[0, 0], [100, 120], [255, 255]])
+        expected = dict(method='local_adaptation', **values)
+        stored = {key: value for key, value in values.items() if key != 'toning_curve'}
+        source = hdt(folder / 'Drive Import.hdt', curve=values['toning_curve'], **stored)
+        before = self.library()
+        reply = self.app.call('import_hdr_toning_preset', path=str(source))
+        assert reply['ok'] is True and reply['name'] == 'Drive Import', reply
+        assert reply['report'] == [], reply
+        assert reply['hdr_toning'] == expected, (reply['hdr_toning'], expected)
+        after = self.library()
+        digest = hashlib.sha256(b'drive import').hexdigest() + '.json'
+        assert set(after) - set(before) == {digest}, (sorted(before), sorted(after))
+        assert after[digest] == dict(schema_version=1, name='Drive Import', hdr_toning=expected), \
+            after[digest]
+        assert self.toned_codes(preset='Drive Import') == \
+            self.toned_codes(method='local_adaptation', **values), 'an imported preset applies'
+        detail = {}
+        # A gamma above the core's 2 imports as 2, with the report line naming the stored value.
+        reply = self.app.call('import_hdr_toning_preset',
+                              path=str(hdt(folder / 'Drive Gamma.hdt', gamma=3.25)))
+        assert reply['report'] == ['gamma 3.25 is above the maximum 2; imported as 2'], reply
+        assert reply['hdr_toning']['gamma'] == 2, reply
+        detail['gamma'] = reply['report']
+        # Corner points are not carried: Doctored's Toning Curve is smooth through every point.
+        reply = self.app.call('import_hdr_toning_preset', path=str(hdt(
+            folder / 'Drive Corner.hdt', curve=[[0, 0], [64, 40], [192, 220], [255, 255]],
+            corners=[1, 0, 0, 1])))
+        assert reply['report'] == [
+            "2 of the toning curve's 4 points are corners; imported as smooth points"], reply
+        assert reply['hdr_toning']['toning_curve'] == [[0, 0], [64, 40], [192, 220], [255, 255]]
+        detail['corners'] = reply['report']
+        # Refusals write nothing: another method, a truncated file, a missing one, a blocked path.
+        unchanged = self.library()
+        detail['method'] = self.app.refused(
+            'import_hdr_toning_preset', 'Drive Method.hdt: ',
+            'hdr toning preset method 1 is not supported',
+            path=str(hdt(folder / 'Drive Method.hdt', method=1)))
+        short = folder / 'Drive Short.hdt'
+        short.write_bytes(hdt(folder / 'Drive Whole.hdt').read_bytes()[:-3])
+        detail['truncated'] = self.app.refused(
+            'import_hdr_toning_preset', 'Drive Short.hdt: ', 'hdr toning preset is truncated at',
+            path=str(short))
+        self.app.refused('import_hdr_toning_preset', 'No file at',
+                         path=str(folder / 'Absent.hdt'))
+        detail['guard'] = self.app.refused('import_hdr_toning_preset',
+                                           'Refused: path points into SSH keys',
+                                           path='~/.ssh/drive.hdt')
+        assert self.library() == unchanged, 'a refused import writes nothing'
+        # A second import of one name refuses; replace overwrites the one file.
+        self.app.refused('import_hdr_toning_preset', 'named “Drive Import” already exists',
+                         path=str(source))
+        hdt(source, curve=values['toning_curve'], **dict(stored, detail=150))
+        reply = self.app.call('import_hdr_toning_preset', path=str(source), replace=True)
+        assert reply['hdr_toning']['detail'] == 150, reply
+        assert len(self.library()) == len(unchanged), 'replace writes the same file'
+        assert self.library()[digest]['hdr_toning']['detail'] == 150
+        # A file named for a built-in refuses; `name` saves it under another.
+        look = hdt(folder / 'Vivid.hdt', detail=10)
+        self.app.refused('import_hdr_toning_preset', 'Vivid.hdt',
+                         '“Vivid” is a built-in HDR Toning preset', path=str(look))
+        reply = self.app.call('import_hdr_toning_preset', path=str(look), name='Vivid Import')
+        assert reply['name'] == 'Vivid Import' and reply['hdr_toning']['detail'] == 10, reply
+        assert self.toned_codes(preset='Vivid Import') == \
+            self.toned_codes(method='local_adaptation', detail=10), 'a renamed import applies'
+        return detail
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
@@ -745,6 +855,7 @@ def main():
         run('(p) local adaptation: actions record and replay', drive.la_actions)
         run('(q) presets: Default, a user preset, a removed name', drive.presets)
         run('(r) presets: the built-in looks', drive.looks)
+        run('(s) presets: import a .hdt file', drive.preset_import)
     (output / 'receipt.json').write_text(json.dumps(results, indent=2, default=str) + '\n')
     print(f'receipt: {output / "receipt.json"}')
     if failed:

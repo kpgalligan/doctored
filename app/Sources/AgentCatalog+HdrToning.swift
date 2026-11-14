@@ -40,7 +40,8 @@ extension AgentServer {
             "toning_curve by local_adaptation only. Any other method refuses them. bit_depth: ",
             "for a 32-bit document 8 or 16 (default 16); an 8- or 16-bit document keeps its depth ",
             "(the only value it takes). method is required unless preset is given. preset: a ",
-            "built-in, one of \(builtIns), or a preset saved from the dialog's Preset popup, ",
+            "built-in, one of \(builtIns), or a preset saved from the dialog's Preset popup or ",
+            "imported with import_hdr_toning_preset, ",
             "named without regard to case; it sets method and every value, and other ",
             "arguments override it. A recorded call keeps the preset's values, not its ",
             "name. A CMYK document is refused. Recorded into Actions. ",
@@ -83,6 +84,39 @@ extension AgentServer {
                     "bit_depth": ["type": "integer", "enum": [8, 16]] as [String: Any],
                     "document_id": Self.docIDProperty,
                  ], required: []),
+            tool("import_hdr_toning_preset", importDescription,
+                 [
+                    "path": [
+                        "type": "string",
+                        "description": "Absolute path (or ~) to a .hdt HDR Toning preset file.",
+                    ] as [String: Any],
+                    "name": [
+                        "type": "string",
+                        "description": "The preset's name (default: the file's name without .hdt).",
+                    ] as [String: Any],
+                    "replace": [
+                        "type": "boolean", "default": false,
+                        "description": "Overwrite a user preset of that name.",
+                    ] as [String: Any],
+                 ], required: ["path"]),
         ]
+    }
+
+    /// `import_hdr_toning_preset`'s description (AgentServer+HdrToning.swift).
+    private var importDescription: String {
+        [
+            "Import a Photoshop HDR Toning preset file (.hdt) into the HDR Toning user preset ",
+            "library — the HDR Toning dialog's Preset ▸ Import Preset…. The preset is named name, ",
+            "else the file's name without .hdt (the file stores no usable name); a built-in's name ",
+            "refuses, and a user preset's name refuses unless replace is true. hdr_toning's preset ",
+            "then applies it by that name. The file's Local Adaptation values are imported as ",
+            "stored, except that a gamma above 2 is imported as 2 and the Toning Curve's corner ",
+            "points as smooth ones; each such change is one report line. A file of another ",
+            "method, one that does not parse exactly, one with a value outside hdr_toning's ",
+            "ranges, or one over 4 KiB refuses and writes nothing. The values reproduce the ",
+            "preset's settings; Doctored's Local Adaptation renders them its own way. Changes no ",
+            "document and records no Action step. Reply: {ok, name, hdr_toning (the saved ",
+            "arguments: method and every value), report, file}.",
+        ].joined()
     }
 }

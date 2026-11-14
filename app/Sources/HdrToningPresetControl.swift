@@ -1,15 +1,17 @@
 import AppKit
+import UniformTypeIdentifiers
 
 /// HDR Toning's preset row, in `DevelopFilterPresetControl.swift`'s pattern:
 /// `Preset: [popup]`, the popup listing the built-ins (`HdrToningPreset.builtIns`: Default and
 /// the looks), the user's presets, Custom (shown once the controls move off the chosen entry),
-/// Save Preset… and Delete Preset… (a user preset only). A look's purpose is its menu item's
-/// tooltip and, while it is the chosen entry, a muted caption under the row; with Default, a
-/// user preset or Custom chosen the caption is hidden, so the dialog opens as it always has.
+/// Save Preset…, Import Preset… (a `.hdt` file, `HdrToningPresetImport.swift`) and Delete
+/// Preset… (a user preset only). A look's purpose is its menu item's tooltip and, while it is the
+/// chosen entry, a muted caption under the row; with Default, a user preset or Custom chosen the
+/// caption is hidden, so the dialog opens as it always has.
 ///
 /// Choosing an entry hands the preset to `load`, and the sheet calls `markCustom()` on any later
-/// change. Save and Delete write the library at once, independent of OK/Cancel: they are
-/// preferences, not edits.
+/// change. Save, Import and Delete write the library at once, independent of OK/Cancel: they are
+/// preferences, not edits. An imported preset is loaded and chosen, as a saved one is.
 final class HdrToningPresetControl: NSObject {
     let row: NSView
 
@@ -26,7 +28,7 @@ final class HdrToningPresetControl: NSObject {
     private var isCustom = false
     private var observer: NSObjectProtocol?
 
-    private enum Tag: Int { case builtIn, preset, custom, save, delete }
+    private enum Tag: Int { case builtIn, preset, custom, save, importFile, delete }
 
     init(current: @escaping () -> HdrToningSettings, load: @escaping (HdrToningPreset) -> Void) {
         self.current = current
@@ -97,6 +99,7 @@ final class HdrToningPresetControl: NSObject {
         menu.addItem(custom)
         menu.addItem(.separator())
         menu.addItem(item("Save Preset…", .save))
+        menu.addItem(item("Import Preset…", .importFile))
         let delete = item("Delete Preset…", .delete)
         delete.isEnabled = selectedName != nil && !isCustom
         menu.addItem(delete)
@@ -147,6 +150,9 @@ final class HdrToningPresetControl: NSObject {
         case .save:
             showSelection()
             saveClicked()
+        case .importFile:
+            showSelection()
+            importClicked()
         case .delete:
             showSelection()
             deleteClicked()
@@ -169,6 +175,48 @@ final class HdrToningPresetControl: NSObject {
         } catch {
             Self.fail("Could Not Save the Preset", error)
         }
+    }
+
+    /// Import Preset…: a `.hdt` file chosen in a sheet on the dialog's own window, saved into the
+    /// library under its file's name (`HdrToningPresetLibrary.importFile`, the whole of the
+    /// import), then loaded and chosen. A report from the core is shown in one alert.
+    private func importClicked() {
+        guard let window = popup.window else { NSSound.beep(); return }
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Choose a Photoshop HDR Toning preset (.hdt). It is saved under its "
+            + "file's name."
+        panel.prompt = "Import"
+        if let type = UTType(filenameExtension: HdrToningPresetLibrary.importExtension) {
+            panel.allowedContentTypes = [type]
+        }
+        panel.directoryURL = HdrToningPresetLibrary.installedPresetsDirectory()
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            self?.importPreset(from: url)
+        }
+    }
+
+    private func importPreset(from url: URL) {
+        do {
+            let imported = try HdrToningPresetLibrary.importFile(url)
+            load(imported.preset)
+            selected(builtIn: nil, name: imported.preset.name)
+            if !imported.report.isEmpty { Self.note(imported.preset.name, imported.report) }
+        } catch {
+            Self.fail("Could Not Import the Preset", error)
+        }
+    }
+
+    /// The import's report: one sentence per value imported other than as stored.
+    private static func note(_ name: String, _ report: [String]) {
+        let alert = NSAlert()
+        alert.messageText = "Imported “\(name)”"
+        alert.informativeText = report.map { line -> String in
+            line.prefix(1).uppercased() + String(line.dropFirst()) + "."
+        }.joined(separator: "\n")
+        alert.runModal()
     }
 
     private func deleteClicked() {

@@ -411,6 +411,8 @@ mod gray_style;
 mod gray_tools;
 #[path = "gray_working_selection.rs"]
 mod gray_working_selection;
+#[path = "hdr_toning_preset_files.rs"]
+mod hdr_toning_preset_files;
 #[path = "hdr_transfer.rs"]
 mod hdr_transfer;
 #[path = "heif_container.rs"]

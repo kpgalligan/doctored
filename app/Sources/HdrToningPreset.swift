@@ -1,9 +1,10 @@
 import Foundation
 
 // HDR Toning's presets: the built-ins, Default (Local Adaptation at its defaults) and the looks
-// after it, and the user's own, saved from the dialog's Preset popup (`HdrToningPresetControl`)
-// into a `PreferenceLibrary` (`DR_HDR_TONING_PRESETS_DIR`). `hdr_toning`'s `preset` names one; a
-// recorded call keeps the preset's explicit values, never its name (`recordedArguments`).
+// after it, and the user's own, saved from the dialog's Preset popup or imported there from a
+// `.hdt` file (`HdrToningPresetControl`, `HdrToningPresetImport.swift`) into a `PreferenceLibrary`
+// (`DR_HDR_TONING_PRESETS_DIR`). `hdr_toning`'s `preset` names one; a recorded call keeps the
+// preset's explicit values, never its name (`recordedArguments`).
 
 /// One HDR Toning preset: a method and every value it takes. Library writes are PREFERENCES: no
 /// undo step, no dirty flag, never an Action step.
@@ -206,8 +207,15 @@ enum HdrToningPresetLibrary {
     static func save(name: String, settings: HdrToningSettings, replace: Bool) throws -> HdrToningPreset {
         var arguments = settings.stepArguments
         arguments.removeValue(forKey: "bit_depth")
-        return try Library.save(HdrToningPreset.validated(name: name, arguments: arguments),
-                                replace: replace)
+        return try save(name: name, arguments: arguments, replace: replace)
+    }
+
+    /// Saves `arguments` (`hdr_toning`'s keys of one method, no `bit_depth`) under `name`, through
+    /// `HdrToningPreset.validated`. The import (`HdrToningPresetImport.swift`) saves this way.
+    @discardableResult
+    static func save(name: String, arguments: [String: Any], replace: Bool) throws -> HdrToningPreset {
+        try Library.save(HdrToningPreset.validated(name: name, arguments: arguments),
+                         replace: replace)
     }
 
     static func delete(name: String) throws {

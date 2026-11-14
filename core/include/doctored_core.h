@@ -2055,6 +2055,19 @@ char *dr_lut_bake_profile(const uint8_t *look, size_t look_len,
 char *dr_adjustment_preset_file_decode(const uint8_t *bytes, size_t len,
                                        const char *extension, char **err_out);
 
+/* Decodes the `len` bytes at `bytes` as an HDR Toning preset file (.hdt)
+ * and returns {"hdr_toning":{…},"report":[…]} as a heap JSON string freed
+ * with dr_string_free: `hdr_toning` is the Local Adaptation arguments the
+ * file holds (`method`, every value and `toning_curve` as [in, out] pairs),
+ * and each `report` line names a value imported other than as stored (a
+ * gamma above 2 imports as 2; corner points import as smooth ones). NULL
+ * `bytes` with `len` 0 is an empty file (refused by the format's truncation
+ * sentence). NULL with a message through err_out on a NULL `bytes` with a
+ * non-zero `len`, `len` over 4096 (checked before the bytes are read), a
+ * method other than Local Adaptation, or any file that does not parse
+ * exactly or holds a value outside the request's ranges; never panics. */
+char *dr_hdr_toning_preset_file_decode(const uint8_t *bytes, size_t len, char **err_out);
+
 /* Fills bins_out with 1024 counts — 256 red, then green, then blue, then
  * Rec. 709 luma — and total_out with the number of pixels counted. A pixel
  * counts when its alpha is non-zero and, when `mask` is given (a coverage

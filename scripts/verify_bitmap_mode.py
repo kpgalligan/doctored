@@ -385,7 +385,10 @@ DOCUMENT_FREE = {
     'set_default_proof_preset', 'list_raw_presets', 'delete_raw_preset', 'repair_raw_preset',
     'list_skies', 'describe_profile', 'list_installed_profiles', 'load_files_into_stack',
     'list_style_presets', 'rename_style_preset', 'delete_style_preset', 'import_style_presets',
-    'export_style_presets', 'list_workspaces', 'delete_workspace',
+    'export_style_presets', 'list_workspaces', 'delete_workspace', 'list_brush_presets',
+    'save_brush_preset', 'delete_brush_preset', 'import_brush_presets', 'export_brush_presets',
+    'list_patterns', 'delete_pattern', 'import_patterns', 'export_patterns',
+    'import_hdr_toning_preset',
 }
 
 

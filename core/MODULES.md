@@ -538,6 +538,7 @@ Detail belongs in the source file's own header comment.
 - `hdr_toning.rs` — kernel: HDR Toning's request (`HdrRequest`), its three global maps, plane statistics, post-render plan by request.
 - `hdr_local_adaptation.rs` — kernel: Local Adaptation's request, log range, guided base/detail split, per-pixel map, Toning Curve histogram, plan.
 - `doc_hdr_toning.rs` / `ffi_hdr_toning.rs` — HDR Toning adapters: render, decode, tone into a flattened 16-bit document; the 8/16-bit plans; the histogram; four exports.
+- `hdr_toning_preset_file.rs` / `ffi_hdr_toning_preset.rs` — `.hdt` HDR Toning preset files (`dr_hdr_toning_preset_file_decode`) to Local Adaptation arguments, with a report.
 - `doc_export_float.rs` — the 32-bit float deliverable: TIFF, OpenEXR, Radiance, its preview; the HDR HEIC/AVIF's gain-map or PQ intermediate.
 - `precision_metadata_edit.rs` / `ffi_precision_metadata.rs` — Phase 11D typed twins of the three byte metadata edits (`import_metadata`, `set_metadata`, `set_resolution`), byte contracts verbatim.
 - `doc_export.rs` / `ffi_export.rs` — the Phase 11A export workspace: ONE pure render → resample → sharpen → convert → reduce → encode chain producing a deliverable's ENCODED BYTES, at both depths.
