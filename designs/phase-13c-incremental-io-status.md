@@ -57,7 +57,7 @@ save), 13C-3 (recovery on the pool) and 13C-5 (the streamed 8-bit PNG) have ship
 
 | Path | Peak beside the document | Streams? |
 | --- | --- | --- |
-| Byte native save (`drdc::save_native_controlled`) | the non-plane fields between planes, one plane's encoder rows (`png_rows8`) and a 1 MiB `FileSink` | yes |
+| Byte native save (`drdc::save_native_controlled`) | the small fields between planes (a slot's payload and a table built before the body go from their own buffers), one plane's encoder rows (`png_rows8`) and a 1 MiB `FileSink` | yes |
 | Byte native open (`DrDocument::open_controlled`) | the whole file (`cancel_io::read_file`), then `drdc_read::parse_native` decodes from it | no |
 | Typed native save (`precision_native_write`) | `write_scratch_bytes`: a 1 MiB `BufWriter` and one plane's IDAT window (`native_stream::FileSink`) | yes |
 | Typed native open (`precision_native_plan`, `native_stream::Reader`) | positional `pread`s; payloads decoded band by band into tiles (`precision_png_rows`) | yes |

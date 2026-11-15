@@ -326,8 +326,10 @@ bool dr_doc_save_native(const DrDocument *doc, const char *path,
                         const DrJobControl *control, char **err_out);
 
 /* The 8-bit native writer's planned peak scratch (drdc_save_plan): the
- * encoded-body bound, the tables held beside it, the largest plane's encode
- * transient and fixed overhead (no added margin).
+ * writer streams each plane to the file, so this is the bound of the file's
+ * bytes that are not a plane, the tables held beside them, the largest plane
+ * encoder's scratch (an 8-bit plane's is rows), the file sink's window and
+ * fixed overhead (no added margin).
  * It does not depend on cached contiguous views. Metadata only; allocates no pixels.
  * NULL or error: 0 with err_out set (free with dr_string_free). */
 uint64_t dr_doc_native_save_scratch_bytes(const DrDocument *doc, char **err_out);
@@ -11182,9 +11184,10 @@ DrPrecisionImage *dr_precision_image_neural_colorize_apply(const DrPrecisionImag
  *
  * dr_tile_pool_open makes the directory with one non-recursive mkdir (never
  * its parents) and repairs a torn index tail. A write keys each tiled raster
- * (layers and retained masters) and stores the payloads the pool lacks,
- * makes them durable, then publishes the skeleton atomically at
- * skeleton_path; masks, channels, RAW payloads and 8-bit source PNGs are
+ * (layers, retained masters, mask and channel planes and 8-bit sources) as
+ * tiles and stores the payloads the pool lacks, makes them durable, then
+ * publishes the skeleton (version 2; version 1 is still read) atomically at
+ * skeleton_path; a contiguous plane or a RAW payload of 64 KiB or more is
  * stored in 1 MiB chunks. The typed write admits the native save's write
  * scratch plus dr_tile_pool_window_bytes() against limit beside other.
  * dr_tile_pool_rebuild writes the native file the skeleton names to

@@ -36,8 +36,13 @@
 //! the tile pool's skeleton sink), so the file is not a term. `S`
 //! (`streamed_bound`) is the plane terms inside W: each layer's and
 //! channel's `byte_png_bound`, each mask's raw bytes and each source asset's
-//! `source_png_encoded_bound`. Every other byte of the file passes through
-//! the writer's one scratch `Vec` between planes, so `W − S` bounds it. Each
+//! `source_png_encoded_bound`. Every other byte of the file is in `W − S`:
+//! the small fields and the tail tables encoded in place pass through the
+//! writer's one scratch `Vec`, put before each plane, while each
+//! length-prefixed slot (the ICC profile, the metadata packets, a layer's
+//! meta and style) and each table built before the body (WARP, CSMP, PATH,
+//! GVAR, already in `held`) goes to the sink from its own buffer, so the
+//! `Vec` never takes a copy of a large payload. Each
 //! 8-bit plane with `c` channels (4: a layer or an 8-bit asset; 1: a channel)
 //! is encoded row by row (`png_rows8`), holding `T_k = 5·(c·w + 1) + 1 MiB`
 //! (`png_rows8::scratch_bytes`: three rows, a 64 KiB output block and one

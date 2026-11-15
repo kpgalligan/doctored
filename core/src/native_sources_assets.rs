@@ -134,8 +134,9 @@ pub(crate) fn put_source_png8(
     crate::png_rows8::put_png8_record(out, &record, &png, rows, job).map(|_| ())
 }
 
-/// The 8-bit original's encode transient beside the file: the former 48 B/px
-/// figure, unchanged (only 16-bit planes are banded), and charged
+/// The typed plan's charge for an 8-bit original's encode beside the file:
+/// the former 48 B/px figure, an over-count since the original streams row by
+/// row ([`put_source_png8`]), kept until a measurement lowers it, and charged
 /// only for 8-bit originals.
 pub(crate) fn byte_source_png_encode_scratch(dimensions: (u32, u32)) -> Result<u64, String> {
     Ok(pixel_count(dimensions.0, dimensions.1)? as u64 * 48

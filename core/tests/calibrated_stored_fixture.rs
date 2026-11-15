@@ -38,8 +38,9 @@
 //! one write the same bytes, so no scratch worktree was needed:
 //!
 //! - 95704c3 changed only `adjust_calibrated.rs` and
-//!   `ffi_calibrated.rs` in `core/src`. Neither is on `drdc::encode_native`'s
-//!   path, and layer `meta` is written verbatim through `put_opt_string`.
+//!   `ffi_calibrated.rs` in `core/src`. Neither is on the byte writer's path
+//!   (`drdc::encode_native` then, `write_native` since 13C-2a), and layer
+//!   `meta` is written verbatim through `put_opt_string`.
 //! - From `95704c3^` to 667f0dc, `drdc.rs` (last changed in 295a75b, before
 //!   the layer refusal), `drdc_capacity.rs`, `identity_native`,
 //!   `mask_outside_native`, `label_native`, `comps_native`, `warp_native`,

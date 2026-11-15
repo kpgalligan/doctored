@@ -130,8 +130,10 @@ pub unsafe extern "C" fn dr_doc_save_native(
 }
 
 /// The 8-bit native writer's planned peak scratch (`drdc_save_plan`): the
-/// encoded-body bound, the tables held beside it, the largest plane's encode
-/// transient and fixed overhead (no added margin). It does not depend on cached
+/// writer streams each plane to the file, so this is the bound of the file's
+/// bytes that are not a plane, the tables held beside them, the largest plane
+/// encoder's scratch (an 8-bit plane's is rows), the file sink's window and
+/// fixed overhead (no added margin). It does not depend on cached
 /// contiguous views. Metadata only; allocates no pixels. NULL or error: 0 with
 /// `err_out` set (free with `dr_string_free`).
 ///

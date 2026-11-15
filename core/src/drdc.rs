@@ -647,7 +647,10 @@ impl DrDocument {
     ///
     /// The file is written in order to `out` (13C-2a), never assembled: the
     /// small fields gather in one scratch `Vec` that is put before each
-    /// plane, and each layer, channel and embedded 8-bit source PNG streams
+    /// plane; each length-prefixed slot's payload (ICC profile, metadata
+    /// packet, layer meta and style) and each table built before the body
+    /// goes to `out` from its own buffer; and each layer, channel and
+    /// embedded 8-bit source PNG streams
     /// row by row (`png_rows8`) while each mask streams run by run. A tiled
     /// layer is first offered to the sink (`NativeSink::raster`: the tile
     /// pool's skeleton sink takes it as keys and nothing is encoded), and each
@@ -954,12 +957,12 @@ impl DrDocument {
                 put_pending(out, &mut buf)?;
                 put_mask(out, mask, job)?;
             }
-            put_opt_string(&mut buf, layer.meta.as_deref(), "meta")?;
+            put_opt_string(out, &mut buf, layer.meta.as_deref(), "meta")?;
             // Version 3 field.
             buf.push(u8::from(layer.clipped));
             // Version 4 field: the canonical style JSON.
             let style = layer.style.as_ref().map(|s| s.to_json());
-            put_opt_string(&mut buf, style.as_deref(), "style")?;
+            put_opt_string(out, &mut buf, style.as_deref(), "style")?;
             // Version 7 fields, twelve bytes: the structure, the locks and the
             // link. Reserved lock bits are masked off on the way out as well
             // as on the way in, so a file never carries a bit this build does
@@ -1020,21 +1023,24 @@ impl DrDocument {
         } else {
             Some(&**self.profile.bytes())
         };
-        put_opt_bytes(&mut buf, icc, "ICC profile", MAX_DRDC_BLOB_LEN)?;
+        put_opt_bytes(out, &mut buf, icc, "ICC profile", MAX_DRDC_BLOB_LEN)?;
         let meta = &self.metadata;
         put_opt_bytes(
+            out,
             &mut buf,
             meta.exif.as_deref(),
             "EXIF packet",
             MAX_DRDC_BLOB_LEN,
         )?;
         put_opt_bytes(
+            out,
             &mut buf,
             meta.xmp.as_deref(),
             "XMP packet",
             MAX_DRDC_BLOB_LEN,
         )?;
         put_opt_bytes(
+            out,
             &mut buf,
             meta.iptc.as_deref(),
             "IPTC packet",
@@ -1079,11 +1085,16 @@ impl DrDocument {
         crate::label_native::encode(&labels, &mut buf, u64::MAX, job.checkpoints_only())?;
         crate::comps_native::encode(&comps, &mut buf, u64::MAX, job.checkpoints_only())?;
         buf.extend_from_slice(&crate::source_transform_native::encode(&projective)?);
-        buf.extend_from_slice(&warp);
+        // The tables built before the body (the WARP payload, CSMP, PATH, whose
+        // raster-part planes may be canvas-sized, and GVAR) go to `out` from
+        // their own buffers, never copied into `buf`.
+        put_pending(out, &mut buf)?;
+        out.put(&warp)?;
         buf.extend_from_slice(&crate::source_refusal_native::encode(&refusals)?);
-        buf.extend_from_slice(&samplers);
-        buf.extend_from_slice(&paths);
-        buf.extend_from_slice(&variations);
+        put_pending(out, &mut buf)?;
+        for table in [&samplers, &paths, &variations] {
+            out.put(table)?;
+        }
         crate::reference_native::encode(&references, &mut buf, u64::MAX, job.checkpoints_only())?;
         crate::spot_channel_native::encode(&spots, &mut buf, u64::MAX, job.checkpoints_only())?;
         crate::background_native::encode(background, &mut buf, u64::MAX, job.checkpoints_only())?;
@@ -1151,8 +1162,12 @@ fn put_name(buf: &mut Vec<u8>, name: &str) {
 /// Writes an optional LENGTH-PREFIXED slot — u8 present, then u32 len + that
 /// many bytes when present — under `cap`. The ONE implementation: the layer
 /// string slots (meta, style) and the version-6 document blobs both go
-/// through it. `what` is the whole noun ("layer meta", "ICC profile").
+/// through it. `what` is the whole noun ("layer meta", "ICC profile"). The
+/// flag and length join the pending bytes in `buf`; a present payload goes
+/// to `out` straight from the caller's buffer after them, never through
+/// `buf` (a slot may be 16 MiB, and the scratch `Vec` grows by doubling).
 fn put_opt_bytes(
+    out: &mut dyn NativeSink,
     buf: &mut Vec<u8>,
     value: Option<&[u8]>,
     what: &str,
@@ -1162,15 +1177,22 @@ fn put_opt_bytes(
     if let Some(b) = value {
         let len = capacity::slot_length(b.len(), cap, what)?;
         buf.extend_from_slice(&len.to_le_bytes());
-        buf.extend_from_slice(b);
+        put_pending(out, buf)?;
+        out.put(b)?;
     }
     Ok(())
 }
 
 /// Writes an optional string slot (meta, style) — the UTF-8 twin of
 /// [`put_opt_bytes`], under the shared string cap.
-fn put_opt_string(buf: &mut Vec<u8>, value: Option<&str>, what: &str) -> Result<(), String> {
+fn put_opt_string(
+    out: &mut dyn NativeSink,
+    buf: &mut Vec<u8>,
+    value: Option<&str>,
+    what: &str,
+) -> Result<(), String> {
     put_opt_bytes(
+        out,
         buf,
         value.map(str::as_bytes),
         &format!("layer {what}"),

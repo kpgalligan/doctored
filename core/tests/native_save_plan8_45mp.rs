@@ -7,14 +7,17 @@
 //! does not move it) and holds it to the test's own row bound, declared here
 //! from the widest plane, and to the plan's `write_scratch_bytes`, which in
 //! turn must stay below each noise file it admits. The recovery write into
-//! the tile pool is held to the figure it is admitted with, and the 8-bit
-//! flat PNG save (13C-5, the same row encoder) to the row bound.
+//! the tile pool is held to the figure it is admitted with, the 8-bit flat
+//! PNG save (13C-5, the same row encoder) to the row bound, and a small
+//! canvas carrying three 16 MiB metadata packets to the row bound too (the
+//! writer puts a slot's payload from the document's own buffer).
 //!
 //! Alone in its binary: its own `#[global_allocator]`, and each case holds
 //! up to ~1.4 GB while it is checked. Every test takes [`SERIAL`] first, so
 //! no other test allocates while one counts.
 
 use doctored_core::doc::DrDocument;
+use doctored_core::doc_color::MetadataKind;
 use doctored_core::ffi::{dr_image_free, dr_image_from_rgba, dr_string_free};
 use doctored_core::ffi_color::dr_doc_save_image;
 use doctored_core::ffi_doc::{dr_doc_free, dr_doc_from_image, dr_doc_save_native};
@@ -315,6 +318,37 @@ fn a_float_master_save_adds_rows_at_24_mp() {
     let doc = *unsafe { Box::from_raw(placed) };
     drop((white, master));
     check("float master", doc, w);
+}
+
+/// The length-prefixed slots go to the file from the document's own
+/// buffers: three 16 MiB metadata packets on a small canvas add rows, not a
+/// copy of the packets in the writer's scratch `Vec` (which took all three,
+/// at a doubled capacity, before the slots were put straight to the sink).
+#[test]
+fn a_native_save_puts_metadata_packets_straight_to_the_file() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let packet = vec![0x5A_u8; 16 * MIB as usize];
+    let mut doc = DrDocument::from_pixels(noise8(256, 256, 7));
+    for kind in [MetadataKind::Exif, MetadataKind::Xmp, MetadataKind::Iptc] {
+        doc = doc.set_metadata(kind, Some(&packet)).unwrap().unwrap();
+    }
+    drop(packet);
+    let scratch = doc.native_save_scratch_bytes().unwrap();
+    let dir = TempDir::new().unwrap();
+    let path = CString::new(dir.path().join("packets.doctored").to_str().unwrap()).unwrap();
+    let mut len = 0;
+    let added = rise(|| len = save(&doc, &path));
+    println!("metadata packets: save added {added} B; plan {scratch} B; file {len} B");
+    assert!(len > 48 * MIB, "the file holds the three packets");
+    assert!(
+        added <= row_bound(256),
+        "metadata packets: the save added {added} B, over the row bound {}",
+        row_bound(256)
+    );
+    assert!(
+        added <= scratch,
+        "metadata packets: the save added {added} B, over the plan's {scratch} B"
+    );
 }
 
 #[test]
