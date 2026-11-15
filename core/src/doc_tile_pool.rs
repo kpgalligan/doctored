@@ -6,16 +6,17 @@
 //!
 //! **Write.** The native writers run unchanged into a [`SkeletonSink`]: every
 //! byte they put goes to the skeleton as a literal, except a raster they offer
-//! through `NativeSink::raster` (a tiled layer or master: its tiles are keyed
-//! and appended, the skeleton records the keys and nothing is encoded) and a
-//! payload they announce through `NativeSink::begin_blob` (a mask or channel
-//! plane, a RAW payload, an 8-bit source PNG: keyed in 1 MiB chunks). A blob
-//! under [`BLOB_MIN_BYTES`] stays literal: its key and index entry would cost
-//! more than rewriting it. The sink cannot rewrite a byte it took, so the
-//! 8-bit PNG encoder (`png_rows8`) measures a PNG it writes here before
-//! writing it, and never stages it whole. The pool is flushed before the
-//! skeleton's publishing rename, so a published skeleton never names a
-//! payload that is not durable.
+//! through `NativeSink::raster` (a tiled layer, master, mask or channel plane
+//! or 8-bit source: its tiles are keyed and appended, the skeleton records
+//! the keys and nothing is encoded, so a mask or channel dab appends the
+//! tiles it met) and a payload they announce through `NativeSink::begin_blob`
+//! (a contiguous mask or channel plane, a RAW payload: keyed in 1 MiB chunks).
+//! A blob under [`BLOB_MIN_BYTES`] stays literal: its key and index entry
+//! would cost more than rewriting it. The sink cannot rewrite a byte it took,
+//! so the 8-bit PNG encoder (`png_rows8`) measures a PNG it writes here (a
+//! contiguous raster's) before writing it, and never stages it whole. The
+//! pool is flushed before the skeleton's publishing rename, so a published
+//! skeleton never names a payload that is not durable.
 //!
 //! **The identity memo.** Per handle and sample type, a tile's address maps
 //! to `(Weak<Tile>, key)`, so a tile already keyed is not hashed again. An
@@ -70,6 +71,8 @@ type Memo<S> = HashMap<usize, (Weak<Tile<S>>, Key)>;
 
 #[derive(Default)]
 struct Memos {
+    gray8: Memo<u8>,
+    gray16: Memo<u16>,
     rgba8: Memo<[u8; 4]>,
     rgba16: Memo<[u16; 4]>,
     rgba32: Memo<[f32; 4]>,
@@ -78,6 +81,8 @@ struct Memos {
 
 impl Memos {
     fn prune(&mut self) {
+        self.gray8.retain(|_, (tile, _)| tile.strong_count() > 0);
+        self.gray16.retain(|_, (tile, _)| tile.strong_count() > 0);
         self.rgba8.retain(|_, (tile, _)| tile.strong_count() > 0);
         self.rgba16.retain(|_, (tile, _)| tile.strong_count() > 0);
         self.rgba32.retain(|_, (tile, _)| tile.strong_count() > 0);
@@ -90,6 +95,16 @@ trait Memoized: PoolSample {
     fn memo(memos: &mut Memos) -> &mut Memo<Self>;
 }
 
+impl Memoized for u8 {
+    fn memo(memos: &mut Memos) -> &mut Memo<Self> {
+        &mut memos.gray8
+    }
+}
+impl Memoized for u16 {
+    fn memo(memos: &mut Memos) -> &mut Memo<Self> {
+        &mut memos.gray16
+    }
+}
 impl Memoized for [u8; 4] {
     fn memo(memos: &mut Memos) -> &mut Memo<Self> {
         &mut memos.rgba8
@@ -484,6 +499,12 @@ impl NativeSink for SkeletonSink<'_> {
             RasterRef::Rgba16Png(plane) => (Site::Rgba16Png, plane.dimensions(), self.keys(plane)?),
             RasterRef::Float(plane) => (Site::Float, plane.dimensions(), self.keys(plane)?),
             RasterRef::Cmyk(plane) => (Site::Cmyk, plane.dimensions(), self.keys(plane)?),
+            RasterRef::Gray8Raw(plane) => (Site::Gray8Raw, plane.dimensions(), self.keys(plane)?),
+            RasterRef::Gray8Png(plane) => (Site::Gray8Png, plane.dimensions(), self.keys(plane)?),
+            RasterRef::Gray16Raw(plane) => (Site::Gray16Raw, plane.dimensions(), self.keys(plane)?),
+            RasterRef::Rgba8SourcePng(plane) => {
+                (Site::Rgba8SourcePng, plane.dimensions(), self.keys(plane)?)
+            }
         };
         self.writer.tiles(site, dimensions, &keys)?;
         Ok(true)
@@ -575,6 +596,28 @@ fn rebuild_raster(
         Site::Cmyk => {
             let image = CmykImage::from_tile_plane(plane(pool, dimensions, keys, job)?);
             crate::cmyk_native::put_payload(out, &image, u64::MAX, job)
+        }
+        Site::Gray8Raw => {
+            let plane = plane::<u8>(pool, dimensions, keys, job)?;
+            let runs = (0..dimensions.1)
+                .flat_map(|y| plane.row_segments(y, 0, dimensions.0).map(|(_, run)| run));
+            crate::drdc::put_runs(out, runs, job)
+        }
+        Site::Gray8Png => {
+            let plane = plane::<u8>(pool, dimensions, keys, job)?;
+            let mut rows = crate::drdc::gray_rows(|y| plane.row_segments(y, 0, u32::MAX));
+            crate::drdc::put_channel_png(out, dimensions, &mut rows, job)
+        }
+        Site::Gray16Raw => {
+            let plane = plane::<u16>(pool, dimensions, keys, job)?;
+            let runs = (0..dimensions.1)
+                .flat_map(|y| plane.row_segments(y, 0, dimensions.0).map(|(_, run)| run));
+            crate::precision_native::put_plane_samples(out, runs, u64::MAX, job)
+        }
+        Site::Rgba8SourcePng => {
+            let plane = plane::<[u8; 4]>(pool, dimensions, keys, job)?;
+            let mut rows = crate::drdc::rgba_rows(|y| plane.row_segments(y, 0, u32::MAX));
+            crate::native_sources::put_source_png8(out, dimensions, &mut rows, job)
         }
     }
 }

@@ -15,13 +15,14 @@ use doctored_core::doc::{DrDocument, MaskKind};
 use doctored_core::doc_tile_pool::DrTilePool;
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_doc::{dr_doc_open, dr_doc_save_native};
+use doctored_core::ffi_raw_source::dr_doc_attach_raw_source;
 use doctored_core::ffi_tile_pool::*;
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
 use doctored_core::precision_document::PrecisionDocument;
 use doctored_core::precision_image::{PrecisionImage, REFERENCE_WORKING_BYTES};
 use doctored_core::precision_mask_edit::MaskEdit;
-use doctored_core::retained_source::SourceEdit;
+use doctored_core::retained_source::{SourceEdit, SourceInput};
 use doctored_core::sha256::{digest, Sha256};
 use doctored_core::tile_pool::{key, TAG_GRAY16, TAG_RGBA16, TAG_RGBA8};
 use image::{Rgba, RgbaImage};
@@ -323,8 +324,9 @@ fn a_byte_document_rebuilds_to_its_saved_file() {
     pool.write_byte(&doc, &at(&dir, "state.drskel")).unwrap();
     let info = pool.info();
     assert!(count(&info, "appended_tiles") > 0, "{info}");
-    // The mask, the channel PNG and the source table are chunked blobs.
-    assert!(count(&info, "appended_chunks") >= 3, "{info}");
+    // The mask, the channel and the 8-bit source are tile segments too
+    // (skeleton version 2): nothing is chunked.
+    assert_eq!(count(&info, "appended_chunks"), 0, "{info}");
     let rebuilt = pool
         .rebuild(&at(&dir, "state.drskel"), &at(&dir, "rebuilt.doctored"))
         .unwrap();
@@ -528,6 +530,217 @@ fn an_edit_appends_only_the_tiles_it_meets() {
         pool.rebuild(&at(&dir, "a.drskel"), &at(&dir, "a-rebuilt.doctored"))
             .unwrap()
             == saved
+    );
+}
+
+/// A 300×300 rect at (300, 300) meets columns 1–2 and rows 1–2 of a plane's
+/// 256×256 tiles: four.
+const DAB: (u32, u32, u32, u32) = (300, 300, 300, 300);
+const DAB_TILES: u64 = 4;
+
+/// `plane` (a `w`-wide row-major plane) with the dab rect inverted.
+fn dabbed<T: Copy>(plane: &[T], w: u32, invert: impl Fn(T) -> T) -> Vec<T> {
+    let (x, y, dw, dh) = DAB;
+    let mut out = plane.to_vec();
+    for row in y..y + dh {
+        for column in x..x + dw {
+            let at = (row * w + column) as usize;
+            out[at] = invert(out[at]);
+        }
+    }
+    out
+}
+
+/// The dab rect's samples of `plane`, inverted (`with_rect`'s input).
+fn dab_rect(plane: &[u8], w: u32) -> Vec<u8> {
+    let (x, y, dw, dh) = DAB;
+    (y..y + dh)
+        .flat_map(|row| (x..x + dw).map(move |column| !plane[(row * w + column) as usize]))
+        .collect()
+}
+
+#[test]
+fn a_byte_mask_or_channel_dab_appends_only_the_tiles_it_meets() {
+    let dir = TempDir::new().unwrap();
+    let (w, h) = (1024_u32, 1024_u32);
+    let mask: Vec<u8> = noise8(w, h, 30).into_raw().into_iter().step_by(4).collect();
+    let channel: Vec<u8> = noise8(w, h, 31).into_raw().into_iter().step_by(4).collect();
+    let doc = noise_doc(w, h, 32)
+        .adding_image_layer(0, noise8(w, h, 33), "Masked")
+        .unwrap()
+        .set_mask(
+            1,
+            image::GrayImage::from_raw(w, h, mask.clone()).unwrap(),
+            (0, 0),
+            true,
+            255,
+        )
+        .unwrap()
+        .add_channel("Alpha 1", &channel, w, h, [255, 0, 0], 0.5)
+        .unwrap();
+    let pool = Pool::open(&at(&dir, "pool"));
+    pool.write_byte(&doc, &at(&dir, "a.drskel")).unwrap();
+    let first = pool.info();
+    assert_eq!(count(&first, "appended_chunks"), 0, "{first}");
+    let (x, y, dw, dh) = DAB;
+    let mut masked = doc.clone();
+    masked.layers[1].mask = Some(
+        doc.layers[1]
+            .mask
+            .as_ref()
+            .unwrap()
+            .with_rect(x, y, dw, dh, &dab_rect(&mask, w))
+            .unwrap()
+            .unwrap(),
+    );
+    let mut channeled = doc.clone();
+    channeled.channels[0].data = doc.channels[0]
+        .data
+        .with_rect(x, y, dw, dh, &dab_rect(&channel, w))
+        .unwrap()
+        .unwrap();
+    for (name, edited) in [("mask", &masked), ("channel", &channeled)] {
+        let skeleton = at(&dir, &format!("{name}.drskel"));
+        pool.write_byte(edited, &skeleton).unwrap();
+        let info = pool.info();
+        assert_eq!(count(&info, "appended_chunks"), 0, "{name}: {info}");
+        assert_eq!(count(&info, "appended_tiles"), DAB_TILES, "{name}: {info}");
+        let saved = saved_byte(edited, &at(&dir, &format!("{name}.doctored")));
+        let rebuilt = pool
+            .rebuild(&skeleton, &at(&dir, &format!("{name}-rebuilt.doctored")))
+            .unwrap();
+        assert!(rebuilt == saved, "{name}: the rebuilt file differs");
+    }
+}
+
+#[test]
+fn a_typed_mask_or_channel_dab_appends_only_the_tiles_it_meets() {
+    let dir = TempDir::new().unwrap();
+    let (w, h) = (1024_u32, 1024_u32);
+    let mut state = 40;
+    let mask: Vec<u16> = (0..w * h).map(|_| splitmix(&mut state) as u16).collect();
+    let channel: Vec<u16> = (0..w * h).map(|_| splitmix(&mut state) as u16).collect();
+    let edit = |doc: &PrecisionDocument, request: Value, samples: &[u16]| {
+        doc.mask_edit(
+            &MaskEdit::parse(&request.to_string()).unwrap(),
+            samples,
+            LIMIT,
+            0,
+            None,
+        )
+        .unwrap()
+        .unwrap()
+    };
+    let set_mask = json!({"op":"set_mask","layer":0,"width":w,"height":h,"linked":false});
+    let set_channel = |index: Value| json!({"op":"set_channel","index":index,"name":"Coverage"});
+    let base = typed(w, h, noise16(w, h, 41));
+    let doc = edit(
+        &edit(&base, set_mask.clone(), &mask),
+        set_channel(Value::Null),
+        &channel,
+    );
+    let pool = Pool::open(&at(&dir, "pool"));
+    pool.write_typed(&doc, &at(&dir, "a.drskel")).unwrap();
+    let first = pool.info();
+    assert_eq!(count(&first, "appended_chunks"), 0, "{first}");
+    let masked = edit(&doc, set_mask, &dabbed(&mask, w, |v| !v));
+    let channeled = edit(&doc, set_channel(json!(0)), &dabbed(&channel, w, |v| !v));
+    for (name, edited) in [("mask", &masked), ("channel", &channeled)] {
+        let skeleton = at(&dir, &format!("{name}.drskel"));
+        pool.write_typed(edited, &skeleton).unwrap();
+        let info = pool.info();
+        assert_eq!(count(&info, "appended_chunks"), 0, "{name}: {info}");
+        assert_eq!(count(&info, "appended_tiles"), DAB_TILES, "{name}: {info}");
+        let saved = saved_typed(edited, &at(&dir, &format!("{name}.doctored")));
+        let rebuilt = pool
+            .rebuild(&skeleton, &at(&dir, &format!("{name}-rebuilt.doctored")))
+            .unwrap();
+        assert!(rebuilt == saved, "{name}: the rebuilt file differs");
+    }
+}
+
+/// `skeleton` rewritten as version `version` under a fresh closing digest
+/// (this file's own SHA-256).
+fn as_version(skeleton: &Path, version: u32) {
+    let mut bytes = std::fs::read(skeleton).unwrap();
+    bytes[4..8].copy_from_slice(&version.to_le_bytes());
+    let body = bytes.len() - 32;
+    let digest = sha256_hex(&bytes[..body]);
+    for (i, byte) in bytes[body..].iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&digest[2 * i..2 * i + 2], 16).unwrap();
+    }
+    std::fs::write(skeleton, bytes).unwrap();
+}
+
+/// A byte document whose skeleton holds only version 1's segments: two
+/// layers (tiles), a placed 16-bit master (tiles) and its camera RAW
+/// payload of 102,400 bytes (a blob), and literals.
+fn version1_fixture() -> DrDocument {
+    let (w, h) = (300_u32, 200_u32);
+    let master = typed(w, h, noise16(w, h, 21));
+    let edit = SourceEdit::parse(
+        &json!({"op":"place","source_id":"camera","revision_id":"a","name":"Camera",
+            "x":0,"y":0,"depth_conversion":"convert_fallback"})
+        .to_string(),
+    )
+    .unwrap();
+    let doc = noise_doc(w, h, 22)
+        .source_edit_input(Some(SourceInput::Typed(&master)), &edit, LIMIT, 0, None)
+        .unwrap()
+        .unwrap();
+    let resource = noise8(160, 160, 23).into_raw();
+    let descriptor = CString::new(
+        json!({"schema_version":1,"original_filename":"probe.dng","content_sha256":"0".repeat(64),
+            "decoder":{"identifier":"independent","version":"1","implementation":"fixture"},
+            "recipe":{"schema_version":3,"tint":11.999950408935547}})
+        .to_string(),
+    )
+    .unwrap();
+    let mut err = ptr::null_mut();
+    let attached = unsafe {
+        dr_doc_attach_raw_source(
+            &doc,
+            doc.layers.len() - 1,
+            resource.as_ptr(),
+            resource.len(),
+            descriptor.as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut err,
+        )
+    };
+    assert!(!attached.is_null(), "{}", text(err));
+    unsafe { *Box::from_raw(attached) }
+}
+
+#[test]
+fn a_version_1_skeleton_still_rebuilds_and_cannot_name_a_gray_site() {
+    let dir = TempDir::new().unwrap();
+    let pool = Pool::open(&at(&dir, "pool"));
+    let doc = version1_fixture();
+    let skeleton = at(&dir, "old.drskel");
+    pool.write_byte(&doc, &skeleton).unwrap();
+    let info = pool.info();
+    assert!(count(&info, "appended_chunks") > 0, "the RAW blob: {info}");
+    assert!(count(&info, "appended_tiles") > 0, "{info}");
+    as_version(&skeleton, 1);
+    let saved = saved_byte(&doc, &at(&dir, "old.doctored"));
+    let rebuilt = pool
+        .rebuild(&skeleton, &at(&dir, "old-rebuilt.doctored"))
+        .unwrap();
+    assert!(rebuilt == saved, "a version 1 skeleton rebuilds the file");
+    // A gray site (a byte mask's rows, 5) exists only from version 2.
+    let masked = noise_doc(300, 200, 24)
+        .add_mask(0, MaskKind::HideAll)
+        .unwrap();
+    let gray = at(&dir, "gray.drskel");
+    pool.write_byte(&masked, &gray).unwrap();
+    as_version(&gray, 1);
+    let refused = pool.rebuild(&gray, &at(&dir, "gray-rebuilt.doctored"));
+    assert_eq!(
+        refused.unwrap_err(),
+        format!("damaged tile pool skeleton {}", gray.display())
     );
 }
 

@@ -77,6 +77,7 @@ Detail belongs in the source file's own header comment.
 - `fill_align_native.rs` — the GRADIENT FILL ALIGNMENT word: native word 105 for a Gradient Fill description aligned with the layer, first inside 45; no table.
 - `gradient_map_method_native.rs` — the GRADIENT MAP METHOD word: native word 111 for a Gradient Map with a `method`, first inside 45, ahead of 105; no table.
 - `drdc.rs` / `drdc_capacity.rs` / `drdc_read.rs` / `drdc_save_plan.rs` / `drdc_reopen_plan.rs` — native DRDC (`.doctored`, `.rz` read): streamed writer, caps, preflighted reader, save/reopen plans.
+- `drdc_planes.rs` — 13C-2a: the byte writer's layer, channel and mask fields, offered as tiles or streamed (PNG rows, mask runs); shared with the pool's rebuild.
 - `psd.rs` / `psd_import.rs` / `psd_import16.rs` / `psd_container.rs` — PSD, PSB and layered-TIFF layer import (16-bit typed, 32-bit float), preflight/choice, framing, composites.
 - `ffi_psd.rs` — the layered-file exports: PSD/PSB/layered-TIFF import report, opens (byte, typed, Gray, Lab), export report and save at both depths, `dr_tiff_has_layers`.
 - `psd_framing.rs` — leaf: the three layered containers' field widths and limits, PSB's long-length keys, the ONE RLE row-table walk and the ONE PackBits decoder.

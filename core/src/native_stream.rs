@@ -121,6 +121,16 @@ pub(crate) enum RasterRef<'a> {
     Float(&'a crate::tile_store::TilePlane<[f32; 4]>),
     /// A CMYK record's CMYKA16 rows (`cmyk_native::put_payload`).
     Cmyk(&'a crate::tile_store::TilePlane<[u16; 5]>),
+    /// A byte mask record's raw rows (`drdc::put_runs`).
+    Gray8Raw(&'a crate::tile_store::TilePlane<u8>),
+    /// A byte channel's PNG record (`drdc::put_channel_png`).
+    Gray8Png(&'a crate::tile_store::TilePlane<u8>),
+    /// A typed mask or channel plane's samples
+    /// (`precision_native::put_plane_samples`).
+    Gray16Raw(&'a crate::tile_store::TilePlane<u16>),
+    /// An embedded 8-bit source's PNG record
+    /// (`native_sources::put_source_png8`).
+    Rgba8SourcePng(&'a crate::tile_store::TilePlane<[u8; 4]>),
 }
 
 impl NativeSink for Vec<u8> {

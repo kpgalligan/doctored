@@ -3,8 +3,9 @@
 //! skeleton plus the payloads the pool did not hold yet. The rebuild
 //! (`doc_tile_pool`) walks it back into the native file byte for byte.
 //!
-//! Layout, little-endian: `DRSK`, version u32 (1), kind u8 (0 a byte
-//! document, 1 a typed one), then segments, each a tag byte:
+//! Layout, little-endian: `DRSK`, version u32 ([`VERSION`]; version 1 is
+//! still read), kind u8 (0 a byte document, 1 a typed one), then segments,
+//! each a tag byte:
 //!
 //! - `1` literal: u32 length (at most [`LITERAL_MAX`]), then that many bytes
 //!   of the native file, verbatim;
@@ -18,7 +19,10 @@
 //! payload back. The skeleton is checked whole before any of it is used: a
 //! digest that differs, or a segment that does not parse, is `damaged tile
 //! pool skeleton <path>`. It is an internal format of the pool, not a
-//! `.doctored` word; a later layout raises the version.
+//! `.doctored` word; a later layout raises the version. Version 2 added the
+//! gray sites (a byte mask's rows, a byte channel's PNG record, a typed
+//! plane's samples) and the embedded 8-bit source's PNG record, which version
+//! 1 stored as blobs; a version 1 skeleton naming one of them is damaged.
 
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -28,7 +32,10 @@ use crate::tile_pool::{Key, BLOB_CHUNK_BYTES};
 use crate::tile_store::TILE_EDGE;
 
 const MAGIC: &[u8; 4] = b"DRSK";
-const VERSION: u32 = 1;
+/// The version this build writes.
+const VERSION: u32 = 2;
+/// The oldest version this build reads.
+const FIRST_VERSION: u32 = 1;
 /// A literal record's cap: the skeleton sink holds at most this much
 /// literal before it writes a record.
 pub(crate) const LITERAL_MAX: usize = 1 << 20;
@@ -52,15 +59,31 @@ pub(crate) enum Site {
     Float = 3,
     /// CMYKA16 rows (`cmyk_native::put_payload`).
     Cmyk = 4,
+    /// A byte mask record's raw rows, after its length, width and height
+    /// (`drdc::put_runs`). Version 2.
+    Gray8Raw = 5,
+    /// A byte channel's u32 length and L8 PNG (`drdc::put_channel_png`).
+    /// Version 2.
+    Gray8Png = 6,
+    /// A typed mask or channel plane's little-endian samples, after its u64
+    /// length (`precision_native::put_plane_samples`). Version 2.
+    Gray16Raw = 7,
+    /// An embedded 8-bit source's u64 length and RGBA8 PNG
+    /// (`native_sources::put_source_png8`). Version 2.
+    Rgba8SourcePng = 8,
 }
 
 impl Site {
-    fn from_byte(byte: u8) -> Option<Self> {
-        Some(match byte {
-            1 => Self::Rgba8Png,
-            2 => Self::Rgba16Png,
-            3 => Self::Float,
-            4 => Self::Cmyk,
+    fn from_byte(byte: u8, version: u32) -> Option<Self> {
+        Some(match (byte, version) {
+            (1, _) => Self::Rgba8Png,
+            (2, _) => Self::Rgba16Png,
+            (3, _) => Self::Float,
+            (4, _) => Self::Cmyk,
+            (5, 2..) => Self::Gray8Raw,
+            (6, 2..) => Self::Gray8Png,
+            (7, 2..) => Self::Gray16Raw,
+            (8, 2..) => Self::Rgba8SourcePng,
             _ => return None,
         })
     }
@@ -168,6 +191,7 @@ pub(crate) struct SkeletonReader {
     left: u64,
     path: String,
     pub(crate) kind: u8,
+    version: u32,
     ended: bool,
 }
 
@@ -206,17 +230,20 @@ impl SkeletonReader {
             left: body,
             path: path.to_string(),
             kind: 0,
+            version: 0,
             ended: false,
         };
         let mut head = [0_u8; 9];
         reader.read(&mut head)?;
+        let version = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
         if &head[..4] != MAGIC
-            || u32::from_le_bytes([head[4], head[5], head[6], head[7]]) != VERSION
+            || !(FIRST_VERSION..=VERSION).contains(&version)
             || head[8] > KIND_TYPED
         {
             return Err(damaged());
         }
         reader.kind = head[8];
+        reader.version = version;
         Ok(reader)
     }
 
@@ -271,7 +298,7 @@ impl SkeletonReader {
             TILES => {
                 let mut site = [0_u8; 1];
                 self.read(&mut site)?;
-                let site = Site::from_byte(site[0]).ok_or_else(|| self.damaged())?;
+                let site = Site::from_byte(site[0], self.version).ok_or_else(|| self.damaged())?;
                 let (width, height, count) = (self.u32()?, self.u32()?, self.u32()?);
                 let pixels = u64::from(width) * u64::from(height);
                 if pixels == 0

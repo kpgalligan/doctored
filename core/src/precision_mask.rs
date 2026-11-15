@@ -246,6 +246,10 @@ impl PrecisionPlane {
         }
         Ok(true)
     }
+    /// The tiles: the tile pool's write (13C) keys them.
+    pub(crate) fn tile_plane(&self) -> &TilePlane<u16> {
+        &self.tiles
+    }
     fn tiled(tiles: TilePlane<u16>) -> Self {
         Self {
             tiles,

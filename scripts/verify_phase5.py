@@ -14,7 +14,8 @@ import tempfile
 
 from phase5_history import grouped_action_history, history_flows
 from phase5_recovery import (crash_and_restart, default_interval_checkpoint,
-                             failed_write_and_previous_generation, pool_checkpoints)
+                             failed_write_and_previous_generation, pool_checkpoints,
+                             pool_mask_checkpoints)
 from phase5_snapshots import snapshot_flows
 
 
@@ -36,6 +37,7 @@ def main():
             crash_and_restart(folder / "crash")
             failed_write_and_previous_generation(folder / "faults")
             pool_checkpoints(folder / "pool")
+            pool_mask_checkpoints(folder / "pool-mask")
     except BaseException:
         print(f"Failure artifacts retained: {folder}", flush=True)
         raise

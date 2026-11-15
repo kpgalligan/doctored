@@ -262,6 +262,34 @@ def pool_checkpoints(folder):
           "an image.rz generation still recovers", flush=True)
 
 
+def pool_mask_checkpoints(folder):
+    """13C: a layer mask's plane is stored in the pool as tiles (skeleton version 2), so a
+    300x300 mask edit appends at most the 4 tiles it meets and no 1 MiB chunk."""
+    folder.mkdir()
+    recovery = folder / "recovery"
+    source = folder / "mask.png"
+    fixture(source, 1024, 1024)
+    with App(folder / "first", recovery, interval=60) as app:
+        document = app.open(source)
+        call = lambda tool_name, **arguments: app.call(tool_name, document_id=document, **arguments)
+        call("duplicate_layer", index=0)
+        call("add_layer_mask", layer=1, kind="reveal_all")
+        first = call("write_recovery", wait=True)
+        assert first["pool"]["appended_tiles"] > 0, first
+        edit = (300, 300, 300, 300)
+        call("select_rect", x=edit[0], y=edit[1], width=edit[2], height=edit[3])
+        call("fill_selection", layer=1, color="#000000", target="mask")
+        second = call("write_recovery", wait=True)
+        met = tiles_met(*edit)
+        report = second["pool"]
+        assert report["appended_chunks"] == 0, second
+        assert 0 < report["appended_tiles"] <= met, (met, second)
+    write_report(folder / "pool-mask-metrics.json", {"first": first["pool"], "second": report,
+                                                     "tiles_met_by_the_edit": met})
+    print(f"PASS: a 300x300 layer-mask edit appended {report['appended_tiles']} tiles (it meets "
+          f"{met}) and no chunk", flush=True)
+
+
 def failed_write_and_previous_generation(folder):
     folder.mkdir()
     recovery = folder / "recovery"

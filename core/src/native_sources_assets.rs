@@ -7,7 +7,7 @@ use super::{
 use crate::drdc::{MAX_DRDC_DECODED_BYTES, MAX_DRDC_PNG_LEN};
 use crate::icc::IccProfile;
 use crate::job_control::JobContext;
-use crate::native_stream::{NativeSink, Payload};
+use crate::native_stream::{NativeSink, Payload, RasterRef};
 use crate::precision_codec::{
     decode_native_png, inspect_native_payload, native_png_band_scratch, native_png_decode_scratch,
     native_png_encoded_bound, put_native_png, NATIVE_FIXED,
@@ -106,6 +106,32 @@ pub(crate) fn png_bound(dimensions: (u32, u32), depth: u8) -> Result<u64, String
     } else {
         Err("unsupported native source depth".into())
     }
+}
+
+/// An embedded 8-bit source's pixel field: the u64 length, then the RGBA8
+/// PNG of `rows` (`png_rows8`, 13C-2a), at most its [`png_bound`] and
+/// `MAX_DRDC_PNG_LEN`, announced as one payload. The ONE encoder of it,
+/// shared by both native writers and the tile pool's rebuild.
+pub(crate) fn put_source_png8(
+    out: &mut dyn NativeSink,
+    (width, height): (u32, u32),
+    rows: &mut crate::png_rows8::Rows<'_>,
+    job: JobContext<'_>,
+) -> Result<(), String> {
+    let record = crate::png_rows8::Record {
+        prefix: 8,
+        cap: png_bound((width, height), 8)?.min(u64::from(MAX_DRDC_PNG_LEN)),
+        too_large: "embedded source PNG exceeds its byte limit",
+        blob: true,
+    };
+    let png = crate::png_rows8::Png8 {
+        width,
+        height,
+        channels: 4,
+        after_ihdr: &[],
+        before_iend: &[],
+    };
+    crate::png_rows8::put_png8_record(out, &record, &png, rows, job).map(|_| ())
 }
 
 /// The 8-bit original's encode transient beside the file: the former 48 B/px
@@ -348,25 +374,17 @@ impl SourceTable {
                     crate::float_native::put_samples(out, image, bound, job)?
                 }
                 SourcePixels::Rgba8 { pixels, .. } => {
-                    // The u64 length and the PNG, streamed row by row by the
-                    // byte writer's encoder (`png_rows8`, 13C-2a).
-                    let (width, height) = pixels.dimensions();
-                    let record = crate::png_rows8::Record {
-                        prefix: 8,
-                        cap: png_bound(asset.dimensions(), asset.depth() as u8)?
-                            .min(u64::from(MAX_DRDC_PNG_LEN)),
-                        too_large: "embedded source PNG exceeds its byte limit",
-                        blob: true,
+                    // Offered to the tile pool's skeleton sink as tiles
+                    // first (13C), else the record streamed row by row.
+                    let taken = match pixels.tile_plane() {
+                        Some(plane) => out.raster(RasterRef::Rgba8SourcePng(plane))?,
+                        None => false,
                     };
-                    let png = crate::png_rows8::Png8 {
-                        width,
-                        height,
-                        channels: 4,
-                        after_ihdr: &[],
-                        before_iend: &[],
-                    };
-                    let mut rows = crate::drdc::rgba_rows(|y| pixels.row_segments(y, 0, u32::MAX));
-                    crate::png_rows8::put_png8_record(out, &record, &png, &mut rows, job)?;
+                    if !taken {
+                        let mut rows =
+                            crate::drdc::rgba_rows(|y| pixels.row_segments(y, 0, u32::MAX));
+                        put_source_png8(out, pixels.dimensions(), &mut rows, job)?;
+                    }
                     if out.position() > bound {
                         return Err("embedded source encoding exceeds admitted byte bound".into());
                     }

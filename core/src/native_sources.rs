@@ -116,8 +116,8 @@ mod precision;
 #[path = "native_sources_raw.rs"]
 mod raw;
 pub(crate) use assets::{
-    byte_source_png_encode_scratch, png_bound as source_png_encoded_bound, single_image_capacity,
-    source_plane_capacity, SourceTable,
+    byte_source_png_encode_scratch, png_bound as source_png_encoded_bound, put_source_png8,
+    single_image_capacity, source_plane_capacity, SourceTable,
 };
 pub(crate) use byte::byte_sources;
 pub(crate) use precision::precision_sources;

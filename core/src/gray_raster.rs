@@ -462,6 +462,15 @@ impl GrayRaster {
         }
     }
 
+    /// The tiled plane, `None` for the contiguous form: the tile pool's write
+    /// (13C) keys these tiles and writes a contiguous plane's bytes as a blob.
+    pub(crate) fn tile_plane(&self) -> Option<&TilePlane<u8>> {
+        match &self.repr {
+            Repr::Tiled(plane) => Some(plane),
+            Repr::Contiguous(_) => None,
+        }
+    }
+
     fn tiled(plane: TilePlane<u8>) -> Self {
         Self {
             repr: Repr::Tiled(plane),

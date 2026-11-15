@@ -380,7 +380,7 @@ pub use crate::precision_native_plan::native_color_plan;
 mod read;
 #[path = "precision_native_write.rs"]
 mod write;
-pub(crate) use write::append;
+pub(crate) use write::{append, put_plane_samples};
 
 pub(crate) const STORAGE_TAG: u32 = 1;
 pub(crate) const EVALUATION_TAG: u32 = 1;

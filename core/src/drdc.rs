@@ -13,12 +13,16 @@ use crate::dr_image::save_atomically;
 use crate::job_control::{DrJobControl, JobContext};
 use crate::metadata::Resolution;
 use crate::native_stream::{FileSink, NativeSink};
-use crate::png_rows8;
 
 #[path = "drdc_capacity.rs"]
 mod capacity;
 #[doc(hidden)]
 pub use capacity::warp_decoded_capacity;
+
+#[path = "drdc_planes.rs"]
+mod planes;
+pub(crate) use planes::{gray_rows, put_channel_png, put_layer_png, put_runs, rgba_rows};
+use planes::{put_channel, put_layer, put_mask, put_pending};
 
 #[path = "drdc_read.rs"]
 mod read;
@@ -948,8 +952,7 @@ impl DrDocument {
                 buf.extend_from_slice(&mask.width().to_le_bytes());
                 buf.extend_from_slice(&mask.height().to_le_bytes());
                 put_pending(out, &mut buf)?;
-                out.begin_blob(len)?;
-                put_runs(out, mask.runs(), job)?;
+                put_mask(out, mask, job)?;
             }
             put_opt_string(&mut buf, layer.meta.as_deref(), "meta")?;
             // Version 3 field.
@@ -1001,7 +1004,7 @@ impl DrDocument {
             buf.extend_from_slice(&sane_opacity(channel.overlay_opacity).to_le_bytes());
             buf.push(u8::from(channel.color_indicates_selected));
             put_pending(out, &mut buf)?;
-            put_channel_png(out, &channel.data, job)?;
+            put_channel(out, &channel.data, job)?;
         }
         // Version 6: the document tail, after the channel list. Every cap the
         // reader enforces is enforced here too, and the resolution is
@@ -1126,140 +1129,6 @@ impl DrDocument {
         }
         Ok(())
     }
-}
-
-/// A byte layer's pixel field: offered to the sink as tiles first
-/// (`NativeSink::raster`, which only the tile pool's skeleton sink takes),
-/// else its PNG record ([`put_layer_png`]) over the raster's rows.
-fn put_layer(
-    out: &mut dyn NativeSink,
-    pixels: &crate::layer_raster::LayerRaster,
-    job: JobContext<'_>,
-) -> Result<(), String> {
-    if let Some(plane) = pixels.tile_plane() {
-        if out.raster(crate::native_stream::RasterRef::Rgba8Png(plane))? {
-            return Ok(());
-        }
-    }
-    put_layer_png(
-        out,
-        pixels.dimensions(),
-        &mut rgba_rows(|y| pixels.row_segments(y, 0, u32::MAX)),
-        job,
-    )
-}
-
-/// A byte layer record's pixel field: the u32 length, then the RGBA8 PNG of
-/// `rows` (`png_rows8`), at most [`MAX_DRDC_PNG_LEN`]. The ONE encoder of
-/// it, shared by the writer's layer loop and the tile pool's rebuild
-/// (`doc_tile_pool`), so a rebuilt record is the saved record byte for byte.
-pub(crate) fn put_layer_png(
-    out: &mut dyn NativeSink,
-    (width, height): (u32, u32),
-    rows: &mut png_rows8::Rows<'_>,
-    job: JobContext<'_>,
-) -> Result<(), String> {
-    let record = png_rows8::Record {
-        prefix: 4,
-        cap: u64::from(MAX_DRDC_PNG_LEN),
-        too_large: "layer PNG too large",
-        blob: false,
-    };
-    let png = png_rows8::Png8 {
-        width,
-        height,
-        channels: 4,
-        after_ihdr: &[],
-        before_iend: &[],
-    };
-    png_rows8::put_png8_record(out, &record, &png, rows, job).map(|_| ())
-}
-
-/// A byte channel's pixel field: the u32 length, then the L8 PNG of the
-/// plane's rows, at most [`MAX_DRDC_PNG_LEN`], announced as one payload.
-pub(crate) fn put_channel_png(
-    out: &mut dyn NativeSink,
-    plane: &crate::gray_raster::GrayRaster,
-    job: JobContext<'_>,
-) -> Result<(), String> {
-    let record = png_rows8::Record {
-        prefix: 4,
-        cap: u64::from(MAX_DRDC_PNG_LEN),
-        too_large: "channel PNG too large",
-        blob: true,
-    };
-    let (width, height) = plane.dimensions();
-    let png = png_rows8::Png8 {
-        width,
-        height,
-        channels: 1,
-        after_ihdr: &[],
-        before_iend: &[],
-    };
-    let mut rows = |y: u32, row: &mut [u8]| {
-        let mut at = 0;
-        for (_, run) in plane.row_segments(y, 0, width) {
-            row[at..at + run.len()].copy_from_slice(run);
-            at += run.len();
-        }
-        full_row(at, row.len())
-    };
-    png_rows8::put_png8_record(out, &record, &png, &mut rows, job).map(|_| ())
-}
-
-/// An RGBA8 row source over `segments(y)`, the runs of row `y` left to
-/// right (`LayerRaster::row_segments`, `TilePlane::row_segments`).
-pub(crate) fn rgba_rows<'a, I>(
-    segments: impl Fn(u32) -> I + 'a,
-) -> impl FnMut(u32, &mut [u8]) -> Result<(), String> + 'a
-where
-    I: Iterator<Item = (u32, &'a [[u8; 4]])>,
-{
-    move |y, row| {
-        let mut at = 0;
-        for (_, run) in segments(y) {
-            let bytes = run.as_flattened();
-            row[at..at + bytes.len()].copy_from_slice(bytes);
-            at += bytes.len();
-        }
-        full_row(at, row.len())
-    }
-}
-
-/// A row source's check that its runs filled the row.
-fn full_row(filled: usize, len: usize) -> Result<(), String> {
-    if filled == len {
-        Ok(())
-    } else {
-        Err("PNG encoding failed: a row is short".into())
-    }
-}
-
-/// Puts the small fields gathered so far and empties the scratch.
-fn put_pending(out: &mut dyn NativeSink, buf: &mut Vec<u8>) -> Result<(), String> {
-    out.put(buf)?;
-    buf.clear();
-    Ok(())
-}
-
-/// A mask plane's row-major samples, run by run (13B-4: the tiles read in
-/// row order write the bytes a contiguous plane wrote), polling `job` once
-/// per 64 KiB.
-fn put_runs<'a>(
-    out: &mut dyn NativeSink,
-    runs: impl Iterator<Item = &'a [u8]>,
-    job: JobContext<'_>,
-) -> Result<(), String> {
-    let mut moved = 0;
-    for run in runs {
-        out.put(run)?;
-        moved += run.len();
-        if moved >= crate::cancel_io::POLL_BYTES {
-            moved -= crate::cancel_io::POLL_BYTES;
-            job.check()?;
-        }
-    }
-    Ok(())
 }
 
 /// Writes a NAME slot — u32 byte length + UTF-8 bytes — truncating an

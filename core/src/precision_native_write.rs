@@ -1037,10 +1037,10 @@ fn table(
     append(out, scratch, bound, job)
 }
 
-/// A typed plane as its byte length and its row-major samples, little
-/// endian, staged and appended 4096 samples at a time with one poll per
-/// block — the bytes and the cadence of the contiguous plane's walk, read
-/// from the tiles' runs (13B-4).
+/// A typed plane as its byte length and its samples ([`put_plane_samples`]),
+/// the samples first offered to the sink as tiles (`NativeSink::raster`,
+/// which only the tile pool's skeleton sink takes), else announced as one
+/// payload.
 fn put_plane(
     out: &mut dyn NativeSink,
     plane: &crate::precision_mask::PrecisionPlane,
@@ -1049,10 +1049,29 @@ fn put_plane(
 ) -> Result<(), String> {
     let len = plane.storage_bytes();
     append(out, &len.to_le_bytes(), bound, job)?;
+    if out.raster(crate::native_stream::RasterRef::Gray16Raw(
+        plane.tile_plane(),
+    ))? {
+        return Ok(());
+    }
     out.begin_blob(len)?;
+    put_plane_samples(out, plane.runs(), bound, job)
+}
+
+/// A typed plane's row-major samples, little endian, staged and appended
+/// 4096 samples at a time with one poll per block — the bytes and the
+/// cadence of the contiguous plane's walk, read from the tiles' runs
+/// (13B-4). The ONE writer of them, shared by [`put_plane`] and the tile
+/// pool's rebuild (`doc_tile_pool`).
+pub(crate) fn put_plane_samples<'a>(
+    out: &mut dyn NativeSink,
+    runs: impl Iterator<Item = &'a [u16]>,
+    bound: u64,
+    job: JobContext<'_>,
+) -> Result<(), String> {
     let mut bytes = [0_u8; 8192];
     let mut filled = 0;
-    for &sample in plane.runs().flatten() {
+    for &sample in runs.flatten() {
         if filled == 0 {
             job.check()?;
         }
