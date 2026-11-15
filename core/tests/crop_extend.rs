@@ -666,8 +666,9 @@ fn a_turned_extended_crop_pads_its_corners_and_resamples_its_edge_once() {
     );
     let got: Vec<u32> = out.channels[0]
         .data
-        .pixels()
-        .map(|p| u32::from(p.0[0]))
+        .samples()
+        .iter()
+        .map(|&v| u32::from(v))
         .collect();
     assert_plane_within_one(&got, &want, "8-bit channel resampled once");
 

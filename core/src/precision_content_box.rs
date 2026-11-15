@@ -34,7 +34,8 @@
 //! unchanged — while a feathered typed mask re-blurs on every miss. Keyed on
 //! the image's identity token (`PrecisionImage::identity_key`: minted by
 //! every constructor, so a changed image is a new key), the ENABLED mask
-//! plane's `Arc` (a disabled mask keys as none, the way it reads) with its
+//! plane's identity token (`PrecisionPlane::key`: a rewritten plane is a new
+//! token; a disabled mask keys as none, the way it reads) with its
 //! dimensions, the record offset, and the mask properties that affect
 //! coverage (offset, density, feather, outside coverage). Each is held as a
 //! `Weak`, which keeps the allocation's control block alive, so a stored
@@ -46,10 +47,10 @@
 //! (`doc_group_query.rs`) with the same tuple and rules (a raster's alpha × its enabled mask; a
 //! group's union over its raster descendants, its own mask ignored; `None` for an adjustment, a bad
 //! index or nothing opaque). Its memo is `CONTENT_BOX_MEMO`'s twin, keyed on the image's
-//! `identity_key` and the enabled mask plane's `Arc`, both held as `Weak`s (no samples pinned),
-//! plus the record offset and the coverage-affecting mask properties.
+//! `identity_key` and the enabled mask plane's identity token, both held as `Weak`s (no samples
+//! pinned), plus the record offset and the coverage-affecting mask properties.
 
-use std::sync::{Arc, Mutex, OnceLock, Weak};
+use std::sync::{Mutex, OnceLock, Weak};
 
 use crate::cmyk_image::CmykImage;
 use crate::doc_export_layers::{alpha_bounds16, alpha_bounds32};
@@ -171,8 +172,8 @@ const MEMO_CAPACITY: usize = 512;
 /// bits, outside coverage.
 type MaskKey = ((i32, i32), u32, u32, u8);
 
-/// The ENABLED mask plane's allocation and its dimensions.
-type PlaneKey = (Weak<Vec<u16>>, (u32, u32));
+/// The ENABLED mask plane's identity and its dimensions.
+type PlaneKey = (crate::precision_mask::PrecisionPlaneKey, (u32, u32));
 
 /// One memo slot: the image identity, the ENABLED mask plane (`None` when
 /// the record has none or it is disabled) with its dimensions, the record
@@ -235,9 +236,8 @@ fn memoized(
         entry.image.ptr_eq(&key)
             && match (&entry.mask, mask) {
                 (None, None) => true,
-                (Some((weak, dims)), Some(m)) => {
-                    std::ptr::eq(weak.as_ptr(), Arc::as_ptr(&m.plane.pixels))
-                        && *dims == m.plane.dimensions()
+                (Some((key, dims)), Some(m)) => {
+                    key.names(&m.plane) && *dims == m.plane.dimensions()
                 }
                 _ => false,
             }
@@ -264,7 +264,7 @@ fn memoized(
             }
             entries.push(Entry {
                 image: key.clone(),
-                mask: mask.map(|m| (Arc::downgrade(&m.plane.pixels), m.plane.dimensions())),
+                mask: mask.map(|m| (m.plane.key(), m.plane.dimensions())),
                 offset: *offset,
                 properties,
                 box_,

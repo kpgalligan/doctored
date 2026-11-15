@@ -203,13 +203,10 @@
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::ops::Range;
-use std::sync::Arc;
-
-use image::GrayImage;
 
 use crate::blend::BlendMode;
 use crate::doc::{
-    composite_clip_group_into, DrDocument, Layer, LayerKind, LayerRaster, MAX_PIXELS,
+    composite_clip_group_into, DrDocument, GrayRaster, Layer, LayerKind, LayerRaster, MAX_PIXELS,
 };
 use crate::style_composite::{merge_extent, style_grown, CompositeEnv};
 
@@ -651,8 +648,7 @@ pub(crate) fn rendered_group(
         )?
     } else {
         None
-    }
-    .map(|m| Arc::new(m.into_owned()));
+    };
     Ok(Some(Layer {
         // The SAME entry, rendered: a materialized group is the group's own
         // picture, so it keeps the group's identity (`doc_identity`).
@@ -876,7 +872,7 @@ fn composite_unit_into(
         } else {
             None
         };
-        let mask = effective.as_deref().map(|m| (m, origin));
+        let mask = effective.as_ref().map(|m| (m, origin));
         if opacity >= 1.0 && mask.is_none() {
             // D4: a SHALLOW knockout inside a pass-through group punches to
             // the accumulator as it stood when the group's children began, so
@@ -998,7 +994,7 @@ fn composite_gated_pass(
     env: CompositeEnv<'_>,
     depth: u16,
     budget: &RenderBudget,
-    mask: Option<(&GrayImage, (i32, i32))>,
+    mask: Option<(&GrayRaster, (i32, i32))>,
     opacity: f32,
 ) -> Result<(), String> {
     let pixels = acc.len() as u64;
@@ -1041,16 +1037,17 @@ fn composite_gated_pass(
     // The group's mask is CANVAS-sized; this window of it lines up with the
     // accumulator index for index, through the one crop `rendered_group` uses.
     let window = mask.map(|(m, _)| m);
+    // One window row at a time, read in place (`GrayRaster::row`).
+    let mut scratch = Vec::new();
     // A zero-width accumulator has nothing to gate, and `chunks_exact_mut(0)`
     // would panic (Phase 13A-5b-ii-b).
     if acc_w > 0 {
         for (row, outs) in acc.chunks_exact_mut(acc_w as usize).enumerate() {
             env.job.check()?;
+            let coverage_row = window.map(|w| w.row(row as u32, 0, acc_w, &mut scratch));
             for (x, out) in outs.iter_mut().enumerate() {
                 let i = row * acc_w as usize + x;
-                let coverage = window
-                    .as_ref()
-                    .map_or(1.0, |w| f32::from(w.as_raw()[i]) / 255.0);
+                let coverage = coverage_row.map_or(1.0, |w| f32::from(w[x]) / 255.0);
                 let t = coverage * opacity;
                 crate::blend::gate_source_into(out, buf[i], t);
             }

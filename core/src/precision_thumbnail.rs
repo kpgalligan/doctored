@@ -73,11 +73,10 @@
 use image::imageops::FilterType;
 use image::RgbaImage;
 
-use crate::doc_channel::placed_row;
 use crate::doc_plane::gray_image;
 use crate::ffi_channel::thumb_box_factor;
 use crate::float_document::display_scratch;
-use crate::job_control::{DrJobControl, JobContext, EVERY_INTERVAL};
+use crate::job_control::{DrJobControl, JobContext};
 use crate::layer_thumbnail::{
     box_arm_scratch, box_reduced_rgba, finish_box_arm, fitted_dims, LAYER_THUMB_BOX_GUARD,
 };
@@ -86,9 +85,10 @@ use crate::precision_image::{
     admit, pixel_count, reserved_vec, unit_to_u16, PrecisionImage, PrecisionRun, PrecisionStorage,
     BOOKKEEPING_BYTES,
 };
+use crate::precision_mask::PrecisionPlane;
 use crate::precision_quantize::nearest;
 use crate::precision_sampling::{resize_cost, GeometryFilter};
-use crate::thumbnail_reduce::{box_reduced, box_reduced_rows, gray_resized};
+use crate::thumbnail_reduce::{box_reduced_rows, gray_resized};
 
 const OVERFLOW: &str = "thumbnail working-memory calculation overflow";
 const TOO_LARGE: &str = "thumbnail dimensions exceed the supported pixel limit";
@@ -121,6 +121,44 @@ fn total(terms: &[u64]) -> Result<u64, String> {
 fn resize_terms(source: (u32, u32), fitted: (u32, u32)) -> Result<u64, String> {
     let (output, temporary, _) = resize_cost(source, fitted, GeometryFilter::Bilinear, true)?;
     total(&[output, temporary])
+}
+
+/// `doc_channel::placed_row` (the master: the same clipped placement and
+/// fill runs) over a tiled plane, whose part of the row is its tiles' runs.
+fn placed_plane_row<'a>(
+    plane: &'a PrecisionPlane,
+    origin: (i32, i32),
+    fill: &'a [u16],
+    width: u32,
+    y: u32,
+) -> impl Iterator<Item = (u32, &'a [u16])> + 'a {
+    let (pw, ph) = plane.dimensions();
+    let (pw, ph) = (i64::from(pw), i64::from(ph));
+    let (ox, oy) = (i64::from(origin.0), i64::from(origin.1));
+    let sy = i64::from(y) - oy;
+    let clamp = |v: i64| v.clamp(0, i64::from(width)) as u32;
+    let (x0, x1) = if (0..ph).contains(&sy) {
+        (clamp(ox), clamp(ox + pw))
+    } else {
+        (width, width)
+    };
+    let runs = (x0 < x1)
+        .then(|| {
+            plane.row_segments(
+                sy as u32,
+                (i64::from(x0) - ox) as u32,
+                (i64::from(x1) - ox) as u32,
+            )
+        })
+        .into_iter()
+        .flatten()
+        .map(move |(x, run)| ((i64::from(x) + ox) as u32, run));
+    let left = fill.get(..x0 as usize).unwrap_or(&[]);
+    let right = fill.get(..(width - x1) as usize).unwrap_or(&[]);
+    std::iter::once((0, left))
+        .chain(runs)
+        .chain(std::iter::once((x1, right)))
+        .filter(|(_, run)| !run.is_empty())
 }
 
 impl PrecisionDocument {
@@ -249,12 +287,14 @@ impl PrecisionDocument {
         };
         admit(self.retained_bytes(), scratch, other, limit)?;
         job.reserve(scratch)?;
-        let samples = mask.plane.samples();
         if k < 2 {
-            let mut codes = reserved_vec(samples.len())?;
-            for chunk in samples.chunks(EVERY_INTERVAL) {
-                job.check()?;
-                codes.extend(chunk.iter().map(|&v| nearest(v)));
+            let mut codes = reserved_vec(n as usize)?;
+            // Once per `EVERY_INTERVAL` samples, before each block (the slice
+            // walk's cadence), straight from the tiles, run by run.
+            let mut visited = 0;
+            for run in mask.plane.runs() {
+                visited = job.every_run(visited, run.len())?;
+                codes.extend(run.iter().map(|&v| nearest(v)));
             }
             let out = if resizing {
                 gray_resized(codes, w, h, tw, th)
@@ -263,7 +303,8 @@ impl PrecisionDocument {
             };
             return out.ok_or_else(|| TOO_LARGE.into());
         }
-        let (codes, sw, sh) = box_reduced(samples, w, h, k, nearest, job.range(0.0, 0.9))?
+        let rows = |y: u32| mask.plane.row_segments(y, 0, w);
+        let (codes, sw, sh) = box_reduced_rows(w, h, k, rows, nearest, job.range(0.0, 0.9))?
             .ok_or(NOTHING_TO_REDUCE)?;
         gray_resized(codes, sw, sh, tw, th).ok_or_else(|| TOO_LARGE.into())
     }
@@ -290,14 +331,7 @@ impl PrecisionDocument {
             .get(index)
             .ok_or("high-depth channel index is out of range")?
             .plane();
-        let size = plane.dimensions();
-        self.placed_plane_thumbnail(
-            (plane.samples(), size, (0, 0), 0),
-            max_side,
-            limit,
-            other,
-            control,
-        )
+        self.placed_plane_thumbnail((plane, (0, 0), 0), max_side, limit, other, control)
     }
 
     /// Record `index`'s mask as the 16-bit Channels panel's row thumbnail:
@@ -321,12 +355,7 @@ impl PrecisionDocument {
         let properties = mask.properties();
         let outside = u16::from(properties.outside_coverage) * 257;
         self.placed_plane_thumbnail(
-            (
-                mask.plane.samples(),
-                mask.plane.dimensions(),
-                properties.offset,
-                outside,
-            ),
+            (&mask.plane, properties.offset, outside),
             max_side,
             limit,
             other,
@@ -344,13 +373,13 @@ impl PrecisionDocument {
     /// and reserved before allocating.
     fn placed_plane_thumbnail(
         &self,
-        placed: (&[u16], (u32, u32), (i32, i32), u16),
+        placed: (&PrecisionPlane, (i32, i32), u16),
         max_side: u32,
         limit: u64,
         other: u64,
         control: Option<&DrJobControl>,
     ) -> Result<RgbaImage, String> {
-        let (samples, size, origin, outside) = placed;
+        let (plane, origin, outside) = placed;
         let _run = control.map(DrJobControl::begin).transpose()?;
         let job = control.map_or(JobContext::NONE, JobContext::new);
         let (w, h) = self.dimensions();
@@ -381,7 +410,7 @@ impl PrecisionDocument {
         job.reserve(scratch)?;
         let mut fill = reserved_vec(w as usize)?;
         fill.resize(w as usize, outside);
-        let rows = |y: u32| placed_row(samples, size, origin, &fill, w, y);
+        let rows = |y: u32| placed_plane_row(plane, origin, &fill, w, y);
         if k < 2 {
             let mut codes = reserved_vec(n as usize)?;
             for y in 0..h {

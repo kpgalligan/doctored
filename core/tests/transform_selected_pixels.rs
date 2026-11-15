@@ -13,10 +13,10 @@
 //! ties; the tolerance is ≤1 code unless a case says exact.
 
 use crate::common;
+use doctored_core::doc::GrayRaster;
 
 use std::ffi::CString;
 use std::ptr;
-use std::sync::Arc;
 
 use common::selected_pixels::*;
 use doctored_core::doc::DrDocument;
@@ -632,7 +632,7 @@ fn the_layer_mask_stays_put() {
     // 8 bits.
     let plane = full(Depth::D8, canvas, pattern);
     let mut base = byte_doc(canvas, &plane);
-    let mask = Arc::new(GrayImage::from_fn(10, 6, |x, y| {
+    let mask = GrayRaster::new(GrayImage::from_fn(10, 6, |x, y| {
         Luma([values[(y * 10 + x) as usize]])
     }));
     base.layers[0].mask = Some(mask.clone());
@@ -640,7 +640,7 @@ fn the_layer_mask_stays_put() {
     base.layers[0].mask_enabled = false;
     let out = edit8(&base, &text, &cov, None).unwrap().unwrap();
     let layer = &out.layers[0];
-    assert_eq!(layer.mask.as_deref().unwrap().as_raw(), mask.as_raw());
+    assert_eq!(layer.mask.as_ref().unwrap().samples(), mask.samples());
     assert!(layer.mask_properties == props);
     assert!(!layer.mask_enabled);
     assert_eq!(layer.offset, (0, 0));

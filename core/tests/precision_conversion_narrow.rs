@@ -11,6 +11,7 @@
 //! `tiff_float::encode_to_vec` and `open_preserving`, then layered through
 //! the typed edit surface.
 use doctored_core::doc::BlendMode;
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::{DrDocument, Layer, LayerKind, LayerRaster};
 use doctored_core::doc_comps::CompRequest;
 use doctored_core::doc_evaluation::Evaluation;
@@ -104,7 +105,7 @@ fn byte_fixture() -> DrDocument {
     masked.offset = (5, 4);
     masked.opacity = 0.8;
     masked.blend = BlendMode::Multiply;
-    masked.mask = Some(Arc::new(GrayImage::from_fn(17, 11, |x, y| {
+    masked.mask = Some(GrayRaster::new(GrayImage::from_fn(17, 11, |x, y| {
         Luma([((x * 15 + y * 7) % 256) as u8])
     })));
     masked.mask_properties = MaskProperties::at((5, 4));
@@ -219,8 +220,8 @@ fn sixteen_to_eight_carries_every_record_and_the_chrome_back() {
             "pixels {i}"
         );
         assert_eq!(
-            new.mask.as_ref().map(|m| m.as_raw().clone()),
-            old.mask.as_ref().map(|m| m.as_raw().clone()),
+            new.mask.as_ref().map(|m| m.samples().clone()),
+            old.mask.as_ref().map(|m| m.samples().clone()),
             "mask {i}"
         );
         if old.kind == LayerKind::Raster {
@@ -241,8 +242,8 @@ fn sixteen_to_eight_carries_every_record_and_the_chrome_back() {
     assert_eq!(back.channels.len(), 1);
     assert_eq!(back.channels[0].name, "Saved");
     assert_eq!(
-        back.channels[0].data.as_raw(),
-        original.channels[0].data.as_raw()
+        back.channels[0].data.samples(),
+        original.channels[0].data.samples()
     );
     assert_eq!(back.channels[0].overlay_color, [0, 128, 255]);
     assert_eq!(back.channels[0].overlay_opacity, 0.25);
@@ -504,7 +505,7 @@ fn a_masked_adjustment_keeps_its_canvas_extent_at_eight_bits() {
     let mut doc = DrDocument::from_pixels(pixels(W, H, 31, false));
     let mut levels = fresh(RgbaImage::new(W, H), "Levels");
     levels.meta = Some(r#"{"type":"adjust","op":"levels","params":{"gamma":0.6}}"#.into());
-    levels.mask = Some(Arc::new(GrayImage::from_fn(W, H, |x, _| {
+    levels.mask = Some(GrayRaster::new(GrayImage::from_fn(W, H, |x, _| {
         Luma([if x < W / 2 { 255 } else { 40 }])
     })));
     levels.mask_properties = MaskProperties::at((0, 0));
@@ -594,7 +595,7 @@ fn warped() -> DrDocument {
     for (name, seed) in [("Masked", 22), ("Mask target", 23)] {
         let mut layer = fresh(pixels(15, 11, seed, true), name);
         layer.offset = (4, 3);
-        layer.mask = Some(Arc::new(GrayImage::from_fn(13, 9, |x, y| {
+        layer.mask = Some(GrayRaster::new(GrayImage::from_fn(13, 9, |x, y| {
             Luma([((x * 19 + y * 11 + seed) % 256) as u8])
         })));
         layer.mask_properties = MaskProperties::at((5, 4));
@@ -622,7 +623,7 @@ fn assert_byte_warps_effective(doc: &DrDocument) {
         if i > 0 {
             let rendered = binding.rendered_mask.as_ref().expect("a rendered mask");
             assert!(
-                Arc::ptr_eq(rendered, layer.mask.as_ref().unwrap()),
+                doctored_core::doc::GrayRaster::ptr_eq(rendered, layer.mask.as_ref().unwrap()),
                 "mask {i}"
             );
             assert_eq!(binding.rendered_mask_offset, layer.mask_properties.offset);
@@ -655,8 +656,8 @@ fn warps_are_carried_back_in_three_shapes_and_survive_detach() {
             "source pixels {i}"
         );
         assert_eq!(
-            a.source_mask.as_ref().map(|m| m.as_raw().clone()),
-            b.source_mask.as_ref().map(|m| m.as_raw().clone()),
+            a.source_mask.as_ref().map(|m| m.samples().clone()),
+            b.source_mask.as_ref().map(|m| m.samples().clone()),
             "source mask {i}"
         );
         assert_eq!(a.target, b.target);
@@ -1073,7 +1074,7 @@ fn float_to_eight_tone_maps_then_quantizes_every_record() {
                     .iter()
                     .map(|v| ((u32::from(*v) + 128) / 257) as u8)
                     .collect();
-                assert_eq!(layer.mask.as_ref().unwrap().as_raw(), &expected);
+                assert_eq!(layer.mask.as_ref().unwrap().samples(), expected);
                 assert!(&layer.mask_properties == mask.properties());
             }
             let Some(source) = float.layer_source(i) else {

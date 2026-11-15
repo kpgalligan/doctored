@@ -5,9 +5,9 @@
 //! the stated rule (alpha clamped to [0, 1] times the enabled mask's
 //! coverage, a hit at >= 0.5), never computed by the code under test.
 
+use doctored_core::doc::GrayRaster;
 use std::collections::BTreeSet;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::{BlendMode, DrDocument, Layer, LayerKind};
 use doctored_core::doc_mask::MaskProperties;
@@ -140,7 +140,7 @@ fn at(mut layer: Layer, offset: (i32, i32)) -> Layer {
 }
 
 fn with_mask(mut layer: Layer, mask: GrayImage, at: (i32, i32), outside: u8) -> Layer {
-    layer.mask = Some(Arc::new(mask));
+    layer.mask = Some(GrayRaster::new(mask));
     layer.mask_properties = MaskProperties::at(at);
     layer.mask_properties.outside_coverage = outside;
     layer.mask_enabled = true;

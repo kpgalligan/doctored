@@ -74,17 +74,19 @@ impl PrecisionDocument {
     ) -> Result<CmykImage, String> {
         let mut passes = Vec::with_capacity(channels.len());
         for &index in channels {
-            let (coverage, ink) = self.spot_plane(index)?;
+            let (plane, ink) = self.spot_plane(index)?;
             let solidity = f32::from(ink.solidity()) / 100.0;
-            passes.push((coverage, spot_ink_cmyk(self, index)?, solidity));
+            passes.push((plane, spot_ink_cmyk(self, index)?, solidity));
         }
-        let width = self.dimensions().0 as usize;
+        let canvas = self.dimensions();
+        let mut scratch = Vec::new();
         self.cmyk_on_paper(job, |y, row| {
-            let start = y as usize * width;
-            for (coverage, ink, solidity) in &passes {
-                let line = coverage
-                    .get(start..start + row.len())
-                    .ok_or("a spot channel does not match this document's canvas")?;
+            for (plane, ink, solidity) in &passes {
+                // The coverage row, read in place (13B-4).
+                if plane.dimensions() != canvas || row.len() != canvas.0 as usize {
+                    return Err("a spot channel does not match this document's canvas".into());
+                }
+                let line = plane.row(y, 0, canvas.0, &mut scratch);
                 if !overprint_cmyka16(row, line, *ink, *solidity) {
                     return Err("a spot channel does not match this document's canvas".into());
                 }

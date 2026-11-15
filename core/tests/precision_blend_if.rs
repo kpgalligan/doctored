@@ -851,15 +851,13 @@ fn layer_blend_if_plans_edits_echoes_and_preserves_through_edits() {
             .mask()
             .unwrap()
             .plane()
-            .samples()
-            .as_ptr(),
+            .storage_identity(),
         doc.layer(1)
             .unwrap()
             .mask()
             .unwrap()
             .plane()
-            .samples()
-            .as_ptr()
+            .storage_identity()
     );
     assert_eq!(
         info(&set_doc)["supported_operations"]

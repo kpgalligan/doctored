@@ -12,12 +12,11 @@
 //! (`spot_channel`): the same plane, read as ink coverage.
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
 
 use image::imageops::{self, FilterType};
 use image::GrayImage;
 
-use crate::doc::{sane_opacity, DrDocument, Geometry, MAX_PIXELS};
+use crate::doc::{sane_opacity, DrDocument, Geometry, GrayRaster, MAX_PIXELS};
 use crate::doc_plane::Plane;
 use crate::doc_transform::{cancel_or_refuse, resample_canvas_plane_with_context, Affine};
 use crate::drdc::MAX_DRDC_TOTAL_CHANNEL_PIXELS;
@@ -45,9 +44,10 @@ pub struct Channel {
     pub id: u64,
     /// Display name. Not unique — the host disambiguates.
     pub name: String,
-    /// ALWAYS canvas-sized (the module invariant). Shared (`Arc`) for the
-    /// same copy-on-write reason as layer pixels and masks.
-    pub data: Arc<GrayImage>,
+    /// ALWAYS canvas-sized (the module invariant). Shared tiles
+    /// (`GrayRaster`) for the same copy-on-write reason as layer pixels and
+    /// masks.
+    pub data: GrayRaster,
     /// Rubylith colour a host draws the channel in. Display only.
     pub overlay_color: [u8; 3],
     /// Rubylith opacity, 0..=1 (`sane_opacity`). Display only.
@@ -92,7 +92,7 @@ impl Channel {
     /// this crate creates — a new one, a duplicate, a luminosity mask, one
     /// read back out of a `.rz` file — is minted here, so the id is unique by
     /// construction.
-    pub(crate) fn new(name: &str, data: Arc<GrayImage>) -> Self {
+    pub(crate) fn new(name: &str, data: GrayRaster) -> Self {
         Channel {
             id: NEXT_CHANNEL_ID.fetch_add(1, Ordering::Relaxed),
             name: name.to_string(),
@@ -204,7 +204,7 @@ impl DrDocument {
         doc.channels.push(Channel {
             overlay_color: color,
             overlay_opacity: sane_opacity(opacity),
-            ..Channel::new(name, Arc::new(data))
+            ..Channel::new(name, GrayRaster::new(data))
         });
         Some(doc)
     }
@@ -261,12 +261,15 @@ impl DrDocument {
     pub fn set_channel_data(&self, i: usize, plane: &[u8]) -> Option<Self> {
         let channel = self.channels.get(i)?;
         let expected = (self.width as usize).checked_mul(self.height as usize)?;
-        if plane.len() != expected || channel.data.as_raw().as_slice() == plane {
+        if plane.len() != expected {
             return None;
         }
         let data = GrayImage::from_raw(self.width, self.height, plane.to_vec())?;
+        if channel.data.equals_image(&data) {
+            return None;
+        }
         let mut doc = self.clone();
-        doc.channels[i].data = Arc::new(data);
+        doc.channels[i].data = channel.data.rebuilt(data);
         Some(doc)
     }
 
@@ -286,7 +289,7 @@ impl DrDocument {
             overlay_opacity: source.overlay_opacity,
             color_indicates_selected: source.color_indicates_selected,
             spot: source.spot,
-            ..Channel::new(&format!("{} copy", source.name), Arc::clone(&source.data))
+            ..Channel::new(&format!("{} copy", source.name), source.data.clone())
         };
         let mut doc = self.clone();
         doc.channels.insert(i + 1, dup);
@@ -298,20 +301,21 @@ impl DrDocument {
     /// `v == 255 - v` has no integer solution (255 is odd).
     pub fn invert_channel(&self, i: usize) -> Option<Self> {
         let channel = self.channels.get(i)?;
-        let mut inverted = (*channel.data).clone();
+        let mut inverted = channel.data.to_image().ok()?;
         let raw: &mut [u8] = &mut inverted;
         for v in raw.iter_mut() {
             *v = 255 - *v;
         }
         let mut doc = self.clone();
-        doc.channels[i].data = Arc::new(inverted);
+        doc.channels[i].data = channel.data.rebuilt(inverted);
         Some(doc)
     }
 
-    /// Channel `i`'s coverage bytes (canvas-sized, row 0 top); `None` for an
-    /// out-of-range index.
-    pub fn channel_plane(&self, i: usize) -> Option<&[u8]> {
-        Some(self.channels.get(i)?.data.as_raw().as_slice())
+    /// Channel `i`'s coverage bytes (canvas-sized, row 0 top) as one owned
+    /// copy; `None` for an out-of-range index or a copy that cannot be
+    /// allocated.
+    pub fn channel_plane(&self, i: usize) -> Option<Vec<u8>> {
+        Some(self.channels.get(i)?.data.to_image().ok()?.into_raw())
     }
 
     /// Appends the nine luminosity masks — "Lights 1".."Lights 3",
@@ -416,8 +420,12 @@ impl DrDocument {
         for (c, channel) in self.channels.iter().enumerate() {
             let c = c as f64;
             job.report(c / n, 6)?;
+            let source = match channel.data.to_image() {
+                Ok(source) => source,
+                Err(e) => return cancel_or_refuse(job, e),
+            };
             let data = match resample_canvas_plane_with_context(
-                &channel.data,
+                &source,
                 &m,
                 filter,
                 job.range(c / n, (c + 1.) / n),
@@ -426,7 +434,7 @@ impl DrDocument {
                 Err(e) => return cancel_or_refuse(job, e),
             };
             channels.push(Channel {
-                data: Arc::new(data),
+                data: channel.data.rebuilt(data),
                 ..channel.clone()
             });
         }
@@ -436,7 +444,7 @@ impl DrDocument {
         if channels
             .iter()
             .zip(self.channels.iter())
-            .all(|(new, old)| new.data.as_raw() == old.data.as_raw())
+            .all(|(new, old)| new.data.same_bytes(&old.data))
         {
             return Ok(None);
         }
@@ -471,7 +479,7 @@ fn luminosity_mask(
         .collect();
     Some(Channel::new(
         name,
-        Arc::new(GrayImage::from_raw(w, h, data)?),
+        GrayRaster::new(GrayImage::from_raw(w, h, data)?),
     ))
 }
 
@@ -568,15 +576,27 @@ pub(crate) fn resized_plane(plane: &GrayImage, w: u32, h: u32, filter: FilterTyp
     imageops::resize(plane, w, h, filter)
 }
 
-/// [`geometry_plane`] over every channel.
-pub(crate) fn geometry_channels(channels: &[Channel], geom: Geometry) -> Vec<Channel> {
+/// `plane` applied to one transient copy of each channel, tiled again; `None`
+/// when a copy cannot be allocated.
+fn mapped_channels(
+    channels: &[Channel],
+    plane: impl Fn(&GrayImage) -> GrayImage,
+) -> Option<Vec<Channel>> {
     channels
         .iter()
-        .map(|c| Channel {
-            data: Arc::new(geometry_plane(&c.data, geom)),
-            ..c.clone()
+        .map(|c| {
+            let source = c.data.to_image().ok()?;
+            Some(Channel {
+                data: GrayRaster::new(plane(&source)),
+                ..c.clone()
+            })
         })
         .collect()
+}
+
+/// [`geometry_plane`] over every channel.
+pub(crate) fn geometry_channels(channels: &[Channel], geom: Geometry) -> Option<Vec<Channel>> {
+    mapped_channels(channels, |p| geometry_plane(p, geom))
 }
 
 /// [`cropped_plane`] over every channel.
@@ -586,14 +606,8 @@ pub(crate) fn cropped_channels(
     y: u32,
     w: u32,
     h: u32,
-) -> Vec<Channel> {
-    channels
-        .iter()
-        .map(|c| Channel {
-            data: Arc::new(cropped_plane(&c.data, x, y, w, h)),
-            ..c.clone()
-        })
-        .collect()
+) -> Option<Vec<Channel>> {
+    mapped_channels(channels, |p| cropped_plane(p, x, y, w, h))
 }
 
 /// [`padded_plane`] over every channel.
@@ -602,14 +616,8 @@ pub(crate) fn padded_channels(
     w: u32,
     h: u32,
     origin: (i32, i32),
-) -> Vec<Channel> {
-    channels
-        .iter()
-        .map(|c| Channel {
-            data: Arc::new(padded_plane(&c.data, w, h, origin)),
-            ..c.clone()
-        })
-        .collect()
+) -> Option<Vec<Channel>> {
+    mapped_channels(channels, |p| padded_plane(p, w, h, origin))
 }
 
 /// [`resized_plane`] over every channel.
@@ -618,12 +626,6 @@ pub(crate) fn resized_channels(
     w: u32,
     h: u32,
     filter: FilterType,
-) -> Vec<Channel> {
-    channels
-        .iter()
-        .map(|c| Channel {
-            data: Arc::new(resized_plane(&c.data, w, h, filter)),
-            ..c.clone()
-        })
-        .collect()
+) -> Option<Vec<Channel>> {
+    mapped_channels(channels, |p| resized_plane(p, w, h, filter))
 }

@@ -67,7 +67,7 @@ fn an_eight_bit_zip_mask_plane_opens_with_its_samples_at_its_own_rectangle() {
         let upper = &layered.layers[1];
         let plane = upper.mask.as_ref().expect("the mask plane");
         assert_eq!(plane.dimensions(), (6, 4), "word {word}");
-        assert_eq!(plane.as_raw(), &mask.samples, "word {word}");
+        assert_eq!(plane.samples(), mask.samples, "word {word}");
         assert_eq!(
             upper.mask_properties.offset,
             (mask.bounds[1], mask.bounds[0]),

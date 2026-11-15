@@ -105,7 +105,7 @@ fn check_layers(doc: &DrDocument, expected: &Value) {
         }
         let m = &e["mask"];
         let raw = layer.mask.as_ref().unwrap();
-        assert_eq!(raw.as_raw(), &numbers(&m["coverage"]));
+        assert_eq!(raw.samples(), numbers(&m["coverage"]));
         assert_eq!(
             raw.dimensions(),
             (
@@ -274,8 +274,8 @@ fn disabled_mask_retains_samples_and_can_be_enabled_without_reimport() {
     );
     assert!(!doc.layers[0].mask_enabled);
     assert_eq!(
-        doc.layers[0].mask.as_ref().unwrap().as_raw(),
-        &mask.coverage
+        doc.layers[0].mask.as_ref().unwrap().samples(),
+        mask.coverage
     );
 }
 #[test]
@@ -880,7 +880,7 @@ fn mask_refusal_and_stale_source_leave_captured_native_state_exact() {
     assert!(open(&path, 0, &fresh).is_err());
     assert_eq!(save(&captured, &native), before);
     assert_eq!(
-        captured.layers[0].mask.as_ref().unwrap().as_raw(),
-        &mask.coverage
+        captured.layers[0].mask.as_ref().unwrap().samples(),
+        mask.coverage
     );
 }

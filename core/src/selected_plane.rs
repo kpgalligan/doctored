@@ -62,11 +62,9 @@
 //! `plane_scratch` are `pub(crate)` for the colour planes (`selected_color_plane`), which run
 //! the same walk over one component of a layer.
 
-use std::sync::Arc;
-
 use image::GrayImage;
 
-use crate::doc::{DrDocument, LayerKind};
+use crate::doc::{DrDocument, GrayRaster, LayerKind};
 use crate::doc_lock::EditKind;
 use crate::job_control::JobContext;
 use crate::precision_document::PrecisionDocument;
@@ -251,7 +249,12 @@ fn offset_of(rect: CanvasRect) -> Result<(i32, i32), String> {
 }
 
 impl DrDocument {
-    fn selected_plane_source(&self, edit: &SelectedPixelsEdit) -> Result<Source<'_, u8>, String> {
+    /// The targeted plane and its [`Source`] facts (rect, outside, grow);
+    /// the edit binds the samples as one transient copy once admitted.
+    fn selected_plane_target(
+        &self,
+        edit: &SelectedPixelsEdit,
+    ) -> Result<(&GrayRaster, CanvasRect, u8, bool), String> {
         match edit.target() {
             SelectedTarget::Mask => {
                 let index = edit.layer();
@@ -261,28 +264,23 @@ impl DrDocument {
                     .ok_or("selected pixels layer index is out of range")?;
                 let mask = entry
                     .mask
-                    .as_deref()
+                    .as_ref()
                     .ok_or_else(|| format!("layer {index} has no mask"))?;
                 let (w, h) = mask.dimensions();
                 let offset = entry.mask_properties.offset;
-                Ok(Source {
-                    rect: (i64::from(offset.0), i64::from(offset.1), w, h),
-                    samples: mask.as_raw(),
-                    outside: entry.mask_properties.outside_coverage,
-                    grow: entry.kind != LayerKind::Group,
-                })
+                Ok((
+                    mask,
+                    (i64::from(offset.0), i64::from(offset.1), w, h),
+                    entry.mask_properties.outside_coverage,
+                    entry.kind != LayerKind::Group,
+                ))
             }
             SelectedTarget::Channel(i) => {
                 let channel = self
                     .channels
                     .get(i)
                     .ok_or_else(|| format!("channel {i} is out of range"))?;
-                Ok(Source {
-                    rect: (0, 0, self.width, self.height),
-                    samples: channel.data.as_raw(),
-                    outside: 0,
-                    grow: false,
-                })
+                Ok((&channel.data, (0, 0, self.width, self.height), 0, false))
             }
             _ => Err(NO_PLANE.into()),
         }
@@ -294,13 +292,13 @@ impl DrDocument {
         &self,
         edit: &SelectedPixelsEdit,
     ) -> Result<SelectedPixelsPlan, String> {
-        let source = self.selected_plane_source(edit)?;
+        let (_, rect, _, _) = self.selected_plane_target(edit)?;
         let canvas = (self.width, self.height);
         let mut inventory = crate::resources::Inventory::default();
         inventory.document(self);
         Ok(SelectedPixelsPlan {
             retained_bytes: inventory.unique_bytes(),
-            scratch_bytes: plane_scratch(edit, canvas, source.rect, 1)?,
+            scratch_bytes: plane_scratch(edit, canvas, rect, 1)?,
             input_samples: u64::from(canvas.0) * u64::from(canvas.1),
         })
     }
@@ -321,7 +319,7 @@ impl DrDocument {
         if coverage.len() as u64 != u64::from(canvas.0) * u64::from(canvas.1) {
             return Err(COVERAGE_LENGTH.into());
         }
-        let source = self.selected_plane_source(edit)?;
+        let (plane, rect, outside, grow) = self.selected_plane_target(edit)?;
         if edit.target() == SelectedTarget::Mask {
             let index = edit.layer();
             let blocking = self.lock_block(index, EditKind::Mask);
@@ -347,11 +345,19 @@ impl DrDocument {
         job.reserve(plan.scratch_bytes)?;
         job.check()?;
         let hole = edit.hole();
+        let image = plane.to_image()?;
+        let source = Source {
+            rect,
+            samples: image.as_raw().as_slice(),
+            outside,
+            grow,
+        };
         let Some((rect, samples)) =
             source.transform(edit, canvas, coverage, &landing, hole, job)?
         else {
             return Ok(None);
         };
+        drop(image);
         let image = GrayImage::from_raw(rect.2, rect.3, samples).ok_or(NO_PLANE)?;
         let mut next = self.clone();
         match edit.target() {
@@ -378,9 +384,9 @@ impl DrDocument {
                     properties.offset = offset;
                     layer.mask_properties = properties;
                 }
-                layer.mask = Some(Arc::new(image));
+                layer.mask = Some(plane.rebuilt(image));
             }
-            SelectedTarget::Channel(i) => next.channels[i].data = Arc::new(image),
+            SelectedTarget::Channel(i) => next.channels[i].data = plane.rebuilt(image),
             _ => return Err(NO_PLANE.into()),
         }
         job.check()?;
@@ -389,7 +395,11 @@ impl DrDocument {
 }
 
 impl PrecisionDocument {
-    fn selected_plane_source(&self, edit: &SelectedPixelsEdit) -> Result<Source<'_, u16>, String> {
+    /// The targeted plane and its [`Source`] facts (the byte twin's rule).
+    fn selected_plane_target(
+        &self,
+        edit: &SelectedPixelsEdit,
+    ) -> Result<(&PrecisionPlane, CanvasRect, u16, bool), String> {
         match edit.target() {
             SelectedTarget::Mask => {
                 let index = edit.layer();
@@ -402,12 +412,12 @@ impl PrecisionDocument {
                 let (w, h) = mask.plane().dimensions();
                 let properties = mask.properties();
                 let offset = properties.offset;
-                Ok(Source {
-                    rect: (i64::from(offset.0), i64::from(offset.1), w, h),
-                    samples: mask.plane().samples(),
-                    outside: u16::from(properties.outside_coverage) * 257,
-                    grow: record.children().is_none(),
-                })
+                Ok((
+                    mask.plane(),
+                    (i64::from(offset.0), i64::from(offset.1), w, h),
+                    u16::from(properties.outside_coverage) * 257,
+                    record.children().is_none(),
+                ))
             }
             SelectedTarget::Channel(i) => {
                 let channel = self
@@ -415,12 +425,7 @@ impl PrecisionDocument {
                     .get(i)
                     .ok_or_else(|| format!("channel {i} is out of range"))?;
                 let (w, h) = self.dimensions();
-                Ok(Source {
-                    rect: (0, 0, w, h),
-                    samples: channel.plane().samples(),
-                    outside: 0,
-                    grow: false,
-                })
+                Ok((channel.plane(), (0, 0, w, h), 0, false))
             }
             _ => Err(NO_PLANE.into()),
         }
@@ -432,11 +437,11 @@ impl PrecisionDocument {
         &self,
         edit: &SelectedPixelsEdit,
     ) -> Result<SelectedPixelsPlan, String> {
-        let source = self.selected_plane_source(edit)?;
+        let (_, rect, _, _) = self.selected_plane_target(edit)?;
         let canvas = self.dimensions();
         Ok(SelectedPixelsPlan {
             retained_bytes: self.retained_bytes(),
-            scratch_bytes: plane_scratch(edit, canvas, source.rect, 2)?,
+            scratch_bytes: plane_scratch(edit, canvas, rect, 2)?,
             input_samples: u64::from(canvas.0) * u64::from(canvas.1),
         })
     }
@@ -455,7 +460,7 @@ impl PrecisionDocument {
         if coverage.len() as u64 != u64::from(canvas.0) * u64::from(canvas.1) {
             return Err(COVERAGE_LENGTH.into());
         }
-        let source = self.selected_plane_source(edit)?;
+        let (target, rect, outside, grow) = self.selected_plane_target(edit)?;
         if edit.target() == SelectedTarget::Mask {
             self.lock_refusal(edit.layer(), EditKind::Mask)?;
         }
@@ -467,13 +472,21 @@ impl PrecisionDocument {
         job.reserve(plan.scratch_bytes)?;
         job.check()?;
         let hole = edit.hole();
+        let stored = target.to_contiguous()?;
+        let source = Source {
+            rect,
+            samples: stored.as_slice(),
+            outside,
+            grow,
+        };
         let Some((rect, samples)) =
             source.transform(edit, canvas, coverage, &landing, hole, job)?
         else {
             job.report(1.0, 5)?;
             return Ok(None);
         };
-        let plane = PrecisionPlane::adopt(rect.2, rect.3, samples)?;
+        drop(stored);
+        let plane = target.rebuilt(rect.2, rect.3, samples)?;
         let result = match edit.target() {
             SelectedTarget::Mask => {
                 let index = edit.layer();

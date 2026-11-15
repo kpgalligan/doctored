@@ -108,10 +108,6 @@ fn ffi_retains_native_source_alpha_and_independent_matte_through_reopen() {
             result.profile()
         ));
         assert_eq!(added.mask().unwrap().plane().samples(), matte);
-        assert_ne!(
-            added.mask().unwrap().plane().samples().as_ptr(),
-            matte.as_ptr()
-        );
         assert_eq!(
             result.layer_source(0).unwrap().to_rgba16().ok(),
             doc.layer_source(0).unwrap().to_rgba16().ok()

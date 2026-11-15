@@ -11,6 +11,7 @@
 //! must match EXACTLY. Carriage compares each field of the source with the
 //! result; refusals compare the op's error with the plan's first row.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 use std::sync::Arc;
@@ -372,7 +373,7 @@ fn carriage_bytes() -> DrDocument {
     masked.offset = (5, 4);
     masked.opacity = 0.8;
     masked.blend = BlendMode::Multiply;
-    masked.mask = Some(Arc::new(GrayImage::from_fn(17, 11, |x, y| {
+    masked.mask = Some(GrayRaster::new(GrayImage::from_fn(17, 11, |x, y| {
         Luma([((x * 15 + y * 7) % 256) as u8])
     })));
     masked.mask_properties = MaskProperties::at((5, 4));

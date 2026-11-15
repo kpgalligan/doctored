@@ -12,6 +12,7 @@
 //! every id is fresh; a root keeps its clip only over a copied base with no
 //! foreign root between; a link id survives only when two copies share it.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 use std::sync::Arc;
@@ -104,7 +105,11 @@ fn fixture8_in(evaluation: Evaluation) -> DrDocument {
     {
         let masked = &mut doc.layers[1];
         masked.offset = (-3, 4);
-        masked.mask = Some(Arc::new(GrayImage::from_pixel(5, 4, image::Luma([77]))));
+        masked.mask = Some(GrayRaster::new(GrayImage::from_pixel(
+            5,
+            4,
+            image::Luma([77]),
+        )));
         masked.opacity = 0.5;
         masked.blend = BlendMode::Multiply;
         masked.label = 3;
@@ -192,7 +197,7 @@ fn byte_roots_land_at_the_top_level_with_their_subtrees() {
         "pixels are shared"
     );
     assert!(
-        Arc::ptr_eq(a.mask.as_ref().unwrap(), b.mask.as_ref().unwrap()),
+        GrayRaster::ptr_eq(a.mask.as_ref().unwrap(), b.mask.as_ref().unwrap()),
         "the mask is shared"
     );
     assert!(Arc::ptr_eq(
@@ -385,8 +390,7 @@ fn mask_address(doc: &PrecisionDocument, name: &str) -> usize {
         .and_then(|l| l.mask())
         .expect("a masked record")
         .plane()
-        .samples()
-        .as_ptr() as usize
+        .storage_identity() as usize
 }
 
 fn raster(name: &str, offset: (i32, i32)) -> Layer {

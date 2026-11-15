@@ -443,9 +443,9 @@ impl DrDocument {
 pub(crate) fn same_mask(a: &Layer, b: &Layer) -> bool {
     a.mask_enabled == b.mask_enabled
         && a.mask_properties == b.mask_properties
-        && match (a.mask.as_deref(), b.mask.as_deref()) {
+        && match (a.mask.as_ref(), b.mask.as_ref()) {
             (None, None) => true,
-            (Some(x), Some(y)) => x.dimensions() == y.dimensions() && x.as_raw() == y.as_raw(),
+            (Some(x), Some(y)) => x.same_bytes(y),
             _ => false,
         }
 }

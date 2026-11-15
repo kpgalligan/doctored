@@ -153,7 +153,7 @@ impl DrDocument {
                 self.layers
                     .iter()
                     .filter_map(|l| l.mask.as_ref())
-                    .map(|m| m.as_raw().len() as u64)
+                    .map(|m| m.byte_len())
                     .sum(),
                 u64::from(self.width) * u64::from(self.height) * self.channels.len() as u64,
                 source_pixels.saturating_mul(4),

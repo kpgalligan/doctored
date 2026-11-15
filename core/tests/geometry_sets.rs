@@ -1,6 +1,7 @@
 //! Atomic set geometry over byte and typed postorder records. The projective
 //! fixture uses the independent map (x,y)->(x,y)/(1+x/10).
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 use std::sync::Arc;
@@ -44,8 +45,8 @@ fn byte_mask(
     linked: bool,
     enabled: bool,
     outside: u8,
-) -> (Arc<GrayImage>, MaskProperties, bool) {
-    let plane = Arc::new(GrayImage::from_fn(size.0, size.1, |x, y| {
+) -> (GrayRaster, MaskProperties, bool) {
+    let plane = GrayRaster::new(GrayImage::from_fn(size.0, size.1, |x, y| {
         Luma([((x * 31 + y * 17 + 7) % 256) as u8])
     }));
     let mut properties = MaskProperties::at(offset);
@@ -339,8 +340,8 @@ fn nested_topology_matches_each_independent_entry_at_both_depths() {
                 "byte mask {name} {index}"
             );
             assert_eq!(
-                actual8.mask.as_ref().map(|m| m.as_raw()),
-                reference8.mask.as_ref().map(|m| m.as_raw()),
+                actual8.mask.as_ref().map(|m| m.samples()),
+                reference8.mask.as_ref().map(|m| m.samples()),
                 "byte mask {name} {index}"
             );
             let actual16 = moved16.layer(index).unwrap();
@@ -1055,7 +1056,7 @@ fn parallelogram_set_keeps_exact_hidden_rgb_and_mask_allocations() {
         &byte.layers[0].pixels,
         &moved8.layers[0].pixels
     ));
-    assert!(std::sync::Arc::ptr_eq(
+    assert!(GrayRaster::ptr_eq(
         byte.layers[0].mask.as_ref().unwrap(),
         moved8.layers[0].mask.as_ref().unwrap()
     ));
@@ -1075,16 +1076,14 @@ fn parallelogram_set_keeps_exact_hidden_rgb_and_mask_allocations() {
             .mask()
             .unwrap()
             .plane()
-            .samples()
-            .as_ptr(),
+            .storage_identity(),
         moved16
             .layer(0)
             .unwrap()
             .mask()
             .unwrap()
             .plane()
-            .samples()
-            .as_ptr()
+            .storage_identity()
     );
     assert_eq!(
         moved16.layer_source(0).unwrap().to_rgba16().ok().unwrap()[0],

@@ -4,6 +4,13 @@
 //!
 //! Effective mask inspection ignores the enabled flag; rendering bypasses disabled masks. Float
 //! feather shares `plane_blur.rs` with legacy byte masks/styles; no retained typed blur cache.
+//!
+//! Since 13B-4 a [`PrecisionPlane`] is a `tile_store::TilePlane<u16>` of 256×256 tiles behind a
+//! private identity token (the byte `GrayRaster`'s contract at 16 bits): `rebuilt` shares every
+//! bitwise-unchanged tile, so a mask or channel dab retains the tiles it changes; readers walk
+//! `runs` / `row_segments` / `sample_at` in place or bind one transient `to_contiguous[_with_job]`
+//! copy; identity is `ptr_eq` / `key` / `storage_identity`, never a sample address. `samples()`
+//! is the test oracles' owned copy and has no library caller.
 use crate::doc_mask::{density_coverage, MaskProperties};
 use crate::drdc::MAX_DRDC_NAME_LEN;
 use crate::job_control::{DrJobControl, JobContext};
@@ -11,19 +18,45 @@ use crate::precision_image::{
     admit, pixel_count, process_working_limit, reserved_vec, BOOKKEEPING_BYTES,
 };
 use crate::resources::Inventory;
+use crate::tile_store::{RowSegments, TilePlane};
 use std::sync::{
     atomic::{AtomicU64, Ordering},
-    Arc,
+    Arc, Weak,
 };
 
+/// A typed coverage plane: immutable u16 samples on shared tiles.
 #[derive(Clone)]
 pub struct PrecisionPlane {
-    pub(crate) width: u32,
-    pub(crate) height: u32,
-    pub(crate) pixels: Arc<Vec<u16>>,
+    tiles: TilePlane<u16>,
+    identity: Arc<()>,
 }
+
+/// A non-owning identity handle onto a [`PrecisionPlane`] (the typed
+/// content-box memo and style cache keys).
+#[derive(Clone)]
+pub(crate) struct PrecisionPlaneKey {
+    token: Weak<()>,
+}
+
+impl PrecisionPlaneKey {
+    /// Whether this key names `plane`.
+    pub(crate) fn names(&self, plane: &PrecisionPlane) -> bool {
+        std::ptr::eq(self.token.as_ptr(), Arc::as_ptr(&plane.identity))
+    }
+
+    /// Same identity.
+    pub(crate) fn same(&self, other: &Self) -> bool {
+        std::ptr::eq(self.token.as_ptr(), other.token.as_ptr())
+    }
+
+    /// The plane this key named has been dropped.
+    pub(crate) fn is_dead(&self) -> bool {
+        self.token.strong_count() == 0
+    }
+}
+
 impl PrecisionPlane {
-    /// Adopt an owned native-endian plane. No byte promotion or allocation copy.
+    /// Tiles an owned native-endian plane (no byte promotion).
     pub fn from_u16(
         width: u32,
         height: u32,
@@ -43,16 +76,12 @@ impl PrecisionPlane {
         job.report(1.0, 5)?;
         Ok(out)
     }
+    /// Tiles `pixels` (`w·h` samples) under a fresh identity; the Vec is
+    /// dropped once its samples are in the tiles.
     pub(crate) fn adopt(width: u32, height: u32, pixels: Vec<u16>) -> Result<Self, String> {
-        if pixels.len() != pixel_count(width, height)? {
-            return Err("precision plane length differs from dimensions".into());
-        }
-        Ok(Self {
-            width,
-            height,
-            pixels: Arc::new(pixels),
-        })
+        Self::copy(width, height, &pixels, JobContext::NONE)
     }
+    /// Tiles a borrowed plane, polling `job` once per tile.
     pub(crate) fn copy(
         width: u32,
         height: u32,
@@ -62,50 +91,166 @@ impl PrecisionPlane {
         if pixels.len() != pixel_count(width, height)? {
             return Err("precision plane length differs from dimensions".into());
         }
-        let mut out = reserved_vec(pixels.len())?;
-        for chunk in pixels.chunks(4096) {
-            job.check()?;
-            out.extend_from_slice(chunk);
-        }
+        let tiles = TilePlane::from_contiguous_with_job(width, height, pixels, job)?;
         job.check()?;
-        Self::adopt(width, height, out)
+        Ok(Self::tiled(tiles))
+    }
+    /// The plane holding `pixels` (`w·h` samples): sharing every tile of
+    /// `self` that `pixels` leaves bitwise unchanged when the dimensions
+    /// match, else [`Self::adopt`]. Always a fresh identity, even when no
+    /// sample changed — a whole-plane writer's answer is an edit to its
+    /// callers. A 300×300 dab on a large plane allocates at most 4 tiles.
+    pub(crate) fn rebuilt(
+        &self,
+        width: u32,
+        height: u32,
+        pixels: Vec<u16>,
+    ) -> Result<Self, String> {
+        if (width, height) != self.dimensions() {
+            return Self::adopt(width, height, pixels);
+        }
+        Ok(match self.tiles.rebuilt_from(&pixels, None)? {
+            Some(tiles) => Self::tiled(tiles),
+            None => Self::tiled(self.tiles.clone()),
+        })
     }
     pub fn dimensions(&self) -> (u32, u32) {
-        (self.width, self.height)
+        self.tiles.dimensions()
     }
-    pub fn samples(&self) -> &[u16] {
-        &self.pixels
+    pub fn width(&self) -> u32 {
+        self.dimensions().0
     }
+    pub fn height(&self) -> u32 {
+        self.dimensions().1
+    }
+    /// The row-major samples as one owned `Vec`. Test oracle: a library
+    /// reader uses `runs`, `row_segments`, `sample_at` or `to_contiguous`.
+    /// Panics when the copy cannot be allocated.
+    #[doc(hidden)]
+    pub fn samples(&self) -> Vec<u16> {
+        self.to_contiguous()
+            .expect("could not allocate typed plane storage")
+    }
+    /// One owned row-major copy of the samples.
+    pub(crate) fn to_contiguous(&self) -> Result<Vec<u16>, String> {
+        self.to_contiguous_with_job(JobContext::NONE)
+    }
+    /// [`Self::to_contiguous`] polling `job` once per tile.
+    pub(crate) fn to_contiguous_with_job(&self, job: JobContext<'_>) -> Result<Vec<u16>, String> {
+        self.tiles.to_contiguous_with_job(job)
+    }
+    /// One owned row-major copy polling `job` once per 4096 samples, before
+    /// each block — `precision_selection_plane::copy`'s cadence over a slice,
+    /// which the scalar edit's read used before 13B-4 — copying run by run.
+    pub(crate) fn to_contiguous_polled(&self, job: JobContext<'_>) -> Result<Vec<u16>, String> {
+        let (width, height) = self.dimensions();
+        let mut out = reserved_vec(pixel_count(width, height)?)?;
+        let mut visited = 0;
+        for run in self.runs() {
+            visited = job.every_run(visited, run.len())?;
+            out.extend_from_slice(run);
+        }
+        Ok(out)
+    }
+    /// Row `y`, columns `x0..x1` (`x1` clamped to the width) as ONE slice:
+    /// the tile's own run when the span lies in one tile column, else the
+    /// runs copied into `scratch` (`GrayRaster::row`'s rule at 16 bits).
+    pub(crate) fn row<'a>(
+        &'a self,
+        y: u32,
+        x0: u32,
+        x1: u32,
+        scratch: &'a mut Vec<u16>,
+    ) -> &'a [u16] {
+        let mut runs = self.tiles.row_segments(y, x0, x1);
+        let Some((_, first)) = runs.next() else {
+            return &[];
+        };
+        let Some((_, second)) = runs.next() else {
+            return first;
+        };
+        scratch.clear();
+        scratch.extend_from_slice(first);
+        scratch.extend_from_slice(second);
+        for (_, run) in runs {
+            scratch.extend_from_slice(run);
+        }
+        scratch
+    }
+    /// Row `y`, columns `x0..x1`, as the tiles' own runs (`TilePlane::row_segments`).
+    pub(crate) fn row_segments(&self, y: u32, x0: u32, x1: u32) -> RowSegments<'_, u16> {
+        self.tiles.row_segments(y, x0, x1)
+    }
+    /// Every row's runs in plane order. No allocation.
+    pub(crate) fn runs(&self) -> impl Iterator<Item = &[u16]> + '_ {
+        let (width, height) = self.dimensions();
+        (0..height).flat_map(move |y| self.tiles.row_segments(y, 0, width).map(|(_, run)| run))
+    }
+    /// The sample at `(x, y)`; `None` outside the plane.
+    pub(crate) fn sample_at(&self, x: u32, y: u32) -> Option<u16> {
+        self.tiles.sample_at(x, y)
+    }
+    /// `w·h·2`: the samples' bytes.
     pub fn storage_bytes(&self) -> u64 {
-        self.pixels.capacity() as u64 * 2
+        let (width, height) = self.dimensions();
+        u64::from(width) * u64::from(height) * 2
     }
     pub fn retained_bytes(&self) -> u64 {
         let mut inventory = Inventory::default();
         self.record_resources(&mut inventory);
         inventory.unique_bytes()
     }
+    /// The index as `tile_structure` and every tile under `precision_plane`
+    /// (a tile shared by several planes counts once).
     pub(crate) fn record_resources(&self, i: &mut Inventory) {
-        i.object(&*self.pixels, "precision_plane", false);
-        i.vec(&self.pixels, "precision_plane", false);
+        self.tiles.record_resources(i, "precision_plane", false);
     }
+    /// Identity (the token).
+    pub fn ptr_eq(a: &Self, b: &Self) -> bool {
+        Arc::ptr_eq(&a.identity, &b.identity)
+    }
+    /// The identity key the typed caches hold.
+    pub(crate) fn key(&self) -> PrecisionPlaneKey {
+        PrecisionPlaneKey {
+            token: Arc::downgrade(&self.identity),
+        }
+    }
+    /// The token's address as an opaque storage identity
+    /// (`dr_precision_doc_layer_mask_storage_identity`, and the test oracles
+    /// that used to compare sample addresses): equal for two planes exactly
+    /// when [`Self::ptr_eq`] holds, while either is alive.
+    #[doc(hidden)]
+    pub fn storage_identity(&self) -> u64 {
+        Arc::as_ptr(&self.identity) as usize as u64
+    }
+    /// Sample equality: identity first, then the samples run by run (a run
+    /// of a shared tile is the same slice), polling `job` once per 4096
+    /// samples up to the first differing one — the flat walk's count.
     pub(crate) fn equals(&self, other: &Self, job: JobContext<'_>) -> Result<bool, String> {
         if self.dimensions() != other.dimensions() {
             return Ok(false);
         }
-        if Arc::ptr_eq(&self.pixels, &other.pixels) {
+        if Self::ptr_eq(self, other) {
             return Ok(true);
         }
-        for (a, b) in self
-            .samples()
-            .chunks(4096)
-            .zip(other.samples().chunks(4096))
-        {
-            job.check()?;
-            if a != b {
-                return Ok(false);
+        // Equal dimensions tile alike, so the two planes' runs pair up exactly.
+        let mut visited = 0;
+        for (a, b) in self.runs().zip(other.runs()) {
+            if std::ptr::eq(a, b) || a == b {
+                visited = job.every_run(visited, a.len())?;
+                continue;
             }
+            let first = a.iter().zip(b).position(|(x, y)| x != y).unwrap_or(0);
+            job.every_run(visited, first + 1)?;
+            return Ok(false);
         }
         Ok(true)
+    }
+    fn tiled(tiles: TilePlane<u16>) -> Self {
+        Self {
+            tiles,
+            identity: Arc::new(()),
+        }
     }
 }
 #[derive(Clone)]
@@ -191,12 +336,15 @@ impl PrecisionMask {
                 (w as usize * h as usize - values.len()).min(4096),
             ));
         }
-        for y in 0..self.plane.height {
-            for x in 0..self.plane.width {
-                let i = y as usize * self.plane.width as usize + x as usize;
-                job.every(i)?;
-                values[(y + pad) as usize * w as usize + (x + pad) as usize] =
-                    f32::from(self.plane.pixels[i]) / 65535.0;
+        let plane_width = self.plane.width() as usize;
+        for y in 0..self.plane.height() {
+            for (x0, run) in self.plane.row_segments(y, 0, self.plane.width()) {
+                for (k, &sample) in run.iter().enumerate() {
+                    let x = x0 + k as u32;
+                    job.every(y as usize * plane_width + x as usize)?;
+                    values[(y + pad) as usize * w as usize + (x + pad) as usize] =
+                        f32::from(sample) / 65535.0;
+                }
             }
         }
         // Blur the finite complement, because the shared reduced-resolution
@@ -256,14 +404,11 @@ impl PreparedMask<'_> {
             } else {
                 outside
             }
-        } else if px >= 0
-            && py >= 0
-            && px < i64::from(self.mask.plane.width)
-            && py < i64::from(self.mask.plane.height)
-        {
-            f32::from(
-                self.mask.plane.pixels[py as usize * self.mask.plane.width as usize + px as usize],
-            ) / 65535.0
+        } else if px >= 0 && py >= 0 && px <= i64::from(u32::MAX) && py <= i64::from(u32::MAX) {
+            self.mask
+                .plane
+                .sample_at(px as u32, py as u32)
+                .map_or(outside, |sample| f32::from(sample) / 65535.0)
         } else {
             outside
         };

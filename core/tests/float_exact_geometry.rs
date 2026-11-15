@@ -85,7 +85,7 @@ fn same_rasters(a: &[PrecisionImage], b: &[PrecisionImage]) -> bool {
 fn mask_addresses(doc: &PrecisionDocument) -> Vec<usize> {
     (0..doc.layer_count())
         .filter_map(|i| doc.layer(i).unwrap().mask())
-        .map(|m| m.plane().samples().as_ptr() as usize)
+        .map(|m| m.plane().storage_identity() as usize)
         .collect()
 }
 

@@ -6,13 +6,13 @@
 //! every canvas sample must read `255 − before`, inside the stored rectangle
 //! and outside it; with a selection every canvas sample must read the f64
 //! interpolation of `before` and `255 − before` by its coverage.
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::{DrDocument, LayerKind, LayerRaster};
 use doctored_core::doc_lock::LOCK_ALL;
 use doctored_core::doc_mask::MaskProperties;
 use doctored_core::ffi_mask::*;
 use image::{GrayImage, Rgba, RgbaImage};
 use std::ptr;
-use std::sync::Arc;
 
 const W: u32 = 9;
 const H: u32 = 7;
@@ -23,7 +23,7 @@ fn masked(w: u32, h: u32, offset: (i32, i32), outside: u8) -> DrDocument {
     let mut doc = DrDocument::from_pixels(RgbaImage::from_pixel(W, H, Rgba([31, 72, 119, 255])));
     let values: Vec<u8> = (0..w * h).map(|i| (i * 37 + 11) as u8).collect();
     let layer = &mut doc.layers[0];
-    layer.mask = Some(Arc::new(GrayImage::from_raw(w, h, values).unwrap()));
+    layer.mask = Some(GrayRaster::new(GrayImage::from_raw(w, h, values).unwrap()));
     layer.mask_properties = MaskProperties::at(offset);
     layer.mask_properties.outside_coverage = outside;
     doc
@@ -93,7 +93,7 @@ fn a_selection_inverts_by_coverage_across_the_whole_canvas() {
         // The stored plane hangs off the canvas' left and bottom edges.
         let doc = masked(3, 3, (-1, 5), outside);
         let before = effective(&doc, 0);
-        let stored: Vec<u8> = doc.layers[0].mask.as_ref().unwrap().as_raw().clone();
+        let stored: Vec<u8> = doc.layers[0].mask.as_ref().unwrap().samples().clone();
         let selection = selection();
         let out = invert(&doc, 0, Some(&selection)).expect("a scoped inversion");
         let after = effective(&out, 0);
@@ -148,12 +148,12 @@ fn a_group_mask_keeps_its_rectangle() {
     doc.layers[0].pixels = LayerRaster::new(RgbaImage::new(1, 1));
     doc.layers[0].offset = (2, -1);
     doc.layers[0].mask_properties.offset = (2, -1);
-    doc.layers[0].mask = Some(Arc::new(
+    doc.layers[0].mask = Some(GrayRaster::new(
         GrayImage::from_raw(W, H, (0..W * H).map(|v| (v * 3) as u8).collect()).unwrap(),
     ));
     doc.layers.push(child);
     doc.layers[1].depth = 1;
-    let stored: Vec<u8> = doc.layers[0].mask.as_ref().unwrap().as_raw().clone();
+    let stored: Vec<u8> = doc.layers[0].mask.as_ref().unwrap().samples().clone();
 
     // No selection: every stored sample and the outside constant flip.
     let whole = invert(&doc, 0, None).expect("an inverted group mask");
@@ -180,7 +180,7 @@ fn a_group_mask_keeps_its_rectangle() {
             selection[(cy as u32 * W + cx as u32) as usize]
         };
         assert_eq!(
-            layer.mask.as_ref().unwrap().as_raw()[i],
+            layer.mask.as_ref().unwrap().samples()[i],
             scoped(value, q),
             "stored sample {i}"
         );

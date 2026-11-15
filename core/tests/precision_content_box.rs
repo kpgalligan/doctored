@@ -6,8 +6,8 @@
 //! export on the same fixture promoted by `dr_doc_promote_structure`.
 
 use crate::serial;
+use doctored_core::doc::GrayRaster;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::{BlendMode, DrDocument, Layer, LayerKind};
 use doctored_core::doc_mask::MaskProperties;
@@ -582,13 +582,17 @@ fn fresh(image: RgbaImage, name: &str) -> Layer {
 }
 
 fn with_mask(mut layer: Layer, size: (u32, u32), at: (i32, i32), outside: u8, seed: u32) -> Layer {
-    layer.mask = Some(Arc::new(GrayImage::from_fn(size.0, size.1, |x, y| {
-        Luma([if (x + y + seed).is_multiple_of(4) {
-            0
-        } else {
-            ((x * 31 + y * 11) % 255 + 1) as u8
-        }])
-    })));
+    layer.mask = Some(GrayRaster::new(GrayImage::from_fn(
+        size.0,
+        size.1,
+        |x, y| {
+            Luma([if (x + y + seed).is_multiple_of(4) {
+                0
+            } else {
+                ((x * 31 + y * 11) % 255 + 1) as u8
+            }])
+        },
+    )));
     layer.mask_properties = MaskProperties::at(at);
     layer.mask_properties.outside_coverage = outside;
     layer.mask_enabled = true;

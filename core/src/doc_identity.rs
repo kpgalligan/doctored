@@ -50,11 +50,12 @@
 //!
 //! **And a third, for the MASK's storage:**
 //! [`DrDocument::layer_mask_storage_identity`] /
-//! [`PrecisionDocument::layer_mask_storage_identity`] answer the address of
-//! the raw mask plane's shared allocation — the byte `Arc<GrayImage>`, the
-//! typed `PrecisionPlane`'s `Arc<Vec<u16>>`. A rename, a clone, an undo
-//! handle and a mask PROPERTY write (density, feather, link, enabled) carry
-//! the same `Arc`; painting or replacing the mask allocates a new one. It
+//! [`PrecisionDocument::layer_mask_storage_identity`] answer the raw mask
+//! plane's identity token — the byte `GrayRaster`'s, the typed
+//! `PrecisionPlane`'s (13B-4: the planes are tiled, so the identity is never
+//! a sample address). A rename, a clone, an undo handle and a mask PROPERTY
+//! write (density, feather, link, enabled) carry the same token; painting or
+//! replacing the mask mints a new one, even where every tile is shared. It
 //! covers the RAW plane only — exactly what the panel's mask thumbnail
 //! shows — and, like the pixel identity, is
 //! comparable only while both planes are owned. `None` for an out-of-range
@@ -73,15 +74,14 @@
 //! value), 0 for NULL/out-of-range/GROUP, comparable only while both rasters are owned; the Layers
 //! panel's thumbnail cache keys on it (typed twin: `dr_precision_image_storage_identity` on
 //! `dr_precision_doc_layer_source`). A third, the raw MASK plane's storage identity
-//! (`layer_mask_storage_identity` at both depths: the byte `Arc<GrayImage>` / typed
-//! `PrecisionPlane` `Arc` address; a rename, clone, undo handle or density/feather/link/enabled
+//! (`layer_mask_storage_identity` at both depths: the byte `GrayRaster` / typed
+//! `PrecisionPlane` identity token; a rename, clone, undo handle or density/feather/link/enabled
 //! write keeps it, a mask paint or replacement answers a new value, 0 for no
 //! mask/GROUP/out-of-range/NULL), exported at EACH depth (`dr_doc_layer_mask_storage_identity`,
 //! `dr_precision_doc_layer_mask_storage_identity`) because a typed mask has no handle of its own;
 //! the panel's mask thumbnail cache keys on it.
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
 
 use crate::doc::{DrDocument, LayerKind};
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
@@ -144,7 +144,7 @@ impl DrDocument {
         if layer.kind == LayerKind::Group {
             return None;
         }
-        Some(Arc::as_ptr(layer.mask.as_ref()?) as usize as u64)
+        Some(layer.mask.as_ref()?.storage_identity())
     }
 }
 
@@ -197,6 +197,6 @@ impl PrecisionDocument {
         if matches!(layer.content, Content::Group(_) | Content::PassThrough(_)) {
             return None;
         }
-        Some(Arc::as_ptr(&layer.mask.as_ref()?.plane.pixels) as usize as u64)
+        Some(layer.mask.as_ref()?.plane.storage_identity())
     }
 }

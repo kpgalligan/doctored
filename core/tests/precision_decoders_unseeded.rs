@@ -824,7 +824,7 @@ fn byte_document_bytes(doc: &DrDocument) -> Vec<u8> {
         if let Some(mask) = &layer.mask {
             out.extend(mask.width().to_le_bytes());
             out.extend(mask.height().to_le_bytes());
-            out.extend(mask.as_raw());
+            out.extend(mask.samples());
         }
     }
     out

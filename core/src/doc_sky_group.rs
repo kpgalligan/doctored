@@ -25,8 +25,6 @@
 //! result against the `.rz` writer's contract (`native_save_preflight`), so
 //! it never publishes a document the writer refuses.
 
-use std::sync::Arc;
-
 use image::{GrayImage, Luma, RgbaImage};
 use serde_json::json;
 
@@ -225,8 +223,8 @@ impl DrDocument {
             RgbaImage::from_raw(dims.0, dims.1, pixels).ok_or("sky replacement sky layer")?;
         let mask =
             GrayImage::from_raw(dims.0, dims.1, mask).ok_or("sky replacement sky layer mask")?;
-        let white = Arc::new(GrayImage::from_pixel(dims.0, dims.1, Luma([255])));
-        let masked = |mut entry: Layer, plane: Arc<GrayImage>| {
+        let white = crate::doc::GrayRaster::new(GrayImage::from_pixel(dims.0, dims.1, Luma([255])));
+        let masked = |mut entry: Layer, plane: crate::doc::GrayRaster| {
             entry.mask = Some(plane);
             entry.mask_enabled = true;
             entry.mask_properties = MaskProperties::at((0, 0));
@@ -253,12 +251,12 @@ impl DrDocument {
         );
         let sky_layer = masked(
             Layer::from_raster(LayerRaster::unseeded(image), SKY_NAME),
-            Arc::new(mask),
+            crate::doc::GrayRaster::new(mask),
         );
         let edge_layer = edge.map(|(image, mask)| {
             masked(
                 Layer::from_raster(LayerRaster::unseeded(image), EDGE_NAME),
-                Arc::new(mask),
+                crate::doc::GrayRaster::new(mask),
             )
         });
         let children: Vec<Layer> = edge_layer

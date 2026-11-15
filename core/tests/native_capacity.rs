@@ -2,9 +2,9 @@
 //! Large logical documents share tiny allocations; crafted PNG headers prove
 //! preflight ordering without inflating hundreds of millions of pixels.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::{DrDocument, LayerRaster};
 use doctored_core::ffi_doc::*;
@@ -183,7 +183,7 @@ fn writer_refuses_invalid_mask_instead_of_silently_discarding_it() {
     let mut doc = DrDocument::from_pixels(solid(2, 2, RED));
     doc.save_native(path.to_str().unwrap()).unwrap();
     let previous = std::fs::read(&path).unwrap();
-    doc.layers[0].mask = Some(Arc::new(GrayImage::new(0, 1)));
+    doc.layers[0].mask = Some(GrayRaster::new(GrayImage::new(0, 1)));
     let err = save_error(&doc, &path);
     assert!(err.contains("mask dimensions"), "{err}");
     assert_eq!(std::fs::read(&path).unwrap(), previous);

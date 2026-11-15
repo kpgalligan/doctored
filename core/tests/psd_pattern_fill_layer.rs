@@ -15,6 +15,7 @@
 //! fill is tile[(x − Ox) mod w, (y − Oy) mod h] with O = phase + reference
 //! when linked and O = phase when unlinked.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CStr, CString};
 use std::path::Path;
 use std::ptr;
@@ -228,7 +229,7 @@ fn byte_doc() -> DrDocument {
         .expect("the mask");
     // The mask as its own rectangle, so the record's rectangle is smaller
     // than the canvas.
-    doc.layers[1].mask = Some(std::sync::Arc::new(image::GrayImage::from_pixel(
+    doc.layers[1].mask = Some(GrayRaster::new(image::GrayImage::from_pixel(
         MASK_SIZE.0,
         MASK_SIZE.1,
         image::Luma([255]),
@@ -734,11 +735,8 @@ fn assert_reopened8(reopened: &DrDocument, doc: &DrDocument, what: &str) {
         "{what}: opacity"
     );
     assert_eq!(
-        reopened.layers[1]
-            .mask
-            .as_deref()
-            .map(|m| m.as_raw().clone()),
-        doc.layers[1].mask.as_deref().map(|m| m.as_raw().clone()),
+        reopened.layers[1].mask.as_ref().map(|m| m.samples()),
+        doc.layers[1].mask.as_ref().map(|m| m.samples()),
         "{what}: the mask"
     );
     assert_eq!(
@@ -1125,9 +1123,9 @@ fn photoshops_own_pattern_fill_layers_read_as_their_fill_within_the_bound() {
         assert_eq!(layer.pixels.dimensions(), (W, H), "{key}: a canvas raster");
         if key == "PM" {
             // The anti-aliased diamond's `-2` mask is kept as the fill's.
-            let mask = layer.mask.as_deref().expect("PM's mask");
+            let mask = layer.mask.as_ref().expect("PM's mask");
             assert!(
-                mask.as_raw().iter().any(|&v| v > 0 && v < 255),
+                mask.samples().iter().any(|&v| v > 0 && v < 255),
                 "PM: the mask keeps its anti-aliased edge"
             );
         }

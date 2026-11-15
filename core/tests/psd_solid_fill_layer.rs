@@ -16,6 +16,7 @@
 //! D65, `common/p3_oracle.rs`), never read from the core; the written planes
 //! are the document's own samples over the record's rectangle.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::CString;
 use std::path::Path;
 use std::ptr;
@@ -169,7 +170,7 @@ fn byte_doc(profile: &Arc<IccProfile>, fills: &[Fill]) -> DrDocument {
     let mut doc = doc
         .add_mask(1, MaskKind::FromSelection(&vec![255u8; (W * H) as usize]))
         .expect("the mask");
-    doc.layers[1].mask = Some(Arc::new(mask8()));
+    doc.layers[1].mask = Some(GrayRaster::new(mask8()));
     doc.layers[1].mask_properties = doctored_core::doc_mask::MaskProperties::at(MASK_AT);
     doc.with_layer_opacity(1, 0.6).expect("the opacity")
 }
@@ -430,7 +431,7 @@ fn an_8_and_16_bit_solid_fill_layer_round_trips_in_photoshops_soco_form() {
     assert_eq!(reopened.layers.len(), 3);
     for index in 1..3 {
         let layer = &reopened.layers[index];
-        let d = parse(layer.meta.as_deref().expect("a description"));
+        let d = parse(layer.meta.as_ref().expect("a description"));
         assert_eq!(d["fill"], "solid");
         assert!(d.get("linear").is_none(), "no wide colour");
         for (got, want) in numbers(&d, "color").iter().zip(fills[index - 1].color) {
@@ -448,10 +449,7 @@ fn an_8_and_16_bit_solid_fill_layer_round_trips_in_photoshops_soco_form() {
     }
     assert!((reopened.layers[1].opacity - 0.6).abs() < 1e-3, "opacity");
     assert_eq!(
-        reopened.layers[1]
-            .mask
-            .as_deref()
-            .map(|m| m.as_raw().clone()),
+        reopened.layers[1].mask.as_ref().map(|m| m.samples()),
         Some(mask8().into_raw()),
         "the mask"
     );
@@ -658,7 +656,7 @@ fn a_display_p3_green_crosses_as_a_wide_colour_at_both_depths() {
     }
     let reopened = open8(&path);
     let layer = &reopened.layers[1];
-    let d = parse(layer.meta.as_deref().expect("a description"));
+    let d = parse(layer.meta.as_ref().expect("a description"));
     check_linear(&d, "p3-8");
     for p in layer.pixels.to_contiguous().unwrap().pixels() {
         for (got, want) in p.0.iter().zip([0u8, 255, 0, 255]) {
@@ -669,7 +667,7 @@ fn a_display_p3_green_crosses_as_a_wide_colour_at_both_depths() {
         }
     }
     // An in-gamut colour in the same file carries no wide colour.
-    let plain = parse(reopened.layers[2].meta.as_deref().expect("a description"));
+    let plain = parse(reopened.layers[2].meta.as_ref().expect("a description"));
     assert!(plain.get("linear").is_none(), "{plain}");
     let again = dir.path().join("p3-8-again.psd");
     save8(&reopened, &again);
@@ -910,10 +908,7 @@ fn every_soco_form_is_read_and_named_in_the_report() {
             "{clause}"
         );
         assert_eq!(
-            reopened.layers[1]
-                .mask
-                .as_deref()
-                .map(|m| m.as_raw().clone()),
+            reopened.layers[1].mask.as_ref().map(|m| m.samples()),
             Some(mask8().into_raw()),
             "{clause}: the mask"
         );
@@ -1188,7 +1183,7 @@ fn a_profile_that_cannot_be_rendered_into_declines_its_solids_and_keeps_its_patt
         reopened.layers[1].pixels.to_contiguous().unwrap(),
         doc.layers[2].pixels.to_contiguous().unwrap()
     );
-    let pattern = parse(reopened.layers[2].meta.as_deref().expect("the pattern"));
+    let pattern = parse(reopened.layers[2].meta.as_ref().expect("the pattern"));
     assert_eq!(pattern["fill"], "pattern");
 }
 
@@ -1408,7 +1403,7 @@ fn photoshops_own_solid_fill_layers_read_as_their_colour_within_the_bound() {
         } else {
             let doc = open8(&psd);
             let layer = &doc.layers[1];
-            check(layer.meta.as_deref().expect("a description"));
+            check(layer.meta.as_ref().expect("a description"));
             assert_eq!(layer.offset, (0, 0), "{key}: at the origin");
             assert_eq!(
                 layer.pixels.dimensions(),
@@ -1417,7 +1412,7 @@ fn photoshops_own_solid_fill_layers_read_as_their_colour_within_the_bound() {
             );
             if key == "SM8" {
                 // The selection's `-2` mask is kept as the fill's.
-                let mask = layer.mask.as_deref().expect("SM8's mask");
+                let mask = layer.mask.as_ref().expect("SM8's mask");
                 assert_eq!(mask.dimensions(), (40, 30), "SM8: the mask's size");
                 assert_eq!(
                     layer.mask_properties.offset,
@@ -1425,7 +1420,7 @@ fn photoshops_own_solid_fill_layers_read_as_their_colour_within_the_bound() {
                     "SM8: the mask's place"
                 );
                 assert!(
-                    mask.as_raw().iter().all(|&v| v == 255),
+                    mask.samples().iter().all(|&v| v == 255),
                     "SM8: a hard rectangle"
                 );
             }

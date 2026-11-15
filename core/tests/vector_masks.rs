@@ -568,7 +568,12 @@ fn an_arbitrary_canvas_rotation_leaves_a_plain_mask_and_the_same_picture() {
     let doc = masked();
     // The twin: the same layer with the baked plane as an ordinary mask.
     let layer = &doc.layers[0];
-    let plane: GrayImage = (**layer.mask.as_ref().expect("a baked mask")).clone();
+    let plane: GrayImage = layer
+        .mask
+        .as_ref()
+        .expect("a baked mask")
+        .to_image()
+        .unwrap();
     let twin = byte(W, H)
         .set_mask(0, plane, layer.mask_properties.offset, true, 0)
         .expect("a plain mask");

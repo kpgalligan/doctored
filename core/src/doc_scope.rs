@@ -15,8 +15,6 @@
 //! raw mask reads preserve translated group storage. RGBA fades use the shared premultiplied
 //! sampling math; scalar planes retain byte coverage.
 
-use std::sync::Arc;
-
 use image::{GrayImage, RgbaImage};
 
 use crate::doc::DrDocument;
@@ -87,7 +85,7 @@ impl DrDocument {
     /// without a mask or when its storage dimensions violate the model.
     pub fn layer_mask_storage_image(&self, idx: usize) -> Option<RgbaImage> {
         let layer = self.layers.get(idx)?;
-        let mask = layer.mask.as_deref()?;
+        let mask = layer.mask.as_ref()?.to_image().ok()?;
         let size = mask.dimensions();
         gray_image(mask.as_raw(), size.0, size.1)
     }
@@ -137,15 +135,16 @@ impl DrDocument {
     ) -> Option<Self> {
         self.under_locks(idx, EditKind::Mask, |doc| {
             let layer = doc.layers.get(idx)?;
-            let before = layer.mask.as_deref()?;
-            let size = before.dimensions();
+            let raster = layer.mask.as_ref()?;
+            let size = raster.dimensions();
             if result.dimensions() != size {
                 return None;
             }
             let coverage = Coverage::new(doc, selection, layer.mask_properties.offset)?;
-            let mask = scoped_gray(before, result, &coverage)?;
+            let before = raster.to_image().ok()?;
+            let mask = scoped_gray(&before, result, &coverage)?;
             let mut out = doc.clone();
-            out.layers[idx].mask = Some(Arc::new(mask));
+            out.layers[idx].mask = Some(raster.rebuilt(mask));
             Some(out)
         })
     }
@@ -195,16 +194,17 @@ impl DrDocument {
         result: &RgbaImage,
         selection: Option<&[u8]>,
     ) -> Option<Self> {
-        let before = self.channels.get(idx)?.data.as_ref();
-        if before.dimensions() != (self.width, self.height)
-            || result.dimensions() != before.dimensions()
+        let raster = &self.channels.get(idx)?.data;
+        if raster.dimensions() != (self.width, self.height)
+            || result.dimensions() != raster.dimensions()
         {
             return None;
         }
         let coverage = Coverage::new(self, selection, (0, 0))?;
-        let data = scoped_gray(before, result, &coverage)?;
+        let before = raster.to_image().ok()?;
+        let data = scoped_gray(&before, result, &coverage)?;
         let mut out = self.clone();
-        out.channels[idx].data = Arc::new(data);
+        out.channels[idx].data = raster.rebuilt(data);
         Some(out)
     }
 }

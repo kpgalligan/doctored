@@ -30,8 +30,8 @@
 //!   bits are exact.
 #![allow(clippy::needless_range_loop)]
 
+use doctored_core::doc::GrayRaster;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc_mask::MaskProperties;
 use doctored_core::ffi_jobs::{dr_job_control_cancel, dr_job_control_create, dr_job_control_free};
@@ -555,7 +555,7 @@ fn panorama_refusals_name_the_layer() {
         doc.layers[0].locks = locks[0];
         doc.layers[1].locks = locks[1];
         if masked {
-            doc.layers[1].mask = Some(Arc::new(GrayImage::from_pixel(
+            doc.layers[1].mask = Some(GrayRaster::new(GrayImage::from_pixel(
                 CANVAS.0,
                 CANVAS.1,
                 Luma([255]),

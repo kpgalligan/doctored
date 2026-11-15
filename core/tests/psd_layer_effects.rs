@@ -9,6 +9,7 @@
 //! and every expected descriptor body comes from this suite's own builder
 //! (`common/psd_descriptor_fixture.rs`), never from the crate's writer.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CString};
 use std::path::Path;
 use std::ptr;
@@ -1176,7 +1177,7 @@ fn export_document(profile: &Arc<IccProfile>) -> DrDocument {
     for (index, pixel) in mask.pixels_mut().enumerate() {
         pixel.0[0] = (index * 5 % 256) as u8;
     }
-    styled.mask = Some(Arc::new(mask));
+    styled.mask = Some(GrayRaster::new(mask));
     styled.mask_properties.offset = (4, 3);
     doc
 }

@@ -133,11 +133,11 @@ fn nearest_matches_the_independent_homography_on_every_plane() {
                 i,
                 j,
             ) {
-                let want = at.map_or(255, |k| mask.as_raw()[k]);
+                let want = at.map_or(255, |k| mask.samples()[k]);
                 assert_eq!(new_mask.get_pixel(i, j).0[0], want, "mask ({i}, {j})");
             }
             if let Some(at) = nearest_index(&hm, (CW, CH), (0, 0), i, j) {
-                let want = at.map_or(0, |k| channel.as_raw()[k]);
+                let want = at.map_or(0, |k| channel.samples()[k]);
                 assert_eq!(new_channel.get_pixel(i, j).0[0], want, "channel ({i}, {j})");
             }
         }

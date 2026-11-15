@@ -303,13 +303,15 @@ pub(crate) fn transform_plane_outside(
     job: JobContext<'_>,
 ) -> Result<PrecisionPlane, String> {
     let (w, h) = destination;
+    // One transient copy of the resample input.
+    let samples = source.to_contiguous()?;
     let mut output: Vec<u16> = blank_value(w, h, outside, job)?;
     resample_into(
         source.dimensions(),
         destination,
         map,
         filter.sampler(),
-        |i| source.samples()[i],
+        |i| samples[i],
         |acc: &mut [f32; 1], pixel, weight| {
             acc[0] += weight * (f32::from(pixel) - f32::from(outside))
         },
@@ -459,16 +461,16 @@ pub(crate) fn resize_plane(
         job.check()?;
         return Ok(source.clone());
     }
+    // One transient copy of the resample input.
+    let samples = source.to_contiguous()?;
     let mut out: Vec<u16> = blank(w, h, job)?;
     match filter.sampler() {
-        Sampler::Nearest => {
-            nearest_into(source.samples(), source.dimensions(), (w, h), &mut out, job)?
-        }
+        Sampler::Nearest => nearest_into(&samples, source.dimensions(), (w, h), &mut out, job)?,
         Sampler::Kernel(kernel) => resize_into(
             source.dimensions(),
             (w, h),
             kernel,
-            |i| source.samples()[i],
+            |i| samples[i],
             |acc: &mut [f32; 1], pixel, weight| acc[0] += f32::from(pixel) * weight,
             |acc| u16::quantize(acc[0]),
             |i, pixel| out[i] = pixel,

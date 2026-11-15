@@ -123,21 +123,20 @@ impl Shape {
         let (w, h) = (w as u32, h as u32);
         let mut coverage = vec![0u8; w as usize * h as usize];
         let active_mask = layer.active_mask();
-        let mask = active_mask.as_deref().map(|m| m.as_raw().as_slice());
+        let mut mask_row = Vec::new();
         let (mut bx0, mut by0, mut bx1, mut by1) = (i64::from(lw), i64::from(lh), 0i64, 0i64);
         for y in 0..lh {
             job.check()?;
             let row = (y + pad) as usize * w as usize + pad as usize;
             let mut row_min = lw;
             let mut row_max = 0;
+            // The aligned mask's row, read in place (13B-4).
+            let mask = active_mask.as_ref().map(|m| m.row(y, 0, lw, &mut mask_row));
             for (sx, run) in layer.pixels.row_segments(y, 0, lw) {
                 for (i, px) in run.iter().enumerate() {
                     let x = sx + i as u32;
                     let alpha = px[3];
-                    let c = Self::coverage_byte(
-                        alpha,
-                        mask.map(|m| m[y as usize * lw as usize + x as usize]),
-                    );
+                    let c = Self::coverage_byte(alpha, mask.map(|m| m[x as usize]));
                     coverage[row + x as usize] = c;
                     if alpha != 0 {
                         row_min = row_min.min(x);

@@ -9,9 +9,9 @@
 //! `#[ignore]`d `…_is_measured` twins, so `make cancel-bench`
 //! records both depths; their default twins cancel with the worker parked.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::ptr;
-use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -223,7 +223,7 @@ fn masked(doc: &DrDocument, idx: usize, feather: f32) -> DrDocument {
     properties.density = 0.9;
     properties.feather = feather;
     let layer = &mut out.layers[idx];
-    layer.mask = Some(Arc::new(plane));
+    layer.mask = Some(GrayRaster::new(plane));
     layer.mask_enabled = true;
     layer.mask_properties = properties;
     out
@@ -649,7 +649,7 @@ fn the_input_halo_composes_each_rows_halo_with_the_guides_above_it() {
         let mut properties = MaskProperties::at((30, 40));
         properties.feather = 5.0;
         let layer = &mut out.layers[idx];
-        layer.mask = Some(Arc::new(plane));
+        layer.mask = Some(GrayRaster::new(plane));
         layer.mask_enabled = true;
         layer.mask_properties = properties;
         out

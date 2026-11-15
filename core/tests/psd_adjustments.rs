@@ -618,7 +618,7 @@ fn eight_bit_bodies_import_as_adjustment_layers_with_their_expected_metas() {
         match kind.name {
             "Levels" => {
                 let mask = layer.mask.as_ref().expect("the Levels mask");
-                assert_eq!(mask.as_raw(), &mask8().coverage);
+                assert_eq!(mask.samples(), mask8().coverage);
             }
             "Posterize" => assert!(layer.clipped, "the Posterize clipping byte"),
             "Balance" => assert_eq!(layer.blend, BlendMode::Multiply),

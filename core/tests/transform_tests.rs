@@ -3,9 +3,9 @@
 //! and the composed-quarter-turn exactness guarantees. Shared fixtures live
 //! in `tests/common`.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_int;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::{BlendMode, DrDocument};
 use doctored_core::ffi_doc::*;
@@ -342,7 +342,7 @@ fn alpha_equals_mask_doc() -> DrDocument {
         .with_layer_offset(1, 3, 2)
         .expect("set offset");
     doc.layers[1].mask_properties.offset = doc.layers[1].offset;
-    doc.layers[1].mask = Some(Arc::new(GrayImage::from_fn(7, 5, |x, y| {
+    doc.layers[1].mask = Some(GrayRaster::new(GrayImage::from_fn(7, 5, |x, y| {
         Luma([pattern(x, y)])
     })));
     doc
@@ -367,8 +367,8 @@ fn transform_layer_carries_the_mask_pixel_for_pixel() {
             .map(|p| p[3])
             .collect();
         assert_eq!(
-            &alpha,
-            mask.as_raw(),
+            alpha,
+            mask.samples(),
             "filter {filter}: the mask must be resampled exactly like the alpha \
              channel it was built to match"
         );
@@ -456,7 +456,7 @@ fn transform_layer_preserves_properties_meta_and_neighbours() {
         .expect("visible");
     doc.layers[1].meta = Some(META.to_string());
     doc.layers[1].mask_properties.offset = doc.layers[1].offset;
-    doc.layers[1].mask = Some(Arc::new(GrayImage::from_pixel(4, 3, Luma([200]))));
+    doc.layers[1].mask = Some(GrayRaster::new(GrayImage::from_pixel(4, 3, Luma([200]))));
     doc.layers[1].mask_enabled = false;
 
     let out = transformed(&doc, 1, rotate_about(31.0, 5.0, 4.0), FILTER_BILINEAR);

@@ -16,16 +16,23 @@
 //! resource reporting/eviction includes both. Native v10 stores the earlier byte properties,
 //! migrating v1–9 with linked/density1/feather0 defaults. Finite raw scalar edits retain the
 //! outside default.
+//!
+//! Since 13B-4 the raw plane is a tiled `GrayRaster`, and every reader here answers one too: an
+//! unfeathered, density-1 mask aligned with its layer (the common case) is the raw raster itself,
+//! read in place by the compositor one row span at a time (`GrayRaster::row`), so a projection
+//! copies no plane and caches nothing for it; a feathered, density-scaled or misaligned mask is a
+//! contiguous plane built once, adopted by `GrayRaster::shared` and held by the two caches above,
+//! which key on the raw raster's identity (`GrayRasterKey`).
 
-use std::borrow::Cow;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex};
 
 use image::imageops::FilterType;
 use image::{GrayImage, Luma, RgbaImage};
 
-use crate::doc::{saturating_i32, DrDocument, Geometry, Layer, LayerKind, MAX_PIXELS};
+use crate::doc::{saturating_i32, DrDocument, Geometry, GrayRaster, Layer, LayerKind, MAX_PIXELS};
 use crate::doc_lock::EditKind;
 use crate::doc_transform::{transform_gray, Affine};
+use crate::gray_raster::GrayRasterKey;
 use crate::job_control::JobContext;
 use crate::style_render::{blur_plane_with_job, blur_reach};
 
@@ -54,17 +61,17 @@ pub struct MaskProperties {
 }
 
 struct AlignedMask {
-    raw: Weak<GrayImage>,
+    raw: GrayRasterKey,
     shape: ((i64, i64), (u32, u32), u32, u32, u8),
-    plane: Arc<GrayImage>,
+    plane: GrayRaster,
 }
 
 #[derive(Clone)]
 struct DerivedMask {
-    raw: Weak<GrayImage>,
+    raw: GrayRasterKey,
     feather: f32,
     outside_coverage: u8,
-    plane: Arc<GrayImage>,
+    plane: GrayRaster,
     pad: u32,
 }
 
@@ -149,19 +156,19 @@ impl MaskProperties {
         crate::plane_blur::float_work(pw, ph, self.sigma()).saturating_add(outside)
     }
 
-    pub(crate) fn cached_planes(&self) -> Vec<Arc<GrayImage>> {
+    pub(crate) fn cached_planes(&self) -> Vec<GrayRaster> {
         let raw = self
             .cache
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .as_ref()
-            .map(|c| Arc::clone(&c.plane));
+            .map(|c| c.plane.clone());
         let aligned = self
             .aligned_cache
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .as_ref()
-            .map(|c| Arc::clone(&c.plane));
+            .map(|c| c.plane.clone());
         raw.into_iter().chain(aligned).collect()
     }
 
@@ -175,32 +182,45 @@ impl MaskProperties {
 
     /// The derived (feathered) coverage of `raw` and its pad, polling `job`
     /// inside the feather blur; an `Err` writes no cache entry (Phase
-    /// 13A-5a).
+    /// 13A-5a). Unfeathered, it is `raw` itself (a clone: no copy).
     pub(crate) fn derived_with_job(
         &self,
-        raw: &Arc<GrayImage>,
+        raw: &GrayRaster,
         job: JobContext<'_>,
-    ) -> Result<(Arc<GrayImage>, u32), String> {
+    ) -> Result<(GrayRaster, u32), String> {
         if self.feather == 0.0 {
-            return Ok((Arc::clone(raw), 0));
+            return Ok((raw.clone(), 0));
         }
         {
             let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(c) = cache.as_ref().filter(|c| {
                 c.feather == self.feather
                     && c.outside_coverage == self.outside_coverage
-                    && std::ptr::eq(c.raw.as_ptr(), Arc::as_ptr(raw))
+                    && c.raw.names(raw)
             }) {
-                return Ok((Arc::clone(&c.plane), c.pad));
+                return Ok((c.plane.clone(), c.pad));
             }
         }
         // All public mutation and native preflight paths validate this bound.
         // Invalid hand-built internal state retains raw coverage defensively.
         let Some((w, h, pad)) = self.padded_dimensions(raw.dimensions()) else {
-            return Ok((Arc::clone(raw), 0));
+            return Ok((raw.clone(), 0));
         };
         let mut plane = GrayImage::from_pixel(w, h, Luma([self.outside_coverage]));
-        image::imageops::replace(&mut plane, &**raw, i64::from(pad), i64::from(pad));
+        // The raw plane pasted at (pad, pad), row run by row run: the
+        // `imageops::replace` it replaced, unpolled as that was.
+        {
+            let (rw, rh) = raw.dimensions();
+            let stride = w as usize;
+            let dst: &mut [u8] = &mut plane;
+            for y in 0..rh {
+                let at = (y + pad) as usize * stride + pad as usize;
+                for (x, run) in raw.row_segments(y, 0, rw) {
+                    let start = at + x as usize;
+                    dst[start..start + run.len()].copy_from_slice(run);
+                }
+            }
+        }
         // Evaluate the finite deviation as hidden coverage when the background
         // is white. The shared multiresolution blur zero-extends its workspace;
         // complementing avoids a dark seam at that workspace's outer edge.
@@ -215,12 +235,12 @@ impl MaskProperties {
                 *value = 255 - *value;
             }
         }
-        let plane = Arc::new(plane);
+        let plane = GrayRaster::shared(Arc::new(plane));
         *self.cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(DerivedMask {
-            raw: Arc::downgrade(raw),
+            raw: raw.key(),
             feather: self.feather,
             outside_coverage: self.outside_coverage,
-            plane: Arc::clone(&plane),
+            plane: plane.clone(),
             pad,
         });
         Ok((plane, pad))
@@ -230,8 +250,10 @@ impl MaskProperties {
 impl Layer {
     /// One aligned effective plane is reused by raster compositing tiles and
     /// styles. Keys contain raw identity and every effective shape input;
-    /// moving linked pixels+mask together therefore reuses its coverage.
-    pub(crate) fn aligned_mask(&self) -> Option<Arc<GrayImage>> {
+    /// moving linked pixels+mask together therefore reuses its coverage. An
+    /// unfeathered, density-1 mask aligned with the pixels is the raw raster
+    /// itself, read in place (no copy, no cache entry).
+    pub(crate) fn aligned_mask(&self) -> Option<GrayRaster> {
         self.aligned_mask_with_job(JobContext::NONE)
             .expect("uncancellable mask alignment")
     }
@@ -243,7 +265,7 @@ impl Layer {
     pub(crate) fn aligned_mask_with_job(
         &self,
         job: JobContext<'_>,
-    ) -> Result<Option<Arc<GrayImage>>, String> {
+    ) -> Result<Option<GrayRaster>, String> {
         let Some(raw) = self.mask.as_ref() else {
             return Ok(None);
         };
@@ -254,7 +276,7 @@ impl Layer {
             && p.offset == self.offset
             && raw.dimensions() == dimensions
         {
-            return Ok(Some(Arc::clone(raw)));
+            return Ok(Some(raw.clone()));
         }
         let shape = (
             (
@@ -270,21 +292,20 @@ impl Layer {
             let cache = p.aligned_cache.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(c) = cache
                 .as_ref()
-                .filter(|c| c.shape == shape && std::ptr::eq(c.raw.as_ptr(), Arc::as_ptr(raw)))
+                .filter(|c| c.shape == shape && c.raw.names(raw))
             {
-                return Ok(Some(Arc::clone(&c.plane)));
+                return Ok(Some(c.plane.clone()));
             }
         }
-        let Some(rect) =
+        let Some(plane) =
             self.effective_mask_rect_with_job(self.offset, dimensions.0, dimensions.1, job)?
         else {
             return Ok(None);
         };
-        let plane = Arc::new(rect.into_owned());
         *p.aligned_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(AlignedMask {
-            raw: Arc::downgrade(raw),
+            raw: raw.key(),
             shape,
-            plane: Arc::clone(&plane),
+            plane: plane.clone(),
         });
         Ok(Some(plane))
     }
@@ -295,7 +316,7 @@ impl Layer {
     pub(crate) fn active_mask_with_job(
         &self,
         job: JobContext<'_>,
-    ) -> Result<Option<Arc<GrayImage>>, String> {
+    ) -> Result<Option<GrayRaster>, String> {
         if !self.mask_enabled {
             return Ok(None);
         }
@@ -309,7 +330,7 @@ impl Layer {
         origin: (i32, i32),
         w: u32,
         h: u32,
-    ) -> Option<Cow<'_, GrayImage>> {
+    ) -> Option<GrayRaster> {
         self.effective_mask_rect_with_job(origin, w, h, JobContext::NONE)
             .expect("uncancellable context")
     }
@@ -317,21 +338,23 @@ impl Layer {
     /// [`Self::effective_mask_rect`] polling `job` inside the feather blur
     /// (`MaskProperties::derived_with_job`, Phase 13A-5b-ii-a) and at the head
     /// of every row of the crop (Phase 13A-5b-ii-b); the same coverage, in the
-    /// same row-major order.
+    /// same row-major order. A rect that IS the raw plane (unfeathered,
+    /// density 1, same origin and size) answers the raw raster itself; any
+    /// other answers the crop, adopted without a second copy.
     pub(crate) fn effective_mask_rect_with_job(
         &self,
         origin: (i32, i32),
         w: u32,
         h: u32,
         job: JobContext<'_>,
-    ) -> Result<Option<Cow<'_, GrayImage>>, String> {
+    ) -> Result<Option<GrayRaster>, String> {
         let Some(raw) = self.mask.as_ref() else {
             return Ok(None);
         };
         let p = &self.mask_properties;
         if p.feather == 0.0 && p.density == 1.0 && p.offset == origin && raw.dimensions() == (w, h)
         {
-            return Ok(Some(Cow::Borrowed(raw)));
+            return Ok(Some(raw.clone()));
         }
         let (plane, pad) = p.derived_with_job(raw, job)?;
         let mut crop = Vec::with_capacity(w as usize * h as usize);
@@ -348,7 +371,7 @@ impl Layer {
         }
         let crop = GrayImage::from_raw(w, h, crop)
             .ok_or_else(|| "internal error: mask crop size".to_string())?;
-        Ok(Some(Cow::Owned(crop)))
+        Ok(Some(GrayRaster::shared(Arc::new(crop))))
     }
 
     /// The per-sample body of [`Self::effective_mask_rect`]: the derived
@@ -359,7 +382,7 @@ impl Layer {
     /// mask sample by sample through this same statement sequence.
     pub(crate) fn effective_coverage_at(
         &self,
-        plane: &GrayImage,
+        plane: &GrayRaster,
         pad: u32,
         canvas_x: i64,
         canvas_y: i64,
@@ -367,15 +390,14 @@ impl Layer {
         let p = &self.mask_properties;
         let mx = canvas_x - i64::from(p.offset.0) + i64::from(pad);
         let my = canvas_y - i64::from(p.offset.1) + i64::from(pad);
-        let coverage = if mx >= 0
-            && my >= 0
-            && mx < i64::from(plane.width())
-            && my < i64::from(plane.height())
-        {
-            plane.get_pixel(mx as u32, my as u32)[0]
-        } else {
-            p.outside_coverage
-        };
+        let coverage =
+            if mx >= 0 && my >= 0 && mx <= i64::from(u32::MAX) && my <= i64::from(u32::MAX) {
+                plane
+                    .sample_at(mx as u32, my as u32)
+                    .unwrap_or(p.outside_coverage)
+            } else {
+                p.outside_coverage
+            };
         density_coverage(f32::from(coverage), p.density, 255.0).round() as u8
     }
 
@@ -441,9 +463,10 @@ impl Layer {
         Ok(Some(()))
     }
 
-    pub(crate) fn geometry_mask(&mut self, geom: Geometry, cw: u32, ch: u32) {
+    /// `None` only when the plane's transient copy cannot be allocated.
+    pub(crate) fn geometry_mask(&mut self, geom: Geometry, cw: u32, ch: u32) -> Option<()> {
         let Some(mask) = &self.mask else {
-            return;
+            return Some(());
         };
         let (x, y) = self.mask_properties.offset;
         let (w, h) = mask.dimensions();
@@ -455,11 +478,14 @@ impl Layer {
             Geometry::FlipH => (i64::from(cw) - x - w, y),
             Geometry::FlipV => (x, i64::from(ch) - y - h),
         };
-        self.mask = Some(Arc::new(geom.apply(&**mask)));
+        // One transient copy of the plane (the resample-input rule).
+        let image = mask.to_image().ok()?;
+        self.mask = Some(GrayRaster::new(geom.apply(&image)));
         self.mask_properties.offset = (saturating_i32(offset.0), saturating_i32(offset.1));
         if self.kind == LayerKind::Group {
             self.offset = self.mask_properties.offset;
         }
+        Some(())
     }
 
     pub(crate) fn resize_mask(&mut self, fx: f64, fy: f64, filter: FilterType) -> Option<()> {
@@ -473,8 +499,9 @@ impl Layer {
         if !self.mask_properties.valid(dims) {
             return None;
         }
-        self.mask = Some(Arc::new(image::imageops::resize(
-            &**raw, dims.0, dims.1, filter,
+        let image = raw.to_image().ok()?;
+        self.mask = Some(GrayRaster::new(image::imageops::resize(
+            &image, dims.0, dims.1, filter,
         )));
         self.mask_properties.offset = (
             saturating_i32((f64::from(self.mask_properties.offset.0) * fx).round() as i64),
@@ -568,7 +595,9 @@ impl DrDocument {
         let mask = self
             .layers
             .get(idx)?
-            .effective_mask_rect((0, 0), self.width, self.height)?;
+            .effective_mask_rect((0, 0), self.width, self.height)?
+            .to_image()
+            .ok()?;
         crate::doc_plane::gray_image(mask.as_raw(), self.width, self.height)
     }
 }

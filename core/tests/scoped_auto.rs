@@ -9,6 +9,7 @@
 //! documented Tone rule written out HERE (`weighted_tone`). Every fixture is
 //! opaque, with a tonally distinct layer under the measured content.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 
@@ -566,7 +567,7 @@ fn create_with_a_selection_equals_edit_with_that_mask_at_both_depths() {
         let created = byte(&base, &request(1, json!({"mode":mode,"insert":insert})), &s).unwrap();
         let mut masked = byte_two(&levels_meta());
         let plane: Vec<u8> = s.iter().map(|v| (v / 257) as u8).collect();
-        masked.layers[1].mask = Some(std::sync::Arc::new(
+        masked.layers[1].mask = Some(GrayRaster::new(
             image::GrayImage::from_raw(W, H, plane).unwrap(),
         ));
         masked.layers[1].mask_enabled = true;
@@ -601,14 +602,14 @@ fn create_with_a_selection_equals_edit_with_that_mask_at_both_depths() {
 #[test]
 fn an_all_revealed_or_disabled_mask_keeps_parity() {
     let mut revealed = byte_two(&levels_meta());
-    revealed.layers[1].mask = Some(std::sync::Arc::new(image::GrayImage::from_pixel(
+    revealed.layers[1].mask = Some(GrayRaster::new(image::GrayImage::from_pixel(
         W,
         H,
         image::Luma([255]),
     )));
     revealed.layers[1].mask_enabled = true;
     let mut disabled = byte_two(&levels_meta());
-    disabled.layers[1].mask = Some(std::sync::Arc::new(image::GrayImage::new(W, H)));
+    disabled.layers[1].mask = Some(GrayRaster::new(image::GrayImage::new(W, H)));
     disabled.layers[1].mask_enabled = false;
     for (mode, code) in [("tone", 0), ("color", 2)] {
         let expected = image_auto(&photo(W, H), code);
@@ -696,7 +697,7 @@ fn nothing_to_measure_answers_empty_identity() {
     check(&wide(&wide_hidden, &request(2, json!({"mode":"tone"})), &[]).unwrap());
     // A fully hiding mask.
     let mut hidden = byte_two(&levels_meta());
-    hidden.layers[1].mask = Some(std::sync::Arc::new(image::GrayImage::new(W, H)));
+    hidden.layers[1].mask = Some(GrayRaster::new(image::GrayImage::new(W, H)));
     hidden.layers[1].mask_enabled = true;
     check(&byte(&hidden, &request(1, json!({"mode":"tone"})), &[]).unwrap());
     let wide_hiding = typed(vec![
@@ -833,7 +834,7 @@ fn the_plan_adds_the_derivation_scratch_and_the_mask_crop() {
         base + byte_scratch
     );
     let mut masked = doc.clone();
-    masked.layers[1].mask = Some(std::sync::Arc::new(image::GrayImage::new(W, H)));
+    masked.layers[1].mask = Some(GrayRaster::new(image::GrayImage::new(W, H)));
     masked.layers[1].mask_enabled = true;
     assert_eq!(
         byte_plan(&masked, &request(1, json!({"mode":"tone"}))).unwrap(),

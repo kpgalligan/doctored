@@ -9,9 +9,9 @@
 //! `#[ignore]`d `…_is_measured` twins, so `make cancel-bench`
 //! records both depths; their default twins cancel with the worker parked.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::ptr;
-use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -257,7 +257,7 @@ fn masked(
     properties.density = density;
     properties.feather = feather;
     let layer = &mut out.layers[idx];
-    layer.mask = Some(Arc::new(plane));
+    layer.mask = Some(GrayRaster::new(plane));
     layer.mask_enabled = true;
     layer.mask_properties = properties;
     out

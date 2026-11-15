@@ -621,7 +621,7 @@ pub fn mask_bytes(doc: &DrDocument, idx: usize) -> Vec<u8> {
         .mask
         .as_ref()
         .expect("layer has a mask")
-        .as_raw()
+        .samples()
         .clone()
 }
 

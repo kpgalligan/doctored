@@ -170,6 +170,8 @@ mod lock_tests;
 mod mask_invert_whole;
 #[path = "mask_outside_coverage.rs"]
 mod mask_outside_coverage;
+#[path = "mask_plane_tiles.rs"]
+mod mask_plane_tiles;
 #[path = "mask_set.rs"]
 mod mask_set;
 #[path = "mask_tests.rs"]

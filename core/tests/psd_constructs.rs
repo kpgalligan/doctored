@@ -8,6 +8,7 @@
 //! a document the exporter did not build. `DR_PSD_CONSTRUCT_FIXTURES=<dir>`
 //! also writes the files, for review and for driving the built app.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CString};
 use std::path::Path;
 use std::ptr;
@@ -546,7 +547,7 @@ fn styled_document(mask_enabled: bool, density: f32, feather: f32) -> DrDocument
     for (index, pixel) in mask.pixels_mut().enumerate() {
         pixel.0[0] = (index * 3 % 256) as u8;
     }
-    styled.mask = Some(Arc::new(mask));
+    styled.mask = Some(GrayRaster::new(mask));
     styled.mask_enabled = mask_enabled;
     styled.mask_properties.offset = (20, 20);
     styled.mask_properties.density = density;
@@ -683,8 +684,8 @@ fn a_disabled_mask_is_written_beside_the_preserved_style_and_its_density_still_r
     assert!(twin.mask.is_some(), "the disabled mask is still written");
     assert!(!twin.mask_enabled);
     assert_eq!(
-        twin.mask.as_ref().map(|m| m.as_raw().clone()),
-        doc.layers[1].mask.as_ref().map(|m| m.as_raw().clone())
+        twin.mask.as_ref().map(|m| m.samples().clone()),
+        doc.layers[1].mask.as_ref().map(|m| m.samples().clone())
     );
     assert_eq!(
         twin.mask_properties.offset,
@@ -780,8 +781,8 @@ fn a_styled_raster_with_a_plain_mask_is_written_as_effects_and_reopens_styled() 
     );
     assert!(twin.mask.is_some(), "its own -2 mask channel");
     assert_eq!(
-        twin.mask.as_ref().map(|m| m.as_raw().clone()),
-        doc.layers[1].mask.as_ref().map(|m| m.as_raw().clone())
+        twin.mask.as_ref().map(|m| m.samples().clone()),
+        doc.layers[1].mask.as_ref().map(|m| m.samples().clone())
     );
     let expected = doc.layers[1].style.as_deref().expect("the source style");
     let style = twin.style.as_deref().expect("the carried style");

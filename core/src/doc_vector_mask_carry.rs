@@ -5,8 +5,6 @@
 //! is its "Following geometry"); the typed twin is
 //! `precision_vector_mask_carry`.
 
-use std::sync::Arc;
-
 use image::GrayImage;
 
 use crate::doc::{DrDocument, Layer};
@@ -90,14 +88,15 @@ impl DrDocument {
                     enabled: record.enabled,
                     linked: record.linked,
                     raster: record.raster.map(|raster| TableRaster {
-                        plane: (!slot.is_some_and(|slot| Arc::ptr_eq(slot, &raster.plane))).then(
-                            || {
-                                (
-                                    raster.plane.dimensions(),
-                                    TablePlane::Bytes(Arc::clone(&raster.plane)),
-                                )
-                            },
-                        ),
+                        plane: (!slot.is_some_and(|slot| {
+                            crate::doc::GrayRaster::ptr_eq(slot, &raster.plane)
+                        }))
+                        .then(|| {
+                            (
+                                raster.plane.dimensions(),
+                                TablePlane::Bytes(raster.plane.clone()),
+                            )
+                        }),
                         offset: raster.properties.offset,
                         linked: raster.properties.linked,
                         density: raster.properties.density,
@@ -129,14 +128,16 @@ pub(crate) fn adopted_records(
             None => None,
             Some(raster) => Some(match &raster.plane {
                 Some(((w, h), TablePlane::Raw(bytes))) => RasterPart {
-                    plane: Arc::new(GrayImage::from_raw(*w, *h, bytes.to_vec()).ok_or_else(wrong)?),
+                    plane: crate::doc::GrayRaster::new(
+                        GrayImage::from_raw(*w, *h, bytes.to_vec()).ok_or_else(wrong)?,
+                    ),
                     properties: raster.properties(),
                     enabled: raster.enabled,
                 },
                 Some(_) => return Err(wrong()),
                 // The raster part IS the stored mask, properties included.
                 None => RasterPart {
-                    plane: Arc::clone(layer.mask.as_ref().ok_or_else(wrong)?),
+                    plane: layer.mask.as_ref().ok_or_else(wrong)?.clone(),
                     properties: layer.mask_properties.clone(),
                     enabled: layer.mask_enabled,
                 },

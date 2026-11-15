@@ -243,7 +243,7 @@ fn rasterize_opens_photoshops_spot_channels() {
                 doc.channels
                     .iter()
                     .map(|c| {
-                        let plane = c.data.as_raw().iter().map(|&v| u16::from(v)).collect();
+                        let plane = c.data.samples().iter().map(|&v| u16::from(v)).collect();
                         (c.name.clone(), c.spot, plane)
                     })
                     .collect()
@@ -367,7 +367,7 @@ fn opened_spots(path: &Path, mode: &str, bits: u64) -> Vec<(String, Option<SpotI
             .channels
             .iter()
             .map(|c| {
-                let plane = c.data.as_raw().iter().map(|&v| u16::from(v)).collect();
+                let plane = c.data.samples().iter().map(|&v| u16::from(v)).collect();
                 (c.name.clone(), c.spot, plane)
             })
             .collect();

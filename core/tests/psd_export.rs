@@ -8,6 +8,7 @@
 //! construction imported through the existing PSD reader, so the export's
 //! record walk is compared against a stack it did not build.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CString};
 use std::ptr;
 use std::sync::Arc;
@@ -737,8 +738,8 @@ fn layered_export_round_trips_through_this_application() {
             );
         }
         assert_eq!(
-            now.mask.as_ref().map(|m| m.as_raw().clone()),
-            was.mask.as_ref().map(|m| m.as_raw().clone()),
+            now.mask.as_ref().map(|m| m.samples().clone()),
+            was.mask.as_ref().map(|m| m.samples().clone()),
             "mask samples of {at}"
         );
         assert_eq!(
@@ -856,7 +857,7 @@ fn every_refusal_is_reported_and_leaves_an_existing_file_untouched() {
     ));
 
     let mut feathered = DrDocument::from_pixels(RgbaImage::new(4, 4));
-    feathered.layers[0].mask = Some(Arc::new(GrayImage::new(4, 4)));
+    feathered.layers[0].mask = Some(GrayRaster::new(GrayImage::new(4, 4)));
     feathered.layers[0].mask_properties.feather = 2.0;
 
     let wide = DrDocument::from_pixels(RgbaImage::new(30_001, 1));

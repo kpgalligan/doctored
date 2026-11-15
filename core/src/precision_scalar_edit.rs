@@ -32,8 +32,7 @@ use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_image::{
     admit, pixel_count, reserved_vec, PrecisionRun, PrecisionStorage, BOOKKEEPING_BYTES,
 };
-use crate::precision_mask::PrecisionPlane;
-use crate::precision_selection_plane::{copy, PlaneOperation};
+use crate::precision_selection_plane::PlaneOperation;
 use crate::selected_adjustment::{coverage_at, AnalysisScope, SelectedEdit};
 use crate::tile_store::TILE_EDGE;
 use serde::Deserialize;
@@ -421,19 +420,20 @@ impl ScalarEdit {
     }
     fn read(&self, doc: &PrecisionDocument, job: JobContext<'_>) -> Result<Vec<u16>, String> {
         match self.target {
-            ScalarTarget::Channel => copy(doc.channels()[self.index].plane().samples(), job),
+            ScalarTarget::Channel => doc.channels()[self.index].plane().to_contiguous_polled(job),
             ScalarTarget::Mask => {
                 let mask = doc.layer(self.index).unwrap().mask().unwrap();
                 let stored = (mask.plane().dimensions(), mask.properties().offset);
                 let to = self.geometry(doc)?;
                 if to == stored {
-                    return copy(mask.plane().samples(), job);
+                    return mask.plane().to_contiguous_polled(job);
                 }
                 // The grown plane of a selection-scoped Invert: the stored
                 // samples, the outside constant everywhere else.
                 job.check()?;
                 let outside = u16::from(mask.properties().outside_coverage) * 257;
-                crate::mask_invert::grown(mask.plane().samples(), stored, to, outside)
+                let samples = mask.plane().to_contiguous()?;
+                crate::mask_invert::grown(&samples, stored, to, outside)
                     .ok_or_else(|| "could not allocate precision output".to_string())
             }
             ScalarTarget::Cyan
@@ -901,7 +901,9 @@ impl ScalarEdit {
             ScalarTarget::Mask => {
                 let mut layer = doc.layer(self.index).unwrap().clone();
                 let mask = layer.mask.as_mut().unwrap();
-                mask.plane = PrecisionPlane::adopt(w, h, out)?;
+                // Shares every tile the edit left unchanged (13B-4): a dab
+                // retains the tiles it touched.
+                mask.plane = mask.plane.rebuilt(w, h, out)?;
                 if self.mask_invert {
                     if self.selection {
                         // The plane may have grown to hold the canvas.
@@ -915,7 +917,7 @@ impl ScalarEdit {
             }
             ScalarTarget::Channel => {
                 let mut channels = doc.channels.as_ref().clone();
-                channels[self.index].plane = PrecisionPlane::adopt(w, h, out)?;
+                channels[self.index].plane = channels[self.index].plane.rebuilt(w, h, out)?;
                 Some(doc.rebuilt(doc.width, doc.height, doc.layers.as_ref().clone(), channels)?)
             }
             ScalarTarget::Cyan

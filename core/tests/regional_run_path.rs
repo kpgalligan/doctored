@@ -16,6 +16,7 @@
 //! one per multiple of 4096 root samples plus the row's report, the
 //! per-sample loop's count.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::ptr;
 use std::sync::Arc;
@@ -182,7 +183,7 @@ fn masked(doc: &DrDocument, idx: usize, (w, h): (u32, u32), offset: (i32, i32)) 
     let mut properties = MaskProperties::at(offset);
     properties.density = 0.8;
     let layer = &mut out.layers[idx];
-    layer.mask = Some(Arc::new(GrayImage::from_fn(w, h, |x, y| {
+    layer.mask = Some(GrayRaster::new(GrayImage::from_fn(w, h, |x, y| {
         Luma([((x * 255) / (w - 1)) as u8 ^ (y * 9) as u8])
     })));
     layer.mask_enabled = true;

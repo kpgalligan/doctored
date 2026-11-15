@@ -15,7 +15,7 @@
 //! every `report` call (`Report { checkpoints, progress, stage }`). Hot-path cost: one relaxed
 //! load + compare per checkpoint, one relaxed load per report. `EVERY_INTERVAL` (`pub(crate)`, 4096,
 //! since 13B-3e-3b) is `JobContext::every`'s poll interval; a walk that hoists those checks to its
-//! runs steps by it so its checkpoint count stays the flat walk's. `JobContext::with_held_bytes`
+//! runs steps by it (`JobContext::every_run`) so its checkpoint count stays the flat walk's. `JobContext::with_held_bytes`
 //! adds bytes a caller keeps alive under a nested call to every nested `reserve`, before the
 //! floor.
 //!
@@ -300,6 +300,20 @@ impl<'a> JobContext<'a> {
             self.check()?;
         }
         Ok(())
+    }
+    /// [`Self::every`] hoisted to a run of `len` cells at flat indices
+    /// `start..start + len`: one check per multiple of [`EVERY_INTERVAL`] in
+    /// that range, made before the run is visited, so a walk over runs of any
+    /// length keeps the flat walk's checkpoint count. Answers `start + len`,
+    /// the next run's start.
+    pub(crate) fn every_run(self, start: usize, len: usize) -> Result<usize, String> {
+        let end = start + len;
+        let mut at = start.next_multiple_of(EVERY_INTERVAL);
+        while at < end {
+            self.check()?;
+            at += EVERY_INTERVAL;
+        }
+        Ok(end)
     }
     pub(crate) fn report(self, fraction: f64, stage: u32) -> Result<(), String> {
         self.check()?;

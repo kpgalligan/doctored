@@ -39,9 +39,9 @@
 //! checkpoint count (past the preparation) and cancels one checkpoint later.
 //! Misses are recorded, never widened.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::ptr;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use doctored_core::doc::{BlendMode, DrDocument};
@@ -315,7 +315,7 @@ fn masked(
     properties.density = density;
     properties.feather = feather;
     let layer = &mut out.layers[idx];
-    layer.mask = Some(Arc::new(plane));
+    layer.mask = Some(GrayRaster::new(plane));
     layer.mask_enabled = true;
     layer.mask_properties = properties;
     out

@@ -93,7 +93,7 @@ impl PrecisionDocumentLayer {
         }
         if let Some(m) = &b.rendered_mask {
             let actual = self.mask.as_ref()?;
-            if !Arc::ptr_eq(&actual.plane.pixels, &m.pixels)
+            if !PrecisionPlane::ptr_eq(&actual.plane, m)
                 || actual.properties.offset != b.rendered_mask_offset
             {
                 return None;
@@ -230,12 +230,14 @@ pub(crate) fn mask(
     outside: u16,
     job: JobContext<'_>,
 ) -> Result<PrecisionPlane, String> {
+    // One transient copy of the resample input.
+    let samples = source.to_contiguous()?;
     let mut out = vec![outside; dest.2 as usize * dest.3 as usize];
     warp_into(
         rect(origin, source.dimensions()),
         dest,
         field,
-        |i| source.samples()[i],
+        |i| samples[i],
         |acc: &mut [f64; 1], p, weight| accumulate_mask16(acc, p, weight, outside),
         |acc| finish_mask16(acc, outside),
         |i, p| out[i] = p,

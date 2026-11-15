@@ -1,6 +1,7 @@
 //! Independent binary64 field, Newton inverse, kernel and premultiplied oracle.
 use crate::warp_fixture as fixture;
 use crate::warp_oracle;
+use doctored_core::doc::GrayRaster;
 
 use doctored_core::doc::LayerRaster;
 use doctored_core::doc_mask::MaskProperties;
@@ -11,7 +12,6 @@ use doctored_core::warp::{WarpEdit, WarpField};
 use fixture::{byte_document, edit, field, typed_document, LIMIT, OFFSET};
 use image::GrayImage;
 use serde_json::Value;
-use std::sync::Arc;
 use warp_oracle::{bounds, inverse, nodes, taps};
 
 fn reference<const MAX: u32>(
@@ -253,7 +253,7 @@ fn independent_masks_follow_only_when_linked_and_mask_only_preserves_pixels() {
                     for enabled in [false, true] {
                         let mut request = field(columns, rows, filter);
                         let mut byte = byte_document();
-                        byte.layers[0].mask = Some(Arc::new(
+                        byte.layers[0].mask = Some(GrayRaster::new(
                             GrayImage::from_raw(mask_size.0, mask_size.1, byte_values.clone())
                                 .unwrap(),
                         ));
@@ -264,7 +264,7 @@ fn independent_masks_follow_only_when_linked_and_mask_only_preserves_pixels() {
                         props.feather = 1.25;
                         byte.layers[0].mask_properties = props.clone();
                         byte.layers[0].mask_enabled = enabled;
-                        let byte_mask_ptr = Arc::as_ptr(byte.layers[0].mask.as_ref().unwrap());
+                        let byte_mask = byte.layers[0].mask.clone().unwrap();
                         let pixel = byte
                             .warp_edit(&edit(request.clone()), LIMIT, 0, None)
                             .unwrap()
@@ -295,7 +295,7 @@ fn independent_masks_follow_only_when_linked_and_mask_only_preserves_pixels() {
                                 .mask
                                 .as_ref()
                                 .unwrap()
-                                .as_raw()
+                                .samples()
                                 .iter()
                                 .zip(expected)
                             {
@@ -304,10 +304,10 @@ fn independent_masks_follow_only_when_linked_and_mask_only_preserves_pixels() {
                                 assert!(error <= 1);
                             }
                         } else {
-                            assert_eq!(
-                                Arc::as_ptr(pixel.layers[0].mask.as_ref().unwrap()),
-                                byte_mask_ptr
-                            );
+                            assert!(doctored_core::doc::GrayRaster::ptr_eq(
+                                pixel.layers[0].mask.as_ref().unwrap(),
+                                &byte_mask
+                            ));
                             assert_eq!(pixel.layers[0].mask_properties.offset, mask_offset);
                         }
                         request["target"] = Value::String("mask".into());
@@ -356,8 +356,7 @@ fn independent_masks_follow_only_when_linked_and_mask_only_preserves_pixels() {
                             .mask()
                             .unwrap()
                             .plane()
-                            .samples()
-                            .as_ptr();
+                            .storage_identity();
                         request["target"] = Value::String("pixels".into());
                         let pixel = typed
                             .warp_edit(&edit(request.clone()), LIMIT, 0, None)
@@ -396,8 +395,7 @@ fn independent_masks_follow_only_when_linked_and_mask_only_preserves_pixels() {
                                     .mask()
                                     .unwrap()
                                     .plane()
-                                    .samples()
-                                    .as_ptr(),
+                                    .storage_identity(),
                                 mask_ptr
                             );
                         }

@@ -370,7 +370,7 @@ impl DrDocument {
                 .ok_or("a spot channel plane does not match the canvas")?;
             self.channels.push(Channel {
                 spot: Some(ink),
-                ..Channel::new(native_name(&name), Arc::new(data))
+                ..Channel::new(native_name(&name), crate::doc::GrayRaster::new(data))
             });
         }
         Ok(self)
@@ -388,7 +388,10 @@ impl DrDocument {
         for (channel, ink) in spots.take(spots_capacity(4)) {
             out.inks
                 .push((channel.name.clone(), ink.lab(), ink.solidity()));
-            for row in channel.data.as_raw().chunks_exact(width) {
+            // Each row read in place (`GrayRaster::row`).
+            let mut scratch = Vec::new();
+            for y in 0..channel.data.height() {
+                let row = channel.data.row(y, 0, width as u32, &mut scratch);
                 let row: Vec<u8> = row
                     .iter()
                     .map(|&v| stored(u16::from(v), 255) as u8)
@@ -471,7 +474,10 @@ impl PrecisionDocument {
         for (channel, ink) in spots.take(spots_capacity(self.psd_composite_planes())) {
             out.inks
                 .push((channel.name().to_string(), ink.lab(), ink.solidity()));
-            for samples in channel.plane().samples().chunks_exact(width) {
+            // Each row read in place (`PrecisionPlane::row`).
+            let mut scratch = Vec::new();
+            for y in 0..channel.plane().height() {
+                let samples = channel.plane().row(y, 0, width as u32, &mut scratch);
                 let mut row = Vec::with_capacity(width * depth.bytes() as usize);
                 for &v in samples {
                     depth.push(&mut row, stored(v, 65535));

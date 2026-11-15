@@ -41,8 +41,8 @@
 //!   patch of the scene, relative.
 #![allow(clippy::needless_range_loop)]
 
+use doctored_core::doc::GrayRaster;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::DrDocument;
 use doctored_core::doc_mask::MaskProperties;
@@ -567,7 +567,11 @@ fn byte_refusals_name_the_layer() {
     );
 
     let mut masked = base();
-    masked.layers[1].mask = Some(Arc::new(GrayImage::from_pixel(size.0, size.1, Luma([255]))));
+    masked.layers[1].mask = Some(GrayRaster::new(GrayImage::from_pixel(
+        size.0,
+        size.1,
+        Luma([255]),
+    )));
     assert_refused(
         &Stack::Byte(masked),
         &request(&[0, 1], true),

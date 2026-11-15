@@ -1,5 +1,6 @@
 //! RAW storage is decoder-independent: independent u16 code patterns prove that
 //! attachment, redevelopment and retained geometry never reduce the master.
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::{BlendMode, DrDocument, LayerRaster};
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_precision_input::dr_precision_doc_from_rgba16;
@@ -180,7 +181,7 @@ fn byte_redevelopment_keeps_master_transform_layer_state_and_retouch_above() {
     old.layers[1].name = "Developed photo".into();
     old.layers[1].opacity = 0.7;
     old.layers[1].blend = BlendMode::Multiply;
-    old.layers[1].mask = Some(Arc::new(GrayImage::from_pixel(6, 4, Luma([177]))));
+    old.layers[1].mask = Some(GrayRaster::new(GrayImage::from_pixel(6, 4, Luma([177]))));
     old = old
         .source_edit(
             None,
@@ -230,7 +231,7 @@ fn byte_redevelopment_keeps_master_transform_layer_state_and_retouch_above() {
     assert_eq!(next.layers[1].name, old.layers[1].name);
     assert_eq!(next.layers[1].opacity, old.layers[1].opacity);
     assert_eq!(next.layers[1].blend, old.layers[1].blend);
-    assert!(Arc::ptr_eq(
+    assert!(doctored_core::doc::GrayRaster::ptr_eq(
         next.layers[1].mask.as_ref().unwrap(),
         old.layers[1].mask.as_ref().unwrap()
     ));

@@ -16,7 +16,6 @@
 //! an integer translation expressed as corners still costs no resample.
 
 use image::imageops::FilterType;
-use std::sync::Arc;
 
 use crate::doc::{DrDocument, LayerRaster};
 use crate::doc_lock::EditKind;
@@ -349,10 +348,11 @@ impl DrDocument {
         let (mask, mask_offset) = if let (Some(raw), Some(mdest)) = (&layer.mask, mask_dest) {
             let offset = (mdest.0, mdest.1);
             let map = SourceMap::projective(&inverse.0, layer.mask_properties.offset, offset);
+            let raw = raw.to_image().ok()?;
             (
-                Some(Arc::new(
+                Some(crate::doc::GrayRaster::new(
                     resample_mask_outside(
-                        raw,
+                        &raw,
                         mdest,
                         &map,
                         sampler,

@@ -380,6 +380,11 @@ impl DrDocument {
             }
             None => None,
         };
+        // One transient copy of the effective mask, read per sample.
+        let crop = match crop {
+            Some(raster) => Some(raster.to_image()?),
+            None => None,
+        };
         let at = |i: usize| {
             crop.as_ref()
                 .map_or(u16::MAX, |c| u16::from(c.as_raw()[i]) * 257)

@@ -219,7 +219,11 @@ fn byte_trims_each_eligible_raster_to_the_canvas() {
         // A mask is canvas-placed and is never trimmed.
         assert_eq!(after.mask_properties.offset, before.mask_properties.offset);
         match (&before.mask, &after.mask) {
-            (Some(a), Some(b)) => assert!(std::sync::Arc::ptr_eq(a, b), "{}", before.name),
+            (Some(a), Some(b)) => assert!(
+                doctored_core::doc::GrayRaster::ptr_eq(a, b),
+                "{}",
+                before.name
+            ),
             (None, None) => {}
             _ => panic!("{} mask presence changed", before.name),
         }

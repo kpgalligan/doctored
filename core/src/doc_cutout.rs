@@ -16,7 +16,6 @@
 
 use crate::{doc::DrDocument, job_control::JobContext, DrImage};
 use image::{GrayImage, RgbaImage};
-use std::sync::Arc;
 
 impl DrDocument {
     /// New RGBA/mask storage plus cloned document records/strings. Existing
@@ -105,7 +104,7 @@ impl DrDocument {
             .layers
             .last_mut()
             .ok_or("missing refinement output layer")?;
-        added.mask = Some(Arc::new(mask));
+        added.mask = Some(crate::doc::GrayRaster::new(mask));
         if !self.native_edit_fits(&result) {
             return Err("refinement output exceeds native document capacity".into());
         }

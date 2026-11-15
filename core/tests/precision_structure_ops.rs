@@ -166,8 +166,7 @@ fn mask_address(doc: &PrecisionDocument, name: &str) -> usize {
         .and_then(|l| l.mask())
         .expect("a masked record")
         .plane()
-        .samples()
-        .as_ptr() as usize
+        .storage_identity() as usize
 }
 
 // -------------------------------------------------------------- fixtures --

@@ -50,7 +50,7 @@ pub(crate) struct TypedVectorMaskRecord {
     pub(crate) raster: Option<PrecisionMask>,
     /// The sample allocation of the plane this record put in the slot;
     /// `None` when it left the slot empty.
-    pub(crate) baked: Option<Arc<Vec<u16>>>,
+    pub(crate) baked: Option<PrecisionPlane>,
     pub(crate) baked_offset: (i32, i32),
 }
 
@@ -79,7 +79,7 @@ pub(crate) fn bake_scratch(width: u32, height: u32) -> u64 {
 fn slot_matches(layer: &PrecisionDocumentLayer, record: &TypedVectorMaskRecord) -> bool {
     match (&layer.mask, &record.baked) {
         (None, None) => true,
-        (Some(slot), Some(baked)) => Arc::ptr_eq(&slot.plane.pixels, baked),
+        (Some(slot), Some(baked)) => PrecisionPlane::ptr_eq(&slot.plane, baked),
         _ => false,
     }
 }
@@ -175,7 +175,7 @@ impl PrecisionDocument {
                 let shared = self
                     .layer(index)
                     .and_then(|layer| layer.mask.as_ref())
-                    .is_some_and(|slot| Arc::ptr_eq(&slot.plane.pixels, &raster.plane.pixels));
+                    .is_some_and(|slot| PrecisionPlane::ptr_eq(&slot.plane, &raster.plane));
                 (!shared).then_some((index, raster))
             })
             .collect()
@@ -305,7 +305,7 @@ impl PrecisionDocument {
         job: JobContext<'_>,
     ) -> Result<Self, String> {
         let slot = self.baked_slot(index, &record, job)?;
-        record.baked = slot.as_ref().map(|mask| Arc::clone(&mask.plane.pixels));
+        record.baked = slot.as_ref().map(|mask| mask.plane.clone());
         record.baked_offset = slot.as_ref().map_or((0, 0), |mask| mask.properties.offset);
         let mut layer = self
             .layer(index)

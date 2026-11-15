@@ -336,7 +336,7 @@ impl DrDocument {
                 .ok_or("a spot channel plane does not match the canvas")?;
             self.channels.push(Channel {
                 spot: Some(ink),
-                ..Channel::new(native_name(&name), Arc::new(data))
+                ..Channel::new(native_name(&name), crate::doc::GrayRaster::new(data))
             });
         }
         Ok(self)
@@ -358,8 +358,8 @@ impl DrDocument {
             .iter()
             .map(|(c, _)| {
                 c.data
-                    .as_raw()
-                    .iter()
+                    .runs()
+                    .flatten()
                     .map(|&v| tiff_stored(u16::from(v), 255))
                     .collect()
             })
@@ -369,7 +369,7 @@ impl DrDocument {
 
     /// The first [`spots_capacity`] spot channels as this document's layered
     /// TIFF writes them (module doc, LAYERED; four composite samples).
-    pub(crate) fn layered_tiff_spots(&self) -> LayeredTiffSpots<'_> {
+    pub(crate) fn layered_tiff_spots(&self) -> Result<LayeredTiffSpots<'_>, String> {
         let spots: Vec<(&Channel, SpotInk)> = self
             .channels
             .iter()
@@ -380,11 +380,17 @@ impl DrDocument {
             .iter()
             .map(|(c, ink)| (c.name.as_str(), ink.lab(), ink.solidity()))
             .collect();
+        // One transient copy per written spot plane: the writer reads it in
+        // place by sample index.
         let planes = spots
             .iter()
-            .map(|(c, _)| SpotCoverage::Eight(c.data.as_raw()))
-            .collect();
-        LayeredTiffSpots::of(&inks, planes)
+            .map(|(c, _)| {
+                c.data
+                    .to_image()
+                    .map(|plane| SpotCoverage::Eight(std::borrow::Cow::Owned(plane.into_raw())))
+            })
+            .collect::<Result<_, String>>()?;
+        Ok(LayeredTiffSpots::of(&inks, planes))
     }
 }
 
@@ -525,15 +531,15 @@ impl PrecisionDocument {
         let planes = spots
             .iter()
             .map(|(c, _)| {
-                let samples = c.plane().samples();
+                let samples = c.plane().runs().flatten();
                 if eight {
-                    let mut bytes = Vec::with_capacity(samples.len());
+                    let mut bytes = Vec::with_capacity((c.plane().storage_bytes() / 2) as usize);
                     for &v in samples {
                         depth.push(&mut bytes, tiff_stored(v, 65535));
                     }
                     bytes.into_iter().map(u16::from).collect()
                 } else {
-                    samples.iter().map(|&v| tiff_stored(v, 65535)).collect()
+                    samples.map(|&v| tiff_stored(v, 65535)).collect()
                 }
             })
             .collect();
@@ -541,8 +547,9 @@ impl PrecisionDocument {
     }
 
     /// The first [`spots_capacity`] spot channels as this document's layered
-    /// TIFF writes them (module doc, LAYERED), its 16-bit planes in place.
-    pub(crate) fn layered_tiff_spots(&self) -> LayeredTiffSpots<'_> {
+    /// TIFF writes them (module doc, LAYERED), one transient copy of each
+    /// 16-bit plane (the writer reads it by sample index).
+    pub(crate) fn layered_tiff_spots(&self) -> Result<LayeredTiffSpots<'_>, String> {
         let spots: Vec<(&PrecisionChannel, SpotInk)> = self
             .channels
             .iter()
@@ -555,9 +562,13 @@ impl PrecisionDocument {
             .collect();
         let planes = spots
             .iter()
-            .map(|(c, _)| SpotCoverage::Sixteen(c.plane().samples()))
-            .collect();
-        LayeredTiffSpots::of(&inks, planes)
+            .map(|(c, _)| {
+                c.plane()
+                    .to_contiguous()
+                    .map(|plane| SpotCoverage::Sixteen(std::borrow::Cow::Owned(plane)))
+            })
+            .collect::<Result<_, String>>()?;
+        Ok(LayeredTiffSpots::of(&inks, planes))
     }
 
     /// The working memory a TIFF that keeps the spot channels adds to its

@@ -2,8 +2,8 @@
 //! references. Fixtures distinguish storage/canvas coordinates, hidden RGB,
 //! scalar targets, partial coverage, neighborhood reads and no-op refusals.
 
+use doctored_core::doc::GrayRaster;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::{DrDocument, LayerKind, LayerRaster};
 use doctored_core::ffi::*;
@@ -204,7 +204,7 @@ fn layer_mask_scoping_preserves_pixels_properties_and_disabled_state() {
     let mut doc = offset_doc(&src, 4, 3, (-1, -1));
     let mask = GrayImage::from_fn(6, 4, |x, y| image::Luma([((x * 43 + y * 17) % 256) as u8]));
     doc.layers[0].mask_properties.offset = doc.layers[0].offset;
-    doc.layers[0].mask = Some(Arc::new(mask.clone()));
+    doc.layers[0].mask = Some(GrayRaster::new(mask.clone()));
     doc.layers[0].mask_enabled = false;
     doc.layers[0].meta = Some("unchanged source description".to_string());
     let values: Vec<u8> = mask.as_raw().iter().map(|v| 255 - v).collect();
@@ -226,7 +226,7 @@ fn layer_mask_scoping_preserves_pixels_properties_and_disabled_state() {
             scalar(before[0], 255 - before[0], q)
         );
     }
-    assert_eq!(doc.layers[0].mask.as_ref().unwrap().as_ref(), &mask);
+    assert!(doc.layers[0].mask.as_ref().unwrap().equals_image(&mask));
     unsafe {
         dr_doc_free(out);
         dr_image_free(result);
@@ -243,7 +243,7 @@ fn translated_group_mask_source_and_result_keep_raw_offcanvas_storage() {
     doc.layers[0].pixels = LayerRaster::new(RgbaImage::new(1, 1));
     doc.layers[0].offset = (2, -1);
     doc.layers[0].mask_properties.offset = (2, -1);
-    doc.layers[0].mask = Some(Arc::new(
+    doc.layers[0].mask = Some(GrayRaster::new(
         GrayImage::from_raw(4, 3, (0..12).map(|v| v * 19).collect()).unwrap(),
     ));
     doc.layers.push(child);
@@ -255,8 +255,8 @@ fn translated_group_mask_source_and_result_keep_raw_offcanvas_storage() {
     assert_eq!((x, y), (2, -1));
     let source_values: Vec<u8> = img_pixels(source).chunks_exact(4).map(|p| p[0]).collect();
     assert_eq!(
-        &source_values,
-        doc.layers[0].mask.as_ref().unwrap().as_raw()
+        source_values,
+        doc.layers[0].mask.as_ref().unwrap().samples()
     );
     let result = unsafe { dr_image_invert(source) };
     let selected = [255u8; 12];
@@ -267,7 +267,7 @@ fn translated_group_mask_source_and_result_keep_raw_offcanvas_storage() {
     for (i, &before) in source_values.iter().enumerate() {
         let q = q_at(&selected, (4, 3), i as u32 % 4, i as u32 / 4, (2, -1));
         assert_eq!(
-            after.layers[0].mask.as_ref().unwrap().as_raw()[i],
+            after.layers[0].mask.as_ref().unwrap().samples()[i],
             scalar(before, 255 - before, q)
         );
     }
@@ -375,7 +375,11 @@ fn saved_channel_invert_uses_feather_coverage_and_preserves_identity() {
 #[test]
 fn scoped_writers_enforce_locks_and_do_not_create_phantom_alpha_edits() {
     let mut doc = DrDocument::from_pixels(fixture(4, 3));
-    doc.layers[0].mask = Some(Arc::new(GrayImage::from_pixel(4, 3, image::Luma([100]))));
+    doc.layers[0].mask = Some(GrayRaster::new(GrayImage::from_pixel(
+        4,
+        3,
+        image::Luma([100]),
+    )));
     let result = gray(&[0; 12], 4, 3);
     let locked = unsafe { dr_doc_with_layer_locks(&doc, 0, LOCK_PIXELS) };
     unsafe {

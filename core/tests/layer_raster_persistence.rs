@@ -22,6 +22,7 @@
 
 use crate::phase4_corpus;
 use crate::serial;
+use doctored_core::doc::GrayRaster;
 
 use crate::warp_fixture;
 
@@ -426,7 +427,7 @@ fn psd_case() -> Doc {
     let doc = with_layer(doc, patterned(200, 150), (-30, 40), "Offset");
     let mut doc = with_layer(doc, patterned(120, 90), (50, 60), "Masked");
     let masked = &mut doc.layers[2];
-    masked.mask = Some(Arc::new(GrayImage::from_fn(120, 90, |x, y| {
+    masked.mask = Some(GrayRaster::new(GrayImage::from_fn(120, 90, |x, y| {
         Luma([((x * 2 + y) % 256) as u8])
     })));
     masked.mask_enabled = true;

@@ -4,6 +4,7 @@
 //! with the input untouched, native round trip, NULL safety and cancellation;
 //! and (12H-2) retained-source and warp carriage, the document-row wording.
 use doctored_core::doc::BlendMode;
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::{DrDocument, Layer, LayerKind, LayerRaster};
 use doctored_core::doc_comps::CompRequest;
 use doctored_core::doc_evaluation::Evaluation;
@@ -88,7 +89,7 @@ fn fixture() -> DrDocument {
     masked.offset = (5, 4);
     masked.opacity = 0.8;
     masked.blend = BlendMode::Multiply;
-    masked.mask = Some(Arc::new(GrayImage::from_fn(17, 11, |x, y| {
+    masked.mask = Some(GrayRaster::new(GrayImage::from_fn(17, 11, |x, y| {
         Luma([((x * 15 + y * 7) % 256) as u8])
     })));
     masked.mask_properties = MaskProperties::at((5, 4));
@@ -242,14 +243,14 @@ fn widening_is_bit_exact_for_rasters_masks_and_channels() {
             assert_eq!(source.dimensions(), layer.pixels.dimensions());
         }
         if let Some(mask) = &layer.mask {
-            let expected: Vec<u16> = mask.as_raw().iter().map(|v| u16::from(*v) * 257).collect();
+            let expected: Vec<u16> = mask.samples().iter().map(|v| u16::from(*v) * 257).collect();
             let plane = typed.layer(i).unwrap().mask().unwrap().plane();
             assert_eq!(plane.samples(), expected.as_slice(), "mask {i}");
         }
     }
     let expected: Vec<u16> = doc.channels[0]
         .data
-        .as_raw()
+        .samples()
         .iter()
         .map(|v| u16::from(*v) * 257)
         .collect();

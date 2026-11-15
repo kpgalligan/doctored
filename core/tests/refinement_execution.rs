@@ -2,6 +2,7 @@
 use crate::common;
 use common::probe::{cancelled_parked_at, entry_then_cancel, parked_line};
 use common::*;
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::LayerRaster;
 use doctored_core::job_control::DrJobControl;
 use doctored_core::{doc::DrDocument, ffi::*, ffi_cutout::*, ffi_jobs::*};
@@ -88,7 +89,7 @@ fn chunk_origins_wide_rows_grouped_originals_and_record_strings_remain_exact() {
     original.channels.push(doctored_core::doc_channel::Channel {
         id: 77,
         name: "Ch🧭".repeat(15_000),
-        data: Arc::new(GrayImage::from_pixel(5003, 3, image::Luma([117]))),
+        data: GrayRaster::new(GrayImage::from_pixel(5003, 3, image::Luma([117]))),
         overlay_color: [3, 79, 211],
         overlay_opacity: 0.625,
         color_indicates_selected: true,
@@ -112,7 +113,7 @@ fn chunk_origins_wide_rows_grouped_originals_and_record_strings_remain_exact() {
     assert_eq!(cutout.channels[0].overlay_color, [3, 79, 211]);
     assert_eq!(cutout.channels[0].overlay_opacity, 0.625);
     assert!(cutout.channels[0].color_indicates_selected);
-    assert!(Arc::ptr_eq(
+    assert!(doctored_core::doc::GrayRaster::ptr_eq(
         &cutout.channels[0].data,
         &original.channels[0].data
     ));
@@ -156,7 +157,7 @@ fn cutout_projection_refuses_changed_shape_nulls_budget_and_precancel_without_ou
             6 => bad.layers[1].mask_properties.feather = 1.0,
             7 => bad.layers[1].mask_properties.offset = (1, 0),
             8 => bad.layers[1].meta = Some("{}".into()),
-            9 => bad.layers[1].mask = Some(Arc::new(GrayImage::new(1, 1))),
+            9 => bad.layers[1].mask = Some(GrayRaster::new(GrayImage::new(1, 1))),
             _ => unreachable!(),
         }
         assert!(projected(&bad).is_err(), "shape change {change}");

@@ -6,9 +6,9 @@
 //! offsets written HERE from the stated rule, never computed by the code
 //! under test.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::{DrDocument, Layer, LayerKind};
 use doctored_core::doc_mask::MaskProperties;
@@ -179,9 +179,11 @@ fn fresh(image: RgbaImage, name: &str, offset: (i32, i32)) -> Layer {
 }
 
 fn linked_mask(mut layer: Layer, size: (u32, u32), at: (i32, i32)) -> Layer {
-    layer.mask = Some(Arc::new(GrayImage::from_fn(size.0, size.1, |x, y| {
-        Luma([((x * 31 + y * 17 + 7) % 256) as u8])
-    })));
+    layer.mask = Some(GrayRaster::new(GrayImage::from_fn(
+        size.0,
+        size.1,
+        |x, y| Luma([((x * 31 + y * 17 + 7) % 256) as u8]),
+    )));
     let mut properties = MaskProperties::at(at);
     properties.linked = true;
     layer.mask_properties = properties;

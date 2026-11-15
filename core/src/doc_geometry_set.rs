@@ -15,7 +15,6 @@
 //! window is `None` (`core/tests/byte_canvas_geometry_cancel.rs`).
 
 use image::imageops::FilterType;
-use std::sync::Arc;
 
 use crate::doc::{DrDocument, LayerKind, LayerRaster};
 use crate::doc_lock::EditKind;
@@ -208,8 +207,9 @@ impl DrDocument {
                     old.mask_properties.offset,
                     (destination.0, destination.1),
                 );
-                target.mask = Some(Arc::new(resample_mask_outside(
-                    mask,
+                let mask = mask.to_image()?;
+                target.mask = Some(crate::doc::GrayRaster::new(resample_mask_outside(
+                    &mask,
                     destination,
                     &map,
                     filter.sampler(),

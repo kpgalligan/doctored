@@ -289,20 +289,22 @@ impl PrecisionDocument {
         layer.content = content;
         if let Some(mask) = layer.mask.as_mut().filter(|m| m.properties.linked) {
             let outside = u16::from(mask.properties.outside_coverage) * 257;
-            let plane = &mask.plane;
-            let (mw, mh) = plane.dimensions();
+            let (mw, mh) = mask.plane.dimensions();
+            // One transient copy of the resample input.
+            let samples = mask.plane.to_contiguous()?;
             let mo = mask.properties.offset;
             let mut warped = vec![outside; count];
             render(
                 map,
                 (i64::from(mo.0), i64::from(mo.1), mw, mh),
                 dest,
-                |i| plane.samples()[i],
+                |i| samples[i],
                 |acc: &mut [f64; 1], p, w| accumulate_mask16(acc, p, w, outside),
                 |acc| finish_mask16(acc, outside),
                 |i, p| warped[i] = p,
                 job,
             )?;
+            drop(samples);
             mask.plane = PrecisionPlane::adopt(dest.2, dest.3, warped)?;
             mask.properties.offset = origin;
         }

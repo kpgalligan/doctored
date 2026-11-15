@@ -12,10 +12,10 @@
 //! integer translation bit for bit and against an integer oracle.
 
 use crate::common;
+use doctored_core::doc::GrayRaster;
 
 use std::ffi::CString;
 use std::ptr;
-use std::sync::Arc;
 
 use common::selected_pixels::*;
 use doctored_core::doc::DrDocument;
@@ -126,7 +126,7 @@ fn props(offset: (i32, i32), outside: u8) -> MaskProperties {
 
 fn byte_mask(doc: &mut DrDocument, layer: usize, mask: &Gray, p: MaskProperties) {
     let image = GrayImage::from_raw(mask.size.0, mask.size.1, mask.bytes()).unwrap();
-    doc.layers[layer].mask = Some(Arc::new(image));
+    doc.layers[layer].mask = Some(GrayRaster::new(image));
     doc.layers[layer].mask_enabled = true;
     doc.layers[layer].mask_properties = p;
 }
@@ -202,13 +202,13 @@ impl Planes for Doc {
         match self {
             Doc::Byte(d) => {
                 let entry = &d.layers[layer];
-                let mask = entry.mask.as_deref().unwrap();
+                let mask = entry.mask.as_ref().unwrap();
                 let p = &entry.mask_properties;
                 Stored {
                     gray: Gray {
                         offset: p.offset,
                         size: mask.dimensions(),
-                        px: mask.as_raw().iter().map(|v| u16::from(*v)).collect(),
+                        px: mask.samples().iter().map(|v| u16::from(*v)).collect(),
                     },
                     linked: p.linked,
                     density: p.density,
@@ -239,7 +239,7 @@ impl Planes for Doc {
         let px = match self {
             Doc::Byte(d) => d.channels[i]
                 .data
-                .as_raw()
+                .samples()
                 .iter()
                 .map(|v| u16::from(*v))
                 .collect(),

@@ -27,6 +27,7 @@
 //! composite always shows its inks rather than failing.
 
 use crate::doc::DrDocument;
+use crate::gray_raster::GrayRaster;
 use crate::icc::IccProfile;
 use crate::icc_intent::{ColorPipeline, RenderingIntent};
 use crate::lab_document::lab_twin;
@@ -104,6 +105,32 @@ pub fn image_spot_overprint_region(
     Ok(DrImage { pixels })
 }
 
+/// The region rule both coverage reads share (module doc of
+/// [`image_spot_overprint_region`]): `Err` for a zero divisor or a region
+/// whose last sample falls outside `canvas`; `Ok(false)` for an empty
+/// `output`, which reads nothing. Past it every sampled row and column is on
+/// the canvas, so `origin + (n − 1)·divisor` fits in a u32 on both axes.
+fn region_reads(
+    canvas: (u32, u32),
+    origin: (u32, u32),
+    divisor: u32,
+    output: (u32, u32),
+) -> Result<bool, String> {
+    if divisor == 0 {
+        return Err("the spot overprint's divisor must be at least 1".into());
+    }
+    let (w, h) = output;
+    if w == 0 || h == 0 {
+        return Ok(false);
+    }
+    // The last sample each axis reads, in u64 so no input overflows.
+    let last = |o: u32, n: u32| u64::from(o) + u64::from(n - 1) * u64::from(divisor);
+    if last(origin.0, w) >= u64::from(canvas.0) || last(origin.1, h) >= u64::from(canvas.1) {
+        return Err("the spot overprint's region falls outside the canvas".into());
+    }
+    Ok(true)
+}
+
 /// The coverage `output`-sized region reads (module doc of
 /// [`image_spot_overprint_region`]); the canvas's own plane, borrowed, at
 /// origin (0, 0) and divisor 1 over the whole canvas.
@@ -118,18 +145,10 @@ fn sampled_coverage<'a>(
     if coverage.len() as u64 != u64::from(cw) * u64::from(ch) {
         return Err("the spot coverage does not match the image".into());
     }
-    if divisor == 0 {
-        return Err("the spot overprint's divisor must be at least 1".into());
-    }
-    let (w, h) = output;
-    if w == 0 || h == 0 {
+    if !region_reads(canvas, origin, divisor, output)? {
         return Ok(std::borrow::Cow::Borrowed(&coverage[..0]));
     }
-    // The last sample each axis reads, in u64 so no input overflows.
-    let last = |o: u32, n: u32| u64::from(o) + u64::from(n - 1) * u64::from(divisor);
-    if last(origin.0, w) >= u64::from(cw) || last(origin.1, h) >= u64::from(ch) {
-        return Err("the spot overprint's region falls outside the canvas".into());
-    }
+    let (w, h) = output;
     if origin == (0, 0) && divisor == 1 && output == canvas {
         return Ok(std::borrow::Cow::Borrowed(coverage));
     }
@@ -141,6 +160,49 @@ fn sampled_coverage<'a>(
         }
     }
     Ok(std::borrow::Cow::Owned(out))
+}
+
+/// [`sampled_coverage`] over a spot channel's tiled plane: the same
+/// refusals and the same samples, each sampled row read from its tiles'
+/// runs in place, so a region costs its own output, never the canvas (the
+/// whole canvas at divisor 1 is one plane-sized copy, where the contiguous
+/// plane used to be borrowed).
+fn sampled_plane_coverage(
+    plane: &GrayRaster,
+    canvas: (u32, u32),
+    origin: (u32, u32),
+    divisor: u32,
+    output: (u32, u32),
+) -> Result<Vec<u8>, String> {
+    if plane.dimensions() != canvas {
+        return Err("the spot coverage does not match the image".into());
+    }
+    if !region_reads(canvas, origin, divisor, output)? {
+        return Ok(Vec::new());
+    }
+    let (w, h) = output;
+    let step = divisor as usize;
+    // The columns read are x0, x0 + d, …, x0 + (w − 1)·d; `region_reads`
+    // keeps the last one on the canvas, so `x1` fits.
+    let x0 = origin.0;
+    let x1 = x0 + (w - 1) * divisor + 1;
+    let mut out = crate::precision_image::reserved_vec(w as usize * h as usize)?;
+    for j in 0..h {
+        for (x, run) in plane.row_segments(origin.1 + j * divisor, x0, x1) {
+            if step == 1 {
+                out.extend_from_slice(run);
+                continue;
+            }
+            // The run's first read column: the next x0 + k·d at or after x.
+            let from = (x - x0) as usize;
+            out.extend(
+                run.iter()
+                    .skip(from.next_multiple_of(step) - from)
+                    .step_by(step),
+            );
+        }
+    }
+    Ok(out)
 }
 
 impl DrDocument {
@@ -188,8 +250,7 @@ impl DrDocument {
             let Some(ink) = channel.spot else {
                 continue;
             };
-            let coverage =
-                sampled_coverage(channel.data.as_raw(), canvas, origin, divisor, output)?;
+            let coverage = sampled_plane_coverage(&channel.data, canvas, origin, divisor, output)?;
             let encoded = ink_encoded(&ink, Some(&self.profile))?;
             let solidity = f32::from(ink.solidity()) / 100.0;
             if !overprint_rgba8(&mut pixels, &coverage, encoded, solidity) {

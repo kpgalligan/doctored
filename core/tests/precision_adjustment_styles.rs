@@ -17,6 +17,7 @@
 //! against an oracle (one 16-bit storage step apart for the two-step one),
 //! 1e-5 at 32 bits.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 
@@ -459,11 +460,9 @@ fn a_typed_styled_adjustment_base_freezes_its_member_and_follows_the_byte_rule()
                 .adding_image_layer(0, RgbaImage::new(W, H), "Adj")
                 .unwrap();
         byte.layers[1].meta = Some(adjust_meta("invert", "{}"));
-        byte.layers[1].mask = Some(std::sync::Arc::new(image::GrayImage::from_fn(
-            W,
-            H,
-            |x, y| image::Luma([(mask16(x, y) / 257) as u8]),
-        )));
+        byte.layers[1].mask = Some(GrayRaster::new(image::GrayImage::from_fn(W, H, |x, y| {
+            image::Luma([(mask16(x, y) / 257) as u8])
+        })));
         let byte = styled(&byte, 1, json)
             .adding_image_layer(
                 1,

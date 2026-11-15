@@ -2943,7 +2943,7 @@ fn narrowed_bytes(doc: &DrDocument) -> Vec<u8> {
                 .into_raw(),
         );
         if let Some(mask) = &layer.mask {
-            out.extend(mask.as_raw());
+            out.extend(mask.samples());
         }
     }
     out

@@ -699,8 +699,8 @@ impl DrDocument {
                     target.mask = Some(if matches!(exact, Some(Exact::Translate)) {
                         raw.clone()
                     } else {
-                        Arc::new(resample_mask_outside(
-                            raw,
+                        crate::doc::GrayRaster::new(resample_mask_outside(
+                            &raw.to_image()?,
                             bounds,
                             &SourceMap::new(
                                 &m.inverse().ok_or("singular linked-mask matrix")?,

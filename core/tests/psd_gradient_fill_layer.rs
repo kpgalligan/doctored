@@ -21,6 +21,7 @@
 //! (`common/p3_oracle.rs`); descriptors are read by this file's own walker,
 //! never the core's reader; written planes are the document's own samples.
 
+use doctored_core::doc::GrayRaster;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::CString;
 use std::path::Path;
@@ -370,7 +371,7 @@ fn byte_doc(profile: &Arc<IccProfile>, fill: &(String, String), masked: bool) ->
         doc = doc
             .add_mask(1, MaskKind::FromSelection(&vec![255u8; (W * H) as usize]))
             .expect("the mask");
-        doc.layers[1].mask = Some(Arc::new(mask8()));
+        doc.layers[1].mask = Some(GrayRaster::new(mask8()));
         doc.layers[1].mask_properties = doctored_core::doc_mask::MaskProperties::at(MASK_AT);
     }
     doc.with_layer_opacity(1, 0.6).expect("the opacity")
@@ -615,7 +616,7 @@ fn an_8_and_16_bit_gradient_fill_layer_round_trips_in_photoshops_gdfl_form() {
         "psd8: pixels"
     );
     assert!((layer.opacity - 0.6).abs() < 1e-3, "opacity");
-    let mask = layer.mask.as_deref().map(|m| m.as_raw().clone());
+    let mask = layer.mask.as_ref().map(|m| m.samples());
     assert_eq!(mask, Some(mask8().into_raw()), "the mask");
     assert_eq!(layer.mask_properties.offset, MASK_AT);
     assert_eq!(reopened.flattened().unwrap(), doc.flattened().unwrap());
@@ -1560,7 +1561,7 @@ fn photoshops_own_gradient_fill_layers_read_as_their_gradient_within_the_bound()
                     .collect();
                 near_samples(&pixels, &fresh, 1, key);
                 if key == "GM8" {
-                    let mask = layer.mask.as_deref().expect("GM8's mask");
+                    let mask = layer.mask.as_ref().expect("GM8's mask");
                     assert_eq!(
                         (mask.dimensions(), layer.mask_properties.offset),
                         ((40, 30), (8, 6))

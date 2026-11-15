@@ -10,6 +10,7 @@
 //! exactly what the Move tool moves; and a paste over a hidden empty layer
 //! projects exactly what the clip projects.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 use std::sync::Arc;
@@ -111,7 +112,7 @@ fn source8() -> DrDocument {
     {
         let masked = &mut doc.layers[1];
         masked.offset = (1, 2);
-        masked.mask = Some(Arc::new(GrayImage::from_fn(5, 4, |x, y| {
+        masked.mask = Some(GrayRaster::new(GrayImage::from_fn(5, 4, |x, y| {
             Luma([(x * 50 + y * 7) as u8])
         })));
         masked.mask_properties = MaskProperties::at((1, 2));
@@ -155,7 +156,7 @@ fn same_layer8(a: &ByteLayer, b: &ByteLayer) {
     assert_eq!(a.label, b.label);
     assert_eq!(a.meta, b.meta);
     match (&a.mask, &b.mask) {
-        (Some(x), Some(y)) => assert!(Arc::ptr_eq(x, y), "{} mask shared", a.name),
+        (Some(x), Some(y)) => assert!(GrayRaster::ptr_eq(x, y), "{} mask shared", a.name),
         (None, None) => {}
         _ => panic!("{} mask presence", a.name),
     }
@@ -325,7 +326,7 @@ fn offset_clip8() -> DrDocument {
         .unwrap()
         .adding_image_layer(2, image(5, 5, 80), "Unlinked")
         .unwrap();
-    let plane = |v: u8| Some(Arc::new(GrayImage::from_pixel(3, 3, Luma([v]))));
+    let plane = |v: u8| Some(GrayRaster::new(GrayImage::from_pixel(3, 3, Luma([v]))));
     clip.layers[1].mask = plane(200);
     clip.layers[1].mask_properties = MaskProperties::at((2, 2));
     clip.layers[1].offset = (2, 2);

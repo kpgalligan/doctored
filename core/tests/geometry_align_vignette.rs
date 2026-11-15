@@ -19,9 +19,9 @@
 //! within 0.03. No golden images.
 #![allow(clippy::needless_range_loop)]
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
-use std::sync::Arc;
 
 use crate::cmyk_fixture::press_profile;
 use crate::common::selected_pixels::take_err;
@@ -460,7 +460,7 @@ fn alpha_transparency_and_masks_are_kept() {
         }
     }
     byte.layers[1].pixels = LayerRaster::new(image);
-    let mask = Arc::new(GrayImage::from_pixel(SIZE.0, SIZE.1, image::Luma([180])));
+    let mask = GrayRaster::new(GrayImage::from_pixel(SIZE.0, SIZE.1, image::Luma([180])));
     byte.layers[1].mask = Some(mask.clone());
     byte.layers[1].mask_properties = MaskProperties::at((0, 0));
     let before = TestDoc::Byte(byte);
@@ -479,7 +479,10 @@ fn alpha_transparency_and_masks_are_kept() {
         }
     }
     assert!(pixels != after, "the opaque pixels change");
-    assert!(Arc::ptr_eq(out.layers[1].mask.as_ref().unwrap(), &mask));
+    assert!(GrayRaster::ptr_eq(
+        out.layers[1].mask.as_ref().unwrap(),
+        &mask
+    ));
     for (a, b) in source.layers.iter().zip(&out.layers) {
         assert_eq!(a.offset, b.offset);
         assert_eq!(a.mask_properties.offset, b.mask_properties.offset);

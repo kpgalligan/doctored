@@ -723,11 +723,10 @@ fn resource_and_cancellation_refusals_leave_every_input_allocation_untouched() {
                 .mask()
                 .unwrap()
                 .plane()
-                .samples()
-                .as_ptr() as usize
+                .storage_identity() as usize
         })
         .collect();
-    let channel = doc.channels()[0].plane().samples().as_ptr() as usize;
+    let channel = doc.channels()[0].plane().storage_identity() as usize;
 
     assert!(
         doc.geometry_plan(&edit).is_ok(),
@@ -757,8 +756,7 @@ fn resource_and_cancellation_refusals_leave_every_input_allocation_untouched() {
                 .mask()
                 .unwrap()
                 .plane()
-                .samples()
-                .as_ptr() as usize
+                .storage_identity() as usize
         })
         .collect();
     assert_eq!(after_rasters.len(), before_rasters.len());
@@ -768,7 +766,7 @@ fn resource_and_cancellation_refusals_leave_every_input_allocation_untouched() {
         .all(|(a, b)| PrecisionImage::ptr_eq(a, b)));
     assert_eq!(after_masks, before_masks);
     assert_eq!(
-        doc.channels()[0].plane().samples().as_ptr() as usize,
+        doc.channels()[0].plane().storage_identity() as usize,
         channel
     );
     assert_eq!(doc.dimensions(), (11, 9));

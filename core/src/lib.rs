@@ -402,6 +402,7 @@ mod gray_filter;
 mod gray_io;
 mod gray_native;
 mod gray_profile;
+pub mod gray_raster;
 mod gray_style;
 mod gray_working;
 mod hdr_local_adaptation;

@@ -7,8 +7,6 @@
 //! in world coordinates. The explicit replacement variant accepts a new
 //! content-aligned mask and resets its nondestructive properties.
 
-use std::sync::Arc;
-
 use image::{GrayImage, RgbaImage};
 
 use crate::doc::DrDocument;
@@ -83,7 +81,7 @@ impl DrDocument {
             let layer = &mut out.layers[idx];
             layer.pixels = layer.pixels.rebuilt(pixels);
             layer.offset = offset;
-            layer.mask = mask.map(Arc::new);
+            layer.mask = mask.map(crate::doc::GrayRaster::new);
             layer.mask_properties = crate::doc_mask::MaskProperties::at(offset);
             if layer.mask.is_none() {
                 layer.mask_enabled = true;

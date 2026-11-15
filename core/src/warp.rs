@@ -67,7 +67,8 @@ pub struct WarpBinding<P, M> {
     pub mask_outside: u8,
 }
 
-pub type WarpBinding8 = WarpBinding<crate::layer_raster::LayerRaster, Arc<image::GrayImage>>;
+pub type WarpBinding8 =
+    WarpBinding<crate::layer_raster::LayerRaster, crate::gray_raster::GrayRaster>;
 pub type WarpBinding16 = WarpBinding<PrecisionImage, PrecisionPlane>;
 
 impl WarpBinding8 {
@@ -85,8 +86,7 @@ impl WarpBinding8 {
             .into_iter()
             .flatten()
         {
-            inventory.object(&**m, "shared_buffer_structure", false);
-            inventory.vec(m.as_raw(), "warp_masks", false);
+            m.record_resources(inventory, "warp_masks", false);
         }
     }
 }

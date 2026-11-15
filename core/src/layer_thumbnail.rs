@@ -79,7 +79,7 @@ use crate::precision_sampling::{
     adoption_copy_bytes, resize_cost, resize_image, source_copy_bytes, GeometryFilter,
 };
 use crate::sampling::{straight_unorm, Unorm};
-use crate::thumbnail_reduce::{area_split, box_reduced, box_reduced_rows, gray_resized};
+use crate::thumbnail_reduce::{area_split, box_reduced_rows, gray_resized};
 
 /// How many box samples per OUTPUT pixel per axis the layer thumbnail's box
 /// leaves for the Triangle pass (`ffi_channel::THUMB_BOX_GUARD`'s role, at a
@@ -287,14 +287,14 @@ impl DrDocument {
     /// allocation failure.
     pub fn layer_mask_thumbnail(&self, idx: usize, max_side: u32) -> Option<RgbaImage> {
         let layer = self.layers.get(idx)?;
-        let raw = layer.mask.as_deref()?;
+        let mask = layer.mask.as_ref()?;
         let group = layer.kind == LayerKind::Group;
         let (w, h) = if group {
             (self.width, self.height)
         } else {
-            raw.dimensions()
+            mask.dimensions()
         };
-        if w == 0 || h == 0 || raw.width() == 0 || raw.height() == 0 {
+        if w == 0 || h == 0 || mask.width() == 0 || mask.height() == 0 {
             return None;
         }
         let (tw, th) = fitted_dims(w, h, max_side);
@@ -306,6 +306,9 @@ impl DrDocument {
         };
         let properties = &layer.mask_properties;
         if k < 2 {
+            // Below the box threshold: one transient copy of the plane.
+            let raw = mask.to_image().ok()?;
+            let raw = &raw;
             let plane = if group {
                 padded_plane_with_coverage(
                     raw,
@@ -327,6 +330,8 @@ impl DrDocument {
             };
         }
         let reduced = if group {
+            let raw = mask.to_image().ok()?;
+            let raw = &raw;
             let mut fill = reserved_vec(w as usize).ok()?;
             fill.resize(w as usize, properties.outside_coverage);
             box_reduced_rows(
@@ -347,7 +352,15 @@ impl DrDocument {
                 JobContext::NONE,
             )
         } else {
-            box_reduced(raw.as_raw(), w, h, k, |v| v, JobContext::NONE)
+            // The plane's own rows, read in place: no copy.
+            box_reduced_rows(
+                w,
+                h,
+                k,
+                |y| mask.row_segments(y, 0, w),
+                |v| v,
+                JobContext::NONE,
+            )
         };
         let (codes, sw, sh) = reduced.ok()??;
         gray_resized(codes, sw, sh, tw, th)

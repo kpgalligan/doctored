@@ -55,9 +55,7 @@
 //! supported … high-depth DRDC document" sentence.
 
 use std::collections::HashSet;
-use std::sync::Arc;
 
-use image::GrayImage;
 use serde_json::{json, Map, Value};
 
 use crate::doc::MAX_PIXELS;
@@ -99,9 +97,9 @@ pub(crate) enum TablePlane<'a> {
     /// As a file stores it: `width * height` samples of the table's depth.
     Raw(&'a [u8]),
     /// A byte document's plane.
-    Bytes(Arc<GrayImage>),
+    Bytes(crate::gray_raster::GrayRaster),
     /// A typed document's plane.
-    Words(Arc<Vec<u16>>),
+    Words(crate::precision_mask::PrecisionPlane),
 }
 
 /// A vector mask's raster part as the table stores it.
@@ -333,11 +331,15 @@ pub(crate) fn encode(
             TablePlane::Raw(bytes) if bytes.len() as u64 == samples as u64 * sample_bytes => {
                 output.extend_from_slice(bytes);
             }
-            TablePlane::Bytes(image) if sample_bytes == 1 && image.as_raw().len() == samples => {
-                output.extend_from_slice(image.as_raw());
+            TablePlane::Bytes(plane) if sample_bytes == 1 && plane.byte_len() == samples as u64 => {
+                for run in plane.runs() {
+                    output.extend_from_slice(run);
+                }
             }
-            TablePlane::Words(words) if sample_bytes == 2 && words.len() == samples => {
-                for word in words.iter() {
+            TablePlane::Words(plane)
+                if sample_bytes == 2 && plane.storage_bytes() == samples as u64 * 2 =>
+            {
+                for word in plane.runs().flatten() {
                     output.extend_from_slice(&word.to_le_bytes());
                 }
             }

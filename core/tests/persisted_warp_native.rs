@@ -33,6 +33,7 @@
 
 use crate::identity;
 use crate::warp_fixture as fixture;
+use doctored_core::doc::GrayRaster;
 
 use doctored_core::doc::DrDocument;
 use doctored_core::doc::LayerRaster;
@@ -50,7 +51,6 @@ use doctored_core::retained_source::SourceEdit;
 use fixture::{byte_document, edit, field, typed_document, LIMIT};
 use serde_json::json;
 use std::fs;
-use std::sync::Arc;
 use tempfile::tempdir;
 
 #[test]
@@ -446,7 +446,9 @@ fn pixel_warp_without_original_mask_refuses_linked_fallback_before_png_decode() 
     let path = dir.path().join("fallback-link.rz");
     let mut before = byte_document();
     let raw: Vec<u8> = (0..11 * 19).map(|i| ((i * 43 + 7) % 256) as u8).collect();
-    before.layers[0].mask = Some(Arc::new(image::GrayImage::from_raw(11, 19, raw).unwrap()));
+    before.layers[0].mask = Some(GrayRaster::new(
+        image::GrayImage::from_raw(11, 19, raw).unwrap(),
+    ));
     let mut props = MaskProperties::at((1, -4));
     props.linked = false;
     before.layers[0].mask_properties = props;
@@ -660,7 +662,7 @@ fn mask_only_group_and_adjustment_survive_native_and_reedit_without_touching_pix
     props.feather = 1.5;
     let mut byte = byte_document();
     byte.layers[0].meta = Some(json!({"type":"adjust","op":"invert","params":{}}).to_string());
-    byte.layers[0].mask = Some(Arc::new(
+    byte.layers[0].mask = Some(GrayRaster::new(
         image::GrayImage::from_raw(11, 19, raw.clone()).unwrap(),
     ));
     byte.layers[0].mask_properties = props.clone();
@@ -692,14 +694,14 @@ fn mask_only_group_and_adjustment_survive_native_and_reedit_without_touching_pix
         .unwrap()
         .unwrap();
     assert_eq!(
-        reedited.layers[0].mask.as_ref().unwrap().as_raw(),
-        fresh.layers[0].mask.as_ref().unwrap().as_raw()
+        reedited.layers[0].mask.as_ref().unwrap().samples(),
+        fresh.layers[0].mask.as_ref().unwrap().samples()
     );
     let cleared = reopened
         .warp_edit(&edit(json!({"op":"clear","layer":0})), LIMIT, 0, None)
         .unwrap()
         .unwrap();
-    assert_eq!(cleared.layers[0].mask.as_ref().unwrap().as_raw(), &raw);
+    assert_eq!(cleared.layers[0].mask.as_ref().unwrap().samples(), raw);
     assert_eq!(cleared.layers[0].mask_properties.offset, (1, -4));
 
     let typed = typed_document();
@@ -753,12 +755,14 @@ fn mask_only_group_and_adjustment_survive_native_and_reedit_without_touching_pix
         .unwrap();
     assert_eq!(
         cleared.layer(1).unwrap().mask().unwrap().plane().samples(),
-        &values
+        values
     );
 
     let mut grouped = byte_document().group_layers(&[0], "Group").unwrap().0;
     let group = 1;
-    grouped.layers[group].mask = Some(Arc::new(image::GrayImage::from_raw(11, 19, raw).unwrap()));
+    grouped.layers[group].mask = Some(GrayRaster::new(
+        image::GrayImage::from_raw(11, 19, raw).unwrap(),
+    ));
     grouped.layers[group].mask_properties = MaskProperties::at((1, -4));
     let mut request = field(3, 3, "bilinear");
     request["target"] = json!("mask");

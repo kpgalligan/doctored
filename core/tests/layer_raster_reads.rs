@@ -13,6 +13,7 @@
 
 use crate::phase4_corpus;
 use crate::serial;
+use doctored_core::doc::GrayRaster;
 
 use crate::common;
 
@@ -145,7 +146,7 @@ fn masked_top(doc: &DrDocument) -> DrDocument {
     let top = doc.layers.len() - 1;
     let mut out = doc.add_mask(top, MaskKind::RevealAll).expect("add mask");
     let (w, h) = out.layers[top].mask.as_ref().expect("a mask").dimensions();
-    out.layers[top].mask = Some(Arc::new(row_varying(w, h)));
+    out.layers[top].mask = Some(GrayRaster::new(row_varying(w, h)));
     out.layers[top].mask_enabled = true;
     out
 }

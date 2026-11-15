@@ -74,7 +74,7 @@ enum PixelsKey {
 
 /// The mask's part of the key.
 struct MaskKey {
-    plane: Weak<Vec<u16>>,
+    plane: crate::precision_mask::PrecisionPlaneKey,
     enabled: bool,
     density: u32,
     feather: u32,
@@ -116,7 +116,7 @@ impl TypedKey {
             let source = prepared.source();
             let properties = source.properties();
             MaskKey {
-                plane: Arc::downgrade(&source.plane().pixels),
+                plane: source.plane().key(),
                 enabled: source.enabled(),
                 density: properties.density.to_bits(),
                 feather: properties.feather.to_bits(),
@@ -168,7 +168,7 @@ impl TypedKey {
         let mask = match (&self.mask, &other.mask) {
             (None, None) => true,
             (Some(a), Some(b)) => {
-                Weak::ptr_eq(&a.plane, &b.plane)
+                a.plane.same(&b.plane)
                     && a.enabled == b.enabled
                     && a.density == b.density
                     && a.feather == b.feather
@@ -192,11 +192,7 @@ impl TypedKey {
             PixelsKey::Image { identity, .. } => identity.strong_count() == 0,
             PixelsKey::Opaque { .. } => false,
         };
-        pixels
-            || self
-                .mask
-                .as_ref()
-                .is_some_and(|m| m.plane.strong_count() == 0)
+        pixels || self.mask.as_ref().is_some_and(|m| m.plane.is_dead())
     }
 }
 

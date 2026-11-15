@@ -1,6 +1,7 @@
 //! Embedded-source behavior through the public ABI. Exact-code and analytic
 //! sampling/ICC oracles are independent of the retained-source implementation.
 use doctored_core::doc::DrDocument;
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::LayerRaster;
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_doc::dr_doc_canvas_resize;
@@ -799,7 +800,7 @@ fn a_byte_canvas_size_carries_an_embedded_source_and_the_rerender_lands_at_the_n
     let source = byte(6, 4);
     let mut placed = edit8(&canvas, Some(&source), g5_place(6, 4));
     // A layer mask beside the source; it rides the canvas like any other.
-    placed.layers[1].mask = Some(Arc::new(image::GrayImage::from_fn(6, 4, |x, y| {
+    placed.layers[1].mask = Some(GrayRaster::new(image::GrayImage::from_fn(6, 4, |x, y| {
         image::Luma([((x * 5 + y * 3) % 251) as u8])
     })));
     placed.layers[1].mask_properties = doctored_core::doc_mask::MaskProperties::at((6, 4));

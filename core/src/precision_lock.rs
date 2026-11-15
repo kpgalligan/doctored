@@ -132,8 +132,9 @@ fn same_mask(a: &PrecisionDocumentLayer, b: &PrecisionDocumentLayer) -> bool {
         (Some(x), Some(y)) => {
             x.enabled() == y.enabled()
                 && x.properties() == y.properties()
-                && x.plane().dimensions() == y.plane().dimensions()
-                && x.plane().samples() == y.plane().samples()
+                && x.plane()
+                    .equals(y.plane(), crate::job_control::JobContext::NONE)
+                    .unwrap_or(false)
         }
         _ => false,
     }

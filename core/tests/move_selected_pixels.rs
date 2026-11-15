@@ -12,10 +12,10 @@
 //! may legitimately disagree; everywhere else the match is exact.
 
 use crate::common;
+use doctored_core::doc::GrayRaster;
 
 use std::ffi::CString;
 use std::ptr;
-use std::sync::Arc;
 
 use common::selected_pixels::*;
 use doctored_core::doc_lock::{LOCK_ALL, LOCK_PIXELS, LOCK_POSITION, LOCK_TRANSPARENCY};
@@ -306,7 +306,7 @@ fn the_layer_mask_stays_put() {
     // 8 bits.
     let plane = Plane::of(Depth::D8, (2, 3), (6, 4), pattern);
     let mut base = byte_doc(canvas, &plane);
-    let mask = Arc::new(GrayImage::from_fn(10, 6, |x, y| {
+    let mask = GrayRaster::new(GrayImage::from_fn(10, 6, |x, y| {
         Luma([values[(y * 10 + x) as usize]])
     }));
     base.layers[0].mask = Some(mask.clone());
@@ -316,7 +316,7 @@ fn the_layer_mask_stays_put() {
         .unwrap()
         .unwrap();
     let layer = &out.layers[0];
-    assert_eq!(layer.mask.as_deref().unwrap().as_raw(), mask.as_raw());
+    assert_eq!(layer.mask.as_ref().unwrap().samples(), mask.samples());
     assert!(layer.mask_properties == props);
     assert!(!layer.mask_enabled);
     assert_eq!(layer.offset, (2, 3));

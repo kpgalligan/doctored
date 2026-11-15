@@ -393,7 +393,7 @@ fn rasterize_matches_photoshop_on_the_take_s_shape_and_order_rows() {
         r##"{"effects":[{"type":"stroke","size":4,"position":"outside","color":"#ff0000"}]}"##;
     const SHADOW8: &str = r##"{"effects":[{"type":"drop_shadow","opacity":1,"color":"#000000","distance":8,"size":0,"spread":0,"angle":180,"use_global_light":false,"layer_knocks_out":false}]}"##;
     let mask = || {
-        std::sync::Arc::new(image::GrayImage::from_fn(TW, TH, |x, y| {
+        doctored_core::doc::GrayRaster::new(image::GrayImage::from_fn(TW, TH, |x, y| {
             image::Luma([if (48..144).contains(&x) && (32..96).contains(&y) {
                 255
             } else {

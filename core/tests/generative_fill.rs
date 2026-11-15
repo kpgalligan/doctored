@@ -488,7 +488,7 @@ fn layer_mask(doc: &Doc, idx: usize) -> (Vec<f64>, bool) {
             let layer = &d.layers[idx];
             let mask = layer.mask.as_ref().expect("a mask");
             (
-                mask.as_raw()
+                mask.samples()
                     .iter()
                     .map(|&v| f64::from(v) / 255.0)
                     .collect(),

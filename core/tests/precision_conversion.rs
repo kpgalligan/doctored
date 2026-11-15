@@ -3,6 +3,7 @@
 use crate::common;
 use crate::group_roots;
 use common::probe::{cancelled_parked_at, entry_then_cancel, parked_line};
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::{DrDocument, LayerKind, LayerRaster};
 use doctored_core::ffi::{dr_image_free, dr_image_pixels_rgba, dr_string_free};
 use doctored_core::ffi_doc::dr_doc_free;
@@ -49,7 +50,7 @@ fn legacy_fixture(grouped: bool) -> DrDocument {
         Rgba([233, 47, 169, ((x * 9 + y * 11) % 256) as u8])
     }));
     foreground.opacity = 0.713;
-    foreground.mask = Some(Arc::new(GrayImage::from_fn(37, 19, |x, y| {
+    foreground.mask = Some(GrayRaster::new(GrayImage::from_fn(37, 19, |x, y| {
         image::Luma([((x + y) * 7) as u8])
     })));
     doc.layers.push(foreground);

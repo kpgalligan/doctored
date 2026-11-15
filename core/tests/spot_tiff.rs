@@ -328,7 +328,7 @@ fn with_spots(doc: &PrecisionDocument, ramp: &[u16], bloc: &[u16]) -> PrecisionD
 pub fn byte_spots(doc: &DrDocument) -> Vec<(String, Option<SpotInk>, Vec<u8>)> {
     doc.channels
         .iter()
-        .map(|c| (c.name.clone(), c.spot, c.data.as_raw().clone()))
+        .map(|c| (c.name.clone(), c.spot, c.data.samples().clone()))
         .collect()
 }
 

@@ -5,6 +5,7 @@
 use crate::common;
 use common::probe::{cancelled_parked_at, entry_then_cancel, parked_line};
 use common::*;
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::LayerRaster;
 use doctored_core::{doc::DrDocument, ffi_jobs::*, job_control::DrJobControl};
 use image::{Rgba, RgbaImage};
@@ -351,7 +352,6 @@ fn sample_all_preparation_cancellation_on_plain_48mp_and_grouped_24mp() {
 #[test]
 fn tiled_sample_all_matches_full_composite_across_tile_edges_masks_offsets_and_blends() {
     use doctored_core::doc::BlendMode;
-    use std::sync::Arc;
     for blend in [
         BlendMode::Normal,
         BlendMode::Multiply,
@@ -376,9 +376,11 @@ fn tiled_sample_all_matches_full_composite_across_tile_edges_masks_offsets_and_b
         overlay.opacity = 0.61;
         overlay.blend = blend;
         overlay.clipped = true;
-        overlay.mask = Some(Arc::new(image::GrayImage::from_fn(1080, 100, |x, y| {
-            image::Luma([((x * 7 + y * 3) % 256) as u8])
-        })));
+        overlay.mask = Some(GrayRaster::new(image::GrayImage::from_fn(
+            1080,
+            100,
+            |x, y| image::Luma([((x * 7 + y * 3) % 256) as u8]),
+        )));
         overlay.mask_enabled = true;
         doc.layers.push(overlay);
         let full = doc.flattened().unwrap();

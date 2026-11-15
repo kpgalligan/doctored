@@ -648,15 +648,13 @@ fn layer_clipped_plans_edits_reports_and_shares_storage() {
             .mask()
             .unwrap()
             .plane()
-            .samples()
-            .as_ptr(),
+            .storage_identity(),
         doc.layer(1)
             .unwrap()
             .mask()
             .unwrap()
             .plane()
-            .samples()
-            .as_ptr()
+            .storage_identity()
     );
     assert_eq!(
         info(&set)["supported_operations"]

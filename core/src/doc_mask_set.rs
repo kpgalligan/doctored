@@ -17,8 +17,6 @@
 //! arbitrary canvas rect with linked and outside coverage, never cropped to the layer (groups keep
 //! `add_mask`), the byte twin of the typed `set_mask` edit (which takes `outside_coverage` too).
 
-use std::sync::Arc;
-
 use image::GrayImage;
 
 use crate::doc::{DrDocument, LayerKind};
@@ -65,7 +63,7 @@ impl DrDocument {
             }
             let mut out = doc.clone();
             let next = &mut out.layers[idx];
-            next.mask = Some(Arc::new(coverage));
+            next.mask = Some(crate::doc::GrayRaster::new(coverage));
             next.mask_enabled = true;
             next.mask_properties = properties;
             if crate::doc_lock::same_mask(layer, &out.layers[idx]) {

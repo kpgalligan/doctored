@@ -142,7 +142,6 @@ impl Adjusted<'_> {
         let kind = blend_kind(shape.blend);
         let normal = blend_kind(BlendMode::Normal);
         let active_mask = shape.active_mask();
-        let mask = active_mask.as_deref().map(|m| m.as_raw().as_slice());
         let (lw, lh) = shape.pixels.dimensions();
         let rel_x = i64::from(shape.offset.0) - i64::from(origin.0);
         let rel_y = i64::from(shape.offset.1) - i64::from(origin.1);
@@ -150,13 +149,24 @@ impl Adjusted<'_> {
         let y0 = rel_y.max(0);
         let x1 = (rel_x + i64::from(lw)).min(i64::from(acc_w));
         let y1 = (rel_y + i64::from(lh)).min(i64::from(acc_h));
+        // The layer-space span (no negative reaches the `u32` cast), whose
+        // mask row is read in place once per row (13B-4).
+        let (sx0, sx1) = if x0 < x1 {
+            ((x0 - rel_x) as u32, (x1 - rel_x) as u32)
+        } else {
+            (0, 0)
+        };
+        let mut mask_row = Vec::new();
         for ay in y0..y1 {
             env.job.check()?;
             let ly = (ay - rel_y) as u64;
+            let mask = active_mask
+                .as_ref()
+                .map(|m| m.row(ly as u32, sx0, sx1, &mut mask_row));
             for ax in x0..x1 {
                 let lx = (ax - rel_x) as u64;
                 let coverage = mask.map_or(1.0, |m| {
-                    f32::from(m[(ly * u64::from(lw) + lx) as usize]) / 255.0
+                    f32::from(m[(lx - u64::from(sx0)) as usize]) / 255.0
                 });
                 let ai = (ay as u64 * u64::from(acc_w) + ax as u64) as usize;
                 let canvas_xy = (ax + i64::from(origin.0), ay + i64::from(origin.1));

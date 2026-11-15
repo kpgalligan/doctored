@@ -386,7 +386,7 @@ fn the_eight_bit_files_open_to_the_scene_and_the_twin() {
                 (
                     (i64::from(offset.0), i64::from(offset.1)),
                     (i64::from(mw), i64::from(mh)),
-                    mask.as_raw().iter().map(|v| i64::from(*v)).collect(),
+                    mask.samples().iter().map(|v| i64::from(*v)).collect(),
                 )
             });
             let opened = Opened {

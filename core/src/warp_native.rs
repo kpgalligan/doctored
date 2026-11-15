@@ -42,27 +42,30 @@ pub(crate) struct PendingWarp<'a> {
 fn rect(p: RawPlane<'_>) -> (i32, i32, u32, u32) {
     (p.offset.0, p.offset.1, p.dimensions.0, p.dimensions.1)
 }
-fn put_raw(out: &mut Vec<u8>, offset: (i32, i32), dims: (u32, u32), bytes: &[u8]) {
+/// One raw original's header: the present flag, offset, dimensions and the
+/// payload's byte length.
+fn put_raw_header(out: &mut Vec<u8>, offset: (i32, i32), dims: (u32, u32), len: u64) {
     out.push(1);
     out.extend_from_slice(&offset.0.to_le_bytes());
     out.extend_from_slice(&offset.1.to_le_bytes());
     out.extend_from_slice(&dims.0.to_le_bytes());
     out.extend_from_slice(&dims.1.to_le_bytes());
-    out.extend_from_slice(&(bytes.len() as u64).to_le_bytes());
-    out.extend_from_slice(bytes);
+    out.extend_from_slice(&len.to_le_bytes());
 }
-/// [`put_raw`]'s header with `len = w·h·4`, then the raster's runs' bytes
-/// in plane order — the same bytes, no view.
+/// [`put_raw_header`] with `len = w·h·4`, then the raster's runs' bytes in
+/// plane order — the same bytes, no view.
 fn put_raw_raster(out: &mut Vec<u8>, offset: (i32, i32), raster: &LayerRaster) {
-    let dims = raster.dimensions();
-    out.push(1);
-    out.extend_from_slice(&offset.0.to_le_bytes());
-    out.extend_from_slice(&offset.1.to_le_bytes());
-    out.extend_from_slice(&dims.0.to_le_bytes());
-    out.extend_from_slice(&dims.1.to_le_bytes());
-    out.extend_from_slice(&raster.byte_len().to_le_bytes());
+    put_raw_header(out, offset, raster.dimensions(), raster.byte_len());
     for run in raster.runs() {
         out.extend_from_slice(run.as_flattened());
+    }
+}
+/// [`put_raw_header`] with `len = w·h`, then the mask's runs' bytes in plane
+/// order — the bytes its contiguous plane wrote (13B-4), no copy.
+fn put_raw_gray(out: &mut Vec<u8>, offset: (i32, i32), plane: &crate::doc::GrayRaster) {
+    put_raw_header(out, offset, plane.dimensions(), plane.byte_len());
+    for run in plane.runs() {
+        out.extend_from_slice(run);
     }
 }
 fn put_header(
@@ -164,7 +167,7 @@ pub(crate) fn byte_capacity(doc: &DrDocument) -> Result<(u64, u64), String> {
             .ok_or("WARP capacity overflow")?;
         for bytes in [
             b.source_pixels.as_ref().map(|p| p.byte_len() as usize),
-            b.source_mask.as_ref().map(|m| m.as_raw().len()),
+            b.source_mask.as_ref().map(|m| m.byte_len() as usize),
         ]
         .into_iter()
         .flatten()
@@ -198,7 +201,7 @@ pub(crate) fn encode_byte(doc: &DrDocument) -> Result<Vec<u8>, String> {
             out.push(0);
         }
         if let Some(m) = b.source_mask {
-            put_raw(&mut out, b.source_mask_offset, m.dimensions(), m.as_raw());
+            put_raw_gray(&mut out, b.source_mask_offset, &m);
         } else {
             out.push(0);
         }
@@ -246,8 +249,8 @@ pub(crate) fn encode_typed(doc: &PrecisionDocument) -> Result<Vec<u8>, String> {
             let dims = m.dimensions();
             out.extend_from_slice(&dims.0.to_le_bytes());
             out.extend_from_slice(&dims.1.to_le_bytes());
-            out.extend_from_slice(&(m.samples().len() as u64 * 2).to_le_bytes());
-            for c in m.samples() {
+            out.extend_from_slice(&m.storage_bytes().to_le_bytes());
+            for c in m.runs().flatten() {
                 out.extend_from_slice(&c.to_le_bytes());
             }
         } else {
@@ -458,24 +461,25 @@ pub(crate) fn attach_byte(
             .mask
             .map(|p| {
                 GrayImage::from_raw(p.dimensions.0, p.dimensions.1, p.bytes.to_vec())
-                    .map(Arc::new)
+                    .map(crate::doc::GrayRaster::new)
                     .ok_or("invalid WARP mask original")
             })
             .transpose()?;
-        let mask =
-            if let Some((raw, m)) = e.mask.zip(mask) {
-                Some(
-                    if layer.mask.as_ref().is_some_and(|v| {
-                        v.dimensions() == raw.dimensions && v.as_raw() == m.as_raw()
-                    }) {
-                        layer.mask.clone().ok_or("WARP mask absent")?
-                    } else {
-                        m
-                    },
-                )
-            } else {
-                None
-            };
+        let mask = if let Some((raw, m)) = e.mask.zip(mask) {
+            Some(
+                if layer
+                    .mask
+                    .as_ref()
+                    .is_some_and(|v| v.dimensions() == raw.dimensions && v.same_bytes(&m))
+                {
+                    layer.mask.clone().ok_or("WARP mask absent")?
+                } else {
+                    m
+                },
+            )
+        } else {
+            None
+        };
         layer.warp = Some(WarpBinding8 {
             field: e.field,
             target: e.target,
@@ -582,7 +586,10 @@ pub(crate) fn attach_typed(
         let mask = if let Some((raw, m)) = e.mask.zip(mask) {
             Some(
                 if layer.mask.as_ref().is_some_and(|v| {
-                    v.plane.dimensions() == raw.dimensions && v.plane.samples() == m.samples()
+                    v.plane.dimensions() == raw.dimensions
+                        && v.plane
+                            .equals(&m, crate::job_control::JobContext::NONE)
+                            .unwrap_or(false)
                 }) {
                     layer.mask.as_ref().ok_or("WARP mask absent")?.plane.clone()
                 } else {

@@ -3,6 +3,7 @@
 //! Invert over the whole canvas is `mask_invert_whole.rs`.
 use crate::common;
 use common::{identity_tail, take_err_string, without_identity, FILTER_BILINEAR};
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::{DrDocument, LayerRaster};
 use doctored_core::doc_mask::MaskProperties;
 use doctored_core::doc_plane::Plane;
@@ -21,14 +22,13 @@ use image::{GrayImage, Luma, Rgba, RgbaImage};
 use serde_json::json;
 use std::ffi::CString;
 use std::ptr;
-use std::sync::Arc;
 use tempfile::TempDir;
 const LIMIT: u64 = REFERENCE_WORKING_BYTES;
 
 fn byte(outside: u8, value: u8, feather: f32) -> DrDocument {
     let mut doc = DrDocument::from_pixels(RgbaImage::from_pixel(9, 7, Rgba([31, 72, 119, 255])));
     let layer = &mut doc.layers[0];
-    layer.mask = Some(Arc::new(GrayImage::from_pixel(1, 1, Luma([value]))));
+    layer.mask = Some(GrayRaster::new(GrayImage::from_pixel(1, 1, Luma([value]))));
     layer.mask_properties = MaskProperties::at((4, 3));
     layer.mask_properties.outside_coverage = outside;
     layer.mask_properties.feather = feather;
@@ -140,7 +140,7 @@ fn byte_raw_effective_render_and_shared_cache_keys_include_background() {
     assert!(!handle.is_null());
     let changed = unsafe { Box::from_raw(handle) };
     assert_eq!(changed.layers[0].mask_properties.outside_coverage, 255);
-    assert!(Arc::ptr_eq(
+    assert!(doctored_core::doc::GrayRaster::ptr_eq(
         changed.layers[0].mask.as_ref().unwrap(),
         white.layers[0].mask.as_ref().unwrap()
     ));
@@ -234,7 +234,7 @@ fn byte_and_native_fractional_affine_sample_background_and_retain_exact_source()
     let handle = unsafe { dr_doc_transform_mask(&b, 0, matrix.as_ptr(), FILTER_BILINEAR) };
     assert!(!handle.is_null());
     let moved = unsafe { Box::from_raw(handle) };
-    assert_eq!(moved.layers[0].mask.as_ref().unwrap().as_raw(), &[77, 196]);
+    assert_eq!(moved.layers[0].mask.as_ref().unwrap().samples(), &[77, 196]);
     assert_eq!(moved.layers[0].mask_properties.outside_coverage, 255);
     assert!(LayerRaster::ptr_eq(
         &b.layers[0].pixels,

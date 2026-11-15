@@ -128,7 +128,7 @@ pub(crate) fn entries(doc: &Doc) -> Vec<Entry> {
                 mask: l
                     .mask
                     .as_ref()
-                    .map(|m| m.as_raw().iter().map(|&v| u16::from(v) * 257).collect()),
+                    .map(|m| m.samples().iter().map(|&v| u16::from(v) * 257).collect()),
                 curves: if l.kind == LayerKind::Group {
                     None
                 } else {

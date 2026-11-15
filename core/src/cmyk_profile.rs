@@ -316,7 +316,7 @@ pub(crate) fn channels_on_grid(
         .map(|channel| {
             let (w, h) = channel.plane().dimensions();
             let mut pixels = crate::precision_image::reserved_vec(pixel_count(w, h)?)?;
-            pixels.extend(channel.plane().samples().iter().map(|v| eight(*v)));
+            pixels.extend(channel.plane().runs().flatten().map(|v| eight(*v)));
             let mut next = channel.clone();
             next.plane = PrecisionPlane::adopt(w, h, pixels)?;
             Ok(next)
@@ -327,7 +327,7 @@ pub(crate) fn channels_on_grid(
 fn mask_on_grid(mask: &PrecisionMask) -> Result<PrecisionMask, String> {
     let (w, h) = mask.plane().dimensions();
     let mut pixels = crate::precision_image::reserved_vec(pixel_count(w, h)?)?;
-    pixels.extend(mask.plane().samples().iter().map(|v| eight(*v)));
+    pixels.extend(mask.plane().runs().flatten().map(|v| eight(*v)));
     Ok(PrecisionMask {
         plane: PrecisionPlane::adopt(w, h, pixels)?,
         properties: mask.properties().clone(),

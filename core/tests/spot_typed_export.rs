@@ -6,7 +6,8 @@
 //! Gray16 kept PNG read back as one channel, a CMYK kept-JPEG intermediate
 //! read back as CMYK; a layer export carries no overprint; and a `region` /
 //! `preview_divisor` overprint equals the full overprint's samples exactly
-//! at divisors 1 and 2, with its refusals.
+//! at divisors 1 and 2, with its refusals; on a canvas of several tiles it
+//! equals the host path's overprint of the coverage slices built here.
 
 use std::io::Cursor;
 use std::ptr;
@@ -323,4 +324,95 @@ fn a_region_overprint_is_the_full_overprints_samples() {
         assert!(!take_err_string(err).is_empty(), "({x}) /{d}");
     }
     unsafe { dr_image_free(region) };
+}
+
+/// Several 256-sample tiles each way, so a spot channel's plane is tiled
+/// and a region's sampled rows cross tile columns and rows.
+const TILED_W: u32 = 600;
+const TILED_H: u32 = 530;
+
+fn tiled_base() -> RgbaImage {
+    RgbaImage::from_fn(TILED_W, TILED_H, |x, y| {
+        Rgba([(x * 7 + y) as u8, (y * 5 + 3) as u8, (x ^ y) as u8, 255])
+    })
+}
+
+/// A hashed coverage plane, so a sampling slip reads a different sample.
+fn tiled_coverage(seed: u32) -> Vec<u8> {
+    (0..TILED_W * TILED_H)
+        .map(|i| (i.wrapping_mul(2_654_435_761).wrapping_add(seed) >> 24) as u8)
+        .collect()
+}
+
+/// `region` with one ink overprinted by the host path, which indexes the
+/// canvas-sized `coverage` slice built here and never sees a tile.
+fn slice_overprint(
+    region: *mut DrImage,
+    coverage: &[u8],
+    (x, y, d): (u32, u32, u32),
+    lab: [f64; 3],
+    solidity: u8,
+) -> *mut DrImage {
+    let mut err = ptr::null_mut();
+    let icc: &[u8] = &[];
+    let out = unsafe {
+        dr_image_spot_overprint_region(
+            region,
+            coverage.as_ptr(),
+            coverage.len(),
+            TILED_W,
+            TILED_H,
+            x,
+            y,
+            d,
+            lab[0],
+            lab[1],
+            lab[2],
+            solidity,
+            icc.as_ptr(),
+            0,
+            &mut err,
+        )
+    };
+    assert!(!out.is_null(), "{}", take_err_string(err));
+    out
+}
+
+#[test]
+fn a_region_overprint_across_tiles_reads_the_channels_samples() {
+    let (red_lab, blue_lab) = ([54.29, 80.81, 69.89], [30.0, 20.0, -60.0]);
+    let (red_cov, blue_cov) = (tiled_coverage(1), tiled_coverage(0x9e37));
+    // The document's profile is the built-in sRGB, which the host path's
+    // empty profile also reads as.
+    let doc = DrDocument::from_pixels(tiled_base())
+        .add_spot_channel("Red", SpotInk::new(red_lab, 40).unwrap(), &red_cov)
+        .unwrap()
+        .add_spot_channel("Blue", SpotInk::new(blue_lab, 0).unwrap(), &blue_cov)
+        .unwrap();
+    let mut err = ptr::null_mut();
+    let base = tiled_base();
+    // Each region starts inside a tile and crosses a tile column (x 256 or
+    // 512) and a tile row (y 256 or 512), at divisors whose sampled columns
+    // fall at every phase of a run's start; the last is the whole canvas.
+    for (x, y, d, w, h) in [
+        (250, 240, 1, 300, 40),
+        (3, 1, 2, 299, 265),
+        (100, 200, 3, 150, 100),
+        (255, 255, 7, 49, 39),
+        (511, 0, 5, 18, 106),
+        (0, 0, 1, TILED_W, TILED_H),
+    ] {
+        let crop = RgbaImage::from_fn(w, h, |i, j| *base.get_pixel(x + i * d, y + j * d));
+        let region = image_of(&crop);
+        let out = unsafe { dr_doc_spot_overprint_region(&doc, region, x, y, d, &mut err) };
+        assert!(!out.is_null(), "{}", take_err_string(err));
+        let red = slice_overprint(region, &red_cov, (x, y, d), red_lab, 40);
+        let both = slice_overprint(red, &blue_cov, (x, y, d), blue_lab, 0);
+        unsafe { dr_image_free(red) };
+        unsafe { dr_image_free(region) };
+        assert!(
+            read(out, w, h) == read(both, w, h),
+            "doc ({x},{y}) /{d}: the region overprints the channels' own samples"
+        );
+    }
 }

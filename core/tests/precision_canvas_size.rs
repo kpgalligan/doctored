@@ -22,9 +22,9 @@
 //! crop, the quarter turns, the flips) live in
 //! `core/tests/float_exact_geometry.rs`.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CString};
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::DrDocument;
 use doctored_core::doc_guide::{Guide, GuideOrientation};
@@ -223,7 +223,7 @@ fn byte_fixture() -> DrDocument {
         )
         .expect("a second layer");
     doc.layers[1].offset = (5, 3);
-    doc.layers[0].mask = Some(Arc::new(
+    doc.layers[0].mask = Some(GrayRaster::new(
         GrayImage::from_raw(W, H, plane_samples(W, H, 1)).unwrap(),
     ));
     doc.layers[0].mask_properties = {
@@ -231,7 +231,7 @@ fn byte_fixture() -> DrDocument {
         p.linked = true;
         p
     };
-    doc.layers[1].mask = Some(Arc::new(
+    doc.layers[1].mask = Some(GrayRaster::new(
         GrayImage::from_raw(7, 5, plane_samples(7, 5, 2)).unwrap(),
     ));
     doc.layers[1].mask_properties = MaskProperties::at((5, 3));
@@ -264,7 +264,7 @@ fn raster_addresses(doc: &PrecisionDocument) -> Vec<usize> {
 fn mask_addresses(doc: &PrecisionDocument) -> Vec<usize> {
     (0..doc.layer_count())
         .filter_map(|i| doc.layer(i).unwrap().mask())
-        .map(|m| m.plane().samples().as_ptr() as usize)
+        .map(|m| m.plane().storage_identity() as usize)
         .collect()
 }
 
@@ -355,14 +355,14 @@ fn canvas_size_moves_every_plane_by_the_origin_and_agrees_with_the_byte_twin() {
 
         // The CHANNEL is the byte padded plane × 257, sample for sample.
         let samples = out.channels()[0].plane().samples();
-        let reference = twin.channels[0].data.as_raw();
+        let reference = twin.channels[0].data.samples();
         assert_eq!(
             out.channels()[0].plane().dimensions(),
             (width, height),
             "{what}: the channel is canvas-sized"
         );
         assert_eq!(samples.len(), reference.len(), "{what}: channel length");
-        for (i, (&got, &want)) in samples.iter().zip(reference).enumerate() {
+        for (i, (&got, &want)) in samples.iter().zip(&reference).enumerate() {
             assert_eq!(
                 got,
                 u16::from(want) * 257,

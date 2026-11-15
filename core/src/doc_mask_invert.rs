@@ -20,8 +20,6 @@
 //! A Mask edit under `doc_lock` (only Lock All refuses). The typed twin is
 //! `precision_scalar_edit`'s mask-invert rule.
 
-use std::sync::Arc;
-
 use image::GrayImage;
 
 use crate::doc::{DrDocument, LayerKind};
@@ -38,16 +36,16 @@ impl DrDocument {
     pub fn invert_mask(&self, idx: usize, selection: Option<&[u8]>) -> Option<Self> {
         self.under_locks(idx, EditKind::Mask, |doc| {
             let layer = doc.layers.get(idx)?;
-            let before = layer.mask.as_deref()?;
+            let before = layer.mask.as_ref()?;
             let canvas = (doc.width, doc.height);
             let Some(selection) = selection else {
-                let mut plane = before.clone();
+                let mut plane = before.to_image().ok()?;
                 for value in plane.iter_mut() {
                     *value = 255 - *value;
                 }
                 let mut out = doc.clone();
                 let next = &mut out.layers[idx];
-                next.mask = Some(Arc::new(plane));
+                next.mask = Some(before.rebuilt(plane));
                 next.mask_properties.outside_coverage =
                     255 - layer.mask_properties.outside_coverage;
                 return Some(out);
@@ -73,8 +71,9 @@ impl DrDocument {
             {
                 return None;
             }
+            let image = before.to_image().ok()?;
             let mut samples = grown(
-                before.as_raw(),
+                image.as_raw(),
                 from,
                 to,
                 layer.mask_properties.outside_coverage,
@@ -97,7 +96,7 @@ impl DrDocument {
             }
             let mut out = doc.clone();
             let next = &mut out.layers[idx];
-            next.mask = Some(Arc::new(GrayImage::from_raw(to.0 .0, to.0 .1, samples)?));
+            next.mask = Some(before.rebuilt(GrayImage::from_raw(to.0 .0, to.0 .1, samples)?));
             next.mask_properties.offset = to.1;
             Some(out)
         })

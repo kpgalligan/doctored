@@ -127,8 +127,6 @@
 //! `rotate_canvas_with_job` polls per layer (through `doc_align::straighten_layers_with_job`) and
 //! then per channel.
 
-use std::sync::Arc;
-
 use crate::doc::{DrDocument, Geometry, LayerKind, MAX_PIXELS};
 use crate::doc_channel::Channel;
 use crate::doc_geometry_set::filter_type;
@@ -173,7 +171,7 @@ pub(crate) fn exact_geometry_changed(before: &DrDocument, after: &DrDocument) ->
             return true;
         }
         if let (Some(left), Some(right)) = (&left.mask, &right.mask) {
-            if left.dimensions() != right.dimensions() || left.as_raw() != right.as_raw() {
+            if !left.same_bytes(right) {
                 return true;
             }
         }
@@ -182,10 +180,7 @@ pub(crate) fn exact_geometry_changed(before: &DrDocument, after: &DrDocument) ->
         .channels
         .iter()
         .zip(&after.channels)
-        .any(|(left, right)| {
-            left.data.dimensions() != right.data.dimensions()
-                || left.data.as_raw() != right.data.as_raw()
-        })
+        .any(|(left, right)| !left.data.same_bytes(&right.data))
 }
 
 /// What an angle MEANS to this op, once normalized.
@@ -373,9 +368,10 @@ pub(crate) fn channels_into(
     for (c, channel) in channels.iter().enumerate() {
         let c = c as f64;
         job.report(at(c), 6)?;
+        let source = channel.data.to_image()?;
         out.push(Channel {
-            data: Arc::new(resample_mask_with_context(
-                &channel.data,
+            data: crate::doc::GrayRaster::new(resample_mask_with_context(
+                &source,
                 rect,
                 &map,
                 sampler,

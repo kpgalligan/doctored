@@ -56,9 +56,10 @@ impl DrDocument {
             return Ok(None);
         };
         let pixels = self.flattened()?;
+        let coverage = self.channels[i].data.to_image()?;
         let printed = image_spot_overprint(
             &DrImage { pixels },
-            self.channels[i].data.as_raw(),
+            coverage.as_raw(),
             &ink,
             Some(&self.profile),
         )?;

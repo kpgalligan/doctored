@@ -333,13 +333,13 @@ impl DrDocument {
             .mask
             .as_ref()
             .ok_or_else(|| no_variations(layer))?;
-        let n = plane.as_raw().len();
+        let n = plane.byte_len() as usize;
         let plan = self
             .gen_fill_plan(table.native, 0)?
             .saturating_add(2 * n as u64);
         admit(self.gen_fill_retained(), plan, other, limit)?;
         let mut coverage: Vec<u16> = reserved_vec(n)?;
-        coverage.extend(plane.as_raw().iter().map(|&v| u16::from(v) * 257));
+        coverage.extend(plane.runs().flatten().map(|&v| u16::from(v) * 257));
         let hidden = self
             .with_layer_visible(layer, false)
             .unwrap_or_else(|| self.clone());
@@ -575,13 +575,13 @@ impl PrecisionDocument {
         let table = &binding.table;
         let record = self.layer(layer).ok_or_else(|| out_of_range(layer))?;
         let plane = record.mask().ok_or_else(|| no_variations(layer))?.plane();
-        let samples = plane.samples();
+        let n = (plane.storage_bytes() / 2) as usize;
         let plan = self
             .gen_fill_plan(table.native, 0)?
-            .saturating_add(2 * samples.len() as u64);
+            .saturating_add(2 * n as u64);
         admit(self.retained_bytes(), plan, other, limit)?;
-        let mut coverage: Vec<u16> = reserved_vec(samples.len())?;
-        coverage.extend_from_slice(samples);
+        let mut coverage: Vec<u16> = reserved_vec(n)?;
+        coverage.extend(plane.runs().flatten());
         let mut hidden = record.clone();
         hidden.opacity = 0.0;
         let hidden = self.replacing_layer_for_plan(layer, hidden)?;
@@ -590,7 +590,7 @@ impl PrecisionDocument {
             &coverage,
             table.native,
             Some(rect(table.crop)),
-            2 * samples.len() as u64,
+            2 * n as u64,
             image_out,
             mask_out,
             limit,

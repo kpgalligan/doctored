@@ -1,4 +1,5 @@
 //! Independent mask storage, nondestructive coverage and v10 migration.
+use doctored_core::doc::GrayRaster;
 use std::ffi::CString;
 use std::ptr;
 use std::sync::Arc;
@@ -68,7 +69,7 @@ fn properties_preserve_raw_and_pixels_with_independent_gaussian_oracle() {
         &doc.layers[1].pixels,
         &adjusted.layers[1].pixels
     ));
-    assert!(Arc::ptr_eq(
+    assert!(GrayRaster::ptr_eq(
         doc.layers[1].mask.as_ref().unwrap(),
         adjusted.layers[1].mask.as_ref().unwrap()
     ));
@@ -159,7 +160,7 @@ fn mask_affine_keeps_pixels_and_raw_extent_out_and_back() {
         &moved.layers[1].pixels
     ));
     assert_eq!(doc.layers[1].offset, moved.layers[1].offset);
-    assert!(Arc::ptr_eq(
+    assert!(GrayRaster::ptr_eq(
         doc.layers[1].mask.as_ref().unwrap(),
         moved.layers[1].mask.as_ref().unwrap()
     ));
@@ -179,12 +180,12 @@ fn mask_affine_keeps_pixels_and_raw_extent_out_and_back() {
     assert_eq!(properties(&rotated, 1)["offset_y"], 2);
     let raw = doc.layers[1].mask.as_ref().unwrap();
     let expected = vec![
-        raw[(0, 1)][0],
-        raw[(0, 0)][0],
-        raw[(1, 1)][0],
-        raw[(1, 0)][0],
-        raw[(2, 1)][0],
-        raw[(2, 0)][0],
+        raw.get_pixel(0, 1)[0],
+        raw.get_pixel(0, 0)[0],
+        raw.get_pixel(1, 1)[0],
+        raw.get_pixel(1, 0)[0],
+        raw.get_pixel(2, 1)[0],
+        raw.get_pixel(2, 0)[0],
     ];
     assert_eq!(mask_bytes(&rotated, 1), expected);
     assert!(LayerRaster::ptr_eq(
@@ -498,7 +499,7 @@ fn fractional_mask_affine_is_bilinear_and_rerasterizing_content_preserves_mask()
     });
     assert_eq!(properties(&rendered, 1), properties(&configured, 1));
     assert_eq!(mask_bytes(&rendered, 1), mask_bytes(&configured, 1));
-    assert!(Arc::ptr_eq(
+    assert!(GrayRaster::ptr_eq(
         rendered.layers[1].mask.as_ref().unwrap(),
         configured.layers[1].mask.as_ref().unwrap()
     ));
@@ -530,7 +531,7 @@ fn independent_mask_capacity_is_checked_before_large_decode_and_duplicate() {
     //50MB actual raw bytes, referenced136times:6.8B serialized mask pixels,
     // the prior active-group6.4B + raster400M budgets. No gigabyte allocation
     // or encoding is needed to test framing independently of live heap usage.
-    let raw = Arc::new(image::GrayImage::new(10000, 5000));
+    let raw = GrayRaster::new(image::GrayImage::new(10000, 5000));
     let mut large = DrDocument::from_pixels(solid(1, 1, BLUE));
     large.layers[0].mask = Some(raw);
     large.layers = vec![large.layers[0].clone(); 136];

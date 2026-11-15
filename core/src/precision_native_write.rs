@@ -808,7 +808,7 @@ impl PrecisionDocument {
                     for value in [p.density, p.feather] {
                         append(out, &value.to_le_bytes(), bound, job)?;
                     }
-                    put_plane(out, mask.plane().samples(), bound, job)?;
+                    put_plane(out, mask.plane(), bound, job)?;
                 }
                 match &layer.content {
                     Content::Raster { image, .. } if float => {
@@ -865,7 +865,7 @@ impl PrecisionDocument {
         )?;
         for channel in self.channels.iter() {
             put_blob(out, channel.name().as_bytes(), plan.encoded_bound, job)?;
-            put_plane(out, channel.plane().samples(), plan.encoded_bound, job)?;
+            put_plane(out, channel.plane(), plan.encoded_bound, job)?;
         }
         if crate::artwork_native::header_bytes(self) > 0
             && !matches!(
@@ -1037,21 +1037,34 @@ fn table(
     append(out, scratch, bound, job)
 }
 
+/// A typed plane as its byte length and its row-major samples, little
+/// endian, staged and appended 4096 samples at a time with one poll per
+/// block — the bytes and the cadence of the contiguous plane's walk, read
+/// from the tiles' runs (13B-4).
 fn put_plane(
     out: &mut dyn NativeSink,
-    samples: &[u16],
+    plane: &crate::precision_mask::PrecisionPlane,
     bound: u64,
     job: JobContext<'_>,
 ) -> Result<(), String> {
-    append(out, &(samples.len() as u64 * 2).to_le_bytes(), bound, job)?;
-    out.begin_blob(samples.len() as u64 * 2)?;
+    let len = plane.storage_bytes();
+    append(out, &len.to_le_bytes(), bound, job)?;
+    out.begin_blob(len)?;
     let mut bytes = [0_u8; 8192];
-    for chunk in samples.chunks(4096) {
-        job.check()?;
-        for (sample, dest) in chunk.iter().zip(bytes.chunks_exact_mut(2)) {
-            dest.copy_from_slice(&sample.to_le_bytes());
+    let mut filled = 0;
+    for &sample in plane.runs().flatten() {
+        if filled == 0 {
+            job.check()?;
         }
-        append(out, &bytes[..chunk.len() * 2], bound, job)?;
+        bytes[filled..filled + 2].copy_from_slice(&sample.to_le_bytes());
+        filled += 2;
+        if filled == bytes.len() {
+            append(out, &bytes, bound, job)?;
+            filled = 0;
+        }
+    }
+    if filled > 0 {
+        append(out, &bytes[..filled], bound, job)?;
     }
     Ok(())
 }

@@ -480,7 +480,7 @@ impl DrDocument {
         let mask = GrayImage::from_raw(canvas.0, canvas.1, mask)
             .ok_or("generative fill could not build its mask")?;
         let mut entry = Layer::from_raster(LayerRaster::unseeded(image), name);
-        entry.mask = Some(Arc::new(mask));
+        entry.mask = Some(crate::doc::GrayRaster::new(mask));
         entry.mask_enabled = true;
         entry.mask_properties = MaskProperties::at((0, 0));
         entry.meta = Some(tag.into());

@@ -621,7 +621,7 @@ fn a_typed_vector_mask_follows_the_geometry_ops() {
         &typed(W, H),
         &json!({"op": "set_mask", "layer": 0, "width": mw, "height": mh,
                 "x": at.0, "y": at.1}),
-        mask.plane().samples(),
+        &mask.plane().samples(),
     ));
     assert!(view(&twin, 0).is_none());
     assert_eq!(alpha(&twin), alpha(&doc));

@@ -412,7 +412,7 @@ pub unsafe extern "C" fn dr_doc_channel_plane(
             if w != d.width || h != d.height {
                 return None;
             }
-            write_plane(d.channel_plane(i)?, out, w, h)
+            write_plane(&d.channel_plane(i)?, out, w, h)
         })
     }
 }
@@ -610,7 +610,7 @@ pub unsafe extern "C" fn dr_doc_channel_image(
         doc_get(doc, ptr::null_mut(), |d| {
             let plane = d.channel_plane(i)?;
             Some(Box::into_raw(Box::new(plane_image(
-                plane, d.width, d.height, max_side,
+                &plane, d.width, d.height, max_side,
             )?)))
         })
     }

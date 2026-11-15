@@ -551,7 +551,7 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
                         ),
                     });
                 }
-                Some(Arc::clone(&pending_mask))
+                Some(crate::doc::GrayRaster::shared(Arc::clone(&pending_mask)))
             }
         };
         layer_planes.push((png, (lw, lh), mask_raw, (mw, mh)));
@@ -667,7 +667,10 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
                 overlay_color,
                 overlay_opacity,
                 color_indicates_selected,
-                ..Channel::new(&name, Arc::clone(&pending_mask))
+                ..Channel::new(
+                    &name,
+                    crate::doc::GrayRaster::shared(Arc::clone(&pending_mask)),
+                )
             });
         }
     }
@@ -1218,7 +1221,7 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
         layer.mask = mask
             .map(|raw| {
                 GrayImage::from_raw(mask_dims.0, mask_dims.1, raw.to_vec())
-                    .map(Arc::new)
+                    .map(crate::doc::GrayRaster::new)
                     .ok_or_else(|| "invalid layer mask".to_string())
             })
             .transpose()?;
@@ -1226,7 +1229,7 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
     let first_channel = layers.len();
     for (index, (channel, png)) in channels.iter_mut().zip(channel_planes).enumerate() {
         job.report((first_channel + index) as f64 / planes, 1)?;
-        channel.data = Arc::new(
+        channel.data = crate::doc::GrayRaster::new(
             decode(png)
                 .map_err(|e| format!("failed to decode channel plane: {e}"))?
                 .to_luma8(),

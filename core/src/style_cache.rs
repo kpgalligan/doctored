@@ -111,11 +111,10 @@
 //! keys, the shape-equality refresh, the incremental sub-plane re-render for a brush tick, and the
 //! hand-over from a replaced style (`inherit_planes`).
 
-use std::sync::{Arc, Mutex, PoisonError, Weak};
+use std::sync::{Arc, Mutex, PoisonError};
 
-use image::GrayImage;
-
-use crate::doc::Layer;
+use crate::doc::{GrayRaster, Layer};
+use crate::gray_raster::GrayRasterKey;
 use crate::job_control::JobContext;
 use crate::layer_raster::LayerRasterKey;
 use crate::style::{Effect, GlobalLight, LayerStyle};
@@ -234,7 +233,7 @@ struct Found {
 
 struct CacheKey {
     pixels: LayerRasterKey,
-    mask: Option<Weak<GrayImage>>,
+    mask: Option<GrayRasterKey>,
     mask_enabled: bool,
     mask_density: u32,
     mask_feather: u32,
@@ -249,7 +248,7 @@ impl CacheKey {
     fn of(style: &LayerStyle, layer: &Layer, ctx: &RenderContext) -> Self {
         CacheKey {
             pixels: layer.pixels.key(),
-            mask: layer.mask.as_ref().map(Arc::downgrade),
+            mask: layer.mask.as_ref().map(GrayRaster::key),
             mask_enabled: layer.mask_enabled,
             mask_density: layer.mask_properties.density.to_bits(),
             mask_feather: layer.mask_properties.feather.to_bits(),
@@ -287,7 +286,7 @@ impl CacheKey {
     fn matches(&self, other: &CacheKey) -> bool {
         let mask_same = match (&self.mask, &other.mask) {
             (None, None) => true,
-            (Some(a), Some(b)) => std::ptr::eq(a.as_ptr(), b.as_ptr()),
+            (Some(a), Some(b)) => a.same(b),
             _ => false,
         };
         self.pixels.same(&other.pixels)

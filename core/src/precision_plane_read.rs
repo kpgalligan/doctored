@@ -194,22 +194,23 @@ impl PlaneRead {
         let mut out = reserved_vec(n)?;
         match self.target {
             ReadTarget::Mask | ReadTarget::Channel => {
-                let values = if matches!(self.target, ReadTarget::Mask) {
+                let plane = if matches!(self.target, ReadTarget::Mask) {
                     doc.layer(self.index)
                         .and_then(|l| l.mask.as_ref())
                         .ok_or("high-depth target has no mask")?
                         .plane()
-                        .samples()
                 } else {
                     doc.channels()
                         .get(self.index)
                         .ok_or("high-depth channel index is out of range")?
                         .plane()
-                        .samples()
                 };
-                for chunk in values.chunks(4096) {
-                    job.check()?;
-                    out.extend_from_slice(chunk);
+                // Once per 4096 samples, before each block (the slice walk's
+                // cadence), straight from the tiles, run by run.
+                let mut visited = 0;
+                for run in plane.runs() {
+                    visited = job.every_run(visited, run.len())?;
+                    out.extend_from_slice(run);
                 }
             }
             ReadTarget::EffectiveMask => {

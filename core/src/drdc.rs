@@ -951,23 +951,28 @@ impl DrDocument {
             // which the shared preflight and reader both check. A broken
             // pairing refuses the save before encoding, preserving the mask
             // and the prior good file.
-            let mask = layer.mask.as_deref();
+            let mask = layer.mask.as_ref();
             buf.push(u8::from(mask.is_some()));
             buf.push(u8::from(layer.mask_enabled));
             if let Some(mask) = mask {
-                let bytes = mask.as_raw();
+                // The plane's row-major samples, run by run (13B-4: the
+                // tiles read in row order write the bytes a contiguous plane
+                // wrote).
+                let len = mask.byte_len();
                 let mask_len =
-                    u32::try_from(bytes.len()).map_err(|_| "layer mask too large".to_string())?;
+                    u32::try_from(len).map_err(|_| "layer mask too large".to_string())?;
                 buf.extend_from_slice(&mask_len.to_le_bytes());
                 buf.extend_from_slice(&mask.width().to_le_bytes());
                 buf.extend_from_slice(&mask.height().to_le_bytes());
                 if let Some(marks) = &mut capture {
                     marks.push(ByteMark::Blob {
                         at: buf.len(),
-                        len: bytes.len(),
+                        len: len as usize,
                     });
                 }
-                buf.extend_from_slice(bytes);
+                for run in mask.runs() {
+                    buf.extend_from_slice(run);
+                }
             }
             put_opt_string(&mut buf, layer.meta.as_deref(), "meta")?;
             // Version 3 field.
@@ -1022,8 +1027,11 @@ impl DrDocument {
                 (cw, ch),
                 1,
             )?)?;
+            // One transient copy of the plane for the encoder (the save
+            // plan's `K`).
+            let plane = channel.data.to_image()?;
             PngEncoder::new(Polled::new(&mut png, job))
-                .write_image(channel.data.as_raw(), cw, ch, ExtendedColorType::L8)
+                .write_image(plane.as_raw(), cw, ch, ExtendedColorType::L8)
                 .map_err(|e| format!("PNG encoding failed: {e}"))?;
             let png_len = u32::try_from(png.len())
                 .ok()

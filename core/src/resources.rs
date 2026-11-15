@@ -166,8 +166,7 @@ impl Inventory {
             }
             layer.pixels.record_resources(self, "layer_pixels", false);
             if let Some(mask) = &layer.mask {
-                self.object(&**mask, "shared_buffer_structure", false);
-                self.vec(mask.as_raw(), "layer_masks", false);
+                mask.record_resources(self, "layer_masks", false);
             }
             self.string(&layer.name, "document_strings", false);
             if let Some(meta) = &layer.meta {
@@ -187,15 +186,13 @@ impl Inventory {
                 continue;
             };
             let slot = document.layers[idx].mask.as_ref();
-            if slot.is_some_and(|slot| Arc::ptr_eq(slot, &raster.plane)) {
+            if slot.is_some_and(|slot| crate::doc::GrayRaster::ptr_eq(slot, &raster.plane)) {
                 continue;
             }
-            self.object(&*raster.plane, "shared_buffer_structure", false);
-            self.vec(raster.plane.as_raw(), "layer_masks", false);
+            raster.plane.record_resources(self, "layer_masks", false);
         }
         for channel in &document.channels {
-            self.object(&*channel.data, "shared_buffer_structure", false);
-            self.vec(channel.data.as_raw(), "saved_channels", false);
+            channel.data.record_resources(self, "saved_channels", false);
             self.string(&channel.name, "document_strings", false);
         }
         self.object(&*document.profile, "profile", false);
@@ -334,8 +331,7 @@ pub(crate) fn cache_inventory(
         .flat_map(|l| l.mask_properties.cached_planes())
         .collect();
     for mask in &masks {
-        inventory.object(&**mask, "mask_cache_structure", true);
-        inventory.vec(mask.as_raw(), "mask_cache_planes", true);
+        mask.record_cache_resources(inventory);
     }
     crate::adjust_lut::record_cached_resources(inventory);
 }

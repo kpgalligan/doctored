@@ -34,8 +34,9 @@
 //! channel), `px = w·h`, and G its W term:
 //! `f = c·px + h` (the filtered stream), `Cm = ⌈3f/2⌉ + 4096` (fdeflate's
 //! UltraFast output, literal codes ≤ 12 bits), `Sm = f + 5·⌈f/65535⌉ + 11`
-//! (the stored-only fallback), `K = 4·px` for `c = 4` (the `to_contiguous`
-//! copy, 0 for a channel), `R = 2·(c·w + 1)` (png's two rows), and
+//! (the stored-only fallback), `K = c·px` (the transient contiguous copy the
+//! encoder reads: a layer's `to_contiguous`, a channel's `GrayRaster::to_image`
+//! since 13B-4), `R = 2·(c·w + 1)` (png's two rows), and
 //! `X = max(K + R + 2·Cm, K + R + Cm + 2·Sm, K + Sm + G, 2·G) + 1 MiB`: the
 //! compressed Vec mid doubling-realloc, the stored fallback mid
 //! doubling-realloc beside it, the IDAT copy into the reserved PNG Vec, and
@@ -133,7 +134,7 @@ fn byte_plane_transient(dimensions: (u32, u32), channels: u32, g: u64) -> Result
     let f = add(mul(c, px)?, h)?;
     let cm = add(mul(f, 3)?.div_ceil(2), 4096)?;
     let sm = add(add(f, mul(f.div_ceil(65535), 5)?)?, 11)?;
-    let k = if channels == 4 { mul(px, 4)? } else { 0 };
+    let k = mul(px, c)?;
     let r = mul(add(mul(c, w)?, 1)?, 2)?;
     let kr = add(k, r)?;
     let a = add(kr, mul(cm, 2)?)?;
@@ -179,7 +180,7 @@ impl DrDocument {
             let g = byte_png_bound(dims, 4)?;
             encoded = add(encoded, add(64 + name_len(&layer.name), g)?)?;
             if let Some(mask) = &layer.mask {
-                encoded = add(encoded, add(64, mask.as_raw().len() as u64)?)?;
+                encoded = add(encoded, add(64, mask.byte_len())?)?;
             }
             if let Some(meta) = &layer.meta {
                 encoded = add(encoded, add(5, meta.len() as u64)?)?;

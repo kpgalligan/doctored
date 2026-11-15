@@ -18,10 +18,10 @@
 //! rect against the edit's. No golden images.
 #![allow(clippy::needless_range_loop)]
 
+use doctored_core::doc::GrayRaster;
 use std::f64::consts::PI;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
-use std::sync::Arc;
 
 use crate::common::selected_pixels::take_err;
 use crate::float_fixture::float_doc;
@@ -548,7 +548,7 @@ fn take2_rows_from_the_takes_focal_and_yaw() {
 fn a_linked_mask_reprojects_along_and_an_unlinked_mask_stays() {
     for linked in [true, false] {
         let mut doc = byte_doc();
-        let mask = Arc::new(GrayImage::from_pixel(SIZE.0, SIZE.1, image::Luma([200])));
+        let mask = GrayRaster::new(GrayImage::from_pixel(SIZE.0, SIZE.1, image::Luma([200])));
         let mut properties = MaskProperties::at(OFFSET);
         properties.linked = linked;
         properties.outside_coverage = 255;
@@ -567,7 +567,7 @@ fn a_linked_mask_reprojects_along_and_an_unlinked_mask_stays() {
         let layer = &out.layers[0];
         let after = layer.mask.as_ref().unwrap();
         if !linked {
-            assert!(Arc::ptr_eq(after, &mask));
+            assert!(GrayRaster::ptr_eq(after, &mask));
             assert_eq!(layer.mask_properties.offset, OFFSET);
             continue;
         }

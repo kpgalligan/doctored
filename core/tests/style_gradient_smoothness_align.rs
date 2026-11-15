@@ -21,7 +21,6 @@
 
 use std::ffi::CString;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::{DrDocument, MaskKind};
 use doctored_core::doc_mask::MaskProperties;
@@ -403,7 +402,7 @@ fn the_byte_box_is_the_masks_coverage_bounds_clipped_to_the_canvas() {
         .add_mask(0, MaskKind::FromSelection(&selection_rect(RECT)))
         .unwrap();
     assert_eq!(
-        masked.layers[0].mask.as_deref().map(|m| m.dimensions()),
+        masked.layers[0].mask.as_ref().map(|m| m.dimensions()),
         Some(CANVAS),
         "a canvas-sized mask"
     );
@@ -430,9 +429,9 @@ fn the_byte_box_is_the_masks_coverage_bounds_clipped_to_the_canvas() {
     assert_eq!(byte_box(&hidden, 0), Some(WHOLE), "no coverage");
     // A soft edge sample above zero widens the box.
     let mut soft = masked.clone();
-    let mut plane: GrayImage = (*soft.layers[0].mask.clone().unwrap()).clone();
+    let mut plane: GrayImage = soft.layers[0].mask.as_ref().unwrap().to_image().unwrap();
     plane.put_pixel(50, 40, Luma([1]));
-    soft.layers[0].mask = Some(Arc::new(plane));
+    soft.layers[0].mask = Some(doctored_core::doc::GrayRaster::new(plane));
     assert_eq!(byte_box(&soft, 0), Some([8, 6, 43, 35]));
     // A layer past the canvas, revealed in full: clipped to the canvas.
     for ((size, offset), want) in [

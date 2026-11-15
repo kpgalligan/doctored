@@ -49,9 +49,9 @@
 //! arithmetic. Style and mask caches are `Arc`s every clone shares, so every
 //! run that must render builds its fixture anew.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::ptr;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use doctored_core::doc::{BlendMode, DrDocument, LayerRaster};
@@ -276,7 +276,7 @@ fn q() -> DrDocument {
     properties.density = 0.9;
     properties.feather = 0.0;
     let layer = &mut doc.layers[g];
-    layer.mask = Some(Arc::new(gradient(W, H)));
+    layer.mask = Some(GrayRaster::new(gradient(W, H)));
     layer.mask_enabled = true;
     layer.mask_properties = properties;
     styled(

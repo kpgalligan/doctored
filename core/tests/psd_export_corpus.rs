@@ -11,6 +11,7 @@
 //! `manifest.json`; with the variable unset the test asserts the bytes and the
 //! manifest equal the committed `tests/fixtures/psd_10b/<case>/` copies.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::path::{Path, PathBuf};
 use std::ptr;
@@ -245,7 +246,7 @@ fn set_mask(
     enabled: bool,
 ) {
     let layer = &mut doc.layers[index];
-    layer.mask = Some(Arc::new(plane));
+    layer.mask = Some(GrayRaster::new(plane));
     layer.mask_enabled = enabled;
     layer.mask_properties.offset = at;
     layer.mask_properties.outside_coverage = outside;
@@ -367,7 +368,7 @@ fn styled_effects() -> DrDocument {
     for (index, pixel) in mask.pixels_mut().enumerate() {
         pixel.0[0] = (index * 3 % 256) as u8;
     }
-    styled.mask = Some(Arc::new(mask));
+    styled.mask = Some(GrayRaster::new(mask));
     styled.mask_enabled = true;
     styled.mask_properties.offset = (10, 10);
     doc
@@ -497,9 +498,14 @@ fn opacity_byte(opacity: f32) -> u8 {
     (opacity.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
-fn mask_row(plane: &GrayImage, at: (i32, i32), outside: u8, enabled: bool) -> Value {
+fn mask_row(
+    plane: &doctored_core::doc::GrayRaster,
+    at: (i32, i32),
+    outside: u8,
+    enabled: bool,
+) -> Value {
     let (w, h) = plane.dimensions();
-    json!({"size": [w, h], "offset": [at.0, at.1], "coverage": plane.as_raw(),
+    json!({"size": [w, h], "offset": [at.0, at.1], "coverage": plane.samples(),
            "outside_coverage": outside, "enabled": enabled})
 }
 

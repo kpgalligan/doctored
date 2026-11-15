@@ -17,7 +17,12 @@ impl DrDocument {
     /// only for an out-of-range index.
     pub fn fill_align_box(&self, idx: usize) -> Option<[i32; 4]> {
         let layer = self.layers.get(idx)?;
-        let mask = layer.mask.as_ref().map(|plane| MaskCoverage {
+        // One transient copy of the mask: the rule reads it as a slice.
+        let copy = match &layer.mask {
+            Some(plane) => Some(plane.to_image().ok()?),
+            None => None,
+        };
+        let mask = copy.as_ref().map(|plane| MaskCoverage {
             samples: plane.as_raw().as_slice(),
             dimensions: plane.dimensions(),
             offset: layer.mask_properties.offset,
@@ -34,13 +39,22 @@ impl PrecisionDocument {
     /// alike. `None` only for an out-of-range index.
     pub fn fill_align_box(&self, idx: usize) -> Option<[i32; 4]> {
         let record = self.layer(idx)?;
-        let mask = record.mask.as_ref().map(|mask| MaskCoverage {
-            samples: mask.plane().samples(),
-            dimensions: mask.plane().dimensions(),
-            offset: mask.properties().offset,
-            outside: mask.properties().outside_coverage,
-            enabled: mask.enabled(),
-        });
+        // One transient copy of the mask: the rule reads it as a slice.
+        let copy = match &record.mask {
+            Some(mask) => Some(mask.plane().to_contiguous().ok()?),
+            None => None,
+        };
+        let mask = record
+            .mask
+            .as_ref()
+            .zip(copy.as_ref())
+            .map(|(mask, samples)| MaskCoverage {
+                samples: samples.as_slice(),
+                dimensions: mask.plane().dimensions(),
+                offset: mask.properties().offset,
+                outside: mask.properties().outside_coverage,
+                enabled: mask.enabled(),
+            });
         Some(align_box(self.dimensions(), mask))
     }
 }

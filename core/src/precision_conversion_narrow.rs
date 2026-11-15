@@ -190,14 +190,17 @@ fn area((w, h): (u32, u32)) -> u64 {
 }
 
 /// One u16 coverage plane as bytes, `precision_quantize::nearest` per sample.
-fn nearest_plane(plane: &PrecisionPlane, job: JobContext<'_>) -> Result<Arc<GrayImage>, String> {
+fn nearest_plane(
+    plane: &PrecisionPlane,
+    job: JobContext<'_>,
+) -> Result<crate::doc::GrayRaster, String> {
     let (w, h) = plane.dimensions();
-    let mut out = reserved_vec(plane.samples().len())?;
-    for (i, v) in plane.samples().iter().enumerate() {
+    let mut out = reserved_vec((plane.storage_bytes() / 2) as usize)?;
+    for (i, v) in plane.runs().flatten().enumerate() {
         job.every(i)?;
         out.push(nearest(*v));
     }
-    Ok(Arc::new(
+    Ok(crate::doc::GrayRaster::new(
         GrayImage::from_raw(w, h, out).ok_or("invalid narrowed plane dimensions")?,
     ))
 }
@@ -421,7 +424,7 @@ impl PrecisionDocument {
                 walk.masks.push(dims);
                 let plane = match job {
                     Some(job) => nearest_plane(&mask.plane, job)?,
-                    None => Arc::new(GrayImage::new(1, 1)),
+                    None => crate::doc::GrayRaster::new(GrayImage::new(1, 1)),
                 };
                 (Some(plane), mask.properties.clone(), mask.enabled)
             }
@@ -550,7 +553,7 @@ impl PrecisionDocument {
             walk.output = walk.output.saturating_add(area(mask.dimensions()));
             source_mask = Some(match job {
                 Some(job) => nearest_plane(mask, job)?,
-                None => Arc::new(GrayImage::new(1, 1)),
+                None => crate::doc::GrayRaster::new(GrayImage::new(1, 1)),
             });
         }
         notes.push("warp's retained original quantized to 8 bits".into());

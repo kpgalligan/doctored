@@ -21,8 +21,6 @@
 //! 36-byte body's real `-3` are read by [`VectorMaskRole`]. Other extended and parameter forms
 //! remain explicit losses; malformed admitted mask data refuses layers.
 
-use std::sync::Arc;
-
 use image::GrayImage;
 
 use crate::doc::{Layer, LayerKind};
@@ -347,7 +345,7 @@ impl<'a> MaskRecord<'a> {
             // never this raw record offset, and respect the independent mask.
             layer.offset = properties.offset;
         }
-        layer.mask = Some(Arc::new(pixels));
+        layer.mask = Some(crate::doc::GrayRaster::new(pixels));
         layer.mask_enabled = mask.enabled;
         layer.mask_properties = properties;
         Ok(())

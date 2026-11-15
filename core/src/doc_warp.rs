@@ -55,7 +55,7 @@ impl Layer {
         }
         if let Some(rendered) = &binding.rendered_mask {
             let actual = self.mask.as_ref()?;
-            if !Arc::ptr_eq(rendered, actual)
+            if !crate::doc::GrayRaster::ptr_eq(rendered, actual)
                 || self.mask_properties.offset != binding.rendered_mask_offset
             {
                 return None;
@@ -151,14 +151,17 @@ fn render_pixels(
     ))
 }
 
+/// The warped mask: one transient copy of `source` (the resample-input
+/// rule), the output tiled.
 fn render_mask(
-    source: &Arc<GrayImage>,
+    source: &crate::doc::GrayRaster,
     origin: (i32, i32),
     dest: (i32, i32, u32, u32),
     field: &WarpField,
     outside: u8,
     job: JobContext<'_>,
-) -> Result<Arc<GrayImage>, String> {
+) -> Result<crate::doc::GrayRaster, String> {
+    let source = source.to_image()?;
     let mut out = vec![outside; dest.2 as usize * dest.3 as usize];
     warp_into(
         byte_rect(origin, source.dimensions()),
@@ -170,7 +173,7 @@ fn render_mask(
         |i, p| out[i] = p,
         job,
     )?;
-    Ok(Arc::new(
+    Ok(crate::doc::GrayRaster::new(
         GrayImage::from_raw(dest.2, dest.3, out)
             .ok_or("warp mask output dimensions are invalid")?,
     ))

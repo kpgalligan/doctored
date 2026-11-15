@@ -147,10 +147,10 @@ pub(crate) fn channels32(image: &PrecisionImage) -> Option<Vec<(i16, Vec<u8>)>> 
 /// A u16 coverage plane as a Raw plane of big-endian f32 `v / 65535`. The
 /// quotient is formed in f64 and rounded once to f32, so the reader's
 /// `round(v · 65535)` returns every code exactly.
-pub(crate) fn mask_plane32(samples: &[u16]) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(samples.len() * 4);
+pub(crate) fn mask_plane32(samples: impl Iterator<Item = u16>) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(samples.size_hint().0 * 4);
     for sample in samples {
-        bytes.extend_from_slice(&((f64::from(*sample) / 65535.0) as f32).to_be_bytes());
+        bytes.extend_from_slice(&((f64::from(sample) / 65535.0) as f32).to_be_bytes());
     }
     raw_plane(&bytes)
 }

@@ -428,7 +428,7 @@ fn eight_bit_records_import_as_adjustment_layers_with_their_expected_metas() {
         match kind.name {
             "BlackWhite" => {
                 let mask = layer.mask.as_ref().expect("the Black & White mask");
-                assert_eq!(mask.as_raw(), &mask8().coverage);
+                assert_eq!(mask.samples(), mask8().coverage);
                 assert!(!layer.clipped);
                 assert_eq!(layer.blend, BlendMode::Normal);
             }

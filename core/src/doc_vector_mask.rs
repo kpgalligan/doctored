@@ -66,7 +66,7 @@ use std::sync::Arc;
 
 use image::GrayImage;
 
-use crate::doc::{translated_offset, DrDocument, Layer, LayerKind};
+use crate::doc::{translated_offset, DrDocument, GrayRaster, Layer, LayerKind};
 use crate::doc_lock::EditKind;
 use crate::doc_mask::MaskProperties;
 use crate::job_control::JobContext;
@@ -78,7 +78,7 @@ use crate::vector_mask_common::{
 /// The user's own raster mask, kept beside the shape.
 #[derive(Clone)]
 pub(crate) struct RasterPart {
-    pub(crate) plane: Arc<GrayImage>,
+    pub(crate) plane: GrayRaster,
     pub(crate) properties: MaskProperties,
     pub(crate) enabled: bool,
 }
@@ -96,7 +96,7 @@ pub(crate) struct VectorMaskRecord {
     pub(crate) raster: Option<RasterPart>,
     /// The plane this record put in the layer's slot; `None` when it left
     /// the slot empty.
-    pub(crate) baked: Option<Arc<GrayImage>>,
+    pub(crate) baked: Option<GrayRaster>,
     /// The slot's offset as of the bake.
     pub(crate) baked_offset: (i32, i32),
 }
@@ -115,7 +115,7 @@ impl std::fmt::Debug for VectorMaskRecord {
 
 /// What a bake puts in the layer's slot.
 struct Slot {
-    mask: Option<Arc<GrayImage>>,
+    mask: Option<GrayRaster>,
     enabled: bool,
     properties: MaskProperties,
 }
@@ -129,7 +129,7 @@ fn narrowed(sample: u16) -> u8 {
 fn slot_matches(layer: &Layer, record: &VectorMaskRecord) -> bool {
     match (&layer.mask, &record.baked) {
         (None, None) => true,
-        (Some(slot), Some(baked)) => Arc::ptr_eq(slot, baked),
+        (Some(slot), Some(baked)) => GrayRaster::ptr_eq(slot, baked),
         _ => false,
     }
 }
@@ -234,7 +234,7 @@ impl DrDocument {
                 let shared = self.layers[*idx]
                     .mask
                     .as_ref()
-                    .is_some_and(|slot| Arc::ptr_eq(slot, &raster.plane));
+                    .is_some_and(|slot| GrayRaster::ptr_eq(slot, &raster.plane));
                 (!shared).then(|| raster.plane.dimensions())
             })
             .collect()
@@ -293,7 +293,7 @@ impl DrDocument {
         if !on {
             if let Some(raster) = &record.raster {
                 return Ok(Slot {
-                    mask: Some(Arc::clone(&raster.plane)),
+                    mask: Some(raster.plane.clone()),
                     enabled: raster.enabled,
                     properties: raster.properties.clone(),
                 });
@@ -331,12 +331,12 @@ impl DrDocument {
             // The raster part's EFFECTIVE coverage over the same rectangle,
             // through the one mask evaluation (`doc_mask`).
             let mut holder = layer.clone();
-            holder.mask = Some(Arc::clone(&raster.plane));
+            holder.mask = Some(raster.plane.clone());
             holder.mask_properties = uncached(&raster.properties);
             let effective = holder
                 .effective_mask_rect_with_job((x, y), w, h, job)?
                 .ok_or("internal error: vector mask raster part")?;
-            for (sample, keep) in plane.iter_mut().zip(effective.as_raw()) {
+            for (sample, keep) in plane.iter_mut().zip(effective.runs().flatten()) {
                 *sample = ((u32::from(*sample) * u32::from(*keep) + 127) / 255) as u8;
             }
         }
@@ -348,7 +348,7 @@ impl DrDocument {
         let plane =
             GrayImage::from_raw(w, h, plane).ok_or("internal error: vector mask plane size")?;
         Ok(Slot {
-            mask: Some(Arc::new(plane)),
+            mask: Some(GrayRaster::new(plane)),
             enabled: on,
             properties,
         })
@@ -432,7 +432,7 @@ impl DrDocument {
                 // is unlinked gets an unlinked vector mask.
                 linked: layer.mask.is_none() || layer.mask_properties.linked,
                 raster: layer.mask.as_ref().map(|plane| RasterPart {
-                    plane: Arc::clone(plane),
+                    plane: plane.clone(),
                     properties: layer.mask_properties.clone(),
                     enabled: layer.mask_enabled,
                 }),
@@ -489,7 +489,7 @@ impl DrDocument {
         let layer = &mut self.layers[idx];
         match &record.raster {
             Some(raster) => {
-                layer.mask = Some(Arc::clone(&raster.plane));
+                layer.mask = Some(raster.plane.clone());
                 layer.mask_enabled = raster.enabled;
                 layer.mask_properties = raster.properties.clone();
             }
@@ -533,7 +533,7 @@ impl DrDocument {
         let layer = &edited.layers[idx];
         let was_linked = record.raster.as_ref().map(|r| r.properties.linked);
         record.raster = layer.mask.as_ref().map(|plane| RasterPart {
-            plane: Arc::clone(plane),
+            plane: plane.clone(),
             properties: layer.mask_properties.clone(),
             enabled: layer.mask_enabled,
         });

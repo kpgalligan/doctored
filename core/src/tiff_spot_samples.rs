@@ -172,10 +172,10 @@ pub(crate) fn tiff_stored(coverage: u16, max: u16) -> u16 {
 /// place (#1 1c-2b, `tiff_layers_write::write_spots`): canvas-sized, row 0
 /// top, at the document's own channel depth (a byte document's 8 bits, a
 /// typed one's 16).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum SpotCoverage<'a> {
-    Eight(&'a [u8]),
-    Sixteen(&'a [u16]),
+    Eight(std::borrow::Cow<'a, [u8]>),
+    Sixteen(std::borrow::Cow<'a, [u16]>),
 }
 
 impl SpotCoverage<'_> {
@@ -194,7 +194,7 @@ impl SpotCoverage<'_> {
     /// its coverage ×257 first, so the polarity is applied at the file's
     /// own maximum.
     pub(crate) fn stored(&self, p: usize, depth: u16) -> u16 {
-        match (*self, depth) {
+        match (self, depth) {
             (SpotCoverage::Eight(v), 8) => tiff_stored(u16::from(v[p]), 255),
             (SpotCoverage::Eight(v), _) => tiff_stored(u16::from(v[p]) * 257, 65535),
             (SpotCoverage::Sixteen(v), 8) => {

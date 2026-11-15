@@ -11,6 +11,7 @@
 //! `dr_doc_flattened`, and completes under a scratch limit of its own plan.
 //! Load-independent assertions only (13A-5b-iii-b-1's load policy).
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::ptr;
 use std::sync::Arc;
@@ -245,7 +246,7 @@ fn group_top(doc: &DrDocument, name: &str) -> (DrDocument, usize) {
 fn mask(doc: &DrDocument, idx: usize, (w, h): (u32, u32), offset: (i32, i32)) -> DrDocument {
     let mut out = doc.clone();
     let layer = &mut out.layers[idx];
-    layer.mask = Some(Arc::new(GrayImage::from_fn(w, h, |x, y| {
+    layer.mask = Some(GrayRaster::new(GrayImage::from_fn(w, h, |x, y| {
         Luma([((x * 255) / (w - 1).max(1)) as u8 ^ (y * 9) as u8])
     })));
     layer.mask_enabled = true;

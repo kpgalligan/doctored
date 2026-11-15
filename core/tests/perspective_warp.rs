@@ -12,10 +12,10 @@
 
 use crate::common;
 use crate::puppet_warp::{byte_doc_with, byte_layer, finish, resample, visible, Samples, TestDoc};
+use doctored_core::doc::GrayRaster;
 
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
-use std::sync::Arc;
 
 use common::selected_pixels::take_err;
 use doctored_core::doc::DrDocument;
@@ -561,7 +561,7 @@ fn a_linked_mask_warps_along_and_an_unlinked_mask_stays() {
     let gradient = |x: u32, y: u32| ((x * 5 + y * 3) % 256) as u8;
     for linked in [true, false] {
         let mut doc = byte_doc();
-        let mask = Arc::new(GrayImage::from_fn(SIZE.0, SIZE.1, |x, y| {
+        let mask = GrayRaster::new(GrayImage::from_fn(SIZE.0, SIZE.1, |x, y| {
             image::Luma([gradient(x, y)])
         }));
         let mut properties = MaskProperties::at(OFFSET);
@@ -577,7 +577,7 @@ fn a_linked_mask_warps_along_and_an_unlinked_mask_stays() {
         let layer = &out.layers[0];
         let after = layer.mask.as_ref().unwrap();
         if !linked {
-            assert!(Arc::ptr_eq(after, &mask));
+            assert!(GrayRaster::ptr_eq(after, &mask));
             assert_eq!(layer.mask_properties.offset, OFFSET);
             continue;
         }

@@ -482,7 +482,7 @@ fn mask_plane(doc: &Doc, idx: usize) -> Vec<u16> {
             .mask
             .as_ref()
             .unwrap()
-            .as_raw()
+            .samples()
             .iter()
             .map(|&v| u16::from(v) * 257)
             .collect(),

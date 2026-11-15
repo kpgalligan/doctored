@@ -4,6 +4,7 @@
 //! written raster answers for its own bytes while the handle it came from
 //! keeps its answer.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{CStr, CString};
 use std::ptr;
 use std::sync::Arc;
@@ -96,7 +97,11 @@ fn rich_single_layer_properties_require_native_preservation() {
     type Case = (&'static str, fn(&mut DrDocument));
     let cases: &[Case] = &[
         ("layer masks", |d| {
-            d.layers[0].mask = Some(Arc::new(GrayImage::from_pixel(3, 2, image::Luma([255]))))
+            d.layers[0].mask = Some(GrayRaster::new(GrayImage::from_pixel(
+                3,
+                2,
+                image::Luma([255]),
+            )))
         }),
         ("layer masks", |d| d.layers[0].mask_enabled = false),
         ("editable layer descriptions", |d| {
@@ -164,8 +169,15 @@ fn masks_descriptions_channels_and_guides_still_survive_native_reopen() {
     doc.save_native(path.to_str().unwrap()).unwrap();
     let reopened = DrDocument::open(path.to_str().unwrap()).unwrap();
     assert_eq!(reopened.layers[0].meta, doc.layers[0].meta);
-    assert_eq!(reopened.layers[0].mask, doc.layers[0].mask);
-    assert_eq!(reopened.channels[0].data, doc.channels[0].data);
+    let bytes = |m: &doctored_core::doc::GrayRaster| (m.dimensions(), m.samples());
+    assert_eq!(
+        reopened.layers[0].mask.as_ref().map(bytes),
+        doc.layers[0].mask.as_ref().map(bytes)
+    );
+    assert_eq!(
+        bytes(&reopened.channels[0].data),
+        bytes(&doc.channels[0].data)
+    );
     assert_eq!(reopened.guides[0].position, 1.0);
     assert_eq!(
         losses(&doc, 0, true, false),

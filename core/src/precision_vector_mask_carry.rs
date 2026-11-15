@@ -171,12 +171,12 @@ impl PrecisionDocument {
                     linked: record.linked,
                     raster: record.raster.map(|raster| TableRaster {
                         plane: (!slot.is_some_and(|slot| {
-                            Arc::ptr_eq(&slot.plane.pixels, &raster.plane.pixels)
+                            PrecisionPlane::ptr_eq(&slot.plane, &raster.plane)
                         }))
                         .then(|| {
                             (
                                 raster.plane.dimensions(),
-                                TablePlane::Words(Arc::clone(&raster.plane.pixels)),
+                                TablePlane::Words(raster.plane.clone()),
                             )
                         }),
                         offset: raster.properties.offset,
@@ -226,7 +226,7 @@ impl PrecisionDocument {
                 enabled: mask.enabled,
                 linked: mask.linked,
                 raster,
-                baked: layer.mask.as_ref().map(|m| Arc::clone(&m.plane.pixels)),
+                baked: layer.mask.as_ref().map(|m| m.plane.clone()),
                 baked_offset: layer.mask.as_ref().map_or((0, 0), |m| m.properties.offset),
             });
         }

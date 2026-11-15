@@ -1,6 +1,7 @@
 //! Immutable source revisions, explicit cross-depth fallbacks and link
 //! records, with independent code oracles and one mixed ownership inventory.
 use crate::group_roots;
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::{BlendMode, DrDocument, LayerRaster};
 use doctored_core::doc_mask::MaskProperties;
 use doctored_core::ffi::dr_string_free;
@@ -251,7 +252,7 @@ fn replacement_preserves_affine_properties_and_old_duplicate_content_revision() 
     placed.layers[1].opacity = 0.4;
     placed.layers[1].name = "Kept name".into();
     placed.layers[1].blend = BlendMode::Multiply;
-    placed.layers[1].mask = Some(Arc::new(GrayImage::from_pixel(5, 7, Luma([153]))));
+    placed.layers[1].mask = Some(GrayRaster::new(GrayImage::from_pixel(5, 7, Luma([153]))));
     placed.layers[1].mask_properties = MaskProperties::at((-2, 6));
     placed.layers[1].mask_properties.linked = false;
     let duplicate = placed.duplicating_layer(1).unwrap();
@@ -269,7 +270,7 @@ fn replacement_preserves_affine_properties_and_old_duplicate_content_revision() 
     assert_eq!(new.blend, old.blend);
     assert_eq!(new.visible, old.visible);
     assert!(Arc::ptr_eq(new.style.as_ref().unwrap(), &style));
-    assert!(Arc::ptr_eq(
+    assert!(GrayRaster::ptr_eq(
         new.mask.as_ref().unwrap(),
         old.mask.as_ref().unwrap()
     ));
@@ -345,9 +346,8 @@ fn typed_replacement_keeps_mask_profile_and_structure_with_cross_depth_original(
             .mask()
             .unwrap()
             .plane()
-            .samples()
-            .as_ptr(),
-        old.mask().unwrap().plane().samples().as_ptr()
+            .storage_identity(),
+        old.mask().unwrap().plane().storage_identity()
     );
     assert!(Arc::ptr_eq(next.profile(), grouped.profile()));
     assert_eq!(next.source_info(1).unwrap()["master_depth"], 8);

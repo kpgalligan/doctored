@@ -7,9 +7,9 @@
 //! `regional_masks_clips.rs`: `dr_doc_flattened`'s projection cropped and
 //! top-left-cell sampled here in plain index arithmetic, byte for byte.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::{BlendMode, DrDocument, LayerKind};
 use doctored_core::doc_evaluation::Evaluation;
@@ -201,7 +201,7 @@ fn masked(
     properties.feather = feather;
     properties.outside_coverage = outside;
     let layer = &mut out.layers[idx];
-    layer.mask = Some(Arc::new(plane));
+    layer.mask = Some(GrayRaster::new(plane));
     layer.mask_enabled = true;
     layer.mask_properties = properties;
     out

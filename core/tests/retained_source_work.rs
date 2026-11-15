@@ -1,6 +1,7 @@
 //! Work admission follows the executed source sampler, separately from linked
 //! masks. These are metadata-plan tests, not large rendering/codec qualification.
 use doctored_core::doc::DrDocument;
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc_mask::MaskProperties;
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_retained_source::{dr_doc_mixed_source_plan, dr_precision_doc_source_plan};
@@ -14,7 +15,6 @@ use image::{GrayImage, Rgba, RgbaImage};
 use serde_json::{json, Value};
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
-use std::sync::Arc;
 
 fn byte(w: u32, h: u32) -> DrDocument {
     DrDocument::from_pixels(RgbaImage::from_pixel(w, h, Rgba([31, 79, 131, 251])))
@@ -175,7 +175,11 @@ fn exact_accumulated_source_still_charges_filtered_incremental_mask_sampling() {
         )
         .unwrap()
         .unwrap();
-    reduced.layers[1].mask = Some(Arc::new(GrayImage::from_pixel(10, 10, image::Luma([127]))));
+    reduced.layers[1].mask = Some(GrayRaster::new(GrayImage::from_pixel(
+        10,
+        10,
+        image::Luma([127]),
+    )));
     reduced.layers[1].mask_properties = MaskProperties::at((0, 0));
     // RGBA returns to identity (no sample taps), while the independent mask
     // grows from10×10 to20×20 through the requested6×6 kernel and two visits.

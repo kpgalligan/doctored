@@ -52,9 +52,9 @@
 //! `n0 + 1`, the first checkpoint after the entry report (`cancelled_parked_at`,
 //! under a `Released` guard); the STALL wording above is the bench probes'.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::ptr;
-use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -240,7 +240,7 @@ fn masked(feather: f32) -> DrDocument {
     let mut properties = MaskProperties::at((0, 0));
     properties.feather = feather;
     let layer = &mut out.layers[1];
-    layer.mask = Some(Arc::new(plane));
+    layer.mask = Some(GrayRaster::new(plane));
     layer.mask_enabled = true;
     layer.mask_properties = properties;
     out

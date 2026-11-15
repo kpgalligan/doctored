@@ -317,7 +317,7 @@ fn mask_channel(
     let (w, h) = mask.plane().dimensions();
     let (mx, my) = mask.properties().offset;
     let mut bytes = Vec::with_capacity(w as usize * h as usize * depth.bytes() as usize);
-    for sample in mask.plane().samples() {
+    for sample in mask.plane().runs().flatten() {
         depth.push(&mut bytes, *sample);
     }
     channels.push((-2, encode_plane(&bytes, w * depth.bytes(), h, large)));
@@ -844,7 +844,7 @@ impl PrecisionDocument {
                 let planes = self.cmyk_composite_planes(depth, tiff, job)?;
                 let bits = (depth.bytes() * 8) as u16;
                 if tiff {
-                    let spots = self.layered_tiff_spots();
+                    let spots = self.layered_tiff_spots()?;
                     let mut resources = image_resources(
                         policy.profile_bytes(),
                         self.resolution(),

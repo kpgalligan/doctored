@@ -230,8 +230,8 @@ Each `DONE` entry keeps what shipped and what a later batch must hold. The measu
   cancelled before and after each camera or frame stage.
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — Broader regional processing: the canvas display and
   the UI previews still render the full frame (13B-7); the guided sampling plates are 13B-9's ([#10](https://github.com/kpgalligan/doctored/issues/10)).
-- `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled document storage: masks, channels and typed
-  mask planes on tiles, a measured history budget and one bounded cache registry.
+- `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled document storage: a measured history budget
+  and one bounded cache registry (masks, channels and typed mask planes are on tiles since 13B-4, 2026-11-15).
 - `DONE` — Higher precision storage — Phase 7 (typed 16-bit) and 11F (float).
 - `DONE` — Budgeted history and recovery — Phase 5 ([phase-5-recovery-history-status.md](phase-5-recovery-history-status.md)).
 - `DONE` — "Comprehensive legacy-operation admission": `RasterResources.shared.admit` now guards 113 call

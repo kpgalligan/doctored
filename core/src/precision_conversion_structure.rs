@@ -59,7 +59,6 @@
 
 use std::sync::Arc;
 
-use image::GrayImage;
 use serde_json::{json, Value};
 
 use crate::blend::BlendMode;
@@ -301,10 +300,13 @@ fn row(index: usize, layer: &Layer, note: impl Into<String>) -> StructureRow {
 
 /// `v · 257` over one byte coverage plane — `promote_samples`' product for a
 /// scalar plane.
-fn promoted_plane(plane: &GrayImage, job: JobContext<'_>) -> Result<PrecisionPlane, String> {
+fn promoted_plane(
+    plane: &crate::doc::GrayRaster,
+    job: JobContext<'_>,
+) -> Result<PrecisionPlane, String> {
     let (w, h) = plane.dimensions();
-    let mut out = reserved_vec(plane.as_raw().len())?;
-    for (i, v) in plane.as_raw().iter().enumerate() {
+    let mut out = reserved_vec(plane.byte_len() as usize)?;
+    for (i, v) in plane.runs().flatten().enumerate() {
         job.every(i)?;
         out.push(u16::from(*v) * 257);
     }

@@ -94,7 +94,7 @@ fn assert_allocations_shared(before: &DrDocument, after: &DrDocument) {
         );
         match (&layer.mask, &mirror.mask) {
             (Some(a), Some(b)) => assert!(
-                Arc::ptr_eq(a, b),
+                doctored_core::doc::GrayRaster::ptr_eq(a, b),
                 "{}'s mask is the same allocation",
                 layer.name
             ),

@@ -10,7 +10,7 @@ The settled record of Phase 13B's shipped runs, moved from [phase-13b-tiled-stat
 
 ## Runs
 
-The 30 shipped runs (`Owns` / `Exit` cells and split lineage: archived original):
+The 31 shipped runs (`Owns` / `Exit` cells and split lineage: archived original; 13B-4's: its contract below):
 
 | Run | Commit | Implemented (2026) |
 |---|---|---|
@@ -44,6 +44,7 @@ The 30 shipped runs (`Owns` / `Exit` cells and split lineage: archived original)
 | 13B-3e-4c-1 | `31981c3` | 09-26 |
 | 13B-3e-4c-2a | `d1f7601` | 09-26 |
 | 13B-3e-4c-2b | `3a7cf21` | 09-26 (closed as a recorded residual) |
+| 13B-4 | — | 11-15 |
 
 ## 13B-1 contract
 
@@ -165,6 +166,10 @@ The host intakes and the RAW develop output unseeded; the geometry source on one
 
 Closed as a recorded residual: no tiling code landed. An f32 plane above `CONTIGUOUS_CACHE_BYTES` stays contiguous: `tiles_of` / `uniform_tiles` refuse above the bound, `filled_plane` falls back, `transient_rgba32` borrows it, a changed `with_rect` copies the buffer once (three `#[ignore]`d tests). Since the f32 tiling's phase 1 (`5ad3dbc`) only an ADOPTED plane does: `uniform_tiles`, `filled_plane`, the float reopen / TIFF open and `with_rect` tile at every size; since its phase 2 (`09e0b98`) adopted planes tile too (Contiguous = tile-store refusal only). The module doc is the home of the representation only; the premise is D1.
 
+## 13B-4 contract
+
+Byte masks and channels (`Layer.mask`, `Channel.data`, the vector mask's raster part and baked plane, the WARP masks, the PATH table's byte planes) are `GrayRaster` (`core/src/gray_raster.rs`), typed masks and channels `PrecisionPlane` on `TilePlane<u16>` (`core/src/precision_mask.rs`): shared 256×256 tiles behind an identity token, no `Deref`, no `PartialEq`. Exit met (`core/tests/mask_plane_tiles.rs`): three 300×300 dabs on a 1536×1024 plane retain the base plane plus 4 tiles per dab (byte mask, byte channel, typed mask; 4 whole planes before); the saved native bytes are the row-major samples (a tile-order walk fails); the mask and channel suites are green.
+
 ## Decisions
 
 - **The 13C seam.** `Tile<S>` is opaque behind `samples()`, so a spilled or compressed tile variant lands without changing `TilePlane`.
@@ -200,6 +205,13 @@ The 19-site Seeded / Unseeded classification with each site's readers is in the 
 
 - **D1 — closed as a recorded residual; no tiling code lands.** A user decision after the implementer's STOP: the spec assumed a float document can hold an f32 raster above `CONTIGUOUS_CACHE_BYTES`, and it was found that it cannot. Evidence as decided: every document goes through `build` → `native_preflight`, whose float `finish_plan` (`core/src/precision_native_plan.rs`) charges `reopen_retained` ≥ D + 1 MiB plus `decode_scratch_bytes` ≥ D + 16·n + 1 MiB (D = Σ w·h·16 over the rasters), so D < 2^30 − 1 MiB and every document raster is inside `tiles_of`'s bound and already tiled; `add_layer_at` refuses before allocating (`preflight_raster_addition`), the RZCB decode refuses, and the v40 reader builds a document; measured, an 8200×8193 all-0.0 float TIFF open was refused, with the tiling code and without it. Both the inequality and that refusal held under the fixed 2 GiB working limit; the limit is RAM-scaled now (`process_working_limit()` in `core/src/precision_image.rs`, set by the host from `WorkingLimit.automatic`; `designs/working-limit-ram-scaled.md`), and the f32 tiling (`5ad3dbc`, `09e0b98`, Closed open items below) since tiles every f32 plane at every size. What reached above the bound as decided: direct `from_rgba32` / `from_rgba32_extended` (tests, examples) and, code-derived and not measured, a transient f32 render over an enlarged canvas (`CanvasSize` keeps layer extents); both stay contiguous by rule, and the render output adopts its accumulator with no copy.
 - **D5 — the typed geometry plan charged no input transient** (found while re-verifying the spec's D7): closed since (Closed open items below).
+
+### 13B-4 decisions
+
+- **D1 — no view cache for masks or channels.** The compositor reads an aligned plain mask one row span at a time in place (`GrayRaster::row`: a tile's own run, or the span copied into a per-call row buffer), so a projection copies no mask and leaves no view, and a dab is not re-paid as a whole-plane copy on the next read (`layer_raster_reads`' no-view exit holds for masked layers). A feathered, density-scaled or misaligned mask keeps its one cached contiguous plane per mask (13B-6's to bound).
+- **D2 — the dab writers' rect is the plane's own frame.** `paint_mask` and `painting_channel` read and write the overlay's nonzero canvas rect mapped onto the plane (`layer_rect::nonzero_rect` + `canvas_rect_on_plane` over the mask's dimensions and `mask_properties.offset`; a group's canvas-sized mask; a channel's canvas), never `doc_paint::overlay_rect`'s layer frame. `paint_mask` keeps its no-latch answer (an unchanged stroke answers the mask under a fresh identity); `painting_channel` keeps NULL.
+- **D3 — persistence is byte-identical with no DRDC word.** Every writer walks the plane's runs in row order or encodes one transient copy; the channel PNG's copy is the save plan's `K = c·px` term (`drdc_save_plan.rs`). The 13C pool still takes a mask or channel as the writer's bytes ([#11](https://github.com/kpgalligan/doctored/issues/11)).
+- **D4 — `samples()` is a test oracle.** Both types keep a `#[doc(hidden)]` owned-copy `samples()` with no library caller; library readers use `runs` / `row_segments` / `row` / `sample_at`, or one transient `to_image` / `to_contiguous` copy for a resample input. The raw-address oracles compare `storage_identity()` (`PrecisionPlane`), `GrayRaster::ptr_eq` in the byte suites.
 
 ## Closed open items
 

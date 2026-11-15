@@ -16,9 +16,9 @@
 //! group is read from `dr_mixed_resources_report_with_raw_masks`'s
 //! `projection_scratch_estimate_bytes`, never from the crate's own helpers.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::CString;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::DrDocument;
 use doctored_core::doc_mask::MaskProperties;
@@ -215,7 +215,7 @@ fn feathered(w: u32, h: u32) -> DrDocument {
     properties.feather = 6.0;
     let plane = GrayImage::from_fn(w, h, |x, _| Luma([(x * 255 / w) as u8 | 128]));
     let layer = &mut doc.layers[1];
-    layer.mask = Some(Arc::new(plane));
+    layer.mask = Some(GrayRaster::new(plane));
     layer.mask_enabled = true;
     layer.mask_properties = properties;
     doc

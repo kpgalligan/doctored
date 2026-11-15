@@ -57,6 +57,7 @@ use crate::job_control::JobContext;
 use crate::lab_document::lab_twin;
 use crate::precision_document::PrecisionDocument;
 use crate::precision_image::{pixel_count, PrecisionImage, PrecisionStorage, BOOKKEEPING_BYTES};
+use crate::precision_mask::PrecisionPlane;
 use crate::spot_channel::NOT_SPOT_REFUSAL;
 use crate::spot_overprint::{overprint_rgba16, overprint_rgba32f};
 use crate::spot_view::ink_encoded;
@@ -86,7 +87,8 @@ pub(crate) const LAB_BYTES_PER_PIXEL: u64 = 24;
 /// One spot channel's part in a typed overprint: its coverage plane, the
 /// ink in the composite's encoding and the solidity as a unit.
 struct Pass<'a> {
-    coverage: &'a [u16],
+    /// The spot channel's plane, read one row at a time (13B-4).
+    plane: &'a PrecisionPlane,
     ink: [f32; 3],
     solidity: f32,
 }
@@ -130,7 +132,7 @@ impl PrecisionDocument {
         let gray = self.gray_policy().filter(|_| !self.is_duotone());
         let mut passes = Vec::with_capacity(channels.len());
         for &index in channels {
-            let (coverage, ink) = self.spot_plane(index)?;
+            let (plane, ink) = self.spot_plane(index)?;
             let encoded = match gray {
                 // Lab → Grayscale's rule (`lab_gray`): L* alone.
                 Some(policy) => {
@@ -140,7 +142,7 @@ impl PrecisionDocument {
                 None => ink_encoded(&ink, Some(composite.profile()))?,
             };
             passes.push(Pass {
-                coverage,
+                plane,
                 ink: encoded,
                 solidity: f32::from(ink.solidity()) / 100.0,
             });
@@ -159,13 +161,13 @@ impl PrecisionDocument {
     pub(crate) fn spot_plane(
         &self,
         index: usize,
-    ) -> Result<(&[u16], crate::spot_channel::SpotInk), String> {
+    ) -> Result<(&PrecisionPlane, crate::spot_channel::SpotInk), String> {
         let channel = self
             .channels()
             .get(index)
             .ok_or("typed channel index is out of range")?;
         let ink = channel.metadata().spot.ok_or(NOT_SPOT_REFUSAL)?;
-        Ok((channel.plane().samples(), ink))
+        Ok((channel.plane(), ink))
     }
 
     /// The Lab arm (module doc).
@@ -187,12 +189,10 @@ impl PrecisionDocument {
             job.range(0.0, 0.3),
         )?;
         let mut passes = Vec::with_capacity(channels.len());
-        let mut planes = Vec::with_capacity(channels.len());
         for &index in channels {
-            let (coverage, ink) = self.spot_plane(index)?;
-            planes.push(coverage);
+            let (plane, ink) = self.spot_plane(index)?;
             passes.push(Pass {
-                coverage,
+                plane,
                 ink: ink_encoded(&ink, Some(&space))?,
                 solidity: f32::from(ink.solidity()) / 100.0,
             });
@@ -213,10 +213,22 @@ impl PrecisionDocument {
             image.to_rgba16()?
         };
         let mut samples = composite.to_rgba16()?;
-        for (p, sample) in samples.iter_mut().enumerate() {
-            job.every(p)?;
-            if planes.iter().any(|plane| plane[p] > 0) {
-                *sample = back[p];
+        let width = composite.dimensions().0;
+        // Each pass's coverage row, read in place once per row (13B-4);
+        // `overprinted` refused a plane that is not canvas-sized.
+        let mut scratch: Vec<Vec<u16>> = passes.iter().map(|_| Vec::new()).collect();
+        for (y, line) in samples.chunks_exact_mut(width as usize).enumerate() {
+            let rows: Vec<&[u16]> = passes
+                .iter()
+                .zip(scratch.iter_mut())
+                .map(|(pass, scratch)| pass.plane.row(y as u32, 0, width, scratch))
+                .collect();
+            for (x, sample) in line.iter_mut().enumerate() {
+                let p = y * width as usize + x;
+                job.every(p)?;
+                if rows.iter().any(|row| row[x] > 0) {
+                    *sample = back[p];
+                }
             }
         }
         drop(back);
@@ -301,15 +313,19 @@ fn overprinted(
     match image.storage() {
         PrecisionStorage::Rgba16Unorm => {
             let mut samples = image.to_rgba16()?;
+            let mut scratch = Vec::new();
             for pass in passes {
                 job.check()?;
-                if !overprint_rgba16(
-                    samples.as_flattened_mut(),
-                    pass.coverage,
-                    pass.ink,
-                    pass.solidity,
-                ) {
+                if pass.plane.dimensions() != (w, h) {
                     return Err(mismatch());
+                }
+                // Row by row: each coverage row read in place.
+                for (y, row) in samples.chunks_exact_mut(w as usize).enumerate() {
+                    let coverage = pass.plane.row(y as u32, 0, w, &mut scratch);
+                    if !overprint_rgba16(row.as_flattened_mut(), coverage, pass.ink, pass.solidity)
+                    {
+                        return Err(mismatch());
+                    }
                 }
             }
             job.check()?;
@@ -319,28 +335,34 @@ fn overprinted(
             let encoding =
                 encoding.ok_or("a float composite overprints through its display encoding")?;
             let mut samples = image.to_rgba32()?;
-            if passes
-                .iter()
-                .any(|pass| pass.coverage.len() != samples.len())
-            {
+            if passes.iter().any(|pass| pass.plane.dimensions() != (w, h)) {
                 return Err(mismatch());
             }
             // Pixel by pixel, so the encoded copy is one pixel, never a
-            // second canvas plane (`FLOAT_BYTES_PER_PIXEL` is unchanged).
-            for (p, pixel) in samples.iter_mut().enumerate() {
-                job.every(p)?;
-                if passes.iter().all(|pass| pass.coverage[p] == 0) {
-                    continue;
-                }
-                let code = encoding.encode(*pixel);
-                let mut result = code;
-                for pass in passes {
-                    let coverage = &pass.coverage[p..=p];
-                    if !overprint_rgba32f(&mut result, coverage, pass.ink, pass.solidity) {
-                        return Err(mismatch());
+            // second canvas plane (`FLOAT_BYTES_PER_PIXEL` is unchanged); each
+            // pass's coverage row is read in place once per row.
+            let mut scratch: Vec<Vec<u16>> = passes.iter().map(|_| Vec::new()).collect();
+            for (y, line) in samples.chunks_exact_mut(w as usize).enumerate() {
+                let rows: Vec<&[u16]> = passes
+                    .iter()
+                    .zip(scratch.iter_mut())
+                    .map(|(pass, scratch)| pass.plane.row(y as u32, 0, w, scratch))
+                    .collect();
+                for (x, pixel) in line.iter_mut().enumerate() {
+                    job.every(y * w as usize + x)?;
+                    if rows.iter().all(|row| row[x] == 0) {
+                        continue;
                     }
+                    let code = encoding.encode(*pixel);
+                    let mut result = code;
+                    for (pass, row) in passes.iter().zip(&rows) {
+                        let coverage = &row[x..=x];
+                        if !overprint_rgba32f(&mut result, coverage, pass.ink, pass.solidity) {
+                            return Err(mismatch());
+                        }
+                    }
+                    *pixel = encoding.decode_changed(*pixel, code, result);
                 }
-                *pixel = encoding.decode_changed(*pixel, code, result);
             }
             job.check()?;
             image.rebuilt_rgba32_extended(w, h, samples, image.profile().clone())

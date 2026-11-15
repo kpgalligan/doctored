@@ -22,8 +22,6 @@
 //! straighten_layers`' note). A layer with a retained source refuses the
 //! whole op with `perspective_crop::SOURCE_LAYERS`.
 
-use std::sync::Arc;
-
 use crate::doc::{translated_offset, DrDocument, LayerKind, LayerRaster};
 use crate::doc_geometry_set::is_adjustment;
 use crate::doc_transform::{resample_mask_outside, resample_rgba_with_context, SourceMap};
@@ -202,22 +200,24 @@ impl DrDocument {
             }
             if let Some(raw) = &layer.mask {
                 let map = SourceMap::projective(&g, layer.mask_properties.offset, (0, 0));
+                let raw = raw.to_image()?;
                 let out = resample_mask_outside(
-                    raw,
+                    &raw,
                     dest,
                     &map,
                     sampler,
                     layer.mask_properties.outside_coverage,
                     step(),
                 )?;
-                target.mask = Some(Arc::new(out));
+                target.mask = Some(crate::doc::GrayRaster::new(out));
                 target.mask_properties.offset = (0, 0);
             }
         }
         let canvas_map = SourceMap::projective(&g, (0, 0), (0, 0));
         for channel in &mut doc.channels {
-            let out = resample_mask_outside(&channel.data, dest, &canvas_map, sampler, 0, step())?;
-            channel.data = Arc::new(out);
+            let source = channel.data.to_image()?;
+            let out = resample_mask_outside(&source, dest, &canvas_map, sampler, 0, step())?;
+            channel.data = crate::doc::GrayRaster::new(out);
         }
         let to_destination = request.destination_map()?;
         doc.color_samplers =

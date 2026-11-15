@@ -249,7 +249,12 @@ fn assert_same(a: &DrDocument, b: &DrDocument, what: &str) {
             x.pixels.to_contiguous().unwrap() == y.pixels.to_contiguous().unwrap(),
             "{what}: pixels"
         );
-        assert_eq!(x.mask.as_deref(), y.mask.as_deref(), "{what}: mask");
+        let bytes = |m: &doctored_core::doc::GrayRaster| (m.dimensions(), m.samples());
+        assert_eq!(
+            x.mask.as_ref().map(bytes),
+            y.mask.as_ref().map(bytes),
+            "{what}: mask"
+        );
         assert_eq!(
             x.mask_properties.offset, y.mask_properties.offset,
             "{what}: mask offset"

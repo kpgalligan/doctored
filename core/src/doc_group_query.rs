@@ -17,13 +17,12 @@
 //! optional job once per row; the per-layer export trim, the typed masked
 //! content box and the stroke's band call it too.
 
-use std::sync::{Arc, Mutex, OnceLock, Weak};
-
-use image::GrayImage;
+use std::sync::{Mutex, OnceLock};
 
 use crate::adjust::Adjustment;
-use crate::doc::{DrDocument, Layer, LayerKind};
+use crate::doc::{DrDocument, GrayRaster, Layer, LayerKind};
 use crate::doc_group::{parent, subtree, top_level, units, Unit};
+use crate::gray_raster::GrayRasterKey;
 use crate::job_control::JobContext;
 use crate::layer_raster::LayerRasterKey;
 
@@ -226,12 +225,10 @@ fn scan_content_box(
     job: JobContext<'_>,
 ) -> Result<Option<(i64, i64, i64, i64)>, String> {
     let (lw, lh) = layer.pixels.dimensions();
-    let active_mask = if masked { layer.active_mask() } else { None };
-    let mask = active_mask.as_deref().map(|m| m.as_raw().as_slice());
+    let mask = if masked { layer.active_mask() } else { None };
     let bounds = edge_bounds(lw, lh, job, |y, x0, x1| {
-        let row = y as usize * lw as usize;
         runs_extent(layer.pixels.row_segments(y, x0, x1), |x, p| {
-            p[3] != 0 && mask.is_none_or(|m| m[row + x as usize] != 0)
+            p[3] != 0 && mask.as_ref().is_none_or(|m| m.sample_at(x, y) != Some(0))
         })
     })?;
     let Some((x0, y0, x1, y1)) = bounds else {
@@ -371,7 +368,7 @@ const CONTENT_BOX_MEMO_CAPACITY: usize = 512;
 /// was measured at, and the box.
 type ContentBoxEntry = (
     LayerRasterKey,
-    Option<Weak<GrayImage>>,
+    Option<GrayRasterKey>,
     (i32, i32),
     Option<(i64, i64, i64, i64)>,
     ((i32, i32), u32, u32, u8),
@@ -416,7 +413,7 @@ fn memoized_box(
         entry.0.same(&key)
             && match (&entry.1, &mask) {
                 (None, None) => true,
-                (Some(weak), Some(arc)) => std::ptr::eq(weak.as_ptr(), Arc::as_ptr(arc)),
+                (Some(key), Some(raster)) => key.names(raster),
                 _ => false,
             }
             && entry.2 == layer.offset
@@ -449,7 +446,7 @@ fn memoized_box(
             }
             entries.push((
                 key.clone(),
-                mask.as_ref().map(Arc::downgrade),
+                mask.as_ref().map(GrayRaster::key),
                 layer.offset,
                 box_,
                 properties,
@@ -555,7 +552,8 @@ fn covers(layer: &Layer, x: i64, y: i64) -> bool {
     let coverage = if layer.mask_enabled {
         layer
             .effective_mask_rect((x as i32, y as i32), 1, 1)
-            .map_or(255.0, |m| f32::from(m.as_raw()[0]))
+            .and_then(|m| m.sample_at(0, 0))
+            .map_or(255.0, f32::from)
     } else {
         255.0
     };

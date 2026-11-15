@@ -11,9 +11,9 @@
 //! has luma exactly 255 whatever its alpha, so the lerp reduces to a formula
 //! with no rounding of its own). No golden images anywhere.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::DrDocument;
 use doctored_core::doc_channel::Channel;
@@ -1186,7 +1186,7 @@ fn the_total_channel_pixel_budget_holds_at_both_ends() {
     let base = DrDocument::from_pixels(solid(2, 2, RED))
         .canvas_resize(2000, 2000, (0, 0))
         .expect("canvas resize");
-    let plane = Arc::new(GrayImage::from_pixel(2000, 2000, image::Luma([200])));
+    let plane = GrayRaster::new(GrayImage::from_pixel(2000, 2000, image::Luma([200])));
     let mut doc = base.clone();
     for i in 0..225 {
         doc.channels.push(Channel {
@@ -1195,7 +1195,7 @@ fn the_total_channel_pixel_budget_holds_at_both_ends() {
             // Channel::new instead.
             id: i as u64 + 1,
             name: format!("Alpha {i}"),
-            data: Arc::clone(&plane),
+            data: plane.clone(),
             overlay_color: [255, 0, 0],
             overlay_opacity: 0.5,
             color_indicates_selected: false,
@@ -1245,12 +1245,12 @@ fn the_total_channel_pixel_budget_holds_at_both_ends() {
     let mut over = DrDocument::from_pixels(solid(2, 2, RED))
         .canvas_resize(1876, 1876, (0, 0))
         .expect("canvas resize");
-    let small = Arc::new(GrayImage::new(1876, 1876));
+    let small = GrayRaster::new(GrayImage::new(1876, 1876));
     for i in 0..256 {
         over.channels.push(Channel {
             id: i as u64 + 1,
             name: format!("Alpha {i}"),
-            data: Arc::clone(&small),
+            data: small.clone(),
             overlay_color: [255, 0, 0],
             overlay_opacity: 0.5,
             color_indicates_selected: false,
@@ -1264,12 +1264,12 @@ fn the_total_channel_pixel_budget_holds_at_both_ends() {
 
     // And past the COUNT cap.
     let mut many = DrDocument::from_pixels(solid(2, 2, RED));
-    let dot = Arc::new(GrayImage::new(2, 2));
+    let dot = GrayRaster::new(GrayImage::new(2, 2));
     for i in 0..257 {
         many.channels.push(Channel {
             id: i as u64 + 1,
             name: format!("Alpha {i}"),
-            data: Arc::clone(&dot),
+            data: dot.clone(),
             overlay_color: [255, 0, 0],
             overlay_opacity: 0.5,
             color_indicates_selected: false,

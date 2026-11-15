@@ -739,7 +739,7 @@ pub(crate) fn composite_interior_unit_into(
     // edge, which is the whole thing the "no fringe" claim rests on.
     let kind = blend_kind(layer.blend);
     let active_mask = layer.active_mask();
-    let mask = active_mask.as_deref().map(|m| m.as_raw().as_slice());
+    let mut mask_row = Vec::new();
     let (lw, lh) = layer.pixels.dimensions();
     let rel_x = i64::from(layer.offset.0) - i64::from(origin.0);
     let rel_y = i64::from(layer.offset.1) - i64::from(origin.1);
@@ -759,11 +759,15 @@ pub(crate) fn composite_interior_unit_into(
     for ay in y0..y1 {
         env.job.check()?;
         let ly = (ay - rel_y) as u64;
+        // The aligned mask's row span, read in place (13B-4).
+        let mask = active_mask
+            .as_ref()
+            .map(|m| m.row(ly as u32, sx0, sx1, &mut mask_row));
         for (sx, run) in layer.pixels.row_segments(ly as u32, sx0, sx1) {
             for (i, px) in run.iter().enumerate() {
                 let lx = sx as u64 + i as u64;
                 let ax = lx as i64 + rel_x;
-                let mi = (ly * u64::from(lw) + lx) as usize;
+                let mi = (lx - u64::from(sx0)) as usize;
                 let coverage = mask.map_or(1.0, |m| f32::from(m[mi]) / 255.0);
                 let s = f32::from(px[3]) / 255.0 * coverage;
                 if s <= 0.0 {

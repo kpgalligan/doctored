@@ -13,8 +13,6 @@
 //! that departs from it is [`image_plane`], whose buffer is the image's own
 //! size.
 
-use std::sync::Arc;
-
 use image::RgbaImage;
 
 use crate::blend::{composite_source_into, BlendKind, BlendMode, LUMA_B, LUMA_G, LUMA_R};
@@ -236,10 +234,10 @@ impl DrDocument {
             // than restating the offset walk.
             return image_plane(&self.layer_canvas_image(idx)?, plane);
         }
-        let mask = layer.mask.as_deref()?;
+        let mask = layer.mask.as_ref()?.to_image().ok()?;
         Some(
             crate::doc_channel::padded_plane_with_coverage(
-                mask,
+                &mask,
                 self.width,
                 self.height,
                 layer.mask_properties.offset,
@@ -310,25 +308,30 @@ impl DrDocument {
     ///
     /// `None` for an out-of-range `i`, a wrong buffer length, a channel that
     /// somehow broke the canvas-sized invariant, or when NO BYTE WOULD CHANGE
-    /// — the latch `doc_paint::painting_layer_blend` carries. Nothing else
-    /// refuses a stroke on a channel (it covers the whole canvas), so without
-    /// it painting white over white would mint a phantom undo step and a
-    /// false dirty flag. (`doc::paint_mask` has no such latch; that is a
-    /// pre-existing deviation, deliberately left as it is.)
+    /// — the latch `doc_paint::painting_layer_blend` carries, here
+    /// `GrayRaster::with_rect`'s bitwise one. Nothing else refuses a stroke on
+    /// a channel (it covers the whole canvas), so without it painting white
+    /// over white would mint a phantom undo step and a false dirty flag.
+    /// (`doc::paint_mask` has no such latch; that is a pre-existing
+    /// deviation, deliberately left as it is.) Since 13B-4 only the overlay's
+    /// nonzero rect is read and written back, so a dab copies the tiles it
+    /// changes.
     pub fn painting_channel(&self, i: usize, overlay: &[u8]) -> Option<Self> {
         let channel = self.channels.get(i)?;
-        if channel.data.dimensions() != (self.width, self.height) {
+        let canvas = (self.width, self.height);
+        if channel.data.dimensions() != canvas {
             return None;
         }
         let px = (self.width as usize).checked_mul(self.height as usize)?;
         if overlay.len() != px.checked_mul(4)? {
             return None;
         }
-        let mut painted = (*channel.data).clone();
-        let raw: &mut [u8] = &mut painted;
-        let mut changed = false;
-        for (di, v) in raw.iter_mut().enumerate() {
-            let si = di * 4;
+        let (rx, ry, rw, rh) =
+            crate::layer_rect::nonzero_rect(canvas, |p| overlay[p * 4..p * 4 + 4] != [0; 4])?;
+        let mut samples = channel.data.read_rect(rx, ry, rw, rh)?;
+        for (k, v) in samples.iter_mut().enumerate() {
+            let (col, row) = (k % rw as usize, k / rw as usize);
+            let si = ((ry as usize + row) * self.width as usize + rx as usize + col) * 4;
             let sp = [
                 overlay[si],
                 overlay[si + 1],
@@ -336,17 +339,12 @@ impl DrDocument {
                 overlay[si + 3],
             ];
             if let Some(nv) = channel_lerp(*v, sp) {
-                if *v != nv {
-                    *v = nv;
-                    changed = true;
-                }
+                *v = nv;
             }
         }
-        if !changed {
-            return None;
-        }
+        let data = channel.data.with_rect(rx, ry, rw, rh, &samples).ok()??;
         let mut doc = self.clone();
-        doc.channels[i].data = Arc::new(painted);
+        doc.channels[i].data = data;
         Some(doc)
     }
 

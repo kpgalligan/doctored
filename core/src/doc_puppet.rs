@@ -310,7 +310,8 @@ impl DrDocument {
                 let (mw, mh) = mask.dimensions();
                 let mo = entry.mask_properties.offset;
                 let source = (i64::from(mo.0), i64::from(mo.1), mw, mh);
-                let samples = mask.as_raw();
+                let image = mask.to_image()?;
+                let samples = image.as_raw();
                 let mut warped = vec![outside; dest.2 as usize * dest.3 as usize];
                 render(
                     map,
@@ -322,7 +323,7 @@ impl DrDocument {
                     |i, p| warped[i] = p,
                     job,
                 )?;
-                Some(std::sync::Arc::new(
+                Some(crate::doc::GrayRaster::new(
                     image::GrayImage::from_raw(dest.2, dest.3, warped)
                         .ok_or("puppet warp mask dimensions are invalid")?,
                 ))

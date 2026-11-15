@@ -379,7 +379,7 @@ impl crate::doc::DrDocument {
                 .mask
                 .as_ref()
                 .map(|plane| crate::doc_vector_mask::RasterPart {
-                    plane: std::sync::Arc::clone(plane),
+                    plane: plane.clone(),
                     properties: layer.mask_properties.clone(),
                     enabled: layer.mask_enabled,
                 }),

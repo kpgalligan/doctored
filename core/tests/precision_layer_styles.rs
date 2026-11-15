@@ -6,6 +6,7 @@
 //! `layer_style` edit, conditional native36/`LSTY` persistence, the 16-bit
 //! PSD bake/disclosure rule and the scratch plan.
 use crate::group_roots;
+use doctored_core::doc::GrayRaster;
 use doctored_core::doc::{BlendMode, DrDocument};
 use doctored_core::doc_mask::MaskProperties;
 use doctored_core::ffi::dr_string_free;
@@ -29,7 +30,6 @@ use serde_json::{json, Value};
 use std::ffi::{c_char, CStr, CString};
 use std::path::Path;
 use std::ptr;
-use std::sync::Arc;
 use tempfile::TempDir;
 
 use crate::common;
@@ -233,9 +233,11 @@ fn byte_doc(masked: bool, opacity: f32, blend: BlendMode) -> DrDocument {
         doc = doc.with_layer_blend_mode(1, blend).unwrap();
     }
     if masked {
-        doc.layers[1].mask = Some(Arc::new(GrayImage::from_fn(LAYER.0, LAYER.1, |x, y| {
-            Luma([mask_px(x, y)])
-        })));
+        doc.layers[1].mask = Some(GrayRaster::new(GrayImage::from_fn(
+            LAYER.0,
+            LAYER.1,
+            |x, y| Luma([mask_px(x, y)]),
+        )));
         doc.layers[1].mask_enabled = true;
         doc.layers[1].mask_properties = MaskProperties::at(AT);
     }

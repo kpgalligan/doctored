@@ -312,8 +312,8 @@ fn the_relative_twin_reads_as_photoshop_does() {
             wanted.name
         );
         assert_eq!(
-            mask.as_raw(),
-            there.mask.as_ref().expect("the absolute mask").as_raw(),
+            mask.samples(),
+            there.mask.as_ref().expect("the absolute mask").samples(),
             "{} samples",
             wanted.name
         );

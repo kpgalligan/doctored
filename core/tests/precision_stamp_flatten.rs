@@ -335,8 +335,7 @@ fn mask_address(document: &PrecisionDocument, name: &str) -> usize {
         .and_then(|l| l.mask())
         .expect("a masked record")
         .plane()
-        .samples()
-        .as_ptr() as usize
+        .storage_identity() as usize
 }
 
 fn samples16(document: &PrecisionDocument, index: usize) -> Vec<[u16; 4]> {

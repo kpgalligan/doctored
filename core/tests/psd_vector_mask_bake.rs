@@ -373,7 +373,7 @@ fn an_eight_bit_open_draws_the_windowed_bake_into_the_layers_mask() {
     let mask = unsafe { &*doc }.layers[0]
         .mask
         .as_ref()
-        .map(|plane| plane.as_raw().clone());
+        .map(|plane| plane.samples().clone());
     unsafe { dr_doc_free(doc) };
     assert_eq!(mask, Some(want));
 }

@@ -26,7 +26,6 @@
 
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::{DrDocument, LayerRaster, MaskKind};
 use doctored_core::ffi::dr_string_free;
@@ -189,7 +188,7 @@ fn shared8(before: &DrDocument, after: &DrDocument) {
         );
         match (&layer.mask, &mirror.mask) {
             (Some(a), Some(b)) => assert!(
-                Arc::ptr_eq(a, b),
+                doctored_core::doc::GrayRaster::ptr_eq(a, b),
                 "{}'s mask is the same allocation",
                 layer.name
             ),
@@ -211,8 +210,7 @@ fn mask16(doc: &PrecisionDocument, name: &str) -> usize {
         .and_then(|l| l.mask())
         .expect("a masked record")
         .plane()
-        .samples()
-        .as_ptr() as usize
+        .storage_identity() as usize
 }
 
 // -------------------------------------------------------------- fixtures --

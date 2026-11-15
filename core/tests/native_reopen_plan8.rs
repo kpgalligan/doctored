@@ -196,7 +196,7 @@ fn digest(doc: &DrDocument) -> String {
         match &layer.mask {
             Some(mask) => {
                 bytes.push(1);
-                bytes.extend(mask.as_raw());
+                bytes.extend(mask.samples());
             }
             None => bytes.push(0),
         }
@@ -207,7 +207,7 @@ fn digest(doc: &DrDocument) -> String {
         }
     }
     for channel in &doc.channels {
-        bytes.extend(channel.data.as_raw());
+        bytes.extend(channel.data.samples());
     }
     sha256::sha256_hex(&bytes)
 }

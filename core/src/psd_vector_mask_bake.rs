@@ -242,7 +242,7 @@ impl crate::doc::DrDocument {
         };
         let mut properties = crate::doc_mask::MaskProperties::at((0, 0));
         properties.linked = false;
-        layer.mask = Some(std::sync::Arc::new(plane));
+        layer.mask = Some(crate::doc::GrayRaster::new(plane));
         layer.mask_enabled = true;
         layer.mask_properties = properties;
         Ok(self)

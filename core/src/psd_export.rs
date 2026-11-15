@@ -567,7 +567,8 @@ impl DrDocument {
         let baked_mask = bake.is_some() && layer.mask_enabled;
         let mask = match (mask_geometry(layer), layer.mask.as_ref()) {
             (Some((bounds, mw, mh)), Some(plane)) if !baked_mask => {
-                channels.push((-2, encode_plane(plane.as_raw(), mw, mh, large)));
+                let samples = plane.to_image()?;
+                channels.push((-2, encode_plane(samples.as_raw(), mw, mh, large)));
                 Some(MaskBody {
                     bounds,
                     outside: layer.mask_properties.outside_coverage,
@@ -814,7 +815,7 @@ impl DrDocument {
         let bytes = if container == LayeredContainer::Tiff {
             // The flat picture is the TIFF's own strip, straight RGBA; the
             // records and resources ride in Photoshop's tags.
-            let spots = self.layered_tiff_spots();
+            let spots = self.layered_tiff_spots()?;
             let mut resources = image_resources(
                 self.profile.bytes(),
                 self.resolution,

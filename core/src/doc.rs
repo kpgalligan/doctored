@@ -42,6 +42,7 @@ use crate::style_composite::{composite_styled_into, merge_extent, CompositeEnv, 
 use crate::DrImage;
 
 pub use crate::blend::BlendMode;
+pub use crate::gray_raster::GrayRaster;
 pub use crate::layer_raster::LayerRaster;
 
 /// Largest permitted canvas or merged-extent size, in total pixels (matches
@@ -122,8 +123,9 @@ pub struct Layer {
     pub visible: bool,
     /// Original coverage bytes (0 hides, 255 shows), independently sized and
     /// placed by mask_properties. Density/feather never rewrite this plane.
-    /// Shared (`Arc`) for the same copy-on-write reason as the pixels.
-    pub mask: Option<Arc<GrayImage>>,
+    /// Shared tiles (`GrayRaster`) for the same copy-on-write reason as the
+    /// pixels: a dab copies only the tiles it changes.
+    pub mask: Option<GrayRaster>,
     /// When false the mask is retained but ignored while compositing.
     pub mask_enabled: bool,
     /// Independent raw storage placement, link and nondestructive coverage properties.
@@ -230,7 +232,7 @@ impl Layer {
     }
 
     /// Enabled effective coverage aligned to the raster pixel extent.
-    pub(crate) fn active_mask(&self) -> Option<Arc<GrayImage>> {
+    pub(crate) fn active_mask(&self) -> Option<GrayRaster> {
         if !self.mask_enabled {
             return None;
         }
@@ -401,7 +403,6 @@ pub(crate) fn composite_layer_into(
         );
     }
     let active_mask = layer.active_mask_with_job(env.job.checkpoints_only())?;
-    let mask = active_mask.as_deref().map(|m| m.as_raw().as_slice());
     let kind = blend_kind(layer.blend);
     let (lw, lh) = layer.pixels.dimensions();
     let rel_x = i64::from(layer.offset.0) - i64::from(origin.0);
@@ -418,15 +419,21 @@ pub(crate) fn composite_layer_into(
     } else {
         (0, 0)
     };
+    // The aligned mask's row span `sx0..sx1`, read in place once per row
+    // (`GrayRaster::row`; 13B-4).
+    let mut mask_row = Vec::new();
     for ay in y0..y1 {
         env.job.check()?;
         let ly = (ay - rel_y) as u64;
+        let mask = active_mask
+            .as_ref()
+            .map(|m| m.row(ly as u32, sx0, sx1, &mut mask_row));
         for (sx, run) in layer.pixels.row_segments(ly as u32, sx0, sx1) {
             let raw = run.as_flattened();
             for i in 0..run.len() {
                 let lx = sx as u64 + i as u64;
                 let ax = lx as i64 + rel_x;
-                let mi = (ly * u64::from(lw) + lx) as usize;
+                let mi = (lx - u64::from(sx0)) as usize;
                 let li = i * 4;
                 let coverage = mask.map_or(1.0, |m| f32::from(m[mi]) / 255.0);
                 let ai = (ay as u64 * u64::from(acc_w) + ax as u64) as usize;
@@ -514,7 +521,6 @@ fn composite_adjustment_into(
 ) -> Result<(), String> {
     let transfer = env.transfer;
     let active_mask = layer.active_mask_with_job(env.job.checkpoints_only())?;
-    let mask = active_mask.as_deref().map(|m| m.as_raw().as_slice());
     let kind = blend_kind(layer.blend);
     let (lw, lh) = layer.pixels.dimensions();
     let rel_x = i64::from(layer.offset.0) - i64::from(origin.0);
@@ -531,18 +537,29 @@ fn composite_adjustment_into(
         &|i| crate::doc_evaluation::encoded_view(acc[i], transfer),
         env.job.checkpoints_only(),
     )?;
+    // The mask columns this accumulator reads (layer space), clamped to the
+    // layer; each row's span is read in place once (`GrayRaster::row`).
+    let mx0 = (-rel_x).clamp(0, i64::from(lw));
+    let mx1 = (i64::from(acc_w) - rel_x).clamp(0, i64::from(lw));
+    let mut mask_row = Vec::new();
     for ay in 0..i64::from(acc_h) {
         env.job.check()?;
+        let ly = ay - rel_y;
+        let mask = match &active_mask {
+            None => None,
+            // The whole row is outside the mask's extent: coverage 0.
+            Some(_) if ly < 0 || ly >= i64::from(lh) => continue,
+            Some(m) => Some(m.row(ly as u32, mx0 as u32, mx1 as u32, &mut mask_row)),
+        };
         for ax in 0..i64::from(acc_w) {
             let coverage = match mask {
                 None => 1.0,
                 Some(m) => {
                     let lx = ax - rel_x;
-                    let ly = ay - rel_y;
-                    if lx < 0 || ly < 0 || lx >= i64::from(lw) || ly >= i64::from(lh) {
+                    if lx < mx0 || lx >= mx1 {
                         continue; // outside the mask's extent: coverage 0
                     }
-                    f32::from(m[(ly as u64 * u64::from(lw) + lx as u64) as usize]) / 255.0
+                    f32::from(m[(lx - mx0) as usize]) / 255.0
                 }
             };
             let k = coverage * opacity;
@@ -1620,7 +1637,7 @@ impl DrDocument {
                 };
                 out.offset =
                     group_offset(l).unwrap_or_else(|| f(l.offset, i64::from(lw), i64::from(lh)));
-                out.geometry_mask(geom, self.width, self.height);
+                out.geometry_mask(geom, self.width, self.height)?;
                 Some(out)
             })
             .collect::<Option<Vec<_>>>()?;
@@ -1629,7 +1646,7 @@ impl DrDocument {
             height: new_h,
             layers,
             global_light: self.global_light,
-            channels: doc_channel::geometry_channels(&self.channels, geom),
+            channels: doc_channel::geometry_channels(&self.channels, geom)?,
             guides: doc_guide::geometry_guides(&self.guides, geom, self.width, self.height),
             ruler_origin: doc_guide::geometry_origin(
                 self.ruler_origin,
@@ -1708,7 +1725,7 @@ impl DrDocument {
             height: h,
             layers,
             global_light: self.global_light,
-            channels: doc_channel::cropped_channels(&self.channels, x, y, w, h),
+            channels: doc_channel::cropped_channels(&self.channels, x, y, w, h)?,
             guides: doc_guide::cropped_guides(&self.guides, x, y, w, h),
             ruler_origin: doc_guide::cropped_origin(self.ruler_origin, x, y, w, h),
             color_samplers: doc_sampler::cropped_samplers(&self.color_samplers, x, y, w, h),
@@ -1776,7 +1793,7 @@ impl DrDocument {
             height: h,
             layers,
             global_light: self.global_light,
-            channels: doc_channel::padded_channels(&self.channels, w, h, origin),
+            channels: doc_channel::padded_channels(&self.channels, w, h, origin)?,
             guides: doc_guide::padded_guides(&self.guides, w, h, origin),
             ruler_origin: doc_guide::padded_origin(self.ruler_origin, w, h, origin),
             color_samplers: doc_sampler::padded_samplers(&self.color_samplers, w, h, origin),
@@ -1881,7 +1898,7 @@ impl DrDocument {
             height: h,
             layers,
             global_light: self.global_light,
-            channels: doc_channel::resized_channels(&self.channels, w, h, filter),
+            channels: doc_channel::resized_channels(&self.channels, w, h, filter)?,
             // Unlike the layer offsets above, a guide's scaled position is
             // deliberately NOT rounded: an offset is an integer pixel
             // address while a guide position is a continuous coordinate, and
@@ -2020,7 +2037,7 @@ impl DrDocument {
                 }
             };
             doc.with_layer(idx, |l| {
-                l.mask = Some(Arc::new(mask));
+                l.mask = Some(GrayRaster::new(mask));
                 l.mask_enabled = true;
                 l.mask_properties = properties;
                 // A fresh group mask is canvas-ALIGNED, so the offset the old
@@ -2052,7 +2069,7 @@ impl DrDocument {
         };
         self.under_locks(idx, kind, |doc| {
             let layer = doc.layer(idx)?;
-            layer.mask.as_deref()?;
+            layer.mask.as_ref()?;
             if apply && layer.kind == LayerKind::Group {
                 return None;
             }
@@ -2061,8 +2078,8 @@ impl DrDocument {
                     .effective_mask_rect(layer.offset, layer.pixels.width(), layer.pixels.height())
                     .expect("existing mask");
                 let mut pixels = layer.pixels.to_contiguous()?;
-                for (px, cov) in pixels.pixels_mut().zip(mask.pixels()) {
-                    px[3] = (f32::from(px[3]) * f32::from(cov[0]) / 255.0).round() as u8;
+                for (px, cov) in pixels.pixels_mut().zip(mask.runs().flatten()) {
+                    px[3] = (f32::from(px[3]) * f32::from(*cov) / 255.0).round() as u8;
                 }
                 Ok::<_, String>(pixels)
             });
@@ -2107,55 +2124,72 @@ impl DrDocument {
     /// CANVAS-sized and sits at the group's own offset — which is exactly what
     /// that offset positions (`doc_align`) — so the same walk covers it with
     /// the canvas as its frame. A MASK edit under `doc_lock`.
+    ///
+    /// Since 13B-4 the walk reads and writes only the overlay's nonzero
+    /// canvas rect on the mask's own plane (its dimensions and
+    /// `mask_properties.offset`: `layer_rect::canvas_rect_on_plane`) through
+    /// `GrayRaster::read_rect` / `with_rect`, so a dab copies the tiles it
+    /// changes and nothing else. It deliberately keeps `paint_mask`'s historic
+    /// lack of a "nothing changed" latch — the channel paints have one — so a
+    /// stroke that changes no byte still answers a document (the mask under a
+    /// fresh identity, every tile shared).
     pub fn paint_mask(&self, idx: usize, overlay: &[u8]) -> Option<Self> {
         self.under_locks(idx, EditKind::Mask, |doc| {
             let layer = doc.layer(idx)?;
-            let mask = layer.mask.as_deref()?;
+            let mask = layer.mask.as_ref()?;
             let expected = (doc.width as usize)
                 .checked_mul(doc.height as usize)?
                 .checked_mul(4)?;
             if overlay.len() != expected {
                 return None;
             }
-            let (lw, lh) = mask.dimensions();
-            let (off_x, off_y) = (
-                i64::from(layer.mask_properties.offset.0),
-                i64::from(layer.mask_properties.offset.1),
-            );
-            let lx0 = (-off_x).max(0);
-            let ly0 = (-off_y).max(0);
-            let lx1 = (i64::from(doc.width) - off_x).min(i64::from(lw));
-            let ly1 = (i64::from(doc.height) - off_y).min(i64::from(lh));
-            if lx0 >= lx1 || ly0 >= ly1 {
-                return None;
-            }
-            let mut painted = mask.clone();
-            let raw: &mut [u8] = &mut painted;
-            for ly in ly0..ly1 {
-                for lx in lx0..lx1 {
-                    let cx = (lx + off_x) as u64;
-                    let cy = (ly + off_y) as u64;
-                    let si = ((cy * u64::from(doc.width) + cx) * 4) as usize;
-                    let sp = [
-                        overlay[si],
-                        overlay[si + 1],
-                        overlay[si + 2],
-                        overlay[si + 3],
-                    ];
-                    let di = (ly as u64 * u64::from(lw) + lx as u64) as usize;
-                    // `doc_plane::channel_lerp` IS this rule (it was lifted
-                    // from here), now shared with channel and colour-plane
-                    // painting; None means the overlay pixel is transparent
-                    // and the mask byte is left alone. This loop deliberately
-                    // keeps `paint_mask`'s historic lack of a "nothing
-                    // changed" latch — the channel paints have one — so the
-                    // refactor changes no behaviour here.
-                    if let Some(v) = channel_lerp(raw[di], sp) {
-                        raw[di] = v;
+            let canvas = (doc.width, doc.height);
+            let dimensions = mask.dimensions();
+            let offset = layer.mask_properties.offset;
+            // A mask off the canvas: no sample could change.
+            crate::layer_rect::plane_clip(canvas, dimensions, offset)?;
+            let rect =
+                crate::layer_rect::nonzero_rect(canvas, |i| overlay[i * 4..i * 4 + 4] != [0; 4])
+                    .and_then(|(x, y, w, h)| {
+                        let (x, y) = (i64::from(x), i64::from(y));
+                        let end = (x + i64::from(w), y + i64::from(h));
+                        crate::layer_rect::canvas_rect_on_plane(
+                            canvas,
+                            dimensions,
+                            offset,
+                            (x, y, end.0, end.1),
+                        )
+                    });
+            let painted = match rect {
+                None => mask.reidentified(),
+                Some((rx, ry, rw, rh)) => {
+                    let mut samples = mask.read_rect(rx, ry, rw, rh)?;
+                    for (k, v) in samples.iter_mut().enumerate() {
+                        let (col, row) = ((k % rw as usize) as i64, (k / rw as usize) as i64);
+                        let cx = i64::from(offset.0) + i64::from(rx) + col;
+                        let cy = i64::from(offset.1) + i64::from(ry) + row;
+                        let si = ((cy as u64 * u64::from(doc.width) + cx as u64) * 4) as usize;
+                        let sp = [
+                            overlay[si],
+                            overlay[si + 1],
+                            overlay[si + 2],
+                            overlay[si + 3],
+                        ];
+                        // `doc_plane::channel_lerp` IS this rule (it was
+                        // lifted from here), now shared with channel and
+                        // colour-plane painting; None means the overlay pixel
+                        // is transparent and the mask byte is left alone.
+                        if let Some(nv) = channel_lerp(*v, sp) {
+                            *v = nv;
+                        }
+                    }
+                    match mask.with_rect(rx, ry, rw, rh, &samples).ok()? {
+                        Some(next) => next,
+                        None => mask.reidentified(),
                     }
                 }
-            }
-            doc.with_layer(idx, |l| l.mask = Some(Arc::new(painted)))
+            };
+            doc.with_layer(idx, |l| l.mask = Some(painted))
         })
     }
 
@@ -2163,7 +2197,8 @@ impl DrDocument {
     /// layers-panel thumbnail); `None` if the layer has no mask.
     pub fn mask_image(&self, idx: usize) -> Option<RgbaImage> {
         let layer = self.layer(idx)?;
-        let raw = layer.mask.as_deref()?;
+        let raw = layer.mask.as_ref()?.to_image().ok()?;
+        let raw = &raw;
         let canvas_mask = (layer.kind == LayerKind::Group).then(|| {
             doc_channel::padded_plane_with_coverage(
                 raw,

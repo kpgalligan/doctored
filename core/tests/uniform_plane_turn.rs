@@ -485,6 +485,12 @@ const RECORD_BLEND_IF: u64 = 160;
 /// 8 B alpha-fact cell (the flat-save list's per-plane memo): 40 B, counted
 /// twice by the term, 80 B per record, of which a filtered turn takes 5/4.
 const RECORD_ALPHA_FACTS: u64 = 100;
+/// What the same term grew by when the typed mask planes moved onto tiles
+/// (13B-4: a `PrecisionPlane` is a `TilePlane<u16>` and an identity token,
+/// 32 B where its two dimensions and `Arc` were 16 B; the record holds three,
+/// its mask and its warp binding's two): 48 B, counted twice by the term,
+/// 96 B per record, of which a filtered turn takes 5/4.
+const RECORD_TILED_MASKS: u64 = 120;
 
 fn at_head(head: (u64, u64)) -> (u64, u64) {
     (
@@ -496,6 +502,7 @@ fn at_head(head: (u64, u64)) -> (u64, u64) {
             + RECORD_GENERATED
             + RECORD_BLEND_IF
             + RECORD_ALPHA_FACTS
+            + RECORD_TILED_MASKS
             - RECORD_SHRINK,
         head.1,
     )

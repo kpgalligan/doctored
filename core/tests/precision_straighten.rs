@@ -33,9 +33,9 @@
 //! Crop tool clamps the angle to −45…45 and the `crop` MCP tool refuses
 //! `abs(angle) > 45`), so it has no drive or probe twin and is asserted here.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::DrDocument;
 use doctored_core::doc_evaluation::Evaluation;
@@ -416,7 +416,7 @@ fn byte_fixture() -> DrDocument {
         )
         .expect("a second layer");
     doc.layers[1].offset = SMALL_AT;
-    doc.layers[0].mask = Some(Arc::new(
+    doc.layers[0].mask = Some(GrayRaster::new(
         GrayImage::from_raw(W, H, plane_samples(W, H, 1)).unwrap(),
     ));
     doc.layers[0].mask_properties = {
@@ -424,7 +424,7 @@ fn byte_fixture() -> DrDocument {
         p.linked = true;
         p
     };
-    doc.layers[1].mask = Some(Arc::new(
+    doc.layers[1].mask = Some(GrayRaster::new(
         GrayImage::from_raw(SMALL_DIMS.0, SMALL_DIMS.1, plane_samples(9, 7, 2)).unwrap(),
     ));
     doc.layers[1].mask_properties = MaskProperties::at(SMALL_AT);
@@ -487,7 +487,7 @@ fn same_rasters(a: &[PrecisionImage], b: &[PrecisionImage]) -> bool {
 fn mask_addresses(doc: &PrecisionDocument) -> Vec<usize> {
     (0..doc.layer_count())
         .filter_map(|i| doc.layer(i).unwrap().mask())
-        .map(|m| m.plane().samples().as_ptr() as usize)
+        .map(|m| m.plane().storage_identity() as usize)
         .collect()
 }
 
@@ -880,7 +880,7 @@ fn every_mask_kind_rides_the_straighten_against_the_files_own_reference() {
                 "{filter}: {name}'s mask extent"
             );
             let reference = oracle_plane(
-                mask.plane().samples(),
+                &mask.plane().samples(),
                 dims,
                 offset,
                 want_extent,
@@ -889,7 +889,7 @@ fn every_mask_kind_rides_the_straighten_against_the_files_own_reference() {
                 outside,
             );
             compare_plane(
-                got.plane().samples(),
+                &got.plane().samples(),
                 &reference,
                 &format!("{filter}: {name}'s mask"),
             );
@@ -926,7 +926,7 @@ fn a_saved_channel_rides_the_straighten_straight_into_the_window() {
         );
         assert_eq!(out.channels()[0].name(), typed.channels()[0].name());
         let reference = oracle_plane(
-            typed.channels()[0].plane().samples(),
+            &typed.channels()[0].plane().samples(),
             (W, H),
             (0, 0),
             (0, 0, WINDOW.2, WINDOW.3),
@@ -935,7 +935,7 @@ fn a_saved_channel_rides_the_straighten_straight_into_the_window() {
             0,
         );
         compare_plane(
-            out.channels()[0].plane().samples(),
+            &out.channels()[0].plane().samples(),
             &reference,
             &format!("{filter}: the saved channel"),
         );

@@ -205,7 +205,7 @@ fn leaf_translation_obeys_mask_links_and_crop_retains_off_canvas_storage() {
         let a = translated.layer(0).unwrap().mask().unwrap();
         let b = original.layer(0).unwrap().mask().unwrap();
         assert_eq!(a.properties().offset, if linked { (2, 0) } else { (-1, 2) });
-        assert_eq!(a.plane().samples().as_ptr(), b.plane().samples().as_ptr());
+        assert_eq!(a.plane().storage_identity(), b.plane().storage_identity());
         let mask_only = apply(
             &translated,
             json!({"op":"affine","layer":0,"target":"mask","matrix":[1,0,0,1,-2,3],"filter":"bilinear"}),
@@ -232,8 +232,8 @@ fn leaf_translation_obeys_mask_links_and_crop_retains_off_canvas_storage() {
         let new = cropped.layer(0).unwrap().mask().unwrap();
         assert_eq!(new.plane().dimensions(), old.plane().dimensions());
         assert_eq!(
-            new.plane().samples().as_ptr(),
-            old.plane().samples().as_ptr()
+            new.plane().storage_identity(),
+            old.plane().storage_identity()
         );
         assert_eq!(
             new.properties().offset,
@@ -688,8 +688,8 @@ fn whole_tree_resize_and_crop_include_group_masks_adjustments_and_channels() {
         let before = output.layer(index).unwrap().mask().unwrap();
         let after = crop.layer(index).unwrap().mask().unwrap();
         assert_eq!(
-            after.plane().samples().as_ptr(),
-            before.plane().samples().as_ptr()
+            after.plane().storage_identity(),
+            before.plane().storage_identity()
         );
         assert_eq!(
             after.properties().offset,

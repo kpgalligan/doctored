@@ -25,10 +25,6 @@
 //! `doc_evaluation::encode_sample` and `Layer::effective_coverage_at`. The
 //! contract is `regional`'s module doc.
 
-use std::sync::Arc;
-
-use image::GrayImage;
-
 use crate::adjust::Adjustment;
 use crate::blend::{blend_kind, BlendMode};
 use crate::doc::{adjust_backdrop_sample, composite_layer_sample, Layer};
@@ -151,7 +147,7 @@ pub(crate) struct ResolvedNode<'r> {
     /// The entry's LAYER index (`Node.at.idx`): a staged level's `level`.
     pub(crate) index: usize,
     pub(crate) source: Source<'r>,
-    pub(crate) mask: Option<(Arc<GrayImage>, u32)>,
+    pub(crate) mask: Option<(crate::doc::GrayRaster, u32)>,
     pub(crate) style: Option<Styled>,
     pub(crate) blend: BlendMode,
     /// A STYLED node clamps every visible member to its SHAPE — its planes'

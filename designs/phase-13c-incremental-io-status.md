@@ -55,8 +55,9 @@ append-only pack files (`pack-<n>`, at most 256 MiB each) and an index (`pool.in
 length, codec). A state is a SKELETON (`pool_skeleton.rs`): the native file with each tiled raster replaced by its
 geometry and tile keys, and each other large payload (a mask or channel plane, a RAW payload, an 8-bit source PNG,
 64 KiB or more) replaced by the keys of its 1 MiB chunks; everything else is literal. Chunked blobs, not tiles only,
-because masks and channels are not tiled yet (13B-4) and left literal they would be rewritten in every state; when
-13B-4 tiles them they move to tile segments under a raised skeleton version. The rebuild writes the native file
+because the pool takes a mask or channel plane as the writer's bytes: 13B-4 (2026-11-15) stores those planes as
+tiles, and moving them to tile segments under a raised skeleton version is open under
+[#11](https://github.com/kpgalligan/doctored/issues/11). The rebuild writes the native file
 back through the writers' own encoders, byte for byte, and the existing readers open it: a recovery reopen
 re-encodes and decodes each raster once, after a crash, never per edit.
 

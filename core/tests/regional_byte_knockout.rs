@@ -11,9 +11,9 @@
 //! of the regional code: the full projection cropped and top-left-cell
 //! sampled here in plain index arithmetic, byte for byte.
 
+use doctored_core::doc::GrayRaster;
 use std::ffi::c_char;
 use std::ptr;
-use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -353,7 +353,7 @@ fn masked(
     properties.density = density;
     properties.feather = feather;
     let layer = &mut out.layers[idx];
-    layer.mask = Some(Arc::new(plane));
+    layer.mask = Some(GrayRaster::new(plane));
     layer.mask_enabled = true;
     layer.mask_properties = properties;
     out

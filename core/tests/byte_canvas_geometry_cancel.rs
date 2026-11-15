@@ -102,7 +102,7 @@ fn assert_unchanged(before: &DrDocument, after: &DrDocument) {
     }
     assert_eq!(before.channels.len(), after.channels.len());
     for (a, b) in before.channels.iter().zip(&after.channels) {
-        assert!(std::sync::Arc::ptr_eq(&a.data, &b.data));
+        assert!(doctored_core::doc::GrayRaster::ptr_eq(&a.data, &b.data));
     }
 }
 
@@ -176,11 +176,16 @@ fn assert_same(a: &DrDocument, b: &DrDocument, what: &str) {
             x.pixels.to_contiguous().unwrap() == y.pixels.to_contiguous().unwrap(),
             "{what}: pixels"
         );
-        assert_eq!(x.mask.as_deref(), y.mask.as_deref(), "{what}: mask");
+        let bytes = |m: &doctored_core::doc::GrayRaster| (m.dimensions(), m.samples());
+        assert_eq!(
+            x.mask.as_ref().map(bytes),
+            y.mask.as_ref().map(bytes),
+            "{what}: mask"
+        );
     }
     assert_eq!(a.channels.len(), b.channels.len(), "{what}: channels");
     for (x, y) in a.channels.iter().zip(&b.channels) {
-        assert_eq!(x.data.as_raw(), y.data.as_raw(), "{what}: channel");
+        assert_eq!(x.data.samples(), y.data.samples(), "{what}: channel");
     }
 }
 

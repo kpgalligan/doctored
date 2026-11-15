@@ -271,7 +271,7 @@ impl Stack {
                 assert_eq!(mask.dimensions(), canvas);
                 assert!(entry.mask_enabled);
                 assert!(entry.mask_properties == plain);
-                mask.as_raw()
+                mask.samples()
                     .iter()
                     .map(|&v| {
                         assert!(v == 0 || v == 255, "a binary mask");

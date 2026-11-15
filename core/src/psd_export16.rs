@@ -437,15 +437,15 @@ fn mask_channel(
     channels.push((
         -2,
         if float {
-            crate::psd_export_float::mask_plane32(mask.plane().samples())
+            crate::psd_export_float::mask_plane32(mask.plane().runs().flatten().copied())
         } else if let Some(depth) = depth {
             let mut bytes = Vec::with_capacity(w as usize * h as usize * depth.bytes() as usize);
-            for sample in mask.plane().samples() {
+            for sample in mask.plane().runs().flatten() {
                 depth.push(&mut bytes, *sample);
             }
             encode_plane(&bytes, w * depth.bytes(), h, large)
         } else {
-            plane16(mask.plane().samples().iter().copied(), w, h, large)
+            plane16(mask.plane().runs().flatten().copied(), w, h, large)
         },
     ));
     Some(MaskBody {
@@ -1427,7 +1427,7 @@ impl PrecisionDocument {
                     }
                 }
             }
-            let spots = self.layered_tiff_spots();
+            let spots = self.layered_tiff_spots()?;
             let mut resources = image_resources(
                 self.profile().bytes(),
                 self.resolution(),

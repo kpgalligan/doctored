@@ -19,7 +19,6 @@
 
 use std::ffi::c_char;
 use std::ptr;
-use std::sync::Arc;
 
 use doctored_core::doc::{BlendMode, DrDocument};
 use doctored_core::ffi::dr_image_free;
@@ -75,8 +74,8 @@ fn backdrop() -> RgbaImage {
     RgbaImage::from_fn(W, H, |x, y| Rgba(backdrop_px(x, y)))
 }
 
-fn mask_image() -> Arc<GrayImage> {
-    Arc::new(GrayImage::from_fn(W, H, |x, y| Luma([mask_at(x, y)])))
+fn mask_image() -> doctored_core::doc::GrayRaster {
+    doctored_core::doc::GrayRaster::new(GrayImage::from_fn(W, H, |x, y| Luma([mask_at(x, y)])))
 }
 
 /// `image` under a canvas-sized Invert adjustment layer "Adj" (index 1),

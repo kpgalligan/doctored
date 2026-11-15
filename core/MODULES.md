@@ -431,7 +431,7 @@ Detail belongs in the source file's own header comment.
 - `precision_style_adjustment.rs` — the typed twin of `style_adjustment`: the in-place interior a styled 16/32-bit adjustment's styled path applies after its Below effects.
 - `precision_style_cache.rs` — the typed rendered-plane cache in each style's `RenderCache`: pointer key, `rendered` (both typed sites), the style walker for accounting; groups/CMYK uncached.
 - `precision_layer_blend.rs` / `precision_blend_native.rs` — native Normal/Multiply/Screen + 24 qualified raster/isolated-group modes on the existing `blend.rs` kernel, adjustments too; `LBLD` tables.
-- `precision_mask.rs` / `precision_mask_edit.rs` / `precision_plane_read.rs` — persistent u16 raw masks/channels, independent placement, linking, density/feather and exact scalar reads.
+- `precision_mask.rs` / `precision_mask_edit.rs` / `precision_plane_read.rs` — tiled u16 raw masks/channels (13B-4), independent placement, linking, density/feather, exact scalar reads.
 - `precision_mask_apply.rs` — typed Apply Mask: effective coverage (density/feather, a disabled mask too) baked into alpha with no byte plane; the float rule in its doc.
 - `precision_channel_edit.rs` / `precision_channel_metadata.rs` — native channel management and auxiliary-plane admission; display settings and source precision (v25 `CHPR`).
 - `precision_geometry.rs` / `precision_geometry_plan.rs` / `precision_geometry_canvas.rs` / `precision_sampling.rs` — typed affine/perspective and whole-document geometry: 16 bits, float, CMYK.
@@ -540,6 +540,7 @@ Detail belongs in the source file's own header comment.
 - `pool_skeleton.rs` — 13C-1: the skeleton file (a native file's payloads as pool keys: literal, tile and blob segments, a closing digest).
 - `doc_tile_pool.rs` / `ffi_tile_pool.rs` — 13C-1: `DrTilePool`, the byte and typed writes into a pool, the identity memo, the rebuild, `dr_tile_pool_*`.
 - `layer_raster.rs` — Phase 13B-2a's `LayerRaster`, the ONE accessor for byte layer pixels (tiled, private representation): layer pixels, retained-source and warp planes share its identity.
+- `gray_raster.rs` — 13B-4's `GrayRaster`, the ONE accessor for a byte mask or channel plane: shared 256×256 tiles, identity token, in-place row reads, no view cache.
 - `layer_rect.rs` — layer-space rects for the byte and typed rect writers: an edit with a natural bound reads, runs on and writes back only its own rect.
 - `thumbnail_reduce.rs` — the thumbnail REDUCERS: `box_reduced`, `area_split`, `box_reduced_rows`, `gray_resized`.
 - `layer_thumbnail.rs` — the Layers panel's thumbnails FITTED BEFORE any whole-layer copy: the byte raster arm, the typed `thumbnail_rgba8` and the 8-bit mask thumbnail.

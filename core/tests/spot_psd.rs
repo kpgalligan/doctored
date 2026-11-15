@@ -362,7 +362,7 @@ fn with_spots(doc: &PrecisionDocument, ramp: &[u16], bloc: &[u16]) -> PrecisionD
 }
 
 fn assert_typed_spots(doc: &PrecisionDocument, ramp: &[u16], bloc: &[u16], what: &str) {
-    let spots: Vec<(&str, Option<SpotInk>, &[u16])> = doc
+    let spots: Vec<(&str, Option<SpotInk>, Vec<u16>)> = doc
         .channels()
         .iter()
         .map(|c| (c.name(), c.metadata().spot, c.plane().samples()))
@@ -370,8 +370,8 @@ fn assert_typed_spots(doc: &PrecisionDocument, ramp: &[u16], bloc: &[u16], what:
     assert_eq!(
         spots,
         vec![
-            (RAMP, Some(ramp_ink()), ramp),
-            (BLOC, Some(bloc_ink()), bloc)
+            (RAMP, Some(ramp_ink()), ramp.to_vec()),
+            (BLOC, Some(bloc_ink()), bloc.to_vec())
         ],
         "{what}"
     );
@@ -504,17 +504,17 @@ fn a_byte_spot_channel_round_trips_and_is_reported() {
         );
         for open_mode in [LAYERS, FLATTENED] {
             let back = open8(&path, open_mode).unwrap();
-            let channels: Vec<(&str, Option<SpotInk>, &[u8])> = back
+            let channels: Vec<(&str, Option<SpotInk>, Vec<u8>)> = back
                 .channels
                 .iter()
-                .map(|c| (c.name.as_str(), c.spot, c.data.as_raw().as_slice()))
+                .map(|c| (c.name.as_str(), c.spot, c.data.samples()))
                 .collect();
             let (ramp, bloc) = (ramp8(), bloc8());
             assert_eq!(
                 channels,
                 vec![
-                    (RAMP, Some(ramp_ink()), ramp.as_slice()),
-                    (BLOC, Some(bloc_ink()), bloc.as_slice())
+                    (RAMP, Some(ramp_ink()), ramp.to_vec()),
+                    (BLOC, Some(bloc_ink()), bloc.to_vec())
                 ],
                 "container {container}, mode {mode}, opened {open_mode}: the alpha channel is not written"
             );
@@ -544,7 +544,7 @@ fn fifty_six_channels_bound_the_written_spot_channels() {
     for (k, channel) in back.channels.iter().enumerate() {
         assert_eq!(channel.name, format!("Spot {k}"));
         assert_eq!(channel.spot, doc.channels[k].spot);
-        assert_eq!(channel.data.as_raw(), doc.channels[k].data.as_raw());
+        assert_eq!(channel.data.samples(), doc.channels[k].data.samples());
     }
 }
 
@@ -910,8 +910,8 @@ fn byte_built_files_keep_their_spot_channels_and_disclose_the_rest() {
         Some(SpotInk::new([50.0, 10.0, -10.0], 70).unwrap())
     );
     assert_eq!(
-        doc.channels[0].data.as_raw(),
-        &PLANE.map(|v| 255 - v).to_vec()
+        doc.channels[0].data.samples(),
+        PLANE.map(|v| 255 - v).to_vec()
     );
 
     // Only 1006, a byte per code point.

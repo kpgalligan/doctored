@@ -18,12 +18,10 @@
 //!   extent. An unlinked mask retains its canvas location and raw pixels.
 //!   Coverage uses the scalar sampler shared with selection transforms.
 
-use std::sync::Arc;
-
 use image::imageops::FilterType;
 use image::{GrayImage, RgbaImage};
 
-use crate::doc::{DrDocument, Geometry, Layer, LayerRaster, MAX_PIXELS};
+use crate::doc::{DrDocument, Geometry, GrayRaster, Layer, LayerRaster, MAX_PIXELS};
 use crate::doc_evaluation::ByteTransfer;
 use crate::doc_lock::EditKind;
 use crate::job_control::JobContext;
@@ -744,11 +742,14 @@ fn rotated_dims((w, h): (u32, u32), geom: Geometry) -> (u32, u32) {
 }
 
 /// A resampled scalar plane and its canvas offset.
-pub(crate) type PlacedGray = (Arc<GrayImage>, (i32, i32));
+pub(crate) type PlacedGray = (GrayRaster, (i32, i32));
 
 /// The mask twin of transform_layer, sharing bounds, exact copies and sampling.
+/// An exact translate keeps the source plane (its tiles and identity); every
+/// other form reads one transient copy of it (13B-2c-3b's rule for resample
+/// inputs) and tiles the result.
 pub(crate) fn transform_gray(
-    src: &Arc<GrayImage>,
+    src: &GrayRaster,
     offset: (i32, i32),
     m: Affine,
     filter: FilterType,
@@ -769,19 +770,27 @@ pub(crate) fn transform_gray(
     };
     let (dx, dy, dw, dh) = dest;
     let pixels = match exact_form(&m) {
-        Some(Exact::Translate) if src.dimensions() == (dw, dh) => Arc::clone(src),
-        Some(Exact::Geom(geom)) => Arc::new(geom.apply(&**src)),
-        _ => match resample_mask_outside(
-            src,
-            dest,
-            &SourceMap::new(&inverse, offset, (dx, dy)),
-            sampler,
-            outside,
-            job,
-        ) {
-            Ok(mask) => Arc::new(mask),
-            Err(e) => return cancel_or_refuse(job, e),
-        },
+        Some(Exact::Translate) if src.dimensions() == (dw, dh) => src.clone(),
+        form => {
+            let image = match src.to_image() {
+                Ok(image) => image,
+                Err(e) => return cancel_or_refuse(job, e),
+            };
+            match form {
+                Some(Exact::Geom(geom)) => GrayRaster::new(geom.apply(&image)),
+                _ => match resample_mask_outside(
+                    &image,
+                    dest,
+                    &SourceMap::new(&inverse, offset, (dx, dy)),
+                    sampler,
+                    outside,
+                    job,
+                ) {
+                    Ok(mask) => GrayRaster::new(mask),
+                    Err(e) => return cancel_or_refuse(job, e),
+                },
+            }
+        }
     };
     Ok(Some((pixels, (dx, dy))))
 }

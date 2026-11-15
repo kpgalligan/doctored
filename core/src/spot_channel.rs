@@ -111,7 +111,7 @@ impl DrDocument {
         let mut doc = self.clone();
         doc.channels.push(Channel {
             spot: Some(ink),
-            ..Channel::new(name, Arc::new(data))
+            ..Channel::new(name, crate::doc::GrayRaster::new(data))
         });
         Some(doc)
     }

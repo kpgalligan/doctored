@@ -24,6 +24,7 @@
 //!   hidden RGB at alpha 0 never bleeds;
 //! * masks and channels: ≤ 1 code everywhere.
 
+use doctored_core::doc::GrayRaster;
 use std::sync::Arc;
 
 use doctored_core::doc::DrDocument;
@@ -189,7 +190,7 @@ fn mask_at(
 fn fixture(width: u32, height: u32) -> DrDocument {
     let mut doc = DrDocument::from_pixels(image(width, height, 11));
     doc.layers[0].name = "Base".into();
-    doc.layers[0].mask = Some(Arc::new(
+    doc.layers[0].mask = Some(GrayRaster::new(
         GrayImage::from_raw(width, height, plane_samples(width, height, 1)).unwrap(),
     ));
     doc.layers[0].mask_properties = mask_at(width, height, (2, -1), true, 1, 0);
@@ -198,7 +199,7 @@ fn fixture(width: u32, height: u32) -> DrDocument {
         .adding_image_layer(0, edge_image(SMALL_DIMS.0, SMALL_DIMS.1), "Small")
         .expect("the Small layer");
     doc.layers[1].offset = SMALL_AT;
-    doc.layers[1].mask = Some(Arc::new(
+    doc.layers[1].mask = Some(GrayRaster::new(
         GrayImage::from_raw(
             SMALL_DIMS.0,
             SMALL_DIMS.1,
@@ -214,7 +215,7 @@ fn fixture(width: u32, height: u32) -> DrDocument {
         .adding_image_layer(1, RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 0])), "Tone")
         .expect("the Tone layer");
     doc.layers[2].meta = Some(json!({"type":"adjust","op":"invert","params":{}}).to_string());
-    doc.layers[2].mask = Some(Arc::new(
+    doc.layers[2].mask = Some(GrayRaster::new(
         GrayImage::from_raw(width, height, plane_samples(width, height, 4)).unwrap(),
     ));
     doc.layers[2].mask_properties = mask_at(width, height, (-2, 4), false, 4, 255);
@@ -241,7 +242,7 @@ fn fixture(width: u32, height: u32) -> DrDocument {
 
     // The GROUP, around `Small` alone, carrying a canvas-sized linked mask.
     let (mut grouped, group, _, _) = doc.group_layers(&[1], "Group").expect("the group");
-    grouped.layers[group].mask = Some(Arc::new(
+    grouped.layers[group].mask = Some(GrayRaster::new(
         GrayImage::from_raw(width, height, plane_samples(width, height, 3)).unwrap(),
     ));
     grouped.layers[group].mask_properties = mask_at(width, height, (0, 0), true, 3, 0);
@@ -291,8 +292,8 @@ fn rgba_samples(image: &RgbaImage) -> Vec<[u32; 4]> {
         .collect()
 }
 
-fn plane_values(plane: &GrayImage) -> Vec<u32> {
-    plane.as_raw().iter().map(|&v| u32::from(v)).collect()
+fn plane_values(plane: &GrayRaster) -> Vec<u32> {
+    plane.samples().iter().map(|&v| u32::from(v)).collect()
 }
 
 fn guide_pairs(guides: &[Guide]) -> Vec<(GuideOrientation, f64)> {
@@ -347,8 +348,8 @@ fn assert_identical(got: &DrDocument, want: &DrDocument, what: &str) {
             "{what}: layer {index}'s pixels"
         );
         assert_eq!(
-            g.mask.as_ref().map(|m| m.as_raw().clone()),
-            w.mask.as_ref().map(|m| m.as_raw().clone()),
+            g.mask.as_ref().map(|m| m.samples().clone()),
+            w.mask.as_ref().map(|m| m.samples().clone()),
             "{what}: layer {index}'s mask"
         );
         assert!(
@@ -367,8 +368,8 @@ fn assert_identical(got: &DrDocument, want: &DrDocument, what: &str) {
     for (index, (g, w)) in got.channels.iter().zip(&want.channels).enumerate() {
         assert_eq!(g.name, w.name, "{what}: channel {index}'s name");
         assert_eq!(
-            g.data.as_raw(),
-            w.data.as_raw(),
+            g.data.samples(),
+            w.data.samples(),
             "{what}: channel {index}'s samples"
         );
     }
@@ -1198,13 +1199,13 @@ fn every_refusal_states_its_own_sentence_and_identity_is_a_successful_no_op() {
 fn native_save_reopen_and_resave_is_byte_identical_and_the_input_is_untouched() {
     let doc = fixture(W, H);
     let before = placement(&doc);
-    let before_channel = doc.channels[0].data.as_raw().clone();
+    let before_channel = doc.channels[0].data.samples();
     let out = rotated(&doc, ANGLE, BICUBIC);
 
     // PURITY: the input document is untouched, which is what makes the
     // host's undo stack one handle per step.
     assert_eq!(placement(&doc), before);
-    assert_eq!(doc.channels[0].data.as_raw(), &before_channel);
+    assert_eq!(doc.channels[0].data.samples(), before_channel);
     assert_eq!((doc.width, doc.height), (W, H));
 
     let dir = tempfile::tempdir().expect("a temp dir");
@@ -1220,8 +1221,8 @@ fn native_save_reopen_and_resave_is_byte_identical_and_the_input_is_untouched() 
     );
     assert_eq!(placement(&reopened), placement(&out), "extents survive");
     assert_eq!(
-        reopened.channels[0].data.as_raw(),
-        out.channels[0].data.as_raw(),
+        reopened.channels[0].data.samples(),
+        out.channels[0].data.samples(),
         "the resampled channel survives"
     );
     assert_eq!(guide_pairs(&reopened.guides), guide_pairs(&out.guides));

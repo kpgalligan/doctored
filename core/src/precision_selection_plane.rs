@@ -273,10 +273,8 @@ impl PlaneOperation {
                 .inverse()
                 .ok_or("invalid selection transform")?;
             let map = SourceMap::new(&inverse, (0, 0), (0, 0));
-            return copy(
-                transform_plane(&source, dimensions, &map, *filter, job)?.samples(),
-                job,
-            );
+            return transform_plane(&source, dimensions, &map, *filter, job)?
+                .to_contiguous_polled(job);
         }
         if let Self::Perspective {
             source_rect,
@@ -286,10 +284,8 @@ impl PlaneOperation {
         {
             let source = PrecisionPlane::copy(w, h, input, job)?;
             let map = CanvasMap::quad(*source_rect, *quad)?.source_map((0, 0), (0, 0))?;
-            return copy(
-                transform_plane(&source, dimensions, &map, *filter, job)?.samples(),
-                job,
-            );
+            return transform_plane(&source, dimensions, &map, *filter, job)?
+                .to_contiguous_polled(job);
         }
         if let Some(reach) = support::reach(self) {
             let Some(bounds) = support::support(input, w, h, job)? else {

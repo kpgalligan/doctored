@@ -362,8 +362,8 @@ fn composite_reconstruction_never_changes_independent_raster_or_rle_mask_storage
     let layers = open(&path, &notice, 0);
     assert_eq!(layers.layers[0].pixels.contiguous_image().as_raw(), &rgba);
     assert_eq!(
-        layers.layers[0].mask.as_ref().unwrap().as_raw(),
-        &mask.coverage
+        layers.layers[0].mask.as_ref().unwrap().samples(),
+        mask.coverage
     );
     assert_eq!(layers.layers[0].mask_properties.outside_coverage, 255);
     let before = save(&layers, &temp.path().join("before.rz"));
