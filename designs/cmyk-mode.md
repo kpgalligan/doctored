@@ -319,9 +319,12 @@
   `verify_cmyk_mode.py` G10. No DRDC change.
 - **Select Similar and Grow measured** (2026-11-15): run by `executeAction` with no descriptor they ran on CMYK
   (`similar_trim_61_take.py`, `similar-trim-61` take1 and take2, 8 and 16 bits). Photoshop's rule is the per-key
-  ⌊N/10⌋ trim on `lab_select::wand_key`'s key form over the naive RGB at byte codes; PN7's full box misses it and stays
-  shipped, held with RGB's ([#61](https://github.com/kpgalligan/doctored/issues/61),
-  [#79](https://github.com/kpgalligan/doctored/issues/79)). No code change.
+  ⌊N/10⌋ trim on `lab_select::wand_key`'s key form over the naive RGB at byte codes, where PN7's full box missed.
+- **The wand's halved keys** (2026-11-15): the wand, the bucket, Similar and Grow key the naive RGB as RGB does —
+  R, G, B within ± t, the halved cyclic differences within ± ⌊t/2⌋ (`selection_similar::halved_keys`) — and Similar
+  and Grow trim ⌊N/10⌋ per key. `wand_key_79_take.py` (`wand-key-79` take2) met every CMYK wand case at 8 and 16
+  bits (PN7 missed 837 pixels a depth); `similar-trim-61` is met at both depths on the 16-bit P15 product; the
+  `cmyk_k_take.py` confirming take's 18 residual regions are gone. The CMYK bucket is unmeasured.
 - **The 16-bit naive product** (2026-11-15): at 16 bits each ink is read on the 32768-step grid, the plate is
   `round((32768 − iC)(32768 − iK)/32768)` there, read to a byte (`selection_region::ink_as_rgb`), and the wand,
   bucket, Similar and Grow compare bytes (`selection_similar`'s **Resolution**). `key_resolution_80_take.py`

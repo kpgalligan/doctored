@@ -8,10 +8,12 @@
 //! byte, while alpha keeps its own codes and the tolerance's; a CMYK
 //! document's plate at 16 bits is the naive product on the 32768-step grid
 //! (each ink i = round(v · 32768 / 65535), R = round((32768 − iC)(32768 −
-//! iK) / 32768)) read to a byte as round(R · 255 / 32768); then R, G, B, A,
-//! R−G, G−B and R−B each lie within the references' range ± the bound (a
-//! Grayscale document first drops ⌊N/10⌋ of the N references' values at
-//! each end), global or a four-connected flood. An 8-bit Gray document's
+//! iK) / 32768)) read to a byte as round(R · 255 / 32768); then R, G, B and
+//! A each lie within the references' range ± the bound and the halved cyclic
+//! differences ⌊(G − R + 255)/2⌋, ⌊(B − G + 255)/2⌋, ⌊(R − B + 255)/2⌋
+//! within theirs ± half the colour bound (each key's range first drops
+//! ⌊N/10⌋ of the N references' values at each end), global or a
+//! four-connected flood. An 8-bit Gray document's
 //! Sample Size box averages those bytes, so its wand is the byte wand's
 //! (`dr_doc_magic_wand`) on the same pixels. Each scene also shows that the
 //! rule it replaced (the keys on the u16 codes, the tolerance as sent) would
@@ -58,17 +60,27 @@ fn byte(v: u16) -> i64 {
     (f64::from(v) / 257.0).round() as i64
 }
 
-fn keys(r: i64, g: i64, b: i64, a: u16) -> [i64; 7] {
-    [r, g, b, i64::from(a), r - g, g - b, r - b]
+/// The keys of R, G and B (bytes, `top` 255; or codes, `top` 65535) and
+/// alpha: the channels, alpha, then the halved cyclic differences.
+fn keys(r: i64, g: i64, b: i64, a: u16, top: i64) -> [i64; 7] {
+    [
+        r,
+        g,
+        b,
+        i64::from(a),
+        (g - r + top).div_euclid(2),
+        (b - g + top).div_euclid(2),
+        (r - b + top).div_euclid(2),
+    ]
 }
 
 fn byte_keys(p: [u16; 4]) -> [i64; 7] {
-    keys(byte(p[0]), byte(p[1]), byte(p[2]), p[3])
+    keys(byte(p[0]), byte(p[1]), byte(p[2]), p[3], 255)
 }
 
 fn code_keys(p: [u16; 4]) -> [i64; 7] {
     let [r, g, b, _] = p.map(i64::from);
-    keys(r, g, b, p[3])
+    keys(r, g, b, p[3], 65535)
 }
 
 /// One 16-bit ink on the 32768-step grid.
@@ -83,23 +95,26 @@ fn plate(v: u16, k: u16) -> i64 {
 }
 
 /// The region of keys `k` from the references `refs`: each key's range
-/// (`trim` drops ⌊N/10⌋ values at each end) widened by `colour` on the six
-/// colour keys and by `alpha` on alpha; global, or flooded four-connected
-/// from the references, which it always holds.
+/// (⌊N/10⌋ values dropped at each end) widened by `colour` on R, G and B,
+/// by ⌊colour/2⌋ on the halved differences and by `alpha` on alpha; global,
+/// or flooded four-connected from the references, which it always holds.
 fn region(
     k: &[[i64; 7]],
     refs: &[usize],
     (colour, alpha): (i64, i64),
     contiguous: bool,
-    trim: bool,
 ) -> Vec<bool> {
-    let dropped = if trim { refs.len() / 10 } else { 0 };
+    let dropped = refs.len() / 10;
     let mut lo = [0i64; 7];
     let mut hi = [0i64; 7];
     for j in 0..7 {
         let mut values: Vec<i64> = refs.iter().map(|&i| k[i][j]).collect();
         values.sort();
-        let bound = if j == 3 { alpha } else { colour };
+        let bound = match j {
+            3 => alpha,
+            0..=2 => colour,
+            _ => colour / 2,
+        };
         lo[j] = values[dropped] - bound;
         hi[j] = values[values.len() - 1 - dropped] + bound;
     }
@@ -190,7 +205,6 @@ fn check_cases(
     doc: *const PrecisionDocument,
     k: &[[i64; 7]],
     old: &[[i64; 7]],
-    trim: bool,
     what: &str,
 ) -> usize {
     let mixed = mixed_indices();
@@ -201,17 +215,17 @@ fn check_cases(
     for tolerance in TOLERANCES {
         for contiguous in [false, true] {
             let got = hard(&select(doc, &wand(0, 0, tolerance, contiguous), &[]).unwrap());
-            let want = region(k, &[0], bounds(tolerance), contiguous, trim);
+            let want = region(k, &[0], bounds(tolerance), contiguous);
             assert_eq!(
                 got, want,
                 "{what} wand t {tolerance} contiguous {contiguous}"
             );
             let operation = json!({"kind":"similar","tolerance":tolerance,"contiguous":contiguous});
             let got = hard(&select(doc, &operation, &coverage).unwrap());
-            let want = region(k, &mixed, bounds(tolerance), contiguous, trim);
+            let want = region(k, &mixed, bounds(tolerance), contiguous);
             assert_eq!(got, want, "{what} similar t {tolerance} grow {contiguous}");
             let t = i64::from(tolerance);
-            let replaced = region(old, &mixed, (t, t), contiguous, trim);
+            let replaced = region(old, &mixed, (t, t), contiguous);
             apart += want.iter().zip(&replaced).filter(|(a, b)| a != b).count();
         }
     }
@@ -248,7 +262,7 @@ fn a_16_bit_gray_document_compares_bytes() {
     let k: Vec<[i64; 7]> = held.iter().map(|p| byte_keys(*p)).collect();
     let old: Vec<[i64; 7]> = held.iter().map(|p| code_keys(*p)).collect();
     assert!(
-        check_cases(doc, &k, &old, true, "gray16") > 0,
+        check_cases(doc, &k, &old, "gray16") > 0,
         "the scene separates the rules"
     );
     free(doc);
@@ -275,7 +289,7 @@ fn a_16_bit_rgb_document_compares_bytes_and_its_bucket_follows() {
     let k: Vec<[i64; 7]> = pixels.iter().map(|p| byte_keys(*p)).collect();
     let old: Vec<[i64; 7]> = pixels.iter().map(|p| code_keys(*p)).collect();
     assert!(
-        check_cases(&d, &k, &old, false, "rgb16") > 0,
+        check_cases(&d, &k, &old, "rgb16") > 0,
         "the scene separates the rules"
     );
     // The Paint Bucket fills the wand's contiguous region: red over a scene
@@ -292,7 +306,7 @@ fn a_16_bit_rgb_document_compares_bytes_and_its_bucket_follows() {
         let got: Vec<bool> = green.iter().map(|g| *g == 0).collect();
         assert_eq!(
             got,
-            region(&k, &[0], bounds(tolerance), true, false),
+            region(&k, &[0], bounds(tolerance), true),
             "bucket t {tolerance}"
         );
     }
@@ -341,6 +355,7 @@ fn a_16_bit_cmyk_document_takes_the_product_on_the_15_bit_grid() {
                 plate(p[1], p[3]),
                 plate(p[2], p[3]),
                 65535,
+                255,
             )
         })
         .collect();
@@ -350,11 +365,11 @@ fn a_16_bit_cmyk_document_takes_the_product_on_the_15_bit_grid() {
         .map(|p| {
             let plate =
                 |v: u16| ((65535 - i64::from(v)) * (65535 - i64::from(p[3])) + 32767) / 65535;
-            keys(plate(p[0]), plate(p[1]), plate(p[2]), 65535)
+            keys(plate(p[0]), plate(p[1]), plate(p[2]), 65535, 65535)
         })
         .collect();
     assert!(
-        check_cases(doc, &k, &old, false, "cmyk16") > 0,
+        check_cases(doc, &k, &old, "cmyk16") > 0,
         "the scene separates the rules"
     );
     // Nor is it the 8-bit document's product on the inks' nearest bytes.
@@ -362,7 +377,7 @@ fn a_16_bit_cmyk_document_takes_the_product_on_the_15_bit_grid() {
         .iter()
         .map(|p| {
             let plate = |v: u16| ((255 - byte(v)) * (255 - byte(p[3])) + 127) / 255;
-            keys(plate(p[0]), plate(p[1]), plate(p[2]), 65535)
+            keys(plate(p[0]), plate(p[1]), plate(p[2]), 65535, 255)
         })
         .collect();
     assert_ne!(

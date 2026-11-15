@@ -1,6 +1,6 @@
 //! The Background Eraser (`background_eraser.rs`, `designs/background-eraser.md`) through
 //! its three exports, against an oracle written here from the rule alone: its own
-//! six-projection colour test, its own breadth-first walk and its own pixel-mode tip (the
+//! halved-key colour test on bytes, its own breadth-first walk and its own pixel-mode tip (the
 //! overlap of a unit pixel with the dab's square). A pixel-mode dab of odd diameter centred
 //! on a pixel covers a square of whole pixels, so every expected coverage is 0 or 1 and
 //! every expected alpha exact. The soft tip is checked against `dr_brush_u16` itself: with
@@ -63,11 +63,28 @@ struct Rule<'a> {
     like: &'a dyn Fn([i64; 3], [i64; 3]) -> bool,
 }
 
-/// R, G, B, R−G, G−B, R−B each within `t` (alpha is read as full, so it never differs).
-fn projections_within(t: i64) -> impl Fn([i64; 3], [i64; 3]) -> bool {
+/// The wand's keys of two byte colours, each within its bound of the other's: R, G and B
+/// within the byte tolerance `t`, the halved cyclic differences ⌊(G − R + 255)/2⌋,
+/// ⌊(B − G + 255)/2⌋ and ⌊(R − B + 255)/2⌋ within ⌊t/2⌋ (alpha is read as full, so it
+/// never differs).
+fn halved_keys_within(t: i64) -> impl Fn([i64; 3], [i64; 3]) -> bool {
     move |a, b| {
-        let p = |c: [i64; 3]| [c[0], c[1], c[2], c[0] - c[1], c[1] - c[2], c[0] - c[2]];
-        p(a).iter().zip(p(b)).all(|(x, y)| (x - y).abs() <= t)
+        let keys = |[r, g, bl]: [i64; 3]| {
+            [
+                r,
+                g,
+                bl,
+                (g - r + 255).div_euclid(2),
+                (bl - g + 255).div_euclid(2),
+                (r - bl + 255).div_euclid(2),
+            ]
+        };
+        let bound = [t, t, t, t / 2, t / 2, t / 2];
+        keys(a)
+            .iter()
+            .zip(keys(b))
+            .zip(bound)
+            .all(|((x, y), m)| (x - y).abs() <= m)
     }
 }
 
@@ -207,11 +224,11 @@ fn erase8(
     take_doc(out, err)
 }
 
-/// The byte layer's codes as the oracle reads them: ×257, present when alpha > 0.
+/// The byte layer's R, G and B as the oracle reads them, present when alpha > 0.
 fn codes8(d: &DrDocument) -> Vec<([i64; 3], bool)> {
     pixels(d)
         .iter()
-        .map(|p| ([0, 1, 2].map(|c| i64::from(p[c]) * 257), p[3] > 0))
+        .map(|p| ([0, 1, 2].map(|c| i64::from(p[c])), p[3] > 0))
         .collect()
 }
 
@@ -260,7 +277,7 @@ fn green_wall_island() -> DrDocument {
 #[test]
 fn limits_reach_the_like_pixels_under_the_tip() {
     let d = green_wall_island();
-    let like = projections_within(32 * 257);
+    let like = halved_keys_within(32);
     let dabs = [[8.5, 12.5, 15., 1.]];
     for contiguous in [true, false] {
         let rule = Rule {
@@ -294,12 +311,12 @@ fn limits_reach_the_like_pixels_under_the_tip() {
 fn sampling_takes_each_dab_the_first_dab_or_the_swatch() {
     // Green on the left half, blue on the right; one stroke across both.
     let d = scene(|x, _| rgba(if x < 16 { GREEN } else { BLUE }));
-    let like = projections_within(20 * 257);
+    let like = halved_keys_within(20);
     let dabs: Vec<[f64; 4]> = [4.5, 8.5, 12.5, 16.5, 20.5, 24.5]
         .iter()
         .map(|&x| [x, 12.5, 7., 1.])
         .collect();
-    let blue = BLUE.map(|c| i64::from(c) * 257);
+    let blue = BLUE.map(i64::from);
     for (sampling, name, swatch) in [
         (Sampling::Continuous, "continuous", None),
         (Sampling::Once, "once", None),
@@ -333,46 +350,70 @@ fn sampling_takes_each_dab_the_first_dab_or_the_swatch() {
     }
 }
 
+/// A grey-100 probe: where it sits, its colour, and whether the wand's keys admit it.
+type Probe = ((usize, usize), [u8; 3], bool);
+
 #[test]
-fn tolerance_is_the_wands_seven_projections() {
-    // Grey 100 with, at tolerance 10: (110, 100, 100) inside (every projection
-    // moves 10), (111, 100, 100) outside, (105, 95, 100) inside, and
-    // (106, 94, 100) outside although no channel moves more than 6, because
-    // R − G moves 12.
-    let probes = [
-        ((4, 12), [110, 100, 100], true),
-        ((6, 12), [111, 100, 100], false),
-        ((8, 14), [105, 95, 100], true),
-        ((10, 12), [106, 94, 100], false),
+fn tolerance_is_the_wands_halved_keys() {
+    // Grey 100 with, at tolerance 10: (110, 100, 100) inside (R moves 10, q1
+    // and q3 move 5 against ⌊10/2⌋), (111, 100, 100) outside, (105, 95, 100)
+    // inside, (106, 94, 100) outside although no channel moves more than 6,
+    // because q1 = ⌊(G − R + 255)/2⌋ moves 6, and (105, 94, 100) inside
+    // although R − G moves 11 (q1 moves 5: G − R + 255 is odd on grey, so the
+    // halving rounds the step down). At tolerance 15, (114, 100, 100) is
+    // inside and (115, 100, 100), a single-channel step of exactly t, outside
+    // (q3 moves 8 against 7). Each probe on its own side of one key's bound;
+    // a box of R − G, G − B and R − B within ± t refuses (105, 94, 100) and
+    // admits (115, 100, 100).
+    let cases: [(u32, &[Probe]); 2] = [
+        (
+            10,
+            &[
+                ((4, 12), [110, 100, 100], true),
+                ((6, 12), [111, 100, 100], false),
+                ((8, 14), [105, 95, 100], true),
+                ((10, 12), [106, 94, 100], false),
+                ((12, 12), [105, 94, 100], true),
+            ],
+        ),
+        (
+            15,
+            &[
+                ((4, 12), [114, 100, 100], true),
+                ((6, 12), [115, 100, 100], false),
+            ],
+        ),
     ];
-    let d = scene(|x, y| {
-        let colour = probes
-            .iter()
-            .find(|(at, ..)| *at == (x, y))
-            .map_or([100, 100, 100], |p| p.1);
-        rgba(colour)
-    });
-    let like = projections_within(10 * 257);
-    let rule = Rule {
-        contiguous: false,
-        sampling: Sampling::Continuous,
-        swatch: None,
-        protect: None,
-        like: &like,
-    };
-    let after = check8(
-        &d,
-        &rule,
-        &request(10 * 257, "discontiguous", "continuous", json!({})),
-        &[[7.5, 12.5, 13., 1.]],
-        None,
-    );
-    for ((x, y), _, inside) in probes {
-        assert_eq!(
-            alpha(&after, x, y),
-            if inside { 0 } else { 255 },
-            "({x}, {y})"
+    for (t, probes) in cases {
+        let d = scene(|x, y| {
+            let colour = probes
+                .iter()
+                .find(|(at, ..)| *at == (x, y))
+                .map_or([100, 100, 100], |p| p.1);
+            rgba(colour)
+        });
+        let like = halved_keys_within(i64::from(t));
+        let rule = Rule {
+            contiguous: false,
+            sampling: Sampling::Continuous,
+            swatch: None,
+            protect: None,
+            like: &like,
+        };
+        let after = check8(
+            &d,
+            &rule,
+            &request(t * 257, "discontiguous", "continuous", json!({})),
+            &[[7.5, 12.5, 13., 1.]],
+            None,
         );
+        for &((x, y), _, inside) in probes {
+            assert_eq!(
+                alpha(&after, x, y),
+                if inside { 0 } else { 255 },
+                "t {t} ({x}, {y})"
+            );
+        }
     }
 }
 
@@ -388,9 +429,9 @@ fn protect_keeps_like_pixels_and_stops_the_walk() {
             [100, 100, 100]
         })
     });
-    let like = projections_within(10 * 257);
+    let like = halved_keys_within(10);
     let protect = [118, 100, 100];
-    let codes = |c: [u8; 3]| c.map(|v| i64::from(v) * 257);
+    let codes = |c: [u8; 3]| c.map(i64::from);
     let dab = [[6.5, 12.5, 17., 1.]];
     let run = |contiguous: bool, protect: Option<[u8; 3]>, dabs: &[[f64; 4]]| {
         let rule = Rule {
@@ -448,7 +489,7 @@ fn transparency_hot_spots_and_the_canvas_edge() {
         (5, 12) => [GREEN[0], GREEN[1], GREEN[2], 128],
         _ => rgba(GREEN),
     });
-    let like = projections_within(16 * 257);
+    let like = halved_keys_within(16);
     let rule = |contiguous: bool, sampling: Sampling, swatch: Option<[i64; 3]>| Rule {
         contiguous,
         sampling,
@@ -456,7 +497,7 @@ fn transparency_hot_spots_and_the_canvas_edge() {
         protect: None,
         like: &like,
     };
-    let green = GREEN.map(|c| i64::from(c) * 257);
+    let green = GREEN.map(i64::from);
     // A Continuous dab whose hot spot is transparent erases nothing.
     let none = erase8(
         &d,
@@ -521,7 +562,7 @@ fn transparency_hot_spots_and_the_canvas_edge() {
 #[test]
 fn the_selection_gates_the_erase() {
     let d = scene(|_, _| rgba(GREEN));
-    let like = projections_within(0);
+    let like = halved_keys_within(0);
     let rule = Rule {
         contiguous: true,
         sampling: Sampling::Continuous,
@@ -693,7 +734,7 @@ fn sixteen_bits_compare_the_nearest_bytes() {
         (6, 12) => [21203, 31000, 41000, 65535],
         _ => field,
     });
-    let like = projections_within(4);
+    let like = halved_keys_within(4);
     let dabs = [[7.5, 12.5, 15., 1.]];
     let codes = bytes16(doc);
     for (contiguous, limits) in [(true, "contiguous"), (false, "discontiguous")] {
@@ -795,19 +836,20 @@ fn a_float_layer_compares_its_display_codes() {
         &IccProfile::srgb(),
         &[records],
     )));
+    // The display codes' bytes: pure blue and pure red.
     let codes: Vec<([i64; 3], bool)> = (0..W * H)
         .map(|i| {
             (
                 if (10..12).contains(&(i % W)) {
-                    [0, 0, 65535]
+                    [0, 0, 255]
                 } else {
-                    [65535, 0, 0]
+                    [255, 0, 0]
                 },
                 true,
             )
         })
         .collect();
-    let like = projections_within(0);
+    let like = halved_keys_within(0);
     let dabs = [[7.5, 12.5, 15., 1.]];
     for (contiguous, limits) in [(true, "contiguous"), (false, "discontiguous")] {
         let rule = Rule {
@@ -830,7 +872,7 @@ fn a_float_layer_compares_its_display_codes() {
     let rule = Rule {
         contiguous: false,
         sampling: Sampling::Swatch,
-        swatch: Some([0, 0, 65535]),
+        swatch: Some([0, 0, 255]),
         protect: None,
         like: &like,
     };

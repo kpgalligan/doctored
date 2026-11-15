@@ -156,10 +156,9 @@ tools, from the UI, over MCP and in Actions. Every tool the catalog offers is ad
 - **Select Similar and Grow** (2026-11-15): the reference range drops ⌊N/10⌋ of each projection's N values from
   each end (`selection_similar::TRIM_DIVISOR`, Lab's rule); Duotone follows, 32 bits unmeasured.
   `similar_trim_61_take.py` (Photoshop 26.10.0, `similar-trim-61` take1 and take2) met it exactly on byte codes
-  at 8 and 16 bits; RGB and CMYK met it only on Lab's key form and stay as shipped
-  ([#61](https://github.com/kpgalligan/doctored/issues/61),
-  [#79](https://github.com/kpgalligan/doctored/issues/79)). Tests `core/tests/similar_trim.rs`,
-  `select_similar_photoshop.rs`.
+  at 8 and 16 bits; RGB and CMYK met it on Lab's key form, which they now share with the wand
+  (`wand_key_79_take.py`, `selection_similar`'s **The takes**), trimmed alike; Gray's keys reduce to the grey.
+  Tests `core/tests/similar_trim.rs`, `select_similar_photoshop.rs`.
 - **The 16-bit key resolution** (2026-11-15): the wand, the Paint Bucket and Similar and Grow compare bytes at
   every depth, each u16 code read as its nearest byte and the tolerance back to its 8-bit t
   (`selection_similar`'s **Resolution**); Gray at 16 bits is now exact on `similar-trim-61` too.

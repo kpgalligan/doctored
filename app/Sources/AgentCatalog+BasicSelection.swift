@@ -63,7 +63,7 @@ extension AgentServer {
                 "select_magic_wand",
                 "Selects the region of similar color around a seed point, sampled "
                     + "from the flattened composite (what you see in a render). "
-                    + "tolerance (0–255, default 32) bounds how far each of R, G, B, A, R−G, G−B and R−B may lie from the seed's, in 8-bit steps at every depth: a 16- or 32-bit document's R, G and B are read as their nearest 8-bit codes and a fractional tolerance as its nearest whole step; "
+                    + "tolerance (0–255, default 32) bounds how far each of R, G, B and A may lie from the seed's, and half of it (rounded down) how far the halved differences (G−R+255)/2, (B−G+255)/2 and (R−B+255)/2 (rounded down) may, so a hue shift counts and a brightness shift does not move them; in 8-bit steps at every depth: a 16- or 32-bit document's R, G and B are read as their nearest 8-bit codes and a fractional tolerance as its nearest whole step; "
                     + "contiguous (default true) limits to the connected region. "
                     + "sample_all_layers: false reads one layer alone instead (the wand's "
                     + "Sample: Current layer): its own pixels on a transparent canvas, "

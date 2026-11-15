@@ -38,7 +38,7 @@ native depth with independent selection gating — without changing any legacy b
   endpoint alpha.
 - **Storage growth.** Brush, selection fill, color-match bucket and gradient grow raw layer storage only where
   new ink changes a previously absent pixel; erasing absent storage is a no-op with no Undo entry.
-- **Bucket fill.** `fill_mode: "color_match"` (anchored seven-projection tolerance, at native precision, 0–255 units,
+- **Bucket fill.** `fill_mode: "color_match"` (the wand's anchored keys, compared as bytes, 0–255 units,
   fractional allowed; contiguous/noncontiguous) or `"selection"`. New colour-match requires positive
   selection coverage at the seed (code 1 eligible); historical typed `contiguous: false` without `fill_mode`
   keeps its selection-wide meaning; 9G scalar bucket calls keep their seed admission.

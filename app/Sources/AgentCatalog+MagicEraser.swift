@@ -8,7 +8,8 @@ extension AgentServer {
             tool("magic_eraser",
                  "The Magic Eraser tool's click: erase, on a layer, the region the Magic Wand "
                  + "selects from pixel (x, y). The region is the wand's — every pixel whose R, G, "
-                 + "B, A, R−G, G−B and R−B each lie within tolerance of the seed's, four-connected "
+                 + "B and A each lie within tolerance of the seed's and whose halved differences "
+                 + "lie within half of it (select_magic_wand), four-connected "
                  + "to it when contiguous, over the layer's own pixels or, with "
                  + "sample_all_layers, over the composite — hard-edged, and inside the selection "
                  + "(its coverage scales the erase). Each pixel in it keeps its colour and takes "

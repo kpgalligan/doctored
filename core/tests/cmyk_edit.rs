@@ -402,26 +402,40 @@ fn a_gradient_lerps_its_stops_along_the_drag() {
     free(doc);
 }
 
-/// The shipped ink projections (`selection_region`'s module doc, **Ink**,
-/// PN7), written out here: the ink's naive RGB in 16-bit codes — rounded
-/// through 8-bit codes on an 8-bit document — then R, G, B, A, R−G, G−B,
-/// R−B.
-fn ink_projections(p: [u16; 5], bits: u16) -> [i64; 7] {
+/// The wand's keys of an ink (`selection_region`'s module doc, **Ink**),
+/// written out here: each plate's naive RGB as a byte — at 8 bits
+/// `round((255 − c8)(255 − k8) / 255)` with `c8 = round(C / 257)`, at 16 the
+/// product on the 32768-step grid, `i = round(v · 32768 / 65535)` and
+/// `R = round((32768 − iC)(32768 − iK) / 32768)` (ties up), read as
+/// `round(R · 255 / 32768)` — then R, G, B, A (its u16 code) and the halved
+/// cyclic differences ⌊(G − R + 255)/2⌋, ⌊(B − G + 255)/2⌋, ⌊(R − B + 255)/2⌋.
+fn ink_keys(p: [u16; 5], bits: u16) -> [i64; 7] {
     let [c, m, y, k, a] = p.map(f64::from);
+    let grid = |v: f64| (v * 32768.0 / 65535.0 + 0.5).floor();
     let plate = |v: f64| -> i64 {
         if bits == 8 {
             let (v8, k8) = ((v / 257.0).round(), (k / 257.0).round());
-            257 * ((255.0 - v8) * (255.0 - k8) / 255.0).round() as i64
+            ((255.0 - v8) * (255.0 - k8) / 255.0).round() as i64
         } else {
-            ((65535.0 - v) * (65535.0 - k) / 65535.0).round() as i64
+            let r15 = ((32768.0 - grid(v)) * (32768.0 - grid(k)) / 32768.0 + 0.5).floor();
+            ((r15 * 255.0 + 16384.0) / 32768.0).floor() as i64
         }
     };
     let (r, g, b) = (plate(c), plate(m), plate(y));
-    [r, g, b, a as i64, r - g, g - b, r - b]
+    [
+        r,
+        g,
+        b,
+        a as i64,
+        (g - r + 255).div_euclid(2),
+        (b - g + 255).div_euclid(2),
+        (r - b + 255).div_euclid(2),
+    ]
 }
 
-/// The test's own four-connected flood: every projection within ±
-/// `tolerance` of the seed's.
+/// The test's own four-connected flood: R, G and B within the tolerance read
+/// as its nearest byte, the halved differences within half of that byte, and
+/// alpha within the u16 tolerance, each of the seed's.
 fn flood(
     (w, h): (u32, u32),
     pixels: &[[u16; 5]],
@@ -430,12 +444,23 @@ fn flood(
     contiguous: bool,
     bits: u16,
 ) -> Vec<bool> {
-    let reference = ink_projections(pixels[seed], bits);
+    let reference = ink_keys(pixels[seed], bits);
+    let colour = (i64::from(tolerance) + 128) / 257;
+    let bound = [
+        colour,
+        colour,
+        colour,
+        i64::from(tolerance),
+        colour / 2,
+        colour / 2,
+        colour / 2,
+    ];
     let near = |i: usize| {
-        ink_projections(pixels[i], bits)
+        ink_keys(pixels[i], bits)
             .iter()
             .zip(reference)
-            .all(|(a, b)| (a - b).abs() <= i64::from(tolerance))
+            .zip(bound)
+            .all(|((a, b), m)| (a - b).abs() <= m)
     };
     if !contiguous {
         return (0..pixels.len()).map(near).collect();

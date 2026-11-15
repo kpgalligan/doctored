@@ -15,8 +15,9 @@ Eraser, Edit ▸ Fill…'s Clear), at every depth and in every colour mode.
   slot's erasers (the Background Eraser follows it). Its options bar: Tolerance (0–255, default 32), Contiguous (on), Sample All Layers (off), Opacity
   (1–100 %, default 100). The options are tool options (UserDefaults), so no document state and no DRDC
   word.
-- **The region** is the Magic Wand's from the clicked pixel at Point Sample: every pixel whose R, G, B,
-  A, R−G, G−B and R−B each lie within Tolerance of the seed's, four-connected to it when Contiguous. With
+- **The region** is the Magic Wand's from the clicked pixel at Point Sample: every pixel whose R, G, B
+  and A each lie within Tolerance of the seed's and whose halved cyclic differences lie within half of
+  it (`selection_similar`'s module doc), four-connected to it when Contiguous. With
   Sample All Layers off it grows over the active layer's own pixels; on, over the composite. It is
   hard-edged (the wand's 0 or full coverage), so there is no anti-alias option. At 16 and 32 bits and in
   the colour modes the tolerance is in 8-bit codes (the typed wand reads its codes as bytes,

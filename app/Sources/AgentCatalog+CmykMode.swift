@@ -191,8 +191,9 @@ extension AgentServer {
             case "select_magic_wand":
                 note = " In a CMYK document the wand compares the INK, not the view: each ink as "
                     + "its naive RGB (1 − C)(1 − K), (1 − M)(1 − K), (1 − Y)(1 − K) at the document's "
-                    + "depth, a pixel taken when its R, G, B, alpha, R−G, G−B and R−B each lie within "
-                    + "tolerance (8-bit codes) of the seed's, four-connected when contiguous, "
+                    + "depth, a pixel taken when its R, G, B and alpha each lie within tolerance "
+                    + "(8-bit codes) of the seed's and its halved differences within half of it, "
+                    + "as on RGB, four-connected when contiguous, "
                     + "admitting K and GCR twins alike; sample_all_layers false reads the "
                     + "active layer's own ink. sample_size averages that naive RGB over its box."
             case "load_selection":

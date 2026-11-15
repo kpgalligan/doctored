@@ -70,8 +70,10 @@ histogram plot doubles have a 4-ULP JSON transport allowance; integer statistics
 
 ## The wand and bucket predicate (2026-10-13)
 The Magic Wand and Paint Bucket (`selection_region::grow`; byte, 16-bit, float R1 codes) admit by Select ▸
-Grow/Similar's seven-projection box anchored at the seed: R, G, B, A, R−G, G−B, R−B each within ±t
-(`ReferenceRange::from_seed`). Every depth compares bytes (`selection_similar`'s **Resolution**, 2026-11-15):
+Grow/Similar's keys anchored at the seed: R, G, B, A within ±t and the halved cyclic differences
+⌊(G−R+255)/2⌋, ⌊(B−G+255)/2⌋, ⌊(R−B+255)/2⌋ within ±⌊t/2⌋ (`ReferenceRange::from_seed`; the
+seven-projection box fitted on 2026-10-13 was replaced by `wand_key_79_take.py`'s take, 2026-11-15,
+`selection_similar`'s **The takes**). Every depth compares bytes (`selection_similar`'s **Resolution**, 2026-11-15):
 a u16 R, G or B code reads as its nearest byte, t × 257 back to t, and alpha keeps its own codes; a gray
 mask/channel is |Δ byte| ≤ t.
 - **Takes** (`scripts/photoshop-probe/blur_wand_take.py`; every click in a uniform 101×101 field, so Sample
@@ -79,8 +81,10 @@ mask/channel is |Δ byte| ≤ t.
   at t 1 Photoshop admits only grey ±1 shifts. take2 (W2, t 3/17/50/100): wand = bucket, P7 not exact —
   14,119 mismatched pixels over 16 cases a tool against the old per-channel box's 133,279. Every global
   mismatch has a difference projection at exactly t (Photoshop refuses some at t 1, 3, 17) or t + 1 (it
-  admits some at t 50, 100); channels match exactly; t 50 contiguous is exact. Recorded wand and bucket
-  Actions select and fill differently.
+  admits some at t 50, 100); channels match exactly; t 50 contiguous is exact. Those residuals were the
+  seven-projection box's: re-scored, the halved keys meet every take1c and take2 case with 0 pixels off
+  (`core/tests/wand_predicate.rs` holds take2's committed masks). Recorded wand and bucket Actions select
+  and fill differently.
 
 ## Open items (verified 2026-09-26)
 - `DONE` — Generated native brush/pressure engine for Quick Mask and scalar painting (handed to 9H) — `93a45cf`.

@@ -10,8 +10,9 @@
 //!   transparent pixel is bare paper, `[0; 5]`). The wand grows through
 //!   `selection_region::grow_ink` and Select ▸ Grow / Similar through
 //!   `selection_similar::similar` over the same `selection_region::ink_as_rgb`
-//!   (the ink's naive RGB byte at the document's depth, `ReferenceRange`,
-//!   the one `flood`: PN7), with the u16 selection as the references. `alpha`
+//!   (the ink's naive RGB byte at the document's depth, keyed as RGB is,
+//!   `ReferenceRange`, the one `flood`), with the u16 selection as the
+//!   references and its per-key trim. `alpha`
 //!   is the ink's alpha; `color` with `channel` `cyan`, `magenta`, `yellow` or
 //!   `black` is that plate's STORED domain `1 − ink`
 //!   (`cmyk_composite::plate_coverage`), what Load Selection from a plate and
@@ -287,7 +288,6 @@ impl SelectionRequest {
                 input,
                 *tolerance,
                 *contiguous,
-                false,
                 work,
             ),
             SourceSelection::Alpha {} => per_pixel(&|p| p[4]),

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """MCP drive for batch v1x-blur-wand: Filter > Blur > Gaussian
 Blur runs its fitted kernel at 8, 16 and 32 bits, and the Magic Wand and
-Paint Bucket admit by the seven-projection box.
+Paint Bucket admit by the halved-key form (`selection_similar`'s module doc).
 
 The script owns one app instance (`verify_v1_lens.App`): the Debug app (or
 `DR_VERIFY_APP`) on its own scratch MCP socket with `DR_BACKGROUND=1`, a
@@ -24,10 +24,12 @@ splitmix noise. Each radius is checked on a grid of sampled pixels:
   within 1e-4 of the oracle run on the decoded linear values.
 
 WAND / BUCKET. A 48x40 field of grey 128 holding 8x8 patches of hue and
-brightness shifts (a shift of d in one channel moves R-G or R-B by d; a
-paired (d, -d, 0) moves R-G by 2d). For tolerance t in 10, 32, contiguous on
-and off, `select_magic_wand` at a field pixel must equal the oracle's
-seven-projection region exactly over every pixel (`get_selection` samples),
+brightness shifts (a shift of d in one channel moves two halved differences
+by about d/2; a paired (d, -d, 0) moves (G-R+255)//2 by d). The oracle
+admits R, G and B within t of the seed's and the halved cyclic differences
+(G-R+255)//2, (B-G+255)//2, (R-B+255)//2 within t // 2. For tolerance t in
+10, 11, 32, contiguous on and off, `select_magic_wand` at a field pixel must
+equal the oracle's region exactly over every pixel (`get_selection` samples),
 and `fill` with (0, 255, 0) must change exactly that region (read back by a
 tolerance-0 global wand on the fill colour, which no fixture pixel holds).
 The 16-bit document (codes x 257, tolerance as sent, the host scaling t x
@@ -183,10 +185,14 @@ def wand_picture():
     return picture
 
 
+def keys(c):
+    r, g, b = c[:3]
+    return (r, g, b, (g - r + 255) // 2, (b - g + 255) // 2, (r - b + 255) // 2)
+
+
 def admitted(p, seed, t):
-    d = [a - b for a, b in zip(p, seed)]
-    return max(abs(d[0]), abs(d[1]), abs(d[2]), abs(d[0] - d[1]), abs(d[1] - d[2]),
-               abs(d[0] - d[2])) <= t
+    bounds = (t, t, t, t // 2, t // 2, t // 2)
+    return all(abs(a - b) <= e for a, b, e in zip(keys(p), keys(seed), bounds))
 
 
 def region(picture, click, t, contiguous):
@@ -222,7 +228,7 @@ def wand_case(app, folder, depth):
     path = write(folder, f'wand-{depth}.png', picture)
     click = (1, 1)
     checked = 0
-    for t in (10, 32):
+    for t in (10, 11, 32):
         for contiguous in (True, False):
             want = region(picture, click, t, contiguous)
             document = app.call('open_document', path=str(path))['document']['id']

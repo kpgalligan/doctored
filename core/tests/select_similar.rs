@@ -167,7 +167,7 @@ fn a_grey_reference_admits_plus_minus_tolerance_and_refuses_one_more() {
 }
 
 #[test]
-fn a_hue_shift_counts_double_through_the_difference_projections() {
+fn a_hue_shift_counts_through_the_halved_differences() {
     let pixels = [grey(100), [105, 95, 100, 255], [106, 94, 100, 255]];
     assert_eq!(both(3, 1, &pixels, &[255, 0, 0], 10, false), [255, 255, 0]);
 }
@@ -220,7 +220,7 @@ fn a_reference_is_at_least_half_selected() {
 }
 
 #[test]
-fn alpha_is_one_more_projection() {
+fn alpha_is_one_more_key() {
     // Doctored convention, not measured: alpha is boxed like R, G and B.
     let pixels = [
         [100, 100, 100, 255],

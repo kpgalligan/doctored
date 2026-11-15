@@ -21,13 +21,14 @@ extension AgentServer {
                 "select_similar",
                 "Colour-based, NOT a pixel-radius expand (that is modify_selection grow): "
                     + "Select ▸ Grow / Select ▸ Similar. Every pixel at least 50% "
-                    + "selected is a reference; their range on seven projections — R, G, B, A, "
-                    + "R−G, G−B and R−B — widened by tolerance on both sides decides which "
-                    + "pixels of the composite are admitted, so a hue shift counts about double "
-                    + "against the tolerance. In a Grayscale or Duotone document that range first "
-                    + "drops, on each projection, the N/10 lowest and N/10 highest values of the N "
-                    + "selected pixels (rounded down), so a value few of them carry widens "
-                    + "nothing. The admitted region is ADDED to the selection at "
+                    + "selected is a reference; their range on the Magic Wand's keys decides "
+                    + "which pixels of the composite are admitted: R, G, B and A widened by "
+                    + "tolerance on both sides, and the halved differences (G−R+255)/2, "
+                    + "(B−G+255)/2 and (R−B+255)/2, rounded down, by half the tolerance, so a "
+                    + "hue shift counts against the tolerance and a brightness shift does not "
+                    + "move them. Each key's range first drops the N/10 lowest and N/10 highest "
+                    + "values of the N selected pixels (rounded down), so a value few of them "
+                    + "carry widens nothing. The admitted region is ADDED to the selection at "
                     + "full coverage, promoting partly selected pixels that fall in range. "
                     + "contiguous=true is Select ▸ Grow (four-connected from the selected "
                     + "pixels); false (default) is Select ▸ Similar (the whole image). At 16 "
@@ -35,7 +36,7 @@ extension AgentServer {
                     + "tolerance counts 8-bit steps there too. Repeating a call can grow further. "
                     + "Reports changed:false and adds no undo step when nothing new would be "
                     + "selected. Errors with no selection. In a 32-bit float document the "
-                    + "projections are the display-encoded copy, so a value above white "
+                    + "keys are the display-encoded copy's, so a value above white "
                     + "compares as white.",
                 [
                     "tolerance": [

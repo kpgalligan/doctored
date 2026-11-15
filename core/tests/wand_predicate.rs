@@ -1,11 +1,13 @@
-//! The Magic Wand and the Paint Bucket admit a pixel by the
-//! seven-projection box anchored at the seed — R, G, B, A, R−G, G−B and R−B
-//! each within ± tolerance of the seed's — the rule batch v1x-blur-wand
-//! measured in Photoshop 26.10.0 (`scripts/photoshop-probe/blur_wand_take.py`)
-//! and the one Select ▸ Grow/Similar already used. Every expectation goes
+//! The Magic Wand and the Paint Bucket admit a pixel by the halved-key form
+//! anchored at the seed: R, G, B and alpha within ± tolerance of the seed's,
+//! the halved cyclic differences ⌊(G − R + 255)/2⌋, ⌊(B − G + 255)/2⌋ and
+//! ⌊(R − B + 255)/2⌋ within ± ⌊tolerance/2⌋ — the rule Select ▸ Grow/Similar
+//! shares, measured in Photoshop 26.10.0
+//! (`scripts/photoshop-probe/wand_key_79_take.py`; this file's committed
+//! masks are `blur_wand_take.py`'s confirming take). Every expectation goes
 //! through the C boundary (byte `dr_doc_magic_wand`, `dr_doc_bucket_fill`; the
 //! 16-bit `magic_wand` selection) and is checked against this file's own
-//! predicate and four-connected flood, written without the core's region walk.
+//! keys, predicate and four-connected flood, written without the core's.
 use std::collections::VecDeque;
 use std::ptr;
 
@@ -18,25 +20,30 @@ use tempfile::TempDir;
 use crate::common::*;
 use crate::native_scalar;
 
-/// The oracle predicate: every one of the seven projections of `p` lies
-/// within `tol` of the seed's. Codes are i64 so 16-bit differences never wrap.
-fn similar(p: [i64; 4], seed: [i64; 4], tol: i64) -> bool {
-    let project = |c: [i64; 4]| {
-        [
-            c[0],
-            c[1],
-            c[2],
-            c[3],
-            c[0] - c[1],
-            c[1] - c[2],
-            c[0] - c[2],
-        ]
-    };
-    let (a, b) = (project(p), project(seed));
-    (0..7).all(|k| (a[k] - b[k]).abs() <= tol)
+/// The oracle's keys of one pixel (R, G and B bytes, alpha in its own
+/// codes): the channels, the three halved cyclic differences, alpha.
+fn keys([r, g, b, a]: [i64; 4]) -> [i64; 7] {
+    [
+        r,
+        g,
+        b,
+        (g - r + 255).div_euclid(2),
+        (b - g + 255).div_euclid(2),
+        (r - b + 255).div_euclid(2),
+        a,
+    ]
 }
 
-/// The oracle region: global, or four-connected from `seed` (always in it).
+/// The oracle predicate: the channels within `tol` of the seed's, the halved
+/// differences within ⌊tol/2⌋, alpha within `alpha_tol`.
+fn similar(p: [i64; 4], seed: [i64; 4], tol: i64, alpha_tol: i64) -> bool {
+    let bound = [tol, tol, tol, tol / 2, tol / 2, tol / 2, alpha_tol];
+    let (a, b) = (keys(p), keys(seed));
+    (0..7).all(|k| (a[k] - b[k]).abs() <= bound[k])
+}
+
+/// The oracle region on byte pixels: global, or four-connected from `seed`
+/// (always in it).
 fn region(
     img: &[[i64; 4]],
     w: usize,
@@ -46,7 +53,7 @@ fn region(
     contiguous: bool,
 ) -> Vec<bool> {
     let s = img[seed.1 * w + seed.0];
-    let admitted: Vec<bool> = img.iter().map(|&p| similar(p, s, tol)).collect();
+    let admitted: Vec<bool> = img.iter().map(|&p| similar(p, s, tol, tol)).collect();
     if !contiguous {
         return admitted;
     }
@@ -116,9 +123,10 @@ fn wand(doc: *const DrDocument, x: u32, y: u32, tol: u8, contiguous: bool) -> Ve
     mask.iter().map(|&m| m == 255).collect()
 }
 
-/// The byte wand equals the oracle at every tolerance, contiguous or not.
+/// The byte wand equals the oracle at every tolerance, odd and even,
+/// contiguous or not.
 #[test]
-fn byte_wand_is_the_seven_projection_box() {
+fn byte_wand_is_the_halved_key_form() {
     let dir = TempDir::new().unwrap();
     for (k, (seed, spread)) in [
         ([100, 100, 100], 40),
@@ -131,7 +139,7 @@ fn byte_wand_is_the_seven_projection_box() {
         let img = fixture(seed, spread, k as u64);
         let doc = doc_from(&dir, &format!("wand{k}.png"), &img);
         let pixels = codes(&img);
-        for tol in [0_u8, 1, 3, 10, 17, 32, 50, 100, 255] {
+        for tol in [0_u8, 1, 3, 10, 11, 17, 24, 32, 50, 100, 255] {
             for contiguous in [true, false] {
                 let want = region(&pixels, 40, 30, (5, 7), i64::from(tol), contiguous);
                 assert_eq!(
@@ -145,33 +153,54 @@ fn byte_wand_is_the_seven_projection_box() {
     }
 }
 
-/// The facts that separate it from the per-channel box it replaced: from
-/// grey 100 at tolerance 10, (105,95,100) is in, (106,94,100) — every channel
-/// within 6 — is out (R−G moves 12), and the grey shift (110,110,110) is in.
+/// The facts the key form carries, from grey 100: at tolerance 10,
+/// (105,95,100) is in and (106,94,100) — every channel within 6 — is out
+/// (q1 moves 6 against 5); the grey shift (110,110,110) is in; and
+/// (105,94,100), whose R − G is 11, one past the tolerance, is in (q1 moves
+/// 5: G − R + 255 is odd on grey, so the halving rounds the step down). At
+/// tolerance 15, (114,100,100) is in and (115,100,100), a single-channel step
+/// of exactly t, is out (q3 moves 8 against 7). The seven-projection box the
+/// wand shipped before refused (105,94,100) and admitted (115,100,100).
 #[test]
-fn a_hue_shift_counts_double_and_a_grey_shift_does_not() {
+fn the_halved_differences_decide_a_hue_shift_and_a_grey_shift_moves_none() {
     let dir = TempDir::new().unwrap();
-    let mut img = RgbaImage::from_pixel(5, 1, Rgba([100, 100, 100, 255]));
-    img.put_pixel(1, 0, Rgba([105, 95, 100, 255]));
-    img.put_pixel(2, 0, Rgba([106, 94, 100, 255]));
-    img.put_pixel(3, 0, Rgba([110, 110, 110, 255]));
-    img.put_pixel(4, 0, Rgba([111, 111, 111, 255]));
+    let row = [
+        [100, 100, 100],
+        [105, 95, 100],
+        [106, 94, 100],
+        [110, 110, 110],
+        [111, 111, 111],
+        [105, 94, 100],
+        [114, 100, 100],
+        [115, 100, 100],
+    ];
+    let mut img = RgbaImage::from_pixel(row.len() as u32, 1, Rgba([100, 100, 100, 255]));
+    for (x, c) in row.iter().enumerate() {
+        img.put_pixel(x as u32, 0, Rgba([c[0], c[1], c[2], 255]));
+    }
     let doc = doc_from(&dir, "facts.png", &img);
-    assert_eq!(wand(doc, 0, 0, 10, false), [true, true, false, true, false]);
+    assert_eq!(
+        wand(doc, 0, 0, 10, false),
+        [true, true, false, true, false, true, false, false]
+    );
+    assert_eq!(
+        wand(doc, 0, 0, 15, false),
+        [true, true, true, true, true, true, true, false]
+    );
     unsafe { dr_doc_free(doc) };
 }
 
 /// The bucket fills exactly the oracle region (the pixels that change to an
 /// opaque fill colour no fixture pixel holds).
 #[test]
-fn bucket_fill_fills_the_seven_projection_region() {
+fn bucket_fill_fills_the_halved_key_region() {
     let dir = TempDir::new().unwrap();
     let img = fixture([37, 180, 90], 60, 9);
     let pixels = codes(&img);
     let doc = doc_from(&dir, "bucket.png", &img);
     let fill = [0_u8, 255, 0, 255];
     assert!(img.pixels().all(|p| p.0 != fill));
-    for tol in [3_u8, 17, 50] {
+    for tol in [3_u8, 17, 24, 50] {
         for contiguous in [true, false] {
             let out = unsafe {
                 dr_doc_bucket_fill(doc, 0, 5, 7, tol, fill.as_ptr(), contiguous, ptr::null())
@@ -187,12 +216,12 @@ fn bucket_fill_fills_the_seven_projection_region() {
     unsafe { dr_doc_free(doc) };
 }
 
-/// 16 bits: the same predicate on u16 codes, with the tolerance the host
-/// sends (8-bit t × 257). A byte picture widened by ×257 selects exactly
-/// what the byte wand selects, and native codes that only a difference
-/// projection separates are refused.
+/// 16 bits: the same predicate on the codes' nearest bytes, with the
+/// tolerance the host sends (8-bit t × 257) read back to t. A byte picture
+/// widened by ×257 selects exactly what the byte wand selects, and native
+/// codes that only a halved difference separates are refused.
 #[test]
-fn sixteen_bit_wand_runs_the_same_predicate_on_its_own_codes() {
+fn sixteen_bit_wand_runs_the_same_predicate_on_its_bytes() {
     let dir = TempDir::new().unwrap();
     let img = fixture([128, 128, 128], 30, 3);
     let doc8 = doc_from(&dir, "wide.png", &img);
@@ -201,7 +230,7 @@ fn sixteen_bit_wand_runs_the_same_predicate_on_its_own_codes() {
         .map(|p| p.0.map(|c| u16::from(c) * 257))
         .collect();
     let d = native_scalar::doc(40, 30, wide);
-    for tol in [0_u8, 10, 32] {
+    for tol in [0_u8, 10, 11, 32] {
         for contiguous in [true, false] {
             let got = native_scalar::select(
                 &d,
@@ -216,33 +245,39 @@ fn sixteen_bit_wand_runs_the_same_predicate_on_its_own_codes() {
         }
     }
     unsafe { dr_doc_free(doc8) };
-    // Every channel within 1000 of the seed, but R−G moves 1600.
+    // Bytes 117 (the seed), (120, 114, 117), (119, 115, 117) and 121; the
+    // tolerance 1000 reads as byte 4, so q1 may move 2: the second moves 3.
     let native = vec![
         [30000, 30000, 30000, 65535],
         [30800, 29200, 30000, 65535],
         [30500, 29500, 30000, 65535],
         [31000, 31000, 31000, 65535],
     ];
-    let pixels: Vec<[i64; 4]> = native.iter().map(|p| p.map(i64::from)).collect();
+    let byte = |v: u16| (i64::from(v) + 128) / 257;
+    let pixels: Vec<[i64; 4]> = native
+        .iter()
+        .map(|p| [byte(p[0]), byte(p[1]), byte(p[2]), i64::from(p[3])])
+        .collect();
     let d = native_scalar::doc(4, 1, native);
     let got = native_scalar::select(
         &d,
         json!({"kind":"magic_wand","x":0,"y":0,"tolerance":1000,"contiguous":false}),
     );
-    let want = region(&pixels, 4, 1, (0, 0), 1000, false);
+    let want: Vec<bool> = pixels
+        .iter()
+        .map(|&p| similar(p, pixels[0], byte(1000), 1000))
+        .collect();
     assert_eq!(want, [true, false, true, true]);
     assert_eq!(got.iter().map(|&c| c == 65535).collect::<Vec<_>>(), want);
 }
 
-/// Photoshop's own wand and bucket masks from the confirming take (take2),
-/// committed with their manifest. The seven-projection box was the fitted
-/// member but not exact on every case: Photoshop refuses a few pixels whose
-/// difference projections sit at the tolerance when it is small, and admits
-/// a few just past it when it is large (the take's record). So each case is
-/// held to the mismatch count the take judged — 0 on the t50 contiguous
-/// cases — and the wand and the bucket must agree with each other.
+/// Photoshop's own wand and bucket masks from `blur_wand_take.py`'s
+/// confirming take (take2), committed with their manifest: the key form
+/// meets every one exactly, and the wand and the bucket agree. The
+/// seven-projection box the wand shipped before missed 25 pixels of the t50
+/// global cases and 723 and 799 of the t17 ones.
 #[test]
-fn wand_and_bucket_are_within_the_judged_residual_of_photoshops_masks() {
+fn wand_and_bucket_match_photoshops_masks() {
     let folder =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/photoshop_blur_wand");
     let manifest: serde_json::Value =
@@ -299,8 +334,8 @@ fn wand_and_bucket_are_within_the_judged_residual_of_photoshops_masks() {
             contiguous,
         );
         assert_eq!(got, oracle, "{row}: the oracle");
-        let mismatches = got.iter().zip(&photoshop).filter(|(a, b)| a != b).count() as u64;
-        assert_eq!(mismatches, row["p7_mismatches"].as_u64().unwrap(), "{row}");
+        let mismatches = got.iter().zip(&photoshop).filter(|(a, b)| a != b).count();
+        assert_eq!(mismatches, 0, "{row}: pixels off Photoshop's");
         unsafe { dr_doc_free(doc) };
     }
 }

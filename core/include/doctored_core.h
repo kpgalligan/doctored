@@ -2169,8 +2169,10 @@ bool dr_lab_kernel_rgb(const char *op, const float *lab, float *rgb_out);
 
 /* Similar-color selection from the flattened composite ("select what you
  * see"): writes a canvas-sized 0/255 mask into mask_out. A pixel is similar
- * when its R, G, B, A, R-G, G-B and R-B each lie within `tolerance` of the
- * seed's (measured against Photoshop; the bucket uses it too);
+ * when its R, G, B and A each lie within `tolerance` of the seed's and its
+ * halved cyclic differences floor((G-R+255)/2), floor((B-G+255)/2) and
+ * floor((R-B+255)/2) within floor(tolerance/2) (measured against Photoshop;
+ * the bucket uses it too);
  * `contiguous` restricts the selection to the four-connected region around
  * the seed. `sample_size` is the Sample Size: 1 = Point Sample (the
  * seed's own pixel); 3, 5, 11, 31, 51 or 101 = the truncating per-channel
@@ -2192,8 +2194,10 @@ bool dr_doc_magic_wand_layer(const DrDocument *doc, size_t idx, uint32_t x, uint
 
 /* Select > Grow (contiguous) / Select > Similar from the flattened composite:
  * writes into mask_out the canvas-sized 0/255 region whose colours lie in the
- * range of every pixel `mask` covers at least half (>= 128), on R, G, B, A,
- * R-G, G-B and R-B, widened by `tolerance` on both sides. `contiguous` floods
+ * range of the pixels `mask` covers at least half (>= 128), on
+ * dr_doc_magic_wand's keys, widened by its bounds on both sides; each key's
+ * range drops floor(N/10) of the N references' values from each end first.
+ * `contiguous` floods
  * four-connected from those reference pixels. The host adds the result to the
  * selection. mask_len must equal width*height. false with err_out set when it
  * does not or no pixel is at least half selected ("No pixel is more than
@@ -2204,7 +2208,7 @@ bool dr_doc_select_similar(const DrDocument *doc, const uint8_t *mask,
                            uint8_t *mask_out, char **err_out);
 
 /* Bucket fill on layer idx: grows a similar-color region (dr_doc_magic_wand's
- * seven-projection rule) over the
+ * rule) over the
  * layer's OWN pixels from canvas point (x, y) and paints rgba (straight,
  * 4 bytes) source-over it. `mask` is a selection coverage buffer or NULL
  * for none; a seed outside the canvas, the layer, or the mask is NULL. */

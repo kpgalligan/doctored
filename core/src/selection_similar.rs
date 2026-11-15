@@ -2,39 +2,62 @@
 //! growth of the current selection, NOT a pixel-radius expand (that is
 //! `modify_selection` grow, Select ▸ Modify ▸ Expand).
 //!
-//! The predicate follows a measurement of Photoshop 26.10.0 made on
-//! 2026-09-27. Every pixel the selection covers is a reference; the
-//! references span a range on seven projections — R, G, B, A, R−G, G−B and
-//! R−B — (trimmed on a Grayscale document, **The reference range**) and a
-//! pixel is admitted when every projection lies within that range widened by
-//! the tolerance on both sides. Measured facts: red and
-//! blue references at tolerance 0 admit magenta, black and (100,0,100) and
-//! refuse grey; a grey-100 reference at tolerance 10 admits ±10 and refuses
-//! ±11; (105,95,100) is in and (106,94,100) is out of that range; grey-100
-//! and grey-120 references at tolerance 0 exclude (110,100,120) and admit
-//! (110,110,110). Grow is four-connected from the references. The result is
-//! the admitted region at full coverage, added to the selection.
+//! Every pixel the selection covers is a reference. A pixel is compared on
+//! its KEYS ([`halved_keys`], the form `lab_select::wand_key` holds over
+//! L\*, a\*, b\*, here over R, G and B): the three channels, the halved
+//! cyclic differences q1 = ⌊(G − R + 255)/2⌋, q2 = ⌊(B − G + 255)/2⌋ and
+//! q3 = ⌊(R − B + 255)/2⌋, and alpha. It is admitted when the channels lie
+//! within the references' range widened by the tolerance t on both sides,
+//! q1–q3 within theirs widened by ⌊t/2⌋ ([`halved_bounds`]) and alpha
+//! within its own (**Resolution**). The halving is what makes a hue shift
+//! count against the tolerance while a brightness shift, which moves the
+//! three channels together, leaves q1–q3 where they were: from grey 100 at
+//! t 15, (114,100,100) is in and (115,100,100) is out (q3 moves 8 against a
+//! bound of 7), and so is every single-channel step of exactly an odd t.
+//! Grow is four-connected from the references. The result is the admitted
+//! region at full coverage, added to the selection.
 //!
-//! **The reference range.** On a Grayscale document (and a Duotone one, a
-//! Gray document with inks; at 32 bits by the same rule, unmeasured, on its
-//! display codes) each projection's values over the N references lose
-//! ⌊N/10⌋ at each end, every projection on its own ([`TRIM_DIVISOR`], the
-//! rule `lab_select` measured on Lab), before the tolerance widens what is
-//! left: a value only a few references carry widens nothing. RGB, Indexed,
-//! float RGB and CMYK (the ink's naive RGB, PN7) keep every reference's
-//! value. `scripts/photoshop-probe/similar_trim_61_take.py` (Photoshop
-//! 26.10.0, `similar-trim-61`) measured them with exact membership on every
-//! pixel: take1 laid `lab_select_5_take.py`'s 37 reference rectangles and
-//! single-pixel probes on RGB, Gray and CMYK scenes at 8 and 16 bits, t 15
-//! and 25; take2, held out, its scene B (t 13 and 27, other counts and the
-//! rects that pin the divisor). Gray met the trim on byte codes on both
-//! takes at both depths, ⌊N/10⌋ alone of the shares 9 %…11 % on take2, and
-//! the full box missed (376 and 408 pixels at 8 bits). RGB and CMYK met
-//! neither the full box nor the trim on these projections; both takes met
-//! the trim on `lab_select::wand_key`'s key form instead (R, G, B ± t and the
-//! halved cyclic differences ± ⌊t/2⌋, byte codes at both depths; CMYK's on
-//! the naive RGB), which those documents do not ship, so they keep the full
-//! box until it lands with the wand's (#61, held on #79).
+//! **The reference range.** Each key's values over the N references lose
+//! ⌊N/10⌋ at each end, every key on its own ([`TRIM_DIVISOR`], the rule
+//! `lab_select` measured on Lab), before the bounds widen what is left: a
+//! value only a few references carry widens nothing. This holds on every
+//! document kind; a Grayscale or Duotone pixel, a mask's or a channel's is
+//! `[v, v, v, a]`, whose q1–q3 are 127 whatever v, so only v and alpha
+//! decide there.
+//!
+//! **The takes** (Photoshop 26.10.0, exact membership on every pixel).
+//! `scripts/photoshop-probe/similar_trim_61_take.py` (`similar-trim-61`)
+//! measured Similar and Grow: take1 laid `lab_select_5_take.py`'s 37
+//! reference rectangles and single-pixel probes on RGB, Gray and CMYK
+//! scenes at 8 and 16 bits, t 15 and 25; take2, held out, its scene B (t 13
+//! and 27, other counts and the rects that pin the divisor). Gray met the
+//! trim on bytes on both takes at both depths, ⌊N/10⌋ alone of the shares
+//! 9 %…11 % on take2. On RGB and CMYK neither the full box nor the trim met
+//! on the seven projections the core then compared (R, G, B, A, R−G, G−B,
+//! R−B, each within ± t); the trim on the halved keys, a refit of take1,
+//! met take2 with 0 pixels off at both depths in both modes.
+//! `scripts/photoshop-probe/wand_key_79_take.py` (`wand-key-79`) measured
+//! the Magic Wand on RGB and CMYK and the Paint Bucket on RGB, at 8 and 16
+//! bits, Contiguous off and on, t 11, 19 and 24, from fields whose cyclic
+//! sums take both parities, with single-pixel probes on mixed-sign rays and
+//! on each sum's ±t edge: the halved keys met every case (0 pixels), the
+//! seven projections missed 674 pixels a depth on RGB and 837 on CMYK
+//! (take1's wand, repeated exactly by take2, which also measured the bucket
+//! cases take1 lost to the harness). `blur_wand_take.py`'s 8-bit wand and
+//! bucket takes (`blur-wand-v1x`, t 0 to 100), re-scored, meet the halved
+//! keys on every case too, and so do the CMYK wand's confirming take
+//! (`cmyk_k_take.py`) and the 8-bit wand masks of `color_range_671_take.py`
+//! (`core/tests/cmyk_select.rs`, `wand_sample_size.rs`), where the seven
+//! projections left residuals. The first measurement's facts (2026-09-27)
+//! hold under the halved keys: red and blue references at tolerance 0 admit
+//! magenta, black and (100,0,100) and refuse grey; a grey-100 reference at
+//! tolerance 10 admits ±10 and (105,95,100) and refuses ±11 and
+//! (106,94,100); grey-100 and grey-120 references at tolerance 0 exclude
+//! (110,100,120) and admit (110,110,110). Unmeasured, and following this
+//! kernel: Indexed, float RGB's display codes, Duotone, masks and channels,
+//! alpha's bound and trim, the Paint Bucket on CMYK, the Sample Size mean,
+//! and the Magic Eraser and the Background Eraser, which are defined by the
+//! wand's admission.
 //!
 //! **Resolution.** Every depth compares bytes ([`keys`]). A byte sample is
 //! its own key; a u16 sample — a 16-bit document's, an 8-bit typed
@@ -62,18 +85,18 @@
 //! tell them apart and the nearest byte ships. An 8-bit typed document's
 //! codes sit on the ×257 grid, where the reading is exact; a code paint left
 //! off it reads as its nearest byte. Unmeasured, and following this
-//! kernel: the Paint Bucket, masks and channels, Duotone, float RGB's
-//! display codes, alpha, and a Sample Size box, whose mean is taken over the
-//! keys (`selection_region`'s **Sample Size**).
+//! kernel: the Paint Bucket off the ×257 grid, masks and channels, Duotone,
+//! float RGB's display codes, alpha, and a Sample Size box, whose mean is
+//! taken over the bytes before they are keyed (`selection_region`'s
+//! **Sample Size**).
 //!
 //! Not measured, and chosen here: the sample source is the flattened
 //! composite (as the wand's "select what you see"), not the active layer;
-//! alpha is one more projection rather than a special case for transparency.
+//! alpha is one more key rather than a special case for transparency.
 //!
 //! The Magic Wand and the Paint Bucket (`selection_region::grow`) run the
 //! same predicate anchored at their one seed ([`ReferenceRange::from_seed`]:
-//! min = max = the seed's projections), measured against Photoshop
-//! 26.10.0 (`selection_region`'s module doc).
+//! min = max = the seed's keys), measured by `wand-key-79` (**The takes**).
 //!
 //! Byte `dr_doc_select_similar` samples the flattened composite; the typed `similar` kind of
 //! `dr_precision_doc_select` reads the u16 selection as its planned input.
@@ -89,10 +112,32 @@ use crate::selection_tools::SelectionSample;
 pub(crate) const NO_REFERENCE: &str =
     "No pixel is more than half selected, so there is no colour to match.";
 
-/// The per-projection [min, max] of the reference pixels' [`keys`].
+/// The per-key [min, max] of the reference pixels' [`projections`].
 pub(crate) struct ReferenceRange {
     min: [i32; 7],
     max: [i32; 7],
+}
+
+/// The colour keys of one byte triple (module doc): the three channels and
+/// the halved cyclic differences ⌊(c1 − c0 + 255)/2⌋, ⌊(c2 − c1 + 255)/2⌋,
+/// ⌊(c0 − c2 + 255)/2⌋. The ONE implementation: RGB's, the naive RGB of a
+/// CMYK ink, and Lab's L8, a8, b8 (`lab_select::wand_key`). Each sum lies in
+/// 0…510, so `/ 2` is the floor and every key lies in 0…255.
+pub(crate) fn halved_keys([c0, c1, c2]: [i32; 3]) -> [i32; 6] {
+    [
+        c0,
+        c1,
+        c2,
+        (c1 - c0 + 255) / 2,
+        (c2 - c1 + 255) / 2,
+        (c0 - c2 + 255) / 2,
+    ]
+}
+
+/// The bounds of [`halved_keys`] for a byte tolerance `t`: ± t on the three
+/// channels, ± ⌊t/2⌋ on the halved differences (module doc).
+pub(crate) fn halved_bounds(t: i32) -> [i32; 6] {
+    [t, t, t, t / 2, t / 2, t / 2]
 }
 
 /// One colour code as the byte the predicate compares (module doc,
@@ -112,16 +157,16 @@ pub(crate) fn keys<T: SelectionSample>(p: [T; 4]) -> [u16; 4] {
     [r, g, b, p[3].code() as u16]
 }
 
-/// R, G, B, A, R−G, G−B, R−B of one pixel's [`keys`]. The three differences
-/// are what make a hue shift count double against the tolerance:
-/// (106,94,100) moves R and G by only 6 from grey 100, yet R−G moves by 12
-/// and leaves a tolerance-10 range, which is what Photoshop was measured to
-/// do. A brightness shift moves all three channels together and leaves the
-/// differences where they were.
+/// The keys a pixel is compared on, from its [`keys`]: [`halved_keys`] of
+/// R, G and B, then alpha in its own codes (module doc).
 fn projections(keys: [u16; 4]) -> [i32; 7] {
     let [r, g, b, a] = keys.map(i32::from);
-    [r, g, b, a, r - g, g - b, r - b]
+    let [c0, c1, c2, q1, q2, q3] = halved_keys([r, g, b]);
+    [c0, c1, c2, q1, q2, q3, a]
 }
+
+/// The index of alpha in [`projections`].
+const ALPHA: usize = 6;
 
 /// One u16 code on the 15-bit grid of `steps` steps, round(v · steps /
 /// 65535) with ties up (module doc, **Resolution**: the grid Photoshop's
@@ -180,41 +225,32 @@ pub(crate) fn trimmed(counts: &[u64], trim: u64) -> (i32, i32) {
 impl ReferenceRange {
     /// The range of the single reference whose [`keys`] are `seed` (a
     /// pixel's, or a Sample Size box's mean of them): the wand's and the
-    /// bucket's predicate, every projection within ± tolerance of the seed's
-    /// own.
+    /// bucket's predicate, every key within its bound of the seed's own.
     pub(crate) fn from_seed(seed: [u16; 4]) -> Self {
         let v = projections(seed);
         Self { min: v, max: v }
     }
 
     /// Similar's and Grow's range over every reference pixel
-    /// ([`is_reference`]), each projection on its own: its values' [min, max],
-    /// or with `trim` (module doc, **The reference range**) that range once
-    /// ⌊N/[`TRIM_DIVISOR`]⌋ of the N values are dropped from EACH end. None
-    /// when no pixel is a reference.
+    /// ([`is_reference`]), each key on its own: its values' [min, max] once
+    /// ⌊N/[`TRIM_DIVISOR`]⌋ of the N values are dropped from EACH end
+    /// (module doc, **The reference range**). None when no pixel is a
+    /// reference.
     pub(crate) fn from_reference<T: SelectionSample>(
         pixel: &impl Fn(usize) -> [T; 4],
         coverage: &[T],
-        trim: bool,
         job: JobContext<'_>,
     ) -> Result<Option<Self>, String> {
-        // A count per value of each projection, so the trim reads histograms
-        // rather than holding every reference's projections: the byte keys
-        // R, G and B in 0…255, alpha in 0…MAX, the three differences in
-        // −255…255 shifted up by 255. At 16 bits that is 3·256 + 65536 +
-        // 3·511 counts (0.54 MB, the alpha histogram as Lab's), whatever the
-        // canvas; at 8 bits 20 KB.
-        let top = T::MAX as usize;
-        let size = |k: usize| match k {
-            3 => top + 1,
-            0..=2 => 256,
-            _ => 511,
-        };
+        // A count per value of each key, so the trim reads histograms rather
+        // than holding every reference's keys: the six colour keys in 0…255
+        // ([`halved_keys`]), alpha in 0…MAX. At 16 bits that is 6·256 +
+        // 65536 counts (0.54 MB, the alpha histogram as Lab's), whatever the
+        // canvas; at 8 bits 14 KB.
+        let size = |k: usize| if k == ALPHA { T::MAX as usize + 1 } else { 256 };
         let mut starts = [0usize; 8];
         for k in 0..7 {
             starts[k + 1] = starts[k] + size(k);
         }
-        let bias = |k: usize| if k < 4 { 0 } else { 255 };
         let mut counts = reserved_vec(starts[7])?;
         counts.resize(starts[7], 0u64);
         let mut n = 0u64;
@@ -226,7 +262,7 @@ impl ReferenceRange {
             for (k, v) in projections(keys(pixel(i))).into_iter().enumerate() {
                 // Always in range for T's codes; the clamp only keeps an
                 // index from panicking.
-                let at = (v + bias(k)).clamp(0, (starts[k + 1] - starts[k] - 1) as i32);
+                let at = v.clamp(0, (size(k) - 1) as i32);
                 counts[starts[k] + at as usize] += 1;
             }
             n += 1;
@@ -234,25 +270,24 @@ impl ReferenceRange {
         if n == 0 {
             return Ok(None);
         }
-        let dropped = if trim { n / TRIM_DIVISOR } else { 0 };
+        let dropped = n / TRIM_DIVISOR;
         let mut min = [0; 7];
         let mut max = [0; 7];
         for k in 0..7 {
-            let (low, high) = trimmed(&counts[starts[k]..starts[k + 1]], dropped);
-            (min[k], max[k]) = (low - bias(k), high - bias(k));
+            (min[k], max[k]) = trimmed(&counts[starts[k]..starts[k + 1]], dropped);
         }
         Ok(Some(Self { min, max }))
     }
 
-    /// True when every projection of `p`'s [`keys`] lies within the range
-    /// widened by the bound: `tolerance` read as a byte ([`byte_key`]) on
-    /// the six colour projections, itself on alpha (module doc,
-    /// **Resolution**).
+    /// True when every key of `p`'s [`keys`] lies within the range widened
+    /// by its bound: [`halved_bounds`] of `tolerance` read as a byte
+    /// ([`byte_key`]) on the six colour keys, `tolerance` itself on alpha
+    /// (module doc, **Resolution**).
     pub(crate) fn admits<T: SelectionSample>(&self, p: [T; 4], tolerance: T) -> bool {
-        let colour = byte_key(tolerance);
+        let colour = halved_bounds(byte_key(tolerance));
         let alpha = tolerance.code() as i32;
         projections(keys(p)).iter().enumerate().all(|(k, &v)| {
-            let bound = if k == 3 { alpha } else { colour };
+            let bound = if k == ALPHA { alpha } else { colour[k] };
             v >= self.min[k] - bound && v <= self.max[k] + bound
         })
     }
@@ -261,22 +296,19 @@ impl ReferenceRange {
 /// The admitted region at full coverage (the caller adds it to the current
 /// selection): global, or flooded four-connected from every reference pixel
 /// when `contiguous`. A partly covered pixel that is admitted comes back full.
-/// `trim` is the document's kind's reference rule (module doc, **The
-/// reference range**): true on a Grayscale document.
 pub(crate) fn similar<T: SelectionSample>(
     dimensions: (u32, u32),
     pixel: impl Fn(usize) -> [T; 4],
     coverage: &[T],
     tolerance: T,
     contiguous: bool,
-    trim: bool,
     job: JobContext<'_>,
 ) -> Result<Vec<T>, String> {
     let (w, h) = dimensions;
     if coverage.len() != w as usize * h as usize {
         return Err("selection mask length does not match the canvas".into());
     }
-    let range = ReferenceRange::from_reference(&pixel, coverage, trim, job)?.ok_or(NO_REFERENCE)?;
+    let range = ReferenceRange::from_reference(&pixel, coverage, job)?.ok_or(NO_REFERENCE)?;
     let seeds = coverage
         .iter()
         .enumerate()
@@ -294,9 +326,9 @@ pub(crate) fn similar<T: SelectionSample>(
 impl DrDocument {
     /// Select ▸ Grow / Similar on the flattened composite ("select what you
     /// see", like `magic_wand`): the canvas-sized 0/255 region `similar`
-    /// admits from the canvas-sized coverage `mask`, every reference's value
-    /// kept (an RGB document, module doc). Err with the refusal sentence when
-    /// no pixel is at least half selected, or when `mask` is not canvas-sized.
+    /// admits from the canvas-sized coverage `mask` (module doc). Err with
+    /// the refusal sentence when no pixel is at least half selected, or when
+    /// `mask` is not canvas-sized.
     pub fn select_similar(
         &self,
         mask: &[u8],
@@ -311,7 +343,6 @@ impl DrDocument {
             mask,
             tolerance,
             contiguous,
-            false,
             JobContext::NONE,
         )
     }

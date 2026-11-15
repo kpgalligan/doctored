@@ -1075,7 +1075,8 @@ pub unsafe extern "C" fn dr_doc_perspective_layer(
 
 /// Similar-color selection from the flattened composite: writes a
 /// canvas-sized 0/255 mask (w*h bytes, row 0 top) into `mask_out`.
-/// `tolerance` is the maximum per-channel RGBA difference; `contiguous`
+/// `tolerance` bounds R, G, B and A, and ⌊tolerance/2⌋ the halved cyclic
+/// differences (`selection_similar`'s module doc); `contiguous`
 /// restricts the selection to the connected region around the seed;
 /// `sample_size` is the Sample Size (1 = Point Sample; 3, 5, 11, 31, 51 or
 /// 101 = the mean of that square about the seed, clipped to the canvas).

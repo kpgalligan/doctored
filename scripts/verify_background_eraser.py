@@ -7,8 +7,9 @@ Every stroke is explicit `native_stroke` dabs, so the oracle knows each centre. 
 pixel-mode squares of odd diameter on a pixel centre, which cover whole pixels at coverage 1: a
 reached pixel's alpha becomes exactly 0 and every other pixel stays exactly as it was. A dab's
 reference is the colour under its centre (continuous), the stroke's first such colour (once) or
-`sample_color` (background_swatch); a pixel is like it when R, G, B, R−G, G−B and R−B each lie
-within the tolerance (8-bit codes here; every colour below sits clear of each tolerance used);
+`sample_color` (background_swatch); a pixel is like it when R, G and B each lie within the
+tolerance and the halved cyclic differences within half of it (8-bit codes here; every colour
+below sits clear of each tolerance used);
 contiguous walks four-connected from the centre through like pixels under the tip; a pixel like
 `protect_color` is never reached. The instance is owned by this file (`phase5_support.App`); no
 Doctored process it did not start is signalled.
@@ -115,8 +116,10 @@ def native(dabs, hardness=1.0, pixel=True):
 
 
 def like(a, b, t):
-    p = lambda c: (c[0], c[1], c[2], c[0] - c[1], c[1] - c[2], c[0] - c[2])
-    return all(abs(x - y) <= t for x, y in zip(p(a), p(b)))
+    p = lambda c: (c[0], c[1], c[2], (c[1] - c[0] + 255) // 2, (c[2] - c[1] + 255) // 2,
+                   (c[0] - c[2] + 255) // 2)
+    bounds = (t, t, t, t // 2, t // 2, t // 2)
+    return all(abs(x - y) <= e for x, y, e in zip(p(a), p(b), bounds))
 
 
 def square(d):

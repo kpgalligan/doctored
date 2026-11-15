@@ -5,8 +5,9 @@
 //! one layer at 8 and 16 bits; `alpha` is the ink's alpha; `luminance` is the
 //! shipped member LP — the Rec. 709 luma of the composite's sRGB (the press
 //! profile's own tags through `cmyk_fixture::ink_to_srgb`, relative with BPC);
-//! `similar` (Select ▸ Grow / Similar) is PN7 over the selection's references,
-//! by an independent projection-and-BFS oracle, contiguous on and off; a
+//! `similar` (Select ▸ Grow / Similar) is the wand's keys of the ink's naive
+//! RGB over the selection's references, each key's range trimmed by ⌊N/10⌋ at
+//! each end, by an independent key-and-BFS oracle, contiguous on and off; a
 //! backdrop wand equals the wand on a document holding only the records below
 //! (groups kept); the take's recorded plate codes
 //! (`fixtures/photoshop_cmyk_loads/manifest.json`,
@@ -316,25 +317,43 @@ fn luminance_is_the_luma_of_the_composites_srgb() {
     free(doc);
 }
 
-/// PN7's projections (`selection_region`'s module doc): naive RGB in 16-bit
-/// codes, then R, G, B, A, R−G, G−B, R−B.
-fn projections(p: Ink, bits: u16) -> [i64; 7] {
+/// The wand's keys of an ink (`selection_region`'s module doc, **Ink**),
+/// written out here: each plate's naive RGB as a byte — at 8 bits
+/// `round((255 − c8)(255 − k8) / 255)` with `c8 = round(C / 257)`, at 16 the
+/// product on the 32768-step grid, `i = round(v · 32768 / 65535)` and
+/// `R = round((32768 − iC)(32768 − iK) / 32768)` (ties up), read as
+/// `round(R · 255 / 32768)` — then R, G, B, A (its u16 code) and the halved
+/// cyclic differences ⌊(G − R + 255)/2⌋, ⌊(B − G + 255)/2⌋, ⌊(R − B + 255)/2⌋.
+fn keys(p: Ink, bits: u16) -> [i64; 7] {
     let [c, m, y, k, a] = p.map(f64::from);
+    let grid = |v: f64| (v * 32768.0 / 65535.0 + 0.5).floor();
     let plate = |v: f64| -> i64 {
         if bits == 8 {
             let (v8, k8) = ((v / 257.0).round(), (k / 257.0).round());
-            257 * ((255.0 - v8) * (255.0 - k8) / 255.0).round() as i64
+            ((255.0 - v8) * (255.0 - k8) / 255.0).round() as i64
         } else {
-            ((65535.0 - v) * (65535.0 - k) / 65535.0).round() as i64
+            let r15 = ((32768.0 - grid(v)) * (32768.0 - grid(k)) / 32768.0 + 0.5).floor();
+            ((r15 * 255.0 + 16384.0) / 32768.0).floor() as i64
         }
     };
     let (r, g, b) = (plate(c), plate(m), plate(y));
-    [r, g, b, a as i64, r - g, g - b, r - b]
+    [
+        r,
+        g,
+        b,
+        a as i64,
+        (g - r + 255).div_euclid(2),
+        (b - g + 255).div_euclid(2),
+        (r - b + 255).div_euclid(2),
+    ]
 }
 
 /// Select ▸ Grow / Similar's oracle: every ≥ 50 % covered pixel is a
-/// reference; admitted inside the references' range ± tolerance; a BFS from
-/// every reference (Grow) or every admitted pixel (Similar).
+/// reference; each key's N reference values, sorted, lose ⌊N/10⌋ at each
+/// end; a pixel is admitted when every key lies inside what is left widened
+/// by its bound (the tolerance read as its nearest byte on R, G and B, half
+/// of that byte on the halved differences, the u16 tolerance on alpha). Grow
+/// walks four-connected from every reference; Similar admits globally.
 fn similar_oracle(
     w: u32,
     h: u32,
@@ -347,19 +366,29 @@ fn similar_oracle(
     let refs: Vec<usize> = (0..pixels.len())
         .filter(|&i| coverage[i] >= 32768)
         .collect();
-    let mut lo = [i64::MAX; 7];
-    let mut hi = [i64::MIN; 7];
-    for &i in &refs {
-        let p = projections(pixels[i], bits);
-        for k in 0..7 {
-            lo[k] = lo[k].min(p[k]);
-            hi[k] = hi[k].max(p[k]);
-        }
+    let keyed: Vec<[i64; 7]> = refs.iter().map(|&i| keys(pixels[i], bits)).collect();
+    let dropped = refs.len() / 10;
+    let mut lo = [0i64; 7];
+    let mut hi = [0i64; 7];
+    for k in 0..7 {
+        let mut values: Vec<i64> = keyed.iter().map(|p| p[k]).collect();
+        values.sort_unstable();
+        lo[k] = values[dropped];
+        hi[k] = values[values.len() - 1 - dropped];
     }
-    let t = i64::from(tolerance);
+    let colour = (i64::from(tolerance) + 128) / 257;
+    let bound = [
+        colour,
+        colour,
+        colour,
+        i64::from(tolerance),
+        colour / 2,
+        colour / 2,
+        colour / 2,
+    ];
     let admit = |i: usize| {
-        let p = projections(pixels[i], bits);
-        (0..7).all(|k| p[k] >= lo[k] - t && p[k] <= hi[k] + t)
+        let p = keys(pixels[i], bits);
+        (0..7).all(|k| p[k] >= lo[k] - bound[k] && p[k] <= hi[k] + bound[k])
     };
     let mut out = vec![0u16; pixels.len()];
     if !contiguous {
@@ -409,7 +438,7 @@ fn blocks(w: u32, h: u32) -> Vec<[u16; 4]> {
 }
 
 #[test]
-fn similar_is_pn7_over_the_selections_references() {
+fn similar_trims_the_naive_rgb_keys_of_the_selections_references() {
     let dir = TempDir::new().unwrap();
     let (w, h) = (12u32, 8u32);
     for bits in [8u16, 16] {
@@ -422,7 +451,8 @@ fn similar_is_pn7_over_the_selections_references() {
             bits,
         );
         let ink = composite_ink(doc, w, h);
-        let coverage: Vec<u16> = (0..w * h)
+        // Five references (a partly covered one among them), too few to trim.
+        let few: Vec<u16> = (0..w * h)
             .map(|i| {
                 if i % w < 2 && i / w < 2 {
                     65535
@@ -433,18 +463,40 @@ fn similar_is_pn7_over_the_selections_references() {
                 }
             })
             .collect();
-        for tolerance in [0u16, 257 * 4, 257 * 40] {
-            for contiguous in [true, false] {
-                let request =
-                    kind(json!({"kind":"similar","tolerance":tolerance,"contiguous":contiguous}));
-                let got = select(doc, &request, &coverage).unwrap();
-                let want = similar_oracle(w, h, &ink, &coverage, tolerance, contiguous, bits);
-                assert_eq!(
-                    got, want,
-                    "{bits}-bit t {tolerance} contiguous {contiguous}"
-                );
+        // The top-left block's 16 pixels and one pixel of the far ink at
+        // (4, 4): of 17 references each key drops one value at each end, so
+        // that pixel widens nothing and no other pixel of its ink is admitted.
+        let trimmed: Vec<u16> = (0..w * h)
+            .map(|i| {
+                let (x, y) = (i % w, i / w);
+                if (x < 4 && y < 4) || (x, y) == (4, 4) {
+                    65535
+                } else {
+                    0
+                }
+            })
+            .collect();
+        for (name, coverage) in [("few", &few), ("trimmed", &trimmed)] {
+            for tolerance in [0u16, 257 * 4, 257 * 40] {
+                for contiguous in [true, false] {
+                    let request = kind(
+                        json!({"kind":"similar","tolerance":tolerance,"contiguous":contiguous}),
+                    );
+                    let got = select(doc, &request, coverage).unwrap();
+                    let want = similar_oracle(w, h, &ink, coverage, tolerance, contiguous, bits);
+                    assert_eq!(
+                        got, want,
+                        "{name} {bits}-bit t {tolerance} contiguous {contiguous}"
+                    );
+                }
             }
         }
+        // The far ink is admitted nowhere but at its own reference, which
+        // Grow keeps and Similar does not.
+        let far = (4 * w + 5) as usize;
+        let request = kind(json!({"kind":"similar","tolerance":257 * 4,"contiguous":false}));
+        let got = select(doc, &request, &trimmed).unwrap();
+        assert_eq!((got[(4 * w + 4) as usize], got[far]), (0, 0));
         // A selection with no pixel half covered refuses by name.
         let none = vec![10000u16; (w * h) as usize];
         assert_eq!(

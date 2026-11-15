@@ -1,15 +1,16 @@
 //! Selections on a CMYK document (#1): the Magic Wand on INK through
-//! `dr_precision_doc_select` against this file's own projection-and-BFS
-//! oracle (PN7: the ink's naive RGB `(1 − ink)(1 − K)` as a byte, through
-//! 8-bit codes on an 8-bit document and the 32768-step grid on a 16-bit
-//! one, then R, G, B, A, R−G, G−B, R−B each within ± tolerance of the
-//! seed's (the colour keys in bytes), four-connected, written from
-//! `selection_region`'s module doc), over the composite and one layer at 8
-//! and 16 bits; the Photoshop 26.10.0 takes' recorded masks
-//! (`fixtures/photoshop_cmyk_wand/manifest.json`, take1 of
-//! `scripts/photoshop-probe/cmyk_select_take.py`, re-derived for PN7, and
-//! `confirm.json`, the confirming take of `cmyk_k_take.py`) with the shipped
-//! member's residual pinned region by region; Color Range, Quick
+//! `dr_precision_doc_select` against this file's own keys-and-BFS oracle
+//! (the ink's naive RGB `(1 − ink)(1 − K)` as a byte, through 8-bit codes on
+//! an 8-bit document and the 32768-step grid on a 16-bit one, then R, G, B
+//! and A within ± tolerance of the seed's and the halved cyclic differences
+//! within ± half of it (the colour keys in bytes), four-connected, written
+//! from `selection_region`'s and `selection_similar`'s module docs), over
+//! the composite and one layer at 8 and 16 bits; the Photoshop 26.10.0
+//! takes' recorded regions (`fixtures/photoshop_cmyk_wand/manifest.json`,
+//! take1 of `scripts/photoshop-probe/cmyk_select_take.py`, and
+//! `confirm.json`, the confirming take of `cmyk_k_take.py`), every region of
+//! every case met (the `shipped_residual_regions` they record are the
+//! regions the seven projections, PN7, missed); Color Range, Quick
 //! Selection and the edge stage, which must equal the same kinds on an RGB16
 //! document built from the CMYK document's own view; Select and Mask's
 //! CMYK New Layer (`dr_precision_doc_add_cmyk_cutout`), with Decontaminate
@@ -226,12 +227,12 @@ fn placed_layer(doc: *const PrecisionDocument, index: usize, w: u32, h: u32) -> 
         .collect()
 }
 
-/// The oracle's projections, written out (module doc): the naive RGB of
-/// the ink as a byte — at 8 bits `round((255 − c8)(255 − k8) / 255)` with
-/// `c8 = round(C / 257)`, at 16 the product on the 32768-step grid, `i =
-/// round(v · 32768 / 65535)` and `R = round((32768 − iC)(32768 − iK) /
-/// 32768)` (ties up), read as `round(R · 255 / 32768)` — then R, G, B, A
-/// (its u16 code), R−G, G−B, R−B.
+/// The oracle's keys, written out (module doc): the naive RGB of the ink as
+/// a byte — at 8 bits `round((255 − c8)(255 − k8) / 255)` with `c8 =
+/// round(C / 257)`, at 16 the product on the 32768-step grid, `i = round(v
+/// · 32768 / 65535)` and `R = round((32768 − iC)(32768 − iK) / 32768)` (ties
+/// up), read as `round(R · 255 / 32768)` — then R, G, B, A (its u16 code)
+/// and ⌊(G − R + 255)/2⌋, ⌊(B − G + 255)/2⌋, ⌊(R − B + 255)/2⌋.
 fn projections(p: Ink, bits: u16) -> [i64; 7] {
     let [c, m, y, k, a] = p.map(f64::from);
     let grid = |v: f64| (v * 32768.0 / 65535.0).round();
@@ -245,7 +246,15 @@ fn projections(p: Ink, bits: u16) -> [i64; 7] {
         }
     };
     let (r, g, b) = (plate(c), plate(m), plate(y));
-    [r, g, b, a as i64, r - g, g - b, r - b]
+    [
+        r,
+        g,
+        b,
+        a as i64,
+        (g - r + 255).div_euclid(2),
+        (b - g + 255).div_euclid(2),
+        (r - b + 255).div_euclid(2),
+    ]
 }
 
 /// The oracle's region: global, or a four-connected BFS from the seed.
@@ -261,14 +270,20 @@ fn oracle(
     let start = (seed.1 * w + seed.0) as usize;
     let reference = projections(pixels[start], bits);
     // The colour keys are bytes, so the host's ×257 tolerance is read back
-    // to its nearest byte; alpha keeps its codes and the tolerance's.
+    // to its nearest byte, halved on the differences; alpha keeps its codes
+    // and the tolerance's.
     let colour = (f64::from(tolerance) / 257.0).round() as i64;
+    let bound = |k: usize| match k {
+        3 => i64::from(tolerance),
+        0..=2 => colour,
+        _ => colour / 2,
+    };
     let near = |i: usize| {
         projections(pixels[i], bits)
             .iter()
             .zip(reference)
             .enumerate()
-            .all(|(k, (a, b))| (a - b).abs() <= if k == 3 { i64::from(tolerance) } else { colour })
+            .all(|(k, (a, b))| (a - b).abs() <= bound(k))
     };
     if !contiguous {
         return (0..pixels.len())
@@ -419,9 +434,10 @@ fn a_k_pair_and_a_gcr_twin_are_admitted_where_their_rgb_is() {
 }
 
 /// One recorded take (`manifest.json` or `confirm.json`): every case's
-/// selected regions against Doctored's at 8 bits, the residual equal to the
-/// recorded one; answers the case count.
-fn check_take(manifest: &Value) -> usize {
+/// selected regions against Doctored's at 8 bits, none apart; answers the
+/// case count and how many regions the seven projections' recorded residual
+/// (`shipped_residual_regions`) held.
+fn check_take(manifest: &Value) -> (usize, usize) {
     assert_eq!(manifest["result"], "VALID");
     assert_eq!(manifest["wand_member"], "PN7");
     let (w, h) = (
@@ -465,6 +481,7 @@ fn check_take(manifest: &Value) -> usize {
         );
     }
     let mut cases = 0;
+    let mut replaced = 0;
     for case in manifest["cases"].as_array().unwrap() {
         let (doc, sheet) = &docs[case["sheet"].as_str().unwrap()];
         let t = case["tolerance"].as_u64().unwrap() as u16 * 257;
@@ -500,42 +517,38 @@ fn check_take(manifest: &Value) -> usize {
             .iter()
             .map(|v| v.as_u64().unwrap())
             .collect();
-        let mut residual: Vec<u64> = rasterize
+        let residual: Vec<u64> = rasterize
             .iter()
             .filter(|k| !photoshop.contains(k))
             .chain(photoshop.iter().filter(|k| !rasterize.contains(k)))
             .copied()
             .collect();
-        residual.sort_unstable();
-        let recorded: Vec<u64> = case["shipped_residual_regions"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.as_u64().unwrap())
-            .collect();
-        assert_eq!(
-            residual, recorded,
-            "{}: the recorded residual",
+        assert!(
+            residual.is_empty(),
+            "{}: regions apart {residual:?}",
             case["name"]
         );
+        replaced += case["shipped_residual_regions"].as_array().unwrap().len();
         cases += 1;
     }
     for (_, (doc, _)) in docs {
         free(doc);
     }
-    cases
+    (cases, replaced)
 }
 
+/// Both takes' every region is met; the seven projections (PN7) missed 18
+/// regions of the confirming take's 8 cases.
 #[test]
-fn the_photoshop_takes_are_matched_by_pn7_with_their_residuals() {
+fn the_photoshop_takes_are_matched_by_the_halved_keys() {
     let take1: Value =
         serde_json::from_str(include_str!("fixtures/photoshop_cmyk_wand/manifest.json")).unwrap();
-    assert_eq!(check_take(&take1), 12);
+    assert_eq!(check_take(&take1), (12, 0));
     let confirm: Value =
         serde_json::from_str(include_str!("fixtures/photoshop_cmyk_wand/confirm.json")).unwrap();
     assert_eq!(
         check_take(&confirm),
-        confirm["cases"].as_array().unwrap().len()
+        (confirm["cases"].as_array().unwrap().len(), 18)
     );
     assert!(!confirm["cases"].as_array().unwrap().is_empty());
 }

@@ -1,41 +1,42 @@
-//! The Photoshop takes' records of Select ▸ Similar and Grow, and the Magic
-//! Wand, on RGB, Gray and CMYK documents, read IN PLACE and skipped with a
-//! note when absent (under `~/devel/doctored-fixtures/photoshop/`, Photoshop
-//! 26.10.0): `scripts/photoshop-probe/similar_trim_61_take.py`'s take1 and
-//! take2 (`similar-trim-61`, 8 and 16 bits) and
+//! The Photoshop takes' records of Select ▸ Similar and Grow, the Magic Wand
+//! and the Paint Bucket on RGB, Gray and CMYK documents, read IN PLACE and
+//! skipped with a note when absent (under
+//! `~/devel/doctored-fixtures/photoshop/`, Photoshop 26.10.0):
+//! `scripts/photoshop-probe/similar_trim_61_take.py`'s take1 and take2
+//! (`similar-trim-61`, 8 and 16 bits),
 //! `scripts/photoshop-probe/key_resolution_80_take.py`'s take1 and take2
-//! (`key-resolution-80`, 16 bits, codes off the ×257 grid). The takes' gate
-//! is EXACT membership on every pixel (a capture is the selection black on
-//! white for RGB and Gray, K on paper for CMYK, Anti-alias off). Each mode's
-//! scene at each depth is the take's own `none` save, opened by the core: RGB
-//! at 8 bits as a byte document (`dr_doc_open`) through
-//! `dr_doc_select_similar` with the byte tolerance t; RGB at 16 bits and
-//! CMYK by `dr_precision_doc_open`, Gray by `dr_precision_doc_open_gray`,
-//! each through the typed `similar` and `magic_wand` kinds with 257·t.
-//! Similar (global) and Grow (contiguous) run from each case's rectangle,
-//! the wand from where Photoshop's click landed (the job's x + 1, y + 1),
-//! read from the job files. Bounds, declared before measuring:
-//! `similar-trim-61` is off each take by exactly the pixels the runner's
-//! independent predictor of the shipped rule recorded (`decided.json`): 0
-//! for Gray at both depths; for RGB and CMYK, whose measured key form is not
-//! the shipped one (#61, held), the full box's recorded miss.
-//! `key-resolution-80` is off by 0 pixels in every mode and tool (its
-//! scenes are neutral, so the key form does not enter). Nothing from the
+//! (`key-resolution-80`, 16 bits, codes off the ×257 grid) and
+//! `scripts/photoshop-probe/wand_key_79_take.py`'s take2 (`wand-key-79`, the
+//! wand on RGB and CMYK and the bucket on RGB, 8 and 16 bits). The takes'
+//! gate is EXACT membership on every pixel (a capture is the selection black
+//! on white for RGB and Gray, K on paper for CMYK, Anti-alias off; a bucket
+//! PNG's selection is its fill colour). Each mode's scene at each depth is
+//! the take's own `none` save, opened by the core: RGB at 8 bits as a byte
+//! document (`dr_doc_open`) through `dr_doc_select_similar`,
+//! `dr_doc_magic_wand` and `dr_doc_bucket_fill` with the byte tolerance t;
+//! RGB at 16 bits and CMYK by `dr_precision_doc_open`, Gray by
+//! `dr_precision_doc_open_gray`, each through the typed `similar` and
+//! `magic_wand` kinds and the `bucket_fill` edit with 257·t. Similar
+//! (global) and Grow (contiguous) run from each case's rectangle, the wand
+//! and the bucket from where Photoshop's click landed (the job's x + 1,
+//! y + 1), read from the job files. Bound, declared before measuring: every
+//! take is off by 0 pixels in every mode, depth and tool — the halved keys
+//! with the per-key trim (`selection_similar`'s module doc). Nothing from the
 //! takes is committed.
 use std::ffi::CString;
 use std::path::{Path, PathBuf};
 use std::ptr;
 
 use doctored_core::doc::DrDocument;
-use doctored_core::ffi_doc::{dr_doc_free, dr_doc_open};
+use doctored_core::ffi_doc::{dr_doc_bucket_fill, dr_doc_free, dr_doc_magic_wand, dr_doc_open};
 use doctored_core::ffi_gray::dr_precision_doc_open_gray;
 use doctored_core::ffi_precision::dr_precision_doc_open;
 use doctored_core::ffi_selection_tools::dr_doc_select_similar;
 use doctored_core::precision_document::PrecisionDocument;
 use serde_json::{json, Value};
 
-use crate::common::{cpath, take_err_string};
-use crate::gray_ops::{free, LIMIT};
+use crate::common::{cpath, layer_pixels, take_err_string};
+use crate::gray_ops::{edit, free, layer, plan_samples, LIMIT};
 use crate::lab_psd_fixture::read_lab_tiff;
 use crate::precision_select::select;
 
@@ -247,23 +248,9 @@ fn mode_cases(folder: &Path, mode: &str) -> [(u64, u64); 2] {
     out
 }
 
-/// The shipped rule's pixels off each take, per mode and depth, as the
-/// runner's own predictor of that rule recorded them (`decided.json`): the
-/// key form the core compares (bytes at both depths; cmyk's PN7) with its
-/// reference rule (Gray's trim, PCTK-1000; RGB's and CMYK's full box, ALL).
-/// Gray's are 0 at both depths.
-fn recorded_off(row: &Value, mode: &str, bits: u32) -> u64 {
-    let form = if mode == "cmyk" {
-        "PN7/K8"
-    } else {
-        "native/K8"
-    };
-    let rule = if mode == "gray" { "pctk1000" } else { "all" };
-    row["depths"][bits.to_string()][rule][form]
-        .as_u64()
-        .unwrap()
-}
-
+/// Both takes cover every mode and depth with Similar and Grow; the core
+/// meets every case of each (the seven-projection box the RGB and CMYK
+/// kernels shipped before missed 6716 and 9142 pixels at 8 bits on take1).
 #[test]
 fn rgb_gray_and_cmyk_similar_and_grow_against_photoshop() {
     for name in ["similar-trim-61/take1", "similar-trim-61/take2"] {
@@ -272,24 +259,10 @@ fn rgb_gray_and_cmyk_similar_and_grow_against_photoshop() {
             continue;
         };
         let decided = decided(&folder);
-        if name.ends_with("take2") {
-            for (key, build) in [
-                ("gray8", "trim"),
-                ("gray16", "trim"),
-                ("rgb8", "hold"),
-                ("rgb16", "hold"),
-                ("cmyk8", "hold"),
-                ("cmyk16", "hold"),
-            ] {
-                assert_eq!(decided["build"][key][0], build, "take2's build of {key}");
-            }
-        }
         for mode in MODES {
             let row = &decided["modes"][mode];
             assert_eq!(row["valid"], true, "{name} {mode} is not VALID");
-            if row["status"] == "UNAVAILABLE" {
-                continue;
-            }
+            assert_ne!(row["status"], "UNAVAILABLE", "{name} {mode}");
             let ran = mode_cases(&folder, mode);
             assert_eq!(
                 ran[0].0 + ran[1].0,
@@ -297,14 +270,11 @@ fn rgb_gray_and_cmyk_similar_and_grow_against_photoshop() {
                 "{name} {mode}'s cases"
             );
             for (slot, bits) in [8u32, 16].into_iter().enumerate() {
+                assert!(ran[slot].0 > 0, "{name} {mode} ran no {bits}-bit case");
                 assert_eq!(
-                    ran[slot].1,
-                    recorded_off(row, mode, bits),
+                    ran[slot].1, 0,
                     "{name} {mode} {bits} bits: pixels off Photoshop's"
                 );
-            }
-            if mode == "gray" {
-                assert_eq!(ran, [(ran[0].0, 0), (ran[1].0, 0)], "{name}: Gray is exact");
             }
         }
     }
@@ -369,6 +339,142 @@ fn resolution_cases(folder: &Path, mode: &str) -> [(&'static str, u64, u64); 3] 
         );
     }
     out
+}
+
+/// The core's Magic Wand at (x, y), byte tolerance `t`, Point Sample: the
+/// byte `dr_doc_magic_wand` on the byte scene, the typed kind otherwise.
+fn scene_wand(scene: &Scene, (x, y): (u32, u32), t: u32, contiguous: bool) -> Vec<bool> {
+    let Scene::Byte(doc, (w, h)) = scene else {
+        return scene.wand((x, y), t, contiguous);
+    };
+    let mut mask = vec![7u8; (w * h) as usize];
+    let done = unsafe { dr_doc_magic_wand(*doc, x, y, t as u8, contiguous, 1, mask.as_mut_ptr()) };
+    assert!(done, "the byte wand at ({x}, {y})");
+    assert!(mask.iter().all(|m| *m == 0 || *m == 255), "a hard wand");
+    mask.iter().map(|m| *m == 255).collect()
+}
+
+/// The core's Paint Bucket at (x, y), byte tolerance `t`, filling the
+/// opaque green no scene pixel holds on layer 0: which pixels hold it after.
+fn scene_bucket(scene: &Scene, (x, y): (u32, u32), t: u32, contiguous: bool) -> Vec<bool> {
+    match scene {
+        Scene::Byte(doc, _) => {
+            let fill = [0u8, 255, 0, 255];
+            let out = unsafe {
+                dr_doc_bucket_fill(
+                    *doc,
+                    0,
+                    x as i32,
+                    y as i32,
+                    t as u8,
+                    fill.as_ptr(),
+                    contiguous,
+                    ptr::null(),
+                )
+            };
+            assert!(!out.is_null(), "the byte bucket at ({x}, {y})");
+            let pixels = layer_pixels(out, 0);
+            unsafe { dr_doc_free(out) };
+            pixels.chunks_exact(4).map(|p| p == fill).collect()
+        }
+        Scene::Typed(doc) => {
+            let request = json!({"op":"bucket_fill","layer":0,"color":[0.0,1.0,0.0,1.0],
+                "color_space":"document","opacity":1.0,"x":x,"y":y,"tolerance":257 * t,
+                "contiguous":contiguous});
+            // The planned input is the full-coverage stroke the host sends.
+            let n = plan_samples(*doc, &request).unwrap_or_else(|e| panic!("{e}"));
+            let out = edit(*doc, &request, &vec![65535; n])
+                .unwrap_or_else(|e| panic!("{e}"))
+                .expect("the bucket fills something");
+            let pixels = layer(out, 0, 16);
+            free(out);
+            pixels.iter().map(|p| *p == [0, 65535, 0, 65535]).collect()
+        }
+    }
+}
+
+/// A bucket PNG's selection: the pixels holding the fill (0, 255, 0) at its
+/// depth.
+fn bucket_capture(path: &Path, size: (u32, u32)) -> Vec<bool> {
+    let png = image::open(path).unwrap().to_rgba16();
+    assert_eq!(png.dimensions(), size, "{}", path.display());
+    png.pixels().map(|p| p.0 == [0, 65535, 0, 65535]).collect()
+}
+
+/// Every wand and bucket case of `mode` at `bits` in a `wand-key-79` take
+/// (its job files `inputs/<mode><bits>_wand.json` and, on RGB,
+/// `<mode><bits>_bucket.json`; the scene the wand job's `none` save): per
+/// tool, the cases run and the pixels off Photoshop's over all of them.
+fn wand_key_cases(folder: &Path, mode: &str, bits: u32) -> [(&'static str, u64, u64); 2] {
+    let job = format!("{mode}{bits}_wand");
+    let scene = Scene::open(mode, bits, &folder.join(format!("jobs/{job}/scene.tif")));
+    let size = scene.size();
+    let mut out = [("wand", 0, 0), ("bucket", 0, 0)];
+    let at = |case: &Value, key: &str| case[key].as_u64().unwrap() as u32;
+    for case in job_file(folder, &job)["wand"].as_array().unwrap() {
+        // Photoshop's click at (x + 0.5, y + 0.5) lands on pixel (x + 1, y + 1).
+        let seed = (at(case, "x") + 1, at(case, "y") + 1);
+        let contiguous = case["contiguous"].as_bool().unwrap();
+        let got = scene_wand(&scene, seed, at(case, "tolerance"), contiguous);
+        let name = case["name"].as_str().unwrap();
+        let want = capture(mode, &folder.join(format!("jobs/{job}/{name}.tif")), size);
+        out[0].1 += 1;
+        out[0].2 += got.iter().zip(&want).filter(|(g, w)| g != w).count() as u64;
+    }
+    let job = format!("{mode}{bits}_bucket");
+    if !folder.join(format!("inputs/{job}.json")).is_file() {
+        return out;
+    }
+    for case in job_file(folder, &job)["cases"].as_array().unwrap() {
+        let seed = (at(case, "x") + 1, at(case, "y") + 1);
+        let contiguous = case["contiguous"].as_bool().unwrap();
+        let got = scene_bucket(&scene, seed, at(case, "tolerance"), contiguous);
+        let name = case["name"].as_str().unwrap();
+        let want = bucket_capture(&folder.join(format!("jobs/{job}/{name}.png")), size);
+        out[1].1 += 1;
+        out[1].2 += got.iter().zip(&want).filter(|(g, w)| g != w).count() as u64;
+    }
+    out
+}
+
+/// `wand-key-79`'s take2 (take1 repeated by it, its bucket cases lost to the
+/// harness): the Magic Wand on RGB and CMYK and the Paint Bucket on RGB, at
+/// 8 and 16 bits, Contiguous off and on, t 11, 19 and 24, from fields whose
+/// cyclic sums take both parities, with probes on mixed-sign rays and at
+/// each halved difference's edge. The core meets every case; the
+/// seven-projection box the wand shipped before missed 674 pixels a tool
+/// and depth on RGB and 837 on CMYK.
+#[test]
+fn the_wand_and_the_bucket_on_rgb_and_cmyk_against_photoshop() {
+    let name = "wand-key-79/take2";
+    let Some(folder) = take(name) else {
+        eprintln!("SKIP: {name} is absent on this machine");
+        return;
+    };
+    let decided = decided(&folder);
+    assert_eq!(decided["valid"], true, "{name} is not VALID");
+    assert_eq!(decided["build"][0], 1, "{name}'s build row");
+    for mode in ["rgb", "cmyk"] {
+        for bits in [8u32, 16] {
+            let row = &decided["rows"][format!("{mode}{bits}")];
+            assert_eq!(row["valid"], true, "{name} {mode}{bits} is not VALID");
+            let ran = wand_key_cases(&folder, mode, bits);
+            assert_eq!(
+                ran.iter().map(|r| r.1).sum::<u64>(),
+                row["expected"].as_u64().unwrap(),
+                "{name} {mode}{bits}'s cases"
+            );
+            assert!(ran[0].1 > 0, "{name} {mode}{bits} ran no wand case");
+            assert_eq!(
+                ran[1].1 > 0,
+                mode == "rgb",
+                "{name} {mode}{bits}'s bucket cases"
+            );
+            for (tool, _, off) in ran {
+                assert_eq!(off, 0, "{name} {mode}{bits} {tool}: pixels off Photoshop's");
+            }
+        }
+    }
 }
 
 #[test]

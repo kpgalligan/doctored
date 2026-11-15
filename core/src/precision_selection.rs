@@ -412,16 +412,12 @@ impl SelectionRequest {
                     grid,
                     work,
                 )?,
-                // A Grayscale document (a Duotone one too) trims each
-                // projection's tails; RGB, Indexed and float RGB keep every
-                // reference (`selection_similar`'s module doc).
                 None => crate::selection_similar::similar(
                     dimensions,
                     pixel,
                     input,
                     *tolerance,
                     *contiguous,
-                    doc.is_gray(),
                     work,
                 )?,
             },

@@ -3,9 +3,10 @@
 //! and clearing a selected region to transparency.
 //!
 //! Conventions shared by all of them: coordinates are canvas pixels (row
-//! 0 top); similarity is the seven-projection box anchored at the seed (R,
-//! G, B, A, R−G, G−B and R−B each within ± `tolerance`, measured
-//! against Photoshop; `selection_region::grow`); selection masks are canvas-sized u8 coverage buffers
+//! 0 top); similarity is anchored at the seed (R, G and B within ±
+//! `tolerance`, the halved cyclic differences within ± ⌊tolerance/2⌋, alpha
+//! within ± `tolerance`, measured against Photoshop; `selection_region::grow`
+//! and `selection_similar`'s module doc); selection masks are canvas-sized u8 coverage buffers
 //! (0 = outside, 255 = fully inside, intermediate values scale paint
 //! coverage at anti-aliased edges).
 
@@ -14,7 +15,7 @@ use crate::doc::DrDocument;
 use crate::doc_lock::EditKind;
 use crate::layer_rect::{coverage_rect, nonzero_rect, rect_image};
 
-/// The byte adapter of `selection_region::grow` (the seven-projection rule);
+/// The byte adapter of `selection_region::grow` (the wand's key form);
 /// typed selections call the same region walk with native codes. `pixel`
 /// answers the row-major sample `i` of a `dimensions` plane — an image's
 /// bytes or a layer raster's `sample_at`, so a bucket fill binds no view.

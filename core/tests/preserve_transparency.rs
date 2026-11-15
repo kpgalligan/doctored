@@ -365,11 +365,12 @@ fn byte_bucket_and_gradient_under_the_lock_follow_the_lerp() {
         )
     });
     let cs = INK.map(|v| f64::from(v) / 255.0);
-    // The bucket admits by the seven projections (R, G, B, A, R−G,
-    // G−B, R−B within ±tolerance of the seed's), so tolerance 255 no longer
-    // floods every pixel of this saturated picture: the region is this flood,
-    // and outside it the bucket leaves the layer as it was.
-    let filled = seven_projection_flood(&base, (3, 3), 255);
+    // The bucket admits by the wand's keys (R, G, B, A within ±tolerance of
+    // the seed's, the halved cyclic differences within ±⌊tolerance/2⌋), so
+    // tolerance 255 does not flood every pixel of this saturated picture: the
+    // region is this flood, and outside it the bucket leaves the layer as it
+    // was.
+    let filled = halved_key_flood(&base, (3, 3), 255);
     for (i, &inside) in filled.iter().enumerate() {
         let want = frozen8(px(base.as_raw(), i), cs, 0.6, BLEND_NORMAL);
         let kept = px(base.as_raw(), i);
@@ -388,28 +389,31 @@ fn byte_bucket_and_gradient_under_the_lock_follow_the_lerp() {
 }
 
 /// The bucket's region, written independently: four-connected from `seed`
-/// over the pixels whose R, G, B, A, R−G, G−B and R−B each lie within `t` of
-/// the seed's.
-fn seven_projection_flood(img: &RgbaImage, seed: (u32, u32), t: i32) -> Vec<bool> {
+/// over the pixels whose R, G, B and A each lie within `t` of the seed's and
+/// whose halved cyclic differences ⌊(G − R + 255)/2⌋, ⌊(B − G + 255)/2⌋ and
+/// ⌊(R − B + 255)/2⌋ each lie within ⌊t/2⌋ of the seed's.
+fn halved_key_flood(img: &RgbaImage, seed: (u32, u32), t: i32) -> Vec<bool> {
     let (w, h) = img.dimensions();
-    let project = |x: u32, y: u32| {
-        let p = img.get_pixel(x, y).0.map(i32::from);
+    let keys = |x: u32, y: u32| {
+        let [r, g, b, a] = img.get_pixel(x, y).0.map(i32::from);
         [
-            p[0],
-            p[1],
-            p[2],
-            p[3],
-            p[0] - p[1],
-            p[1] - p[2],
-            p[0] - p[2],
+            r,
+            g,
+            b,
+            a,
+            (g - r + 255).div_euclid(2),
+            (b - g + 255).div_euclid(2),
+            (r - b + 255).div_euclid(2),
         ]
     };
-    let s = project(seed.0, seed.1);
+    let bound = [t, t, t, t, t / 2, t / 2, t / 2];
+    let s = keys(seed.0, seed.1);
     let near = |x: u32, y: u32| {
-        project(x, y)
+        keys(x, y)
             .iter()
             .zip(&s)
-            .all(|(a, b)| (a - b).abs() <= t)
+            .zip(bound)
+            .all(|((a, b), m)| (a - b).abs() <= m)
     };
     let mut out = vec![false; (w * h) as usize];
     out[(seed.1 * w + seed.0) as usize] = true;

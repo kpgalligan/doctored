@@ -1,9 +1,11 @@
-//! Select ▸ Similar and Grow's reference range by document kind, through the
-//! FFI (`selection_similar`'s module doc): a Grayscale document drops ⌊N/10⌋
-//! of the N references' values from each end before the tolerance widens the
-//! range, at 8 and 16 bits; an RGB document (the byte path at 8 bits, the
-//! typed path at 16) and a CMYK document keep every reference's value. The
-//! oracle is a sort-based trim written here, never the core's histograms.
+//! Select ▸ Similar and Grow's reference range on every document kind,
+//! through the FFI (`selection_similar`'s module doc): each key drops ⌊N/10⌋
+//! of the N references' values from each end before its bound widens the
+//! range — on a Grayscale document at 8 and 16 bits, an RGB document (the
+//! byte path at 8 bits, the typed path at 16) and a CMYK document (its ink's
+//! naive RGB). The keys are R, G, B and the halved cyclic differences, bound
+//! by t and ⌊t/2⌋. The oracle is a sort-based trim over keys written here,
+//! never the core's histograms.
 use std::ffi::CString;
 use std::ptr;
 
@@ -162,8 +164,11 @@ fn a_gray_documents_similar_trims_a_tenth_of_each_end() {
     }
 }
 
-fn byte_rgb(values: &[u8], h: u32) -> *mut DrDocument {
-    let raw: Vec<u8> = values.iter().flat_map(|v| [*v, *v, *v, 255]).collect();
+fn byte_rgb(colours: &[[u8; 3]], h: u32) -> *mut DrDocument {
+    let raw: Vec<u8> = colours
+        .iter()
+        .flat_map(|c| [c[0], c[1], c[2], 255])
+        .collect();
     let image = unsafe { dr_image_from_rgba(raw.as_ptr(), W, h) };
     assert!(!image.is_null());
     let doc = unsafe { dr_doc_from_image(image) };
@@ -191,12 +196,12 @@ fn byte_similar(doc: *mut DrDocument, selected: &[bool], t: u8) -> Vec<bool> {
     out.iter().map(|v| *v == 255).collect()
 }
 
-fn cmyk_grey(dir: &TempDir, name: &str, h: u32, values: &[u8]) -> *mut PrecisionDocument {
-    // Ink 255 − v on every plate: the naive RGB is (255 − ink)·(255 − 0)/255
-    // on C, M and Y with K 0, so each pixel reads as the grey v.
-    let data: Vec<u8> = values
+fn cmyk(dir: &TempDir, name: &str, h: u32, colours: &[[u8; 3]]) -> *mut PrecisionDocument {
+    // Inks 255 − c on C, M and Y with K 0: the naive RGB is
+    // (255 − ink)·(255 − 0)/255, so each pixel reads as the colour c.
+    let data: Vec<u8> = colours
         .iter()
-        .flat_map(|v| [255 - v, 255 - v, 255 - v, 0])
+        .flat_map(|c| [255 - c[0], 255 - c[1], 255 - c[2], 0])
         .collect();
     let path = dir.path().join(name);
     let icc = press_profile("Similar Trim");
@@ -208,31 +213,188 @@ fn cmyk_grey(dir: &TempDir, name: &str, h: u32, values: &[u8]) -> *mut Precision
     doc
 }
 
-fn rgb16(values: &[u8], h: u32) -> *mut PrecisionDocument {
-    let pixels = values
+fn rgb16(colours: &[[u8; 3]], h: u32) -> *mut PrecisionDocument {
+    let pixels = colours
         .iter()
-        .map(|v| {
-            let c = u16::from(*v) * 257;
-            [c, c, c, 65535]
+        .map(|c| {
+            let [r, g, b] = c.map(|v| u16::from(v) * 257);
+            [r, g, b, 65535]
         })
         .collect();
     Box::into_raw(Box::new(crate::native_scalar::doc(W, h, pixels)))
 }
 
+/// The colour oracle: each key of the references (R, G, B and the halved
+/// cyclic differences ⌊(G − R + 255)/2⌋, ⌊(B − G + 255)/2⌋, ⌊(R − B +
+/// 255)/2⌋) sorted on its own, ⌊N/10⌋ dropped from each end, widened by t on
+/// the channels and ⌊t/2⌋ on the differences; Similar admits every pixel in
+/// range (global).
+fn colour_oracle(colours: &[[u8; 3]], selected: &[bool], t: u8) -> Vec<bool> {
+    let keys = |c: [u8; 3]| {
+        let [r, g, b] = c.map(i32::from);
+        [
+            r,
+            g,
+            b,
+            (g - r + 255).div_euclid(2),
+            (b - g + 255).div_euclid(2),
+            (r - b + 255).div_euclid(2),
+        ]
+    };
+    let t = i32::from(t);
+    let bound = [t, t, t, t / 2, t / 2, t / 2];
+    let refs: Vec<[i32; 6]> = colours
+        .iter()
+        .zip(selected)
+        .filter(|(_, s)| **s)
+        .map(|(c, _)| keys(*c))
+        .collect();
+    let k = refs.len() / 10;
+    let ranges: Vec<(i32, i32)> = (0..6)
+        .map(|key| {
+            let mut v: Vec<i32> = refs.iter().map(|r| r[key]).collect();
+            v.sort_unstable();
+            (v[k] - bound[key], v[v.len() - 1 - k] + bound[key])
+        })
+        .collect();
+    colours
+        .iter()
+        .map(|c| {
+            let p = keys(*c);
+            (0..6).all(|key| (ranges[key].0..=ranges[key].1).contains(&p[key]))
+        })
+        .collect()
+}
+
+fn splitmix(state: &mut u64) -> u64 {
+    *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    let mut z = *state;
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
+/// `n` colours of `field` plus a random offset of up to ±`spread` per
+/// channel (never clamped: the fields keep every offset inside 0…255).
+fn scattered(field: [u8; 3], spread: i32, n: usize, state: &mut u64) -> Vec<[u8; 3]> {
+    (0..n)
+        .map(|_| {
+            let v = splitmix(state);
+            let mut c = [0u8; 3];
+            for (k, slot) in c.iter_mut().enumerate() {
+                let d = ((v >> (16 * k)) % (2 * spread as u64 + 1)) as i32 - spread;
+                *slot = (i32::from(field[k]) + d) as u8;
+            }
+            c
+        })
+        .collect()
+}
+
+/// One colour case: (references, probes, tolerance).
+type ColourCase = (Vec<[u8; 3]>, Vec<[u8; 3]>, u8);
+
+/// The colour cases ([`ColourCase`]).
+/// - Twenty references, 18 of grey 100 and two of (100, 112, 100), t 9: the
+///   trim drops both variants, so (100, 107, 100) is in (q1 moves 4 against
+///   4) and (100, 110, 100) is out, where the full box admits it.
+/// - Nine of grey 100 (no trim), t 15: (114, 100, 100) and (100, 100, 114)
+///   are in, and (115, 100, 100) and (100, 85, 100), one channel exactly t
+///   out, are out (q3, then q2, moves 8 against 7); the seven-projection box
+///   admitted both.
+/// - Fifty around (37, 180, 90), forty exact and ten within ± 12, t 11, and a
+///   hundred around (200, 60, 140) within ± 6, t 24, each with eighty probes
+///   within ± (t + 6).
+fn colour_cases() -> Vec<ColourCase> {
+    let mut state = 0x79_61;
+    let mut twenty = vec![[100u8, 100, 100]; 20];
+    twenty[4] = [100, 112, 100];
+    twenty[13] = [100, 112, 100];
+    let mut fifty = vec![[37u8, 180, 90]; 40];
+    fifty.extend(scattered([37, 180, 90], 12, 10, &mut state));
+    let fifty_probes = scattered([37, 180, 90], 17, 80, &mut state);
+    let hundred = scattered([200, 60, 140], 6, 100, &mut state);
+    let hundred_probes = scattered([200, 60, 140], 30, 80, &mut state);
+    vec![
+        (
+            twenty,
+            vec![
+                [100, 107, 100],
+                [100, 110, 100],
+                [100, 100, 100],
+                [100, 93, 100],
+            ],
+            9,
+        ),
+        (
+            vec![[100, 100, 100]; 9],
+            vec![
+                [114, 100, 100],
+                [115, 100, 100],
+                [100, 100, 114],
+                [100, 85, 100],
+            ],
+            15,
+        ),
+        (fifty, fifty_probes, 11),
+        (hundred, hundred_probes, 24),
+    ]
+}
+
+fn colour_scene(refs: &[[u8; 3]], probes: &[[u8; 3]]) -> (u32, Vec<[u8; 3]>, Vec<bool>) {
+    let mut colours = refs.to_vec();
+    colours.extend_from_slice(probes);
+    colours.resize(colours.len().div_ceil(W as usize) * W as usize, probes[0]);
+    let h = colours.len() as u32 / W;
+    let selected = (0..colours.len()).map(|i| i < refs.len()).collect();
+    (h, colours, selected)
+}
+
+/// Every kind but Gray: the byte RGB path, the typed 16-bit RGB path and a
+/// CMYK document's naive RGB each trim per key, on the grey cases (where
+/// the keys reduce to the grey, `oracle`) and on colour (`colour_oracle`).
 #[test]
-fn rgb_and_cmyk_documents_keep_every_references_value() {
+fn rgb_and_cmyk_documents_trim_a_tenth_of_each_key_too() {
     let dir = TempDir::new().unwrap();
-    for (n, (refs, probes, t)) in cases().into_iter().enumerate() {
-        let (h, values, selected) = scene(&refs, &probes);
-        let want = oracle(&values, &selected, t, false);
-        let byte = byte_rgb(&values, h);
+    let grey: Vec<_> = cases()
+        .into_iter()
+        .map(|(refs, probes, t)| {
+            let (h, values, selected) = scene(&refs, &probes);
+            let want = oracle(&values, &selected, t, true);
+            let colours: Vec<[u8; 3]> = values.iter().map(|v| [*v; 3]).collect();
+            (h, colours, selected, t, want)
+        })
+        .collect();
+    let colour: Vec<_> = colour_cases()
+        .into_iter()
+        .map(|(refs, probes, t)| {
+            let (h, colours, selected) = colour_scene(&refs, &probes);
+            let want = colour_oracle(&colours, &selected, t);
+            (h, colours, selected, t, want)
+        })
+        .collect();
+    for (n, (h, colours, selected, t, want)) in grey.into_iter().chain(colour).enumerate() {
+        let byte = byte_rgb(&colours, h);
         assert_eq!(byte_similar(byte, &selected, t), want, "8-bit RGB case {n}");
         unsafe { dr_doc_free(byte) };
-        let wide = rgb16(&values, h);
+        let wide = rgb16(&colours, h);
         assert_eq!(typed(wide, &selected, t), want, "16-bit RGB case {n}");
         free(wide);
-        let cmyk = cmyk_grey(&dir, &format!("cmyk_{n}.tif"), h, &values);
-        assert_eq!(typed(cmyk, &selected, t), want, "CMYK case {n}");
-        free(cmyk);
+        let ink = cmyk(&dir, &format!("cmyk_{n}.tif"), h, &colours);
+        assert_eq!(typed(ink, &selected, t), want, "CMYK case {n}");
+        free(ink);
     }
+    // The literal facts, on the byte path: the trimmed variants widen
+    // nothing, and a single-channel step of exactly an odd t is refused.
+    let (refs, probes, t) = colour_cases().remove(0);
+    let (h, colours, selected) = colour_scene(&refs, &probes);
+    let doc = byte_rgb(&colours, h);
+    let got = byte_similar(doc, &selected, t);
+    assert_eq!(&got[refs.len()..refs.len() + 4], [true, false, true, true]);
+    unsafe { dr_doc_free(doc) };
+    let (refs, probes, t) = colour_cases().remove(1);
+    let (h, colours, selected) = colour_scene(&refs, &probes);
+    let doc = byte_rgb(&colours, h);
+    let got = byte_similar(doc, &selected, t);
+    assert_eq!(&got[refs.len()..refs.len() + 4], [true, false, true, false]);
+    unsafe { dr_doc_free(doc) };
 }

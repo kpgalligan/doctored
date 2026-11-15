@@ -365,15 +365,16 @@ fn typed_source_alpha_luminance_color_wand_range_quick_distinguish_native_codes(
     // The wand reads each code as its nearest byte (`selection_similar`'s
     // **Resolution**): 257·116 is byte 116, 257·117 + 128 (385 codes away)
     // byte 117 and one code more byte 118, so one byte of tolerance (257)
-    // joins the first two and parts the third.
+    // joins the first two and parts the third. The pixels are grey, so the
+    // halved differences never move and the channels alone decide.
     let w = doc(
         4,
         1,
         vec![
-            [29812, 0, 0, 65535],
-            [30197, 0, 0, 65535],
-            [30198, 0, 0, 65535],
-            [29812, 0, 0, 65535],
+            [29812, 29812, 29812, 65535],
+            [30197, 30197, 30197, 65535],
+            [30198, 30198, 30198, 65535],
+            [29812, 29812, 29812, 65535],
         ],
     );
     assert_eq!(

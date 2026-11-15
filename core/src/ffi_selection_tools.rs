@@ -401,8 +401,10 @@ pub unsafe extern "C" fn dr_selection_transform(
 }
 
 /// Select ▸ Grow (`contiguous`) / Select ▸ Similar: the canvas-sized 0/255
-/// region whose colours fall inside the range of every pixel `mask` covers at
-/// least half, widened by `tolerance`, sampled from the flattened composite.
+/// region whose colours fall inside the range of the pixels `mask` covers at
+/// least half, each key trimmed by ⌊N/10⌋ at each end and widened by its
+/// bound of `tolerance` (`selection_similar`'s module doc), sampled from the
+/// flattened composite.
 /// The host adds it to the current selection. Refuses when `mask_len` is not
 /// the canvas pixel count or no pixel is at least half selected ("No pixel
 /// is more than half selected, so there is no colour to match."). NULL doc/mask/mask_out return false with

@@ -10,8 +10,9 @@
 //! transparent (`once`), or the request's `swatch` (`swatch`). A dab with no reference
 //! (its hot spot off the canvas or fully transparent, or a `once` stroke before any such
 //! dab) erases nothing. A pixel is LIKE the reference when the Magic Wand would admit it
-//! from a seed of that colour: R, G, B, R−G, G−B and R−B each within the tolerance, on
-//! bytes at every depth (`selection_similar::ReferenceRange` over its `keys`, the wand's
+//! from a seed of that colour: R, G and B within the tolerance and the halved cyclic
+//! differences within half of it, on bytes at every depth
+//! (`selection_similar::ReferenceRange` over its `keys`, the wand's key form and
 //! **Resolution**), or a Lab document's key
 //! (`lab_select::LabWandRange`). Both colours are compared with their alpha read as full,
 //! so a half-erased pixel stays like its unerased neighbours and a second pass keeps
@@ -120,8 +121,8 @@ impl BackgroundEraserRequest {
 /// The like-colour predicate a document compares on (module doc).
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum LikeRule {
-    /// The wand's seven projections on the keys of straight u16 codes (R, G and B as
-    /// their nearest bytes, `selection_similar::keys`).
+    /// The wand's key form on the keys of straight u16 codes (R, G and B as their
+    /// nearest bytes, `selection_similar::keys`).
     Rgb,
     /// A Lab document's wand key on its stored codes.
     Lab(LabGrid),

@@ -3,8 +3,9 @@
 and the style read-back the Layer Style panes' stop editor relies on.
 
 The gates are FIXED here before anything is measured, and the oracle is written from the ADR alone:
-the region is the Magic Wand's — every pixel whose R, G, B, A, R−G, G−B and R−B each lie within
-the tolerance of the seed's, four-connected to it when contiguous — computed here by a
+the region is the Magic Wand's — every pixel whose R, G, B and A each lie within the tolerance of
+the seed's and whose halved cyclic differences lie within half of it, four-connected to it when
+contiguous — computed here by a
 breadth-first walk over the colours this file painted (8-bit codes; the typed wand reads its codes
 and the tolerance × 257 back as bytes, the float wand the display copy, and every colour below sits
 clear of each tolerance used); then `alpha × (1 − opacity × coverage)`, the colour kept. The
@@ -121,20 +122,22 @@ def composite_scene():
 
 def projections(rgba):
     r, g, b, a = rgba
-    return (r, g, b, a, r - g, g - b, r - b)
+    return (r, g, b, a, (g - r + 255) // 2, (b - g + 255) // 2, (r - b + 255) // 2)
 
 
 def region(scene, seed, tolerance, contiguous):
-    """The ADR's region: every projection within ± tolerance of the seed's; 4-connected."""
+    """The ADR's region: R, G, B and A within ± tolerance of the seed's, the halved
+    differences within ± tolerance // 2; 4-connected."""
     def rgba(p):
         c = scene[p]
         if c is None:
             return (0, 0, 0, 0)
         return c if len(c) == 4 else c + (255,)
     ref = projections(rgba(seed))
+    bounds = (tolerance,) * 4 + (tolerance // 2,) * 3
 
     def admits(p):
-        return all(abs(v - r) <= tolerance for v, r in zip(projections(rgba(p)), ref))
+        return all(abs(v - r) <= e for v, r, e in zip(projections(rgba(p)), ref, bounds))
     if not contiguous:
         return {p for p in scene if admits(p)}
     seen, queue = {seed}, deque([seed])

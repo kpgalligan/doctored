@@ -1,6 +1,7 @@
 //! The Magic Wand's Sample Size: Point Sample and the 3, 5, 11, 31, 51
-//! and 101 by 101 Average. The reference the seven-projection box is anchored
-//! at is the per-channel truncating mean of the box about the seed, clipped to
+//! and 101 by 101 Average. The reference the wand's keys are anchored at
+//! (R, G, B and alpha within the tolerance, the halved cyclic differences
+//! within half of it) is the per-channel truncating mean of the box about the seed, clipped to
 //! the canvas, over the keys the wand compares: bytes (`dr_doc_magic_wand`,
 //! `dr_doc_magic_wand_layer`), native 16-bit codes read as their nearest
 //! bytes and a CMYK document's naive ink RGB byte (`dr_precision_doc_select`'s
@@ -10,8 +11,8 @@
 //! without the core. Photoshop 26.10.0's take1
 //! (`fixtures/photoshop_color_range`, `color_range_671_take.py`) left the
 //! averaging UNMEASURED — its scripted click carries no Sample Size, every
-//! size giving one mask — and the fixture pins that reason and the Point
-//! Sample residual at the pixel the click landed on.
+//! size giving one mask — and the fixture pins that reason; the Point Sample
+//! wand at the pixel the click landed on meets each of its masks.
 use std::collections::VecDeque;
 use std::ffi::{CStr, CString};
 use std::ptr;
@@ -62,22 +63,28 @@ fn mean(img: &[[i64; 4]], w: usize, h: usize, seed: (usize, usize), size: u32) -
     sum.map(|v| v / count)
 }
 
-/// The seven-projection predicate: `colour` bounds the six colour keys and
-/// `alpha` alpha (one tolerance for both on the byte path).
+/// The wand's predicate: `colour` bounds R, G and B, ⌊colour/2⌋ the halved
+/// cyclic differences ⌊(G − R + 255)/2⌋, ⌊(B − G + 255)/2⌋, ⌊(R − B +
+/// 255)/2⌋, and `alpha` alpha (one tolerance for both on the byte path).
 fn similar(p: [i64; 4], seed: [i64; 4], (colour, alpha): (i64, i64)) -> bool {
-    let project = |c: [i64; 4]| {
+    let keys = |c: [i64; 4]| {
         [
             c[0],
             c[1],
             c[2],
             c[3],
-            c[0] - c[1],
-            c[1] - c[2],
-            c[0] - c[2],
+            (c[1] - c[0] + 255).div_euclid(2),
+            (c[2] - c[1] + 255).div_euclid(2),
+            (c[0] - c[2] + 255).div_euclid(2),
         ]
     };
-    let (a, b) = (project(p), project(seed));
-    (0..7).all(|k| (a[k] - b[k]).abs() <= if k == 3 { alpha } else { colour })
+    let bound = |k: usize| match k {
+        3 => alpha,
+        0..=2 => colour,
+        _ => colour / 2,
+    };
+    let (a, b) = (keys(p), keys(seed));
+    (0..7).all(|k| (a[k] - b[k]).abs() <= bound(k))
 }
 
 /// A typed document's keys (`selection_similar`'s **Resolution**): R, G
@@ -503,8 +510,9 @@ fn a_cmyk_wand_averages_the_inks_naive_rgb() {
 /// take1's wand masks: the 1 and 101 by 101 cases at one click, tolerance
 /// and contiguity are identical in Photoshop (why the averaging is
 /// UNMEASURED), and Doctored's Point Sample wand seeded where Photoshop's
-/// click landed, (x + 1, y + 1), differs from each mask by exactly the
-/// recorded count (the P7 residual on noise; 0 on the contiguous ones).
+/// click landed, (x + 1, y + 1), meets each mask exactly (the
+/// `point_p7_mismatch` the fixture records is the seven projections'
+/// residual, 26 pixels on each global case).
 #[test]
 fn photoshops_take1_wand_masks_pin_the_unmeasured_sample_size() {
     let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -518,6 +526,7 @@ fn photoshops_take1_wand_masks_pin_the_unmeasured_sample_size() {
     let doc = byte_doc(input.as_raw(), w, h);
     let mut masks = std::collections::BTreeMap::new();
     let mut checked = 0;
+    let mut replaced = 0;
     for case in manifest["cases"].as_array().unwrap() {
         if case["kind"] != "wand" {
             continue;
@@ -537,12 +546,8 @@ fn photoshops_take1_wand_masks_pin_the_unmeasured_sample_size() {
         let contiguous = case["contiguous"].as_bool().unwrap();
         let got = wand(doc, seed, tolerance, contiguous, 1);
         let mismatched = got.iter().zip(&photoshop).filter(|(a, b)| a != b).count();
-        assert_eq!(
-            mismatched as u64,
-            case["point_p7_mismatch"].as_u64().unwrap(),
-            "{}",
-            case["name"]
-        );
+        assert_eq!(mismatched, 0, "{}", case["name"]);
+        replaced += case["point_p7_mismatch"].as_u64().unwrap();
         let key = (
             case["x"].as_u64(),
             case["y"].as_u64(),
@@ -552,7 +557,7 @@ fn photoshops_take1_wand_masks_pin_the_unmeasured_sample_size() {
         masks.entry(key).or_insert_with(Vec::new).push(photoshop);
         checked += 1;
     }
-    assert_eq!(checked, 4);
+    assert_eq!((checked, replaced), (4, 52));
     for (key, group) in masks {
         assert_eq!(group.len(), 2, "{key:?}");
         assert_eq!(group[0], group[1], "{key:?}: Photoshop's sizes part");

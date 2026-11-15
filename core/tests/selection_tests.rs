@@ -65,10 +65,10 @@ fn magic_wand_contiguous_and_global() {
     let global = wand(doc2, 0, 0, 0, false);
     assert_eq!(global[3 * 6 + 5], 255);
 
-    // Tolerance: red to blue moves R and B by 200 each, but R−B by 400. The
-    // wand admits by the seven projections (R, G, B, A, R−G,
-    // G−B, R−B), so even tolerance 255 keeps the red half alone; it took 200
-    // under the old per-channel box. Tolerance 199 vs 200 still decides a
+    // Tolerance: red to blue moves R and B by 200 each, and the halved
+    // difference ⌊(R − B + 255)/2⌋ from 227 to 27, 200 against a bound of
+    // ⌊255/2⌋ = 127, so even tolerance 255 keeps the red half alone; it took
+    // 200 under the old per-channel box. Tolerance 199 vs 200 still decides a
     // hue-free step: the 200-grey half is admitted from black at 200 only.
     let loose = wand(doc, 0, 0, 255, true);
     assert_eq!(loose.iter().filter(|&&m| m == 255).count(), 12);

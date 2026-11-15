@@ -2,29 +2,17 @@
 //! Select ▸ Grow / Similar (`selection_similar.rs`). `flood` owns the walk and
 //! its job cadence; the caller's predicate decides which pixels it admits.
 //! `grow` is the Magic Wand and the Paint Bucket: similarity stays anchored at
-//! the single seed, and its predicate is Grow/Similar's seven-projection box
-//! (`ReferenceRange::from_seed`).
-//!
-//! one four-connected `flood` walk (caller predicate, multi-seed) behind the byte/native wand and
-//! bucket (`grow`: the seed's R, G, B, A, R−G, G−B, R−B each within ± tolerance) and Select ▸
-//! Grow/Similar (`similar`: every ≥50%-covered pixel is a reference; admit when the same seven
-//! projections lie in the references' range ± tolerance, that range trimmed per projection on a
-//! Grayscale document, `selection_similar`'s module doc), both measured against Photoshop 26.10.0.
-//!
-//! Measurement (batch v1x-blur-wand, `scripts/photoshop-probe/blur_wand_take.py`): Photoshop 26.10.0's
-//! Magic Wand and Paint Bucket, Contiguous on and off, Anti-alias off, Sample All Layers off, were
-//! measured on 8-bit fixtures whose every click sits in a uniform 101×101 field (so Sample Size
-//! cannot matter). Out of the declared families (seven-projection box P7, per-channel box P1,
-//! luma, Euclidean and Manhattan distances, each with ≤ or < and 4- or 8-connectivity) P7 ≤ with
-//! four-connectivity is the fitted member for both tools; the per-channel box this replaced
-//! admitted hue shifts Photoshop refuses ((106,94,100) from grey 100 at tolerance 10). The take
-//! records and the residual are in `designs/phase-9g-selections-masks-status.md`.
+//! the single seed, and its predicate is Grow/Similar's key form
+//! (`ReferenceRange::from_seed`: R, G and B within ± tolerance of the seed's,
+//! the halved cyclic differences within ± ⌊tolerance/2⌋, alpha within ±
+//! tolerance; `selection_similar`'s module doc, whose **The takes** records
+//! the measurement), four-connected, `≤`.
 //!
 //! Scaling: every depth compares bytes (`selection_similar`'s **Resolution**): R, G and B of a u16
 //! sample — a 16-bit document's, a 32-bit float document's R1 display codes — read as their
-//! nearest byte and the tolerance the host sends (8-bit t × 257) back to t, R−G, G−B and R−B taken
-//! on those bytes; alpha keeps its own codes. A gray mask or channel (`[v, v, v, max]`) reduces to
-//! |Δ byte| ≤ t.
+//! nearest byte and the tolerance the host sends (8-bit t × 257) back to t, the halved
+//! differences taken on those bytes; alpha keeps its own codes. A gray mask or channel
+//! (`[v, v, v, max]`) reduces to |Δ byte| ≤ t.
 //!
 //! **Ink (#1).** A CMYK document's Magic Wand and Paint Bucket compare the ink's NAIVE RGB, never
 //! the view: [`grow_ink`] is `grow`'s twin over straight CMYKA16 samples and the same [`flood`],
@@ -32,14 +20,16 @@
 //! a byte at the document's depth: at 8 bits `round((255 − c8)(255 − k8)/255)` with
 //! `c8 = round(C/257)`; at 16 the product on the 32768-step grid, each ink
 //! `i = round(v·32768/65535)` and `R15 = round((32768 − iC)(32768 − iK)/32768)`, read to a byte
-//! as `⌊(R15·255 + 16384)/32768⌋` — and then `grow`'s own predicate ([`ReferenceRange`], R, G, B, A,
-//! R−G, G−B, R−B each within ± tolerance, `≤`), four-connected (PN7). K enters only through the
-//! darkening it shares with every plate, so a K pair or a GCR twin is admitted wherever its RGB
-//! lies inside the box (measured against Photoshop). PN7 was fitted on
+//! as `⌊(R15·255 + 16384)/32768⌋` — and then `grow`'s own predicate ([`ReferenceRange`]'s keys of
+//! that naive RGB), four-connected. K enters only through the darkening it shares with every
+//! plate, so a K pair or a GCR twin is admitted wherever its RGB is (measured against Photoshop).
+//! The naive RGB source (PN7, the seven projections of the time on it) was fitted on
 //! `scripts/photoshop-probe/cmyk_select_take.py`'s take1 (0 regions mismatched of 12 cases, where
 //! the shipped 11-projection ink box missed 336 and the five-plate box 136; the unrounded RGB
 //! missed 16, so the 8-bit rounding is part of the rule) and confirmed by `cmyk_k_take.py`'s take;
-//! the record is in `designs/cmyk-mode.md`. The 16-bit product is
+//! the record is in `designs/cmyk-mode.md`. `wand_key_79_take.py` replaced the projections by the
+//! halved keys on the same source, exact at both depths (`selection_similar`'s **The takes**).
+//! The 16-bit product is
 //! `scripts/photoshop-probe/key_resolution_80_take.py`'s refit of its take1 (`key-resolution-80`,
 //! Photoshop 26.10.0), confirmed on its held-out take2: 0 pixels a tool, where the 16-bit product
 //! on the codes read to a byte missed 16 and 14 pixels a tool, the inks' 8-bit product 98 to 154
@@ -97,8 +87,9 @@ pub(crate) fn reference<T: SelectionSample>(
 
 /// The wand / bucket region from the single seed: global, or flooded
 /// four-connected from it when `contiguous`. A pixel is admitted when its
-/// seven projections each lie within ± `tolerance` of the reference's — the
-/// seed's keys, or their `sample_size` box mean (module doc).
+/// keys each lie within their bound of the reference's
+/// (`ReferenceRange::admits`) — the seed's, or those of its `sample_size`
+/// box mean (module doc).
 pub(crate) fn grow<T: SelectionSample>(
     dimensions: (u32, u32),
     pixel: impl Fn(usize) -> [T; 4],

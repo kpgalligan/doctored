@@ -2119,8 +2119,10 @@ The design record behind each area is in the repository's
   rectangle marquee), polygonal lasso (L — click vertices,
   double-click/Return/click-the-start closes, ⌫ removes the last vertex,
   Escape cancels), and a magic wand (W) with tolerance + contiguous options
-  (a pixel joins when its R, G, B and alpha, and its R − G, G − B and R − B,
-  each lie within the tolerance of the seed's, a rule the
+  (a pixel joins when its R, G, B and alpha each lie within the tolerance
+  of the seed's and its halved differences (G − R + 255)/2, (B − G + 255)/2
+  and (R − B + 255)/2 within half of it, so a hue shift counts and a
+  brightness shift does not move them, a rule the
   Paint Bucket shares; its Sample Size, Point or a 3×3 … 101×101 Average,
   sets the seed's colour)
   that samples the flattened composite or, with its Sample popup on Current
@@ -2142,9 +2144,9 @@ The design record behind each area is in the repository's
   the selection's 50% contour, so a moved edge comes back freshly
   anti-aliased instead of jagged — grow them by colour with Select > Grow
   (connected pixels) and Select > Similar (the whole image), which add every
-  pixel whose colour lies in the selected pixels' range (in a Grayscale
-  document, less the tenth of them at either extreme) widened by the Magic
-  Wand tolerance, or paint them directly in Quick Mask
+  pixel whose colour lies in the selected pixels' range on the Magic Wand's
+  keys (less, on each key, the tenth of them at either extreme) widened by
+  the Magic Wand tolerance, or paint them directly in Quick Mask
   mode (Q — the selection becomes a red rubylith overlay the brush adds
   to and the eraser removes from, and Filters ▸ Blur ▸ Gaussian Blur… and the Gradient
   tool work on it too; toggling back out converts the buffer

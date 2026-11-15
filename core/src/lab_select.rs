@@ -62,7 +62,8 @@ use crate::lab_blend::LabGrid;
 use crate::precision_quantize::nearest;
 use crate::selection_region::{flood, reference};
 use crate::selection_similar::{
-    grid15, grid15_byte, is_reference, trimmed, NO_REFERENCE, TRIM_DIVISOR,
+    grid15, grid15_byte, halved_bounds, halved_keys, is_reference, trimmed, NO_REFERENCE,
+    TRIM_DIVISOR,
 };
 
 /// A Lab colour-distance rule (module doc). Only the shipped one exists.
@@ -128,27 +129,19 @@ fn wand_byte(v: u16, channel: usize, grid: LabGrid) -> i32 {
 }
 
 /// The wand's key of one Lab sample (module doc, **The wand**): L8, a8, b8,
-/// the halved cyclic differences q1, q2, q3 and the u16 alpha.
+/// the halved cyclic differences q1, q2, q3 (`selection_similar`'s
+/// `halved_keys`, the one key form RGB shares) and the u16 alpha.
 pub(crate) fn wand_key(p: [u16; 4], grid: LabGrid) -> [i32; 7] {
-    let [l, a, b] = [0, 1, 2].map(|c| wand_byte(p[c], c, grid));
-    // Each sum lies in 0…510, so `/ 2` is the floor the take fitted.
-    [
-        l,
-        a,
-        b,
-        (a - l + 255) / 2,
-        (b - a + 255) / 2,
-        (l - b + 255) / 2,
-        i32::from(p[3]),
-    ]
+    let [l, a, b, q1, q2, q3] = halved_keys([0, 1, 2].map(|c| wand_byte(p[c], c, grid)));
+    [l, a, b, q1, q2, q3, i32::from(p[3])]
 }
 
 /// The per-key bounds of a u16 `tolerance` (module doc): t = the host's
 /// ×257 tolerance read back to 0…255 by rounding, ± t on the three channels,
-/// ± ⌊t/2⌋ on q1–q3, and the u16 tolerance itself on alpha.
+/// ± ⌊t/2⌋ on q1–q3 (`halved_bounds`), and the u16 tolerance itself on alpha.
 fn bounds(tolerance: u16) -> [i32; 7] {
-    let t = i32::from(nearest(tolerance));
-    [t, t, t, t / 2, t / 2, t / 2, i32::from(tolerance)]
+    let [l, a, b, q1, q2, q3] = halved_bounds(i32::from(nearest(tolerance)));
+    [l, a, b, q1, q2, q3, i32::from(tolerance)]
 }
 
 /// The [min, max] of the references' wand keys (module doc): one seed for the

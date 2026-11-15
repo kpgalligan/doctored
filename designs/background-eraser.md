@@ -28,8 +28,9 @@ dabs and the pixels under them.
   and not fully transparent, for the whole stroke. Background Swatch: the background colour (over MCP
   `sample_color`, or `sample_ink` on CMYK), as the document's own codes. A Continuous dab whose hot
   spot is off the canvas or fully transparent erases nothing; so does a Once stroke before such a dab.
-- **Like colour.** The Magic Wand's predicate on colour alone: R, G, B, R−G, G−B and R−B each within
-  Tolerance of the reference, both read with alpha at full, so a half-erased pixel stays like its
+- **Like colour.** The Magic Wand's predicate on colour alone: R, G and B within Tolerance of the
+  reference and the halved cyclic differences within half of it (`selection_similar`'s module doc),
+  both read with alpha at full, so a half-erased pixel stays like its
   neighbours and a second pass keeps erasing it; a fully transparent pixel is never reached. A CMYK
   document compares the ink's naive RGB (`selection_region::ink_as_rgb`), a Lab document the Lab
   wand's key, a 32-bit document its display codes (a value above white compares as white), every
