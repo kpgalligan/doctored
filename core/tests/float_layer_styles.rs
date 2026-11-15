@@ -1039,3 +1039,35 @@ fn an_effect_mode_outside_the_float_set_refuses_by_name_and_clearing_never_does(
     .unwrap()
     .is_some());
 }
+
+/// A pin (green before the float preview was enabled): the two bookkeeping
+/// edits the Layer Style sheet's live preview sends (`PrecisionStylePreview`)
+/// run on a float document — `layer_style` with a `scale` stores the authored
+/// lengths times the factor, and `global_light` changes the document's light —
+/// and the styled render differs from the unstyled one.
+#[test]
+fn the_live_preview_requests_run_on_a_float_document() {
+    let doc = styled_base(&IccProfile::srgb());
+    let style = json!({"effects":[{"type":"drop_shadow","size":4,"distance":8},
+                                  {"type":"stroke","size":6}]});
+    let half = edit(
+        &doc,
+        json!({"op":"layer_style","version":1,"layer":1,"style":style,"scale":0.5}),
+    );
+    let stored: Value =
+        serde_json::from_str(&half.layer(1).unwrap().reported_style().unwrap()).unwrap();
+    let effects = stored["effects"].as_array().unwrap();
+    let shadow = effects.iter().find(|e| e["type"] == "drop_shadow").unwrap();
+    let stroke = effects.iter().find(|e| e["type"] == "stroke").unwrap();
+    assert_eq!(
+        (shadow["size"].as_f64(), shadow["distance"].as_f64()),
+        (Some(2.0), Some(4.0))
+    );
+    assert_eq!(stroke["size"].as_f64(), Some(3.0));
+    let lit = edit(
+        &half,
+        json!({"op":"global_light","angle":45.0,"altitude":60.0}),
+    );
+    assert_ne!(render(&lit), render(&half), "the light moves the shadow");
+    assert_ne!(render(&half), render(&doc), "the style renders");
+}

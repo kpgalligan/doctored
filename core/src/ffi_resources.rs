@@ -135,11 +135,11 @@ pub unsafe extern "C" fn dr_mixed_resources_evict_caches(
                     for d in &typed {
                         d.record_resources(&mut inventory);
                     }
-                    crate::resources::cache_inventory(documents, &mut inventory);
+                    crate::resources::cache_inventory(documents, &typed, &mut inventory);
                     inventory.cache_bytes()
                 };
                 let before = inventory(&documents);
-                crate::resources::evict_caches(&documents);
+                crate::resources::evict_caches(&documents, &typed);
                 let after = inventory(&documents);
                 let value = serde_json::json!({
                     "cache_bytes_before": before,

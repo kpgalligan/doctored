@@ -5,6 +5,8 @@
 #![allow(clippy::duplicate_mod)]
 
 mod common;
+#[path = "common/float_fixture.rs"]
+mod float_fixture;
 mod live_filter_support;
 #[path = "common/phase4_corpus.rs"]
 mod phase4_corpus;
@@ -78,6 +80,8 @@ mod precision_projection_unseeded;
 mod precision_rect_writers;
 #[path = "precision_retouch_writers.rs"]
 mod precision_retouch_writers;
+#[path = "precision_style_cache.rs"]
+mod precision_style_cache;
 #[path = "precision_whole_readers.rs"]
 mod precision_whole_readers;
 #[path = "raw_develop_reads.rs"]

@@ -353,6 +353,7 @@ Detail belongs in the source file's own header comment.
 - `float_adjust_apply.rs` — destructive Image ▸ Adjustments on a float layer under the layer's own form; measured admission table in its doc.
 - `float_filter_apply.rs` — 24 filters on a float layer, linear or on the display-encoded copy; plan, coverage mix, admission table.
 - `float_filter_route.rs` — `Route` (parse, domain, plan, plane, combine, Develop Filter `back`, `needs_encoding`), `display_encoding()`.
+- `float_plane_adjust.rs` — Image ▸ Adjustments on one R/G/B/Alpha of a float layer: the layer form on R/G/B, the mask's on Alpha, Auto refused by name; plan term.
 - `float_plane_filter.rs` — float filters on a mask, alpha channel or one RGBA plane through `Route`; the plane rule, layer-only refusals, plan, admission table.
 - `float_color.rs` — Assign/Convert to Profile in a float document (relabel; linear matrix, no clamp), an adapter over `promoted_image`; refusals and admission in its doc.
 - `agent.rs` — embedded MCP server on a Unix socket: `prepare_socket_path`'s claim policy, `start_socket`, `SocketClaim`, `release`. **Generic**: host gives catalog + callback.
@@ -422,6 +423,7 @@ Detail belongs in the source file's own header comment.
 - `precision_blend_if.rs` / `precision_blend_if_native.rs` — typed `Option<BlendIf>` on rasters, RGB adjustments and isolated groups: `validate`, `with_blend_if`, `layer_blend_if`; LBIF 1/2.
 - `precision_style.rs` / `precision_style_render.rs` / `precision_style_native.rs` — typed `Option<Arc<LayerStyle>>` on rasters, adjustments, groups: validate, `LayerStyleEdit`, render, persist (v36).
 - `precision_style_adjustment.rs` — the typed twin of `style_adjustment`: the in-place interior a styled 16/32-bit adjustment's styled path applies after its Below effects.
+- `precision_style_cache.rs` — the typed rendered-plane cache in each style's `RenderCache`: pointer key, `rendered` (both typed sites), the style walker for accounting; groups/CMYK uncached.
 - `precision_layer_blend.rs` / `precision_blend_native.rs` — native Normal/Multiply/Screen + 24 qualified raster/isolated-group modes on the existing `blend.rs` kernel, adjustments too; `LBLD` tables.
 - `precision_mask.rs` / `precision_mask_edit.rs` / `precision_plane_read.rs` — persistent u16 raw masks/channels, independent placement, linking, density/feather and exact scalar reads.
 - `precision_mask_apply.rs` — typed Apply Mask: effective coverage (density/feather, a disabled mask too) baked into alpha with no byte plane; the float rule in its doc.

@@ -195,8 +195,6 @@ extension EditorViewController {
                 return DocumentPrecision.refusal(
                     tool: step.tool, arguments: step.arguments, document: document) == nil ? nil : false
             }
-            // Phase 2d: Invert Channel at 8 and 16 bits only.
-            if action == "invertChannel:", depth == 32 { return false }
             // Phase 5b: Proof Setup and Proof Colors at 8 and 16 bits; a 32-bit document refuses
             // as a float document.
             if depth == 32, GrayDocument.proofSelectors.contains(action) { return false }
@@ -205,7 +203,12 @@ extension EditorViewController {
             if depth == 32, GrayDocument.floatRefused.contains(action) { return false }
             // The close: the tone map is a 32-bit document's.
             if depth != 32, GrayDocument.floatOnly.contains(action) { return false }
-            let adjusts = GrayAdjust.allowsAction(action, tag: item.tag, depth: depth)
+            // A mask or alpha channel is u16 coverage at every depth, so with one targeted the
+            // adjustment and Auto items answer as at 16 bits (the float branch's
+            // `FloatDocument.appliesAdjustment` rule).
+            let coverage = document.planeEditTarget == .mask || document.planeEditTarget.isChannel
+            let adjusts = GrayAdjust.allowsAction(action, tag: item.tag,
+                                                  depth: coverage && depth == 32 ? 16 : depth)
             return GrayDocument.selectors.contains(action) || adjusts == true ? nil : false
         }
         // #1 phase 5: Image ▸ Mode ▸ 8/16 Bits/Channel at every depth.
@@ -492,23 +495,35 @@ extension EditorViewController {
             ]
             if float.contains(action) || action.hasPrefix("newAdjustmentLayer") { return nil }
             // Image ▸ Adjustments applies the core's `*_apply`
-            // ops to a layer's own pixels (`FloatDocument.destructiveOps`);
-            // MCP twin `apply_filter`, which `DocumentPrecision.refusal`
-            // gates the same way.
+            // ops to a layer's own pixels (`FloatDocument.destructiveOps`), and every
+            // adjustment and Invert to a mask or alpha channel:
+            // `FloatDocument.appliesAdjustment`, which MCP `apply_filter`'s gate in
+            // `DocumentPrecision.refusal` reads too.
             let appliedActions: [String: String] = [
                 "showLevels:": "levels", "showCurves:": "curves", "showAdjustments:": "bcs",
                 "applyDesaturate:": "hue_saturation",
                 // The closed and display forms (`adjust_float`).
                 "showThreshold:": "threshold", "showPosterize:": "posterize",
                 "showHueRotate:": "hue_rotate", "applyGrayscale:": "grayscale",
-                "applySepia:": "sepia",
+                "applySepia:": "sepia", "applyInvert:": "invert",
             ]
+            let plane = FloatDocument.EditPlane(document.planeEditTarget)
             let applied: String? = action == "showAdjustmentSheet:"
                 ? AdjustmentMenuOrder.op(for: item.tag)?.rawValue : appliedActions[action]
             if let applied {
-                return FloatDocument.appliesDestructively(applied)
-                    && document.planeEditTarget == .layer && !document.quickMaskActive ? nil : false
+                guard let plane, !document.quickMaskActive else { return false }
+                return FloatDocument.appliesAdjustment(applied, on: plane) ? nil : false
             }
+            // Image ▸ Auto Tone, Auto Contrast and Auto Color on a mask or an alpha
+            // channel (`FloatDocument.appliesAuto`; MCP twins `auto_tone`, `auto_contrast`,
+            // `auto_color`, gated the same way).
+            if ["autoTone:", "autoContrast:", "autoColor:"].contains(action) {
+                guard let plane, !document.quickMaskActive else { return false }
+                return FloatDocument.appliesAuto(on: plane) ? nil : false
+            }
+            // Invert Channel on an alpha channel, u16 coverage as at 16 bits; MCP twin
+            // `invert_channel`, `.floatTool`.
+            if action == "invertChannel:" { return document.quickMaskActive ? false : nil }
             // The twenty-four filters of `FloatDocument.filterOps`
             // run on a layer's own pixels, each under its stated 32-bit rule
             // (linear light, or the display encoding for a display-referred

@@ -1,8 +1,8 @@
 import AppKit
 
-// The typed (16-bit) layer style sheet is the shared `LayerStyleSheetController` opened with a
-// `PrecisionEditorCapture`: a live preview at 16 bits through `PrecisionStylePreview` (none
-// at 32-bit float), the document's light bound as at 8 bits, and one
+// The typed (16-bit and 32-bit float) layer style sheet is the shared `LayerStyleSheetController`
+// opened with a `PrecisionEditorCapture`: a live preview through `PrecisionStylePreview` at
+// both depths, the document's light bound as at 8 bits, and one
 // publication of the style and the light through `capture.requireCurrent` / `withLayerStylePayload`
 // / `withGlobalLight` / `capture.publish` with no `try?` on that path; `editLayerStyle` builds the
 // capture, `canEditLayerStyle` admits every layer, a Pass Through group included, and
@@ -51,9 +51,8 @@ final class LayerStyleSheetController: NSViewController {
     /// same model and the document's light and publishes once through the
     /// core's `layer_style` and `global_light` edits (`NativeLayerStyle`).
     private let capture: PrecisionEditorCapture?
-    /// The 16-bit live preview; nil at 8 bits, which previews through
-    /// `renderer`, and at 32-bit float, which previews nothing (the typed
-    /// compositor renders on Apply).
+    /// The 16-bit and 32-bit float live preview; nil at 8 bits, which
+    /// previews through `renderer`.
     private var typedPreview: PrecisionStylePreview?
 
     /// The preview base and what Cancel must leave behind, captured at init:
@@ -142,7 +141,7 @@ final class LayerStyleSheetController: NSViewController {
         renderer.onRender = { [weak self] cgImage in
             self?.canvas?.previewImage = cgImage
         }
-        if let capture, !capture.facade.isFloat {
+        if let capture {
             let preview = PrecisionStylePreview(capture: capture, layer: layer, document: document)
             preview.onRender = { [weak self] image in self?.typedPreviewLanded(image) }
             preview.onStatus = { [weak self] message in self?.typedPreviewStatus(message) }
@@ -216,10 +215,7 @@ final class LayerStyleSheetController: NSViewController {
             + "scales the pixels but not the effects."
         view = makeSheetView(
             title: "Layer Style",
-            hint: capture == nil || typedPreview != nil
-                ? hint
-                : hint + " On a 32-bit float document there is no live preview: the "
-                    + "typed compositor renders the style and the global light on Apply.",
+            hint: hint,
             content: content,
             buttonRow: makeButtonRow(
                 cancel: cancelButton, apply: applyButton,
@@ -622,14 +618,12 @@ final class LayerStyleSheetController: NSViewController {
     /// for the first), flattened on the renderer's queue — only captured
     /// values and the chain cross.
     private func requestPreview() {
-        // 16 bits: the typed preview's own bookkeeping edits and reservation
-        // (`PrecisionStylePreview`).
+        // 16 bits and 32-bit float: the typed preview's own bookkeeping edits
+        // and reservation (`PrecisionStylePreview`).
         if let typedPreview {
             typedPreview.request(style: sent(style), light: light)
             return
         }
-        // No float preview: the styled composite is rendered by the core on
-        // Apply.
         guard capture == nil, let baseDoc = baseDoc else { return }
         let style = self.style
         let light = self.light

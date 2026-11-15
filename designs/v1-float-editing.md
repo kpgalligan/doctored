@@ -63,6 +63,16 @@ Every float filter but Liquify, Depth Blur and the Develop Filter runs on a laye
 - **Add Noise on coverage.** On a Coverage plane, Add Noise takes the 16-bit mask's rule, not the route's light-relative `v·(1 + δ)`: the additive, clamped `SelectedFilter::Noise` draw. A mask or channel calls `precision_scalar_filter::evaluate` itself (the 16-bit document's mask result exactly). The float Alpha runs `SelectedFilter::evaluate` on `[v, v, v, 1]` in index order with the request's seed. A Colour plane keeps the route's Add Noise.
 - Liquify, Depth Blur and the Develop Filter refuse by name on every plane, before the route parses (so an identity request or Develop Filter masks never answer first). The plan of a float R/G/B/A plane replaces the u16 plane term with the route's two stages as a max, so it is at most the whole layer's plan; the measured table is in the module doc.
 
+### Adjustments, Auto and Invert on a mask, alpha channel or colour plane (`precision_scalar_edit.rs`, `float_plane_adjust.rs`)
+
+- **Mask and alpha channel.** Coverage, not light, and u16 at every depth, so a float document edits it code for code as a 16-bit document does: every Image ▸ Adjustments op, Invert, Invert Channel, and Auto Tone, Auto Contrast and Auto Color (the derive, then the `levels_channels` write). The refused rows' reasons (values above 1.0) cannot arise on a u16 plane.
+- **Red, Green and Blue of a float layer.** Light: each adjustment the layer applies runs in its layer form, `apply_linear` on `[v, v, v]` at the image position, then the plane rule's Result, unclamped. Invert, Shadows/Highlights and the legacy White Balance refuse with the layer's sentence.
+- **The layer's Alpha.** Coverage in 0…1: every adjustment runs through the mask's interpreter (`parse_unbound`, its guide, `apply_at`) on `[a, a, a]` with no quantization, then the Result clamped to 0…1, so Invert is `1 − a`.
+- The read and write are the plane rule's (above; the walk is `float_plane_filter`'s, `float_plane_unlocked`), and so is the plan: `n·APPLY_BYTES_PER_PIXEL` replaces the u16 plane term, plus the preparation, twice the description and Alpha's guide.
+- **Auto refuses by name on Red, Green, Blue and Alpha**, and so does its `levels_channels` write: on a colour plane with the layer's sentence (the operator table's row), on Alpha because Auto reads a 16-bit histogram, which a float alpha has no form of without quantizing.
+- One host fact answers the menu and MCP alike (`FloatDocument.appliesAdjustment`, `appliesAuto`); a 32-bit Grayscale document's mask and channel answer as at 16 bits. Quick Mask keeps them off.
+- Checks: `float_plane_adjust.rs` (a 16-bit twin, code for code, on a mask or channel; the layer's apply on a gray twin, bit for bit, on R/G/B; `1 − a` and a 16-bit mask within 3 codes on Alpha; the gate, the refusals and the plan), `scripts/verify_v1_float_planes.py` (MASK-INVERT, MASK-AUTO, CHANNEL-INVERT, AUTO-LAYER, RED-EXPOSURE, ALPHA-INVERT, REFUSED-INVERT-AUTO), the jobs-probe case "float plane edits".
+
 ### Display-defined tools and selections (`display_encoding.rs`)
 
 - **R1, the display copy:** RGB `round(65535·E(clamp(v, 0, 1)))`, alpha `unit_to_u16`.
@@ -106,11 +116,11 @@ The operator table (`float_document.rs`, `get_precision` / `get_tone_map` `opera
 - Convert to Profile with absolute intent, black-point compensation or preserve-appearance adjustments.
 - Apply Image: its blend runs on u16 planes clamped to 0 to 1.
 - Select and Mask's Decontaminate Colors: its foreground solve reads and writes RGBA16 codes clamped to 0 to 1, so a fringe above white would be clipped. The sheet disables it; `refine_selection decontaminate: true` refuses before any job.
-- Auto Tone, Auto Contrast, Auto Color and the Levels dialog's Auto buttons: each reads its black and white points off the clipped ends of a 0 to 1 histogram. The menu items and the Levels buttons are disabled; `auto_tone`, `auto_contrast`, `auto_color` and a Levels `auto` refuse with the row's reason.
+- Auto Tone, Auto Contrast, Auto Color and the Levels dialog's Auto buttons: each reads its black and white points off the clipped ends of a 0 to 1 histogram. On a layer's pixels the menu items and the Levels buttons are disabled; `auto_tone`, `auto_contrast`, `auto_color` and a Levels `auto` refuse with the row's reason. A mask or alpha channel takes them (above).
 
 Not built:
 
-- `OPEN` [#14](https://github.com/kpgalligan/doctored/issues/14) — a proxy preview stage at float; Image ▸ Adjustments, Auto and Invert on a float mask, channel or colour plane; filters on the Quick Mask at float beyond Gaussian Blur.
+- `OPEN` [#14](https://github.com/kpgalligan/doctored/issues/14) — a proxy preview stage at float; filters on the Quick Mask beyond Gaussian Blur (at every depth: the Quick Mask blur is the selection feather, not a filter).
 
 ## After v1
 
@@ -125,6 +135,6 @@ What v1 left for float documents (EDR display, HDR Toning and 32-bit PSD), all s
 ## Checks
 
 - Core: `float_filters*.rs`, `float_paint*.rs`, `float_retouch*.rs`, `float_smart_selection.rs` (rule E against a 16-bit twin of R1 codes; a 2.0 | 8.0 edge refines as flat white), `float_filters_develop.rs` (rules D, H and V against f64 restatements and 16-bit twins), `raw_local_tone_float.rs` (rule L: each control against its 16-bit twin, an f64 restatement or the float filter or adjustment it names, rule H on both sides of white), `precision_cutout.rs` (rule C), `precision_edge_refine.rs` (Decontaminate refuses), `float_display_adjustments.rs`, `float_promote*.rs`, `psd_depth32_profile.rs` (a reopened twin exports 8 bits under its gamma source, against the published curves), `float_scoped_statistics.rs` (unit bins against an f64 oracle and a u16 twin), `clip_display.rs` (the float `>= 1.0` / `<= 0.0` display, a float Curves black point).
-- Plane filters: `float_plane_filters.rs` (a colour plane against the layer route on a gray twin, bit for bit; coverage the clamped twin; coverage Add Noise and the display filters against a 16-bit mask; Pixelate, Offset, the gate, the refusals), and `scripts/verify_v1_float_planes.py` (RED, ALPHA, MASK, CHANNEL, REFUSED, ACTIONS).
+- Plane filters: `float_plane_filters.rs` (a colour plane against the layer route on a gray twin, bit for bit; coverage the clamped twin; coverage Add Noise and the display filters against a 16-bit mask; Pixelate, Offset, the gate, the refusals), and `scripts/verify_v1_float_planes.py` (RED, ALPHA, MASK, CHANNEL, REFUSED, ACTIONS, and the plane adjustments' cases).
 - MCP drive: `scripts/verify_phase11f_float.py` gates F37–F47; F47 holds the closing batch (the Magnetic Lasso, Enhance Edge and Select and Mask against a 16-bit twin, the New Layer outputs, Dehaze, Highlights, Shadows, Vibrance and Saturation, and the nine refused rows, Auto Tone and the Levels Auto refusing).
 - Admission: the 24 MP examples under `core/examples/float_*_admission.rs` and `float_adjust_apply_24mp.rs`'s `measure`.

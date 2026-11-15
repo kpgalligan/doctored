@@ -70,7 +70,7 @@ impl DrDocument {
         let channel_planes = n.saturating_mul(2 * self.channels.len() as u64);
         let mut inventory = Inventory::default();
         inventory.document(self);
-        crate::resources::cache_inventory(&[self], &mut inventory);
+        crate::resources::cache_inventory(&[self], &[], &mut inventory);
         let cooperative = crate::inpaint_source::pointwise(self);
         let render = if cooperative {
             // 64K-pixel tiles: accumulator, clipping scratch and byte tile,

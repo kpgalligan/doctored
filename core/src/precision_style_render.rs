@@ -11,8 +11,10 @@
 //!   (`257a·(257m/65535) = a·m/255`, and 255 is odd so no product ties).
 //! - The SHIPPED u8 pipeline (`style_render::render_effects_with_job`, the nine
 //!   `style_fx_*`, `plane_blur`, `grow_mask`/`shrink_mask`) renders every
-//!   contribution over that shape; nothing here is new pixel math. Planes
-//!   are rendered per render — there is no typed `RenderCache`.
+//!   contribution over that shape; nothing here is new pixel math. The planes
+//!   come from the style's typed rendered-plane cache when the layer, its
+//!   mask and the context the style reads are unchanged
+//!   (`precision_style_cache::rendered`; a styled group renders every time).
 //! - Contributions composite in f32 as `cov / 255` with the authored colour
 //!   `c / 255` through the byte `authored_color::AuthoredColors` for a
 //!   non-sRGB profile (`DrDocument::style_colors`'s rule), via the byte
@@ -36,7 +38,8 @@
 //!
 //! The renderer builds `typed_shape` (`round(a16·mask/257)` — the ONE depth reduction;
 //! bit-identical to `Shape::of_layer` for promoted codes), renders through the SHIPPED
-//! `style_render::render_effects_with_job` with no cache, and composites in the byte
+//! `style_render::render_effects_with_job` behind the typed cache (`precision_style_cache`),
+//! and composites in the byte
 //! `style_composite` order through the byte `composite_contribution` / `clip_pass_shape` /
 //! `BackdropSnapshot` / `mix_premultiplied` (now `pub(crate)`): Below, the typed pixel twin at
 //! `checked_alpha × fill × weight`, Interior. Effects read the document's global light
@@ -78,8 +81,7 @@ use crate::style_composite::{
 };
 use crate::style_float::FloatStyle;
 use crate::style_render::{
-    render_effects_with_job, sigma_for_size, Contribution, RenderContext, RenderedEffects, Shape,
-    StyleColors,
+    sigma_for_size, Contribution, RenderContext, RenderedEffects, Shape, StyleColors,
 };
 
 /// The pixels a typed style decorates: a raster's own image at its canvas
@@ -465,21 +467,24 @@ pub(crate) fn composite_styled_into(
     job.check()?;
     let style = layer.style;
     let planes = if style.has_enabled_effects() {
-        let shape = typed_shape(&layer.pixels, layer.mask, style.pad())
-            .ok_or("typed layer style plane exceeds the pixel limit")?;
-        job.check()?;
         let ctx = RenderContext {
             light: env.light,
             canvas: env.canvas,
             layer_offset: layer.pixels.offset(),
             lab_tiles: env.colors.is_some_and(AuthoredColors::converts_tiles),
         };
-        Some(render_effects_with_job(style, shape, &ctx, job)?)
+        Some(crate::precision_style_cache::rendered(
+            style,
+            &layer.pixels,
+            layer.mask,
+            &ctx,
+            job,
+        )?)
     } else {
         None
     };
     job.check()?;
-    match planes.as_ref() {
+    match planes.as_deref() {
         Some(planes) if layer.opacity < 1.0 && layer.blend != BlendMode::Dissolve => {
             composite_package_into(acc, dims, origin, layer, env, planes, members, job)
         }

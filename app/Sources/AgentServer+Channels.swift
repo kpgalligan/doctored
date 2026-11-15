@@ -58,7 +58,8 @@ extension AgentServer {
         "delete_channel": [.typedTool, .floatTool, .cmykTool],
         "rename_channel": [.commonTool, .floatTool, .cmykTool],
         "set_channel_options": [.commonTool, .floatTool, .cmykTool],
-        "invert_channel": [.commonTool, .cmykTool],
+        // A float document's alpha channel is u16 coverage, inverted as at 16 bits.
+        "invert_channel": [.commonTool, .cmykTool, .floatTool],
         // Parity with the float menu/tool whitelist in
         // `EditorViewController+Precision.swift`: a selection is canvas
         // coverage, not document pixels, so everything the UI lets a user do

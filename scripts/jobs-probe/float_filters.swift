@@ -70,12 +70,15 @@ func verifyFloatFilters() throws {
     try require(validates(controller, "removeRedEye:"),
                 "\(tag) Remove Red Eye validates on a float layer")
 
-    // (b) On the mask target none of the twenty-four validates.
+    // (b) On the mask target the plane filters validate: all but Liquify and the Develop
+    // Filter, which have no one-plane form (`FloatDocument.layerOnlyFilters`).
     _ = try agentOK("add_layer_mask", document, ["layer": 0])
     controller.setPaintTarget(.mask)
     try require(document.planeEditTarget == .mask, "\(tag) the panel targets the mask")
     let onMask = floatFilterItems.filter { validates(controller, $0) }
-    try require(onMask.isEmpty, "\(tag) no float filter validates on the mask: \(onMask)")
+    let planeItems = floatFilterItems.filter { $0 != "showLiquify:" && $0 != "showDevelopFilter:" }
+    try require(onMask == planeItems, "\(tag) the plane filters validate on the mask: "
+                + "\(Set(onMask).symmetricDifference(planeItems))")
     controller.setPaintTarget(.layer)
     try require(document.planeEditTarget == .layer, "\(tag) the panel targets the layer again")
 
@@ -186,7 +189,8 @@ func verifyFloatFilters() throws {
     try pumpUntil({ SelectionWorkBudget.scratchBytes == 0 }, seconds: 10)
 
     print("PASS: float-filters — on a 32-bit float layer the twenty-four filters' menu items and "
-        + "Remove Red Eye validate; none validates on the mask target, and in Quick Mask only "
+        + "Remove Red Eye validate; on the mask target all but Liquify and the Develop Filter "
+        + "do, and in Quick Mask only "
         + "Gaussian Blur (the Quick Mask blur) does; a Gaussian Blur request lands a preview, its "
         + "commit is one undo step and one recorded apply_filter blur step with a red above white "
         + "kept, and Repeat Last Filter repeats it; Filters ▸ Liquify… opens its workspace at the "

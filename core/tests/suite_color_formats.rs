@@ -323,6 +323,8 @@ mod float_pattern_overlay;
 mod float_placed_image;
 #[path = "float_placed_master.rs"]
 mod float_placed_master;
+#[path = "float_plane_adjust.rs"]
+mod float_plane_adjust;
 #[path = "float_plane_fill.rs"]
 mod float_plane_fill;
 #[path = "float_plane_filters.rs"]

@@ -298,11 +298,21 @@ fn unique_styles<'a>(documents: &[&'a DrDocument]) -> Vec<&'a LayerStyle> {
         .collect()
 }
 
-pub(crate) fn cache_inventory(documents: &[&DrDocument], inventory: &mut Inventory) {
+/// The disposable caches reachable from `documents` and `typed` (whose
+/// styles hold the typed plane entries, `precision_style_cache`), plus the
+/// process-wide LUT memo.
+pub(crate) fn cache_inventory(
+    documents: &[&DrDocument],
+    typed: &[&crate::precision_document::PrecisionDocument],
+    inventory: &mut Inventory,
+) {
     // Keep every plane pinned until all caches have been walked. Without these
     // Arcs an eviction could free a plane and reuse its address during a report.
+    // A style shared by a byte and a typed document is snapshotted twice; the
+    // inventory records each allocation once by address.
     let snapshots: Vec<_> = unique_styles(documents)
         .into_iter()
+        .chain(crate::precision_style_cache::styles_of(typed))
         .map(|style| style.cache.resource_snapshot())
         .collect();
     for snapshot in &snapshots {
@@ -367,7 +377,7 @@ pub(crate) fn mixed_report_with_masks(
             mask.record_resources(&mut inventory);
         }
     }
-    cache_inventory(documents, &mut inventory);
+    cache_inventory(documents, typed_documents, &mut inventory);
     // Views are reported and evicted here only; capacity plans and the
     // eviction inventory go through `cache_inventory` and never count them.
     let views = crate::contiguous_views::contiguous_views_of(&inventory);
@@ -389,8 +399,13 @@ pub(crate) fn mixed_report_with_masks(
     result
 }
 
-/// Removes only disposable caches, never pixels, document state or history.
-pub(crate) fn evict_caches(documents: &[&DrDocument]) -> Value {
+/// Removes only disposable caches, never pixels, document state or history:
+/// `documents`' and `typed`'s style planes (byte and typed entries alike),
+/// the byte masks' derived planes and the process-wide memos and views.
+pub(crate) fn evict_caches(
+    documents: &[&DrDocument],
+    typed: &[&crate::precision_document::PrecisionDocument],
+) -> Value {
     // One walk of the supplied documents scopes the views both before and
     // after the eviction.
     let mut walked = Inventory::default();
@@ -398,10 +413,13 @@ pub(crate) fn evict_caches(documents: &[&DrDocument]) -> Value {
         walked.document(document);
     }
     let mut before = Inventory::default();
-    cache_inventory(documents, &mut before);
+    cache_inventory(documents, typed, &mut before);
     let views = crate::contiguous_views::contiguous_views_of(&walked);
     crate::contiguous_views::record_contiguous_views(views, &mut before);
-    for style in unique_styles(documents) {
+    for style in unique_styles(documents)
+        .into_iter()
+        .chain(crate::precision_style_cache::styles_of(typed))
+    {
         style.cache.clear();
     }
     for layer in documents.iter().flat_map(|d| &d.layers) {
@@ -412,7 +430,7 @@ pub(crate) fn evict_caches(documents: &[&DrDocument]) -> Value {
     crate::precision_content_box::evict_precision_content_box_cache();
     crate::contiguous_views::evict_contiguous_views();
     let mut after = Inventory::default();
-    cache_inventory(documents, &mut after);
+    cache_inventory(documents, typed, &mut after);
     let views = crate::contiguous_views::contiguous_views_of(&walked);
     crate::contiguous_views::record_contiguous_views(views, &mut after);
     json!({

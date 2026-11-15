@@ -22,6 +22,10 @@
 //!
 //! A filter in a 32-bit float RGB document on a mask, a channel or one float
 //! Red/Green/Blue/Alpha plane runs the float route under `float_plane_filter`'s plane rule.
+//! An adjustment, an Auto derivation and Auto's `levels_channels` write on a float document's
+//! mask or channel take the 16-bit path above: the plane is u16 coverage at every depth, so it is
+//! edited code for code as a 16-bit document's. On one float Red/Green/Blue/Alpha plane an
+//! adjustment runs under `float_plane_adjust`'s rule, and Auto refuses there by name.
 use crate::gradient_field::{FieldStop, FieldStyle};
 use crate::job_control::JobContext;
 use crate::precision_document::{Content, PrecisionDocument};
@@ -88,6 +92,12 @@ pub struct ScalarEdit {
     /// whole-canvas rule of `doc_mask_invert`.
     #[serde(skip)]
     mask_invert: bool,
+}
+/// Whether `edit` is a tone request rather than a filter: an `adjustment`,
+/// an Auto derivation, or `levels_channels`, the write Auto's derived values
+/// are applied with (`dr_precision_doc_scalar_auto_levels`).
+fn tone_request(edit: &SelectedEdit) -> bool {
+    edit.op == "adjustment" || edit.is_auto() || edit.op == "levels_channels"
 }
 /// Whether `edit` is the Invert adjustment, the request the host sends for
 /// Image ▸ Adjustments ▸ Invert on a scalar target: `op` `adjustment` with a
@@ -325,7 +335,7 @@ impl ScalarEdit {
                     .source()
                     .ok_or("native color plane requires a raster layer")?;
                 let float_plane = source.storage() == PrecisionStorage::Rgba32Float
-                    && self.float_filter(doc).is_some();
+                    && (self.float_filter(doc).is_some() || self.float_tone(doc).is_some());
                 if source.storage() != PrecisionStorage::Rgba16Unorm && !float_plane {
                     return Err("native scalar color plane requires u16 storage".into());
                 }
@@ -349,9 +359,11 @@ impl ScalarEdit {
         };
         let input = payload + if self.selection { canvas } else { 0 };
         let float = self.float_filter(doc);
+        let tone = self.float_tone(doc);
         // A float Red/Green/Blue/Alpha plane holds no u16 plane: its own
-        // stages replace the `n·32` term (`float_plane_filter::plan`).
-        let stored_f32 = float.is_some() && self.color_target();
+        // stages replace the `n·32` term (`float_plane_filter::plan`,
+        // `float_plane_adjust::plan`).
+        let stored_f32 = (float.is_some() && self.color_target()) || tone.is_some();
         let planes = if stored_f32 { 0 } else { n * 32 };
         let mut scratch = 8 * BOOKKEEPING_BYTES + planes + input * 2;
         if let Some(edit) = float {
@@ -362,6 +374,8 @@ impl ScalarEdit {
                 stored_f32,
                 doc,
             )?;
+        } else if let Some(edit) = tone {
+            scratch += crate::float_plane_adjust::plan(edit, dimensions, self.component(), doc)?;
         } else if let ScalarOperation::Filter { edit } = &self.operation {
             scratch += crate::precision_scalar_filter::plan(edit, dimensions, doc.profile())?;
         }
@@ -467,12 +481,23 @@ impl ScalarEdit {
         }
     }
     /// The filter of a float plane edit: Some for a filter
-    /// (not an adjustment, not Auto) in a 32-bit float RGB document.
+    /// (not an adjustment, not Auto and not Auto's `levels_channels` write)
+    /// in a 32-bit float RGB document.
     fn float_filter<'a>(&'a self, doc: &PrecisionDocument) -> Option<&'a SelectedEdit> {
         let ScalarOperation::Filter { edit } = &self.operation else {
             return None;
         };
-        (doc.is_float() && !doc.is_gray() && edit.op != "adjustment" && !edit.is_auto())
+        (doc.is_float() && !doc.is_gray() && !tone_request(edit)).then_some(edit)
+    }
+    /// The tone request of a float colour-plane edit: Some for an
+    /// adjustment, an Auto or `levels_channels` on a float layer's Red,
+    /// Green, Blue or Alpha in a 32-bit float RGB document
+    /// (`float_plane_adjust`, which refuses Auto by name).
+    fn float_tone<'a>(&'a self, doc: &PrecisionDocument) -> Option<&'a SelectedEdit> {
+        let ScalarOperation::Filter { edit } = &self.operation else {
+            return None;
+        };
+        (doc.is_float() && !doc.is_gray() && self.color_target() && tone_request(edit))
             .then_some(edit)
     }
     /// Whether the target is one component of a layer's RGBA.
@@ -618,6 +643,16 @@ impl ScalarEdit {
         let float = self.float_filter(doc);
         if let (Some(edit), true) = (float, self.color_target()) {
             return doc.float_plane_filter_unlocked(
+                self.index,
+                self.component(),
+                edit,
+                selection,
+                job,
+            );
+        }
+        if let Some(edit) = self.float_tone(doc) {
+            return crate::float_plane_adjust::apply(
+                doc,
                 self.index,
                 self.component(),
                 edit,

@@ -15,10 +15,14 @@ extension AgentServer {
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
     static let adjustmentsToolFacts: [String: ToolFacts] = [
-        // #1: a CMYK document's Auto is CMYK Levels from its tone analysis.
-        "auto_tone": [.repeatable, .selectionSensitive, .typedTool, .rasterTool, .cmykTool],
-        "auto_contrast": [.repeatable, .selectionSensitive, .typedTool, .rasterTool, .cmykTool],
-        "auto_color": [.repeatable, .selectionSensitive, .typedTool, .rasterTool, .cmykTool],
+        // #1: a CMYK document's Auto is CMYK Levels from its tone analysis. A float document
+        // runs the three on a mask or an alpha channel only (`FloatDocument.appliesAuto`).
+        "auto_tone": [.repeatable, .selectionSensitive, .typedTool, .rasterTool, .cmykTool,
+                      .floatTool],
+        "auto_contrast": [.repeatable, .selectionSensitive, .typedTool, .rasterTool, .cmykTool,
+                          .floatTool],
+        "auto_color": [.repeatable, .selectionSensitive, .typedTool, .rasterTool, .cmykTool,
+                       .floatTool],
     ]
 
     /// The destructive twin of the adjustment layer of the same name: the

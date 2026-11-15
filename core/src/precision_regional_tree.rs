@@ -3,8 +3,8 @@
 //! reference's own builder produced them) prepared ONCE — every mask through
 //! `precision_render::prepare_mask`, each clip base's `full` clone, each
 //! adjustment's whole-layer skip, and (13A-3b-i) each styled layer's
-//! `PreparedStyle`: a raster's planes from `typed_shape` + `render_effects_with_job`,
-//! the reference's own preparation, and (13A-3b-ii) a styled group with an
+//! `PreparedStyle`: a raster's planes through `precision_style_cache::rendered`,
+//! the reference's own preparation (and its cache), and (13A-3b-ii) a styled group with an
 //! enabled effect MATERIALIZED as `render_styled` materializes it — its
 //! children rendered by `render_layers` itself into a canvas-sized buffer —
 //! with the planes built over that buffer — and evaluated one sample at a
@@ -39,13 +39,13 @@ use crate::precision_render::{
     gate_pass_through_sample16, prepare_mask, render_layers, zero_plane, Kind, PrecisionLayer,
     Progress,
 };
-use crate::precision_style_render::{style_scratch, typed_shape, StyleEnv, StyledPixels};
+use crate::precision_style_render::{style_scratch, StyleEnv, StyledPixels};
 use crate::regional_guide::{PreparedGuide, StagedPlane};
 use crate::regional_knockout::{base_only_backdrop, isolated_env};
 use crate::style::{Knockout, LayerStyle};
 use crate::style_composite::affected_window;
 use crate::style_knockout::{grouped_interior, routes_unit, KnockoutBackdrop};
-use crate::style_render::{render_effects_with_job, Ink, RenderContext, RenderedEffects};
+use crate::style_render::{Ink, RenderContext, RenderedEffects};
 
 /// One scene layer, prepared.
 pub(crate) struct Node<'a> {
@@ -79,8 +79,8 @@ pub(crate) struct Node<'a> {
 
 /// A styled layer (`render_styled` → `composite_styled_into`) resolved once:
 /// the sanitized fill, a raster's planes when an effect is enabled (the
-/// reference's own `typed_shape` + `render_effects_with_job`, rendered per render as
-/// the reference renders them), each contribution's [`Ink`] resolved once
+/// reference's own `precision_style_cache::rendered`, from the style's typed cache
+/// when nothing the planes read changed, as the reference reads them), each contribution's [`Ink`] resolved once
 /// (Below then Interior, `composite_contribution`'s `env.style_colors()`), the package
 /// window (`affected_window` within the canvas-sized accumulator), whether
 /// the package model applies, — a group whose style renders planes — its
@@ -89,7 +89,7 @@ pub(crate) struct Node<'a> {
 /// move into the unit (`grouped_interior`), over the planes.
 pub(crate) struct PreparedStyle {
     pub(crate) fill: f32,
-    pub(crate) planes: Option<RenderedEffects>,
+    pub(crate) planes: Option<std::sync::Arc<RenderedEffects>>,
     pub(crate) inks: Vec<Ink>,
     pub(crate) window: Option<(i64, i64, i64, i64)>,
     pub(crate) package: bool,
@@ -245,17 +245,17 @@ fn prepare_style<'a>(
         },
         _ => return Err(UNSTYLABLE.into()),
     };
-    let shape = typed_shape(&pixels, mask, style.pad())
-        .ok_or("typed layer style plane exceeds the pixel limit")?;
-    progress.job.check()?;
     // The planes report inside the work the plan charged (13A-5b-iii-c-1):
-    // `completed/total → (completed + work)/total`, then the advance.
+    // `completed/total → (completed + work)/total`, then the advance. A
+    // raster's come from the style's typed cache when nothing they read
+    // changed (`precision_style_cache`); a group's buffer renders anew.
     let (_, work) = style_scratch(style, plane, false, None)?;
     let start = progress.completed as f64 / progress.total as f64;
     let end = (progress.completed + work) as f64 / progress.total as f64;
-    let planes = render_effects_with_job(
+    let planes = crate::precision_style_cache::rendered(
         style,
-        shape,
+        &pixels,
+        mask,
         &RenderContext {
             light: env.light,
             canvas: env.canvas,
@@ -283,8 +283,8 @@ fn prepare_style<'a>(
         y1.min(i64::from(env.canvas.1)),
     ));
     out.package = layer.opacity < 1.0 && layer.blend_mode != BlendMode::Dissolve;
-    out.routed = routes_unit(style, Some(&planes));
-    out.grouped = grouped_interior(style, Some(&planes));
+    out.routed = routes_unit(style, Some(&*planes));
+    out.grouped = grouped_interior(style, Some(&*planes));
     out.planes = Some(planes);
     Ok(out)
 }

@@ -235,6 +235,11 @@ pub(crate) struct PreparedMask<'a> {
     blurred: Option<(Vec<f32>, u32, u32, u32)>,
 }
 impl PreparedMask<'_> {
+    /// The mask this was prepared from: the typed plane cache's key
+    /// (`precision_style_cache`).
+    pub(crate) fn source(&self) -> &PrecisionMask {
+        self.mask
+    }
     pub(crate) fn at(&self, x: i64, y: i64) -> f32 {
         if !self.mask.enabled {
             return 1.0;

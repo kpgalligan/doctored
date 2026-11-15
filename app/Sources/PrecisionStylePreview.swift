@@ -1,7 +1,8 @@
 import AppKit
 
-/// The Layer Style sheet's live preview on a 16-bit document. A 32-bit
-/// float document keeps the sheet's no-preview hint.
+/// The Layer Style sheet's live preview on a 16-bit or 32-bit float document.
+/// A float preview is displayed through the document's own tone map, as its
+/// canvas is (`PreparedDocumentEdit`, `RasterDocument.display(of:)`).
 ///
 /// Each request applies the sheet's style and light to the BASE facade as two
 /// bookkeeping edits on main (no pixels: `previewingNativeLayerStyle`,

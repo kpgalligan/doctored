@@ -36,7 +36,11 @@ import AppKit
 // Photoshop's 32-bit renders; `adjustmentOps`, the limitation sentence and `get_precision` read
 // the list from the core's operator table, and every other adjustment refuses by name in the core.
 // Image ▸ Adjustments applies `destructiveOps` (the table's `*_apply` rows) to a layer's pixels
-// under the same forms: the menu items and MCP `apply_filter` admit only those, on the layer.
+// under the same forms, and every adjustment to a mask or alpha channel, which is u16 coverage
+// edited as at 16 bits; on one Red, Green or Blue channel the layer's form of each
+// `destructiveOps` op runs on the gray triple, unclamped, and on the layer's Alpha every
+// adjustment runs through the mask's interpreter, clamped to 0…1 (`float_plane_adjust`): the
+// menu items and MCP `apply_filter` both ask `appliesAdjustment`.
 // A float document takes placed images: Place Embedded/Linked and Place Live
 // Photo are whitelisted and their MCP twins are `.floatTool`. The core renders the placed file's
 // 8-, 16- or 32-bit samples into linear light (converted to the document profile first, then
@@ -107,8 +111,9 @@ import AppKit
 // and `liquify` answer over MCP. Every control of Presence and the Develop Filter runs, Dehaze,
 // Highlights, Shadows, Vibrance and Saturation included (each rule in its core module); Red Eye
 // runs too.
-// Auto Tone, Auto Contrast, Auto Color and the Levels Auto buttons stay disabled at
-// 32 bits, and `refusal(tool:)` words their MCP refusal from `autoRow`.
+// Auto Tone, Auto Contrast, Auto Color and the Levels Auto buttons stay disabled on a layer at
+// 32 bits, and `refusal(tool:)` words their MCP refusal from `autoRow`; on a mask or alpha
+// channel the three Auto commands, Invert and Invert Channel run as at 16 bits (`appliesAuto`).
 // Every filter of `planeFilterOps` (all but `layerOnlyFilters`) runs on a layer
 // mask, an alpha channel or one colour channel too, through the same kernels on a one-channel plane
 // (`float_plane_filter` in the core): coverage clamped to 0…1, a colour channel unclamped.
@@ -595,10 +600,85 @@ enum FloatDocument {
             || applyFilterOps.contains(filter)
     }
 
+    /// The plane an Image ▸ Adjustments edit, an Auto command or Invert lands on in a float
+    /// document, as the menu and MCP both ask it (`appliesAdjustment`, `appliesAuto`).
+    enum EditPlane: Equatable {
+        /// The layer's own pixels.
+        case layer
+        /// A layer mask or a saved alpha channel: u16 coverage at every depth.
+        case coverage
+        /// One of the layer's Red, Green or Blue: f32 linear light.
+        case color
+        /// The layer's Alpha: f32 coverage.
+        case alpha
+
+        /// The plane `target` names; nil for one a float document has no adjustment form of
+        /// (an ink plate).
+        init?(_ target: PaintTarget) {
+            switch target {
+            case .layer: self = .layer
+            case .mask, .channel: self = .coverage
+            case .plane(let plane):
+                switch plane {
+                case .red, .green, .blue: self = .color
+                case .alpha: self = .alpha
+                default: return nil
+                }
+            case .ink: return nil
+            }
+        }
+
+        /// The plane an MCP `target` names (`layer`, `mask`, `channel:<name>`, `red`, `green`,
+        /// `blue`, `alpha`; absent is the layer); nil for any other.
+        init?(agentTarget: String?) {
+            guard let raw = agentTarget, raw != "layer" else { self = .layer; return }
+            if raw == "mask" || raw.hasPrefix("channel:") { self = .coverage; return }
+            guard let plane = RasterPlane.named(raw), PaintTarget.paintablePlanes.contains(plane)
+            else { return nil }
+            self.init(.plane(plane))
+        }
+    }
+
+    /// Whether a float document applies the adjustment `op` (an `apply_filter` name; "adjust"
+    /// is `bcs`) to `plane`. The one fact the Image ▸ Adjustments menu items and MCP
+    /// `apply_filter` both read (the core's rules: `precision_scalar_edit`,
+    /// `float_plane_adjust`).
+    /// - A layer's pixels take `appliesDestructively`.
+    /// - A mask or alpha channel is coverage, not light, and u16 at every depth, so it takes
+    ///   every adjustment a 16-bit plane takes, code for code.
+    /// - The layer's Alpha is f32 coverage in 0…1: every adjustment, through the mask's
+    ///   interpreter on the stored alpha, clamped to 0…1 (Invert is 1 − a).
+    /// - Red, Green and Blue are linear light, possibly above 1.0: the layer's own form of each
+    ///   op in `destructiveOps` on the gray triple; Invert, Shadows/Highlights and the legacy
+    ///   White Balance refuse there as on the layer.
+    static func appliesAdjustment(_ op: String, on plane: EditPlane) -> Bool {
+        let name = op == "adjust" ? "bcs" : op
+        switch plane {
+        case .layer: return appliesDestructively(op)
+        case .coverage, .alpha: return AdjustmentLayerOp(rawValue: name) != nil
+        case .color: return destructiveOps.contains(name)
+        }
+    }
+
+    /// Whether Auto Tone, Auto Contrast and Auto Color run on `plane`: on a mask or alpha
+    /// channel only, whose u16 codes have the 16-bit histogram Auto reads.
+    static func appliesAuto(on plane: EditPlane) -> Bool { plane == .coverage }
+
+    /// The refusal an Auto command carries on `target` (an MCP target name) when `appliesAuto`
+    /// answers false there. The layer keeps `refusal(tool:)`'s sentence.
+    static func autoRefusal(_ tool: String, target: String) -> String {
+        guard let plane = EditPlane(agentTarget: target), plane != .layer else {
+            return target == "layer" ? refusal(tool: tool)
+                : "\(tool) on target \(target) is unavailable in a 32-bit float document."
+        }
+        return "\(tool) on target \(target) is unavailable in a 32-bit float document: it runs "
+            + "on a layer mask or an alpha channel only."
+    }
+
     /// The refusal `apply_filter` carries for a filter outside
     /// `destructiveOps` and `applyFilterOps` on the layer, outside
-    /// `planeFilterOps` on a mask, alpha channel or colour channel, or for an
-    /// admitted filter while Quick Mask is on.
+    /// `planeFilterOps` and `appliesAdjustment` on a mask, alpha channel or colour channel, or
+    /// for an admitted filter while Quick Mask is on.
     static func applyRefusal(_ filter: String, target: String, quickMask: Bool) -> String {
         if quickMask, target == "layer", appliesDestructively(filter) {
             return "apply_filter \"\(filter)\" is unavailable in a 32-bit float document while "
@@ -608,8 +688,10 @@ enum FloatDocument {
         let planes = planeFilterOps.filter { applyFilterOps.contains($0) }
         return "apply_filter \"\(filter)\"\(on) is unavailable in a 32-bit float document: "
             + "it applies only " + (destructiveOps + applyFilterOps).joined(separator: ", ")
-            + ", to a layer's own pixels, and " + planes.joined(separator: ", ")
-            + " on a mask, an alpha channel or one colour channel. " + limitation
+            + ", to a layer's own pixels (the adjustments among them also to one of its Red, "
+            + "Green and Blue channels), " + planes.joined(separator: ", ")
+            + " on a mask, an alpha channel or one colour channel, and every Image ▸ Adjustments "
+            + "op on a mask, an alpha channel or the layer's Alpha. " + limitation
     }
 
     /// `destructiveOps` as the limitation sentence names them, ending ", "
@@ -621,7 +703,11 @@ enum FloatDocument {
         guard let last = names.last else { return "" }
         let list = names.count == 1
             ? last : names.dropLast().joined(separator: ", ") + " and " + last
-        return "Image ▸ Adjustments " + list + " on a layer's pixels, "
+        return "Image ▸ Adjustments " + list + " on a layer's pixels and on one of its Red, "
+            + "Green and Blue channels (linear light, unclamped), every Image ▸ Adjustments op, "
+            + "Auto Tone, Auto Contrast, Auto Color, Invert and Invert Channel on a layer mask or "
+            + "an alpha channel (u16 coverage, edited as at 16 bits), every Image ▸ Adjustments "
+            + "op on the layer's Alpha (clamped to 0…1), "
     }
 
     /// `limitation` between the blend-mode list and the adjustment clause,
@@ -672,8 +758,9 @@ enum FloatDocument {
     /// Built from every `.floatTool` entry of the `<prefix>ToolFacts` tables (AgentServer+Registry.swift).
     static let tools: Set<String> = AgentServer.tools(with: .floatTool)
 
-    /// The automatic tone tools 32-bit mode disables, each refused with the
-    /// operator table's `autoRow` reason.
+    /// The automatic tone tools 32-bit mode disables on a layer's pixels, each refused there
+    /// with the operator table's `autoRow` reason (a mask or alpha channel takes them,
+    /// `appliesAuto`).
     static let autoTools: Set<String> = ["auto_tone", "auto_contrast", "auto_color"]
 
     /// The core's `float_document::REFUSED_AUTO`, the operator-table row the auto sentence reads.

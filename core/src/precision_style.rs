@@ -323,6 +323,12 @@ impl LayerStyleEdit {
         }
         let result = document.replacing_layer(index, replacement)?;
         job.check()?;
+        // The replaced style keeps no planes (`style_cache`'s drain, the
+        // typed entries with the byte ones): a document that still holds it
+        // re-renders once if it is projected again.
+        if let (Some(previous), Some(_)) = (&old.style, &result) {
+            previous.cache.clear();
+        }
         Ok(result)
     }
 }

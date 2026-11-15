@@ -100,7 +100,7 @@ pub(crate) fn coverage_scratch(canvas: u64) -> Option<u64> {
 
 /// The render's sentence for a non-finite adjusted component
 /// (`precision_render::adjust_backdrop_sample16`).
-const NONFINITE: &str = "high-depth adjustment produced nonfinite RGB";
+pub(crate) const NONFINITE: &str = "high-depth adjustment produced nonfinite RGB";
 
 /// What a float document refuses for a selected request that is neither an
 /// adjustment nor a filter it runs (the twelve other filters and the
@@ -110,8 +110,9 @@ pub(crate) const NOT_U16: &str = "selected edits require native u16 storage";
 
 /// The refusal a destructive float apply of `tone` carries, or `None` when
 /// the float mode applies it: the LAYER form's refusal first (the same
-/// sentence the layer gives), then an op with no `<op>_apply` row.
-fn apply_refusal(tone: &PrecisionAdjustment) -> Option<String> {
+/// sentence the layer gives), then an op with no `<op>_apply` row. A float
+/// colour plane's adjustment asks it too (`float_plane_adjust`).
+pub(crate) fn apply_refusal(tone: &PrecisionAdjustment) -> Option<String> {
     if let Err(reason) = tone.apply_linear([0.0; 3], (0, 0)) {
         return Some(reason);
     }

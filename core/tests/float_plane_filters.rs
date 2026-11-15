@@ -75,7 +75,7 @@ fn extended(w: u32, h: u32) -> Vec<[f32; 4]> {
 
 /// A float document holding one canvas-sized raster of `samples`, opened
 /// from a float TIFF so the raster holds exactly these samples.
-fn float_document(w: u32, h: u32, samples: &[[f32; 4]]) -> PrecisionDocument {
+pub(crate) fn float_document(w: u32, h: u32, samples: &[[f32; 4]]) -> PrecisionDocument {
     let tiff = FloatTiff {
         width: w,
         height: h,
@@ -98,11 +98,11 @@ fn float_document(w: u32, h: u32, samples: &[[f32; 4]]) -> PrecisionDocument {
     doc
 }
 
-fn layer32(d: &PrecisionDocument) -> Vec<[f32; 4]> {
+pub(crate) fn layer32(d: &PrecisionDocument) -> Vec<[f32; 4]> {
     d.layer_source(0).unwrap().to_rgba32().unwrap()
 }
 
-fn bits(pixels: &[[f32; 4]]) -> Vec<[u32; 4]> {
+pub(crate) fn bits(pixels: &[[f32; 4]]) -> Vec<[u32; 4]> {
     pixels.iter().map(|p| p.map(f32::to_bits)).collect()
 }
 
@@ -128,7 +128,11 @@ fn channel_codes(n: u32) -> Vec<u16> {
 }
 
 /// `d` with a canvas-sized mask on layer 0 and one alpha channel.
-fn with_planes(d: &PrecisionDocument, mask: &[u16], channel: &[u16]) -> PrecisionDocument {
+pub(crate) fn with_planes(
+    d: &PrecisionDocument,
+    mask: &[u16],
+    channel: &[u16],
+) -> PrecisionDocument {
     let (w, h) = d.dimensions();
     let masked = native::edit(
         d,
@@ -163,7 +167,7 @@ fn take(e: *mut std::ffi::c_char) -> String {
     unsafe { native::error(e) }
 }
 
-fn try_plan(d: &PrecisionDocument, v: &Value) -> Result<Value, String> {
+pub(crate) fn try_plan(d: &PrecisionDocument, v: &Value) -> Result<Value, String> {
     let t = native::text(v.clone());
     let mut e = ptr::null_mut();
     let p = unsafe { dr_precision_doc_edit_plan(d, t.as_ptr(), LIMIT, 0, &mut e) };
@@ -176,7 +180,7 @@ fn try_plan(d: &PrecisionDocument, v: &Value) -> Result<Value, String> {
 }
 
 /// `Ok(None)` is the exact no-op answer (NULL with no error).
-fn try_edit(
+pub(crate) fn try_edit(
     d: &PrecisionDocument,
     v: &Value,
     input: &[u16],

@@ -129,11 +129,15 @@ use crate::style_reuse::{restamp, same_planes};
 /// because each entry holds every rendered plane of one layer).
 pub(crate) const CACHE_CAPACITY: usize = 4;
 
-/// The per-style plane cache (module doc). `Clone` yields a FRESH cache and
-/// `PartialEq` is always true, so `LayerStyle` can derive both and two
+/// The per-style plane cache (module doc), with the typed entries of
+/// `precision_style_cache` beside the byte ones. `Clone` yields a FRESH cache
+/// and `PartialEq` is always true, so `LayerStyle` can derive both and two
 /// styles compare by their content alone.
 #[derive(Default)]
-pub(crate) struct RenderCache(Mutex<Vec<CacheEntry>>);
+pub(crate) struct RenderCache(
+    Mutex<Vec<CacheEntry>>,
+    crate::precision_style_cache::TypedCache,
+);
 
 impl Clone for RenderCache {
     fn clone(&self) -> Self {
@@ -162,6 +166,7 @@ impl RenderCache {
             planes: entries
                 .iter()
                 .map(|entry| Arc::clone(&entry.planes))
+                .chain(self.1.planes())
                 .collect(),
             inherited_effects: entries
                 .iter()
@@ -174,10 +179,16 @@ impl RenderCache {
         self.0.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Drops every entry (module doc: a style that is no longer current
-    /// keeps no planes).
+    /// Drops every entry, byte and typed (module doc: a style that is no
+    /// longer current keeps no planes).
     pub(crate) fn clear(&self) {
         self.lock().clear();
+        self.1.clear();
+    }
+
+    /// The typed entries (`precision_style_cache`).
+    pub(crate) fn typed(&self) -> &crate::precision_style_cache::TypedCache {
+        &self.1
     }
 }
 

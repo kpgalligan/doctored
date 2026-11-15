@@ -276,7 +276,10 @@ extension AgentServer {
                     + "derived black, white and gamma per channel; changed is false when the "
                     + "image is already at full range (nothing is written). Errors on an "
                     + "adjustment layer's pixel target; its mask is supported. The UI path is Image > Auto Tone (\u{21E7}\u{2318}L). "
-                    + "A 32-bit float document refuses all three (auto_tone, auto_contrast, auto_color).",
+                    + "A 32-bit float document runs all three (auto_tone, auto_contrast, "
+                    + "auto_color) on target mask or channel:<name> only, as a 16-bit document "
+                    + "does, and refuses them by name on the layer and on red, green, blue and "
+                    + "alpha (each reads a 0 to 1 or 16-bit histogram those planes do not hold).",
                 autoProperties),
             tool(
                 "auto_contrast",

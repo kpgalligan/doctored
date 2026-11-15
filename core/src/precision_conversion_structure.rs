@@ -772,7 +772,7 @@ impl DrDocument {
         }
         let mut inventory = Inventory::default();
         inventory.document(self);
-        crate::resources::cache_inventory(&[self], &mut inventory);
+        crate::resources::cache_inventory(&[self], &[], &mut inventory);
         let retained_bytes = inventory.unique_bytes();
         let walk = self.structure_walk(
             Planes::Shape,

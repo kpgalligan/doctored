@@ -35,6 +35,30 @@ half-alpha band):
   `run_action` on a fresh copy carrying the same mask: the two documents'
   32-bit exports and masks are bit-identical.
 
+A mask or alpha channel is u16 coverage at every depth, so Image ▸
+Adjustments, Auto and Invert edit it as at 16 bits:
+
+- MASK-INVERT: `apply_filter invert` on target mask gives 65535 − v for every
+  code in one history step; the reply's storage is u16.
+- MASK-AUTO: `apply_filter levels` with outputs 0.25…0.75 on the mask cuts it
+  to a partial range; `auto_tone` clip 0 on target mask then gives a minimum
+  of 0 and a maximum of 65535 in one history step and keeps the codes' order.
+- CHANNEL-INVERT: `invert_channel` on a saved channel gives 65535 − v.
+- AUTO-LAYER: `auto_tone` with no target still refuses with the operator
+  table's Auto reason and takes no step.
+
+One Red, Green, Blue or Alpha component of the float layer takes
+`float_plane_adjust`'s rule:
+
+- RED-EXPOSURE: `apply_filter exposure` of one stop on target red doubles the
+  stored red within T_REL relative; green, blue and alpha keep their bits; the
+  reply's storage is rgba32_float; one history step.
+- ALPHA-INVERT: `apply_filter invert` on target alpha is `1 - a` bit for bit;
+  RGB keeps its bits.
+- REFUSED-INVERT and REFUSED-AUTO: `apply_filter invert` and `auto_tone` on
+  target red refuse with sentences naming the tool and the target, and take
+  no step.
+
 Usage: python3 scripts/verify_v1_float_planes.py [--output DIR]
 Prints `PASS <case>` per case and `ALL CASES PASS`, and exits 0, when every
 case passed.
@@ -230,6 +254,116 @@ def refused(app, folder):
     return dict(refusal=text[:160])
 
 
+def mask_invert(app, folder):
+    document = fresh(app, folder, 'mask-invert')
+    before = masked(app, document)
+    start = cursor(app, document)
+    reply = app.call('apply_filter', document_id=document, filter='invert', target='mask')
+    assert reply.get('ok') and reply.get('changed'), reply
+    assert reply.get('storage') == 'u16', reply
+    assert cursor(app, document) == start + 1, 'Invert is one history step'
+    after = mask_codes(app, document)
+    assert after == [65535 - c for c in before], 'every code is 65535 - v'
+    return dict(partial=sum(0 < c < 65535 for c in after))
+
+
+def mask_auto(app, folder):
+    document = fresh(app, folder, 'mask-auto')
+    masked(app, document)
+    app.call('apply_filter', document_id=document, filter='levels', target='mask',
+             output_black=0.25, output_white=0.75)
+    before = mask_codes(app, document)
+    assert 0 < min(before) and max(before) < 65535, (min(before), max(before))
+    start = cursor(app, document)
+    reply = app.call('auto_tone', document_id=document, target='mask', clip=0)
+    assert reply.get('ok') and reply.get('changed'), reply
+    assert reply.get('storage') == 'u16', reply
+    assert cursor(app, document) == start + 1, 'Auto Tone is one history step'
+    after = mask_codes(app, document)
+    assert min(after) == 0 and max(after) == 65535, (min(after), max(after))
+    order = sorted(range(len(before)), key=lambda i: before[i])
+    for a, b in zip(order, order[1:]):
+        if before[a] == before[b]:
+            assert after[a] == after[b], ('equal codes stay equal', a, b)
+        else:
+            assert after[a] <= after[b], ('the order is kept', a, b)
+    return dict(before=[min(before), max(before)], after=[min(after), max(after)])
+
+
+def channel_invert(app, folder):
+    document = fresh(app, folder, 'channel-invert')
+    feathered(app, document)
+    app.call('save_selection', document_id=document, name='Inv')
+    before = coverage(app, document)
+    app.call('deselect', document_id=document)
+    reply = app.call('invert_channel', document_id=document, channel='Inv')
+    assert reply.get('ok'), reply
+    app.call('load_selection', document_id=document, **{'from': 'channel'}, channel='Inv')
+    after = coverage(app, document)
+    assert after == [65535 - c for c in before], 'every code is 65535 - v'
+    return dict(inverted=True)
+
+
+def auto_layer(app, folder):
+    document = fresh(app, folder, 'auto-layer')
+    start = cursor(app, document)
+    text = app.refused('auto_tone',
+                       'auto_tone is unavailable in a 32-bit float document: Auto Tone, Auto '
+                       'Contrast and Auto Color are unavailable on a 32-bit document',
+                       document_id=document)
+    assert cursor(app, document) == start, 'a refused Auto leaves no step'
+    return dict(refusal=text[:160])
+
+
+def red_exposure(app, folder):
+    document = fresh(app, folder, 'red-exposure')
+    base = scene()
+    start = cursor(app, document)
+    reply = app.call('apply_filter', document_id=document, filter='exposure', target='red',
+                     params={'exposure': 1.0})
+    assert reply.get('ok') and reply.get('changed'), reply
+    assert reply.get('storage') == 'rgba32_float', reply
+    assert cursor(app, document) == start + 1, 'the adjustment is one history step'
+    got = export32(app, document, folder / 'red-exposure.tiff')['samples']
+    worst = 0.0
+    for g, b in zip(component(got, 0), component(base, 0)):
+        worst = max(worst, abs(g - 2.0 * b) / max(abs(2.0 * b), 1.0))
+    assert worst <= T_REL, worst
+    for c in (1, 2, 3):
+        assert bits_equal(component(got, c), component(base, c)), ('kept', c)
+    return dict(worst_relative=worst)
+
+
+def alpha_invert(app, folder):
+    document = fresh(app, folder, 'alpha-invert')
+    base = scene()
+    reply = app.call('apply_filter', document_id=document, filter='invert', target='alpha')
+    assert reply.get('ok') and reply.get('changed'), reply
+    assert reply.get('storage') == 'rgba32_float', reply
+    got = export32(app, document, folder / 'alpha-invert.tiff')['samples']
+    want = [f32(1.0 - a) for a in component(base, 3)]
+    assert bits_equal(component(got, 3), want), '1 - a'
+    # The composite export reads straight RGB only where the alpha is not 0.
+    seen = [i for i, a in enumerate(want) if a > 0.0]
+    assert seen, 'some alpha stays above 0'
+    for c in range(3):
+        assert bits_equal([component(got, c)[i] for i in seen],
+                          [component(base, c)[i] for i in seen]), ('RGB kept', c)
+    return dict(inverted=True, compared=len(seen))
+
+
+def refused_plane(app, folder):
+    document = fresh(app, folder, 'refused-plane')
+    start = cursor(app, document)
+    invert = app.refused('apply_filter', 'apply_filter "invert" on target red is unavailable '
+                         'in a 32-bit float document', document_id=document, filter='invert',
+                         target='red')
+    auto = app.refused('auto_tone', 'auto_tone on target red is unavailable in a 32-bit float '
+                       'document', document_id=document, target='red')
+    assert cursor(app, document) == start, 'a refused plane edit leaves no step'
+    return dict(invert=invert[:160], auto=auto[:160])
+
+
 def actions(app, folder):
     first = fresh(app, folder, 'recorded')
     masked(app, first)
@@ -276,6 +410,13 @@ def main():
         run('CHANNEL', lambda: channel(app, output))
         run('REFUSED', lambda: refused(app, output))
         run('ACTIONS', lambda: actions(app, output))
+        run('MASK-INVERT', lambda: mask_invert(app, output))
+        run('MASK-AUTO', lambda: mask_auto(app, output))
+        run('CHANNEL-INVERT', lambda: channel_invert(app, output))
+        run('AUTO-LAYER', lambda: auto_layer(app, output))
+        run('RED-EXPOSURE', lambda: red_exposure(app, output))
+        run('ALPHA-INVERT', lambda: alpha_invert(app, output))
+        run('REFUSED-INVERT-AUTO', lambda: refused_plane(app, output))
 
     (output / 'receipt.json').write_text(json.dumps(results, indent=2, default=str) + '\n')
     print(f'receipt: {output / "receipt.json"}')

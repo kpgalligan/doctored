@@ -222,17 +222,32 @@ enum DocumentPrecision {
             // Only the core's `*_apply` adjustments, on a
             // layer's own pixels; the core refuses an op by name besides.
             // Or a filter of `planeFilterOps` on a mask, an alpha
-            // channel or one colour channel.
+            // channel or one colour channel, or an adjustment
+            // `FloatDocument.appliesAdjustment` admits on that plane (the menu's fact).
             if tool == "apply_filter" {
                 let filter = arguments["filter"] as? String ?? ""
                 let target = arguments["target"] as? String ?? "layer"
                 let onLayer = target == "layer" && FloatDocument.appliesDestructively(filter)
-                let onPlane = target != "layer" && selectedPlaneFamily(arguments) != nil
-                    && FloatDocument.planeFilterOps.contains(filter)
+                let plane = selectedPlaneFamily(arguments) == nil
+                    ? nil : FloatDocument.EditPlane(agentTarget: target)
+                let onPlane = target != "layer" && plane.map {
+                    FloatDocument.planeFilterOps.contains(filter)
+                        || FloatDocument.appliesAdjustment(filter, on: $0)
+                } == true
                 guard onLayer || onPlane, !document.quickMaskActive else {
                     return FloatDocument.applyRefusal(
                         filter, target: target, quickMask: document.quickMaskActive)
                 }
+            }
+            // Auto Tone, Auto Contrast and Auto Color on a mask or an alpha channel only
+            // (`FloatDocument.appliesAuto`, the menu's fact); the layer keeps its refusal.
+            if FloatDocument.autoTools.contains(tool) {
+                let target = arguments["target"] as? String ?? "layer"
+                guard let plane = FloatDocument.EditPlane(agentTarget: target),
+                      FloatDocument.appliesAuto(on: plane) else {
+                    return FloatDocument.autoRefusal(tool, target: target)
+                }
+                if document.quickMaskActive { return OperationScope.quickMaskRefusal }
             }
             // Liquify moves a layer's own pixels, never the
             // Quick Mask's coverage.

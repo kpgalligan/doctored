@@ -15,7 +15,8 @@ import AppKit
 /// `auto_contrast` and `auto_color` (AgentServer+Adjustments.swift), which
 /// take the same clipping fraction as an argument and report the nine
 /// numbers each one derived.
-/// All three are disabled on a 32-bit float document.
+/// All three are disabled on a 32-bit float layer's pixels and colour planes;
+/// a float mask or alpha channel takes them (`FloatDocument.appliesAuto`).
 extension EditorViewController {
     /// The share of counted pixels dropped at EACH end before the black and
     /// white points are read off the histogram. 0.1 % is the

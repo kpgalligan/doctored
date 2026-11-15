@@ -683,8 +683,8 @@ paint.
 same float fixture. All twenty-four Filter menu items a float layer runs
 validate on the layer (the eleven linear ones, Add Noise and Pixelate, and the
 eleven run on the display encoding, Presence and the Develop Filter among
-them), and so does Remove Red Eye; none of the twenty-four validates with the
-mask targeted; in Quick Mask (entered with a selection, so there is coverage) only
+them), and so does Remove Red Eye; with the mask targeted all but Liquify and the
+Develop Filter validate (the plane filters); in Quick Mask (entered with a selection, so there is coverage) only
 `showBlur:` validates, as the Quick Mask blur. A Gaussian Blur request through
 `PrecisionAdjustmentSession` lands a preview in `canvas.previewImage` with the
 document untouched; its commit changes the float layer as one undo step and
@@ -695,6 +695,28 @@ proxy's size (the layer's own 48 × 32) and Apply disabled; a full-strength
 size-16 push from (20, 16) to (26, 16) through `strokeBegan` / `strokeMoved` /
 `strokeEnded` changes that image and enables Apply; the Apply button moves the
 layer's linear sample from (20, 16) to (26, 16) in one undo step.
+
+"float style preview" (`float_style_preview.swift`) runs after "typed style preview",
+its float twin: on the committed float fixture and on a copy resized to 2600 × 1700 by
+`image_size`, the Layer Style sheet opened on Color Overlay lands a preview at the
+expected size (520 × 340 with `PrecisionStylePreview.reducedStatus` on the large
+one); on the small one the preview differs from the unstyled display and is the
+display of the document Apply publishes within 1 code (`PreparedDocumentEdit` of
+each); Cancel leaves no preview, the preview registry at its entry value and no
+edit; Apply publishes one step holding the authored Color Overlay at full size and
+one undo restores the document. The look on screen is the owner's hand check.
+
+"float plane edits" (`float_plane_edits.swift`) runs after it, on the same float
+fixture with a mask and an alpha channel made from a rect selection. On the layer
+Levels validates and Auto, Invert and Shadows/Highlights do not; on the mask and on
+the channel Invert, the three Auto items, Levels, Curves, Threshold and
+Shadows/Highlights validate (a mask or channel is u16 coverage, edited as at 16
+bits), and Invert Channel on the channel; on Red Levels and Curves validate and
+Invert, Auto and Shadows/Highlights do not; on the layer's Alpha Invert, Levels and
+Shadows/Highlights validate and Auto does not; `applyInvert(nil)` on the mask writes
+65535 − v as one undo step; in Quick Mask none of them validates. A 32-bit
+Grayscale document (the "Grayscale 32" colour-mode row) answers the same items on
+its mask and channel as at 16 bits, and keeps Auto Tone off on the layer.
 
 "byte set perspective prompt", "set prompt decline and truncation",
 "parallelogram copy replay" and "copy preview tick cost"

@@ -70,7 +70,7 @@ extension AgentServer {
                     + "and keeps the numbers under preserve. Another app's gray TIFF pastes the same "
                     + "way."
             case "invert_channel":
-                note = " A Grayscale document inverts an alpha channel at 8 and 16 bits."
+                note = " A Grayscale document inverts an alpha channel at every depth."
             case "fill_selection":
                 note = " In a Grayscale document the layer is filled with color's gray by "
                     + "Image ▸ Mode ▸ Grayscale's rule (its luminance in the Gray profile), R = G = B; "
@@ -157,7 +157,8 @@ extension AgentServer {
                     + "and every other op refuses by name."
             case "auto_tone", "auto_contrast", "equalize":
                 note = " In a Grayscale document it runs on the gray values (Auto Tone and Auto "
-                    + "Contrast at 8 and 16 bits); auto_color refuses."
+                    + "Contrast at 8 and 16 bits, and at 32 bits on a mask or channel:<name>); "
+                    + "auto_color refuses."
             case "export_preview", "quick_export":
                 note = " A Grayscale document with profile document keeps gray, as "
                     + "export_image: png, tiff or jpeg as ONE channel at bit_depth 8 or 16 with its "

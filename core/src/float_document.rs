@@ -145,7 +145,9 @@
 //! device-link render, and every other table on its stored values; a `document_v2` White
 //! Balance over `Calibrated::apply_linear`, the reference-basis matrices with NO TRC round trip;
 //! the closed and display forms named above), destructive Image ▸ Adjustments for every admitted
-//! layer form under the same forms (`float_adjust_apply`), layer styles
+//! layer form under the same forms (`float_adjust_apply`), every adjustment, Auto and Invert on a
+//! mask or alpha channel (u16 coverage, the 16-bit path of `precision_scalar_edit`), adjustments
+//! on one Red/Green/Blue/Alpha plane of a layer (`float_plane_adjust`), layer styles
 //! and Blend If (all nine effects, fill opacity, knockout, Blend Interior Effects as
 //! Group and the global light, each measured in Photoshop 26.10.0 — `style_float`,
 //! `style_blend_if::source_weight_float` — with an effect's blend mode admitted on the layer
