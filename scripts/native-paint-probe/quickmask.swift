@@ -90,16 +90,27 @@ func quickMaskLifecycle() throws -> [String: Any] {
     try require(!BackgroundWork.occupied && BackgroundWork.scratchEstimate == 0, "Cancelled Quick Mask retained worker scratch")
     let replacement = [UInt16](repeating: 32769, count: n)
     var changedDuringWork = false
+    // The worker queue is held (capped at 10 s) ahead of the stroke's first `WorkerTask`, the
+    // "Native Brush Coverage" worker, and the first tick inside its `BackgroundWork.wait` changes
+    // the selection and only then releases it. The queue is serial, so coverage cannot even
+    // start before main has changed the selection inside the wait, however fast the kernel is;
+    // the refusal can only come from the stale check after the stroke's two waits. A wait that
+    // never services the run loop still fails, after the cap. The same hold as
+    // `selection-probe/bounds.swift`'s feather.
+    let hold = DispatchSemaphore(value: 0)
     let staleTimer = Timer(timeInterval: 0.001, repeats: true) { timer in
-        guard BackgroundWork.occupied else { return }
+        guard BackgroundWork.occupied, BackgroundWork.isWaiting else { return }
         changedDuringWork = true; timer.invalidate()
         document.setCanvasSelection(CanvasSelection(shape: .mask16(replacement), canvasWidth: source.width, canvasHeight: source.height))
+        hold.signal()
     }
     RunLoop.main.add(staleTimer, forMode: .common); RunLoop.main.add(staleTimer, forMode: .modalPanel)
     var staleError = ""
+    BackgroundWork.queue.async { _ = hold.wait(timeout: .now() + 10) }
     do { try document.applyQuickMaskStroke(stroke) }
     catch { staleError = error.localizedDescription }
-    staleTimer.invalidate()
+    // Released on every path: the `do`/`catch` above lets no error past this line.
+    staleTimer.invalidate(); hold.signal()
     try require(changedDuringWork && staleError.contains("changed") && document.canvasSelection?.maskSamples16() == replacement,
         "Quick Mask accepted a changed selection during coverage generation: \(staleError)")
     try require(document.doc === source && !BackgroundWork.occupied && BackgroundWork.scratchEstimate == 0,

@@ -81,16 +81,25 @@ func verifyRecoveryLifecycle() throws {
     try coordinator.checkpoint(racedSave, wait: true)
     let racedEntry = try recoveryEntry(racedSave)
     let captured = racedSave.doc
+    // The worker queue is held (capped at 10 s) ahead of the Save's one `WorkerTask`, and the
+    // first tick inside its `BackgroundWork.wait` renames the document and only then releases
+    // it. The queue is serial, so the write cannot even start before main has edited the
+    // document inside the wait, however fast the write is; the capture was taken on main before
+    // the wait. A wait that never services the run loop still fails, after the cap. The same
+    // hold as `selection-probe/bounds.swift`'s feather.
     var editedDuringSave = false
+    let hold = DispatchSemaphore(value: 0)
     let editTimer = Timer(timeInterval: 0.001, repeats: true) { timer in
         guard BackgroundWork.occupied, BackgroundWork.isWaiting else { return }
         timer.invalidate()
         rename(racedSave, "Newer than Save")
         editedDuringSave = true
+        hold.signal()
     }
     RunLoop.main.add(editTimer, forMode: .common)
-    defer { editTimer.invalidate() }
+    defer { editTimer.invalidate(); hold.signal() }
     let racedURL = directory.appendingPathComponent("captured-native.rz")
+    BackgroundWork.queue.async { _ = hold.wait(timeout: .now() + 10) }
     try recoverySave(racedSave, to: racedURL)
     editTimer.invalidate()
     try require(editedDuringSave && racedSave.doc !== captured && racedSave.isDocumentEdited,

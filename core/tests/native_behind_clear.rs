@@ -331,12 +331,18 @@ fn cmyk_indexed_and_bitmap_refuse_by_name() {
     let rgb = rgb_doc(8, 5, &[[255, 0, 0, 255]; 40]);
     let indexed = to_indexed(rgb, &json!({"palette": "exact", "dither": "none"})).unwrap();
     free(rgb);
-    let request = blend(BEHIND, json!({}));
-    let said = refusal(indexed, &request, &all);
-    assert!(
-        said.starts_with("The Behind blend mode is unavailable in an Indexed Color document"),
-        "{said}"
-    );
+    // Indexed names the colour modes that do offer the two.
+    for (mode, name) in [(BEHIND, "Behind"), (CLEAR, "Clear")] {
+        let want = format!(
+            "The {name} blend mode is unavailable in an Indexed Color document: Doctored offers \
+             it on RGB, Grayscale, Duotone and Lab Color documents."
+        );
+        assert_eq!(refusal(indexed, &blend(mode, json!({})), &all), want);
+        let edge = json!({"op":"stroke_layer_edge","layer":0,"width":2.0,"location":"center",
+            "color":[INK[0],INK[1],INK[2],1.0],"color_space":"document","opacity":1.0,
+            "blend_mode":mode});
+        assert_eq!(refusal(indexed, &edge, &[]), want);
+    }
     free(indexed);
     let gray = gray_doc(8, 5, &[100; 40]);
     let bitmap = to_bitmap(gray, &json!({"method": "threshold"})).unwrap();

@@ -63,6 +63,7 @@ use crate::indexed_document::{refused_sentence, IndexedPolicy};
 use crate::indexed_edge::{reindex, EdgeInk, EdgeInput, BACKGROUND};
 use crate::indexed_palette::{code8, Rgb, MEMO_BYTES};
 use crate::job_control::{DrJobControl, JobContext};
+use crate::paint_mode::PaintBlend;
 use crate::precision_clipboard::ClipboardPayload;
 use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_fill_stroke::LayerEdgeStroke;
@@ -154,6 +155,18 @@ enum IndexedPaintOp {
     Clone(RetouchEdit),
 }
 
+/// The refusal of Behind or Clear (`paint_mode`, whose module doc holds
+/// where they apply). Not [`refused_sentence`]: that sentence says the
+/// operation is offered on RGB only, and these two are offered on Grayscale,
+/// Duotone and Lab Color too.
+fn paint_only_refusal(mode: PaintBlend) -> String {
+    format!(
+        "{} is unavailable in an Indexed Color document: Doctored offers it on RGB, \
+         Grayscale, Duotone and Lab Color documents.",
+        crate::paint_mode::mode_phrase(mode)
+    )
+}
+
 /// The re-index's bytes beside an op's own (module doc): the per-pixel
 /// shape over a `width`×`height` canvas, the nearest-entry memo E is looked
 /// up through and bookkeeping.
@@ -179,7 +192,7 @@ impl IndexedPaintEdit {
         // Behind and Clear (`paint_mode`), before the inner RGB kernel and the
         // edge ink would take them.
         if let Some(mode) = crate::paint_mode::requested(&value) {
-            return Err(refused_sentence(&crate::paint_mode::mode_phrase(mode)));
+            return Err(paint_only_refusal(mode));
         }
         let op = value["op"].as_str().unwrap_or("edit");
         let op = match op {
