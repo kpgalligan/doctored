@@ -350,6 +350,7 @@ pub mod file_info;
 mod file_info_legacy;
 mod fill_align_box;
 mod fill_align_native;
+mod flat_png;
 mod flat_state;
 mod float_adjust_apply;
 mod float_color;

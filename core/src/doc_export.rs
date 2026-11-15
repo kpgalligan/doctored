@@ -1557,16 +1557,22 @@ fn encode_bytes(
     job: JobContext<'_>,
 ) -> Result<Vec<u8>, String> {
     let format = request.encode_format();
+    if format == Format::Png {
+        // The 8-bit PNG through the row encoder (13C-5, `flat_png`), into
+        // the result's own Vec: the same bytes as the file save.
+        let mut out = Vec::new();
+        let encoded = crate::flat_png::encode_png8(pixels, &mut out, side, job);
+        settle(job, encoded)?;
+        return Ok(out);
+    }
     let extra = match format {
         Format::Jpeg => side.jpeg_segments(),
-        Format::Png => side.png_chunks(),
         _ => Vec::new(),
     };
     let writer = Cursor::new(Vec::new());
     let mut injector = match format {
         _ if extra.is_empty() => MetadataInjector::passthrough(writer),
         Format::Jpeg => MetadataInjector::jpeg(writer, extra),
-        Format::Png => MetadataInjector::png(writer, extra),
         _ => MetadataInjector::passthrough(writer),
     };
     let mut sink = Polled::new(&mut injector, job);

@@ -77,6 +77,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "file_info.rs",
     "file_info_legacy.rs",
     "fill_align_box.rs",
+    "flat_png.rs",
     "filter_kernels.rs",
     "float_primaries.rs",
     "focus_area.rs",

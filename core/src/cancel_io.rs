@@ -20,12 +20,13 @@
 //! pulls its input as it inflates or unpacks (PNG through `fill_buf`, TIFF
 //! strip by strip), so the 16-bit PNG and TIFF opens are polled throughout the
 //! decode, at a rate that follows the ENCODED bytes (a highly compressible PNG
-//! polls less per decoded pixel). An encoder that builds its whole output
-//! before its first write is polled only while that output is copied out: PNG
-//! (the `png` crate deflates, or stores, the whole frame in memory before its
-//! IDAT write), WebP (the frame is encoded into a buffer first), GIF (quantized
-//! and LZW-coded first) and JPEG XL (`zune-jpegxl` encodes into a buffer).
-//! Their compute before the first byte stays one unpolled stretch.
+//! polls less per decoded pixel). The 8-bit PNG is written row by row by the
+//! crate's own encoder (`png_rows8`, through `flat_png`), which polls every
+//! 64 KiB it compresses. An encoder that builds its whole output before its
+//! first write is polled only while that output is copied out: WebP (the
+//! frame is encoded into a buffer first), GIF (quantized and LZW-coded first)
+//! and JPEG XL (`zune-jpegxl` encodes into a buffer). Their compute before the
+//! first byte stays one unpolled stretch.
 //!
 //! The float containers and the kept colour-mode files stream the same way:
 //! a float or kept-mode TIFF, BMP and Radiance RGBE are polled while they

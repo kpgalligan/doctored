@@ -7,15 +7,17 @@
 //! does not move it) and holds it to the test's own row bound, declared here
 //! from the widest plane, and to the plan's `write_scratch_bytes`, which in
 //! turn must stay below each noise file it admits. The recovery write into
-//! the tile pool is held to the figure it is admitted with.
+//! the tile pool is held to the figure it is admitted with, and the 8-bit
+//! flat PNG save (13C-5, the same row encoder) to the row bound.
 //!
 //! Alone in its binary: its own `#[global_allocator]`, and each case holds
 //! up to ~1.4 GB while it is checked. Every test takes [`SERIAL`] first, so
 //! no other test allocates while one counts.
 
 use doctored_core::doc::DrDocument;
-use doctored_core::ffi::dr_string_free;
-use doctored_core::ffi_doc::dr_doc_save_native;
+use doctored_core::ffi::{dr_image_free, dr_image_from_rgba, dr_string_free};
+use doctored_core::ffi_color::dr_doc_save_image;
+use doctored_core::ffi_doc::{dr_doc_free, dr_doc_from_image, dr_doc_save_native};
 use doctored_core::ffi_tile_pool::{
     dr_doc_tile_pool_write, dr_tile_pool_free, dr_tile_pool_open, dr_tile_pool_window_bytes,
 };
@@ -33,6 +35,8 @@ use tempfile::TempDir;
 const W45: u32 = 8256;
 const H45: u32 = 5504;
 const MIB: u64 = 1024 * 1024;
+/// `DrFormat`'s PNG.
+const FORMAT_PNG: i32 = 0;
 
 struct Tracked;
 static LIVE: AtomicUsize = AtomicUsize::new(0);
@@ -200,6 +204,60 @@ fn a_recovery_write_adds_rows_not_a_png_at_45_mp() {
     assert!(
         added <= admitted,
         "S1: the recovery write added {added} B, over the admitted {admitted} B"
+    );
+}
+
+/// A flat PNG save of S2's pixels, handed in as the composite so nothing is
+/// flattened (13C-5): the encoder adds rows, not `png`'s zlib stream (which
+/// for noise is at least the stored size, more than `4·w·h`).
+#[test]
+fn a_flat_png_save_adds_rows_not_the_stream_at_45_mp() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let pixels = noise8(W45, H45, 0x5EED);
+    let image = unsafe { dr_image_from_rgba(pixels.as_ptr(), W45, H45) };
+    assert!(!image.is_null());
+    drop(pixels);
+    let doc = unsafe { dr_doc_from_image(image) };
+    assert!(!doc.is_null());
+    let dir = TempDir::new().unwrap();
+    let path = CString::new(dir.path().join("flat.png").to_str().unwrap()).unwrap();
+    let mut error = ptr::null_mut();
+    let mut carried = 0_u32;
+    let mut ok = false;
+    let added = rise(|| {
+        ok = unsafe {
+            dr_doc_save_image(
+                doc,
+                image,
+                path.as_ptr(),
+                FORMAT_PNG,
+                90,
+                true,
+                false,
+                &mut carried,
+                ptr::null(),
+                &mut error,
+            )
+        };
+    });
+    unsafe {
+        dr_doc_free(doc);
+        dr_image_free(image);
+    }
+    if !error.is_null() {
+        let message = unsafe { CStr::from_ptr(error) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { dr_string_free(error) };
+        panic!("{message}");
+    }
+    assert!(ok);
+    let len = std::fs::metadata(path.to_str().unwrap()).unwrap().len();
+    println!("S2 flat PNG: save added {added} B; file {len} B");
+    assert!(
+        added <= row_bound(W45),
+        "S2 flat PNG: the save added {added} B, over the row bound {}",
+        row_bound(W45)
     );
 }
 

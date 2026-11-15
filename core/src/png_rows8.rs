@@ -141,6 +141,23 @@ pub(crate) fn scratch_bytes(width: u32, channels: u8) -> u64 {
     ROWS_HELD * (u64::from(channels) * u64::from(width) + 1) + FIXED_BYTES
 }
 
+/// Writes the PNG to `out` and answers its length (module doc): the 8-bit
+/// flat PNG's entry (`flat_png`).
+pub(crate) fn put_png8(
+    out: &mut dyn NativeSink,
+    png: &Png8<'_>,
+    rows: &mut Rows<'_>,
+    job: JobContext<'_>,
+) -> Result<u64, String> {
+    png.check()?;
+    if out.rewrites() {
+        put_rewriting(out, png, rows, job)
+    } else {
+        let zlib = measure(png, rows, job)?;
+        put_measured(out, png, zlib, rows, job)
+    }
+}
+
 /// Writes a native PNG record: the length in `record.prefix` little-endian
 /// bytes, then the PNG. On a sink that rewrites the length is patched once
 /// the PNG is written; on one that does not the PNG is measured first, its

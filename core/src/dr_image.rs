@@ -10,7 +10,6 @@ use std::io::{BufWriter, Seek, Write};
 use image::codecs::bmp::BmpEncoder;
 use image::codecs::gif::GifEncoder;
 use image::codecs::jpeg::{JpegEncoder, PixelDensity, PixelDensityUnit};
-use image::codecs::png::PngEncoder;
 use image::codecs::webp::WebPEncoder;
 use image::{ExtendedColorType, ImageDecoder, ImageEncoder, RgbaImage};
 
@@ -491,6 +490,11 @@ pub(crate) const HEIC_HOST_ONLY: &str =
 pub(crate) const AVIF_HOST_ONLY: &str =
     "AVIF is encoded by the host through the export workspace (format \"avif\")";
 
+/// [`encode_into`]'s answer for [`Format::Png`]: its two callers write the
+/// 8-bit PNG row by row through `flat_png` (13C-5), so the arm is never
+/// reached, and the crate keeps no second 8-bit PNG encoder behind it.
+const PNG_ROWS_ONLY: &str = "encoding failed: the 8-bit PNG is written row by row (flat_png)";
+
 /// The flat writers' refusal of [`Format::Jxl`]: a JPEG XL codestream carries
 /// no profile, and only the export workspace checks that the pixels are sRGB.
 pub(crate) const JXL_EXPORT_ONLY: &str =
@@ -531,8 +535,9 @@ fn quarter_turned(orientation: image::metadata::Orientation) -> bool {
 /// `match format` in the crate that dispatches an encoder.
 ///
 /// The encoder writes through `cancel_io::Polled`, exactly as the export
-/// workspace's does, so `job` is polled as the bytes move; it is checked
-/// once more before the rename, and a cancel answers exactly
+/// workspace's does, so `job` is polled as the bytes move (the 8-bit PNG
+/// streams its rows through `flat_png` and polls as it compresses); it is
+/// checked once more before the rename, and a cancel answers exactly
 /// `operation cancelled` with the previous file kept.
 pub(crate) fn save_flat(
     pixels: &RgbaImage,
@@ -548,24 +553,33 @@ pub(crate) fn save_flat(
         Format::Jxl => return Err(JXL_EXPORT_ONLY.into()),
         Format::Exr => return Err(EXR_EXPORT_ONLY.into()),
         Format::Hdr => return Err(HDR_EXPORT_ONLY.into()),
+        // The 8-bit PNG streams its rows into the staged file (13C-5,
+        // `flat_png`): the same bytes, its sidecar chunks included.
+        Format::Png => {
+            return save_atomically(path, |tmp_path| {
+                let mut out = crate::native_stream::FileSink::create(tmp_path, path)?;
+                let encoded = crate::flat_png::encode_png8(pixels, &mut out, side, job);
+                settle(job, encoded)?;
+                out.finish()?;
+                job.check()
+            })
+        }
         _ => {}
     }
     save_atomically(path, |tmp_path| {
         let file = File::create(tmp_path).map_err(|e| format!("failed to create {path}: {e}"))?;
         let writer = BufWriter::new(file);
-        // Only JPEG and PNG are ever spliced, and only when there is
-        // something to splice: with nothing extra to write the injector is a
-        // pass-through, which is also the ONLY mode a seeking encoder (TIFF)
-        // may be given.
+        // Only JPEG is spliced here (the PNG wrote its chunks above), and
+        // only when there is something to splice: with nothing extra to
+        // write the injector is a pass-through, which is also the ONLY mode a
+        // seeking encoder (TIFF) may be given.
         let extra = match format {
             Format::Jpeg => side.jpeg_segments(),
-            Format::Png => side.png_chunks(),
             _ => Vec::new(),
         };
         let mut injector = match format {
             _ if extra.is_empty() => MetadataInjector::passthrough(writer),
             Format::Jpeg => MetadataInjector::jpeg(writer, extra),
-            Format::Png => MetadataInjector::png(writer, extra),
             _ => MetadataInjector::passthrough(writer),
         };
         let mut sink = Polled::new(&mut injector, job);
@@ -598,17 +612,8 @@ pub(crate) fn encode_into<W: Write + Seek>(
     let err = |e: image::ImageError| format!("encoding failed: {e}");
     let unsupported = |e: image::error::UnsupportedError| format!("encoding failed: {e}");
     match format {
-        Format::Png => {
-            let mut enc = PngEncoder::new(writer);
-            if let Some(icc) = side.icc {
-                enc.set_icc_profile(icc.to_vec()).map_err(unsupported)?;
-            }
-            if let Some(exif) = &side.exif {
-                enc.set_exif_metadata(exif.clone()).map_err(unsupported)?;
-            }
-            enc.write_image(raw, w, h, ExtendedColorType::Rgba8)
-                .map_err(err)
-        }
+        // Both callers write the 8-bit PNG through `flat_png` (13C-5).
+        Format::Png => Err(PNG_ROWS_ONLY.into()),
         Format::Jpeg => {
             // Alpha is flattened over white BEFORE encoding, on the
             // document's own pixels, and the profile is embedded unchanged:

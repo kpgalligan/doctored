@@ -603,6 +603,7 @@ Detail belongs in the source file's own header comment.
 - `develop_inspect.rs` / `ffi_develop_inspect.rs` — read-only inspection of retained u16/f32 masters before geometry or retouch; the f32 rule-X preview at Fit/100 %, float clipping, HDR marker.
 - `clip_display.rs` / `ffi_clip_display.rs` — the ⌥-drag Levels/Curves clipping display: a transient threshold image of an edited composite; u16 0/65535, f32 >= 1.0 / <= 0.0; the > 1.0 HDR predicate.
 - `precision_codec.rs` / `precision_png.rs` / `precision_io.rs` / `ffi_precision.rs` — preserving RGB/RGBA16 PNG/TIFF input, metadata sidecar/TIFF encoder, native pixel payloads, typed C owners.
+- `flat_png.rs` — kernel, 13C-5: the 8-bit flat PNG save and export through `png_rows8`, the profile, EXIF and splice chunks taken from `PngEncoder`'s 1×1 encode.
 - `png_rows8.rs` — kernel, 13C-2a: the ONE 8-bit PNG encoder, row by row to a `NativeSink` (png 0.18.1's adaptive filter and fdeflate), `PngEncoder`'s bytes.
 - `png_declared.rs` — kernel: a PNG's bare `gAMA`/`cHRM` (no `iCCP`, no `sRGB`) as the v4 RGB or Gray profile it describes, read in an `iCCP`'s place by every PNG open.
 - `precision_png_rows.rs` — the banded native RGBA16 PNG reader: rows decoded straight into 256×256 tiles, with no whole-plane decode buffer beside them.

@@ -16,11 +16,11 @@ build's `.snapshot-<UUID>` package, and the core names of the instance's own pid
 
 Part 2, the part-way failure. A second instance runs with RLIMIT_FSIZE at 2 MiB and SIGXFSZ
 ignored, so any write past 2 MiB fails with EFBIG part-way through the file. For an 8-bit native
-copy (the core's whole-buffer write), a 16-bit native copy (the app's staged file around the
-core's streamed write) and a 16-bit PNG copy (the staged export): a small copy saves, then a
-noise document's copy to the same path must answer in-band with an error, leave the first copy's
-bytes unchanged and leave no staged or temporary name in the folder; the instance must still
-be running.
+copy and an 8-bit PNG copy (the core's streamed writes, row by row), a 16-bit native copy (the
+app's staged file around the core's streamed write) and a 16-bit PNG copy (the staged export): a
+small copy saves, then a noise document's copy to the same path must answer in-band with an
+error, leave the first copy's bytes unchanged and leave no staged or temporary name in the
+folder; the instance must still be running.
 
 Run after `make app-debug`; `DR_VERIFY_APP` names another build. Each instance is an owned,
 background one (`owned_environment`: a scratch socket, the dummy key, private folders) and is
@@ -194,6 +194,7 @@ def failure(output):
         noisy16 = client.open(noise[1])
         client.call("convert_precision", document_id=noisy16, mode="rgba16", structure="preserve")
         cases = [("8-bit native", 8, noisy8, "doc8.doctored", {}),
+                 ("8-bit PNG", 8, noisy8, "doc8.png", {"format": "png"}),
                  ("16-bit native", 16, noisy16, "doc16.doctored", {}),
                  ("16-bit PNG", 16, noisy16, "doc16.png", {"format": "png", "bit_depth": 16})]
         for label, depth, noisy, name, extra in cases:

@@ -251,6 +251,8 @@ mod export_side_limits;
 mod export_smart_sharpen;
 #[path = "fill_pattern.rs"]
 mod fill_pattern;
+#[path = "flat_png_rows.rs"]
+mod flat_png_rows;
 #[path = "float_adjust_apply.rs"]
 mod float_adjust_apply;
 #[path = "float_adjustments.rs"]
