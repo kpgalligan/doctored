@@ -225,9 +225,11 @@ mod duotone_gray;
 mod duotone_ink;
 mod duotone_native;
 mod durable_file;
+mod edge_map;
 mod edge_refine;
 mod edge_trace;
 mod edge_trace_corridor;
+mod edge_trace_cost;
 mod equalize;
 mod equalize_apply;
 mod evaluation_native;
@@ -834,6 +836,8 @@ pub(crate) use dr_image::Format;
 /// Re-exported for `tests/persisted_warp_native.rs`'s `serialized_fallback_planes_count_at_the_decoded_cap`.
 #[doc(hidden)]
 pub use drdc::warp_decoded_capacity;
+/// The Magnetic Lasso's per-capture edge map handle (`dr_edge_map_create`).
+pub use edge_map::DrEdgeMap;
 /// The regional window request, re-exported so black-box tests can reach
 /// the `#[doc(hidden)]` `…_with_group_budget` twins (13A-3b-ii); the plan
 /// itself is read through `dr_doc_render_region_plan` /

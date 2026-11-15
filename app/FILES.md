@@ -39,7 +39,7 @@ Detail belongs in the source file's own header comment.
 - `DoctoredCore+AdjustmentPresets.swift` — `RasterAdjustmentPresetFile`: Photoshop adjustment preset decode.
 - `DoctoredCore+StylePresets.swift` — `RasterStylePresets`: the preset canonicalizer, the twelve built-ins, `.asl` decode and encode.
 - `DoctoredCore+Jobs.swift` — content-aware fill, heal jobs, resource reports and cache eviction.
-- `DoctoredCore+IndependentMasks.swift` — independent masks, colour range, quick selection, edge trace, refinement, the foreground estimate and typed cutouts.
+- `DoctoredCore+IndependentMasks.swift` — independent masks, colour range, quick selection, the edge map and its trace (`RasterEdgeMap`), refinement, the foreground estimate and typed cutouts.
 - `DoctoredCore+AssistedAnnotation.swift` — assisted annotation replays and trimap strokes (internal Phase 9I experiment).
 - `DoctoredCore+PrecisionConversion.swift` — deliberate precision promotion/downconversion plans and authoritative statistics.
 - `DoctoredCore+SourceAssets.swift` — embedded ordinary source assets: info, plans and edits, at 8 and 16 bits.

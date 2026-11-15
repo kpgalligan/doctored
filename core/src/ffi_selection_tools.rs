@@ -5,7 +5,8 @@
 use crate::{
     doc::DrDocument,
     doc_transform::{resample_canvas_plane_with_context, Affine},
-    ffi_util::{fallible_op, filter_from_c, read_cstr},
+    edge_map::DrEdgeMap,
+    ffi_util::{fallible_op, filter_from_c, free_handle, handle_get, produce_op, read_cstr},
     job_control::{DrJobControl, JobContext},
     DrImage,
 };
@@ -120,6 +121,56 @@ pub unsafe extern "C" fn dr_selection_quick(
     }
 }
 
+/// The Magnetic Lasso's per-capture edge map of `source` (`edge_map`): an
+/// empty memo of its edge samples that `dr_selection_trace_edge` fills as it
+/// traces, so a session tracing the same capture on every pointer move
+/// computes each sample once. NULL source returns NULL. The map answers for
+/// this image only and is used only while that image is alive (it knows the
+/// image by size and buffer address); free it with `dr_edge_map_free`,
+/// before or after the image.
+///
+/// # Safety
+/// `source` must be NULL or a live image for the call.
+#[no_mangle]
+pub unsafe extern "C" fn dr_edge_map_create(source: *const DrImage) -> *mut DrEdgeMap {
+    if source.is_null() {
+        return std::ptr::null_mut();
+    }
+    let image = unsafe { &(*source).pixels };
+    produce_op(|| Some(DrEdgeMap::new(image)))
+}
+
+/// Frees an edge map; NULL is a no-op.
+///
+/// # Safety
+/// `map` must be NULL or an unfreed map no call is using.
+#[no_mangle]
+pub unsafe extern "C" fn dr_edge_map_free(map: *mut DrEdgeMap) {
+    unsafe { free_handle(map) }
+}
+
+/// Test seam: `dr_edge_map_create` holding at most `cap` samples.
+///
+/// # Safety
+/// As `dr_edge_map_create`.
+#[doc(hidden)]
+pub unsafe fn edge_map_create_capped(source: *const DrImage, cap: usize) -> *mut DrEdgeMap {
+    if source.is_null() {
+        return std::ptr::null_mut();
+    }
+    let image = unsafe { &(*source).pixels };
+    produce_op(|| Some(DrEdgeMap::with_cap(image, cap)))
+}
+
+/// Test seam: the samples `map` holds (0 for NULL).
+///
+/// # Safety
+/// `map` must be NULL or a live map.
+#[doc(hidden)]
+pub unsafe fn edge_map_cached_samples(map: *const DrEdgeMap) -> usize {
+    unsafe { handle_get(map, 0, DrEdgeMap::cached) }
+}
+
 /// The Magnetic Lasso's live-wire tracer (`edge_trace`): the cheapest
 /// edge-following 8-connected path from `from` inside the corridor within
 /// `width` of `from → trail… → (explicit end)`. Strict JSON `{from:[x,y],
@@ -137,16 +188,21 @@ pub unsafe extern "C" fn dr_selection_quick(
 /// needed and an error naming both. Every other failure leaves all outputs
 /// untouched. NULL source/params/out_count/out_fasten/out_corridor, or NULL
 /// out_points with a nonzero capacity, return false with err_out untouched.
+/// `map` is NULL or an edge map of `source` (`dr_edge_map_create`), whose
+/// memo of samples the call fills — the one thing it writes besides its
+/// outputs; a map of another image refuses ("edge map was made for another
+/// image"). The result is the same with any map of `source` or none.
 ///
 /// # Safety
-/// `source` must be a live image for the call, `params` a NUL-terminated UTF8
-/// string, `out_points` NULL (capacity 0) or writable for `2 * capacity`
-/// floats, the three scalar outputs writable, and `err_out` NULL or writable
-/// for an owned error string (dr_string_free).
+/// `source` must be a live image for the call, `map` NULL or a live map,
+/// `params` a NUL-terminated UTF8 string, `out_points` NULL (capacity 0) or
+/// writable for `2 * capacity` floats, the three scalar outputs writable,
+/// and `err_out` NULL or writable for an owned error string (dr_string_free).
 #[no_mangle]
 #[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn dr_selection_trace_edge(
     source: *const DrImage,
+    map: *mut DrEdgeMap,
     params: *const c_char,
     out_points: *mut f32,
     capacity: usize,
@@ -172,7 +228,7 @@ pub unsafe extern "C" fn dr_selection_trace_edge(
             || {
                 let image = &(*source).pixels;
                 let request = crate::edge_trace::parse(&parameters(params)?, image.dimensions())?;
-                let trace = crate::edge_trace::trace(image, &request)?;
+                let trace = crate::edge_trace::trace(image, map.as_ref(), &request)?;
                 let needed = trace.vertices.len();
                 if needed > capacity {
                     *out_count = needed;

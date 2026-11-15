@@ -2,7 +2,9 @@
 //! (`dr_selection_trace_edge`): synthetic edges followed within a pixel,
 //! Width, Contrast and the snap end honoured, Frequency's fasten rule, the
 //! corridor count against a brute-force oracle, determinism and refusals.
-//! Oracles are geometric (distances to the drawn shapes), never golden paths.
+//! Oracles are geometric (distances to the drawn shapes), never golden paths;
+//! each exact vertex is derived from the cost rule in a comment beside it
+//! (the rule's own oracle is `edge_trace_cost.rs`).
 //! The `#[ignore]`d probe times one budget-sized trace for `make cancel-bench`;
 //! its bound is declared before measuring and never widened.
 
@@ -177,12 +179,16 @@ fn a_flat_image_is_traced_along_the_trail() {
         let d = segment_distance(as_f64(p), [0.0, 0.0], [100.0, 30.0]);
         assert!(d <= 2.0, "vertex {p:?} is {d} px off the trail");
     }
+    // No pixel is an edge, so the snap falls back to the trail's last point.
     assert_eq!(t.points[t.points.len() - 1], [100.5, 30.5]);
 }
 
 #[test]
 fn snap_ends_on_the_edge_and_a_point_ends_on_the_pointer() {
     let img = rect_image();
+    // The snap end is the cost rule's untouched part: the strongest pixel
+    // within width of (35, 70), columns 39 and 40 tying at full strength.
+    // An explicit end and `from` are their own pixels whatever the costs.
     let snapped = trace(
         &img,
         r#"{"from":[40,40],"trail":[[35,70]],"end":"snap","frequency":0}"#,
@@ -223,6 +229,15 @@ fn an_alpha_only_edge_attracts() {
 }
 
 /// Dark above y = 20, light from y = 20, 1200 px wide.
+///
+/// Under the cost rule (the phase-6 ADR) rows 19 and 20 are the step's two
+/// crest rows, each half a pixel off it (`o = 1`), so a horizontal step
+/// along either costs `LAMBDA + SUBPIXEL` = 0.15 plus the trail pull, which
+/// is 0 on row 20, the trail's own row, and 0.02/width on row 19. Any step
+/// off row 20 is vertical or diagonal, at least 45° off the edge's
+/// horizontal tangent, so it gains no attraction and costs flat ground's
+/// 1.05 or more. The path from `(5, 20)` to `(end_x, 20)` is therefore row 20
+/// itself, and where it fastens depends on Frequency and the tail alone.
 fn long_edge() -> Image {
     image(1200, 40, |_, y| if y < 20 { DARK } else { LIGHT })
 }
@@ -244,7 +259,9 @@ fn frequency_sets_the_fasten_distance() {
     let mut previous = f64::INFINITY;
     for frequency in [1.0, 10.0, 30.0, 57.0, 80.0, 100.0] {
         let t = fasten_at(&img, 1195.5, frequency);
-        // The path runs straight along row 20.
+        // The path runs straight along row 20 (`long_edge`), so the fasten
+        // pixel is the first whose length from (5, 20) reaches
+        // `fasten_distance`: 800 px at 1, 40 at 57, 8 at 100.
         assert!(t.points.iter().all(|p| p[1] == 20.5), "{:?}", t.points);
         let k = t.fasten.expect("a long path fastens");
         let along = f64::from(t.points[k][0]) - 5.5;

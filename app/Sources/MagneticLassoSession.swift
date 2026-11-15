@@ -2,9 +2,10 @@ import AppKit
 
 // `MagneticLassoSession` is NSView-free so the canvas and MCP `select_magnetic` drive one set of
 // rules — `fixed` path + `anchors`, the pointer `trail` since the last anchor and the `live` wire,
-// each move traced on main by `RasterImage.traceEdge` (`dr_selection_trace_edge`) over the
+// each move traced on main by `RasterEdgeMap.trace` (`dr_selection_trace_edge`) over the
 // `SelectionCapture`'s byte source (at 16 bits its display derivative, at 32-bit float its R1
-// trace image `edgeTraceComposite`, rule M; geometry out only),
+// trace image `edgeTraceComposite`, rule M; geometry out only) through the session's one edge
+// map, so a move computes no edge sample an earlier move of the outline computed,
 // force-fastened when the trail fills or the projected corridor passes `DR_EDGE_TRACE_WORK_BUDGET`
 // (at any Frequency, 0 included), and fastened by the core
 // where a trail loops back within 2·width of its anchor around an enclosed area — an overshoot
@@ -80,6 +81,10 @@ struct MagneticLassoSession {
     private(set) var anchors: [Int]
     private(set) var trail: [CGPoint]
     private(set) var live: [CGPoint]
+    /// The capture source's edge map, made once per outline. The session is
+    /// copied on every move; every copy shares this one map, which is the
+    /// point: its samples outlive the move that computed them.
+    private let edgeMap: RasterEdgeMap
 
     /// The corridor pixels one pointer move may cost before the session
     /// fastens and starts afresh — the core's own figure, so one hover trace
@@ -92,13 +97,14 @@ struct MagneticLassoSession {
 
     init(capture: SelectionCapture, start: CGPoint, mode: SelectionCombineMode, feather: Double,
          options: MagneticLassoOptions) throws {
-        guard capture.source != nil else {
+        guard let source = capture.source else {
             throw DoctoredCoreError(message: "The Magnetic Lasso needs an image to trace.")
         }
         guard options.isValid else {
             throw DoctoredCoreError(message:
                 "Magnetic Lasso width must be 1–256 px, contrast 1–100 % and frequency 0–100.")
         }
+        edgeMap = try RasterEdgeMap(source: source)
         self.capture = capture
         self.mode = mode
         self.feather = feather
@@ -271,10 +277,7 @@ struct MagneticLassoSession {
 
     private func trace(from: CGPoint, trail: [CGPoint], end: Any,
                        frequency: Double) throws -> EdgeTraceResult {
-        guard let source = capture.source else {
-            throw DoctoredCoreError(message: "The Magnetic Lasso needs an image to trace.")
-        }
-        return try source.traceEdge(parameters: [
+        try edgeMap.trace(parameters: [
             "from": [Double(from.x), Double(from.y)],
             "trail": trail.map { [Double($0.x), Double($0.y)] },
             "end": end, "width": options.width, "contrast": options.contrast,

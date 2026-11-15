@@ -66,6 +66,40 @@ matting research, so the functional slices shipped while the advanced cutout gat
   opaque rule; completion = assisted protocol passing v2 on a declared 36-case subset). The gate is not a ship
   condition (2026-10-10), and its assisted run is dropped.
 
+## Magnetic Lasso cost rule
+The live wire (`../core/src/edge_trace.rs`, its terms in `../core/src/edge_trace_cost.rs`) is the cheapest 8-connected
+pixel path inside the corridor within Width of the trail.
+- **Edge sample.** Per pixel, the Sobel gradient (the one `ops_filters::sobel_gradient`) of each of R·a, G·a, B·a and A
+  in unit range, borders replicated. The pixel's gradient `g` is the first of the four with the largest magnitude; its
+  strength `s = min(1, |g|/4)`, so a full unit step reads 1.
+- **Step cost.** A step of length ℓ (1 or √2) along lattice direction `u` into pixel `q` costs
+  `ℓ·(LAMBDA + 1 − A(q)·D(u,q)·C(q) + TRAIL_PULL·min(d(q), width)/width)`, `LAMBDA` 0.05, `TRAIL_PULL` 0.02, `d` the
+  chamfer distance from the trail.
+  - **Attraction** `A = s/c_max` where `s ≥ contrast/100`, else 0; `c_max` is the strongest `s` in the corridor, so
+    the corridor's own strongest edge attracts fully.
+  - **Direction** `D(u,q)`. With `φ` the angle between the step and the edge's tangent (`g` turned 90°), `D` is 1 for
+    `φ ≤ 22.5°`, 0 for `φ ≥ 45°`, and between them `(cos φ − cos 45°)/(cos 22.5° − cos 45°)`. The lattice directions
+    are 45° apart, so every tangent lies within 22.5° of one, which keeps the whole attraction. A step 45° or more off
+    the tangent gains nothing and costs what flat ground costs: a diagonal across an axis-aligned edge, a zigzag across
+    hatching. An edge attracts only along itself.
+  - **Sub-pixel** `C(q) = 1 − SUBPIXEL·o(q)`, `SUBPIXEL` 0.1. `n` is the lattice direction nearest `g`: horizontal
+    when `|gy| ≤ (√2−1)·|gx|`, vertical when `|gx| ≤ (√2−1)·|gy|`, else the diagonal whose sign is that of `gx·gy`.
+    With `s₋, s₀, s₊` the strengths at `q−n, q, q+n` (coordinates clamped to the image), when `s₀ ≥ s₋`, `s₀ ≥ s₊` and
+    `k = s₋ − 2s₀ + s₊ < 0`, `o = |s₋ − s₊|/(−k)`: twice the distance, in samples, from the pixel centre to the vertex
+    of the parabola through the three strengths (0 when the edge runs through the centre, 1 half a sample away). Every
+    other pixel has `o = 1`. `SUBPIXEL` is `2·LAMBDA`: half a pixel off costs two pixels of perfect path, enough to
+    choose the centred row, far too little to leave an edge (flat ground costs ≥ 1.05).
+- Every factor lies in 0…1, so a unit cost stays in `[LAMBDA, LAMBDA + 1 + TRAIL_PULL]`, the range the exact bucket
+  queue relies on. The snap end, `c_max`, the corridor, fastening and the output (pixel centres, Douglas–Peucker at
+  0.5 px) are unchanged.
+- **Consequences.** A hard step aligned with the pixel grid lies between two rows, so both rows have `o = 1` and cost
+  `LAMBDA + SUBPIXEL` (0.15) a pixel, against 1.05 for flat ground; an anti-aliased edge whose middle row is half-way
+  costs `LAMBDA`. A plateau wider than two pixels is not centred (three samples cannot see its middle).
+- **Edge map.** The samples come from a per-capture map (`../core/src/edge_map.rs`, `dr_edge_map_create`) that the
+  host's Magnetic Lasso session holds: it fills 16×16 tiles on first touch, so a pointer move computes no sample a
+  previous one computed, and holds at most 8,388,608 samples (64 MB), past which it starts afresh. A trace is the
+  same with any map of its image or none; a call with none builds one for itself. `WORK_BUDGET` stays 131,072.
+
 ## Rejected alternatives
 - Holding freehand selection / mask controls until matting research finished — plan boundary for Phase 6.
 - Treating automatically thresholded prior labels as trustworthy hard constraints — the constraint audit proves they
@@ -94,9 +128,10 @@ matting research, so the functional slices shipped while the advanced cutout gat
 - `DONE` Part A — the Magnetic Lasso (6D follow-on): the core live-wire tracer (`edge_trace.rs`,
   `dr_selection_trace_edge`), the L-group tool with hover tracing and fastening, and MCP `select_magnetic`, at 8
   and 16 bits.
-- `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — Magnetic Lasso Part B: ⌥-drag freehand segments,
-  the Caps Lock width cursor, the `,`/`.` contrast keys, stylus pressure, sub-pixel and direction cost terms, a
-  cached per-capture edge map.
+- `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — Magnetic Lasso Part B, input: ⌥-drag freehand
+  segments, the Caps Lock width cursor, the `,`/`.` contrast keys, stylus pressure.
+- `DONE` — Magnetic Lasso Part B, tracing: the direction and sub-pixel terms and the per-capture edge map (the cost
+  rule above), shipped in the commit that adds `core/src/edge_map.rs`.
 - `DONE` — Specialized subject models (6D follow-on). Part 0 (All People refuses a picture with no detected person) shipped in d6a9d77; Part B, Select ▸ Face Parts… and
   `inspect_faces` / `select_face_parts` (face, skin, eyes, irises, eyebrows, lips, mouth as u16 coverage from Vision landmarks through
   the core's `landmark_region`), shipped in the commit that adds `core/src/landmark_region.rs`. At 32-bit float the parts come

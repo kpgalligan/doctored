@@ -148,12 +148,30 @@ struct EdgeTraceResult {
     let corridorPixels: UInt64
 }
 
-extension RasterImage {
-    /// Traces the Magnetic Lasso's live wire over this image — the core's
+/// The Magnetic Lasso's per-capture edge map (`dr_edge_map_create`): one
+/// image and the core's memo of its edge samples, which every trace through
+/// the map fills, so a session tracing the same capture on every pointer
+/// move computes each sample once. A trace is the same as one with no map.
+/// The map holds its image, the only one it answers for, while it lives.
+final class RasterEdgeMap {
+    let source: RasterImage
+    private let ptr: OpaquePointer
+
+    init(source: RasterImage) throws {
+        guard let ptr = dr_edge_map_create(source.ptr) else {
+            throw DoctoredCoreError(message: "The edge map could not be made.")
+        }
+        self.source = source
+        self.ptr = ptr
+    }
+
+    deinit { dr_edge_map_free(ptr) }
+
+    /// Traces the Magnetic Lasso's live wire over the source — the core's
     /// strict JSON request (`from`, `trail`, `end`, `width`, `contrast`,
     /// `frequency`; see the header). The first call offers room for 65,536
     /// vertices; a short buffer retries once at the count the core needs.
-    func traceEdge(parameters: [String: Any]) throws -> EdgeTraceResult {
+    func trace(parameters: [String: Any]) throws -> EdgeTraceResult {
         let json = String(decoding: try JSONSerialization.data(withJSONObject: parameters), as: UTF8.self)
         let fallback = "The edge could not be traced."
         var capacity = 65_536
@@ -164,7 +182,7 @@ extension RasterImage {
             var corridor: UInt64 = 0
             var error: UnsafeMutablePointer<CChar>?
             let success = points.withUnsafeMutableBufferPointer {
-                dr_selection_trace_edge(ptr, json, $0.baseAddress, capacity,
+                dr_selection_trace_edge(source.ptr, ptr, json, $0.baseAddress, capacity,
                                         &count, &fasten, &corridor, &error)
             }
             if success {

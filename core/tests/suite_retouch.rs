@@ -80,6 +80,8 @@ mod doc_retouch;
 mod edge_refine;
 #[path = "edge_trace.rs"]
 mod edge_trace;
+#[path = "edge_trace_cost.rs"]
+mod edge_trace_cost;
 #[path = "external_matte_inputs.rs"]
 mod external_matte_inputs;
 #[path = "fade.rs"]

@@ -14,27 +14,30 @@
 //!    never a per-pixel × per-segment test (`edge_trace_corridor`, split out
 //!    for the module size cap). A corridor above [`REFUSAL_CAP`] refuses
 //!    before any pixel is read.
-//! 2. **Edge strength** `s(q)` in 0…1: the largest Sobel magnitude (the one
-//!    implementation, `ops_filters::sobel_gradient`) over R·a, G·a, B·a and A
-//!    in unit range, with replicated borders, divided by 4 — a full unit
-//!    step's Sobel magnitude is exactly 4 (`1 + 2 + 1`), so a black/white or
-//!    opaque/clear step reads 1. Colour is weighted by alpha so a colour
-//!    change under fully transparent pixels is not an edge, and alpha is its
-//!    own channel so a cutout's silhouette attracts.
+//! 2. **Edge sample** of each corridor pixel and of its two neighbours
+//!    across the edge: the winning channel's Sobel gradient `g` over R·a,
+//!    G·a, B·a and A and its strength `s(q) = min(1, |g|/4)` in 0…1
+//!    (`edge_trace_cost`, which holds the rule), read from the capture's
+//!    `edge_map` — the host's, or one made for this call.
 //! 3. **Trail distance** `d(q)`: the chamfer distance (orthogonal 1, diagonal
 //!    √2) from the polyline's rasterized pixels, by a two-pass multi-source
 //!    raster scan over the corridor (O(corridor px), `edge_trace_corridor`).
 //!    A pixel the scan cannot reach counts as `width` away.
 //! 4. **Cost.** With `t = contrast / 100` and `c_max` the strongest `s` in the
-//!    corridor, a step of length ℓ (1 or √2) into `q` costs
-//!    `ℓ·(LAMBDA + (s(q) ≥ t ? 1 − s(q)/c_max : 1) + TRAIL_PULL·d(q)/width)`.
-//!    Normalizing by `c_max` makes the corridor's own strongest edge the
-//!    cheapest, so a soft photo edge attracts as firmly as a hard synthetic
-//!    one; Contrast is the floor below which a gradient is not an edge at
-//!    all. [`LAMBDA`] keeps a perfect edge pixel from being free, so path
-//!    length still matters and the path does not wander through edge clutter.
-//!    [`TRAIL_PULL`] only breaks the octile ties of a flat stretch toward the
-//!    trail: at ≤ 0.02 per step it can never pay for a detour step (≥ 1.05).
+//!    corridor, a step of length ℓ (1 or √2) along lattice direction `u`
+//!    into `q` costs `ℓ·(LAMBDA + 1 − A(q)·D(u,q)·C(q) + TRAIL_PULL·
+//!    min(d(q), width)/width)`: the attraction `A = s(q)/c_max` where
+//!    `s(q) ≥ t` (else 0), the direction term `D` (full within 22.5° of the
+//!    edge's tangent, nothing from 45°) and the sub-pixel term `C` (1 where
+//!    the edge runs through the pixel centre, `1 − SUBPIXEL` half a pixel
+//!    off), all in `edge_trace_cost`. Normalizing by `c_max` makes the
+//!    corridor's own strongest edge the cheapest, so a soft photo edge
+//!    attracts as firmly as a hard synthetic one; Contrast is the floor below
+//!    which a gradient is not an edge at all. [`LAMBDA`] keeps a perfect edge
+//!    pixel from being free, so path length still matters and the path does
+//!    not wander through edge clutter. [`TRAIL_PULL`] only breaks the octile
+//!    ties of a flat stretch toward the trail: at ≤ 0.02 per step it can
+//!    never pay for a detour step (≥ 1.05).
 //! 5. **Dijkstra**, 8-connected inside the corridor, heap ordered by
 //!    `(cost, pixel index)` so equal-cost paths resolve deterministically.
 //!    The end is the explicit point's pixel, or for `"snap"` the strongest
@@ -56,22 +59,23 @@
 //!    against [`WORK_BUDGET`] too, from its own corridor estimate
 //!    `π·width² + 2·width·trail length`; at Width ≥ ~205 the disc alone
 //!    exceeds the budget, so every pointer move fastens whatever the
-//!    Frequency, until Part B's cached per-capture edge map lifts the
-//!    budget.
+//!    Frequency.
 //! 7. **Output.** Pixel centres (`i + 0.5`), collinear runs dropped, then
 //!    Douglas–Peucker at 0.5 px — half a pixel, below the pixel-centre
 //!    quantization the path already has — run separately on `[0, fasten]`
 //!    and `[fasten, end]` so the start, the end and the fasten vertex survive.
 //!
-//! Strict JSON `{from, trail, end, width, contrast, frequency}`; edge strength is
+//! Strict JSON `{from, trail, end, width, contrast, frequency}`; edge samples are
 //! `ops_filters::sobel_gradient` (the one Sobel, shared with Find Edges) over R·a, G·a, B·a, A; an
 //! exact `(cost, pixel index)`-ordered Dijkstra (a bucket ring, not a heap — same order);
 //! Frequency's fasten distance and the Douglas–Peucker output. Every numeric choice's why is in
-//! this `//!` doc. Pure and deterministic; tests `core/tests/edge_trace.rs` (its timing probe runs
-//! in `make cancel-bench`).
+//! this `//!` doc or `edge_trace_cost`'s. Deterministic: it reads `image` and writes only the
+//! map's memo of its samples; tests `core/tests/edge_trace.rs` and `edge_trace_cost.rs` (the
+//! timing probe runs in `make cancel-bench`).
 
+use crate::edge_map::{DrEdgeMap, EdgeSamples};
 use crate::edge_trace_corridor::{corridor, pixel_of, trail_distance, Corridor, NONE, STEPS};
-use crate::ops_filters::sobel_gradient;
+use crate::edge_trace_cost::{edge_terms, unit_costs, AXIS};
 use crate::selection_tools::{number, object};
 use image::RgbaImage;
 use serde_json::Value;
@@ -203,57 +207,24 @@ pub(crate) fn fasten_distance(frequency: f64) -> Option<f64> {
     })
 }
 
-/// Edge strength of every corridor pixel (module doc, step 2). The 3×3
-/// neighbourhood slides along each run of consecutive pixels in a row, so
-/// each step converts one new column of samples rather than nine pixels.
-fn strengths(raw: &[u8], w: i64, h: i64, pixels: &[(i64, i64)]) -> Vec<f32> {
-    // One column's samples at rows y − 1, y, y + 1 per channel (R·a, G·a,
-    // B·a, A in unit range), borders replicated.
-    let column = |x: i64, y: i64| {
-        let mut out = [[0f32; 3]; 4];
-        let px = x.clamp(0, w - 1);
-        for (row, dy) in (-1..=1).enumerate() {
-            let i = (((y + dy).clamp(0, h - 1) * w + px) * 4) as usize;
-            let a = f32::from(raw[i + 3]) / 255.0;
-            for (c, plane) in out.iter_mut().enumerate() {
-                plane[row] = if c == 3 {
-                    a
-                } else {
-                    f32::from(raw[i + c]) / 255.0 * a
-                };
-            }
+/// Traces one live-wire path (module doc) over `image`, reading its edge
+/// samples through `map` (which must have been made from `image`) or, with
+/// none, through a map made for this call alone; the result is the same
+/// either way.
+pub(crate) fn trace(
+    image: &RgbaImage,
+    map: Option<&DrEdgeMap>,
+    p: &TraceParams,
+) -> Result<EdgeTrace, String> {
+    let own;
+    let map = match map {
+        Some(map) => map,
+        None => {
+            own = DrEdgeMap::new(image);
+            &own
         }
-        out
     };
-    // Per channel, the three columns x − 1, x, x + 1 of three rows each.
-    let mut window = [[[0f32; 3]; 3]; 4];
-    let mut last: Option<(i64, i64)> = None;
-    let mut out = Vec::with_capacity(pixels.len());
-    for &(x, y) in pixels {
-        if last == Some((x - 1, y)) {
-            let next = column(x + 1, y);
-            for (plane, new) in window.iter_mut().zip(next) {
-                *plane = [plane[1], plane[2], new];
-            }
-        } else {
-            let columns = [column(x - 1, y), column(x, y), column(x + 1, y)];
-            for (c, plane) in window.iter_mut().enumerate() {
-                *plane = [columns[0][c], columns[1][c], columns[2][c]];
-            }
-        }
-        last = Some((x, y));
-        let mut best = 0f32;
-        for plane in &window {
-            let [gx, gy] = sobel_gradient(|dx, dy| plane[(dx + 1) as usize][(dy + 1) as usize]);
-            best = best.max(gx * gx + gy * gy);
-        }
-        out.push((best.sqrt() / 4.0).min(1.0));
-    }
-    out
-}
-
-/// Traces one live-wire path (module doc). Pure: reads `image` only.
-pub(crate) fn trace(image: &RgbaImage, p: &TraceParams) -> Result<EdgeTrace, String> {
+    let mut samples = map.samples(image)?;
     // A trail that turned back toward `from` is traced as two legs joined
     // at its turning point (module doc, step 6), so the loop is not cut
     // short by the shortest way home.
@@ -262,15 +233,23 @@ pub(crate) fn trace(image: &RgbaImage, p: &TraceParams) -> Result<EdgeTrace, Str
             // The out leg snaps near the turning point like any live wire,
             // so the junction sits on the edge rather than out on the trail;
             // the way back starts from that very pixel.
-            let (mut path, out) = trace_leg(image, p, p.from, &p.trail[..=far], &TraceEnd::Snap)?;
+            let (mut path, out) = trace_leg(
+                &mut samples,
+                image,
+                p,
+                p.from,
+                &p.trail[..=far],
+                &TraceEnd::Snap,
+            )?;
             let junction = path.len() - 1;
             let turn = [path[junction].0 as f64 + 0.5, path[junction].1 as f64 + 0.5];
-            let (back, home) = trace_leg(image, p, turn, &p.trail[far + 1..], &p.end)?;
+            let (back, home) =
+                trace_leg(&mut samples, image, p, turn, &p.trail[far + 1..], &p.end)?;
             path.extend(back.into_iter().skip(1));
             (path, out + home, Some(junction))
         }
         None => {
-            let (path, n) = trace_leg(image, p, p.from, &p.trail, &p.end)?;
+            let (path, n) = trace_leg(&mut samples, image, p, p.from, &p.trail, &p.end)?;
             (path, n, None)
         }
     };
@@ -357,6 +336,7 @@ fn loop_turn(p: &TraceParams) -> Option<usize> {
 /// One Dijkstra leg `from → trail… → end` (module doc, steps 1–5),
 /// answering the path's pixels and its corridor's pixel count.
 fn trace_leg(
+    samples: &mut EdgeSamples<'_>,
     image: &RgbaImage,
     p: &TraceParams,
     from: [f64; 2],
@@ -364,7 +344,6 @@ fn trace_leg(
     end: &TraceEnd,
 ) -> Result<(Vec<(i64, i64)>, u64), String> {
     let (w, h) = image.dimensions();
-    let (wi, hi) = (i64::from(w), i64::from(h));
     let mut poly = Vec::with_capacity(trail.len() + 2);
     poly.push(from);
     poly.extend_from_slice(trail);
@@ -373,22 +352,22 @@ fn trace_leg(
     }
     let c = corridor(&poly, p.width, w, h)?;
     let n = c.pixels.len();
-    let raw = image.as_raw();
-    let s = strengths(raw, wi, hi, &c.pixels);
+    let terms: Vec<_> = c
+        .pixels
+        .iter()
+        .map(|&(x, y)| edge_terms(x, y, |x, y| samples.gradient(x, y)))
+        .collect();
+    let s: Vec<f32> = terms.iter().map(|e| e.strength).collect();
     let d = trail_distance(&c, &poly, w, h);
     let t = (p.contrast / 100.0) as f32;
     let c_max = s.iter().copied().fold(0f32, f32::max);
-    let unit: Vec<f64> = (0..n)
-        .map(|q| {
-            let edge = if s[q] >= t && c_max > 0.0 {
-                1.0 - f64::from(s[q]) / f64::from(c_max)
-            } else {
-                1.0
-            };
-            let pull = f64::from(d[q]).min(p.width) / p.width;
-            LAMBDA + edge + TRAIL_PULL * pull
-        })
+    // Per pixel, the unit cost of entering it along each lattice axis.
+    let unit: Vec<[f64; 4]> = terms
+        .iter()
+        .zip(&d)
+        .map(|(e, &d)| unit_costs(e, t, c_max, f64::from(d).min(p.width) / p.width))
         .collect();
+    drop(terms);
 
     let locate = |point: [f64; 2]| {
         let (x, y) = pixel_of(point, w, h);
@@ -433,10 +412,11 @@ fn trace_leg(
 /// ever pushed into the bucket being drained, each bucket is sorted by
 /// `(cost bits, index)` (finite non-negative costs order like their IEEE
 /// bits) before it drains, and a step costs at most
-/// `√2·(LAMBDA + 1 + TRAIL_PULL)` < `RING` buckets.
+/// `√2·(LAMBDA + 1 + TRAIL_PULL)` < `RING` buckets. `unit[q][axis]` is the
+/// cost of entering `q` along a lattice axis (`edge_trace_cost::AXIS`).
 fn shortest_path(
     c: &Corridor,
-    unit: &[f64],
+    unit: &[[f64; 4]],
     start: usize,
     end: usize,
 ) -> Result<Vec<usize>, String> {
@@ -465,12 +445,12 @@ fn shortest_path(
             if cost > dist[idx] {
                 continue;
             }
-            for (&q, &step) in c.neighbours[idx].iter().zip(&STEPS) {
+            for ((&q, &step), &axis) in c.neighbours[idx].iter().zip(&STEPS).zip(&AXIS) {
                 if q == NONE {
                     continue;
                 }
                 let q = q as usize;
-                let next = cost + step * unit[q];
+                let next = cost + step * unit[q][axis];
                 if next < dist[q] {
                     dist[q] = next;
                     prev[q] = idx;

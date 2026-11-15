@@ -1,9 +1,9 @@
 //! The Magnetic Lasso tracer's test helpers (`dr_selection_trace_edge`):
-//! an owned image handle, the raw call with every output observed, the
-//! traced vertices and the polyline sampled every 0.25 px. Shared by
-//! `edge_trace.rs` and `edge_trace_cost.rs`.
+//! an owned image handle, the raw call with every output observed (with no
+//! edge map, or through one), the traced vertices and the polyline sampled
+//! every 0.25 px. Shared by `edge_trace.rs` and `edge_trace_cost.rs`.
 
-use doctored_core::{ffi::*, ffi_selection_tools::dr_selection_trace_edge, DrImage};
+use doctored_core::{ffi::*, ffi_selection_tools::dr_selection_trace_edge, DrEdgeMap, DrImage};
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 
@@ -38,6 +38,16 @@ pub(crate) fn raw_call(
     json: &str,
     capacity: usize,
 ) -> (bool, usize, i32, u64, Vec<f32>, String) {
+    raw_call_through(img, ptr::null_mut(), json, capacity)
+}
+
+/// [`raw_call`] through the edge map `map` (NULL for none).
+pub(crate) fn raw_call_through(
+    img: &Image,
+    map: *mut DrEdgeMap,
+    json: &str,
+    capacity: usize,
+) -> (bool, usize, i32, u64, Vec<f32>, String) {
     let params = CString::new(json).unwrap();
     let mut points = vec![0f32; capacity * 2];
     let (mut count, mut fasten, mut corridor) = (usize::MAX, i32::MIN, u64::MAX);
@@ -45,6 +55,7 @@ pub(crate) fn raw_call(
     let ok = unsafe {
         dr_selection_trace_edge(
             img.0,
+            map,
             params.as_ptr(),
             if capacity == 0 {
                 ptr::null_mut()
@@ -71,7 +82,16 @@ pub(crate) fn raw_call(
 }
 
 pub(crate) fn trace(img: &Image, json: &str) -> Result<Traced, String> {
-    let (ok, count, fasten, corridor, points, message) = raw_call(img, json, 65_536);
+    trace_through(img, ptr::null_mut(), json)
+}
+
+/// [`trace`] through the edge map `map` (NULL for none).
+pub(crate) fn trace_through(
+    img: &Image,
+    map: *mut DrEdgeMap,
+    json: &str,
+) -> Result<Traced, String> {
+    let (ok, count, fasten, corridor, points, message) = raw_call_through(img, map, json, 65_536);
     if !ok {
         return Err(message);
     }

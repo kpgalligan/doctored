@@ -15,6 +15,8 @@ extern "C" {
  * freeing requires exclusive ownership. */
 typedef struct DrImage DrImage;
 typedef struct DrJobControl DrJobControl;
+/* The Magnetic Lasso's per-capture edge map (dr_edge_map_create). */
+typedef struct DrEdgeMap DrEdgeMap;
 
 typedef enum {
   DR_FORMAT_PNG = 0,
@@ -5231,13 +5233,30 @@ bool dr_selection_quick(const DrDocument *doc, const DrImage *source,
  * the count needed and an error naming both counts. Every other failure (bad
  * params, a corridor above 8 * DR_EDGE_TRACE_WORK_BUDGET pixels) leaves the
  * outputs untouched. NULL source/params/out_count/out_fasten/out_corridor
- * return false with err_out untouched. Pure: the source is only read.
- * DR_EDGE_TRACE_WORK_BUDGET is the corridor the host fastens against per
- * pointer move, so one hover trace stays inside a frame. */
+ * return false with err_out untouched. The source is only read. `map` is
+ * NULL or an edge map of `source` (dr_edge_map_create), whose memo of edge
+ * samples the call fills, the one thing it writes besides its outputs; a map
+ * of another image refuses ("edge map was made for another image"). The
+ * result is the same with any map of `source` or none. A step's cost has a
+ * direction term (an edge attracts only steps within 45 degrees of its
+ * tangent) and a sub-pixel term (an edge through the pixel centres is
+ * cheaper): designs/phase-6-selection-mask-status.md, "Magnetic Lasso cost
+ * rule". DR_EDGE_TRACE_WORK_BUDGET is the corridor the host fastens against
+ * per pointer move, so one hover trace stays inside a frame. */
 #define DR_EDGE_TRACE_WORK_BUDGET 131072  /* per-move corridor px the host fastens against */
-bool dr_selection_trace_edge(const DrImage *source, const char *params,
+bool dr_selection_trace_edge(const DrImage *source, DrEdgeMap *map, const char *params,
     float *out_points, size_t capacity, size_t *out_count, int32_t *out_fasten,
     uint64_t *out_corridor, char **err_out);
+/* The Magnetic Lasso's per-capture edge map of `source`: an empty memo of
+ * its edge samples (16x16 tiles, at most 8,388,608 samples, 64 MB, past
+ * which it starts afresh) that dr_selection_trace_edge fills, so a session
+ * tracing one capture on every pointer move computes each sample once.
+ * NULL source returns NULL. It answers for that image only and is used only
+ * while that image is alive (it knows the image by size and buffer address);
+ * free it with dr_edge_map_free (NULL is a no-op), before or after the
+ * image, never during a call that uses it. */
+DrEdgeMap *dr_edge_map_create(const DrImage *source);
+void dr_edge_map_free(DrEdgeMap *map);
 /* Select and Mask's coverage refinement of a source-sized mask. Strict JSON
  * {smooth 0..64, feather 0..64, shift -64..64, contrast 0..1, edge_radius
  * 0..64, smart_radius true|false}; every field optional and zero by default.

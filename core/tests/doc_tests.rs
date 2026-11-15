@@ -2511,7 +2511,15 @@ fn null_safety_sweep() {
                         corridor: *mut u64,
                         err: *mut *mut c_char| {
                 doctored_core::ffi_selection_tools::dr_selection_trace_edge(
-                    image, params, points, capacity, count, fasten, corridor, err,
+                    image,
+                    ptr::null_mut(),
+                    params,
+                    points,
+                    capacity,
+                    count,
+                    fasten,
+                    corridor,
+                    err,
                 )
             };
             let p = points.as_mut_ptr();
@@ -2577,6 +2585,10 @@ fn null_safety_sweep() {
             ));
             assert!(err.is_null());
             assert_eq!((count, fasten, corridor), (7, 7, 7));
+            // Its edge map: NULL source makes none, NULL frees nothing.
+            use doctored_core::ffi_selection_tools::{dr_edge_map_create, dr_edge_map_free};
+            assert!(dr_edge_map_create(null_img).is_null());
+            dr_edge_map_free(ptr::null_mut());
             doctored_core::ffi::dr_image_free(image);
         }
         {
