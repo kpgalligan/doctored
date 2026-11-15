@@ -126,7 +126,8 @@
   the step's gate. Refusals (`ADJUSTMENT_REFUSALS`, `FILTER_REFUSALS`, `CmykAdjustFilter`) are the status doc's
   Still-refused list.
 - **Selections.** Magic Wand and Paint Bucket compare the INK as naive RGB (PN7): `R = (1 − C)(1 − K)` (G from M, B from
-  Y), through 8-bit codes on an 8-bit document, then the `ReferenceRange` (u16 codes, the host's 8-bit t × 257),
+  Y), a byte at both depths (through 8-bit codes on an 8-bit document, on the 32768-step grid on a 16-bit one,
+  `selection_region`'s **Ink**), then the `ReferenceRange` (bytes, the host's 8-bit t × 257 read back to t),
   four-connected through the one `flood`; source `composite` or `layer`. The All Layers bucket is that composite region,
   then a CMYK `paint_blend`. Color Range, Quick Selection and the edge stage read the VIEW (`cmyk_view_canvas`, Display P3
   as the Lab profile); the Vision selections and Focus Area are given the view. `alpha`, `color` (a plate: `1 − ink`) and `similar` (PN7)
@@ -321,3 +322,9 @@
   ⌊N/10⌋ trim on `lab_select::wand_key`'s key form over the naive RGB at byte codes; PN7's full box misses it and stays
   shipped, held with RGB's ([#61](https://github.com/kpgalligan/doctored/issues/61),
   [#79](https://github.com/kpgalligan/doctored/issues/79)). No code change.
+- **The 16-bit naive product** (2026-11-15): at 16 bits each ink is read on the 32768-step grid, the plate is
+  `round((32768 − iC)(32768 − iK)/32768)` there, read to a byte (`selection_region::ink_as_rgb`), and the wand,
+  bucket, Similar and Grow compare bytes (`selection_similar`'s **Resolution**). `key_resolution_80_take.py`
+  (Photoshop 26.10.0, `key-resolution-80`): take1 refuted every declared reading (the 16-bit product read to a
+  byte missed 16 pixels a tool), this product was refitted from it and met the held-out take2 exactly (0 pixels a
+  tool). Tests `core/tests/select_resolution.rs`, `cmyk_select.rs`, `wand_sample_size.rs`.

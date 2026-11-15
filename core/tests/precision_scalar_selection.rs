@@ -362,20 +362,24 @@ fn typed_source_alpha_luminance_color_wand_range_quick_distinguish_native_codes(
         ),
         [0, 257, 0, 0]
     );
+    // The wand reads each code as its nearest byte (`selection_similar`'s
+    // **Resolution**): 257·116 is byte 116, 257·117 + 128 (385 codes away)
+    // byte 117 and one code more byte 118, so one byte of tolerance (257)
+    // joins the first two and parts the third.
     let w = doc(
         4,
         1,
         vec![
-            [30000, 0, 0, 65535],
-            [30001, 0, 0, 65535],
-            [30003, 0, 0, 65535],
-            [30000, 0, 0, 65535],
+            [29812, 0, 0, 65535],
+            [30197, 0, 0, 65535],
+            [30198, 0, 0, 65535],
+            [29812, 0, 0, 65535],
         ],
     );
     assert_eq!(
         select(
             &w,
-            json!({"kind":"magic_wand","x":0,"y":0,"tolerance":1,"contiguous":true})
+            json!({"kind":"magic_wand","x":0,"y":0,"tolerance":257,"contiguous":true})
         ),
         [65535, 65535, 0, 0]
     );
@@ -539,20 +543,23 @@ fn nulls_invalid_lengths_parameters_budget_and_cancellation_never_publish() {
 
 #[test]
 fn scalar_bucket_matches_native_seed_codes_and_selection_independently() {
+    // The plane's codes read as bytes (`selection_similar`'s **Resolution**):
+    // 116, 117, 118, 116, 117, so one byte of tolerance (257) admits 117
+    // from 116 (385 codes away) and refuses 118.
     let d = doc(
         5,
         1,
         vec![
-            [30000, 1, 2, 0],
-            [30001, 3, 4, 1],
-            [30003, 5, 6, 7],
-            [30000, 8, 9, 10],
-            [30001, 11, 12, 13],
+            [29812, 1, 2, 0],
+            [30197, 3, 4, 1],
+            [30198, 5, 6, 7],
+            [29812, 8, 9, 10],
+            [30197, 11, 12, 13],
         ],
     );
     let selected = [65535, 32769, 65535, 65535, 0];
     for contiguous in [true, false] {
-        let result=scalar(&d,"red",json!({"kind":"bucket_fill","x":0,"y":0,"tolerance":1,"contiguous":contiguous,"value":65535,"opacity":0.7}),true,&selected).unwrap();
+        let result=scalar(&d,"red",json!({"kind":"bucket_fill","x":0,"y":0,"tolerance":257,"contiguous":contiguous,"value":65535,"opacity":0.7}),true,&selected).unwrap();
         let original = d.layer_source(0).unwrap().to_rgba16().ok().unwrap();
         let actual = result.layer_source(0).unwrap().to_rgba16().ok().unwrap();
         for i in 0..5 {
@@ -572,6 +579,33 @@ fn scalar_bucket_matches_native_seed_codes_and_selection_independently() {
         &[]
     )
     .is_none());
+}
+
+#[test]
+fn scalar_bucket_at_zero_tolerance_fills_the_codes_of_the_seeds_byte() {
+    // The stripe `scripts/native-selection-probe` buckets at 16 bits: the
+    // seed's code 0 with 1 and 17 beside it (all byte 0), between 65535 and
+    // 256 (byte 1, (256 + 128) / 257). Tolerance 0 joins the codes of one
+    // byte and nothing else (`selection_similar`'s **Resolution**); 257
+    // beyond the wall is byte 1 too and stays.
+    let codes = [65535u16, 0, 1, 17, 256, 257];
+    let d = doc(6, 1, codes.iter().map(|&v| [v, 7, 9, 65535]).collect());
+    let result = scalar(
+        &d,
+        "red",
+        json!({"kind":"bucket_fill","x":1,"y":0,"tolerance":0,"contiguous":true,"value":65535,"opacity":1.0}),
+        false,
+        &[],
+    )
+    .unwrap();
+    let actual = result.layer_source(0).unwrap().to_rgba16().ok().unwrap();
+    let byte = |v: u16| (u32::from(v) + 128) / 257;
+    for (i, &code) in codes.iter().enumerate() {
+        let filled = (1..=3).contains(&i);
+        assert_eq!(byte(code) == 0, filled, "the oracle's own stripe at {i}");
+        let red = if filled { 65535 } else { code };
+        assert_eq!(actual[i], [red, 7, 9, 65535], "sample {i}");
+    }
 }
 
 #[test]

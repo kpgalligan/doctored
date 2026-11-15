@@ -71,7 +71,9 @@ histogram plot doubles have a 4-ULP JSON transport allowance; integer statistics
 ## The wand and bucket predicate (2026-10-13)
 The Magic Wand and Paint Bucket (`selection_region::grow`; byte, 16-bit, float R1 codes) admit by Select ▸
 Grow/Similar's seven-projection box anchored at the seed: R, G, B, A, R−G, G−B, R−B each within ±t
-(`ReferenceRange::from_seed`). 16 bits compare u16 codes with t × 257; a gray mask/channel is |Δv| ≤ t.
+(`ReferenceRange::from_seed`). Every depth compares bytes (`selection_similar`'s **Resolution**, 2026-11-15):
+a u16 R, G or B code reads as its nearest byte, t × 257 back to t, and alpha keeps its own codes; a gray
+mask/channel is |Δ byte| ≤ t.
 - **Takes** (`scripts/photoshop-probe/blur_wand_take.py`; every click in a uniform 101×101 field, so Sample
   Size cannot matter). take1c (W1, t 0/1/10/32): P7 ≤ four-connected exact at t 0, 10, 32 for both tools;
   at t 1 Photoshop admits only grey ±1 shifts. take2 (W2, t 3/17/50/100): wand = bucket, P7 not exact —

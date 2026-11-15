@@ -627,6 +627,8 @@ mod precision_stroke_pattern;
 mod precision_texture;
 #[path = "raw_place.rs"]
 mod raw_place;
+#[path = "select_resolution.rs"]
+mod select_resolution;
 #[path = "select_similar_photoshop.rs"]
 mod select_similar_photoshop;
 #[path = "similar_trim.rs"]

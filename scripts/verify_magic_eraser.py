@@ -5,8 +5,8 @@ and the style read-back the Layer Style panes' stop editor relies on.
 The gates are FIXED here before anything is measured, and the oracle is written from the ADR alone:
 the region is the Magic Wand's — every pixel whose R, G, B, A, R−G, G−B and R−B each lie within
 the tolerance of the seed's, four-connected to it when contiguous — computed here by a
-breadth-first walk over the colours this file painted (8-bit codes; the typed wand takes the same
-tolerance × 257 on its own codes, the float wand the display copy, and every colour below sits
+breadth-first walk over the colours this file painted (8-bit codes; the typed wand reads its codes
+and the tolerance × 257 back as bytes, the float wand the display copy, and every colour below sits
 clear of each tolerance used); then `alpha × (1 − opacity × coverage)`, the colour kept. The
 instance is owned by this file (`phase5_support.App`); no Doctored process it did not start is
 signalled.

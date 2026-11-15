@@ -270,9 +270,9 @@ impl SelectionRequest {
         // 769,983,040 against a plan of 3,924,582,912;
         // `selected_color_planes_24mp.rs` pins ⌈1.25 × max E⌉ of each.
         // Similar also holds its captured u16 coverage input; its reference
-        // histograms (`ReferenceRange::from_reference`, a fixed 5.2 MB at 16
-        // bits whatever the canvas, as Lab's alpha histogram) are outside
-        // the plan. The edge stage
+        // histograms (`ReferenceRange::from_reference`, a fixed 0.54 MB at
+        // 16 bits whatever the canvas, Lab's alpha histogram's size) are
+        // outside the plan. The edge stage
         // holds its input (coverage, and the categories when `area`) and
         // `edge_refine`'s own bound, which covers the f32 coverage, the byte
         // categories and the result beside the kernel's planes.

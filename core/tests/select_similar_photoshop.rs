@@ -1,22 +1,27 @@
-//! The Photoshop takes' records of Select ▸ Similar and Grow on RGB, Gray
-//! and CMYK documents at 8 and 16 bits, read IN PLACE and skipped with a note
-//! when absent (under `~/devel/doctored-fixtures/photoshop/`, Photoshop
+//! The Photoshop takes' records of Select ▸ Similar and Grow, and the Magic
+//! Wand, on RGB, Gray and CMYK documents, read IN PLACE and skipped with a
+//! note when absent (under `~/devel/doctored-fixtures/photoshop/`, Photoshop
 //! 26.10.0): `scripts/photoshop-probe/similar_trim_61_take.py`'s take1 and
-//! take2 (`similar-trim-61`). The takes' gate is EXACT membership on every
-//! pixel (a capture is the selection black on white for RGB and Gray, K on
-//! paper for CMYK, Anti-alias off). Each mode's scene at each depth is the
-//! take's own `none` save, opened by the core: RGB at 8 bits as a byte
-//! document (`dr_doc_open`) through `dr_doc_select_similar` with the byte
-//! tolerance t; RGB at 16 bits and CMYK by `dr_precision_doc_open`, Gray by
-//! `dr_precision_doc_open_gray`, each through the typed `similar` kind with
-//! 257·t. Similar (global) and Grow (contiguous) run from each case's
-//! rectangle, read from the job files. Bound, declared before measuring: the
-//! core is off each take by exactly the pixels the runner's independent
-//! predictor of the shipped rule recorded (`decided.json`): 0 for Gray at 8
-//! bits; at 16 bits only probes one u16 code past the bound (the 16-bit key
-//! form); for RGB and CMYK, whose measured key form is not the shipped one
-//! (#61, held), the full box's recorded miss. Nothing from the takes is
-//! committed.
+//! take2 (`similar-trim-61`, 8 and 16 bits) and
+//! `scripts/photoshop-probe/key_resolution_80_take.py`'s take1 and take2
+//! (`key-resolution-80`, 16 bits, codes off the ×257 grid). The takes' gate
+//! is EXACT membership on every pixel (a capture is the selection black on
+//! white for RGB and Gray, K on paper for CMYK, Anti-alias off). Each mode's
+//! scene at each depth is the take's own `none` save, opened by the core: RGB
+//! at 8 bits as a byte document (`dr_doc_open`) through
+//! `dr_doc_select_similar` with the byte tolerance t; RGB at 16 bits and
+//! CMYK by `dr_precision_doc_open`, Gray by `dr_precision_doc_open_gray`,
+//! each through the typed `similar` and `magic_wand` kinds with 257·t.
+//! Similar (global) and Grow (contiguous) run from each case's rectangle,
+//! the wand from where Photoshop's click landed (the job's x + 1, y + 1),
+//! read from the job files. Bounds, declared before measuring:
+//! `similar-trim-61` is off each take by exactly the pixels the runner's
+//! independent predictor of the shipped rule recorded (`decided.json`): 0
+//! for Gray at both depths; for RGB and CMYK, whose measured key form is not
+//! the shipped one (#61, held), the full box's recorded miss.
+//! `key-resolution-80` is off by 0 pixels in every mode and tool (its
+//! scenes are neutral, so the key form does not enter). Nothing from the
+//! takes is committed.
 use std::ffi::CString;
 use std::path::{Path, PathBuf};
 use std::ptr;
@@ -136,6 +141,21 @@ impl Scene {
     }
 }
 
+impl Scene {
+    /// The typed Magic Wand from `seed` at byte tolerance `t` (Point
+    /// Sample): whether each pixel came back fully selected.
+    fn wand(&self, seed: (u32, u32), t: u32, contiguous: bool) -> Vec<bool> {
+        let Scene::Typed(doc) = self else {
+            panic!("the wand records are typed documents")
+        };
+        let operation = json!({"kind":"magic_wand","x":seed.0,"y":seed.1,
+            "tolerance":257 * t,"contiguous":contiguous});
+        let out = select(*doc, &operation, &[]).unwrap_or_else(|e| panic!("{e}"));
+        assert!(out.iter().all(|v| *v == 0 || *v == 65535), "a hard wand");
+        out.iter().map(|v| *v == 65535).collect()
+    }
+}
+
 impl Drop for Scene {
     fn drop(&mut self) {
         match self {
@@ -229,16 +249,14 @@ fn mode_cases(folder: &Path, mode: &str) -> [(u64, u64); 2] {
 
 /// The shipped rule's pixels off each take, per mode and depth, as the
 /// runner's own predictor of that rule recorded them (`decided.json`): the
-/// key form the core compares (bytes at 8 bits, u16 codes at 16; cmyk's PN7)
-/// with its reference rule (Gray's trim, PCTK-1000; RGB's and CMYK's full
-/// box, ALL). Gray's are 0 at 8 bits and, at 16, only the probes one u16
-/// code past the bound.
+/// key form the core compares (bytes at both depths; cmyk's PN7) with its
+/// reference rule (Gray's trim, PCTK-1000; RGB's and CMYK's full box, ALL).
+/// Gray's are 0 at both depths.
 fn recorded_off(row: &Value, mode: &str, bits: u32) -> u64 {
-    let form = match (mode, bits) {
-        ("cmyk", 8) => "PN7/K8",
-        ("cmyk", _) => "PN7/K16",
-        (_, 8) => "native/K8",
-        _ => "native/K16",
+    let form = if mode == "cmyk" {
+        "PN7/K8"
+    } else {
+        "native/K8"
     };
     let rule = if mode == "gray" { "pctk1000" } else { "all" };
     row["depths"][bits.to_string()][rule][form]
@@ -286,7 +304,101 @@ fn rgb_gray_and_cmyk_similar_and_grow_against_photoshop() {
                 );
             }
             if mode == "gray" {
-                assert_eq!(ran[0].1, 0, "{name}: Gray at 8 bits is exact");
+                assert_eq!(ran, [(ran[0].0, 0), (ran[1].0, 0)], "{name}: Gray is exact");
+            }
+        }
+    }
+}
+
+fn job_file(folder: &Path, name: &str) -> Value {
+    let path = folder.join(format!("inputs/{name}.json"));
+    serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
+
+/// Every wand, Similar and Grow case of `mode` in a `key-resolution-80`
+/// take (its job files `inputs/<mode>_wand.json` and `<mode>_items.json`,
+/// the scene the wand job's `none` save): per tool, the cases run and the
+/// pixels off Photoshop's capture over all of them.
+fn resolution_cases(folder: &Path, mode: &str) -> [(&'static str, u64, u64); 3] {
+    let scene = Scene::open(
+        mode,
+        16,
+        &folder.join(format!("jobs/{mode}_wand/scene16.tif")),
+    );
+    let size = scene.size();
+    let mut out = [("similar", 0, 0), ("grow", 0, 0), ("wand", 0, 0)];
+    let mut tally = |tool: &str, got: Vec<bool>, path: PathBuf| {
+        let want = capture(mode, &path, size);
+        let slot = out.iter_mut().find(|row| row.0 == tool).unwrap();
+        slot.1 += 1;
+        slot.2 += got.iter().zip(&want).filter(|(g, w)| g != w).count() as u64;
+    };
+    for case in job_file(folder, &format!("{mode}_wand"))["wand"]
+        .as_array()
+        .unwrap()
+    {
+        let at = |key: &str| case[key].as_u64().unwrap() as u32;
+        // Photoshop's click at (x + 0.5, y + 0.5) lands on pixel (x + 1, y + 1).
+        let got = scene.wand(
+            (at("x") + 1, at("y") + 1),
+            at("tolerance"),
+            case["contiguous"].as_bool().unwrap(),
+        );
+        let name = case["name"].as_str().unwrap();
+        tally(
+            "wand",
+            got,
+            folder.join(format!("jobs/{mode}_wand/{name}.tif")),
+        );
+    }
+    for case in job_file(folder, &format!("{mode}_items"))["cases"]
+        .as_array()
+        .unwrap()
+    {
+        let kind = case["kind"].as_str().unwrap();
+        let r = case["rect"].as_array().unwrap();
+        let rect = [0, 1, 2, 3].map(|k| r[k].as_u64().unwrap() as u32);
+        let t = case["tolerance"].as_u64().unwrap() as u32;
+        let (got, partial) = scene.run(rect, t, kind == "grow");
+        let name = case["name"].as_str().unwrap();
+        assert_eq!(partial, 0, "{name}: a partial result");
+        tally(
+            kind,
+            got,
+            folder.join(format!("jobs/{mode}_items/{name}.tif")),
+        );
+    }
+    out
+}
+
+#[test]
+fn the_16_bit_tools_compare_bytes_against_photoshop() {
+    for name in ["key-resolution-80/take1", "key-resolution-80/take2"] {
+        let Some(folder) = take(name) else {
+            eprintln!("SKIP: {name} is absent on this machine");
+            continue;
+        };
+        let decided = decided(&folder);
+        if name.ends_with("take2") {
+            for mode in MODES {
+                assert_eq!(
+                    decided["build"][mode][0], "bytes",
+                    "take2's build of {mode}"
+                );
+            }
+        }
+        for mode in MODES {
+            let row = &decided["modes"][mode];
+            assert_eq!(row["valid"], true, "{name} {mode} is not VALID");
+            let ran = resolution_cases(&folder, mode);
+            assert_eq!(
+                ran.iter().map(|r| r.1).sum::<u64>(),
+                row["expected"].as_u64().unwrap(),
+                "{name} {mode}'s cases"
+            );
+            for (tool, cases, off) in ran {
+                assert!(cases > 0, "{name} {mode} ran no {tool} case");
+                assert_eq!(off, 0, "{name} {mode} {tool}: pixels off Photoshop's");
             }
         }
     }

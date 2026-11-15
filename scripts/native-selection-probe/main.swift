@@ -280,10 +280,15 @@ func runScalarUI(depth: Int, fixtures: URL, output: URL) throws -> [String: Any]
         editor.paintColor = .white; editor.selectTool(.fill)
         editor.canvas.mouseDown(with: try scalarMouseDown(window:window,location:location))
         try waitUntil({ !BackgroundWork.occupied },"Scalar bucket UI stalled")
-        // The zero-valued seed is a vertical stripe; equal-code neighbors
-        // connect through its entire column, with nonzero walls on both sides.
+        // The zero-valued seed is a vertical stripe. The bucket reads each code
+        // as its nearest byte (`selection_similar`'s **Resolution**). At 16
+        // bits codes 1 and 17 (byte 0) in columns 9 and 10 fill with it,
+        // through every row, between the walls 65535 (column 7) and 256
+        // (byte 1, column 11). At 8 bits column 9 holds 257 (byte 1), so the
+        // stripe is column 8 alone.
         var filled = codes
-        for y in 0..<original.height { filled[y * original.width + 8] = 65535 }
+        let stripe = depth == 16 ? 8...10 : 8...8
+        for y in 0..<original.height { for x in stripe { filled[y * original.width + x] = 65535 } }
         try require(try scalarSamples(document.doc ?? original,.channel(0)) == filled,"Actual scalar bucket zero tolerance changed other codes")
         try require(try values(document.doc ?? original) == values(strokeBefore),"Scalar Fill changed RGB/alpha")
         document.undoManager?.undo(); pump()

@@ -1,9 +1,10 @@
 //! The Magic Wand's Sample Size: Point Sample and the 3, 5, 11, 31, 51
 //! and 101 by 101 Average. The reference the seven-projection box is anchored
 //! at is the per-channel truncating mean of the box about the seed, clipped to
-//! the canvas, over the codes the wand compares: bytes (`dr_doc_magic_wand`,
-//! `dr_doc_magic_wand_layer`), native 16-bit codes and a CMYK document's naive
-//! ink RGB (`dr_precision_doc_select`'s `magic_wand` with `sample_size`).
+//! the canvas, over the keys the wand compares: bytes (`dr_doc_magic_wand`,
+//! `dr_doc_magic_wand_layer`), native 16-bit codes read as their nearest
+//! bytes and a CMYK document's naive ink RGB byte (`dr_precision_doc_select`'s
+//! `magic_wand` with `sample_size`; `selection_similar`'s **Resolution**).
 //! Contiguous marks the seed whatever the reference admits. Every expectation
 //! is this file's own box mean, predicate and four-connected flood, written
 //! without the core. Photoshop 26.10.0's take1
@@ -61,8 +62,9 @@ fn mean(img: &[[i64; 4]], w: usize, h: usize, seed: (usize, usize), size: u32) -
     sum.map(|v| v / count)
 }
 
-/// The seven-projection predicate.
-fn similar(p: [i64; 4], seed: [i64; 4], tol: i64) -> bool {
+/// The seven-projection predicate: `colour` bounds the six colour keys and
+/// `alpha` alpha (one tolerance for both on the byte path).
+fn similar(p: [i64; 4], seed: [i64; 4], (colour, alpha): (i64, i64)) -> bool {
     let project = |c: [i64; 4]| {
         [
             c[0],
@@ -75,7 +77,20 @@ fn similar(p: [i64; 4], seed: [i64; 4], tol: i64) -> bool {
         ]
     };
     let (a, b) = (project(p), project(seed));
-    (0..7).all(|k| (a[k] - b[k]).abs() <= tol)
+    (0..7).all(|k| (a[k] - b[k]).abs() <= if k == 3 { alpha } else { colour })
+}
+
+/// A typed document's keys (`selection_similar`'s **Resolution**): R, G
+/// and B as their nearest bytes, alpha as it is.
+fn byte_keys(p: [i64; 4]) -> [i64; 4] {
+    let byte = |v: i64| (v as f64 / 257.0).round() as i64;
+    [byte(p[0]), byte(p[1]), byte(p[2]), p[3]]
+}
+
+/// A typed tolerance's bounds: its nearest byte on the colour keys, itself
+/// on alpha.
+fn typed_bounds(tol: i64) -> (i64, i64) {
+    ((tol as f64 / 257.0).round() as i64, tol)
 }
 
 /// The oracle region against `reference`: global, or four-connected from
@@ -86,10 +101,10 @@ fn region(
     h: usize,
     seed: (usize, usize),
     reference: [i64; 4],
-    tol: i64,
+    bounds: (i64, i64),
     contiguous: bool,
 ) -> Vec<bool> {
-    let admitted: Vec<bool> = img.iter().map(|&p| similar(p, reference, tol)).collect();
+    let admitted: Vec<bool> = img.iter().map(|&p| similar(p, reference, bounds)).collect();
     if !contiguous {
         return admitted;
     }
@@ -196,7 +211,7 @@ fn every_sample_size_anchors_the_byte_wand_at_its_clipped_box_mean() {
                         90,
                         (seed.0 as usize, seed.1 as usize),
                         reference,
-                        i64::from(tol),
+                        (i64::from(tol), i64::from(tol)),
                         contiguous,
                     );
                     assert_eq!(
@@ -252,7 +267,7 @@ fn the_layer_wand_takes_the_same_sample_size() {
             30,
             (20, 15),
             mean(&img, 40, 30, (20, 15), size),
-            25,
+            (25, 25),
             true,
         );
         let got: Vec<bool> = mask.iter().map(|&m| m == 255).collect();
@@ -367,7 +382,7 @@ fn native_wand(doc: *const PrecisionDocument, operation: Value) -> Result<Vec<u1
 }
 
 #[test]
-fn sixteen_bit_codes_average_natively() {
+fn sixteen_bit_codes_average_their_bytes() {
     let (w, h) = (60u32, 50u32);
     let mut state = 0x16;
     let native: Vec<[u16; 4]> = (0..w * h)
@@ -377,7 +392,8 @@ fn sixteen_bit_codes_average_natively() {
             [c(0), c(16), c(32), 65535]
         })
         .collect();
-    let img: Vec<[i64; 4]> = native.iter().map(|p| p.map(i64::from)).collect();
+    // The box averages the keys the wand compares: each code's nearest byte.
+    let img: Vec<[i64; 4]> = native.iter().map(|p| byte_keys(p.map(i64::from))).collect();
     let d = native_scalar::doc(w, h, native);
     for size in SIZES {
         for (seed, tol, contiguous) in [((30, 25), 2000, true), ((1, 48), 2500, false)] {
@@ -388,7 +404,7 @@ fn sixteen_bit_codes_average_natively() {
             )
             .unwrap();
             let reference = mean(&img, 60, 50, seed, size);
-            let want = region(&img, 60, 50, seed, reference, tol, contiguous);
+            let want = region(&img, 60, 50, seed, reference, typed_bounds(tol), contiguous);
             let got: Vec<bool> = got.iter().map(|&c| c == 65535).collect();
             assert_eq!(got, want, "size {size} seed {seed:?}");
         }
@@ -414,12 +430,15 @@ fn sixteen_bit_codes_average_natively() {
     }
 }
 
-/// The ink's naive RGB at 16 bits, restated from `selection_region`'s module
-/// doc: `round((65535 − ink)(65535 − K) / 65535)` per plate, half up.
+/// The ink's naive RGB byte at 16 bits, restated from `selection_region`'s
+/// module doc: each ink on the 32768-step grid, `i = round(v · 32768 /
+/// 65535)`, the plate `R = round((32768 − i)(32768 − iK) / 32768)` (half
+/// up), read as `round(R · 255 / 32768)` (half up); alpha as it is.
 fn ink_rgb(p: [u16; 5]) -> [i64; 4] {
+    let grid = |v: u16| (f64::from(v) * 32768.0 / 65535.0).round();
     let plate = |v: u16| {
-        let product = (65535 - i64::from(v)) * (65535 - i64::from(p[3]));
-        (product + 32767) / 65535
+        let r = ((32768.0 - grid(v)) * (32768.0 - grid(p[3])) / 32768.0 + 0.5).floor();
+        (r * 255.0 / 32768.0 + 0.5).floor() as i64
     };
     [plate(p[0]), plate(p[1]), plate(p[2]), i64::from(p[4])]
 }
@@ -457,7 +476,15 @@ fn a_cmyk_wand_averages_the_inks_naive_rgb() {
             )
             .unwrap();
             let reference = mean(&img, 48, 36, (24, 18), size);
-            let want = region(&img, 48, 36, (24, 18), reference, 3000, contiguous);
+            let want = region(
+                &img,
+                48,
+                36,
+                (24, 18),
+                reference,
+                typed_bounds(3000),
+                contiguous,
+            );
             let got: Vec<bool> = got.iter().map(|&c| c == 65535).collect();
             assert_eq!(got, want, "size {size} contiguous {contiguous}");
         }

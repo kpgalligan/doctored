@@ -348,11 +348,15 @@ fn exact_changed_ink_expansion_preserves_raw_pixels_and_independent_mask() {
 }
 #[test]
 fn bucket_uses_raw_native_matching_including_absent_canvas_storage() {
+    // The two layer pixels are 513 codes apart but one byte (257·39 − 128 is
+    // byte 39, 257·40 + 128 byte 40): the bucket reads each code as its
+    // nearest byte (`selection_similar`'s **Resolution**), so tolerance 0
+    // parts them and one byte (257) joins them.
     let d = placed(
         (5, 1),
         (2, 1),
         (2, 0),
-        vec![[10001, 10001, 10001, 65535], [10002, 10002, 10002, 65535]],
+        vec![[9895, 9895, 9895, 65535], [10408, 10408, 10408, 65535]],
     );
     let request = json!({"op":"bucket_fill","layer":0,"color":[1.,0.,0.,1.],"color_space":"document","opacity":1.,"x":0,"y":0,"tolerance":0,"contiguous":true});
     let out = edit(&d, request.clone(), &[65535; 5]).unwrap();
@@ -369,7 +373,7 @@ fn bucket_uses_raw_native_matching_including_absent_canvas_storage() {
     request["tolerance"] = json!(0);
     let out = edit(&d, request.clone(), &[65535; 5]).unwrap();
     assert_eq!(samples(&out)[1], samples(&d)[1]);
-    request["tolerance"] = json!(1);
+    request["tolerance"] = json!(257);
     let out = edit(&d, request, &[65535; 5]).unwrap();
     assert_eq!(samples(&out), [[65535, 0, 0, 65535]; 2]);
 }

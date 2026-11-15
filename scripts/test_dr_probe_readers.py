@@ -6,8 +6,9 @@
 (`fixtures.identity_tables`, `retained_linked_fixtures.read_native_sources`)
 peel the source profile-refusal word 56/57 and its `RSPR` table and the
 projective word 51/52 and its `RSPJ` table; `native.py` also peels the warp
-word 53/54 and its `WARP` table, the byte knockout word 49 and the typed
-global-light word 58 and its `LGLT` table, which the precision-probe readers
+word 53/54 and its `WARP` table, the byte knockout word 49, the typed
+global-light word 58 and its `LGLT` table and the reference-point word 91 and
+its `LREF` table, which the precision-probe readers
 refuse. The committed fixtures always run. The samples
 are written by the core's ignored generator; point `DR_REFUSAL_SAMPLES` at
 them to run that case:
@@ -117,6 +118,36 @@ class DrProbeReaderTests(unittest.TestCase):
             native.identity_body(lit[:at + 4] + struct.pack('<I', 2) + lit[at + 8:])
         # The precision-probe readers keep refusing the unknown word by name.
         self.assertEqual(struct.unpack_from('<I', lit, fixtures.identity_tables(lit)[0])[0], 58)
+
+    def test_reference_point_word(self):
+        # Word 91 inside 45/46 (in a typed file ahead of 58) and its LREF
+        # table, the last one before LIDS here, assembled around the committed
+        # refusal-free files: what a document holds once a layer has moved.
+        table = b'LREF' + struct.pack('<IIIii', 1, 1, 0, -2, 1)
+        for folder, outer, inner in [('rz_byte_53', 45, 16), ('rz_typed_55', 46, 17)]:
+            with self.subTest(folder=folder):
+                data = (STORED / folder / 'placed_source.rz').read_bytes()
+                lids = data.rfind(b'LIDS')
+                moved = data[:8] + struct.pack('<I', 91) + data[8:lids] + table + data[lids:]
+                self.assertEqual(words(moved)[:3], (outer, 91, inner))
+                body, shift, ids, word, projective = native.identity_body(moved, inner={outer: (inner,)})
+                self.assertEqual((struct.unpack_from('<I', body, 4)[0], shift, word, projective),
+                                 (inner, 8, outer, {}))
+                self.assertEqual(body, native.identity_body(data)[0])
+                self.assertEqual(ids, native.identity_body(data)[2])
+                at = moved.rfind(b'LREF')
+                for bad in (moved[:at + 4] + struct.pack('<I', 2) + moved[at + 8:],     # the schema
+                            moved[:at + 16] + struct.pack('<ii', 0, 0) + moved[at + 24:],  # a (0, 0) point
+                            moved[:at + 12] + struct.pack('<I', len(ids)) + moved[at + 16:]):  # the index
+                    with self.assertRaises(AssertionError):
+                        native.identity_body(bad)
+        # A typed file holding both: 46, 91, 58, and LGLT before LREF.
+        data = (STORED / 'rz_typed_55' / 'placed_source.rz').read_bytes()
+        lids = data.rfind(b'LIDS')
+        light = b'LGLT' + struct.pack('<Iff', 1, 45.0, 60.0)
+        both = data[:8] + struct.pack('<II', 91, 58) + data[8:lids] + light + table + data[lids:]
+        body, shift, _, word, _ = native.identity_body(both, inner={46: (17,)})
+        self.assertEqual((body, shift, word), (native.identity_body(data)[0], 12, 46))
 
     @unittest.skipUnless(os.environ.get('DR_REFUSAL_SAMPLES'), 'set DR_REFUSAL_SAMPLES to the generator output')
     def test_core_written_refusal_samples(self):

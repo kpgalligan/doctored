@@ -29,16 +29,42 @@
 //! and 25; take2, held out, its scene B (t 13 and 27, other counts and the
 //! rects that pin the divisor). Gray met the trim on byte codes on both
 //! takes at both depths, ⌊N/10⌋ alone of the shares 9 %…11 % on take2, and
-//! the full box missed (376 and 408 pixels at 8 bits). At 16 bits the u16
-//! comparison misses only probes one code past the bound (28 pixels a take),
-//! where Photoshop's 16-bit store moved a byte × 257 code by one; whether the
-//! 16-bit rule compares bytes or u16 codes is not separated by these scenes
-//! (#80). RGB and CMYK met neither the full box nor
-//! the trim on these projections; both takes met the trim on
-//! `lab_select::wand_key`'s key form instead (R, G, B ± t and the halved
-//! cyclic differences ± ⌊t/2⌋, byte codes at both depths; CMYK's on the
-//! naive RGB), which those documents do not ship, so they keep the full box
-//! until it lands with the wand's (#61, held on #79).
+//! the full box missed (376 and 408 pixels at 8 bits). RGB and CMYK met
+//! neither the full box nor the trim on these projections; both takes met
+//! the trim on `lab_select::wand_key`'s key form instead (R, G, B ± t and the
+//! halved cyclic differences ± ⌊t/2⌋, byte codes at both depths; CMYK's on
+//! the naive RGB), which those documents do not ship, so they keep the full
+//! box until it lands with the wand's (#61, held on #79).
+//!
+//! **Resolution.** Every depth compares bytes ([`keys`]). A byte sample is
+//! its own key; a u16 sample — a 16-bit document's, an 8-bit typed
+//! document's ×257 codes, a float document's R1 display codes, a mask's or a
+//! channel's — is read as its nearest byte, (v + 128) / 257
+//! (`precision_quantize::nearest`), R, G and B alike, and so is the host's
+//! u16 tolerance (8-bit t × 257, read back to t: a fractional t counts as
+//! its nearest whole step). Alpha keeps its own codes and the tolerance's
+//! (every take was opaque; `lab_select`'s choice). A CMYK document's naive
+//! RGB is a byte at both depths (`selection_region`'s **Ink**).
+//! `scripts/photoshop-probe/key_resolution_80_take.py` (Photoshop 26.10.0,
+//! `key-resolution-80`, two sessions, exact membership on every pixel)
+//! measured it on 16-bit Gray, neutral RGB and neutral CMYK scenes: fields
+//! off the ×257 grid, a checker of two codes 200 apart within one byte, and
+//! single-pixel probes at 257·(b ± m) + k on both sides of every byte edge,
+//! through Similar, Grow and the wand (Point Sample, Contiguous off and on)
+//! at t 15 and 25, then held out at t 13 and 27 on other fields. Bytes met
+//! every case of every mode on both takes (CMYK through its 15-bit product,
+//! a refit of take1 that take2 confirmed); the u16 comparison (bound 257·t)
+//! missed 178 to 260 pixels a tool, no u16 bound from 257·t − 300 to
+//! 257·t + 300 met, and neither did truncating bytes. Photoshop's 16-bit
+//! store holds a 15-bit grid, i = round(v·32768/65535): Lab's reduction of i
+//! to a byte, ⌊(i·255 + 16384)/32768⌋, and (v + 128) / 257 part on 127 of
+//! the 65536 u16 codes and on none the grid writes back, so the takes cannot
+//! tell them apart and the nearest byte ships. An 8-bit typed document's
+//! codes sit on the ×257 grid, where the reading is exact; a code paint left
+//! off it reads as its nearest byte. Unmeasured, and following this
+//! kernel: the Paint Bucket, masks and channels, Duotone, float RGB's
+//! display codes, alpha, and a Sample Size box, whose mean is taken over the
+//! keys (`selection_region`'s **Sample Size**).
 //!
 //! Not measured, and chosen here: the sample source is the flattened
 //! composite (as the wand's "select what you see"), not the active layer;
@@ -54,6 +80,7 @@
 use crate::doc::DrDocument;
 use crate::job_control::JobContext;
 use crate::precision_image::reserved_vec;
+use crate::precision_quantize::nearest;
 use crate::selection_region::flood;
 use crate::selection_tools::SelectionSample;
 
@@ -62,20 +89,51 @@ use crate::selection_tools::SelectionSample;
 pub(crate) const NO_REFERENCE: &str =
     "No pixel is more than half selected, so there is no colour to match.";
 
-/// The per-projection [min, max] of the reference pixels, in integer codes.
+/// The per-projection [min, max] of the reference pixels' [`keys`].
 pub(crate) struct ReferenceRange {
     min: [i32; 7],
     max: [i32; 7],
 }
 
-/// R, G, B, A, R−G, G−B, R−B. The three differences are what make a hue
-/// shift count double against the tolerance: (106,94,100) moves R and G by
-/// only 6 from grey 100, yet R−G moves by 12 and leaves a tolerance-10 range,
-/// which is what Photoshop was measured to do. A brightness shift moves all
-/// three channels together and leaves the differences where they were.
-fn projections<T: SelectionSample>(p: [T; 4]) -> [i32; 7] {
-    let [r, g, b, a] = p.map(|c| c.code() as i32);
+/// One colour code as the byte the predicate compares (module doc,
+/// **Resolution**): a byte is its own; a u16 code is its nearest byte,
+/// `precision_quantize::nearest`. Widening a byte by ×257 first makes both
+/// one expression, exact for every byte.
+pub(crate) fn byte_key<T: SelectionSample>(c: T) -> i32 {
+    let wide = c.code() as u64 * (65535 / T::MAX);
+    i32::from(nearest(wide as u16))
+}
+
+/// The codes a pixel is compared on (module doc, **Resolution**): R, G and
+/// B as bytes ([`byte_key`]), alpha in its own codes. The wand's Sample Size
+/// box averages these (`selection_region::reference`).
+pub(crate) fn keys<T: SelectionSample>(p: [T; 4]) -> [u16; 4] {
+    let [r, g, b] = [p[0], p[1], p[2]].map(|c| byte_key(c) as u16);
+    [r, g, b, p[3].code() as u16]
+}
+
+/// R, G, B, A, R−G, G−B, R−B of one pixel's [`keys`]. The three differences
+/// are what make a hue shift count double against the tolerance:
+/// (106,94,100) moves R and G by only 6 from grey 100, yet R−G moves by 12
+/// and leaves a tolerance-10 range, which is what Photoshop was measured to
+/// do. A brightness shift moves all three channels together and leaves the
+/// differences where they were.
+fn projections(keys: [u16; 4]) -> [i32; 7] {
+    let [r, g, b, a] = keys.map(i32::from);
     [r, g, b, a, r - g, g - b, r - b]
+}
+
+/// One u16 code on the 15-bit grid of `steps` steps, round(v · steps /
+/// 65535) with ties up (module doc, **Resolution**: the grid Photoshop's
+/// 16-bit store holds; `lab_select`'s wand and a 16-bit CMYK plate read it).
+pub(crate) fn grid15(v: u16, steps: u64) -> u64 {
+    (2 * u64::from(v) * steps + 65535) / 131070
+}
+
+/// A code of the 32768-step grid as its nearest byte, ⌊(i·255 + 16384) /
+/// 32768⌋ (Lab's 16-bit wand byte; a 16-bit CMYK plate's).
+pub(crate) fn grid15_byte(i: u64) -> i32 {
+    ((i * 255 + 16384) / 32768) as i32
 }
 
 /// A reference pixel is at least half selected: byte 128, u16 32768. This
@@ -120,10 +178,11 @@ pub(crate) fn trimmed(counts: &[u64], trim: u64) -> (i32, i32) {
 }
 
 impl ReferenceRange {
-    /// The range of the single reference `seed`: the wand's and the
-    /// bucket's predicate, every projection within ± tolerance of the
-    /// seed's own.
-    pub(crate) fn from_seed<T: SelectionSample>(seed: [T; 4]) -> Self {
+    /// The range of the single reference whose [`keys`] are `seed` (a
+    /// pixel's, or a Sample Size box's mean of them): the wand's and the
+    /// bucket's predicate, every projection within ± tolerance of the seed's
+    /// own.
+    pub(crate) fn from_seed(seed: [u16; 4]) -> Self {
         let v = projections(seed);
         Self { min: v, max: v }
     }
@@ -140,16 +199,22 @@ impl ReferenceRange {
         job: JobContext<'_>,
     ) -> Result<Option<Self>, String> {
         // A count per value of each projection, so the trim reads histograms
-        // rather than holding every reference's projections: R, G, B and A
-        // in 0…MAX, the three differences in −MAX…MAX shifted up by MAX. At
-        // 16 bits that is 4·65536 + 3·131071 counts (5.2 MB), whatever the
+        // rather than holding every reference's projections: the byte keys
+        // R, G and B in 0…255, alpha in 0…MAX, the three differences in
+        // −255…255 shifted up by 255. At 16 bits that is 3·256 + 65536 +
+        // 3·511 counts (0.54 MB, the alpha histogram as Lab's), whatever the
         // canvas; at 8 bits 20 KB.
         let top = T::MAX as usize;
+        let size = |k: usize| match k {
+            3 => top + 1,
+            0..=2 => 256,
+            _ => 511,
+        };
         let mut starts = [0usize; 8];
         for k in 0..7 {
-            starts[k + 1] = starts[k] + if k < 4 { top + 1 } else { 2 * top + 1 };
+            starts[k + 1] = starts[k] + size(k);
         }
-        let bias = |k: usize| if k < 4 { 0 } else { top as i32 };
+        let bias = |k: usize| if k < 4 { 0 } else { 255 };
         let mut counts = reserved_vec(starts[7])?;
         counts.resize(starts[7], 0u64);
         let mut n = 0u64;
@@ -158,7 +223,7 @@ impl ReferenceRange {
             if !is_reference(c) {
                 continue;
             }
-            for (k, v) in projections(pixel(i)).into_iter().enumerate() {
+            for (k, v) in projections(keys(pixel(i))).into_iter().enumerate() {
                 // Always in range for T's codes; the clamp only keeps an
                 // index from panicking.
                 let at = (v + bias(k)).clamp(0, (starts[k + 1] - starts[k] - 1) as i32);
@@ -179,12 +244,17 @@ impl ReferenceRange {
         Ok(Some(Self { min, max }))
     }
 
+    /// True when every projection of `p`'s [`keys`] lies within the range
+    /// widened by the bound: `tolerance` read as a byte ([`byte_key`]) on
+    /// the six colour projections, itself on alpha (module doc,
+    /// **Resolution**).
     pub(crate) fn admits<T: SelectionSample>(&self, p: [T; 4], tolerance: T) -> bool {
-        let tolerance = tolerance.code() as i32;
-        projections(p)
-            .iter()
-            .enumerate()
-            .all(|(k, &v)| v >= self.min[k] - tolerance && v <= self.max[k] + tolerance)
+        let colour = byte_key(tolerance);
+        let alpha = tolerance.code() as i32;
+        projections(keys(p)).iter().enumerate().all(|(k, &v)| {
+            let bound = if k == 3 { alpha } else { colour };
+            v >= self.min[k] - bound && v <= self.max[k] + bound
+        })
     }
 }
 

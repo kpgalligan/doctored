@@ -67,10 +67,11 @@
 //! - **R1, the display copy.** RGB is `round(65535·E(clamp(v,0,1)))`. Alpha
 //!   is `unit_to_u16`. So R1 equals `display_sample` under Clip, bit for bit
 //!   ([`display_code`]).
-//! - **R2, comparisons.** Wand, Bucket, Grow and Similar compare 16-bit codes
-//!   (tolerance ×257) on R1. Color Range and Quick Selection compute their Lab
-//!   ΔE76 on R1 codes. Every output is native u16 coverage. A value above
-//!   white compares as white.
+//! - **R2, comparisons.** Wand, Bucket, Grow and Similar compare R1's codes
+//!   as bytes, the tolerance sent ×257 read back to a byte
+//!   (`selection_similar`'s **Resolution**). Color Range and Quick Selection
+//!   compute their Lab ΔE76 on R1 codes. Every output is native u16 coverage.
+//!   A value above white compares as white.
 //!   - **E, the edge stage.** Select and Mask's `refine_edge` (edge radius,
 //!     smart radius, the refine categories) reads each pixel's R1 code as its
 //!     guide, so a value above white refines as flat white; the output is

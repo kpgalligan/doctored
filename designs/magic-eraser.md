@@ -19,7 +19,8 @@ Eraser, Edit ▸ Fill…'s Clear), at every depth and in every colour mode.
   A, R−G, G−B and R−B each lie within Tolerance of the seed's, four-connected to it when Contiguous. With
   Sample All Layers off it grows over the active layer's own pixels; on, over the composite. It is
   hard-edged (the wand's 0 or full coverage), so there is no anti-alias option. At 16 and 32 bits and in
-  the colour modes the tolerance is in 8-bit codes (× 257 on the typed wand's codes); at 32 bits the wand
+  the colour modes the tolerance is in 8-bit codes (the typed wand reads its codes as bytes,
+  `selection_similar`'s **Resolution**); at 32 bits the wand
   reads the display copy, as the Magic Wand does.
 - **The erase** lands on the active layer only: `alpha' = alpha × (1 − opacity × region × selection)`,
   colour kept — the Eraser's rule with the region as its coverage. A selection gates it by its coverage;

@@ -76,7 +76,7 @@ Every float filter but Liquify, Depth Blur and the Develop Filter runs on a laye
 ### Display-defined tools and selections (`display_encoding.rs`)
 
 - **R1, the display copy:** RGB `round(65535·E(clamp(v, 0, 1)))`, alpha `unit_to_u16`.
-- **R2, comparisons:** the Magic Wand, Paint Bucket, Grow and Similar compare 16-bit codes on R1; Color Range and Quick Selection their Lab ΔE76 on R1. Output is native u16 coverage.
+- **R2, comparisons:** the Magic Wand, Paint Bucket, Grow and Similar compare R1's codes as bytes (`selection_similar`'s **Resolution**); Color Range and Quick Selection their Lab ΔE76 on R1. Output is native u16 coverage.
 - **E, the edge stage:** Select and Mask's `refine_edge` (edge radius, smart radius, the Refine Edge brush) reads R1 as its guide, output native u16. It covers Select and Mask, Quick Selection's Enhance Edge and Object Selection's refinement. Object Selection's refinement is opt-in at float (`ObjectSelection.refines` is the default; `object_select refine: true` runs it): Vision found the object on the document's own tone map, and on R1 an above-white subject on an above-white background is flat white.
 - **M, the Magnetic Lasso:** the trace image is the composite through Clip at exposure 0 at 8 bits (`ImageDocument.edgeTraceComposite`), never the document's tone map or the window's exposure.
 - **C, Select and Mask's New Layer outputs** (`precision_cutout`): the float composite is the foreground, every bit kept, the u16 matte its mask; New Layer bakes it through the float Apply Layer Mask.

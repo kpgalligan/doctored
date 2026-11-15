@@ -59,8 +59,11 @@
 
 use crate::job_control::JobContext;
 use crate::lab_blend::LabGrid;
+use crate::precision_quantize::nearest;
 use crate::selection_region::{flood, reference};
-use crate::selection_similar::{is_reference, trimmed, NO_REFERENCE, TRIM_DIVISOR};
+use crate::selection_similar::{
+    grid15, grid15_byte, is_reference, trimmed, NO_REFERENCE, TRIM_DIVISOR,
+};
 
 /// A Lab colour-distance rule (module doc). Only the shipped one exists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -112,14 +115,14 @@ pub(crate) fn distance(rule: LabRule, a: [f32; 3], b: [f32; 3]) -> f32 {
 /// One stored code as the wand's 8-bit Lab byte on `grid` (module doc, **The
 /// wand**): the nearest byte of the ×257 grid at 8 bits; at 16 Photoshop's
 /// 15-bit grid (L\* channel 0 at 32768 steps, a\*/b\* at 32640), rounded half
-/// up, then reduced to a byte with its rounding offset 16384.
+/// up, then reduced to a byte with its rounding offset 16384
+/// (`selection_similar`'s `grid15` and `grid15_byte`).
 fn wand_byte(v: u16, channel: usize, grid: LabGrid) -> i32 {
     match grid {
-        LabGrid::Eight => (i32::from(v) + 128) / 257,
+        LabGrid::Eight => i32::from(nearest(v)),
         LabGrid::Sixteen => {
             let steps: u64 = if channel == 0 { 32768 } else { 32640 };
-            let fifteen = (2 * u64::from(v) * steps + 65535) / 131070;
-            ((fifteen * 255 + 16384) / 32768) as i32
+            grid15_byte(grid15(v, steps))
         }
     }
 }
@@ -144,7 +147,7 @@ pub(crate) fn wand_key(p: [u16; 4], grid: LabGrid) -> [i32; 7] {
 /// ×257 tolerance read back to 0…255 by rounding, ± t on the three channels,
 /// ± ⌊t/2⌋ on q1–q3, and the u16 tolerance itself on alpha.
 fn bounds(tolerance: u16) -> [i32; 7] {
-    let t = (i32::from(tolerance) + 128) / 257;
+    let t = i32::from(nearest(tolerance));
     [t, t, t, t / 2, t / 2, t / 2, i32::from(tolerance)]
 }
 

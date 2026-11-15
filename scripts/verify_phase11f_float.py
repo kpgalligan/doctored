@@ -604,9 +604,10 @@ tolerance is widened after the fact.
   core states (`display_encoding`). Tolerances: **T_REL** for every float
   sample, 1/65535 (+1e-6) for an alpha read off a u16 mask, and coverage
   codes exact. (a) `fill` at the seed, tolerance 0, `rgba32` [4, 4, 4, 1]:
-  the 1, 2 and 8 bands read exactly 4.0 (contiguous: the display copy calls
-  them all white), 0.25, 0.999 and −0.25 stay bit for bit, reply storage
-  `rgba32_float`. (b) `add_layer_mask`, then `fill target: mask` with
+  the 0.999, 1, 2 and 8 bands read exactly 4.0 (contiguous: the display copy
+  calls 1, 2 and 8 white, and the bucket reads each code as its nearest
+  byte, where 0.999 is white's), 0.25 and −0.25 stay bit for bit, reply
+  storage `rgba32_float`. (b) `add_layer_mask`, then `fill target: mask` with
   document `#808080` at the seed: the export's alpha is 32896/65535
   everywhere, its RGB the bands' within T_REL (the composite divides the
   partial alpha back out), and the reply's storage `u16`. (c) `fill sample_all_layers:
@@ -627,7 +628,8 @@ tolerance is widened after the fact.
   0, (i) `select_color_range range: highlights`, (j) `quick_select` from the
   seed, tolerance 0, edge 0, (k) `select_rect` (34, 14, 4, 4) then
   `select_similar tolerance: 0`: `get_selection` at the six band centres on
-  y = 16 reads [0, 0, 65535, 65535, 65535, 0] for (h), (j) and (k) and
+  y = 16 reads [0, 65535, 65535, 65535, 65535, 0] for (h) and (k) (bytes,
+  as the bucket), [0, 0, 65535, 65535, 65535, 0] for (j) (equal codes) and
   [0, ≥ 65534 × 4, 0] for (i). (l) F14's shifted copy of the fixture in
   Linear Burn, Linear Light, Pin Light and Divide against this file's W3C
   oracle (unclamped; Divide `clamp(cb / max(cs, 1/65504), ±65504)`) within
@@ -6104,6 +6106,9 @@ F46_LINE = ((0.5, 16.5), (47.5, 16.5))
 F46_SPONGE_LINE = ((0.5, 4.5), (47.5, 4.5))
 F46_MASK_GRAY = 32896
 F46_WHITE_BANDS = [0, 0, 65535, 65535, 65535, 0]
+# The wand, the bucket and Similar read each display code as its nearest byte
+# (`selection_similar`'s **Resolution**): 0.999's is white's.
+F46_WHITE_BYTE_BANDS = [0, 65535, 65535, 65535, 65535, 0]
 F46_MODES = ['Linear Burn', 'Linear Light', 'Pin Light', 'Divide']
 F46_UNIT = [[1.0, 0.5, 0.25], [0.18, 1.0, -0.25], [0.999, 0.18, 1.0], [1.0, 1.0, 1.0],
             [1.0, 0.0, 0.0], [0.3, 0.6, 1.0], [1.0, 0.999, 0.18], [0.5, 1.0, 0.75]]
@@ -6202,7 +6207,7 @@ def gate_f46(app, folder, report):
         return app.call(tool_name, document_id=doc, points=f37_points(line), size=size,
                         hardness=100, spacing=10, **arguments)
 
-    white = lambda x, y: 'in' if F46_BANDS[x // 8] >= 1.0 else None
+    white = lambda x, y: 'in' if F46_BANDS[x // 8] >= 0.999 else None
     four = lambda x, y, p: {k: F46_INK[k] for k in range(4)}
 
     # (a) the bucket on the display copy, linear ink as given.
@@ -6301,7 +6306,7 @@ def gate_f46(app, folder, report):
     doc = fresh('selections')
     app.call('select_magic_wand', document_id=doc, x=sx, y=sy, tolerance=0)
     detail['h'] = coverage(doc)
-    rows['h_wand'] = detail['h'] == F46_WHITE_BANDS
+    rows['h_wand'] = detail['h'] == F46_WHITE_BYTE_BANDS
     app.call('deselect', document_id=doc)
     app.call('select_color_range', document_id=doc, range='highlights')
     detail['i'] = coverage(doc)
@@ -6316,7 +6321,7 @@ def gate_f46(app, folder, report):
     app.call('select_rect', document_id=doc, x=34, y=14, width=4, height=4)
     app.call('select_similar', document_id=doc, tolerance=0)
     detail['k'] = coverage(doc)
-    rows['k_similar'] = detail['k'] == F46_WHITE_BANDS
+    rows['k_similar'] = detail['k'] == F46_WHITE_BYTE_BANDS
     app.call('deselect', document_id=doc)
     rows['selections_change_no_pixel'] = bits_equal(after(doc, 'selections'), picture)
 

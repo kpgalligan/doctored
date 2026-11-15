@@ -14,7 +14,9 @@
 //! The oracle is written here: the sRGB encode spelled out, R1 codes
 //! computed in f64 from the authored samples, and the expected coverage of
 //! each case derived from those codes (equal codes in, a code past the
-//! tolerance out). The values include 1.0, 2.0, 8.0, 0.999, −0.25 and 0.18.
+//! tolerance out; the wand and Similar read each code as its nearest byte,
+//! `selection_similar`'s **Resolution**). The values include 1.0, 2.0, 8.0,
+//! 0.999, −0.25 and 0.18, and 0.99, a byte below white.
 
 use std::ffi::{CStr, CString};
 use std::ptr;
@@ -54,11 +56,17 @@ fn gray(v: f32) -> [f32; 4] {
     [v, v, v, 1.0]
 }
 
-/// Row 0 holds the six values; row 1 is 0.999 throughout; row 2 is 8.0,
-/// cut off from row 0's whites by row 1.
+/// An R1 code as the byte the wand and Similar compare: its nearest
+/// (`selection_similar`'s **Resolution**).
+fn byte(code: u16) -> u16 {
+    (f64::from(code) / 257.0).round() as u16
+}
+
+/// Row 0 holds the six values; row 1 is 0.99 throughout, a byte below
+/// white; row 2 is 8.0, cut off from row 0's whites by row 1.
 fn pixels() -> Vec<[f32; 4]> {
     let mut out: Vec<[f32; 4]> = VALUES.iter().map(|v| gray(*v)).collect();
-    out.extend([gray(0.999); W as usize]);
+    out.extend([gray(0.99); W as usize]);
     out.extend([gray(8.0); W as usize]);
     out
 }
@@ -129,33 +137,35 @@ fn the_oracle_separates_white_from_0_999_and_black_from_0_18() {
     assert!(code(0.999) < 65535 - 10);
     assert_eq!(code(-0.25), 0);
     assert!(code(0.18) > 1000);
+    // The wand and Similar read R1 codes as bytes: 0.999 is white's byte,
+    // 0.99 the one below.
+    assert_eq!(byte(code(0.999)), 255);
+    assert_eq!(byte(code(0.99)), 254);
 }
 
 #[test]
-fn the_wand_compares_display_codes_contiguous_and_global_on_both_scopes() {
+fn the_wand_compares_display_bytes_contiguous_and_global_on_both_scopes() {
     let d = doc();
     let seed = |contiguous: bool| json!({"kind":"magic_wand","x":2,"y":0,"tolerance":0,"contiguous":contiguous});
     for source in ["layer", "composite"] {
-        // Global: every pixel whose R1 code is white's.
+        // Global: every pixel whose R1 byte is white's.
         assert_eq!(
             select(&d, source, seed(false), &[]),
-            coverage(|_, p| code(p[0]) == 65535),
+            coverage(|_, p| byte(code(p[0])) == 255),
             "{source} global"
         );
-        // Contiguous: row 0's whites only; row 1's 0.999 cuts row 2 off.
+        // Contiguous: row 0's whites only; row 1's 0.99 cuts row 2 off.
         assert_eq!(
             select(&d, source, seed(true), &[]),
-            coverage(|i, p| i < W as usize && code(p[0]) == 65535),
+            coverage(|i, p| i < W as usize && byte(code(p[0])) == 255),
             "{source} contiguous"
         );
-        // A tolerance that reaches 0.999's code from white (two codes of
-        // margin for the profile's tabulated curve) takes row 1 and so row 2
-        // too.
-        let reach = u32::from(65535 - code(0.999)) + 2;
-        let wide = json!({"kind":"magic_wand","x":2,"y":0,"tolerance":reach,"contiguous":true});
+        // One byte of tolerance (the host's 257) reaches 0.99 from white,
+        // so takes row 1 and so row 2 too.
+        let wide = json!({"kind":"magic_wand","x":2,"y":0,"tolerance":257,"contiguous":true});
         assert_eq!(
             select(&d, source, wide, &[]),
-            coverage(|_, p| u32::from(65535 - code(p[0])) <= reach),
+            coverage(|_, p| byte(code(p[0])) >= 254),
             "{source} reach"
         );
     }
@@ -181,13 +191,13 @@ fn color_range_samples_r1_and_highlights_take_above_white() {
         select(&d, "layer", sampled, &[]),
         coverage(|_, p| p[0] == 0.18)
     );
-    // Highlights (L* 90…100): 1.0, 2.0, 8.0 and 0.999 are in; 0.18 and
-    // −0.25 are out.
+    // Highlights (L* 90…100): 1.0, 2.0, 8.0, 0.999 and 0.99 are in; 0.18
+    // and −0.25 are out.
     let highlights = json!({"kind":"color_range","params":{"mode":"tonal",
         "lower":90,"upper":100,"softness":5}});
     let got = select(&d, "composite", highlights, &[]);
     for (i, p) in pixels().iter().enumerate() {
-        if p[0] >= 0.999 {
+        if p[0] >= 0.99 {
             assert!(
                 got[i] >= 65534,
                 "pixel {i} ({}) is a highlight: {}",
@@ -213,7 +223,7 @@ fn quick_selection_grows_through_equal_display_codes() {
 }
 
 #[test]
-fn select_similar_takes_every_pixel_at_the_reference_display_code() {
+fn select_similar_takes_every_pixel_at_the_reference_display_byte() {
     let d = doc();
     // The reference is the 8.0 pixel alone.
     let mut reference = vec![0u16; (W * H) as usize];
@@ -221,7 +231,7 @@ fn select_similar_takes_every_pixel_at_the_reference_display_code() {
     let similar = json!({"kind":"similar","tolerance":0,"contiguous":false});
     assert_eq!(
         select(&d, "composite", similar, &reference),
-        coverage(|_, p| code(p[0]) == 65535)
+        coverage(|_, p| byte(code(p[0])) == 255)
     );
 }
 

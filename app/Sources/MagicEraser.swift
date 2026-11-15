@@ -10,7 +10,8 @@ import AppKit
 // the region as its coverage plane and the selection as its second gate. No pixel math lives here.
 
 /// One Magic Eraser click: the seed, the wand's Tolerance (0…255, in 8-bit codes; a typed
-/// document's wand takes it × 257) and Contiguous, Sample All Layers, and the erase's opacity
+/// document's wand takes it × 257 and reads it back to its nearest whole step) and Contiguous,
+/// Sample All Layers, and the erase's opacity
 /// (0…1). The canvas click and `magic_eraser` both build one.
 struct MagicEraserRequest: Equatable {
     var x: Int

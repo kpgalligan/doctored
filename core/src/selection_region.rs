@@ -20,32 +20,44 @@
 //! admitted hue shifts Photoshop refuses ((106,94,100) from grey 100 at tolerance 10). The take
 //! records and the residual are in `designs/phase-9g-selections-masks-status.md`.
 //!
-//! Scaling: 16 bits compare u16 codes with the tolerance the host sends (8-bit t × 257), and the
-//! 32-bit float bucket compares its R1 display codes the same way; R−G, G−B and R−B are taken in
-//! those same codes. A gray mask or channel (`[v, v, v, max]`) reduces to |Δv| ≤ t, unchanged.
+//! Scaling: every depth compares bytes (`selection_similar`'s **Resolution**): R, G and B of a u16
+//! sample — a 16-bit document's, a 32-bit float document's R1 display codes — read as their
+//! nearest byte and the tolerance the host sends (8-bit t × 257) back to t, R−G, G−B and R−B taken
+//! on those bytes; alpha keeps its own codes. A gray mask or channel (`[v, v, v, max]`) reduces to
+//! |Δ byte| ≤ t.
 //!
 //! **Ink (#1).** A CMYK document's Magic Wand and Paint Bucket compare the ink's NAIVE RGB, never
 //! the view: [`grow_ink`] is `grow`'s twin over straight CMYKA16 samples and the same [`flood`],
 //! each sample read through [`ink_as_rgb`] — `R = (1 − C)(1 − K)` (G from M, B from Y, A the alpha),
-//! rounded to the document's depth: at 8 bits `R = 257·round((255 − c8)(255 − k8)/255)` with
-//! `c8 = round(C/257)`, at 16 `R = round((65535 − C)(65535 − K)/65535)` — and then `grow`'s own
-//! predicate ([`ReferenceRange`], R, G, B, A, R−G, G−B, R−B each within ± tolerance, `≤`),
-//! four-connected (PN7). K enters only through the darkening it shares with every plate, so a
-//! K pair or a GCR twin is admitted wherever its RGB lies inside the box (measured against Photoshop).
-//! PN7 was fitted on `scripts/photoshop-probe/cmyk_select_take.py`'s take1 (0 regions mismatched
-//! of 12 cases, where the shipped 11-projection ink box missed 336 and the five-plate box 136; the
-//! unrounded RGB missed 16, so the 8-bit rounding is part of the rule) and confirmed by
-//! `cmyk_k_take.py`'s take; the record is in `designs/cmyk-mode.md`.
+//! a byte at the document's depth: at 8 bits `round((255 − c8)(255 − k8)/255)` with
+//! `c8 = round(C/257)`; at 16 the product on the 32768-step grid, each ink
+//! `i = round(v·32768/65535)` and `R15 = round((32768 − iC)(32768 − iK)/32768)`, read to a byte
+//! as `⌊(R15·255 + 16384)/32768⌋` — and then `grow`'s own predicate ([`ReferenceRange`], R, G, B, A,
+//! R−G, G−B, R−B each within ± tolerance, `≤`), four-connected (PN7). K enters only through the
+//! darkening it shares with every plate, so a K pair or a GCR twin is admitted wherever its RGB
+//! lies inside the box (measured against Photoshop). PN7 was fitted on
+//! `scripts/photoshop-probe/cmyk_select_take.py`'s take1 (0 regions mismatched of 12 cases, where
+//! the shipped 11-projection ink box missed 336 and the five-plate box 136; the unrounded RGB
+//! missed 16, so the 8-bit rounding is part of the rule) and confirmed by `cmyk_k_take.py`'s take;
+//! the record is in `designs/cmyk-mode.md`. The 16-bit product is
+//! `scripts/photoshop-probe/key_resolution_80_take.py`'s refit of its take1 (`key-resolution-80`,
+//! Photoshop 26.10.0), confirmed on its held-out take2: 0 pixels a tool, where the 16-bit product
+//! on the codes read to a byte missed 16 and 14 pixels a tool, the inks' 8-bit product 98 to 154
+//! and the u16 comparison 179 to 258.
 //!
 //! **Sample Size.** The wand's reference is the seed pixel (`sample_size` 1, Point
 //! Sample, which the Paint Bucket always passes) or the per-channel truncating mean of the
 //! `sample_size`-square box about it, clipped to the canvas (`ops_stats::block_mean`, the
-//! eyedropper's own mean), over the codes the predicate compares: native codes, a float
-//! document's R1 display codes, or the ink's naive RGB. [`WAND_SAMPLE_SIZES`] is the Sample Size
-//! list (Point, 3, 5, 11, 31, 51 and 101 by 101 Average). Contiguous marks the seed full
-//! whatever the averaged reference admits (`flood`'s rule); global tests every pixel.
+//! eyedropper's own mean), over the keys the predicate compares (`selection_similar::keys`):
+//! bytes of R, G and B — of native codes, of a float document's R1 display codes, of the ink's
+//! naive RGB — and alpha's own codes. On an 8-bit typed document that is the byte wand's mean on
+//! the same pixels (Lab averages its codes before its own reduction, `lab_select`); unmeasured.
+//! [`WAND_SAMPLE_SIZES`] is the Sample Size list (Point, 3, 5, 11, 31, 51 and 101 by 101
+//! Average). Contiguous marks the seed full whatever the averaged reference admits (`flood`'s
+//! rule); global tests every pixel.
 use crate::job_control::JobContext;
-use crate::selection_similar::ReferenceRange;
+use crate::precision_quantize::nearest;
+use crate::selection_similar::{grid15, grid15_byte, keys, ReferenceRange};
 use crate::selection_tools::SelectionSample;
 use std::collections::VecDeque;
 
@@ -86,7 +98,7 @@ pub(crate) fn reference<T: SelectionSample>(
 /// The wand / bucket region from the single seed: global, or flooded
 /// four-connected from it when `contiguous`. A pixel is admitted when its
 /// seven projections each lie within ± `tolerance` of the reference's — the
-/// seed's, or its `sample_size` box mean (module doc).
+/// seed's keys, or their `sample_size` box mean (module doc).
 pub(crate) fn grow<T: SelectionSample>(
     dimensions: (u32, u32),
     pixel: impl Fn(usize) -> [T; 4],
@@ -96,7 +108,8 @@ pub(crate) fn grow<T: SelectionSample>(
     sample_size: u32,
     job: JobContext<'_>,
 ) -> Result<Vec<T>, String> {
-    let range = ReferenceRange::from_seed(reference(dimensions, &pixel, seed, sample_size)?);
+    let keyed = |i: usize| keys(pixel(i));
+    let range = ReferenceRange::from_seed(reference(dimensions, keyed, seed, sample_size)?);
     let start = seed.1 as usize * dimensions.0 as usize + seed.0 as usize;
     flood(
         dimensions,
@@ -166,19 +179,22 @@ pub(crate) fn flood<T: SelectionSample>(
 }
 
 /// One straight CMYKA16 sample as the wand's RGBA16 codes (module doc, **Ink**): the naive
-/// `(1 − ink)(1 − K)` per plate, rounded through 8-bit codes on an 8-bit document.
+/// `(1 − ink)(1 − K)` per plate as a byte at the document's depth — the 8-bit product of the
+/// inks' bytes, or at 16 bits the product on the 32768-step grid read to a byte — returned on
+/// the ×257 grid, so `selection_similar::keys` reads that byte back exactly; alpha as it is.
 pub(crate) fn ink_as_rgb(p: [u16; 5], depth_bits: u32) -> [u16; 4] {
     let [c, m, y, k, a] = p;
     let plate = |v: u16| -> u16 {
-        if depth_bits <= 8 {
-            let v8 = (u32::from(v) + 128) / 257;
-            let k8 = (u32::from(k) + 128) / 257;
-            let r8 = ((255 - v8) * (255 - k8) + 127) / 255;
-            (257 * r8) as u16
+        let byte = if depth_bits <= 8 {
+            let (v8, k8) = (u32::from(nearest(v)), u32::from(nearest(k)));
+            ((255 - v8) * (255 - k8) + 127) / 255
         } else {
-            let product = (65535 - u64::from(v)) * (65535 - u64::from(k));
-            ((product + 32767) / 65535) as u16
-        }
+            let (iv, ik) = (grid15(v, 32768), grid15(k, 32768));
+            // round((32768 − iv)(32768 − ik) / 32768), ties up.
+            let r15 = (2 * (32768 - iv) * (32768 - ik) + 32768) / 65536;
+            grid15_byte(r15) as u32
+        };
+        (257 * byte) as u16
     };
     [plate(c), plate(m), plate(y), a]
 }
@@ -186,7 +202,7 @@ pub(crate) fn ink_as_rgb(p: [u16; 5], depth_bits: u32) -> [u16; 4] {
 /// The CMYK wand / bucket region from the single seed (module doc, **Ink**):
 /// `grow`'s rule over [`ink_as_rgb`] of straight CMYKA16 samples at the
 /// document's `depth_bits`, through the same [`flood`]; a `sample_size` box
-/// averages those naive RGB codes.
+/// averages those naive RGB bytes.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn grow_ink(
     dimensions: (u32, u32),
@@ -198,8 +214,8 @@ pub(crate) fn grow_ink(
     depth_bits: u32,
     job: JobContext<'_>,
 ) -> Result<Vec<u16>, String> {
-    let rgb = |i: usize| ink_as_rgb(pixel(i), depth_bits);
-    let range = ReferenceRange::from_seed(reference(dimensions, rgb, seed, sample_size)?);
+    let keyed = |i: usize| keys(ink_as_rgb(pixel(i), depth_bits));
+    let range = ReferenceRange::from_seed(reference(dimensions, keyed, seed, sample_size)?);
     let start = seed.1 as usize * dimensions.0 as usize + seed.0 as usize;
     flood(
         dimensions,

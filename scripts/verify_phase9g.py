@@ -94,7 +94,6 @@ def source_selections(app,folder,depth):
     call = probe.opened(app,path,depth,folder/'source-calls.jsonl')
     captures = Captures(folder)
     original = captures.raw(call,'source')
-    maximum = (1<<depth)-1
     scale = 257 if depth == 8 else 1
     call('set_layer_properties',index=0,offset_x=-2,offset_y=1)
     alpha = tuple(original[((y-1)*W+x+2)*4+3]*scale if y>=1 and x+2<W else 0 for y in range(H) for x in range(W))
@@ -125,27 +124,34 @@ def source_selections(app,folder,depth):
     expected = tuple(oracle.q(sum(v*k for v,k in zip(raw[i:i+3],map(oracle.f32,[0.2126,0.7152,0.0722])))*scale) for i in range(0,len(raw),4))
     assert max(abs(a-b) for a,b in zip(selected(call),expected)) <= scale
     groups.append('composite alpha/RGB/luminance source planes')
+    return groups+fine_codes(app,folder,depth)
 
-    # A one-code distinction shares the same displayed byte in native mode.
-    values=[]
-    for y in range(H):
-        for x in range(W):
-            code = (30000+[0,1,3,0][x%4]) if depth==16 else (100+[0,1,3,0][x%4])
-            values.append((code,code,code,maximum))
-    sampled=folder/f'fine-selection-{depth}.png'
-    sampled.write_bytes(fixtures.png(W,H,depth,values,fixtures.srgb_profile()))
-    call=probe.opened(app,sampled,depth,folder/'fine-source-calls.jsonl')
-    tolerance=1/257 if depth==16 else 1
-    call('select_magic_wand',x=0,y=0,tolerance=tolerance,contiguous=True)
+
+def fine_codes(app,folder,depth):
+    def opened(name,row):
+        maximum=(1<<depth)-1
+        values=[(row[x%4],)*3+(maximum,) for y in range(H) for x in range(W)]
+        sampled=folder/f'{name}-{depth}.png'
+        sampled.write_bytes(fixtures.png(W,H,depth,values,fixtures.srgb_profile()))
+        return probe.opened(app,sampled,depth,folder/f'{name}-calls.jsonl')
+
+    # The wand reads each code as its nearest byte (`selection_similar`'s
+    # **Resolution**): at 16 bits 257·116 is byte 116, 257·117 + 128 byte 117
+    # and one code more byte 118, so tolerance 1 (257 codes as the host sends
+    # it) joins the first two and parts the third, as 100, 101 and 103 do at 8.
+    call=opened('wand-selection',[29812,30197,30198,29812] if depth==16 else [100,101,103,100])
+    call('select_magic_wand',x=0,y=0,tolerance=1,contiguous=True)
     assert selected(call)==tuple(65535 if x<2 else 0 for y in range(H) for x in range(W))
+    # A one-code distinction shares the same displayed byte in native mode;
+    # sampled Color Range and Quick Selection keep it.
+    call=opened('fine-selection',[30000,30001,30003,30000] if depth==16 else [100,101,103,100])
     sample=[30001]*3 if depth==16 else [101]*3
     field='samples16' if depth==16 else 'samples'
     call('select_color_range',range='sampled',**{field:[sample]},tolerance=0,softness=0)
     assert selected(call)==tuple(65535 if x%4==1 else 0 for y in range(H) for x in range(W))
     call('quick_select',seeds=[[1,0]],tolerance=0,edge=0)
     assert selected(call)==tuple(65535 if x==1 else 0 for y in range(H) for x in range(W))
-    groups.append('wand/native sampled Color Range/Quick sub-byte boundaries')
-    return groups
+    return ['wand byte edges/native sampled Color Range/Quick sub-byte boundaries']
 
 
 def selection_edits(app,call,captures,depth):

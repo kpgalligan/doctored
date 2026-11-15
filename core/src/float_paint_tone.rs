@@ -5,14 +5,14 @@
 //! 8/16-bit bucket and the wand share).
 //!
 //! - **The bucket (R2, R3).** The region is the master's: `grow` from the
-//!   seed over the CANVAS, comparing 16-bit codes with the request's
-//!   tolerance (already ×257, as the host sends it at every depth). At float
-//!   the codes are the layer's R1 display copy ([`bucket_region`]): the
-//!   profile's forward curve over each sample clamped to 0…1, so a value
-//!   above white compares as white, and `[0; 4]` off the layer, as the
-//!   master reads there. The region is then filled in linear light by the
-//!   float walk, in the float modes, with decoded document ink or `linear`
-//!   ink as given.
+//!   seed over the CANVAS, comparing the bytes of 16-bit codes with the
+//!   request's tolerance (sent ×257 at every depth and read back to a byte,
+//!   `selection_similar`'s **Resolution**). At float the codes are the
+//!   layer's R1 display copy ([`bucket_region`]): the profile's forward
+//!   curve over each sample clamped to 0…1, so a value above white compares
+//!   as white, and `[0; 4]` off the layer, as the master reads there. The
+//!   region is then filled in linear light by the float walk, in the float
+//!   modes, with decoded document ink or `linear` ink as given.
 //! - **Dodge/Burn (R4).** [`dodge_burn_rule`] builds
 //!   `display_encoding::DodgeBurnLinear` (with Protect Tones' group rule when
 //!   the request asks, #1) from the document's own encoder

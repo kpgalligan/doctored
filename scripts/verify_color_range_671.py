@@ -35,9 +35,9 @@ working CMYK).
   tolerance 32, contiguous false, `sample_size=1` selects exactly the drive's
   own oracle region (every 160) and `sample_size=5` exactly the oracle's region
   for the truncating 5 x 5 mean about the seed (131: every pixel), at 8 and at
-  16 bits (the oracle on codes × 257 with the tolerance × 257, as the host
-  sends it, the mean taken on those codes); every pixel is read. The two
-  oracle regions differ at each depth.
+  16 bits (one oracle on bytes: the 16-bit wand reads each code and the
+  tolerance the host sends × 257 back as bytes, the mean taken over those
+  bytes); every pixel is read. The two oracle regions differ.
 - **A1 Action.** `start_recording`, `select_color_range range=reds invert=true`,
   `select_magic_wand sample_size=5`, `stop_recording`: the steps carry
   `invert: true` and `sample_size: 5`; saved and run on a fresh 8-bit chart and
@@ -136,12 +136,11 @@ def box_mean(grid, seed, size):
     return sum(values) // len(values)
 
 
-def oracle(grid, seed, size, tolerance, scale=1):
+def oracle(grid, seed, size, tolerance):
     """The global wand region against the truncating box mean (grey: |Δv| ≤ t),
-    on codes × `scale` with the tolerance × `scale` (257 at 16 bits)."""
-    grid = [[v * scale for v in row] for row in grid]
+    on bytes at every depth."""
     reference = box_mean(grid, seed, size)
-    return [[abs(v - reference) <= tolerance * scale for v in row] for row in grid]
+    return [[abs(v - reference) <= tolerance for v in row] for row in grid]
 
 
 def main():
@@ -291,12 +290,11 @@ def main():
                     call('select_magic_wand', document_id=doc, x=20, y=20, tolerance=WAND_T,
                          contiguous=False, sample_size=size)
                     got = everything(doc, CW)
-                    want = oracle(checker(), (20, 20), size, WAND_T, 257 if depth == '16' else 1)
+                    want = oracle(checker(), (20, 20), size, WAND_T)
                     assert got == want, ('W1', depth, size)
                     grids[size] = sum(row.count(True) for row in got)
-                scale = 257 if depth == '16' else 1
-                assert oracle(checker(), (20, 20), 1, WAND_T, scale) != \
-                    oracle(checker(), (20, 20), 5, WAND_T, scale), 'W1 the sizes must part'
+                assert oracle(checker(), (20, 20), 1, WAND_T) != \
+                    oracle(checker(), (20, 20), 5, WAND_T), 'W1 the sizes must part'
                 call('close_document', document_id=doc, discard_changes=True)
                 return {'selected': grids, 'mean_5x5': box_mean(checker(), (20, 20), 5)}
             case(f'w1 {depth}', wand)

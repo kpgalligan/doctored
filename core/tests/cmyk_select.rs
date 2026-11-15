@@ -1,8 +1,9 @@
 //! Selections on a CMYK document (#1): the Magic Wand on INK through
 //! `dr_precision_doc_select` against this file's own projection-and-BFS
-//! oracle (PN7: the ink's naive RGB `(1 − ink)(1 − K)`, rounded through
-//! 8-bit codes on an 8-bit document, then R, G, B, A, R−G, G−B, R−B each
-//! within ± tolerance of the seed's, four-connected, written from
+//! oracle (PN7: the ink's naive RGB `(1 − ink)(1 − K)` as a byte, through
+//! 8-bit codes on an 8-bit document and the 32768-step grid on a 16-bit
+//! one, then R, G, B, A, R−G, G−B, R−B each within ± tolerance of the
+//! seed's (the colour keys in bytes), four-connected, written from
 //! `selection_region`'s module doc), over the composite and one layer at 8
 //! and 16 bits; the Photoshop 26.10.0 takes' recorded masks
 //! (`fixtures/photoshop_cmyk_wand/manifest.json`, take1 of
@@ -226,17 +227,21 @@ fn placed_layer(doc: *const PrecisionDocument, index: usize, w: u32, h: u32) -> 
 }
 
 /// The oracle's projections, written out (module doc): the naive RGB of
-/// the ink in 16-bit codes — at 8 bits `257 · round((255 − c8)(255 − k8) /
-/// 255)` with `c8 = round(C / 257)`, at 16 `round((65535 − C)(65535 − K) /
-/// 65535)` — then R, G, B, A, R−G, G−B, R−B.
+/// the ink as a byte — at 8 bits `round((255 − c8)(255 − k8) / 255)` with
+/// `c8 = round(C / 257)`, at 16 the product on the 32768-step grid, `i =
+/// round(v · 32768 / 65535)` and `R = round((32768 − iC)(32768 − iK) /
+/// 32768)` (ties up), read as `round(R · 255 / 32768)` — then R, G, B, A
+/// (its u16 code), R−G, G−B, R−B.
 fn projections(p: Ink, bits: u16) -> [i64; 7] {
     let [c, m, y, k, a] = p.map(f64::from);
+    let grid = |v: f64| (v * 32768.0 / 65535.0).round();
     let plate = |v: f64| -> i64 {
         if bits == 8 {
             let (v8, k8) = ((v / 257.0).round(), (k / 257.0).round());
-            257 * ((255.0 - v8) * (255.0 - k8) / 255.0).round() as i64
+            ((255.0 - v8) * (255.0 - k8) / 255.0).round() as i64
         } else {
-            ((65535.0 - v) * (65535.0 - k) / 65535.0).round() as i64
+            let r = ((32768.0 - grid(v)) * (32768.0 - grid(k)) / 32768.0 + 0.5).floor();
+            (r * 255.0 / 32768.0 + 0.5).floor() as i64
         }
     };
     let (r, g, b) = (plate(c), plate(m), plate(y));
@@ -255,11 +260,15 @@ fn oracle(
 ) -> Vec<u16> {
     let start = (seed.1 * w + seed.0) as usize;
     let reference = projections(pixels[start], bits);
+    // The colour keys are bytes, so the host's ×257 tolerance is read back
+    // to its nearest byte; alpha keeps its codes and the tolerance's.
+    let colour = (f64::from(tolerance) / 257.0).round() as i64;
     let near = |i: usize| {
         projections(pixels[i], bits)
             .iter()
             .zip(reference)
-            .all(|(a, b)| (a - b).abs() <= i64::from(tolerance))
+            .enumerate()
+            .all(|(k, (a, b))| (a - b).abs() <= if k == 3 { i64::from(tolerance) } else { colour })
     };
     if !contiguous {
         return (0..pixels.len())

@@ -130,26 +130,29 @@ fn full() -> Vec<u16> {
 
 // ----------------------------------------------------------- the bucket --
 
+/// An R1 code as the byte the bucket compares: its nearest
+/// (`selection_similar`'s **Resolution**).
+fn byte(code: i64) -> i64 {
+    (code as f64 / 257.0).round() as i64
+}
+
 #[test]
-fn the_bucket_compares_r1_codes_at_the_tolerance_boundary() {
-    // The seed and two neighbours exactly 100 and 101 codes above it on the
-    // display copy (D of a code, so R1 lands on the code), the rest black.
+fn the_bucket_compares_r1_codes_as_bytes_at_the_tolerance_boundary() {
+    // The seed at R1 code 257·116 + 100 (byte 116) and two neighbours on the
+    // display copy (D of a code, so R1 lands on the code) at 257·126 + 120
+    // (byte 126, 2590 codes away) and 257·127 − 120 (byte 127, 2607 codes
+    // away), the rest black: the bytes, not the codes, meet the bound.
     let at = |k: i64| decode(k as f64 / 65535.0) as f32;
+    let codes = [257 * 116 + 100, 257 * 126 + 120, 257 * 127 - 120];
     let mut pixels = vec![gray(0.0); (W * H) as usize];
-    pixels[0] = gray(at(30000));
-    pixels[1] = gray(at(30100));
-    pixels[2] = gray(at(30101));
-    assert_eq!(
-        code(f64::from(pixels[1][0])) - code(f64::from(pixels[0][0])),
-        100
-    );
-    assert_eq!(
-        code(f64::from(pixels[2][0])) - code(f64::from(pixels[0][0])),
-        101
-    );
+    for (i, k) in codes.iter().enumerate() {
+        pixels[i] = gray(at(*k));
+        assert_eq!(code(f64::from(pixels[i][0])), *k, "pixel {i}'s R1 code");
+    }
+    assert_eq!(codes.map(byte), [116, 126, 127]);
     let d = doc(pixels.clone());
     let ink = decode(0.5);
-    for (tolerance, filled) in [(99, 1), (100, 2), (101, 3)] {
+    for (tolerance, filled) in [(257 * 9, 1), (257 * 10, 2), (257 * 11, 3)] {
         let out = edit(
             &d,
             bucket(
@@ -179,13 +182,15 @@ fn the_bucket_compares_r1_codes_at_the_tolerance_boundary() {
 }
 
 #[test]
-fn a_seed_at_8_with_tolerance_0_fills_1_2_and_8_but_not_0_999() {
-    // Above white compares as white; 0.999 is a few codes below it. Row 0
-    // holds the six values, row 1 is 0.999 throughout and row 2 is 8.0, so
-    // a contiguous fill from (2, 0) cannot reach row 2.
-    assert!(code(0.999) < 65535);
+fn a_seed_at_8_with_tolerance_0_fills_1_2_8_and_0_999_but_not_0_99() {
+    // Above white compares as white, and so does 0.999, a few codes below it
+    // in white's byte; 0.99 is a byte below. Row 0 holds the six values, row
+    // 1 is 0.99 throughout and row 2 is 8.0, so a contiguous fill from
+    // (2, 0) cannot reach row 2.
+    assert!(code(0.999) < 65535 && byte(code(0.999)) == 255);
+    assert_eq!(byte(code(0.99)), 254);
     let mut pixels: Vec<[f32; 4]> = VALUES.iter().map(|v| gray(*v)).collect();
-    pixels.extend([gray(0.999); W as usize]);
+    pixels.extend([gray(0.99); W as usize]);
     pixels.extend([gray(8.0); W as usize]);
     let d = doc(pixels.clone());
     let four = bits([4.0, 4.0, 4.0, 1.0]);
@@ -198,7 +203,7 @@ fn a_seed_at_8_with_tolerance_0_fills_1_2_and_8_but_not_0_999() {
         )
         .expect("the bucket fills");
         for (i, (got, was)) in layer32(&out).iter().zip(&pixels).enumerate() {
-            let reached = was[0] >= 1.0 && (!contiguous || i < W as usize);
+            let reached = was[0] >= 0.999 && (!contiguous || i < W as usize);
             if reached {
                 assert_eq!(bits(*got), four, "contiguous {contiguous} pixel {i}");
             } else {
