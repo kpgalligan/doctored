@@ -59,6 +59,38 @@ pub(crate) fn is_reference<T: SelectionSample>(coverage: T) -> bool {
     coverage.code() >= T::MAX.div_ceil(2) as f32
 }
 
+/// Similar's and Grow's trim (module doc, **Similar and Grow**): of N
+/// references, each key drops its ⌊N/10⌋ lowest and ⌊N/10⌋ highest values.
+/// take2's rects pin the divisor: a 60-value tail of 600 references is
+/// dropped and a 109-value tail of 1089 kept, which no other share between
+/// 9.77 % and 10.06 % (take1's interval) does.
+pub(crate) const TRIM_DIVISOR: u64 = 10;
+
+/// The smallest and largest value of histogram `counts` once `trim` values
+/// are dropped from each end. `trim` is under half the total
+/// (⌊N/10⌋ ≤ ⌊(N − 1)/2⌋ for every N ≥ 1), so a value is left at each end.
+pub(crate) fn trimmed(counts: &[u64], trim: u64) -> (i32, i32) {
+    let mut seen = 0;
+    let mut low = 0;
+    for (v, &c) in counts.iter().enumerate() {
+        seen += c;
+        if seen > trim {
+            low = v;
+            break;
+        }
+    }
+    seen = 0;
+    let mut high = low;
+    for (v, &c) in counts.iter().enumerate().rev() {
+        seen += c;
+        if seen > trim {
+            high = v;
+            break;
+        }
+    }
+    (low as i32, high as i32)
+}
+
 impl ReferenceRange {
     /// The range of the single reference `seed`: the wand's and the
     /// bucket's predicate, every projection within ± tolerance of the
