@@ -90,11 +90,33 @@ pixel path inside the corridor within Width of the trail.
     other pixel has `o = 1`. `SUBPIXEL` is `2·LAMBDA`: half a pixel off costs two pixels of perfect path, enough to
     choose the centred row, far too little to leave an edge (flat ground costs ≥ 1.05).
 - Every factor lies in 0…1, so a unit cost stays in `[LAMBDA, LAMBDA + 1 + TRAIL_PULL]`, the range the exact bucket
-  queue relies on. The snap end, `c_max`, the corridor, fastening and the output (pixel centres, Douglas–Peucker at
-  0.5 px) are unchanged.
+  queue relies on. The snap end, `c_max`, the corridor and fastening work in pixels.
 - **Consequences.** A hard step aligned with the pixel grid lies between two rows, so both rows have `o = 1` and cost
   `LAMBDA + SUBPIXEL` (0.15) a pixel, against 1.05 for flat ground; an anti-aliased edge whose middle row is half-way
   costs `LAMBDA`. A plateau wider than two pixels is not centred (three samples cannot see its middle).
+- **Vertex placement.** A path pixel `q` is a *located* edge pixel when `s(q) ≥ contrast/100` (the attraction's
+  condition) and it is a strict-curvature maximum along `n` (`s₀ ≥ s₋`, `s₀ ≥ s₊`, `k < 0`). Its vertex is
+  `centre(q) + δ·n` with `δ = (s₊ − s₋)/(−2k)`, clamped to `[−½, ½]`: the parabola's vertex, signed, in samples along
+  `n` (so `o = 2|δ|`; along a diagonal `n` a sample is √2 px). Every other pixel (flat ground, a slope, a plateau, an
+  edge under Contrast) keeps its centre. This holds for every vertex, `from`'s pixel and the end's included.
+- **A vertex stays in its own pixel.** Each coordinate is written in its pixel's half-open range `[i, i + 1)`: one that
+  would reach `i + 1` (a tie's +½, or a rounding to `f32`) is written as the largest `f32` below it. So `floor` of a
+  returned vertex is its pixel, and a host passes a vertex back as `from` unchanged (`from`'s pixel is by `floor`).
+  The cost is one `f32` step (2⁻¹⁷ px below 128, 2⁻¹¹ px below 8192) on the lower of a tie's two crest pixels.
+  Returning each vertex's pixel beside it would be exact, but adds an output and a parallel array through every
+  mutation of the host's session to save that one step.
+- **Output.** The placed points, collinear runs dropped, then Douglas–Peucker with each point's own tolerance (a span
+  keeps the point most over its tolerance), separately on `[0, fasten]` and `[fasten, end]`: 0.25 px for a located
+  vertex, 0.5 px for a centre, which is known no better. At 0.5 px everywhere the chord from a corner's centre, half a
+  pixel off a hard side, to a vertex far along that side stood in for the side and half-covered its pixels; at 0.25
+  the side's vertex next to the corner is kept. Tighter costs vertices where located points follow a binary
+  staircase's steps (a radius-1000 binary disc in four traces: 1,136 vertices; 2,629 at 1/8 px; 291 at 0.5).
+- **Placement consequences.** A hard pixel-aligned step is outlined on the step from either crest row, and a
+  box-filtered straight edge (one row covered `c` by the far side) exactly on its boundary, `1 − c` into that row. A
+  corner is cut by a fraction of a pixel: three samples along one normal cannot see a corner.
+- **The host's points.** The Magnetic Lasso's starting click becomes its pixel's placed vertex (the session asks the
+  core for it with a one-pixel trace), so a closing trace back to the start ends on it. A straight (⌥) click's point
+  is kept as given.
 - **Edge map.** The samples come from a per-capture map (`../core/src/edge_map.rs`, `dr_edge_map_create`) that the
   host's Magnetic Lasso session holds: it fills 16×16 tiles on first touch, so a pointer move computes no sample a
   previous one computed, and holds at most 8,388,608 samples (64 MB), past which it starts afresh. A trace is the

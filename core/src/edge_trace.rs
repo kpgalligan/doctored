@@ -60,10 +60,16 @@
 //!    `π·width² + 2·width·trail length`; at Width ≥ ~205 the disc alone
 //!    exceeds the budget, so every pointer move fastens whatever the
 //!    Frequency.
-//! 7. **Output.** Pixel centres (`i + 0.5`), collinear runs dropped, then
-//!    Douglas–Peucker at 0.5 px — half a pixel, below the pixel-centre
-//!    quantization the path already has — run separately on `[0, fasten]`
-//!    and `[fasten, end]` so the start, the end and the fasten vertex survive.
+//! 7. **Output.** Each path pixel's vertex is placed on the edge it locates
+//!    (`edge_trace_cost::place`: a pixel at least `t` strong that is a crest
+//!    of the parabola across its edge goes to the parabola's vertex, any other
+//!    keeps its centre), inside its own pixel's half-open square so `floor`
+//!    of a vertex is its pixel and a host can pass it back as `from`. Then
+//!    collinear runs are dropped and Douglas–Peucker runs with each point's
+//!    own tolerance: 0.25 px for a located vertex, so the wire keeps to the
+//!    edge, and 0.5 px for a pixel centre, which is known no better —
+//!    separately on `[0, fasten]` and `[fasten, end]` so the start, the end
+//!    and the fasten vertex survive.
 //!
 //! Strict JSON `{from, trail, end, width, contrast, frequency}`; edge samples are
 //! `ops_filters::sobel_gradient` (the one Sobel, shared with Find Edges) over R·a, G·a, B·a, A; an
@@ -75,7 +81,7 @@
 
 use crate::edge_map::{DrEdgeMap, EdgeSamples};
 use crate::edge_trace_corridor::{corridor, pixel_of, trail_distance, Corridor, NONE, STEPS};
-use crate::edge_trace_cost::{edge_terms, unit_costs, AXIS};
+use crate::edge_trace_cost::{edge_terms, place, unit_costs, Placed, AXIS};
 use crate::selection_tools::{number, object};
 use image::RgbaImage;
 use serde_json::Value;
@@ -96,8 +102,19 @@ pub(crate) const LAMBDA: f64 = 0.05;
 pub(crate) const TRAIL_PULL: f64 = 0.02;
 /// Trail points per request, the `dr_selection_quick` seed bound.
 const MAX_TRAIL: usize = 4096;
-/// Douglas–Peucker tolerance in pixels.
+/// Douglas–Peucker tolerance in pixels for a vertex at its pixel's centre
+/// (module doc, step 7): the centre is only known to within half a pixel.
 const SIMPLIFY_TOLERANCE: f64 = 0.5;
+/// Douglas–Peucker tolerance in pixels for a located vertex: a quarter of a
+/// pixel. Were a located vertex as loose as a centre, the chord from a
+/// corner's centre (half a pixel off a hard side) to a vertex far along the
+/// side would stand in for the side and half-cover its pixels; at a quarter
+/// the side's vertex next to the corner is kept, so the chord stays at the
+/// corner. Tighter costs vertices where located points follow a binary
+/// staircase's steps: a radius-1000 binary disc traced in four quarters
+/// (`core/tests/edge_trace.rs`) simplifies to 1,136 vertices at a quarter,
+/// 2,629 at an eighth and 291 at a half.
+const LOCATED_TOLERANCE: f64 = 0.25;
 /// The fasten tail never needs more than this many pixels of path beyond it.
 const TAIL_CAP: f64 = 32.0;
 
@@ -121,7 +138,8 @@ pub(crate) struct TraceParams {
 
 /// A traced path.
 pub(crate) struct EdgeTrace {
-    /// Path vertices at pixel centres, `from`'s pixel first.
+    /// Path vertices, each its pixel's located edge point or its centre and
+    /// inside that pixel's half-open square, `from`'s pixel first.
     pub(crate) vertices: Vec<[f32; 2]>,
     /// The vertex the host should fasten at, if any.
     pub(crate) fasten: Option<usize>,
@@ -277,23 +295,27 @@ pub(crate) fn trace(
         .into_iter()
         .chain(junction.filter(|&k| has_tail(k)))
         .min();
+    // Each path pixel's vertex on the edge it locates (module doc, step 7),
+    // reading only the path's own samples.
+    let t = (p.contrast / 100.0) as f32;
+    let placed: Vec<Placed> = path
+        .iter()
+        .map(|&(x, y)| place(x, y, t, |x, y| samples.gradient(x, y)))
+        .collect();
     let (vertices, fasten) = match fasten {
         Some(k) => {
-            let head = simplify(&path[..=k]);
-            let rest = simplify(&path[k..]);
+            let head = simplify(&placed[..=k]);
+            let rest = simplify(&placed[k..]);
             let at = head.len() - 1;
             (
                 head.into_iter().chain(rest.into_iter().skip(1)).collect(),
                 Some(at),
             )
         }
-        None => (simplify(&path), None),
+        None => (simplify(&placed), None),
     };
     Ok(EdgeTrace {
-        vertices: vertices
-            .into_iter()
-            .map(|(x, y)| [x as f32 + 0.5, y as f32 + 0.5])
-            .collect(),
+        vertices,
         fasten,
         corridor_px,
     })
@@ -480,22 +502,24 @@ fn shortest_path(
     Ok(path)
 }
 
-/// Drops collinear runs, then Douglas–Peucker at [`SIMPLIFY_TOLERANCE`];
-/// the first and last pixels always survive.
-fn simplify(path: &[(i64, i64)]) -> Vec<(i64, i64)> {
-    let mut bent: Vec<(i64, i64)> = Vec::with_capacity(path.len());
-    for (i, &p) in path.iter().enumerate() {
+/// Drops collinear runs (an exactly zero cross product, which the placed
+/// points of a pixel-aligned step or of flat ground have), then runs
+/// Douglas–Peucker with each point's own tolerance ([`LOCATED_TOLERANCE`]
+/// for a located vertex, [`SIMPLIFY_TOLERANCE`] for a pixel centre): a span
+/// keeps the point that most exceeds its tolerance, until none does. The
+/// first and last points always survive, bit for bit.
+fn simplify(path: &[Placed]) -> Vec<[f32; 2]> {
+    let mut bent: Vec<&Placed> = Vec::with_capacity(path.len());
+    for (i, p) in path.iter().enumerate() {
         if i == 0 || i + 1 == path.len() {
             bent.push(p);
             continue;
         }
-        let (a, b) = (path[i - 1], path[i + 1]);
-        if (p.0 - a.0) * (b.1 - p.1) != (p.1 - a.1) * (b.0 - p.0) {
+        let [px, py] = wide(p.point);
+        let ([ax, ay], [bx, by]) = (wide(path[i - 1].point), wide(path[i + 1].point));
+        if (px - ax) * (by - py) != (py - ay) * (bx - px) {
             bent.push(p);
         }
-    }
-    if bent.len() <= 2 {
-        return bent;
     }
     let mut keep = vec![false; bent.len()];
     keep[0] = true;
@@ -504,12 +528,17 @@ fn simplify(path: &[(i64, i64)]) -> Vec<(i64, i64)> {
     while let Some((a, b)) = stack.pop() {
         let mut far = (0.0, 0);
         for k in a + 1..b {
-            let dist = segment_distance(bent[k], bent[a], bent[b]);
-            if dist > far.0 {
-                far = (dist, k);
+            let tolerance = if bent[k].located {
+                LOCATED_TOLERANCE
+            } else {
+                SIMPLIFY_TOLERANCE
+            };
+            let excess = segment_distance(bent[k].point, bent[a].point, bent[b].point) - tolerance;
+            if excess > far.0 {
+                far = (excess, k);
             }
         }
-        if far.0 > SIMPLIFY_TOLERANCE {
+        if far.0 > 0.0 {
             keep[far.1] = true;
             stack.push((a, far.1));
             stack.push((far.1, b));
@@ -517,14 +546,17 @@ fn simplify(path: &[(i64, i64)]) -> Vec<(i64, i64)> {
     }
     bent.into_iter()
         .zip(keep)
-        .filter_map(|(p, kept)| kept.then_some(p))
+        .filter_map(|(p, kept)| kept.then_some(p.point))
         .collect()
 }
 
-fn segment_distance(p: (i64, i64), a: (i64, i64), b: (i64, i64)) -> f64 {
-    let (px, py) = (p.0 as f64, p.1 as f64);
-    let (ax, ay) = (a.0 as f64, a.1 as f64);
-    let (dx, dy) = (b.0 as f64 - ax, b.1 as f64 - ay);
+fn wide(p: [f32; 2]) -> [f64; 2] {
+    [f64::from(p[0]), f64::from(p[1])]
+}
+
+fn segment_distance(p: [f32; 2], a: [f32; 2], b: [f32; 2]) -> f64 {
+    let ([px, py], [ax, ay], [bx, by]) = (wide(p), wide(a), wide(b));
+    let (dx, dy) = (bx - ax, by - ay);
     let l2 = dx * dx + dy * dy;
     let t = if l2 > 0.0 {
         (((px - ax) * dx + (py - ay) * dy) / l2).clamp(0.0, 1.0)

@@ -187,7 +187,7 @@ Detail belongs in the source file's own header comment.
 - `selection_limits.rs` — leaf: `MAX_SELECTION_RADIUS` (250), the radius limit the typed plane operations and the byte feather and smooth exports share.
 - `precision_selection_refine.rs` — native u16 refinement: smooth, contour shift, feather, then contrast about 32768; each geometric stage is the existing `PlaneOperation` of its kind.
 - `edge_trace.rs` / `edge_trace_corridor.rs` — the Magnetic Lasso's live-wire tracer, exported as `dr_selection_trace_edge` from `ffi_selection_tools.rs`.
-- `edge_trace_cost.rs` — kernel of the tracer's step cost: the edge sample, attraction, direction and sub-pixel terms (the phase-6 ADR's cost rule).
+- `edge_trace_cost.rs` — kernel of the tracer's step cost (edge sample, attraction, direction, sub-pixel terms) and vertex placement (the phase-6 ADR's cost rule).
 - `edge_map.rs` — `DrEdgeMap`, the tracer's per-capture memo of edge samples in 16×16 tiles (`dr_edge_map_create`/`_free`); never changes a trace.
 - `selection_tools.rs` / `selection_refine.rs` / `ffi_selection_tools.rs` — profile-aware Color Range, Quick Selection's adapter, selection-only affine transforms, Select and Mask's refinement.
 - `selection_quick.rs` — kernel of Quick Selection: brush-disc seeding, range-gated Lab pre-smoothing, the anchored growth, enclosed-hole fill.

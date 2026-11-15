@@ -1,7 +1,8 @@
 //! The Magnetic Lasso's cost rule (`designs/phase-6-selection-mask-status.md`,
 //! "Magnetic Lasso cost rule") through `dr_selection_trace_edge`: an oracle
-//! written from the rule alone (its own Sobel, corridor, trail distance and
-//! Dijkstra) against the tracer on a textured picture, the direction term
+//! written from the rule alone (its own Sobel, corridor, trail distance,
+//! Dijkstra and vertex placement) against the tracer on a textured picture,
+//! the direction term
 //! keeping the wire off hatching it would have to cross, the sub-pixel term
 //! choosing the edge that runs through the pixel centres, and the
 //! per-capture edge map (`dr_edge_map_create`) changing no trace.
@@ -81,6 +82,67 @@ fn strength(g: [f32; 2]) -> f32 {
     ((g[0] * g[0] + g[1] * g[1]).sqrt() / 4.0).min(1.0)
 }
 
+/// The rule's lattice normal nearest `g`: horizontal within 22.5° of it,
+/// vertical likewise, else the diagonal whose sign is that of `gx·gy`.
+fn lattice_normal(g: [f32; 2]) -> (i64, i64) {
+    let (gx, gy) = (f64::from(g[0]), f64::from(g[1]));
+    let k = SQRT_2 - 1.0;
+    if gy.abs() <= k * gx.abs() {
+        (1, 0)
+    } else if gx.abs() <= k * gy.abs() {
+        (0, 1)
+    } else if gx * gy > 0.0 {
+        (1, 1)
+    } else {
+        (1, -1)
+    }
+}
+
+/// The strength of pixel `(x, y)`, its coordinates clamped to the picture.
+fn strength_at(p: &Picture, x: i64, y: i64) -> f32 {
+    strength(gradient(p, x.clamp(0, p.w - 1), y.clamp(0, p.h - 1)))
+}
+
+/// The rule's vertex for path pixel `(x, y)` ("Vertex placement"): with
+/// `s₋, s₀, s₊` the strengths across its edge along `n`, a pixel at least
+/// `contrast/100` strong that is a maximum with `k = s₋ − 2s₀ + s₊ < 0` sits
+/// at `centre + δ·n`, `δ = (s₊ − s₋)/(−2k)` within ±½ (a located vertex,
+/// the `bool`); any other at its centre; each coordinate written in
+/// `[i, i + 1)`.
+fn placed(p: &Picture, x: i64, y: i64, contrast: f64) -> ([f32; 2], bool) {
+    let g = gradient(p, x, y);
+    let n = lattice_normal(g);
+    let here = strength(g);
+    let (minus, plus) = (
+        f64::from(strength_at(p, x - n.0, y - n.1)),
+        f64::from(strength_at(p, x + n.0, y + n.1)),
+    );
+    let s = f64::from(here);
+    let k = minus - 2.0 * s + plus;
+    let located = here >= (contrast / 100.0) as f32 && s >= minus && s >= plus && k < 0.0;
+    let delta = if located {
+        ((plus - minus) / (-2.0 * k)).clamp(-0.5, 0.5)
+    } else {
+        0.0
+    };
+    let write = |i: i64, v: f64| {
+        let top = (i + 1) as f32;
+        let v = v as f32;
+        if v >= top {
+            top.next_down()
+        } else {
+            v
+        }
+    };
+    (
+        [
+            write(x, x as f64 + 0.5 + delta * n.0 as f64),
+            write(y, y as f64 + 0.5 + delta * n.1 as f64),
+        ],
+        located,
+    )
+}
+
 /// The rule's cheapest path, from `from` along the one horizontal trail
 /// segment to the explicit `end` on the same row (Frequency 0): the corridor
 /// by brute force, the trail distance as the octile distance to the
@@ -112,7 +174,7 @@ fn oracle(
         let dy = (y - row).abs() as f64;
         dx.max(dy) + (SQRT_2 - 1.0) * dx.min(dy)
     };
-    let at = |x: i64, y: i64| strength(gradient(p, x.clamp(0, p.w - 1), y.clamp(0, p.h - 1)));
+    let at = |x: i64, y: i64| strength_at(p, x, y);
     let g: Vec<[f32; 2]> = pixels.iter().map(|&(x, y)| gradient(p, x, y)).collect();
     let s: Vec<f32> = g.iter().map(|&g| strength(g)).collect();
     let t = (contrast / 100.0) as f32;
@@ -138,16 +200,7 @@ fn oracle(
             0.0
         };
         // Sub-pixel: the lattice normal nearest g, the strengths either side.
-        let k = SQRT_2 - 1.0;
-        let n = if gy.abs() <= k * gx.abs() {
-            (1, 0)
-        } else if gx.abs() <= k * gy.abs() {
-            (0, 1)
-        } else if gx * gy > 0.0 {
-            (1, 1)
-        } else {
-            (1, -1)
-        };
+        let n = lattice_normal(g[i]);
         let (minus, here, plus) = (
             f64::from(at(x - n.0, y - n.1)),
             f64::from(s[i]),
@@ -258,16 +311,32 @@ fn the_traced_path_is_the_cheapest_under_the_written_rule() {
         ),
     )
     .unwrap();
-    let centres: Vec<[f32; 2]> = expected
+    // The oracle's own placement of each pixel of its path: at Contrast 1
+    // nearly every pixel of this texture is a located crest.
+    let (vertices, located): (Vec<[f32; 2]>, Vec<bool>) = expected
         .iter()
-        .map(|&(x, y)| [x as f32 + 0.5, y as f32 + 0.5])
-        .collect();
-    assert_eq!(t.points.first(), centres.first());
-    assert_eq!(t.points.last(), centres.last());
-    // Every vertex is a pixel of the oracle's path, in order.
+        .map(|&(x, y)| placed(&p, x, y, contrast))
+        .unzip();
+    let off_centre = expected
+        .iter()
+        .zip(&vertices)
+        .filter(|(&(x, y), v)| **v != [x as f32 + 0.5, y as f32 + 0.5])
+        .count();
+    assert!(off_centre > 0, "the oracle placed no vertex off its centre");
+    // The same arithmetic in another order may differ by an f32 step.
+    let near =
+        |a: &[f32; 2], b: &[f32; 2]| (a[0] - b[0]).abs() <= 1e-5 && (a[1] - b[1]).abs() <= 1e-5;
+    let (first, last) = (vertices[0], vertices[vertices.len() - 1]);
+    assert!(near(&t.points[0], &first), "{:?} vs {first:?}", t.points[0]);
+    assert!(
+        near(&t.points[t.points.len() - 1], &last),
+        "{:?} vs {last:?}",
+        t.points
+    );
+    // Every vertex is a placed pixel of the oracle's path, in order.
     let mut cursor = 0;
     for vertex in &t.points {
-        let found = centres[cursor..].iter().position(|c| c == vertex);
+        let found = vertices[cursor..].iter().position(|c| near(c, vertex));
         assert!(
             found.is_some(),
             "vertex {vertex:?} is not on the oracle's path after pixel {cursor}: {:?}\noracle {:?}",
@@ -276,21 +345,24 @@ fn the_traced_path_is_the_cheapest_under_the_written_rule() {
         );
         cursor += found.unwrap_or(0);
     }
-    // And the simplified wire passes within half a pixel of every pixel of it.
+    // And the simplified wire passes within each placed pixel's own
+    // tolerance of it: a quarter pixel for a located vertex, half a pixel
+    // for a centre (Douglas–Peucker runs on the placed points).
     let wire: Vec<[f64; 2]> = t
         .points
         .iter()
         .map(|p| [f64::from(p[0]), f64::from(p[1])])
         .collect();
-    for c in &centres {
+    for (c, &on_edge) in vertices.iter().zip(&located) {
         let c = [f64::from(c[0]), f64::from(c[1])];
         let near = wire
             .windows(2)
             .map(|s| segment_distance(c, s[0], s[1]))
             .fold(f64::INFINITY, f64::min);
+        let tolerance = if on_edge { 0.25 } else { 0.5 };
         assert!(
-            near <= 0.5 + 1e-6,
-            "oracle pixel {c:?} is {near} px off the wire {:?}",
+            near <= tolerance + 1e-5,
+            "oracle vertex {c:?} (located {on_edge}) is {near} px off the wire {:?}",
             t.points
         );
     }

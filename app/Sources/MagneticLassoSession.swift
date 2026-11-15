@@ -72,6 +72,8 @@ final class MagneticLassoSettings {
 /// the anchor). Every trace runs on the main thread through the core's
 /// `dr_selection_trace_edge`, over the capture's byte source (at 16 bits the
 /// display derivative `SelectionCapture` makes); the output is geometry only.
+/// A traced vertex sits on the edge its pixel locates and floors to that
+/// pixel, so an anchor passes straight back to the core as the next `from`.
 struct MagneticLassoSession {
     let capture: SelectionCapture
     let mode: SelectionCombineMode
@@ -104,18 +106,28 @@ struct MagneticLassoSession {
             throw DoctoredCoreError(message:
                 "Magnetic Lasso width must be 1–256 px, contrast 1–100 % and frequency 0–100.")
         }
-        edgeMap = try RasterEdgeMap(source: source)
+        let map = try RasterEdgeMap(source: source)
+        // The starting click becomes its pixel's placed vertex (the phase-6
+        // ADR, "The host's points"): a one-pixel trace answers it, and the
+        // closing trace back to the start then ends exactly on it.
+        let placed = try map.trace(parameters: [
+            "from": [Double(start.x), Double(start.y)], "trail": [[Double(start.x), Double(start.y)]],
+            "end": [Double(start.x), Double(start.y)], "width": 1, "contrast": options.contrast,
+            "frequency": 0,
+        ]).points.first ?? start
+        edgeMap = map
         self.capture = capture
         self.mode = mode
         self.feather = feather
         self.options = options
-        fixed = [start]
+        fixed = [placed]
         anchors = [0]
         trail = []
-        live = [start]
+        live = [placed]
     }
 
-    /// The starting click.
+    /// The starting click, placed on the edge its pixel locates (or at the
+    /// pixel's centre) as every traced vertex is.
     var start: CGPoint { fixed[0] }
 
     /// The last fastened anchor, where the live wire starts.

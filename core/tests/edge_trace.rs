@@ -179,7 +179,8 @@ fn a_flat_image_is_traced_along_the_trail() {
         let d = segment_distance(as_f64(p), [0.0, 0.0], [100.0, 30.0]);
         assert!(d <= 2.0, "vertex {p:?} is {d} px off the trail");
     }
-    // No pixel is an edge, so the snap falls back to the trail's last point.
+    // No pixel is an edge, so the snap falls back to the trail's last point,
+    // and flat ground keeps its pixel's centre.
     assert_eq!(t.points[t.points.len() - 1], [100.5, 30.5]);
 }
 
@@ -188,6 +189,8 @@ fn snap_ends_on_the_edge_and_a_point_ends_on_the_pointer() {
     let img = rect_image();
     // The snap end is the cost rule's untouched part: the strongest pixel
     // within width of (35, 70), columns 39 and 40 tying at full strength.
+    // Both are crests of the step at x = 40 (δ = +½ and −½ along x), so the
+    // vertex is on x = 40, column 39's written as the f32 below it.
     // An explicit end and `from` are their own pixels whatever the costs.
     let snapped = trace(
         &img,
@@ -196,7 +199,7 @@ fn snap_ends_on_the_edge_and_a_point_ends_on_the_pointer() {
     .unwrap();
     let last = snapped.points[snapped.points.len() - 1];
     assert!(
-        last[0] == 39.5 || last[0] == 40.5,
+        last[0] == 40.0 || last[0] == 40f32.next_down(),
         "snap lands on the edge: {last:?}"
     );
     let pointed = trace(
@@ -204,8 +207,10 @@ fn snap_ends_on_the_edge_and_a_point_ends_on_the_pointer() {
         r#"{"from":[40,40],"trail":[[35,70]],"end":[35,70],"frequency":0}"#,
     )
     .unwrap();
+    // (35, 70) is flat ground, five columns off the edge: its centre.
     assert_eq!(pointed.points[pointed.points.len() - 1], [35.5, 70.5]);
-    assert_eq!(pointed.points[0], [40.5, 40.5]);
+    // (40, 40) is the step's right crest column: δ = −½ puts it on x = 40.
+    assert_eq!(pointed.points[0], [40.0, 40.5]);
 }
 
 #[test]
@@ -238,6 +243,8 @@ fn an_alpha_only_edge_attracts() {
 /// horizontal tangent, so it gains no attraction and costs flat ground's
 /// 1.05 or more. The path from `(5, 20)` to `(end_x, 20)` is therefore row 20
 /// itself, and where it fastens depends on Frequency and the tail alone.
+/// Row 20 is the step's lower crest row (δ = −½), so every vertex is placed
+/// on the step, `y = 20`, at its pixel's centre `x`.
 fn long_edge() -> Image {
     image(1200, 40, |_, y| if y < 20 { DARK } else { LIGHT })
 }
@@ -262,15 +269,15 @@ fn frequency_sets_the_fasten_distance() {
         // The path runs straight along row 20 (`long_edge`), so the fasten
         // pixel is the first whose length from (5, 20) reaches
         // `fasten_distance`: 800 px at 1, 40 at 57, 8 at 100.
-        assert!(t.points.iter().all(|p| p[1] == 20.5), "{:?}", t.points);
+        assert!(t.points.iter().all(|p| p[1] == 20.0), "{:?}", t.points);
         let k = t.fasten.expect("a long path fastens");
         let along = f64::from(t.points[k][0]) - 5.5;
         assert!(along > 0.0 && along <= previous, "{frequency}: {along}");
         previous = along;
         match frequency as u32 {
-            1 => assert_eq!(t.points[k], [805.5, 20.5]),
-            57 => assert_eq!(t.points[k], [45.5, 20.5]),
-            100 => assert_eq!(t.points[k], [13.5, 20.5]),
+            1 => assert_eq!(t.points[k], [805.5, 20.0]),
+            57 => assert_eq!(t.points[k], [45.5, 20.0]),
+            100 => assert_eq!(t.points[k], [13.5, 20.0]),
             _ => {}
         }
     }
@@ -284,8 +291,8 @@ fn a_fasten_needs_a_tail_of_the_width() {
     // 50 px leaves exactly 10.
     let t = fasten_at(&img, 55.5, 57.0);
     let k = t.fasten.expect("the tail is long enough");
-    assert_eq!(t.points[k], [45.5, 20.5]);
-    assert_eq!(t.points, vec![[5.5, 20.5], [45.5, 20.5], [55.5, 20.5]]);
+    assert_eq!(t.points[k], [45.5, 20.0]);
+    assert_eq!(t.points, vec![[5.5, 20.0], [45.5, 20.0], [55.5, 20.0]]);
 }
 
 #[test]

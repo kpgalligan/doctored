@@ -24,7 +24,13 @@
 //!   and 1 wherever the pixel is not a strict-curvature maximum ([`offset`]).
 //!
 //! Every factor lies in 0…1, so a unit cost stays in `[LAMBDA, LAMBDA + 1 +
-//! TRAIL_PULL]`, the range `edge_trace`'s bucket queue relies on. Pure
+//! TRAIL_PULL]`, the range `edge_trace`'s bucket queue relies on.
+//!
+//! **Vertex placement** ([`place`], the ADR's rule of that name) uses the
+//! same parabola, signed ([`crest`]): a path pixel with `s ≥ t` that is a
+//! crest along `n` gets its vertex at `centre + δ·n`, the edge its three
+//! samples locate; any other keeps its centre. Each coordinate stays inside
+//! its pixel's half-open range, so `floor` of a vertex names its pixel. Pure
 //! numbers in and out; the samples come from `edge_map`.
 
 use crate::edge_trace::{LAMBDA, TRAIL_PULL};
@@ -123,19 +129,71 @@ pub(crate) fn normal(g: Gradient) -> (i64, i64) {
     }
 }
 
-/// The sub-pixel offset `o` from the strengths at `q − n`, `q`, `q + n`:
-/// where `q` is a maximum (`here` ≥ both) with strictly negative curvature
-/// `k = minus − 2·here + plus`, the parabola through the three has its
-/// vertex `|minus − plus| / (2·|k|)` samples from the centre, at most ½, and
-/// `o` is twice that, 0…1; anywhere else (a slope, a plateau) `o = 1`, as
-/// far off as a sample can be.
-pub(crate) fn offset(minus: f32, here: f32, plus: f32) -> f64 {
+/// The crest `δ` from the strengths at `q − n`, `q`, `q + n`: where `q` is a
+/// maximum (`here` ≥ both) with strictly negative curvature
+/// `k = minus − 2·here + plus`, the vertex of the parabola through the three,
+/// `(plus − minus) / (−2k)` samples from the centre toward `q + n`; `None`
+/// anywhere else (a slope, a plateau). `|plus − minus| ≤ −k` at a maximum, so
+/// `δ` already lies in `[−½, ½]`; the clamp only keeps rounding there.
+pub(crate) fn crest(minus: f32, here: f32, plus: f32) -> Option<f64> {
     let (minus, here, plus) = (f64::from(minus), f64::from(here), f64::from(plus));
     let curve = minus - 2.0 * here + plus;
-    if here >= minus && here >= plus && curve < 0.0 {
-        (minus - plus).abs() / -curve
+    (here >= minus && here >= plus && curve < 0.0)
+        .then(|| ((plus - minus) / (-2.0 * curve)).clamp(-0.5, 0.5))
+}
+
+/// The sub-pixel offset `o` = `2·|δ|` ([`crest`]), 0…1; where `q` is no
+/// crest `o = 1`, as far off as a sample can be.
+pub(crate) fn offset(minus: f32, here: f32, plus: f32) -> f64 {
+    crest(minus, here, plus).map_or(1.0, |delta| 2.0 * delta.abs())
+}
+
+/// A path pixel's vertex ([`place`]).
+pub(crate) struct Placed {
+    pub(crate) point: [f32; 2],
+    /// The pixel located an edge (`s ≥ t` and a [`crest`]); otherwise the
+    /// point is the pixel's centre.
+    pub(crate) located: bool,
+}
+
+/// Where path pixel `(x, y)`'s vertex goes (the ADR's "Vertex placement"):
+/// a located edge pixel (`s ≥ t` and a [`crest`] along its lattice normal
+/// `n`) at `centre + δ·n`, every other pixel at its centre, each coordinate
+/// written inside the pixel's half-open range ([`inside`]). Gradients are
+/// read through `at`, which clamps to the image, as in [`edge_terms`].
+pub(crate) fn place(x: i64, y: i64, t: f32, mut at: impl FnMut(i64, i64) -> Gradient) -> Placed {
+    let gradient = at(x, y);
+    let (dx, dy) = normal(gradient);
+    let here = strength(gradient);
+    let delta = if here >= t {
+        let minus = strength(at(x - dx, y - dy));
+        let plus = strength(at(x + dx, y + dy));
+        crest(minus, here, plus)
     } else {
-        1.0
+        None
+    };
+    let shift = delta.unwrap_or(0.0);
+    Placed {
+        point: [
+            inside(x, x as f64 + 0.5 + shift * dx as f64),
+            inside(y, y as f64 + 0.5 + shift * dy as f64),
+        ],
+        located: delta.is_some(),
+    }
+}
+
+/// `v` (within pixel `i`'s closed range) as an `f32` in `[i, i + 1)`: a value
+/// that reaches `i + 1` — a tie's `+½`, or one just under it rounded up by
+/// the narrowing — is written as the largest `f32` below it, so `floor` of
+/// the vertex is still `i` and a host may pass it back as `from`. Pixel
+/// coordinates stay below 2²⁴, where every integer is an `f32`.
+fn inside(i: i64, v: f64) -> f32 {
+    let (low, high) = (i as f32, (i + 1) as f32);
+    let v = v as f32;
+    if v >= high {
+        high.next_down()
+    } else {
+        v.max(low)
     }
 }
 

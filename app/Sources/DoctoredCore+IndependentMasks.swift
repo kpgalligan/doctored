@@ -140,8 +140,10 @@ extension RasterDocument {
 }
 
 /// One Magnetic Lasso trace (`dr_selection_trace_edge`): the path's vertices
-/// at pixel centres (`from`'s pixel first), the vertex the host fastens an
-/// anchor at, and the corridor's pixel count.
+/// (`from`'s pixel first), each its pixel's located edge point or its centre
+/// and inside that pixel, so one passed back as `from` names the pixel it
+/// came from; the vertex the host fastens an anchor at; and the corridor's
+/// pixel count.
 struct EdgeTraceResult {
     let points: [CGPoint]
     let fasten: Int?

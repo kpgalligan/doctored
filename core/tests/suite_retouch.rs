@@ -82,6 +82,8 @@ mod edge_refine;
 mod edge_trace;
 #[path = "edge_trace_cost.rs"]
 mod edge_trace_cost;
+#[path = "edge_trace_placement.rs"]
+mod edge_trace_placement;
 #[path = "external_matte_inputs.rs"]
 mod external_matte_inputs;
 #[path = "fade.rs"]

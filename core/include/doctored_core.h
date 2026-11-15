@@ -5219,10 +5219,15 @@ bool dr_selection_quick(const DrDocument *doc, const DrImage *source,
  * 1..4096 points, end:"snap"|[x,y], width 1..256 (default 10), contrast
  * 1..100 (10), frequency 0..100 (57); coordinates finite within [0,w]x[0,h].
  * "snap" ends on the strongest edge pixel at least contrast/100 strong within
- * width of the trail's last point, else on that point. On success writes
- * *out_count vertices to out_points as x,y float pairs at pixel centres (the
- * first is from's pixel), *out_fasten = the vertex index the host fastens an
- * anchor at, or -1, and *out_corridor = the corridor's pixel count. A trail
+ * width of the trail's last point, else on that point. A point's pixel is its
+ * floor. On success writes *out_count vertices to out_points as x,y float
+ * pairs (the first is from's pixel's): each pixel's located edge point (a
+ * pixel at least contrast/100 strong that is a crest of the parabola through
+ * the strengths across its edge sits at the parabola's vertex) or else its
+ * centre, every coordinate inside its pixel's half-open range [i, i+1), so a
+ * vertex passed back as `from` names the pixel it came from; *out_fasten =
+ * the vertex index the host fastens an anchor at, or -1, and *out_corridor =
+ * the corridor's pixel count. A trail
  * that goes more than 2*width from `from`, comes back within 2*width of it
  * and encloses an area (from -> trail... -> from) of at least width times its
  * farthest distance is a loop (a path backed up along itself is not), at any
@@ -5244,7 +5249,10 @@ bool dr_selection_quick(const DrDocument *doc, const DrImage *source,
  * direction term (an edge attracts only steps within 45 degrees of its
  * tangent) and a sub-pixel term (an edge through the pixel centres is
  * cheaper): designs/phase-6-selection-mask-status.md, "Magnetic Lasso cost
- * rule". DR_EDGE_TRACE_WORK_BUDGET is the corridor the host fastens against
+ * rule", which also gives the vertex placement and the Douglas-Peucker
+ * simplification over the placed points (0.25 px for a located vertex,
+ * 0.5 px for a pixel centre).
+ * DR_EDGE_TRACE_WORK_BUDGET is the corridor the host fastens against
  * per pointer move, so one hover trace stays inside a frame. */
 #define DR_EDGE_TRACE_WORK_BUDGET 131072  /* per-move corridor px the host fastens against */
 bool dr_selection_trace_edge(const DrImage *source, DrEdgeMap *map, const char *params,

@@ -176,9 +176,12 @@ pub unsafe fn edge_map_cached_samples(map: *const DrEdgeMap) -> usize {
 /// `width` of `from → trail… → (explicit end)`. Strict JSON `{from:[x,y],
 /// trail:[[x,y],…] 1..4096, end:"snap"|[x,y], width 1..256 (10), contrast
 /// 1..100 (10), frequency 0..100 (57)}`; coordinates finite inside
-/// `[0,w]×[0,h]`. On success writes `*out_count` vertices to `out_points` as
-/// x,y pairs at pixel centres, `*out_fasten` (the vertex to fasten at, or −1)
-/// and `*out_corridor` (the corridor's pixel count). A trail that leaves
+/// `[0,w]×[0,h]`, a point's pixel its floor. On success writes `*out_count`
+/// vertices to `out_points` as x,y pairs, each its pixel's located edge point
+/// or its centre and inside that pixel's half-open square, so a vertex passed
+/// back as `from` names the pixel it came from (`edge_trace` module doc,
+/// step 7), `*out_fasten` (the vertex to fasten at, or −1) and
+/// `*out_corridor` (the corridor's pixel count). A trail that leaves
 /// `2·width` of `from`, comes back within it and encloses at least
 /// `width ×` its farthest distance in area is a loop, at any frequency:
 /// two legs joined near its farthest point, the junction a fasten candidate
