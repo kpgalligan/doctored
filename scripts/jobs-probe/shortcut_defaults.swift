@@ -58,7 +58,8 @@ private let expectedDefaultChords: Set<String> = [
 private let expectedToolLetters: [String: String] = [
     "select": "m", "ellipseSelect": "m", "lasso": "l", "freehandLasso": "l",
     "magneticLasso": "l", "wand": "w", "quickSelect": "w", "objectSelect": "w", "subject": "w",
-    "move": "v", "brush": "b", "pencil": "b", "eraser": "e", "magicEraser": "e", "fill": "g",
+    "move": "v", "brush": "b", "pencil": "b", "eraser": "e", "magicEraser": "e",
+    "backgroundEraser": "e", "fill": "g",
     "gradient": "g", "text": "t",
     "eyedropper": "i", "colorSampler": "i", "ruler": "i", "crop": "c", "perspectiveCrop": "c",
     "clone": "s", "dodge": "o", "sponge": "o", "blurBrush": "r", "sharpenBrush": "r",

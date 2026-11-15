@@ -73,6 +73,9 @@ enum EditorTool: Int, CaseIterable {
     // Select and move anchors and handles of the current path, and delete
     // anchors; shares the Pen's slot.
     case directSelect
+    // Erases, under the tip, the pixels like a sampled colour; shares the
+    // Eraser's slot (`designs/background-eraser.md`).
+    case backgroundEraser
 
     /// True for the two tools that select within the current path
     /// (PathSelectSession.swift).
@@ -135,6 +138,7 @@ enum EditorTool: Int, CaseIterable {
         case .magicEraser: return "Magic Eraser"
         case .pathSelect: return "Path Selection"
         case .directSelect: return "Direct Selection"
+        case .backgroundEraser: return "Background Eraser"
         }
     }
 
@@ -187,6 +191,7 @@ enum EditorTool: Int, CaseIterable {
         case .magicEraser: return "eraser.fill"
         case .pathSelect: return "cursorarrow"
         case .directSelect: return "cursorarrow.rays"
+        case .backgroundEraser: return "eraser.line.dashed.fill"
         }
     }
 
@@ -260,6 +265,8 @@ enum EditorTool: Int, CaseIterable {
         // The Pen's slot draws them beside its P: their key, A, and Direct's D.
         case .pathSelect: return "A"
         case .directSelect: return "D"
+        // backGround: B, N, E, M, J, Y and A are the paint group's.
+        case .backgroundEraser: return "G"
         }
     }
 
@@ -313,6 +320,8 @@ enum EditorTool: Int, CaseIterable {
         case .magicEraser: return #selector(EditorViewController.selectMagicEraserTool(_:))
         case .pathSelect: return #selector(EditorViewController.selectPathSelectTool(_:))
         case .directSelect: return #selector(EditorViewController.selectDirectSelectTool(_:))
+        case .backgroundEraser:
+            return #selector(EditorViewController.selectBackgroundEraserTool(_:))
         }
     }
 
@@ -329,7 +338,7 @@ enum EditorTool: Int, CaseIterable {
             .contentAwareMove:
             return .crosshair
         case .artHistoryBrush, .pencil: return .crosshair
-        case .magicEraser: return .crosshair
+        case .magicEraser, .backgroundEraser: return .crosshair
         // They pick out what is already drawn, as a pointer does.
         case .pathSelect, .directSelect: return .arrow
         case .move, .hand:
@@ -365,8 +374,8 @@ enum EditorTool: Int, CaseIterable {
         case .move: return "v"
         // The Brush and the Pencil share B and cycle in rail order.
         case .brush, .pencil: return "b"
-        // The Eraser and the Magic Eraser share E and cycle in rail order.
-        case .eraser, .magicEraser: return "e"
+        // The three erasers share E and cycle in rail order.
+        case .eraser, .magicEraser, .backgroundEraser: return "e"
         // The G slot: Paint Bucket and Gradient share it and cycle.
         case .fill, .gradient: return "g"
         case .text: return "t"
@@ -450,6 +459,7 @@ enum EditorTool: Int, CaseIterable {
         case .artHistoryBrush, .pencil: return 1
         case .magicEraser: return 1
         case .pathSelect, .directSelect: return 1
+        case .backgroundEraser: return 1
         }
     }
 
@@ -482,6 +492,9 @@ enum EditorTool: Int, CaseIterable {
         case .artHistoryBrush: return 200
         case .magicEraser: return 200
         case .pathSelect, .directSelect: return 200
+        // Its stroke is bounded by the core's 256 million work units, as Smudge's is
+        // (`NativeBrushStroke.maximumSmudgeWork`); 1,000 is the Remove brush's ceiling.
+        case .backgroundEraser: return 1000
         }
     }
 
@@ -502,6 +515,7 @@ enum EditorTool: Int, CaseIterable {
         case .artHistoryBrush, .pencil: return true
         case .magicEraser: return false
         case .pathSelect, .directSelect: return false
+        case .backgroundEraser: return true
         case .select, .ellipseSelect, .lasso, .wand, .subject, .move, .fill, .gradient,
             .text, .eyedropper, .crop, .patch, .redEye, .shapeRect, .shapeEllipse,
             .shapeLine, .zoom, .hand, .freehandLasso, .quickSelect, .magneticLasso,
@@ -525,20 +539,21 @@ enum EditorTool: Int, CaseIterable {
             .remove, .contentAwareMove:
             return false
         case .artHistoryBrush, .pencil: return false
-        case .magicEraser: return false
+        case .magicEraser, .backgroundEraser: return false
         case .pathSelect, .directSelect: return false
         }
     }
 
     /// True for the tools whose stroke is read as COVERAGE alone: the canvas
     /// draws their overlay in white ink, and the controller hands its alpha to
-    /// an op that reworks the layer's own pixels (Dodge / Burn, Blur, Sharpen, Smudge, Sponge
-    /// and History Brush) rather than compositing a colour. Exhaustive on purpose.
+    /// an op that reworks the layer's own pixels (Dodge / Burn, Blur, Sharpen, Smudge, Sponge,
+    /// History Brush, Art History Brush and Background Eraser) rather than compositing a colour.
+    /// Exhaustive on purpose.
     var strokeIsCoverage: Bool {
         switch self {
         case .dodge, .blurBrush, .sharpenBrush, .smudge, .sponge, .historyBrush:
             return true
-        case .artHistoryBrush: return true
+        case .artHistoryBrush, .backgroundEraser: return true
         case .brush, .eraser, .clone, .heal, .spotHeal, .select, .ellipseSelect, .lasso, .wand,
             .subject, .move, .fill, .gradient, .text, .eyedropper, .crop, .patch, .redEye,
             .shapeRect, .shapeEllipse, .shapeLine, .zoom, .hand, .freehandLasso, .quickSelect,
@@ -568,7 +583,8 @@ enum EditorTool: Int, CaseIterable {
          .objectSelect, .subject],
         [.crop, .perspectiveCrop],
         [.move],
-        [.brush, .pencil, .eraser, .magicEraser, .clone, .historyBrush, .artHistoryBrush],
+        [.brush, .pencil, .eraser, .magicEraser, .backgroundEraser, .clone, .historyBrush,
+         .artHistoryBrush],
         // The healing slot, immediately below the paint group.
         [.spotHeal, .remove, .heal, .patch, .contentAwareMove, .redEye],
         // The toning and focus tools in one slot.

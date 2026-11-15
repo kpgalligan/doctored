@@ -222,7 +222,7 @@ struct ShapeToolPreview {
             name = "rect"
         case .artHistoryBrush, .pencil:
             name = "rect"
-        case .magicEraser:
+        case .magicEraser, .backgroundEraser:
             name = "rect"
         case .pathSelect, .directSelect:
             name = "rect"

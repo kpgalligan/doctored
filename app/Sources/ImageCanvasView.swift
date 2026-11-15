@@ -1935,7 +1935,7 @@ final class ImageCanvasView: NSView {
                                  modifiers: event.modifierFlags)
             }
         case .dodge, .spotHeal, .blurBrush, .sharpenBrush, .smudge, .sponge, .historyBrush,
-            .artHistoryBrush:
+            .artHistoryBrush, .backgroundEraser:
             beginStrokePress(at: point, pressure: Self.tabletPressure(of: event),
                              modifiers: event.modifierFlags)
         case .patch, .contentAwareMove:
@@ -2141,7 +2141,7 @@ final class ImageCanvasView: NSView {
                 Int((raw.x - origin.x).rounded()), Int((raw.y - origin.y).rounded()),
                 event.modifierFlags)
         case .brush, .eraser, .clone, .dodge, .heal, .spotHeal, .blurBrush, .sharpenBrush,
-            .smudge, .sponge, .historyBrush, .artHistoryBrush, .pencil:
+            .smudge, .sponge, .historyBrush, .artHistoryBrush, .pencil, .backgroundEraser:
             // No clamping: the image-sized overlay context clips naturally,
             // so a stroke that leaves the canvas paints up to the edge and
             // stops instead of smearing along the border.
@@ -2331,7 +2331,7 @@ final class ImageCanvasView: NSView {
             window?.invalidateCursorRects(for: self)
             onMoveEnd?()
         case .brush, .eraser, .clone, .dodge, .heal, .spotHeal, .blurBrush, .sharpenBrush,
-            .smudge, .sponge, .historyBrush, .artHistoryBrush, .pencil:
+            .smudge, .sponge, .historyBrush, .artHistoryBrush, .pencil, .backgroundEraser:
             endStroke(at: convert(event.locationInWindow, from: nil))
         case .patch, .contentAwareMove:
             let up = clamp(point: convert(event.locationInWindow, from: nil))
@@ -2554,7 +2554,8 @@ final class ImageCanvasView: NSView {
                 size: brushSize, pressureOpacity: brushPressureOpacity && pressure != nil,
                 strokeOpacity: Double(brushOpacity), erasing: tool == .eraser,
                 overflow: .stopInk(canvasPixels: overlayWidth * overlayHeight),
-                smudging: tool == .smudge) : nil
+                smudging: tool == .smudge,
+                backgroundErasing: tool == .backgroundEraser) : nil
         if onCoverage && !nativeBrushEnabled && nativeStrokeSession != nil {
             strokeCoverageScale = brushOpacity
         }
@@ -2931,6 +2932,7 @@ final class ImageCanvasView: NSView {
         case .sponge: return "Sponge"
         case .historyBrush: return "History Brush"
         case .artHistoryBrush: return "Art History Brush"
+        case .backgroundEraser: return BackgroundEraser.name
         case .pencil: return "Pencil"
         case .heal: return "Healing Brush"
         case .spotHeal: return "Spot Healing"

@@ -315,6 +315,16 @@ struct MagicEraserToolOptions: Codable, Equatable {
     var opacity: Double = 100
 }
 
+/// The Background Eraser's own options (`designs/background-eraser.md`); its tip is the
+/// `backgroundEraser` paint slot. Sampling: 0 Continuous, 1 Once, 2 Background Swatch;
+/// Limits: 0 Contiguous, 1 Discontiguous (`BackgroundEraserOptions`).
+struct BackgroundEraserToolOptions: Codable, Equatable {
+    var tolerance: Double = 32
+    var samplingIndex = 0
+    var limitsIndex = 0
+    var protectForeground = false
+}
+
 struct GradientToolOptions: Codable, Equatable {
     /// 0 linear, 1 radial, 2 angle, 3 reflected, 4 diamond: an
     /// `DrGradientKind` raw value.
@@ -567,6 +577,12 @@ final class ToolOptionsStore {
     }
     var fill: FillToolOptions { didSet { save(fill, "fill") } }
     var magicEraser: MagicEraserToolOptions { didSet { save(magicEraser, "magicEraser") } }
+    /// The Background Eraser's tip (size, hardness, spacing, angle, roundness, the pressure
+    /// size toggle); opacity, flow and airbrush are pinned (`backgroundEraserTip`).
+    var backgroundEraser: PaintToolOptions { didSet { save(backgroundEraser, "backgroundEraser") } }
+    var backgroundEraserOptions: BackgroundEraserToolOptions {
+        didSet { save(backgroundEraserOptions, "backgroundEraserOptions") }
+    }
     var gradient: GradientToolOptions { didSet { save(gradient, "gradient") } }
     var shape: ShapeToolOptions { didSet { save(shape, "shape") } }
     var text: TextToolOptions { didSet { save(text, "text") } }
@@ -600,6 +616,7 @@ final class ToolOptionsStore {
         case .artHistoryBrush: options = artHistoryBrush
         case .remove: options = remove
         case .pencil: options = Self.pencilTip(pencil)
+        case .backgroundEraser: options = Self.backgroundEraserTip(backgroundEraser)
         default: return nil
         }
         options.size = min(max(options.size, tool.minimumBrushSize), tool.maximumBrushSize)
@@ -621,6 +638,19 @@ final class ToolOptionsStore {
         return out
     }
 
+    /// The Background Eraser's tip with what the tool does not have pinned: opacity and flow
+    /// 100 (a pixel it reaches is erased by the tip's coverage alone), no airbrush and no
+    /// pressure opacity. Pinned both ways, as `pencilTip` is.
+    static func backgroundEraserTip(_ options: PaintToolOptions) -> PaintToolOptions {
+        var out = options
+        out.opacity = 100
+        out.flow = 100
+        out.airbrush = false
+        out.pressureOpacity = false
+        out.blendIndex = 0
+        return out
+    }
+
     func setPaintOptions(_ options: PaintToolOptions, for tool: EditorTool) {
         var options = options
         options.size = min(max(options.size, tool.minimumBrushSize), tool.maximumBrushSize)
@@ -638,6 +668,7 @@ final class ToolOptionsStore {
         case .historyBrush: historyBrush = options
         case .artHistoryBrush: artHistoryBrush = options
         case .pencil: pencil = Self.pencilTip(options)
+        case .backgroundEraser: backgroundEraser = Self.backgroundEraserTip(options)
         case .remove:
             // Size, Sample and the output are the whole tool. The tip keys
             // (`{` `}` `,` `.`) reach here through the shared paint path, and
@@ -702,6 +733,12 @@ final class ToolOptionsStore {
         colorRangeDialog = Self.load("colorRangeDialog", default: ColorRangeDialogOptions())
         fill = Self.load("fill", default: FillToolOptions())
         magicEraser = Self.load("magicEraser", default: MagicEraserToolOptions())
+        // A 40 px hard round brush.
+        backgroundEraser = Self.backgroundEraserTip(Self.load(
+            "backgroundEraser", default: PaintToolOptions(size: BackgroundEraser.defaultSize),
+            droppingStale: Self.paintStale).migratedToLiveTip)
+        backgroundEraserOptions = Self.load(
+            "backgroundEraserOptions", default: BackgroundEraserToolOptions())
         gradient = Self.load("gradient", default: GradientToolOptions())
         shape = Self.load("shape", default: ShapeToolOptions())
         text = Self.load("text", default: TextToolOptions())

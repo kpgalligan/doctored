@@ -2,8 +2,8 @@
 
 - **Status:** Accepted — shipped
 - **Date:** 2026-11-14
-- **Issue:** part of [#18](https://github.com/kpgalligan/doctored/issues/18) (the Background Eraser
-  and brush dynamics remain there)
+- **Issue:** part of [#18](https://github.com/kpgalligan/doctored/issues/18) (brush dynamics remains
+  there; the Background Eraser shipped: [ADR](background-eraser.md))
 
 ## Context
 A click tool that clears a region of like colour is the quickest way to drop a flat background from a
@@ -12,7 +12,7 @@ Eraser, Edit ▸ Fill…'s Clear), at every depth and in every colour mode.
 
 ## Decisions
 - **The tool.** The Magic Eraser sits in the Eraser's rail slot, right after the Eraser; bare E cycles the
-  two. Its options bar: Tolerance (0–255, default 32), Contiguous (on), Sample All Layers (off), Opacity
+  slot's erasers (the Background Eraser follows it). Its options bar: Tolerance (0–255, default 32), Contiguous (on), Sample All Layers (off), Opacity
   (1–100 %, default 100). The options are tool options (UserDefaults), so no document state and no DRDC
   word.
 - **The region** is the Magic Wand's from the clicked pixel at Point Sample: every pixel whose R, G, B,

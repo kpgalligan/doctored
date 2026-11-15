@@ -245,6 +245,7 @@ extension AgentServer {
         catalog.append(contentsOf: brushPresetCatalog())
         catalog.append(contentsOf: patternCatalog())
         catalog.append(contentsOf: magicEraserCatalog())
+        catalog.append(contentsOf: backgroundEraserCatalog(schema))
         catalog.append(contentsOf: gradientPresetCatalog())
         catalog.append(contentsOf: stylePresetCatalog())
         catalog.append(contentsOf: canvasFramingCatalog())

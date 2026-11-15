@@ -130,6 +130,7 @@ extension AgentServer {
         ("spotChannelsHandlers", spotChannelsHandlers),
         ("missingFontsHandlers", missingFontsHandlers),
         ("magicEraserHandlers", magicEraserHandlers),
+        ("backgroundEraserHandlers", backgroundEraserHandlers),
     ]
 
     /// Tool name → handler: the union of `handlerTables` (the first table
@@ -291,6 +292,7 @@ extension AgentServer {
         ("spotChannelsToolFacts", spotChannelsToolFacts),
         ("missingFontsToolFacts", missingFontsToolFacts),
         ("magicEraserToolFacts", magicEraserToolFacts),
+        ("backgroundEraserToolFacts", backgroundEraserToolFacts),
     ]
 
     /// Tool name → facts: the union of `factTables` (the first table wins a

@@ -2488,6 +2488,7 @@ extension EditorViewController: NSUserInterfaceValidations {
         #selector(selectBrushTool(_:)): .brush,
         #selector(selectEraserTool(_:)): .eraser,
         #selector(selectMagicEraserTool(_:)): .magicEraser,
+        #selector(selectBackgroundEraserTool(_:)): .backgroundEraser,
         #selector(selectFillTool(_:)): .fill,
         #selector(selectGradientTool(_:)): .gradient,
         #selector(selectTextTool(_:)): .text,

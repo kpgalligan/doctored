@@ -67,9 +67,9 @@ extension AgentServer {
     func annotateNativePaintCatalog(_ name: String, properties: inout [String: Any]) {
         if ["brush_stroke", "eraser_stroke", "clone_stamp", "heal_stroke", "spot_heal_stroke", "dodge_burn", "quick_mask_stroke",
             "blur_stroke", "sharpen_stroke", "smudge_stroke", "sponge_stroke", "history_brush_stroke",
-            "art_history_brush_stroke"].contains(name) {
+            "art_history_brush_stroke", "background_eraser_stroke"].contains(name) {
             properties["stroke_version"] = ["type": "integer", "enum": [1],
-                "description": "Generate canonical resolved dabs from points and optional pressures/times. Byte and 16-bit stroke tools accept this form, including byte mask/plane/channel, pixel and Quick Mask coverage. At 8 bits, omit for the historical point footprint; at 16 bits unversioned points generate the same native dabs (unit pressure, no timing) and refuse by name at the 50,000-dab and 2-billion-work-unit limits; smudge_stroke has its own 256-million-work-unit bound at both depths (it walks the stroke a pixel at a time) and refuses a longer stroke by name. A versioned call refuses a size outside its tool's range by name (1–\(Int(EditorTool.brush.maximumBrushSize)) px; \(Int(EditorTool.heal.minimumBrushSize))–\(Int(EditorTool.heal.maximumBrushSize)) for heal_stroke and spot_heal_stroke; 1–\(Int(EditorTool.smudge.maximumBrushSize)) for blur_stroke, sharpen_stroke, smudge_stroke, sponge_stroke and history_brush_stroke; 1–\(Int(EditorTool.artHistoryBrush.maximumBrushSize)) for art_history_brush_stroke); an unversioned call clamps it. Maximum 50,000 dabs; oversized strokes refuse by name; no partial stroke."]
+                "description": "Generate canonical resolved dabs from points and optional pressures/times. Byte and 16-bit stroke tools accept this form, including byte mask/plane/channel, pixel and Quick Mask coverage. At 8 bits, omit for the historical point footprint; at 16 bits unversioned points generate the same native dabs (unit pressure, no timing) and refuse by name at the 50,000-dab and 2-billion-work-unit limits; smudge_stroke and background_eraser_stroke have their own 256-million-work-unit bound at every depth and refuse a longer stroke by name. A versioned call refuses a size outside its tool's range by name (1–\(Int(EditorTool.brush.maximumBrushSize)) px; \(Int(EditorTool.heal.minimumBrushSize))–\(Int(EditorTool.heal.maximumBrushSize)) for heal_stroke and spot_heal_stroke; 1–\(Int(EditorTool.smudge.maximumBrushSize)) for blur_stroke, sharpen_stroke, smudge_stroke, sponge_stroke and history_brush_stroke; 1–\(Int(EditorTool.artHistoryBrush.maximumBrushSize)) for art_history_brush_stroke; 1–\(Int(EditorTool.backgroundEraser.maximumBrushSize)) for background_eraser_stroke); an unversioned call clamps it. Maximum 50,000 dabs; oversized strokes refuse by name; no partial stroke."]
             properties["pressures"] = ["type": "array", "items": ["type": "number", "minimum": 0, "maximum": 1],
                 "description": "With stroke_version=1, one tablet pressure per point; default 1."]
             properties["times"] = ["type": "array", "items": ["type": "number", "minimum": 0],
@@ -81,6 +81,12 @@ extension AgentServer {
             properties["airbrush"] = ["type": "boolean", "description": "Generate 20 Hz held deposits using the declared sample times/duration."]
             properties["native_stroke"] = ["type": "object",
                 "description": "Canonical RZBR version1 replay: version=1, encoding=le_f64_xy_diameter_opacity, dabs=base64 little-endian binary64 quadruples, hardness, roundness, angle_degrees, pixel, and optionally aliased (true is the Pencil's tip, which brush_stroke and quick_mask_stroke take; recordings write it only then). Mutually exclusive with generation options; recorded automatically. Byte commits and replay share one exact dab rasterizer; at 8 bits historical unversioned points keep their prior meaning."]
+        }
+        // The Background Eraser's opacity and flow are pinned: the two generation keys that
+        // would vary a dab's deposit are refused by name, so they are not offered.
+        if name == "background_eraser_stroke" {
+            properties.removeValue(forKey: "pressure_opacity")
+            properties.removeValue(forKey: "airbrush")
         }
         // The Pencil (the Brush's slot ▸ Pencil): its tip on the Brush's stroke.
         if AgentServer.aliasedStrokeTools.contains(name) {

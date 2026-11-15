@@ -92,6 +92,7 @@ extension AgentServer {
         case "blur_stroke", "sharpen_stroke", "smudge_stroke", "sponge_stroke", "history_brush_stroke":
             return try precisionRetouchBrush(tool, a, document: document)
         case "art_history_brush_stroke": return try precisionArtHistoryBrush(a, document: document)
+        case "background_eraser_stroke": return try precisionBackgroundEraser(a, document: document)
         case "sample_color": return try precisionSampleColor(a, document: document)
         case "sample_pixel": return try precisionSample(a, document: document)
         case "histogram": return try precisionHistogram(a, document: document)

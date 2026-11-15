@@ -32,6 +32,10 @@ struct PrecisionStrokeWork {
         /// painted from layer `sourceLayer` of `source`; `request` is
         /// `ArtHistoryOptions.request`.
         case artHistory(source: RasterPrecisionDocument, sourceLayer: Int, request: String)
+        /// The Background Eraser: the core's coverage plane of the stroke's dabs on `layer`
+        /// (`request` is `BackgroundEraserOptions.request`) in place of the footprint, then
+        /// `command`, the `erase_native` it plans.
+        case backgroundEraser(request: String)
     }
 
     let kind: Kind
@@ -79,6 +83,8 @@ struct PrecisionStrokeWork {
         let plan: [String: Any]
         let pixels = UInt64(width) * UInt64(height)
         let planned: UInt64
+        // The Background Eraser's coverage plan, beside its `erase_native` plan.
+        var coverageScratch: UInt64 = 0
         switch kind {
         case .edit:
             plan = try source.pixelEditPlan(request: command.request, workingLimit: context.limit,
@@ -100,6 +106,14 @@ struct PrecisionStrokeWork {
                 dabs: stroke.dabs, selection: selection != nil, workingLimit: context.limit,
                 otherRetained: context.otherRetained)
             planned = selection == nil ? 0 : pixels
+        case .backgroundEraser(let request):
+            let coverage = try source.backgroundEraserCoveragePlan(layer: layer, request: request,
+                brushRequest: stroke.request, dabs: stroke.dabs, workingLimit: context.limit,
+                otherRetained: context.otherRetained)
+            coverageScratch = try PrecisionDocumentDescriptor.integer(coverage, "scratch_bytes")
+            plan = try source.pixelEditPlan(request: command.request, workingLimit: context.limit,
+                                            otherRetained: context.otherRetained)
+            planned = pixels * (selection == nil ? 1 : 2)
         }
         guard try PrecisionDocumentDescriptor.integer(plan, "input_samples") == planned,
               selection.map({ $0.count == width * height }) ?? true else {
@@ -119,6 +133,8 @@ struct PrecisionStrokeWork {
         switch kind {
         case .smudge, .artHistory:
             scratchEstimate = editScratch
+        case .backgroundEraser:
+            scratchEstimate = try PrecisionDocumentDescriptor.sum(coverageScratch, editScratch)
         case .edit, .historyBrush:
             scratchEstimate = try PrecisionDocumentDescriptor.sum(
                 stroke.footprintPlan(width: width, height: height), editScratch)
@@ -142,8 +158,17 @@ struct PrecisionStrokeWork {
                 dabs: stroke.dabs, selection: selection, workingLimit: context.limit,
                 otherRetained: context.otherRetained, control: control)
         }
+        // The Background Eraser's coverage plane stands where every other stroke's footprint
+        // does; `command` (its `erase_native`) erases it.
         let footprint = try control.withChildOperation(from: 0, to: 0.2) { child in
-            try stroke.footprint(width: width, height: height, control: child)
+            if case .backgroundEraser(let request) = kind {
+                let context = try PrecisionWorkContext(source: source)
+                return try source.backgroundEraserCoverage(layer: layer, request: request,
+                    brushRequest: stroke.request, dabs: stroke.dabs, width: width, height: height,
+                    workingLimit: context.limit, otherRetained: context.otherRetained,
+                    control: child)
+            }
+            return try stroke.footprint(width: width, height: height, control: child)
         }
         if control.isCancelled { throw JobCancelled() }
         return try control.withChildOperation(from: 0.2, to: 1) { child in

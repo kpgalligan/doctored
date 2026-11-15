@@ -773,6 +773,10 @@ Detail belongs in the source file's own header comment.
 - `EditorViewController+BucketFill.swift` — the Fill tool's Contents, Mode and Sample all layers, and MCP `fill`'s `blend_mode` / `sample_all_layers`.
 - `MagicEraser.swift` / `EditorViewController+MagicEraser.swift` — the Magic Eraser: the wand's region erased (8-bit Clear, typed `erase_native`), click, options.
 - `AgentServer+MagicEraser.swift` / `AgentCatalog+MagicEraser.swift` — MCP `magic_eraser`, the Magic Eraser's click, and its catalog entry.
+- `BackgroundEraser.swift` — the Background Eraser's options, colours, core request, sentences and the 8-bit erase.
+- `EditorViewController+BackgroundEraser.swift` — the Background Eraser's mouse-down latch and refusals, 8-bit tick, typed `erase_native`, options bar.
+- `DoctoredCore+BackgroundEraser.swift` — `dr_doc_background_eraser_layer` and the typed coverage plane with its plan.
+- `AgentServer+BackgroundEraser.swift` / `AgentCatalog+BackgroundEraser.swift` — MCP `background_eraser_stroke` and its catalog entry.
 - `ImageCanvasView+EyedropperRing.swift` / `EditorViewController+Eyedropper.swift` — the eyedropper sampling ring, Sample from and recent swatches.
 - `ShapeStrokeStyle.swift` — the shape stroke join, dash and alignment, and `ShapeLayer.strokeOutline`, the one outline every renderer fills.
 - `PathModel.swift` — path values: `PathAnchor`, `PathSubpath`, `PathShape`, `PathEntry`, `PathClipping`, `PathSet`, `PathTarget`, `PathHit`, `VectorMaskInfo`.

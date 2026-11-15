@@ -486,7 +486,9 @@ impl BrushRequest {
             sum / 64.
         }
     }
-    fn quantize(&self, value: f64) -> u16 {
+    /// The stroke's one rounding: the accumulated field at the request's
+    /// opacity, as a u16 code (`background_eraser` quantizes its field here too).
+    pub(crate) fn quantize(&self, value: f64) -> u16 {
         (value.clamp(0., 1.) * self.opacity * 65535.).round() as u16
     }
 }
@@ -554,7 +556,8 @@ fn unit(v: f64) -> bool {
 fn one() -> f64 {
     1.
 }
-fn bounds(d: &[f64], (w, h): (u32, u32)) -> [usize; 4] {
+/// One dab's box `[x0, y0, x1, y1)` clipped to the canvas.
+pub(crate) fn bounds(d: &[f64], (w, h): (u32, u32)) -> [usize; 4] {
     let radius = d[2] / 2.;
     [
         (d[0] - radius).floor().clamp(0., f64::from(w)) as usize,

@@ -133,12 +133,13 @@ extension ImageCanvasView {
 
     /// Strokes the outline in the clone source marker's two-pass style:
     /// a dark halo, then a light hairline, both constant in screen points.
-    /// The Magnetic Lasso's ring adds a centre cross of 3-point arms, the
-    /// pointer's hot spot.
+    /// The Magnetic Lasso's ring and the Background Eraser's tip add a centre
+    /// cross of 3-point arms, the pointer's hot spot (for the Background
+    /// Eraser, the pixel each dab samples).
     func drawBrushOutline() {
         guard let outline = pointerOutline else { return }
         let path = outline.path
-        if brushOutline == nil {
+        if brushOutline == nil || tool == .backgroundEraser {
             let arm = 3 / outline.magnification
             let c = outline.center
             path.move(to: CGPoint(x: c.x - arm, y: c.y))

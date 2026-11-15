@@ -255,6 +255,9 @@ Detail belongs in the source file's own header comment.
 - `precision_smudge.rs` — 16-bit `smudge_plan` / `smudge` over the stroke's footprint, quantized to u16 once.
 - `precision_art_history.rs` — typed Art History Brush: depth refusals (16-bit, 32-bit, 16-bit CMYK), plan, lock gate, dispatch to CMYK and 8-bit Gray and Lab.
 - `ffi_retouch_brush.rs` — the ten retouch-brush exports: byte retouch / history / smudge / art history, typed smudge, history and art history brush with plans.
+- `background_eraser.rs` — KERNEL of the Background Eraser: request, plan (256M work bound), per-dab reference, like/protect test, contiguous walk, coverage field.
+- `doc_background_eraser.rs` / `precision_background_eraser.rs` — byte adapter (field erased by the walk's Clear) and typed coverage plane per mode (`erase_native` erases it).
+- `ffi_background_eraser.rs` — `dr_doc_background_eraser_layer` and the typed `dr_precision_doc_background_eraser_coverage` with its plan.
 - `precision_inpaint.rs` / `inpaint_sample.rs` — the shared PatchMatch pipeline's native f32 specialization, carrying u16-code source RGB through search, pyramid, vote and membrane solve.
 - `doc_retouch_output.rs` — retouching onto a NEW layer above the target, through the SHIPPED heal against a one-layer temporary document made from the sampling plate.
 - `doc_redeye.rs` — red-eye: red DOMINANCE inside a canvas rect, a component gate against the rect's shorter side, and the neutralize-then-darken correction.

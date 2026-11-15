@@ -100,7 +100,7 @@ left free (the shortcut probe's test chord).
 - **What fades.** The last edit, when its one recorded step (or the hint an agent call, a job or a stroke leaves,
   `ImageDocument.fadeHint`) is in `FadeStep.regionTools` (apply_filter, auto_tone, auto_contrast, auto_color, liquify,
   fill_selection, gradient) or `FadeStep.strokeTools` (stroke_selection, fill, magic_eraser and the paint and retouch
-  strokes) with `target` absent or "layer". `applyEdit` and `endLiveEdit` note the candidate after registering their
+  strokes, background_eraser_stroke among them) with `target` absent or "layer". `applyEdit` and `endLiveEdit` note the candidate after registering their
   history. Indexed Color offers Fade after no step (`fade` is outside `IndexedDocument.tools`).
 - **Unavailable after anything else** (`currentFadeCandidate`): the document must still be the step's result, with
   the same selection, layer selection, the layer as paint target and no Quick Mask; undo, redo or a History jump
@@ -127,4 +127,4 @@ left free (the shortcut probe's test chord).
 `make t F=fade` (W3C oracle, transparent pixels at every depth, refusals, null safety); jobs-probe "fade sheet"
 and "curves sheet"; `scripts/verify_v1_fade.py` (MCP at 8/16/32 bits, refusals, undo, Actions replay);
 `scripts/verify_magic_eraser.py` M5 (a Magic Eraser click faded at 8/16/32 bits and in Gray, Lab and CMYK; Indexed
-refuses).
+refuses); `scripts/verify_background_eraser.py` B5 (a Background Eraser stroke faded at 8 and 16 bits).

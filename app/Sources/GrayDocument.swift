@@ -177,6 +177,8 @@ enum GrayDocument {
         "define_pattern",
         // The Magic Eraser (`designs/magic-eraser.md`), on the gray values.
         "magic_eraser",
+        // The Background Eraser (`designs/background-eraser.md`), on the gray values.
+        "background_eraser_stroke",
     ]
 
     /// The admitted tools that then answer the depth's own rules (`DocumentPrecision.refusal`):
@@ -235,8 +237,8 @@ enum GrayDocument {
         "select_generative_variation", "generate_variations",
         // The close: Distort, Modify Native Plane and the proof presets.
         "distort_layer", "modify_scalar", "save_proof_preset",
-        // The Magic Eraser (the same list as `tools`).
-        "magic_eraser",
+        // The Magic Eraser and the Background Eraser (the same list as `tools`).
+        "magic_eraser", "background_eraser_stroke",
     ]
 
     /// Phase 5b's View ▸ Proof Setup, Proof Colors and Gamut Warning items, enabled at 8 and 16
@@ -626,7 +628,7 @@ enum GrayDocument {
     static func allows(_ tool: EditorTool) -> Bool {
         switch tool {
         case .select, .ellipseSelect, .lasso, .freehandLasso, .hand, .zoom, .eyedropper,
-             .brush, .eraser, .fill, .gradient, .magicEraser,
+             .brush, .eraser, .fill, .gradient, .magicEraser, .backgroundEraser,
              .dodge, .sponge, .blurBrush, .sharpenBrush, .smudge, .historyBrush, .clone, .heal,
              .spotHeal, .patch, .contentAwareMove, .remove, .artHistoryBrush,
              .wand, .quickSelect, .objectSelect, .subject, .move, .crop, .perspectiveCrop, .ruler,

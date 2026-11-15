@@ -94,6 +94,8 @@ extension EditorViewController {
             return fillClusters()
         case .magicEraser:
             return magicEraserClusters()
+        case .backgroundEraser:
+            return backgroundEraserClusters()
         case .gradient:
             return gradientClusters()
         case .shapeRect, .shapeEllipse, .shapeLine:

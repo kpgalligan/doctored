@@ -759,8 +759,9 @@ GRAY_TOOLS = sorted([
     'place_image', 'add_live_photo_layer',
     # Edit ▸ Define Pattern… (the gray code at 8 bits).
     'define_pattern',
-    # The Magic Eraser (designs/magic-eraser.md).
-    'magic_eraser',
+    # The Magic Eraser (designs/magic-eraser.md) and the Background Eraser
+    # (designs/background-eraser.md).
+    'magic_eraser', 'background_eraser_stroke',
     # #1 spot channels (18b81bc6).
     'add_spot_channel', 'set_spot_channel', 'merge_spot_channel', 'set_channel_kind'])
 GRAY_MODES = ['Normal', 'Dissolve', 'Darken', 'Multiply', 'Color Burn', 'Linear Burn', 'Lighten',

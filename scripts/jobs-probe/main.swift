@@ -364,6 +364,8 @@ do {
         ("style gradient stops", verifyStyleGradientStops),
         // #18: the Magic Eraser tool (magic_eraser.swift).
         ("magic eraser", verifyMagicEraser),
+        // #18: the Background Eraser tool (background_eraser.swift).
+        ("background eraser", verifyBackgroundEraser),
         ("action failure prompt", verifyActionFailurePrompt),
         ("inverse no selection", verifyInverseNoSelection),
         ("progress panel reuse", verifyProgressPanelReuse),

@@ -34,6 +34,10 @@ struct BytePaintStrokeCapture {
     /// The Art History Brush's seed, drawn at mouse-down and
     /// recorded, so every tick and the replay lay the same strokes.
     var artSeed: UInt32 = 0
+    /// The Background Eraser's options and their core request, latched at
+    /// mouse-down (`EditorViewController.latchBackgroundEraser`).
+    var backgroundEraser: BackgroundEraserOptions?
+    var backgroundEraserRequest: String?
 }
 
 enum ByteDabInk {

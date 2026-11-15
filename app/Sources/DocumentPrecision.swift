@@ -283,12 +283,16 @@ enum DocumentPrecision {
                 if let refusal = AgentServer.sampledTargetRefusal(arguments) { return refusal }
                 // The handler's own sentence, which the 8-bit and float routes give.
                 if tool == "magic_eraser" { return MagicEraser.targetRefusal }
+                if tool == "background_eraser_stroke" { return BackgroundEraser.targetRefusal }
                 guard ["brush_stroke", "eraser_stroke", "fill", "gradient", "clear_selection", "apply_filter", "auto_tone", "auto_contrast", "auto_color", "fill_selection", "stroke_selection"].contains(tool) else {
                     return scalarTargetRefusal(tool)
                 }
                 return nil // Scalar request validation resolves its exact plane and raw extent.
             }
             if tool == "magic_eraser", arguments["blend_mode"] != nil { return MagicEraser.blendRefusal }
+            if tool == "background_eraser_stroke", arguments["blend_mode"] != nil {
+                return BackgroundEraser.blendRefusal
+            }
             if document.quickMaskActive { return OperationScope.quickMaskRefusal }
             let index = integer(arguments["layer"]) ?? integer(arguments["index"]) ?? document.activeLayerIndex
             if ["brush_stroke", "eraser_stroke"].contains(tool), doc.layerIsAdjustment(index), doc.layerHasMask(index) { return nil }
@@ -534,8 +538,8 @@ enum DocumentPrecision {
             "edit_adjustment_layer":"adjustment_set", "apply_filter":"adjustment_apply",
             // The other geometry tools name their family through `geometryFamily`.
             "warp_layer":"geometry_warp", "brush_stroke":"paint", "eraser_stroke":"erase",
-            // The Magic Eraser erases as the Eraser does.
-            "magic_eraser":"erase",
+            // The Magic Eraser and the Background Eraser erase as the Eraser does.
+            "magic_eraser":"erase", "background_eraser_stroke":"erase",
             // Edit ▸ Puppet Warp.
             "puppet_warp":"geometry_puppet",
             // Edit ▸ Perspective Warp.
@@ -708,6 +712,8 @@ enum DocumentPrecision {
             case .magneticLasso: return true
             // The Magic Wand's region on the display copy, erased in linear light.
             case .magicEraser: return true
+            // Its like colours on the display copy, erased in linear light.
+            case .backgroundEraser: return true
             default: return false
             }
         }
@@ -726,6 +732,8 @@ enum DocumentPrecision {
         case .fill, .gradient, .dodge: return true
         // The typed wand's region through `erase_native`; float admits it above.
         case .magicEraser: return true
+        // The core's coverage plane through `erase_native`; float admits it above.
+        case .backgroundEraser: return true
         // The five retouch brushes run at 16 bits; float admits all five above.
         case .blurBrush, .sharpenBrush, .smudge, .sponge, .historyBrush: return true
         // Selectable at 16 bits so its mouse-down names the refusal; 8-bit CMYK paints.

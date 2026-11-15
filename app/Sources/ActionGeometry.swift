@@ -272,8 +272,8 @@ enum ActionGeometry {
         // The retouch brushes' strokes (history_brush_stroke is never
         // recorded, but a hand-written step carries canvas points).
         "blur_stroke", "sharpen_stroke", "smudge_stroke", "sponge_stroke", "history_brush_stroke",
-        // The Art History Brush's stroke.
-        "art_history_brush_stroke",
+        // The Art History Brush's stroke and the Background Eraser's.
+        "art_history_brush_stroke", "background_eraser_stroke",
         // The Remove tool's stroke, and Content-Aware Move's region and offset.
         "remove_stroke", "content_aware_move",
         // Never recorded (it records `select_freehand`, which IS

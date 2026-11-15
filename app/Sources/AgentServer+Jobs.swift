@@ -42,7 +42,7 @@ extension AgentServer {
     /// arguments and replay onto the active layer.
     static let precisionStrokeJobTools: Set<String> = ["brush_stroke", "eraser_stroke", "clone_stamp", "dodge_burn",
         "blur_stroke", "sharpen_stroke", "smudge_stroke", "sponge_stroke", "history_brush_stroke",
-        "art_history_brush_stroke"]
+        "art_history_brush_stroke", "background_eraser_stroke"]
 
     /// Whether `execute` leaves recording a call to the job's completion,
     /// which `finishJobCall` records once: a `background` call of a job tool

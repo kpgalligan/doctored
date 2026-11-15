@@ -8025,6 +8025,51 @@ DrPrecisionDocument *dr_precision_doc_art_history_brush(
     uint64_t limit, uint64_t other_retained_bytes,
     const DrJobControl *control, char **err_out);
 
+/* The Background Eraser (background_eraser.rs, designs/background-eraser.md):
+ * under each dab of a stroke the pixels like a reference colour lose alpha by
+ * the tip's coverage, colour kept. request is JSON {"version":1,"tolerance":
+ * 0..65535 (8-bit x 257),"limits":"contiguous"|"discontiguous","sampling":
+ * "continuous"|"once"|"swatch"} with the optional "swatch" (required with
+ * "swatch" sampling, refused otherwise) and "protect" colours. brush_request
+ * and dabs are dr_brush_u16's (packed x/y/diameter/opacity, at most 50000).
+ * A dab's reference is its own hot-spot pixel (continuous), the stroke's first
+ * opaque-enough hot spot (once) or the swatch; a pixel is like it when the
+ * Magic Wand would admit it from that colour, alpha read as full; contiguous
+ * walks four-connected from the hot spot through like pixels under the tip;
+ * a pixel like "protect" is never erased. More than 256 million work units
+ * refuses by name.
+ *
+ * dr_doc_background_eraser_layer erases byte layer idx; each colour is
+ * {"color":[r,g,b,a]} in the document's own space, 0..1; selection is
+ * canvas-sized u8 coverage or NULL/0. NULL with no error: NULL doc, a bad or
+ * group idx, no dab on the canvas, a pixels or transparency lock, no byte
+ * changing. NULL with a message: a bad request, dab list or colour, the work
+ * bound, a selection of another length. Free with dr_doc_free.
+ *
+ * dr_precision_doc_background_eraser_coverage writes the coverage of raster
+ * layer `layer` of a 16-bit, float or colour-mode document into out
+ * (canvas-sized u16, out_len the canvas pixel count, 0 outside the stroke);
+ * each colour is {"color":[r,g,b,a],"color_space":"document"|"srgb"|"linear"}
+ * (linear on a float document only) or on CMYK {"ink":[c,m,y,k,a]}, 0..1. It
+ * erases nothing: the host hands the plane to erase_native. Bitmap refuses by
+ * name. Errors and cancellation leave out unchanged; control is optional. The
+ * plan returns JSON retained_bytes, scratch_bytes, output_samples, work_units
+ * (free with dr_string_free) and refuses what the run refuses. */
+DrDocument *dr_doc_background_eraser_layer(
+    const DrDocument *doc, size_t idx, const char *request,
+    const char *brush_request, const double *dabs, size_t dab_count,
+    const uint8_t *selection, size_t selection_len, char **err_out);
+char *dr_precision_doc_background_eraser_coverage_plan(
+    const DrPrecisionDocument *document, size_t layer, const char *request,
+    const char *brush_request, const double *dabs, size_t dab_count,
+    uint64_t limit, uint64_t other_retained_bytes, char **err_out);
+bool dr_precision_doc_background_eraser_coverage(
+    const DrPrecisionDocument *document, size_t layer, const char *request,
+    const char *brush_request, const double *dabs, size_t dab_count,
+    uint16_t *out, size_t out_len, uint64_t limit,
+    uint64_t other_retained_bytes, const DrJobControl *control,
+    char **err_out);
+
 /* Edit > Fade (v1; doc_fade.rs, precision_fade.rs, the kernel fade.rs): doc is
  * the faded step's RESULT, before the state before that step, and idx/layer
  * names the same layer in both. Per pixel: where both are transparent the

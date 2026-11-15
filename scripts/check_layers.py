@@ -42,6 +42,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "art_history_stroke.rs",
     "artwork_pair_sweep.rs",
     "artwork_window.rs",
+    "background_eraser.rs",
     "bayesian_color.rs",
     "bayesian_matting.rs",
     "bitmap_codec.rs",

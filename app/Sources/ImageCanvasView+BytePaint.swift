@@ -14,8 +14,9 @@ extension ImageCanvasView {
         // so it always needs them; the Pencil commits the core's rasterization
         // of its dabs (`BytePaintRasterizer.pixels`), at every size.
         if tool == .clone || tool == .heal || tool == .smudge || tool.aliasedTip { return true }
-        // The Art History Brush's clicks are its dabs, as Smudge's are.
-        if tool == .artHistoryBrush { return true }
+        // The Art History Brush's clicks are its dabs, as Smudge's are, and the
+        // Background Eraser's dabs are where it samples and erases.
+        if tool == .artHistoryBrush || tool == .backgroundEraser { return true }
         let eligible: Set<EditorTool> = [.brush, .eraser, .dodge, .spotHeal,
             .blurBrush, .sharpenBrush, .sponge, .historyBrush]
         guard eligible.contains(tool) || coverage else { return false }

@@ -50,6 +50,7 @@ enum FadeStep {
         "stroke_selection", "fill", "magic_eraser", "brush_stroke", "eraser_stroke", "clone_stamp",
         "heal_stroke", "spot_heal_stroke", "dodge_burn", "blur_stroke", "sharpen_stroke",
         "smudge_stroke", "sponge_stroke", "history_brush_stroke", "art_history_brush_stroke",
+        "background_eraser_stroke",
     ]
 
     /// The refusal for a Fade with nothing to fade — the MCP `fade` tool's

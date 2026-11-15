@@ -237,6 +237,9 @@ struct NativeBrushStrokeSession {
     /// A Smudge stroke: in `.stopInk` mode a stamp is also charged
     /// against `NativeBrushStroke.maximumSmudgeWork` (see `smudgeCharge`).
     let smudging: Bool
+    /// A Background Eraser stroke: in `.stopInk` mode a stamp is also charged
+    /// against the core's bound for it (`background_eraser::plan`).
+    let backgroundErasing: Bool
     let reservation: PrecisionEditPayload?
     var dabs: [Double] = []
     var refusal: String?
@@ -246,6 +249,8 @@ struct NativeBrushStrokeSession {
     private var usedWork: UInt64 = 0
     /// `.stopInk` and `smudging` only: the Smudge work charged so far.
     private var usedSmudgeWork: UInt64 = 0
+    /// `.stopInk` and `backgroundErasing` only: the Background Eraser work charged so far.
+    private var usedBackgroundWork: UInt64 = 0
     /// `.stopInk` and `smudging` only: the last dab laid and its `workCharge`.
     private var lastSmudgeDab: (point: CGPoint, charge: UInt64)?
     /// An aliased tip only: the last snapped dab, which a repeat is dropped against.
@@ -264,12 +269,16 @@ struct NativeBrushStrokeSession {
 
     init(tip: BrushTip, size: CGFloat, pressureOpacity: Bool,
          strokeOpacity: Double = 1, erasing: Bool = false, overflow: Overflow = .refuse,
-         smudging: Bool = false) {
+         smudging: Bool = false, backgroundErasing: Bool = false) {
         self.tip = tip; self.size = size; self.pressureOpacity = pressureOpacity
         self.strokeOpacity = strokeOpacity; self.erasing = erasing; self.overflow = overflow
-        self.smudging = smudging
-        // The core's plan charges `n + |F|` up front, and `|F| ≤ n`.
-        if case .stopInk(let canvasPixels) = overflow { usedWork = 2 * UInt64(max(canvasPixels, 0)) }
+        self.smudging = smudging; self.backgroundErasing = backgroundErasing
+        // The core's plan charges `n + |F|` up front, and `|F| ≤ n`; the Background
+        // Eraser's charges `|F|`.
+        if case .stopInk(let canvasPixels) = overflow {
+            usedWork = 2 * UInt64(max(canvasPixels, 0))
+            if backgroundErasing { usedBackgroundWork = UInt64(max(canvasPixels, 0)) }
+        }
         do { reservation = try PrecisionEditPayload.admitted(bytes: UInt64(NativeBrushStroke.maximumDabs) * 64 + 4096) }
         catch { reservation = nil; refusal = error.localizedDescription }
     }
@@ -344,6 +353,19 @@ struct NativeBrushStrokeSession {
                 }
                 usedSmudgeWork += move
                 lastSmudgeDab = (point, charge)
+            }
+            if backgroundErasing {
+                // The core charges a dab its tip work plus its clipped box (the match
+                // and the walk), against Smudge's bound (master:
+                // `background_eraser::plan`); `charge` bounds the first, `s²` the second.
+                let side = UInt64(Double(max(diameter, 0)).rounded(.up)) + 2
+                let erase = charge + side * side
+                guard usedBackgroundWork <= NativeBrushStroke.maximumSmudgeWork,
+                      erase <= NativeBrushStroke.maximumSmudgeWork - usedBackgroundWork else {
+                    isFull = true
+                    return
+                }
+                usedBackgroundWork += erase
             }
             usedWork += charge
         }

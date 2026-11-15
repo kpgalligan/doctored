@@ -18,6 +18,7 @@ extension AgentServer {
         case "sponge_stroke": return .sponge
         case "history_brush_stroke": return .historyBrush
         case "art_history_brush_stroke": return .artHistoryBrush
+        case "background_eraser_stroke": return .backgroundEraser
         default: return .brush
         }
     }
@@ -27,13 +28,15 @@ extension AgentServer {
     func nativeStrokeArguments(tool: String, arguments: [String: Any], document: ImageDocument?) throws -> [String: Any] {
         let tools: Set<String> = ["brush_stroke", "eraser_stroke", "clone_stamp", "heal_stroke", "spot_heal_stroke", "dodge_burn", "quick_mask_stroke",
             "blur_stroke", "sharpen_stroke", "smudge_stroke", "sponge_stroke", "history_brush_stroke",
-            "art_history_brush_stroke"]
+            "art_history_brush_stroke", "background_eraser_stroke"]
         let keys: Set<String> = ["stroke_version", "native_stroke", "pressures", "times", "duration",
                                  "pressure_size", "pressure_opacity", "airbrush", "aliased"]
         // The brush preset tools' `airbrush` is a stored tip value, not a stroke's.
         guard !keys.isDisjoint(with: arguments.keys), Self.brushPresetsHandlers[tool] == nil else {
             return arguments
         }
+        // The Background Eraser's tip keys, refused by name before generation removes them.
+        if tool == "background_eraser_stroke" { try Self.refuseBackgroundEraserTipKeys(arguments) }
         let aliased = try aliasedArgument(tool: tool, arguments: arguments)
         // `aliased: false` alone is the plain stroke it always was.
         if !aliased, keys.intersection(arguments.keys) == ["aliased"] {
@@ -75,7 +78,11 @@ extension AgentServer {
         }
         let points = try parsePoints(arguments)
         let heal = ["heal_stroke", "spot_heal_stroke"].contains(tool)
-        let size = doubleArg(arguments, "size") ?? (tool == "brush_stroke" || tool == "eraser_stroke" ? 16 : 24)
+        // background_eraser_stroke takes its handler's default, so `stroke_version` does not
+        // change its tip.
+        let size = doubleArg(arguments, "size")
+            ?? (tool == "background_eraser_stroke" ? BackgroundEraser.defaultSize
+                : tool == "brush_stroke" || tool == "eraser_stroke" ? 16 : 24)
         // The range is the mirrored UI tool's own: 1–5,000 px, 3–200 for the healing
         // brushes, 1–200 for the retouch brushes.
         let mirrored = Self.strokeEditorTool(tool)

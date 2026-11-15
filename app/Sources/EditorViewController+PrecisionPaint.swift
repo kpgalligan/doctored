@@ -30,6 +30,8 @@ struct PrecisionCanvasStroke {
     /// The Art History Brush's options and seed, latched at mouse-down;
     /// its source is `historySource`.
     var art: ArtHistoryOptions? = nil
+    /// The Background Eraser's options and core request, latched at mouse-down.
+    var backgroundEraser: (options: BackgroundEraserOptions, request: String)? = nil
 }
 
 extension EditorViewController {
@@ -43,6 +45,12 @@ extension EditorViewController {
         guard !DocumentJobs.refusesGesture(on: document, workerBound: true) else { return false }
         do {
             let capture = try PrecisionEditorCapture(document)
+            // The Background Eraser refuses a mask, plane, channel or Quick Mask target and
+            // a transparency lock by name, and latches its options, before anything else.
+            var backgroundEraser: (options: BackgroundEraserOptions, request: String)?
+            if currentTool == .backgroundEraser {
+                backgroundEraser = try latchPrecisionBackgroundEraser(capture)
+            }
             // One colour channel of a float layer is not a stroke
             // target; its mask and the alpha channels are, as at 16 bits.
             if capture.facade.isFloat, capture.target.isPlane {
@@ -53,7 +61,8 @@ extension EditorViewController {
                   capture.facade.layerInfo(capture.layer)?.visible == true,
                   !capture.facade.layerIsGroup(capture.layer), !capture.facade.layerIsAdjustment(capture.layer),
                   [.brush, .eraser, .clone, .heal, .spotHeal, .dodge, .blurBrush, .sharpenBrush,
-                   .smudge, .sponge, .historyBrush, .artHistoryBrush].contains(currentTool) else {
+                   .smudge, .sponge, .historyBrush, .artHistoryBrush,
+                   .backgroundEraser].contains(currentTool) else {
                 throw DoctoredCoreError(message: "This stroke requires visible raster-layer RGB. Choose Brush or Eraser to edit a mask or scalar plane.")
             }
             // The Brush blends through `paint_blend` and the Clone Stamp
@@ -85,7 +94,7 @@ extension EditorViewController {
             var cmyk: [Double]?
             if capture.source.isCmyk {
                 let depth = CmykAdjustFilter.depth(of: capture.facade)
-                guard [.brush, .eraser].contains(currentTool)
+                guard [.brush, .eraser, .backgroundEraser].contains(currentTool)
                         || CmykRetouch.allows(currentTool, depth: depth) else {
                     throw DoctoredCoreError(message: CmykRetouch.tools[currentTool] != nil
                         ? CmykRetouch.refusal(currentTool) : CmykDocument.refusal(tool: currentTool.displayName))
@@ -144,7 +153,7 @@ extension EditorViewController {
                 dodgeRange: ToolOptionsStore.shared.dodge.rangeIndex, burn: ToolOptionsStore.shared.dodge.burn,
                 protectTones: ToolOptionsStore.shared.dodge.protectTones == true,
                 saturate: ToolOptionsStore.shared.sponge.saturate == true, historySource: historySource,
-                linear: linear, cmyk: cmyk, art: art)
+                linear: linear, cmyk: cmyk, art: art, backgroundEraser: backgroundEraser)
             if let toolOptions = ToolOptionsStore.shared.paintOptions(for: currentTool) {
                 precisionStroke?.vibrance = Self.spongeVibrance(currentTool, options: toolOptions)
                 precisionStroke?.sampleAllLayers = Self.samplesAllLayers(currentTool,
@@ -246,6 +255,15 @@ extension EditorViewController {
                     throw DoctoredCoreError(message: "The Art History Brush's source state is missing.")
                 }
                 kind = .artHistory(source: state, sourceLayer: history.layer, request: art.request)
+            case .backgroundEraser:
+                // The core's coverage plane, erased by `erase_native` at full opacity with the
+                // selection as its second gate (`PrecisionStrokeWork.Kind.backgroundEraser`).
+                guard let eraser = stroke.backgroundEraser else {
+                    throw DoctoredCoreError(message: "The Background Eraser's options are missing.")
+                }
+                command = try backgroundEraserCommand(layer: stroke.capture.layer,
+                                                      selected: selected, source: source)
+                kind = .backgroundEraser(request: eraser.request)
             default: throw DoctoredCoreError(message: "This tool is unavailable in 16-bit mode.")
             }
             let work = try PrecisionStrokeWork(kind: kind, layer: stroke.capture.layer,
@@ -273,7 +291,7 @@ extension EditorViewController {
                     // Written only when on, so a step without the key replays as before.
                     record[index].arguments["vibrance"] = stroke.vibrance ? true : nil
                     record[index].arguments["sample_all_layers"] = stroke.sampleAllLayers ? true : nil
-                } else { record[index].arguments["opacity"] = [.heal, .spotHeal, .artHistoryBrush].contains(stroke.tool) ? stroke.opacity * 100 : stroke.opacity }
+                } else if stroke.tool != .backgroundEraser { record[index].arguments["opacity"] = [.heal, .spotHeal, .artHistoryBrush].contains(stroke.tool) ? stroke.opacity * 100 : stroke.opacity }
             }
             if stroke.tool == .brush {
                 for index in record.indices {

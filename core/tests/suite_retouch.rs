@@ -38,6 +38,8 @@ mod art_history_refit;
 mod assisted_replay;
 #[path = "assisted_scoring.rs"]
 mod assisted_scoring;
+#[path = "background_eraser.rs"]
+mod background_eraser;
 #[path = "bayesian_color.rs"]
 mod bayesian_color;
 #[path = "bayesian_matting.rs"]

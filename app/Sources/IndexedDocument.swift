@@ -83,6 +83,9 @@ enum IndexedDocument {
         // The Magic Eraser: the Magic Wand's region on the palette colours, erased as the
         // Eraser erases (`designs/magic-eraser.md`).
         "magic_eraser",
+        // The Background Eraser: the like palette colours under the tip, erased the same way
+        // (`designs/background-eraser.md`).
+        "background_eraser_stroke",
         "stroke_selection", "eraser_stroke", "image_size", "canvas_size", "trim", "rotate", "flip",
         "crop", "perspective_crop", "fit_crop",
         // Phase 2d: Paste, the transforms, Warp and the layer row.
@@ -422,7 +425,7 @@ enum IndexedDocument {
     static func allows(_ tool: EditorTool) -> Bool {
         switch tool {
         case .select, .ellipseSelect, .lasso, .freehandLasso, .hand, .zoom, .brush, .eraser, .fill,
-             .magicEraser,
+             .magicEraser, .backgroundEraser,
              .crop, .perspectiveCrop, .move, .wand, .quickSelect, .magneticLasso, .eyedropper,
              .colorSampler, .ruler, .pen, .pathSelect, .directSelect, .clone, .historyBrush:
             return true

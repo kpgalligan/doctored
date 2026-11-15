@@ -520,6 +520,9 @@ enum CmykDocument {
         // The Magic Wand's ink region, erased (`designs/magic-eraser.md`).
         case .magicEraser:
             return true
+        // The ink's naive RGB under the tip, erased (`designs/background-eraser.md`).
+        case .backgroundEraser:
+            return true
         case .quickSelect:
             return true
         case .objectSelect:

@@ -15,6 +15,13 @@ extension EditorViewController {
         // The Pencil strokes as the Brush from here on (`EditorTool.strokeFamily`).
         self.strokeTool = self.currentTool.strokeFamily
         let idx = document.activeLayerIndex
+        // The Background Eraser's target and transparency-lock refusals, by name, and its
+        // options and request, latched while refusing is still free.
+        var backgroundEraser: (options: BackgroundEraserOptions, request: String)?
+        if self.strokeTool == .backgroundEraser {
+            guard let latched = self.latchBackgroundEraser(document, doc) else { return false }
+            backgroundEraser = latched
+        }
         let isAdjustment = doc.layerIsAdjustment(idx)
         // Only brush and eraser ever paint COVERAGE; clone and dodge run
         // their own pixel ops and cannot reach a coverage target at all.
@@ -115,6 +122,8 @@ extension EditorViewController {
         if self.strokeTool == .artHistoryBrush {
             self.byteStrokeCapture?.artSeed = Self.artHistorySeed()
         }
+        self.byteStrokeCapture?.backgroundEraser = backgroundEraser?.options
+        self.byteStrokeCapture?.backgroundEraserRequest = backgroundEraser?.request
         self.strokeBase = doc
         // Blend applies to strokes that PAINT layer pixels: brush and
         // clone. The eraser is its own composite op and dodge is a
@@ -199,6 +208,13 @@ extension EditorViewController {
             // Rerun from the base every tick (`artHistoryTick`); a throw refuses
             // the stroke, which the end of the gesture rolls back.
             do { updated = try artHistoryTick(capture, base: base) }
+            catch {
+                byteStrokeRefused = true
+                return
+            }
+        } else if capture.tool == .backgroundEraser {
+            // Rerun from the base every tick, as the Art History Brush does.
+            do { updated = try backgroundEraserTick(capture, base: base) }
             catch {
                 byteStrokeRefused = true
                 return

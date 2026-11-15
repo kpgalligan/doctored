@@ -19,8 +19,8 @@ use crate::precision_document::PrecisionDocument;
 use crate::precision_image::{admit, pixel_count, BOOKKEEPING_BYTES};
 
 /// The parse charge of a brush request and its dab list, as `dr_brush_u16`
-/// charges it.
-fn request_bytes(count: usize) -> u64 {
+/// charges it (`ffi_background_eraser` charges it too).
+pub(crate) fn request_bytes(count: usize) -> u64 {
     4 * BOOKKEEPING_BYTES + count as u64 * 32
 }
 
@@ -29,7 +29,7 @@ fn request_bytes(count: usize) -> u64 {
 /// # Safety
 /// `text` NULL or NUL-terminated UTF-8; `dabs` NULL for count 0 or readable
 /// and aligned for `count * 4` doubles, for the returned lifetime.
-unsafe fn stroke<'a>(
+pub(crate) unsafe fn stroke<'a>(
     text: *const c_char,
     dabs: *const f64,
     count: usize,

@@ -169,6 +169,14 @@ extension EditorViewController {
             else { return .unrecorded(actionName) }
             arguments.merge(art.arguments) { _, new in new }
             return .stroke("art_history_brush_stroke", arguments)
+        case .backgroundEraser:
+            // The latched options, the swatch and protected colours resolved, so a replay
+            // reads no swatch; the pinned flow is not a key the tool takes.
+            guard let options = precisionStroke?.backgroundEraser?.options
+                    ?? byteStrokeCapture?.backgroundEraser else { return .unrecorded(actionName) }
+            arguments.removeValue(forKey: "flow")
+            arguments.merge(options.arguments) { _, new in new }
+            return .stroke("background_eraser_stroke", arguments)
         default:
             return .unrecorded(actionName)
         }

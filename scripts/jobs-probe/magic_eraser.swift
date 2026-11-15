@@ -3,7 +3,7 @@ import AppKit
 // The Magic Eraser tool in the UI (`designs/magic-eraser.md`, EditorViewController+MagicEraser.swift):
 //
 // (a) Its facts: the name, a symbol that resolves, the Eraser's rail slot right after the Eraser,
-//     and E, which cycles the Eraser and the Magic Eraser.
+//     and E, which cycles the Eraser, the Magic Eraser and the Background Eraser.
 // (b) Every mode's gate: offered in RGB at 8, 16 and 32 bits and in Grayscale, Lab, CMYK (8 and 16
 //     bits) and Indexed; not in Bitmap.
 // (c) A mouse-down handed to the canvas view (its own `mouseDown`, at the window point of an image
@@ -34,9 +34,10 @@ private func verifyMagicEraserFacts() throws {
                 "\(tag) the Magic Eraser follows the Eraser in its slot: \(slot)")
     let glyphs = slot.map(\.fallbackGlyph)
     try require(Set(glyphs).count == glyphs.count, "\(tag) the slot's glyphs are distinct: \(glyphs)")
+    // The Background Eraser follows it (background_eraser.swift checks the whole cycle).
     try require(EditorTool.tool(forKey: "e", current: .eraser, last: nil) == .magicEraser
-                && EditorTool.tool(forKey: "e", current: .magicEraser, last: nil) == .eraser,
-                "\(tag) E cycles the Eraser and the Magic Eraser")
+                && EditorTool.tool(forKey: "e", current: .magicEraser, last: nil) == .backgroundEraser,
+                "\(tag) E cycles from the Eraser to the Magic Eraser, then on")
     // (b) The mode gates.
     try require(GrayDocument.allows(.magicEraser) && LabDocument.allows(.magicEraser)
                 && IndexedDocument.allows(.magicEraser)

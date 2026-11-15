@@ -1104,8 +1104,9 @@ LAB_TOOLS = [
     'add_spot_channel', 'set_spot_channel', 'merge_spot_channel', 'set_channel_kind',
     # Edit ▸ Define Pattern… (d81a3c71).
     'define_pattern',
-    # The Magic Eraser (designs/magic-eraser.md).
-    'magic_eraser',
+    # The Magic Eraser (designs/magic-eraser.md) and the Background Eraser
+    # (designs/background-eraser.md).
+    'magic_eraser', 'background_eraser_stroke',
     # Select ▸ Focus Area (L88; designs/focus-area.md).
     'select_focus_area',
     # Filters ▸ Other ▸ Frequency Separation… (L89b).
