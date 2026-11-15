@@ -73,23 +73,29 @@
 //! Automatic, scale then rotate, a supersampled turn and a whole-pixel shear
 //! (TAKE6, `pattern_overlay_669_take.py`).
 //!
-//! What a take designed to identify it measured (`pattern_overlay_3_take.py`:
-//! impulse, edge and natural tiles): every instance is ONE turned stamp drawn
-//! at a whole-pixel position. At 100 % (s' = 1) that position is its centre
-//! O + a v1 + b v2 + R(−t)(floor(w / 2), floor(h / 2)) rounded half up, plus
-//! a whole-pixel offset not yet found. The stamp is the level turned by
-//! exact quarter turns until the residual angle lies in [−45, 45] degrees,
-//! then a two-pass rotation by that residual (rows, then columns), Keys'
-//! cubic a = −0.75 in both passes, the tile's rows and the intermediate
-//! raster's rows clamped; each pixel reads its exact-lattice instance's
-//! stamp, and the one 16-bit case read it in whole 8-bit codes. At a
-//! registration fitted per row this reads every 100 % row (and a 50 % one,
-//! an exact PYRAMID level) at 0.4 to 0.65 codes mean. Not yet measured well
-//! enough to replace TWO-PASS, so the sampler stays (open item of #3,
-//! `designs/phase-10c-constructs-status.md`): the stamp's vertical
-//! registration at a negative residual angle, its whole-pixel offset, Scale
-//! off an exact PYRAMID level (s' other than 1), odd levels, and the corner
-//! pixels where neighbouring stamps meet.
+//! What three takes designed to identify it measured
+//! (`pattern_overlay_3_take.py`, `pattern_overlay_3b_take.py`: impulse, edge
+//! and ramp tiles): every instance is ONE turned stamp drawn at a whole-pixel
+//! position, its centre O + a v1 + b v2 + R(−t)(floor(w / 2), floor(h / 2))
+//! rounded half up plus a whole-pixel offset per row. The stamp is the level
+//! turned by exact quarter turns until the residual t' lies in [−45, 45]
+//! degrees (a ±45 tie takes fewer turns: 135 reads t' 45, −135 reads t' −45),
+//! then a two-pass rotation by t' (rows, then columns), Keys' cubic a = −0.75
+//! in both passes, rows clamped; each pixel reads its exact-lattice
+//! instance's stamp, a 16-bit document its whole 8-bit codes × 257 and a
+//! 32-bit one those codes / 255. With the turned level W × H, (c, s) of t'
+//! and its index (0, 0) at x = s / 2 − min(0, s H), pass 2 reads column X's
+//! rows at c (y − o(X)), o(X) = Ty − tan t' (X + 1/2), Ty = s W for t' > 0
+//! and tan t' (ceil(c W + |s| H) − c W) for t' < 0 (64 rows at 100 %, within
+//! 0.021 px). An ODD-DOUBLE level at s' = 1 stamps like any level. At a
+//! fractional pixel size, above 1 too, the level is first resampled along
+//! its own axes to floor(w s') × 2 ceil(h s' / 2) whole pixels (31 rows, two
+//! tile shapes, s' 0.52 to 1.7). Fitted per row, this reads every 100 % row
+//! at 0.4 to 0.8 codes mean. Not yet a rule, so the sampler stays (open item
+//! of #3, `designs/phase-10c-constructs-status.md`): the whole-pixel offset
+//! (a ceil(span / 2) fit on 46 rows missed 9 of the next take's 36 axes), the
+//! finite stamp's corner pixels (the clamped extension misses there by up to
+//! 91 codes), and the pre-scale's kernel and registration.
 //!
 //! # Depths and CMYK
 //!
