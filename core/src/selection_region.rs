@@ -8,7 +8,8 @@
 //! one four-connected `flood` walk (caller predicate, multi-seed) behind the byte/native wand and
 //! bucket (`grow`: the seed's R, G, B, A, R−G, G−B, R−B each within ± tolerance) and Select ▸
 //! Grow/Similar (`similar`: every ≥50%-covered pixel is a reference; admit when the same seven
-//! projections lie in the references' range ± tolerance), both measured against Photoshop 26.10.0.
+//! projections lie in the references' range ± tolerance, that range trimmed per projection on a
+//! Grayscale document, `selection_similar`'s module doc), both measured against Photoshop 26.10.0.
 //!
 //! Measurement (batch v1x-blur-wand, `scripts/photoshop-probe/blur_wand_take.py`): Photoshop 26.10.0's
 //! Magic Wand and Paint Bucket, Contiguous on and off, Anti-alias off, Sample All Layers off, were

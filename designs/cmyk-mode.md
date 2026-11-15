@@ -316,3 +316,8 @@
   the core's sentences. `cmyk_align_stack.rs`, `verify_cmyk_mode.py` G9. No DRDC change.
 - **Layer comps** (2026-11-12): the comp family and tools on CMYK, carried by every conversion; `cmyk_comps.rs`,
   `verify_cmyk_mode.py` G10. No DRDC change.
+- **Select Similar and Grow measured** (2026-11-15): run by `executeAction` with no descriptor they ran on CMYK
+  (`similar_trim_61_take.py`, `similar-trim-61` take1 and take2, 8 and 16 bits). Photoshop's rule is the per-key
+  ⌊N/10⌋ trim on `lab_select::wand_key`'s key form over the naive RGB at byte codes; PN7's full box misses it and stays
+  shipped, held with RGB's ([#61](https://github.com/kpgalligan/doctored/issues/61),
+  [#79](https://github.com/kpgalligan/doctored/issues/79)). No code change.

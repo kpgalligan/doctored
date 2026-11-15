@@ -2138,7 +2138,8 @@ The design record behind each area is in the repository's
   the selection's 50% contour, so a moved edge comes back freshly
   anti-aliased instead of jagged — grow them by colour with Select > Grow
   (connected pixels) and Select > Similar (the whole image), which add every
-  pixel whose colour lies in the selected pixels' range widened by the Magic
+  pixel whose colour lies in the selected pixels' range (in a Grayscale
+  document, less the tenth of them at either extreme) widened by the Magic
   Wand tolerance, or paint them directly in Quick Mask
   mode (Q — the selection becomes a red rubylith overlay the brush adds
   to and the eraser removes from, and Filters ▸ Blur ▸ Gaussian Blur… and the Gradient

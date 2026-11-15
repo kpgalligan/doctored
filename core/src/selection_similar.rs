@@ -5,14 +5,40 @@
 //! The predicate follows a measurement of Photoshop 26.10.0 made on
 //! 2026-09-27. Every pixel the selection covers is a reference; the
 //! references span a range on seven projections — R, G, B, A, R−G, G−B and
-//! R−B — and a pixel is admitted when every projection lies within that
-//! range widened by the tolerance on both sides. Measured facts: red and
+//! R−B — (trimmed on a Grayscale document, **The reference range**) and a
+//! pixel is admitted when every projection lies within that range widened by
+//! the tolerance on both sides. Measured facts: red and
 //! blue references at tolerance 0 admit magenta, black and (100,0,100) and
 //! refuse grey; a grey-100 reference at tolerance 10 admits ±10 and refuses
 //! ±11; (105,95,100) is in and (106,94,100) is out of that range; grey-100
 //! and grey-120 references at tolerance 0 exclude (110,100,120) and admit
 //! (110,110,110). Grow is four-connected from the references. The result is
 //! the admitted region at full coverage, added to the selection.
+//!
+//! **The reference range.** On a Grayscale document (and a Duotone one, a
+//! Gray document with inks; at 32 bits by the same rule, unmeasured, on its
+//! display codes) each projection's values over the N references lose
+//! ⌊N/10⌋ at each end, every projection on its own ([`TRIM_DIVISOR`], the
+//! rule `lab_select` measured on Lab), before the tolerance widens what is
+//! left: a value only a few references carry widens nothing. RGB, Indexed,
+//! float RGB and CMYK (the ink's naive RGB, PN7) keep every reference's
+//! value. `scripts/photoshop-probe/similar_trim_61_take.py` (Photoshop
+//! 26.10.0, `similar-trim-61`) measured them with exact membership on every
+//! pixel: take1 laid `lab_select_5_take.py`'s 37 reference rectangles and
+//! single-pixel probes on RGB, Gray and CMYK scenes at 8 and 16 bits, t 15
+//! and 25; take2, held out, its scene B (t 13 and 27, other counts and the
+//! rects that pin the divisor). Gray met the trim on byte codes on both
+//! takes at both depths, ⌊N/10⌋ alone of the shares 9 %…11 % on take2, and
+//! the full box missed (376 and 408 pixels at 8 bits). At 16 bits the u16
+//! comparison misses only probes one code past the bound (28 pixels a take),
+//! where Photoshop's 16-bit store moved a byte × 257 code by one; whether the
+//! 16-bit rule compares bytes or u16 codes is not separated by these scenes
+//! (#80). RGB and CMYK met neither the full box nor
+//! the trim on these projections; both takes met the trim on
+//! `lab_select::wand_key`'s key form instead (R, G, B ± t and the halved
+//! cyclic differences ± ⌊t/2⌋, byte codes at both depths; CMYK's on the
+//! naive RGB), which those documents do not ship, so they keep the full box
+//! until it lands with the wand's (#61, held on #79).
 //!
 //! Not measured, and chosen here: the sample source is the flattened
 //! composite (as the wand's "select what you see"), not the active layer;
@@ -27,6 +53,7 @@
 //! `dr_precision_doc_select` reads the u16 selection as its planned input.
 use crate::doc::DrDocument;
 use crate::job_control::JobContext;
+use crate::precision_image::reserved_vec;
 use crate::selection_region::flood;
 use crate::selection_tools::SelectionSample;
 
@@ -59,11 +86,12 @@ pub(crate) fn is_reference<T: SelectionSample>(coverage: T) -> bool {
     coverage.code() >= T::MAX.div_ceil(2) as f32
 }
 
-/// Similar's and Grow's trim (module doc, **Similar and Grow**): of N
-/// references, each key drops its ⌊N/10⌋ lowest and ⌊N/10⌋ highest values.
-/// take2's rects pin the divisor: a 60-value tail of 600 references is
-/// dropped and a 109-value tail of 1089 kept, which no other share between
-/// 9.77 % and 10.06 % (take1's interval) does.
+/// Similar's and Grow's trim (module doc, **The reference range**, and
+/// `lab_select`'s, **Similar and Grow**): of N references, each key drops
+/// its ⌊N/10⌋ lowest and ⌊N/10⌋ highest values. The takes' scene-B rects pin
+/// the divisor: a 60-value tail of 600 references is dropped and a 109-value
+/// tail of 1089 kept, which no other share between 9.77 % and 10.06 % (Lab's
+/// take1 interval) does.
 pub(crate) const TRIM_DIVISOR: u64 = 10;
 
 /// The smallest and largest value of histogram `counts` once `trim` values
@@ -100,30 +128,55 @@ impl ReferenceRange {
         Self { min: v, max: v }
     }
 
-    /// None when no pixel is a reference.
+    /// Similar's and Grow's range over every reference pixel
+    /// ([`is_reference`]), each projection on its own: its values' [min, max],
+    /// or with `trim` (module doc, **The reference range**) that range once
+    /// ⌊N/[`TRIM_DIVISOR`]⌋ of the N values are dropped from EACH end. None
+    /// when no pixel is a reference.
     pub(crate) fn from_reference<T: SelectionSample>(
         pixel: &impl Fn(usize) -> [T; 4],
         coverage: &[T],
+        trim: bool,
         job: JobContext<'_>,
     ) -> Result<Option<Self>, String> {
-        let mut range: Option<Self> = None;
+        // A count per value of each projection, so the trim reads histograms
+        // rather than holding every reference's projections: R, G, B and A
+        // in 0…MAX, the three differences in −MAX…MAX shifted up by MAX. At
+        // 16 bits that is 4·65536 + 3·131071 counts (5.2 MB), whatever the
+        // canvas; at 8 bits 20 KB.
+        let top = T::MAX as usize;
+        let mut starts = [0usize; 8];
+        for k in 0..7 {
+            starts[k + 1] = starts[k] + if k < 4 { top + 1 } else { 2 * top + 1 };
+        }
+        let bias = |k: usize| if k < 4 { 0 } else { top as i32 };
+        let mut counts = reserved_vec(starts[7])?;
+        counts.resize(starts[7], 0u64);
+        let mut n = 0u64;
         for (i, &c) in coverage.iter().enumerate() {
             job.every(i)?;
             if !is_reference(c) {
                 continue;
             }
-            let v = projections(pixel(i));
-            match &mut range {
-                None => range = Some(Self { min: v, max: v }),
-                Some(r) => {
-                    for (k, &p) in v.iter().enumerate() {
-                        r.min[k] = r.min[k].min(p);
-                        r.max[k] = r.max[k].max(p);
-                    }
-                }
+            for (k, v) in projections(pixel(i)).into_iter().enumerate() {
+                // Always in range for T's codes; the clamp only keeps an
+                // index from panicking.
+                let at = (v + bias(k)).clamp(0, (starts[k + 1] - starts[k] - 1) as i32);
+                counts[starts[k] + at as usize] += 1;
             }
+            n += 1;
         }
-        Ok(range)
+        if n == 0 {
+            return Ok(None);
+        }
+        let dropped = if trim { n / TRIM_DIVISOR } else { 0 };
+        let mut min = [0; 7];
+        let mut max = [0; 7];
+        for k in 0..7 {
+            let (low, high) = trimmed(&counts[starts[k]..starts[k + 1]], dropped);
+            (min[k], max[k]) = (low - bias(k), high - bias(k));
+        }
+        Ok(Some(Self { min, max }))
     }
 
     pub(crate) fn admits<T: SelectionSample>(&self, p: [T; 4], tolerance: T) -> bool {
@@ -138,19 +191,22 @@ impl ReferenceRange {
 /// The admitted region at full coverage (the caller adds it to the current
 /// selection): global, or flooded four-connected from every reference pixel
 /// when `contiguous`. A partly covered pixel that is admitted comes back full.
+/// `trim` is the document's kind's reference rule (module doc, **The
+/// reference range**): true on a Grayscale document.
 pub(crate) fn similar<T: SelectionSample>(
     dimensions: (u32, u32),
     pixel: impl Fn(usize) -> [T; 4],
     coverage: &[T],
     tolerance: T,
     contiguous: bool,
+    trim: bool,
     job: JobContext<'_>,
 ) -> Result<Vec<T>, String> {
     let (w, h) = dimensions;
     if coverage.len() != w as usize * h as usize {
         return Err("selection mask length does not match the canvas".into());
     }
-    let range = ReferenceRange::from_reference(&pixel, coverage, job)?.ok_or(NO_REFERENCE)?;
+    let range = ReferenceRange::from_reference(&pixel, coverage, trim, job)?.ok_or(NO_REFERENCE)?;
     let seeds = coverage
         .iter()
         .enumerate()
@@ -168,9 +224,9 @@ pub(crate) fn similar<T: SelectionSample>(
 impl DrDocument {
     /// Select ▸ Grow / Similar on the flattened composite ("select what you
     /// see", like `magic_wand`): the canvas-sized 0/255 region `similar`
-    /// admits from the canvas-sized coverage `mask`. Err with the refusal
-    /// sentence when no pixel is at least half selected, or when `mask` is
-    /// not canvas-sized.
+    /// admits from the canvas-sized coverage `mask`, every reference's value
+    /// kept (an RGB document, module doc). Err with the refusal sentence when
+    /// no pixel is at least half selected, or when `mask` is not canvas-sized.
     pub fn select_similar(
         &self,
         mask: &[u8],
@@ -185,6 +241,7 @@ impl DrDocument {
             mask,
             tolerance,
             contiguous,
+            false,
             JobContext::NONE,
         )
     }

@@ -269,7 +269,10 @@ impl SelectionRequest {
         // rectangle of coverage, rule E) E 769,966,632 / 769,966,632 /
         // 769,983,040 against a plan of 3,924,582,912;
         // `selected_color_planes_24mp.rs` pins ⌈1.25 × max E⌉ of each.
-        // Similar also holds its captured u16 coverage input. The edge stage
+        // Similar also holds its captured u16 coverage input; its reference
+        // histograms (`ReferenceRange::from_reference`, a fixed 5.2 MB at 16
+        // bits whatever the canvas, as Lab's alpha histogram) are outside
+        // the plan. The edge stage
         // holds its input (coverage, and the categories when `area`) and
         // `edge_refine`'s own bound, which covers the f32 coverage, the byte
         // categories and the result beside the kernel's planes.
@@ -409,12 +412,16 @@ impl SelectionRequest {
                     grid,
                     work,
                 )?,
+                // A Grayscale document (a Duotone one too) trims each
+                // projection's tails; RGB, Indexed and float RGB keep every
+                // reference (`selection_similar`'s module doc).
                 None => crate::selection_similar::similar(
                     dimensions,
                     pixel,
                     input,
                     *tolerance,
                     *contiguous,
+                    doc.is_gray(),
                     work,
                 )?,
             },

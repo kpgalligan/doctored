@@ -287,6 +287,7 @@ impl SelectionRequest {
                 input,
                 *tolerance,
                 *contiguous,
+                false,
                 work,
             ),
             SourceSelection::Alpha {} => per_pixel(&|p| p[4]),

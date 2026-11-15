@@ -153,6 +153,14 @@ tools, from the UI, over MCP and in Actions. Every tool the catalog offers is ad
 - **Frequency Separation** (2026-11-14): Apply Image's detail on the one Gray plane at 8 and 16 bits (one code),
   the core's `layer_detail` difference in Linear Dodge (Add) at 32 (float rounding); Duotone follows. Tests
   `core/tests/frequency_separation_modes.rs`; drive G70b.
+- **Select Similar and Grow** (2026-11-15): the reference range drops ⌊N/10⌋ of each projection's N values from
+  each end (`selection_similar::TRIM_DIVISOR`, Lab's rule); Duotone follows, 32 bits unmeasured.
+  `similar_trim_61_take.py` (Photoshop 26.10.0, `similar-trim-61` take1 and take2) met it exactly on byte codes
+  at 8 and 16 bits (the shipped 16-bit u16 comparison misses only probes one code past the bound: 28 pixels a
+  take; [#80](https://github.com/kpgalligan/doctored/issues/80)); RGB and CMYK met it only on Lab's key form and
+  stay as shipped ([#61](https://github.com/kpgalligan/doctored/issues/61),
+  [#79](https://github.com/kpgalligan/doctored/issues/79)). Tests `core/tests/similar_trim.rs`,
+  `select_similar_photoshop.rs`.
 
 ## The close's fates
 

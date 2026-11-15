@@ -623,6 +623,10 @@ mod precision_stroke_pattern;
 mod precision_texture;
 #[path = "raw_place.rs"]
 mod raw_place;
+#[path = "select_similar_photoshop.rs"]
+mod select_similar_photoshop;
+#[path = "similar_trim.rs"]
+mod similar_trim;
 #[path = "soft_proof_tests.rs"]
 mod soft_proof_tests;
 #[path = "spot_channel_ffi.rs"]

@@ -190,7 +190,7 @@ Detail belongs in the source file's own header comment.
 - `selection_tools.rs` / `selection_refine.rs` / `ffi_selection_tools.rs` — profile-aware Color Range, Quick Selection's adapter, selection-only affine transforms, Select and Mask's refinement.
 - `selection_quick.rs` — kernel of Quick Selection: brush-disc seeding, range-gated Lab pre-smoothing, the anchored growth, enclosed-hole fill.
 - `edge_refine.rs` — kernel of Select and Mask's edge stage: the radius band, a guided filter per RGB channel, confidence blend, Smart Radius.
-- `selection_region.rs` / `selection_similar.rs` — one four-connected `flood` walk behind the byte/native/ink wand (Sample Size: `WAND_SAMPLE_SIZES`) and bucket, and Select ▸ Grow/Similar.
+- `selection_region.rs` / `selection_similar.rs` — `flood` behind the byte/native/ink wand (`WAND_SAMPLE_SIZES`), bucket and Select ▸ Grow/Similar; the per-key trim (`trimmed`, `TRIM_DIVISOR`).
 - `selection_paint.rs` — Quick Mask strokes: the live overlay and the run-length gray/alpha form (Actions/MCP) end in one integer source-over on caller-owned coverage.
 - `color_range_band.rs` — kernel: Color Range's hue bands (amount × (2 − max)), Skin Tones (Lab ramp, take3 MISS), the one ramp, Localized Color Clusters' weight.
 - `color_range_gamut.rs` — Color Range ▸ Out Of Gamut: `soft_proof`'s one gamut rule over RGBA8 codes as coverage (source alpha where outside XOR invert).
