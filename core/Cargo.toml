@@ -151,4 +151,4 @@ name = "float_selected_pixels_24mp" # isolate: one large document at a time
 [[test]]
 name = "selected_color_planes_24mp" # isolate: one large document at a time
 [[test]]
-name = "native_save_plan8_45mp" # isolate: holds about 1.4 GB per case; own #[global_allocator], counts the heap a save adds
+name = "native_save_plan8_45mp" # isolate: about 1.4 GB per case; own #[global_allocator] counting the heap a save adds; sets the working limit

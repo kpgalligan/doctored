@@ -16,7 +16,8 @@
 //! Also, an f32 master (the scene's profile, and Display P3)
 //! placed with `convert_fallback` into white 6000×4000 16- and 8-bit sRGB
 //! documents, the 16-bit record's 140 % transform, the save and reopen plans
-//! of both, and the narrowing to 16 bits of a float document holding the
+//! of both (the 8-bit save's against its counted heap, in
+//! `native_save_plan8_45mp`), and the narrowing to 16 bits of a float document holding the
 //! master stay at or above the floors in `float_native`'s module doc,
 //! `# Measurement record (phase 3a)`.
 use std::ffi::{c_char, CStr, CString};
@@ -64,8 +65,8 @@ const SAVE_FLOOR: u64 = 61_440;
 const REOPEN_FLOOR: u64 = 1_450_087_450;
 /// ⌈1.25 × max E⌉ of the measured low-depth calls (`float_native`'s
 /// record): the places at 16 bits (scene profile, Display P3) and at 8, the
-/// 16-bit transform, save and reopen, the 8-bit save and reopen, and the
-/// narrowing to 16 bits.
+/// 16-bit transform, save and reopen, the 8-bit reopen, and the narrowing to
+/// 16 bits. (The 8-bit save's measured E was the former, whole-file writer's.)
 const PLACE16_FLOOR: [u64; 2] = [1_447_588_980, 1_447_629_940];
 const PLACE8_FLOOR: u64 = 1_450_230_870;
 const TRANSFORM16_FLOOR: u64 = 952_955_570;
@@ -74,7 +75,6 @@ const TRANSFORM16_FLOOR: u64 = 952_955_570;
 /// `native_file_size::stream_measure`, as for `SAVE_FLOOR`.
 const SAVE16_FLOOR: u64 = 471_040;
 const REOPEN16_FLOOR: u64 = 485_519_870;
-const SAVE8_FLOOR: u64 = 481_812_840;
 const REOPEN8_FLOOR: u64 = 601_805_220;
 const NARROW16_FLOOR: u64 = 719_462_940;
 const SCENE: &str = "tests/fixtures/float_11f/scene.tiff";
@@ -314,11 +314,10 @@ fn a_float_master_place_transform_save_and_reopen_are_admitted_at_24mp() {
     admitted("place8", decoded + scratch, PLACE8_FLOOR);
     let doc = mixed8(&white8, &master, &place, false).1.expect("a result");
     drop(white8);
-    admitted(
-        "save8",
-        doc.native_save_scratch_bytes().expect("the save plan"),
-        SAVE8_FLOOR,
-    );
+    // The 8-bit save's floor measured the writer that assembled its file;
+    // since 13C-2a the streamed writer's figure is held to the heap the same
+    // save adds (`native_save_plan8_45mp`'s float master case), and its
+    // footprint is 13C-6's to measure.
     admitted(
         "reopen8",
         doc.native_reopen_plan()

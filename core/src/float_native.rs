@@ -134,7 +134,9 @@
 //! `ImageSourceFile.scratchPerPixel32` fits at 50 (≤ 60) for every place.
 //! `core/tests/float_master_24mp.rs` pins each floor. The typed save and
 //! reopen rows of both records (save32, reopen32, save16, reopen16) are
-//! superseded by the streamed writer and reader's (below).
+//! superseded by the streamed writer and reader's (below), and the save8 row
+//! by the streamed byte writer's (13C-2a, `drdc_save_plan`), whose figure
+//! `tests/native_save_plan8_45mp.rs` holds to the heap the same save adds.
 //!
 //! # Measurement record (the streamed reader and writer)
 //!

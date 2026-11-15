@@ -18,10 +18,12 @@ use doctored_core::doc::DrDocument;
 use doctored_core::ffi::{dr_image_free, dr_image_from_rgba, dr_string_free};
 use doctored_core::ffi_color::dr_doc_save_image;
 use doctored_core::ffi_doc::{dr_doc_free, dr_doc_from_image, dr_doc_save_native};
+use doctored_core::ffi_retained_source::dr_doc_mixed_source_edit;
 use doctored_core::ffi_tile_pool::{
     dr_doc_tile_pool_write, dr_tile_pool_free, dr_tile_pool_open, dr_tile_pool_window_bytes,
 };
-use doctored_core::precision_image::REFERENCE_WORKING_BYTES;
+use doctored_core::icc::IccProfile;
+use doctored_core::precision_image::{set_process_working_limit, REFERENCE_WORKING_BYTES};
 use doctored_core::retained_source::SourceEdit;
 use image::{Rgba, RgbaImage};
 use serde_json::json;
@@ -31,6 +33,9 @@ use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use tempfile::TempDir;
+
+#[path = "common/float_fixture.rs"]
+mod float_fixture;
 
 const W45: u32 = 8256;
 const H45: u32 = 5504;
@@ -259,6 +264,57 @@ fn a_flat_png_save_adds_rows_not_the_stream_at_45_mp() {
         "S2 flat PNG: the save added {added} B, over the row bound {}",
         row_bound(W45)
     );
+}
+
+/// `float_master_24mp`'s 8-bit case: a 6000×4000 32-bit float master placed
+/// with `convert_fallback` into a white 6000×4000 byte document. Its save
+/// streams the master's samples and the layers' rows; the heap it adds is
+/// held to the row bound and to the plan (whose former floor measured the
+/// whole-file writer).
+#[test]
+fn a_float_master_save_adds_rows_at_24_mp() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    // `float_master_24mp`'s working limit (a 16 GB Mac's), which the place
+    // of a 24 MP float master needs.
+    const LIMIT: u64 = 8_589_934_592;
+    assert!(set_process_working_limit(LIMIT));
+    let (w, h) = (6000_u32, 4000_u32);
+    let pixels = (0..w * h)
+        .map(|i| {
+            let (x, y) = (i % w, i / w);
+            [
+                x as f32 / w as f32,
+                y as f32 / h as f32,
+                ((x / 8) % 8) as f32 * 0.25,
+                1.0,
+            ]
+        })
+        .collect();
+    let master = float_fixture::float_doc(w, h, &IccProfile::srgb(), &[pixels]);
+    let white = DrDocument::from_pixels(RgbaImage::from_pixel(w, h, Rgba([255; 4])));
+    let request = CString::new(
+        json!({"op":"place","source_id":"m","name":"Placed","x":0,"y":0,
+            "depth_conversion":"convert_fallback"})
+        .to_string(),
+    )
+    .unwrap();
+    let mut error = ptr::null_mut();
+    let placed = unsafe {
+        dr_doc_mixed_source_edit(
+            &white,
+            ptr::null(),
+            &master,
+            request.as_ptr(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    assert!(error.is_null() && !placed.is_null(), "the place failed");
+    let doc = *unsafe { Box::from_raw(placed) };
+    drop((white, master));
+    check("float master", doc, w);
 }
 
 #[test]
