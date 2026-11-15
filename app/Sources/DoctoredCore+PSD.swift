@@ -120,8 +120,9 @@ extension RasterDocument {
     }
 
     /// True when `url` is a TIFF whose Photoshop layer block the core reads as
-    /// layers (a big-endian unsigned 8- or 16-bit RGB, CMYK, gray or Lab TIFF
-    /// holding one, #1, or a 32-bit float RGB one of either byte order). Every
+    /// layers (an unsigned 8- or 16-bit RGB TIFF of either byte order or a
+    /// big-endian CMYK, gray or Lab one holding one, #1, or a 32-bit float RGB
+    /// one of either byte order). Every
     /// other TIFF answers false and opens flat; `tiffHasLayerBlock` says whether
     /// its block holds layers all the same. Reads no pixel strip.
     static func tiffHasLayers(at url: URL) -> Bool {

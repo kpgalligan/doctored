@@ -79,10 +79,14 @@ and `inspect_psd` / `inspect_psd_export` for the model).
   read only on a record with a rectangle. Photoshop's 16-bit records in the `Lr16` tail with ZIP(-prediction) layer
   and mask planes import layered since Run 4 ([depth status](phase-10c-depth-status.md)).
 - **Formats.** The importer reads PSB, ZIP and ZIP-with-prediction at 8 bits and in the stored composite (only the
-  kept planes are inflated), `Lr32` (`psd_import_float.rs`), and the layer block of a big-endian unsigned 8- or
-  16-bit RGB TIFF or of a 32-bit float RGB TIFF in either byte order; any other TIFF opens flat. A TIFF opened
-  flat whose block holds layers (`tiff_layer_block`: any order, model, depth or BigTIFF; a readable one opened
-  flattened too) gives TIFF a loss line, so File ▸ Save goes to the Save panel instead of writing over them.
+  kept planes are inflated), `Lr32` (`psd_import_float.rs`), and the layer block of an unsigned 8- or 16-bit RGB
+  TIFF or of a 32-bit float RGB TIFF in either byte order; any other TIFF opens flat. A little-endian RGB block is
+  read through its big-endian form (`tiff_layers_order`): at 8 and 16 bits its layout is what two Photoshop
+  26.10.0 takes measured (private `tiff_le_53_take.py`; a held-out second scene opened unchanged): fields in the
+  file's order, codes byte-reversed, 8-bit RLE row counts little-endian, 16-bit Raw and predicted planes
+  big-endian, every plane equal to the Macintosh twin's (`tests/fixtures/psd_photoshop/tiff_little_endian`). A
+  TIFF opened flat whose block holds layers (`tiff_layer_block`: any order, model, depth or BigTIFF; a readable one
+  opened flattened too) gives TIFF a loss line, so File ▸ Save goes to the Save panel instead of writing over them.
 - **Non-goals, fixed:** no per-export choice between preserve/rasterize/refuse; `TySh`, vector/shape and
   smart-object payloads rasterize; the glows' technique, `lrFX` and `clbl` are not interpreted (disclosed in the
   import sentence).

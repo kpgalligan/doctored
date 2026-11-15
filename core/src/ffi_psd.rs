@@ -47,8 +47,10 @@ pub unsafe extern "C" fn dr_psd_import_report(
     }
 }
 
-/// Imports the layers of a PSD, PSB or layered TIFF (mode 0) or its saved
-/// composite (mode 1; a TIFF has none here and refuses). Never falls back
+/// Imports the layers of a PSD, PSB or layered TIFF (mode 0; a little-endian
+/// TIFF through its big-endian form, `tiff_layers_order::reader_bytes`,
+/// whose fingerprint is the file's own) or its saved composite (mode 1; a
+/// TIFF has none here and refuses). Never falls back
 /// between modes or converts unsupported color/depth implicitly. `control`
 /// is optional and single-use, begun once for the whole open: the file is
 /// read through `cancel_io::read_file` and the import checks it per record;
@@ -83,6 +85,10 @@ pub unsafe extern "C" fn dr_doc_open_psd(
                         "PSD {path}: file changed since compatibility preflight; inspect it again"
                     ));
                 }
+                // A little-endian layered TIFF opens through its big-endian
+                // form, after the fingerprint of its own bytes.
+                let bytes = crate::tiff_layers_order::reader_bytes(bytes)
+                    .map_err(|e| format!("PSD {path}: {e}"))?;
                 let job = job.range(0.2, 1.0);
                 let document = crate::psd_import::open(&bytes, &path, mode, job)?;
                 job.report(1.0, 5)?;
@@ -173,10 +179,10 @@ pub unsafe extern "C" fn dr_doc_save_psd(
 /// (colour mode 4) of any of the three containers, at 8 or 16 bits, opens as
 /// a CMYK document: mode 0 its layers, mode 1 its saved composite (#1). A
 /// 32-bit RGB PSD or PSB opens as a 32-bit float document the same two ways,
-/// and so does a 32-bit float RGB layered TIFF, its layers only, in
-/// either byte order: a little-endian one through its big-endian form
-/// (`tiff_layers_order::big_endian_form`), whose fingerprint is the
-/// file's own. A Grayscale file is refused by name: it opens through
+/// and so does a 32-bit float RGB layered TIFF, its layers only. An RGB
+/// layered TIFF opens in either byte order: a little-endian one through its
+/// big-endian form (`tiff_layers_order::reader_bytes`), whose fingerprint is
+/// the file's own. A Grayscale file is refused by name: it opens through
 /// `dr_precision_doc_open_gray_psd` (#1 phase 3a); so is a Lab file, which
 /// opens through `dr_precision_doc_open_lab_psd` (#1 Lab phase 3a).
 ///
@@ -208,19 +214,11 @@ pub unsafe extern "C" fn dr_precision_doc_open_psd(
                         "PSD {path}: file changed since compatibility preflight; inspect it again"
                     ));
                 }
-                // A little-endian 32-bit layered TIFF opens through its
-                // big-endian form, after the fingerprint of its own bytes. The
-                // original is dropped there, so the open holds only the bytes
-                // the admission plans count as `source_bytes`.
-                let bytes = match crate::tiff_layers_order::big_endian_form(&bytes)
-                    .map_err(|e| format!("PSD {path}: {e}"))?
-                {
-                    Some(converted) => {
-                        drop(bytes);
-                        converted
-                    }
-                    None => bytes,
-                };
+                // A little-endian layered TIFF opens through its big-endian
+                // form, after the fingerprint of its own bytes; the open holds
+                // only the bytes the admission plans count as `source_bytes`.
+                let bytes = crate::tiff_layers_order::reader_bytes(bytes)
+                    .map_err(|e| format!("PSD {path}: {e}"))?;
                 // A CMYK file (colour mode 4) — PSD, PSB or a layered CMYK
                 // TIFF — opens as a CMYK document (#1: its layers, mode 0,
                 // `psd_import_cmyk`; its saved composite, mode 1, `cmyk_io`),
@@ -469,12 +467,13 @@ pub unsafe extern "C" fn dr_precision_doc_save_psd(
 }
 
 /// True when the file at `path` is a TIFF whose Photoshop layer block this
-/// core reads as layers: a classic big-endian unsigned RGB, CMYK (InkSet
-/// absent or 1), BlackIsZero gray (#1 phase 3a) or Lab TIFF at 8 or 16
-/// bits holding a `Layr`/`Lr16` block, or a 32-bit IEEE-float RGB
-/// TIFF of either byte order holding an `Lr32` block. False for NULL, an
-/// unreadable path, a little-endian file at 8 or 16 bits, any other colour
-/// model or sample format, and a TIFF with no readable block — each of which
+/// core reads as layers: a classic unsigned TIFF at 8 or 16 bits holding a
+/// `Layr`/`Lr16` block, in RGB of either byte order or, big-endian, in CMYK
+/// (InkSet absent or 1), BlackIsZero gray (#1 phase 3a) or Lab; or a
+/// 32-bit IEEE-float RGB TIFF of either byte order holding an `Lr32` block.
+/// False for NULL, an unreadable path, a little-endian CMYK, gray or Lab
+/// file, any other colour model or sample format, and a TIFF with no
+/// readable block — each of which
 /// opens flat (`dr_tiff_has_layer_block` says whether its block holds layers
 /// all the same). Reads the header, the first directory and the block keys,
 /// never a pixel strip.

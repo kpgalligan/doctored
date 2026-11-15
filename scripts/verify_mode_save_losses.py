@@ -52,11 +52,21 @@ packet line, and its copy reopens with it.
 
 LAYER BLOCK cells: a hand-built TIFF whose tag-37724 block holds a layer record
 (`layer_block_tiff.layered_tiff`), opened flat by `open_document` without `psd_mode`:
-three the layered open does not read (little-endian RGB at 8 and 16 bits, 32-bit float
-Grayscale) and a big-endian RGB one it reads. Each opens as one layer; TIFF leaves
-`save_types` and `save_as_types` (`.doctored` first) with `LAYERS_LINE` as its whole
-list; a TIFF `save_copy` to another path names nothing and one over the file itself
-names the line. The control, the same big-endian file with no records, saves in place.
+three whose record the layered open does not read (a little-endian RGB file at 8 and
+16 bits whose record bytes are not a record, and a 32-bit float Grayscale file) and a
+big-endian RGB one it reads. Each opens as one layer; TIFF leaves `save_types` and
+`save_as_types` (`.doctored` first) with `LAYERS_LINE` as its whole list; a TIFF
+`save_copy` to another path names nothing and one over the file itself names the line.
+The control, the same big-endian file with no records, saves in place.
+
+PHOTOSHOP LITTLE-ENDIAN cells: two of Photoshop's own little-endian layered RGB TIFFs
+(`core/tests/fixtures/psd_photoshop/tiff_little_endian`, 8 bits RLE and 16 bits ZIP).
+Opened flat, the 8-bit one is a LAYER BLOCK cell (the 16-bit flat open refuses its
+associated alpha, as it does the big-endian twin's). Opened with `psd_mode` layers and the
+inspected fingerprint, it holds its four layers and its group, TIFF names no
+`LAYERS_LINE`, and its `save_types`, `save_as_types` and `losses_by_format.tiff` equal
+those of its Macintosh-order twin (the same document Photoshop saved big-endian in the
+same job, `<name>_mac.tif` beside it) opened with its layers.
 
 Every failing check is printed and the run continues, so a red run lists every cell;
 the exit status is 1 when any check failed. Run with `--output <folder>`; `--cells`
@@ -133,6 +143,9 @@ ONE_LAYER = {'guide': COMBINED, 'channel': COMBINED, 'sampler': COMBINED, 'path'
 IPTC = 'IPTC metadata'
 # `ImageDocument.unopenedLayersLoss`.
 LAYERS_LINE = 'the layers stored in the file on disk, which this document opened flat'
+# Photoshop's own little-endian layered TIFFs (the PHOTOSHOP LITTLE-ENDIAN cells).
+PHOTOSHOP_LE = (Path(__file__).resolve().parents[1]
+                / 'core/tests/fixtures/psd_photoshop/tiff_little_endian')
 
 
 def with_iptc(source, path):
@@ -618,6 +631,70 @@ def main():
                                                   float_samples=True), copy_args=FLOAT)
         layer_block('layered flat', layered_tiff('>'))
         layer_block('layered empty', layered_tiff('>', count=0), holds=False)
+
+        # ---- Photoshop's own little-endian layered TIFFs --------------------------------------
+        def opened_layers(path):
+            """`open_document` with `psd_mode` layers and the inspected fingerprint:
+            (document id, None), or (None, the refusal's text)."""
+            report = attempt('inspect_psd', path=str(path))
+            if isinstance(report, tuple):
+                return None, f'inspect_psd refused: {report[1]}'
+            reply = attempt('open_document', path=str(path), psd_mode='layers',
+                            psd_fingerprint=report.get('source_fingerprint') or '')
+            if isinstance(reply, tuple):
+                return None, reply[1]
+            return reply['document']['id'], None
+
+        def photoshop_le(cell, name, flat=True):
+            """Opened flat (when `flat`), a LAYER BLOCK cell; opened with its layers, Save
+            answers as for its Macintosh-order twin, the same document Photoshop saved
+            big-endian in the same job, opened with its layers."""
+            data = (PHOTOSHOP_LE / name).read_bytes()
+            if flat:
+                layer_block(f'{cell} flat', data)
+            tag = f'{cell} layers'
+            if not wanted(tag):
+                return
+            path = folder / f'{cell.replace(" ", "-")}-layers.tif'
+            path.write_bytes(data)
+            ok = check(data[:2] == b'II', f'{tag}: the fixture is little-endian')
+            doc, refused = opened_layers(path)
+            if refused is not None:
+                check(False, f'{tag}: open_document with psd_mode layers refused: {refused[:200]}')
+                results.append((tag, 'FAIL'))
+                print(f'FAIL {tag}', flush=True)
+                return
+            layers = call('get_document', document_id=doc).get('layers') or []
+            ok &= check(len(layers) == 5, f'{tag}: four layers and a group ({len(layers)})')
+            mine = preservation(doc)
+            twin_path = folder / f'{cell.replace(" ", "-")}-mm.tif'
+            twin_data = (PHOTOSHOP_LE / name.replace('_ibm', '_mac')).read_bytes()
+            twin_path.write_bytes(twin_data)
+            ok &= check(twin_data[:2] == b'MM', f'{tag}: the twin is big-endian')
+            twin, refused = opened_layers(twin_path)
+            if refused is not None:
+                ok &= check(False, f'{tag}: the big-endian twin did not open layered: '
+                                   f'{refused[:200]}')
+            else:
+                theirs = preservation(twin)
+                for key in ('save_types', 'save_as_types'):
+                    ok &= check(mine[key] == theirs[key],
+                                f'{tag}: {key} {mine[key]} == the big-endian file\'s {theirs[key]}')
+                lost, twin_lost = (p['losses_by_format'].get('tiff') for p in (mine, theirs))
+                ok &= check(lost == twin_lost,
+                            f'{tag}: losses_by_format.tiff {lost} == the big-endian file\'s '
+                            f'{twin_lost}')
+                ok &= check(LAYERS_LINE not in (lost or []), f'{tag}: no layers line ({lost})')
+                call('close_document', document_id=twin, discard_changes=True)
+            call('close_document', document_id=doc, discard_changes=True)
+            results.append((tag, 'PASS' if ok else 'FAIL'))
+            print(f'{"PASS" if ok else "FAIL"} {tag}', flush=True)
+
+        photoshop_le('photoshop le8', 's2_8_rle_ibm.tif')
+        # Photoshop's 16-bit file declares its flat image's alpha associated (ExtraSamples
+        # 1), which the 16-bit flat TIFF open refuses in either byte order, so it has no
+        # flat cell.
+        photoshop_le('photoshop le16', 's2_16_zip_ibm.tif', flat=False)
 
     print()
     for tag, outcome in results:

@@ -145,11 +145,12 @@ extension ImageDocument {
     }
 
     /// True for a TIFF whose Photoshop layer block the core reads as layers:
-    /// a big-endian unsigned 8- or 16-bit RGB, CMYK, gray or Lab (#1) TIFF
-    /// holding one, or a 32-bit float RGB one of either byte order.
-    /// Every other TIFF — a 16-bit float, little-endian at 8 or 16 bits —
-    /// answers false and is never offered the layered open; Save still does not write over
-    /// its block (`ImageDocument.sourceLayersUnopened`). It is asked before the ordinary CMYK,
+    /// an unsigned 8- or 16-bit RGB TIFF of either byte order or a big-endian
+    /// CMYK, gray or Lab (#1) one holding one, or a 32-bit float RGB one of
+    /// either byte order. Every other TIFF — a 16-bit float, a little-endian
+    /// CMYK, gray or Lab file — answers false and is never offered the layered
+    /// open; Save still does not write over its block
+    /// (`ImageDocument.sourceLayersUnopened`). It is asked before the ordinary CMYK,
     /// gray and Lab TIFF opens (`openPrecisionDocumentIfRequested`), so a layered
     /// CMYK, gray or Lab TIFF reaches the chooser and its Open Flattened answer
     /// that open.

@@ -1,7 +1,7 @@
 //! PSD import preflight and explicit layered/stored-composite choices, for
 //! all three layered containers: the report's `"format"` is the container's
-//! own name (`PSD`, `PSB` or `TIFF`). A little-endian 32-bit layered TIFF
-//! is reported from its big-endian form
+//! own name (`PSD`, `PSB` or `TIFF`). A little-endian layered TIFF is
+//! reported from its big-endian form
 //! (`tiff_layers_order::big_endian_form`) under its own fingerprint. A
 //! layered TIFF has no stored composite
 //! here — `Container::composite` refuses it by name, so the report gives
@@ -250,8 +250,8 @@ pub(crate) fn fingerprint(bytes: &[u8]) -> String {
 }
 
 pub(crate) fn report(original: &[u8], path: &str) -> Result<Value, String> {
-    // A little-endian 32-bit layered TIFF is read as its big-endian
-    // form (`tiff_layers_order::big_endian_form`); the fingerprint stays the
+    // A little-endian layered TIFF is read as its big-endian form
+    // (`tiff_layers_order::big_endian_form`); the fingerprint stays the
     // file's own. A block that walk does not read is this report's error, so
     // the file opens flat.
     let converted = crate::tiff_layers_order::big_endian_form(original)

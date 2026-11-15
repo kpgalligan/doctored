@@ -235,10 +235,6 @@ fn a_layer_block_the_layered_open_does_not_read_still_holds_layers() {
         little: true,
         ..RGB8
     };
-    let little16 = Shape {
-        bits: 16,
-        ..little8
-    };
     let gray32 = Shape {
         photometric: 1,
         samples: 1,
@@ -247,8 +243,25 @@ fn a_layer_block_the_layered_open_does_not_read_still_holds_layers() {
         ..RGB8
     };
     let cases: [(&str, Shape, &[u8; 4]); 9] = [
-        ("little-endian RGB at 8 bits", little8, b"Layr"),
-        ("little-endian RGB at 16 bits", little16, b"Lr16"),
+        (
+            "little-endian CMYK at 8 bits",
+            Shape {
+                photometric: 5,
+                samples: 4,
+                ..little8
+            },
+            b"Layr",
+        ),
+        (
+            "little-endian Grayscale at 16 bits",
+            Shape {
+                photometric: 1,
+                samples: 1,
+                bits: 16,
+                ..little8
+            },
+            b"Lr16",
+        ),
         ("32-bit float Grayscale, big-endian", gray32, b"Lr32"),
         (
             "32-bit float Grayscale, little-endian",
@@ -300,6 +313,28 @@ fn a_layer_block_the_layered_open_does_not_read_still_holds_layers() {
 }
 
 #[test]
+fn a_little_endian_rgb_block_at_eight_and_sixteen_bits_is_read_and_holds_layers() {
+    let directory = TempDir::new().unwrap();
+    for (bits, key) in [(8u16, b"Layr"), (16, b"Lr16")] {
+        let shape = Shape {
+            little: true,
+            bits,
+            ..RGB8
+        };
+        let (read, held) = answers(
+            &directory,
+            &format!("little{bits}.tif"),
+            &tiff(shape, Some(&layers(true, key, 1))),
+        );
+        assert!(
+            read,
+            "{bits} bits: the layered open reads little-endian RGB"
+        );
+        assert!(held, "{bits} bits: its layer block holds a layer");
+    }
+}
+
+#[test]
 fn a_readable_block_holds_layers_only_when_its_count_is_not_zero() {
     let directory = TempDir::new().unwrap();
     // The same file the layered open reads, with one record, none, and a
@@ -313,7 +348,7 @@ fn a_readable_block_holds_layers_only_when_its_count_is_not_zero() {
         assert!(read, "count {count}: the builder's file is a layered TIFF");
         assert_eq!(held, expected, "count {count}");
     }
-    // An unread little-endian 16-bit file with no records holds no layers.
+    // A little-endian 16-bit file with no records holds no layers.
     let little16 = Shape {
         little: true,
         bits: 16,

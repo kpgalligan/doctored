@@ -429,7 +429,7 @@ fn a_sixteen_bit_layered_tiff_round_trips_as_a_typed_document() {
 }
 
 #[test]
-fn only_a_big_endian_tiff_at_eight_or_sixteen_bits_or_a_float_rgb_tiff_at_32_has_layers() {
+fn a_tiff_has_layers_at_eight_or_sixteen_bits_big_endian_or_rgb_or_as_float_rgb_at_32() {
     let directory = TempDir::new().unwrap();
     // The builder's own positive cases: the refusals below are about the
     // declared colour model, not about how the file is laid out.
@@ -510,6 +510,25 @@ fn only_a_big_endian_tiff_at_eight_or_sixteen_bits_or_a_float_rgb_tiff_at_32_has
             ..float32
         })
     ));
+    // Little-endian RGB at 8 and 16 bits, Photoshop's byte order IBM PC.
+    assert!(has_layers(
+        &directory,
+        "little.tif",
+        &built(Shape {
+            little: true,
+            ..RGB8
+        })
+    ));
+    assert!(has_layers(
+        &directory,
+        "little16.tif",
+        &built(Shape {
+            little: true,
+            bits: 16,
+            key: *b"Lr16",
+            ..RGB8
+        })
+    ));
 
     for (name, shape) in [
         // A separated file short of its four inks.
@@ -529,10 +548,13 @@ fn only_a_big_endian_tiff_at_eight_or_sixteen_bits_or_a_float_rgb_tiff_at_32_has
                 ..RGB8
             },
         ),
+        // Little-endian is read in RGB only.
         (
-            "little",
+            "little_cmyk",
             Shape {
                 little: true,
+                photometric: 5,
+                samples: 4,
                 ..RGB8
             },
         ),
@@ -559,9 +581,11 @@ fn only_a_big_endian_tiff_at_eight_or_sixteen_bits_or_a_float_rgb_tiff_at_32_has
             },
         ),
         (
-            "little16",
+            "little_gray16",
             Shape {
                 little: true,
+                photometric: 1,
+                samples: 1,
                 bits: 16,
                 key: *b"Lr16",
                 ..RGB8

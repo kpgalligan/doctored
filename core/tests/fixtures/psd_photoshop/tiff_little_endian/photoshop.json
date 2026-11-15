@@ -1,0 +1,3783 @@
+{
+  "source": "tiff_le_53_take.py (private Photoshop harness)",
+  "takes": [
+    {
+      "take": "take1",
+      "run_id": "20261115T045321Z-9c7c22d4",
+      "versions": [
+        "26.10.0"
+      ]
+    },
+    {
+      "take": "take2",
+      "run_id": "20261115T050957Z-90ff285a",
+      "versions": [
+        "26.10.0"
+      ]
+    }
+  ],
+  "files": {
+    "s1_8_rle_ibm.tif": {
+      "scene": "s1",
+      "bits": 8,
+      "compression": "rle",
+      "sha256": "27fc544104f894db56ced81e08e0c6d83e1e84d07ec693c33cf87e6e9ccc20ee",
+      "bytes": 29368,
+      "twin": {
+        "file": "s1_8_rle_mac.tif",
+        "sha256": "6787f295187ad63bdc7a0e4dc083723f9de390cedf7c342f5d31927ea5f26eb2"
+      },
+      "photoshop_rows": [
+        {
+          "name": "Masked",
+          "set": false,
+          "parent": null,
+          "visible": false,
+          "bounds": [
+            3,
+            2,
+            13,
+            10
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": true,
+          "user_mask_enabled": true,
+          "error": null
+        },
+        {
+          "name": "Set",
+          "set": true,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            4,
+            3,
+            18,
+            12
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.PASSTHROUGH",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Inner",
+          "set": false,
+          "parent": "Set",
+          "visible": true,
+          "bounds": [
+            4,
+            3,
+            18,
+            12
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Top",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            12,
+            16
+          ],
+          "opacity": 60,
+          "mode": "BlendMode.MULTIPLY",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Bottom",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            24,
+            16
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        }
+      ],
+      "twin_records": [
+        {
+          "name": "Bottom",
+          "rect": [
+            0,
+            0,
+            16,
+            24
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 1,
+              "sha256": "a292bc4a1d8d3caa7dd32d1858f7d642a27373526b84cde7df8634faad708d2a"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "9fb1592cd9df3cfa8dbb5eed7d1e8ca951964c8952fc799a7cb0d04d26a18b77"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "c177936dfad1eef1f47b19b8ca4f212e39098272c4f19c563d7bc040509ddeae"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "37f526b7bddba59fc485a347f5cc3a00762be701fc32607b571ddacc18806840"
+            }
+          }
+        },
+        {
+          "name": "Top",
+          "rect": [
+            0,
+            0,
+            16,
+            12
+          ],
+          "blend": "mul ",
+          "opacity": 153,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 1,
+              "sha256": "8f62c344eff1568474fb693b8c18526629db443b9653a84264189c97693605de"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 0,
+              "sha256": "661e1f553e83c3c712399bed01da910968f3cd757d53274e9a9bf48a959979cb"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 0,
+              "sha256": "df170a88f6635fd213940de58ed677a3691794661f426097bb7a5d732b007cd2"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 0,
+              "sha256": "730bee6efb3d3b51b1ef775e3c5b7bb2c3e0132ec419aeb94ef2185dfaffc2c3"
+            }
+          }
+        },
+        {
+          "name": "</Layer group>",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 3,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Inner",
+          "rect": [
+            3,
+            4,
+            12,
+            18
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 1,
+              "sha256": "7dd92044d596a565dbf5b919ae6b2bc6a48464f7f91de023c231204ea14f118a"
+            },
+            "0": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 0,
+              "sha256": "ac56b6c592ab2f8f573c97540d6b7cf5f9c81da8b6f00ad6ed4fd71297e3909f"
+            },
+            "1": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 0,
+              "sha256": "41c85f03cf016a7550e48209538b34fd7a135754092be787607a61348f79b6a9"
+            },
+            "2": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 0,
+              "sha256": "3415c3bdd5c11181c44aa5bb685548105a881f9986bb3f6d24b4852cea80c298"
+            }
+          }
+        },
+        {
+          "name": "Set",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 1,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Masked",
+          "rect": [
+            0,
+            0,
+            16,
+            24
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 10,
+          "clipping": 0,
+          "section": 0,
+          "mask": {
+            "length": 20,
+            "rect": [
+              2,
+              3,
+              10,
+              13
+            ],
+            "default": 0,
+            "flags": 0,
+            "tail": "0000"
+          },
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 1,
+              "sha256": "a292bc4a1d8d3caa7dd32d1858f7d642a27373526b84cde7df8634faad708d2a"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "701da0948020d4b9205457525aabcfbba4e8ef9b3cd8b5e6883b9078fe9ca392"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "18e8e8902bdc548655807d71eaca97d908b507a1c58ab2a55cee865dba5e750f"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "e174bf4d5849c2134b363f5fc85a3d98f78e62ca11ea695d8a301ffaf2a4b63e"
+            },
+            "-2": {
+              "rect": [
+                2,
+                3,
+                10,
+                13
+              ],
+              "word": 1,
+              "sha256": "6d92a8ea911d0d96dad7f2d76f2647e8b612e645140157668298db20a9412d4b"
+            }
+          }
+        }
+      ]
+    },
+    "s1_8_zip_ibm.tif": {
+      "scene": "s1",
+      "bits": 8,
+      "compression": "zip",
+      "sha256": "f899e3ccaad67d8d81f7108f664f5951460f46abdf4f465bedf7e7354e5374c7",
+      "bytes": 26632,
+      "twin": {
+        "file": "s1_8_zip_mac.tif",
+        "sha256": "602b982559d2b90430cbeb89f8d8cad0a61aacd48d9897cf2394ba5763622065"
+      },
+      "photoshop_rows": [
+        {
+          "name": "Masked",
+          "set": false,
+          "parent": null,
+          "visible": false,
+          "bounds": [
+            3,
+            2,
+            13,
+            10
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": true,
+          "user_mask_enabled": true,
+          "error": null
+        },
+        {
+          "name": "Set",
+          "set": true,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            4,
+            3,
+            18,
+            12
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.PASSTHROUGH",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Inner",
+          "set": false,
+          "parent": "Set",
+          "visible": true,
+          "bounds": [
+            4,
+            3,
+            18,
+            12
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Top",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            12,
+            16
+          ],
+          "opacity": 60,
+          "mode": "BlendMode.MULTIPLY",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Bottom",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            24,
+            16
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        }
+      ],
+      "twin_records": [
+        {
+          "name": "Bottom",
+          "rect": [
+            0,
+            0,
+            16,
+            24
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "a292bc4a1d8d3caa7dd32d1858f7d642a27373526b84cde7df8634faad708d2a"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "9fb1592cd9df3cfa8dbb5eed7d1e8ca951964c8952fc799a7cb0d04d26a18b77"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "c177936dfad1eef1f47b19b8ca4f212e39098272c4f19c563d7bc040509ddeae"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "37f526b7bddba59fc485a347f5cc3a00762be701fc32607b571ddacc18806840"
+            }
+          }
+        },
+        {
+          "name": "Top",
+          "rect": [
+            0,
+            0,
+            16,
+            12
+          ],
+          "blend": "mul ",
+          "opacity": 153,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 3,
+              "sha256": "8f62c344eff1568474fb693b8c18526629db443b9653a84264189c97693605de"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 3,
+              "sha256": "661e1f553e83c3c712399bed01da910968f3cd757d53274e9a9bf48a959979cb"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 3,
+              "sha256": "df170a88f6635fd213940de58ed677a3691794661f426097bb7a5d732b007cd2"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 3,
+              "sha256": "730bee6efb3d3b51b1ef775e3c5b7bb2c3e0132ec419aeb94ef2185dfaffc2c3"
+            }
+          }
+        },
+        {
+          "name": "</Layer group>",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 3,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Inner",
+          "rect": [
+            3,
+            4,
+            12,
+            18
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 3,
+              "sha256": "7dd92044d596a565dbf5b919ae6b2bc6a48464f7f91de023c231204ea14f118a"
+            },
+            "0": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 3,
+              "sha256": "ac56b6c592ab2f8f573c97540d6b7cf5f9c81da8b6f00ad6ed4fd71297e3909f"
+            },
+            "1": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 3,
+              "sha256": "41c85f03cf016a7550e48209538b34fd7a135754092be787607a61348f79b6a9"
+            },
+            "2": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 3,
+              "sha256": "3415c3bdd5c11181c44aa5bb685548105a881f9986bb3f6d24b4852cea80c298"
+            }
+          }
+        },
+        {
+          "name": "Set",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 1,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Masked",
+          "rect": [
+            0,
+            0,
+            16,
+            24
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 10,
+          "clipping": 0,
+          "section": 0,
+          "mask": {
+            "length": 20,
+            "rect": [
+              2,
+              3,
+              10,
+              13
+            ],
+            "default": 0,
+            "flags": 0,
+            "tail": "0000"
+          },
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "a292bc4a1d8d3caa7dd32d1858f7d642a27373526b84cde7df8634faad708d2a"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "701da0948020d4b9205457525aabcfbba4e8ef9b3cd8b5e6883b9078fe9ca392"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "18e8e8902bdc548655807d71eaca97d908b507a1c58ab2a55cee865dba5e750f"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "e174bf4d5849c2134b363f5fc85a3d98f78e62ca11ea695d8a301ffaf2a4b63e"
+            },
+            "-2": {
+              "rect": [
+                2,
+                3,
+                10,
+                13
+              ],
+              "word": 3,
+              "sha256": "6d92a8ea911d0d96dad7f2d76f2647e8b612e645140157668298db20a9412d4b"
+            }
+          }
+        }
+      ]
+    },
+    "s1_16_rle_ibm.tif": {
+      "scene": "s1",
+      "bits": 16,
+      "compression": "rle",
+      "sha256": "896a7e55ff2b79c686d35690247d3dc65d3ab7ac132ae82aead4de0441509b5a",
+      "bytes": 37328,
+      "twin": {
+        "file": "s1_16_rle_mac.tif",
+        "sha256": "f1cb85e7904202969aa567cd0f4ddc59d632c86f120a5113f7745feaa222e87d"
+      },
+      "photoshop_rows": [
+        {
+          "name": "Masked",
+          "set": false,
+          "parent": null,
+          "visible": false,
+          "bounds": [
+            0,
+            0,
+            24,
+            16
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": true,
+          "user_mask_enabled": true,
+          "error": null
+        },
+        {
+          "name": "Set",
+          "set": true,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            4,
+            3,
+            18,
+            12
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.PASSTHROUGH",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Inner",
+          "set": false,
+          "parent": "Set",
+          "visible": true,
+          "bounds": [
+            4,
+            3,
+            18,
+            12
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Top",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            12,
+            16
+          ],
+          "opacity": 60,
+          "mode": "BlendMode.MULTIPLY",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Bottom",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            24,
+            16
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        }
+      ],
+      "twin_records": [
+        {
+          "name": "Bottom",
+          "rect": [
+            0,
+            0,
+            16,
+            24
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "e464fc6676215c8770e4d9c2fa917d49cb7dd0db6b4cb78b88efd64d4fcd1d72"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "17d06704af25de6c4488e9fa8b914849ff2649d90b3aa05d7f0f74320b875fe4"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "99b09da3bea8c59ea6b390f6e6a665eb507952d33aa36ce71b9c9ce13be7cb27"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "4fa2b51fd7a3bce26b0599934d2a03af12e24b8777f1d5648045d85bf6a08645"
+            }
+          }
+        },
+        {
+          "name": "Top",
+          "rect": [
+            0,
+            0,
+            16,
+            12
+          ],
+          "blend": "mul ",
+          "opacity": 153,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 0,
+              "sha256": "ab1a280df0afb13cb008163cdb1945c0864d51e538f289a79499581fb3da4f49"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 0,
+              "sha256": "463285460b8046726f8a4a9d6392393f4c467638823f4b1d2c0e1573c8d873cf"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 0,
+              "sha256": "74dd74421d247151c192761a4181d04eb7da6050662d39a3a75d3ff2e247d471"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 0,
+              "sha256": "3f150b373c99f97be2870108fdea2ea0fc75e5c1e37c747915ff33aed4aee8c8"
+            }
+          }
+        },
+        {
+          "name": "</Layer group>",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 3,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Inner",
+          "rect": [
+            3,
+            4,
+            12,
+            18
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 0,
+              "sha256": "0bcd552d822fc3c26b91b27320e51bbd1786e9955f0527e7de59bbda669f28a6"
+            },
+            "0": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 0,
+              "sha256": "faa0ffa4313b31f2e0761c2e1e256e25f9b2533b836284beccaa444b7921a50a"
+            },
+            "1": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 0,
+              "sha256": "eaa7ccbdba42e8f2a0e2f504c60ef1f6b4e6769e3c18c0166a3eb8742060adc0"
+            },
+            "2": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 0,
+              "sha256": "8190863bbc05ead92f9e896c720f9d1440517e1b84647ae144228aa35de0bc91"
+            }
+          }
+        },
+        {
+          "name": "Set",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 1,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Masked",
+          "rect": [
+            0,
+            0,
+            16,
+            24
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 10,
+          "clipping": 0,
+          "section": 0,
+          "mask": {
+            "length": 20,
+            "rect": [
+              0,
+              0,
+              16,
+              24
+            ],
+            "default": 0,
+            "flags": 0,
+            "tail": "0000"
+          },
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "e464fc6676215c8770e4d9c2fa917d49cb7dd0db6b4cb78b88efd64d4fcd1d72"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "7a6dd21170b1e317683457be5b65484f457defd9578e1492cc77507cc0f897f8"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "b1dded309cff0f72fc6abc44a4189e8deed481ece9c849e98af9b36c74410a3c"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "fac97f41397cad4f45d4f40ca7d25d84caa1dbf3c71bcd31c5b3ce0e53a72313"
+            },
+            "-2": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 0,
+              "sha256": "d023d3a9acde375d41f85e8d8d511066167931bba9f50e622c2213b297edd7bb"
+            }
+          }
+        }
+      ]
+    },
+    "s1_16_zip_ibm.tif": {
+      "scene": "s1",
+      "bits": 16,
+      "compression": "zip",
+      "sha256": "edf4b8cdb54263cfcb1c685c58f61f0c1c9558b7b71589ef1c278585c857ec13",
+      "bytes": 30224,
+      "twin": {
+        "file": "s1_16_zip_mac.tif",
+        "sha256": "1104719a94ae2592144f5aa88495be255dbe474bf8f9bcfcbfc600f22ff67cf7"
+      },
+      "photoshop_rows": [
+        {
+          "name": "Masked",
+          "set": false,
+          "parent": null,
+          "visible": false,
+          "bounds": [
+            0,
+            0,
+            24,
+            16
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": true,
+          "user_mask_enabled": true,
+          "error": null
+        },
+        {
+          "name": "Set",
+          "set": true,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            4,
+            3,
+            18,
+            12
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.PASSTHROUGH",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Inner",
+          "set": false,
+          "parent": "Set",
+          "visible": true,
+          "bounds": [
+            4,
+            3,
+            18,
+            12
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Top",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            12,
+            16
+          ],
+          "opacity": 60,
+          "mode": "BlendMode.MULTIPLY",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Bottom",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            24,
+            16
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        }
+      ],
+      "twin_records": [
+        {
+          "name": "Bottom",
+          "rect": [
+            0,
+            0,
+            16,
+            24
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "e464fc6676215c8770e4d9c2fa917d49cb7dd0db6b4cb78b88efd64d4fcd1d72"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "17d06704af25de6c4488e9fa8b914849ff2649d90b3aa05d7f0f74320b875fe4"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "99b09da3bea8c59ea6b390f6e6a665eb507952d33aa36ce71b9c9ce13be7cb27"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "4fa2b51fd7a3bce26b0599934d2a03af12e24b8777f1d5648045d85bf6a08645"
+            }
+          }
+        },
+        {
+          "name": "Top",
+          "rect": [
+            0,
+            0,
+            16,
+            12
+          ],
+          "blend": "mul ",
+          "opacity": 153,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 3,
+              "sha256": "ab1a280df0afb13cb008163cdb1945c0864d51e538f289a79499581fb3da4f49"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 3,
+              "sha256": "463285460b8046726f8a4a9d6392393f4c467638823f4b1d2c0e1573c8d873cf"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 3,
+              "sha256": "74dd74421d247151c192761a4181d04eb7da6050662d39a3a75d3ff2e247d471"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                12
+              ],
+              "word": 3,
+              "sha256": "3f150b373c99f97be2870108fdea2ea0fc75e5c1e37c747915ff33aed4aee8c8"
+            }
+          }
+        },
+        {
+          "name": "</Layer group>",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 3,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Inner",
+          "rect": [
+            3,
+            4,
+            12,
+            18
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 3,
+              "sha256": "0bcd552d822fc3c26b91b27320e51bbd1786e9955f0527e7de59bbda669f28a6"
+            },
+            "0": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 3,
+              "sha256": "faa0ffa4313b31f2e0761c2e1e256e25f9b2533b836284beccaa444b7921a50a"
+            },
+            "1": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 3,
+              "sha256": "eaa7ccbdba42e8f2a0e2f504c60ef1f6b4e6769e3c18c0166a3eb8742060adc0"
+            },
+            "2": {
+              "rect": [
+                3,
+                4,
+                12,
+                18
+              ],
+              "word": 3,
+              "sha256": "8190863bbc05ead92f9e896c720f9d1440517e1b84647ae144228aa35de0bc91"
+            }
+          }
+        },
+        {
+          "name": "Set",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 1,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Masked",
+          "rect": [
+            0,
+            0,
+            16,
+            24
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 10,
+          "clipping": 0,
+          "section": 0,
+          "mask": {
+            "length": 20,
+            "rect": [
+              0,
+              0,
+              16,
+              24
+            ],
+            "default": 0,
+            "flags": 0,
+            "tail": "0000"
+          },
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "e464fc6676215c8770e4d9c2fa917d49cb7dd0db6b4cb78b88efd64d4fcd1d72"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "7a6dd21170b1e317683457be5b65484f457defd9578e1492cc77507cc0f897f8"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "b1dded309cff0f72fc6abc44a4189e8deed481ece9c849e98af9b36c74410a3c"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "fac97f41397cad4f45d4f40ca7d25d84caa1dbf3c71bcd31c5b3ce0e53a72313"
+            },
+            "-2": {
+              "rect": [
+                0,
+                0,
+                16,
+                24
+              ],
+              "word": 3,
+              "sha256": "d023d3a9acde375d41f85e8d8d511066167931bba9f50e622c2213b297edd7bb"
+            }
+          }
+        }
+      ]
+    },
+    "s2_8_rle_ibm.tif": {
+      "scene": "s2",
+      "bits": 8,
+      "compression": "rle",
+      "sha256": "1bb6cd69432622f02c978e1a5f9d7cb7580ff4da6731803ed453f8bfd87662fc",
+      "bytes": 27684,
+      "twin": {
+        "file": "s2_8_rle_mac.tif",
+        "sha256": "8de5fe416eca3dd56150020cda87e53cb8c9128ed8be82c5c6a33c93d726f4f6"
+      },
+      "photoshop_rows": [
+        {
+          "name": "Hidden",
+          "set": false,
+          "parent": null,
+          "visible": false,
+          "bounds": [
+            5,
+            4,
+            14,
+            10
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": true,
+          "user_mask_enabled": true,
+          "error": null
+        },
+        {
+          "name": "Folder",
+          "set": true,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            2,
+            1,
+            13,
+            9
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.PASSTHROUGH",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Innér",
+          "set": false,
+          "parent": "Folder",
+          "visible": true,
+          "bounds": [
+            2,
+            1,
+            13,
+            9
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Upper",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            7,
+            13
+          ],
+          "opacity": 45.0980392156863,
+          "mode": "BlendMode.SCREEN",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Base",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            19,
+            13
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        }
+      ],
+      "twin_records": [
+        {
+          "name": "Base",
+          "rect": [
+            0,
+            0,
+            13,
+            19
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 1,
+              "sha256": "06b871cb3b614fa6ad067ada4897f7a86ef78b7bd17210bd9f75cd636dbc3b13"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "9e23ee0708fa1e2455c2e4eba9cf1f0c9a9faa04efe28475cb504e18995f1096"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "061f71fde44efff65f21f58e8b07beea8baa781d6682ba9eb9906988782b3f32"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "4540474be8afc77f454e622a0d9699187194f9659eee3e1da6f077eca85d066f"
+            }
+          }
+        },
+        {
+          "name": "Upper",
+          "rect": [
+            0,
+            0,
+            13,
+            7
+          ],
+          "blend": "scrn",
+          "opacity": 115,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 1,
+              "sha256": "6ac68154dfd05d7ae050c752d9e5ab1d302f34d0a3f0df8f479846a3f15e0c2b"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 0,
+              "sha256": "8a8d90a59496e96c0f0e33d2f20374aa9f3040602acbf9f84c52040f1ba39803"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 0,
+              "sha256": "8425ded1c7bf0bea04883e9dba99c2aab6ddd8b466a7350ce321c4fbd677b5e5"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 0,
+              "sha256": "07a7fa9732e70a871d2a91ede664e085ca1aba9694c0c95924d39328ea6ec079"
+            }
+          }
+        },
+        {
+          "name": "</Layer group>",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 3,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Innér",
+          "rect": [
+            1,
+            2,
+            9,
+            13
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 0,
+              "sha256": "f1c40669974e8c4439b3ee3d3624616709aab8fc6db73cbb56f2dd2fc3bdd30c"
+            },
+            "0": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 0,
+              "sha256": "86f6d55c60f8e07edb55033211233adbfbfa02cff074cbc65722440dcf15f119"
+            },
+            "1": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 0,
+              "sha256": "f7f0cf44e4f2c3315c56b39b2c5b2ca7425755722b478f5d80b18ffae94b030d"
+            },
+            "2": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 0,
+              "sha256": "1afb3091d4a09bb87be200abe7ef267b6654015af13025bf92685ec8c0012567"
+            }
+          }
+        },
+        {
+          "name": "Folder",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 1,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Hidden",
+          "rect": [
+            0,
+            0,
+            13,
+            19
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 10,
+          "clipping": 0,
+          "section": 0,
+          "mask": {
+            "length": 20,
+            "rect": [
+              4,
+              5,
+              10,
+              14
+            ],
+            "default": 0,
+            "flags": 0,
+            "tail": "0000"
+          },
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 1,
+              "sha256": "06b871cb3b614fa6ad067ada4897f7a86ef78b7bd17210bd9f75cd636dbc3b13"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "543474d88febb78dc2d206869ebdb127e6699de37c524f42b50ce8a709b63c01"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "f249ca913e57539d8d60291475ae87e4726ec39f77690e1fdef8a6c53f43414a"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "68e3ac36e821900a50787f973a7852bceb80ccb5b1fe0d2c61089fe526799c10"
+            },
+            "-2": {
+              "rect": [
+                4,
+                5,
+                10,
+                14
+              ],
+              "word": 1,
+              "sha256": "1d15acfeb2edbd16f21951af2d9db31a9dd540a6f27b5cddef7c69e5ec1ee00c"
+            }
+          }
+        }
+      ]
+    },
+    "s2_8_zip_ibm.tif": {
+      "scene": "s2",
+      "bits": 8,
+      "compression": "zip",
+      "sha256": "a7ba5ee2e603accd11b0f56a58dceb1fc91fc65399e04c4ac6a3d78036e38b80",
+      "bytes": 26092,
+      "twin": {
+        "file": "s2_8_zip_mac.tif",
+        "sha256": "c26fd3921ec67c1fd9b38d36d4be19f1d7faad08c3f18d73bd6101a874c83a32"
+      },
+      "photoshop_rows": [
+        {
+          "name": "Hidden",
+          "set": false,
+          "parent": null,
+          "visible": false,
+          "bounds": [
+            5,
+            4,
+            14,
+            10
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": true,
+          "user_mask_enabled": true,
+          "error": null
+        },
+        {
+          "name": "Folder",
+          "set": true,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            2,
+            1,
+            13,
+            9
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.PASSTHROUGH",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Innér",
+          "set": false,
+          "parent": "Folder",
+          "visible": true,
+          "bounds": [
+            2,
+            1,
+            13,
+            9
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Upper",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            7,
+            13
+          ],
+          "opacity": 45.0980392156863,
+          "mode": "BlendMode.SCREEN",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Base",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            19,
+            13
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        }
+      ],
+      "twin_records": [
+        {
+          "name": "Base",
+          "rect": [
+            0,
+            0,
+            13,
+            19
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "06b871cb3b614fa6ad067ada4897f7a86ef78b7bd17210bd9f75cd636dbc3b13"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "9e23ee0708fa1e2455c2e4eba9cf1f0c9a9faa04efe28475cb504e18995f1096"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "061f71fde44efff65f21f58e8b07beea8baa781d6682ba9eb9906988782b3f32"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "4540474be8afc77f454e622a0d9699187194f9659eee3e1da6f077eca85d066f"
+            }
+          }
+        },
+        {
+          "name": "Upper",
+          "rect": [
+            0,
+            0,
+            13,
+            7
+          ],
+          "blend": "scrn",
+          "opacity": 115,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 3,
+              "sha256": "6ac68154dfd05d7ae050c752d9e5ab1d302f34d0a3f0df8f479846a3f15e0c2b"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 3,
+              "sha256": "8a8d90a59496e96c0f0e33d2f20374aa9f3040602acbf9f84c52040f1ba39803"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 3,
+              "sha256": "8425ded1c7bf0bea04883e9dba99c2aab6ddd8b466a7350ce321c4fbd677b5e5"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 3,
+              "sha256": "07a7fa9732e70a871d2a91ede664e085ca1aba9694c0c95924d39328ea6ec079"
+            }
+          }
+        },
+        {
+          "name": "</Layer group>",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 3,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Innér",
+          "rect": [
+            1,
+            2,
+            9,
+            13
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 3,
+              "sha256": "f1c40669974e8c4439b3ee3d3624616709aab8fc6db73cbb56f2dd2fc3bdd30c"
+            },
+            "0": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 3,
+              "sha256": "86f6d55c60f8e07edb55033211233adbfbfa02cff074cbc65722440dcf15f119"
+            },
+            "1": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 3,
+              "sha256": "f7f0cf44e4f2c3315c56b39b2c5b2ca7425755722b478f5d80b18ffae94b030d"
+            },
+            "2": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 3,
+              "sha256": "1afb3091d4a09bb87be200abe7ef267b6654015af13025bf92685ec8c0012567"
+            }
+          }
+        },
+        {
+          "name": "Folder",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 1,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Hidden",
+          "rect": [
+            0,
+            0,
+            13,
+            19
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 10,
+          "clipping": 0,
+          "section": 0,
+          "mask": {
+            "length": 20,
+            "rect": [
+              4,
+              5,
+              10,
+              14
+            ],
+            "default": 0,
+            "flags": 0,
+            "tail": "0000"
+          },
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "06b871cb3b614fa6ad067ada4897f7a86ef78b7bd17210bd9f75cd636dbc3b13"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "543474d88febb78dc2d206869ebdb127e6699de37c524f42b50ce8a709b63c01"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "f249ca913e57539d8d60291475ae87e4726ec39f77690e1fdef8a6c53f43414a"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "68e3ac36e821900a50787f973a7852bceb80ccb5b1fe0d2c61089fe526799c10"
+            },
+            "-2": {
+              "rect": [
+                4,
+                5,
+                10,
+                14
+              ],
+              "word": 3,
+              "sha256": "1d15acfeb2edbd16f21951af2d9db31a9dd540a6f27b5cddef7c69e5ec1ee00c"
+            }
+          }
+        }
+      ]
+    },
+    "s2_16_rle_ibm.tif": {
+      "scene": "s2",
+      "bits": 16,
+      "compression": "rle",
+      "sha256": "aef1db68ef8d42a173124ce089618047ab7366f88d0c14711cc51d3b64305a5c",
+      "bytes": 32656,
+      "twin": {
+        "file": "s2_16_rle_mac.tif",
+        "sha256": "57c7988bad7c6d5e41ac0272c29e41fb8aae66915b5f52a7b84096a924318ee6"
+      },
+      "photoshop_rows": [
+        {
+          "name": "Hidden",
+          "set": false,
+          "parent": null,
+          "visible": false,
+          "bounds": [
+            0,
+            0,
+            19,
+            13
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": true,
+          "user_mask_enabled": true,
+          "error": null
+        },
+        {
+          "name": "Folder",
+          "set": true,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            2,
+            1,
+            13,
+            9
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.PASSTHROUGH",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Innér",
+          "set": false,
+          "parent": "Folder",
+          "visible": true,
+          "bounds": [
+            2,
+            1,
+            13,
+            9
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Upper",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            7,
+            13
+          ],
+          "opacity": 45.0980392156863,
+          "mode": "BlendMode.SCREEN",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Base",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            19,
+            13
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        }
+      ],
+      "twin_records": [
+        {
+          "name": "Base",
+          "rect": [
+            0,
+            0,
+            13,
+            19
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "b8c5e0137d14e64a9c5f0e671013bc9fbd80421232b22daec9b48e535df60dee"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "153f56ef4290348a6c62606f6c654874dedbf4dc3464088eb49ae258bb953cb2"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "b2e173832c0ec04b699a1adaff22c83527b79d865debfbf68cb110a6df0b28ed"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "29f6a2afdca373f84afb5d7565e33af17d3fb8222a560e31aa997c264634b345"
+            }
+          }
+        },
+        {
+          "name": "Upper",
+          "rect": [
+            0,
+            0,
+            13,
+            7
+          ],
+          "blend": "scrn",
+          "opacity": 115,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 0,
+              "sha256": "b00109a1642a876ca0ca1f170884e2579b0dc70bc28fe5e6ae2d71c917186c6d"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 0,
+              "sha256": "af4329347ceac9f707f6dd48423461b60a249b950cc1eedf67e6c5ae081462d7"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 0,
+              "sha256": "d60c0df7950da2abe2aaf81ce00fe088bd733a97ed6bb7f2073cdcbc1d868f57"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 0,
+              "sha256": "7756b3f90cb9d8fb498e6cef2245c8fa55877112f8dea534e5a1f616bfed56ed"
+            }
+          }
+        },
+        {
+          "name": "</Layer group>",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 3,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Innér",
+          "rect": [
+            1,
+            2,
+            9,
+            13
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 0,
+              "sha256": "fd721c07d430dd79fdcf6186814fb811475b3f5dfbc4337816173497ea5b7fe7"
+            },
+            "0": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 0,
+              "sha256": "2cc02907dd36f3e40dc76c6464d294d7c148e4be15fc0d5f59d1c6958aabc1e5"
+            },
+            "1": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 0,
+              "sha256": "93acc8fcbf4b6cb738e1e51b72951feec8d7ded8f534a163dc2c5864c057fb0a"
+            },
+            "2": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 0,
+              "sha256": "601a8cb8aad6314435359ad24de76eb69ecd649807ae7b2000394896c6ff0559"
+            }
+          }
+        },
+        {
+          "name": "Folder",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 1,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Hidden",
+          "rect": [
+            0,
+            0,
+            13,
+            19
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 10,
+          "clipping": 0,
+          "section": 0,
+          "mask": {
+            "length": 20,
+            "rect": [
+              0,
+              0,
+              13,
+              19
+            ],
+            "default": 0,
+            "flags": 0,
+            "tail": "0000"
+          },
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "b8c5e0137d14e64a9c5f0e671013bc9fbd80421232b22daec9b48e535df60dee"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "3f54b75d469ae1c7f798470bf77f1c61c8da7d716e472e13c8c7e8277a74b9a0"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "4043d413370e70adae1efffa02ff0b4c970a114836570189cb48f1ce1b473878"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "ef0adff55bab9e2f8640ddcca92421061be8e8d76818a0355623e328d3902a9f"
+            },
+            "-2": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 0,
+              "sha256": "b25a9cab4f86850a278e744550cab964d24bc46b6837107739be19b9a7bf1711"
+            }
+          }
+        }
+      ]
+    },
+    "s2_16_zip_ibm.tif": {
+      "scene": "s2",
+      "bits": 16,
+      "compression": "zip",
+      "sha256": "d5172aced6bad99dff7e27dba20ee4e9849ac1cf3d09f9cd6f90e2d6279442c3",
+      "bytes": 28532,
+      "twin": {
+        "file": "s2_16_zip_mac.tif",
+        "sha256": "ae61eda323dd555fbd2aedf0f52501cbcaf3868975ee305d7606c060c46e1dd6"
+      },
+      "photoshop_rows": [
+        {
+          "name": "Hidden",
+          "set": false,
+          "parent": null,
+          "visible": false,
+          "bounds": [
+            0,
+            0,
+            19,
+            13
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": true,
+          "user_mask_enabled": true,
+          "error": null
+        },
+        {
+          "name": "Folder",
+          "set": true,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            2,
+            1,
+            13,
+            9
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.PASSTHROUGH",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Innér",
+          "set": false,
+          "parent": "Folder",
+          "visible": true,
+          "bounds": [
+            2,
+            1,
+            13,
+            9
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Upper",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            7,
+            13
+          ],
+          "opacity": 45.0980392156863,
+          "mode": "BlendMode.SCREEN",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        },
+        {
+          "name": "Base",
+          "set": false,
+          "parent": null,
+          "visible": true,
+          "bounds": [
+            0,
+            0,
+            19,
+            13
+          ],
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "has_user_mask": false,
+          "user_mask_enabled": null,
+          "error": null
+        }
+      ],
+      "twin_records": [
+        {
+          "name": "Base",
+          "rect": [
+            0,
+            0,
+            13,
+            19
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "b8c5e0137d14e64a9c5f0e671013bc9fbd80421232b22daec9b48e535df60dee"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "153f56ef4290348a6c62606f6c654874dedbf4dc3464088eb49ae258bb953cb2"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "b2e173832c0ec04b699a1adaff22c83527b79d865debfbf68cb110a6df0b28ed"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "29f6a2afdca373f84afb5d7565e33af17d3fb8222a560e31aa997c264634b345"
+            }
+          }
+        },
+        {
+          "name": "Upper",
+          "rect": [
+            0,
+            0,
+            13,
+            7
+          ],
+          "blend": "scrn",
+          "opacity": 115,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 3,
+              "sha256": "b00109a1642a876ca0ca1f170884e2579b0dc70bc28fe5e6ae2d71c917186c6d"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 3,
+              "sha256": "af4329347ceac9f707f6dd48423461b60a249b950cc1eedf67e6c5ae081462d7"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 3,
+              "sha256": "d60c0df7950da2abe2aaf81ce00fe088bd733a97ed6bb7f2073cdcbc1d868f57"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                7
+              ],
+              "word": 3,
+              "sha256": "7756b3f90cb9d8fb498e6cef2245c8fa55877112f8dea534e5a1f616bfed56ed"
+            }
+          }
+        },
+        {
+          "name": "</Layer group>",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 3,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Innér",
+          "rect": [
+            1,
+            2,
+            9,
+            13
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 8,
+          "clipping": 0,
+          "section": 0,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 3,
+              "sha256": "fd721c07d430dd79fdcf6186814fb811475b3f5dfbc4337816173497ea5b7fe7"
+            },
+            "0": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 3,
+              "sha256": "2cc02907dd36f3e40dc76c6464d294d7c148e4be15fc0d5f59d1c6958aabc1e5"
+            },
+            "1": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 3,
+              "sha256": "93acc8fcbf4b6cb738e1e51b72951feec8d7ded8f534a163dc2c5864c057fb0a"
+            },
+            "2": {
+              "rect": [
+                1,
+                2,
+                9,
+                13
+              ],
+              "word": 3,
+              "sha256": "601a8cb8aad6314435359ad24de76eb69ecd649807ae7b2000394896c6ff0559"
+            }
+          }
+        },
+        {
+          "name": "Folder",
+          "rect": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 24,
+          "clipping": 0,
+          "section": 1,
+          "mask": null,
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "word": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "name": "Hidden",
+          "rect": [
+            0,
+            0,
+            13,
+            19
+          ],
+          "blend": "norm",
+          "opacity": 255,
+          "flags": 10,
+          "clipping": 0,
+          "section": 0,
+          "mask": {
+            "length": 20,
+            "rect": [
+              0,
+              0,
+              13,
+              19
+            ],
+            "default": 0,
+            "flags": 0,
+            "tail": "0000"
+          },
+          "planes": {
+            "-1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "b8c5e0137d14e64a9c5f0e671013bc9fbd80421232b22daec9b48e535df60dee"
+            },
+            "0": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "3f54b75d469ae1c7f798470bf77f1c61c8da7d716e472e13c8c7e8277a74b9a0"
+            },
+            "1": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "4043d413370e70adae1efffa02ff0b4c970a114836570189cb48f1ce1b473878"
+            },
+            "2": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "ef0adff55bab9e2f8640ddcca92421061be8e8d76818a0355623e328d3902a9f"
+            },
+            "-2": {
+              "rect": [
+                0,
+                0,
+                13,
+                19
+              ],
+              "word": 3,
+              "sha256": "b25a9cab4f86850a278e744550cab964d24bc46b6837107739be19b9a7bf1711"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "scenes": {
+    "s1": {
+      "width": 24,
+      "height": 16,
+      "seed": 1,
+      "names": {
+        "bottom": "Bottom",
+        "top": "Top",
+        "set": "Set",
+        "inner": "Inner",
+        "masked": "Masked"
+      },
+      "top_mode": "MULTIPLY",
+      "top_opacity": 60,
+      "top_keep": 12,
+      "inner_rect": [
+        4,
+        3,
+        14,
+        9
+      ],
+      "inner_opaque_rows": 5,
+      "mask_rect": [
+        3,
+        2,
+        10,
+        8
+      ]
+    },
+    "s2": {
+      "width": 19,
+      "height": 13,
+      "seed": 2,
+      "names": {
+        "bottom": "Base",
+        "top": "Upper",
+        "set": "Folder",
+        "inner": "Innér",
+        "masked": "Hidden"
+      },
+      "top_mode": "SCREEN",
+      "top_opacity": 45,
+      "top_keep": 7,
+      "inner_rect": [
+        2,
+        1,
+        11,
+        8
+      ],
+      "inner_opaque_rows": 4,
+      "mask_rect": [
+        5,
+        4,
+        9,
+        6
+      ]
+    }
+  }
+}

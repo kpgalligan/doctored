@@ -1,0 +1,39 @@
+Photoshop 26.10.0's own layered RGB TIFFs saved with byte order IBM PC
+(little-endian, "II") at 8 and 16 bits, from two takes of the private harness's
+scripts/photoshop-probe/tiff_le_53_take.py (and its tiff_le_53.jsx; receipts in
+~/devel/doctored-fixtures/photoshop/tiff-little-endian-53/take1 and take2).
+Synthetic content the runner declared; Photoshop built and saved it.
+
+Each take builds one document per depth from the runner's RGBA PNGs (no mode or
+colour conversion): Bottom (full canvas, opaque); Top (opaque at x < top_keep,
+transparent beyond) in the scene's blend mode and opacity; a group (Pass
+Through) holding Inner (transparent outside inner_rect, opaque on its first
+inner_opaque_rows rows and partial alpha below); Masked (full canvas, a Reveal
+Selection user mask from mask_rect, then hidden). Every sample is the formula of
+photoshop.json's "scenes" (core/tests/tiff_layers_little.rs restates it).
+take1 is scene s1 (24 x 16, Multiply 60 %); take2 is the held-out scene s2
+(19 x 13, odd row lengths, Screen 45 %, the non-ASCII name "Innér"), authored
+after the reader was built from take1.
+
+Each document was saved four times as a copy, in this order: layer compression
+RLE then ZIP, each with byte order IBM then MACOS; layers and transparency on,
+image compression NONE, profile embedded. The IBM files are here
+(<scene>_<bits>_<rle|zip>_ibm.tif); of the MACOS twins only s2_8_rle_mac.tif and
+s2_16_zip_mac.tif are (scripts/verify_mode_save_losses.py opens each beside its IBM
+file), the rest stay in the receipts.
+Against its twin, every IBM file's tag-37724 entries and records are the same
+fields in the file's byte order, every four-character code byte-reversed (MIB8,
+ryaL, 61rL), and every channel plane decodes to the twin's: the 8-bit RLE row
+byte counts are little-endian, while the 16-bit Raw samples and ZIP-with-
+prediction deltas are big-endian, as in the twin. Photoshop wrote Raw for every
+16-bit channel under RLE layer compression.
+
+photoshop.json holds both takes' run ids and the Photoshop version, the two
+scenes' declarations, and per IBM file its sha256 and size, its twin's name and
+sha256, Photoshop's rows of the file reopened, and the twin's records
+(rectangle as top, left, bottom, right; blend key; opacity byte; flags; the
+lsct section type; the mask) with each channel's compression word, rectangle
+and the SHA-256 of its decoded plane, samples big-endian at the file's depth.
+core/tests/tiff_layers_little.rs opens every file layered and checks it against
+the formula (8 bits exact, 16 bits within 2 codes) and the twin's records and
+plane hashes.

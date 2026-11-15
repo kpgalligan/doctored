@@ -4899,11 +4899,12 @@ typedef enum {
 } DrLayeredContainer;
 
 /* True when `path` is a TIFF whose Photoshop layer block this core reads as
- * layers: a big-endian unsigned 8- or 16-bit RGB, CMYK (InkSet absent or
- * 1, #1), BlackIsZero gray (#1 phase 3a) or Lab TIFF holding a
- * Layr/Lr16 block, or a 32-bit IEEE-float RGB TIFF of either byte order
- * holding an Lr32 block. False for NULL, unreadable, little-endian
- * at 8 or 16 bits, any other model or sample format, or no readable block:
+ * layers: an unsigned 8- or 16-bit TIFF holding a Layr/Lr16 block, in RGB
+ * of either byte order or, big-endian, in CMYK (InkSet absent or 1, #1),
+ * BlackIsZero gray (#1 phase 3a) or Lab; or a 32-bit IEEE-float RGB TIFF
+ * of either byte order holding an Lr32 block. False for NULL, unreadable,
+ * a little-endian CMYK, gray or Lab file, any other model or sample format,
+ * or no readable block:
  * each of those opens flat (dr_tiff_has_layer_block says whether its block
  * holds layers all the same). Reads the header, the first directory and the
  * block keys, never a pixel strip. */
@@ -4975,7 +4976,10 @@ bool dr_tiff_has_layer_block(const char *path);
  * coverage; a spot channel it cannot keep, and every alpha channel, stays a
  * loss (#1 spot channels 1b-1). A layered RGB or CMYK TIFF at 8 or 16 bits
  * names and keeps the spot channels its composite holds as trailing extra
- * samples the same way (#1 spot channels 1c-2b).
+ * samples the same way (#1 spot channels 1c-2b); a little-endian one whose
+ * composite describes saved channels refuses by name instead, so it opens
+ * flat with them. A little-endian layered RGB TIFF reports from its
+ * big-endian form, under its own fingerprint.
  * Free the returned string with dr_string_free; NULL on failure. */
 char *dr_psd_import_report(const char *path, char **err_out);
 /* Explicit choice: mode 0 layers, 1 file-stored composite. Requires the
@@ -5481,7 +5485,8 @@ DrPrecisionDocument *dr_precision_doc_set_vector_mask_properties(
  * (a PSD, PSB or layered TIFF at 8 or 16 bits: mode 0 imports its layers,
  * mode 1 opens the saved composite, both as a CMYK document, #1) or
  * "rgba32" (a 32-bit RGB PSD or PSB, both modes as a 32-bit float document;
- * a 32-bit float layered TIFF of either byte order, its layers).
+ * a 32-bit float layered TIFF of either byte order, its layers). An RGB
+ * layered TIFF opens in either byte order.
  * A "gray" file refuses by name (dr_precision_doc_open_gray_psd opens
  * it), and so does a "lab" file (dr_precision_doc_open_lab_psd opens it).
  * Optional single-use control: begun once for the whole open, polled between layer

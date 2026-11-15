@@ -45,7 +45,10 @@
 //! the layer block, so no other decode meets that strip first) and
 //! [`DrDocument::with_layered_tiff_spots`] /
 //! [`PrecisionDocument::with_layered_tiff_spots`], the flat open's body on
-//! the container's file and resources. Write: `layered_tiff_spots` borrows
+//! the container's file and resources. A little-endian layered TIFF whose
+//! composite describes saved channels is refused by name before any of these
+//! (`tiff_layers_order::big_endian_form`, whose form has no strip), so it
+//! opens flat with them. Write: `layered_tiff_spots` borrows
 //! the first `spots_capacity` planes in place for
 //! `tiff_layers_write::write_spots`, their resources appended to the image
 //! resources, the transparency's entry leading (every layered TIFF has one).

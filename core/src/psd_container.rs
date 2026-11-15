@@ -303,9 +303,10 @@ impl<'a> Container<'a> {
     /// A TIFF whose tag 37724 holds a Photoshop layer block, as the same
     /// container a PSD is. Only what `tiff_layers::locate` admits arrives
     /// here — a classic big-endian unsigned RGB, CMYK, gray or Lab TIFF at 8
-    /// or 16 bits, or a big-endian 32-bit float RGB one (a
-    /// little-endian one arrives as `tiff_layers_order::big_endian_form`'s
-    /// big-endian form) — and the colour mode is the one it located (3, 4, 1 or 9). The channel count
+    /// or 16 bits, or a big-endian 32-bit float RGB one (a little-endian RGB
+    /// one at any of the three depths arrives as
+    /// `tiff_layers_order::big_endian_form`'s big-endian form) — and the
+    /// colour mode is the one it located (3, 4, 1 or 9). The channel count
     /// is that model's colour planes plus the block's own merged-alpha
     /// declaration: a TIFF block carries no saved channels.
     fn read_tiff(bytes: &'a [u8]) -> Result<Self, String> {
