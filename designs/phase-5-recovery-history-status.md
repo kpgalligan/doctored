@@ -27,7 +27,9 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
   staged tree, move it to its generation folder, write `.manifest-<UUID>`, barrier-flush the recovery directory,
   `rename` it over `manifest.json` (the only step under the publication gate's lock), then fully flush the
   directory (a first checkpoint also flushes the recovery root and its parent). Cleanup removes stray
-  `.staging-`/`.manifest-` entries.
+  `.staging-`/`.manifest-`/`.rebuild-` entries. Since 13C-3 each state is a tile-pool skeleton beside one
+  `<recovery>/pool` per record, whose payloads are durable before the skeleton is published and which is
+  collected after the cleanup ([phase-13c-incremental-io-status.md](phase-13c-incremental-io-status.md)).
   File leases (`RecoveryLease`) stop another live instance from claiming an open document's copy; forced
   termination releases the OS lease. Unreadable entries are reported individually, never hiding readable ones.
 - **Recovery opens a dirty untitled native copy.** The recorded source path is informational, including when
@@ -84,8 +86,8 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
   varies: 0.025 / 0.198 / 0.137 ms before, 0.027 / 0.049 / 0.043 ms after — every after run clears the bar, which is
   the evidence for `DONE` (one before run did too, so the medians overstate the contrast). What remains is
   `dropHistoryUndo`'s NSUndoManager walk, AppKit's residual (`levelsOfUndo` stays 0).
-- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Snapshot/recovery payload compression and
-  cross-generation dedupe; designed in [phase-13c-incremental-io-status.md](phase-13c-incremental-io-status.md).
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Snapshot package compression and dedupe (13C-4, waiting
+  on the owner's D4); recovery's shipped as 13C-3, in [phase-13c-incremental-io-status.md](phase-13c-incremental-io-status.md).
 - `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled undo backing: per-edit history bytes measured
   with tiles, then the history budget and the 32-snapshot cap re-decided.
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Broader history/snapshot workloads at 24/48 MP.

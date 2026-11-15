@@ -29,6 +29,8 @@ final class RecoveryCoordinator {
         var manifest: RecoveryStore.Manifest?
         var lease: RecoveryLease?
         var gate = RecoveryPublicationGate()
+        /// The recovery folder's tile pool (`RecoveryPoolBox`); `clear` replaces it.
+        var pool = RecoveryPoolBox()
         var task: WorkerTask<RecoveryStore.Manifest?>?
         var waiting = false
         var closed = false
@@ -55,6 +57,7 @@ final class RecoveryCoordinator {
             }
             if let error { result["error"] = error }
             if let refusal { result["memory"] = refusal.report }
+            if let info = pool.lastInfo { result["pool"] = info }
             return result
         }
     }
@@ -207,8 +210,9 @@ final class RecoveryCoordinator {
         let candidate = RecoveryStore.Candidate(id: id, directory: directory,
                                                manifest: try RecoveryStore.readManifest(at: directory), failure: nil)
         let scratch = BackgroundWork.scratch
+        let pool = RecoveryPoolBox()
         let task = try WorkerTask { () -> (RecoveryStore.Loaded, PreparedDocumentEdit) in
-            let loaded = try RecoveryStore.read(candidate)
+            let loaded = try RecoveryStore.read(candidate, pool: pool)
             return (loaded, PreparedDocumentEdit(loaded.state.document, scratch: scratch))
         }
         let (loaded, prepared) = try BackgroundWork.wait(task, title: "Opening Recovery")
@@ -224,10 +228,11 @@ final class RecoveryCoordinator {
         document.displayName = ((loaded.manifest.title as NSString).deletingPathExtension) + " (Recovered)"
         let record = Record(document: document, id: id)
         record.lease = lease
+        record.pool = pool
         record.serial = loaded.generation.serial
         record.capturedSerial = loaded.generation.serial
         record.lastState = state
-        record.manifest = RecoveryStore.Manifest(version: 1, id: id, title: loaded.manifest.title,
+        record.manifest = RecoveryStore.Manifest(version: RecoveryStore.manifestVersion, id: id, title: loaded.manifest.title,
             sourceURL: loaded.manifest.sourceURL, sourceType: loaded.manifest.sourceType,
             current: loaded.generation, previous: nil)
         records[ObjectIdentifier(document)] = record
@@ -235,6 +240,24 @@ final class RecoveryCoordinator {
         if show { document.makeWindowControllers(); document.showWindows() }
         changed(document)
         return (document, loaded.warning)
+    }
+
+    /// The document's current checkpoint rebuilt from its skeleton and the pool into a native
+    /// file at `url` (`write_recovery`'s `native_copy`): the rebuild `recover_document` runs,
+    /// for a document whose recovery is leased while it stays open.
+    func nativeCopy(of document: ImageDocument, to url: URL) throws {
+        guard let record = records[ObjectIdentifier(document)], record.task == nil,
+              let manifest = record.manifest else {
+            throw failure("This document has no completed recovery checkpoint to copy.")
+        }
+        let directory = try RecoveryStore.directory(root: root, id: record.id)
+        let skeleton = directory.appendingPathComponent(manifest.current.folder, isDirectory: true)
+            .appendingPathComponent(EditingStateArchive.skeletonName)
+        let pool = record.pool
+        let task = try WorkerTask { () -> Void in
+            try pool.open(recovery: directory).rebuild(skeleton: skeleton, to: url)
+        }
+        try BackgroundWork.wait(task, title: "Copying Recovery")
     }
 
     func discard(id: String) throws {
@@ -338,10 +361,11 @@ final class RecoveryCoordinator {
         }
         record.gate = RecoveryPublicationGate()
         let gate = record.gate
+        let pool = record.pool
         record.error = nil
         record.refusal = nil
         record.task = try WorkerTask(scratchEstimate: captured.scratchEstimate) {
-            try RecoveryStore.write(captured, directory: directory, gate: gate)
+            try RecoveryStore.write(captured, directory: directory, gate: gate, pool: pool)
         }
         lastBegin = ProcessInfo.processInfo.systemUptime
         changed(document)
@@ -395,6 +419,8 @@ final class RecoveryCoordinator {
         record.refusal = nil
         let hadError = record.error != nil
         record.gate.invalidate()
+        // A late worker keeps the old box; the folder it describes is about to go.
+        record.pool = RecoveryPoolBox()
         let completions = record.completions; record.completions.removeAll()
         completions.forEach { $0(nil) }
         do {

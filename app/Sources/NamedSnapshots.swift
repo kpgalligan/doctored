@@ -124,16 +124,17 @@ final class NamedSnapshots {
                                    state: try EditingStateArchive.capture($0.state)) }
     }
 
-    static func writeArchive(_ archives: [Archived], to directory: URL) throws {
+    /// Recovery's list; with a `pool` each state is a skeleton (`EditingStateArchive.write`).
+    static func writeArchive(_ archives: [Archived], to directory: URL, pool: RasterTilePool? = nil) throws {
         let root = directory.appendingPathComponent("snapshots")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         for (index, archive) in archives.enumerated() {
-            try write(archive, to: root.appendingPathComponent(String(index)))
+            try write(archive, to: root.appendingPathComponent(String(index)), pool: pool)
         }
         try JSONEncoder().encode(archives.count).write(to: root.appendingPathComponent("count.json"))
     }
 
-    static func readArchive(from directory: URL) throws -> [Loaded] {
+    static func readArchive(from directory: URL, pool: RasterTilePool? = nil) throws -> [Loaded] {
         let root = directory.appendingPathComponent("snapshots")
         let values = try root.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
         guard values.isDirectory == true, values.isSymbolicLink != true else {
@@ -142,7 +143,7 @@ final class NamedSnapshots {
         let count = try JSONDecoder().decode(Int.self, from: EditingStateArchive.readFile(
             root.appendingPathComponent("count.json"), maximum: 128))
         guard (0...maximumCount).contains(count) else { throw failure("Invalid recovery snapshot count.") }
-        return try (0..<count).map { try read(from: root.appendingPathComponent(String($0))) }
+        return try (0..<count).map { try read(from: root.appendingPathComponent(String($0)), pool: pool) }
     }
 
     func installArchive(_ archives: [Loaded]) throws {
@@ -171,20 +172,20 @@ final class NamedSnapshots {
         return entry
     }
 
-    private static func write(_ archive: Archived, to directory: URL) throws {
-        try EditingStateArchive.write(archive.state, to: directory)
+    private static func write(_ archive: Archived, to directory: URL, pool: RasterTilePool? = nil) throws {
+        try EditingStateArchive.write(archive.state, to: directory, pool: pool)
         do { try JSONEncoder().encode(archive.header).write(to: directory.appendingPathComponent("snapshot.json")) }
         catch { try? FileManager.default.removeItem(at: directory); throw error }
     }
 
-    private static func read(from directory: URL) throws -> Loaded {
+    private static func read(from directory: URL, pool: RasterTilePool? = nil) throws -> Loaded {
         let header = try JSONDecoder().decode(Header.self, from: EditingStateArchive.readFile(
             directory.appendingPathComponent("snapshot.json"), maximum: 4096))
         guard header.version == 1, header.created.timeIntervalSince1970.isFinite else {
             throw failure("Unsupported snapshot header.")
         }
         _ = try validName(header.name)
-        return Loaded(header: header, state: try EditingStateArchive.read(from: directory))
+        return Loaded(header: header, state: try EditingStateArchive.read(from: directory, pool: pool))
     }
 
     private func changed() {

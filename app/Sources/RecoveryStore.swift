@@ -8,6 +8,11 @@ import Darwin
 /// published by atomically replacing one small manifest. A failed replacement
 /// leaves the prior checkpoint readable; at most two committed generations stay.
 enum RecoveryStore {
+    /// Version 2 (13C-3) states are tile-pool skeletons beside `<recovery>/pool`
+    /// (`RecoveryPool.swift`); version 1 generations, which hold `image.rz`, still read. An
+    /// older build refuses a version 2 recovery at its manifest.
+    static let manifestVersion = 2
+
     struct Generation: Codable {
         let folder: String
         let revision: UInt64
@@ -62,8 +67,10 @@ enum RecoveryStore {
         let state: EditingStateArchive.Captured
         let snapshots: [NamedSnapshots.Archived]
 
+        /// The largest state's native save plan, which bounds its pool write, plus the pool's window.
         var scratchEstimate: UInt64 {
             snapshots.reduce(state.scratchEstimate) { max($0, $1.state.scratchEstimate) }
+                + RasterTilePool.windowBytes
         }
     }
 
@@ -83,7 +90,7 @@ enum RecoveryStore {
     static func readManifest(at directory: URL) throws -> Manifest {
         let data = try EditingStateArchive.readFile(directory.appendingPathComponent("manifest.json"), maximum: 64 * 1024)
         let manifest = try JSONDecoder().decode(Manifest.self, from: data)
-        guard manifest.version == 1, manifest.id == directory.lastPathComponent,
+        guard (1...manifestVersion).contains(manifest.version), manifest.id == directory.lastPathComponent,
               UUID(uuidString: manifest.id) != nil,
               !manifest.title.isEmpty, manifest.title.utf8.count <= 4096 else {
             throw failure("Unsupported or damaged recovery manifest.")
@@ -123,8 +130,12 @@ enum RecoveryStore {
         return found.sorted { ($0.manifest?.current.captured ?? .distantPast) > ($1.manifest?.current.captured ?? .distantPast) }
     }
 
-    static func write(_ captured: Captured, directory: URL, gate: RecoveryPublicationGate) throws -> Manifest? {
-        guard gate.isOpen else { return nil }
+    /// `pool` is the record's box (`RecoveryPoolBox`); a caller without one writes through a
+    /// fresh handle. Every state goes into `<directory>/pool`, and after the cleanup the pool keeps
+    /// only what the kept generations name.
+    static func write(_ captured: Captured, directory: URL, gate: RecoveryPublicationGate,
+                      pool: RecoveryPoolBox = RecoveryPoolBox()) throws -> Manifest? {
+        guard gate.isOpen else { pool.drop(); return nil }
         try RecoveryCapacity.validate(captured)
         let files = FileManager.default
         let staged = directory.appendingPathComponent(".staging-\(UUID().uuidString)", isDirectory: true)
@@ -137,17 +148,19 @@ enum RecoveryStore {
             if !published {
                 if let temporary { try? files.removeItem(at: temporary) }
                 try? files.removeItem(at: generation)
+                pool.drop()
             }
         }
-        try EditingStateArchive.write(captured.state, to: staged)
-        try NamedSnapshots.writeArchive(captured.snapshots, to: staged)
+        let handle = try pool.open(recovery: directory)
+        try EditingStateArchive.write(captured.state, to: staged, pool: handle)
+        try NamedSnapshots.writeArchive(captured.snapshots, to: staged, pool: handle)
         // The generation's bytes reach the disk before the manifest names
         // it; the barrier orders the move and the new manifest before the
         // publishing rename, and the directory flush makes that rename durable.
         try DurableFile.syncTree(staged)
         guard gate.isOpen else { return nil }
         try files.moveItem(at: staged, to: generation)
-        let manifest = Manifest(version: 1, id: captured.id, title: captured.title,
+        let manifest = Manifest(version: manifestVersion, id: captured.id, title: captured.title,
             sourceURL: captured.sourceURL, sourceType: captured.sourceType,
             current: captured.generation, previous: captured.previous?.current)
         let data = try JSONEncoder().encode(manifest)
@@ -176,19 +189,27 @@ enum RecoveryStore {
                 let name = url.lastPathComponent
                 let staleGeneration = UUID(uuidString: name) != nil && !keep.contains(name)
                 guard staleGeneration || name.hasPrefix(".staging-") || name.hasPrefix(".manifest-")
+                        || name.hasPrefix(".rebuild-")
                 else { continue }
                 try? files.removeItem(at: url)
             }
         }
+        pool.collect(handle, recovery: directory, keeping: keep)
+        pool.record(try? handle.info())
         return manifest
     }
 
-    static func read(_ candidate: Candidate) throws -> Loaded {
+    /// `pool` keeps the handle the read used (a damaged payload it met is then written again
+    /// by the record's next checkpoint, `RecoveryCoordinator.recover`).
+    static func read(_ candidate: Candidate, pool: RecoveryPoolBox = RecoveryPoolBox()) throws -> Loaded {
         let manifest = try readManifest(at: candidate.directory)
+        let pooled = FileManager.default.fileExists(
+            atPath: candidate.directory.appendingPathComponent(RecoveryPoolBox.folderName).path)
+        let handle = pooled ? try pool.open(recovery: candidate.directory) : nil
         func decode(_ generation: Generation, warning: String?) throws -> Loaded {
             let directory = candidate.directory.appendingPathComponent(generation.folder, isDirectory: true)
-            let state = try EditingStateArchive.read(from: directory)
-            let snapshots = try NamedSnapshots.readArchive(from: directory)
+            let state = try EditingStateArchive.read(from: directory, pool: handle)
+            let snapshots = try NamedSnapshots.readArchive(from: directory, pool: handle)
             return Loaded(manifest: manifest, generation: generation, state: state,
                           snapshots: snapshots, warning: warning)
         }

@@ -110,7 +110,11 @@ func verifyRecoveryLifecycle() throws {
                 "An older captured Save removed recovery while newer edits remained")
     try coordinator.checkpoint(racedSave, wait: true)
     let racedManifest = try RecoveryStore.readManifest(at: racedEntry)
-    let recoveredPixels = try RasterDocument.open(url: racedEntry.appendingPathComponent(racedManifest.current.folder).appendingPathComponent("image.rz"))
+    // A generation's state is a skeleton beside the recovery's tile pool (13C-3), read the way
+    // `recover_document` reads it.
+    let racedPool = try RasterTilePool(directory: racedEntry.appendingPathComponent(RecoveryPoolBox.folderName))
+    let recoveredPixels = try EditingStateArchive.read(
+        from: racedEntry.appendingPathComponent(racedManifest.current.folder), pool: racedPool).document
     try require(recoveredPixels.layerInfo(0)?.name == "Newer than Save", "Next checkpoint did not preserve the newer revision")
     racedSave.close()
     print("PASS: editing during captured Save remains dirty, retains recovery and checkpoints the newer revision")

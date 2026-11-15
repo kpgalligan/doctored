@@ -63,6 +63,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 sys.path.insert(0, str(ROOT / 'scripts/host-source-probe'))
 
+from recovery_checkpoint import checkpoint_native
 from support import HostApp
 
 # ---- the expectations, fixed here BEFORE anything is measured -------------
@@ -273,9 +274,10 @@ def persistence_paths(app, folder, document, before, name):
 
     RECOVERY is checked through the checkpoint's OWN bytes rather than through
     `recover_document`: that tool only offers ABANDONED copies from a previous
-    launch, and this drive has no crashed instance. `write_recovery` writes
-    `image.rz` inside a generation folder of the PRIVATE `DR_RECOVERY_DIR` this
-    run owns, and opening that file is exactly what a recovery does with it.
+    launch, and this drive has no crashed instance. `write_recovery`'s
+    `native_copy` rebuilds the checkpoint's skeleton from the recovery's tile
+    pool (in the PRIVATE `DR_RECOVERY_DIR` this run owns) into a native file,
+    the rebuild a recovery runs, and opening that file is what it then does.
     """
     out = {}
 
@@ -288,11 +290,8 @@ def persistence_paths(app, folder, document, before, name):
     out['save_copy'] = after
 
     # 2. The .rz a recovery checkpoint writes.
-    app.call('write_recovery', document_id=document)
-    recovery = sorted((folder / 'recovery').rglob('image.rz'),
-                      key=lambda p: p.stat().st_mtime)
-    assert recovery, 'write_recovery wrote no native checkpoint'
-    checkpoint = app.call('open_document', path=str(recovery[-1]))['document']['id']
+    native = checkpoint_native(app, document, folder / f'{name}-checkpoint.doctored')
+    checkpoint = app.call('open_document', path=str(native))['document']['id']
     after = structure(app, checkpoint)
     assert after == before, ('recovery', after, before)
     out['recovery'] = after

@@ -2925,11 +2925,12 @@ Native recovery interval, open-document checkpoint status and abandoned copies. 
 
 ## `write_recovery`
 
-Checkpoint the current complete editing state and session snapshots in private native recovery storage. Does not mark the document saved. Busy asynchronous requests retry automatically.
+Checkpoint the current complete editing state and session snapshots in private native recovery storage. Does not mark the document saved. Busy asynchronous requests retry automatically. The result's pool reports the recovery tile pool after the write: appended_tiles counts the tiles this checkpoint stored (an unchanged tile is stored once across checkpoints).
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
+| `native_copy` | `string` | no | — | Optional file path: after the checkpoint (wait true), rebuild its native image there, the file recover_document would open. |
 | `wait` | `boolean` | no | — | Wait for completion; default true. |
 
 ## `recover_document`

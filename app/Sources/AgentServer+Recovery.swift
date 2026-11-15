@@ -22,7 +22,7 @@ extension AgentServer {
         let id: [String: Any] = ["type": "string", "description": "recovery_id from get_recovery_status."]
         return [
             tool("get_recovery_status", "Native recovery interval, open-document checkpoint status and abandoned copies. Recovery never overwrites an original and includes session snapshots. State failed means the document is not protected (the editor shows Recovery off); a working-memory refusal adds memory figures.", ["document_id": Self.docIDProperty]),
-            tool("write_recovery", "Checkpoint the current complete editing state and session snapshots in private native recovery storage. Does not mark the document saved. Busy asynchronous requests retry automatically.", ["document_id": Self.docIDProperty, "wait": ["type": "boolean", "description": "Wait for completion; default true."]]),
+            tool("write_recovery", "Checkpoint the current complete editing state and session snapshots in private native recovery storage. Does not mark the document saved. Busy asynchronous requests retry automatically. The result's pool reports the recovery tile pool after the write: appended_tiles counts the tiles this checkpoint stored (an unchanged tile is stored once across checkpoints).", ["document_id": Self.docIDProperty, "wait": ["type": "boolean", "description": "Wait for completion; default true."], "native_copy": ["type": "string", "description": "Optional file path: after the checkpoint (wait true), rebuild its native image there, the file recover_document would open."]]),
             tool("recover_document", "Open an abandoned recovery as a dirty native untitled copy. Original or moved source files remain unchanged. Returns a warning if only the previous checkpoint is readable.", ["recovery_id": id, "show": ["type": "boolean", "description": "Show the recovered window; default true."]], required: ["recovery_id"]),
             tool("discard_recovery", "Permanently discard an abandoned recovery copy. Refuses copies leased by an open document in any app instance.", ["recovery_id": id], required: ["recovery_id"]),
         ]
@@ -51,8 +51,16 @@ extension AgentServer {
 
     func writeRecovery(_ arguments: [String: Any]) throws -> String {
         let document = try target(arguments)
-        try RecoveryCoordinator.shared.checkpoint(document, wait: boolArg(arguments, "wait") ?? true)
+        let wait = boolArg(arguments, "wait") ?? true
+        let copy = stringArg(arguments, "native_copy")
+        guard copy == nil || wait else { throw ToolError(message: "native_copy needs wait true.") }
+        try RecoveryCoordinator.shared.checkpoint(document, wait: wait)
         var report = RecoveryCoordinator.shared.status(for: document)
+        if let copy {
+            let url = URL(fileURLWithPath: (copy as NSString).expandingTildeInPath)
+            try RecoveryCoordinator.shared.nativeCopy(of: document, to: url)
+            report["native_copy"] = url.path
+        }
         report["document_id"] = documentID(for: document)
         return try jsonResult(report)
     }

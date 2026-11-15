@@ -174,9 +174,14 @@ enum EditingStateArchive {
                         ownRetainedBytes: ownRetained)
     }
 
+    /// A recovery state's native image as a tile-pool skeleton (13C-3, `RecoveryPool.swift`);
+    /// a package, and a recovery generation an older build wrote, hold `image.rz` instead.
+    static let skeletonName = "image.drskel"
+
     /// Creates a new directory. The caller publishes it atomically only after
     /// every file is complete; an error removes only this newly created directory.
-    static func write(_ captured: Captured, to directory: URL) throws {
+    /// With a `pool` (recovery) the image is a skeleton plus the pool's new payloads.
+    static func write(_ captured: Captured, to directory: URL, pool: RasterTilePool? = nil) throws {
         let files = FileManager.default
         guard mkdir(directory.path, 0o700) == 0 else {
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
@@ -184,7 +189,11 @@ enum EditingStateArchive {
         do {
             let data = try JSONEncoder().encode(captured.manifest)
             guard data.count <= metadataLimit else { throw failure("selection geometry exceeds the archive limit") }
-            try captured.document.saveNative(to: directory.appendingPathComponent("image.rz"))
+            if let pool {
+                try pool.write(captured.document, skeleton: directory.appendingPathComponent(skeletonName))
+            } else {
+                try captured.document.saveNative(to: directory.appendingPathComponent("image.rz"))
+            }
             for (name, bytes) in captured.masks {
                 try Data(bytes).write(to: directory.appendingPathComponent(name))
             }
@@ -197,7 +206,9 @@ enum EditingStateArchive {
 
     /// Decode native data and plain values on the worker. Never creates AppKit
     /// paths or coverage display images there; editingState() does that on main.
-    static func read(from directory: URL) throws -> Decoded {
+    /// A skeleton is rebuilt from `pool` into a temporary beside the pool, opened with the same
+    /// checks as `image.rz` and removed; a skeleton with no pool refuses.
+    static func read(from directory: URL, pool: RasterTilePool? = nil) throws -> Decoded {
         let attributes = try directory.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
         guard attributes.isDirectory == true, attributes.isSymbolicLink != true else {
             throw failure("expected an editing-state package")
@@ -238,7 +249,24 @@ enum EditingStateArchive {
             throw failure("invalid archive dimensions or decode estimate")
         }
         _ = try RasterResources.shared.admit(scratch: manifest.decodeEstimateBytes)
-        let nativeURL = directory.appendingPathComponent("image.rz")
+        var nativeURL = directory.appendingPathComponent("image.rz")
+        let skeletonURL = directory.appendingPathComponent(skeletonName)
+        var rebuilt: URL?
+        defer { if let rebuilt { try? FileManager.default.removeItem(at: rebuilt) } }
+        if FileManager.default.fileExists(atPath: skeletonURL.path) {
+            // The rebuild holds one raster at a time and runs before the open, so the decode
+            // estimate admitted above covers it.
+            guard !FileManager.default.fileExists(atPath: nativeURL.path) else {
+                throw failure("the state holds both image.rz and \(skeletonName)")
+            }
+            guard let pool else { throw failure("\(skeletonName) needs its recovery tile pool") }
+            try requireRegularFile(skeletonURL)
+            let temporary = pool.directory.deletingLastPathComponent()
+                .appendingPathComponent(".rebuild-\(UUID().uuidString).rz")
+            rebuilt = temporary
+            try pool.rebuild(skeleton: skeletonURL, to: temporary)
+            nativeURL = temporary
+        }
         try requireRegularFile(nativeURL)
         let native = try FileHandle(forReadingFrom: nativeURL)
         defer { try? native.close() }

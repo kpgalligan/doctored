@@ -1,6 +1,7 @@
 """Actual forced-termination and recovery lifecycle checks over private MCP."""
 
 import json
+from pathlib import Path
 import shutil
 import stat
 import time
@@ -64,7 +65,10 @@ def default_interval_checkpoint(folder):
         manifest = json.loads(durable.read_text())
         assert manifest["current"]["serial"] == checkpoint["captured_serial"]
         assert manifest["current"]["revision"] == checkpoint["captured_revision"]
-        assert (durable.parent / manifest["current"]["folder"] / "image.rz").is_file()
+        generation = durable.parent / manifest["current"]["folder"]
+        assert manifest["version"] == 2, manifest
+        assert (generation / "image.drskel").is_file() and not (generation / "image.rz").exists()
+        assert (durable.parent / "pool" / "pool.index").is_file()
         write_report(folder / "default-interval-metrics.json", {
             "interval_seconds": 30, "elapsed_seconds": elapsed, "early_status": early,
             "durable_status": checkpoint,
@@ -142,6 +146,120 @@ def crash_and_restart(folder):
     write_report(folder / "checkpoint-metrics.json", checkpoint)
     print("PASS: automatic native checkpoint, forced-kill JPEG/RAW/native recovery, moved originals preserved, full states/snapshots and untitled second crash", flush=True)
     print("PASS: open recovery leases exclude simultaneous recovery/discard across app instances", flush=True)
+
+
+def skeleton_keys(path):
+    """The pool keys a recovery skeleton names (`core/src/pool_skeleton.rs`'s layout)."""
+    data = Path(path).read_bytes()
+    assert data[:4] == b"DRSK", path
+    at, keys = 9, set()
+    while True:
+        tag, at = data[at], at + 1
+        if tag == 1:  # literal: u32 length, bytes
+            at += 4 + int.from_bytes(data[at:at + 4], "little")
+        elif tag in (2, 3):  # tiles: site, w, h, count, keys / blob: u64 length, count, keys
+            head = 13 if tag == 2 else 12
+            count = int.from_bytes(data[at + head - 4:at + head], "little")
+            at += head
+            keys.update(data[at + 32 * i:at + 32 * i + 32] for i in range(count))
+            at += 32 * count
+        else:
+            assert tag == 0xFF and at + 32 == len(data), (path, tag)
+            return keys
+
+
+def pool_entries(pool):
+    """`pool.index`'s entries, key to (pack, offset, stored length); a later entry wins."""
+    data = (pool / "pool.index").read_bytes()
+    return {data[at:at + 32]: (int.from_bytes(data[at + 32:at + 36], "little"),
+                               int.from_bytes(data[at + 36:at + 44], "little"),
+                               int.from_bytes(data[at + 44:at + 48], "little"))
+            for at in range(8, len(data) - 48, 49)}
+
+
+def tiles_met(x, y, width, height, edge=256):
+    return ((x + width - 1) // edge - x // edge + 1) * ((y + height - 1) // edge - y // edge + 1)
+
+
+def pool_checkpoints(folder):
+    """13C-3: every checkpoint of a document goes into one tile pool. A small edit appends only
+    the tiles it meets; a damaged payload only the newest generation names falls back to the
+    previous checkpoint; a generation an older build wrote (`image.rz`) still recovers."""
+    folder.mkdir()
+    recovery = folder / "recovery"
+    source = folder / "pool.png"
+    fixture(source, 1024, 1024)
+    with App(folder / "first", recovery, interval=60) as app:
+        document = app.open(source)
+        call = lambda tool_name, **arguments: app.call(tool_name, document_id=document, **arguments)
+        call("duplicate_layer", index=0)
+        first = call("write_recovery", wait=True)
+        initial = first["pool"]["appended_tiles"]
+        assert initial > 0, first
+        recovery_id = first["recovery_id"]
+        directory = recovery / recovery_id
+        generation = directory / first["generation"]
+        assert (generation / "image.drskel").is_file() and not (generation / "image.rz").exists()
+        assert (directory / "pool" / "pool.index").is_file()
+        edit = (300, 300, 300, 300)
+        call("select_rect", x=edit[0], y=edit[1], width=edit[2], height=edit[3])
+        call("fill_selection", layer=1, color="#D04020")
+        second = call("write_recovery", wait=True)
+        appended = second["pool"]["appended_tiles"]
+        met = tiles_met(*edit)
+        assert 0 < appended <= met < initial, (appended, met, initial, second)
+        older = editing_state(app, document)
+        # A second edit that overlaps the first, so the third generation stores tiles of
+        # its own and the second keeps tiles the third no longer names.
+        call("select_rect", x=500, y=500, width=300, height=300)
+        call("fill_selection", layer=1, color="#2060C0")
+        copy = folder / "third.doctored"
+        third = call("write_recovery", wait=True, native_copy=str(copy))
+        assert Path(third["native_copy"]).resolve() == copy.resolve(), third
+        newer = editing_state(app, document)
+        copied = app.open(copy)
+        copied_state = editing_state(app, copied)
+        assert copied_state["planes"] == newer["planes"] and copied_state["composite"] == newer["composite"]
+        app.crash()
+    second_generation = directory / second["generation"]
+    third_generation = directory / third["generation"]
+    assert sorted(path.name for path in directory.iterdir() if path.is_dir()) == sorted(
+        ["pool", second["generation"], third["generation"]]), list(directory.iterdir())
+    own = skeleton_keys(third_generation / "image.drskel") - skeleton_keys(second_generation / "image.drskel")
+    assert own, "the third generation stored nothing of its own"
+    shared = skeleton_keys(second_generation / "image.drskel") - skeleton_keys(third_generation / "image.drskel")
+    assert shared, "the second generation keeps tiles the third does not name"
+    damaged = folder / "damaged-store"
+    shutil.copytree(recovery, damaged)
+    legacy = folder / "legacy-store"
+    shutil.copytree(recovery, legacy)
+    with App(folder / "restart", recovery, interval=60) as app:
+        recovered, reply = recover(app, recovery_id)
+        assert "warning" not in reply, reply
+        assert editing_state(app, recovered) == newer
+    pool = damaged / recovery_id / "pool"
+    pack, offset, stored = pool_entries(pool)[sorted(own)[0]]
+    target = pool / f"pack-{pack:08d}"
+    payload = bytearray(target.read_bytes())
+    payload[offset + stored // 2] ^= 0x5A
+    target.write_bytes(payload)
+    with App(folder / "damaged-restart", damaged, interval=60) as app:
+        recovered, reply = recover(app, recovery_id)
+        assert "previous" in str(reply).lower() and "hash" in str(reply), reply
+        assert editing_state(app, recovered) == older, reply
+    current = legacy / recovery_id / third["generation"]
+    (current / "image.drskel").unlink()
+    shutil.copyfile(copy, current / "image.rz")
+    with App(folder / "legacy-restart", legacy, interval=60) as app:
+        recovered, reply = recover(app, recovery_id)
+        assert "warning" not in reply, reply
+        assert editing_state(app, recovered) == newer
+    write_report(folder / "pool-metrics.json", {
+        "first": first["pool"], "second": second["pool"], "third": third["pool"],
+        "tiles_met_by_the_edit": met})
+    print(f"PASS: recovery checkpoints share one tile pool: the first stored {initial} tiles, a 300x300 edit "
+          f"appended {appended} (it meets {met}); a damaged payload falls back to the previous checkpoint; "
+          "an image.rz generation still recovers", flush=True)
 
 
 def failed_write_and_previous_generation(folder):

@@ -50,6 +50,7 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 sys.path.insert(0, str(ROOT / 'scripts/host-source-probe'))
 
 from pixels import png_rgba, write_png8
+from recovery_checkpoint import checkpoint_native
 from support import HostApp
 
 W, H = 48, 36
@@ -650,18 +651,15 @@ def c1(app, folder):
 
 
 def r1(app, folder, documents):
-    """write_recovery → open the checkpoint's image.rz → save both: equal."""
+    """write_recovery → open the checkpoint rebuilt as a native file → save both: equal."""
     out = {}
     for label, document in documents.items():
-        app.call('write_recovery', document_id=document, wait=True)
-        checkpoints = sorted((folder / 'recovery').rglob('image.rz'),
-                             key=lambda p: p.stat().st_mtime)
-        assert checkpoints, 'write_recovery wrote no native checkpoint'
-        checkpoint = app.call('open_document', path=str(checkpoints[-1]))['document']['id']
+        native = checkpoint_native(app, document, folder / f'r1-{label}-checkpoint.doctored')
+        checkpoint = app.call('open_document', path=str(native))['document']['id']
         live = save_sha(app, document, folder / f'r1-{label}-live.rz')
         recovered = save_sha(app, checkpoint, folder / f'r1-{label}-recovered.rz')
         assert live == recovered, (label, live, recovered)
-        out[label] = {'sha256': live, 'checkpoint': str(checkpoints[-1])}
+        out[label] = {'sha256': live, 'checkpoint': str(native)}
     return out
 
 

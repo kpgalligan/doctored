@@ -133,6 +133,7 @@ struct AgentPathGuard {
              "export_brush_presets", "export_patterns", "export_gradients"],
             ["path"], .write)
         add(["copy", "cut", "copy_merged"], ["public_copy_path"], .write)
+        add(["write_recovery"], ["native_copy"], .write)
         add(["quick_export", "save_export_preset", "export_layers", "package_action"],
             ["destination"], .write)
         add(["contact_sheet", "contact_sheet_from_sources"], ["output", "destination"], .write)

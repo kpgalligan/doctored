@@ -22,8 +22,8 @@ nothing for a tolerance to absorb and none is granted.
   `image_size` calls, each compared against `doc_guide.rs`'s arithmetic
   written out in this file, each undone in one step.
 - **G3 they persist.** `save_copy` to `.rz` then `open_document` reports the
-  same list; `write_recovery` then opening the checkpoint's own `image.rz`
-  reports the same list; and a guide-less 16-bit save contains no `LGDE`.
+  same list; `write_recovery` then opening the checkpoint rebuilt as a native
+  file (`native_copy`) reports the same list; and a guide-less 16-bit save contains no `LGDE`.
 - **G4 the same at 32-bit float,** on the committed float fixture: add,
   remove, clear, origin, save/reopen, recovery and undo.
 - **G5 a depth conversion carries them.** An 8-bit document with guides and a
@@ -44,6 +44,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 sys.path.insert(0, str(ROOT / 'scripts/host-source-probe'))
 
+from recovery_checkpoint import checkpoint_native
 from support import HostApp
 
 # ---- the expectations, fixed BEFORE any measurement ----------------------
@@ -267,11 +268,8 @@ def persistence(app, folder, document, name, before):
     assert after == before, ('save_copy', after, before)
     out['save_copy'] = {'guides': after[0], 'origin': list(after[1])}
 
-    app.call('write_recovery', document_id=document)
-    checkpoints = sorted((folder / 'recovery').rglob('image.rz'),
-                         key=lambda p: p.stat().st_mtime)
-    assert checkpoints, 'write_recovery wrote no native checkpoint'
-    checkpoint = app.call('open_document', path=str(checkpoints[-1]))['document']['id']
+    native = checkpoint_native(app, document, folder / f'{name}-checkpoint.doctored')
+    checkpoint = app.call('open_document', path=str(native))['document']['id']
     after = state(app, checkpoint)
     assert after == before, ('recovery', after, before)
     out['recovery'] = {'guides': after[0], 'origin': list(after[1])}

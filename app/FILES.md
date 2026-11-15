@@ -31,6 +31,7 @@ Detail belongs in the source file's own header comment.
 - `DoctoredCore+PlaneMath.swift` — `RasterImage` plane reads and `RasterPlaneMath` blends for Apply Image / Calculations.
 - `DoctoredCore+Selection.swift` — `RasterSelection` byte mask operations: quick mask, feather, grow, shrink, border, stroke, smooth.
 - `DoctoredCore+Export.swift` — `ExportFormat` and the export workspace (`RasterExportResult`) from Phase 11A.
+- `DoctoredCore+TilePool.swift` — `RasterTilePool`, the core tile pool (13C-1): write a document as a skeleton, rebuild, collect, info.
 - `DoctoredCore+LUT.swift` — `RasterLUT`: Cube LUT and profile LUT parsing.
 - `DoctoredCore+Lab.swift` — `RasterLab` sRGB / Lab conversion; the Lab Color document: every `dr_*lab*` wrapper (New, Mode both ways, plans, the P3 view, `labSource`/`openLab`).
 - `DoctoredCore+Indexed.swift` — Indexed Color: every Indexed wrapper (open, conversion, `indexedIndex`, Color Table get/plan/set, `.act`, Paste's `indexedPastePlan`/`indexedPasting`).
@@ -289,6 +290,7 @@ Detail belongs in the source file's own header comment.
 - `EditingState.swift` / `DocumentHistory.swift` / `ImageDocument+History.swift` — full editing states, enumerable history and the central undo adapter.
 - `EditingStateArchive.swift` / `NamedSnapshots.swift` — versioned host packages around an unchanged native `.doctored` document.
 - `RecoveryStore.swift` / `RecoveryCoordinator.swift` / `ImageDocument+Recovery.swift` — native recovery independent of AppKit's imported-file autosave machinery.
+- `RecoveryPool.swift` — `RecoveryPoolBox`, a recovery record's tile pool handle (13C-3): opened per folder, dropped unless a write publishes, collection.
 - `HistoryWindowController.swift` — Window ▸ History…: navigation, budgets and the budget exception (the nearest Undo is kept); a row's menu sets the History Brush source ("✎").
 - `EditorViewController+History.swift` — Window ▸ History… (`showHistory`).
 - `ImageDocument+HistoryAdmission.swift` — undo, redo and navigation never refuse: each first asks `historyStepOverage` (the restored state's projection estimate) and records the overage.
