@@ -34,12 +34,19 @@ extension EditorViewController {
             target: target, shape: document?.resolvedPath(target),
             rubberBand: ToolOptionsStore.shared.pen.rubberBand)
         canvas.penSession = session
+        // The selection tools' indices follow the same read
+        // (`PathSelectSession.adopt`).
+        var selection = canvas.pathSelectSession
+        selection.adopt(target: session.target, shape: session.shape)
+        canvas.pathSelectSession = selection
     }
 
-    /// A finished Pen gesture: `shape` is the whole path as the gesture left
-    /// it. True when it was committed, which is what lets the canvas keep
-    /// drawing from the subpath the gesture left open.
-    private func penGestureCommitted(_ shape: PathShape, name: String) -> Bool {
+    /// A finished Pen gesture, or a Path Selection or Direct Selection one
+    /// (EditorViewController+PathSelect.swift): `shape` is the whole path
+    /// as the gesture left it, and `note` the recorded step's. True when it
+    /// was committed, which is what lets the canvas keep drawing from the
+    /// subpath the gesture left open.
+    func penGestureCommitted(_ shape: PathShape, name: String, note: String = "Pen tool") -> Bool {
         guard let document else {
             NSSound.beep()
             return false
@@ -56,13 +63,12 @@ extension EditorViewController {
         // A vector mask is not a path of the list: the gesture reshapes the
         // layer's mask (`ImageDocument.commitPenVectorMask`, `set_vector_mask`).
         if case .vectorMask(let layerID)? = document.currentPath {
-            guard document.commitPenVectorMask(shape, layerID: layerID, name: name) else {
-                return false
-            }
+            guard document.commitPenVectorMask(shape, layerID: layerID, name: name, note: note)
+            else { return false }
             refreshCanvasPath()
             return true
         }
-        guard document.commitPenPath(shape, name: name) else { return false }
+        guard document.commitPenPath(shape, name: name, note: note) else { return false }
         // The edit's own notification ran before a new work path was made
         // current, so the session is read again now that it is — and the
         // Paths panel selects the row it could not find a moment ago.

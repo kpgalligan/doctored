@@ -4544,14 +4544,15 @@ Deletes a path. ONE undo step. Paths panel ▸ Delete Path. A Grayscale document
 
 ## `combine_paths`
 
-Replaces path with its fill region combined with another path's: unite (what either fills), subtract (path less with), intersect (what both fill) or exclude (what exactly one fills). Each is its fill region under its own fill_rule, an open subpath closed by a straight line. The result is an ordinary path — closed subpaths, fill_rule nonzero, corner anchors whose handles keep the curves — that keeps path's name and clipping-path designation; with is unchanged. Geometric, so shared edges stay exact; a curve's result stays within about a tenth of a pixel of its inputs. An empty result refuses; a result equal to the path answers changed:false. ONE undo step. Paths panel ▸ Combine with Path…. A Grayscale document holds paths and vector masks, as an RGB document does, and keeps them in .doctored.
+Replaces path with its fill region combined with another path's: unite (what either fills), subtract (path less with), intersect (what both fill) or exclude (what exactly one fills). Each is its fill region under its own fill_rule, an open subpath closed by a straight line. With subpath_indices in place of with, the SELECTED subpaths against the rest: the region path's other subpaths fill is the first operand and the region the listed ones fill the second, both under path's fill_rule (every subpath listed: unite and exclude merge path into one outline, subtract and intersect leave nothing). The result is an ordinary path — closed subpaths, fill_rule nonzero, corner anchors whose handles keep the curves — that keeps path's name and clipping-path designation; with is unchanged. Geometric, so shared edges stay exact; a curve's result stays within about a tenth of a pixel of its inputs. An empty result refuses; a result equal to the path answers changed:false. ONE undo step. Paths panel ▸ Combine with Path…, and Combine Selected Subpaths under the Path Selection and Direct Selection tools. A Grayscale document holds paths and vector masks, as an RGB document does, and keeps them in .doctored.
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
 | `operation` | `string` | yes | one of `unite`, `subtract`, `intersect`, `exclude` | unite, subtract, intersect or exclude. |
 | `path` | `string` | yes | — | A stored path by name: a saved path's name, or "Work Path" for the document's unsaved work path (list_paths). |
-| `with` | `string` | yes | — | The other path, by name (list_paths); not path itself. |
+| `subpath_indices` | `array<integer>` | no | 1–unbounded items; items: 0–∞ | Indices of path's own subpaths, in list_paths' order, combined with its other subpaths. Exactly one of with and subpath_indices. |
+| `with` | `string` | no | — | The other path, by name (list_paths); not path itself. Exactly one of with and subpath_indices. |
 
 ## `set_clipping_path`
 

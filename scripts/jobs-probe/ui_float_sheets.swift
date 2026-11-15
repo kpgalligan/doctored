@@ -247,20 +247,18 @@ func verifyPathsPanelStrokeFloat() throws {
     }
     try require(panel.selectedRow?.target == .path(work), "\(tag) the panel selects the work path")
     let action = #selector(EditorViewController.strokeCurrentPath(_:))
+    let sheetAction = #selector(EditorViewController.strokeCurrentPathWithOptions(_:))
     let near = { (got: [Double], want: [Double]) in
         got.count == want.count && zip(got, want).allSatisfy { abs($0 - $1) <= 1e-4 * max(1, abs($1)) }
     }
 
-    /// One Stroke Path sent up the responder chain from `sender`'s view.
-    func strokeFrom(_ view: NSView, sender: Any, _ what: String) throws {
+    /// One Stroke Path that `perform` makes, handing back the steps it recorded.
+    func strokeBy(_ what: String, _ perform: () throws -> [ActionStep]) throws {
         // The cursor, not the count: the button's undone stroke stays
         // retained as redo until the row menu's stroke replaces it.
         let cursor = document.history.cursor
         let alerts = AutomationAlerts.recorded.count
-        var performed = false
-        let steps = uiRecorded { performed = view.tryToPerform(action, with: sender) }
-        try require(performed, "\(tag) \(what): the responder chain from the panel performs "
-                    + "strokeCurrentPath:")
+        let steps = try perform()
         try require(AutomationAlerts.recorded.count == alerts,
                     "\(tag) \(what): no alert: \(uiAlerts())")
         let strokes = steps.filter { $0.tool == "stroke_path" }
@@ -288,9 +286,16 @@ func verifyPathsPanelStrokeFloat() throws {
     else { throw ProbeFailure(description: "\(tag) the panel has no Stroke Path button") }
     try require(button.isEnabled && button.target == nil,
                 "\(tag) the Stroke Path button is enabled, with a nil target")
-    try strokeFrom(button, sender: button, "the footer button")
+    try strokeBy("the footer button") {
+        var performed = false
+        let steps = uiRecorded { performed = button.tryToPerform(action, with: button) }
+        try require(performed, "\(tag) the footer button: the responder chain from the panel "
+                    + "performs strokeCurrentPath:")
+        return steps
+    }
 
-    // The row menu, built for a right-click on the work path's row.
+    // The row menu, built for a right-click on the work path's row: its Stroke Path… opens the
+    // sheet, whose Apply with the Brush is the same stroke.
     guard let table = uiViews(panel.view, as: NSTableView.self).first, table.selectedRow >= 0,
           let window = table.window else {
         throw ProbeFailure(description: "\(tag) the panel's table and its selected row")
@@ -305,15 +310,29 @@ func verifyPathsPanelStrokeFloat() throws {
         throw ProbeFailure(description: "\(tag) the row has no menu")
     }
     menu.delegate?.menuNeedsUpdate?(menu)
-    guard let item = menu.items.first(where: { $0.title == "Stroke Path" }) else {
-        throw ProbeFailure(description: "\(tag) the row menu has no Stroke Path item: "
+    guard let item = menu.items.first(where: { $0.title == "Stroke Path…" }) else {
+        throw ProbeFailure(description: "\(tag) the row menu has no Stroke Path… item: "
             + "\(menu.items.map(\.title))")
     }
-    try require(item.action == action && item.target == nil,
-                "\(tag) the row menu's Stroke Path is the same nil-target action")
+    try require(item.action == sheetAction && item.target == nil,
+                "\(tag) the row menu's Stroke Path… is the sheet's nil-target action")
     try require(controller.validatePathsItem(item) == true,
-                "\(tag) the row menu's Stroke Path validates enabled")
-    try strokeFrom(table, sender: item, "the row menu's item")
+                "\(tag) the row menu's Stroke Path… validates enabled")
+    try strokeBy("the row menu's Stroke Path…") {
+        var performed = false
+        let sheet = try pathSheet(controller, PathStrokeSheetController.self) {
+            performed = table.tryToPerform(sheetAction, with: item)
+        }
+        try require(performed, "\(tag) the row menu's item: the responder chain from the panel "
+                    + "performs strokeCurrentPathWithOptions:")
+        let tool = try uiControl(sheet.view, id: "stroke-path-tool", as: NSPopUpButton.self)
+        try require(tool.titleOfSelectedItem == "Brush",
+                    "\(tag) the sheet opens on the Brush: \(tool.titleOfSelectedItem ?? "-")")
+        return try uiRecorded {
+            try uiSend(try uiControl(sheet.view, id: "stroke-path-apply", as: NSButton.self),
+                       "\(tag) the sheet's Apply")
+        }
+    }
 
     // MCP `gradient` with three stops on the float layer: recorded, not required.
     let stops: [[String: Any]] = [
@@ -333,5 +352,6 @@ func verifyPathsPanelStrokeFloat() throws {
     print("PASS: paths panel stroke float — on a 32-bit float layer the Paths panel's Stroke Path "
         + "button is enabled and, sent up the responder chain from the button, is one \"Stroke "
         + "Path\" step recorded as rgba32 with the line above white, and so is the row menu's "
-        + "Stroke Path item; MCP gradient with three stops on the float layer answers \(answer)")
+        + "Stroke Path… sheet applied with the Brush; MCP gradient with three stops on the float "
+        + "layer answers \(answer)")
 }

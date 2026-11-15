@@ -672,7 +672,7 @@ enum DocumentPrecision {
             case .text, .shapeRect, .shapeEllipse, .shapeLine:
                 return true
             // A path is geometry the document carries at every depth.
-            case .pen:
+            case .pen, .pathSelect, .directSelect:
                 return true
             // The Brush, Eraser and Gradient paint in linear light (`FloatPaint`).
             case .brush, .eraser, .gradient:
@@ -728,8 +728,9 @@ enum DocumentPrecision {
         case .move: return true
         // Admitted at 16 bits as at float (above).
         case .ruler, .perspectiveCrop: return true
-        // The Pen edits the path list, never a pixel.
-        case .pen: return true
+        // The Pen edits the path list, never a pixel; so do the two
+        // selection tools.
+        case .pen, .pathSelect, .directSelect: return true
         }
     }
 

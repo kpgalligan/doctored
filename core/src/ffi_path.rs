@@ -5,8 +5,8 @@
 //! `doc_path::list_from_json` reads.
 //!
 //! The SHAPE exports after them take no document: one shape as the shape
-//! JSON, over the kernels `path_geometry` (coverage, flatten, hit, insert,
-//! convert) and `path_trace`. The two that fill a plane or read one
+//! JSON, over the kernels `path_geometry` (coverage, flatten, hit, the subpath
+//! under a point, insert, convert) and `path_trace`. The two that fill a plane or read one
 //! (`dr_path_coverage`, `dr_path_trace`) are admitted against the caller's
 //! working limit and take a job control; the rest are bounded by the shape
 //! caps alone.
@@ -396,6 +396,29 @@ pub unsafe extern "C" fn dr_path_hit(
                 Ok(hit.to_string())
             },
             owned,
+        )
+    }
+}
+
+/// The index of the subpath of the shape in `shape_json` whose FILL lies
+/// under (`x`, `y`), or -1. Each subpath is judged alone by the nonzero
+/// winding of its outline (an open one closed by a straight line), and among
+/// those that enclose the point the one with the smallest control box wins,
+/// a tie going to the later subpath. -1 also for NULL or malformed JSON, a
+/// refused shape, a point that is not finite, or a shape too large to
+/// flatten.
+///
+/// # Safety
+/// `shape_json` must be NULL or a NUL-terminated string.
+#[no_mangle]
+pub unsafe extern "C" fn dr_path_subpath_at(shape_json: *const c_char, x: f64, y: f64) -> i64 {
+    unsafe {
+        fallible_op(
+            ptr::null_mut(),
+            "finding the subpath under a point",
+            -1,
+            || Ok(shape(shape_json)?.subpath_at([x, y])),
+            |index: Option<usize>| index.map_or(-1, |i| i as i64),
         )
     }
 }

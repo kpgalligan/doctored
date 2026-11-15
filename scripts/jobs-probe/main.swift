@@ -398,6 +398,11 @@ do {
         // Paths panel ▸ Convert to Shape Layer and Combine with Path… (path_commands.swift).
         ("convert path to shape", verifyConvertPathToShape),
         ("combine paths", verifyCombinePaths),
+        // #19: Path Selection and Direct Selection (path_select.swift).
+        ("path selection tools", verifyPathSelectionTools),
+        ("path selection gestures", verifyPathSelectionGestures),
+        ("path subpath booleans", verifyPathSubpathBooleans),
+        ("path fill and stroke sheets", verifyPathFillStrokeSheets),
         // Round 2: File ▸ New at 32 bits, Convert Precision, Select People,
         // Lens Correction's profile, the float canvas tools, Select and Mask,
         // the Magnetic Lasso, Presence and the Develop Filter at 32 bits.

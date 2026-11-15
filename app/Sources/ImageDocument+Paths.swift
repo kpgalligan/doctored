@@ -36,8 +36,9 @@ extension ImageDocument {
     /// anchor cap, a coordinate past the wall) BEEPS here instead of
     /// presenting its sentence: it is asked before `applyPathEdit` is, so a
     /// refused anchor does not stop the drawing behind a sheet. A shape the
-    /// path already has is no gesture and is silent.
-    func commitPenPath(_ shape: PathShape, name: String) -> Bool {
+    /// path already has is no gesture and is silent. `note` is the recorded
+    /// step's: the Pen's, or a selection tool's.
+    func commitPenPath(_ shape: PathShape, name: String, note: String = "Pen tool") -> Bool {
         guard let before = doc else {
             NSSound.beep()
             return false
@@ -65,7 +66,7 @@ extension ImageDocument {
             NSSound.beep()
             return false
         }
-        applyPathEdit(actionName, record: .step("set_path", arguments, note: "Pen tool")) { _ in
+        applyPathEdit(actionName, record: .step("set_path", arguments, note: note)) { _ in
             next
         }
         // Unchanged here means a live edit was in flight; `applyGuideEdit`
@@ -85,7 +86,9 @@ extension ImageDocument {
     /// gone, the mask is locked, or the core refused the shape (the anchor
     /// cap) — each a beep, asked before `applyEdit` is so a refused anchor
     /// does not stop the drawing behind a sheet, as `commitPenPath` does.
-    func commitPenVectorMask(_ shape: PathShape, layerID: UInt64, name: String) -> Bool {
+    func commitPenVectorMask(
+        _ shape: PathShape, layerID: UInt64, name: String, note: String = "Pen tool"
+    ) -> Bool {
         guard let before = doc, let index = before.layerIndex(id: layerID),
               before.vectorMask(index) != nil,
               let next = try? before.settingVectorMask(index, shape: shape, control: nil)
@@ -97,7 +100,7 @@ extension ImageDocument {
             "layer": ActionArgs.layer(before.layerRef(index)),
             "subpaths": shape.subpathsJSON, "fill_rule": shape.fillRule.rawValue,
         ]
-        applyEdit(name, record: .step("set_vector_mask", arguments, note: "Pen tool")) { _ in
+        applyEdit(name, record: .step("set_vector_mask", arguments, note: note)) { _ in
             next
         }
         return doc === next

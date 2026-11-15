@@ -78,9 +78,14 @@ func toolKeysUI() throws -> [String: Any] {
     try toolKeysPress("j")
     try require(editor.currentTool == .heal, "J after a Heal pick landed on \(editor.currentTool)")
 
-    // (d) P is the Pen's and R the focus tools'.
+    // (d) P is the Pen's, A cycles Path Selection and Direct Selection in the Pen's slot (a
+    // second P stays on the Pen), and R is the focus tools'.
     try toolKeysPress("p")
     try require(editor.currentTool == .pen, "P selected \(editor.currentTool), not the Pen")
+    try walk("a", [.pathSelect, .directSelect, .pathSelect])
+    try toolKeysPress("p")
+    try toolKeysPress("p")
+    try require(editor.currentTool == .pen, "P P selected \(editor.currentTool), not the Pen")
     try toolKeysPress("r")
     try require(editor.currentTool == .blurBrush, "R selected \(editor.currentTool), not Blur")
 

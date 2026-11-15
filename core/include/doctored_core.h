@@ -4202,6 +4202,15 @@ char *dr_path_trace(const uint16_t *coverage, size_t coverage_count,
 char *dr_path_hit(const char *shape_json, double x, double y, double tolerance,
                   bool handles);
 
+/* The index of the subpath whose FILL lies under (x, y), or -1. Each subpath
+ * is judged ALONE, whatever the shape's fill rule, by the nonzero winding of
+ * its outline (an open subpath closed by the straight line a fill adds);
+ * among those that enclose the point the one with the smallest control box
+ * (the innermost) wins, a tie going to the later subpath. -1 also for NULL
+ * or malformed JSON, a refused shape, a non-finite point, or a shape that
+ * flattens past 1,048,576 points. What Path Selection's press asks. */
+int64_t dr_path_subpath_at(const char *shape_json, double x, double y);
+
 /* The shape with one more anchor on segment `segment` of subpath `subpath`
  * at parameter t (dr_path_hit's), its outline unchanged to four decimals: a
  * curved segment is split by de Casteljau (the new anchor is smooth and its

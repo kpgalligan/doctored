@@ -13,8 +13,8 @@ import AppKit
 /// | Clipping Path | `set_clipping_path` |
 /// | Clipping Path Flatness… | `set_clipping_path` with `flatness` |
 /// | Make Selection… | `path_to_selection` |
-/// | Fill Path | `fill_path` |
-/// | Stroke Path | `stroke_path` |
+/// | Fill Path, Fill Path… | `fill_path` (the sheet: +PathSelect) |
+/// | Stroke Path, Stroke Path… | `stroke_path` (the sheet: +PathSelect) |
 /// | Make Work Path… | `selection_to_path` |
 /// | Combine with Path…, Convert to Shape Layer | `combine_paths`, `add_shape_layer` (+PathCommands) |
 ///
@@ -121,7 +121,22 @@ extension EditorViewController {
     /// path tool: `path` for a path of the list (the work path answers to
     /// "Work Path"), the shape itself for a layer's vector mask, which no
     /// tool can name. nil with no current path.
-    func currentPathStep() -> (shape: PathShape, arguments: [String: Any])? {
+    ///
+    /// `selectedOnly` (Fill Path, Stroke Path and Make Selection…): while
+    /// Path Selection or Direct Selection holds selected subpaths of the
+    /// current path, those subpaths alone under the path's fill rule, named
+    /// by the explicit `subpaths` + `fill_rule` form
+    /// (EditorViewController+PathSelect.swift).
+    func currentPathStep(selectedOnly: Bool = false) -> (
+        shape: PathShape, arguments: [String: Any]
+    )? {
+        if selectedOnly, let selected = selectedSubpathsOfCurrentPath() {
+            var shape = PathShape(fillRule: selected.shape.fillRule)
+            shape.subpaths = selected.indices.map { selected.shape.subpaths[$0] }
+            return (
+                shape, ["subpaths": shape.subpathsJSON, "fill_rule": shape.fillRule.rawValue]
+            )
+        }
         guard let document, let doc = document.doc, let target = document.currentPath else {
             return nil
         }
@@ -188,7 +203,7 @@ extension EditorViewController {
     /// on a wide-gamut document the document's own bytes with
     /// `color_space: "document"` (`ActionArgs.documentHex`), as a recorded
     /// brush stroke writes them.
-    private func colorArguments(_ color: NSColor) -> [String: Any] {
+    func colorArguments(_ color: NSColor) -> [String: Any] {
         if let space = document?.nsColorSpace, let hex = ActionArgs.documentHex(color, in: space) {
             return ["color": hex, "color_space": "document"]
         }
@@ -320,8 +335,8 @@ extension EditorViewController {
 
     /// Paths panel ▸ Make Selection…: the dialog, then `path_to_selection`.
     @objc func makeSelectionFromPath(_ sender: Any?) {
-        guard let document, let current = currentPathStep(), !current.shape.isEmpty,
-              !document.quickMaskActive
+        guard let document, let current = currentPathStep(selectedOnly: true),
+              !current.shape.isEmpty, !document.quickMaskActive
         else {
             NSSound.beep()
             return
@@ -330,7 +345,9 @@ extension EditorViewController {
             [weak self] feather, antiAlias, mode in
             // The path is read again at commit: the sheet does not stop the
             // run loop, and an agent may have edited or deleted it meanwhile.
-            guard let self, let current = self.currentPathStep(), !current.shape.isEmpty else {
+            guard let self, let current = self.currentPathStep(selectedOnly: true),
+                  !current.shape.isEmpty
+            else {
                 NSSound.beep()
                 return
             }
@@ -372,7 +389,7 @@ extension EditorViewController {
     /// Whether the edit target takes a fill or a stroke at all, asked the way
     /// every paint command asks, with its own alert. A LAYER target also asks
     /// before rasterizing a text or shape layer.
-    private func admitsPathPaint(_ document: ImageDocument) -> Bool {
+    func admitsPathPaint(_ document: ImageDocument) -> Bool {
         guard !refuseOperationScope(.fill) else { return false }
         if paintTarget == .layer || paintTarget.isPlane || paintTarget.isInk {
             guard !refuseAdjustmentPixelEdit(), !refuseGroupPixelEdit() else { return false }
@@ -381,10 +398,13 @@ extension EditorViewController {
         return true
     }
 
-    /// Paths panel ▸ Fill Path: the current path filled with the foreground
-    /// colour on the edit target, inside the selection when there is one.
+    /// Paths panel ▸ Fill Path: the current path (or the selection tools'
+    /// selected subpaths) filled with the foreground colour on the edit
+    /// target, inside the selection when there is one.
     @objc func fillCurrentPath(_ sender: Any?) {
-        guard let document, let current = currentPathStep(), !current.shape.isEmpty else {
+        guard let document, let current = currentPathStep(selectedOnly: true),
+              !current.shape.isEmpty
+        else {
             NSSound.beep()
             return
         }
@@ -393,20 +413,26 @@ extension EditorViewController {
         arguments["layer"] = ActionArgs.activeLayer
         arguments["target"] = paintTarget.agentName(in: document.doc)
         arguments.merge(colorArguments(paintColor)) { _, new in new }
-        guard cmykPathInk(&arguments, document: document) else { return }
+        guard cmykPathInk(
+            &arguments, color: paintColor,
+            stored: ToolOptionsStore.shared.sharedState.foregroundInk, document: document)
+        else { return }
         runPathStep("fill_path", arguments, undoName: "Fill Path", note: "Paths panel ▸ Fill Path")
     }
 
-    /// A CMYK layer target paints the foreground swatch's stored ink (#1), as Edit ▸ Fill…
-    /// does: `ink` (C, M, Y, K percent) replaces `color`. A plate or channel target keeps `color`,
-    /// whose grey it paints. False (after an alert) when the ink cannot be read.
-    private func cmykPathInk(_ arguments: inout [String: Any], document: ImageDocument) -> Bool {
+    /// A CMYK layer target paints `color`'s ink, the swatch's `stored` ink when the colour is a
+    /// swatch's (#1), as Edit ▸ Fill… does: `ink` (C, M, Y, K percent) replaces `color`. A plate
+    /// or channel target keeps `color`, whose grey it paints. False (after an alert) when the
+    /// ink cannot be read.
+    func cmykPathInk(
+        _ arguments: inout [String: Any], color: NSColor, stored: CmykInk?,
+        document: ImageDocument
+    ) -> Bool {
         guard let precision = document.doc?.precision, precision.isCmyk, paintTarget == .layer else {
             return true
         }
         do {
-            let ink = try CmykPaint.ink(paintColor, stored: ToolOptionsStore.shared.sharedState.foregroundInk,
-                                        in: precision)
+            let ink = try CmykPaint.ink(color, stored: stored, in: precision)
             for key in ["color", "color_space"] { arguments.removeValue(forKey: key) }
             arguments["ink"] = ink.prefix(4).map { $0 * 100 }
             return true
@@ -416,21 +442,30 @@ extension EditorViewController {
         }
     }
 
-    /// Paths panel ▸ Stroke Path: the Brush run along the current path with
-    /// the Brush tool's STORED options and the foreground colour. On a 32-bit
-    /// float layer a foreground above white is the Brush's linear ink
-    /// (`rgba32`), as the Brush tool itself paints it.
+    /// Paths panel ▸ Stroke Path: the Brush run along the current path (or
+    /// the selection tools' selected subpaths) with the Brush tool's STORED
+    /// options and the foreground colour (`strokePath(erase:note:)`).
     @objc func strokeCurrentPath(_ sender: Any?) {
+        strokePath(erase: false, note: "Paths panel ▸ Stroke Path")
+    }
+
+    /// The Brush — or with `erase` the Eraser — run along the current path
+    /// with that tool's STORED options, recorded as `stroke_path` with
+    /// `note`. The Brush paints the foreground colour; on a 32-bit float
+    /// layer a foreground above white is its linear ink (`rgba32`), as the
+    /// Brush tool itself paints it. The Eraser takes no colour or blend mode.
+    func strokePath(erase: Bool, note: String) {
         guard let document, let doc = document.doc,
-              let current = currentPathStep(), !current.shape.isEmpty
+              let current = currentPathStep(selectedOnly: true), !current.shape.isEmpty
         else {
             NSSound.beep()
             return
         }
         guard admitsPathPaint(document) else { return }
-        let brush = ToolOptionsStore.shared.brush
+        let store = ToolOptionsStore.shared
+        let brush = erase ? store.eraser : store.brush
         var arguments = current.arguments
-        arguments["tool"] = "brush"
+        arguments["tool"] = erase ? "eraser" : "brush"
         arguments["layer"] = ActionArgs.activeLayer
         arguments["target"] = paintTarget.agentName(in: doc)
         arguments["size"] = ActionArgs.number(brush.size)
@@ -440,6 +475,10 @@ extension EditorViewController {
         arguments["angle"] = ActionArgs.number(brush.angle)
         arguments["roundness"] = ActionArgs.number(max(brush.roundness, 1))
         arguments["opacity"] = ActionArgs.number(min(max(brush.opacity, 0), 100) / 100)
+        if erase {
+            runPathStep("stroke_path", arguments, undoName: "Stroke Path", note: note)
+            return
+        }
         if doc.isFloat, paintTarget == .layer,
            let linear = ExtendedRangeColor.aboveWhite(paintColor, in: doc) {
             // `rgba32` replaces `color` and takes no `color_space`.
@@ -447,7 +486,10 @@ extension EditorViewController {
         } else {
             arguments.merge(colorArguments(paintColor)) { _, new in new }
         }
-        guard cmykPathInk(&arguments, document: document) else { return }
+        guard cmykPathInk(
+            &arguments, color: paintColor, stored: store.sharedState.foregroundInk,
+            document: document)
+        else { return }
         // A mask, a colour plane and a channel are coverage: `brush_stroke`
         // refuses a blend mode there, as a recorded stroke omits it.
         // A Brush set to Behind or Clear strokes a path as Normal: Stroke Path
@@ -457,8 +499,7 @@ extension EditorViewController {
             arguments["blend_mode"] = DrBlendMode.displayName(
                 for: DrBlendMode.isPaintOnly(mode) ? DR_BLEND_NORMAL : mode)
         }
-        runPathStep(
-            "stroke_path", arguments, undoName: "Stroke Path", note: "Paths panel ▸ Stroke Path")
+        runPathStep("stroke_path", arguments, undoName: "Stroke Path", note: note)
     }
 
     // MARK: - Validation
@@ -489,6 +530,7 @@ extension EditorViewController {
             return currentPathStep() != nil
         default:
             return validatePathCommandItem(item) ?? validateVectorMaskItem(item)
+                ?? validatePathSelectItem(item)
         }
     }
 }

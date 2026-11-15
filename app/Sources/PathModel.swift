@@ -29,6 +29,33 @@ struct PathAnchor: Equatable {
     static func corner(_ point: CGPoint) -> PathAnchor {
         PathAnchor(point: point, handleIn: point, handleOut: point, smooth: false)
     }
+
+    /// The anchor moved by (`dx`, `dy`), its handles with it. The one move
+    /// the Pen's ⌘-drag and the two selection tools' drags all make.
+    func moved(dx: CGFloat, dy: CGFloat) -> PathAnchor {
+        func shifted(_ from: CGPoint) -> CGPoint { CGPoint(x: from.x + dx, y: from.y + dy) }
+        return PathAnchor(
+            point: shifted(point), handleIn: shifted(handleIn), handleOut: shifted(handleOut),
+            smooth: smooth)
+    }
+
+    /// The anchor with its out (`out` true) or in handle at `tip`. A smooth
+    /// anchor's other handle turns to stay in line, keeping its own length;
+    /// one sitting on the point has no length to keep.
+    func movingHandle(out: Bool, to tip: CGPoint) -> PathAnchor {
+        var other = out ? handleIn : handleOut
+        let reach = hypot(tip.x - point.x, tip.y - point.y)
+        let length = hypot(other.x - point.x, other.y - point.y)
+        if smooth, reach > 0, length > 0 {
+            other = CGPoint(
+                x: point.x - (tip.x - point.x) / reach * length,
+                y: point.y - (tip.y - point.y) / reach * length)
+        }
+        var next = self
+        next.handleOut = out ? tip : other
+        next.handleIn = out ? other : tip
+        return next
+    }
 }
 
 /// One contour. An open subpath is closed by a straight line for FILL only.

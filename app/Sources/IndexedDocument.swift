@@ -165,6 +165,8 @@ enum IndexedDocument {
         "makeSelectionFromPath:", "deleteCurrentPath:", "duplicateCurrentPath:", "combinePaths:",
         "fillCurrentPath:", "strokeCurrentPath:", "toggleClippingPath:",
         "editClippingPathFlatness:", "toggleColorSamplers:", "clearColorSamplers:",
+        // Paths panel ▸ Fill Path…, Stroke Path… and Combine Selected Subpaths: the same steps.
+        "fillCurrentPathWithOptions:", "strokeCurrentPathWithOptions:", "combineSelectedSubpaths:",
         "newView:", "showProofSetup:", "toggleProofColors:", "applyWorkingProof:",
         "applyProofPresetFromMenu:",
     ]
@@ -422,7 +424,7 @@ enum IndexedDocument {
         case .select, .ellipseSelect, .lasso, .freehandLasso, .hand, .zoom, .brush, .eraser, .fill,
              .magicEraser,
              .crop, .perspectiveCrop, .move, .wand, .quickSelect, .magneticLasso, .eyedropper,
-             .colorSampler, .ruler, .pen, .clone, .historyBrush:
+             .colorSampler, .ruler, .pen, .pathSelect, .directSelect, .clone, .historyBrush:
             return true
         default:
             return false

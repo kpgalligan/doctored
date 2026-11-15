@@ -420,6 +420,8 @@ enum LabDocument {
         "makeSelectionFromPath:", "duplicateCurrentPath:", "deleteCurrentPath:", "fillCurrentPath:",
         "combinePaths:", "convertPathToShape:",
         "strokeCurrentPath:", "toggleClippingPath:", "editClippingPathFlatness:",
+        // Paths panel ▸ Fill Path…, Stroke Path… and Combine Selected Subpaths: the same steps.
+        "fillCurrentPathWithOptions:", "strokeCurrentPathWithOptions:", "combineSelectedSubpaths:",
         "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
         "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
         // Phase 6b: Apply Image, Calculations, Stack Modes and Merge to HDR.
@@ -835,7 +837,7 @@ enum LabDocument {
              .dodge, .sponge, .blurBrush, .sharpenBrush, .smudge, .historyBrush, .clone, .heal,
              .spotHeal, .patch, .contentAwareMove, .remove, .artHistoryBrush, .redEye,
              .crop, .perspectiveCrop, .ruler, .magneticLasso,
-             .text, .shapeRect, .shapeEllipse, .shapeLine, .pen:
+             .text, .shapeRect, .shapeEllipse, .shapeLine, .pen, .pathSelect, .directSelect:
             return true
         default:
             return false

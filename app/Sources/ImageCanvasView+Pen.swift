@@ -7,7 +7,9 @@ import AppKit
 /// finished gesture to `onPenCommit`.
 ///
 /// The current path's outline draws under every tool; its anchors, handles
-/// and rubber band only while the Pen is the tool. Points are UNCLAMPED: a
+/// and rubber band only while the Pen is the tool, and Path Selection's and
+/// Direct Selection's marks under those two (ImageCanvasView+PathSelect.swift).
+/// Points are UNCLAMPED: a
 /// handle is routinely dragged past the canvas edge, and a path may lie
 /// outside the canvas.
 extension ImageCanvasView {
@@ -142,7 +144,10 @@ extension ImageCanvasView {
     /// Everything outside the rectangles being drawn is skipped, so the
     /// rubber band's repaint costs the marks under it and not the whole path.
     func drawPenPath() {
-        guard let shape = penSession.displayShape, !shape.subpaths.isEmpty else { return }
+        // A selection tool's gesture in flight draws its own next shape.
+        guard let shape = pathSelectSession.drag?.shape ?? penSession.displayShape,
+              !shape.subpaths.isEmpty
+        else { return }
         let scale = magnification
         let reach = 2 / scale
         var outline = PenDrawingRuns()
@@ -169,6 +174,10 @@ extension ImageCanvasView {
             outline.cut()
         }
         Self.strokePenLines(outline.finished, scale: scale)
+        if tool.selectsPath {
+            drawPathSelectMarks(shape)
+            return
+        }
         guard tool == .pen else { return }
 
         if let band = penSession.rubberBandSegment {
@@ -245,8 +254,9 @@ extension ImageCanvasView {
 /// 20 ms in runs of 32 segments, 12.5 ms in runs of 8 and 12.8 ms one segment
 /// at a time; 32,767 segments take 5,148 ms as one path and 350 ms in runs
 /// of 32. Eight to a run costs what single segments do in an eighth of the
-/// calls.
-private struct PenDrawingRuns {
+/// calls. The selection tools' marks are drawn the same way
+/// (ImageCanvasView+PathSelect.swift).
+struct PenDrawingRuns {
     private static let length = 8
 
     /// The runs cut so far.

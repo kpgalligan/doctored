@@ -908,9 +908,10 @@ first slider previews with the document untouched, Cancel leaves nothing, and
 a second sheet's Apply is one step and one recorded `apply_filter` step that
 keeps a red above white; Liquify's push then Cancel leaves the handle and the
 undo stack, and a second workspace's push and Apply record exactly one
-`liquify` step; the Paths panel's Stroke Path button and its row menu's Stroke
-Path item, each sent up the responder chain, are one "Stroke Path" step
-recorded with `rgba32` alone and the line above white. The case also sends MCP
+`liquify` step; the Paths panel's Stroke Path button, sent up the responder
+chain, and its row menu's Stroke Path… item, sent the same way and its sheet
+applied with the Brush, are each one "Stroke Path" step recorded with `rgba32`
+alone and the line above white. The case also sends MCP
 `gradient` with three `stops` to the float layer and prints whether it answers
 ok (it does).
 

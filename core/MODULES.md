@@ -600,7 +600,7 @@ Detail belongs in the source file's own header comment.
 - `perspective_crop.rs` / `doc_perspective_crop.rs` / `precision_perspective_crop.rs` — Perspective Crop: request and homography kernel, byte and typed adapters.
 - `path_geometry.rs` — KERNEL: `PathShape` (anchors, subpaths, fill rule), `PathHit`, JSON, caps, validation, commands, bounds, point maps, coverage.
 - `path_flatten.rs` — KERNEL: `PathShape::flattened`, each subpath as a polyline within a tolerance (`flatten_cubic`), beside `path_geometry`.
-- `path_edit.rs` — KERNEL: the Pen's geometry, `PathShape::hit`, `inserting_anchor`, `converting_anchor` (`nearest_on_cubic`), beside `path_geometry`.
+- `path_edit.rs` — KERNEL: the Pen's geometry, `PathShape::hit`, `subpath_at` (`winding`), `inserting_anchor`, `converting_anchor` (`nearest_on_cubic`), beside `path_geometry`.
 - `path_trace.rs` — KERNEL: `trace`, u16 coverage to a `PathShape` (50 % contour, Douglas–Peucker corners); the fit is `path_fit`.
 - `path_fit.rs` — KERNEL: `path_trace`'s step 3, Schneider's cubic fit (`fit`, `generate`, `reparameterize`), and the point helpers both use.
 - `doc_path.rs` / `precision_path.rs` — PATHS at both depths: `PathEntry`, `DocPaths` / `TypedPaths`, `list_refusal` (the one home of the list rules), `with_paths`.

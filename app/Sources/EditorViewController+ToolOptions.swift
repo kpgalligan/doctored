@@ -100,6 +100,8 @@ extension EditorViewController {
             return shapeClusters(tool)
         case .pen:
             return penClusters()
+        case .pathSelect, .directSelect:
+            return pathSelectClusters()
         case .text:
             return textClusters()
         case .eyedropper:

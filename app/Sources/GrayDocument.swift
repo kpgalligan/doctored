@@ -311,6 +311,8 @@ enum GrayDocument {
         "makeSelectionFromPath:", "duplicateCurrentPath:", "deleteCurrentPath:", "fillCurrentPath:",
         "combinePaths:", "convertPathToShape:",
         "strokeCurrentPath:", "toggleClippingPath:", "editClippingPathFlatness:",
+        // Paths panel ▸ Fill Path…, Stroke Path… and Combine Selected Subpaths: the same steps.
+        "fillCurrentPathWithOptions:", "strokeCurrentPathWithOptions:", "combineSelectedSubpaths:",
         "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
         "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
         // Phase 6a-ii: Link and Unlink Layers, the Snapshots window and Edit ▸ Clear (Layer Comps
@@ -628,7 +630,8 @@ enum GrayDocument {
              .dodge, .sponge, .blurBrush, .sharpenBrush, .smudge, .historyBrush, .clone, .heal,
              .spotHeal, .patch, .contentAwareMove, .remove, .artHistoryBrush,
              .wand, .quickSelect, .objectSelect, .subject, .move, .crop, .perspectiveCrop, .ruler,
-             .magneticLasso, .text, .shapeRect, .shapeEllipse, .shapeLine, .pen, .colorSampler:
+             .magneticLasso, .text, .shapeRect, .shapeEllipse, .shapeLine, .pen, .colorSampler,
+             .pathSelect, .directSelect:
             return true
         default:
             return false

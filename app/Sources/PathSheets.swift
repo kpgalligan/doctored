@@ -1,6 +1,7 @@
 import AppKit
 
-// The Paths panel's four dialogs. Each only CHOOSES: its commit closure is handed the values
+// The Paths panel's five dialogs (Fill Path… is Edit ▸ Fill…'s sheet,
+// FillSheetController.swift). Each only CHOOSES: its commit closure is handed the values
 // and the editor runs the MCP step they describe (`EditorViewController+Paths.swift`), so the
 // sheet, the recorded Action and an agent's call are one path.
 
@@ -317,6 +318,59 @@ final class PathCombineSheetController: NSViewController {
         let operation = operations[min(max(operationPopup.indexOfSelectedItem, 0), operations.count - 1)]
         dismiss(self)
         onCommit(others[index], operation)
+    }
+
+    @objc private func cancelClicked(_ sender: Any?) {
+        dismiss(self)
+    }
+}
+
+/// Paths panel ▸ Stroke Path…: which tool runs along the path, the Brush or the Eraser, each
+/// with its own options-bar settings. `stroke_path`'s `tool`; the rest of the step is the tool's
+/// stored options (`EditorViewController.strokePath(erase:note:)`).
+final class PathStrokeSheetController: NSViewController {
+    private let hint: String
+    private let onCommit: (_ erase: Bool) -> Void
+    private let toolPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+
+    /// `hint` says what will be stroked (the path, or its selected subpaths).
+    init(hint: String, onCommit: @escaping (_ erase: Bool) -> Void) {
+        self.hint = hint
+        self.onCommit = onCommit
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("PathStrokeSheetController does not support NSCoder")
+    }
+
+    override func loadView() {
+        toolPopup.addItems(withTitles: ["Brush", "Eraser"])
+        toolPopup.selectItem(at: 0)
+        toolPopup.font = DS.sans(13)
+        toolPopup.setAccessibilityIdentifier("stroke-path-tool")
+
+        let grid = NSGridView(views: [[fieldLabel("Tool:"), toolPopup]])
+        grid.rowSpacing = 10
+        grid.columnSpacing = 12
+        grid.column(at: 0).xPlacement = .trailing
+        grid.column(at: 0).width = 106
+
+        let cancelButton = sheetCancelButton(target: self, action: #selector(cancelClicked(_:)))
+        let applyButton = sheetApplyButton(target: self, action: #selector(applyClicked(_:)))
+        applyButton.setAccessibilityIdentifier("stroke-path-apply")
+        view = makeSheetView(
+            title: "Stroke path", hint: hint, content: grid,
+            buttonRow: makeButtonRow(
+                cancel: cancelButton, apply: applyButton,
+                leading: [sheetFootnote("one undo step")]))
+    }
+
+    @objc private func applyClicked(_ sender: Any?) {
+        let erase = toolPopup.indexOfSelectedItem == 1
+        dismiss(self)
+        onCommit(erase)
     }
 
     @objc private func cancelClicked(_ sender: Any?) {

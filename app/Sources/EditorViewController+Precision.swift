@@ -318,6 +318,9 @@ extension EditorViewController {
                 "makeSelectionFromPath:", "fillCurrentPath:", "makeWorkPath:",
                 "duplicateCurrentPath:", "deleteCurrentPath:", "toggleClippingPath:",
                 "editClippingPathFlatness:", "combinePaths:", "convertPathToShape:",
+                // Paths panel ▸ Fill Path…, Stroke Path… and Combine Selected Subpaths.
+                "fillCurrentPathWithOptions:", "strokeCurrentPathWithOptions:",
+                "combineSelectedSubpaths:",
                 "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
                 "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
                 // Phase 12E-2b: a transparent canvas-sized leaf is the ONE
@@ -545,6 +548,7 @@ extension EditorViewController {
         "fillWithForeground:", "fillWithBackground:", "fillWithForegroundPreserving:",
         "fillWithBackgroundPreserving:", "strokeSelection:", "applyImageSheet:",
         "fillCurrentPath:", "strokeCurrentPath:", "showFade:",
+        "fillCurrentPathWithOptions:", "strokeCurrentPathWithOptions:",
     ]
 
     /// The 16-bit document's whitelist (`validatePrecisionItem`'s last rule).
@@ -599,6 +603,7 @@ extension EditorViewController {
         "makeSelectionFromPath:", "fillCurrentPath:", "strokeCurrentPath:", "makeWorkPath:",
         "duplicateCurrentPath:", "deleteCurrentPath:", "toggleClippingPath:",
         "combinePaths:", "convertPathToShape:",
+        "fillCurrentPathWithOptions:", "strokeCurrentPathWithOptions:", "combineSelectedSubpaths:",
         "editClippingPathFlatness:", "addVectorMaskFromCurrentPath:", "addVectorMaskRevealAll:",
         "deleteVectorMask:", "toggleVectorMaskEnabled:", "toggleVectorMaskLinked:",
         // Phase 12E-2b: Layer ▸ New Layer, through the core's typed

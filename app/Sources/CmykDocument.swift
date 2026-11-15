@@ -216,6 +216,10 @@ enum CmykDocument {
         // Gamut Warning.
         "fillCurrentPath:",
         "strokeCurrentPath:",
+        // Paths panel ▸ Fill Path…, Stroke Path… and Combine Selected Subpaths: the same steps.
+        "fillCurrentPathWithOptions:",
+        "strokeCurrentPathWithOptions:",
+        "combineSelectedSubpaths:",
         "applyImageSheet:",
         "calculationsSheet:",
         "toggleGamutWarning:",
@@ -533,6 +537,9 @@ enum CmykDocument {
         case .magneticLasso:
             return true
         case .pen:
+            return true
+        // Path Selection and Direct Selection edit the path list, never an ink.
+        case .pathSelect, .directSelect:
             return true
         // The artwork batch: the Type tool and the shape tools, in ink.
         case .text, .shapeRect, .shapeEllipse, .shapeLine:

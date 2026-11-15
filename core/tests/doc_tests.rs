@@ -3158,6 +3158,7 @@ fn null_safety_sweep() {
             }
             assert!(dr_path_hit(ptr::null(), 0.0, 0.0, 1.0, true).is_null());
             assert!(dr_path_hit(ptr::null(), 0.0, 0.0, 1.0, false).is_null());
+            assert_eq!(dr_path_subpath_at(ptr::null(), 0.0, 0.0), -1);
             assert_eq!(plane, [0u16; 4], "no refused call wrote its output");
             // Vector masks, both depths; the behaviour is `vector_masks.rs`
             // and `precision_vector_masks.rs`. A NULL document answers NULL

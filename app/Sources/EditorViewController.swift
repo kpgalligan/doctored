@@ -364,6 +364,7 @@ final class EditorViewController: NSViewController {
         installRuler()
         installPerspectiveCrop()
         installPen()
+        installPathSelect()
         installMoveControls()
         installPuppetWarp()
         installPerspectiveWarp()
@@ -2513,6 +2514,8 @@ extension EditorViewController: NSUserInterfaceValidations {
         #selector(selectShapeEllipseTool(_:)): .shapeEllipse,
         #selector(selectShapeLineTool(_:)): .shapeLine,
         #selector(selectPenTool(_:)): .pen,
+        #selector(selectPathSelectTool(_:)): .pathSelect,
+        #selector(selectDirectSelectTool(_:)): .directSelect,
         #selector(selectZoomTool(_:)): .zoom,
         #selector(selectHandTool(_:)): .hand,
     ]
@@ -2712,12 +2715,14 @@ extension EditorViewController: NSUserInterfaceValidations {
         case #selector(clearSelection(_:)):
             // Clear's key equivalent is a BARE ⌫, resolved ahead of the first
             // responder, so it stands down wherever ⌫ belongs to someone else
-            // (`deleteChordAllowed`, EditorViewController+FillStroke.swift).
+            // (`deleteChordAllowed`, EditorViewController+FillStroke.swift),
+            // and while Path Selection or Direct Selection holds a selection
+            // (⌫ deletes it, ImageCanvasView+PathSelect.swift).
             // It needs something to clear: a selection and an active layer
             // with pixels. Nor does it take a colour plane or an alpha
             // channel: Clear rewrites the LAYER's pixels and has no plane
             // route (Edit ▸ Fill… is how a plane or channel is filled).
-            guard deleteChordAllowed, canvas.selection != nil,
+            guard deleteChordAllowed, !canvas.pathSelectionOwnsDelete, canvas.selection != nil,
                   !activeLayerIsAdjustment,
                   !activeLayerIsGroup, !paintTarget.isCoverage
             else { return false }

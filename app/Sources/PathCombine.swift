@@ -5,7 +5,9 @@ import AppKit
 // `ShapeLayer.strokeOutline` already aligns a stroke with), and the result is an ordinary path of
 // the list: it fills, strokes, selects and becomes a shape layer like any other, and nothing new
 // is stored. Paths panel ▸ Combine with Path… and `combine_paths` run it
-// (EditorViewController+PathCommands.swift, AgentServer+PathCombine.swift).
+// (EditorViewController+PathCommands.swift, AgentServer+PathCombine.swift), and so do the
+// selection tools' Combine Selected Subpaths and `combine_paths` with `subpath_indices`
+// (`combineSubpaths`, EditorViewController+PathSelect.swift).
 
 /// What `combine_paths` does to a path's fill region with another's; the raw value is the MCP
 /// spelling.
@@ -45,6 +47,27 @@ enum PathCombine {
         case .exclude: result = first.symmetricDifference(second, using: .winding)
         }
         return PathShape(cgPath: result, fillRule: .nonZero)
+    }
+
+    /// The SELECTED subpaths against the rest: the region `shape`'s unselected subpaths fill and
+    /// the region its `selected` ones fill, each under `shape`'s own fill rule, combined by
+    /// `operation` as `combine` combines two paths, the result replacing the whole shape.
+    /// Nothing is special-cased: with every subpath selected the first operand is empty, so
+    /// Unite and Exclude give the path's own region as one merged outline and Subtract and
+    /// Intersect leave nothing. Indices past the shape are ignored; the callers refuse them.
+    static func combineSubpaths(
+        _ shape: PathShape, selected: Set<Int>, _ operation: PathCombineOperation
+    ) -> PathShape {
+        var rest = PathShape(fillRule: shape.fillRule)
+        var chosen = PathShape(fillRule: shape.fillRule)
+        for (index, subpath) in shape.subpaths.enumerated() {
+            if selected.contains(index) {
+                chosen.subpaths.append(subpath)
+            } else {
+                rest.subpaths.append(subpath)
+            }
+        }
+        return combine(rest, chosen, operation)
     }
 
     /// `shape`'s fill region as a path that fills it by the winding rule, which every boolean

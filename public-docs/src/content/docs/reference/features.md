@@ -289,7 +289,7 @@ The design record behind each area is in the repository's
   coverage outside them both flip, and with one a raster layer's mask grows to
   the canvas first
 - **Paths and vector masks**:
-  the **Pen tool** (P, its own rail slot) draws a Bézier path — click for a
+  the **Pen tool** (P) draws a Bézier path — click for a
   corner point, drag for a smooth one, click the first point to close, Esc or
   Return to end; ⌘-drag moves an anchor or a handle, ⌥-click converts a point,
   a click on a segment adds a point and a click on an anchor deletes it, each
@@ -314,7 +314,15 @@ The design record behind each area is in the repository's
   a path with its fill united with, less, intersected with or excluding
   another path's, as an ordinary path, and **Convert to Shape Layer** makes
   the current path a re-editable shape layer styled from the shape options bar
-  (`add_shape_layer` kind `path`).
+  (`add_shape_layer` kind `path`). **Path Selection** and **Direct
+  Selection** (A, sharing the Pen's slot) select, move, ⌥-duplicate and
+  delete whole subpaths, or anchors and their handles, by click, ⇧-click or
+  marquee, each gesture one undo step; with subpaths selected, Combine
+  Selected Subpaths unites, subtracts, intersects or excludes them against the
+  rest of the path (`combine_paths` with `subpath_indices`), and Fill Path,
+  Stroke Path and Make Selection… act on them alone. The panel's **Fill
+  Path…** sheet picks the contents, blend mode, opacity and Preserve
+  Transparency, and **Stroke Path…** the Brush or the Eraser.
   Fifteen MCP tools mirror them (`list_paths`, `set_path`, `rename_path`,
   `duplicate_path`, `delete_path`, `combine_paths`, `set_clipping_path`, `path_to_selection`,
   `selection_to_path`, `fill_path`, `stroke_path`, `get_vector_mask`,
@@ -325,8 +333,8 @@ The design record behind each area is in the repository's
   at every depth; a
   layered file in every mode carries a vector mask with no raster mask beside
   it as its path; every other export writes the baked mask. Not built:
-  the Curvature, Freeform and Magnetic pens, type on a path, and the Path
-  Selection and Direct Selection tools
+  the Curvature, Freeform and Magnetic pens, type on a path, and editing a
+  path shape layer's outline in place
   ([record](https://github.com/kpgalligan/doctored/blob/main/designs/v1-paths.md))
 - **Fill layers** (Layer > New Fill Layer ▸ Solid Color… / Gradient… /
   Pattern…): a re-editable layer that is one colour, one gradient or one

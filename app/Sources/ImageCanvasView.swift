@@ -264,6 +264,12 @@ final class ImageCanvasView: NSView {
     // The Pen (PenSession.swift); a finished gesture's shape and undo name.
     var penSession = PenSession() { didSet { penSessionDidChange(from: oldValue) } }
     var onPenCommit: ((PathShape, String) -> Bool)?
+    // Path Selection and Direct Selection (PathSelectSession.swift).
+    var pathSelectSession = PathSelectSession() {
+        didSet { pathSelectSessionDidChange(from: oldValue) }
+    }
+    var onPathSelectCommit: ((PathShape, String) -> Bool)?
+    var onPathSelectionChange: (() -> Void)?
     var moveControlsRect: CGRect? { didSet { needsDisplay = true } }
     var onMoveControlsHandle: ((Int, NSEvent.ModifierFlags) -> Void)?
     var eyedropperRing: EyedropperRing? { didSet { needsDisplay = true } }
@@ -387,6 +393,7 @@ final class ImageCanvasView: NSView {
             rulerSession.drag = nil
             perspectiveCropSession.drag = nil
             penSession.end()
+            pathSelectSession.toolChanged(from: oldValue, to: tool)
             shapeAnchor = nil
             shapePreview = nil
             zoomAnchor = nil
@@ -1812,7 +1819,7 @@ final class ImageCanvasView: NSView {
         // Sampling is not an edit: nothing here touches the document.
         if colorSamplerMouseDown(event) { return }
         if rulerMouseDown(event) || perspectiveCropMouseDown(event) || moveControlsMouseDown(event)
-            || penMouseDown(event) {
+            || penMouseDown(event) || pathSelectMouseDown(event) {
             return
         }
         if tool == .eyedropper
@@ -1914,7 +1921,7 @@ final class ImageCanvasView: NSView {
             // layout, and snapping it would move a baseline the user never
             // aimed at.
             onTextClick?(point)
-        case .eyedropper, .colorSampler, .ruler, .perspectiveCrop, .pen:
+        case .eyedropper, .colorSampler, .ruler, .perspectiveCrop, .pen, .pathSelect, .directSelect:
             break // handled before the switch
         case .crop:
             if event.clickCount >= 2 {
@@ -2093,7 +2100,7 @@ final class ImageCanvasView: NSView {
         }
         if colorSamplerMouseDragged(raw) { return }
         if rulerMouseDragged(raw, event.modifierFlags) || perspectiveCropMouseDragged(raw)
-            || penMouseDragged(raw) { return }
+            || penMouseDragged(raw) || pathSelectMouseDragged(raw) { return }
         let suspended = event.modifierFlags.contains(.control)
         switch tool {
         case .select:
@@ -2116,7 +2123,7 @@ final class ImageCanvasView: NSView {
             moveMagneticLasso(to: raw)
         case .lasso, .wand, .fill, .eyedropper, .colorSampler, .ruler, .perspectiveCrop, .pen:
             break
-        case .magicEraser:
+        case .magicEraser, .pathSelect, .directSelect:
             break
         case .subject:
             // The hit test is a byte read, so dragging across the photo
@@ -2227,7 +2234,9 @@ final class ImageCanvasView: NSView {
             return
         }
         if colorSamplerMouseUp(convert(event.locationInWindow, from: nil)) { return }
-        if rulerMouseUp() || perspectiveCropMouseUp() || penMouseUp() { return }
+        if rulerMouseUp() || perspectiveCropMouseUp() || penMouseUp() || pathSelectMouseUp() {
+            return
+        }
         switch tool {
         case .select, .ellipseSelect:
             guard let anchor = dragAnchor else { return }
@@ -2292,7 +2301,7 @@ final class ImageCanvasView: NSView {
         case .lasso, .magneticLasso, .wand, .fill, .eyedropper, .colorSampler, .ruler,
             .perspectiveCrop, .pen:
             break
-        case .magicEraser:
+        case .magicEraser, .pathSelect, .directSelect:
             break
         case .subject:
             let mode = dragCombineMode
@@ -3228,7 +3237,7 @@ final class ImageCanvasView: NSView {
             }
         }
         if handleMagneticLassoKey(event) { return }
-        if perspectiveCropKeyDown(event) || penKeyDown(event) { return }
+        if perspectiveCropKeyDown(event) || penKeyDown(event) || pathSelectKeyDown(event) { return }
         if removeKeyDown(event) { return }
         if event.keyCode == 53 { // Escape
             if precisionMoveActive {

@@ -224,6 +224,8 @@ struct ShapeToolPreview {
             name = "rect"
         case .magicEraser:
             name = "rect"
+        case .pathSelect, .directSelect:
+            name = "rect"
         }
         return ShapeLayerPayload(
             kind: outline == nil ? name : "path", w: Double(box.width), h: Double(box.height),

@@ -1,7 +1,8 @@
-//! PATH EDITING GEOMETRY — what the Pen asks of a shape: the hit test
-//! ([`PathShape::hit`]), inserting an anchor on a segment
-//! ([`PathShape::inserting_anchor`]) and converting an anchor between corner
-//! and smooth ([`PathShape::converting_anchor`]). A kernel beside
+//! PATH EDITING GEOMETRY — what the Pen and the two selection tools ask of a
+//! shape: the hit test ([`PathShape::hit`]), the subpath whose fill lies
+//! under a point ([`PathShape::subpath_at`]), inserting an anchor on a
+//! segment ([`PathShape::inserting_anchor`]) and converting an anchor between
+//! corner and smooth ([`PathShape::converting_anchor`]). A kernel beside
 //! `path_geometry`, which holds the model, [`PathHit`], the caps and the
 //! segment numbering these use. It names no document type.
 
@@ -14,6 +15,36 @@ use crate::path_geometry::{
 /// has at most five local minima along the curve, so 32 samples leave each
 /// basin several samples wide.
 const HIT_SAMPLES: usize = 32;
+
+/// The flatten tolerance [`PathShape::subpath_at`] judges an outline at, in
+/// pixels. A click is aimed at a pixel, so an answer that can be wrong only
+/// within 1/64 px of the outline is exact for every press a person can make,
+/// and the polyline stays a few hundred points for a canvas-sized curve.
+const SUBPATH_FLATNESS: f64 = 1.0 / 64.0;
+
+/// The winding number of the closed polygon `points` (its last point joined
+/// back to its first) around `at`: the signed count of edges crossing the
+/// horizontal ray to the right of `at`, each counted on the side of its
+/// half-open vertical span, so a vertex on the ray counts once. This is the
+/// crate's only point-in-outline test: `artwork_coverage` decides the same
+/// nonzero question per pixel row from summed edge areas, never for a point.
+fn winding(points: &[Point], at: Point) -> i32 {
+    let n = points.len();
+    let mut count = 0;
+    for i in 0..n {
+        let (a, b) = (points[i], points[(i + 1) % n]);
+        // Positive when `at` lies left of the edge a → b.
+        let side = (b[0] - a[0]) * (at[1] - a[1]) - (at[0] - a[0]) * (b[1] - a[1]);
+        if a[1] <= at[1] {
+            if b[1] > at[1] && side > 0.0 {
+                count += 1;
+            }
+        } else if b[1] <= at[1] && side < 0.0 {
+            count -= 1;
+        }
+    }
+    count
+}
 
 /// The cubic `p` at `t`, by de Casteljau.
 fn cubic_at(p: &[Point; 4], t: f64) -> Point {
@@ -155,6 +186,53 @@ impl PathShape {
             }
         }
         nearest.best.map_or(PathHit::None, |(_, hit)| hit)
+    }
+
+    /// The subpath whose FILL lies under `at`. Each subpath is judged ALONE,
+    /// whatever the shape's fill rule, by the nonzero winding of its outline
+    /// flattened at [`SUBPATH_FLATNESS`]; an open subpath is closed by the
+    /// straight line a fill adds. Among the subpaths that enclose the point
+    /// the answer is the one with the smallest control box (the innermost: a
+    /// hole drawn inside a blob is reachable whichever was drawn first), a tie
+    /// going to the later subpath, which draws on top. `None`: nothing
+    /// encloses the point, the point is not finite, or the shape flattens past
+    /// the flattener's point cap.
+    pub fn subpath_at(&self, at: Point) -> Option<usize> {
+        if !at[0].is_finite() || !at[1].is_finite() {
+            return None;
+        }
+        let polylines = self.flattened(SUBPATH_FLATNESS).ok()?;
+        // One polyline per subpath: a stored shape has no empty subpath.
+        if polylines.len() != self.subpaths.len() {
+            return None;
+        }
+        let mut best: Option<(f64, usize)> = None;
+        for (index, (subpath, (points, _))) in self.subpaths.iter().zip(&polylines).enumerate() {
+            if winding(points, at) == 0 {
+                continue;
+            }
+            let mut corners = subpath
+                .anchors
+                .iter()
+                .flat_map(|a| [a.point, a.handle_in, a.handle_out]);
+            let Some(first) = corners.next() else {
+                continue;
+            };
+            let [low_x, low_y, high_x, high_y] =
+                corners.fold([first[0], first[1], first[0], first[1]], |b, p| {
+                    [
+                        b[0].min(p[0]),
+                        b[1].min(p[1]),
+                        b[2].max(p[0]),
+                        b[3].max(p[1]),
+                    ]
+                });
+            let area = (high_x - low_x) * (high_y - low_y);
+            if best.is_none_or(|(smallest, _)| area <= smallest) {
+                best = Some((area, index));
+            }
+        }
+        best.map(|(_, index)| index)
     }
 
     /// The shape with one more anchor ON segment `segment` of `subpath`, at

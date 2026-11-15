@@ -120,6 +120,9 @@ enum BitmapDocument {
         "showSnapshots:", "makeWorkPath:", "makeSelectionFromPath:", "deleteCurrentPath:",
         "duplicateCurrentPath:", "combinePaths:", "toggleClippingPath:", "editClippingPathFlatness:",
         "fillCurrentPath:", "strokeCurrentPath:", "toggleColorSamplers:",
+        // Paths panel ▸ Fill Path…, Stroke Path… and Combine Selected Subpaths, the steps the
+        // two items above and `combinePaths:` run.
+        "fillCurrentPathWithOptions:", "strokeCurrentPathWithOptions:", "combineSelectedSubpaths:",
         "clearColorSamplers:", "newView:", "showProofSetup:", "toggleProofColors:",
         "applyWorkingProof:", "applyProofPresetFromMenu:",
     ]
@@ -377,7 +380,7 @@ enum BitmapDocument {
         switch tool {
         case .select, .ellipseSelect, .lasso, .freehandLasso, .hand, .zoom, .brush, .eraser, .fill,
              .crop, .move, .gradient, .clone, .historyBrush, .quickSelect, .magneticLasso,
-             .eyedropper, .colorSampler, .ruler, .pen, .perspectiveCrop:
+             .eyedropper, .colorSampler, .ruler, .pen, .pathSelect, .directSelect, .perspectiveCrop:
             return true
         default:
             return false

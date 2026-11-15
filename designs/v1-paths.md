@@ -90,22 +90,50 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
     with the layer. An empty shape (Reveal All) with no raster mask leaves no mask plane.
   - The layer-mask tools edit the raster mask only; on a vector mask with no raster mask they refuse and
     name the vector-mask tools.
-- **Pen tool** (P, its own rail slot; `PenSession.swift`). Click places a corner; drag places a smooth
+- **Pen tool** (P, first in its rail slot; `PenSession.swift`). Click places a corner; drag places a smooth
   anchor with mirrored handles; clicking the open subpath's first anchor closes it; Escape or Return ends
   the subpath; ⌘-drag moves an anchor or a handle; ⌥-click converts; a click on a segment inserts and a click
   on another anchor deletes. With no current path the Pen creates or replaces the work path. Each gesture is
   one undo step. `dr_path_hit` takes a `handles` flag so a plain click reaches the segment under a handle tip.
+- **Path Selection and Direct Selection** (A, cycling the two in the Pen's slot; P stays the Pen's alone, so a
+  second P never leaves the drawing tool; 2026-11-15, `PathSelectSession.swift`). One session struct serves
+  both: a gesture builds the whole next shape and commits through the Pen's commit (`set_path`, or
+  `set_vector_mask` on a mask, noted with the tool's name), one undo step each, so no MCP tool is added.
+  Path Selection takes a whole subpath by a press on its outline or inside its fill (`dr_path_subpath_at`:
+  each subpath judged alone by its nonzero winding, an open one closed straight, the innermost by control box
+  winning, so a hole drawn inside a blob is reachable in either order); ⇧ toggles, a drag moves the selected
+  subpaths, ⌥-drag moves appended copies, a press on nothing is a marquee (a subpath with an anchor inside),
+  ⌫ deletes, Escape clears. Direct Selection does the same for anchors; a selected anchor shows its handles
+  and only those are grabbed (the Pen's ⌘-handle rule: a smooth anchor's other handle stays in line); a
+  segment press takes its two ends; ⌫ deletes anchors by the Pen's rule. The **selection is view state**:
+  indices into the shape it was made on, kept through the session's own commit (recognised through the core's
+  four-decimal quantization), a pixel edit or any edit that leaves the path alone, and dropped by any other
+  change of the path (an undo, an agent's `set_path`) and by leaving the two tools, so no command acts on a
+  selection nobody can see. While one is held, Edit ▸ Clear stands down so ⌫ reaches the canvas; ⌥⌫ and ⌘⌫
+  keep their fills. A press with no current path beeps; the tools never create a path.
+- **Selected subpaths against the rest** (2026-11-15). Combine Selected Subpaths (the two tools' options bar,
+  the Paths panel's row menu) and `combine_paths` with `subpath_indices` in place of `with`: the region the
+  path's other subpaths fill and the region the selected ones fill, each under the path's own rule, combined
+  by the rule above (`PathCombine.combineSubpaths`). Nothing is special-cased: every subpath selected, unite and
+  exclude merge the path into one outline and subtract and intersect leave nothing, which refuses. A vector
+  mask, which no path tool names, is combined in the app by the same function and recorded as
+  `set_vector_mask`. While subpaths are selected, Fill Path, Stroke Path (footer and sheets) and Make
+  Selection… act on them alone and record the explicit `subpaths` + `fill_rule` form; Convert to Shape Layer,
+  Combine with Path… and Add Vector Mask keep the whole path.
 - **Paths panel**, the right panel's sixth tab: the active layer's vector mask (when it has one), the work
   path and the saved paths; rename (which saves the work path), duplicate, Combine with Path…, delete,
-  Clipping Path, Clipping Path Flatness…, Make Selection…, Fill Path, Stroke Path, Convert to Shape Layer, Make
-  Work Path… and Add Vector Mask. Fill uses the foreground colour; Stroke uses the
-  Brush tool's stored options. Layer ▸ Vector Mask has Current Path, Reveal All, Delete, Enable and Link;
-  Select ▸ Make Work Path… traces the selection.
+  Clipping Path, Clipping Path Flatness…, Make Selection…, Fill Path…, Stroke Path…, Combine Selected
+  Subpaths, Convert to Shape Layer, Make Work Path… and Add Vector Mask. Fill Path… is Edit ▸ Fill…'s sheet
+  without Pattern (`fill_path` takes one colour) and records its colour, blend mode, opacity and Preserve
+  Transparency; Stroke Path… picks the Brush or the Eraser, each with its stored options. The footer's two
+  buttons keep the one-click fill with the foreground colour and stroke with the Brush. Layer ▸ Vector Mask has
+  Current Path, Reveal All, Delete, Enable and Link; Select ▸ Make Work Path… traces the selection.
 - **MCP** (fifteen tools): `list_paths`, `set_path`, `rename_path`, `duplicate_path`, `delete_path`,
   `combine_paths`, `set_clipping_path`, `path_to_selection`, `selection_to_path`, `fill_path`, `stroke_path`,
   `get_vector_mask`, `set_vector_mask`,
   `set_vector_mask_properties`, `remove_vector_mask`. An operation tool takes `path` (a name) or explicit
-  `subpaths` + `fill_rule`. `get_document` reports a `paths` count and a per-layer `vector_mask` flag.
+  `subpaths` + `fill_rule`; `combine_paths` takes `with` or `subpath_indices` (indices into `path`'s own
+  subpaths in `list_paths`' order). `get_document` reports a `paths` count and a per-layer `vector_mask` flag.
 - **Path shape layers** (2026-11-14, `ShapeOutline.swift`). A shape layer's fourth kind, `path`, is a path's
   outline: payload version 7 (any ink; the box kinds keep 1–6 byte for byte) holds it in the box's local space
   as compact `[x, y, inX, inY, outX, outY, smooth]` anchors, and its box is the outline's tight box with the
@@ -138,9 +166,9 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   `scripts/verify_path_shape_layers.py`).
 - `DONE` (2026-11-14) — path boolean operations on two paths of the list (Decisions, "A path operation
   produces a path"; `scripts/verify_path_combine.py`).
-- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Path Selection and Direct Selection as
-  separate tools (about 25 compiler-flagged switch sites, one session struct and a subpath-fill hit export in
-  the core), booleans on the selected subpaths against the rest, and per-path fill and stroke dialogs.
+- `DONE` (2026-11-15) — Path Selection and Direct Selection, booleans on the selected subpaths against the
+  rest, and the Fill Path… and Stroke Path… sheets (Decisions; `core/tests/path_subpath_at.rs`, the
+  jobs-probe's four "path …" cases, `scripts/verify_path_combine.py`'s `take_subpaths`).
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — a path shape's outline as an editing target
   (Direct Selection on the layer, re-rendering per gesture) and read back over MCP without an edit; until then
   an outline is replaced by deleting the layer and adding it again.
@@ -212,8 +240,10 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   `.rz` save and reopen, and recorded Actions replayed, including the steps the Pen, the panel and the menus
   record. `scripts/verify_path_shape_layers.py` (path shapes reopened and re-rendered in RGB 8/16/32, Gray,
   Lab and CMYK; the fill against `fill_path`) and `scripts/verify_path_combine.py` (exact and Green's-theorem
-  areas, the per-pixel algebra); the panel commands in `scripts/jobs-probe` ("convert path to shape",
-  "combine paths").
+  areas, the per-pixel algebra, `subpath_indices`); the panel commands in `scripts/jobs-probe` ("convert path
+  to shape", "combine paths"), and the two selection tools there with events handed to the canvas view ("path
+  selection tools", "path selection gestures", "path subpath booleans", "path fill and stroke sheets").
+  `core/tests/path_subpath_at.rs` checks `dr_path_subpath_at` on a grid against a summed-angle winding oracle.
 - Memory: `core/examples/path_admission.rs` measures the charges of `dr_path_coverage`, `dr_path_trace` and
   the 16-bit vector-mask bake (with and without a feathered raster mask) at 24 MP near their caps (Release,
   one case per process, `MallocLargeCache=0`); each charge is at least 2.2 × the call's measured peak.

@@ -257,27 +257,11 @@ struct PenSession: Equatable {
             drag.shape.subpaths[subpath].anchors[index] = anchor
         case .anchor(let subpath, let index, let grab, let start):
             guard Self.anchor(drag.shape, subpath, index) != nil else { return }
-            let dx = point.x - grab.x, dy = point.y - grab.y
-            func moved(_ from: CGPoint) -> CGPoint { CGPoint(x: from.x + dx, y: from.y + dy) }
-            drag.shape.subpaths[subpath].anchors[index] = PathAnchor(
-                point: moved(start.point), handleIn: moved(start.handleIn),
-                handleOut: moved(start.handleOut), smooth: start.smooth)
+            drag.shape.subpaths[subpath].anchors[index] = start.moved(
+                dx: point.x - grab.x, dy: point.y - grab.y)
         case .handle(let subpath, let index, let out):
-            guard var anchor = Self.anchor(drag.shape, subpath, index) else { return }
-            let origin = anchor.point
-            var other = out ? anchor.handleIn : anchor.handleOut
-            // A smooth anchor's other handle turns to stay in line, keeping
-            // its own length; one sitting on the point has no length to keep.
-            let reach = hypot(point.x - origin.x, point.y - origin.y)
-            let length = hypot(other.x - origin.x, other.y - origin.y)
-            if anchor.smooth, reach > 0, length > 0 {
-                other = CGPoint(
-                    x: origin.x - (point.x - origin.x) / reach * length,
-                    y: origin.y - (point.y - origin.y) / reach * length)
-            }
-            anchor.handleOut = out ? point : other
-            anchor.handleIn = out ? other : point
-            drag.shape.subpaths[subpath].anchors[index] = anchor
+            guard let anchor = Self.anchor(drag.shape, subpath, index) else { return }
+            drag.shape.subpaths[subpath].anchors[index] = anchor.movingHandle(out: out, to: point)
         }
         self.drag = drag
     }

@@ -64,7 +64,8 @@ private let expectedToolLetters: [String: String] = [
     "clone": "s", "dodge": "o", "sponge": "o", "blurBrush": "r", "sharpenBrush": "r",
     "smudge": "r", "historyBrush": "y", "artHistoryBrush": "y", "heal": "j", "spotHeal": "j", "patch": "j",
     "redEye": "j", "remove": "j", "contentAwareMove": "j", "shapeRect": "u",
-    "shapeEllipse": "u", "shapeLine": "u", "pen": "p", "zoom": "z", "hand": "h",
+    "shapeEllipse": "u", "shapeLine": "u", "pen": "p", "pathSelect": "a", "directSelect": "a",
+    "zoom": "z", "hand": "h",
 ]
 
 /// Every leaf item with an action under `menu`, depth-first, hidden ones included.

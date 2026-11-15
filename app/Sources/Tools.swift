@@ -67,6 +67,16 @@ enum EditorTool: Int, CaseIterable {
     // Erases the Magic Wand's region from the clicked pixel; shares the
     // Eraser's slot (`designs/magic-eraser.md`).
     case magicEraser
+    // Select, move, duplicate and delete whole subpaths of the current path;
+    // share the Pen's slot (`designs/v1-paths.md`, PathSelectSession.swift).
+    case pathSelect
+    // Select and move anchors and handles of the current path, and delete
+    // anchors; shares the Pen's slot.
+    case directSelect
+
+    /// True for the two tools that select within the current path
+    /// (PathSelectSession.swift).
+    var selectsPath: Bool { self == .pathSelect || self == .directSelect }
 
     /// The tool whose stroke this one IS: its targets, refusals, blend list,
     /// commit, MCP tool and recording. The Pencil strokes as the Brush (with
@@ -123,6 +133,8 @@ enum EditorTool: Int, CaseIterable {
         case .artHistoryBrush: return "Art History Brush"
         case .pencil: return "Pencil"
         case .magicEraser: return "Magic Eraser"
+        case .pathSelect: return "Path Selection"
+        case .directSelect: return "Direct Selection"
         }
     }
 
@@ -173,6 +185,8 @@ enum EditorTool: Int, CaseIterable {
         case .artHistoryBrush: return "scribble.variable"
         case .pencil: return "pencil"
         case .magicEraser: return "eraser.fill"
+        case .pathSelect: return "cursorarrow"
+        case .directSelect: return "cursorarrow.rays"
         }
     }
 
@@ -228,7 +242,7 @@ enum EditorTool: Int, CaseIterable {
         case .historyBrush: return "Y"
         // oBject: O, S, L, F, X, W, Q and U are its group's.
         case .objectSelect: return "B"
-        // Alone in its slot, so Patch's and Sponge's P is free here.
+        // Patch's and Sponge's P, free in the Pen's slot.
         case .pen: return "P"
         // reMove: R is free in the healing group, whose dropdown draws it
         // beside N, A, P and Y.
@@ -243,6 +257,9 @@ enum EditorTool: Int, CaseIterable {
         // Magic: B, N, E, J, Y and A are the paint group's; M is the Move
         // tool's letter in its own slot and free in this one.
         case .magicEraser: return "M"
+        // The Pen's slot draws them beside its P: their key, A, and Direct's D.
+        case .pathSelect: return "A"
+        case .directSelect: return "D"
         }
     }
 
@@ -294,6 +311,8 @@ enum EditorTool: Int, CaseIterable {
         case .artHistoryBrush: return #selector(EditorViewController.selectArtHistoryBrushTool(_:))
         case .pencil: return #selector(EditorViewController.selectPencilTool(_:))
         case .magicEraser: return #selector(EditorViewController.selectMagicEraserTool(_:))
+        case .pathSelect: return #selector(EditorViewController.selectPathSelectTool(_:))
+        case .directSelect: return #selector(EditorViewController.selectDirectSelectTool(_:))
         }
     }
 
@@ -311,6 +330,8 @@ enum EditorTool: Int, CaseIterable {
             return .crosshair
         case .artHistoryBrush, .pencil: return .crosshair
         case .magicEraser: return .crosshair
+        // They pick out what is already drawn, as a pointer does.
+        case .pathSelect, .directSelect: return .arrow
         case .move, .hand:
             return .openHand
         case .text:
@@ -364,6 +385,9 @@ enum EditorTool: Int, CaseIterable {
         case .heal, .spotHeal, .patch, .redEye, .remove, .contentAwareMove: return "j"
         case .shapeRect, .shapeEllipse, .shapeLine: return "u"
         case .pen: return "p"
+        // The two selection tools share A and cycle in rail order; the Pen
+        // keeps P to itself, so a second P never leaves the drawing tool.
+        case .pathSelect, .directSelect: return "a"
         case .zoom: return "z"
         case .hand: return "h"
         }
@@ -425,6 +449,7 @@ enum EditorTool: Int, CaseIterable {
             return 1
         case .artHistoryBrush, .pencil: return 1
         case .magicEraser: return 1
+        case .pathSelect, .directSelect: return 1
         }
     }
 
@@ -456,6 +481,7 @@ enum EditorTool: Int, CaseIterable {
             return 200
         case .artHistoryBrush: return 200
         case .magicEraser: return 200
+        case .pathSelect, .directSelect: return 200
         }
     }
 
@@ -475,6 +501,7 @@ enum EditorTool: Int, CaseIterable {
             return true
         case .artHistoryBrush, .pencil: return true
         case .magicEraser: return false
+        case .pathSelect, .directSelect: return false
         case .select, .ellipseSelect, .lasso, .wand, .subject, .move, .fill, .gradient,
             .text, .eyedropper, .crop, .patch, .redEye, .shapeRect, .shapeEllipse,
             .shapeLine, .zoom, .hand, .freehandLasso, .quickSelect, .magneticLasso,
@@ -499,6 +526,7 @@ enum EditorTool: Int, CaseIterable {
             return false
         case .artHistoryBrush, .pencil: return false
         case .magicEraser: return false
+        case .pathSelect, .directSelect: return false
         }
     }
 
@@ -518,6 +546,7 @@ enum EditorTool: Int, CaseIterable {
             .contentAwareMove, .pencil:
             return false
         case .magicEraser: return false
+        case .pathSelect, .directSelect: return false
         }
     }
 
@@ -547,7 +576,7 @@ enum EditorTool: Int, CaseIterable {
         [.fill],
         [.gradient],
         [.shapeRect, .shapeEllipse, .shapeLine],
-        [.pen],
+        [.pen, .pathSelect, .directSelect],
         [.text],
         [.eyedropper, .colorSampler, .ruler],
         [.zoom, .hand],

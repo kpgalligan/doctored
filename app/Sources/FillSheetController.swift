@@ -15,9 +15,15 @@ import AppKit
 /// Pattern popup of the four built-ins and then the user's library
 /// (`PatternChoice.all`, re-read when the sheet opens); Apply embeds the
 /// chosen tile in the `FillSettings`.
+///
+/// Paths panel ▸ Fill Path… opens the same sheet with its own title and hint
+/// and without Pattern (`fill_path` fills one colour;
+/// EditorViewController+PathSelect.swift).
 final class FillSheetController: NSViewController {
     private let coverage: Bool
     private let quickMask: Bool
+    private let sheetTitle: String
+    private let sheetHint: String?
     /// Whether the Mode popup lists Behind and Clear (a layer target in a
     /// colour mode that offers them, `PaintOnlyBlend`); choosing either turns
     /// Preserve Transparency off, since both change the layer's alpha.
@@ -37,8 +43,11 @@ final class FillSheetController: NSViewController {
         checkboxWithTitle: "Preserve Transparency", target: nil, action: nil)
     private let status = NSTextField(labelWithString: "")
 
+    /// `pattern` false leaves Pattern out of Contents on any target; `title`
+    /// and `hint` replace Edit ▸ Fill…'s own (nil keeps its hint).
     init(
         coverage: Bool, quickMask: Bool, options: FillDialogOptions, paintOnly: Bool = false,
+        pattern: Bool = true, title: String = "Fill", hint: String? = nil,
         onApply: @escaping (FillSettings) -> Void
     ) {
         self.coverage = coverage
@@ -46,8 +55,10 @@ final class FillSheetController: NSViewController {
         self.paintOnly = paintOnly && !coverage && !quickMask
         self.options = options
         self.onApply = onApply
-        offered = FillContents.offered(coverage: coverage || quickMask)
-        patterns = coverage || quickMask ? [] : PatternChoice.all()
+        sheetTitle = title
+        sheetHint = hint
+        offered = FillContents.offered(coverage: coverage || quickMask || !pattern)
+        patterns = coverage || quickMask || !pattern ? [] : PatternChoice.all()
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -63,6 +74,9 @@ final class FillSheetController: NSViewController {
         contentsPopup.target = self
         contentsPopup.action = #selector(contentsChanged(_:))
         contentsPopup.font = DS.sans(12)
+        contentsPopup.setAccessibilityIdentifier("fill-contents")
+        modePopup.setAccessibilityIdentifier("fill-mode")
+        opacityField.setAccessibilityIdentifier("fill-opacity")
 
         patternPopup.font = DS.sans(12)
         patternPopup.setAccessibilityIdentifier("fill-pattern")
@@ -135,15 +149,17 @@ final class FillSheetController: NSViewController {
 
         let cancelButton = sheetCancelButton(target: self, action: #selector(cancelClicked(_:)))
         let applyButton = sheetApplyButton(target: self, action: #selector(applyClicked(_:)))
-        let contentsWords: String = coverage ? "with one colour" : "with one colour or a pattern"
-        let hint: String = quickMask
+        applyButton.setAccessibilityIdentifier("fill-apply")
+        let contentsWords: String = patterns.isEmpty
+            ? "with one colour" : "with one colour or a pattern"
+        let hint: String = sheetHint ?? (quickMask
             ? "Fills the whole Quick Mask with the colour's gray, through the blend "
                 + "mode at the opacity: white adds to the selection, black removes it."
             : "Fills the selection — or the whole target when nothing is selected — "
                 + contentsWords + ", through the blend mode at the opacity. "
-                + "Preserve Transparency keeps the layer's alpha as it is."
+                + "Preserve Transparency keeps the layer's alpha as it is.")
         view = makeSheetView(
-            title: "Fill",
+            title: sheetTitle,
             hint: hint,
             content: grid,
             buttonRow: makeButtonRow(

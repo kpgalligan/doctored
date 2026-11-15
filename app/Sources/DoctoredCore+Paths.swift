@@ -311,6 +311,16 @@ enum RasterPathCore {
         }
     }
 
+    /// The subpath whose FILL lies under `point` (`dr_path_subpath_at`): each
+    /// subpath judged alone by its nonzero winding, an open one closed by a
+    /// straight line, the innermost of those that enclose the point winning.
+    /// nil for none, and for a shape the core refuses.
+    static func subpath(_ shape: PathShape, at point: CGPoint) -> Int? {
+        guard let json = try? text(shape) else { return nil }
+        let index = dr_path_subpath_at(json, Double(point.x), Double(point.y))
+        return index >= 0 ? Int(index) : nil
+    }
+
     /// The shape with one more anchor on `segment` of `subpath` at parameter
     /// `t` (a segment hit's), its outline unchanged. Throws when there is no
     /// such segment, `t` is not strictly between 0 and 1, or the shape is

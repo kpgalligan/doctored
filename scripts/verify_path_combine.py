@@ -15,6 +15,10 @@
   step, undo restores the exact shape, `.doctored` reopen keeps the result, and a shape layer
   made from it with a stroke renders.
 - **Refusals** by sentence, and one call each in 16-bit, 32-bit and CMYK documents.
+- **Selected subpaths** (`subpath_indices`, Combine Selected Subpaths): one subpath of three united
+  with the rest (1250 over two subpaths), a coincident-edge subtract (387.5), every subpath united
+  (750, one subpath), every subpath intersected refused; one undo step undone exactly, a
+  `.doctored` reopen, the argument's refusals, and 16-bit, 32-bit and CMYK.
 
 The app is this script's own child (`phase5_support.App`). Prints one PASS line per check and a
 FAIL line for a take that raised; exits non-zero unless every line is PASS.
@@ -337,7 +341,72 @@ def take_modes(drive):
        'Bitmap documents, each colour mode listing it among its supported tools')
 
 
-TAKES = [take_rectangles, take_curves, take_fill_rules, take_list, take_refusals, take_modes]
+THIRD = square(60, 5, 80, 30)
+
+
+def take_subpaths(drive):
+    """`subpath_indices`: the listed subpaths of `path` against its other subpaths (Path
+    Selection's Combine Selected Subpaths), areas by the shoelace sum."""
+    def run(subpaths, indices, operation, **spec):
+        doc = drive.new(**spec)
+        drive.call('set_path', document_id=doc, name='A', subpaths=subpaths)
+        reply = drive.call('combine_paths', document_id=doc, path='A', subpath_indices=indices,
+                           operation=operation)
+        return doc, reply, drive.path(doc, 'A')
+
+    doc, reply, row = run([LEFT, RIGHT, THIRD], [1], 'unite')
+    assert reply['changed'] and reply['subpath_indices'] == [1] and 'with' not in reply, reply
+    assert len(row['subpaths']) == 2 and area(row['subpaths']) == 1250, (area(row['subpaths']), row)
+    steps = drive.call('list_history', document_id=doc)['undo_count']
+    saved = drive.folder / 'subpaths.doctored'
+    drive.call('save_copy', document_id=doc, path=str(saved), format='doctored')
+    reopened = drive.call('open_document', path=str(saved))['document']['id']
+    assert drive.path(reopened, 'A') == row
+    drive.call('undo', document_id=doc)
+    restored = drive.path(doc, 'A')['subpaths']
+    assert [[(a['x'], a['y']) for a in s['anchors']] for s in restored] == \
+        [[tuple(p) for p in s['anchors']] for s in (LEFT, RIGHT, THIRD)], restored
+    assert drive.call('list_history', document_id=doc)['undo_count'] == steps - 1
+    drive.close(reopened, doc)
+    doc, _, row = run([WIDE, NOTCH], [1], 'subtract')
+    assert area(row['subpaths']) == 387.5, (area(row['subpaths']), row)
+    drive.close(doc)
+    doc, _, row = run([LEFT, RIGHT], [0, 1], 'unite')
+    assert len(row['subpaths']) == 1 and area(row['subpaths']) == 750, row
+    drive.close(doc)
+
+    doc = drive.new()
+    drive.call('set_path', document_id=doc, name='A', subpaths=[LEFT, RIGHT])
+    drive.call('set_path', document_id=doc, name='B', subpaths=[THIRD])
+    steps = drive.call('list_history', document_id=doc)['undo_count']
+    cases = [
+        (dict(subpath_indices=[0, 1], operation='intersect'), 'Nothing is left'),
+        (dict(subpath_indices=[1], operation='unite', **{'with': 'B'}), 'not both'),
+        (dict(operation='unite'), 'or subpath_indices'),
+        (dict(subpath_indices=[2], operation='unite'), 'names subpath 2, but "A" has 2 subpaths'),
+        (dict(subpath_indices=[], operation='unite'), 'at least one subpath'),
+        (dict(subpath_indices=[0.5], operation='unite'), 'whole numbers'),
+        (dict(subpath_indices=1, operation='unite'), 'must be an array'),
+    ]
+    for arguments, sentence in cases:
+        message = drive.refuse('combine_paths', document_id=doc, path='A', **arguments)
+        assert sentence in message, (arguments, message)
+    assert drive.call('list_history', document_id=doc)['undo_count'] == steps
+    drive.close(doc)
+
+    for label, spec in [('rgb16', dict(depth=16, profile='srgb')),
+                        ('rgb32', dict(depth=32, profile='srgb')),
+                        ('cmyk8', dict(color_mode='cmyk', depth=8))]:
+        doc, reply, row = run([LEFT, RIGHT, THIRD], [1], 'unite', **spec)
+        assert reply['changed'] and area(row['subpaths']) == 1250, (label, reply)
+        drive.close(doc)
+    ok('subpath_indices unites one subpath with its neighbour (1250 over two subpaths), '
+       'subtracts with a coincident edge (387.5) and merges all (750); one undo step that '
+       'reopens from .doctored; refusals by sentence with no step; 16-bit, 32-bit and CMYK')
+
+
+TAKES = [take_rectangles, take_curves, take_fill_rules, take_list, take_refusals, take_modes,
+         take_subpaths]
 
 
 def main():

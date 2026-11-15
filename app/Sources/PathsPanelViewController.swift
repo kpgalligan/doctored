@@ -439,8 +439,24 @@ extension PathsPanelViewController: NSTableViewDataSource, NSTableViewDelegate, 
             }
             menu.addItem(.separator())
             add("Make Selection…", #selector(EditorViewController.makeSelectionFromPath(_:)))
-            add("Fill Path", #selector(EditorViewController.fillCurrentPath(_:)))
-            add("Stroke Path", #selector(EditorViewController.strokeCurrentPath(_:)))
+            // The sheets; the footer's two buttons keep the one-click fill and stroke.
+            add("Fill Path…", #selector(EditorViewController.fillCurrentPathWithOptions(_:)))
+            add("Stroke Path…", #selector(EditorViewController.strokeCurrentPathWithOptions(_:)))
+            // The selection tools' booleans (EditorViewController+PathSelect.swift); the tag is
+            // the operation's index.
+            let combine = NSMenu(title: "Combine Selected Subpaths")
+            for (index, operation) in PathCombineOperation.allCases.enumerated() {
+                let item = NSMenuItem(
+                    title: operation.title,
+                    action: #selector(EditorViewController.combineSelectedSubpaths(_:)),
+                    keyEquivalent: "")
+                item.tag = index
+                combine.addItem(item)
+            }
+            let combineItem = NSMenuItem(
+                title: "Combine Selected Subpaths", action: nil, keyEquivalent: "")
+            combineItem.submenu = combine
+            menu.addItem(combineItem)
             add(
                 "Convert to Shape Layer",
                 #selector(EditorViewController.convertPathToShape(_:)))

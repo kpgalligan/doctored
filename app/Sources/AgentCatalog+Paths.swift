@@ -127,25 +127,39 @@ extension AgentServer {
                 "Replaces path with its fill region combined with another path's: unite (what "
                     + "either fills), subtract (path less with), intersect (what both fill) or "
                     + "exclude (what exactly one fills). Each is its fill region under its own "
-                    + "fill_rule, an open subpath closed by a straight line. The result is an "
+                    + "fill_rule, an open subpath closed by a straight line. With "
+                    + "subpath_indices in place of with, the SELECTED subpaths against the rest: "
+                    + "the region path's other subpaths fill is the first operand and the region "
+                    + "the listed ones fill the second, both under path's fill_rule (every "
+                    + "subpath listed: unite and exclude merge path into one outline, subtract and "
+                    + "intersect leave nothing). The result is an "
                     + "ordinary path — closed subpaths, fill_rule nonzero, corner anchors whose "
                     + "handles keep the curves — that keeps path's name and clipping-path "
                     + "designation; with is unchanged. Geometric, so shared edges stay exact; a "
                     + "curve's result stays within about a tenth of a pixel of its inputs. An empty "
                     + "result refuses; a result equal to the path answers changed:false. ONE undo "
-                    + "step. Paths panel ▸ Combine with Path….",
+                    + "step. Paths panel ▸ Combine with Path…, and Combine Selected Subpaths "
+                    + "under the Path Selection and Direct Selection tools.",
                 [
                     "path": path,
                     "with": [
                         "type": "string",
-                        "description": "The other path, by name (list_paths); not path itself.",
+                        "description": "The other path, by name (list_paths); not path itself. "
+                            + "Exactly one of with and subpath_indices.",
+                    ],
+                    "subpath_indices": [
+                        "type": "array", "items": ["type": "integer", "minimum": 0],
+                        "minItems": 1,
+                        "description": "Indices of path's own subpaths, in list_paths' order, "
+                            + "combined with its other subpaths. Exactly one of with and "
+                            + "subpath_indices.",
                     ],
                     "operation": [
                         "type": "string", "enum": PathCombineOperation.allCases.map(\.rawValue),
                         "description": "unite, subtract, intersect or exclude.",
                     ],
                     "document_id": doc,
-                ], required: ["path", "with", "operation"]),
+                ], required: ["path", "operation"]),
             tool(
                 "set_clipping_path",
                 "Makes a saved path the document's CLIPPING PATH — the one path a PSD, PSB or "

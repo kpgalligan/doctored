@@ -159,7 +159,7 @@ Goal: large high-depth multilayer documents meet declared latency, memory, save 
 - `OPEN` [#34](https://github.com/kpgalligan/doctored/issues/34) — Phase 3: a chosen page of a multipage TIFF in Indexed Color and Bitmap, and Place of one.
 - `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — 6D's Magnetic Lasso Part B (Select ▸ Focus Area shipped: [ADR](focus-area.md)).
 - `OPEN` [#18](https://github.com/kpgalligan/doctored/issues/18) — brush dynamics and the Background Eraser (the Pencil, user brush presets, Define Pattern, the pattern library, Pattern fill, the Behind and Clear modes, the gradient library, the Layer Style panes' multistop editor and the Magic Eraser shipped).
-- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — type on a path, Warp Text, the Path Selection and Direct Selection tools (shape layers from a path and two-path booleans shipped).
+- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — type on a path, Warp Text, a path shape layer's outline as a Direct Selection target (shape layers from a path, two-path booleans, the Path Selection and Direct Selection tools, selected-subpath booleans and the Fill Path… and Stroke Path… sheets shipped).
 - `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — 12D's Match Zoom and Location, with 12B's and 12C's open items.
 - `OPEN` [#2](https://github.com/kpgalligan/doctored/issues/2) — 10C's measured adjustment and effect-kernel gaps, and a clip base below 100 % Fill (P7-39).
 - `OPEN` [#3](https://github.com/kpgalligan/doctored/issues/3) — the Pattern Overlay angle.

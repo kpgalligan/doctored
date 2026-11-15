@@ -775,13 +775,15 @@ Detail belongs in the source file's own header comment.
 - `ShapeStrokeStyle.swift` — the shape stroke join, dash and alignment, and `ShapeLayer.strokeOutline`, the one outline every renderer fills.
 - `PathModel.swift` — path values: `PathAnchor`, `PathSubpath`, `PathShape`, `PathEntry`, `PathClipping`, `PathSet`, `PathTarget`, `PathHit`, `VectorMaskInfo`.
 - `PathShape+CGPath.swift` — the one `PathShape` ↔ `CGPath` converter: the core's outline rule out, a boolean result's elements back (merge, drop).
-- `PathCombine.swift` — path booleans: `PathCombineOperation` and `PathCombine.combine`, two fill regions combined by CoreGraphics into an ordinary path.
+- `PathCombine.swift` — path booleans: `PathCombineOperation`, `combine` (two fill regions) and `combineSubpaths` (selected against the rest), by CoreGraphics.
 - `DoctoredCore+Paths.swift` — `dr_*path*` / `dr_*vector_mask*` calls: `paths`, `withPaths`, the vector-mask edits, `RasterPathCore`, `maskEditBaseline`.
 - `ImageDocument+Paths.swift` — `applyPathEdit`, the Pen's two commits (`commitPenPath`, `commitPenVectorMask`) and `resolvedPath`.
 - `AgentServer+Paths.swift` / `AgentCatalog+Paths.swift` — fourteen MCP tools (the catalog also `combine_paths`): the path list, the clipping path, selection both ways, fill, stroke, vector masks.
-- `AgentServer+PathCombine.swift` — `combine_paths`, mirroring Paths panel ▸ Combine with Path… through the Paths tools' one list edit.
+- `AgentServer+PathCombine.swift` — `combine_paths` (`with`, or `subpath_indices`), mirroring Combine with Path… and Combine Selected Subpaths.
 - `PenSession.swift` / `ImageCanvasView+Pen.swift` / `EditorViewController+Pen.swift` — the Pen tool (P): gesture rules, canvas events and overlay, the commit.
-- `PathsPanelViewController.swift` / `EditorViewController+Paths.swift` / `PathSheets.swift` — the Paths panel (the sixth tab), its commands and four sheets.
+- `PathSelectSession.swift` / `ImageCanvasView+PathSelect.swift` — Path Selection and Direct Selection (A): the shared session (selection, gestures), canvas events and marks.
+- `EditorViewController+PathSelect.swift` — the two tools' actions and commit, Combine Selected Subpaths, Paths panel ▸ Fill Path… and Stroke Path….
+- `PathsPanelViewController.swift` / `EditorViewController+Paths.swift` / `PathSheets.swift` — the Paths panel (the sixth tab), its commands and five sheets.
 - `EditorViewController+PathCommands.swift` — Paths panel ▸ Convert to Shape Layer and Combine with Path…: the commands, their validation and the steps they record.
 - `EditorViewController+VectorMasks.swift` — Layer ▸ Vector Mask: Current Path, Reveal All, Delete, Enable and Link, each recording its MCP twin.
 - `AgentServer+StrictNumbers.swift` — `refuseNullOrBooleanNumbers`: the v1 handlers refuse JSON null or a boolean where they read a number, naming the key.
