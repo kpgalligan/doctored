@@ -306,6 +306,15 @@ struct FillToolOptions: Codable, Equatable {
     var sampleAllLayers = false
 }
 
+/// The Magic Eraser's options (`designs/magic-eraser.md`): the Magic Wand's
+/// Tolerance and Contiguous, Sample All Layers, and the erase's Opacity (1…100 %).
+struct MagicEraserToolOptions: Codable, Equatable {
+    var tolerance: Double = 32
+    var contiguous = true
+    var sampleAllLayers = false
+    var opacity: Double = 100
+}
+
 struct GradientToolOptions: Codable, Equatable {
     /// 0 linear, 1 radial, 2 angle, 3 reflected, 4 diamond: an
     /// `DrGradientKind` raw value.
@@ -557,6 +566,7 @@ final class ToolOptionsStore {
         didSet { save(colorRangeDialog, "colorRangeDialog") }
     }
     var fill: FillToolOptions { didSet { save(fill, "fill") } }
+    var magicEraser: MagicEraserToolOptions { didSet { save(magicEraser, "magicEraser") } }
     var gradient: GradientToolOptions { didSet { save(gradient, "gradient") } }
     var shape: ShapeToolOptions { didSet { save(shape, "shape") } }
     var text: TextToolOptions { didSet { save(text, "text") } }
@@ -691,6 +701,7 @@ final class ToolOptionsStore {
         strokeDialog = Self.load("strokeDialog", default: StrokeDialogOptions())
         colorRangeDialog = Self.load("colorRangeDialog", default: ColorRangeDialogOptions())
         fill = Self.load("fill", default: FillToolOptions())
+        magicEraser = Self.load("magicEraser", default: MagicEraserToolOptions())
         gradient = Self.load("gradient", default: GradientToolOptions())
         shape = Self.load("shape", default: ShapeToolOptions())
         text = Self.load("text", default: TextToolOptions())

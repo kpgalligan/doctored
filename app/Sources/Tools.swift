@@ -64,6 +64,9 @@ enum EditorTool: Int, CaseIterable {
     case artHistoryBrush
     // The Brush's stroke with an aliased tip; shares the Brush's slot.
     case pencil
+    // Erases the Magic Wand's region from the clicked pixel; shares the
+    // Eraser's slot (`designs/magic-eraser.md`).
+    case magicEraser
 
     /// The tool whose stroke this one IS: its targets, refusals, blend list,
     /// commit, MCP tool and recording. The Pencil strokes as the Brush (with
@@ -119,6 +122,7 @@ enum EditorTool: Int, CaseIterable {
         case .contentAwareMove: return "Content-Aware Move"
         case .artHistoryBrush: return "Art History Brush"
         case .pencil: return "Pencil"
+        case .magicEraser: return "Magic Eraser"
         }
     }
 
@@ -168,6 +172,7 @@ enum EditorTool: Int, CaseIterable {
         case .contentAwareMove: return "arrow.up.and.down.and.sparkles"
         case .artHistoryBrush: return "scribble.variable"
         case .pencil: return "pencil"
+        case .magicEraser: return "eraser.fill"
         }
     }
 
@@ -235,6 +240,9 @@ enum EditorTool: Int, CaseIterable {
         case .artHistoryBrush: return "A"
         // P is the Pen's and Patch's; peNcil's N is free in the paint group.
         case .pencil: return "N"
+        // Magic: B, N, E, J, Y and A are the paint group's; M is the Move
+        // tool's letter in its own slot and free in this one.
+        case .magicEraser: return "M"
         }
     }
 
@@ -285,6 +293,7 @@ enum EditorTool: Int, CaseIterable {
             return #selector(EditorViewController.selectContentAwareMoveTool(_:))
         case .artHistoryBrush: return #selector(EditorViewController.selectArtHistoryBrushTool(_:))
         case .pencil: return #selector(EditorViewController.selectPencilTool(_:))
+        case .magicEraser: return #selector(EditorViewController.selectMagicEraserTool(_:))
         }
     }
 
@@ -301,6 +310,7 @@ enum EditorTool: Int, CaseIterable {
             .contentAwareMove:
             return .crosshair
         case .artHistoryBrush, .pencil: return .crosshair
+        case .magicEraser: return .crosshair
         case .move, .hand:
             return .openHand
         case .text:
@@ -334,7 +344,8 @@ enum EditorTool: Int, CaseIterable {
         case .move: return "v"
         // The Brush and the Pencil share B and cycle in rail order.
         case .brush, .pencil: return "b"
-        case .eraser: return "e"
+        // The Eraser and the Magic Eraser share E and cycle in rail order.
+        case .eraser, .magicEraser: return "e"
         // The G slot: Paint Bucket and Gradient share it and cycle.
         case .fill, .gradient: return "g"
         case .text: return "t"
@@ -413,6 +424,7 @@ enum EditorTool: Int, CaseIterable {
             .smudge, .sponge, .historyBrush, .objectSelect, .pen, .remove, .contentAwareMove:
             return 1
         case .artHistoryBrush, .pencil: return 1
+        case .magicEraser: return 1
         }
     }
 
@@ -443,6 +455,7 @@ enum EditorTool: Int, CaseIterable {
             .colorSampler, .ruler, .perspectiveCrop, .objectSelect, .pen, .contentAwareMove:
             return 200
         case .artHistoryBrush: return 200
+        case .magicEraser: return 200
         }
     }
 
@@ -461,6 +474,7 @@ enum EditorTool: Int, CaseIterable {
             .smudge, .sponge, .historyBrush, .remove:
             return true
         case .artHistoryBrush, .pencil: return true
+        case .magicEraser: return false
         case .select, .ellipseSelect, .lasso, .wand, .subject, .move, .fill, .gradient,
             .text, .eyedropper, .crop, .patch, .redEye, .shapeRect, .shapeEllipse,
             .shapeLine, .zoom, .hand, .freehandLasso, .quickSelect, .magneticLasso,
@@ -484,6 +498,7 @@ enum EditorTool: Int, CaseIterable {
             .remove, .contentAwareMove:
             return false
         case .artHistoryBrush, .pencil: return false
+        case .magicEraser: return false
         }
     }
 
@@ -502,6 +517,7 @@ enum EditorTool: Int, CaseIterable {
             .magneticLasso, .colorSampler, .ruler, .perspectiveCrop, .objectSelect, .pen, .remove,
             .contentAwareMove, .pencil:
             return false
+        case .magicEraser: return false
         }
     }
 
@@ -523,7 +539,7 @@ enum EditorTool: Int, CaseIterable {
          .objectSelect, .subject],
         [.crop, .perspectiveCrop],
         [.move],
-        [.brush, .pencil, .eraser, .clone, .historyBrush, .artHistoryBrush],
+        [.brush, .pencil, .eraser, .magicEraser, .clone, .historyBrush, .artHistoryBrush],
         // The healing slot, immediately below the paint group.
         [.spotHeal, .remove, .heal, .patch, .contentAwareMove, .redEye],
         // The toning and focus tools in one slot.

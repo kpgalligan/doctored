@@ -230,6 +230,8 @@ enum LabDocument {
         "copy_layers_to_document",
         // Edit ▸ Define Pattern… (the composite in sRGB, `DefinePattern`).
         "define_pattern",
+        // The Magic Eraser: the Magic Wand's Lab region, erased (`designs/magic-eraser.md`).
+        "magic_eraser",
         // Phase 5b: Edit ▸ Convert to Profile… (`dispatchLabColour`).
         "convert_profile",
         // Phase 6a-i: type, shape and fill layers (authored sRGB, rendered as L*a*b* codes in the
@@ -345,6 +347,8 @@ enum LabDocument {
         // The close: the lifted tools Gray's list rules by depth too.
         "distort_layer", "modify_scalar", "invert_channel", "add_luminosity_masks",
         "select_magnetic", "merge_group",
+        // The Magic Eraser (the same list as `tools`).
+        "magic_eraser",
     ]
 
     /// The menu items a Lab document enables: Gray phase 1a's list with Image ▸ Mode ▸ Lab Color
@@ -822,11 +826,11 @@ enum LabDocument {
     /// (phase 6a-i) the Text, Shape and Pen tools, (phase 6b-ii) the Quick Selection, Object
     /// Selection and Select Subject tools, (the close) the Magnetic Lasso, whose edges read the
     /// Display P3 analysis composite, and the Magic Wand, by the take's Lab rule at both
-    /// depths.
+    /// depths, and the Magic Eraser over that wand's region.
     static func allows(_ tool: EditorTool) -> Bool {
         switch tool {
         case .select, .ellipseSelect, .lasso, .freehandLasso, .hand, .zoom, .move,
-             .quickSelect, .objectSelect, .subject, .wand,
+             .quickSelect, .objectSelect, .subject, .wand, .magicEraser,
              .brush, .eraser, .fill, .gradient, .colorSampler, .eyedropper,
              .dodge, .sponge, .blurBrush, .sharpenBrush, .smudge, .historyBrush, .clone, .heal,
              .spotHeal, .patch, .contentAwareMove, .remove, .artHistoryBrush, .redEye,

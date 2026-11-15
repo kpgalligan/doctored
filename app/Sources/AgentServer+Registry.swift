@@ -129,6 +129,7 @@ extension AgentServer {
         ("duotoneHandlers", duotoneHandlers),
         ("spotChannelsHandlers", spotChannelsHandlers),
         ("missingFontsHandlers", missingFontsHandlers),
+        ("magicEraserHandlers", magicEraserHandlers),
     ]
 
     /// Tool name → handler: the union of `handlerTables` (the first table
@@ -289,6 +290,7 @@ extension AgentServer {
         ("duotoneToolFacts", duotoneToolFacts),
         ("spotChannelsToolFacts", spotChannelsToolFacts),
         ("missingFontsToolFacts", missingFontsToolFacts),
+        ("magicEraserToolFacts", magicEraserToolFacts),
     ]
 
     /// Tool name → facts: the union of `factTables` (the first table wins a

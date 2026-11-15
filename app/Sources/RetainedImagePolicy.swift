@@ -60,6 +60,8 @@ enum RetainedImagePolicy {
             "sponge_stroke", "history_brush_stroke", "art_history_brush_stroke", "fill", "fill_selection", "stroke_selection", "gradient", "clear_selection", "apply_image",
             // A path filled or stroked onto the layer's pixels.
             "fill_path", "stroke_path",
+            // The Magic Eraser's region, erased on the layer.
+            "magic_eraser",
             "apply_layer_mask", "move_selected_pixels", "transform_selected_pixels"]
         // A missing `target` is the layer, as `AgentServer.paintTarget`
         // reads it, never the panel's plane.
@@ -82,6 +84,7 @@ enum RetainedImagePolicy {
         case .brush, .eraser, .clone, .heal, .fill, .gradient, .dodge, .spotHeal, .patch, .redEye, .remove, .contentAwareMove: return false
         case .blurBrush, .sharpenBrush, .smudge, .sponge, .historyBrush: return false
         case .artHistoryBrush: return false
+        case .magicEraser: return false
         default: return true
         }
     }

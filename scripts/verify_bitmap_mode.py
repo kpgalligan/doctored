@@ -345,7 +345,7 @@ DISABLED_ALL = {
     'sky_replacement', 'select_subject', 'select_sky', 'refine_selection',
     'super_zoom', 'jpeg_artifacts_removal', 'neural_colorize',
     'auto_tone', 'auto_contrast', 'auto_color', 'equalize', 'generative_expand',
-    'select_magic_wand',
+    'select_magic_wand', 'magic_eraser',
     'transform_layer', 'transform_layers', 'distort_layer', 'transform_again',
     'transform_selected_pixels', 'warp_layer', 'trim', 'assign_profile', 'convert_profile',
     'select_color_range', 'select_similar', 'apply_filter',

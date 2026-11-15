@@ -650,8 +650,17 @@ struct LayerStyle: Codable, Equatable {
             f(&e.color, &e.ink)
             out.innerShadows[i] = e
         }
-        if var e = out.outerGlow { f(&e.color, &e.ink); out.outerGlow = e }
-        if var e = out.innerGlow { f(&e.color, &e.ink); out.innerGlow = e }
+        // A glow's gradient stops carry inks too, which its CMYK render reads.
+        if var e = out.outerGlow {
+            f(&e.color, &e.ink)
+            if var gradient = e.gradient { stops(&gradient); e.gradient = gradient }
+            out.outerGlow = e
+        }
+        if var e = out.innerGlow {
+            f(&e.color, &e.ink)
+            if var gradient = e.gradient { stops(&gradient); e.gradient = gradient }
+            out.innerGlow = e
+        }
         for i in out.strokes.indices {
             var e = out.strokes[i]
             f(&e.color, &e.ink)

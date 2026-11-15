@@ -20,7 +20,7 @@ The helper reaches the app over a Unix socket the app binds at every launch,
 owner can open; `DR_AGENT_SOCKET` names another path for both. There is no TCP
 endpoint.
 
-This build exposes **362 tools**. The reference is generated from the app's
+This build exposes **363 tools**. The reference is generated from the app's
 `tools/list` catalog (live, or the snapshot the build writes from the same code),
 which is authoritative. Tool results are MCP
 content blocks; most calls return a JSON object in a text block, while `render` and
@@ -339,6 +339,7 @@ Add `--check` to either to verify that the checked-in page matches the catalog.
 - [`delete_pattern`](#delete_pattern)
 - [`import_patterns`](#import_patterns)
 - [`export_patterns`](#export_patterns)
+- [`magic_eraser`](#magic_eraser)
 - [`list_gradients`](#list_gradients)
 - [`save_gradient`](#save_gradient)
 - [`delete_gradient`](#delete_gradient)
@@ -4272,6 +4273,22 @@ Write the user's patterns (all, or those names lists; at most 64) as Doctored's 
 | :--- | :--- | :---: | :--- | :--- |
 | `names` | `array<string>` | no | — | Library pattern names to export; default all. |
 | `path` | `string` | yes | — | Where to write the pattern file. |
+
+## `magic_eraser`
+
+The Magic Eraser tool's click: erase, on a layer, the region the Magic Wand selects from pixel (x, y). The region is the wand's — every pixel whose R, G, B, A, R−G, G−B and R−B each lie within tolerance of the seed's, four-connected to it when contiguous, over the layer's own pixels or, with sample_all_layers, over the composite — hard-edged, and inside the selection (its coverage scales the erase). Each pixel in it keeps its colour and takes alpha × (1 − opacity × coverage). One undo step. 8-, 16- and 32-bit RGB and Grayscale, Duotone, Lab, CMYK and Indexed documents (at 16 and 32 bits, and in the colour modes, tolerance is in 8-bit codes, as select_magic_wand's; at 32 bits the wand reads the display copy); an Indexed document's erased pixels take its transparent index, else the palette entry nearest white; a Bitmap document refuses (it has no Magic Wand region). Only a layer's pixels: a target other than layer, the Quick Mask, a group, an adjustment layer, a pixels lock and a transparency lock refuse by name, and so does blend_mode; a text, shape or fill layer is rasterized first. A seed off the canvas or outside the selection, or a region with nothing left to erase, answers changed false and adds no step. Answers {ok, changed, layer, storage}.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `contiguous` | `boolean` | no | default `True` | Only pixels connected to the seed. |
+| `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
+| `layer` | `integer` | no | — | Layer index; default the active layer. |
+| `opacity` | `number` | no | default `1` | 0–1: how much of each region pixel's alpha is erased. |
+| `sample_all_layers` | `boolean` | no | default `False` | Grow the region over the composite instead of the layer alone; the erase still lands on the layer. |
+| `target` | `string` | no | one of `layer` | Always the layer. |
+| `tolerance` | `number` | no | default `32` | 0–255, the Magic Wand's tolerance. |
+| `x` | `integer` | yes | — | Seed pixel, canvas x. |
+| `y` | `integer` | yes | — | Seed pixel, canvas y. |
 
 ## `list_gradients`
 

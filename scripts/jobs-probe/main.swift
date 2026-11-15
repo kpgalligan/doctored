@@ -358,6 +358,10 @@ do {
         ("pattern library", verifyPatternLibrary),
         ("behind clear", verifyBehindClear),
         ("gradient presets", verifyGradientPresets),
+        // #18: the Layer Style panes' stop editor (style_gradient_stops.swift).
+        ("style gradient stops", verifyStyleGradientStops),
+        // #18: the Magic Eraser tool (magic_eraser.swift).
+        ("magic eraser", verifyMagicEraser),
         ("action failure prompt", verifyActionFailurePrompt),
         ("inverse no selection", verifyInverseNoSelection),
         ("progress panel reuse", verifyProgressPanelReuse),

@@ -222,6 +222,8 @@ struct ShapeToolPreview {
             name = "rect"
         case .artHistoryBrush, .pencil:
             name = "rect"
+        case .magicEraser:
+            name = "rect"
         }
         return ShapeLayerPayload(
             kind: outline == nil ? name : "path", w: Double(box.width), h: Double(box.height),

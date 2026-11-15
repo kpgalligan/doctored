@@ -1,9 +1,10 @@
 import AppKit
 
 /// Layer Style > Stroke: Size, Position, Blend Mode, Opacity and the fill
-/// — a colour swatch, (Fill Type: Gradient) the gradient's end colours,
-/// Reverse, Style (Shape Burst included), Align with Layer, Dither,
-/// Smoothness, Angle and Scale, or (Fill Type: Pattern) the Pattern
+/// — a colour swatch, (Fill Type: Gradient) every stop of the gradient in
+/// the shared stop editor (`PaneGradientStopsRow`), Reverse, Style (Shape
+/// Burst included), Align with Layer, Dither, Smoothness, Angle and Scale,
+/// or (Fill Type: Pattern) the Pattern
 /// Overlay's own rows (`PatternFillRows`: Pattern, Angle, Scale, Link with
 /// Layer, Snap to Origin) over the stroke's `patternFill`, in the pane's
 /// order. Every control is a `PaneRows` row bound straight to the effect
@@ -68,19 +69,7 @@ final class StrokePane: NSObject, LayerStylePane {
                 }
             })
 
-        // Gradient fill. The sheet edits the two end stops; a gradient with
-        // more stops (set over MCP or pasted) keeps its middle stops.
-        let startColor = PaneRows.color(
-            "Start Color:",
-            get: { Self.stopColor(binding.read(), last: false) },
-            set: { value in binding.update { Self.setStopColor(&$0, last: false, value) } })
-        let endColor = PaneRows.color(
-            "End Color:",
-            get: { Self.stopColor(binding.read(), last: true) },
-            set: { value in binding.update { Self.setStopColor(&$0, last: true, value) } })
-        let stopsNote = PaneRows.note(
-            "Only the first and last stops are edited here; the gradient's middle stops keep "
-                + "their colours and positions.")
+        // Gradient fill.
         let reverse = PaneRows.checkbox(
             "Reverse",
             get: { binding.read().gradient.reverse },
@@ -108,6 +97,17 @@ final class StrokePane: NSObject, LayerStylePane {
             set: { value in
                 binding.update { $0.gradient.smoothness = value >= 100 ? nil : value / 100 }
             })
+        // Every stop, in the shared stop editor; a preset's Smoothness lands
+        // in the Smoothness row.
+        let stops = PaneRows.gradientStops(
+            get: { binding.read().gradient },
+            setStops: { value in binding.update { $0.gradient.stops = value } },
+            smoothness: (
+                get: { binding.read().gradient.smoothness ?? 1 },
+                set: { value in
+                    binding.update { $0.gradient.smoothness = value >= 1 ? nil : value }
+                    smoothness.reload()
+                }))
         let angle = PaneRows.angle(
             "Angle:",
             get: { binding.read().gradient.angle },
@@ -126,16 +126,20 @@ final class StrokePane: NSObject, LayerStylePane {
                 set: { value in binding.update { $0.patternFill = value } }),
             layerOrigin: layerOrigin, layerOffset: layerOffset)
 
-        rows = [
-            size, position, blend, opacity, fillType, color, startColor, endColor, stopsNote,
-            reverse, style, alignWithLayer, dither, smoothness, angle, scale,
-        ] + pattern
-        let grid = PaneRows.grid(rows)
+        let common: [PaneRow] = [size, position, blend, opacity, fillType]
+        let gradient: [PaneRow] = [
+            stops, reverse, style, alignWithLayer, dither, smoothness, angle, scale,
+        ]
+        let solid: [PaneRow] = [color]
+        let all = common + solid + gradient + pattern
+        rows = all
+        let grid = PaneRows.grid(all)
+        // The grid indices of each fill type's rows, from the row array.
+        let index = { (row: PaneRow) in all.firstIndex { $0 === row } }
         fillRows.grid = grid
-        fillRows.colorRows = [5]
-        fillRows.gradientRows = [6, 7, 9, 10, 11, 12, 13, 14, 15]
-        fillRows.stopsNoteRow = 8
-        fillRows.patternRows = Array(16..<(16 + pattern.count))
+        fillRows.colorRows = solid.compactMap(index)
+        fillRows.gradientRows = gradient.compactMap(index)
+        fillRows.patternRows = pattern.compactMap(index)
         fillRows.apply(binding.read())
 
         let stack = NSStackView(views: [grid])
@@ -149,36 +153,15 @@ final class StrokePane: NSObject, LayerStylePane {
         rows.forEach { $0.reload() }
         fillRows.apply(binding.read())
     }
-
-    // MARK: - Stops
-
-    /// The first (or last) stop's colour. The core requires two stops, so
-    /// only a hand-built value can have fewer; those read as the defaults.
-    private static func stopColor(_ fx: StrokeEffect, last: Bool) -> String {
-        let stops = fx.gradient.stops.count >= 2 ? fx.gradient.stops : GradientFill().stops
-        return (last ? stops.last : stops.first)?.color ?? "#000000"
-    }
-
-    /// Writes the first (or last) stop's colour, restoring the default stops
-    /// first when the fill has fewer than two.
-    private static func setStopColor(_ fx: inout StrokeEffect, last: Bool, _ hex: String) {
-        if fx.gradient.stops.count < 2 {
-            fx.gradient.stops = GradientFill().stops
-        }
-        let index = last ? fx.gradient.stops.count - 1 : 0
-        fx.gradient.stops[index].color = hex
-    }
 }
 
 /// Shows the grid rows of the current fill type (Color, Gradient or Pattern)
-/// and hides the others'; the stops note only appears for a gradient with
-/// more than two stops.
+/// and hides the others'.
 private final class FillRowsSwitch {
     var grid: NSGridView?
     var colorRows: [Int] = []
     var gradientRows: [Int] = []
     var patternRows: [Int] = []
-    var stopsNoteRow: Int?
 
     func apply(_ fx: StrokeEffect) {
         guard let grid = grid else { return }
@@ -192,9 +175,6 @@ private final class FillRowsSwitch {
         }
         for index in patternRows where index < grid.numberOfRows {
             grid.row(at: index).isHidden = !pattern
-        }
-        if let index = stopsNoteRow, index < grid.numberOfRows {
-            grid.row(at: index).isHidden = !gradient || fx.gradient.stops.count <= 2
         }
     }
 }

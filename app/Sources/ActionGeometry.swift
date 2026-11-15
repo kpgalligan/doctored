@@ -206,6 +206,7 @@ enum ActionGeometry {
         // Single points.
         "select_magic_wand": ["x": .x, "y": .y],
         "fill": ["x": .x, "y": .y],
+        "magic_eraser": ["x": .x, "y": .y],
         "auto_select_layer": ["x": .x, "y": .y],
         "set_ruler_origin": ["x": .x, "y": .y],
         "add_text_layer": ["x": .x, "y": .y],

@@ -152,6 +152,8 @@ enum BitmapDocument {
         "super_zoom", "jpeg_artifacts_removal", "neural_colorize",
         "auto_tone", "auto_contrast", "auto_color", "equalize", "generative_expand",
         "select_magic_wand",
+        // The Magic Eraser erases the Magic Wand's region, which Bitmap mode has none of.
+        "magic_eraser",
         // Phase 2b.
         "transform_layer", "transform_layers", "distort_layer", "transform_again",
         "transform_selected_pixels", "warp_layer", "trim", "assign_profile", "convert_profile",

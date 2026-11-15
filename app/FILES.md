@@ -327,7 +327,8 @@ Detail belongs in the source file's own header comment.
 - `PatternLibrary.swift` — the user pattern library (`DR_PATTERNS_DIR`): `LibraryPattern`, picker rows (`PatternChoice`), `{name}` resolution, `.doctoredpatterns` files.
 - `DefinePattern.swift` / `EditorViewController+DefinePattern.swift` — Edit ▸ Define Pattern…: the composite's tile per depth and mode, its sheet and validation.
 - `EditorViewController+PatternLibrary.swift` — Edit ▸ Patterns: Delete Pattern…, Import Patterns… and Export Patterns… for the pattern library.
-- `GlowFillRows.swift` — the Outer and Inner Glow's Fill rows (colour or gradient end stops) and Jitter, `GlowFillEffect`; Gradient seeds Foreground to Transparent.
+- `GlowFillRows.swift` — the Outer and Inner Glow's Fill rows (colour, or every gradient stop) and Jitter, `GlowFillEffect`; Gradient seeds Foreground to Transparent.
+- `StyleGradientStopsRow.swift` — `PaneGradientStopsRow`: the shared stop editor, compact, as one Layer Style pane row (every stop, a preset's Smoothness).
 - `LayerStyleContour.swift` — `ContourValue` / `ContourPointValue`: a contour as the core's style JSON holds it, the ten preset ids and titles.
 - `ContourRow.swift` — the Layer Style Contour row (presets, Custom… popover over `CurveEditorView`, Anti-aliased) and `PaneRows.range`.
 - `LayerStyleSheetController.swift` — Layer ▸ Layer Style's sheet; on a typed document it opens with a `PrecisionEditorCapture` and previews live at 16 bits (`PrecisionStylePreview`).
@@ -341,8 +342,8 @@ Detail belongs in the source file's own header comment.
 - `BevelEmbossPane.swift` — Layer Style ▸ Bevel & Emboss: structure (style, technique, depth, direction, size, soften) and the light (angle, altitude, Use Global Light).
 - `SatinPane.swift` — Layer Style ▸ Satin: two copies of the blurred shape pushed apart along Angle by Distance, combined where exactly one covers (Invert shows the complement).
 - `ColorOverlayPane.swift` — Layer Style ▸ Color Overlay: the shape filled with one colour at the overlay's own blend mode and opacity, never the layer's.
-- `GradientOverlayPane.swift` — Layer Style ▸ Gradient Overlay: blend mode, opacity, the end colours and Reverse, Style with Align with Layer, Angle, Scale.
-- `StrokePane.swift` — Layer Style ▸ Stroke: Size, Position, Blend Mode, Opacity and the fill (a colour, or a gradient with Reverse, Style, Align with Layer, Dither).
+- `GradientOverlayPane.swift` — Layer Style ▸ Gradient Overlay: blend mode, opacity, every stop and Reverse, Style with Align with Layer, Angle, Scale.
+- `StrokePane.swift` — Layer Style ▸ Stroke: Size, Position, Blend Mode, Opacity and the fill (a colour, a gradient's every stop with Reverse, Style, Dither…).
 - `EditorViewController+LayerStyle.swift` — Layer ▸ Layer Style (Blending Options…, one item per effect, Copy / Paste / Clear), the row menu and a plain raster row's double-click.
 - `LayersPanelViewController.swift` — the right panel's Layers tab; `scrubOpacity` is the one opacity tick body the slider and the UI probe share.
 - `LayersPanelViewController+Rows.swift` — the Layers panel's row behaviour: selection, thumbnail click, drag reorder, disclosure and the row menu.
@@ -705,7 +706,7 @@ Detail belongs in the source file's own header comment.
 - `FillLayer.swift` — fill layers (pattern; moves, turns, CMYK): `FillLayerPayload`, its drawing, `refittingFillLayers`, `positionPin(refitting:)`, `carriesPatternFill`.
 - `FillLayerSheetController.swift` / `EditorViewController+FillLayers.swift` / `AgentServer+FillLayers.swift` — Layer ▸ New Fill Layer, the dialog, MCP `add_fill_layer` / `edit_fill_layer`.
 - `GradientRamp.swift` / `EditorViewController+GradientTool.swift` — the Gradient tool's resolved ramp (stops, shape, legacy two-colour path) and its 8-bit layer commit.
-- `GradientStopsPane.swift` / `GradientStopsSheetController.swift` — the stop editor the fill-layer dialog and the Gradient tool's Edit… sheet share, with its Preset row.
+- `GradientStopsPane.swift` / `GradientStopsSheetController.swift` — the stop editor the fill-layer dialog, the Gradient tool's Edit… sheet and the style panes share.
 - `QuickMaskEdits.swift` / `EditorViewController+QuickMaskEdits.swift` / `AgentServer+QuickMaskEdits.swift` — Gaussian Blur and Gradient in Quick Mask, UI and MCP.
 - `SelectionCanvasMap.swift` — the selection carried through crop, canvas size, rotate, flip and image size: `CanvasSelection.carried`, `selectionCarried`.
 - `EditorViewController+ScreenChrome.swift` — the screen keys (Tab, Shift+Tab, F); `setToolChromeVisible` is the ONE writer of `toolChromeVisible`.
@@ -768,6 +769,8 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+LayerDrag.swift` / `AgentCatalog+LayerDrag.swift` — MCP `copy_layers_to_document`, the twin of that drop.
 - `ImageCanvasView+MoveControls.swift` / `EditorViewController+MoveControls.swift` — the Move tool's Show Transform Controls box and its handles.
 - `EditorViewController+BucketFill.swift` — the Fill tool's Contents, Mode and Sample all layers, and MCP `fill`'s `blend_mode` / `sample_all_layers`.
+- `MagicEraser.swift` / `EditorViewController+MagicEraser.swift` — the Magic Eraser: the wand's region erased (8-bit Clear, typed `erase_native`), click, options.
+- `AgentServer+MagicEraser.swift` / `AgentCatalog+MagicEraser.swift` — MCP `magic_eraser`, the Magic Eraser's click, and its catalog entry.
 - `ImageCanvasView+EyedropperRing.swift` / `EditorViewController+Eyedropper.swift` — the eyedropper sampling ring, Sample from and recent swatches.
 - `ShapeStrokeStyle.swift` — the shape stroke join, dash and alignment, and `ShapeLayer.strokeOutline`, the one outline every renderer fills.
 - `PathModel.swift` — path values: `PathAnchor`, `PathSubpath`, `PathShape`, `PathEntry`, `PathClipping`, `PathSet`, `PathTarget`, `PathHit`, `VectorMaskInfo`.

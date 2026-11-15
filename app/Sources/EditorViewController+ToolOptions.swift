@@ -17,9 +17,11 @@ extension EditorViewController {
     // share one 1–64 spread, percent fields step by ten, and radius-like
     // fields double; fields with special ranges declare their own inline.
     private static let quickPx: [Double] = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64]
-    private static let quickPercent: [Double] = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    // The percent and tolerance lists are shared with the Magic Eraser's bar
+    // (EditorViewController+MagicEraser.swift).
+    static let quickPercent: [Double] = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
     private static let quickRadius: [Double] = [0, 1, 2, 4, 8, 16, 32, 64, 128]
-    private static let quickTolerance: [Double] = [0, 8, 16, 32, 64, 128, 255]
+    static let quickTolerance: [Double] = [0, 8, 16, 32, 64, 128, 255]
 
     /// Rebuilds the bar for the current tool or modal session.
     func presentToolOptions() {
@@ -90,6 +92,8 @@ extension EditorViewController {
             return redEyeClusters()
         case .fill:
             return fillClusters()
+        case .magicEraser:
+            return magicEraserClusters()
         case .gradient:
             return gradientClusters()
         case .shapeRect, .shapeEllipse, .shapeLine:

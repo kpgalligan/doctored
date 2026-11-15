@@ -80,6 +80,9 @@ enum IndexedDocument {
         "copy", "copy_merged", "cut", "clear_selection", "fill", "fill_selection",
         // Edit ▸ Define Pattern… (the codes at 8 bits, `DefinePattern`).
         "define_pattern",
+        // The Magic Eraser: the Magic Wand's region on the palette colours, erased as the
+        // Eraser erases (`designs/magic-eraser.md`).
+        "magic_eraser",
         "stroke_selection", "eraser_stroke", "image_size", "canvas_size", "trim", "rotate", "flip",
         "crop", "perspective_crop", "fit_crop",
         // Phase 2d: Paste, the transforms, Warp and the layer row.
@@ -413,10 +416,11 @@ enum IndexedDocument {
     /// Brush, (phase 2c) the Eraser, the Paint Bucket, Crop and Perspective Crop, and (phase 3a)
     /// the Move tool; since phase 3b the painting tools take every blend mode; since phase 3c the
     /// Magic Wand, Quick Selection, Magnetic Lasso, Eyedropper, Color Sampler, Ruler, Pen, Clone
-    /// Stamp and History Brush.
+    /// Stamp and History Brush, and the Magic Eraser.
     static func allows(_ tool: EditorTool) -> Bool {
         switch tool {
         case .select, .ellipseSelect, .lasso, .freehandLasso, .hand, .zoom, .brush, .eraser, .fill,
+             .magicEraser,
              .crop, .perspectiveCrop, .move, .wand, .quickSelect, .magneticLasso, .eyedropper,
              .colorSampler, .ruler, .pen, .clone, .historyBrush:
             return true

@@ -1,7 +1,7 @@
 import AppKit
 
 /// What the Outer and Inner Glow share for their Fill: the colour
-/// swatch, or the gradient button's end stops, and Jitter.
+/// swatch, or the gradient's stops, and Jitter.
 protocol GlowFillEffect {
     var color: String { get set }
     var linear: [Double]? { get set }
@@ -14,9 +14,11 @@ extension OuterGlowEffect: GlowFillEffect {}
 extension InnerGlowEffect: GlowFillEffect {}
 
 /// Layer Style > Outer Glow / Inner Glow's fill rows: the Fill popup
-/// (colour or gradient), the colour, the gradient's first and last stop
-/// colours and opacities, the note shown for a gradient with more than two
-/// stops, and Jitter. The rows the current fill does not use are hidden
+/// (colour or gradient), the colour, the gradient's stops in the shared stop
+/// editor (`PaneGradientStopsRow`: every stop, a library preset), and Jitter.
+/// The editor shows no midpoints and a preset brings no Smoothness: a glow's
+/// gradient keeps its stops alone, the core resetting every other key and
+/// every stop's midpoints. The rows the current fill does not use are hidden
 /// (the `StrokePane` pattern). Jitter only scatters a gradient but stays
 /// visible in both fills, so a colour glow's stored Jitter can be seen and
 /// cleared. Choosing Gradient on a glow that has none seeds Foreground to
@@ -47,6 +49,8 @@ final class GlowFillRows<E: GlowFillEffect> {
                     }
                 }
                 toggle.apply(binding.read())
+                // A gradient just seeded from the colour shows its stops.
+                toggle.stops?.reload()
             })
         let color = PaneRows.slotColor(
             "Color:",
@@ -60,32 +64,22 @@ final class GlowFillRows<E: GlowFillEffect> {
                     $0.linear = value.linear
                 }
             })
-        // The sheet edits the two end stops; a gradient with more stops (set
-        // over MCP or pasted) keeps its middle stops.
-        let startColor = PaneRows.color(
-            "Start Color:",
-            get: { glowStops(binding.read()).first?.color ?? "#000000" },
-            set: { value in binding.update { glowEditStop(&$0, last: false) { $0.color = value } } })
-        let endColor = PaneRows.color(
-            "End Color:",
-            get: { glowStops(binding.read()).last?.color ?? "#000000" },
-            set: { value in binding.update { glowEditStop(&$0, last: true) { $0.color = value } } })
-        let startOpacity = PaneRows.percent(
-            "Start Opacity:",
-            get: { glowStops(binding.read()).first?.opacity ?? 1 },
-            set: { value in
-                binding.update { glowEditStop(&$0, last: false) { $0.opacity = value } }
-            })
-        let endOpacity = PaneRows.percent(
-            "End Opacity:",
-            get: { glowStops(binding.read()).last?.opacity ?? 0 },
-            set: { value in
-                binding.update { glowEditStop(&$0, last: true) { $0.opacity = value } }
-            })
-        let stopsNote = PaneRows.note(
-            "Only the first and last stops are edited here; the gradient's middle stops keep "
-                + "their colours and positions.")
-        rows = [fill, color, startColor, endColor, startOpacity, endOpacity, stopsNote]
+        let stops = PaneRows.gradientStops(
+            get: {
+                var shown = GradientFill()
+                shown.stops = glowStops(binding.read())
+                return shown
+            },
+            setStops: { value in
+                binding.update { fx in
+                    var gradient = fx.gradient ?? glowSeedGradient(fx.color)
+                    gradient.stops = value
+                    fx.gradient = gradient
+                }
+            },
+            showsMidpoints: false)
+        toggle.stops = stops
+        rows = [fill, color, stops]
         jitter = PaneRows.noise(
             "Jitter:",
             get: { binding.read().jitter },
@@ -98,8 +92,7 @@ final class GlowFillRows<E: GlowFillEffect> {
         toggle.grid = grid
         if rows.count == self.rows.count {
             toggle.colorRows = [rows[1]]
-            toggle.gradientRows = Array(rows[2...5])
-            toggle.stopsNoteRow = rows[6]
+            toggle.gradientRows = [rows[2]]
         }
         apply()
     }
@@ -127,25 +120,13 @@ private func glowSeedGradient(_ color: String) -> GradientFill {
     return fill
 }
 
-/// Edits the first (or last) stop, seeding the gradient first when the glow
-/// has none or fewer than two stops.
-private func glowEditStop<E: GlowFillEffect>(
-    _ fx: inout E, last: Bool, _ edit: (inout GradientStop) -> Void
-) {
-    var fill = fx.gradient ?? glowSeedGradient(fx.color)
-    if fill.stops.count < 2 { fill.stops = glowSeedGradient(fx.color).stops }
-    let index = last ? fill.stops.count - 1 : 0
-    edit(&fill.stops[index])
-    fx.gradient = fill
-}
-
-/// Shows the grid rows of the current fill and hides the others'; the stops
-/// note only appears for a gradient with more than two stops.
+/// Shows the grid rows of the current fill and hides the others'.
 private final class GlowFillSwitch {
     weak var grid: NSGridView?
     var colorRows: [Int] = []
     var gradientRows: [Int] = []
-    var stopsNoteRow: Int?
+    /// The stops row, reloaded when Fill: Gradient seeds a gradient.
+    weak var stops: PaneGradientStopsRow?
 
     func apply<E: GlowFillEffect>(_ fx: E) {
         guard let grid = grid else { return }
@@ -155,9 +136,6 @@ private final class GlowFillSwitch {
         }
         for index in gradientRows where index < grid.numberOfRows {
             grid.row(at: index).isHidden = !gradient
-        }
-        if let index = stopsNoteRow, index < grid.numberOfRows {
-            grid.row(at: index).isHidden = !gradient || (fx.gradient?.stops.count ?? 2) <= 2
         }
     }
 }

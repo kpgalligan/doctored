@@ -51,12 +51,13 @@ extension RasterDocument {
     /// The 8-bit bucket fill with a blend mode or a composite region: the
     /// wand's 0/255 region from (x, y) — over the composite, or over layer
     /// `idx` alone — times `mask` (the selection's coverage, nil for none),
-    /// filled on layer `idx` with straight `rgba` through `style.mode`. nil
+    /// filled on layer `idx` with straight `rgba` through `style.mode` at
+    /// `opacity` (0…1; the Magic Eraser's, `MagicEraser.swift`). nil
     /// when the seed is off the canvas or outside the selection, when the
     /// layer has no pixels to sample, or when nothing would change.
     func bucketFilled(
         _ idx: Int, x: Int, y: Int, tolerance: Int, rgba: [UInt8], contiguous: Bool,
-        mask: [UInt8]?, style: BucketFillStyle
+        mask: [UInt8]?, style: BucketFillStyle, opacity: Double = 1
     ) -> RasterDocument? {
         guard x >= 0, y >= 0, x < width, y < height else { return nil }
         if let mask, mask.count != width * height || mask[y * width + x] == 0 { return nil }
@@ -66,7 +67,7 @@ extension RasterDocument {
         guard let region = grown else { return nil }
         let coverage = mask.map { PlaneAlgebra.combine(region, $0, mode: .intersect) } ?? region
         return selectionFilled(
-            idx, mask: coverage, rgba: rgba, mode: style.mode, opacity: 1,
+            idx, mask: coverage, rgba: rgba, mode: style.mode, opacity: opacity,
             preserveTransparency: false)
     }
 }
@@ -127,8 +128,7 @@ extension EditorViewController {
         let mode = Self.toolBlendChoices(for: document?.doc).contains { $0.0 == stored }
             ? stored : DR_BLEND_NORMAL
         // #1 Indexed phase 2c: off on an Indexed document, whose one layer's region is the
-        // composite's (the composite path asks the `selection` op, which the mode refuses), and
-        // on a Bitmap document (#1 Bitmap phase 2a-i), which holds one layer too.
+        // composite's, and on a Bitmap document (#1 Bitmap phase 2a-i), which holds one layer too.
         let oneLayer = document?.doc?.isIndexed == true || document?.doc?.isBitmap == true
         return BucketFillStyle(mode: mode, sampleAllLayers: options.sampleAllLayers && !oneLayer)
     }

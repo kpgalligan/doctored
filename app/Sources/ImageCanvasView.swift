@@ -779,6 +779,8 @@ final class ImageCanvasView: NSView {
     var onWandClick: ((CGPoint, SelectionCombineMode) -> Void)?
     /// Fired on a fill-tool click.
     var onFillClick: ((CGPoint) -> Void)?
+    /// Fired on a Magic Eraser click.
+    var onMagicEraserClick: ((CGPoint) -> Void)?
     /// Fired on every eyedropper sample tick — the mouse-down and each drag
     /// tick of the eyedropper tool, or of Option-click borrowing it from
     /// brush/fill/gradient. The point is UNCLAMPED image pixels: samples
@@ -1891,6 +1893,8 @@ final class ImageCanvasView: NSView {
             if subjectSession.subjectCount == 0 { NSSound.beep() }
         case .fill:
             onFillClick?(point)
+        case .magicEraser:
+            onMagicEraserClick?(point)
         case .gradient:
             gradientAnchor = point
             gradientCurrent = point
@@ -2112,6 +2116,8 @@ final class ImageCanvasView: NSView {
             moveMagneticLasso(to: raw)
         case .lasso, .wand, .fill, .eyedropper, .colorSampler, .ruler, .perspectiveCrop, .pen:
             break
+        case .magicEraser:
+            break
         case .subject:
             // The hit test is a byte read, so dragging across the photo
             // re-outlines whichever subject is under the pointer.
@@ -2285,6 +2291,8 @@ final class ImageCanvasView: NSView {
             endObjectSelection(at: convert(event.locationInWindow, from: nil))
         case .lasso, .magneticLasso, .wand, .fill, .eyedropper, .colorSampler, .ruler,
             .perspectiveCrop, .pen:
+            break
+        case .magicEraser:
             break
         case .subject:
             let mode = dragCombineMode

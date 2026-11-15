@@ -1,17 +1,23 @@
 import AppKit
 
-/// The stop editor two dialogs share: `GradientEditorView`'s ramp and
-/// stop bar, with its midpoint diamonds, over the selected stop's
+/// The stop editor the gradient dialogs share: `GradientEditorView`'s ramp
+/// and stop bar, with its midpoint diamonds, over the selected stop's
 /// Position, Opacity and Colour and the selected diamond's Midpoint. The
-/// Gradient tool's stops sheet (`GradientStopsSheetController`) and the
-/// Gradient fill-layer dialog (`FillLayerSheetController`) both hold one, so
-/// a ramp is edited the same way in both.
+/// Gradient tool's stops sheet (`GradientStopsSheetController`), the
+/// Gradient fill-layer dialog (`FillLayerSheetController`) and the Layer
+/// Style panes' gradient rows (`PaneGradientStopsRow`) each hold one, so a
+/// ramp is edited the same way in all of them.
 ///
 /// Stop colours here are AUTHORED sRGB (`GradientEditorView`'s colour rule):
 /// the tool converts them into the document when it paints, and a fill layer
-/// stores them authored and the core converts them when it renders. The
-/// Gradient Map dialog keeps its own controls: its stops are the document's
-/// own numbers.
+/// or a layer style stores them authored and the core converts them when it
+/// renders. The Gradient Map dialog keeps its own controls: its stops are the
+/// document's own numbers.
+///
+/// `compact` puts Position beside Opacity and Colour beside Midpoint, two
+/// rows under the ramp instead of four, for the Layer Style sheet's narrower
+/// pane; `showsMidpoints` false hides the diamonds and the Midpoint field,
+/// for a gradient whose midpoints the core does not keep (a glow's).
 ///
 /// One value in (`fill`), one closure out (`onChange`, fired for an edit made
 /// here and never for an assignment from outside).
@@ -49,10 +55,11 @@ final class GradientStopsPane: NSView, NSTextFieldDelegate {
         }
     }
 
-    init(fill: GradientFill, width: CGFloat = sheetWidth - sheetInset * 2) {
+    init(fill: GradientFill, width: CGFloat = sheetWidth - sheetInset * 2,
+         compact: Bool = false, showsMidpoints: Bool = true) {
         super.init(frame: .zero)
         editor.colorSpace = .sRGB
-        editor.showsMidpoints = true
+        editor.showsMidpoints = showsMidpoints
         editor.fill = fill
         editor.selectedStop = 0
         editor.onFillChanged = { [weak self] _ in self?.editorChanged() }
@@ -79,13 +86,29 @@ final class GradientStopsPane: NSView, NSTextFieldDelegate {
         presetPopup.font = DS.sans(12)
         presetPopup.identifier = NSUserInterfaceItemIdentifier("gradient-preset")
 
-        let grid = NSGridView(views: [
-            [fieldLabel("Preset:"), presetPopup],
-            [fieldLabel("Position:"), percentRow(positionField)],
-            [fieldLabel("Opacity:"), percentRow(opacityField)],
-            [fieldLabel("Color:"), colorWell],
-            [fieldLabel("Midpoint:"), percentRow(midpointField)],
-        ])
+        let midpoint: [NSView] = showsMidpoints
+            ? [fieldLabel("Midpoint:"), percentRow(midpointField)] : []
+        let rows: [[NSView]] = compact
+            ? [
+                [fieldLabel("Preset:"), presetPopup],
+                [fieldLabel("Position:"), percentRow(positionField),
+                 fieldLabel("Opacity:"), percentRow(opacityField)],
+                [fieldLabel("Color:"), colorWell] + midpoint,
+            ]
+            : [
+                [fieldLabel("Preset:"), presetPopup],
+                [fieldLabel("Position:"), percentRow(positionField)],
+                [fieldLabel("Opacity:"), percentRow(opacityField)],
+                [fieldLabel("Color:"), colorWell],
+            ] + (midpoint.isEmpty ? [] : [midpoint])
+        let grid = NSGridView(views: rows)
+        if compact, grid.numberOfColumns > 2 {
+            // The Preset popup takes the whole width; the second label
+            // column right-aligns like the first.
+            grid.mergeCells(inHorizontalRange: NSRange(location: 1, length: grid.numberOfColumns - 1),
+                            verticalRange: NSRange(location: 0, length: 1))
+            grid.column(at: 2).xPlacement = .trailing
+        }
         grid.rowSpacing = 8
         grid.columnSpacing = 12
         grid.column(at: 0).xPlacement = .trailing
@@ -146,6 +169,25 @@ final class GradientStopsPane: NSView, NSTextFieldDelegate {
 
     /// The Preset row's titles, for a probe: the face, the library, Save Preset….
     var presetTitles: [String] { presetPopup.itemTitles }
+
+    /// The selected stop's index, for a probe: assigning it selects that stop
+    /// as a click on its marker does, firing nothing.
+    var selectedStopIndex: Int {
+        get { editor.selectedStop }
+        set {
+            editor.selectedStop = newValue
+            syncStopControls()
+        }
+    }
+
+    /// What the colour well's action does with `color`, for a probe: the
+    /// selected stop recoloured, as an edit made here (`onChange`).
+    func pick(_ color: NSColor) {
+        isSyncing = true
+        colorWell.color = color
+        isSyncing = false
+        colorPicked(colorWell)
+    }
 
     @objc private func colorPicked(_ sender: NSColorWell) {
         guard !isSyncing, selectedStop() != nil else { return }

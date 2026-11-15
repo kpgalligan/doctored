@@ -1,6 +1,6 @@
 # Feature survey (ADR)
 
-- **Status:** Accepted — closed (historical record; not a feature catalog). The feature inventory is [photo-editor-gap-review.md](photo-editor-gap-review.md) with [photo-editor-gap-review-2026-09.md](photo-editor-gap-review-2026-09.md). The survey's unfinished items are multistop gradients in the Layer Style panes ([#18](https://github.com/kpgalligan/doctored/issues/18)) and text on a path ([#19](https://github.com/kpgalligan/doctored/issues/19)).
+- **Status:** Accepted — closed (historical record; not a feature catalog). The feature inventory is [photo-editor-gap-review.md](photo-editor-gap-review.md) with [photo-editor-gap-review-2026-09.md](photo-editor-gap-review-2026-09.md). The survey's unfinished item is text on a path ([#19](https://github.com/kpgalligan/doctored/issues/19)).
 - **Phase / dates:** pre-plan survey, 2026-08-11 → 2026-08-20
 - **Original:** [archive/next-features.md](../archive/next-features.md) — full survey text and rationale
 - **Key commits:** `d0b0d26` (survey), `3ac7cf1` (adjustment layers, clipping, eyedropper, morphology/Quick Mask), `7c25832` / `99554ec` (Select Subject, Subject tool), `e54f3c9` (Crop, Clone Stamp, Dodge/Burn, shapes, Zoom/Hand)
@@ -46,7 +46,7 @@ over `Arc`-shared layers, canvas-sized coverage masks, an f32 compositor and the
 | Guides, rulers, grid, snapping | Shipped (`Guides.swift`, `RulerView.swift`, `ImageCanvasView+Grid.swift`, `SnapEngine.swift`) |
 | Grow/Shrink/Border/Smooth, Quick Mask, Save/Load Selection, Channels panel | Shipped |
 | Histogram, Curves, auto levels/contrast/colour | Shipped (`Histogram.swift`, `core/src/ops_auto.rs`) |
-| Multistop gradients | Shipped in the Gradient Map editor (`GradientEditorView.swift`), the Gradient tool and gradient fill layers (the shared `GradientStopsPane.swift`); the Layer Style panes edit two stops ([#18](https://github.com/kpgalligan/doctored/issues/18)) |
+| Multistop gradients | Shipped in the Gradient Map editor (`GradientEditorView.swift`), the Gradient tool, gradient fill layers and the Layer Style panes (the shared `GradientStopsPane.swift`) |
 | History panel | Shipped (Phase 5, `DocumentHistory.swift`) |
 | Copy Merged / Paste in Place | Shipped (`EditorViewController+Clipboard.swift`) |
 | Paste Into (paste into selection as masked layer) | Shipped (Edit ▸ Paste Special ▸ Paste Into / Paste Outside, `PasteInto.swift`) |
@@ -73,8 +73,8 @@ over `Arc`-shared layers, canvas-sized coverage masks, an f32 compositor and the
 - `DONE` — Sponge/Smudge/Blur/Sharpen brushes and the History Brush (8 and 16 bits; options bar,
   MCP `blur_stroke` / `sharpen_stroke` / `smudge_stroke` / `sponge_stroke` / `history_brush_stroke`).
 - `DONE` — Multistop gradients in the Gradient tool and gradient fill layers (`GradientStopsPane.swift`).
-- `OPEN` [#18](https://github.com/kpgalligan/doctored/issues/18) — Multistop editing in the Layer Style panes:
-  Gradient Overlay and the glow rows edit the first and last stops and keep any inner stops as set.
+- `DONE` — Multistop editing in the Layer Style panes: Gradient Overlay, the Stroke's gradient fill
+  and the glows' gradient fill edit every stop (`StyleGradientStopsRow.swift`).
 - `DONE` — Image ▸ Trim… and Image ▸ Reveal All (MCP `trim`, `reveal_canvas`), the Perspective Crop tool
   and the persisted warp field (`core/src/doc_warp.rs`).
 - `DONE` — Pen/Bézier paths, the Paths panel, Make Selection / Fill Path / Stroke Path /

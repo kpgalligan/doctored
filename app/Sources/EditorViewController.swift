@@ -357,6 +357,7 @@ final class EditorViewController: NSViewController {
         canvas.onQuickMaskKey = { [weak self] in self?.toggleQuickMask(nil) }
         canvas.onWandClick = { [weak self] point, mode in self?.wandClicked(point, mode: mode) }
         canvas.onFillClick = { [weak self] point in self?.fillClicked(point) }
+        canvas.onMagicEraserClick = { [weak self] point in self?.magicEraserClicked(point) }
         canvas.onEyedropper = { [weak self] point in self?.sampleColor(at: point) }
         canvas.onEyedropperEnd = { [weak self] in self?.eyedropperPressEnded() }
         installColorSamplers()
@@ -2484,6 +2485,7 @@ extension EditorViewController: NSUserInterfaceValidations {
         #selector(selectMoveTool(_:)): .move,
         #selector(selectBrushTool(_:)): .brush,
         #selector(selectEraserTool(_:)): .eraser,
+        #selector(selectMagicEraserTool(_:)): .magicEraser,
         #selector(selectFillTool(_:)): .fill,
         #selector(selectGradientTool(_:)): .gradient,
         #selector(selectTextTool(_:)): .text,
