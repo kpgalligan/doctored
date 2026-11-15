@@ -3,8 +3,9 @@
 //! premultiplied interpolation; exposure and ICC forward encoders own color math.
 //!
 //! A local may have no camera variant: its tone controls
-//! (`raw_local_tone`, evaluated by `raw_local_tone_apply`) adjust the
-//! development as the earlier locals left it, and a local with a variant and
+//! (`raw_local_tone`, evaluated by `raw_local_tone_apply`, or on a float
+//! base by `raw_local_tone_float`) adjust the development as the earlier
+//! locals left it, and a local with a variant and
 //! a tone adjusts the variant's samples. The legacy contract (every local
 //! with a variant, no tone) runs exactly the code it always did.
 //!
@@ -120,15 +121,6 @@ pub(crate) fn plain_image(document: &PrecisionDocument) -> Result<&PrecisionImag
         _ => Err("local development requires one full-source raster at the origin".into()),
     }
 }
-/// The tone refusal at the float depth (`raw_float_develop`): the tone
-/// controls evaluate through the display-referred adjustment and Presence
-/// kernels, which have no rule for scene-linear samples above 1.0, so a tone
-/// local on a float base refuses by name rather than reading it through the
-/// 16-bit path. The host disables the controls there and the MCP raw tools
-/// refuse with this same sentence.
-pub(crate) const FLOAT_TONE_REFUSAL: &str =
-    "RAW local tone controls are not available for a 32-bit float development.";
-
 /// Mix the locals over the base development, then the manual vignette.
 ///
 /// `variants[i]` is local `i`'s camera variant, or None for a local whose

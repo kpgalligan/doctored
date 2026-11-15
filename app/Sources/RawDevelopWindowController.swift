@@ -510,7 +510,7 @@ final class RawDevelopWindowController: NSObject {
     /// (linear) development. Entering float sets the tone curve to 0,
     /// scene-linear, and leaves its row live (Shadows stays inert while
     /// it is 0); grain and the Presence rows (Texture, Clarity, Dehaze) stay
-    /// live, on the display encoding; the local tone rows are disabled. Back
+    /// live, on the display encoding, and so do the local tone rows. Back
     /// at 16 bits the curve returns to the value it had, or the file's own.
     func setEncoding(_ next: RawOutputEncoding) {
         guard next != encoding else { return }
@@ -534,7 +534,6 @@ final class RawDevelopWindowController: NSObject {
         for (index, knob) in knobs.enumerated() where knob.startsAtZeroAtFloat {
             knobRows[index].setValue(knob.read(values))
         }
-        localControls?.toneAvailable = encoding != .linearFloat
         encodingRow?.setSelected(RawOutputEncoding.allCases.firstIndex(of: encoding) ?? 0)
         if let row = floatNoteRow, row.isHidden != (encoding != .linearFloat) {
             row.isHidden = encoding != .linearFloat

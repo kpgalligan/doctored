@@ -389,11 +389,11 @@ pub unsafe extern "C" fn dr_raw_local_mask_preview_scratch(
 /// `noise_reduction` 0…100; absent keys 0, unknown refused). A range multiplies the local's shape coverage by its coverage of the BASE
 /// sample, read as CIE L*a*b* (D50) through the base's own profile; on an enabled local it
 /// refuses a base profile with no matrix/TRC model. A tone is applied to the local's source
-/// sample before the blend; on a 32-bit float base it refuses by name.
-/// Returns NULL without error when the resulting samples equal the base exactly.
-/// An f32 base (a 32-bit float development) needs f32 variants and answers an f32 float
-/// document: blended in linear light with no clamp and no quantization, values above 1 and
-/// below 0 kept, the vignette a linear gain; a u16 variant beside it is refused.
+/// sample before the blend. Returns NULL without error when the resulting samples equal the
+/// base exactly. An f32 base (a 32-bit float development) needs f32 variants and answers an
+/// f32 float document: blended in linear light with no clamp and no quantization, values
+/// above 1 and below 0 kept, the vignette a linear gain, the tone under rule L
+/// (`raw_local_tone_float`); a u16 variant beside it is refused.
 /// # Safety
 /// Handles/control NULL/live; arrays NULL iff count0, otherwise count readable entries: masks
 /// non-NULL, variants live or NULL; JSON pointers NULL/terminated UTF8; settings required,

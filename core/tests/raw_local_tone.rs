@@ -19,9 +19,10 @@
 //! radius 1, noise 0, remove gaussian}`, −60 against `gaussian_blur {radius
 //! 1.8}` and Noise Reduction 60 against `reduce_noise {radius 0.5, luminance
 //! 0.06, detail 0, color 0}`, each times coverage c ≤ 1 code; Sharpness with
-//! Clarity against the Presence result then the filter ≤ 1 code; a float base
-//! refuses a Sharpness-only tone by name; Sharpness 101 refuses with the tone
-//! sentence.
+//! Clarity against the Presence result then the filter ≤ 1 code; Sharpness
+//! 101 refuses with the tone sentence. A float base takes the tone path
+//! (Exposure +1 doubles it bit for bit, Sharpness moves it); its rule and
+//! oracles are `raw_local_tone_float.rs`'s.
 use crate::float_fixture::float_doc;
 use crate::raw_local_numeric::{image, mask_edit, rgba, success, Mask};
 use doctored_core::ffi::dr_string_free;
@@ -458,7 +459,7 @@ fn a_camera_variant_with_a_tone_is_the_tone_of_the_variant() {
 }
 
 #[test]
-fn a_float_base_refuses_the_tone_path_by_name() {
+fn a_float_base_takes_the_tone_path() {
     let profile = IccProfile::srgb();
     let pixels: Vec<[f32; 4]> = (0..W * H)
         .map(|i| {
@@ -466,20 +467,31 @@ fn a_float_base_refuses_the_tone_path_by_name() {
             [v, v, v, 1.0]
         })
         .collect();
-    let base = float_doc(W, H, &profile, &[pixels]);
+    let base = float_doc(W, H, &profile, std::slice::from_ref(&pixels));
     let mask = full();
-    let error = try_develop(
+    let out = try_develop(
         &base,
         &[None],
         &[&mask],
         json!([local(json!({"exposure":1}), 1.0)]),
     )
-    .err()
-    .expect("a float base refused");
-    assert_eq!(
-        error,
-        "RAW local tone controls are not available for a 32-bit float development."
-    );
+    .unwrap_or_else(|e| panic!("a float base refused: {e}"))
+    .expect("Exposure +1 changes the base");
+    // Exposure is a gain on the stored linear values (rule L), so +1 stop
+    // doubles every sample exactly; `raw_local_tone_float.rs` holds the rest.
+    let doubled: Vec<[u32; 4]> = pixels
+        .iter()
+        .map(|p| [p[0] * 2.0, p[1] * 2.0, p[2] * 2.0, p[3]].map(f32::to_bits))
+        .collect();
+    let got: Vec<[u32; 4]> = out
+        .layer_source(0)
+        .unwrap()
+        .to_rgba32()
+        .unwrap()
+        .iter()
+        .map(|p| p.map(f32::to_bits))
+        .collect();
+    assert_eq!(got, doubled);
 }
 
 #[test]
@@ -598,28 +610,34 @@ fn sharpness_with_clarity_sharpens_the_presence_result() {
 }
 
 #[test]
-fn detail_on_a_float_base_and_out_of_range_refuses_by_name() {
+fn detail_on_a_float_base_answers_and_out_of_range_refuses_by_name() {
     let profile = IccProfile::srgb();
     let pixels: Vec<[f32; 4]> = (0..W * H)
         .map(|i| {
-            let v = (i % W) as f32 / W as f32;
+            let x = (i % W) as f32;
+            let v = x / W as f32
+                + if (x as u32).is_multiple_of(2) {
+                    0.05
+                } else {
+                    0.0
+                };
             [v, v, v, 1.0]
         })
         .collect();
-    let float = float_doc(W, H, &profile, &[pixels]);
+    let float = float_doc(W, H, &profile, std::slice::from_ref(&pixels));
     let mask = full();
-    let error = try_develop(
+    let out = try_develop(
         &float,
         &[None],
         &[&mask],
         json!([local(json!({"sharpness":40}), 1.0)]),
     )
-    .err()
-    .expect("a float base refused");
-    assert_eq!(
-        error,
-        "RAW local tone controls are not available for a 32-bit float development."
-    );
+    .unwrap_or_else(|e| panic!("a float base refused: {e}"))
+    .expect("Sharpness 40 changes the alternating ramp");
+    let got = out.layer_source(0).unwrap().to_rgba32().unwrap();
+    assert!(got.iter().flatten().all(|v| v.is_finite()));
+    let moved = got.iter().zip(&pixels).filter(|(a, b)| a != b).count();
+    assert!(moved > 1000, "Sharpness moved {moved} pixels");
     let base = base();
     for tone in [
         json!({"sharpness":101}),

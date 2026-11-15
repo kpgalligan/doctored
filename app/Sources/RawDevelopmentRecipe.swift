@@ -153,15 +153,10 @@ struct RawDevelopmentRecipe: Codable, Equatable {
             updated.extendedDynamicRange = encoding.extendedDynamicRange
             updated.version = max(updated.version, 2)
         }
-        if encoding == .linearFloat {
-            // The tone curve and Shadows apply, and so do Presence and grain
-            // on the display encoding (`RawPresence.swift`, `RawGrain.swift`).
-            // A saved local tone is refused: its kernels are display-referred
-            // and have no float route in the locals stage. Every float path
-            // (Develop, Redevelop RAW, presets, Sync Settings, the MCP raw
-            // tools) reaches this one check.
-            try RawLocalTone.refuseAtFloat(nodes: enhancements?.locals ?? [])
-        }
+        // At `linearFloat` the tone curve and Shadows apply, and so do
+        // Presence and grain on the display encoding (`RawPresence.swift`,
+        // `RawGrain.swift`) and a local's tone under rule L
+        // (`RawLocalTone.swift`).
         if let compensation = settings.baselineCompensation {
             guard compensation.isFinite, (-4...4).contains(compensation) else {
                 throw DoctoredCoreError(message: "RAW baseline compensation must be between −4 and 4 stops.")

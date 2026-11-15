@@ -575,10 +575,11 @@ Detail belongs in the source file's own header comment.
 - `raw_local_range.rs` — kernel: a RAW local's luminance/colour range as coverage of the base development's D50 Lab (L* clamped 0…100); laws, validation.
 - `raw_local_tone.rs` — kernel: a RAW local's tone controls, ranges, and their mapping onto existing adjustment descriptions, Presence and `LocalDetail`.
 - `raw_local_tone_apply.rs` — `ToneStage`: binds a local's tone descriptions to the base profile, builds its guide/Presence planes, answers its sample.
+- `raw_local_tone_float.rs` — `FloatToneStage`: a local's tone on a float development under rule L, each control in its float route's domain (linear or encoded).
 - `raw_local_limits.rs` — leaf: 16 RAW locals, 4 camera variants, the 1 GiB combined resource cap, `fitting_locals`.
 - `raw_locals_native.rs` — native word 79, both depths, first inside 45/46, no table: >4 masks on an attachment or >512 MiB resources.
 - `raw_local_develop.rs` / `raw_local_attachment.rs` / `ffi_raw_local.rs` — RAW local develop: alternate RAW variants mixed through the shared premultiplied gate, vignette, one final u16 quantization.
-- `raw_float_develop.rs` — the f32 arm of the RAW local develop: blend, linear-gain vignette and range sample over a scene-linear base, unclamped; `float_document`.
+- `raw_float_develop.rs` — the f32 arm of the RAW local develop: blend, tone (rule L), linear-gain vignette and range sample over a scene-linear base, unclamped; `float_document`.
 - `raw_source_geometry.rs` / `raw_local_remap.rs` / `ffi_raw_geometry.rs` — strict inverse EXIF/affine/lens maps, exact permutation copies, f64 u16 image/mask sampling, plans; normalised mask resize.
 - `host_pixels.rs` / `pixel_orientation.rs` / `ffi_host_pixels.rs` — RGBA8/16, RGB, BGRA, RGBX, ARGB16 BE, packed 10:10:10, rgba32f (HDR); alpha policy, padded rows, EXIF permutation.
 - `heif_container.rs` / `ffi_heif_container.rs` — the primary item's colour facts and `prem` reference from an ISO-BMFF/HEIF file's own boxes, no decode.

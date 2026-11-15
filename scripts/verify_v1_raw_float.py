@@ -81,9 +81,21 @@ record their value and keep a float master; all three back at 0 restore the
 plain lattice exactly and leave no `presence`; a layer redeveloped `sdr16`
 with clarity 20 and back to `linear_float` keeps it and equals the open;
 `scripts/verify_v1x_raw_hdr.py` drives rule D above white), local tone (a
-local `tone` refused with `RawLocalTone.floatRefusal` by
-`edit_raw_development` on the float layer, and a 16-bit development holding a
-tone local refuses `redevelop_raw` to `linear_float`; the layers unchanged).
+local `tone` develops on the float layer under rule L of
+`designs/v1-float-editing.md`, bounds below, and a 16-bit development holding
+a tone local redevelops to `linear_float` and back with the local and its
+tone kept).
+
+Local tone bounds, fixed before the first run of the flipped case. A radial
+local (the radial case's ellipse, hardness 0.8) created with `tone`
+`{exposure: 1}` on a float layer answers `unchanged: false` and keeps a float
+master; every lattice point more than 1 % outside the ellipse is exactly the
+base, and in its core (`d < hardness − 0.01`) each positive channel's ratio to
+the base is in DOUBLE = 2 ± 0.1 for >= 95 % of the channels judged (Exposure is
+`v·2^e` on the stored values, so +1 doubles them). Updating its tone to
+`{clarity: 40, sharpness: 40, saturation: 20}` moves at least MIN_CLASS core
+points from the Exposure lattice, leaves every value finite and the outside
+exact, and `get_raw_locals` reports that tone with all eleven keys.
 
 Profile Corrections. camera.NEF (NIKON D70s, Tamron AF 18-250mm A18 at 35 mm)
 matches a Lensfun profile and the decoder has none of its own, so a new
@@ -99,13 +111,13 @@ opens of `open`, `work` and `ranged`, one equality chain). `radial local` keeps
 the default, where a local over a corrected development must still leave the
 outside exact.
 
-Not exercised: the Develop window's rows, and the recorded place step's
-missing default.
+Not exercised: the Develop window's rows (the local tone rows included, a
+hand check), and the recorded place step's missing default.
 
 Usage: python3 scripts/verify_v1_raw_float.py [--output DIR] [--cases NAME,...]
 Prints `PASS <case>` per case and `ALL CASES PASS`; exits 1 on any failure.
 `--cases` runs only the named cases, in the drive's order; most cases read
-what `open` left, and `presence` needs no other case.
+what `open` left, and `presence` and `local tone` need no other case.
 """
 import argparse
 import json
@@ -139,8 +151,9 @@ SRGB_TO_PCS = to_pcs(SRGB_PRIMARIES, 'D65')
 NARROW_REFUSAL = ('holds a 32-bit float Camera RAW development; redevelop it as a 16-bit SDR '
                   'master or rasterize it first')
 FLOAT_POLICY = 'srgb-rgba32f-linear-v1'
-# `RawLocalTone.floatRefusal`, the core's `FLOAT_TONE_REFUSAL`, word for word.
-LOCAL_TONE_REFUSAL = 'RAW local tone controls are not available for a 32-bit float development.'
+DOUBLE = (1.9, 2.1)
+TONE_KEYS = ('exposure', 'contrast', 'highlights', 'shadows', 'whites', 'blacks', 'saturation',
+             'clarity', 'texture', 'sharpness', 'noise_reduction')
 
 
 # ------------------------------------------------------------- the oracle --
@@ -732,31 +745,75 @@ def presence_case(run):
     return dict(points_moved_by_clarity=moved, points_moved=steps)
 
 
+def tone(**values):
+    """A `get_raw_locals` tone: every key, the named ones set."""
+    full = {key: 0 for key in TONE_KEYS}
+    full.update(values)
+    return full
+
+
 def local_tone_case(run):
-    """A local tone refuses at the float development by name: requested on the
-    float layer, and saved on a 16-bit development switched to linear_float."""
-    width, height = run.size
-    radial = dict(op='radial', center=[width / 2, height / 2],
-                  radius=[width * 0.3, height * 0.3], hardness=0.8)
-    float_source = run.source(run.floats[0])
-    texts = [run.app.refused('edit_raw_development', LOCAL_TONE_REFUSAL,
-                             document_id=run.floats[0], layer=0, operations=[
-                                 dict(op='create', id='tone1', tone=dict(exposure=1),
-                                      mask=radial)])]
-    assert run.source(run.floats[0]) == float_source, 'a refusal changed the float layer'
+    """A local tone develops on the float layer under rule L (module
+    docstring), and survives an encoding switch either way. Needs no other
+    case: its first open sets the lattice."""
     document = run.open_float('local-tone')
+    width, height = run.size
+    center = [width / 2, height / 2]
+    radius = [width * 0.3, height * 0.3]
+    hardness = 0.8
+    radial = dict(op='radial', center=center, radius=radius, hardness=hardness)
+    base = run.float_lattice(document)
+    reply = run.app.call('edit_raw_development', document_id=document, layer=0, operations=[
+        dict(op='create', id='tone1', tone=dict(exposure=1), mask=radial)])
+    assert reply['ok'] is True and reply['unchanged'] is False, reply
+    assert run.is_float_master(document)
+    exposed = run.float_lattice(document)
+    beyond, core = [], []
+    for index, (x, y) in enumerate(run.points):
+        d = (((x + 0.5 - center[0]) / radius[0]) ** 2
+             + ((y + 0.5 - center[1]) / radius[1]) ** 2) ** 0.5
+        if d > 1.01:
+            beyond.append(index)
+        elif d < hardness - 0.01:
+            core.append(index)
+    assert len(beyond) >= MIN_CLASS and len(core) >= MIN_CLASS, (len(beyond), len(core))
+    assert_exact(exposed, base, beyond, 'outside the ellipse')
+    ratios = [exposed[index][channel] / base[index][channel]
+              for index in core for channel in range(3) if base[index][channel] > 1e-4]
+    share = within(ratios, *DOUBLE)
+    assert ratios and share >= SHARE, ('exposure 1 in the core', len(ratios), share)
+    reply = run.app.call('edit_raw_development', document_id=document, layer=0, operations=[
+        dict(op='update', id='tone1', tone=dict(clarity=40, sharpness=40, saturation=20))])
+    assert reply['ok'] is True and reply['unchanged'] is False, reply
+    assert run.is_float_master(document)
+    detailed = run.float_lattice(document)
+    assert all(all(math.isfinite(v) for v in point) for point in detailed)
+    assert_exact(detailed, base, beyond, 'outside the ellipse after the update')
+    moved = sum(1 for index in core if detailed[index] != exposed[index])
+    assert moved >= MIN_CLASS, moved
+    nodes = run.locals(document)['nodes']
+    expected = tone(clarity=40, sharpness=40, saturation=20)
+    assert len(nodes) == 1 and nodes[0]['tone'] == expected, nodes
+    run.close(document)
+    # A 16-bit development holding a tone local switches to linear_float and
+    # back, the local and its tone kept.
+    document = run.open_float('local-tone-switch')
     reply = run.app.call('redevelop_raw', document_id=document, layer=0,
                          raw=dict(output_encoding='sdr16'))
     assert reply['ok'] is True and not run.is_float_master(document), reply
     reply = run.app.call('edit_raw_development', document_id=document, layer=0, operations=[
         dict(op='create', id='tone1', tone=dict(exposure=1), mask=radial)])
     assert reply['unchanged'] is False, reply
-    sdr_source = run.source(document)
-    texts.append(run.app.refused('redevelop_raw', LOCAL_TONE_REFUSAL, document_id=document,
-                                 layer=0, raw=dict(output_encoding='linear_float')))
-    assert run.source(document) == sdr_source, 'a refusal changed the 16-bit layer'
+    for encoding, is_float in (('linear_float', True), ('sdr16', False)):
+        reply = run.app.call('redevelop_raw', document_id=document, layer=0,
+                             raw=dict(output_encoding=encoding))
+        assert reply['ok'] is True and run.is_float_master(document) is is_float, (encoding, reply)
+        nodes = run.locals(document)['nodes']
+        assert [node['id'] for node in nodes] == ['tone1'], (encoding, nodes)
+        assert nodes[0]['tone'] == tone(exposure=1), (encoding, nodes)
     run.close(document)
-    return dict(refusals=texts)
+    return dict(outside_exact=len(beyond), core=len(core), doubled_share=share,
+                doubled_median=statistics.median(ratios), detail_moved=moved)
 
 
 # ----------------------------------------------------------------- main --

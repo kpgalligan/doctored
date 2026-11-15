@@ -1,12 +1,14 @@
 //! A RAW local's tone and colour controls: Exposure, Contrast,
 //! Highlights, Shadows, Whites, Blacks, Saturation, Clarity, Texture,
-//! Sharpness and Noise Reduction, applied to the 16-bit development through the crate's existing adjustment
-//! and Presence kernels, never a copy of their math. This module is the
-//! kernel half: the control values, their ranges, and the mapping of each
-//! control onto an existing precision_v1 adjustment description or the
-//! Presence plane. `raw_local_tone_apply` binds the descriptions to the base
-//! profile and evaluates them; `raw_local_develop` blends the result through
-//! the local's coverage.
+//! Sharpness and Noise Reduction, applied to the development through the
+//! crate's existing adjustment and Presence kernels, never a copy of their
+//! math. This module is the kernel half: the control values, their ranges,
+//! and the mapping of each control onto an existing precision_v1 adjustment
+//! description or the Presence plane. `raw_local_tone_apply` binds the
+//! descriptions to the base profile and evaluates them on a 16-bit
+//! development, `raw_local_tone_float` on a 32-bit float one under rule L
+//! (each control in its float route's domain); `raw_local_develop` blends the
+//! result through the local's coverage.
 //!
 //! The mapping, in evaluation order (a control at 0 adds no operation):
 //! - Exposure, stops, `exposure {exposure}` under `document_v2`: a gain in

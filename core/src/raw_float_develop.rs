@@ -22,11 +22,17 @@
 //! - The base needs f32 variants. A u16 variant beside a float base refuses:
 //!   mixing them would need a decode rule, and the host develops every
 //!   variant at the base's own encoding.
-//! - A local's tone controls (`raw_local_tone`) refuse by name
-//!   (`raw_local_develop::FLOAT_TONE_REFUSAL`): they evaluate through
-//!   display-referred kernels with no rule for samples above 1.0. A local
-//!   with no camera variant (NULL) therefore has nothing to apply and is
-//!   skipped.
+//! - A local's tone controls (`raw_local_tone`) run under rule L
+//!   (`raw_local_tone_float`): Exposure and Saturation on linear values,
+//!   Contrast, Highlights, Shadows, Whites, Blacks, Clarity, Texture, Noise
+//!   Reduction and positive Sharpness on the display-encoded value, negative
+//!   Sharpness in linear light. The encoding is the base's
+//!   (`PrecisionDocument::display_encoding`), taken once when an enabled
+//!   local has a tone; its refusal (a curve flat at white) answers before
+//!   any work. As at 16 bits, a local with no camera variant (NULL) reads the
+//!   development as the earlier locals left it, and one with a variant and a
+//!   tone tones the variant's samples; one stage is live at a time, so the
+//!   plan holds the largest.
 //!
 //! Every result goes through `PrecisionImage::from_rgba32_extended`, which
 //! refuses a non-finite sample or one past `FLOAT_RANGE_MAX` and never
@@ -39,9 +45,10 @@ use crate::precision_document::{PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{
     admit, reserved_vec, PrecisionImage, PrecisionStorage, BOOKKEEPING_BYTES,
 };
-use crate::raw_local_develop::{plain_image, Vignette, FLOAT_TONE_REFUSAL};
+use crate::raw_local_develop::{plain_image, Vignette};
 use crate::raw_local_effective::{EffectiveMask, LocalSettings};
 use crate::raw_local_mask::{dimensions, RawLocalMask, PARSE_SCRATCH};
+use crate::raw_local_tone_float::FloatToneStage;
 use crate::resources::Inventory;
 
 const BASE: &str = "local base requires genuine RGBA32 float samples";
@@ -102,12 +109,6 @@ pub(crate) fn develop(
     if settings.len() != variants.len() {
         return Err("local blend settings differ from variant count".into());
     }
-    if settings
-        .iter()
-        .any(|s| s.tone.is_some_and(|t| !t.is_identity()))
-    {
-        return Err(FLOAT_TONE_REFUSAL.into());
-    }
     let vignette: Option<Vignette> = vignette_text
         .map(|s| serde_json::from_str(s).map_err(|e| format!("invalid manual vignette: {e}")))
         .transpose()?;
@@ -142,6 +143,24 @@ pub(crate) fn develop(
         job.report(1.0, 5)?;
         return Ok(None);
     }
+    // One tone stage is live at a time, as in the u16 arm: each is prepared
+    // here to validate and plan it, inside PARSE_SCRATCH, and again in its
+    // turn below.
+    let cap = crate::sampling_gaussian::destructive_work_cap(job);
+    let (mut tone_scratch, mut toned) = (0, false);
+    for settings in settings.iter().filter(|s| s.enabled && s.density != 0.0) {
+        if let Some(tone) = &settings.tone {
+            if let Some(stage) = FloatToneStage::prepare(tone, original.profile(), (w, h))? {
+                tone_scratch = tone_scratch.max(stage.plan(cap)?);
+                toned = true;
+            }
+        }
+    }
+    let encoding = if toned {
+        Some(base.display_encoding()?)
+    } else {
+        None
+    };
     // 32 bytes a pixel: the accumulated f32 plane, which is also the result
     // (nothing is quantized into a second buffer), and the tiles
     // `from_rgba32_extended` copies it into before the plane is dropped. The
@@ -149,6 +168,7 @@ pub(crate) fn develop(
     let scratch = PARSE_SCRATCH
         + 32 * n as u64
         + feather
+        + tone_scratch
         + 4 * BOOKKEEPING_BYTES
         + original.profile().bytes().len() as u64 * 4;
     admit(inventory.unique_bytes(), scratch, other, limit)?;
@@ -165,47 +185,74 @@ pub(crate) fn develop(
         i = end;
         accumulated.extend_from_slice(run);
     }
+    let locals = images.len();
     for (li, ((image, mask), settings)) in images.iter().zip(masks).zip(&settings).enumerate() {
-        // A local with no variant has only tone controls, refused above, so
-        // it changes nothing here.
-        let Some(image) = image else {
-            continue;
-        };
         if !settings.enabled || settings.density == 0.0 {
             continue;
+        }
+        let mut stage = match (&settings.tone, &encoding) {
+            (Some(tone), Some(_)) => FloatToneStage::prepare(tone, original.profile(), (w, h))?,
+            _ => None,
+        };
+        // A tone-only local whose tone is the identity changes nothing.
+        if image.is_none() && stage.is_none() {
+            continue;
+        }
+        let share = |at: f64| (li as f64 + at) / (locals.max(1) + 1) as f64 * 0.8;
+        // Only a stage that reads a neighbourhood has planes to build; a
+        // pointwise one is evaluated per sample below.
+        if let (Some(stage), Some(encoding)) = (&mut stage, &encoding) {
+            if stage.reads_plane() {
+                let build = job.range(share(0.0), share(0.5));
+                match image {
+                    Some(image) => stage.build(&|i| image.pixel(i), encoding, cap, build)?,
+                    None => stage.build(&|i| accumulated[i], encoding, cap, build)?,
+                }
+            }
         }
         let effective = EffectiveMask::prepare(mask, *settings, job)?;
         let mut range = match &settings.range {
             Some(range) => Some((range, original.runs_rgba32().ok_or(BASE)?.flatten())),
             None => None,
         };
-        let mut next = 0;
-        for run in image.runs_rgba32().ok_or(VARIANT)? {
-            for value in run {
-                let i = next;
-                next += 1;
-                job.every(i)?;
-                let base_sample = range.as_mut().and_then(|r| r.1.next());
-                let mut weight = effective.at(i)?;
+        // The variant's samples row-major beside the index, as the base's
+        // for a range; a tone-only local reads `accumulated` itself.
+        let mut variant = match image {
+            Some(image) => Some(image.runs_rgba32().ok_or(VARIANT)?.flatten()),
+            None => None,
+        };
+        for (i, out) in accumulated.iter_mut().enumerate() {
+            job.every(i)?;
+            let variant_sample = match variant.as_mut() {
+                Some(samples) => Some(*samples.next().ok_or("local variant is short")?),
+                None => None,
+            };
+            let base_sample = range.as_mut().and_then(|r| r.1.next());
+            let mut weight = effective.at(i)?;
+            if weight == 0.0 {
+                continue;
+            }
+            if let Some((range, _)) = &range {
+                let s = base_sample.ok_or("local base differs from its variant")?;
+                weight *= range.coverage(crate::raw_local_range::lab_linear(
+                    model,
+                    [s[0], s[1], s[2]],
+                ));
                 if weight == 0.0 {
                     continue;
                 }
-                if let Some((range, _)) = &range {
-                    let s = base_sample.ok_or("local base differs from its variant")?;
-                    weight *= range.coverage(crate::raw_local_range::lab_linear(
-                        model,
-                        [s[0], s[1], s[2]],
-                    ));
-                    if weight == 0.0 {
-                        continue;
-                    }
-                }
-                if *value != accumulated[i] {
-                    crate::blend::gate_source_into(&mut accumulated[i], *value, weight);
-                }
+            }
+            let source = variant_sample.unwrap_or(*out);
+            let value = match (&stage, &encoding) {
+                (Some(stage), Some(encoding)) => stage.value(i, source, encoding)?,
+                _ => source,
+            };
+            if value != *out {
+                crate::blend::gate_source_into(out, value, weight);
             }
         }
-        job.report((li + 1) as f64 / (images.len().max(1) + 1) as f64 * 0.8, 3)?;
+        drop(stage);
+        job.report(share(1.0), 3)?;
     }
     if let Some(v) = vignette {
         let radius = if let Some([rw, rh]) = v.reference_size {

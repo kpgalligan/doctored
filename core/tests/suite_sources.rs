@@ -4,6 +4,8 @@
 mod common;
 #[path = "common/develop_filter_reference.rs"]
 mod develop_filter_reference;
+#[path = "common/display_encoding_reference.rs"]
+mod display_encoding_reference;
 #[path = "common/extended_box_reference.rs"]
 mod extended_box_reference;
 #[path = "common/float_fixture.rs"]
@@ -127,6 +129,8 @@ mod raw_local_range;
 mod raw_local_resize;
 #[path = "raw_local_tone.rs"]
 mod raw_local_tone;
+#[path = "raw_local_tone_float.rs"]
+mod raw_local_tone_float;
 #[path = "raw_source_geometry_native.rs"]
 mod raw_source_geometry_native;
 #[path = "raw_source_geometry_numeric.rs"]

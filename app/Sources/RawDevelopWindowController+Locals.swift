@@ -33,7 +33,6 @@ extension RawDevelopWindowController {
     func localSidebar(global: NSStackView) -> NSStackView {
         guard let session = localSession else { return global }
         let controls = RawLocalControls(state: session.state)
-        controls.toneAvailable = encoding != .linearFloat
         localControls = controls
         controls.onOperation = { [weak self] operation, dabs in
             guard let self, let session = self.localSession else {

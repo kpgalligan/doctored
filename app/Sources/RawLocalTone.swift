@@ -2,18 +2,18 @@ import Foundation
 
 // A RAW local's tone and colour controls: Exposure (a linear-light gain on the development,
 // in stops), Contrast, Highlights, Shadows, Whites, Blacks, Saturation, Clarity, Texture, and the
-// detail pair Sharpness and Noise Reduction. The core applies them to the 16-bit development
-// through its existing adjustment, Presence, Reduce Noise, Smart Sharpen and Gaussian Blur kernels
-// and blends the result through the local's coverage (`core/src/raw_local_tone.rs` has the
-// mapping, `core/src/local_detail.rs` the detail stage's), so a local with only these controls
-// develops no camera variant. Sharpness and Noise Reduction are stored only when not 0, so a
+// detail pair Sharpness and Noise Reduction. The core applies them to the development through
+// its existing adjustment, Presence, Reduce Noise, Smart Sharpen and Gaussian Blur kernels and
+// blends the result through the local's coverage (`core/src/raw_local_tone.rs` has the mapping,
+// `core/src/local_detail.rs` the detail stage's), so a local with only these controls develops no
+// camera variant. On a 32-bit float (linear) development each control runs in the domain its
+// filter or adjustment uses at 32 bits (rule L, `core/src/raw_local_tone_float.rs`). Sharpness and Noise Reduction are stored only when not 0, so a
 // recipe without them encodes byte-identically to one written before they existed (and a recipe
 // that names them is one an older build's `sameKeys` check refuses, keeping its saved rendering).
 // Camera exposure (`exposure_offset`) and white balance stay on the camera path: they re-develop
 // the RAW, which recovers highlights a gain on the development cannot. This file is the recipe's
 // model: the JSON an `edit_raw_development` operation carries, what `get_raw_locals` reports, and
-// the settings the core receives. A 32-bit float (linear) development refuses a tone (`floatRefusal`): the kernels
-// are display-referred and have no rule for scene-linear values above 1.0.
+// the settings the core receives.
 
 struct RawLocalTone: Codable, Equatable {
     var exposure = 0.0
@@ -28,9 +28,6 @@ struct RawLocalTone: Codable, Equatable {
     /// nil ≡ 0: the subscript stores 0 as nil, so the recipe carries the key only when it is set.
     var sharpness: Double?
     var noiseReduction: Double?
-
-    /// The core's own sentence (`raw_local_develop::FLOAT_TONE_REFUSAL`).
-    static let floatRefusal = "RAW local tone controls are not available for a 32-bit float development."
 
     static let refusal = "A RAW local tone needs exposure −4…4 stops, highlights, shadows and noise reduction 0…100, and contrast, whites, blacks, saturation, clarity, texture and sharpness −100…100."
 
@@ -115,23 +112,5 @@ extension RawLocalTone {
             self[key] = value
         }
         try validate()
-    }
-}
-
-extension RawLocalTone {
-    /// The float depth's one check: no saved
-    /// local and no requested `create`/`update` may carry a tone. `RawDevelopmentRecipe.updating`
-    /// runs it over the saved locals when the encoding is `linearFloat` (Develop, Redevelop RAW,
-    /// presets, Sync Settings), and `RawLocalWork.request` over the operations (Develop's local
-    /// edits, `edit_raw_development`, `copy_raw_local_settings`).
-    static func refuseAtFloat(nodes: [RawLocalNode], operations: [[String: Any]] = []) throws {
-        let requested = operations.contains { operation in
-            guard let object = operation["tone"] as? [String: Any],
-                  let tone = try? RawLocalTone(json: object) else { return false }
-            return !tone.isNeutral
-        }
-        if requested || nodes.contains(where: { $0.tone != nil }) {
-            throw DoctoredCoreError(message: floatRefusal)
-        }
     }
 }

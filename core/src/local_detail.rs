@@ -22,15 +22,19 @@
 //!    at radius `−s/100 ·` [`SOFTEN_RADIUS_AT_FULL`].
 //!
 //! Every radius is fixed in target pixels: detail is a property of the pixel
-//! grid, not a fraction of the frame. Samples are straight at
-//! `SampleRange::Unit` (8 and 16 bits); both callers refuse a 32-bit float
-//! layer before reaching it.
+//! grid, not a fraction of the frame. Samples are straight, in the caller's
+//! `SampleRange`: `Unit` at 8 and 16 bits (the Develop Filter masks refuse a
+//! 32-bit float layer before reaching it); `Extended` for a RAW local on a
+//! float development (`raw_local_tone_float`), which runs Noise Reduction
+//! and positive Sharpness on the display-encoded copy and negative
+//! Sharpness on the linear values (rule L), each a stage of its own.
 use crate::filter_kernels::{
     evaluated_in, neighborhood_plan_in, neighborhood_plane_in, FilterKind, Neighborhood,
     SampleRange,
 };
 use crate::job_control::JobContext;
 use crate::precision_image::{pixel_count, reserved_vec, BOOKKEEPING_BYTES};
+use crate::precision_sampling::visible_range;
 use crate::sampling_denoise::halves;
 use crate::sampling_smart_sharpen::{SharpenRemove, SmartSharpen, TonalFade, NOISE_LEVEL_AT_FULL};
 
@@ -126,24 +130,29 @@ impl LocalDetail {
     /// is above `cap`: the Reduce Noise plan, then the sharpen or soften plan
     /// beside the n×16 denoised plane it reads, the larger of the two, plus
     /// two bookkeeping allowances. Each kernel's plan holds its own output
-    /// plane and margin. `(0, 0)` for the identity.
-    pub(crate) fn plan(&self, dimensions: (u32, u32), cap: u64) -> Result<(u64, u64), String> {
+    /// plane and margin, in `range` (only the Gaussian reads it: a float
+    /// plane's is the FIR at every σ). `(0, 0)` for the identity.
+    pub(crate) fn plan(
+        &self,
+        dimensions: (u32, u32),
+        cap: u64,
+        range: &SampleRange,
+    ) -> Result<(u64, u64), String> {
         if self.identity() {
             return Ok((0, 0));
         }
         let n = pixel_count(dimensions.0, dimensions.1)? as u64;
-        let unit = SampleRange::Unit;
         let (mut peak, mut work, mut kept) = (0_u64, 0_u64, 0_u64);
         if let Some((neighborhood, _)) = self.denoise() {
-            let (scratch, pass) = neighborhood_plan_in(neighborhood, dimensions, &unit, u64::MAX)?;
+            let (scratch, pass) = neighborhood_plan_in(neighborhood, dimensions, range, u64::MAX)?;
             peak = scratch;
             work = work.saturating_add(pass);
             kept = n.saturating_mul(16);
         }
         let second = match (self.sharpen(), self.soften()) {
-            (Some(sharpen), _) => Some(sharpen.plan(dimensions, u64::MAX)?),
+            (Some(sharpen), _) => Some(sharpen.plan_in(dimensions, u64::MAX, range)?),
             (None, Some(soften)) => {
-                Some(neighborhood_plan_in(soften, dimensions, &unit, u64::MAX)?)
+                Some(neighborhood_plan_in(soften, dimensions, range, u64::MAX)?)
             }
             (None, None) => None,
         };
@@ -157,18 +166,18 @@ impl LocalDetail {
         Ok((peak.saturating_add(2 * BOOKKEEPING_BYTES), work))
     }
 
-    /// The detailed straight samples of `read` (module doc): Reduce Noise,
-    /// then the sharpen or soften over its result. The identity returns the
-    /// samples as read.
+    /// The detailed straight samples of `read` in `range` (module doc):
+    /// Reduce Noise, then the sharpen or soften over its result. The identity
+    /// returns the samples as read.
     pub(crate) fn plane_in(
         &self,
         read: impl Fn(usize) -> [f32; 4],
         dimensions: (u32, u32),
         cap: u64,
+        range: &SampleRange,
         job: JobContext<'_>,
     ) -> Result<Vec<[f32; 4]>, String> {
-        self.plan(dimensions, cap)?;
-        let unit = SampleRange::Unit;
+        self.plan(dimensions, cap, range)?;
         let n = pixel_count(dimensions.0, dimensions.1)?;
         let denoise = self.denoise();
         let split = if denoise.is_some() && self.sharpness != 0.0 {
@@ -185,14 +194,14 @@ impl LocalDetail {
                     neighborhood,
                     dimensions,
                     cap,
-                    &unit,
+                    range,
                     &read,
                     part.range(0.0, 0.9),
                 )?;
                 let combine = part.range(0.9, 1.0);
                 for (i, out) in plane.iter_mut().enumerate() {
                     combine.every(i)?;
-                    *out = evaluated_in(kind, read(i), *out, &unit);
+                    *out = evaluated_in(kind, read(i), *out, range);
                 }
                 Some(plane)
             }
@@ -203,16 +212,28 @@ impl LocalDetail {
             None => read(i),
         };
         let job = job.range(split, 1.0);
+        // At `Extended` the sharpen or soften reads the denoised plane, so
+        // its visible range is that plane's (the range a float filter on the
+        // denoised layer would measure), not the caller's: Reduce Noise can
+        // move a component past what `read` held, and the Unsharp combine
+        // clamps its low-pass to the range it is given.
+        let range = match (range, &denoised) {
+            (SampleRange::Extended { .. }, Some(plane)) => SampleRange::Extended {
+                visible: visible_range(plane.iter().copied(), job.checkpoints_only())?,
+            },
+            _ => *range,
+        };
+        let range = &range;
         if let Some(sharpen) = self.sharpen() {
-            return sharpen.plane_in(source, dimensions, cap, &unit, job);
+            return sharpen.plane_in(source, dimensions, cap, range, job);
         }
         if let Some(soften) = self.soften() {
             let mut plane =
-                neighborhood_plane_in(soften, dimensions, cap, &unit, source, job.range(0.0, 0.9))?;
+                neighborhood_plane_in(soften, dimensions, cap, range, source, job.range(0.0, 0.9))?;
             let combine = job.range(0.9, 1.0);
             for (i, out) in plane.iter_mut().enumerate() {
                 combine.every(i)?;
-                *out = evaluated_in(FilterKind::GaussianBlur, source(i), *out, &unit);
+                *out = evaluated_in(FilterKind::GaussianBlur, source(i), *out, range);
             }
             return Ok(plane);
         }

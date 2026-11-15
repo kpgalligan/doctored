@@ -129,8 +129,8 @@ introducing a linear/HDR document mode, and with persisted masks that survive mi
   version 3 a local with no camera change and no tone is a no-op (before, it blended the base back and undid earlier
   locals inside its coverage); this appears only after a user edit moves the recipe to version 3
   (`core/tests/raw_local_tone.rs` pins both contracts).
-  A tone on the 32-bit float development refuses by name (`RawLocalTone.floatRefusal`): the tone kernels are
-  display-referred (a float route: [#73](https://github.com/kpgalligan/doctored/issues/73)). Dehaze is not a
+  On the 32-bit float development a tone runs under rule L (`raw_local_tone_float.rs`,
+  `designs/v1-float-editing.md`): each control in its float route's domain, nothing clamped. Dehaze is not a
   local control (it needs a global haze estimate). The combined RAW + attachment resource cap is 1 GiB (RAW originals alone keep 512 MiB), refused up front by `RawLocalWork.request`; a document
   whose attachment holds more than four masks or passes 512 MiB writes DRDC word 79 (`raw_locals_native.rs`). Local
   Sharpness (−100…100) and Noise Reduction (0…100) run last through `local_detail.rs`, stored only when not 0, so an

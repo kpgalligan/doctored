@@ -695,6 +695,7 @@ mod raw_local_range;
 mod raw_local_remap;
 mod raw_local_tone;
 mod raw_local_tone_apply;
+mod raw_local_tone_float;
 pub mod raw_locals_native;
 pub mod raw_source;
 mod raw_source_edit;

@@ -322,8 +322,12 @@ enum RawLocalWork {
     /// f32 masters, 8 B/px more than their 16-bit twins; the render buffer is
     /// 8 more; an effect's working plane 8 more. It is never below the float
     /// decode charge (the 16-bit charge + 16·px), so `develop`'s guard holds.
-    /// A tone local refuses at the float depth (`RawLocalTone.floatRefusal`),
-    /// so the tone terms add nothing there beyond the 16-bit charge.
+    /// A float tone local (rule L) is charged the 16-bit tone terms: the
+    /// core's float tone stage plans at most the 16-bit stage, and its
+    /// develop 8 B/px more (the f32 base), which the 24 B/px above covers
+    /// (LTD at 6000×4000 plans 1,773 MiB at 16 bits and 1,957 MiB at float
+    /// against charges of 528 MiB + 82·px + 3·encoded and that + 24·px). Not
+    /// yet measured ([#72](https://github.com/kpgalligan/doctored/issues/72)).
     /// Measurement record (`measure.py --float`, the decode record's method):
     /// charge (+ the session's 24 B/px of inspection copies) ÷ max E for L0,
     /// L1, L4 and FX (no grain) is 1.502/1.415/1.351/1.560 on the NEF,
@@ -488,8 +492,6 @@ enum RawLocalWork {
         // The masters the job reserves are the REQUESTED encoding's, whatever
         // depth the layer's present master is.
         let float = desired.isLinearFloat
-        // A requested local tone refuses at the float depth, before any admission.
-        if float { try RawLocalTone.refuseAtFloat(nodes: captured.nodes, operations: operations) }
         let info = try source.retainedSourceInfo(layer) ?? [:]
         let encoded = try PrecisionDocumentDescriptor.integer(info["raw"] as? [String: Any] ?? [:], "encoded_bytes")
         // Locals past what the resource cap holds refuse before any admission or decode. A

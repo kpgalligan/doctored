@@ -14,6 +14,7 @@
 //! [`ToneStage::value`] is asked about. Pixels with alpha 0 are returned as
 //! read, as the destructive adjustment leaves them.
 use crate::adjust_precision::{PrecisionAdjustment, PrecisionGuide};
+use crate::filter_kernels::SampleRange;
 use crate::icc::IccProfile;
 use crate::job_control::JobContext;
 use crate::local_detail::LocalDetail;
@@ -113,7 +114,7 @@ impl ToneStage {
                 } else {
                     0
                 };
-                read.saturating_add(detail.plan(self.dimensions, cap)?.0)
+                read.saturating_add(detail.plan(self.dimensions, cap, &SampleRange::Unit)?.0)
             }
             None => 0,
         };
@@ -161,6 +162,7 @@ impl ToneStage {
                 },
                 self.dimensions,
                 cap,
+                &SampleRange::Unit,
                 job.range(split, 1.0),
             )?),
             None => presence,

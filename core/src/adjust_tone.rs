@@ -272,27 +272,49 @@ impl ShadowsHighlights {
         self.unclamped(rgb, guide).map(|c| c.clamp(0.0, 1.0))
     }
 
-    /// **H, Highlights and Shadows at 32 bits**, the Develop
-    /// Filter's stage 4 on a float layer's display-encoded copy: the guide is
-    /// read as at 16 bits (clamped to 0…1); with `l = luma(rgb)`, a pixel with
-    /// `l ≥ 1` is returned unchanged (`L^e` fixes white, so above white is
-    /// held there), and any other takes [`Self::apply`]'s expression without
-    /// its final clamp.
+    /// **H, Highlights and Shadows at 32 bits**, on a float layer's
+    /// display-encoded copy (the Develop Filter's stage 4 and a RAW local's
+    /// Highlights and Shadows, `raw_local_tone_float`): the guide is read as
+    /// at 16 bits (clamped to 0…1); with `l = luma(rgb)`, a pixel with `l < 1`
+    /// takes [`Self::apply`]'s expression without its final clamp. A pixel
+    /// with `l ≥ 1` keeps its luma (`L^e` fixes white, so above white is held
+    /// there), and the Color step's chroma scale about it, `l + (c − l)·boost`
+    /// with the `boost` a pixel below white takes, is kept too: below white
+    /// the expression tends to exactly that as `l → 1`, so the rule has no
+    /// step at white. At `boost` 1 (Color 0, the Develop Filter's, or no band
+    /// weighing the pixel) the pixel is returned bit for bit.
     pub(crate) fn apply_float(&self, rgb: [f32; 3], guide: f32) -> [f32; 3] {
-        if luma(rgb) >= 1.0 {
+        let l = luma(rgb);
+        if l < 1.0 {
+            return self.unclamped(rgb, guide);
+        }
+        let (w_s, w_h) = self.weights(guide);
+        let boost = self.boost(w_s, w_h);
+        if boost == 1.0 {
             return rgb;
         }
-        self.unclamped(rgb, guide)
+        rgb.map(|c| l + (c - l) * boost)
+    }
+
+    /// `(w_s, w_h)`, the shadow and highlight weights of a pixel whose guide
+    /// is `guide` (read clamped to 0…1).
+    fn weights(&self, guide: f32) -> (f32, f32) {
+        let b = guide.clamp(0.0, 1.0);
+        let w_s = (1.0 - b / self.shadow_tone).clamp(0.0, 1.0);
+        let w_h = (1.0 - (1.0 - b) / self.highlight_tone).clamp(0.0, 1.0);
+        (w_s * w_s, w_h * w_h)
+    }
+
+    /// The Color step's chroma scale at weights `(w_s, w_h)`: `1 + color·moved`.
+    fn boost(&self, w_s: f32, w_h: f32) -> f32 {
+        let moved = (self.shadow_amount * w_s + self.highlight_amount * w_h).clamp(0.0, 1.0);
+        1.0 + self.color * moved
     }
 
     /// [`Self::apply`] before its one trailing clamp.
     fn unclamped(&self, rgb: [f32; 3], guide: f32) -> [f32; 3] {
         let l = luma(rgb);
-        let b = guide.clamp(0.0, 1.0);
-        let w_s = (1.0 - b / self.shadow_tone).clamp(0.0, 1.0);
-        let w_s = w_s * w_s;
-        let w_h = (1.0 - (1.0 - b) / self.highlight_tone).clamp(0.0, 1.0);
-        let w_h = w_h * w_h;
+        let (w_s, w_h) = self.weights(guide);
         let exponent = (1.0 + self.highlight_amount * w_h) / (1.0 + self.shadow_amount * w_s);
         // `powf(1.0)` is exactly `l`, so the shortcut is bit-identical — and
         // it is taken for every pixel of an amount-free pass and for every
@@ -308,8 +330,7 @@ impl ShadowsHighlights {
         let m = self.midtone_contrast;
         lifted += m * (3.0 * lifted * lifted - 2.0 * lifted * lifted * lifted - lifted);
         let k = if l > 0.0 { lifted / l } else { 1.0 };
-        let moved = (self.shadow_amount * w_s + self.highlight_amount * w_h).clamp(0.0, 1.0);
-        let boost = 1.0 + self.color * moved;
+        let boost = self.boost(w_s, w_h);
         rgb.map(|c| lifted + (c * k - lifted) * boost)
     }
 }

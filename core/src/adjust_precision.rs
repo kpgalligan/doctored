@@ -327,6 +327,37 @@ impl PrecisionAdjustment {
         }
         crate::adjust_float::apply(&self.float, &self.kernel, rgb, xy)
     }
+    /// The kernel on a 32-bit float sample's DISPLAY-ENCODED triple
+    /// (`display_encoding`, continued above white), for the three ops a RAW
+    /// local's float tone runs there (`raw_local_tone_float`, rule L): `bcs`
+    /// modern is its master (a code outside 0…1 passes unchanged), Shadows/
+    /// Highlights rule H (`ShadowsHighlights::apply_float`, `guide` this
+    /// pixel's value in [`Self::guide`]'s plane) and Levels unclamped
+    /// (`Levels::apply_float`). Any other op refuses by name; an identity
+    /// description returns `rgb` bit for bit. No math lives here.
+    pub(crate) fn apply_encoded(&self, rgb: [f32; 3], guide: f32) -> Result<[f32; 3], String> {
+        if self.identity {
+            return Ok(rgb);
+        }
+        match &self.kernel {
+            Adjustment::BcsModern {
+                gamma,
+                contrast_power,
+                saturation_scale,
+            } => Ok(crate::adjust_mix::brightness_contrast_modern(
+                rgb,
+                *gamma,
+                *contrast_power,
+                *saturation_scale,
+            )),
+            Adjustment::ShadowsHighlights(op) => Ok(op.apply_float(rgb, guide)),
+            Adjustment::Levels(levels) => Ok(levels.apply_float(rgb)),
+            other => Err(format!(
+                "the {} adjustment has no form on a float display-encoded copy",
+                other.op_name()
+            )),
+        }
+    }
     pub(crate) fn guide(
         &self,
         w: u32,

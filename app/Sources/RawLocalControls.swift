@@ -17,9 +17,6 @@ final class RawLocalControls: NSObject, NSTextFieldDelegate {
     private var nodeRows: [CardControlRow] = []
     private let rangeRows = RawLocalRangeControls()
     private let toneRows = RawLocalToneControls()
-    /// False at the 32-bit float (linear) encoding: a local tone refuses there
-    /// (`RawLocalTone.floatRefusal`), so its rows are disabled.
-    var toneAvailable = true { didSet { setReady(ready) } }
     private var toolRow: CardControlRow?
     private var buttons: [NSButton] = []
     private var radius: Double = 24
@@ -143,7 +140,7 @@ final class RawLocalControls: NSObject, NSTextFieldDelegate {
         nodeRows[5].isEnabled = selectedNode != nil && custom
         nodeRows[6].isEnabled = selectedNode != nil && custom
         rangeRows.setEnabled(selectedNode != nil)
-        toneRows.setEnabled(selectedNode != nil && toneAvailable)
+        toneRows.setEnabled(selectedNode != nil)
         toolRow?.isEnabled = value && selectedNode != nil
         for button in buttons {
             let identifier = button.accessibilityIdentifier() ?? ""

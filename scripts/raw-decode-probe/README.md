@@ -400,4 +400,6 @@ not a float development, a twin above 16 MiB or an `[AutomationAlerts]` line
 is a STOP (exit 1). It writes `measure-float.json`. A miss raises
 `RawSourceWork.scratchPerPixel` (decode) or `RawLocalWork.localPerPixel`
 (local), after which `--fit-from` and `--recheck-phase2` confirm the 16-bit
-rows. The LT shapes are 16- and 8-bit only: a local tone refuses at depth 32.
+rows. The LT shapes are 16- and 8-bit only: a local tone at depth 32 runs
+(rule L) but is not measured here yet
+([#72](https://github.com/kpgalligan/doctored/issues/72)).

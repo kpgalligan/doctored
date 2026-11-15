@@ -9232,15 +9232,17 @@ uint64_t dr_raw_local_mask_preview_scratch(const DrRawLocalMask *mask, uint32_t 
    "noise_reduction" 0…100; absent keys 0, unknown refused} adjusts the local's
    source sample (its variant's, or the accumulated development's) through the
    existing adjustment, Presence, Reduce Noise, Smart Sharpen and Gaussian Blur
-   kernels before the blend; any non-zero tone on a 32-bit float base refuses
-   "RAW local tone controls are not available for a 32-bit float development."
-   Returns NULL without error when the result equals the base exactly. An f32
+   kernels before the blend. Returns NULL without error when the result equals
+   the base exactly. An f32
    base (a 32-bit float development) needs f32 variants (a u16 variant beside it
    is refused) and answers an f32 float document: the blend and the vignette (a
    linear gain, no tone curve) run on the samples with no clamp and no
    quantization, so values above 1 and below 0 are kept and a pixel no local
-   weighs keeps its base sample bit for bit. Its plan is the u16 one with 32
-   bytes a pixel in place of 24.
+   weighs keeps its base sample bit for bit. Its tone runs under rule L
+   (designs/v1-float-editing.md): exposure and saturation on the linear values,
+   sharpness < 0 in linear light, every other control on the base's
+   display-encoded value, nothing clamped. Its plan is the u16 one with 32
+   bytes a pixel in place of 24, its tone stage at most the u16 stage's.
    dr_precision_doc_from_image shares a u16 image in a 16-bit document, or an
    f32 image in a 32-bit float document under the clip tone map. */
 DrPrecisionDocument *dr_precision_doc_develop_locals(const DrPrecisionDocument *base, const DrPrecisionDocument *const *variants, const DrRawLocalMask *const *masks, size_t count, const char *settings_json, const char *vignette_json, uint64_t limit, uint64_t other, const DrJobControl *control, char **err_out);

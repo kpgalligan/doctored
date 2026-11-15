@@ -827,7 +827,7 @@ const REFUSED: &[(&str, &str)] = &[
     ),
     (
         REFUSED_SHADOWS_HIGHLIGHTS,
-        "its luma curve L^e is defined on 0 to 1 and reverses above white (a lift darkens 8.0), and its Color and Midtone Contrast pivot about 0 to 1 midtones, so above 1.0 it has no meaning; the Develop Filter's Highlights and Shadows run at 32 bits, held at white",
+        "its luma curve L^e is defined on 0 to 1 and reverses above white (a lift darkens 8.0), and its Color and Midtone Contrast pivot about 0 to 1 midtones, so above 1.0 it has no meaning; the Develop Filter's and a RAW local's Highlights and Shadows run at 32 bits on the display-encoded copy, held at white",
     ),
     (
         REFUSED_LEGACY_WHITE_BALANCE,

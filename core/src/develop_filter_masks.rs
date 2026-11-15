@@ -358,7 +358,10 @@ impl DevelopFilterMasked {
             };
             // The detail stage reads the value plane (n×16) when the twelve
             // controls run, else `acc` itself.
-            let (detail_scratch, detail_work) = local.detail.plan(dimensions, u64::MAX)?;
+            let (detail_scratch, detail_work) =
+                local
+                    .detail
+                    .plan(dimensions, u64::MAX, &SampleRange::Unit)?;
             let value_scratch = if local.detail.identity() {
                 adjust_scratch
             } else {
@@ -474,9 +477,11 @@ impl DevelopFilterMasked {
             )?;
             let value_job = local_job.range(0.4, 0.9);
             let value = match (local.adjust.identity(), local.detail.identity()) {
-                (true, _) => local
-                    .detail
-                    .plane_in(|i| acc[i], dimensions, cap, value_job)?,
+                (true, _) => {
+                    local
+                        .detail
+                        .plane_in(|i| acc[i], dimensions, cap, &unit, value_job)?
+                }
                 (false, adjust_only) => {
                     let split = if adjust_only { 1.0 } else { 0.5 };
                     let value = local.adjust.plane_in(
@@ -493,6 +498,7 @@ impl DevelopFilterMasked {
                             |i| value[i],
                             dimensions,
                             cap,
+                            &unit,
                             value_job.range(split, 1.0),
                         )?
                     }
