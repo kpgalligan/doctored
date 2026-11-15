@@ -20,6 +20,8 @@ mod cmyk_style_fixture;
 #[path = "common/cmyk_tiff_builder.rs"]
 mod cmyk_tiff_builder;
 mod common;
+#[path = "common/display_encoding_reference.rs"]
+mod display_encoding_reference;
 #[path = "common/exr_builder.rs"]
 mod exr_builder;
 #[path = "common/extended_box_reference.rs"]
