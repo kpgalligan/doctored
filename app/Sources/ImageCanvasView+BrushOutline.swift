@@ -3,9 +3,11 @@ import AppKit
 // `BrushOutline` geometry mirrors `SoftBrush.clipDab`'s transform, drawn as a canvas overlay (never
 // an `NSCursor` image) while the system pointer is hidden through the identity-guarded
 // `brushOutlineCursor` + `resetCursorRects` pattern; the crosshair returns below 6 screen points
-// and for ⌥ on brush/clone/heal. `brushOutlineViewportDidChange` (called from
-// `magnificationDidChange` and at the end of `setViewRotation`, since a turn need not scroll)
-// re-derives the hover point when the canvas scrolls, zooms or turns under a still pointer.
+// and for ⌥ on brush/clone/heal. The Magnetic Lasso's Caps Lock ring (`magneticLassoRing`) is the
+// same overlay and hidden pointer; `pointerOutline` picks whichever applies.
+// `brushOutlineViewportDidChange` (called from `magnificationDidChange` and at the end of
+// `setViewRotation`, since a turn need not scroll) re-derives the hover point when the canvas
+// scrolls, zooms or turns under a still pointer.
 
 /// The dab's full footprint at the pointer, in canvas units. Pure geometry.
 ///
@@ -86,8 +88,38 @@ extension ImageCanvasView {
             roundness: brushRoundness, magnification: magnification)
     }
 
+    /// The overlay standing in for the pointer: the brush tip, or the
+    /// Magnetic Lasso's Caps Lock ring (`magneticLassoRing`).
+    var pointerOutline: BrushOutline? { brushOutline ?? magneticLassoRing }
+
     func brushOutlineDirtyRect() -> CGRect? {
-        brushOutline?.dirtyRect
+        pointerOutline?.dirtyRect
+    }
+
+    /// Something the pointer overlay depends on changed under a still
+    /// pointer (a modifier, the Width, the trace width): re-gate the hidden
+    /// cursor and redraw the overlay's old and new squares.
+    func pointerOutlineDidChange(from before: CGRect?) {
+        updateBrushOutlineCursor()
+        invalidateBrushOutline(from: before)
+    }
+
+    /// `selectionCursorModifiers` changed: ⇧ and ⌥ pick the selection
+    /// cursors and the brush's ⌥ crosshair; Caps Lock shows or hides the
+    /// Magnetic Lasso's ring, redrawn here because the pointer need not move.
+    func selectionCursorModifiersChanged(from old: NSEvent.ModifierFlags) {
+        let watched: NSEvent.ModifierFlags = [.shift, .option, .capsLock]
+        let now = selectionCursorModifiers
+        guard now.intersection(watched) != old.intersection(watched) else { return }
+        if now.contains(.capsLock) != old.contains(.capsLock) {
+            // The overlay as it was drawn: a brush tip does not depend on Caps Lock.
+            let capsLock = old.contains(.capsLock)
+            pointerOutlineDidChange(
+                from: (brushOutline ?? magneticLassoRing(capsLock: capsLock))?.dirtyRect)
+        } else {
+            updateBrushOutlineCursor()
+        }
+        window?.invalidateCursorRects(for: self)
     }
 
     /// Redraws only the outline's old and new squares — `setHoverPoint`
@@ -101,9 +133,19 @@ extension ImageCanvasView {
 
     /// Strokes the outline in the clone source marker's two-pass style:
     /// a dark halo, then a light hairline, both constant in screen points.
+    /// The Magnetic Lasso's ring adds a centre cross of 3-point arms, the
+    /// pointer's hot spot.
     func drawBrushOutline() {
-        guard let outline = brushOutline else { return }
+        guard let outline = pointerOutline else { return }
         let path = outline.path
+        if brushOutline == nil {
+            let arm = 3 / outline.magnification
+            let c = outline.center
+            path.move(to: CGPoint(x: c.x - arm, y: c.y))
+            path.line(to: CGPoint(x: c.x + arm, y: c.y))
+            path.move(to: CGPoint(x: c.x, y: c.y - arm))
+            path.line(to: CGPoint(x: c.x, y: c.y + arm))
+        }
         path.lineWidth = 2.5 / outline.magnification
         NSColor.black.withAlphaComponent(0.45).setStroke()
         path.stroke()
@@ -118,12 +160,14 @@ extension ImageCanvasView {
     /// `resetCursorRects`, so this follows `updateGuideHoverCursor`: a
     /// stored cursor, invalidated ONLY when its identity changes.
     func updateBrushOutlineCursor() {
-        let wanted: NSCursor? =
-            tool.usesBrushTip
-                && brushSize * magnification >= BrushOutline.minimumScreenDiameter
-                && !(selectionCursorModifiers.contains(.option)
-                    && Self.brushOutlineOptionPrecisionTools.contains(tool))
-            ? Self.brushOutlineHiddenCursor : nil
+        let brushTip = tool.usesBrushTip
+            && brushSize * magnification >= BrushOutline.minimumScreenDiameter
+            && !(selectionCursorModifiers.contains(.option)
+                && Self.brushOutlineOptionPrecisionTools.contains(tool))
+        // The Magnetic Lasso's ring: Caps Lock on and a ring big enough to see.
+        let lassoRing = tool == .magneticLasso && selectionCursorModifiers.contains(.capsLock)
+            && 2 * magneticLassoTraceWidth * magnification >= BrushOutline.minimumScreenDiameter
+        let wanted: NSCursor? = brushTip || lassoRing ? Self.brushOutlineHiddenCursor : nil
         guard wanted !== brushOutlineCursor else { return }
         brushOutlineCursor = wanted
         window?.invalidateCursorRects(for: self)

@@ -122,6 +122,29 @@ pixel path inside the corridor within Width of the trail.
   previous one computed, and holds at most 8,388,608 samples (64 MB), past which it starts afresh. A trace is the
   same with any map of its image or none; a call with none builds one for itself. `WORK_BUDGET` stays 131,072.
 
+## Magnetic Lasso input
+The session is `../app/Sources/MagneticLassoSession.swift`; the canvas half `ImageCanvasView+MagneticLasso.swift`.
+- **Freehand segment.** While an outline is open, each tick of a drag with ⌥ held is joined to the path as given, with
+  no tracing (ticks within half a screen pixel of the last are coalesced). The first such tick fixes the live wire as
+  it stands, as an anchor, and the segment continues from its end; after an ⌥-press that is the press point, which
+  the straight click already fixed. The segment ends at the first tick without ⌥ or at mouse-up, and its last point
+  becomes an anchor that tracing resumes from. The drag of the press that starts the outline traces whatever ⌥ says,
+  since ⌥ at that press chose Subtract. One ⌫ removes the whole segment; when the core refuses the re-trace along a
+  removed path (a segment past the corridor cap), the wire rests on the anchor until the next move.
+  `select_magnetic`'s `freehand` lists point indices joined the same way: a run of them is one segment, the wire
+  traced up to it is kept, and its last point is an anchor.
+- **Contrast keys.** Bare `,` lowers and `.` raises Contrast by 1, within 1–100; a held key repeats. The value persists,
+  and an open outline takes it from its next trace, as `[` / `]` do for Width.
+- **Pressure.** A pointer event that carries pen pressure `p` (0–1) traces at `max(1, Width·(1 − p))`: a hovering pen
+  and a mouse trace at the Width set, and bearing down narrows the corridor toward the pointer. The unfastened wire is
+  traced at the latest event's width, the fastened path is never re-traced, and the close traces at the Width set.
+  The options bar's Pen Pressure checkbox (on by default, persisted) turns it off. Narrowing rather than widening
+  keeps the Width set the ceiling, so the work budget and the 1–256 range hold. `select_magnetic` takes no pressure:
+  an agent sets `width` per call.
+- **Precise cursor.** With Caps Lock on and the pointer over the canvas, the pointer is replaced by a ring of radius
+  the current trace width (the corridor the tracer searches) with a centre cross, drawn as the brush outline is;
+  under 6 screen points across, the crosshair stays. Caps Lock toggled under a still pointer redraws it.
+
 ## Rejected alternatives
 - Holding freehand selection / mask controls until matting research finished — plan boundary for Phase 6.
 - Treating automatically thresholded prior labels as trustworthy hard constraints — the constraint audit proves they
@@ -150,8 +173,10 @@ pixel path inside the corridor within Width of the trail.
 - `DONE` Part A — the Magnetic Lasso (6D follow-on): the core live-wire tracer (`edge_trace.rs`,
   `dr_selection_trace_edge`), the L-group tool with hover tracing and fastening, and MCP `select_magnetic`, at 8
   and 16 bits.
-- `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — Magnetic Lasso Part B, input: ⌥-drag freehand
-  segments, the Caps Lock width cursor, the `,`/`.` contrast keys, stylus pressure.
+- `DONE` — Magnetic Lasso Part B, input: ⌥-drag freehand segments (and `select_magnetic`'s `freehand`), the Caps
+  Lock width cursor, the `,`/`.` contrast keys, stylus pressure ("Magnetic Lasso input" above), shipped in the commit
+  that adds `../scripts/verify_magnetic_lasso.py`. `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) —
+  hand checks: the ring and the wire by eye, a real pen.
 - `DONE` — Magnetic Lasso Part B, tracing: the direction and sub-pixel terms and the per-capture edge map (the cost
   rule above), shipped in the commit that adds `core/src/edge_map.rs`.
 - `DONE` — Specialized subject models (6D follow-on). Part 0 (All People refuses a picture with no detected person) shipped in d6a9d77; Part B, Select ▸ Face Parts… and

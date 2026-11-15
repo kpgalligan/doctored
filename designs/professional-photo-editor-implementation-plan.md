@@ -60,7 +60,7 @@ Goal: create, refine and reposition a reusable mask. [ADR](phase-6-selection-mas
 - **6A — Selection essentials.** The Freehand Lasso, Color Range and selection-only transforms.
 - **6B — Independent masks.** Mask link and unlink, mask-only transforms, persistent density and feather.
 - **6C — Refinement workspace.** Select and Mask: inspection backgrounds, before/after, output to a mask or a new layer, and since 2026-10-11 Edge Detection, the Refine Edge brush and Decontaminate Colors. The matting quality gate stopped being a ship condition on 2026-10-10.
-- **6D — Assisted selection.** Quick Selection, Select Objects and Select People, the Magnetic Lasso, Face Parts, Person Parts, Sky and the SAM 2.1 Object Finder. Magnetic Lasso Part B (⌥-drag freehand segments, the Caps Lock cursor, contrast keys, stylus pressure): [#17](https://github.com/kpgalligan/doctored/issues/17).
+- **6D — Assisted selection.** Quick Selection, Select Objects and Select People, the Magnetic Lasso, Face Parts, Person Parts, Sky and the SAM 2.1 Object Finder. Magnetic Lasso Part B (⌥-drag freehand segments, the Caps Lock cursor, contrast keys, stylus pressure) shipped; its hand checks (the ring and the wire by eye, a real pen): [#17](https://github.com/kpgalligan/doctored/issues/17).
 
 Vector masks shipped with the paths work ([ADR](v1-paths.md)).
 
@@ -157,7 +157,7 @@ Goal: large high-depth multilayer documents meet declared latency, memory, save 
 - `OPEN` [#14](https://github.com/kpgalligan/doctored/issues/14) — 10D and 11F: f32 typed style planes, full-precision authored colour on non-sRGB typed profiles, the float proxy preview stage, Quick Mask filters beyond Gaussian Blur.
 - `OPEN` [#15](https://github.com/kpgalligan/doctored/issues/15) — 8F: Dolby Vision movie frames.
 - `OPEN` [#34](https://github.com/kpgalligan/doctored/issues/34) — Phase 3: a chosen page of a multipage TIFF in Indexed Color and Bitmap, and Place of one.
-- `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — 6D's Magnetic Lasso Part B (Select ▸ Focus Area shipped: [ADR](focus-area.md)).
+- `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — 6D's Magnetic Lasso Part B, its hand checks: the Caps Lock ring and the wire by eye, a real pen (the input half shipped, as did Select ▸ Focus Area: [ADR](focus-area.md)).
 - `OPEN` [#18](https://github.com/kpgalligan/doctored/issues/18) — brush dynamics and the Background Eraser (the Pencil, user brush presets, Define Pattern, the pattern library, Pattern fill, the Behind and Clear modes, the gradient library, the Layer Style panes' multistop editor and the Magic Eraser shipped).
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — type on a path, Warp Text, a path shape layer's outline as a Direct Selection target (shape layers from a path, two-path booleans, the Path Selection and Direct Selection tools, selected-subpath booleans and the Fill Path… and Stroke Path… sheets shipped).
 - `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — 12D's Match Zoom and Location, with 12B's and 12C's open items.

@@ -3,14 +3,15 @@ import AppKit
 // The commit is ONE "Magnetic Lasso" step recorded as the resolved `select_freehand`
 // (`select_magnetic` is `nonRecordable`); a stale capture (an agent edit) cancels the outline with
 // a beep (`magneticLassoDocumentDidChange`); `MagneticLassoSettings` persists
-// Width/Contrast/Frequency; at 32-bit float the capture traces R1 at 8 bits
+// Width/Contrast/Frequency/Pen Pressure; at 32-bit float the capture traces R1 at 8 bits
 // (`SelectionCapture(edgeTrace:)`, `ImageDocument.edgeTraceComposite`, rule M).
 
 /// The Magnetic Lasso tool: its tool action, the commit of a closed
-/// outline, the `[` / `]` Width keys, the options bar's Width / Contrast /
-/// Frequency, and the backstop that abandons an outline whose capture went
-/// stale underneath it. The session is `MagneticLassoSession`; the canvas
-/// half is `ImageCanvasView+MagneticLasso.swift`.
+/// outline, the `[` / `]` Width and `,` / `.` Contrast keys, the options
+/// bar's Width / Contrast / Frequency / Pen Pressure, and the backstop that
+/// abandons an outline whose capture went stale underneath it. The session
+/// is `MagneticLassoSession`; the canvas half is
+/// `ImageCanvasView+MagneticLasso.swift`.
 extension EditorViewController {
     @objc func selectMagneticLassoTool(_ sender: Any?) { selectTool(.magneticLasso) }
 
@@ -33,10 +34,13 @@ extension EditorViewController {
 
     /// `[` / `]` on the canvas: the new Width, already clamped to 1…256.
     func magneticLassoWidthKeyChanged(_ width: Double) {
-        var options = MagneticLassoSettings.shared.options
-        options.width = width
-        MagneticLassoSettings.shared.options = options
-        canvas.magneticLasso?.options.width = width
+        setMagneticLassoOption(\.width, width)
+        updateOptionsBar()
+    }
+
+    /// `,` / `.` on the canvas: the new Contrast, already clamped to 1…100.
+    func magneticLassoContrastKeyChanged(_ contrast: Double) {
+        setMagneticLassoOption(\.contrast, contrast)
         updateOptionsBar()
     }
 
@@ -71,16 +75,22 @@ extension EditorViewController {
                     quick: [0, 20, 40, 57, 70, 85, 100],
                     get: { MagneticLassoSettings.shared.options.frequency },
                     set: { [weak self] in self?.setMagneticLassoOption(\.frequency, $0) })),
+            OptionDescriptor(id: "magnetic.penPressure", overflowLabel: "Pen pressure",
+                kind: .checkbox(label: "Pen Pressure",
+                    get: { MagneticLassoSettings.shared.penPressure },
+                    set: { MagneticLassoSettings.shared.penPressure = $0 })),
         ])]
     }
 
-    /// One options-bar field: persisted, and taken by an open outline from
-    /// its next trace on.
+    /// One option, from the bar or a key: persisted, taken by an open outline
+    /// from its next trace on, and the Caps Lock ring redrawn for a new Width.
     private func setMagneticLassoOption(_ key: WritableKeyPath<MagneticLassoOptions, Double>,
                                         _ value: Double) {
+        let ring = canvas.brushOutlineDirtyRect()
         var options = MagneticLassoSettings.shared.options
         options[keyPath: key] = value
         MagneticLassoSettings.shared.options = options
         canvas.magneticLasso?.options = MagneticLassoSettings.shared.options
+        canvas.pointerOutlineDidChange(from: ring)
     }
 }

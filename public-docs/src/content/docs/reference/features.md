@@ -363,12 +363,14 @@ The design record behind each area is in the repository's
   **Magnetic Lasso** (L, cycling Polygonal → Freehand → Magnetic) traces a live
   wire along the strongest edge near the pointer as you hover, fastening anchors
   by itself (Width, Contrast and Frequency; `[` / `]` step the
-  Width), click to fasten one, ⌥-click for a straight segment, ⌫ to remove the
-  last anchor, and double-click, Return or a click on the start to close (⌥ to
-  close straight); it works at 8, 16 and 32 bits, and MCP `select_magnetic` drives
-  the same session and records the resolved `select_freehand` outline
-  (⌥-drag freehand segments, the Caps Lock width cursor, the contrast keys
-  and stylus pressure are deferred); **Color
+  Width and `,` / `.` the Contrast), click to fasten one, ⌥-click for a straight
+  segment, ⌥-drag for a freehand one, ⌫ to remove the last anchor, and
+  double-click, Return or a click on the start to close (⌥ to close straight);
+  the outline sits on the edge to a fraction of a pixel, so a hard edge is
+  selected exactly; a pen bearing down narrows the Width (Pen Pressure), and
+  with Caps Lock on the pointer is a ring of the Width; it works at 8, 16 and
+  32 bits, and MCP `select_magnetic` drives the same session (its `freehand`
+  points are the ⌥-drag) and records the resolved `select_freehand` outline; **Color
   Range** samples document-profile colors (Localized Color Clusters weights
   each by distance from where it was taken), or selects a hue preset (Reds …
   Magentas), Skin Tones with a Fuzziness, Out Of Gamut (what View ▸ Gamut

@@ -42,9 +42,10 @@ extension AgentServer {
                  "mode": mode, "feather": number,
                  "anti_alias": ["type": "boolean", "description": "Soften the edge (default true); false selects each pixel whose coverage is at least half, fully."]],
                 required: ["points"]),
-            tool("select_magnetic", "Trace a Magnetic Lasso outline along image edges and close it into a selection. points (2–10,000 canvas [x, y]) replay the pointer: the first is the starting click, every later one a pointer move, except the indices listed in anchors (strictly increasing, 1…n−1), which are clicks that fasten an anchor there. width is the edge-detection radius in px (1–256, default 10), contrast the edge strength in % below which a gradient is not an edge (1–100, default 10), frequency how soon anchors fasten by themselves (0–100, default 57; 0 fastens only when a move's work budget runs out or the points loop back within 2·width of the last anchor after going farther around an enclosed area, not retracing their way; at width ≥ ~205 every move fastens). Moves closer than max(1, width/4) px to the previous one are coalesced (the last point never is). close \"magnetic\" (default) traces back to the start, \"straight\" joins it straight. Time grows with the number of points, and each point costs more at low frequency. Recorded as the resolved select_freehand outline; the reply adds outline_points. One Undo. In a 32-bit float document the edges are traced on the composite's display codes (the profile's curve over values clamped to 0–1, never the tone map or the view exposure), so a value above white traces as white. Mirrors the Magnetic Lasso tool.",
+            tool("select_magnetic", "Trace a Magnetic Lasso outline along image edges and close it into a selection. points (2–10,000 canvas [x, y]) replay the pointer: the first is the starting click, every later one a pointer move, except the indices listed in anchors (strictly increasing, 1…n−1), which are clicks that fasten an anchor there, and those listed in freehand (strictly increasing, 1…n−1, none also an anchor), which are ⌥-drag points joined to the outline as given: the wire traced up to a run of them is kept, the run is one straight-edged segment, and its last point becomes an anchor (listed right after an anchor, one index is a straight segment from it). width is the edge-detection radius in px (1–256, default 10), contrast the edge strength in % below which a gradient is not an edge (1–100, default 10), frequency how soon anchors fasten by themselves (0–100, default 57; 0 fastens only when a move's work budget runs out or the points loop back within 2·width of the last anchor after going farther around an enclosed area, not retracing their way; at width ≥ ~205 every move fastens). Moves closer than max(1, width/4) px to the previous one are coalesced (the last point never is). close \"magnetic\" (default) traces back to the start, \"straight\" joins it straight. Time grows with the number of points, and each point costs more at low frequency. Recorded as the resolved select_freehand outline; the reply adds outline_points. One Undo. In a 32-bit float document the edges are traced on the composite's display codes (the profile's curve over values clamped to 0–1, never the tone map or the view exposure), so a value above white traces as white. Mirrors the Magnetic Lasso tool.",
                 ["document_id": doc, "points": ["type": "array", "items": point, "minItems": 2, "maxItems": 10000],
                  "anchors": ["type": "array", "items": ["type": "integer", "minimum": 1]],
+                 "freehand": ["type": "array", "items": ["type": "integer", "minimum": 1]],
                  "width": number, "contrast": number, "frequency": number,
                  "close": ["type": "string", "enum": ["magnetic", "straight"]],
                  "mode": mode, "feather": number], required: ["points"]),
@@ -142,13 +143,33 @@ extension AgentServer {
         return size
     }
 
+    /// `select_magnetic`'s `anchors` or `freehand`: strictly increasing
+    /// integer indices of later points (1…count−1); absent or null is none.
+    private func magneticPointIndices(_ a: [String: Any], _ key: String, count: Int) throws -> [Int] {
+        guard let raw = a[key], !(raw is NSNull) else { return [] }
+        guard let list = raw as? [Any] else { throw ToolError(message: "\(key) must be an array of point indices.") }
+        let item = key == "anchors" ? "anchor" : "\(key) index"
+        let indices = try list.map { value in
+            let index = try selectionNumber([item: value], item, default: -1)
+            guard index.rounded(.towardZero) == index, index >= 1, index < Double(count) else {
+                throw ToolError(message: "\(key) must be integer point indices from 1 to \(count - 1).")
+            }
+            return Int(index)
+        }
+        guard zip(indices, indices.dropFirst()).allSatisfy({ $0 < $1 }) else {
+            throw ToolError(message: "\(key) must be strictly increasing.")
+        }
+        return indices
+    }
+
     /// Mirrors the Magnetic Lasso tool: the very session the canvas drives
-    /// (`MagneticLassoSession`), fed the points as its clicks and pointer
-    /// moves, closed and committed as one "Magnetic Lasso" step recorded as the
-    /// resolved `select_freehand` outline (`select_magnetic` itself is
-    /// `nonRecordable`). There is no cumulative work cap: each trace is bounded
-    /// by the session's own fasten at the work budget, as in the UI, so the
-    /// total work grows linearly with the number of points.
+    /// (`MagneticLassoSession`), fed the points as its clicks, pointer moves
+    /// and ⌥-drag (freehand) ticks, closed and committed as one "Magnetic
+    /// Lasso" step recorded as the resolved `select_freehand` outline
+    /// (`select_magnetic` itself is `nonRecordable`). There is no cumulative
+    /// work cap: each trace is bounded by the session's own fasten at the work
+    /// budget, as in the UI, so the total work grows linearly with the number
+    /// of points. Pen pressure has no argument: an agent sets `width`.
     func selectMagnetic(_ a: [String: Any]) throws -> String {
         let document = try target(a)
         let capture = try SelectionCapture(document: document, edgeTrace: true)
@@ -161,19 +182,11 @@ extension AgentServer {
         guard points.allSatisfy({ (0...width).contains($0.x) && (0...height).contains($0.y) }) else {
             throw ToolError(message: "select_magnetic points must lie inside the \(capture.doc.width)×\(capture.doc.height) canvas.")
         }
-        var anchors: [Int] = []
-        if let raw = a["anchors"], !(raw is NSNull) {
-            guard let list = raw as? [Any] else { throw ToolError(message: "anchors must be an array of point indices.") }
-            anchors = try list.map { value in
-                let index = try selectionNumber(["anchor": value], "anchor", default: -1)
-                guard index.rounded(.towardZero) == index, index >= 1, index < Double(points.count) else {
-                    throw ToolError(message: "anchors must be integer point indices from 1 to \(points.count - 1).")
-                }
-                return Int(index)
-            }
-            guard zip(anchors, anchors.dropFirst()).allSatisfy({ $0 < $1 }) else {
-                throw ToolError(message: "anchors must be strictly increasing.")
-            }
+        let anchors = try magneticPointIndices(a, "anchors", count: points.count)
+        let freehand = try magneticPointIndices(a, "freehand", count: points.count)
+        if let shared = Set(anchors).intersection(freehand).min() {
+            throw ToolError(message: "anchors and freehand share index \(shared); "
+                + "a point cannot be both an anchor and freehand.")
         }
         let defaults = MagneticLassoOptions.defaults
         let options = MagneticLassoOptions(
@@ -192,15 +205,20 @@ extension AgentServer {
         guard (0...250).contains(feather) else { throw ToolError(message: "feather must be 0–250 px.") }
         var session = try MagneticLassoSession(capture: capture, start: points[0], mode: mode,
                                                feather: feather, options: options)
-        let clicks = Set(anchors)
+        let clicks = Set(anchors), joined = Set(freehand)
         let coalesce = CGFloat(max(1, options.width / 4))
         for (index, point) in points.enumerated().dropFirst() {
-            if clicks.contains(index) {
+            if joined.contains(index) {
+                // An ⌥-drag tick: joined as given; a run ends, its last point an anchor, at the
+                // next click or move (or the close).
+                session.freehand(to: point, minimumDistance: 0)
+            } else if clicks.contains(index) {
                 try session.click(at: point, straight: false)
             } else {
                 try session.move(to: point, minimumDistance: index == points.count - 1 ? 0 : coalesce)
             }
         }
+        session.endFreehand()
         let outline = try session.closedOutline(straight: close == "straight")
         try capture.commit(.polygon(outline), in: document, name: "Magnetic Lasso", mode: mode,
             feather: feather,

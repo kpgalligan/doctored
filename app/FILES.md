@@ -178,7 +178,7 @@ Detail belongs in the source file's own header comment.
 - `AdjustmentSchema.swift` — the app-side mirror of the core's meta schema (`core/src/adjust.rs`): every parameter's key, kind, range and default, for the MCP validator, sheets and catalog.
 - `AdjustmentSheet.swift` — which surface opened an adjustment dialog and so what Apply commits; one sheet class per op serves the layer and its destructive twin (`dr_image_adjust_op`).
 - `LivePhotoLayer.swift` — `LivePhotoSource` and `LivePhoto`: a Live Photo's still and clip paired by basename; it places as an ordinary raster layer of its still.
-- `ImageCanvasView+BrushOutline.swift` — the stroke tools' brush-tip outline cursor. View-only: no undo, dirty count, Action or MCP twin.
+- `ImageCanvasView+BrushOutline.swift` — the brush-tip outline cursor and the Magnetic Lasso's Caps Lock ring. View-only: no undo, dirty count, Action or MCP twin.
 - `ImageCanvasView+MarchingAnts.swift` — the marching ants on the COMMITTED selection. View-only: no undo, dirty count, Action or MCP twin.
 - `ImageCanvasView+ExtendedRange.swift` — the canvas layer's EDR configuration and the jobs-probe's `ExtendedDrawRecord` draw check. View-only.
 - `TextSessionPlacement.swift` / `ImageCanvasView+TextSession.swift` — the in-place editor for rotated or scaled text; `textSessionPresentation` is the ONE placement rule.

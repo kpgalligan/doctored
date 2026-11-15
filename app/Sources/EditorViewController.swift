@@ -327,6 +327,7 @@ final class EditorViewController: NSViewController {
         canvas.onObjectSelectionCommit = { [weak self] in self?.finishObjectSelection($0) }
         canvas.onMagneticLassoCommit = { [weak self] in self?.finishMagneticLasso($0, outline: $1) }
         canvas.onMagneticLassoWidthKey = { [weak self] in self?.magneticLassoWidthKeyChanged($0) }
+        canvas.onMagneticLassoContrastKey = { [weak self] in self?.magneticLassoContrastKeyChanged($0) }
         canvas.onPatchCapture = { [weak self] in self?.patchCapture() }
         canvas.onPatchCommit = { [weak self] result in self?.patchCommitted(result) }
         canvas.onEscapeCancelsJob = { [weak self] in self?.escapeCancelsJob() ?? false }

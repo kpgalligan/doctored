@@ -421,6 +421,8 @@ do {
         ("float color range sheet", verifyFloatColorRangeSheet),
         ("select and mask float", verifySelectAndMaskFloat),
         ("magnetic lasso float", verifyMagneticLassoFloat),
+        // #17: the Magnetic Lasso's input half (magnetic_lasso_input.swift).
+        ("magnetic lasso input", verifyMagneticLassoInput),
         ("presence float", verifyPresenceFloat),
         ("develop filter float", verifyDevelopFilterFloat),
         ("develop range rows", verifyDevelopRangeRows),

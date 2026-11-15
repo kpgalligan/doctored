@@ -11,7 +11,9 @@ import AppKit
 // where a trail loops back within 2·width of its anchor around an enclosed area — an overshoot
 // backed up along itself is not a loop — (two legs joined at the far point, at any Frequency, so a
 // Frequency-0 loop keeps its shape); ⌫ re-traces at Frequency 0 so one press removes exactly one
-// anchor; a magnetic close traces back to the start in budget-sized pieces.
+// anchor; a magnetic close traces back to the start in budget-sized pieces at the Width set.
+// Input (the phase-6 ADR, "Magnetic Lasso input"): `freehand(to:)` joins ⌥-drag points as given
+// until `endFreehand` makes the last one an anchor; pen pressure narrows `traceWidth`.
 
 /// The Magnetic Lasso's three options: Width, the corridor
 /// radius in px the tracer looks for an edge in (1–256); Contrast, the edge
@@ -31,6 +33,15 @@ struct MagneticLassoOptions: Equatable {
     var isValid: Bool {
         Self.widthRange.contains(width) && Self.contrastRange.contains(contrast)
             && Self.frequencyRange.contains(frequency)
+    }
+
+    /// The corridor radius a trace uses under pen pressure `pressure` (0–1;
+    /// nil for a mouse or a pen with Pen Pressure off): `max(1, width·(1 − p))`,
+    /// so bearing down narrows the corridor and the Width set stays the
+    /// ceiling (the phase-6 ADR, "Magnetic Lasso input").
+    static func traceWidth(_ width: Double, pressure: Double?) -> Double {
+        guard let pressure else { return width }
+        return max(1, width * (1 - min(max(pressure, 0), 1)))
     }
 }
 
@@ -54,6 +65,13 @@ final class MagneticLassoSettings {
             UserDefaults.standard.set(newValue.contrast, forKey: "MagneticLassoContrast")
             UserDefaults.standard.set(newValue.frequency, forKey: "MagneticLassoFrequency")
         }
+    }
+
+    /// The options bar's Pen Pressure: a pen bearing down narrows the trace
+    /// width (`MagneticLassoOptions.traceWidth`). On by default.
+    var penPressure: Bool {
+        get { UserDefaults.standard.object(forKey: "MagneticLassoPenPressure") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "MagneticLassoPenPressure") }
     }
 
     private static func read(_ key: String, _ fallback: Double, _ range: ClosedRange<Double>) -> Double {
@@ -83,6 +101,16 @@ struct MagneticLassoSession {
     private(set) var anchors: [Int]
     private(set) var trail: [CGPoint]
     private(set) var live: [CGPoint]
+    /// The latest pointer event's pen pressure (0–1), nil for none: the
+    /// unfastened wire is traced at `traceWidth`.
+    private(set) var pressure: Double?
+    /// A freehand (⌥-drag) segment is open: its points are fixed as given,
+    /// and its last point becomes an anchor when it ends (`endFreehand`).
+    private(set) var freehandOpen = false
+    /// The press that started the outline is still down. Its drag traces
+    /// whatever ⌥ says, since ⌥ at that press chose Subtract; the canvas
+    /// sets it at that press and clears it at mouse-up.
+    var startingPressHeld = false
     /// The capture source's edge map, made once per outline. The session is
     /// copied on every move; every copy shares this one map, which is the
     /// point: its samples outlive the move that computed them.
@@ -133,6 +161,10 @@ struct MagneticLassoSession {
     /// The last fastened anchor, where the live wire starts.
     private var anchor: CGPoint { fixed[fixed.count - 1] }
 
+    /// The corridor radius the live wire is traced at: the Width under the
+    /// latest event's pen pressure.
+    var traceWidth: Double { MagneticLassoOptions.traceWidth(options.width, pressure: pressure) }
+
     /// The fixed path and the live wire's bounds, in canvas units.
     var previewBounds: CGRect {
         var box = CGRect(origin: start, size: .zero)
@@ -152,12 +184,18 @@ struct MagneticLassoSession {
     /// area (not an overshoot backed up along itself) — fixes the path
     /// through it and reseeds the trail with the rest of the live wire plus
     /// this point, so a loop back to the anchor keeps its shape. A refused
-    /// trace throws and leaves the session exactly as it was.
-    mutating func move(to point: CGPoint, minimumDistance: CGFloat) throws {
-        if let last = trail.last, hypot(point.x - last.x, point.y - last.y) < minimumDistance {
+    /// trace throws and leaves the session exactly as it was. `pressure` is
+    /// the event's pen pressure (`traceWidth`); a move ends an open freehand
+    /// segment first.
+    mutating func move(to point: CGPoint, minimumDistance: CGFloat,
+                       pressure: CGFloat? = nil) throws {
+        if !freehandOpen, let last = trail.last,
+           hypot(point.x - last.x, point.y - last.y) < minimumDistance {
             return
         }
         var next = self
+        next.endFreehand()
+        next.pressure = pressure.map { Double($0) }
         if next.live.count >= 2,
            next.trail.count >= Self.trailLimit || next.projectedWork(to: point) > Self.workBudget {
             next.fastenLive()
@@ -177,12 +215,14 @@ struct MagneticLassoSession {
 
     /// A click: a magnetic click traces to the pointer and fastens there; a
     /// straight (⌥) click drops the live wire and joins the point straight.
-    mutating func click(at point: CGPoint, straight: Bool) throws {
+    /// A click ends an open freehand segment first.
+    mutating func click(at point: CGPoint, straight: Bool, pressure: CGFloat? = nil) throws {
         var next = self
+        next.endFreehand()
         if straight {
             next.fixed.append(point)
         } else {
-            try next.move(to: point, minimumDistance: 0)
+            try next.move(to: point, minimumDistance: 0, pressure: pressure)
             next.fixed.append(contentsOf: next.live.dropFirst())
         }
         // A click on the anchor itself adds no path, so no second anchor.
@@ -192,14 +232,46 @@ struct MagneticLassoSession {
         self = next
     }
 
+    /// A freehand (⌥-drag) tick: the point is joined to the path as given,
+    /// with no tracing. The first tick of a segment fixes the live wire as it
+    /// stands, as an anchor, so the segment continues from its end. A tick
+    /// closer than `minimumDistance` to the path's last point is coalesced.
+    mutating func freehand(to point: CGPoint, minimumDistance: CGFloat) {
+        if !freehandOpen {
+            if live.count >= 2 { fastenLive() }
+            freehandOpen = true
+        }
+        let last = anchor
+        guard point != last, hypot(point.x - last.x, point.y - last.y) >= minimumDistance else {
+            return
+        }
+        fixed.append(point)
+        trail = []
+        live = [point]
+    }
+
+    /// Ends an open freehand segment: its last point becomes an anchor, and
+    /// tracing resumes from it. Nothing when none is open.
+    mutating func endFreehand() {
+        guard freehandOpen else { return }
+        freehandOpen = false
+        if anchors.last != fixed.count - 1 { anchors.append(fixed.count - 1) }
+        trail = []
+        live = [anchor]
+    }
+
     /// ⌫: removes the last anchor and the path fastened since the one before
     /// it, then re-traces from that one along the removed path to the
     /// pointer at Frequency 0, ignoring any fasten — so one ⌫ with no
-    /// movement removes exactly one anchor, and fastening resumes only on
-    /// the next move. False when only the start is left.
-    mutating func removeLastAnchor() throws -> Bool {
-        guard anchors.count > 1 else { return false }
+    /// movement removes exactly one anchor (a whole freehand segment
+    /// included), and fastening resumes only on the next move. A re-trace the
+    /// core refuses (a removed freehand segment past the corridor cap) leaves
+    /// the wire resting on the anchor until the next move. False when only
+    /// the start is left.
+    mutating func removeLastAnchor() -> Bool {
         var next = self
+        next.endFreehand()
+        guard next.anchors.count > 1 else { return false }
         let removedAt = next.anchors.removeLast()
         let previous = next.anchors[next.anchors.count - 1]
         let removed = Array(next.fixed[(previous + 1)...removedAt])
@@ -211,8 +283,12 @@ struct MagneticLassoSession {
             reseeded = (0..<Self.trailLimit).map { reseeded[Int((Double($0) * stride).rounded())] }
         }
         next.trail = reseeded
-        let result = try next.trace(frequency: 0)
-        next.live = [next.anchor] + result.points.dropFirst()
+        if let result = try? next.trace(frequency: 0) {
+            next.live = [next.anchor] + result.points.dropFirst()
+        } else {
+            next.trail = []
+            next.live = [next.anchor]
+        }
         self = next
         return true
     }
@@ -239,7 +315,7 @@ struct MagneticLassoSession {
                 let target = last ? start : CGPoint(x: origin.x + dx * t, y: origin.y + dy * t)
                 let end: Any = last ? [Double(start.x), Double(start.y)] : "snap"
                 if let result = try? trace(from: path[path.count - 1], trail: [target], end: end,
-                                           frequency: 0) {
+                                           frequency: 0, width: width) {
                     path.append(contentsOf: result.points.dropFirst())
                 } else {
                     path.append(target)
@@ -270,10 +346,10 @@ struct MagneticLassoSession {
         live = [anchor]
     }
 
-    /// The corridor the next trace would cover: a disc of `width` around the
-    /// anchor plus a `2·width` band along anchor → trail → `point`.
+    /// The corridor the next trace would cover: a disc of `traceWidth` around
+    /// the anchor plus a `2·traceWidth` band along anchor → trail → `point`.
     private func projectedWork(to point: CGPoint) -> Double {
-        let width = options.width
+        let width = traceWidth
         var total = Double.pi * width * width
         var previous = anchor
         for next in trail + [point] {
@@ -283,16 +359,17 @@ struct MagneticLassoSession {
         return total
     }
 
+    /// The live wire from the anchor along the trail, at `traceWidth`.
     private func trace(frequency: Double) throws -> EdgeTraceResult {
-        try trace(from: anchor, trail: trail, end: "snap", frequency: frequency)
+        try trace(from: anchor, trail: trail, end: "snap", frequency: frequency, width: traceWidth)
     }
 
-    private func trace(from: CGPoint, trail: [CGPoint], end: Any,
-                       frequency: Double) throws -> EdgeTraceResult {
+    private func trace(from: CGPoint, trail: [CGPoint], end: Any, frequency: Double,
+                       width: Double) throws -> EdgeTraceResult {
         try edgeMap.trace(parameters: [
             "from": [Double(from.x), Double(from.y)],
             "trail": trail.map { [Double($0.x), Double($0.y)] },
-            "end": end, "width": options.width, "contrast": options.contrast,
+            "end": end, "width": width, "contrast": options.contrast,
             "frequency": frequency,
         ])
     }

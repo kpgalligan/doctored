@@ -1034,6 +1034,25 @@ the square's edges, closed by a double-click, are one "Magnetic Lasso" step
 recorded `select_freehand` selecting at least 95% of the square and nothing
 farther than the Width from it.
 
+"magnetic lasso input" (`magnetic_lasso_input.swift`; the phase-6 ADR's
+"Magnetic Lasso input") hands mouse, key and flags events to the canvas of an
+8-bit picture with a black rectangle, at 100 %, and runs every row before it
+fails, naming each failed row. A ⌥-press and ⌥-drag ticks 6 px above the top
+side join the path as given, the last an anchor, a hover traces on from it, and
+one ⌫ removes the segment; ⌥ pressed mid-drag fixes the wire traced so far; the
+drag of a ⌥ (Subtract) starting press traces; ⌫ after a freehand segment too
+long to re-trace (Width 256, 2400 px) removes it and rests the wire on the
+anchor; `.` `.` `,` step the stored Contrast 10 → 11 → 12 → 11 and 100 stays,
+while with the Brush `,` leaves it; Caps Lock under a still pointer shows a ring
+2 × Width across and asks the canvas to redraw its square (NSView's
+`setNeedsDisplayInRect:` swapped for a forwarding recorder while the flags event
+runs), `]` grows it and Caps Lock off draws it away; a tablet-subtype drag tick
+(a CGEvent copy, as `native-paint-probe` makes them) at pressure 0.9 keeps the
+wire on the trail, while pressure 0, a mouse tick or Pen Pressure off snap it to
+the side; and an outline with a freehand segment closed by Return is one
+"Magnetic Lasso" step recorded `select_freehand`, undone in one. The case saves
+and restores the tool's stored options.
+
 "presence float" and "develop filter float" (`ui_presence_float.swift`,
 3cf8a8aa, 8d1f952b), on P = (4, 0.5, 0.25) with Q = P / 4 at one pixel, a
 block H = (8, 1, 0.5) and an in-range ramp: Presence's three sliders are

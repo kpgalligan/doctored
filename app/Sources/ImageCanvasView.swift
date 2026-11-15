@@ -141,6 +141,7 @@ final class ImageCanvasView: NSView {
     var magneticLasso: MagneticLassoSession?
     var onMagneticLassoCommit: ((MagneticLassoSession, [CGPoint]) -> Void)?
     var onMagneticLassoWidthKey: ((Double) -> Void)?
+    var onMagneticLassoContrastKey: ((Double) -> Void)?
     /// Edit ▸ Puppet Warp's session; ImageCanvasView+PuppetWarp.swift.
     var puppetWarpSession: PuppetWarpSession? { didSet { needsDisplay = true } }
     var onPuppetWarpChange: (() -> Void)?
@@ -510,13 +511,7 @@ final class ImageCanvasView: NSView {
         }
     }
     var selectionCursorModifiers: NSEvent.ModifierFlags = [] {
-        didSet {
-            if selectionCursorModifiers.intersection([.shift, .option])
-                != oldValue.intersection([.shift, .option]) {
-                updateBrushOutlineCursor()
-                window?.invalidateCursorRects(for: self)
-            }
-        }
+        didSet { selectionCursorModifiersChanged(from: oldValue) }
     }
     var selectionCursorHovered = false
     var selectionModifierEventMonitor: Any?
@@ -2044,7 +2039,7 @@ final class ImageCanvasView: NSView {
     /// two rectangles when it actually moves. An aligned source marker is the
     /// only overlay that tracks the pointer, and `needsDisplay` per
     /// mouse-moved event would be a whole-canvas repaint at pointer rate.
-    private func setHoverPoint(_ point: CGPoint?) {
+    func setHoverPoint(_ point: CGPoint?) {
         let outlineBefore = brushOutlineDirtyRect()
         defer { invalidateBrushOutline(from: outlineBefore) }
         guard strokeAligned, cloneOffsetTool == tool, let source = cloneSource,
@@ -2064,7 +2059,7 @@ final class ImageCanvasView: NSView {
     /// No event arrives when the canvas moves under a still pointer, so the
     /// latched point is re-derived from a window-space location.
     func refreshHoverPoint(windowLocation: CGPoint) {
-        guard tool.usesBrushTip, selectionCursorHovered else { return }
+        guard tool.usesBrushTip || tool == .magneticLasso, selectionCursorHovered else { return }
         let local = convert(windowLocation, from: nil)
         setHoverPoint(visibleRect.contains(local) ? clamp(point: local) : nil)
     }
@@ -2120,7 +2115,7 @@ final class ImageCanvasView: NSView {
         case .objectSelect:
             continueObjectSelection(at: raw)
         case .magneticLasso:
-            moveMagneticLasso(to: raw)
+            dragMagneticLasso(to: raw, event: event)
         case .lasso, .wand, .fill, .eyedropper, .colorSampler, .ruler, .perspectiveCrop, .pen:
             break
         case .magicEraser, .pathSelect, .directSelect:
@@ -2298,8 +2293,9 @@ final class ImageCanvasView: NSView {
             endSelectionStroke(at: convert(event.locationInWindow, from: nil))
         case .objectSelect:
             endObjectSelection(at: convert(event.locationInWindow, from: nil))
-        case .lasso, .magneticLasso, .wand, .fill, .eyedropper, .colorSampler, .ruler,
-            .perspectiveCrop, .pen:
+        case .magneticLasso:
+            magneticLassoMouseUp()
+        case .lasso, .wand, .fill, .eyedropper, .colorSampler, .ruler, .perspectiveCrop, .pen:
             break
         case .magicEraser, .pathSelect, .directSelect:
             break
@@ -2468,7 +2464,7 @@ final class ImageCanvasView: NSView {
 
     /// Tablet pressure for a stroke event; nil for a plain mouse (or any
     /// event without tablet data), which strokes at constant full size.
-    private static func tabletPressure(of event: NSEvent) -> CGFloat? {
+    static func tabletPressure(of event: NSEvent) -> CGFloat? {
         guard event.subtype == .tabletPoint else { return nil }
         return CGFloat(min(max(event.pressure, 0), 1))
     }
