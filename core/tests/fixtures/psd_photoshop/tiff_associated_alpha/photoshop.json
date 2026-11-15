@@ -1,0 +1,687 @@
+{
+  "source": "tiff_alpha_78_take.py (private Photoshop harness)",
+  "takes": [
+    {
+      "take": "take1",
+      "run_id": "20261115T090417Z-2651aac1",
+      "scene": "t1",
+      "versions": [
+        "26.10.0"
+      ]
+    },
+    {
+      "take": "take2",
+      "run_id": "20261115T092803Z-bf69ce5b",
+      "scene": "t2",
+      "versions": [
+        "26.10.0"
+      ]
+    }
+  ],
+  "scenes": {
+    "t1": {
+      "width": 24,
+      "height": 16,
+      "seed": 1
+    },
+    "t2": {
+      "width": 19,
+      "height": 13,
+      "seed": 2
+    }
+  },
+  "files": {
+    "t1_rgb16_flat_mac.tif": {
+      "scene": "t1",
+      "mode": "rgb",
+      "bits": 16,
+      "layers": false,
+      "order": "mac",
+      "sha256": "ad40332055072579dfd1ee1ff1c3e04d38d91155f1cb9a5c338d961cbb69c611",
+      "bytes": 24780,
+      "tiff": {
+        "order": ">",
+        "width": 24,
+        "height": 16,
+        "bits": [
+          16,
+          16,
+          16,
+          16
+        ],
+        "samples": 4,
+        "photometric": 2,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": false
+      },
+      "verdict": "UNRESOLVED",
+      "judged": 864,
+      "misses": {
+        "P": 6,
+        "S": 864,
+        "W": 864
+      },
+      "photoshop_document": {
+        "name": "t1_rgb16_flat_mac.tif",
+        "mode": "DocumentMode.RGB",
+        "bits": "BitsPerChannelType.SIXTEEN",
+        "width": 24,
+        "height": 16,
+        "profile": "sRGB IEC61966-2.1",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 0",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t1_rgb16_flat_ibm.tif": {
+      "scene": "t1",
+      "mode": "rgb",
+      "bits": 16,
+      "layers": false,
+      "order": "ibm",
+      "sha256": "6cdbee0f4fb2ef4fa280344d90d6f37be3ace35a443e6188f924d265b067f22c",
+      "bytes": 24780,
+      "tiff": {
+        "order": "<",
+        "width": 24,
+        "height": 16,
+        "bits": [
+          16,
+          16,
+          16,
+          16
+        ],
+        "samples": 4,
+        "photometric": 2,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": false
+      },
+      "verdict": "UNRESOLVED",
+      "judged": 864,
+      "misses": {
+        "P": 6,
+        "S": 864,
+        "W": 864
+      },
+      "photoshop_document": {
+        "name": "t1_rgb16_flat_ibm.tif",
+        "mode": "DocumentMode.RGB",
+        "bits": "BitsPerChannelType.SIXTEEN",
+        "width": 24,
+        "height": 16,
+        "profile": "sRGB IEC61966-2.1",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 0",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t1_rgb16_layered_ibm.tif": {
+      "scene": "t1",
+      "mode": "rgb",
+      "bits": 16,
+      "layers": true,
+      "order": "ibm",
+      "sha256": "6a57cb6af6fe38502c1536f2d0f822230f7084e31b3e30e4d6ce39e3d9231915",
+      "bytes": 26836,
+      "tiff": {
+        "order": "<",
+        "width": 24,
+        "height": 16,
+        "bits": [
+          16,
+          16,
+          16,
+          16
+        ],
+        "samples": 4,
+        "photometric": 2,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": true
+      },
+      "verdict": "UNRESOLVED",
+      "judged": 864,
+      "misses": {
+        "P": 6,
+        "S": 864,
+        "W": 864
+      },
+      "photoshop_document": {
+        "name": "t1_rgb16_layered_ibm.tif",
+        "mode": "DocumentMode.RGB",
+        "bits": "BitsPerChannelType.SIXTEEN",
+        "width": 24,
+        "height": 16,
+        "profile": "sRGB IEC61966-2.1",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 1",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t1_gray16_flat_mac.tif": {
+      "scene": "t1",
+      "mode": "gray",
+      "bits": 16,
+      "layers": false,
+      "order": "mac",
+      "sha256": "43573950f92cac0a57f85f46fb17ddb0437a1e5a1efe99ca4031c57170ff27ee",
+      "bytes": 20896,
+      "tiff": {
+        "order": ">",
+        "width": 24,
+        "height": 16,
+        "bits": [
+          16,
+          16
+        ],
+        "samples": 2,
+        "photometric": 1,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": false
+      },
+      "verdict": "UNRESOLVED",
+      "judged": 288,
+      "misses": {
+        "P": 4,
+        "S": 288,
+        "W": 288
+      },
+      "photoshop_document": {
+        "name": "t1_gray16_flat_mac.tif",
+        "mode": "DocumentMode.GRAYSCALE",
+        "bits": "BitsPerChannelType.SIXTEEN",
+        "width": 24,
+        "height": 16,
+        "profile": "Dot Gain 20%",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 0",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t1_rgb8_flat_mac.tif": {
+      "scene": "t1",
+      "mode": "rgb",
+      "bits": 8,
+      "layers": false,
+      "order": "mac",
+      "sha256": "49963158b6663dbf3d0a9d065efc230f7dfe3b2d3f846b7362a1f2808ad9dbab",
+      "bytes": 23252,
+      "tiff": {
+        "order": ">",
+        "width": 24,
+        "height": 16,
+        "bits": [
+          8,
+          8,
+          8,
+          8
+        ],
+        "samples": 4,
+        "photometric": 2,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": false
+      },
+      "verdict": "CONFIRMED P",
+      "judged": 838,
+      "misses": {
+        "P": 0,
+        "S": 838,
+        "W": 838
+      },
+      "photoshop_document": {
+        "name": "t1_rgb8_flat_mac.tif",
+        "mode": "DocumentMode.RGB",
+        "bits": "BitsPerChannelType.EIGHT",
+        "width": 24,
+        "height": 16,
+        "profile": "sRGB IEC61966-2.1",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 0",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t1_gray8_flat_mac.tif": {
+      "scene": "t1",
+      "mode": "gray",
+      "bits": 8,
+      "layers": false,
+      "order": "mac",
+      "sha256": "b7c90f0f92ea59f2c6771c3e3890a066f2cc59391ac61b40ca0a6adeb3241cee",
+      "bytes": 20124,
+      "tiff": {
+        "order": ">",
+        "width": 24,
+        "height": 16,
+        "bits": [
+          8,
+          8
+        ],
+        "samples": 2,
+        "photometric": 1,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": false
+      },
+      "verdict": "CONFIRMED P",
+      "judged": 276,
+      "misses": {
+        "P": 0,
+        "S": 276,
+        "W": 276
+      },
+      "photoshop_document": {
+        "name": "t1_gray8_flat_mac.tif",
+        "mode": "DocumentMode.GRAYSCALE",
+        "bits": "BitsPerChannelType.EIGHT",
+        "width": 24,
+        "height": 16,
+        "profile": "Dot Gain 20%",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 0",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t2_rgb16_flat_mac.tif": {
+      "scene": "t2",
+      "mode": "rgb",
+      "bits": 16,
+      "layers": false,
+      "order": "mac",
+      "sha256": "c282bab1c90df4fdbaecd107927cf5b2b1c7dead8a4fcdc9eedff99dac31fd1e",
+      "bytes": 23704,
+      "tiff": {
+        "order": ">",
+        "width": 19,
+        "height": 13,
+        "bits": [
+          16,
+          16,
+          16,
+          16
+        ],
+        "samples": 4,
+        "photometric": 2,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": false
+      },
+      "verdict": "CONFIRMED P",
+      "judged": 507,
+      "misses": {
+        "P": 0,
+        "S": 507,
+        "W": 507
+      },
+      "photoshop_document": {
+        "name": "t2_rgb16_flat_mac.tif",
+        "mode": "DocumentMode.RGB",
+        "bits": "BitsPerChannelType.SIXTEEN",
+        "width": 19,
+        "height": 13,
+        "profile": "sRGB IEC61966-2.1",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 0",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t2_rgb16_flat_ibm.tif": {
+      "scene": "t2",
+      "mode": "rgb",
+      "bits": 16,
+      "layers": false,
+      "order": "ibm",
+      "sha256": "b1d27c456c1e547a20636fde5a3445e46c767645529d4af50960de7d7e7b0359",
+      "bytes": 23704,
+      "tiff": {
+        "order": "<",
+        "width": 19,
+        "height": 13,
+        "bits": [
+          16,
+          16,
+          16,
+          16
+        ],
+        "samples": 4,
+        "photometric": 2,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": false
+      },
+      "verdict": "CONFIRMED P",
+      "judged": 507,
+      "misses": {
+        "P": 0,
+        "S": 507,
+        "W": 507
+      },
+      "photoshop_document": {
+        "name": "t2_rgb16_flat_ibm.tif",
+        "mode": "DocumentMode.RGB",
+        "bits": "BitsPerChannelType.SIXTEEN",
+        "width": 19,
+        "height": 13,
+        "profile": "sRGB IEC61966-2.1",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 0",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t2_rgb16_layered_ibm.tif": {
+      "scene": "t2",
+      "mode": "rgb",
+      "bits": 16,
+      "layers": true,
+      "order": "ibm",
+      "sha256": "94c64622c4a374d410ae51bb56f895a978adbe30b7e63da159b065e870f69c3b",
+      "bytes": 25484,
+      "tiff": {
+        "order": "<",
+        "width": 19,
+        "height": 13,
+        "bits": [
+          16,
+          16,
+          16,
+          16
+        ],
+        "samples": 4,
+        "photometric": 2,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": true
+      },
+      "verdict": "CONFIRMED P",
+      "judged": 507,
+      "misses": {
+        "P": 0,
+        "S": 507,
+        "W": 507
+      },
+      "photoshop_document": {
+        "name": "t2_rgb16_layered_ibm.tif",
+        "mode": "DocumentMode.RGB",
+        "bits": "BitsPerChannelType.SIXTEEN",
+        "width": 19,
+        "height": 13,
+        "profile": "sRGB IEC61966-2.1",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 1",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t2_gray16_flat_mac.tif": {
+      "scene": "t2",
+      "mode": "gray",
+      "bits": 16,
+      "layers": false,
+      "order": "mac",
+      "sha256": "7a85244054f6e68622c5b4cbefcd38fee105282148e1f3cf5d00689f8d243020",
+      "bytes": 20348,
+      "tiff": {
+        "order": ">",
+        "width": 19,
+        "height": 13,
+        "bits": [
+          16,
+          16
+        ],
+        "samples": 2,
+        "photometric": 1,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": false
+      },
+      "verdict": "CONFIRMED P",
+      "judged": 169,
+      "misses": {
+        "P": 0,
+        "S": 169,
+        "W": 169
+      },
+      "photoshop_document": {
+        "name": "t2_gray16_flat_mac.tif",
+        "mode": "DocumentMode.GRAYSCALE",
+        "bits": "BitsPerChannelType.SIXTEEN",
+        "width": 19,
+        "height": 13,
+        "profile": "Dot Gain 20%",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 0",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t2_rgb8_flat_mac.tif": {
+      "scene": "t2",
+      "mode": "rgb",
+      "bits": 8,
+      "layers": false,
+      "order": "mac",
+      "sha256": "52a1f0ffa087685e9d69a4a6057ad13acf1aa02a5ae46cacc4f85b0deb56b3c5",
+      "bytes": 22700,
+      "tiff": {
+        "order": ">",
+        "width": 19,
+        "height": 13,
+        "bits": [
+          8,
+          8,
+          8,
+          8
+        ],
+        "samples": 4,
+        "photometric": 2,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": false
+      },
+      "verdict": "CONFIRMED P",
+      "judged": 489,
+      "misses": {
+        "P": 0,
+        "S": 489,
+        "W": 489
+      },
+      "photoshop_document": {
+        "name": "t2_rgb8_flat_mac.tif",
+        "mode": "DocumentMode.RGB",
+        "bits": "BitsPerChannelType.EIGHT",
+        "width": 19,
+        "height": 13,
+        "profile": "sRGB IEC61966-2.1",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 0",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    },
+    "t2_gray8_flat_mac.tif": {
+      "scene": "t2",
+      "mode": "gray",
+      "bits": 8,
+      "layers": false,
+      "order": "mac",
+      "sha256": "026a8e57d038d8814894e76843391971548edc50a220550e3c7a7a2f6f550b2d",
+      "bytes": 19856,
+      "tiff": {
+        "order": ">",
+        "width": 19,
+        "height": 13,
+        "bits": [
+          8,
+          8
+        ],
+        "samples": 2,
+        "photometric": 1,
+        "compression": 1,
+        "planar": 1,
+        "extra": [
+          1
+        ],
+        "format": null,
+        "layers": false
+      },
+      "verdict": "CONFIRMED P",
+      "judged": 162,
+      "misses": {
+        "P": 0,
+        "S": 162,
+        "W": 162
+      },
+      "photoshop_document": {
+        "name": "t2_gray8_flat_mac.tif",
+        "mode": "DocumentMode.GRAYSCALE",
+        "bits": "BitsPerChannelType.EIGHT",
+        "width": 19,
+        "height": 13,
+        "profile": "Dot Gain 20%",
+        "layers": 1
+      },
+      "photoshop_rows": [
+        {
+          "name": "Layer 0",
+          "kind": "ArtLayer",
+          "visible": true,
+          "opacity": 100,
+          "mode": "BlendMode.NORMAL",
+          "background": false
+        }
+      ]
+    }
+  }
+}

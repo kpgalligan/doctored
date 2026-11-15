@@ -1,0 +1,34 @@
+Photoshop 26.10.0's own TIFFs of a single transparent layer with partial
+alpha, saved with transparency on, from two takes of the private harness's
+scripts/photoshop-probe/tiff_alpha_78_take.py (and its tiff_alpha_78.jsx;
+receipts in ~/devel/doctored-fixtures/photoshop/tiff-associated-alpha-78/take1
+and take2). Synthetic content the runner declared; Photoshop opened and saved
+it.
+
+Each take opens four PNGs the runner writes, one document each, with no mode,
+depth or colour conversion: RGBA at 8 and 16 bits, and gray + alpha at 8 and
+16 bits (which Photoshop opens as Grayscale). Alpha runs by column: the first
+three columns 0, the last three full, a ramp from about 12 % to 88 % between
+them that also steps by row. Every sample is the formula of photoshop.json's
+"scenes" (core/tests/tiff_associated_alpha.rs restates it). take1 is scene t1
+(24 x 16); take2 is the held-out scene t2 (19 x 13, odd row lengths), built
+after the reader was.
+
+Every document was saved as a copy, flat (layers off), byte order Macintosh:
+<scene>_<mode><bits>_flat_mac.tif. The 16-bit RGB document was also saved flat
+with byte order IBM PC (<scene>_rgb16_flat_ibm.tif) and layered, ZIP layer
+compression, IBM PC (<scene>_rgb16_layered_ibm.tif). All: image compression
+NONE, profile embedded, transparency on. Every file declares its alpha
+ExtraSamples 1 (associated), uncompressed and chunky.
+
+What the runner judged against the scene, per colour sample of a partially
+transparent pixel whose three predictions are far apart: colour times alpha
+(P), straight colour (S), colour matted on white (W). S and W miss every
+judged sample in every file. P misses none in the 8-bit files of both takes.
+At 16 bits take1 declared a 4-code tolerance and P missed it on a few samples
+by under half a code (the 15-bit store; take1 is UNRESOLVED as declared); take2
+was judged under an 8-code tolerance declared after take1, and P misses none
+(CONFIRMED P on all six files). photoshop.json holds both takes' run ids and
+the Photoshop version, the scenes, and per file its sha256, size, tags,
+verdict, judged count, misses per candidate and Photoshop's rows of the file
+reopened.

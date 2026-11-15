@@ -987,9 +987,65 @@ fn hand_built_files_keep_their_spot_channels_or_say_why_not() {
     std::fs::write(&path, hand_tiff(16, &one, &shape(16, vec![0]), None)).unwrap();
     let error = open_typed(&path).err().unwrap_or_default();
     assert!(
-        error.contains("RGBA TIFF must declare one unassociated alpha sample"),
+        error.contains("RGBA TIFF must declare one associated or unassociated alpha sample"),
         "{error}"
     );
+}
+
+/// Photoshop tags a flat TIFF's transparency associated (ExtraSamples 1);
+/// at 16 bits the typed open keeps the spot channels after it and reads the
+/// colour divided out, round(v · 65535 / a), 0 at alpha 0.
+#[test]
+fn a_sixteen_bit_tiff_with_an_associated_transparency_keeps_its_spot_channels() {
+    let dir = TempDir::new().unwrap();
+    let spots = [
+        (RAMP, spot_display(ramp_ink())),
+        (BLOC, spot_display(bloc_ink())),
+    ];
+    let run = channel_run(&spots, true);
+    let (ramp, bloc) = (ramp8(), bloc8());
+    // Alpha steps across each row from 0; the straight colour varies.
+    let alpha = |p: usize| (p % W as usize) as u32 * 2114;
+    let colour = |p: usize| [(p as u32 % 200) * 257, 90 * 257, 30 * 257];
+    let samples: Vec<u16> = (0..(W * H) as usize)
+        .flat_map(|p| {
+            let a = alpha(p);
+            let [r, g, b] = colour(p).map(|c| ((c * a + 32767) / 65535) as u16);
+            [
+                r,
+                g,
+                b,
+                a as u16,
+                (255 - u16::from(ramp[p])) * 257,
+                (255 - u16::from(bloc[p])) * 257,
+            ]
+        })
+        .collect();
+    let path = dir.path().join("associated16.tif");
+    std::fs::write(
+        &path,
+        hand_tiff(16, &samples, &rgb_shape(16, vec![1, 0, 0]), Some(&run)),
+    )
+    .unwrap();
+    let typed = open_typed(&path).unwrap_or_else(|e| panic!("{e}"));
+    let want = vec![
+        (RAMP.to_string(), Some(ramp_ink()), wide(&ramp)),
+        (BLOC.to_string(), Some(bloc_ink()), wide(&bloc)),
+    ];
+    assert_eq!(typed_spots(&typed), want);
+    let pixels = typed.layer_source(0).unwrap().to_rgba16().unwrap();
+    for (p, (pixel, stored)) in pixels.iter().zip(samples.chunks_exact(6)).enumerate() {
+        let a = f64::from(stored[3]);
+        for c in 0..3 {
+            let want = if stored[3] == 0 {
+                0
+            } else {
+                (f64::from(stored[c]) * 65535.0 / a).round().min(65535.0) as u16
+            };
+            assert_eq!(pixel[c], want, "pixel {p} channel {c}");
+        }
+        assert_eq!(pixel[3], stored[3], "pixel {p} alpha");
+    }
 }
 
 #[test]
@@ -1051,7 +1107,7 @@ fn a_tiff_cut_short_inside_its_image_data_reports_its_spot_channels_unread() {
                 let error = open_typed(&path).err().unwrap_or_default();
                 assert!(!error.is_empty(), "{what}: typed open");
                 assert!(
-                    !error.contains("RGBA TIFF must declare one unassociated alpha sample"),
+                    !error.contains("must declare one associated or unassociated alpha sample"),
                     "{what}: {error}"
                 );
             }

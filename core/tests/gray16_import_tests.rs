@@ -650,15 +650,38 @@ fn a_graya_tiff_must_declare_its_alpha_sample() {
     }
     unsafe { dr_precision_doc_free(document) };
 
-    for wrong in [None, Some(1u16)] {
+    for wrong in [None, Some(0u16)] {
         let bytes = tiff(W, H, 2, &samples, true, None, wrong);
         let error = open(&bytes, "grayabad.tiff").unwrap_err();
         assert!(
-            error.contains("GrayA TIFF must declare one unassociated alpha sample")
-                || error.contains("RGBA TIFF must declare one unassociated alpha sample"),
+            error.contains("GrayA TIFF must declare one associated or unassociated alpha sample"),
             "unexpected: {error}"
         );
     }
+
+    // An associated alpha (ExtraSamples 1): the gray was stored multiplied
+    // by alpha, and opens divided out, round(g · 65535 / a).
+    let associated: Vec<u16> = codes()
+        .into_iter()
+        .flat_map(|code| {
+            let alpha = 65535 - code / 3;
+            let stored = (u32::from(code) * u32::from(alpha) + 32767) / 65535;
+            [stored as u16, alpha]
+        })
+        .collect();
+    let bytes = tiff(W, H, 2, &associated, true, None, Some(1));
+    let document = open(&bytes, "graya1.tiff").expect("associated GrayA opens");
+    for ((pixel, pair), code) in pixels(document)
+        .iter()
+        .zip(associated.chunks_exact(2))
+        .zip(codes())
+    {
+        let want = (f64::from(pair[0]) * 65535.0 / f64::from(pair[1])).round() as u16;
+        assert_eq!(pixel[0], want, "code {code}");
+        assert!(want.abs_diff(code) <= 1, "code {code} comes back as {want}");
+        assert_eq!(pixel[3], pair[1]);
+    }
+    unsafe { dr_precision_doc_free(document) };
 
     // A plain Gray TIFF that declares an extra sample is refused too.
     let bytes = tiff(W, H, 1, &codes(), true, None, Some(2));

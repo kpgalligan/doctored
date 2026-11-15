@@ -374,3 +374,21 @@ fn orientation_in(t: &Tiff<'_>) -> Option<image::metadata::Orientation> {
     let e = entries.iter().find(|e| e.tag == 274 && e.count == 1)?;
     image::metadata::Orientation::from_exif(t.scalar(e)?.try_into().ok()?)
 }
+
+/// True when a whole TIFF file's IFD0 declares its first extra sample an
+/// associated alpha (ExtraSamples, a SHORT array, led by 1): its colour
+/// samples are stored multiplied by that alpha. Header bytes only, classic
+/// or BigTIFF; `false` for anything it cannot read.
+pub(crate) fn associated_alpha_of_file(bytes: &[u8]) -> bool {
+    let Some(t) = Tiff::file(bytes) else {
+        return false;
+    };
+    let Some((entries, _)) = t.ifd(t.ifd0) else {
+        return false;
+    };
+    entries
+        .iter()
+        .find(|e| e.tag == 338 && e.kind == 3 && e.count >= 1)
+        .and_then(|e| t.u16_at(t.data_range(e)?.start))
+        == Some(1)
+}

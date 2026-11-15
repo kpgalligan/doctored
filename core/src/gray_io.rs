@@ -15,9 +15,10 @@
 //!   (`png_declared`) and an unusable one refuses
 //!   (`precision_png::png_profile_contract`).
 //! * TIFF IFD0 Photometric BlackIsZero, SamplesPerPixel 1 or 2 (the second
-//!   one declared an unassociated alpha, chunky), BitsPerSample 8 or 16,
-//!   SampleFormat unsigned (absent counts as unsigned), its ICC absent or
-//!   Gray as above.
+//!   one declared an alpha, chunky: unassociated, or associated, whose gray
+//!   the open divides out at the file's depth through `unpremultiply`),
+//!   BitsPerSample 8 or 16, SampleFormat unsigned (absent counts as
+//!   unsigned), its ICC absent or Gray as above.
 //! * JPEG with one component at 8-bit precision, its APP2 ICC absent or Gray.
 //!
 //! Every other file answers `None` and keeps today's path, so a gray PNG
@@ -297,7 +298,7 @@ pub(crate) fn tiff_icc<R: Read + Seek>(reader: R) -> Option<Option<Vec<u8>>> {
     if formats.is_some_and(|v| v.iter().any(|&f| f != 1)) {
         return None;
     }
-    if samples == 2 && (extras.as_deref() != Some(&[2][..]) || planar != 1) {
+    if samples == 2 && (!matches!(extras.as_deref(), Some([1 | 2])) || planar != 1) {
         return None;
     }
     if samples == 1 && extras.is_some_and(|v| !v.is_empty()) {
@@ -409,10 +410,35 @@ pub(crate) fn decode_samples(
                 .find_tag_unsigned::<u16>(Tag::SamplesPerPixel)
                 .map_err(|e| fail(e.to_string()))?
                 .unwrap_or(1) as usize;
+            // An associated alpha (ExtraSamples 1): the gray was stored
+            // multiplied by it, and is divided out at the file's own depth
+            // before an 8-bit code is widened (`unpremultiply`).
+            let associated = channels == 2
+                && decoder
+                    .find_tag_unsigned_vec::<u16>(Tag::ExtraSamples)
+                    .map_err(|e| fail(e.to_string()))?
+                    .and_then(|v| v.first().copied())
+                    == Some(1);
             job.check()?;
             let (samples, depth) = match decoder.read_image().map_err(|e| fail(e.to_string()))? {
-                DecodingResult::U8(raw) => (widened(raw, false), GrayDepth::Eight),
-                DecodingResult::U16(raw) => (raw, GrayDepth::Sixteen),
+                DecodingResult::U8(mut raw) => {
+                    if associated {
+                        for (i, pixel) in raw.chunks_exact_mut(2).enumerate() {
+                            job.every(i)?;
+                            crate::unpremultiply::straighten_u8(pixel);
+                        }
+                    }
+                    (widened(raw, false), GrayDepth::Eight)
+                }
+                DecodingResult::U16(mut raw) => {
+                    if associated {
+                        for (i, pixel) in raw.chunks_exact_mut(2).enumerate() {
+                            job.every(i)?;
+                            crate::unpremultiply::straighten_u16(pixel);
+                        }
+                    }
+                    (raw, GrayDepth::Sixteen)
+                }
                 _ => return Err(fail("the TIFF's samples are not 8 or 16-bit".into())),
             };
             job.check()?;

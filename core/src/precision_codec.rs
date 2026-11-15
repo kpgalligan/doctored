@@ -1,7 +1,10 @@
 //! Preserving RGB/RGBA16 PNG and TIFF (classic or BigTIFF) interchange for the neutral path.
-//! No implicit byte promotion, profile conversion, associated-alpha conversion,
-//! planar TIFF, animation, multipage or HDR interpretation. Orientation only
-//! permutes samples. Packet policy is shared with doc_color's byte writer.
+//! No implicit byte promotion, profile conversion, planar TIFF, animation,
+//! multipage or HDR interpretation. A TIFF's one alpha sample may be
+//! associated (ExtraSamples 1: the colour stored multiplied by it), which the
+//! decode divides out at 16 bits through `unpremultiply` before anything
+//! else reads the samples, or unassociated (2). Orientation only permutes
+//! samples. Packet policy is shared with doc_color's byte writer.
 //! `PrecisionDocument::open_preserving` hands a multipage TIFF to this codec
 //! one page at a time (`tiff_pages::with_page`); every other caller still
 //! meets the multipage refusal.
@@ -105,6 +108,9 @@ struct Header<'a> {
     /// Present exactly when `plan.gray`: how the samples are to be read, and
     /// the sentence that discloses it.
     gray: Option<(GrayInterpretation, String)>,
+    /// A TIFF whose alpha is ExtraSamples 1: its colour samples are stored
+    /// multiplied by alpha and are divided out before anything reads them.
+    associated: bool,
     profile: Arc<IccProfile>,
     metadata: Metadata,
     resolution: Resolution,
@@ -142,6 +148,8 @@ pub fn inspect(bytes: &[u8], label: &str) -> Result<PrecisionDecodePlan, String>
 fn header<'a>(bytes: &'a [u8], label: &str, job: JobContext<'a>) -> Result<Header<'a>, String> {
     bounded_input(bytes, label)?;
     let source = || Polled::new(Cursor::new(bytes), job);
+    // Set by the TIFF arm alone: a PNG's alpha is straight by definition.
+    let mut associated = false;
     let (decoder, stored, channels, format, profile_bytes, fallback_orientation, interpretation) =
         if bytes.starts_with(&crate::metadata::PNG_SIGNATURE) {
             let ((w, h), source_channels) = png_header(bytes, false)?;
@@ -271,38 +279,44 @@ fn header<'a>(bytes: &'a [u8], label: &str, job: JobContext<'a>) -> Result<Heade
             let extras = decoder
                 .find_tag_unsigned_vec::<u16>(Tag::ExtraSamples)
                 .map_err(|e| problem("alpha", label, e))?;
+            // The one alpha sample: ExtraSamples 1 (associated, the colour
+            // stored multiplied by it, divided out in the decode) or 2
+            // (unassociated, straight).
+            let one_alpha = matches!(extras.as_deref(), Some([1 | 2]));
             // Spot channels (#1 1c-2a): trailing extra samples of 0 after
-            // the colour and its straight alpha, admitted only when every
-            // one is a kept spot channel (`tiff_spot`).
+            // the colour and its alpha, admitted only when every one is a
+            // kept spot channel (`tiff_spot`).
             let spot_extras = || {
                 let tail = |v: &[u16]| !v.is_empty() && v.iter().all(|&e| e == 0);
                 let shape = match (channels, extras.as_deref()) {
                     (3, Some(v)) => tail(v),
-                    (4, Some([2, rest @ ..])) => tail(rest),
+                    (4, Some([1 | 2, rest @ ..])) => tail(rest),
                     _ => false,
                 };
                 shape && crate::tiff_spot::tiff_spot_extras_accounted(bytes)
             };
-            if ((channels == 4 && extras.as_deref() != Some(&[2][..]))
+            if ((channels == 4 && !one_alpha)
                 || (channels == 3 && extras.as_ref().is_some_and(|v| !v.is_empty())))
                 && !spot_extras()
             {
                 return Err(problem(
                     "alpha",
                     label,
-                    "RGBA TIFF must declare one unassociated alpha sample",
+                    "RGBA TIFF must declare one associated or unassociated alpha sample",
                 ));
             }
             // The same rule one channel down (Phase 11D).
-            if (channels == 2 && extras.as_deref() != Some(&[2][..]))
-                || (channels == 1 && extras.is_some_and(|v| !v.is_empty()))
+            if (channels == 2 && !one_alpha)
+                || (channels == 1 && extras.as_ref().is_some_and(|v| !v.is_empty()))
             {
                 return Err(problem(
                     "alpha",
                     label,
-                    "GrayA TIFF must declare one unassociated alpha sample",
+                    "GrayA TIFF must declare one associated or unassociated alpha sample",
                 ));
             }
+            associated =
+                matches!(channels, 2 | 4) && extras.as_deref().and_then(<[u16]>::first) == Some(&1);
             // Read profile bytes directly: find_tag builds a Value enum per
             // byte and would multiply a valid 16 MiB profile into hundreds of MB.
             let mut ifd = decoder.image_ifd();
@@ -400,6 +414,7 @@ fn header<'a>(bytes: &'a [u8], label: &str, job: JobContext<'a>) -> Result<Heade
         stored,
         plan,
         gray: interpretation,
+        associated,
         profile,
         metadata: scan.metadata,
         resolution,
@@ -521,13 +536,22 @@ pub(crate) fn decode_with_context(
                 .map_err(|e| problem("decode", label, e));
             let raw = settle(job, read)?;
             job.report(0.75, 1)?;
-            let DecodingResult::U16(samples) = raw else {
+            let DecodingResult::U16(mut samples) = raw else {
                 return Err(problem(
                     "depth",
                     label,
                     "decoder changed sample representation",
                 ));
             };
+            // Before `degrayed`: an associated gray sample is the encoded
+            // code times alpha, which no gray curve reads.
+            if header.associated {
+                let channels = usize::from(header.plan.source_channels);
+                for (i, pixel) in samples.chunks_exact_mut(channels).enumerate() {
+                    job.every(i)?;
+                    crate::unpremultiply::straighten_u16(pixel);
+                }
+            }
             let (samples, channels) = degrayed(samples, &header.gray, &header.plan, job)?;
             upright(
                 &samples,

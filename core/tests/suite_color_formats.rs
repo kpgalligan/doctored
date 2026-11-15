@@ -651,6 +651,8 @@ mod spot_tiff_layers;
 mod spot_tiff_photoshop;
 #[path = "spot_typed_export.rs"]
 mod spot_typed_export;
+#[path = "tiff_associated_alpha.rs"]
+mod tiff_associated_alpha;
 #[path = "tiff_float_tests.rs"]
 mod tiff_float_tests;
 #[path = "tiff_layer_block.rs"]

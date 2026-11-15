@@ -498,13 +498,20 @@ fn typed_depth_alpha_profile_and_container_refusals_never_promote_or_convert() {
                 .contains("format")
         );
     }
-    let associated = tiff_fixture(&pixels, 4, 1, false, 1);
+    // A fourth sample declared anything but an alpha refuses; an associated
+    // alpha (ExtraSamples 1) opens with its colour divided out
+    // (`tiff_associated_alpha.rs` holds the rule against Photoshop's files).
+    let unnamed = tiff_fixture(&pixels, 4, 1, false, 0);
     assert!(
-        precision_codec::decode(&associated, "associated", REFERENCE_WORKING_BYTES, 0, None)
+        precision_codec::decode(&unnamed, "unnamed", REFERENCE_WORKING_BYTES, 0, None)
             .err()
             .unwrap()
-            .contains("alpha")
+            .contains("RGBA TIFF must declare one associated or unassociated alpha sample")
     );
+    let associated = tiff_fixture(&[[15000, 10000, 5000, 32768]; 6], 4, 1, false, 1);
+    let opened = decode(&associated).image.to_rgba16().unwrap();
+    // round(v · 65535 / 32768) for each colour sample, the alpha as stored.
+    assert_eq!(opened, vec![[30000, 20000, 10000, 32768]; 6]);
     let float = source(pixels, 3)
         .convert(
             PrecisionStorage::Rgba32Float,

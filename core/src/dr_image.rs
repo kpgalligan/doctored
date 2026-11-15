@@ -141,6 +141,9 @@ impl DrImage {
     /// `open_profile::cmyk_gate`, whatever the decision: a CMYK file
     /// the gate refuses is an `Err`, so the host's platform decode reads it.
     ///
+    /// A TIFF whose alpha is associated (ExtraSamples 1) has its colour
+    /// divided out at the decoded depth ([`straightened`]).
+    ///
     /// An OpenEXR or Radiance RGBE signature is refused by name: both are
     /// float containers that open only through `open_preserving`, and
     /// `image`'s own decoders would hand them over clamped to 8 bits.
@@ -226,6 +229,7 @@ impl DrImage {
         if let SourceSamples::Cmyk(container) = source {
             open_profile::cmyk_gate(bytes, path, container)?;
         }
+        let associated = crate::metadata_tiff::associated_alpha_of_file(bytes);
         let pixels = match &decision.action {
             ProfileAction::ConvertCmyk(profile, container) => {
                 // `image` has already turned CMYK into RGB naively by the
@@ -255,8 +259,9 @@ impl DrImage {
                 open_profile::gray_to_srgb8(&img, curve, path)?
             }
             ProfileAction::Keep | ProfileAction::Ignore => {
-                let mut img = image::DynamicImage::from_decoder(decoder).map_err(decode_err)?;
+                let img = image::DynamicImage::from_decoder(decoder).map_err(decode_err)?;
                 job.check()?;
+                let mut img = straightened(img, associated);
                 img.apply_orientation(orientation);
                 img.to_rgba8()
             }
@@ -309,6 +314,29 @@ impl DrImage {
             JobContext::NONE,
         )
     }
+}
+
+/// `img` with its colour divided out when the file declared its alpha
+/// associated (`metadata_tiff::associated_alpha_of_file`: a TIFF's
+/// ExtraSamples 1, the colour stored multiplied by alpha), at the decoded
+/// depth through `unpremultiply`, so the 8-bit and 16-bit opens read the
+/// same straight colour the typed open does. Only an RGBA image has an alpha
+/// to divide by: `image` decodes no gray + alpha TIFF (a Grayscale document
+/// opens one, `gray_io`), and any other image is returned as decoded.
+fn straightened(mut img: image::DynamicImage, associated: bool) -> image::DynamicImage {
+    use crate::unpremultiply::{straighten_u16, straighten_u8};
+    if associated {
+        match &mut img {
+            image::DynamicImage::ImageRgba8(buffer) => {
+                buffer.chunks_exact_mut(4).for_each(straighten_u8)
+            }
+            image::DynamicImage::ImageRgba16(buffer) => {
+                buffer.chunks_exact_mut(4).for_each(straighten_u16)
+            }
+            _ => {}
+        }
+    }
+    img
 }
 
 /// The flat open of a CMYK TIFF `image`'s decoder does not read

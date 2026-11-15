@@ -586,7 +586,7 @@ Detail belongs in the source file's own header comment.
 - `raw_float_develop.rs` — the f32 arm of the RAW local develop: blend, tone (rule L), linear-gain vignette and range sample over a scene-linear base, unclamped; `float_document`.
 - `raw_source_geometry.rs` / `raw_local_remap.rs` / `ffi_raw_geometry.rs` — strict inverse EXIF/affine/lens maps, exact permutation copies, f64 u16 image/mask sampling, plans; normalised mask resize.
 - `host_pixels.rs` / `pixel_orientation.rs` / `ffi_host_pixels.rs` — RGBA8/16, RGB, BGRA, RGBX, ARGB16 BE, packed 10:10:10, rgba32f (HDR); alpha policy, padded rows, EXIF permutation.
-- `unpremultiply.rs` — KERNEL: THE integer unpremultiply, `round(v · max / a)` capped, 0 at alpha 0; host premultiplied layouts and the CMYK TIFF reader.
+- `unpremultiply.rs` — KERNEL: THE integer unpremultiply, `round(v · max / a)` capped, 0 at alpha 0: host layouts, CMYK TIFF inks, RGB/gray TIFF opens of ExtraSamples 1.
 - `heif_container.rs` / `ffi_heif_container.rs` — the primary item's colour facts and `prem` reference from an ISO-BMFF/HEIF file's own boxes, no decode.
 - `develop_inspect.rs` / `ffi_develop_inspect.rs` — read-only inspection of retained u16/f32 masters before geometry or retouch; the f32 rule-X preview at Fit/100 %, float clipping, HDR marker.
 - `clip_display.rs` / `ffi_clip_display.rs` — the ⌥-drag Levels/Curves clipping display: a transient threshold image of an edited composite; u16 0/65535, f32 >= 1.0 / <= 0.0; the > 1.0 HDR predicate.

@@ -5859,9 +5859,11 @@ DrPrecisionDocument *dr_precision_doc_retouch_from(const DrPrecisionDocument *do
  * described by resource 1077 in tag 34377) open as spot channels at u16
  * (an 8-bit file's ×257), admitted against `limit` for the decoded samples
  * and the planes; the observation and any loss line join import_warnings.
- * A 16-bit RGB TIFF with extra samples beyond one straight alpha opens only
- * when every one of them is a kept spot channel; otherwise it still refuses
- * "RGBA TIFF must declare one unassociated alpha sample". A multipage 16-bit
+ * A 16-bit RGB TIFF with extra samples beyond one alpha opens only when
+ * every one of them is a kept spot channel; otherwise it still refuses
+ * "RGBA TIFF must declare one associated or unassociated alpha sample". An
+ * associated alpha (ExtraSamples 1) opens with the colour it multiplies
+ * divided out, round(v * 65535 / a), 0 where alpha is 0. A multipage 16-bit
  * or float TIFF opens its pages as dr_doc_open does, each later page
  * admitted against `limit` with the pages before it retained, and the
  * sentences about its pages join import_warnings; a multipage CMYK TIFF

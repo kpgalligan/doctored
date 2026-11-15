@@ -44,7 +44,9 @@ claim alone is insufficient": every depth/profile/packet claim must come from an
   curve). Document is always sRGB (a Gray profile has no primaries). A bare `gAMA` is the Gray profile it
   describes (`png_declared`, below). Refused: an unusable `gAMA`; an RGB ICC on a gray image;
   `cICP`/`mDCV`/`cLLI`. Gray ICC is parsed with `icc_lut::ProofProfile`, **never** `IccProfile::parse`,
-  so the RGB path is untouched. TIFF `GrayA` needs exactly one unassociated alpha. A `.rgba8` import choice opens
+  so the RGB path is untouched. TIFF `GrayA` (and RGBA) needs exactly one alpha: unassociated, or associated
+  (ExtraSamples 1), whose colour every flat open divides out at the file's depth (`unpremultiply`; Photoshop's
+  files measured, `tests/fixtures/psd_photoshop/tiff_associated_alpha`). A `.rgba8` import choice opens
   through the core's flat open, which converts a Gray ICC through the same per-code rule
   (`gray16_import::encoded_gray`) from the 16-bit samples, rounded to 8 bits. (Superseded: a gray file untagged
   or with a usable Gray ICC opens as a Gray document, `dr_path_gray_source`; [grayscale-mode.md](grayscale-mode.md).)

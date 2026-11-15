@@ -61,9 +61,9 @@ The control, the same big-endian file with no records, saves in place.
 
 PHOTOSHOP LITTLE-ENDIAN cells: two of Photoshop's own little-endian layered RGB TIFFs
 (`core/tests/fixtures/psd_photoshop/tiff_little_endian`, 8 bits RLE and 16 bits ZIP).
-Opened flat, the 8-bit one is a LAYER BLOCK cell (the 16-bit flat open refuses its
-associated alpha, as it does the big-endian twin's). Opened with `psd_mode` layers and the
-inspected fingerprint, it holds its four layers and its group, TIFF names no
+Opened flat, each is a LAYER BLOCK cell (the 16-bit one's flat image declares its alpha
+associated, ExtraSamples 1, which the flat open divides out). Opened with `psd_mode` layers and the
+inspected fingerprint, each holds its four layers and its group, TIFF names no
 `LAYERS_LINE`, and its `save_types`, `save_as_types` and `losses_by_format.tiff` equal
 those of its Macintosh-order twin (the same document Photoshop saved big-endian in the
 same job, `<name>_mac.tif` beside it) opened with its layers.
@@ -645,13 +645,12 @@ def main():
                 return None, reply[1]
             return reply['document']['id'], None
 
-        def photoshop_le(cell, name, flat=True):
-            """Opened flat (when `flat`), a LAYER BLOCK cell; opened with its layers, Save
-            answers as for its Macintosh-order twin, the same document Photoshop saved
-            big-endian in the same job, opened with its layers."""
+        def photoshop_le(cell, name):
+            """Opened flat, a LAYER BLOCK cell; opened with its layers, Save answers as for
+            its Macintosh-order twin, the same document Photoshop saved big-endian in the
+            same job, opened with its layers."""
             data = (PHOTOSHOP_LE / name).read_bytes()
-            if flat:
-                layer_block(f'{cell} flat', data)
+            layer_block(f'{cell} flat', data)
             tag = f'{cell} layers'
             if not wanted(tag):
                 return
@@ -691,10 +690,7 @@ def main():
             print(f'{"PASS" if ok else "FAIL"} {tag}', flush=True)
 
         photoshop_le('photoshop le8', 's2_8_rle_ibm.tif')
-        # Photoshop's 16-bit file declares its flat image's alpha associated (ExtraSamples
-        # 1), which the 16-bit flat TIFF open refuses in either byte order, so it has no
-        # flat cell.
-        photoshop_le('photoshop le16', 's2_16_zip_ibm.tif', flat=False)
+        photoshop_le('photoshop le16', 's2_16_zip_ibm.tif')
 
     print()
     for tag, outcome in results:
