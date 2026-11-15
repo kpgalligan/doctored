@@ -251,14 +251,10 @@ impl HostLayout {
     }
     /// One premultiplied colour sample divided by its alpha: rounded once,
     /// clamped to `maximum`, and 0 where alpha is 0. The one division every
-    /// premultiplied layout uses.
+    /// premultiplied layout uses, `unpremultiply::straight`.
     fn straight(value: u16, alpha: u16, maximum: u16) -> u16 {
-        if alpha == 0 {
-            0
-        } else {
-            ((u64::from(value) * u64::from(maximum) + u64::from(alpha) / 2) / u64::from(alpha))
-                .min(u64::from(maximum)) as u16
-        }
+        // The result is at most `maximum`, a u16.
+        crate::unpremultiply::straight(value.into(), alpha.into(), maximum.into()) as u16
     }
 }
 

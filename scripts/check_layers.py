@@ -224,6 +224,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "tiled_soft_matting.rs",
     "trim_bounds.rs",
     "trimap_strokes.rs",
+    "unpremultiply.rs",
     "vector_mask_combine.rs",
     "vibrance_law.rs",
 )

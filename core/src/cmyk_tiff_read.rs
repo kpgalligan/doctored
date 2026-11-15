@@ -15,11 +15,12 @@
 //! * **Alpha.** The FIRST extra sample is the transparency when its
 //!   ExtraSamples value is 1 (associated) or 2 (unassociated) — `tiff`'s own
 //!   CMYKA rule. Associated (premultiplied) ink is unpremultiplied at the
-//!   file's own depth, `round(v · max / a)` capped at `max`, and a pixel at
-//!   alpha 0 is paper (ink 0): it has no recoverable ink. Photoshop's Save
-//!   Transparency writes associated alpha (`doctored-fixtures/photoshop/
-//!   cmyk-psd-547/take1`, `alpha8.tif`/`alpha16.tif`). Every other extra
-//!   sample (a spot or saved alpha channel) is counted, never read.
+//!   file's own depth through `unpremultiply::straight` (`round(v · max /
+//!   a)` capped at `max`), and a pixel at alpha 0 is paper (ink 0): it has
+//!   no recoverable ink. Photoshop's Save Transparency writes associated
+//!   alpha (`doctored-fixtures/photoshop/cmyk-psd-547/take1`,
+//!   `alpha8.tif`/`alpha16.tif`). Every other extra sample (a spot or saved
+//!   alpha channel) is counted, never read.
 //! * **Samples** come back as straight CMYKA16 ink: an 8-bit code ×257,
 //!   alpha 65535 when the file has none.
 
@@ -221,10 +222,7 @@ pub(crate) fn read_samples(
         for (c, slot) in sample.iter_mut().take(4).enumerate() {
             let stored = read(c, i);
             let ink = match layout.alpha {
-                Some(AlphaKind::Associated) if alpha == 0 => 0,
-                Some(AlphaKind::Associated) if alpha < max => {
-                    ((stored * max + alpha / 2) / alpha).min(max)
-                }
+                Some(AlphaKind::Associated) => crate::unpremultiply::straight(stored, alpha, max),
                 _ => stored,
             };
             *slot = (ink * scale) as u16;

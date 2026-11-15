@@ -824,6 +824,7 @@ pub mod tile_store;
 pub mod tiled_soft_matting;
 pub mod trim_bounds;
 mod trimap_strokes;
+mod unpremultiply;
 mod vector_mask_combine;
 pub mod vector_mask_common;
 mod vibrance_law;
