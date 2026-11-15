@@ -118,6 +118,22 @@ struct ShapeOutline: Codable, Equatable {
     /// corner would move the shape. nil for an empty or non-finite shape, one past the caps or
     /// the ±1,000,000 coordinate wall, or one whose outline has no extent.
     static func placed(_ path: PathShape) -> (outline: ShapeOutline, box: CGRect)? {
+        guard let shape = quantized(path) else { return nil }
+        let bounds = shape.cgPath().boundingBoxOfPath
+        guard !bounds.isNull, [bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]
+            .allSatisfy({ $0.isFinite && abs($0) <= 1_000_000 })
+        else { return nil }
+        let origin = CGPoint(x: bounds.minX.rounded(.down), y: bounds.minY.rounded(.down))
+        let box = CGRect(x: origin.x, y: origin.y,
+                         width: bounds.maxX - origin.x, height: bounds.maxY - origin.y)
+        return (ShapeOutline(shape, origin: origin), box)
+    }
+
+    /// `placed`'s first half: `path` with every coordinate quantized to four decimals by the path
+    /// model's rule, or nil for an empty or non-finite shape, one past the caps, or one with a
+    /// coordinate past the ±1,000,000 wall. A path shape's outline edited in canvas space under a
+    /// transform (ShapeOutlineTarget.swift) is quantized here before it is mapped back.
+    static func quantized(_ path: PathShape) -> PathShape? {
         guard !path.isEmpty, path.isFinite, path.subpaths.count <= maxSubpaths,
               path.anchorCount <= maxAnchors,
               path.subpaths.allSatisfy({ subpath in
@@ -143,14 +159,7 @@ struct ShapeOutline: Codable, Equatable {
                 shape.subpaths[s].anchors[a] = anchor
             }
         }
-        let bounds = shape.cgPath().boundingBoxOfPath
-        guard !bounds.isNull, [bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]
-            .allSatisfy({ $0.isFinite && abs($0) <= 1_000_000 })
-        else { return nil }
-        let origin = CGPoint(x: bounds.minX.rounded(.down), y: bounds.minY.rounded(.down))
-        let box = CGRect(x: origin.x, y: origin.y,
-                         width: bounds.maxX - origin.x, height: bounds.maxY - origin.y)
-        return (ShapeOutline(shape, origin: origin), box)
+        return shape
     }
 
     // MARK: - The source rect

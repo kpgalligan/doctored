@@ -146,7 +146,7 @@ enum GrayDocument {
         "duplicate_path", "combine_paths", "delete_path", "selection_to_path", "path_to_selection",
         "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
-        "remove_vector_mask", "set_clipping_path",
+        "remove_vector_mask", "set_clipping_path", "get_shape_layer",
         // Replace Missing Fonts (MissingFonts.swift), each colour kept as its gray.
         "list_missing_fonts", "replace_missing_fonts",
         // Phase 6a-ii: links, layer comps, snapshots and Edit ▸ Clear.
@@ -222,7 +222,7 @@ enum GrayDocument {
         "duplicate_path", "combine_paths", "delete_path", "selection_to_path", "path_to_selection",
         "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
-        "remove_vector_mask", "set_clipping_path",
+        "remove_vector_mask", "set_clipping_path", "get_shape_layer",
         // Replace Missing Fonts (MissingFonts.swift), each colour kept as its gray.
         "list_missing_fonts", "replace_missing_fonts",
         // Phase 6a-ii: Edit ▸ Clear (the legacy `erase`, u16 storage only).

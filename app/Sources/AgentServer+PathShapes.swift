@@ -1,11 +1,13 @@
 import AppKit
 
 /// `add_shape_layer` and `edit_shape_layer` on the `path` kind (ShapeOutline.swift), the agent
-/// mirror of Paths panel ▸ Convert to Shape Layer (EditorViewController+PathCommands.swift) and of
-/// re-boxing a path shape in its re-edit session (EditorViewController+Shapes.swift). The outline
-/// is a Pen path: `subpaths` with an optional `fill_rule` in canvas pixels, or `path`, a stored
-/// path's name (the Paths tools' own arguments, AgentServer+Paths.swift). It PLACES ITSELF — the
-/// box is its outline's (`ShapeOutline.placed`) — so the box arguments do not apply to it.
+/// mirror of Paths panel ▸ Convert to Shape Layer (EditorViewController+PathCommands.swift), of
+/// re-boxing a path shape in its re-edit session (EditorViewController+Shapes.swift) and of the
+/// Pen, Path Selection and Direct Selection on the layer's outline (ShapeOutlineTarget.swift). The
+/// outline is a Pen path: `subpaths` with an optional `fill_rule` in canvas pixels, or `path`, a
+/// stored path's name (the Paths tools' own arguments, AgentServer+Paths.swift). It PLACES ITSELF
+/// — the box is its outline's (`ShapeOutline.placed`; under a transform `replacingOutline`) — so
+/// the box arguments do not apply to it.
 extension AgentServer {
     /// The arguments that place a box kind and mean nothing to a path: a path shape's box is its
     /// outline's, and only a rect has a radius and a line a direction.
@@ -44,6 +46,39 @@ extension AgentServer {
         return placed
     }
 
+    /// `edit_shape_layer`'s new outline for a path shape, with the anchor the layer takes for it
+    /// (`ShapeLayerPayload.replacingOutline`, the canvas gestures' rule, under the layer's own
+    /// transform): nil when no outline argument is given. Another kind is refused any outline
+    /// argument, and a new outline is refused x, y, w, h and transform by name — it places
+    /// itself under the layer's current map, so a move, re-box or re-map is a second call.
+    func replacedPathOutline(
+        _ a: [String: Any], doc: RasterDocument, current: ShapeLayerPayload, anchor: CGPoint
+    ) throws -> (payload: ShapeLayerPayload, anchor: CGPoint)? {
+        guard let given = Self.outlineArguments.first(where: { Self.present(a[$0]) }) else {
+            return nil
+        }
+        guard current.kind == "path" else {
+            throw ToolError(
+                message: "\(given) goes with a path shape: a \(current.kind) is placed by x, y, w "
+                    + "and h.")
+        }
+        if let key = ["x", "y", "w", "h", "transform"].first(where: { Self.present(a[$0]) }) {
+            throw ToolError(
+                message: "A new outline places itself under the layer's current transform, so "
+                    + "\(key) does not apply with subpaths or path: replace the outline, then move, "
+                    + "re-box or re-map the layer in a second edit_shape_layer call.")
+        }
+        let shape = try pathArgument(a, doc, tool: "edit_shape_layer with fill_rule")
+        try refuseEmpty(shape, "draw")
+        guard let replaced = current.replacingOutline(shape, anchor: anchor) else {
+            throw ToolError(
+                message: "The path cannot be this shape's outline: an outline holds at most 4096 "
+                    + "subpaths and 32768 anchors, each coordinate within ±1000000, and must have "
+                    + "an extent.")
+        }
+        return replaced
+    }
+
     /// A path shape needs an area to fill: an outline under 1 px across on one axis (a straight
     /// open path) shows only a stroke.
     static func validatePathShapeArea(
@@ -77,14 +112,22 @@ extension AgentServer {
 
     /// A path shape's fields in the shape object: `fill_rule`, `anchors` (a count) and
     /// `subpath_count`, and with `outline` its `subpaths` relative to the box's top-left (the
-    /// shape's `origin`), in set_path's own form. Empty for every other kind.
-    static func pathShapeFields(_ payload: ShapeLayerPayload, outline: Bool) -> [String: Any] {
+    /// shape's `origin`) before the transform, in set_path's own form, and — when the anchor is
+    /// known — `canvas_subpaths`, the outline where it lies on the canvas (`origin + T·local`,
+    /// `canvasOutline`), the form `edit_shape_layer` takes back. Empty for every other kind.
+    static func pathShapeFields(
+        _ payload: ShapeLayerPayload, anchor: CGPoint?, outline: Bool
+    ) -> [String: Any] {
         guard payload.kind == "path", let path = payload.path else { return [:] }
         var fields: [String: Any] = [
             "fill_rule": path.fillRule, "anchors": path.anchorCount,
             "subpath_count": path.subpaths.count,
         ]
-        if outline { fields["subpaths"] = path.shape(origin: .zero).subpathsJSON }
+        guard outline else { return fields }
+        fields["subpaths"] = path.shape(origin: .zero).subpathsJSON
+        if let anchor, let canvas = payload.canvasOutline(anchor: anchor) {
+            fields["canvas_subpaths"] = canvas.subpathsJSON
+        }
         return fields
     }
 }

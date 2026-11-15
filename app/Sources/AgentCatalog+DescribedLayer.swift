@@ -282,17 +282,31 @@ extension AgentServer {
                     + "direction or transform — as one undo step, the way double-clicking "
                     + "the layer in the app reopens it. Works only on layers get_document "
                     + "reports a \"shape\" object for; the kind (rect / ellipse / line / path) is "
-                    + "fixed at creation, and a path shape's outline too: w and h scale it with "
+                    + "fixed at creation. A path shape's w and h scale its outline with "
                     + "its box (along an axis a straight outline does not span, w or h keeps its "
                     + "size, 0 or the fraction past the box's whole-pixel origin, and refuses "
-                    + "another). Omitted arguments keep the "
+                    + "another); subpaths (with an optional fill_rule) or path, a stored path's "
+                    + "name, replace its outline in canvas px, as the Pen, Path Selection and "
+                    + "Direct Selection edit it on the canvas: the outline places itself under the "
+                    + "layer's current "
+                    + "transform, so x, y, w, h and transform are refused beside it (move or re-map "
+                    + "in a second call). get_shape_layer reads the outline back as "
+                    + "canvas_subpaths, this form. Omitted arguments keep the "
                     + "layer's current values "
                     + "(x,y default to its origin, transform to its current map); the mask "
                     + "and style ride along. Pass fill or stroke as \"\" to remove that "
-                    + "paint (at least one visible paint must remain). "
+                    + "paint (at least one visible paint must remain). Replies changed: false when "
+                    + "the edit left the layer as it was. "
                     + floatInk,
                 [
                     "layer": index,
+                    "subpaths": Self.pathSubpathsProperty,
+                    "fill_rule": Self.pathFillRuleProperty,
+                    "path": [
+                        "type": "string",
+                        "description": "Path shape only: a stored path by name (list_paths) as the "
+                            + "new outline, in place of subpaths.",
+                    ],
                     "x": [
                         "type": "number",
                         "description": "New shape box top-left x, canvas px (default: keep).",
@@ -345,6 +359,20 @@ extension AgentServer {
                         "replacing the layer's current one (default: keep it)"),
                     "document_id": docID,
                 ].merging(Self.shapeStrokeStyleProperties("default: keep; new shapes use")) { current, _ in current }),
+            // The Paths panel's shape-path row, read without an edit (AgentServer+Shapes.swift).
+            tool(
+                "get_shape_layer",
+                "Reads a SHAPE layer's description without changing anything: the shape object "
+                    + "get_document reports, plus, for kind path, its whole outline — subpaths "
+                    + "relative to the shape box's top-left before the transform, and "
+                    + "canvas_subpaths, where the outline lies on the canvas (origin plus the "
+                    + "transform of each point), in set_path's form, which edit_shape_layer takes "
+                    + "back as subpaths. A layer that is not a shape layer answers ok with shape "
+                    + "null and a note. No undo step.",
+                [
+                    "layer": index,
+                    "document_id": docID,
+                ]),
             // Layer ▸ New Fill Layer and the fill-layer dialog reopened from
             // the Layers panel (AgentServer+FillLayers.swift).
             tool(

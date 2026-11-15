@@ -271,6 +271,8 @@ final class ImageCanvasView: NSView {
     }
     var onPathSelectCommit: ((PathShape, String) -> Bool)?
     var onPathSelectionChange: (() -> Void)?
+    /// A press with no current path: true when the controller made one current.
+    var onPathSelectNeedsTarget: (() -> Bool)?
     var moveControlsRect: CGRect? { didSet { needsDisplay = true } }
     var onMoveControlsHandle: ((Int, NSEvent.ModifierFlags) -> Void)?
     var eyedropperRing: EyedropperRing? { didSet { needsDisplay = true } }

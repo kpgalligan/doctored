@@ -737,6 +737,8 @@ GRAY_TOOLS = sorted([
     'combine_paths',
     # Replace Missing Fonts (designs/replace-missing-fonts.md).
     'list_missing_fonts', 'replace_missing_fonts',
+    # A path shape's outline read back (designs/v1-paths.md).
+    'get_shape_layer',
     # Phase 6a-ii.
     'link_layers', 'unlink_layers', 'list_layer_comps', 'save_layer_comp', 'apply_layer_comp',
     'update_layer_comp', 'delete_layer_comp', 'reorder_layer_comp', 'list_snapshots',

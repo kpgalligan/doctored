@@ -146,8 +146,8 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+SelectionEssentials.swift` — mirrors the Freehand/Magnetic Lasso and Quick Selection tools and Select ▸ Color Range… / Transform Selection…, with shared capture validation.
 - `AgentServer+SelectionHistory.swift` — `reselect`, `get_selection`, `set_quick_mask` and `quick_mask_stroke`, in parity with the float whitelist in `EditorViewController+Precision.swift`.
 - `AgentServer+SelectionRefinement.swift` — mirrors Select ▸ Select and Mask… over the same captured coverage and validation as the UI.
-- `AgentServer+Shapes.swift` — `add_shape_layer` and `edit_shape_layer`, mirroring the shape tools' commit and the Layers panel's double-click re-edit, so either way renders the same layer.
-- `AgentServer+PathShapes.swift` — the two shape tools on the `path` kind: the outline from `subpaths` or a named path, its refusals, the re-box scale, its fields.
+- `AgentServer+Shapes.swift` — `add_shape_layer`, `edit_shape_layer` and `get_shape_layer`, mirroring the shape tools' commit and re-edit, so either way renders the same layer.
+- `AgentServer+PathShapes.swift` — the shape tools on the `path` kind: the outline from `subpaths` or a named path, a new outline for an edit, refusals, re-box, fields.
 - `AgentServer+Snapshots.swift` — mirrors Window ▸ Snapshots…, including the portable Save/Load files.
 - `AgentServer+SubjectSelection.swift` — subject segmentation, mirroring Select ▸ Select Subject (every subject) and the Subject tool's press-and-hold (the one under the point).
 - `AgentServer+SubjectTargets.swift` — mirrors Select ▸ Select Objects…, Select People… and All People; instance IDs are ephemeral indices for the captured composite and model.
@@ -169,6 +169,7 @@ Detail belongs in the source file's own header comment.
 - `ReplaceFontsSheetController.swift` / `EditorViewController+ReplaceFonts.swift` — Layer ▸ Replace Missing Fonts…: one family popup per missing family; the action and its validation.
 - `ShapeLayer.swift` — shape layers: `ShapeLayerPayload`, the JSON description in the layer's meta (the source of truth; the raster is its cache), and `ShapeLayer`'s render.
 - `ShapeOutline.swift` — the `path` shape kind's outline (payload version 7): box-local anchors, `placed`, re-box scaling, the stroker-free source rect.
+- `ShapeOutlineTarget.swift` — a path shape's outline as a path target: canvas ↔ box-local under the map, `commitShapeOutline` (one re-render step).
 - `ShapeTool.swift` — the style a shape drags with: the options bar's fill, stroke, weight and corner radius, resolved to native types.
 - `EditorViewController+Shapes.swift` — the shape tools (U): drag out a rectangle, ellipse or line into a re-editable shape layer; a refused re-edit keeps its session open.
 - `DescribedLayer.swift` — the shared geometry of described layers (text, shapes) under a `LinearMap`, `LayerDescription`, and the two pure document ops every described-layer commit runs.
@@ -789,6 +790,7 @@ Detail belongs in the source file's own header comment.
 - `PenSession.swift` / `ImageCanvasView+Pen.swift` / `EditorViewController+Pen.swift` — the Pen tool (P): gesture rules, canvas events and overlay, the commit.
 - `PathSelectSession.swift` / `ImageCanvasView+PathSelect.swift` — Path Selection and Direct Selection (A): the shared session (selection, gestures), canvas events and marks.
 - `EditorViewController+PathSelect.swift` — the two tools' actions and commit, Combine Selected Subpaths, Paths panel ▸ Fill Path… and Stroke Path….
+- `EditorViewController+ShapeOutline.swift` — a press adopting the active path shape's outline; the lock-checked outline commit the path tools share.
 - `PathsPanelViewController.swift` / `EditorViewController+Paths.swift` / `PathSheets.swift` — the Paths panel (the sixth tab), its commands and five sheets.
 - `EditorViewController+PathCommands.swift` — Paths panel ▸ Convert to Shape Layer and Combine with Path…: the commands, their validation and the steps they record.
 - `EditorViewController+VectorMasks.swift` — Layer ▸ Vector Mask: Current Path, Reveal All, Delete, Enable and Link, each recording its MCP twin.

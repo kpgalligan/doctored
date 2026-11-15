@@ -25,9 +25,10 @@ extension EditorViewController {
     func refreshCanvasPath(_ note: Notification? = nil) {
         guard note?.userInfo?["isLive"] as? Bool != true else { return }
         // MCP `set_active_layer` reaches here through the document-change
-        // notification: a current path on another layer's vector mask is
+        // notification: a current path on another layer's vector mask or
+        // outline, or on an outline that is no longer a path shape, is
         // dropped, and the panel deselects its row.
-        if followActiveLayerVectorMask() { pathsPanel?.activeLayerChanged() }
+        if followActiveLayerPathTarget() { pathsPanel?.activeLayerChanged() }
         let target = document?.currentPath
         var session = canvas.penSession
         session.adopt(
@@ -51,10 +52,11 @@ extension EditorViewController {
             NSSound.beep()
             return false
         }
-        // A current path left on another layer's vector mask (MCP `new_layer`
-        // moves the active layer after its notification) is cleared, and the
-        // gesture refused, so the stale mask is never committed to.
-        if followActiveLayerVectorMask() {
+        // A current path left on another layer's vector mask or outline (MCP
+        // `new_layer` moves the active layer after its notification) is
+        // cleared, and the gesture refused, so the stale target is never
+        // committed to.
+        if followActiveLayerPathTarget() {
             refreshCanvasPath()
             pathsPanel?.activeLayerChanged()
             NSSound.beep()
@@ -64,6 +66,14 @@ extension EditorViewController {
         // layer's mask (`ImageDocument.commitPenVectorMask`, `set_vector_mask`).
         if case .vectorMask(let layerID)? = document.currentPath {
             guard document.commitPenVectorMask(shape, layerID: layerID, name: name, note: note)
+            else { return false }
+            refreshCanvasPath()
+            return true
+        }
+        // Nor is a path shape's outline: the gesture re-renders the layer
+        // (`ImageDocument.commitShapeOutline`, `edit_shape_layer`).
+        if case .shapeOutline(let layerID)? = document.currentPath {
+            guard commitShapeOutlineGesture(shape, layerID: layerID, name: name, note: note)
             else { return false }
             refreshCanvasPath()
             return true

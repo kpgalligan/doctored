@@ -110,7 +110,20 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   four-decimal quantization), a pixel edit or any edit that leaves the path alone, and dropped by any other
   change of the path (an undo, an agent's `set_path`) and by leaving the two tools, so no command acts on a
   selection nobody can see. While one is held, Edit ▸ Clear stands down so ⌫ reaches the canvas; ⌥⌫ and ⌘⌫
-  keep their fills. A press with no current path beeps; the tools never create a path.
+  keep their fills. A press with no current path takes the active path shape layer's outline (below) and
+  otherwise beeps; the tools never create a path.
+- **A path shape's outline is a path target** (2026-11-15, `ShapeOutlineTarget.swift`). The current path can
+  be the active path shape layer's outline (`PathTarget.shapeOutline`), made current by the Paths panel's
+  "<layer> Shape Path" row or by a Path Selection or Direct Selection press with no current path. The Pen and
+  both tools edit it in canvas coordinates; the drag draws the next outline over the layer, and each finished
+  gesture re-renders the layer once, as one undo step recording `edit_shape_layer` with `subpaths` +
+  `fill_rule` (absolute-only). The canvas shape is the truth: untransformed it is placed as a new outline is
+  (so the layer equals a fresh `add_shape_layer` of it); under the layer's map T it is quantized, taken into
+  the box's space (`T⁻¹(p − anchor)`), re-boxed on its tight box floored to a whole pixel, and the anchor moves
+  by T times that floor, so the read-back is the canvas shape within floating-point error and the selection
+  survives its own commit. Style, inks, transform and mask are kept. The target follows the active layer and
+  is dropped when its layer stops being a path shape (rasterized); the outline is not deleted from the Paths
+  panel (deleting it is deleting the layer). Combine Selected Subpaths works on it as on a vector mask.
 - **Selected subpaths against the rest** (2026-11-15). Combine Selected Subpaths (the two tools' options bar,
   the Paths panel's row menu) and `combine_paths` with `subpath_indices` in place of `with`: the region the
   path's other subpaths fill and the region the selected ones fill, each under the path's own rule, combined
@@ -120,8 +133,8 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   `set_vector_mask`. While subpaths are selected, Fill Path, Stroke Path (footer and sheets) and Make
   Selection… act on them alone and record the explicit `subpaths` + `fill_rule` form; Convert to Shape Layer,
   Combine with Path… and Add Vector Mask keep the whole path.
-- **Paths panel**, the right panel's sixth tab: the active layer's vector mask (when it has one), the work
-  path and the saved paths; rename (which saves the work path), duplicate, Combine with Path…, delete,
+- **Paths panel**, the right panel's sixth tab: the active layer's vector mask (when it has one), its outline
+  (when it is a path shape layer), the work path and the saved paths; rename (which saves the work path), duplicate, Combine with Path…, delete,
   Clipping Path, Clipping Path Flatness…, Make Selection…, Fill Path…, Stroke Path…, Combine Selected
   Subpaths, Convert to Shape Layer, Make Work Path… and Add Vector Mask. Fill Path… is Edit ▸ Fill…'s sheet
   without Pattern (`fill_path` takes one colour) and records its colour, blend mode, opacity and Preserve
@@ -147,7 +160,9 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   whole-pixel origin) keeps its size under every handle and `edit_shape_layer` refuses another. Paths panel ▸ Convert
   to Shape Layer (the shape options bar's style, the current path or vector mask) and `add_shape_layer` with
   kind `path` (`subpaths` + `fill_rule`, or `path`; the box arguments refused) make one; the recorded step
-  carries the outline in canvas pixels and is absolute-only.
+  carries the outline in canvas pixels and is absolute-only. `edit_shape_layer` with `subpaths` or `path`
+  replaces the outline (x, y, w, h and transform refused beside it), and `get_shape_layer` reads it back
+  without an edit: `subpaths` box-local and `canvas_subpaths` on the canvas, the form the edit takes.
 - **A path operation produces a path** (2026-11-14, `PathCombine.swift`). Paths panel ▸ Combine with Path…
   and `combine_paths` replace a path with its fill region united with, less, intersected with or excluding
   another's, through CoreGraphics' geometric booleans: shared edges stay exact and a curve's result stays
@@ -161,7 +176,8 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   the target document, which a recorded Pen or Make Work Path step earlier in the same action provides.
 
 ## Not in v1
-- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Type on a path.
+- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Type on a path, designed in
+  [type-on-a-path.md](type-on-a-path.md), not built.
 - `DONE` (2026-11-14) — Convert Path to Shape layer (Decisions, "Path shape layers";
   `scripts/verify_path_shape_layers.py`).
 - `DONE` (2026-11-14) — path boolean operations on two paths of the list (Decisions, "A path operation
@@ -169,9 +185,9 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
 - `DONE` (2026-11-15) — Path Selection and Direct Selection, booleans on the selected subpaths against the
   rest, and the Fill Path… and Stroke Path… sheets (Decisions; `core/tests/path_subpath_at.rs`, the
   jobs-probe's four "path …" cases, `scripts/verify_path_combine.py`'s `take_subpaths`).
-- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — a path shape's outline as an editing target
-  (Direct Selection on the layer, re-rendering per gesture) and read back over MCP without an edit; until then
-  an outline is replaced by deleting the layer and adding it again.
+- `DONE` (2026-11-15) — a path shape's outline as an editing target, read back over MCP without an edit
+  (Decisions, "A path shape's outline is a path target"; `scripts/verify_path_shape_outline.py`, the
+  jobs-probe's "path shape outline target").
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — per-subpath operations held on the path (and
   with them a subtracting `vmsk` carried instead of baked): a model change, a DRDC word, three coverage callers
   and the PSD and TIFF codecs, with a quarter-pixel seam wherever two subpaths share an edge (measured: 0.25 of

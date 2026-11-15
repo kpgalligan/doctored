@@ -1081,6 +1081,8 @@ LAB_TOOLS = [
     'combine_paths',
     # Replace Missing Fonts (designs/replace-missing-fonts.md).
     'list_missing_fonts', 'replace_missing_fonts',
+    # A path shape's outline read back (designs/v1-paths.md).
+    'get_shape_layer',
     # Phase 6b-i.
     'apply_image', 'calculations', 'stack_mode', 'reduce_noise_from_stack', 'merge_layers_to_hdr',
     # Phase 6a-ii: Gray 6a-ii's sixteen.

@@ -244,7 +244,7 @@ enum LabDocument {
         "duplicate_path", "combine_paths", "delete_path", "selection_to_path", "path_to_selection",
         "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
-        "remove_vector_mask", "set_clipping_path",
+        "remove_vector_mask", "set_clipping_path", "get_shape_layer",
         // Replace Missing Fonts (MissingFonts.swift), authored sRGB kept.
         "list_missing_fonts", "replace_missing_fonts",
         // Phase 6b: Apply Image and Calculations (`LabAnalysis.swift`), Stack Modes and Merge to HDR.
@@ -326,7 +326,7 @@ enum LabDocument {
         "duplicate_path", "combine_paths", "delete_path", "selection_to_path", "path_to_selection",
         "fill_path",
         "stroke_path", "get_vector_mask", "set_vector_mask", "set_vector_mask_properties",
-        "remove_vector_mask", "set_clipping_path",
+        "remove_vector_mask", "set_clipping_path", "get_shape_layer",
         // Replace Missing Fonts (MissingFonts.swift), authored sRGB kept.
         "list_missing_fonts", "replace_missing_fonts",
         // Phase 6b (the same list as `tools`).

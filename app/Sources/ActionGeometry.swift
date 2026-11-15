@@ -334,9 +334,11 @@ enum ActionGeometry {
                 + "so put the geometry mode on a step that carries coordinates"
         }
         // A path shape's outline is a path's anchors and handles, which the
-        // path tools above do not remap either.
+        // path tools above do not remap either — given to a new layer or to
+        // an existing one's.
         if unqualified.contains(tool)
-            || (tool == "add_shape_layer" && ["subpaths", "path"].contains { arguments[$0] != nil }) {
+            || (["add_shape_layer", "edit_shape_layer"].contains(tool)
+                && ["subpaths", "path"].contains { arguments[$0] != nil }) {
             return "\"\(tool)\" supports absolute geometry only; relative and anchor "
                 + "remapping of its canvas coordinates is not qualified."
         }

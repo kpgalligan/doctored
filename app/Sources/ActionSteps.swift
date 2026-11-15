@@ -1099,6 +1099,19 @@ extension Array where Element == ActionStep {
         return step("edit_shape_layer", arguments, note: "Shape tool: edit a shape layer")
     }
 
+    /// A path shape's outline edited on the canvas — the Pen, Path Selection or Direct Selection
+    /// on the layer's outline (ShapeOutlineTarget.swift): `edit_shape_layer` with the whole
+    /// outline as `subpaths` in canvas px and its `fill_rule`, and nothing else, so the replay
+    /// places it under the layer's own transform as the gesture did.
+    static func editShapeOutline(_ shape: PathShape, layer ref: LayerRef?, note: String)
+        -> [ActionStep]
+    {
+        step("edit_shape_layer", [
+            "layer": ActionArgs.layer(ref), "subpaths": shape.subpathsJSON,
+            "fill_rule": shape.fillRule.rawValue,
+        ], note: note)
+    }
+
     /// The geometry and style both shape tools share. `kind` is absent —
     /// `edit_shape_layer` cannot change it, and `addShapeLayer` adds it.
     private static func shapeArguments(_ payload: ShapeLayerPayload) -> [String: Any] {

@@ -1,15 +1,18 @@
 import AppKit
 
-/// One row of the Paths panel: the active layer's vector mask, or a path of
-/// the document's list.
+/// One row of the Paths panel: the active layer's vector mask, the active
+/// path shape layer's outline, or a path of the document's list.
 enum PathRow: Equatable {
     case vectorMask(layerID: UInt64, layerName: String, info: VectorMaskInfo)
+    /// The outline in canvas coordinates (`RasterDocument.shapeOutlinePath`).
+    case shapeOutline(layerID: UInt64, layerName: String, shape: PathShape)
     case path(PathEntry)
 
     /// What selecting the row makes the document's current path.
     var target: PathTarget {
         switch self {
         case .vectorMask(let layerID, _, _): return .vectorMask(layerID: layerID)
+        case .shapeOutline(let layerID, _, _): return .shapeOutline(layerID: layerID)
         case .path(let entry): return .path(entry.id)
         }
     }
@@ -17,6 +20,7 @@ enum PathRow: Equatable {
     var shape: PathShape {
         switch self {
         case .vectorMask(_, _, let info): return info.shape
+        case .shapeOutline(_, _, let shape): return shape
         case .path(let entry): return entry.shape
         }
     }
@@ -24,6 +28,7 @@ enum PathRow: Equatable {
     var title: String {
         switch self {
         case .vectorMask(_, let layerName, _): return "\(layerName) Vector Mask"
+        case .shapeOutline(_, let layerName, _): return "\(layerName) Shape Path"
         case .path(let entry): return entry.name
         }
     }
@@ -36,6 +41,8 @@ enum PathRow: Equatable {
         case .vectorMask(_, _, let info):
             let state = info.enabled ? (info.shape.isEmpty ? "reveals all" : anchors) : "disabled"
             return "vector mask · \(state)" + (info.linked ? "" : " · unlinked")
+        case .shapeOutline:
+            return "shape path · " + anchors
         case .path(let entry):
             return (entry.kind == .work ? "work path · " : "path · ") + anchors
                 + (entry.clipping.map(Self.clippingNote) ?? "")
@@ -49,14 +56,24 @@ enum PathRow: Equatable {
         return " · clipping path, flatness \(flatness) px"
     }
 
-    var isVectorMask: Bool {
-        if case .vectorMask = self { return true }
+    /// A row of the active layer's — its vector mask or its outline — rather than of the list:
+    /// not counted among the paths, and never a source for Add Vector Mask.
+    var isLayerRow: Bool {
+        switch self {
+        case .vectorMask, .shapeOutline: return true
+        case .path: return false
+        }
+    }
+
+    var isShapeOutline: Bool {
+        if case .shapeOutline = self { return true }
         return false
     }
 }
 
 /// The Paths tab of the right panel: the active layer's vector mask
-/// (while it has one), the work path, then every saved path.
+/// (while it has one), its outline (while it is a path shape layer), the work
+/// path, then every saved path.
 ///
 /// Selecting a row makes it the document's CURRENT PATH — the one the canvas
 /// outlines and the Pen edits — and clicking the empty part of the list
@@ -299,12 +316,19 @@ final class PathsPanelViewController: NSViewController {
 
     // MARK: - Reload
 
-    /// The rows of `doc` with `activeLayer` active: its vector mask, then the
-    /// path list in the core's order (the work path first).
+    /// The rows of `doc` with `activeLayer` active: its vector mask, its
+    /// outline when it is a path shape, then the path list in the core's order
+    /// (the work path first).
     static func rows(of doc: RasterDocument, activeLayer: Int) -> [PathRow] {
         var rows: [PathRow] = []
-        if let info = doc.vectorMask(activeLayer), let layer = doc.layerInfo(activeLayer) {
-            rows.append(.vectorMask(layerID: layer.id, layerName: layer.name, info: info))
+        if let layer = doc.layerInfo(activeLayer) {
+            if let info = doc.vectorMask(activeLayer) {
+                rows.append(.vectorMask(layerID: layer.id, layerName: layer.name, info: info))
+            }
+            if let outline = doc.shapeOutlinePath(activeLayer) {
+                rows.append(
+                    .shapeOutline(layerID: layer.id, layerName: layer.name, shape: outline))
+            }
         }
         rows.append(contentsOf: doc.paths.entries.map(PathRow.path))
         return rows
@@ -318,7 +342,7 @@ final class PathsPanelViewController: NSViewController {
         tableView.reloadData()
         selectCurrentRow()
         isReloading = false
-        let count = rows.filter { !$0.isVectorMask }.count
+        let count = rows.filter { !$0.isLayerRow }.count
         countLabel.stringValue = count == 1 ? "1 path" : "\(count) paths"
         updateButtonStates()
     }
@@ -349,9 +373,10 @@ final class PathsPanelViewController: NSViewController {
         selectionButton.isEnabled = hasDocument && drawn
         workPathButton.isEnabled = hasDocument && hasSelection
         // A path row becomes the active layer's vector mask; a vector-mask
-        // row already is one.
-        maskButton.isEnabled = hasDocument && drawn && row?.isVectorMask == false
-        deleteButton.isEnabled = hasDocument && row != nil
+        // row already is one, and a shape path is the layer's own outline.
+        maskButton.isEnabled = hasDocument && drawn && row?.isLayerRow == false
+        // A shape path is deleted with its layer, in the Layers panel.
+        deleteButton.isEnabled = hasDocument && row != nil && row?.isShapeOutline == false
     }
 
     // MARK: - Row actions
@@ -432,7 +457,7 @@ extension PathsPanelViewController: NSTableViewDataSource, NSTableViewDelegate, 
                 add(
                     "Clipping Path Flatness…",
                     #selector(EditorViewController.editClippingPathFlatness(_:)))
-            } else {
+            } else if case .vectorMask = rows[row] {
                 add(
                     "Delete Vector Mask",
                     #selector(EditorViewController.deleteVectorMask(_:)))
@@ -543,9 +568,15 @@ final class PathCellView: NSView, NSTextFieldDelegate {
         metaLabel.stringValue = row.subtitle
         thumb.shape = row.shape
         thumb.canvas = canvas
-        thumb.toolTip = row.isVectorMask
-            ? "The active layer's vector mask. Select it to edit its shape with the Pen."
-            : "Select to outline this path on the canvas and edit it with the Pen."
+        switch row {
+        case .vectorMask:
+            thumb.toolTip = "The active layer's vector mask. Select it to edit its shape with the Pen."
+        case .shapeOutline:
+            thumb.toolTip = "The active shape layer's outline. Select it to edit it with the Pen, "
+                + "Path Selection or Direct Selection; each edit re-renders the layer."
+        case .path:
+            thumb.toolTip = "Select to outline this path on the canvas and edit it with the Pen."
+        }
     }
 
     func beginRename() {

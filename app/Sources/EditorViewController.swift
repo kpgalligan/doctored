@@ -366,6 +366,7 @@ final class EditorViewController: NSViewController {
         installPerspectiveCrop()
         installPen()
         installPathSelect()
+        installShapeOutlineTarget()
         installMoveControls()
         installPuppetWarp()
         installPerspectiveWarp()

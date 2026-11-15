@@ -27,10 +27,13 @@ extension ImageCanvasView {
         tool.selectsPath && pathSelectSession.hasSelection && !quickMaskActive
     }
 
-    /// True when the press is the two tools'. With no current path there is
-    /// nothing to select: the press beeps and changes nothing.
+    /// True when the press is the two tools'. With no current path the
+    /// controller is asked for one (`onPathSelectNeedsTarget`: the active
+    /// path shape layer's outline); with none there is nothing to select, and
+    /// the press beeps and changes nothing.
     func pathSelectMouseDown(_ event: NSEvent) -> Bool {
         guard tool.selectsPath else { return false }
+        if penSession.shape == nil { _ = onPathSelectNeedsTarget?() }
         guard let base = penSession.shape, let target = penSession.target else {
             NSSound.beep()
             return true

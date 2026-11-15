@@ -20,7 +20,7 @@ The helper reaches the app over a Unix socket the app binds at every launch,
 owner can open; `DR_AGENT_SOCKET` names another path for both. There is no TCP
 endpoint.
 
-This build exposes **364 tools**. The reference is generated from the app's
+This build exposes **365 tools**. The reference is generated from the app's
 `tools/list` catalog (live, or the snapshot the build writes from the same code),
 which is authoritative. Tool results are MCP
 content blocks; most calls return a JSON object in a text block, while `render` and
@@ -119,6 +119,7 @@ Add `--check` to either to verify that the checked-in page matches the catalog.
 - [`edit_text_layer`](#edit_text_layer)
 - [`add_shape_layer`](#add_shape_layer)
 - [`edit_shape_layer`](#edit_shape_layer)
+- [`get_shape_layer`](#get_shape_layer)
 - [`add_fill_layer`](#add_fill_layer)
 - [`edit_fill_layer`](#edit_fill_layer)
 - [`list_missing_fonts`](#list_missing_fonts)
@@ -1738,7 +1739,7 @@ Adds a RE-EDITABLE shape layer above the active layer and selects it — the sam
 
 ## `edit_shape_layer`
 
-Changes an existing SHAPE layer's description and re-renders its pixels — the box, fill, stroke, stroke width, corner radius, line direction or transform — as one undo step, the way double-clicking the layer in the app reopens it. Works only on layers get_document reports a "shape" object for; the kind (rect / ellipse / line / path) is fixed at creation, and a path shape's outline too: w and h scale it with its box (along an axis a straight outline does not span, w or h keeps its size, 0 or the fraction past the box's whole-pixel origin, and refuses another). Omitted arguments keep the layer's current values (x,y default to its origin, transform to its current map); the mask and style ride along. Pass fill or stroke as "" to remove that paint (at least one visible paint must remain). In a 32-bit float document colours are the document's own linear-light numbers (#2E80C8 is 46/255 linear); red, green and blue may be above white, 0–65504, and alpha stays 0–1 (8/16-bit documents keep 0–1). A layer pasted into or converted out of 32 bits has its numbers rewritten so it looks the same; converting to 16 or 8 bits clips each channel at 1. get_document reports `ink`. Works on a CMYK document: the layer's colours are stored as ink in the document's profile — pass ink (fill_ink, stroke_ink, a run's or a stop's ink) as C, M, Y, K percent for exact ink, or a colour, which separates through the profile (relative colorimetric with BPC); an edit that passes no colour keeps each ink exactly, and the reply reports the ink in percent beside the appearance hex. In a Grayscale document every colour — a run's, a stop's, a custom pattern's texels — is stored as its gray by Image ▸ Mode ▸ Grayscale's rule and renders R = G = B; get_document reports the gray; ink refuses. In a Lab Color document the colours stay authored sRGB (pass color; ink refuses) and render as L*a*b* codes by Image ▸ Mode ▸ Lab Color's rule (a pattern's tile too, texel by texel; a gradient between its converted stops), an 8-bit layer on the ×257 grid; Image ▸ Mode conversions re-render the layer in the new mode. On an Indexed Color document this refuses for good.
+Changes an existing SHAPE layer's description and re-renders its pixels — the box, fill, stroke, stroke width, corner radius, line direction or transform — as one undo step, the way double-clicking the layer in the app reopens it. Works only on layers get_document reports a "shape" object for; the kind (rect / ellipse / line / path) is fixed at creation. A path shape's w and h scale its outline with its box (along an axis a straight outline does not span, w or h keeps its size, 0 or the fraction past the box's whole-pixel origin, and refuses another); subpaths (with an optional fill_rule) or path, a stored path's name, replace its outline in canvas px, as the Pen, Path Selection and Direct Selection edit it on the canvas: the outline places itself under the layer's current transform, so x, y, w, h and transform are refused beside it (move or re-map in a second call). get_shape_layer reads the outline back as canvas_subpaths, this form. Omitted arguments keep the layer's current values (x,y default to its origin, transform to its current map); the mask and style ride along. Pass fill or stroke as "" to remove that paint (at least one visible paint must remain). Replies changed: false when the edit left the layer as it was. In a 32-bit float document colours are the document's own linear-light numbers (#2E80C8 is 46/255 linear); red, green and blue may be above white, 0–65504, and alpha stays 0–1 (8/16-bit documents keep 0–1). A layer pasted into or converted out of 32 bits has its numbers rewritten so it looks the same; converting to 16 or 8 bits clips each channel at 1. get_document reports `ink`. Works on a CMYK document: the layer's colours are stored as ink in the document's profile — pass ink (fill_ink, stroke_ink, a run's or a stop's ink) as C, M, Y, K percent for exact ink, or a colour, which separates through the profile (relative colorimetric with BPC); an edit that passes no colour keeps each ink exactly, and the reply reports the ink in percent beside the appearance hex. In a Grayscale document every colour — a run's, a stop's, a custom pattern's texels — is stored as its gray by Image ▸ Mode ▸ Grayscale's rule and renders R = G = B; get_document reports the gray; ink refuses. In a Lab Color document the colours stay authored sRGB (pass color; ink refuses) and render as L*a*b* codes by Image ▸ Mode ▸ Lab Color's rule (a pattern's tile too, texel by texel; a gradient between its converted stops), an 8-bit layer on the ×257 grid; Image ▸ Mode conversions re-render the layer in the new mode. On an Indexed Color document this refuses for good.
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
@@ -1746,9 +1747,11 @@ Changes an existing SHAPE layer's description and re-renders its pixels — the 
 | `fill` | `string` | no | — | Hex fill color, #RRGGBB or #RRGGBBAA; "" removes the fill (default: keep). Ignored for lines. |
 | `fill_ink` | `array<number>` | no | 4–4 items; items: 0–100 | CMYK document only: the fill as ink, C, M, Y, K in percent 0–100, stored exactly (a colour argument instead separates through the document's profile; its alpha still applies). Replies report ink beside the appearance hex. An RGB document refuses it. |
 | `fill_rgba` | `array<number> or null` | no | 4–4 items | Continuous normalized sRGB fill, alternative to fill; null removes it. sample_color's srgb_rgba is this spelling of a sampled pixel. |
+| `fill_rule` | `string` | no | one of `nonzero`, `evenodd` | With subpaths: how overlapping subpaths fill. nonzero (default) fills everything a subpath winds around; evenodd makes a subpath inside another a hole. |
 | `flipped` | `boolean` | no | — | Line only: false runs top-left to bottom-right across the box, true bottom-left to top-right (default: keep). |
 | `h` | `number` | no | — | New box height in px (default: keep). |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
+| `path` | `string` | no | — | Path shape only: a stored path by name (list_paths) as the new outline, in place of subpaths. |
 | `radius` | `number` | no | — | Rect corner radius in px (default: keep; ignored by ellipse and line). |
 | `stroke` | `string` | no | — | Hex stroke color, #RRGGBB or #RRGGBBAA; "" removes the stroke (default: keep; a line requires one). |
 | `stroke_align` | `string` | no | one of `inside`, `center`, `outside` | Which side of the path the stroke's width lies on (default: keep; new shapes use center). A line takes only center. |
@@ -1757,10 +1760,22 @@ Changes an existing SHAPE layer's description and re-renders its pixels — the 
 | `stroke_join` | `string` | no | one of `miter`, `round`, `bevel` | How the stroke's corners meet (default: keep; new shapes use miter). |
 | `stroke_rgba` | `array<number> or null` | no | 4–4 items | Continuous normalized sRGB stroke, alternative to stroke; null removes it. sample_color's srgb_rgba is this spelling of a sampled pixel. |
 | `stroke_width` | `number` | no | — | Stroke width in px, centered on the path (0-200; default: keep). |
+| `subpaths` | `array<object>` | no | — | The shape, in absolute canvas pixels (y down from the top-left; it may lie outside the canvas): [{closed, anchors}, …]. The segment from one anchor to the next is the cubic Bézier (point, out, next in, next point), a straight line when both handles sit on their points; a closed subpath also joins its last anchor to its first. Coordinates are kept to four decimals. At most 4096 subpaths and 32768 anchors, each coordinate within ±1000000. |
+| `subpaths[].anchors` | `array<any>` | with parent | 1–unbounded items | — |
+| `subpaths[].closed` | `boolean` | no | — | Default false. |
 | `transform` | `array<number>` | no | 4–4 items | The layer's 2×2 linear map [a, b, c, d], row-major — (x, y) maps to (a·x + b·y, c·x + d·y) — replacing the layer's current one (default: keep it); default [1, 0, 0, 1]. Rotation by θ clockwise is [cos θ, -sin θ, sin θ, cos θ]. transform_layer composes onto it; get_document reports it. |
 | `w` | `number` | no | — | New box width in px (default: keep). |
 | `x` | `number` | no | — | New shape box top-left x, canvas px (default: keep). |
 | `y` | `number` | no | — | New shape box top-left y, canvas px (default: keep). |
+
+## `get_shape_layer`
+
+Reads a SHAPE layer's description without changing anything: the shape object get_document reports, plus, for kind path, its whole outline — subpaths relative to the shape box's top-left before the transform, and canvas_subpaths, where the outline lies on the canvas (origin plus the transform of each point), in set_path's form, which edit_shape_layer takes back as subpaths. A layer that is not a shape layer answers ok with shape null and a note. No undo step.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
+| `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
 
 ## `add_fill_layer`
 

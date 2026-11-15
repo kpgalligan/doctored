@@ -4,10 +4,11 @@ import AppKit
 /// ImageCanvasView+PathSelect.swift), and the Paths panel's Fill Path… and Stroke Path… sheets.
 ///
 /// A gesture's commit is the Pen's (`penGestureCommitted`): one `set_path` step — or, on a
-/// layer's vector mask, one `set_vector_mask` step — noted with the tool's name, so the gestures
-/// need no MCP tool of their own. Combine Selected Subpaths (the options bar's four buttons and
-/// the Paths panel's row menu) runs `combine_paths` with `subpath_indices` on a list path; a
-/// vector mask, which no path tool can name, is combined here by the same rule
+/// layer's vector mask, one `set_vector_mask` step, and on a path shape's outline one
+/// `edit_shape_layer` step — noted with the tool's name, so the gestures need no MCP tool of
+/// their own. Combine Selected Subpaths (the options bar's four buttons and the Paths panel's row
+/// menu) runs `combine_paths` with `subpath_indices` on a list path; a vector mask or an outline,
+/// which no path tool can name, is combined here by the same rule
 /// (`PathCombine.combineSubpaths`) and committed as the gestures are. Fill Path… and Stroke
 /// Path… run `fill_path` and `stroke_path`; while subpaths are selected they paint those alone,
 /// as Fill Path, Stroke Path and Make Selection… do (`currentPathStep(selectedOnly:)`).
@@ -119,6 +120,21 @@ extension EditorViewController {
                 return
             }
             guard document.commitPenVectorMask(
+                result, layerID: layerID, name: "Combine Subpaths", note: note)
+            else { return }
+        case .shapeOutline(let layerID)?:
+            // A path shape's outline, which no path tool can name either: the same rule,
+            // committed as the gestures are (one `edit_shape_layer`).
+            let result = PathCombine.combineSubpaths(
+                selected.shape, selected: Set(selected.indices), operation)
+            guard !result.isEmpty else {
+                presentPathAlert(
+                    "Combine Subpaths could not run",
+                    "Nothing is left: the \(operation.rawValue) of the selected subpaths and the "
+                        + "rest of the shape's outline fills no area. Nothing changed.")
+                return
+            }
+            guard commitShapeOutlineGesture(
                 result, layerID: layerID, name: "Combine Subpaths", note: note)
             else { return }
         case nil:

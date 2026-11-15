@@ -92,21 +92,32 @@ extension EditorViewController {
     }
 
     /// The active layer changed (the Layers panel, `setActiveLayer` /
-    /// `setSelectedLayers`): a current path on the old layer's vector mask is
-    /// dropped, and the canvas and the panel follow.
+    /// `setSelectedLayers`): a current path on the old layer's vector mask or
+    /// outline is dropped, and the canvas and the panel follow.
     func pathsActiveLayerDidChange() {
         refreshCanvasPath()
         pathsPanel?.activeLayerChanged()
     }
 
-    /// The vector mask row the Paths panel shows is always the ACTIVE layer's,
-    /// so a current path on any other layer's vector mask is cleared (not
-    /// retargeted). True when it was; a list path is never touched.
+    /// The vector mask and shape outline rows the Paths panel shows are always
+    /// the ACTIVE layer's, so a current path on any other layer's vector mask
+    /// or outline is cleared (not retargeted), and so is an outline whose
+    /// layer is no longer a path shape (painted on and rasterized), which no
+    /// row shows and no press could leave. True when it was; a list path is
+    /// never touched.
     @discardableResult
-    func followActiveLayerVectorMask() -> Bool {
-        guard let document, case .vectorMask(let layerID)? = document.currentPath,
-              layerID != activeLayerID()
-        else { return false }
+    func followActiveLayerPathTarget() -> Bool {
+        guard let document, let target = document.currentPath else { return false }
+        switch target {
+        case .path:
+            return false
+        case .vectorMask(let layerID):
+            guard layerID != activeLayerID() else { return false }
+        case .shapeOutline(let layerID):
+            guard layerID != activeLayerID() || document.resolvedPath(target) == nil else {
+                return false
+            }
+        }
         document.currentPath = nil
         return true
     }
@@ -119,8 +130,8 @@ extension EditorViewController {
 
     /// The current path as a shape and as the arguments that name it for a
     /// path tool: `path` for a path of the list (the work path answers to
-    /// "Work Path"), the shape itself for a layer's vector mask, which no
-    /// tool can name. nil with no current path.
+    /// "Work Path"), the shape itself for a layer's vector mask or a path
+    /// shape's outline, which no tool can name. nil with no current path.
     ///
     /// `selectedOnly` (Fill Path, Stroke Path and Make Selection…): while
     /// Path Selection or Direct Selection holds selected subpaths of the
@@ -144,11 +155,11 @@ extension EditorViewController {
         case .path(let id):
             guard let entry = doc.paths.entry(id: id) else { return nil }
             return (entry.shape, ["path": entry.name])
-        case .vectorMask(let layerID):
-            // Another layer's vector mask is stale (MCP `new_layer` moves the
-            // active layer after its edit's notification). Read-only here:
-            // menu validation asks this, so the clearing is left to
-            // `followActiveLayerVectorMask`.
+        case .vectorMask(let layerID), .shapeOutline(let layerID):
+            // Another layer's vector mask or outline is stale (MCP `new_layer`
+            // moves the active layer after its edit's notification). Read-only
+            // here: menu validation asks this, so the clearing is left to
+            // `followActiveLayerPathTarget`.
             guard layerID == activeLayerID(), let shape = document.resolvedPath(target) else {
                 return nil
             }
@@ -260,15 +271,23 @@ extension EditorViewController {
     }
 
     /// Paths panel ▸ Delete: the current path leaves the list — or, when the
-    /// current path is a layer's vector mask, that mask is deleted.
+    /// current path is a layer's vector mask, that mask is deleted. A path
+    /// shape's outline is not deleted here: without it the layer is nothing,
+    /// and deleting the layer is the Layers panel's.
     @objc func deleteCurrentPath(_ sender: Any?) {
         guard let document else {
             NSSound.beep()
             return
         }
-        if case .vectorMask? = document.currentPath {
+        switch document.currentPath {
+        case .vectorMask?:
             deleteVectorMask(sender)
             return
+        case .shapeOutline?:
+            NSSound.beep()
+            return
+        case .path?, nil:
+            break
         }
         guard let (set, index) = currentListPath() else {
             NSSound.beep()
@@ -507,7 +526,7 @@ extension EditorViewController {
     /// Enablement for this file's items and `+VectorMasks.swift`'s; nil for
     /// anybody else's. One early-out in `validateUserInterfaceItem`.
     func validatePathsItem(_ item: NSValidatedUserInterfaceItem) -> Bool? {
-        guard let document, let doc = document.doc else { return nil }
+        guard let document, document.doc != nil else { return nil }
         let drawn = { [weak self] in self?.currentPathStep().map { !$0.shape.isEmpty } ?? false }
         switch item.action {
         case #selector(makeSelectionFromPath(_:)):
@@ -527,6 +546,7 @@ extension EditorViewController {
         case #selector(editClippingPathFlatness(_:)):
             return currentListPath().map { $0.set.entries[$0.index].clipping != nil } ?? false
         case #selector(deleteCurrentPath(_:)):
+            if case .shapeOutline? = document.currentPath { return false }
             return currentPathStep() != nil
         default:
             return validatePathCommandItem(item) ?? validateVectorMaskItem(item)

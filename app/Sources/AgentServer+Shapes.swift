@@ -13,6 +13,7 @@ extension AgentServer {
     static let shapesHandlers: [String: ToolHandler] = [
         "add_shape_layer": { $0.addShapeLayer },
         "edit_shape_layer": { $0.editShapeLayer },
+        "get_shape_layer": { $0.getShapeLayer },
     ]
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
@@ -20,6 +21,8 @@ extension AgentServer {
         // Shape layers in a 32-bit float document; #1: in ink in a CMYK one.
         "add_shape_layer": [.typedTool, .floatTool, .cmykTool],
         "edit_shape_layer": [.typedTool, .floatTool, .cmykTool],
+        // A read, at every depth and in CMYK, as get_vector_mask is.
+        "get_shape_layer": [.nonRecordable, .commonTool, .floatTool, .cmykTool],
     ]
 
     /// Adds a re-editable shape layer above the active layer and selects
@@ -125,10 +128,12 @@ extension AgentServer {
 
     /// Re-renders an existing shape layer from a changed description — the
     /// agent mirror of the layers panel's double-click re-edit session
-    /// (EditorViewController+Shapes.commitShapeEditSession): pixels, offset,
-    /// meta and the re-cropped mask replaced as one undo step. Omitted
-    /// arguments keep the layer's current values (its transform included);
-    /// the kind is fixed at creation.
+    /// (EditorViewController+Shapes.commitShapeEditSession), and with
+    /// `subpaths` or `path` of the Pen, Path Selection and Direct Selection on
+    /// a path shape's outline (EditorViewController+ShapeOutline.swift):
+    /// pixels, offset, meta and the re-cropped mask replaced as one undo
+    /// step. Omitted arguments keep the layer's current values (its transform
+    /// included); the kind is fixed at creation.
     func editShapeLayer(_ a: [String: Any]) throws -> String {
         let document = try target(a)
         let index = try paintLayerIndex(a, document)
@@ -152,18 +157,22 @@ extension AgentServer {
                     + "shape with add_shape_layer.")
         }
         let kind = current.kind
+        // A path shape's new outline (`subpaths` or `path`, canvas px) brings
+        // its own box and anchor under the layer's transform
+        // (AgentServer+PathShapes.swift).
+        let replaced = try replacedPathOutline(a, doc: doc, current: current, anchor: currentAnchor)
         // Geometry: x/y name the shape box's top-left; the current one is
         // the layer's anchor (the commit's placement rule, inverted —
         // editShapeLayer's box on the UI side).
-        let x = doubleArg(a, "x") ?? Double(currentAnchor.x)
-        let y = doubleArg(a, "y") ?? Double(currentAnchor.y)
-        let w = doubleArg(a, "w") ?? current.w
-        let h = doubleArg(a, "h") ?? current.h
+        let x = doubleArg(a, "x") ?? Double(replaced?.anchor.x ?? currentAnchor.x)
+        let y = doubleArg(a, "y") ?? Double(replaced?.anchor.y ?? currentAnchor.y)
+        let w = doubleArg(a, "w") ?? replaced?.payload.w ?? current.w
+        let h = doubleArg(a, "h") ?? replaced?.payload.h ?? current.h
         guard x.isFinite, y.isFinite, w.isFinite, h.isFinite else {
             throw ToolError(message: "x, y, w and h must be finite numbers")
         }
         try Self.validateShapeGeometry(kind: kind, x: x, y: y, w: w, h: h)
-        let outline = try Self.reboxedOutline(current, w: w, h: h)
+        let outline = try replaced?.payload.path ?? Self.reboxedOutline(current, w: w, h: h)
         let transform = try linearMapArg(a, "transform") ?? current.transform
 
         // Paints: an ABSENT argument keeps the layer's paint; a present
@@ -188,16 +197,18 @@ extension AgentServer {
             strokeJoin: styles.join, strokeDash: styles.dash, strokeAlign: styles.align,
             path: outline)
         // A given x,y is a placement (whole pixels while untransformed, exact
-        // otherwise); an omitted one keeps the exact anchor as it is.
-        let anchor = a["x"] == nil && a["y"] == nil
+        // otherwise); an omitted one keeps the exact anchor as it is, and a
+        // new outline brings its own.
+        let anchor = replaced?.anchor ?? (a["x"] == nil && a["y"] == nil
             ? currentAnchor
-            : DescribedLayer.placementAnchor(CGPoint(x: x, y: y), transform: transform)
+            : DescribedLayer.placementAnchor(CGPoint(x: x, y: y), transform: transform))
         // A re-render REWRITES the layer's pixels, so it answers to the same
         // locks every other pixel tool does; without it a lock refusal was
         // reported as a degenerate geometry.
         try rejectLockedEdit(document, index, DR_EDIT_PIXELS)
+        let changed: Bool
         do {
-            try performArtworkEdit(document, "Edit Shape Layer") {
+            changed = try performArtworkEdit(document, "Edit Shape Layer") {
                 try $0.nativeArtwork(.shape(payload), anchor: anchor, layer: index, replacing: true,
                                      name: info.name, matching: inked.matches)
             }
@@ -213,19 +224,45 @@ extension AgentServer {
                     + "transform.")
         }
         return try jsonResult(Self.withCmykPlan([
-            "ok": true, "layer": index,
+            "ok": true, "layer": index, "changed": changed,
             "shape": Self.shapeFields(document.doc?.shapePayload(index) ?? payload,
                                       anchor: document.doc?.describedAnchor(index), outline: true),
         ], doc: document.doc))
+    }
+
+    /// Reads a shape layer's description without an edit — the mirror of the Paths panel's
+    /// shape-path row and of the layer's re-edit opening on its description: the shape object
+    /// with a path shape's outline (`subpaths`, box-local, and `canvas_subpaths`, where it lies on
+    /// the canvas). A layer with no shape answers in-band with `shape` null, as get_vector_mask
+    /// answers a layer with no vector mask.
+    func getShapeLayer(_ a: [String: Any]) throws -> String {
+        let document = try target(a)
+        try refuseNullOrBooleanNumbers(a, ["layer"], in: "get_shape_layer")
+        guard let doc = document.doc else { throw ToolError(message: "Document has no image") }
+        let index = try structuralLayerIndex(a, document)
+        let name = doc.layerInfo(index)?.name ?? ""
+        guard let payload = doc.shapePayload(index) else {
+            return try jsonResult([
+                "ok": true, "layer": index, "name": name, "shape": NSNull(),
+                "note": "Layer \(index) (\"\(name)\") is not a shape layer: it has no shape "
+                    + "description to read. get_document reports a \"shape\" object on the layers "
+                    + "that have one.",
+            ])
+        }
+        return try jsonResult([
+            "ok": true, "layer": index, "name": name,
+            "shape": Self.shapeFields(payload, anchor: doc.describedAnchor(index), outline: true),
+        ])
     }
 
     /// The shape object get_document and the shape tools report: the
     /// description, `transform` row-major (`LinearMap.array`), and `origin` —
     /// the exact canvas position of the box's top-left (fractional after a
     /// transform) — when the anchor is known. A path shape adds `fill_rule`,
-    /// `anchors` and `subpath_count`, and with `outline` its `subpaths`
-    /// (`pathShapeFields`); get_document leaves the outline out, so a layer of
-    /// thousands of anchors does not ride along in every document reply.
+    /// `anchors` and `subpath_count`, and with `outline` its `subpaths` and
+    /// `canvas_subpaths` (`pathShapeFields`); get_document leaves the outline
+    /// out, so a layer of thousands of anchors does not ride along in every
+    /// document reply, and get_shape_layer reads it.
     static func shapeFields(
         _ payload: ShapeLayerPayload, anchor: CGPoint?, outline: Bool = false
     ) -> [String: Any] {
@@ -257,7 +294,7 @@ extension AgentServer {
         }
         if payload.kind == "rect" { shape["radius"] = payload.radius }
         if payload.kind == "line" { shape["flipped"] = payload.flipped }
-        shape.merge(pathShapeFields(payload, outline: outline)) { _, path in path }
+        shape.merge(pathShapeFields(payload, anchor: anchor, outline: outline)) { _, path in path }
         // The stroke styles, and the payload version they are stored at
         // (5 only when a style is off its default).
         shape["stroke_join"] = payload.strokeJoin.rawValue

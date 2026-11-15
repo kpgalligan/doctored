@@ -108,13 +108,16 @@ extension ImageDocument {
 
     /// The shape `target` names in the current document, or nil when there is
     /// none — no target, a path that has been deleted or undone away, a
-    /// layer that is gone or has no vector mask any more.
+    /// layer that is gone, has no vector mask any more or is no longer a
+    /// path shape.
     func resolvedPath(_ target: PathTarget?) -> PathShape? {
         guard let target, let doc else { return nil }
         switch target {
         case .path(let id): return doc.paths.entry(id: id)?.shape
         case .vectorMask(let layerID):
             return doc.layerIndex(id: layerID).flatMap { doc.vectorMask($0) }?.shape
+        case .shapeOutline(let layerID):
+            return doc.layerIndex(id: layerID).flatMap { doc.shapeOutlinePath($0) }
         }
     }
 }

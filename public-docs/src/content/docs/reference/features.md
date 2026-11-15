@@ -332,9 +332,11 @@ The design record behind each area is in the repository's
   at every depth, and so does a flat TIFF in every colour mode but Duotone,
   at every depth; a
   layered file in every mode carries a vector mask with no raster mask beside
-  it as its path; every other export writes the baked mask. Not built:
-  the Curvature, Freeform and Magnetic pens, type on a path, and editing a
-  path shape layer's outline in place
+  it as its path; every other export writes the baked mask. A path shape
+  layer's outline is edited in place with the Pen, Path Selection and Direct
+  Selection (`edit_shape_layer` with `subpaths`; `get_shape_layer` reads it
+  back). Not built: the Curvature, Freeform and Magnetic pens and type on a
+  path
   ([record](https://github.com/kpgalligan/doctored/blob/main/designs/v1-paths.md))
 - **Fill layers** (Layer > New Fill Layer ▸ Solid Color… / Gradient… /
   Pattern…): a re-editable layer that is one colour, one gradient or one

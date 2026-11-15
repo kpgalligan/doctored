@@ -165,10 +165,12 @@ struct PathSet: Equatable {
 }
 
 /// What the Pen and the Paths panel are editing: a path of the list by its
-/// id, or the vector mask of a layer by the layer's id. View state.
+/// id, the vector mask of a layer by the layer's id, or the outline of a
+/// path shape layer by the layer's id (ShapeOutlineTarget.swift). View state.
 enum PathTarget: Equatable {
     case path(UInt64)
     case vectorMask(layerID: UInt64)
+    case shapeOutline(layerID: UInt64)
 }
 
 /// A layer's vector mask as the core reports it: the shape, its two flags,
