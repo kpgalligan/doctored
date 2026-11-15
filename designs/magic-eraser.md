@@ -39,3 +39,6 @@ Eraser, Edit ▸ Fill…'s Clear), at every depth and in every colour mode.
   the tool's opacity (`RasterDocument.bucketFilled(…style:opacity:)`); every typed document is the typed
   wand's region handed to `erase_native` as its coverage plane, the selection as its second gate
   (`MagicEraser.swift`). One undo step, recorded as `magic_eraser`, which is also the MCP mirror.
+- **Edit ▸ Fade** follows a click as it follows the Paint Bucket: `magic_eraser` is in `FadeStep.strokeTools`,
+  so the fade is weighed by the pixels the click changed (`designs/v1-shortcuts-fade.md`). Indexed offers
+  Fade after no step. `scripts/verify_magic_eraser.py` M5 drives it.

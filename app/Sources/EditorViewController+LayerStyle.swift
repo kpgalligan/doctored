@@ -80,7 +80,7 @@ extension EditorViewController {
         if doc.isHighDepth {
             // The same sheet over a captured typed revision, published once
             // through the core's `layer_style` edit (previewed live at 16
-            // bits; not at 32-bit float).
+            // bits and at 32-bit float).
             do {
                 let capture = try PrecisionEditorCapture(document)
                 presentAsSheet(

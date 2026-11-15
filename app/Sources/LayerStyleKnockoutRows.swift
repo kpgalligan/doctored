@@ -2,8 +2,8 @@ import AppKit
 
 // The Blending Options pane SETS `knockout` and `blendInteriorAsGroup` since 12E-3b (this file: the
 // Knockout popup, the Blend Interior Effects as Group checkbox and their
-// `NSUserInterfaceItemIdentifier`s). The same rows appear at 8 and 16 bits; the flag evaluates ON
-// on a clipping base with visible clipped layers too (P7-39), so no note
+// `NSUserInterfaceItemIdentifier`s). The same rows appear at 8 and 16 bits and at 32-bit float; the
+// flag evaluates ON on a clipping base with visible clipped layers too (P7-39), so no note
 // qualifies it.
 
 /// The Blending Options pane's KNOCKOUT rows — the two remaining blending
@@ -14,11 +14,10 @@ import AppKit
 /// owns two things and nothing else: the two controls and the identifiers a
 /// UI-source probe drives them by.
 ///
-/// The rows are the same at 8 and 16 bits. There is no depth branch here: the
-/// typed document carries both keys since 12E-3b, and the sheet's single
-/// difference at depth — how it previews (`PrecisionStylePreview` at 16 bits,
-/// nothing at 32-bit float) — belongs to `LayerStyleSheetController`, not to
-/// a row.
+/// The rows are the same at every depth. There is no depth branch here: the
+/// typed documents carry both keys, and the sheet's single difference at
+/// depth — how it previews (`PrecisionStylePreview` at 16 bits and 32-bit
+/// float) — belongs to `LayerStyleSheetController`, not to a row.
 enum LayerStyleKnockoutRows {
     /// The Knockout popup. A UI-source probe finds it with
     /// `NSView.withIdentifier`, so this string is a test contract.

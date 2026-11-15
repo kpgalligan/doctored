@@ -32,6 +32,16 @@ Scene (S): a 16 × 10 document, white Background (layer 0) with a black block un
   blend_mode, the Quick Mask, an adjustment layer, a group, a pixels lock, a transparency lock (the
   layer's own and an enclosing group's, at 8 and 16 bits). A shape layer rasterizes and erases.
 - **M4 replay.** A recorded `magic_eraser` replays to the same pixels.
+- **M5 fade.** Edit ▸ Fade follows a click (`designs/v1-shortcuts-fade.md`): the state before is
+  moved toward the result by the fade's opacity, premultiplied, weighed 1 on the pixels the click
+  changed. So erasing A (tolerance 0, contiguous, opacity 1) and fading Normal at 0.5 leaves A at
+  half the scene's alpha with the scene's colour (within one code at 8 and 16 bits, 1e-6 at 32)
+  and every other pixel exactly the scene's. On S at 8, 16 and 32 bits the reply names "Fade Magic
+  Eraser", the history keeps the erase's entry count with the fade current, and one undo restores
+  the scene. A fade after a selection change refuses ("There is nothing to fade"). Grayscale, Lab
+  and CMYK (8 bits, M2's layer) fade A to half alpha (one 8-bit code in the readout's units) and
+  move nothing else. Indexed refuses `fade` for every step, so after a click it answers the
+  mode's sentence and the history holds.
 
 Usage: python3 -B scripts/verify_magic_eraser.py [--receipts <folder>] [--sections M0,M1,…]
 """
@@ -57,6 +67,16 @@ DEPTHS = {8: 255.0, 16: 65535.0, 32: 1.0}
 ALPHA_TOL = {8: 0.0, 16: 0.0, 32: 1e-6}
 COLOUR_TOL = {8: 0.0, 16: 0.0, 32: 1e-6}
 SEED = (2, 2)
+MODES = (('gray', dict(color_mode='gray', depth=8)),
+         ('lab', dict(color_mode='lab', depth=8)),
+         ('cmyk', dict(color_mode='cmyk', depth=8)))
+# M5: the fade's opacity, its tolerance in the readout's own units (one code at 8 and 16 bits),
+# the reply's names and the two refusals.
+FADE_OPACITY = 0.5
+FADE_TOL = {8: 1.0, 16: 1.0, 32: 1e-6}
+FADED, FADE_NAME = 'Magic Eraser', 'Fade Magic Eraser'
+NOTHING_TO_FADE = 'There is nothing to fade'
+INDEXED_FADE = 'fade is unavailable in an Indexed Color document'
 NAMED = {
     'bitmap': 'magic_eraser is not available in Bitmap mode.',
     'mask': 'The Magic Eraser erases a layer\'s own pixels',
@@ -257,9 +277,7 @@ def scene_pixels(scene):
 def check_modes(call):
     out = {}
     scene = layer_scene()
-    for name, spec in (('gray', dict(color_mode='gray', depth=8)),
-                       ('lab', dict(color_mode='lab', depth=8)),
-                       ('cmyk', dict(color_mode='cmyk', depth=8))):
+    for name, spec in MODES:
         for contiguous in (True, False):
             doc, layer = scene_document(call, spec, layered=False)
             before = grid(call, doc, layer)
@@ -366,6 +384,113 @@ def check_replay(call):
     return 'ok'
 
 
+def check_faded(label, before, after, erased, tol):
+    """M5's rule: inside the erased region alpha is FADE_OPACITY of the scene's and the colour is
+    the scene's, within `tol`; every other pixel is the scene's exactly."""
+    for p, b in before.items():
+        a = after[p]
+        if p not in erased:
+            assert a == b, (label, 'outside the region', p, b, a)
+            continue
+        assert b[-1] > 0, (label, 'the scene is opaque inside the region', p, b)
+        assert abs(a[-1] - b[-1] * FADE_OPACITY) <= tol, (label, 'alpha', p, b, a)
+        assert all(abs(x - y) <= tol for x, y in zip(a[:-1], b[:-1])), (label, 'colour', p, b, a)
+
+
+def erase_a(call, doc, label):
+    reply = call('magic_eraser', document_id=doc, x=SEED[0], y=SEED[1], tolerance=0)
+    assert reply.get('changed') is True, (label, 'the click erases A', reply)
+
+
+def faded_reply(call, doc, label):
+    reply = call('fade', document_id=doc, opacity=FADE_OPACITY)
+    assert (reply.get('changed') is True and reply.get('faded') == FADED
+            and reply.get('name') == FADE_NAME), (label, reply)
+
+
+def fade_rgb(call, depth):
+    """Erase A on S at `depth`, fade it to half, then undo."""
+    doc, layer = scene_document(call, dict(depth=depth, profile='srgb'))
+    try:
+        before = grid(call, doc, layer)
+        erase_a(call, doc, depth)
+        count = history(call, doc)
+        faded_reply(call, doc, depth)
+        listed = call('list_history', document_id=doc)
+        assert len(listed['states']) == count[0], (depth, 'the fade replaces the erase', listed)
+        assert listed['states'][listed['cursor']]['name'] == FADE_NAME, (depth, listed)
+        check_faded(depth, before, grid(call, doc, layer), region(layer_scene(), SEED, 0, True),
+                    FADE_TOL[depth])
+        call('undo', document_id=doc)
+        assert grid(call, doc, layer) == before, (depth, 'one undo restores the scene')
+        return 'ok'
+    finally:
+        call('close_document', document_id=doc, discard_changes=True)
+
+
+def fade_after_selection(call):
+    """A selection change between the click and the fade leaves nothing to fade."""
+    doc, _ = scene_document(call, dict(depth=8, profile='srgb'))
+    try:
+        erase_a(call, doc, 'selection change')
+        call('select_rect', document_id=doc, x=0, y=0, width=W, height=H)
+        count = history(call, doc)
+        text = call('fade', fail=True, document_id=doc, opacity=FADE_OPACITY)
+        assert NOTHING_TO_FADE in text, ('selection change', text)
+        assert history(call, doc) == count, ('selection change', 'the history moved')
+        return 'refused'
+    finally:
+        call('close_document', document_id=doc, discard_changes=True)
+
+
+def fade_mode(call, name, spec):
+    """Erase A on M2's one-layer scene in a colour mode and fade it to half. The readout's units
+    are the opaque alpha's (255 or 65535), so one 8-bit code is that over 255."""
+    doc, layer = scene_document(call, spec, layered=False)
+    try:
+        before = grid(call, doc, layer)
+        full = max(b[-1] for b in before.values())
+        assert full in (255.0, 65535.0), (name, 'an opaque readout', full)
+        erase_a(call, doc, name)
+        faded_reply(call, doc, name)
+        check_faded(name, before, grid(call, doc, layer), region(layer_scene(), SEED, 0, True),
+                    full / 255)
+        return 'ok'
+    finally:
+        call('close_document', document_id=doc, discard_changes=True)
+
+
+def fade_indexed(call):
+    """Indexed Color offers Fade after no step: the click's fade answers the mode's sentence."""
+    doc, _ = scene_document(call, dict(depth=8, profile='srgb'), layered=False)
+    try:
+        call('convert_mode', document_id=doc, mode='indexed', palette='exact', dither='none')
+        erase_a(call, doc, 'indexed')
+        count = history(call, doc)
+        text = call('fade', fail=True, document_id=doc, opacity=FADE_OPACITY)
+        assert INDEXED_FADE in text, ('indexed', text)
+        assert history(call, doc) == count, ('indexed', 'the history moved')
+        return 'refused'
+    finally:
+        call('close_document', document_id=doc, discard_changes=True)
+
+
+def check_fade(call):
+    """M5. Every case runs; a failed one is recorded as `FAIL: …`, as M1's are."""
+    cases = {f'rgb {depth}': (lambda depth=depth: fade_rgb(call, depth)) for depth in DEPTHS}
+    cases['selection change'] = lambda: fade_after_selection(call)
+    for name, spec in MODES:
+        cases[name] = lambda name=name, spec=spec: fade_mode(call, name, spec)
+    cases['indexed'] = lambda: fade_indexed(call)
+    out = {}
+    for name, run in cases.items():
+        try:
+            out[name] = run()
+        except AssertionError as failure:
+            out[name] = f'FAIL: {str(failure)[:300]}'
+    return out
+
+
 def stops(count, midpoints):
     out = []
     for i in range(count):
@@ -407,7 +532,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--receipts', default=None)
-    parser.add_argument('--sections', default='M0,M1,M2,M3,M4',
+    parser.add_argument('--sections', default='M0,M1,M2,M3,M4,M5',
                         help='Comma-separated sections to run (default all).')
     args = parser.parse_args()
     sections = set(args.sections.split(','))
@@ -430,6 +555,8 @@ def main():
             receipts['M3 refusals'] = check_refusals(call)
         if 'M4' in sections:
             receipts['M4 replay'] = check_replay(call)
+        if 'M5' in sections:
+            receipts['M5 fade'] = check_fade(call)
     assert len(receipts) > 1, ('no section ran', args.sections)
     (output / 'receipts.json').write_text(json.dumps(receipts, indent=2))
     print(json.dumps(receipts, indent=2))
@@ -439,7 +566,7 @@ def main():
         print('FAIL: ' + '; '.join(failed))
         sys.exit(1)
     print('PASS: the Magic Eraser over MCP at 8, 16 and 32 bits, in Gray, Lab, CMYK and Indexed, '
-          'with its refusals, undo and replay; the style panes\' stops read back whole')
+          'with its refusals, undo, replay and Fade; the style panes\' stops read back whole')
 
 
 if __name__ == '__main__':

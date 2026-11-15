@@ -7,9 +7,10 @@ import Foundation
 
 /// How a step's fade is weighed: a REGION step (a filter, an adjustment, a
 /// selection fill or gradient) by the selection it ran under, a STROKE (and
-/// the Paint Bucket's flood) by the pixels it changed — a stroke's coverage is
-/// not the selection, and `stroke_selection`'s Outside and Center bands paint
-/// where the selection's coverage is 0.
+/// the Paint Bucket's flood and the Magic Eraser's region) by the pixels it
+/// changed — a stroke's coverage is not the selection, and
+/// `stroke_selection`'s Outside and Center bands paint where the selection's
+/// coverage is 0.
 enum FadeKind {
     case region, stroke
 }
@@ -43,18 +44,19 @@ enum FadeStep {
     ]
 
     /// The tools whose step fades by the pixels it changed. The Paint Bucket
-    /// (`fill`) is one: its flood reaches only part of the selection.
+    /// (`fill`) and the Magic Eraser (`magic_eraser`) are two: the region each
+    /// grows from its seed reaches only part of the selection.
     static let strokeTools: Set<String> = [
-        "stroke_selection", "fill", "brush_stroke", "eraser_stroke", "clone_stamp", "heal_stroke",
-        "spot_heal_stroke", "dodge_burn", "blur_stroke", "sharpen_stroke", "smudge_stroke",
-        "sponge_stroke", "history_brush_stroke", "art_history_brush_stroke",
+        "stroke_selection", "fill", "magic_eraser", "brush_stroke", "eraser_stroke", "clone_stamp",
+        "heal_stroke", "spot_heal_stroke", "dodge_burn", "blur_stroke", "sharpen_stroke",
+        "smudge_stroke", "sponge_stroke", "history_brush_stroke", "art_history_brush_stroke",
     ]
 
     /// The refusal for a Fade with nothing to fade — the MCP `fade` tool's
     /// in-band error and the menu item's tooltip.
     static let nothingToFade =
         "There is nothing to fade: Edit ▸ Fade follows a filter, an adjustment, a paint or "
-        + "retouch stroke or a fill on a layer, before any other change."
+        + "retouch stroke, a fill or a Magic Eraser click on a layer, before any other change."
 
     /// The hint a call of `tool` with `arguments` leaves: nil for a tool that
     /// is not fadeable and for one aimed at a mask, a plane, a channel or the

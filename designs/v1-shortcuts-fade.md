@@ -99,8 +99,9 @@ left free (the shortcut probe's test chord).
 
 - **What fades.** The last edit, when its one recorded step (or the hint an agent call, a job or a stroke leaves,
   `ImageDocument.fadeHint`) is in `FadeStep.regionTools` (apply_filter, auto_tone, auto_contrast, auto_color, liquify,
-  fill_selection, gradient) or `FadeStep.strokeTools` (stroke_selection, fill and the paint and retouch strokes) with
-  `target` absent or "layer". `applyEdit` and `endLiveEdit` note the candidate after registering their history.
+  fill_selection, gradient) or `FadeStep.strokeTools` (stroke_selection, fill, magic_eraser and the paint and retouch
+  strokes) with `target` absent or "layer". `applyEdit` and `endLiveEdit` note the candidate after registering their
+  history. Indexed Color offers Fade after no step (`fade` is outside `IndexedDocument.tools`).
 - **Unavailable after anything else** (`currentFadeCandidate`): the document must still be the step's result, with
   the same selection, layer selection, the layer as paint target and no Quick Mask; undo, redo or a History jump
   clears it. A step that changed the layer count (a stroke onto a new layer) is not fadeable.
@@ -110,8 +111,8 @@ left free (the shortcut probe's test chord).
   transparent; E′ is the result moved toward E by the step's weight; the output is the state before moved toward E′
   by Opacity (both `gate_source_into`). Normal at 100 % is the result, 0 % the state before.
 - **The weight:** a region step's selection coverage (1 with none); a stroke's changed pixels (its Outside/Center
-  band paints where the selection is 0, so `stroke_selection` is a stroke; the Paint Bucket's flood reaches only part
-  of the selection, so `fill` is one too).
+  band paints where the selection is 0, so `stroke_selection` is a stroke; the Paint Bucket's flood and the Magic
+  Eraser's region reach only part of the selection, so `fill` and `magic_eraser` are strokes too).
 - **One step, replacing the faded one** (`commitFade`): the step is undone and "Fade <step>" applied over the state
   before it, so History keeps its entry count. In an Action replay (history suspended) the fade applies over the
   result as an edit of its own; the replay's one step covers both.
@@ -124,4 +125,6 @@ left free (the shortcut probe's test chord).
 ### Verification
 
 `make t F=fade` (W3C oracle, transparent pixels at every depth, refusals, null safety); jobs-probe "fade sheet"
-and "curves sheet"; `scripts/verify_v1_fade.py` (MCP at 8/16/32 bits, refusals, undo, Actions replay).
+and "curves sheet"; `scripts/verify_v1_fade.py` (MCP at 8/16/32 bits, refusals, undo, Actions replay);
+`scripts/verify_magic_eraser.py` M5 (a Magic Eraser click faded at 8/16/32 bits and in Gray, Lab and CMYK; Indexed
+refuses).

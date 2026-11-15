@@ -9,8 +9,9 @@ import AppKit
 // Group" checkbox actually reach the style the Apply button publishes, that
 // the publication is ONE history step one Undo restores, and that the three
 // merge MENU items — which carry no message surface at all — merge the five
-// exact scenes without changing the picture. The float half asserts the one
-// thing the sheet must NOT do: open at all.
+// exact scenes without changing the picture. The float half asserts that a
+// 32-bit float document offers the item and its sheet carries the same
+// Knockout popup, then cancels it.
 //
 // Every scene is built through the REAL tools (`new_layer`, `fill`,
 // `group_layers`, `set_layer_clipped`, `set_layer_style`), and every
@@ -263,16 +264,43 @@ private func blendingFindings(_ depth: Int) throws -> [String: Any] {
             "projection_after_one_undo_codes": changed(before, restored)]
 }
 
-/// The FLOAT half: the sheet must not be reachable at all. A float document
-/// refuses a layer style by name in the core, and the editor's selector
-/// whitelist keeps the item dark so a user never reaches that refusal.
+/// The FLOAT half: a 32-bit float document takes a layer style, so Layer ▸
+/// Layer Style validates (`layerStyle:` is in the float selector list) and the
+/// sheet opens over the typed capture with the same Knockout rows. The sheet
+/// leaves through its own Cancel button (Escape), which cancels and drains
+/// the live float preview it starts on appearing and clears the canvas
+/// preview; nothing is applied, so the history and the document stay put. The
+/// float compositor is measured in core/tests and the MCP drives.
 private func floatStyleFindings() throws -> [String: Any] {
     let (document, editor, _) = try openFloatDocument()
     defer { document.close(); pump() }
     let validated = editor.validateUserInterfaceItem(
         menuItem(#selector(EditorViewController.layerStyle(_:))))
-    try require(!validated, "Layer Style is ENABLED on a 32-bit float document")
-    return ["depth": "32-bit float", "layer_style_item_enabled": validated]
+    try require(validated, "Layer Style is DISABLED on a 32-bit float document")
+    let base = document.doc
+    let steps = document.history.entries.count
+    editor.layerStyle(nil)
+    let sheet = try presentedStyleSheet(editor)
+    let popup: NSPopUpButton = try control(sheet, LayerStyleKnockoutRows.knockoutIdentifier,
+                                           "Knockout popup")
+    let titles = popup.itemTitles
+    try require(titles == LayerStyleKnockoutRows.titles,
+        "The float sheet's Knockout popup lists \(titles)")
+    guard let cancel = descendants(sheet.view).compactMap({ $0 as? NSButton })
+        .first(where: { $0.keyEquivalent == "\u{1b}" }) else {
+        throw DoctoredCoreError(message: "The float Layer Style sheet has no Cancel button")
+    }
+    cancel.performClick(nil)
+    pump()
+    try waitUntil({
+        !(editor.presentedViewControllers ?? []).contains { $0 is LayerStyleSheetController }
+    }, "Cancel did not close the float Layer Style sheet")
+    try require(editor.canvas.previewImage == nil,
+        "Cancel left a preview on the float canvas")
+    try require(base != nil && document.doc === base && document.history.entries.count == steps,
+        "Cancelling the float Layer Style sheet changed the document")
+    return ["depth": "32-bit float", "layer_style_item_enabled": validated,
+            "popup_titles": titles, "cancelled_unchanged": true]
 }
 
 /// knockout-blending-ui.
@@ -283,7 +311,8 @@ func knockoutBlendingUI(output: URL) throws -> [String: Any] {
     return ["case": "knockout-blending-ui",
             "byte": byte, "typed": typed, "float": float,
             "scope": "The real LayerStyleSheetController's own controls, driven by the "
-                + "identifiers LayerStyleKnockoutRows publishes; the compositor itself is "
+                + "identifiers LayerStyleKnockoutRows publishes, at 8 and 16 bits through "
+                + "Apply and at 32-bit float through Cancel; the compositor itself is "
                 + "measured in core/tests and both MCP drives"]
 }
 
