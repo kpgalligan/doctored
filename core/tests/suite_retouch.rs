@@ -9,6 +9,8 @@ mod cmyk_structure_fixture;
 #[path = "common/cmyk_tiff_builder.rs"]
 mod cmyk_tiff_builder;
 mod common;
+#[path = "common/edge_trace_support.rs"]
+mod edge_trace_support;
 #[path = "common/float_fixture.rs"]
 mod float_fixture;
 #[path = "common/icc_lut_builders.rs"]
