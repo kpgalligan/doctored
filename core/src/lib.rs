@@ -527,6 +527,7 @@ mod path_native;
 pub mod path_trace;
 mod pattern_angle_native;
 mod pattern_define;
+mod pattern_presets;
 mod pattern_tile;
 pub mod perspective_crop;
 mod pixel_orientation;

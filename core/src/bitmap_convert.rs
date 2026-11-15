@@ -10,7 +10,7 @@
 //!   beside another method refuses. The screen is laid over the OUTPUT
 //!   resolution. The pattern store is `style_pattern_fill::parse_pattern`'s
 //!   pattern object, the one every Pattern Overlay, Pattern stroke and
-//!   pattern fill layer takes: `{"preset"}` of `pattern_tile::PRESETS` or an
+//!   pattern fill layer takes: `{"preset"}` of `pattern_presets::PRESETS` or an
 //!   inline `{"name"?, "width", "height", "rgba"}` tile (checkerboard when
 //!   omitted); a pattern from the app's user library arrives here as such
 //!   an inline tile. Its gray is [`threshold_tile`]'s.

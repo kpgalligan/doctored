@@ -138,6 +138,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "path_geometry.rs",
     "path_trace.rs",
     "pattern_define.rs",
+    "pattern_presets.rs",
     "pattern_tile.rs",
     "perspective_crop.rs",
     "perspective_mesh.rs",

@@ -45,7 +45,8 @@ use std::sync::Arc;
 use serde_json::{Map, Value};
 
 use crate::adjust_lut::{base64_decode, base64_encode};
-use crate::pattern_tile::{tile_level, PatternSampler, PatternTile, MAX_TILE_SIDE, PRESETS};
+use crate::pattern_presets::PRESETS;
+use crate::pattern_tile::{tile_level, PatternSampler, PatternTile, MAX_TILE_SIDE};
 use crate::style::{BevelEmboss, Effect, Strictness, Stroke, StrokeFill};
 use crate::style_json::{angle, at, boolean, num, Range, RANGES};
 use crate::style_pattern::{Pattern, PatternSource};

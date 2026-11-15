@@ -135,7 +135,7 @@ pub(crate) fn read_fill(
     let (_, stored_name, tile) = patterns.find(id, name).ok_or(missing)?;
     let tile = tile.as_ref().map_err(Clone::clone)?;
     // A preset Doctored wrote comes back as that preset.
-    let preset = crate::pattern_tile::PRESETS.iter().find_map(|(p, _)| {
+    let preset = crate::pattern_presets::PRESETS.iter().find_map(|(p, _)| {
         crate::style::Pattern::preset(p)
             .filter(|pattern| pattern_id(pattern) == id && *pattern.tile == *tile)
     });

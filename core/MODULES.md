@@ -378,7 +378,8 @@ Detail belongs in the source file's own header comment.
 - `style_pattern.rs` — Pattern Overlay: `Pattern`, `PatternOverlay`, the AT-CREATION anchor (`made_at`) of every pattern fill, its level bytes, native word 90 and its predicates.
 - `style_pattern_fill.rs` — `PatternFill`: the overlay's, a Pattern stroke's and a bevel texture's (`BevelTexture`) shared fill, its JSON, origin, sampler, Scale Effects.
 - `style_presets.rs` — style PRESETS (Styles panel): `preset_style` (strict, no inks, no anchors) and the twelve original built-ins.
-- `pattern_tile.rs` — KERNEL: the tile, its PYRAMID levels (RGBA, mapped `tile_level_mapped`, CMYK ink `ink_sampler`), the sampler, the rotation sampler (TWO-PASS), presets.
+- `pattern_tile.rs` — KERNEL: the tile, its PYRAMID levels (RGBA, mapped `tile_level_mapped`, CMYK ink `ink_sampler`), the sampler, the rotation sampler (TWO-PASS).
+- `pattern_presets.rs` — KERNEL: the four frozen pattern presets, `PRESETS` and `preset_tile`.
 - `pattern_define.rs` — KERNEL: Define Pattern's float row, `tile_from_linear` (round(255·clamp(v))); its export `dr_pattern_tile_from_linear` is in `ffi_style.rs`.
 - `style_json.rs` / `style_json_write.rs` / `style_names.rs` — the ONE strict/lenient parser (clamp table, four-decimal quantization), the canonical writer, and the name tables both read.
 - `style_json_keys.rs` — the style JSON key table and `unknown_key`: both style setters refuse a key the schema does not name, by its path.
