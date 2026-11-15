@@ -377,18 +377,20 @@ def g4(app, document, folder):
 def closed_groups(app, document, path):
     """The typed file's closed groups, read by the shared independent
     Python peel (`scripts/raw-probe/native.py`), which must understand word 55
-    and its LOPN table as well as the product does."""
+    and its LOPN table as well as the product does. The peel finds both
+    wherever the optional words before 55 (91 once a layer has moved, as B
+    has here; 58, 57) and the tables after LOPN put them."""
     spec = importlib.util.spec_from_file_location(
         'raw_probe_native', ROOT / 'scripts/raw-probe/native.py')
     reader = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(reader)
     app.call('save_copy', document_id=document, path=str(path), format='rz')
     data = Path(path).read_bytes()
-    assert data[4:12] == bytes([46, 0, 0, 0, 55, 0, 0, 0]), data[4:12]
-    body, shift, ids, word, _ = reader.identity_body(data)
-    assert word == 46 and shift == 8 and ids, (word, shift)
-    lids = data.rfind(b'LIDS')
-    return reader.group_open_table(data, 12, lids)[1]
+    _, _, ids, word, _ = reader.identity_body(data)
+    assert word == reader.TYPED_IDENTITY and ids, word
+    closed = reader.closed_groups(data)
+    assert closed is not None, 'the typed save carries no group-open word 55'
+    return closed
 
 
 def key_parity(info8, info16):

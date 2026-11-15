@@ -16,11 +16,14 @@
 //! strip, plane, layer rect or crop) inside each of those primitives, bounded
 //! by `T_f + c_row`, `c_row = t_chain / n_chain` — the chain's mean cost per
 //! checkpoint over its own uncancelled run (`t_chain` / `n_chain` the time
-//! and checkpoint count from past the root fill to the group's own blur
-//! flip, the first stage-6 report). Still ONE unit: the buffer allocs, the
-//! `acc.to_vec()` / `buf.clone()` snapshots, the alpha scans and resets, the
-//! coverage clone and `drop(buf)` (`regional_group_materialization_cancel`'s
-//! (m2) measures that bound, `T_f + c_copy`).
+//! and checkpoint count from past the root fill to the materialization's
+//! advance, the first report past the range's start, `past_the_chain`; the
+//! synthetic's mask and the group's own planes poll after the advance and
+//! before the group's blur first reports stage 6, and are not the chain).
+//! Still ONE unit: the buffer allocs, the `acc.to_vec()` / `buf.clone()`
+//! snapshots, the alpha scans and resets, the coverage clone and `drop(buf)`
+//! (`regional_group_materialization_cancel`'s (m2) measures that bound,
+//! `T_f + c_copy`).
 //!
 //! Fixture (q), 3000×2000, whole canvas, divisor 1: a Background; child A, a
 //! styled CLIP BASE (a colour overlay — an enabled effect with no blur, so no
@@ -41,9 +44,10 @@
 //! Cost calibration stays time-based. Misses are recorded, never
 //! widened. LOAD ROBUSTNESS (13A-5b-iii-b-1): the default `make test` keeps
 //! the exactness, the pre-cancelled control (its return time printed, not
-//! bounded), the INTERVAL guard and the zero-width pass; the measured
-//! PASS/MISS test and the PIN guard are `#[ignore]`d and run
-//! through `make cancel-bench`.
+//! bounded), the INTERVAL guard, the zero-width pass and the measured
+//! probe's PARKED twin (the chain's ends from the worker's own report log,
+//! each cancel parked at `j/8` of it); the measured PASS/MISS test and the
+//! PIN guard are `#[ignore]`d and run through `make cancel-bench`.
 //!
 //! The oracle for exactness is `dr_doc_flattened` cropped here in plain index
 //! arithmetic. Style and mask caches are `Arc`s every clone shares, so every
@@ -378,15 +382,17 @@ fn report(what: &str, p: &Probe, window: (Duration, Duration), costs: &str, unit
 #[test]
 #[ignore = "make cancel-bench: a wall-clock verdict (13A-5b-iii-b-1)"]
 fn a_cancel_inside_the_primitive_rows_returns_within_the_model() {
-    // Calibration: from past the root fill to the group's own blur flip.
+    let work = plan(&q())["work_units"].as_u64().unwrap() as f64;
+    let start = f64::from(W) * f64::from(H) / work;
+    // Calibration: from past the root fill to the materialization's advance
+    // (the module doc's chain; not to the group's blur, which first reports
+    // stage 6 only after the synthetic's mask and the group's planes poll).
     let ((t_entry, n_entry), (t_exit, n_exit)) =
-        window(&past_the_fill(W, H), &|_, stage, _| stage == 6, whole(&q()));
+        window(&past_the_fill(W, H), &past_the_chain(start), whole(&q()));
     let t_chain = t_exit.saturating_sub(t_entry).as_secs_f64();
     let n_chain = n_exit.saturating_sub(n_entry);
     assert!(n_chain > 0, "the chain polled nothing");
     let c_row = t_chain / n_chain as f64;
-    let work = plan(&q())["work_units"].as_u64().unwrap() as f64;
-    let start = f64::from(W) * f64::from(H) / work;
     for j in [1u64, 3, 5, 7] {
         let k = n_chain * j / 8;
         let p = cancelled_after_checkpoints(
@@ -407,6 +413,50 @@ fn a_cancel_inside_the_primitive_rows_returns_within_the_model() {
             ),
             c_row,
             "c_row",
+        );
+    }
+}
+
+/// The measured probe's load-independent twin: the chain's ends from the
+/// worker's own report log — its start the fill's close, the last report
+/// before the materialization's advance, and its end that advance — and each
+/// cancel PARKED at `j/8` of it, which must be stage 1 at the range's start.
+#[test]
+fn a_cancel_parked_inside_the_primitive_rows_is_inside_the_chain() {
+    let work = plan(&q())["work_units"].as_u64().unwrap() as f64;
+    let start = f64::from(W) * f64::from(H) / work;
+    let log = reports(whole(&q()));
+    let advance = log
+        .iter()
+        .position(|r| past_the_chain(start)(r.progress, r.stage, r.checkpoints))
+        .expect("the materialization never advanced");
+    // (q)'s chain runs no blur (the module doc): no stage-6 report precedes
+    // the advance, and the report before it is the fill's close.
+    assert!(
+        log[..advance].iter().all(|r| r.stage != 6),
+        "a stage-6 report precedes the materialization's advance"
+    );
+    let close = log[advance
+        .checked_sub(1)
+        .expect("no report precedes the advance")];
+    assert!(
+        inside_the_chain(start)(close.progress, close.stage),
+        "the report before the advance is not the fill's close: progress {}, stage {}",
+        close.progress,
+        close.stage
+    );
+    let (n0, n1) = (close.checkpoints, log[advance].checkpoints);
+    assert!(n1 > n0 + 8, "the chain polled {} checkpoints", n1 - n0);
+    for j in [1u64, 3, 5, 7] {
+        let p = cancelled_parked_at(
+            n0 + (n1 - n0) * j / 8,
+            &inside_the_chain(start),
+            whole(&q()),
+        );
+        eprintln!(
+            "13A-5b-ii-b parked twin: cancel {j}/8 of the way through rendered_group's primitive \
+             rows ((q), chain checkpoints {n0}..{n1}): {}",
+            parked_line(&p)
         );
     }
 }

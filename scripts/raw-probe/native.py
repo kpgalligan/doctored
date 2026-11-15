@@ -17,8 +17,9 @@ by `identity_body`. Those words are read from the core source constants
 `source_refusal_native`, `precision_group_open_native`,
 `warp_native`, `source_transform_native`, `style_knockout`), not written here
 as literals. That function is the shared peel other probes import;
-`source_profile_refusals`, `warp_entries` and `knockout_word` return the RSPR
-sentences, the WARP entries and the 49 flag from the same peel. An unknown
+`source_profile_refusals`, `warp_entries`, `knockout_word`, `background_mark`
+and `closed_groups` return the RSPR sentences, the WARP entries, the 49 flag,
+the LBKG entry and the LOPN indices from the same peel. An unknown
 outer wrapper word is refused on purpose rather than guessed at.
 """
 
@@ -116,11 +117,12 @@ def png_samples(data):
 def group_open_table(data, start, end):
     """-> (table_start, closed) for the typed GROUP DISCLOSURE.
 
-    Typed word 55, the first word inside 46 after any 57 word, adds one LOPN
-    table (schema 1, count >= 1, count strictly ascending u32 postorder
-    indices of the CLOSED groups, each below the record count) that closes
-    just before RSPR when present, else LIDS; that table starts at `end`.
-    Validated from both ends, never found by a marker search alone.
+    Typed word 55, the first word inside 46 after any 91, 58 and 57 words, adds
+    one LOPN table (schema 1, count >= 1, count strictly ascending u32
+    postorder indices of the CLOSED groups, each below the record count) that
+    closes just before the next table out (RSPR, LGLT, LREF or LIDS, whichever
+    comes first), which starts at `end`. Validated from both ends, never found
+    by a marker search alone; `closed_groups` finds `end` through the peel.
     """
     marker = data.rfind(b'LOPN', start, end)
     assert marker >= start and marker + 12 <= end
@@ -252,12 +254,12 @@ def _warp_entries(data, at, end, records, sample_bytes):
 
 
 def _peel(data, inner=None):
-    """-> (body, shift, ids, identity_word, projective, refusals, warp, knockout, background); see
-    `identity_body`."""
+    """-> (body, shift, ids, identity_word, projective, refusals, warp, knockout, background,
+    closed); see `identity_body`."""
     assert len(data) >= 8 and data[:4] in (b'RZDC', b'DRDC')
     outer = struct.unpack_from('<I', data, 4)[0]
     if outer not in (BYTE_IDENTITY, TYPED_IDENTITY):
-        return data, 0, None, None, {}, {}, {}, False, None
+        return data, 0, None, None, {}, {}, {}, False, None, None
     start = 8
     background_word = (outer == BYTE_IDENTITY and len(data) >= 12
                        and struct.unpack_from('<I', data, 8)[0] == BACKGROUND_MARK)
@@ -301,7 +303,7 @@ def _peel(data, inner=None):
         assert start + 4 <= lids
         version = struct.unpack_from('<I', data, start)[0]
         assert version in inner.get(outer, ()), (outer, version)
-    projective, refusals, warp, background = {}, {}, {}, None
+    projective, refusals, warp, background, closed = {}, {}, {}, None, None
     end = lids
     if background_word:
         # LBKG: tag, u32 schema 1, u32 bottom-first layer index, u32 role (1 Background, 2 Ordinary) —
@@ -349,7 +351,8 @@ def _peel(data, inner=None):
             assert layer not in projective
             projective[layer] = list(struct.unpack_from('<9d', data, offset + 4))
         end = marker
-    return data[:4] + data[start:end], start - 4, ids, outer, projective, refusals, warp, knockout, background
+    return (data[:4] + data[start:end], start - 4, ids, outer, projective, refusals, warp, knockout,
+            background, closed)
 
 
 def identity_body(data, inner=None):
@@ -371,8 +374,9 @@ def identity_body(data, inner=None):
     just before LGLT or LIDS
     (`refusal_table`), which is peeled and set aside
     (`source_profile_refusals` returns it). Typed word TYPED_GROUP_OPEN (55)
-    after those adds one LOPN table just before RSPR or LIDS
-    (`group_open_table`), which is peeled and set aside. A BYTE_WARP/TYPED_WARP
+    after those adds one LOPN table just before RSPR, LGLT, LREF or LIDS
+    (`group_open_table`), which is peeled and set aside (`closed_groups`
+    returns it). A BYTE_WARP/TYPED_WARP
     (53/54) word after those adds one WARP table just before LOPN, RSPR or LIDS
     (`warp_table`), which is peeled and set aside (`warp_entries` returns it). A
     BYTE_PROJECTIVE/TYPED_PROJECTIVE (51/52) word after those adds one RSPJ
@@ -409,6 +413,13 @@ def background_mark(data):
     """(layer index, role) from a byte file's LBKG table, role 1 Background or
     2 Ordinary; None without word 113."""
     return _peel(data)[8]
+
+
+def closed_groups(data):
+    """The ascending postorder indices of a typed file's CLOSED groups from its
+    LOPN table (`group_open_table`), wherever the optional words before 55 and
+    the tables after LOPN put it; None without word 55."""
+    return _peel(data)[9]
 
 
 def read_native(path, *, pixels=True):

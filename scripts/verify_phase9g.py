@@ -116,14 +116,26 @@ def source_selections(app,folder,depth):
     # inspection retains the native raw samples above.
     opaque = f.fixture(folder,depth)
     call = probe.opened(app,opaque,depth,folder/'plane-calls.jsonl')
-    raw = captures.raw(call,'opaque')
+    native = captures.native(call,'opaque')
+    raw = tuple(probe.png_samples(native['document']['fallbacks'][0])['samples'])
     for plane,index in [('red',0),('green',1),('blue',2),('alpha',3)]:
         call('load_selection',**{'from':'plane'},plane=plane)
         assert selected(call) == tuple(v*scale for v in raw[index::4]),plane
+    # Load Selection's luminosity is the Gray working space's grey of the
+    # document profile's relative PCS Y (`doc_gray_plane`, `gray_working`),
+    # not Rec. 709 of the codes, which Apply Image, Calculations and the
+    # luminosity masks below keep. The owned instance's private Color Settings
+    # hold the default space, Dot Gain 20 %; the profile is the saved
+    # document's own.
+    row,curves = oracle.icc_matrix_trc(native['document']['profile'])
+    maximum = (1<<depth)-1
     call('load_selection',**{'from':'plane'},plane='luma')
-    expected = tuple(oracle.q(sum(v*k for v,k in zip(raw[i:i+3],map(oracle.f32,[0.2126,0.7152,0.0722])))*scale) for i in range(0,len(raw),4))
-    assert max(abs(a-b) for a,b in zip(selected(call),expected)) <= scale
-    groups.append('composite alpha/RGB/luminance source planes')
+    expected = tuple(oracle.q(maximum*oracle.gray_working([v/maximum for v in raw[i:i+3]],row,curves))*scale
+                     for i in range(0,len(raw),4))
+    worst = max(abs(a-b) for a,b in zip(selected(call),expected,strict=True))
+    assert worst <= scale,('luma plane',depth,worst)
+    print(f'luma plane at {depth} bits: worst {worst} codes from the Dot Gain 20 % grey',flush=True)
+    groups.append('composite alpha/RGB/Gray-working-space luminance source planes')
     return groups+fine_codes(app,folder,depth)
 
 

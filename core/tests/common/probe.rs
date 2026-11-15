@@ -434,6 +434,15 @@ pub fn inside_the_chain(start: f64) -> impl Fn(f64, u32) -> bool {
     move |progress, stage| stage == 1 && (progress - start).abs() <= 1e-6
 }
 
+/// Past the materialization's chain: progress above its range's `start`,
+/// which only the range's advance moves (the chain reports nothing). What
+/// polls after the advance — the synthetic's mask, the group's own planes
+/// before their blur's first stage-6 report — is not the chain. Progress
+/// only rises, so a late poller still sees it.
+pub fn past_the_chain(start: f64) -> impl Fn(f64, u32, u64) -> bool {
+    move |progress, _, _| progress > start + 1e-6
+}
+
 /// A cancel inside a blur the materialization's chain runs (a child's, or the
 /// group's own mask): its reports land at the range's `start` at stage 6.
 pub fn inside_the_inner_blur(start: f64) -> impl Fn(f64, u32) -> bool {

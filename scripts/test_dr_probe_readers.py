@@ -149,6 +149,33 @@ class DrProbeReaderTests(unittest.TestCase):
         body, shift, _, word, _ = native.identity_body(both, inner={46: (17,)})
         self.assertEqual((body, shift, word), (native.identity_body(data)[0], 12, 46))
 
+    def test_closed_groups_behind_the_reference_point_word(self):
+        # Word 55 behind 91 and 58, what a typed save holds once a layer has
+        # moved and a group is closed: LOPN, LGLT, LREF, then LIDS (the
+        # writer's order), assembled around the committed refusal-free file.
+        data = (STORED / 'rz_typed_55' / 'placed_source.rz').read_bytes()
+        lids = data.rfind(b'LIDS')
+        opened = b'LOPN' + struct.pack('<III', 1, 1, 0)
+        light = b'LGLT' + struct.pack('<Iff', 1, 45.0, 60.0)
+        reference = b'LREF' + struct.pack('<IIIii', 1, 1, 0, -2, 1)
+        moved = (data[:8] + struct.pack('<III', 91, 58, 55) + data[8:lids]
+                 + opened + light + reference + data[lids:])
+        plain = data[:8] + struct.pack('<I', 55) + data[8:lids] + opened + data[lids:]
+        self.assertEqual(words(moved)[:4], (46, 91, 58, 55))
+        for closed_file in (moved, plain):
+            body, _, ids, word, _ = native.identity_body(closed_file, inner={46: (17,)})
+            self.assertEqual((body, ids, word),
+                             (native.identity_body(data)[0], native.identity_body(data)[2], 46))
+            self.assertEqual(native.closed_groups(closed_file), [0])
+        self.assertIsNone(native.closed_groups(data))
+        # A fixed-offset reading (LOPN ending at LIDS) holds only for the plain file.
+        self.assertEqual(native.group_open_table(plain, 12, plain.rfind(b'LIDS'))[1], [0])
+        with self.assertRaises(AssertionError):
+            native.group_open_table(moved, 12, moved.rfind(b'LIDS'))
+        at = moved.rfind(b'LOPN')
+        with self.assertRaises(AssertionError):
+            native.closed_groups(moved[:at + 4] + struct.pack('<I', 2) + moved[at + 8:])
+
     @unittest.skipUnless(os.environ.get('DR_REFUSAL_SAMPLES'), 'set DR_REFUSAL_SAMPLES to the generator output')
     def test_core_written_refusal_samples(self):
         folder = Path(os.environ['DR_REFUSAL_SAMPLES'])

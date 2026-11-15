@@ -13,23 +13,126 @@ def f32(value):
     return struct.unpack('<f', struct.pack('<f', value))[0]
 
 
+def icc_matrix_trc(profile):
+    """(Y row, decode curves) of a matrix/TRC RGB ICC profile, read from the
+    ICC specification rather than the product's parser: the tag table at
+    offset 128 (u32 count, then signature, offset and size per tag), the Y of
+    each `XYZ ` colorant tag rXYZ/gXYZ/bXYZ (s15Fixed16 X, Y, Z after the
+    8-byte type header) and each rTRC/gTRC/bTRC as `curv` (no entry the
+    identity, one a u8Fixed8 gamma, more a table of u16 outputs over evenly
+    spaced inputs, linearly interpolated) or `para` (function types 0 to 4).
+    Each curve takes and returns a value clamped to 0..1."""
+    tags = {}
+    for i in range(struct.unpack_from('>I', profile, 128)[0]):
+        signature, offset, size = struct.unpack_from('>4sII', profile, 132 + 12*i)
+        tags[signature] = profile[offset:offset + size]
+
+    def fixed(tag, at):
+        return struct.unpack_from('>i', tag, at)[0] / 65536
+
+    def curve(tag):
+        if tag[:4] == b'curv':
+            count = struct.unpack_from('>I', tag, 8)[0]
+            if count == 0:
+                return lambda x: x
+            if count == 1:
+                gamma = struct.unpack_from('>H', tag, 12)[0] / 256
+                return lambda x: x ** gamma
+            table = struct.unpack_from(f'>{count}H', tag, 12)
+
+            def sampled(x):
+                position = x * (count - 1)
+                i = min(int(position), count - 2)
+                t = position - i
+                return (table[i] * (1 - t) + table[i + 1] * t) / 65535
+            return sampled
+        assert tag[:4] == b'para', tag[:4]
+        kind = struct.unpack_from('>H', tag, 8)[0]
+        used = {0: 1, 1: 3, 2: 4, 3: 5, 4: 7}[kind]
+        g, a, b, c, d, e, f = [fixed(tag, 12 + 4*k) for k in range(used)] + [0.0] * (7 - used)
+
+        def power(x):
+            return (a*x + b) ** g if a*x + b > 0 else 0.0
+
+        def above(x):
+            # Types 1 and 2 switch at x = -b/a; with a = 0 there is no
+            # rising segment, only the constant.
+            return a != 0 and x >= -b/a
+        return {0: lambda x: x ** g,
+                1: lambda x: power(x) if above(x) else 0.0,
+                2: lambda x: power(x) + c if above(x) else c,
+                3: lambda x: power(x) if x >= d else c*x,
+                4: lambda x: power(x) + e if x >= d else c*x + f}[kind]
+
+    row, curves = [], []
+    for colorant in 'rgb':
+        xyz = tags[colorant.encode() + b'XYZ']
+        assert xyz[:4] == b'XYZ ', xyz[:4]
+        row.append(fixed(xyz, 12))
+        decode = curve(tags[colorant.encode() + b'TRC'])
+        curves.append(lambda x, decode=decode: min(1.0, max(0.0, decode(min(1.0, max(0.0, x))))))
+    return row, curves
+
+
+def gray_working(rgb, row, curves, dot_gain=20):
+    """The grey, 0..1, a Dot Gain `dot_gain` % Gray working space gives unit
+    RGB codes `rgb`: the profile's relative PCS Y (`row` times the decoded
+    codes, `icc_matrix_trc`), clamped to 0..1, raised to the power
+    ln 0.5 / ln(0.5 - dot_gain/100), the curve that prints a 50 % grey at a
+    reflectance of 0.5 - dot_gain/100."""
+    y = min(1.0, max(0.0, sum(k * decode(v) for k, decode, v in zip(row, curves, rgb, strict=True))))
+    return y ** (math.log(0.5) / math.log(0.5 - dot_gain/100))
+
+
 def scalar_auto_endpoints(values, weights, clip):
-    """Independent weighted order statistics over raw opaque scalar codes."""
+    """Independent weighted Auto endpoints over raw opaque scalar codes, each
+    pixel's mass its weight (65535 for a whole pixel).
+
+    Black: the lowest code whose running mass from the bottom exceeds the clip
+    mass `cut` (clip times the total mass), over u16 codes. White, at a
+    positive clip: the white walk Auto Tone, Color and Contrast share at every
+    depth, over 256 bins (code c in bin round(c/257), half up). From the top,
+    a bin of mass b is clipped while T - (the mass above it) >= 0.7 b, with
+    T = cut + 3 pixels' mass, and the lowest occupied bin never is; the white
+    is the first unclipped bin, or one bin below the lowest clipped bin when
+    the unclipped one holds under 3 pixels' mass, as a fraction of 255. A
+    scalar's three planes are equal, so a pixel clipped in one channel is
+    clipped in all and the walk alone decides. At clip 0 the white is the
+    highest occupied u16 code. A black not below the white leaves (0, 1).
+    """
+    unit = 65535
     bins = {}
     for value, weight in zip(values, weights, strict=True):
-        bins[value] = bins.get(value, 0) + weight
-    cut = sum(weights) * clip
-    def endpoint(reverse):
-        mass = 0
-        for value in sorted(bins, reverse=reverse):
-            mass += bins[value]
-            if mass > cut:
-                return value
-        return None
-    low, high = endpoint(False), endpoint(True)
-    if low is None or high is None or low >= high:
+        if weight:
+            bins[value] = bins.get(value, 0) + weight
+    if not bins:
         return 0.0, 1.0
-    return f32(low / 65535), f32(high / 65535)
+    cut = sum(weights) * clip
+    mass, low = 0, None
+    for value in sorted(bins):
+        mass += bins[value]
+        if mass > cut:
+            low = value
+            break
+    if cut <= 0:
+        high = max(bins) / 65535
+    else:
+        eight = {}
+        for value, weight in bins.items():
+            eight[(2*value + 257) // 514] = eight.get((2*value + 257) // 514, 0) + weight
+        occupied = sorted(eight, reverse=True)
+        target, above, clipped = cut + 3*unit, 0, None
+        for bin_ in occupied:
+            if bin_ != occupied[-1] and target - above >= 0.7 * eight[bin_]:
+                above += eight[bin_]
+                clipped = bin_
+                continue
+            stop = bin_
+            break
+        high = (clipped - 1 if clipped is not None and eight[stop] < 3*unit else stop) / 255
+    if low is None or f32(low / 65535) >= f32(high):
+        return 0.0, 1.0
+    return f32(low / 65535), f32(high)
 
 
 def scalar_levels(values, weights, black, white, gamma):
