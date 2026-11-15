@@ -593,6 +593,8 @@ mod native_behind_clear;
 mod native_capacity;
 #[path = "native_png_bound.rs"]
 mod native_png_bound;
+#[path = "native_rows8_bytes.rs"]
+mod native_rows8_bytes;
 #[path = "native_save_bytes.rs"]
 mod native_save_bytes;
 #[path = "open_profile_tests.rs"]

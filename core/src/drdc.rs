@@ -1,12 +1,9 @@
 //! The DRDC native document format: encoder, atomic writer and
 //! bounds-checked reader, plus the hard caps both sides enforce. The doc
-//! comment on [`DrDocument::encode_native`] IS the format spec.
-
-use image::codecs::png::PngEncoder;
-use image::{ExtendedColorType, ImageEncoder};
+//! comment on [`DrDocument::write_native`] IS the format spec.
 
 use crate::blend::BlendMode;
-use crate::cancel_io::{settle, write_file, Polled};
+use crate::cancel_io::settle;
 use crate::doc::{sane_opacity, DrDocument, Layer, LayerKind, MAX_PIXELS};
 use crate::doc_channel::MAX_CHANNELS;
 use crate::doc_group::validate_structure;
@@ -15,6 +12,8 @@ use crate::doc_lock::LOCK_ALL;
 use crate::dr_image::save_atomically;
 use crate::job_control::{DrJobControl, JobContext};
 use crate::metadata::Resolution;
+use crate::native_stream::{FileSink, NativeSink};
+use crate::png_rows8;
 
 #[path = "drdc_capacity.rs"]
 mod capacity;
@@ -642,40 +641,32 @@ impl DrDocument {
     /// record is the baked plane. A document with neither writes neither,
     /// so its bytes stay exactly the prior writer's.
     ///
-    /// The body buffer and every layer/channel PNG Vec reserve their
-    /// `drdc_save_plan` bounds up front, so only capacity changes, never a byte.
+    /// The file is written in order to `out` (13C-2a), never assembled: the
+    /// small fields gather in one scratch `Vec` that is put before each
+    /// plane, and each layer, channel and embedded 8-bit source PNG streams
+    /// row by row (`png_rows8`) while each mask streams run by run. A tiled
+    /// layer is first offered to the sink (`NativeSink::raster`: the tile
+    /// pool's skeleton sink takes it as keys and nothing is encoded), and each
+    /// mask, channel and source payload is announced
+    /// (`NativeSink::begin_blob`); a file or `Vec` sink ignores both, so a
+    /// save's bytes are unchanged. The caller runs `native_save_preflight`
+    /// first.
     ///
     /// `job` reports progress per layer and per channel plane (each report
-    /// a checkpoint), and each plane's PNG encoder writes through
-    /// `cancel_io::Polled`; a cancel answers exactly `operation cancelled`
-    /// once the caller settles it. `JobContext::NONE` writes the same bytes.
-    pub(crate) fn encode_native(&self, job: JobContext<'_>) -> Result<Vec<u8>, String> {
-        self.encode_native_captured(job, None)
-    }
-
-    /// [`Self::encode_native`], and with a `capture` the tile pool's byte
-    /// write (13C-1, `doc_tile_pool`): a tiled layer's PNG record is not
-    /// encoded but marked (`ByteMark::Layer`), its mask bytes, each channel
-    /// PNG and the source tables are marked as blobs, and the body is not
-    /// reserved at the plan's bound. Every other byte is the writer's own,
-    /// so the pool's rebuild of the marks reproduces this file exactly.
-    pub(crate) fn encode_native_captured(
+    /// a checkpoint), and is polled every 64 KiB of each PNG and of each
+    /// mask; a cancel answers exactly `operation cancelled` once the caller
+    /// settles it. `JobContext::NONE` writes the same bytes.
+    pub(crate) fn write_native(
         &self,
+        out: &mut dyn NativeSink,
         job: JobContext<'_>,
-        mut capture: Option<&mut Vec<crate::doc_tile_pool::ByteMark>>,
-    ) -> Result<Vec<u8>, String> {
-        use crate::doc_tile_pool::ByteMark;
-        self.native_save_preflight()?;
-        let plan = self.native_save_plan()?;
+    ) -> Result<(), String> {
         let count = capacity::layer_count(self.layers.len())?;
         let sources = crate::native_sources::byte_sources(self)?;
         let projective = crate::source_transform_native::entries(&sources.bindings);
         let warp = crate::warp_native::encode_byte(self)?;
         let version = sources.version();
-        let mut buf = match capture {
-            Some(_) => Vec::new(),
-            None => crate::drdc_save_plan::reserved(plan.encoded_bound)?,
-        };
+        let mut buf = Vec::new();
         buf.extend_from_slice(crate::native_magic::NATIVE_MAGIC);
         // The OUTERMOST wrapper (`identity_native`), and the one that is
         // ALWAYS written: 45 before every prior version word, 43 included,
@@ -935,16 +926,8 @@ impl DrDocument {
             buf.extend_from_slice(&layer.opacity.to_le_bytes());
             buf.extend_from_slice(&(layer.blend.to_c() as u32).to_le_bytes());
             buf.push(u8::from(layer.visible));
-            match (&mut capture, layer.pixels.tile_plane()) {
-                (Some(marks), Some(_)) => marks.push(ByteMark::Layer {
-                    at: buf.len(),
-                    index,
-                }),
-                _ => {
-                    let image = layer.pixels.to_contiguous()?;
-                    put_layer_png(&mut buf, image.as_raw(), image.dimensions(), job)?;
-                }
-            }
+            put_pending(out, &mut buf)?;
+            put_layer(out, &layer.pixels, job)?;
             // Version 2 fields. The mask is stored raw: its length is always
             // the pixel count the entry's KIND requires — the layer's for a
             // raster entry, the CANVAS's for a group (`expected_mask_dims`) —
@@ -964,15 +947,9 @@ impl DrDocument {
                 buf.extend_from_slice(&mask_len.to_le_bytes());
                 buf.extend_from_slice(&mask.width().to_le_bytes());
                 buf.extend_from_slice(&mask.height().to_le_bytes());
-                if let Some(marks) = &mut capture {
-                    marks.push(ByteMark::Blob {
-                        at: buf.len(),
-                        len: len as usize,
-                    });
-                }
-                for run in mask.runs() {
-                    buf.extend_from_slice(run);
-                }
+                put_pending(out, &mut buf)?;
+                out.begin_blob(len)?;
+                put_runs(out, mask.runs(), job)?;
             }
             put_opt_string(&mut buf, layer.meta.as_deref(), "meta")?;
             // Version 3 field.
@@ -1023,28 +1000,8 @@ impl DrDocument {
             buf.extend_from_slice(&channel.overlay_color);
             buf.extend_from_slice(&sane_opacity(channel.overlay_opacity).to_le_bytes());
             buf.push(u8::from(channel.color_indicates_selected));
-            let mut png = crate::drdc_save_plan::reserved(crate::drdc_save_plan::byte_png_bound(
-                (cw, ch),
-                1,
-            )?)?;
-            // One transient copy of the plane for the encoder (the save
-            // plan's `K`).
-            let plane = channel.data.to_image()?;
-            PngEncoder::new(Polled::new(&mut png, job))
-                .write_image(plane.as_raw(), cw, ch, ExtendedColorType::L8)
-                .map_err(|e| format!("PNG encoding failed: {e}"))?;
-            let png_len = u32::try_from(png.len())
-                .ok()
-                .filter(|&len| len <= MAX_DRDC_PNG_LEN)
-                .ok_or_else(|| "channel PNG too large".to_string())?;
-            buf.extend_from_slice(&png_len.to_le_bytes());
-            if let Some(marks) = &mut capture {
-                marks.push(ByteMark::Blob {
-                    at: buf.len(),
-                    len: png.len(),
-                });
-            }
-            buf.extend_from_slice(&png);
+            put_pending(out, &mut buf)?;
+            put_channel_png(out, &channel.data, job)?;
         }
         // Version 6: the document tail, after the channel list. Every cap the
         // reader enforces is enforced here too, and the resolution is
@@ -1112,14 +1069,8 @@ impl DrDocument {
             buf.push(*orientation);
             buf.extend_from_slice(&position.to_le_bytes());
         }
-        let sources_at = buf.len();
-        sources.encode(&mut buf, u64::MAX, job.checkpoints_only())?;
-        if let Some(marks) = &mut capture {
-            marks.push(ByteMark::Blob {
-                at: sources_at,
-                len: buf.len() - sources_at,
-            });
-        }
+        put_pending(out, &mut buf)?;
+        sources.encode(out, u64::MAX, job.checkpoints_only())?;
         crate::mask_outside_native::encode(&outside, &mut buf, u64::MAX, job.checkpoints_only())?;
         crate::evaluation_native::encode(linear_light, &mut buf, u64::MAX, job.checkpoints_only())?;
         crate::label_native::encode(&labels, &mut buf, u64::MAX, job.checkpoints_only())?;
@@ -1134,7 +1085,7 @@ impl DrDocument {
         crate::spot_channel_native::encode(&spots, &mut buf, u64::MAX, job.checkpoints_only())?;
         crate::background_native::encode(background, &mut buf, u64::MAX, job.checkpoints_only())?;
         crate::identity_native::encode(&ids, &mut buf, u64::MAX, job.checkpoints_only())?;
-        Ok(buf)
+        put_pending(out, &mut buf)
     }
 
     /// Writes the native DRDC format. Atomic exactly like `DrImage::save`
@@ -1147,11 +1098,12 @@ impl DrDocument {
     }
 
     /// [`Self::save_native`] under an optional single-use job control, begun
-    /// once for the whole save: the encoder checks the job per layer and per
-    /// channel and its planes' PNG copy-out is polled, the file is written
-    /// through `cancel_io::write_file`, and the job is checked once more
-    /// before the rename. A cancel answers exactly `operation cancelled` and
-    /// keeps the previous file; one arriving after the rename leaves the
+    /// once for the whole save: the preflight runs before the temporary file
+    /// exists, [`Self::write_native`] streams into it (a
+    /// `native_stream::FileSink`), checking the job per layer and per channel
+    /// and polling it as each plane is written, and the job is checked once
+    /// more before the rename. A cancel answers exactly `operation cancelled`
+    /// and keeps the previous file; one arriving after the rename leaves the
     /// published save a success. No control writes the same bytes.
     pub fn save_native_controlled(
         &self,
@@ -1160,17 +1112,15 @@ impl DrDocument {
     ) -> Result<(), String> {
         let _run = control.map(DrJobControl::begin).transpose()?;
         let job = control.map_or(JobContext::NONE, JobContext::new);
-        let encoded = self
-            .encode_native(job.range(0.0, 0.8))
-            .map_err(|e| format!("failed to save document {path}: {e}"));
-        let bytes = settle(job, encoded)?;
-        let write = job.range(0.8, 1.0);
-        save_atomically(path, |tmp_path| {
-            write_file(tmp_path, &bytes, write, |e| {
-                format!("failed to create {path}: {e}")
-            })?;
+        let failed = |e: String| format!("failed to save document {path}: {e}");
+        self.native_save_preflight().map_err(failed)?;
+        let written = save_atomically(path, |tmp_path| {
+            let mut out = FileSink::create(tmp_path, path)?;
+            self.write_native(&mut out, job).map_err(failed)?;
+            out.finish()?;
             job.check()
-        })?;
+        });
+        settle(job, written)?;
         if let Some(control) = control {
             control.report(1.0, 5);
         }
@@ -1178,30 +1128,138 @@ impl DrDocument {
     }
 }
 
-/// A byte layer record's pixel field: the u32 length, then the RGBA8 PNG of
-/// `raw` (`w·h·4` straight bytes) encoded under the plan's per-plane bound,
-/// polling `job`. The ONE encoder of it, shared by the writer's layer loop
-/// and the tile pool's rebuild (`doc_tile_pool`), so a rebuilt record is the
-/// saved record byte for byte.
-pub(crate) fn put_layer_png(
-    out: &mut dyn crate::native_stream::NativeSink,
-    raw: &[u8],
-    (width, height): (u32, u32),
+/// A byte layer's pixel field: offered to the sink as tiles first
+/// (`NativeSink::raster`, which only the tile pool's skeleton sink takes),
+/// else its PNG record ([`put_layer_png`]) over the raster's rows.
+fn put_layer(
+    out: &mut dyn NativeSink,
+    pixels: &crate::layer_raster::LayerRaster,
     job: JobContext<'_>,
 ) -> Result<(), String> {
-    let mut png = crate::drdc_save_plan::reserved(crate::drdc_save_plan::byte_png_bound(
-        (width, height),
-        4,
-    )?)?;
-    PngEncoder::new(Polled::new(&mut png, job))
-        .write_image(raw, width, height, ExtendedColorType::Rgba8)
-        .map_err(|e| format!("PNG encoding failed: {e}"))?;
-    let png_len = u32::try_from(png.len())
-        .ok()
-        .filter(|&len| len <= MAX_DRDC_PNG_LEN)
-        .ok_or_else(|| "layer PNG too large".to_string())?;
-    out.put(&png_len.to_le_bytes())?;
-    out.put(&png)
+    if let Some(plane) = pixels.tile_plane() {
+        if out.raster(crate::native_stream::RasterRef::Rgba8Png(plane))? {
+            return Ok(());
+        }
+    }
+    put_layer_png(
+        out,
+        pixels.dimensions(),
+        &mut rgba_rows(|y| pixels.row_segments(y, 0, u32::MAX)),
+        job,
+    )
+}
+
+/// A byte layer record's pixel field: the u32 length, then the RGBA8 PNG of
+/// `rows` (`png_rows8`), at most [`MAX_DRDC_PNG_LEN`]. The ONE encoder of
+/// it, shared by the writer's layer loop and the tile pool's rebuild
+/// (`doc_tile_pool`), so a rebuilt record is the saved record byte for byte.
+pub(crate) fn put_layer_png(
+    out: &mut dyn NativeSink,
+    (width, height): (u32, u32),
+    rows: &mut png_rows8::Rows<'_>,
+    job: JobContext<'_>,
+) -> Result<(), String> {
+    let record = png_rows8::Record {
+        prefix: 4,
+        cap: u64::from(MAX_DRDC_PNG_LEN),
+        too_large: "layer PNG too large",
+        blob: false,
+    };
+    let png = png_rows8::Png8 {
+        width,
+        height,
+        channels: 4,
+        after_ihdr: &[],
+        before_iend: &[],
+    };
+    png_rows8::put_png8_record(out, &record, &png, rows, job).map(|_| ())
+}
+
+/// A byte channel's pixel field: the u32 length, then the L8 PNG of the
+/// plane's rows, at most [`MAX_DRDC_PNG_LEN`], announced as one payload.
+pub(crate) fn put_channel_png(
+    out: &mut dyn NativeSink,
+    plane: &crate::gray_raster::GrayRaster,
+    job: JobContext<'_>,
+) -> Result<(), String> {
+    let record = png_rows8::Record {
+        prefix: 4,
+        cap: u64::from(MAX_DRDC_PNG_LEN),
+        too_large: "channel PNG too large",
+        blob: true,
+    };
+    let (width, height) = plane.dimensions();
+    let png = png_rows8::Png8 {
+        width,
+        height,
+        channels: 1,
+        after_ihdr: &[],
+        before_iend: &[],
+    };
+    let mut rows = |y: u32, row: &mut [u8]| {
+        let mut at = 0;
+        for (_, run) in plane.row_segments(y, 0, width) {
+            row[at..at + run.len()].copy_from_slice(run);
+            at += run.len();
+        }
+        full_row(at, row.len())
+    };
+    png_rows8::put_png8_record(out, &record, &png, &mut rows, job).map(|_| ())
+}
+
+/// An RGBA8 row source over `segments(y)`, the runs of row `y` left to
+/// right (`LayerRaster::row_segments`, `TilePlane::row_segments`).
+pub(crate) fn rgba_rows<'a, I>(
+    segments: impl Fn(u32) -> I + 'a,
+) -> impl FnMut(u32, &mut [u8]) -> Result<(), String> + 'a
+where
+    I: Iterator<Item = (u32, &'a [[u8; 4]])>,
+{
+    move |y, row| {
+        let mut at = 0;
+        for (_, run) in segments(y) {
+            let bytes = run.as_flattened();
+            row[at..at + bytes.len()].copy_from_slice(bytes);
+            at += bytes.len();
+        }
+        full_row(at, row.len())
+    }
+}
+
+/// A row source's check that its runs filled the row.
+fn full_row(filled: usize, len: usize) -> Result<(), String> {
+    if filled == len {
+        Ok(())
+    } else {
+        Err("PNG encoding failed: a row is short".into())
+    }
+}
+
+/// Puts the small fields gathered so far and empties the scratch.
+fn put_pending(out: &mut dyn NativeSink, buf: &mut Vec<u8>) -> Result<(), String> {
+    out.put(buf)?;
+    buf.clear();
+    Ok(())
+}
+
+/// A mask plane's row-major samples, run by run (13B-4: the tiles read in
+/// row order write the bytes a contiguous plane wrote), polling `job` once
+/// per 64 KiB.
+fn put_runs<'a>(
+    out: &mut dyn NativeSink,
+    runs: impl Iterator<Item = &'a [u8]>,
+    job: JobContext<'_>,
+) -> Result<(), String> {
+    let mut moved = 0;
+    for run in runs {
+        out.put(run)?;
+        moved += run.len();
+        if moved >= crate::cancel_io::POLL_BYTES {
+            moved -= crate::cancel_io::POLL_BYTES;
+            job.check()?;
+        }
+    }
+    Ok(())
 }
 
 /// Writes a NAME slot — u32 byte length + UTF-8 bytes — truncating an

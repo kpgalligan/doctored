@@ -28,9 +28,12 @@
 //! NATIVE_STREAM_WINDOW_BYTES` (`precision_native_plan`), which dominates it.
 //!
 //! **Writing.** A writer appends through [`NativeSink`]: a `Vec<u8>` (the
-//! in-memory twin, and the byte writer, which still assembles its file) or a
-//! [`FileSink`], a 1 MiB `BufWriter` over the temporary file `save_atomically`
-//! renames into place.
+//! in-memory twin) or a [`FileSink`], a 1 MiB `BufWriter` over the temporary
+//! file `save_atomically` renames into place. Both can rewrite bytes already
+//! put ([`NativeSink::patch`], [`NativeSink::truncate`]), which the 8-bit PNG
+//! row encoder (`png_rows8`) needs for a length it knows only after the
+//! stream; the tile pool's skeleton sink cannot, and that encoder measures
+//! first there.
 
 use std::cell::{Cell, RefCell};
 use std::fs::File;
@@ -88,6 +91,21 @@ pub(crate) trait NativeSink {
     fn begin_blob(&mut self, _len: u64) -> Result<(), String> {
         Ok(())
     }
+    /// Whether [`Self::patch`] and [`Self::truncate`] work: a file and a
+    /// `Vec` rewrite, the skeleton sink (which keys bytes as they arrive)
+    /// does not.
+    fn rewrites(&self) -> bool {
+        true
+    }
+    /// Overwrites `bytes.len()` bytes already put, from offset `at`.
+    fn patch(&mut self, _at: u64, _bytes: &[u8]) -> Result<(), String> {
+        Err("native sink cannot rewrite its bytes".into())
+    }
+    /// Cuts the output back to its first `at` bytes; the next put lands at
+    /// `at`.
+    fn truncate(&mut self, _at: u64) -> Result<(), String> {
+        Err("native sink cannot rewrite its bytes".into())
+    }
 }
 
 /// A tiled raster at one of the native writers' payload sites, each site
@@ -115,6 +133,23 @@ impl NativeSink for Vec<u8> {
     }
     fn reserve(&mut self, additional: usize) -> bool {
         self.try_reserve_exact(additional).is_ok()
+    }
+    fn patch(&mut self, at: u64, bytes: &[u8]) -> Result<(), String> {
+        let start = usize::try_from(at).map_err(|_| "native sink patch out of range")?;
+        let slot = start
+            .checked_add(bytes.len())
+            .and_then(|end| self.get_mut(start..end))
+            .ok_or("native sink patch out of range")?;
+        slot.copy_from_slice(bytes);
+        Ok(())
+    }
+    fn truncate(&mut self, at: u64) -> Result<(), String> {
+        let at = usize::try_from(at)
+            .ok()
+            .filter(|&at| at <= self.len())
+            .ok_or("native sink truncate out of range")?;
+        Vec::truncate(self, at);
+        Ok(())
     }
 }
 
@@ -155,6 +190,34 @@ impl NativeSink for FileSink {
             .write_all(bytes)
             .map_err(|e| format!("failed to write {}: {e}", self.path))?;
         self.written += bytes.len() as u64;
+        Ok(())
+    }
+    /// Flushes the buffer, then writes `bytes` at `at` with a positional
+    /// write, which leaves the file's cursor at its end.
+    fn patch(&mut self, at: u64, bytes: &[u8]) -> Result<(), String> {
+        if at
+            .checked_add(bytes.len() as u64)
+            .is_none_or(|end| end > self.written)
+        {
+            return Err("native sink patch out of range".into());
+        }
+        self.out
+            .flush()
+            .and_then(|()| self.out.get_ref().write_all_at(bytes, at))
+            .map_err(|e| format!("failed to write {}: {e}", self.path))
+    }
+    /// Flushes the buffer, shortens the file to `at` and moves the cursor
+    /// there.
+    fn truncate(&mut self, at: u64) -> Result<(), String> {
+        if at > self.written {
+            return Err("native sink truncate out of range".into());
+        }
+        self.out
+            .flush()
+            .and_then(|()| self.out.get_ref().set_len(at))
+            .and_then(|()| self.out.get_mut().seek(SeekFrom::Start(at)).map(|_| ()))
+            .map_err(|e| format!("failed to write {}: {e}", self.path))?;
+        self.written = at;
         Ok(())
     }
 }

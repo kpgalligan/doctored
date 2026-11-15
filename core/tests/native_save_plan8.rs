@@ -30,6 +30,7 @@ use crate::resource_report;
 use crate::serial;
 
 const LIMIT: u64 = REFERENCE_WORKING_BYTES;
+const MIB: u64 = 1024 * 1024;
 const SHA: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 unsafe fn text(pointer: *mut c_char) -> String {
@@ -107,7 +108,28 @@ fn check(doc: &DrDocument, dir: &TempDir, name: &str) -> Vec<u32> {
         "{name}: file {len} > encoded_bound {}",
         plan.encoded_bound
     );
-    assert!(plan.write_scratch_bytes >= plan.encoded_bound, "{name}");
+    // The streamed writer's figure (13C-2a), by this file's own formula:
+    // every byte that is not a plane passes the writer's scratch, beside one
+    // RGBA8 plane's rows (five rows and 1 MiB, the widest layer's), the
+    // sink's 4 MiB window, 1 MiB of bookkeeping and the 32 MiB overhead.
+    assert!(plan.streamed_bound <= plan.encoded_bound, "{name}");
+    let widest = doc
+        .layers
+        .iter()
+        .map(|layer| u64::from(layer.pixels.dimensions().0))
+        .max()
+        .unwrap_or(0);
+    let floor = (plan.encoded_bound - plan.streamed_bound)
+        + 5 * (4 * widest + 1)
+        + MIB
+        + 4 * MIB
+        + MIB
+        + 32 * MIB;
+    assert!(
+        plan.write_scratch_bytes >= floor,
+        "{name}: plan {} < {floor}",
+        plan.write_scratch_bytes
+    );
     assert_eq!(
         ffi_scratch(doc),
         doc.native_save_scratch_bytes().unwrap(),
@@ -310,10 +332,13 @@ fn rich_sources() -> DrDocument {
 fn saved_file_fits_the_encoded_bound() {
     let _serial = serial();
     let dir = TempDir::new().unwrap();
-    check(
-        &DrDocument::from_pixels(noise(640, 480, 1)),
-        &dir,
-        "noise.rz",
+    let noise_doc = DrDocument::from_pixels(noise(640, 480, 1));
+    check(&noise_doc, &dir, "noise.rz");
+    // One layer and nothing else: the streamed part is its PNG term,
+    // `px·5 + 4096`.
+    assert_eq!(
+        noise_doc.native_save_plan().unwrap().streamed_bound,
+        640 * 480 * 5 + 4096
     );
     check(&placed(640, 480), &dir, "placed.rz");
     let linear = check(&rich_linear(), &dir, "rich-linear.rz");

@@ -8,6 +8,7 @@ use image::codecs::png::PngDecoder;
 use image::{GrayImage, ImageDecoder, RgbaImage};
 
 use super::*;
+use crate::cancel_io::Polled;
 use crate::doc::LayerRaster;
 use crate::doc_channel::Channel;
 use crate::doc_group::MAX_GROUP_DEPTH;
@@ -51,7 +52,7 @@ use crate::style::{GlobalLight, LayerStyle};
 /// What is REFUSED rather than repaired, because each is a RELATION between
 /// stored quantities and a guess would be silent data loss: a mask length
 /// that matches neither the layer nor the canvas, or that matches the wrong
-/// one for the entry's kind (see [`DrDocument::encode_native`]'s deferred
+/// one for the entry's kind (see [`DrDocument::write_native`]'s deferred
 /// mask construction); a kind byte other than 0 or 1; a depth past
 /// `doc_group::MAX_GROUP_DEPTH`; a malformed depth SEQUENCE, caught by one
 /// `doc_group::validate_structure` walk after the records are read; a guide

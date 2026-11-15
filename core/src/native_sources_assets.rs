@@ -14,8 +14,8 @@ use crate::precision_codec::{
 };
 use crate::precision_image::pixel_count;
 use crate::retained_source::{SourceAsset, SourceLink, SourcePixels};
-use image::codecs::png::{PngDecoder, PngEncoder};
-use image::{ExtendedColorType, ImageDecoder, ImageEncoder};
+use image::codecs::png::PngDecoder;
+use image::ImageDecoder;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -348,28 +348,28 @@ impl SourceTable {
                     crate::float_native::put_samples(out, image, bound, job)?
                 }
                 SourcePixels::Rgba8 { pixels, .. } => {
-                    let image = pixels.to_contiguous()?;
-                    let mut png = crate::drdc_save_plan::reserved(png_bound(
-                        asset.dimensions(),
-                        asset.depth() as u8,
-                    )?)?;
-                    PngEncoder::new(&mut png)
-                        .write_image(
-                            image.as_raw(),
-                            image.width(),
-                            image.height(),
-                            ExtendedColorType::Rgba8,
-                        )
-                        .map_err(|e| format!("failed to encode embedded source: {e}"))?;
-                    job.check()?;
-                    if png.len() > MAX_DRDC_PNG_LEN as usize
-                        || png.len() as u64 > png_bound(asset.dimensions(), asset.depth() as u8)?
-                    {
-                        return Err("embedded source PNG exceeds its byte limit".into());
+                    // The u64 length and the PNG, streamed row by row by the
+                    // byte writer's encoder (`png_rows8`, 13C-2a).
+                    let (width, height) = pixels.dimensions();
+                    let record = crate::png_rows8::Record {
+                        prefix: 8,
+                        cap: png_bound(asset.dimensions(), asset.depth() as u8)?
+                            .min(u64::from(MAX_DRDC_PNG_LEN)),
+                        too_large: "embedded source PNG exceeds its byte limit",
+                        blob: true,
+                    };
+                    let png = crate::png_rows8::Png8 {
+                        width,
+                        height,
+                        channels: 4,
+                        after_ihdr: &[],
+                        before_iend: &[],
+                    };
+                    let mut rows = crate::drdc::rgba_rows(|y| pixels.row_segments(y, 0, u32::MAX));
+                    crate::png_rows8::put_png8_record(out, &record, &png, &mut rows, job)?;
+                    if out.position() > bound {
+                        return Err("embedded source encoding exceeds admitted byte bound".into());
                     }
-                    append(out, &(png.len() as u64).to_le_bytes(), bound, job)?;
-                    out.begin_blob(png.len() as u64)?;
-                    append(out, &png, bound, job)?;
                 }
             }
             if !self.binary.present() {

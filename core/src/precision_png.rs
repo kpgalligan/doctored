@@ -159,9 +159,11 @@
 //! `save_atomically` renames, through a 1 MiB `BufWriter`) through an
 //! [`IdatWindow`] that commits the zlib stream behind the compressor's
 //! seek-back and takes the IDAT CRC as it commits, and every table encoder
-//! reaches the sink through `precision_native_write`. An 8-bit original
-//! keeps `PngEncoder`'s default encode and its 48 B/px charge
-//! (`native_sources::byte_source_png_encode_scratch`).
+//! reaches the sink through `precision_native_write`. An 8-bit original is
+//! written row by row by the byte writer's PNG encoder (`png_rows8`, 13C-2a);
+//! the typed plan still charges it the former 48 B/px
+//! (`native_sources::byte_source_png_encode_scratch`), an over-count kept
+//! until a measurement lowers it.
 //!
 //! The plan's write term (`precision_native_plan::finish_plan`), declared
 //! before measuring: base = `encoded_bound` + header + the largest writer
@@ -555,8 +557,9 @@ pub(crate) fn put_native_png(
 /// which starts over the chunk type. A seek outside the window is an error
 /// (the compressor never makes one). `write` never returns `Err`, because
 /// `finish` unwraps its last write: the first sink error is kept and
-/// returned by [`IdatWindow::close`].
-struct IdatWindow<'s> {
+/// returned by [`IdatWindow::close`]. The 8-bit row encoder's stored pass
+/// (`png_rows8`) writes through it too.
+pub(crate) struct IdatWindow<'s> {
     sink: &'s mut dyn NativeSink,
     crc: crc32fast::Hasher,
     buffer: Vec<u8>,
@@ -575,7 +578,7 @@ const IDAT_WINDOW_KEEP_BYTES: usize = 2 * 65_540;
 const IDAT_WINDOW_COMMIT_BYTES: usize = 192 * 1024;
 
 impl<'s> IdatWindow<'s> {
-    fn new(sink: &'s mut dyn NativeSink) -> Result<Self, String> {
+    pub(crate) fn new(sink: &'s mut dyn NativeSink) -> Result<Self, String> {
         let mut crc = crc32fast::Hasher::new();
         crc.update(b"IDAT");
         let mut buffer = Vec::new();
@@ -606,7 +609,7 @@ impl<'s> IdatWindow<'s> {
     }
 
     /// Commits the rest and answers the IDAT CRC, or the first sink error.
-    fn close(mut self) -> Result<u32, String> {
+    pub(crate) fn close(mut self) -> Result<u32, String> {
         let rest = self.buffer.len();
         self.commit(rest);
         match self.error {

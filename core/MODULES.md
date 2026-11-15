@@ -76,7 +76,7 @@ Detail belongs in the source file's own header comment.
 - `gradient_smoothness_native.rs` — the GRADIENT SMOOTHNESS word: native word 103 for a Smoothness below 100 % in a style or a Gradient Fill description; no table.
 - `fill_align_native.rs` — the GRADIENT FILL ALIGNMENT word: native word 105 for a Gradient Fill description aligned with the layer, first inside 45; no table.
 - `gradient_map_method_native.rs` — the GRADIENT MAP METHOD word: native word 111 for a Gradient Map with a `method`, first inside 45, ahead of 105; no table.
-- `drdc.rs` / `drdc_capacity.rs` / `drdc_read.rs` / `drdc_save_plan.rs` / `drdc_reopen_plan.rs` — native DRDC (`.doctored`, `.rz` read): writer, capacity checks, preflighted reader, save/reopen plans.
+- `drdc.rs` / `drdc_capacity.rs` / `drdc_read.rs` / `drdc_save_plan.rs` / `drdc_reopen_plan.rs` — native DRDC (`.doctored`, `.rz` read): streamed writer, caps, preflighted reader, save/reopen plans.
 - `psd.rs` / `psd_import.rs` / `psd_import16.rs` / `psd_container.rs` — PSD, PSB and layered-TIFF layer import (16-bit typed, 32-bit float), preflight/choice, framing, composites.
 - `ffi_psd.rs` — the layered-file exports: PSD/PSB/layered-TIFF import report, opens (byte, typed, Gray, Lab), export report and save at both depths, `dr_tiff_has_layers`.
 - `psd_framing.rs` — leaf: the three layered containers' field widths and limits, PSB's long-length keys, the ONE RLE row-table walk and the ONE PackBits decoder.
@@ -423,7 +423,7 @@ Detail belongs in the source file's own header comment.
 - `precision_document.rs` / `precision_native.rs` / `precision_native_read.rs` — immutable typed documents and their native records (v11+ reads); open and save stream the file (`native_stream`).
 - `precision_native_write.rs` — the typed native writer: admission, then the format in order to a `NativeSink` (the temp file or a Vec); small tables via one scratch Vec.
 - `precision_native_plan.rs` — the ONE metadata-only typed native capacity plan: construction, writing, the banded reopen and hypothetical geometry/mask edits.
-- `native_stream.rs` — typed native I/O: `Reader` over a slice or a pread-only file (small takes in an arena, spans read on decode), `NativeSink`, `FileSink`, the window.
+- `native_stream.rs` — native I/O: `Reader` over a slice or a pread-only file (small takes in an arena, spans read on decode), `NativeSink` (patch, truncate), `FileSink`, the window.
 - `native_magic.rs` — leaf: the native magic, written `DRDC` (`NATIVE_MAGIC`), read `DRDC` or legacy `RZDC` (`is_native_magic`); every writer and reader sniff goes through it.
 - `precision_clip_native.rs` — the typed `clipped` flag's conditional native v32 wrapper: the outermost version word, then the `LCLP` table after MOUT.
 - `precision_blend_if.rs` / `precision_blend_if_native.rs` — typed `Option<BlendIf>` on rasters, RGB adjustments and isolated groups: `validate`, `with_blend_if`, `layer_blend_if`; LBIF 1/2.
@@ -603,6 +603,7 @@ Detail belongs in the source file's own header comment.
 - `develop_inspect.rs` / `ffi_develop_inspect.rs` — read-only inspection of retained u16/f32 masters before geometry or retouch; the f32 rule-X preview at Fit/100 %, float clipping, HDR marker.
 - `clip_display.rs` / `ffi_clip_display.rs` — the ⌥-drag Levels/Curves clipping display: a transient threshold image of an edited composite; u16 0/65535, f32 >= 1.0 / <= 0.0; the > 1.0 HDR predicate.
 - `precision_codec.rs` / `precision_png.rs` / `precision_io.rs` / `ffi_precision.rs` — preserving RGB/RGBA16 PNG/TIFF input, metadata sidecar/TIFF encoder, native pixel payloads, typed C owners.
+- `png_rows8.rs` — kernel, 13C-2a: the ONE 8-bit PNG encoder, row by row to a `NativeSink` (png 0.18.1's adaptive filter and fdeflate), `PngEncoder`'s bytes.
 - `png_declared.rs` — kernel: a PNG's bare `gAMA`/`cHRM` (no `iCCP`, no `sRGB`) as the v4 RGB or Gray profile it describes, read in an `iCCP`'s place by every PNG open.
 - `precision_png_rows.rs` — the banded native RGBA16 PNG reader: rows decoded straight into 256×256 tiles, with no whole-plane decode buffer beside them.
 - `artwork_coverage.rs` / `artwork_render.rs` / `artwork_document.rs` / `ffi_artwork.rs` — bounded coverage; ink assembly into RGBA16 (linear f32 at 32 bits); a document-depth publication.

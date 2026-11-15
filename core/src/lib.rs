@@ -542,6 +542,7 @@ mod plane_blur;
 mod plane_scale_offset;
 mod plane_swatch;
 mod png_declared;
+mod png_rows8;
 pub mod poisson;
 mod pool_skeleton;
 pub mod precision_adjustment;

@@ -11,11 +11,11 @@
 //! payload they announce through `NativeSink::begin_blob` (a mask or channel
 //! plane, a RAW payload, an 8-bit source PNG: keyed in 1 MiB chunks). A blob
 //! under [`BLOB_MIN_BYTES`] stays literal: its key and index entry would cost
-//! more than rewriting it. The byte writer still builds its body in memory,
-//! so it marks the same sites instead (`drdc::encode_native_captured`) and the
-//! adapter walks the body and its marks into the same sink. The pool is
-//! flushed before the skeleton's publishing rename, so a published skeleton
-//! never names a payload that is not durable.
+//! more than rewriting it. The sink cannot rewrite a byte it took, so the
+//! 8-bit PNG encoder (`png_rows8`) measures a PNG it writes here before
+//! writing it, and never stages it whole. The pool is flushed before the
+//! skeleton's publishing rename, so a published skeleton never names a
+//! payload that is not durable.
 //!
 //! **The identity memo.** Per handle and sample type, a tile's address maps
 //! to `(Weak<Tile>, key)`, so a tile already keyed is not hashed again. An
@@ -30,7 +30,7 @@
 //! fetched (each hash-checked), and each tile segment fetched one raster at
 //! a time and written by the writer's own function for its site, so the
 //! rebuilt file is the saved file byte for byte. Its transient is one raster
-//! (the byte site also holds that raster's PNG) beside the window.
+//! beside the window and that site's encoder rows.
 //!
 //! **Purity.** A document is never changed; the handle's pool files and its
 //! memo are, so the handle is a `Mutex` and every call takes it.
@@ -48,7 +48,7 @@ use crate::pool_skeleton::{
     Segment, Site, SkeletonReader, SkeletonWriter, KIND_BYTE, KIND_TYPED, LITERAL_MAX,
 };
 use crate::precision_document::PrecisionDocument;
-use crate::precision_image::{reserved_vec, PrecisionImage};
+use crate::precision_image::PrecisionImage;
 use crate::tile_pool::{AppendStats, Key, Pool, PoolSample, BLOB_CHUNK_BYTES, TAG_BLOB};
 use crate::tile_store::{Tile, TilePlane, TILE_EDGE};
 
@@ -65,16 +65,6 @@ pub const TILE_POOL_WINDOW_BYTES: u64 = 8 * 1024 * 1024;
 
 /// A blob shorter than this stays literal (module doc).
 const BLOB_MIN_BYTES: u64 = 64 * 1024;
-
-/// A payload the byte writer marked instead of writing it whole
-/// (`drdc::encode_native_captured`).
-pub(crate) enum ByteMark {
-    /// Layer `index`'s PNG record (u32 length and PNG) belongs at `at`;
-    /// nothing was written for it.
-    Layer { at: usize, index: usize },
-    /// `body[at..at + len]` is one payload.
-    Blob { at: usize, len: usize },
-}
 
 type Memo<S> = HashMap<usize, (Weak<Tile<S>>, Key)>;
 
@@ -260,9 +250,10 @@ impl DrTilePool {
 
 impl DrDocument {
     /// Writes the document into `pool` and its skeleton to `skeleton`
-    /// (module doc). The document is unchanged; the pool gains the payloads
-    /// it did not hold. A cancel answers `operation cancelled` and publishes
-    /// no skeleton.
+    /// (module doc): the byte writer (`drdc::write_native`) into the
+    /// skeleton sink, as the typed twin does. The document is unchanged; the
+    /// pool gains the payloads it did not hold. A cancel answers `operation
+    /// cancelled` and publishes no skeleton.
     pub fn tile_pool_write(
         &self,
         pool: &DrTilePool,
@@ -271,41 +262,18 @@ impl DrDocument {
     ) -> Result<(), String> {
         let _run = control.map(DrJobControl::begin).transpose()?;
         let job = control.map_or(JobContext::NONE, JobContext::new);
-        let mut marks = Vec::new();
-        let encoded = self.encode_native_captured(job.range(0.0, 0.5), Some(&mut marks));
-        let body = settle(job, encoded)?;
+        self.native_save_preflight()?;
         let mut state = pool.lock()?;
         state.begin_write();
         let result = save_atomically(skeleton, |temporary| {
             let mut sink = SkeletonSink::create(temporary, skeleton, KIND_BYTE, &mut state, job)?;
-            let mut at = 0;
-            for mark in &marks {
-                match *mark {
-                    ByteMark::Layer { at: here, index } => {
-                        sink.put(&body[at..here])?;
-                        let plane = self
-                            .layers
-                            .get(index)
-                            .and_then(|layer| layer.pixels.tile_plane())
-                            .ok_or("tile pool write lost a layer's tiles")?;
-                        sink.raster(RasterRef::Rgba8Png(plane))?;
-                        at = here;
-                    }
-                    ByteMark::Blob { at: here, len } => {
-                        sink.put(&body[at..here])?;
-                        sink.begin_blob(len as u64)?;
-                        sink.put(&body[here..here + len])?;
-                        at = here + len;
-                    }
-                }
-            }
-            sink.put(&body[at..])?;
+            self.write_native(&mut sink, job)?;
             sink.finish()?;
             state.pool.flush()?;
             job.check()
         });
         state.end_write();
-        result?;
+        settle(job, result)?;
         if let Some(control) = control {
             control.report(1.0, 5);
         }
@@ -477,6 +445,11 @@ impl NativeSink for SkeletonSink<'_> {
         self.position
     }
 
+    /// A literal or a chunk already keyed cannot be rewritten (module doc).
+    fn rewrites(&self) -> bool {
+        false
+    }
+
     fn put(&mut self, mut bytes: &[u8]) -> Result<(), String> {
         self.position += bytes.len() as u64;
         while !bytes.is_empty() {
@@ -587,22 +560,9 @@ fn rebuild_raster(
 ) -> Result<(), String> {
     match site {
         Site::Rgba8Png => {
-            // The byte encoder takes the contiguous plane, so the tiles are
-            // copied straight into it rather than into a `TilePlane`.
-            let stride = dimensions.0 as usize * 4;
-            let total = stride * dimensions.1 as usize;
-            let mut raw = reserved_vec::<u8>(total)?;
-            raw.resize(total, 0);
-            for (index, key) in keys.iter().enumerate() {
-                job.check()?;
-                let (x, y, w, h) = tile_size(dimensions, index);
-                let bytes = fetch_tile::<[u8; 4]>(pool, key, (w, h))?;
-                for (r, row) in bytes.chunks_exact(w as usize * 4).enumerate() {
-                    let at = (y as usize + r) * stride + x as usize * 4;
-                    raw[at..at + row.len()].copy_from_slice(row);
-                }
-            }
-            crate::drdc::put_layer_png(out, &raw, dimensions, job)
+            let plane = plane::<[u8; 4]>(pool, dimensions, keys, job)?;
+            let mut rows = crate::drdc::rgba_rows(|y| plane.row_segments(y, 0, u32::MAX));
+            crate::drdc::put_layer_png(out, dimensions, &mut rows, job)
         }
         Site::Rgba16Png => {
             let image = PrecisionImage::from_tile_plane16(plane(pool, dimensions, keys, job)?);

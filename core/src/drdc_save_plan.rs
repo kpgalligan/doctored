@@ -1,11 +1,13 @@
 //! The 8-bit native writer's capacity plan: an upper bound of the
-//! bytes `DrDocument::encode_native` writes (`encoded_bound`, which the writer
-//! reserves for its body buffer) and the peak scratch the save needs beside the
+//! bytes `DrDocument::write_native` writes (`encoded_bound`; the reopen plan
+//! reads it as the file), the part of it the writer streams plane by plane
+//! (`streamed_bound`), and the peak scratch the save needs beside the
 //! document (`write_scratch_bytes`, which the host admits for the 8-bit `.rz`
-//! save and snapshot). Metadata only: it reads stored dimensions and lengths,
-//! never `referenced_bytes` or the contiguous-view cache, so the figure is the
-//! same with views live or evicted. It imposes no cap of its own and does not
-//! run `native_save_preflight` (the writer still does, first).
+//! save, snapshot and recovery write). Metadata only: it reads stored
+//! dimensions and lengths, never `referenced_bytes` or the contiguous-view
+//! cache, so the figure is the same with views live or evicted. It imposes no
+//! cap of its own and does not run `native_save_preflight` (the save does,
+//! first).
 //!
 //! # Formula
 //! `encoded_bound` W mirrors the writer's order: 256 fixed bytes (magic, base
@@ -29,31 +31,40 @@
 //! `path_native::transient_bound` (its JSON text, its Vec and the JSON tree;
 //! 0 without a path).
 //!
-//! # Per-plane peak model
-//! An 8-bit plane with `c` channels (4: a layer or an 8-bit asset; 1: a
-//! channel), `px = w·h`, and G its W term:
+//! # Streamed writer (13C-2a)
+//! The writer streams the file to its sink (`native_stream::FileSink`, or
+//! the tile pool's skeleton sink), so the file is not a term. `S`
+//! (`streamed_bound`) is the plane terms inside W: each layer's and
+//! channel's `byte_png_bound`, each mask's raw bytes and each source asset's
+//! `source_png_encoded_bound`. Every other byte of the file passes through
+//! the writer's one scratch `Vec` between planes, so `W − S` bounds it. Each
+//! 8-bit plane with `c` channels (4: a layer or an 8-bit asset; 1: a channel)
+//! is encoded row by row (`png_rows8`), holding `T_k = 5·(c·w + 1) + 1 MiB`
+//! (`png_rows8::scratch_bytes`: three rows, a 64 KiB output block and one
+//! row's overshoot, the stored pass's IDAT window); a 16-bit asset's `T_k` is
+//! `native_png_encode_scratch`, a float master's 0. `T = max T_k`, and
+//! `write_scratch_bytes = (W − S) + held + T + NATIVE_STREAM_WINDOW_BYTES +
+//! BOOKKEEPING_BYTES + SAVE_OVERHEAD_BYTES`. A sink that cannot rewrite (the
+//! skeleton) gets each PNG measured first, never staged, so the recovery
+//! write holds the same rows. `tests/native_save_plan8_45mp.rs` counts the
+//! live heap a save adds at gate M's sizes against this figure and against
+//! its own row bound. `SAVE_OVERHEAD_BYTES` was measured beside the former
+//! writer and is kept until 13C-6 measures this one.
+//!
+//! # Former writer's per-plane peak model (record)
+//! Before 13C-2a the writer assembled the file in a Vec reserved at W and
+//! encoded each plane whole through `image`'s `PngEncoder`. An 8-bit plane
+//! with `c` channels, `px = w·h`, and G its W term:
 //! `f = c·px + h` (the filtered stream), `Cm = ⌈3f/2⌉ + 4096` (fdeflate's
 //! UltraFast output, literal codes ≤ 12 bits), `Sm = f + 5·⌈f/65535⌉ + 11`
 //! (the stored-only fallback), `K = c·px` (the transient contiguous copy the
-//! encoder reads: a layer's `to_contiguous`, a channel's `GrayRaster::to_image`
-//! since 13B-4), `R = 2·(c·w + 1)` (png's two rows), and
-//! `X = max(K + R + 2·Cm, K + R + Cm + 2·Sm, K + Sm + G, 2·G) + 1 MiB`: the
-//! compressed Vec mid doubling-realloc, the stored fallback mid
-//! doubling-realloc beside it, the IDAT copy into the reserved PNG Vec, and
-//! the PNG appended into the body. `T_k = X − G`, because W already reserves
-//! G unwritten while plane k encodes; a 16-bit asset's `T_k` is
-//! `native_png_encode_scratch`. `T = max T_k`,
-//! `write_scratch_bytes = W + held + T + BOOKKEEPING_BYTES +
-//! SAVE_OVERHEAD_BYTES`. It is a structural bound, not a scaled guess: `buf`
-//! and every PNG Vec are reserved, so only png's two internal Vecs grow, and
-//! phases A/B charge each at twice its bound. There is no added margin: the
-//! quarter the first design carried had no measurement behind it, covered
-//! gate M's cases at ≥ 1.8× instead of the ≥ 1.25× the bound already gives,
-//! and refused the 45 MP Background-plus-photo document in the app by
-//! 34,472,958 B (the host also admits its 181.8 MB display
-//! projection beside the plan).
+//! encoder read), `R = 2·(c·w + 1)` (png's two rows), and
+//! `X = max(K + R + 2·Cm, K + R + Cm + 2·Sm, K + Sm + G, 2·G) + 1 MiB`;
+//! `T_k = X − G`, and `write_scratch_bytes = W + held + T +
+//! BOOKKEEPING_BYTES + SAVE_OVERHEAD_BYTES`, with no added margin. Gate M
+//! below measured that writer.
 //!
-//! # Gate M
+//! # Gate M (the former writer)
 //! E = `ri_interval_max_phys_footprint` − the footprint read after
 //! `proc_reset_footprint_interval`, around `dr_doc_save_native`; one case per
 //! process, `MallocLargeCache=0`, three runs plus a baseline twin (every
@@ -80,11 +91,12 @@
 //! `extra_nonpixel_retained`, added after the measurement (+7,704 B for S1,
 //! S2p and S5, +67,629 B for S4; the ratios are unchanged to three places).
 //!
-//! This module is the byte writer's capacity plan, which the writer reserves and the host admits
+//! This module is the byte writer's capacity plan, which the host admits
 //! (`dr_doc_native_save_scratch_bytes`; this module doc holds the formula and gate M).
 use crate::doc::DrDocument;
 use crate::drdc::MAX_DRDC_NAME_LEN;
 use crate::native_sources::SourceTable;
+use crate::native_stream::NATIVE_STREAM_WINDOW_BYTES;
 use crate::precision_image::BOOKKEEPING_BYTES;
 
 const OVERFLOW: &str = "native save plan overflow";
@@ -99,13 +111,13 @@ const FIXED_BYTES: u64 = 256;
 const VERSION_WORD_BYTES: u64 = 13 * 4;
 /// The two 64 KiB descriptor JSON transients.
 const DESCRIPTOR_TRANSIENT_BYTES: u64 = 128 * 1024;
-/// Deflate state, adler and chunk framing per plane.
-const PLANE_FIXED_BYTES: u64 = 1024 * 1024;
 
-/// The byte writer's capacity plan: what `encode_native` reserves and what
-/// the host admits.
+/// The byte writer's capacity plan: the file's bound, its streamed part, and
+/// what the host admits.
 pub struct NativeSavePlan {
     pub encoded_bound: u64,
+    /// The plane terms inside `encoded_bound` (the module doc's `S`).
+    pub streamed_bound: u64,
     pub write_scratch_bytes: u64,
 }
 
@@ -125,28 +137,14 @@ pub(crate) fn byte_png_bound(dimensions: (u32, u32), channels: u32) -> Result<u6
     add(mul(px, u64::from(channels) + 1)?, 4096)
 }
 
-/// `T_k` of one 8-bit plane (the module doc's per-plane model), given its W
-/// term `g`.
-fn byte_plane_transient(dimensions: (u32, u32), channels: u32, g: u64) -> Result<u64, String> {
-    let (w, h) = (u64::from(dimensions.0), u64::from(dimensions.1));
-    let c = u64::from(channels);
-    let px = w * h;
-    let f = add(mul(c, px)?, h)?;
-    let cm = add(mul(f, 3)?.div_ceil(2), 4096)?;
-    let sm = add(add(f, mul(f.div_ceil(65535), 5)?)?, 11)?;
-    let k = mul(px, c)?;
-    let r = mul(add(mul(c, w)?, 1)?, 2)?;
-    let kr = add(k, r)?;
-    let a = add(kr, mul(cm, 2)?)?;
-    let b = add(add(kr, cm)?, mul(sm, 2)?)?;
-    let copy = add(add(k, sm)?, g)?;
-    let append = mul(g, 2)?;
-    let x = add(a.max(b).max(copy).max(append), PLANE_FIXED_BYTES)?;
-    x.checked_sub(g).ok_or_else(|| OVERFLOW.to_string())
+/// `T_k` of one 8-bit plane `width` wide (the module doc's streamed model).
+fn byte_plane_transient(width: u32, channels: u8) -> u64 {
+    crate::png_rows8::scratch_bytes(width, channels)
 }
 
-/// An empty Vec with exactly `bytes` of capacity reserved, for the writer's
-/// body and PNG buffers, or Err when the allocation fails.
+/// An empty Vec with exactly `bytes` of capacity reserved (the path,
+/// variation and generated-picture tables' buffers), or Err when the
+/// allocation fails.
 pub(crate) fn reserved(bytes: u64) -> Result<Vec<u8>, String> {
     let mut buf = Vec::new();
     usize::try_from(bytes)
@@ -161,8 +159,8 @@ fn name_len(name: &str) -> u64 {
 }
 
 impl DrDocument {
-    /// The 8-bit native writer's plan: the encoded-body bound it reserves and
-    /// the peak scratch beside the document (the module doc's formula).
+    /// The 8-bit native writer's plan: the file's bound, its streamed part
+    /// and the peak scratch beside the document (the module doc's formula).
     /// Depends only on stored dimensions and lengths, never on cached views.
     pub fn native_save_plan(&self) -> Result<NativeSavePlan, String> {
         Ok(self.native_plans()?.save)
@@ -173,14 +171,17 @@ impl DrDocument {
     pub(crate) fn save_plan_with(&self, sources: &SourceTable) -> Result<NativeSavePlan, String> {
         let canvas = (self.width, self.height);
         let mut encoded = FIXED_BYTES + VERSION_WORD_BYTES;
+        let mut streamed = 0u64;
         let mut transient = 0u64;
         let mut largest_style = 0u64;
         for layer in &self.layers {
             let dims = layer.pixels.dimensions();
             let g = byte_png_bound(dims, 4)?;
             encoded = add(encoded, add(64 + name_len(&layer.name), g)?)?;
+            streamed = add(streamed, g)?;
             if let Some(mask) = &layer.mask {
                 encoded = add(encoded, add(64, mask.byte_len())?)?;
+                streamed = add(streamed, mask.byte_len())?;
             }
             if let Some(meta) = &layer.meta {
                 encoded = add(encoded, add(5, meta.len() as u64)?)?;
@@ -190,14 +191,15 @@ impl DrDocument {
                 largest_style = largest_style.max(len);
                 encoded = add(encoded, add(5, len)?)?;
             }
-            transient = transient.max(byte_plane_transient(dims, 4, g)?);
+            transient = transient.max(byte_plane_transient(dims.0, 4));
         }
         if !self.channels.is_empty() {
             let g = byte_png_bound(canvas, 1)?;
             for channel in &self.channels {
                 encoded = add(encoded, add(32 + name_len(&channel.name), g)?)?;
+                streamed = add(streamed, g)?;
             }
-            transient = transient.max(byte_plane_transient(canvas, 1, g)?);
+            transient = transient.max(byte_plane_transient(canvas.0, 1));
         }
         if !self.profile.is_builtin_srgb() {
             encoded = add(encoded, self.profile.bytes().len() as u64)?;
@@ -214,6 +216,7 @@ impl DrDocument {
                 let (dims, depth) = (asset.dimensions(), asset.depth() as u8);
                 let g = crate::native_sources::source_png_encoded_bound(dims, depth)?;
                 encoded = add(encoded, g)?;
+                streamed = add(streamed, g)?;
                 let t = if depth == 32 {
                     // A float master's raw payload has no codec: `g` is
                     // its exact `w · h · 16` bytes.
@@ -221,7 +224,7 @@ impl DrDocument {
                 } else if depth == 16 {
                     crate::precision_codec::native_png_encode_scratch(dims)?
                 } else {
-                    byte_plane_transient(dims, 4, g)?
+                    byte_plane_transient(dims.0, 4)
                 };
                 transient = transient.max(t);
             }
@@ -409,18 +412,30 @@ impl DrDocument {
             crate::path_native::transient_bound(&self.paths.entries, &vector_masks, 1),
         )?;
 
-        let mut base = add(encoded, held)?;
-        for term in [transient, BOOKKEEPING_BYTES, SAVE_OVERHEAD_BYTES] {
+        // The writer's scratch `Vec` holds at most the bytes that are not a
+        // plane (the module doc's `W − S`).
+        let pending = encoded
+            .checked_sub(streamed)
+            .ok_or_else(|| OVERFLOW.to_string())?;
+        let mut base = add(pending, held)?;
+        for term in [
+            transient,
+            NATIVE_STREAM_WINDOW_BYTES,
+            BOOKKEEPING_BYTES,
+            SAVE_OVERHEAD_BYTES,
+        ] {
             base = add(base, term)?;
         }
         Ok(NativeSavePlan {
             encoded_bound: encoded,
+            streamed_bound: streamed,
             write_scratch_bytes: base,
         })
     }
 
     /// The plan's `write_scratch_bytes`: what the host admits for the 8-bit
-    /// native save and snapshot (`dr_doc_native_save_scratch_bytes`).
+    /// native save, snapshot and recovery write
+    /// (`dr_doc_native_save_scratch_bytes`).
     pub fn native_save_scratch_bytes(&self) -> Result<u64, String> {
         Ok(self.native_save_plan()?.write_scratch_bytes)
     }

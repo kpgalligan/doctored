@@ -1,27 +1,90 @@
-//! The 8-bit native save plan against gate M's measured peaks at the
-//! probe's sizes, built one after another (8256×5504, the 7500×7500 pair).
-//! Alone in its binary: each case holds up to ~1.4 GB while it is checked.
+//! The 8-bit native save's heap at gate M's sizes (the documents of
+//! `drdc_save_plan`'s gate M, built one after another: 8256×5504 and the
+//! 7500×7500 pair). Since 13C-2a the writer streams each plane row by row
+//! into the temporary file, so what a save adds beside the document is rows,
+//! not the file: this binary's allocator counts the live heap the save adds
+//! (a count of bytes, not a footprint or a time, so other work on the machine
+//! does not move it) and holds it to the test's own row bound, declared here
+//! from the widest plane, and to the plan's `write_scratch_bytes`, which in
+//! turn must stay below each noise file it admits. The recovery write into
+//! the tile pool is held to the figure it is admitted with.
 //!
-//! `MAX_E` is gate M's largest `ri_interval_max_phys_footprint` rise over the
-//! six runs of each case (three with views live, three evicted;
-//! `MallocLargeCache=0`, one case per process, Apple M2 Max, release; the
-//! table is in `designs/phase-4-jobs-resource-status.md`). The plan, which
-//! carries no added margin, must cover 1.25× it in every case.
-//!
-//! HEAD's `referenced × 4 + 64 MiB` (gate S, a77a225), live / evicted:
-//! S1 4,429,660,464 / 2,975,547,696; S2 1,521,284,236 / 794,227,852;
-//! S2p 2,975,520,520 / 2,248,464,136; S3 3,667,211,696 / 1,867,211,696.
-//! S5 has S1's planes, so HEAD's figure is S1's. (Gate M's S4, a 64 MB
-//! host-media resource attached to the placed layer, went with host-media
-//! attachments on 2026-10-10.)
+//! Alone in its binary: its own `#[global_allocator]`, and each case holds
+//! up to ~1.4 GB while it is checked. Every test takes [`SERIAL`] first, so
+//! no other test allocates while one counts.
 
 use doctored_core::doc::DrDocument;
+use doctored_core::ffi::dr_string_free;
+use doctored_core::ffi_doc::dr_doc_save_native;
+use doctored_core::ffi_tile_pool::{
+    dr_doc_tile_pool_write, dr_tile_pool_free, dr_tile_pool_open, dr_tile_pool_window_bytes,
+};
 use doctored_core::precision_image::REFERENCE_WORKING_BYTES;
 use doctored_core::retained_source::SourceEdit;
 use image::{Rgba, RgbaImage};
 use serde_json::json;
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::ffi::{CStr, CString};
+use std::ptr;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
+use tempfile::TempDir;
+
 const W45: u32 = 8256;
 const H45: u32 = 5504;
+const MIB: u64 = 1024 * 1024;
+
+struct Tracked;
+static LIVE: AtomicUsize = AtomicUsize::new(0);
+static PEAK: AtomicUsize = AtomicUsize::new(0);
+static SERIAL: Mutex<()> = Mutex::new(());
+
+fn added(bytes: usize) {
+    let live = LIVE.fetch_add(bytes, Ordering::Relaxed) + bytes;
+    PEAK.fetch_max(live, Ordering::Relaxed);
+}
+
+unsafe impl GlobalAlloc for Tracked {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let pointer = unsafe { System.alloc(layout) };
+        if !pointer.is_null() {
+            added(layout.size());
+        }
+        pointer
+    }
+    unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
+        LIVE.fetch_sub(layout.size(), Ordering::Relaxed);
+        unsafe { System.dealloc(pointer, layout) }
+    }
+    unsafe fn realloc(&self, pointer: *mut u8, layout: Layout, size: usize) -> *mut u8 {
+        let result = unsafe { System.realloc(pointer, layout, size) };
+        if !result.is_null() {
+            LIVE.fetch_sub(layout.size(), Ordering::Relaxed);
+            added(size);
+        }
+        result
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: Tracked = Tracked;
+
+/// The live heap `run` adds at its peak, over what was live before it.
+fn rise(run: impl FnOnce()) -> u64 {
+    let baseline = LIVE.load(Ordering::Relaxed);
+    PEAK.store(baseline, Ordering::Relaxed);
+    run();
+    (PEAK.load(Ordering::Relaxed) - baseline) as u64
+}
+
+/// The test's own bound on what a streamed save of planes at most `widest`
+/// pixels wide adds: eight RGBA8 rows of the widest plane (the encoder keeps
+/// three, its output block one row's overshoot) and 8 MiB for the sink's
+/// buffer, the stored pass's IDAT window, the 64 KiB output block and the
+/// writer's tables.
+fn row_bound(widest: u32) -> u64 {
+    8 * (4 * u64::from(widest) + 1) + 8 * MIB
+}
 
 fn splitmix(state: &mut u64) -> u64 {
     *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
@@ -67,36 +130,97 @@ fn placed(source: RgbaImage) -> DrDocument {
         .unwrap()
 }
 
-fn check(name: &str, doc: DrDocument, max_e: u64) {
+/// Saves `doc` through the export and answers the file's length.
+fn save(doc: &DrDocument, path: &CString) -> u64 {
+    let mut error = ptr::null_mut();
+    let ok = unsafe { dr_doc_save_native(doc, path.as_ptr(), ptr::null(), &mut error) };
+    if !error.is_null() {
+        let message = unsafe { CStr::from_ptr(error) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { dr_string_free(error) };
+        panic!("{message}");
+    }
+    assert!(ok);
+    std::fs::metadata(path.to_str().unwrap()).unwrap().len()
+}
+
+/// One gate M case: the save's heap rise against the row bound and the
+/// plan, and the plan below the file.
+fn check(name: &str, doc: DrDocument, widest: u32) {
     let scratch = doc.native_save_scratch_bytes().unwrap();
-    let floor = (max_e * 5).div_ceil(4);
+    let dir = TempDir::new().unwrap();
+    let path = CString::new(dir.path().join("gate-m.doctored").to_str().unwrap()).unwrap();
+    let mut len = 0;
+    let added = rise(|| len = save(&doc, &path));
+    println!("{name}: save added {added} B; plan {scratch} B; file {len} B");
     assert!(
-        scratch >= floor,
-        "{name}: plan {scratch} < 1.25 × max E {max_e}"
+        added <= row_bound(widest),
+        "{name}: the save added {added} B, over the row bound {}",
+        row_bound(widest)
+    );
+    assert!(
+        added <= scratch,
+        "{name}: the save added {added} B, over the plan's {scratch} B"
+    );
+    assert!(scratch < len, "{name}: plan {scratch} B ≥ the {len} B file");
+}
+
+/// The recovery write (`dr_doc_tile_pool_write`) is admitted at the save's
+/// figure plus the pool's window, and its sink cannot rewrite a byte, so
+/// each PNG it writes is measured first: S1's 8-bit original must not be
+/// staged whole (it was, in the body the former writer built).
+#[test]
+fn a_recovery_write_adds_rows_not_a_png_at_45_mp() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let doc = placed(noise8(W45, H45, 0x5EED));
+    let admitted = doc.native_save_scratch_bytes().unwrap() + dr_tile_pool_window_bytes();
+    let dir = TempDir::new().unwrap();
+    let folder = CString::new(dir.path().join("pool").to_str().unwrap()).unwrap();
+    let skeleton = CString::new(dir.path().join("state.drskel").to_str().unwrap()).unwrap();
+    let mut error = ptr::null_mut();
+    let pool = unsafe { dr_tile_pool_open(folder.as_ptr(), &mut error) };
+    assert!(!pool.is_null());
+    let mut ok = false;
+    let added = rise(|| {
+        ok = unsafe {
+            dr_doc_tile_pool_write(&doc, pool, skeleton.as_ptr(), ptr::null(), &mut error)
+        };
+    });
+    unsafe { dr_tile_pool_free(pool) };
+    if !error.is_null() {
+        let message = unsafe { CStr::from_ptr(error) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { dr_string_free(error) };
+        panic!("{message}");
+    }
+    assert!(ok);
+    println!("S1 recovery write: added {added} B; admitted {admitted} B");
+    assert!(
+        added <= admitted,
+        "S1: the recovery write added {added} B, over the admitted {admitted} B"
     );
 }
 
 #[test]
-fn plan_covers_gate_m_peaks_at_45_mp() {
-    check("S1", placed(noise8(W45, H45, 0x5EED)), 744_637_016);
-    check(
-        "S2",
-        DrDocument::from_pixels(noise8(W45, H45, 0x5EED)),
-        561_971_704,
-    );
+fn a_native_save_adds_rows_not_the_file_at_45_mp() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    check("S1", placed(noise8(W45, H45, 0x5EED)), W45);
+    check("S2", DrDocument::from_pixels(noise8(W45, H45, 0x5EED)), W45);
     check(
         "S2p",
         placed(noise8(W45, H45, 0x5EED))
             .remove_layers(&[0])
             .unwrap(),
-        743_752_304,
+        W45,
     );
     check(
         "S3",
         DrDocument::from_pixels(noise8(7500, 7500, 1))
             .adding_image_layer(0, noise8(7500, 7500, 2), "B")
             .unwrap(),
-        920_666_856,
+        7500,
     );
-    check("S5", placed(noise8_full(W45, H45, 0x5EED)), 795_493_000);
+    check("S5", placed(noise8_full(W45, H45, 0x5EED)), W45);
 }

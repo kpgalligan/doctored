@@ -33,11 +33,12 @@
 //! a kept-mode PNG and an Indexed GIF compute before their first write.
 //!
 //! A whole-file save or open that builds or takes its bytes in one buffer
-//! (the 8-bit native file, every PSD, PSB and layered TIFF writer, the CMYK
+//! (the 8-bit native open, every PSD, PSB and layered TIFF writer, the CMYK
 //! and Lab files) moves them through [`read_file`] and [`write_file`], the
 //! same `Polled` adapter over the file itself, so the read and the write of a
 //! large file each poll as they go; the compute around them checks the job
-//! at its own stage boundaries.
+//! at its own stage boundaries. The 8-bit native save streams its planes
+//! (`png_rows8`), polling every 64 KiB of each PNG it writes.
 //!
 //! Seeks pass through uncounted: the TIFF writer seeks back to patch offsets,
 //! and the readers seek to strips and chunks.
