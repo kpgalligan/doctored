@@ -153,7 +153,7 @@ Each `DONE` entry keeps what shipped and what a later batch must hold. The measu
   (`core/src/native_stream.rs`), so the save plan no longer charges the file
   ([working limit](working-limit-ram-scaled.md)): its write term is base + ⌈base/4⌉, base = 2·header + one writer
   transient + `NATIVE_STREAM_WINDOW_BYTES` + bookkeeping, at both depths (`precision_native_plan`'s `# Streamed
-  reader and writer`). The byte (8-bit) writer still assembles its file in memory.
+  reader and writer`). The byte (8-bit) writer streams too since 13C-2a (`drdc_save_plan`).
 - `DONE` — Decided: the reopen envelope keeps charging header bytes (a RAW payload among them) in
   both `reopen_retained` and `encoded_bound`, because the reader holds them twice and its own admission charges
   both (`precision_native_plan`'s `# Header and retained payloads counted twice` record).
