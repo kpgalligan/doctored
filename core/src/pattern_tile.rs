@@ -9,7 +9,14 @@
 //! [`PatternTile`] is straight RGBA8, row 0 at the top, each side
 //! 1..=[`MAX_TILE_SIDE`]. Its samples are the DOCUMENT's own values: they are
 //! never colour-converted, and a 32-bit document reads code / 255 as linear
-//! light (take1's FLOAT = VERBATIM).
+//! light (take1's FLOAT = VERBATIM). A tile defined from a CMYK, 16-bit or
+//! 32-bit float document also keeps that document's own numbers beside the
+//! raster ([`PatternTile::samples`], `pattern_samples`), and a document that
+//! stores that kind of number reads them instead: [`tile_level`] builds the
+//! RGB level from `rgb16` and `rgb32` samples, [`ink_sampler`] the ink level
+//! from `cmyk16` ones. An `rgb32` level is EXTENDED ([`LevelOf::extended`]):
+//! a 32-bit reader takes its colour unclamped ([`PatternSampler::linear`]),
+//! every other reader clamped to 0…1 as before.
 //!
 //! # Scale: PYRAMID (fitted on take1, `pattern_overlay_take.py --fit`)
 //!
@@ -105,7 +112,8 @@
 //! a CMYK document's INK level ([`InkLevel`], C, M, Y, K, A). A CMYK layer's
 //! tile is converted to ink texel by texel BEFORE the pyramid (each texel's
 //! colour goes through the same leg a Colour Overlay's colour does, in
-//! `cmyk_style`), so the ink pyramid boxes and blends inks the way the RGB
+//! `cmyk_style`; a `cmyk16` tile's own ink is read verbatim instead), so
+//! the ink pyramid boxes and blends inks the way the RGB
 //! pyramid boxes and blends colours. A 32-bit document needs no level of its
 //! own: it samples the RGBA level and reads the codes / 255 as linear. A Lab
 //! layer's tile is authored sRGB: [`tile_level_mapped`] turns each texel into
@@ -114,9 +122,12 @@
 
 use std::sync::Arc;
 
+use crate::pattern_samples::TileSamples;
+
 /// The largest tile side, in pixels. 512² base64 is 1.4 MB of JSON, which
 /// keeps one styled layer's recorded appearance well inside the 8 MiB comps
-/// payload (`doc_comps::PAYLOAD_CAP_REFUSAL`).
+/// payload (`doc_comps::PAYLOAD_CAP_REFUSAL`); a 512² tile with `rgb32`
+/// samples is 7.0 MB, which one such appearance still fits.
 pub const MAX_TILE_SIDE: u32 = 512;
 
 /// The render angle's sign against Photoshop's `Angl` (module doc's Angle):
@@ -142,6 +153,17 @@ pub struct PatternTile {
     pub width: u32,
     pub height: u32,
     pub rgba: Arc<[u8]>,
+    /// The native samples the raster cannot hold (module doc's tile,
+    /// `pattern_samples`): `None` for every tile the RGBA8 raster already
+    /// holds whole.
+    pub samples: Option<Arc<TileSamples>>,
+}
+
+impl PatternTile {
+    /// The decoded bytes of the tile's native samples; 0 without them.
+    pub fn sample_bytes(&self) -> u64 {
+        self.samples.as_deref().map_or(0, TileSamples::bytes)
+    }
 }
 
 /// One PYRAMID level: `N` premultiplied unit channels per texel, the last
@@ -159,6 +181,10 @@ pub struct LevelOf<const N: usize> {
     /// The turned tile's lattice ([`rotation_of`]); `None` exactly when the
     /// angle is 0 (or not finite), which samples with the unrotated divide.
     pub rotation: Option<Lattice>,
+    /// Whether the colour may lie beyond 0…1: a level built from `rgb32`
+    /// samples (module doc's tile), which only a 32-bit reader takes
+    /// unclamped ([`PatternSampler::linear`]).
+    pub extended: bool,
 }
 
 /// An angled level's lattice (module doc's Angle), everything the rotation
@@ -406,21 +432,39 @@ fn level_of<const N: usize>(
         premultiplied: data.into(),
         scale,
         rotation,
+        extended: false,
     }
 }
 
 /// The PYRAMID level Scale `scale` reads (module doc): `mip_level(scale)`
 /// halvings of the premultiplied tile, then s' = scale · w' / level w per
 /// axis, w' the tile side doubled once for every halving of an odd side,
-/// sampled turned by `angle` degrees (module doc's Angle).
+/// sampled turned by `angle` degrees (module doc's Angle). A tile with
+/// `rgb16` or `rgb32` samples builds it from them (module doc's tile; an
+/// `rgb32` level is [`LevelOf::extended`]); every other tile from its raster.
 pub fn tile_level(tile: &PatternTile, scale: f64, angle: f64) -> TileLevel {
+    let (w0, h0) = (tile.width.max(1), tile.height.max(1));
+    let texels = w0 as usize * h0 as usize;
+    let native = tile
+        .samples
+        .as_deref()
+        .and_then(TileSamples::rgb_texels)
+        .filter(|(data, _)| data.len() == texels);
+    if let Some((data, extended)) = native {
+        return LevelOf {
+            extended,
+            ..level_of(data, w0, h0, scale, angle)
+        };
+    }
     tile_level_mapped(tile, scale, angle, &mut |rgb| rgb)
 }
 
-/// [`tile_level`] with each texel's colour passed through `texel` first,
-/// alpha kept, BEFORE the pyramid (module doc's Depths and CMYK: a Lab
-/// layer's texels become Lab codes), so the halvings and the turn box the
-/// mapped values. The identity `texel` is [`tile_level`] byte for byte.
+/// The RGBA8 raster's PYRAMID level ([`tile_level`]'s) with each texel's
+/// colour passed through `texel` first, alpha kept, BEFORE the pyramid
+/// (module doc's Depths and CMYK: a Lab layer's texels become Lab codes), so
+/// the halvings and the turn box the mapped values. It never reads the
+/// tile's samples: the identity `texel` is [`tile_level`] byte for byte on a
+/// tile without them.
 pub fn tile_level_mapped(
     tile: &PatternTile,
     scale: f64,
@@ -458,25 +502,37 @@ pub fn ink_level(
     level_of(premultiplied, width, height, scale, angle)
 }
 
-/// `tile`'s ink sampler at `origin` (module doc's CMYK): each texel's colour
-/// converted by `texel_ink` (unit C, M, Y, K), premultiplied by its alpha
-/// into the ink PYRAMID level [`ink_level`] at `scale` and `angle`. The one
-/// implementation a CMYK Pattern Overlay or Pattern stroke
-/// (`cmyk_style::effect_inks`) and a CMYK pattern fill layer
-/// (`cmyk_artwork_render`) share; its bytes are [`ink_scratch_bytes`].
+/// `tile`'s ink sampler at `origin` (module doc's CMYK): each texel's ink
+/// from `texel_ink` (unit C, M, Y, K), premultiplied by its alpha into the
+/// ink PYRAMID level [`ink_level`] at `scale` and `angle`. `texel_ink` is
+/// handed the texel's own ink (`Some`, unit C, M, Y, K) for a tile whose
+/// samples are `cmyk16` — the caller reads it verbatim — and
+/// `None` for any other, beside the texel's sRGB colour, which it converts;
+/// a `cmyk16` texel's alpha is its own sample. The one implementation a CMYK
+/// Pattern Overlay or Pattern stroke (`cmyk_style::effect_inks`) and a CMYK
+/// pattern fill layer (`cmyk_artwork_render`) share; its bytes are
+/// [`ink_scratch_bytes`].
 pub fn ink_sampler(
     tile: &PatternTile,
     scale: f64,
     angle: f64,
     origin: (f64, f64),
-    texel_ink: &mut dyn FnMut([u8; 3]) -> [f32; 4],
+    texel_ink: &mut dyn FnMut(Option<[f32; 4]>, [u8; 3]) -> [f32; 4],
 ) -> InkSampler {
+    let native = tile
+        .samples
+        .as_deref()
+        .filter(|s| s.len() == tile.rgba.len() / 4 * 5);
     let texels = tile
         .rgba
         .chunks_exact(4)
-        .map(|px| {
-            let a = f32::from(px[3]) / 255.0;
-            let ink = texel_ink([px[0], px[1], px[2]]);
+        .enumerate()
+        .map(|(i, px)| {
+            let rgb = [px[0], px[1], px[2]];
+            let (ink, a) = match native.and_then(|s| s.ink(i)) {
+                Some((own, a)) => (texel_ink(Some(own), rgb), a),
+                None => (texel_ink(None, rgb), f32::from(px[3]) / 255.0),
+            };
             [ink[0] * a, ink[1] * a, ink[2] * a, ink[3] * a, a]
         })
         .collect();
@@ -497,8 +553,15 @@ pub fn ink_scratch_bytes(width: u32, height: u32, scale: f64, angle: f64) -> u64
 
 /// The level at pixel (x, y) of the layer's grid with the tile's origin at
 /// `origin` (layer px): straight unit channels, the last one alpha (module
-/// doc's Sampling).
-pub fn sample<const N: usize>(level: &LevelOf<N>, origin: (f64, f64), x: f64, y: f64) -> [f32; N] {
+/// doc's Sampling), the colour clamped to 0…1 unless `unclamped` (an
+/// extended level's 32-bit read, [`PatternSampler::linear`]).
+fn sample<const N: usize>(
+    level: &LevelOf<N>,
+    origin: (f64, f64),
+    x: f64,
+    y: f64,
+    unclamped: bool,
+) -> [f32; N] {
     let (w, h) = (
         i64::from(level.width.max(1)),
         i64::from(level.height.max(1)),
@@ -510,7 +573,7 @@ pub fn sample<const N: usize>(level: &LevelOf<N>, origin: (f64, f64), x: f64, y:
             (u, v)
         }
         // The turned tile's own sampler (module doc's Angle).
-        Some(lattice) => return sample_rotated(level, lattice, origin, x, y),
+        Some(lattice) => return sample_rotated(level, lattice, origin, x, y, unclamped),
     };
     if !u.is_finite() || !v.is_finite() || N == 0 {
         return [0.0; N];
@@ -536,20 +599,28 @@ pub fn sample<const N: usize>(level: &LevelOf<N>, origin: (f64, f64), x: f64, y:
             acc[c] += k * f64::from(p[c]);
         }
     }
-    straight(acc)
+    straight(acc, unclamped)
 }
 
 /// Straight unit channels of a premultiplied sum: the colour divided by its
-/// alpha, so a transparent texel lends no colour, each clamped to 0..1.
-fn straight<const N: usize>(acc: [f64; N]) -> [f32; N] {
+/// alpha, so a transparent texel lends no colour, each clamped to 0..1 —
+/// the colour left unclamped when `unclamped` (an extended level's 32-bit
+/// read, held inside the `rgb32` range ±65504). Alpha is always clamped.
+fn straight<const N: usize>(acc: [f64; N], unclamped: bool) -> [f32; N] {
     let alpha = acc[N - 1];
     let a = alpha.clamp(0.0, 1.0);
     if a <= 0.0 {
         return [0.0; N];
     }
+    let (lo, hi) = if unclamped {
+        let max = f64::from(crate::float_document::FLOAT_RANGE_MAX);
+        (-max, max)
+    } else {
+        (0.0, 1.0)
+    };
     let mut out = [0f32; N];
     for c in 0..N - 1 {
-        out[c] = (acc[c] / alpha).clamp(0.0, 1.0) as f32;
+        out[c] = (acc[c] / alpha).clamp(lo, hi) as f32;
     }
     out[N - 1] = a as f32;
     out
@@ -569,6 +640,7 @@ fn sample_rotated<const N: usize>(
     origin: (f64, f64),
     x: f64,
     y: f64,
+    unclamped: bool,
 ) -> [f32; N] {
     let (dx, dy) = (x - origin.0, y - origin.1);
     let (v1, v2) = (lattice.v1, lattice.v2);
@@ -583,27 +655,42 @@ fn sample_rotated<const N: usize>(
     if !qx.is_finite() || !qy.is_finite() || N == 0 {
         return [0.0; N];
     }
-    straight(clamped_bilinear(
-        &level.premultiplied,
-        level.width,
-        level.height,
-        qx,
-        qy,
-    ))
+    straight(
+        clamped_bilinear(&level.premultiplied, level.width, level.height, qx, qy),
+        unclamped,
+    )
 }
 
 /// A level placed on a layer: what a rendered plane's colour evaluates per
-/// pixel at composite time (`style_render::PlaneColor::Pattern`).
+/// pixel at composite time (`style_render::PlaneColor::Pattern`). `linear`
+/// is a 32-bit float document's read: an EXTENDED level's colour unclamped
+/// (module doc's tile); every other read clamps it to 0…1.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PatternSampler {
     pub level: Arc<TileLevel>,
     pub origin: (f64, f64),
+    pub linear: bool,
 }
 
 impl PatternSampler {
-    /// Straight unit RGBA at layer pixel (lx, ly).
+    /// Straight unit RGBA at layer pixel (lx, ly): above 1 only on an
+    /// extended level read `linear`.
     pub fn at(&self, lx: i64, ly: i64) -> [f32; 4] {
-        sample(&self.level, self.origin, lx as f64, ly as f64)
+        sample(
+            &self.level,
+            self.origin,
+            lx as f64,
+            ly as f64,
+            self.linear && self.level.extended,
+        )
+    }
+
+    /// This sampler read as a 32-bit float document reads it ([`Self::linear`]).
+    pub fn linear(&self) -> Self {
+        Self {
+            linear: true,
+            ..self.clone()
+        }
     }
 }
 
@@ -615,15 +702,17 @@ pub fn canvas_sampler(tile: &PatternTile) -> PatternSampler {
     PatternSampler {
         level: Arc::new(tile_level(tile, 1.0, 0.0)),
         origin: (0.0, 0.0),
+        linear: false,
     }
 }
 
-/// The bytes a fill's [`canvas_sampler`] (or its ink twin) holds for a
-/// `width` x `height` tile beside the parsed tile: the decoded tile, a
-/// mapped copy of it (a Gray document's greyed tile, a Lab document's codes)
-/// and the level, 20 bytes a texel at most (an ink level) — 28 a texel.
-pub fn fill_scratch_bytes(width: u32, height: u32) -> u64 {
-    28 * u64::from(width.max(1)) * u64::from(height.max(1))
+/// The bytes a fill's [`canvas_sampler`] (or its ink twin) holds for `tile`
+/// beside the parsed tile: the decoded tile, a mapped copy of it (a Gray
+/// document's greyed tile, a Lab document's codes) and the level, 20 bytes a
+/// texel at most (an ink level) — 28 a texel — plus the decoded native
+/// samples a parse holds beside the raster ([`PatternTile::sample_bytes`]).
+pub fn fill_scratch_bytes(tile: &PatternTile) -> u64 {
+    28 * u64::from(tile.width.max(1)) * u64::from(tile.height.max(1)) + tile.sample_bytes()
 }
 
 /// An ink level placed on a CMYK layer: what a rendered plane's ink
@@ -637,6 +726,6 @@ pub struct InkSampler {
 impl InkSampler {
     /// Straight unit C, M, Y, K and alpha at layer pixel (lx, ly).
     pub fn at(&self, lx: i64, ly: i64) -> [f32; 5] {
-        sample(&self.level, self.origin, lx as f64, ly as f64)
+        sample(&self.level, self.origin, lx as f64, ly as f64, false)
     }
 }

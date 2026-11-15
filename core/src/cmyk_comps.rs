@@ -71,7 +71,7 @@ pub(crate) fn inks_mapped(
             };
             let style = LayerStyle::from_json(json)
                 .map_err(|e| format!("layer comp \"{}\": {e}", comp.name))?;
-            if style.has_inks() {
+            if style.has_inks() || crate::pattern_samples_native::holds_ink_samples(&style) {
                 *json = f(&style)?.to_json();
             }
         }

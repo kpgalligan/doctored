@@ -433,15 +433,25 @@ pub(super) fn parse_within(
     // Version 110 in the same slot (`bitmap_native`, #1): a Bitmap
     // document, whose GRAY table then BTMP table are the last before LIDS.
     let has_bitmap = has_ids && cmyk_word == crate::bitmap_native::WORD;
-    let clipping_word =
+    let samples_word =
         if has_cmyk || has_gray || has_duotone || has_lab || has_indexed || has_bitmap {
             reader.u32()?
         } else {
             cmyk_word
         };
-    // Version 114 (`clipping_path_native`) follows the CMYK slot, ahead of
-    // 113, with no table: some path is the clipping path. Checked both ways
-    // against the PATH table before any payload decodes.
+    // Version 115 (`pattern_samples_native`) follows the CMYK slot, ahead of
+    // 114, with no table: some stored pattern holds native samples. Checked
+    // both ways against the records, descriptions and comps before any
+    // payload decodes; it also admits LSTY's longer bodies.
+    let has_samples = has_ids && samples_word == crate::pattern_samples_native::WORD;
+    let clipping_word = if has_samples {
+        reader.u32()?
+    } else {
+        samples_word
+    };
+    // Version 114 (`clipping_path_native`) follows the CMYK slot and 115,
+    // ahead of 113, with no table: some path is the clipping path. Checked
+    // both ways against the PATH table before any payload decodes.
     let has_clipping_path = has_ids && clipping_word == crate::clipping_path_native::WORD;
     let background_word = if has_clipping_path {
         reader.u32()?
@@ -1266,7 +1276,8 @@ pub(super) fn parse_within(
         attach_blend_if(&mut pending, &entries, &mut 0)?;
     }
     if has_style {
-        let entries = crate::precision_style_native::parse(&mut reader, declared, job)?;
+        let entries =
+            crate::precision_style_native::parse(&mut reader, declared, has_samples, job)?;
         // The plane gate runs HERE, on the record's declared dimensions,
         // before any PNG decodes: a raster's own size, an adjustment's (a
         // CMYK one included) or a group's (a Pass Through one included) the
@@ -1503,6 +1514,22 @@ pub(super) fn parse_within(
         }
         if has_pattern && !pattern {
             return Err(crate::style_pattern::INVALID_WORD.into());
+        }
+        // Word 115 (`pattern_samples_native`), both directions: a record's
+        // or comp's style, or a Pattern Fill description.
+        let samples = any_pending(&pending, &|node| {
+            node.style
+                .as_deref()
+                .is_some_and(crate::pattern_samples_native::holds_samples)
+        }) || crate::pattern_samples_native::comps_samples(&comps)
+            || descriptions
+                .iter()
+                .any(|(_, text)| crate::pattern_samples_native::describes_samples(text));
+        if samples && !has_samples {
+            return Err(crate::pattern_samples_native::WORD_REFUSAL.into());
+        }
+        if has_samples && !samples {
+            return Err(crate::pattern_samples_native::INVALID_WORD.into());
         }
         // Word 93 (`pattern_angle_native`), both directions.
         let angled = any_pending(&pending, &|node| {

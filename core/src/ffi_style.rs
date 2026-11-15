@@ -209,6 +209,77 @@ pub unsafe extern "C" fn dr_pattern_tile_from_linear(
     }
 }
 
+/// Edit ▸ Define Pattern's native samples (`pattern_define`'s module doc,
+/// "The samples") of the composite `payload` holds — a Copy Merged of the
+/// pattern's window: the JSON object `{"kind", "data"}` a custom pattern's
+/// `native` key takes, or the JSON text `null` when the tile's RGBA8 raster
+/// already holds every sample (an 8-bit-representable composite, a Lab
+/// one). Heap string, free with `dr_string_free`. NULL with a message
+/// through `err_out` for a NULL `payload` or a side over 512 pixels.
+///
+/// # Safety
+/// `payload` must be NULL or a valid pointer to a live `DrClipboardPayload`;
+/// `err_out` must be NULL or a valid pointer to writable `*mut c_char`.
+#[no_mangle]
+pub unsafe extern "C" fn dr_clipboard_payload_pattern_native(
+    payload: *const crate::ffi_clipboard::DrClipboardPayload,
+    err_out: *mut *mut c_char,
+) -> *mut c_char {
+    unsafe {
+        fallible_op(
+            err_out,
+            "reading a pattern's native samples",
+            ptr::null_mut(),
+            || {
+                use crate::cmyk_clipboard_codec::AnyClipboardPayload;
+                use crate::precision_image::PrecisionStorage;
+                let payload = crate::ffi_util::required_handle(payload)?;
+                let side = crate::pattern_tile::MAX_TILE_SIDE;
+                let rgb = |image: &crate::precision_image::PrecisionImage| -> Result<_, String> {
+                    Ok(match image.storage() {
+                        PrecisionStorage::Rgba16Unorm => {
+                            crate::pattern_define::samples_from_rgba16(&image.to_rgba16()?)
+                        }
+                        PrecisionStorage::Rgba32Float => {
+                            crate::pattern_define::samples_from_linear(&image.to_rgba32()?)
+                        }
+                    })
+                };
+                let (width, height) = match &payload.payload {
+                    AnyClipboardPayload::Rgb(p) => p.dimensions(),
+                    AnyClipboardPayload::Gray(p) => p.rgb.dimensions(),
+                    AnyClipboardPayload::Lab(p) => p.rgb.dimensions(),
+                    AnyClipboardPayload::Cmyk(p) => p.image().dimensions(),
+                };
+                if width > side || height > side {
+                    return Err(format!("a pattern tile is at most {side} pixels a side"));
+                }
+                let samples = match &payload.payload {
+                    AnyClipboardPayload::Rgb(p) => rgb(p.image())?,
+                    AnyClipboardPayload::Gray(p) => rgb(p.rgb.image())?,
+                    AnyClipboardPayload::Lab(_) => None,
+                    AnyClipboardPayload::Cmyk(p) => {
+                        let image = p.image();
+                        let mut pixels = Vec::with_capacity(width as usize * height as usize);
+                        for y in 0..height {
+                            for (_, run) in image.row_segments(y, 0, width) {
+                                pixels.extend_from_slice(run);
+                            }
+                        }
+                        Some(crate::pattern_define::samples_from_cmyk(&pixels))
+                    }
+                };
+                let value = samples.map_or(serde_json::Value::Null, |s| {
+                    crate::style_pattern_fill::native_value(&s)
+                });
+                CString::new(value.to_string())
+                    .map_err(|_| "pattern samples JSON holds a NUL byte".to_string())
+            },
+            CString::into_raw,
+        )
+    }
+}
+
 /// A style PRESET's canonical JSON (`style_presets::preset_style`):
 /// `style_json` parsed strictly, every CMYK ink and every pattern-fill
 /// anchor dropped, written canonically (heap, free with `dr_string_free`).

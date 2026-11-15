@@ -288,6 +288,12 @@ impl DrDocument {
             crate::background_native::header_bytes(crate::background_native::byte_entry(self)),
             // Word 114 (`clipping_path_native`), no table.
             crate::clipping_path_native::header_bytes(&self.paths.entries),
+            // Word 115 (`pattern_samples_native`), no table.
+            if crate::pattern_samples_native::styles_samples(self) {
+                4
+            } else {
+                0
+            },
             // Word 90 (`style_pattern`), no table.
             if crate::style_pattern::styles_pattern(self) {
                 4

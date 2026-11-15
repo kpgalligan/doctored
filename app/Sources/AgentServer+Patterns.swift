@@ -50,11 +50,11 @@ extension AgentServer {
                                               selection: document.canvasSelection)
             let saved = try PatternLibrary.save(
                 name: name, width: tile.width, height: tile.height, rgba: tile.rgba,
-                replace: boolArg(a, "replace") ?? false)
+                native: tile.native, replace: boolArg(a, "replace") ?? false)
             return try jsonResult([
                 "ok": true, "pattern": ["name": saved.name, "width": saved.width,
                                         "height": saved.height],
-                "source": tile.source,
+                "samples": saved.samples, "source": tile.source,
             ])
         }
     }
@@ -65,11 +65,11 @@ extension AgentServer {
             let listing = try PatternLibrary.listing()
             let builtIns: [[String: Any]] = RasterDocument.patternPresets().map {
                 ["name": $0.name, "preset": $0.id, "builtin": true, "width": $0.width,
-                 "height": $0.height]
+                 "height": $0.height, "samples": "rgba8"]
             }
             let saved: [[String: Any]] = listing.entries.map {
                 ["name": $0.item.name, "builtin": false, "width": $0.item.width,
-                 "height": $0.item.height, "file": $0.file]
+                 "height": $0.item.height, "samples": $0.item.samples, "file": $0.file]
             }
             return try jsonResult([
                 "patterns": builtIns + saved,

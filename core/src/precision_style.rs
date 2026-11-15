@@ -299,7 +299,8 @@ impl LayerStyleEdit {
             .map(|s| s.as_ref().map_or(0, String::len))
             .max()
             .unwrap_or(0)
-            .min(crate::precision_style_native::MAX_STYLE_JSON_LEN) as u64;
+            .min(crate::pattern_samples_native::MAX_SAMPLES_STYLE_JSON_LEN)
+            as u64;
         Ok(4 * BOOKKEEPING_BYTES
             + names * 2
             + document.layer_count() as u64 * 4096

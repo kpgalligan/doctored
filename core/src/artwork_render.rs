@@ -640,11 +640,20 @@ fn assemble<T>(
             Component::Pattern { fill } => {
                 let fill = pattern_fill(fill)?;
                 // The Lab twin's tile is authored sRGB (module doc, "The Lab
-                // twin"); every other profile reads document values.
-                let twin = crate::lab_document::is_lab_twin(profile)
-                    .then(|| crate::lab_style::twin_tile_sampler(&fill, (0, 0)))
-                    .flatten();
-                Some(twin.unwrap_or_else(|| fill.sampler((0, 0))))
+                // twin"), its raster alone when the twin cannot build; every
+                // other profile reads document values.
+                let sampler = if crate::lab_document::is_lab_twin(profile) {
+                    crate::lab_style::twin_tile_sampler(&fill, (0, 0))
+                        .unwrap_or_else(|| fill.raster_sampler((0, 0)))
+                } else {
+                    fill.sampler((0, 0))
+                };
+                // A float document reads an `rgb32` tile's light above white
+                // (`pattern_tile::PatternSampler::linear`).
+                Some(match ink {
+                    Ink::Linear => sampler.linear(),
+                    Ink::Encoded => sampler,
+                })
             }
             _ => None,
         });

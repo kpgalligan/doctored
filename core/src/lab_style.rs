@@ -133,13 +133,16 @@ fn twin_pipeline() -> Option<&'static ColorPipeline> {
 /// The placed level a Pattern Overlay's or a Pattern stroke's colour and
 /// coverage read (module doc's Lab pattern tile): on a Lab layer
 /// (`ctx.lab_tiles`) each sRGB texel becomes 8-bit Lab codes before the
-/// pyramid; otherwise, or when the twin pipeline cannot build, it is
-/// `fill.sampler` unchanged.
+/// pyramid, or, when the twin pipeline cannot build, the raster unchanged
+/// (`fill.raster_sampler`: a Lab layer never reads native samples);
+/// otherwise it is `fill.sampler`.
 pub(crate) fn painted_sampler(fill: &PatternFill, ctx: &RenderContext) -> PatternSampler {
-    ctx.lab_tiles
-        .then(|| twin_tile_sampler(fill, ctx.layer_offset))
-        .flatten()
-        .unwrap_or_else(|| fill.sampler(ctx.layer_offset))
+    if ctx.lab_tiles {
+        twin_tile_sampler(fill, ctx.layer_offset)
+            .unwrap_or_else(|| fill.raster_sampler(ctx.layer_offset))
+    } else {
+        fill.sampler(ctx.layer_offset)
+    }
 }
 
 /// `fill`'s placed level with each sRGB texel as 8-bit Lab codes by Mode ▸
@@ -160,5 +163,6 @@ pub(crate) fn twin_tile_sampler(
             &mut |rgb| pipeline.color8(rgb),
         )),
         origin: fill.origin(layer_offset),
+        linear: false,
     })
 }

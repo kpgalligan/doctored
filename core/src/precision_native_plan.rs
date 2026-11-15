@@ -403,6 +403,12 @@ impl PrecisionDocument {
             )
             // Word 114 (`clipping_path_native`), no table.
             + crate::clipping_path_native::header_bytes(&self.paths.entries)
+            // Word 115 (`pattern_samples_native`), no table.
+            + if crate::pattern_samples_native::styles_samples16(self) {
+                4
+            } else {
+                0
+            }
             + crate::float_native::header_bytes(float)
             + crate::cmyk_native::header_bytes(self.cmyk_policy().map(|p| &**p))
             + crate::gray_native::header_bytes(self.gray_policy().map(|p| &**p))

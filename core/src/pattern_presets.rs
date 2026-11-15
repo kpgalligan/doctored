@@ -24,6 +24,7 @@ fn drawn(width: u32, height: u32, texel: impl Fn(u32, u32) -> [u8; 4]) -> Patter
         width,
         height,
         rgba: rgba.into(),
+        samples: None,
     }
 }
 

@@ -41,8 +41,9 @@ pub(crate) enum FloatInk {
     },
     /// Edit ▸ Fill…'s Pattern contents: the tile on the canvas grid
     /// (`precision_paint_tools::pattern_sampler`), each texel's code / 255
-    /// read as linear light, as a 32-bit Pattern Overlay reads it (a Gray
-    /// document's tile greyed by the 32-bit rule first).
+    /// read as linear light — an `rgb32` tile's own values, light above white
+    /// kept (`PatternSampler::linear`) — as a 32-bit Pattern Overlay reads it
+    /// (a Gray document's tile greyed by the 32-bit rule first).
     Pattern(PatternSampler),
 }
 
@@ -61,7 +62,7 @@ impl FloatInk {
             NativePaintEdit::PaintBlend {
                 pattern: Some(pattern),
                 ..
-            } => Ok(Some(Self::Pattern(pattern_sampler(pattern, doc)?))),
+            } => Ok(Some(Self::Pattern(pattern_sampler(pattern, doc)?.linear()))),
             NativePaintEdit::PaintBlend {
                 color, color_space, ..
             }

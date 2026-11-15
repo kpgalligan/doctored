@@ -24,7 +24,7 @@ Detail belongs in the source file's own header comment.
 - `DoctoredCore+Background.swift` — the Background mark's role of the bottom layer (`BackgroundRole`), set by PSD import.
 - `DoctoredCore+ColorLabels.swift` — per-layer colour label codes.
 - `DoctoredCore+LayerComps.swift` — layer comps JSON and edits.
-- `DoctoredCore+LayerStyles.swift` — layer style JSON and global light.
+- `DoctoredCore+LayerStyles.swift` — layer style JSON, global light, pattern presets and Define Pattern's float raster and native samples.
 - `DoctoredCore+DocumentGeometry.swift` — whole-document rotate, flip, crop, resize, canvas size and layer transforms.
 - `DoctoredCore+ColorManagement.swift` — Lab readout, metadata, assign/convert profile, working-space adoption and the open-time colour reports.
 - `DoctoredCore+Profiles.swift` — colour profiles as values (`RasterProfile`, `RasterProfileInfo`, `RasterSaveReport`) and the open's colour outcome.
@@ -322,7 +322,7 @@ Detail belongs in the source file's own header comment.
 - `LayerStyle.swift` — the typed Swift view of the layer style, mirroring the core's JSON key for key; `StyleSlotColor` (hex + wide `linear`).
 - `NativeLayerStyle.swift` — the 16-bit document's whole layer style (fill opacity, the effects, Blend If).
 - `LayerStyleList.swift` — the Layer Style sheet's checklist row (`StyleListRow`, with "+" on a repeating kind) and `LayerStyleInstanceBar` (↑, ↓, trash).
-- `PatternOverlay.swift` — pattern value types (`PatternRef`, `PatternFill`, `BevelTexture`, `PatternOverlayEffect`, `PatternPreset`) and `LayerStyle.droppingPatternAnchors()`.
+- `PatternOverlay.swift` — pattern value types (`PatternRef`, `PatternNative`, `PatternFill`, `BevelTexture`, `PatternOverlayEffect`, `PatternPreset`), `droppingPatternAnchors()`.
 - `PatternOverlayPane.swift` — the Pattern Overlay pane, and `PatternFillRows` (preset popup, Angle, Scale, Link, Snap to Origin) a Pattern stroke and the bevel's Texture share.
 - `PatternLibrary.swift` — the user pattern library (`DR_PATTERNS_DIR`): `LibraryPattern`, picker rows (`PatternChoice`), `{name}` resolution, `.doctoredpatterns` files.
 - `DefinePattern.swift` / `EditorViewController+DefinePattern.swift` — Edit ▸ Define Pattern…: the composite's tile per depth and mode, its sheet and validation.

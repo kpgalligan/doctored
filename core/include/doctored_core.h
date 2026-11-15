@@ -3001,7 +3001,10 @@ DrDocument *dr_doc_set_layer_content(const DrDocument *doc, size_t idx,
  * overlay, gradient overlay, colour overlay, satin, inner glow, inner shadow,
  * stroke (inside), bevel. pattern_overlay tiles a "pattern" — a
  * {"preset": id} of dr_pattern_presets_json, or {"name", "width", "height",
- * "rgba"} with base64 straight RGBA8 and sides 1..512 — at "scale"
+ * "rgba"} with base64 straight RGBA8 and sides 1..512, optionally with
+ * "native": {"kind": "rgb16" | "rgb32" | "cmyk16", "data"} (base64 of the
+ * tile's own samples, little-endian, dr_clipboard_payload_pattern_native) —
+ * at "scale"
  * 0.01..10, "phase" [x, y] px, "link_with_layer" (default true: the tile
  * starts at the canvas origin + phase when the style is set and then moves
  * with the layer; the setter records the layer's offset as "anchor", which a
@@ -8099,11 +8102,14 @@ DrPrecisionDocument *dr_precision_doc_fade(const DrPrecisionDocument *document,
  * pixel (x mod w, y mod h) in place of color (still required, inert), the
  * texel's alpha multiplying opacity and coverage, read as the document's
  * Pattern Overlay reads a tile at 100% and 0 degrees: RGB and Indexed
- * storage the texel's numbers (32 bits: code/255 linear), Gray greyed
- * through its twin, Lab via sRGB to Lab codes, CMYK ("ink" inert) via sRGB to
- * ink. An Indexed fill re-indexes each covered pixel to the entry nearest its
- * colour; a Bitmap fill thresholds the greyed tile. A request that carries a
- * pattern may pass 64 KiB (as layer_style does). plane refuses a pattern. */
+ * storage the texel's numbers (32 bits: code/255 linear; a tile's "native"
+ * rgb16 or rgb32 samples instead, rgb32 above white kept at 32 bits), Gray
+ * greyed through its twin (its neutral samples read as they are), Lab via
+ * sRGB to Lab codes, CMYK ("ink" inert) via sRGB to ink, or a cmyk16 tile's
+ * own ink. An Indexed fill re-indexes each covered pixel to the entry
+ * nearest its colour; a Bitmap fill thresholds the greyed tile. A request
+ * that carries a pattern may pass 64 KiB (as layer_style does), and up to
+ * 16 MiB with native samples. plane refuses a pattern. */
 /* Additive retouch_clone/retouch_heal/spot_heal selection:true reads stroke then
  * selection canvas planes. Clone multiplies both before source-over. Healing
  * keeps its published stroke half-coverage contour and intersects with positive
@@ -8616,6 +8622,16 @@ DrClipboardPayload *dr_clipboard_payload_from_rgba8(const uint8_t *rgba, size_t 
 DrImage *dr_clipboard_payload_rgba8(const DrClipboardPayload *payload,
     const uint8_t *profile, size_t profile_len, bool preserve, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
+/* Edit > Define Pattern's native samples of the composite `payload` holds (a
+ * Copy Merged of the pattern's window): the JSON object {"kind", "data"} a
+ * custom pattern's "native" key takes — a CMYK payload's ink always
+ * ("cmyk16"), a 16-bit RGB or Gray payload's codes ("rgb16") unless every
+ * code is a multiple of 257, a float payload's values ("rgb32", NaN as 0,
+ * colour held to +/-65504, alpha to 0..1) unless each reads back from its
+ * RGBA8 code exactly — or the JSON text null when the tile's RGBA8 raster
+ * already holds every sample (a Lab payload too). Free with dr_string_free.
+ * NULL + message for a NULL payload or a side over 512 pixels. */
+char *dr_clipboard_payload_pattern_native(const DrClipboardPayload *payload, char **err_out);
 /* New from Clipboard: one "Background" record at (0,0) at the payload's own
  * depth, profile, dimensions and PPI (a float payload's tone map carried);
  * offset dropped. Free with dr_precision_doc_free. */

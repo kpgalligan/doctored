@@ -30,7 +30,8 @@ extension EditorViewController {
     static func savePattern(name: String, tile: DefinePattern.Tile) -> String? {
         do {
             try PatternLibrary.save(
-                name: name, width: tile.width, height: tile.height, rgba: tile.rgba, replace: false)
+                name: name, width: tile.width, height: tile.height, rgba: tile.rgba,
+                native: tile.native, replace: false)
             return nil
         } catch {
             return error.localizedDescription

@@ -219,8 +219,10 @@ final class BitmapModeSheetController: NSViewController {
             options["shape"] = Self.shapes.indices.contains(shape) ? Self.shapes[shape].name : "round"
         }
         if method == "custom", patterns.indices.contains(patternPopup.indexOfSelectedItem) {
-            // A built-in's `{preset}`, or a library pattern's tile itself.
-            options["pattern"] = patterns[patternPopup.indexOfSelectedItem].ref.patternObject
+            // A built-in's `{preset}`, or a library pattern's RGBA8 tile itself: Bitmap reads the
+            // raster's gray, never native samples, and its options are bounded at 2 MiB.
+            options["pattern"] =
+                patterns[patternPopup.indexOfSelectedItem].ref.withoutNative.patternObject
         }
         let text = outputField.stringValue.trimmingCharacters(in: .whitespaces)
         // The document's own value sends no resolution: each axis keeps its pixels and ppi.

@@ -247,6 +247,7 @@ fn tile_t() -> PatternTile {
         width: 12,
         height: 8,
         rgba: Arc::from(rgba),
+        samples: None,
     }
 }
 
@@ -265,6 +266,7 @@ fn turned(tile: &PatternTile, turn: Turn) -> PatternTile {
         width: w,
         height: h,
         rgba: Arc::from(rgba),
+        samples: None,
     }
 }
 

@@ -1,22 +1,24 @@
 import AppKit
 
 /// Edit ▸ Define Pattern…'s tile from a document: the COMPOSITE inside a hard-edged rectangular
-/// selection, or the whole canvas with nothing selected, as straight RGBA8 at most 512 pixels a
-/// side — the custom tile every pattern consumer reads at every depth and in every mode. The tile
-/// is written so that filling it back into the same kind of document reproduces the source as
-/// closely as 8 bits allow:
+/// selection, or the whole canvas with nothing selected, at most 512 pixels a side — a straight
+/// RGBA8 raster, the custom tile every pattern consumer reads at every depth and in every mode,
+/// and beside it the composite's own numbers where the raster cannot hold them (`native`,
+/// `dr_clipboard_payload_pattern_native`, `designs/pattern-tiles.md`). A fill in the same kind of
+/// document reads the samples, so it gives the source back exactly:
 ///
-/// | Document | The tile |
-/// |---|---|
-/// | RGB 8 | the composite's bytes |
-/// | RGB 16, Indexed | each code rounded to 8 bits (the copy's 8-bit form, its own numbers) |
-/// | RGB 32 float | round(255 · clamp(linear, 0, 1)), alpha kept (`dr_pattern_tile_from_linear`) |
-/// | Gray, Duotone, Bitmap | the gray code at 8 bits, R = G = B |
-/// | Lab, CMYK | the composite converted to 8-bit sRGB |
+/// | Document | The raster | The samples |
+/// |---|---|---|
+/// | RGB 8 | the composite's bytes | none |
+/// | RGB 16 | each code rounded to 8 bits (the copy's 8-bit form) | `rgb16`, unless every code is 8-bit |
+/// | Indexed | the composite's colours | none |
+/// | RGB 32 float | round(255 · clamp(linear, 0, 1)) (`dr_pattern_tile_from_linear`) | `rgb32`, unless the raster holds every value |
+/// | Gray, Duotone, Bitmap | the gray code at 8 bits, R = G = B | Gray 16 and 32: as RGB 16 and 32 |
+/// | Lab | the composite converted to 8-bit sRGB | none |
+/// | CMYK | the composite converted to 8-bit sRGB | `cmyk16`, always: the ink |
 ///
-/// A 32-bit tile clips above white and is 8-bit linear; a CMYK tile does not keep its
-/// separation (a K-only black comes back as the profile's four-colour black). The library keeps
-/// the tile (`PatternLibrary`); the UI is `EditorViewController+DefinePattern.swift` and MCP's
+/// Another kind of document reads the raster, as before. The library keeps the tile
+/// (`PatternLibrary`); the UI is `EditorViewController+DefinePattern.swift` and MCP's
 /// `define_pattern` (`AgentServer+Patterns.swift`).
 enum DefinePattern {
     static let notRectangle = "Define Pattern takes a hard-edged rectangular selection, or "
@@ -32,6 +34,8 @@ enum DefinePattern {
         let width: Int
         let height: Int
         let rgba: Data
+        /// The composite's own numbers the raster cannot hold; nil when it holds them all.
+        var native: PatternNative? = nil
         /// "selection" or "canvas": what the window came from.
         let source: String
     }
@@ -92,7 +96,8 @@ enum DefinePattern {
         }
         let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
         return Tile(width: image.width, height: image.height,
-                    rgba: try bytes(of: image, in: bounds), source: source)
+                    rgba: try bytes(of: image, in: bounds),
+                    native: try RasterDocument.patternNative(of: payload), source: source)
     }
 
     /// `image`'s straight RGBA8 bytes inside `window` (in its own pixel grid).

@@ -1075,6 +1075,13 @@ fn photoshops_own_pattern_fill_layers_read_as_their_fill_within_the_bound() {
                     "{what}: the tile T's {k}"
                 );
             }
+            // P16's 16-bit arrays are the stored images of 8-bit codes, so
+            // the tile keeps no native samples (`psd_patterns`' READ).
+            assert!(
+                fill["pattern"].get("native").is_none(),
+                "{what}: {}",
+                fill["pattern"]
+            );
         };
         let theirs = DrDocument::open(path("tiff").to_str().unwrap())
             .unwrap()

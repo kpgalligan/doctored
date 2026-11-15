@@ -2491,6 +2491,16 @@ fn null_safety_sweep() {
         .is_null());
         assert!(!pattern_err.is_null());
         doctored_core::ffi::dr_string_free(pattern_err);
+        let mut native_err = ptr::null_mut();
+        assert!(
+            doctored_core::ffi_style::dr_clipboard_payload_pattern_native(
+                ptr::null(),
+                &mut native_err
+            )
+            .is_null()
+        );
+        assert!(!native_err.is_null());
+        doctored_core::ffi::dr_string_free(native_err);
         assert!(!dr_selection_stroke(ptr::null_mut(), 2, 2, 1.0, 1));
         {
             // The Magnetic Lasso tracer: a NULL source, params or scalar

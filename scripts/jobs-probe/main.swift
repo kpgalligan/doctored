@@ -357,6 +357,7 @@ do {
         ("pencil", verifyPencil),
         ("pencil canvas", verifyPencilCanvases),
         ("pattern library", verifyPatternLibrary),
+        ("pattern fill charge", verifyPatternFillCharge),
         ("behind clear", verifyBehindClear),
         ("gradient presets", verifyGradientPresets),
         // #18: the Layer Style panes' stop editor (style_gradient_stops.swift).

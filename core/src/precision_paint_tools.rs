@@ -172,7 +172,8 @@ impl PaintFrame {
 /// 100 %, unturned (`pattern_tile::canvas_sampler`), read as the document's
 /// Pattern Overlay reads a tile, so a pixel takes its texel's unit values:
 /// RGB and Indexed storage the texel's own numbers (at 32 bits code / 255 is
-/// linear light); a Gray document (Duotone and Bitmap's Gray storage too)
+/// linear light), or the tile's `rgb16` / `rgb32` native samples
+/// (`pattern_samples`); a Gray document (Duotone and Bitmap's Gray storage too)
 /// the tile greyed through its twin first (`gray_style::grey_pattern`, the
 /// pattern fill layer's rule); a Lab document each sRGB texel as 8-bit Lab
 /// codes (`lab_style::twin_tile_sampler`). A CMYK document reads the ink
@@ -302,9 +303,8 @@ impl NativePaintEdit {
     /// The bytes the pattern's sampler holds (`pattern_tile::fill_scratch_bytes`);
     /// 0 with no pattern.
     pub(crate) fn pattern_scratch(&self) -> u64 {
-        self.pattern().map_or(0, |p| {
-            crate::pattern_tile::fill_scratch_bytes(p.tile.width, p.tile.height)
-        })
+        self.pattern()
+            .map_or(0, |p| crate::pattern_tile::fill_scratch_bytes(&p.tile))
     }
     /// Whether changed ink may grow the layer: never for the two tools that
     /// only rework existing pixels or for Clear (which only takes alpha

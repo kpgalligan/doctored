@@ -10,53 +10,81 @@ import AppKit
 // `AgentServer+Patterns.swift`.
 
 /// One library pattern: a name and its tile, straight RGBA8, each side 1…512 — the custom tile a
-/// Pattern Overlay, a pattern fill layer and Fill… already read at every depth and in every mode.
+/// Pattern Overlay, a pattern fill layer and Fill… already read at every depth and in every mode —
+/// and, for a pattern defined from a CMYK, 16-bit or 32-bit document, the native samples its
+/// raster cannot hold (`PatternNative`, `designs/pattern-tiles.md`).
+///
+/// A pattern without samples is written exactly as before, `schema_version` 1 with five keys; one
+/// with them is `schema_version` 2 with a sixth, `native`. A build that reads only 1 lists a
+/// version-2 file as a broken `unknown_version` row instead of reading its raster alone.
 struct LibraryPattern {
     static let schemaVersion = 1
+    static let nativeSchemaVersion = 2
     static let maximumSide = 512
 
     let name: String
     let width: Int
     let height: Int
     let rgba: Data
+    var native: PatternNative? = nil
 
     /// The library file's object (also an entry of the pattern file).
     var json: [String: Any] {
-        ["schema_version": Self.schemaVersion, "name": name, "width": width, "height": height,
-         "rgba": rgba.base64EncodedString()]
+        var object: [String: Any] = [
+            "schema_version": native == nil ? Self.schemaVersion : Self.nativeSchemaVersion,
+            "name": name, "width": width, "height": height, "rgba": rgba.base64EncodedString()]
+        if let native { object["native"] = native.json }
+        return object
     }
+
+    /// What its samples are: the native kind, or "rgba8" for a tile its raster holds whole.
+    var samples: String { native?.kind ?? "rgba8" }
 
     /// The tile as the custom `PatternRef` a style, a fill layer or Fill… embeds.
     var ref: PatternRef {
-        PatternRef(name: name, width: width, height: height, rgba: rgba.base64EncodedString())
+        PatternRef(name: name, width: width, height: height, rgba: rgba.base64EncodedString(),
+                   native: native)
     }
 
-    /// The tile as the core's pattern object (`{name, width, height, rgba}`).
-    var patternObject: [String: Any] {
-        ["name": name, "width": width, "height": height, "rgba": rgba.base64EncodedString()]
-    }
+    /// The tile as the core's pattern object (`{name, width, height, rgba}`, plus `native`).
+    var patternObject: [String: Any] { ref.patternObject }
 
-    /// A strict decode: exactly the keys `json` writes, sides 1…512 and `width × height × 4`
-    /// bytes of base64. Any other shape throws.
-    static func decode(_ object: [String: Any]) throws -> LibraryPattern {
-        let keys: Set<String> = ["schema_version", "name", "width", "height", "rgba"]
+    /// A strict decode of a `schemaVersion` object: exactly the keys `json` writes at that
+    /// version, sides 1…512, `width × height × 4` bytes of base64 and, at version 2, a `native`
+    /// object of a known kind. Any other shape throws.
+    static func decode(_ object: [String: Any],
+                       schemaVersion: Int = LibraryPattern.schemaVersion) throws
+        -> LibraryPattern {
+        var keys: Set<String> = ["schema_version", "name", "width", "height", "rgba"]
+        if schemaVersion == nativeSchemaVersion { keys.insert("native") }
         guard Set(object.keys).isSubset(of: keys), object.count == keys.count,
               let name = object["name"] as? String,
               let width = NativeBrushStroke.jsonNumber(object["width"]).flatMap({ Int(exactly: $0) }),
               let height = NativeBrushStroke.jsonNumber(object["height"]).flatMap({ Int(exactly: $0) }),
               let text = object["rgba"] as? String
         else {
-            throw DoctoredCoreError(message: "A pattern holds schema_version, name, width, height "
-                + "and rgba, and nothing else.")
+            throw DoctoredCoreError(message: schemaVersion == nativeSchemaVersion
+                ? "A version-2 pattern holds schema_version, name, width, height, rgba and "
+                    + "native, and nothing else."
+                : "A pattern holds schema_version, name, width, height and rgba, and nothing else.")
+        }
+        var native: PatternNative?
+        if schemaVersion == nativeSchemaVersion {
+            guard let samples = PatternNative.from(object["native"]) else {
+                throw DoctoredCoreError(message: "A pattern's native is {kind, data}, kind one of "
+                    + "rgb16, rgb32 and cmyk16.")
+            }
+            native = samples
         }
         return try validated(name: name, width: width, height: height,
-                             rgba: Data(base64Encoded: text) ?? Data())
+                             rgba: Data(base64Encoded: text) ?? Data(), native: native)
     }
 
-    /// A pattern after the library's checks: a 1–120 character name and a tile of sides 1…512
-    /// with exactly `width × height × 4` bytes.
-    static func validated(name: String, width: Int, height: Int, rgba: Data) throws
-        -> LibraryPattern {
+    /// A pattern after the library's checks: a 1–120 character name, a tile of sides 1…512 with
+    /// exactly `width × height × 4` bytes, and `native` samples of exactly `width × height`
+    /// texels of their kind (the core checks an `rgb32` sample's range where the tile is used).
+    static func validated(name: String, width: Int, height: Int, rgba: Data,
+                          native: PatternNative? = nil) throws -> LibraryPattern {
         let normalized = try PatternLibrary.Library.normalizedName(name)
         guard (1...maximumSide).contains(width), (1...maximumSide).contains(height) else {
             throw DoctoredCoreError(message: "A pattern tile is 1 to \(maximumSide) pixels a side.")
@@ -65,7 +93,16 @@ struct LibraryPattern {
             throw DoctoredCoreError(message: "A pattern's rgba must be base64 of width × height × 4 "
                 + "straight RGBA8 bytes.")
         }
-        return LibraryPattern(name: normalized, width: width, height: height, rgba: rgba)
+        if let native {
+            let texelBytes = ["rgb16": 8, "rgb32": 16, "cmyk16": 10][native.kind] ?? 0
+            guard texelBytes > 0,
+                  Data(base64Encoded: native.data)?.count == width * height * texelBytes else {
+                throw DoctoredCoreError(message: "A pattern's native data must be base64 of "
+                    + "width × height \(native.kind) samples.")
+            }
+        }
+        return LibraryPattern(name: normalized, width: width, height: height, rgba: rgba,
+                              native: native)
     }
 
     /// The tile as a 16-point swatch for a popup row.
@@ -122,13 +159,15 @@ extension PatternRef {
         return (width, height, [UInt8](bytes))
     }
 
-    /// The core's pattern object: `{preset}` or `{name, width, height, rgba}`.
+    /// The core's pattern object: `{preset}` or `{name, width, height, rgba}`, plus `native`
+    /// when the tile holds samples.
     var patternObject: [String: Any] {
         if let preset { return ["preset": preset] }
         var object: [String: Any] = ["name": name ?? "Custom"]
         if let width { object["width"] = width }
         if let height { object["height"] = height }
         if let rgba { object["rgba"] = rgba }
+        if let native { object["native"] = native.json }
         return object
     }
 
@@ -149,23 +188,26 @@ enum PatternLibraryCodec: PreferenceLibraryCodec {
     static let directoryName = "Doctored/Patterns"
     static let maximumEntries = 128
     /// A 512² tile is 1,398,104 bytes of base64 beside a few keys, written with unescaped
-    /// slashes (`PreferenceLibrary.save`): an escaped `\/` would double an opaque white tile.
-    static let maximumFileBytes = 1_572_864
-    static let schemaVersions = LibraryPattern.schemaVersion...LibraryPattern.schemaVersion
+    /// slashes (`PreferenceLibrary.save`): an escaped `\/` would double an opaque white tile. Its
+    /// largest native samples, `rgb32` (16 bytes a texel), are 5,592,408 more: 6,990,512 bytes
+    /// and the keys, inside 7 MiB.
+    static let maximumFileBytes = 7 * 1_048_576
+    static let schemaVersions = LibraryPattern.schemaVersion...LibraryPattern.nativeSchemaVersion
     static let didChange = Notification.Name("PatternLibraryDidChange")
 
     static func name(of item: LibraryPattern) -> String { item.name }
     static func json(of item: LibraryPattern) -> [String: Any] { item.json }
 
     static func decode(_ object: [String: Any], schemaVersion: Int) throws -> LibraryPattern {
-        try LibraryPattern.decode(object)
+        try LibraryPattern.decode(object, schemaVersion: schemaVersion)
     }
 }
 
 /// The user's patterns (`DR_PATTERNS_DIR`) and Doctored's own pattern file, which exchanges them
 /// between machines: `{"doctored_patterns": 1, "patterns": [<a library file's object>, …]}`,
-/// extension `.doctoredpatterns`. Its writes are PREFERENCES: outside document Undo and never
-/// Action steps.
+/// extension `.doctoredpatterns`, `doctored_patterns` 2 when some entry is a version-2 pattern
+/// (native samples), so a build that reads only 1 refuses the file by its number. Its writes are
+/// PREFERENCES: outside document Undo and never Action steps.
 ///
 /// The pickers read `patterns` when they are built, so the decoded list is held here and read
 /// from disk only when first asked for, after this instance writes, and when a picker is built
@@ -176,8 +218,11 @@ enum PatternLibrary {
     static let didChange = PatternLibraryCodec.didChange
     static let fileExtension = "doctoredpatterns"
     static let fileFormatKey = "doctored_patterns"
+    /// The pattern file versions this build reads: 1, and 2 (an entry with native samples).
+    static let fileFormats = 1...2
     static let maximumFilePatterns = 64
-    /// `maximumFilePatterns` library files at their codec's bound.
+    /// 64 version-1 library files at their 1.5 MB bound. A version-2 pattern may reach 7 MiB, so
+    /// an export that would pass this refuses by name (`exportFile`).
     static let maximumFileBytes = 96 * 1_048_576
 
     /// The MCP tools whose arguments may name a library pattern (`resolvingReferences`); the
@@ -217,14 +262,14 @@ enum PatternLibrary {
         return pattern
     }
 
-    /// Saves a tile under `name`. Refuses a built-in's name or id (a built-in is
-    /// `{"preset": id}`, so a library pattern of that name could never be told apart on a
-    /// picker) and a name in use unless `replace`.
+    /// Saves a tile (and its native samples, when it holds them) under `name`. Refuses a
+    /// built-in's name or id (a built-in is `{"preset": id}`, so a library pattern of that name
+    /// could never be told apart on a picker) and a name in use unless `replace`.
     @discardableResult
-    static func save(name: String, width: Int, height: Int, rgba: Data, replace: Bool) throws
-        -> LibraryPattern {
+    static func save(name: String, width: Int, height: Int, rgba: Data,
+                     native: PatternNative? = nil, replace: Bool) throws -> LibraryPattern {
         let pattern = try LibraryPattern.validated(
-            name: name, width: width, height: height, rgba: rgba)
+            name: name, width: width, height: height, rgba: rgba, native: native)
         try refuseBuiltInName(pattern.name)
         changed()
         defer { changed() }
@@ -268,11 +313,18 @@ enum PatternLibrary {
             throw DoctoredCoreError(message: "A pattern file holds at most \(maximumFilePatterns) "
                 + "patterns; pass names to export fewer.")
         }
-        // Each entry is written as its library file is (unescaped slashes), so a file of
-        // `maximumFilePatterns` entries stays inside the `maximumFileBytes` an import reads.
-        let object: [String: Any] = [fileFormatKey: 1, "patterns": chosen.map(\.json)]
+        // Each entry is written as its library file is (unescaped slashes); a file of
+        // `maximumFilePatterns` version-1 entries stays inside the `maximumFileBytes` an import
+        // reads, and a larger one (native samples) refuses here rather than at the import.
+        let format = chosen.contains { $0.native != nil } ? 2 : 1
+        let object: [String: Any] = [fileFormatKey: format, "patterns": chosen.map(\.json)]
         let data = try JSONSerialization.data(withJSONObject: object,
                                               options: [.sortedKeys, .withoutEscapingSlashes])
+        guard data.count <= maximumFileBytes else {
+            throw DoctoredCoreError(message: "These patterns make a \(data.count / 1_048_576) MiB "
+                + "pattern file, past the \(maximumFileBytes / 1_048_576) MiB a pattern file holds; "
+                + "pass names to export fewer.")
+        }
         do {
             try data.write(to: url, options: .atomic)
         } catch {
@@ -310,10 +362,16 @@ enum PatternLibrary {
                 guard let entry = raw as? [String: Any] else {
                     throw DoctoredCoreError(message: "The entry is not a JSON object.")
                 }
-                let decoded = try LibraryPattern.decode(entry)
+                let version = NativeBrushStroke.jsonNumber(entry["schema_version"])
+                    .flatMap { Int(exactly: $0) }
+                guard let version, PatternLibraryCodec.schemaVersions.contains(version) else {
+                    throw DoctoredCoreError(message: "The entry's schema_version is not one this "
+                        + "build reads (1 or 2).")
+                }
+                let decoded = try LibraryPattern.decode(entry, schemaVersion: version)
                 let pattern = LibraryPattern(
                     name: freeName(decoded.name, taken: taken), width: decoded.width,
-                    height: decoded.height, rgba: decoded.rgba)
+                    height: decoded.height, rgba: decoded.rgba, native: decoded.native)
                 try Library.save(pattern)
                 taken.insert(Library.key(pattern.name))
                 result.imported.append(pattern.name)
@@ -361,11 +419,17 @@ enum PatternLibrary {
         }
     }
 
-    /// One pattern argument (`{preset}`, a custom tile or `{name}`) with a library reference
-    /// replaced by its tile object; any other value unchanged.
+    /// Mode ▸ Bitmap's Custom Pattern argument (`{preset}`, a custom tile or `{name}`) with a
+    /// library reference replaced by its RGBA8 tile object, and an inline tile's `native` key
+    /// dropped, so neither carries native samples: Bitmap reads the raster's gray, and its options
+    /// are bounded. Any other value unchanged.
     static func resolvedPatternArgument(_ value: Any) throws -> Any {
-        guard let name = referencedName(value) else { return value }
-        return try named(name).patternObject
+        if let name = referencedName(value) {
+            return try named(name).ref.withoutNative.patternObject
+        }
+        guard var tile = value as? [String: Any], tile["native"] != nil else { return value }
+        tile.removeValue(forKey: "native")
+        return tile
     }
 
     /// A recorded step's arguments with every library reference resolved, so a replay never
@@ -427,9 +491,14 @@ enum PatternLibrary {
         }
         guard let data = FileManager.default.contents(atPath: url.path),
               let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              NativeBrushStroke.jsonNumber(object[fileFormatKey]) == 1 else {
+              let format = NativeBrushStroke.jsonNumber(object[fileFormatKey])
+                .flatMap({ Int(exactly: $0) }), format >= 1 else {
             throw DoctoredCoreError(message: "\(url.lastPathComponent) is not a Doctored pattern file "
-                + "(\(fileFormatKey) 1).")
+                + "(\(fileFormatKey) 1 or 2).")
+        }
+        guard fileFormats.contains(format) else {
+            throw DoctoredCoreError(message: "\(url.lastPathComponent) was written by a newer "
+                + "Doctored (\(fileFormatKey) \(format)); this one reads \(fileFormatKey) 1 and 2.")
         }
         return object
     }

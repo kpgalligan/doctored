@@ -97,8 +97,10 @@ impl FloatStyle {
                     .collect(),
             ),
             PlaneColor::LinearGradient(..) => color.clone(),
-            // Document values already (take1's FLOAT = VERBATIM).
-            PlaneColor::Pattern(_) => color.clone(),
+            // Document values already (take1's FLOAT = VERBATIM), read as
+            // linear light: an `rgb32` tile's light above white is kept
+            // (`pattern_tile::PatternSampler::linear`).
+            PlaneColor::Pattern(sampler) => PlaneColor::Pattern(sampler.linear()),
         }
     }
 

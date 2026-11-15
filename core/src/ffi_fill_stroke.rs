@@ -114,6 +114,7 @@ pub unsafe extern "C" fn dr_doc_fill_selection_pattern(
             width: tile_width,
             height: tile_height,
             rgba: rgba.into(),
+            samples: None,
         };
         d.fill_selection_pattern(idx, mask, &tile, mode, opacity, preserve_transparency)
     };

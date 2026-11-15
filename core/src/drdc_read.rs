@@ -83,8 +83,13 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
     // every file an earlier build wrote, and it mints fresh ids exactly as
     // this reader always did.
     let has_ids = outermost_version == crate::identity_native::BYTE_VERSION;
-    let clipping_word = if has_ids { r.u32()? } else { outermost_version };
-    // Version 114 is the FIRST word inside 45 (`clipping_path_native`),
+    let samples_word = if has_ids { r.u32()? } else { outermost_version };
+    // Version 115 is the FIRST word inside 45 (`pattern_samples_native`),
+    // ahead of 114, with no table: some stored pattern holds native samples.
+    // Checked both ways against the records and comps before any PNG decodes.
+    let has_samples = has_ids && samples_word == crate::pattern_samples_native::WORD;
+    let clipping_word = if has_samples { r.u32()? } else { samples_word };
+    // Version 114 is the next word inside 45 (`clipping_path_native`),
     // ahead of 113, with no table: some path is the clipping path. Checked
     // both ways against the PATH table before any PNG decodes.
     let has_clipping_path = has_ids && clipping_word == crate::clipping_path_native::WORD;
@@ -1167,6 +1172,14 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
     }
     if method && !has_method {
         return Err(crate::gradient_map_method_native::WORD_REFUSAL.into());
+    }
+    // Word 115's claim, both ways (`pattern_samples_native`).
+    let samples = crate::pattern_samples_native::pending_samples(&layers, &comps);
+    if has_samples && !samples {
+        return Err(crate::pattern_samples_native::INVALID_WORD.into());
+    }
+    if samples && !has_samples {
+        return Err(crate::pattern_samples_native::WORD_REFUSAL.into());
     }
     if matches!(
         version,

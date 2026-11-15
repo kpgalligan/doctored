@@ -206,8 +206,9 @@ pub(crate) fn cmyk_windows(
 /// `samples` holds one coverage plane per coverage component over its window
 /// (`artwork_window`), component-major; `intrinsic` one RGBA8 plane per
 /// intrinsic component, likewise. `intrinsic_ink` answers a glyph pixel's
-/// sRGB as `[c, m, y, k]`; `texel_ink` a pattern texel's sRGB, on the
-/// document's grid.
+/// sRGB as `[c, m, y, k]`; `texel_ink` a pattern texel's sRGB as ink on the
+/// document's grid, or a `cmyk16` tile's own ink verbatim
+/// (`pattern_tile::ink_sampler`, `cmyk_style::TexelInk::texel`).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn assemble_cmyk(
     width: u32,
@@ -216,7 +217,7 @@ pub(crate) fn assemble_cmyk(
     samples: &[u16],
     intrinsic: &[u8],
     intrinsic_ink: &mut dyn FnMut([u8; 3]) -> [f32; 4],
-    texel_ink: &mut dyn FnMut([u8; 3]) -> [f32; 4],
+    texel_ink: &mut dyn FnMut(Option<[f32; 4]>, [u8; 3]) -> [f32; 4],
     job: JobContext<'_>,
 ) -> Result<Vec<[u16; 5]>, String> {
     let n = pixel_count(width, height)?;

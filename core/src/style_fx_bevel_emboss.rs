@@ -109,8 +109,10 @@
 //!
 //! With `texture_enabled`, the texture's height plane is built ONCE per
 //! render, after [`height_field`] returns (so it never exists during the
-//! blurs) and before [`shade`]: `t` from `texture.fill.sampler(ctx.
-//! layer_offset)` at each plane pixel's layer coordinate, masked by the
+//! blurs) and before [`shade`]: `t` from `texture.fill.raster_sampler(ctx.
+//! layer_offset)` at each plane pixel's layer coordinate — the tile's RGBA8
+//! raster in every document, never its native samples
+//! (`designs/pattern-tiles.md`, decision 2) — masked by the
 //! shape's coverage (or the bevel's height, per `TEXTURE_MASK_HEIGHT`). In
 //! `shade` its slopes (`texture_slope`, the kernel's stencil and gain) are
 //! ADDED to the height's own, and the signed shading is the kernel's law
@@ -581,7 +583,8 @@ fn texture_plane(
     ctx: &RenderContext,
     job: JobContext<'_>,
 ) -> Result<TexturePlane, String> {
-    let sampler = fx.texture.fill.sampler(ctx.layer_offset);
+    // The raster alone, whatever samples the tile holds (module doc's Texture).
+    let sampler = fx.texture.fill.raster_sampler(ctx.layer_offset);
     let mut t = texture_heights_with_job(&sampler, shape.w, shape.h, shape.origin, job)?;
     job.check()?;
     mask_heights(

@@ -371,6 +371,7 @@ Detail belongs in the source file's own header comment.
 - `psd_paths.rs` — paths in PSD (resources 1025, 2000–2997, the clipping path 2999) at every depth and mode; raster-less vector masks as `vmsk`, both ways.
 - `psd_vector_mask_bake.rs` — a raster record's `vmsk` Doctored does not carry, drawn into its raster mask at every depth; the drawing caps (`bakes`).
 - `clipping_path_native.rs` — native word 114: a path is the clipping path (its key rides in the PATH table's entry), checked both ways.
+- `pattern_samples_native.rs` — native word 115: a stored pattern holds native samples (style or description JSON), both ways; the LSTY 16 MiB cap; CMYK ink map.
 - `tiff_paths.rs` — paths and the clipping path in every mode's flat TIFF tag 34377: the opens' read, `attach`, `canvas_moved`, a turned JPEG's drop, the losses' test.
 - `style_knockout_merge.rs` — what a MERGE punches through to at 8 bits (Phase 12E-3b, contract g): the knockout capture, the merge backdrop, and the one excluded set.
 - `precision_style_knockout.rs` — the TYPED twin of `style_knockout` (Phase 12E-3b), restating none of its rules and adding no pixel math; its one typed piece is the knockout SEED.
@@ -380,7 +381,8 @@ Detail belongs in the source file's own header comment.
 - `style_presets.rs` — style PRESETS (Styles panel): `preset_style` (strict, no inks, no anchors) and the twelve original built-ins.
 - `pattern_tile.rs` — KERNEL: the tile, its PYRAMID levels (RGBA, mapped `tile_level_mapped`, CMYK ink `ink_sampler`), the sampler, the rotation sampler (TWO-PASS).
 - `pattern_presets.rs` — KERNEL: the four frozen pattern presets, `PRESETS` and `preset_tile`.
-- `pattern_define.rs` — KERNEL: Define Pattern's float row, `tile_from_linear` (round(255·clamp(v))); its export `dr_pattern_tile_from_linear` is in `ffi_style.rs`.
+- `pattern_samples.rs` — KERNEL: a tile's native samples (`rgb16`, `rgb32`, `cmyk16`): codec, RGB level texels, ink texels, turn permutation.
+- `pattern_define.rs` — KERNEL: Define Pattern's float raster and its native samples; exports `dr_pattern_tile_from_linear`, `dr_clipboard_payload_pattern_native` (`ffi_style.rs`).
 - `style_json.rs` / `style_json_write.rs` / `style_names.rs` — the ONE strict/lenient parser (clamp table, four-decimal quantization), the canonical writer, and the name tables both read.
 - `style_json_keys.rs` — the style JSON key table and `unknown_key`: both style setters refuse a key the schema does not name, by its path.
 - `style_render.rs` — the padded shape plane (with sub-planes) and the per-effect dispatch. Its parts: `style_plane_ops.rs`, `style_gradient.rs` (the ONE gradient), `style_cache.rs`, `style_reuse.rs`.

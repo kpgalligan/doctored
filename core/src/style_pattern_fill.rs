@@ -10,7 +10,11 @@
 //! are the same in both (`style`'s module doc is the table): `pattern` is
 //! `{"preset": id}` or `{"name", "width", "height", "rgba"}` (standard base64
 //! of `width × height × 4` straight RGBA8 bytes, each side 1..=512), the
-//! writer emitting exactly one form; `angle` a number (0), always written;
+//! writer emitting exactly one form. A custom tile may also hold `native`,
+//! `{"kind": "rgb16" | "rgb32" | "cmyk16", "data"}` (standard base64 of the
+//! tile's native samples, little-endian, `pattern_samples`), written only
+//! when the tile holds them and refused in both modes when malformed (`.rz`
+//! word 115, `pattern_samples_native`); `angle` a number (0), always written;
 //! `scale` 0.01..=10 (1.0); `link_with_layer` (true); `phase` [x, y] px
 //! ([0, 0]); `anchor` two integers, written only when set. An unknown preset
 //! id is refused in strict mode and takes the default (checkerboard) in
@@ -46,7 +50,10 @@ use serde_json::{Map, Value};
 
 use crate::adjust_lut::{base64_decode, base64_encode};
 use crate::pattern_presets::PRESETS;
-use crate::pattern_tile::{tile_level, PatternSampler, PatternTile, MAX_TILE_SIDE};
+use crate::pattern_samples::{SampleKind, TileSamples};
+use crate::pattern_tile::{
+    tile_level, tile_level_mapped, PatternSampler, PatternTile, MAX_TILE_SIDE,
+};
 use crate::style::{BevelEmboss, Effect, Strictness, Stroke, StrokeFill};
 use crate::style_json::{angle, at, boolean, num, Range, RANGES};
 use crate::style_pattern::{Pattern, PatternSource};
@@ -109,6 +116,25 @@ impl PatternFill {
                 f64::from(self.angle),
             )),
             origin: self.origin(layer_offset),
+            linear: false,
+        }
+    }
+
+    /// [`Self::sampler`] built from the tile's RGBA8 raster alone
+    /// (`pattern_tile::tile_level_mapped` with the identity texel), whatever
+    /// native samples the tile holds: what a bevel texture's height reads in
+    /// every document, and a Lab layer whose twin conversion cannot build
+    /// (`designs/pattern-tiles.md`, decision 2).
+    pub(crate) fn raster_sampler(&self, layer_offset: (i32, i32)) -> PatternSampler {
+        PatternSampler {
+            level: Arc::new(tile_level_mapped(
+                &self.pattern.tile,
+                f64::from(self.scale),
+                f64::from(self.angle),
+                &mut |rgb| rgb,
+            )),
+            origin: self.origin(layer_offset),
+            linear: false,
         }
     }
 
@@ -347,17 +373,61 @@ pub(crate) fn pattern_from_value(
         .and_then(base64_decode)
         .filter(|b| b.len() == width as usize * height as usize * 4)
         .ok_or_else(|| format!("{key}.rgba must be base64 of width x height x 4 bytes"))?;
+    let samples = match p.get("native") {
+        None | Some(Value::Null) => None,
+        Some(native) => Some(Arc::new(parse_native(
+            native,
+            key,
+            width as usize * height as usize,
+        )?)),
+    };
     Ok(Pattern {
         source: PatternSource::Custom { name },
         tile: Arc::new(PatternTile {
             width,
             height,
             rgba: bytes.into(),
+            samples,
         }),
     })
 }
 
-/// The canonical `pattern` object: exactly one form, keys sorted.
+/// A custom tile's `native` object (module doc): `{"kind", "data"}`, `kind`
+/// one of `rgb16`, `rgb32` and `cmyk16`, `data` standard base64 of the
+/// samples' little-endian components (`pattern_samples`), `texels` of them.
+/// Refused in both strictness modes, naming the key.
+fn parse_native(v: &Value, key: &str, texels: usize) -> Result<TileSamples, String> {
+    let o = v
+        .as_object()
+        .ok_or_else(|| format!("{key}.native must be an object of kind and data"))?;
+    if let Some(stray) = o.keys().find(|k| !matches!(k.as_str(), "kind" | "data")) {
+        return Err(format!("{key}.native has no key {stray}"));
+    }
+    let kind = o
+        .get("kind")
+        .and_then(Value::as_str)
+        .and_then(SampleKind::named)
+        .ok_or_else(|| format!("{key}.native.kind must be one of rgb16, rgb32, cmyk16"))?;
+    let bytes = o
+        .get("data")
+        .and_then(Value::as_str)
+        .and_then(base64_decode)
+        .ok_or_else(|| format!("{key}.native.data must be standard base64"))?;
+    TileSamples::from_le_bytes(kind, &bytes, texels).map_err(|why| match why {
+        "range" => {
+            format!("{key}.native.data must hold finite rgb32 colour within ±65504 and alpha 0…1")
+        }
+        _ => format!(
+            "{key}.native.data must hold width x height x {} {}-byte samples",
+            kind.channels(),
+            kind.width()
+        ),
+    })
+}
+
+/// The canonical `pattern` object: exactly one form, keys sorted; a custom
+/// tile's `native` written only when it holds samples, so every tile without
+/// them is the prior writer's JSON.
 pub(crate) fn pattern_value(pattern: &Pattern) -> Value {
     let mut o = Map::new();
     match &pattern.source {
@@ -372,7 +442,21 @@ pub(crate) fn pattern_value(pattern: &Pattern) -> Value {
                 "rgba".into(),
                 Value::from(base64_encode(&pattern.tile.rgba)),
             );
+            if let Some(samples) = pattern.tile.samples.as_deref() {
+                o.insert("native".into(), native_value(samples));
+            }
         }
     }
     Value::Object(o)
+}
+
+/// The `native` object of `samples` (module doc).
+pub(crate) fn native_value(samples: &TileSamples) -> Value {
+    let mut native = Map::new();
+    native.insert("kind".into(), Value::from(samples.kind().name()));
+    native.insert(
+        "data".into(),
+        Value::from(base64_encode(&samples.to_le_bytes())),
+    );
+    Value::Object(native)
 }

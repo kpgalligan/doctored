@@ -174,8 +174,19 @@ impl PrecisionDocument {
                 job,
             )?;
         }
-        // Then the conditional `clipping_path_native` word 114 — right after
-        // the CMYK slot and ahead of 113, written iff some path is the
+        // Then the conditional `pattern_samples_native` word 115 — right
+        // after the CMYK slot and ahead of 114, written iff some stored
+        // pattern holds native samples. No table: they ride in the JSON.
+        if crate::pattern_samples_native::styles_samples16(self) {
+            append(
+                out,
+                &crate::pattern_samples_native::WORD.to_le_bytes(),
+                plan.encoded_bound,
+                job,
+            )?;
+        }
+        // Then the conditional `clipping_path_native` word 114 — after the
+        // CMYK slot and 115, ahead of 113, written iff some path is the
         // clipping path. No table: the key rides in the PATH table's entry.
         if crate::clipping_path_native::carries(&self.paths.entries) {
             append(

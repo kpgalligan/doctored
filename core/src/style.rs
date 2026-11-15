@@ -116,7 +116,8 @@
 //! | `pattern_overlay`  | `blend` (normal), `opacity` (1.0), and the PatternFill keys held flat:         |
 //! |                    | `pattern` (`{"preset": id}` with id one of                                      |
 //! |                    | checkerboard, stripes, dots, grid — the default checkerboard — or `{"name",     |
-//! |                    | "width", "height", "rgba"}`: sides 1..=512, base64 RGBA8), `angle` (0: any    |
+//! |                    | "width", "height", "rgba"}`: sides 1..=512, base64 RGBA8, with an optional     |
+//! |                    | `native` `{"kind", "data"}`: `style_pattern_fill`), `angle` (0: any            |
 //! |                    | number, normalized into -180..180, always written), `scale` 0.01..=10 (1.0),   |
 //! |                    | `link_with_layer` (true), `phase` [x, y] px each -30000..=30000 ([0, 0]),      |
 //! |                    | `anchor` [x, y] integers: where the layer was made (offset − reference; written |

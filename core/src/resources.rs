@@ -135,6 +135,16 @@ impl Inventory {
                     "style_parameters",
                     cache,
                 );
+                // Its native samples (`pattern_samples`), one allocation
+                // shared the same way.
+                if let Some(samples) = fill.pattern.tile.samples.as_deref() {
+                    self.record(
+                        samples.address(),
+                        samples.bytes() as usize,
+                        "style_parameters",
+                        cache,
+                    );
+                }
             }
         }
     }

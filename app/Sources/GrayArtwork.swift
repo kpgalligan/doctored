@@ -80,20 +80,17 @@ extension RasterDocument {
                        alpha: srgb.alphaComponent)
     }
 
-    /// A custom `PatternRef` as the core's pattern object.
+    /// A custom `PatternRef` as the core's pattern object, its native samples included
+    /// (`PatternRef.patternObject`), so a Gray 16- or 32-bit document's own neutral samples
+    /// survive the greying.
     private static func grayPatternObject(_ pattern: PatternRef) -> [String: Any] {
-        var object: [String: Any] = [:]
-        if let name = pattern.name { object["name"] = name }
-        if let width = pattern.width { object["width"] = width }
-        if let height = pattern.height { object["height"] = height }
-        if let rgba = pattern.rgba { object["rgba"] = rgba }
-        return object
+        pattern.patternObject
     }
 
-    /// The core's pattern object as a `PatternRef`.
+    /// The core's pattern object as a `PatternRef`, native samples included.
     private static func grayPattern(_ object: [String: Any]) -> PatternRef {
         PatternRef(preset: object["preset"] as? String, name: object["name"] as? String,
                    width: object["width"] as? Int, height: object["height"] as? Int,
-                   rgba: object["rgba"] as? String)
+                   rgba: object["rgba"] as? String, native: PatternNative.from(object["native"]))
     }
 }

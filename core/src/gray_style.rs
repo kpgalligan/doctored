@@ -45,7 +45,10 @@
 //!   `round(GrayPolicy::luminance_code / 257)`, at 32 bits (whose tile
 //!   values are linear) `round(255·clamp(GrayPolicy::linear_luminance, 0,
 //!   1))`. The presets are neutral already. A bevel's texture is height,
-//!   not colour: untouched.
+//!   not colour: untouched. A tile's `rgb16` or `rgb32` samples
+//!   (`pattern_samples`) are read only while every texel of them and of
+//!   the raster is neutral, so a Gray 16- or 32-bit document's own pattern
+//!   keeps its codes; a tile that is greyed keeps no samples.
 //! * **Effect blend modes** are a layer's: the Grayscale list
 //!   (`gray_document::blend_refusal`, same sentence); at 32 bits the float
 //!   document's own style refusal runs first (`LayerStyleEdit::target`).
@@ -139,16 +142,20 @@ pub(crate) fn grsc_k_percent(policy: &GrayPolicy, rgb: [u8; 3], linear: Option<[
     (k * 1e4).round() / 1e4
 }
 
-/// Whether some texel of `tile` is not neutral.
+/// Whether some texel of `tile` is not neutral: of its raster, or of the
+/// `rgb16` / `rgb32` samples a Gray document would read
+/// (`pattern_samples::TileSamples::coloured`).
 fn coloured(tile: &PatternTile) -> bool {
     tile.rgba
         .chunks_exact(4)
         .any(|t| t[0] != t[1] || t[1] != t[2])
+        || tile.samples.as_deref().is_some_and(|s| s.coloured())
 }
 
 /// `tile`'s texels greyed (module doc), alpha kept; `tiles_in` is the
 /// profile its values are in, and `every` maps neutral texels too (RGB →
-/// Gray) instead of keeping them.
+/// Gray) instead of keeping them. The greyed tile is a raster alone: its
+/// native samples, coloured or in another profile, are dropped.
 fn grey_tile(
     tile: &PatternTile,
     tiles_in: &IccProfile,
@@ -175,6 +182,7 @@ fn grey_tile(
         width: tile.width,
         height: tile.height,
         rgba: Arc::from(rgba),
+        samples: None,
     })
 }
 

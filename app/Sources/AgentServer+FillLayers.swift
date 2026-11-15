@@ -222,9 +222,9 @@ extension AgentServer {
     }
 
     /// A pattern fill as the `pattern` argument spells it: the tile as
-    /// `{preset}` or `{name, width, height}` plus its `rgba` when `tile` (a
-    /// recorded step carries the pixels; a report does not), then angle,
-    /// scale, link_with_layer and phase.
+    /// `{preset}` or `{name, width, height}` plus its `rgba` (and `native`
+    /// samples) when `tile` (a recorded step carries the pixels; a report
+    /// does not), then angle, scale, link_with_layer and phase.
     static func fillPatternArguments(_ fill: PatternFill, tile: Bool) -> [String: Any] {
         var pattern: [String: Any] = [:]
         if let ref = fill.pattern {
@@ -234,7 +234,10 @@ extension AgentServer {
                 pattern["name"] = ref.name ?? "Custom"
                 pattern["width"] = ref.width ?? 0
                 pattern["height"] = ref.height ?? 0
-                if tile { pattern["rgba"] = ref.rgba ?? "" }
+                if tile {
+                    pattern["rgba"] = ref.rgba ?? ""
+                    if let native = ref.native { pattern["native"] = native.json }
+                }
             }
         }
         return [
@@ -303,12 +306,13 @@ extension AgentServer {
 
     /// One pattern object at `path` (`pattern.pattern` here, `pattern` for `fill_selection`):
     /// `{preset}`, `{name}` alone — a library pattern, embedded as its tile
-    /// (`PatternLibrary`) — or a custom tile `{name?, width, height, rgba}`.
+    /// (`PatternLibrary`) — or a custom tile `{name?, width, height, rgba, native?}` (`native`
+    /// the tile's samples, `{kind, data}`, which the core checks in full).
     func patternTile(_ raw: Any, at path: String) throws -> PatternRef {
         let ids = RasterDocument.patternPresets().map(\.id)
         guard let tile = raw as? [String: Any] else {
             throw ToolError(message: "\(path) must be {preset}, {name} (a library pattern) or "
-                + "{name?, width, height, rgba}")
+                + "{name?, width, height, rgba, native?}")
         }
         if tile.count == 1, let name = tile["name"] as? String {
             return try libraryPattern(name).ref
@@ -320,10 +324,18 @@ extension AgentServer {
             }
             return PatternRef(preset: preset)
         }
-        let known: Set<String> = ["name", "width", "height", "rgba"]
+        let known: Set<String> = ["name", "width", "height", "rgba", "native"]
         if let stray = tile.keys.sorted().first(where: { !known.contains($0) }) {
             throw ToolError(message: "\(path) has no key \"\(stray)\"; a custom tile's "
-                + "keys are name, width, height and rgba.")
+                + "keys are name, width, height, rgba and native.")
+        }
+        var native: PatternNative?
+        if let raw = tile["native"] {
+            guard let samples = PatternNative.from(raw) else {
+                throw ToolError(message: "\(path).native must be {kind, data}, kind one of rgb16, "
+                    + "rgb32 and cmyk16, data standard base64 of the tile's samples.")
+            }
+            native = samples
         }
         try refuseNullOrBooleanNumbers(tile, ["width", "height"], in: path)
         guard let width = intArg(tile, "width"), let height = intArg(tile, "height"),
@@ -341,7 +353,7 @@ extension AgentServer {
             throw ToolError(message: "\(path).name must be a string")
         }
         return PatternRef(name: (tile["name"] as? String) ?? "Custom", width: width,
-                          height: height, rgba: rgba)
+                          height: height, rgba: rgba, native: native)
     }
 
     /// `color` as authored sRGB `[r, g, b, a]`: a hex like #RRGGBB or

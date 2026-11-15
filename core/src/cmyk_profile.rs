@@ -260,7 +260,11 @@ fn map_inked_styles(
     f: &mut dyn FnMut(&crate::style::LayerStyle) -> Result<crate::style::LayerStyle, String>,
 ) -> Result<(), String> {
     for layer in layers.iter_mut() {
-        if let Some(style) = layer.style.as_deref().filter(|s| s.has_inks()) {
+        if let Some(style) = layer
+            .style
+            .as_deref()
+            .filter(|s| s.has_inks() || crate::pattern_samples_native::holds_ink_samples(s))
+        {
             layer.style = Some(Arc::new(f(style)?));
         }
         if let Content::Group(children) | Content::PassThrough(children) = &mut layer.content {
@@ -282,17 +286,23 @@ pub(crate) fn convert_style_inks(
 }
 
 /// One style with each ink through `leg` (four-decimal quantized) and its hex
-/// the ink's sRGB under `policy`: [`convert_style_inks`]' rewrite, which
-/// Convert to Profile also gives a comp's recorded style (`cmyk_comps`).
+/// the ink's sRGB under `policy`, and each `cmyk16` pattern tile's ink
+/// through the same leg, texel by texel (`pattern_samples_native`):
+/// [`convert_style_inks`]' rewrite, which Convert to Profile also gives a
+/// comp's recorded style (`cmyk_comps`).
 fn converted_inks(
     style: &crate::style::LayerStyle,
     leg: &mut CmykToCmyk,
     policy: &CmykPolicy,
 ) -> Result<crate::style::LayerStyle, String> {
-    style.map_inks(&mut |ink| {
+    let inked = style.map_inks(&mut |ink| {
         let key = ink_key(ink.map(crate::cmyk_composite::code));
         let mapped = leg.ink(key, ink.map(f64::from)).map(crate::style_json::q4);
         Ok((mapped, crate::cmyk_style::hex_of(mapped, policy)?))
+    })?;
+    crate::pattern_samples_native::map_style_inks(&inked, &mut |codes| {
+        let unit = codes.map(|c| f64::from(c) / 65535.0);
+        Ok(leg.ink(ink_key(codes), unit).map(|v| v as f32))
     })
 }
 

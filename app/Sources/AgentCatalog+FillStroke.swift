@@ -90,8 +90,9 @@ extension AgentServer {
                             + "rgba32, color_space or ink): {\"preset\": "
                             + RasterDocument.patternPresets().map(\.id).joined(separator: "|")
                             + "}, {\"name\": <a list_patterns library pattern>} or a tile "
-                            + "{name?, width, height, rgba} (sides 1–512, rgba standard base64 "
-                            + "of width × height × 4 straight RGBA8 bytes). A recorded step "
+                            + "{name?, width, height, rgba, native?} (sides 1–512, rgba standard "
+                            + "base64 of width × height × 4 straight RGBA8 bytes; native the "
+                            + "tile's own samples, list_patterns' rule). A recorded step "
                             + "carries the tile itself, so it replays without the library.",
                     ],
                     "color_space": [

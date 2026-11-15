@@ -219,6 +219,15 @@ impl<'a> TexelInk<'a> {
             .map(|v| v as f32);
         on_grid(ink, self.depth)
     }
+
+    /// One pattern texel's ink (`pattern_tile::ink_sampler`'s `texel_ink`):
+    /// a `cmyk16` tile's `own` ink verbatim — the document's own numbers,
+    /// which an 8-bit document's paint stores off the 8-bit grid too, so
+    /// snapping them would move a defined pattern off its source — else the
+    /// texel's sRGB colour through [`Self::ink`].
+    pub(crate) fn texel(&mut self, own: Option<[f32; 4]>, rgb: [u8; 3]) -> [f32; 4] {
+        own.unwrap_or_else(|| self.ink(rgb))
+    }
 }
 
 /// Each rendered contribution's ink (module doc), `below` then `interior`,
@@ -280,7 +289,9 @@ pub(crate) fn effect_inks(
                                 f64::from(fill.scale),
                                 f64::from(fill.angle),
                                 placed.origin,
-                                &mut |rgb| ink_of(None, rgb),
+                                // A `cmyk16` tile's own ink verbatim
+                                // (`TexelInk::texel`'s rule).
+                                &mut |own, rgb| own.unwrap_or_else(|| ink_of(None, rgb)),
                             );
                             built.push((key, sampler.clone()));
                             InkColor::Pattern(sampler)

@@ -28,6 +28,13 @@ const REQUEST_LIMIT: usize = 64 * 1024;
 /// bounds.
 const STYLE_REQUEST_LIMIT: usize =
     crate::precision_style_native::MAX_STYLE_JSON_LEN + REQUEST_LIMIT;
+/// A tile-carrying request that also carries native pattern samples (a
+/// `"native"` key, `pattern_samples`) may reach the cap a style holding them
+/// is stored under (`pattern_samples_native::MAX_SAMPLES_STYLE_JSON_LEN`,
+/// 16 MiB: one 512² `rgb32` tile is 7.0 MB of base64) beside the envelope;
+/// every other request keeps `STYLE_REQUEST_LIMIT`.
+const SAMPLES_REQUEST_LIMIT: usize =
+    crate::pattern_samples_native::MAX_SAMPLES_STYLE_JSON_LEN + REQUEST_LIMIT;
 const PARSE_BYTES: u64 = 4 * BOOKKEEPING_BYTES;
 
 /// Whether `text` carries a pattern tile (`STYLE_REQUEST_LIMIT`): a
@@ -295,7 +302,7 @@ unsafe fn request<'a>(
     let doc = unsafe { required_handle(document) }?;
     admit(doc.retained_bytes(), PARSE_BYTES, other, limit)?;
     job.reserve(PARSE_BYTES)?;
-    let text = unsafe { borrow_cstr_bounded(text, "request", STYLE_REQUEST_LIMIT) }?;
+    let text = unsafe { borrow_cstr_bounded(text, "request", SAMPLES_REQUEST_LIMIT) }?;
     // The parsed tree of a request past the common bound (the style's
     // `Value`, then its decoded tile; a pattern fill's buffered `pattern`
     // value, then its tile) is charged at four times the request's length
@@ -310,7 +317,8 @@ unsafe fn request<'a>(
     // layer's re-edit at E 2,932,760 against 9,796,740 (3.34×).
     let mut parse = 0;
     if text.len() > REQUEST_LIMIT {
-        if !carries_tile(text) {
+        if !carries_tile(text) || (text.len() > STYLE_REQUEST_LIMIT && !text.contains("\"native\""))
+        {
             return Err("request exceeds the supported byte limit".into());
         }
         parse = PARSE_BYTES + 4 * text.len() as u64;

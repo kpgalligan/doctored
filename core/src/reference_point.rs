@@ -159,7 +159,10 @@ pub(crate) fn mapped_anchor(
 /// `matrix`'s linear part, rounded, must be one of R90 [0, 1, −1, 0], R180
 /// [−1, 0, 0, −1], R270 [0, −1, 1, 0], FlipH [−1, 0, 0, 1] or FlipV
 /// [1, 0, 0, −1], turned through `ops::rotate90/180/270` and
-/// `ops::flip_horizontal/vertical` (the one pixel implementation). `None` for
+/// `ops::flip_horizontal/vertical` (the one pixel implementation). A tile's
+/// native samples (`pattern_samples`) take the same turn: the turn is run
+/// over a raster whose texel i holds the index i (little-endian in its four
+/// bytes), and the turned raster's indices permute the samples. `None` for
 /// every other op or linear part, and for a tile whose bytes do not match its
 /// size.
 pub(crate) fn turned_tile(
@@ -181,10 +184,24 @@ pub(crate) fn turned_tile(
     let (_, turn) = forms.iter().find(|(form, _)| *form == linear)?;
     let image = RgbaImage::from_raw(tile.width, tile.height, tile.rgba.to_vec())?;
     let turned = turn(&image);
+    let samples = match tile.samples.as_deref() {
+        None => None,
+        Some(samples) => {
+            let texels = tile.width as usize * tile.height as usize;
+            let indices: Vec<u8> = (0..texels as u32).flat_map(u32::to_le_bytes).collect();
+            let order: Vec<usize> = turn(&RgbaImage::from_raw(tile.width, tile.height, indices)?)
+                .into_raw()
+                .chunks_exact(4)
+                .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize)
+                .collect();
+            Some(Arc::new(samples.permuted(&order)?))
+        }
+    };
     Some(PatternTile {
         width: turned.width(),
         height: turned.height(),
         rgba: Arc::from(turned.into_raw()),
+        samples,
     })
 }
 

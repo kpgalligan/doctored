@@ -50,7 +50,7 @@ const STOP: &[&str] = &[
 ];
 const CONTOUR: &[&str] = &["preset", "points"];
 const POINT: &[&str] = &["x", "y", "corner"];
-const PATTERN: &[&str] = &["preset", "name", "width", "height", "rgba"];
+const PATTERN: &[&str] = &["preset", "name", "width", "height", "rgba", "native"];
 const FILL: &[&str] = &[
     "pattern",
     "angle",

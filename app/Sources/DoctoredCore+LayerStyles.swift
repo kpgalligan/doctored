@@ -76,6 +76,26 @@ extension RasterDocument {
         return RasterImage(owning: result)
     }
 
+    /// Edit ▸ Define Pattern's native samples of the composite `payload` holds
+    /// (`dr_clipboard_payload_pattern_native`): a CMYK composite's ink, a 16-bit RGB or Gray
+    /// composite's codes off the byte grid, a float composite's values the RGBA8 raster cannot
+    /// hold; nil when the raster holds every sample.
+    static func patternNative(of payload: RasterClipboardPayload) throws -> PatternNative? {
+        var error: UnsafeMutablePointer<CChar>?
+        guard let result = dr_clipboard_payload_pattern_native(payload.ptr, &error) else {
+            throw DoctoredCoreError(message: takeErrorMessage(
+                error, fallback: "The pattern's native samples could not be read."))
+        }
+        defer { dr_string_free(result) }
+        let text = String(cString: result)
+        guard text != "null" else { return nil }
+        guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8)),
+              let native = PatternNative.from(object) else {
+            throw DoctoredCoreError(message: "The pattern's native samples were malformed.")
+        }
+        return native
+    }
+
     /// The four frozen Pattern Overlay presets, in the popup's order, each with its tile
     /// as an image (the swatch) — read once from the core (`dr_pattern_presets_json`).
     static func patternPresets() -> [PatternPreset] { cachedPatternPresets }

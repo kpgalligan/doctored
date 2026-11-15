@@ -29,10 +29,21 @@
 //! in Photoshop's internal 16-bit range 0…32768 — tile T's 8-bit code 10 is
 //! stored 1285 = round(10 · 32768 / 255) — so a 16-bit sample v reads as
 //! the 8-bit code round(min(v, 32768) · 255 / 32768), exactly the code it
-//! was made from.
+//! was made from. A record with a 16-bit sample that is NOT the stored image
+//! of an 8-bit code also keeps its own codes, round(min(v, 32768) · 65535 /
+//! 32768), as the tile's `rgb16` samples (`pattern_samples`); a record made
+//! from 8-bit codes reads as it always did.
+//! A CMYK record (mode 4) is declined by `MODE`: no record on disk shows its
+//! channel order or ink polarity
+//! ([#48](https://github.com/kpgalligan/doctored/issues/48)).
 //! WRITE: RGB, raw, one record per distinct pattern, the alpha written as the
 //! user mask only when some texel is not opaque, keyed `Patt` at 8 bits and
 //! `Pat2` at 16 (Photoshop opened both keys in take2; `Pat2` is its own form).
+//! Under `Pat2` a tile with `rgb16` samples writes 16-bit arrays (depth and
+//! pixel depth 16, raw, the P16 layout), each code stored round(code · 32768
+//! / 65535): the stored range has 32769 levels, so a code comes back within
+//! one (its stored image's code exactly). Every other tile writes its RGBA8
+//! raster: an `rgb32` or `cmyk16` tile's samples have no recorded PSD form.
 //! A Pattern Fill layer's `PtFl` (`psd_fill_layer`) names its tile in the
 //! same table: [`tail_blocks_with`] and [`tail_bytes_with`] take the fill
 //! layers' patterns after the styles'. A file without a pattern overlay, a
@@ -40,6 +51,7 @@
 
 use std::sync::Arc;
 
+use crate::pattern_samples::TileSamples;
 use crate::pattern_tile::{PatternTile, MAX_TILE_SIDE};
 use crate::psd_layer_effects::Block;
 use crate::style::{LayerStyle, Pattern, PatternFill, PatternSource};
@@ -170,7 +182,7 @@ fn read_tile(
     c.take(16).ok_or_else(incomplete)?;
     let channels = c.u32().ok_or_else(incomplete)? as usize;
     let plane = width as usize * height as usize;
-    let mut planes: Vec<Vec<u8>> = Vec::new();
+    let mut planes: Vec<Array> = Vec::new();
     for _ in 0..channels.min(64) + 2 {
         if planes.len() > colours {
             break;
@@ -186,29 +198,82 @@ fn read_tile(
         let array = c.take(length).ok_or_else(incomplete)?;
         planes.push(read_array(array, width, height)?);
     }
-    if planes.len() < colours || planes.iter().any(|p| p.len() != plane) {
+    if planes.len() < colours || planes.iter().any(|p| p.bytes.len() != plane) {
         return Err(incomplete());
     }
+    // The planes R, G and B read: a Gray record's one plane three times.
+    let colour: [usize; 3] = if colours == 3 { [0, 1, 2] } else { [0, 0, 0] };
     let mut rgba = Vec::with_capacity(plane * 4);
     for i in 0..plane {
-        let (r, g, b) = if colours == 3 {
-            (planes[0][i], planes[1][i], planes[2][i])
-        } else {
-            (planes[0][i], planes[0][i], planes[0][i])
-        };
-        let a = planes.get(colours).map_or(255, |p| p[i]);
+        let [r, g, b] = colour.map(|k| planes[k].bytes[i]);
+        let a = planes.get(colours).map_or(255, |p| p.bytes[i]);
         rgba.extend_from_slice(&[r, g, b, a]);
     }
+    // A 16-bit record keeps its own codes when the 8-bit raster cannot hold
+    // them (module doc's READ): some sample is not the stored image of an
+    // 8-bit code.
+    let samples = planes
+        .iter()
+        .take(colours + 1)
+        .any(|p| p.codes.as_ref().is_some_and(|(_, off_grid)| *off_grid))
+        .then(|| {
+            let code = |p: &Array, i: usize| {
+                p.codes
+                    .as_ref()
+                    .map_or(u16::from(p.bytes[i]) * 257, |(codes, _)| codes[i])
+            };
+            let mut out = Vec::with_capacity(plane * 4);
+            for i in 0..plane {
+                let [r, g, b] = colour.map(|k| code(&planes[k], i));
+                let a = planes.get(colours).map_or(u16::MAX, |p| code(p, i));
+                out.extend_from_slice(&[r, g, b, a]);
+            }
+            Arc::new(TileSamples::Rgb16(out))
+        });
     Ok(PatternTile {
         width,
         height,
         rgba: rgba.into(),
+        samples,
     })
+}
+
+/// One array's plane: its 8-bit reading, and for a 16-bit array its 16-bit
+/// codes with whether some sample is not the stored image of an 8-bit code
+/// (module doc's READ).
+struct Array {
+    bytes: Vec<u8>,
+    codes: Option<(Vec<u16>, bool)>,
+}
+
+/// A 16-bit array sample `v` (0…32768) as a 16-bit code: round(min(v, 32768)
+/// · 65535 / 32768).
+fn code_of_stored(v: u16) -> u16 {
+    let v = u32::from(v).min(PHOTOSHOP_16_BIT_WHITE);
+    ((v * 65535 + PHOTOSHOP_16_BIT_WHITE / 2) / PHOTOSHOP_16_BIT_WHITE) as u16
+}
+
+/// A 16-bit code as a 16-bit array sample: round(code · 32768 / 65535), the
+/// inverse of [`code_of_stored`] on every stored value it yields.
+fn stored_of_code(code: u16) -> u16 {
+    ((u32::from(code) * PHOTOSHOP_16_BIT_WHITE + 65535 / 2) / 65535) as u16
+}
+
+/// A 16-bit array sample as the 8-bit code it reads as: round(min(v,
+/// 32768) · 255 / 32768).
+fn byte_of_stored(v: u16) -> u8 {
+    let v = u32::from(v).min(PHOTOSHOP_16_BIT_WHITE);
+    ((v * 255 + PHOTOSHOP_16_BIT_WHITE / 2) / PHOTOSHOP_16_BIT_WHITE) as u8
+}
+
+/// The stored 16-bit sample of 8-bit code `k`: round(k · 32768 / 255).
+fn stored_of_byte(k: u8) -> u16 {
+    ((u32::from(k) * PHOTOSHOP_16_BIT_WHITE + 255 / 2) / 255) as u16
 }
 
 /// One array's plane (after its `length` word): depth, rectangle, pixel
 /// depth, compression, data.
-fn read_array(array: &[u8], width: u32, height: u32) -> Result<Vec<u8>, String> {
+fn read_array(array: &[u8], width: u32, height: u32) -> Result<Array, String> {
     let mut c = Cursor {
         bytes: array,
         at: 0,
@@ -227,16 +292,20 @@ fn read_array(array: &[u8], width: u32, height: u32) -> Result<Vec<u8>, String> 
     let plane = width as usize * height as usize;
     let bytes = read_samples(data, width, height, sample, compression)?;
     if sample == 1 {
-        return Ok(bytes);
+        return Ok(Array { bytes, codes: None });
     }
-    Ok(bytes
+    let stored: Vec<u16> = bytes
         .chunks_exact(2)
-        .map(|v| {
-            let v = u32::from(u16::from_be_bytes([v[0], v[1]])).min(PHOTOSHOP_16_BIT_WHITE);
-            ((v * 255 + PHOTOSHOP_16_BIT_WHITE / 2) / PHOTOSHOP_16_BIT_WHITE) as u8
-        })
+        .map(|v| u16::from_be_bytes([v[0], v[1]]))
         .take(plane)
-        .collect())
+        .collect();
+    let off_grid = stored
+        .iter()
+        .any(|&v| stored_of_byte(byte_of_stored(v)) != v.min(PHOTOSHOP_16_BIT_WHITE as u16));
+    Ok(Array {
+        bytes: stored.iter().map(|&v| byte_of_stored(v)).collect(),
+        codes: Some((stored.into_iter().map(code_of_stored).collect(), off_grid)),
+    })
 }
 
 /// An array's stored bytes, `width × height` samples of `sample` bytes:
@@ -290,16 +359,27 @@ pub(crate) fn fnv1a128(parts: &[&[u8]]) -> u128 {
 }
 
 /// The pattern's `Idnt`: a preset's fixed UUID; a custom tile's FNV-1a-128 of
-/// (name, width, height, rgba) as 8-4-4-4-12 hex.
+/// (name, width, height, rgba) as 8-4-4-4-12 hex, followed by its native
+/// samples' kind and bytes when it holds them (`pattern_samples`), so two
+/// tiles that differ only there are two records and a tile without them
+/// keeps the id it always had.
 pub(crate) fn pattern_id(pattern: &Pattern) -> String {
     let hash = match &pattern.source {
         PatternSource::Preset(id) => fnv1a128(&[b"rasterize-preset-pattern:", id.as_bytes()]),
-        PatternSource::Custom { name } => fnv1a128(&[
-            name.as_bytes(),
-            &pattern.tile.width.to_be_bytes(),
-            &pattern.tile.height.to_be_bytes(),
-            &pattern.tile.rgba,
-        ]),
+        PatternSource::Custom { name } => {
+            let tile = &pattern.tile;
+            let (width, height) = (tile.width.to_be_bytes(), tile.height.to_be_bytes());
+            let mut parts: Vec<&[u8]> = vec![name.as_bytes(), &width, &height, &tile.rgba];
+            let native = tile
+                .samples
+                .as_deref()
+                .map(|s| (s.kind().name(), s.to_le_bytes()));
+            if let Some((kind, bytes)) = &native {
+                parts.push(kind.as_bytes());
+                parts.push(bytes);
+            }
+            fnv1a128(&parts)
+        }
     };
     uuid_text(hash)
 }
@@ -322,21 +402,49 @@ fn put_u32(out: &mut Vec<u8>, v: u32) {
     out.extend_from_slice(&v.to_be_bytes());
 }
 
-/// One raw 8-bit array of `plane` (module doc).
-fn array(out: &mut Vec<u8>, plane: &[u8], width: u32, height: u32) {
+/// One raw array of `plane` (module doc): its bytes as given, `depth` 8 or
+/// 16 bits a sample (a 16-bit plane's samples big-endian).
+fn array(out: &mut Vec<u8>, plane: &[u8], depth: u16, width: u32, height: u32) {
     put_u32(out, 1);
     put_u32(out, 23 + plane.len() as u32);
-    put_u32(out, 8);
+    put_u32(out, u32::from(depth));
     for v in [0, 0, height, width] {
         put_u32(out, v);
     }
-    out.extend_from_slice(&8u16.to_be_bytes());
+    out.extend_from_slice(&depth.to_be_bytes());
     out.push(0);
     out.extend_from_slice(plane);
 }
 
-/// One pattern's record, unframed.
-fn record(pattern: &Pattern) -> Vec<u8> {
+/// One pattern's record, unframed: 16-bit arrays for a tile with `rgb16`
+/// samples in a `Pat2` file (`sixteen`, module doc's WRITE), else its RGBA8
+/// raster at 8 bits.
+fn record(pattern: &Pattern, sixteen: bool) -> Vec<u8> {
+    let tile = &pattern.tile;
+    if let (true, Some(TileSamples::Rgb16(samples))) = (sixteen, tile.samples.as_deref()) {
+        let plane = |c: usize| -> Vec<u8> {
+            samples
+                .chunks_exact(4)
+                .flat_map(|t| stored_of_code(t[c]).to_be_bytes())
+                .collect()
+        };
+        let opaque = samples.chunks_exact(4).all(|t| t[3] == u16::MAX);
+        return record_with(pattern, 16, &plane, opaque);
+    }
+    let plane = |c: usize| -> Vec<u8> { tile.rgba.chunks_exact(4).map(|p| p[c]).collect() };
+    let opaque = tile.rgba.chunks_exact(4).all(|p| p[3] == 255);
+    record_with(pattern, 8, &plane, opaque)
+}
+
+/// [`record`]'s framing around `plane(c)` (channel `c` of R, G, B, A as the
+/// array's bytes) at `depth`, the alpha written as the user mask only when
+/// not `opaque`.
+fn record_with(
+    pattern: &Pattern,
+    depth: u16,
+    plane: &dyn Fn(usize) -> Vec<u8>,
+    opaque: bool,
+) -> Vec<u8> {
     let tile = &pattern.tile;
     let (w, h) = (tile.width, tile.height);
     let mut out = Vec::new();
@@ -352,20 +460,18 @@ fn record(pattern: &Pattern) -> Vec<u8> {
     let id = pattern_id(pattern);
     out.push(id.len() as u8);
     out.extend_from_slice(id.as_bytes());
-    let plane = |c: usize| -> Vec<u8> { tile.rgba.chunks_exact(4).map(|p| p[c]).collect() };
-    let opaque = tile.rgba.chunks_exact(4).all(|p| p[3] == 255);
     let mut list = Vec::new();
     for v in [0, 0, h, w] {
         put_u32(&mut list, v);
     }
     put_u32(&mut list, 3);
     for c in 0..3 {
-        array(&mut list, &plane(c), w, h);
+        array(&mut list, &plane(c), depth, w, h);
     }
     if opaque {
         put_u32(&mut list, 0);
     } else {
-        array(&mut list, &plane(3), w, h);
+        array(&mut list, &plane(3), depth, w, h);
     }
     put_u32(&mut list, 0);
     put_u32(&mut out, 3);
@@ -398,7 +504,7 @@ pub(crate) fn tail_blocks_with<'a>(
     }
     let mut body = Vec::new();
     for (_, _, pattern) in &seen {
-        let rec = record(pattern);
+        let rec = record(pattern, sixteen);
         put_u32(&mut body, rec.len() as u32);
         body.extend_from_slice(&rec);
         while !body.len().is_multiple_of(4) {
@@ -445,7 +551,14 @@ pub(crate) fn tail_bytes_with<'a>(
     // The block framing: `8BIM`, the key and the `u32` length.
     let mut total = 12u64;
     for (id, tile, pattern) in &seen {
-        let plane = u64::from(tile.width) * u64::from(tile.height);
+        // A tile with `rgb16` samples may be written at 16 bits: 2 bytes a
+        // sample.
+        let sample = if matches!(tile.samples.as_deref(), Some(TileSamples::Rgb16(_))) {
+            2
+        } else {
+            1
+        };
+        let plane = u64::from(tile.width) * u64::from(tile.height) * sample;
         // An array: version, length, depth, the rect, the `u16` depth and the
         // compression byte (31 bytes), then the plane.
         let array = 31 + plane;

@@ -528,6 +528,8 @@ pub mod path_trace;
 mod pattern_angle_native;
 mod pattern_define;
 mod pattern_presets;
+mod pattern_samples;
+mod pattern_samples_native;
 mod pattern_tile;
 pub mod perspective_crop;
 mod pixel_orientation;
@@ -842,6 +844,13 @@ pub(crate) use dr_image::Format;
 pub use drdc::warp_decoded_capacity;
 /// The Magnetic Lasso's per-capture edge map handle (`dr_edge_map_create`).
 pub use edge_map::DrEdgeMap;
+/// Re-exported for `tests/pattern_samples.rs`: Define Pattern's float
+/// samples hold a non-finite or out-of-range component to the stored range,
+/// an input no clipboard payload can carry through the FFI.
+#[doc(hidden)]
+pub use pattern_define::samples_from_linear;
+#[doc(hidden)]
+pub use pattern_samples::TileSamples;
 /// The regional window request, re-exported so black-box tests can reach
 /// the `#[doc(hidden)]` `…_with_group_budget` twins (13A-3b-ii); the plan
 /// itself is read through `dr_doc_render_region_plan` /

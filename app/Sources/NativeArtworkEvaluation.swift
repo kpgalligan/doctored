@@ -204,8 +204,13 @@ struct NativeArtworkEvaluation {
                 // RGB and CMYK alike: a CMYK document separates the texels at
                 // render (FillLayer.swift's INK).
                 captured.append(.planeless(["kind": "pattern", "fill": fill]))
-                let rgba = ((fill["pattern"] as? [String: Any])?["rgba"] as? String)?.utf8.count ?? 0
-                planeless += 1; bytes += UInt64(rgba) + 4096
+                // The strings the component holds: the raster and, beside it, a tile's native
+                // samples (PatternOverlay.swift's `PatternNative`).
+                let pattern = fill["pattern"] as? [String: Any]
+                let rgba = (pattern?["rgba"] as? String)?.utf8.count ?? 0
+                let samples = (pattern?["native"] as? [String: Any])?["data"] as? String
+                let native = samples?.utf8.count ?? 0
+                planeless += 1; bytes += UInt64(rgba) + UInt64(native) + 4096
             }
         }
         if captured.isEmpty {

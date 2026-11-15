@@ -207,10 +207,16 @@
 //! parsed. The same two invariants hold. A document with no such sources
 //! writes nothing here, so its bytes stay exactly the prior writer's.
 //!
-//! Version 114 (clipping_path_native.rs) is the word right after the CMYK
+//! Version 115 (pattern_samples_native.rs) is the word right after the
+//! CMYK slot inside 46, ahead of 114, with no table: some stored pattern (a
+//! record's or comp's style, a Pattern Fill description) holds native
+//! samples, checked both ways before any payload decodes; it also admits an
+//! LSTY body past 2 MiB whose style holds them. The next free word is 116.
+//!
+//! Version 114 (clipping_path_native.rs) is the next word after the CMYK
 //! slot inside 46, ahead of 113, with no table: some path is the clipping
 //! path, its key in the PATH table's entry, checked both ways once that
-//! table is read. The next free word is 115.
+//! table is read.
 //!
 //! Version 113 (background_native.rs) is the next word after the CMYK slot
 //! inside 46, ahead of 112: the document's Background mark names a record.

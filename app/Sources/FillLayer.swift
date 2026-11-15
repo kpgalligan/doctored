@@ -445,6 +445,8 @@ enum FillLayer {
             pattern["width"] = ref.width ?? 0
             pattern["height"] = ref.height ?? 0
             pattern["rgba"] = ref.rgba ?? ""
+            // The tile's native samples, which a document of their kind reads.
+            if let native = ref.native { pattern["native"] = native.json }
         }
         var object: [String: Any] = [
             "angle": fill.angle, "scale": fill.scale,

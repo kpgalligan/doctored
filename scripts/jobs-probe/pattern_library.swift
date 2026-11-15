@@ -18,6 +18,10 @@ import AppKit
 //     Export's commit writes the library, Delete Pattern… sent to the editor with its menu item
 //     removes its first row (the recorded alert's first button), and Import's commit restores
 //     it. The two file panels are not driven: only their commits are called.
+//
+// "pattern fill charge" (`verifyPatternFillCharge`): a pattern fill layer's evaluation leases the
+// bytes of every string its component holds, a tile's native samples beside its raster
+// (`NativeArtworkEvaluation`'s pattern part).
 
 private let side = 40, tall = 30
 
@@ -177,4 +181,28 @@ func verifyPatternLibrary() throws {
     print("PASS: Define Pattern's tile and refusal, the library in every picker and the Fill "
           + "sheet, Fill…'s Pattern contents on the canvas grid as one undo step, and Edit ▸ "
           + "Patterns' Delete, Import and Export")
+}
+
+func verifyPatternFillCharge() throws {
+    let tag = "[pattern fill charge]"
+    // A 64 × 64 tile: its raster's base64 and an rgb16 sample block's (8 bytes a texel).
+    let raster = Data(count: 64 * 64 * 4).base64EncodedString()
+    let native = PatternNative(kind: "rgb16", data: Data(count: 64 * 64 * 8).base64EncodedString())
+    var tile = PatternRef(name: "Charge", width: 64, height: 64, rgba: raster)
+    // The lease of a one-part drawing: the fill layer's own component (`FillLayer`).
+    func lease(_ pattern: PatternRef) throws -> UInt64 {
+        let component = FillLayer.patternComponent(PatternFill(pattern: pattern), reference: (0, 0))
+        let drawing = NativeArtworkDrawing(width: 8, height: 8, offsetX: 0, offsetY: 0,
+                                           parts: [.pattern(component)])
+        return try NativeArtworkEvaluation(drawing, float: false).lease.bytes
+    }
+    let bare = try lease(tile)
+    tile.native = native
+    let held = try lease(tile)
+    let samples = UInt64(native.data.utf8.count)
+    try require(held == bare + samples,
+                "\(tag) the samples' \(samples) bytes are leased: \(held) with them, \(bare) without")
+    try require(bare >= UInt64(raster.utf8.count), "\(tag) the raster's bytes are leased: \(bare)")
+    print("PASS: a pattern fill layer's evaluation leases its tile's native samples (\(samples) "
+          + "bytes) beside its raster")
 }

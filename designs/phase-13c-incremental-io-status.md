@@ -83,7 +83,7 @@ names it, and at most two committed generations are kept.
   larger than the working limit already refuses at admission; streaming them is out of 13C (see Open items).
 - **The `.doctored` format does not change.** Its pixel payloads are already PNG-compressed per plane, and the
   streaming writer and reader above need no new word. A tile-pool or compressed-payload `.doctored` would be a new
-  conditional DRDC word (the next free is 115) with every prior word still read; 13C does not need one.
+  conditional DRDC word (the next free is 116) with every prior word still read; 13C does not need one.
 
 ### D4. Held for the owner: the `.drsnapshot` package format
 

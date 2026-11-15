@@ -553,7 +553,11 @@ pub(crate) fn render_cmyk(
         &[],
         &[],
         &mut |_| [0.0; 4],
-        &mut |rgb| texel.as_mut().map_or([0.0; 4], |texel| texel.ink(rgb)),
+        &mut |own, rgb| {
+            texel
+                .as_mut()
+                .map_or([0.0; 4], |texel| texel.texel(own, rgb))
+        },
         job,
     )?;
     let row = canvas.0 as usize;

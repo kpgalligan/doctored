@@ -119,6 +119,8 @@ mod psd_pattern_fill_cmyk;
 mod psd_pattern_fill_layer;
 #[path = "psd_pattern_overlay.rs"]
 mod psd_pattern_overlay;
+#[path = "psd_pattern_samples.rs"]
+mod psd_pattern_samples;
 #[path = "psd_photoshop.rs"]
 mod psd_photoshop;
 #[path = "psd_photoshop_appearance.rs"]

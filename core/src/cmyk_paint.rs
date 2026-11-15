@@ -28,8 +28,9 @@
 //!   composite with the ink of the tile's texel at the canvas pixel, its
 //!   alpha in place of the ink's: `pattern_tile::ink_sampler` at 100 %,
 //!   unturned, from the canvas origin, each sRGB texel through the
-//!   document's one sRGB → ink leg (`cmyk_style::TexelInk`), as a CMYK
-//!   Pattern Overlay reads it;
+//!   document's one sRGB → ink leg (`cmyk_style::TexelInk`) — a `cmyk16`
+//!   tile's own ink verbatim instead — as a CMYK Pattern
+//!   Overlay reads it;
 //! * gradient: the stops' straight CMYKA between the two that bracket `t`
 //!   (`gradient_field::segment`; the inks through the Classic ramp blended
 //!   with the linear one by the request's `smoothness`, a fraction defaulting
@@ -295,7 +296,7 @@ impl CmykPaintEdit {
             1.0,
             0.0,
             (0.0, 0.0),
-            &mut |rgb| texel.ink(rgb),
+            &mut |own, rgb| texel.texel(own, rgb),
         )))
     }
 
@@ -399,7 +400,7 @@ impl CmykPaintEdit {
         let mut scratch = 8 * BOOKKEEPING_BYTES + n * CANVAS_BYTES_PER_PIXEL + output * 10;
         if let Some(pattern) = self.pattern() {
             let (w, h) = (pattern.tile.width, pattern.tile.height);
-            scratch += crate::pattern_tile::fill_scratch_bytes(w, h)
+            scratch += crate::pattern_tile::fill_scratch_bytes(&pattern.tile)
                 + crate::pattern_tile::ink_scratch_bytes(w, h, 1.0, 0.0);
         }
         if matches!(self, Self::BucketFill { .. }) {

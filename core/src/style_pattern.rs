@@ -49,7 +49,10 @@
 //! document reads code / 255 as linear (take1's VERBATIM), and a CMYK
 //! document converts each texel to ink through the leg a Colour Overlay's
 //! colour takes (`cmyk_style::effect_inks`, the ink pyramid
-//! `pattern_tile::ink_level`, its bytes [`ink_level_bytes`]).
+//! `pattern_tile::ink_level`, its bytes [`ink_level_bytes`]). A tile's
+//! native samples (`pattern_samples`) are read instead by a document of
+//! their kind: `rgb16` and `rgb32` by RGB at every depth (a 32-bit one keeps
+//! `rgb32` light above white), `cmyk16` ink by CMYK, verbatim.
 //!
 //! # Angle
 //!
@@ -150,6 +153,7 @@ impl Default for Pattern {
                 width: 1,
                 height: 1,
                 rgba: Arc::from(&[0xffu8, 0xff, 0xff, 0xff][..]),
+                samples: None,
             }),
         })
     }
@@ -247,7 +251,7 @@ fn mapped(
 /// `style` with every pattern fill [`mapped`] walks, in its order, replaced
 /// by `f`'s answer (`f`'s second argument as there); a `None` keeps the fill.
 /// `None` when `f` replaces nothing. Fresh cache.
-fn refilled(
+pub(crate) fn refilled(
     style: &LayerStyle,
     mut f: impl FnMut(&PatternFill, bool) -> Option<PatternFill>,
 ) -> Option<LayerStyle> {

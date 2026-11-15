@@ -599,6 +599,8 @@ mod native_save_bytes;
 mod open_profile_tests;
 #[path = "pattern_fill_cmyk.rs"]
 mod pattern_fill_cmyk;
+#[path = "pattern_samples.rs"]
+mod pattern_samples;
 #[path = "png_declared_gamma.rs"]
 mod png_declared_gamma;
 #[path = "precision_blend_if_multichannel.rs"]

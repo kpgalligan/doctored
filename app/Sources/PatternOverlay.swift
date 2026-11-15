@@ -7,16 +7,50 @@ import AppKit
 // `anchor` is echoed back.
 
 /// A pattern: `{"preset": id}` or a custom tile `{"name", "width", "height", "rgba"}` (standard
-/// base64 of straight RGBA8). Exactly one form is meaningful; nil fields are not written.
+/// base64 of straight RGBA8), the custom tile optionally with `native`, the samples its RGBA8
+/// raster cannot hold (`PatternNative`). Exactly one form is meaningful; nil fields are not
+/// written.
 struct PatternRef: Codable, Equatable {
     var preset: String? = nil
     var name: String? = nil
     var width: Int? = nil
     var height: Int? = nil
     var rgba: String? = nil
+    var native: PatternNative? = nil
 
     /// Whether this is a custom tile (it carries pixels).
     var isCustom: Bool { preset == nil && rgba != nil }
+
+    /// This pattern without its native samples: what a reader of the RGBA8 raster alone takes
+    /// (Mode ▸ Bitmap's Custom Pattern, whose options are bounded).
+    var withoutNative: PatternRef {
+        var out = self
+        out.native = nil
+        return out
+    }
+}
+
+/// A custom tile's native samples (core/src/pattern_samples.rs, `designs/pattern-tiles.md`):
+/// `kind` "rgb16", "rgb32" or "cmyk16", `data` the standard base64 of the samples'
+/// little-endian components. A document that stores that kind of number reads them in place of
+/// the RGBA8 raster, so a pattern defined from a CMYK, 16-bit or 32-bit document fills back
+/// exactly; the core validates them.
+struct PatternNative: Codable, Equatable {
+    var kind: String
+    var data: String
+
+    static let kinds: Set<String> = ["rgb16", "rgb32", "cmyk16"]
+
+    var json: [String: Any] { ["kind": kind, "data": data] }
+
+    /// `object` as samples when it is `{"kind", "data"}` with a known kind and a string; nil
+    /// otherwise.
+    static func from(_ object: Any?) -> PatternNative? {
+        guard let object = object as? [String: Any], object.count == 2,
+              let kind = object["kind"] as? String, kinds.contains(kind),
+              let data = object["data"] as? String else { return nil }
+        return PatternNative(kind: kind, data: data)
+    }
 }
 
 /// The pattern fill a Pattern Overlay and a Stroke of Fill Type Pattern share

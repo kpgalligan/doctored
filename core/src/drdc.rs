@@ -177,7 +177,12 @@ pub(crate) const MAX_DRDC_BLOB_LEN: u32 = 16 * 1024 * 1024;
 /// some path is the clipping path, its key in the PATH table's entry): the
 /// FIRST word inside 45 (ahead of 113), and in a typed file the word right
 /// after the CMYK slot (ahead of 113), with no table.
-/// The next free word is 115. The constant stays 89: words 90 to 114 are
+/// 115 is the native pattern samples word at both depths
+/// (`pattern_samples_native`: some stored pattern holds native samples,
+/// riding in the style or description JSON): the FIRST word inside 45 (ahead
+/// of 114), and in a typed file the word right after the CMYK slot (ahead of
+/// 114), with no table.
+/// The next free word is 116. The constant stays 89: words 90 to 115 are
 /// conditional words read ahead of the body version, never a body version
 /// themselves.
 /// Since 2026-10-10 words 65, 66, 68, 69, 70 and 73
@@ -503,11 +508,15 @@ impl DrDocument {
     /// the profile rides inside that record's meta. A document with no such
     /// meta writes nothing here, so its bytes stay exactly the prior
     /// writer's.
-    /// Version 114 is the FIRST word inside 45 (`clipping_path_native`),
+    /// Version 115 is the FIRST word inside 45 (`pattern_samples_native`),
+    /// ahead of 114, with no table: a document some stored pattern of which
+    /// holds native samples writes 115 after 45 and before every other
+    /// conditional word; the samples ride inside the style or description
+    /// JSON. The next free word is 116.
+    /// Version 114 is the next word inside 45 (`clipping_path_native`),
     /// ahead of 113, with no table: a document some path of which is the
     /// clipping path writes 114 after 45 and before every other conditional
-    /// word; the designation rides in the PATH table's entry. The next free
-    /// word is 115.
+    /// word but 115; the designation rides in the PATH table's entry.
     /// Version 113 is the next word inside 45 (`background_native`), ahead
     /// of 112: a document whose Background mark names a layer it holds
     /// writes 113 after 45 and before every other conditional word but 114,
@@ -656,7 +665,13 @@ impl DrDocument {
         // every layer, so there is no "document without the table".
         let ids = crate::identity_native::byte_ids(self);
         buf.extend_from_slice(&crate::identity_native::BYTE_VERSION.to_le_bytes());
-        // Then `clipping_path_native`'s word 114 — the FIRST word inside 45,
+        // Then `pattern_samples_native`'s word 115 — the FIRST word inside
+        // 45, ahead of 114, with no table, written only when some stored
+        // pattern holds native samples (they ride in the JSON).
+        if crate::pattern_samples_native::styles_samples(self) {
+            buf.extend_from_slice(&crate::pattern_samples_native::WORD.to_le_bytes());
+        }
+        // Then `clipping_path_native`'s word 114 — the next word inside 45,
         // ahead of 113, with no table, written only when some path is the
         // clipping path (the key rides in the PATH table's entry).
         if crate::clipping_path_native::carries(&self.paths.entries) {

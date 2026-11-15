@@ -162,8 +162,9 @@ impl PrecisionDocument {
         } else {
             None
         };
-        let mut texel_ink =
-            |rgb: [u8; 3]| -> [f32; 4] { texel.as_mut().map_or([0.0; 4], |t| t.ink(rgb)) };
+        let mut texel_ink = |own: Option<[f32; 4]>, rgb: [u8; 3]| -> [f32; 4] {
+            texel.as_mut().map_or([0.0; 4], |t| t.texel(own, rgb))
+        };
         // The intrinsic leg is built only when a glyph asks for it, so a
         // profile with no B2A table refuses only artwork that needs one.
         let mut leg: Option<RgbToCmyk<'_>> = None;
