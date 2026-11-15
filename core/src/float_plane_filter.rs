@@ -401,6 +401,68 @@ impl PrecisionDocument {
         if let Some(reason) = layer_only_refusal(&edit.op) {
             return Err(reason.into());
         }
+        let plane = if component == 3 {
+            FloatPlane::Coverage
+        } else {
+            FloatPlane::Color
+        };
+        self.float_plane_unlocked(
+            layer,
+            component,
+            selection,
+            job,
+            |values, dimensions, weight_at| {
+                if coverage_noise(edit, plane) {
+                    return alpha_noise(edit, values, job.range(0., 0.7)).map(Some);
+                }
+                // The frame is derived now, on this layer's own raster, never
+                // recorded; no coverage is the whole plane.
+                let frame = || {
+                    if selection.is_empty() {
+                        None
+                    } else {
+                        coverage_frame(dimensions, weight_at)
+                    }
+                };
+                let Some(route) = Route::parse(edit, frame)? else {
+                    return Ok(None);
+                };
+                let encoding = if plane == FloatPlane::Color && route.needs_encoding() {
+                    Some(self.display_encoding()?)
+                } else {
+                    None
+                };
+                filtered_values(
+                    &route,
+                    values,
+                    dimensions,
+                    plane,
+                    encoding.as_ref(),
+                    weight_at,
+                    job.range(0., 0.7),
+                )
+            },
+        )
+    }
+
+    /// The plane rule's walk (module doc) over component k (0..=3) of an
+    /// Rgba32Float layer: the Read, then `produce` (the stored component in
+    /// row order, the plane's dimensions and the write's gate; `Ok(None)` is
+    /// the identity), then the Write and the tile rebuild. `selection` is the
+    /// canvas coverage (empty: the whole plane). The caller has planned,
+    /// admitted and reserved.
+    pub(crate) fn float_plane_unlocked(
+        &self,
+        layer: usize,
+        component: usize,
+        selection: &[u16],
+        job: JobContext<'_>,
+        produce: impl FnOnce(
+            &[f32],
+            (u32, u32),
+            &dyn Fn(usize) -> u16,
+        ) -> Result<Option<Vec<f32>>, String>,
+    ) -> Result<Option<PrecisionDocument>, String> {
         let entry = self
             .layer(layer)
             .ok_or("native scalar layer is out of range")?;
@@ -412,11 +474,6 @@ impl PrecisionDocument {
         let offset = entry.offset();
         let canvas = self.dimensions();
         let weight_at = |i: usize| coverage_at(selection, canvas, dimensions, offset, i);
-        let plane = if component == 3 {
-            FloatPlane::Coverage
-        } else {
-            FloatPlane::Color
-        };
         let n = w as usize * h as usize;
         let mut values: Vec<f32> = reserved_vec(n)?;
         for run in image.runs_rgba32().ok_or(FLOAT_ONLY)? {
@@ -425,38 +482,7 @@ impl PrecisionDocument {
                 values.push(p[component]);
             }
         }
-        let filtered = if coverage_noise(edit, plane) {
-            Some(alpha_noise(edit, &values, job.range(0., 0.7))?)
-        } else {
-            // The frame is derived now, on this layer's own raster, never
-            // recorded; no coverage is the whole plane.
-            let frame = || {
-                if selection.is_empty() {
-                    None
-                } else {
-                    coverage_frame(dimensions, weight_at)
-                }
-            };
-            let Some(route) = Route::parse(edit, frame)? else {
-                job.report(1., 5)?;
-                return Ok(None);
-            };
-            let encoding = if plane == FloatPlane::Color && route.needs_encoding() {
-                Some(self.display_encoding()?)
-            } else {
-                None
-            };
-            filtered_values(
-                &route,
-                &values,
-                dimensions,
-                plane,
-                encoding.as_ref(),
-                weight_at,
-                job.range(0., 0.7),
-            )?
-        };
-        let Some(mut out) = filtered else {
+        let Some(mut out) = produce(&values, dimensions, &weight_at)? else {
             job.report(1., 5)?;
             return Ok(None);
         };
