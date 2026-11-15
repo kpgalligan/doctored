@@ -650,6 +650,21 @@ impl DrDocument {
     /// `cancel_io::Polled`; a cancel answers exactly `operation cancelled`
     /// once the caller settles it. `JobContext::NONE` writes the same bytes.
     pub(crate) fn encode_native(&self, job: JobContext<'_>) -> Result<Vec<u8>, String> {
+        self.encode_native_captured(job, None)
+    }
+
+    /// [`Self::encode_native`], and with a `capture` the tile pool's byte
+    /// write (13C-1, `doc_tile_pool`): a tiled layer's PNG record is not
+    /// encoded but marked (`ByteMark::Layer`), its mask bytes, each channel
+    /// PNG and the source tables are marked as blobs, and the body is not
+    /// reserved at the plan's bound. Every other byte is the writer's own,
+    /// so the pool's rebuild of the marks reproduces this file exactly.
+    pub(crate) fn encode_native_captured(
+        &self,
+        job: JobContext<'_>,
+        mut capture: Option<&mut Vec<crate::doc_tile_pool::ByteMark>>,
+    ) -> Result<Vec<u8>, String> {
+        use crate::doc_tile_pool::ByteMark;
         self.native_save_preflight()?;
         let plan = self.native_save_plan()?;
         let count = capacity::layer_count(self.layers.len())?;
@@ -657,7 +672,10 @@ impl DrDocument {
         let projective = crate::source_transform_native::entries(&sources.bindings);
         let warp = crate::warp_native::encode_byte(self)?;
         let version = sources.version();
-        let mut buf = crate::drdc_save_plan::reserved(plan.encoded_bound)?;
+        let mut buf = match capture {
+            Some(_) => Vec::new(),
+            None => crate::drdc_save_plan::reserved(plan.encoded_bound)?,
+        };
         buf.extend_from_slice(crate::native_magic::NATIVE_MAGIC);
         // The OUTERMOST wrapper (`identity_native`), and the one that is
         // ALWAYS written: 45 before every prior version word, 43 included,
@@ -917,22 +935,16 @@ impl DrDocument {
             buf.extend_from_slice(&layer.opacity.to_le_bytes());
             buf.extend_from_slice(&(layer.blend.to_c() as u32).to_le_bytes());
             buf.push(u8::from(layer.visible));
-            let (lw, lh) = layer.pixels.dimensions();
-            let mut png = crate::drdc_save_plan::reserved(crate::drdc_save_plan::byte_png_bound(
-                (lw, lh),
-                4,
-            )?)?;
-            let image = layer.pixels.to_contiguous()?;
-            PngEncoder::new(Polled::new(&mut png, job))
-                .write_image(image.as_raw(), lw, lh, ExtendedColorType::Rgba8)
-                .map_err(|e| format!("PNG encoding failed: {e}"))?;
-            drop(image);
-            let png_len = u32::try_from(png.len())
-                .ok()
-                .filter(|&len| len <= MAX_DRDC_PNG_LEN)
-                .ok_or_else(|| "layer PNG too large".to_string())?;
-            buf.extend_from_slice(&png_len.to_le_bytes());
-            buf.extend_from_slice(&png);
+            match (&mut capture, layer.pixels.tile_plane()) {
+                (Some(marks), Some(_)) => marks.push(ByteMark::Layer {
+                    at: buf.len(),
+                    index,
+                }),
+                _ => {
+                    let image = layer.pixels.to_contiguous()?;
+                    put_layer_png(&mut buf, image.as_raw(), image.dimensions(), job)?;
+                }
+            }
             // Version 2 fields. The mask is stored raw: its length is always
             // the pixel count the entry's KIND requires — the layer's for a
             // raster entry, the CANVAS's for a group (`expected_mask_dims`) —
@@ -949,6 +961,12 @@ impl DrDocument {
                 buf.extend_from_slice(&mask_len.to_le_bytes());
                 buf.extend_from_slice(&mask.width().to_le_bytes());
                 buf.extend_from_slice(&mask.height().to_le_bytes());
+                if let Some(marks) = &mut capture {
+                    marks.push(ByteMark::Blob {
+                        at: buf.len(),
+                        len: bytes.len(),
+                    });
+                }
                 buf.extend_from_slice(bytes);
             }
             put_opt_string(&mut buf, layer.meta.as_deref(), "meta")?;
@@ -1012,6 +1030,12 @@ impl DrDocument {
                 .filter(|&len| len <= MAX_DRDC_PNG_LEN)
                 .ok_or_else(|| "channel PNG too large".to_string())?;
             buf.extend_from_slice(&png_len.to_le_bytes());
+            if let Some(marks) = &mut capture {
+                marks.push(ByteMark::Blob {
+                    at: buf.len(),
+                    len: png.len(),
+                });
+            }
             buf.extend_from_slice(&png);
         }
         // Version 6: the document tail, after the channel list. Every cap the
@@ -1080,7 +1104,14 @@ impl DrDocument {
             buf.push(*orientation);
             buf.extend_from_slice(&position.to_le_bytes());
         }
+        let sources_at = buf.len();
         sources.encode(&mut buf, u64::MAX, job.checkpoints_only())?;
+        if let Some(marks) = &mut capture {
+            marks.push(ByteMark::Blob {
+                at: sources_at,
+                len: buf.len() - sources_at,
+            });
+        }
         crate::mask_outside_native::encode(&outside, &mut buf, u64::MAX, job.checkpoints_only())?;
         crate::evaluation_native::encode(linear_light, &mut buf, u64::MAX, job.checkpoints_only())?;
         crate::label_native::encode(&labels, &mut buf, u64::MAX, job.checkpoints_only())?;
@@ -1137,6 +1168,32 @@ impl DrDocument {
         }
         Ok(())
     }
+}
+
+/// A byte layer record's pixel field: the u32 length, then the RGBA8 PNG of
+/// `raw` (`w·h·4` straight bytes) encoded under the plan's per-plane bound,
+/// polling `job`. The ONE encoder of it, shared by the writer's layer loop
+/// and the tile pool's rebuild (`doc_tile_pool`), so a rebuilt record is the
+/// saved record byte for byte.
+pub(crate) fn put_layer_png(
+    out: &mut dyn crate::native_stream::NativeSink,
+    raw: &[u8],
+    (width, height): (u32, u32),
+    job: JobContext<'_>,
+) -> Result<(), String> {
+    let mut png = crate::drdc_save_plan::reserved(crate::drdc_save_plan::byte_png_bound(
+        (width, height),
+        4,
+    )?)?;
+    PngEncoder::new(Polled::new(&mut png, job))
+        .write_image(raw, width, height, ExtendedColorType::Rgba8)
+        .map_err(|e| format!("PNG encoding failed: {e}"))?;
+    let png_len = u32::try_from(png.len())
+        .ok()
+        .filter(|&len| len <= MAX_DRDC_PNG_LEN)
+        .ok_or_else(|| "layer PNG too large".to_string())?;
+    out.put(&png_len.to_le_bytes())?;
+    out.put(&png)
 }
 
 /// Writes a NAME slot — u32 byte length + UTF-8 bytes — truncating an

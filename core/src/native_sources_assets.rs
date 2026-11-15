@@ -368,6 +368,7 @@ impl SourceTable {
                         return Err("embedded source PNG exceeds its byte limit".into());
                     }
                     append(out, &(png.len() as u64).to_le_bytes(), bound, job)?;
+                    out.begin_blob(png.len() as u64)?;
                     append(out, &png, bound, job)?;
                 }
             }

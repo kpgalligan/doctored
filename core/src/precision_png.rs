@@ -464,6 +464,13 @@ pub(crate) fn put_native_png(
     job: JobContext<'_>,
 ) -> Result<(), String> {
     const ENCODING: &str = "high-depth PNG encoding failed";
+    // The tile pool's skeleton sink takes a tiled plane as keys (13C-1); its
+    // rebuild calls this function again with a file sink.
+    if let Some(plane) = image.tile_plane16() {
+        if out.raster(crate::native_stream::RasterRef::Rgba16Png(plane))? {
+            return Ok(());
+        }
+    }
     if image.runs_rgba16().is_none() {
         return Err("high-depth depth: RGBA16 storage is required".into());
     }

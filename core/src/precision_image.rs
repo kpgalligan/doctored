@@ -797,6 +797,48 @@ impl PrecisionImage {
         Some((0..dims.1).flat_map(move |y| p.row_segments(dims, y, 0, dims.0).map(|(_, run)| run)))
     }
 
+    /// The tiled u16 plane; `None` for f32 or contiguous storage. The tile
+    /// pool's write (13C-1) keys these tiles and writes any other storage as
+    /// it always did.
+    pub(crate) fn tile_plane16(&self) -> Option<&crate::tile_store::TilePlane<[u16; 4]>> {
+        match &self.pixels {
+            Pixels::U16(Plane::Tiled(plane)) => Some(plane),
+            _ => None,
+        }
+    }
+
+    /// The f32 twin of [`Self::tile_plane16`].
+    pub(crate) fn tile_plane32(&self) -> Option<&crate::tile_store::TilePlane<[f32; 4]>> {
+        match &self.pixels {
+            Pixels::F32(Plane::Tiled(plane)) => Some(plane),
+            _ => None,
+        }
+    }
+
+    /// A fresh image over a rebuilt u16 plane (the tile pool's rebuild,
+    /// 13C-1, which only re-encodes it): no admission, since the rebuild's
+    /// figure is the caller's reopen admission.
+    pub(crate) fn from_tile_plane16(plane: crate::tile_store::TilePlane<[u16; 4]>) -> Self {
+        let (width, height) = plane.dimensions();
+        Self::assembled(
+            width,
+            height,
+            IccProfile::srgb(),
+            Pixels::U16(Plane::Tiled(plane)),
+        )
+    }
+
+    /// The f32 twin of [`Self::from_tile_plane16`].
+    pub(crate) fn from_tile_plane32(plane: crate::tile_store::TilePlane<[f32; 4]>) -> Self {
+        let (width, height) = plane.dimensions();
+        Self::assembled(
+            width,
+            height,
+            IccProfile::srgb(),
+            Pixels::F32(Plane::Tiled(plane)),
+        )
+    }
+
     /// Explicit source conversion. Same-storage conversion shares the handle;
     /// float→integer rounds once, including alpha; latent RGB is independent.
     /// No product path calls it: tests use it as a fixture conversion. A

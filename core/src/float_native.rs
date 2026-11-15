@@ -266,6 +266,12 @@ pub(crate) fn put_samples(
     bound: u64,
     job: JobContext<'_>,
 ) -> Result<(), String> {
+    // The tile pool's skeleton sink takes a tiled plane as keys (13C-1).
+    if let Some(plane) = image.tile_plane32() {
+        if out.raster(crate::native_stream::RasterRef::Float(plane))? {
+            return Ok(());
+        }
+    }
     let runs = image
         .runs_rgba32()
         .ok_or("a float native raster requires rgba32_float storage")?;

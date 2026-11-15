@@ -234,6 +234,8 @@ mod stats_tests;
 mod structure_tests;
 #[path = "test_layout.rs"]
 mod test_layout;
+#[path = "tile_pool.rs"]
+mod tile_pool;
 #[path = "tile_store.rs"]
 mod tile_store;
 #[path = "trim_bounds_tests.rs"]

@@ -1044,6 +1044,7 @@ fn put_plane(
     job: JobContext<'_>,
 ) -> Result<(), String> {
     append(out, &(samples.len() as u64 * 2).to_le_bytes(), bound, job)?;
+    out.begin_blob(samples.len() as u64 * 2)?;
     let mut bytes = [0_u8; 8192];
     for chunk in samples.chunks(4096) {
         job.check()?;

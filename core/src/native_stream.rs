@@ -75,6 +75,34 @@ pub(crate) trait NativeSink {
     fn reserve(&mut self, _additional: usize) -> bool {
         true
     }
+    /// A raster payload offered whole before it is encoded (13C-1): `true`
+    /// when the sink took it, and the writer then writes nothing for it.
+    /// The tile pool's skeleton sink takes it as tile keys; a file or a
+    /// `Vec` never does, so a save's bytes do not change.
+    fn raster(&mut self, _raster: RasterRef<'_>) -> Result<bool, String> {
+        Ok(false)
+    }
+    /// The next `len` bytes the writer puts are one payload (a mask or
+    /// channel plane, a RAW payload, an embedded 8-bit source PNG): the
+    /// skeleton sink keys them in chunks (13C-1). A no-op elsewhere.
+    fn begin_blob(&mut self, _len: u64) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+/// A tiled raster at one of the native writers' payload sites, each site
+/// fixing its sample type and the encoder that writes it (`pool_skeleton`).
+#[derive(Clone, Copy)]
+pub(crate) enum RasterRef<'a> {
+    /// A byte layer record's RGBA8 PNG (`drdc`).
+    Rgba8Png(&'a crate::tile_store::TilePlane<[u8; 4]>),
+    /// A typed record's or master's stored RGBA16 PNG
+    /// (`precision_png::put_native_png`).
+    Rgba16Png(&'a crate::tile_store::TilePlane<[u16; 4]>),
+    /// A float record's or master's f32 samples (`float_native::put_samples`).
+    Float(&'a crate::tile_store::TilePlane<[f32; 4]>),
+    /// A CMYK record's CMYKA16 rows (`cmyk_native::put_payload`).
+    Cmyk(&'a crate::tile_store::TilePlane<[u16; 5]>),
 }
 
 impl NativeSink for Vec<u8> {

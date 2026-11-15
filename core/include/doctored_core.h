@@ -11121,6 +11121,52 @@ DrPrecisionImage *dr_precision_image_neural_colorize_apply(const DrPrecisionImag
     size_t chroma_count, const char *adjust_json, uint64_t limit, uint64_t other_retained_bytes,
     const DrJobControl *control, char **err_out);
 
+/* ---- The tile pool (13C-1, ffi_tile_pool.rs) ------------------------------
+ * A content-addressed, compressed, append-only store of tile payloads in a
+ * directory of its own (pack-<n> files and pool.index), and the skeletons that
+ * name a native file's payloads by key. Recovery writes every state through
+ * it, so a checkpoint after a small edit appends only the changed tiles.
+ *
+ * The handle OWNS FILES ON DISK and is the one exception to purity here: a
+ * write or a collection changes the pool's files (never a document), and the
+ * handle keeps a memo of the tiles it keyed. Calls on one handle serialize.
+ *
+ * dr_tile_pool_open makes the directory with one non-recursive mkdir (never
+ * its parents) and repairs a torn index tail. A write keys each tiled raster
+ * (layers and retained masters) and stores the payloads the pool lacks,
+ * makes them durable, then publishes the skeleton atomically at
+ * skeleton_path; masks, channels, RAW payloads and 8-bit source PNGs are
+ * stored in 1 MiB chunks. The typed write admits the native save's write
+ * scratch plus dr_tile_pool_window_bytes() against limit beside other.
+ * dr_tile_pool_rebuild writes the native file the skeleton names to
+ * native_path, atomically, byte for byte the file dr_doc_save_native /
+ * dr_precision_doc_save_native writes; it refuses "damaged tile pool skeleton
+ * <path>" and "tile pool payload <16 hex> is missing" / "is truncated" /
+ * "failed its hash check" (a damaged payload is then forgotten by the handle,
+ * so the next write stores it again). dr_tile_pool_collect keeps only the
+ * payloads the count (at most 4096) skeletons name and compacts packs under
+ * half live; it reads every skeleton first and removes nothing when one
+ * cannot be read. dr_tile_pool_info: JSON {"tiles","packs","stored_bytes",
+ * "live_bytes","appended_tiles","appended_chunks","appended_bytes",
+ * "hashed_tiles","hashed_chunks","raw_payloads","deflate_payloads",
+ * "shuffle_payloads"}, the appended/hashed figures the last write's; free with
+ * dr_string_free. NULL inputs fail with err_out; a cancel answers "operation
+ * cancelled" and publishes nothing. */
+typedef struct DrTilePool DrTilePool;
+DrTilePool *dr_tile_pool_open(const char *directory, char **err_out);
+void dr_tile_pool_free(DrTilePool *pool);
+bool dr_doc_tile_pool_write(const DrDocument *doc, DrTilePool *pool, const char *skeleton_path,
+    const DrJobControl *control, char **err_out);
+bool dr_precision_doc_tile_pool_write(const DrPrecisionDocument *doc, DrTilePool *pool,
+    const char *skeleton_path, uint64_t limit, uint64_t other, const DrJobControl *control,
+    char **err_out);
+bool dr_tile_pool_rebuild(DrTilePool *pool, const char *skeleton_path, const char *native_path,
+    const DrJobControl *control, char **err_out);
+bool dr_tile_pool_collect(DrTilePool *pool, const char *const *skeleton_paths, size_t count,
+    char **err_out);
+char *dr_tile_pool_info(const DrTilePool *pool, char **err_out);
+uint64_t dr_tile_pool_window_bytes(void);
+
 #ifdef __cplusplus
 }
 #endif

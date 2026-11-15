@@ -63,7 +63,7 @@ Detail belongs in the source file's own header comment.
 - `cmyk_clipboard.rs` — CMYK Copy, Copy Merged, Cut, Paste, New from Clipboard, read allocation and the descriptor's clipboard plans.
 - `ffi_cmyk_clipboard.rs` — `dr_clipboard_payload_icc`, `dr_clipboard_payload_from_cmyk_image` (a CMYK TIFF/JPEG on the pasteboard).
 - `stale_temp.rs` — the core temporary's name `<path>.dr-tmp-<pid>-<seq>`, and the sweep each save runs over its folder: a dead pid's regular file goes.
-- `durable_file.rs` — the core's one flush policy. Only `dr_image::save_atomically` calls it, so every core writer inherits it; never add a writer-local `sync_all`.
+- `durable_file.rs` — the core's one flush policy: `dr_image::save_atomically` and the tile pool's appends (`tile_pool`) call it; never add a writer-local `sync_all`.
 - `doc.rs` — layer model, compositing/projection, document ops, layer masks. **Full — no new concerns.** A new feature area gets a new module.
 - `document_clone.rs` — byte document deep-copy estimates (pixels, profiles, styles, masks `Arc`-shared; records and names copied) and bounded temporary capacity views for plans.
 - `blend.rs` — `BlendMode` + blend math, source-over/erase primitives, `LUMA_*`, `lum_fixed`, and `composite_source_frozen`, THE frozen-alpha rule every paint path routes through.
@@ -531,6 +531,11 @@ Detail belongs in the source file's own header comment.
 - `bitmap_psd.rs` — colour-mode-0 PSD/PSB: import report, stored-composite open, export report and writer (1 is black).
 - `bitmap_export.rs` — the kept 1-bit PNG/TIFF/BMP export (bit_depth 1 reply), its refusals and plan (2 B/px).
 - `tile_store.rs` — the Phase 13B-1 shared immutable tile store: `TilePlane<S>` over the five retained sample types, fixed 256×256 tiles, edge tiles clipped; the ONLY tile equality.
+- `tile_pool.rs` — KERNEL, 13C-1: the content-addressed pool's packs and index: append, flush (payloads before entries), hash-checked fetch, collection.
+- `tile_pool_codec.rs` — KERNEL, 13C-1: the pool's one key derivation (SHA-256 over type, size, samples), `PoolSample`, the raw/deflate/shuffle-deflate codec.
+- `sha256.rs` — KERNEL leaf, 13C-1: FIPS 180-4 SHA-256, the pool's content key and the skeleton digest.
+- `pool_skeleton.rs` — 13C-1: the skeleton file (a native file's payloads as pool keys: literal, tile and blob segments, a closing digest).
+- `doc_tile_pool.rs` / `ffi_tile_pool.rs` — 13C-1: `DrTilePool`, the byte and typed writes into a pool, the identity memo, the rebuild, `dr_tile_pool_*`.
 - `layer_raster.rs` — Phase 13B-2a's `LayerRaster`, the ONE accessor for byte layer pixels (tiled, private representation): layer pixels, retained-source and warp planes share its identity.
 - `layer_rect.rs` — layer-space rects for the byte and typed rect writers: an edit with a natural bound reads, runs on and writes back only its own rect.
 - `thumbnail_reduce.rs` — the thumbnail REDUCERS: `box_reduced`, `area_split`, `box_reduced_rows`, `gray_resized`.

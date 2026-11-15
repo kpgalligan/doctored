@@ -92,6 +92,17 @@ impl CmykImage {
         Ok(Self::minted(TilePlane::filled(width, height, value)?))
     }
 
+    /// A fresh image over a rebuilt plane (the tile pool's rebuild, 13C-1,
+    /// which only re-encodes it); no admission, as for `PrecisionImage`'s.
+    pub(crate) fn from_tile_plane(plane: TilePlane<CmykSample>) -> Self {
+        Self::minted(plane)
+    }
+
+    /// The plane itself: the tile pool's write keys its tiles (13C-1).
+    pub(crate) fn tile_plane(&self) -> &TilePlane<CmykSample> {
+        &self.plane
+    }
+
     pub fn dimensions(&self) -> (u32, u32) {
         self.plane.dimensions()
     }

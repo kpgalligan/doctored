@@ -254,7 +254,9 @@ pub(crate) fn raster_capacity(dimensions: (u32, u32), total: &mut u64) -> Result
     Ok(bytes)
 }
 
-/// Writes one CMYK raster record's payload (module doc), a row at a time.
+/// Writes one CMYK raster record's payload (module doc): its dimensions,
+/// then [`put_payload`], unless the tile pool's skeleton sink takes the
+/// plane as keys (13C-1).
 pub(crate) fn put_raster(
     out: &mut dyn NativeSink,
     image: &CmykImage,
@@ -265,6 +267,21 @@ pub(crate) fn put_raster(
     for value in [width, height] {
         append(out, &value.to_le_bytes(), bound, job)?;
     }
+    if out.raster(crate::native_stream::RasterRef::Cmyk(image.tile_plane()))? {
+        return Ok(());
+    }
+    put_payload(out, image, bound, job)
+}
+
+/// The u64 length `w · h · 10`, then the CMYKA16 rows, a row at a time: the
+/// payload after a record's dimensions (and the tile pool's rebuild of it).
+pub(crate) fn put_payload(
+    out: &mut dyn NativeSink,
+    image: &CmykImage,
+    bound: u64,
+    job: JobContext<'_>,
+) -> Result<(), String> {
+    let (width, height) = image.dimensions();
     let length = u64::from(width) * u64::from(height) * CMYK_BYTES_PER_PIXEL;
     append(out, &length.to_le_bytes(), bound, job)?;
     let mut row = Vec::with_capacity(width as usize * 10);

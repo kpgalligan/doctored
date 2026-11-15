@@ -143,6 +143,15 @@ pub struct Tile<S: Sample> {
 }
 
 impl<S: Sample> Tile<S> {
+    /// A tile over ready samples (the tile pool's rebuild, 13C-1);
+    /// [`TilePlane::from_tiles`] checks its shape against the plane's.
+    pub(crate) fn new(width: u32, height: u32, samples: Box<[S]>) -> Self {
+        Self {
+            width,
+            height,
+            samples,
+        }
+    }
     pub fn width(&self) -> u32 {
         self.width
     }
@@ -269,6 +278,33 @@ impl<S: Sample> TilePlane<S> {
                     }
                 };
                 tiles.push(tile);
+            }
+        }
+        Ok(Self {
+            width,
+            height,
+            tiles: index_from(tiles),
+        })
+    }
+
+    /// A plane over ready tiles in index order (the tile pool's rebuild,
+    /// 13C-1). Refuses a tile count other than `columns · rows` and a tile
+    /// whose shape or sample count is not its clipped rect's.
+    pub(crate) fn from_tiles(
+        width: u32,
+        height: u32,
+        tiles: Vec<Arc<Tile<S>>>,
+    ) -> Result<Self, String> {
+        sample_count(width, height)?;
+        let (columns, rows) = (width.div_ceil(TILE_EDGE), height.div_ceil(TILE_EDGE));
+        if tiles.len() != (columns * rows) as usize {
+            return Err(mismatch());
+        }
+        for (index, tile) in tiles.iter().enumerate() {
+            let (tx, ty) = (index as u32 % columns, index as u32 / columns);
+            let (_, _, w, h) = clipped(width, height, tx, ty);
+            if (tile.width, tile.height) != (w, h) || tile.samples.len() != (w * h) as usize {
+                return Err(mismatch());
             }
         }
         Ok(Self {

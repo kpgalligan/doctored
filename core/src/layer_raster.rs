@@ -698,6 +698,16 @@ impl LayerRaster {
         self.alpha.get().is_some()
     }
 
+    /// The tiled plane, `None` for the contiguous form (a 0×0 placeholder or
+    /// a tile-store refusal): the tile pool's write (13C-1) keys these tiles
+    /// and writes a contiguous raster's PNG as it always did.
+    pub(crate) fn tile_plane(&self) -> Option<&TilePlane<[u8; 4]>> {
+        match &self.repr {
+            Repr::Tiled(plane) => Some(plane),
+            Repr::Contiguous(_) => None,
+        }
+    }
+
     fn tiled(plane: TilePlane<[u8; 4]>) -> Self {
         Self {
             repr: Repr::Tiled(plane),

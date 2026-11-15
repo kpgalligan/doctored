@@ -2,8 +2,11 @@
 //! flush of the finished temporary before the publishing rename, so the
 //! rename can never reach the disk ahead of the bytes it names, and a
 //! best-effort FULL flush of the parent directory after it, so the rename
-//! itself survives power loss. `dr_image::save_atomically` is the only
-//! caller; every core file writer goes through it.
+//! itself survives power loss. `dr_image::save_atomically` calls it, and
+//! every core file writer goes through that; the one other caller is the
+//! tile pool (`tile_pool`), whose appends to its pack and index files are
+//! barrier-flushed here, payloads before the entries that name them, and
+//! whose directory is flushed here after it creates a file.
 //!
 //! On Apple platforms `fsync(2)` only hands the data to the drive, whose
 //! cache may still reorder or lose it; `F_BARRIERFSYNC` orders it and

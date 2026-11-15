@@ -126,6 +126,7 @@ impl RawTable {
         append(out, &(self.payloads.len() as u32).to_le_bytes(), bound, job)?;
         for payload in &self.payloads {
             append(out, &(payload.len() as u64).to_le_bytes(), bound, job)?;
+            out.begin_blob(payload.len() as u64)?;
             append(out, payload, bound, job)?;
         }
         Ok(())
