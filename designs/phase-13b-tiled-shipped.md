@@ -10,7 +10,7 @@ The settled record of Phase 13B's shipped runs, moved from [phase-13b-tiled-stat
 
 ## Runs
 
-The 31 shipped runs (`Owns` / `Exit` cells and split lineage: archived original; 13B-4's: its contract below):
+The 33 shipped runs (`Owns` / `Exit` cells and split lineage: archived original; 13B-4's: its contract below):
 
 | Run | Commit | Implemented (2026) |
 |---|---|---|
@@ -45,8 +45,8 @@ The 31 shipped runs (`Owns` / `Exit` cells and split lineage: archived original;
 | 13B-3e-4c-2a | `d1f7601` | 09-26 |
 | 13B-3e-4c-2b | `3a7cf21` | 09-26 (closed as a recorded residual) |
 | 13B-4 | `79a5f644` | 11-15 |
-| 13B-5 | — | 11-15 |
-| 13B-6 | — | 11-15 |
+| 13B-5 | `31d4e145`…`1d3c2356` | 11-15 |
+| 13B-6 | `e0a5a628` | 11-15 |
 
 ## 13B-1 contract
 
