@@ -130,10 +130,12 @@ fn the_turn_plans_pin_their_measured_figures() {
     // generated renders) gained its 8 B alpha-fact cell, counted three times.
     // Each is 216 B above that since 13B-4: the record's mask and its warp
     // binding's two mask planes are `GrayRaster`s (32 B each where an `Arc`
-    // was 8 B), 72 B counted three times.
+    // was 8 B), 72 B counted three times. Each is 24 B below that since
+    // 13B-5: the record's description is an `Option<Arc<str>>` (16 B where
+    // an `Option<String>` was 24 B), 8 B counted three times.
     for (edit, figure, floor) in [
-        (rotate(), 404_157_902, 250_982_640),
-        (straighten(), 320_212_898, 251_003_120),
+        (rotate(), 404_157_878, 250_982_640),
+        (straighten(), 320_212_874, 251_003_120),
     ] {
         let plan = doc.geometry_edit_plan(&edit).unwrap();
         assert_eq!(plan.scratch_bytes, figure);
@@ -221,9 +223,9 @@ fn a_channel_heavy_12_mp_straighten_charges_both_channel_planes() {
         // + the 40 channel records' cloned structure (117 bytes each: the
         // record, its spot ink slot and its 32 B tiled plane handle included,
         // and the five-byte name).
-        320_212_898 + 40 * (12_000_000 + 9_720_000) * 5 / 4 + 40 * 117
+        320_212_874 + 40 * (12_000_000 + 9_720_000) * 5 / 4 + 40 * 117
     );
-    assert_eq!(plan.scratch_bytes, 1_406_217_578);
+    assert_eq!(plan.scratch_bytes, 1_406_217_554);
     assert!(plan.scratch_bytes >= 1_325_241_430);
 }
 

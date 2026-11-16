@@ -1152,7 +1152,7 @@ fn ffi_painting_layer_mask_that_changes_nothing_is_null() {
     let doc = ffi_mask_fixture(&dir, "paint-noop", (5, 2), (4, 2), (1, 0));
     let shown = unsafe { dr_doc_adding_layer_mask(doc, 1, MASK_REVEAL_ALL, ptr::null(), 0, 0) };
     assert!(!shown.is_null());
-    let mut overlay = vec![0u8; 5 * 2 * 4];
+    let mut overlay = [0u8; 5 * 2 * 4];
     unsafe {
         assert!(
             dr_doc_painting_layer_mask(shown, 1, overlay.as_ptr(), 5, 2).is_null(),
@@ -1168,7 +1168,7 @@ fn ffi_painting_layer_mask_that_changes_nothing_is_null() {
         );
     }
     // Canvas (0, 0) lies beside the layer (it starts at x = 1).
-    let mut beside = vec![0u8; 5 * 2 * 4];
+    let mut beside = [0u8; 5 * 2 * 4];
     beside[..4].copy_from_slice(&[0, 0, 0, 255]);
     unsafe {
         assert!(

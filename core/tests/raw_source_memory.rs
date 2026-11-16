@@ -160,7 +160,9 @@ fn plans_borrow_large_payload_and_metadata_and_admit_both_owned_copies() {
         "redevelopment plan copied payload/metadata"
     );
     assert_eq!(plan["work_units"], 0);
-    assert!(plan["retained_bytes"].as_u64().unwrap() >= 3 * length as u64);
+    // The payload and ONE description: since 13B-5 `old` and `next` share the
+    // layer's description (`Layer.meta` is an `Arc<str>`), where each held a copy.
+    assert!(plan["retained_bytes"].as_u64().unwrap() >= 2 * length as u64);
     let attached = unsafe {
         dr_doc_attach_raw_source_from(
             &next,
