@@ -12,15 +12,25 @@ extension RasterSelection {
         return try precisionJSON(pointer, error)
     }
 
+    /// `dr_brush_u16`, or `dr_brush_u16_shaped` when `shapes` (one angle and roundness
+    /// pair per dab, brush dynamics' tip shape) is given.
     static func nativeBrush(width: Int, height: Int, request: String, dabs: [Double],
-                            workingLimit: UInt64, otherRetained: UInt64,
+                            shapes: [Double]? = nil, workingLimit: UInt64, otherRetained: UInt64,
                             control: RasterJobControl) throws -> [UInt16] {
         var error: UnsafeMutablePointer<CChar>?
         var output = [UInt16](repeating: 0, count: width * height)
         let ok = dabs.withUnsafeBufferPointer { input in
-            output.withUnsafeMutableBufferPointer {
-                dr_brush_u16(UInt32(width), UInt32(height), request, input.baseAddress,
-                    dabs.count / 4, $0.baseAddress, $0.count, workingLimit, otherRetained, control.ptr, &error)
+            output.withUnsafeMutableBufferPointer { out in
+                guard let shapes else {
+                    return dr_brush_u16(UInt32(width), UInt32(height), request, input.baseAddress,
+                        dabs.count / 4, out.baseAddress, out.count, workingLimit, otherRetained,
+                        control.ptr, &error)
+                }
+                return shapes.withUnsafeBufferPointer { pairs in
+                    dr_brush_u16_shaped(UInt32(width), UInt32(height), request, input.baseAddress,
+                        dabs.count / 4, pairs.baseAddress, out.baseAddress, out.count, workingLimit,
+                        otherRetained, control.ptr, &error)
+                }
             }
         }
         guard ok else { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Native brush coverage failed.")) }

@@ -356,6 +356,7 @@ do {
         ("stroke layer edge", verifyStrokeLayerEdge),
         ("pencil", verifyPencil),
         ("pencil canvas", verifyPencilCanvases),
+        ("brush dynamics", verifyBrushDynamics),
         ("pattern library", verifyPatternLibrary),
         ("pattern fill charge", verifyPatternFillCharge),
         ("behind clear", verifyBehindClear),

@@ -31,6 +31,10 @@ mod source_refusal_fixture;
 #[path = "common/stack_oracle.rs"]
 mod stack_oracle;
 
+#[path = "brush_dynamics.rs"]
+mod brush_dynamics;
+#[path = "brush_shaped_coverage.rs"]
+mod brush_shaped_coverage;
 #[path = "gradient_tool_midpoints.rs"]
 mod gradient_tool_midpoints;
 #[path = "gradient_tool_smoothness.rs"]

@@ -30,11 +30,14 @@ extension AgentServer {
             "blur_stroke", "sharpen_stroke", "smudge_stroke", "sponge_stroke", "history_brush_stroke",
             "art_history_brush_stroke", "background_eraser_stroke"]
         let keys: Set<String> = ["stroke_version", "native_stroke", "pressures", "times", "duration",
-                                 "pressure_size", "pressure_opacity", "airbrush", "aliased"]
+                                 "pressure_size", "pressure_opacity", "airbrush", "aliased",
+                                 "dynamics", "tilts", "rotations"]
         // The brush preset tools' `airbrush` is a stored tip value, not a stroke's.
         guard !keys.isDisjoint(with: arguments.keys), Self.brushPresetsHandlers[tool] == nil else {
             return arguments
         }
+        // Dynamics (the Brush's, Pencil's and Eraser's Dynamics… sheet) on any other tool.
+        try Self.refuseForeignDynamics(tool: tool, arguments: arguments)
         // The Background Eraser's tip keys, refused by name before generation removes them.
         if tool == "background_eraser_stroke" { try Self.refuseBackgroundEraserTipKeys(arguments) }
         let aliased = try aliasedArgument(tool: tool, arguments: arguments)
@@ -60,6 +63,7 @@ extension AgentServer {
             guard !stroke.tip.aliased || Self.aliasedStrokeTools.contains(tool) else {
                 throw ToolError(message: Self.aliasedToolRefusal(tool))
             }
+            try Self.refuseForeignShapes(tool: tool, stroke: stroke)
             // A canonical stroke takes the mirrored UI tool's ceiling too (5,000 px, 200 for
             // the healing and retouch brushes). Upper bound only: a pressure-sized canvas dab
             // goes below the tool's minimum.
@@ -70,9 +74,10 @@ extension AgentServer {
             }
             return arguments
         }
-        // `aliased` (the Pencil) generates version-1 dabs whether or not the call says so.
+        // `aliased` (the Pencil) and `dynamics` generate version-1 dabs whether or not the
+        // call says so.
         let version = NativeBrushStroke.jsonNumber(arguments["stroke_version"])
-            ?? (aliased && arguments["stroke_version"] == nil ? 1 : nil)
+            ?? ((aliased || arguments["dynamics"] != nil) && arguments["stroke_version"] == nil ? 1 : nil)
         guard version == 1, arguments["native_stroke"] == nil else {
             throw ToolError(message: "Generated native strokes require stroke_version=1; unknown versions refuse.")
         }
@@ -123,9 +128,12 @@ extension AgentServer {
         let pressureSize = try flag("pressure_size")
         let pressureOpacity = try flag("pressure_opacity")
         let airbrush = try flag("airbrush")
+        let dynamics = try Self.strokeDynamics(arguments, points: points.count, size: size, tip: tip)
         let stroke = try NativeBrushStrokeSession.generated(points: points, size: CGFloat(size), tip: tip,
             pressures: pressures, times: times, duration: duration, pressureSize: pressureSize,
-            pressureOpacity: pressureOpacity, airbrush: airbrush)
+            pressureOpacity: pressureOpacity, airbrush: airbrush, dynamics: dynamics?.handle,
+            pressureSampled: arguments["pressures"] != nil, tilts: dynamics?.tilts,
+            shaped: dynamics?.shaped ?? false, rotations: dynamics?.rotations)
         var resolved = arguments
         for key in keys { resolved.removeValue(forKey: key) }
         resolved["native_stroke"] = try stroke.canonical

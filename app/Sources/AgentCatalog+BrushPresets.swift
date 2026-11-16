@@ -38,6 +38,9 @@ extension AgentServer {
                   "angle": number("-180–180", "Tip angle in degrees"),
                   "roundness": number("1–100", "Roundness percent"),
                   "airbrush": ["type": "boolean", "default": false],
+                  "dynamics": Self.dynamicsSchema(seed: false).merging(["description":
+                      "The Brush's, Pencil's and Eraser's dynamics (brush_stroke's dynamics without "
+                      + "seed); only those three tools take and list a preset that holds them."]) { $1 },
                   "replace": ["type": "boolean", "default": false]],
                  required: ["name", "hardness", "flow", "spacing", "angle", "roundness"]),
             tool("delete_brush_preset",

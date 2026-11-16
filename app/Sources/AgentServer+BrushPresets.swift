@@ -57,7 +57,7 @@ extension AgentServer {
         }
     }
 
-    /// Mirrors Save Preset…: the six tip values under a name.
+    /// Mirrors Save Preset…: the six tip values (and any dynamics) under a name.
     func saveBrushPreset(_ a: [String: Any]) throws -> String {
         let name = try requiredString(a, "name")
         var values: [String: Any] = [:]
@@ -68,6 +68,8 @@ extension AgentServer {
             values[field] = number
         }
         values["airbrush"] = boolArg(a, "airbrush") ?? false
+        // The Dynamics… sheet's values, which the Brush, Pencil and Eraser take.
+        if let dynamics = a["dynamics"] { values["dynamics"] = dynamics }
         return try brushPresetLibrary {
             let saved = try BrushPresetLibrary.save(name: name, values: values,
                                                     replace: boolArg(a, "replace") ?? false)

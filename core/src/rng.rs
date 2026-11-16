@@ -63,6 +63,12 @@ impl SplitMix64 {
         (self.next_u64() >> 40) as f32 / (1u64 << 24) as f32
     }
 
+    /// Uniform in [0, 1), built from the top 53 bits: every value is an exact
+    /// binary64 (the Art History Brush's and the brush dynamics' draws).
+    pub(crate) fn next_unit_f64(&mut self) -> f64 {
+        (self.next_u64() >> 11) as f64 / (1u64 << 53) as f64
+    }
+
     /// Uniform in `0..n`, or 0 when `n` is 0.
     ///
     /// A plain modulo, so values below `2^64 % n` are very slightly more

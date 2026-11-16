@@ -17,6 +17,8 @@ extension ImageCanvasView {
         // The Art History Brush's clicks are its dabs, as Smudge's are, and the
         // Background Eraser's dabs are where it samples and erases.
         if tool == .artHistoryBrush || tool == .backgroundEraser { return true }
+        // A stroke with brush dynamics is the dabs its stamps resolved to.
+        if strokeWantsDynamics { return true }
         let eligible: Set<EditorTool> = [.brush, .eraser, .dodge, .spotHeal,
             .blurBrush, .sharpenBrush, .sponge, .historyBrush]
         guard eligible.contains(tool) || coverage else { return false }

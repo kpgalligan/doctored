@@ -9,8 +9,17 @@ import Foundation
 /// preset; picking it changes nothing. A preset is identified on the popup
 /// by its VALUES (`matchIndex`), so no two presets may hold the same six
 /// values: the library refuses a save or an import that would repeat one.
+/// A user preset may also hold brush dynamics (`BrushDynamics`), which only the
+/// Brush, the Pencil and the Eraser take: their popups list every preset and match
+/// on the dynamics too, and every other tool's popup lists only the presets
+/// without dynamics (`all(dynamics:)`), so no two listed presets on any tool hold
+/// the same values. The Pencil, whose tip is round, lists only the presets whose
+/// dynamics hold no tip shape (`all(dynamics:shapes:)`), for the same reason.
 struct BrushPreset {
+    /// A file without dynamics is written at 1, so it keeps its bytes; one with
+    /// dynamics at 2 (`dynamicsSchemaVersion`).
     static let schemaVersion = 1
+    static let dynamicsSchemaVersion = 2
 
     let name: String
     let hardness: Double
@@ -19,6 +28,7 @@ struct BrushPreset {
     let angle: Double
     let roundness: Double
     let airbrush: Bool
+    var dynamics: BrushDynamics? = nil
 
     static let builtIns: [BrushPreset] = [
         BrushPreset(
@@ -44,8 +54,14 @@ struct BrushPreset {
     /// Every preset the popup lists: the built-ins, then the user's library
     /// (`BrushPresetLibrary.presets`, cached; the built-ins alone when it
     /// cannot be read).
-    static func all() -> [BrushPreset] {
-        builtIns + BrushPresetLibrary.presets
+    /// `dynamics` false lists only the presets without dynamics, `shapes` false only those
+    /// whose dynamics hold no tip shape (the tool's `takesBrushDynamics` and
+    /// `takesTipShapeDynamics`).
+    static func all(dynamics: Bool = true, shapes: Bool = true) -> [BrushPreset] {
+        let presets = builtIns + BrushPresetLibrary.presets
+        return presets.filter {
+            (dynamics || $0.dynamics == nil) && (shapes || $0.dynamics?.shape == nil)
+        }
     }
 
     /// The popup's preset rows: "Custom" first, then `all()`.
@@ -54,16 +70,22 @@ struct BrushPreset {
     /// The popup row the options currently show: a matching preset's row,
     /// or 0 (Custom). Values compare with a half-unit tolerance so a
     /// preset survives the store's Double round-trip.
-    static func matchIndex(of options: PaintToolOptions, in presets: [BrushPreset]? = nil) -> Int {
-        for (i, preset) in (presets ?? all()).enumerated() where preset.matches(options) {
+    /// `comparesDynamics` is the tool's `takesBrushDynamics`: only those tools
+    /// hold a preset's dynamics, so only they tell two presets apart by them.
+    static func matchIndex(of options: PaintToolOptions, in presets: [BrushPreset]? = nil,
+                           comparesDynamics: Bool = true, shapes: Bool = true) -> Int {
+        for (i, preset) in (presets ?? all(dynamics: comparesDynamics, shapes: shapes)).enumerated()
+        where preset.matches(options, comparesDynamics: comparesDynamics) {
             return i + 1
         }
         return 0
     }
 
-    /// The six values against `options`', each to within half a unit.
-    private func matches(_ options: PaintToolOptions) -> Bool {
-        abs(options.hardness - hardness) < 0.5
+    /// The six values against `options`', each to within half a unit, and the
+    /// dynamics when `comparesDynamics`.
+    private func matches(_ options: PaintToolOptions, comparesDynamics: Bool) -> Bool {
+        (!comparesDynamics || options.dynamics?.normalized == dynamics?.normalized)
+            && abs(options.hardness - hardness) < 0.5
             && abs(options.flow - flow) < 0.5
             && abs(options.spacing - spacing) < 0.5
             && abs(options.angle - angle) < 0.5
@@ -71,10 +93,11 @@ struct BrushPreset {
             && options.airbrush == airbrush
     }
 
-    /// Whether `other` holds this preset's six values (`matchIndex`'s rule),
-    /// which would leave one of the two unreachable on the popup.
+    /// Whether `other` holds this preset's six values and its dynamics
+    /// (`matchIndex`'s rule), which would leave one of the two unreachable on a
+    /// popup that lists both.
     func repeats(_ other: BrushPreset) -> Bool {
-        matches(other.applied(to: PaintToolOptions()))
+        matches(other.applied(to: PaintToolOptions()), comparesDynamics: true)
     }
 
     /// A preset-step key: , (previous) and . (next) wrap through `all()`,
@@ -98,10 +121,11 @@ struct BrushPreset {
     /// The preset one step lands on from the options' current popup row,
     /// through the built-ins and then the user's presets. From Custom, next
     /// is the first preset and previous the last.
-    static func stepped(from options: PaintToolOptions, _ step: Step) -> BrushPreset {
-        let presets = all()
+    static func stepped(from options: PaintToolOptions, _ step: Step,
+                        comparesDynamics: Bool = true, shapes: Bool = true) -> BrushPreset {
+        let presets = all(dynamics: comparesDynamics, shapes: shapes)
         let count = presets.count
-        let row = matchIndex(of: options)
+        let row = matchIndex(of: options, in: presets, comparesDynamics: comparesDynamics)
         switch step {
         case .first:
             return presets[0]
@@ -143,36 +167,59 @@ struct BrushPreset {
         guard let airbrush = NativeBrushStroke.jsonBoolean(values["airbrush"]) else {
             throw DoctoredCoreError(message: "A brush preset's airbrush must be true or false.")
         }
+        var dynamics: BrushDynamics?
+        if let raw = values["dynamics"] {
+            guard let object = raw as? [String: Any] else {
+                throw DoctoredCoreError(message: "A brush preset's dynamics must be an object.")
+            }
+            dynamics = try BrushDynamics(json: object).normalized
+        }
         return BrushPreset(name: normalized, hardness: numbers["hardness"] ?? 100,
             flow: numbers["flow"] ?? 100, spacing: numbers["spacing"] ?? 25,
-            angle: numbers["angle"] ?? 0, roundness: numbers["roundness"] ?? 100, airbrush: airbrush)
+            angle: numbers["angle"] ?? 0, roundness: numbers["roundness"] ?? 100, airbrush: airbrush,
+            dynamics: dynamics)
     }
 
     /// The preset's library file, and one entry of a preset file.
     var json: [String: Any] {
-        ["schema_version": Self.schemaVersion, "name": name, "hardness": hardness, "flow": flow,
-         "spacing": spacing, "angle": angle, "roundness": roundness, "airbrush": airbrush]
+        var out: [String: Any] = ["schema_version": Self.schemaVersion, "name": name,
+            "hardness": hardness, "flow": flow, "spacing": spacing, "angle": angle,
+            "roundness": roundness, "airbrush": airbrush]
+        if let dynamics {
+            out["schema_version"] = Self.dynamicsSchemaVersion
+            out["dynamics"] = dynamics.json
+        }
+        return out
     }
 
     /// The MCP row: `json`'s values without the schema.
     var fields: [String: Any] {
-        ["name": name, "hardness": hardness, "flow": flow, "spacing": spacing, "angle": angle,
-         "roundness": roundness, "airbrush": airbrush]
+        var out: [String: Any] = ["name": name, "hardness": hardness, "flow": flow,
+            "spacing": spacing, "angle": angle, "roundness": roundness, "airbrush": airbrush]
+        if let dynamics { out["dynamics"] = dynamics.json }
+        return out
     }
 
-    /// Strict: exactly `json`'s keys, `schema_version` 1, a normalized name and
-    /// values `validated` accepts. Anything else throws, and the library lists
-    /// the file as one `invalid_schema` row.
+    /// Strict: exactly `json`'s keys, `schema_version` 1 (or 2 with
+    /// `dynamics`), a normalized name and values `validated` accepts. Anything
+    /// else throws, and the library lists the file as one `invalid_schema` row.
     static func decode(_ object: [String: Any]) throws -> BrushPreset {
-        guard Set(object.keys) == Set(["schema_version", "name"] + fieldNames),
-              NativeBrushStroke.jsonNumber(object["schema_version"]) == Double(schemaVersion),
+        let version = NativeBrushStroke.jsonNumber(object["schema_version"])
+        let keys = Set(["schema_version", "name"] + fieldNames)
+        guard (version == Double(schemaVersion) && Set(object.keys) == keys)
+                || (version == Double(dynamicsSchemaVersion) && Set(object.keys) == keys.union(["dynamics"])),
               let name = object["name"] as? String else {
             throw DoctoredCoreError(message: "A brush preset holds schema_version 1, name, "
-                + fieldNames.joined(separator: ", ") + " and nothing else.")
+                + fieldNames.joined(separator: ", ")
+                + " and nothing else, or schema_version 2 with dynamics beside them.")
         }
         let preset = try validated(name: name, values: object)
         guard preset.name == name else {
             throw DoctoredCoreError(message: "A brush preset's name must be normalized.")
+        }
+        guard version == Double(schemaVersion) || preset.dynamics != nil else {
+            throw DoctoredCoreError(message: "A schema_version 2 brush preset holds dynamics that differ "
+                + "from the defaults.")
         }
         return preset
     }
@@ -187,6 +234,7 @@ struct BrushPreset {
         out.angle = angle
         out.roundness = roundness
         out.airbrush = airbrush
+        out.dynamics = dynamics
         return out
     }
 }

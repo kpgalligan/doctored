@@ -665,7 +665,7 @@ extension EditorViewController {
         var clusters: [OptionCluster] = [
             // The built-in and user presets and the library's four actions
             // (EditorViewController+BrushPresets.swift).
-            OptionCluster([brushPresetDescriptor(read: read, write: write)]),
+            OptionCluster([brushPresetDescriptor(tool: tool, read: read, write: write)]),
             OptionCluster([
                 OptionDescriptor(
                     id: "paint.size", microLabel: "Size", overflowLabel: "Size",
@@ -964,10 +964,12 @@ extension EditorViewController {
                     id: "paint.pressure", overflowLabel: "Pressure size",
                     kind: .checkbox(
                         label: "Pressure size",
-                        get: { read().pressureSize },
+                        // The checkbox is Pen Pressure; ticking or clearing it leaves Pen Tilt
+                        // (BrushDynamics.swift).
+                        get: { read().sizeControl == .pressure },
                         set: { [weak self] value in
                             var options = read()
-                            options.pressureSize = value
+                            options.sizeControl = value ? .pressure : .off
                             write(options)
                             self?.syncCanvasPaintState()
                         })),
@@ -986,12 +988,14 @@ extension EditorViewController {
         ])
         clusters.append(OptionCluster([
             OptionDescriptor(id: "paint.pressureOpacity", overflowLabel: "Pressure opacity",
-                kind: .checkbox(label: "Pressure opacity", get: { read().pressureOpacity ?? false },
+                kind: .checkbox(label: "Pressure opacity", get: { read().opacityControl == .pressure },
                     set: { [weak self] value in
-                        var options = read(); options.pressureOpacity = value; write(options)
+                        var options = read(); options.opacityControl = value ? .pressure : .off
+                        write(options)
                         self?.syncCanvasPaintState()
                     }))
         ]))
+        if let dynamics = brushDynamicsCluster(tool) { clusters.append(dynamics) }
         return clusters
     }
 

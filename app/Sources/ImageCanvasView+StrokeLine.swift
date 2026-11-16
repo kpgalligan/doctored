@@ -40,9 +40,12 @@ extension ImageCanvasView {
         }
         // Straight past the spline, whose one-sample lag would hold the chord back.
         renderStroke(
-            through: [StrokeVertex(point: point, pressure: strokeCursorPressure)], in: context)
+            through: [StrokeVertex(point: point, pressure: strokeCursorPressure,
+                                   tilt: strokePen.eventTilt, rotation: strokePen.eventRotation)],
+            in: context)
         strokeCursor = point
-        strokeSpline.begin(at: point, pressure: strokeCursorPressure)
+        strokeSpline.begin(at: point, pressure: strokeCursorPressure, tilt: strokePen.eventTilt,
+                           rotation: strokePen.eventRotation)
         emitStrokeUpdate()
     }
 }

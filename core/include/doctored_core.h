@@ -7842,7 +7842,17 @@ bool dr_selection_u16(uint32_t width, uint32_t height, const char *request,
  * NULL with selection_length 0 or width*height bytes that multiply the coverage,
  * out holds width*height*4 bytes. Per pixel, each step rounded half up once:
  * a = round(coverage*255/65535), a = round(a*selection/255), and each colour
- * byte round(ink*a/255). Errors/cancellation leave out untouched. */
+ * byte round(ink*a/255). Errors/cancellation leave out untouched.
+ *
+ * dr_brush_u16_shaped is dr_brush_u16 with one (angle_degrees, roundness) pair
+ * per dab (brush dynamics' tip shape): shapes holds dab_count*2 doubles, each
+ * dab drawn at its own angle and roundness instead of the request's, with the
+ * same plan, accumulation and one quantization; shapes equal to the request's
+ * give dr_brush_u16's output bit for bit. It admits dab_count*16 bytes beyond
+ * dr_brush_u16's own. Refusals (err_out, out untouched): NULL shapes or a pair
+ * out of range or not finite ("native brush shapes hold an angle from -180 to
+ * 180 and a roundness from 0.01 to 1 per dab"); a pixel or aliased request
+ * ("native brush shapes require a stamped tip that is not aliased"). */
 char *dr_brush_u16_plan(uint32_t width, uint32_t height, const char *request,
     const double *dabs, size_t dab_count, uint64_t limit,
     uint64_t other_retained, char **err_out);
@@ -7850,11 +7860,58 @@ bool dr_brush_u16(uint32_t width, uint32_t height, const char *request,
     const double *dabs, size_t dab_count, uint16_t *out, size_t out_length,
     uint64_t limit, uint64_t other_retained, const DrJobControl *control,
     char **err_out);
+bool dr_brush_u16_shaped(uint32_t width, uint32_t height, const char *request,
+    const double *dabs, size_t dab_count, const double *shapes, uint16_t *out,
+    size_t out_length, uint64_t limit, uint64_t other_retained,
+    const DrJobControl *control, char **err_out);
 bool dr_brush_overlay_rgba8(uint32_t width, uint32_t height, const char *request,
     const double *dabs, size_t dab_count, const uint8_t *rgb,
     const uint8_t *selection, size_t selection_length,
     uint8_t *out, size_t out_length, uint64_t limit, uint64_t other_retained,
     const DrJobControl *control, char **err_out);
+
+/* Brush dynamics (ffi_brush_dynamics.rs; the rule is brush_dynamics.rs's
+ * module doc and designs/brush-dynamics.md). An immutable handle, so a walk
+ * parses once.
+ *
+ * dr_brush_dynamics_create parses a strict request of at most 4096 bytes:
+ * {"version":1,"seed":0..4294967295 (0),"size":R,"opacity":R,
+ *  "scatter":{"amount":0..10 (0),"both_axes":bool (false),"count":1..16 (1),
+ *  "count_jitter":0..1 (0)},
+ *  "tip":{"angle_degrees":-180..180 (0),"roundness":0.01..1 (1)},
+ *  "angle":{"control":"off"|"rotation"|"tilt"|"direction" (off),"jitter":0..1 (0)},
+ *  "roundness":{"control":"off"|"pressure"|"tilt" (off),"minimum":0..1 (0),
+ *  "jitter":0..1 (0)}}, every section optional, with
+ * R = {"control":"off"|"pressure"|"tilt" (off),"curve":[[x,y],...] (2..16
+ * points in 0..1, x strictly increasing from 0 to 1; absent the identity),
+ * "minimum":0..1 (0),"jitter":0..1 (0)}. NULL request returns NULL with
+ * err_out untouched; a refusal returns NULL with err_out set. Free with
+ * dr_brush_dynamics_free (NULL is a no-op).
+ *
+ * dr_brush_dynamics_nominal writes the nominal diameter max(1, size*f_size)
+ * and deposit factor f_opacity to out2[0..2]: f is 1 for control off or a NaN
+ * sample, else minimum + (1 - minimum)*C(v), v the pressure or
+ * min(1, hypot(tilt_x, tilt_y)). False with out2 untouched on NULL or a size
+ * that is not a finite number at least 0.
+ *
+ * dr_brush_dynamics_dabs resolves nominal stamp `index` into its dabs: sample
+ * is 11 doubles (x, y, size, pressure, tilt_x, tilt_y, dir_x, dir_y,
+ * rotation_degrees, heading_x, heading_y; NaN pressure, tilt or rotation: no
+ * sample; a zero or non-finite direction or heading: none), and each dab
+ * writes 6 doubles to out (x, y, diameter, deposit factor, angle_degrees in
+ * (-180, 180], roundness in 0.01..1; angle 0 and roundness 1 without the tip
+ * shape sections). Each is seeded positionally by (seed, index, dab), so a
+ * stamp resolves the same alone or inside a walk; jitter only shrinks a dab.
+ * Returns the dabs written (1..16); 0 with out untouched on NULL, sample_len
+ * other than 11, out_capacity (doubles) below 6 * the scatter count, or a
+ * non-finite position or size. */
+typedef struct DrBrushDynamics DrBrushDynamics;
+DrBrushDynamics *dr_brush_dynamics_create(const char *request, char **err_out);
+void dr_brush_dynamics_free(DrBrushDynamics *dynamics);
+bool dr_brush_dynamics_nominal(const DrBrushDynamics *dynamics, double size,
+    double pressure, double tilt_x, double tilt_y, double *out2);
+size_t dr_brush_dynamics_dabs(const DrBrushDynamics *dynamics, uint64_t index,
+    const double *sample, size_t sample_len, double *out, size_t out_capacity);
 
 /* The retouch brushes (ffi_retouch_brush.rs). Pure: each returns a new
  * document, or NULL when nothing would change.

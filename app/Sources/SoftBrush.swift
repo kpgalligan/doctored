@@ -277,13 +277,15 @@ enum SoftBrush {
             context.setAlpha(CGFloat(stroke.dabs[i + 3]))
             let point = CGPoint(x: stroke.dabs[i], y: stroke.dabs[i + 1])
             let diameter = CGFloat(stroke.dabs[i + 2])
+            // The stroke's tip, at the dab's own angle and roundness when it has a tip shape.
+            let tip = stroke.tip(forDab: i / 4)
             switch ink {
             case .color:
                 if let dab { stamp(dab, in: context, at: point,
-                                   diameter: diameter, tip: stroke.tip) }
+                                   diameter: diameter, tip: tip) }
             case .source(let image):
                 clipDab(in: context, at: point, diameter: diameter,
-                        tip: stroke.tip, mask: dab)
+                        tip: tip, mask: dab)
                 // The main context is top-left flipped. Match the interactive
                 // clone stroke's local un-flip so the sampled plate stays upright.
                 context.translateBy(x: 0, y: CGFloat(image.height))

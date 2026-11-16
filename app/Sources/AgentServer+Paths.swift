@@ -478,7 +478,7 @@ extension AgentServer {
     /// timing; a path stroke takes its geometry from the path.
     private static let foreignStrokeKeys = [
         "points", "stroke_version", "native_stroke", "pressures", "times", "duration",
-        "pressure_size", "pressure_opacity", "airbrush",
+        "pressure_size", "pressure_opacity", "airbrush", "dynamics", "tilts", "rotations",
     ]
 
     /// Paths panel ▸ Stroke Path: the Brush or the Eraser run along every

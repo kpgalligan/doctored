@@ -1,6 +1,6 @@
 //! Standalone bounded native brush geometry transfer, with atomic u16 output
 //! and, for the byte path, the same coverage as an RGBA8 paint overlay.
-use crate::brush_coverage::{BrushPlan, BrushRequest, MAX_BRUSH_DABS};
+use crate::brush_coverage::{BrushPlan, BrushRequest, MAX_BRUSH_DABS, SHAPES_REFUSAL};
 use crate::ffi_util::{borrow_cstr_bounded, fallible_op};
 use crate::job_control::{DrJobControl, JobContext};
 use crate::precision_image::{admit, pixel_count, BOOKKEEPING_BYTES};
@@ -112,6 +112,62 @@ pub unsafe extern "C" fn dr_brush_u16(
                     return Err("native brush output length differs from canvas".into());
                 }
                 let output = request.rasterize((width, height), dabs, job)?;
+                job.report(1., 5)?;
+                ptr::copy_nonoverlapping(output.as_ptr(), out, plan.output_samples);
+                Ok(())
+            },
+            |()| true,
+        )
+    }
+}
+/// `dr_brush_u16` with one `(angle_degrees, roundness)` pair per dab in
+/// `shapes` (`count * 2` doubles; brush dynamics' tip shape): each dab drawn at
+/// its own angle and roundness, the plan, accumulation and one quantization
+/// unchanged, and `count * 16` bytes admitted beyond `dr_brush_u16`'s own.
+/// Refuses NULL `shapes`, a pair out of range or not finite, and a pixel or
+/// aliased request (`BrushRequest::check_shapes`); errors and cancellation
+/// leave `out` unchanged.
+/// # Safety
+/// text/dabs follow the plan contract; shapes NULL or readable/aligned for
+/// count*2 doubles; out NULL or writable/aligned for out_len u16 and
+/// nonaliasing inputs; control NULL/live; err_out NULL/writable.
+#[no_mangle]
+pub unsafe extern "C" fn dr_brush_u16_shaped(
+    width: u32,
+    height: u32,
+    text: *const c_char,
+    dabs: *const f64,
+    count: usize,
+    shapes: *const f64,
+    out: *mut u16,
+    out_len: usize,
+    limit: u64,
+    other: u64,
+    control: *const DrJobControl,
+    err_out: *mut *mut c_char,
+) -> bool {
+    unsafe {
+        fallible_op(
+            err_out,
+            "rasterizing native brush",
+            false,
+            || {
+                let control = control.as_ref();
+                let _run = control.map(DrJobControl::begin).transpose()?;
+                let job = control.map_or(JobContext::NONE, JobContext::new);
+                if shapes.is_null() {
+                    return Err(SHAPES_REFUSAL.into());
+                }
+                let (request, dabs, plan) =
+                    request(width, height, text, dabs, count, limit, other, job)?;
+                let scratch = plan.scratch_bytes + count as u64 * 16;
+                admit(0, scratch, other, limit)?;
+                job.reserve(scratch)?;
+                if out.is_null() || out_len != plan.output_samples {
+                    return Err("native brush output length differs from canvas".into());
+                }
+                let shapes = std::slice::from_raw_parts(shapes, count * 2);
+                let output = request.rasterize_shaped((width, height), dabs, Some(shapes), job)?;
                 job.report(1., 5)?;
                 ptr::copy_nonoverlapping(output.as_ptr(), out, plan.output_samples);
                 Ok(())

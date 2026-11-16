@@ -110,6 +110,10 @@ struct PaintToolOptions: Codable, Equatable {
     /// Optional for compatibility with existing saved tool-option blobs.
     var pressureOpacity: Bool? = nil
     var airbrush = false
+    /// Brush, Pencil and Eraser only: the brush dynamics (`BrushDynamics.swift`). nil is
+    /// none, and every default-valued set is stored as nil; every other tool's is pinned
+    /// nil (`ToolOptionsStore.paintOptions`). Optional so earlier blobs keep decoding.
+    var dynamics: BrushDynamics?
     // Dodge / Burn only.
     var burn = false
     /// 0 shadows, 1 midtones, 2 highlights.
@@ -620,7 +624,18 @@ final class ToolOptionsStore {
         default: return nil
         }
         options.size = min(max(options.size, tool.minimumBrushSize), tool.maximumBrushSize)
+        options.dynamics = Self.pinnedDynamics(options.dynamics, for: tool)
         return options
+    }
+
+    /// A tool's dynamics as stored and read: normalized, nil for every tool that takes
+    /// none (`EditorTool.takesBrushDynamics`), and without a tip shape on a tool that takes
+    /// none (`takesTipShapeDynamics`: the Pencil's tip is round), whatever a preset or a
+    /// blob brought.
+    static func pinnedDynamics(_ dynamics: BrushDynamics?, for tool: EditorTool) -> BrushDynamics? {
+        guard tool.takesBrushDynamics, var out = dynamics else { return nil }
+        if !tool.takesTipShapeDynamics { out.shape = nil }
+        return out.normalized
     }
 
     /// The Pencil's options with its tip pinned: hardness and flow 100, the
@@ -654,6 +669,7 @@ final class ToolOptionsStore {
     func setPaintOptions(_ options: PaintToolOptions, for tool: EditorTool) {
         var options = options
         options.size = min(max(options.size, tool.minimumBrushSize), tool.maximumBrushSize)
+        options.dynamics = Self.pinnedDynamics(options.dynamics, for: tool)
         switch tool {
         case .brush: brush = options
         case .eraser: eraser = options

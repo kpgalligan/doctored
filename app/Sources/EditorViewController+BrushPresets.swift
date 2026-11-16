@@ -14,23 +14,25 @@ extension EditorViewController {
 
     /// The popup's descriptor for `paintClusters`. Presenting the bar re-reads
     /// the library, which is how another instance's writes arrive.
-    func brushPresetDescriptor(read: @escaping () -> PaintToolOptions,
+    func brushPresetDescriptor(tool: EditorTool, read: @escaping () -> PaintToolOptions,
                                write: @escaping (PaintToolOptions) -> Void) -> OptionDescriptor {
+        let dynamics = tool.takesBrushDynamics
         BrushPresetLibrary.reload()
-        let presets = BrushPreset.all()
+        let presets = BrushPreset.all(dynamics: dynamics, shapes: tool.takesTipShapeDynamics)
         let items = ["Custom"] + presets.map(\.name) + [OptionPopupControl.separatorTitle]
             + Self.presetActions
         return OptionDescriptor(
             id: "paint.preset", overflowLabel: "Preset",
             kind: .popup(
                 width: 100, items: items,
-                get: { BrushPreset.matchIndex(of: read(), in: presets) },
+                get: { BrushPreset.matchIndex(of: read(), in: presets, comparesDynamics: dynamics) },
                 set: { [weak self] index in
-                    self?.brushPresetRowChosen(index, presets: presets, read: read, write: write)
+                    self?.brushPresetRowChosen(index, presets: presets, dynamics: dynamics,
+                                               read: read, write: write)
                 }))
     }
 
-    private func brushPresetRowChosen(_ index: Int, presets: [BrushPreset],
+    private func brushPresetRowChosen(_ index: Int, presets: [BrushPreset], dynamics: Bool,
                                       read: () -> PaintToolOptions,
                                       write: (PaintToolOptions) -> Void) {
         // End any live field edit FIRST: a field editor skips value refreshes
@@ -47,7 +49,7 @@ extension EditorViewController {
         switch index - presets.count - 2 {
         case 0: saveBrushPreset(read())
         case 1:
-            let row = BrushPreset.matchIndex(of: read(), in: presets)
+            let row = BrushPreset.matchIndex(of: read(), in: presets, comparesDynamics: dynamics)
             deleteBrushPreset(row > BrushPreset.builtIns.count ? presets[row - 1].name : nil)
         case 2: importBrushPresets()
         case 3: exportBrushPresets()
@@ -60,8 +62,8 @@ extension EditorViewController {
         let alert = NSAlert()
         alert.messageText = "Save Brush Preset"
         alert.informativeText = "A preset keeps the tip — hardness, flow, spacing, angle, roundness "
-            + "and airbrush — not the size or opacity. It is a preference: saving one changes no "
-            + "picture and adds no undo step."
+            + "and airbrush, and the Brush's, Pencil's or Eraser's dynamics — not the size or "
+            + "opacity. It is a preference: saving one changes no picture and adds no undo step."
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
         DSField.style(field)
         field.placeholderString = "Preset name"
@@ -79,10 +81,13 @@ extension EditorViewController {
         }
     }
 
-    /// The six tip values of `options`, as a preset holds them.
+    /// The six tip values of `options`, and its dynamics, as a preset holds them.
     static func brushPresetValues(_ options: PaintToolOptions) -> [String: Any] {
-        ["hardness": options.hardness, "flow": options.flow, "spacing": options.spacing,
-         "angle": options.angle, "roundness": options.roundness, "airbrush": options.airbrush]
+        var values: [String: Any] = ["hardness": options.hardness, "flow": options.flow,
+            "spacing": options.spacing, "angle": options.angle, "roundness": options.roundness,
+            "airbrush": options.airbrush]
+        if let dynamics = options.dynamics?.normalized { values["dynamics"] = dynamics.json }
+        return values
     }
 
     /// Delete Preset…: the user preset the tip matches; any other row beeps.

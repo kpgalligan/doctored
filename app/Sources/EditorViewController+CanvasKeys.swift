@@ -30,7 +30,9 @@ extension EditorViewController {
     /// the way the options bar's preset popup does (size and opacity kept).
     func brushPresetKeyStepped(_ step: BrushPreset.Step) {
         guard var paint = ToolOptionsStore.shared.paintOptions(for: currentTool) else { return }
-        paint = BrushPreset.stepped(from: paint, step).applied(to: paint)
+        paint = BrushPreset.stepped(from: paint, step,
+                                    comparesDynamics: currentTool.takesBrushDynamics,
+                                    shapes: currentTool.takesTipShapeDynamics).applied(to: paint)
         ToolOptionsStore.shared.setPaintOptions(paint, for: currentTool)
         syncCanvasPaintState()
         optionsBar.refreshValues()

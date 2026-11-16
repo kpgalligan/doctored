@@ -618,6 +618,20 @@ fn brush_refusals_and_new_exports_null_sweep_leave_output_untouched() {
             ptr::null(),
             ptr::null_mut()
         ));
+        assert!(!dr_brush_u16_shaped(
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null_mut(),
+            0,
+            LIMIT,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        ));
     }
     let t = text(brush_request(0., false));
     let dabs = [0.5, 0.5, 1., 1.];

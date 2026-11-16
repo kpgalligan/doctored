@@ -458,6 +458,9 @@ final class ImageCanvasView: NSView {
     var brushPressureOpacity = false
     var nativeBrushEnabled = false
     var nativeStrokeSession: NativeBrushStrokeSession?
+    /// The Brush's, Pencil's or Eraser's dynamics (`ImageCanvasView+BrushDynamics.swift`).
+    var brushDynamics: BrushDynamics?
+    var strokePen = StrokePenState()
     var preparedByteStroke: PreparedBytePaintStroke?
     var preparedByteQuickMask: QuickMaskStroke?
     var strokeByteSelection: CanvasSelection?
@@ -1752,6 +1755,7 @@ final class ImageCanvasView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        latchPen(event)
         if puppetWarpMouseDown(event) { return }
         if perspectiveWarpMouseDown(event) { return }
         guard canBeginToolGesture?(tool) != false else { NSSound.beep(); return }
@@ -2076,6 +2080,7 @@ final class ImageCanvasView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        latchPen(event)
         if puppetWarpMouseDragged(event) { return }
         if perspectiveWarpMouseDragged(event) { return }
         let raw = convert(event.locationInWindow, from: nil)
@@ -2569,7 +2574,7 @@ final class ImageCanvasView: NSView {
             || (nativeStrokeSession != nil && brushSize > 1)
             || ((strokeUsesPressure || brushAirbrush) && brushSize > 1)
         // A refused dab image cancels the stroke; `cancelStroke` unwinds only an active one.
-        do { try admitDabImages(diameter: brushSize) }
+        do { try attachStrokeDynamics(pressure: pressure); try admitDabImages(diameter: brushSize) }
         catch { strokeActive = true; cancelStroke(); NSApp.presentError(error); return }
         if tool == .clone || tool == .heal {
             if SoftBrush.isSoft(hardness: brushHardness, size: brushSize) {
@@ -2596,7 +2601,8 @@ final class ImageCanvasView: NSView {
         strokeLastPressure = pressure ?? 1
         strokeCursor = point
         strokeCursorPressure = pressure ?? 1
-        strokeSpline.begin(at: point, pressure: pressure ?? 1)
+        strokeSpline.begin(at: point, pressure: pressure ?? 1, tilt: strokePen.lastTilt,
+                           rotation: strokePen.lastRotation)
         if tool == .clone || tool == .heal {
             // Latched here so an agent edit landing mid-drag cannot change
             // what is being cloned; the offset is the classic aligned-clone
@@ -2620,7 +2626,8 @@ final class ImageCanvasView: NSView {
             alignedCloneGeometry = strokeCloneGeometry
             stampCloneDab(in: context, at: point, pressure: strokeLastPressure)
         } else if let dab = strokeSoftDab {
-            stampSoftDab(dab, in: context, at: point, pressure: strokeLastPressure)
+            stampSoftDab(dab, in: context, at: point, pressure: strokeLastPressure, tilt: strokePen.lastTilt,
+                         rotation: strokePen.lastRotation)
         } else {
             // Starting dot so a plain click leaves a mark.
             nativeStrokeSession?.stamp(at: point, diameter: brushSize, pressure: strokeLastPressure)
@@ -2647,7 +2654,8 @@ final class ImageCanvasView: NSView {
         if tool == .clone || tool == .heal {
             stampCloneDab(in: context, at: strokeCursor, pressure: strokeCursorPressure)
         } else if let dab = strokeSoftDab {
-            stampSoftDab(dab, in: context, at: strokeCursor, pressure: strokeCursorPressure)
+            stampSoftDab(dab, in: context, at: strokeCursor, pressure: strokeCursorPressure,
+                         tilt: strokePen.eventTilt, rotation: strokePen.eventRotation)
         } else if nativeStrokeSession != nil {
             stampNativePixelAirbrush(in: context, at: strokeCursor, pressure: strokeCursorPressure)
         } else {
@@ -2687,7 +2695,8 @@ final class ImageCanvasView: NSView {
         // flick (drags arrive at most once per frame), so every other
         // stroke renders through the spline, one sample behind the cursor;
         // endStroke flushes the tail span.
-        let vertices = strokeSpline.add(point, pressure: strokeCursorPressure)
+        let vertices = strokeSpline.add(point, pressure: strokeCursorPressure, tilt: strokePen.eventTilt,
+                                        rotation: strokePen.eventRotation)
         guard !vertices.isEmpty else { return }
         renderStroke(through: vertices, in: context)
         emitStrokeUpdate()
@@ -2704,11 +2713,11 @@ final class ImageCanvasView: NSView {
         guard var from = strokeLastPoint, !vertices.isEmpty else { return }
         recordedStrokePoints.append(contentsOf: vertices.map { $0.point })
         if tool == .clone || tool == .heal || strokeSoftDab != nil {
-            var pressure = strokeLastPressure
+            var pressure = strokeLastPressure, tilt = strokePen.lastTilt, rotation = strokePen.lastRotation
             for vertex in vertices {
                 var distance = hypot(vertex.point.x - from.x, vertex.point.y - from.y)
                 var spacing = SoftBrush.spacing(
-                    for: dabDiameter(pressure), percent: strokeTip.spacingPercent)
+                    for: dabDiameter(pressure, tilt: tilt), percent: strokeTip.spacingPercent)
                 while distance >= spacing {
                     if nativeStrokeSession?.acceptsInk == false { return }
                     let step = spacing / distance
@@ -2716,18 +2725,23 @@ final class ImageCanvasView: NSView {
                         x: from.x + (vertex.point.x - from.x) * step,
                         y: from.y + (vertex.point.y - from.y) * step)
                     pressure += (vertex.pressure - pressure) * step
+                    tilt = StrokePenState.mix(tilt, vertex.tilt, step)
+                    rotation = StrokeVertex.mixRotation(rotation, vertex.rotation, step)
                     if let dab = strokeSoftDab {
-                        stampSoftDab(dab, in: context, at: from, pressure: pressure)
+                        stampSoftDab(dab, in: context, at: from, pressure: pressure, tilt: tilt,
+                                     rotation: rotation)
                     } else {
                         stampCloneDab(in: context, at: from, pressure: pressure)
                     }
                     distance = hypot(vertex.point.x - from.x, vertex.point.y - from.y)
                     spacing = SoftBrush.spacing(
-                        for: dabDiameter(pressure), percent: strokeTip.spacingPercent)
+                        for: dabDiameter(pressure, tilt: tilt), percent: strokeTip.spacingPercent)
                 }
             }
             strokeLastPoint = from
             strokeLastPressure = pressure
+            strokePen.lastTilt = tilt
+            strokePen.lastRotation = rotation
         } else {
             context.move(to: from)
             for vertex in vertices {
@@ -2741,8 +2755,9 @@ final class ImageCanvasView: NSView {
 
     /// The dab's diameter at `pressure`: a pressure-tracking stroke scales
     /// the tip (floored at 1 px); everything else stamps at brush size.
-    private func dabDiameter(_ pressure: CGFloat) -> CGFloat {
-        strokeUsesPressure ? max(brushSize * min(max(pressure, 0), 1), 1) : brushSize
+    private func dabDiameter(_ pressure: CGFloat, tilt: CGVector = StrokeVertex.noTilt) -> CGFloat {
+        dynamicsDabDiameter(pressure, tilt: tilt)
+            ?? (strokeUsesPressure ? max(brushSize * min(max(pressure, 0), 1), 1) : brushSize)
     }
 
     /// Stamps the clone snapshot through a round dab at `point`: the whole
@@ -2775,8 +2790,11 @@ final class ImageCanvasView: NSView {
     /// tip's rotation and roundness, scaled by pressure when the stroke
     /// tracks it.
     private func stampSoftDab(
-        _ dab: CGImage, in context: CGContext, at point: CGPoint, pressure: CGFloat = 1
+        _ dab: CGImage, in context: CGContext, at point: CGPoint, pressure: CGFloat = 1,
+        tilt: CGVector = StrokeVertex.noTilt, rotation: CGFloat = .nan
     ) {
+        if stampDynamicsDabs(dab, in: context, at: point, pressure: pressure, tilt: tilt,
+                             rotation: rotation) { return }
         // The Pencil's dab lands snapped, where its session records it.
         let (point, diameter) = strokeTip.aliased
             ? NativeBrushStroke.aliasedGeometry(point, diameter: dabDiameter(pressure))

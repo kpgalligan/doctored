@@ -10,7 +10,7 @@ enum BrushPresetCodec: PreferenceLibraryCodec {
     static let directoryName = "Doctored/Brush Presets"
     static let maximumEntries = 256
     static let maximumFileBytes = 4096
-    static let schemaVersions = BrushPreset.schemaVersion...BrushPreset.schemaVersion
+    static let schemaVersions = BrushPreset.schemaVersion...BrushPreset.dynamicsSchemaVersion
     static let didChange = Notification.Name("BrushPresetLibraryDidChange")
 
     static func name(of item: BrushPreset) -> String { item.name }
@@ -58,7 +58,7 @@ enum BrushPresetLibrary {
         try Library.listing()
     }
 
-    /// Saves the six values under `name`. Refuses a built-in's name, a name in
+    /// Saves the six values (and any `dynamics`) under `name`. Refuses a built-in's name, a name in
     /// use (unless `replace`), and values another preset already holds: the
     /// popup finds a preset by its values, so a repeat could never be chosen.
     @discardableResult
@@ -148,7 +148,8 @@ enum BrushPresetLibrary {
                 try refuseRepeat(of: decoded, in: listed)
                 let preset = BrushPreset(name: freeName(decoded.name, among: listed),
                     hardness: decoded.hardness, flow: decoded.flow, spacing: decoded.spacing,
-                    angle: decoded.angle, roundness: decoded.roundness, airbrush: decoded.airbrush)
+                    angle: decoded.angle, roundness: decoded.roundness, airbrush: decoded.airbrush,
+                    dynamics: decoded.dynamics)
                 try Library.save(preset)
                 listed.append(preset)
                 result.imported.append(preset.name)

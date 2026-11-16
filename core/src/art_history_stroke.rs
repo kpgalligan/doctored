@@ -349,9 +349,9 @@ pub(crate) fn dab_bound(req: &ArtHistoryRequest, dabs: &[f64]) -> u64 {
         .sum()
 }
 
-/// Uniform in [0, 1) from the top 53 bits.
+/// Uniform in [0, 1) from the top 53 bits (`SplitMix64::next_unit_f64`).
 fn unit(rng: &mut SplitMix64) -> f64 {
-    (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64
+    rng.next_unit_f64()
 }
 
 /// Premultiplied: the colour components times the last (alpha).

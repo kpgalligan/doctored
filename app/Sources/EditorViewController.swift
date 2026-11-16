@@ -861,6 +861,7 @@ final class EditorViewController: NSViewController {
             canvas.brushPressureSize = paint.pressureSize
             canvas.brushPressureOpacity = paint.pressureOpacity ?? false
             canvas.brushAirbrush = paint.airbrush
+            canvas.brushDynamics = paint.dynamics
             canvas.strokeAligned = currentTool == .heal && paint.aligned // heal-only option
         }
         let modes: [SelectionCombineMode] = [.replace, .add, .subtract, .intersect]

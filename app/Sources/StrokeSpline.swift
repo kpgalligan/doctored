@@ -5,10 +5,27 @@ import CoreGraphics
 // stabilizer behind Smoothing; canvas only — agent strokes render the caller's exact polyline.
 
 /// One rendered stroke vertex: a position on the smoothed path and the
-/// interpolated tablet pressure there (1 everywhere for mouse strokes).
+/// interpolated tablet pressure there (1 everywhere for mouse strokes), and
+/// the interpolated pen tilt and barrel rotation in degrees (NaN for a mouse),
+/// which brush dynamics read.
 struct StrokeVertex {
     var point: CGPoint
     var pressure: CGFloat
+    var tilt = StrokeVertex.noTilt
+    var rotation = CGFloat.nan
+
+    /// A sample without a pen tilt.
+    static let noTilt = CGVector(dx: CGFloat.nan, dy: CGFloat.nan)
+
+    /// Rotation `a` moved toward `b` by `t` on the shortest arc (degrees), as the
+    /// walk moves pressure; NaN when either is NaN.
+    static func mixRotation(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat {
+        guard a.isFinite, b.isFinite else { return .nan }
+        var turn = (b - a).truncatingRemainder(dividingBy: 360)
+        if turn > 180 { turn -= 360 }
+        if turn <= -180 { turn += 360 }
+        return a + turn * t
+    }
 }
 
 /// The pulled-string stabilizer behind the paint tools' Smoothing option:
@@ -54,11 +71,13 @@ struct StrokeLeash {
 struct StrokeSpline {
     /// The sliding control window: the last four accepted samples (fewer
     /// while the stroke is young).
-    private var window: [(point: CGPoint, pressure: CGFloat)] = []
+    private var window: [Sample] = []
+    private typealias Sample = (point: CGPoint, pressure: CGFloat, tilt: CGVector, rotation: CGFloat)
 
     /// Starts over at the stroke's first point.
-    mutating func begin(at point: CGPoint, pressure: CGFloat = 1) {
-        window = [(point, pressure)]
+    mutating func begin(at point: CGPoint, pressure: CGFloat = 1, tilt: CGVector = StrokeVertex.noTilt,
+                        rotation: CGFloat = .nan) {
+        window = [(point, pressure, tilt, rotation)]
     }
 
     /// Feeds the next drag sample. Returns the vertices newly safe to
@@ -67,11 +86,12 @@ struct StrokeSpline {
     /// A stationary sample is dropped (it adds no geometry and would
     /// collapse a knot interval); a pressure change with no motion is
     /// deliberately dropped with it.
-    mutating func add(_ point: CGPoint, pressure: CGFloat = 1) -> [StrokeVertex] {
+    mutating func add(_ point: CGPoint, pressure: CGFloat = 1,
+                      tilt: CGVector = StrokeVertex.noTilt, rotation: CGFloat = .nan) -> [StrokeVertex] {
         guard let last = window.last,
               hypot(point.x - last.point.x, point.y - last.point.y) > 0.001
         else { return [] }
-        window.append((point, pressure))
+        window.append((point, pressure, tilt, rotation))
         if window.count > 4 { window.removeFirst() }
         switch window.count {
         case 3:
@@ -107,13 +127,9 @@ struct StrokeSpline {
     /// short enough that neither pipeline can show a facet. The returned
     /// vertices exclude `b` (the previous span, or the start dab, already
     /// rendered through it) and end on `c` exactly, so spans chain with no
-    /// drift. Pressure runs linearly from `b`'s to `c`'s.
-    private static func flatten(
-        _ a: (point: CGPoint, pressure: CGFloat),
-        _ b: (point: CGPoint, pressure: CGFloat),
-        _ c: (point: CGPoint, pressure: CGFloat),
-        _ d: (point: CGPoint, pressure: CGFloat)
-    ) -> [StrokeVertex] {
+    /// drift. Pressure and tilt run linearly from `b`'s to `c`'s, the rotation on
+    /// the shortest arc.
+    private static func flatten(_ a: Sample, _ b: Sample, _ c: Sample, _ d: Sample) -> [StrokeVertex] {
         let (a, b1p, c1p, d) = (a.point, b, c, d.point)
         let (b, c) = (b1p.point, c1p.point)
         let chord = hypot(c.x - b.x, c.y - b.y)
@@ -134,8 +150,12 @@ struct StrokeSpline {
         for i in 1...steps {
             let fraction = CGFloat(i) / CGFloat(steps)
             let pressure = b1p.pressure + (c1p.pressure - b1p.pressure) * fraction
+            let tilt = CGVector(dx: b1p.tilt.dx + (c1p.tilt.dx - b1p.tilt.dx) * fraction,
+                                dy: b1p.tilt.dy + (c1p.tilt.dy - b1p.tilt.dy) * fraction)
+            let rotation = StrokeVertex.mixRotation(b1p.rotation, c1p.rotation, fraction)
             guard i < steps else {
-                vertices.append(StrokeVertex(point: c, pressure: c1p.pressure))
+                vertices.append(StrokeVertex(point: c, pressure: c1p.pressure, tilt: c1p.tilt,
+                                             rotation: c1p.rotation))
                 break
             }
             let t = t1 + (t2 - t1) * fraction
@@ -152,7 +172,8 @@ struct StrokeSpline {
             let a3 = mix(c, d, t2, t3)
             let b1 = mix(a1, a2, t0, t2)
             let b2 = mix(a2, a3, t1, t3)
-            vertices.append(StrokeVertex(point: mix(b1, b2, t1, t2), pressure: pressure))
+            vertices.append(StrokeVertex(point: mix(b1, b2, t1, t2), pressure: pressure, tilt: tilt,
+                                         rotation: rotation))
         }
         return vertices
     }

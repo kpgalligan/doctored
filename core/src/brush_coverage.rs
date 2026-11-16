@@ -112,6 +112,14 @@
 //! are untouched, so a deposit-1 aliased stroke is two-valued (0 or the request's opacity) and
 //! a pressure-opacity one accumulates as any other. `plan` is unchanged: the cut costs nothing
 //! beyond the band sum it already charges. Absent, the key keeps every earlier request's bytes.
+//!
+//! THE SHAPED STROKE (brush dynamics' tip shape). `rasterize_shaped` is `rasterize`'s one loop
+//! with `(sin, cos, roundness)` taken per dab from a `shapes` list (angle, roundness per dab)
+//! instead of once from the request; `rasterize` is the `None` call, so its bits are unchanged.
+//! Every pair's roundness is checked at 0.01 or more (`check_shapes`), so the classification
+//! argument above holds per dab, and `bounds`, `dab_work` and `band_bound` read the diameter
+//! only, so `plan` stays an upper bound for any shape. Pixel and aliased requests refuse shapes:
+//! a snapped square or a Pencil dab has no shape to vary.
 use crate::job_control::JobContext;
 use crate::precision_image::{pixel_count, reserved_vec, BOOKKEEPING_BYTES};
 use serde::Deserialize;
@@ -133,6 +141,11 @@ pub const MAX_SMUDGE_WORK: u64 = 256_000_000;
 /// canvas rasterizes on every tick, so the sentence says what to do instead.
 const WORK_REFUSAL: &str =
     "native brush exceeds 2 billion footprint work units; use a shorter stroke or a smaller brush";
+/// A shaped stroke's list refusal (`check_shapes`); a NULL list refuses with it too.
+pub const SHAPES_REFUSAL: &str =
+    "native brush shapes hold an angle from -180 to 180 and a roundness from 0.01 to 1 per dab";
+/// A shaped stroke on a pixel or aliased request (`check_shapes`).
+const SHAPED_TIP_REFUSAL: &str = "native brush shapes require a stamped tip that is not aliased";
 /// Normalized-d classification margin, 2^-16. Covers TWICE the f64 error bound of the
 /// normalized distance over the validated domain — canvas coordinates <= 1e8 (doc::MAX_PIXELS),
 /// minor radius radius*roundness >= 0.005 (classified dabs have d[2] >= 1, roundness >= 0.01):
@@ -272,7 +285,36 @@ impl BrushRequest {
         dabs: &[f64],
         job: JobContext<'_>,
     ) -> Result<Vec<u16>, String> {
+        self.rasterize_shaped(dimensions, dabs, None, job)
+    }
+    /// The shaped stroke's refusals (module doc, THE SHAPED STROKE): a pixel or
+    /// aliased request, and a `shapes` list that is not one finite pair per dab
+    /// with the angle in −180…180 and the roundness in 0.01…1.
+    pub(crate) fn check_shapes(&self, dabs: &[f64], shapes: &[f64]) -> Result<(), String> {
+        if self.pixel || self.aliased {
+            return Err(SHAPED_TIP_REFUSAL.into());
+        }
+        // A NaN or infinite value lies in neither closed range.
+        let pair = |s: &[f64]| (-180. ..=180.).contains(&s[0]) && (0.01..=1.).contains(&s[1]);
+        if shapes.len() != dabs.len() / 2 || !shapes.chunks_exact(2).all(pair) {
+            return Err(SHAPES_REFUSAL.into());
+        }
+        Ok(())
+    }
+    /// `rasterize` with one `(angle_degrees, roundness)` pair per dab from
+    /// `shapes`, or the request's for every dab when `None` (module doc, THE
+    /// SHAPED STROKE). `shapes` must have passed `check_shapes`.
+    pub(crate) fn rasterize_shaped(
+        &self,
+        dimensions: (u32, u32),
+        dabs: &[f64],
+        shapes: Option<&[f64]>,
+        job: JobContext<'_>,
+    ) -> Result<Vec<u16>, String> {
         let plan = self.plan(dimensions, dabs)?;
+        if let Some(shapes) = shapes {
+            self.check_shapes(dabs, shapes)?;
+        }
         let [fx0, fy0, fx1, fy1] = footprint(dimensions, dabs).unwrap_or([0; 4]);
         let fw = fx1 - fx0;
         let samples = fw * (fy1 - fy0);
@@ -288,7 +330,13 @@ impl BrushRequest {
                 continue;
             }
             let [x0, y0, x1, y1] = bounds(d, dimensions);
-            let tip = self.tip(d, sin, cos);
+            let tip = match shapes {
+                None => self.tip(d, sin, cos, self.roundness),
+                Some(s) => {
+                    let (sin, cos) = s[2 * di].to_radians().sin_cos();
+                    self.tip(d, sin, cos, s[2 * di + 1])
+                }
+            };
             let classified = self.classifies() && d[2] >= 1.;
             for y in y0..y1 {
                 job.check()?;
@@ -351,7 +399,7 @@ impl BrushRequest {
                 continue;
             }
             let [x0, y0, x1, y1] = bounds(d, dimensions);
-            let tip = self.tip(d, sin, cos);
+            let tip = self.tip(d, sin, cos, self.roundness);
             for y in y0..y1 {
                 job.check()?;
                 for x in x0..x1 {
@@ -383,7 +431,7 @@ impl BrushRequest {
             return (x1 - x0) as u64 * (y1 - y0) as u64;
         }
         let (sin, cos) = self.angle_degrees.to_radians().sin_cos();
-        let tip = self.tip(dab, sin, cos);
+        let tip = self.tip(dab, sin, cos, self.roundness);
         (y0..y1)
             .flat_map(|y| (x0..x1).map(move |x| (x, y)))
             .filter(|&(x, y)| tip.classify(x, y) == Class::Band)
@@ -406,7 +454,7 @@ impl BrushRequest {
         x: usize,
         y: usize,
     ) -> f64 {
-        let tip = self.tip(dab, rotation.0, rotation.1);
+        let tip = self.tip(dab, rotation.0, rotation.1, self.roundness);
         if self.classifies() && dab[2] >= 1. {
             match tip.classify(x, y) {
                 Class::Interior => 1.,
@@ -436,12 +484,12 @@ impl BrushRequest {
     fn classifies(&self) -> bool {
         !self.pixel && self.hardness >= 1.
     }
-    fn tip<'a>(&self, d: &'a [f64], sin: f64, cos: f64) -> Tip<'a> {
+    fn tip<'a>(&self, d: &'a [f64], sin: f64, cos: f64, roundness: f64) -> Tip<'a> {
         let radius = d[2] / 2.;
         Tip {
             d,
             radius,
-            minor: radius * self.roundness,
+            minor: radius * roundness,
             sin,
             cos,
         }

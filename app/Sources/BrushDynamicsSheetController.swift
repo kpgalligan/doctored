@@ -1,0 +1,253 @@
+import AppKit
+
+/// The Brush's, Pencil's and Eraser's Dynamics… sheet (`designs/brush-dynamics.md`): the
+/// size and opacity responses (Control, Minimum, Jitter and a Curve… popover over the
+/// shared `CurveEditorView`), Scatter (Amount, Both Axes, Count, Count Jitter) and, for the
+/// Brush and the Eraser (`shapes`), the tip shape's Angle (Control, Jitter) and Roundness
+/// (Control, Minimum, Jitter). It edits a copy of the tool's options; Apply hands the
+/// result to `onApply` (`EditorViewController.showBrushDynamicsSheet`). Tool options only:
+/// no undo step, no Action. Percent fields show the model's 0…1 values (scatter:
+/// diameters) × 100.
+final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
+    private var options: PaintToolOptions
+    /// Whether the tool takes a tip shape: false for the Pencil, whose tip is round.
+    private let shapes: Bool
+    private let onApply: (PaintToolOptions) -> Void
+    private static let controls: [(BrushDynamics.Control, String)] = [
+        (.off, "Off"), (.pressure, "Pen Pressure"), (.tilt, "Pen Tilt")]
+    private static let angleControls: [(BrushDynamics.TipShape.AngleControl, String)] = [
+        (.off, "Off"), (.rotation, "Pen Rotation"), (.tilt, "Pen Tilt"), (.direction, "Direction")]
+
+    private let sizeControl = NSPopUpButton()
+    private let opacityControl = NSPopUpButton()
+    private let sizeMinimum = NSTextField(string: "")
+    private let sizeJitter = NSTextField(string: "")
+    private let opacityMinimum = NSTextField(string: "")
+    private let opacityJitter = NSTextField(string: "")
+    private let scatter = NSTextField(string: "")
+    private let bothAxes = NSButton(checkboxWithTitle: "Both axes", target: nil, action: nil)
+    private let count = NSTextField(string: "")
+    private let countJitter = NSTextField(string: "")
+    private let angleControl = NSPopUpButton()
+    private let angleJitter = NSTextField(string: "")
+    private let roundnessControl = NSPopUpButton()
+    private let roundnessMinimum = NSTextField(string: "")
+    private let roundnessJitter = NSTextField(string: "")
+    private var popover: NSPopover?
+
+    init(options: PaintToolOptions, shapes: Bool, onApply: @escaping (PaintToolOptions) -> Void) {
+        self.options = options
+        self.shapes = shapes
+        self.onApply = onApply
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("BrushDynamicsSheetController does not support NSCoder")
+    }
+
+    override func loadView() {
+        for popup in [sizeControl, opacityControl, roundnessControl] {
+            popup.addItems(withTitles: Self.controls.map { $0.1 })
+        }
+        angleControl.addItems(withTitles: Self.angleControls.map { $0.1 })
+        let fields: [(NSTextField, String)] = [
+            (sizeMinimum, "brush-dynamics-size-minimum"), (sizeJitter, "brush-dynamics-size-jitter"),
+            (opacityMinimum, "brush-dynamics-opacity-minimum"),
+            (opacityJitter, "brush-dynamics-opacity-jitter"), (scatter, "brush-dynamics-scatter"),
+            (count, "brush-dynamics-count"), (countJitter, "brush-dynamics-count-jitter"),
+            (angleJitter, "brush-dynamics-angle-jitter"),
+            (roundnessMinimum, "brush-dynamics-roundness-minimum"),
+            (roundnessJitter, "brush-dynamics-roundness-jitter")]
+        for (field, id) in fields {
+            DSField.style(field)
+            field.widthAnchor.constraint(equalToConstant: 56).isActive = true
+            field.setAccessibilityIdentifier(id)
+        }
+        sizeControl.setAccessibilityIdentifier("brush-dynamics-size-control")
+        opacityControl.setAccessibilityIdentifier("brush-dynamics-opacity-control")
+        angleControl.setAccessibilityIdentifier("brush-dynamics-angle-control")
+        roundnessControl.setAccessibilityIdentifier("brush-dynamics-roundness-control")
+        let sizeCurve = curveButton(#selector(editSizeCurve(_:)))
+        let opacityCurve = curveButton(#selector(editOpacityCurve(_:)))
+        func row(_ views: NSView...) -> NSStackView {
+            let row = NSStackView(views: views)
+            row.orientation = .horizontal
+            row.spacing = 8
+            return row
+        }
+        var rows: [[NSView]] = [
+            [fieldLabel("Size:"), row(sizeControl, sizeCurve)],
+            [fieldLabel("Minimum (%):"), row(sizeMinimum, fieldLabel("Jitter (%):"), sizeJitter)],
+            [fieldLabel("Opacity:"), row(opacityControl, opacityCurve)],
+            [fieldLabel("Minimum (%):"), row(opacityMinimum, fieldLabel("Jitter (%):"), opacityJitter)],
+            [fieldLabel("Scatter (%):"), row(scatter, bothAxes)],
+            [fieldLabel("Count:"), row(count, fieldLabel("Jitter (%):"), countJitter)],
+        ]
+        // The Pencil's tip is round: it shows no Angle or Roundness rows.
+        if shapes {
+            rows += [
+                [fieldLabel("Angle:"), row(angleControl, fieldLabel("Jitter (%):"), angleJitter)],
+                [fieldLabel("Roundness:"), row(roundnessControl)],
+                [fieldLabel("Minimum (%):"),
+                 row(roundnessMinimum, fieldLabel("Jitter (%):"), roundnessJitter)],
+            ]
+        }
+        let grid = NSGridView(views: rows)
+        grid.columnSpacing = 12
+        grid.rowSpacing = 8
+        grid.column(at: 0).xPlacement = .trailing
+        grid.column(at: 0).width = 106
+        let reset = NSButton(title: "Reset", target: self, action: #selector(resetClicked(_:)))
+        reset.bezelStyle = .rounded
+        let cancelButton = sheetCancelButton(target: self, action: #selector(cancelClicked(_:)))
+        let applyButton = sheetApplyButton(target: self, action: #selector(applyClicked(_:)))
+        view = makeSheetView(
+            title: "Brush dynamics",
+            hint: "Size and opacity can follow pen pressure or tilt through a curve, down to a "
+                + "minimum; jitter shrinks each dab at random, and scatter spreads the dabs "
+                + "across the stroke, in percent of the brush size."
+                + (shapes ? " The tip's angle can follow the pen's rotation, its tilt or the "
+                    + "direction of travel, and its roundness pressure or tilt." : "")
+                + " A mouse reads pressure, tilt and rotation as off. Each stroke draws a new "
+                + "random sequence and records the dabs it laid, so a replay paints the same "
+                + "pixels.",
+            content: grid,
+            buttonRow: makeButtonRow(cancel: cancelButton, apply: applyButton, leading: [reset]))
+        reload()
+    }
+
+    private func curveButton(_ action: Selector) -> NSButton {
+        let button = NSButton(title: "Curve…", target: self, action: action)
+        button.bezelStyle = .rounded
+        return button
+    }
+
+    private var dynamics: BrushDynamics { options.dynamics ?? BrushDynamics() }
+
+    /// The controls from `options`.
+    private func reload() {
+        let d = dynamics
+        func index(_ control: BrushDynamics.Control) -> Int {
+            Self.controls.firstIndex { $0.0 == control } ?? 0
+        }
+        sizeControl.selectItem(at: index(options.sizeControl))
+        opacityControl.selectItem(at: index(options.opacityControl))
+        func percent(_ value: Double) -> String { String(format: "%g", (value * 100).rounded()) }
+        sizeMinimum.stringValue = percent(d.size.minimum)
+        sizeJitter.stringValue = percent(d.size.jitter)
+        opacityMinimum.stringValue = percent(d.opacity.minimum)
+        opacityJitter.stringValue = percent(d.opacity.jitter)
+        scatter.stringValue = percent(d.scatter)
+        bothAxes.state = d.bothAxes ? .on : .off
+        count.stringValue = "\(d.count)"
+        countJitter.stringValue = percent(d.countJitter)
+        let shape = d.shape ?? BrushDynamics.TipShape()
+        angleControl.selectItem(at: Self.angleControls.firstIndex { $0.0 == shape.angleControl } ?? 0)
+        angleJitter.stringValue = percent(shape.angleJitter)
+        roundnessControl.selectItem(at: index(shape.roundnessControl))
+        roundnessMinimum.stringValue = percent(shape.roundnessMinimum)
+        roundnessJitter.stringValue = percent(shape.roundnessJitter)
+    }
+
+    /// `options` from the controls, each value clamped to its range.
+    private func read() {
+        var d = dynamics
+        func unit(_ field: NSTextField, _ upper: Double = 1) -> Double {
+            min(max(field.doubleValue / 100, 0), upper)
+        }
+        d.size.minimum = unit(sizeMinimum)
+        d.size.jitter = unit(sizeJitter)
+        d.opacity.minimum = unit(opacityMinimum)
+        d.opacity.jitter = unit(opacityJitter)
+        d.scatter = unit(scatter, BrushDynamics.maximumScatter)
+        d.bothAxes = bothAxes.state == .on
+        d.count = min(max(count.integerValue, 1), BrushDynamics.maximumCount)
+        d.countJitter = unit(countJitter)
+        if shapes {
+            d.shape = BrushDynamics.TipShape(
+                angleControl: Self.angleControls[max(angleControl.indexOfSelectedItem, 0)].0,
+                angleJitter: unit(angleJitter),
+                roundnessControl: Self.controls[max(roundnessControl.indexOfSelectedItem, 0)].0,
+                roundnessMinimum: unit(roundnessMinimum), roundnessJitter: unit(roundnessJitter))
+        }
+        options.dynamics = d
+        options.sizeControl = Self.controls[max(sizeControl.indexOfSelectedItem, 0)].0
+        options.opacityControl = Self.controls[max(opacityControl.indexOfSelectedItem, 0)].0
+        options.dynamics = options.dynamics?.normalized
+    }
+
+    @objc private func editSizeCurve(_ sender: NSButton) {
+        showCurve(\BrushDynamics.size, from: sender)
+    }
+
+    @objc private func editOpacityCurve(_ sender: NSButton) {
+        showCurve(\BrushDynamics.opacity, from: sender)
+    }
+
+    /// The response's curve in the shared editor, in its 0…255 space; each edit is
+    /// stored as 0…1 points with the ends pinned at x = 0 and x = 1.
+    private func showCurve(_ response: WritableKeyPath<BrushDynamics, BrushDynamics.Response>,
+                           from anchor: NSButton) {
+        read()
+        let editor = CurveEditorView()
+        let seed = dynamics[keyPath: response].curve ?? [[0, 0], [1, 1]]
+        editor.points = seed.map { CurvePoint(x: $0[0] * 255, y: $0[1] * 255) }
+        editor.onPointsChanged = { [weak self] points in self?.curveEdited(response, points) }
+        let side = editor.intrinsicContentSize
+        editor.frame = NSRect(origin: .zero, size: side)
+        let content = NSViewController()
+        content.view = editor
+        let popover = NSPopover()
+        popover.contentViewController = content
+        popover.contentSize = side
+        popover.behavior = .transient
+        popover.delegate = self
+        self.popover = popover
+        popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .maxX)
+    }
+
+    private func curveEdited(_ response: WritableKeyPath<BrushDynamics, BrushDynamics.Response>,
+                             _ points: [CurvePoint]) {
+        var d = dynamics
+        d[keyPath: response].curve = Self.pinned(points)
+        options.dynamics = d.normalized
+    }
+
+    /// Editor points (0…255) as a dynamics curve: scaled to 0…1, the first x pinned to 0
+    /// and the last to 1, an inner point the pinning would collide with dropped.
+    static func pinned(_ points: [CurvePoint]) -> [[Double]] {
+        let scaled = points.map { [min(max($0.x / 255, 0), 1), min(max($0.y / 255, 0), 1)] }
+        guard scaled.count >= 2, let first = scaled.first, let last = scaled.last else {
+            return [[0, 0], [1, 1]]
+        }
+        var kept = [[0, first[1]]]
+        for point in scaled.dropFirst().dropLast()
+        where point[0] > kept[kept.count - 1][0] && point[0] < 1 {
+            kept.append(point)
+        }
+        kept.append([1, last[1]])
+        return kept // the editor holds at most `CurveEditorView.maxPoints`, 16
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        popover = nil
+    }
+
+    @objc private func resetClicked(_ sender: Any?) {
+        options.dynamics = nil
+        reload()
+    }
+
+    @objc private func applyClicked(_ sender: Any?) {
+        read()
+        let chosen = options
+        dismiss(self)
+        onApply(chosen)
+    }
+
+    @objc private func cancelClicked(_ sender: Any?) {
+        dismiss(self)
+    }
+}
