@@ -625,6 +625,8 @@ Detail belongs in the source file's own header comment.
 - `path_edit.rs` — KERNEL: the Pen's geometry, `PathShape::hit`, `subpath_at` (`winding`), `inserting_anchor`, `converting_anchor` (`nearest_on_cubic`), beside `path_geometry`.
 - `path_trace.rs` — KERNEL: `trace`, u16 coverage to a `PathShape` (50 % contour, Douglas–Peucker corners); the fit is `path_fit`.
 - `path_fit.rs` — KERNEL: `path_trace`'s step 3, Schneider's cubic fit (`fit`, `generate`, `reparameterize`), and the point helpers both use.
+- `path_along.rs` — KERNEL: `Along`, one subpath's arc length and frames (point, unit tangent) over its 1/64 px flattening; closed wraps, `reversed`.
+- `outline_map.rs` — KERNEL: `map_outline`, an artwork outline through a non-linear `OutlineMap` (`Along`: text on a path) as moves, lines and closes.
 - `doc_path.rs` / `precision_path.rs` — PATHS at both depths: `PathEntry`, `DocPaths` / `TypedPaths`, `list_refusal` (the one home of the list rules), `with_paths`.
 - `path_native.rs` — the native `PATH` table, words 74 (byte) / 75 (typed): the path list and the vector-mask section with its raster planes.
 - `doc_vector_mask.rs` / `precision_vector_mask.rs` — VECTOR MASKS: a shape baked into the layer's ordinary mask; records, live or dead, bake, expose/rebake, edits.
@@ -633,6 +635,7 @@ Detail belongs in the source file's own header comment.
 - `doc_vector_mask_carry.rs` — byte vector masks carried across ops: seeds, the follow hook, the native table written and `adopted_records`.
 - `precision_vector_mask_carry.rs` — typed vector masks carried across ops: seeds, `following_geometry`, the native table and `adopt_vector_masks`.
 - `ffi_path.rs` — the exports: path lists, `dr_path_coverage` / `_flatten` / `_trace` / `_hit` / `_insert_anchor` / `_convert_anchor`.
+- `ffi_path_along.rs` — `dr_path_length`, `dr_path_frames` (writes the caller's buffer) and `dr_outline_map`, over `path_along` / `outline_map`.
 - `ffi_vector_mask.rs` — the vector-mask exports at both depths: `dr_doc_vector_mask_json`, set, remove, properties, and their `dr_precision_doc_*` twins.
 - `landmark_region.rs` — Face Parts KERNEL: landmark point loops to closed centripetal Catmull–Rom subpaths, include × clip × (1 − exclude) u16 coverage via `PathShape::coverage`.
 - `ffi_landmark.rs` — `dr_landmark_coverage`: landmark regions JSON to a canvas u16 coverage plane, admitted and cancellable like `dr_path_coverage`.

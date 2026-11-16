@@ -76,7 +76,7 @@ The study records no to-do items of its own. Catalog gaps and where they stand:
 - `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled undo and the rest of the tiled
   backing (§12, §13).
 - `DONE` — Bézier paths, the Pen, the Paths panel and vector masks ([ADR](v1-paths.md)).
-- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Text on a path (§11).
+- `DONE` — Text on a path (§11; [ADR](type-on-a-path.md)).
 - `DONE` — Liquify, and Smudge and the other per-dab retouch brushes at 8 and 16 bits
   (`core/src/retouch_brush.rs`, `core/src/retouch_smudge.rs`).
 - `DONE` — Lab Color, Grayscale, Indexed Color, Duotone and Bitmap document modes (their ADRs).

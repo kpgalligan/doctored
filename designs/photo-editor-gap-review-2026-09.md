@@ -71,7 +71,7 @@ Gaps this review added beyond the first catalog:
 - In-app update checking and rollback, practical user guides, and keyboard, VoiceOver and tablet validation passes — not built: there is no updater, the public docs have a landing page and references but no task guides, and tablet pressure and timing ship and are tested.
 - `DONE` — Pen paths, the Paths panel and vector masks ([ADR](v1-paths.md)); attributed text colours (8E, P7-05).
 - `DONE` — Replacing a text layer's missing font family ([ADR](replace-missing-fonts.md)).
-- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Text on a path.
+- `DONE` — Text on a path ([ADR](type-on-a-path.md)).
 - Attributed text runs with a per-run font, size and style — not built (runs carry colour only).
 - `DONE` — Styles and Blend If on byte (8-bit RGB) adjustment layers (`style_adjustment.rs`), gradient glows (`style_glow_gradient.rs`), repeated effects (`style_instances.rs`) and style presets (`StylePreset.swift`, Window ▸ Styles).
 - `DONE` — Float editing widened to a full editing depth ([ADR](v1-float-editing.md)); F16 TIFF and EXR export, OpenEXR and Radiance HDR; EDR display through View ▸ HDR Preview ([ADR](v1x-hdr-photos.md)). Luminance tone maps are not built; ACES-style tone maps `DROPPED` (2026-10-30) — the clip and Reinhard maps and HDR Toning cover SDR delivery. Float editing's open items: [#14](https://github.com/kpgalligan/doctored/issues/14) (the float proxy preview stage and Quick Mask filters) and [#4](https://github.com/kpgalligan/doctored/issues/4) (Develop at 32-bit float).

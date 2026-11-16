@@ -468,6 +468,9 @@ extension EditorViewController {
                 // Layer ▸ Replace Missing Fonts… re-renders text through the
                 // same path. MCP twin `replace_missing_fonts`, `.floatTool`.
                 "replaceMissingFonts:",
+                // Layer ▸ Place Text on Path / Remove Text from Path run
+                // `edit_text_layer`, `.floatTool`.
+                "placeTextOnPath:", "removeTextFromPath:",
                 // Layer ▸ New Fill Layer ▸ Solid Color… / Gradient…
                 // render through the same float artwork path. MCP twins
                 // `add_fill_layer` / `edit_fill_layer`, `.floatTool`.
@@ -580,7 +583,7 @@ extension EditorViewController {
         "showMotionBlur:", "showLensBlur:", "showTiltShift:", "showLiquify:", "showLensCorrection:",
         "showPresence:", "showDevelopFilter:", "showSmartSharpen:", "showDepthBlur:", "removeRedEye:",
         "showSuperZoom:", "showJpegArtifactsRemoval:", "showColorize:", // Neural Filters at 16 bits
-        "rasterizeArtwork:", "editArtworkColors:", "replaceMissingFonts:", "placeLivePhoto:", "showDocumentPrecision:", "convertDocumentPrecision:", "showInfo:", "showHistory:", "showSnapshots:",
+        "rasterizeArtwork:", "editArtworkColors:", "replaceMissingFonts:", "placeTextOnPath:", "removeTextFromPath:", "placeLivePhoto:", "showDocumentPrecision:", "convertDocumentPrecision:", "showInfo:", "showHistory:", "showSnapshots:",
         "convertToFloatPrecision:", // Image ▸ Mode ▸ 32 Bits/Channel…
         // Layer ▸ New Fill Layer ▸ Solid Color… / Gradient…, Pattern… and
         // Layer Content Options….

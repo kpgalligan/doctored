@@ -26,6 +26,8 @@ import AppKit
 //   family with the one the layer was made in reproduces the saved raster exactly, at any map
 //   and leading, where the fallback-face estimate alone would move a rotated block by the
 //   metric difference between the two faces.
+// Text on a path recentres on both axes: its rect grows its outline's box by a face metric on
+// every side (TextOnPath.swift, TP-6), so no origin is face-free, but its centre is.
 //
 // ALL OR NOTHING. Every layer re-renders on one handle; one layer that cannot fails the whole
 // replacement with a sentence naming it (`MissingFontFailure`), so the one undo step is always
@@ -120,10 +122,11 @@ extension RasterDocument {
             let new = Double(Int(whole.rounded(.down)) + origin) + Double(size) / 2
             return CGFloat((old - new).rounded())
         }
-        if !(map.c == 0 && map.a > 0) {
+        let onPath = replacement.onPath != nil
+        if onPath || !(map.c == 0 && map.a > 0) {
             anchor.x += recentred(info.offsetX, info.width, estimate.x, rect.originX, rect.width)
         }
-        if !(map.b == 0 && map.d > 0 && replacement.leading == 0) {
+        if onPath || !(map.b == 0 && map.d > 0 && replacement.leading == 0) {
             anchor.y += recentred(info.offsetY, info.height, estimate.y, rect.originY, rect.height)
         }
         return anchor

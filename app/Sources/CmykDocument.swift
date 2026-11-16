@@ -212,6 +212,10 @@ enum CmykDocument {
         "editArtworkColors:",
         // Layer ▸ Replace Missing Fonts…, its stored inks kept (`replace_missing_fonts`).
         "replaceMissingFonts:",
+        // Layer ▸ Place Text on Path / Remove Text from Path, its stored inks kept
+        // (`edit_text_layer`).
+        "placeTextOnPath:",
+        "removeTextFromPath:",
         // The remaining-gaps batch: Fill and Stroke Path, Apply Image, Calculations and View ▸
         // Gamut Warning.
         "fillCurrentPath:",

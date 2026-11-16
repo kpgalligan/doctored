@@ -183,6 +183,15 @@ extension EditorViewController {
             // transform re-attaches to the edited description.
             var payload = payload
             payload.transform = old.transform
+            // Nor the path: a placed layer stays on it, edited straight (TP-8), and stays one
+            // line — the session stays open on a line break.
+            payload = payload.withOnPath(old.onPath)
+            if old.onPath != nil, TextOnPath.hasLineBreak(payload.string) {
+                document.presentError(DoctoredCoreError(
+                    message: "Text on a path is one line: remove the line break, or choose "
+                        + "Layer ▸ Remove Text from Path first."))
+                return false
+            }
             // A point-text layer stays point text — the editor's width was
             // only its viewport (D11). A stored box wider than the editor's
             // cap (`TextLayer.maxBoxWidth` — a file from elsewhere) came

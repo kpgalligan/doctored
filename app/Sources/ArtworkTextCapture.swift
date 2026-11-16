@@ -40,6 +40,21 @@ enum ArtworkTextCapture {
             throw DoctoredCoreError(message: "Text layout exceeds the supported artwork extent.")
         }
         try manager.prepare(width: plan.width, height: plan.height)
+        if payload.onPath != nil {
+            // Text on a path (ArtworkTextOnPath.swift): the plan laid the line out straight
+            // in this manager; layout → raster is the plan's own map, never read from a CTM.
+            guard let container = manager.textContainers.first, let storage = manager.textStorage
+            else { throw DoctoredCoreError(message: "Text on a path needs a laid-out line.") }
+            let frac = DescribedLayer.anchorFraction(anchor)
+            let origin = CGPoint(x: plan.offsetX - Int(anchor.x.rounded(.down)),
+                                 y: plan.offsetY - Int(anchor.y.rounded(.down)))
+            let layoutToRaster = payload.transform.cgAffine.concatenating(
+                CGAffineTransform(translationX: frac.x - origin.x, y: frac.y - origin.y))
+            manager.placement = try TextPathPlacement(
+                payload: payload,
+                stack: (manager: manager as NSLayoutManager, container: container, storage: storage),
+                layoutToRaster: layoutToRaster)
+        }
         // This scalar context only drives TextKit's callbacks. Its raster is
         // discarded; it never supplies native text coverage or source pixels.
         guard let context = CGContext(data: nil, width: plan.width, height: plan.height,
@@ -101,6 +116,8 @@ private final class TextArtworkLayout: NSLayoutManager {
     /// The ink the payload's numbers are in: attribute colours
     /// are read back in it.
     var ink: ArtworkInk = .srgb
+    /// Text on a path: where each glyph and decoration goes (ArtworkTextOnPath.swift).
+    var placement: TextPathPlacement?
     private let windowing: ArtworkTextCapture.Windowing
 
     init(windowing: ArtworkTextCapture.Windowing) {
@@ -206,10 +223,21 @@ private final class TextArtworkLayout: NSLayoutManager {
             let rgba = try color(attributes)
             let ctFont = font as CTFont
             let colorGlyphs = CTFontGetSymbolicTraits(ctFont).contains(.traitColorGlyphs)
+            // On a path only an outline can be placed (TP-5).
+            if placement != nil, colorGlyphs { throw error(TextPathPlacement.outlineGlyphsRefusal) }
             if colorGlyphs, !windowing.colorAsCoverage {
                 try intrinsic(glyphs, positions: positions, count: count, font: font,
                     textMatrix: textMatrix, attributes: attributes, context: context, rgba: rgba)
                 return
+            }
+            let placed = try placement.map { placement -> [CGAffineTransform?] in
+                let straight = (0..<count).map {
+                    ArtworkTextCapture.glyphMap(textMatrix: textMatrix, position: positions[$0],
+                                                ctm: context.ctm, height: height)
+                }
+                var advances = [CGSize](repeating: .zero, count: count)
+                CTFontGetAdvancesForGlyphs(ctFont, .horizontal, glyphs, &advances, count)
+                return try placement.glyphMaps(straight, advances: advances.map(\.width))
             }
             for i in 0..<count {
                 // A colour glyph comes here only under the probe's `colorAsCoverage`.
@@ -217,6 +245,7 @@ private final class TextArtworkLayout: NSLayoutManager {
                     var glyph = glyphs[i]
                     let bounds = CTFontGetBoundingRectsForGlyphs(ctFont, .default, &glyph, nil, 1)
                     if !bounds.isEmpty {
+                        if placement != nil { throw error(TextPathPlacement.outlineGlyphsRefusal) }
                         try intrinsicCoverage(glyphs.advanced(by: i), positions: positions.advanced(by: i), count: 1,
                             font: font, textMatrix: textMatrix, attributes: attributes, context: context, rgba: rgba)
                     }
@@ -224,6 +253,11 @@ private final class TextArtworkLayout: NSLayoutManager {
                 }
                 var map = ArtworkTextCapture.glyphMap(textMatrix: textMatrix, position: positions[i],
                                                       ctm: context.ctm, height: height)
+                if let placed {
+                    // Past an open subpath's end: the glyph is not drawn (TP-3).
+                    guard let onPath = placed[i] else { continue }
+                    map = onPath
+                }
                 guard [map.a, map.b, map.c, map.d, map.tx, map.ty].allSatisfy({ $0.isFinite && abs($0) <= 10_000_000 }) else {
                     throw error("TextKit produced an unsupported glyph transform.")
                 }
@@ -385,7 +419,8 @@ private final class TextArtworkLayout: NSLayoutManager {
             let rgba = try color(storage.attributes(at: index, effectiveRange: nil), decoration: key)
             try admit(extra: 2 * 1024 * 1024)
             let paths = try TextDecorationPDF.capture(width: width, height: height, transform: source.ctm, draw: draw)
-            for path in paths { try append(path, color: rgba) }
+            // On a path a decoration bends with the glyphs (TP-4).
+            for path in paths { try append(placement.map { try $0.decoration(path) } ?? path, color: rgba) }
         } catch { failure = error }
     }
 

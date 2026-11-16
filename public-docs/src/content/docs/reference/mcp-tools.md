@@ -1667,6 +1667,12 @@ Adds a RE-EDITABLE text layer above the active layer and selects it. The layer r
 | `italic` | `boolean` | no | — | Italic face (default false). |
 | `layer` | `integer` | no | — | Anchor layer index (default: the active layer). A group is a legal anchor. |
 | `leading` | `number` | no | 0–1000 | Line height in px, 0 to 1000; 0 (default) = the font's natural height — the options bar's Leading field. |
+| `on_path` | `object or null` | no | — | Text on a path: the one line follows one subpath, each glyph upright on it at the centre of its advance, underline and strikethrough bent with it. Puts the text on a path from the start. {subpaths \| path_name, subpath?, offset?, side?} in canvas px: subpaths in set_path's form or path_name a stored path's name ("Work Path" included); subpath the index of the one subpath (required when there are more; at most 1024 anchors); offset px along it where the line's alignment point sits (left starts there, center is centred on it, right ends there; default 0); side "left" (default: along the path's direction, above a path drawn left to right) or "right" (from its other end, on the other side). The text is one line of point text: a line break or wrap_width is refused; past an open subpath's ends glyphs are hidden, a closed one wraps. Replies report on_path {canvas_subpaths, offset, side, length, hidden_glyphs}, length in the layer's own (untransformed) px. |
+| `on_path.offset` | `number` | no | — | — |
+| `on_path.path_name` | `string` | no | — | — |
+| `on_path.side` | `string` | no | one of `left`, `right` | — |
+| `on_path.subpath` | `integer` | no | 0–∞ | — |
+| `on_path.subpaths` | `array<object>` | no | — | — |
 | `position` | `string` | no | one of `above`, `top`, `into_group` | Where the new layer lands relative to `layer`: above it (default), at the top of the root level, or as the top child of a group. |
 | `rgba` | `array<number>` | no | 4–4 items | Continuous normalized sRGB, alternative to color, preserved at both depths. sample_color's srgb_rgba is this spelling of a sampled pixel. |
 | `size` | `number` | no | — | Font size in px (4-1000, default 48). |
@@ -1677,8 +1683,8 @@ Adds a RE-EDITABLE text layer above the active layer and selects it. The layer r
 | `underline` | `boolean` | no | — | Single underline (default false). |
 | `weight` | `integer` | no | 0–15 | NSFontManager weight 0-15: 3 light, 5 regular (default), 6 medium, 8 semibold, 9 bold — the options bar's Weight popup. |
 | `wrap_width` | `number` | no | — | px; the block wraps at this SOURCE-space width and remembers it (box_width); 0 = point text that never wraps (at most 100000 px, the app's own editor cap). Default: from x to the canvas's right edge. |
-| `x` | `number` | yes | — | — |
-| `y` | `number` | yes | — | — |
+| `x` | `number` | no | — | Left of the text block in canvas px; required with y unless on_path is given (then default: the subpath's first anchor, the layer's origin). |
+| `y` | `number` | no | — | Top of the text block in canvas px; required with x unless on_path is given. |
 
 ## `edit_text_layer`
 
@@ -1696,6 +1702,12 @@ Re-renders a text layer made by add_text_layer (or by the app's text tool) from 
 | `italic` | `boolean` | no | — | Italic face (default false). |
 | `layer` | `integer` | no | — | Layer index (0 = bottom); omit for the active layer. An index may name a layer GROUP — get_document says which, and a group has no pixels of its own. |
 | `leading` | `number` | no | 0–1000 | Line height in px, 0 to 1000; 0 (default) = the font's natural height — the options bar's Leading field. |
+| `on_path` | `object or null` | no | — | Text on a path: the one line follows one subpath, each glyph upright on it at the centre of its advance, underline and strikethrough bent with it. Omit to keep the layer's; null takes the text off its path (Layer ▸ Remove Text from Path); an object with neither subpaths nor path_name keeps the stored path and changes offset or side. {subpaths \| path_name, subpath?, offset?, side?} in canvas px: subpaths in set_path's form or path_name a stored path's name ("Work Path" included); subpath the index of the one subpath (required when there are more; at most 1024 anchors); offset px along it where the line's alignment point sits (left starts there, center is centred on it, right ends there; default 0); side "left" (default: along the path's direction, above a path drawn left to right) or "right" (from its other end, on the other side). The text is one line of point text: a line break or wrap_width is refused; past an open subpath's ends glyphs are hidden, a closed one wraps. Replies report on_path {canvas_subpaths, offset, side, length, hidden_glyphs}, length in the layer's own (untransformed) px. |
+| `on_path.offset` | `number` | no | — | — |
+| `on_path.path_name` | `string` | no | — | — |
+| `on_path.side` | `string` | no | one of `left`, `right` | — |
+| `on_path.subpath` | `integer` | no | 0–∞ | — |
+| `on_path.subpaths` | `array<object>` | no | — | — |
 | `rgba` | `array<number>` | no | 4–4 items | Continuous normalized sRGB, alternative to color, preserved at both depths. sample_color's srgb_rgba is this spelling of a sampled pixel. |
 | `size` | `number` | no | — | Font size in px (4-1000). |
 | `strikethrough` | `boolean` | no | — | Single strikethrough (default false). |

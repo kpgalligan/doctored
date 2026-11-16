@@ -154,6 +154,7 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+SubjectTargets.swift` — mirrors Select ▸ Select Objects…, Select People… and All People; instance IDs are ephemeral indices for the captured composite and model.
 - `AgentServer+Text.swift` — `add_text_layer` and `edit_text_layer`, mirroring the text tool's commit and re-open, so either way renders the same layer through its description.
 - `AgentServer+MissingFonts.swift` — `list_missing_fonts` and `replace_missing_fonts`, mirroring Layer ▸ Replace Missing Fonts…'s rows and Apply over the same ops.
+- `AgentServer+TextOnPath.swift` — the text tools' `on_path` argument (canvas → source), its refusals and the reply's `on_path` object; Place / Remove Text on Path's mirror.
 - `AgentServer+TransformJobs.swift` — the final Free Transform / Distort raster commits as worker jobs (only pure affine/perspective resampling) and Transform Again's memory.
 - `SoftBrush.swift` — `SoftBrush` is the dab engine behind the paint tools' tip options.
 - `BrushPreset.swift` — the paint tools' tip presets (built-ins, then the user's): named sets of the six tip fields, the file schema; size and opacity stay untouched.
@@ -165,6 +166,8 @@ Detail belongs in the source file's own header comment.
 - `PaintTarget.swift` — `RasterPlane` (one 8-bit plane, mirroring `DrPlane`) and `PaintTarget`, what a stroke, fill or adjustment edits: the layer, its mask, a plane or a channel.
 - `TextLayer.swift` — text layers: `TextBox`, `TextStyle`, `TextLayerPayload` (the meta) and `TextLayer`, the one render-and-name entry point the tool and the agent share.
 - `EditorViewController+Text.swift` — the text tool's layer logic: click to open or re-open a text layer, the panel's double-click, and the commit into a re-editable text layer.
+- `TextOnPath.swift` — text on a path (payload v6): `TextOnPath`, the straightened line, the TP-6 source rect, `onPathStart` and the length / hidden-glyph metrics.
+- `EditorViewController+TextOnPath.swift` — Layer ▸ Place Text on Path and Remove Text from Path (`edit_text_layer` through `runPathStep`) and their validation.
 - `EditorViewController+TextTypography.swift` — the style the text tool types with: the live family/size/alignment plus the options store's weight, tracking, leading and decorations.
 - `MissingFonts.swift` — text layers whose family is not installed: `missingFontLayers` and `replacingMissingFonts`, one undo step, with the per-axis placement rule.
 - `ReplaceFontsSheetController.swift` / `EditorViewController+ReplaceFonts.swift` — Layer ▸ Replace Missing Fonts…: one family popup per missing family; the action and its validation.
@@ -177,6 +180,7 @@ Detail belongs in the source file's own header comment.
 - `DescribedLayerGeometry.swift` — `DocumentGeometry`: a whole-document geometry op and what it does to each described layer's map; `applyingDocumentGeometry`, `transformingDescribedLayer`.
 - `DescribedDrawingPlan.swift` — one geometry/drawing plan for coloured rasters and typed scalar coverage; a text plan holds TextKit objects and is main-thread-only.
 - `ArtworkTextCapture.swift` — TextKit's resolved glyphs, positions and decorations sent to Rust as outlines; intrinsic glyph assets keep their byte colour and coverage.
+- `ArtworkTextOnPath.swift` — `TextPathPlacement`: a captured glyph placed rigidly on its path's frame, a decoration bent through `mapOutline`; the outline-glyph refusal.
 - `AdjustmentLayer.swift` — the adjustment ops the app can create and re-edit (the core schema's meta `op` strings); a newer schema's op still composites and round-trips.
 - `AdjustmentSchema.swift` — the app-side mirror of the core's meta schema (`core/src/adjust.rs`): every parameter's key, kind, range and default, for the MCP validator, sheets and catalog.
 - `AdjustmentSheet.swift` — which surface opened an adjustment dialog and so what Apply commits; one sheet class per op serves the layer and its destructive twin (`dr_image_adjust_op`).
@@ -793,6 +797,7 @@ Detail belongs in the source file's own header comment.
 - `PathShape+CGPath.swift` — the one `PathShape` ↔ `CGPath` converter: the core's outline rule out, a boolean result's elements back (merge, drop).
 - `PathCombine.swift` — path booleans: `PathCombineOperation`, `combine` (two fill regions) and `combineSubpaths` (selected against the rest), by CoreGraphics.
 - `DoctoredCore+Paths.swift` — `dr_*path*` / `dr_*vector_mask*` calls: `paths`, `withPaths`, the vector-mask edits, `RasterPathCore`, `maskEditBaseline`.
+- `DoctoredCore+PathAlong.swift` — `PathFrame` and `RasterPathCore.pathLength` / `pathFrames` / `mapOutline` (`dr_path_length`, `dr_path_frames`, `dr_outline_map`).
 - `ImageDocument+Paths.swift` — `applyPathEdit`, the Pen's two commits (`commitPenPath`, `commitPenVectorMask`) and `resolvedPath`.
 - `AgentServer+Paths.swift` / `AgentCatalog+Paths.swift` — fourteen MCP tools (the catalog also `combine_paths`): the path list, the clipping path, selection both ways, fill, stroke, vector masks.
 - `AgentServer+PathCombine.swift` — `combine_paths` (`with`, or `subpath_indices`), mirroring Combine with Path… and Combine Selected Subpaths.

@@ -188,6 +188,10 @@ mod neural_colorize;
 mod neural_filters;
 #[path = "operation_scope.rs"]
 mod operation_scope;
+#[path = "outline_map.rs"]
+mod outline_map;
+#[path = "path_along.rs"]
+mod path_along;
 #[path = "path_format.rs"]
 mod path_format;
 #[path = "path_geometry.rs"]

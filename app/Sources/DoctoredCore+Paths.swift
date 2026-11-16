@@ -184,7 +184,8 @@ enum RasterPathCore {
         return String(decoding: data, as: UTF8.self)
     }
 
-    private static func text(_ shape: PathShape) throws -> String {
+    /// The shape JSON as text (DoctoredCore+PathAlong.swift's wrappers send it too).
+    static func text(_ shape: PathShape) throws -> String {
         try text(shape.jsonObject, finite: shape.isFinite)
     }
 

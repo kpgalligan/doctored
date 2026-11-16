@@ -176,8 +176,7 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   the target document, which a recorded Pen or Make Work Path step earlier in the same action provides.
 
 ## Not in v1
-- `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — Type on a path, designed in
-  [type-on-a-path.md](type-on-a-path.md), not built.
+- `DONE` — Type on a path ([type-on-a-path.md](type-on-a-path.md), shipped 2026-11-16).
 - `DONE` (2026-11-14) — Convert Path to Shape layer (Decisions, "Path shape layers";
   `scripts/verify_path_shape_layers.py`).
 - `DONE` (2026-11-14) — path boolean operations on two paths of the list (Decisions, "A path operation

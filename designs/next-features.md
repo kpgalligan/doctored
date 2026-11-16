@@ -59,7 +59,7 @@ over `Arc`-shared layers, canvas-sized coverage masks, an f32 compositor and the
 | Colour management, float/linear-light | Shipped (Phases 3/7/11) |
 | Smart objects | Not in v1. Smart objects, PSD smart-object read and write, and placed images kept as retained sources were built (Phase 8) and removed on 2026-10-10 ([removal ADR](convert-to-smart-object-status.md)); a camera RAW layer keeps its original and re-develops; a PSD smart object imports as its pixels |
 | Pen/Bézier paths, vector masks | Shipped ([ADR](v1-paths.md)) |
-| Text on a path | Not shipped ([#19](https://github.com/kpgalligan/doctored/issues/19)) |
+| Text on a path | Shipped ([ADR](type-on-a-path.md)) |
 
 ## Rejected alternatives
 - Destructive-only shapes — parametric costs barely more and stays editable.

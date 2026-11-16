@@ -40,7 +40,8 @@ const LIST_JSON_LIMIT: usize = 64 * 1024 * 1024;
 
 /// The longest shape JSON a shape export reads: one shape at its anchor cap
 /// is under 5 MiB at four decimals and under 16 MiB at full f64 precision.
-const SHAPE_JSON_LIMIT: usize = 16 * 1024 * 1024;
+/// `ffi_path_along`'s map JSON cap is this plus room for the map's keys.
+pub(crate) const SHAPE_JSON_LIMIT: usize = 16 * 1024 * 1024;
 
 /// What parsing a shape JSON of `bytes` bytes may hold while it is read: the
 /// JSON tree and the shape built from it. The tersest anchor, `[x,y],`, is

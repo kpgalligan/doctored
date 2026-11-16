@@ -3110,6 +3110,35 @@ fn null_safety_sweep() {
                 said(&mut err, says);
                 assert!(dr_path_flatten(ptr::null(), 0.25, err_out).is_null());
                 said(&mut err, says);
+                // Distance along a subpath and outline maps
+                // (`path_along.rs`, `outline_map.rs`).
+                {
+                    use doctored_core::ffi_path_along::*;
+                    assert_eq!(dr_path_length(ptr::null(), 0, err_out), -1.0);
+                    said(&mut err, says);
+                    assert!(!dr_path_frames(
+                        ptr::null(),
+                        0,
+                        false,
+                        ptr::null(),
+                        0,
+                        ptr::null_mut(),
+                        0,
+                        err_out
+                    ));
+                    said(&mut err, says);
+                    assert!(dr_outline_map(
+                        ptr::null(),
+                        0,
+                        ptr::null(),
+                        0,
+                        ptr::null(),
+                        0.25,
+                        err_out
+                    )
+                    .is_null());
+                    said(&mut err, says);
+                }
                 assert!(
                     dr_path_trace(ptr::null(), 4, 2, 2, 2.0, 1 << 30, 0, ptr::null(), err_out)
                         .is_null()

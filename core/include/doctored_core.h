@@ -4225,6 +4225,53 @@ char *dr_path_hit(const char *shape_json, double x, double y, double tolerance,
  * flattens past 1,048,576 points. What Path Selection's press asks. */
 int64_t dr_path_subpath_at(const char *shape_json, double x, double y);
 
+/* Distance along ONE subpath (text on a path): the subpath is flattened at
+ * 1/64 px (its closing segment included when closed) and measured as that
+ * polyline. For a curve whose radius of curvature is at least r, a frame's
+ * point is within 1/64 px of the curve, the length is short by at most a
+ * factor (1/64)/(3r) and a tangent is within acos(1 - (1/64)/r).
+ *
+ * dr_path_length: the length of subpath `subpath`. -1 with err_out set for
+ * NULL or malformed JSON, a refused shape, no such subpath, or a subpath
+ * with no length. */
+double dr_path_length(const char *shape_json, uint32_t subpath, char **err_out);
+
+/* The frame at each of `count` distances along subpath `subpath` (from its
+ * other end when `reversed`; a closed one still starts at its first anchor),
+ * written into the CALLER'S `frames` buffer as x, y, tx, ty per distance,
+ * the tangent of unit length. A closed subpath wraps any finite distance; an
+ * open one writes four NaN where a distance lies outside 0..=length, as for
+ * a distance that is not finite. frames_count must be exactly count*4 and
+ * count at most 65536; distances and frames may be NULL only when count is
+ * 0. False with err_out set for any of those, NULL or malformed JSON, a
+ * refused shape, no such subpath or one with no length; nothing is written
+ * on refusal. */
+bool dr_path_frames(const char *shape_json, uint32_t subpath, bool reversed,
+                    const double *distances, size_t count,
+                    double *frames, size_t frames_count, char **err_out);
+
+/* An outline in dr_artwork_path_coverage's form (verbs 0 move, 1 line,
+ * 2 quad, 3 cubic, 4 close; point_count x, y pairs) through the map in
+ * `map_json`, returned as {"commands":[...],"points":[[x,y],...]} with verbs
+ * 0, 1 and 4 only, at full precision. Every segment, a line included (split
+ * at least once), is halved until its mapped midpoint and quarter points lie
+ * within `tolerance` px of the mapped chord, depth capped at 20; a subpath
+ * left open is closed by its mapped closing line. map_json:
+ *   {"kind":"along","shape":<shape JSON>,"subpath":i,"reversed":bool,
+ *    "start":n,"baseline":n,"shift":n}
+ * maps (x, y) to F.point + up*(baseline - y + shift), F the frame at
+ * start + x on that subpath continued straight past an open one's ends and
+ * up = (F.ty, -F.tx); absent numbers are 0, absent reversed false. NULL with
+ * err_out set for a NULL buffer with a non-zero count, more than 262144
+ * verbs or points in or out, an unknown verb, a mismatched point count, a
+ * coordinate that is not finite or past 1e9, NULL or malformed map JSON, an
+ * unknown kind, a number that is not finite, no such subpath or one with no
+ * length, or a tolerance that is not positive and finite (a smaller one is
+ * raised to 1/4096). Free with dr_string_free. */
+char *dr_outline_map(const uint8_t *commands, size_t command_count,
+                     const double *points, size_t point_count,
+                     const char *map_json, double tolerance, char **err_out);
+
 /* The shape with one more anchor on segment `segment` of subpath `subpath`
  * at parameter t (dr_path_hit's), its outline unchanged to four decimals: a
  * curved segment is split by de Casteljau (the new anchor is smooth and its

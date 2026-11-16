@@ -78,7 +78,19 @@ extension AgentServer {
                     "color_runs": ["type": "array", "maxItems": 64, "items": ["type": "object"],
                         "description": "Sorted nonoverlapping {location,length,rgba} UTF-16 complete-character ranges; [] clears runs. In a CMYK document a run may pass ink (C, M, Y, K percent) for rgba."],
                     "ink": Self.cmykInk("the text colour"),
-                    "x": ["type": "number"], "y": ["type": "number"],
+                    "x": [
+                        "type": "number",
+                        "description": "Left of the text block in canvas px; required with y "
+                            + "unless on_path is given (then default: the subpath's first anchor, "
+                            + "the layer's origin).",
+                    ],
+                    "y": [
+                        "type": "number",
+                        "description": "Top of the text block in canvas px; required with x "
+                            + "unless on_path is given.",
+                    ],
+                    "on_path": Self.textOnPathProperty(
+                        "Puts the text on a path from the start."),
                     "size": [
                         "type": "number",
                         "description": "Font size in px (4-1000, default 48).",
@@ -119,7 +131,7 @@ extension AgentServer {
                     ],
                     "document_id": docID,
                 ].merging(LayerInsertPosition.catalogProperties) { current, _ in current },
-                required: ["text", "x", "y"]),
+                required: ["text"]),
             tool(
                 "edit_text_layer",
                 "Re-renders a text layer made by add_text_layer (or by the app's text tool) "
@@ -169,6 +181,10 @@ extension AgentServer {
                     "baseline_shift": textBaselineProperty,
                     "transform": transformProperty(
                         "replacing the layer's current one (default: keep it)"),
+                    "on_path": Self.textOnPathProperty(
+                        "Omit to keep the layer's; null takes the text off its path (Layer ▸ "
+                            + "Remove Text from Path); an object with neither subpaths nor "
+                            + "path_name keeps the stored path and changes offset or side."),
                     "wrap_width": [
                         "type": "number",
                         "description": "px; the block wraps at this SOURCE-space width and "
@@ -580,6 +596,32 @@ extension AgentServer {
          "description": "The \(kind) midpoint toward the next stop as a fraction: where "
             + "the \(kind) is half way between this stop and the next (default 0.5, 50 %; "
             + "rounded to 0.01; the last stop's is ignored). Outside 0.05…0.95 is refused."]
+    }
+
+    /// The text tools' `on_path` (AgentServer+TextOnPath.swift), Layer ▸ Place Text on Path's
+    /// mirror; `lead` says what the tool does with it.
+    private static func textOnPathProperty(_ lead: String) -> [String: Any] {
+        ["type": ["object", "null"],
+         "description": "Text on a path: the one line follows one subpath, each glyph upright "
+            + "on it at the centre of its advance, underline and strikethrough bent with it. "
+            + lead + " {subpaths | path_name, subpath?, offset?, side?} in canvas px: subpaths in "
+            + "set_path's form or path_name a stored path's name (\"Work Path\" included); "
+            + "subpath the index of the one subpath (required when there are more; at most "
+            + "1024 anchors); offset px along it where the line's alignment point sits (left "
+            + "starts there, center is centred on it, right ends there; default 0); side "
+            + "\"left\" (default: along the path's direction, above a path drawn left to right) "
+            + "or \"right\" (from its other end, on the other side). The text is one line of "
+            + "point text: a line break or wrap_width is refused; past an open subpath's ends "
+            + "glyphs are hidden, a closed one wraps. Replies report on_path {canvas_subpaths, "
+            + "offset, side, length, hidden_glyphs}, length in the layer's own (untransformed) "
+            + "px.",
+         "properties": [
+            "subpaths": ["type": "array", "items": ["type": "object"]],
+            "path_name": ["type": "string"],
+            "subpath": ["type": "integer", "minimum": 0],
+            "offset": ["type": "number"],
+            "side": ["type": "string", "enum": TextOnPath.sides],
+         ]]
     }
 
     /// A CMYK ink argument: C, M, Y, K in percent, kept exactly, its alpha the colour

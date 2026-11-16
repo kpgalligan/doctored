@@ -9,7 +9,9 @@ import AppKit
 /// the description honest). Also the text object get_document reports, the
 /// typography-argument parser both text tools share (the options bar's
 /// knobs and ranges), and the `transform` argument parser the shape tools
-/// share.
+/// share. Their `on_path` argument (AgentServer+TextOnPath.swift) mirrors
+/// Layer ▸ Place Text on Path and Remove Text from Path, which run
+/// edit_text_layer through the dispatch.
 extension AgentServer {
     /// This file's MCP tools; merged by AgentServer+Registry.swift.
     static let textHandlers: [String: ToolHandler] = [
@@ -251,6 +253,7 @@ extension AgentServer {
         if let anchor = anchor {
             fields["origin"] = ["x": Double(anchor.x), "y": Double(anchor.y)]
         }
+        if let onPath = textOnPathFields(payload, anchor: anchor) { fields["on_path"] = onPath }
         // A family this Mac lacks (`TextStyle.isInstalled`): the layer keeps its saved pixels
         // until replace_missing_fonts replaces it.
         if !payload.style.isInstalled { fields["font_missing"] = true }
@@ -296,21 +299,36 @@ extension AgentServer {
         let inked = try cmykArtworkArguments(a, doc: doc, pairs: [("ink", "rgba", "color")])
         let a = inked.arguments
         let text = try requiredString(a, "text")
-        guard let x = doubleArg(a, "x"), let y = doubleArg(a, "y"), x.isFinite, y.isFinite
-        else {
-            throw ToolError(
-                message: "add_text_layer requires x and y (the top-left of the text block), "
-                    + "finite numbers")
-        }
+        let transform = try linearMapArg(a, "transform") ?? .identity
+        // x and y, both or neither; with on_path they default to the
+        // subpath's first anchor.
+        let givenX = doubleArg(a, "x"), givenY = doubleArg(a, "y")
+        let xyRefusal = ToolError(
+            message: "add_text_layer requires x and y (the top-left of the text block), "
+                + "finite numbers, unless on_path places the text")
+        guard (givenX == nil) == (givenY == nil),
+              [givenX, givenY].allSatisfy({ $0?.isFinite ?? true })
+        else { throw xyRefusal }
+        let given = givenX.flatMap { x in givenY.map { CGPoint(x: x, y: $0) } }
+        // Whole pixels for an untransformed block, exact otherwise — the
+        // placement rule every interactive commit follows.
+        let givenAnchor = given.map { DescribedLayer.placementAnchor($0, transform: transform) }
+        let placed = try textOnPathArg(
+            a, doc: doc, current: nil, anchor: givenAnchor, transform: transform)
+        let onPath = placed?.value
+        guard let anchor = onPath != nil ? placed?.anchor : givenAnchor else { throw xyRefusal }
+        let x = Double(given?.x ?? anchor.x)
+        if onPath != nil { try refuseTextOnPathLayout(a, text: text) }
         let size = try textSizeArg(a) ?? 48
         let family = try textFamily(a, size: size) ?? Self.defaultTextFamily
         let ink = doc.authoringInk
         let color = try artworkColor(a, numeric: "rgba", legacy: "color", fallback: .black, ink: ink) ?? .clear
         let alignment = try textAlignment(a) ?? "left"
-        let transform = try linearMapArg(a, "transform") ?? .identity
         // The box: wrap_width, or from the block's left edge to the canvas's
-        // right edge — the same default add_text uses.
-        let box = try textBoxArg(a) ?? .width(max(Double(doc.width) - x, 10))
+        // right edge — the same default add_text uses. Text on a path is
+        // point text.
+        let box: TextBox = try onPath != nil
+            ? .point : textBoxArg(a) ?? .width(max(Double(doc.width) - x, 10))
         // Typography over the tool's defaults (regular weight, no tracking,
         // natural line height…) — the same defaults the options bar starts
         // on, so an argument-free call still looks like a hand-made layer.
@@ -319,9 +337,7 @@ extension AgentServer {
             string: text, style: style, color: color, box: box, transform: transform, ink: ink)
         payload.alignment = alignment
         payload.artwork = try artworkTextStyle(a, payload: payload)
-        // Whole pixels for an untransformed block, exact otherwise — the
-        // placement rule every interactive commit follows.
-        let anchor = DescribedLayer.placementAnchor(CGPoint(x: x, y: y), transform: transform)
+        payload = payload.withOnPath(onPath)
         let name = TextLayer.layerName(for: text)
         // `position` / `layer` (AgentServer+Adjustments.insertionArguments),
         // the same pair every layer-creating tool takes. Where the new layer
@@ -395,11 +411,17 @@ extension AgentServer {
         let color = try artworkColor(a, numeric: "rgba", legacy: "color", fallback: current.nsColor, ink: ink) ?? .clear
         let alignment = try textAlignment(a) ?? current.alignment
         let transform = try linearMapArg(a, "transform") ?? current.transform
+        // `on_path`: absent keeps the layer's, null takes it off, an object
+        // places it (the outline in the source space of the RESULTING map).
+        let onPath = try textOnPathArg(
+            a, doc: doc, current: current.onPath, anchor: anchor, transform: transform
+        ).map { $0.value } ?? current.onPath
+        if onPath != nil { try refuseTextOnPathLayout(a, text: text) }
         // The box: wrap_width, else the layer's stored box; a layer saved
         // before widths were stored re-wraps at this tool's own pre-change
         // default (from its origin to the canvas's right edge) and stores
-        // that width from now on.
-        let box = try textBoxArg(a)
+        // that width from now on. Text on a path is point text.
+        let box: TextBox = try onPath != nil ? .point : textBoxArg(a)
             ?? (current.box == .unspecified
                 ? .width(max(Double(doc.width) - Double(anchor.x), 10)) : current.box)
         // Typography over the layer's CURRENT style: an absent argument
@@ -412,6 +434,7 @@ extension AgentServer {
             string: text, style: style, color: color, box: box, transform: transform, ink: ink)
         payload.alignment = alignment
         payload.artwork = try artworkTextStyle(a, payload: payload, current: current.artwork)
+        payload = payload.withOnPath(onPath)
         let name = TextLayer.layerName(for: text)
         // The name follows the text only while it still IS the text: a name
         // somebody typed themselves survives the re-render.

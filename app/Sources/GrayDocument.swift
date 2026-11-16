@@ -309,6 +309,8 @@ enum GrayDocument {
         // Paths panel, Fill and Stroke Path and the vector masks (CMYK's list).
         "newSolidColorFillLayer:", "newGradientFillLayer:", "newPatternFillLayer:",
         "layerContentOptions:", "rasterizeArtwork:", "editArtworkColors:", "replaceMissingFonts:",
+        // Layer ▸ Place Text on Path / Remove Text from Path (`edit_text_layer`).
+        "placeTextOnPath:", "removeTextFromPath:",
         "makeWorkPath:",
         "makeSelectionFromPath:", "duplicateCurrentPath:", "deleteCurrentPath:", "fillCurrentPath:",
         "combinePaths:", "convertPathToShape:",

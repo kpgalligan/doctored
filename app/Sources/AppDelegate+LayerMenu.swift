@@ -20,6 +20,9 @@ extension AppDelegate {
         menu.addItem(item("Artwork Colors…", #selector(EditorViewController.editArtworkColors(_:))))
         menu.addItem(
             item("Replace Missing Fonts…", #selector(EditorViewController.replaceMissingFonts(_:))))
+        // A one-line text layer follows a subpath of the current path (EditorViewController+TextOnPath.swift).
+        menu.addItem(item("Place Text on Path", #selector(EditorViewController.placeTextOnPath(_:))))
+        menu.addItem(item("Remove Text from Path", #selector(EditorViewController.removeTextFromPath(_:))))
         menu.addItem(item("Rasterize Artwork", #selector(EditorViewController.rasterizeArtwork(_:))))
         // Places a Live Photo's still as an ordinary layer.
         menu.addItem(

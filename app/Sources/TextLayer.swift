@@ -141,6 +141,13 @@ struct TextStyle: Equatable {
 /// `rgba` and each run's `rgba` are `[c, m, y, k, alpha]` in the CMYK
 /// document's profile, and the hex `color` is that ink's sRGB APPEARANCE
 /// through the profile (CmykArtwork.swift writes both).
+///
+/// Version 6 is text on a path (TextOnPath.swift): it adds `on_path`
+/// (`{"outline": <ShapeOutline of one subpath, in SOURCE space>, "offset":
+/// px, "side": "left" | "right"}`) and is written exactly when the payload
+/// carries one, in any ink, always with `artwork` (whose `ink` says what the
+/// numbers are, as at versions 3–5). A version-6 payload is point text with
+/// no line break; versions 1–5 keep their bytes.
 struct TextLayerPayload: Codable, Equatable {
     /// The only `type` this app understands; anything else (or nothing) means
     /// the layer's metadata was written by something that is not a text
@@ -148,10 +155,12 @@ struct TextLayerPayload: Codable, Equatable {
     static let typeName = "text"
     /// The newest schema this app writes; older builds read layers at it as
     /// plain rasters — the graceful degradation the format is designed for.
-    static let currentVersion = 5
+    static let currentVersion = 6
     /// The schema of a linear-ink payload and of an ink one (#1).
     static let linearVersion = 4
     static let cmykVersion = 5
+    /// The schema of a payload on a path, in any ink.
+    static let pathVersion = 6
     /// The schema written when every version-2 field is at its default.
     static let legacyVersion = 1
     /// The values `alignment` may take, in options-bar segment order.
@@ -181,6 +190,9 @@ struct TextLayerPayload: Codable, Equatable {
     /// by `addingDescribedLayer` / `rerenderingDescribedLayer` and the
     /// meta-only geometry patches, never by a caller building a payload.
     var originFraction: CGPoint = .zero
+    /// The subpath the line follows (version 6, TextOnPath.swift); nil for
+    /// text laid out in its block.
+    var onPath: TextOnPath?
 
     enum CodingKeys: String, CodingKey {
         case type, version, string, font, size, color, alignment, artwork
@@ -188,6 +200,7 @@ struct TextLayerPayload: Codable, Equatable {
         case baselineShift = "baseline_shift"
         case boxWidth = "box_width"
         case originFraction = "origin_frac"
+        case onPath = "on_path"
     }
 
     init(
@@ -230,11 +243,20 @@ struct TextLayerPayload: Codable, Equatable {
         size = try container.decode(Double.self, forKey: .size)
         color = try container.decode(String.self, forKey: .color)
         artwork = try container.decodeIfPresent(ArtworkTextStyle.self, forKey: .artwork)
-        guard (version >= 3) == (artwork != nil),
-              (version == Self.linearVersion) == (artwork?.ink == .linearSRGB),
-              (version == Self.cmykVersion) == (artwork?.ink == .cmyk), artwork?.ink != .srgb else {
-            throw DecodingError.dataCorruptedError(forKey: .artwork, in: container,
-                debugDescription: "native artwork semantics require version 3 (sRGB), 4 (linear) or 5 (ink)")
+        onPath = try container.decodeIfPresent(TextOnPath.self, forKey: .onPath)
+        if version == Self.pathVersion {
+            // On a path: any ink, and always a style that says which.
+            guard onPath != nil, artwork != nil, artwork?.ink != .srgb else {
+                throw DecodingError.dataCorruptedError(forKey: .onPath, in: container,
+                    debugDescription: "version 6 is text on a path, with on_path and artwork")
+            }
+        } else {
+            guard onPath == nil, (version >= 3) == (artwork != nil),
+                  (version == Self.linearVersion) == (artwork?.ink == .linearSRGB),
+                  (version == Self.cmykVersion) == (artwork?.ink == .cmyk), artwork?.ink != .srgb else {
+                throw DecodingError.dataCorruptedError(forKey: .artwork, in: container,
+                    debugDescription: "native artwork semantics require version 3 (sRGB), 4 (linear) or 5 (ink)")
+            }
         }
         alignment = try container.decodeIfPresent(String.self, forKey: .alignment) ?? "left"
         weight = try container.decodeIfPresent(Int.self, forKey: .weight) ?? 5
@@ -277,10 +299,14 @@ struct TextLayerPayload: Codable, Equatable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(Self.typeName, forKey: .type)
         let legacy = isLegacyEncodable
+        let inkVersion = artwork.map {
+            $0.ink == .linearSRGB ? Self.linearVersion : $0.ink == .cmyk ? Self.cmykVersion : 3
+        }
         try container.encode(
-            artwork.map { $0.ink == .linearSRGB ? Self.linearVersion : $0.ink == .cmyk ? Self.cmykVersion : 3 }
-                ?? (legacy ? Self.legacyVersion : 2), forKey: .version)
+            onPath != nil ? Self.pathVersion : inkVersion ?? (legacy ? Self.legacyVersion : 2),
+            forKey: .version)
         try container.encodeIfPresent(artwork, forKey: .artwork)
+        try container.encodeIfPresent(onPath, forKey: .onPath)
         try container.encode(string, forKey: .string)
         try container.encode(font, forKey: .font)
         try container.encode(size, forKey: .size)
@@ -307,7 +333,8 @@ struct TextLayerPayload: Codable, Equatable {
     /// can be written as version 1 (the box is version-1 compatible and
     /// does not count).
     var isLegacyEncodable: Bool {
-        artwork == nil && transform.isIdentity && originFraction == .zero && weight == 5 && !italic
+        artwork == nil && onPath == nil && transform.isIdentity && originFraction == .zero
+            && weight == 5 && !italic
             && tracking == 0 && leading == 0 && baselineShift == 0 && !underline
             && !strikethrough
     }
@@ -394,7 +421,10 @@ struct TextLayerPayload: Codable, Equatable {
               payload.tracking.isFinite, payload.leading.isFinite, payload.leading >= 0,
               payload.baselineShift.isFinite,
               payload.transform.isInvertible,
-              TextLayer.isValidFraction(payload.originFraction)
+              TextLayer.isValidFraction(payload.originFraction),
+              // Text on a path is one line of point text along one valid subpath.
+              payload.onPath.map({ $0.isValid && payload.box == .point
+                  && !TextOnPath.hasLineBreak(payload.string) }) != false
         else { return nil }
         return payload
     }
@@ -477,8 +507,9 @@ enum TextLayer {
     /// above the preview. The storage is returned only to keep it alive:
     /// the manager holds it weakly.
     /// The stack `typeset` builds, kept whole so the renderer can draw
-    /// through the very stack that measured the block.
-    private typealias TypesetStack = (
+    /// through the very stack that measured the block (and text on a path
+    /// can read its glyphs, TextOnPath.swift).
+    typealias TypesetStack = (
         manager: NSLayoutManager, container: NSTextContainer, storage: NSTextStorage
     )
 
@@ -523,7 +554,7 @@ enum TextLayer {
     /// pass serves the measure, the padded source rect and — for
     /// left-aligned text — the draw itself (`render`), where a commit used
     /// to lay the same string out once per question, linear in its length.
-    private static func measure(_ payload: TextLayerPayload, color: NSColor? = nil, layoutManager: NSLayoutManager? = nil)
+    static func measure(_ payload: TextLayerPayload, color: NSColor? = nil, layoutManager: NSLayoutManager? = nil)
         -> (measured: NSAttributedString, rect: CGRect, stack: TypesetStack)?
     {
         guard !payload.string.isEmpty, let wrap = wrapWidth(payload.box) else { return nil }
@@ -571,7 +602,9 @@ enum TextLayer {
     /// the (−pad, −pad) origin rule of `LayerDescription.rasterOrigin` are
     /// untouched.
     static func sourceRect(_ payload: TextLayerPayload) -> CGRect? {
-        layout(payload).map { sourceRect(layoutRect: $0.rect, size: payload.size) }
+        // Text on a path covers its outline's reach instead (TextOnPath.swift).
+        if payload.onPath != nil { return onPathSourceRect(payload) }
+        return layout(payload).map { sourceRect(layoutRect: $0.rect, size: payload.size) }
     }
 
     /// `sourceRect` for a layout rect already measured, so a caller holding
@@ -609,17 +642,30 @@ enum TextLayer {
     static func render(
         _ payload: TextLayerPayload, anchor: CGPoint, space: CGColorSpace
     ) -> DescribedRaster? {
-        drawingPlan(payload, anchor: anchor)?.render(space: space)
+        // Text on a path bends only in the artwork capture
+        // (ArtworkTextOnPath.swift); this byte renderer would draw it straight.
+        guard payload.onPath == nil else { return nil }
+        return drawingPlan(payload, anchor: anchor)?.render(space: space)
     }
 
     /// The existing TextKit layout and placement, with an optional drawing ink
     /// override for scalar coverage. Authored typed RGB never enters TextKit.
+    /// Text on a path is laid out STRAIGHT (`TextLayerPayload.straightened`,
+    /// left-aligned point text with no baseline shift) in its TP-6 source rect
+    /// (`onPathSourceRect`); the capture's layout manager places each glyph
+    /// on the path (ArtworkTextOnPath.swift).
     static func drawingPlan(_ payload: TextLayerPayload, anchor: CGPoint,
                             color: NSColor? = nil, layoutManager: NSLayoutManager? = nil) -> DescribedDrawingPlan? {
+        let onPath = payload.onPath != nil
+        let laidOut = onPath ? payload.straightened : payload
         guard anchor.x.isFinite, anchor.y.isFinite, abs(anchor.x) < 1e7, abs(anchor.y) < 1e7,
-              let layout = measure(payload, color: color, layoutManager: payload.nsAlignment == .left ? layoutManager : nil)
+              let layout = measure(laidOut, color: color,
+                                   layoutManager: laidOut.nsAlignment == .left ? layoutManager : nil)
         else { return nil }
-        let source = sourceRect(layoutRect: layout.rect, size: payload.size)
+        let measuredSource = onPath
+            ? onPathSourceRect(payload, stack: layout.stack)
+            : sourceRect(layoutRect: layout.rect, size: payload.size)
+        guard let source = measuredSource else { return nil }
         let frac = DescribedLayer.anchorFraction(anchor)
         guard let rect = payload.transform.rasterRect(of: source, fraction: frac) else {
             return nil
@@ -632,7 +678,7 @@ enum TextLayer {
         // exactly the block wide, so lines shift within the block while the
         // widest line — and the block itself — stay put.
         let stack: TypesetStack
-        if payload.nsAlignment == .left {
+        if laidOut.nsAlignment == .left {
             stack = layout.stack
         } else {
             stack = typeset(
