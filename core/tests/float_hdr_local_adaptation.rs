@@ -433,6 +433,13 @@ fn a_flat_image_is_the_closed_form() {
                 saturation: 0.0,
             },
         ),
+        (
+            la(json!({"gamma": 3.25})),
+            Tone {
+                gamma: 3.25,
+                ..DEFAULTS
+            },
+        ),
     ] {
         // span 1 (a single level), t = 0 and d = 0 on a flat plane.
         let want = encoded(&[mapped(c, 0.0, 0.0, 1.0, tone)])[0];
@@ -969,7 +976,7 @@ fn every_value_refuses_by_name() {
         ("strength", json!(0.05)),
         ("strength", json!(5)),
         ("gamma", json!(0.05)),
-        ("gamma", json!(2.5)),
+        ("gamma", json!(10.5)),
         ("exposure", json!(-6)),
         ("exposure", json!(5.5)),
         ("detail", json!(-101)),

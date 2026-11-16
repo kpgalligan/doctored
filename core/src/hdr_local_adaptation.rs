@@ -7,13 +7,13 @@
 //! codes (max / mean, 8-bit scale) on the chart and 14.4 / 11.0 on the merged
 //! bracket against a gate of 2 / 0.5, with Photoshop's controls other than
 //! radius, strength, gamma and exposure at its own values; it ships as
-//! declared. Photoshop applies a gamma of at most 2 (3.25 tones as 2 does).
+//! declared.
 //!
 //! # The request
 //!
 //! `{"method":"local_adaptation", …}` with every key optional (defaults in
 //! parentheses): `radius` 1…500 px (16), `strength` 0.1…4 (0.52),
-//! `smooth_edges` (false), `gamma` 0.1…2 (1), `exposure` −5…5 stops (0),
+//! `smooth_edges` (false), `gamma` 0.1…10 (1), `exposure` −5…5 stops (0),
 //! `detail` −100…300 (30), `shadow` and `highlight` −100…100 (0), `vibrance`
 //! −100…100 (0), `saturation` −100…100 (20) and `toning_curve`, 2–16
 //! `[in, out]` points in 0…255 (the `curves` op's `rgb` list; the identity by
@@ -156,9 +156,14 @@ const FLOOR_CHROMA_SCALE: f64 = 8.0;
 /// saturated colour outside the gamut has its darkest stop at its top.
 const FLOOR_TOP_SCALE: f64 = 7.0;
 
-/// The request's largest `gamma` (module doc). `hdr_toning_preset_file`
-/// clamps a preset file's larger gamma to it.
-pub(crate) const MAX_GAMMA: f64 = 2.0;
+/// The request's largest `gamma` (module doc), a limit of Doctored's own: at
+/// 10 the base's tones already fit in under one stop (`k` of step 4 is at
+/// most `DISPLAY_STOPS/span/10`). A preset file's gamma is imported as stored
+/// and refused above it (`hdr_toning_preset_file`). Recorded
+/// takes (`hdt-gamma-85/take1` and `take2`, Photoshop 26.10.0) measured `.hdt`
+/// files storing 3.0 to 4.64 rendering unlike the file storing 2, unlike the
+/// file storing 1 and unlike one another.
+const MAX_GAMMA: f64 = 10.0;
 
 /// The point counts the request's `toning_curve` takes (module doc).
 pub(crate) const TONING_CURVE_POINTS: std::ops::RangeInclusive<usize> = 2..=16;

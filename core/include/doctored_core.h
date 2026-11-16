@@ -2079,10 +2079,10 @@ char *dr_adjustment_preset_file_decode(const uint8_t *bytes, size_t len,
  * and returns {"hdr_toning":{…},"report":[…]} as a heap JSON string freed
  * with dr_string_free: `hdr_toning` is the Local Adaptation arguments the
  * file holds (`method`, every value and `toning_curve` as [in, out] pairs),
- * and each `report` line names a value imported other than as stored (a
- * gamma above 2 imports as 2; corner points import as smooth ones). NULL
- * `bytes` with `len` 0 is an empty file (refused by the format's truncation
- * sentence). NULL with a message through err_out on a NULL `bytes` with a
+ * and each `report` line names a value imported other than as stored
+ * (corner points import as smooth ones). NULL `bytes` with `len` 0 is an
+ * empty file (refused by the format's truncation sentence). NULL with a
+ * message through err_out on a NULL `bytes` with a
  * non-zero `len`, `len` over 4096 (checked before the bytes are read), a
  * method other than Local Adaptation, or any file that does not parse
  * exactly or holds a value outside the request's ranges; never panics. */

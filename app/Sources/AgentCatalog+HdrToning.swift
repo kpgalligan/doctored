@@ -22,7 +22,7 @@ extension AgentServer {
             "filter of radius pixels, 1 to 500, default 16, run at most 192; strength 0.1 to 4, ",
             "default 0.52, the size in stops of a step the base follows; smooth_edges, default ",
             "false, follows more edges) and its detail; the base is compressed into about eight ",
-            "stops (gamma 0.1 to 2, default 1, a larger gamma flattens more and brightens; ",
+            "stops (gamma 0.1 to 10, default 1, a larger gamma flattens more and brightens; ",
             "exposure -5 to 5 stops, default 0), the detail scaled by 1 + detail/100 (detail ",
             "-100 to 300, default ",
             "30); then vibrance and saturation (-100 to 100, defaults 0 and 20), and shadow and ",
@@ -97,7 +97,7 @@ extension AgentServer {
             ] as [String: Any],
             "exposure": ["type": "number", "minimum": -20, "maximum": 20, "default": 0]
                 as [String: Any],
-            "gamma": ["type": "number", "minimum": 0.01, "maximum": 9.99, "default": 1]
+            "gamma": ["type": "number", "minimum": 0.01, "maximum": 10, "default": 1]
                 as [String: Any],
             "radius": ["type": "number", "minimum": 1, "maximum": 500, "default": 16]
                 as [String: Any],
@@ -179,8 +179,8 @@ extension AgentServer {
             "else the file's name without .hdt (the file stores no usable name); a built-in's name ",
             "refuses, and a user preset's name refuses unless replace is true. hdr_toning's preset ",
             "then applies it by that name. The file's Local Adaptation values are imported as ",
-            "stored, except that a gamma above 2 is imported as 2 and the Toning Curve's corner ",
-            "points as smooth ones; each such change is one report line. A file of another ",
+            "stored, except that the Toning Curve's corner points are imported as smooth ones; ",
+            "each such change is one report line. A file of another ",
             "method, one that does not parse exactly, one with a value outside hdr_toning's ",
             "ranges, or one over 4 KiB refuses and writes nothing. The values reproduce the ",
             "preset's settings; Doctored's Local Adaptation renders them its own way. Changes no ",

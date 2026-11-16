@@ -53,8 +53,9 @@ EDR display shipped in v1.x.
   codes at 8-bit scale, chart / merged bracket: only EG at (0, 1) PASSES; every other EG row, HC, EH and LA at its
   defaults MISS (worst EG 117.1 max; per-row numbers in `fixtures/photoshop_hdr_toning/rows.json`, pinned by
   `float_hdr_toning_photoshop.rs`). HC-LUM fitted the chart but missed the held-out merged row, so nothing
-  swapped and every member ships as declared, its numbers disclosed. Gamma: CLAMPED (Photoshop tones LA gamma
-  3.25 as 2); a preset named in the descriptor (`Nm  `) is SELECTED.
+  swapped and every member ships as declared, its numbers disclosed. LA's gamma travels as `Cntr`; a `Gmm ` sent
+  is not read, and a preset name (`Nm  `) beside explicit values does not load its preset (`hdt-curve-66` takes 1
+  and 2). `.hdt` files storing a gamma of 3.0 to 4.64 render unlike the file storing 2 (`hdt-gamma-85`).
 - **HDR Toning's built-in presets are Default and eight looks of Doctored's own (phase 4c,
   [#7](https://github.com/kpgalligan/doctored/issues/7)).** Default is Local Adaptation at its defaults; Natural,
   Crisp Detail, Soft, Vivid, Black and White, Open Shadows, Hold Highlights and Grading Base are Local Adaptation
@@ -296,8 +297,11 @@ each with its purpose line; `scripts/verify_v1_hdr_toning.py` case (r) pins thei
 the recorded step.
 2026-11-14: Preset ▸ Import Preset… and MCP `import_hdr_toning_preset` read a `.hdt` file
 (`hdr_toning_preset_file.rs`, `dr_hdr_toning_preset_file_decode`) into the user library, named after the file
-(every sample stores "Default"). Local Adaptation only; a file that does not parse exactly refuses whole; a
-gamma above 2 imports as 2 and corner points as smooth ones, each with a report line. Case (s) pins it.
+(every sample stores "Default"). Local Adaptation only; a file that does not parse exactly refuses whole; corner
+points import as smooth ones with a report line, and every value, gamma included, as stored. Case (s) pins it.
+2026-11-16: Local Adaptation's gamma is 0.1…10, Doctored's own range; the reader's clamp to 2 is gone
+(`hdt-gamma-85` takes 1 and 2 measured files storing 3.0 to 4.64 rendering unlike the file storing 2, unlike the
+file storing 1 and unlike one another).
 2026-11-15: the curve's pair order (output first) and the point flag's polarity (0 a corner) are measured, no
 longer inferred (`hdt-curve-66/take3`; takes 1 and 2 found no reference: a name beside explicit values does not
 load the preset's curve, and a file loaded by `Usng` returns no values). The reader did not change.

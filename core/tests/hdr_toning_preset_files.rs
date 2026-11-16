@@ -1,7 +1,8 @@
 //! HDR Toning PRESET files (`.hdt`) through `dr_hdr_toning_preset_file_decode`:
 //! the values a file holds as `hdr_toning`'s Local Adaptation arguments, the
-//! curve's pair order, the gamma clamp and the corner report, a refusal per
-//! field, truncation at every length, the 4 KiB cap and the NULL sweep.
+//! curve's pair order, a gamma above 2 imported as stored and the corner
+//! report, a refusal per field, truncation at every length, the 4 KiB cap and
+//! the NULL sweep.
 //!
 //! Every file here is written field by field by `Hdt` below — no Adobe file is
 //! committed. The one `#[ignore]` probe reads the presets an installed
@@ -286,28 +287,19 @@ fn the_unread_fields_change_nothing() {
 
 // ------------------------------------------------------------------ report --
 
+/// A stored gamma above 2 is the request's own value, up to its maximum 10,
+/// and needs no report line.
 #[test]
-fn a_gamma_above_two_imports_as_two_with_a_report_line() {
-    for (stored, line) in [
-        (3.25f32, "gamma 3.25 is above the maximum 2; imported as 2"),
-        (4.64, "gamma 4.64 is above the maximum 2; imported as 2"),
-        (2.03, "gamma 2.03 is above the maximum 2; imported as 2"),
-    ] {
+fn a_gamma_above_two_imports_as_stored() {
+    for (stored, read) in [(3.25f32, 3.25f64), (4.64, 4.64), (2.03, 2.03), (10.0, 10.0)] {
         let file = Hdt {
             gamma: stored,
             ..Hdt::default()
         };
         let (decoded, report) = decode(&file.bytes()).expect("decodes");
-        assert_eq!(decoded, arguments(json!({"gamma": 2.0})), "{stored}");
-        assert_eq!(report, [line]);
+        assert_eq!(decoded, arguments(json!({"gamma": read})), "{stored}");
+        assert!(report.is_empty(), "{stored}: {report:?}");
     }
-    let at_the_maximum = Hdt {
-        gamma: 2.0,
-        ..Hdt::default()
-    };
-    let (decoded, report) = decode(&at_the_maximum.bytes()).expect("decodes");
-    assert_eq!(decoded["gamma"], json!(2.0));
-    assert!(report.is_empty(), "{report:?}");
 }
 
 /// A flag of 0 marks a corner point (1 is a smooth one, the flag every
@@ -339,18 +331,16 @@ fn corner_points_are_named_in_the_report() {
         );
         assert_eq!(report, line.into_iter().collect::<Vec<_>>(), "{flags:?}");
     }
-    let both = Hdt {
+    let beside_a_large_gamma = Hdt {
         gamma: 3.0,
         corners: Some(vec![0, 1]),
         ..Hdt::default()
     };
-    let (_, report) = decode(&both.bytes()).expect("decodes");
+    let (decoded, report) = decode(&beside_a_large_gamma.bytes()).expect("decodes");
+    assert_eq!(decoded["gamma"], json!(3.0));
     assert_eq!(
         report,
-        [
-            "gamma 3 is above the maximum 2; imported as 2",
-            "1 of the toning curve's 2 points is a corner; imported as a smooth point",
-        ]
+        ["1 of the toning curve's 2 points is a corner; imported as a smooth point"]
     );
 }
 
@@ -525,7 +515,7 @@ fn a_stored_value_that_is_not_finite_refuses_by_name() {
 }
 
 /// The ranges are the request's own (`LocalAdaptation::parse`), refused with
-/// its sentence; only a gamma above 2 is clamped.
+/// its sentence; nothing is clamped.
 #[test]
 fn a_value_outside_the_request_ranges_refuses_with_its_sentence() {
     let cases: Vec<(Hdt, &str)> = vec![
@@ -541,7 +531,14 @@ fn a_value_outside_the_request_ranges_refuses_with_its_sentence() {
                 gamma: 0.05,
                 ..Hdt::default()
             },
-            "hdr toning gamma must be a number in 0.1…2",
+            "hdr toning gamma must be a number in 0.1…10",
+        ),
+        (
+            Hdt {
+                gamma: 10.5,
+                ..Hdt::default()
+            },
+            "hdr toning gamma must be a number in 0.1…10",
         ),
         (
             Hdt {

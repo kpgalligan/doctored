@@ -44,7 +44,7 @@ final class HdrToningLocalAdaptationPane {
         ) { value in box.pane?.set(\.strength, value) }
         smoothRow = cardCheckboxRow(label: "", title: "Smooth Edges", on: values.smoothEdges
         ) { on in box.pane?.set(\.smoothEdges, on) }
-        gammaRow = cardSliderRow(label: "Gamma:", min: 0.1, max: 2, value: values.gamma,
+        gammaRow = cardSliderRow(label: "Gamma:", min: 0.1, max: 10, value: values.gamma,
                                  format: { String(format: "%.2f", $0) }
         ) { value in box.pane?.set(\.gamma, value) }
         exposureRow = cardSliderRow(label: "Exposure:", min: -5, max: 5, value: values.exposure,

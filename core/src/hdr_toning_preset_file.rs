@@ -40,22 +40,21 @@
 //! # What the import changes
 //!
 //! The answer is the arguments and a report, one line for each value the
-//! arguments do not carry as stored:
-//!
-//! * A gamma above the request's [`MAX_GAMMA`] (2) becomes 2, and the line
-//!   names the stored value: the measured take `hdr_local_adaptation`'s module
-//!   doc records rendered a stored 3.25 exactly as 2. Nothing else is clamped.
-//!   Every other range is the request's own (`LocalAdaptation::parse`, the one
-//!   implementation), and its sentence is the refusal.
-//! * Corner points are counted, because Doctored's Toning Curve is smooth
-//!   through every point.
+//! arguments do not carry as stored: corner points are counted, because
+//! Doctored's Toning Curve is smooth through every point. Nothing is clamped:
+//! every value, gamma included, is imported as stored, and the ranges are the
+//! request's own (`LocalAdaptation::parse`, the one implementation), whose
+//! sentence is the refusal. Recorded takes (`hdt-gamma-85`, Photoshop
+//! 26.10.0) measured files in this layout storing a gamma of 3.0 to 4.64
+//! rendering unlike the file storing 2, unlike the file storing 1 and unlike
+//! one another.
 //!
 //! A stored f32 becomes the f64 of its shortest decimal, so a value entered
 //! as 1.15 reads 1.15, not the f32's 1.1499999761….
 
 use serde_json::{json, Map, Value};
 
-use crate::hdr_local_adaptation::{LocalAdaptation, MAX_GAMMA, TONING_CURVE_POINTS};
+use crate::hdr_local_adaptation::{LocalAdaptation, TONING_CURVE_POINTS};
 
 /// The largest preset file accepted, in bytes.
 pub(crate) const MAX_FILE_BYTES: usize = 4096;
@@ -227,7 +226,7 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<Decoded, String> {
     let detail = file.value("detail")?;
     let shadow = file.value("shadow")?;
     let highlight = file.value("highlight")?;
-    let stored_gamma = file.value("gamma")?;
+    let gamma = file.value("gamma")?;
     let vibrance = file.value("vibrance")?;
     let smooth_edges = match file.u8("smooth_edges")? {
         0 => false,
@@ -247,14 +246,6 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<Decoded, String> {
     }
 
     let mut report = Vec::new();
-    let gamma = if stored_gamma > MAX_GAMMA {
-        report.push(format!(
-            "gamma {stored_gamma} is above the maximum {MAX_GAMMA}; imported as {MAX_GAMMA}"
-        ));
-        MAX_GAMMA
-    } else {
-        stored_gamma
-    };
     if corners == 1 {
         report.push(format!(
             "1 of the toning curve's {count} points is a corner; imported as a smooth point"

@@ -51,7 +51,7 @@ CASES
   the chart answer one layer unlike Exposure and Gamma (0, 1); an identity
   toning_curve equals none; 8- and 16-bit sources keep their depth; refusals
   (radius 0, strength 5, detail 400, a one-point curve, radius with
-  exposure_gamma, gamma 2.5 with local_adaptation); Actions record and replay
+  exposure_gamma, gamma 10.5 with local_adaptation); Actions record and replay
   with every Local Adaptation value explicit.
 - Presets: the built-in Default equals `{method:
   local_adaptation}` on the float chart, and `{preset: Default, detail: 50}`
@@ -74,8 +74,8 @@ CASES
 - Import (`import_hdr_toning_preset`, the dialog's Preset > Import Preset...):
   a `.hdt` written here (`hdt`) imports under its file's name with the values
   it holds, writes one library file, and applies like
-  `{method: local_adaptation, **values}`; a gamma of 3.25 imports as 2 with
-  the report line; two corner points are named in the report; another method,
+  `{method: local_adaptation, **values}`; a gamma of 3.25 imports as stored
+  with an empty report; two corner points are named in the report; another method,
   a truncated file, a missing file and a path under ~/.ssh refuse and write
   nothing; a second import of one name refuses and `replace` overwrites it; a
   file named for a built-in refuses and imports under `name`.
@@ -580,7 +580,7 @@ class Drive:
                 (dict(method='local_adaptation', detail=400), 'detail'),
                 (dict(method='local_adaptation', toning_curve=[[0, 0]]), 'toning_curve'),
                 (dict(method='exposure_gamma', radius=3), 'radius applies to method local_adaptation only'),
-                (dict(method='local_adaptation', gamma=2.5), 'gamma'),
+                (dict(method='local_adaptation', gamma=10.5), 'gamma'),
             ]
             for arguments, needle in cases:
                 self.app.refused('hdr_toning', needle, document_id=document, **arguments)
@@ -781,12 +781,12 @@ class Drive:
         assert self.toned_codes(preset='Drive Import') == \
             self.toned_codes(method='local_adaptation', **values), 'an imported preset applies'
         detail = {}
-        # A gamma above the core's 2 imports as 2, with the report line naming the stored value.
+        # A gamma above 2 imports as stored (the request takes 0.1 to 10), with no report line.
         reply = self.app.call('import_hdr_toning_preset',
                               path=str(hdt(folder / 'Drive Gamma.hdt', gamma=3.25)))
-        assert reply['report'] == ['gamma 3.25 is above the maximum 2; imported as 2'], reply
-        assert reply['hdr_toning']['gamma'] == 2, reply
-        detail['gamma'] = reply['report']
+        assert reply['report'] == [], reply
+        assert reply['hdr_toning']['gamma'] == 3.25, reply
+        detail['gamma'] = reply['hdr_toning']['gamma']
         # Corner points are not carried: Doctored's Toning Curve is smooth through every point.
         reply = self.app.call('import_hdr_toning_preset', path=str(hdt(
             folder / 'Drive Corner.hdt', curve=[[0, 0], [64, 40], [192, 220], [255, 255]],

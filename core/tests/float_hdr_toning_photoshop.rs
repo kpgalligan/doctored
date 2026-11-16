@@ -10,7 +10,9 @@
 //! Doctored's `hdr_toning` (through the app) against each output as the
 //! max and mean |Δ| / 257 over RGB (codes at 8-bit scale). A row is PASS
 //! when it meets the declared gate (max 2, mean 0.5); a MISS row ships as
-//! declared with its numbers disclosed.
+//! declared with its numbers disclosed. The export's `gamma` and `preset`
+//! verdict keys were removed from the record: the cases they judged differ
+//! from `la_default` by no more than two identical cases do.
 //!
 //! The test tones each source again through `dr_precision_doc_hdr_toning`
 //! with the row's core request and requires the residual against
