@@ -29,17 +29,33 @@ final class PrecisionFacadeMetadata {
     let globalLight: GlobalLight
     let payload: PrecisionEditPayload
 
+    /// Admits the core's `inspection_bytes` estimate three times over before
+    /// the JSON is expanded, then leases what the capture keeps: a factor of
+    /// the JSON's measured length for the parsed Foundation tree and the
+    /// `Layer` rows that copy its strings, plus the profile copy and a page
+    /// of bookkeeping. The factor is an estimate; the lease used to be the
+    /// admission estimate itself, a flat 1 MiB plus 8 KiB a record, so every
+    /// history state of a typed document was charged about 1 MiB that no
+    /// capture holds (13B-5).
     static func capture(_ document: RasterPrecisionDocument) throws -> PrecisionFacadeMetadata {
         let descriptor = try document.descriptor()
-        let retained = try PrecisionDocumentDescriptor.integer(descriptor, "inspection_bytes")
-        let (temporary, overflow) = retained.multipliedReportingOverflow(by: 3)
+        let estimate = try PrecisionDocumentDescriptor.integer(descriptor, "inspection_bytes")
+        let (temporary, overflow) = estimate.multipliedReportingOverflow(by: 3)
         guard !overflow else { throw failure("High-depth inspection estimate overflowed.") }
         _ = try RasterResources.shared.admit(scratch: temporary)
-        let info = try document.info()
+        let (info, jsonBytes) = try document.infoMeasured()
         let profile = document.profileData
+        let (tree, treeOverflow) = UInt64(jsonBytes).multipliedReportingOverflow(by: parsedTreeFactor)
+        let (leased, leaseOverflow) = tree.addingReportingOverflow(UInt64(profile.count) + 4096)
+        guard !treeOverflow, !leaseOverflow else {
+            throw failure("High-depth inspection estimate overflowed.")
+        }
         return try PrecisionFacadeMetadata(info, profile: profile,
-                                            payload: PrecisionEditPayload.admitted(bytes: retained))
+                                            payload: PrecisionEditPayload.admitted(bytes: leased))
     }
+
+    /// Bytes a capture keeps per byte of inspection JSON (`capture`).
+    private static let parsedTreeFactor: UInt64 = 8
 
     private init(_ raw: [String: Any], profile: Data, payload: PrecisionEditPayload) throws {
         let descriptor = try PrecisionDocumentDescriptor(raw)

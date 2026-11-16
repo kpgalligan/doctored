@@ -43,9 +43,7 @@ final class RasterPrecisionDocument {
     }
 
     func info() throws -> [String: Any] {
-        var error: UnsafeMutablePointer<CChar>?
-        let result = dr_precision_doc_info(ptr, &error)
-        return try precisionJSON(result, error)
+        try infoMeasured().info
     }
 
     /// Scalar storage/resource policy only. Captures must not materialize the

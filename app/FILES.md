@@ -43,6 +43,7 @@ Detail belongs in the source file's own header comment.
 - `DoctoredCore+IndependentMasks.swift` — independent masks, colour range, quick selection, the edge map and its trace (`RasterEdgeMap`), refinement, the foreground estimate and typed cutouts.
 - `DoctoredCore+AssistedAnnotation.swift` — assisted annotation replays and trimap strokes (internal Phase 9I experiment).
 - `DoctoredCore+PrecisionConversion.swift` — deliberate precision promotion/downconversion plans and authoritative statistics.
+- `DoctoredCore+PrecisionInfo.swift` — `infoMeasured()`: the typed inspection tree with its JSON length, the base of the facade metadata's retained lease.
 - `DoctoredCore+SourceAssets.swift` — embedded ordinary source assets: info, plans and edits, at 8 and 16 bits.
 - `DoctoredCore+DevelopedSource.swift` — developed source inspection: source master, develop histogram, detail and preview.
 - `DoctoredCore+ClippingDisplay.swift` — clipping display for byte and precision images.
