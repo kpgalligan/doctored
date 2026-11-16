@@ -54,7 +54,7 @@
 
 use crate::adjust::Adjustment;
 use crate::adjust_tone::GuidePlane;
-use crate::blend::{blend_kind, composite_source_into, BlendMode};
+use crate::blend::{blend_kind, blend_kind_byte, composite_source_into, BlendMode};
 use crate::doc::{adjust_backdrop_sample, Layer, LayerKind, LayerRaster};
 use crate::style::{BlendIf, LayerStyle};
 use crate::style_blend_if::source_weight;
@@ -139,7 +139,7 @@ impl Adjusted<'_> {
         let scale = if members.is_some() { 1.0 } else { opacity };
         // The Fill and the opacity in one product (`opacity_byte::joint`).
         let joint = crate::opacity_byte::joint(fill, scale, false);
-        let kind = blend_kind(shape.blend);
+        let kind = blend_kind_byte(shape.blend, env.transfer.is_none());
         let normal = blend_kind(BlendMode::Normal);
         let active_mask = shape.active_mask();
         let (lw, lh) = shape.pixels.dimensions();

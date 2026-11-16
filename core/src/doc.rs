@@ -22,7 +22,7 @@ use image::{GenericImageView, GrayImage, ImageBuffer, Luma, Pixel, RgbaImage};
 
 use crate::adjust::Adjustment;
 use crate::blend::{
-    blend_kind, composite_buffer_into, composite_source_into, dissolve_threshold, BlendKind,
+    blend_kind_byte, composite_buffer_into, composite_source_into, dissolve_threshold, BlendKind,
 };
 use crate::cancel_io::settle;
 use crate::clip_unit::{clip_pass, ClipStep};
@@ -406,7 +406,7 @@ pub(crate) fn composite_layer_into(
         );
     }
     let active_mask = layer.active_mask_with_job(env.job.checkpoints_only())?;
-    let kind = blend_kind(layer.blend);
+    let kind = blend_kind_byte(layer.blend, env.transfer.is_none());
     let (lw, lh) = layer.pixels.dimensions();
     let rel_x = i64::from(layer.offset.0) - i64::from(origin.0);
     let rel_y = i64::from(layer.offset.1) - i64::from(origin.1);
@@ -524,7 +524,7 @@ fn composite_adjustment_into(
 ) -> Result<(), String> {
     let transfer = env.transfer;
     let active_mask = layer.active_mask_with_job(env.job.checkpoints_only())?;
-    let kind = blend_kind(layer.blend);
+    let kind = blend_kind_byte(layer.blend, transfer.is_none());
     let (lw, lh) = layer.pixels.dimensions();
     let rel_x = i64::from(layer.offset.0) - i64::from(origin.0);
     let rel_y = i64::from(layer.offset.1) - i64::from(origin.1);
@@ -740,7 +740,7 @@ pub(crate) fn composite_clip_group_into(
         acc_w,
         acc_h,
         origin,
-        blend_kind(base.blend),
+        blend_kind_byte(base.blend, env.transfer.is_none()),
         opacity,
         env.job,
     )?;

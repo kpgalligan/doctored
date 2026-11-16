@@ -24,7 +24,7 @@
 
 use std::sync::Arc;
 
-use crate::blend::{blend_kind, composite_source_into, BlendMode};
+use crate::blend::{blend_kind_byte, composite_source_into, BlendMode};
 use crate::blend_fill::fill_blend;
 use crate::clip_unit::{clip_alpha, ClipStep};
 use crate::doc::Layer;
@@ -420,7 +420,7 @@ impl ResolvedNode<'_> {
                             ti,
                             [src[0], src[1], src[2]],
                             sa,
-                            blend_kind(self.blend),
+                            blend_kind_byte(self.blend, transfer.is_none()),
                             canvas_xy,
                         );
                     }
@@ -501,7 +501,7 @@ impl ResolvedNode<'_> {
         let pass = PixelPass {
             joint: crate::opacity_byte::joint(style.fill, opacity, false),
             blend_if: style.blend_if.as_ref(),
-            kind: blend_kind(mode),
+            kind: blend_kind_byte(mode, transfer.is_none()),
             direct: mode == BlendMode::Normal,
             opacity,
             fill_blend: fill_blend(mode, style.fill, false),

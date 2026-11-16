@@ -26,7 +26,7 @@
 //! contract is `regional`'s module doc.
 
 use crate::adjust::Adjustment;
-use crate::blend::{blend_kind, BlendMode};
+use crate::blend::{blend_kind_byte, BlendMode};
 use crate::doc::{adjust_backdrop_sample, composite_layer_sample, Layer};
 use crate::doc_evaluation::{encode_sample, ByteTransfer};
 use crate::doc_group;
@@ -446,7 +446,7 @@ impl ResolvedNode<'_> {
         transfer: Option<&ByteTransfer>,
         canvas_xy: (i64, i64),
     ) {
-        let kind = blend_kind(mode);
+        let kind = blend_kind_byte(mode, transfer.is_none());
         match &self.source {
             Source::Raster
             | Source::Isolated(..)

@@ -66,7 +66,7 @@ Detail belongs in the source file's own header comment.
 - `durable_file.rs` — the core's one flush policy: `dr_image::save_atomically` and the tile pool's appends (`tile_pool`) call it; never add a writer-local `sync_all`.
 - `doc.rs` — layer model, compositing/projection, document ops, layer masks. **Full — no new concerns.** A new feature area gets a new module.
 - `document_clone.rs` — byte document deep-copy estimates (pixels, profiles, styles, masks `Arc`-shared; records and names copied) and bounded temporary capacity views for plans.
-- `blend.rs` — `BlendMode` + blend math, source-over/erase primitives, `LUMA_*`, `lum_fixed`, and `composite_source_frozen`, THE frozen-alpha rule every paint path routes through.
+- `blend.rs` — `BlendMode` + blend math, `blend_kind_byte` (8-bit Darker/Lighter Color on luma codes), `LUMA_*`, `lum_fixed`, source-over/erase and `composite_source_frozen`, THE frozen-alpha rule.
 - `clip_unit.rs` — KERNEL: the clip unit's member rule (CL2): Open / Settle / Close of the footprint-relative alpha, `composite_source_frozen` through the member kernel.
 - `blend_fill.rs` — KERNEL: Fill on Color/Linear Burn, Color/Linear Dodge and Vivid Light (measured against Photoshop): the source pulled to the neutral, the split composite.
 - `blend_float.rs` — `blend_kind_at`: float blend variants (unclamped Linear Dodge/Subtract/Burn/Light, floored Divide; HSL with no ClipColor), else `blend_kind`.

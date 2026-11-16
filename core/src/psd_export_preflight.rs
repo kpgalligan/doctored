@@ -1088,17 +1088,21 @@ fn document_losses(
 /// Normal, Pass Through or moded group, a clipped member, a clipping base)
 /// within 2 codes max and 0.5 mean of Photoshop 26.10.0's own render at 8
 /// and 16 bits. Normal, Multiply, Screen and Pass Through are the claim's
-/// floor whatever a take says.
+/// floor whatever a take says. Darker Color and Lighter Color qualify with
+/// the 8-bit compare of their lumas as codes (`blend::blend_kind_byte`),
+/// rejudged on the same takes.
 const QUALIFIED_BLEND: &[BlendMode] = &[
     BlendMode::Normal,
     BlendMode::Darken,
     BlendMode::Multiply,
     BlendMode::ColorBurn,
     BlendMode::LinearBurn,
+    BlendMode::DarkerColor,
     BlendMode::Lighten,
     BlendMode::Screen,
     BlendMode::ColorDodge,
     BlendMode::Addition,
+    BlendMode::LighterColor,
     BlendMode::Overlay,
     BlendMode::SoftLight,
     BlendMode::HardLight,
@@ -1113,13 +1117,9 @@ const QUALIFIED_BLEND: &[BlendMode] = &[
 ];
 
 /// The modes claimed only at 100 % Fill: every tile but the Fill ones passes
-/// (#2: Lighter Color misses on a luminosity tie, Hard Mix and Difference
-/// on Photoshop's own Fill arithmetic, which no declared candidate met).
-const QUALIFIED_AT_FULL_FILL: &[BlendMode] = &[
-    BlendMode::Difference,
-    BlendMode::LighterColor,
-    BlendMode::HardMix,
-];
+/// (#2: Hard Mix and Difference miss on Photoshop's own Fill arithmetic,
+/// which no declared candidate met).
+const QUALIFIED_AT_FULL_FILL: &[BlendMode] = &[BlendMode::Difference, BlendMode::HardMix];
 
 /// The CMYK claim, unchanged: #2 measured RGB only.
 const QUALIFIED_BLEND_CMYK: &[BlendMode] = &[

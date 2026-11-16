@@ -27,7 +27,7 @@
 //! math lives here: index arithmetic only.
 
 use crate::adjust::Adjustment;
-use crate::blend::blend_kind;
+use crate::blend::blend_kind_byte;
 use crate::doc::{adjust_backdrop_sample, composite_layer_sample};
 use crate::doc_evaluation::ByteTransfer;
 use crate::doc_regional_tree::{ResolvedLevel, ResolvedNode, ResolvedUnit, Source};
@@ -141,7 +141,7 @@ fn raster_run(
     let Some((lo, hi)) = run.span(ox, i64::from(lw)) else {
         return;
     };
-    let kind = blend_kind(node.blend);
+    let kind = blend_kind_byte(node.blend, transfer.is_none());
     // The layer columns the run's samples `lo..hi` read: the first, then
     // every `step`-th, the last one inside the layer.
     let lx0 = run.at(lo).0 - ox;
@@ -186,7 +186,7 @@ fn adjustment_run(
     run: SampleRun,
     transfer: Option<&ByteTransfer>,
 ) {
-    let kind = blend_kind(node.blend);
+    let kind = blend_kind_byte(node.blend, transfer.is_none());
     let samples = match &node.mask {
         None => 0..run.count,
         Some(_) => {

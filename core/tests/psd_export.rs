@@ -1077,6 +1077,12 @@ fn blend_observations_follow_the_qualified_tables() {
     doc.layers[inner].blend = BlendMode::Overlay;
     let top = doc.layers.len() - 1;
     doc.layers[top].blend = BlendMode::Difference;
+    // The two picks qualify at every Fill (the 8-bit compare of luma codes).
+    let empty = index(&doc, "Empty");
+    doc.layers[empty].blend = BlendMode::DarkerColor;
+    let clip = index(&doc, "Clip");
+    doc.layers[clip].blend = BlendMode::LighterColor;
+    doc.layers[clip].style = fill(0.6);
 
     let observations = strings(&export_report(&doc, LAYERS), "observations");
     for sentence in [
@@ -1091,7 +1097,7 @@ fn blend_observations_follow_the_qualified_tables() {
             "{sentence}\n{observations:#?}"
         );
     }
-    for qualified in ["Overlay", "Difference"] {
+    for qualified in ["Overlay", "Difference", "DarkerColor", "LighterColor"] {
         assert!(
             !observations.iter().any(|o| o.contains(qualified)),
             "{qualified} is qualified: {observations:#?}"

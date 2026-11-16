@@ -219,7 +219,7 @@
 //! against Photoshop (Photoshop evaluates `blend_interior_as_group` on a clip base with visible
 //! members); P7-39 then LIFTED the narrowing at both depths, and its PSD disclosures went with it.
 
-use crate::blend::{blend_kind, composite_source_into, BlendMode};
+use crate::blend::{blend_kind_byte, composite_source_into, BlendMode};
 use crate::clip_unit::{clip_pass, ClipStep};
 use crate::doc::{composite_layer_into, sane_opacity, DrDocument, Layer, LayerKind};
 use crate::doc_group::{composite_level_into, RenderBudget, Unit};
@@ -737,7 +737,7 @@ pub(crate) fn composite_interior_unit_into(
     // (`alpha·mask` in f32), never from the u8 coverage plane: the plane is
     // rounded to 1/255 and the mix weight would then be a code out on a soft
     // edge, which is the whole thing the "no fringe" claim rests on.
-    let kind = blend_kind(layer.blend);
+    let kind = blend_kind_byte(layer.blend, env.transfer.is_none());
     let active_mask = layer.active_mask();
     let mut mask_row = Vec::new();
     let (lw, lh) = layer.pixels.dimensions();

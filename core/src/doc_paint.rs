@@ -14,8 +14,9 @@
 //! Three modes: OVER is source-over through `blend::paint_pixel`, the one
 //! premultiplied compositing kernel, so the classic brush and a Normal fill
 //! are byte-for-byte what they always were; ERASE takes the ink's alpha off
-//! the layer's; BLEND pushes every covered pixel through the SAME W3C kernel
-//! the layer projection uses (`blend::composite_source_into`), so a brush
+//! the layer's; BLEND pushes every covered pixel through the SAME kind the
+//! byte layer projection uses (`blend::blend_kind_byte`, then
+//! `blend::composite_source_into`), so a brush
 //! set to Multiply lands exactly what a Multiply layer holding the stroke
 //! would flatten to against the layer's current pixels. Erase has no blend
 //! counterpart — the eraser never blends.
@@ -34,7 +35,8 @@
 //! changes nothing.
 
 use crate::blend::{
-    blend_kind, composite_source_frozen, composite_source_into, paint_pixel, BlendMode, BEHIND,
+    blend_kind, blend_kind_byte, composite_source_frozen, composite_source_into, paint_pixel,
+    BlendMode, BEHIND,
 };
 use crate::doc::{DrDocument, Layer};
 use crate::doc_lock::EditKind;
@@ -263,8 +265,12 @@ impl DrDocument {
                 _ => self.with_layer_raster(idx, layer.pixels.reidentified()),
             };
         };
+        // A layer's stored bytes are encoded, so a blended stroke takes the
+        // kind an encoded byte layer in `m` composites with
+        // (`dr_doc_painting_layer_blend`'s contract: it lands what such a
+        // layer would flatten to).
         let kind = match mode {
-            PaintMode::Blend(m) => blend_kind(m),
+            PaintMode::Blend(m) => blend_kind_byte(m, true),
             PaintMode::Behind => BEHIND,
             _ => blend_kind(BlendMode::Normal),
         };

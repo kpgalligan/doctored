@@ -40,7 +40,7 @@
 //! (the sample as its children began, handed always, as the typed arm does), `NONE` into
 //! isolated/materialized groups, the base-only sample for clip members (all three member loops).
 
-use crate::blend::{blend_kind, composite_source_into, BlendMode};
+use crate::blend::{blend_kind, blend_kind_byte, composite_source_into, BlendMode};
 use crate::blend_fill::fill_blend;
 use crate::clip_unit::{clip_alpha, ClipStep};
 use crate::doc::MAX_PIXELS;
@@ -195,7 +195,7 @@ impl ResolvedNode<'_> {
                 0,
                 [u[0], u[1], u[2]],
                 q,
-                blend_kind(self.blend),
+                blend_kind_byte(self.blend, transfer.is_none()),
                 canvas_xy,
             );
         }

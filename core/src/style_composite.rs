@@ -158,7 +158,7 @@
 
 use crate::authored_color::AuthoredColors;
 use crate::blend::{
-    blend_kind, composite_buffer_into, composite_source_into, BlendKind, BlendMode,
+    blend_kind_byte, composite_buffer_into, composite_source_into, BlendKind, BlendMode,
 };
 use crate::blend_fill::{fill_blend, FillBlend};
 use crate::clip_unit::{clip_alpha, clip_pass, ClipStep};
@@ -607,7 +607,7 @@ fn composite_direct_into(
                 acc_w,
                 acc_h,
                 origin,
-                blend_kind(layer.blend),
+                blend_kind_byte(layer.blend, env.transfer.is_none()),
                 opacity,
                 env.job,
             )?,
@@ -1138,7 +1138,7 @@ pub(crate) fn composite_pixels_into(
     if fill <= 0.0 || opacity <= 0.0 {
         return Ok(());
     }
-    let kind = blend_kind(mode);
+    let kind = blend_kind_byte(mode, transfer.is_none());
     let direct = mode == BlendMode::Normal;
     let active_mask = layer.active_mask();
     let mut mask_row = Vec::new();

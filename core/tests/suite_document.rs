@@ -138,6 +138,8 @@ mod layer_clipboard_chrome;
 mod layer_clipboard_float;
 #[path = "layer_clipboard_relabel.rs"]
 mod layer_clipboard_relabel;
+#[path = "layer_color_pick.rs"]
+mod layer_color_pick;
 #[path = "layer_comps.rs"]
 mod layer_comps;
 #[path = "layer_comps_geometry.rs"]

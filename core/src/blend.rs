@@ -50,7 +50,9 @@ const LUM32768: [u32; 3] = [9830, 19334, 3604];
 /// Threshold (8-bit codes; 16-bit documents on its 15-bit grid) and Photo
 /// Filter's 8-bit Preserve Luminosity were measured to this form, which
 /// differs from [`LUM100`]'s rounding only on a pixel whose luma is an
-/// exact half code (`adjust_math::threshold` has the takes).
+/// exact half code (`adjust_math::threshold` has the takes). An 8-bit
+/// document's Darker Color and Lighter Color compare their two triples by
+/// it ([`blend_kind_byte`]).
 pub(crate) fn lum_fixed(c: [u32; 3]) -> u32 {
     (LUM32768[0] * c[0] + LUM32768[1] * c[1] + LUM32768[2] * c[2] + 16384) >> 15
 }
@@ -423,6 +425,37 @@ fn b_lighter_color(cb: [f32; 3], cs: [f32; 3]) -> [f32; 3] {
     }
 }
 
+/// A straight [0, 1] triple's luma as an 8-bit code: each component rounded
+/// to its code, then [`lum_fixed`].
+fn lum8(c: [f32; 3]) -> u32 {
+    lum_fixed(c.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u32))
+}
+
+/// The 8-bit variant of [`b_darker_color`] (the master): the two lumas
+/// compared as codes ([`lum8`]), so two triples whose lumas round to one code
+/// tie and the backdrop is kept. A recorded take measured this at 8 bits
+/// (`psd_appearance_578_take.py` take2, a clip tile whose float lumas
+/// 151.32 and 150.79 both round to 151); at 16 bits the master's float
+/// compare matched.
+fn b_darker_color8(cb: [f32; 3], cs: [f32; 3]) -> [f32; 3] {
+    if lum8(cs) < lum8(cb) {
+        cs
+    } else {
+        cb
+    }
+}
+
+/// The 8-bit variant of [`b_lighter_color`] (the master), as
+/// [`b_darker_color8`] (take1's tile whose float lumas 190.87 and 191 both
+/// round to 191).
+fn b_lighter_color8(cb: [f32; 3], cs: [f32; 3]) -> [f32; 3] {
+    if lum8(cs) > lum8(cb) {
+        cs
+    } else {
+        cb
+    }
+}
+
 /// How a blend mode participates in compositing: per-channel `B(cb, cs)`,
 /// whole-RGB-triple `B(Cb, Cs)`, or the Dissolve dither (which replaces the
 /// compositing formula entirely).
@@ -483,6 +516,21 @@ pub(crate) fn blend_kind(mode: BlendMode) -> BlendKind {
         // somehow carries it (a v7 file written by a newer build, say)
         // composites as Normal; the setter refuses to create one.
         BlendMode::PassThrough => BlendKind::Separable(b_normal),
+    }
+}
+
+/// The kind a layer's blend composites with in an 8-bit RGB document: with
+/// `encoded` (no linear-light transfer) Darker Color and Lighter Color compare
+/// their lumas as codes ([`b_darker_color8`], [`b_lighter_color8`]);
+/// everything else, and both modes under `linear_light`, is [`blend_kind`].
+/// A blended byte paint walk (Brush, Fill, Stroke, the blended overlay) takes
+/// it too, since it lands what a layer in that mode would flatten to;
+/// gradients, Fade and effect inks keep [`blend_kind`].
+pub(crate) fn blend_kind_byte(mode: BlendMode, encoded: bool) -> BlendKind {
+    match mode {
+        BlendMode::DarkerColor if encoded => BlendKind::NonSeparable(b_darker_color8),
+        BlendMode::LighterColor if encoded => BlendKind::NonSeparable(b_lighter_color8),
+        _ => blend_kind(mode),
     }
 }
 

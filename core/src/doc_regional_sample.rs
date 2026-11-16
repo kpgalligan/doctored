@@ -14,7 +14,7 @@
 //! `doc_regional_style`. The contract is `regional`'s module doc.
 
 use crate::adjust::Adjustment;
-use crate::blend::{blend_kind, composite_source_into, gate_source_into, BlendMode};
+use crate::blend::{blend_kind_byte, composite_source_into, gate_source_into, BlendMode};
 use crate::clip_unit::{clip_alpha, ClipStep};
 use crate::doc_evaluation::ByteTransfer;
 use crate::doc_regional_tree::{ResolvedLevel, ResolvedNode, ResolvedStep, ResolvedUnit, Source};
@@ -513,7 +513,7 @@ impl ResolvedUnit<'_> {
                 ai,
                 [src[0], src[1], src[2]],
                 sa,
-                blend_kind(base.blend),
+                blend_kind_byte(base.blend, transfer.is_none()),
                 canvas_xy,
             );
         }
