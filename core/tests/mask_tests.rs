@@ -1137,6 +1137,54 @@ fn ffi_painting_layer_mask_reveals_the_stroke() {
     }
 }
 
+/// A mask stroke that changes no byte is the purity rule's "nothing
+/// changed": NULL, never a document that would be a phantom Undo step. That
+/// covers white over a mask already white there, an overlay with no opaque
+/// pixel and a stroke that lands only beside the mask; one changed byte
+/// answers a document.
+#[test]
+fn ffi_painting_layer_mask_that_changes_nothing_is_null() {
+    let dir = TempDir::new().unwrap();
+    let doc = ffi_mask_fixture(&dir, "paint-noop", (5, 2), (4, 2), (1, 0));
+    let shown = unsafe { dr_doc_adding_layer_mask(doc, 1, MASK_REVEAL_ALL, ptr::null(), 0, 0) };
+    assert!(!shown.is_null());
+    let mut overlay = vec![0u8; 5 * 2 * 4];
+    unsafe {
+        assert!(
+            dr_doc_painting_layer_mask(shown, 1, overlay.as_ptr(), 5, 2).is_null(),
+            "a transparent overlay changes nothing"
+        );
+    }
+    // Opaque white at canvas (2, 0) over a reveal-all mask.
+    overlay[2 * 4..2 * 4 + 4].copy_from_slice(&[255, 255, 255, 255]);
+    unsafe {
+        assert!(
+            dr_doc_painting_layer_mask(shown, 1, overlay.as_ptr(), 5, 2).is_null(),
+            "white over white changes nothing"
+        );
+    }
+    // Canvas (0, 0) lies beside the layer (it starts at x = 1).
+    let mut beside = vec![0u8; 5 * 2 * 4];
+    beside[..4].copy_from_slice(&[0, 0, 0, 255]);
+    unsafe {
+        assert!(
+            dr_doc_painting_layer_mask(shown, 1, beside.as_ptr(), 5, 2).is_null(),
+            "a stroke off the mask changes nothing"
+        );
+    }
+    // Opaque black at the same pixel hides one mask byte.
+    overlay[2 * 4..2 * 4 + 4].copy_from_slice(&[0, 0, 0, 255]);
+    let hidden = unsafe { dr_doc_painting_layer_mask(shown, 1, overlay.as_ptr(), 5, 2) };
+    assert!(!hidden.is_null(), "a changed byte answers a document");
+    assert_eq!(
+        ffi_mask_bytes(hidden, 1),
+        vec![255, 0, 255, 255, 255, 255, 255, 255]
+    );
+    for d in [shown, hidden, doc] {
+        unsafe { dr_doc_free(d) };
+    }
+}
+
 #[test]
 fn ffi_layer_image_and_thumbnail_ignore_the_mask() {
     let dir = TempDir::new().unwrap();

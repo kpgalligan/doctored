@@ -181,12 +181,12 @@ extension AgentServer {
     /// premultiplied overlay and the same lerp (white paints toward 255,
     /// black toward 0).
     ///
-    /// A PLANE and a CHANNEL carry the core's `changed` latch: nil means no
-    /// byte would move (white over white, or a selection that clipped the
-    /// whole stroke away), which is a no-op to REPORT — `onRefusal` latches
-    /// it so paintStroke answers `changed: false` instead of a parameter
-    /// error. The MASK op has no such latch, so nil there is a real failure
-    /// and is deliberately left to throw exactly as it does today.
+    /// All three carry the core's `changed` latch: nil means no byte would
+    /// move (white over white, or a selection that clipped the whole stroke
+    /// away), which is a no-op to REPORT — `onRefusal` latches it so
+    /// paintStroke answers `changed: false` instead of a parameter error. A
+    /// mask stroke's nil is that no-op only while the layer has a mask (the
+    /// target resolution checked it); without one it stays a failure.
     func commitCoverage(
         _ current: RasterDocument, target: PaintTarget, layer: Int,
         overlay: UnsafePointer<UInt8>, width: Int, height: Int,
@@ -196,7 +196,9 @@ extension AgentServer {
         case .layer, .ink:
             return nil
         case .mask:
-            return current.paintingLayerMask(layer, overlay: overlay, w: width, h: height)
+            let out = current.paintingLayerMask(layer, overlay: overlay, w: width, h: height)
+            if out == nil, current.layerHasMask(layer) { onRefusal?() }
+            return out
         case .plane(let plane):
             let out = current.paintingLayerPlane(
                 layer, plane.dr, overlay: overlay, w: width, h: height)

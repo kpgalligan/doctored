@@ -311,9 +311,8 @@ impl DrDocument {
     /// — the latch `doc_paint::painting_layer_blend` carries, here
     /// `GrayRaster::with_rect`'s bitwise one. Nothing else refuses a stroke on
     /// a channel (it covers the whole canvas), so without it painting white
-    /// over white would mint a phantom undo step and a false dirty flag.
-    /// (`doc::paint_mask` has no such latch; that is a pre-existing
-    /// deviation, deliberately left as it is.) Since 13B-4 only the overlay's
+    /// over white would mint a phantom undo step and a false dirty flag
+    /// (`doc::paint_mask` carries the same latch). Since 13B-4 only the overlay's
     /// nonzero rect is read and written back, so a dab copies the tiles it
     /// changes.
     pub fn painting_channel(&self, i: usize, overlay: &[u8]) -> Option<Self> {

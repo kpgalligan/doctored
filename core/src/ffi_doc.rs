@@ -1511,9 +1511,9 @@ pub unsafe extern "C" fn dr_doc_with_layer_mask_enabled(
 /// equal the canvas size — the same buffer `dr_doc_painting_layer` takes) onto
 /// layer `idx`'s MASK, mapped through the layer's offset: white reveals, black
 /// hides, the overlay's alpha carries the stroke's coverage. NULL on NULL
-/// args, dimension mismatch, out-of-range idx, a layer with no mask, or when
+/// args, dimension mismatch, out-of-range idx, a layer with no mask, when
 /// the layer's extent does not intersect the canvas (no mask pixel could
-/// change).
+/// change), or when no mask byte would change.
 ///
 /// # Safety
 /// `doc` must be NULL or a valid pointer to a live `DrDocument`; `src` must be

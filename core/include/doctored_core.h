@@ -2434,8 +2434,10 @@ DrDocument *dr_doc_with_layer_mask_enabled(const DrDocument *doc, size_t idx,
  * anti-aliasing (and any selection the caller already clipped the overlay
  * with) carried by the alpha. Overlay pixels outside raw mask bounds are ignored
  * (the mask does NOT grow). Density/feather remain untouched. NULL on a missing
- * mask, dimension mismatch, or when raw mask bounds miss the canvas entirely
- * (no mask pixel could change), matching dr_doc_painting_layer. */
+ * mask, dimension mismatch, when raw mask bounds miss the canvas entirely
+ * (no mask pixel could change), matching dr_doc_painting_layer, and when no
+ * mask byte would change (white over white, a transparent overlay): no
+ * phantom undo step, the channel paint's rule. */
 DrDocument *dr_doc_painting_layer_mask(const DrDocument *doc, size_t idx,
                                        const uint8_t *src, uint32_t w,
                                        uint32_t h);

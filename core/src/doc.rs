@@ -2129,10 +2129,10 @@ impl DrDocument {
     /// canvas rect on the mask's own plane (its dimensions and
     /// `mask_properties.offset`: `layer_rect::canvas_rect_on_plane`) through
     /// `GrayRaster::read_rect` / `with_rect`, so a dab copies the tiles it
-    /// changes and nothing else. It deliberately keeps `paint_mask`'s historic
-    /// lack of a "nothing changed" latch — the channel paints have one — so a
-    /// stroke that changes no byte still answers a document (the mask under a
-    /// fresh identity, every tile shared).
+    /// changes and nothing else. `None` too when NO BYTE WOULD CHANGE (13B-5):
+    /// an overlay with no nonzero pixel on the mask, or one whose lerp leaves
+    /// every byte as it was (white over white) — `with_rect`'s bitwise latch,
+    /// the channel paints' rule — so such a stroke adds no Undo step.
     pub fn paint_mask(&self, idx: usize, overlay: &[u8]) -> Option<Self> {
         self.under_locks(idx, EditKind::Mask, |doc| {
             let layer = doc.layer(idx)?;
@@ -2160,35 +2160,30 @@ impl DrDocument {
                             (x, y, end.0, end.1),
                         )
                     });
-            let painted = match rect {
-                None => mask.reidentified(),
-                Some((rx, ry, rw, rh)) => {
-                    let mut samples = mask.read_rect(rx, ry, rw, rh)?;
-                    for (k, v) in samples.iter_mut().enumerate() {
-                        let (col, row) = ((k % rw as usize) as i64, (k / rw as usize) as i64);
-                        let cx = i64::from(offset.0) + i64::from(rx) + col;
-                        let cy = i64::from(offset.1) + i64::from(ry) + row;
-                        let si = ((cy as u64 * u64::from(doc.width) + cx as u64) * 4) as usize;
-                        let sp = [
-                            overlay[si],
-                            overlay[si + 1],
-                            overlay[si + 2],
-                            overlay[si + 3],
-                        ];
-                        // `doc_plane::channel_lerp` IS this rule (it was
-                        // lifted from here), now shared with channel and
-                        // colour-plane painting; None means the overlay pixel
-                        // is transparent and the mask byte is left alone.
-                        if let Some(nv) = channel_lerp(*v, sp) {
-                            *v = nv;
-                        }
-                    }
-                    match mask.with_rect(rx, ry, rw, rh, &samples).ok()? {
-                        Some(next) => next,
-                        None => mask.reidentified(),
-                    }
+            // No nonzero overlay pixel on the mask: nothing could change.
+            let (rx, ry, rw, rh) = rect?;
+            let mut samples = mask.read_rect(rx, ry, rw, rh)?;
+            for (k, v) in samples.iter_mut().enumerate() {
+                let (col, row) = ((k % rw as usize) as i64, (k / rw as usize) as i64);
+                let cx = i64::from(offset.0) + i64::from(rx) + col;
+                let cy = i64::from(offset.1) + i64::from(ry) + row;
+                let si = ((cy as u64 * u64::from(doc.width) + cx as u64) * 4) as usize;
+                let sp = [
+                    overlay[si],
+                    overlay[si + 1],
+                    overlay[si + 2],
+                    overlay[si + 3],
+                ];
+                // `doc_plane::channel_lerp` IS this rule (it was lifted from
+                // here), now shared with channel and colour-plane painting;
+                // None means the overlay pixel is transparent and the mask
+                // byte is left alone.
+                if let Some(nv) = channel_lerp(*v, sp) {
+                    *v = nv;
                 }
-            };
+            }
+            // `Ok(None)`: every byte as it was, the "nothing changed" latch.
+            let painted = mask.with_rect(rx, ry, rw, rh, &samples).ok()??;
             doc.with_layer(idx, |l| l.mask = Some(painted))
         })
     }
