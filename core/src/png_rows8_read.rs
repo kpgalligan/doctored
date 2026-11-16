@@ -54,9 +54,22 @@ pub(crate) fn band_scratch8(width: u32, channels: u8) -> u64 {
 /// 8, that colour type, compression 0, filter 0 and interlace 0, and a chunk
 /// walk that meets nothing but IHDR, IDAT and IEND and ends at the span's
 /// end. Anything else, a malformed head or chunk walk included, is
-/// `Ok(false)`, and the caller decodes the PNG whole. `Err` only when the
-/// span cannot be read.
-pub(crate) fn writer_form(png: &Payload<'_>, channels: u8) -> Result<bool, String> {
+/// `Ok(false)`, and the caller decodes the PNG whole. `Err` when the span
+/// cannot be read, or when `job` is cancelled during the walk.
+///
+/// The walk reads one chunk head at a time, and a span of very many empty
+/// chunks (only a hand-made file holds one: the writer emits three) would
+/// be one long unpolled stretch, so it polls `job` once every
+/// `job_control::EVERY_INTERVAL` (4096) chunks, through `JobContext::every`
+/// counted from the first chunk: the writer's three never reach the
+/// interval, so a native open of the writer's planes keeps its checkpoint
+/// count. (The 16-bit reader's walk, `precision_png_rows::decode_native_png`
+/// over `payload_chunks`, polls at every chunk.)
+pub(crate) fn writer_form(
+    png: &Payload<'_>,
+    channels: u8,
+    job: JobContext<'_>,
+) -> Result<bool, String> {
     let colour = match channels {
         4 => 6,
         1 => 0,
@@ -78,10 +91,13 @@ pub(crate) fn writer_form(png: &Payload<'_>, channels: u8) -> Result<bool, Strin
         return Ok(false);
     }
     let mut at = SIGNATURE.len() as u64;
+    let mut read = 0_usize;
     while at < length {
         if length - at < CHUNK_FRAMING_BYTES {
             return Ok(false);
         }
+        read += 1;
+        job.every(read)?;
         let mut chunk = [0_u8; 8];
         png.read_at(at, &mut chunk)?;
         if !matches!(&chunk[4..], b"IHDR" | b"IDAT" | b"IEND") {

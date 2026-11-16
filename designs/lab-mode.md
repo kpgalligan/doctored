@@ -171,6 +171,12 @@ Photoshop 26.10.0.
   (one it does not admit keeps its coverage; `selection_similar` alike). Alpha's bound and trim stay unmeasured
   ([#60](https://github.com/kpgalligan/doctored/issues/60)). Tests `core/tests/lab_wand.rs`,
   `lab_wand_photoshop.rs`; drive L99–L101.
+- **An associated alpha in a flat Lab TIFF** (ExtraSamples 1, which Photoshop's 16-bit Lab TIFFs saved with
+  transparency carry): `lab_tiff_read` divides it out of the colour in the offset form the recorded per-layer
+  TIFFs premultiply (a\*/b\* unsigned, centred on 0), at the file's depth through `unpremultiply`; alpha 0 reads
+  code 0. Tests `core/tests/lab_tiff_open.rs` (the committed `tiff_little_endian_modes` files in both byte
+  orders, synthetic CIELab and ICCLab at 8 and 16 bits); drives L51, `verify_mode_save_losses.py`'s
+  `photoshop le lab16 flat`.
 
 ## The close's fates
 

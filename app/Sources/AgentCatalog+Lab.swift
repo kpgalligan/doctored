@@ -223,8 +223,9 @@ extension AgentServer {
                     + "mask and alpha-channel value on the 8-bit grid, 8 → 16 keeps every value; "
                     + "dry_run answers the plan. 32 Bits/Channel is unavailable in Lab Color."
             case "open_document", "inspect_psd":
-                note = " A Lab TIFF (CIELab or ICCLab, chunky, 8 or 16 bits, no alpha or an "
-                    + "unassociated one), or a Lab PSD, PSB or layered TIFF at 8 or 16 bits "
+                note = " A Lab TIFF (CIELab or ICCLab, chunky, 8 or 16 bits, no alpha, an "
+                    + "unassociated one, or an associated one, which is divided out of the "
+                    + "colour), or a Lab PSD, PSB or layered TIFF at 8 or 16 bits "
                     + "(inspect_psd answers import_precision \"lab\"), opens as a Lab Color "
                     + "document at its own depth with either psd_mode, keeping its L*a*b* values; "
                     + "an embedded profile is not used."

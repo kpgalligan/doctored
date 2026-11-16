@@ -10,8 +10,17 @@
 //!   every code the oracle's: exact at 8 bits, within one code at 16 (the
 //!   oracle rounds in f64);
 //! * an unassociated alpha (ExtraSamples 2) is kept (8 bits ×257);
-//! * `dr_path_lab_source` answers NONE for an associated alpha, a planar
-//!   file, an RGB TIFF and an absent file, and the open refuses them;
+//! * an associated alpha (ExtraSamples 1) is divided out of the colour in
+//!   its offset form (L as stored; a\*/b\* signed + the half code for
+//!   CIELab, as stored for ICCLab) at the file's depth: the codes are the
+//!   oracle's of the colour divided back out in f64, and a pixel at alpha 0
+//!   reads code 0 on every channel. Photoshop 26.10.0's own 16-bit layered
+//!   Lab TIFFs (`tiff_little_endian_modes`, both byte orders) open flat with
+//!   those codes, and multiplied back by alpha they are the stored samples
+//!   within 2 of 65535 (`lab_psd_photoshop.rs`'s `associated` rule);
+//! * `dr_path_lab_source` answers NONE for a planar file, an RGB TIFF, a
+//!   fourth sample declared ExtraSamples 0 and an absent file, and the open
+//!   refuses them;
 //! * our own Lab TIFF save reopens with codes equal at 8 bits, and at 16
 //!   bits L\* and alpha equal, a\*/b\* within one code (the CIELab 16-bit
 //!   write/read pair returns code + 1 when code mod 257 = 128);
@@ -38,9 +47,11 @@ use doctored_core::precision_image::PrecisionImage;
 use serde_json::Value;
 use tempfile::TempDir;
 
+use crate::common::psd_photoshop::fixture;
 use crate::common::{cpath, take_err_string};
 use crate::lab_psd_fixture::{
-    cielab_sample, cielab_units, code_of, icclab_sample, icclab_units, write_lab_tiff, TiffShape,
+    cielab_sample, cielab_units, code_of, icclab_sample, icclab_units, read_lab_tiff,
+    write_lab_tiff, TiffShape,
 };
 
 const LIMIT: u64 = 2 * 1024 * 1024 * 1024;
@@ -188,9 +199,10 @@ fn other_tiffs_answer_none_and_keep_their_own_open() {
     };
     let shapes = [
         (
-            "associated",
+            // ExtraSamples 0: a fourth sample that is no transparency.
+            "unspecified extra sample",
             TiffShape {
-                extra: Some(1),
+                extra: Some(0),
                 ..base_clone(&base)
             },
         ),
@@ -236,6 +248,182 @@ fn other_tiffs_answer_none_and_keep_their_own_open() {
     let absent = dir.path().join("absent.tif");
     assert_eq!(source(&absent), 0, "an absent file");
     assert!(open(&absent, LIMIT).is_err());
+}
+
+/// The oracle's codes of one associated pixel: each colour sample in its
+/// offset form (`flip` is the half code XORed into a CIELab a\*/b\*, 0 for L
+/// and for ICCLab) divided by `alpha` in f64, rounded and capped at `top`, 0
+/// at alpha 0, then back to the file's encoding and decoded by the oracle.
+fn straight_codes(photometric: u16, bits: u16, stored: [u16; 3], alpha: u16) -> [u16; 4] {
+    let top = if bits == 8 { 255.0 } else { 65535.0 };
+    let half: u16 = 1 << (bits - 1);
+    let mut out = [0u16; 4];
+    for c in 0..3 {
+        let flip = if photometric == 8 && c > 0 { half } else { 0 };
+        let straight = if alpha == 0 {
+            0
+        } else {
+            (f64::from(stored[c] ^ flip) * top / f64::from(alpha))
+                .round()
+                .min(top) as u16
+        };
+        let raw = straight ^ flip;
+        let unit = if photometric == 8 {
+            cielab_units(bits, c, raw)
+        } else {
+            icclab_units(bits, c, raw)
+        };
+        out[c] = code_of(c, unit);
+    }
+    out[3] = if bits == 8 { alpha * 257 } else { alpha };
+    out
+}
+
+/// A flat Lab TIFF whose alpha is associated (ExtraSamples 1): the `units`
+/// pattern's samples in their offset form multiplied by an alpha ramp that
+/// holds 0 and full, and [`straight_codes`] of what was stored.
+fn associated_file(shape: &TiffShape) -> (Vec<u8>, Vec<[u16; 4]>) {
+    let bits = shape.bits;
+    let top = if bits == 8 { 255.0 } else { 65535.0 };
+    let half: u16 = 1 << (bits - 1);
+    let mut samples = Vec::new();
+    let mut want = Vec::new();
+    for i in 0..W * H {
+        let u = units(i, bits);
+        let alpha = match i % 5 {
+            0 => 0,
+            1 => top as u16,
+            _ => (f64::from((i * 37) % 230 + 20) * top / 255.0).round() as u16,
+        };
+        let mut stored = [0u16; 3];
+        for c in 0..3 {
+            let raw = if shape.photometric == 8 {
+                cielab_sample(bits, c, u[c])
+            } else {
+                icclab_sample(bits, c, u[c])
+            };
+            let flip = if shape.photometric == 8 && c > 0 {
+                half
+            } else {
+                0
+            };
+            let premultiplied = (f64::from(raw ^ flip) * f64::from(alpha) / top).round() as u16;
+            stored[c] = premultiplied ^ flip;
+            samples.push(stored[c]);
+        }
+        samples.push(alpha);
+        want.push(straight_codes(shape.photometric, bits, stored, alpha));
+    }
+    (write_lab_tiff(W, H, &samples, shape), want)
+}
+
+#[test]
+fn an_associated_alpha_is_divided_out_in_its_offset_form() {
+    let dir = TempDir::new().unwrap();
+    // (photometric, bits, big-endian, SampleFormat)
+    let cases: [(u16, u16, bool, Option<Vec<u16>>); 5] = [
+        (8, 8, false, None),
+        (8, 8, true, Some(vec![1, 2, 2, 1])),
+        (8, 16, true, None),
+        (9, 8, false, None),
+        (9, 16, false, None),
+    ];
+    for (n, (photometric, bits, big, sample_format)) in cases.into_iter().enumerate() {
+        let shape = TiffShape {
+            photometric,
+            bits,
+            big,
+            extra: Some(1),
+            sample_format,
+            planar: false,
+        };
+        let (bytes, want) = associated_file(&shape);
+        let path = dir.path().join(format!("associated{n}.tif"));
+        std::fs::write(&path, bytes).unwrap();
+        assert_eq!(source(&path), 1, "case {n}: DR_LAB_SOURCE_TIFF");
+        let doc = open(&path, LIMIT).unwrap_or_else(|e| panic!("case {n}: {e}"));
+        assert_eq!(depth(doc), bits, "case {n}");
+        let got = render(doc);
+        let bound = if bits == 8 { 0 } else { 1 };
+        for (i, (g, w)) in got.iter().zip(&want).enumerate() {
+            if w[3] == 0 {
+                assert_eq!(*g, [0; 4], "case {n} pixel {i}: alpha 0 has no colour");
+            }
+            for c in 0..4 {
+                assert!(
+                    g[c].abs_diff(w[c]) <= bound,
+                    "case {n} (photometric {photometric}, {bits} bits) pixel {i} channel {c}: {} against {}",
+                    g[c],
+                    w[c]
+                );
+            }
+        }
+        free(doc);
+    }
+}
+
+#[test]
+fn photoshops_associated_lab_tiffs_open_flat_in_either_byte_order() {
+    for scene in ["s1", "s2"] {
+        for compression in ["rle", "zip"] {
+            let mut opened = Vec::new();
+            for order in ["ibm", "mac"] {
+                let name = format!("{scene}_lab_16_{compression}_{order}.tif");
+                let path = fixture("tiff_little_endian_modes", &name);
+                let tiff = read_lab_tiff(&std::fs::read(&path).unwrap());
+                assert_eq!(
+                    (tiff.photometric, tiff.bits, tiff.extra_samples.as_slice()),
+                    (8, 16, &[1][..]),
+                    "{name}: a 16-bit CIELab image with an associated alpha"
+                );
+                assert_eq!(source(&path), 1, "{name}: DR_LAB_SOURCE_TIFF");
+                let doc = open(&path, LIMIT).unwrap_or_else(|e| panic!("{name}: {e}"));
+                assert_eq!(depth(doc), 16, "{name}");
+                assert_eq!(unsafe { &*doc }.dimensions(), (tiff.width, tiff.height));
+                let got = render(doc);
+                free(doc);
+                let partial = tiff.planes[3]
+                    .iter()
+                    .filter(|&&a| a != 0 && a != 65535)
+                    .count();
+                assert!(partial > 0, "{name}: no partial alpha to divide out");
+                for (i, g) in got.iter().enumerate() {
+                    let stored = [0, 1, 2].map(|c| tiff.planes[c][i]);
+                    let alpha = tiff.planes[3][i];
+                    let want = straight_codes(8, 16, stored, alpha);
+                    for c in 0..4 {
+                        assert!(
+                            g[c].abs_diff(want[c]) <= 1,
+                            "{name} pixel {i} channel {c}: {} against the oracle's {}",
+                            g[c],
+                            want[c]
+                        );
+                    }
+                    // The `associated` rule (`lab_psd_photoshop.rs`): ours on
+                    // the file's scale (a*/b* code · 256/257 is the offset
+                    // sample) times alpha is Photoshop's stored offset sample.
+                    for c in 0..3 {
+                        let scale = if c == 0 { 1.0 } else { 256.0 / 257.0 };
+                        let mine = (f64::from(g[c]) * scale * f64::from(alpha) / 65535.0).round();
+                        let theirs = if c == 0 {
+                            stored[c]
+                        } else {
+                            stored[c] ^ 0x8000
+                        };
+                        assert!(
+                            (mine - f64::from(theirs)).abs() <= 2.0,
+                            "{name} pixel {i} channel {c}: ours premultiplied {mine}, stored {theirs}"
+                        );
+                    }
+                }
+                opened.push(got);
+            }
+            assert!(
+                opened[0] == opened[1],
+                "{scene} {compression}: the IBM file and its Macintosh twin differ"
+            );
+        }
+    }
 }
 
 /// A PackBits CIELab TIFF of `width` × `height` 8-bit zero samples, `II`:

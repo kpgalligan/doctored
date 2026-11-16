@@ -1313,7 +1313,7 @@ fn layer_pixels(
     job: JobContext<'_>,
 ) -> Result<LayerRaster, String> {
     let prefix = |e: String| format!("failed to decode layer pixels: {e}");
-    if tiles_fit(dims) && writer_form(png, 4).map_err(prefix)? {
+    if tiles_fit(dims) && writer_form(png, 4, job).map_err(prefix)? {
         return decode_rgba8(png, dims, job)
             .map(LayerRaster::from_tile_plane)
             .map_err(prefix);
@@ -1360,7 +1360,7 @@ fn channel_plane(
     dimensions: (u32, u32),
     job: JobContext<'_>,
 ) -> Result<GrayRaster, String> {
-    if writer_form(png, 1)? {
+    if writer_form(png, 1, job)? {
         return decode_gray8(png, dimensions, job).map(GrayRaster::from_tile_plane);
     }
     Ok(GrayRaster::new(

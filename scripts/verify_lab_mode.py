@@ -452,7 +452,9 @@ L* = 100v/65280 and a* = v/256 − 128), as the document's ICC v4 codes.
   `color_mode` lab and `get_precision` `mode` lab{depth}; `sample_pixel
   source layer` at 4 points equals the expected codes exactly at 8 bits and
   within 1 code at 16. An 8-bit CIELab TIFF with an ASSOCIATED alpha
-  (ExtraSamples 1) does not open as lab.
+  (ExtraSamples 1) opens as lab 8 with its colour divided by alpha in the
+  offset form (L as stored, a*/b* XOR 0x80; `straight_lab_row` below): the
+  4 points equal the expected codes exactly.
 - **L52 the Lab TIFF round trip.** `save_copy tiff` of a Lab 8 and a Lab 16
   document (the patch row converted), then `open_document`: lab at that
   depth, and `sample_pixel` at 5 points: every channel equal at 8 bits; at
@@ -1501,6 +1503,21 @@ def lab_tiff_codes(photometric, bits, row):
         else:
             out.append(round(v / 256 / 255 * 65535))
     return out
+
+
+def straight_lab_row(bits, row):
+    """One CIELab pixel's stored samples with its associated alpha divided out of the colour in
+    the offset form (L as stored, a*/b* XOR the half code): round half up, capped, 0 at alpha 0
+    (L51)."""
+    top = (1 << bits) - 1
+    half = 1 << (bits - 1)
+    alpha = row[3]
+    out = []
+    for c, v in enumerate(row[:3]):
+        flip = half if c else 0
+        straight = 0 if alpha == 0 else min(top, (2 * (v ^ flip) * top + alpha) // (2 * alpha))
+        out.append(straight ^ flip)
+    return out + [alpha]
 
 
 def write_lab_tiff(path, photometric, bits, rows, big=False, sample_format=None, extra=None,
@@ -3062,20 +3079,23 @@ def main():
                 worst = max(worst, max(abs(g - w) for g, w in zip(got, want)))
             assert worst <= (0 if bits == 8 else 1), (name, worst, got51)
             l51[name] = worst
+        # An associated alpha (ExtraSamples 1) is divided out of the colour in its offset form.
         associated = folder / 'cielab8_associated.tif'
-        write_lab_tiff(associated, 8, 8, lab_tiff_samples(8, 8, True), extra=1)
-        opened51 = app.client.rpc('tools/call', {'name': 'open_document',
-                                                 'arguments': {'path': str(associated)}})
-        if not opened51.get('isError'):
-            text51 = next(c['text'] for c in opened51['content'] if c['type'] == 'text')
-            assoc_doc = json.loads(text51)['document']['id']
-            assert mode(assoc_doc) != 'lab', 'an associated-alpha Lab TIFF opened as lab'
-            l51['associated'] = mode(assoc_doc)
-        else:
-            l51['associated'] = 'refused'
+        rows51 = lab_tiff_samples(8, 8, True)
+        write_lab_tiff(associated, 8, 8, rows51, extra=1)
+        assoc_doc = call('open_document', path=str(associated))['document']['id']
+        assert mode(assoc_doc) == 'lab', 'an associated-alpha Lab TIFF opens as lab'
+        assert lab_depth(assoc_doc) == 8, 'associated'
+        got51 = codes_at(assoc_doc, LAB_POINTS, source='layer', layer=0)
+        worst = 0
+        for (x, y), got in zip(LAB_POINTS, got51):
+            want = lab_tiff_codes(8, 8, straight_lab_row(8, rows51[y * LAB_TIFF_W + x]))
+            worst = max(worst, max(abs(g - w) for g, w in zip(got, want)))
+        assert worst == 0, ('associated', worst, got51)
+        l51['associated'] = worst
         receipts['l51'] = l51
         print('PASS l51: CIELab and ICCLab TIFFs at 8 and 16 bits open as Lab Color documents '
-              'with the published codes; an associated alpha does not', flush=True)
+              'with the published codes; an associated alpha is divided out', flush=True)
 
         l52 = {}
         rgb52 = folder / 'patches8-52.png'

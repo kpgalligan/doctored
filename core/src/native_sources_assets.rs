@@ -489,7 +489,7 @@ impl PendingSources<'_> {
                         profile,
                         job,
                     )?)
-                } else if crate::png_rows8_read::writer_form(&pending.png, 4)
+                } else if crate::png_rows8_read::writer_form(&pending.png, 4, job)
                     .map_err(|e| format!("failed to decode embedded source: {e}"))?
                 {
                     // The writer's form decodes by rows into tiles (13C-2b,

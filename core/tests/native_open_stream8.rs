@@ -10,16 +10,29 @@
 //! - a truncated file answers `Err` at every length, and a cut inside a layer
 //!   PNG, a mask or a channel PNG names the document;
 //! - a corrupt payload answers `Err` with its plane's sentence;
-//! - a typed file keeps the RGBA8 reader's refusal.
+//! - a typed file keeps the RGBA8 reader's refusal;
+//! - the chunk walk that tells the writer's form polls the job once every
+//!   `job_control::EVERY_INTERVAL` (4096, restated) chunks: a layer PNG
+//!   followed by many empty chunks past its IEND (still the writer's form,
+//!   and bytes png's reader never reaches) opens equal to the document and
+//!   adds exactly that many checkpoints to the same file without them, and
+//!   a worker parked at the walk's last poll and cancelled answers exactly
+//!   `operation cancelled`;
+//! - a typed file holding an 8-bit embedded source (whose PNG the same walk
+//!   reads) answers exactly `operation cancelled` when parked and cancelled
+//!   at each of its open's checkpoints.
 
 use doctored_core::doc::{DrDocument, LayerKind, MaskKind};
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_color::{dr_builtin_profile, dr_builtin_profile_len};
-use doctored_core::ffi_doc::{dr_doc_open, dr_doc_save_native};
-use doctored_core::ffi_precision::{dr_precision_doc_free, dr_precision_doc_save_native};
+use doctored_core::ffi_doc::{dr_doc_free, dr_doc_open, dr_doc_save_native};
+use doctored_core::ffi_precision::{
+    dr_precision_doc_free, dr_precision_doc_open, dr_precision_doc_save_native,
+};
 use doctored_core::ffi_precision_input::dr_precision_doc_from_rgba16;
+use doctored_core::job_control::{DrJobControl, Report};
 use doctored_core::precision_image::REFERENCE_WORKING_BYTES;
-use doctored_core::retained_source::SourceEdit;
+use doctored_core::retained_source::{SourceEdit, SourceInput};
 use image::codecs::png::PngEncoder;
 use image::{
     DynamicImage, ExtendedColorType, GrayImage, ImageBuffer, ImageEncoder, Luma, Rgba, RgbaImage,
@@ -30,6 +43,7 @@ use std::path::Path;
 use std::ptr;
 use tempfile::TempDir;
 
+use crate::common::probe::{cancelled_parked_at, parked_line, reports};
 use crate::gray_fixture::chunk;
 
 const SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
@@ -587,4 +601,176 @@ fn a_typed_native_file_keeps_the_rgba8_reader_s_refusal() {
         )) && message.contains(" in the RGBA8 reader; "),
         "{message}"
     );
+}
+
+/// `job_control::EVERY_INTERVAL`, restated: the writer's-form chunk walk
+/// polls once every this many chunks.
+const WALK_INTERVAL: usize = 4096;
+
+/// `png` with `count` empty IDAT chunks after its IEND: a walk still meets
+/// nothing but IHDR, IDAT and IEND to the span's end, so it is the writer's
+/// form, while png's own reader stops at the IEND and never reaches them.
+fn trailing_chunks(png: &[u8], count: usize) -> Vec<u8> {
+    let empty = chunk(b"IDAT", &[]);
+    let mut out = png.to_vec();
+    for _ in 0..count {
+        out.extend_from_slice(&empty);
+    }
+    out
+}
+
+/// `dr_doc_open` of `path` under the job control behind `token`, the
+/// document freed: (opened, the error).
+fn open_under(path: &str, token: usize) -> (bool, String) {
+    let c = CString::new(path).unwrap();
+    let mut error = ptr::null_mut();
+    let doc = unsafe { dr_doc_open(c.as_ptr(), token as *const DrJobControl, &mut error) };
+    if doc.is_null() {
+        return (false, unsafe { text(error) });
+    }
+    unsafe { dr_doc_free(doc) };
+    (true, String::new())
+}
+
+/// The checkpoint count at the end of an uncontrolled run's report log
+/// (the open's last report is its completion).
+fn total(log: &[Report]) -> u64 {
+    log.last().expect("the open reported").checkpoints
+}
+
+#[test]
+fn a_long_chunk_walk_polls_and_a_cancel_parked_inside_it_returns() {
+    let (doc, _) = small_document();
+    let dir = TempDir::new().unwrap();
+    let plain = save(&doc, dir.path(), "plain.doctored");
+    let file = std::fs::read(&plain).unwrap();
+    let (start, len) = records(&file)[0];
+    // The writer's three chunks plus these make the walk poll `polls` times.
+    let polls = 32_u64;
+    let count = polls as usize * WALK_INTERVAL - 3;
+    let png = trailing_chunks(&file[start..start + len], count);
+    let padded = dir.path().join("padded.doctored");
+    std::fs::write(&padded, spliced(&file, 0, &png)).unwrap();
+    let padded = padded.to_str().unwrap();
+    let reopened = open(padded).unwrap();
+    assert_same("trailing chunks", &doc, &reopened);
+    // The span's own decode never reads past the IEND, so every checkpoint
+    // the padded file adds is the walk's.
+    let theirs = reports(|token| open_under(&plain, token));
+    let ours = reports(|token| open_under(padded, token));
+    assert_eq!(
+        total(&ours) - total(&theirs),
+        polls,
+        "{count} trailing chunks: the walk polls once per {WALK_INTERVAL}"
+    );
+    // The layer's report (stage 1, progress 0) is the checkpoint just before
+    // its walk, so the walk's last poll is `polls` past it; the file without
+    // the chunks has no checkpoint that far. The parked predicate below only
+    // checks the stage; the count above is what proves those `polls`
+    // checkpoints are the walk's.
+    let entry = ours
+        .iter()
+        .find(|r| r.stage == 1)
+        .expect("the layer's report")
+        .checkpoints;
+    assert!(
+        entry + polls > total(&theirs),
+        "the walk's last poll must lie past the plain open's {} checkpoints",
+        total(&theirs)
+    );
+    let parked = cancelled_parked_at(
+        entry + polls,
+        &|progress, stage| stage == 1 && progress < 0.5,
+        |token| open_under(padded, token),
+    );
+    println!("the walk's last poll: {}", parked_line(&parked));
+}
+
+/// `dr_precision_doc_open` of `path` under the job control behind `token`,
+/// the document freed: (opened, the error).
+fn open_typed_under(path: &str, token: usize) -> (bool, String) {
+    let c = CString::new(path).unwrap();
+    let mut error = ptr::null_mut();
+    let doc = unsafe {
+        dr_precision_doc_open(
+            c.as_ptr(),
+            REFERENCE_WORKING_BYTES,
+            0,
+            token as *const DrJobControl,
+            &mut error,
+        )
+    };
+    if doc.is_null() {
+        return (false, unsafe { text(error) });
+    }
+    unsafe { dr_precision_doc_free(doc) };
+    (true, String::new())
+}
+
+#[test]
+fn a_typed_file_with_an_8_bit_source_cancels_exactly_at_every_checkpoint() {
+    let (w, h) = (8_u32, 6_u32);
+    let samples: Vec<u16> = (0..w * h * 4).map(|i| (i * 977) as u16 | 0xF000).collect();
+    let len = dr_builtin_profile_len(0);
+    let mut profile = vec![0_u8; len];
+    assert!(unsafe { dr_builtin_profile(0, profile.as_mut_ptr(), len) });
+    let mut error = ptr::null_mut();
+    let typed = unsafe {
+        dr_precision_doc_from_rgba16(
+            samples.as_ptr(),
+            samples.len(),
+            w,
+            h,
+            profile.as_ptr(),
+            profile.len(),
+            ptr::null(),
+            REFERENCE_WORKING_BYTES,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    assert!(!typed.is_null(), "{}", unsafe { text(error) });
+    // An 8-bit document placed keeps its RGBA8 master: the typed file
+    // stores it as an embedded 8-bit source PNG in the writer's form.
+    let input = DrDocument::from_pixels(noise(w, h, 9));
+    let edit = SourceEdit::parse(
+        &json!({"op":"place","source_id":"s","revision_id":"a","name":"Placed","x":0,"y":0,
+                "depth_conversion":"convert_fallback"})
+        .to_string(),
+    )
+    .unwrap();
+    let placed = unsafe { &*typed }
+        .source_edit_input(
+            Some(SourceInput::Byte(&input)),
+            &edit,
+            REFERENCE_WORKING_BYTES,
+            0,
+            None,
+        )
+        .unwrap()
+        .expect("the place changes the document");
+    unsafe { dr_precision_doc_free(typed) };
+    let source = placed.layer(1).unwrap().effective_source().unwrap();
+    assert_eq!(source.asset.depth(), 8, "an 8-bit embedded source");
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("typed-source.doctored");
+    let c = CString::new(path.to_str().unwrap()).unwrap();
+    let mut error = ptr::null_mut();
+    let ok = unsafe {
+        dr_precision_doc_save_native(
+            &placed,
+            c.as_ptr(),
+            REFERENCE_WORKING_BYTES,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    assert!(ok, "{}", unsafe { text(error) });
+    let path = path.to_str().unwrap();
+    let last = total(&reports(|token| open_typed_under(path, token)));
+    for count in 1..=last {
+        cancelled_parked_at(count, &|_, _| true, |token| open_typed_under(path, token));
+    }
 }

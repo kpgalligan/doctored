@@ -6626,18 +6626,20 @@ DrPrecisionDocument *dr_precision_doc_convert_bitmap_to_gray(const DrPrecisionDo
 #define DR_LAB_SOURCE_TIFF 1
 /* Header work only (#1 Lab phase 3a): TIFF when the file is a flat Lab
  * TIFF dr_precision_doc_open_lab opens — classic II or MM, Photometric 8
- * (CIELab) or 9 (ICCLab), chunky, 3 samples or 4 with an unassociated alpha,
- * 8 or 16 bits, SampleFormat absent, all 1 or (CIELab) 1,2,2(,1), no
- * compression, LZW, Deflate or PackBits. NONE for every other file (an
- * associated-alpha or planar Lab TIFF among them), which keeps today's open. */
+ * (CIELab) or 9 (ICCLab), chunky, 3 samples or 4 with an alpha (ExtraSamples
+ * 1, associated, or 2, unassociated), 8 or 16 bits, SampleFormat absent, all
+ * 1 or (CIELab) 1,2,2(,1), no compression, LZW, Deflate or PackBits. NONE for
+ * every other file (a planar Lab TIFF among them), which keeps today's open. */
 int32_t dr_path_lab_source(const char *path);
 /* A flat Lab TIFF as a Lab Color document of its depth: CIELab samples by
  * TIFF 6.0 (measured against Photoshop), ICCLab by TIFF Technote 4 (8 bits
  * as the PSD, 16 bits L* 100v/65280, a* v/256 - 128: declared from the
- * published spec, not measured against Photoshop); resolution, metadata and
- * orientation as dr_precision_doc_open_gray, and a multipage TIFF's pages
- * as it takes them. Optional single-use control begun once. Free with
- * dr_precision_doc_free. */
+ * published spec, not measured against Photoshop); an associated alpha
+ * divided out of the colour in its offset form (a* and b* as unsigned
+ * samples centred on 0) at the file's depth, alpha 0 reading code 0;
+ * resolution, metadata and orientation as dr_precision_doc_open_gray, and a
+ * multipage TIFF's pages as it takes them. Optional single-use control begun
+ * once. Free with dr_precision_doc_free. */
 DrPrecisionDocument *dr_precision_doc_open_lab(const char *path, uint64_t limit,
     uint64_t other_retained_bytes, const DrJobControl *control, char **err_out);
 /* request: {"depth":8|16,"fill_srgb":[r,g,b,a] in 0..1,"layer_name":"...",

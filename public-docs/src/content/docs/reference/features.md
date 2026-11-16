@@ -1259,7 +1259,7 @@ The design record behind each area is in the repository's
   profile — U.S. Web Coated (SWOP) v2 when Adobe's profiles are installed, else
   macOS's Generic CMYK — and the import report names it. A
   Gray, CMYK or Lab file the core does not read itself (a CMYK TIFF past its
-  size limits, a Lab TIFF with an associated alpha) is opened by
+  size limits) is opened by
   the platform decoder instead, which converts it to sRGB as it reads it, and
   File > New from Clipboard does the same with a Gray, CMYK or Lab paste —
   including a Finder file copy, whose own file names the profile; the

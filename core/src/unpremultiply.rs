@@ -2,10 +2,11 @@
 //! sample divided by its alpha at the sample's own depth. Every reader of
 //! premultiplied integer samples routes through [`straight`]: the host's
 //! premultiplied pixel layouts (`host_pixels::HostLayout`), the CMYK TIFF
-//! reader's associated inks (`cmyk_tiff_read`), and the flat RGB and gray
-//! TIFF opens of an alpha declared ExtraSamples 1 ([`straighten_u16`] and
-//! [`straighten_u8`]: the 16-bit typed codec `precision_codec`, the Gray
-//! document open `gray_io` and the byte open `dr_image`).
+//! reader's associated inks (`cmyk_tiff_read`), and the flat RGB, gray and
+//! Lab TIFF opens of an alpha declared ExtraSamples 1 ([`straighten_u16`]
+//! and [`straighten_u8`]: the 16-bit typed codec `precision_codec`, the Gray
+//! document open `gray_io`, the byte open `dr_image`, and the Lab document
+//! open `lab_tiff_read`, over a\*/b\* in their unsigned offset form).
 //!
 //! The rule: `round(v · max / a)`, a half rounding up, capped at `max`; a
 //! sample whose alpha is 0 has no recoverable colour and reads 0. The

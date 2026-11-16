@@ -6,12 +6,13 @@
 //!
 //! A classic TIFF (`II` or `MM`, never BigTIFF) whose first directory is
 //! PhotometricInterpretation 8 (CIELab, TIFF 6.0 §23) or 9 (ICCLab, TIFF
-//! Technote 4) stored as a SHORT, chunky (PlanarConfiguration absent or 1), SamplesPerPixel 3,
-//! or 4 with ExtraSamples 2 (an unassociated alpha), BitsPerSample 8 or 16
-//! on every sample, SampleFormat absent, all 1, or (CIELab, whose a\*/b\*
-//! are signed) [1, 2, 2] or [1, 2, 2, 1], and Compression none, LZW,
-//! Deflate or PackBits. Every other file — an associated-alpha or planar
-//! Lab TIFF among them — answers `None` and keeps today's path.
+//! Technote 4) stored as a SHORT, chunky (PlanarConfiguration absent or 1),
+//! SamplesPerPixel 3, or 4 with ExtraSamples 1 (an associated alpha) or 2
+//! (an unassociated one), BitsPerSample 8 or 16 on every sample,
+//! SampleFormat absent, all 1, or (CIELab, whose a\*/b\* are signed)
+//! [1, 2, 2] or [1, 2, 2, 1], and Compression none, LZW, Deflate or
+//! PackBits. Every other file — a planar Lab TIFF among them — answers
+//! `None` and keeps today's path.
 //!
 //! # The open
 //!
@@ -22,7 +23,22 @@
 //! becomes the document's code through `lab_encode::storage_code`: CIELab
 //! (measured against Photoshop by phase 3a's take) or ICCLab (declared from
 //! the published spec, not measured against Photoshop); alpha is the 8-bit
-//! code ×257 or the 16-bit value. Resolution, metadata and the EXIF
+//! code ×257 or the 16-bit value.
+//!
+//! An associated alpha's colour is stored multiplied by alpha in its OFFSET
+//! form: L as stored, and a\*/b\* as unsigned samples whose midpoint is
+//! a\* = 0 — a CIELab a\*/b\* XOR the half code (the signed sample plus 128
+//! at 8 bits, plus 32768 at 16), an ICCLab one as stored. Before the code
+//! mapping each colour sample is put in that form, divided by its alpha at
+//! the file's own depth through `unpremultiply` (`round(v · max / a)`
+//! capped at `max`, so an 8-bit file's straight sample is what is widened)
+//! and put back. A pixel at alpha 0 has no recoverable colour: it reads
+//! code 0 on every channel, as
+//! the RGB, Gray and CMYK opens read 0. Photoshop 26.10.0's per-layer
+//! CIELab TIFFs premultiply that offset form (`lab_psd_photoshop.rs`,
+//! `associated`), and its flat 16-bit Lab TIFFs saved with transparency
+//! carry such an alpha (`tiff_little_endian_modes`); ICCLab's form is
+//! declared by the same rule, not measured. Resolution, metadata and the EXIF
 //! orientation are applied as `gray_io::open_gray` applies them, and the
 //! paths are read from the 8BIM run (`tiff_paths`). The plan
 //! is [`open_scratch`]: the Lab open's own measured charge
@@ -30,6 +46,7 @@
 //! samples. A multipage TIFF whose first image is page 1 opens each page
 //! that matches page 1 as a hidden layer "Page n", as `open_gray` does.
 
+use std::ops::BitXorAssign;
 use std::sync::Arc;
 
 use tiff::decoder::{Decoder as TiffDecoder, DecodingResult};
@@ -41,6 +58,7 @@ use crate::precision_document::PrecisionDocument;
 use crate::precision_image::{admit, pixel_count, PrecisionImage};
 use crate::tiff_directory::{bytes_reader, file_reader, Directory, Overlay, COMPRESSIONS};
 use crate::tile_store::TilePlane;
+use crate::unpremultiply::{straighten_u16, straighten_u8};
 
 /// `dr_path_lab_source`'s answers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,6 +74,9 @@ pub(crate) struct LabTiff {
     pub bits: u16,
     pub encoding: LabFileEncoding,
     pub alpha: bool,
+    /// The alpha is ExtraSamples 1: the colour is stored multiplied by it
+    /// (module doc).
+    pub associated: bool,
 }
 
 /// What the header walk found: the facts and the byte patches the
@@ -96,9 +117,10 @@ fn walk(read: &mut dyn FnMut(u64, usize) -> Option<Vec<u8>>) -> Option<Header> {
         .into_iter()
         .map(|(v, _)| v)
         .collect();
-    let alpha = match (samples, extras.as_slice()) {
-        (3, []) => false,
-        (4, [2]) => true,
+    let (alpha, associated) = match (samples, extras.as_slice()) {
+        (3, []) => (false, false),
+        (4, [1]) => (true, true),
+        (4, [2]) => (true, false),
         _ => return None,
     };
     let depth = *bits.first()?;
@@ -136,9 +158,24 @@ fn walk(read: &mut dyn FnMut(u64, usize) -> Option<Vec<u8>>) -> Option<Header> {
             bits: depth,
             encoding,
             alpha,
+            associated,
         },
         patches,
     })
+}
+
+/// One associated pixel `[L, a, b, alpha]` at the file's depth made straight
+/// in place in its offset form (module doc): a\*/b\* XOR `flip` (the half
+/// code for CIELab, 0 for ICCLab), the colour divided by alpha through
+/// `straighten` (`unpremultiply`'s pixel at that depth), then a\*/b\* back.
+fn straighten_offset<T: Copy + BitXorAssign>(pixel: &mut [T], flip: T, straighten: fn(&mut [T])) {
+    for sample in pixel.iter_mut().skip(1).take(2) {
+        *sample ^= flip;
+    }
+    straighten(pixel);
+    for sample in pixel.iter_mut().skip(1).take(2) {
+        *sample ^= flip;
+    }
 }
 
 /// The header walk over bytes already read.
@@ -260,13 +297,28 @@ impl PrecisionDocument {
                 storage_code(facts.encoding, facts.bits, channel, sample)
             }
         };
+        // The offset form's flip (module doc): CIELab's a*/b* are signed.
+        let cielab = facts.encoding == LabFileEncoding::CieLab;
         let codes: Vec<u16> = match decoder.read_image().map_err(|e| fail(e.to_string()))? {
-            DecodingResult::U8(raw) if facts.bits == 8 => raw
-                .iter()
-                .enumerate()
-                .map(|(i, &v)| code(i % samples, u16::from(v)))
-                .collect(),
+            DecodingResult::U8(mut raw) if facts.bits == 8 => {
+                if facts.associated {
+                    let flip = if cielab { 0x80 } else { 0 };
+                    for pixel in raw.chunks_exact_mut(samples) {
+                        straighten_offset(pixel, flip, straighten_u8);
+                    }
+                }
+                raw.iter()
+                    .enumerate()
+                    .map(|(i, &v)| code(i % samples, u16::from(v)))
+                    .collect()
+            }
             DecodingResult::U16(mut raw) if facts.bits == 16 => {
+                if facts.associated {
+                    let flip = if cielab { 0x8000 } else { 0 };
+                    for pixel in raw.chunks_exact_mut(samples) {
+                        straighten_offset(pixel, flip, straighten_u16);
+                    }
+                }
                 for (i, v) in raw.iter_mut().enumerate() {
                     *v = code(i % samples, *v);
                 }

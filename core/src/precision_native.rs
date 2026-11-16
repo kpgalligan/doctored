@@ -368,6 +368,7 @@
 //! examples): their buffer is the caller's and is not charged, so each
 //! admits exactly the figure `save_native` and `open_native` admit.
 
+use crate::cancel_io::settle;
 use crate::dr_image::save_atomically;
 use crate::job_control::{DrJobControl, JobContext};
 use crate::native_stream::{FileSink, NativeFile, Reader, NATIVE_STREAM_WINDOW_BYTES};
@@ -505,7 +506,10 @@ impl PrecisionDocument {
         if bytes.len() as u64 > MAX_NATIVE_BYTES {
             return Err("high-depth native file exceeds the encoded size limit".into());
         }
-        let out = read::parse_within(Reader::new(bytes), limit, other_retained, job, None)?;
+        let out = settle(
+            job,
+            read::parse_within(Reader::new(bytes), limit, other_retained, job, None),
+        )?;
         job.report(1.0, 5)?;
         Ok(out)
     }
@@ -551,12 +555,17 @@ fn open_streamed(
     job.check()?;
     let file = NativeFile::open(path, limit, other_retained)?;
     job.reserve(NATIVE_STREAM_WINDOW_BYTES + BOOKKEEPING_BYTES)?;
-    let out = read::parse_within(
-        Reader::over_file(&file),
-        limit,
-        other_retained,
+    // A plane or source decode wraps the error it meets in its own sentence;
+    // a failure while a cancel is pending is the cancel (`cancel_io::settle`).
+    let out = settle(
         job,
-        after_preflight,
+        read::parse_within(
+            Reader::over_file(&file),
+            limit,
+            other_retained,
+            job,
+            after_preflight,
+        ),
     )?;
     job.report(1.0, 5)?;
     Ok(out)

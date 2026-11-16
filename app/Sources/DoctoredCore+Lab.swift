@@ -72,7 +72,7 @@ enum LabSource: Int32 {
 extension RasterPrecisionDocument {
     /// Whether `url` is a flat Lab TIFF the Lab open accepts, header work only
     /// (`dr_path_lab_source`: CIELab or ICCLab, chunky, 3 samples or 4 with an
-    /// unassociated alpha, 8 or 16 bits).
+    /// associated or unassociated alpha, 8 or 16 bits).
     static func labSource(at url: URL) -> LabSource {
         LabSource(rawValue: dr_path_lab_source(url.path)) ?? .none
     }

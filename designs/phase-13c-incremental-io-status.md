@@ -65,6 +65,13 @@ line links here.
   reads a leased checkpoint: `scripts/recovery_checkpoint.py`). Check: `verify_phase5.py --suite recovery`'s
   `pool_checkpoints` (a 300×300 edit appends at most the 4 tiles it meets; a damaged payload only the newest
   generation names falls back to the previous one; an `image.rz` generation recovers).
+- **The writer's-form chunk walk polls** (#11). `png_rows8_read::writer_form` takes the job and polls once every
+  `EVERY_INTERVAL` (4096) chunk heads it reads, so a hand-made span of many empty chunks no longer holds off a
+  cancel; the writer's own three chunks never reach the interval, so ordinary opens keep their checkpoint counts.
+  The typed native open now settles a cancel (`cancel_io::settle`) as the byte open does, so an 8-bit embedded
+  source's decode answers exactly `operation cancelled`. Check: `native_open_stream8` (131,069 trailing empty
+  chunks add 32 checkpoints and a cancel parked at the walk's last poll returns, red with no poll; a typed file
+  with an 8-bit source cancels exactly at every checkpoint, red on `failed to decode embedded source: …`).
 
 ## What each path holds at peak now (read 2026-11-15)
 
