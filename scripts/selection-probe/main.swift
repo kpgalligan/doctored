@@ -48,6 +48,17 @@ func pumpUntil(_ condition: () -> Bool, seconds: TimeInterval = 5, message: Stri
         RunLoop.current.run(until: Date().addingTimeInterval(0.01))
     }
     try require(condition(), "Timed out at \(file):\(line) waiting for \(message); scratch=\(SelectionWorkBudget.scratchBytes), occupied=\(BackgroundWork.occupied)")
+    drainMainQueue()
+}
+/// Runs the main queue past every block already on it. A preview worker queues its
+/// delivery on main and only then drops its reservation, so once `scratchBytes` reads 0
+/// the delivery may still be waiting here; a caller that reads the delivered image or
+/// Apply's state must not read it before that block runs (under load it lost that race).
+func drainMainQueue() {
+    var reached = false
+    DispatchQueue.main.async { reached = true }
+    let deadline = Date().addingTimeInterval(5)
+    while !reached, Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.01)) }
 }
 func call(_ document: ImageDocument, _ name: String, _ values: [String: Any] = [:]) throws -> [String: Any] {
     var arguments = values
