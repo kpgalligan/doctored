@@ -59,10 +59,14 @@ big-endian RGB one it reads. Each opens as one layer; TIFF leaves `save_types` a
 `save_copy` to another path names nothing and one over the file itself names the line.
 The control, the same big-endian file with no records, saves in place.
 
-PHOTOSHOP LITTLE-ENDIAN cells: two of Photoshop's own little-endian layered RGB TIFFs
-(`core/tests/fixtures/psd_photoshop/tiff_little_endian`, 8 bits RLE and 16 bits ZIP).
-Opened flat, each is a LAYER BLOCK cell (the 16-bit one's flat image declares its alpha
-associated, ExtraSamples 1, which the flat open divides out). Opened with `psd_mode` layers and the
+PHOTOSHOP LITTLE-ENDIAN cells: four of Photoshop's own little-endian layered TIFFs, two RGB
+(`core/tests/fixtures/psd_photoshop/tiff_little_endian`, 8 bits RLE and 16 bits ZIP) and a
+Grayscale 8-bit RLE and a Lab Color 16-bit ZIP one
+(`core/tests/fixtures/psd_photoshop/tiff_little_endian_modes`, the held-out scene s2).
+Opened flat, each but the Lab one is a LAYER BLOCK cell (a 16-bit RGB one's flat image
+declares its alpha associated, ExtraSamples 1, which the flat open divides out; the flat
+Lab open does not read an associated alpha, so the Lab file is opened with its layers
+only). Opened with `psd_mode` layers and the
 inspected fingerprint, each holds its four layers and its group, TIFF names no
 `LAYERS_LINE`, and its `save_types`, `save_as_types` and `losses_by_format.tiff` equal
 those of its Macintosh-order twin (the same document Photoshop saved big-endian in the
@@ -146,6 +150,8 @@ LAYERS_LINE = 'the layers stored in the file on disk, which this document opened
 # Photoshop's own little-endian layered TIFFs (the PHOTOSHOP LITTLE-ENDIAN cells).
 PHOTOSHOP_LE = (Path(__file__).resolve().parents[1]
                 / 'core/tests/fixtures/psd_photoshop/tiff_little_endian')
+# Its Grayscale and Lab Color twins (`tiff_le_77_take.py`'s takes).
+PHOTOSHOP_LE_MODES = PHOTOSHOP_LE.with_name('tiff_little_endian_modes')
 
 
 def with_iptc(source, path):
@@ -645,12 +651,13 @@ def main():
                 return None, reply[1]
             return reply['document']['id'], None
 
-        def photoshop_le(cell, name):
-            """Opened flat, a LAYER BLOCK cell; opened with its layers, Save answers as for
-            its Macintosh-order twin, the same document Photoshop saved big-endian in the
-            same job, opened with its layers."""
-            data = (PHOTOSHOP_LE / name).read_bytes()
-            layer_block(f'{cell} flat', data)
+        def photoshop_le(cell, name, fixtures=PHOTOSHOP_LE, flat=True):
+            """Opened flat, a LAYER BLOCK cell (unless `flat` is false); opened with its
+            layers, Save answers as for its Macintosh-order twin, the same document
+            Photoshop saved big-endian in the same job, opened with its layers."""
+            data = (fixtures / name).read_bytes()
+            if flat:
+                layer_block(f'{cell} flat', data)
             tag = f'{cell} layers'
             if not wanted(tag):
                 return
@@ -667,7 +674,7 @@ def main():
             ok &= check(len(layers) == 5, f'{tag}: four layers and a group ({len(layers)})')
             mine = preservation(doc)
             twin_path = folder / f'{cell.replace(" ", "-")}-mm.tif'
-            twin_data = (PHOTOSHOP_LE / name.replace('_ibm', '_mac')).read_bytes()
+            twin_data = (fixtures / name.replace('_ibm', '_mac')).read_bytes()
             twin_path.write_bytes(twin_data)
             ok &= check(twin_data[:2] == b'MM', f'{tag}: the twin is big-endian')
             twin, refused = opened_layers(twin_path)
@@ -691,6 +698,11 @@ def main():
 
         photoshop_le('photoshop le8', 's2_8_rle_ibm.tif')
         photoshop_le('photoshop le16', 's2_16_zip_ibm.tif')
+        photoshop_le('photoshop le gray8', 's2_gray_8_rle_ibm.tif', PHOTOSHOP_LE_MODES)
+        # Its layers only: its flat image's alpha is associated (ExtraSamples 1), which
+        # the flat Lab open does not read in either byte order (`lab_tiff_read`).
+        photoshop_le('photoshop le lab16', 's2_lab_16_zip_ibm.tif', PHOTOSHOP_LE_MODES,
+                     flat=False)
 
     print()
     for tag, outcome in results:

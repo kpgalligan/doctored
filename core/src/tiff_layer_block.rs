@@ -5,18 +5,18 @@
 //! [`has_layer_block`] is the question File ▸ Save asks of a TIFF a document
 //! was opened FLAT from (`dr_tiff_has_layer_block`). `tiff_layers::has_layers`
 //! answers only for the files the layered open reads; every other file with
-//! the tag (a little-endian CMYK, gray or Lab file, a 32-bit file that is not
-//! float RGB, Palette, a 16-bit float, BigTIFF) opens flat, as does a
+//! the tag (a 32-bit file that is not float RGB, Palette, a 16-bit float,
+//! BigTIFF) opens flat, as does a
 //! readable one opened with Open Flattened or by an agent without
-//! `psd_mode`, or a little-endian RGB one whose records the layered open
+//! `psd_mode`, or a little-endian one whose records the layered open
 //! refuses (`tiff_layers_order`). Writing the flat image over such a file
 //! would erase layers the document does not hold.
 //!
 //! **A block holds layers** when one of its `Layr`, `Lr16` or `Lr32` entries
 //! has a body whose first two bytes, the i16 record count, are not both zero.
 //! Zero is the same two bytes in either byte order, so the answer does not
-//! depend on how the records after the count are laid out in a model no
-//! authored file shows little-endian. Each entry's signature says its order
+//! depend on how the records after the count are laid out, in a model the
+//! layered open reads or one it does not. Each entry's signature says its order
 //! (`8BIM` big-endian, `MIB8` little-endian: [`ByteOrder::code`]), and its
 //! key and length are read in that order.
 //!

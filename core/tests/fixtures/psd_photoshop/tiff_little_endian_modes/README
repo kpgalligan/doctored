@@ -1,0 +1,34 @@
+Photoshop 26.10.0's own layered CMYK, Grayscale and Lab Color TIFFs saved with
+byte order IBM PC (little-endian, "II") at 8 and 16 bits, each beside its
+Macintosh-order ("MM") twin, from the private harness's
+scripts/photoshop-probe/tiff_le_77_take.py (and its tiff_le_77.jsx; receipts in
+~/devel/doctored-fixtures/photoshop/tiff-little-endian-77/<take>). Synthetic
+content the runner declared; Photoshop built, converted and saved it.
+
+Each take builds one RGB document per depth from the runner's RGBA PNGs, the
+scenes of tiff_le_53_take.py (photoshop.json's "scenes"): Bottom; Top (opaque at
+x < top_keep, transparent beyond) in the scene's blend mode and opacity; a group
+(Pass Through) holding Inner (partial alpha in its lower rows); Masked (a Reveal
+Selection user mask from mask_rect, then hidden). Each document is converted by
+ONE Image > Mode conversion without flattening (Fltt and Mrge false) to CMYK,
+Grayscale or Lab Color and saved four times as a copy: layer compression RLE
+then ZIP, each with byte order IBM then MACOS; layers and transparency on, image
+compression NONE; CMYK and Grayscale embed their profile, Lab has none.
+
+Files named <scene>_<model>_<bits>_<rle|zip>_<ibm|mac>.tif. The entries whose
+"location" is "repo" are here, IBM file and twin; the "store" entries (every
+CMYK file: each carries its ~0.5 MB output profile) are read from the receipts
+at "path" under the folder above, and their tests skip when it is absent.
+
+photoshop.json holds each take's run id, Photoshop version and per-model build
+row, the scenes' declarations, and per IBM file: its model, take, location and
+path, sha256 and size; its twin's name, path and sha256; Photoshop's rows of
+the file and of its twin reopened; the twin's records (rectangle as top, left,
+bottom, right; blend key; opacity byte; flags; the lsct section type; the mask)
+with each channel's compression word, rectangle and the SHA-256 of its decoded
+plane, samples big-endian at the file's depth; and the judge's reading of each
+channel (its word, its verdict for that model and depth, the confirmed
+candidate's misses and the share its rival missed).
+core/tests/tiff_layers_little_modes.rs opens every file it can reach layered and
+checks it against its twin opened the same way, the twin's records and plane
+hashes, the judge, and Photoshop's rows.

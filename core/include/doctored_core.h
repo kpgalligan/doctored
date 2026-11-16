@@ -4922,15 +4922,14 @@ typedef enum {
 } DrLayeredContainer;
 
 /* True when `path` is a TIFF whose Photoshop layer block this core reads as
- * layers: an unsigned 8- or 16-bit TIFF holding a Layr/Lr16 block, in RGB
- * of either byte order or, big-endian, in CMYK (InkSet absent or 1, #1),
- * BlackIsZero gray (#1 phase 3a) or Lab; or a 32-bit IEEE-float RGB TIFF
- * of either byte order holding an Lr32 block. False for NULL, unreadable,
- * a little-endian CMYK, gray or Lab file, any other model or sample format,
- * or no readable block:
- * each of those opens flat (dr_tiff_has_layer_block says whether its block
- * holds layers all the same). Reads the header, the first directory and the
- * block keys, never a pixel strip. */
+ * layers: an unsigned 8- or 16-bit TIFF holding a Layr/Lr16 block, in RGB,
+ * CMYK (InkSet absent or 1, #1), BlackIsZero gray (#1 phase 3a) or Lab, of
+ * either byte order; or a 32-bit IEEE-float RGB TIFF of either byte order
+ * holding an Lr32 block. False for NULL, unreadable, any other model or
+ * sample format, or no readable block: each of those opens flat
+ * (dr_tiff_has_layer_block says whether its block holds layers all the
+ * same). Reads the header, the first directory and the block keys, never a
+ * pixel strip. */
 bool dr_tiff_has_layers(const char *path);
 
 /* True when `path` is a TIFF carrying Photoshop's layer block with layers in

@@ -11,11 +11,11 @@ import AppKit
 // automated run gives every alert. A TIFF opened flat whose block holds layers, read here or not,
 // is never written over by File ▸ Save (`ImageDocument.sourceLayersUnopened`).
 //
-// A CMYK file (`import_precision` `"cmyk"`, #1) — PSD, PSB or a big-endian layered CMYK TIFF —
-// opens as a CMYK document with either choice: Import Layers its layers, Stored Composite (or a
-// TIFF's Open Flattened, the ordinary CMYK TIFF open) its flat picture. Both follow Edit ▸ Color
-// Settings' CMYK policy (`CmykProfileEdit.OpenPolicy`), which `openPrecisionPSD` applies as the
-// ordinary CMYK open does.
+// A CMYK file (`import_precision` `"cmyk"`, #1) — PSD, PSB or a layered CMYK TIFF of either
+// byte order — opens as a CMYK document with either choice: Import Layers its layers, Stored
+// Composite (or a TIFF's Open Flattened, the ordinary CMYK TIFF open) its flat picture. Both
+// follow Edit ▸ Color Settings' CMYK policy (`CmykProfileEdit.OpenPolicy`), which
+// `openPrecisionPSD` applies as the ordinary CMYK open does.
 //
 // A 32-bit RGB PSD or PSB (`import_precision` `"rgba32"`) opens as a 32-bit float document
 // through the same `openPrecisionPSD`, with either choice; so does a 32-bit float RGB layered TIFF
@@ -23,15 +23,15 @@ import AppKit
 // open.
 //
 // A Grayscale file at 8 or 16 bits (`import_precision` `"gray"`, #1 phase 3a) — PSD, PSB or a
-// big-endian layered gray TIFF, which `isLayeredTIFF` claims too — or a 32-bit PSD or PSB (phase
-// 3c) opens as a Grayscale document of its depth with either choice through the same
+// layered gray TIFF of either byte order, which `isLayeredTIFF` claims too — or a 32-bit PSD or
+// PSB (phase 3c) opens as a Grayscale document of its depth with either choice through the same
 // `openPrecisionPSD` (`openGrayPSD`, Color Settings' working Gray assigned to an untagged file); a
 // TIFF's Open Flattened is the ordinary gray TIFF open.
 //
 // A Lab file at 8 or 16 bits (`import_precision` `"lab"`, #1 Lab phase 3a) — PSD, PSB or a
-// big-endian layered Lab TIFF, which `isLayeredTIFF` claims too — opens as a Lab Color document of
-// its depth with either choice through the same `openPrecisionPSD` (`openLabPSD`; an embedded
-// profile is not used); a TIFF's Open Flattened is the ordinary flat Lab TIFF open.
+// layered Lab TIFF of either byte order, which `isLayeredTIFF` claims too — opens as a Lab Color
+// document of its depth with either choice through the same `openPrecisionPSD` (`openLabPSD`; an
+// embedded profile is not used); a TIFF's Open Flattened is the ordinary flat Lab TIFF open.
 //
 // A Bitmap PSD or PSB (`import_precision` `"bitmap"`, colour mode 0, #1 Bitmap phase 1c) holds
 // no layers, so Stored Composite is its one choice; it opens as a Bitmap document through the
@@ -145,11 +145,11 @@ extension ImageDocument {
     }
 
     /// True for a TIFF whose Photoshop layer block the core reads as layers:
-    /// an unsigned 8- or 16-bit RGB TIFF of either byte order or a big-endian
-    /// CMYK, gray or Lab (#1) one holding one, or a 32-bit float RGB one of
-    /// either byte order. Every other TIFF — a 16-bit float, a little-endian
-    /// CMYK, gray or Lab file — answers false and is never offered the layered
-    /// open; Save still does not write over its block
+    /// an unsigned 8- or 16-bit RGB, CMYK, gray or Lab (#1) TIFF of either
+    /// byte order holding one, or a 32-bit float RGB one of either byte
+    /// order. Every other TIFF — a 16-bit float, a Palette file — answers
+    /// false and is never offered the layered open; Save still does not write
+    /// over its block
     /// (`ImageDocument.sourceLayersUnopened`). It is asked before the ordinary CMYK,
     /// gray and Lab TIFF opens (`openPrecisionDocumentIfRequested`), so a layered
     /// CMYK, gray or Lab TIFF reaches the chooser and its Open Flattened answer

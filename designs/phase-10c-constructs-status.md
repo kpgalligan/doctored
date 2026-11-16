@@ -79,12 +79,15 @@ and `inspect_psd` / `inspect_psd_export` for the model).
   read only on a record with a rectangle. Photoshop's 16-bit records in the `Lr16` tail with ZIP(-prediction) layer
   and mask planes import layered since Run 4 ([depth status](phase-10c-depth-status.md)).
 - **Formats.** The importer reads PSB, ZIP and ZIP-with-prediction at 8 bits and in the stored composite (only the
-  kept planes are inflated), `Lr32` (`psd_import_float.rs`), and the layer block of an unsigned 8- or 16-bit RGB
-  TIFF or of a 32-bit float RGB TIFF in either byte order; any other TIFF opens flat. A little-endian RGB block is
-  read through its big-endian form (`tiff_layers_order`): at 8 and 16 bits its layout is what two Photoshop
-  26.10.0 takes measured (private `tiff_le_53_take.py`; a held-out second scene opened unchanged): fields in the
-  file's order, codes byte-reversed, 8-bit RLE row counts little-endian, 16-bit Raw and predicted planes
-  big-endian, every plane equal to the Macintosh twin's (`tests/fixtures/psd_photoshop/tiff_little_endian`). A
+  kept planes are inflated), `Lr32` (`psd_import_float.rs`), and the layer block of an unsigned 8- or 16-bit RGB,
+  CMYK, Gray or Lab TIFF or of a 32-bit float RGB TIFF in either byte order; any other TIFF opens flat. A
+  little-endian block is read through its big-endian form (`tiff_layers_order`; `tiff_layers::LITTLE_ENDIAN_MODELS`
+  names the models): at 8 and 16 bits its layout is what Photoshop 26.10.0 takes measured, two in RGB (private
+  `tiff_le_53_take.py`) and two in CMYK, Gray and Lab (private `tiff_le_77_take.py`, each model converted from RGB
+  without flattening), the second take of each a held-out scene that opened unchanged: the same layout in every
+  model — fields in the file's order, codes byte-reversed, 8-bit RLE row counts little-endian, 16-bit Raw and
+  predicted planes big-endian — every plane equal to the Macintosh twin's (`tests/fixtures/psd_photoshop/`
+  `tiff_little_endian` and `tiff_little_endian_modes`; the CMYK files stay in the receipts). A
   TIFF opened flat whose block holds layers (`tiff_layer_block`: any order, model, depth or BigTIFF; a readable one
   opened flattened too) gives TIFF a loss line, so File ▸ Save goes to the Save panel instead of writing over them.
 - **Non-goals, fixed:** no per-export choice between preserve/rasterize/refuse; `TySh`, vector/shape and

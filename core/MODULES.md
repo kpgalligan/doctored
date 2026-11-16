@@ -85,10 +85,10 @@ Detail belongs in the source file's own header comment.
 - `psd_spot.rs` — PSD/PSB spot channels: the container read and loss lines, `with_psd_spots` at both depths, `psd_spot_planes` for the writers.
 - `tiff_spot_samples.rs` (KERNEL) — a TIFF's spot layout, `saved_chunks_held`, the Multiband read and its chunk-at-a-time check, the polarity; `SpotCoverage`.
 - `tiff_spot.rs` — TIFF spot channels, flat and layered: records from tag 34377, `with_(layered_)tiff_spots`, planes, plan terms, keep refusal.
-- `tiff_layers.rs` — Photoshop's layer block in a TIFF (tags 34377/34675/37724): `ByteOrder`, the locator (8/16 `MM`, RGB also `II`; 32-bit float RGB both orders); re-exports the writer.
+- `tiff_layers.rs` — Photoshop's layer block in a TIFF (tags 34377/34675/37724): `ByteOrder`, the locator (8/16 bits, `II` per `LITTLE_ENDIAN_MODELS`; 32-bit float RGB); re-exports the writer.
 - `tiff_layer_block.rs` — whether a TIFF's tag-37724 block holds layers, any order, model, depth or BigTIFF (the unread ones too): Save's question for a TIFF opened flat.
 - `tiff_layers_write.rs` — layered-TIFF writer: `write_with` plans every offset, the caller appends info and strip; `write` 8/16 bits, `write_spots` + spot samples.
-- `tiff_layers_order.rs` — the ONE byte-order walk of a tag-37724 block: a little-endian RGB TIFF's big-endian form for the reader (8/16/32), and the 32-bit little-endian seam.
+- `tiff_layers_order.rs` — the ONE byte-order walk of a tag-37724 block: a little-endian TIFF's big-endian form for the reader (RGB 8/16/32; CMYK, gray, Lab 8/16), and the 32-bit seam.
 - `psd_group_records.rs` / `psd_layer_pixels.rs` / `psd_locks.rs` / `psd_raster_masks.rs` — PSD folder metadata framing, raster storage and decode envelope, the ONE `lspf` codec, ordinary masks.
 - `psd_zip.rs` / `psd_feature_markers.rs` — the ONE PSD inflate seam (+ 32-bit deflate twin); markers. `psd_adjustment.rs` / `psd_descriptor.rs` are the ONE adjustment-record and descriptor codecs.
 - `psd_adjustment_extra.rs` — `psd_adjustment`'s private half for Brightness/Contrast (`brit` with its `CgEd`) and Selective Color (`selc`), both directions.

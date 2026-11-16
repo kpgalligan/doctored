@@ -242,26 +242,7 @@ fn a_layer_block_the_layered_open_does_not_read_still_holds_layers() {
         format: Some(3),
         ..RGB8
     };
-    let cases: [(&str, Shape, &[u8; 4]); 9] = [
-        (
-            "little-endian CMYK at 8 bits",
-            Shape {
-                photometric: 5,
-                samples: 4,
-                ..little8
-            },
-            b"Layr",
-        ),
-        (
-            "little-endian Grayscale at 16 bits",
-            Shape {
-                photometric: 1,
-                samples: 1,
-                bits: 16,
-                ..little8
-            },
-            b"Lr16",
-        ),
+    let cases: [(&str, Shape, &[u8; 4]); 7] = [
         ("32-bit float Grayscale, big-endian", gray32, b"Lr32"),
         (
             "32-bit float Grayscale, little-endian",
@@ -313,24 +294,37 @@ fn a_layer_block_the_layered_open_does_not_read_still_holds_layers() {
 }
 
 #[test]
-fn a_little_endian_rgb_block_at_eight_and_sixteen_bits_is_read_and_holds_layers() {
+fn a_little_endian_block_at_eight_and_sixteen_bits_is_read_and_holds_layers_in_each_model() {
     let directory = TempDir::new().unwrap();
-    for (bits, key) in [(8u16, b"Layr"), (16, b"Lr16")] {
-        let shape = Shape {
-            little: true,
-            bits,
-            ..RGB8
-        };
-        let (read, held) = answers(
-            &directory,
-            &format!("little{bits}.tif"),
-            &tiff(shape, Some(&layers(true, key, 1))),
-        );
-        assert!(
-            read,
-            "{bits} bits: the layered open reads little-endian RGB"
-        );
-        assert!(held, "{bits} bits: its layer block holds a layer");
+    // RGB, CMYK, Grayscale and Lab (CIELab): (name, photometric, samples).
+    for (model, photometric, samples) in [
+        ("rgb", 2u16, 3u16),
+        ("cmyk", 5, 4),
+        ("gray", 1, 1),
+        ("lab", 8, 3),
+    ] {
+        for (bits, key) in [(8u16, b"Layr"), (16, b"Lr16")] {
+            let shape = Shape {
+                little: true,
+                photometric,
+                samples,
+                bits,
+                ..RGB8
+            };
+            let (read, held) = answers(
+                &directory,
+                &format!("little_{model}{bits}.tif"),
+                &tiff(shape, Some(&layers(true, key, 1))),
+            );
+            assert!(
+                read,
+                "{model} at {bits} bits: the layered open reads it little-endian"
+            );
+            assert!(
+                held,
+                "{model} at {bits} bits: its layer block holds a layer"
+            );
+        }
     }
 }
 

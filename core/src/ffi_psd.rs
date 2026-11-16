@@ -179,10 +179,10 @@ pub unsafe extern "C" fn dr_doc_save_psd(
 /// (colour mode 4) of any of the three containers, at 8 or 16 bits, opens as
 /// a CMYK document: mode 0 its layers, mode 1 its saved composite (#1). A
 /// 32-bit RGB PSD or PSB opens as a 32-bit float document the same two ways,
-/// and so does a 32-bit float RGB layered TIFF, its layers only. An RGB
-/// layered TIFF opens in either byte order: a little-endian one through its
-/// big-endian form (`tiff_layers_order::reader_bytes`), whose fingerprint is
-/// the file's own. A Grayscale file is refused by name: it opens through
+/// and so does a 32-bit float RGB layered TIFF, its layers only. An RGB or
+/// CMYK layered TIFF opens in either byte order: a little-endian one through
+/// its big-endian form (`tiff_layers_order::reader_bytes`), whose fingerprint
+/// is the file's own. A Grayscale file is refused by name: it opens through
 /// `dr_precision_doc_open_gray_psd` (#1 phase 3a); so is a Lab file, which
 /// opens through `dr_precision_doc_open_lab_psd` (#1 Lab phase 3a).
 ///
@@ -265,8 +265,11 @@ pub unsafe extern "C" fn dr_precision_doc_open_psd(
 /// Opens a Grayscale (colour mode 1) PSD, PSB or layered TIFF at 8 or 16
 /// bits, or a PSD or PSB at 32 (#1 phase 3c), as a Gray document (#1
 /// phase 3a): mode 0 its layers, 1 its saved composite (a TIFF has none).
-/// `working_gray` is the working Gray's wire name (`"dot_gain_20"`, …),
-/// assigned to an untagged file under an import warning. Never falls back between modes; any other file refuses.
+/// A layered TIFF opens in either byte order: a little-endian one through
+/// its big-endian form (`tiff_layers_order::reader_bytes`), whose
+/// fingerprint is the file's own. `working_gray` is the working Gray's wire
+/// name (`"dot_gain_20"`, …), assigned to an untagged file under an import
+/// warning. Never falls back between modes; any other file refuses.
 ///
 /// # Safety
 /// path, expected_fingerprint and working_gray must be NULL or
@@ -300,6 +303,10 @@ pub unsafe extern "C" fn dr_precision_doc_open_gray_psd(
                         "PSD {path}: file changed since compatibility preflight; inspect it again"
                     ));
                 }
+                // A little-endian layered TIFF opens through its big-endian
+                // form, after the fingerprint of its own bytes.
+                let bytes = crate::tiff_layers_order::reader_bytes(bytes)
+                    .map_err(|e| format!("PSD {path}: {e}"))?;
                 PrecisionDocument::open_gray_psd(
                     &bytes,
                     &path,
@@ -317,8 +324,10 @@ pub unsafe extern "C" fn dr_precision_doc_open_gray_psd(
 
 /// Opens a Lab (colour mode 9) PSD, PSB or layered TIFF at 8 or 16 bits as
 /// a Lab Color document (#1 Lab phase 3a): mode 0 its layers, 1 its saved
-/// composite (a TIFF has none). Never falls back between modes; any other
-/// file refuses.
+/// composite (a TIFF has none). A layered TIFF opens in either byte order: a
+/// little-endian one through its big-endian form
+/// (`tiff_layers_order::reader_bytes`), whose fingerprint is the file's own.
+/// Never falls back between modes; any other file refuses.
 ///
 /// # Safety
 /// path and expected_fingerprint must be NULL or NUL-terminated strings;
@@ -348,6 +357,10 @@ pub unsafe extern "C" fn dr_precision_doc_open_lab_psd(
                         "PSD {path}: file changed since compatibility preflight; inspect it again"
                     ));
                 }
+                // A little-endian layered TIFF opens through its big-endian
+                // form, after the fingerprint of its own bytes.
+                let bytes = crate::tiff_layers_order::reader_bytes(bytes)
+                    .map_err(|e| format!("PSD {path}: {e}"))?;
                 PrecisionDocument::open_lab_psd(
                     &bytes,
                     &path,
@@ -468,12 +481,11 @@ pub unsafe extern "C" fn dr_precision_doc_save_psd(
 
 /// True when the file at `path` is a TIFF whose Photoshop layer block this
 /// core reads as layers: a classic unsigned TIFF at 8 or 16 bits holding a
-/// `Layr`/`Lr16` block, in RGB of either byte order or, big-endian, in CMYK
-/// (InkSet absent or 1), BlackIsZero gray (#1 phase 3a) or Lab; or a
-/// 32-bit IEEE-float RGB TIFF of either byte order holding an `Lr32` block.
-/// False for NULL, an unreadable path, a little-endian CMYK, gray or Lab
-/// file, any other colour model or sample format, and a TIFF with no
-/// readable block — each of which
+/// `Layr`/`Lr16` block, in RGB, CMYK (InkSet absent or 1), BlackIsZero gray
+/// (#1 phase 3a) or Lab, of either byte order; or a 32-bit IEEE-float RGB
+/// TIFF of either byte order holding an `Lr32` block. False for NULL, an
+/// unreadable path, any other colour model or sample format, and a TIFF with
+/// no readable block — each of which
 /// opens flat (`dr_tiff_has_layer_block` says whether its block holds layers
 /// all the same). Reads the header, the first directory and the block keys,
 /// never a pixel strip.

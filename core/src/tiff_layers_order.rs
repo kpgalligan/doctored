@@ -5,11 +5,16 @@
 //! "IBM PC") block into its big-endian form and back.
 //!
 //! **The little-endian form**, as Photoshop 26.10.0 writes it at every depth
-//! it was measured at: its own `layered32.tif` (take1 of the 32-bit study,
-//! `tests/fixtures/psd_photoshop/float32_679`) and the 8- and 16-bit RGB
-//! files of `tests/fixtures/psd_photoshop/tiff_little_endian`, each saved
-//! beside a Macintosh-order twin of the same document whose every record
-//! field, block key and decoded channel plane it equals (its `README`).
+//! and in every model it was measured in: its own `layered32.tif` (take1 of
+//! the 32-bit study, `tests/fixtures/psd_photoshop/float32_679`), the 8- and
+//! 16-bit RGB files of `tests/fixtures/psd_photoshop/tiff_little_endian`, and
+//! the 8- and 16-bit CMYK, Grayscale and Lab Color files of
+//! `tests/fixtures/psd_photoshop/tiff_little_endian_modes` (two takes each,
+//! the second a held-out scene; the CMYK files are read from the takes'
+//! receipts), each saved beside a Macintosh-order twin of the same document
+//! whose every record field, block key and decoded channel plane it equals
+//! (their `README`s). The layout does not depend on the model: every model
+//! shows the same fields, codes and channel words.
 //! Every field of the block is in the file's byte order — the record count
 //! (i16), each rectangle (4 × i32), each channel id (i16) and length (u32),
 //! each length field, each channel's compression word — and every
@@ -54,13 +59,15 @@
 //! rectangle).
 //!
 //! [`big_endian_form`] is the reader's entry: a little-endian layered TIFF
-//! (`tiff_layers::locate_ordered`: RGB at 8, 16 or 32 bits) re-laid as the
-//! big-endian layer-only file the existing layered reader reads
-//! (`tiff_layers::write_with`, no strip); [`reader_bytes`] is the same for an
-//! open that owns the file's bytes. An 8- or 16-bit file whose flat image
-//! carries described saved channels (spot or alpha, `tiff_spot`) refuses by
-//! name, so it opens flat with them: the big-endian form has no strip to
-//! read them from. [`layered_tiff_little_endian`] is the test and take seam:
+//! (`tiff_layers::locate_ordered`: RGB at 8, 16 or 32 bits; CMYK, gray or Lab
+//! at 8 or 16) re-laid as the big-endian layer-only file the existing layered
+//! reader reads (`tiff_layers::write_with`, no strip); [`reader_bytes`] is the
+//! same for an open that owns the file's bytes. An 8- or 16-bit RGB or CMYK
+//! file whose flat image carries described saved channels (spot or alpha,
+//! `tiff_spot`, which reads them in those two models) refuses by name, so it
+//! opens flat with them: the big-endian form has no strip to read them from.
+//! A gray or Lab file's layered open drops them, as its big-endian one does.
+//! [`layered_tiff_little_endian`] is the test and take seam:
 //! one of Doctored's own big-endian 32-bit layered TIFFs written
 //! little-endian, as Photoshop would; it is not an export and admits no
 //! memory plan.

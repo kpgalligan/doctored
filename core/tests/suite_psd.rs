@@ -165,6 +165,8 @@ mod psd_zip8;
 mod tiff_layers32;
 #[path = "tiff_layers_little.rs"]
 mod tiff_layers_little;
+#[path = "tiff_layers_little_modes.rs"]
+mod tiff_layers_little_modes;
 #[path = "tiff_paths.rs"]
 mod tiff_paths;
 #[path = "tiff_paths_modes.rs"]

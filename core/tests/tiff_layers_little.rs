@@ -843,8 +843,9 @@ fn a_little_endian_file_refuses_what_its_walk_does_not_read_by_name() {
         "spot or alpha channel data",
     );
 
-    // CMYK and gray little-endian files are not read as layers; their
-    // blocks still hold a layer.
+    // CMYK and gray little-endian files are offered the layered open too
+    // (`tiff_layers_little_modes.rs` reads Photoshop's own), and their blocks
+    // hold a layer. No report here: the CMYK file is untagged.
     for (photometric, samples, name) in [(5u16, 4u16, "cmyk"), (1, 1, "gray")] {
         let path = write(
             &directory,
@@ -859,7 +860,7 @@ fn a_little_endian_file_refuses_what_its_walk_does_not_read_by_name() {
             ),
         );
         let path = cpath(&path);
-        assert!(!unsafe { dr_tiff_has_layers(path.as_ptr()) }, "{name}");
+        assert!(unsafe { dr_tiff_has_layers(path.as_ptr()) }, "{name}");
         assert!(unsafe { dr_tiff_has_layer_block(path.as_ptr()) }, "{name}");
     }
 }

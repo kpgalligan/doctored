@@ -36,14 +36,15 @@
 //! absent or 1; for CIELab also [1, 2, 2] and [1, 2, 2, 1], its signed
 //! a\*/b\* — the block's records store the PSD encoding whatever the flat
 //! image's, `psd_import_lab`), 8 or 16 bits on every sample, and whose tag
-//! 37724 holds the block for that depth — big-endian (`MM`) in every model,
-//! little-endian in RGB only; or an RGB TIFF of 32 bits and SampleFormat 3
-//! (IEEE float) on every sample whose block is `Lr32`, in either byte order.
+//! 37724 holds the block for that depth, in either byte order — little-endian
+//! (`II`) in each model of [`LITTLE_ENDIAN_MODELS`], which is every one of
+//! the four; or an RGB TIFF of 32 bits and SampleFormat 3 (IEEE float) on
+//! every sample whose block is `Lr32`, in either byte order.
 //! [`TiffLayers::color`] is the PSD colour mode that model is (3, 4, 1 or 9),
 //! which is how the block's records are read. Palette, a 16-bit float, a
-//! 32-bit file that is not float RGB, a little-endian CMYK, gray or Lab file
-//! and BigTIFF answer nothing, so such a file opens flat exactly as it always
-//! did: the layer records carry no colour model of their own. Whether such
+//! 32-bit file that is not float RGB and BigTIFF answer nothing, so such a
+//! file opens flat exactly as it always did: the layer records carry no
+//! colour model of their own. Whether such
 //! a file's block holds layers all the same is `tiff_layer_block`'s answer,
 //! which File ▸ Save asks so that it never writes the flat image over them.
 //! One scan serves every entry point — [`locate`] over
@@ -85,6 +86,12 @@ pub(crate) const BLOCK_HEADER: &[u8] = b"Adobe Photoshop Document Data Block\0";
 pub(crate) const TAG_RESOURCES: u16 = 34377;
 pub(crate) const TAG_ICC: u16 = 34675;
 pub(crate) const TAG_LAYERS: u16 = 37724;
+
+/// The PSD colour modes whose little-endian block is read at 8 and 16 bits:
+/// RGB (3), CMYK (4), gray (1) and Lab (9), each the layout Photoshop's own
+/// files of that model showed (`tiff_layers_order`'s module doc). The one
+/// place [`scan`] asks; a model that is not here opens flat.
+const LITTLE_ENDIAN_MODELS: &[u16] = &[3, 4, 1, 9];
 
 /// A directory this large is not a photograph's; refuse rather than walk it.
 const MAX_ENTRIES: usize = 4096;
@@ -297,10 +304,11 @@ fn scan(read: &mut dyn FnMut(u64, usize) -> Option<Vec<u8>>) -> Option<Located> 
             return None;
         }
     } else {
-        // 8 and 16 bits: any model big-endian, and RGB little-endian, the one
-        // little-endian model an authored file shows at these depths
-        // (`tiff_layers_order`'s module doc).
-        if !matches!(depth, 8 | 16) || (order == ByteOrder::Little && color != 3) {
+        // 8 and 16 bits: any model big-endian, and little-endian each model
+        // whose authored files were measured (`LITTLE_ENDIAN_MODELS`).
+        if !matches!(depth, 8 | 16)
+            || (order == ByteOrder::Little && !LITTLE_ENDIAN_MODELS.contains(&color))
+        {
             return None;
         }
         if let Some(formats) = formats {

@@ -429,7 +429,7 @@ fn a_sixteen_bit_layered_tiff_round_trips_as_a_typed_document() {
 }
 
 #[test]
-fn a_tiff_has_layers_at_eight_or_sixteen_bits_big_endian_or_rgb_or_as_float_rgb_at_32() {
+fn a_tiff_has_layers_at_eight_or_sixteen_bits_in_either_byte_order_or_as_float_rgb_at_32() {
     let directory = TempDir::new().unwrap();
     // The builder's own positive cases: the refusals below are about the
     // declared colour model, not about how the file is laid out.
@@ -529,6 +529,30 @@ fn a_tiff_has_layers_at_eight_or_sixteen_bits_big_endian_or_rgb_or_as_float_rgb_
             ..RGB8
         })
     ));
+    // Little-endian CMYK and Grayscale too, the layouts Photoshop's own files
+    // of those models showed (`tiff_layers_little_modes.rs`).
+    assert!(has_layers(
+        &directory,
+        "little_cmyk.tif",
+        &built(Shape {
+            little: true,
+            photometric: 5,
+            samples: 4,
+            ..RGB8
+        })
+    ));
+    assert!(has_layers(
+        &directory,
+        "little_gray16.tif",
+        &built(Shape {
+            little: true,
+            photometric: 1,
+            samples: 1,
+            bits: 16,
+            key: *b"Lr16",
+            ..RGB8
+        })
+    ));
 
     for (name, shape) in [
         // A separated file short of its four inks.
@@ -545,16 +569,6 @@ fn a_tiff_has_layers_at_eight_or_sixteen_bits_big_endian_or_rgb_or_as_float_rgb_
             Shape {
                 photometric: 3,
                 samples: 1,
-                ..RGB8
-            },
-        ),
-        // Little-endian is read in RGB only.
-        (
-            "little_cmyk",
-            Shape {
-                little: true,
-                photometric: 5,
-                samples: 4,
                 ..RGB8
             },
         ),
@@ -577,17 +591,6 @@ fn a_tiff_has_layers_at_eight_or_sixteen_bits_big_endian_or_rgb_or_as_float_rgb_
                 bits: 32,
                 format: Some(3),
                 key: *b"Lr32",
-                ..RGB8
-            },
-        ),
-        (
-            "little_gray16",
-            Shape {
-                little: true,
-                photometric: 1,
-                samples: 1,
-                bits: 16,
-                key: *b"Lr16",
                 ..RGB8
             },
         ),
