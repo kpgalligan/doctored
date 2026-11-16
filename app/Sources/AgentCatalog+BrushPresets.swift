@@ -40,7 +40,10 @@ extension AgentServer {
                   "airbrush": ["type": "boolean", "default": false],
                   "dynamics": Self.dynamicsSchema(seed: false).merging(["description":
                       "The Brush's, Pencil's and Eraser's dynamics (brush_stroke's dynamics without "
-                      + "seed); only those three tools take and list a preset that holds them."]) { $1 },
+                      + "seed); only those three tools take and list a preset that holds them, and "
+                      + "the Pencil none whose dynamics hold angle, roundness or texture. A "
+                      + "texture's {name} is saved as that library pattern's tile; list rows and "
+                      + "the reply echo its pattern without pixels."]) { $1 },
                   "replace": ["type": "boolean", "default": false]],
                  required: ["name", "hardness", "flow", "spacing", "angle", "roundness"]),
             tool("delete_brush_preset",
@@ -51,7 +54,8 @@ extension AgentServer {
                   "file": libraryFileProperty("list_brush_presets")]),
             tool("import_brush_presets",
                  "The Preset popup's Import Presets…: read " + file + ", at most "
-                 + "\(BrushPresetLibrary.maximumFilePresets) presets and 1 MiB, into the library. "
+                 + "\(BrushPresetLibrary.maximumFilePresets) presets and "
+                 + "\(BrushPresetLibrary.maximumFileBytes / 1_048_576) MiB, into the library. "
                  + "Each entry is checked as a library file is; one that fails, or that repeats "
                  + "a listed preset's values, is listed in skipped {name, reason} and the rest "
                  + "import. A name already in use gets \" 2\", \" 3\"…. " + preference,

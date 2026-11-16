@@ -13,8 +13,11 @@ import Foundation
 /// Brush, the Pencil and the Eraser take: their popups list every preset and match
 /// on the dynamics too, and every other tool's popup lists only the presets
 /// without dynamics (`all(dynamics:)`), so no two listed presets on any tool hold
-/// the same values. The Pencil, whose tip is round, lists only the presets whose
-/// dynamics hold no tip shape (`all(dynamics:shapes:)`), for the same reason.
+/// the same values. The Pencil, whose tip is round and two-valued, lists only the presets
+/// whose dynamics hold no tip shape and no texture (`all(dynamics:shapes:)`), for the same
+/// reason. A texture is held as its tile (a library pattern resolved when the preset is
+/// saved), so a preset never reads the pattern library; a list row and a save's reply echo
+/// its pattern without the pixels (`fields`).
 struct BrushPreset {
     /// A file without dynamics is written at 1, so it keeps its bytes; one with
     /// dynamics at 2 (`dynamicsSchemaVersion`).
@@ -55,12 +58,14 @@ struct BrushPreset {
     /// (`BrushPresetLibrary.presets`, cached; the built-ins alone when it
     /// cannot be read).
     /// `dynamics` false lists only the presets without dynamics, `shapes` false only those
-    /// whose dynamics hold no tip shape (the tool's `takesBrushDynamics` and
-    /// `takesTipShapeDynamics`).
+    /// whose dynamics hold no tip shape and no texture (the tool's `takesBrushDynamics` and
+    /// `takesTipShapeDynamics`; the tools that take a tip shape are the ones that take a
+    /// texture).
     static func all(dynamics: Bool = true, shapes: Bool = true) -> [BrushPreset] {
         let presets = builtIns + BrushPresetLibrary.presets
         return presets.filter {
-            (dynamics || $0.dynamics == nil) && (shapes || $0.dynamics?.shape == nil)
+            (dynamics || $0.dynamics == nil)
+                && (shapes || ($0.dynamics?.shape == nil && $0.dynamics?.texture == nil))
         }
     }
 
@@ -148,8 +153,10 @@ struct BrushPreset {
     ]
 
     /// A user preset: the name normalized and no built-in's, each value finite
-    /// and in its range (the options bar's own field bounds).
-    static func validated(name: String, values: [String: Any]) throws -> BrushPreset {
+    /// and in its range (the options bar's own field bounds). `library` true (a save) resolves
+    /// a texture's library pattern name into its tile; a preset file (`decode`) holds the tile.
+    static func validated(name: String, values: [String: Any],
+                          library: Bool = false) throws -> BrushPreset {
         let normalized = try PreferenceLibrary<BrushPresetCodec>.normalizedName(name)
         let key = PreferenceLibrary<BrushPresetCodec>.key
         guard !builtIns.contains(where: { key($0.name) == key(normalized) }) else {
@@ -172,7 +179,7 @@ struct BrushPreset {
             guard let object = raw as? [String: Any] else {
                 throw DoctoredCoreError(message: "A brush preset's dynamics must be an object.")
             }
-            dynamics = try BrushDynamics(json: object).normalized
+            dynamics = try BrushDynamics(json: object, library: library).normalized
         }
         return BrushPreset(name: normalized, hardness: numbers["hardness"] ?? 100,
             flow: numbers["flow"] ?? 100, spacing: numbers["spacing"] ?? 25,
@@ -192,11 +199,16 @@ struct BrushPreset {
         return out
     }
 
-    /// The MCP row: `json`'s values without the schema.
+    /// The MCP row: `json`'s values without the schema, a texture's pattern echoed without
+    /// its pixels (`Texture.echo`).
     var fields: [String: Any] {
         var out: [String: Any] = ["name": name, "hardness": hardness, "flow": flow,
             "spacing": spacing, "angle": angle, "roundness": roundness, "airbrush": airbrush]
-        if let dynamics { out["dynamics"] = dynamics.json }
+        if let dynamics {
+            var row = dynamics.json
+            if let texture = dynamics.texture { row["texture"] = texture.echo }
+            out["dynamics"] = row
+        }
         return out
     }
 

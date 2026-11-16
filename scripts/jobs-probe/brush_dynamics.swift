@@ -24,6 +24,13 @@ import AppKit
 // (f) Pencil shape pinning: a preset whose dynamics hold a tip shape, applied on the Pencil,
 //     leaves `dynamics.shape` nil, is absent from the Pencil's list and its `,` `.` cycle, and a
 //     Pencil canvas stroke still commits.
+// (g) The texture: the Brush and the Eraser keep it, the Pencil's options drop it (keeping the
+//     rest) and a Pencil stroke's session has none; depth 0 is stored as none; a textured preset
+//     round-trips at schema 2, echoes its pattern without pixels and is absent from the Pencil's
+//     list. The Dynamics… sheet shows the Texture, Scale and Depth rows with the options' values
+//     for the Brush, and none for the Pencil. A textured Brush canvas stroke at 8 and 16 bits
+//     records a `native_stroke` holding the texture, and its commit equals the replay of that
+//     recorded step and differs from the replay without the texture.
 
 func verifyBrushDynamics() throws {
     try verifyDynamicsOptions()
@@ -36,8 +43,12 @@ func verifyBrushDynamics() throws {
     try verifyShapedCanvas(sixteen: false)
     try verifyShapedCanvas(sixteen: true)
     try verifyPencilShapePinning()
+    try verifyTextureOptions()
+    try verifyTextureSheet()
+    try verifyTexturedCanvas(sixteen: false)
+    try verifyTexturedCanvas(sixteen: true)
     print("PASS: brush dynamics' options, presets, session, tablet tilt and rotation, canvas "
-          + "strokes, the tip shape and the Pencil's shape pinning")
+          + "strokes, the tip shape, the Pencil's shape pinning and the texture")
 }
 
 private let shaped: BrushDynamics = {
@@ -472,4 +483,190 @@ private func verifyPencilShapePinning() throws {
     canvas.endStroke()
     try require(document.doc !== base && document.history.entries.count == history + 1,
                 "\(tag) the Pencil stroke commits")
+}
+
+/// A two-level texture: an opaque white and black 2 × 2 checker at depth 0.8.
+private let textured: BrushDynamics = {
+    let rgba: [UInt8] = [255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255]
+    var d = BrushDynamics()
+    d.texture = BrushDynamics.Texture(
+        pattern: PatternRef(name: "Probe Checker", width: 2, height: 2,
+                            rgba: Data(rgba).base64EncodedString()),
+        scale: 1, depth: 0.8)
+    return d
+}()
+
+private func verifyTextureOptions() throws {
+    let tag = "[texture options]"
+    let store = ToolOptionsStore.shared
+    let saved = (store.brush, store.eraser, store.pencil, store.dodge)
+    defer { (store.brush, store.eraser, store.pencil, store.dodge) = saved }
+    var both = textured
+    both.scatter = 2
+    var options = PaintToolOptions(size: 9, smoothing: 0)
+    options.dynamics = both
+    for tool in [EditorTool.brush, .eraser, .pencil, .dodge] {
+        store.setPaintOptions(options, for: tool)
+    }
+    try require(store.paintOptions(for: .brush)?.dynamics == both
+                && store.paintOptions(for: .eraser)?.dynamics == both,
+                "\(tag) the Brush and the Eraser keep the texture")
+    let pencil = store.paintOptions(for: .pencil)?.dynamics
+    try require(pencil?.texture == nil && pencil?.scatter == 2,
+                "\(tag) the Pencil drops the texture and keeps the rest: \(String(describing: pencil))")
+    try require(store.paintOptions(for: .dodge)?.dynamics == nil, "\(tag) Dodge keeps none")
+    var flat = textured
+    flat.texture?.depth = 0
+    try require(flat.normalized == nil, "\(tag) a texture at depth 0 is stored as none")
+    let roundTrip = try BrushDynamics(json: textured.json)
+    try require(roundTrip == textured, "\(tag) the texture round-trips through its JSON")
+    let mine = BrushPreset(name: "Textured", hardness: 100, flow: 100, spacing: 25, angle: 0,
+                           roundness: 100, airbrush: false, dynamics: textured)
+    let decoded = try BrushPreset.decode(mine.json)
+    let echo = (mine.fields["dynamics"] as? [String: Any])?["texture"] as? [String: Any]
+    let pattern = echo?["pattern"] as? [String: Any]
+    try require(mine.json["schema_version"] as? Int == 2 && decoded.dynamics == textured
+                && pattern?["rgba"] == nil && pattern?["name"] as? String == "Probe Checker",
+                "\(tag) a textured preset round-trips at schema 2 and echoes no pixels: \(String(describing: echo))")
+    let presets = BrushPreset.builtIns + [mine]
+    try require(BrushPreset.matchIndex(of: mine.applied(to: PaintToolOptions()), in: presets)
+                    == presets.count,
+                "\(tag) the Brush matches a textured preset")
+    try BrushPresetLibrary.save(name: "zz Textured Probe", values: EditorViewController.brushPresetValues(
+        BrushPreset(name: "zz Textured Probe", hardness: 70, flow: 100, spacing: 25, angle: 0,
+                    roundness: 100, airbrush: false, dynamics: textured).applied(to: PaintToolOptions())),
+        replace: true)
+    defer { try? BrushPresetLibrary.delete(name: "zz Textured Probe") }
+    BrushPresetLibrary.reload()
+    try require(!BrushPreset.all(dynamics: true, shapes: EditorTool.pencil.takesTipShapeDynamics)
+                    .contains { $0.name == "zz Textured Probe" }
+                && BrushPreset.all().contains { $0.name == "zz Textured Probe" },
+                "\(tag) the Pencil's list leaves a textured preset out; the Brush's lists it")
+}
+
+/// The view under `root` whose accessibility identifier is `id`.
+private func subview(_ id: String, in root: NSView) -> NSView? {
+    if root.accessibilityIdentifier() == id { return root }
+    for child in root.subviews {
+        if let found = subview(id, in: child) { return found }
+    }
+    return nil
+}
+
+private func verifyTextureSheet() throws {
+    let tag = "[texture sheet]"
+    var options = PaintToolOptions(size: 9, smoothing: 0)
+    options.dynamics = textured
+    let brush = BrushDynamicsSheetController(options: options, shapes: true, onApply: { _ in })
+    guard let popup = subview("brush-dynamics-texture", in: brush.view) as? NSPopUpButton,
+          let scale = subview("brush-dynamics-texture-scale", in: brush.view) as? NSTextField,
+          let depth = subview("brush-dynamics-texture-depth", in: brush.view) as? NSTextField else {
+        throw ProbeFailure(description: "\(tag) the Brush's sheet has no Texture rows")
+    }
+    let presets = RasterDocument.patternPresets().count
+    try require(popup.itemTitles.first == "None" && popup.numberOfItems >= 2 + presets
+                && popup.titleOfSelectedItem == "Probe Checker"
+                && scale.stringValue == "100" && depth.stringValue == "80",
+                "\(tag) the Brush's sheet shows the texture: \(popup.itemTitles) "
+                + "\(String(describing: popup.titleOfSelectedItem)) \(scale.stringValue) \(depth.stringValue)")
+    let pencil = BrushDynamicsSheetController(options: options, shapes: false, onApply: { _ in })
+    try require(subview("brush-dynamics-texture", in: pencil.view) == nil
+                && subview("brush-dynamics-texture-depth", in: pencil.view) == nil,
+                "\(tag) the Pencil's sheet shows no Texture rows")
+}
+
+/// The first layer's red and green: bytes at 8 bits, u16 codes at 16.
+private func redGreen(_ doc: RasterDocument?, sixteen: Bool) throws -> [Int] {
+    if sixteen {
+        guard let doc else { throw ProbeFailure(description: "no 16-bit document") }
+        return try [RasterPlane.red, .green].flatMap {
+            try PrecisionScalarOperations.read(doc, target: $0.agentName, index: 0).samples.map(Int.init)
+        }
+    }
+    guard let pixels = doc?.layerPixels(0) else { throw ProbeFailure(description: "no pixels") }
+    return pixels.enumerated().filter { $0.offset % 4 < 2 }.map { Int($0.element) }
+}
+
+private func verifyTexturedCanvas(sixteen: Bool) throws {
+    let tag = sixteen ? "[textured canvas 16-bit]" : "[textured canvas 8-bit]"
+    let document = try sixteen ? precisionFixture(width: 80, height: 60) : fixture(width: 80, height: 60)
+    defer {
+        if ActionRecorder.shared.isRecording { _ = ActionRecorder.shared.stop() }
+        document.close()
+    }
+    let controller = try editor(document)
+    let canvas: ImageCanvasView = controller.canvas
+    guard let base = document.doc else { throw ProbeFailure(description: "\(tag) no base document") }
+    let store = ToolOptionsStore.shared
+    let saved = (store.brush, store.pencil)
+    defer { (store.brush, store.pencil) = saved }
+    var options = PaintToolOptions(size: 15, hardness: 100, smoothing: 0)
+    options.pressureSize = false
+    options.pressureOpacity = false
+    options.dynamics = textured
+    store.setPaintOptions(options, for: .brush)
+    controller.selectTool(.brush)
+    // The recorder takes the stroke's colour from the controller's capture (the foreground,
+    // black here), so the canvas paints that colour too and the replay is the same stroke.
+    canvas.paintColor = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 1)
+    canvas.brushOpacity = 1
+    let history = document.history.entries.count
+    func settle() throws {
+        guard let job = DocumentJobs.active else { return }
+        try pumpUntil({ job.state != "running" })
+        try require(job.state == "completed", "\(tag) the job completed: \(job.report)")
+    }
+    let steps = try uiRecorded {
+        canvas.beginStroke(at: CGPoint(x: 12.3, y: 20.7))
+        try require(canvas.nativeStrokeSession?.texture != nil, "\(tag) the session has the texture")
+        for point in [CGPoint(x: 30.2, y: 24.1), CGPoint(x: 48.6, y: 31.9), CGPoint(x: 66.1, y: 38.4)] {
+            canvas.continueStroke(to: point, pressure: nil)
+        }
+        canvas.endStroke()
+        try settle()
+    }
+    guard let painted = document.doc, painted !== base else {
+        throw ProbeFailure(description: "\(tag) the stroke published nothing")
+    }
+    try require(document.history.entries.count == history + 1, "\(tag) one history entry")
+    guard steps.count == 1, steps[0].tool == "brush_stroke",
+          let native = steps[0].arguments["native_stroke"] as? [String: Any],
+          let texture = native["texture"] as? [String: Any] else {
+        throw ProbeFailure(description: "\(tag) the stroke records no textured native_stroke: "
+                           + "\(steps.map { "\($0.tool) \($0.arguments.keys.sorted())" })")
+    }
+    try require(texture["depth"] as? Double == 0.8, "\(tag) the step holds the texture: \(texture)")
+    let committed = try redGreen(painted, sixteen: sixteen)
+    func replayed(_ arguments: [String: Any]) throws -> [Int] {
+        document.undoManager?.undo()
+        try require(document.doc === base, "\(tag) one undo restores the base")
+        _ = try agentOK(steps[0].tool, document, arguments)
+        try settle()
+        return try redGreen(document.doc, sixteen: sixteen)
+    }
+    let replay = try replayed(steps[0].arguments)
+    try require(replay == committed,
+                "\(tag) the commit equals the replay of its recorded step: "
+                + "\(zip(replay, committed).filter { $0 != $1 }.count) samples differ")
+    var bare = steps[0].arguments
+    bare["native_stroke"] = native.filter { $0.key != "texture" }
+    let untextured = try replayed(bare)
+    try require(untextured != committed, "\(tag) the texture changed the commit")
+    document.undoManager?.undo()
+    try require(document.doc === base, "\(tag) one undo restores the base")
+    // The Pencil drops the texture: its stroke's session has dynamics and no texture.
+    var pencilOptions = PaintToolOptions(size: 9, smoothing: 0)
+    var pencilDynamics = textured
+    pencilDynamics.scatter = 1
+    pencilOptions.dynamics = pencilDynamics
+    store.setPaintOptions(pencilOptions, for: .pencil)
+    controller.selectTool(.pencil)
+    canvas.beginStroke(at: CGPoint(x: 10.5, y: 10.5))
+    try require(canvas.nativeStrokeSession?.dynamics != nil
+                && canvas.nativeStrokeSession?.texture == nil,
+                "\(tag) the Pencil's session has dynamics and no texture")
+    canvas.continueStroke(to: CGPoint(x: 60.5, y: 40.5), pressure: nil)
+    canvas.endStroke()
+    try settle()
+    try require(document.doc !== base, "\(tag) the Pencil stroke commits")
 }

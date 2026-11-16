@@ -13,14 +13,26 @@ extension RasterSelection {
     }
 
     /// `dr_brush_u16`, or `dr_brush_u16_shaped` when `shapes` (one angle and roundness
-    /// pair per dab, brush dynamics' tip shape) is given.
+    /// pair per dab, brush dynamics' tip shape) is given, or `dr_brush_u16_textured` (with
+    /// or without `shapes`, the canvas at origin 0, 0) when `texture` is.
     static func nativeBrush(width: Int, height: Int, request: String, dabs: [Double],
-                            shapes: [Double]? = nil, workingLimit: UInt64, otherRetained: UInt64,
+                            shapes: [Double]? = nil, texture: RasterBrushTexture? = nil,
+                            workingLimit: UInt64, otherRetained: UInt64,
                             control: RasterJobControl) throws -> [UInt16] {
         var error: UnsafeMutablePointer<CChar>?
         var output = [UInt16](repeating: 0, count: width * height)
         let ok = dabs.withUnsafeBufferPointer { input in
             output.withUnsafeMutableBufferPointer { out in
+                if let texture {
+                    func call(_ pairs: UnsafePointer<Double>?) -> Bool {
+                        dr_brush_u16_textured(UInt32(width), UInt32(height), request,
+                            input.baseAddress, dabs.count / 4, pairs, texture.ptr, 0, 0,
+                            out.baseAddress, out.count, workingLimit, otherRetained, control.ptr,
+                            &error)
+                    }
+                    guard let shapes else { return call(nil) }
+                    return shapes.withUnsafeBufferPointer { call($0.baseAddress) }
+                }
                 guard let shapes else {
                     return dr_brush_u16(UInt32(width), UInt32(height), request, input.baseAddress,
                         dabs.count / 4, out.baseAddress, out.count, workingLimit, otherRetained,
@@ -39,20 +51,37 @@ extension RasterSelection {
 
     /// `dr_brush_overlay_rgba8`: the same brush as `nativeBrush`, written as the
     /// canvas-sized premultiplied RGBA8 overlay the byte paint ops take, in
-    /// `rgb`'s straight ink and multiplied by `selection` (canvas-sized bytes).
+    /// `rgb`'s straight ink and multiplied by `selection` (canvas-sized bytes). With
+    /// `texture`, `dr_brush_overlay_rgba8_textured` with `shapes` and `origin`, the canvas
+    /// coordinate of the output's pixel (0, 0); `shapes` without a texture refuses.
     static func nativeBrushOverlay(width: Int, height: Int, request: String, dabs: [Double],
+                                   shapes: [Double]? = nil, texture: RasterBrushTexture? = nil,
+                                   origin: (x: Int, y: Int) = (0, 0),
                                    rgb: [UInt8], selection: [UInt8]?,
                                    workingLimit: UInt64, otherRetained: UInt64) throws -> [UInt8] {
         guard rgb.count == 3 else { throw DoctoredCoreError(message: "Native brush overlay ink needs three bytes.") }
+        guard shapes == nil || texture != nil else {
+            throw DoctoredCoreError(message: "A shaped native brush overlay needs its texture.")
+        }
         var error: UnsafeMutablePointer<CChar>?
         var output = [UInt8](repeating: 0, count: width * height * 4)
         let ok = dabs.withUnsafeBufferPointer { input in
             rgb.withUnsafeBufferPointer { ink in
                 output.withUnsafeMutableBufferPointer { out in
                     func call(_ mask: UnsafePointer<UInt8>?, _ maskCount: Int) -> Bool {
-                        dr_brush_overlay_rgba8(UInt32(width), UInt32(height), request, input.baseAddress,
-                            dabs.count / 4, ink.baseAddress, mask, maskCount, out.baseAddress, out.count,
-                            workingLimit, otherRetained, nil, &error)
+                        guard let texture else {
+                            return dr_brush_overlay_rgba8(UInt32(width), UInt32(height), request,
+                                input.baseAddress, dabs.count / 4, ink.baseAddress, mask, maskCount,
+                                out.baseAddress, out.count, workingLimit, otherRetained, nil, &error)
+                        }
+                        func textured(_ pairs: UnsafePointer<Double>?) -> Bool {
+                            dr_brush_overlay_rgba8_textured(UInt32(width), UInt32(height), request,
+                                input.baseAddress, dabs.count / 4, pairs, texture.ptr,
+                                Int64(origin.x), Int64(origin.y), ink.baseAddress, mask, maskCount,
+                                out.baseAddress, out.count, workingLimit, otherRetained, nil, &error)
+                        }
+                        guard let shapes else { return textured(nil) }
+                        return shapes.withUnsafeBufferPointer { textured($0.baseAddress) }
                     }
                     guard let selection else { return call(nil, 0) }
                     return selection.withUnsafeBufferPointer { call($0.baseAddress, $0.count) }

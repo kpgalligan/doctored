@@ -55,3 +55,28 @@ final class RasterBrushDynamics {
         }
     }
 }
+
+/// A brush texture's core handle (`dr_brush_texture_create`): the straight RGBA8 tile's level
+/// at its scale, anchored at the canvas origin, with its depth. Immutable; the textured
+/// rasterizers read it (`RasterSelection.nativeBrush`, `nativeBrushOverlay`). The rule is the
+/// core's (`brush_texture.rs`).
+final class RasterBrushTexture {
+    let ptr: OpaquePointer
+
+    init(rgba: [UInt8], width: Int, height: Int, scale: Double, depth: Double) throws {
+        guard width > 0, height > 0, rgba.count == width * height * 4,
+              let w = UInt32(exactly: width), let h = UInt32(exactly: height) else {
+            throw DoctoredCoreError(message: NativeBrushStroke.textureRefusal)
+        }
+        var err: UnsafeMutablePointer<CChar>?
+        guard let ptr = rgba.withUnsafeBufferPointer({
+            dr_brush_texture_create($0.baseAddress, w, h, scale, depth, &err)
+        }) else {
+            throw DoctoredCoreError(message: takeErrorMessage(err,
+                fallback: "The brush texture could not be read."))
+        }
+        self.ptr = ptr
+    }
+
+    deinit { dr_brush_texture_free(ptr) }
+}

@@ -29,7 +29,7 @@ extension ImageCanvasView {
         else { throw DoctoredCoreError(message: "Could not convert the paint color.") }
         let dab = try NativeBrushStroke(tip: strokeTip, pixel: false,
             dabs: [Double(diameter) / 2, Double(diameter) / 2, Double(diameter), 1])
-        let pixels = try dab.aliasedOverlay(width: side, height: side,
+        let pixels = try dab.coreOverlay(width: side, height: side,
             rgb: Array(rgb.prefix(3)), selection: nil, opacity: 1)
         guard let provider = CGDataProvider(data: Data(pixels) as CFData),
               let image = CGImage(

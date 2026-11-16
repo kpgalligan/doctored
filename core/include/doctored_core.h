@@ -7889,6 +7889,50 @@ bool dr_brush_overlay_rgba8(uint32_t width, uint32_t height, const char *request
     uint8_t *out, size_t out_length, uint64_t limit, uint64_t other_retained,
     const DrJobControl *control, char **err_out);
 
+/* Brush texture (ffi_brush_texture.rs; the rule is brush_texture.rs's module
+ * doc and designs/brush-dynamics.md). An immutable handle holding a tile's
+ * level at its scale, anchored at the canvas origin.
+ *
+ * dr_brush_texture_create takes a straight RGBA8 tile (row 0 at the top, each
+ * side 1..512, tile_width*tile_height*4 bytes; only these bytes are read), a
+ * scale 0.01..10 and a depth 0..1. NULL with err_out set ("native brush
+ * texture holds a tile of 1 to 512 pixels a side, a scale from 0.01 to 10 and
+ * a depth from 0 to 1") on a NULL tile or a side, scale or depth out of range;
+ * the sides are checked before the tile is read. Free with
+ * dr_brush_texture_free (NULL is a no-op).
+ *
+ * dr_brush_u16_textured is dr_brush_u16 (shapes NULL) or dr_brush_u16_shaped
+ * (shapes dab_count*2 doubles) with each written pixel's dab coverage
+ * multiplied, before the source-over accumulation, by 1 - depth*(1 - t), t the
+ * Gray luminosity (0.30/0.59/0.11) of the tile's straight RGB times its alpha
+ * at that pixel's canvas coordinate, sampled as a Pattern Overlay at the
+ * texture's scale and angle 0 reads it with its origin at the canvas origin.
+ * Output pixel (x, y) is canvas pixel (x + origin_x, y + origin_y). Depth 0 or
+ * an opaque white tile gives the untextured output bit for bit. The plan is
+ * unchanged; dab_count*16 bytes are admitted beyond it when shapes are given.
+ * Refusals (err_out, out untouched): every refusal of the plain or shaped
+ * call, a NULL texture (the create refusal's sentence), and a pixel or aliased
+ * request ("native brush texture requires a stamped tip that is not
+ * aliased"). dr_brush_overlay_rgba8_textured writes that coverage as
+ * dr_brush_overlay_rgba8's overlay, with its ink, selection and output rules
+ * and refusals. Errors/cancellation leave out untouched. */
+typedef struct DrBrushTexture DrBrushTexture;
+DrBrushTexture *dr_brush_texture_create(const uint8_t *tile_rgba,
+    uint32_t tile_width, uint32_t tile_height, double scale, double depth,
+    char **err_out);
+void dr_brush_texture_free(DrBrushTexture *texture);
+bool dr_brush_u16_textured(uint32_t width, uint32_t height, const char *request,
+    const double *dabs, size_t dab_count, const double *shapes,
+    const DrBrushTexture *texture, int64_t origin_x, int64_t origin_y,
+    uint16_t *out, size_t out_length, uint64_t limit, uint64_t other_retained,
+    const DrJobControl *control, char **err_out);
+bool dr_brush_overlay_rgba8_textured(uint32_t width, uint32_t height,
+    const char *request, const double *dabs, size_t dab_count,
+    const double *shapes, const DrBrushTexture *texture, int64_t origin_x,
+    int64_t origin_y, const uint8_t *rgb, const uint8_t *selection,
+    size_t selection_length, uint8_t *out, size_t out_length, uint64_t limit,
+    uint64_t other_retained, const DrJobControl *control, char **err_out);
+
 /* Brush dynamics (ffi_brush_dynamics.rs; the rule is brush_dynamics.rs's
  * module doc and designs/brush-dynamics.md). An immutable handle, so a walk
  * parses once.

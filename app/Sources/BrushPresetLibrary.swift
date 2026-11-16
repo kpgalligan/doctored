@@ -9,7 +9,10 @@ enum BrushPresetCodec: PreferenceLibraryCodec {
     static let directoryEnvironment = "DR_BRUSH_PRESETS_DIR"
     static let directoryName = "Doctored/Brush Presets"
     static let maximumEntries = 256
-    static let maximumFileBytes = 4096
+    /// 1.5 MiB: a texture's largest tile, 512², is 1,398,104 bytes of base64 beside a few
+    /// keys (written with unescaped slashes, `PreferenceLibrary.save`); every other preset is
+    /// under 4 KB.
+    static let maximumFileBytes = 1_572_864
     static let schemaVersions = BrushPreset.schemaVersion...BrushPreset.dynamicsSchemaVersion
     static let didChange = Notification.Name("BrushPresetLibraryDidChange")
 
@@ -36,7 +39,9 @@ enum BrushPresetLibrary {
     static let didChange = BrushPresetCodec.didChange
     static let fileExtension = "doctoredbrushes"
     static let fileFormatKey = "doctored_brush_presets"
-    static let maximumFileBytes = 1_048_576
+    /// 64 presets at the library file's 1.5 MiB bound. A file of more textured presets may pass
+    /// it, so an export that would refuses by name (`exportFile`).
+    static let maximumFileBytes = 96 * 1_048_576
     static let maximumFilePresets = 256
 
     private static var cache: [BrushPreset]?
@@ -60,10 +65,11 @@ enum BrushPresetLibrary {
 
     /// Saves the six values (and any `dynamics`) under `name`. Refuses a built-in's name, a name in
     /// use (unless `replace`), and values another preset already holds: the
-    /// popup finds a preset by its values, so a repeat could never be chosen.
+    /// popup finds a preset by its values, so a repeat could never be chosen. A texture naming
+    /// a library pattern is saved as that pattern's tile.
     @discardableResult
     static func save(name: String, values: [String: Any], replace: Bool) throws -> BrushPreset {
-        let preset = try BrushPreset.validated(name: name, values: values)
+        let preset = try BrushPreset.validated(name: name, values: values, library: true)
         try refuseRepeat(of: preset, in: (try? Library.entries()) ?? [])
         changed()
         defer { changed() }
@@ -105,6 +111,13 @@ enum BrushPresetLibrary {
         }
         let object: [String: Any] = [fileFormatKey: 1, "presets": chosen.map(\.json)]
         let data = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+        // An import reads at most `maximumFileBytes`, so a larger file (textured presets)
+        // refuses here rather than there.
+        guard data.count <= maximumFileBytes else {
+            throw DoctoredCoreError(message: "These brush presets make a \(data.count / 1_048_576) "
+                + "MiB preset file, past the \(maximumFileBytes / 1_048_576) MiB a brush preset "
+                + "file holds; pass names to export fewer.")
+        }
         do {
             try data.write(to: url, options: .atomic)
         } catch {

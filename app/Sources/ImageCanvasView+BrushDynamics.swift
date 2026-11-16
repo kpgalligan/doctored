@@ -39,8 +39,9 @@ extension ImageCanvasView {
     }
 
     /// Mouse-down, after the stroke's session is made: latches the pen state and, for a
-    /// tool that takes dynamics with a session, the dynamics handle; a tip shape only on a
-    /// tool that takes one. A refused request throws, which refuses the stroke.
+    /// tool that takes dynamics with a session, the dynamics handle; a tip shape and a
+    /// texture only on a tool that takes them, the texture only beside a handle. A refused
+    /// request or texture throws, which refuses the stroke.
     func attachStrokeDynamics(pressure: CGFloat?) throws {
         strokePen.hasPressure = pressure != nil
         strokePen.lastTilt = strokePen.eventTilt
@@ -48,11 +49,13 @@ extension ImageCanvasView {
         guard tool.takesBrushDynamics, nativeStrokeSession != nil else { return }
         var dynamics = brushDynamics
         if !tool.takesTipShapeDynamics { dynamics?.shape = nil }
+        if !tool.takesTextureDynamics { dynamics?.texture = nil }
         let handle = try BrushDynamics.handle(
             dynamics, size: brushSize, seed: BrushDynamics.strokeSeed(),
             pressureSize: brushPressureSize, pressureOpacity: brushPressureOpacity, tip: strokeTip)
         nativeStrokeSession?.dynamics = handle
         nativeStrokeSession?.dynamicsShaped = handle != nil && dynamics?.normalized?.shape != nil
+        nativeStrokeSession?.texture = try handle.flatMap { _ in try strokeTexture(dynamics) }
     }
 
     /// Whether a byte stroke of this tool needs a dab session for its dynamics.
@@ -74,15 +77,21 @@ extension ImageCanvasView {
     /// `stampSoftDab` for a dynamics stroke: one nominal stamp laid through the session,
     /// each dab it laid drawn at its recorded centre, diameter and (with a tip shape) angle
     /// and roundness, with the context alpha at its deposit factor (the dab image already
-    /// carries the tip's flow). False, and nothing drawn, without dynamics.
+    /// carries the tip's flow); a textured stroke's each as the core's own image
+    /// (`stampTexturedDab`). False, and nothing drawn, without dynamics.
     func stampDynamicsDabs(_ dab: CGImage, in context: CGContext, at point: CGPoint,
                            pressure: CGFloat, tilt: CGVector, rotation: CGFloat) -> Bool {
         // Read, not copied: a held copy of the session would copy its dabs on the stamp.
         guard nativeStrokeSession?.dynamics != nil else { return false }
         let shaped = nativeStrokeSession?.dynamicsShaped == true
+        let textured = nativeStrokeSession?.texture != nil
         let pen = strokePenSample(pressure: pressure, tilt: tilt, rotation: rotation)
         let laid = nativeStrokeSession?.stamp(at: point, pen: pen) ?? []
         for resolved in laid {
+            if textured {
+                stampTexturedDab(resolved, in: context)
+                continue
+            }
             var tip = strokeTip
             if shaped {
                 tip.angleDegrees = resolved.angleDegrees

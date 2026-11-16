@@ -35,6 +35,8 @@ mod stack_oracle;
 mod brush_dynamics;
 #[path = "brush_shaped_coverage.rs"]
 mod brush_shaped_coverage;
+#[path = "brush_texture.rs"]
+mod brush_texture;
 #[path = "gradient_tool_midpoints.rs"]
 mod gradient_tool_midpoints;
 #[path = "gradient_tool_smoothness.rs"]

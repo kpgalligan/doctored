@@ -42,9 +42,26 @@ Doctored process this file did not start is signalled.
   plain stroke at that roundness and not the one at the tip's own. The heading rows (the angle on
   the direction of travel, recorded shapes): a stroke at rest after its travel, and an L path's
   airbrush ticks, each record the angle of the leg they lie on; the first stamp the tip's own.
+- **D11 texture.** One hard dab at flow 100 on a transparent layer with the inline two-level
+  tile `TILE`: an interior pixel's alpha is `round(255 · (1 − depth · (1 − t)))` at 8 bits
+  (`round(65535 · …)` at 16, the unit value within 2 / 65535 at 32), `t` from this file's own
+  `(x mod w, y mod h)` lookup (at scale 2 an even pixel reads texel `(x / 2, y / 2)`), at depth 1
+  and 0.5 and scale 1 and 2. In Grayscale, CMYK and Lab, a textured stroke repeats exactly and
+  differs from the plain one; Indexed and Bitmap the same, or the mode's refusal recorded. At 8
+  and 16 bits a layer mask, an alpha channel, `quick_mask_stroke` and `eraser_stroke` each
+  repeat and differ from the plain stroke. A library pattern `{name}` paints what the inline
+  tile paints; a stroke recorded with it replays exactly after `delete_pattern`, its step
+  holding the tile; saved absolute it replays to the recorded render, saved relative on a
+  larger canvas it paints the direct call with the recorded dabs remapped and the texture as
+  recorded, which differs from that call without the texture.
 - D7 also refuses `rotations` alone, of the wrong length or range and on another tool, `angle`
   and `roundness` with `aliased`, and a `native_stroke` with `shapes` on another tool or of the
-  wrong length.
+  wrong length; and `texture` with `aliased`, a `native_stroke` with `texture` on another tool,
+  on the pixel brush or naming a library pattern, a `{name}` the library lacks, a scale or depth
+  out of range and a malformed tile.
+- D8 also saves a textured preset by a library pattern's name (the row echoes its pattern
+  without pixels; the file holds the tile), which lists, exports and imports back after a
+  relaunch with another (empty) pattern library.
 
 Usage: python3 -B scripts/verify_brush_dynamics.py [--receipts <folder>]
 """
@@ -89,6 +106,37 @@ SHAPED_NATIVE = {
 CURVE = [[0, 0], [0.5, 0.2], [1, 1]]
 P = 0.65
 SIZE = 8
+# D11's two-level tile: opaque white and black on a 2 × 2 checker, t 1 where x + y is even.
+TILE_W, TILE_H = 2, 2
+TILE_RGBA = bytes([255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255])
+TILE = {'name': 'Two Level', 'width': TILE_W, 'height': TILE_H,
+        'rgba': base64.b64encode(TILE_RGBA).decode()}
+# D11's one dab: its centre and size; an interior pixel has all four corners inside the circle.
+DAB = (30.5, 22.5)
+DAB_SIZE = 24
+# SHAPED_NATIVE's dabs with a texture and no shapes (written here, as a recording writes one).
+TEXTURED_NATIVE = {k: v for k, v in SHAPED_NATIVE.items() if k != 'shapes'}
+TEXTURED_NATIVE['texture'] = {'pattern': TILE, 'scale': 1, 'depth': 1}
+
+
+def tile_t(x, y, scale):
+    """The texture's `t` at canvas pixel (x, y): the Gray luminosity of the tile's texel times
+    its alpha, the tile anchored at the canvas origin; at scale 2 only for an even pixel, which
+    reads texel (x / 2, y / 2) exactly."""
+    if scale == 2:
+        assert x % 2 == 0 and y % 2 == 0, (x, y)
+        x, y = x // 2, y // 2
+    k = ((y % TILE_H) * TILE_W + x % TILE_W) * 4
+    r, g, b, a = TILE_RGBA[k:k + 4]
+    return (0.30 * r + 0.59 * g + 0.11 * b) / 255 * a / 255
+
+
+def interior(centre, size):
+    """The pixels whose four corners lie inside the dab's circle, with a margin."""
+    cx, cy = centre
+    return [(x, y) for y in range(H) for x in range(W)
+            if all(math.hypot(px - cx, py - cy) <= size / 2 - 0.01
+                   for px in (x, x + 1) for py in (y, y + 1))]
 
 
 def natural_cubic(points, x):
@@ -518,6 +566,196 @@ def main():
               'scattered Pencil paints one colour; quick_mask_stroke scatters at 8 and 16 bits',
               flush=True)
 
+        # ---- D11 texture ----------------------------------------------------------------------
+        def texture(depth=1, scale=1, pattern=None):
+            return {'texture': {'pattern': pattern or TILE, 'scale': scale, 'depth': depth}}
+
+        def alpha(doc, x, y):
+            """The layer pixel's alpha in the document's own numbers."""
+            reply = call('sample_pixel', document_id=doc, x=x, y=y, source='layer', layer=0)
+            for key in ('center_rgba32', 'center_rgba_codes'):
+                if reply.get(key) is not None:
+                    return reply[key][3]
+            raise AssertionError(('no readout', sorted(reply)))
+
+        inside = interior(DAB, DAB_SIZE)
+        assert len(inside) > 300, len(inside)
+        # A block about the centre, which holds both texel values at both scales.
+        block = [(x, y) for (x, y) in inside if abs(x - 30) <= 3 and abs(y - 22) <= 3]
+        oracle_rows = {}
+        for kind in ('rgb8', 'rgb16', 'rgb32'):
+            for scale in (1, 2):
+                for depth in (1, 0.5):
+                    doc = call('new_document', width=W, height=H, background='transparent',
+                               **KINDS[kind])['document']['id']
+                    call('brush_stroke', document_id=doc, points=[list(DAB)], size=DAB_SIZE,
+                         color=INK, hardness=100, dynamics=texture(depth, scale))
+                    factors = set()
+                    for (x, y) in block:
+                        if scale == 2 and (x % 2 or y % 2):
+                            continue
+                        f = 1 - depth * (1 - tile_t(x, y, scale))
+                        got = alpha(doc, x, y)
+                        if kind == 'rgb32':
+                            want, ok = f, abs(got - f) <= 2 / 65535
+                        else:
+                            top = 255 if kind == 'rgb8' else 65535
+                            want = math.floor(top * f + 0.5)
+                            ok = got == want
+                        assert ok, (kind, scale, depth, (x, y), got, want)
+                        factors.add(round(f, 6))
+                    assert len(factors) == 2, (kind, scale, depth, 'both texel values', factors)
+                    call('close_document', document_id=doc, discard_changes=True)
+                    oracle_rows[f'{kind}_s{scale}_d{depth}'] = sorted(factors)
+            print(f"PASS {kind} d11 oracle: a textured dab's interior alpha is 1 - depth * (1 - t) "
+                  'of its own tile lookup at depths 1 and 0.5 and scales 1 and 2', flush=True)
+        receipts['d11_oracle'] = oracle_rows
+
+        line = dict(points=STROKE, size=SIZE, hardness=100)
+        textured, plain = dict(dynamics=texture(1)), dict(stroke_version=1)
+
+        def mode_document(kind):
+            if kind == 'indexed':
+                # A palette that holds the ink and white, so a held-back pixel shows.
+                doc = new(KINDS['rgb8'])
+                call('select_rect', document_id=doc, x=0, y=0, width=6, height=6)
+                call('fill_selection', document_id=doc, color=INK)
+                call('deselect', document_id=doc)
+                call('convert_mode', document_id=doc, mode='indexed', palette='exact', dither='none')
+                return doc
+            if kind == 'bitmap':
+                doc = new(KINDS['gray8'])
+                call('convert_mode', document_id=doc, mode='bitmap', method='threshold')
+                return doc
+            return new(dict(color_mode='lab', depth=8) if kind == 'lab8' else KINDS[kind])
+
+        modes = {}
+        for kind in ('gray8', 'cmyk8', 'lab8', 'indexed', 'bitmap'):
+            colour = '#000000' if kind == 'bitmap' else INK
+            renders, refusal = [], None
+            for extra in (textured, textured, plain):
+                doc = mode_document(kind)
+                reply = app.client.rpc('tools/call', {'name': 'brush_stroke', 'arguments': dict(
+                    line, document_id=doc, color=colour, **extra)})
+                if reply.get('isError'):
+                    refusal = next(c['text'] for c in reply['content'] if c['type'] == 'text')
+                renders.append(render(doc))
+                call('close_document', document_id=doc, discard_changes=True)
+            if kind in ('indexed', 'bitmap') and refusal is not None:
+                modes[kind] = f'refused: {refusal}'
+                print(f'NOTE {kind} d11: the mode refuses the stroke: {refusal}', flush=True)
+                continue
+            assert refusal is None, (kind, refusal)
+            assert renders[0] == renders[1], (kind, 'the textured stroke repeats')
+            assert renders[0] != renders[2], (kind, 'the texture changed nothing')
+            modes[kind] = len(changed(renders[2], renders[0]))
+            print(f'PASS {kind} d11: a textured stroke repeats and differs from the plain one by '
+                  f'{modes[kind]} px', flush=True)
+        receipts['d11_modes'] = modes
+
+        def target_read(depth, target, extra):
+            doc = new(dict(depth=depth, profile='srgb'))
+            if target == 'mask':
+                call('add_layer_mask', document_id=doc, layer=0, kind='hide_all')
+                call('brush_stroke', document_id=doc, layer=0, target='mask', **line, **extra)
+                out = render(doc, layer=0, channel='mask')
+            elif target == 'channel':
+                call('add_channel', document_id=doc, name='Alpha 1')
+                call('brush_stroke', document_id=doc, layer=0, target='channel:Alpha 1', **line,
+                     **extra)
+                out = render(doc, channel='Alpha 1')
+            elif target == 'quick mask':
+                call('set_quick_mask', document_id=doc, active=True)
+                call('quick_mask_stroke', document_id=doc, width=W, height=H, opacity=1, **line,
+                     **extra)
+                call('set_quick_mask', document_id=doc, active=False)
+                samples = call('get_selection', document_id=doc, points=everywhere)['samples']
+                out = [(s.get('coverage'), s.get('coverage16')) for s in samples]
+            else:
+                call('eraser_stroke', document_id=doc, **line, **extra)
+                out = render(doc)
+            call('close_document', document_id=doc, discard_changes=True)
+            return out
+
+        for depth in (8, 16):
+            for target in ('mask', 'channel', 'quick mask', 'eraser'):
+                first, again, untextured = (target_read(depth, target, extra)
+                                            for extra in (textured, textured, plain))
+                assert first == again, (depth, target, 'the textured stroke repeats')
+                assert first != untextured, (depth, target, 'the texture changed nothing')
+            print(f'PASS {depth}-bit d11 targets: a layer mask, an alpha channel, '
+                  'quick_mask_stroke and eraser_stroke each repeat textured and differ from the '
+                  'plain stroke', flush=True)
+
+        # A library pattern by name paints what its inline tile paints; recorded, the step holds
+        # the tile, so the replay survives delete_pattern.
+        library = folder / 'two-level.doctoredpatterns'
+        library.write_text(json.dumps({'doctored_patterns': 1,
+                                       'patterns': [dict(schema_version=1, **TILE)]}))
+        assert call('import_patterns', path=str(library))['imported'] == ['Two Level']
+        stroke = dict(line, color=INK)
+        named = texture(0.8, 1, {'name': 'Two Level'})
+        doc, _, by_name = painted(KINDS['rgb8'], 'brush_stroke', **stroke, dynamics=named)
+        call('close_document', document_id=doc, discard_changes=True)
+        doc, _, by_tile = painted(KINDS['rgb8'], 'brush_stroke', **stroke, dynamics=texture(0.8))
+        call('close_document', document_id=doc, discard_changes=True)
+        assert by_name == by_tile, ('the named pattern paints its tile', len(changed(by_name, by_tile)))
+        doc = new(KINDS['rgb8'])
+        call('start_recording', discard=True)
+        call('brush_stroke', document_id=doc, **stroke, dynamics=named)
+        recorded = render(doc)
+        call('stop_recording', name='textured-named')
+        call('delete_pattern', name='Two Level')
+        call('undo', document_id=doc)
+        call('run_action', document_id=doc, name='textured-named')
+        assert render(doc) == recorded, 'the textured replay after delete_pattern differs'
+        call('close_document', document_id=doc, discard_changes=True)
+        step = recorded_step(folder / 'app1' / 'actions', 'textured-named')
+        arguments = {k: v for k, v in step['arguments'].items() if k != 'document_id'}
+        native = arguments['native_stroke']
+        assert 'dynamics' not in arguments and native['texture']['pattern']['rgba'] == TILE['rgba'] \
+            and native['texture']['depth'] == 0.8, native.get('texture')
+        print('PASS d11 library: {name} paints its inline tile; the recorded step holds the tile '
+              'and replays exactly after delete_pattern', flush=True)
+
+        # Absolute and relative replay: the dabs move, the texture stays as recorded.
+        for mode in ('absolute', 'relative'):
+            save = app.client.rpc('tools/call', {'name': 'save_action', 'arguments': {
+                'name': f'textured-{mode}', 'overwrite': True,
+                'recorded_canvas': {'width': W, 'height': H},
+                'steps': [{'tool': 'brush_stroke', 'arguments': arguments,
+                           'geometry': {'mode': mode}}]}})
+            assert not save.get('isError'), save
+        doc = new(KINDS['rgb8'])
+        call('run_action', document_id=doc, name='textured-absolute')
+        assert render(doc) == recorded, 'the absolute textured replay differs'
+        call('close_document', document_id=doc, discard_changes=True)
+        doc = sized(live, KINDS['rgb8'])
+        call('run_action', document_id=doc, name='textured-relative')
+        played = render(doc)
+        call('close_document', document_id=doc, discard_changes=True)
+        dabs = decode_dabs(native)
+        mapped = [(x * live[0] / W, y * live[1] / H, min(max(d * factor, 1), 5000), o)
+                  for x, y, d, o in dabs]
+        size = quantize(min(max(arguments['size'] * factor, 1), 5000), arguments['size'])
+        points = [[quantize(x * live[0] / W, x), quantize(y * live[1] / H, y)]
+                  for x, y in arguments['points']]
+        direct = dict(arguments, points=points, size=size, native_stroke=encode_dabs(native, mapped))
+        bare = dict(direct, native_stroke={k: v for k, v in direct['native_stroke'].items()
+                                           if k != 'texture'})
+        renders = []
+        for each in (direct, bare):
+            doc = sized(live, KINDS['rgb8'])
+            call('brush_stroke', document_id=doc, **each)
+            renders.append(render(doc))
+            call('close_document', document_id=doc, discard_changes=True)
+        assert played == renders[0], ('the relative textured replay differs from the remapped '
+                                      'direct call', len(changed(played, renders[0], live)))
+        assert renders[0] != renders[1], 'the replayed texture changed nothing'
+        print(f'PASS d11 geometry: a recorded textured stroke replays exactly absolute; relative on '
+              f'{live[0]}x{live[1]} it paints its {len(dabs)} dabs remapped with the texture as '
+              'recorded', flush=True)
+
         # ---- D7 refusals ----------------------------------------------------------------------
         doc = new(KINDS['rgb8'])
         before = render(doc)
@@ -570,6 +808,31 @@ def main():
             'shapes_length': (call('brush_stroke', fail=True, document_id=doc, color=INK,
                                    native_stroke=dict(SHAPED_NATIVE, shapes=SHAPED_NATIVE['shapes'][:12])),
                               'Native stroke shapes hold one angle'),
+            'texture_pencil': (call('brush_stroke', fail=True, aliased=True,
+                                    dynamics={'texture': {'pattern': TILE}}, **base),
+                               "the Pencil's tip (aliased) is two-valued and takes no texture"),
+            'texture_tool': (call('dodge_burn', fail=True, document_id=doc,
+                                  native_stroke=TEXTURED_NATIVE),
+                             "native_stroke texture is the Brush's"),
+            'texture_pixel': (call('brush_stroke', fail=True, document_id=doc, color=INK,
+                                   native_stroke=dict(TEXTURED_NATIVE, pixel=True)),
+                              "A native stroke's texture holds a pattern"),
+            'texture_native_name': (call('brush_stroke', fail=True, document_id=doc, color=INK,
+                                         native_stroke=dict(TEXTURED_NATIVE, texture={
+                                             'pattern': {'name': 'Two Level'}})),
+                                    'names a library pattern'),
+            'texture_name': (call('brush_stroke', fail=True,
+                                  dynamics={'texture': {'pattern': {'name': 'No Such Pattern'}}},
+                                  **base), 'No pattern named'),
+            'texture_scale': (call('brush_stroke', fail=True,
+                                   dynamics={'texture': {'pattern': TILE, 'scale': 20}}, **base),
+                              'dynamics.texture.scale must be a number from 0.01 to 10'),
+            'texture_depth': (call('brush_stroke', fail=True,
+                                   dynamics={'texture': {'pattern': TILE, 'depth': 1.5}}, **base),
+                              'dynamics.texture.depth must be a number from 0 to 1'),
+            'texture_tile': (call('brush_stroke', fail=True, dynamics={'texture': {'pattern': {
+                'width': 2, 'height': 2, 'rgba': 'AAAA'}}}, **base),
+                             "dynamics.texture.pattern's custom tile is 1 to 512"),
         }
         for name, (reply, needle) in refusals.items():
             assert needle in reply, (name, reply)
@@ -596,17 +859,38 @@ def main():
         bad = call('save_brush_preset', fail=True, name='Bad', dynamics={'scatter': {'amount': 11}}, **tip)
         assert 'dynamics.scatter.amount' in bad, bad
         receipts['preset_refusals'] = {'twin': twin, 'plain': plain, 'bad': bad}
+        # A textured preset by a library pattern's name: the row echoes the pattern without its
+        # pixels and the file holds the tile, so the next launch needs no library.
+        assert call('import_patterns', path=str(library))['imported'] == ['Two Level']
+        textured_tip = dict(tip, hardness=80)
+        textured_saved = call('save_brush_preset', name='Textured Round', **textured_tip, dynamics={
+            'texture': {'pattern': {'name': 'Two Level'}, 'scale': 2, 'depth': 0.7}})['preset']
+        assert textured_saved['dynamics']['texture'] == {
+            'pattern': {'name': 'Two Level', 'width': TILE_W, 'height': TILE_H},
+            'scale': 2, 'depth': 0.7}, textured_saved
+        files = [json.loads(p.read_text()) for p in presets_dir.glob('*.json')]
+        body = next(f for f in files if f['name'] == 'Textured Round')
+        assert body['schema_version'] == 2 \
+            and body['dynamics']['texture']['pattern']['rgba'] == TILE['rgba'], body
+        print('PASS d8 texture: a textured preset saved by a library name echoes its pattern and '
+              'stores the tile at schema 2', flush=True)
 
     with App(folder / 'app2', folder / 'recovery2', interval=600) as app:
         call = app.call
         rows = call('list_brush_presets')['presets']
-        mine = [p for p in rows if not p['builtin']]
-        assert [p['name'] for p in mine] == ['Scatter Round'] and mine[0]['dynamics'] == saved['dynamics'], mine
+        mine = {p['name']: p for p in rows if not p['builtin']}
+        assert sorted(mine) == ['Scatter Round', 'Textured Round'] \
+            and mine['Scatter Round']['dynamics'] == saved['dynamics'] \
+            and mine['Textured Round']['dynamics'] == textured_saved['dynamics'], mine
+        assert all(p['builtin'] for p in call('list_patterns')['patterns']), \
+            'this launch has a pattern library'
         exported = folder / 'mine.doctoredbrushes'
-        assert call('export_brush_presets', path=str(exported))['exported'] == ['Scatter Round']
-        call('delete_brush_preset', name='Scatter Round')
+        assert sorted(call('export_brush_presets', path=str(exported))['exported']) \
+            == sorted(mine)
+        for name in mine:
+            call('delete_brush_preset', name=name)
         reply = call('import_brush_presets', path=str(exported))
-        assert reply['imported'] == ['Scatter Round'] and reply['skipped'] == [], reply
+        assert sorted(reply['imported']) == sorted(mine) and reply['skipped'] == [], reply
         assert call('list_brush_presets')['presets'] == rows, 'import does not restore the listing'
         old = folder / 'old.doctoredbrushes'
         old.write_text(json.dumps({'doctored_brush_presets': 1, 'presets': [dict(

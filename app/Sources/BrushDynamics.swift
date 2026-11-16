@@ -38,13 +38,17 @@ struct BrushDynamics: Codable, Equatable {
     /// a stored options blob or preset without it decodes; the Brush and the Eraser only
     /// (`EditorTool.takesTipShapeDynamics`): the Pencil's tip is round.
     var shape: TipShape?
+    /// The texture (slice 3, `BrushTexture.swift`), nil for none; the Brush and the Eraser only
+    /// (`EditorTool.takesTextureDynamics`). Optional, as `shape` is. It never reaches the
+    /// dynamics kernel: the stroke carries it to the rasterizer (`NativeBrushStroke.texture`).
+    var texture: Texture?
 
     static let maximumCurvePoints = 16
     static let maximumScatter = 10.0
     static let maximumCount = 16
 
     /// nil when every value is its default (the stored and passed form), the identity
-    /// curve and a default tip shape dropped first.
+    /// curve, a default tip shape and a texture at depth 0 (which thins nothing) dropped first.
     var normalized: BrushDynamics? {
         var out = self
         for keyPath in [\BrushDynamics.size, \BrushDynamics.opacity]
@@ -52,6 +56,7 @@ struct BrushDynamics: Codable, Equatable {
             out[keyPath: keyPath].curve = nil
         }
         if out.shape == TipShape() { out.shape = nil }
+        if out.texture?.depth == 0 { out.texture = nil }
         return out == BrushDynamics() ? nil : out
     }
 }
@@ -81,7 +86,8 @@ extension BrushDynamics {
     /// `{"size": R, "opacity": R, "scatter": {"amount", "both_axes", "count",
     /// "count_jitter"}}`, each response `{"control"?, "curve"?, "minimum", "jitter"}`;
     /// `control` and `curve` are written only when set. With a tip shape, also
-    /// `"angle": {"control", "jitter"}` and `"roundness": {"control", "minimum", "jitter"}`.
+    /// `"angle": {"control", "jitter"}` and `"roundness": {"control", "minimum", "jitter"}`;
+    /// with a texture, `"texture": {"pattern", "scale", "depth"}` (`Texture.json`).
     var json: [String: Any] {
         func response(_ r: Response) -> [String: Any] {
             var out: [String: Any] = ["minimum": r.minimum, "jitter": r.jitter]
@@ -98,15 +104,17 @@ extension BrushDynamics {
             out["roundness"] = ["control": shape.roundnessControl.rawValue,
                                 "minimum": shape.roundnessMinimum, "jitter": shape.roundnessJitter]
         }
+        if let texture { out["texture"] = texture.json }
         return out
     }
 
     /// The sections `json` writes, in its order.
-    private static let sections = ["size", "opacity", "scatter", "angle", "roundness"]
+    private static let sections = ["size", "opacity", "scatter", "angle", "roundness", "texture"]
 
     /// Strict parse of `json`'s form, every section and key optional, each refusal
-    /// naming its key. `extra` names keys the caller handles itself (`seed`).
-    init(json object: [String: Any], extra: Set<String> = []) throws {
+    /// naming its key. `extra` names keys the caller handles itself (`seed`). `library` is the
+    /// texture's (`Texture.init(json:library:)`): true resolves a library pattern's name.
+    init(json object: [String: Any], extra: Set<String> = [], library: Bool = false) throws {
         if let key = Set(object.keys).subtracting(Self.sections).subtracting(extra).sorted().first {
             throw DoctoredCoreError(message: "dynamics takes "
                 + (Self.sections + extra.sorted()).joined(separator: ", ")
@@ -116,6 +124,7 @@ extension BrushDynamics {
         size = try Self.response(object["size"], "size")
         opacity = try Self.response(object["opacity"], "opacity")
         shape = try Self.tipShape(angle: object["angle"], roundness: object["roundness"])
+        if let raw = object["texture"] { texture = try Texture(json: raw, library: library) }
         guard let raw = object["scatter"] else { return }
         guard let scatter = raw as? [String: Any] else {
             throw DoctoredCoreError(message: "dynamics.scatter must be an object.")

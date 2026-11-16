@@ -37,21 +37,33 @@ extension AgentServer {
             + "has none.")
     }
 
+    /// Refuses a canonical `native_stroke` holding a `texture` on a tool outside the three:
+    /// every other stroke lays its dabs' coverage untextured.
+    static func refuseForeignTexture(tool: String, stroke: NativeBrushStroke) throws {
+        guard stroke.texture != nil, !dynamicsStrokeTools.contains(tool) else { return }
+        throw ToolError(message: "native_stroke texture is the Brush's and Eraser's texture "
+            + "dynamics: brush_stroke, eraser_stroke and quick_mask_stroke take it; \(tool) "
+            + "has none.")
+    }
+
     /// The parsed `dynamics`, `tilts` and `rotations` of a generated stroke: nil without
     /// `dynamics` (`refuseForeignDynamics` has refused a `tilts` or `rotations` alone).
     /// Refuses by name a size-1 pixel stroke, a control given both here and as
     /// `pressure_size` / `pressure_opacity`, a `seed` outside 0…2³²−1, a `tilts` or
-    /// `rotations` list of the wrong length or range, and `angle` or `roundness` on the
-    /// Pencil's tip (`tip.aliased`), which is round. `shaped` is whether the dabs carry a
-    /// tip shape.
+    /// `rotations` list of the wrong length or range, and `angle`, `roundness` or `texture`
+    /// on the Pencil's tip (`tip.aliased`), which is round and two-valued. `shaped` is whether
+    /// the dabs carry a tip shape; `texture` is the stroke's, its `{name}` resolved from the
+    /// library (`BrushDynamics.Texture.init(json:library:)`), so the recorded step holds the
+    /// tile.
     static func strokeDynamics(_ arguments: [String: Any], points: Int, size: Double, tip: BrushTip)
-        throws -> (handle: RasterBrushDynamics?, tilts: [CGVector]?, rotations: [Double]?, shaped: Bool)? {
+        throws -> (handle: RasterBrushDynamics?, tilts: [CGVector]?, rotations: [Double]?, shaped: Bool,
+                   texture: StrokeTexture?)? {
         guard let raw = arguments["dynamics"] else { return nil }
         guard let object = raw as? [String: Any] else {
             throw ToolError(message: "dynamics must be an object.")
         }
         let dynamics: BrushDynamics
-        do { dynamics = try BrushDynamics(json: object, extra: ["seed"]) }
+        do { dynamics = try BrushDynamics(json: object, extra: ["seed"], library: true) }
         catch { throw ToolError(message: error.localizedDescription) }
         var seed: UInt32 = 0
         if let value = object["seed"] {
@@ -68,6 +80,10 @@ extension AgentServer {
         if tip.aliased, let key = ["angle", "roundness"].first(where: { object[$0] != nil }) {
             throw ToolError(message: "dynamics.\(key) shapes a stamped tip; the Pencil's tip "
                 + "(aliased) is round and takes no angle or roundness dynamics.")
+        }
+        if tip.aliased, object["texture"] != nil {
+            throw ToolError(message: "dynamics.texture thins a stamped tip's coverage; the "
+                + "Pencil's tip (aliased) is two-valued and takes no texture.")
         }
         for (key, response) in [("pressure_size", dynamics.size), ("pressure_opacity", dynamics.opacity)]
         where response.control != nil && arguments[key] != nil {
@@ -107,7 +123,12 @@ extension AgentServer {
         do {
             let handle = try BrushDynamics.handle(dynamics, size: CGFloat(size), seed: seed,
                 pressureSize: pressureSize, pressureOpacity: pressureOpacity, tip: tip)
-            return (handle, tilts, rotations, handle != nil && dynamics.normalized?.shape != nil)
+            // A texture at depth 0 is dropped by `normalized`, and rides only beside a handle.
+            let texture = try handle.flatMap { _ in
+                try dynamics.normalized?.texture.map { try StrokeTexture($0) }
+            }
+            return (handle, tilts, rotations, handle != nil && dynamics.normalized?.shape != nil,
+                    texture)
         } catch {
             throw ToolError(message: error.localizedDescription)
         }

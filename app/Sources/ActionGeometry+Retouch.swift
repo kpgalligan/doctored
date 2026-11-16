@@ -12,7 +12,8 @@ import Foundation
 /// **Canonical dabs move with their points.** A recorded stroke carrying `native_stroke` replays
 /// those dabs, so each dab's centre is remapped as a position and its diameter as a length
 /// (clamped to 1 px and the tool's ceiling), and the payload is re-encoded with any per-dab tip
-/// shapes (`shapes`) unchanged. The grid-snapped kinds
+/// shapes (`shapes`) and any texture (its tile, scale and canvas-origin anchor) unchanged. The
+/// grid-snapped kinds
 /// (`pixel`, `aliased`) keep their refusal: a snapped dab has no honest scaled or half-pixel-shifted
 /// form.
 extension ActionGeometry {
@@ -167,9 +168,11 @@ extension ActionGeometry {
                 dabs[index + 2] = min(max(dabs[index + 2] * factor, 1), ceiling)
             }
             // A tip shape's angle and roundness are not lengths: the diameter's one scalar
-            // factor leaves them as they are, so `shapes` passes through unchanged.
+            // factor leaves them as they are, so `shapes` passes through unchanged. A texture
+            // is anchored at the canvas origin at its own scale, so it passes through as
+            // recorded too (its tile, scale and anchor).
             let remapped = try NativeBrushStroke(tip: stroke.tip, pixel: stroke.pixel, dabs: dabs,
-                                                 shapes: stroke.shapes)
+                                                 shapes: stroke.shapes, texture: stroke.texture)
             return .success(try remapped.canonical)
         } catch {
             return .failure(

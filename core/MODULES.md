@@ -201,6 +201,7 @@ Detail belongs in the source file's own header comment.
 - `brush_overlay.rs` — kernel: native brush u16 coverage, an RGB8 ink and a u8 selection to the byte path's premultiplied RGBA8 overlay (the 8-bit Pencil).
 - `brush_coverage.rs` / `ffi_brush.rs` / `precision_paint_tools.rs` / `gradient_field.rs` — version-1 native brush dabs (50,000 cap; per-dab shapes), native paint tools, gradient field.
 - `brush_dynamics.rs` / `ffi_brush_dynamics.rs` — brush dynamics: one stamp resolved into its dabs (pressure/tilt curves, jitter, scatter, tip angle/roundness), seeded positionally.
+- `brush_texture.rs` / `ffi_brush_texture.rs` — kernel: brush texture, a canvas-anchored pattern tile thinning each dab's coverage by Depth; its handle and the textured u16 and overlay exports.
 - `foreground_estimate.rs` / `ffi_foreground.rs` — foreground RGB estimation from an opaque captured composite and a supplied matte (Decontaminate Colors); byte adapter and both depths' FFI.
 - `foreground_solve.rs` — kernel of the foreground estimate: the multi-level pyramid, sweeps and the two-variable relaxation, shared by both depths.
 - `precision_foreground.rs` — 16-bit `foreground_estimate_plan` / `estimate_foreground` over `foreground_solve`, encoded domain only; float refuses by name.

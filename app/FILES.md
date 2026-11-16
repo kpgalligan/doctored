@@ -163,6 +163,7 @@ Detail belongs in the source file's own header comment.
 - `BrushDynamicsSheetController.swift` / `EditorViewController+BrushDynamics.swift` — the Dynamics… button and sheet (responses, curves, scatter; angle and roundness but on the Pencil).
 - `NativeBrushStrokeSession+Dynamics.swift` / `ImageCanvasView+BrushDynamics.swift` — a dynamics stamp through the dab session (heading, shapes); the canvas's pen state, spacing and preview.
 - `AgentServer+BrushDynamics.swift` / `AgentCatalog+BrushDynamics.swift` — `dynamics`, `tilts`, `rotations` on brush_stroke, eraser_stroke and quick_mask_stroke; refusals; schema.
+- `BrushTexture.swift` / `ImageCanvasView+BrushTexture.swift` — dynamics' texture: value, JSON parse, `StrokeTexture` (value + core handle); the canvas's textured dab preview and admission.
 - `BrushPresetLibrary.swift` — the user brush preset library (`DR_BRUSH_PRESETS_DIR`), its held list, and the `.doctoredbrushes` import and export.
 - `EditorViewController+BrushPresets.swift` — the paint bar's Preset popup: presets, Save, Delete, Import and Export Presets…, the rebuild on change.
 - `EditorViewController+Pencil.swift` / `ImageCanvasView+Pencil.swift` — the Pencil: its options bar, its core-made preview dab and its admission.

@@ -52,6 +52,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "blend_float.rs",
     "brush_dynamics.rs",
     "brush_overlay.rs",
+    "brush_texture.rs",
     "clip_unit.rs",
     "closed_form_matting.rs",
     "cmyk_adjust.rs",

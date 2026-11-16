@@ -57,6 +57,23 @@ extension AgentServer {
                     "minimum": ["type": "number", "minimum": 0, "maximum": 1, "default": 0],
                     "jitter": ["type": "number", "minimum": 0, "maximum": 1, "default": 0],
                 ] as [String: Any]] as [String: Any],
+            "texture": ["type": "object", "description": "The texture (the Brush and the Eraser): "
+                + "each dab's coverage at a canvas pixel is multiplied by 1 − depth · (1 − t) "
+                + "before the stroke accumulates it, t the Gray luminosity (0.30, 0.59, 0.11) of "
+                + "the pattern's straight colour times its alpha at that pixel, the tile anchored "
+                + "at the canvas origin at scale (the Pattern Overlay's sampler at angle 0); a "
+                + "white opaque texel or depth 0 leaves the dab as it was. Only the tile's RGBA8 "
+                + "raster is read, at every depth and mode. The recorded native_stroke holds the "
+                + "tile itself, so a replay never reads the library. Refused with aliased.",
+                "properties": [
+                    "pattern": ["type": "object", "description": "{\"preset\": id} (list_patterns' "
+                        + "built-ins), {\"name\": …} alone (a library pattern, embedded as its "
+                        + "tile) or a custom tile {name?, width, height, rgba} (sides 1–"
+                        + "\(LibraryPattern.maximumSide), rgba standard base64 of straight RGBA8)."],
+                    "scale": ["type": "number", "minimum": BrushDynamics.Texture.scaleRange.lowerBound,
+                              "maximum": BrushDynamics.Texture.scaleRange.upperBound, "default": 1],
+                    "depth": ["type": "number", "minimum": 0, "maximum": 1, "default": 1],
+                ] as [String: Any], "required": ["pattern"]] as [String: Any],
         ]
         if seed {
             properties["seed"] = ["type": "integer", "minimum": 0, "maximum": 4_294_967_295,
@@ -72,9 +89,10 @@ extension AgentServer {
         var dynamics = Self.dynamicsSchema(seed: true)
         dynamics["description"] = "Brush dynamics (mirrors the Brush's, Pencil's and Eraser's "
             + "Dynamics… sheet): pressure or tilt curves on size and opacity, size and opacity "
-            + "jitter, scatter, and the tip shape's angle and roundness. Generates "
+            + "jitter, scatter, the tip shape's angle and roundness, and a texture. Generates "
             + "stroke_version=1 dabs (stroke_version may be omitted; a tip shape records its "
-            + "shapes in native_stroke); a stamp's controls read off without pressures, tilts "
+            + "shapes and a texture its tile in native_stroke); a stamp's controls read off "
+            + "without pressures, tilts "
             + "or rotations. Needs size above 1; refused on every other stroke tool, with "
             + "native_stroke, and on stroke_path."
         properties["dynamics"] = dynamics

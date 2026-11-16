@@ -1,10 +1,10 @@
 # Brush dynamics (ADR)
 
 - **Status:** Accepted — slice 1 shipped (pen response curves on pressure and tilt, size and opacity
-  jitter, scatter), and slice 2 (the tip shape: angle and roundness dynamics, pen rotation); colour
-  dynamics, texture and dual brush proposed, open on
+  jitter, scatter), slice 2 (the tip shape: angle and roundness dynamics, pen rotation) and slice 3
+  (texture); colour dynamics and dual brush proposed, open on
   [#18](https://github.com/kpgalligan/doctored/issues/18)
-- **Date:** 2026-11-15; slice 2 2026-11-16
+- **Date:** 2026-11-15; slice 2 2026-11-16; slice 3 2026-11-16
 - **Issue:** part of [#18](https://github.com/kpgalligan/doctored/issues/18)
 
 ## Context
@@ -70,6 +70,21 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
     pairs, written only when present). The core draws it through `dr_brush_u16_shaped`
     (`brush_coverage`, THE SHAPED STROKE), the byte commit and the canvas preview each dab at its
     own tip (`tip(forDab:)`). A stroke without a tip shape keeps its bytes at every stage.
+- **The rule (slice 3, texture).** `texture: {pattern, scale, depth}` (scale 0.01–10, depth 0–1).
+  `t(x, y)` at a canvas pixel is `blend::lum` of the tile's straight RGB times its alpha, read by
+  `pattern_tile`'s one sampler over `tile_level(tile, scale, 0)` with the tile's origin at the
+  canvas origin, clamped — the read `style_texture` makes; only the RGBA8 raster, never native
+  samples, so one texture reads the same at every depth and mode. Each written pixel's dab
+  coverage becomes `c · d[3] · (1 − depth · (1 − t))` before the accumulation and the one rounding
+  (`brush_texture`, `brush_coverage` THE TEXTURED STROKE); depth 0 or an opaque white tile gives
+  the plain stroke bit for bit. The texture is not a dab property: the kernel never sees it, the
+  stroke carries it (`NativeBrushStroke.texture`; the canonical `texture`, the tile itself, written
+  only when present), and every rasterization of the stroke takes it: `dr_brush_u16_textured` for
+  the typed jobs and coverage targets, `dr_brush_overlay_rgba8_textured` for the byte commit, which
+  routes a textured stroke through the core as the Pencil's is (`BytePaintRasterizer.pixels`). A
+  library pattern is embedded as its tile when it is chosen, so no stroke, preset or step reads
+  the library later. The canvas preview draws each laid dab as the core's image of that dab over
+  its box, the box's origin as the texture's. A pixel or aliased request refuses a texture.
 - **Pressure and tilt in the walk.** Tilt (`NSEvent.tilt`) is read at every mouse-down and drag and
   carried through the stroke spline beside pressure (`StrokeVertex.tilt`), interpolated per stamp,
   so a dab's tilt is where the pen was at that dab. The MCP walk interpolates `tilts` the same way.
@@ -81,8 +96,9 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   replay maps each dab's centre as a position (per axis) and its diameter by
   `ActionGeometry.lengthFactor` (`√(sx · sy)`), as for any `native_stroke`: scatter moves with the
   canvas per axis and is not drawn again. A dab's angle and roundness are not lengths, so its
-  `shapes` replay as recorded at every mode. A Pencil step refuses remapping with the existing
-  sentence (`nativeStrokeRefusal`).
+  `shapes` replay as recorded at every mode, and a texture as recorded (tile, scale and the
+  canvas-origin anchor). A Pencil step refuses remapping with the existing sentence
+  (`nativeStrokeRefusal`).
 - **Tools.** The Brush, the Pencil and the Eraser (`EditorTool.takesBrushDynamics`), on the canvas
   and over MCP (`brush_stroke`, `eraser_stroke`, `quick_mask_stroke`). The Pencil snaps and
   de-duplicates each resolved dab as it does a plain one. The size-1 pixel brush takes none (MCP
@@ -91,48 +107,62 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   pressure with no dynamics, and `stroke_path` refuses the keys by name. The tip shape is the
   Brush's and the Eraser's (`EditorTool.takesTipShapeDynamics`; over MCP also `quick_mask_stroke`):
   the Pencil's tip is round, so its `dynamics.shape` is pinned nil, its sheet shows no Angle or
-  Roundness rows, and `aliased` refuses `angle` and `roundness` by name.
+  Roundness rows, and `aliased` refuses `angle` and `roundness` by name. The texture is the same
+  tools' (`EditorTool.takesTextureDynamics`): the Pencil's two-valued dab takes none, so its
+  `dynamics.texture` is pinned nil, its sheet shows no Texture rows and `aliased` refuses it.
 - **Options.** `PaintToolOptions.dynamics` (nil whenever every value is its default). The two
   pressure checkboxes stay the pressure on/off: a response's stored control is nil (follow the
   checkbox) or Pen Tilt; choosing Off or Pen Pressure in the sheet sets the checkbox, and ticking or
   clearing a checkbox leaves Pen Tilt. The Dynamics… sheet (`BrushDynamicsSheetController`): Size and
   Opacity (Control, Minimum, Jitter, Curve… over the shared curve editor), Scatter (Amount, Both
-  Axes, Count, Count Jitter), Angle (Control, Jitter) and Roundness (Control, Minimum, Jitter) for
-  the Brush and the Eraser, Reset. Tool options only: no undo step, no Action, exempt from agent
-  parity as every tool option is (a call passes `dynamics` on the stroke).
+  Axes, Count, Count Jitter), Angle (Control, Jitter), Roundness (Control, Minimum, Jitter) and
+  Texture (None, the built-ins and the library; Scale and Depth in percent) for the Brush and the
+  Eraser, Reset. A texture at depth 0 is stored as none. Tool options only: no undo step, no
+  Action, exempt from agent parity as every tool option is (a call passes `dynamics` on the stroke).
 - **Presets.** A user preset may hold `dynamics` (file `schema_version` 2; a preset without them is
   still written at 1 and keeps its bytes; the `.doctoredbrushes` container is unchanged; an older
   build lists a version-2 file as one `unknown_version` row). Choosing a preset on a dynamics tool
   sets or clears the dynamics. The Brush's, Pencil's and Eraser's popups list every preset and match
   on the dynamics too; every other tool's popup lists only the presets without dynamics, so no two
   listed presets on any tool hold the same values and the `,` `.` keys reach every one. The Pencil's
-  popup and keys list only the presets whose dynamics hold no tip shape, for the same reason. A
-  save or an import that repeats another preset's six tip values and dynamics is refused by that
-  preset's name.
-- **MCP.** `dynamics` (`{seed, size, opacity, scatter, angle, roundness}`), `tilts` (one `[x, y]`
+  popup and keys list only the presets whose dynamics hold no tip shape and no texture, for the
+  same reason. A save or an import that repeats another preset's six tip values and dynamics is
+  refused by that preset's name. A texture is saved as its tile (a library `{name}` resolved at the
+  save), so a library file reaches 1.5 MiB; a preset file holds up to 96 MiB and an export past it
+  refuses by name; rows echo the pattern without pixels.
+- **MCP.** `dynamics` (`{seed, size, opacity, scatter, angle, roundness, texture}`; `texture.pattern`
+  `{preset}`, a library `{name}` or a custom tile), `tilts` (one `[x, y]`
   per point, each −1…1) and `rotations` (one per point, −360…360 degrees, counter-clockwise) on the
   three tools; `dynamics` generates version-1 dabs whether or not `stroke_version` is given.
   Refused by name: any of the keys on any other tool, with `native_stroke`, `tilts` or `rotations`
   without `dynamics` or of the wrong length or range, a response's `control` together with
-  `pressure_size` / `pressure_opacity`, a size of 1, `angle` or `roundness` with `aliased`, and a
-  `native_stroke` holding `shapes` on any tool outside the three. `save_brush_preset` takes
-  `dynamics` (no seed); `list_brush_presets` rows carry it.
+  `pressure_size` / `pressure_opacity`, a size of 1, `angle`, `roundness` or `texture` with
+  `aliased`, a `{name}` the library lacks, a texture's scale, depth or tile out of range, and a
+  `native_stroke` holding `shapes` or `texture` on any tool outside the three (or a `texture`
+  naming a library pattern). `save_brush_preset` takes `dynamics` (no seed); `list_brush_presets`
+  rows carry it.
 - **Checks.** Core: `make t F=brush_dynamics`, against an oracle written from this rule (its own
   SplitMix64, natural cubic and angle wrap), and `make t F=brush_shaped_coverage` (shapes equal to
   the request's give `dr_brush_u16` bit for bit; mixed shapes against the test's own rotated-ellipse
-  oracle). App: `scripts/verify_brush_dynamics.py` on owned Debug instances (seeded repeatability,
+  oracle), `make t F=brush_texture` (the texture against the test's own tile lookup at scales 1, 2
+  and 0.5; depth 0 and a white tile equal the plain stroke bit for bit; a sub-canvas at its origin
+  is the crop). App: `scripts/verify_brush_dynamics.py` on owned Debug instances (seeded repeatability,
   the curve, scatter's band, replay of a recorded step under absolute and relative geometry, the
   tip shape against the plain stroke at the resolved angle and roundness, the heading at rest and
-  on an L path's airbrush ticks, the refusals, presets) and the jobs-probe case `brush dynamics`
+  on an L path's airbrush ticks, the refusals, presets, D11's texture oracle at 8, 16 and 32 bits,
+  the modes, targets, library names and replays) and the jobs-probe case `brush dynamics`
   (tilt and rotation through synthesized tablet events, the options and presets pinning, the walk's
-  per-stamp tilt and rotation, a shaped canvas stroke, the Pencil's shape pinning).
+  per-stamp tilt and rotation, a shaped canvas stroke, the Pencil's shape pinning, the texture's
+  pinning, sheet rows and a textured canvas commit equal to its recorded step's replay).
 - **Hand checks for the owner** (a real pen, the screen's focus): the Dynamics… sheet's layout with
   the Angle and Roundness rows, and its curve popover; a pen's pressure through a bent curve; tilt
   on size; heavy scatter and a shaped stroke looking the same live and at mouse-up; the Preset popup
   on Dodge not listing a preset with dynamics; pen rotation's sign (a barrel-rotation pen turned
   clockwise should turn a flat tip clockwise; `NSEvent.rotation` is read as counter-clockwise) and
   the tilt direction's (`NSEvent.tilt` read as y-up), with the view rotated and not; a
-  direction-angled flat tip's first dab lying at the tip's own angle.
+  direction-angled flat tip's first dab lying at the tip's own angle; the sheet with the Texture
+  rows on a 13-inch display, a textured drag looking the same live and at mouse-up at 8 and 16
+  bits, and drag responsiveness with a large textured brush.
 
 ## Proposed: the open slices (for the batch that builds each)
 - **Colour dynamics.** Per dab, the ink a seeded mix toward the background colour plus hue,
@@ -141,10 +171,6 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   pixels only (a mask, plane, channel and the Quick Mask are coverage and refuse it by name); Normal
   mode only until the blend path takes per-pixel ink; the Eraser has none; Grayscale and Duotone take
   the mix and brightness only; CMYK, Indexed and Bitmap refuse by name.
-- **Texture.** A library pattern tile (resolved into the step, as Pattern fill is), anchored at the
-  canvas origin and scaled, multiplies each dab's coverage through Depth:
-  `c' = c · (1 − depth · (1 − t))`. Coverage only, so every mode and target takes it; the Pencil
-  refuses.
 - **Dual brush.** A second tip walks the same path with its own spacing, scatter and stream; its
   stroke coverage multiplies the first's before the one quantization. The canonical stroke carries
   the second dab list. Coverage only, so every mode and target takes it.

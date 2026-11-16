@@ -4,7 +4,9 @@ import AppKit
 /// size and opacity responses (Control, Minimum, Jitter and a Curve… popover over the
 /// shared `CurveEditorView`), Scatter (Amount, Both Axes, Count, Count Jitter) and, for the
 /// Brush and the Eraser (`shapes`), the tip shape's Angle (Control, Jitter) and Roundness
-/// (Control, Minimum, Jitter). It edits a copy of the tool's options; Apply hands the
+/// (Control, Minimum, Jitter) and the Texture (a pattern popup of None, the built-ins and the
+/// library, which embeds the chosen tile; Scale and Depth in percent). It edits a copy of the
+/// tool's options; Apply hands the
 /// result to `onApply` (`EditorViewController.showBrushDynamicsSheet`). Tool options only:
 /// no undo step, no Action. Percent fields show the model's 0…1 values (scatter:
 /// diameters) × 100.
@@ -33,6 +35,12 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
     private let roundnessControl = NSPopUpButton()
     private let roundnessMinimum = NSTextField(string: "")
     private let roundnessJitter = NSTextField(string: "")
+    private let texture = NSPopUpButton()
+    private let textureScale = NSTextField(string: "")
+    private let textureDepth = NSTextField(string: "")
+    /// The Texture popup's patterns by row: nil (None), the options' own when no picker row
+    /// holds it, then every built-in and library pattern.
+    private var texturePatterns: [PatternRef?] = []
     private var popover: NSPopover?
 
     init(options: PaintToolOptions, shapes: Bool, onApply: @escaping (PaintToolOptions) -> Void) {
@@ -59,7 +67,9 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
             (count, "brush-dynamics-count"), (countJitter, "brush-dynamics-count-jitter"),
             (angleJitter, "brush-dynamics-angle-jitter"),
             (roundnessMinimum, "brush-dynamics-roundness-minimum"),
-            (roundnessJitter, "brush-dynamics-roundness-jitter")]
+            (roundnessJitter, "brush-dynamics-roundness-jitter"),
+            (textureScale, "brush-dynamics-texture-scale"),
+            (textureDepth, "brush-dynamics-texture-depth")]
         for (field, id) in fields {
             DSField.style(field)
             field.widthAnchor.constraint(equalToConstant: 56).isActive = true
@@ -69,6 +79,7 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
         opacityControl.setAccessibilityIdentifier("brush-dynamics-opacity-control")
         angleControl.setAccessibilityIdentifier("brush-dynamics-angle-control")
         roundnessControl.setAccessibilityIdentifier("brush-dynamics-roundness-control")
+        texture.setAccessibilityIdentifier("brush-dynamics-texture")
         let sizeCurve = curveButton(#selector(editSizeCurve(_:)))
         let opacityCurve = curveButton(#selector(editOpacityCurve(_:)))
         func row(_ views: NSView...) -> NSStackView {
@@ -92,6 +103,9 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
                 [fieldLabel("Roundness:"), row(roundnessControl)],
                 [fieldLabel("Minimum (%):"),
                  row(roundnessMinimum, fieldLabel("Jitter (%):"), roundnessJitter)],
+                // The texture, which the Pencil's two-valued dab does not take either.
+                [fieldLabel("Texture:"), row(texture)],
+                [fieldLabel("Scale (%):"), row(textureScale, fieldLabel("Depth (%):"), textureDepth)],
             ]
         }
         let grid = NSGridView(views: rows)
@@ -109,7 +123,9 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
                 + "minimum; jitter shrinks each dab at random, and scatter spreads the dabs "
                 + "across the stroke, in percent of the brush size."
                 + (shapes ? " The tip's angle can follow the pen's rotation, its tilt or the "
-                    + "direction of travel, and its roundness pressure or tilt." : "")
+                    + "direction of travel, and its roundness pressure or tilt. A texture holds "
+                    + "paint back where its pattern is dark, by up to Depth, on the canvas's own "
+                    + "grid at Scale." : "")
                 + " A mouse reads pressure, tilt and rotation as off. Each stroke draws a new "
                 + "random sequence and records the dabs it laid, so a replay paints the same "
                 + "pixels.",
@@ -149,6 +165,30 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
         roundnessControl.selectItem(at: index(shape.roundnessControl))
         roundnessMinimum.stringValue = percent(shape.roundnessMinimum)
         roundnessJitter.stringValue = percent(shape.roundnessJitter)
+        loadTextureRows(d.texture?.pattern)
+        texture.selectItem(at: texturePatterns.firstIndex { $0 == d.texture?.pattern } ?? 0)
+        textureScale.stringValue = percent(d.texture?.scale ?? 1)
+        textureDepth.stringValue = percent(d.texture?.depth ?? 1)
+    }
+
+    /// The Texture popup's rows (`texturePatterns`): None, `current` when no picker row holds
+    /// it (a tile an MCP preset brought), then the built-ins and the library, each a library
+    /// pattern's tile without its native samples (the core reads the raster alone). Items are
+    /// added to the menu directly, so two rows of one name both stay.
+    private func loadTextureRows(_ current: PatternRef?) {
+        let choices = PatternChoice.all()
+        var rows: [(String, NSImage?, PatternRef?)] = [("None", nil, nil)]
+        if let current, !choices.contains(where: { $0.ref.withoutNative == current }) {
+            rows.append((current.name ?? current.preset ?? "Custom", nil, current))
+        }
+        for choice in choices { rows.append((choice.name, choice.image, choice.ref.withoutNative)) }
+        texturePatterns = rows.map { $0.2 }
+        texture.removeAllItems()
+        for (title, image, _) in rows {
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            item.image = image
+            texture.menu?.addItem(item)
+        }
     }
 
     /// `options` from the controls, each value clamped to its range.
@@ -171,6 +211,15 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
                 angleJitter: unit(angleJitter),
                 roundnessControl: Self.controls[max(roundnessControl.indexOfSelectedItem, 0)].0,
                 roundnessMinimum: unit(roundnessMinimum), roundnessJitter: unit(roundnessJitter))
+            let row = texture.indexOfSelectedItem
+            let pattern = texturePatterns.indices.contains(row) ? texturePatterns[row] : nil
+            d.texture = pattern.map {
+                BrushDynamics.Texture(
+                    pattern: $0,
+                    scale: min(max(textureScale.doubleValue / 100, BrushDynamics.Texture.scaleRange.lowerBound),
+                               BrushDynamics.Texture.scaleRange.upperBound),
+                    depth: unit(textureDepth))
+            }
         }
         options.dynamics = d
         options.sizeControl = Self.controls[max(sizeControl.indexOfSelectedItem, 0)].0

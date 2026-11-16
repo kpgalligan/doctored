@@ -8,7 +8,7 @@ use std::ffi::{c_char, CString};
 use std::ptr;
 
 #[allow(clippy::too_many_arguments)]
-unsafe fn request<'a>(
+pub(crate) unsafe fn request<'a>(
     width: u32,
     height: u32,
     text: *const c_char,

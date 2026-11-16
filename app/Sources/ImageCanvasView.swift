@@ -466,6 +466,8 @@ final class ImageCanvasView: NSView {
     var strokeByteSelection: CanvasSelection?
     var brushAirbrush = false
     private var strokeSoftDab: CGImage?
+    /// A textured stroke's dab-image ink (`ImageCanvasView+BrushTexture.swift`).
+    var strokeTextureInk: [UInt8]?
     private var cloneDabMask: CGImage?
     /// Latched per stroke with the dab images: an options edit mid-drag
     /// cannot bend a live stroke.
@@ -2591,6 +2593,7 @@ final class ImageCanvasView: NSView {
                 strokeSoftDab = SoftBrush.dab(
                     color: color.withAlphaComponent(strokeTip.flow),
                     diameter: brushSize, hardness: brushHardness, space: documentColorSpace)
+                strokeTextureInk = textureInk(color)
             }
         }
         strokeActive = true
@@ -2874,6 +2877,7 @@ final class ImageCanvasView: NSView {
         strokeLastPoint = nil
         cloneSnapshot = nil
         strokeSoftDab = nil
+        strokeTextureInk = nil
         cloneDabMask = nil
         if strokeOnQuickMask {
             let stroke: QuickMaskStroke?
@@ -2975,6 +2979,7 @@ final class ImageCanvasView: NSView {
         strokeSpline = StrokeSpline()
         cloneSnapshot = nil
         strokeSoftDab = nil
+        strokeTextureInk = nil
         cloneDabMask = nil
         guard strokeActive else { return }
         overlayContext?.restoreGState()

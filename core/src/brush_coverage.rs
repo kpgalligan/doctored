@@ -120,6 +120,17 @@
 //! argument above holds per dab, and `bounds`, `dab_work` and `band_bound` read the diameter
 //! only, so `plan` stays an upper bound for any shape. Pixel and aliased requests refuse shapes:
 //! a snapped square or a Pencil dab has no shape to vary.
+//!
+//! THE TEXTURED STROKE (brush dynamics' texture, `brush_texture`). `rasterize_textured` is the
+//! same one loop with an optional texture and the canvas coordinate of the output's pixel (0, 0):
+//! each written pixel's coverage `c · d[3]` is multiplied by the texture's factor at its canvas
+//! pixel, `1 − depth·(1 − t)`, before the accumulation, which with the quantization is
+//! unchanged. Only written pixels multiply (INTERIOR's 1, the band's and every unclassified
+//! `evaluate`); EXTERIOR still skips, since `0 · factor` writes nothing either. `rasterize_shaped`
+//! is the `None` call, which executes no multiply, so its bits are unchanged. The factor is one
+//! bilinear read per written pixel, inside the unit `plan` already charges for it, so `plan` is
+//! unchanged. Pixel and aliased requests refuse a texture (`brush_texture::TEXTURED_TIP_REFUSAL`).
+use crate::brush_texture::{BrushTexture, TEXTURED_TIP_REFUSAL};
 use crate::job_control::JobContext;
 use crate::precision_image::{pixel_count, reserved_vec, BOOKKEEPING_BYTES};
 use serde::Deserialize;
@@ -311,9 +322,26 @@ impl BrushRequest {
         shapes: Option<&[f64]>,
         job: JobContext<'_>,
     ) -> Result<Vec<u16>, String> {
+        self.rasterize_textured(dimensions, dabs, shapes, None, job)
+    }
+    /// `rasterize_shaped` with an optional texture and the canvas coordinate
+    /// of the output's pixel (0, 0): output pixel (x, y) reads the texture's
+    /// factor at canvas (x + ox, y + oy) (module doc, THE TEXTURED STROKE).
+    /// Refuses a texture on a pixel or aliased request.
+    pub(crate) fn rasterize_textured(
+        &self,
+        dimensions: (u32, u32),
+        dabs: &[f64],
+        shapes: Option<&[f64]>,
+        texture: Option<(&BrushTexture, (i64, i64))>,
+        job: JobContext<'_>,
+    ) -> Result<Vec<u16>, String> {
         let plan = self.plan(dimensions, dabs)?;
         if let Some(shapes) = shapes {
             self.check_shapes(dabs, shapes)?;
+        }
+        if texture.is_some() && (self.pixel || self.aliased) {
+            return Err(TEXTURED_TIP_REFUSAL.into());
         }
         let [fx0, fy0, fx1, fy1] = footprint(dimensions, dabs).unwrap_or([0; 4]);
         let fw = fx1 - fx0;
@@ -342,7 +370,7 @@ impl BrushRequest {
                 job.check()?;
                 for x in x0..x1 {
                     job.every(x)?;
-                    let coverage = if !classified {
+                    let mut coverage = if !classified {
                         self.evaluate(&tip, x, y)
                     } else {
                         match tip.classify(x, y) {
@@ -351,6 +379,10 @@ impl BrushRequest {
                             Class::Band => self.evaluate(&tip, x, y),
                         }
                     } * d[3];
+                    if let Some((texture, (ox, oy))) = texture {
+                        coverage *= texture
+                            .factor((x as i64).saturating_add(ox), (y as i64).saturating_add(oy));
+                    }
                     let old = &mut field[(y - fy0) * fw + (x - fx0)];
                     *old += coverage * (1. - *old);
                 }

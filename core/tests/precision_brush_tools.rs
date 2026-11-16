@@ -3,6 +3,7 @@ use crate::common::classic_ramp;
 use crate::native_blend_oracle as hsl;
 use crate::native_scalar as native;
 use doctored_core::ffi_brush::*;
+use doctored_core::ffi_brush_texture::*;
 use doctored_core::ffi_precision_edit::*;
 use doctored_core::icc::IccProfile;
 use doctored_core::job_control::DrJobControl;
@@ -625,6 +626,45 @@ fn brush_refusals_and_new_exports_null_sweep_leave_output_untouched() {
             ptr::null(),
             0,
             ptr::null(),
+            ptr::null_mut(),
+            0,
+            LIMIT,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        ));
+        assert!(dr_brush_texture_create(ptr::null(), 0, 0, 1., 1., ptr::null_mut()).is_null());
+        dr_brush_texture_free(ptr::null_mut());
+        assert!(!dr_brush_u16_textured(
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            0,
+            ptr::null_mut(),
+            0,
+            LIMIT,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        ));
+        assert!(!dr_brush_overlay_rgba8_textured(
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
             ptr::null_mut(),
             0,
             LIMIT,
