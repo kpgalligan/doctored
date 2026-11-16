@@ -134,8 +134,11 @@ pub struct Layer {
     /// copies and serializes this JSON blob but never interprets it — with
     /// ONE exception: meta that parses as an [`Adjustment`] description
     /// (`{"type":"adjust", ...}`, see `adjust`) makes the compositor treat
-    /// the layer as an adjustment layer.
-    pub meta: Option<String>,
+    /// the layer as an adjustment layer. Shared (`Arc<str>`), so every
+    /// document state that keeps a layer's description holds one copy: an
+    /// edit clones the layer list, and a Color Lookup layer's cube is about
+    /// 0.6 MB (13B-5).
+    pub meta: Option<std::sync::Arc<str>>,
     /// Clipping-mask flag (PSD semantics): a clipped entry is confined
     /// to the alpha footprint of the first UNCLIPPED SIBLING beneath it —
     /// WITHIN ITS LEVEL — which is its base. Structure is purely positional:

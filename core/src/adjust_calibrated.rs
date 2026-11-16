@@ -386,7 +386,7 @@ pub(crate) fn parse_scratch(layers: &[Layer]) -> Option<u64> {
     let largest = layers
         .iter()
         .filter(|l| l.kind != LayerKind::Group)
-        .filter_map(|l| l.meta.as_ref().map(String::len))
+        .filter_map(|l| l.meta.as_ref().map(|m| m.len()))
         .max()
         .unwrap_or(0);
     if largest > crate::drdc::MAX_DRDC_META_LEN as usize {

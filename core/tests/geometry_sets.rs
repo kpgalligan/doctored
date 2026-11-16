@@ -114,7 +114,8 @@ fn byte_topology() -> DrDocument {
     doc.layers[7].meta = Some(
         json!({"type":"adjust","evaluation":"precision_v1",
         "op":"invert","params":{}})
-        .to_string(),
+        .to_string()
+        .into(),
     );
     doc.layers[7].offset = (0, 0);
     doc.layers[7].pixels = LayerRaster::new(RgbaImage::new(8, 6));

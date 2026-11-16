@@ -184,7 +184,7 @@ fn with_adjustment_at(
         .adding_image_layer(doc.layers.len() - 1, RgbaImage::new(pixels.0, pixels.1), op)
         .expect("add layer");
     let top = out.layers.len() - 1;
-    out.layers[top].meta = Some(adjust_meta(op, params));
+    out.layers[top].meta = Some(adjust_meta(op, params).into());
     out.layers[top].blend = blend;
     out.layers[top].opacity = 0.8;
     out.layers[top].offset = offset;
@@ -606,10 +606,13 @@ fn styled_and_group_members_and_knockout_bases_are_admitted() {
     // The unit's guided Shadows/Highlights member under the knockout
     // (routed) base is staged since 13A-4b-ii-b-2 and equals the reference.
     let mut guided = knockout.clone();
-    guided.layers[3].meta = Some(adjust_meta(
-        "shadows_highlights",
-        "{\"shadows\":{\"amount\":0.6,\"tone\":0.4},\"radius\":12}",
-    ));
+    guided.layers[3].meta = Some(
+        adjust_meta(
+            "shadows_highlights",
+            "{\"shadows\":{\"amount\":0.6,\"tone\":0.4},\"radius\":12}",
+        )
+        .into(),
+    );
     assert_regions_match(&guided, "a guided member under a knockout base");
     // Since 13A-3a a member group is admitted (always isolated) and equals
     // the reference, and so does a hidden empty group member.

@@ -734,7 +734,7 @@ fn every_refusal_is_named() {
         );
     }
     let mut described = byte_doc();
-    described.layers[0].meta = Some(json!({"type":"text"}).to_string());
+    described.layers[0].meta = Some(json!({"type":"text"}).to_string().into());
     assert_eq!(
         refusal(&TestDoc::Byte(described), request.clone()),
         "Rasterize layer 0 before Perspective Warp"

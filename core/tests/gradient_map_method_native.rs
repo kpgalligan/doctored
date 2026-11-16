@@ -60,7 +60,9 @@ fn byte_doc(classic: bool) -> DrDocument {
         .adding_image_layer(0, RgbaImage::new(8, 4), "Gradient Map")
         .expect("add layer");
     doc.layers[1].meta = Some(
-        json!({"type": "adjust", "op": "gradient_map", "params": rgb_params(classic)}).to_string(),
+        json!({"type": "adjust", "op": "gradient_map", "params": rgb_params(classic)})
+            .to_string()
+            .into(),
     );
     doc
 }
@@ -198,7 +200,7 @@ fn a_perceptual_map_writes_word_111_and_round_trips_at_both_depths() {
     params["method"] = json!("perceptual");
     let meta = json!({"type": "adjust", "op": "gradient_map", "params": params}).to_string();
     let mut doc = byte_doc(true);
-    doc.layers[1].meta = Some(meta);
+    doc.layers[1].meta = Some(meta.into());
     let bytes = byte_save(&dir, "perceptual.rz", &doc);
     assert_eq!(word(&bytes, 4), 45);
     assert_eq!(word(&bytes, 8), WORD, "the first word inside 45");

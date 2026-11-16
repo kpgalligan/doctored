@@ -1688,7 +1688,7 @@ pub unsafe extern "C" fn dr_doc_with_layer_meta(
         doc_op(doc, move |d| {
             d.layers.get(idx)?;
             let mut out = d.clone();
-            out.layers[idx].meta = value;
+            out.layers[idx].meta = value.map(Into::into);
             Some(out)
         })
     }

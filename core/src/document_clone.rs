@@ -1,6 +1,8 @@
 //! Borrowed planning and owned-clone estimates for the byte document model.
-//! Pixel/profile/style/mask/source allocations are Arc-shared; record vectors,
-//! layer names/descriptions and channel names are copied by DrDocument::clone.
+//! Pixel/profile/style/mask/source allocations and (since 13B-5) layer
+//! descriptions are Arc-shared; record vectors, layer names and channel names
+//! are copied by DrDocument::clone. `cloned_structure_bytes` still charges the
+//! descriptions' length, an over-estimate the plans built on it keep.
 //!
 //! `document_clone.rs` supplies byte deep-copy estimates and bounded temporary capacity views;
 //! source plans and final edits compare weighted future storage against the original document.
@@ -69,7 +71,7 @@ impl DrDocument {
                     mask: l.mask.clone(),
                     mask_enabled: l.mask_enabled,
                     mask_properties: l.mask_properties.clone(),
-                    meta: l.meta.as_ref().map(|_| String::new()),
+                    meta: l.meta.as_ref().map(|_| "".into()),
                     clipped: l.clipped,
                     style: l.style.clone(),
                     kind: l.kind,
@@ -98,9 +100,9 @@ impl DrDocument {
     }
 }
 
-/// Copies only owned record/string storage. Pixel/profile/style/source and
-/// document metadata allocations remain Arc-shared exactly as ordinary Clone.
-/// Chunked UTF-8 copies bound cancellation even for 16 MiB layer metadata.
+/// Copies only owned record/string storage. Pixel/profile/style/source,
+/// layer-description and document metadata allocations remain Arc-shared
+/// exactly as ordinary Clone. Names are copied in chunked UTF-8 runs.
 impl DrDocument {
     pub(crate) fn clone_with_job(&self, job: JobContext<'_>) -> Result<Self, String> {
         let total = self.cloned_structure_bytes().max(1);
@@ -126,7 +128,7 @@ impl DrDocument {
             layers.push(Layer {
                 id: layer.id,
                 name: string(&layer.name)?,
-                meta: layer.meta.as_deref().map(&mut string).transpose()?,
+                meta: layer.meta.clone(),
                 retained_source: layer.retained_source.clone(),
                 warp: layer.warp.clone(),
                 generated: layer.generated.clone(),

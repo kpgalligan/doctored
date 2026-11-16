@@ -774,7 +774,7 @@ fn a_retained_source_a_group_and_an_adjustment_refuse_as_the_layer_path() {
     let mut adjusted = byte_doc(CANVAS, &plane)
         .adding_image_layer(0, RgbaImage::new(CANVAS.0, CANVAS.1), "Fx")
         .unwrap();
-    adjusted.layers[1].meta = Some(adjustment_meta());
+    adjusted.layers[1].meta = Some(adjustment_meta().into());
     let mut adjusted_text = moved("alpha", 1, 0, None);
     adjusted_text["layer"] = json!(1);
     let err = edit8(&adjusted, &adjusted_text.to_string(), &cov, None)

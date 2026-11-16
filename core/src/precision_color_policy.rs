@@ -203,7 +203,7 @@ impl PrecisionDocument {
                 continue;
             };
             let description = state.description().to_string();
-            let Some((op, evaluation)) = adjustment_op(Some(&description)) else {
+            let Some((op, evaluation)) = adjustment_op(Some(description.as_str())) else {
                 continue;
             };
             report.adjustments.push(self.adjustment_outcome(
@@ -251,7 +251,7 @@ impl PrecisionDocument {
                 continue;
             };
             let description = state.description().to_string();
-            let Some((op, evaluation)) = adjustment_op(Some(&description)) else {
+            let Some((op, evaluation)) = adjustment_op(Some(description.as_str())) else {
                 continue;
             };
             if keep_reason(layer, &op, evaluation.as_deref(), options, profile).is_none() {

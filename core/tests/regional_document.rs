@@ -176,7 +176,7 @@ fn with_adjustment(doc: &DrDocument, op: &str, params: &str, blend: BlendMode) -
         .adding_image_layer(doc.layers.len() - 1, RgbaImage::new(1, 1), op)
         .expect("add layer");
     let top = out.layers.len() - 1;
-    out.layers[top].meta = Some(adjust_meta(op, params));
+    out.layers[top].meta = Some(adjust_meta(op, params).into());
     out.layers[top].blend = blend;
     out.layers[top].opacity = 0.8;
     out

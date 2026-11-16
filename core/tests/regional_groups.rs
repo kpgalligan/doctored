@@ -200,7 +200,7 @@ fn with_adjustment(doc: &DrDocument, op: &str, params: &str) -> DrDocument {
         .adding_image_layer(doc.layers.len() - 1, RgbaImage::new(1, 1), op)
         .expect("add layer");
     let top = out.layers.len() - 1;
-    out.layers[top].meta = Some(adjust_meta(op, params));
+    out.layers[top].meta = Some(adjust_meta(op, params).into());
     out
 }
 
@@ -816,10 +816,13 @@ fn guided_children_knockout_children_and_styled_groups_are_admitted() {
     let ordered = styled(&ordered, 6, "{\"knockout\":\"deep\"}");
     assert_regions_match(&ordered, "a knockout member of the group");
     let mut guided_child = ordered.clone();
-    guided_child.layers[3].meta = Some(adjust_meta(
-        "shadows_highlights",
-        "{\"shadows\":{\"amount\":0.6,\"tone\":0.4},\"radius\":12}",
-    ));
+    guided_child.layers[3].meta = Some(
+        adjust_meta(
+            "shadows_highlights",
+            "{\"shadows\":{\"amount\":0.6,\"tone\":0.4},\"radius\":12}",
+        )
+        .into(),
+    );
     assert_regions_match(&guided_child, "a guided child of an isolated clip base");
 }
 

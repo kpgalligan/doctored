@@ -218,7 +218,7 @@ fn with_guide(doc: &DrDocument, radius: f32, at: (i32, i32)) -> DrDocument {
         )
         .expect("add layer");
     let top = out.layers.len() - 1;
-    out.layers[top].meta = Some(adjust_meta("shadows_highlights", &sh_params(radius)));
+    out.layers[top].meta = Some(adjust_meta("shadows_highlights", &sh_params(radius)).into());
     out.layers[top].offset = at;
     out.layers[top].opacity = 0.8;
     out

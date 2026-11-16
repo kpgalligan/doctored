@@ -71,7 +71,7 @@ fn large_unrelated_metadata_is_borrowed_by_plans_and_charged_before_owned_edits(
         .unwrap()
         .unwrap();
     let metadata_bytes = 8 * 1024 * 1024;
-    doc.layers[0].meta = Some("x".repeat(metadata_bytes));
+    doc.layers[0].meta = Some("x".repeat(metadata_bytes).into());
     doc.layers[0].name = "Long layer name".repeat(128);
     for request in [
         json!({"op":"replace","layer":1,"revision_id":"next"}),

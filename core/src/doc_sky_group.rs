@@ -232,7 +232,7 @@ impl DrDocument {
         };
         let adjustment = |name: &str, points, opacity: f32, blend: BlendMode| {
             let mut entry = Layer::from_raster(LayerRaster::filled(dims.0, dims.1, [0; 4]), name);
-            entry.meta = Some(curves_description(points));
+            entry.meta = Some(curves_description(points).into());
             entry.opacity = opacity;
             entry.blend = blend;
             masked(entry, white.clone())

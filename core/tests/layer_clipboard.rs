@@ -125,7 +125,11 @@ fn source8() -> DrDocument {
     doc.layers[2].clipped = true;
     doc.layers[2].link = 1;
     doc.layers[3].opacity = 0.8;
-    doc.layers[4].meta = Some(json!({"type":"adjust","op":"invert","params":{}}).to_string());
+    doc.layers[4].meta = Some(
+        json!({"type":"adjust","op":"invert","params":{}})
+            .to_string()
+            .into(),
+    );
     let style = LayerStyle::from_json(
         r##"{"effects":[{"type":"drop_shadow","use_global_light":true,"distance":2,"size":1,
             "spread":0,"opacity":0.5,"color":"#000000"}]}"##,

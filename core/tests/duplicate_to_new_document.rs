@@ -125,8 +125,16 @@ fn fixture8_in(evaluation: Evaluation) -> DrDocument {
     doc.layers[1].link = 1;
     doc.layers[5].link = 2;
     doc.layers[6].link = 2;
-    doc.layers[6].meta = Some(json!({"type":"text","version":1,"payload":"hello"}).to_string());
-    doc.layers[7].meta = Some(json!({"type":"adjust","op":"invert","params":{}}).to_string());
+    doc.layers[6].meta = Some(
+        json!({"type":"text","version":1,"payload":"hello"})
+            .to_string()
+            .into(),
+    );
+    doc.layers[7].meta = Some(
+        json!({"type":"adjust","op":"invert","params":{}})
+            .to_string()
+            .into(),
+    );
 
     doc.profile = IccProfile::display_p3();
     let mut doc = match evaluation {

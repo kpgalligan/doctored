@@ -84,7 +84,7 @@ fn chunk_origins_wide_rows_grouped_originals_and_record_strings_remain_exact() {
     let mut original = doc_of(5003, 3, |x, y| [x as u8, y as u8, 19]);
     let text = "a🧭界".repeat(30_000); // str boundaries cross a 64 KiB copy chunk.
     original.layers[0].name = "海🧭".repeat(6000);
-    original.layers[0].meta = Some(text.clone());
+    original.layers[0].meta = Some(text.clone().into());
     original.metadata.xmp = Some(Arc::from([7_u8; 1000]));
     original.channels.push(doctored_core::doc_channel::Channel {
         id: 77,
@@ -206,7 +206,7 @@ fn cancel_during_owned_record_metadata_copy_drops_partial_clone() {
             if i > 0 {
                 original.layers.push(original.layers[0].clone());
             }
-            original.layers[i].meta = Some("🧭".repeat(4 * 1024 * 1024));
+            original.layers[i].meta = Some("🧭".repeat(4 * 1024 * 1024).into());
         }
         original
     };
@@ -324,7 +324,7 @@ fn opaque_profile_large_hidden_json_is_forecast_before_parse_and_budget_refuses(
     use doctored_core::icc::IccProfile;
     let mut original = doc_of(1, 1, |_, _| [17, 73, 209]);
     let json = format!("[{}0]", "0,".repeat(2 * 1024 * 1024));
-    original.layers[0].meta = Some(json);
+    original.layers[0].meta = Some(json.into());
     let foreground = RgbaImage::from_pixel(1, 1, Rgba([17, 73, 209, 255]));
     let matrix = assemble(&original, &foreground, &[127]);
     let cheap = unsafe { dr_doc_refinement_cutout_render_scratch_bytes(&matrix, ptr::null_mut()) };

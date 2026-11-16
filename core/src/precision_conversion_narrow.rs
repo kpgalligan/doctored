@@ -365,7 +365,7 @@ impl PrecisionDocument {
                 walk.output = walk.output.saturating_add(area(dims) * 4);
                 walk.rasters.push(dims);
                 self.described_note(layer, 8, notes);
-                let meta = layer.description.as_deref().cloned();
+                let meta = layer.description.as_deref().map(|d| d.as_str().into());
                 (LayerKind::Raster, pixels, *offset, meta, layer.blend_mode)
             }
             Content::Adjustment(state) => {
@@ -398,7 +398,7 @@ impl PrecisionDocument {
                     Some(_) if dims != (1, 1) => LayerRaster::filled(dims.0, dims.1, [0; 4]),
                     _ => unit_pixels(),
                 };
-                let meta = Some(description.to_string());
+                let meta = Some(description.into());
                 (LayerKind::Raster, pixels, (0, 0), meta, layer.blend_mode)
             }
             Content::Group(_) | Content::PassThrough(_) => {

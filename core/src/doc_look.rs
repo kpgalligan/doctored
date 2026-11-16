@@ -25,7 +25,7 @@ pub(crate) fn rebake_layer_meta(layer: &mut Layer, profile: &IccProfile) -> Resu
         return Ok(());
     };
     if let Some(next) = rebake_meta(meta, profile)? {
-        layer.meta = Some(next);
+        layer.meta = Some(next.into());
     }
     Ok(())
 }

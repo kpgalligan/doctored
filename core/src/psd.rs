@@ -242,7 +242,8 @@ pub(crate) fn import_layers(
                 let meta = records
                     .carried(i)
                     .map(|carried| carried.meta.clone())
-                    .or(described);
+                    .or(described)
+                    .map(Into::into);
                 let style = carried_style(&records.layer_styles[i]);
                 // A carried Pattern, Solid Color or Gradient Fill is its
                 // rendered canvas raster at the origin (a pattern in sRGB, the

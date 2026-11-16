@@ -256,7 +256,11 @@ fn byte_saved() -> DrDocument {
     doc = doc
         .adding_image_layer(3, RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 0])), "Tone")
         .unwrap();
-    doc.layers[4].meta = Some(json!({"type":"adjust","op":"invert","params":{}}).to_string());
+    doc.layers[4].meta = Some(
+        json!({"type":"adjust","op":"invert","params":{}})
+            .to_string()
+            .into(),
+    );
     let (doc, _, _, _) = doc.group_layers(&[2], "Group").expect("the group");
     byte_comp(&doc, &save_request())
         .expect("the comp saves")

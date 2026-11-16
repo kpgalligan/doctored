@@ -367,7 +367,7 @@ fn tiny_canvas_large_metadata_is_admitted_by_description_size_not_pixel_count() 
         ",0".repeat(512 * 1024)
     );
     let minimum = 64 * description.len() as u64;
-    doc.layers[0].meta = Some(description);
+    doc.layers[0].meta = Some(description.into());
     let plan = doc.promote_flattened_plan().unwrap();
     assert!(plan.scratch_bytes >= minimum + 4 * 1024 * 1024);
     let control = DrJobControl::default();
@@ -405,7 +405,7 @@ fn tiny_canvas_large_metadata_under_an_unmodelled_profile_renders_within_its_own
         ",0".repeat(512 * 1024)
     );
     let length = description.len() as u64;
-    doc.layers[0].meta = Some(description);
+    doc.layers[0].meta = Some(description.into());
     doc.profile = unmodelled();
     let plan = doc.promote_flattened_plan().unwrap();
     assert!(plan.scratch_bytes >= 64 * length + 256 * length + 4 * 1024 * 1024);

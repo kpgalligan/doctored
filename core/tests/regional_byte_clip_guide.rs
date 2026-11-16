@@ -234,7 +234,7 @@ fn with_guide(doc: &DrDocument, radius: f32, at: (i32, i32)) -> DrDocument {
         )
         .expect("add layer");
     let top = out.layers.len() - 1;
-    out.layers[top].meta = Some(adjust_meta("shadows_highlights", &sh_params(radius)));
+    out.layers[top].meta = Some(adjust_meta("shadows_highlights", &sh_params(radius)).into());
     out.layers[top].offset = at;
     out.layers[top].opacity = 0.8;
     out
@@ -925,7 +925,7 @@ fn a_guide_clipped_to_an_adjustment_base_contributes_nothing_and_is_staged() {
     let mut doc = backdrop(cw, ch)
         .adding_image_layer(0, RgbaImage::new(1, 1), "levels")
         .expect("add layer");
-    doc.layers[1].meta = Some(adjust_meta("levels", "{\"black\":0.1,\"gamma\":1.6}"));
+    doc.layers[1].meta = Some(adjust_meta("levels", "{\"black\":0.1,\"gamma\":1.6}").into());
     let doc = with_member_guide(&doc, 8.0, (20, 20));
     assert_regions_match(&doc, (0, 0, cw, ch), "a guide clipped to Levels");
     assert_root_plan(&doc, &[(2, 8.0, 2, &[])], 2, 1, (30, 20, 30, 20), 1);

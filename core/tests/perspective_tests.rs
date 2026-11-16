@@ -410,7 +410,7 @@ fn masks_alpha_meta_and_properties_ride_along() {
         .expect("set offset")
         .add_mask(1, MaskKind::FromSelection(&sel))
         .expect("mask");
-    doc.layers[1].meta = Some(META.to_string());
+    doc.layers[1].meta = Some(META.to_string().into());
 
     // A genuine trapezoid over the layer's rect.
     let quad = [3.0, 2.0, 13.0, 4.0, 11.0, 10.0, 4.0, 9.0];

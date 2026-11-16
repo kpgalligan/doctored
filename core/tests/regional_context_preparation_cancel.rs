@@ -211,7 +211,7 @@ fn with_levels(doc: &DrDocument, nonce: u64) -> DrDocument {
         .adding_image_layer(doc.layers.len() - 1, RgbaImage::new(W, H), "Levels")
         .expect("add layer");
     let top = out.layers.len() - 1;
-    out.layers[top].meta = Some(padded_meta(nonce));
+    out.layers[top].meta = Some(padded_meta(nonce).into());
     out
 }
 

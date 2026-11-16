@@ -515,7 +515,7 @@ impl DrDocument {
                     layer.opacity,
                     layer.visible,
                 )?;
-                record.description = layer.meta.as_ref().map(|m| Arc::new(m.clone()));
+                record.description = layer.meta.as_ref().map(|m| Arc::new(m.to_string()));
                 (record.with_blend_mode(layer.blend)?, true)
             }
         };

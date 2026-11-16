@@ -315,7 +315,7 @@ fn duplicating_layer_copies_mask_enabled_and_meta() {
     let sel = selection(4, 2, |x, y| (x + y * 4) as u8);
     let mut masked = doc.add_mask(1, MaskKind::FromSelection(&sel)).unwrap();
     masked = masked.set_mask_enabled(1, false).unwrap();
-    masked.layers[1].meta = Some("{\"type\":\"text\",\"string\":\"hi\"}".to_string());
+    masked.layers[1].meta = Some("{\"type\":\"text\",\"string\":\"hi\"}".to_string().into());
 
     let dup = masked.duplicating_layer(1).expect("duplicate");
     assert_eq!(dup.layers.len(), 3);
@@ -384,7 +384,11 @@ fn drdc_round_trips_masks_and_meta() {
     let sel = selection(5, 3, |x, y| (x * 17 + y * 3) as u8);
     let mut doc = doc.add_mask(1, MaskKind::FromSelection(&sel)).unwrap();
     doc = doc.set_mask_enabled(1, false).unwrap();
-    doc.layers[1].meta = Some("{\"type\":\"text\",\"string\":\"héllo 层\"}".to_string());
+    doc.layers[1].meta = Some(
+        "{\"type\":\"text\",\"string\":\"héllo 层\"}"
+            .to_string()
+            .into(),
+    );
     let doc = doc
         .adding_image_layer(1, solid(3, 3, [10, 200, 30, 128]), "Top2")
         .unwrap();
@@ -704,7 +708,7 @@ fn flattening_bakes_enabled_masks_and_drops_them() {
         .unwrap();
     let doc = doc.with_layer_visible(3, false).unwrap();
     let mut doc = doc.add_mask(3, MaskKind::RevealAll).unwrap();
-    doc.layers[3].meta = Some(META.to_string());
+    doc.layers[3].meta = Some(META.to_string().into());
     let projection = doc.flattened().unwrap();
 
     let flat = doc.flattening().unwrap();
@@ -1591,7 +1595,7 @@ fn clip_regression_doc() -> DrDocument {
         .unwrap()
         .with_layer_opacity(2, 0.5)
         .unwrap();
-    doc.layers[2].meta = Some(adjust_meta("invert", "{}"));
+    doc.layers[2].meta = Some(adjust_meta("invert", "{}").into());
     doc
 }
 
@@ -1794,7 +1798,7 @@ fn clipped_adjustment_layer_reaches_only_the_base_footprint() {
             .unwrap()
             .adding_image_layer(1, solid(1, 1, MAGENTA), "Adjust")
             .unwrap();
-        doc.layers[2].meta = Some(adjust_meta("invert", "{}"));
+        doc.layers[2].meta = Some(adjust_meta("invert", "{}").into());
         doc
     };
     let doc = build().with_layer_clipped(2, true).unwrap();

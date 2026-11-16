@@ -84,7 +84,7 @@ fn scene_over(image: RgbaImage, masked: bool) -> DrDocument {
     let mut doc = DrDocument::from_pixels(image)
         .adding_image_layer(0, RgbaImage::new(W, H), "Adj")
         .expect("add the adjustment layer");
-    doc.layers[1].meta = Some(adjust_meta("invert", "{}"));
+    doc.layers[1].meta = Some(adjust_meta("invert", "{}").into());
     if masked {
         doc.layers[1].mask = Some(mask_image());
         doc.layers[1].mask_enabled = true;
@@ -420,7 +420,7 @@ fn a_knockout_on_a_styled_adjustment_is_its_raster_twins() {
     let mut adjustment = below
         .adding_image_layer(1, RgbaImage::new(W, H), "Adj")
         .unwrap();
-    adjustment.layers[2].meta = Some(adjust_meta("invert", "{}"));
+    adjustment.layers[2].meta = Some(adjust_meta("invert", "{}").into());
     let twin = below
         .adding_image_layer(
             1,

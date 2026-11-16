@@ -170,7 +170,7 @@ fn with_adjustment(
         .adding_image_layer(doc.layers.len() - 1, RgbaImage::new(pixels.0, pixels.1), op)
         .expect("add layer");
     let top = out.layers.len() - 1;
-    out.layers[top].meta = Some(adjust_meta(op, params));
+    out.layers[top].meta = Some(adjust_meta(op, params).into());
     out.layers[top].blend = blend;
     out.layers[top].opacity = 0.8;
     out.layers[top].offset = offset;

@@ -60,7 +60,7 @@ fn byte_doc(params: &Value) -> DrDocument {
     let mut doc = DrDocument::from_pixels(base)
         .adding_image_layer(0, RgbaImage::new(6, 4), "Levels")
         .expect("add layer");
-    doc.layers[1].meta = Some(byte_meta(params));
+    doc.layers[1].meta = Some(byte_meta(params).into());
     doc
 }
 
@@ -85,7 +85,7 @@ fn byte_rz_writes_word_61_only_for_per_channel_or_output_levels() {
     assert_ne!(word(&plain, 1), 61, "a master-only document writes no word");
 
     let mut carried = plain_doc.clone();
-    carried.layers[1].meta = Some(byte_meta(&per_channel()));
+    carried.layers[1].meta = Some(byte_meta(&per_channel()).into());
     let bytes = save_byte(&dir, "carried.rz", &carried);
     assert_eq!((word(&bytes, 0), word(&bytes, 1)), (45, 61));
     let reopened = open_byte(&dir, "again.rz", &bytes).expect("reopen");
@@ -102,7 +102,7 @@ fn byte_rz_writes_word_61_only_for_per_channel_or_output_levels() {
 
     // Editing the layer back to master-only restores the prior bytes.
     let mut back = carried.clone();
-    back.layers[1].meta = Some(byte_meta(&master_only()));
+    back.layers[1].meta = Some(byte_meta(&master_only()).into());
     assert_eq!(save_byte(&dir, "back.rz", &back), plain);
 }
 

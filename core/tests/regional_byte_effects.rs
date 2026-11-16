@@ -844,10 +844,13 @@ fn knockout_and_grouped_interiors_are_admitted_beside_group_effects() {
         .expect("add layer");
     let top = guided.layers.len() - 1;
     guided.layers[top].clipped = true;
-    guided.layers[top].meta = Some(adjust_meta(
-        "shadows_highlights",
-        "{\"shadows\":{\"amount\":0.6,\"tone\":0.4},\"radius\":12}",
-    ));
+    guided.layers[top].meta = Some(
+        adjust_meta(
+            "shadows_highlights",
+            "{\"shadows\":{\"amount\":0.6,\"tone\":0.4},\"radius\":12}",
+        )
+        .into(),
+    );
     assert_regions_match(&guided, "a guided member under a knockout base");
     // A hidden styled group is skipped unchecked.
     let mut hidden = styled(&doc, g, &shadow);

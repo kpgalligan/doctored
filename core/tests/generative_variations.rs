@@ -499,7 +499,7 @@ fn mask_plane(doc: &Doc, idx: usize) -> Vec<u16> {
 
 fn tag_of(doc: &Doc, idx: usize) -> Option<String> {
     match doc {
-        Doc::Byte(d) => d.layers[idx].meta.clone(),
+        Doc::Byte(d) => d.layers[idx].meta.as_deref().map(str::to_string),
         Doc::Typed(d) => d.artwork_description(idx).map(str::to_string),
     }
 }

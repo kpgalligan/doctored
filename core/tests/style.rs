@@ -627,7 +627,7 @@ fn regression_doc() -> DrDocument {
         .unwrap()
         .with_layer_opacity(3, 0.5)
         .unwrap();
-    doc.layers[3].meta = Some(adjust_meta("invert", "{}"));
+    doc.layers[3].meta = Some(adjust_meta("invert", "{}").into());
     doc
 }
 

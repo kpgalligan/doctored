@@ -469,7 +469,7 @@ fn pass_through_group_measures_the_gated_backdrop_and_follows_its_opacity() {
     let doc = DrDocument::from_pixels(fill(0));
     let doc = doc.adding_image_layer(0, photo(W, H), "photo").unwrap();
     let mut doc = doc.adding_image_layer(1, clear(), "Levels").unwrap();
-    doc.layers[2].meta = Some(levels_meta());
+    doc.layers[2].meta = Some(levels_meta().into());
     let (mut doc, group, _, _) = doc.group_layers(&[1, 2], "G").unwrap();
     assert_eq!(group, 3);
     assert_eq!(doc.layers[3].blend, BlendMode::PassThrough);
@@ -500,7 +500,7 @@ fn clipped_or_grouped_adjustment_measures_the_whole_backdrop() {
         let doc = DrDocument::from_pixels(fill(255));
         let doc = doc.adding_image_layer(0, photo_canvas(), "photo").unwrap();
         let mut doc = doc.adding_image_layer(1, clear(), "Levels").unwrap();
-        doc.layers[2].meta = Some(levels_meta());
+        doc.layers[2].meta = Some(levels_meta().into());
         doc.layers[2].clipped = true;
         doc
     };
@@ -673,7 +673,7 @@ fn nothing_to_measure_answers_empty_identity() {
     };
     // Bottom-most adjustment.
     let mut bottom = DrDocument::from_pixels(clear());
-    bottom.layers[0].meta = Some(levels_meta());
+    bottom.layers[0].meta = Some(levels_meta().into());
     let bottom = bottom.adding_image_layer(0, photo(W, H), "photo").unwrap();
     check(&byte(&bottom, &request(0, json!({"mode":"tone"})), &[]).unwrap());
     let wide_bottom = typed(vec![
@@ -687,7 +687,7 @@ fn nothing_to_measure_answers_empty_identity() {
     doc.layers[0].visible = false;
     doc.layers[1].visible = false;
     let mut doc = doc.adding_image_layer(1, clear(), "Levels").unwrap();
-    doc.layers[2].meta = Some(levels_meta());
+    doc.layers[2].meta = Some(levels_meta().into());
     check(&byte(&doc, &request(2, json!({"mode":"tone"})), &[]).unwrap());
     let wide_hidden = typed(vec![
         raster("white", &fill(255), (0, 0), false),

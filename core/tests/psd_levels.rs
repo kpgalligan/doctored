@@ -402,7 +402,7 @@ fn a_per_channel_levels_layer_writes_its_records_and_reopens_equal_at_8_bits() {
     let mut doc = DrDocument::from_pixels(base)
         .adding_image_layer(0, RgbaImage::new(CANVAS[0], CANVAS[1]), "Levels")
         .expect("add layer");
-    doc.layers[1].meta = Some(meta(&exported_params()));
+    doc.layers[1].meta = Some(meta(&exported_params()).into());
     let path = dir.path().join("exported8.psd");
     let mut error: *mut c_char = ptr::null_mut();
     assert!(

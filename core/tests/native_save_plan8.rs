@@ -217,16 +217,19 @@ fn rich_linear() -> DrDocument {
     doc = doc
         .adding_image_layer(2, RgbaImage::new(w, h), "Levels")
         .unwrap();
-    doc.layers[3].meta = Some(adjust(
-        "levels",
-        json!({"black": 0.1, "white": 0.9, "gamma": 1.4, "output_black": 0.05,
+    doc.layers[3].meta = Some(
+        adjust(
+            "levels",
+            json!({"black": 0.1, "white": 0.9, "gamma": 1.4, "output_black": 0.05,
             "g": {"black": 0.15, "white": 1.0, "gamma": 0.7}}),
-    ));
+        )
+        .into(),
+    );
     doc = doc
         .adding_image_layer(3, RgbaImage::new(w, h), "Curves")
         .unwrap();
     let map: Vec<u8> = (0..=255).rev().collect();
-    doc.layers[4].meta = Some(adjust("curves", json!({ "rgb_map": map })));
+    doc.layers[4].meta = Some(adjust("curves", json!({ "rgb_map": map })).into());
     doc.layers[1].label = 3;
     doc.layers[4].label = 7;
     let plane = noise(w, h, 6).into_raw();

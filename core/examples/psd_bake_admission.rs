@@ -140,7 +140,7 @@ fn main() {
             DrDocument::from_pixels(RgbaImage::from_raw(width, height, raw).unwrap())
                 .adding_image_layer(0, RgbaImage::new(width, height), "Tone")
                 .unwrap();
-        document.layers[1].meta = Some(meta(bake, false));
+        document.layers[1].meta = Some(meta(bake, false).into());
         let report = taken(unsafe { dr_doc_psd_export_report(&document, 0, 0, &mut error) });
         let ok = unsafe {
             dr_doc_save_psd(

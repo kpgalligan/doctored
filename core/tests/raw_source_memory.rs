@@ -63,7 +63,7 @@ fn plans_borrow_large_payload_and_metadata_and_admit_both_owned_copies() {
         .unwrap()
         .unwrap();
     let length = 8 * 1024 * 1024;
-    doc.layers[0].meta = Some("m".repeat(length));
+    doc.layers[0].meta = Some("m".repeat(length).into());
     let bytes = vec![0x91; length];
     let descriptor = CString::new(json!({"schema_version":1,"original_filename":"camera.dng","content_sha256":"d".repeat(64),"decoder":{"identifier":"test","version":"1","implementation":"test"},"recipe":{"exposure":0.0}}).to_string()).unwrap();
     let mut err = ptr::null_mut();

@@ -273,7 +273,7 @@ fn with_adjustment(doc: &DrDocument, op: &str, params: &str, opacity: f32) -> Dr
         .adding_image_layer(top(doc), RgbaImage::new(doc.width, doc.height), op)
         .expect("add layer");
     let at = top(&out);
-    out.layers[at].meta = Some(adjust_meta(op, params));
+    out.layers[at].meta = Some(adjust_meta(op, params).into());
     out.layers[at].opacity = opacity;
     out
 }
@@ -287,7 +287,7 @@ fn levels_above(doc: &DrDocument, idx: usize) -> DrDocument {
     let at = (idx + 1..out.layers.len())
         .find(|&i| out.layers[i].depth == doc.layers[idx].depth)
         .expect("the inserted entry");
-    out.layers[at].meta = Some(adjust_meta("levels", LEVELS_PARAMS));
+    out.layers[at].meta = Some(adjust_meta("levels", LEVELS_PARAMS).into());
     out
 }
 

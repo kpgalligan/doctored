@@ -170,7 +170,11 @@ fn byte_fixture() -> DrDocument {
     let text = byte_named(&doc, "Text");
     doc.layers[text].meta = Some(r#"{"type":"text","version":1}"#.into());
     let tone = byte_named(&doc, "Tone");
-    doc.layers[tone].meta = Some(json!({"type":"adjust","op":"invert","params":{}}).to_string());
+    doc.layers[tone].meta = Some(
+        json!({"type":"adjust","op":"invert","params":{}})
+            .to_string()
+            .into(),
+    );
     doc
 }
 

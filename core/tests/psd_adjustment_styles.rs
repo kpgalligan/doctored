@@ -39,7 +39,7 @@ fn scene() -> DrDocument {
     let mut doc = DrDocument::from_pixels(backdrop())
         .adding_image_layer(0, RgbaImage::new(W, H), "Adj")
         .unwrap();
-    doc.layers[1].meta = Some(adjust_meta("invert", "{}"));
+    doc.layers[1].meta = Some(adjust_meta("invert", "{}").into());
     doc
 }
 
@@ -353,7 +353,7 @@ fn rasterize_matches_photoshop_on_the_take_s_blend_if_rows() {
             let mut doc = DrDocument::from_pixels(base.clone())
                 .adding_image_layer(0, RgbaImage::new(TW, TH), "Adj")
                 .unwrap();
-            doc.layers[1].meta = Some(adjust_meta("invert", "{}"));
+            doc.layers[1].meta = Some(adjust_meta("invert", "{}").into());
             let doc = styled(&doc, 1, style);
             let rendered: Vec<[u8; 4]> = if depth == 8 {
                 doc.flattened().unwrap().pixels().map(|p| p.0).collect()
@@ -413,7 +413,7 @@ fn rasterize_matches_photoshop_on_the_take_s_shape_and_order_rows() {
             let mut doc = DrDocument::from_pixels(base)
                 .adding_image_layer(0, RgbaImage::new(TW, TH), "Adj")
                 .unwrap();
-            doc.layers[1].meta = Some(adjust_meta("invert", "{}"));
+            doc.layers[1].meta = Some(adjust_meta("invert", "{}").into());
             if masked {
                 doc.layers[1].mask = Some(mask());
                 doc.layers[1].mask_enabled = true;

@@ -483,7 +483,7 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
                 }
                 mask_raw = Some(r.take(mask_len as usize)?);
             }
-            meta = take_opt_string(&mut r, "meta")?;
+            meta = take_opt_string(&mut r, "meta")?.map(Into::into);
         }
         let clipped = has_clipped && r.u8()? != 0;
         let style = if has_style {

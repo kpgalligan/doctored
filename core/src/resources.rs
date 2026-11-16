@@ -170,7 +170,7 @@ impl Inventory {
             }
             self.string(&layer.name, "document_strings", false);
             if let Some(meta) = &layer.meta {
-                self.string(meta, "layer_metadata", false);
+                self.record(meta.as_ptr() as usize, meta.len(), "layer_metadata", false);
             }
             if let Some(style) = &layer.style {
                 self.object(&**style, "style_parameters", false);

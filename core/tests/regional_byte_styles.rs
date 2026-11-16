@@ -244,10 +244,8 @@ fn clip_stack() -> DrDocument {
     let mut out = doc
         .adding_image_layer(doc.layers.len() - 1, RgbaImage::new(1, 1), "levels")
         .expect("add layer");
-    out.layers[3].meta = Some(common::adjust_meta(
-        "levels",
-        "{\"black\":0.1,\"gamma\":1.6}",
-    ));
+    out.layers[3].meta =
+        Some(common::adjust_meta("levels", "{\"black\":0.1,\"gamma\":1.6}").into());
     out.layers[3].opacity = 0.8;
     out.layers[3].clipped = true;
     out
@@ -450,10 +448,13 @@ fn effects_and_knockouts_are_admitted() {
     // Since 13A-4b-ii-b-1 the unit's guided Shadows/Highlights member beside
     // the knockout member (an unstyled base) is staged too.
     let mut guided = member.clone();
-    guided.layers[3].meta = Some(common::adjust_meta(
-        "shadows_highlights",
-        "{\"shadows\":{\"amount\":0.6,\"tone\":0.4},\"radius\":12}",
-    ));
+    guided.layers[3].meta = Some(
+        common::adjust_meta(
+            "shadows_highlights",
+            "{\"shadows\":{\"amount\":0.6,\"tone\":0.4},\"radius\":12}",
+        )
+        .into(),
+    );
     assert_regions_match(&guided, "a guided member beside a knockout member");
     // Hidden it is dropped, and at opacity 0 it is a clamp-only step.
     let mut hidden = member.clone();

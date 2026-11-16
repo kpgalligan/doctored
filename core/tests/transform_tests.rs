@@ -454,7 +454,7 @@ fn transform_layer_preserves_properties_meta_and_neighbours() {
         .expect("blend")
         .with_layer_visible(1, false)
         .expect("visible");
-    doc.layers[1].meta = Some(META.to_string());
+    doc.layers[1].meta = Some(META.to_string().into());
     doc.layers[1].mask_properties.offset = doc.layers[1].offset;
     doc.layers[1].mask = Some(GrayRaster::new(GrayImage::from_pixel(4, 3, Luma([200]))));
     doc.layers[1].mask_enabled = false;

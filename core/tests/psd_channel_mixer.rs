@@ -566,7 +566,7 @@ fn exported_document() -> DrDocument {
         doc = doc
             .adding_image_layer(index, RgbaImage::new(CANVAS[0], CANVAS[1]), case.name)
             .expect("add layer");
-        doc.layers[index + 1].meta = Some(meta(&case.params));
+        doc.layers[index + 1].meta = Some(meta(&case.params).into());
     }
     doc
 }
@@ -732,7 +732,7 @@ fn a_hidden_row_that_differs_from_its_default_is_a_reported_loss_at_both_depths(
         doc = doc
             .adding_image_layer(index, RgbaImage::new(CANVAS[0], CANVAS[1]), name)
             .expect("add layer");
-        doc.layers[index + 1].meta = Some(meta(params));
+        doc.layers[index + 1].meta = Some(meta(params).into());
     }
     let layered = export_report(&doc, LAYERS);
     assert_eq!(layered["available"], Value::Bool(true), "{layered}");

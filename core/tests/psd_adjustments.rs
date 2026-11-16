@@ -938,7 +938,7 @@ fn exported_document() -> DrDocument {
         doc = doc
             .adding_image_layer(index, RgbaImage::new(CANVAS[0], CANVAS[1]), op.name)
             .expect("add layer");
-        doc.layers[index + 1].meta = Some(meta(op.op, &op.params));
+        doc.layers[index + 1].meta = Some(meta(op.op, &op.params).into());
     }
     doc
 }
@@ -1056,7 +1056,7 @@ fn curves_blocks_are_even_for_one_two_and_four_channels() {
         let mut doc = DrDocument::from_pixels(base)
             .adding_image_layer(0, RgbaImage::new(CANVAS[0], CANVAS[1]), "Curves")
             .unwrap();
-        doc.layers[1].meta = Some(meta("curves", &params));
+        doc.layers[1].meta = Some(meta("curves", &params).into());
         let path = dir.path().join(format!("curves_{tag}.psd"));
         save(&doc, &path, LAYERS).expect("save");
         let bytes = std::fs::read(&path).unwrap();
@@ -1183,7 +1183,7 @@ fn an_op_without_a_record_is_baked_and_named_as_a_loss_on_both_depths() {
     let mut doc = DrDocument::from_pixels(RgbaImage::new(2, 2))
         .adding_image_layer(0, RgbaImage::new(2, 2), "Tone")
         .unwrap();
-    doc.layers[1].meta = Some(meta("bcs", &params));
+    doc.layers[1].meta = Some(meta("bcs", &params).into());
     let report = export_report(&doc, LAYERS);
     assert_eq!(report["available"], Value::Bool(true), "{report}");
     assert_eq!(report["refusal"], Value::Null);

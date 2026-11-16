@@ -650,7 +650,7 @@ fn refusals_name_the_reason() {
         "Vignette Removal cannot change layer 2: it is locked (pixels)."
     );
     let mut described = byte_doc(&picture);
-    described.layers[1].meta = Some(json!({"type":"text"}).to_string());
+    described.layers[1].meta = Some(json!({"type":"text"}).to_string().into());
     assert_eq!(
         refusal(&TestDoc::Byte(described), good.clone()),
         "Vignette Removal cannot change layer 1: it holds artwork or a placed source; \

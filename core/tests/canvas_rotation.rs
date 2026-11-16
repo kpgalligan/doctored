@@ -214,7 +214,11 @@ fn fixture(width: u32, height: u32) -> DrDocument {
     doc = doc
         .adding_image_layer(1, RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 0])), "Tone")
         .expect("the Tone layer");
-    doc.layers[2].meta = Some(json!({"type":"adjust","op":"invert","params":{}}).to_string());
+    doc.layers[2].meta = Some(
+        json!({"type":"adjust","op":"invert","params":{}})
+            .to_string()
+            .into(),
+    );
     doc.layers[2].mask = Some(GrayRaster::new(
         GrayImage::from_raw(width, height, plane_samples(width, height, 4)).unwrap(),
     ));

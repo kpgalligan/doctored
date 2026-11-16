@@ -157,7 +157,7 @@ impl DrDocument {
             .iter()
             .filter(|layer| layer.kind != LayerKind::Group)
             .find_map(|layer| {
-                let (op, evaluation) = adjustment_op(layer.meta.as_ref())?;
+                let (op, evaluation) = adjustment_op(layer.meta.as_deref())?;
                 let refused = refused_in.is_none_or(|p| calibrated_refusal(p, &op).is_some());
                 (appearance_invariant(&op, evaluation.as_deref()) && refused)
                     .then_some(layer.name.as_str())

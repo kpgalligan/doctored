@@ -863,7 +863,7 @@ fn bad_targets_and_bad_requests_refuse() {
     let mut adjusted = byte_doc(canvas, &plane8)
         .adding_image_layer(0, RgbaImage::new(8, 6), "Fx")
         .unwrap();
-    adjusted.layers[1].meta = Some(adjustment_meta());
+    adjusted.layers[1].meta = Some(adjustment_meta().into());
     let err = edit8(
         &adjusted,
         &affine(1, [2.0, 0.0, 0.0, 2.0, 0.0, 0.0], "bilinear"),

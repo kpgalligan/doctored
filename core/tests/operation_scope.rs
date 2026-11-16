@@ -206,7 +206,7 @@ fn layer_mask_scoping_preserves_pixels_properties_and_disabled_state() {
     doc.layers[0].mask_properties.offset = doc.layers[0].offset;
     doc.layers[0].mask = Some(GrayRaster::new(mask.clone()));
     doc.layers[0].mask_enabled = false;
-    doc.layers[0].meta = Some("unchanged source description".to_string());
+    doc.layers[0].meta = Some("unchanged source description".to_string().into());
     let values: Vec<u8> = mask.as_raw().iter().map(|v| 255 - v).collect();
     let result = gray(&values, 6, 4);
     let selection = [0, 64, 255, 128, 0, 255, 31, 200, 0, 255, 128, 1];

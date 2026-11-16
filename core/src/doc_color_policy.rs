@@ -336,7 +336,7 @@ impl ConversionReport {
 /// The `op` and `evaluation` of a layer whose meta IS an adjustment
 /// description; `None` for every other layer. Reads the JSON envelope only —
 /// the parameters are `adjust.rs`'s business.
-pub(crate) fn adjustment_op(meta: Option<&String>) -> Option<(String, Option<String>)> {
+pub(crate) fn adjustment_op(meta: Option<&str>) -> Option<(String, Option<String>)> {
     let root: Value = serde_json::from_str(meta?).ok()?;
     let object = root.as_object()?;
     if object.get("type")?.as_str()? != "adjust" {
@@ -494,7 +494,7 @@ impl DrDocument {
         }
         let mut report = ConversionReport::default();
         for (index, layer) in self.layers.iter().enumerate() {
-            let Some((op, evaluation)) = adjustment_op(layer.meta.as_ref()) else {
+            let Some((op, evaluation)) = adjustment_op(layer.meta.as_deref()) else {
                 continue;
             };
             let outcome =

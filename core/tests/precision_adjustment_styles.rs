@@ -459,7 +459,7 @@ fn a_typed_styled_adjustment_base_freezes_its_member_and_follows_the_byte_rule()
             DrDocument::from_pixels(RgbaImage::from_fn(W, H, |x, y| Rgba(backdrop8(x, y))))
                 .adding_image_layer(0, RgbaImage::new(W, H), "Adj")
                 .unwrap();
-        byte.layers[1].meta = Some(adjust_meta("invert", "{}"));
+        byte.layers[1].meta = Some(adjust_meta("invert", "{}").into());
         byte.layers[1].mask = Some(GrayRaster::new(image::GrayImage::from_fn(W, H, |x, y| {
             image::Luma([(mask16(x, y) / 257) as u8])
         })));
@@ -520,7 +520,7 @@ fn typed_styles_round_trip_convert_and_follow_comps() {
     let mut byte = DrDocument::from_pixels(RgbaImage::from_fn(W, H, |x, y| Rgba(backdrop8(x, y))))
         .adding_image_layer(0, RgbaImage::new(W, H), "Adj")
         .unwrap();
-    byte.layers[1].meta = Some(adjust_meta("invert", "{}"));
+    byte.layers[1].meta = Some(adjust_meta("invert", "{}").into());
     let byte = styled(&byte, 1, json);
     let promoted = byte.promote_structure(LIMIT, 0, None).unwrap();
     assert_eq!(

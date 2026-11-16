@@ -15,6 +15,7 @@ use doctored_core::ffi::*;
 use doctored_core::ffi_channel::*;
 use doctored_core::ffi_color::*;
 use doctored_core::ffi_doc::*;
+use doctored_core::ffi_insert::dr_doc_adding_layer_at;
 use doctored_core::ffi_resources::*;
 use doctored_core::ffi_style::*;
 use doctored_core::DrImage;
@@ -177,6 +178,37 @@ fn masks_channels_metadata_and_projection_are_in_the_live_set() {
         category(&result, "image_pixels", "unique_bytes"),
         (samples * 4) as u64
     );
+}
+
+/// A layer's description is shared by every document state that keeps it:
+/// an edit to ANOTHER layer copies no byte of it, so an undo history of N
+/// edits on a document with a large description (a Color Lookup layer's
+/// cube) holds it once, not N times.
+#[test]
+fn an_edit_to_another_layer_shares_a_layer_description() {
+    let _serial = serial();
+    let base = Doc::from_pixels(8, 8, &[200; 8 * 8 * 4]);
+    let name = CString::new("Above").unwrap();
+    let two = Doc::checked(unsafe { dr_doc_adding_layer_at(base.0, 0, 0, name.as_ptr()) });
+    let meta = format!(r#"{{"type":"note","text":"{}"}}"#, "x".repeat(100_000));
+    let meta_c = CString::new(meta.clone()).unwrap();
+    let described = Doc::checked(unsafe { dr_doc_with_layer_meta(two.0, 0, meta_c.as_ptr()) });
+    let edited = Doc::checked(unsafe { dr_doc_with_layer_opacity(described.0, 1, 0.5) });
+    let renamed = edited.renamed("Bottom, renamed");
+    let result = report(&[described.0, edited.0, renamed.0], &[], 0, 0);
+    assert_eq!(
+        category(&result, "layer_metadata", "unique_bytes"),
+        meta.len() as u64,
+        "three states hold one copy of the description"
+    );
+    assert_eq!(
+        category(&result, "layer_metadata", "referenced_bytes"),
+        3 * meta.len() as u64
+    );
+    let read = unsafe { dr_doc_layer_meta(renamed.0, 0) };
+    assert!(!read.is_null());
+    assert_eq!(unsafe { CStr::from_ptr(read) }.to_str().unwrap(), meta);
+    unsafe { dr_string_free(read) };
 }
 
 fn styled_document() -> Doc {

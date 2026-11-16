@@ -271,11 +271,14 @@ fn guided() -> DrDocument {
         )
         .expect("add layer");
     let top = doc.layers.len() - 1;
-    doc.layers[top].meta = Some(adjust_meta(
-        "shadows_highlights",
-        "{\"shadows\":{\"amount\":0.7,\"tone\":0.9},\"highlights\":{\"amount\":0.35,\
+    doc.layers[top].meta = Some(
+        adjust_meta(
+            "shadows_highlights",
+            "{\"shadows\":{\"amount\":0.7,\"tone\":0.9},\"highlights\":{\"amount\":0.35,\
          \"tone\":0.8},\"radius\":30}",
-    ));
+        )
+        .into(),
+    );
     doc.layers[top].opacity = 0.8;
     with_raster(
         &doc,

@@ -75,7 +75,7 @@ fn byte_doc(layers: &[(&str, Value)]) -> DrDocument {
         doc = doc
             .adding_image_layer(i, RgbaImage::new(6, 4), op)
             .expect("add layer");
-        doc.layers[i + 1].meta = Some(meta(op, params));
+        doc.layers[i + 1].meta = Some(meta(op, params).into());
     }
     doc
 }
@@ -101,7 +101,7 @@ fn byte_rz_writes_word_63_only_for_map_curves_and_round_trips() {
     assert_ne!(word(&plain, 1), 63, "a point-only document writes no word");
 
     let mut carried = plain_doc.clone();
-    carried.layers[1].meta = Some(meta("curves", &maps()));
+    carried.layers[1].meta = Some(meta("curves", &maps()).into());
     let bytes = save_byte(&dir, "carried.rz", &carried);
     assert_eq!((word(&bytes, 0), word(&bytes, 1)), (45, 63));
     let reopened = open_byte(&dir, "again.rz", &bytes).expect("reopen");
@@ -119,7 +119,7 @@ fn byte_rz_writes_word_63_only_for_map_curves_and_round_trips() {
     // Editing the layer back to points restores the point-only bytes, so a
     // map-free file is exactly what the writer without the word produced.
     let mut back = carried.clone();
-    back.layers[1].meta = Some(meta("curves", &points()));
+    back.layers[1].meta = Some(meta("curves", &points()).into());
     assert_eq!(save_byte(&dir, "back.rz", &back), plain);
 }
 

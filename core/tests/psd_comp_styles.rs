@@ -673,7 +673,8 @@ fn a_stamped_adjustments_comps_write_the_stamps_own_state() {
         json!({"type": "adjust", "op": "gradient_map", "params": {"gradient": {"stops": [
             {"position": 0.0, "color": "#102030", "opacity": 1.0},
             {"position": 1.0, "color": "#f0c040", "opacity": 1.0}]}}})
-        .to_string(),
+        .to_string()
+        .into(),
     );
     doc = step(
         doc,

@@ -152,7 +152,7 @@ fn fixture() -> DrDocument {
 /// one (`adjust.rs`) — the byte form of a live adjustment.
 fn as_invert(doc: &DrDocument, idx: usize) -> DrDocument {
     let mut out = doc.clone();
-    out.layers[idx].meta = Some(adjust_meta("invert", "{}"));
+    out.layers[idx].meta = Some(adjust_meta("invert", "{}").into());
     out
 }
 

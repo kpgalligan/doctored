@@ -168,7 +168,7 @@ fn the_query_refuses_what_the_move_refuses() {
     let mut adjusted = byte_doc(canvas, &plane8)
         .adding_image_layer(0, image::RgbaImage::new(8, 6), "Fx")
         .unwrap();
-    adjusted.layers[1].meta = Some(adjustment_meta());
+    adjusted.layers[1].meta = Some(adjustment_meta().into());
     assert!(bounds8(&adjusted, 1, &cov, None)
         .unwrap_err()
         .contains("adjustment layer"));

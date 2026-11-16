@@ -327,7 +327,7 @@ fn with_adjustment(doc: &DrDocument, op: &str, params: &str, opacity: f32) -> Dr
         .adding_image_layer(top(doc), RgbaImage::new(doc.width, doc.height), op)
         .expect("add layer");
     let at = top(&out);
-    out.layers[at].meta = Some(adjust_meta(op, params));
+    out.layers[at].meta = Some(adjust_meta(op, params).into());
     out.layers[at].opacity = opacity;
     out
 }

@@ -661,7 +661,11 @@ fn mask_only_group_and_adjustment_survive_native_and_reedit_without_touching_pix
     props.density = 0.64;
     props.feather = 1.5;
     let mut byte = byte_document();
-    byte.layers[0].meta = Some(json!({"type":"adjust","op":"invert","params":{}}).to_string());
+    byte.layers[0].meta = Some(
+        json!({"type":"adjust","op":"invert","params":{}})
+            .to_string()
+            .into(),
+    );
     byte.layers[0].mask = Some(GrayRaster::new(
         image::GrayImage::from_raw(11, 19, raw.clone()).unwrap(),
     ));

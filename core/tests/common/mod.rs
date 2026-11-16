@@ -659,7 +659,7 @@ pub fn checkerboard_masked(
     let mut doc = doc
         .add_mask(1, MaskKind::FromSelection(&sel))
         .expect("mask from selection");
-    doc.layers[1].meta = Some(META.to_string());
+    doc.layers[1].meta = Some(META.to_string().into());
     doc
 }
 

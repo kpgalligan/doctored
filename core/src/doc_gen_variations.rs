@@ -302,7 +302,7 @@ impl DrDocument {
             .unwrap_or_else(|| self.clone());
         let profile = next.profile.clone();
         let entry = &mut next.layers[layer];
-        entry.meta = Some(tag.to_string());
+        entry.meta = Some(tag.into());
         entry.generated = Some(GeneratedBinding8 {
             table,
             rendered: entry.pixels.clone(),

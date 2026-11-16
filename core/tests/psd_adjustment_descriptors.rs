@@ -808,7 +808,7 @@ fn exported_document(params_of: impl Fn(&Kind) -> Value) -> DrDocument {
         doc = doc
             .adding_image_layer(index, RgbaImage::new(CANVAS[0], CANVAS[1]), kind.name)
             .expect("add layer");
-        doc.layers[index + 1].meta = Some(meta(kind.op, &params_of(kind)));
+        doc.layers[index + 1].meta = Some(meta(kind.op, &params_of(kind)).into());
     }
     doc
 }
@@ -1002,7 +1002,7 @@ fn brightness_contrast_without_saturation_is_written_as_a_record_on_both_depths(
     let mut doc = DrDocument::from_pixels(RgbaImage::new(2, 2))
         .adding_image_layer(0, RgbaImage::new(2, 2), "Tone")
         .unwrap();
-    doc.layers[1].meta = Some(meta("bcs", &json!({"brightness": 0.2})));
+    doc.layers[1].meta = Some(meta("bcs", &json!({"brightness": 0.2})).into());
     let report = export_report(&doc, LAYERS);
     assert_eq!(report["available"], Value::Bool(true), "{report}");
     assert!(

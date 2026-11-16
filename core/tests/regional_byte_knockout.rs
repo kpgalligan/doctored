@@ -319,7 +319,7 @@ fn with_adjustment(doc: &DrDocument, op: &str, params: &str) -> DrDocument {
         .adding_image_layer(doc.layers.len() - 1, RgbaImage::new(1, 1), op)
         .expect("add layer");
     let top = out.layers.len() - 1;
-    out.layers[top].meta = Some(adjust_meta(op, params));
+    out.layers[top].meta = Some(adjust_meta(op, params).into());
     out
 }
 

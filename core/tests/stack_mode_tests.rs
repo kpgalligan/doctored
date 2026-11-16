@@ -311,7 +311,7 @@ fn refusals_name_their_reason_in_plan_and_edit() {
         format!("Stack Mode requires raster layers; layer {group} is a group")
     );
     let mut adjusted = doc.clone();
-    adjusted.layers[1].meta = Some(adjust_meta("invert", "{}"));
+    adjusted.layers[1].meta = Some(adjust_meta("invert", "{}").into());
     assert_eq!(
         both(&adjusted, &request(&[0, 1], 1, "mean")),
         "Stack Mode requires raster layers; layer 1 is an adjustment layer"

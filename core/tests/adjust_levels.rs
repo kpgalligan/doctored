@@ -363,8 +363,11 @@ fn a_per_channel_levels_layer_matches_the_destructive_op() {
             "Levels",
         )
         .expect("add layer");
-    doc.layers[1].meta =
-        Some(json!({"type": "adjust", "op": "levels", "params": params}).to_string());
+    doc.layers[1].meta = Some(
+        json!({"type": "adjust", "op": "levels", "params": params})
+            .to_string()
+            .into(),
+    );
     assert_eq!(doc.flattened().expect("flatten").as_raw(), &pixels(out));
     free(out);
     free(img);

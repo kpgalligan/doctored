@@ -189,7 +189,7 @@ fn with_guide(doc: &DrDocument, radius: f32) -> DrDocument {
         .adding_image_layer(doc.layers.len() - 1, pixels, "shadows_highlights")
         .expect("add layer");
     let top = out.layers.len() - 1;
-    out.layers[top].meta = Some(adjust_meta("shadows_highlights", &sh_params(radius)));
+    out.layers[top].meta = Some(adjust_meta("shadows_highlights", &sh_params(radius)).into());
     out.layers[top].opacity = 0.8;
     out
 }
@@ -562,7 +562,7 @@ fn a_zero_amount_shadows_highlights_is_pointwise() {
     doc.layers[2].meta = Some(adjust_meta(
         "shadows_highlights",
         "{\"shadows\":{\"amount\":0},\"highlights\":{\"amount\":0},\"midtone_contrast\":0.3,\"radius\":12}",
-    ));
+    ).into());
     assert_regions_match(&doc, "zero amounts");
     let p = plan(&doc, (5, 5, 10, 10), 1).unwrap();
     assert_eq!(p["stages"], json!([]));

@@ -53,7 +53,7 @@ fn adjusted(op: &str, params: &Value, name: &str) -> DrDocument {
     let mut document = DrDocument::from_pixels(base())
         .adding_image_layer(0, RgbaImage::new(W, H), name)
         .expect("add layer");
-    document.layers[1].meta = Some(meta(op, params));
+    document.layers[1].meta = Some(meta(op, params).into());
     document
 }
 
@@ -163,7 +163,7 @@ fn the_stamp_inside_a_hidden_group_is_what_showing_the_group_would_show() {
     let mut document = document
         .adding_image_layer(1, RgbaImage::new(W, H), "Gray")
         .expect("add adjustment");
-    document.layers[2].meta = Some(meta("grayscale", &json!({})));
+    document.layers[2].meta = Some(meta("grayscale", &json!({})).into());
     let (shown, group, _, _) = document.group_layers(&[1, 2], "Set").expect("group");
     let picture = shown.flattened().unwrap();
     assert_ne!(picture, base(), "the group changes the picture");

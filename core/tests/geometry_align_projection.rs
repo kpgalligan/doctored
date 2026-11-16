@@ -684,7 +684,7 @@ fn refusals_name_the_reason() {
         "layer 0 is locked (position)"
     );
     let mut described = byte_doc();
-    described.layers[0].meta = Some(json!({"type":"text"}).to_string());
+    described.layers[0].meta = Some(json!({"type":"text"}).to_string().into());
     assert_eq!(
         refusal(&TestDoc::Byte(described), good.clone()),
         "Rasterize layer 0 before Auto-Align Layers"

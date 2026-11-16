@@ -313,7 +313,7 @@ fn with_levels(doc: &DrDocument, params: &str) -> DrDocument {
         .adding_image_layer(doc.layers.len() - 1, RgbaImage::new(1, 1), "Levels")
         .expect("add layer");
     let top = out.layers.len() - 1;
-    out.layers[top].meta = Some(adjust_meta("levels", params));
+    out.layers[top].meta = Some(adjust_meta("levels", params).into());
     out
 }
 
@@ -368,7 +368,7 @@ fn a_groups_meta_is_never_parsed_or_charged() {
     let doc = with_levels(&background(), LEVELS_SHORT);
     let (mut grouped, g) = group_top(&doc, "Group");
     // The host's own blob: the core never interprets a group's meta.
-    grouped.layers[g].meta = Some("x".repeat(10_000));
+    grouped.layers[g].meta = Some("x".repeat(10_000).into());
     assert_eq!(scratch(&grouped), N * 20 + 78 * 256);
     assert_renders(&grouped, "a group meta");
 }
@@ -749,7 +749,7 @@ fn a_shadows_highlights_base_builds_its_guide_beside_the_unit_buffer() {
             .adding_image_layer(doc.layers.len() - 1, RgbaImage::new(1, 1), "S/H")
             .expect("add layer");
         let top = doc.layers.len() - 1;
-        doc.layers[top].meta = Some(meta.clone());
+        doc.layers[top].meta = Some(meta.clone().into());
         // Its 1×1 pixel rect inside the frame, so the nest's extent stays
         // the frame's (an unmasked adjustment reaches the whole accumulator
         // wherever its pixels sit).

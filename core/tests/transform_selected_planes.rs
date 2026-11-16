@@ -703,7 +703,7 @@ fn adjustment_and_retained_source_masks_are_admitted() {
                 let mut d = byte_doc(canvas, &plane)
                     .adding_image_layer(0, RgbaImage::new(canvas.0, canvas.1), "Fx")
                     .unwrap();
-                d.layers[1].meta = Some(adjustment_meta());
+                d.layers[1].meta = Some(adjustment_meta().into());
                 byte_mask(&mut d, 1, &mask, props((0, 0), 255));
                 Doc::Byte(d)
             }
