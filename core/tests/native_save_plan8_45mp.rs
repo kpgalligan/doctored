@@ -12,15 +12,27 @@
 //! canvas carrying three 16 MiB metadata packets to the row bound too (the
 //! writer puts a slot's payload from the document's own buffer).
 //!
+//! The open (13C-2b) is counted the same way: `dr_doc_open` reads the file
+//! through the stream reader and decodes each plane row by row into tiles,
+//! so what an open adds beside the document it returns is a band, not the
+//! file (S2), S1's open holds its placed layer and that layer's source plane
+//! together for a moment (`drdc_reopen_plan`'s `decode_bytes` covers it),
+//! and three 16 MiB metadata packets cost their arena copy and their owned
+//! copy. A version-2 file whose raster layer and raw mask are over
+//! `MAX_PIXELS` still opens through the whole-plane arms.
+//!
 //! Alone in its binary: its own `#[global_allocator]`, and each case holds
 //! up to ~1.4 GB while it is checked. Every test takes [`SERIAL`] first, so
 //! no other test allocates while one counts.
 
 use doctored_core::doc::DrDocument;
 use doctored_core::doc_color::MetadataKind;
-use doctored_core::ffi::{dr_image_free, dr_image_from_rgba, dr_string_free};
+use doctored_core::ffi::{dr_image_free, dr_image_from_rgba, dr_image_pixels_rgba, dr_string_free};
+use doctored_core::ffi::{dr_image_height, dr_image_width};
 use doctored_core::ffi_color::dr_doc_save_image;
-use doctored_core::ffi_doc::{dr_doc_free, dr_doc_from_image, dr_doc_save_native};
+use doctored_core::ffi_doc::{
+    dr_doc_free, dr_doc_from_image, dr_doc_layer_mask_image, dr_doc_open, dr_doc_save_native,
+};
 use doctored_core::ffi_retained_source::dr_doc_mixed_source_edit;
 use doctored_core::ffi_tile_pool::{
     dr_doc_tile_pool_write, dr_tile_pool_free, dr_tile_pool_open, dr_tile_pool_window_bytes,
@@ -32,6 +44,7 @@ use image::{Rgba, RgbaImage};
 use serde_json::json;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::ffi::{CStr, CString};
+use std::io::Write;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -39,6 +52,8 @@ use tempfile::TempDir;
 
 #[path = "common/float_fixture.rs"]
 mod float_fixture;
+#[path = "common/resource_report.rs"]
+mod resource_report;
 
 const W45: u32 = 8256;
 const H45: u32 = 5504;
@@ -96,6 +111,16 @@ fn rise(run: impl FnOnce()) -> u64 {
 /// writer's tables.
 fn row_bound(widest: u32) -> u64 {
     8 * (4 * u64::from(widest) + 1) + 8 * MIB
+}
+
+/// The test's own bound on what a streamed open of RGBA8 planes at most
+/// `widest` pixels wide adds beside the document it returns, declared before
+/// measuring: sixteen PNG rows of the widest plane (png's unfiltering window
+/// and the row the tile band is filled from) and 8 MiB for the reader's
+/// read-ahead, the payload's section buffer, the inflater and the reader's
+/// tables.
+fn band_bound(widest: u32) -> u64 {
+    16 * (4 * u64::from(widest) + 1) + 8 * MIB
 }
 
 fn splitmix(state: &mut u64) -> u64 {
@@ -371,4 +396,191 @@ fn a_native_save_adds_rows_not_the_file_at_45_mp() {
         7500,
     );
     check("S5", placed(noise8_full(W45, H45, 0x5EED)), W45);
+}
+
+/// Opens `path` through the export, panicking with its error sentence.
+fn open(path: &CString) -> *mut DrDocument {
+    let mut error = ptr::null_mut();
+    let doc = unsafe { dr_doc_open(path.as_ptr(), ptr::null(), &mut error) };
+    if doc.is_null() {
+        let message = unsafe { CStr::from_ptr(error) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { dr_string_free(error) };
+        panic!("{message}");
+    }
+    doc
+}
+
+/// The authoritative bytes a document retains: unique minus caches
+/// (`native_reopen_plan8::held`).
+fn held(doc: *const DrDocument) -> u64 {
+    let report = resource_report::report(&[doc], &[], &[], &[], 0, 0).unwrap();
+    report["unique_retained_bytes"].as_u64().unwrap() - report["cache_bytes"].as_u64().unwrap()
+}
+
+/// Saves `doc`, drops it, then opens the file: the heap the open added at its
+/// peak, what the opened document holds, and the reopen plan's `decode_bytes`
+/// taken before the save.
+fn reopened(name: &str, doc: DrDocument) -> (u64, u64, u64) {
+    let decode = doc.native_reopen_plan().unwrap().decode_bytes;
+    let dir = TempDir::new().unwrap();
+    let path = CString::new(dir.path().join("open.doctored").to_str().unwrap()).unwrap();
+    let len = save(&doc, &path);
+    drop(doc);
+    let mut opened = ptr::null_mut();
+    let added = rise(|| opened = open(&path));
+    let kept = held(opened);
+    unsafe { dr_doc_free(opened) };
+    println!("{name}: open added {added} B; holds {kept} B; plan {decode} B; file {len} B");
+    (added, kept, decode)
+}
+
+/// S2's open adds a band beside the raster it returns: not the file, not a
+/// decoded plane.
+#[test]
+fn open_s2_adds_a_band_not_the_file_at_45_mp() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let (added, kept, _) = reopened("S2 open", DrDocument::from_pixels(noise8(W45, H45, 0x5EED)));
+    let beside = added.saturating_sub(kept);
+    assert!(
+        beside <= band_bound(W45),
+        "S2 open: {beside} B beside the document, over the band bound {}",
+        band_bound(W45)
+    );
+}
+
+/// S1's open decodes the white Background, the placed layer and the placed
+/// layer's 8-bit source before `materialize_byte` adopts the source's tiles
+/// for the layer: three planes and a band at its peak, within the plan.
+#[test]
+fn open_s1_holds_the_placed_layer_and_its_source_at_45_mp() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let (added, _, decode) = reopened("S1 open", placed(noise8(W45, H45, 0x5EED)));
+    let bound = 3 * 4 * u64::from(W45) * u64::from(H45) + band_bound(W45);
+    assert!(
+        added <= bound,
+        "S1 open: added {added} B, over three planes and a band ({bound} B)"
+    );
+    assert!(
+        added <= decode,
+        "S1 open: added {added} B, over the plan's {decode} B"
+    );
+}
+
+/// Three 16 MiB metadata packets on a small canvas: the open holds each
+/// packet's arena copy and its owned copy beside the document, and stays
+/// within the plan.
+#[test]
+fn open_metadata_packets_cost_two_copies() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let packet = vec![0x5A_u8; 16 * MIB as usize];
+    let mut doc = DrDocument::from_pixels(noise8(256, 256, 7));
+    for kind in [MetadataKind::Exif, MetadataKind::Xmp, MetadataKind::Iptc] {
+        doc = doc.set_metadata(kind, Some(&packet)).unwrap().unwrap();
+    }
+    drop(packet);
+    let (added, kept, decode) = reopened("metadata packets open", doc);
+    let beside = added.saturating_sub(kept);
+    let bound = 2 * 48 * MIB + band_bound(256);
+    assert!(
+        beside <= bound,
+        "metadata packets open: {beside} B beside the document, over {bound} B"
+    );
+    assert!(
+        added <= decode,
+        "metadata packets open: added {added} B, over the plan's {decode} B"
+    );
+}
+
+/// A layer side past `MAX_PIXELS` (10001² = 100,020,001 pixels).
+const LEGACY_SIDE: u32 = 10_001;
+
+/// The legacy mask's byte at `(x, y)`.
+fn legacy_mask(x: u32, y: u32) -> u8 {
+    (x.wrapping_mul(31) ^ y.wrapping_mul(17) ^ (x >> 7)) as u8
+}
+
+/// A version-2 file, written here field by field (`drdc_read.rs`'s record
+/// order: magic, version, canvas, count; per record the name, offset,
+/// opacity, blend, visibility, PNG, mask presence, enable, length, raw
+/// bytes and the meta slot), whose one raster layer and its layer-sized raw
+/// mask are both over `MAX_PIXELS`, which no version-10 mask may be. The
+/// tile store refuses such a plane, so both planes open through their whole
+/// arms and stay contiguous; the mask must still read back exactly.
+#[test]
+fn open_legacy_mask_over_max_pixels() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let side = LEGACY_SIDE as usize;
+    let mut png_bytes = Vec::new();
+    {
+        let mut encoder = png::Encoder::new(&mut png_bytes, LEGACY_SIDE, LEGACY_SIDE);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder.set_compression(png::Compression::Fast);
+        let mut writer = encoder.write_header().unwrap();
+        let mut stream = writer.stream_writer().unwrap();
+        let row = [40_u8, 90, 160, 255].repeat(side);
+        for _ in 0..LEGACY_SIDE {
+            stream.write_all(&row).unwrap();
+        }
+        stream.finish().unwrap();
+    }
+    let dir = TempDir::new().unwrap();
+    let file = dir.path().join("legacy.rz");
+    {
+        let mut out = std::io::BufWriter::new(std::fs::File::create(&file).unwrap());
+        let mut put = |bytes: &[u8]| out.write_all(bytes).unwrap();
+        put(b"DRDC");
+        put(&2_u32.to_le_bytes());
+        put(&64_u32.to_le_bytes());
+        put(&64_u32.to_le_bytes());
+        put(&1_u32.to_le_bytes());
+        put(&6_u32.to_le_bytes());
+        put(b"Legacy");
+        put(&0_i32.to_le_bytes());
+        put(&0_i32.to_le_bytes());
+        put(&1.0_f32.to_le_bytes());
+        put(&0_u32.to_le_bytes());
+        put(&[1]);
+        put(&(png_bytes.len() as u32).to_le_bytes());
+        put(&png_bytes);
+        put(&[1, 1]);
+        put(&(LEGACY_SIDE * LEGACY_SIDE).to_le_bytes());
+        let mut row = vec![0_u8; side];
+        for y in 0..LEGACY_SIDE {
+            for (x, byte) in row.iter_mut().enumerate() {
+                *byte = legacy_mask(x as u32, y);
+            }
+            put(&row);
+        }
+        put(&[0]);
+        out.flush().unwrap();
+    }
+    drop(png_bytes);
+    let path = CString::new(file.to_str().unwrap()).unwrap();
+    let doc = open(&path);
+    let mask = unsafe { dr_doc_layer_mask_image(doc, 0) };
+    assert!(!mask.is_null(), "the legacy layer opens with its mask");
+    let dimensions = unsafe { (dr_image_width(mask), dr_image_height(mask)) };
+    assert_eq!(dimensions, (LEGACY_SIDE, LEGACY_SIDE));
+    let pixels = unsafe { std::slice::from_raw_parts(dr_image_pixels_rgba(mask), side * side * 4) };
+    let at = |x: u32, y: u32| pixels[(y as usize * side + x as usize) * 4];
+    for y in [0, 1, 255, 256, 4999, 5000, LEGACY_SIDE - 2, LEGACY_SIDE - 1] {
+        for x in 0..LEGACY_SIDE {
+            assert_eq!(at(x, y), legacy_mask(x, y), "mask at ({x}, {y})");
+        }
+    }
+    for (x, y) in [
+        (0, 0),
+        (LEGACY_SIDE - 1, 0),
+        (0, LEGACY_SIDE - 1),
+        (LEGACY_SIDE - 1, LEGACY_SIDE - 1),
+    ] {
+        assert_eq!(at(x, y), legacy_mask(x, y), "corner ({x}, {y})");
+    }
+    unsafe {
+        dr_image_free(mask);
+        dr_doc_free(doc);
+    }
 }

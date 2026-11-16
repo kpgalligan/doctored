@@ -98,6 +98,13 @@ impl GrayRaster {
         }
     }
 
+    /// Adopts a plane already tiled, under a fresh identity: the 8-bit
+    /// native reader's row decode of a mask or channel (`png_rows8_read`,
+    /// 13C-2b), built tile band by tile band with each uniform tile shared.
+    pub(crate) fn from_tile_plane(plane: TilePlane<u8>) -> Self {
+        Self::tiled(plane)
+    }
+
     /// Adopts `image` without copying, under a fresh identity: for a plane
     /// built for one read (a group's effective-mask window, the mask caches'
     /// aligned and derived planes). Its first write tiles it.

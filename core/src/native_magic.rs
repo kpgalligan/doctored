@@ -21,3 +21,19 @@ pub(crate) const LEGACY_NATIVE_MAGIC: &[u8; 4] = b"RZDC";
 pub(crate) fn is_native_magic(head: &[u8]) -> bool {
     head.starts_with(NATIVE_MAGIC) || head.starts_with(LEGACY_NATIVE_MAGIC)
 }
+
+/// True only when `path` is a regular file whose first four bytes pass
+/// [`is_native_magic`]: the byte open's sniff before it streams the file
+/// (`DrDocument::open_controlled`). Any I/O failure or a shorter file is
+/// false, so every other path keeps the whole-file read and its sentences.
+pub(crate) fn file_is_native(path: &str) -> bool {
+    use std::io::Read;
+    let Ok(file) = std::fs::File::open(path) else {
+        return false;
+    };
+    if !file.metadata().is_ok_and(|m| m.is_file()) {
+        return false;
+    }
+    let mut head = [0_u8; 4];
+    file.take(4).read_exact(&mut head).is_ok() && is_native_magic(&head)
+}

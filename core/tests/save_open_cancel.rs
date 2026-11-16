@@ -11,13 +11,15 @@
 //!   `cancel_io::Polled`: one checkpoint per `POLL_BYTES` (65,536, restated
 //!   here) moved. So over a seeded-noise fixture whose file is at least four
 //!   intervals long, a call's checkpoints beyond its 2×2 twin's are at least
-//!   `len / POLL_BYTES - 1`, where a call with no polling had none; a flat or
-//!   native open also decodes through the same adapter, so it polls at least
-//!   twice that. The last checkpoint of every save is its check before the
-//!   rename, so the one before it is the write's last poll: a worker PARKED
-//!   there is cancelled inside the write, and the destination keeps its
-//!   previous bytes. An open parked at its third checkpoint is inside the
-//!   file's read.
+//!   `len / POLL_BYTES - 1`, where a call with no polling had none; a flat
+//!   open also decodes through the same adapter after reading the file, so it
+//!   polls at least twice that. The native open streams (13C-2b): it reads
+//!   each plane's span once, as it decodes, so its floor is the one pass. The
+//!   last checkpoint of every save is its check before the rename, so the one
+//!   before it is the write's last poll: a worker PARKED there is cancelled
+//!   inside the write, and the destination keeps its previous bytes. An open
+//!   parked at its third checkpoint is inside the file's read (the native
+//!   open's: inside its first plane's decode).
 //! - A controlled save writes the uncontrolled one's bytes.
 
 use std::ffi::{c_char, CString};
@@ -529,10 +531,12 @@ fn every_save_polls_as_its_file_is_written_and_a_parked_cancel_keeps_the_destina
 fn every_open_polls_as_its_file_is_read_and_decoded() {
     let (small, large) = (Bytes::new(2, 2), Bytes::new(768, 768));
     let dirs = (TempDir::new().unwrap(), TempDir::new().unwrap());
+    // `decoded`: the open reads the file whole, then decodes through the
+    // same adapter. The native open streams its planes (one pass).
     let files = |bytes: Bytes, dir: &Path| -> Vec<(Open, bool)> {
         let mut opens = Vec::new();
         for (save, decoded) in [
-            (Save::Native(bytes), true),
+            (Save::Native(bytes), false),
             (Save::Flat(bytes, FMT_PNG), true),
             (Save::Flat(bytes, FMT_JPEG), true),
             (Save::Flat(bytes, FMT_TIFF), true),
@@ -561,7 +565,7 @@ fn every_open_polls_as_its_file_is_read_and_decoded() {
         let stages = counted(|c| twin.run(c));
         let total = counted(|c| open.run(c));
         // The read alone polls once per interval; a decode through the same
-        // adapter moves the file's bytes a second time.
+        // adapter after a whole read moves the file's bytes a second time.
         let floor = if decoded {
             2 * (len / POLL_BYTES - 1)
         } else {
@@ -572,7 +576,8 @@ fn every_open_polls_as_its_file_is_read_and_decoded() {
             "{name}: {total} checkpoints for a {len}-byte file, {stages} for the 2×2 twin"
         );
         // Begin is the first checkpoint and the read's first poll the
-        // second, so the third is inside the read.
+        // second, so the third is inside the read (a native open's is inside
+        // its first layer's decode).
         let parked = cancelled_parked_at(3, &|p, _| p < 1.0, |token| {
             outcome(open.run(token as *const DrJobControl))
         });

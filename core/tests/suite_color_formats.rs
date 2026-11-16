@@ -593,6 +593,8 @@ mod native_banded_reopen;
 mod native_behind_clear;
 #[path = "native_capacity.rs"]
 mod native_capacity;
+#[path = "native_open_stream8.rs"]
+mod native_open_stream8;
 #[path = "native_png_bound.rs"]
 mod native_png_bound;
 #[path = "native_rows8_bytes.rs"]

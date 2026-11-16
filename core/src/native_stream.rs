@@ -1,31 +1,37 @@
-//! The typed native (`.doctored`, legacy `.rz`) reader's and writer's I/O: a bounds-checked
+//! The native (`.doctored`, legacy `.rz`) readers' and writers' I/O: a bounds-checked
 //! [`Reader`] over either a caller's byte slice or an open file, and the
 //! [`NativeSink`] a writer streams into (a `Vec<u8>` or a temporary file).
+//! Both readers drive it over a file: the typed one (`open_native`, through
+//! [`NativeFile::open`]) and, since 13C-2b, the 8-bit one (`DrDocument::open`,
+//! through [`NativeFile::open_byte`]).
 //!
 //! **Reading a file.** Nothing maps or buffers the whole file. Every read is
 //! a positional `pread` (`FileExt::read_at`) at an offset the reader already
 //! checked against the length it saw at open, so a file truncated or grown
 //! by another process can only make a read come back short, which is an
-//! `Err` ("high-depth native file shrank during read"), never a panic and
-//! never a SIGBUS (the reason this is a stream and not an `mmap`). Bytes
-//! appended after the open are never read: the length is fixed at open.
+//! `Err` ("high-depth native file shrank during read", or "native file
+//! shrank during read" for a byte file), never a panic and never a SIGBUS
+//! (the reason this is a stream and not an `mmap`). Bytes appended after the
+//! open are never read: the length is fixed at open.
 //!
 //! Two kinds of field come out of a file. A SPAN ([`Reader::take_payload`])
-//! is a pixel payload — a 16-bit raster PNG, a float raster, a mask or
-//! channel plane, an RSRC asset's PNG or f32 body, a skipped SOCT entry —
+//! is a pixel payload — a raster PNG (8- or 16-bit), a float raster, a mask
+//! or channel plane, an RSRC asset's PNG or f32 body, a skipped SOCT entry —
 //! recorded as an offset and a length and read again only when it decodes
 //! ([`Payload`]). Everything else is a SMALL TAKE ([`Reader::take`]): a
 //! slot, a table, a WARP original, a RAW or RBIN blob. In file mode a take
 //! is copied into an arena that lives as long as the [`NativeFile`], so it
 //! can be borrowed exactly as a slice of a whole buffer was; each arena
-//! allocation is admitted against the caller's working limit first. The
-//! numeric getters read through a 1 MiB read-ahead and are not counted.
+//! allocation is admitted against the caller's working limit first (a byte
+//! file has none: its limit is `u64::MAX`). The numeric getters read through
+//! a 1 MiB read-ahead and are not counted.
 //!
 //! **What the reader holds** ([`Reader::held_bytes`]): the bytes `take`
 //! returned plus [`NATIVE_STREAM_WINDOW_BYTES`], counted the same way over a
 //! slice and over a file, so `parse_native` and `open_native` admit the same
 //! figure. The typed plan's held term is `encoded_bound − streamed +
-//! NATIVE_STREAM_WINDOW_BYTES` (`precision_native_plan`), which dominates it.
+//! NATIVE_STREAM_WINDOW_BYTES` (`precision_native_plan`), which dominates it;
+//! the 8-bit plan's is the same over its own bounds (`drdc_reopen_plan`).
 //!
 //! **Writing.** A writer appends through [`NativeSink`]: a `Vec<u8>` (the
 //! in-memory twin) or a [`FileSink`], a 1 MiB `BufWriter` over the temporary
@@ -62,8 +68,26 @@ const SECTION_BUFFER_BYTES: usize = 1024 * 1024;
 /// reaches the file as a write of its own.
 const SINK_BUFFER_BYTES: usize = 1024 * 1024;
 
-const SHRANK: &str = "high-depth native file shrank during read";
 const END: &str = "unexpected end of file";
+
+/// The two sentences a [`NativeFile`] answers in its reader's words: a read
+/// that came back short, and an input buffer that could not be allocated.
+struct Words {
+    shrank: &'static str,
+    allocation: &'static str,
+}
+
+/// The typed reader's (pinned by its tests).
+const TYPED: Words = Words {
+    shrank: "high-depth native file shrank during read",
+    allocation: "could not allocate high-depth native input",
+};
+
+/// The 8-bit reader's.
+const BYTE: Words = Words {
+    shrank: "native file shrank during read",
+    allocation: "could not allocate native input",
+};
 
 /// Where a typed writer's bytes go.
 pub(crate) trait NativeSink {
@@ -232,8 +256,8 @@ impl NativeSink for FileSink {
     }
 }
 
-/// An open typed native file: its handle, the length seen at open, and the
-/// arena that holds every small take until the file is dropped.
+/// An open native file: its handle, the length seen at open, and the arena
+/// that holds every small take until the file is dropped.
 pub(crate) struct NativeFile {
     file: File,
     length: u64,
@@ -242,6 +266,7 @@ pub(crate) struct NativeFile {
     arena_bytes: Cell<u64>,
     limit: u64,
     other_retained: u64,
+    words: &'static Words,
 }
 
 impl NativeFile {
@@ -272,6 +297,31 @@ impl NativeFile {
             arena_bytes: Cell::new(0),
             limit,
             other_retained,
+            words: &TYPED,
+        })
+    }
+
+    /// Opens `path` for the 8-bit reader (13C-2b): an I/O failure is
+    /// `failed to read {path}: …`, the sentence the whole-file read it
+    /// replaces answered. No length cap and no working-limit admission, since
+    /// the byte open takes no limit (its record caps bound what it decodes):
+    /// the limit is `u64::MAX` with nothing else retained, so every arena
+    /// take passes.
+    pub(crate) fn open_byte(path: &str) -> Result<Self, String> {
+        let file = File::open(path).map_err(|e| format!("failed to read {path}: {e}"))?;
+        let length = file
+            .metadata()
+            .map_err(|e| format!("failed to read {path}: {e}"))?
+            .len();
+        Ok(Self {
+            file,
+            length,
+            path: path.to_string(),
+            arena: RefCell::new(Vec::new()),
+            arena_bytes: Cell::new(0),
+            limit: u64::MAX,
+            other_retained: 0,
+            words: &BYTE,
         })
     }
 
@@ -285,7 +335,7 @@ impl NativeFile {
         let mut done = 0;
         while done < buf.len() {
             match self.file.read_at(&mut buf[done..], offset + done as u64) {
-                Ok(0) => return Err(SHRANK.into()),
+                Ok(0) => return Err(self.words.shrank.into()),
                 Ok(n) => done += n,
                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
                 Err(e) => return Err(format!("failed to read {}: {e}", self.path)),
@@ -310,7 +360,7 @@ impl NativeFile {
         )?;
         let mut data = Vec::new();
         data.try_reserve_exact(n)
-            .map_err(|_| "could not allocate high-depth native input")?;
+            .map_err(|_| self.words.allocation)?;
         data.resize(n, 0);
         if n <= READ_AHEAD_BYTES / 2 {
             data.copy_from_slice(ahead.bytes(self, offset, n)?);
@@ -355,7 +405,7 @@ impl ReadAhead {
             if self.bytes.capacity() < READ_AHEAD_BYTES {
                 self.bytes
                     .try_reserve_exact(READ_AHEAD_BYTES)
-                    .map_err(|_| "could not allocate high-depth native input")?;
+                    .map_err(|_| file.words.allocation)?;
             }
             self.bytes.resize(want, 0);
             // A failed fill leaves nothing valid behind.

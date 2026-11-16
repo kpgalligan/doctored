@@ -10,8 +10,9 @@
 //! references, caches excluded). Counting per reference is what the reader
 //! re-creates: every layer plane, mask and channel is written and decoded on
 //! its own, so a duplicated layer, a shared mask or a `filled` plane's
-//! repeated tile counts at full size each time (`LayerRaster::unseeded`
-//! tiles a decoded plane without sharing).
+//! repeated tile counts at full size each time (`png_rows8_read` tiles a
+//! decoded layer plane without sharing; a mask or channel shares its uniform
+//! tiles, which N over-counts).
 //!
 //! From N, for each layer holding a retained source `s`, the references the
 //! reader provably never creates are removed: `s.rendered` (never written; the
@@ -31,30 +32,53 @@
 //! tiles for such a layer (`same_bytes` → `reidentified`), so the decoded
 //! fallback is freed and only the asset stays.
 //!
-//! `decode_bytes` = `encoded_bound` (the file `std::fs::read` holds for the
-//! whole parse; the writer enforces that bound) + `serialized_bytes` + T +
-//! `DECODE_OVERHEAD_BYTES`, where T is the largest buffer the reader holds
+//! `decode_bytes` = H + `serialized_bytes` + T + `DECODE_OVERHEAD_BYTES`
+//! (plus the float master margin), where H =
+//! `encoded_bound − streamed_bound + NATIVE_STREAM_WINDOW_BYTES` is what the
+//! streamed reader (13C-2b) holds beside the planes it decodes: every small
+//! take it copies into its arena
+//! (names, slots, the tail tables, WARP originals, GVAR pictures and RAW
+//! payloads, all outside `drdc_save_plan`'s `streamed_bound`) and its fixed
+//! window (the numeric read-ahead and one payload's section buffer). The
+//! file itself is never held. T is the largest buffer the reader holds
 //! beside its end state, never netted against it:
-//! - the layer stage (`drdc_read.rs`'s decode loop): `4·w·h` of the largest
-//!   layer plane. `into_rgba8` hands back the decoder's RGBA8 buffer without a
-//!   copy and `LayerRaster::unseeded` copies it into the tiles N counts, so
-//!   one decoded buffer is alive at a time (the writer encodes every layer
-//!   plane as RGBA8);
-//! - the channel stage: `2·w·h` of the canvas when there are channels (the
-//!   decoded image and its `to_luma8` copy);
+//! - the layer stage (`drdc_read.rs`'s decode loop): `band_scratch8(w, 4)`
+//!   of the widest layer plane (`png_rows8_read`: sixteen PNG rows plus the
+//!   fixed codec allowance, also png's limit for the decode), whose tiles N
+//!   counts as they are built band by band;
+//! - the channel stage: `band_scratch8(w, 1)` of the canvas when there are
+//!   channels;
 //! - the 8-bit asset stage (`native_sources_assets.rs`'s `decode_assets`):
-//!   `4·w·h` of the largest 8-bit asset, the `into_rgba8` buffer alive while
-//!   `unseeded` copies it (preflight requires `Rgba8`, so there is no copy);
-//! - a 16-bit asset: `native_png_band_scratch` (the banded reader).
+//!   `band_scratch8(w, 4)` of the widest 8-bit asset;
+//! - a 16-bit asset: `native_png_band_scratch` (the banded reader); a 32-bit
+//!   float master decodes row by row too and is the float margin's.
+//!
+//! A raw mask is read a row at a time into its tiles, within the layer
+//! stage's figure. S1's open (a placed 8-bit layer) holds the placed layer's
+//! decoded plane and its source's together until `materialize_byte` adopts
+//! the source's tiles for the layer; both are inside `serialized_bytes`,
+//! which counts the layer's plane before `retained_bytes` drops it.
+//!
+//! The plan is of a document this build writes: every plane in the writer's
+//! form and every mask within `capacity::mask_dimensions`, so the reader's
+//! whole-plane arms (another writer's PNG, a version 2–9 mask over
+//! `MAX_PIXELS`) are never in a plan.
 //!
 //! [`decode_figure`] and [`decode_transient`] are the one home of the sum
 //! and of T.
 //!
 //! Over-counts left in place: a WARP original the reader re-shares is counted
 //! per reference, a RAW payload shared across revisions per asset, and the
-//! host's caches (style and mask planes) are outside N.
+//! host's caches (style and mask planes) are outside N. `DECODE_OVERHEAD_BYTES`
+//! was measured beside the whole-file reader and is kept until 13C-6 measures
+//! this one.
 //!
-//! # Gate R′
+//! # Gate R′ (the former whole-file reader)
+//! The record of the reader before 13C-2b, which held the whole file and
+//! decoded each plane whole: the plan then charged `encoded_bound` as the
+//! file and `4·w·h` (a channel `2·w·h`) as T. It stays as that reader's
+//! record, as `drdc_save_plan` keeps gate M, until 13C-6 measures this one.
+//!
 //! E = `ri_interval_max_phys_footprint` − the footprint read after
 //! `proc_reset_footprint_interval` (a Swift probe built from the app sources),
 //! one case per process, `MallocLargeCache=0`, three runs plus a baseline
@@ -93,6 +117,8 @@ use crate::doc::DrDocument;
 use crate::drdc_save_plan::NativeSavePlan;
 use crate::layer_raster::LayerRaster;
 use crate::native_sources::SourceTable;
+use crate::native_stream::NATIVE_STREAM_WINDOW_BYTES;
+use crate::png_rows8_read::band_scratch8;
 use crate::resources::Inventory;
 
 const OVERFLOW: &str = "native reopen plan overflow";
@@ -120,12 +146,6 @@ fn sub(a: u64, b: u64) -> Result<u64, String> {
     a.checked_sub(b).ok_or_else(|| OVERFLOW.to_string())
 }
 
-fn plane(dimensions: (u32, u32), bytes_per_pixel: u64) -> Result<u64, String> {
-    (u64::from(dimensions.0) * u64::from(dimensions.1))
-        .checked_mul(bytes_per_pixel)
-        .ok_or_else(|| OVERFLOW.to_string())
-}
-
 /// Σ bytes × references of the allocations `record` reports.
 fn referenced(record: impl FnOnce(&mut Inventory)) -> u64 {
     let mut inventory = Inventory::default();
@@ -144,12 +164,12 @@ pub(crate) struct NativePlans {
     pub reopen: NativeReopenPlan,
 }
 
-/// The reader's whole decode peak: the `file` it holds throughout, the
-/// `serialized` records decoded, the largest `transient` buffer beside them
-/// and `DECODE_OVERHEAD_BYTES`. The one home of that sum.
-pub(crate) fn decode_figure(file: u64, serialized: u64, transient: u64) -> Result<u64, String> {
+/// The reader's whole decode peak: what it `held` throughout (the module
+/// doc's H), the `serialized` records decoded, the largest `transient`
+/// buffer beside them and `DECODE_OVERHEAD_BYTES`. The one home of that sum.
+pub(crate) fn decode_figure(held: u64, serialized: u64, transient: u64) -> Result<u64, String> {
     add(
-        add(add(file, serialized)?, transient)?,
+        add(add(held, serialized)?, transient)?,
         DECODE_OVERHEAD_BYTES,
     )
 }
@@ -163,26 +183,27 @@ pub(crate) fn float_master_margin(pixels: u64) -> u64 {
 }
 
 /// T, the largest buffer the reader holds beside its end state (the module
-/// doc's stages): `4·w·h` of the largest layer plane, `2·w·h` of the canvas
-/// when there are `channels`, and per asset `(dimensions, depth)` the 16-bit
-/// banded scratch or `4·w·h` of an 8-bit one. The one home of that rule.
+/// doc's stages): the RGBA8 band figure of each layer plane, the gray one of
+/// the canvas when there are `channels`, and per asset `(dimensions, depth)`
+/// the 16-bit banded scratch or an 8-bit one's RGBA8 band figure (a float
+/// master's decode is the float margin's). The one home of that rule.
 pub(crate) fn decode_transient(
     layers: &[(u32, u32)],
     channels: Option<(u32, u32)>,
     assets: &[((u32, u32), u8)],
 ) -> Result<u64, String> {
     let mut transient = 0u64;
-    for &dimensions in layers {
-        transient = transient.max(plane(dimensions, 4)?);
+    for &(width, _) in layers {
+        transient = transient.max(band_scratch8(width, 4));
     }
-    if let Some(canvas) = channels {
-        transient = transient.max(plane(canvas, 2)?);
+    if let Some((width, _)) = channels {
+        transient = transient.max(band_scratch8(width, 1));
     }
     for &(dimensions, depth) in assets {
-        let stage = if depth == 16 {
-            crate::precision_codec::native_png_band_scratch(dimensions)?
-        } else {
-            plane(dimensions, 4)?
+        let stage = match depth {
+            16 => crate::precision_codec::native_png_band_scratch(dimensions)?,
+            8 => band_scratch8(dimensions.0, 4),
+            _ => 0,
         };
         transient = transient.max(stage);
     }
@@ -201,16 +222,16 @@ impl DrDocument {
     pub(crate) fn native_plans(&self) -> Result<NativePlans, String> {
         let sources = crate::native_sources::byte_sources(self)?;
         let save = self.save_plan_with(&sources)?;
-        let reopen = self.reopen_plan_with(&sources, save.encoded_bound)?;
+        let reopen = self.reopen_plan_with(&sources, &save)?;
         Ok(NativePlans { save, reopen })
     }
 
-    /// [`Self::native_reopen_plan`] over `sources`, with the save plan's
-    /// `encoded_bound` as the file.
+    /// [`Self::native_reopen_plan`] over `sources`, with the reader's held
+    /// bytes from the save plan's bounds (the module doc's H).
     fn reopen_plan_with(
         &self,
         sources: &SourceTable,
-        encoded_bound: u64,
+        save: &NativeSavePlan,
     ) -> Result<NativeReopenPlan, String> {
         let mut document = Inventory::default();
         document.document(self);
@@ -262,11 +283,15 @@ impl DrDocument {
             .filter(|a| a.depth() == 32)
             .map(|a| u64::from(a.dimensions().0) * u64::from(a.dimensions().1))
             .fold(0u64, u64::saturating_add);
+        let held = add(
+            sub(save.encoded_bound, save.streamed_bound)?,
+            NATIVE_STREAM_WINDOW_BYTES,
+        )?;
         Ok(NativeReopenPlan {
             serialized_bytes: serialized,
             retained_bytes: retained,
             decode_bytes: add(
-                decode_figure(encoded_bound, serialized, transient)?,
+                decode_figure(held, serialized, transient)?,
                 float_master_margin(float_pixels),
             )?,
         })

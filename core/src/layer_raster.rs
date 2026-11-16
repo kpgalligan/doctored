@@ -283,6 +283,14 @@ impl LayerRaster {
         }
     }
 
+    /// Adopts a plane already tiled, under a fresh identity and with no
+    /// view-cache seed: the 8-bit native reader's row decode
+    /// (`png_rows8_read`, 13C-2b), whose layer and 8-bit source planes are
+    /// built tile band by tile band and never held whole.
+    pub(crate) fn from_tile_plane(plane: TilePlane<[u8; 4]>) -> Self {
+        Self::tiled(plane)
+    }
+
     /// A `width`×`height` raster of `value` everywhere over
     /// `TilePlane::filled` (one tile per tile shape, 13B-3d-3b), no seed; the
     /// contiguous fallback of [`Self::new`] when the store refuses it.

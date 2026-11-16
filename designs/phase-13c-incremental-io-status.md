@@ -3,8 +3,9 @@
 Status: OPEN. Items 2 and 3 of [#11](https://github.com/kpgalligan/doctored/issues/11): a save and an open
 whose peak memory is bounded, spilling to scratch where a table cannot stream, and recovery and `.drsnapshot`
 payloads stored as shared, deduplicated, compressed tiles. 13C-1 (the pool core), 13C-2a (the streamed byte
-save), 13C-3 (recovery on the pool) and 13C-5 (the streamed 8-bit PNG) have shipped, and mask, channel and
-8-bit source planes are pool tiles; 13C-2b, 13C-4 and 13C-6 are open. The roadmap's 13C line links here.
+save), 13C-2b (the streamed byte open), 13C-3 (recovery on the pool) and 13C-5 (the streamed 8-bit PNG) have
+shipped, and mask, channel and 8-bit source planes are pool tiles; 13C-4 and 13C-6 are open. The roadmap's 13C
+line links here.
 
 ## Shipped
 
@@ -32,6 +33,18 @@ save), 13C-3 (recovery on the pool) and 13C-5 (the streamed 8-bit PNG) have ship
   record equals `PngEncoder`'s; red under the tie, order and stored-fallback mutants), `native_save_plan8_45mp`
   (a save adds about 1.3 MB at gate M's sizes, 1.59 GB before; the recovery write stays under its admitted
   figure, red under a staging mutant), `native_save_bytes` untouched.
+- **13C-2b, the byte native reader over the stream** (#11). `DrDocument::open_controlled` sniffs a native file
+  (`native_magic::file_is_native`) and streams it: `parse_native` drives `native_stream::Reader` over
+  `NativeFile::open_byte`, the layer PNG, raw mask and channel PNG are spans, and `png_rows8_read` (a u8 twin of
+  `precision_png_rows`) decodes the writer's form (8 bits, colour type 6 or 0, not interlaced, IHDR/IDAT/IEND
+  only), the masks and the 8-bit sources row by row into tiles. Any other stored PNG, and a version 2–9 mask over
+  `MAX_PIXELS` (which the tile store refuses), decodes whole as before. `drdc_reopen_plan`: held term `encoded_bound
+  − streamed_bound + NATIVE_STREAM_WINDOW_BYTES`, T the band figure; gate R′ kept as the former reader's record and
+  `DECODE_OVERHEAD_BYTES` unchanged until 13C-6. Check: `native_save_plan8_45mp`'s open cases (S2 adds 184.3 MB for
+  a document holding 181.8 MB, 545.4 MB before; S1 within three planes and a band and within `decode_bytes`; red
+  on the buffered open and under a whole-decode mutant; a version-2 mask over `MAX_PIXELS` still opens),
+  `native_open_stream8` (round trip, fallback forms, truncation, corruption), `save_open_cancel`'s native floor
+  one pass.
 - **13C-5, the streamed 8-bit PNG** (#11). Flat saves and exports write the 8-bit PNG through `flat_png` over
   `png_rows8`, the profile, EXIF and splice chunks taken from `PngEncoder`'s encode of one pixel; `encode_into`'s
   PNG arm is unreached. Check: `flat_png_rows` (plain and with metadata, chunk for chunk; red under a reordered
@@ -58,7 +71,7 @@ save), 13C-3 (recovery on the pool) and 13C-5 (the streamed 8-bit PNG) have ship
 | Path | Peak beside the document | Streams? |
 | --- | --- | --- |
 | Byte native save (`drdc::save_native_controlled`) | the small fields between planes (a slot's payload and a table built before the body go from their own buffers), one plane's encoder rows (`png_rows8`) and a 1 MiB `FileSink` | yes |
-| Byte native open (`DrDocument::open_controlled`) | the whole file (`cancel_io::read_file`), then `drdc_read::parse_native` decodes from it | no |
+| Byte native open (`DrDocument::open_controlled`) | positional `pread`s (`native_stream::Reader` over `NativeFile::open_byte`); each plane decoded band by band into tiles (`png_rows8_read`); another writer's PNG whole | yes |
 | Typed native save (`precision_native_write`) | `write_scratch_bytes`: a 1 MiB `BufWriter` and one plane's IDAT window (`native_stream::FileSink`) | yes |
 | Typed native open (`precision_native_plan`, `native_stream::Reader`) | positional `pread`s; payloads decoded band by band into tiles (`precision_png_rows`) | yes |
 | Flat export: JPEG, BMP, TIFF, 8-bit PNG | the encoder's own rows (a PNG export's result is its `Vec`) | yes |
@@ -158,16 +171,7 @@ Each slice's check is a core test through the FFI (red without the change) unles
    bit; a second write of the same document appends nothing; a damaged payload refuses by name.
 1. 13C-1 shipped (above).
 2. 13C-2a shipped (above).
-3. **13C-2b — Byte native reader over `native_stream::Reader`.** Not reached in the 2026-11-15 batch (its three
-   write-side slices filled it; the reader is the largest regression surface). `parse_native` already drives a
-   `Reader`; what borrows the buffer is the layer PNG, the raw mask and the channel PNG (`r.take`), which become
-   spans (`take_payload`). `open_controlled` sniffs the magic and opens a `NativeFile` for a native file; a u8 twin
-   of `precision_png_rows` decodes the writer's form (8 bits, colour type 6 or 0, not interlaced) row by row into
-   tiles, and any other stored PNG decodes whole as now; the 8-bit source decode uses it too. `drdc_reopen_plan`:
-   file term `encoded_bound − streamed_bound + NATIVE_STREAM_WINDOW_BYTES` (`streamed_bound` now exists), T the
-   band figure. Check: an allocator open case (S2: the rise less the opened document's bytes within a band bound;
-   S1, whose open briefly holds the placed layer and its source plane, held to `decode_bytes`), a round trip,
-   the fallback forms, truncated and corrupt payloads; `save_open_cancel`'s open floor is one pass over the file.
+3. 13C-2b shipped (above).
 4. 13C-3 shipped (above).
 5. **13C-4 — Packages on the pool** (after D4's answer). Check: the snapshots drive; an older-version package still
    opens.
@@ -180,8 +184,7 @@ Each slice's check is a core test through the FFI (red without the change) unles
 
 ## Open items
 
-- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — 13C-2b and 13C-4 above, and D4's owner
-  answer.
+- `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — 13C-4 above, and D4's owner answer.
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — 13C-6's figures (quiet machine, 16 GB Mac),
   including the pool write's own peak and SHA-256 cost: recovery admits the native save's scratch plus
   `TILE_POOL_WINDOW_BYTES`, an upper bound a measurement may lower.

@@ -551,6 +551,7 @@ mod plane_scale_offset;
 mod plane_swatch;
 mod png_declared;
 mod png_rows8;
+mod png_rows8_read;
 pub mod poisson;
 mod pool_skeleton;
 pub mod precision_adjustment;

@@ -609,6 +609,7 @@ Detail belongs in the source file's own header comment.
 - `precision_codec.rs` / `precision_png.rs` / `precision_io.rs` / `ffi_precision.rs` — preserving RGB/RGBA16 PNG/TIFF input, metadata sidecar/TIFF encoder, native pixel payloads, typed C owners.
 - `flat_png.rs` — kernel, 13C-5: the 8-bit flat PNG save and export through `png_rows8`, the profile, EXIF and splice chunks taken from `PngEncoder`'s 1×1 encode.
 - `png_rows8.rs` — kernel, 13C-2a: the ONE 8-bit PNG encoder, row by row to a `NativeSink` (png 0.18.1's adaptive filter and fdeflate), `PngEncoder`'s bytes.
+- `png_rows8_read.rs` — kernel, 13C-2b: the byte native reader's row decode of writer's-form RGBA8/gray PNG spans and raw masks into tiles; the band figure.
 - `png_declared.rs` — kernel: a PNG's bare `gAMA`/`cHRM` (no `iCCP`, no `sRGB`) as the v4 RGB or Gray profile it describes, read in an `iCCP`'s place by every PNG open.
 - `precision_png_rows.rs` — the banded native RGBA16 PNG reader: rows decoded straight into 256×256 tiles, with no whole-plane decode buffer beside them.
 - `artwork_coverage.rs` / `artwork_render.rs` / `artwork_document.rs` / `ffi_artwork.rs` — bounded coverage; ink assembly into RGBA16 (linear f32 at 32 bits); a document-depth publication.

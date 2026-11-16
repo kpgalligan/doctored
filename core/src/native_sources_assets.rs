@@ -405,8 +405,9 @@ impl SourceTable {
 }
 impl PendingSources<'_> {
     /// The largest asset's `(banded, whole)` decode figures: a 16-bit
-    /// asset decodes through the banded reader; an 8-bit one decodes whole
-    /// (`image::load_from_memory` in `decode_assets`) in both slots. A
+    /// asset decodes through the banded reader; an 8-bit one counts as a
+    /// whole decode in both slots, an over-count the typed plan keeps since
+    /// `decode_assets` decodes the writer's form by rows (13C-2b). A
     /// 32-bit float master decodes row by row straight into tiles
     /// (`float_native::decode_raster`) and adds nothing to either figure;
     /// the reopen charges it as a float raster. `cap` is the reading
@@ -488,9 +489,22 @@ impl PendingSources<'_> {
                         profile,
                         job,
                     )?)
+                } else if crate::png_rows8_read::writer_form(&pending.png, 4)
+                    .map_err(|e| format!("failed to decode embedded source: {e}"))?
+                {
+                    // The writer's form decodes by rows into tiles (13C-2b,
+                    // `png_rows8_read`); preflight bounded it by `pixel_count`.
+                    let plane =
+                        crate::png_rows8_read::decode_rgba8(&pending.png, pending.dimensions, job)
+                            .map_err(|e| format!("failed to decode embedded source: {e}"))?;
+                    SourcePixels::Rgba8 {
+                        pixels: crate::layer_raster::LayerRaster::from_tile_plane(plane),
+                        profile,
+                    }
                 } else {
-                    // A slice decodes as it always did; a file span through
-                    // the same PNG decoder over its section (`native_stream`).
+                    // Any other stored PNG decodes whole: a slice as it always
+                    // did, a file span through the same PNG decoder over its
+                    // section (`native_stream`).
                     let decoded = match pending.png {
                         Payload::Bytes(bytes) => {
                             image::load_from_memory_with_format(bytes, image::ImageFormat::Png)

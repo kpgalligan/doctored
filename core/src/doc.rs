@@ -2245,24 +2245,32 @@ impl DrDocument {
     }
 
     /// [`Self::open`] under an optional single-use job control, begun once
-    /// for the whole open: the file is read through `cancel_io::read_file`,
-    /// a native file's planes and a flat file's codec read through
-    /// `cancel_io::Polled`, and every route checks the job between its
-    /// layers, planes or pages, so a cancel answers exactly
-    /// `operation cancelled` and opens nothing. No control behaves exactly
-    /// as [`Self::open`] always did.
+    /// for the whole open. A native file (a regular file whose magic
+    /// `native_magic::file_is_native` sniffs) is streamed (13C-2b): its
+    /// small fields are read through `native_stream::Reader` over a
+    /// `NativeFile` and each plane decodes from its span of the file through
+    /// `cancel_io::Polled`, over the job's whole range, so the file is never
+    /// held whole. Any other file is read through `cancel_io::read_file`
+    /// first and a flat file's codec reads through `cancel_io::Polled`. Every
+    /// route checks the job between its layers, planes or pages, so a cancel
+    /// answers exactly `operation cancelled` and opens nothing. No control
+    /// behaves exactly as [`Self::open`] always did.
     pub fn open_controlled(path: &str, control: Option<&DrJobControl>) -> Result<Self, String> {
         let _run = control.map(DrJobControl::begin).transpose()?;
         let job = control.map_or(JobContext::NONE, JobContext::new);
+        if crate::native_magic::file_is_native(path) {
+            let file = crate::native_stream::NativeFile::open_byte(path)?;
+            let doc = settle(
+                job,
+                crate::drdc::parse_native(&file, job)
+                    .map_err(|e| format!("failed to read document {path}: {e}")),
+            )?;
+            job.report(1.0, 5)?;
+            return Ok(doc);
+        }
         let mut bytes = crate::cancel_io::read_file(path, job.range(0.0, 0.2))?;
         let job = job.range(0.2, 1.0);
-        let doc = if crate::native_magic::is_native_magic(&bytes) {
-            settle(
-                job,
-                crate::drdc::parse_native(&bytes, job)
-                    .map_err(|e| format!("failed to read document {path}: {e}")),
-            )?
-        } else if bytes.len() >= 4 && &bytes[..4] == b"8BPS" {
+        let doc = if bytes.len() >= 4 && &bytes[..4] == b"8BPS" {
             settle(job, crate::psd::open_psd(&bytes, path, job))?
         } else {
             // A TIFF holding more than one image opens each page as a layer

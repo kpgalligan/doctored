@@ -1,11 +1,12 @@
 //! The 8-bit native reopen plan (`drdc_reopen_plan`). Each fixture is
 //! saved through `dr_doc_save_native` and reopened through `dr_doc_open`.
 //! (a) the reopened document's authoritative retention fits `retained_bytes`;
-//! (b) `retained ≤ serialized ≤ decode` and decode covers the file plus every
-//! decoded record; (c) the export answers the method; (d) a placed layer's
-//! shared source counts once; (e) the plan does not move when the views are
-//! evicted; (f) NULL inputs answer false with an error; (g) the decode term's
-//! transient is the reader stage the fixture's dimensions give; (h) pins the
+//! (b) `retained ≤ serialized ≤ decode`, so decode covers every decoded
+//! record (the streamed reader never holds the file); (c) the export answers
+//! the method; (d) a placed layer's shared source counts once; (e) the plan
+//! does not move when the views are evicted; (f) NULL inputs answer false with
+//! an error; (g) decode is the reader's held bytes, the records, the band
+//! figure the fixture's widths give and the overhead; (h) pins the
 //! reopened documents' decoded bytes, captured before the reader's layer
 //! decode moved from `to_rgba8` to `into_rgba8`. Only (e) evicts in this
 //! binary.
@@ -132,18 +133,21 @@ fn fixtures() -> Vec<(&'static str, DrDocument)> {
 }
 
 /// (g)'s oracle: the largest reader stage beside the end state, from each
-/// fixture's dimensions (layer planes and 8-bit assets at 4 B/px, channels at
-/// 2 B/px of the canvas).
+/// fixture's widths: sixteen PNG rows of `c` samples a pixel (the filter
+/// byte included) plus the fixed 4 MiB, with `c` 4 for layer planes and
+/// 8-bit assets and 1 for the canvas's channels.
 fn transient(name: &str) -> u64 {
+    let band = |c: u64, w: u64| 16 * (c * w + 1) + 4 * 1024 * 1024;
     match name {
-        "i" | "iv" => 4 * 200 * 150,
-        "ii" | "iii" => 4 * 256 * 256,
+        "i" | "iv" => band(4, 200),
+        "ii" | "iii" => band(4, 256),
         // The layer, channel and asset stages; the largest wins.
-        "v" => [4 * 256 * 256, 2 * 256 * 256, 4 * 256 * 256]
+        "v" => [band(4, 256), band(1, 256), band(4, 256)]
             .into_iter()
             .max()
             .unwrap(),
-        "vi" => 4 * 256 * 192,
+        // 64-wide layers beside a 256-wide asset.
+        "vi" => band(4, 64).max(band(4, 256)),
         _ => unreachable!("{name}"),
     }
 }
@@ -338,7 +342,6 @@ fn plan_covers_each_reopen() {
     for (name, doc) in fixtures() {
         let plan = doc.native_reopen_plan().unwrap();
         let path = save(&doc, dir.path(), &format!("{name}.rz"));
-        let file = std::fs::metadata(&path).unwrap().len();
         let reopened = open(&path).unwrap();
         let kept = held(&reopened);
         assert!(
@@ -347,10 +350,9 @@ fn plan_covers_each_reopen() {
             plan.retained_bytes
         );
         assert!(plan.retained_bytes <= plan.serialized_bytes, "{name}");
-        assert!(plan.serialized_bytes <= plan.decode_bytes, "{name}");
         assert!(
-            plan.decode_bytes >= file + plan.serialized_bytes,
-            "{name}: decode {} < file {file} + serialized {}",
+            plan.decode_bytes >= plan.serialized_bytes,
+            "{name}: decode {} < serialized {}",
             plan.decode_bytes,
             plan.serialized_bytes
         );
@@ -359,9 +361,12 @@ fn plan_covers_each_reopen() {
             (plan.retained_bytes, plan.decode_bytes),
             "{name}"
         );
-        let encoded = doc.native_save_plan().unwrap().encoded_bound;
+        // The reader's held term: the small takes outside the streamed
+        // planes and `NATIVE_STREAM_WINDOW_BYTES` (4 MiB, restated).
+        let save_plan = doc.native_save_plan().unwrap();
+        let held_term = save_plan.encoded_bound - save_plan.streamed_bound + 4 * 1024 * 1024;
         assert_eq!(
-            plan.decode_bytes - encoded - plan.serialized_bytes - DECODE_OVERHEAD_BYTES,
+            plan.decode_bytes - held_term - plan.serialized_bytes - DECODE_OVERHEAD_BYTES,
             transient(name),
             "{name}"
         );

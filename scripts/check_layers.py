@@ -155,6 +155,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "plane_swatch.rs",
     "png_declared.rs",
     "png_rows8.rs",
+    "png_rows8_read.rs",
     "poisson.rs",
     "psd_comp_records.rs",
     "psd_framing.rs",

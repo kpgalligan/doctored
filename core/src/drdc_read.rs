@@ -1,7 +1,14 @@
 //! Native record preflight and decoding. All record and PNG dimensions are
 //! validated before allocating any decoded pixel or mask planes.
+//!
+//! The reader streams the file (13C-2b): [`parse_native`] drives
+//! `native_stream::Reader` over an open `NativeFile`, so each layer PNG, raw
+//! mask and channel PNG is a span of the file, read only when it decodes.
+//! A plane in the writer's form decodes row by row into tiles
+//! (`png_rows8_read`); any other stored PNG, and a version 2–9 mask over
+//! `MAX_PIXELS` (which the tile store refuses), decodes whole as before.
 
-use std::io::Cursor;
+use std::io::Read;
 use std::sync::Arc;
 
 use image::codecs::png::PngDecoder;
@@ -9,15 +16,17 @@ use image::{GrayImage, ImageDecoder, RgbaImage};
 
 use super::*;
 use crate::cancel_io::Polled;
-use crate::doc::LayerRaster;
+use crate::doc::{GrayRaster, LayerRaster};
 use crate::doc_channel::Channel;
 use crate::doc_group::MAX_GROUP_DEPTH;
 use crate::doc_guide::{normalized, Guide};
 use crate::icc::IccProfile;
 use crate::metadata::Metadata;
+use crate::native_stream::{NativeFile, Payload};
+use crate::png_rows8_read::{decode_gray8, decode_rgba8, raw_gray8, writer_form};
 use crate::style::{GlobalLight, LayerStyle};
 
-/// Parses a DRDC buffer of version 1 to 9 (version 1 predates layer masks
+/// Parses a DRDC file of version 1 to 9 (version 1 predates layer masks
 /// and layer meta, which default to absent; versions 1 and 2 predate the
 /// clipped flag, which defaults to false; versions 1 to 3 predate the layer
 /// style and the global light, which default to absent / (120°, 30°);
@@ -69,11 +78,11 @@ use crate::style::{GlobalLight, LayerStyle};
 /// is dropped and its layer opens with its stored pixels.
 ///
 /// `job` reports progress per layer and per channel plane (each report a
-/// checkpoint), and each plane's PNG decoder reads through
-/// `cancel_io::Polled`; the caller settles a cancel to exactly
+/// checkpoint), and each plane's PNG decoder reads its span of `file`
+/// through `cancel_io::Polled`; the caller settles a cancel to exactly
 /// `operation cancelled`.
-pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocument, String> {
-    let mut r = Reader::new(bytes);
+pub(crate) fn parse_native(file: &NativeFile, job: JobContext<'_>) -> Result<DrDocument, String> {
+    let mut r = Reader::over_file(file);
     if !crate::native_magic::is_native_magic(r.take(4)?) {
         return Err("not a DRDC document".to_string());
     }
@@ -419,7 +428,7 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
     let mut total_mask_pixels: u64 = 0;
     // The placeholders are private to this parse. Metadata/structure can be
     // checked without allocating decoded planes; every placeholder is replaced
-    // before the document is returned. Stored slices borrow the input buffer.
+    // before the document is returned. Stored planes are spans of the file.
     let pending_pixel = Arc::new(RgbaImage::new(0, 0));
     let pending_mask = Arc::new(GrayImage::new(0, 0));
     let mut layer_planes = Vec::with_capacity(count as usize);
@@ -442,8 +451,8 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
         if png_len > MAX_DRDC_PNG_LEN {
             return Err(format!("layer PNG length {png_len} out of range"));
         }
-        let png = r.take(png_len as usize)?;
-        let (lw, lh) = png_dimensions(png, "layer pixels")?;
+        let png = r.take_payload(u64::from(png_len))?;
+        let (lw, lh) = png_dimensions(&png, "layer pixels")?;
         total_pixels = total_pixels.saturating_add(u64::from(lw) * u64::from(lh));
         capacity::layer_pixels(total_pixels)?;
         // The mask BYTES are taken here but the image is NOT built yet: a
@@ -452,7 +461,7 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
         // Both lengths are accepted now and the pairing is checked once the
         // kind is known, which for every version-1 to -6 file (always Raster)
         // can only defer a refusal that is then made identically.
-        let mut mask_raw: Option<&[u8]> = None;
+        let mut mask_raw: Option<Payload<'_>> = None;
         let mut independent_mask_dims = None;
         let mut mask_enabled = true;
         let mut meta = None;
@@ -481,7 +490,7 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
                 if version >= 10 {
                     capacity::mask_pixels(total_mask_pixels)?;
                 }
-                mask_raw = Some(r.take(mask_len as usize)?);
+                mask_raw = Some(r.take_payload(u64::from(mask_len))?);
             }
             meta = take_opt_string(&mut r, "meta")?.map(Into::into);
         }
@@ -541,7 +550,7 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
             None => None,
             Some(raw) => {
                 let expected = u64::from(mw) * u64::from(mh);
-                if raw.len() as u64 != expected {
+                if raw.len() != expected {
                     let n = raw.len();
                     return Err(match kind {
                         LayerKind::Raster => format!(
@@ -653,8 +662,8 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
             if png_len > MAX_DRDC_PNG_LEN {
                 return Err(format!("channel PNG length {png_len} out of range"));
             }
-            let png = r.take(png_len as usize)?;
-            let (cw, ch) = png_dimensions(png, "channel plane")?;
+            let png = r.take_payload(u64::from(png_len))?;
+            let (cw, ch) = png_dimensions(&png, "channel plane")?;
             if (cw, ch) != (width, height) {
                 return Err(format!(
                     "channel plane {cw}x{ch} does not match the {width}x{height} canvas"
@@ -1203,38 +1212,20 @@ pub(crate) fn parse_native(bytes: &[u8], job: JobContext<'_>) -> Result<DrDocume
     // All aggregate capacities, structure, masks, channel dimensions and tail
     // slots passed before the first PNG decode or raw mask allocation.
     let planes = (layers.len() + channels.len()).max(1) as f64;
-    let decode = |png: &[u8]| {
-        image::ImageReader::with_format(Polled::new(Cursor::new(png), job), image::ImageFormat::Png)
-            .decode()
-    };
     for (index, (layer, (png, dims, mask, mask_dims))) in
         layers.iter_mut().zip(layer_planes).enumerate()
     {
         job.report(index as f64 / planes, 1)?;
-        let pixels = decode(png)
-            .map_err(|e| format!("failed to decode layer pixels: {e}"))?
-            // One decoded buffer at a time (`drdc_reopen_plan`'s layer stage).
-            .into_rgba8();
-        if pixels.dimensions() != dims {
-            return Err("decoded layer dimensions changed after preflight".to_string());
-        }
-        layer.pixels = LayerRaster::unseeded(pixels);
+        layer.pixels = layer_pixels(&png, dims, job)?;
         layer.mask = mask
-            .map(|raw| {
-                GrayImage::from_raw(mask_dims.0, mask_dims.1, raw.to_vec())
-                    .map(crate::doc::GrayRaster::new)
-                    .ok_or_else(|| "invalid layer mask".to_string())
-            })
+            .map(|raw| mask_plane(&raw, mask_dims, job))
             .transpose()?;
     }
     let first_channel = layers.len();
     for (index, (channel, png)) in channels.iter_mut().zip(channel_planes).enumerate() {
         job.report((first_channel + index) as f64 / planes, 1)?;
-        channel.data = crate::doc::GrayRaster::new(
-            decode(png)
-                .map_err(|e| format!("failed to decode channel plane: {e}"))?
-                .to_luma8(),
-        );
+        channel.data = channel_plane(&png, (width, height), job)
+            .map_err(|e| format!("failed to decode channel plane: {e}"))?;
     }
     sources.materialize_byte(&mut layers, &profile, source_profiles)?;
     if let Some(entries) = pending_warp {
@@ -1292,9 +1283,89 @@ fn take_opt_string(r: &mut Reader<'_>, what: &str) -> Result<Option<String>, Str
 
 /// Read PNG dimensions without inflating its pixels. Match the decoder's
 /// existing allocation limit while inspecting any auxiliary PNG chunks too.
-fn png_dimensions(png: &[u8], what: &str) -> Result<(u32, u32), String> {
-    let decoder = PngDecoder::with_limits(Cursor::new(png), image::Limits::default())
+fn png_dimensions(png: &Payload<'_>, what: &str) -> Result<(u32, u32), String> {
+    let decoder = PngDecoder::with_limits(png.reader(), image::Limits::default())
         .map_err(|e| format!("failed to inspect {what}: {e}"))?;
     capacity::decoded_bytes(decoder.total_bytes())?;
     Ok(decoder.dimensions())
+}
+
+/// Whether a plane of `dimensions` takes a row path: the tile store refuses
+/// a plane of zero area or over `MAX_PIXELS` (`tile_store::sample_count`),
+/// and only the whole arms keep a contiguous fallback for one.
+fn tiles_fit((w, h): (u32, u32)) -> bool {
+    w > 0 && h > 0 && u64::from(w) * u64::from(h) <= MAX_PIXELS
+}
+
+/// `png` decoded whole through `image`, polled as it reads its span: a
+/// stored PNG that is not in the writer's form.
+fn decode_whole(png: &Payload<'_>, job: JobContext<'_>) -> image::ImageResult<image::DynamicImage> {
+    image::ImageReader::with_format(Polled::new(png.reader(), job), image::ImageFormat::Png)
+        .decode()
+}
+
+/// One layer plane (the module doc): the writer's form by rows into tiles,
+/// else the whole decode, one decoded buffer at a time (`drdc_reopen_plan`),
+/// tiled by `LayerRaster::unseeded` or kept contiguous over `MAX_PIXELS`.
+fn layer_pixels(
+    png: &Payload<'_>,
+    dims: (u32, u32),
+    job: JobContext<'_>,
+) -> Result<LayerRaster, String> {
+    let prefix = |e: String| format!("failed to decode layer pixels: {e}");
+    if tiles_fit(dims) && writer_form(png, 4).map_err(prefix)? {
+        return decode_rgba8(png, dims, job)
+            .map(LayerRaster::from_tile_plane)
+            .map_err(prefix);
+    }
+    let pixels = decode_whole(png, job)
+        .map_err(|e| prefix(e.to_string()))?
+        .into_rgba8();
+    if pixels.dimensions() != dims {
+        return Err("decoded layer dimensions changed after preflight".to_string());
+    }
+    Ok(LayerRaster::unseeded(pixels))
+}
+
+/// One raw mask of `dims`: by rows into tiles when the tile store takes its
+/// size, else read whole into `GrayRaster::new`, whose contiguous fallback
+/// keeps it. Only a version 2–9 mask can be over `MAX_PIXELS` (a layer- or
+/// canvas-sized one, which `capacity::mask_dimensions` never bounded).
+fn mask_plane(
+    raw: &Payload<'_>,
+    dims: (u32, u32),
+    job: JobContext<'_>,
+) -> Result<GrayRaster, String> {
+    if tiles_fit(dims) {
+        return raw_gray8(raw, dims, job).map(GrayRaster::from_tile_plane);
+    }
+    let len = usize::try_from(raw.len()).map_err(|_| "invalid layer mask")?;
+    let mut bytes = Vec::new();
+    bytes
+        .try_reserve_exact(len)
+        .map_err(|_| "could not allocate native input")?;
+    Polled::new(raw.reader(), job)
+        .read_to_end(&mut bytes)
+        .map_err(|e| e.to_string())?;
+    GrayImage::from_raw(dims.0, dims.1, bytes)
+        .map(GrayRaster::new)
+        .ok_or_else(|| "invalid layer mask".to_string())
+}
+
+/// One channel plane at the canvas's `dimensions` (within `MAX_PIXELS`):
+/// the writer's form by rows into tiles, else the whole decode's
+/// `to_luma8`.
+fn channel_plane(
+    png: &Payload<'_>,
+    dimensions: (u32, u32),
+    job: JobContext<'_>,
+) -> Result<GrayRaster, String> {
+    if writer_form(png, 1)? {
+        return decode_gray8(png, dimensions, job).map(GrayRaster::from_tile_plane);
+    }
+    Ok(GrayRaster::new(
+        decode_whole(png, job)
+            .map_err(|e| e.to_string())?
+            .to_luma8(),
+    ))
 }
