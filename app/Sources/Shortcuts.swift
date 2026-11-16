@@ -135,12 +135,17 @@ struct ShortcutChord: Equatable, Hashable {
 /// The user's overrides, and nothing else. A value of `nil` for an identity is
 /// DELIBERATE: it means "this command has no shortcut", which is different
 /// from "this command was never edited" (its key being absent).
+///
+/// `toolKeys` is the bare tool keys' half (`ToolKeys`), identifier → key or
+/// nil for a removed key. It is written as `tool_keys` only when it holds
+/// something, so a set without tool keys keeps its bytes.
 struct ShortcutBindings: Equatable {
     static let schemaVersion = 1
     /// The library holds exactly one item, under this name.
     static let libraryName = "Shortcuts"
 
     var overrides: [String: ShortcutChord?] = [:]
+    var toolKeys: [String: String?] = [:]
 
     var name: String { Self.libraryName }
 
@@ -149,11 +154,19 @@ struct ShortcutBindings: Equatable {
         for (identity, chord) in overrides {
             map[identity] = chord?.json ?? NSNull()
         }
-        return ["schema_version": Self.schemaVersion, "name": Self.libraryName, "overrides": map]
+        var object: [String: Any] = [
+            "schema_version": Self.schemaVersion, "name": Self.libraryName, "overrides": map,
+        ]
+        if !toolKeys.isEmpty {
+            object["tool_keys"] = toolKeys.mapValues { key -> Any in key.map { $0 as Any } ?? NSNull() }
+        }
+        return object
     }
 
     static func decode(_ object: [String: Any]) throws -> ShortcutBindings {
-        guard Set(object.keys) == ["schema_version", "name", "overrides"],
+        let required: Set<String> = ["schema_version", "name", "overrides"]
+        guard required.isSubset(of: object.keys),
+              Set(object.keys).subtracting(required).isSubset(of: ["tool_keys"]),
               object["name"] as? String == libraryName,
               let map = object["overrides"] as? [String: Any] else {
             throw DoctoredCoreError(message: "Invalid or unsupported shortcut set.")
@@ -182,7 +195,32 @@ struct ShortcutBindings: Equatable {
             guard let chord = overrides.removeValue(forKey: old) else { continue }
             if overrides[current] == nil { overrides.updateValue(chord, forKey: current) }
         }
-        return ShortcutBindings(overrides: overrides)
+        return ShortcutBindings(overrides: overrides, toolKeys: try decodeToolKeys(object["tool_keys"]))
+    }
+
+    /// `tool_keys`: identifier → one valid tool key (`ToolKeys.validated`) or null. An
+    /// identifier this build has no tool for is kept, so a set written by a later build keeps
+    /// its keys; it simply selects nothing here.
+    private static func decodeToolKeys(_ value: Any?) throws -> [String: String?] {
+        guard let value else { return [:] }
+        guard let map = value as? [String: Any], map.count <= 256 else {
+            throw DoctoredCoreError(message: "Invalid or unsupported shortcut set.")
+        }
+        var keys: [String: String?] = [:]
+        for (identifier, raw) in map {
+            guard !identifier.isEmpty, identifier.count <= 64 else {
+                throw DoctoredCoreError(message: "Invalid or unsupported shortcut set.")
+            }
+            if raw is NSNull {
+                keys.updateValue(nil, forKey: identifier)
+                continue
+            }
+            guard let key = raw as? String else {
+                throw DoctoredCoreError(message: "Invalid or unsupported shortcut set.")
+            }
+            keys.updateValue(try ToolKeys.validated(key), forKey: identifier)
+        }
+        return keys
     }
 }
 
@@ -397,10 +435,13 @@ enum ShortcutMenu {
         item.keyEquivalentModifierMask = chord?.modifiers ?? []
     }
 
-    /// What `makeMainMenu()` runs: snapshot, then apply what is on disk.
+    /// What `makeMainMenu()` runs: snapshot, then apply what is on disk — the
+    /// menu chords to the menu and the tool keys to `ToolKeys`.
     static func installStored(to menu: NSMenu) {
         snapshotDefaults(of: menu)
-        apply(stored().bindings, to: menu)
+        let bindings = stored().bindings
+        apply(bindings, to: menu)
+        ToolKeys.shared.load(bindings)
     }
 
     /// Who already holds `chord`, if anyone. The WHOLE menu is walked,
@@ -482,10 +523,11 @@ enum ShortcutMenu {
         try ShortcutLibrary.save(bindings, replace: true)
     }
 
-    /// Drops every override. The snapshot is what comes back, so this restores
-    /// exactly the menu this build ships.
+    /// Drops every menu override. The snapshot is what comes back, so this
+    /// restores exactly the menu this build ships; the tool keys are kept
+    /// (`ToolKeys.resetAll` is their own).
     static func resetAll(in menu: NSMenu) throws {
-        let bindings = ShortcutBindings()
+        let bindings = ShortcutBindings(toolKeys: stored().bindings.toolKeys)
         apply(bindings, to: menu)
         try ShortcutLibrary.save(bindings, replace: true)
     }

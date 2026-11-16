@@ -6,17 +6,18 @@ import AppKit
 // same editor `AgentServer.editor(_:)` returns — never `NSApp.keyWindow`, which is nil whenever the
 // app is inactive.
 
-/// Phase 12D-2's three view tools:
+/// Phase 12D-2's three view tools, and `match_views`:
 ///
 /// | Handler | UI path it mirrors |
 /// |---|---|
 /// | `openSecondView` | Window ▸ New View for “<document>” |
 /// | `closeSecondView` | the second window's close button |
 /// | `listViews` | the Window menu's list of this document's windows |
+/// | `matchViews` | Window ▸ Match Zoom / Match Location / Match Zoom and Location |
 ///
 /// **None of them writes a document.** A view is a window: no pixel, no undo
 /// step, no dirty flag, no history entry and nothing a `save_copy` carries —
-/// the ruler/grid/proof-setup exemption, which is why all three are
+/// the ruler/grid/proof-setup exemption, which is why all four are
 /// `nonRecordable` beside `get_view` / `set_view`.
 ///
 /// **One editor-resolution rule for the whole surface.** An omitted `view` is
@@ -30,6 +31,7 @@ extension AgentServer {
         "open_second_view": { $0.openSecondView },
         "close_second_view": { $0.closeSecondView },
         "list_views": { $0.listViews },
+        "match_views": { $0.matchViews },
     ]
 
     /// Facts for this file's tools (recording, selection, depth admission); merged in AgentServer+Registry.swift.
@@ -43,6 +45,8 @@ extension AgentServer {
         "open_second_view": [.nonRecordable, .commonTool, .floatTool],
         "close_second_view": [.nonRecordable, .commonTool, .floatTool],
         "list_views": [.nonRecordable, .commonTool, .floatTool],
+        // Window ▸ Match Zoom / Location: view state of every open window, set_view's facts.
+        "match_views": [.nonRecordable, .commonTool, .floatTool],
     ]
 
     // MARK: - Resolution
@@ -144,6 +148,47 @@ extension AgentServer {
         ])
     }
 
+    /// match_views: Window ▸ Match Zoom, Match Location and Match Zoom and
+    /// Location, from `view` (view 1 when omitted) of the named document to
+    /// every other open view of every document (`ViewMatch`). `zoom` and
+    /// `location` default to true; both false is refused by name.
+    func matchViews(_ a: [String: Any]) throws -> String {
+        let document = try target(a)
+        guard document.doc != nil else {
+            throw ToolError(message: "That document has no image to match views to.")
+        }
+        func flag(_ key: String) throws -> Bool {
+            guard a[key] != nil else { return true }
+            guard let value = boolArg(a, key) else {
+                throw ToolError(message: "\(key) must be true or false.")
+            }
+            return value
+        }
+        let zoom = try flag("zoom"), location = try flag("location")
+        guard zoom || location else {
+            throw ToolError(
+                message: "zoom and location are both false, so there is nothing to match — "
+                    + "pass zoom, location or both.")
+        }
+        let source = try editor(document, view: try viewArgument(a))
+        let matched: [ViewMatch.Matched]
+        do {
+            matched = try ViewMatch.match(from: source, zoom: zoom, location: location)
+        } catch {
+            throw ToolError(message: error.localizedDescription)
+        }
+        let rows: [[String: Any]] = matched.compactMap { row in
+            guard let owner = row.editor.document else { return nil }
+            return ["document_id": documentID(for: owner), "view": row.state.view,
+                    "zoom": row.state.zoom,
+                    "center": ["x": Double(row.state.center.x), "y": Double(row.state.center.y)]]
+        }
+        return try jsonResult([
+            "ok": true, "source": source.viewState.json, "matched": rows,
+            "note": "Matching views changes no document: no pixel, no undo step and no dirty flag.",
+        ])
+    }
+
     /// The optional view-state arguments `open_second_view` shares with
     /// `set_view`, so the two cannot interpret them differently.
     func applyViewArguments(_ a: [String: Any], to editorVC: EditorViewController) throws
@@ -216,10 +261,11 @@ extension AgentServer {
     }
 
     @inline(never) func viewsCatalog() -> [[String: Any]] {
-        // No shared `view` property here: `close_second_view` is the only
-        // tool in this catalog that takes one, and it is REQUIRED there —
-        // the shared sentence in `AgentServer+Workspace.swift` says "omit it
-        // for view 1", which is true of get_view/set_view and false here.
+        // No shared `view` property here: it is REQUIRED on
+        // `close_second_view` — the shared sentence in
+        // `AgentServer+Workspace.swift` says "omit it for view 1", which is
+        // true of get_view/set_view and false there — and `match_views`
+        // names its SOURCE view with its own sentence.
         return [
             tool("open_second_view",
                  "Window > New View for \u{201c}<document>\u{201d}: a second window on the SAME "
@@ -260,6 +306,30 @@ extension AgentServer {
                  + "whether it is the key window. `sync_pan_zoom` is "
                  + "DOCUMENT-wide, not per view. A read.",
                  ["document_id": Self.docIDProperty]),
+            tool("match_views",
+                 "Window > Match Zoom, Match Location and Match Zoom and Location: push one view's "
+                 + "zoom and/or location at EVERY other open view, of this document and of every "
+                 + "other open document. Zoom: each takes the source's magnification. Location: "
+                 + "each centres on the same FRACTION of its own canvas as the source's centre is "
+                 + "of the source's canvas (the same pixel on a same-sized document, the matching "
+                 + "place on a resized copy). View rotation is never matched. One-shot: nothing "
+                 + "stays linked. The reply is each view's read-back zoom and centre. Writes NO "
+                 + "document, so it is not recorded as an Action step.",
+                 ["document_id": Self.docIDProperty,
+                  "view": [
+                    "type": "integer",
+                    "description": "The SOURCE view's ordinal, as list_views reports it; omit it "
+                        + "for view 1.",
+                  ],
+                  "zoom": [
+                    "type": "boolean",
+                    "description": "Match the magnification (default true).",
+                  ],
+                  "location": [
+                    "type": "boolean",
+                    "description": "Match the centre by canvas fraction (default true). zoom and "
+                        + "location both false is refused.",
+                  ]]),
         ]
     }
 }

@@ -550,6 +550,8 @@ struct Action {
         // per file and recurse — and the other four edit the library or write
         // a bundle to a literal path while the run is using it.
         "run_batch", "batch_status", "cancel_batch", "package_action", "import_action",
+        // The Parameters… sheet's twin edits the action library, as save_action does.
+        "edit_action_parameters",
         // The export workspace's file writer and its preset-library writes.
         // `quick_export` is deliberately NOT here: see `notAStepReason`.
         "export_image", "save_export_preset", "delete_export_preset",
@@ -636,9 +638,10 @@ struct Action {
             return "a batch PLAYS an action, so a step naming one would run this action "
                 + "again for every file and recurse — run the batch over this action instead"
         }
-        if ["package_action", "import_action"].contains(tool) {
+        if ["package_action", "import_action", "edit_action_parameters"].contains(tool) {
             return "an action may not read or write the action library while it runs — "
-                + "packaging and importing are library operations, not edits to a picture"
+                + "packaging, importing and editing parameters are library operations, not "
+                + "edits to a picture"
         }
         if tool == "preview_raw_decoder_migration" {
             return "review a decoder migration first; its recorded migration step retains the approved recipe and decoder identity"

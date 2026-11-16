@@ -112,12 +112,18 @@ final class ShortcutRecorderField: NSView {
 /// Every edit is applied and STORED immediately — there is no Apply button,
 /// because a shortcut sheet's whole point is trying the chord. The store is
 /// the single `"Shortcuts"` item, written with `replace: true`.
+///
+/// After the commands come the tools ("Tools ▸ Brush"), one row per tool the
+/// rail offers, each with its bare key (`ToolKeys`): table row `rows.count + i`
+/// is `toolRows[i]`.
 final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     private let menu: NSMenu
-    /// The rows currently listed — the whole customizable set, filtered by
-    /// the search field.
+    /// The command rows currently listed — the whole customizable set,
+    /// filtered by the search field.
     private(set) var rows: [ShortcutMenu.Item] = []
     private var all: [ShortcutMenu.Item] = []
+    /// The tool rows currently listed, in rail order, filtered by the search field.
+    private(set) var toolRows: [EditorTool] = []
 
     private let search = NSSearchField()
     private let table = NSTableView()
@@ -141,6 +147,9 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
         all = ShortcutMenu.customizableItems(in: menu)
         let needle = search.stringValue.trimmingCharacters(in: .whitespaces).lowercased()
         rows = needle.isEmpty ? all : all.filter { $0.path.lowercased().contains(needle) }
+        let tools = EditorTool.railGroups.flatMap { $0 }.filter { !$0.planned }
+        toolRows = needle.isEmpty ? tools
+            : tools.filter { Self.toolPath($0).lowercased().contains(needle) }
         table.reloadData()
         updateRecorder()
     }
@@ -149,8 +158,19 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
         rows.indices.contains(table.selectedRow) ? rows[table.selectedRow] : nil
     }
 
+    /// The selected tool row's tool, or nil on a command row or none.
+    private var selectedTool: EditorTool? {
+        let index = table.selectedRow - rows.count
+        return toolRows.indices.contains(index) ? toolRows[index] : nil
+    }
+
     private func updateRecorder() {
-        recorder.show(selected?.chord)
+        if let tool = selectedTool {
+            recorder.show(tool.keyCharacter.isEmpty ? nil
+                          : ShortcutChord(key: tool.keyCharacter, modifiers: []))
+        } else {
+            recorder.show(selected?.chord)
+        }
     }
 
     // MARK: - Presentation
@@ -194,7 +214,7 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
         recorder.onRecord = { [weak self] chord in self?.record(chord) }
         // Nothing to bind a chord TO until a command is selected, so until
         // then the field falls through and ⌘W / ⌘Q / ⌘, reach the menu.
-        recorder.canRecord = { [weak self] in self?.selected != nil }
+        recorder.canRecord = { [weak self] in self?.selected != nil || self?.selectedTool != nil }
 
         let clear = StickerButton(title: "None", style: .secondary, target: self,
                                   action: #selector(clearShortcut(_:)))
@@ -224,7 +244,8 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
         let hint = NSTextField(wrappingLabelWithString:
             "Select a command, click the recorder and press the chord. A shortcut must "
             + "include ⌘ or be a function key, and a chord another command already holds is "
-            + "refused naming it. Edits apply immediately.")
+            + "refused naming it. A tool (after the commands) takes one bare letter or digit; "
+            + "tools sharing a key cycle in rail order. Edits apply immediately.")
         hint.font = DS.sans(12)
         hint.textColor = DS.textMuted
         hint.preferredMaxLayoutWidth = 420
@@ -268,6 +289,10 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
     // MARK: - Editing
 
     private func record(_ chord: ShortcutChord?) {
+        if let tool = selectedTool {
+            recordToolKey(chord, for: tool)
+            return
+        }
         guard let item = selected else {
             message.stringValue = "Select a command first."
             NSSound.beep()
@@ -293,12 +318,18 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
 
     @objc private func resetRow(_ sender: Any?) {
         let row = (sender as? NSButton)?.tag ?? -1
-        guard rows.indices.contains(row) else {
+        let toolIndex = row - rows.count
+        guard rows.indices.contains(row) || toolRows.indices.contains(toolIndex) else {
             NSSound.beep()
             return
         }
         do {
-            try ShortcutMenu.reset(rows[row].identity, in: menu)
+            if rows.indices.contains(row) {
+                try ShortcutMenu.reset(rows[row].identity, in: menu)
+            } else {
+                try ToolKeys.shared.reset(toolRows[toolIndex])
+                Self.refreshEditorStatus()
+            }
             message.stringValue = ""
         } catch {
             message.stringValue = error.localizedDescription
@@ -310,6 +341,8 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
     @objc private func resetAll(_ sender: Any?) {
         do {
             try ShortcutMenu.resetAll(in: menu)
+            try ToolKeys.shared.resetAll()
+            Self.refreshEditorStatus()
             message.stringValue = ""
         } catch {
             message.stringValue = error.localizedDescription
@@ -318,13 +351,70 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
         reload()
     }
 
+    // MARK: - Tool keys
+
+    /// "Tools ▸ Brush": a tool row's first column, and what the search field matches.
+    private static func toolPath(_ tool: EditorTool) -> String { "Tools ▸ \(tool.displayName)" }
+
+    /// A bare key for a tool row; nil (None) removes the tool's key. A chord with a modifier is
+    /// refused: a tool key is pressed alone.
+    private func recordToolKey(_ chord: ShortcutChord?, for tool: EditorTool) {
+        do {
+            if let chord, !chord.modifiers.isEmpty {
+                throw DoctoredCoreError(
+                    message: "A tool key is pressed alone — without ⌘, ⌥, ⌃ or ⇧.")
+            }
+            try ToolKeys.shared.assign(chord?.key, to: tool)
+            Self.refreshEditorStatus()
+            message.stringValue = ""
+        } catch {
+            message.stringValue = error.localizedDescription
+            NSSound.beep()
+        }
+        reload()
+    }
+
+    /// Every open editor's status line names the current tool's key, so it is redrawn.
+    private static func refreshEditorStatus() {
+        for document in NSDocumentController.shared.documents.compactMap({ $0 as? ImageDocument }) {
+            for editor in document.editors where editor.isViewLoaded { editor.updateStatus() }
+        }
+    }
+
+    private func toolCell(_ tool: EditorTool, column: String?, row: Int) -> NSView {
+        let isDefault = tool.keyCharacter == tool.defaultKeyCharacter
+        switch column {
+        case "command":
+            let label = NSTextField(labelWithString: Self.toolPath(tool))
+            label.font = DS.sans(12)
+            label.lineBreakMode = .byTruncatingHead
+            return label
+        case "chord":
+            let label = NSTextField(labelWithString: tool.keyLabel ?? "—")
+            label.font = DS.mono(12)
+            label.textColor = isDefault ? DS.textMuted : DS.textStrong
+            return label
+        default:
+            let button = NSButton(title: "Reset", target: self, action: #selector(resetRow(_:)))
+            button.bezelStyle = .inline
+            button.font = DS.sans(11)
+            button.tag = row
+            button.isEnabled = !isDefault
+            return button
+        }
+    }
+
     // MARK: - Table
 
-    func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
+    func numberOfRows(in tableView: NSTableView) -> Int { rows.count + toolRows.count }
 
     func tableView(
         _ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int
     ) -> NSView? {
+        if toolRows.indices.contains(row - rows.count) {
+            return toolCell(toolRows[row - rows.count], column: tableColumn?.identifier.rawValue,
+                            row: row)
+        }
         guard rows.indices.contains(row) else { return nil }
         let item = rows[row]
         switch tableColumn?.identifier.rawValue {

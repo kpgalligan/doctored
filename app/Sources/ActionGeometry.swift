@@ -175,6 +175,22 @@ enum GeometryField {
     /// `[a, b, c, d, tx, ty]` in the `CGAffineTransform` convention, in
     /// canvas coordinates.
     case affine
+    /// A length with no axis — a brush diameter, a disc radius. `.relative`
+    /// multiplies it by `√(sx · sy)` (exact under a uniform resize, area-
+    /// preserving otherwise) and clamps it into the range, when there is one,
+    /// that the tool itself accepts; `.anchor` leaves it, as it leaves every
+    /// extent.
+    case length(ClosedRange<Double>?)
+    /// `[{x, y, radius}, …]` (`red_eye_auto`'s `eyes`): each a position and
+    /// a `length`.
+    case discs
+    /// `content_aware_fill`'s `source_mask` recipe: each rect operation a
+    /// position and an extent, each brush operation `points` and a `length`
+    /// radius (0.5…4096, the core's range); every other key kept.
+    case sourceMask
+    /// `remove_stroke`'s `[{points, size}, …]`: each stroke's points and its
+    /// `length` size in the Remove brush's range.
+    case strokes
 }
 
 /// The geometry-mode machinery: which arguments of which tools are
@@ -200,8 +216,39 @@ enum ActionGeometry {
         "select_freehand": ["points": .points],
         // Localized Color Clusters' sample points.
         "select_color_range": ["points": .points],
-        "brush_stroke": ["points": .points],
-        "eraser_stroke": ["points": .points],
+        // Strokes: the polyline and the tip's diameter, which scales with the
+        // picture like every other length (`.length`), in the mirrored tool's
+        // own range. A stroke carrying canonical dabs (`native_stroke`) has
+        // them remapped beside its points (`ActionGeometry+Retouch.swift`).
+        "brush_stroke": stroke(.brush),
+        "eraser_stroke": stroke(.eraser),
+        "spot_heal_stroke": stroke(.spotHeal),
+        "dodge_burn": stroke(.dodge),
+        "blur_stroke": stroke(.blurBrush),
+        "sharpen_stroke": stroke(.sharpenBrush),
+        "smudge_stroke": stroke(.smudge),
+        "sponge_stroke": stroke(.sponge),
+        "history_brush_stroke": stroke(.historyBrush),
+        "background_eraser_stroke": stroke(.backgroundEraser),
+        // `area` is the disc each click's strokes start in, a diameter in px (0–500).
+        "art_history_brush_stroke": stroke(.artHistoryBrush)
+            .merging(["area": .length(0...500)]) { $1 },
+        // Clone and heal: the source point is a position, and the
+        // destination → source matrix is conjugated by the remap (no pivot).
+        "clone_stamp": stroke(.clone)
+            .merging(["source_x": .x, "source_y": .y, "source_transform": .affine]) { $1 },
+        "heal_stroke": stroke(.heal)
+            .merging(["source_x": .x, "source_y": .y, "source_transform": .affine]) { $1 },
+        // One stroke as points + size, or several as `strokes`.
+        "remove_stroke": stroke(.remove).merging(["strokes": .strokes]) { $1 },
+        // A region (or the selection's) moved by a delta.
+        "patch_region": ["points": .points, "offset_x": .dx, "offset_y": .dy],
+        "content_aware_move": ["points": .points, "offset_x": .dx, "offset_y": .dy],
+        // The discs Remove Red Eye recorded.
+        "red_eye_auto": ["eyes": .discs],
+        // The fill's source eligibility recipe; the fill region itself is the
+        // selection an earlier step made.
+        "content_aware_fill": ["source_mask": .sourceMask],
         "distort_layer": ["corners": .points],
         // Single points.
         "select_magic_wand": ["x": .x, "y": .y],
@@ -261,21 +308,18 @@ enum ActionGeometry {
         ],
     ]
 
-    /// Tools that DO carry canvas coordinates — clone/heal sources and
-    /// strokes, dodge/burn strokes, patch regions, red-eye discs, Quick
-    /// Selection seeds — but whose remapping has not been qualified, so a
-    /// non-absolute mode on one is refused naming what is missing rather
-    /// than claiming the step has no coordinates.
+    /// `points` plus a `size` in `tool`'s own brush range — every stroke
+    /// tool's entry starts here.
+    private static func stroke(_ tool: EditorTool) -> [String: GeometryField] {
+        ["points": .points, "size": .length(tool.minimumBrushSize...tool.maximumBrushSize)]
+    }
+
+    /// Tools that DO carry canvas coordinates — Quick Selection seeds, warp
+    /// pins and quads, path anchors — but whose remapping has not been
+    /// qualified, so a non-absolute mode on one is refused naming what is
+    /// missing rather than claiming the step has no coordinates.
     static let unqualified: Set<String> = [
-        "clone_stamp", "heal_stroke", "spot_heal_stroke",
-        "dodge_burn", "patch_region", "red_eye_auto", "quick_select",
-        // The retouch brushes' strokes (history_brush_stroke is never
-        // recorded, but a hand-written step carries canvas points).
-        "blur_stroke", "sharpen_stroke", "smudge_stroke", "sponge_stroke", "history_brush_stroke",
-        // The Art History Brush's stroke and the Background Eraser's.
-        "art_history_brush_stroke", "background_eraser_stroke",
-        // The Remove tool's stroke, and Content-Aware Move's region and offset.
-        "remove_stroke", "content_aware_move",
+        "quick_select",
         // Never recorded (it records `select_freehand`, which IS
         // remapped), but a hand-written step carries canvas points.
         "select_magnetic",
@@ -298,19 +342,19 @@ enum ActionGeometry {
     /// Why `tool` may not carry a non-absolute mode, or nil when it may.
     ///
     /// The reasons are different fixes. The tool's remapping is not
-    /// qualified (`warp_layer`, `unqualified`, and
-    /// `content_aware_fill` with a `source_mask`); `content_aware_fill`
-    /// without one has no coordinates of its own, because it fills the
-    /// selection an earlier step made, and `select_subjects` without a
-    /// `point` or `region` has none either (its instance ids and whole-image
-    /// form address the picture, not the canvas); a canvas-size-locked payload
+    /// qualified (`warp_layer`, `unqualified`); `content_aware_fill`
+    /// without a `source_mask` has no coordinates of its own, because it fills
+    /// the selection an earlier step made, `remove_stroke` with
+    /// `use_selection` has none either, and nor has `select_subjects` without
+    /// a `point` or `region` (its instance ids and whole-image form address
+    /// the picture, not the canvas); a canvas-size-locked payload
     /// (`quick_mask_stroke`) is its own reason, because it replays only on the
     /// size it was recorded for; a tool outside the `fields` table is
     /// absolute-only whether or not its arguments carry coordinates; or it is
-    /// a stroke recorded as native canonical dabs — which carry their own
-    /// pressure- and time-stamped geometry in a packed blob this layer cannot
-    /// rewrite, so remapping only the fallback `points` would replay a stroke
-    /// that disagreed with itself.
+    /// a stroke whose canonical dabs are grid-snapped (the pixel brush and
+    /// the Pencil, `pixel` or `aliased`), which have no honest scaled or
+    /// half-pixel-shifted form. Every other canonical stroke has its dabs
+    /// remapped beside its points.
     static func unsupported(tool: String, _ arguments: [String: Any]) -> String? {
         if tool == "warp_layer" {
             return "\"warp_layer\" supports absolute geometry only; relative and anchor "
@@ -342,24 +386,24 @@ enum ActionGeometry {
             return "\"\(tool)\" supports absolute geometry only; relative and anchor "
                 + "remapping of its canvas coordinates is not qualified."
         }
-        if tool == "content_aware_fill" {
-            if let mask = arguments["source_mask"], !(mask is NSNull) {
-                return "\"content_aware_fill\" supports absolute geometry only; relative and "
-                    + "anchor remapping of its source_mask is not qualified."
-            }
-            return "\"content_aware_fill\" has no canvas coordinates of its own — it fills the "
-                + "current selection — so put the geometry mode on the selection step that "
-                + "defines the fill region"
+        if tool == "content_aware_fill",
+           arguments["source_mask"].map({ $0 is NSNull }) ?? true {
+            return "\"content_aware_fill\" has no canvas coordinates of its own without a "
+                + "source_mask — it fills the current selection — so put the geometry mode on "
+                + "the selection step that defines the fill region"
+        }
+        if tool == "remove_stroke", arguments["points"] == nil, arguments["strokes"] == nil {
+            return "\"remove_stroke\" has no canvas coordinates without points or strokes — "
+                + "with use_selection it removes the current selection — so put the geometry "
+                + "mode on the selection step that defines it"
         }
         guard let table = fields[tool] else {
             return "\"\(tool)\" supports absolute geometry only: it is not in the geometry "
                 + "remap table. If its arguments carry no canvas coordinates, remove the mode "
                 + "or put it on the step that carries them"
         }
-        if table["points"] != nil, arguments["native_stroke"] != nil {
-            return "\"\(tool)\" was captured as a native stroke, whose canonical dabs carry "
-                + "their own geometry — remapping only the fallback points would replay a "
-                + "stroke that disagreed with itself. Re-record it on the target size"
+        if table["points"] != nil, let native = arguments["native_stroke"] {
+            return nativeStrokeRefusal(tool: tool, native)
         }
         return nil
     }
@@ -487,6 +531,27 @@ enum ActionGeometry {
                 case .success(let replacement): out[key] = replacement
                 case .failure(let error): return .failure(error)
                 }
+            case .length(let range):
+                guard let number = ActionJSON.number(value) else { continue }
+                out[key] = mappedLength(
+                    number, range: range, mode: mode, recorded: recorded, live: live)
+            case .discs, .sourceMask, .strokes:
+                switch mappedRetouch(
+                    value, key: key, field: field, mode: mode, recorded: recorded, live: live)
+                {
+                case .success(let replacement): out[key] = replacement
+                case .failure(let error): return .failure(error)
+                }
+            }
+        }
+        // A stroke's canonical dabs move with its points (`unsupported` has
+        // already refused the grid-snapped kinds).
+        if table["points"] != nil, let native = arguments["native_stroke"] {
+            switch mappedNativeStroke(
+                native, tool: tool, mode: mode, recorded: recorded, live: live)
+            {
+            case .success(let replacement): out["native_stroke"] = replacement
+            case .failure(let error): return .failure(error)
             }
         }
         return .success(out)
@@ -495,7 +560,7 @@ enum ActionGeometry {
     // MARK: - The arithmetic
 
     /// One number, in the field's own axis and class.
-    private static func mapped(
+    static func mapped(
         _ number: NSNumber, field: GeometryField, mode: GeometryMode,
         recorded: (width: Int, height: Int), live: (width: Int, height: Int)
     ) -> Any {
@@ -504,35 +569,48 @@ enum ActionGeometry {
         case .x, .w, .dx: horizontal = true
         default: horizontal = false
         }
-        let from = Double(horizontal ? recorded.width : recorded.height)
-        let to = Double(horizontal ? live.width : live.height)
         let isPosition: Bool
         switch field {
         case .x, .y, .points, .guideAxis: isPosition = true
         case .w, .h, .dx, .dy: isPosition = false
         // The nested kinds map their scalars as `.x`/`.y`/`.w`/`.h` (and the
-        // matrix not through here at all), so none of them reaches this.
-        case .pair, .rect, .rectArray, .affine: isPosition = true
+        // matrix and the lengths not through here at all), so none of them
+        // reaches this.
+        case .pair, .rect, .rectArray, .affine, .length, .discs, .sourceMask, .strokes:
+            isPosition = true
         }
-        let value = number.doubleValue
-        let result: Double
-        switch mode {
-        case .absolute:
-            result = value
-        case .relative:
-            // Everything scales — a proportional step keeps the same fraction
-            // of the picture, extents and deltas included.
-            result = value * to / from
-        case .anchor(let anchor):
-            guard isPosition else { return number }
-            let fraction = horizontal ? anchor.fractions.x : anchor.fractions.y
-            result = fraction * to + (value - fraction * from)
-        }
+        guard let result = mappedValue(
+            number.doubleValue, horizontal: horizontal, isPosition: isPosition, mode: mode,
+            recorded: recorded, live: live)
+        else { return number }
         return quantized(result, like: number)
     }
 
+    /// The arithmetic itself on a plain Double: nil when the mode leaves the
+    /// value alone (an extent or delta under `.anchor`). `mapped` quantizes
+    /// what it answers; a canonical dab takes it unquantized.
+    static func mappedValue(
+        _ value: Double, horizontal: Bool, isPosition: Bool, mode: GeometryMode,
+        recorded: (width: Int, height: Int), live: (width: Int, height: Int)
+    ) -> Double? {
+        let from = Double(horizontal ? recorded.width : recorded.height)
+        let to = Double(horizontal ? live.width : live.height)
+        switch mode {
+        case .absolute:
+            return value
+        case .relative:
+            // Everything scales — a proportional step keeps the same fraction
+            // of the picture, extents and deltas included.
+            return value * to / from
+        case .anchor(let anchor):
+            guard isPosition else { return nil }
+            let fraction = horizontal ? anchor.fractions.x : anchor.fractions.y
+            return fraction * to + (value - fraction * from)
+        }
+    }
+
     /// `[[x, y], …]`, each point a position on its own axis.
-    private static func mappedPoints(
+    static func mappedPoints(
         _ value: Any, mode: GeometryMode, recorded: (width: Int, height: Int),
         live: (width: Int, height: Int)
     ) -> Result<Any, ActionError> {
@@ -573,7 +651,7 @@ enum ActionGeometry {
 
     /// `{"x", "y", "width", "height"}`: a position and an extent. Any other
     /// key is kept as it is.
-    private static func mappedRect(
+    static func mappedRect(
         _ value: Any, key: String, mode: GeometryMode, recorded: (width: Int, height: Int),
         live: (width: Int, height: Int)
     ) -> Result<Any, ActionError> {
@@ -708,7 +786,7 @@ enum ActionGeometry {
     /// argument stays an integer (`crop` takes whole pixels and a `1279.5`
     /// would be refused by the tool), anything else goes through the
     /// four-decimal quantization every recorded coordinate already uses.
-    private static func quantized(_ value: Double, like number: NSNumber) -> Any {
+    static func quantized(_ value: Double, like number: NSNumber) -> Any {
         guard value.isFinite else { return number }
         guard wasInteger(number) else { return ActionArgs.number(value) }
         let rounded = value.rounded()

@@ -1,6 +1,6 @@
 # Reusable Actions and the RAW preset library (ADR)
 
-- **Status:** Accepted — open items remain ([#20](https://github.com/kpgalligan/doctored/issues/20))
+- **Status:** Accepted
 - **Phase / dates:** 12B (12B-1 items 1–7, 12B-2 item 8), both shipped 2026-09-18
 - **Originals:** [archive/phase-12b-actions-status.md](../archive/phase-12b-actions-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-12b-actions-status.md](../archive/2026-10/phase-12b-actions-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `3e86887` (12B-1), `729524f` (12B-2)
@@ -51,8 +51,17 @@ per-entry diagnosis/repair/migration for the RAW preset library. No document-for
   Gate B10 `pivot-matrix` / `pivot-mask` of the 12B drive `verify_phase12b_actions.py`, which with its
   gates B8–B10 is in the private archive `kpgalligan/doctored-dev`, not this repository.
 - **`ActionGeometry.fields` is the explicit per-tool table of coordinate ARGUMENTS**; a non-absolute mode on any
-  other tool, or on a `native_stroke` dab step, is refused at DECODE by name — remapping the wrong argument is
-  silent. A non-absolute step without `recorded_canvas` is refused at decode.
+  other tool, or on a pixel-brush or Pencil `native_stroke` (grid-snapped dabs), is refused at DECODE by name —
+  remapping the wrong argument is silent. A non-absolute step without `recorded_canvas` is refused at decode.
+- **Retouch-step geometry (`ActionGeometry+Retouch.swift`):** a length with no axis (a brush `size`,
+  Art History's `area`, a red-eye disc radius, a source-mask brush radius, a dab diameter) is ×√(sx·sy) under
+  relative, clamped to the tool's own range, and unchanged under an anchor. The stroke tools, clone/heal (source
+  point; `source_transform` conjugated as a pivot-less matrix), Patch and Content-Aware Move (points + delta),
+  `red_eye_auto`'s discs, `remove_stroke`'s `strokes` and `content_aware_fill`'s `source_mask` remap; a canonical
+  `native_stroke`'s dabs move with the points (diameter clamped to 1 px and the tool's ceiling). Since then a
+  relative `brush_stroke` / `eraser_stroke` scales its size, which it did not before. Still refused by name:
+  `quick_select`, `select_magnetic`, Liquify, the Puppet and Perspective Warps, the path tools, vector masks, the
+  Object Finder, `warp_layer`, `quick_mask_stroke`, `remove_stroke` with `use_selection`.
 - **The recorded space is COMPUTED, not stored:** `ActionPlayer` starts at `recorded_canvas` and advances by
   `ActionGeometry.canvasAfter` (crop / image_size / canvas_size / rotate 90) only after a step SUCCEEDS.
   Resolution order: `$param` → geometry remap → other symbols → `document_id`.
@@ -61,13 +70,19 @@ per-entry diagnosis/repair/migration for the RAW preset library. No document-for
 - **Named parameters** (`ActionParameter {name, type: number|integer|string|boolean, default?, description?}`)
   are an EDIT, never recorded. `ActionParameters.bind` is the single validator, run by every Play path (Actions
   window, Play Last, `run_action`, `run_batch`, Batch window) before anything runs; `ActionPlayer.run` re-checks.
-  A parameter error is an action-level refusal at submission, never per-file batch rows.
+  A parameter error is an action-level refusal at submission, never per-file batch rows. The Parameters… sheet
+  and `edit_action_parameters` edit them without JSON (`ActionParameterEdits.swift`, all or nothing): a rename
+  rewrites every `{"$param"}`, a remove is refused while a step uses it, a retype keeps a default that still
+  matches (integer ↔ number when exact) or needs a new one.
 - **Asset bundles** (`ActionAssets`): `package_action` writes `<slug>.draction/{action.json, assets/}`,
   rewriting file arguments (`place_image.path`, `add_live_photo_layer.path`, profile paths when
   `profile == "file"`) to `$asset`; basename collisions become `logo-2.png`; a missing source refuses with no
   partial bundle; packaging never modifies the library copy. `import_action` installs assets to
   `<stem>.assets/` keyed on the STORED file stem. Recording stays literal — packaging is the only route to
-  `$asset`. `quick_export.destination` is NOT an asset (per-machine output folder).
+  `$asset`. `quick_export.destination` is NOT an asset (per-machine output folder). `format: "zip"` (the
+  Package… panel's checkbox) writes one `<slug>.draction.zip` holding `<slug>.draction/…` — Finder's Compress
+  layout — deterministically (`../core/src/zip_store.rs`); `import_action` and Import… take either form, the
+  bundle at the archive's root or in its one top-level folder, and refuse an entry that could land outside it.
 - **Headless batch** `run_batch` / `batch_status` / `cancel_batch` drive the same `BatchSettings` + Timer-driven
   `BatchRun` with no modal (a modal inside a tool call cannot answer). All Batch rules unchanged. The in-band
   exclusion lives in `ActionPlayer.replayRefusal` behind `isRunningStep`, not in `AgentServer.execute`,
@@ -144,10 +159,8 @@ per-entry diagnosis/repair/migration for the RAW preset library. No document-for
   (Decisions, **Per-step history**).
 - `DONE` — which failures prompt (Decisions,
   **Interactive Play prompts**).
-- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — geometry modes
-  for the retouch recipes (`patch_region`, `content_aware_fill`), which are not in
-  `ActionGeometry.fields` and refuse non-absolute modes; a parameters editor UI beyond the JSON sheet; zip
-  `.draction` bundles.
+- `DONE` — geometry modes for the retouch steps and `source_mask`, the parameters editor and zipped
+  `.draction` bundles (Decisions, **Retouch-step geometry**, **Named parameters**, **Asset bundles**).
 - `DONE` — a recorded pivot for matrix remaps
   (Decisions, **Pivot rule**).
 - `DROPPED` (2026-10-30) — a synthetic fixture for the subjects half of drive gate B10: the drive is not

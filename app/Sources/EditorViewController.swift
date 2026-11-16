@@ -1432,7 +1432,7 @@ final class EditorViewController: NSViewController {
         let maskSuffix = paintTarget.statusSuffix(in: document.doc)
         statusTool.text = isTransforming
             ? transformStatusText
-            : "\(currentTool.displayName) · \(currentTool.keyCharacter.uppercased())\(maskSuffix)"
+            : currentTool.displayName + (currentTool.keyLabel.map { " · \($0)" } ?? "") + maskSuffix
         updateZoomLabel()
     }
 
@@ -2573,6 +2573,7 @@ extension EditorViewController: NSUserInterfaceValidations {
         // Sync Pan & Zoom. View-only like the chrome above
         // (EditorViewController+Views.swift).
         if let allowed = validateViewsItem(item) { return allowed }
+        if let allowed = validateMatchViewsItem(item) { return allowed }
         if let allowed = validateViewExposureItem(item) { return allowed }
         if let allowed = validateHDRPreviewItem(item) { return allowed }
         if let allowed = validateScreenChromeItem(item) { return allowed }

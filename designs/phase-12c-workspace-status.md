@@ -80,6 +80,14 @@ library.
   comparison — see [phase-12e-layer-ops-status.md](phase-12e-layer-ops-status.md), "The measured Shift rule", for why exact is right)
   and refused naming the holder. Not customizable: app menu, `ShortcutMenu.systemSelectors`, Open Recent,
   dynamic lists (`representedObject`), hidden/alternate items. A broken file applies NOTHING.
+- **Remappable tool keys** (`ToolKeys.swift`): `EditorTool.keyCharacter` is the user's key over
+  `defaultKeyCharacter` ("" when removed), so the canvas, the rail's tooltips and group menus and the status
+  line follow it. Stored as the optional `tool_keys` map (identifier → key or null) of the same `"Shortcuts"`
+  item — written only when non-empty, so a set without it keeps its bytes; schema stays 1; an unknown tool's
+  key is kept. Each half's write keeps the other. A key is one letter or digit, not Q, F, X or D (the canvas's
+  own); tools may share one (the cycle rule). The Shortcuts tab lists "Tools ▸ <tool>" rows after the
+  commands; the recorder takes a bare key there. Punctuation (brackets, `,` `.`, the Magnetic Lasso's option
+  keys) stays the canvas's. An older build reads a file with `tool_keys` as a broken row (downgrade only).
 - **Saved workspace layouts** (Window ▸ Workspaces) — `Workspace.swift` (`WorkspaceLayout` schema 1),
   `EditorViewController+Workspace.swift`, `AppDelegate+Workspaces.swift` (menu rebuilt in `menuNeedsUpdate`).
   Stores window frame, panel visibility/tab/width, rulers/grid/snap and current tool — **never zoom or
@@ -113,9 +121,9 @@ library.
   load-bearing for `airbrush-ui`'s exact dab comparison.
 
 ## Open items (verified 2026-10-07)
-- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — bare canvas tool-key remapping, per-document / named shortcut sets, Photoshop `.kys` import.
-  The shortcut file can take a second item without a schema bump. The bare tool letters keep their
-  defaults (a shared key cycles in rail order).
+- `DONE` — bare canvas tool-key remapping (Decisions, **Remappable tool keys**).
+- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — named and per-document shortcut sets and
+  `.kys` import, decided on paper in [shortcut-sets.md](shortcut-sets.md).
 - `DONE` — a new editor window reopens at the last window's frame and right-panel
   visibility and tab (`EditorWindowMemory`, app-wide in `UserDefaults`; cascaded off an open window at the same origin, fitted by
   `WindowFrameFit`; recorded on move, resize, resign-key and close, never full screen). Not the tool, no MCP twin, and off under

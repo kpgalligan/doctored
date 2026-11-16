@@ -1,8 +1,10 @@
 import Foundation
 
 /// The Phase 12B catalog entries — `reorder_layers`, the three batch tools and
-/// the two bundle tools — in their own file behind an explicit non-inlining
-/// boundary, for the reason `AgentCatalog.swift`'s header gives.
+/// the two bundle tools, then `edit_action_parameters`
+/// (`AgentServer+ActionParameters.swift`) — in their own file behind an
+/// explicit non-inlining boundary, for the reason `AgentCatalog.swift`'s
+/// header gives.
 extension AgentServer {
     @inline(never) func reusableActionsCatalog() -> [[String: Any]] {
         [
@@ -174,13 +176,21 @@ extension AgentServer {
                     + "used twice is one entry. A missing source file refuses the whole call, "
                     + "naming the path, and leaves no partial bundle. quick_export's "
                     + "destination is deliberately NOT an asset — it is a per-machine output "
-                    + "folder, not an input.",
+                    + "folder, not an input. format \"zip\" writes the same bundle as ONE "
+                    + "<slug>.draction.zip file (entries <slug>.draction/action.json and "
+                    + "<slug>.draction/assets/<file>, the layout Finder's Compress gives the "
+                    + "folder); packaging twice gives the same bytes.",
                 [
                     "name": ["type": "string", "description": "Action to package."],
                     "destination": [
                         "type": "string",
                         "description": "FOLDER the bundle is written into; the bundle itself "
                             + "is named after the action's slug.",
+                    ],
+                    "format": [
+                        "type": "string", "enum": ["folder", "zip"],
+                        "description": "\"folder\" (the default) writes <slug>.draction/; "
+                            + "\"zip\" writes <slug>.draction.zip.",
                     ],
                     "overwrite": [
                         "type": "boolean",
@@ -190,8 +200,12 @@ extension AgentServer {
                 ], required: ["name", "destination"]),
             tool(
                 "import_action",
-                "Installs a <slug>.draction bundle into the action library: the action, then "
+                "Installs a <slug>.draction bundle — the folder, or a ZIP of it — into the "
+                    + "action library: the action, then "
                     + "its assets/ files beside it, so every {\"$asset\": …} step resolves. "
+                    + "A ZIP may hold the bundle at its root or inside one top-level folder; "
+                    + "Finder's __MACOSX/ and dot-files are ignored, and an entry that would "
+                    + "land outside the bundle, a symbolic link, zip64 or encryption refuses. "
                     + "The bundle's own decode refusals surface verbatim, by step number. "
                     + "`name` renames it on the way in. Without overwrite a name that is "
                     + "already taken refuses rather than replacing an action somebody built; "
@@ -199,8 +213,8 @@ extension AgentServer {
                 [
                     "path": [
                         "type": "string",
-                        "description": "The .draction FOLDER (it holds action.json and "
-                            + "assets/).",
+                        "description": "The .draction folder (it holds action.json and "
+                            + "assets/), or a .draction.zip file of one.",
                     ],
                     "name": [
                         "type": "string",
@@ -213,6 +227,6 @@ extension AgentServer {
                             + "false.",
                     ],
                 ], required: ["path"]),
-        ]
+        ] + actionParametersCatalog()
     }
 }

@@ -20,7 +20,7 @@ The helper reaches the app over a Unix socket the app binds at every launch,
 owner can open; `DR_AGENT_SOCKET` names another path for both. There is no TCP
 endpoint.
 
-This build exposes **365 tools**. The reference is generated from the app's
+This build exposes **367 tools**. The reference is generated from the app's
 `tools/list` catalog (live, or the snapshot the build writes from the same code),
 which is authoritative. Tool results are MCP
 content blocks; most calls return a JSON object in a text block, while `render` and
@@ -296,6 +296,7 @@ Add `--check` to either to verify that the checked-in page matches the catalog.
 - [`cancel_batch`](#cancel_batch)
 - [`package_action`](#package_action)
 - [`import_action`](#import_action)
+- [`edit_action_parameters`](#edit_action_parameters)
 - [`set_layer_label`](#set_layer_label)
 - [`find_layers`](#find_layers)
 - [`list_layer_comps`](#list_layer_comps)
@@ -317,6 +318,7 @@ Add `--check` to either to verify that the checked-in page matches the catalog.
 - [`open_second_view`](#open_second_view)
 - [`close_second_view`](#close_second_view)
 - [`list_views`](#list_views)
+- [`match_views`](#match_views)
 - [`get_color_samplers`](#get_color_samplers)
 - [`set_color_samplers`](#set_color_samplers)
 - [`fill_selection`](#fill_selection)
@@ -2650,7 +2652,7 @@ Plays a saved Action on a document, as ONE undo step for the whole run. Mirrors 
 
 ## `save_action`
 
-Creates or replaces an Action. Mirrors Stop Recording > name it, and the Actions window's JSON editor. Each step is {"tool", "arguments", optional "enabled", "on_error", "note"} with document_id omitted — the player rebinds it. Write {"$layer": "active"} for the active layer, {"$layer": "Sky"} for one by name, {"$layers": "selected"} for the current layer selection. Schema 2 adds four more: {"$layer": {"name", "id", "session"}} resolves by its STABLE id when `session` matches get_document's identity_session; in another session by its id only when that layer also carries the recorded name (layer ids are persisted in the file), otherwise by name. Its {"$channel": …} twin resolves by its id only when `session` matches (channel ids are per-launch), otherwise by name; {"$param": "<name>"} is a declared parameter's value; {"$asset": "<file>"} is a file in the action's bundle, which only package_action writes. A step may also carry "geometry": {"mode": "absolute" (the default) | "relative" | "anchor", "anchor": "bottom-right"}, which remaps its canvas coordinates onto a differently sized document and needs recorded_canvas. A file is written at schema 1 when it uses none of those. Every step is validated before a byte is written, and an unknown tool is refused by step index. A step may not name, for example, a tool that runs or edits actions or batches (run_action, run_batch, save_action, delete_action, list_actions, start_recording, stop_recording, package_action, import_action), writes a file to a literal path (save_copy, export_image, export_pdf, export_psd), closes the document, or writes a preset, policy or workspace library; the refusal gives the reason and, where there is one, what to record instead. save_copy's recorded path is absolute, so a batch would write every file over that one path: record quick_export (a destination plus a pattern containing {name}, never overwriting) or let Batch choose the folder, the format and the name. undo and redo are refused as steps as well: an action IS one undo entry, so an undo inside it throws the document's redo history away and reports success.
+Creates or replaces an Action. Mirrors Stop Recording > name it, and the Actions window's JSON editor. Each step is {"tool", "arguments", optional "enabled", "on_error", "note"} with document_id omitted — the player rebinds it. Write {"$layer": "active"} for the active layer, {"$layer": "Sky"} for one by name, {"$layers": "selected"} for the current layer selection. Schema 2 adds four more: {"$layer": {"name", "id", "session"}} resolves by its STABLE id when `session` matches get_document's identity_session; in another session by its id only when that layer also carries the recorded name (layer ids are persisted in the file), otherwise by name. Its {"$channel": …} twin resolves by its id only when `session` matches (channel ids are per-launch), otherwise by name; {"$param": "<name>"} is a declared parameter's value; {"$asset": "<file>"} is a file in the action's bundle, which only package_action writes. A step may also carry "geometry": {"mode": "absolute" (the default) | "relative" | "anchor", "anchor": "bottom-right"}, which remaps its canvas coordinates onto a differently sized document and needs recorded_canvas. Relative mode scales positions, extents and deltas by axis and a brush size or disc radius by the square root of the two scales, clamped to the tool's range; anchor mode moves positions only. Strokes, the retouch tools (clone, heal, patch, Content-Aware Move, red-eye discs, Remove) and content_aware_fill's source_mask remap; a native_stroke's dabs move with its points, except a pixel-brush or Pencil stroke, which refuses a mode by name. A file is written at schema 1 when it uses none of those. Every step is validated before a byte is written, and an unknown tool is refused by step index. A step may not name, for example, a tool that runs or edits actions or batches (run_action, run_batch, save_action, delete_action, list_actions, start_recording, stop_recording, package_action, import_action, edit_action_parameters), writes a file to a literal path (save_copy, export_image, export_pdf, export_psd), closes the document, or writes a preset, policy or workspace library; the refusal gives the reason and, where there is one, what to record instead. save_copy's recorded path is absolute, so a batch would write every file over that one path: record quick_export (a destination plus a pattern containing {name}, never overwriting) or let Batch choose the folder, the format and the name. undo and redo are refused as steps as well: an action IS one undo entry, so an undo inside it throws the document's redo history away and reports success.
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
@@ -3796,23 +3798,33 @@ Stops the running batch at the next file boundary. The file in flight finishes �
 
 ## `package_action`
 
-Writes an action and the FILES it uses into a <slug>.draction bundle — the only way to make an action somebody else can run. Each file argument (place_image.path, add_live_photo_layer.path, and convert_profile/assign_profile.path when profile is "file") is copied into the bundle's assets/ folder and rewritten IN THE BUNDLE to {"$asset": "<basename>"}; the action in the library is not modified. Two DIFFERENT source paths sharing a basename become logo.png and logo-2.png, each step pointing at its own; the same path used twice is one entry. A missing source file refuses the whole call, naming the path, and leaves no partial bundle. quick_export's destination is deliberately NOT an asset — it is a per-machine output folder, not an input.
+Writes an action and the FILES it uses into a <slug>.draction bundle — the only way to make an action somebody else can run. Each file argument (place_image.path, add_live_photo_layer.path, and convert_profile/assign_profile.path when profile is "file") is copied into the bundle's assets/ folder and rewritten IN THE BUNDLE to {"$asset": "<basename>"}; the action in the library is not modified. Two DIFFERENT source paths sharing a basename become logo.png and logo-2.png, each step pointing at its own; the same path used twice is one entry. A missing source file refuses the whole call, naming the path, and leaves no partial bundle. quick_export's destination is deliberately NOT an asset — it is a per-machine output folder, not an input. format "zip" writes the same bundle as ONE <slug>.draction.zip file (entries <slug>.draction/action.json and <slug>.draction/assets/<file>, the layout Finder's Compress gives the folder); packaging twice gives the same bytes.
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `destination` | `string` | yes | — | FOLDER the bundle is written into; the bundle itself is named after the action's slug. |
+| `format` | `string` | no | one of `folder`, `zip` | "folder" (the default) writes <slug>.draction/; "zip" writes <slug>.draction.zip. |
 | `name` | `string` | yes | — | Action to package. |
 | `overwrite` | `boolean` | no | — | Replace an existing bundle of that name; default false, which refuses. |
 
 ## `import_action`
 
-Installs a <slug>.draction bundle into the action library: the action, then its assets/ files beside it, so every {"$asset": …} step resolves. The bundle's own decode refusals surface verbatim, by step number. `name` renames it on the way in. Without overwrite a name that is already taken refuses rather than replacing an action somebody built; with it, both the action and its assets folder are replaced.
+Installs a <slug>.draction bundle — the folder, or a ZIP of it — into the action library: the action, then its assets/ files beside it, so every {"$asset": …} step resolves. A ZIP may hold the bundle at its root or inside one top-level folder; Finder's __MACOSX/ and dot-files are ignored, and an entry that would land outside the bundle, a symbolic link, zip64 or encryption refuses. The bundle's own decode refusals surface verbatim, by step number. `name` renames it on the way in. Without overwrite a name that is already taken refuses rather than replacing an action somebody built; with it, both the action and its assets folder are replaced.
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `name` | `string` | no | — | Install under this display name instead of the bundle's own. |
 | `overwrite` | `boolean` | no | — | Replace a same-named action and its assets; default false. |
-| `path` | `string` | yes | — | The .draction FOLDER (it holds action.json and assets/). |
+| `path` | `string` | yes | — | The .draction folder (it holds action.json and assets/), or a .draction.zip file of one. |
+
+## `edit_action_parameters`
+
+The Actions window's Parameters… sheet: edits an action's declared parameters in place, all or nothing. Each edit is {op, name, …}: "add" (type number|integer|string|boolean, optional default and description), "rename" (to) — every {"$param": name} in every step is rewritten — "retype" (type; a default that still matches is kept, integer and number convert when exact, any other default is refused unless the same edit gives a new one or null), "set_default" (default; null makes it required), "set_description" (description) and "remove" (refused while a step still uses it, naming the steps). A refused list changes nothing. Replies with the action's parameters.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `edits` | `array<object>` | yes | — | The edits, applied in order: {"op": "add"\|"rename"\|"retype"\|"set_default"\|"set_description"\|"remove", "name", "to", "type", "default", "description"}. |
+| `name` | `string` | yes | — | The action to edit. |
 
 ## `set_layer_label`
 
@@ -4041,6 +4053,17 @@ The document's open views: each one's zoom, centre, visible rectangle, view rota
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
+
+## `match_views`
+
+Window > Match Zoom, Match Location and Match Zoom and Location: push one view's zoom and/or location at EVERY other open view, of this document and of every other open document. Zoom: each takes the source's magnification. Location: each centres on the same FRACTION of its own canvas as the source's centre is of the source's canvas (the same pixel on a same-sized document, the matching place on a resized copy). View rotation is never matched. One-shot: nothing stays linked. The reply is each view's read-back zoom and centre. Writes NO document, so it is not recorded as an Action step.
+
+| Argument | Type | Required | Constraints | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `document_id` | `integer` | no | — | Target document id from list_documents; omit for the frontmost document. |
+| `location` | `boolean` | no | — | Match the centre by canvas fraction (default true). zoom and location both false is refused. |
+| `view` | `integer` | no | — | The SOURCE view's ordinal, as list_views reports it; omit it for view 1. |
+| `zoom` | `boolean` | no | — | Match the magnification (default true). |
 
 ## `get_color_samplers`
 

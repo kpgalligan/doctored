@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 
 /// The Actions window's content: the library on top, one action's steps
 /// below, and the commands that act on either.
@@ -81,6 +82,7 @@ final class ActionsViewController: NSViewController, NSUserInterfaceValidations 
     private var editJSONButton: NSButton!
     private var packageButton: NSButton!
     private var importButton: NSButton!
+    private var parametersButton: NSButton!
 
     /// The dragged-row pasteboard type, private to this table — the simple
     /// half of the Layers panel's reorder pattern.
@@ -188,6 +190,10 @@ final class ActionsViewController: NSViewController, NSUserInterfaceValidations 
             symbol: "tray.and.arrow.down", fallback: "⤒", caption: nil,
             tooltip: "Import… (install a .draction bundle)",
             action: #selector(importActionBundle(_:)))
+        parametersButton = GhostButton(
+            symbol: "slider.horizontal.3", fallback: "≡", caption: nil,
+            tooltip: "Parameters… (the values a caller may supply)",
+            action: #selector(editActionParameters(_:)))
 
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.font = DS.mono(10)
@@ -202,8 +208,8 @@ final class ActionsViewController: NSViewController, NSUserInterfaceValidations 
         let footerSpacer = NSView()
         let footer = NSStackView(views: [
             recordButton, stopButton, saveRecordingButton, playButton, newButton,
-            duplicateButton, deleteButton, editJSONButton, packageButton, importButton,
-            footerSpacer, statusLabel,
+            duplicateButton, deleteButton, editJSONButton, parametersButton, packageButton,
+            importButton, footerSpacer, statusLabel,
         ])
         footer.translatesAutoresizingMaskIntoConstraints = false
         footer.orientation = .horizontal
@@ -485,6 +491,7 @@ final class ActionsViewController: NSViewController, NSUserInterfaceValidations 
         // packaged; importing always can.
         packageButton.isEnabled = isSavedAction && loaded != nil
         importButton.isEnabled = true
+        parametersButton.isEnabled = isSavedAction && loaded != nil
     }
 
     // MARK: - The subject
@@ -1057,6 +1064,8 @@ final class ActionsViewController: NSViewController, NSUserInterfaceValidations 
             return isSavedAction && loaded != nil
         case #selector(importActionBundle(_:)):
             return true
+        case #selector(editActionParameters(_:)):
+            return isSavedAction && loaded != nil
         default:
             return true
         }
@@ -1287,7 +1296,8 @@ extension ActionsViewController: NSTableViewDataSource, NSTableViewDelegate, NSM
     // MARK: - Bundles
 
     /// Writes the selected action and the files it uses into a `.draction`
-    /// bundle the user picks a folder for (`ActionAssets`).
+    /// bundle the user picks a folder for (`ActionAssets`) — the folder, or with
+    /// the panel's checkbox one `.draction.zip` file (`package_action`'s `format`).
     @objc func packageSelectedAction(_ sender: Any?) {
         guard let action = loaded else { return NSSound.beep() }
         let panel = NSOpenPanel()
@@ -1296,9 +1306,15 @@ extension ActionsViewController: NSTableViewDataSource, NSTableViewDelegate, NSM
         panel.canCreateDirectories = true
         panel.prompt = "Package Here"
         panel.message = "Choose a folder for “\(action.name).draction”."
+        let zipped = NSButton(checkboxWithTitle: "Single zipped file (.draction.zip)",
+                              target: nil, action: nil)
+        zipped.setAccessibilityIdentifier("package-zipped")
+        panel.accessoryView = zipped
+        panel.isAccessoryViewDisclosed = true
         guard panel.runModal() == .OK, let folder = panel.url else { return }
         do {
-            let bundle = try ActionAssets.package(action, to: folder, overwrite: false)
+            let bundle = try ActionAssets.package(
+                action, to: folder, overwrite: false, format: zipped.state == .on ? .zip : .folder)
             statusOverride = bundle.assets.isEmpty
                 ? "Packaged “\(action.name)” to \(bundle.url.lastPathComponent)"
                 : "Packaged “\(action.name)” with "
@@ -1311,13 +1327,15 @@ extension ActionsViewController: NSTableViewDataSource, NSTableViewDelegate, NSM
         }
     }
 
-    /// Installs a `.draction` bundle the user picks into the library.
+    /// Installs a `.draction` bundle the user picks — the folder or a ZIP of
+    /// it — into the library.
     @objc func importActionBundle(_ sender: Any?) {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
-        panel.canChooseFiles = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.zip, .folder]
         panel.prompt = "Import"
-        panel.message = "Choose a .draction bundle."
+        panel.message = "Choose a .draction bundle or a .draction.zip file."
         guard panel.runModal() == .OK, let bundle = panel.url else { return }
         do {
             let imported = try ActionAssets.importBundle(
@@ -1326,6 +1344,25 @@ extension ActionsViewController: NSTableViewDataSource, NSTableViewDelegate, NSM
             statusOverride = "Imported “\(imported.name)”"
             reload()
         } catch let error as ActionAssets.Failure {
+            present(failure: error.message)
+        } catch {
+            present(failure: error.localizedDescription)
+        }
+    }
+
+    // MARK: - Parameters
+
+    /// The Parameters… button: the selected saved action's declared
+    /// parameters in a form (`ActionParametersEditorSheetController`), saved
+    /// through `ActionLibrary.save`. Its MCP twin is `edit_action_parameters`.
+    @objc func editActionParameters(_ sender: Any?) {
+        guard isSavedAction, let action = loaded else { return NSSound.beep() }
+        guard let edited = ActionParametersEditorSheetController.run(for: action) else { return }
+        do {
+            let url = try ActionLibrary.save(edited)
+            statusOverride = "Saved \(url.lastPathComponent)"
+            reload()
+        } catch let error as ActionLibrary.Failure {
             present(failure: error.message)
         } catch {
             present(failure: error.localizedDescription)

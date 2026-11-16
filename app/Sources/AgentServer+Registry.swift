@@ -18,6 +18,7 @@ extension AgentServer {
     static let handlerTables: [(name: String, table: [String: ToolHandler])] = [
         ("coreHandlers", coreHandlers),
         ("actionAssetsHandlers", actionAssetsHandlers),
+        ("actionParametersHandlers", actionParametersHandlers),
         ("actionsHandlers", actionsHandlers),
         ("adjustmentPresetsHandlers", adjustmentPresetsHandlers),
         ("adjustmentsHandlers", adjustmentsHandlers),
@@ -180,6 +181,7 @@ extension AgentServer {
     static let factTables: [(name: String, table: [String: ToolFacts])] = [
         ("coreToolFacts", coreToolFacts),
         ("actionAssetsToolFacts", actionAssetsToolFacts),
+        ("actionParametersToolFacts", actionParametersToolFacts),
         ("actionsToolFacts", actionsToolFacts),
         ("adjustmentPresetsToolFacts", adjustmentPresetsToolFacts),
         ("adjustmentsToolFacts", adjustmentsToolFacts),

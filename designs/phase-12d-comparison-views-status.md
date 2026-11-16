@@ -1,6 +1,6 @@
 # Layer comps, view rotation and synchronized second views (ADR)
 
-- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13), [#20](https://github.com/kpgalligan/doctored/issues/20), [#22](https://github.com/kpgalligan/doctored/issues/22))
+- **Status:** Accepted — open items remain ([#13](https://github.com/kpgalligan/doctored/issues/13), [#22](https://github.com/kpgalligan/doctored/issues/22))
 - **Phase / dates:** 12D-1 (layer comps) and 12D-2 (view rotation + second view), both shipped 2026-09-19
 - **Originals:** [archive/phase-12d-comparison-views-status.md](../archive/phase-12d-comparison-views-status.md) — the phase's full history, to 2026-09-26; [archive/2026-10/phase-12d-comparison-views-status.md](../archive/2026-10/phase-12d-comparison-views-status.md) — this doc as of 2026-10-07, with every measurement table and issue record
 - **Key commits:** `5adcb8d` (12D-1), `8c99934` (12D-2)
@@ -172,5 +172,9 @@ which restore the whole editing state.
 - `DROPPED` — group/adjustment position capture (decision above), a Rotate View rail tool, a rotated
   Navigator thumbnail, and persisting rotation / view count / sync in the document file, workspaces or
   Actions (all declared not scheduled or deliberate in the original).
-- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — Match Zoom and Match Location across open
-  documents.
+- `DONE` — Match Zoom and Match Location across open documents: Window ▸ Match Zoom, Match Location and
+  Match Zoom and Location, MCP `match_views` (`ViewMatch.swift`). Zoom: every other view takes the source's
+  magnification. Location: each centres on the same FRACTION of its own canvas as the source's centre is of
+  the source's — the same pixel on a same-sized document, the matching place on a resized copy. Rotation is
+  never matched; every view of every open document is a target, the source's own other views included;
+  one-shot, nothing stays linked, no document written. Drive: `scripts/verify_match_views.py`.

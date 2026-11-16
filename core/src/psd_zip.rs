@@ -34,6 +34,9 @@
 //!   bounded by the DRDC blob cap.
 //! - `inflate_zlib_exact` / `deflate_zlib`: the tile pool's payload codec
 //!   (`tile_pool`, 13C-1), through the same exact-length inflate as the planes.
+//! - `inflate_raw_exact` / `deflate_raw`: a zipped Action bundle's entries
+//!   (`zip_store`), raw deflate without the zlib framing, through the same
+//!   exact-length inflate.
 //!
 //! Corrupt input is an error, never a panic, and each caller's limit IS the
 //! inflate limit, so a zip bomb cannot allocate past it. `validate_channel`
@@ -199,13 +202,19 @@ enum Exact {
 /// malformed stream, any other length or bytes after the stream refuse. The
 /// output buffer is the expected size, so nothing larger is allocated.
 fn inflate_exact(encoded: &[u8], expected: usize) -> Result<Vec<u8>, Exact> {
+    inflate_exact_framed(encoded, expected, TINFL_FLAG_PARSE_ZLIB_HEADER)
+}
+
+/// [`inflate_exact`]'s body, for a zlib stream (`framing` is
+/// `TINFL_FLAG_PARSE_ZLIB_HEADER`) or a raw deflate one (`0`, a ZIP entry's).
+fn inflate_exact_framed(encoded: &[u8], expected: usize, framing: u32) -> Result<Vec<u8>, Exact> {
     let mut out = vec![0u8; expected];
     let (status, consumed, produced) = decompress(
         &mut DecompressorOxide::new(),
         encoded,
         &mut out,
         0,
-        TINFL_FLAG_PARSE_ZLIB_HEADER | TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF,
+        framing | TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF,
     );
     if status != TINFLStatus::Done {
         return Err(Exact::Failed);
@@ -235,6 +244,26 @@ pub(crate) fn inflate_zlib_exact(encoded: &[u8], expected: usize) -> Result<Vec<
             Exact::Failed => "zlib stream could not be decompressed",
             Exact::Length => "zlib stream inflated to the wrong length",
             Exact::Trailing => "zlib stream has trailing data",
+        }
+        .to_string()
+    })
+}
+
+/// A ZIP entry's deflate (`zip_store`): one RAW deflate stream (no zlib
+/// header or checksum) of `bytes` at `level`, through the same encoder.
+pub(crate) fn deflate_raw(bytes: &[u8], level: u8) -> Vec<u8> {
+    miniz_oxide::deflate::compress_to_vec(bytes, level)
+}
+
+/// A ZIP entry's inflate: one raw deflate stream to EXACTLY `expected` bytes,
+/// by [`inflate_exact`]'s rule — a malformed stream, another length or bytes
+/// after the stream refuse.
+pub(crate) fn inflate_raw_exact(encoded: &[u8], expected: usize) -> Result<Vec<u8>, String> {
+    inflate_exact_framed(encoded, expected, 0).map_err(|failure| {
+        match failure {
+            Exact::Failed => "the deflate stream could not be decompressed",
+            Exact::Length => "the deflate stream inflated to another size than declared",
+            Exact::Trailing => "the deflate stream has trailing data",
         }
         .to_string()
     })

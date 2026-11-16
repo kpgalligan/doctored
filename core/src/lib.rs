@@ -346,6 +346,7 @@ pub mod ffi_trimap;
 mod ffi_util;
 pub mod ffi_vector_mask;
 pub mod ffi_warp;
+pub mod ffi_zip;
 pub mod file_info;
 mod file_info_legacy;
 mod fill_align_box;
@@ -848,6 +849,7 @@ mod warp_native;
 mod wide_color_native;
 mod working_cmyk;
 mod xmp_rdf;
+pub mod zip_store;
 
 pub use dr_image::DrImage;
 pub(crate) use dr_image::Format;

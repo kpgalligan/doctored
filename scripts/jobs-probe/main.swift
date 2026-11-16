@@ -438,6 +438,10 @@ do {
         // v1 shortcuts and Fade: the default chord table and tool letters,
         // Edit ▸ Fade…'s sheet, and Curves… on ⌘M.
         ("default shortcuts", verifyDefaultShortcuts),
+        // #20: the remappable bare tool keys (tool_keys.swift).
+        ("tool keys", verifyToolKeys),
+        // #20: the Parameters… sheet's row-to-edit rule (action_parameter_rows.swift).
+        ("action parameter rows", verifyActionParameterRows),
         ("fade sheet", verifyFadeSheets),
         ("curves sheet", verifyCurvesSheets),
         ("curves pencil", verifyCurvesPencil),

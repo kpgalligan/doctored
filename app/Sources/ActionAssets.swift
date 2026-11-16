@@ -130,6 +130,59 @@ enum ActionAssets {
         }
     }
 
+    /// A bundle's two forms: the `<slug>.draction` folder, or that folder as
+    /// one `<slug>.draction.zip` file (`ZipArchive`), whose entries are
+    /// `<slug>.draction/action.json` and `<slug>.draction/assets/<file>` — the
+    /// layout Finder's Compress gives the folder, so either one opens the other's.
+    enum BundleFormat: String {
+        case folder
+        case zip
+    }
+
+    /// The single-file bundle one action packages into.
+    static func zippedBundleName(for action: Action) -> String {
+        bundleName(for: action) + ".zip"
+    }
+
+    /// `package(_:to:overwrite:)` in either form. The zipped form packages the
+    /// folder into a scratch directory first and zips it into place, so it
+    /// shares every refusal and the asset table with the folder; the scratch
+    /// is removed whatever happens, and an existing archive is replaced only by
+    /// a complete one.
+    static func package(
+        _ action: Action, to destination: URL, overwrite: Bool, format: BundleFormat
+    ) throws -> (url: URL, assets: [String]) {
+        guard format == .zip else { return try package(action, to: destination, overwrite: overwrite) }
+        let archive = destination.appendingPathComponent(zippedBundleName(for: action))
+        if FileManager.default.fileExists(atPath: archive.path), !overwrite {
+            throw Failure(
+                "\(archive.path) already exists — pass overwrite: true to replace it, or "
+                    + "choose another folder.")
+        }
+        let scratch = try scratchDirectory()
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let folder = try package(action, to: scratch, overwrite: false)
+        do {
+            try ZipArchive.pack(folder: folder.url, into: archive)
+        } catch {
+            throw Failure(error.localizedDescription)
+        }
+        DurableFile.persistDirectory(destination)
+        return (url: archive, assets: folder.assets)
+    }
+
+    /// A fresh, private folder for a zip's packing or unpacking.
+    private static func scratchDirectory() throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("doctored-bundle-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        } catch {
+            throw Failure("could not make a scratch folder: \(error.localizedDescription)")
+        }
+        return url
+    }
+
     /// Writes `<destination>/<slug>.draction/` holding `action.json` and an
     /// `assets/` folder, and answers the bundle's URL and the asset file names
     /// it wrote, in the order they were added.
@@ -232,9 +285,15 @@ enum ActionAssets {
 
     // MARK: - Importing
 
-    /// Reads `<path>` (a `.draction` folder), saves its action into the
-    /// library and copies its assets beside it. Answers the name it landed
-    /// under and the asset files it installed.
+    /// Reads `<path>` — a `.draction` folder, or a ZIP of one — saves its
+    /// action into the library and copies its assets beside it. Answers the
+    /// name it landed under and the asset files it installed.
+    ///
+    /// A ZIP is unpacked into a scratch folder (`ZipArchive`, which refuses
+    /// any entry that could land outside it and skips Finder's `__MACOSX/` and
+    /// dot-files); the bundle is the archive's root when `action.json` sits
+    /// there, otherwise its one top-level folder. The scratch is removed
+    /// whatever happens.
     ///
     /// `name` renames on the way in; `overwrite` replaces both the JSON and
     /// the assets folder of a same-named action. Without it a name that is
@@ -245,13 +304,48 @@ enum ActionAssets {
     ) throws -> (name: String, assets: [String]) {
         let manager = FileManager.default
         var isDirectory: ObjCBool = false
-        guard manager.fileExists(atPath: path.path, isDirectory: &isDirectory),
-              isDirectory.boolValue
-        else {
-            let bundle = SideFileExtension.actionBundle
-            throw Failure("\(path.path) is not a folder — an action bundle is a .\(bundle.current) "
-                + "folder (or a legacy .\(bundle.legacy) folder)")
+        guard manager.fileExists(atPath: path.path, isDirectory: &isDirectory) else {
+            throw Failure("\(path.path) does not exist")
         }
+        if isDirectory.boolValue {
+            return try importFolder(at: path, name: override, overwrite: overwrite)
+        }
+        let scratch = try scratchDirectory()
+        defer { try? manager.removeItem(at: scratch) }
+        do {
+            try ZipArchive.unpack(path, into: scratch)
+        } catch {
+            let bundle = SideFileExtension.actionBundle
+            throw Failure("\(path.path) is not a readable .\(bundle.current).zip bundle: "
+                + error.localizedDescription)
+        }
+        return try importFolder(at: try bundleRoot(in: scratch, archive: path),
+                                name: override, overwrite: overwrite)
+    }
+
+    /// The unpacked bundle: `folder` itself when `action.json` is at its root,
+    /// else its one top-level folder (dot-folders aside) that holds one.
+    private static func bundleRoot(in folder: URL, archive: URL) throws -> URL {
+        let manager = FileManager.default
+        if manager.fileExists(atPath: folder.appendingPathComponent("action.json").path) {
+            return folder
+        }
+        let entries = (try? manager.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
+        guard entries.count == 1, let only = entries.first,
+              manager.fileExists(atPath: only.appendingPathComponent("action.json").path)
+        else {
+            throw Failure("\(archive.path) holds no action bundle — an action.json at its root "
+                + "or inside its one top-level folder")
+        }
+        return only
+    }
+
+    /// `importBundle`'s folder path.
+    private static func importFolder(
+        at path: URL, name override: String?, overwrite: Bool
+    ) throws -> (name: String, assets: [String]) {
+        let manager = FileManager.default
         let json = path.appendingPathComponent("action.json")
         guard let data = try? Data(contentsOf: json) else {
             throw Failure("\(json.path) could not be read")

@@ -54,7 +54,7 @@ private let expectedDefaultChords: Set<String> = [
     "minimizeWindow: ⌃⌘M",
 ]
 
-/// The bare default key of every tool (`EditorTool.keyCharacter`), by case name.
+/// The bare default key of every tool (`EditorTool.defaultKeyCharacter`), by case name.
 private let expectedToolLetters: [String: String] = [
     "select": "m", "ellipseSelect": "m", "lasso": "l", "freehandLasso": "l",
     "magneticLasso": "l", "wand": "w", "quickSelect": "w", "objectSelect": "w", "subject": "w",
@@ -112,7 +112,7 @@ func verifyDefaultShortcuts() throws {
 
     // The tool letters.
     var letters: [String: String] = [:]
-    for tool in EditorTool.allCases { letters[tool.identifier] = tool.keyCharacter }
+    for tool in EditorTool.allCases { letters[tool.identifier] = tool.defaultKeyCharacter }
     try require(letters == expectedToolLetters,
                 "\(tag) the tool letters differ: \(letters.filter { expectedToolLetters[$0.key] != $0.value })")
 

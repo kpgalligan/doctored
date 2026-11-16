@@ -17,6 +17,13 @@ extension AppDelegate {
         menu.addItem(item("New View", #selector(EditorViewController.newView(_:))))
         menu.addItem(
             item("Sync Pan & Zoom", #selector(EditorViewController.toggleSyncPanZoom(_:))))
+        // One-shot: this view's zoom and/or location pushed at every other open view, of every
+        // document (ViewMatch.swift). No chords, for New View's reason.
+        menu.addItem(item("Match Zoom", #selector(EditorViewController.matchZoom(_:))))
+        menu.addItem(item("Match Location", #selector(EditorViewController.matchLocation(_:))))
+        menu.addItem(
+            item("Match Zoom and Location",
+                 #selector(EditorViewController.matchZoomAndLocation(_:))))
         menu.addItem(item("Snapshots…", #selector(EditorViewController.showSnapshots(_:))))
         menu.addItem(item("Layer Comps…", #selector(EditorViewController.showLayerComps(_:))))
         menu.addItem(item("History…", #selector(EditorViewController.showHistory(_:))))

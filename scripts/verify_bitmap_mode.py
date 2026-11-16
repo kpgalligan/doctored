@@ -327,9 +327,9 @@ BITMAP_TOOLS = {
     'restore_snapshot', 'save_snapshot', 'load_snapshot', 'set_history_budget',
     'recover_document', 'discard_recovery', 'get_proof_setup', 'set_proof_setup',
     'render_proof', 'save_proof_preset', 'export_pdf', 'find_layers', 'list_layer_comps',
-    'get_view', 'set_view', 'save_workspace', 'restore_workspace', 'open_second_view',
-    'close_second_view', 'list_views', 'get_color_samplers', 'set_color_samplers',
-    'list_paths', 'set_path', 'rename_path', 'duplicate_path', 'delete_path',
+    'get_view', 'set_view', 'match_views', 'save_workspace', 'restore_workspace',
+    'open_second_view', 'close_second_view', 'list_views', 'get_color_samplers',
+    'set_color_samplers', 'list_paths', 'set_path', 'rename_path', 'duplicate_path', 'delete_path',
     'path_to_selection', 'selection_to_path', 'fill_path', 'stroke_path', 'set_clipping_path',
     'list_lens_profiles', 'combine_paths', 'define_pattern',
 }

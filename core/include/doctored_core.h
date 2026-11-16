@@ -11220,6 +11220,28 @@ bool dr_tile_pool_collect(DrTilePool *pool, const char *const *skeleton_paths, s
 char *dr_tile_pool_info(const DrTilePool *pool, char **err_out);
 uint64_t dr_tile_pool_window_bytes(void);
 
+/*
+ * Zipped Action bundles (zip_store): a plain ZIP container.
+ * dr_zip_pack_dir writes the regular files under `dir` into a new archive at
+ * `zip_path`, each named "<dir's name>/<relative path>", deterministically
+ * (sorted names, 1980-01-01 timestamps, raw deflate at level 6 or stored),
+ * replacing `zip_path` only with a complete archive; a symbolic link, a
+ * special file or a folder past the reader's caps refuses.
+ * dr_zip_unpack extracts `zip_path` into the existing folder `dest_dir`, its
+ * sizes and CRCs read from the central directory (a data-descriptor archive
+ * reads like any other); folder entries are made, and __MACOSX/ and dot-file
+ * entries are skipped. It refuses an entry name that is absolute or holds
+ * "..", ".", an empty component, a backslash, a colon or a NUL, zip64,
+ * multi-disk and encrypted archives, a method other than stored or deflate, a
+ * symbolic link, a duplicate name, a CRC or size mismatch, trailing data after
+ * an entry's stream, more than 1024 entries, an entry over 512 MiB, more than
+ * 2 GiB in all and a name over 255 bytes. On failure `dest_dir` may hold the
+ * entries written before it; the caller removes it. Both return false with
+ * `err_out` on failure; NULL arguments refuse.
+ */
+bool dr_zip_pack_dir(const char *dir, const char *zip_path, char **err_out);
+bool dr_zip_unpack(const char *zip_path, const char *dest_dir, char **err_out);
+
 #ifdef __cplusplus
 }
 #endif

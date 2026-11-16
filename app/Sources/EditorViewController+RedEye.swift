@@ -117,7 +117,7 @@ extension EditorViewController {
         alert.informativeText =
             "Automatic red-eye removal looks for faces in the flattened image and corrects "
             + "each eye it finds. Nothing was changed. Use the Red Eye tool "
-            + "(\(EditorTool.redEye.keyCharacter.uppercased())) and drag a "
+            + (EditorTool.redEye.keyLabel.map { "(\($0)) " } ?? "") + "and drag a "
             + "tight rectangle over one eye to fix it by hand."
         if let window = view.window {
             alert.beginSheetModal(for: window)

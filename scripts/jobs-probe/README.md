@@ -1099,7 +1099,7 @@ undo.
 the hidden twins included, with `NSApp.windowsMenu` and `helpMenu` put back —
 and requires every chorded item to equal the probe's complete identity → chord
 table (the audit in `designs/v1-shortcuts-fade.md`), no chord held by two items,
-and `EditorTool.keyCharacter` to equal its expected letter map (Paint Bucket on
+and `EditorTool.defaultKeyCharacter` to equal its expected letter map (Paint Bucket on
 G). It then runs the withhold rule through `ShortcutMenu.apply` alone, writing no
 file: an override putting ⌃⌘M on Rotate 90° Clockwise leaves Window ▸ Minimize
 with no chord, and empty bindings give it back. Last, a set decoded through
@@ -1108,6 +1108,26 @@ with no chord, and empty bindings give it back. Last, a set decoded through
 Develop Filter… and Merge Panorama…, and a set binding both
 `showCameraRawFilter:` and `showDevelopFilter:` keeps the current identity's
 chord.
+
+"tool keys" (`tool_keys.swift`, #20) remaps the bare tool keys through
+`ToolKeys` on the runner's private `DR_SHORTCUTS_DIR`: every tool starts on its
+default; Brush on K makes `EditorTool(keyCharacter: "k")` the Brush and leaves B
+to the Pencil alone, while E and A still cycle their peers; an open rail's Brush
+tooltip reads "Brush (K)" after the remap and "Brush (B)" after Reset and Reset
+All, through the library's change notification alone; a removed key reads
+"" and selects nothing; Q, X, `,` and "kk" are refused by sentence; a fresh read
+of the library gives the same keys beside a menu override saved first, and the
+menu's Reset All keeps them; a set without `tool_keys` re-encodes to the same
+bytes, an unknown tool's key is kept, a malformed map refuses. `ToolKeys.shared`
+and the library are put back on every exit.
+
+"action parameter rows" (`action_parameter_rows.swift`, #20) reads Parameters…
+sheet rows through `ActionParametersEditorSheetController.edits(for:)`, the
+rule Save runs: a row left as the sheet filled it asks for nothing, a string
+default of " a" included; a string default keeps its spaces while an integer
+typed " 5 " is 5; a changed or cleared default, a retype with a rename, a
+removed row and a named add row each ask for exactly their edits, and "5.5" as
+an integer is refused by sentence.
 
 "fade sheet" (`ui_fade.swift`, v1) runs Image ▸ Adjustments ▸ Invert at 8 and 16
 bits; Edit ▸ Fade… then validates titled "Fade Invert…", its sheet at 50 %

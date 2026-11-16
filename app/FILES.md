@@ -403,6 +403,10 @@ Detail belongs in the source file's own header comment.
 - `ActionStepCellView.swift` — one row of the Actions window's step table: the step number, the enabled checkbox, the one-line name over a mono meta line.
 - `ActionJSONSheetController.swift` — the Actions window's Edit JSON sheet: the action as text, validated by `Action.decode` before anything is written.
 - `ActionParametersSheetController.swift` — asks for an action's declared parameters before it plays, one field per declaration pre-filled with its default; every Play path asks.
+- `ActionParameterEdits.swift` / `AgentServer+ActionParameters.swift` — add, rename, retype, default, describe, remove an action's parameters (`Action.applying`); MCP `edit_action_parameters`.
+- `ActionParametersEditorSheetController.swift` — the Actions window's Parameters… sheet: one row per declared parameter plus an add row, saved through `Action.applying`.
+- `ActionGeometry+Retouch.swift` — the retouch steps' geometry kinds: an axis-less length (×√(sx·sy), clamped), red-eye discs, `source_mask`, Remove's `strokes`, a stroke's canonical dabs.
+- `DoctoredCore+Zip.swift` — `ZipArchive`, the zipped Action bundle's container: `dr_zip_pack_dir` and `dr_zip_unpack`.
 - `BatchWindowController.swift` — File ▸ Automate ▸ Batch…: one action over every image in a folder; one app-modal window, Setup then Run/Report.
 - `EditorViewController+Actions.swift` — the editor's half of Actions: menu validation, transform and one-shot record builders (latched paint records are `+StrokeRecording`'s).
 - `EditorViewController+RepeatLast.swift` — Filters ▸ Repeat Last Filter (⌃F): re-run the last destructive filter or adjustment with the same parameters.
@@ -455,6 +459,7 @@ Detail belongs in the source file's own header comment.
 - `Workspace.swift` / `EditorViewController+Workspace.swift` / `WorkspaceSheets.swift` / `AppDelegate+Workspaces.swift` — Phase 12C-2's saved workspace LAYOUTS.
 - `EditorWindowMemory.swift` — the frame and panel layout a new editor window reopens with (`UserDefaults`; never read or written under automation).
 - `Shortcuts.swift` / `ShortcutsSheetController.swift` / `AppDelegate+Shortcuts.swift` / `AgentServer+Workspace.swift` — customizable SHORTCUTS; the workspace and view MCP tools.
+- `ToolKeys.swift` — the remappable bare tool keys: the user's keys over `EditorTool.defaultKeyCharacter`, stored as the `"Shortcuts"` item's `tool_keys`.
 - `AppDelegate+AppMenu.swift` — the Doctored (app) menu builder. `AppDelegate.buildMainMenu()` orders the top-level menus.
 - `AppDelegate+Updates.swift` — Doctored ▸ Check for Updates…: the nil-target action and `validateUpdatesItem`; in every build, enabled only when this launch has an updater.
 - `AppDelegate+FileMenu.swift` — the File menu builder. `AppDelegate.buildMainMenu()` orders the top-level menus.
@@ -472,6 +477,7 @@ Detail belongs in the source file's own header comment.
 - `LayerLabel.swift` / `EditorViewController+LayerLabels.swift` / `AgentServer+LayerLabels.swift` — per-layer COLOUR LABELS and the layers panel's filter vocabulary (Phase 12C-1).
 - `LayerThumbnailCache.swift` — the Layers panel's per-layer thumbnail cache, owned by `LayersPanelViewController` (`thumbnails`).
 - `ViewRotation.swift` / `EditorViewController+Views.swift` / `RotateViewSheetController.swift` — VIEW-ONLY ROTATION and the SYNCHRONIZED SECOND VIEW (Phase 12D-2).
+- `ViewMatch.swift` / `EditorViewController+MatchViews.swift` — Window ▸ Match Zoom / Location: zoom, and centre by canvas fraction, pushed at every other open view; MCP `match_views`.
 - `ViewExposure.swift` — a float window's view exposure and candidate tone map as values: `FloatDisplayView`, `ViewExposureState`, the ±20-stop range.
 - `EditorViewController+ViewExposure.swift` — View ▸ 32-bit Exposure…: the float arm of the proof slot, rendered from the retained projection; the Tone Map sheet's candidate preview.
 - `EDRDisplay.swift` / `EditorViewController+HDRPreview.swift` — View ▸ HDR Preview: screen headroom, the engage rule, the binary16 view image, the window space.

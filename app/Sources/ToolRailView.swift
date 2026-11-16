@@ -55,8 +55,9 @@ final class ToolRailView: NSView {
     /// The background swatch sits this far down and right of the foreground.
     private let swatchStagger = NSSize(width: 10, height: 14)
 
-    /// Kept alive because `addToolTip` does not retain its string owners.
-    private var toolTipOwners: [NSString] = []
+    /// Kept alive because `addToolTip` does not retain its string owners. Readable so the
+    /// jobs-probe's "tool keys" case can see the text a remap left registered.
+    private(set) var toolTipOwners: [NSString] = []
 
     init(groups: [[EditorTool]]) {
         assert(!groups.contains { $0.isEmpty }, "a rail group needs at least one tool")
@@ -69,6 +70,14 @@ final class ToolRailView: NSView {
         self.selectedTool = groups.first?.first ?? .select
         super.init(frame: .zero)
         wantsLayer = true
+        // A remapped tool key (`ToolKeys`) rewrites the slot tooltips.
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(shortcutLibraryDidChange(_:)),
+            name: .shortcutLibraryDidChange, object: nil)
+    }
+
+    @objc private func shortcutLibraryDidChange(_ note: Notification) {
+        rebuildToolTips()
     }
 
     @available(*, unavailable)
@@ -166,7 +175,7 @@ final class ToolRailView: NSView {
         toolTipOwners.removeAll()
         for index in groups.indices {
             let tool = currentMember[index]
-            addToolTip("\(tool.displayName) (\(tool.keyCharacter.uppercased()))",
+            addToolTip(tool.keyLabel.map { "\(tool.displayName) (\($0))" } ?? tool.displayName,
                 in: slotRect(index))
         }
         guard swatchesFit else { return }

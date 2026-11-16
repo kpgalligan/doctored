@@ -246,3 +246,5 @@ mod trim_bounds_tests;
 mod uniform_plane_turn;
 #[path = "vector_masks.rs"]
 mod vector_masks;
+#[path = "zip_store.rs"]
+mod zip_store;

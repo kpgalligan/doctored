@@ -13,11 +13,13 @@ extension EditorViewController {
     /// View-only items: they change window state, never document pixels. Their
     /// MCP twins: Rotate View / Reset View Rotation → `set_view`'s `rotation`;
     /// New View → `open_second_view`; Sync Pan & Zoom → `sync_pan_zoom`;
+    /// Match Zoom / Match Location / Match Zoom and Location → `match_views`;
     /// Hide/Show Panels: none (window chrome). The grid-spacing,
     /// grid-subdivision and snap presets have none (the view-preference
     /// exemption).
     private static let viewOnlyActions: Set<String> = ["rotateView:", "resetViewRotation:", "newView:",
-        "toggleSyncPanZoom:", "setGridSpacing:", "setGridSubdivisions:", "snapToAll:", "snapToNone:",
+        "toggleSyncPanZoom:", "matchZoom:", "matchLocation:", "matchZoomAndLocation:",
+        "setGridSpacing:", "setGridSubdivisions:", "snapToAll:", "snapToNone:",
         "showViewExposure:",
         "resetViewExposure:",
         "togglePanels:"]

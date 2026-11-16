@@ -362,11 +362,20 @@ enum EditorTool: Int, CaseIterable {
         return NSCursor(image: tinted, hotSpot: NSPoint(x: 6, y: 6))
     }()
 
-    /// The bare key that selects the tool: the single source for both
-    /// directions of the mapping.
+    /// The bare key that selects the tool: the user's (`ToolKeys`) over
+    /// `defaultKeyCharacter`, and "" when the user removed it. The single
+    /// source for both directions of the mapping.
+    var keyCharacter: String { ToolKeys.shared.key(for: self) }
+
+    /// The key as the rail's tooltip, the status line and a hint print it —
+    /// "B" — or nil for a tool the user left without one.
+    var keyLabel: String? { keyCharacter.isEmpty ? nil : keyCharacter.uppercased() }
+
+    /// The key this build gives the tool: what `ToolKeys` falls back to and
+    /// the Shortcuts tab's Reset restores.
     /// A key shared by several tools (M, L, W, G, J, U) cycles them in rail
     /// order on repeated presses (see `tool(forKey:current:last:)`).
-    var keyCharacter: String {
+    var defaultKeyCharacter: String {
         switch self {
         case .select, .ellipseSelect: return "m"
         case .lasso, .freehandLasso, .magneticLasso: return "l"
@@ -409,7 +418,8 @@ enum EditorTool: Int, CaseIterable {
     /// shape group's U) maps to the first; cycling in rail order is
     /// `tool(forKey:current:last:)`'s business.
     init?(keyCharacter: String) {
-        guard let tool = Self.allCases.first(where: { $0.keyCharacter == keyCharacter }) else {
+        guard !keyCharacter.isEmpty,
+              let tool = Self.allCases.first(where: { $0.keyCharacter == keyCharacter }) else {
             return nil
         }
         self = tool
@@ -423,6 +433,7 @@ enum EditorTool: Int, CaseIterable {
         forKey key: String, current: EditorTool, last: EditorTool?,
         available: (EditorTool) -> Bool = { _ in true }
     ) -> EditorTool? {
+        guard !key.isEmpty else { return nil }
         let peers = railGroups.flatMap { $0 }.filter {
             $0.keyCharacter == key && !$0.planned && available($0)
         }

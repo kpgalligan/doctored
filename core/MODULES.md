@@ -540,6 +540,7 @@ Detail belongs in the source file's own header comment.
 - `sha256.rs` — KERNEL leaf, 13C-1: FIPS 180-4 SHA-256, the pool's content key and the skeleton digest.
 - `pool_skeleton.rs` — 13C-1: the skeleton file (a native file's payloads as pool keys: literal, tile and blob segments, a closing digest).
 - `doc_tile_pool.rs` / `ffi_tile_pool.rs` — 13C-1: `DrTilePool`, the byte and typed writes into a pool, the identity memo, the rebuild, `dr_tile_pool_*`.
+- `zip_store.rs` / `ffi_zip.rs` — the zipped Action bundle: a deterministic ZIP writer and a containment-checked reader (raw deflate via `psd_zip`), `dr_zip_*`.
 - `layer_raster.rs` — Phase 13B-2a's `LayerRaster`, the ONE accessor for byte layer pixels (tiled, private representation): layer pixels, retained-source and warp planes share its identity.
 - `gray_raster.rs` — 13B-4's `GrayRaster`, the ONE accessor for a byte mask or channel plane: shared 256×256 tiles, identity token, in-place row reads, no view cache.
 - `layer_rect.rs` — layer-space rects for the byte and typed rect writers: an edit with a natural bound reads, runs on and writes back only its own rect.

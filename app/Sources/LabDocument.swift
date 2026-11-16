@@ -281,6 +281,7 @@ enum LabDocument {
         // (their pixels leave through the Display P3 view or the core's Lab → RGB export).
         "arrange_layer", "auto_select_layer", "find_layers", "get_mask_properties", "merge_group",
         "list_views", "open_second_view", "close_second_view", "get_view", "set_view",
+        "match_views",
         "save_workspace", "restore_workspace", "get_file_info", "set_file_info", "get_metadata",
         "set_resolution", "set_ruler_origin", "set_history_budget", "recover_document",
         "discard_recovery", "detect_horizon", "list_lens_profiles", "distort_layer",

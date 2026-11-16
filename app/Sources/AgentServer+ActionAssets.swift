@@ -1,7 +1,9 @@
 import AppKit
 
 /// `package_action` and `import_action` — the only route from "an action that
-/// names files on this machine" to "an action somebody else can run".
+/// names files on this machine" to "an action somebody else can run". A
+/// bundle is a `.draction` folder or, with `format: "zip"`, one
+/// `.draction.zip` file; `import_action` reads either.
 ///
 /// They mirror the Actions window's Package… and Import… buttons, and neither
 /// does any work of its own: `ActionAssets` owns the asset table, the
@@ -54,6 +56,17 @@ extension AgentServer {
                 message: "Missing required argument: destination — the FOLDER the "
                     + "<slug>.draction bundle is written into.")
         }
+        let format: ActionAssets.BundleFormat
+        switch a["format"] {
+        case nil: format = .folder
+        case let raw as String:
+            guard let parsed = ActionAssets.BundleFormat(rawValue: raw) else {
+                throw ToolError(message: "format must be \"folder\" or \"zip\" (got \"\(raw)\").")
+            }
+            format = parsed
+        default:
+            throw ToolError(message: "format must be \"folder\" or \"zip\".")
+        }
         let action: Action
         switch ActionLibrary.entry(named: name) {
         case .ok(let decoded)?: action = decoded
@@ -78,10 +91,10 @@ extension AgentServer {
         }
         do {
             let bundle = try ActionAssets.package(
-                action, to: folder, overwrite: boolArg(a, "overwrite") ?? false)
+                action, to: folder, overwrite: boolArg(a, "overwrite") ?? false, format: format)
             return try jsonResult([
                 "ok": true, "name": action.name, "path": bundle.url.path,
-                "assets": bundle.assets,
+                "assets": bundle.assets, "format": format.rawValue,
             ])
         } catch let error as ActionAssets.Failure {
             throw ToolError(message: error.message)
@@ -92,11 +105,10 @@ extension AgentServer {
     func importAction(_ a: [String: Any]) throws -> String {
         guard let path = stringArg(a, "path"), !path.isEmpty else {
             throw ToolError(
-                message: "Missing required argument: path — the <slug>.draction FOLDER to "
-                    + "import.")
+                message: "Missing required argument: path — the <slug>.draction folder, or "
+                    + "the <slug>.draction.zip file, to import.")
         }
-        let bundle = URL(
-            fileURLWithPath: (path as NSString).expandingTildeInPath, isDirectory: true)
+        let bundle = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
         do {
             let imported = try ActionAssets.importBundle(
                 at: bundle, name: stringArg(a, "name"),
