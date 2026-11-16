@@ -1,13 +1,13 @@
 # Merge and stacks (ADR)
 
-- **Status:** Accepted — open items remain ([#7](https://github.com/kpgalligan/doctored/issues/7),
-  [#66](https://github.com/kpgalligan/doctored/issues/66)); the phase closed 2026-10-19.
+- **Status:** Accepted — an open item remains ([#7](https://github.com/kpgalligan/doctored/issues/7));
+  the phase closed 2026-10-19.
 - **Phase / dates:** first wave 2026-10-11 to 2026-10-12, phases 1 to 4c 2026-10-16 to 2026-10-19.
 - **Originals:** [archive/v1-stacks-status.md](../archive/v1-stacks-status.md) (the working record at close) and
   [archive/v1-stacks-shipped.md](../archive/v1-stacks-shipped.md) (its shipped companion).
 - **Takes:** `~/devel/doctored-fixtures/photoshop/auto-align-564/take1`, `panorama-564/take1`–`take3`,
-  `hdr-toning-564/selftest-1`, `selftest-2` and `take3`; the runners are in the private archive
-  `kpgalligan/doctored-dev` (`scripts/photoshop-probe/`).
+  `hdr-toning-564/selftest-1`, `selftest-2` and `take3`, `hdt-curve-66/take1`–`take3`; the runners are in the
+  private archive `kpgalligan/doctored-dev` (`scripts/photoshop-probe/`).
 - **Key commits:** given in each Shipped and Phase section.
 
 ## Context
@@ -297,8 +297,10 @@ the recorded step.
 2026-11-14: Preset ▸ Import Preset… and MCP `import_hdr_toning_preset` read a `.hdt` file
 (`hdr_toning_preset_file.rs`, `dr_hdr_toning_preset_file_decode`) into the user library, named after the file
 (every sample stores "Default"). Local Adaptation only; a file that does not parse exactly refuses whole; a
-gamma above 2 imports as 2 and corner points as smooth ones, each with a report line. The curve's pair order
-(output first) and the point flag's polarity (0 a corner) are inferences the module doc states. Case (s) pins it.
+gamma above 2 imports as 2 and corner points as smooth ones, each with a report line. Case (s) pins it.
+2026-11-15: the curve's pair order (output first) and the point flag's polarity (0 a corner) are measured, no
+longer inferred (`hdt-curve-66/take3`; takes 1 and 2 found no reference: a name beside explicit values does not
+load the preset's curve, and a file loaded by `Usng` returns no values). The reader did not change.
 2026-11-14: MCP `list_hdr_toning_presets`, `save_hdr_toning_preset` and `delete_hdr_toning_preset` mirror the
 popup's rows, Save Preset… and Delete Preset… (`nonRecordable`, `documentFree`); a built-in's name refuses to
 delete before the library is asked, and `file` clears a broken row. Case (t) pins them.
@@ -306,8 +308,6 @@ delete before the library is asked, and `file` clears a broken row. Case (t) pin
 ## Open items
 
 - `OPEN` [#7](https://github.com/kpgalligan/doctored/issues/7) — the built-in looks await the owner's review.
-- `OPEN` [#66](https://github.com/kpgalligan/doctored/issues/66) — confirm the `.hdt` Toning Curve pair order and
-  point-flag polarity with a recorded take.
 
 ## For the next item
 

@@ -242,9 +242,8 @@ fn stored_floats_read_as_their_shortest_decimal() {
     }
 }
 
-/// The curve's pairs are stored output first, the order the crate's other
-/// curve files from the same application use (`.acv`); the argument is
-/// `[in, out]`.
+/// The curve's pairs are stored output first (the reader's module doc, "The
+/// curve's pair order and flags"); the argument is `[in, out]`.
 #[test]
 fn curve_pairs_are_stored_output_first() {
     let file = Hdt {

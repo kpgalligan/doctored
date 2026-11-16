@@ -25,22 +25,17 @@
 //! Files are capped at [`MAX_FILE_BYTES`] (a 16-point file with a 256-unit
 //! name is under 700 bytes), checked before the bytes are read.
 //!
-//! # Two inferences
+//! # The curve's pair order and flags
 //!
-//! ([#66](https://github.com/kpgalligan/doctored/issues/66) asks for the
-//! take that confirms both.) The samples cannot settle two things, so each is
-//! read by the rule the crate's other files from the same application follow,
-//! and each is one function or constant here, so a recorded take that decides
-//! otherwise changes one line:
-//!
-//! * The curve pair is (output, input) ([`curve_point`]), the order of the
-//!   `.acv` Curves preset (`adjustment_preset_file`). Every sample curve is
-//!   monotone either way; read this way, the two "High Contrast" samples
-//!   are S-curves.
-//! * A point flag of 1 is a smooth point and 0 a corner ([`CORNER_POINT`]),
-//!   the `Cnty` (continuity) rule of the curve points in its descriptors
-//!   (`psd_contour`): every sample's identity curve, and every endpoint,
-//!   carries 1.
+//! Each stored pair is (output, input) ([`curve_point`]), and a point flag of
+//! 0 marks a corner and 1 a smooth point ([`CORNER_POINT`]); every sample's
+//! identity curve, and every endpoint, carries 1. A recorded take measured
+//! both (Photoshop 26.10.0). It loaded files written in this layout, every
+//! value but the curve at the application's defaults, and rendered each beside
+//! the same curve passed explicitly in the four readings (either pair order,
+//! either flag polarity): only this reading matched, for the curves of the two
+//! "High Contrast" samples and for one whose flags alternate between interior
+//! points. Read this way, those two samples are S-curves.
 //!
 //! # What the import changes
 //!
@@ -71,8 +66,8 @@ const MAX_NAME_UNITS: u32 = 256;
 /// The method word of Local Adaptation, the only method read.
 const LOCAL_ADAPTATION: u32 = 3;
 
-/// The point flag of a corner (module doc, "Two inferences"); the other
-/// accepted value is a smooth point.
+/// The point flag of a corner (module doc, "The curve's pair order and
+/// flags"); the other accepted value is a smooth point.
 const CORNER_POINT: u8 = 0;
 const SMOOTH_POINT: u8 = 1;
 
@@ -88,7 +83,7 @@ pub(crate) struct Decoded {
 }
 
 /// One stored curve pair as the request's `[in, out]`: the file stores the
-/// output first (module doc, "Two inferences").
+/// output first (module doc, "The curve's pair order and flags").
 fn curve_point(first: u16, second: u16) -> Value {
     json!([second, first])
 }
