@@ -160,11 +160,12 @@ use crate::authored_color::AuthoredColors;
 use crate::blend::{
     blend_kind_byte, composite_buffer_into, composite_source_into, BlendKind, BlendMode,
 };
-use crate::blend_fill::{fill_blend, FillBlend};
+use crate::blend_fill::{fill_blend_byte, FillBlend};
 use crate::clip_unit::{clip_alpha, clip_pass, ClipStep};
 use crate::doc::{composite_layer_into, DrDocument, Layer};
 use crate::doc_evaluation::{encoded_view, ByteTransfer};
 use crate::job_control::JobContext;
+use crate::lab_blend::{fill_in, LabGrid};
 use crate::style::{BlendIf, Effect, GlobalLight, Knockout, LayerStyle, StrokePosition};
 use crate::style_adjustment::Adjusted;
 use crate::style_blend_if::source_weight;
@@ -438,6 +439,7 @@ fn composite_direct_into(
         style.blend_if.as_ref(),
         layer.blend,
         false,
+        None,
         adjusted.is_some(),
     );
 
@@ -1163,7 +1165,7 @@ pub(crate) fn composite_pixels_into(
         kind,
         direct,
         opacity,
-        fill_blend: fill_blend(mode, fill, false),
+        fill_blend: fill_blend_byte(mode, fill, transfer.is_none()),
         transfer,
     };
     for ay in y0..y1 {
@@ -1209,7 +1211,7 @@ pub(crate) struct PixelPass<'a> {
     pub direct: bool,
     /// Already > 0.
     pub opacity: f32,
-    /// The special Fill of five modes (`blend_fill`, #2), `None` for the
+    /// The special Fill of six modes (`blend_fill`, #2), `None` for the
     /// plain one.
     pub fill_blend: Option<FillBlend>,
     /// The document's evaluation policy (`CompositeEnv::transfer`): `Some`
@@ -1436,7 +1438,10 @@ pub(crate) fn contribution_alpha(
 /// its pixels occlude nothing), under a non-identity Blend If (the pass lands
 /// at `…·weight`), in Dissolve (its coin toss lands a pixel at 0 or full) and
 /// at a Fill of 0 (the pass draws nothing); 1 under a special Fill
-/// (`fill_blend`: that pass lands at `sa` without the Fill); else the Fill.
+/// (`lab_blend::fill_in`, the pass's own question: that pass lands at `sa`
+/// without the Fill); else the Fill. `lab` is a Lab scene's grid, `None` on
+/// every other, so a Lab layer whose Fill stays plain there (Linear Light,
+/// say) divides by the Fill its pass lands at.
 /// `blend_if` is the layer's Blend If: the style's own on a byte layer, the
 /// layer's on a typed or CMYK one, which stores it apart from the style.
 /// Every caller takes its value from here.
@@ -1445,6 +1450,7 @@ pub(crate) fn occluding_fill(
     blend_if: Option<&BlendIf>,
     mode: BlendMode,
     float: bool,
+    lab: Option<LabGrid>,
     adjusted: bool,
 ) -> f32 {
     let fill = crate::opacity_byte::composite(style.fill_opacity, float);
@@ -1455,7 +1461,7 @@ pub(crate) fn occluding_fill(
     {
         return 0.0;
     }
-    if fill_blend(mode, fill, float).is_some() {
+    if fill_in(mode, fill, float, lab).is_some() {
         1.0
     } else {
         fill

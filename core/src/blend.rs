@@ -269,7 +269,7 @@ pub(crate) fn b_vivid_light(cb: f32, cs: f32) -> f32 {
     }
 }
 
-fn b_linear_light(cb: f32, cs: f32) -> f32 {
+pub(crate) fn b_linear_light(cb: f32, cs: f32) -> f32 {
     (cb + 2.0 * cs - 1.0).clamp(0.0, 1.0)
 }
 
@@ -425,10 +425,82 @@ fn b_lighter_color(cb: [f32; 3], cs: [f32; 3]) -> [f32; 3] {
     }
 }
 
+/// A straight [0, 1] component as its 8-bit code, rounded: the one quantizer
+/// of the 8-bit kinds ([`lum8`] and the code kernels below), which read the
+/// backdrop and the source as the codes the document stores.
+fn code8(v: f32) -> u32 {
+    (v.clamp(0.0, 1.0) * 255.0).round() as u32
+}
+
+/// `n / d` rounded half up, on codes (`d > 0`).
+fn rdiv(n: u32, d: u32) -> u32 {
+    (2 * n + d) / (2 * d)
+}
+
+/// A code as a straight [0, 1] component.
+fn unit8(code: u32) -> f32 {
+    code as f32 / 255.0
+}
+
 /// A straight [0, 1] triple's luma as an 8-bit code: each component rounded
 /// to its code, then [`lum_fixed`].
 fn lum8(c: [f32; 3]) -> u32 {
-    lum_fixed(c.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u32))
+    lum_fixed(c.map(code8))
+}
+
+/// The 8-bit variant of [`b_linear_light`] (the master): `b + 2s − 256` on
+/// the two codes, clamped. Its neutral is code 128, where the master's ½ is
+/// 127.5 codes; a recorded take measured the code form on every 8-bit tile
+/// (`psd_appearance_578_take.py` takes 1 and 2, where the float form missed
+/// a clip tile by 2 codes). At 16 bits the master matched.
+pub(crate) fn b_linear_light8(cb: f32, cs: f32) -> f32 {
+    let (b, s) = (code8(cb), code8(cs));
+    unit8((b + 2 * s).saturating_sub(256).min(255))
+}
+
+/// The 8-bit variant of [`b_divide`] (the master): `255·b / s` on the two
+/// codes, rounded half up and capped at 255, the master's black-source rule
+/// kept. On code inputs it differs from the master only where a half code
+/// rounds; it matters for a source that is not on a code, a clip group's
+/// float buffer, which it reads as the code that buffer stores (the takes of
+/// [`b_linear_light8`]: the float form missed that clip tile by 7 codes).
+fn b_divide8(cb: f32, cs: f32) -> f32 {
+    let (b, s) = (code8(cb), code8(cs));
+    if s == 0 {
+        return if b == 0 { 0.0 } else { 1.0 };
+    }
+    unit8(rdiv(255 * b, s).min(255))
+}
+
+/// The 8-bit variant of [`b_vivid_light`] (the master), on the two codes
+/// with the master's source ends first: below code 128 the burn half on
+/// `t = (255·s + 64) >> 7`, `255 − rdiv(255·(255 − b), t)` floored at 0;
+/// from 128 the dodge half on `t = rdiv(255·(s − 128), 127)`,
+/// `rdiv(255·b, 255 − t)` capped at 255. The halves split at code 128, the
+/// master's at ½. The takes of [`b_linear_light8`] measured it (the float
+/// form missed that clip tile by 4 codes), and the blend-edge take
+/// (`blend_edge_take.py` take1), held out from that fit, is exact under it on
+/// every 8-bit sample, where the float form is up to 2 codes off. Lab's 8-bit
+/// Vivid Light is a separate measured form (`lab_blend::vivid_int8`,
+/// truncated).
+pub(crate) fn b_vivid_light8(cb: f32, cs: f32) -> f32 {
+    let (b, s) = (code8(cb), code8(cs));
+    if s == 0 {
+        return 0.0;
+    }
+    if s == 255 {
+        return 1.0;
+    }
+    if s < 128 {
+        let t = (255 * s + 64) >> 7;
+        return unit8(255u32.saturating_sub(rdiv(255 * (255 - b), t)));
+    }
+    let t = rdiv(255 * (s - 128), 127);
+    if t >= 255 {
+        1.0
+    } else {
+        unit8(rdiv(255 * b, 255 - t).min(255))
+    }
 }
 
 /// The 8-bit variant of [`b_darker_color`] (the master): the two lumas
@@ -521,15 +593,20 @@ pub(crate) fn blend_kind(mode: BlendMode) -> BlendKind {
 
 /// The kind a layer's blend composites with in an 8-bit RGB document: with
 /// `encoded` (no linear-light transfer) Darker Color and Lighter Color compare
-/// their lumas as codes ([`b_darker_color8`], [`b_lighter_color8`]);
-/// everything else, and both modes under `linear_light`, is [`blend_kind`].
-/// A blended byte paint walk (Brush, Fill, Stroke, the blended overlay) takes
-/// it too, since it lands what a layer in that mode would flatten to;
-/// gradients, Fade and effect inks keep [`blend_kind`].
+/// their lumas as codes ([`b_darker_color8`], [`b_lighter_color8`]), and
+/// Vivid Light, Linear Light and Divide blend on codes ([`b_vivid_light8`],
+/// [`b_linear_light8`], [`b_divide8`]); everything else, and all five under
+/// `linear_light`, is [`blend_kind`]. A blended byte paint walk (Brush, Fill,
+/// Stroke, the blended overlay) takes it too, since it lands what a layer in
+/// that mode would flatten to; gradients, Fade and effect inks keep
+/// [`blend_kind`].
 pub(crate) fn blend_kind_byte(mode: BlendMode, encoded: bool) -> BlendKind {
     match mode {
         BlendMode::DarkerColor if encoded => BlendKind::NonSeparable(b_darker_color8),
         BlendMode::LighterColor if encoded => BlendKind::NonSeparable(b_lighter_color8),
+        BlendMode::VividLight if encoded => BlendKind::Separable(b_vivid_light8),
+        BlendMode::LinearLight if encoded => BlendKind::Separable(b_linear_light8),
+        BlendMode::Divide if encoded => BlendKind::Separable(b_divide8),
         _ => blend_kind(mode),
     }
 }

@@ -8,16 +8,19 @@ import AppKit
 /// three forms (`Form`), each with its own bound:
 ///
 /// - **Codes** (8 and 16 bits, encoded): Apply Image's Subtract of the STORED low layer at Scale
-///   2 and Offset 127.5 levels, `(source − low) / 2 + ½`, Linear Light, so the pair rebuilds the
-///   original whatever the blur's own rounding was. With `d = source − low` in codes the detail
-///   stores `(d + max) / 2`; `max` is odd at both depths, so an odd `d` is exact and an even one
-///   half a code off, which Linear Light (`low + 2·high − max`) doubles to at most one code. A
-///   pivot of 128 levels would add half a code to every sample and reach two
-///   (`core/tests/frequency_separation.rs` measures both through the compositors). Grayscale
-///   runs it on its one plane (`NativeChannelMath.applyGray`, R = G = B), Lab on the stored L*,
-///   a* and b* codes as the red, green and blue planes; Lab's Linear Light runs on every code, a*
-///   and b* included, so the pivot is ½ of the code range there too and the bound is one code
-///   per channel (`frequency_separation_modes.rs`).
+///   2 and the Offset of Linear Light's own pivot, `(source − low) / 2 + p`, Linear Light, so the
+///   pair rebuilds the original whatever the blur's own rounding was. With `d = source − low` in
+///   codes the detail stores `d / 2 + p` and Linear Light gives `low + 2·high − 2p`. An 8-bit RGB
+///   document blends Linear Light on codes, `low + 2·high − 256`, so `p` is 128 levels there: an
+///   even `d` is exact and an odd one half a code off, which Linear Light doubles to at most one
+///   code. Every typed split keeps the float form, `low + 2·high − max` with `max` odd, so `p` is
+///   ½ (127.5 levels): an odd `d` is exact and an even one half a code off. The other pivot would
+///   add half a code to every sample and reach two (`core/tests/frequency_separation.rs` measures
+///   both through the compositors). Grayscale runs it on its one plane
+///   (`NativeChannelMath.applyGray`, R = G = B), Lab on the stored L*, a* and b* codes as the red,
+///   green and blue planes; Lab's Linear Light runs on every code, a* and b* included, so the
+///   pivot is ½ of the code range there too and the bound is one code per channel
+///   (`frequency_separation_modes.rs`).
 /// - **Difference** (32-bit float, RGB or Grayscale): the core's `layer_detail`, `source − low`
 ///   unclamped (a float layer keeps a negative sample), recombined by Linear Dodge (Add); the pair
 ///   rebuilds the layer within 2^-22 of the larger magnitude. The High layer alone shows its
@@ -45,12 +48,14 @@ struct FrequencySeparationParameters: Equatable {
 
 enum FrequencySeparation {
     static let actionName = "Frequency Separation"
-    /// The detail's pivot in 8-bit levels: ½, 127.5 codes at 8 bits (the type comment says why).
-    static let detailOffset = 127.5
+
+    /// The detail's pivot in 8-bit levels (the type comment says why): 128 for the 8-bit RGB byte
+    /// split, whose Linear Light blends on codes; ½, 127.5 levels, for every typed split.
+    static func detailOffset(byteRGB: Bool) -> Double { byteRGB ? 128 : 127.5 }
 
     /// How the high layer is made and recombined (the type comment).
     enum Form: Equatable {
-        /// Apply Image's Subtract of the stored low at Scale 2 and Offset 127.5; Linear Light.
+        /// Apply Image's Subtract of the stored low at Scale 2 and Linear Light's pivot; Linear Light.
         case codes
         /// The core's `layer_detail` difference in a 32-bit float document; Linear Dodge (Add).
         case difference
@@ -101,8 +106,9 @@ enum FrequencySeparation {
         return nil
     }
 
-    /// The detail layer's Apply Image: the low layer subtracted from the copy above it.
-    static func detail(of p: FrequencySeparationParameters) -> ApplyImageParameters {
+    /// The detail layer's Apply Image: the low layer subtracted from the copy above it, at the
+    /// pivot of `detailOffset(byteRGB:)`.
+    static func detail(of p: FrequencySeparationParameters, byteRGB: Bool) -> ApplyImageParameters {
         var detail = ApplyImageParameters()
         detail.source = p.layer
         detail.sourcePlane = .rgb
@@ -111,7 +117,7 @@ enum FrequencySeparation {
         detail.target = .layer
         detail.targetLayer = p.layer + 1
         detail.scale = 2
-        detail.offset = detailOffset
+        detail.offset = detailOffset(byteRGB: byteRGB)
         return detail
     }
 
@@ -142,7 +148,8 @@ enum FrequencySeparation {
         }
         let blurred = copied.withLayerPixels(p.layer, low) ?? copied
         // nil is a detail that changed no byte (a flat mid-grey layer): the copy already holds it.
-        let detailed = ChannelMath.applyImage(blurred, detail(of: p), merged: nil) ?? blurred
+        let detailed = ChannelMath.applyImage(blurred, detail(of: p, byteRGB: true), merged: nil)
+            ?? blurred
         return try labelled(detailed, p, name: doc.layerInfo(p.layer)?.name ?? "Layer", form: .codes)
     }
 
@@ -161,7 +168,7 @@ enum FrequencySeparation {
                                                    otherRetained: budget.otherRetained)
         let detailScratch: UInt64
         if form == .codes {
-            detailScratch = try NativeChannelMath.scratch(copied, apply: detail(of: p))
+            detailScratch = try NativeChannelMath.scratch(copied, apply: detail(of: p, byteRGB: false))
         } else {
             let plan = try source.pixelEditPlan(request: layerDetail(p).request, workingLimit: budget.limit,
                                                 otherRetained: budget.otherRetained)
@@ -200,10 +207,12 @@ enum FrequencySeparation {
         let facade = try RasterDocument(precision: blurred)
         if facade.isGray {
             return try NativeChannelMath.applyGray(facade, source: blurred, selection: nil,
-                                                   parameters: detail(of: p), control: control)
+                                                   parameters: detail(of: p, byteRGB: false),
+                                                   control: control)
         }
         return try NativeChannelMath.applyRGB(facade, source: blurred, selection: nil,
-                                              parameters: detail(of: p), control: control)
+                                              parameters: detail(of: p, byteRGB: false),
+                                              control: control)
     }
 
     /// Names the pair and makes the high layer the detail: no mask, vector mask or style (Blend If

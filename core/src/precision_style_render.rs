@@ -561,6 +561,7 @@ fn composite_direct_into(
         layer.blend_if,
         layer.blend,
         env.float,
+        env.lab(),
         layer.adjusted.is_some(),
     );
 
@@ -919,7 +920,7 @@ pub(crate) struct PixelPass16<'a> {
     pub opacity: f32,
     /// A 32-bit float scene: the Blend If weight is `source_weight_float`.
     pub float: bool,
-    /// The special Fill of five modes (`blend_fill`, #2; never in a float
+    /// The special Fill of six modes (`blend_fill`, #2; never in a float
     /// scene), `None` for the plain one.
     pub fill_blend: Option<FillBlend>,
     /// The scene's evaluation policy (`StyleEnv::transfer`).

@@ -1046,11 +1046,12 @@ fn legacy_fill_modes_always_write_iopa_on_pixel_records() {
 
 /// #2's per-mode table as the layered report states it (take1-3,
 /// `scripts/photoshop-probe/psd_appearance_578_take.py --rejudge`): a
-/// QUALIFIED mode (Overlay) and a mode qualified at 100 % Fill used at full
-/// Fill (Difference) are named nowhere; an OUT mode (Divide, Dissolve) is
-/// named as unqualified in Photoshop; a full-Fill mode below 100 % Fill
-/// (Hard Mix) is named; Dissolve's pattern, a clipping base below 100 % Fill
-/// and a clipped group each get their own sentence.
+/// QUALIFIED mode (Overlay; Divide, Vivid Light and Linear Light, the last
+/// two below 100 % Fill too) and a mode qualified at 100 % Fill used at full
+/// Fill (Difference) are named nowhere; an OUT mode (Dissolve) is named as
+/// unqualified in Photoshop; a full-Fill mode below 100 % Fill (Hard Mix) is
+/// named; Dissolve's pattern, a clipping base below 100 % Fill and a clipped
+/// group each get their own sentence.
 #[test]
 fn blend_observations_follow_the_qualified_tables() {
     let mut doc = round_trip_source();
@@ -1086,7 +1087,7 @@ fn blend_observations_follow_the_qualified_tables() {
 
     let observations = strings(&export_report(&doc, LAYERS), "observations");
     for sentence in [
-        "Blend modes outside the qualified set are used (Dissolve, Divide); they are written with Photoshop keys; their appearance in Photoshop is not qualified.",
+        "Blend modes outside the qualified set are used (Dissolve); they are written with Photoshop keys; their appearance in Photoshop is not qualified.",
         "Blend modes qualified in Photoshop only at 100 % Fill are used below it (HardMix); their appearance in Photoshop is not qualified there.",
         "Dissolve's dither is Doctored's own; Photoshop draws its own pattern at the same density.",
         "Layer “Base” is a clipping base below 100 % Fill; the layers clipped to it are not qualified in Photoshop.",
@@ -1097,10 +1098,28 @@ fn blend_observations_follow_the_qualified_tables() {
             "{sentence}\n{observations:#?}"
         );
     }
-    for qualified in ["Overlay", "Difference", "DarkerColor", "LighterColor"] {
+    for qualified in [
+        "Overlay",
+        "Difference",
+        "DarkerColor",
+        "LighterColor",
+        "Divide",
+    ] {
         assert!(
             !observations.iter().any(|o| o.contains(qualified)),
             "{qualified} is qualified: {observations:#?}"
+        );
+    }
+    // Vivid Light and Linear Light qualify at every Fill (their 8-bit blends
+    // on codes, the Fill folded toward code 128).
+    for mode in [BlendMode::VividLight, BlendMode::LinearLight] {
+        doc.layers[ghost].blend = mode;
+        doc.layers[ghost].style = fill(0.6);
+        let observations = strings(&export_report(&doc, LAYERS), "observations");
+        let name = format!("{mode:?}");
+        assert!(
+            !observations.iter().any(|o| o.contains(&name)),
+            "{name} is qualified below 100 % Fill: {observations:#?}"
         );
     }
 }

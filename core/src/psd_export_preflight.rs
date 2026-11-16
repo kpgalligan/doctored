@@ -1089,8 +1089,10 @@ fn document_losses(
 /// within 2 codes max and 0.5 mean of Photoshop 26.10.0's own render at 8
 /// and 16 bits. Normal, Multiply, Screen and Pass Through are the claim's
 /// floor whatever a take says. Darker Color and Lighter Color qualify with
-/// the 8-bit compare of their lumas as codes (`blend::blend_kind_byte`),
-/// rejudged on the same takes.
+/// the 8-bit compare of their lumas as codes, and Vivid Light, Linear Light
+/// and Divide with their 8-bit blends on codes and Linear Light's Fill folded
+/// toward code 128 (`blend::blend_kind_byte`, `blend_fill::fill_blend_byte`),
+/// each rejudged on the same takes.
 const QUALIFIED_BLEND: &[BlendMode] = &[
     BlendMode::Normal,
     BlendMode::Darken,
@@ -1106,9 +1108,12 @@ const QUALIFIED_BLEND: &[BlendMode] = &[
     BlendMode::Overlay,
     BlendMode::SoftLight,
     BlendMode::HardLight,
+    BlendMode::VividLight,
+    BlendMode::LinearLight,
     BlendMode::PinLight,
     BlendMode::Exclusion,
     BlendMode::Subtract,
+    BlendMode::Divide,
     BlendMode::Hue,
     BlendMode::Saturation,
     BlendMode::Color,

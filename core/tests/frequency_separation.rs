@@ -1,18 +1,21 @@
 //! Frequency separation's arithmetic, through the FFI: the detail layer is
-//! Apply Image's Subtract of the STORED low layer at scale 2 and offset ½
-//! (`dr_blend_planes_rgb` at 8 bits, the typed `"kind":"blend"` at 16), and a
-//! Linear Light layer clipped to the low layer recomposes the original within
-//! one code. The low is a real Gaussian and, separately, an unrelated noise
-//! image: the bound holds for ANY low, because the detail is computed from
-//! the codes the low layer stores.
+//! Apply Image's Subtract of the STORED low layer at scale 2 and offset 128
+//! levels at 8 bits (`dr_blend_planes_rgb`) and ½ at 16 (the typed
+//! `"kind":"blend"`), and a Linear Light layer clipped to the low layer
+//! recomposes the original within one code. The low is a real Gaussian and,
+//! separately, an unrelated noise image: the bound holds for ANY low, because
+//! the detail is computed from the codes the low layer stores.
 //!
-//! Why ½ and not 128 levels: with `d = src − low` in codes, the detail stores
-//! `(d + max) / 2`, and `max` is odd at both depths, so an odd `d` is exact
-//! and an even one is half a code off, which Linear Light (`low + 2·high −
-//! max`) doubles to at most one code. A pivot of 128 (or 32768) adds half a
-//! code to every sample, and the two halves can then reach two codes; each
-//! test shows that control failing on the same images, so the images are not
-//! too tame to tell the pivots apart.
+//! Why the pivot is Linear Light's own: with `d = src − low` in codes, the
+//! detail stores `d / 2 + p`, and Linear Light gives `low + 2·high − 2p`. An
+//! 8-bit document blends Linear Light on codes, `low + 2·high − 256`
+//! (`layer_blend_codes`), so `p` = 128: an even `d` is exact and an odd one
+//! half a code off, which Linear Light doubles to at most one code. A 16-bit
+//! document keeps the float form, `low + 2·high − 65535`, so `p` = ½ (32767.5
+//! codes): `max` is odd, so an odd `d` is exact and an even one half a code
+//! off. The other pivot adds half a code to every sample, and the two halves
+//! can then reach two codes; each test shows that control failing on the same
+//! images, so the images are not too tame to tell the pivots apart.
 use std::ffi::CString;
 use std::ptr;
 
@@ -192,27 +195,27 @@ fn eight_bit_split_recomposes_within_one_code() {
         )))
         .collect();
     for (label, low) in &lows {
-        let high = byte_detail(&src, low, 0.5);
-        // The detail is (d + 255) / 2 of the stored codes: exact for an odd
-        // d, either neighbour of the half for an even one.
+        let high = byte_detail(&src, low, 128.0 / 255.0);
+        // The detail is (d + 256) / 2 of the stored codes: exact for an even
+        // d, either neighbour of the half for an odd one.
         for i in 0..src.len() {
             for c in 0..3 {
-                let twice = src[i][c] as i64 - low[i][c] as i64 + 255;
+                let twice = src[i][c] as i64 - low[i][c] as i64 + 256;
                 let got = high[i][c] as i64;
                 assert!(
                     got * 2 == twice || (got * 2 - twice).abs() == 1,
-                    "{label}: pixel {i} channel {c}: detail {got} for d + 255 = {twice}"
+                    "{label}: pixel {i} channel {c}: detail {got} for d + 256 = {twice}"
                 );
             }
         }
         let error = max_error(&byte_recomposed(low, &high), &src);
         assert!(error <= 1, "{label}: recomposed within {error} codes");
-        // The control: a pivot of 128 levels is two codes off somewhere.
-        let control = byte_detail(&src, low, 128.0 / 255.0);
+        // The control: a pivot of ½ (127.5 levels) is two codes off somewhere.
+        let control = byte_detail(&src, low, 0.5);
         assert_eq!(
             max_error(&byte_recomposed(low, &control), &src),
             2,
-            "{label}: pivot 128"
+            "{label}: pivot ½"
         );
     }
 }

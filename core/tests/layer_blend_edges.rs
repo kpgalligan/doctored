@@ -13,6 +13,10 @@
 //! pinned at both depths. A 16-bit pair Photoshop's 15-bit values tie but the
 //! codes do not (32767 / 32767, 32768 / 32768) is not pinned. CMYK's edges are
 //! `cmyk_blend.rs`'s (its oracle on `1 − ink` carries the same conventions).
+//! An 8-bit document blends Vivid Light on codes (`layer_blend_codes`), so its
+//! 8-bit oracle is that code rule, with the same ends; it is exact on every
+//! sample of the edge take's 8-bit flat, where the float form is up to 2
+//! codes off (backdrop 127 under source 191: 251, the float form 253).
 
 use std::ffi::c_int;
 
@@ -94,6 +98,34 @@ fn measured_blend(mode: c_int, cb: f64, cs: f64, tie: bool) -> f64 {
     }
 }
 
+/// `n / d` rounded half up.
+fn rdiv(n: i64, d: i64) -> i64 {
+    (2 * n + d) / (2 * d)
+}
+
+/// Vivid Light on 8-bit codes (`layer_blend_codes`'s rule): the source's
+/// ends first, the burn half below code 128 on `t = (255·s + 64) >> 7`, the
+/// dodge half from 128 on `t = rdiv(255·(s − 128), 127)`.
+fn vivid_light8(b: u8, s: u8) -> f64 {
+    let (b, s) = (i64::from(b), i64::from(s));
+    let code = if s == 0 {
+        0
+    } else if s == 255 {
+        255
+    } else if s < 128 {
+        let t = (255 * s + 64) >> 7;
+        (255 - rdiv(255 * (255 - b), t)).max(0)
+    } else {
+        let t = rdiv(255 * (s - 128), 127);
+        if t >= 255 {
+            255
+        } else {
+            rdiv(255 * b, 255 - t).min(255)
+        }
+    };
+    code as f64
+}
+
 /// Photoshop's 15-bit value of a 16-bit code.
 fn q15(v: u16) -> u32 {
     (u32::from(v) * 32768 + 32767) / 65535
@@ -127,8 +159,13 @@ fn eight_bit_layers(codes: &[u8], modes: &[c_int]) {
         for (r, &b) in codes.iter().enumerate() {
             for (c, &s) in codes.iter().enumerate() {
                 let tie = u32::from(b) + u32::from(s) == 255;
-                let want = measured_blend(mode, f64::from(b) / 255.0, f64::from(s) / 255.0, tie);
-                let want = (want * 255.0).round();
+                let want = if mode == BLEND_VIVID_LIGHT {
+                    vivid_light8(b, s)
+                } else {
+                    let want =
+                        measured_blend(mode, f64::from(b) / 255.0, f64::from(s) / 255.0, tie);
+                    (want * 255.0).round()
+                };
                 let at = ((r as u32 * n + c as u32) * 4) as usize;
                 for ch in 0..3 {
                     let got = f64::from(flat[at + ch]);

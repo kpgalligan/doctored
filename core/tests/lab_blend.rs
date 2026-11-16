@@ -9,6 +9,11 @@
 //! per channel at 16 bits; one 8-bit code at 8 (|code/65535 − oracle|·255 ≤
 //! 1).
 //!
+//! A Linear Light layer below Fill 100 % keeps the plain Fill, so an Outside
+//! stroke band lands under its anti-aliased edge at `sa / (1 − a · fill)`,
+//! the band's own Fill-0 render the reference, through the whole render and
+//! the regional one (3/65535).
+//!
 //! `take2_reads_back_in_place` reads take2's files where they lie
 //! (`~/devel/doctored-fixtures/photoshop/lab-blend-681/take2`; never
 //! committed; SKIPS when absent): each mode row rebuilt from the layered
@@ -23,6 +28,10 @@ use std::sync::Arc;
 
 use doctored_core::ffi_fade::dr_precision_doc_fade;
 use doctored_core::ffi_lab::dr_precision_doc_new_lab;
+use doctored_core::ffi_precision::{
+    dr_precision_doc_render, dr_precision_image_free, dr_precision_image_pixels_rgba16,
+};
+use doctored_core::ffi_regional::dr_precision_doc_render_region;
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
 use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer as Layer};
@@ -503,6 +512,87 @@ fn a_drop_shadow_composites_by_the_lab_arm() {
         free(normal);
         free(doc);
     }
+}
+
+/// `doc`'s L codes at `x` (unit) through the whole render
+/// (`dr_precision_doc_render`) and the regional one over the whole canvas
+/// (`dr_precision_doc_render_region`, divisor 1).
+fn rendered_l(doc: *const PrecisionDocument, width: u32, x: usize) -> [f64; 2] {
+    let read = |image: *mut PrecisionImage, err: *mut std::ffi::c_char, route: &str| {
+        assert!(!image.is_null(), "{route}: {}", take_err_string(err));
+        let p16 = unsafe { dr_precision_image_pixels_rgba16(image) };
+        assert!(!p16.is_null(), "{route}: a u16 image");
+        let codes = unsafe { std::slice::from_raw_parts(p16, width as usize * 4) };
+        let l = f64::from(codes[x * 4]) / 65535.0;
+        unsafe { dr_precision_image_free(image) };
+        l
+    };
+    let mut err = ptr::null_mut();
+    let whole = unsafe { dr_precision_doc_render(doc, LIMIT, 0, ptr::null(), &mut err) };
+    let whole = read(whole, err, "render");
+    let mut err = ptr::null_mut();
+    let region = unsafe {
+        dr_precision_doc_render_region(doc, 0, 0, width, 1, 1, LIMIT, 0, ptr::null(), &mut err)
+    };
+    [whole, read(region, err, "region")]
+}
+
+#[test]
+fn a_linear_light_layer_below_fill_lands_its_stroke_band_at_the_plain_fill() {
+    // A Lab Linear Light layer's Fill is the plain alpha factor (it does not
+    // fold), so its pixel pass lands at `a · fill` and an Outside stroke band
+    // lands under an anti-aliased edge pixel at `sa / (1 − a · fill)`. Over
+    // black (L 0) the band's L is `sa · L_white`, which a Fill of 0 (the layer
+    // draws nothing, the band keeps `sa`) gives as the reference `r`; at Fill
+    // 60 % the band is `r / (1 − a · 0.6)`, and the L 50 source's Linear Light
+    // (`cb + 2·cs − 1`) then moves it by under a code.
+    const WIDTH: u32 = 10;
+    const EDGE: usize = 4;
+    const ALPHA: f64 = 0.4; // 26214 / 65535: the shape byte 102
+    const FILL: f64 = 0.6;
+    let neutral = 32896; // a* = b* = 0: 128/255 of 65535
+    let top: Vec<[u16; 4]> = (0..WIDTH as usize)
+        .map(|x| match x {
+            _ if x < EDGE => [0; 4],
+            EDGE => [32768, neutral, neutral, 26214],
+            _ => [32768, neutral, neutral, 65535],
+        })
+        .collect();
+    let black = vec![[0, neutral, neutral, 65535]; WIDTH as usize];
+    let doc = lab_doc(16, WIDTH, &[("Backdrop", black, 1.0), ("Top", top, 1.0)]);
+    let doc = with_mode(doc, 1, 19);
+    let at_fill = |fill: f64| {
+        let request = json!({"op":"layer_style","version":1,"layer":1,"style":{
+            "fill_opacity":fill,
+            "effects":[{"type":"stroke","position":"outside","size":2,"color":"#ffffff",
+                "opacity":0.5}]}});
+        let styled = edit(doc, &request, &[])
+            .unwrap_or_else(|e| panic!("{request}: {e}"))
+            .unwrap();
+        let l = rendered_l(styled, WIDTH, EDGE);
+        free(styled);
+        l
+    };
+    let (reference, got) = (at_fill(0.0), at_fill(FILL));
+    let cs = 32768.0 / 65535.0;
+    for (k, route) in ["render", "region"].iter().enumerate() {
+        let r = reference[k];
+        let band = r / (1.0 - ALPHA * FILL);
+        assert!(
+            r > 0.1 && band < 0.95,
+            "{route}: the band's reference L {r}"
+        );
+        let blended = (band + 2.0 * cs - 1.0).clamp(0.0, 1.0);
+        let want = band + ALPHA * FILL * (blended - band);
+        assert!(
+            (got[k] - want).abs() * 65535.0 <= 3.0,
+            "{route}: L {} against {} (under the full alpha {})",
+            got[k] * 65535.0,
+            want * 65535.0,
+            r / (1.0 - ALPHA) * 65535.0
+        );
+    }
+    free(doc);
 }
 
 // ------------------------------------------------------------- take2 --

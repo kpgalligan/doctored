@@ -25,7 +25,7 @@
 use std::sync::Arc;
 
 use crate::blend::{blend_kind_byte, composite_source_into, BlendMode};
-use crate::blend_fill::fill_blend;
+use crate::blend_fill::fill_blend_byte;
 use crate::clip_unit::{clip_alpha, ClipStep};
 use crate::doc::Layer;
 use crate::doc_evaluation::ByteTransfer;
@@ -188,6 +188,7 @@ impl Styled {
                 style.blend_if.as_ref(),
                 layer.blend,
                 false,
+                None,
                 // A styled adjustment is refused before the tree is built
                 // (`regional::STYLED_ADJUSTMENT`).
                 false,
@@ -504,7 +505,7 @@ impl ResolvedNode<'_> {
             kind: blend_kind_byte(mode, transfer.is_none()),
             direct: mode == BlendMode::Normal,
             opacity,
-            fill_blend: fill_blend(mode, style.fill, false),
+            fill_blend: fill_blend_byte(mode, style.fill, transfer.is_none()),
             transfer,
         };
         composite_pixels_sample(target, ti, &px, 0, coverage, under, &pass, canvas_xy);

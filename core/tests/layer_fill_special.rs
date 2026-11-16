@@ -1,18 +1,22 @@
 //! #2's special Fill (`blend_fill`): Color Burn, Linear Burn, Color Dodge,
-//! Linear Dodge (Add) and Vivid Light fold a Fill `f` below 1 into the blend —
-//! `B(cb, n + f·(cs − n))`, `n` = 1 for the burns, 0 for the dodges, ½ for
-//! Vivid Light — and composite it at the layer's alpha × opacity over the
-//! backdrop, the Fill reappearing only as the source's coverage over
-//! transparency (form Fb: `αo = sa·f·(1 − ab) + ab`, `co·αo = sa·f·(1 −
-//! ab)·cs + sa·ab·B + (1 − sa)·ab·cb`). The oracle is written here in f64
-//! from that statement and the separable blend formulas, and run through
-//! `DrDocument` (8 bits, ≤ 1 code) and `PrecisionDocument` (16 bits, ≤ 2 /
-//! 65535) on take1's own tile — its eight backdrop colours by its eight source
-//! colours at alpha 255 and 128 — at Fill 60 % and 25 %, over the opaque
-//! backdrop and inside a Normal group; Photoshop 26.10.0's take1 patches are
-//! pinned. The byte tile is also driven through `dr_doc_*` alone. Every other
-//! mode, and Fill 1, keep the plain Fill byte for byte, and the non-separable
-//! modes and Dissolve below Fill 1 render at 8 and 16 bits without panicking.
+//! Linear Dodge (Add), Vivid Light and Linear Light fold a Fill `f` below 1
+//! into the blend — `B(cb, n + f·(cs − n))`, `n` = 1 for the burns, 0 for the
+//! dodges, ½ for Vivid Light and Linear Light — and composite it at the
+//! layer's alpha × opacity over the backdrop, the Fill reappearing only as
+//! the source's coverage over transparency (form Fb: `αo = sa·f·(1 − ab) +
+//! ab`, `co·αo = sa·f·(1 − ab)·cs + sa·ab·B + (1 − sa)·ab·cb`). In an 8-bit
+//! document Vivid Light and Linear Light blend on codes (`layer_blend_codes`)
+//! and their neutral is code 128: `B` is the code rule on the backdrop's code
+//! and `round(128 + f·(s − 128))`, `f` the byte Fill and `s` the source's
+//! code. The oracle is written here in f64 from that statement and the
+//! separable blend formulas, and run through `DrDocument` (8 bits, ≤ 1 code)
+//! and `PrecisionDocument` (16 bits, ≤ 2 / 65535) on take1's own tile — its
+//! eight backdrop colours by its eight source colours at alpha 255 and 128 —
+//! at Fill 60 % and 25 %, over the opaque backdrop and inside a Normal group;
+//! Photoshop 26.10.0's take1 patches are pinned. The byte tile is also driven
+//! through `dr_doc_*` alone. Every other mode, and Fill 1, keep the plain
+//! Fill byte for byte, and the non-separable modes and Dissolve below Fill 1
+//! render at 8 and 16 bits without panicking.
 
 use std::sync::Arc;
 
@@ -51,12 +55,13 @@ const SRC: [[u8; 3]; 8] = [
     [80, 112, 181],
     [255, 41, 180],
 ];
-const FIVE: [BlendMode; 5] = [
+const SIX: [BlendMode; 6] = [
     BlendMode::ColorBurn,
     BlendMode::LinearBurn,
     BlendMode::ColorDodge,
     BlendMode::Addition,
     BlendMode::VividLight,
+    BlendMode::LinearLight,
 ];
 const FILLS: [f64; 2] = [0.6, 0.25];
 
@@ -82,7 +87,7 @@ fn burn(b: f64, s: f64) -> f64 {
     }
 }
 
-/// `B(cb, cs)` of the five modes.
+/// `B(cb, cs)` of the six modes.
 fn blend(mode: BlendMode, b: f64, s: f64) -> f64 {
     match mode {
         BlendMode::ColorBurn => burn(b, s),
@@ -93,21 +98,55 @@ fn blend(mode: BlendMode, b: f64, s: f64) -> f64 {
         BlendMode::VividLight if s >= 1.0 => 1.0,
         BlendMode::VividLight if s <= 0.5 => burn(b, 2.0 * s),
         BlendMode::VividLight => dodge(b, 2.0 * s - 1.0),
+        BlendMode::LinearLight => (b + 2.0 * s - 1.0).clamp(0.0, 1.0),
         other => panic!("no oracle for {other:?}"),
     }
+}
+
+/// `n / d` rounded half up.
+fn rdiv(n: i64, d: i64) -> i64 {
+    (2 * n + d) / (2 * d)
+}
+
+/// Vivid Light and Linear Light on 8-bit codes (`layer_blend_codes`'s
+/// rule): `b` and `s` codes, the result a code.
+fn blend8(mode: BlendMode, b: i64, s: i64) -> i64 {
+    match mode {
+        BlendMode::LinearLight => (b + 2 * s - 256).clamp(0, 255),
+        BlendMode::VividLight if s == 0 => 0,
+        BlendMode::VividLight if s == 255 => 255,
+        BlendMode::VividLight if s < 128 => {
+            let t = (255 * s + 64) >> 7;
+            (255 - rdiv(255 * (255 - b), t)).max(0)
+        }
+        BlendMode::VividLight => {
+            let t = rdiv(255 * (s - 128), 127);
+            if t >= 255 {
+                255
+            } else {
+                rdiv(255 * b, 255 - t).min(255)
+            }
+        }
+        other => panic!("no code oracle for {other:?}"),
+    }
+}
+
+/// The modes an 8-bit document blends on codes, at Fill toward code 128.
+fn on_codes(mode: BlendMode, top: f64) -> bool {
+    top == 255.0 && matches!(mode, BlendMode::VividLight | BlendMode::LinearLight)
 }
 
 fn neutral(mode: BlendMode) -> f64 {
     match mode {
         BlendMode::ColorBurn | BlendMode::LinearBurn => 1.0,
-        BlendMode::VividLight => 0.5,
+        BlendMode::VividLight | BlendMode::LinearLight => 0.5,
         _ => 0.0,
     }
 }
 
 /// Form Fb (module doc): `cs` at alpha `sa` (no Fill) and Fill `f` onto
-/// `dst`.
-fn special(dst: [f64; 4], cs: [f64; 3], sa: f64, f: f64, mode: BlendMode) -> [f64; 4] {
+/// `dst`; `top` 255 blends Vivid Light and Linear Light on codes.
+fn special(dst: [f64; 4], cs: [f64; 3], sa: f64, f: f64, mode: BlendMode, top: f64) -> [f64; 4] {
     let ab = dst[3];
     let ao = sa * f * (1.0 - ab) + ab;
     if ao <= 0.0 {
@@ -116,7 +155,13 @@ fn special(dst: [f64; 4], cs: [f64; 3], sa: f64, f: f64, mode: BlendMode) -> [f6
     let n = neutral(mode);
     let mut out = [0.0, 0.0, 0.0, ao];
     for k in 0..3 {
-        let b = blend(mode, dst[k], n + f * (cs[k] - n));
+        let b = if on_codes(mode, top) {
+            let code = |v: f64| (v * 255.0).round() as i64;
+            let moved = 128.0 + f * (cs[k] * 255.0 - 128.0);
+            blend8(mode, code(dst[k]), moved.round() as i64) as f64 / 255.0
+        } else {
+            blend(mode, dst[k], n + f * (cs[k] - n))
+        };
         out[k] = (sa * f * (1.0 - ab) * cs[k] + sa * ab * b + (1.0 - sa) * ab * dst[k]) / ao;
     }
     out
@@ -156,10 +201,10 @@ fn oracle(mode: BlendMode, f: f64, row: usize, col: usize, grouped: bool, top: f
     let cs = unit(SRC[row % 8]);
     let sa = f64::from(alpha_of(row)) / 255.0;
     let out = if grouped {
-        let g = special([0.0; 4], cs, sa, f, mode).map(|v| (v * top).round() / top);
+        let g = special([0.0; 4], cs, sa, f, mode, top).map(|v| (v * top).round() / top);
         normal(backdrop, [g[0], g[1], g[2]], g[3])
     } else {
-        special(backdrop, cs, sa, f, mode)
+        special(backdrop, cs, sa, f, mode, top)
     };
     [out[0] * top, out[1] * top, out[2] * top]
 }
@@ -255,7 +300,7 @@ fn assert_tile(
 
 #[test]
 fn byte_special_fill_follows_the_f1_fb_oracle_over_the_backdrop_and_in_a_group() {
-    for mode in FIVE {
+    for mode in SIX {
         for f in FILLS {
             let doc = byte_doc(mode, Some(f), 1.0);
             let flat = doc.flattened().unwrap();
@@ -291,7 +336,7 @@ fn byte_special_fill_follows_the_f1_fb_oracle_over_the_backdrop_and_in_a_group()
 
 #[test]
 fn typed_special_fill_follows_the_f1_fb_oracle_over_the_backdrop_and_in_a_group() {
-    for mode in FIVE {
+    for mode in SIX {
         for f in FILLS {
             for grouped in [false, true] {
                 let render = typed_doc(mode, f, grouped)
@@ -317,7 +362,7 @@ fn typed_special_fill_follows_the_f1_fb_oracle_over_the_backdrop_and_in_a_group(
 #[test]
 fn fill_1_and_every_other_mode_keep_the_plain_fill_byte_for_byte() {
     // A special mode at Fill 1 is the unstyled layer.
-    for mode in FIVE {
+    for mode in SIX {
         let styled = byte_doc(mode, Some(1.0), 0.6).flattened().unwrap();
         let plain = byte_doc(mode, None, 0.6).flattened().unwrap();
         assert_eq!(styled.as_raw(), plain.as_raw(), "{mode:?} at Fill 1");
@@ -327,7 +372,6 @@ fn fill_1_and_every_other_mode_keep_the_plain_fill_byte_for_byte() {
         BlendMode::Normal,
         BlendMode::Multiply,
         BlendMode::Screen,
-        BlendMode::LinearLight,
         BlendMode::HardMix,
         BlendMode::Difference,
     ] {

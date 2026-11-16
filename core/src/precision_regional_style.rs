@@ -106,6 +106,7 @@ fn direct_sample16(
             layer.blend_if.as_ref(),
             layer.blend_mode,
             env.float,
+            env.lab(),
             false,
         )
     });

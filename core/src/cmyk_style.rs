@@ -507,6 +507,7 @@ pub(crate) fn styled_ink(
                 layer.blend_if().as_ref(),
                 mode,
                 true,
+                None,
                 adjusted,
             ))
         }),
