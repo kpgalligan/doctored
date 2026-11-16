@@ -261,13 +261,77 @@ final class RecoveryCoordinator {
     }
 
     func discard(id: String) throws {
-        let directory = try RecoveryStore.directory(root: root, id: id)
-        guard let lease = try RecoveryLease.acquire(directory: directory, create: false) else {
+        guard try removeUnleased(id: id) else {
             throw failure("That recovery belongs to an open document. Close the document to discard it.")
         }
+        panel?.reload()
+    }
+
+    /// What `discardAll(ids:)` did with each id: discarded, left because an open document
+    /// (in any instance) leases it, or left because its removal failed.
+    struct DiscardOutcome {
+        var discarded: [String] = []
+        var inUse: [String] = []
+        var failed: [(id: String, message: String)] = []
+
+        /// The window's status line; nil when every copy was discarded.
+        var leftSummary: String? {
+            guard !inUse.isEmpty || !failed.isEmpty else { return nil }
+            let total = discarded.count + inUse.count + failed.count
+            let noun = total == 1 ? "recovery copy" : "recovery copies"
+            var text = "Discarded \(discarded.count) of \(total) \(noun)."
+            if inUse.count == 1 {
+                text += " 1 was left because it belongs to an open document;"
+                    + " close that document to discard it."
+            } else if inUse.count > 1 {
+                text += " \(inUse.count) were left because they belong to open documents;"
+                    + " close those documents to discard them."
+            }
+            if let first = failed.first {
+                text += failed.count == 1 ? " 1 could not be removed: \(first.message)"
+                    : " \(failed.count) could not be removed; the first: \(first.message)"
+            }
+            return text
+        }
+
+        /// `discard_recovery`'s reply with `all`: the ids discarded, then each id left with its reason.
+        var report: [String: Any] {
+            let left = inUse.map { ["recovery_id": $0, "reason": "in use by an open document"] }
+                + failed.map { ["recovery_id": $0.id, "reason": $0.message] }
+            return ["discarded": discarded, "left": left]
+        }
+    }
+
+    /// Recover Unsaved Work ▸ Discard All…: every id in order, recording each outcome without
+    /// stopping. A folder already gone counts as discarded (another instance removed it after the
+    /// list was made). The panel reloads once, at the end.
+    func discardAll(ids: [String]) -> DiscardOutcome {
+        var outcome = DiscardOutcome()
+        for id in ids {
+            do {
+                let directory = try RecoveryStore.directory(root: root, id: id)
+                let present = FileManager.default.fileExists(atPath: directory.path)
+                if try !present || removeUnleased(id: id) {
+                    outcome.discarded.append(id)
+                } else {
+                    outcome.inUse.append(id)
+                }
+            } catch {
+                outcome.failed.append((id: id, message: error.localizedDescription))
+            }
+        }
+        panel?.reload()
+        return outcome
+    }
+
+    /// Removes the copy's folder under its lease; false while an open document holds the lease.
+    /// Never reloads the panel.
+    private func removeUnleased(id: String) throws -> Bool {
+        let directory = try RecoveryStore.directory(root: root, id: id)
+        guard let lease = try RecoveryLease.acquire(directory: directory, create: false) else { return false }
         defer { lease.release() }
         try RecoveryStore.discard(directory: directory)
-        panel?.reload()
+        return true
     }
 
     @objc func showRecoveryWindow(_ sender: Any?) {

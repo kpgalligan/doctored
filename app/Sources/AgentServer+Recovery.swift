@@ -1,6 +1,6 @@
 import AppKit
 
-/// Mirrors File > Recover Unsaved Work and its checkpoint/recover/discard choices.
+/// Mirrors File > Recover Unsaved Work and its checkpoint/recover/discard/discard-all choices.
 extension AgentServer {
     /// This file's MCP tools; merged by AgentServer+Registry.swift.
     static let recoveryHandlers: [String: ToolHandler] = [
@@ -24,7 +24,7 @@ extension AgentServer {
             tool("get_recovery_status", "Native recovery interval, open-document checkpoint status and abandoned copies. Recovery never overwrites an original and includes session snapshots. State failed means the document is not protected (the editor shows Recovery off); a working-memory refusal adds memory figures.", ["document_id": Self.docIDProperty]),
             tool("write_recovery", "Checkpoint the current complete editing state and session snapshots in private native recovery storage. Does not mark the document saved. Busy asynchronous requests retry automatically. The result's pool reports the recovery tile pool after the write: appended_tiles counts the tiles this checkpoint stored (an unchanged tile is stored once across checkpoints).", ["document_id": Self.docIDProperty, "wait": ["type": "boolean", "description": "Wait for completion; default true."], "native_copy": ["type": "string", "description": "Optional file path: after the checkpoint (wait true), rebuild its native image there, the file recover_document would open."]]),
             tool("recover_document", "Open an abandoned recovery as a dirty native untitled copy. Original or moved source files remain unchanged. Returns a warning if only the previous checkpoint is readable.", ["recovery_id": id, "show": ["type": "boolean", "description": "Show the recovered window; default true."]], required: ["recovery_id"]),
-            tool("discard_recovery", "Permanently discard an abandoned recovery copy. Refuses copies leased by an open document in any app instance.", ["recovery_id": id], required: ["recovery_id"]),
+            tool("discard_recovery", "Permanently discard an abandoned recovery copy by recovery_id, or with all true every copy get_recovery_status lists under available (the window's Discard All…). A copy leased by an open document in any app instance is refused by id and left by all; all's reply names the ids discarded and each id left with its reason. Copies that protect open documents are never touched.", ["recovery_id": id, "all": ["type": "boolean", "description": "Discard every copy get_recovery_status lists under available instead of one recovery_id; default false."]]),
         ]
     }
 
@@ -73,8 +73,15 @@ extension AgentServer {
         return try jsonResult(report)
     }
 
+    /// Discard… and, with all, Discard All… (RecoveryWindowController).
     func discardRecovery(_ arguments: [String: Any]) throws -> String {
-        guard let id = stringArg(arguments, "recovery_id") else { throw ToolError(message: "recovery_id is required.") }
+        let id = stringArg(arguments, "recovery_id")
+        if boolArg(arguments, "all") == true {
+            guard id == nil else { throw ToolError(message: "Pass recovery_id or all true, not both.") }
+            let coordinator = RecoveryCoordinator.shared
+            return try jsonResult(coordinator.discardAll(ids: try coordinator.available().map(\.id)).report)
+        }
+        guard let id else { throw ToolError(message: "recovery_id is required unless all is true.") }
         try RecoveryCoordinator.shared.discard(id: id)
         return try jsonResult(["ok": true])
     }

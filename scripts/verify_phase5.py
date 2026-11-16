@@ -13,7 +13,7 @@ import shutil
 import tempfile
 
 from phase5_history import grouped_action_history, history_flows
-from phase5_recovery import (crash_and_restart, default_interval_checkpoint,
+from phase5_recovery import (crash_and_restart, default_interval_checkpoint, discard_all_copies,
                              failed_write_and_previous_generation, pool_checkpoints,
                              pool_mask_checkpoints)
 from phase5_snapshots import snapshot_flows
@@ -22,7 +22,8 @@ from phase5_snapshots import snapshot_flows
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--keep", action="store_true")
-    parser.add_argument("--suite", choices=["all", "history", "snapshots", "recovery"], default="all")
+    parser.add_argument("--suite", choices=["all", "history", "snapshots", "recovery", "discard-all"],
+                        default="all")
     arguments = parser.parse_args()
     folder = Path(tempfile.mkdtemp(prefix="rasterize-phase5-"))
     print(f"Verification scratch: {folder}", flush=True)
@@ -38,6 +39,8 @@ def main():
             failed_write_and_previous_generation(folder / "faults")
             pool_checkpoints(folder / "pool")
             pool_mask_checkpoints(folder / "pool-mask")
+        if arguments.suite in ("all", "recovery", "discard-all"):
+            discard_all_copies(folder / "discard-all")
     except BaseException:
         print(f"Failure artifacts retained: {folder}", flush=True)
         raise

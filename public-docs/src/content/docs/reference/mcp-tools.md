@@ -3074,11 +3074,12 @@ Open an abandoned recovery as a dirty native untitled copy. Original or moved so
 
 ## `discard_recovery`
 
-Permanently discard an abandoned recovery copy. Refuses copies leased by an open document in any app instance.
+Permanently discard an abandoned recovery copy by recovery_id, or with all true every copy get_recovery_status lists under available (the window's Discard All…). A copy leased by an open document in any app instance is refused by id and left by all; all's reply names the ids discarded and each id left with its reason. Copies that protect open documents are never touched.
 
 | Argument | Type | Required | Constraints | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `recovery_id` | `string` | yes | — | recovery_id from get_recovery_status. |
+| `all` | `boolean` | no | — | Discard every copy get_recovery_status lists under available instead of one recovery_id; default false. |
+| `recovery_id` | `string` | no | — | recovery_id from get_recovery_status. |
 
 ## `select_freehand`
 

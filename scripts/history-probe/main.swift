@@ -289,6 +289,7 @@ do {
         ("recovery lifecycle", verifyRecoveryLifecycle),
         ("recovery off notice", verifyRecoveryOffNotice),
         ("recovery discovery failures", verifyRecoveryDiscoveryErrors),
+        ("recovery discard all", verifyRecoveryDiscardAll),
     ]
     for (name, check) in checks {
         do { try check() }

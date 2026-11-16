@@ -36,6 +36,9 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
   the source moved; imported JPEG/RAW originals are never overwritten. A confirmed preserving save removes
   recovery only when the image is clean and the session snapshot list is empty; saving an older captured
   revision keeps newer work; a normal close discards recovery and blocks a late worker publication.
+- **Discard All** (Recover Unsaved Work ▸ Discard All…, MCP discard_recovery all): one confirmation, then every
+  listed copy; a copy an open document claimed since listing, or one that cannot be removed, is left and counted
+  in the status line (named in the MCP reply).
 - **Shared host archive** (`app/Sources/EditingStateArchive.swift`) wraps an unchanged native `.doctored` image plus
   selection, layer targeting and export settings; its schema is independent of DRDC (v1 then; now v4, adding
   typed/float storage and the linear-light tag). Names, geometry, indices, targets, versions and metadata sizes
@@ -69,8 +72,8 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
 - New editing state that must survive a crash belongs in `EditingState` and the archive (bump its version).
 - Recovery/snapshot writes are subject to working-memory admission and can refuse; native files do not
   preserve in-memory sharing between snapshots, so a large snapshot list may be refused though cheap in session.
-- Tests: `scripts/verify_phase5.py` (MCP, forced restart), `scripts/history-probe/` (AppKit lifecycle),
-  `scripts/phase5_{history,recovery,snapshots}.py`.
+- Tests: `scripts/verify_phase5.py` (MCP, forced restart; `--suite discard-all`),
+  `scripts/history-probe/` (AppKit lifecycle), `scripts/phase5_{history,recovery,snapshots}.py`.
 
 ## Open items (verified 2026-09-26)
 - `DONE` — Power-loss durability: the manifest publication is ordered and

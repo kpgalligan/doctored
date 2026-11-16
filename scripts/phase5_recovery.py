@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import stat
 import time
+import uuid
 
 from phase3_fixtures import synthetic_dng
 from phase5_snapshots import new_snapshot
@@ -146,6 +147,64 @@ def crash_and_restart(folder):
     write_report(folder / "checkpoint-metrics.json", checkpoint)
     print("PASS: automatic native checkpoint, forced-kill JPEG/RAW/native recovery, moved originals preserved, full states/snapshots and untitled second crash", flush=True)
     print("PASS: open recovery leases exclude simultaneous recovery/discard across app instances", flush=True)
+
+
+def recovery_directories(recovery):
+    """The recovery root's copy folders (named by recovery_id)."""
+    def is_id(name):
+        try:
+            uuid.UUID(name)
+        except ValueError:
+            return False
+        return True
+    return {path.name for path in recovery.iterdir() if path.is_dir() and is_id(path.name)}
+
+
+def discard_all_copies(folder):
+    """Recover Unsaved Work ▸ Discard All… as discard_recovery all: every listed copy goes, a copy
+    an open document claims and one that cannot be removed are left and named, and the copy that
+    protects an open document is never touched."""
+    folder.mkdir()
+    recovery = folder / "recovery"
+    sources = [folder / f"copy-{index}.png" for index in range(5)]
+    for index, source in enumerate(sources):
+        fixture(source, 96 + 8 * index, 72)
+    ids = []
+    with App(folder / "first", recovery, interval=60) as app:
+        for index, source in enumerate(sources[:4]):
+            document = app.open(source)
+            app.call("set_layer_properties", document_id=document, index=0, name=f"Discard All {index}")
+            ids.append(protected(app, document)["recovery_id"])
+        app.crash()
+    with App(folder / "restart", recovery, interval=60) as app:
+        listed = [entry["recovery_id"] for entry in available(app)]
+        assert listed == ids[::-1], (listed, ids)
+        # An open document now leases ids[0], so it is no longer listed.
+        app.call("recover_document", recovery_id=ids[0], show=False)
+        own_document = app.open(sources[4])
+        app.call("set_layer_properties", document_id=own_document, index=0, name="Discard All own")
+        own = protected(app, own_document)["recovery_id"]
+        # ids[3] is the newest, so the loop meets its failed removal first.
+        failing = recovery / ids[3]
+        mode = stat.S_IMODE(failing.stat().st_mode)
+        try:
+            failing.chmod(0o500)
+            reply = app.call("discard_recovery", all=True)
+        finally:
+            failing.chmod(mode)
+        assert sorted(reply["discarded"]) == sorted(ids[1:3]), reply
+        left = reply["left"]
+        assert [entry["recovery_id"] for entry in left] == [ids[3]] and left[0]["reason"], reply
+        assert recovery_directories(recovery) == {ids[0], ids[3], own}, recovery_directories(recovery)
+        app.call("discard_recovery", recovery_id=ids[3])
+        assert recovery_directories(recovery) == {ids[0], own}, recovery_directories(recovery)
+        assert available(app) == []
+        app.call("discard_recovery", all=True, recovery_id=ids[0], fail=True)
+        reply = app.call("discard_recovery", all=True)
+        assert reply["discarded"] == [] and reply["left"] == [], reply
+    print("PASS: discard_recovery all discards every listed copy, leaves and names one that cannot be "
+          "removed, never touches copies leased by open documents, and refuses all beside recovery_id",
+          flush=True)
 
 
 def skeleton_keys(path):

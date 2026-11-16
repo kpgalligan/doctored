@@ -252,6 +252,72 @@ private func recoveryLabels(_ view: NSView) -> [NSTextField] {
     (view as? NSTextField).map { [$0] } ?? view.subviews.flatMap(recoveryLabels)
 }
 
+/// The actual Discard All… control: one confirmation counts the listed copies, every copy it
+/// may remove goes, and a copy an open document claimed after the list was made is left and
+/// counted in the status line. The copy protecting the open holder is never listed or touched.
+func verifyRecoveryDiscardAll() throws {
+    UserDefaults.standard.set(true, forKey: "RecoveryDiscoverySuppressed")
+    let coordinator = RecoveryCoordinator.shared
+    coordinator.start()
+    let holder = try fixture()
+    defer { holder.close() }
+    rename(holder, "Discard All holder")
+    try coordinator.checkpoint(holder, wait: true)
+    let holderEntry = try recoveryEntry(holder)
+    let a = try RecoveryStore.directory(root: coordinator.root,
+                                        id: try abandonedRecovery(from: holder, title: "Discard All a"))
+    let b = try RecoveryStore.directory(root: coordinator.root,
+                                        id: try abandonedRecovery(from: holder, title: "Discard All b"))
+    let cID = try abandonedRecovery(from: holder, title: "Discard All c")
+    let c = try RecoveryStore.directory(root: coordinator.root, id: cID)
+    coordinator.showRecoveryWindow(nil)
+    guard let window = NSApp.windows.first(where: { $0.title == "Recover Unsaved Work" }),
+          let content = window.contentView,
+          let discardAll = recoveryButton("Discard All…", in: content),
+          let refresh = recoveryButton("Refresh", in: content),
+          let table = descendant(NSTableView.self, in: content) else {
+        throw ProbeFailure(description: "Recovery panel Discard All… control missing")
+    }
+    window.setFrameOrigin(NSPoint(x: -10000, y: -10000))
+    let newest = try coordinator.available().first?.id
+    try require(newest == cID, "The newest fixture copy must be the first listed row: \(newest ?? "none")")
+    let rows = table.numberOfRows
+    // Another instance's open document claims c after the window listed it. c is row 0, so a
+    // loop that stopped at its first refusal would discard nothing.
+    guard let claim = try RecoveryLease.acquire(directory: c, create: false) else {
+        throw ProbeFailure(description: "Could not claim the newest fixture copy")
+    }
+    AutomationAlerts.reset()
+    discardAll.performClick(nil)
+    let first = AutomationAlerts.recorded
+    try require(first.count == 1 && first.first?.messageText == "Discard all \(rows) recovery copies?"
+                && first.first?.informativeText.contains("Original files are unchanged") == true
+                && first.first?.buttonTitles.first == "Discard All",
+                "Discard All… asks once, counting the listed copies: \(first)")
+    let files = FileManager.default
+    try require(!files.fileExists(atPath: a.path) && !files.fileExists(atPath: b.path),
+                "Discard All… removes every listed copy it may")
+    try require(files.fileExists(atPath: c.path) && files.fileExists(atPath: holderEntry.path),
+                "Discard All… leaves the claimed copy and the open document's own copy")
+    try require(recoveryLabels(content).contains {
+        $0.stringValue.contains("1 was left because it belongs to an open document")
+    }, "The status line counts the copy left and says why")
+    try require(!discardAll.isEnabled, "Discard All… is disabled once nothing is listed")
+    claim.release()
+    refresh.performClick(nil)
+    try require(discardAll.isEnabled, "Discard All… is enabled while a copy is listed")
+    AutomationAlerts.reset()
+    discardAll.performClick(nil)
+    let second = AutomationAlerts.recorded
+    try require(second.count == 1 && second.first?.messageText == "Discard 1 recovery copy?",
+                "A single listed copy is counted in the singular: \(second)")
+    try require(!files.fileExists(atPath: c.path) && files.fileExists(atPath: holderEntry.path),
+                "The released copy is discarded and the open document's copy kept")
+    try require(!discardAll.isEnabled, "Discard All… is disabled after the list empties")
+    window.orderOut(nil)
+    print("PASS: actual Discard All… confirms once, discards every listed copy, leaves and reports a copy claimed after listing, and never touches an open document's copy")
+}
+
 /// Hold a preview reservation that leaves 16 MiB of the working limit, below
 /// any native recovery capture's scratch (its 32 MiB save overhead alone).
 private func recoveryCrowdOut() throws -> SelectionWorkBudget.Reservation {

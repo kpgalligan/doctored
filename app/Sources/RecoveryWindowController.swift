@@ -8,6 +8,7 @@ final class RecoveryWindowController: NSWindowController, NSTableViewDataSource,
     private let status = NSTextField(wrappingLabelWithString: "")
     private let recoverButton = NSButton(title: "Recover Copy", target: nil, action: nil)
     private let discardButton = NSButton(title: "Discard…", target: nil, action: nil)
+    private let discardAllButton = NSButton(title: "Discard All…", target: nil, action: nil)
     private var entries: [RecoveryStore.Candidate] = []
 
     init(coordinator: RecoveryCoordinator) {
@@ -33,9 +34,12 @@ final class RecoveryWindowController: NSWindowController, NSTableViewDataSource,
         status.textColor = DS.textMuted
         recoverButton.target = self; recoverButton.action = #selector(recover(_:))
         discardButton.target = self; discardButton.action = #selector(discard(_:))
+        discardAllButton.target = self; discardAllButton.action = #selector(discardAll(_:))
         let checkpoint = NSButton(title: "Save Recovery Now", target: self, action: #selector(checkpoint(_:)))
         let refresh = NSButton(title: "Refresh", target: self, action: #selector(refresh(_:)))
-        let row = NSStackView(views: [refresh, checkpoint, NSView(), discardButton, recoverButton])
+        let row = NSStackView(views: [
+            refresh, checkpoint, NSView(), discardAllButton, discardButton, recoverButton,
+        ])
         row.orientation = .horizontal
         row.spacing = 8
         let stack = NSStackView(views: [status, scroll, row])
@@ -89,6 +93,7 @@ final class RecoveryWindowController: NSWindowController, NSTableViewDataSource,
         let valid = entries.indices.contains(table.selectedRow)
         recoverButton.isEnabled = valid && entries[table.selectedRow].manifest != nil
         discardButton.isEnabled = valid
+        discardAllButton.isEnabled = !entries.isEmpty
     }
 
     @objc private func refresh(_ sender: Any?) { reload() }
@@ -119,5 +124,22 @@ final class RecoveryWindowController: NSWindowController, NSTableViewDataSource,
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         do { try coordinator?.discard(id: id); reload() }
         catch { NSApp.presentError(error) }
+    }
+
+    /// One confirmation for every listed copy; the coordinator removes each it may and reloads
+    /// the list, and a copy it had to leave is counted here.
+    @objc private func discardAll(_ sender: Any?) {
+        let ids = entries.map(\.id)
+        guard !ids.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = ids.count == 1
+            ? "Discard 1 recovery copy?" : "Discard all \(ids.count) recovery copies?"
+        alert.informativeText = (ids.count == 1 ? "Its" : "Their")
+            + " unsaved changes and recovered session snapshots will be removed. Original files are unchanged."
+        alert.addButton(withTitle: "Discard All")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn,
+              let outcome = coordinator?.discardAll(ids: ids) else { return }
+        if let summary = outcome.leftSummary { status.stringValue = summary }
     }
 }
