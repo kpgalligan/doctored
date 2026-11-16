@@ -84,26 +84,35 @@
 //! What three takes designed to identify it measured
 //! (`pattern_overlay_3_take.py`, `pattern_overlay_3b_take.py`: impulse, edge
 //! and ramp tiles): every instance is ONE turned stamp drawn at a whole-pixel
-//! position, its centre O + a v1 + b v2 + R(−t)(floor(w / 2), floor(h / 2))
-//! rounded half up plus a whole-pixel offset per row. The stamp is the level
-//! turned by exact quarter turns until the residual t' lies in [−45, 45]
-//! degrees (a ±45 tie takes fewer turns: 135 reads t' 45, −135 reads t' −45),
-//! then a two-pass rotation by t' (rows, then columns), Keys' cubic a = −0.75
-//! in both passes, rows clamped; each pixel reads its exact-lattice
-//! instance's stamp, a 16-bit document its whole 8-bit codes × 257 and a
-//! 32-bit one those codes / 255. With the turned level W × H, (c, s) of t'
-//! and its index (0, 0) at x = s / 2 − min(0, s H), pass 2 reads column X's
-//! rows at c (y − o(X)), o(X) = Ty − tan t' (X + 1/2), Ty = s W for t' > 0
-//! and tan t' (ceil(c W + |s| H) − c W) for t' < 0 (64 rows at 100 %, within
-//! 0.021 px). An ODD-DOUBLE level at s' = 1 stamps like any level. At a
-//! fractional pixel size, above 1 too, the level is first resampled along
-//! its own axes to floor(w s') × 2 ceil(h s' / 2) whole pixels (31 rows, two
-//! tile shapes, s' 0.52 to 1.7). Fitted per row, this reads every 100 % row
-//! at 0.4 to 0.8 codes mean. Not yet a rule, so the sampler stays (open item
-//! of #3, `designs/phase-10c-constructs-status.md`): the whole-pixel offset
-//! (a ceil(span / 2) fit on 46 rows missed 9 of the next take's 36 axes), the
-//! finite stamp's corner pixels (the clamped extension misses there by up to
-//! 91 codes), and the pre-scale's kernel and registration.
+//! position. The stamp is the level turned by exact quarter turns until the
+//! residual t' lies in [−45, 45] degrees (a ±45 tie takes fewer turns: 135
+//! reads t' 45, −135 reads t' −45), then a two-pass rotation by t' (rows,
+//! then columns), Keys' cubic a = −0.75 in both passes, rows clamped, each
+//! pass rounded to whole 8-bit codes; a 16-bit document reads those codes ×
+//! 257 and a 32-bit one codes / 255. With the turned level W × H and (c, s)
+//! of t', the stamp raster is W1 = ceil(c W + |s| H) by H1 = ceil(|s| W + c
+//! H) pixels, the level's index (0, 0) at x = s / 2 − min(0, s H), and pass
+//! 2 reads column X's rows at c (y − o(X)), o(X) = Ty − tan t' (X + 1/2), Ty
+//! = s W for t' > 0 and tan t' (W1 − c W) for t' < 0. Raster pixel ((W1 − W
+//! mod 2) div 2, (H1 − H mod 2) div 2) is drawn at O + a v1 + b v2 +
+//! R(−t)(floor(w / 2), floor(h / 2)) rounded half up; each pixel reads its
+//! exact-lattice instance's stamp, clamped to the raster's edge where the
+//! raster ends short of it (the corners). Fitted offline on the takes' 121
+//! rows, that rule reads all 69 rows at s' = 1 (ODD-DOUBLE levels, 16 and 32
+//! bits included) within 3 codes max, 1.17 mean, and, scored once after it
+//! was frozen, all 26 held-out rows at s' = 1 (take4 to take6 and
+//! `pattern-overlay-557` take1 to take3, which TWO-PASS misses by 24 to 81
+//! codes mean) within 3 max, 1.20 mean. At a fractional pixel size the level
+//! is first resampled to Wp = floor(w s') by Hp (the least size ≥ h s' with
+//! h's parity) and, unturned, the anchor moves by ceil(floor(w / 2) s' −
+//! floor(Wp / 2)) in x and ceil(floor(h / 2) s' − floor(Hp / 2)) in y. No
+//! kernel the fit tried reads every scale row within the bound. The closest
+//! pair, Keys a = −1.25 widened by 1 / s' to reduce and a = −0.6 stretched
+//! 1.15 to enlarge (an enlarged stamp at the noise floor), misses 5 of the
+//! takes' 48: the 12 × 8 tile at 150 % by 30 codes, the 48 × 48 edge tile at
+//! 75 %, the 40 × 28 ramp at 93 % and the 7 × 11 ODD-DOUBLE ramp at 45 % at
+//! both signs. TWO-PASS stays until the rule is whole (open item of #3,
+//! `designs/phase-10c-constructs-status.md`).
 //!
 //! # Depths and CMYK
 //!
