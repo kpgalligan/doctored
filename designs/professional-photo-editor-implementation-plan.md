@@ -151,7 +151,7 @@ Goal: large high-depth multilayer documents meet declared latency, memory, save 
 ## Open work
 
 - `OPEN` [#9](https://github.com/kpgalligan/doctored/issues/9) — 13B-7: the canvas and previews on the regional path (waiting on the owner's display-model decision) and the packaged byte base's guided member.
-- `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — 13B-5, -6, -9: a measured history budget, one bounded cache registry, sampling plates.
+- `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — 13B-9 and 13B-6's view cap: regional sampling plates, the contiguous-view bound, the missed bounds and the latency re-measure (13B-5's measured history budget and 13B-6's cache registry shipped 2026-11-15).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — 13C and 13D: bounded save and open, cancellable codecs, compact recovery, scale qualification, lifted caps (P7-32 to P7-34).
 - `OPEN` [#13](https://github.com/kpgalligan/doctored/issues/13) — 10C-3: the Background mark, layer comps (names, comments, visibility), paths, the clipping path and raster-less vector masks cross PSD in every mode and at every depth (paths also in a flat TIFF of every mode but Duotone); comps' appearance and capture flags, every raster `vmsk` form and the clipping path's flatness since 2026-11-13 against Photoshop-authored files; open are a PSD comp's position, an inverted `vmsk` and the export of a vector mask beside a raster mask in Photoshop's form.
 - `OPEN` [#14](https://github.com/kpgalligan/doctored/issues/14) — 10D and 11F: f32 typed style planes, full-precision authored colour on non-sRGB typed profiles, the float proxy preview stage, Quick Mask filters beyond Gaussian Blur.

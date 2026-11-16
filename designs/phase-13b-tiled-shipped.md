@@ -44,7 +44,9 @@ The 31 shipped runs (`Owns` / `Exit` cells and split lineage: archived original;
 | 13B-3e-4c-1 | `31981c3` | 09-26 |
 | 13B-3e-4c-2a | `d1f7601` | 09-26 |
 | 13B-3e-4c-2b | `3a7cf21` | 09-26 (closed as a recorded residual) |
-| 13B-4 | — | 11-15 |
+| 13B-4 | `79a5f644` | 11-15 |
+| 13B-5 | — | 11-15 |
+| 13B-6 | — | 11-15 |
 
 ## 13B-1 contract
 
@@ -152,7 +154,7 @@ The host intakes and the RAW develop output unseeded; the geometry source on one
 
 ## 13B-3e-4b contract
 
-`from_rgba16_decoded` / `from_rgba32_extended_decoded` for every typed decoder (a bitwise-uniform plane is filled, `uniform_tiles`); the narrowing's byte planes unseeded; `OutputView::Seeded` removed. Reopen and PSD-open admission still charge the dense plane (a dropped 13B-8 item).
+`from_rgba16_decoded` / `from_rgba32_extended_decoded` for every typed decoder (a bitwise-uniform plane is filled, `TilePlane::uniform_from`); the narrowing's byte planes unseeded; `OutputView::Seeded` removed. Reopen and PSD-open admission still charge the dense plane (a dropped 13B-8 item).
 
 ## 13B-3e-4c-1 contract
 
@@ -164,21 +166,42 @@ The host intakes and the RAW develop output unseeded; the geometry source on one
 
 ## 13B-3e-4c-2b contract
 
-Closed as a recorded residual: no tiling code landed. An f32 plane above `CONTIGUOUS_CACHE_BYTES` stays contiguous: `tiles_of` / `uniform_tiles` refuse above the bound, `filled_plane` falls back, `transient_rgba32` borrows it, a changed `with_rect` copies the buffer once (three `#[ignore]`d tests). Since the f32 tiling's phase 1 (`5ad3dbc`) only an ADOPTED plane does: `uniform_tiles`, `filled_plane`, the float reopen / TIFF open and `with_rect` tile at every size; since its phase 2 (`09e0b98`) adopted planes tile too (Contiguous = tile-store refusal only). The module doc is the home of the representation only; the premise is D1.
+Closed as a recorded residual: no tiling code landed. An f32 plane above `CONTIGUOUS_CACHE_BYTES` stays contiguous: `tiles_of` / `TilePlane::uniform_from` refuse above the bound, `filled_plane` falls back, `transient_rgba32` borrows it, a changed `with_rect` copies the buffer once (three `#[ignore]`d tests). Since the f32 tiling's phase 1 (`5ad3dbc`) only an ADOPTED plane does: `TilePlane::uniform_from`, `filled_plane`, the float reopen / TIFF open and `with_rect` tile at every size; since its phase 2 (`09e0b98`) adopted planes tile too (Contiguous = tile-store refusal only). The module doc is the home of the representation only; the premise is D1.
 
 ## 13B-4 contract
 
 Byte masks and channels (`Layer.mask`, `Channel.data`, the vector mask's raster part and baked plane, the WARP masks, the PATH table's byte planes) are `GrayRaster` (`core/src/gray_raster.rs`), typed masks and channels `PrecisionPlane` on `TilePlane<u16>` (`core/src/precision_mask.rs`): shared 256×256 tiles behind an identity token, no `Deref`, no `PartialEq`. Exit met (`core/tests/mask_plane_tiles.rs`): three 300×300 dabs on a 1536×1024 plane retain the base plane plus 4 tiles per dab (byte mask, byte channel, typed mask; 4 whole planes before); the saved native bytes are the row-major samples (a tile-order walk fails); the mask and channel suites are green.
 
+## 13B-5 contract
+
+What one edit retains, read from `list_history.retained_bytes` (the union of every state's handles; `scripts/verify_phase13b_history.py`, which asserts the fixes on 1500×1000 and prints the 24 MP rows with `--measure 8|16`). Four over-retentions found and fixed: a bitwise-uniform coverage plane is one filled plane (`GrayRaster::new`, `PrecisionPlane::copy` through `TilePlane::uniform_from`); `Layer.meta` is `Arc<str>`, shared by every state; `paint_mask` answers `None` when no byte changes; the typed facade metadata leases `8 ×` its inspection JSON plus the profile, not the 1 MiB `inspection_bytes` admission estimate (`PrecisionFacadeMetadata.capture`). Before: the same steps on the build before these fixes (the batch's spike); after:
+
+| Edit (24 MP) | 8-bit before | 8-bit after | 16-bit before | 16-bit after |
+| --- | --- | --- | --- | --- |
+| brush dot, size 100 | 266,130 | 266,122 | 1,590,640 | 549,608 |
+| `add_layer_mask reveal_all` | 24,003,986 | 157,066 | 49,066,352 | 332,416 |
+| mask stroke that changes nothing | 914, one state | 0, none | 0, none | 0, none |
+| mask dot, size 100 | 69,522 | 69,514 | 1,197,424 | 157,312 |
+| `add_adjustment_layer levels` | 24,620,190 | 773,262 | 1,075,020 | 30,164 |
+| `move_layers` (10, 10) | 1,679 | 1,552 | 1,072,464 | 27,672 |
+| whole-layer invert | 96,004,751 | 96,004,624 | 193,075,536 | 192,030,744 |
+| snapshot after capture / after one invert | — | 0 / 96,004,624 | — | 0 / 192,030,744 |
+
+`python3 scripts/verify_phase13b_history.py --measure 8` (and `16`), an owned Debug instance at the 8 GiB limit. The snapshot rows are `list_snapshots.incremental_bytes`; no before was run for that sequence. **Budget decision: kept** — history at working limit / 4 and 4096 transitions, named snapshots at 32 inside limit / 4: at 24 MP the 2 GiB budget of the 16 GB minimum holds 22 whole-layer 8-bit edits or 11 at 16 bits, and dab-scale edits reach the transition cap first (4096 × 266,122 = 1.09 GB at 8 bits; 4096 × 549,608 = 2.25 GB at 16, about the budget). What limited history was the over-retention above.
+
+## 13B-6 contract
+
+`core/src/cache_registry.rs`: one process-wide registry holds every resident cache payload that holds bytes — the byte and typed style planes, a byte mask's derived and aligned planes, the LUT memo's parsed tables — and the cache keeps a `Ticket` (a `Weak` plus a shared token). **Bound:** `cache_limit::registry_bound`, the working limit / 8 (the old host trim's threshold), held at every insert. **Order:** least recently used first, across classes, one clock (a hit marks use; the candidate scan and accounting do not). An evicted entry is a miss and is rebuilt; readers keep the planes they upgraded; an entry above the bound is not kept; the last ticket's drop unregisters its entry. An entry's bytes are the report's own walk over its payload. **Not members:** the content-box memos (no pixels, 512 entries each) and the contiguous views (their own 1 GiB bound); the report's process-wide `cache_registry` section lists both beside the classes. The host trim and `dr_process_cache_trim_limit` are gone; `admit` still evicts every cache and remeasures under pressure. Exit met: `core/tests/cache_registry.rs` (the bound held, the order, the mask, LUT and typed classes, class sums equal to the report's categories, an oversized entry, freed documents), each failing under a mutant. Measured at 24 MP 8-bit (the spike's three-document session): a drop-shadow entry is 48,844,344 bytes, a three-effect entry 98,496,192, a feathered mask's two entries 48,563,216, a 33³ LUT 1,030,092; the 1 GiB bound at 8 GiB holds about ten styled layers' current planes, two at the 2 GiB pin (each such layer re-renders when it falls out).
+
 ## Decisions
 
 - **The 13C seam.** `Tile<S>` is opaque behind `samples()`, so a spilled or compressed tile variant lands without changing `TilePlane`.
-- **Structural sharing only.** Tiles are shared by `Arc` identity between states derived from each other (and, inside one plane, among bitwise-uniform tiles of one shape: `filled`, `uniform_tiles`, `from_rows_shared_with_job`); content-addressed / interned tiles across documents are out of scope.
+- **Structural sharing only.** Tiles are shared by `Arc` identity between states derived from each other (and, inside one plane, among bitwise-uniform tiles of one shape: `filled`, `TilePlane::uniform_from`, `from_rows_shared_with_job`); content-addressed / interned tiles across documents are out of scope.
 
 ### 13B-2b decisions
 
 - **The view bound is one projection's working set (1 GiB, 256 entries).** `CONTIGUOUS_CACHE_BYTES` / `CONTIGUOUS_CACHE_ENTRIES` were sized to hold a 3-layer 48 MP or 10-layer 24 MP byte document while the compositor read every byte layer's view per projection; since 13B-2c-1 it reads rows from the tiles and a projection leaves no view. A working set above the bound thrashes LRU (each read re-materializes every view); 13B-6's registry absorbs the bound and makes it working-set aware ([#10](https://github.com/kpgalligan/doctored/issues/10)).
-- **The host trim excludes the views** (`cache_bytes − contiguous_view_bytes` against the `cacheLimit` trim at working limit / 8, `RasterResources.checkCaches`), decided because the document trims after every projection and would otherwise evict exactly what the next projection re-read. The views stay `cache: true`, so `EditingState`'s retained figure still subtracts them.
+- **The views are not a registry member** (13B-6 replaced the host trim, which excluded them for the same reason): every projection re-reads them, so they keep their own bound rather than competing with style and mask planes. They stay `cache: true`, so `EditingState`'s retained figure still subtracts them.
 
 ### 13B-2c-2a decisions
 
@@ -215,7 +238,7 @@ The 19-site Seeded / Unseeded classification with each site's readers is in the 
 
 ## Closed open items
 
-- `DONE` — split from 13B-8 — f32 planes above `CONTIGUOUS_CACHE_BYTES` (67,108,864 px), reachable at the 8 GiB limit of a 16 GB Mac (≤ 100 MP by `native_preflight`). **Phase 1** (`5ad3dbc`): every plane built without an adopted `Vec` tiles at every size (`filled_plane`, `uniform_tiles`, the float native reopen and float TIFF open via `from_rgba32_tiles_decoded`, every `with_rect` output). **Phase 2** (`09e0b98`): `tiles_of` has no bound, so every adopted f32 plane tiles too; Contiguous is a tile-store refusal only (test seam `contiguous_rgba32_extended`). Each adoption copy is charged or removed at every size: float render finalization `F32_FINALIZATION_BYTES_PER_PIXEL` = 41 (K fitted from 40), the float reopen figure + `FLOAT_REOPEN_MARGIN_PER_PIXEL` = 9 per float raster pixel (from 8), float paint's grown arm builds into tiles, the `convert` test seam charges 2·count·bpp; the float TIFF open covers 1.45× unchanged. Measured at 24 MP and 100 MP (records: `precision_render`, `precision_native_plan`, `float_io` module docs; `tests/float_above_cache_bound.rs`).
+- `DONE` — split from 13B-8 — f32 planes above `CONTIGUOUS_CACHE_BYTES` (67,108,864 px), reachable at the 8 GiB limit of a 16 GB Mac (≤ 100 MP by `native_preflight`). **Phase 1** (`5ad3dbc`): every plane built without an adopted `Vec` tiles at every size (`filled_plane`, `TilePlane::uniform_from`, the float native reopen and float TIFF open via `from_rgba32_tiles_decoded`, every `with_rect` output). **Phase 2** (`09e0b98`): `tiles_of` has no bound, so every adopted f32 plane tiles too; Contiguous is a tile-store refusal only (test seam `contiguous_rgba32_extended`). Each adoption copy is charged or removed at every size: float render finalization `F32_FINALIZATION_BYTES_PER_PIXEL` = 41 (K fitted from 40), the float reopen figure + `FLOAT_REOPEN_MARGIN_PER_PIXEL` = 9 per float raster pixel (from 8), float paint's grown arm builds into tiles, the `convert` test seam charges 2·count·bpp; the float TIFF open covers 1.45× unchanged. Measured at 24 MP and 100 MP (records: `precision_render`, `precision_native_plan`, `float_io` module docs; `tests/float_above_cache_bound.rs`).
 - `DONE` — The byte `adding_layer_at` zero plane (was 13B-5's): `adding_layer` / `adding_layer_at` build through `transparent_canvas_layer` over `LayerRaster::filled`.
 - `DONE` — The typed geometry plan charged no input transient (was 13B-8's): `source_copy_bytes`, `adoption_copy_bytes`, `float_source_copy_bytes` and `float_adoption_copy_bytes` (`core/src/precision_sampling.rs`) are in the plan.
 - `DONE` — `evict_caches`' `scope` string (`core/src/resources.rs`) says it drops every contiguous layer view and that `removed_cache_bytes` counts only the supplied documents' views.

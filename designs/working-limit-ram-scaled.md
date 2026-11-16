@@ -100,9 +100,10 @@ refused any larger limit). A 32 GB Mac refused the same 45 MP work an 8 GB Mac r
   per-pointer-move hover budget, its sentence unchanged); the float layers paste's re-render
   (`dr_precision_doc_paste_layers` has no control); and
   `MAX_DESTRUCTIVE_WORK` for a call with no control, which the app never makes.
-- The cache bound is working limit / 16 and the host trim is working limit / 8
-  (`core/src/cache_limit.rs`; sized for live-filter bindings, which were removed on 2026-10-10). The trim
-  is shared and all-or-nothing.
+- The resident caches (style planes, mask caches, LUT tables) share one byte bound, working limit / 8, held
+  by the core's process-wide registry with least-recently-used eviction (`core/src/cache_limit.rs`,
+  `core/src/cache_registry.rs`; 13B-6, 2026-11-15). It replaced the host's all-or-nothing trim at the same
+  value.
 
 ## Fits at 8 GiB
 Release owned instances at `DR_WORKING_LIMIT_BYTES` 8,589,934,592; E = interval `phys_footprint` peak − pre

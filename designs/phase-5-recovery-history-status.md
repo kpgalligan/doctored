@@ -1,6 +1,6 @@
 # Phase 5 — native recovery and history (ADR)
 
-- **Status:** Accepted — open items remain ([#10](https://github.com/kpgalligan/doctored/issues/10), [#11](https://github.com/kpgalligan/doctored/issues/11))
+- **Status:** Accepted — open items remain ([#11](https://github.com/kpgalligan/doctored/issues/11))
 - **Phase / dates:** Phase 5 (5A–5D) of the [implementation plan](professional-photo-editor-implementation-plan.md), 2026-09-09 (layer-comp note added 2026-09-19)
 - **Original:** [archive/phase-5-recovery-history-status.md](../archive/phase-5-recovery-history-status.md) — full history, measurements, receipts
 - **Key commits:** `83de68c` (Phase 5 with Phase 6 selection work), `5adcb8d` (12D-1 layer comps note); Phase 4 was `968e0ee`
@@ -88,8 +88,9 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
   `dropHistoryUndo`'s NSUndoManager walk, AppKit's residual (`levelsOfUndo` stays 0).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Snapshot package compression and dedupe (13C-4, waiting
   on the owner's D4); recovery's shipped as 13C-3, in [phase-13c-incremental-io-status.md](phase-13c-incremental-io-status.md).
-- `OPEN` [#10](https://github.com/kpgalligan/doctored/issues/10) — Tiled undo backing: per-edit history bytes measured
-  with tiles, then the history budget and the 32-snapshot cap re-decided.
+- `DONE` — Tiled undo backing: per-edit history bytes measured with tiles (13B-5, 2026-11-15); the history
+  budget (working limit / 4, 4096 transitions) and the 32-snapshot cap kept, the record in
+  [phase-13b-tiled-shipped.md](phase-13b-tiled-shipped.md#13b-5-contract).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Broader history/snapshot workloads at 24/48 MP.
 - `DONE` — Selective layer comps — 12D-1 (`core/src/doc_comps.rs`, Window > Layer Comps…).
 - `DONE` — Recovery of embedded assets and high-depth buffers (plan §5 boundary) — Phase 8 retained sources, camera
