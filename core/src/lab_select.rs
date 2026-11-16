@@ -39,7 +39,7 @@
 //! sorted, loses ⌊N/10⌋ at each end, every key on its own
 //! ([`LabWandRange::from_reference`], [`TRIM_DIVISOR`]); what is left is
 //! widened by the wand's bounds. Grow floods that admission four-connected
-//! from the references, Similar admits over the whole canvas. A pixel colour
+//! from the references it admits, Similar admits over the whole canvas. A pixel colour
 //! that only a few references carry therefore widens nothing, as on a
 //! dithered field, where the full box admitted a code more than the selected
 //! colours do. `scripts/photoshop-probe/lab_select_5_take.py` (Photoshop
@@ -53,9 +53,29 @@
 //! and that trim at a share between 9.77 % and 10.06 % met every case. take2,
 //! held out (field (135, 118, 147), the variants' signs flipped, t 13 and 27,
 //! other counts and sizes), met it at ⌊N/10⌋ alone, at both depths; the
-//! wand's take (`lab-select-682`) meets it too. Measured on hard rectangles
-//! only: partial coverage keeps the half-selected rule, and alpha's trim is
-//! the same rule, unmeasured (every take is opaque).
+//! wand's take (`lab-select-682`) meets it too.
+//!
+//! **Partly selected and ragged references.**
+//! `scripts/photoshop-probe/lab_similar_60_take.py` (Photoshop 26.10.0,
+//! `lab-similar-60`; exact membership of every pixel that starts unselected,
+//! the exact class OUT / PART / FULL of every other) loaded coverage planes as
+//! the selection. take1 (8 and 16 bits, t 15 and 25, and an
+//! 8-bit RGB control): of 2040 declared coverage rules (threshold 1…255,
+//! counted or weighted by coverage, N over the references or over every
+//! partly selected pixel, Grow seeded from the references or from every
+//! selected pixel) only the shipped one met, so a pixel is a reference at
+//! coverage 128 and not at 127, counts one in N whatever its coverage, and N
+//! counts the references alone. The per-key ⌊N/10⌋ trim (shares 10.00 % to
+//! 10.16 %) met feathered rectangles, anti-aliased and aliased elliptical
+//! marquees and two hard ragged shapes whose N pins the share, each scored
+//! from Photoshop's own starting coverage. Grow seeds only from the
+//! references the range admits: one it does not admit is not made full and
+//! seeds nothing, so it keeps its coverage (take1's references of a far
+//! colour at coverage 200; take2's held-out scene, whose session stalled after
+//! four jobs, left a moat reachable only through such a reference
+//! unselected, and its finished jobs met the coverage rule too). Unmeasured:
+//! alpha's bound and trim (neither session that tried made the layer's
+//! transparency, #60), and the shapes on a second take.
 
 use crate::job_control::JobContext;
 use crate::lab_blend::LabGrid;
@@ -239,10 +259,10 @@ pub(crate) fn grow(
 }
 
 /// Select ▸ Similar (global) or Grow (`contiguous`, four-connected from every
-/// reference) on Lab codes (module doc): `selection_similar::similar`'s
-/// semantics over [`LabWandRange::from_reference`]. Err with that module's
-/// refusal when no pixel is at least half selected, or when `coverage` is not
-/// canvas-sized.
+/// reference the range admits) on Lab codes (module doc):
+/// `selection_similar::similar`'s semantics over
+/// [`LabWandRange::from_reference`]. Err with that module's refusal when no
+/// pixel is at least half selected, or when `coverage` is not canvas-sized.
 pub(crate) fn similar(
     dimensions: (u32, u32),
     pixel: impl Fn(usize) -> [u16; 4],
@@ -260,7 +280,7 @@ pub(crate) fn similar(
     let seeds = coverage
         .iter()
         .enumerate()
-        .filter(|(_, &c)| is_reference(c))
+        .filter(|&(i, &c)| is_reference(c) && range.admits(pixel(i), tolerance, grid))
         .map(|(i, _)| i);
     flood(
         dimensions,

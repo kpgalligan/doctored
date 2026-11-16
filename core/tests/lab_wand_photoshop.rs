@@ -12,11 +12,22 @@
 //! (25, 59) on 682's take1, (21, 37) on 547's) with the host's tolerance
 //! 257·t, Contiguous; Similar (global) and Grow (contiguous) run at 8 and 16
 //! bits from each case's full rectangle (682's (8, 8, 24, 24); `lab-select-5`'s
-//! from its job files). Nothing from the takes is committed.
+//! from its job files). `lab_similar_60_take.py`'s take1 (`lab-similar-60`,
+//! its VALID C and S scenes and the 8-bit RGB control, on the byte path) and
+//! the three case jobs its take2 finished before it stalled start from the
+//! take's own coverage instead (a plane inside a footprint, a rectangle, or
+//! Photoshop's feather or elliptical marquee read from a `sel` capture);
+//! bound, declared before measuring: the exact class OUT / PART / FULL of
+//! every pixel (coverage up to 128 of 65535 OUT, from 65407 FULL), a pixel
+//! FULL where the kernel admits it and otherwise its starting class. Nothing
+//! from the takes is committed.
 use std::path::{Path, PathBuf};
 use std::ptr;
 
+use doctored_core::doc::DrDocument;
+use doctored_core::ffi_doc::{dr_doc_free, dr_doc_open};
 use doctored_core::ffi_lab::dr_precision_doc_open_lab;
+use doctored_core::ffi_selection_tools::dr_doc_select_similar;
 use doctored_core::precision_document::PrecisionDocument;
 use serde_json::{json, Value};
 
@@ -213,6 +224,224 @@ fn lab_select_5_cases(folder: &Path) -> usize {
         free(doc);
     }
     seen
+}
+
+/// A coverage's class (`lab_similar_60_take.py`'s): OUT up to 128, FULL from
+/// 65535 − 128, PART between.
+fn class(v: u16) -> u8 {
+    if v <= 128 {
+        0
+    } else if v >= 65535 - 128 {
+        2
+    } else {
+        1
+    }
+}
+
+/// A capture's coverage: the selection filled with L\* 0 over white, so
+/// (255 − L8)·257 at 8 bits and 65535 − L16 at 16.
+fn captured(capture: &Path, size: (u32, u32)) -> Vec<u16> {
+    let tiff = read_lab_tiff(&std::fs::read(capture).unwrap());
+    assert_eq!((tiff.width, tiff.height), size, "{}", capture.display());
+    tiff.planes[0]
+        .iter()
+        .map(|&l| {
+            if tiff.bits == 8 {
+                (255 - l) * 257
+            } else {
+                65535 - l
+            }
+        })
+        .collect()
+}
+
+/// A manifest case's starting coverage: its scene's plane (the Grayscale TIFF
+/// beside the scene) inside a footprint, a full rectangle, or a `sel` capture
+/// (Photoshop's own feather or elliptical marquee).
+fn start_coverage(folder: &Path, manifest: &Value, case: &Value, size: (u32, u32)) -> Vec<u16> {
+    let start = &case["start"];
+    let rect = |v: &Value| [0, 1, 2, 3].map(|k| v[k].as_u64().unwrap() as u32);
+    let inside = |r: [u32; 4], i: u32| {
+        let (x, y) = (i % size.0, i / size.0);
+        (r[0]..r[0] + r[2]).contains(&x) && (r[1]..r[1] + r[3]).contains(&y)
+    };
+    if let Some(sel) = start.get("sel") {
+        return captured(&folder.join(sel.as_str().unwrap()), size);
+    }
+    if let Some(r) = start.get("rect") {
+        let r = rect(r);
+        return (0..size.0 * size.1)
+            .map(|i| if inside(r, i) { 65535 } else { 0 })
+            .collect();
+    }
+    let r = rect(&start["plane"]);
+    let doc = case["doc"].as_str().unwrap();
+    let path = folder.join(manifest["planes"][doc].as_str().unwrap());
+    let plane = read_lab_tiff(&std::fs::read(path).unwrap());
+    let wide = if plane.bits == 8 { 257 } else { 1 };
+    plane.planes[0]
+        .iter()
+        .enumerate()
+        .map(|(i, &v)| if inside(r, i as u32) { v * wide } else { 0 })
+        .collect()
+}
+
+/// One `lab-similar-60` scene as the app holds it: Lab typed, the 8-bit RGB
+/// control on the byte path.
+enum Scene60 {
+    Lab(*mut PrecisionDocument),
+    Byte(*mut DrDocument, (u32, u32)),
+}
+
+impl Scene60 {
+    fn open(mode: &str, path: &Path) -> Scene60 {
+        if mode != "rgb" {
+            return Scene60::Lab(open(path));
+        }
+        let mut err = ptr::null_mut();
+        let doc = unsafe { dr_doc_open(cpath(path).as_ptr(), ptr::null(), &mut err) };
+        assert!(
+            !doc.is_null(),
+            "{}: {}",
+            path.display(),
+            take_err_string(err)
+        );
+        let tiff = read_lab_tiff(&std::fs::read(path).unwrap());
+        Scene60::Byte(doc, (tiff.width, tiff.height))
+    }
+
+    fn size(&self) -> (u32, u32) {
+        match self {
+            Scene60::Lab(doc) => unsafe { &**doc }.dimensions(),
+            Scene60::Byte(_, size) => *size,
+        }
+    }
+
+    /// Similar (Grow when `grow`) from `start`: the admitted region, u16.
+    fn run(&self, start: &[u16], t: u64, grow: bool, name: &str) -> Vec<u16> {
+        match self {
+            Scene60::Lab(doc) => {
+                let operation = json!({"kind":"similar","tolerance":257 * t,"contiguous":grow});
+                select(*doc, &operation, start).unwrap_or_else(|e| panic!("{name}: {e}"))
+            }
+            Scene60::Byte(doc, _) => {
+                let mask: Vec<u8> = start.iter().map(|v| (v / 257) as u8).collect();
+                let mut out = vec![0u8; mask.len()];
+                let mut err = ptr::null_mut();
+                let ok = unsafe {
+                    dr_doc_select_similar(
+                        *doc,
+                        mask.as_ptr(),
+                        mask.len(),
+                        t as u8,
+                        grow,
+                        out.as_mut_ptr(),
+                        &mut err,
+                    )
+                };
+                assert!(ok, "{name}: {}", take_err_string(err));
+                out.iter().map(|v| u16::from(*v) * 257).collect()
+            }
+        }
+    }
+
+    fn free(self) {
+        match self {
+            Scene60::Lab(doc) => free(doc),
+            Scene60::Byte(doc, _) => unsafe { dr_doc_free(doc) },
+        }
+    }
+}
+
+/// `lab-similar-60`'s take at `folder`: every Similar and Grow case of its
+/// manifest that `keep` accepts (Lab, and the 8-bit RGB control), each scene
+/// the `none` save of its depth. A pixel's class is FULL where the kernel
+/// admits it, else its starting coverage's class (the admitted region is
+/// added to the selection), against the capture's. The count of cases run.
+fn lab_similar_60_cases(folder: &Path, keep: impl Fn(&Value) -> bool) -> usize {
+    let decided = decided(folder);
+    let manifest = &decided["manifest"];
+    let mut scenes: Vec<(String, Scene60)> = Vec::new();
+    let mut seen = 0;
+    for case in manifest["cases"].as_array().unwrap() {
+        if !keep(case) {
+            continue;
+        }
+        let key = case["doc"].as_str().unwrap();
+        if !scenes.iter().any(|(k, _)| k == key) {
+            let path = folder.join(manifest["none"][key].as_str().unwrap());
+            let scene = Scene60::open(case["mode"].as_str().unwrap(), &path);
+            scenes.push((key.to_string(), scene));
+        }
+        let scene = &scenes.iter().find(|(k, _)| k == key).unwrap().1;
+        let size = scene.size();
+        let start = start_coverage(folder, manifest, case, size);
+        let capture = folder.join(case["capture"].as_str().unwrap());
+        let want = captured(&capture, size);
+        let name = capture.display().to_string();
+        let got = scene.run(
+            &start,
+            case["t"].as_u64().unwrap(),
+            case["kind"] == "grow",
+            &name,
+        );
+        let off = got
+            .iter()
+            .zip(&start)
+            .zip(&want)
+            .filter(|((g, s), w)| class(if **g == 65535 { **g } else { **s }) != class(**w))
+            .count();
+        assert_eq!(off, 0, "{name}: pixels off Photoshop's class");
+        seen += 1;
+    }
+    for (_, scene) in scenes {
+        scene.free();
+    }
+    seen
+}
+
+/// The jobs `lab-similar-60/take2` finished before its stall (its fifth job,
+/// `labC8_t27_grow`, timed out): read-outs of the held-out scene B.
+const TAKE2_FINISHED: [&str; 3] = ["labC8_t13_similar", "labC8_t13_grow", "labC8_t27_similar"];
+
+#[test]
+fn lab_similar_and_grow_from_partial_and_ragged_selections_match_photoshop() {
+    match take("lab-similar-60/take1") {
+        None => eprintln!("SKIP: lab-similar-60/take1 is absent on this machine"),
+        Some(folder) => {
+            let decided = decided(&folder);
+            assert_eq!(
+                decided["valid_kinds"],
+                json!({"C": true, "S": true, "T": false}),
+                "take1's VALID scenes"
+            );
+            let cases = lab_similar_60_cases(&folder, |case| {
+                decided["valid_kinds"][case["scene"].as_str().unwrap()] == true
+            });
+            assert_eq!(
+                cases, 252,
+                "take1's C and S cases at 8 and 16 bits and the RGB control's at 8"
+            );
+        }
+    }
+    match take("lab-similar-60/take2") {
+        None => eprintln!("SKIP: lab-similar-60/take2 is absent on this machine"),
+        Some(folder) => {
+            let measured: Value = serde_json::from_str(
+                &std::fs::read_to_string(folder.join("measured.json")).unwrap(),
+            )
+            .unwrap();
+            for job in measured["jobs"].as_array().unwrap() {
+                if TAKE2_FINISHED.contains(&job["job"].as_str().unwrap()) {
+                    assert_eq!(job["error"], Value::Null, "take2's {}", job["job"]);
+                }
+            }
+            let cases = lab_similar_60_cases(&folder, |case| {
+                TAKE2_FINISHED.contains(&case["job"].as_str().unwrap())
+            });
+            assert_eq!(cases, 48, "take2's finished C cases at 8 bits");
+        }
+    }
 }
 
 #[test]

@@ -2199,8 +2199,9 @@ bool dr_doc_magic_wand_layer(const DrDocument *doc, size_t idx, uint32_t x, uint
  * range of the pixels `mask` covers at least half (>= 128), on
  * dr_doc_magic_wand's keys, widened by its bounds on both sides; each key's
  * range drops floor(N/10) of the N references' values from each end first.
- * `contiguous` floods
- * four-connected from those reference pixels. The host adds the result to the
+ * `contiguous` floods four-connected from the reference pixels that range
+ * admits; a reference it does not admit seeds nothing and is 0 in the result,
+ * so the host's union keeps its own coverage. The host adds the result to the
  * selection. mask_len must equal width*height. false with err_out set when it
  * does not or no pixel is at least half selected ("No pixel is more than
  * half selected, so there is no colour to match."); false with err_out untouched on NULL doc/mask/mask_out.

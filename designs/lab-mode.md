@@ -165,7 +165,11 @@ Photoshop 26.10.0.
   seven keys drops its ⌊N/10⌋ lowest and highest values before the bounds widen it (`LabWandRange::from_reference`).
   `lab_select_5_take.py` (Photoshop 26.10.0, `lab-select-5`) fitted it: take1's 37 reference rects met none of
   the declared rules and its fitted boxes showed the per-key trim; take2, held out, pinned ⌊N/10⌋ at both depths
-  and replaced the full box the 16-bit pair had shipped. Tests `core/tests/lab_wand.rs`,
+  and replaced the full box the 16-bit pair had shipped. `lab_similar_60_take.py` (`lab-similar-60`) measured
+  partly selected and ragged references: a reference is at least half selected and counts one in N, the trim
+  holds on feathered, elliptical and ragged selections, and Grow seeds only from the references the range admits
+  (one it does not admit keeps its coverage; `selection_similar` alike). Alpha's bound and trim stay unmeasured
+  ([#60](https://github.com/kpgalligan/doctored/issues/60)). Tests `core/tests/lab_wand.rs`,
   `lab_wand_photoshop.rs`; drive L99–L101.
 
 ## The close's fates

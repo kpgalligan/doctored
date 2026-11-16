@@ -13,7 +13,7 @@
 //! differences ⌊(G − R + 255)/2⌋, ⌊(B − G + 255)/2⌋, ⌊(R − B + 255)/2⌋
 //! within theirs ± half the colour bound (each key's range first drops
 //! ⌊N/10⌋ of the N references' values at each end), global or a
-//! four-connected flood. An 8-bit Gray document's
+//! four-connected flood from the references that range admits. An 8-bit Gray document's
 //! Sample Size box averages those bytes, so its wand is the byte wand's
 //! (`dr_doc_magic_wand`) on the same pixels. Each scene also shows that the
 //! rule it replaced (the keys on the u16 codes, the tolerance as sent) would
@@ -51,6 +51,10 @@ const KS: [i32; 13] = [
 ];
 /// A checker of 257·100 − 100 and 257·100 + 100: one byte, 200 codes apart.
 const MIXED: (u32, u32, u32, u32) = (2, 13, 8, 6);
+/// The probe at 257·(100 + T + 1), selected beside the [`MIXED`] checker: the
+/// ⌊N/10⌋ trim drops it, so the range admits it only at the tolerance that
+/// rounds to T + 1, and Grow seeds nothing from it at the other two.
+const FAR_REFERENCE: u32 = 57;
 /// The host's tolerances: 257·T, and the codes either side of the half-way
 /// point to the next byte.
 const TOLERANCES: [u16; 3] = [257 * T as u16, 257 * T as u16 + 128, 257 * T as u16 + 129];
@@ -97,7 +101,9 @@ fn plate(v: u16, k: u16) -> i64 {
 /// The region of keys `k` from the references `refs`: each key's range
 /// (⌊N/10⌋ values dropped at each end) widened by `colour` on R, G and B,
 /// by ⌊colour/2⌋ on the halved differences and by `alpha` on alpha; global,
-/// or flooded four-connected from the references, which it always holds.
+/// or flooded four-connected from the references the range admits (one it
+/// does not admit seeds nothing and is not in the region; a wand's one seed
+/// always admits itself).
 fn region(
     k: &[[i64; 7]],
     refs: &[usize],
@@ -127,7 +133,7 @@ fn region(
     }
     let mut out = vec![false; k.len()];
     let mut queue = VecDeque::new();
-    for &i in refs {
+    for &i in refs.iter().filter(|&&i| admitted[i]) {
         out[i] = true;
         queue.push_back(i);
     }
@@ -198,18 +204,20 @@ fn hard(out: &[u16]) -> Vec<bool> {
 }
 
 /// Every wand (from the field at (0, 0)) and Similar / Grow (from the
-/// [`MIXED`] checker) case of one document against the region of its keys
-/// `k`; answers how many pixels the region of `old` (the u16 rule's keys,
-/// the tolerance as sent on every key) puts on the other side.
+/// [`MIXED`] checker and [`FAR_REFERENCE`]) case of one document against the
+/// region of its keys `k`; answers how many pixels the region of `old` (the
+/// u16 rule's keys, the tolerance as sent on every key) puts on the other
+/// side.
 fn check_cases(
     doc: *const PrecisionDocument,
     k: &[[i64; 7]],
     old: &[[i64; 7]],
     what: &str,
 ) -> usize {
-    let mixed = mixed_indices();
+    let mut refs = mixed_indices();
+    refs.push(slot(FAR_REFERENCE));
     let coverage: Vec<u16> = (0..(W * H) as usize)
-        .map(|i| if mixed.contains(&i) { 65535 } else { 0 })
+        .map(|i| if refs.contains(&i) { 65535 } else { 0 })
         .collect();
     let mut apart = 0;
     for tolerance in TOLERANCES {
@@ -222,10 +230,10 @@ fn check_cases(
             );
             let operation = json!({"kind":"similar","tolerance":tolerance,"contiguous":contiguous});
             let got = hard(&select(doc, &operation, &coverage).unwrap());
-            let want = region(k, &mixed, bounds(tolerance), contiguous);
+            let want = region(k, &refs, bounds(tolerance), contiguous);
             assert_eq!(got, want, "{what} similar t {tolerance} grow {contiguous}");
             let t = i64::from(tolerance);
-            let replaced = region(old, &mixed, (t, t), contiguous);
+            let replaced = region(old, &refs, (t, t), contiguous);
             apart += want.iter().zip(&replaced).filter(|(a, b)| a != b).count();
         }
     }

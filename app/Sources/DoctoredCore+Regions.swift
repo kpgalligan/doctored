@@ -35,8 +35,9 @@ extension RasterDocument {
 
     /// Select ▸ Grow (`contiguous`) / Select ▸ Similar from the flattened
     /// composite: the canvas-sized 0/255 region whose colours lie in the range
-    /// of every pixel `mask` covers at least half, widened by `tolerance`.
-    /// Throws the core's refusal sentence; byte documents only.
+    /// of the pixels `mask` covers at least half (each key trimmed by N/10 at
+    /// each end), widened by `tolerance`; Grow floods from the references that
+    /// range admits. Throws the core's refusal sentence; byte documents only.
     func selectSimilar(mask: [UInt8], tolerance: Int, contiguous: Bool) throws -> [UInt8] {
         guard !isHighDepth else {
             throw DoctoredCoreError(message: "Byte Grow/Similar requires an 8-bit document.")

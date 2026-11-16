@@ -7,7 +7,8 @@
 //! profile's own tags through `cmyk_fixture::ink_to_srgb`, relative with BPC);
 //! `similar` (Select ▸ Grow / Similar) is the wand's keys of the ink's naive
 //! RGB over the selection's references, each key's range trimmed by ⌊N/10⌋ at
-//! each end, by an independent key-and-BFS oracle, contiguous on and off; a
+//! each end, Grow seeded from the references that range admits, by an
+//! independent key-and-BFS oracle, contiguous on and off; a
 //! backdrop wand equals the wand on a document holding only the records below
 //! (groups kept); the take's recorded plate codes
 //! (`fixtures/photoshop_cmyk_loads/manifest.json`,
@@ -353,7 +354,8 @@ fn keys(p: Ink, bits: u16) -> [i64; 7] {
 /// end; a pixel is admitted when every key lies inside what is left widened
 /// by its bound (the tolerance read as its nearest byte on R, G and B, half
 /// of that byte on the halved differences, the u16 tolerance on alpha). Grow
-/// walks four-connected from every reference; Similar admits globally.
+/// walks four-connected from every reference the range admits; Similar admits
+/// globally.
 fn similar_oracle(
     w: u32,
     h: u32,
@@ -399,8 +401,10 @@ fn similar_oracle(
         }
         return out;
     }
+    // Grow seeds only from the references the range admits; one it does not
+    // admit stays as the selection had it (the caller's union).
     let mut queue = std::collections::VecDeque::new();
-    for &i in &refs {
+    for &i in refs.iter().filter(|&&i| admit(i)) {
         out[i] = 65535;
         queue.push_back(i);
     }
@@ -491,8 +495,8 @@ fn similar_trims_the_naive_rgb_keys_of_the_selections_references() {
                 }
             }
         }
-        // The far ink is admitted nowhere but at its own reference, which
-        // Grow keeps and Similar does not.
+        // The far ink is admitted nowhere, not even at its own reference,
+        // which neither Grow nor Similar returns (the selection keeps it).
         let far = (4 * w + 5) as usize;
         let request = kind(json!({"kind":"similar","tolerance":257 * 4,"contiguous":false}));
         let got = select(doc, &request, &trimmed).unwrap();

@@ -14,8 +14,18 @@
 //! three channels together, leaves q1–q3 where they were: from grey 100 at
 //! t 15, (114,100,100) is in and (115,100,100) is out (q3 moves 8 against a
 //! bound of 7), and so is every single-channel step of exactly an odd t.
-//! Grow is four-connected from the references. The result is the admitted
-//! region at full coverage, added to the selection.
+//! Grow is four-connected from the references the range admits (**Grow's
+//! seeds**). The result is the admitted region at full coverage, added to the
+//! selection.
+//!
+//! **Grow's seeds.** A reference the range does not admit (a colour the trim
+//! dropped, beyond the bounds) is not made full and seeds nothing: it keeps
+//! its coverage through the caller's union, as every unadmitted pixel does.
+//! `lab_select`'s take (`lab_similar_60_take.py`, **Partly selected and ragged
+//! references** there) measured it on Lab and on this kernel's 8-bit RGB,
+//! whose take1 control also met the half-selected reference rule
+//! ([`is_reference`]). That such a reference does not bridge the flood either
+//! was read on Lab alone, from the jobs a stalled session finished.
 //!
 //! **The reference range.** Each key's values over the N references lose
 //! ⌊N/10⌋ at each end, every key on its own ([`TRIM_DIVISOR`], the rule
@@ -181,10 +191,12 @@ pub(crate) fn grid15_byte(i: u64) -> i32 {
     ((i * 255 + 16384) / 32768) as i32
 }
 
-/// A reference pixel is at least half selected: byte 128, u16 32768. This
-/// half-way cut is a Doctored convention (Photoshop's own threshold for a
-/// partly selected pixel was not measured); it matches the "more than half
-/// selected" wording of the refusal ([`NO_REFERENCE`]).
+/// A reference pixel is at least half selected: byte 128, u16 32768, each
+/// counting one in N whatever its coverage. `lab_similar_60_take.py`'s take1
+/// measured the cut on Lab at 8 and 16 bits and on 8-bit RGB: a tail at
+/// coverage 128 counts and one at 127 does not, and no coverage-weighted count
+/// met (`lab_select`'s module doc). It matches the "more than half selected"
+/// wording of the refusal ([`NO_REFERENCE`]).
 pub(crate) fn is_reference<T: SelectionSample>(coverage: T) -> bool {
     coverage.code() >= T::MAX.div_ceil(2) as f32
 }
@@ -295,7 +307,9 @@ impl ReferenceRange {
 
 /// The admitted region at full coverage (the caller adds it to the current
 /// selection): global, or flooded four-connected from every reference pixel
-/// when `contiguous`. A partly covered pixel that is admitted comes back full.
+/// the range admits when `contiguous` (module doc, **Grow's seeds**). A partly
+/// covered pixel that is admitted comes back full; one that is not, a
+/// reference included, keeps its own coverage through the caller's union.
 pub(crate) fn similar<T: SelectionSample>(
     dimensions: (u32, u32),
     pixel: impl Fn(usize) -> [T; 4],
@@ -312,7 +326,7 @@ pub(crate) fn similar<T: SelectionSample>(
     let seeds = coverage
         .iter()
         .enumerate()
-        .filter(|(_, &c)| is_reference(c))
+        .filter(|&(i, &c)| is_reference(c) && range.admits(pixel(i), tolerance))
         .map(|(i, _)| i);
     flood(
         dimensions,

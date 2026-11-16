@@ -12,7 +12,9 @@
 //! and ⌊(L − b + 255)/2⌋ within ± ⌊t/2⌋, and alpha within ± 257·t (the
 //! host's ×257 tolerance). The wand's range is its seed's keys; Similar's
 //! and Grow's is each key's sorted values over the N references with
-//! ⌊N/10⌋ dropped from each end, every key on its own. Bounds, declared
+//! ⌊N/10⌋ dropped from each end, every key on its own, and Grow floods from
+//! the references that range admits (`lab_similar_60_take.py`'s takes: a
+//! reference it does not admit seeds nothing and stays as selected). Bounds, declared
 //! before measuring, exact on every pixel, at 8 and 16 bits:
 //!
 //! * (a) the wand (seeds (3, 2) and (12, 9), t 0, 5, 15 and 30, Contiguous
@@ -363,12 +365,14 @@ fn lab_similar_and_grow_equal_the_trimmed_key_oracle() {
                         json!({"kind":"similar","tolerance":257 * t,"contiguous":contiguous});
                     let got =
                         select(doc, &operation, &cover).unwrap_or_else(|e| panic!("{what}: {e}"));
+                    // Grow seeds only from the references the range admits.
                     let admit = |l: &[f64; 7], h: &[f64; 7]| {
-                        region(
-                            |i| admitted(pixels[i], l, h, t, bits),
-                            &references,
-                            contiguous,
-                        )
+                        let seeds: Vec<usize> = references
+                            .iter()
+                            .copied()
+                            .filter(|&i| admitted(pixels[i], l, h, t, bits))
+                            .collect();
+                        region(|i| admitted(pixels[i], l, h, t, bits), &seeds, contiguous)
                     };
                     let want = admit(&low, &high);
                     differs |= want != admit(&full_low, &full_high);
