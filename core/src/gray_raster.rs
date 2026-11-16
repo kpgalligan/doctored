@@ -82,10 +82,17 @@ impl From<GrayImage> for GrayRaster {
 
 impl GrayRaster {
     /// Tiles `image` under a fresh identity; contiguous when the tile store
-    /// refuses it.
+    /// refuses it. A bitwise-uniform image (a Reveal All or Hide All mask, a
+    /// uniform channel) is ONE filled plane, at most four tile allocations
+    /// (`TilePlane::uniform_from`), so a history state that adds one retains
+    /// a few tiles rather than a whole plane of identical ones (13B-5).
     pub fn new(image: GrayImage) -> Self {
         let (width, height) = image.dimensions();
-        match TilePlane::from_contiguous(width, height, plane_samples(&image), None) {
+        let samples = plane_samples(&image);
+        if let Some(plane) = TilePlane::uniform_from(width, height, samples) {
+            return Self::tiled(plane);
+        }
+        match TilePlane::from_contiguous(width, height, samples, None) {
             Ok(plane) => Self::tiled(plane),
             Err(_) => Self::contiguous(Arc::new(image)),
         }

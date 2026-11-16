@@ -18,7 +18,7 @@ use crate::precision_image::{
     admit, pixel_count, process_working_limit, reserved_vec, BOOKKEEPING_BYTES,
 };
 use crate::resources::Inventory;
-use crate::tile_store::{RowSegments, TilePlane};
+use crate::tile_store::{RowSegments, TilePlane, TILE_EDGE};
 use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc, Weak,
@@ -81,7 +81,10 @@ impl PrecisionPlane {
     pub(crate) fn adopt(width: u32, height: u32, pixels: Vec<u16>) -> Result<Self, String> {
         Self::copy(width, height, &pixels, JobContext::NONE)
     }
-    /// Tiles a borrowed plane, polling `job` once per tile.
+    /// Tiles a borrowed plane, polling `job` once per tile. A bitwise-uniform
+    /// plane is ONE filled plane (`TilePlane::uniform_from`, at most four tile
+    /// allocations: 13B-5), polled the same number of times, so the Cancel
+    /// checkpoint count does not depend on the samples.
     pub(crate) fn copy(
         width: u32,
         height: u32,
@@ -90,6 +93,14 @@ impl PrecisionPlane {
     ) -> Result<Self, String> {
         if pixels.len() != pixel_count(width, height)? {
             return Err("precision plane length differs from dimensions".into());
+        }
+        if let Some(tiles) = TilePlane::uniform_from(width, height, pixels) {
+            let (columns, rows) = (width.div_ceil(TILE_EDGE), height.div_ceil(TILE_EDGE));
+            for _ in 0..u64::from(columns) * u64::from(rows) {
+                job.check()?;
+            }
+            job.check()?;
+            return Ok(Self::tiled(tiles));
         }
         let tiles = TilePlane::from_contiguous_with_job(width, height, pixels, job)?;
         job.check()?;

@@ -5,7 +5,9 @@
 //! The counted cases read the app's own resource report
 //! (`dr_mixed_resources_report_with_raw_masks`) over every history handle: a
 //! 1536×1024 plane is 24 whole tiles and each dab lies inside four of them,
-//! so the states share the base plane plus exactly 4 new tiles per dab. The
+//! so the states share the base plane plus exactly 4 new tiles per dab. Each
+//! base plane is uniform, so it is ONE filled tile shared by all 24 slots
+//! (13B-5, `uniform_coverage_planes`). The
 //! painted samples are checked against the lerp computed here (an opaque gray
 //! overlay sample writes its own gray), and the saved native mask against the
 //! `len, w, h, row-major bytes` run this file builds itself.
@@ -125,11 +127,10 @@ fn a_mask_dab_retains_four_new_tiles() {
     }
     let documents: Vec<*const DrDocument> = handles.iter().map(|h| *h as *const _).collect();
     let report = resource_report::report(&documents, &[], &[], &[], 0, 0).expect("a report");
-    let plane = u64::from(W) * u64::from(H);
     assert_eq!(
         unique_bytes(&report, "layer_masks"),
-        plane + DABS as u64 * 4 * TILE,
-        "{} states of a mask share one plane plus 4 tiles per dab",
+        TILE + DABS as u64 * 4 * TILE,
+        "{} states of a mask share one filled tile plus 4 tiles per dab",
         DABS + 1
     );
     free_all(handles);
@@ -165,11 +166,10 @@ fn a_channel_dab_retains_four_new_tiles() {
     }
     let documents: Vec<*const DrDocument> = handles.iter().map(|h| *h as *const _).collect();
     let report = resource_report::report(&documents, &[], &[], &[], 0, 0).expect("a report");
-    let plane = u64::from(W) * u64::from(H);
     assert_eq!(
         unique_bytes(&report, "saved_channels"),
-        plane + DABS as u64 * 4 * TILE,
-        "{} states of a channel share one plane plus 4 tiles per dab",
+        TILE + DABS as u64 * 4 * TILE,
+        "{} states of a channel share one filled tile plus 4 tiles per dab",
         DABS + 1
     );
     free_all(handles);
@@ -236,13 +236,13 @@ fn a_typed_mask_dab_retains_four_new_tiles() {
     }
     let documents: Vec<*const PrecisionDocument> = handles.iter().map(|h| *h as *const _).collect();
     let report = resource_report::report(&[], &[], &documents, &[], 0, 0).expect("a report");
-    let plane = u64::from(W) * u64::from(H) * 2;
+    let plane = TILE * 2;
     let bytes = unique_bytes(&report, "precision_plane");
     let bound = plane + DABS as u64 * 4 * TILE * 2;
     assert!(
         (plane..=bound).contains(&bytes),
-        "{} states of a typed mask hold {bytes} bytes: one plane ({plane}) plus at most 4 tiles \
-         per dab ({bound})",
+        "{} states of a typed mask hold {bytes} bytes: one filled tile ({plane}) plus at most 4 \
+         tiles per dab ({bound})",
         DABS + 1
     );
     for handle in handles {

@@ -242,6 +242,8 @@ mod tile_pool;
 mod tile_store;
 #[path = "trim_bounds_tests.rs"]
 mod trim_bounds_tests;
+#[path = "uniform_coverage_planes.rs"]
+mod uniform_coverage_planes;
 #[path = "uniform_plane_turn.rs"]
 mod uniform_plane_turn;
 #[path = "vector_masks.rs"]
