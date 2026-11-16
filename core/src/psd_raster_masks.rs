@@ -235,17 +235,19 @@ impl<'a> MaskRecord<'a> {
     pub fn align_box(self, canvas: (u32, u32), sample_bytes: usize) -> Result<[i32; 4], String> {
         use crate::fill_align_box::{align_box, MaskCoverage};
         let Self::Ordinary(mask) = self else {
-            return Ok(align_box::<u8>(canvas, None));
+            return Ok(align_box(canvas, None));
         };
         let (w, h) = mask.dimensions()?;
         let plane = mask_plane_bytes(mask.bytes, w, h, sample_bytes, mask.large)?;
         let offset = (mask.bounds[1], mask.bounds[0]);
         if sample_bytes == 2 {
             let samples = be_u16_samples(&plane);
+            let covered = |i: usize| samples[i] > 0;
             return Ok(align_box(
                 canvas,
                 Some(MaskCoverage {
-                    samples: &samples,
+                    covered: &covered,
+                    samples: samples.len() as u64,
                     dimensions: (w, h),
                     offset,
                     outside: mask.outside,
@@ -253,10 +255,12 @@ impl<'a> MaskRecord<'a> {
                 }),
             ));
         }
+        let covered = |i: usize| plane[i] > 0;
         Ok(align_box(
             canvas,
             Some(MaskCoverage {
-                samples: &plane[..],
+                covered: &covered,
+                samples: plane.len() as u64,
                 dimensions: (w, h),
                 offset,
                 outside: mask.outside,

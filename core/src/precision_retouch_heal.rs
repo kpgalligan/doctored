@@ -10,6 +10,13 @@
 //! document's W codes (`retouch_encoding`), whose source and
 //! destination planes `float_retouch` encodes before the call. Stroke
 //! coverage and the selection are u16 at every depth.
+//!
+//! `canvas` is the frame `source`, `coverage` and `selection` are laid out
+//! over, and `offset` places `pixels` in that frame: the whole canvas, or
+//! (13B-9a, `precision_retouch_apply::SampledPlate::heal`) a rect of it that
+//! holds every covered pixel grown by 1. The canvas is read only for the
+//! window clamp, the off-canvas test and the selection index, so such a
+//! frame finds the same components and windows and writes the same samples.
 use crate::heal_writeback::HealSample;
 use crate::job_control::JobContext;
 #[allow(clippy::too_many_arguments)]

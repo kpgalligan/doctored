@@ -10,7 +10,7 @@ The settled record of Phase 13B's shipped runs, moved from [phase-13b-tiled-stat
 
 ## Runs
 
-The 33 shipped runs (`Owns` / `Exit` cells and split lineage: archived original; 13B-4's: its contract below):
+The 34 shipped runs (`Owns` / `Exit` cells and split lineage: archived original; 13B-4's: its contract below):
 
 | Run | Commit | Implemented (2026) |
 |---|---|---|
@@ -47,6 +47,7 @@ The 33 shipped runs (`Owns` / `Exit` cells and split lineage: archived original;
 | 13B-4 | `79a5f644` | 11-15 |
 | 13B-5 | `31d4e145`…`1d3c2356` | 11-15 |
 | 13B-6 | `e0a5a628` | 11-15 |
+| 13B-9a | the commit that adds this row | 11-16 |
 
 ## 13B-1 contract
 
@@ -172,6 +173,18 @@ Closed as a recorded residual: no tiling code landed. An f32 plane above `CONTIG
 
 Byte masks and channels (`Layer.mask`, `Channel.data`, the vector mask's raster part and baked plane, the WARP masks, the PATH table's byte planes) are `GrayRaster` (`core/src/gray_raster.rs`), typed masks and channels `PrecisionPlane` on `TilePlane<u16>` (`core/src/precision_mask.rs`): shared 256×256 tiles behind an identity token, no `Deref`, no `PartialEq`. Exit met (`core/tests/mask_plane_tiles.rs`): three 300×300 dabs on a 1536×1024 plane retain the base plane plus 4 tiles per dab (byte mask, byte channel, typed mask; 4 whole planes before); the saved native bytes are the row-major samples (a tile-order walk fails); the mask and channel suites are green.
 
+Its transient copies, measured 2026-11-16 at 24 MP beside the plan that admits each operation (`cd core && cargo run --release --example phase13b_transient_copies`, peak heap above the baseline; the layered TIFF spot planes, outside a plan, stay open on [#10](https://github.com/kpgalligan/doctored/issues/10)):
+
+| Copy (24 MP) | Plan scratch | Peak |
+| --- | --- | --- |
+| byte `move_selected` mask: the stored plane's `to_image()` | 436,194,304 | 48,043,050 |
+| typed `move_selected` mask: `to_contiguous()` | 484,194,304 | 96,086,807 |
+| typed 0.9× resize of a masked layer: `transform_plane_outside`'s copy, `from_u16` | 736,292,840 | 693,122,082 |
+| typed `set_channel`: `from_u16` holding its input beside its tiles | 100,194,304 | 48,022,228 |
+| byte Levels Auto over a masked adjustment: `scoped_auto`'s effective mask | 1,323,151,872 | 528,100,738 |
+
+Each is inside its plan, so no plan gained a term. `fill_align_box` (both depths) and the byte group mask thumbnail's box arm had no plan and copied the mask (24,000,000 and 48,000,000 for the box); since 13B-9a they read it in place (`MaskCoverage::covered`; `doc_channel::placed_row` over the mask's own rows), and the box peaks at 0. The mask thumbnail's arm below the box threshold still copies the plane, bounded by that threshold.
+
 ## 13B-5 contract
 
 What one edit retains, read from `list_history.retained_bytes` (the union of every state's handles; `scripts/verify_phase13b_history.py`, which asserts the fixes on 1500×1000 and prints the 24 MP rows with `--measure 8|16`). Four over-retentions found and fixed: a bitwise-uniform coverage plane is one filled plane (`GrayRaster::new`, `PrecisionPlane::copy` through `TilePlane::uniform_from`); `Layer.meta` is `Arc<str>`, shared by every state; `paint_mask` answers `None` when no byte changes; the typed facade metadata leases `8 ×` its inspection JSON plus the profile, not the 1 MiB `inspection_bytes` admission estimate (`PrecisionFacadeMetadata.capture`). Before: the same steps on the build before these fixes (the batch's spike); after:
@@ -191,7 +204,11 @@ What one edit retains, read from `list_history.retained_bytes` (the union of eve
 
 ## 13B-6 contract
 
-`core/src/cache_registry.rs`: one process-wide registry holds every resident cache payload that holds bytes — the byte and typed style planes, a byte mask's derived and aligned planes, the LUT memo's parsed tables — and the cache keeps a `Ticket` (a `Weak` plus a shared token). **Bound:** `cache_limit::registry_bound`, the working limit / 8 (the old host trim's threshold), held at every insert. **Order:** least recently used first, across classes, one clock (a hit marks use; the candidate scan and accounting do not). An evicted entry is a miss and is rebuilt; readers keep the planes they upgraded; an entry above the bound is not kept; the last ticket's drop unregisters its entry. An entry's bytes are the report's own walk over its payload. **Not members:** the content-box memos (no pixels, 512 entries each) and the contiguous views (their own 1 GiB bound); the report's process-wide `cache_registry` section lists both beside the classes. The host trim and `dr_process_cache_trim_limit` are gone; `admit` still evicts every cache and remeasures under pressure. Exit met: `core/tests/cache_registry.rs` (the bound held, the order, the mask, LUT and typed classes, class sums equal to the report's categories, an oversized entry, freed documents), each failing under a mutant. Measured at 24 MP 8-bit (the spike's three-document session): a drop-shadow entry is 48,844,344 bytes, a three-effect entry 98,496,192, a feathered mask's two entries 48,563,216, a 33³ LUT 1,030,092; the 1 GiB bound at 8 GiB holds about ten styled layers' current planes, two at the 2 GiB pin (each such layer re-renders when it falls out).
+`core/src/cache_registry.rs`: one process-wide registry holds every resident cache payload that holds bytes — the byte and typed style planes, a byte mask's derived and aligned planes, the LUT memo's parsed tables — and the cache keeps a `Ticket` (a `Weak` plus a shared token). **Bound:** `cache_limit::registry_bound`, the working limit / 8 (the old host trim's threshold), held at every insert. **Order:** least recently used first, across classes, one clock (a hit marks use; the candidate scan and accounting do not). An evicted entry is a miss and is rebuilt; readers keep the planes they upgraded; an entry above the bound is not kept; the last ticket's drop unregisters its entry. An entry's bytes are the report's own walk over its payload. **Not members:** the content-box memos (no pixels, 512 entries each) and the contiguous views (their own 1 GiB bound); the report's process-wide `cache_registry` section lists both beside the classes. The host trim and `dr_process_cache_trim_limit` are gone; `admit` still evicts every cache and remeasures under pressure. Exit met: `core/tests/cache_registry.rs` (the bound held, the order, the mask, LUT and typed classes, class sums equal to the report's categories, an oversized entry, freed documents), each failing under a mutant. Measured at 24 MP 8-bit (the spike's session, one document opened three times): a drop-shadow entry is 48,844,344 bytes, a three-effect entry 98,496,192, a feathered mask's two entries 48,563,216, a 33³ LUT 1,030,092; the 1 GiB bound at 8 GiB holds about ten styled layers' current planes, two at the 2 GiB pin (each such layer re-renders when it falls out). The "other document's style entries leave" item that session raised is not a defect: `open_document` answers the document already open for a path (`already_open`), so each "document" was the first, and `set_layer_style` hands the old style's planes to the new one through `inherit_planes` (draining them when the pad changes); two distinct documents keep each other's entries.
+
+## 13B-9a contract
+
+A typed Clone or Heal (16-bit and 32-bit float, every sampling mode, every destination) is rect-first: the bound comes from the coverage alone (`RetouchKernel::sampled_frames`: the `coverage > 0` bbox, a Heal's grown by 1, clamped to the canvas), the source is read as the taps of one canvas rect (`retouch_taps16` / `retouch_taps32`; `retouch_transform::tap_rect`) and transformed over the bound only (`transform_rect*`, which walk the bound's rows whole from column 0 through `resample_rows_into`, so each kept sample is the whole-canvas transform's to the bit). `RetouchKernel::Sampled` carries its frame (`SampledPlate`); Heal runs in the frame's coordinates. The full-frame seam is `RetouchEdit::full_frame` (`#[doc(hidden)]`, not JSON), the oracle of `core/tests/precision_retouch_rect.rs`; `core/tests/rect_read_memory.rs` bounds a 100×100 dab below 2 bytes a canvas pixel. `all` / `current_and_below` still render the whole plate, and `retouch_plan` and the plate's admission are unchanged.
 
 ## Decisions
 

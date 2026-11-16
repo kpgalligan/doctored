@@ -24,11 +24,15 @@
 
 use crate::layer_rect::nonzero_rect;
 
-/// A mask's raw coverage as the rule reads it: `samples` row-major over
-/// `dimensions`, its top-left at canvas `offset`, `outside` its raw outside
-/// coverage (0 or 255) and `enabled` its enabled state.
-pub(crate) struct MaskCoverage<'a, T> {
-    pub samples: &'a [T],
+/// A mask's raw coverage as the rule reads it, in place: `covered(i)` is
+/// whether sample `i` (row-major over `dimensions`) is above zero, `samples`
+/// the mask's sample count, its top-left at canvas `offset`, `outside` its
+/// raw outside coverage (0 or 255) and `enabled` its enabled state. A
+/// predicate rather than a slice, so a tiled mask is read where it lies and
+/// never copied.
+pub(crate) struct MaskCoverage<'a> {
+    pub covered: &'a dyn Fn(usize) -> bool,
+    pub samples: u64,
     pub dimensions: (u32, u32),
     pub offset: (i32, i32),
     pub outside: u8,
@@ -40,21 +44,17 @@ pub(crate) struct MaskCoverage<'a, T> {
 /// `canvas`, when the mask is enabled, its outside coverage is 0 and its
 /// sample count is its width × height; otherwise, or when that leaves
 /// nothing, the canvas `[0, 0, canvas.0, canvas.1]`.
-pub(crate) fn align_box<T: Copy + Default + PartialOrd>(
-    canvas: (u32, u32),
-    mask: Option<MaskCoverage<'_, T>>,
-) -> [i32; 4] {
+pub(crate) fn align_box(canvas: (u32, u32), mask: Option<MaskCoverage<'_>>) -> [i32; 4] {
     let whole = [0, 0, clamp_i32(canvas.0), clamp_i32(canvas.1)];
     let Some(mask) = mask else {
         return whole;
     };
     let (w, h) = mask.dimensions;
     let count = u64::from(w) * u64::from(h);
-    if !mask.enabled || mask.outside != 0 || mask.samples.len() as u64 != count {
+    if !mask.enabled || mask.outside != 0 || mask.samples != count {
         return whole;
     }
-    let zero = T::default();
-    let Some((x, y, bw, bh)) = nonzero_rect((w, h), |i| mask.samples[i] > zero) else {
+    let Some((x, y, bw, bh)) = nonzero_rect((w, h), mask.covered) else {
         return whole;
     };
     // In i64: a mask offset near the i32 range plus a plane side cannot wrap.

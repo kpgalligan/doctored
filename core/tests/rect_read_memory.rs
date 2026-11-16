@@ -1,0 +1,371 @@
+//! Black-box: the reads that follow their rect, never the canvas (13B-9a).
+//! A typed Clone or Heal resamples only the rect its coverage bounds, the
+//! Align with Layer box reads its mask in place, and a group mask's
+//! thumbnail places the mask's rows without a copy of the plane.
+//!
+//! The bounds, declared before measuring, on a 3000 × 2000 canvas
+//! (`N` = 6,000,000 pixels); each is the peak live heap during the export
+//! call above the live bytes just before it:
+//! - a 100 × 100 `sample: current` dab (`dr_precision_doc_edit`; 16-bit and
+//!   32-bit float, Clone and Heal) stays below `2·N` bytes, which one
+//!   canvas-sized u16 coverage plane reaches by itself;
+//! - `dr_doc_fill_align_box` and `dr_precision_doc_fill_align_box` over a
+//!   canvas-sized mask stay below `N/2`, half of the byte mask's own size;
+//! - `dr_doc_layer_mask_thumbnail` of a group's canvas-sized mask at
+//!   `max_side` 64 stays below `N/2`.
+//!
+//! The figures are live heap bytes from the tracking allocator below; the
+//! allocator is process-wide, so the binary is its own and every test holds
+//! `serial()`.
+
+#[path = "common/float_fixture.rs"]
+mod float_fixture;
+
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::ffi::{CStr, CString};
+use std::ptr;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, MutexGuard};
+
+use doctored_core::doc::{DrDocument, GrayRaster};
+use doctored_core::doc_mask::MaskProperties;
+use doctored_core::ffi::{dr_image_free, dr_image_height, dr_image_width, dr_string_free};
+use doctored_core::ffi_doc::{dr_doc_adding_layer_mask, dr_doc_free, dr_doc_layer_mask_thumbnail};
+use doctored_core::ffi_fill_align::{dr_doc_fill_align_box, dr_precision_doc_fill_align_box};
+use doctored_core::ffi_group::dr_doc_group_layers;
+use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
+use doctored_core::icc::IccProfile;
+use doctored_core::layer_raster::LayerRaster;
+use doctored_core::metadata::{Metadata, Resolution};
+use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer as Layer};
+use doctored_core::precision_image::PrecisionImage;
+use doctored_core::precision_mask::{PrecisionMask, PrecisionPlane};
+use image::{GrayImage, RgbaImage};
+use serde_json::{json, Value};
+
+// ------------------------------------------------------------ allocator --
+
+/// Tracks live heap bytes and their peak (`alloc_zeroed` / `realloc`
+/// included).
+struct Tracked;
+static LIVE: AtomicUsize = AtomicUsize::new(0);
+static PEAK: AtomicUsize = AtomicUsize::new(0);
+
+fn grew(bytes: usize) {
+    let live = LIVE.fetch_add(bytes, Ordering::Relaxed) + bytes;
+    PEAK.fetch_max(live, Ordering::Relaxed);
+}
+
+unsafe impl GlobalAlloc for Tracked {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let p = unsafe { System.alloc(layout) };
+        if !p.is_null() {
+            grew(layout.size());
+        }
+        p
+    }
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        let p = unsafe { System.alloc_zeroed(layout) };
+        if !p.is_null() {
+            grew(layout.size());
+        }
+        p
+    }
+    unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
+        unsafe { System.dealloc(pointer, layout) };
+        LIVE.fetch_sub(layout.size(), Ordering::Relaxed);
+    }
+    unsafe fn realloc(&self, pointer: *mut u8, layout: Layout, length: usize) -> *mut u8 {
+        let p = unsafe { System.realloc(pointer, layout, length) };
+        if !p.is_null() {
+            if length >= layout.size() {
+                grew(length - layout.size());
+            } else {
+                LIVE.fetch_sub(layout.size() - length, Ordering::Relaxed);
+            }
+        }
+        p
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: Tracked = Tracked;
+
+// ------------------------------------------------------------- plumbing --
+
+const W: u32 = 3000;
+const H: u32 = 2000;
+/// Canvas pixels.
+const N: usize = W as usize * H as usize;
+/// The admission limit: high enough that only the bytes are measured.
+const LIMIT: u64 = 64 << 30;
+/// The dab: a 100 × 100 rect of full coverage.
+const DAB: (u32, u32, u32, u32) = (1000, 800, 100, 100);
+/// The box the masks below cover.
+const BOX: (u32, u32, u32, u32) = (700, 450, 1300, 900);
+
+static SERIAL: Mutex<()> = Mutex::new(());
+
+fn serial() -> MutexGuard<'static, ()> {
+    SERIAL
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Starts a measurement: the live bytes now, with the peak reset to them.
+fn begin() -> usize {
+    let base = LIVE.load(Ordering::Relaxed);
+    PEAK.store(base, Ordering::Relaxed);
+    base
+}
+
+fn peak_since(base: usize) -> usize {
+    PEAK.load(Ordering::Relaxed).saturating_sub(base)
+}
+
+fn inside(i: usize, (x, y, w, h): (u32, u32, u32, u32)) -> bool {
+    let (px, py) = ((i % W as usize) as u32, (i / W as usize) as u32);
+    px >= x && px < x + w && py >= y && py < y + h
+}
+
+fn coverage(rect: (u32, u32, u32, u32)) -> Vec<u16> {
+    (0..N)
+        .map(|i| if inside(i, rect) { u16::MAX } else { 0 })
+        .collect()
+}
+
+fn pattern16() -> Vec<[u16; 4]> {
+    (0..N as u32)
+        .map(|i| {
+            let (x, y) = (i % W, i / W);
+            [
+                ((x * 2711 + y * 911) % 65536) as u16,
+                ((x * 523 + y * 3301) % 65536) as u16,
+                (((x ^ y) * 1999) % 65536) as u16,
+                65535,
+            ]
+        })
+        .collect()
+}
+
+fn pattern32() -> Vec<[f32; 4]> {
+    pattern16()
+        .into_iter()
+        .map(|p| {
+            [
+                f32::from(p[0]) / 65535.0 * 2.0,
+                f32::from(p[1]) / 65535.0,
+                f32::from(p[2]) / 65535.0 * 0.5,
+                1.0,
+            ]
+        })
+        .collect()
+}
+
+fn document16(layers: Vec<Layer>) -> PrecisionDocument {
+    PrecisionDocument::from_parts(
+        W,
+        H,
+        IccProfile::srgb(),
+        Metadata::default(),
+        Resolution::default(),
+        layers,
+    )
+    .expect("a document")
+}
+
+fn raster16() -> Layer {
+    let image = PrecisionImage::from_rgba16(W, H, pattern16(), IccProfile::srgb(), None)
+        .expect("a layer image");
+    Layer::raster("L", image, (0, 0), 1.0, true).expect("a layer")
+}
+
+fn take(error: *mut std::ffi::c_char) -> String {
+    if error.is_null() {
+        return "<no error message>".into();
+    }
+    let text = unsafe { CStr::from_ptr(error) }
+        .to_string_lossy()
+        .into_owned();
+    unsafe { dr_string_free(error) };
+    text
+}
+
+/// One `dr_precision_doc_edit` call: its peak above the live bytes before
+/// it. The answer must be a document.
+fn dab_peak(doc: &PrecisionDocument, request: &Value, samples: &[u16]) -> usize {
+    let text = CString::new(request.to_string()).unwrap();
+    let mut error = ptr::null_mut();
+    let base = begin();
+    let out = unsafe {
+        dr_precision_doc_edit(
+            doc,
+            text.as_ptr(),
+            samples.as_ptr(),
+            samples.len(),
+            LIMIT,
+            0,
+            ptr::null(),
+            &mut error,
+        )
+    };
+    let peak = peak_since(base);
+    assert!(!out.is_null(), "{request}: {}", take(error));
+    drop(unsafe { Box::from_raw(out) });
+    peak
+}
+
+fn requests() -> [(&'static str, Value); 2] {
+    let matrix = [1.0, 0.0, 0.0, 1.0, 300.0, 0.0];
+    [
+        (
+            "clone",
+            json!({"op":"retouch_clone","layer":0,"sample":"current","matrix":matrix,"opacity":1.0}),
+        ),
+        (
+            "heal",
+            json!({"op":"retouch_heal","layer":0,"sample":"current","matrix":matrix,"opacity":1.0}),
+        ),
+    ]
+}
+
+// ---------------------------------------------------------------- tests --
+
+/// Every request's dab peak on `doc` (each figure printed), then the bound.
+fn assert_dabs_below_bound(depth: &str, doc: &PrecisionDocument) {
+    let samples = coverage(DAB);
+    let peaks: Vec<(&str, usize)> = requests()
+        .iter()
+        .map(|(label, request)| (*label, dab_peak(doc, request, &samples)))
+        .collect();
+    for (label, peak) in &peaks {
+        println!("{depth} {label} 100x100 dab at {W}x{H}: peak {peak}");
+    }
+    for (label, peak) in peaks {
+        assert!(
+            peak < 2 * N,
+            "{depth} {label}: the peak {peak} reaches {}",
+            2 * N
+        );
+    }
+}
+
+#[test]
+fn a_16_bit_current_dab_peaks_below_two_bytes_a_canvas_pixel() {
+    let _serial = serial();
+    assert_dabs_below_bound("16-bit", &document16(vec![raster16()]));
+}
+
+#[test]
+fn a_float_current_dab_peaks_below_two_bytes_a_canvas_pixel() {
+    let _serial = serial();
+    let doc = float_fixture::float_doc(W, H, &IccProfile::srgb(), &[pattern32()]);
+    assert_dabs_below_bound("float", &doc);
+}
+
+/// The box `BOX` covers, as `[x, y, w, h]`.
+fn expected_box() -> [i32; 4] {
+    [BOX.0, BOX.1, BOX.2, BOX.3].map(|v| v as i32)
+}
+
+#[test]
+fn the_align_box_reads_its_mask_in_place_at_both_depths() {
+    let _serial = serial();
+    // Byte: a canvas-sized mask with coverage inside `BOX` only.
+    let mut doc = DrDocument::from_pixels(RgbaImage::new(W, H));
+    let pixels: Vec<u8> = (0..N * 4).map(|i| (i * 7 % 251) as u8).collect();
+    doc.layers[0].pixels = LayerRaster::new(RgbaImage::from_raw(W, H, pixels).unwrap());
+    let mask: Vec<u8> = (0..N)
+        .map(|i| {
+            if inside(i, BOX) {
+                1 + (i % 254) as u8
+            } else {
+                0
+            }
+        })
+        .collect();
+    doc.layers[0].mask = Some(GrayRaster::new(GrayImage::from_raw(W, H, mask).unwrap()));
+    doc.layers[0].mask_enabled = true;
+    doc.layers[0].mask_properties = MaskProperties::at((0, 0));
+    let mut xywh = [0i32; 4];
+    let base = begin();
+    let found = unsafe { dr_doc_fill_align_box(&doc, 0, xywh.as_mut_ptr()) };
+    let byte = peak_since(base);
+    println!("byte fill_align_box at {W}x{H}: peak {byte}");
+    assert!(found);
+    assert_eq!(xywh, expected_box(), "the byte mask's coverage bounds");
+    drop(doc);
+
+    // Typed: the same coverage as a u16 mask plane.
+    let samples: Vec<u16> = (0..N)
+        .map(|i| {
+            if inside(i, BOX) {
+                1 + (i % 65534) as u16
+            } else {
+                0
+            }
+        })
+        .collect();
+    let plane = PrecisionPlane::from_u16(W, H, samples, None).unwrap();
+    let mask = PrecisionMask::new(plane, MaskProperties::at((0, 0)), true).unwrap();
+    let typed = document16(vec![raster16().with_mask(Some(mask))]);
+    let mut xywh = [0i32; 4];
+    let base = begin();
+    let found = unsafe { dr_precision_doc_fill_align_box(&typed, 0, xywh.as_mut_ptr()) };
+    let typed_peak = peak_since(base);
+    println!("typed fill_align_box at {W}x{H}: peak {typed_peak}");
+    assert!(found);
+    assert_eq!(xywh, expected_box(), "the typed mask's coverage bounds");
+    assert!(byte < N / 2, "byte: the peak {byte} reaches {}", N / 2);
+    assert!(
+        typed_peak < N / 2,
+        "typed: the peak {typed_peak} reaches {}",
+        N / 2
+    );
+}
+
+#[test]
+fn a_group_mask_thumbnail_places_rows_without_a_plane_copy() {
+    let _serial = serial();
+    let doc = Box::into_raw(Box::new(DrDocument::from_pixels(RgbaImage::new(W, H))));
+    let name = CString::new("Group").unwrap();
+    let mut group = usize::MAX;
+    let grouped = unsafe {
+        dr_doc_group_layers(
+            doc,
+            [0usize].as_ptr(),
+            1,
+            name.as_ptr(),
+            &mut group,
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+            0,
+        )
+    };
+    unsafe { dr_doc_free(doc) };
+    assert!(!grouped.is_null(), "group_layers");
+    let plane: Vec<u8> = (0..N)
+        .map(|i| if inside(i, BOX) { (i % 251) as u8 } else { 0 })
+        .collect();
+    // MASK_FROM_SELECTION: the plane as the group's canvas-sized mask.
+    let masked = unsafe { dr_doc_adding_layer_mask(grouped, group, 2, plane.as_ptr(), W, H) };
+    unsafe { dr_doc_free(grouped) };
+    assert!(!masked.is_null(), "group mask");
+    drop(plane);
+    let base = begin();
+    let thumb = unsafe { dr_doc_layer_mask_thumbnail(masked, group, 64) };
+    let peak = peak_since(base);
+    assert!(!thumb.is_null(), "the group mask's thumbnail");
+    let size = unsafe { (dr_image_width(thumb), dr_image_height(thumb)) };
+    unsafe { dr_image_free(thumb) };
+    unsafe { dr_doc_free(masked) };
+    println!("group mask thumbnail at {W}x{H}: peak {peak}");
+    assert_eq!(size, (64, 43), "the canvas view's fit");
+    assert!(
+        peak < N / 2,
+        "group thumbnail: the peak {peak} reaches {}",
+        N / 2
+    );
+}

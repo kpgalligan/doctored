@@ -531,21 +531,24 @@ pub(crate) fn padded_plane_with_coverage(
 /// plane's row `y - origin.1` over `[x0, x1)`, `fill` over `[x1, width)`,
 /// with `x0` / `x1` = `origin.0` / `origin.0 + size.0` clamped to
 /// `[0, width]`; empty runs are omitted and a row outside the plane is one
-/// fill run. The plane run starts at plane column `x0 - origin.0`, so a
-/// negative origin clips the plane's left columns.
+/// fill run. The plane's part is `row(plane_y, from, to)`: its own runs
+/// `(plane x, samples)` of plane columns `from..to` (`from = x0 -
+/// origin.0`, so a negative origin clips the plane's left columns), read in
+/// place (a tiled mask's `row_segments`), called only when the row meets
+/// the plane.
 ///
 /// The row form of [`padded_plane_with_coverage`] (its `imageops::replace`
 /// placement, clipped on every side, is the master; `fill` is its
 /// `outside`), for samples of any width without the canvas-sized copy.
-/// `fill.len() >= width` and `plane.len() == size.0 * size.1` are the
-/// caller's; a shorter slice yields a shorter run, never a panic.
-pub(crate) fn placed_row<'a, T>(
-    plane: &'a [T],
+/// `fill.len() >= width` is the caller's; a shorter slice yields a shorter
+/// run, never a panic.
+pub(crate) fn placed_row<'a, T: 'a, R: Iterator<Item = (u32, &'a [T])> + 'a>(
     size: (u32, u32),
     origin: (i32, i32),
     fill: &'a [T],
     width: u32,
     y: u32,
+    row: impl FnOnce(u32, u32, u32) -> R,
 ) -> impl Iterator<Item = (u32, &'a [T])> + 'a {
     let (pw, ph) = (i64::from(size.0), i64::from(size.1));
     let (ox, oy) = (i64::from(origin.0), i64::from(origin.1));
@@ -556,16 +559,22 @@ pub(crate) fn placed_row<'a, T>(
     } else {
         (width, width)
     };
-    let row: &'a [T] = if x0 < x1 {
-        let start = (sy * pw + (i64::from(x0) - ox)) as usize;
-        plane.get(start..start + (x1 - x0) as usize).unwrap_or(&[])
-    } else {
-        &[]
-    };
+    let runs = (x0 < x1)
+        .then(|| {
+            row(
+                sy as u32,
+                (i64::from(x0) - ox) as u32,
+                (i64::from(x1) - ox) as u32,
+            )
+        })
+        .into_iter()
+        .flatten()
+        .map(move |(x, run)| ((i64::from(x) + ox) as u32, run));
     let left = fill.get(..x0 as usize).unwrap_or(&[]);
     let right = fill.get(..(width - x1) as usize).unwrap_or(&[]);
-    [(0, left), (x0, row), (x1, right)]
-        .into_iter()
+    std::iter::once((0, left))
+        .chain(runs)
+        .chain(std::iter::once((x1, right)))
         .filter(|(_, run)| !run.is_empty())
 }
 

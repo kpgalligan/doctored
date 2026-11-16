@@ -193,6 +193,8 @@ mod precision_retouch;
 mod precision_retouch_brush;
 #[path = "precision_retouch_progress.rs"]
 mod precision_retouch_progress;
+#[path = "precision_retouch_rect.rs"]
+mod precision_retouch_rect;
 #[path = "precision_scalar_selection.rs"]
 mod precision_scalar_selection;
 #[path = "precision_scalar_statistics.rs"]

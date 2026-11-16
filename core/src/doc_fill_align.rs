@@ -17,19 +17,25 @@ impl DrDocument {
     /// only for an out-of-range index.
     pub fn fill_align_box(&self, idx: usize) -> Option<[i32; 4]> {
         let layer = self.layers.get(idx)?;
-        // One transient copy of the mask: the rule reads it as a slice.
-        let copy = match &layer.mask {
-            Some(plane) => Some(plane.to_image().ok()?),
-            None => None,
+        let canvas = (self.width, self.height);
+        let Some(plane) = &layer.mask else {
+            return Some(align_box(canvas, None));
         };
-        let mask = copy.as_ref().map(|plane| MaskCoverage {
-            samples: plane.as_raw().as_slice(),
-            dimensions: plane.dimensions(),
+        // The mask read in place, one sample at a time: no copy.
+        let (w, h) = plane.dimensions();
+        let covered = |i: usize| {
+            let (x, y) = (i % w as usize, i / w as usize);
+            plane.sample_at(x as u32, y as u32).is_some_and(|v| v > 0)
+        };
+        let mask = MaskCoverage {
+            covered: &covered,
+            samples: u64::from(w) * u64::from(h),
+            dimensions: (w, h),
             offset: layer.mask_properties.offset,
             outside: layer.mask_properties.outside_coverage,
             enabled: layer.mask_enabled,
-        });
-        Some(align_box((self.width, self.height), mask))
+        };
+        Some(align_box(canvas, Some(mask)))
     }
 }
 
@@ -39,22 +45,24 @@ impl PrecisionDocument {
     /// alike. `None` only for an out-of-range index.
     pub fn fill_align_box(&self, idx: usize) -> Option<[i32; 4]> {
         let record = self.layer(idx)?;
-        // One transient copy of the mask: the rule reads it as a slice.
-        let copy = match &record.mask {
-            Some(mask) => Some(mask.plane().to_contiguous().ok()?),
-            None => None,
+        let Some(mask) = &record.mask else {
+            return Some(align_box(self.dimensions(), None));
         };
-        let mask = record
-            .mask
-            .as_ref()
-            .zip(copy.as_ref())
-            .map(|(mask, samples)| MaskCoverage {
-                samples: samples.as_slice(),
-                dimensions: mask.plane().dimensions(),
-                offset: mask.properties().offset,
-                outside: mask.properties().outside_coverage,
-                enabled: mask.enabled(),
-            });
-        Some(align_box(self.dimensions(), mask))
+        // The mask plane read in place, one sample at a time: no copy.
+        let plane = mask.plane();
+        let (w, h) = plane.dimensions();
+        let covered = |i: usize| {
+            let (x, y) = (i % w as usize, i / w as usize);
+            plane.sample_at(x as u32, y as u32).is_some_and(|v| v > 0)
+        };
+        let coverage = MaskCoverage {
+            covered: &covered,
+            samples: u64::from(w) * u64::from(h),
+            dimensions: (w, h),
+            offset: mask.properties().offset,
+            outside: mask.properties().outside_coverage,
+            enabled: mask.enabled(),
+        };
+        Some(align_box(self.dimensions(), Some(coverage)))
     }
 }

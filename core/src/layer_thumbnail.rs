@@ -330,8 +330,8 @@ impl DrDocument {
             };
         }
         let reduced = if group {
-            let raw = mask.to_image().ok()?;
-            let raw = &raw;
+            // The mask's own rows placed on the canvas, read in place: no
+            // copy of the plane.
             let mut fill = reserved_vec(w as usize).ok()?;
             fill.resize(w as usize, properties.outside_coverage);
             box_reduced_rows(
@@ -340,12 +340,12 @@ impl DrDocument {
                 k,
                 |y| {
                     placed_row(
-                        raw.as_raw(),
-                        raw.dimensions(),
+                        mask.dimensions(),
                         properties.offset,
                         &fill,
                         w,
                         y,
+                        |r, a, b| mask.row_segments(r, a, b),
                     )
                 },
                 |v| v,

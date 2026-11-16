@@ -1,11 +1,20 @@
-//! 13B-9's stated cost: the heap bytes one in-place 16-bit retouch dab
-//! allocates, by canvas size (a counting `#[global_allocator]`; nothing is
-//! timed). Each JSON line is one case: the caller's input bytes, the peak live
-//! heap above the baseline during the `dr_precision_doc_edit` call (and per
-//! canvas pixel), the bytes allocated in the call and what the answer retains.
-//! A 100×100 dab pays a canvas-proportional peak today (24 bytes a canvas
-//! pixel for Clone and Heal, 16 for Spot Heal): the source plate, its
-//! contiguous copy and the transformed plane (`designs/phase-13b-tiled-status.md`).
+//! 13B-9's stated cost: the heap bytes one in-place 16-bit or 32-bit float
+//! retouch dab allocates, by canvas size (a counting `#[global_allocator]`;
+//! nothing is timed). Each JSON line is one case: the caller's input bytes,
+//! the peak live heap above the baseline during the `dr_precision_doc_edit`
+//! call (and per canvas pixel), the bytes allocated in the call and what the
+//! answer retains (`designs/phase-13b-tiled-status.md`).
+//!
+//! Before 13B-9a a 100×100 Clone or Heal paid 24 bytes a canvas pixel at 16
+//! bits and 48 at float (the source plate, its contiguous copy and the
+//! transformed plane: 576,019,210 and 1,152,019,210 at 6000×4000). Since
+//! 13B-9a a `sample: current` Clone or Heal reads and transforms its bound
+//! only (`precision_retouch_apply`'s module doc): at 6000×4000 the 16-bit
+//! Clone peaks at 1,215,530 and the Heal at 1,221,994, the float Clone at
+//! 2,424,106 and the Heal at 2,437,034, the answer's new tiles included. What
+//! stays canvas-proportional: a selection's coverage domain (2 bytes a
+//! pixel), the `all` / `current_and_below` plate's own render (24 bytes a
+//! pixel) and Spot Heal's plate (16).
 //!
 //! `cd core && cargo run --release --example phase13b_retouch_dab`
 
@@ -18,9 +27,13 @@ use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
+use doctored_core::precision_clipboard::ClipboardPayload;
 use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer as Layer};
 use doctored_core::precision_image::PrecisionImage;
 use serde_json::{json, Value};
+
+/// The admission limit: high enough that only the bytes are measured.
+const LIMIT: u64 = 64 << 30;
 
 struct Tracked;
 static LIVE: AtomicUsize = AtomicUsize::new(0);
@@ -103,6 +116,41 @@ fn document(w: u32, h: u32, layers: u32) -> PrecisionDocument {
     .expect("a document")
 }
 
+/// One opaque `w × h` 32-bit float layer of `pattern16`'s samples scaled
+/// into an extended range, through an RZCB v3 payload (the clipboard's
+/// float document constructor).
+fn float_document(w: u32, h: u32) -> PrecisionDocument {
+    let profile = IccProfile::srgb();
+    let mut bytes = b"RZCB".to_vec();
+    for word in [3u32, 2, w, h, 0, 0] {
+        bytes.extend(word.to_le_bytes());
+    }
+    bytes.extend(72f32.to_le_bytes());
+    bytes.extend(72f32.to_le_bytes());
+    bytes.extend((profile.bytes().len() as u32).to_le_bytes());
+    bytes.extend(profile.bytes().iter());
+    bytes.push(0);
+    bytes.extend(0u32.to_le_bytes());
+    bytes.extend(4f32.to_le_bytes());
+    bytes.extend(0u32.to_le_bytes());
+    bytes.reserve(w as usize * h as usize * 16);
+    for p in pattern16(w, h, 1) {
+        let scaled = [
+            f32::from(p[0]) / 65535.0 * 2.0,
+            f32::from(p[1]) / 65535.0,
+            f32::from(p[2]) / 65535.0 * 0.5,
+            1.0,
+        ];
+        scaled.iter().for_each(|v| bytes.extend(v.to_le_bytes()));
+    }
+    let payload = ClipboardPayload::decode(&bytes, LIMIT, 0).expect("a payload");
+    drop(bytes);
+    let doc =
+        PrecisionDocument::from_clipboard(&payload, LIMIT, 0, None).expect("a float document");
+    assert!(doc.is_float());
+    doc
+}
+
 fn coverage(w: u32, h: u32, rect: (u32, u32, u32, u32)) -> Vec<u16> {
     let mut out = vec![0u16; w as usize * h as usize];
     for y in rect.1..rect.1 + rect.3 {
@@ -131,7 +179,7 @@ fn measure(
             text.as_ptr(),
             samples.as_ptr(),
             samples.len(),
-            64 << 30,
+            LIMIT,
             0,
             ptr::null(),
             &mut error,
@@ -173,6 +221,10 @@ fn measure(
 fn main() {
     let dab = (1000u32, 800u32, 100u32, 100u32);
     let matrix = [1.0, 0.0, 0.0, 1.0, 300.0, 0.0];
+    // Rotated 0.3 rad and scaled 1.07: the source rect is no longer the dab
+    // moved, and the walk's sums are not integers.
+    let (s, c) = (0.3f64.sin() * 1.07, 0.3f64.cos() * 1.07);
+    let rotated = [c, -s, s, c, 211.37, -97.61];
     for canvas in [(3000u32, 2000u32), (6000, 4000)] {
         let (w, h) = canvas;
         let one = document(w, h, 1);
@@ -213,6 +265,48 @@ fn main() {
                 "opacity":1.0}),
             &cover,
         );
+        measure(
+            "clone current, rotated and scaled",
+            canvas,
+            &one,
+            &json!({"op":"retouch_clone","layer":0,"sample":"current",
+                "matrix":rotated,"opacity":0.8}),
+            &cover,
+        );
+        measure(
+            "heal current, rotated and scaled",
+            canvas,
+            &one,
+            &json!({"op":"retouch_heal","layer":0,"sample":"current","matrix":rotated,
+                "opacity":1.0}),
+            &cover,
+        );
+        measure(
+            "heal current at the canvas corner",
+            canvas,
+            &one,
+            &json!({"op":"retouch_heal","layer":0,"sample":"current",
+                "matrix":[1.0,0.0,0.0,1.0,0.0,-300.0],"opacity":1.0}),
+            &coverage(w, h, (0, h - 60, 80, 60)),
+        );
+        drop(three);
+        let float = float_document(w, h);
+        measure(
+            "float clone current",
+            canvas,
+            &float,
+            &clone("current", false),
+            &cover,
+        );
+        measure(
+            "float heal current",
+            canvas,
+            &float,
+            &json!({"op":"retouch_heal","layer":0,"sample":"current","matrix":matrix,
+                "opacity":1.0}),
+            &cover,
+        );
+        drop(float);
         let hole = (dab.0 + 20, dab.1 + 20, 48u32, 48u32);
         measure(
             "spot heal 48x48",

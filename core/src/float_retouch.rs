@@ -17,8 +17,9 @@
 //!
 //! # What each op does at f32
 //!
-//! - **Clone** copies in LINEAR light: the plate through
-//!   `retouch_transform::transform_extended` (premultiplied bilinear), then
+//! - **Clone** copies in LINEAR light: the source taps through
+//!   `retouch_transform::transform_rect_extended` over the kernel's frame
+//!   (premultiplied bilinear; `precision_retouch_apply`'s 13B-9a), then
 //!   `blend::composite_source_into` / `composite_source_frozen` at each
 //!   mode's kind from `blend_float::blend_kind_at`. No encoding and no clamp:
 //!   a cloned 8.0 reads 8.0. Its modes are `float_document::admitted_blend`;
@@ -90,9 +91,10 @@ use crate::precision_image::{
 };
 use crate::precision_paint::{blend_preserving, canvas_index};
 use crate::precision_retouch::{RetouchEdit, RetouchOp, RetouchOutput};
-use crate::precision_retouch_apply::RetouchKernel;
+use crate::precision_retouch_apply::{RetouchKernel, SampledPlate};
 use crate::retouch_encoding::{decode_changed, encode, encode_plane};
 use crate::retouch_sampling::RetouchSampling;
+use crate::retouch_transform::CanvasRect;
 use crate::sampling::EXTENDED_ALPHA_FLOOR;
 
 const STORAGE: &str = "retouch in a 32-bit float document requires f32 storage";
@@ -114,38 +116,54 @@ fn differs(a: &[f32; 4], b: &[f32; 4]) -> bool {
 }
 
 impl RetouchKernel<f32> {
-    /// `RetouchKernel::prepare` over f32 (module doc): Clone's plate is the
-    /// transformed linear samples; Heal's is those with RGB encoded in place;
-    /// Spot Heal and Content-Aware Fill share the master's synthesis plan.
+    /// `RetouchKernel::sampled` over f32 (module doc): Clone's plate is the
+    /// frame's transformed linear samples; Heal's is those with RGB encoded
+    /// in place.
+    pub(crate) fn sampled_float(
+        doc: &PrecisionDocument,
+        edit: &RetouchEdit,
+        taps: &[[f32; 4]],
+        (bound, frame, taps_at): (Option<CanvasRect>, CanvasRect, CanvasRect),
+        job: JobContext<'_>,
+    ) -> Result<Self, String> {
+        let mut samples = crate::retouch_transform::transform_rect_extended(
+            taps,
+            taps_at,
+            doc.dimensions(),
+            &edit.matrix,
+            frame,
+            job,
+        )?;
+        if edit.op == RetouchOp::RetouchHeal {
+            for (i, pixel) in samples.iter_mut().enumerate() {
+                job.every(i)?;
+                for value in &mut pixel[..3] {
+                    *value = encode(*value);
+                }
+            }
+        }
+        Ok(Self::Sampled(SampledPlate {
+            samples,
+            frame,
+            bound,
+        }))
+    }
+
+    /// `RetouchKernel::prepare` over f32 (module doc): Spot Heal and
+    /// Content-Aware Fill share the master's synthesis plan; a Clone or Heal
+    /// is built by [`Self::sampled_float`].
     pub(crate) fn prepare_float(
         doc: &PrecisionDocument,
         edit: &RetouchEdit,
-        source: Option<&PrecisionImage>,
         coverage: &[u16],
         scratch_bytes: u64,
         job: JobContext<'_>,
     ) -> Result<Self, String> {
         match edit.op {
+            // The dispatch builds Clone and Heal through `sampled_float`, so
+            // this arm only guards a wrong caller.
             RetouchOp::RetouchClone | RetouchOp::RetouchHeal => {
-                let samples = source
-                    .filter(|s| s.storage() == PrecisionStorage::Rgba32Float)
-                    .ok_or("missing native retouch source")?
-                    .transient_rgba32()?;
-                let mut sampled = crate::retouch_transform::transform_extended(
-                    &samples,
-                    doc.dimensions(),
-                    &edit.matrix,
-                    job,
-                )?;
-                if edit.op == RetouchOp::RetouchHeal {
-                    for (i, pixel) in sampled.iter_mut().enumerate() {
-                        job.every(i)?;
-                        for value in &mut pixel[..3] {
-                            *value = encode(*value);
-                        }
-                    }
-                }
-                Ok(Self::Sampled(sampled))
+                Err("missing native retouch source".into())
             }
             RetouchOp::SpotHeal | RetouchOp::ContentAwareFill => {
                 Self::synthesis(doc, edit, coverage, scratch_bytes, job)
@@ -169,7 +187,7 @@ impl RetouchKernel<f32> {
         job: JobContext<'_>,
     ) -> Result<(), String> {
         match self {
-            Self::Sampled(sampled) if edit.op == RetouchOp::RetouchClone => {
+            Self::Sampled(plate) if edit.op == RetouchOp::RetouchClone => {
                 // The master's walk: the frozen-alpha rule in place
                 // on a transparency-locked layer, the mode's kind, the same
                 // effective alpha. The f32 pixel is the backdrop itself, so
@@ -188,10 +206,12 @@ impl RetouchKernel<f32> {
                     let Some(ci) = canvas_index(cx, cy, doc.width, doc.height) else {
                         continue;
                     };
-                    if coverage[ci] == 0 || sampled[ci][3] == 0.0 {
+                    let Some(src) = plate.at(cx, cy) else {
+                        continue;
+                    };
+                    if coverage[ci] == 0 || src[3] == 0.0 {
                         continue;
                     }
-                    let src = sampled[ci];
                     let alpha = if let Some(selection) = selection {
                         (f64::from(src[3]) * f64::from(edit.opacity) * f64::from(coverage[ci])
                             / 65535.
@@ -208,17 +228,15 @@ impl RetouchKernel<f32> {
                     blend_preserving(p, src, alpha, kind, (cx, cy), frozen);
                 }
             }
-            Self::Sampled(sampled) => {
+            Self::Sampled(plate) => {
                 let mut work = encode_plane(pixels)?;
-                crate::precision_retouch_heal::apply(
+                plate.heal(
                     doc.dimensions(),
-                    sampled,
                     coverage,
+                    selection,
                     edit.opacity,
                     &mut work,
-                    dimensions,
-                    offset,
-                    selection,
+                    (dimensions, offset),
                     job,
                 )?;
                 decode_changed(&work, pixels);
@@ -324,17 +342,20 @@ impl PrecisionDocument {
                 job,
             )?)
         };
-        // Red Eye reads only its target's own pixels: no plate, as the
-        // 16-bit master builds none (and its plan charges none).
-        let source = if edit.op != RetouchOp::RedEye {
-            Some(plates.retouch_source_with_context(
-                edit.source_layer.unwrap_or(edit.layer),
-                edit.mode()?,
-                edit.ignore_adjustments,
-                limit,
-                other,
-                job.range(0.08, 0.2),
-            )?)
+        // A Clone / Heal reads its taps over its frame only (the master's
+        // dispatch). Red Eye reads only its target's own pixels: no plate,
+        // as the 16-bit master builds none (and its plan charges none).
+        let sampled = matches!(edit.op, RetouchOp::RetouchClone | RetouchOp::RetouchHeal);
+        let frames = sampled
+            .then(|| RetouchKernel::<f32>::sampled_frames(edit, coverage, self.dimensions()))
+            .transpose()?;
+        let (index, mode) = (edit.source_layer.unwrap_or(edit.layer), edit.mode()?);
+        let (ignore, plate_job) = (edit.ignore_adjustments, job.range(0.08, 0.2));
+        let taps = frames
+            .map(|f| plates.retouch_taps32(index, mode, ignore, f.2, limit, other, plate_job))
+            .transpose()?;
+        let source = if edit.op != RetouchOp::RedEye && !sampled {
+            Some(plates.retouch_source_with_context(index, mode, ignore, limit, other, plate_job)?)
         } else {
             None
         };
@@ -342,12 +363,16 @@ impl PrecisionDocument {
         let edit_job = job.range(0.2, 0.98);
         edit_job.report(0.0, 2)?;
         let src = source.as_ref();
-        let kernel =
-            RetouchKernel::prepare_float(self, edit, src, coverage, scratch_bytes, edit_job)?;
+        let kernel = match frames.zip(taps) {
+            Some((frames, taps)) => {
+                RetouchKernel::sampled_float(self, edit, &taps, frames, edit_job)?
+            }
+            None => RetouchKernel::prepare_float(self, edit, coverage, scratch_bytes, edit_job)?,
+        };
         let Some((mut pixels, baseline, backdrop)) = staged else {
             let (canvas, offset) = (self.dimensions(), target.offset());
             let rect = kernel
-                .bound(edit, coverage, canvas)
+                .bound(edit)
                 .and_then(|b| canvas_rect_on_plane(canvas, original.dimensions(), offset, b));
             let (mut pixels, plane) = match rect {
                 Some((x, y, w, h)) => (

@@ -701,19 +701,24 @@ pub(super) fn build(
     doc.native_fits_geometry((width, height), &rasters, &masks, doc.channels.len())?;
     // A RASTER destination on a float document is RGBA32 — 16 B/px where
     // `work` counted the u16 form's 8 — so each raster output is charged
-    // TWICE there. Masks and channels are u16 planes at either depth and read
-    // their samples in place. A resampled raster also binds its source's
-    // contiguous copy (`source_copy_bytes`; `float_source_copy_bytes` at
-    // float) while it resamples, and that copy is still bound when the
-    // contiguous output is tiled into the destination (`adoption_copy_bytes`;
+    // TWICE there. Masks and channels are u16 planes at either depth. A
+    // resampled raster also binds its source's contiguous copy
+    // (`source_copy_bytes`; `float_source_copy_bytes` at float) while it
+    // resamples, and that copy is still bound when the contiguous output is
+    // tiled into the destination (`adoption_copy_bytes`;
     // `float_adoption_copy_bytes` at float). The separable temporaries
     // are dropped before that adoption, so its plane transient is the copy
     // plus the larger of `temporary` and the adoption — a MAX across planes,
-    // since everything drops as each plane returns. Masks and channels adopt
-    // their buffer (`PrecisionPlane::from_u16`) and pay neither. A uniform u16
-    // raster (`PlaneWork::uniform`) pays neither copy either: its
-    // transient is one tile band (`uniform_band_bytes`); its output stays n·8,
-    // the case where no tile is shared.
+    // since everything drops as each plane returns. A resampled mask or
+    // channel copies its source plane (`transform_plane_outside`) and adopts
+    // its output through `PrecisionPlane::from_u16`, which holds its input
+    // beside its tiles until it returns; neither copy has a term of its own,
+    // and both sit inside this plan's scratch (measured, `cd core && cargo run
+    // --release --example phase13b_transient_copies`: a 0.9× resize of a
+    // masked 6000×4000 layer peaks at 693,122,082 bytes against a scratch of
+    // 736,292,840). A uniform u16 raster (`PlaneWork::uniform`) pays neither
+    // raster copy: its transient is one tile band (`uniform_band_bytes`); its
+    // output stays n·8, the case where no tile is shared.
     //
     // A layer whose retained source is re-rendered (`source_cost`
     // and not `source_exact`) never executes its IMAGE plane —

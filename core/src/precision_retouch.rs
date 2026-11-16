@@ -112,6 +112,13 @@ pub struct RetouchEdit {
     /// stays transparent.
     #[serde(default)]
     pub fill_transparent: bool,
+    /// The full-frame seam (tests only, never read from JSON): a Clone or
+    /// Heal transforms the whole canvas from the whole plate, the path
+    /// before 13B-9a's rect (`precision_retouch_apply`'s module doc), as the
+    /// oracle the rect path is tested against.
+    #[serde(skip)]
+    #[doc(hidden)]
+    pub full_frame: bool,
 }
 const FILL_TRANSPARENT_ONLY: &str =
     "fill_transparent applies only to content_aware_fill with output layer";
@@ -579,15 +586,18 @@ impl PrecisionDocument {
         } else {
             Some(self.retouch_destination(edit, target, (dimensions, offset), limit, other, job)?)
         };
-        let source = if edit.op != RetouchOp::RedEye {
-            Some(plates.retouch_source_with_context(
-                edit.source_layer.unwrap_or(edit.layer),
-                edit.mode()?,
-                edit.ignore_adjustments,
-                limit,
-                other,
-                job.range(0.08, 0.2),
-            )?)
+        // A Clone / Heal reads its taps over its frame only (13B-9a).
+        let sampled = matches!(edit.op, RetouchOp::RetouchClone | RetouchOp::RetouchHeal);
+        let frames = sampled
+            .then(|| RetouchKernel::<u16>::sampled_frames(edit, coverage, self.dimensions()))
+            .transpose()?;
+        let (index, mode) = (edit.source_layer.unwrap_or(edit.layer), edit.mode()?);
+        let (ignore, plate_job) = (edit.ignore_adjustments, job.range(0.08, 0.2));
+        let taps = frames
+            .map(|f| plates.retouch_taps16(index, mode, ignore, f.2, limit, other, plate_job))
+            .transpose()?;
+        let source = if edit.op != RetouchOp::RedEye && !sampled {
+            Some(plates.retouch_source_with_context(index, mode, ignore, limit, other, plate_job)?)
         } else {
             None
         };
@@ -597,8 +607,10 @@ impl PrecisionDocument {
         let edit_job = job.range(0.2, 0.98);
         edit_job.report(0.0, 2)?;
         let src = source.as_ref();
-        let kernel =
-            RetouchKernel::prepare(self, edit, src, coverage, plan.scratch_bytes, edit_job)?;
+        let kernel = match frames.zip(taps) {
+            Some((frames, taps)) => RetouchKernel::sampled(self, edit, &taps, frames, edit_job)?,
+            None => RetouchKernel::prepare(self, edit, coverage, plan.scratch_bytes, edit_job)?,
+        };
         let Some((mut pixels, baseline, backdrop)) = staged else {
             let io = (src, coverage, selection);
             return self.retouched_in_place(edit, &kernel, io, target, [job, edit_job]);
@@ -748,7 +760,7 @@ impl PrecisionDocument {
         let original = target.source().ok_or("retouch target requires pixels")?;
         let (canvas, offset) = (self.dimensions(), target.offset());
         let rect = kernel
-            .bound(edit, coverage, canvas)
+            .bound(edit)
             .and_then(|b| canvas_rect_on_plane(canvas, original.dimensions(), offset, b));
         let (mut pixels, plane) = match rect {
             Some((x, y, w, h)) => (
