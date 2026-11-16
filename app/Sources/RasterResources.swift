@@ -4,15 +4,13 @@ import Foundation
 // scratch and the explicit list of unaccounted platform allocations. Admission uses the process
 // working limit (`WorkingLimit.current.effectiveBytes`, fixed for the process lifetime; its private
 // `init` hands it to core through `DoctoredCoreProcess.setWorkingLimit`, and `report()` adds the
-// `working_limit` object); core caches over working limit / 8 (all-or-nothing) are
-// evicted after projection refresh (the trim compares `cache_bytes − contiguous_view_bytes`:
-// 13B-2b's contiguous layer views are excluded because every projection re-reads them, and they
-// stay bounded by the core's own 1 GiB view cache); that check runs at most
-// once per second on main — a refresh inside the interval schedules one trailing check on the main
-// run loop's `.default` mode, so it waits for the next `.default` turn and a long drag or modal
-// wait can postpone it, while `admit` still evicts and remeasures before any refusal — and
-// registration compacts dead weak boxes only when a list doubles. Job admission preserves caches
-// when the full retained-plus-scratch peak fits, otherwise evicts and remeasures before refusal.
+// `working_limit` object). The core bounds its own resident caches: style planes, mask caches and
+// LUT tables are held by its process-wide registry at working limit / 8, least recently used
+// evicted first (13B-6; the report's `cache_registry` section, whose `bound_bytes` this reports as
+// `cache_limit_bytes`), and the contiguous layer views by their own 1 GiB cache, so the host trims
+// nothing after a projection. Registration compacts dead weak boxes only when a list doubles. Job
+// admission preserves caches when the full retained-plus-scratch peak fits, otherwise evicts and
+// remeasures before refusal.
 // These are working estimates and cache policy, not an OS memory ceiling. `liveHandleSummary()`
 // lists each live registered wrapper by kind and size ("doc16 W×H", "precisionImage W×H", "image
 // W×H", …) plus the typed-owner, RAW-mask and payload counts, retaining nothing — the jobs probe's
@@ -54,11 +52,6 @@ final class RasterResources {
 
     // The RAM-scaled policy (`WorkingLimit`): fixed for the process lifetime.
     let workingLimit: UInt64
-    /// The post-projection trim threshold, core's `dr_process_cache_trim_limit`.
-    let cacheLimit: UInt64
-    private static let trimSpacing: TimeInterval = 1
-    private var lastTrimCheck: TimeInterval?  // main thread only
-    private var trailingTrim: Timer?  // main thread only
     /// Visible documents: written on main by `ImageDocument`, read by
     /// `admit` off-main to choose its remainder sentence. Never gates admission.
     private var openDocumentCount = 0  // guarded by `lock`
@@ -69,7 +62,6 @@ final class RasterResources {
         let limit = WorkingLimit.current.effectiveBytes
         workingLimit = limit
         DoctoredCoreProcess.setWorkingLimit(limit)
-        cacheLimit = DoctoredCoreProcess.cacheTrimLimit()
     }
 
     func noteDocumentOpened() {
@@ -148,7 +140,7 @@ final class RasterResources {
         report["host_raw_local_mask_handles"] = masks.count
         report["host_precision_capture_payloads"] = typedPayloads.count
         report["precision_capture_payload_bytes"] = payloadBytes
-        report["cache_limit_bytes"] = cacheLimit
+        report["cache_limit_bytes"] = (report["cache_registry"] as? [String: Any])?["bound_bytes"]
         report["working_limit"] = WorkingLimit.current.report()
         return report
     }
@@ -201,43 +193,6 @@ final class RasterResources {
         return bytes
     }
 
-    /// A leading check, then at most one trailing check per
-    /// `trimSpacing` on the main run loop's `.default` mode.
-    func trimCachesIfNeeded() {
-        guard Thread.isMainThread else {
-            checkCaches()
-            return
-        }
-        let now = ProcessInfo.processInfo.systemUptime
-        if let last = lastTrimCheck, now - last < Self.trimSpacing {
-            guard trailingTrim == nil else { return }
-            let delay = last + Self.trimSpacing - now
-            let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
-                guard let self else { return }
-                self.trailingTrim = nil
-                self.lastTrimCheck = ProcessInfo.processInfo.systemUptime
-                self.checkCaches()
-            }
-            trailingTrim = timer
-            RunLoop.main.add(timer, forMode: .default)
-            return
-        }
-        trailingTrim?.invalidate()
-        trailingTrim = nil
-        lastTrimCheck = now
-        checkCaches()
-    }
-
-    private func checkCaches() {
-        // Contiguous layer views are excluded: every projection re-reads them,
-        // so trimming them after each projection would only re-materialize.
-        guard let current = try? report(),
-              let bytes = (current["cache_bytes"] as? NSNumber)?.uint64Value else { return }
-        let views = (current["contiguous_view_bytes"] as? NSNumber)?.uint64Value ?? 0
-        guard bytes - min(views, bytes) > cacheLimit else { return }
-        _ = try? report(evict: true)
-    }
-
     static let smallerJobRemedy = "Work on a smaller image or region."
     static let depthJobRemedy =
         "Use a smaller image, or lower its depth first with Image ▸ Mode ▸ Convert Precision…."
@@ -269,9 +224,8 @@ final class RasterResources {
             return workingLimit - retained - totalScratch
         }
         // Disposable core caches survive when the full requested peak
-        // fits. Pressure evicts and remeasures before refusing; post-projection
-        // cache trimming retains its independent policy: working limit / 8
-        // (all-or-nothing).
+        // fits. Pressure evicts and remeasures before refusing; between
+        // jobs the core's registry holds them at working limit / 8.
         if let available = try remaining(report(scratch: scratch)) { return available }
         if let available = try remaining(report(scratch: scratch, evict: true)) { return available }
         lock.lock()

@@ -587,7 +587,8 @@ Detail belongs in the source file's own header comment.
 - `sampling_linear.rs` — KERNEL: a linear-light document's resample adapters (decode taps, premultiplied linear, encode once), `LinearUnit` for unit-sample walks, and its Image Size.
 - `gaussian_plane.rs` — KERNEL: the ONE separable Gaussian scalar kernel: `doc_select`'s feather at its byte arithmetic, and f32 for the typed tone guides.
 - `plane_blur.rs` — KERNEL: one multiresolution scalar blur schedule shared by byte styles and typed masks (byte rounding kept, float fields unquantized).
-- `cache_limit.rs` — leaf: resident cache bounds from the working limit: the cache bound limit/16 and the host trim limit/8 (all-or-nothing).
+- `cache_limit.rs` — leaf: the resident-cache registry's byte bound from the working limit (limit/8).
+- `cache_registry.rs` — the process-wide registry of style planes (byte, typed), mask caches and LUT tables: one byte bound, LRU eviction, tickets, its report.
 - `native_source_resources.rs` — byte v21 / typed v22: per-asset ATCH records plus ONE deduplicated RBIN pool for RAW and generic resources. Never create separate RAW and generic pools.
 - `raw_local_mask.rs` / `raw_local_coverage.rs` / `raw_local_effective.rs` / `raw_local_preview.rs` — immutable RZLM1 u16 source-coordinate RAW local mask blobs, shared with native RBIN resources.
 - `raw_local_range.rs` — kernel: a RAW local's luminance/colour range as coverage of the base development's D50 Lab (L* clamped 0…100); laws, validation.

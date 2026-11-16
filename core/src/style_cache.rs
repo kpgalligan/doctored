@@ -107,12 +107,23 @@
 //! candidate entry is read through its `Arc` so a concurrent lookup on the
 //! same style can proceed. Poison-tolerant.
 //!
+//! # The byte bound (13B-6)
+//!
+//! An entry holds a `cache_registry::Ticket`, not its planes: the process-wide
+//! registry holds them, bounded with every other resident cache, and may
+//! evict them least recently used first. An entry whose planes were evicted
+//! is exactly an absent entry (a lookup misses and renders, a store prunes
+//! it); entries sharing one set of planes share one ticket, so the planes
+//! are one registry entry. A hit marks its planes used; the candidate scan
+//! and the accounting snapshot do not.
+//!
 //! `style_cache.rs` — the per-style rendered-plane cache inside each `Arc<LayerStyle>`: pointer
 //! keys, the shape-equality refresh, the incremental sub-plane re-render for a brush tick, and the
 //! hand-over from a replaced style (`inherit_planes`).
 
 use std::sync::{Arc, Mutex, PoisonError};
 
+use crate::cache_registry::{retain, CacheClass, Ticket};
 use crate::doc::{GrayRaster, Layer};
 use crate::gray_raster::GrayRasterKey;
 use crate::job_control::JobContext;
@@ -164,7 +175,7 @@ impl RenderCache {
         crate::resources_cache::CacheSnapshot {
             planes: entries
                 .iter()
-                .map(|entry| Arc::clone(&entry.planes))
+                .filter_map(|entry| entry.planes.peek())
                 .chain(self.1.planes())
                 .collect(),
             inherited_effects: entries
@@ -196,7 +207,8 @@ struct CacheEntry {
     /// The context the planes were rendered under, in full — the key keeps
     /// only the parts this style depends on.
     ctx: RenderContext,
-    planes: Arc<RenderedEffects>,
+    /// The registry's hold on the planes (module doc, "The byte bound").
+    planes: Ticket<RenderedEffects>,
     /// `Some` while `planes` are still the ones rendered for the enabled
     /// effect stack of a style this one replaced (module doc,
     /// "Inheritance"): they are adopted — re-stamped or re-rendered per
@@ -207,13 +219,20 @@ struct CacheEntry {
 
 impl CacheEntry {
     /// What a lookup takes out of an entry under the lock, so the
-    /// adoption or render that may follow happens outside it.
-    fn found(&self) -> Found {
-        Found {
-            planes: Arc::clone(&self.planes),
+    /// adoption or render that may follow happens outside it; `None` when
+    /// the registry evicted its planes. A `touch` marks them used (a hit).
+    fn found(&self, touch: bool) -> Option<Found> {
+        let planes = if touch {
+            self.planes.get()
+        } else {
+            self.planes.peek()
+        }?;
+        Some(Found {
+            planes,
+            ticket: self.planes.clone(),
             ctx: self.ctx,
             rendered_for: self.rendered_for.clone(),
-        }
+        })
     }
 }
 
@@ -227,6 +246,7 @@ pub(crate) enum Patch {
 /// A [`CacheEntry`] read out for use outside the lock (its key aside).
 struct Found {
     planes: Arc<RenderedEffects>,
+    ticket: Ticket<RenderedEffects>,
     ctx: RenderContext,
     rendered_for: Option<Arc<[Effect]>>,
 }
@@ -333,14 +353,19 @@ impl LayerStyle {
         let key = CacheKey::of(self, layer, ctx);
         let hit = {
             let mut entries = self.cache.lock();
-            entries.iter().position(|e| key.matches(&e.key)).map(|i| {
-                let entry = entries.remove(i);
-                entries.insert(0, entry);
-                entries[0].found()
-            })
+            entries
+                .iter()
+                .position(|e| key.matches(&e.key))
+                .and_then(|i| {
+                    let entry = entries.remove(i);
+                    // An evicted entry leaves here: it is a miss.
+                    let found = entry.found(true)?;
+                    entries.insert(0, entry);
+                    Some(found)
+                })
         };
         if let Some(found) = hit {
-            return Ok(Some(self.settled(found, job)?));
+            return Ok(Some(self.settled(found, job)?.0));
         }
         job.check()?;
         let Some(shape) = Shape::of_layer(layer, self.pad(), job)? else {
@@ -351,18 +376,15 @@ impl LayerStyle {
             let entries = self.cache.lock();
             entries
                 .iter()
-                .find(|e| {
-                    key.same_context(&e.key)
-                        && e.planes.shape.lw == shape.lw
-                        && e.planes.shape.lh == shape.lh
-                })
-                .map(CacheEntry::found)
+                .filter(|e| key.same_context(&e.key))
+                .filter_map(|e| e.found(false))
+                .find(|f| f.planes.shape.lw == shape.lw && f.planes.shape.lh == shape.lh)
         };
         let planes = match candidate {
             Some(found) => {
                 // Adopted first when inherited: what is shared or patched
                 // below must be this style's own planes.
-                let old = self.settled(found, job)?;
+                let (old, ticket) = self.settled(found, job)?;
                 match old.shape.diff_bounds(&shape) {
                     // The same shape: the entry describes this layer too —
                     // unless a layer-aligned gradient spans bounds that
@@ -379,16 +401,18 @@ impl LayerStyle {
                         // new shape only when they did, so the matched
                         // entry keeps the bounds of the layer it is keyed
                         // to.
-                        let planes = if old.shape.bounds == shape.bounds {
-                            old
+                        // The same planes keep their one ticket (one
+                        // registry entry); a copy is a new one.
+                        let (planes, ticket) = if old.shape.bounds == shape.bounds {
+                            (old, ticket)
                         } else {
-                            Arc::new(RenderedEffects {
+                            registered(Arc::new(RenderedEffects {
                                 shape,
                                 below: old.below.clone(),
                                 interior: old.interior.clone(),
-                            })
+                            }))
                         };
-                        self.store(key, ctx, Arc::clone(&planes));
+                        self.store(key, ctx, ticket);
                         return Ok(Some(planes));
                     }
                     None => Arc::new(render_effects_with_job(self, shape, ctx, job)?),
@@ -402,15 +426,17 @@ impl LayerStyle {
             }
             None => Arc::new(render_effects_with_job(self, shape, ctx, job)?),
         };
-        self.store(key, ctx, Arc::clone(&planes));
+        let (planes, ticket) = registered(planes);
+        self.store(key, ctx, ticket);
         Ok(Some(planes))
     }
 
     /// Stores `planes` for `key` most-recent-first as this style's own,
-    /// pruning the entries whose pixel buffer has died (module doc).
-    fn store(&self, key: CacheKey, ctx: &RenderContext, planes: Arc<RenderedEffects>) {
+    /// pruning the entries whose pixel buffer has died or whose planes the
+    /// registry evicted (module doc).
+    fn store(&self, key: CacheKey, ctx: &RenderContext, planes: Ticket<RenderedEffects>) {
         let mut entries = self.cache.lock();
-        entries.retain(|e| !e.key.is_dead());
+        entries.retain(|e| !e.key.is_dead() && e.planes.is_live());
         entries.insert(
             0,
             CacheEntry {
@@ -430,20 +456,22 @@ impl LayerStyle {
     /// every entry still holding them settled on the result, so the
     /// adoption happens once. The adoption is built into a local first: a
     /// cancelled one (`Err`) leaves every entry as it was.
-    fn settled(&self, found: Found, job: JobContext<'_>) -> Result<Arc<RenderedEffects>, String> {
+    fn settled(
+        &self,
+        found: Found,
+        job: JobContext<'_>,
+    ) -> Result<(Arc<RenderedEffects>, Ticket<RenderedEffects>), String> {
         let Some(previous) = found.rendered_for else {
-            return Ok(found.planes);
+            return Ok((found.planes, found.ticket));
         };
         let adopted = Arc::new(self.adopted(&previous, &found.planes, &found.ctx, job)?);
+        let (adopted, ticket) = registered(adopted);
         let mut entries = self.cache.lock();
-        for entry in entries
-            .iter_mut()
-            .filter(|e| Arc::ptr_eq(&e.planes, &found.planes))
-        {
-            entry.planes = Arc::clone(&adopted);
+        for entry in entries.iter_mut().filter(|e| e.planes.same(&found.ticket)) {
+            entry.planes = ticket.clone();
             entry.rendered_for = None;
         }
-        Ok(adopted)
+        Ok((adopted, ticket))
     }
 
     /// `old`'s planes re-rendered over the window `diff` changed (module
@@ -546,7 +574,7 @@ impl LayerStyle {
             .then(|| previous.enabled_effects().cloned().collect());
         let carried: Vec<CacheEntry> = taken
             .into_iter()
-            .filter(|e| !e.key.is_dead())
+            .filter(|e| !e.key.is_dead() && e.planes.is_live())
             .take(CACHE_CAPACITY)
             .map(|e| CacheEntry {
                 key: e.key.rekeyed(self, &e.ctx),
@@ -609,4 +637,12 @@ impl LayerStyle {
             interior,
         })
     }
+}
+
+/// `planes` registered as one byte style entry (module doc, "The byte
+/// bound"), sized by the report's own walk. Called outside the cache's lock.
+fn registered(planes: Arc<RenderedEffects>) -> (Arc<RenderedEffects>, Ticket<RenderedEffects>) {
+    let bytes = crate::resources_cache::rendered_bytes(&planes);
+    let ticket = retain(CacheClass::StylePlanes, &planes, bytes);
+    (planes, ticket)
 }

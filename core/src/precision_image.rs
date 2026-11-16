@@ -322,18 +322,6 @@ pub fn process_working_limit() -> u64 {
     PROCESS_WORKING_LIMIT.load(Ordering::Relaxed)
 }
 
-/// One cache bound: the process working limit / 16 (`cache_limit.rs`; 128 MiB
-/// at the pin, 512 MiB at 8 GiB).
-pub fn process_cache_limit() -> u64 {
-    crate::cache_limit::cache_limit(process_working_limit())
-}
-
-/// The host's post-projection trim threshold for non-view cache bytes: two
-/// cache bounds, the process working limit / 8 (`cache_limit.rs`).
-pub fn process_cache_trim_limit() -> u64 {
-    crate::cache_limit::cache_trim_limit(process_working_limit())
-}
-
 /// Sets the process-wide working limit. `false` (value unchanged) for 0.
 pub fn set_process_working_limit(bytes: u64) -> bool {
     if bytes == 0 {

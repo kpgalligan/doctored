@@ -257,12 +257,3 @@ extension RasterDocument {
         return result.map { RasterDocument(owning: $0) }
     }
 }
-
-extension DoctoredCoreProcess {
-    /// The post-projection trim threshold for non-view cache bytes (the
-    /// disposable caches an eviction drops): the working limit / 8. It follows
-    /// `setWorkingLimit`; 0 on a core internal error.
-    static func cacheTrimLimit() -> UInt64 {
-        dr_process_cache_trim_limit()
-    }
-}

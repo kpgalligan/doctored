@@ -14,6 +14,18 @@ pub(crate) struct CacheSnapshot {
     pub(crate) inherited_effects: Vec<Arc<[Effect]>>,
 }
 
+/// The cache bytes the report counts for one style entry's planes: its
+/// registry size (`cache_registry`, "Bytes"), by the walk below.
+pub(crate) fn rendered_bytes(planes: &Arc<RenderedEffects>) -> u64 {
+    let mut inventory = Inventory::default();
+    CacheSnapshot {
+        planes: vec![Arc::clone(planes)],
+        inherited_effects: Vec::new(),
+    }
+    .record_resources(&mut inventory);
+    inventory.cache_bytes()
+}
+
 impl CacheSnapshot {
     pub(crate) fn record_resources(&self, inventory: &mut Inventory) {
         for planes in &self.planes {

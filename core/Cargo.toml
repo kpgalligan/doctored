@@ -127,6 +127,8 @@ name = "durable_save" # isolate: changes the working directory
 [[test]]
 name = "process_working_limit" # isolate: sets the process working limit
 [[test]]
+name = "cache_registry" # isolate: sets the process working limit and asserts on the process-wide cache registry
+[[test]]
 name = "geometry_job_work_cap" # isolate: sets the process working limit
 [[test]]
 name = "float_above_cache_bound" # isolate: sets the process working limit and has its own #[global_allocator]

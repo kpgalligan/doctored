@@ -9244,7 +9244,13 @@ typedef struct RawLocalMask DrRawLocalMask;
  * NULL on invalid input/internal error, setting err_out when provided.
  * One inventory across both storage families: shared byte/typed masters count
  * once, and standalone local masks are deduplicated against their document
- * RBIN allocations. */
+ * RBIN allocations. Unlike the categories, which cover the supplied handles,
+ * the cache_registry object is PROCESS-WIDE: the resident-cache registry's
+ * bound_bytes (working limit / 8), bytes, entries, evictions since launch and
+ * per-class bytes/entries (style_planes, typed_style_planes, mask_derived,
+ * mask_aligned, lut), plus the content-box memos' entry counts
+ * (content_boxes) and the contiguous view cache (contiguous_views), which
+ * keep their own bounds. */
 char *dr_mixed_resources_report_with_raw_masks(const DrDocument *const *documents, size_t document_count, const DrImage *const *images, size_t image_count, const DrPrecisionDocument *const *typed_documents, size_t typed_document_count, const DrPrecisionImage *const *typed_images, size_t typed_image_count, const DrRawLocalMask *const *masks, size_t mask_count, uint64_t transient, uint64_t limit, char **err_out);
 /* Evicts disposable style/mask caches reachable from documents, and
  * process-wide LUT/content-box memos, and the process-wide contiguous layer
@@ -9263,11 +9269,6 @@ char *dr_mixed_resources_evict_caches(const DrDocument *const *documents, size_t
  * leaves the value unchanged. Call once at launch. Thread-safe. An admission
  * with an explicit caller limit never consults the process limit. */
 bool dr_set_process_working_limit(uint64_t bytes);
-/* The host's post-projection trim threshold for non-view cache bytes (the
- * disposable caches dr_mixed_resources_evict_caches drops): the working
- * limit / 8, so it follows dr_set_process_working_limit. 0 on an internal
- * error. */
-uint64_t dr_process_cache_trim_limit(void);
 DrRawLocalMask *dr_raw_local_mask_edit(const DrRawLocalMask *prior, uint32_t width, uint32_t height, const char *command_json, uint64_t limit, uint64_t other, const DrJobControl *control, char **err_out);
 /* Strict version1 inverse source-coordinate map, at most4096 UTF8 bytes.
    channel0/1/2 selects red/green/blue lens sampling; EXIF/affine require1.

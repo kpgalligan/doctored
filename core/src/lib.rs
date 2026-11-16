@@ -54,6 +54,7 @@ mod blend_if_channels_native;
 pub mod brush_coverage;
 mod brush_overlay;
 mod cache_limit;
+mod cache_registry;
 mod cancel_io;
 mod clip_display;
 mod clip_unit;

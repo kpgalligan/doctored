@@ -360,7 +360,7 @@ pub(crate) fn runs_extent<'a, S: 'a>(
 /// Entries kept. Comfortably past any real document's layer count, because a
 /// fold of the whole stack only pays off if every entry hits — and at some
 /// 70 bytes an entry, holding this many costs about 36 KB and pins no pixels.
-const CONTENT_BOX_MEMO_CAPACITY: usize = 512;
+pub(crate) const CONTENT_BOX_MEMO_CAPACITY: usize = 512;
 
 /// One memo slot: the pixel allocation, the APPLIED mask allocation (`None`
 /// when the layer has none, it is disabled, or the caller applies no mask —
@@ -375,6 +375,15 @@ type ContentBoxEntry = (
 );
 
 static CONTENT_BOX_MEMO: OnceLock<Mutex<Vec<ContentBoxEntry>>> = OnceLock::new();
+
+/// The memo's entries now (the report's `cache_registry.content_boxes`).
+pub(crate) fn content_box_entries() -> usize {
+    CONTENT_BOX_MEMO.get().map_or(0, |memo| {
+        memo.lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len()
+    })
+}
 
 /// Clears the bounded geometry memo and its weak Arc shells. It owns no pixel
 /// buffers; its small entry bookkeeping is disclosed separately in diagnostics.

@@ -243,6 +243,20 @@ pub(crate) fn view(key: PlaneKey, materialize: impl FnOnce() -> View) -> View {
     view
 }
 
+/// The cache's bytes and entries for live planes, process-wide (the report's
+/// `cache_registry.contiguous_views`).
+pub(crate) fn view_cache_figures() -> (u64, usize) {
+    let mut cache = views();
+    let removed = cache.prune();
+    let figures = (
+        cache.entries.iter().map(|e| e.bytes).sum(),
+        cache.entries.len(),
+    );
+    drop(cache);
+    drop(removed);
+    figures
+}
+
 /// Disposable view bytes currently cached for live planes. Test oracle.
 pub fn contiguous_view_bytes() -> u64 {
     let mut cache = views();

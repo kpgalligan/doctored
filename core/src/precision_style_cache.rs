@@ -28,7 +28,10 @@
 //! the lock, then stores the planes, so a cancelled render (`Err`) caches
 //! nothing. `style_cache::CACHE_CAPACITY` entries, most recent first; on
 //! every store the entries whose pixels or mask plane have died are pruned,
-//! and so is any entry the new key matches.
+//! and so is any entry the new key matches. An entry holds a
+//! `cache_registry::Ticket` (the byte cache's rule, `style_cache`'s "The byte
+//! bound"): the process-wide registry holds the planes and may evict them,
+//! and an entry whose planes were evicted is an absent entry.
 //!
 //! # Not cached
 //! Each of these renders in full on every composite, as before:
@@ -47,6 +50,7 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 
+use crate::cache_registry::{retain, CacheClass, Ticket};
 use crate::job_control::JobContext;
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::PrecisionStorage;
@@ -198,7 +202,7 @@ impl TypedKey {
 
 struct TypedEntry {
     key: TypedKey,
-    planes: Arc<RenderedEffects>,
+    planes: Ticket<RenderedEffects>,
 }
 
 /// The typed half of a style's `RenderCache` (module doc).
@@ -210,29 +214,30 @@ impl TypedCache {
         self.0.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Every entry's planes, pinned for resource accounting.
+    /// Every entry's planes still held, pinned for resource accounting.
     pub(crate) fn planes(&self) -> Vec<Arc<RenderedEffects>> {
-        self.lock().iter().map(|e| Arc::clone(&e.planes)).collect()
+        self.lock().iter().filter_map(|e| e.planes.peek()).collect()
     }
 
     pub(crate) fn clear(&self) {
         self.lock().clear();
     }
 
-    /// The matching entry's planes, moved to the front.
+    /// The matching entry's planes, moved to the front and marked used; an
+    /// entry whose planes were evicted leaves and misses.
     fn hit(&self, key: &TypedKey) -> Option<Arc<RenderedEffects>> {
         let mut entries = self.lock();
         let i = entries.iter().position(|e| key.matches(&e.key))?;
         let entry = entries.remove(i);
-        let planes = Arc::clone(&entry.planes);
+        let planes = entry.planes.get()?;
         entries.insert(0, entry);
         Some(planes)
     }
 
     /// Stores `planes` for `key` most recent first (module doc, `# Lookup`).
-    fn store(&self, key: TypedKey, planes: Arc<RenderedEffects>) {
+    fn store(&self, key: TypedKey, planes: Ticket<RenderedEffects>) {
         let mut entries = self.lock();
-        entries.retain(|e| !e.key.is_dead() && !e.key.matches(&key));
+        entries.retain(|e| !e.key.is_dead() && e.planes.is_live() && !e.key.matches(&key));
         entries.insert(0, TypedEntry { key, planes });
         entries.truncate(CACHE_CAPACITY);
     }
@@ -257,7 +262,9 @@ pub(crate) fn rendered(
     job.check()?;
     let planes = Arc::new(render_effects_with_job(style, shape, ctx, job)?);
     if let Some(key) = key {
-        style.cache.typed().store(key, Arc::clone(&planes));
+        let bytes = crate::resources_cache::rendered_bytes(&planes);
+        let ticket = retain(CacheClass::TypedStylePlanes, &planes, bytes);
+        style.cache.typed().store(key, ticket);
     }
     Ok(planes)
 }

@@ -1452,7 +1452,6 @@ final class ImageDocument: NSDocument {
     }
 
     func refreshProjection() {
-        defer { RasterResources.shared.trimCachesIfNeeded() }
         guard let doc else {
             projection = nil
             precisionProjection = nil

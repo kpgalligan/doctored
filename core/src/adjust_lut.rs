@@ -82,6 +82,7 @@ use serde_json::{Map, Number, Value};
 
 use crate::adjust::Adjustment;
 use crate::adjust_parse::{int_in, num_in, numbers, string_enum, text};
+use crate::cache_registry::{retain, CacheClass, Ticket};
 
 /// Largest `.cube` file this build will read, checked BEFORE reading it: a
 /// `LUT_3D_SIZE 256` file is 16.7 M rows of text, and refusing by size is
@@ -626,9 +627,15 @@ fn resample(table: &[f32], three_d: bool, from: usize, to: usize) -> Vec<f32> {
 
 // ------------------------------------------------------------- the memo --
 
-/// One memo slot: the sampled prehash, the meta it was parsed from, and the
-/// parsed adjustment.
-type MemoEntry = (u64, String, Adjustment);
+/// One memo slot's payload: the meta it was parsed from and the parsed
+/// adjustment, held by the resident-cache registry (13B-6: the slot keeps a
+/// `cache_registry::Ticket`, so the registry's byte bound covers the tables
+/// and may evict one; an evicted slot is a miss and parses again).
+type MemoPayload = (String, Adjustment);
+
+/// One memo slot: the sampled prehash, the meta's length and the payload's
+/// ticket.
+type MemoEntry = (u64, usize, Ticket<MemoPayload>);
 
 static MEMO: OnceLock<Mutex<Vec<MemoEntry>>> = OnceLock::new();
 
@@ -636,34 +643,47 @@ static MEMO: OnceLock<Mutex<Vec<MemoEntry>>> = OnceLock::new();
 /// poison policy is unchanged; diagnostics recover the lock to count/evict it.
 pub(crate) fn record_cached_resources(inventory: &mut crate::resources::Inventory) {
     let Some(memo) = MEMO.get() else { return };
-    let entries = memo
+    let payloads: Vec<_> = memo
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    for (_, meta, adjustment) in entries.iter() {
-        inventory.string(meta, "lut_cache", true);
-        match adjustment {
-            Adjustment::ColorLookup(lut) => {
-                inventory.object(&**lut, "lut_cache", true);
-                inventory.object(&*lut.table, "lut_cache", true);
-                inventory.vec(&lut.table, "lut_cache", true);
-            }
-            Adjustment::Curves(value) => inventory.object(&**value, "lut_cache", true),
-            Adjustment::HueSaturation(value) => {
-                inventory.object(&**value, "lut_cache", true);
-                inventory.vec(value.table(), "lut_cache", true);
-            }
-            Adjustment::ColorBalance(value) => inventory.object(&**value, "lut_cache", true),
-            Adjustment::BlackAndWhite(value) => inventory.object(&**value, "lut_cache", true),
-            Adjustment::SelectiveColor(value) => inventory.object(&**value, "lut_cache", true),
-            Adjustment::ShadowsHighlights(value) => inventory.object(&**value, "lut_cache", true),
-            Adjustment::GradientMap(value) => {
-                inventory.object(&**value, "lut_cache", true);
-                value.record_cached_resources(inventory);
-            }
-            // Every remaining parsed variant is inline. Calibrated's optional
-            // pipeline is bound after memo lookup, never retained in this cache.
-            _ => {}
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .iter()
+        .filter_map(|(_, _, ticket)| ticket.peek())
+        .collect();
+    for payload in &payloads {
+        record_payload(payload, inventory);
+    }
+    // The pins outlive the walk: an eviction cannot free an address the
+    // inventory still keys on.
+    for payload in payloads {
+        inventory.pin(payload);
+    }
+}
+
+/// One slot's allocations (the report's `lut_cache`, and its registry size).
+fn record_payload((meta, adjustment): &MemoPayload, inventory: &mut crate::resources::Inventory) {
+    inventory.string(meta, "lut_cache", true);
+    match adjustment {
+        Adjustment::ColorLookup(lut) => {
+            inventory.object(&**lut, "lut_cache", true);
+            inventory.object(&*lut.table, "lut_cache", true);
+            inventory.vec(&lut.table, "lut_cache", true);
         }
+        Adjustment::Curves(value) => inventory.object(&**value, "lut_cache", true),
+        Adjustment::HueSaturation(value) => {
+            inventory.object(&**value, "lut_cache", true);
+            inventory.vec(value.table(), "lut_cache", true);
+        }
+        Adjustment::ColorBalance(value) => inventory.object(&**value, "lut_cache", true),
+        Adjustment::BlackAndWhite(value) => inventory.object(&**value, "lut_cache", true),
+        Adjustment::SelectiveColor(value) => inventory.object(&**value, "lut_cache", true),
+        Adjustment::ShadowsHighlights(value) => inventory.object(&**value, "lut_cache", true),
+        Adjustment::GradientMap(value) => {
+            inventory.object(&**value, "lut_cache", true);
+            value.record_cached_resources(inventory);
+        }
+        // Every remaining parsed variant is inline. Calibrated's optional
+        // pipeline is bound after memo lookup, never retained in this cache.
+        _ => {}
     }
 }
 
@@ -676,6 +696,12 @@ pub(crate) fn evict_cached_resources() {
     }
 }
 
+/// Whether slot `entry` holds `meta` (prehash `key`): the prehash and length
+/// narrow, a full string comparison confirms. An evicted slot holds nothing.
+fn holds(entry: &MemoEntry, key: u64, meta: &str) -> bool {
+    entry.0 == key && entry.1 == meta.len() && entry.2.peek().is_some_and(|p| p.0 == meta)
+}
+
 /// [`Adjustment::from_meta`]'s memoized path for a big meta (module doc).
 /// Transparent: the same string always yields the same adjustment, and a
 /// poisoned lock simply parses again.
@@ -683,26 +709,34 @@ pub(crate) fn memoized(meta: &str, parse: fn(&str) -> Option<Adjustment>) -> Opt
     let memo = MEMO.get_or_init(|| Mutex::new(Vec::new()));
     let key = prehash(meta);
     if let Ok(mut entries) = memo.lock() {
-        if let Some(i) = entries.iter().position(|(h, s, _)| *h == key && s == meta) {
+        // Slots whose tables the registry evicted go first: they hold nothing.
+        entries.retain(|(_, _, ticket)| ticket.is_live());
+        if let Some(i) = entries.iter().position(|entry| holds(entry, key, meta)) {
             // Moved to the back, so eviction is genuinely LEAST RECENTLY
             // USED: a document whose layers outnumber the memo then keeps
             // the ones it is actually walking rather than the ones it
             // happened to parse first.
             let hit = entries.remove(i);
-            let parsed = hit.2.clone();
+            let parsed = hit.2.get().map(|payload| payload.1.clone());
             entries.push(hit);
-            return Some(parsed);
+            if parsed.is_some() {
+                return parsed;
+            }
         }
     }
     // Parsed OUTSIDE the lock: two documents opening at once should not
-    // serialize on each other.
+    // serialize on each other. Registered outside it too (`cache_registry`).
     let parsed = parse(meta)?;
+    let payload = Arc::new((meta.to_string(), parsed.clone()));
+    let mut sizing = crate::resources::Inventory::default();
+    record_payload(&payload, &mut sizing);
+    let ticket = retain(CacheClass::Lut, &payload, sizing.cache_bytes());
     if let Ok(mut entries) = memo.lock() {
-        if !entries.iter().any(|(h, s, _)| *h == key && s == meta) {
+        if !entries.iter().any(|entry| holds(entry, key, meta)) {
             while entries.len() >= MEMO_CAPACITY {
                 entries.remove(0);
             }
-            entries.push((key, meta.to_string(), parsed.clone()));
+            entries.push((key, meta.len(), ticket));
         }
     }
     Some(parsed)

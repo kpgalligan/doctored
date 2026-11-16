@@ -23,12 +23,17 @@
 //! copies no plane and caches nothing for it; a feathered, density-scaled or misaligned mask is a
 //! contiguous plane built once, adopted by `GrayRaster::shared` and held by the two caches above,
 //! which key on the raw raster's identity (`GrayRasterKey`).
+//!
+//! Since 13B-6 each cache entry holds a `cache_registry::Ticket` and the process-wide registry
+//! holds the plane, bounded in bytes with every other resident cache; an entry whose plane was
+//! evicted is a miss and is rebuilt, and readers keep the clone they were handed.
 
 use std::sync::{Arc, Mutex};
 
 use image::imageops::FilterType;
 use image::{GrayImage, Luma, RgbaImage};
 
+use crate::cache_registry::{retain, CacheClass, Ticket};
 use crate::doc::{saturating_i32, DrDocument, Geometry, GrayRaster, Layer, LayerKind, MAX_PIXELS};
 use crate::doc_lock::EditKind;
 use crate::doc_transform::{transform_gray, Affine};
@@ -63,7 +68,7 @@ pub struct MaskProperties {
 struct AlignedMask {
     raw: GrayRasterKey,
     shape: ((i64, i64), (u32, u32), u32, u32, u8),
-    plane: GrayRaster,
+    plane: Ticket<GrayRaster>,
 }
 
 #[derive(Clone)]
@@ -71,8 +76,17 @@ struct DerivedMask {
     raw: GrayRasterKey,
     feather: f32,
     outside_coverage: u8,
-    plane: GrayRaster,
+    plane: Ticket<GrayRaster>,
     pad: u32,
+}
+
+/// `plane` registered as a mask cache entry of `class`, sized by the
+/// report's own walk (`GrayRaster::record_cache_resources`). Called outside
+/// the cache's lock.
+fn registered(class: CacheClass, plane: &GrayRaster) -> Ticket<GrayRaster> {
+    let mut inventory = crate::resources::Inventory::default();
+    plane.record_cache_resources(&mut inventory);
+    retain(class, &Arc::new(plane.clone()), inventory.cache_bytes())
 }
 
 impl PartialEq for MaskProperties {
@@ -162,14 +176,17 @@ impl MaskProperties {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .as_ref()
-            .map(|c| c.plane.clone());
+            .and_then(|c| c.plane.peek());
         let aligned = self
             .aligned_cache
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .as_ref()
-            .map(|c| c.plane.clone());
-        raw.into_iter().chain(aligned).collect()
+            .and_then(|c| c.plane.peek());
+        raw.into_iter()
+            .chain(aligned)
+            .map(|plane| (*plane).clone())
+            .collect()
     }
 
     pub(crate) fn clear_cache(&self) {
@@ -193,12 +210,16 @@ impl MaskProperties {
         }
         {
             let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(c) = cache.as_ref().filter(|c| {
-                c.feather == self.feather
-                    && c.outside_coverage == self.outside_coverage
-                    && c.raw.names(raw)
-            }) {
-                return Ok((c.plane.clone(), c.pad));
+            if let Some((plane, pad)) = cache
+                .as_ref()
+                .filter(|c| {
+                    c.feather == self.feather
+                        && c.outside_coverage == self.outside_coverage
+                        && c.raw.names(raw)
+                })
+                .and_then(|c| Some((c.plane.get()?, c.pad)))
+            {
+                return Ok(((*plane).clone(), pad));
             }
         }
         // All public mutation and native preflight paths validate this bound.
@@ -236,11 +257,12 @@ impl MaskProperties {
             }
         }
         let plane = GrayRaster::shared(Arc::new(plane));
+        let ticket = registered(CacheClass::MaskDerived, &plane);
         *self.cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(DerivedMask {
             raw: raw.key(),
             feather: self.feather,
             outside_coverage: self.outside_coverage,
-            plane: plane.clone(),
+            plane: ticket,
             pad,
         });
         Ok((plane, pad))
@@ -290,11 +312,12 @@ impl Layer {
         );
         {
             let cache = p.aligned_cache.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(c) = cache
+            if let Some(plane) = cache
                 .as_ref()
                 .filter(|c| c.shape == shape && c.raw.names(raw))
+                .and_then(|c| c.plane.get())
             {
-                return Ok(Some(c.plane.clone()));
+                return Ok(Some((*plane).clone()));
             }
         }
         let Some(plane) =
@@ -302,10 +325,11 @@ impl Layer {
         else {
             return Ok(None);
         };
+        let ticket = registered(CacheClass::MaskAligned, &plane);
         *p.aligned_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(AlignedMask {
             raw: raw.key(),
             shape,
-            plane: plane.clone(),
+            plane: ticket,
         });
         Ok(Some(plane))
     }

@@ -402,7 +402,27 @@ pub(crate) fn mixed_report_with_masks(
     result["projection_scratch_scope"] = json!(
         "maximum single-document full projection estimate among supplied handles; not added to working total unless caller reserves it"
     );
+    result["cache_registry"] = cache_registry_section();
     result
+}
+
+/// The report's PROCESS-WIDE `cache_registry` object (13B-6): the registry's
+/// own figures (`cache_registry::report`), then the two caches that keep
+/// their own bounds outside it, so one section shows every resident cache.
+fn cache_registry_section() -> Value {
+    let mut section = crate::cache_registry::report();
+    section["content_boxes"] = json!({
+        "byte_entries": crate::doc_group_query::content_box_entries(),
+        "typed_entries": crate::precision_content_box::content_box_entries(),
+        "capacity": crate::doc_group_query::CONTENT_BOX_MEMO_CAPACITY,
+    });
+    let (bytes, entries) = crate::contiguous_views::view_cache_figures();
+    section["contiguous_views"] = json!({
+        "bytes": bytes,
+        "entries": entries,
+        "bound_bytes": crate::contiguous_views::CONTIGUOUS_CACHE_BYTES,
+    });
+    section
 }
 
 /// Removes only disposable caches, never pixels, document state or history:

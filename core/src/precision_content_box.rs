@@ -188,6 +188,15 @@ struct Entry {
 
 static MEMO: OnceLock<Mutex<Vec<Entry>>> = OnceLock::new();
 
+/// The typed memo's entries now (the report's `cache_registry.content_boxes`).
+pub(crate) fn content_box_entries() -> usize {
+    MEMO.get().map_or(0, |memo| {
+        memo.lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len()
+    })
+}
+
 /// Clears the typed memo (`resources::evict_caches`, beside the byte one).
 /// It owns no samples.
 pub(crate) fn evict_precision_content_box_cache() {

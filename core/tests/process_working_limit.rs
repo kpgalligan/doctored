@@ -1,7 +1,12 @@
 //! The process-wide working limit (`dr_set_process_working_limit`): the
-//! limit read wherever no caller limit is passed. Exactly one test, because
-//! the limit is process-global and tests in one binary run in parallel.
-use doctored_core::ffi_resources::{dr_process_cache_trim_limit, dr_set_process_working_limit};
+//! limit read wherever no caller limit is passed, and the resident-cache
+//! registry's bound (the limit / 8) that follows it. Exactly one test,
+//! because the limit is process-global and tests in one binary run in
+//! parallel.
+#[path = "common/resource_report.rs"]
+mod resource_report;
+
+use doctored_core::ffi_resources::dr_set_process_working_limit;
 use doctored_core::icc::IccProfile;
 use doctored_core::precision_image::{
     process_working_limit, PrecisionImage, PrecisionStorage, REFERENCE_WORKING_BYTES,
@@ -12,10 +17,18 @@ fn small() -> Result<PrecisionImage, String> {
     PrecisionImage::from_rgba16(2, 2, vec![[0, 0, 0, 65535]; 4], IccProfile::srgb(), None)
 }
 
+/// The report's process-wide `cache_registry.bound_bytes`.
+fn registry_bound() -> u64 {
+    resource_report::report(&[], &[], &[], &[], 0, 0).expect("a report")["cache_registry"]
+        ["bound_bytes"]
+        .as_u64()
+        .expect("a registry bound")
+}
+
 #[test]
 fn the_process_limit_governs_internal_admission_only() {
     assert_eq!(process_working_limit(), REFERENCE_WORKING_BYTES);
-    assert_eq!(dr_process_cache_trim_limit(), REFERENCE_WORKING_BYTES / 8);
+    assert_eq!(registry_bound(), REFERENCE_WORKING_BYTES / 8);
 
     assert!(!dr_set_process_working_limit(0));
     assert_eq!(process_working_limit(), REFERENCE_WORKING_BYTES);
@@ -23,7 +36,7 @@ fn the_process_limit_governs_internal_admission_only() {
     assert!(small().is_ok());
 
     assert!(dr_set_process_working_limit(1024 * 1024));
-    assert_eq!(dr_process_cache_trim_limit(), 1024 * 1024 / 8);
+    assert_eq!(registry_bound(), 1024 * 1024 / 8);
     let error = small().err().expect("refused at 1 MiB");
     assert!(error.contains("working limit"), "{error}");
 

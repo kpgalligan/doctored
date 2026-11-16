@@ -1,9 +1,9 @@
 //! Shared live-handle resource inventory and synchronized cache eviction:
 //! `dr_mixed_resources_report_with_raw_masks` and
-//! `dr_mixed_resources_evict_caches` (beside `dr_set_process_working_limit`
-//! and `dr_process_cache_trim_limit`), both reading their handle lists
-//! through `handles`. Handles are borrowed; neither export creates an
-//! editable document or undo.
+//! `dr_mixed_resources_evict_caches` (beside `dr_set_process_working_limit`),
+//! both reading their handle lists through `handles`. Handles are borrowed;
+//! neither export creates an editable document or undo. The report carries
+//! the process-wide `cache_registry` section (`cache_registry.rs`).
 
 use std::ffi::{c_char, CString};
 use std::ptr;
@@ -166,25 +166,6 @@ pub extern "C" fn dr_set_process_working_limit(bytes: u64) -> bool {
             "setting process working limit",
             false,
             || Ok(crate::precision_image::set_process_working_limit(bytes)),
-            |value| value,
-        )
-    }
-}
-
-/// The host's post-projection trim threshold for non-view cache bytes (the
-/// disposable caches `dr_mixed_resources_evict_caches` drops): the process
-/// working limit / 8 (`cache_limit.rs`), so it follows
-/// `dr_set_process_working_limit`. 0 on an
-/// internal error. It takes no pointer, so the null-safety sweep has nothing
-/// to add for it.
-#[no_mangle]
-pub extern "C" fn dr_process_cache_trim_limit() -> u64 {
-    unsafe {
-        fallible_op(
-            ptr::null_mut(),
-            "reading process cache trim limit",
-            0,
-            || Ok(crate::precision_image::process_cache_trim_limit()),
             |value| value,
         )
     }
