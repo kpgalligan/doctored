@@ -13,9 +13,9 @@ use std::sync::{Arc, OnceLock};
 use crate::contiguous_views::{self, PlaneKey, View};
 use crate::icc::IccProfile;
 use crate::job_control::{DrJobControl, JobContext};
-use crate::tile_store::TILE_EDGE;
+use crate::tile_store::{TilePlane, TILE_EDGE};
 
-use super::plane::{tiles_of, uniform_tiles, Pixels, Plane};
+use super::plane::{tiles_of, Pixels, Plane};
 use super::{
     admit, extended_pixel, pixel_count, process_working_limit, reserved_vec, PrecisionImage,
     PrecisionStorage, BOOKKEEPING_BYTES,
@@ -104,19 +104,19 @@ impl PrecisionImage {
     }
 
     /// [`Self::tile_unseeded`], except that a bitwise-uniform plane becomes
-    /// ONE filled plane (`uniform_tiles`) and the adopted buffer is dropped.
+    /// ONE filled plane (`TilePlane::uniform_from`) and the adopted buffer is dropped.
     /// Nothing cached; identity is unchanged and no job is polled.
     fn tile_decoded(&mut self) {
         let (width, height) = (self.width, self.height);
         match &self.pixels {
             Pixels::U16(Plane::Contiguous(samples)) => {
-                if let Some(plane) = uniform_tiles(width, height, samples) {
+                if let Some(plane) = TilePlane::uniform_from(width, height, samples) {
                     self.pixels = Pixels::U16(Plane::Tiled(plane));
                     return;
                 }
             }
             Pixels::F32(Plane::Contiguous(samples)) => {
-                if let Some(plane) = uniform_tiles(width, height, samples) {
+                if let Some(plane) = TilePlane::uniform_from(width, height, samples) {
                     self.pixels = Pixels::F32(Plane::Tiled(plane));
                     return;
                 }

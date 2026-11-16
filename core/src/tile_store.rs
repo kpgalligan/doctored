@@ -287,6 +287,19 @@ impl<S: Sample> TilePlane<S> {
         })
     }
 
+    /// A bitwise-uniform adopted plane as ONE filled plane (`TilePlane::filled`:
+    /// one tile per shape) at every size, or `None` — no samples, a sample not
+    /// `Sample::same_bits` to the first (the scan stops there), or `filled`
+    /// refusing. Allocates nothing else and polls nothing (13B-3e-4b: a reopened
+    /// empty layer is filled again; later, above the cache bound too).
+    pub(crate) fn uniform_from(width: u32, height: u32, samples: &[S]) -> Option<Self> {
+        let first = *samples.first()?;
+        if !samples.iter().all(|s| s.same_bits(first)) {
+            return None;
+        }
+        Self::filled(width, height, first).ok()
+    }
+
     /// A plane over ready tiles in index order (the tile pool's rebuild,
     /// 13C-1). Refuses a tile count other than `columns · rows` and a tile
     /// whose shape or sample count is not its clipped rect's.

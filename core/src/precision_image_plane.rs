@@ -340,20 +340,3 @@ fn contains((width, height): (u32, u32), (x, y, w, h): (u32, u32, u32, u32)) -> 
 pub(super) fn tiles_of<S: Sample>(width: u32, height: u32, samples: &[S]) -> Option<TilePlane<S>> {
     TilePlane::from_contiguous(width, height, samples, None).ok()
 }
-
-/// A bitwise-uniform adopted plane as ONE filled plane (`TilePlane::filled`:
-/// one tile per shape) at every size, or `None` — no samples, a sample not
-/// `Sample::same_bits` to the first (the scan stops there), or `filled`
-/// refusing. Allocates nothing else and polls nothing (13B-3e-4b: a reopened
-/// empty layer is filled again; later, above the cache bound too).
-pub(super) fn uniform_tiles<S: Sample>(
-    width: u32,
-    height: u32,
-    samples: &[S],
-) -> Option<TilePlane<S>> {
-    let first = *samples.first()?;
-    if !samples.iter().all(|s| s.same_bits(first)) {
-        return None;
-    }
-    TilePlane::filled(width, height, first).ok()
-}

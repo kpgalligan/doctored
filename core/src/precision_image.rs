@@ -99,7 +99,7 @@
 //! (the typed `.rz` layer / master PNG, the WARP original, the f32 `.rz`
 //! raster, the PNG16 / TIFF16 / float TIFF open, the 16-bit PSD layer and
 //! composite, the RZCB / RGBA8 payloads) with the unseeded statements, a
-//! bitwise-uniform plane filled (`plane::uniform_tiles`), so no render or
+//! bitwise-uniform plane filled (`TilePlane::uniform_from`), so no render or
 //! decoder seeds the view cache; the seeded `from_rgba16` remains for
 //! test-built images and the one kept preview seed
 //! (`raw_source_geometry.rs`, feeding `preview_view_rgba16`). Since 13B-3e-4c-2a no f32 constructor seeds:
@@ -238,7 +238,7 @@
 //! (`psd_import16`) and the RZCB / RGBA8 clipboard payloads (`precision_clipboard_codec`) — builds
 //! through `from_rgba16_decoded` / `from_rgba32_extended_decoded` (`pub(crate)`: the unseeded
 //! statements through the private `Tiling::Decoded`, and a bitwise-uniform plane — a reopened empty
-//! layer, a pixel-less PSD record — becomes ONE filled plane through `plane::uniform_tiles`), and
+//! layer, a pixel-less PSD record — becomes ONE filled plane through `TilePlane::uniform_from`), and
 //! the narrowing's base raster, WARP original and 1×1 placeholders are `LayerRaster::unseeded`, so
 //! an open, a reopen, a paste or a narrowing seeds no view; the seeded constructor site left
 //! outside `precision_image*` is in `raw_source_geometry.rs`,
