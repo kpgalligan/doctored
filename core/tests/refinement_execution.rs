@@ -198,58 +198,58 @@ fn cutout_projection_refuses_changed_shape_nulls_budget_and_precancel_without_ou
     }
 }
 
+/// The cutout's record copy SHARES every layer description (13B-5: `Layer.meta`
+/// is `Arc<str>`), so twelve 16 MiB descriptions are held once by the input
+/// and its output together, and there is no description copy left to cancel.
 #[test]
-fn cancel_during_owned_record_metadata_copy_drops_partial_clone() {
-    let fixture = || {
-        let mut original = doc_of(1, 1, |_, _| [17, 73, 209]);
-        for i in 0..12 {
-            if i > 0 {
-                original.layers.push(original.layers[0].clone());
-            }
-            original.layers[i].meta = Some("🧭".repeat(4 * 1024 * 1024).into());
+fn the_record_copy_shares_every_layer_description() {
+    let mut original = doc_of(1, 1, |_, _| [17, 73, 209]);
+    for i in 0..12 {
+        if i > 0 {
+            original.layers.push(original.layers[0].clone());
         }
-        original
-    };
+        original.layers[i].meta = Some("🧭".repeat(4 * 1024 * 1024).into());
+    }
     let foreground =
         unsafe { Box::from_raw(dr_image_from_rgba([17, 73, 209, 255].as_ptr(), 1, 1)) };
-    let cut = |original: &DrDocument, t: usize| unsafe {
-        let budget = dr_doc_refinement_cutout_scratch_bytes(original);
+    let control = unsafe { dr_job_control_create() };
+    let output = unsafe {
         assert!(dr_job_control_set_scratch_limit(
-            t as *const DrJobControl,
-            budget
+            control,
+            dr_doc_refinement_cutout_scratch_bytes(&original)
         ));
         let mut error = ptr::null_mut();
         let output = dr_doc_add_refinement_cutout(
-            original,
+            &original,
             &*foreground,
             [127].as_ptr(),
-            t as _,
+            control,
             &mut error,
         );
-        let (output, error) = take_doc(output, error);
-        (output.is_some(), error.unwrap_or_default())
+        dr_job_control_free(control);
+        take_doc(output, error)
     };
-    let (entry, _) = {
-        let twin = fixture();
-        entry_then_cancel(&|progress, stage, _| stage == 2 && progress >= 0.91, |t| {
-            cut(&twin, t)
-        })
-    };
-    // k = 0: the record copy checks only at its reports (the next report's
-    // check is n0 + 1), so the park is that report's own check, stage 2.
-    let n0 = entry.checkpoints;
-    let original = fixture();
-    let parked = cancelled_parked_at(n0 + 1, &|_, stage| stage == entry.stage, |t| {
-        cut(&original, t)
-    });
-    println!("metadata copy cancellation: {}", parked_line(&parked));
-    assert_eq!(parked.stage, 2);
-    assert!(parked.progress >= 0.91 && parked.progress < 0.98);
-    assert!(parked.scratch > 0);
-    assert!(original
+    let output = output.0.expect("a cutout document");
+    let report = crate::resource_report::report(
+        &[&original as *const DrDocument, &output as *const DrDocument],
+        &[],
+        &[],
+        &[],
+        0,
+        0,
+    )
+    .expect("a report");
+    let description = 16 * 1024 * 1024_u64;
+    assert_eq!(
+        report["categories"]["layer_metadata"]["unique_bytes"],
+        12 * description,
+        "the two documents hold each description once"
+    );
+    assert!(output
         .layers
         .iter()
-        .all(|layer| layer.visible && layer.meta.as_ref().unwrap().len() == 16 * 1024 * 1024));
+        .filter(|layer| layer.meta.is_some())
+        .all(|layer| layer.meta.as_ref().unwrap().len() == description as usize));
 }
 
 #[test]
