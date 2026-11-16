@@ -41,14 +41,26 @@ Per kind:
   an emoji, two subpaths with no index, an index past the end, an unknown side, subpaths and
   path_name together, and edit_text_layer naming no path on a layer that is not on one.
 
-RGB 8 only, **T11 wide glyph**: a one-glyph Helvetica Neue line, supplied by a fallback face,
-whose straight, never-placed render inks a box wider than 3 × its size — twice what a rect grown
-by Helvetica Neue's line height and padding alone (1.37 em) would hold of it, so a rect without
-the half-advance term cuts it (U+FDFD, which Geeza Pro supplies; else U+2E3B; neither qualifying
-FAILS). Placed centred on the top of a circle whose top is the middle of a flattened chord (so
-the glyph sits level), and centred 1 px inside the end of an open horizontal line (a
-translation, so a cut end shows as a narrower box), its ink box's width and height equal the
-straight render's within 1 px.
+RGB 8 only, **T11 wide glyphs**: two one-glyph lines, each the first of its group whose
+straight, never-placed render inks a box wider than 3 × its size; a group with none FAILS.
+Zapfino's one-glyph "Zapfino" ligature, whose swash reaches far below its baseline and past its
+advance, so the straight render is uncut only when its raster covers the glyph's ink
+(designs/text-ink-rect.md). And a Helvetica Neue line supplied by a fallback face (U+FDFD, which
+Geeza Pro supplies; else U+2E3B), whose box is twice what a rect grown by Helvetica Neue's line
+height and padding alone (1.37 em) would hold of it, so an on-path rect without the half-advance
+term cuts it; Zapfino's far taller face holds its own glyph without that term. Each is placed
+centred on the top of a circle whose top is the middle of a flattened chord (so the glyph sits
+level), and centred 1 px inside the end of an open horizontal line (a translation, so a cut end
+shows as a narrower box); its ink box's width and height equal its straight render's within 1 px.
+
+RGB 8 only, **T12 legacy reopen**: `scripts/fixtures/text-ink-rect/legacy-zapfino.doctored`, a
+straight Zapfino layer saved by a build before `ink_outset` (its numbers in
+`legacy-zapfino.json`), reopens with its bounds, origin and alpha ink box, and its `save_copy`
+holds the saved payload verbatim; a second copy's first `transform_layer` composes into the
+description (`rasterized` false: the raster is not read as stale). Under a transparency lock a
+colour-only `edit_text_layer` succeeds with the bounds and origin unchanged and no
+`ink_outset`. Unlocked, an `edit_text_layer` keeps the origin, inks T11's straight Zapfino box
+within 1 px and saves `ink_outset`.
 
 Usage: python3 -B scripts/verify_text_on_path.py [--receipts <folder>] [--kinds k,…]
 """
@@ -90,7 +102,11 @@ SUBPATH_TOL = 1e-6
 BOX_TOL = 1
 WIDE_FACTOR = 3.0
 WIDE_SIZE = 48
-WIDE_CANDIDATES = [('﷽', 'Helvetica Neue'), ('⸻', 'Helvetica Neue')]
+# T11's two groups (docstring): the ink-rect witness and the half-advance witness.
+WIDE_GROUPS = [[('Zapfino', 'Zapfino')], [('﷽', 'Helvetica Neue'), ('⸻', 'Helvetica Neue')]]
+# T12's saved layer and what the build that saved it reported.
+LEGACY = ROOT / 'scripts/fixtures/text-ink-rect/legacy-zapfino.doctored'
+LEGACY_RECORD = ROOT / 'scripts/fixtures/text-ink-rect/legacy-zapfino.json'
 # The wide glyph's canvas: room for a glyph some 310 px wide on the circle's top and past the
 # line's end.
 WIDE_W, WIDE_H = 800, 640
@@ -139,6 +155,11 @@ def png_pixels(data):
 
 def wrap(angle):
     return (angle + math.pi) % (2 * math.pi) - math.pi
+
+
+def label(text):
+    """A receipt key: the text itself, or its code point when it is one character."""
+    return f'U+{ord(text):04X}' if len(text) == 1 else text
 
 
 def main():
@@ -199,6 +220,24 @@ def main():
         def ink_box(points):
             xs, ys = [x for x, _, _ in points], [y for _, y, _ in points]
             return (max(xs) - min(xs) + 1, max(ys) - min(ys) + 1)
+
+        def ink_rect(points):
+            xs, ys = [x for x, _, _ in points], [y for _, y, _ in points]
+            return [min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1]
+
+        def saved_payload(doc, name):
+            """The text payload a `save_copy` of `doc` stores: DRDC keeps layer meta as is."""
+            path = folder / name
+            call('save_copy', document_id=doc, path=str(path), format='doctored')
+            data = path.read_bytes()
+            start = data.find(b'{"alignment"')
+            assert start >= 0, (name, 'no text payload')
+            depth = 0
+            for end in range(start, len(data)):
+                depth += {b'{': 1, b'}': -1}.get(data[end:end + 1], 0)
+                if depth == 0:
+                    return data[start:end + 1].decode()
+            raise AssertionError((name, 'unterminated payload'))
 
         def in_ring(points, low, high):
             return [(round(r, 2), round(t, 3)) for r, t, _ in points if not low <= r <= high]
@@ -410,44 +449,113 @@ def main():
                 # A canvas that holds the widest candidate whole wherever it is placed.
                 wide = call('new_document', width=WIDE_W, height=WIDE_H, background='white',
                             **KINDS[kind])['document']['id']
-                chosen = None
-                for text, font in WIDE_CANDIDATES:
-                    straight = call('add_text_layer', document_id=wide, text=text, font=font,
-                                    size=WIDE_SIZE, x=100, y=250, wrap_width=0, rgba=[0, 0, 0, 1])
-                    box = ink_box(ink(wide, straight['layer']))
-                    call('delete_layer', document_id=wide, layer=straight['layer'])
-                    receipts[f'wide_U+{ord(text):04X}'] = box
-                    if box[0] > WIDE_FACTOR * WIDE_SIZE:
-                        chosen = (text, font, box)
-                        break
-                assert chosen, ('t11 no wide glyph qualifies', receipts)
-                text, font, box = chosen
-                glyph = f'U+{ord(text):04X}'
-                # The top of this circle is the middle of a flattened chord: its anchors start
-                # an eighth of an arc early, and each arc flattens into four chords at 1/64 px.
-                level = circle(phase=-math.pi / ARCS / 4, centre=WIDE_CENTRE)
-                top = call('add_text_layer', document_id=wide, text=text, font=font,
-                           size=WIDE_SIZE, rgba=[0, 0, 0, 1], alignment='center',
-                           on_path={'subpaths': [level]})
-                length = top['text']['on_path']['length']
-                call('edit_text_layer', document_id=wide, layer=top['layer'],
-                     on_path={'offset': length * (ARCS * 3 / 4 + 1 / 8) / ARCS})
-                at_top = ink_box(ink(wide, top['layer']))
-                line = {'closed': False, 'anchors': [list(WIDE_LINE[0]), list(WIDE_LINE[1])]}
-                end = call('add_text_layer', document_id=wide, text=text, font=font,
-                           size=WIDE_SIZE, rgba=[0, 0, 0, 1], alignment='center',
-                           on_path={'subpaths': [line],
-                                    'offset': WIDE_LINE[1][0] - WIDE_LINE[0][0] - 1})
-                at_end = ink_box(ink(wide, end['layer']))
+                receipts['wide'] = {}
+                for group in WIDE_GROUPS:
+                    chosen = None
+                    for text, font in group:
+                        straight = call('add_text_layer', document_id=wide, text=text, font=font,
+                                        size=WIDE_SIZE, x=100, y=250, wrap_width=0,
+                                        rgba=[0, 0, 0, 1])
+                        box = ink_box(ink(wide, straight['layer']))
+                        call('delete_layer', document_id=wide, layer=straight['layer'])
+                        receipts[f'wide_{label(text)}'] = box
+                        if box[0] > WIDE_FACTOR * WIDE_SIZE:
+                            chosen = (text, font, box)
+                            break
+                    assert chosen, ('t11 no wide glyph qualifies', group, receipts)
+                    text, font, box = chosen
+                    # The top of this circle is the middle of a flattened chord: its anchors
+                    # start an eighth of an arc early, and each arc flattens into four chords at
+                    # 1/64 px.
+                    level = circle(phase=-math.pi / ARCS / 4, centre=WIDE_CENTRE)
+                    top = call('add_text_layer', document_id=wide, text=text, font=font,
+                               size=WIDE_SIZE, rgba=[0, 0, 0, 1], alignment='center',
+                               on_path={'subpaths': [level]})
+                    length = top['text']['on_path']['length']
+                    call('edit_text_layer', document_id=wide, layer=top['layer'],
+                         on_path={'offset': length * (ARCS * 3 / 4 + 1 / 8) / ARCS})
+                    at_top = ink_box(ink(wide, top['layer']))
+                    line = {'closed': False, 'anchors': [list(WIDE_LINE[0]), list(WIDE_LINE[1])]}
+                    end = call('add_text_layer', document_id=wide, text=text, font=font,
+                               size=WIDE_SIZE, rgba=[0, 0, 0, 1], alignment='center',
+                               on_path={'subpaths': [line],
+                                        'offset': WIDE_LINE[1][0] - WIDE_LINE[0][0] - 1})
+                    at_end = ink_box(ink(wide, end['layer']))
+                    receipts['wide'][label(text)] = {'straight': box, 'top': at_top, 'end': at_end}
                 call('close_document', document_id=wide, discard_changes=True)
-                receipts['wide'] = {'glyph': glyph, 'straight': box, 'top': at_top, 'end': at_end}
                 (output / 'receipts.json').write_text(
                     json.dumps(receipts, indent=2, sort_keys=True) + '\n')
-                for name, got in (('top', at_top), ('end', at_end)):
-                    assert all(abs(g - s) <= BOX_TOL for g, s in zip(got, box)), \
-                        ('t11', name, got, box)
-                print(f'PASS {kind} t11: the {glyph} wide glyph keeps its {box} ink box on the '
-                      f'circle {at_top} and at a line\'s end {at_end}', flush=True)
+                for glyph, got in receipts['wide'].items():
+                    for name in ('top', 'end'):
+                        assert all(abs(g - s) <= BOX_TOL
+                                   for g, s in zip(got[name], got['straight'])), \
+                            ('t11', glyph, name, got[name], got['straight'])
+                print(f'PASS {kind} t11: each wide glyph keeps its straight ink box on the circle '
+                      f'and at a line\'s end: {receipts["wide"]}', flush=True)
+
+                # ---- T12 legacy reopen (RGB 8) ----------------------------------------------
+                record = json.loads(LEGACY_RECORD.read_text())
+                straight_zapfino = receipts.get('wide_Zapfino')
+                assert straight_zapfino, ('t12 T11 measured no straight Zapfino box', receipts)
+                legacy_copy = folder / 'legacy-zapfino.doctored'
+                legacy_copy.write_bytes(LEGACY.read_bytes())
+                legacy = call('open_document', path=str(legacy_copy))['document']['id']
+                index = record['layer']
+
+                def placement():
+                    row = rows(legacy)[index]
+                    bounds = {'x': row['offset_x'], 'y': row['offset_y'], 'width': row['width'],
+                              'height': row['height']}
+                    return bounds, row['text']['origin']
+
+                bounds, origin = placement()
+                reopened_box = ink_rect(ink(legacy, index))
+                receipts['legacy'] = {'bounds': bounds, 'origin': origin, 'ink': reopened_box}
+                assert bounds == record['bounds'], ('t12 bounds', bounds, record['bounds'])
+                assert origin == record['origin'], ('t12 origin', origin, record['origin'])
+                assert reopened_box == record['ink_box'], ('t12 ink', reopened_box,
+                                                           record['ink_box'])
+                stored = saved_payload(legacy, 'legacy-reopened.doctored')
+                assert stored == record['payload'], ('t12 payload', stored, record['payload'])
+                assert 'ink_outset' not in stored, ('t12 the reopen marked the layer', stored)
+                # Its raster is its description's rendering, so a second copy's first transform
+                # composes into the description; a rect read as grown would call the raster
+                # stale and rasterize it (its swash reaches only right and below, so the
+                # recovered origin alone cannot show that).
+                twin_copy = folder / 'legacy-zapfino-twin.doctored'
+                twin_copy.write_bytes(LEGACY.read_bytes())
+                twin = call('open_document', path=str(twin_copy))['document']['id']
+                turned = call('transform_layer', document_id=twin, layer=index, rotate=30)
+                assert turned.get('rasterized') is False, ('t12 the saved raster read as stale',
+                                                           turned)
+                call('close_document', document_id=twin, discard_changes=True)
+                # A transparency lock keeps a layer saved without the marker unmarked: a
+                # colour-only edit keeps its rect (TI-8).
+                call('set_layer_lock', document_id=legacy, layer=index, locks=['transparency'])
+                call('edit_text_layer', document_id=legacy, layer=index, rgba=[1, 0, 0, 1])
+                locked_bounds, locked_origin = placement()
+                assert (locked_bounds, locked_origin) == (record['bounds'], record['origin']), \
+                    ('t12 locked colour edit', locked_bounds, locked_origin)
+                locked = saved_payload(legacy, 'legacy-locked.doctored')
+                assert 'ink_outset' not in locked, ('t12 the locked edit marked the layer', locked)
+                # Unlocked, the next re-render marks it at the anchor it had.
+                call('set_layer_lock', document_id=legacy, layer=index, locks=[])
+                call('edit_text_layer', document_id=legacy, layer=index, text='Zapfino')
+                marked_bounds, marked_origin = placement()
+                marked_box = ink_box(ink(legacy, index))
+                receipts['legacy_marked'] = {'bounds': marked_bounds, 'origin': marked_origin,
+                                             'ink': marked_box}
+                assert marked_origin == record['origin'], ('t12 marked origin', marked_origin)
+                assert all(abs(g - s) <= BOX_TOL for g, s in zip(marked_box, straight_zapfino)), \
+                    ('t12 marked ink', marked_box, straight_zapfino)
+                marked = saved_payload(legacy, 'legacy-marked.doctored')
+                assert '"ink_outset"' in marked, ('t12 the edit left the layer unmarked', marked)
+                call('close_document', document_id=legacy, discard_changes=True)
+                (output / 'receipts.json').write_text(
+                    json.dumps(receipts, indent=2, sort_keys=True) + '\n')
+                print(f'PASS {kind} t12: the saved layer reopens at {origin} with its bytes, '
+                      f'keeps its rect under a transparency lock, and an edit marks it with the '
+                      f'{marked_box} ink box', flush=True)
 
             call('close_document', document_id=doc, discard_changes=True)
 

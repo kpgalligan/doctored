@@ -144,10 +144,17 @@ struct TextStyle: Equatable {
 ///
 /// Version 6 is text on a path (TextOnPath.swift): it adds `on_path`
 /// (`{"outline": <ShapeOutline of one subpath, in SOURCE space>, "offset":
-/// px, "side": "left" | "right"}`) and is written exactly when the payload
-/// carries one, in any ink, always with `artwork` (whose `ink` says what the
-/// numbers are, as at versions 3–5). A version-6 payload is point text with
-/// no line break; versions 1–5 keep their bytes.
+/// px, "side": "left" | "right"}`) and is written when the payload carries
+/// one and no `ink_outset`, in any ink, always with `artwork` (whose `ink`
+/// says what the numbers are, as at versions 3–5). A version-6 payload is
+/// point text with no line break; versions 1–5 keep their bytes.
+///
+/// Version 7 (TextInkRect.swift, designs/text-ink-rect.md) adds `ink_outset`
+/// (`[left, top, right, bottom]`, whole source px, a side > 0): how far the
+/// glyphs' ink reaches past the padded rect, which the raster rect grows by.
+/// It is written exactly when the payload carries one, in any ink, on a path
+/// or not, always with `artwork` and a stored `box_width`. The version is the
+/// highest feature a payload carries; 8 is free for Warp Text's `warp`.
 struct TextLayerPayload: Codable, Equatable {
     /// The only `type` this app understands; anything else (or nothing) means
     /// the layer's metadata was written by something that is not a text
@@ -155,12 +162,14 @@ struct TextLayerPayload: Codable, Equatable {
     static let typeName = "text"
     /// The newest schema this app writes; older builds read layers at it as
     /// plain rasters — the graceful degradation the format is designed for.
-    static let currentVersion = 6
+    static let currentVersion = 7
     /// The schema of a linear-ink payload and of an ink one (#1).
     static let linearVersion = 4
     static let cmykVersion = 5
     /// The schema of a payload on a path, in any ink.
     static let pathVersion = 6
+    /// The schema of a payload whose rect covers its glyphs' ink, in any ink.
+    static let inkRectVersion = 7
     /// The schema written when every version-2 field is at its default.
     static let legacyVersion = 1
     /// The values `alignment` may take, in options-bar segment order.
@@ -193,6 +202,10 @@ struct TextLayerPayload: Codable, Equatable {
     /// The subpath the line follows (version 6, TextOnPath.swift); nil for
     /// text laid out in its block.
     var onPath: TextOnPath?
+    /// How far the glyphs' ink reaches past the padded rect (version 7,
+    /// TextInkRect.swift); written only by `RasterDocument.inkFitted` at a
+    /// render, never by a caller building a payload.
+    var inkOutset: TextInkOutset?
 
     enum CodingKeys: String, CodingKey {
         case type, version, string, font, size, color, alignment, artwork
@@ -201,6 +214,7 @@ struct TextLayerPayload: Codable, Equatable {
         case boxWidth = "box_width"
         case originFraction = "origin_frac"
         case onPath = "on_path"
+        case inkOutset = "ink_outset"
     }
 
     init(
@@ -244,7 +258,24 @@ struct TextLayerPayload: Codable, Equatable {
         color = try container.decode(String.self, forKey: .color)
         artwork = try container.decodeIfPresent(ArtworkTextStyle.self, forKey: .artwork)
         onPath = try container.decodeIfPresent(TextOnPath.self, forKey: .onPath)
-        if version == Self.pathVersion {
+        if let sides = try container.decodeIfPresent([Int].self, forKey: .inkOutset) {
+            guard let outset = TextInkOutset(array: sides) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .inkOutset, in: container, debugDescription: "malformed ink_outset")
+            }
+            inkOutset = outset
+        }
+        if version == Self.inkRectVersion {
+            // Covering its glyphs' ink: any ink, on a path or not, always with
+            // a style that says which (TextInkRect.swift).
+            guard inkOutset != nil, artwork != nil, artwork?.ink != .srgb else {
+                throw DecodingError.dataCorruptedError(forKey: .inkOutset, in: container,
+                    debugDescription: "version 7 covers its ink, with ink_outset and artwork")
+            }
+        } else if inkOutset != nil {
+            throw DecodingError.dataCorruptedError(
+                forKey: .inkOutset, in: container, debugDescription: "ink_outset needs version 7")
+        } else if version == Self.pathVersion {
             // On a path: any ink, and always a style that says which.
             guard onPath != nil, artwork != nil, artwork?.ink != .srgb else {
                 throw DecodingError.dataCorruptedError(forKey: .onPath, in: container,
@@ -278,6 +309,10 @@ struct TextLayerPayload: Codable, Equatable {
         } else {
             box = .unspecified
         }
+        guard version != Self.inkRectVersion || box != .unspecified else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .boxWidth, in: container, debugDescription: "version 7 stores box_width")
+        }
         if let elements = try container.decodeIfPresent([Double].self, forKey: .transform) {
             guard let map = LinearMap(array: elements) else {
                 throw DecodingError.dataCorruptedError(
@@ -303,10 +338,12 @@ struct TextLayerPayload: Codable, Equatable {
             $0.ink == .linearSRGB ? Self.linearVersion : $0.ink == .cmyk ? Self.cmykVersion : 3
         }
         try container.encode(
-            onPath != nil ? Self.pathVersion : inkVersion ?? (legacy ? Self.legacyVersion : 2),
+            inkOutset != nil ? Self.inkRectVersion
+                : onPath != nil ? Self.pathVersion : inkVersion ?? (legacy ? Self.legacyVersion : 2),
             forKey: .version)
         try container.encodeIfPresent(artwork, forKey: .artwork)
         try container.encodeIfPresent(onPath, forKey: .onPath)
+        try container.encodeIfPresent(inkOutset?.array, forKey: .inkOutset)
         try container.encode(string, forKey: .string)
         try container.encode(font, forKey: .font)
         try container.encode(size, forKey: .size)
@@ -333,7 +370,8 @@ struct TextLayerPayload: Codable, Equatable {
     /// can be written as version 1 (the box is version-1 compatible and
     /// does not count).
     var isLegacyEncodable: Bool {
-        artwork == nil && onPath == nil && transform.isIdentity && originFraction == .zero
+        artwork == nil && onPath == nil && inkOutset == nil && transform.isIdentity
+            && originFraction == .zero
             && weight == 5 && !italic
             && tracking == 0 && leading == 0 && baselineShift == 0 && !underline
             && !strikethrough
@@ -536,8 +574,10 @@ enum TextLayer {
     /// above the block and is drawn there regardless; the raster has to
     /// cover it. Each line's ink is bounded by the font's ascender above its
     /// baseline (`NSLayoutManager.location`, which matches the drawn
-    /// baseline to the pixel) and its descender below; accents and swashes
-    /// beyond those are what `padding(forSize:)` is for. At the natural
+    /// baseline to the pixel) and its descender below; accents beyond those
+    /// are what `padding(forSize:)` is for, and ink past the padding (a
+    /// swash) is what a rendered payload's `ink_outset` adds to the source
+    /// rect (TextInkRect.swift), never this layout rect. At the natural
     /// height every line stays inside the used rect, so a version-1 layer's
     /// rect is exactly its pre-typography one.
     ///
@@ -597,21 +637,28 @@ enum TextLayer {
     }
 
     /// The padded source rect (DescribedLayer.swift): the ink-safe layout
-    /// rect inset by −`padding(forSize:)` on every side. For a version-1
+    /// rect inset by −`padding(forSize:)` on every side, grown by the
+    /// payload's stored `ink_outset` (TextInkRect.swift). For a version-1
     /// layer the layout rect is the plain used rect, so legacy rasters and
     /// the (−pad, −pad) origin rule of `LayerDescription.rasterOrigin` are
     /// untouched.
     static func sourceRect(_ payload: TextLayerPayload) -> CGRect? {
         // Text on a path covers its outline's reach instead (TextOnPath.swift).
-        if payload.onPath != nil { return onPathSourceRect(payload) }
-        return layout(payload).map { sourceRect(layoutRect: $0.rect, size: payload.size) }
+        if payload.onPath != nil {
+            return onPathSourceRect(payload).map { payload.inkOutset?.growing($0) ?? $0 }
+        }
+        return layout(payload).map {
+            sourceRect(layoutRect: $0.rect, size: payload.size, outset: payload.inkOutset)
+        }
     }
 
     /// `sourceRect` for a layout rect already measured, so a caller holding
-    /// the layout (the renderer) does not lay the string out again.
-    static func sourceRect(layoutRect: CGRect, size: Double) -> CGRect {
+    /// the layout (the renderer) does not lay the string out again; `outset`
+    /// is the payload's stored `ink_outset`.
+    static func sourceRect(layoutRect: CGRect, size: Double, outset: TextInkOutset? = nil) -> CGRect {
         let pad = CGFloat(padding(forSize: size))
-        return layoutRect.insetBy(dx: -pad, dy: -pad)
+        let padded = layoutRect.insetBy(dx: -pad, dy: -pad)
+        return outset?.growing(padded) ?? padded
     }
 
     // MARK: - Rendering
@@ -662,29 +709,17 @@ enum TextLayer {
               let layout = measure(laidOut, color: color,
                                    layoutManager: laidOut.nsAlignment == .left ? layoutManager : nil)
         else { return nil }
+        // Either rect grows by the stored ink outset (TextInkRect.swift).
         let measuredSource = onPath
             ? onPathSourceRect(payload, stack: layout.stack)
-            : sourceRect(layoutRect: layout.rect, size: payload.size)
+                .map { payload.inkOutset?.growing($0) ?? $0 }
+            : sourceRect(layoutRect: layout.rect, size: payload.size, outset: payload.inkOutset)
         guard let source = measuredSource else { return nil }
         let frac = DescribedLayer.anchorFraction(anchor)
         guard let rect = payload.transform.rasterRect(of: source, fraction: frac) else {
             return nil
         }
-
-        // What actually draws: the same string with the payload's alignment.
-        // Left draws through the very stack that measured the block — the
-        // same string in the same wrap width, so the measure IS the draw's
-        // typesetting; center and right lay the aligned string out in a box
-        // exactly the block wide, so lines shift within the block while the
-        // widest line — and the block itself — stay put.
-        let stack: TypesetStack
-        if laidOut.nsAlignment == .left {
-            stack = layout.stack
-        } else {
-            stack = typeset(
-                payload.attributedString(style: payload.style, override: color),
-                wrap: layout.rect.width, layoutManager: layoutManager)
-        }
+        let stack = drawnStack(laidOut, layout: layout, color: color, layoutManager: layoutManager)
 
         return DescribedDrawingPlan(
             width: rect.width, height: rect.height,
@@ -709,6 +744,24 @@ enum TextLayer {
                 return true
             }
         }
+    }
+
+    /// What actually draws `laidOut`, measured as `layout`: the same string
+    /// with the payload's alignment. Left draws through the very stack that
+    /// measured the block — the same string in the same wrap width, so the
+    /// measure IS the draw's typesetting; center and right lay the aligned
+    /// string out in a box exactly the block wide, so lines shift within the
+    /// block while the widest line — and the block itself — stay put. The ink
+    /// measure reads its glyphs from this stack too (TextInkRect.swift).
+    static func drawnStack(
+        _ laidOut: TextLayerPayload,
+        layout: (measured: NSAttributedString, rect: CGRect, stack: TypesetStack),
+        color: NSColor?, layoutManager: NSLayoutManager?
+    ) -> TypesetStack {
+        guard laidOut.nsAlignment != .left else { return layout.stack }
+        return typeset(
+            laidOut.attributedString(style: laidOut.style, override: color),
+            wrap: layout.rect.width, layoutManager: layoutManager)
     }
 
     /// The payload string for an alignment ("left" | "center" | "right");

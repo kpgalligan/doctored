@@ -88,7 +88,16 @@ extension RasterDocument {
                     .resolved(rasterWidth: info.width)
             else { throw failure("its text description could not be read.") }
             payload.font = family
-            guard let anchor = missingFontAnchor(target.layer, replacement: payload) else {
+            // The anchor recentres the rect the render will publish, ink outset included
+            // (TextInkRect.swift), on the saved raster. A layer saved without `ink_outset` was
+            // cut by the unmarked rule, so its unmarked rect recentres: the family it was made
+            // in keeps its anchor exactly, and the render grows its raster there (TI-4).
+            var placed = payload
+            if payload.inkOutset != nil,
+               case let .text(fitted) = result.inkFitted(.text(payload), replacing: target.layer) {
+                placed = fitted
+            }
+            guard let anchor = missingFontAnchor(target.layer, replacement: placed) else {
                 throw failure("its position could not be recovered from its pixels.")
             }
             let rendered: RasterDocument?

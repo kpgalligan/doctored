@@ -2,7 +2,7 @@
 
 - **Status:** Accepted — shipped 2026-11-16, an item of [#19](https://github.com/kpgalligan/doctored/issues/19)
   (Warp Text and per-subpath operations stay open there).
-- **Shares** its geometry kernel and its payload version with Warp Text ([warp-text.md](warp-text.md)).
+- **Shares** its geometry kernel with Warp Text ([warp-text.md](warp-text.md)).
 - **Code:** core `path_along.rs`, `outline_map.rs`, `ffi_path_along.rs`; app `TextOnPath.swift` (the value,
   the source rect, the metrics), `ArtworkTextOnPath.swift` (the placement the capture asks),
   `DoctoredCore+PathAlong.swift`, `AgentServer+TextOnPath.swift`, `EditorViewController+TextOnPath.swift`.
@@ -21,11 +21,12 @@ has the path model and its flattener (`path_flatten.rs`), but no arc length and 
 - **TP-1 — The description.** `TextLayerPayload` version 6 adds an optional `on_path`, written only when
   present: `{"outline": <ShapeOutline, exactly one subpath, at most 1,024 anchors>, "offset": px, "side":
   "left" | "right"}`, in the layer's SOURCE space (relative to the anchor), so Move, Free Transform and Image
-  Size keep working through the anchor and `transform` with no new code. A payload is version 6 exactly when
-  it carries `on_path` or `warp` (Warp Text), in any ink, and then always carries `artwork`, whose `ink` says
-  what the numbers are (the rule shape versions 5–7 use). Versions 1–5 keep their bytes and their decode guard
-  (3 sRGB, 4 linear, 5 CMYK). Both keys at once is "not a text layer". No DRDC word: the description is the
-  opaque per-layer meta (and the typed description table's copy of the same JSON).
+  Size keep working through the anchor and `transform` with no new code. A payload carrying `on_path` is
+  version 6 (a version is the highest feature a payload carries: 7 `ink_outset`, 8 Warp Text's `warp`,
+  [text-ink-rect.md](text-ink-rect.md) TI-6), in any ink, and then always carries `artwork`, whose `ink` says
+  what the numbers are. Versions 1–5 keep their bytes and their decode guard (3 sRGB, 4 linear, 5 CMYK).
+  `on_path` and `warp` at once is "not a text layer". No DRDC word: the description is the opaque per-layer
+  meta (and the typed description table's copy of the same JSON).
 - **TP-2 — One line.** A text on a path is point text; a string with a line break is refused. TextKit lays the
   line out straight as today (kerning, tracking, runs); each glyph is then placed RIGIDLY: the x of its
   advance's centre gives a distance `s = start + x` along the subpath, the frame at `s` gives a point and a
@@ -86,9 +87,10 @@ has the path model and its flattener (`path_flatten.rs`), but no arc length and 
   the ink's mean angle by Δ/r; alignment moves it by half and the whole advance; `side` puts it inside; an
   underline stays in the annulus; `on_path: null` equals a never-placed layer; one undo step each; reopen and
   Replace Missing Fonts equal in RGB 8/16/32, Gray, Lab and CMYK; an open arc reports `hidden_glyphs`; the
-  refusals; a wide fallback glyph (U+FDFD) uncut on a circle's top and at a line's end. Red on a build that
-  ignores `on_path`, and under mutants (rotation dropped, alignment ignored, decorations left straight,
-  `on_path` not carried by `edit_text_layer`, the `A/2` term dropped).
+  refusals; two wide glyphs uncut on a circle's top and at a line's end: Zapfino's "Zapfino" ligature and a
+  fallback glyph (U+FDFD, else U+2E3B), the one whose box needs the `A/2` term (Zapfino's taller face holds its glyph
+  without it). Red on a build that ignores `on_path`, and under mutants (rotation dropped, alignment ignored,
+  decorations left straight, `on_path` not carried by `edit_text_layer`, the `A/2` term dropped).
 - jobs-probe "text on a path": both items' validation in every `colourModeRows` row, one recorded step each
   that replays, a text-session commit keeping `on_path` and its line break refused.
 - Hand check (the owner's): Place Text on Path on a drawn path by eye — spacing on tight curves, the straight

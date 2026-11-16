@@ -171,6 +171,7 @@ Detail belongs in the source file's own header comment.
 - `TextLayer.swift` — text layers: `TextBox`, `TextStyle`, `TextLayerPayload` (the meta) and `TextLayer`, the one render-and-name entry point the tool and the agent share.
 - `EditorViewController+Text.swift` — the text tool's layer logic: click to open or re-open a text layer, the panel's double-click, and the commit into a re-editable text layer.
 - `TextOnPath.swift` — text on a path (payload v6): `TextOnPath`, the straightened line, the TP-6 source rect, `onPathStart` and the length / hidden-glyph metrics.
+- `TextInkRect.swift` — a text raster covers its glyphs' ink (payload v7 `ink_outset`): `TextInkOutset`, the measure, `shownGlyphs` and `inkFitted`, the one stamping rule.
 - `EditorViewController+TextOnPath.swift` — Layer ▸ Place Text on Path and Remove Text from Path (`edit_text_layer` through `runPathStep`) and their validation.
 - `EditorViewController+TextTypography.swift` — the style the text tool types with: the live family/size/alignment plus the options store's weight, tracking, leading and decorations.
 - `MissingFonts.swift` — text layers whose family is not installed: `missingFontLayers` and `replacingMissingFonts`, one undo step, with the per-axis placement rule.

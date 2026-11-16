@@ -396,8 +396,11 @@ extension RasterDocument {
         // whatever canvas it was last rendered for, it covers this one.
         let ink = artworkInk
         // A Grayscale document stores each colour as its gray (#1 phase 6a-i, GrayArtwork.swift).
-        let description = try grayArtwork(description.fitted(toCanvas: (width, height)).inInk(ink)
-            .withOriginFraction(DescribedLayer.anchorFraction(anchor)))
+        // Text covers its glyphs' ink, measured here on every render (TextInkRect.swift).
+        let description = try inkFitted(
+            grayArtwork(description.fitted(toCanvas: (width, height)).inInk(ink)
+                .withOriginFraction(DescribedLayer.anchorFraction(anchor))),
+            replacing: replacing ? layer : nil)
         guard let json = description.json(),
               json.utf8.count <= NativeArtwork.maximumDescriptionBytes,
               let profile = iccProfile else { throw NativeArtworkEvaluation.failure("Artwork needs a bounded description and an explicit document ICC profile.") }

@@ -2,12 +2,12 @@
 
 - **Status:** Accepted, not built — an item of [#19](https://github.com/kpgalligan/doctored/issues/19). The
   decisions below are what a build follows; the code does not exist yet.
-- **Shares** the outline-map kernel (TP-7) and payload version 6 (TP-1) with
-  [type-on-a-path.md](type-on-a-path.md).
+- **Shares** the outline-map kernel (TP-7) with [type-on-a-path.md](type-on-a-path.md); its payload
+  version is 8 ([text-ink-rect.md](text-ink-rect.md) TI-6).
 
 ## Decisions (WT-1..WT-7)
 
-- **WT-1 — The description.** `TextLayerPayload` version 6 adds an optional `warp`: `{"style", "bend",
+- **WT-1 — The description.** `TextLayerPayload` version 8 adds an optional `warp`: `{"style", "bend",
   "horizontal", "vertical"}`, each number in −1…1. All three at 0 is no warp and is never stored: the tools
   remove the key, and an edit that changes nothing registers no step. `warp` and `on_path` on one layer is
   "not a text layer"; a tool that sets one while the other is present refuses and names it.

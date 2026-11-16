@@ -223,9 +223,12 @@ extension EditorViewController {
             // by an unchanged ⌘Return, so the comparison treats its
             // unspecified box as the session's; the session's payload carries
             // fraction [0, 0] by construction, and the anchor — the layer's
-            // own — is re-stamped by the re-render unchanged.
+            // own — is re-stamped by the re-render unchanged. The ink outset
+            // is the render's to measure (TextInkRect.swift), never the session's.
             let comparable = old.box == .unspecified ? old.withBox(payload.box) : old
-            guard comparable.withOriginFraction(.zero) != payload else { return true }
+            guard comparable.withOriginFraction(.zero).withInkOutset(nil) != payload else {
+                return true
+            }
             // The name follows the text only while it still IS the text: a
             // name the user typed themselves survives the re-edit.
             let nameFollowsText = info.name == TextLayer.layerName(for: old.string)

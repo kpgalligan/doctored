@@ -375,8 +375,11 @@ extension RasterDocument {
         let own = try previous.map { try cmykMatches(of: $0) } ?? []
         let placed = description.fitted(toCanvas: (width, height))
             .withOriginFraction(DescribedLayer.anchorFraction(anchor))
-        let inked = try cmykArtwork(placed, matching: matching + own, previous: previous,
-                                    options: Self.artworkColorOptions)
+        // Text covers its glyphs' ink, measured on the inked payload (TextInkRect.swift).
+        let inked = try inkFitted(
+            cmykArtwork(placed, matching: matching + own, previous: previous,
+                        options: Self.artworkColorOptions),
+            replacing: replacing ? layer : nil)
         guard let json = inked.json(), json.utf8.count <= NativeArtwork.maximumDescriptionBytes else {
             throw NativeArtworkEvaluation.failure("Artwork needs a bounded description.")
         }

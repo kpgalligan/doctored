@@ -110,18 +110,17 @@ struct TextOnPath: Codable, Equatable {
 }
 
 extension TextLayerPayload {
-    /// The payload on `value`'s path (nil takes it off). Setting one makes the text point
-    /// text, and a payload with no style first takes one from its sRGB hex colour, since a
-    /// version-6 payload always carries `artwork`.
+    /// The payload on `value`'s path (nil takes it off), with no ink outset either way: the
+    /// next render measures its own (TextInkRect.swift, TI-5). Setting one makes the text point
+    /// text, and a payload with no style first takes one from its sRGB hex colour
+    /// (`withArtwork`), since a version-6 payload always carries `artwork`.
     func withOnPath(_ value: TextOnPath?) -> TextLayerPayload {
         var result = self
         result.onPath = value
+        result.inkOutset = nil
         guard value != nil else { return result }
         result.box = .point
-        if result.artwork == nil {
-            result.artwork = ArtworkTextStyle(rgba: ArtworkColor.authored(nsColor), in: .srgb)
-        }
-        return result
+        return result.withArtwork()
     }
 
     /// The line as TextKit lays it out before it is placed on the path: left-aligned point
@@ -190,31 +189,15 @@ extension TextLayer {
         return (length, frames.filter { $0 == nil }.count)
     }
 
-    /// Each shown glyph of a one-line layout: its x in the layout and its advance, read from
-    /// the face its run was typeset in (the storage's `.font` at the glyph's character, so a
-    /// fallback face counts). Null and control glyphs (a ligature's absorbed characters, a
-    /// line break) have no ink and are left out.
+    /// Each shown glyph of a one-line layout (`shownGlyphs`, TextInkRect.swift): its x in the
+    /// layout and its advance, read from the face its run was typeset in.
     private static func glyphAdvances(of stack: TypesetStack) -> [(x: Double, advance: Double)] {
-        let manager = stack.manager
-        var result: [(x: Double, advance: Double)] = []
-        withExtendedLifetime(stack.storage) {
-            for index in 0..<manager.numberOfGlyphs {
-                let property = manager.propertyForGlyph(at: index)
-                guard !property.contains(.null), !property.contains(.controlCharacter) else { continue }
-                let character = manager.characterIndexForGlyph(at: index)
-                guard character < stack.storage.length,
-                      let font = stack.storage.attribute(.font, at: character, effectiveRange: nil)
-                        as? NSFont
-                else { continue }
-                var glyph = manager.cgGlyph(at: index)
-                var advance = CGSize.zero
-                CTFontGetAdvancesForGlyphs(font as CTFont, .horizontal, &glyph, &advance, 1)
-                let fragment = manager.lineFragmentRect(forGlyphAt: index, effectiveRange: nil)
-                let x = fragment.minX + manager.location(forGlyphAt: index).x
-                guard x.isFinite, advance.width.isFinite else { continue }
-                result.append((Double(x), Double(advance.width)))
-            }
+        shownGlyphs(of: stack).compactMap { shown -> (x: Double, advance: Double)? in
+            var glyph = shown.glyph
+            var advance = CGSize.zero
+            CTFontGetAdvancesForGlyphs(shown.font, .horizontal, &glyph, &advance, 1)
+            guard advance.width.isFinite else { return nil }
+            return (Double(shown.origin.x), Double(advance.width))
         }
-        return result
     }
 }

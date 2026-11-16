@@ -1357,6 +1357,23 @@ headroom 4, sees HDR Preview displayed without the channel, standing down with i
 the base 255 beside the ink), engaging again when the spot row's eye is off and standing down when
 it is on, and engaging after one undo of the add.
 
+"text ink rect" (`text_ink_rect.swift`, designs/text-ink-rect.md) checks that a straight text
+layer's raster covers its glyphs' ink, each section reporting its own failure. (a) Zapfino's
+"Zapfino" at 48 pt leaves the raster's outermost ring clear for left, center and right, baseline
+shift ±20, leading 30, two lines, tracking 5 and a 30° map. (a-cmyk) The same layer in a CMYK 8
+document is marked, its stored ink CMYK, and its ring (read through the layer's full-size CMYK
+thumbnail) is clear. (b) Hand-written payloads at versions 1 to 6 decode and re-encode byte for
+byte, a version 7 round-trips, and eight malformed `ink_outset` forms are refused. (c) A version
+7's rect is its unmarked rect grown by its four numbers, and Helvetica Neue "Hello" is never
+marked. (d) The Zapfino layer cut back to what a build before the marker saved keeps its anchor
+and is not stale; `edit_text_layer` marks it equal to the direct render, 30° and back about its
+anchor marks it in place, and Replace Missing Fonts back to Zapfino keeps a leading-30 twin's
+anchor. (d-marked) The marked leading-30 twin, its family made missing and replaced by Helvetica
+Neue, keeps its raster's y-centre within 1 px. (d-lock) Under a transparency lock a colour-only
+edit keeps that layer unmarked with its rect, a resize is refused, and once unlocked a colour edit
+marks it; a marked layer keeps its rect and outset under the lock. (e) Reopening the marked layer
+in the text session and committing unchanged adds no undo step.
+
 All fixtures, settings, Actions, logs and the copy of the probe binary that runs
 are confined to a private temporary directory, retained on failure or with `--keep`.
 The linked probe is built through `scripts/probe_build.py` and cached under

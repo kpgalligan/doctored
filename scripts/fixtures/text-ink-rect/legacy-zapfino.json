@@ -1,0 +1,57 @@
+{
+  "base_commit": "73bb5f9236e59adbcc78bd50037e92f4590e3fd6",
+  "bounds": {
+    "height": 182,
+    "width": 300,
+    "x": 30,
+    "y": 110
+  },
+  "calls": [
+    {
+      "arguments": {
+        "background": "transparent",
+        "depth": 8,
+        "height": 400,
+        "profile": "srgb",
+        "width": 400
+      },
+      "tool": "new_document"
+    },
+    {
+      "arguments": {
+        "font": "Zapfino",
+        "rgba": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "size": 48,
+        "text": "Zapfino",
+        "wrap_width": 0,
+        "x": 40,
+        "y": 120
+      },
+      "tool": "add_text_layer"
+    },
+    {
+      "arguments": {
+        "format": "doctored",
+        "path": "scripts/fixtures/text-ink-rect/legacy-zapfino.doctored"
+      },
+      "tool": "save_copy"
+    }
+  ],
+  "ink_box": [
+    36,
+    111,
+    294,
+    181
+  ],
+  "layer": 1,
+  "origin": {
+    "x": 40,
+    "y": 120
+  },
+  "payload": "{\"alignment\":\"left\",\"artwork\":{\"evaluation\":\"outline_area_v1\",\"intrinsicGlyphs\":\"platform_byte_assets_v1\",\"rgba\":[0,0,0,1],\"runs\":[]},\"baseline_shift\":0,\"box_width\":0,\"color\":\"#000000FF\",\"font\":\"Zapfino\",\"italic\":false,\"leading\":0,\"origin_frac\":[0,0],\"size\":48,\"strikethrough\":false,\"string\":\"Zapfino\",\"tracking\":0,\"transform\":[1,0,0,1],\"type\":\"text\",\"underline\":false,\"version\":3,\"weight\":5}"
+}
