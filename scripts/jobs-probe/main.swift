@@ -415,6 +415,8 @@ do {
         ("text on a path", verifyTextOnPath),
         // A straight text layer's raster covers its glyphs' ink (text_ink_rect.swift).
         ("text ink rect", verifyTextInkRect),
+        // Layer ▸ Warp Text… (warp_text.swift).
+        ("warp text", verifyWarpText),
         // Round 2: File ▸ New at 32 bits, Convert Precision, Select People,
         // Lens Correction's profile, the float canvas tools, Select and Mask,
         // the Magnetic Lasso, Presence and the Develop Filter at 32 bits.

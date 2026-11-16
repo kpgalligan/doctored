@@ -10,7 +10,8 @@ import AppKit
 /// typography-argument parser both text tools share (the options bar's
 /// knobs and ranges), and the `transform` argument parser the shape tools
 /// share. Their `on_path` argument (AgentServer+TextOnPath.swift) mirrors
-/// Layer ▸ Place Text on Path and Remove Text from Path, which run
+/// Layer ▸ Place Text on Path and Remove Text from Path, and their `warp`
+/// argument (AgentServer+TextWarp.swift) Layer ▸ Warp Text…, which run
 /// edit_text_layer through the dispatch.
 extension AgentServer {
     /// This file's MCP tools; merged by AgentServer+Registry.swift.
@@ -254,6 +255,7 @@ extension AgentServer {
             fields["origin"] = ["x": Double(anchor.x), "y": Double(anchor.y)]
         }
         if let onPath = textOnPathFields(payload, anchor: anchor) { fields["on_path"] = onPath }
+        if let warp = textWarpFields(payload) { fields["warp"] = warp }
         // A family this Mac lacks (`TextStyle.isInstalled`): the layer keeps its saved pixels
         // until replace_missing_fonts replaces it.
         if !payload.style.isInstalled { fields["font_missing"] = true }
@@ -319,6 +321,9 @@ extension AgentServer {
         guard let anchor = onPath != nil ? placed?.anchor : givenAnchor else { throw xyRefusal }
         let x = Double(given?.x ?? anchor.x)
         if onPath != nil { try refuseTextOnPathLayout(a, text: text) }
+        // `warp`: absent or null or all zero is none (AgentServer+TextWarp.swift).
+        let warp: TextWarp? = try textWarpArg(a, current: nil) ?? nil
+        try refuseWarpOnPath(a, warp: warp, onPath: onPath)
         let size = try textSizeArg(a) ?? 48
         let family = try textFamily(a, size: size) ?? Self.defaultTextFamily
         let ink = doc.authoringInk
@@ -337,7 +342,7 @@ extension AgentServer {
             string: text, style: style, color: color, box: box, transform: transform, ink: ink)
         payload.alignment = alignment
         payload.artwork = try artworkTextStyle(a, payload: payload)
-        payload = payload.withOnPath(onPath)
+        payload = payload.withOnPath(onPath).withWarp(warp)
         let name = TextLayer.layerName(for: text)
         // `position` / `layer` (AgentServer+Adjustments.insertionArguments),
         // the same pair every layer-creating tool takes. Where the new layer
@@ -400,6 +405,15 @@ extension AgentServer {
                 message: "Layer \(index)'s text description has no recoverable position; "
                     + "re-create it with add_text_layer.")
         }
+        // `warp`: absent keeps the layer's, null or all zero takes it off, an object sets it
+        // over the layer's (AgentServer+TextWarp.swift). A call asking only for the warp the
+        // layer already has changes nothing and leaves no step.
+        let warp = try textWarpArg(a, current: current.warp) ?? current.warp
+        if Self.asksOnlyForWarp(a), warp == current.warp {
+            return try textLayerResult(
+                layer: index, name: info.name, payload: doc.textPayload(index) ?? current,
+                document: document)
+        }
         let text = stringArg(a, "text") ?? current.string
         guard !text.isEmpty else {
             throw ToolError(
@@ -417,6 +431,7 @@ extension AgentServer {
             a, doc: doc, current: current.onPath, anchor: anchor, transform: transform
         ).map { $0.value } ?? current.onPath
         if onPath != nil { try refuseTextOnPathLayout(a, text: text) }
+        try refuseWarpOnPath(a, warp: warp, onPath: onPath)
         // The box: wrap_width, else the layer's stored box; a layer saved
         // before widths were stored re-wraps at this tool's own pre-change
         // default (from its origin to the canvas's right edge) and stores
@@ -434,7 +449,7 @@ extension AgentServer {
             string: text, style: style, color: color, box: box, transform: transform, ink: ink)
         payload.alignment = alignment
         payload.artwork = try artworkTextStyle(a, payload: payload, current: current.artwork)
-        payload = payload.withOnPath(onPath)
+        payload = payload.withOnPath(onPath).withWarp(warp)
         let name = TextLayer.layerName(for: text)
         // The name follows the text only while it still IS the text: a name
         // somebody typed themselves survives the re-render.

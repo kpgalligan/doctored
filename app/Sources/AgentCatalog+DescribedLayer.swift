@@ -91,6 +91,9 @@ extension AgentServer {
                     ],
                     "on_path": Self.textOnPathProperty(
                         "Puts the text on a path from the start."),
+                    "warp": Self.textWarpProperty(
+                        "Warps the text from the start; style is required and an omitted number "
+                            + "is 0."),
                     "size": [
                         "type": "number",
                         "description": "Font size in px (4-1000, default 48).",
@@ -185,6 +188,11 @@ extension AgentServer {
                         "Omit to keep the layer's; null takes the text off its path (Layer ▸ "
                             + "Remove Text from Path); an object with neither subpaths nor "
                             + "path_name keeps the stored path and changes offset or side."),
+                    "warp": Self.textWarpProperty(
+                        "Omit to keep the layer's; null or all three numbers 0 removes it; in an "
+                            + "object an omitted style or number keeps the layer's (a layer with "
+                            + "no warp needs style, and an omitted number is 0). Passing only "
+                            + "the warp the layer already has changes nothing."),
                     "wrap_width": [
                         "type": "number",
                         "description": "px; the block wraps at this SOURCE-space width and "
@@ -604,11 +612,12 @@ extension AgentServer {
         ["type": ["object", "null"],
          "description": "Text on a path: the one line follows one subpath, each glyph upright "
             + "on it at the centre of its advance, underline and strikethrough bent with it. "
-            + lead + " {subpaths | path_name, subpath?, offset?, side?} in canvas px: subpaths in "
-            + "set_path's form or path_name a stored path's name (\"Work Path\" included); "
+            + lead + " {subpaths | path_name, subpath?, offset?, side?}: subpaths in set_path's "
+            + "form, in canvas px, or path_name a stored path's name (\"Work Path\" included); "
             + "subpath the index of the one subpath (required when there are more; at most "
-            + "1024 anchors); offset px along it where the line's alignment point sits (left "
-            + "starts there, center is centred on it, right ends there; default 0); side "
+            + "1024 anchors); offset where the line's alignment point sits along it, in the "
+            + "layer's own (untransformed) px (left starts there, center is centred on it, right "
+            + "ends there; default 0); side "
             + "\"left\" (default: along the path's direction, above a path drawn left to right) "
             + "or \"right\" (from its other end, on the other side). The text is one line of "
             + "point text: a line break or wrap_width is refused; past an open subpath's ends "
@@ -621,6 +630,29 @@ extension AgentServer {
             "subpath": ["type": "integer", "minimum": 0],
             "offset": ["type": "number"],
             "side": ["type": "string", "enum": TextOnPath.sides],
+         ]]
+    }
+
+    /// The text tools' `warp` (AgentServer+TextWarp.swift), Layer ▸ Warp Text…'s mirror; `lead`
+    /// says what the tool does with it.
+    private static func textWarpProperty(_ lead: String) -> [String: Any] {
+        let number: [String: Any] = ["type": "number", "minimum": -1, "maximum": 1]
+        return ["type": ["object", "null"],
+         "description": "Warp Text: the text block's glyphs, underline and strikethrough bent "
+            + "through an envelope over the block (the layer stays editable text). " + lead
+            + " {style, bend?, horizontal?, vertical?}: style one of "
+            + TextWarp.styles.joined(separator: ", ") + " (arch lifts the middle, upper and "
+            + "lower bow one edge, bulge and inflate swell the middle, squeeze narrows it, flag "
+            + "waves, rise slants, arc wraps the block on a circle — a bend of ±1 is a half "
+            + "circle); bend, horizontal and vertical from -1 to 1 (horizontal scales height "
+            + "across the block, vertical width down it). Not with on_path: a layer is on a path "
+            + "or warped, not both. Colour glyphs (emoji) are refused under a warp. Replies "
+            + "report warp {style, bend, horizontal, vertical}.",
+         "properties": [
+            "style": ["type": "string", "enum": TextWarp.styles],
+            "bend": number,
+            "horizontal": number,
+            "vertical": number,
          ]]
     }
 

@@ -4261,16 +4261,35 @@ bool dr_path_frames(const char *shape_json, uint32_t subpath, bool reversed,
  *    "start":n,"baseline":n,"shift":n}
  * maps (x, y) to F.point + up*(baseline - y + shift), F the frame at
  * start + x on that subpath continued straight past an open one's ends and
- * up = (F.ty, -F.tx); absent numbers are 0, absent reversed false. NULL with
+ * up = (F.ty, -F.tx); absent numbers are 0, absent reversed false. Or
+ * (Warp Text, core outline_envelope.rs, whose module doc holds the formulas):
+ *   {"kind":"envelope","style":"arch|upper|lower|bulge|squeeze|inflate|flag|rise|arc",
+ *    "rect":[x,y,w,h],"bend":n,"horizontal":n,"vertical":n}
+ * bends the box rect (w, h > 0, every number within 1e9) onto itself; bend,
+ * horizontal and vertical lie in -1..1 and absent ones are 0. NULL with
  * err_out set for a NULL buffer with a non-zero count, more than 262144
  * verbs or points in or out, an unknown verb, a mismatched point count, a
- * coordinate that is not finite or past 1e9, NULL or malformed map JSON, an
- * unknown kind, a number that is not finite, no such subpath or one with no
- * length, or a tolerance that is not positive and finite (a smaller one is
- * raised to 1/4096). Free with dr_string_free. */
+ * coordinate that is not finite or past 1e9, a mapped point that is not
+ * finite or past 1e9 ("the mapped outline leaves its finite geometry
+ * bounds"), NULL or malformed map JSON, an unknown kind or style, a number
+ * that is not finite or (envelope) outside -1..1, a rect not finite, past
+ * 1e9 or empty, no such subpath or one with no length, or a tolerance that
+ * is not positive and finite (a smaller one is raised to 1/4096). Free with
+ * dr_string_free. */
 char *dr_outline_map(const uint8_t *commands, size_t command_count,
                      const double *points, size_t point_count,
                      const char *map_json, double tolerance, char **err_out);
+
+/* The box holding the image of every point of the region x, y, width,
+ * height under the envelope map in `map_json` (dr_outline_map's
+ * "kind":"envelope" form), as "[min_x,min_y,max_x,max_y]" at full precision:
+ * exact when horizontal and vertical are 0, a cover otherwise. Warp Text's
+ * raster rect. NULL with err_out set for NULL or malformed JSON, a kind
+ * other than envelope, an envelope refusal (as dr_outline_map's), or a
+ * region not finite, negative in size or past 1e9. Free with
+ * dr_string_free. */
+char *dr_outline_map_bounds(const char *map_json, double x, double y,
+                            double width, double height, char **err_out);
 
 /* The shape with one more anchor on segment `segment` of subpath `subpath`
  * at parameter t (dr_path_hit's), its outline unchanged to four decimals: a

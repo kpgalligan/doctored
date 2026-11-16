@@ -155,6 +155,7 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+Text.swift` — `add_text_layer` and `edit_text_layer`, mirroring the text tool's commit and re-open, so either way renders the same layer through its description.
 - `AgentServer+MissingFonts.swift` — `list_missing_fonts` and `replace_missing_fonts`, mirroring Layer ▸ Replace Missing Fonts…'s rows and Apply over the same ops.
 - `AgentServer+TextOnPath.swift` — the text tools' `on_path` argument (canvas → source), its refusals and the reply's `on_path` object; Place / Remove Text on Path's mirror.
+- `AgentServer+TextWarp.swift` — the text tools' `warp` argument, its refusals (warp and on_path never together) and the reply's `warp` object; Warp Text…'s mirror.
 - `AgentServer+TransformJobs.swift` — the final Free Transform / Distort raster commits as worker jobs (only pure affine/perspective resampling) and Transform Again's memory.
 - `SoftBrush.swift` — `SoftBrush` is the dab engine behind the paint tools' tip options.
 - `BrushPreset.swift` — the paint tools' tip presets (built-ins, then the user's): named sets of the six tip fields, the file schema; size and opacity stay untouched.
@@ -172,7 +173,9 @@ Detail belongs in the source file's own header comment.
 - `EditorViewController+Text.swift` — the text tool's layer logic: click to open or re-open a text layer, the panel's double-click, and the commit into a re-editable text layer.
 - `TextOnPath.swift` — text on a path (payload v6): `TextOnPath`, the straightened line, the TP-6 source rect, `onPathStart` and the length / hidden-glyph metrics.
 - `TextInkRect.swift` — a text raster covers its glyphs' ink (payload v7 `ink_outset`): `TextInkOutset`, the measure, `shownGlyphs` and `inkFitted`, the one stamping rule.
+- `TextWarp.swift` — Warp Text (payload v8): `TextWarp`, `TextLayerPayload.withWarp` and the WT-4 source rect (`dr_outline_map_bounds` of the straight rect).
 - `EditorViewController+TextOnPath.swift` — Layer ▸ Place Text on Path and Remove Text from Path (`edit_text_layer` through `runPathStep`) and their validation.
+- `WarpTextSheetController.swift` / `EditorViewController+WarpText.swift` — Layer ▸ Warp Text…: style popup, three sliders, a preview; the action, validation and commit.
 - `EditorViewController+TextTypography.swift` — the style the text tool types with: the live family/size/alignment plus the options store's weight, tracking, leading and decorations.
 - `MissingFonts.swift` — text layers whose family is not installed: `missingFontLayers` and `replacingMissingFonts`, one undo step, with the per-axis placement rule.
 - `ReplaceFontsSheetController.swift` / `EditorViewController+ReplaceFonts.swift` — Layer ▸ Replace Missing Fonts…: one family popup per missing family; the action and its validation.
@@ -186,6 +189,7 @@ Detail belongs in the source file's own header comment.
 - `DescribedDrawingPlan.swift` — one geometry/drawing plan for coloured rasters and typed scalar coverage; a text plan holds TextKit objects and is main-thread-only.
 - `ArtworkTextCapture.swift` — TextKit's resolved glyphs, positions and decorations sent to Rust as outlines; intrinsic glyph assets keep their byte colour and coverage.
 - `ArtworkTextOnPath.swift` — `TextPathPlacement`: a captured glyph placed rigidly on its path's frame, a decoration bent through `mapOutline`; the outline-glyph refusal.
+- `ArtworkTextWarp.swift` — `TextWarpPlacement`: a captured glyph or decoration bent through the envelope (`mapOutline`); `LinearMap.largestScale`.
 - `AdjustmentLayer.swift` — the adjustment ops the app can create and re-edit (the core schema's meta `op` strings); a newer schema's op still composites and round-trips.
 - `AdjustmentSchema.swift` — the app-side mirror of the core's meta schema (`core/src/adjust.rs`): every parameter's key, kind, range and default, for the MCP validator, sheets and catalog.
 - `AdjustmentSheet.swift` — which surface opened an adjustment dialog and so what Apply commits; one sheet class per op serves the layer and its destructive twin (`dr_image_adjust_op`).

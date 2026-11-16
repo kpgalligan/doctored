@@ -1,13 +1,34 @@
 import AppKit
 
 // Distance along one subpath and outline maps (`dr_path_length`, `dr_path_frames`,
-// `dr_outline_map`; core `path_along.rs` / `outline_map.rs`): what text on a path places its
-// glyphs and bends its decorations by (ArtworkTextOnPath.swift).
+// `dr_outline_map`, `dr_outline_map_bounds`; core `path_along.rs` / `outline_map.rs` /
+// `outline_envelope.rs`): what text on a path places its glyphs and bends its decorations by
+// (ArtworkTextOnPath.swift), and what Warp Text bends its outlines through and bounds its
+// raster by (ArtworkTextWarp.swift, TextWarp.swift).
 
 /// A point on a subpath and the unit tangent there, in the direction of travel.
 struct PathFrame: Equatable {
     var point: CGPoint
     var tangent: CGVector
+}
+
+/// Warp Text's envelope as the core takes it (`dr_outline_map`'s "envelope" map): a style over
+/// the box `rect`, with its bend and two distortions, each in −1…1.
+struct OutlineEnvelope {
+    var style: String
+    var rect: CGRect
+    var bend, horizontal, vertical: Double
+
+    /// The map object; throws for a number that is not finite (the core refuses the rest).
+    func jsonObject() throws -> [String: Any] {
+        let numbers = [Double(rect.minX), Double(rect.minY), Double(rect.width),
+                       Double(rect.height), bend, horizontal, vertical]
+        guard numbers.allSatisfy({ $0.isFinite }) else {
+            throw DoctoredCoreError(message: "An outline map number is not finite.")
+        }
+        return ["kind": "envelope", "style": style, "rect": Array(numbers[0..<4]), "bend": bend,
+                "horizontal": horizontal, "vertical": vertical]
+    }
 }
 
 extension RasterPathCore {
@@ -73,6 +94,52 @@ extension RasterPathCore {
         guard [start, baseline, shift, tolerance].allSatisfy({ $0.isFinite }), shape.isFinite else {
             throw DoctoredCoreError(message: "An outline map number is not finite.")
         }
+        let map: [String: Any] = [
+            "kind": "along", "shape": shape.jsonObject, "subpath": subpath, "reversed": reversed,
+            "start": start, "baseline": baseline, "shift": shift,
+        ]
+        return try mapOutline(path, map: map, tolerance: tolerance)
+    }
+
+    /// `path` through Warp Text's envelope (`dr_outline_map`'s "envelope" map; the formulas are
+    /// core `outline_envelope.rs`'s module doc), split until every piece lies within
+    /// `tolerance` px of the mapped curve; the result holds moves, lines and closes.
+    static func mapOutline(_ path: CGPath, envelope: OutlineEnvelope, tolerance: Double) throws
+        -> CGPath
+    {
+        guard tolerance.isFinite else {
+            throw DoctoredCoreError(message: "An outline map number is not finite.")
+        }
+        return try mapOutline(path, map: try envelope.jsonObject(), tolerance: tolerance)
+    }
+
+    /// The box holding the image of every point of `region` under `envelope`
+    /// (`dr_outline_map_bounds`): exact without distortions, a cover with them.
+    static func envelopeBounds(_ envelope: OutlineEnvelope, of region: CGRect) throws -> CGRect {
+        let json = String(
+            decoding: try JSONSerialization.data(withJSONObject: try envelope.jsonObject()),
+            as: UTF8.self)
+        var error: UnsafeMutablePointer<CChar>?
+        guard let result = dr_outline_map_bounds(
+            json, Double(region.minX), Double(region.minY), Double(region.width),
+            Double(region.height), &error)
+        else {
+            throw DoctoredCoreError(
+                message: takeErrorMessage(error, fallback: "Could not bound the envelope."))
+        }
+        defer { dr_string_free(result) }
+        guard let numbers = try JSONSerialization.jsonObject(
+                with: Data(String(cString: result).utf8)) as? [NSNumber], numbers.count == 4
+        else { throw DoctoredCoreError(message: "Invalid envelope bounds.") }
+        let v = numbers.map(\.doubleValue)
+        return CGRect(x: v[0], y: v[1], width: v[2] - v[0], height: v[3] - v[1])
+    }
+
+    /// The verbs and points of `path` through the map object `map` (`dr_outline_map`), rebuilt
+    /// as a path: the plumbing the along and envelope wrappers share.
+    private static func mapOutline(_ path: CGPath, map: [String: Any], tolerance: Double) throws
+        -> CGPath
+    {
         var verbs: [UInt8] = []
         var coordinates: [Double] = []
         path.applyWithBlock { element in
@@ -91,10 +158,6 @@ extension RasterPathCore {
                 coordinates.append(Double(points[k].y))
             }
         }
-        let map: [String: Any] = [
-            "kind": "along", "shape": shape.jsonObject, "subpath": subpath, "reversed": reversed,
-            "start": start, "baseline": baseline, "shift": shift,
-        ]
         let json = String(decoding: try JSONSerialization.data(withJSONObject: map), as: UTF8.self)
         var error: UnsafeMutablePointer<CChar>?
         let result = verbs.withUnsafeBufferPointer { commands in

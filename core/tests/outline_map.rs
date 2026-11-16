@@ -21,12 +21,17 @@ use crate::path_shape::{corner, shape_of};
 
 type Point = [f64; 2];
 
-struct Mapped {
-    verbs: Vec<u8>,
-    points: Vec<Point>,
+pub(crate) struct Mapped {
+    pub(crate) verbs: Vec<u8>,
+    pub(crate) points: Vec<Point>,
 }
 
-fn map_raw(verbs: &[u8], points: &[Point], map: &Value, tolerance: f64) -> Result<Mapped, String> {
+pub(crate) fn map_raw(
+    verbs: &[u8],
+    points: &[Point],
+    map: &Value,
+    tolerance: f64,
+) -> Result<Mapped, String> {
     let flat: Vec<f64> = points.iter().flatten().copied().collect();
     let json = CString::new(map.to_string()).unwrap();
     let mut err: *mut c_char = ptr::null_mut();
@@ -65,7 +70,7 @@ fn along(shape: &Value, start: f64, baseline: f64, shift: f64) -> Value {
            "start": start, "baseline": baseline, "shift": shift})
 }
 
-fn gap(a: Point, b: Point) -> f64 {
+pub(crate) fn gap(a: Point, b: Point) -> f64 {
     (a[0] - b[0]).hypot(a[1] - b[1])
 }
 
@@ -81,7 +86,7 @@ fn to_segment(p: Point, a: Point, b: Point) -> f64 {
 }
 
 /// The output's closed polylines, one per move.
-fn polylines(m: &Mapped) -> Vec<Vec<Point>> {
+pub(crate) fn polylines(m: &Mapped) -> Vec<Vec<Point>> {
     let mut out: Vec<Vec<Point>> = Vec::new();
     let mut at = 0;
     for &verb in &m.verbs {
@@ -105,7 +110,7 @@ fn polylines(m: &Mapped) -> Vec<Vec<Point>> {
     out
 }
 
-fn to_polylines(p: Point, lines: &[Vec<Point>]) -> f64 {
+pub(crate) fn to_polylines(p: Point, lines: &[Vec<Point>]) -> f64 {
     lines
         .iter()
         .flat_map(|l| l.windows(2).map(|w| to_segment(p, w[0], w[1])))
@@ -114,12 +119,12 @@ fn to_polylines(p: Point, lines: &[Vec<Point>]) -> f64 {
 
 /// A source outline as segments in parameter form, for dense sampling.
 #[derive(Clone, Copy)]
-enum Seg {
+pub(crate) enum Seg {
     Line(Point, Point),
     Cubic([Point; 4]),
 }
 
-fn at(seg: Seg, t: f64) -> Point {
+pub(crate) fn at(seg: Seg, t: f64) -> Point {
     match seg {
         Seg::Line(a, b) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t],
         Seg::Cubic(p) => {
@@ -132,7 +137,7 @@ fn at(seg: Seg, t: f64) -> Point {
 
 /// The source segments of a move/line/quad/cubic/close outline, the implicit
 /// close of an open subpath included.
-fn segments(verbs: &[u8], points: &[Point]) -> Vec<Seg> {
+pub(crate) fn segments(verbs: &[u8], points: &[Point]) -> Vec<Seg> {
     let (mut out, mut i, mut start, mut pen) = (Vec::new(), 0, [0.0; 2], [0.0; 2]);
     let mut open = false;
     for &v in verbs {
@@ -190,7 +195,7 @@ fn segments(verbs: &[u8], points: &[Point]) -> Vec<Seg> {
 
 /// A glyph-like outline in layout space (y down, baseline at 40): an
 /// underline bar, a quadratic bowl and a cubic stem, the last left open.
-fn glyphish() -> (Vec<u8>, Vec<Point>) {
+pub(crate) fn glyphish() -> (Vec<u8>, Vec<Point>) {
     let verbs = vec![0, 1, 1, 1, 4, 0, 2, 2, 1, 4, 0, 3, 1];
     let points = vec![
         // The bar: 0..120 wide, 3 px tall, just under the baseline.
@@ -380,6 +385,17 @@ fn refusals_name_the_reason() {
         refused(&[0, 1], &[[0.0, 0.0], [f64::INFINITY, 0.0]], &map, 0.1)
             .contains("finite geometry bounds")
     );
+
+    // A map whose numbers are finite but whose image is not (or lies past the
+    // coordinate bound) is refused rather than written as `inf` into the JSON.
+    for (baseline, shift) in [(1e308, 1e308), (2e9, 0.0)] {
+        let huge = along(&path, 0.0, baseline, shift);
+        let e = refused(&[0, 1], &line, &huge, 0.1);
+        assert!(
+            e.contains("the mapped outline leaves its finite geometry bounds"),
+            "baseline {baseline:e}, shift {shift:e}: {e}"
+        );
+    }
 
     // A tiny tolerance is raised to the floor, not refused; an empty outline
     // maps to nothing.

@@ -1,10 +1,10 @@
-//! C FFI for distance along a path and outline maps — the three exports after
+//! C FFI for distance along a path and outline maps — the four exports after
 //! `dr_path_subpath_at` in the "Paths" section of `include/doctored_core.h`,
-//! over the kernels `path_along` and `outline_map`. They take no document:
-//! one shape as the shape JSON (read by `ffi_path::shape`), text back through
-//! `ffi_path::owned`. `dr_path_frames` WRITES the caller's frame buffer (a
-//! caller-owned buffer, as core/CLAUDE.md's "Purity" allows), and only on
-//! success.
+//! over the kernels `path_along`, `outline_map` and `outline_envelope`. They
+//! take no document: one shape as the shape JSON (read by `ffi_path::shape`),
+//! text back through `ffi_path::owned`. `dr_path_frames` WRITES the caller's
+//! frame buffer (a caller-owned buffer, as core/CLAUDE.md's "Purity" allows),
+//! and only on success.
 
 use std::ffi::c_char;
 use std::fmt::Write as _;
@@ -15,6 +15,7 @@ use serde_json::Value;
 use crate::artwork_coverage::MAX_PATH_POINTS;
 use crate::ffi_path::{owned, shape, SHAPE_JSON_LIMIT};
 use crate::ffi_util::{borrow_cstr_bounded, fallible_op};
+use crate::outline_envelope::Envelope;
 use crate::outline_map::{map_outline, OutlineMap};
 use crate::path_along::{Along, MAX_FRAMES};
 use crate::path_geometry::PathShape;
@@ -22,6 +23,102 @@ use crate::path_geometry::PathShape;
 /// The longest map JSON `dr_outline_map` reads: the shape JSON's own cap
 /// (`ffi_path`'s `SHAPE_JSON_LIMIT`) plus room for the map's few scalar keys.
 const MAP_JSON_LIMIT: usize = SHAPE_JSON_LIMIT + 4096;
+
+/// A map JSON as read, owning what an `OutlineMap` borrows.
+enum ReadMap {
+    Along {
+        along: Along,
+        start: f64,
+        baseline: f64,
+        shift: f64,
+    },
+    Envelope(Envelope),
+}
+
+impl ReadMap {
+    fn outline_map(&self) -> OutlineMap<'_> {
+        match self {
+            ReadMap::Along {
+                along,
+                start,
+                baseline,
+                shift,
+            } => OutlineMap::Along {
+                along,
+                start: *start,
+                baseline: *baseline,
+                shift: *shift,
+            },
+            ReadMap::Envelope(envelope) => OutlineMap::Envelope(envelope),
+        }
+    }
+}
+
+/// Reads `map_json`: `{"kind":"along",…}` or `{"kind":"envelope",…}`, as the
+/// header states. `Err` for NULL or malformed JSON, an unknown kind, a number
+/// that is not finite, and each kind's own refusals.
+///
+/// # Safety
+/// `map_json` must be NULL or a NUL-terminated string.
+unsafe fn read_map(map_json: *const c_char) -> Result<ReadMap, String> {
+    let text = unsafe { borrow_cstr_bounded(map_json, "outline map json", MAP_JSON_LIMIT)? };
+    let value: Value =
+        serde_json::from_str(text).map_err(|e| format!("outline map json is malformed: {e}"))?;
+    let map = value
+        .as_object()
+        .ok_or("an outline map must be an object")?;
+    match map.get("kind").and_then(Value::as_str) {
+        Some("along") => {
+            let path =
+                PathShape::from_value(map.get("shape").ok_or("an outline map needs a shape")?)?;
+            let subpath = map
+                .get("subpath")
+                .and_then(Value::as_u64)
+                .and_then(|i| usize::try_from(i).ok())
+                .ok_or("an outline map's subpath must be an index")?;
+            let reversed = match map.get("reversed") {
+                None => false,
+                Some(v) => v
+                    .as_bool()
+                    .ok_or("an outline map's reversed must be a boolean")?,
+            };
+            let (start, baseline, shift) = (
+                number(map, "start")?,
+                number(map, "baseline")?,
+                number(map, "shift")?,
+            );
+            Ok(ReadMap::Along {
+                along: Along::new(&path, subpath, reversed)?,
+                start,
+                baseline,
+                shift,
+            })
+        }
+        Some("envelope") => {
+            let style = map
+                .get("style")
+                .and_then(Value::as_str)
+                .ok_or("an envelope map needs a style")?;
+            let rect = map
+                .get("rect")
+                .and_then(Value::as_array)
+                .filter(|r| r.len() == 4)
+                .and_then(|r| {
+                    let numbers: Vec<f64> = r.iter().filter_map(Value::as_f64).collect();
+                    <[f64; 4]>::try_from(numbers).ok()
+                })
+                .ok_or("an envelope map's rect must be four numbers [x, y, w, h]")?;
+            Ok(ReadMap::Envelope(Envelope::new(
+                style,
+                rect,
+                number(map, "bend")?,
+                number(map, "horizontal")?,
+                number(map, "vertical")?,
+            )?))
+        }
+        _ => Err("an outline map's kind must be along or envelope".into()),
+    }
+}
 
 /// A finite number under `key` of the map object, 0 when absent.
 fn number(map: &serde_json::Map<String, Value>, key: &str) -> Result<f64, String> {
@@ -133,11 +230,15 @@ pub unsafe extern "C" fn dr_path_frames(
 /// 0, 1 and 4, each piece within `tolerance` pixels of the mapped curve
 /// (`outline_map`'s module doc). `map_json` is
 /// `{"kind":"along","shape":<shape JSON>,"subpath":i,"reversed":bool,
-/// "start":n,"baseline":n,"shift":n}`. NULL with `err_out` set for a NULL
-/// buffer with a non-zero count, more than 262,144 verbs or points in or
-/// out, an unknown verb, a point count that does not match, a coordinate
-/// that is not finite, NULL or malformed map JSON, an unknown kind, a number
-/// that is not finite, no such subpath or one with no length, and a
+/// "start":n,"baseline":n,"shift":n}` or `{"kind":"envelope","style":s,
+/// "rect":[x,y,w,h],"bend":n,"horizontal":n,"vertical":n}` (Warp Text,
+/// `outline_envelope`; absent numbers are 0). NULL with `err_out` set for a
+/// NULL buffer with a non-zero count, more than 262,144 verbs or points in
+/// or out, an unknown verb, a point count that does not match, a coordinate
+/// that is not finite or past 1e9, a MAPPED point that is not finite or past
+/// ±1e9 ("the mapped outline leaves its finite geometry bounds"), NULL or
+/// malformed map JSON, an unknown kind, a number that is not finite, no such
+/// subpath or one with no length, an `Envelope::new` refusal, and a
 /// tolerance that is not positive and finite (a smaller one is raised to
 /// 1/4096). Free with dr_string_free.
 ///
@@ -169,34 +270,7 @@ pub unsafe extern "C" fn dr_outline_map(
                 {
                     return Err("invalid outline map buffers".into());
                 }
-                let text = borrow_cstr_bounded(map_json, "outline map json", MAP_JSON_LIMIT)?;
-                let value: Value = serde_json::from_str(text)
-                    .map_err(|e| format!("outline map json is malformed: {e}"))?;
-                let map = value
-                    .as_object()
-                    .ok_or("an outline map must be an object")?;
-                if map.get("kind").and_then(Value::as_str) != Some("along") {
-                    return Err("an outline map's kind must be along".into());
-                }
-                let path =
-                    PathShape::from_value(map.get("shape").ok_or("an outline map needs a shape")?)?;
-                let subpath = map
-                    .get("subpath")
-                    .and_then(Value::as_u64)
-                    .and_then(|i| usize::try_from(i).ok())
-                    .ok_or("an outline map's subpath must be an index")?;
-                let reversed = match map.get("reversed") {
-                    None => false,
-                    Some(v) => v
-                        .as_bool()
-                        .ok_or("an outline map's reversed must be a boolean")?,
-                };
-                let (start, baseline, shift) = (
-                    number(map, "start")?,
-                    number(map, "baseline")?,
-                    number(map, "shift")?,
-                );
-                let along = Along::new(&path, subpath, reversed)?;
+                let read = read_map(map_json)?;
                 let commands = if command_count == 0 {
                     &[]
                 } else {
@@ -207,13 +281,8 @@ pub unsafe extern "C" fn dr_outline_map(
                 } else {
                     std::slice::from_raw_parts(points.cast::<[f64; 2]>(), point_count)
                 };
-                let map = OutlineMap::Along {
-                    along: &along,
-                    start,
-                    baseline,
-                    shift,
-                };
-                let (verbs, mapped) = map_outline(commands, points, &map, tolerance)?;
+                let (verbs, mapped) =
+                    map_outline(commands, points, &read.outline_map(), tolerance)?;
                 // Written directly, every coordinate at full precision (a
                 // shortest round-trip form), so the host rebuilds exactly
                 // the points the map produced.
@@ -229,6 +298,44 @@ pub unsafe extern "C" fn dr_outline_map(
                 }
                 out.push_str("]}");
                 Ok(out)
+            },
+            owned,
+        )
+    }
+}
+
+/// The box holding the image of every point of the region `x, y, width,
+/// height` under the envelope map in `map_json` (`dr_outline_map`'s
+/// `"kind":"envelope"` form), as `"[min_x,min_y,max_x,max_y]"` at full
+/// precision: exact when `horizontal` and `vertical` are 0, a cover
+/// otherwise (`outline_envelope`'s module doc). Warp Text's raster rect. NULL
+/// with `err_out` set for NULL or malformed JSON, a kind other than envelope,
+/// an `Envelope::new` refusal, or a region not finite, negative in size or
+/// past 1e9. Free with dr_string_free.
+///
+/// # Safety
+/// `map_json` must be NULL or a NUL-terminated string; `err_out` must be
+/// NULL or a writable CString pointer, freed with dr_string_free.
+#[no_mangle]
+pub unsafe extern "C" fn dr_outline_map_bounds(
+    map_json: *const c_char,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    err_out: *mut *mut c_char,
+) -> *mut c_char {
+    unsafe {
+        fallible_op(
+            err_out,
+            "bounding an outline map",
+            ptr::null_mut(),
+            || {
+                let ReadMap::Envelope(envelope) = read_map(map_json)? else {
+                    return Err("an outline map's bounds need kind envelope".into());
+                };
+                let [x0, y0, x1, y1] = envelope.bounds([x, y, width, height])?;
+                Ok(format!("[{x0},{y0},{x1},{y1}]"))
             },
             owned,
         )

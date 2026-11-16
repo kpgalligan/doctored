@@ -184,8 +184,9 @@ extension EditorViewController {
             var payload = payload
             payload.transform = old.transform
             // Nor the path: a placed layer stays on it, edited straight (TP-8), and stays one
-            // line — the session stays open on a line break.
-            payload = payload.withOnPath(old.onPath)
+            // line — the session stays open on a line break. Nor the warp: a warped layer
+            // stays warped, edited straight (WT-7).
+            payload = payload.withOnPath(old.onPath).withWarp(old.warp)
             if old.onPath != nil, TextOnPath.hasLineBreak(payload.string) {
                 document.presentError(DoctoredCoreError(
                     message: "Text on a path is one line: remove the line break, or choose "

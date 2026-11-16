@@ -49,11 +49,7 @@ struct TextPathPlacement {
         shift = payload.baselineShift
         self.layoutToRaster = layoutToRaster
         rasterToLayout = layoutToRaster.inverted()
-        // The largest singular value of the 2×2 map.
-        let m = payload.transform
-        let sum = m.a * m.a + m.b * m.b + m.c * m.c + m.d * m.d
-        let det = m.determinant
-        let largest = ((sum + max(sum * sum - 4 * det * det, 0).squareRoot()) / 2).squareRoot()
+        let largest = payload.transform.largestScale
         guard [start, baseline, length, largest].allSatisfy({ $0.isFinite }), largest > 0 else {
             throw DoctoredCoreError(message: "Text on a path has no finite placement.")
         }

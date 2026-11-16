@@ -2,8 +2,9 @@
 //! move, 1 line, 2 quadratic, 3 cubic, 4 close) sent through a NON-LINEAR
 //! point map and returned as moves, lines and closes, ready for
 //! `dr_artwork_path_coverage`. Text on a path bends its underline and
-//! strikethrough this way. A kernel over `path_along`; it names no document
-//! type.
+//! strikethrough this way; Warp Text bends its glyphs and decorations through
+//! an envelope (`outline_envelope`). A kernel over `path_along` and
+//! `outline_envelope`; it names no document type.
 //!
 //! **Subdivision.** A non-linear map bends straight lines, so every segment,
 //! lines included, is walked by its own parameter: a piece `[t0, t1]` is
@@ -14,7 +15,10 @@
 //! can be collinear under a map that still bends it between them. The depth
 //! is capped at [`MAP_DEPTH`], where a piece is emitted whatever its
 //! flatness. Every emitted vertex is the map of a point on the source
-//! segment.
+//! segment, and a vertex that is not finite or lies past
+//! `MAX_OUTLINE_COORDINATE` refuses the whole outline: a map of finite
+//! numbers can still overflow (an `along` baseline of 1e308), and the
+//! output must stay what the coverage scan accepts.
 //!
 //! **Closure.** A subpath left open (a move or the end with no close) is
 //! closed here by the mapped straight line back to its start and a close
@@ -22,6 +26,8 @@
 //! straight implicit close of a bent outline.
 
 use crate::artwork_coverage::{distance, MAX_PATH_POINTS};
+use crate::outline_envelope::Envelope;
+use crate::outline_limits::MAX_OUTLINE_COORDINATE;
 use crate::path_along::Along;
 use crate::path_geometry::MIN_FLATTEN_TOLERANCE;
 
@@ -45,6 +51,9 @@ pub enum OutlineMap<'a> {
         baseline: f64,
         shift: f64,
     },
+    /// Warp Text: the text block's box bent by one of the envelope styles
+    /// (`outline_envelope`'s module doc holds the formulas).
+    Envelope(&'a Envelope),
 }
 
 impl OutlineMap<'_> {
@@ -62,6 +71,7 @@ impl OutlineMap<'_> {
                 let rise = baseline - p[1] + shift;
                 [frame.point[0] + t[1] * rise, frame.point[1] - t[0] * rise]
             }
+            OutlineMap::Envelope(envelope) => envelope.point(p),
         }
     }
 }
@@ -102,6 +112,12 @@ impl Mapped<'_, '_> {
             return Err(format!(
                 "the mapped outline exceeds {MAX_PATH_POINTS} points; use a larger tolerance"
             ));
+        }
+        if point.is_some_and(|p| {
+            p.iter()
+                .any(|v| !v.is_finite() || v.abs() > MAX_OUTLINE_COORDINATE)
+        }) {
+            return Err("the mapped outline leaves its finite geometry bounds".into());
         }
         self.verbs.push(verb);
         if let Some(p) = point {
@@ -155,9 +171,10 @@ impl Mapped<'_, '_> {
 /// close and their points, each piece within `tolerance` pixels of the mapped
 /// curve at its midpoint and quarter points (the module doc). `Err` for an
 /// unknown verb, a point count that does not match the verbs, a coordinate
-/// that is not finite or past ±10⁹, more than `MAX_PATH_POINTS` verbs or
-/// points in or out, and a tolerance that is not positive and finite (a
-/// smaller one is raised to `MIN_FLATTEN_TOLERANCE`).
+/// that is not finite or past `MAX_OUTLINE_COORDINATE`, in or MAPPED, more
+/// than `MAX_PATH_POINTS` verbs or points in or out, and a tolerance that is
+/// not positive and finite (a smaller one is raised to
+/// `MIN_FLATTEN_TOLERANCE`).
 pub fn map_outline(
     commands: &[u8],
     points: &[[f64; 2]],
@@ -172,7 +189,7 @@ pub fn map_outline(
         || points
             .iter()
             .flatten()
-            .any(|v| !v.is_finite() || v.abs() > 1e9)
+            .any(|v| !v.is_finite() || v.abs() > MAX_OUTLINE_COORDINATE)
     {
         return Err("artwork path exceeds its finite geometry bounds".into());
     }

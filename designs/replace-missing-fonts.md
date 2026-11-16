@@ -1,6 +1,6 @@
 # Replace a text layer's missing font family (ADR)
 
-- **Status:** Accepted — shipped 2026-11-12, the first item of [#19](https://github.com/kpgalligan/doctored/issues/19) (Warp Text and per-subpath operations stay open there; Convert Path to Shape and two-path booleans shipped 2026-11-14, [v1-paths.md](v1-paths.md); type on a path 2026-11-16, [type-on-a-path.md](type-on-a-path.md), whose layers recentre on both axes when their family is replaced, since their rect grows a path's box by face metrics on every side).
+- **Status:** Accepted — shipped 2026-11-12, the first item of [#19](https://github.com/kpgalligan/doctored/issues/19) (per-subpath operations stay open there; Convert Path to Shape and two-path booleans shipped 2026-11-14, [v1-paths.md](v1-paths.md); type on a path 2026-11-16, [type-on-a-path.md](type-on-a-path.md), whose layers recentre on both axes when their family is replaced, since their rect grows a path's box by face metrics on every side; Warp Text 2026-11-16, [warp-text.md](warp-text.md), whose layers recentre on both axes too, since their rect is the envelope's image of a face-measured box).
 - **Code:** `app/Sources/MissingFonts.swift` (the ops), `ReplaceFontsSheetController.swift` and `EditorViewController+ReplaceFonts.swift` (Layer ▸ Replace Missing Fonts…), `AgentServer+MissingFonts.swift` and `AgentCatalog+MissingFonts.swift` (MCP).
 - **Proof:** `scripts/verify_replace_missing_fonts.py`, on an owned Debug instance in RGB 8, 16 and 32 bits, Grayscale, Lab and CMYK.
 

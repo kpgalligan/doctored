@@ -53,14 +53,16 @@ extension EditorViewController {
     }
 
     /// Enablement for this file's items; nil for anybody else's. Place needs no Quick Mask, the
-    /// active layer a text layer of one line, and a current path with a subpath; Remove needs
-    /// the active layer on a path.
+    /// active layer an unwarped text layer of one line, and a current path with a subpath;
+    /// Remove needs the active layer on a path.
     func validateTextOnPathItem(_ item: NSValidatedUserInterfaceItem) -> Bool? {
         guard let document else { return nil }
         let payload = document.doc?.textPayload(document.activeLayerIndex)
         switch item.action {
         case #selector(placeTextOnPath(_:)):
-            guard !document.quickMaskActive, let payload, !TextOnPath.hasLineBreak(payload.string)
+            // A warped layer comes off its warp first (designs/warp-text.md, WT-1).
+            guard !document.quickMaskActive, let payload, !TextOnPath.hasLineBreak(payload.string),
+                  payload.warp == nil
             else { return false }
             return currentPathStep().map { !$0.shape.isEmpty } ?? false
         case #selector(removeTextFromPath(_:)):

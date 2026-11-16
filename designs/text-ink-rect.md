@@ -41,8 +41,10 @@ change did with a payload version.
 - **TI-5 — Text on a path keeps TP-6.** `fittedToInk` clears the field there, so version-6 bytes are
   unchanged; the decoder accepts `on_path` at version 7 and the rect rule covers it, for a later measure.
 - **TI-6 — Versions from here.** A payload's version is the highest feature it carries (6 `on_path`, 7
-  `ink_outset`, 8 free for Warp Text's `warp`: [warp-text.md](warp-text.md)); a lower feature rides along as
-  its optional field. A present `ink_outset` below 7, or a 7 without it, is "not a text layer".
+  `ink_outset`, 8 `warp`: [warp-text.md](warp-text.md)); a lower feature rides along as
+  its optional field. A present `ink_outset` below 7, or a 7 without it, is "not a text layer". A warped
+  layer's outset is measured on the unwarped layout (the straight overflow), and its rect is the envelope's
+  image of the straight rect grown by it (WT-4).
 - **TI-7 — Known limits.** Underline and strikethrough are not measured. The first Free Transform of a
   saved, clipped layer pivots on the old rect's centre; later ones pivot on the grown rect's.
 - **TI-8 — A transparency lock defers the marker.** A frozen alpha channel cannot follow a raster whose size

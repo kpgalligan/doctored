@@ -190,6 +190,8 @@ mod neural_colorize;
 mod neural_filters;
 #[path = "operation_scope.rs"]
 mod operation_scope;
+#[path = "outline_envelope.rs"]
+mod outline_envelope;
 #[path = "outline_map.rs"]
 mod outline_map;
 #[path = "path_along.rs"]

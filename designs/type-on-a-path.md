@@ -1,7 +1,7 @@
 # Type on a path (ADR)
 
 - **Status:** Accepted — shipped 2026-11-16, an item of [#19](https://github.com/kpgalligan/doctored/issues/19)
-  (Warp Text and per-subpath operations stay open there).
+  (per-subpath operations stay open there; Warp Text shipped the same day).
 - **Shares** its geometry kernel with Warp Text ([warp-text.md](warp-text.md)).
 - **Code:** core `path_along.rs`, `outline_map.rs`, `ffi_path_along.rs`; app `TextOnPath.swift` (the value,
   the source rect, the metrics), `ArtworkTextOnPath.swift` (the placement the capture asks),
@@ -57,8 +57,9 @@ has the path model and its flattener (`path_flatten.rs`), but no arc length and 
   to a curve), refused past `MAX_PATH_POINTS`. Exports `dr_path_length`, `dr_path_frames` (a caller-owned
   buffer, the in-place write called out), `dr_outline_map` (JSON, as `dr_path_flatten` returns), through
   `ffi_util`, with core tests against analytic oracles (a circle's length against 2πr, its frames against
-  the analytic point and tangent). `dr_outline_map_bounds` and `OutlineMap::Envelope` arrive with Warp Text,
-  their only caller.
+  the analytic point and tangent). `dr_outline_map_bounds` and `OutlineMap::Envelope` arrived with Warp Text,
+  their only caller ([warp-text.md](warp-text.md)), as did the map's refusal of a mapped point that is not
+  finite or past 1e9 (`outline_limits.rs` holds that bound for `artwork_coverage` and `outline_map`).
 - **TP-8 — Editing.** The in-place text editor opens a placed layer as it does today and shows the line
   STRAIGHT while it is open; the commit renders it on the path. Every site that rebuilds a payload through
   `TextLayerPayload.init(string:style:…)` carries `on_path` over (the text commit, `edit_text_layer`, Replace

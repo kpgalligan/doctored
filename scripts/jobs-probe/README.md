@@ -1374,6 +1374,17 @@ edit keeps that layer unmarked with its rect, a resize is refused, and once unlo
 marks it; a marked layer keeps its rect and outset under the lock. (e) Reopening the marked layer
 in the text session and committing unchanged adds no undo step.
 
+"warp text" (`warp_text.swift`, designs/warp-text.md) drives Layer ▸ Warp Text… through the
+editor's own action and the sheet's own controls, each section reporting its own failure. (a)
+`showWarpText:` validates on a text layer in every `colourModeRows()` row but Indexed and Bitmap,
+and not once the layer is on a path. (b) RGB 8: a slider commit sets `canvas.previewImage`; Cancel
+clears it, keeps `document.doc` and adds no step; OK records one `edit_text_layer` whose `warp` is
+the chosen four keys as one "Warp Text" step that one undo reverts and whose replay gives the same
+layer; an unchanged OK records nothing; None records `warp: null`; a text-session commit keeps the
+warp. (c) The codec: hand-written payloads at versions 1 to 7 decode and re-encode byte for byte,
+an 8 (and an 8 with `ink_outset`) round-trips, ten malformed 8s are refused (a 7 or a 3 carrying
+`warp` among them), and a version 6 whose subpath has one anchor is refused while two decode.
+
 All fixtures, settings, Actions, logs and the copy of the probe binary that runs
 are confined to a private temporary directory, retained on failure or with `--keep`.
 The linked probe is built through `scripts/probe_build.py` and cached under

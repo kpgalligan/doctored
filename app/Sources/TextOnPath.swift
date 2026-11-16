@@ -31,10 +31,12 @@ struct TextOnPath: Codable, Equatable {
         self.side = side
     }
 
-    /// What a decoded value must be to describe pixels: a valid outline of ONE subpath of at
-    /// most `maxAnchors` anchors, a finite offset within ±10⁷ px and a known side.
+    /// What a decoded value must be to describe pixels: a valid outline of ONE subpath of two
+    /// to `maxAnchors` anchors (one anchor has no length), a finite offset within ±10⁷ px and a
+    /// known side.
     var isValid: Bool {
         outline.isValid && outline.subpaths.count == 1 && outline.anchorCount <= Self.maxAnchors
+            && outline.subpaths.first?.anchors.count ?? 0 >= 2
             && offset.isFinite && abs(offset) <= 1e7 && Self.sides.contains(side)
     }
 

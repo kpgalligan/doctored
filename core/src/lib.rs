@@ -525,6 +525,8 @@ mod ops_filters;
 mod ops_photographic;
 mod ops_spatial;
 mod ops_stats;
+pub mod outline_envelope;
+pub mod outline_limits;
 pub mod outline_map;
 pub mod paint_mode;
 mod panorama_gain;

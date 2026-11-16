@@ -23,6 +23,8 @@ extension AppDelegate {
         // A one-line text layer follows a subpath of the current path (EditorViewController+TextOnPath.swift).
         menu.addItem(item("Place Text on Path", #selector(EditorViewController.placeTextOnPath(_:))))
         menu.addItem(item("Remove Text from Path", #selector(EditorViewController.removeTextFromPath(_:))))
+        // A text layer bent through an envelope (EditorViewController+WarpText.swift).
+        menu.addItem(item("Warp Text…", #selector(EditorViewController.showWarpText(_:))))
         menu.addItem(item("Rasterize Artwork", #selector(EditorViewController.rasterizeArtwork(_:))))
         // Places a Live Photo's still as an ordinary layer.
         menu.addItem(

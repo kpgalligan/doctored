@@ -40,20 +40,30 @@ enum ArtworkTextCapture {
             throw DoctoredCoreError(message: "Text layout exceeds the supported artwork extent.")
         }
         try manager.prepare(width: plan.width, height: plan.height)
-        if payload.onPath != nil {
-            // Text on a path (ArtworkTextOnPath.swift): the plan laid the line out straight
-            // in this manager; layout → raster is the plan's own map, never read from a CTM.
-            guard let container = manager.textContainers.first, let storage = manager.textStorage
-            else { throw DoctoredCoreError(message: "Text on a path needs a laid-out line.") }
+        // Layout → raster for a placed or warped block: the plan's own map, never read from a
+        // CTM.
+        func layoutToRaster() -> CGAffineTransform {
             let frac = DescribedLayer.anchorFraction(anchor)
             let origin = CGPoint(x: plan.offsetX - Int(anchor.x.rounded(.down)),
                                  y: plan.offsetY - Int(anchor.y.rounded(.down)))
-            let layoutToRaster = payload.transform.cgAffine.concatenating(
+            return payload.transform.cgAffine.concatenating(
                 CGAffineTransform(translationX: frac.x - origin.x, y: frac.y - origin.y))
+        }
+        if payload.onPath != nil {
+            // Text on a path (ArtworkTextOnPath.swift): the plan laid the line out straight
+            // in this manager.
+            guard let container = manager.textContainers.first, let storage = manager.textStorage
+            else { throw DoctoredCoreError(message: "Text on a path needs a laid-out line.") }
             manager.placement = try TextPathPlacement(
                 payload: payload,
                 stack: (manager: manager as NSLayoutManager, container: container, storage: storage),
-                layoutToRaster: layoutToRaster)
+                layoutToRaster: layoutToRaster())
+        }
+        if payload.warp != nil {
+            // Warped text (ArtworkTextWarp.swift): the plan laid the block out straight in this
+            // manager; every outline goes through the envelope. Never with a path (the
+            // decoder refuses both).
+            manager.warp = try TextWarpPlacement(payload: payload, layoutToRaster: layoutToRaster())
         }
         // This scalar context only drives TextKit's callbacks. Its raster is
         // discarded; it never supplies native text coverage or source pixels.
@@ -118,6 +128,8 @@ private final class TextArtworkLayout: NSLayoutManager {
     var ink: ArtworkInk = .srgb
     /// Text on a path: where each glyph and decoration goes (ArtworkTextOnPath.swift).
     var placement: TextPathPlacement?
+    /// Warped text: the envelope every outline goes through (ArtworkTextWarp.swift).
+    var warp: TextWarpPlacement?
     private let windowing: ArtworkTextCapture.Windowing
 
     init(windowing: ArtworkTextCapture.Windowing) {
@@ -223,8 +235,9 @@ private final class TextArtworkLayout: NSLayoutManager {
             let rgba = try color(attributes)
             let ctFont = font as CTFont
             let colorGlyphs = CTFontGetSymbolicTraits(ctFont).contains(.traitColorGlyphs)
-            // On a path only an outline can be placed (TP-5).
+            // On a path only an outline can be placed (TP-5), and under a warp bent (WT-3).
             if placement != nil, colorGlyphs { throw error(TextPathPlacement.outlineGlyphsRefusal) }
+            if warp != nil, colorGlyphs { throw error(TextWarp.outlineGlyphsRefusal) }
             if colorGlyphs, !windowing.colorAsCoverage {
                 try intrinsic(glyphs, positions: positions, count: count, font: font,
                     textMatrix: textMatrix, attributes: attributes, context: context, rgba: rgba)
@@ -246,6 +259,7 @@ private final class TextArtworkLayout: NSLayoutManager {
                     let bounds = CTFontGetBoundingRectsForGlyphs(ctFont, .default, &glyph, nil, 1)
                     if !bounds.isEmpty {
                         if placement != nil { throw error(TextPathPlacement.outlineGlyphsRefusal) }
+                        if warp != nil { throw error(TextWarp.outlineGlyphsRefusal) }
                         try intrinsicCoverage(glyphs.advanced(by: i), positions: positions.advanced(by: i), count: 1,
                             font: font, textMatrix: textMatrix, attributes: attributes, context: context, rgba: rgba)
                     }
@@ -262,7 +276,9 @@ private final class TextArtworkLayout: NSLayoutManager {
                     throw error("TextKit produced an unsupported glyph transform.")
                 }
                 guard let output = path.copy(using: &map) else { throw error("Could not place the resolved glyph outline.") }
-                try append(output, color: rgba)
+                // Under a warp each glyph is bent on its own, so overlapping glyphs keep their
+                // order (WT-3).
+                try append(warp.map { try $0.outline(output) } ?? output, color: rgba)
             }
         } catch { failure = error }
     }
@@ -419,8 +435,11 @@ private final class TextArtworkLayout: NSLayoutManager {
             let rgba = try color(storage.attributes(at: index, effectiveRange: nil), decoration: key)
             try admit(extra: 2 * 1024 * 1024)
             let paths = try TextDecorationPDF.capture(width: width, height: height, transform: source.ctm, draw: draw)
-            // On a path a decoration bends with the glyphs (TP-4).
-            for path in paths { try append(placement.map { try $0.decoration(path) } ?? path, color: rgba) }
+            // On a path a decoration bends with the glyphs (TP-4), and under a warp (WT-3).
+            for path in paths {
+                let bent = try warp.map { try $0.outline(path) } ?? path
+                try append(placement.map { try $0.decoration(bent) } ?? bent, color: rgba)
+            }
         } catch { failure = error }
     }
 

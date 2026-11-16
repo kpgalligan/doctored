@@ -130,6 +130,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "ops_filters.rs",
     "ops_photographic.rs",
     "ops_spatial.rs",
+    "outline_envelope.rs",
     "outline_map.rs",
     "panorama_gain.rs",
     "panorama_seam.rs",

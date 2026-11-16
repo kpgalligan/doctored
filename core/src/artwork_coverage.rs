@@ -123,6 +123,7 @@
 //! have admission/work/polling bounds.
 use crate::artwork_pair_sweep::{pair_breaks, PairScratch};
 use crate::job_control::JobContext;
+use crate::outline_limits::MAX_OUTLINE_COORDINATE;
 use crate::precision_image::{pixel_count, reserved_vec};
 
 pub const MAX_PATH_POINTS: usize = 262_144;
@@ -207,7 +208,7 @@ pub(crate) fn outline(
         || points
             .iter()
             .flatten()
-            .any(|v| !v.is_finite() || v.abs() > 1e9)
+            .any(|v| !v.is_finite() || v.abs() > MAX_OUTLINE_COORDINATE)
     {
         return Err("artwork path exceeds its finite geometry bounds".into());
     }

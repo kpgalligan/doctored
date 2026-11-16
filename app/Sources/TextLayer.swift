@@ -154,7 +154,14 @@ struct TextStyle: Equatable {
 /// glyphs' ink reaches past the padded rect, which the raster rect grows by.
 /// It is written exactly when the payload carries one, in any ink, on a path
 /// or not, always with `artwork` and a stored `box_width`. The version is the
-/// highest feature a payload carries; 8 is free for Warp Text's `warp`.
+/// highest feature a payload carries.
+///
+/// Version 8 (TextWarp.swift, designs/warp-text.md) adds `warp` (`{"style",
+/// "bend", "horizontal", "vertical"}`, a known style and three numbers in
+/// −1…1, not all zero): the envelope the glyphs are bent through. It is
+/// written exactly when the payload carries one, in any ink, never with
+/// `on_path`, always with `artwork` and a stored `box_width`; `ink_outset`
+/// may ride along. Versions 1–7 keep their bytes.
 struct TextLayerPayload: Codable, Equatable {
     /// The only `type` this app understands; anything else (or nothing) means
     /// the layer's metadata was written by something that is not a text
@@ -162,7 +169,7 @@ struct TextLayerPayload: Codable, Equatable {
     static let typeName = "text"
     /// The newest schema this app writes; older builds read layers at it as
     /// plain rasters — the graceful degradation the format is designed for.
-    static let currentVersion = 7
+    static let currentVersion = 8
     /// The schema of a linear-ink payload and of an ink one (#1).
     static let linearVersion = 4
     static let cmykVersion = 5
@@ -170,6 +177,8 @@ struct TextLayerPayload: Codable, Equatable {
     static let pathVersion = 6
     /// The schema of a payload whose rect covers its glyphs' ink, in any ink.
     static let inkRectVersion = 7
+    /// The schema of a warped payload, in any ink.
+    static let warpVersion = 8
     /// The schema written when every version-2 field is at its default.
     static let legacyVersion = 1
     /// The values `alignment` may take, in options-bar segment order.
@@ -206,9 +215,12 @@ struct TextLayerPayload: Codable, Equatable {
     /// TextInkRect.swift); written only by `RasterDocument.inkFitted` at a
     /// render, never by a caller building a payload.
     var inkOutset: TextInkOutset?
+    /// The envelope the glyphs are bent through (version 8, TextWarp.swift); nil for text
+    /// laid out straight.
+    var warp: TextWarp?
 
     enum CodingKeys: String, CodingKey {
-        case type, version, string, font, size, color, alignment, artwork
+        case type, version, string, font, size, color, alignment, artwork, warp
         case weight, italic, tracking, leading, underline, strikethrough, transform
         case baselineShift = "baseline_shift"
         case boxWidth = "box_width"
@@ -265,7 +277,18 @@ struct TextLayerPayload: Codable, Equatable {
             }
             inkOutset = outset
         }
-        if version == Self.inkRectVersion {
+        warp = try container.decodeIfPresent(TextWarp.self, forKey: .warp)
+        if version == Self.warpVersion {
+            // Warped: any ink, never on a path, always with a style that says which; the
+            // ink outset rides along when present (TextWarp.swift).
+            guard warp != nil, onPath == nil, artwork != nil, artwork?.ink != .srgb else {
+                throw DecodingError.dataCorruptedError(forKey: .warp, in: container,
+                    debugDescription: "version 8 is warped text, with warp and artwork, off a path")
+            }
+        } else if warp != nil {
+            throw DecodingError.dataCorruptedError(
+                forKey: .warp, in: container, debugDescription: "warp needs version 8")
+        } else if version == Self.inkRectVersion {
             // Covering its glyphs' ink: any ink, on a path or not, always with
             // a style that says which (TextInkRect.swift).
             guard inkOutset != nil, artwork != nil, artwork?.ink != .srgb else {
@@ -309,9 +332,9 @@ struct TextLayerPayload: Codable, Equatable {
         } else {
             box = .unspecified
         }
-        guard version != Self.inkRectVersion || box != .unspecified else {
+        guard version < Self.inkRectVersion || box != .unspecified else {
             throw DecodingError.dataCorruptedError(
-                forKey: .boxWidth, in: container, debugDescription: "version 7 stores box_width")
+                forKey: .boxWidth, in: container, debugDescription: "versions 7 and 8 store box_width")
         }
         if let elements = try container.decodeIfPresent([Double].self, forKey: .transform) {
             guard let map = LinearMap(array: elements) else {
@@ -338,12 +361,14 @@ struct TextLayerPayload: Codable, Equatable {
             $0.ink == .linearSRGB ? Self.linearVersion : $0.ink == .cmyk ? Self.cmykVersion : 3
         }
         try container.encode(
-            inkOutset != nil ? Self.inkRectVersion
+            warp != nil ? Self.warpVersion
+                : inkOutset != nil ? Self.inkRectVersion
                 : onPath != nil ? Self.pathVersion : inkVersion ?? (legacy ? Self.legacyVersion : 2),
             forKey: .version)
         try container.encodeIfPresent(artwork, forKey: .artwork)
         try container.encodeIfPresent(onPath, forKey: .onPath)
         try container.encodeIfPresent(inkOutset?.array, forKey: .inkOutset)
+        try container.encodeIfPresent(warp, forKey: .warp)
         try container.encode(string, forKey: .string)
         try container.encode(font, forKey: .font)
         try container.encode(size, forKey: .size)
@@ -370,7 +395,7 @@ struct TextLayerPayload: Codable, Equatable {
     /// can be written as version 1 (the box is version-1 compatible and
     /// does not count).
     var isLegacyEncodable: Bool {
-        artwork == nil && onPath == nil && inkOutset == nil && transform.isIdentity
+        artwork == nil && onPath == nil && inkOutset == nil && warp == nil && transform.isIdentity
             && originFraction == .zero
             && weight == 5 && !italic
             && tracking == 0 && leading == 0 && baselineShift == 0 && !underline
@@ -462,7 +487,9 @@ struct TextLayerPayload: Codable, Equatable {
               TextLayer.isValidFraction(payload.originFraction),
               // Text on a path is one line of point text along one valid subpath.
               payload.onPath.map({ $0.isValid && payload.box == .point
-                  && !TextOnPath.hasLineBreak(payload.string) }) != false
+                  && !TextOnPath.hasLineBreak(payload.string) }) != false,
+              // A warp is a known style and three numbers in −1…1, not all zero.
+              payload.warp.map({ $0.isValid && !$0.isIdentity }) != false
         else { return nil }
         return payload
     }
@@ -647,6 +674,8 @@ enum TextLayer {
         if payload.onPath != nil {
             return onPathSourceRect(payload).map { payload.inkOutset?.growing($0) ?? $0 }
         }
+        // A warped layer covers the envelope's image of the straight rect (TextWarp.swift).
+        if payload.warp != nil { return warpSourceRect(payload) }
         return layout(payload).map {
             sourceRect(layoutRect: $0.rect, size: payload.size, outset: payload.inkOutset)
         }
@@ -689,9 +718,10 @@ enum TextLayer {
     static func render(
         _ payload: TextLayerPayload, anchor: CGPoint, space: CGColorSpace
     ) -> DescribedRaster? {
-        // Text on a path bends only in the artwork capture
-        // (ArtworkTextOnPath.swift); this byte renderer would draw it straight.
-        guard payload.onPath == nil else { return nil }
+        // Text on a path and warped text bend only in the artwork capture
+        // (ArtworkTextOnPath.swift, ArtworkTextWarp.swift); this byte renderer
+        // would draw them straight.
+        guard payload.onPath == nil, payload.warp == nil else { return nil }
         return drawingPlan(payload, anchor: anchor)?.render(space: space)
     }
 
@@ -709,10 +739,12 @@ enum TextLayer {
               let layout = measure(laidOut, color: color,
                                    layoutManager: laidOut.nsAlignment == .left ? layoutManager : nil)
         else { return nil }
-        // Either rect grows by the stored ink outset (TextInkRect.swift).
+        // Every rect grows by the stored ink outset (TextInkRect.swift); a warped one is the
+        // envelope's image of the grown straight rect (TextWarp.swift).
         let measuredSource = onPath
             ? onPathSourceRect(payload, stack: layout.stack)
                 .map { payload.inkOutset?.growing($0) ?? $0 }
+            : payload.warp != nil ? warpSourceRect(payload, layoutRect: layout.rect)
             : sourceRect(layoutRect: layout.rect, size: payload.size, outset: payload.inkOutset)
         guard let source = measuredSource else { return nil }
         let frac = DescribedLayer.anchorFraction(anchor)

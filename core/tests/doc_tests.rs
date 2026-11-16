@@ -3138,6 +3138,10 @@ fn null_safety_sweep() {
                     )
                     .is_null());
                     said(&mut err, says);
+                    assert!(
+                        dr_outline_map_bounds(ptr::null(), 0.0, 0.0, 1.0, 1.0, err_out).is_null()
+                    );
+                    said(&mut err, says);
                 }
                 assert!(
                     dr_path_trace(ptr::null(), 4, 2, 2, 2.0, 1 << 30, 0, ptr::null(), err_out)
