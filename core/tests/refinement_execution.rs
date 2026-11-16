@@ -1,6 +1,6 @@
 //! Shared byte cutout composition/record-copy qualification through the FFI.
 use crate::common;
-use common::probe::{cancelled_parked_at, entry_then_cancel, parked_line};
+use common::probe::{cancelled_parked_at, entry_then_cancel, parked_line, reports};
 use common::*;
 use doctored_core::doc::GrayRaster;
 use doctored_core::doc::LayerRaster;
@@ -250,6 +250,61 @@ fn the_record_copy_shares_every_layer_description() {
         .iter()
         .filter(|layer| layer.meta.is_some())
         .all(|layer| layer.meta.as_ref().unwrap().len() == description as usize));
+}
+
+/// The record copy's progress (stage 2) runs over what it copies: the names,
+/// not the shared descriptions. With twelve 256 KiB names beside twelve 4 MiB
+/// descriptions the last name chunk reports above 0.9 of the copy's span
+/// (first report to the closing one); counted over the descriptions too, it
+/// would report about 0.06 of it.
+#[test]
+fn the_record_copy_progress_runs_over_the_names_it_copies() {
+    let mut original = doc_of(1, 1, |_, _| [17, 73, 209]);
+    let description: Arc<str> = "🧭".repeat(1024 * 1024).into();
+    for i in 0..12 {
+        if i > 0 {
+            original.layers.push(original.layers[0].clone());
+        }
+        original.layers[i].name = "a".repeat(256 * 1024);
+        original.layers[i].meta = Some(description.clone());
+    }
+    let foreground =
+        unsafe { Box::from_raw(dr_image_from_rgba([17, 73, 209, 255].as_ptr(), 1, 1)) };
+    let log = reports(|t| unsafe {
+        let control = t as *const DrJobControl;
+        assert!(dr_job_control_set_scratch_limit(
+            control,
+            dr_doc_refinement_cutout_scratch_bytes(&original)
+        ));
+        let mut error = ptr::null_mut();
+        let output = dr_doc_add_refinement_cutout(
+            &original,
+            &*foreground,
+            [127].as_ptr(),
+            control,
+            &mut error,
+        );
+        let (output, error) = take_doc(output, error);
+        (output.is_some(), error.unwrap_or_default())
+    });
+    // Stage 2 is the copy alone: a report before each 64 KiB name chunk, then
+    // the closing one. Progress is monotone, so the span is first to last.
+    let copy: Vec<f64> = log
+        .iter()
+        .filter(|r| r.stage == 2)
+        .map(|r| r.progress)
+        .collect();
+    assert_eq!(
+        copy.len(),
+        12 * 4 + 1,
+        "a report per name chunk and the close"
+    );
+    let (first, closing) = (copy[0], copy[copy.len() - 1]);
+    let last_chunk = (copy[copy.len() - 2] - first) / (closing - first);
+    assert!(
+        last_chunk > 0.9,
+        "the last name chunk reported {last_chunk} of the span"
+    );
 }
 
 #[test]

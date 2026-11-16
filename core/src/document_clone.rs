@@ -20,8 +20,8 @@ impl DrDocument {
             .iter()
             .fold(0_u64, |sum, layer| {
                 sum.saturating_add(layer.name.len() as u64)
-                    .saturating_add(layer.meta.as_ref().map_or(0, |s| s.len() as u64))
             })
+            .saturating_add(self.description_bytes())
             .saturating_add(
                 self.channels
                     .iter()
@@ -32,6 +32,13 @@ impl DrDocument {
             + size_of_val(self.channels.as_slice())
             + size_of_val(self.guides.as_slice())) as u64
             + strings
+    }
+    /// The layer descriptions' summed length: charged by
+    /// [`Self::cloned_structure_bytes`], shared (never copied) by a clone.
+    fn description_bytes(&self) -> u64 {
+        self.layers.iter().fold(0_u64, |sum, layer| {
+            sum.saturating_add(layer.meta.as_ref().map_or(0, |s| s.len() as u64))
+        })
     }
     /// A temporary capacity view, never a rendered or persisted document.
     /// Native dimension/source growth checks do not read name/description
@@ -105,7 +112,13 @@ impl DrDocument {
 /// exactly as ordinary Clone. Names are copied in chunked UTF-8 runs.
 impl DrDocument {
     pub(crate) fn clone_with_job(&self, job: JobContext<'_>) -> Result<Self, String> {
-        let total = self.cloned_structure_bytes().max(1);
+        // Progress runs over what this copy writes: the estimate less the
+        // shared descriptions, which it no longer copies, so a
+        // description-heavy document's progress still advances with its names.
+        let total = self
+            .cloned_structure_bytes()
+            .saturating_sub(self.description_bytes())
+            .max(1);
         let mut copied = 0_u64;
         let mut string = |value: &str| -> Result<String, String> {
             let mut result = String::with_capacity(value.len());

@@ -6,8 +6,8 @@
 //! before the registry replaced it (13B-6), so no admission answer moved when
 //! the trim went: 1 GiB at the 8 GiB working limit of the assumed minimum
 //! machine (a 16 GB Mac), 256 MiB at the 2 GiB test pin. Measured at 24 MP
-//! (13B-6), one drop-shadow entry is 48,843,528 bytes and a three-effect
-//! entry 98,495,376, so the bound holds about ten such styled layers' current
+//! (13B-6), one drop-shadow entry is 48,844,344 bytes and a three-effect
+//! entry 98,496,192, so the bound holds about ten such styled layers' current
 //! planes at 8 GiB and two at the pin. The trim compared the sum of every
 //! document's non-view cache bytes against this value and then evicted all
 //! of them; the registry evicts least recently used entries one at a time.
