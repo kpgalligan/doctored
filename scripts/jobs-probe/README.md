@@ -1121,6 +1121,42 @@ menu's Reset All keeps them; a set without `tool_keys` re-encodes to the same
 bytes, an unknown tool's key is kept, a malformed map refuses. `ToolKeys.shared`
 and the library are put back on every exit.
 
+"shortcut sets" (`shortcut_sets.swift`, #20) drives `ShortcutSets` on the
+runner's private `DR_SHORTCUTS_DIR` over a menu from `AppDelegate().buildMainMenu()`.
+First, with no default file on disk, New Set "Mine", switching to the default
+set and back, and deleting the active Mine all succeed and leave no default
+file. Then the default set lists first and is active, its json carries the name
+"Shortcuts" and re-encodes to its file's bytes; a new set takes ⌥⇧⌘K on Rulers
+and K on the Brush while the default file's bytes stay; switching to the default
+set and back swaps Rulers, the Brush key and an open rail's Brush tooltip; a new
+menu through `installStored` and a fresh `ToolKeys` read Mine (the relaunch);
+Reset All keeps Mine's name and file; Duplicate, Rename and a case-only rename
+land, and a rename onto Mine, renaming or deleting the default set and a set
+named "shortcuts" are refused by sentence; deleting the active set, or its file
+with `delete(file:)`, falls back to the default set; sixteen files list, a
+seventeenth set is refused with the library's sentence, the active set renames
+at sixteen (the count stays 16) and a rename onto an existing name there changes
+neither file. Red under the cap at 4, a Reset All that drops the name, the
+pointer written before `ToolKeys.load`, the default set read through
+`ShortcutLibrary.named`, and a rename at the bound that saves first. Every file
+but the default set's, the pointer, the default set and `ToolKeys.shared` are
+put back on every exit.
+
+"kys import" (`kys_import.swift`, #20) runs `KysImport` over a hand-written
+`.kys` text (`modified="1"`): a static id under a foreign name, a dynamic name,
+an unknown id and name, a removed binding, ⌘Q, two shortcuts on Zoom In, ⌘,, a
+chord taken twice, a bare letter, an unreadable key, F9, Rulers at ⌥⌘J (Show
+Clipping's default), a Group/Ungroup swap, a tool under a foreign name, a
+removed tool key, Q, Burn, a type-2 tool and a `<taskspace>`. The overrides, tool
+keys, applied and not-mapped names (file order) and refusal sentences are exact;
+after `apply`, Show Clipping keeps ⌥⌘J and the swap holds. `importKys` writes a
+new active set named from the file, then " 2", changing no other set's bytes; a
+file of which nothing maps, not XML, a wrong root, version 3 and over 1 MiB are
+refused by sentence; and every table value is a customizable command or a real
+tool, none twice. Red under statics mapped by name, letters left in capitals,
+removals ignored, the fixed chords unchecked and the default-holder pass
+omitted.
+
 "action parameter rows" (`action_parameter_rows.swift`, #20) reads Parameters…
 sheet rows through `ActionParametersEditorSheetController.edits(for:)`, the
 rule Save runs: a row left as the sheet filled it asks for nothing, a string

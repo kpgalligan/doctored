@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 
 /// The field that records a chord: it takes first responder, swallows one
 /// key-down and reports what it spelled. It is not a text field — a chord is
@@ -111,7 +112,9 @@ final class ShortcutRecorderField: NSView {
 ///
 /// Every edit is applied and STORED immediately — there is no Apply button,
 /// because a shortcut sheet's whole point is trying the chord. The store is
-/// the single `"Shortcuts"` item, written with `replace: true`.
+/// the ACTIVE set's item (`ShortcutSets`), written with `replace: true`. The
+/// set popup beside the search field switches sets, makes, duplicates,
+/// renames and deletes one, and imports a `.kys` file into a new one.
 ///
 /// After the commands come the tools ("Tools ▸ Brush"), one row per tool the
 /// rail offers, each with its bare key (`ToolKeys`): table row `rows.count + i`
@@ -126,6 +129,7 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
     private(set) var toolRows: [EditorTool] = []
 
     private let search = NSSearchField()
+    private let setPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let table = NSTableView()
     private let recorder = ShortcutRecorderField()
     private let message = NSTextField(wrappingLabelWithString: "")
@@ -175,14 +179,26 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
 
     // MARK: - Presentation
 
-    /// The tab's content: the hint, the search field, the table, the recorder row, the broken
-    /// files and the message line.
+    /// The tab's content: the hint, the search field beside the set popup, the table, the
+    /// recorder row, the broken files and the message line.
     func makeContent() -> NSView {
         search.placeholderString = "Search commands"
         search.target = self
         search.action = #selector(searchChanged(_:))
-        search.widthAnchor.constraint(equalToConstant: 420).isActive = true
+        search.widthAnchor.constraint(equalToConstant: 250).isActive = true
         search.setAccessibilityIdentifier("shortcut-search")
+        setPopup.translatesAutoresizingMaskIntoConstraints = false
+        setPopup.widthAnchor.constraint(equalToConstant: 162).isActive = true
+        setPopup.font = DS.sans(12)
+        setPopup.target = self
+        setPopup.action = #selector(setChosen(_:))
+        setPopup.autoenablesItems = false
+        setPopup.setAccessibilityIdentifier("shortcut-set-popup")
+        rebuildSetPopup()
+        let searchRow = NSStackView(views: [search, setPopup])
+        searchRow.orientation = .horizontal
+        searchRow.alignment = .centerY
+        searchRow.spacing = 8
 
         let command = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("command"))
         command.title = "Command"
@@ -207,7 +223,9 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
         scroll.documentView = table
         scroll.hasVerticalScroller = true
         scroll.borderType = .bezelBorder
-        scroll.heightAnchor.constraint(equalToConstant: 320).isActive = true
+        // The tallest tab sets the Settings card's height, which stays within 700 pt
+        // (jobs-probe "settings card height").
+        scroll.heightAnchor.constraint(equalToConstant: 290).isActive = true
         scroll.widthAnchor.constraint(equalToConstant: 420).isActive = true
 
         recorder.translatesAutoresizingMaskIntoConstraints = false
@@ -250,7 +268,7 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
         hint.textColor = DS.textMuted
         hint.preferredMaxLayoutWidth = 420
 
-        let content = NSStackView(views: [hint, search, scroll, editRow, broken.view, message])
+        let content = NSStackView(views: [hint, searchRow, scroll, editRow, broken.view, message])
         content.orientation = .vertical
         content.alignment = .leading
         content.spacing = 10
@@ -262,7 +280,7 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
     /// Lists the library's bad files in the broken-files section. Only a row
     /// naming a real `.json` file in the library folder is listed — those are
     /// the ones Delete File can remove. A failure of the whole listing (more
-    /// than four shortcut sets, an unreadable folder) names no file: it
+    /// than sixteen shortcut sets, an unreadable folder) names no file: it
     /// applies no stored shortcut at all and is said in the message line.
     /// Asked when the sheet opens and after a delete, not per keystroke.
     private func refreshBrokenFiles() {
@@ -278,12 +296,141 @@ final class ShortcutsSheetController: NSObject, NSTableViewDataSource, NSTableVi
     }
 
     /// A bad file was deleted: the stored set may read again, so it is
-    /// re-applied to the menu, then the rows and the section follow.
+    /// re-applied to the menu and the tool keys, then the rows and the
+    /// section follow.
     private func libraryChanged() {
         message.stringValue = ""
-        ShortcutMenu.apply(ShortcutMenu.stored().bindings, to: menu)
+        let bindings = ShortcutMenu.stored().bindings
+        ToolKeys.shared.load(bindings)
+        ShortcutMenu.apply(bindings, to: menu)
+        rebuildSetPopup()
         reload()
         refreshBrokenFiles()
+        Self.refreshEditorStatus()
+    }
+
+    // MARK: - Sets
+
+    /// The popup's operation rows, after the set names (tag 0).
+    private enum SetOperation: Int {
+        case create = 1, duplicate, rename, delete, importFile
+    }
+
+    /// The set names with the active one selected, then the operations. Rename and Delete are
+    /// off on the default set, which can be reset but not renamed or deleted.
+    private func rebuildSetPopup() {
+        setPopup.removeAllItems()
+        let active = ShortcutLibrary.key(ShortcutSets.activeName())
+        let onDefault = active == ShortcutLibrary.key(ShortcutSets.defaultName)
+        var selected: NSMenuItem?
+        for name in ShortcutSets.names() {
+            let item = NSMenuItem(title: name, action: nil, keyEquivalent: "")
+            item.representedObject = name
+            setPopup.menu?.addItem(item)
+            if ShortcutLibrary.key(name) == active { selected = item }
+        }
+        setPopup.menu?.addItem(.separator())
+        let operations: [(String, SetOperation)] = [
+            ("New Set…", .create), ("Duplicate Set…", .duplicate), ("Rename Set…", .rename),
+            ("Delete Set", .delete), ("Import Shortcuts File…", .importFile),
+        ]
+        for (title, operation) in operations {
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            item.tag = operation.rawValue
+            item.isEnabled = !(onDefault && (operation == .rename || operation == .delete))
+            setPopup.menu?.addItem(item)
+        }
+        setPopup.select(selected ?? setPopup.itemArray.first)
+    }
+
+    @objc private func setChosen(_ sender: Any?) {
+        guard let item = setPopup.selectedItem else { return }
+        let active = ShortcutSets.activeName()
+        do {
+            var note = ""
+            if let name = item.representedObject as? String {
+                try ShortcutSets.activate(name, in: menu)
+            } else {
+                switch SetOperation(rawValue: item.tag) {
+                case .create:
+                    if let name = askName(title: "New Shortcut Set", initial: "") {
+                        try ShortcutSets.create(name, in: menu)
+                    }
+                case .duplicate:
+                    if let name = askName(title: "Duplicate Shortcut Set", initial: active + " Copy") {
+                        try ShortcutSets.duplicate(as: name, in: menu)
+                    }
+                case .rename:
+                    if let name = askName(title: "Rename Shortcut Set", initial: active) {
+                        try ShortcutSets.rename(active, to: name, in: menu)
+                    }
+                case .delete:
+                    try ShortcutSets.delete(active, in: menu)
+                case .importFile:
+                    note = try importShortcutsFile() ?? ""
+                case nil:
+                    break
+                }
+            }
+            message.stringValue = note
+        } catch {
+            message.stringValue = error.localizedDescription
+            NSSound.beep()
+        }
+        rebuildSetPopup()
+        reload()
+        refreshBrokenFiles()
+        Self.refreshEditorStatus()
+    }
+
+    /// A set name, or nil when cancelled.
+    private func askName(title: String, initial: String) -> String? {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = "A shortcut set is a preference: it is saved for the whole app, "
+            + "and switching or editing one changes no document and adds no undo step."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+        DSField.style(field)
+        field.stringValue = initial
+        field.placeholderString = "Set name"
+        field.setAccessibilityIdentifier("shortcut-set-name")
+        alert.accessoryView = field
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        return field.stringValue
+    }
+
+    /// Import Shortcuts File…: the chosen `.kys` file becomes a new, active set, and its
+    /// report is shown. Answers the message line's one-sentence count, or nil when cancelled.
+    private func importShortcutsFile() throws -> String? {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "kys") ?? .data]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        let (name, report) = try ShortcutSets.importKys(contentsOf: url, in: menu)
+        let summary = "Imported \(report.applied.count) of the entries in "
+            + "\(url.lastPathComponent) into “\(name)”; \(report.unmapped.count) not mapped, "
+            + "\(report.refused.count) refused."
+        func section(_ title: String, _ lines: [String]) -> String {
+            "\(title) (\(lines.count))\n" + (lines.isEmpty ? "—" : lines.joined(separator: "\n"))
+        }
+        let text = NSTextView(frame: NSRect(x: 0, y: 0, width: 460, height: 300))
+        text.isEditable = false
+        text.font = DS.mono(11)
+        text.string = [section("Applied", report.applied), section("Not mapped", report.unmapped),
+                       section("Refused", report.refused)].joined(separator: "\n\n")
+        let scroll = NSScrollView(frame: text.frame)
+        scroll.hasVerticalScroller = true
+        scroll.documentView = text
+        let alert = NSAlert()
+        alert.messageText = "Imported “\(name)”"
+        alert.informativeText = summary
+        alert.accessoryView = scroll
+        alert.addButton(withTitle: "Done")
+        alert.runModal()
+        return summary
     }
 
     // MARK: - Editing

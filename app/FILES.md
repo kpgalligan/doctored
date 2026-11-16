@@ -460,7 +460,9 @@ Detail belongs in the source file's own header comment.
 - `Workspace.swift` / `EditorViewController+Workspace.swift` / `WorkspaceSheets.swift` / `AppDelegate+Workspaces.swift` — Phase 12C-2's saved workspace LAYOUTS.
 - `EditorWindowMemory.swift` — the frame and panel layout a new editor window reopens with (`UserDefaults`; never read or written under automation).
 - `Shortcuts.swift` / `ShortcutsSheetController.swift` / `AppDelegate+Shortcuts.swift` / `AgentServer+Workspace.swift` — customizable SHORTCUTS; the workspace and view MCP tools.
-- `ToolKeys.swift` — the remappable bare tool keys: the user's keys over `EditorTool.defaultKeyCharacter`, stored as the `"Shortcuts"` item's `tool_keys`.
+- `ToolKeys.swift` — the remappable bare tool keys: the user's keys over `EditorTool.defaultKeyCharacter`, stored as the active set's `tool_keys`.
+- `ShortcutSets.swift` — named shortcut sets: the active-set pointer (the library's `.default`), switch, New, Duplicate, Rename, Delete and `.kys` import into a new set.
+- `KysImport.swift` — the `.kys` shortcut-file reader, its explicit mapping tables (static id, dynamic name, tool key), the chord parser and the import report.
 - `AppDelegate+AppMenu.swift` — the Doctored (app) menu builder. `AppDelegate.buildMainMenu()` orders the top-level menus.
 - `AppDelegate+Updates.swift` — Doctored ▸ Check for Updates…: the nil-target action and `validateUpdatesItem`; in every build, enabled only when this launch has an updater.
 - `AppDelegate+FileMenu.swift` — the File menu builder. `AppDelegate.buildMainMenu()` orders the top-level menus.

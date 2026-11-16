@@ -440,6 +440,10 @@ do {
         ("default shortcuts", verifyDefaultShortcuts),
         // #20: the remappable bare tool keys (tool_keys.swift).
         ("tool keys", verifyToolKeys),
+        // #20: named shortcut sets (shortcut_sets.swift).
+        ("shortcut sets", verifyShortcutSets),
+        // #20: `.kys` import into a new set (kys_import.swift).
+        ("kys import", verifyKysImport),
         // #20: the Parameters… sheet's row-to-edit rule (action_parameter_rows.swift).
         ("action parameter rows", verifyActionParameterRows),
         ("fade sheet", verifyFadeSheets),

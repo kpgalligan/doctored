@@ -13,7 +13,7 @@ import Darwin
 // occupied-slot refusal, `delete(name:)` and `delete(file:)` for free. The fifteen codecs are
 // `RawPresetCodec` (128 × 8 KiB, schemas 1…2),
 // `ExportPresetCodec` (64 × 4 KiB, 1…2), `MetadataPolicyCodec` (64 × 4 KiB, 1…1),
-// `NewDocumentPresetCodec` (64 × 4 KiB, 1…1, `DR_DOCUMENT_PRESETS_DIR`), `ShortcutCodec` (4 × 32
+// `NewDocumentPresetCodec` (64 × 4 KiB, 1…1, `DR_DOCUMENT_PRESETS_DIR`), `ShortcutCodec` (16 × 32
 // KiB, 1…1, `DR_SHORTCUTS_DIR`), `WorkspaceCodec` (32 × 4 KiB, 1…1, `DR_WORKSPACES_DIR`),
 // `ProofPresetCodec` (64 × 4 KiB, 1…1, `DR_PROOF_PRESETS_DIR`), `AdjustmentPresetCodec` (256 ×
 // 16 KiB, 1…1, `DR_ADJUSTMENT_PRESETS_DIR`), `DevelopFilterPresetCodec` (128 × 4 KiB, 1…1,

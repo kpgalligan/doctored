@@ -160,7 +160,7 @@ Goal: large high-depth multilayer documents meet declared latency, memory, save 
 - `OPEN` [#17](https://github.com/kpgalligan/doctored/issues/17) — 6D's Magnetic Lasso Part B, its hand checks: the Caps Lock ring and the wire by eye, a real pen (the input half shipped, as did Select ▸ Focus Area: [ADR](focus-area.md)).
 - `OPEN` [#18](https://github.com/kpgalligan/doctored/issues/18) — brush dynamics (the Pencil, user brush presets, Define Pattern, the pattern library, Pattern fill, the Behind and Clear modes, the gradient library, the Layer Style panes' multistop editor, the Magic Eraser and the Background Eraser shipped).
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — type on a path, Warp Text, per-subpath operations held on the path (shape layers from a path, two-path booleans, the Path Selection and Direct Selection tools, selected-subpath booleans, the Fill Path… and Stroke Path… sheets and a path shape layer's outline as their target shipped).
-- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — 12C's named and per-document shortcut sets and `.kys` import ([shortcut-sets.md](shortcut-sets.md)).
+- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — 12C's per-document shortcut sets, held for the owner (named sets and `.kys` import shipped: [shortcut-sets.md](shortcut-sets.md)).
 - `OPEN` [#2](https://github.com/kpgalligan/doctored/issues/2) — 10C's measured adjustment and effect-kernel gaps, and a clip base below 100 % Fill (P7-39).
 - `OPEN` [#3](https://github.com/kpgalligan/doctored/issues/3) — the Pattern Overlay angle.
 - `OPEN` [#4](https://github.com/kpgalligan/doctored/issues/4) — 8G and 11F: Develop at 32-bit float (local tone map).

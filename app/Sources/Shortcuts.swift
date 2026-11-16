@@ -8,9 +8,10 @@ import AppKit
 // chord must contain ⌘ or be F1–F19, conflicts are checked against the WHOLE walk (app menu, system
 // selectors and hidden alternates included) and refused naming the holder, and items with a
 // `representedObject` — the rebuilt Workspaces and Open Recent lists — are never offered. The
-// shortcut and workspace libraries are both `PreferenceLibrary` codecs (`DR_SHORTCUTS_DIR` 4 × 32
-// KiB, `DR_WORKSPACES_DIR` 32 × 4 KiB); their writes are PREFERENCES, outside document Undo and
-// never Action steps.
+// shortcut and workspace libraries are both `PreferenceLibrary` codecs (`DR_SHORTCUTS_DIR` 16 × 32
+// KiB, one item per named set, `DR_WORKSPACES_DIR` 32 × 4 KiB); their writes are PREFERENCES,
+// outside document Undo and never Action steps. Every reader and writer works on the ACTIVE set
+// (`ShortcutSets`, `designs/shortcut-sets.md`).
 
 extension Notification.Name {
     static let shortcutLibraryDidChange = Notification.Name("ShortcutLibraryDidChange")
@@ -139,15 +140,16 @@ struct ShortcutChord: Equatable, Hashable {
 /// `toolKeys` is the bare tool keys' half (`ToolKeys`), identifier → key or
 /// nil for a removed key. It is written as `tool_keys` only when it holds
 /// something, so a set without tool keys keeps its bytes.
+///
+/// `name` is the set's name, one library item per named set (`ShortcutSets`).
 struct ShortcutBindings: Equatable {
     static let schemaVersion = 1
-    /// The library holds exactly one item, under this name.
+    /// The DEFAULT set's name: every file written before named sets is this set, unchanged.
     static let libraryName = "Shortcuts"
 
     var overrides: [String: ShortcutChord?] = [:]
     var toolKeys: [String: String?] = [:]
-
-    var name: String { Self.libraryName }
+    var name: String = ShortcutBindings.libraryName
 
     var json: [String: Any] {
         var map: [String: Any] = [:]
@@ -155,7 +157,7 @@ struct ShortcutBindings: Equatable {
             map[identity] = chord?.json ?? NSNull()
         }
         var object: [String: Any] = [
-            "schema_version": Self.schemaVersion, "name": Self.libraryName, "overrides": map,
+            "schema_version": Self.schemaVersion, "name": name, "overrides": map,
         ]
         if !toolKeys.isEmpty {
             object["tool_keys"] = toolKeys.mapValues { key -> Any in key.map { $0 as Any } ?? NSNull() }
@@ -163,11 +165,13 @@ struct ShortcutBindings: Equatable {
         return object
     }
 
+    /// Any non-empty `name` is admitted here; the library's own normalized-name check
+    /// (`PreferenceLibrary.diagnose`) still refuses a name no set could be saved under.
     static func decode(_ object: [String: Any]) throws -> ShortcutBindings {
         let required: Set<String> = ["schema_version", "name", "overrides"]
         guard required.isSubset(of: object.keys),
               Set(object.keys).subtracting(required).isSubset(of: ["tool_keys"]),
-              object["name"] as? String == libraryName,
+              let name = object["name"] as? String, !name.isEmpty,
               let map = object["overrides"] as? [String: Any] else {
             throw DoctoredCoreError(message: "Invalid or unsupported shortcut set.")
         }
@@ -195,7 +199,8 @@ struct ShortcutBindings: Equatable {
             guard let chord = overrides.removeValue(forKey: old) else { continue }
             if overrides[current] == nil { overrides.updateValue(chord, forKey: current) }
         }
-        return ShortcutBindings(overrides: overrides, toolKeys: try decodeToolKeys(object["tool_keys"]))
+        return ShortcutBindings(overrides: overrides, toolKeys: try decodeToolKeys(object["tool_keys"]),
+                                name: name)
     }
 
     /// `tool_keys`: identifier → one valid tool key (`ToolKeys.validated`) or null. An
@@ -224,16 +229,17 @@ struct ShortcutBindings: Equatable {
     }
 }
 
-/// The shortcut set's codec on the shared `PreferenceLibrary` contract. Four
-/// files rather than one so a stray copy is a diagnosed `broken` row instead
-/// of a refusal of the whole folder; only `"Shortcuts"` is ever read.
+/// The shortcut sets' codec on the shared `PreferenceLibrary` contract: one
+/// file per named set, sixteen at most, so a stray copy is a diagnosed
+/// `broken` row instead of a refusal of the whole folder. Only the ACTIVE set
+/// (`ShortcutSets.activeName()`) is applied.
 enum ShortcutCodec: PreferenceLibraryCodec {
     typealias Item = ShortcutBindings
 
     static let noun = "shortcut set"
     static let directoryEnvironment = "DR_SHORTCUTS_DIR"
     static let directoryName = "Doctored/Shortcuts"
-    static let maximumEntries = 4
+    static let maximumEntries = 16
     static let maximumFileBytes = 32 * 1024
     static let schemaVersions = ShortcutBindings.schemaVersion...ShortcutBindings.schemaVersion
     static let didChange = Notification.Name.shortcutLibraryDidChange
@@ -355,12 +361,16 @@ enum ShortcutMenu {
         }
     }
 
-    /// The stored set, plus whatever the library could not read. A broken file
-    /// applies NOTHING: a half-read override set is worse than the defaults.
+    /// The ACTIVE set (`ShortcutSets.activeName()`), else the default set, plus
+    /// whatever the library could not read. A broken file applies NOTHING: a
+    /// half-read override set is worse than the defaults.
     static func stored() -> (bindings: ShortcutBindings, broken: [PreferenceLibraryBroken]) {
         do {
             let listing = try ShortcutLibrary.listing()
-            let item = listing.entries.first { $0.item.name == ShortcutBindings.libraryName }
+            let active = ShortcutLibrary.key(ShortcutSets.activeName())
+            let fallback = ShortcutLibrary.key(ShortcutBindings.libraryName)
+            let item = listing.entries.first { ShortcutLibrary.key($0.item.name) == active }
+                ?? listing.entries.first { ShortcutLibrary.key($0.item.name) == fallback }
             return (item?.item ?? ShortcutBindings(), listing.broken)
         } catch {
             return (ShortcutBindings(),
@@ -525,10 +535,37 @@ enum ShortcutMenu {
 
     /// Drops every menu override. The snapshot is what comes back, so this
     /// restores exactly the menu this build ships; the tool keys are kept
-    /// (`ToolKeys.resetAll` is their own).
+    /// (`ToolKeys.resetAll` is their own), and so is the set's name.
     static func resetAll(in menu: NSMenu) throws {
-        let bindings = ShortcutBindings(toolKeys: stored().bindings.toolKeys)
+        let current = stored().bindings
+        let bindings = ShortcutBindings(toolKeys: current.toolKeys, name: current.name)
         apply(bindings, to: menu)
         try ShortcutLibrary.save(bindings, replace: true)
+    }
+
+    /// The builder chord of every action leaf the sheet does NOT offer — the
+    /// app menu, the `systemSelectors`, hidden and alternate twins, the
+    /// `representedObject` rows — keyed by chord (the first in walk order
+    /// wins), with its identity and its "Doctored ▸ Quit" path. An import
+    /// (`KysImport.bindings`) refuses a chord one of these holds, as `assign`
+    /// refuses it through `conflict`.
+    static func fixedChords(in menu: NSMenu) -> [ShortcutChord: (identity: String, path: String)] {
+        let customizable = Set(customizableItems(in: menu).map { ObjectIdentifier($0.menuItem) })
+        var out: [ShortcutChord: (identity: String, path: String)] = [:]
+        func walk(_ menu: NSMenu, _ path: [String], _ depth: Int) {
+            guard depth < maximumDepth else { return }
+            for item in menu.items {
+                if item.isSeparatorItem { continue }
+                if let submenu = item.submenu {
+                    walk(submenu, path + [item.title], depth + 1)
+                    continue
+                }
+                guard item.action != nil, !customizable.contains(ObjectIdentifier(item)),
+                      let chord = builderChord(of: item), out[chord] == nil else { continue }
+                out[chord] = (identity(of: item), (path + [item.title]).joined(separator: " ▸ "))
+            }
+        }
+        walk(menu, [], 0)
+        return out
     }
 }

@@ -74,15 +74,16 @@ library.
 - **Customizable shortcuts** (Settings…, ⌘,) — `Shortcuts.swift` (`ShortcutChord`, `ShortcutBindings`,
   `ShortcutCodec`, `ShortcutMenu`), `ShortcutsSheetController.swift`, `AppDelegate+Shortcuts.swift`.
   Identity is the SELECTOR (+ `#tag` when non-zero), never the title. Defaults are a launch-time SNAPSHOT of
-  `buildMainMenu()`; the file stores only overrides (one library item named `"Shortcuts"`), applied to the
-  live `NSMenuItem`s so the command palette needs no change. A chord must contain ⌘ or be F1–F19 (menu
+  `buildMainMenu()`; a set stores only overrides (one library item per named set, `"Shortcuts"` the default
+  set, the active one named by the library's `.default`: `ShortcutSets.swift`, [shortcut-sets.md](shortcut-sets.md)),
+  applied to the live `NSMenuItem`s so the command palette needs no change. A chord must contain ⌘ or be F1–F19 (menu
   equivalents resolve ahead of the first responder). Conflicts are checked against the whole walk (exact chord
   comparison — see [phase-12e-layer-ops-status.md](phase-12e-layer-ops-status.md), "The measured Shift rule", for why exact is right)
   and refused naming the holder. Not customizable: app menu, `ShortcutMenu.systemSelectors`, Open Recent,
   dynamic lists (`representedObject`), hidden/alternate items. A broken file applies NOTHING.
 - **Remappable tool keys** (`ToolKeys.swift`): `EditorTool.keyCharacter` is the user's key over
   `defaultKeyCharacter` ("" when removed), so the canvas, the rail's tooltips and group menus and the status
-  line follow it. Stored as the optional `tool_keys` map (identifier → key or null) of the same `"Shortcuts"`
+  line follow it. Stored as the optional `tool_keys` map (identifier → key or null) of the same set's
   item — written only when non-empty, so a set without it keeps its bytes; schema stays 1; an unknown tool's
   key is kept. Each half's write keeps the other. A key is one letter or digit, not Q, F, X or D (the canvas's
   own); tools may share one (the cycle rule). The Shortcuts tab lists "Tools ▸ <tool>" rows after the
@@ -122,8 +123,8 @@ library.
 
 ## Open items (verified 2026-10-07)
 - `DONE` — bare canvas tool-key remapping (Decisions, **Remappable tool keys**).
-- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — named and per-document shortcut sets and
-  `.kys` import, decided on paper in [shortcut-sets.md](shortcut-sets.md).
+- `DONE` — named shortcut sets and `.kys` import into a new set ([shortcut-sets.md](shortcut-sets.md)).
+- `OPEN` [#20](https://github.com/kpgalligan/doctored/issues/20) — per-document shortcut sets (held).
 - `DONE` — a new editor window reopens at the last window's frame and right-panel
   visibility and tab (`EditorWindowMemory`, app-wide in `UserDefaults`; cascaded off an open window at the same origin, fitted by
   `WindowFrameFit`; recorded on move, resize, resign-key and close, never full screen). Not the tool, no MCP twin, and off under

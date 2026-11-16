@@ -4,10 +4,11 @@ import AppKit
 /// the user's overrides, read through `EditorTool.keyCharacter` by every reader — the canvas's
 /// `keyDown`, the rail's tooltips and group menus, the status line.
 ///
-/// **Stored beside the menu chords.** The overrides are the optional `tool_keys` map of the one
-/// `"Shortcuts"` item (`ShortcutBindings`), identifier → key, or null for a key the user removed.
-/// One item per set is what a named set will need (`designs/shortcut-sets.md`). Each write
-/// rewrites the whole item and keeps the menu half as it is.
+/// **Stored beside the menu chords.** The overrides are the optional `tool_keys` map of the
+/// active set's item (`ShortcutBindings`, `ShortcutSets`), identifier → key, or null for a key the
+/// user removed, so switching sets switches the tool keys with the menu chords
+/// (`designs/shortcut-sets.md`). Each write rewrites the whole item and keeps the menu half as
+/// it is.
 ///
 /// **Which keys a tool may take.** One lowercase letter or digit, other than the canvas's own bare
 /// keys (`reservedKeys`). Two tools may share a key: sharing is the cycle rule that already lets
