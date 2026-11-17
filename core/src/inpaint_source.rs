@@ -34,8 +34,9 @@
 //!
 //! **FullFrame.** A guided Shadows/Highlights (the regional tree's one
 //! STAGED operator: its guide is built from the whole accumulator it is
-//! handed) keeps the full-frame fallback, `flattened_cut_with_job` (owner
-//! 13B). [`plate_arm`] decides the three arms in one pass over the cut stack,
+//! handed) keeps the full-frame fallback, `flattened_cut_with_job` (its
+//! full-frame cost stated and bounded by 13B-9c). [`plate_arm`] decides the
+//! three arms in one pass over the cut stack,
 //! parsing each contributing entry's metadata once and polling the job before
 //! each parse. The plan-time [`pointwise`] parses nothing — any metadata
 //! answers "full frame" there, which only over-reserves.
@@ -91,7 +92,7 @@
 //! unstyled raster stacks with ANY mask form (the aligned plane is layer-anchored and cached),
 //! pointwise adjustments and opaque metadata (13A-5c-2a), bound `T_f + c_tile_row`. `FullFrame`:
 //! only a guided Shadows/Highlights keeps `flattened_cut_with_job`, which runs under the job and
-//! cancels per row, bound `T_f + c_row` (owner 13B). Tiles and FullFrame reserve `context_scratch`
+//! cancels per row, bound `T_f + c_row` (stated and bounded by 13B-9c). Tiles and FullFrame reserve `context_scratch`
 //! beside their render term (`tile_scratch_bytes` / `projection_scratch_bytes`), the tree's
 //! preparation holds it, and `promote_flattened_plan` covers all three (its non-cooperative arm
 //! adds `(20·tile − 16·n)⁺`). Asking over the CUT stack is what lets ignoring adjustments reach a
