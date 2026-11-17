@@ -289,7 +289,7 @@ call, each the core plan of the very request the drive sends (the descriptor's
 - `retouch-clone-16`: `clone_stamp` sample current along the centre row from
   x 1500 to 4500, size 100, source 400 px above; plan =
   `cmyk_clone_scratch_bytes`, the plan of the rect-form request the app sends
-  since 13B-9c: its `coverage_rect` and bounds the stroke's
+  since 13B-9c: its `coverage_rect` (a clone sends no bounds) the stroke's
   `NativeBrushStroke.healBounds`, [1448, 1948, 3104, 104], the matrix the
   source offset.
 - `retouch-heal-16`: `heal_stroke` one 100 px dab at the centre, source 400 px

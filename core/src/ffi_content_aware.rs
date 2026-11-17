@@ -4,7 +4,8 @@ use crate::ffi_util::{borrow_cstr_bounded, boxed, fallible_op, required_handle};
 use crate::job_control::{DrJobControl, JobContext};
 use std::{ffi::c_char, ptr};
 
-/// Exact byte fill scratch bound, excluding retained inputs. Zero on refusal.
+/// Exact byte fill scratch bound, excluding retained inputs. Zero on refusal,
+/// a `coverage_rect` included (the typed request's alone).
 /// # Safety
 /// doc NULL/live; request NULL or terminated UTF-8; err_out NULL/writable.
 #[no_mangle]
@@ -31,7 +32,8 @@ pub unsafe extern "C" fn dr_doc_content_aware_fill_scratch(
         )
     }
 }
-/// Exact byte candidate using strict content_aware_fill JSON and canvas coverage.
+/// Exact byte candidate using strict content_aware_fill JSON and canvas coverage
+/// (a `coverage_rect` refuses: it is the typed request's alone).
 /// NULL result without error is an exact no-op. Control may be NULL; supplied
 /// tokens are single-use. Cancellation refuses atomically and releases scratch.
 /// # Safety

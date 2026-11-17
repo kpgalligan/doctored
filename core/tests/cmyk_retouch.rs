@@ -480,9 +480,10 @@ fn the_descriptor_reports_the_retouch_plans() {
     // The three retouch keys are the plans of the rect-form requests the
     // app sends for `scripts/cmyk-admission/measure.py`'s strokes on the top
     // CMYK raster (record 1): a heal and a spot heal of one 100 px dab at
-    // the centre (`healBounds`, the 104 px square), and a clone along the
-    // centre row from x − 1500 to x + 1500, size 100, its `healBounds`
-    // clamped to the canvas, the source 400 px above.
+    // the centre (`healBounds`, the 104 px square, as their bounds and
+    // `coverage_rect`), and a clone along the centre row from x − 1500 to
+    // x + 1500, size 100, its `healBounds` clamped to the canvas as its
+    // `coverage_rect` alone (a clone sends no bounds), the source 400 px above.
     let (cx, cy) = (cw / 2, ch / 2);
     let square = [cx - 52, cy - 52, 104, 104];
     let row = [0, cy - 52, cw, 104];
@@ -491,7 +492,7 @@ fn the_descriptor_reports_the_retouch_plans() {
         json!({"x":rect[0],"y":rect[1],"width":rect[2],"height":rect[3],
         "coverage_rect":rect,"layer":1})
     };
-    let mut clone = at(row);
+    let mut clone = json!({"coverage_rect": row, "layer": 1});
     clone["op"] = json!("retouch_clone");
     clone["matrix"] = json!(above);
     let mut heal = at(square);

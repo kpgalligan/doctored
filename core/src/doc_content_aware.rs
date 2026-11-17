@@ -166,6 +166,11 @@ pub(crate) fn request(text: &str) -> Result<RetouchEdit, String> {
     if edit.op != RetouchOp::ContentAwareFill {
         return Err("content-aware request requires op=content_aware_fill".into());
     }
+    // The byte fill reads canvas-sized coverage; the rect form is the typed
+    // request's alone (`RetouchEdit::coverage_rect`).
+    if edit.coverage_rect.is_some() {
+        return Err("coverage_rect is not an argument of this retouch operation".into());
+    }
     Ok(edit)
 }
 /// Bytes per canvas pixel only the new-layer arm charges beside the kernel:

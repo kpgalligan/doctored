@@ -171,6 +171,86 @@ fn the_clone_stamp_copies_bits_and_its_soft_edge_is_thresholded() {
     free(doc);
 }
 
+/// `plane` (canvas-sized) cropped to `rect`, row-major.
+fn crop(plane: &[u16], (x, y, w, h): (u32, u32, u32, u32)) -> Vec<u16> {
+    (y..y + h)
+        .flat_map(|row| {
+            let at = (row * W + x) as usize;
+            plane[at..at + w as usize].to_vec()
+        })
+        .collect()
+}
+
+/// A Clone Stamp naming its `coverage_rect` (13B-9c) sends the stroke, and
+/// with `selection` the selection, cropped to that rect: its plan reports
+/// the rect's input shape, and it moves the bits the canvas form moves,
+/// with and without a selection.
+#[test]
+fn a_rect_form_clone_answers_the_canvas_form() {
+    let doc = scene();
+    let before = bits(doc);
+    let rect = (5u32, 1u32, 6u32, 6u32);
+    // The soft band in rows 2 to 5, inside the rect.
+    let stroke: Vec<u16> = band_coverage(40000)
+        .into_iter()
+        .enumerate()
+        .map(|(i, c)| {
+            if (2..6).contains(&(i as u32 / W)) {
+                c
+            } else {
+                0
+            }
+        })
+        .collect();
+    // Zero left of x = 8, partial at x = 8.
+    let selection: Vec<u16> = (0..N as u32)
+        .map(|i| match i % W {
+            0..=7 => 0,
+            8 => 30000,
+            _ => 65535,
+        })
+        .collect();
+    for selected in [false, true] {
+        let planes = if selected { 2 } else { 1 };
+        let mut request = json!({"op":"retouch_clone","layer":0,"matrix":[1,0,0,1,-6,0]});
+        let (mut canvas, mut cropped) = (stroke.clone(), crop(&stroke, rect));
+        if selected {
+            request["selection"] = json!(true);
+            canvas.extend_from_slice(&selection);
+            cropped.extend(crop(&selection, rect));
+        }
+        let mut rect_request = request.clone();
+        rect_request["coverage_rect"] = json!([rect.0, rect.1, rect.2, rect.3]);
+        let plan = edit_plan(doc, &rect_request).unwrap();
+        assert_eq!(
+            (
+                &plan["input_width"],
+                &plan["input_height"],
+                &plan["input_planes"],
+                &plan["input_samples"]
+            ),
+            (
+                &json!(rect.2),
+                &json!(rect.3),
+                &json!(planes),
+                &json!(rect.2 * rect.3 * planes)
+            ),
+            "the rect form's plan, selection {selected}"
+        );
+        let a = paint(doc, &request, &canvas)
+            .unwrap()
+            .expect("the canvas form moves bits");
+        let b = paint(doc, &rect_request, &cropped)
+            .unwrap()
+            .expect("the rect form moves bits");
+        assert_eq!(bits(b), bits(a), "selection {selected}");
+        assert_ne!(bits(a), before, "selection {selected}");
+        free(a);
+        free(b);
+    }
+    free(doc);
+}
+
 fn history_brush(
     doc: *const PrecisionDocument,
     source: *const PrecisionDocument,

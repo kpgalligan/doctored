@@ -5198,7 +5198,9 @@ bool dr_job_control_begin_compound(const DrJobControl *control, char **err_out);
  * larger per halving; a part whose window is too narrow to reduce and holds
  * more than 1,000,000 pixels to search is refused. NULL with *err_out on a
  * cap or a starved sample region. The typed edit API accepts the same request with u16
- * coverage, keeping native search, solve and soft writeback.
+ * coverage, keeping native search, solve and soft writeback. Its coverage_rect is
+ * the typed form's alone: here it refuses ("coverage_rect is not an argument of
+ * this retouch operation"), since this coverage is always canvas-sized.
  * source_mask: {version:1,initial:"all"|"none",operations:[...]}; ordered
  * include_rect/exclude_rect {x,y,width,height} use half-open pixel-center tests;
  * include_brush/exclude_brush {radius,points:[[x,y],...]} use connected round

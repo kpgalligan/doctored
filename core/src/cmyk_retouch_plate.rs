@@ -20,7 +20,8 @@
 //! The descriptor's plans (`cmyk_render::cmyk_descriptor`) are the core plans
 //! of the very requests the app sends for `scripts/cmyk-admission/measure.py`'s
 //! strokes on the top CMYK raster, in rect form since 13B-9c (`coverage_rect`
-//! and the bounds are the stroke's `NativeBrushStroke.healBounds`): a clone
+//! is the stroke's `NativeBrushStroke.healBounds`, which a heal and a spot
+//! heal also send as their bounds; a clone sends none): a clone
 //! along the centre row 3000 px wide, size 100, its rect `[cx − 1552, cy − 52,
 //! 3104, 104]` clamped to the canvas, the source 400 px above; a heal (the
 //! same source) and a spot heal of one 100 px dab at the canvas centre, over
@@ -253,13 +254,14 @@ impl PrecisionDocument {
                     .map(|plan| plan.scratch_bytes),
             )
         };
-        // The rect forms the app sends (13B-9c): `coverage_rect` and the
-        // bounds are the stroke's `healBounds`, the source 400 px above.
+        // The rect forms the app sends (13B-9c): `coverage_rect` is the
+        // stroke's `healBounds`, which a heal and a spot heal also send as
+        // their bounds (a clone sends none); the source is 400 px above.
         let at = |(x, y, w, h): (i64, i64, i64, i64)| json!({"x":x,"y":y,"width":w,"height":h,"coverage_rect":[x,y,w,h]});
         let above = json!([1.0, 0.0, 0.0, 1.0, 0.0, -400.0]);
         let (rx0, ry0) = ((cx - 1552).max(0), (cy - 52).max(0));
         let (rx1, ry1) = ((cx + 1552).min(i64::from(w)), (cy + 52).min(i64::from(h)));
-        let mut clone = at((rx0, ry0, rx1 - rx0, ry1 - ry0));
+        let mut clone = json!({"coverage_rect": [rx0, ry0, rx1 - rx0, ry1 - ry0]});
         clone["op"] = json!("retouch_clone");
         clone["matrix"] = above.clone();
         let mut heal = at((bx, by, side, side));

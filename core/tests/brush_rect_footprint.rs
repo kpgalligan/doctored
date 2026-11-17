@@ -80,7 +80,12 @@ fn texture() -> Texture {
     let rgba: Vec<u8> = (0..w * h)
         .flat_map(|i| {
             let v = ((i * 71) % 256) as u8;
-            [v, 255 - v, (i * 13) as u8, if i % 4 == 1 { 120 } else { 255 }]
+            [
+                v,
+                255 - v,
+                (i * 13) as u8,
+                if i % 4 == 1 { 120 } else { 255 },
+            ]
         })
         .collect();
     let mut e = ptr::null_mut();
@@ -201,7 +206,10 @@ fn check(failures: &mut Vec<String>, label: &str, request: &Value, kind: Kind<'_
     let rect = run((RECT.2, RECT.3), origin, request, &moved(&all), &kind);
     match (canvas, rect) {
         (Ok(canvas), Ok(rect)) => {
-            assert!(canvas.iter().any(|v| *v > 0), "{label}: the stroke covers nothing");
+            assert!(
+                canvas.iter().any(|v| *v > 0),
+                "{label}: the stroke covers nothing"
+            );
             let cropped = crop(&canvas);
             let outside = canvas.iter().map(|v| u64::from(*v)).sum::<u64>()
                 - cropped.iter().map(|v| u64::from(*v)).sum::<u64>();
@@ -260,7 +268,12 @@ fn a_rect_footprint_is_the_canvas_footprint_cropped() {
             continue;
         }
         check(f, &format!("shaped {name}"), &request, Kind::Shaped(&pairs));
-        check(f, &format!("textured {name}"), &request, Kind::Textured(None, &grain));
+        check(
+            f,
+            &format!("textured {name}"),
+            &request,
+            Kind::Textured(None, &grain),
+        );
         check(
             f,
             &format!("textured shaped {name}"),

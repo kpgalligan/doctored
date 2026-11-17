@@ -523,3 +523,38 @@ fn the_covered_count_is_the_holes_own() {
         Some("covered is not an argument of this retouch operation")
     );
 }
+
+/// The byte fill reads canvas-sized coverage, so the typed request's
+/// `coverage_rect` is not one of its arguments: the admission and the edit
+/// both refuse it by name, and the document is unchanged.
+#[test]
+fn the_byte_fill_refuses_a_coverage_rect() {
+    const REFUSAL: &str = "coverage_rect is not an argument of this retouch operation";
+    let doc = feathered(160, 100);
+    // Canvas-sized coverage over the punched hole, so the export never reads
+    // past it; the same request without the key fills it.
+    let coverage: Vec<u8> = (0..160 * 100)
+        .map(|i| {
+            let (x, y) = (i % 160, i / 160);
+            if (40..70).contains(&x) && (30..56).contains(&y) {
+                255
+            } else {
+                0
+            }
+        })
+        .collect();
+    let mut r = request((40, 30, 30, 26), 1, "current", "layer", false);
+    let (changed, message) = edit(&doc, &r, &coverage);
+    assert!(message.is_none(), "{message:?}");
+    assert!(changed, "the hole was filled without the key");
+    r["coverage_rect"] = json!([38, 28, 34, 30]);
+    let text = CString::new(r.to_string()).unwrap();
+    let mut err = ptr::null_mut();
+    let out = unsafe { dr_doc_content_aware_fill_scratch(&doc, text.as_ptr(), &mut err) };
+    assert_eq!(out, 0);
+    assert!(!err.is_null(), "the admission accepted coverage_rect");
+    assert_eq!(take_err_string(err), REFUSAL);
+    let (changed, message) = edit(&doc, &r, &coverage);
+    assert!(!changed, "the edit accepted coverage_rect");
+    assert_eq!(message.as_deref(), Some(REFUSAL));
+}

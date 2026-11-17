@@ -24,8 +24,8 @@ use tempfile::TempDir;
 
 use crate::common::{cpath, take_err_string};
 use crate::indexed_fixture::{
-    color_table, free, indices, open_rgb, oracle_with, paint, palette_of, render16, rgb_doc,
-    to_indexed, to_rgb, window, Ink, LIMIT,
+    color_table, edit_plan, free, indices, open_rgb, oracle_with, paint, palette_of, render16,
+    rgb_doc, to_indexed, to_rgb, window, Ink, LIMIT,
 };
 
 const W: u32 = 12;
@@ -307,6 +307,85 @@ fn a_clone_onto_a_new_layer_refuses_as_layer_new() {
         Err("add_layer is not available in Indexed Color.".into())
     );
     assert_eq!(indices(doc), before);
+    free(doc);
+}
+
+/// `plane` (canvas-sized) cropped to `rect`, row-major.
+fn crop(plane: &[u16], (x, y, w, h): (u32, u32, u32, u32)) -> Vec<u16> {
+    (y..y + h)
+        .flat_map(|row| {
+            let at = (row * W + x) as usize;
+            plane[at..at + w as usize].to_vec()
+        })
+        .collect()
+}
+
+/// A Clone Stamp naming its `coverage_rect` (13B-9c) sends the stroke, and
+/// with `selection` the selection, cropped to that rect: its plan reports
+/// the rect's input shape, and it moves the indices the canvas form moves,
+/// with and without a selection.
+#[test]
+fn a_rect_form_clone_answers_the_canvas_form() {
+    let doc = scene();
+    let rect = (3u32, 1u32, 6u32, 6u32);
+    // The soft band in rows 2 to 5, inside the rect.
+    let stroke: Vec<u16> = band_coverage(30000)
+        .into_iter()
+        .enumerate()
+        .map(|(i, c)| {
+            if (2..6).contains(&(i as u32 / W)) {
+                c
+            } else {
+                0
+            }
+        })
+        .collect();
+    // Zero left of x = 5, partial at x = 5.
+    let selection: Vec<u16> = (0..N as u32)
+        .map(|i| match i % W {
+            0..=4 => 0,
+            5 => 30000,
+            _ => 65535,
+        })
+        .collect();
+    for selected in [false, true] {
+        let planes = if selected { 2 } else { 1 };
+        let mut request = json!({"op":"retouch_clone","layer":0,"matrix":[1,0,0,1,-4,0]});
+        let (mut canvas, mut cropped) = (stroke.clone(), crop(&stroke, rect));
+        if selected {
+            request["selection"] = json!(true);
+            canvas.extend_from_slice(&selection);
+            cropped.extend(crop(&selection, rect));
+        }
+        let mut rect_request = request.clone();
+        rect_request["coverage_rect"] = json!([rect.0, rect.1, rect.2, rect.3]);
+        let plan = edit_plan(doc, &rect_request).unwrap();
+        assert_eq!(
+            (
+                &plan["input_width"],
+                &plan["input_height"],
+                &plan["input_planes"],
+                &plan["input_samples"]
+            ),
+            (
+                &json!(rect.2),
+                &json!(rect.3),
+                &json!(planes),
+                &json!(rect.2 * rect.3 * planes)
+            ),
+            "the rect form's plan, selection {selected}"
+        );
+        let a = paint(doc, &request, &canvas)
+            .unwrap()
+            .expect("the canvas form moves indices");
+        let b = paint(doc, &rect_request, &cropped)
+            .unwrap()
+            .expect("the rect form moves indices");
+        assert_eq!(indices(b), indices(a), "selection {selected}");
+        assert_eq!(render16(b), render16(a), "selection {selected}");
+        free(a);
+        free(b);
+    }
     free(doc);
 }
 
