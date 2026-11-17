@@ -23,7 +23,9 @@
 //! and each saved path as 2000 + its index, its name in the resource's Pascal
 //! string (UTF-8; the model's 255-byte name cap is the Pascal string's own);
 //! a path whose coordinates leave the fixed-point range is not written, with
-//! a sentence.
+//! a sentence, and neither is one holding per-subpath operations, which this
+//! build's writer does not carry yet (its own sentence; a vector mask holding
+//! them is written as pixels).
 //!
 //! **Vector masks.** A `vmsk` is that layer's vector mask (`set_vector_mask`),
 //! enabled and linked from its flags, when its path is one Doctored holds
@@ -253,8 +255,15 @@ pub(crate) fn export_losses(entries: &[PathEntry], canvas: (u32, u32)) -> Vec<St
             PathKind::Work => "The work path".to_string(),
             PathKind::Saved => format!("Path “{}”", entry.name),
         };
-        if encode(&entry.shape, canvas, false).is_err() {
-            losses.push(format!("{label} reaches past the range a PSD path can hold (128 times the canvas); it is not written."));
+        let lost = if entry.shape.ops.is_some() {
+            Some(format!("{label} holds per-subpath operations, which a PSD path written by this build does not carry; it is not written."))
+        } else if encode(&entry.shape, canvas, false).is_err() {
+            Some(format!("{label} reaches past the range a PSD path can hold (128 times the canvas); it is not written."))
+        } else {
+            None
+        };
+        if let Some(sentence) = lost {
+            losses.push(sentence);
             if entry.clipping.is_some() {
                 losses.push(format!(
                     "{label} is the clipping path; the file names no clipping path."

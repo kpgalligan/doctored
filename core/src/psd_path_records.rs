@@ -47,7 +47,9 @@
 //! overlapping shapes) reads as `evenodd`, every subpath `1` (combine) as
 //! `nonzero`, which agree wherever contours do not cancel by winding; any
 //! other mix reads as `nonzero` and is reported ([`Decoded::combined`]). The
-//! writer gives every subpath the rule's operation.
+//! writer gives every subpath the rule's operation. A shape holding
+//! per-subpath operations (`PathShape::ops`) is not written yet ([`encode`]'s
+//! `Err`; its codec is slice 3 of `designs/v1-paths-held-subpaths.md`).
 
 use crate::path_geometry::{Anchor, FillRule, PathShape, Subpath};
 
@@ -141,6 +143,7 @@ pub(crate) fn decode(bytes: &[u8], canvas: (u32, u32)) -> Result<Decoded, String
         shape: PathShape {
             subpaths,
             fill_rule,
+            ops: None,
         },
         inverted,
         combined: !even && !operations.iter().all(|&op| op == 1),
@@ -149,12 +152,16 @@ pub(crate) fn decode(bytes: &[u8], canvas: (u32, u32)) -> Result<Decoded, String
 }
 
 /// The records of `shape` on a `canvas`, `inverted` the initial fill. `Err`
-/// for a coordinate past the fixed-point range (module doc).
+/// for a coordinate past the fixed-point range and for a shape holding
+/// per-subpath operations (module doc).
 pub(crate) fn encode(
     shape: &PathShape,
     canvas: (u32, u32),
     inverted: bool,
 ) -> Result<Vec<u8>, String> {
+    if shape.ops.is_some() {
+        return Err("a PSD path does not hold per-subpath operations".into());
+    }
     let (w, h) = (f64::from(canvas.0), f64::from(canvas.1));
     let mut out = Vec::with_capacity(RECORD * (2 + shape.anchor_count() + shape.subpaths.len()));
     let mut record = |selector: u16, body: &[u8]| {

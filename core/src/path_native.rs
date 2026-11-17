@@ -26,7 +26,10 @@
 //! with `doc_path::entry_value`'s entries (no ids) and `path_geometry`'s
 //! shape keys; the clipping path's entry adds `"clipping":{"tail":hex}`,
 //! which word 114 licenses (`clipping_path_native`, checked by each depth's
-//! reader once this table is read). A vector mask names its layer by its bottom-first record
+//! reader once this table is read), and a shape holding per-subpath
+//! operations gives each subpath an `"op"`, which word 116 licenses
+//! (`subpath_ops_native`, checked the same way; [`encoded_bound`] charges
+//! the key per subpath only then). A vector mask names its layer by its bottom-first record
 //! index, and only a LIVE one is written (`doc_vector_mask`). The layer's
 //! own mask record in the file is the BAKED plane, which is what makes the
 //! picture independent of this table; the table adds the shape, the flags
@@ -76,6 +79,9 @@ const WRAPPER_BYTES: u64 = 64;
 const ENTRY_BYTES: u64 = 96;
 /// `{"anchors":[],"closed":false},` is 30 bytes.
 const SUBPATH_BYTES: u64 = 30;
+/// A subpath's operation key, `,"op":"intersect"` at its longest (17 bytes),
+/// charged per subpath only when some shape holds operations.
+const OP_BYTES: u64 = 20;
 /// One anchor with every coordinate at its twelve-character longest
 /// (`-999999.9999`), its keys and its separator.
 const ANCHOR_BYTES: u64 = 118;
@@ -205,11 +211,17 @@ pub(crate) fn encoded_bound(list: &[PathEntry], masks: &[TableMask<'_>], sample_
     } else {
         0
     };
+    let ops = if crate::subpath_ops_native::carries(list, masks) {
+        OP_BYTES * subpaths
+    } else {
+        0
+    };
     FRAMING_BYTES
         + WRAPPER_BYTES
         + ENTRY_BYTES * list.len() as u64
         + names
         + clipping
+        + ops
         + MASK_BYTES * masks.len() as u64
         + SUBPATH_BYTES * subpaths
         + ANCHOR_BYTES * anchors

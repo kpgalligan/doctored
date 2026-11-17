@@ -406,6 +406,7 @@ fn the_shape_refuses_what_the_model_cannot_hold() {
             closed: false,
         }],
         fill_rule: FillRule::NonZero,
+        ops: None,
     };
     assert!(nan.refusal().is_some());
     assert!(nan.validated().is_err());
@@ -415,6 +416,7 @@ fn the_shape_refuses_what_the_model_cannot_hold() {
             closed: true,
         }],
         fill_rule: FillRule::NonZero,
+        ops: None,
     };
     assert_eq!(
         hollow.refusal().as_deref(),

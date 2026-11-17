@@ -185,7 +185,12 @@ pub(crate) const MAX_DRDC_BLOB_LEN: u32 = 16 * 1024 * 1024;
 /// riding in the style or description JSON): the FIRST word inside 45 (ahead
 /// of 114), and in a typed file the word right after the CMYK slot (ahead of
 /// 114), with no table.
-/// The next free word is 116. The constant stays 89: words 90 to 115 are
+/// 116 is the per-subpath operations word at both depths
+/// (`subpath_ops_native`: some path or live vector mask holds per-subpath
+/// operations, riding in the PATH table's JSON): the FIRST word inside 45
+/// (ahead of 115), and in a typed file the word right after the CMYK slot
+/// (ahead of 115), with no table.
+/// The next free word is 117. The constant stays 89: words 90 to 116 are
 /// conditional words read ahead of the body version, never a body version
 /// themselves.
 /// Since 2026-10-10 words 65, 66, 68, 69, 70 and 73
@@ -511,11 +516,16 @@ impl DrDocument {
     /// the profile rides inside that record's meta. A document with no such
     /// meta writes nothing here, so its bytes stay exactly the prior
     /// writer's.
-    /// Version 115 is the FIRST word inside 45 (`pattern_samples_native`),
+    /// Version 116 is the FIRST word inside 45 (`subpath_ops_native`), ahead
+    /// of 115, with no table: a document some path or live vector mask of
+    /// which holds per-subpath operations writes 116 after 45 and before
+    /// every other conditional word; the operations ride inside the PATH
+    /// table's JSON. The next free word is 117.
+    /// Version 115 is the next word inside 45 (`pattern_samples_native`),
     /// ahead of 114, with no table: a document some stored pattern of which
     /// holds native samples writes 115 after 45 and before every other
-    /// conditional word; the samples ride inside the style or description
-    /// JSON. The next free word is 116.
+    /// conditional word but 116; the samples ride inside the style or
+    /// description JSON.
     /// Version 114 is the next word inside 45 (`clipping_path_native`),
     /// ahead of 113, with no table: a document some path of which is the
     /// clipping path writes 114 after 45 and before every other conditional
@@ -681,7 +691,14 @@ impl DrDocument {
         // every layer, so there is no "document without the table".
         let ids = crate::identity_native::byte_ids(self);
         buf.extend_from_slice(&crate::identity_native::BYTE_VERSION.to_le_bytes());
-        // Then `pattern_samples_native`'s word 115 — the FIRST word inside
+        // Then `subpath_ops_native`'s word 116 — the FIRST word inside 45,
+        // ahead of 115, with no table, written only when some path or live
+        // vector mask holds per-subpath operations (they ride in the PATH
+        // table's JSON).
+        if crate::subpath_ops_native::carries(&self.paths.entries, &self.vector_mask_table()) {
+            buf.extend_from_slice(&crate::subpath_ops_native::WORD.to_le_bytes());
+        }
+        // Then `pattern_samples_native`'s word 115 — the next word inside
         // 45, ahead of 114, with no table, written only when some stored
         // pattern holds native samples (they ride in the JSON).
         if crate::pattern_samples_native::styles_samples(self) {

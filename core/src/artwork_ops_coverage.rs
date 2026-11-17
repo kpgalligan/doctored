@@ -99,6 +99,21 @@ fn apply(op: SubpathOp, folded: bool, own: bool) -> bool {
     }
 }
 
+/// Where the fold starts: everything when the first subpath subtracts,
+/// otherwise nothing.
+fn start(ops: &[SubpathOp]) -> bool {
+    ops.first() == Some(&SubpathOp::Subtract)
+}
+
+/// The fold with every subpath outside: whether the shape covers what its
+/// subpaths do not reach (`PathShape::unbounded`). It holds exactly when the
+/// first subpath subtracts and no subpath intersects, since a unite, subtract
+/// or exclude of nothing changes nothing and an intersect with nothing clears
+/// everything.
+pub(crate) fn holds_outside(ops: &[SubpathOp]) -> bool {
+    ops.iter().fold(start(ops), |r, &op| apply(op, r, false))
+}
+
 /// The fold's fixed facts: the operations, the fill rule, where it starts,
 /// the intersecting subpaths in order, and its value with every subpath
 /// outside.
@@ -112,17 +127,15 @@ struct Fold<'a> {
 
 impl<'a> Fold<'a> {
     fn new(ops: &'a [SubpathOp], even_odd: bool) -> Self {
-        let start = ops.first() == Some(&SubpathOp::Subtract);
         let intersects: Vec<u32> = (0..ops.len() as u32)
             .filter(|&i| ops[i as usize] == SubpathOp::Intersect)
             .collect();
-        let outside = ops.iter().fold(start, |r, &op| apply(op, r, false));
         Self {
             ops,
             even_odd,
-            start,
+            start: start(ops),
             intersects,
-            outside,
+            outside: holds_outside(ops),
         }
     }
 

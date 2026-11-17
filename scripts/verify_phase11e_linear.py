@@ -137,7 +137,7 @@ WRAPPER_WORDS = {
     108: "Indexed document (typed)", 109: "Duotone document (typed)",
     110: "Bitmap document (typed)", 111: "gradient map method",
     112: "spot channel", 113: "Background mark", 114: "clipping path",
-    115: "native pattern samples",
+    115: "native pattern samples", 116: "subpath operations",
 }
 
 

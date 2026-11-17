@@ -84,6 +84,7 @@ impl Bake {
                 let one = PathShape {
                     subpaths: vec![subpath],
                     fill_rule: crate::path_geometry::FillRule::NonZero,
+                    ops: None,
                 };
                 (one, op)
             })

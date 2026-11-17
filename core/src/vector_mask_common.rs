@@ -111,10 +111,21 @@ pub(crate) fn shifted(shape: &PathShape, dx: i64, dy: i64) -> PathShape {
 /// shape's pixel box (its control hull, which contains the curve, grown to
 /// whole pixels) inside `within`. A shape that misses `within` altogether
 /// answers one pixel at `within`'s origin, which the rasterizer leaves at 0:
-/// a mask that hides everything still needs a plane.
+/// a mask that hides everything still needs a plane. An UNBOUNDED shape
+/// (`PathShape::unbounded`: its first operation subtracts and none
+/// intersects, so it covers what its subpaths do not reach) is
+/// baked over the whole of `within`, the one pixel only when `within` is
+/// empty.
 pub(crate) fn bake_rect(shape: &PathShape, within: (i64, i64, i64, i64)) -> (i32, i32, u32, u32) {
     let (wx, wy, ww, wh) = within;
     let one = (wx as i32, wy as i32, 1, 1);
+    if shape.unbounded() {
+        return if ww > 0 && wh > 0 {
+            (wx as i32, wy as i32, ww as u32, wh as u32)
+        } else {
+            one
+        };
+    }
     let Some([min_x, min_y, max_x, max_y]) = shape.bounds() else {
         return one;
     };
@@ -126,6 +137,24 @@ pub(crate) fn bake_rect(shape: &PathShape, within: (i64, i64, i64, i64)) -> (i32
         return one;
     }
     (x0 as i32, y0 as i32, (x1 - x0) as u32, (y1 - y0) as u32)
+}
+
+/// The outside coverage of the slot a path plane is baked into (the slot
+/// rule in `doc_vector_mask`'s module doc): 255 for an UNBOUNDED shape when
+/// no enabled raster part multiplies the bake (`raster_factor` false), which
+/// is the shape's own answer beyond the plane, so a later growth of the
+/// layer or the canvas past the plane reads the shape; 0 otherwise. Beside an
+/// enabled raster part the slot is the product, and beyond the plane the
+/// product is the raster part's effective coverage: exactly 0 when the plane
+/// is the raster's own rectangle (outside 0, unfeathered, density 1), and no
+/// constant 0/255 can state in the other cases, which keep 0 until the next
+/// rebake.
+pub(crate) fn slot_outside(shape: &PathShape, raster_factor: bool) -> u8 {
+    if shape.unbounded() && !raster_factor {
+        255
+    } else {
+        0
+    }
 }
 
 /// The bounding rectangle of two `(x, y, width, height)` rectangles.

@@ -1,7 +1,8 @@
 # Per-subpath operations held on a path (ADR)
 
-- **Status:** Accepted, not built. The build is the last open item of
-  [#19](https://github.com/kpgalligan/doctored/issues/19); "What a build owes" below is its plan.
+- **Status:** Accepted; slices 1 and 2 shipped (the kernel, then the model and DRDC word 116). Slices 3
+  and 4 are the last open item of [#19](https://github.com/kpgalligan/doctored/issues/19); "What a build
+  owes" below is their plan.
 - **Date:** 2026-11-16
 - **Extends:** [v1-paths.md](v1-paths.md) (its `OPEN` item for #19).
 
@@ -69,9 +70,10 @@ Accepted.
     `transformed`) keep it, and every edit that adds, removes or reorders subpaths (the Pen, Path
     Selection's delete and ⌥-drag copies, `set_path`) carries each subpath's operation with it; a subpath
     the Pen starts takes `unite`.
-- **HS-2 — Coverage.** One kernel routine in `artwork_coverage` beside `rasterize`, taking the verbs, the
-  points and one operation per subpath, and sharing `outline`, `edge_breaks`, the pair stage
-  (`artwork_pair_sweep`) and `emit_row`.
+- **HS-2 — Coverage.** One kernel routine, `rasterize_ops` in `artwork_ops_coverage` beside
+  `artwork_coverage` (its own module by the size rule), taking the verbs, the points and one operation per
+  subpath, and sharing `outline`'s walk (`outline_by_subpath`), `edge_breaks`, the pair stage
+  (`artwork_pair_sweep`), `span` and `emit_row`.
   - **Subpath index.** `PathShape::commands` opens every subpath with one move and ends it with one close,
     and `outline` tags a new loop at each of both (so loop indices are `2k + 1` today); the routine counts
     moves for the subpath index rather than relying on that arithmetic.
@@ -103,6 +105,13 @@ Accepted.
     `doc_vector_mask.rs` (the byte vector mask's bake) and `precision_vector_mask.rs` (the typed one) call
     `PathShape::coverage`, which the build makes dispatch to HS-2's routine when `ops` is present, so all
     three follow with no change at the call site.
+  - An UNBOUNDED shape (first operation subtract and none intersect, so its fold holds with every subpath
+    outside; a later intersect bounds it) bakes over the whole mask extent, its slot's outside
+    coverage 255 when no enabled raster part multiplies the bake (`vector_mask_common::slot_outside`), so
+    a later canvas or layer growth reads the shape. Beside an enabled raster part the slot keeps 0: beyond
+    the plane the product is the raster part's effective coverage, exactly 0 when the plane is the
+    raster's own rectangle and no constant otherwise, so a growth there shows 0 until the next rebake
+    (under [#19](https://github.com/kpgalligan/doctored/issues/19)).
   - `landmark_region.rs` builds its own shapes, which never hold `ops`: unchanged.
   - `psd_vector_mask_bake.rs` draws each subpath as its own shape and folds them with
     `vector_mask_combine`'s per-pixel product rule. The build replaces that with one coverage of the shape
@@ -118,8 +127,8 @@ Accepted.
   the fold removed; Combine Selected Subpaths makes one outline first.
 - **HS-5 — Persistence.** The `PATH` table's entry JSON (paths and live vector-mask records alike) carries
   each subpath's `op`. A document whose paths and vector masks hold no `ops` writes the prior writer's
-  bytes. One the core sees holding `ops` takes the next free DRDC conditional word (116 at 20312622; the
-  build takes whatever is next), written only when some path or live vector mask holds `ops`, so an older
+  bytes. One the core sees holding `ops` takes DRDC conditional word 116 (`subpath_ops_native`),
+  written only when some path or live vector mask holds `ops`, so an older
   build refuses the file instead of reading the outline under one rule. A path SHAPE layer's outline lives
   in the shape payload, which the core never parses (opaque `meta`), so it needs no DRDC word: a path shape
   may hold `ops` only in the next shape payload version (8), which an older build reads as plain pixels.
@@ -133,6 +142,9 @@ Accepted.
   it follows. Checked against the `authored_exchange` files on disk, whose 8-bit twins carry a rendering of
   each mask; whether the application that wrote them reads a Doctored-written mixed-operation `vmsk` back
   as live needs a new take, which no batch may spend, so the build ships without that claim and says so.
+  - Until slice 3, `encode` refuses a shape with `ops`: a saved path holding them is not written to a PSD,
+    whose export report names it with its own sentence, nor to a flat TIFF, which keeps its "paths" loss;
+    a vector mask holding them is written as its baked pixels.
 - **HS-7 — Surface.** Every MCP path tool that takes `subpaths` (`set_path`, `set_vector_mask`,
   `path_to_selection`, `fill_path`, `stroke_path`, and `add_shape_layer` / `edit_shape_layer` with kind
   `path`) takes `subpaths[i].op`, and `list_paths`, `get_vector_mask` and `get_shape_layer` read it back; a

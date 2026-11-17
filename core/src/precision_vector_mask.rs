@@ -13,6 +13,8 @@
 //!   allocation is the liveness test.
 //! * Path coverage is the rasterizer's own u16, so nothing is narrowed; the
 //!   raster factor is `PreparedMask::at`, the one typed mask evaluation.
+//!   The slot's outside coverage for an unbounded shape follows the byte
+//!   rule (`vector_mask_common::slot_outside`).
 //! * A group's mask is not tied to the group's offset, so a group's plane is
 //!   baked over the shape's pixel box inside the canvas like an adjustment's.
 //! * The ops are admitted: [`bake_scratch`] is charged against the caller's
@@ -36,7 +38,8 @@ use crate::precision_document::{PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{admit, BOOKKEEPING_BYTES};
 use crate::precision_mask::{PrecisionMask, PrecisionPlane};
 use crate::vector_mask_common::{
-    anchor_refusal, bake_rect, path_on, shifted, union_rect, RasterPartView, VectorMaskView,
+    anchor_refusal, bake_rect, path_on, shifted, slot_outside, union_rect, RasterPartView,
+    VectorMaskView,
 };
 
 /// One typed layer's vector mask (`doc_vector_mask::VectorMaskRecord`).
@@ -254,7 +257,8 @@ impl PrecisionDocument {
         };
         let on = path_on(&record.shape, record.enabled);
         let mut plane = record.shape.coverage((x, y), w, h, true, job)?;
-        if let Some(raster) = record.raster.as_ref().filter(|r| r.enabled && on) {
+        let raster_factor = record.raster.as_ref().filter(|r| r.enabled && on);
+        if let Some(raster) = raster_factor {
             let prepared = raster.prepare(job)?;
             for row in 0..h {
                 job.check()?;
@@ -268,6 +272,7 @@ impl PrecisionDocument {
         }
         let mut properties = MaskProperties::at((x, y));
         properties.linked = record.linked;
+        properties.outside_coverage = slot_outside(&record.shape, raster_factor.is_some());
         PrecisionMask::new(PrecisionPlane::adopt(w, h, plane)?, properties, on).map(Some)
     }
 

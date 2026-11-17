@@ -433,14 +433,19 @@ pub(super) fn parse_within(
     // Version 110 in the same slot (`bitmap_native`, #1): a Bitmap
     // document, whose GRAY table then BTMP table are the last before LIDS.
     let has_bitmap = has_ids && cmyk_word == crate::bitmap_native::WORD;
-    let samples_word =
-        if has_cmyk || has_gray || has_duotone || has_lab || has_indexed || has_bitmap {
-            reader.u32()?
-        } else {
-            cmyk_word
-        };
-    // Version 115 (`pattern_samples_native`) follows the CMYK slot, ahead of
-    // 114, with no table: some stored pattern holds native samples. Checked
+    let ops_word = if has_cmyk || has_gray || has_duotone || has_lab || has_indexed || has_bitmap {
+        reader.u32()?
+    } else {
+        cmyk_word
+    };
+    // Version 116 (`subpath_ops_native`) follows the CMYK slot, ahead of 115,
+    // with no table: some path or live vector mask holds per-subpath
+    // operations. Checked both ways against the PATH table before any
+    // payload decodes.
+    let has_ops = has_ids && ops_word == crate::subpath_ops_native::WORD;
+    let samples_word = if has_ops { reader.u32()? } else { ops_word };
+    // Version 115 (`pattern_samples_native`) follows the CMYK slot and 116,
+    // ahead of 114, with no table: some stored pattern holds native samples. Checked
     // both ways against the records, descriptions and comps before any
     // payload decodes; it also admits LSTY's longer bodies.
     let has_samples = has_ids && samples_word == crate::pattern_samples_native::WORD;
@@ -1836,6 +1841,8 @@ pub(super) fn parse_within(
     };
     // Word 114's claim, both ways (`clipping_path_native`).
     crate::clipping_path_native::check(has_clipping_path, &paths.entries)?;
+    // Word 116's claim, both ways (`subpath_ops_native`).
+    crate::subpath_ops_native::check(has_ops, &paths.entries, &paths.masks)?;
     // A vector mask's raster part is one more mask plane of its record: it
     // counts in the mask total and in the decoded bytes the admission below
     // charges. Each record must also agree with the mask its record stores

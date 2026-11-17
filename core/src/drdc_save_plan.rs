@@ -303,6 +303,8 @@ impl DrDocument {
             } else {
                 0
             },
+            // Word 116 (`subpath_ops_native`), no table.
+            crate::subpath_ops_native::header_bytes(&self.paths.entries, &vector_masks),
             // Word 90 (`style_pattern`), no table.
             if crate::style_pattern::styles_pattern(self) {
                 4

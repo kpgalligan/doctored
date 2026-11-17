@@ -521,6 +521,7 @@ pub(crate) fn trace(
     PathShape {
         subpaths,
         fill_rule: FillRule::EvenOdd,
+        ops: None,
     }
     .validated()
 }

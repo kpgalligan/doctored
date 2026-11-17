@@ -207,11 +207,17 @@
 //! parsed. The same two invariants hold. A document with no such sources
 //! writes nothing here, so its bytes stay exactly the prior writer's.
 //!
-//! Version 115 (pattern_samples_native.rs) is the word right after the
+//! Version 116 (subpath_ops_native.rs) is the word right after the CMYK
+//! slot inside 46, ahead of 115, with no table: some path or live vector
+//! mask holds per-subpath operations (riding in the PATH table's JSON),
+//! checked both ways once that table is read, before any payload decodes.
+//! The next free word is 117.
+//!
+//! Version 115 (pattern_samples_native.rs) is the next word after the
 //! CMYK slot inside 46, ahead of 114, with no table: some stored pattern (a
 //! record's or comp's style, a Pattern Fill description) holds native
 //! samples, checked both ways before any payload decodes; it also admits an
-//! LSTY body past 2 MiB whose style holds them. The next free word is 116.
+//! LSTY body past 2 MiB whose style holds them.
 //!
 //! Version 114 (clipping_path_native.rs) is the next word after the CMYK
 //! slot inside 46, ahead of 113, with no table: some path is the clipping

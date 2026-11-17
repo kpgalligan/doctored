@@ -831,6 +831,7 @@ mod style_reuse;
 mod style_stroke_distance;
 mod style_stroke_fill;
 mod style_texture;
+mod subpath_ops_native;
 mod texture_native;
 mod thumbnail_reduce;
 mod tiff_directory;

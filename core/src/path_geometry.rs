@@ -13,6 +13,18 @@
 //! line for FILL only. `smooth` is an editing hint (the host keeps a smooth
 //! anchor's handles collinear) and changes no geometry.
 //!
+//! A shape may also HOLD OPERATIONS (`ops`, one [`SubpathOp`] per subpath;
+//! `designs/v1-paths-held-subpaths.md`). Without them the subpaths' windings
+//! are summed under the fill rule, as always. With them each subpath's own
+//! region is taken under the fill rule on its own winding, and the regions
+//! fold in order (unite, subtract, intersect, exclude), from everything when
+//! the first subtracts and from nothing otherwise; when no later one
+//! intersects, the shape covers what its subpaths do not reach
+//! ([`PathShape::unbounded`]).
+//! Every operation `unite` is not the same shape as none: a counter-wound
+//! hole is filled by the union and cut by the summed winding. The list is
+//! one per subpath ([`PathShape::refusal`]), and every map keeps it.
+//!
 //! **Quantization.** Every stored coordinate is quantized to four decimals by
 //! `style_json::q4_f64`, the crate's one quantizer, when a shape is read
 //! ([`PathShape::from_value`]), mapped ([`PathShape::mapped`]) or written
@@ -33,7 +45,10 @@
 //! `{"fill_rule":"nonzero"|"evenodd","subpaths":[{"closed":bool,"anchors":
 //! [{"x":f,"y":f,"in":[x,y],"out":[x,y],"smooth":bool}]}]}`. `in` and `out`
 //! default to the point, `smooth` and `closed` to false and `fill_rule` to
-//! `nonzero`; an anchor may also be the pair `[x, y]`, a corner.
+//! `nonzero`; an anchor may also be the pair `[x, y]`, a corner. A shape
+//! holding operations gives EVERY subpath `"op":"unite"|"subtract"|
+//! "intersect"|"exclude"`; one without writes no `op` key (the prior JSON),
+//! and a shape some of whose subpaths carry one and others not is refused.
 //!
 //! **Segments.** Segment `i` of a subpath runs from anchor `i` to anchor
 //! `i + 1`; a closed subpath's last segment (index `n − 1`) runs from its
@@ -44,8 +59,11 @@
 //! **Coverage** ([`PathShape::coverage`]) is `artwork_coverage::rasterize`
 //! over [`PathShape::commands`] and nothing else: the crate's one analytic
 //! area rasterizer, so a path's fill, its selection and its vector mask all
-//! agree with a shape layer drawn from the same outline. A hard edge is that
-//! same coverage cut at one half.
+//! agree with a shape layer drawn from the same outline. A shape holding
+//! operations goes to its sibling `artwork_ops_coverage::rasterize_ops` over
+//! the same commands, which folds the subpaths per run between crossings, so
+//! a shared edge leaves no seam. A hard edge is that same coverage cut at one
+//! half.
 //!
 //! **Flattening** ([`PathShape::flattened`]) is for what FOLLOWS the outline
 //! (a stroke, the canvas overlay), at the caller's tolerance; the master copy
@@ -58,6 +76,7 @@
 use serde_json::{json, Map, Value};
 
 use crate::artwork_coverage;
+use crate::artwork_ops_coverage;
 use crate::job_control::JobContext;
 use crate::style_json::q4_f64;
 
@@ -123,8 +142,8 @@ pub enum FillRule {
 
 /// How one subpath's own region folds into the regions before it: union,
 /// difference, intersection or symmetric difference. The crate's one home
-/// for the operation: a PSD path record's word reads into it
-/// (`vector_mask_combine::op_from_word`).
+/// for the operation: a shape's JSON name and a PSD path record's word
+/// (`vector_mask_combine::op_from_word`) both read into it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubpathOp {
     Unite,
@@ -133,12 +152,37 @@ pub enum SubpathOp {
     Exclude,
 }
 
-/// A whole path: every contour and the fill rule. An empty shape (no
+impl SubpathOp {
+    /// The JSON name.
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Unite => "unite",
+            Self::Subtract => "subtract",
+            Self::Intersect => "intersect",
+            Self::Exclude => "exclude",
+        }
+    }
+
+    /// The operation a JSON name names, `None` for an unknown one.
+    pub(crate) fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "unite" => Some(Self::Unite),
+            "subtract" => Some(Self::Subtract),
+            "intersect" => Some(Self::Intersect),
+            "exclude" => Some(Self::Exclude),
+            _ => None,
+        }
+    }
+}
+
+/// A whole path: every contour, the fill rule and, when it holds them, one
+/// operation per subpath (the module doc's Model). An empty shape (no
 /// subpath) is valid and covers nothing.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PathShape {
     pub subpaths: Vec<Subpath>,
     pub fill_rule: FillRule,
+    pub ops: Option<Vec<SubpathOp>>,
 }
 
 impl Default for PathShape {
@@ -146,6 +190,7 @@ impl Default for PathShape {
         PathShape {
             subpaths: Vec::new(),
             fill_rule: FillRule::NonZero,
+            ops: None,
         }
     }
 }
@@ -311,12 +356,28 @@ fn too_many_anchors() -> String {
 
 const EMPTY_SUBPATH: &str = "a subpath needs at least one anchor";
 
+/// A shape whose operation list is not one per subpath.
+const OPS_MISMATCH: &str = "a path's operations do not match its subpaths";
+
+/// A subpath's optional `op` key: absent or null is none.
+fn subpath_op(entry: &Map<String, Value>) -> Result<Option<SubpathOp>, String> {
+    match entry.get("op") {
+        None | Some(Value::Null) => Ok(None),
+        Some(v) => v
+            .as_str()
+            .and_then(SubpathOp::from_name)
+            .map(Some)
+            .ok_or_else(|| "a subpath's op must be unite, subtract, intersect or exclude".into()),
+    }
+}
+
 impl PathShape {
     /// Reads the module doc's JSON. Refuses a value that is not that shape, a
     /// non-finite coordinate or one past [`MAX_COORDINATE`], more than
-    /// [`MAX_SUBPATHS`] subpaths or [`MAX_PATH_ANCHORS`] anchors, and a
-    /// subpath with no anchor. Both counts are checked against the array
-    /// lengths before an anchor is read.
+    /// [`MAX_SUBPATHS`] subpaths or [`MAX_PATH_ANCHORS`] anchors, a subpath
+    /// with no anchor, an unknown `op` and a shape some of whose subpaths
+    /// carry an `op` and others not (naming the first without). Both counts
+    /// are checked against the array lengths before an anchor is read.
     pub fn from_value(v: &Value) -> Result<Self, String> {
         let object = v.as_object().ok_or("a path shape must be an object")?;
         let fill_rule = match object.get("fill_rule").map(Value::as_str) {
@@ -332,6 +393,7 @@ impl PathShape {
             return Err(too_many_subpaths());
         }
         let mut subpaths = Vec::with_capacity(list.len());
+        let mut ops = Vec::with_capacity(list.len());
         let mut total = 0usize;
         for entry in list {
             let entry = entry.as_object().ok_or("a subpath must be an object")?;
@@ -350,20 +412,35 @@ impl PathShape {
                 anchors: anchors.iter().map(anchor).collect::<Result<_, _>>()?,
                 closed: flag(entry, "closed")?,
             });
+            ops.push(subpath_op(entry)?);
         }
+        // All or none: a shape holds operations when every subpath names one.
+        let ops = if ops.iter().any(Option::is_some) {
+            if let Some(missing) = ops.iter().position(Option::is_none) {
+                return Err(format!(
+                    "subpath {missing} has no op while another subpath has one"
+                ));
+            }
+            Some(ops.into_iter().flatten().collect())
+        } else {
+            None
+        };
         Ok(PathShape {
             subpaths,
             fill_rule,
+            ops,
         })
     }
 
     /// The module doc's JSON, every key written and every coordinate
-    /// quantized, so `from_value(to_value())` is the shape itself.
+    /// quantized, so `from_value(to_value())` is the shape itself. A shape
+    /// without operations writes no `op` key, which is the prior JSON.
     pub fn to_value(&self) -> Value {
         let subpaths: Vec<Value> = self
             .subpaths
             .iter()
-            .map(|subpath| {
+            .enumerate()
+            .map(|(index, subpath)| {
                 let anchors: Vec<Value> = subpath
                     .anchors
                     .iter()
@@ -377,7 +454,11 @@ impl PathShape {
                         })
                     })
                     .collect();
-                json!({"closed": subpath.closed, "anchors": anchors})
+                let mut value = json!({"closed": subpath.closed, "anchors": anchors});
+                if let Some(op) = self.ops.as_ref().and_then(|ops| ops.get(index)) {
+                    value["op"] = json!(op.name());
+                }
+                value
             })
             .collect();
         json!({
@@ -390,10 +471,18 @@ impl PathShape {
     }
 
     /// Why this shape may not be stored, or `None`: the rules
-    /// [`Self::from_value`] enforces, for a shape built in memory.
+    /// [`Self::from_value`] enforces, for a shape built in memory, and an
+    /// operation list that is not one per subpath.
     pub fn refusal(&self) -> Option<String> {
         if self.subpaths.len() > MAX_SUBPATHS {
             return Some(too_many_subpaths());
+        }
+        if self
+            .ops
+            .as_ref()
+            .is_some_and(|ops| ops.len() != self.subpaths.len())
+        {
+            return Some(OPS_MISMATCH.into());
         }
         if self.subpaths.iter().any(|s| s.anchors.is_empty()) {
             return Some(EMPTY_SUBPATH.into());
@@ -417,11 +506,15 @@ impl PathShape {
         None
     }
 
-    /// The shape as the model stores it — every coordinate quantized — or its
+    /// The shape as the model stores it — every coordinate quantized, and an
+    /// empty operation list (a shape of no subpath) as none — or its
     /// [`Self::refusal`].
     pub fn validated(mut self) -> Result<Self, String> {
         if let Some(reason) = self.refusal() {
             return Err(reason);
+        }
+        if self.ops.as_ref().is_some_and(Vec::is_empty) {
+            self.ops = None;
         }
         for anchor in self.subpaths.iter_mut().flat_map(|s| &mut s.anchors) {
             for p in [
@@ -530,6 +623,7 @@ impl PathShape {
                 })
                 .collect(),
             fill_rule: self.fill_rule,
+            ops: self.ops.clone(),
         }
     }
 
@@ -540,14 +634,26 @@ impl PathShape {
         self.mapped(|x, y| (m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]))
     }
 
+    /// Whether the shape covers everything its subpaths do not reach: its
+    /// operations' fold holds with every subpath outside
+    /// (`artwork_ops_coverage::holds_outside`), so the first subtracts and no
+    /// later one intersects. A shape without operations never is.
+    pub(crate) fn unbounded(&self) -> bool {
+        self.ops
+            .as_deref()
+            .is_some_and(artwork_ops_coverage::holds_outside)
+    }
+
     /// The shape's FILL as u16 area coverage over the `width` x `height`
     /// window whose top-left pixel is canvas pixel `origin`, row-major:
     /// 65535 is a wholly covered pixel. It is `artwork_coverage::rasterize`
     /// over [`Self::commands`] under the shape's fill rule — the crate's one
-    /// coverage rasterizer. With `anti_alias` false each sample is cut at one
-    /// half (32768 and above is 65535, anything less 0). An empty shape
-    /// covers nothing. `Err` is the rasterizer's own refusal (a zero or
-    /// oversized window, its edge and work caps) or a cancellation.
+    /// coverage rasterizer — or, for a shape holding operations,
+    /// `artwork_ops_coverage::rasterize_ops` over the same commands. With
+    /// `anti_alias` false each sample is cut at one half (32768 and above is
+    /// 65535, anything less 0). An empty shape covers nothing. `Err` is the
+    /// rasterizer's own refusal (a zero or oversized window, its edge and
+    /// work caps) or a cancellation.
     pub(crate) fn coverage(
         &self,
         origin: (i32, i32),
@@ -558,8 +664,12 @@ impl PathShape {
     ) -> Result<Vec<u16>, String> {
         let (verbs, points) = self.commands((f64::from(origin.0), f64::from(origin.1)));
         let even_odd = self.fill_rule == FillRule::EvenOdd;
-        let mut coverage =
-            artwork_coverage::rasterize(&verbs, &points, width, height, even_odd, job)?;
+        let mut coverage = match &self.ops {
+            None => artwork_coverage::rasterize(&verbs, &points, width, height, even_odd, job)?,
+            Some(ops) => artwork_ops_coverage::rasterize_ops(
+                &verbs, &points, ops, width, height, even_odd, job,
+            )?,
+        };
         if !anti_alias {
             for sample in &mut coverage {
                 *sample = if *sample >= 32768 { u16::MAX } else { 0 };

@@ -379,6 +379,7 @@ Detail belongs in the source file's own header comment.
 - `psd_paths.rs` — paths in PSD (resources 1025, 2000–2997, the clipping path 2999) at every depth and mode; raster-less vector masks as `vmsk`, both ways.
 - `psd_vector_mask_bake.rs` — a raster record's `vmsk` Doctored does not carry, drawn into its raster mask at every depth; the drawing caps (`bakes`).
 - `clipping_path_native.rs` — native word 114: a path is the clipping path (its key rides in the PATH table's entry), checked both ways.
+- `subpath_ops_native.rs` — native word 116: a path or live vector mask holds per-subpath ops (each subpath's `op` in the PATH table's JSON), checked both ways.
 - `pattern_samples_native.rs` — native word 115: a stored pattern holds native samples (style or description JSON), both ways; the LSTY 16 MiB cap; CMYK ink map.
 - `tiff_paths.rs` — paths and the clipping path in every mode's flat TIFF tag 34377: the opens' read, `attach`, `canvas_moved`, a turned JPEG's drop, the losses' test.
 - `style_knockout_merge.rs` — what a MERGE punches through to at 8 bits (Phase 12E-3b, contract g): the knockout capture, the merge backdrop, and the one excluded set.
@@ -627,7 +628,7 @@ Detail belongs in the source file's own header comment.
 - `doc_cutout_render.rs` / `ffi_cutout.rs` — the internal byte cutout's one visible plain root/default mask, validated, then `doc::composite_layer_into` and `doc::quantize` in ≤4096-pixel chunks.
 - `trim_bounds.rs` / `ffi_trim.rs` — Image ▸ Trim scan: the kept rect past transparent or corner-equal rows and columns, at u8, u16 and f32.
 - `perspective_crop.rs` / `doc_perspective_crop.rs` / `precision_perspective_crop.rs` — Perspective Crop: request and homography kernel, byte and typed adapters.
-- `path_geometry.rs` — KERNEL: `PathShape` (anchors, subpaths, fill rule), `SubpathOp`'s one home, `PathHit`, JSON, caps, validation, commands, bounds, point maps, coverage.
+- `path_geometry.rs` — KERNEL: `PathShape` (anchors, subpaths, fill rule, held `ops`), `SubpathOp`'s one home, `PathHit`, JSON, caps, validation, commands, maps, coverage.
 - `path_flatten.rs` — KERNEL: `PathShape::flattened`, each subpath as a polyline within a tolerance (`flatten_cubic`), beside `path_geometry`.
 - `path_edit.rs` — KERNEL: the Pen's geometry, `PathShape::hit`, `subpath_at` (`winding`), `inserting_anchor`, `converting_anchor` (`nearest_on_cubic`), beside `path_geometry`.
 - `path_trace.rs` — KERNEL: `trace`, u16 coverage to a `PathShape` (50 % contour, Douglas–Peucker corners); the fit is `path_fit`.
@@ -637,10 +638,10 @@ Detail belongs in the source file's own header comment.
 - `outline_envelope.rs` — KERNEL: Warp Text's `Envelope`, nine styles' point map (outside-the-box rule) and its exact `bounds` over a region; formulas in the module doc.
 - `outline_limits.rs` — leaf: `MAX_OUTLINE_COORDINATE` (1e9), the coordinate bound of `artwork_coverage`, `outline_map` and `outline_envelope`.
 - `doc_path.rs` / `precision_path.rs` — PATHS at both depths: `PathEntry`, `DocPaths` / `TypedPaths`, `list_refusal` (the one home of the list rules), `with_paths`.
-- `path_native.rs` — the native `PATH` table, words 74 (byte) / 75 (typed): the path list and the vector-mask section with its raster planes.
+- `path_native.rs` — the native `PATH` table, words 74 (byte) / 75 (typed): the path list and the vector-mask section with its raster planes; `op` keys licensed by 116.
 - `doc_vector_mask.rs` / `precision_vector_mask.rs` — VECTOR MASKS: a shape baked into the layer's ordinary mask; records, live or dead, bake, expose/rebake, edits.
 - `vector_mask_combine.rs` (KERNEL) — a PSD vector mask's coverage under its per-subpath ops (`op_from_word`), each over its own window (`charge`), for an import that bakes it.
-- `vector_mask_common.rs` — vector masks' depth-neutral half: `VectorMaskView` and its JSON, `VectorMaskSeed`, `bake_rect`, `anchor_refusal`, `table_mask_agrees`.
+- `vector_mask_common.rs` — vector masks' depth-neutral half: `VectorMaskView` and its JSON, `VectorMaskSeed`, `bake_rect`, `slot_outside`, `anchor_refusal`, `table_mask_agrees`.
 - `doc_vector_mask_carry.rs` — byte vector masks carried across ops: seeds, the follow hook, the native table written and `adopted_records`.
 - `precision_vector_mask_carry.rs` — typed vector masks carried across ops: seeds, `following_geometry`, the native table and `adopt_vector_masks`.
 - `ffi_path.rs` — the exports: path lists, `dr_path_coverage` / `_flatten` / `_trace` / `_hit` / `_insert_anchor` / `_convert_anchor`.

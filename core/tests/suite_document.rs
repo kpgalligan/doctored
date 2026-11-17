@@ -208,6 +208,8 @@ mod path_shape;
 mod path_shared_edge;
 #[path = "path_subpath_at.rs"]
 mod path_subpath_at;
+#[path = "path_subpath_ops.rs"]
+mod path_subpath_ops;
 #[path = "path_trace.rs"]
 mod path_trace;
 #[path = "perspective_crop_tests.rs"]

@@ -363,6 +363,7 @@ fn list_shape(list: &[LandmarkLoop]) -> Option<PathShape> {
     (!subpaths.is_empty()).then_some(PathShape {
         subpaths,
         fill_rule: FillRule::NonZero,
+        ops: None,
     })
 }
 

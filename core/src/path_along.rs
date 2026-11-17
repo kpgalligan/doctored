@@ -75,6 +75,7 @@ impl Along {
         let single = PathShape {
             subpaths: vec![one.clone()],
             fill_rule: shape.fill_rule,
+            ops: None,
         };
         let (mut flat, closed) = single
             .flattened(ALONG_TOLERANCE)?

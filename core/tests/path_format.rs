@@ -53,7 +53,7 @@ pub fn open_byte(dir: &TempDir, name: &str, bytes: &[u8]) -> Result<DrDocument, 
     Ok(*unsafe { Box::from_raw(out) })
 }
 
-fn save_typed(dir: &TempDir, name: &str, doc: &PrecisionDocument) -> Vec<u8> {
+pub fn save_typed(dir: &TempDir, name: &str, doc: &PrecisionDocument) -> Vec<u8> {
     let path = dir.path().join(name);
     let mut error = ptr::null_mut();
     let saved = unsafe {
@@ -70,7 +70,7 @@ fn save_typed(dir: &TempDir, name: &str, doc: &PrecisionDocument) -> Vec<u8> {
     std::fs::read(path).expect("read back")
 }
 
-fn open_typed(dir: &TempDir, name: &str, bytes: &[u8]) -> Result<PrecisionDocument, String> {
+pub fn open_typed(dir: &TempDir, name: &str, bytes: &[u8]) -> Result<PrecisionDocument, String> {
     let path = dir.path().join(name);
     std::fs::write(&path, bytes).expect("write");
     let mut error = ptr::null_mut();

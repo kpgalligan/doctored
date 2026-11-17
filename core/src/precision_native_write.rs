@@ -174,8 +174,20 @@ impl PrecisionDocument {
                 job,
             )?;
         }
-        // Then the conditional `pattern_samples_native` word 115 — right
-        // after the CMYK slot and ahead of 114, written iff some stored
+        // Then the conditional `subpath_ops_native` word 116 — right after
+        // the CMYK slot and ahead of 115, written iff some path or live
+        // vector mask holds per-subpath operations. No table: they ride in
+        // the PATH table's JSON.
+        if crate::subpath_ops_native::carries(&self.paths.entries, &self.vector_mask_table()) {
+            append(
+                out,
+                &crate::subpath_ops_native::WORD.to_le_bytes(),
+                plan.encoded_bound,
+                job,
+            )?;
+        }
+        // Then the conditional `pattern_samples_native` word 115 — after the
+        // CMYK slot and 116, ahead of 114, written iff some stored
         // pattern holds native samples. No table: they ride in the JSON.
         if crate::pattern_samples_native::styles_samples16(self) {
             append(

@@ -71,11 +71,12 @@ pub(crate) const MAX_PATH_NAME_BYTES: usize = 255;
 /// vector-mask shape together.
 ///
 /// Sized so `path_native`'s JSON always fits its length slot: 65,536 anchors
-/// × 148 bytes — the worst-case encoded anchor is 118 bytes (six coordinates
+/// × 168 bytes — the worst-case encoded anchor is 118 bytes (six coordinates
 /// of at most twelve characters, the keys and a separator) and each anchor
-/// can cost one more 30-byte subpath wrapper, since a subpath holds at least
-/// one — is 9.25 MiB, and the names and mask records of a full list add
-/// under 1 MiB, which stays below `drdc::MAX_DRDC_META_LEN` (16 MiB). The
+/// can cost one more 30-byte subpath wrapper and its 20-byte operation key,
+/// since a subpath holds at least one — is 10.5 MiB, and the names and mask
+/// records of a full list add under 1 MiB, which stays below
+/// `drdc::MAX_DRDC_META_LEN` (16 MiB). The
 /// writer therefore never refuses a document `with_paths` built.
 pub(crate) const MAX_DOCUMENT_PATH_ANCHORS: usize = 65_536;
 

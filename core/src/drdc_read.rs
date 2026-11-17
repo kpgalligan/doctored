@@ -93,8 +93,14 @@ pub(crate) fn parse_native(file: &NativeFile, job: JobContext<'_>) -> Result<DrD
     // every file an earlier build wrote, and it mints fresh ids exactly as
     // this reader always did.
     let has_ids = outermost_version == crate::identity_native::BYTE_VERSION;
-    let samples_word = if has_ids { r.u32()? } else { outermost_version };
-    // Version 115 is the FIRST word inside 45 (`pattern_samples_native`),
+    let ops_word = if has_ids { r.u32()? } else { outermost_version };
+    // Version 116 is the FIRST word inside 45 (`subpath_ops_native`), ahead
+    // of 115, with no table: some path or live vector mask holds per-subpath
+    // operations. Checked both ways against the PATH table before any PNG
+    // decodes.
+    let has_ops = has_ids && ops_word == crate::subpath_ops_native::WORD;
+    let samples_word = if has_ops { r.u32()? } else { ops_word };
+    // Version 115 is the next word inside 45 (`pattern_samples_native`),
     // ahead of 114, with no table: some stored pattern holds native samples.
     // Checked both ways against the records and comps before any PNG decodes.
     let has_samples = has_ids && samples_word == crate::pattern_samples_native::WORD;
@@ -954,6 +960,8 @@ pub(crate) fn parse_native(file: &NativeFile, job: JobContext<'_>) -> Result<DrD
     };
     // Word 114's claim, both ways (`clipping_path_native`).
     crate::clipping_path_native::check(has_clipping_path, &paths.entries)?;
+    // Word 116's claim, both ways (`subpath_ops_native`).
+    crate::subpath_ops_native::check(has_ops, &paths.entries, &paths.masks)?;
     // The GVAR table, after PATH and before LREF (`generated_native`): every
     // entry names a generated, masked raster of its own dimensions, checked
     // before any PNG decodes.

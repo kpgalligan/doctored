@@ -657,6 +657,9 @@ impl PrecisionDocument {
         header += path_table
             + crate::path_native::transient_bound(&self.paths.entries, &vector_masks, 2)
             + if path_table == 0 { 0 } else { 4 };
+        // Word 116 (`subpath_ops_native`), no table: the paths and live
+        // vector masks the PATH table above carries.
+        header += crate::subpath_ops_native::header_bytes(&self.paths.entries, &vector_masks);
         header += sources.header_bytes()
             + if matches!(
                 sources.version(),

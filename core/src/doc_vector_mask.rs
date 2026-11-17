@@ -21,7 +21,16 @@
 //!   raster part is enabled, unfeathered, at density 1 and outside coverage 0
 //!   the plane takes the RASTER part's rectangle instead, so a host that read
 //!   the slot's geometry and writes a mask edit back addresses the same
-//!   rectangle the edit lands in;
+//!   rectangle the edit lands in. An UNBOUNDED shape (held operations whose
+//!   first subtracts and none intersects) is baked over the whole extent
+//!   with outside coverage 255, its own answer beyond the plane, so a later
+//!   growth of the layer or the canvas reads the shape
+//!   (`vector_mask_common::slot_outside`, also for the disabled case below).
+//!   Beside an ENABLED raster part it keeps 0:
+//!   the slot is then the product, which beyond the plane is exactly 0 when
+//!   the plane is the raster's own rectangle and otherwise the raster part's
+//!   effective coverage, no constant; a growth there shows 0 until the next
+//!   rebake;
 //! * the path factor off, a raster part — the raster part put back VERBATIM
 //!   (its plane, properties and enabled flag);
 //! * the vector mask disabled, no raster part — the path plane, kept in the
@@ -72,7 +81,8 @@ use crate::doc_mask::MaskProperties;
 use crate::job_control::JobContext;
 use crate::path_geometry::PathShape;
 use crate::vector_mask_common::{
-    anchor_refusal, bake_rect, path_on, shifted, union_rect, RasterPartView, VectorMaskView,
+    anchor_refusal, bake_rect, path_on, shifted, slot_outside, union_rect, RasterPartView,
+    VectorMaskView,
 };
 
 /// The user's own raster mask, kept beside the shape.
@@ -342,6 +352,7 @@ impl DrDocument {
         }
         let mut properties = MaskProperties::at((x, y));
         properties.linked = record.linked;
+        properties.outside_coverage = slot_outside(&record.shape, raster.is_some());
         if !properties.valid((w, h)) {
             return Err("the vector mask's extent is not a valid mask".into());
         }
