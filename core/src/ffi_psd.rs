@@ -103,8 +103,8 @@ pub unsafe extern "C" fn dr_doc_open_psd(
 /// as JSON freed with dr_string_free. Reads no pixels: the answer depends only
 /// on the layer model, so a host can build it while a save panel is open.
 /// `working_memory_plan_bytes` is the save's plan (the file, what it holds
-/// beside it, a PSD's composite planes and the stamps), which assumes the
-/// host supplies `flat` to `dr_doc_save_psd`.
+/// beside it, a PSD's composite planes and the stamps); the composite itself
+/// is the `flat` the host must supply to `dr_doc_save_psd`.
 ///
 /// # Safety
 /// err_out must be NULL or writable.
@@ -135,18 +135,20 @@ pub unsafe extern "C" fn dr_doc_psd_export_report(
 }
 
 /// Writes an 8-bit RGB PSD, PSB or layered TIFF (`container`, an
-/// DrLayeredContainer). `flat` may be NULL, in which case this
-/// document is composited here; a non-NULL image must be canvas-sized and is
-/// read in place. The save holds its records and one file buffer within the
-/// report's `working_memory_plan_bytes`. The
+/// DrLayeredContainer). `flat`, the document's composite, is REQUIRED: a NULL
+/// one is refused by name (`an 8-bit document's PSD export requires its
+/// composite (flat is NULL)`) before anything is written, so the save never
+/// flattens outside its plan. It must be canvas-sized and is read in place.
+/// The save holds its records and one file buffer within the report's
+/// `working_memory_plan_bytes`. The
 /// preflight runs again and its refusal is this call's error, so a refused
 /// export leaves an existing destination byte-identical. `control` is
 /// optional and single-use, begun once for the whole save; a cancel answers
 /// exactly `operation cancelled` and keeps the previous file.
 ///
 /// # Safety
-/// path must be NULL or a NUL-terminated string; control NULL or a live
-/// single-use token; err_out NULL or writable.
+/// flat must be NULL or a live image; path NULL or a NUL-terminated string;
+/// control NULL or a live single-use token; err_out NULL or writable.
 #[no_mangle]
 pub unsafe extern "C" fn dr_doc_save_psd(
     doc: *const DrDocument,
@@ -168,7 +170,10 @@ pub unsafe extern "C" fn dr_doc_save_psd(
                 let container = LayeredContainer::from_c(container).ok_or(UNKNOWN_CONTAINER)?;
                 let mode = crate::psd_export::PsdExportMode::from_c(mode)
                     .ok_or(crate::psd_export::UNKNOWN_MODE)?;
-                document.save_psd(flat.as_ref(), &path, container, mode, control.as_ref())
+                let flat = flat.as_ref().ok_or(
+                    "an 8-bit document's PSD export requires its composite (flat is NULL)",
+                )?;
+                document.save_psd(flat, &path, container, mode, control.as_ref())
             },
             |()| true,
         )

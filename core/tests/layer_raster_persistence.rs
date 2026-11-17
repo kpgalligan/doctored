@@ -43,7 +43,6 @@ use doctored_core::ffi_doc::*;
 use doctored_core::ffi_precision::dr_precision_doc_free;
 use doctored_core::ffi_precision_conversion::dr_doc_promote_structure;
 use doctored_core::ffi_preservation::dr_doc_flat_save_losses;
-use doctored_core::ffi_psd::dr_doc_save_psd;
 use doctored_core::ffi_retained_source::dr_doc_mixed_source_edit;
 use doctored_core::layer_raster::contiguous_view_bytes;
 use doctored_core::precision_image::REFERENCE_WORKING_BYTES;
@@ -153,14 +152,13 @@ impl Doc {
         std::fs::read(path).expect("the saved file")
     }
 
-    /// `dr_doc_save_psd` (layers mode, the document composited here).
+    /// `dr_doc_save_psd` (layers mode, its composite supplied).
     fn save_psd(&self, path: &Path) -> Vec<u8> {
         let c = cpath(path);
         let mut error: *mut c_char = ptr::null_mut();
         let saved = unsafe {
-            dr_doc_save_psd(
+            common::save_psd_with_composite(
                 self.0,
-                ptr::null(),
                 c.as_ptr(),
                 0,
                 PSD_LAYERS,

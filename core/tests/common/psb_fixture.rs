@@ -754,9 +754,8 @@ pub fn export_report16(document: &PrecisionDocument, container: i32, mode: i32) 
 pub fn save8(document: &DrDocument, path: &Path, container: i32, mode: i32) -> Result<(), String> {
     let mut error = ptr::null_mut();
     let ok = unsafe {
-        doctored_core::ffi_psd::dr_doc_save_psd(
+        crate::common::save_psd_with_composite(
             document,
-            ptr::null(),
             cpath(path).as_ptr(),
             container,
             mode,

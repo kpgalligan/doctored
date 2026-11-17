@@ -24,8 +24,7 @@ use doctored_core::doc::{DrDocument, MaskKind};
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_artwork::{dr_artwork_render, dr_doc_artwork, dr_precision_doc_artwork};
 use doctored_core::ffi_psd::{
-    dr_doc_open_psd, dr_doc_save_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd,
-    dr_psd_import_report,
+    dr_doc_open_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd, dr_psd_import_report,
 };
 use doctored_core::icc::IccProfile;
 use doctored_core::job_control::DrJobControl;
@@ -375,9 +374,8 @@ pub(crate) fn try_open16(
 pub(crate) fn save8(doc: &DrDocument, path: &Path) {
     let mut error: *mut c_char = ptr::null_mut();
     let ok = unsafe {
-        dr_doc_save_psd(
+        crate::common::save_psd_with_composite(
             doc,
-            ptr::null(),
             cpath(path).as_ptr(),
             0,
             0,

@@ -399,9 +399,7 @@ fn a_comp_only_multichannel_blend_if_claims_the_word() {
 
 #[test]
 fn a_layered_psd_writes_each_range_in_its_slot_and_reads_both_back() {
-    use doctored_core::ffi_psd::{
-        dr_doc_open_psd, dr_doc_psd_export_report, dr_doc_save_psd, dr_psd_import_report,
-    };
+    use doctored_core::ffi_psd::{dr_doc_open_psd, dr_doc_psd_export_report, dr_psd_import_report};
     let dir = TempDir::new().unwrap();
     let ranges = [
         ("gray", [0, 0, 96, 192], [5, 15, 235, 250]),
@@ -417,9 +415,8 @@ fn a_layered_psd_writes_each_range_in_its_slot_and_reads_both_back() {
     let c = crate::common::cpath(&path);
     assert!(
         unsafe {
-            dr_doc_save_psd(
+            crate::common::save_psd_with_composite(
                 &doc,
-                std::ptr::null(),
                 c.as_ptr(),
                 0,
                 0,

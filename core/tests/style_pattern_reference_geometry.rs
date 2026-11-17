@@ -34,7 +34,7 @@ use doctored_core::doc::{DrDocument, MaskKind};
 use doctored_core::ffi_cmyk::dr_precision_doc_convert_to_cmyk;
 use doctored_core::ffi_doc::dr_doc_free;
 use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
-use doctored_core::ffi_psd::{dr_doc_open_psd, dr_doc_save_psd, dr_psd_import_report};
+use doctored_core::ffi_psd::{dr_doc_open_psd, dr_psd_import_report};
 use doctored_core::ffi_retained_source::dr_doc_mixed_source_edit;
 use doctored_core::precision_document::PrecisionDocument;
 use doctored_core::precision_image::REFERENCE_WORKING_BYTES;
@@ -444,9 +444,8 @@ fn rz_and_psd_keep_the_mapped_point() {
 pub(crate) fn save8(doc: &DrDocument, path: &Path) {
     let mut error: *mut c_char = ptr::null_mut();
     let ok = unsafe {
-        dr_doc_save_psd(
+        crate::common::save_psd_with_composite(
             doc,
-            ptr::null(),
             cpath(path).as_ptr(),
             0,
             0,

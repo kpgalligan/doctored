@@ -282,6 +282,34 @@ pub fn flat_pixels(doc: *const DrDocument) -> Vec<u8> {
     v
 }
 
+/// `dr_doc_save_psd` with the composite it requires: renders
+/// `dr_doc_flattened(doc, 0, NULL)` (the projection the app captures), saves
+/// with it as `flat` and frees it. A refused render returns `false` with the
+/// render's message in `err_out`; otherwise the save's result and message.
+///
+/// # Safety
+/// `doc` must be NULL or a live `DrDocument`; `path` NULL or a NUL-terminated
+/// string; `control` NULL or a live single-use token; `err_out` NULL or
+/// writable.
+pub unsafe fn save_psd_with_composite(
+    doc: *const DrDocument,
+    path: *const c_char,
+    container: c_int,
+    mode: c_int,
+    control: *const doctored_core::job_control::DrJobControl,
+    err_out: *mut *mut c_char,
+) -> bool {
+    let flat = unsafe { dr_doc_flattened(doc, 0, ptr::null(), err_out) };
+    if flat.is_null() {
+        return false;
+    }
+    let saved = unsafe {
+        doctored_core::ffi_psd::dr_doc_save_psd(doc, flat, path, container, mode, control, err_out)
+    };
+    unsafe { dr_image_free(flat) };
+    saved
+}
+
 pub fn pixel(buf: &[u8], w: u32, x: u32, y: u32) -> [u8; 4] {
     let i = ((y * w + x) * 4) as usize;
     [buf[i], buf[i + 1], buf[i + 2], buf[i + 3]]

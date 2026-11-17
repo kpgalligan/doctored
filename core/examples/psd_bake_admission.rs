@@ -13,11 +13,15 @@
 //! runs differ in exactly the bake. The printed JSON holds `worst_case_bytes`
 //! and `bake_scratch_bytes`; the difference in peak footprint between the two
 //! must stay inside the difference in those plans with the 1.25 margin.
+//! The 8-bit case renders its composite (`dr_doc_flattened`) and supplies it
+//! as `flat`, which the byte save requires, as the 16-bit case does.
 use std::ffi::CString;
 use std::ptr;
 use std::sync::Arc;
 
 use doctored_core::doc::DrDocument;
+use doctored_core::ffi::dr_image_free;
+use doctored_core::ffi_doc::dr_doc_flattened;
 use doctored_core::ffi_psd::{
     dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_psd_export_report,
     dr_precision_doc_save_psd,
@@ -142,10 +146,12 @@ fn main() {
                 .unwrap();
         document.layers[1].meta = Some(meta(bake, false).into());
         let report = taken(unsafe { dr_doc_psd_export_report(&document, 0, 0, &mut error) });
+        let flat = unsafe { dr_doc_flattened(&document, 0, ptr::null(), &mut error) };
+        assert!(!flat.is_null(), "the composite: {}", taken(error));
         let ok = unsafe {
             dr_doc_save_psd(
                 &document,
-                ptr::null(),
+                flat,
                 path.as_ptr(),
                 0,
                 0,
@@ -153,6 +159,7 @@ fn main() {
                 &mut error,
             )
         };
+        unsafe { dr_image_free(flat) };
         assert!(
             ok,
             "{}",

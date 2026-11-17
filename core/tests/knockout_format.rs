@@ -16,7 +16,7 @@ use std::sync::Arc;
 use doctored_core::doc::DrDocument;
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_doc::*;
-use doctored_core::ffi_psd::{dr_doc_psd_export_report, dr_doc_save_psd};
+use doctored_core::ffi_psd::dr_doc_psd_export_report;
 use doctored_core::icc::IccProfile;
 use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer};
 use doctored_core::precision_image::{PrecisionImage, REFERENCE_WORKING_BYTES};
@@ -467,9 +467,8 @@ fn the_psd_export_writes_the_knockout_blocks_and_the_old_loss_sentence_is_gone()
         let c = cpath(&path);
         let mut err: *mut c_char = ptr::null_mut();
         let ok = unsafe {
-            dr_doc_save_psd(
+            common::save_psd_with_composite(
                 doc,
-                ptr::null(),
                 c.as_ptr(),
                 0,
                 LAYERS_MODE,

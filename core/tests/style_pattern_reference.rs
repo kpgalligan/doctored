@@ -23,7 +23,7 @@ use doctored_core::doc_transform::Affine;
 use doctored_core::ffi::{dr_image_free, dr_image_from_rgba};
 use doctored_core::ffi_doc::{dr_doc_add_image_layer_at, dr_doc_free};
 use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
-use doctored_core::ffi_psd::{dr_doc_open_psd, dr_doc_save_psd, dr_psd_import_report};
+use doctored_core::ffi_psd::{dr_doc_open_psd, dr_psd_import_report};
 use doctored_core::ffi_retained_source::dr_doc_mixed_source_edit;
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
@@ -568,9 +568,8 @@ fn open8(path: &Path) -> DrDocument {
 fn save8(doc: &DrDocument, path: &Path) {
     let mut error: *mut c_char = ptr::null_mut();
     let ok = unsafe {
-        dr_doc_save_psd(
+        crate::common::save_psd_with_composite(
             doc,
-            ptr::null(),
             cpath(path).as_ptr(),
             0,
             0,

@@ -247,6 +247,9 @@ struct PSDExportCapture {
                                   otherRetained: context.otherRetained, control: control)
             return
         }
+        guard let projection else {
+            throw DoctoredCoreError(message: "No composite was captured for this export.")
+        }
         try source.savePSD(projection, to: url, container: container, mode: mode.coreMode,
                            control: control)
     }

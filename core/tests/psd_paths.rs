@@ -28,9 +28,7 @@ use doctored_core::doc_path::PathEntry;
 use doctored_core::ffi_doc::*;
 use doctored_core::ffi_path::dr_doc_with_paths_json;
 use doctored_core::ffi_precision_conversion::dr_doc_promote_structure;
-use doctored_core::ffi_psd::{
-    dr_doc_save_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd,
-};
+use doctored_core::ffi_psd::{dr_precision_doc_open_psd, dr_precision_doc_save_psd};
 use doctored_core::ffi_vector_mask::dr_doc_set_vector_mask;
 use doctored_core::path_geometry::{FillRule, PathShape};
 use doctored_core::precision_document::PrecisionDocument;
@@ -85,9 +83,8 @@ pub fn typed_open(path: &Path) -> Box<PrecisionDocument> {
 pub fn byte_save(doc: *const DrDocument, path: &Path, container: i32) -> Vec<u8> {
     let mut err: *mut c_char = ptr::null_mut();
     let ok = unsafe {
-        dr_doc_save_psd(
+        common::save_psd_with_composite(
             doc,
-            ptr::null(),
             cpath(path).as_ptr(),
             container,
             LAYERS,

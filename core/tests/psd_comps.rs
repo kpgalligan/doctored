@@ -28,7 +28,7 @@ use doctored_core::ffi_group::dr_doc_move_layer_to;
 use doctored_core::ffi_precision_conversion::dr_doc_promote_structure;
 use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
 use doctored_core::ffi_psd::{
-    dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd,
+    dr_doc_psd_export_report, dr_precision_doc_open_psd, dr_precision_doc_save_psd,
 };
 use doctored_core::precision_document::PrecisionDocument;
 use doctored_core::precision_image::REFERENCE_WORKING_BYTES as LIMIT;
@@ -164,9 +164,8 @@ fn typed_visibility(doc: &PrecisionDocument, name: &str) -> bool {
 fn byte_save(doc: *const DrDocument, path: &Path, container: i32) -> Vec<u8> {
     let mut err: *mut c_char = ptr::null_mut();
     let ok = unsafe {
-        dr_doc_save_psd(
+        common::save_psd_with_composite(
             doc,
-            ptr::null(),
             cpath(path).as_ptr(),
             container,
             LAYERS,

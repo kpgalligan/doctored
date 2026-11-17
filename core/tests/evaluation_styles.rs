@@ -23,8 +23,7 @@ use std::sync::Arc;
 use doctored_core::doc::{BlendMode, DrDocument};
 use doctored_core::ffi_precision::{dr_precision_doc_render, dr_precision_image_free};
 use doctored_core::ffi_psd::{
-    dr_doc_open_psd, dr_doc_save_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd,
-    dr_psd_import_report,
+    dr_doc_open_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd, dr_psd_import_report,
 };
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
@@ -824,9 +823,8 @@ fn a_psd_style_bake_is_encoded_from_linear_light_at_byte_depth() {
     let shown = flatten(&doc).expect("the linear projection");
     let mut err: *mut c_char = ptr::null_mut();
     let saved = unsafe {
-        dr_doc_save_psd(
+        crate::common::save_psd_with_composite(
             &doc,
-            ptr::null(),
             path_c(&path).as_ptr(),
             0,
             0,

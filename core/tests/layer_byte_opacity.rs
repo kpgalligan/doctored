@@ -21,7 +21,7 @@ use std::sync::Arc;
 use doctored_core::doc::DrDocument;
 use doctored_core::ffi::dr_image_free;
 use doctored_core::ffi_doc::{dr_doc_flattened, dr_doc_free};
-use doctored_core::ffi_psd::{dr_doc_open_psd, dr_doc_save_psd, dr_psd_import_report};
+use doctored_core::ffi_psd::{dr_doc_open_psd, dr_psd_import_report};
 use doctored_core::ffi_regional::dr_doc_render_region;
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
@@ -527,9 +527,8 @@ fn reopened(doc: &DrDocument, dir: &TempDir, name: &str) -> Box<DrDocument> {
     let mut err: *mut c_char = ptr::null_mut();
     assert!(
         unsafe {
-            dr_doc_save_psd(
+            crate::common::save_psd_with_composite(
                 doc,
-                ptr::null(),
                 c.as_ptr(),
                 0,
                 0,

@@ -20,7 +20,7 @@ use doctored_core::doc::DrDocument;
 use doctored_core::ffi::dr_string_free;
 use doctored_core::ffi_preservation::dr_doc_flat_save_losses;
 use doctored_core::ffi_psd::{
-    dr_doc_open_psd, dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_open_psd,
+    dr_doc_open_psd, dr_doc_psd_export_report, dr_precision_doc_open_psd,
     dr_precision_doc_psd_export_report, dr_precision_doc_save_psd, dr_psd_import_report,
 };
 use doctored_core::ffi_sampler::*;
@@ -758,9 +758,8 @@ fn open_psd16(path: &Path) -> PrecisionDocument {
 fn save_psd8(doc: &DrDocument, path: &Path) {
     let mut error = ptr::null_mut();
     let ok = unsafe {
-        dr_doc_save_psd(
+        crate::common::save_psd_with_composite(
             doc,
-            ptr::null(),
             cpath(path).as_ptr(),
             0,
             0,

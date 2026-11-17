@@ -5095,8 +5095,8 @@ DrDocument *dr_doc_open_psd(const char *path, int mode,
  * document's depth, 0 when nothing bakes. "working_memory_plan_bytes" is the
  * save's plan: the file (laid into one buffer), the records and resources it
  * holds beside it, a PSD's or PSB's matted composite planes (n*4) and the
- * stamps. It assumes the host supplies `flat` to dr_doc_save_psd; a NULL
- * `flat` is flattened outside it.
+ * stamps. The composite itself is the `flat` the host must supply to
+ * dr_doc_save_psd.
  * A written style's knockout keys are named per layer in "observations"; a
  * BAKED one's are a per-layer loss (neither key is written beside baked
  * pixels), and a knockout reaching a bottom that cannot be written as
@@ -5107,8 +5107,11 @@ char *dr_doc_psd_export_report(const DrDocument *doc, int container, int mode,
                                char **err_out);
 /* Writes an 8-bit RGB PSD, PSB or layered TIFF (PackBits channels; a TIFF's
  * flat image is an uncompressed straight-RGBA strip). Re-runs the preflight
- * and fails with its refusal. `flat` MAY BE NULL (flattened here); non-NULL must be
- * canvas-sized or the call fails, and is read in place. The save holds its
+ * and fails with its refusal. `flat`, the document's composite, is REQUIRED:
+ * NULL fails with exactly "an 8-bit document's PSD export requires its
+ * composite (flat is NULL)" and touches no file, so the save never flattens
+ * outside its plan; it must be canvas-sized or the call fails, and is read in
+ * place. The save holds its
  * records and one file buffer, its spot planes read in place, within the
  * report's working_memory_plan_bytes (no limit is taken here; the host admits
  * it). A written layer style adds Photoshop's own

@@ -158,14 +158,14 @@ extension RasterDocument {
         return report
     }
 
-    /// Writes the PSD, PSB or layered TIFF. `flattened` is the
-    /// already-rendered composite when the caller has one warm; nil lets the
-    /// core composite. Atomic, so a refusal leaves an existing destination
+    /// Writes the PSD, PSB or layered TIFF. `flattened` is the document's
+    /// canvas-sized composite, which the core requires: the save never renders
+    /// it outside its plan. Atomic, so a refusal leaves an existing destination
     /// byte-identical.
-    func savePSD(_ flattened: RasterImage?, to url: URL, container: LayeredContainer,
+    func savePSD(_ flattened: RasterImage, to url: URL, container: LayeredContainer,
                  mode: Int, control: RasterJobControl? = nil) throws {
         var error: UnsafeMutablePointer<CChar>?
-        guard dr_doc_save_psd(ptr, flattened?.ptr, url.path, container.coreValue, Int32(mode),
+        guard dr_doc_save_psd(ptr, flattened.ptr, url.path, container.coreValue, Int32(mode),
                               control?.ptr, &error) else {
             throw DoctoredCoreError(
                 message: takeErrorMessage(error, fallback: "Could not export \(url.lastPathComponent)."))

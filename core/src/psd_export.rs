@@ -369,8 +369,8 @@ impl DrDocument {
     }
 
     /// The report's JSON at depth 8 with `"working_memory_plan_bytes"`, the
-    /// layered save's plan (`PsdExportReport::working_plan`). It assumes the
-    /// host supplies the composite (`flat`); a NULL `flat` flattens outside it.
+    /// layered save's plan (`PsdExportReport::working_plan`). The composite
+    /// itself is the host's (`flat`, which the save requires).
     pub(crate) fn psd_report_json(
         &self,
         container: LayeredContainer,
@@ -735,7 +735,9 @@ impl DrDocument {
         })
     }
 
-    /// Writes this document as an 8-bit RGB PSD, PSB or layered TIFF. Pure:
+    /// Writes this document as an 8-bit RGB PSD, PSB or layered TIFF from
+    /// `flat`, its canvas-sized composite, which the host supplies and the
+    /// save never renders itself. Pure:
     /// nothing about the document changes, and a refused export never touches
     /// an existing destination, because the whole file is built in memory
     /// first and lands through the shared atomic temp-file rename.
@@ -745,7 +747,7 @@ impl DrDocument {
     /// rename; a cancel answers exactly `operation cancelled`.
     pub(crate) fn save_psd(
         &self,
-        flat: Option<&DrImage>,
+        flat: &DrImage,
         path: &str,
         container: LayeredContainer,
         mode: PsdExportMode,
@@ -759,17 +761,10 @@ impl DrDocument {
         }
         let large = container.large();
         // The supplied composite is read in place, never copied.
-        let composite: std::borrow::Cow<'_, RgbaImage> = match flat {
-            Some(image) => {
-                if image.pixels.dimensions() != (self.width, self.height) {
-                    return Err(
-                        "the supplied composite does not match this document's canvas".into(),
-                    );
-                }
-                std::borrow::Cow::Borrowed(&image.pixels)
-            }
-            None => std::borrow::Cow::Owned(self.flattened()?),
-        };
+        if flat.pixels.dimensions() != (self.width, self.height) {
+            return Err("the supplied composite does not match this document's canvas".into());
+        }
+        let composite: &RgbaImage = &flat.pixels;
         job.report(0.2, 1)?;
         // ONE colour transform for the whole export, the way a projection
         // builds one for however many styled layers it holds.
@@ -778,7 +773,7 @@ impl DrDocument {
             PsdExportMode::Layers => self.layer_records(colors.as_ref(), large)?,
             PsdExportMode::Flattened => vec![Record {
                 bounds: [0, 0, self.height as i32, self.width as i32],
-                channels: composite_channels(&composite, large),
+                channels: composite_channels(composite, large),
                 blend: *b"norm",
                 opacity: 255,
                 clipping: 0,
@@ -867,7 +862,7 @@ impl DrDocument {
                 light,
                 &self.color_samplers,
                 &records,
-                &composite_planes8(&composite),
+                &composite_planes8(composite),
                 large,
                 &tail,
                 &self.psd_spot_planes(),

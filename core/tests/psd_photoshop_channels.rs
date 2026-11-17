@@ -44,7 +44,7 @@ use doctored_core::ffi::dr_image_free;
 use doctored_core::ffi_doc::{dr_doc_flattened, dr_doc_free, dr_doc_with_layer_visible};
 use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
 use doctored_core::ffi_psd::{
-    dr_doc_open_psd, dr_doc_save_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd,
+    dr_doc_open_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd,
 };
 use doctored_core::job_control::DrJobControl;
 use doctored_core::precision_document::PrecisionDocument;
@@ -469,9 +469,8 @@ fn the_map_curve_exports_photoshops_own_curv_body_at_both_depths() {
     let out = dir.path().join("map8.psd");
     let mut error: *mut c_char = ptr::null_mut();
     let ok = unsafe {
-        dr_doc_save_psd(
+        common::save_psd_with_composite(
             &*doc,
-            ptr::null(),
             cpath(&out).as_ptr(),
             0,
             LAYERS,

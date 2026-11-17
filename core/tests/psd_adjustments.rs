@@ -17,7 +17,7 @@ use doctored_core::doc::{BlendMode, DrDocument};
 use doctored_core::ffi::{dr_image_free, dr_image_from_rgba};
 use doctored_core::ffi_adjust::dr_image_adjust_op;
 use doctored_core::ffi_psd::{
-    dr_doc_open_psd, dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_open_psd,
+    dr_doc_open_psd, dr_doc_psd_export_report, dr_precision_doc_open_psd,
     dr_precision_doc_psd_export_report, dr_precision_doc_save_psd, dr_psd_import_report,
 };
 use doctored_core::icc::IccProfile;
@@ -130,15 +130,7 @@ fn save(doc: &DrDocument, path: &Path, mode: i32) -> Result<(), String> {
     let c = cpath(path);
     let mut error: *mut c_char = ptr::null_mut();
     if unsafe {
-        dr_doc_save_psd(
-            doc,
-            ptr::null(),
-            c.as_ptr(),
-            0,
-            mode,
-            std::ptr::null(),
-            &mut error,
-        )
+        common::save_psd_with_composite(doc, c.as_ptr(), 0, mode, std::ptr::null(), &mut error)
     } {
         assert!(error.is_null(), "err_out set on success");
         Ok(())

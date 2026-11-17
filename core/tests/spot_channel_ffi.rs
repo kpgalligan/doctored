@@ -18,8 +18,7 @@ use doctored_core::ffi_doc::dr_doc_free;
 use doctored_core::ffi_precision::{dr_precision_doc_free, dr_precision_doc_info};
 use doctored_core::ffi_preservation::dr_doc_flat_save_losses;
 use doctored_core::ffi_psd::{
-    dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_psd_export_report,
-    dr_precision_doc_save_psd,
+    dr_doc_psd_export_report, dr_precision_doc_psd_export_report, dr_precision_doc_save_psd,
 };
 use doctored_core::ffi_spot_channel::*;
 use doctored_core::icc::IccProfile;
@@ -594,9 +593,8 @@ fn lab_and_a_gray_tiff_refuse_a_spot_channel_by_name_and_psd_and_rgb_tiff_carry_
         let path = cpath(&file);
         let mut err = ptr::null_mut();
         assert!(
-            dr_doc_save_psd(
+            crate::common::save_psd_with_composite(
                 spot,
-                ptr::null(),
                 path.as_ptr(),
                 0,
                 0,

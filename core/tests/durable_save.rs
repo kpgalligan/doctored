@@ -22,7 +22,6 @@ use doctored_core::ffi_precision::{
     dr_precision_doc_save_native, dr_precision_image_free,
 };
 use doctored_core::ffi_precision_export::dr_precision_doc_save_projection16;
-use doctored_core::ffi_psd::dr_doc_save_psd;
 use doctored_core::precision_document::PrecisionDocument;
 use doctored_core::precision_image::{PrecisionImage, REFERENCE_WORKING_BYTES};
 use doctored_core::DrImage;
@@ -162,9 +161,8 @@ fn writers(f: &Fixtures) -> Vec<Writer<'_>> {
                 let c = cpath(path);
                 let mut err: *mut c_char = ptr::null_mut();
                 let ok = unsafe {
-                    dr_doc_save_psd(
+                    common::save_psd_with_composite(
                         f.doc,
-                        ptr::null(),
                         c.as_ptr(),
                         0,
                         0,

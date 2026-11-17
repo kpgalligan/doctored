@@ -35,8 +35,7 @@ use doctored_core::ffi_precision::{
     dr_precision_doc_free, dr_precision_doc_open, dr_precision_doc_save_native,
 };
 use doctored_core::ffi_psd::{
-    dr_doc_open_psd, dr_doc_save_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd,
-    dr_psd_import_report,
+    dr_doc_open_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd, dr_psd_import_report,
 };
 use doctored_core::ffi_sky::{dr_precision_doc_sky_replace, dr_sky_replace_scratch_bytes};
 use doctored_core::icc::IccProfile;
@@ -467,9 +466,8 @@ pub(crate) fn save_psd(doc: &Doc, path: &Path) -> Doc {
     match doc {
         Doc::Byte(d) => assert!(
             unsafe {
-                dr_doc_save_psd(
+                crate::common::save_psd_with_composite(
                     d,
-                    ptr::null(),
                     target.as_ptr(),
                     0,
                     PSD_LAYERS,

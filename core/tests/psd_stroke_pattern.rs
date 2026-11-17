@@ -16,8 +16,7 @@ use std::ptr;
 use doctored_core::doc::DrDocument;
 use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
 use doctored_core::ffi_psd::{
-    dr_doc_open_psd, dr_doc_save_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd,
-    dr_psd_import_report,
+    dr_doc_open_psd, dr_precision_doc_open_psd, dr_precision_doc_save_psd, dr_psd_import_report,
 };
 use doctored_core::icc::IccProfile;
 use doctored_core::job_control::DrJobControl;
@@ -85,9 +84,8 @@ fn open16(path: &Path) -> PrecisionDocument {
 fn save8(doc: &DrDocument, path: &Path) {
     let mut error: *mut c_char = ptr::null_mut();
     let ok = unsafe {
-        dr_doc_save_psd(
+        crate::common::save_psd_with_composite(
             doc,
-            ptr::null(),
             cpath(path).as_ptr(),
             0,
             0,

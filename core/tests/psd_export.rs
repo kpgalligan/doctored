@@ -46,15 +46,7 @@ fn save(doc: &DrDocument, path: &std::path::Path, mode: i32) -> Result<(), Strin
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
     if unsafe {
-        dr_doc_save_psd(
-            doc,
-            ptr::null(),
-            c.as_ptr(),
-            0,
-            mode,
-            std::ptr::null(),
-            &mut err,
-        )
+        common::save_psd_with_composite(doc, c.as_ptr(), 0, mode, std::ptr::null(), &mut err)
     } {
         assert!(err.is_null(), "err_out set on success");
         Ok(())
@@ -968,6 +960,25 @@ fn null_and_out_of_range_arguments_are_refused() {
         )
     });
     assert!(take_err_string(err).contains("unknown PSD export mode"));
+
+    // The byte save requires its composite: a NULL `flat` is refused by name
+    // and nothing is written.
+    let mut err: *mut c_char = ptr::null_mut();
+    assert!(!unsafe {
+        dr_doc_save_psd(
+            &doc,
+            ptr::null(),
+            path.as_ptr(),
+            0,
+            LAYERS,
+            ptr::null(),
+            &mut err,
+        )
+    });
+    assert_eq!(
+        take_err_string(err),
+        "an 8-bit document's PSD export requires its composite (flat is NULL)"
+    );
 
     assert!(!unsafe {
         dr_doc_save_psd(

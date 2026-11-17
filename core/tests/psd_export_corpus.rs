@@ -18,9 +18,7 @@ use std::ptr;
 use std::sync::Arc;
 
 use doctored_core::doc::{BlendMode, DrDocument, LayerKind};
-use doctored_core::ffi_psd::{
-    dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_save_psd,
-};
+use doctored_core::ffi_psd::{dr_doc_psd_export_report, dr_precision_doc_save_psd};
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
 use doctored_core::precision_document::{PrecisionDocument, PrecisionDocumentLayer as PLayer};
@@ -47,15 +45,7 @@ fn save(doc: &DrDocument, path: &Path, mode: i32) -> Result<(), String> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
     if unsafe {
-        dr_doc_save_psd(
-            doc,
-            ptr::null(),
-            c.as_ptr(),
-            0,
-            mode,
-            std::ptr::null(),
-            &mut err,
-        )
+        common::save_psd_with_composite(doc, c.as_ptr(), 0, mode, std::ptr::null(), &mut err)
     } {
         assert!(err.is_null(), "err_out set on success");
         Ok(())

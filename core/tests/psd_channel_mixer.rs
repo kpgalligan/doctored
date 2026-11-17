@@ -22,7 +22,7 @@ use doctored_core::doc::DrDocument;
 use doctored_core::ffi::{dr_image_free, dr_image_from_rgba};
 use doctored_core::ffi_adjust::dr_image_adjust_op;
 use doctored_core::ffi_psd::{
-    dr_doc_open_psd, dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_open_psd,
+    dr_doc_open_psd, dr_doc_psd_export_report, dr_precision_doc_open_psd,
     dr_precision_doc_psd_export_report, dr_precision_doc_save_psd, dr_psd_import_report,
 };
 use doctored_core::icc::IccProfile;
@@ -130,9 +130,8 @@ fn export_report16(document: &PrecisionDocument, mode: i32) -> Value {
 fn save(doc: &DrDocument, path: &Path) {
     let mut error: *mut c_char = ptr::null_mut();
     let ok = unsafe {
-        dr_doc_save_psd(
+        common::save_psd_with_composite(
             doc,
-            ptr::null(),
             cpath(path).as_ptr(),
             0,
             LAYERS,

@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use doctored_core::doc::DrDocument;
 use doctored_core::ffi_psd::{
-    dr_doc_open_psd, dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_open_psd,
+    dr_doc_open_psd, dr_doc_psd_export_report, dr_precision_doc_open_psd,
     dr_precision_doc_psd_export_report, dr_precision_doc_save_psd, dr_psd_import_report,
 };
 use doctored_core::icc::IccProfile;
@@ -116,15 +116,7 @@ pub(crate) fn save(doc: &DrDocument, path: &Path) -> Result<(), String> {
     let c = cpath(path);
     let mut error: *mut c_char = ptr::null_mut();
     if unsafe {
-        dr_doc_save_psd(
-            doc,
-            ptr::null(),
-            c.as_ptr(),
-            0,
-            LAYERS,
-            std::ptr::null(),
-            &mut error,
-        )
+        common::save_psd_with_composite(doc, c.as_ptr(), 0, LAYERS, std::ptr::null(), &mut error)
     } {
         Ok(())
     } else {

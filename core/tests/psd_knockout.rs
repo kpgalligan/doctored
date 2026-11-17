@@ -49,8 +49,8 @@ use doctored_core::ffi_doc::*;
 use doctored_core::ffi_group::dr_doc_group_layers;
 use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
 use doctored_core::ffi_psd::{
-    dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_open_psd,
-    dr_precision_doc_psd_export_report, dr_precision_doc_save_psd,
+    dr_doc_psd_export_report, dr_precision_doc_open_psd, dr_precision_doc_psd_export_report,
+    dr_precision_doc_save_psd,
 };
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
@@ -121,15 +121,7 @@ fn write_psd(doc: *const DrDocument, path: &Path) -> Vec<u8> {
     let c = cpath(path);
     let mut err: *mut c_char = ptr::null_mut();
     let ok = unsafe {
-        dr_doc_save_psd(
-            doc,
-            ptr::null(),
-            c.as_ptr(),
-            0,
-            LAYERS_MODE,
-            std::ptr::null(),
-            &mut err,
-        )
+        common::save_psd_with_composite(doc, c.as_ptr(), 0, LAYERS_MODE, std::ptr::null(), &mut err)
     };
     assert!(ok, "save_psd: {}", take_err_string(err));
     std::fs::read(path).expect("the written PSD")
