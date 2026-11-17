@@ -70,8 +70,10 @@ func verifyHistory() throws {
     }
     let (cropX, cropY, cropWidth, cropHeight) =
         (Int(window.minX), Int(window.minY), Int(window.width), Int(window.height))
-    let cropped: [UInt8] = (0..<cropHeight).flatMap { row in
-        old[((cropY + row) * 12 + cropX)..<((cropY + row) * 12 + cropX + cropWidth)]
+    // Typed and indexed once: Swift 6.3 gives up type-checking the untyped closure.
+    let cropped: [UInt8] = (0..<cropHeight).flatMap { (row: Int) -> ArraySlice<UInt8> in
+        let start: Int = (cropY + row) * 12 + cropX
+        return old[start..<(start + cropWidth)]
     }
     edit(document) { editor.cropToSelection(nil) }
     try require(document.doc.width == cropWidth && document.doc.height == cropHeight

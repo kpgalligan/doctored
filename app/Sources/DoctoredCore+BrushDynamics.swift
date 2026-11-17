@@ -49,11 +49,13 @@ final class RasterBrushDynamics {
                       pen.tiltY, Double(direction.dx), Double(direction.dy), pen.rotation,
                       Double(heading.dx), Double(heading.dy)]
         var out = [Double](repeating: 0, count: 6 * BrushDynamics.maximumCount)
-        let n = dr_brush_dynamics_dabs(ptr, index, sample, sample.count, &out, out.count)
-        return (0..<n).map { k in
-            ResolvedDab(point: CGPoint(x: out[6 * k], y: out[6 * k + 1]),
-                        diameter: CGFloat(out[6 * k + 2]), factor: CGFloat(out[6 * k + 3]),
-                        angleDegrees: CGFloat(out[6 * k + 4]), roundness: CGFloat(out[6 * k + 5]))
+        let n: Int = dr_brush_dynamics_dabs(ptr, index, sample, sample.count, &out, out.count)
+        // Typed and indexed once: Swift 6.3 gives up type-checking the untyped closure.
+        return (0..<n).map { (k: Int) -> ResolvedDab in
+            let at = 6 * k
+            return ResolvedDab(point: CGPoint(x: out[at], y: out[at + 1]),
+                               diameter: CGFloat(out[at + 2]), factor: CGFloat(out[at + 3]),
+                               angleDegrees: CGFloat(out[at + 4]), roundness: CGFloat(out[at + 5]))
         }
     }
 }

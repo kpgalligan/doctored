@@ -281,8 +281,8 @@ extension EditorViewController {
             }
             let work = try PrecisionStrokeWork(kind: kind, layer: stroke.capture.layer,
                 source: stroke.capture.source, stroke: native, command: command,
-                selection: stroke.capture.selection?.maskSamples16(), width: source.width, height: source.height,
-                coverageRect: coverageRect)
+                selection: stroke.capture.selection?.maskSamples16(in: coverageRect),
+                width: source.width, height: source.height, coverageRect: coverageRect)
             var record = ActionRecorder.shared.gestureRecord(strokeRecord(name))
             let canonical = try native.canonical
             // A History Brush stroke is `.unrecorded("History Brush")`: it is

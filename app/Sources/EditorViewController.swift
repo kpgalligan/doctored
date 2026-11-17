@@ -1335,6 +1335,9 @@ final class EditorViewController: NSViewController {
         // bounds, not frame: a rotated canvas's frame is the turned box.
         let dimensionsChanged = canvas.bounds.size != newSize
         canvas.documentColorSpace = doc.drawingSpace
+        // loadView's depth fact, kept true across a depth conversion in place; a stroke in
+        // flight keeps the value it began with.
+        if !canvas.isPaintingStroke { canvas.nativeBrushEnabled = doc.isHighDepth }
         canvas.image = document.previewImage
         refreshProofImage()
         refreshClippingOverlay()

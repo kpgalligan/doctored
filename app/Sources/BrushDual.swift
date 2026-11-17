@@ -137,15 +137,18 @@ struct StrokeDual {
     /// ±1,000,000, each diameter 1…5000 and each deposit 0…1.
     init(tip: BrushTip, dabs: [Double]) throws {
         let count = dabs.count / 4
+        // One dab's ranges, typed apart: Swift 6.3 gives up type-checking the inline closure.
+        let dabInRange: (Int) -> Bool = { i in
+            let centre: Bool = abs(dabs[i]) <= 1_000_000 && abs(dabs[i + 1]) <= 1_000_000
+            let diameter: Bool = (1...NativeBrushStroke.maximumDiameter).contains(dabs[i + 2])
+            let deposit: Bool = (0...1).contains(dabs[i + 3])
+            return centre && diameter && deposit
+        }
         guard !tip.aliased, tip.hardness.isFinite, (0...1).contains(tip.hardness),
               tip.roundness.isFinite, (0.01...1).contains(tip.roundness),
               tip.angleDegrees.isFinite, (-180...180).contains(tip.angleDegrees),
               dabs.count % 4 == 0, (1...NativeBrushStroke.maximumDabs).contains(count),
-              stride(from: 0, to: dabs.count, by: 4).allSatisfy({
-                  abs(dabs[$0]) <= 1_000_000 && abs(dabs[$0 + 1]) <= 1_000_000
-                      && (1...NativeBrushStroke.maximumDiameter).contains(dabs[$0 + 2])
-                      && (0...1).contains(dabs[$0 + 3])
-              }) else {
+              stride(from: 0, to: dabs.count, by: 4).allSatisfy(dabInRange) else {
             throw DoctoredCoreError(message: NativeBrushStroke.dualRefusal)
         }
         self.tip = tip

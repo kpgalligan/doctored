@@ -2768,7 +2768,10 @@ final class ImageCanvasView: NSView {
     /// snapshot drawn displaced by the stroke's offset and clipped to the
     /// dab, so the pixel that lands at p is the snapshot's p − offset.
     private func stampCloneDab(in context: CGContext, at point: CGPoint, pressure: CGFloat = 1) {
-        nativeStrokeSession?.stamp(at: point, diameter: dabDiameter(pressure), pressure: pressure)
+        // Read before the stamp: `dabDiameter` reads the session (`dynamicsDabDiameter`), which
+        // the mutating `stamp` holds exclusively while its arguments are evaluated.
+        let diameter = dabDiameter(pressure)
+        nativeStrokeSession?.stamp(at: point, diameter: diameter, pressure: pressure)
         if nativeStrokeSession?.acceptsInk == false { return }
         guard let snapshot = cloneSnapshot else { return }
         context.saveGState()

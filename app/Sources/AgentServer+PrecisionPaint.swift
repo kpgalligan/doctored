@@ -232,8 +232,8 @@ extension AgentServer {
                     // Mirrors the 16-bit Healing Brush / Spot Healing canvas
                     // strokes (EditorViewController.finishPrecisionStroke).
                     let work = try PrecisionStrokeWork(source: capture.source, stroke: native, command: command,
-                        selection: selected ? capture.selection?.maskSamples16() : nil, width: width, height: height,
-                        coverageRect: coverageRect)
+                        selection: selected ? capture.selection?.maskSamples16(in: coverageRect) : nil,
+                        width: width, height: height, coverageRect: coverageRect)
                     let job = try DocumentJobs.startPrecisionStroke(work, document: document, capture: capture,
                         layer: layer, title: spot ? "Spot Healing" : "Healing Brush", record: .notACommand,
                         showProgress: false, rasterizesTarget: output == .layer)
@@ -284,8 +284,8 @@ extension AgentServer {
             // (EditorViewController.finishPrecisionStroke): one job whose
             // worker rasterizes the footprint.
             let work = try PrecisionStrokeWork(source: capture.source, stroke: native, command: command,
-                selection: selected ? capture.selection?.maskSamples16() : nil, width: width, height: height,
-                coverageRect: coverageRect)
+                selection: selected ? capture.selection?.maskSamples16(in: coverageRect) : nil,
+                width: width, height: height, coverageRect: coverageRect)
             let job = try DocumentJobs.startPrecisionStroke(work, document: document, capture: capture,
                 layer: layer, title: tool.replacingOccurrences(of: "_", with: " "), record: .notACommand,
                 showProgress: false, rasterizesTarget: rasterizes, completion: Self.noteStrokeJobChange)

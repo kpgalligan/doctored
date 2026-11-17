@@ -30,7 +30,10 @@ private func scopeDisplayBytes(_ image: CGImage?) throws -> Data {
 }
 
 private func scopeBlend(_ old: UInt8, _ new: UInt8, _ coverage: UInt8) -> UInt8 {
-    UInt8((Int(old) * (255 - Int(coverage)) + Int(new) * Int(coverage) + 127) / 255)
+    // Split into typed terms: Swift 6.3 gives up type-checking the one-line sum.
+    let kept: Int = Int(old) * (255 - Int(coverage))
+    let added: Int = Int(new) * Int(coverage)
+    return UInt8((kept + added + 127) / 255)
 }
 
 /// The document/UI routing half of Phase 2, paired with the numerical Rust

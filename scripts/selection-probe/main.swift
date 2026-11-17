@@ -5,13 +5,15 @@ struct ProbeFailure: Error, CustomStringConvertible { let description: String }
 func require(_ value: @autoclosure () -> Bool, _ message: String) throws {
     if !value() { throw ProbeFailure(description: message) }
 }
-func fixture(width: Int = 90, height: Int = 60) throws -> ImageDocument {
+/// `rgba`, when given, is the image's straight RGBA8 (`width × height × 4` bytes).
+func fixture(width: Int = 90, height: Int = 60, rgba: [UInt8]? = nil) throws -> ImageDocument {
     var pixels = [UInt8](repeating: 0, count: width * height * 4)
     for y in 0..<height { for x in 0..<width {
         let i = (y * width + x) * 4
         pixels[i + min(2, x * 3 / width)] = 255
         pixels[i + 3] = y < height - 5 ? 255 : 0
     } }
+    if let rgba { pixels = rgba }
     guard let image = RasterImage.from(rgba: pixels, width: width, height: height),
           let document = ImageDocument.makeUntitled(with: image) else {
         throw ProbeFailure(description: "Selection fixture allocation")
@@ -299,6 +301,8 @@ let checks: [(String, () throws -> Void)] = [
     ("refinement workspace", verifyRefinementWorkspace),
     ("refinement mask output", verifyRefinementMaskOutput),
     ("liquify workspace", verifyLiquifyWorkspace),
+    ("selection rect read", verifySelectionRectRead),
+    ("canvas retouch rect selection", verifyCanvasRetouchRectSelection),
 ]
 let requested = Set((ProcessInfo.processInfo.environment["DR_SELECTION_PROBE_CHECKS"] ?? "")
     .split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })

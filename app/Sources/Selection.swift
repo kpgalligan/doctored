@@ -5,7 +5,8 @@ import AppKit
 //
 // `CanvasSelection.mask16` owns u16 samples while byte images remain display derivatives.
 //
-// `maskSamples16` is the typed transfer; legacy `maskBytes` keeps its ABI.
+// `maskSamples16` is the typed transfer; legacy `maskBytes` keeps its ABI. `maskSamples16(in:)`
+// reads one canvas rect of it (a stroke's `coverage_rect`).
 
 /// How a newly made selection combines with the existing one (modifier
 /// conventions: Shift = add, Option = subtract, both = intersect).
@@ -298,8 +299,6 @@ struct CanvasSelection {
             shape: .mask(bytes), canvasWidth: canvasWidth, canvasHeight: canvasHeight)
     }
 
-    /// Canvas-sized coverage bytes: geometric shapes rasterize with
-    /// anti-aliased edges; wand masks return their stored bytes.
     var hasNativeCoverage: Bool { if case .mask16 = shape { return true }; return false }
 
     /// A lossless legacy promotion or the original native samples. This is the
@@ -309,6 +308,48 @@ struct CanvasSelection {
         return maskBytes().map { UInt16($0) * 257 }
     }
 
+    /// `maskSamples16()`'s samples over the canvas rect `rect` only, row-major, equal to its
+    /// crop: stored u16 rows copied, stored bytes widened ×257, a rect rasterized over the rect
+    /// alone. An ellipse or a polygon widens the rect's rows of `maskBytes()`, so its canvas
+    /// byte plane is still made: CG's anti-aliased curved and slanted edges can move by one or
+    /// two codes under an integer translation, so only the canvas raster equals the canvas
+    /// read. nil = the canvas (`maskSamples16()`). Throws on an empty rect or one not inside
+    /// the canvas.
+    func maskSamples16(in rect: CoverageRect?) throws -> [UInt16] {
+        guard let rect else { return maskSamples16() }
+        guard rect.x >= 0, rect.y >= 0, rect.width > 0, rect.height > 0,
+              rect.width <= canvasWidth - rect.x, rect.height <= canvasHeight - rect.y else {
+            throw DoctoredCoreError(
+                message: "A selection's rect read must name a nonempty rect inside its canvas.")
+        }
+        var samples = [UInt16]()
+        samples.reserveCapacity(rect.width * rect.height)
+        let rows = rect.y..<(rect.y + rect.height)
+        func widened(_ bytes: [UInt8]) {
+            for row in rows {
+                let at = row * canvasWidth + rect.x
+                samples.append(
+                    contentsOf: bytes[at..<(at + rect.width)].lazy.map { UInt16($0) * 257 })
+            }
+        }
+        switch shape {
+        case .mask16(let stored):
+            for row in rows {
+                let at = row * canvasWidth + rect.x
+                samples.append(contentsOf: stored[at..<(at + rect.width)])
+            }
+        case .mask(let stored):
+            widened(stored)
+        case .rect:
+            samples.append(contentsOf: pathCoverage(over: rect).lazy.map { UInt16($0) * 257 })
+        case .ellipse, .polygon:
+            widened(maskBytes())
+        }
+        return samples
+    }
+
+    /// Canvas-sized coverage bytes: geometric shapes rasterize with
+    /// anti-aliased edges; wand masks return their stored bytes.
     func maskBytes() -> [UInt8] {
         if case .mask16(let samples) = shape {
             return samples.map { UInt8((UInt32($0) + 128) / 257) }
@@ -316,19 +357,27 @@ struct CanvasSelection {
         if case .mask(let mask) = shape {
             return mask
         }
-        var bytes = [UInt8](repeating: 0, count: canvasWidth * canvasHeight)
+        return pathCoverage(over: (0, 0, canvasWidth, canvasHeight))
+    }
+
+    /// The path's coverage bytes over canvas rect `rect` (row 0 = its top row): `maskBytes()`'s
+    /// CG fill with the CTM moved by the rect's origin.
+    private func pathCoverage(over rect: CoverageRect) -> [UInt8] {
+        var bytes = [UInt8](repeating: 0, count: rect.width * rect.height)
         guard let cgPath = path?.cgPath else { return bytes }
         bytes.withUnsafeMutableBufferPointer { buffer in
             guard
                 let context = CGContext(
-                    data: buffer.baseAddress, width: canvasWidth, height: canvasHeight,
-                    bitsPerComponent: 8, bytesPerRow: canvasWidth,
+                    data: buffer.baseAddress, width: rect.width, height: rect.height,
+                    bitsPerComponent: 8, bytesPerRow: rect.width,
                     space: CGColorSpaceCreateDeviceGray(),
                     bitmapInfo: CGImageAlphaInfo.none.rawValue)
             else { return }
-            // Flip so byte row 0 is the canvas top row; white = selected.
-            context.translateBy(x: 0, y: CGFloat(canvasHeight))
+            // Flip so byte row 0 is the rect's top row, then move the rect's
+            // origin to the context's; white = selected.
+            context.translateBy(x: 0, y: CGFloat(rect.height))
             context.scaleBy(x: 1, y: -1)
+            context.translateBy(x: CGFloat(-rect.x), y: CGFloat(-rect.y))
             context.addPath(cgPath)
             context.setFillColor(gray: 1, alpha: 1)
             context.fillPath()
