@@ -42,6 +42,11 @@ struct BrushDynamics: Codable, Equatable {
     /// (`EditorTool.takesTextureDynamics`). Optional, as `shape` is. It never reaches the
     /// dynamics kernel: the stroke carries it to the rasterizer (`NativeBrushStroke.texture`).
     var texture: Texture?
+    /// The dual brush (slice 4, `BrushDual.swift`), nil for none; the Brush and the Eraser only
+    /// (`EditorTool.takesDualBrushDynamics`). Optional, as `texture` is, and its presence is the
+    /// switch (`normalized` keeps it). It never reaches the dynamics kernel: the stroke walks it
+    /// (`NativeBrushStrokeSession.walkDual`) and carries its dabs (`NativeBrushStroke.dual`).
+    var dual: Dual?
 
     static let maximumCurvePoints = 16
     static let maximumScatter = 10.0
@@ -87,7 +92,9 @@ extension BrushDynamics {
     /// "count_jitter"}}`, each response `{"control"?, "curve"?, "minimum", "jitter"}`;
     /// `control` and `curve` are written only when set. With a tip shape, also
     /// `"angle": {"control", "jitter"}` and `"roundness": {"control", "minimum", "jitter"}`;
-    /// with a texture, `"texture": {"pattern", "scale", "depth"}` (`Texture.json`).
+    /// with a texture, `"texture": {"pattern", "scale", "depth"}` (`Texture.json`); with a dual
+    /// brush, `"dual": {"size", "hardness", "roundness", "angle_degrees", "spacing", "scatter"}`
+    /// (`Dual.json`).
     var json: [String: Any] {
         func response(_ r: Response) -> [String: Any] {
             var out: [String: Any] = ["minimum": r.minimum, "jitter": r.jitter]
@@ -105,11 +112,13 @@ extension BrushDynamics {
                                 "minimum": shape.roundnessMinimum, "jitter": shape.roundnessJitter]
         }
         if let texture { out["texture"] = texture.json }
+        if let dual { out["dual"] = dual.json }
         return out
     }
 
     /// The sections `json` writes, in its order.
-    private static let sections = ["size", "opacity", "scatter", "angle", "roundness", "texture"]
+    private static let sections = ["size", "opacity", "scatter", "angle", "roundness", "texture",
+                                   "dual"]
 
     /// Strict parse of `json`'s form, every section and key optional, each refusal
     /// naming its key. `extra` names keys the caller handles itself (`seed`). `library` is the
@@ -125,6 +134,7 @@ extension BrushDynamics {
         opacity = try Self.response(object["opacity"], "opacity")
         shape = try Self.tipShape(angle: object["angle"], roundness: object["roundness"])
         if let raw = object["texture"] { texture = try Texture(json: raw, library: library) }
+        if let raw = object["dual"] { dual = try Dual(json: raw) }
         guard let raw = object["scatter"] else { return }
         guard let scatter = raw as? [String: Any] else {
             throw DoctoredCoreError(message: "dynamics.scatter must be an object.")

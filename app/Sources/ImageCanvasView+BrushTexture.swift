@@ -19,28 +19,34 @@ extension ImageCanvasView {
         return try StrokeTexture(texture)
     }
 
-    /// The straight RGB ink a textured stroke's dab images are drawn in: `color` in the
-    /// document's space, as the byte commit converts it. nil without a texture.
+    /// The straight RGB ink a textured or dual stroke's dab images are drawn in: `color` in the
+    /// document's space, as the byte commit converts it. nil without a texture or a dual brush.
     func textureInk(_ color: NSColor) -> [UInt8]? {
-        guard nativeStrokeSession?.texture != nil,
+        guard nativeStrokeSession?.texture != nil || nativeStrokeSession?.dual != nil,
               let bytes = ColorProfile.bytes(color, in: NSColorSpace(cgColorSpace: documentColorSpace) ?? .sRGB)
         else { return nil }
         return Array(bytes.prefix(3))
     }
 
-    /// Mouse-down's admission for a textured stroke, before anything is built: the stroke's
-    /// soft dab image, one dab's core image over its box at `diameter` (no dab is larger:
-    /// dynamics only shrink one) and, for a byte stroke, the commit's whole-canvas figure
+    /// Mouse-down's admission for a textured or dual stroke, before anything is built: the
+    /// stroke's soft dab image, one dab's core image over its box at `diameter` (no dab is
+    /// larger: dynamics only shrink one) and, for a byte stroke, the commit's whole-canvas figure
     /// (`BytePaintRasterizer.aliasedScratch`), so mouse-up never asks for more than the
-    /// gesture was admitted with.
+    /// gesture was admitted with. A dual stroke's preview box is the larger of the two tips' and
+    /// may hold every dab of both lists (`stampDualRegions`), and its commit plans both lists.
     func admitTextureImages(diameter: CGFloat) throws {
-        let side = Int(min(max(diameter.isFinite ? diameter.rounded(.up) : 1, 1),
+        let dual = nativeStrokeSession?.dual != nil
+        let dualSize = brushDynamics?.normalized?.dual?.size ?? 0
+        let widest = dual ? max(diameter, CGFloat(dualSize)) : diameter
+        let side = Int(min(max(widest.isFinite ? widest.rounded(.up) : 1, 1),
                            CGFloat(NativeBrushStroke.maximumDiameter))) + 2
-        let preview = BytePaintRasterizer.aliasedScratch(width: side, height: side, dabs: 1,
-                                                         shaped: true)
+        let preview = BytePaintRasterizer.aliasedScratch(width: side, height: side,
+            dabs: dual ? NativeBrushStroke.maximumDabs : 1, shaped: true,
+            dualDabs: dual ? NativeBrushStroke.maximumDabs : nil)
         let commit = !nativeBrushEnabled && nativeStrokeSession != nil
             ? BytePaintRasterizer.aliasedScratch(width: overlayWidth, height: overlayHeight,
-                                                 dabs: NativeBrushStroke.maximumDabs, shaped: true)
+                                                 dabs: NativeBrushStroke.maximumDabs, shaped: true,
+                                                 dualDabs: dual ? NativeBrushStroke.maximumDabs : nil)
             : 0
         try SoftBrush.admitDabImage(diameter: diameter,
                                     extra: PrecisionDocumentDescriptor.sum(preview, commit))

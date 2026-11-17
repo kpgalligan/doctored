@@ -3,6 +3,7 @@ use crate::common::classic_ramp;
 use crate::native_blend_oracle as hsl;
 use crate::native_scalar as native;
 use doctored_core::ffi_brush::*;
+use doctored_core::ffi_brush_dual::*;
 use doctored_core::ffi_brush_texture::*;
 use doctored_core::ffi_precision_edit::*;
 use doctored_core::icc::IccProfile;
@@ -661,6 +662,67 @@ fn brush_refusals_and_new_exports_null_sweep_leave_output_untouched() {
             ptr::null(),
             ptr::null(),
             0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null_mut(),
+            0,
+            LIMIT,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        ));
+        assert!(dr_brush_dual_create(ptr::null(), ptr::null_mut()).is_null());
+        dr_brush_dual_free(ptr::null_mut());
+        let mut walked = [-7.; 8];
+        let mut walk = [-7.; 3];
+        assert_eq!(
+            dr_brush_dual_walk(
+                ptr::null(),
+                0,
+                ptr::null(),
+                1.,
+                1.,
+                walked.as_mut_ptr(),
+                8,
+                walk.as_mut_ptr()
+            ),
+            0
+        );
+        assert!(walked.iter().chain(&walk).all(|&v| v == -7.));
+        assert!(!dr_brush_u16_dual(
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null_mut(),
+            0,
+            LIMIT,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        ));
+        assert!(!dr_brush_overlay_rgba8_dual(
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
             0,
             ptr::null(),
             ptr::null(),

@@ -2658,7 +2658,7 @@ final class ImageCanvasView: NSView {
             stampCloneDab(in: context, at: strokeCursor, pressure: strokeCursorPressure)
         } else if let dab = strokeSoftDab {
             stampSoftDab(dab, in: context, at: strokeCursor, pressure: strokeCursorPressure,
-                         tilt: strokePen.eventTilt, rotation: strokePen.eventRotation)
+                         tilt: strokePen.eventTilt, rotation: strokePen.eventRotation, tick: true)
         } else if nativeStrokeSession != nil {
             stampNativePixelAirbrush(in: context, at: strokeCursor, pressure: strokeCursorPressure)
         } else {
@@ -2794,10 +2794,10 @@ final class ImageCanvasView: NSView {
     /// tracks it.
     private func stampSoftDab(
         _ dab: CGImage, in context: CGContext, at point: CGPoint, pressure: CGFloat = 1,
-        tilt: CGVector = StrokeVertex.noTilt, rotation: CGFloat = .nan
+        tilt: CGVector = StrokeVertex.noTilt, rotation: CGFloat = .nan, tick: Bool = false
     ) {
         if stampDynamicsDabs(dab, in: context, at: point, pressure: pressure, tilt: tilt,
-                             rotation: rotation) { return }
+                             rotation: rotation, tick: tick) { return }
         // The Pencil's dab lands snapped, where its session records it.
         let (point, diameter) = strokeTip.aliased
             ? NativeBrushStroke.aliasedGeometry(point, diameter: dabDiameter(pressure))

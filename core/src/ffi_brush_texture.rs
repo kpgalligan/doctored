@@ -14,8 +14,9 @@ use crate::precision_image::admit;
 use std::ffi::c_char;
 use std::ptr;
 
-/// The opaque handle `dr_brush_texture_create` returns.
-pub struct DrBrushTexture(BrushTexture);
+/// The opaque handle `dr_brush_texture_create` returns; the dual brush's
+/// rasterizers (`ffi_brush_dual`) read it too.
+pub struct DrBrushTexture(pub(crate) BrushTexture);
 
 /// A texture of the straight RGBA8 tile `tile_rgba` (`tile_width` x
 /// `tile_height`, each side 1..=512, `tile_width*tile_height*4` bytes, row 0

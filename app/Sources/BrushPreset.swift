@@ -14,8 +14,8 @@ import Foundation
 /// on the dynamics too, and every other tool's popup lists only the presets
 /// without dynamics (`all(dynamics:)`), so no two listed presets on any tool hold
 /// the same values. The Pencil, whose tip is round and two-valued, lists only the presets
-/// whose dynamics hold no tip shape and no texture (`all(dynamics:shapes:)`), for the same
-/// reason. A texture is held as its tile (a library pattern resolved when the preset is
+/// whose dynamics hold no tip shape, no texture and no dual brush (`all(dynamics:shapes:)`), for
+/// the same reason. A texture is held as its tile (a library pattern resolved when the preset is
 /// saved), so a preset never reads the pattern library; a list row and a save's reply echo
 /// its pattern without the pixels (`fields`).
 struct BrushPreset {
@@ -58,14 +58,15 @@ struct BrushPreset {
     /// (`BrushPresetLibrary.presets`, cached; the built-ins alone when it
     /// cannot be read).
     /// `dynamics` false lists only the presets without dynamics, `shapes` false only those
-    /// whose dynamics hold no tip shape and no texture (the tool's `takesBrushDynamics` and
-    /// `takesTipShapeDynamics`; the tools that take a tip shape are the ones that take a
-    /// texture).
+    /// whose dynamics hold no tip shape, no texture and no dual brush (the tool's
+    /// `takesBrushDynamics` and `takesTipShapeDynamics`; the tools that take a tip shape are the
+    /// ones that take a texture and a dual brush).
     static func all(dynamics: Bool = true, shapes: Bool = true) -> [BrushPreset] {
         let presets = builtIns + BrushPresetLibrary.presets
         return presets.filter {
             (dynamics || $0.dynamics == nil)
-                && (shapes || ($0.dynamics?.shape == nil && $0.dynamics?.texture == nil))
+                && (shapes || ($0.dynamics?.shape == nil && $0.dynamics?.texture == nil
+                               && $0.dynamics?.dual == nil))
         }
     }
 

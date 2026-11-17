@@ -80,3 +80,48 @@ final class RasterBrushTexture {
 
     deinit { dr_brush_texture_free(ptr) }
 }
+
+/// A dual brush's walk (`dr_brush_dual_create`): the second tip's size, spacing and scatter,
+/// parsed once, so a stroke feeds every path point without parsing again. Immutable. The rule is
+/// the core's (`brush_dual.rs`).
+final class RasterBrushDual {
+    private let ptr: OpaquePointer
+    /// The most stamps one `walk` call lays; a longer move is continued by the caller.
+    static let stampsPerCall = 64
+
+    init(request: String) throws {
+        var err: UnsafeMutablePointer<CChar>?
+        guard let ptr = request.withCString({ dr_brush_dual_create($0, &err) }) else {
+            throw DoctoredCoreError(message: takeErrorMessage(err,
+                fallback: "The dual brush could not be read."))
+        }
+        self.ptr = ptr
+    }
+
+    deinit { dr_brush_dual_free(ptr) }
+
+    /// One core call feeding the path point `to` to the walk whose anchor is `anchor` (nil: `to`
+    /// is the stroke's first point) and whose next stamp is `index`: the dabs it laid (x, y,
+    /// diameter, deposit quadruples), the anchor it left and the stamps laid, at most
+    /// `stampsPerCall`. Zero stamps and the anchor unchanged (`to` for a nil one) when `to` lies
+    /// within a step of the anchor or the core refuses the point.
+    func walk(index: UInt64, anchor: CGPoint?, to: CGPoint) -> (dabs: [Double], anchor: CGPoint,
+                                                               stamps: UInt64) {
+        var out = [Double](repeating: 0,
+                           count: 4 * BrushDynamics.maximumCount * Self.stampsPerCall)
+        var step = [Double.nan, .nan, 0]
+        let start = anchor.map { [Double($0.x), Double($0.y)] }
+        let n: Int
+        if let start {
+            n = start.withUnsafeBufferPointer {
+                dr_brush_dual_walk(ptr, index, $0.baseAddress, Double(to.x), Double(to.y), &out,
+                                   out.count, &step)
+            }
+        } else {
+            n = dr_brush_dual_walk(ptr, index, nil, Double(to.x), Double(to.y), &out, out.count,
+                                   &step)
+        }
+        guard step[0].isFinite, step[1].isFinite else { return ([], anchor ?? to, 0) }
+        return (Array(out[..<(4 * n)]), CGPoint(x: step[0], y: step[1]), UInt64(step[2]))
+    }
+}

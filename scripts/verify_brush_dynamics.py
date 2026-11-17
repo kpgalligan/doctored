@@ -54,6 +54,25 @@ Doctored process this file did not start is signalled.
   holding the tile; saved absolute it replays to the recorded render, saved relative on a
   larger canvas it paints the direct call with the recorded dabs remapped and the texture as
   recorded, which differs from that call without the texture.
+- **D12 dual brush** (two owned launches of its own, over a preset folder of its own). On a
+  transparent layer: a click with a hard 40 px first tip and a hard 10 px second leaves full alpha
+  on the second dab's interior and 0 on the first's interior outside the second's box; a line
+  whose second tip walks at spacing 200 % records second centres `size · 2` apart, full at the
+  pixel holding each and 0 at the pixel holding each midpoint; at 8, 16 and 32 bits a soft second
+  tip over the hard first's interior leaves alpha `round(top · c)` within one code (2 / 65535 at
+  32 bits), `c` this file's own smoothstep at the pixel centre. A seeded second scatter repeats
+  and differs from the unscattered call. In Grayscale, CMYK and Lab a dual stroke repeats and
+  differs from the plain one; Indexed and Bitmap the same, or the mode's refusal recorded. At 8
+  and 16 bits a layer mask, an alpha channel, `quick_mask_stroke` and `eraser_stroke` each repeat
+  and differ from the plain stroke. A recorded dual stroke's step holds `native_stroke.dual` and
+  no `dynamics` and replays exactly; saved absolute it replays to the recorded render, saved
+  relative on a larger canvas it paints the direct call with BOTH dab lists remapped (centres per
+  axis, diameters by `√(sx · sy)`), which differs from the call with the second diameters left as
+  recorded. An airbrush call's recorded `dual.dabs` equal the same call's without airbrush while
+  its first list is longer (a tick never feeds the second walk). A preset holding `dual` saves at
+  schema 2, lists after a relaunch, exports, deletes and imports back. Every named refusal
+  (`dual` with `aliased`, a `native_stroke` `dual` on another tool, a malformed or pixel-brush
+  `dual`, out-of-range and missing values, an unknown key) changes nothing.
 - D7 also refuses `rotations` alone, of the wrong length or range and on another tool, `angle`
   and `roundness` with `aliased`, and a `native_stroke` with `shapes` on another tool or of the
   wrong length; and `texture` with `aliased`, a `native_stroke` with `texture` on another tool,
@@ -63,7 +82,7 @@ Doctored process this file did not start is signalled.
   without pixels; the file holds the tile), which lists, exports and imports back after a
   relaunch with another (empty) pattern library.
 
-Usage: python3 -B scripts/verify_brush_dynamics.py [--receipts <folder>]
+Usage: python3 -B scripts/verify_brush_dynamics.py [--receipts <folder>] [--only d12]
 """
 import argparse
 import base64
@@ -117,6 +136,12 @@ DAB_SIZE = 24
 # SHAPED_NATIVE's dabs with a texture and no shapes (written here, as a recording writes one).
 TEXTURED_NATIVE = {k: v for k, v in SHAPED_NATIVE.items() if k != 'shapes'}
 TEXTURED_NATIVE['texture'] = {'pattern': TILE, 'scale': 1, 'depth': 1}
+# D12: SHAPED_NATIVE's dabs with a second tip of two 6 px dabs and no shapes.
+DUAL_NATIVE = {k: v for k, v in SHAPED_NATIVE.items() if k != 'shapes'}
+DUAL_NATIVE['dual'] = {'hardness': 1.0, 'roundness': 1.0, 'angle_degrees': 0.0,
+                       'dabs': base64.b64encode(struct.pack('<8d', 20, 24, 6, 1, 30, 24, 6, 1)).decode()}
+# D12's dual brush: a 6 px second tip at spacing 50 % (a 3 px step).
+DUAL = {'size': 6, 'spacing': 50}
 
 
 def tile_t(x, y, scale):
@@ -214,10 +239,390 @@ def recorded_step(actions, name):
     return steps[0]
 
 
+def smoothstep(d, hardness):
+    """The soft tip's coverage at normalized distance d: 1 inside `hardness`, 0 at the rim and
+    beyond, the smoothstep between."""
+    if d <= hardness:
+        return 1.0
+    if d >= 1:
+        return 0.0
+    k = (d - hardness) / (1 - hardness)
+    return 1 - k * k * (3 - 2 * k)
+
+
+def decode_dual(native):
+    """A canonical stroke's second dabs as (x, y, diameter, opacity) tuples."""
+    return decode_dabs(native['dual'])
+
+
+def dual_brush(folder, receipts):
+    """D12 (the module doc), on two owned launches over a brush preset folder of their own."""
+    from phase5_support import App
+    shared = os.environ.get('DR_BRUSH_PRESETS_DIR')
+    os.environ['DR_BRUSH_PRESETS_DIR'] = str(folder / 'dual-brush-presets')
+    rows = receipts.setdefault('d12', {})
+    try:
+        with App(folder / 'd12-app1', folder / 'd12-recovery1', interval=600) as app:
+            call = app.call
+            actions = folder / 'd12-app1' / 'actions'
+
+            def render(doc, **extra):
+                reply = app.client.rpc('tools/call', {'name': 'render', 'arguments': {
+                    'document_id': doc, 'max_side': 4096, **extra}})
+                assert not reply.get('isError'), reply
+                return png_pixels(next(item['data'] for item in reply['content']
+                                       if item['type'] == 'image'))
+
+            def changed(before, after, size=(W, H)):
+                assert before[:2] == after[:2] == size, (before[:2], after[:2])
+                return {(i % size[0], i // size[0]): q
+                        for i, (p, q) in enumerate(zip(before[2], after[2])) if p != q}
+
+            def sized(size, spec, background='white'):
+                return call('new_document', width=size[0], height=size[1], background=background,
+                            **spec)['document']['id']
+
+            def close(doc):
+                call('close_document', document_id=doc, discard_changes=True)
+
+            def painted(spec, tool, **arguments):
+                doc = sized((W, H), spec)
+                blank = render(doc)
+                call(tool, document_id=doc, **arguments)
+                after = render(doc)
+                close(doc)
+                return blank, after
+
+            def alpha(doc, x, y):
+                reply = call('sample_pixel', document_id=doc, x=x, y=y, source='layer', layer=0)
+                for key in ('center_rgba32', 'center_rgba_codes'):
+                    if reply.get(key) is not None:
+                        return reply[key][3]
+                raise AssertionError(('no readout', sorted(reply)))
+
+            names = iter(range(1000))
+
+            def recorded(spec, canvas, **arguments):
+                """One brush_stroke on a fresh document, recorded: its render and its step's
+                arguments without the document."""
+                name = f'dual-{next(names)}'
+                doc = sized(canvas, spec)
+                call('start_recording', discard=True)
+                call('brush_stroke', document_id=doc, **arguments)
+                after = render(doc)
+                call('stop_recording', name=name)
+                close(doc)
+                step = recorded_step(actions, name)
+                return after, {k: v for k, v in step['arguments'].items() if k != 'document_id'}
+
+            # The click: a hard 40 px first tip and a hard 10 px second at one point.
+            centre = (30.5, 22.5)
+            doc = sized((W, H), KINDS['rgb8'], 'transparent')
+            call('brush_stroke', document_id=doc, points=[list(centre)], size=40, color=INK,
+                 hardness=100, dynamics={'dual': {'size': 10}})
+            second_inside = interior(centre, 10)
+            box = (math.floor(centre[0] - 5), math.floor(centre[1] - 5),
+                   math.ceil(centre[0] + 5), math.ceil(centre[1] + 5))
+            outside = [(x, y) for (x, y) in interior(centre, 40)
+                       if not (box[0] <= x < box[2] and box[1] <= y < box[3])]
+            assert len(second_inside) > 40 and len(outside) > 800, (len(second_inside), len(outside))
+            full = [alpha(doc, x, y) for (x, y) in second_inside]
+            empty = [alpha(doc, x, y) for (x, y) in outside[::7]]
+            close(doc)
+            assert set(full) == {255}, ('the second interior is full', sorted(set(full)))
+            assert set(empty) == {0}, ('the first interior outside the second box', sorted(set(empty)))
+            rows['click'] = {'full': len(full), 'empty': len(empty)}
+            print(f'PASS d12 click: {len(full)} px of the 10 px second interior are full; '
+                  f'{len(empty)} px of the 40 px first interior outside its box are 0', flush=True)
+
+            # The line: the second tip walks at spacing 200 %, a 12 px step.
+            doc = sized((W, H), KINDS['rgb8'], 'transparent')
+            call('start_recording', discard=True)
+            call('brush_stroke', document_id=doc, points=STROKE, size=30, color=INK, hardness=100,
+                 dynamics={'dual': {'size': 6, 'spacing': 200}})
+            call('stop_recording', name='dual-line')
+            centres = [(x, y) for x, y, _, _ in
+                       decode_dual(recorded_step(actions, 'dual-line')['arguments']['native_stroke'])]
+            gaps = [math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(centres, centres[1:])]
+            assert len(centres) >= 3 and all(abs(g - 12) < 1e-9 for g in gaps), (centres, gaps)
+            at = [alpha(doc, math.floor(x), math.floor(y)) for x, y in centres]
+            mid = [alpha(doc, math.floor((a[0] + b[0]) / 2), math.floor((a[1] + b[1]) / 2))
+                   for a, b in zip(centres, centres[1:])]
+            close(doc)
+            assert set(at) == {255} and set(mid) == {0}, ('the 200 % line', at, mid)
+            rows['line'] = {'centres': centres, 'at': at, 'mid': mid}
+            print(f'PASS d12 line: {len(centres)} second dabs 12 px apart, full at each centre and '
+                  '0 midway', flush=True)
+
+            # A soft second tip over the hard first's interior, against this file's smoothstep.
+            soft = {}
+            for kind in ('rgb8', 'rgb16', 'rgb32'):
+                doc = sized((W, H), KINDS[kind], 'transparent')
+                call('brush_stroke', document_id=doc, points=[list(centre)], size=40, color=INK,
+                     hardness=100, dynamics={'dual': {'size': 20, 'hardness': 0.5}})
+                first = set(interior(centre, 40))
+                values = set()
+                for y in range(12, 34):
+                    for x in range(20, 42):
+                        if (x, y) not in first:
+                            continue
+                        c = smoothstep(math.hypot(x + 0.5 - centre[0], y + 0.5 - centre[1]) / 10, 0.5)
+                        got = alpha(doc, x, y)
+                        if kind == 'rgb32':
+                            ok = abs(got - c) <= 2 / 65535
+                        else:
+                            top = 255 if kind == 'rgb8' else 65535
+                            ok = abs(got - math.floor(top * c + 0.5)) <= 1
+                        assert ok, (kind, (x, y), got, c)
+                        values.add(got)
+                close(doc)
+                assert len(values) > 10, (kind, 'the soft second tip ramps', len(values))
+                soft[kind] = len(values)
+                print(f'PASS {kind} d12 soft: a soft 20 px second tip over the hard first leaves '
+                      f'its own smoothstep ({len(values)} levels)', flush=True)
+            rows['soft_levels'] = soft
+
+            # A seeded second scatter repeats and moves the second dabs.
+            line = dict(points=STROKE, size=16, color=INK, hardness=100)
+            scattered = {'seed': 9, 'dual': dict(DUAL, scatter={'amount': 2, 'count': 3})}
+            _, first = painted(KINDS['rgb8'], 'brush_stroke', **line, dynamics=scattered)
+            _, again = painted(KINDS['rgb8'], 'brush_stroke', **line, dynamics=scattered)
+            _, unscattered = painted(KINDS['rgb8'], 'brush_stroke', **line, dynamics={'dual': DUAL})
+            assert first == again and first != unscattered, 'the seeded second scatter'
+            print('PASS d12 scatter: a seeded second scatter repeats and differs from the '
+                  'unscattered call', flush=True)
+
+            # The colour modes.
+            dual = {'dynamics': {'dual': DUAL}}
+            plain = {'stroke_version': 1}
+
+            def mode_document(kind):
+                if kind == 'indexed':
+                    doc = sized((W, H), KINDS['rgb8'])
+                    call('select_rect', document_id=doc, x=0, y=0, width=6, height=6)
+                    call('fill_selection', document_id=doc, color=INK)
+                    call('deselect', document_id=doc)
+                    call('convert_mode', document_id=doc, mode='indexed', palette='exact',
+                         dither='none')
+                    return doc
+                if kind == 'bitmap':
+                    doc = sized((W, H), KINDS['gray8'])
+                    call('convert_mode', document_id=doc, mode='bitmap', method='threshold')
+                    return doc
+                return sized((W, H), dict(color_mode='lab', depth=8) if kind == 'lab8' else KINDS[kind])
+
+            modes = {}
+            stroke = dict(points=STROKE, size=SIZE * 2, hardness=100)
+            for kind in ('gray8', 'cmyk8', 'lab8', 'indexed', 'bitmap'):
+                colour = '#000000' if kind == 'bitmap' else INK
+                renders, refusal = [], None
+                for extra in (dual, dual, plain):
+                    doc = mode_document(kind)
+                    reply = app.client.rpc('tools/call', {'name': 'brush_stroke', 'arguments': dict(
+                        stroke, document_id=doc, color=colour, **extra)})
+                    if reply.get('isError'):
+                        refusal = next(c['text'] for c in reply['content'] if c['type'] == 'text')
+                    renders.append(render(doc))
+                    close(doc)
+                if kind in ('indexed', 'bitmap') and refusal is not None:
+                    modes[kind] = f'refused: {refusal}'
+                    print(f'NOTE {kind} d12: the mode refuses the stroke: {refusal}', flush=True)
+                    continue
+                assert refusal is None, (kind, refusal)
+                assert renders[0] == renders[1], (kind, 'the dual stroke repeats')
+                assert renders[0] != renders[2], (kind, 'the dual brush changed nothing')
+                modes[kind] = len(changed(renders[2], renders[0]))
+                print(f'PASS {kind} d12: a dual stroke repeats and differs from the plain one by '
+                      f'{modes[kind]} px', flush=True)
+            rows['modes'] = modes
+
+            # The coverage targets and the Eraser.
+            everywhere = [{'x': x, 'y': y} for y in range(H) for x in range(W)]
+
+            def target_read(depth, target, extra):
+                doc = sized((W, H), dict(depth=depth, profile='srgb'))
+                if target == 'mask':
+                    call('add_layer_mask', document_id=doc, layer=0, kind='hide_all')
+                    call('brush_stroke', document_id=doc, layer=0, target='mask', **stroke, **extra)
+                    out = render(doc, layer=0, channel='mask')
+                elif target == 'channel':
+                    call('add_channel', document_id=doc, name='Alpha 1')
+                    call('brush_stroke', document_id=doc, layer=0, target='channel:Alpha 1',
+                         **stroke, **extra)
+                    out = render(doc, channel='Alpha 1')
+                elif target == 'quick mask':
+                    call('set_quick_mask', document_id=doc, active=True)
+                    call('quick_mask_stroke', document_id=doc, width=W, height=H, opacity=1,
+                         **stroke, **extra)
+                    call('set_quick_mask', document_id=doc, active=False)
+                    samples = call('get_selection', document_id=doc, points=everywhere)['samples']
+                    out = [(s.get('coverage'), s.get('coverage16')) for s in samples]
+                else:
+                    call('eraser_stroke', document_id=doc, **stroke, **extra)
+                    out = render(doc)
+                close(doc)
+                return out
+
+            for depth in (8, 16):
+                for target in ('mask', 'channel', 'quick mask', 'eraser'):
+                    first, again, single = (target_read(depth, target, extra)
+                                            for extra in (dual, dual, plain))
+                    assert first == again, (depth, target, 'the dual stroke repeats')
+                    assert first != single, (depth, target, 'the dual brush changed nothing')
+                print(f'PASS {depth}-bit d12 targets: a layer mask, an alpha channel, '
+                      'quick_mask_stroke and eraser_stroke each repeat dual and differ from the '
+                      'plain stroke', flush=True)
+
+            # The recording: the step holds the second dabs, replays exactly, and remaps both
+            # lists.
+            arguments_line = dict(points=STROKE, size=SIZE * 2, color=INK, hardness=100,
+                                  dynamics={'seed': 4, 'dual': dict(DUAL, scatter={'amount': 1})})
+            doc = sized((W, H), KINDS['rgb8'])
+            call('start_recording', discard=True)
+            call('brush_stroke', document_id=doc, **arguments_line)
+            recorded_render = render(doc)
+            call('stop_recording', name='dual-replay')
+            call('undo', document_id=doc)
+            call('run_action', document_id=doc, name='dual-replay')
+            assert render(doc) == recorded_render, 'the dual replay differs'
+            close(doc)
+            step = recorded_step(actions, 'dual-replay')
+            arguments = {k: v for k, v in step['arguments'].items() if k != 'document_id'}
+            native = arguments['native_stroke']
+            assert 'dynamics' not in arguments and len(decode_dual(native)) > 5, sorted(arguments)
+            for mode in ('absolute', 'relative'):
+                save = app.client.rpc('tools/call', {'name': 'save_action', 'arguments': {
+                    'name': f'dual-{mode}', 'overwrite': True,
+                    'recorded_canvas': {'width': W, 'height': H},
+                    'steps': [{'tool': 'brush_stroke', 'arguments': arguments,
+                               'geometry': {'mode': mode}}]}})
+                assert not save.get('isError'), save
+            doc = sized((W, H), KINDS['rgb8'])
+            call('run_action', document_id=doc, name='dual-absolute')
+            assert render(doc) == recorded_render, 'the absolute dual replay differs'
+            close(doc)
+            live = (2 * W, H * 3 // 2)
+            factor = math.sqrt((live[0] / W) * (live[1] / H))
+            doc = sized(live, KINDS['rgb8'])
+            call('run_action', document_id=doc, name='dual-relative')
+            played = render(doc)
+            close(doc)
+
+            def remapped(dabs, scale=True):
+                return [(x * live[0] / W, y * live[1] / H,
+                         min(max(d * factor, 1), 5000) if scale else d, o) for x, y, d, o in dabs]
+
+            size = quantize(min(max(arguments['size'] * factor, 1), 5000), arguments['size'])
+            points = [[quantize(x * live[0] / W, x), quantize(y * live[1] / H, y)]
+                      for x, y in arguments['points']]
+            first_mapped = encode_dabs(native, remapped(decode_dabs(native)))
+            direct = dict(arguments, points=points, size=size, native_stroke=dict(
+                first_mapped, dual=encode_dabs(native['dual'], remapped(decode_dual(native)))))
+            unscaled = dict(direct, native_stroke=dict(
+                first_mapped, dual=encode_dabs(native['dual'],
+                                               remapped(decode_dual(native), scale=False))))
+            renders = []
+            for each in (direct, unscaled):
+                doc = sized(live, KINDS['rgb8'])
+                call('brush_stroke', document_id=doc, **each)
+                renders.append(render(doc))
+                close(doc)
+            assert played == renders[0], ('the relative dual replay differs from the remapped '
+                                          'direct call', len(changed(played, renders[0], live)))
+            assert renders[0] != renders[1], 'unscaled second diameters change nothing'
+            print(f'PASS d12 replay: the recorded step holds {len(decode_dual(native))} second '
+                  'dabs and replays exactly absolute; relative it remaps both lists', flush=True)
+
+            # The airbrush: a tick never feeds the second walk.
+            held = dict(points=[[10, 24], [50, 24], [50, 24]], times=[0, 0.2, 0.7], size=12,
+                        color=INK, hardness=100, dynamics={'dual': DUAL})
+            _, walked = recorded(KINDS['rgb8'], (W, H), **held)
+            _, ticked = recorded(KINDS['rgb8'], (W, H), airbrush=True, **held)
+            walked, ticked = walked['native_stroke'], ticked['native_stroke']
+            assert ticked['dual']['dabs'] == walked['dual']['dabs'], 'a tick fed the second walk'
+            assert len(decode_dabs(ticked)) > len(decode_dabs(walked)), 'no airbrush ticks'
+            rows['airbrush'] = {'first': [len(decode_dabs(walked)), len(decode_dabs(ticked))],
+                                'second': len(decode_dual(walked))}
+            print(f'PASS d12 airbrush: {len(decode_dabs(ticked)) - len(decode_dabs(walked))} ticks '
+                  f'lay first-tip dabs; the {len(decode_dual(walked))} second dabs are the '
+                  'call\'s without airbrush', flush=True)
+
+            # The refusals.
+            doc = sized((W, H), KINDS['rgb8'])
+            before = render(doc)
+            base = dict(document_id=doc, points=STROKE, size=SIZE)
+            refusals = {
+                'dual_pencil': (call('brush_stroke', fail=True, aliased=True,
+                                     dynamics={'dual': DUAL}, **base),
+                                "dynamics.dual multiplies a stamped tip's coverage; the Pencil's "
+                                'tip (aliased) is two-valued and takes no dual brush.'),
+                'dual_tool': (call('dodge_burn', fail=True, document_id=doc,
+                                   native_stroke=DUAL_NATIVE), "native_stroke dual is the Brush's"),
+                'dual_malformed': (call('brush_stroke', fail=True, document_id=doc, color=INK,
+                                        native_stroke=dict(DUAL_NATIVE, dual=dict(
+                                            DUAL_NATIVE['dual'], dabs='AAAA'))),
+                                   "A native stroke's dual brush holds a second tip"),
+                'dual_pixel': (call('brush_stroke', fail=True, document_id=doc, color=INK,
+                                    native_stroke=dict(DUAL_NATIVE, pixel=True)),
+                               "A native stroke's dual brush holds a second tip"),
+                'dual_size': (call('brush_stroke', fail=True, dynamics={'dual': {'size': 6000}},
+                                   **base), 'dynamics.dual.size must be a number from 1 to 5000'),
+                'dual_no_size': (call('brush_stroke', fail=True, dynamics={'dual': {'spacing': 50}},
+                                      **base), 'dynamics.dual needs a size'),
+                'dual_spacing': (call('brush_stroke', fail=True,
+                                      dynamics={'dual': {'size': 6, 'spacing': 0.5}}, **base),
+                                 'dynamics.dual.spacing must be a number from 1 to 200'),
+                'dual_key': (call('brush_stroke', fail=True,
+                                  dynamics={'dual': {'size': 6, 'flow': 1}}, **base),
+                             'dynamics.dual takes size, hardness, roundness, angle_degrees, '
+                             'spacing, scatter; it has no flow.'),
+                'dual_count': (call('brush_stroke', fail=True,
+                                    dynamics={'dual': {'size': 6, 'scatter': {'count': 17}}},
+                                    **base), 'dynamics.dual.scatter.count'),
+            }
+            for name, (reply, needle) in refusals.items():
+                assert needle in reply, (name, reply)
+            assert not changed(before, render(doc)), 'a dual refusal changed pixels'
+            close(doc)
+            rows['refusals'] = {k: v[0] for k, v in refusals.items()}
+            print(f'PASS d12 refusals: {len(refusals)} refusals by name change nothing', flush=True)
+
+            # The preset.
+            tip = dict(hardness=60, flow=100, spacing=25, angle=0, roundness=100, airbrush=False)
+            saved = call('save_brush_preset', name='Dual Round', dynamics={'dual': dict(
+                DUAL, hardness=0.5, scatter={'amount': 1, 'count': 2})}, **tip)['preset']
+            assert saved['dynamics']['dual']['size'] == 6 \
+                and saved['dynamics']['dual']['scatter']['count'] == 2, saved
+            body = json.loads(next((folder / 'dual-brush-presets').glob('*.json')).read_text())
+            assert body['schema_version'] == 2 and body['dynamics']['dual']['hardness'] == 0.5, body
+
+        with App(folder / 'd12-app2', folder / 'd12-recovery2', interval=600) as app:
+            call = app.call
+            listing = call('list_brush_presets')['presets']
+            mine = [p for p in listing if not p['builtin']]
+            assert [p['name'] for p in mine] == ['Dual Round'] \
+                and mine[0]['dynamics'] == saved['dynamics'], mine
+            exported = folder / 'dual.doctoredbrushes'
+            assert call('export_brush_presets', path=str(exported))['exported'] == ['Dual Round']
+            call('delete_brush_preset', name='Dual Round')
+            reply = call('import_brush_presets', path=str(exported))
+            assert reply['imported'] == ['Dual Round'] and reply['skipped'] == [], reply
+            assert call('list_brush_presets')['presets'] == listing, 'import does not restore it'
+            print('PASS d12 preset: a dual preset saves at schema 2, lists after a relaunch, '
+                  'exports, deletes and imports back', flush=True)
+    finally:
+        if shared is None:
+            os.environ.pop('DR_BRUSH_PRESETS_DIR', None)
+        else:
+            os.environ['DR_BRUSH_PRESETS_DIR'] = shared
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--receipts', default=None)
+    parser.add_argument('--only', choices=['d12'], default=None,
+                        help='run D12 (the dual brush) alone')
     args = parser.parse_args()
     output = Path(args.receipts or tempfile.mkdtemp(prefix='brush-dynamics-')).expanduser()
     output.mkdir(parents=True, exist_ok=True)
@@ -227,6 +632,13 @@ def main():
     os.environ.setdefault('DR_BACKGROUND', '1')
     from phase5_support import App
     receipts = {'expectations': 'fixed in scripts/verify_brush_dynamics.py'}
+
+    # ---- D12 dual brush (its own launches and preset folder) ----------------------------------
+    dual_brush(folder, receipts)
+    if args.only == 'd12':
+        (output / 'receipts.json').write_text(json.dumps(receipts, indent=2, sort_keys=True) + '\n')
+        print(f'PASS d12; receipts in {output}', flush=True)
+        return
 
     with App(folder / 'app1', folder / 'recovery1', interval=600) as app:
         call = app.call

@@ -41,7 +41,7 @@ extension AgentServer {
                   "dynamics": Self.dynamicsSchema(seed: false).merging(["description":
                       "The Brush's, Pencil's and Eraser's dynamics (brush_stroke's dynamics without "
                       + "seed); only those three tools take and list a preset that holds them, and "
-                      + "the Pencil none whose dynamics hold angle, roundness or texture. A "
+                      + "the Pencil none whose dynamics hold angle, roundness, texture or dual. A "
                       + "texture's {name} is saved as that library pattern's tile; list rows and "
                       + "the reply echo its pattern without pixels."]) { $1 },
                   "replace": ["type": "boolean", "default": false]],

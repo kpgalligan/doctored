@@ -7948,6 +7948,67 @@ bool dr_brush_overlay_rgba8_textured(uint32_t width, uint32_t height,
     size_t selection_length, uint8_t *out, size_t out_length, uint64_t limit,
     uint64_t other_retained, const DrJobControl *control, char **err_out);
 
+/* Dual brush (ffi_brush_dual.rs; the rule is brush_dual.rs's module doc and
+ * designs/brush-dynamics.md). A second tip walks the first tip's path with
+ * its own size, spacing and scatter, and its accumulated coverage multiplies
+ * the first's before the one quantization.
+ *
+ * dr_brush_dual_create parses a strict request of at most 1024 bytes:
+ * {"version":1,"seed":0..4294967295 (0),"size":1..5000,"spacing":1..200,
+ *  "scatter":{"amount":0..10 (0),"both_axes":bool (false),"count":1..16 (1),
+ *  "count_jitter":0..1 (0)}}; seed is the first tip's, and the second stream's
+ * seed is 2^32 | seed. NULL with err_out set on a refusal ("native brush dual
+ * holds a size from 1 to 5000 and a spacing from 1 to 200", the scatter's own
+ * sentences). Free with dr_brush_dual_free (NULL is a no-op).
+ *
+ * dr_brush_dual_walk feeds the path point (x, y): anchor NULL for the
+ * stroke's first point (one stamp there), else the 2 doubles the previous
+ * call left in walk_out; index is the next second stamp's 0-based number.
+ * While |point - anchor| >= max(1, size*spacing/100) the anchor moves that
+ * step toward the point and a stamp is laid there. It lays whole stamps while
+ * a stamp's most dabs (the scatter count, 4 doubles each: x, y, diameter
+ * size, deposit 1) fit in what is left of dabs_cap doubles; walk_out (3
+ * doubles) = anchor x, anchor y, stamps laid. A walk the capacity cut short
+ * continues with that anchor, the same point and index + stamps. Returns the
+ * dabs written; 0 with dabs_out and walk_out untouched on a NULL handle or
+ * buffer, a capacity below one stamp, or a point or anchor not finite.
+ *
+ * dr_brush_u16_dual is dr_brush_u16's coverage of the first list (shapes NULL
+ * or dab_count*2 doubles as dr_brush_u16_shaped takes them; texture NULL or a
+ * texture as dr_brush_u16_textured reads it at origin_x, origin_y) times the
+ * coverage of dual_dabs under dual_request (a native brush request whose
+ * opacity is not read; no shapes, no texture), multiplied per pixel before
+ * the one quantization at the first request's opacity; 0 outside either
+ * list's footprint. Refusals (err_out, out untouched): every refusal of
+ * dr_brush_u16 for either list (a NULL dual_request included), a pixel or
+ * aliased tip on either ("native brush dual requires stamped tips that are
+ * not aliased"), the two plans' work over the cap ("native brush exceeds 2
+ * billion footprint work units; use a shorter stroke or a smaller brush"),
+ * and a shapes list dr_brush_u16_shaped refuses. Scratch is the two plans'
+ * sum, plus dab_count*16 bytes with shapes. dr_brush_overlay_rgba8_dual
+ * writes that coverage as dr_brush_overlay_rgba8's overlay, with its ink,
+ * selection and output rules and refusals. Errors/cancellation leave out
+ * untouched. */
+typedef struct DrBrushDual DrBrushDual;
+DrBrushDual *dr_brush_dual_create(const char *request, char **err_out);
+void dr_brush_dual_free(DrBrushDual *dual);
+size_t dr_brush_dual_walk(const DrBrushDual *dual, uint64_t index,
+    const double *anchor, double x, double y, double *dabs_out,
+    size_t dabs_cap, double *walk_out);
+bool dr_brush_u16_dual(uint32_t width, uint32_t height, const char *request,
+    const double *dabs, size_t dab_count, const double *shapes,
+    const DrBrushTexture *texture, int64_t origin_x, int64_t origin_y,
+    const char *dual_request, const double *dual_dabs, size_t dual_count,
+    uint16_t *out, size_t out_length, uint64_t limit, uint64_t other_retained,
+    const DrJobControl *control, char **err_out);
+bool dr_brush_overlay_rgba8_dual(uint32_t width, uint32_t height,
+    const char *request, const double *dabs, size_t dab_count,
+    const double *shapes, const DrBrushTexture *texture, int64_t origin_x,
+    int64_t origin_y, const char *dual_request, const double *dual_dabs,
+    size_t dual_count, const uint8_t *rgb, const uint8_t *selection,
+    size_t selection_length, uint8_t *out, size_t out_length, uint64_t limit,
+    uint64_t other_retained, const DrJobControl *control, char **err_out);
+
 /* Brush dynamics (ffi_brush_dynamics.rs; the rule is brush_dynamics.rs's
  * module doc and designs/brush-dynamics.md). An immutable handle, so a walk
  * parses once.

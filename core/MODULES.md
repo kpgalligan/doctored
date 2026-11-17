@@ -200,6 +200,7 @@ Detail belongs in the source file's own header comment.
 - `ffi_color_range_gamut.rs` — `dr_selection_out_of_gamut` and its scratch figure (`byte_proof_scratch_pixels` plus the output), on `ffi_output_color`'s parsers.
 - `brush_overlay.rs` — kernel: native brush u16 coverage, an RGB8 ink and a u8 selection to the byte path's premultiplied RGBA8 overlay (the 8-bit Pencil).
 - `brush_coverage.rs` / `ffi_brush.rs` / `precision_paint_tools.rs` / `gradient_field.rs` — version-1 native brush dabs (50,000 cap; per-dab shapes), native paint tools, gradient field.
+- `brush_dual.rs` / `ffi_brush_dual.rs` — kernel: dual brush, a second tip walking the path whose coverage multiplies the first's before one rounding; its handle, walk and u16/overlay.
 - `brush_dynamics.rs` / `ffi_brush_dynamics.rs` — brush dynamics: one stamp resolved into its dabs (pressure/tilt curves, jitter, scatter, tip angle/roundness), seeded positionally.
 - `brush_texture.rs` / `ffi_brush_texture.rs` — kernel: brush texture, a canvas-anchored pattern tile thinning each dab's coverage by Depth; its handle and the textured u16 and overlay exports.
 - `foreground_estimate.rs` / `ffi_foreground.rs` — foreground RGB estimation from an opaque captured composite and a supplied matte (Decontaminate Colors); byte adapter and both depths' FFI.

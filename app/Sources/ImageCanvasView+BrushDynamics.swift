@@ -39,9 +39,10 @@ extension ImageCanvasView {
     }
 
     /// Mouse-down, after the stroke's session is made: latches the pen state and, for a
-    /// tool that takes dynamics with a session, the dynamics handle; a tip shape and a
-    /// texture only on a tool that takes them, the texture only beside a handle. A refused
-    /// request or texture throws, which refuses the stroke.
+    /// tool that takes dynamics with a session, the dynamics handle; a tip shape, a texture and
+    /// a dual brush only on a tool that takes them, the texture and the dual brush only beside a
+    /// handle, the dual brush's walk with the stroke's one seed. A refused request, texture or
+    /// dual brush throws, which refuses the stroke.
     func attachStrokeDynamics(pressure: CGFloat?) throws {
         strokePen.hasPressure = pressure != nil
         strokePen.lastTilt = strokePen.eventTilt
@@ -50,12 +51,17 @@ extension ImageCanvasView {
         var dynamics = brushDynamics
         if !tool.takesTipShapeDynamics { dynamics?.shape = nil }
         if !tool.takesTextureDynamics { dynamics?.texture = nil }
+        if !tool.takesDualBrushDynamics { dynamics?.dual = nil }
+        let seed = BrushDynamics.strokeSeed()
         let handle = try BrushDynamics.handle(
-            dynamics, size: brushSize, seed: BrushDynamics.strokeSeed(),
+            dynamics, size: brushSize, seed: seed,
             pressureSize: brushPressureSize, pressureOpacity: brushPressureOpacity, tip: strokeTip)
         nativeStrokeSession?.dynamics = handle
         nativeStrokeSession?.dynamicsShaped = handle != nil && dynamics?.normalized?.shape != nil
         nativeStrokeSession?.texture = try handle.flatMap { _ in try strokeTexture(dynamics) }
+        nativeStrokeSession?.attachDual(try handle.flatMap { _ in
+            try BrushDynamics.dualHandle(dynamics, size: brushSize, seed: seed)
+        })
     }
 
     /// Whether a byte stroke of this tool needs a dab session for its dynamics.
@@ -78,15 +84,25 @@ extension ImageCanvasView {
     /// each dab it laid drawn at its recorded centre, diameter and (with a tip shape) angle
     /// and roundness, with the context alpha at its deposit factor (the dab image already
     /// carries the tip's flow); a textured stroke's each as the core's own image
-    /// (`stampTexturedDab`). False, and nothing drawn, without dynamics.
+    /// (`stampTexturedDab`); a dual stroke's as the core's image of the stroke so far over each
+    /// laid dab's box (`stampDualRegions`). `tick` is an airbrush deposit, which lays the first
+    /// tip's dabs only (`stamp(at:pen:heading:tick:)`). False, and nothing drawn, without
+    /// dynamics.
     func stampDynamicsDabs(_ dab: CGImage, in context: CGContext, at point: CGPoint,
-                           pressure: CGFloat, tilt: CGVector, rotation: CGFloat) -> Bool {
+                           pressure: CGFloat, tilt: CGVector, rotation: CGFloat,
+                           tick: Bool = false) -> Bool {
         // Read, not copied: a held copy of the session would copy its dabs on the stamp.
         guard nativeStrokeSession?.dynamics != nil else { return false }
         let shaped = nativeStrokeSession?.dynamicsShaped == true
         let textured = nativeStrokeSession?.texture != nil
         let pen = strokePenSample(pressure: pressure, tilt: tilt, rotation: rotation)
-        let laid = nativeStrokeSession?.stamp(at: point, pen: pen) ?? []
+        if nativeStrokeSession?.dual != nil {
+            let dualFrom = (nativeStrokeSession?.dualDabs.count ?? 0) / 4
+            let laid = nativeStrokeSession?.stamp(at: point, pen: pen, tick: tick) ?? []
+            stampDualRegions(laid, dualFrom: dualFrom, in: context)
+            return true
+        }
+        let laid = nativeStrokeSession?.stamp(at: point, pen: pen, tick: tick) ?? []
         for resolved in laid {
             if textured {
                 stampTexturedDab(resolved, in: context)

@@ -35,6 +35,10 @@ struct NativeBrushStroke {
     /// rasterization of the stroke multiplies each dab's coverage by it, and `canonical`
     /// records its tile, scale and depth.
     let texture: StrokeTexture?
+    /// Brush dynamics' dual brush (`BrushDual.swift`), nil for every stroke without it: every
+    /// rasterization of the stroke multiplies its coverage by the second tip's before the one
+    /// rounding, and `canonical` records the second tip and its dabs.
+    let dual: StrokeDual?
     let payload: PrecisionEditPayload
 
     static func jsonNumber(_ value: Any?) -> Double? {
@@ -56,10 +60,18 @@ struct NativeBrushStroke {
         + "0 to 1, on a stamped tip that is neither the pixel brush nor the Pencil; no partial "
         + "stroke was applied."
 
+    static let dualRefusal = "A native stroke's dual brush holds a second tip (hardness 0 to 1, "
+        + "roundness 0.01 to 1, angle -180 to 180) and 1 to 50,000 dabs of diameter 1 to 5000, on "
+        + "a stamped tip that is neither the pixel brush nor the Pencil; no partial stroke was "
+        + "applied."
+
     init(tip: BrushTip, pixel: Bool, dabs: [Double], shapes: [Double]? = nil,
-         texture: StrokeTexture? = nil) throws {
+         texture: StrokeTexture? = nil, dual: StrokeDual? = nil) throws {
         if texture != nil, pixel || tip.aliased {
             throw DoctoredCoreError(message: Self.textureRefusal)
+        }
+        if dual != nil, pixel || tip.aliased {
+            throw DoctoredCoreError(message: Self.dualRefusal)
         }
         if let shapes {
             guard !pixel, !tip.aliased, shapes.count * 2 == dabs.count,
@@ -89,8 +101,10 @@ struct NativeBrushStroke {
         }
         self.tip = tip; self.pixel = pixel; self.dabs = dabs; self.shapes = shapes
         self.texture = texture
-        payload = try PrecisionEditPayload.admitted(
-            bytes: UInt64(dabs.count + (shapes?.count ?? 0)) * 8 + 4096 + (texture?.tileBytes ?? 0))
+        self.dual = dual
+        let doubles = dabs.count + (shapes?.count ?? 0) + (dual?.dabs.count ?? 0)
+        let tileBytes: UInt64 = texture?.tileBytes ?? 0
+        payload = try PrecisionEditPayload.admitted(bytes: UInt64(doubles) * 8 + 4096 + tileBytes)
     }
 
     /// Dab `index`'s tip: the stroke's, at that dab's angle and roundness when the
@@ -173,6 +187,9 @@ struct NativeBrushStroke {
         // The texture's tile, scale and depth (`Texture.json`), written only for a textured
         // stroke, so every other recorded stroke keeps its bytes.
         if let texture { out["texture"] = texture.value.json }
+        // The second tip and its dabs (`StrokeDual.json`), written only for a dual stroke, so
+        // every other recorded stroke keeps its bytes.
+        if let dual { out["dual"] = dual.json }
         return out
         }
     }
@@ -180,7 +197,8 @@ struct NativeBrushStroke {
     init(canonical: [String: Any]) throws {
         let allowed: Set<String> = ["version", "encoding", "dabs", "hardness", "roundness", "angle_degrees", "pixel"]
         let aliased = canonical["aliased"].map { Self.jsonBoolean($0) }
-        guard Set(canonical.keys).subtracting(["aliased", "shapes", "texture"]) == allowed, aliased != .some(nil),
+        guard Set(canonical.keys).subtracting(["aliased", "shapes", "texture", "dual"]) == allowed,
+              aliased != .some(nil),
               Self.jsonNumber(canonical["version"]) == 1,
               canonical["encoding"] as? String == "le_f64_xy_diameter_opacity",
               let text = canonical["dabs"] as? String,
@@ -223,10 +241,19 @@ struct NativeBrushStroke {
         let texture = try canonical["texture"].map {
             try StrokeTexture(BrushDynamics.Texture(json: $0, library: false))
         }
+        let dual = try canonical["dual"].map { try StrokeDual(json: $0) }
         try self.init(tip: BrushTip(hardness: CGFloat(hardness),
             angleDegrees: CGFloat(angle), roundness: CGFloat(roundness),
             aliased: aliased.flatMap { $0 } ?? false), pixel: pixel, dabs: doubles(data),
-            shapes: shapes, texture: texture)
+            shapes: shapes, texture: texture, dual: dual)
+    }
+
+    /// The second tip's request and dabs as the rasterizers take them, nil without a dual.
+    private var dualInput: (request: String, dabs: [Double])? {
+        get throws {
+            guard let dual else { return nil }
+            return (try dual.request, dual.dabs)
+        }
     }
 
     private func footprintRequest(opacity: Double = 1) throws -> String {
@@ -236,30 +263,37 @@ struct NativeBrushStroke {
     }
 
     /// The byte path's overlay of a stroke the core rasterizes (the Pencil's aliased tip, a
-    /// texture): the core's coverage at `opacity` in `rgb`'s straight ink, multiplied by
-    /// `selection` (bytes of the output's size), over a `width × height` output whose pixel
-    /// (0, 0) is canvas `origin` (the texture's anchor; the dabs are the output's
+    /// texture, a dual brush): the core's coverage at `opacity` in `rgb`'s straight ink,
+    /// multiplied by `selection` (bytes of the output's size), over a `width × height` output
+    /// whose pixel (0, 0) is canvas `origin` (the texture's anchor; the dabs are the output's
     /// coordinates). `BytePaintRasterizer.pixels` admits it.
     func coreOverlay(width: Int, height: Int, origin: (x: Int, y: Int) = (0, 0), rgb: [UInt8],
                      selection: [UInt8]?, opacity: Double) throws -> [UInt8] {
         let context = try NativeSelectionWork.context(nil)
         return try RasterSelection.nativeBrushOverlay(width: width, height: height,
             request: footprintRequest(opacity: opacity), dabs: dabs,
-            shapes: texture == nil ? nil : shapes, texture: texture?.handle, origin: origin,
-            rgb: rgb, selection: selection,
+            shapes: texture == nil && dual == nil ? nil : shapes, texture: texture?.handle,
+            dual: dualInput, origin: origin, rgb: rgb, selection: selection,
             workingLimit: context.limit, otherRetained: context.other)
     }
 
     /// The core's scratch for `request` over these dabs: `dr_brush_u16_plan`'s, plus the 16
     /// bytes per dab (its two shape doubles) `dr_brush_u16_shaped` and the textured exports
     /// reserve beyond it. A texture adds nothing: its level is the handle's, built and admitted
-    /// once (`StrokeTexture`), and its read is inside the plan's work.
+    /// once (`StrokeTexture`), and its read is inside the plan's work. A dual brush adds the
+    /// second list's own plan (`dr_brush_u16_dual` reserves the two plans' sum).
     private func plannedScratch(width: Int, height: Int, request: String) throws -> UInt64 {
         let context = try NativeSelectionWork.context(nil)
-        let plan = try RasterSelection.nativeBrushPlan(width: width, height: height, request: request,
-            dabs: dabs, workingLimit: context.limit, otherRetained: context.other)
-        return try PrecisionDocumentDescriptor.sum(PrecisionDocumentDescriptor.integer(plan,
-            "scratch_bytes"), UInt64(shapes?.count ?? 0) * 8)
+        func scratch(_ request: String, _ dabs: [Double]) throws -> UInt64 {
+            let plan = try RasterSelection.nativeBrushPlan(width: width, height: height,
+                request: request, dabs: dabs, workingLimit: context.limit,
+                otherRetained: context.other)
+            return try PrecisionDocumentDescriptor.integer(plan, "scratch_bytes")
+        }
+        let second = try dualInput.map { try scratch($0.request, $0.dabs) } ?? 0
+        return try PrecisionDocumentDescriptor.sum(
+            PrecisionDocumentDescriptor.sum(scratch(request, dabs), second),
+            UInt64(shapes?.count ?? 0) * 8)
     }
 
     /// The core's scratch estimate for `footprint`, planned on main.
@@ -272,18 +306,19 @@ struct NativeBrushStroke {
     func footprint(width: Int, height: Int, control: RasterJobControl) throws -> [UInt16] {
         let context = try NativeSelectionWork.context(nil)
         return try RasterSelection.nativeBrush(width: width, height: height, request: footprintRequest(),
-            dabs: dabs, shapes: shapes, texture: texture?.handle, workingLimit: context.limit,
-            otherRetained: context.other, control: control)
+            dabs: dabs, shapes: shapes, texture: texture?.handle, dual: dualInput,
+            workingLimit: context.limit, otherRetained: context.other, control: control)
     }
 
     func coverage(width: Int, height: Int, selection: CanvasSelection?, opacity: Double = 1) throws -> PrecisionScalarBuffer {
         let request = try footprintRequest(opacity: opacity)
         let scratch = try plannedScratch(width: width, height: height, request: request)
+        let second = try dualInput
         let samples = try PrecisionCapturedWork.run(scratchEstimate: scratch, title: "Native Brush Coverage") { control in
             let context = try NativeSelectionWork.context(nil)
             return try RasterSelection.nativeBrush(width: width, height: height, request: request,
-                dabs: dabs, shapes: shapes, texture: texture?.handle, workingLimit: context.limit,
-                otherRetained: context.other, control: control)
+                dabs: dabs, shapes: shapes, texture: texture?.handle, dual: second,
+                workingLimit: context.limit, otherRetained: context.other, control: control)
         }
         let footprint = try PrecisionScalarBuffer(samples: samples, width: width, height: height, provenance: .nativeU16)
         if let selection {
@@ -328,8 +363,8 @@ struct NativeBrushStrokeSession {
     var refusal: String?
     /// `.stopInk` only: a cap was reached; later stamps are dropped.
     private(set) var isFull = false
-    /// `.stopInk` only: the work charged so far (see `workCharge`).
-    private var usedWork: UInt64 = 0
+    /// `.stopInk` only: the work charged so far (see `workCharge`), both lists' with a dual brush.
+    private(set) var usedWork: UInt64 = 0
     /// `.stopInk` and `smudging` only: the Smudge work charged so far.
     private var usedSmudgeWork: UInt64 = 0
     /// `.stopInk` and `backgroundErasing` only: the Background Eraser work charged so far.
@@ -356,6 +391,14 @@ struct NativeBrushStrokeSession {
     /// hands to the stroke, which the canvas preview also draws each dab through
     /// (`ImageCanvasView+BrushTexture.swift`).
     var texture: StrokeTexture?
+    /// `dynamics` with a dual brush only (the Brush and the Eraser): the second tip's walk and
+    /// tip (`attachDual`), the second dabs laid so far, the walk's anchor (nil until the first
+    /// nominal stamp feeds it) and the next second stamp's index
+    /// (`NativeBrushStrokeSession+Dual.swift`).
+    private(set) var dual: (handle: RasterBrushDual, tip: BrushTip)?
+    var dualDabs: [Double] = []
+    var dualAnchor: CGPoint?
+    var dualIndex: UInt64 = 0
 
     /// Whether a stamp would still lay ink: no refusal and no cap reached.
     var acceptsInk: Bool { refusal == nil && !isFull }
@@ -480,6 +523,42 @@ struct NativeBrushStrokeSession {
         dabs.append(contentsOf: [Double(point.x), Double(point.y), Double(diameter), Double(deposit)])
     }
 
+    /// Gives the session its dual brush (nil: none). In `.stopInk` mode the second list's plan
+    /// charges its own `n + |F|` up front, as `init` charges the first's.
+    mutating func attachDual(_ dual: (handle: RasterBrushDual, tip: BrushTip)?) {
+        self.dual = dual
+        guard dual != nil, case .stopInk(let canvasPixels) = overflow else { return }
+        usedWork += 2 * UInt64(max(canvasPixels, 0))
+    }
+
+    /// The caps for one second dab of `diameter`: true when it may be laid. `.refuse` refuses the
+    /// stroke by name past 50,000 second dabs; `.stopInk` also charges the dab's work against the
+    /// one budget both lists share and turns the session full when either cap is reached. The
+    /// charge is `workCharge` at `size: 2`, whatever the second tip's size: the second request is
+    /// never the pixel brush, so a hard second tip is charged its band term at every diameter, 1
+    /// included, as the core charges a classified dab (master: `brush_coverage::dab_work`), and a
+    /// stroke that stopped ink is never refused whole by `plan_dual` at mouse-up.
+    mutating func chargeDual(diameter: CGFloat) -> Bool {
+        guard let dual, acceptsInk else { return false }
+        switch overflow {
+        case .refuse:
+            guard dualDabs.count / 4 < NativeBrushStroke.maximumDabs else {
+                refusal = NativeBrushStroke.dabLimitRefusal
+                return false
+            }
+        case .stopInk:
+            let charge = Self.workCharge(diameter: diameter, tip: dual.tip, size: 2)
+            guard dualDabs.count / 4 < NativeBrushStroke.maximumDabs,
+                  usedWork <= NativeBrushStroke.maximumWork,
+                  charge <= NativeBrushStroke.maximumWork - usedWork else {
+                isFull = true
+                return false
+            }
+            usedWork += charge
+        }
+        return true
+    }
+
     mutating func pixelSegment(from start: CGPoint, to end: CGPoint, fromPressure: CGFloat = 1, toPressure: CGFloat = 1) {
         let distance = hypot(end.x - start.x, end.y - start.y)
         guard distance.isFinite, distance <= CGFloat(NativeBrushStroke.maximumDabs) else {
@@ -498,8 +577,10 @@ struct NativeBrushStrokeSession {
 
     func resolved() throws -> NativeBrushStroke {
         if let refusal { throw DoctoredCoreError(message: refusal) }
+        let second = try dual.map { try StrokeDual(tip: $0.tip, dabs: dualDabs) }
         return try NativeBrushStroke(tip: tip, pixel: size <= 1, dabs: dabs,
-                                     shapes: dynamicsShaped ? shapes : nil, texture: texture)
+                                     shapes: dynamicsShaped ? shapes : nil, texture: texture,
+                                     dual: second)
     }
 }
 
@@ -513,17 +594,20 @@ extension NativeBrushStrokeSession {
     /// `rotations` (one per point; interpolated on the shortest arc) is given. `shaped`
     /// records each dab's tip shape and `texture` is the stroke's. The airbrush ticks are laid
     /// after the whole walk, so each passes its own heading (`tickHeading`) rather than its
-    /// jump back along the path.
+    /// jump back along the path. `dual` (beside `dynamics` only) walks the spacing stamps'
+    /// points; a tick is a deposit at rest, not a point of the path, so it never feeds it.
     static func generated(points: [CGPoint], size: CGFloat, tip: BrushTip, pressures: [Double], times: [Double],
                           duration: Double, pressureSize: Bool, pressureOpacity: Bool, airbrush: Bool,
                           dynamics: RasterBrushDynamics? = nil, pressureSampled: Bool = false,
                           tilts: [CGVector]? = nil, shaped: Bool = false,
-                          rotations: [Double]? = nil, texture: StrokeTexture? = nil) throws -> NativeBrushStroke {
+                          rotations: [Double]? = nil, texture: StrokeTexture? = nil,
+                          dual: (handle: RasterBrushDual, tip: BrushTip)? = nil) throws -> NativeBrushStroke {
         let size = Double(size)
         var session = NativeBrushStrokeSession(tip: tip, size: CGFloat(size), pressureOpacity: pressureOpacity)
         session.dynamics = dynamics
         session.dynamicsShaped = shaped && dynamics != nil
         session.texture = texture
+        session.attachDual(dynamics == nil ? nil : dual)
         func diameter(_ pressure: Double) -> CGFloat { CGFloat(pressureSize ? max(1, size * pressure) : size) }
         var tilt = tilts?.first ?? StrokeVertex.noTilt
         var rotation = CGFloat(rotations?.first ?? .nan)
@@ -535,9 +619,9 @@ extension NativeBrushStrokeSession {
             SoftBrush.spacing(for: session.dynamics?.nominalDiameter(size: CGFloat(size), pen: pen(pressure))
                 ?? diameter(pressure), percent: tip.spacingPercent)
         }
-        func lay(_ point: CGPoint, _ pressure: Double, heading: CGVector? = nil) {
+        func lay(_ point: CGPoint, _ pressure: Double, heading: CGVector? = nil, tick: Bool = false) {
             if session.dynamics != nil {
-                session.stamp(at: point, pen: pen(pressure), heading: heading)
+                session.stamp(at: point, pen: pen(pressure), heading: heading, tick: tick)
             } else {
                 session.stamp(at: point, diameter: diameter(pressure), pressure: CGFloat(pressure))
             }
@@ -599,7 +683,7 @@ extension NativeBrushStrokeSession {
                     tilt = interpolated(tilt, toward: segment + 1, by: CGFloat(t))
                     rotation = turned(rotation, toward: segment + 1, by: CGFloat(t))
                 }
-                lay(point, p, heading: tickHeading(segment))
+                lay(point, p, heading: tickHeading(segment), tick: true)
                 if session.refusal != nil { break }
             }
         }

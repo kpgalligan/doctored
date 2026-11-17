@@ -65,6 +65,7 @@ extension AgentServer {
             }
             try Self.refuseForeignShapes(tool: tool, stroke: stroke)
             try Self.refuseForeignTexture(tool: tool, stroke: stroke)
+            try Self.refuseForeignDual(tool: tool, stroke: stroke)
             // A canonical stroke takes the mirrored UI tool's ceiling too (5,000 px, 200 for
             // the healing and retouch brushes). Upper bound only: a pressure-sized canvas dab
             // goes below the tool's minimum.
@@ -135,7 +136,7 @@ extension AgentServer {
             pressureOpacity: pressureOpacity, airbrush: airbrush, dynamics: dynamics?.handle,
             pressureSampled: arguments["pressures"] != nil, tilts: dynamics?.tilts,
             shaped: dynamics?.shaped ?? false, rotations: dynamics?.rotations,
-            texture: dynamics?.texture)
+            texture: dynamics?.texture, dual: dynamics?.dual)
         var resolved = arguments
         for key in keys { resolved.removeValue(forKey: key) }
         resolved["native_stroke"] = try stroke.canonical

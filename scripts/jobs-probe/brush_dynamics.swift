@@ -31,6 +31,7 @@ import AppKit
 //     for the Brush, and none for the Pencil. A textured Brush canvas stroke at 8 and 16 bits
 //     records a `native_stroke` holding the texture, and its commit equals the replay of that
 //     recorded step and differs from the replay without the texture.
+// (h) The dual brush: `brush_dual.swift`'s `verifyBrushDual`.
 
 func verifyBrushDynamics() throws {
     try verifyDynamicsOptions()
@@ -47,6 +48,7 @@ func verifyBrushDynamics() throws {
     try verifyTextureSheet()
     try verifyTexturedCanvas(sixteen: false)
     try verifyTexturedCanvas(sixteen: true)
+    try verifyBrushDual()
     print("PASS: brush dynamics' options, presets, session, tablet tilt and rotation, canvas "
           + "strokes, the tip shape, the Pencil's shape pinning and the texture")
 }

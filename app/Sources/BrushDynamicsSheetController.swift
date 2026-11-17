@@ -4,9 +4,10 @@ import AppKit
 /// size and opacity responses (Control, Minimum, Jitter and a Curve… popover over the
 /// shared `CurveEditorView`), Scatter (Amount, Both Axes, Count, Count Jitter) and, for the
 /// Brush and the Eraser (`shapes`), the tip shape's Angle (Control, Jitter) and Roundness
-/// (Control, Minimum, Jitter) and the Texture (a pattern popup of None, the built-ins and the
-/// library, which embeds the chosen tile; Scale and Depth in percent). It edits a copy of the
-/// tool's options; Apply hands the
+/// (Control, Minimum, Jitter), the Texture (a pattern popup of None, the built-ins and the
+/// library, which embeds the chosen tile; Scale and Depth in percent) and the Dual Brush (a
+/// checkbox, then the second tip's Size in pixels, Hardness, Spacing, Angle, Roundness, Scatter,
+/// Both Axes, Count and Count Jitter). It edits a copy of the tool's options; Apply hands the
 /// result to `onApply` (`EditorViewController.showBrushDynamicsSheet`). Tool options only:
 /// no undo step, no Action. Percent fields show the model's 0…1 values (scatter:
 /// diameters) × 100.
@@ -38,6 +39,16 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
     private let texture = NSPopUpButton()
     private let textureScale = NSTextField(string: "")
     private let textureDepth = NSTextField(string: "")
+    private let dualEnabled = NSButton(checkboxWithTitle: "On", target: nil, action: nil)
+    private let dualSize = NSTextField(string: "")
+    private let dualHardness = NSTextField(string: "")
+    private let dualSpacing = NSTextField(string: "")
+    private let dualAngle = NSTextField(string: "")
+    private let dualRoundness = NSTextField(string: "")
+    private let dualScatter = NSTextField(string: "")
+    private let dualBothAxes = NSButton(checkboxWithTitle: "Both axes", target: nil, action: nil)
+    private let dualCount = NSTextField(string: "")
+    private let dualCountJitter = NSTextField(string: "")
     /// The Texture popup's patterns by row: nil (None), the options' own when no picker row
     /// holds it, then every built-in and library pattern.
     private var texturePatterns: [PatternRef?] = []
@@ -69,12 +80,19 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
             (roundnessMinimum, "brush-dynamics-roundness-minimum"),
             (roundnessJitter, "brush-dynamics-roundness-jitter"),
             (textureScale, "brush-dynamics-texture-scale"),
-            (textureDepth, "brush-dynamics-texture-depth")]
+            (textureDepth, "brush-dynamics-texture-depth"),
+            (dualSize, "brush-dynamics-dual-size"), (dualHardness, "brush-dynamics-dual-hardness"),
+            (dualSpacing, "brush-dynamics-dual-spacing"), (dualAngle, "brush-dynamics-dual-angle"),
+            (dualRoundness, "brush-dynamics-dual-roundness"),
+            (dualScatter, "brush-dynamics-dual-scatter"), (dualCount, "brush-dynamics-dual-count"),
+            (dualCountJitter, "brush-dynamics-dual-count-jitter")]
         for (field, id) in fields {
             DSField.style(field)
             field.widthAnchor.constraint(equalToConstant: 56).isActive = true
             field.setAccessibilityIdentifier(id)
         }
+        dualEnabled.setAccessibilityIdentifier("brush-dynamics-dual")
+        dualBothAxes.setAccessibilityIdentifier("brush-dynamics-dual-both-axes")
         sizeControl.setAccessibilityIdentifier("brush-dynamics-size-control")
         opacityControl.setAccessibilityIdentifier("brush-dynamics-opacity-control")
         angleControl.setAccessibilityIdentifier("brush-dynamics-angle-control")
@@ -106,6 +124,14 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
                 // The texture, which the Pencil's two-valued dab does not take either.
                 [fieldLabel("Texture:"), row(texture)],
                 [fieldLabel("Scale (%):"), row(textureScale, fieldLabel("Depth (%):"), textureDepth)],
+                // The dual brush, which the Pencil's two-valued dab does not take either.
+                [fieldLabel("Dual brush:"), row(dualEnabled, fieldLabel("Size (px):"), dualSize)],
+                [fieldLabel("Hardness (%):"),
+                 row(dualHardness, fieldLabel("Spacing (%):"), dualSpacing)],
+                [fieldLabel("Angle (°):"),
+                 row(dualAngle, fieldLabel("Roundness (%):"), dualRoundness)],
+                [fieldLabel("Scatter (%):"), row(dualScatter, dualBothAxes)],
+                [fieldLabel("Count:"), row(dualCount, fieldLabel("Jitter (%):"), dualCountJitter)],
             ]
         }
         let grid = NSGridView(views: rows)
@@ -125,7 +151,9 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
                 + (shapes ? " The tip's angle can follow the pen's rotation, its tilt or the "
                     + "direction of travel, and its roundness pressure or tilt. A texture holds "
                     + "paint back where its pattern is dark, by up to Depth, on the canvas's own "
-                    + "grid at Scale." : "")
+                    + "grid at Scale. A dual brush walks a second tip of its own size, spacing "
+                    + "and scatter along the stroke, and paints only where both tips reach "
+                    + "(an airbrush's held deposits lay the first tip alone)." : "")
                 + " A mouse reads pressure, tilt and rotation as off. Each stroke draws a new "
                 + "random sequence and records the dabs it laid, so a replay paints the same "
                 + "pixels.",
@@ -169,6 +197,19 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
         texture.selectItem(at: texturePatterns.firstIndex { $0 == d.texture?.pattern } ?? 0)
         textureScale.stringValue = percent(d.texture?.scale ?? 1)
         textureDepth.stringValue = percent(d.texture?.depth ?? 1)
+        // Off, the rows show a second tip half the brush's size at the defaults.
+        dualEnabled.state = d.dual != nil ? .on : .off
+        let dual = d.dual ?? BrushDynamics.Dual(size: min(max((options.size / 2).rounded(),
+            BrushDynamics.Dual.sizeRange.lowerBound), BrushDynamics.Dual.sizeRange.upperBound))
+        dualSize.stringValue = String(format: "%g", dual.size)
+        dualHardness.stringValue = percent(dual.hardness)
+        dualSpacing.stringValue = String(format: "%g", dual.spacing)
+        dualAngle.stringValue = String(format: "%g", dual.angleDegrees)
+        dualRoundness.stringValue = percent(dual.roundness)
+        dualScatter.stringValue = percent(dual.scatter)
+        dualBothAxes.state = dual.bothAxes ? .on : .off
+        dualCount.stringValue = "\(dual.count)"
+        dualCountJitter.stringValue = percent(dual.countJitter)
     }
 
     /// The Texture popup's rows (`texturePatterns`): None, `current` when no picker row holds
@@ -220,6 +261,19 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
                                BrushDynamics.Texture.scaleRange.upperBound),
                     depth: unit(textureDepth))
             }
+            func clamped(_ field: NSTextField, _ range: ClosedRange<Double>) -> Double {
+                min(max(field.doubleValue, range.lowerBound), range.upperBound)
+            }
+            d.dual = dualEnabled.state != .on ? nil : BrushDynamics.Dual(
+                size: clamped(dualSize, BrushDynamics.Dual.sizeRange),
+                hardness: unit(dualHardness),
+                roundness: min(max(dualRoundness.doubleValue / 100, 0.01), 1),
+                angleDegrees: clamped(dualAngle, -180...180),
+                spacing: clamped(dualSpacing, BrushDynamics.Dual.spacingRange),
+                scatter: unit(dualScatter, BrushDynamics.maximumScatter),
+                bothAxes: dualBothAxes.state == .on,
+                count: min(max(dualCount.integerValue, 1), BrushDynamics.maximumCount),
+                countJitter: unit(dualCountJitter))
         }
         options.dynamics = d
         options.sizeControl = Self.controls[max(sizeControl.indexOfSelectedItem, 0)].0

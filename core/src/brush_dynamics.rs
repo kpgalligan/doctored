@@ -382,29 +382,58 @@ impl Dynamics {
             count: 1,
             count_jitter: 0.,
         });
-        if !scatter.amount.is_finite() || !(0. ..=MAX_SCATTER_AMOUNT).contains(&scatter.amount) {
+        let scattered = Self::scatter_only(
+            u64::from(request.seed),
+            scatter.amount,
+            scatter.both_axes,
+            scatter.count,
+            scatter.count_jitter,
+        )?;
+        let shape = Shape::parse(request.tip, request.angle, request.roundness)?;
+        Ok(Dynamics {
+            size,
+            opacity,
+            shape,
+            ..scattered
+        })
+    }
+
+    /// Dynamics with only a scatter: no size, opacity or shape response, so
+    /// every dab has the nominal diameter `max(1, size)`, deposit 1, angle 0
+    /// and roundness 1. The scatter range checks' one home (`parse` routes
+    /// through it): the amount in 0…[`MAX_SCATTER_AMOUNT`], the count in
+    /// 1…[`MAX_SCATTER_COUNT`] and the count jitter in 0…1. The dual brush's
+    /// second tip (`brush_dual`) is resolved by it with its own seed, which
+    /// may lie above `u32::MAX`.
+    pub(crate) fn scatter_only(
+        seed: u64,
+        amount: f64,
+        both_axes: bool,
+        count: u32,
+        count_jitter: f64,
+    ) -> Result<Self, String> {
+        if !amount.is_finite() || !(0. ..=MAX_SCATTER_AMOUNT).contains(&amount) {
             return Err(format!(
                 "brush dynamics scatter amount must be a number from 0 to {MAX_SCATTER_AMOUNT}"
             ));
         }
-        if !(1..=MAX_SCATTER_COUNT).contains(&scatter.count) {
+        if !(1..=MAX_SCATTER_COUNT).contains(&count) {
             return Err(format!(
                 "brush dynamics scatter count must be a whole number from 1 to {MAX_SCATTER_COUNT}"
             ));
         }
-        if !unit(scatter.count_jitter) {
+        if !unit(count_jitter) {
             return Err("brush dynamics scatter count_jitter must be a number from 0 to 1".into());
         }
-        let shape = Shape::parse(request.tip, request.angle, request.roundness)?;
         Ok(Dynamics {
-            seed: u64::from(request.seed),
-            size,
-            opacity,
-            amount: scatter.amount,
-            both_axes: scatter.both_axes,
-            count: scatter.count,
-            count_jitter: scatter.count_jitter,
-            shape,
+            seed,
+            size: Response::NONE,
+            opacity: Response::NONE,
+            amount,
+            both_axes,
+            count,
+            count_jitter,
+            shape: Shape::parse(None, None, None)?,
         })
     }
 

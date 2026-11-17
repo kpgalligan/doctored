@@ -130,6 +130,13 @@
 //! is the `None` call, which executes no multiply, so its bits are unchanged. The factor is one
 //! bilinear read per written pixel, inside the unit `plan` already charges for it, so `plan` is
 //! unchanged. Pixel and aliased requests refuse a texture (`brush_texture::TEXTURED_TIP_REFUSAL`).
+//!
+//! THE DUAL STROKE (brush dynamics' dual brush, `brush_dual`). `field` is `rasterize_textured`'s
+//! accumulation before its quantization, returned over its footprint with the footprint's box;
+//! `rasterize_textured` quantizes it as it always did, so its bits are unchanged. The dual
+//! stroke takes the first tip's field `F1` (shapes and texture included) and the second tip's
+//! `F2` (no shapes, no texture) from this one function and writes `quantize(F1 · F2)`: the
+//! product precedes the one rounding, and a pixel outside either footprint is 0.
 use crate::brush_texture::{BrushTexture, TEXTURED_TIP_REFUSAL};
 use crate::job_control::JobContext;
 use crate::precision_image::{pixel_count, reserved_vec, BOOKKEEPING_BYTES};
@@ -150,7 +157,7 @@ pub const MAX_BRUSH_WORK: u64 = 2_000_000_000;
 pub const MAX_SMUDGE_WORK: u64 = 256_000_000;
 /// [`MAX_BRUSH_WORK`]'s refusal. Kept: a stroke is gesture input the
 /// canvas rasterizes on every tick, so the sentence says what to do instead.
-const WORK_REFUSAL: &str =
+pub(crate) const WORK_REFUSAL: &str =
     "native brush exceeds 2 billion footprint work units; use a shorter stroke or a smaller brush";
 /// A shaped stroke's list refusal (`check_shapes`); a NULL list refuses with it too.
 pub const SHAPES_REFUSAL: &str =
@@ -340,10 +347,47 @@ impl BrushRequest {
         if let Some(shapes) = shapes {
             self.check_shapes(dabs, shapes)?;
         }
-        if texture.is_some() && (self.pixel || self.aliased) {
+        if texture.is_some() && !self.stamped() {
             return Err(TEXTURED_TIP_REFUSAL.into());
         }
-        let [fx0, fy0, fx1, fy1] = footprint(dimensions, dabs).unwrap_or([0; 4]);
+        let (field, [fx0, fy0, fx1, fy1]) =
+            self.field(dimensions, dabs, shapes, texture, (0., 0.9), job)?;
+        let fw = fx1 - fx0;
+        let (width, height) = (dimensions.0 as usize, dimensions.1 as usize);
+        let mut output = reserved_vec(plan.output_samples)?;
+        let mut i = 0;
+        for y in 0..height {
+            for x in 0..width {
+                job.every(i)?;
+                i += 1;
+                let value = if (fx0..fx1).contains(&x) && (fy0..fy1).contains(&y) {
+                    field[(y - fy0) * fw + (x - fx0)]
+                } else {
+                    0.
+                };
+                output.push(self.quantize(value));
+            }
+        }
+        job.check()?;
+        Ok(output)
+    }
+    /// The stroke's binary64 coverage over its footprint, before the one
+    /// quantization, and the footprint `[x0, y0, x1, y1)` (all zero when no dab
+    /// writes): `rasterize_textured`'s accumulation (module doc), its shapes and
+    /// texture already checked by the caller. Each dab's progress is reported
+    /// along `progress`'s `(start, end)`; `rasterize_textured` passes `(0, 0.9)`.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn field(
+        &self,
+        dimensions: (u32, u32),
+        dabs: &[f64],
+        shapes: Option<&[f64]>,
+        texture: Option<(&BrushTexture, (i64, i64))>,
+        progress: (f64, f64),
+        job: JobContext<'_>,
+    ) -> Result<(Vec<f64>, [usize; 4]), String> {
+        let bounds_of = footprint(dimensions, dabs).unwrap_or([0; 4]);
+        let [fx0, fy0, fx1, fy1] = bounds_of;
         let fw = fx1 - fx0;
         let samples = fw * (fy1 - fy0);
         let mut field = reserved_vec(samples)?;
@@ -387,25 +431,10 @@ impl BrushRequest {
                     *old += coverage * (1. - *old);
                 }
             }
-            job.report((di + 1) as f64 / (dabs.len() / 4).max(1) as f64 * 0.9, 3)?;
+            let done = (di + 1) as f64 / (dabs.len() / 4).max(1) as f64;
+            job.report(progress.0 + done * (progress.1 - progress.0), 3)?;
         }
-        let (width, height) = (dimensions.0 as usize, dimensions.1 as usize);
-        let mut output = reserved_vec(plan.output_samples)?;
-        let mut i = 0;
-        for y in 0..height {
-            for x in 0..width {
-                job.every(i)?;
-                i += 1;
-                let value = if (fx0..fx1).contains(&x) && (fy0..fy1).contains(&y) {
-                    field[(y - fy0) * fw + (x - fx0)]
-                } else {
-                    0.
-                };
-                output.push(self.quantize(value));
-            }
-        }
-        job.check()?;
-        Ok(output)
+        Ok((field, bounds_of))
     }
     /// The pre-13A-6c-1 path: canvas-sized f64 field, every dab's box, 8x8 on every hard pixel,
     /// same accumulation and quantization, JobContext::NONE, geometry validated, NO work cap (tests only).
@@ -511,6 +540,11 @@ impl BrushRequest {
         } else {
             pixels
         }
+    }
+    /// A stamped tip: neither the pixel brush's snapped square nor the Pencil's
+    /// aliased cut, the tips a texture or a dual brush may modulate.
+    pub(crate) fn stamped(&self) -> bool {
+        !self.pixel && !self.aliased
     }
     /// Hard dabs (hardness 1, not pixel mode) integrate 8x8 and are classified.
     fn classifies(&self) -> bool {

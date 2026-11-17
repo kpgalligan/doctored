@@ -57,9 +57,9 @@ enum BytePaintRasterizer {
               coverageOpacity.map({ $0.isFinite && (0...1).contains($0) }) ?? true else {
             throw DoctoredCoreError(message: "Invalid byte stroke extent, size or coverage opacity.")
         }
-        // The Pencil's aliased tip and a textured stroke are the core's coverage, on every byte
-        // target, as a typed document's job computes it.
-        if stroke.tip.aliased || stroke.texture != nil {
+        // The Pencil's aliased tip, a textured stroke and a dual one are the core's coverage, on
+        // every byte target, as a typed document's job computes it.
+        if stroke.tip.aliased || stroke.texture != nil || stroke.dual != nil {
             return try aliasedPixels(stroke: stroke, ink: ink, width: width, height: height,
                 space: space, selection: selection, coverageOpacity: coverageOpacity)
         }
@@ -89,8 +89,9 @@ enum BytePaintRasterizer {
     }
 
     /// The overlay of a stroke the core rasterizes — an aliased (Pencil) one
-    /// (`dr_brush_overlay_rgba8`) or a textured one (`dr_brush_overlay_rgba8_textured`, its
-    /// shapes included) — so every byte target — layer, mask, plane, channel and the byte
+    /// (`dr_brush_overlay_rgba8`), a textured one (`dr_brush_overlay_rgba8_textured`, its
+    /// shapes included) or a dual one (`dr_brush_overlay_rgba8_dual`, its shapes and texture
+    /// included) — so every byte target — layer, mask, plane, channel and the byte
     /// Quick Mask — takes exactly the coverage a typed document's stroke does. A coverage
     /// target's opacity rides in the request; a selection multiplies the coverage by its bytes.
     private static func aliasedPixels(
@@ -105,7 +106,9 @@ enum BytePaintRasterizer {
             throw DoctoredCoreError(message: "Could not convert the paint color.")
         }
         _ = try RasterResources.shared.admit(scratch: aliasedScratch(width: width, height: height,
-            dabs: stroke.dabs.count / 4, shaped: stroke.texture != nil && stroke.shapes != nil))
+            dabs: stroke.dabs.count / 4,
+            shaped: (stroke.texture != nil || stroke.dual != nil) && stroke.shapes != nil,
+            dualDabs: stroke.dual.map { $0.dabs.count / 4 }))
         return try stroke.coreOverlay(width: width, height: height, rgb: Array(bytes.prefix(3)),
             selection: selection?.maskBytes(), opacity: coverageOpacity ?? 1)
     }
@@ -114,12 +117,17 @@ enum BytePaintRasterizer {
     /// canvas asks: its RGBA8 output, the selection bytes, and the core's
     /// brush plan (master: `brush_coverage::plan`, `4 · BOOKKEEPING_BYTES +
     /// 8 · |F| + 2 · n + 32 · dabs` with the footprint `|F| ≤ n`), plus 16 bytes a
-    /// dab for `shaped` dabs (the textured export's shapes). The canvas
+    /// dab for `shaped` dabs (the textured and dual exports' shapes) and, with `dualDabs`, the
+    /// second list's own plan beside it (`brush_dual::plan_dual` sums the two). The canvas
     /// admits the whole-canvas figure at mouse-down, so the commit never asks
     /// for more than the gesture was admitted with.
-    static func aliasedScratch(width: Int, height: Int, dabs: Int, shaped: Bool = false) -> UInt64 {
+    static func aliasedScratch(width: Int, height: Int, dabs: Int, shaped: Bool = false,
+                               dualDabs: Int? = nil) -> UInt64 {
         let n = UInt64(max(width, 0)) * UInt64(max(height, 0))
-        return 4 * n + n + 4096 + 4 * 1_048_576 + 10 * n
-            + (shaped ? 48 : 32) * UInt64(max(dabs, 0))
+        let bookkeeping: UInt64 = 4 * 1_048_576
+        var second: UInt64 = 0
+        if let dualDabs { second = bookkeeping + 10 * n + 32 * UInt64(max(dualDabs, 0)) }
+        let perDab: UInt64 = shaped ? 48 : 32
+        return 4 * n + n + 4096 + bookkeeping + 10 * n + perDab * UInt64(max(dabs, 0)) + second
     }
 }

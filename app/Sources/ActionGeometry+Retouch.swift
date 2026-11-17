@@ -157,22 +157,29 @@ extension ActionGeometry {
             let ceiling = min(
                 AgentServer.strokeEditorTool(tool).maximumBrushSize, NativeBrushStroke.maximumDiameter)
             let factor = mode == .relative ? lengthFactor(recorded: recorded, live: live) : 1
-            var dabs = stroke.dabs
-            for index in stride(from: 0, to: dabs.count, by: 4) {
-                if let x = mappedValue(
-                    dabs[index], horizontal: true, isPosition: true, mode: mode,
-                    recorded: recorded, live: live) { dabs[index] = x }
-                if let y = mappedValue(
-                    dabs[index + 1], horizontal: false, isPosition: true, mode: mode,
-                    recorded: recorded, live: live) { dabs[index + 1] = y }
-                dabs[index + 2] = min(max(dabs[index + 2] * factor, 1), ceiling)
+            func mapped(_ list: [Double]) -> [Double] {
+                var dabs = list
+                for index in stride(from: 0, to: dabs.count, by: 4) {
+                    if let x = mappedValue(
+                        dabs[index], horizontal: true, isPosition: true, mode: mode,
+                        recorded: recorded, live: live) { dabs[index] = x }
+                    if let y = mappedValue(
+                        dabs[index + 1], horizontal: false, isPosition: true, mode: mode,
+                        recorded: recorded, live: live) { dabs[index + 1] = y }
+                    dabs[index + 2] = min(max(dabs[index + 2] * factor, 1), ceiling)
+                }
+                return dabs
             }
             // A tip shape's angle and roundness are not lengths: the diameter's one scalar
             // factor leaves them as they are, so `shapes` passes through unchanged. A texture
             // is anchored at the canvas origin at its own scale, so it passes through as
-            // recorded too (its tile, scale and anchor).
-            let remapped = try NativeBrushStroke(tip: stroke.tip, pixel: stroke.pixel, dabs: dabs,
-                                                 shapes: stroke.shapes, texture: stroke.texture)
+            // recorded too (its tile, scale and anchor). A dual brush's second dabs map as the
+            // first's (centres as positions, diameters by the one factor); its tip's hardness,
+            // angle and roundness pass through as recorded.
+            let dual = try stroke.dual.map { try StrokeDual(tip: $0.tip, dabs: mapped($0.dabs)) }
+            let remapped = try NativeBrushStroke(tip: stroke.tip, pixel: stroke.pixel,
+                                                 dabs: mapped(stroke.dabs), shapes: stroke.shapes,
+                                                 texture: stroke.texture, dual: dual)
             return .success(try remapped.canonical)
         } catch {
             return .failure(

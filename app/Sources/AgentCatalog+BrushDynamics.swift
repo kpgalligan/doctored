@@ -74,6 +74,34 @@ extension AgentServer {
                               "maximum": BrushDynamics.Texture.scaleRange.upperBound, "default": 1],
                     "depth": ["type": "number", "minimum": 0, "maximum": 1, "default": 1],
                 ] as [String: Any], "required": ["pattern"]] as [String: Any],
+            "dual": ["type": "object", "description": "The dual brush (the Brush and the Eraser): "
+                + "a second tip walks the stroke's path (the polyline through its spacing stamps' "
+                + "centres) with its own absolute size, spacing in percent of that size and "
+                + "scatter, every second dab at full deposit, and the stroke paints the first "
+                + "tip's accumulated coverage times the second's, rounded once: only where both "
+                + "reach. An airbrush stroke's held ticks deposit the first tip only; they never "
+                + "feed the second walk. The second stream is seeded apart from the first's by "
+                + "the same seed. The recorded native_stroke holds the second dabs. Refused "
+                + "with aliased.",
+                "properties": [
+                    "size": ["type": "number", "minimum": BrushDynamics.Dual.sizeRange.lowerBound,
+                             "maximum": BrushDynamics.Dual.sizeRange.upperBound,
+                             "description": "The second tip's diameter in pixels."],
+                    "hardness": ["type": "number", "minimum": 0, "maximum": 1, "default": 1],
+                    "roundness": ["type": "number", "minimum": 0.01, "maximum": 1, "default": 1],
+                    "angle_degrees": ["type": "number", "minimum": -180, "maximum": 180, "default": 0],
+                    "spacing": ["type": "number", "minimum": BrushDynamics.Dual.spacingRange.lowerBound,
+                                "maximum": BrushDynamics.Dual.spacingRange.upperBound,
+                                "default": 25, "description": "Percent of the second tip's size."],
+                    "scatter": ["type": "object", "description": "As dynamics.scatter, in "
+                        + "second-tip diameters.",
+                        "properties": [
+                            "amount": ["type": "number", "minimum": 0, "maximum": BrushDynamics.maximumScatter, "default": 0],
+                            "both_axes": ["type": "boolean", "default": false],
+                            "count": ["type": "integer", "minimum": 1, "maximum": BrushDynamics.maximumCount, "default": 1],
+                            "count_jitter": ["type": "number", "minimum": 0, "maximum": 1, "default": 0],
+                        ] as [String: Any]] as [String: Any],
+                ] as [String: Any], "required": ["size"]] as [String: Any],
         ]
         if seed {
             properties["seed"] = ["type": "integer", "minimum": 0, "maximum": 4_294_967_295,
@@ -89,9 +117,10 @@ extension AgentServer {
         var dynamics = Self.dynamicsSchema(seed: true)
         dynamics["description"] = "Brush dynamics (mirrors the Brush's, Pencil's and Eraser's "
             + "Dynamics… sheet): pressure or tilt curves on size and opacity, size and opacity "
-            + "jitter, scatter, the tip shape's angle and roundness, and a texture. Generates "
-            + "stroke_version=1 dabs (stroke_version may be omitted; a tip shape records its "
-            + "shapes and a texture its tile in native_stroke); a stamp's controls read off "
+            + "jitter, scatter, the tip shape's angle and roundness, a texture and a dual brush. "
+            + "Generates stroke_version=1 dabs (stroke_version may be omitted; a tip shape records "
+            + "its shapes, a texture its tile and a dual brush its second dabs in native_stroke); "
+            + "a stamp's controls read off "
             + "without pressures, tilts "
             + "or rotations. Needs size above 1; refused on every other stroke tool, with "
             + "native_stroke, and on stroke_path."

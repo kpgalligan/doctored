@@ -20,8 +20,15 @@ extension NativeBrushStrokeSession {
     /// alone. Returns the dabs actually laid, as recorded (a Pencil dab snapped), each with
     /// its deposit factor and shape; a laid dab's shape joins `shapes` when
     /// `dynamicsShaped`. Empty without dynamics or once the session takes no more ink.
+    /// With a dual brush, a spacing stamp's `point` is then fed to the second tip's walk
+    /// (`walkDual`). `tick` marks an airbrush deposit (the canvas's timer at the cursor, the MCP
+    /// walk's ticks after the path): a deposit at rest, not a point of the path, so it lays the
+    /// first tip's dabs and never feeds the walk. The gate is the flag, never `heading`: every
+    /// canvas stamp, ticks included, passes a nil heading. A stroke without a dual brush behaves
+    /// identically whatever `tick` is.
     @discardableResult
-    mutating func stamp(at point: CGPoint, pen: PenSample, heading: CGVector? = nil) -> [ResolvedDab] {
+    mutating func stamp(at point: CGPoint, pen: PenSample, heading: CGVector? = nil,
+                        tick: Bool = false) -> [ResolvedDab] {
         guard let dynamics, acceptsInk else { return [] }
         let direction = lastNominalPoint.map { CGVector(dx: point.x - $0.x, dy: point.y - $0.y) }
             ?? CGVector(dx: 0, dy: 0)
@@ -44,6 +51,7 @@ extension NativeBrushStrokeSession {
             }
             guard acceptsInk else { break }
         }
+        if !tick, acceptsInk { walkDual(to: point) }
         return laid
     }
 }

@@ -31,6 +31,8 @@ mod source_refusal_fixture;
 #[path = "common/stack_oracle.rs"]
 mod stack_oracle;
 
+#[path = "brush_dual.rs"]
+mod brush_dual;
 #[path = "brush_dynamics.rs"]
 mod brush_dynamics;
 #[path = "brush_shaped_coverage.rs"]
