@@ -1,0 +1,14 @@
+Photoshop 26.10.0 renders of the 8-bit code lattice, one 256 x 256 lattice per file, 8-bit greyscale
+PNG of the flat's red channel (the content is grey: synthetic, written by the runner, no Adobe
+content). take1 of the #2 code-lattice take (`scripts/photoshop-probe/blend_code_forms_2_take.py` in
+the private archive, receipt `~/devel/doctored-fixtures/photoshop/blend-code-forms-2/take1`): the
+Doctored-written `bcf_rgb8.psd` (8 bits, Apple sRGB Profile.icc) opened, flattened and saved by the
+inspect job. Pixel (x, y) is the backdrop grey x under the source grey y:
+
+vivid_light.png   <-  lattice `vivid_light_op100` (one Vivid Light layer, alpha 255)
+linear_light.png  <-  lattice `linear_light_op100` (one Linear Light layer, alpha 255)
+divide.png        <-  lattice `divide_clip` (an opaque Divide clip base grey y, a Normal member grey 57
+                      at alpha 96 clipped to it)
+
+Source flat jobs/bcf_rgb8/bcf_rgb8.flat.tif
+sha256 0d5adbe117dfa6a59afde809b365d4501f85aebec04e1fdba96cd4ed4d4917ba

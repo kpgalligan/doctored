@@ -6,8 +6,10 @@
 //! independent f64 oracle and against Photoshop.
 //!
 //! The oracle restates the rule from its definition: the gamma read from the
-//! profile's own `rTRC` tag here, `x = v^γ`, `u = x · 2^e + o`, the signed
-//! reciprocal power `sign(u)|u|^(1/gc)`, `clamp(u, 0, 1)^(1/γ)`. The
+//! profile's own `rTRC` tag here, bound to the 1/256 grid (`round(256 γ) /
+//! 256`), `x = v^γ`, `u = x · 2^e + o`, the signed reciprocal power
+//! `sign(u)|u|^(1/gc)`, then `clamp(u, 0, 1)` encoded through the chord of
+//! `u^(1/γ)` on 4096 equal segments of `u` (two powers and a lerp). The
 //! parameters are rounded through `f32` first, as a description stores
 //! them: next to a zero crossing the `1/γ` power magnifies a 1e-8 difference
 //! in `u` past one 16-bit code. It holds the shipped kernel to ±1 code
@@ -22,8 +24,9 @@
 //! `stroke_exposure_578_take2.py`): per (document, set), max <= 2 codes over
 //! the channel samples whose pedestal `|dec(v) · 2^e + o| >= 0.002` (dec the
 //! document's own TRC) and mean <= 0.1 over every sample; 16-bit samples as
-//! `/ 257`. A row that misses asserts its own measured residual
-//! (`MEASURED`), never a wider number. ROMM, Display P3 and ITU-709 are read
+//! `/ 257`. Every row meets that bound; the grid exponent and the chord were
+//! read offline from `srgb16_E2` (which `p3_16_E2` equals) and
+//! `take2_srgb16_X3`, and the other rows held them. ROMM, Display P3 and ITU-709 are read
 //! from `/System/Library/ColorSync/Profiles/`; a test skips one with a note
 //! only when it is absent. ROMM and ITU-709 fail the precision check (their
 //! `para` toes step down at the boundary), which refuses White Balance but
@@ -96,8 +99,14 @@ fn trc_of(bytes: &[u8]) -> Trc {
 /// Rule Γ, restated from its definition, and the falling-boundary class
 /// rule: an offset `para` of type 3 or 4 whose linear toe ends ABOVE the
 /// power branch's start (`c·d + f > (a·d + b)^g + e`), and that is not
-/// IEC 61966-2-1's sRGB curve, takes 1.883 (#2 take2's fitted member).
+/// IEC 61966-2-1's sRGB curve, takes 1.883 (#2 take2's fitted member). The
+/// class exponent is then bound to the 1/256 grid: 2.2 → 563/256, 1.8 →
+/// 461/256, 1.883 → 482/256.
 fn gamma_of(trc: &Trc) -> f64 {
+    (class_gamma(trc) * 256.0).round() / 256.0
+}
+
+fn class_gamma(trc: &Trc) -> f64 {
     match trc {
         Trc::Gamma(g) => *g,
         Trc::Sampled => 2.2,
@@ -208,7 +217,17 @@ fn oracle(p: &Profile, set: Set, v: f64) -> f64 {
     let inv = f64::from(1.0 / (set.gc as f32));
     let u = v.powf(g) * gain + offset;
     let u = u.signum() * u.abs().powf(inv);
-    u.clamp(0.0, 1.0).powf(1.0 / g)
+    chord(u.clamp(0.0, 1.0), g)
+}
+
+/// `u^(1/g)` on `u` in [0, 1] read off its chord over 4096 equal segments:
+/// the segment's two end nodes, each a power, joined by a straight line.
+fn chord(u: f64, g: f64) -> f64 {
+    let t = u * 4096.0;
+    let i = t.floor().min(4095.0);
+    let lo = (i / 4096.0).powf(1.0 / g);
+    let hi = ((i + 1.0) / 4096.0).powf(1.0 / g);
+    lo + (hi - lo) * (t - i)
 }
 
 fn params(set: Set) -> serde_json::Value {
@@ -560,22 +579,8 @@ fn residual(row: &Row, p: &Profile) -> (f64, f64) {
     (worst, total / n as f64)
 }
 
-/// The rows that miss the declared bound: each meets the max (<= 2) and
-/// misses the mean, pinned at its measured mean on the shipped kernel
-/// (8-bit codes, rounded up in the third decimal). Every other row meets
-/// max <= 2 and mean <= 0.1.
-const MEASURED: &[(&str, f64, f64)] = &[
-    // Pure gain 4 at 16 bits: max 1.64, but a steady ~0.3-code offset on the
-    // mean, identical on sRGB and P3.
-    ("srgb16_E2", MAX, 0.305),
-    ("p3_16_E2", MAX, 0.305),
-    // Gated max 0.047; the sub-pedestal patches (one near-black patch reads
-    // 5.15 codes off) lift the mean.
-    ("take2_srgb16_X3", MAX, 0.114),
-];
-
 #[test]
-fn photoshop_rows_meet_the_declared_bound_or_their_measured_residual() {
+fn photoshop_rows_meet_the_declared_bound() {
     let (mut seen, mut misses) = (0, Vec::new());
     for row in rows() {
         let Some(p) = profile(row.profile) else {
@@ -583,13 +588,9 @@ fn photoshop_rows_meet_the_declared_bound_or_their_measured_residual() {
         };
         let (max, mean) = residual(&row, &p);
         eprintln!("{}: max {max:.3} mean {mean:.4}", row.name);
-        let (max_bound, mean_bound) = MEASURED
-            .iter()
-            .find(|(name, _, _)| *name == row.name)
-            .map_or((MAX, MEAN), |&(_, m, a)| (m, a));
-        if max > max_bound || mean > mean_bound {
+        if max > MAX || mean > MEAN {
             misses.push(format!(
-                "{}: max {max:.3} (bound {max_bound}), mean {mean:.4} (bound {mean_bound})",
+                "{}: max {max:.3} (bound {MAX}), mean {mean:.4} (bound {MEAN})",
                 row.name
             ));
         }

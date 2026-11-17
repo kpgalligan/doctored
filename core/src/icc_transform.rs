@@ -216,7 +216,9 @@ impl Curve {
 /// 16 within 1.01. In a profile whose curves FAIL the precision check, an
 /// offset `para` that is not sRGB-shaped takes [`FAILING_OFFSET_CURVE_GAMMA`]
 /// instead (`MatrixTrc::exposure_domain`); a passing one (ITU-2020) keeps
-/// this value.
+/// this value. It is the class exponent: Exposure binds it on the 1/256 grid
+/// (563/256, `adjust_calibrated::grid_exponent`), and Vibrance reads it as
+/// it is.
 pub(crate) const OFFSET_CURVE_GAMMA: f64 = 2.2;
 
 /// The pure power `document_v2` Exposure linearizes an offset `para` channel
@@ -228,7 +230,8 @@ pub(crate) const OFFSET_CURVE_GAMMA: f64 = 2.2;
 /// 2.600 by worst code) BEFORE take2, which confirmed it within 1.0 code at
 /// 8 and 16 bits on four fresh parameter sets — where 2.2 misses by 114,
 /// the curve's own g by 116, its mid-grey exponent by 68 and the curve
-/// itself both ways by 57.
+/// itself both ways by 57. Exposure binds it on the 1/256 grid (482/256,
+/// `adjust_calibrated::grid_exponent`); Vibrance reads it as it is.
 pub(crate) const FAILING_OFFSET_CURVE_GAMMA: f64 = 1.883;
 
 impl Curve {
@@ -498,9 +501,12 @@ impl MatrixTrc {
     /// each channel's class exponent (`Curve::failing_exposure_gamma`: ROMM's
     /// pure power 1.8, ITU-709's offset curve 1.883). Exposure only needs
     /// that one exponent per channel, never the curve's encoder, which is
-    /// why a falling branch boundary does not refuse it. Its second reader is
-    /// a 16-bit Vibrance (`BoundVibrance::prepare_precision`), which decodes
-    /// and encodes through the same power where the precision checks fail.
+    /// why a falling branch boundary does not refuse it. These are class
+    /// exponents: Exposure binds each on the 1/256 grid
+    /// (`adjust_calibrated::ExposureDomain::new`). Its second reader is a
+    /// 16-bit Vibrance (`BoundVibrance::prepare_precision`), which decodes
+    /// and encodes through the same power, as it is, where the precision
+    /// checks fail.
     pub(crate) fn exposure_domain(&self) -> Option<[f64; 3]> {
         if self.validate_precision().is_ok() {
             return Some(self.effective_gammas());

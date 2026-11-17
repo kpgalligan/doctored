@@ -3495,13 +3495,15 @@ mask beside it as its path), and a RAW layer is written as its pixels; layer loc
 document's clipping is written and evaluated exactly as an 8-bit one's. Appearance in
 Photoshop is claimed, at 8 and 16 bits, for Normal, Darken, Multiply, Color
 Burn, Linear Burn, Darker Color, Lighten, Screen, Color Dodge, Linear Dodge,
-Lighter Color, Overlay, Soft Light, Hard Light, Vivid Light, Linear Light,
+Lighter Color, Overlay, Soft Light, Hard Light,
 Pin Light, Exclusion, Subtract, Divide, Hue, Saturation, Color, Luminosity
-and Pass Through, and for Difference and Hard Mix at 100 % Fill only (#2,
-three Photoshop takes; an 8-bit document's Darker Color and Lighter Color
-compare the two lumas as 8-bit codes and keep the backdrop when they tie, and
-its Vivid Light, Linear Light and Divide blend on 8-bit codes, Linear Light's
-Fill pulling the source toward code 128); Dissolve and a clip base below
+and Pass Through, and for Vivid Light, Linear Light, Difference and Hard Mix
+at 100 % Fill only (#2, four Photoshop takes; an 8-bit document's Darker
+Color and Lighter Color compare the two lumas as 8-bit codes and keep the
+backdrop when they tie, and its Vivid Light, Linear Light and Divide blend on
+8-bit codes, matched on every code pair at 100 % Fill; Vivid Light's and
+Linear Light's Fill pulls the source toward code 128); Dissolve and a clip
+base below
 100 % Fill are written but reported as unqualified, and a CMYK file's claim
 stays Normal, Multiply,
 Screen and Pass Through. Group clipping is written and reopens here clipped,

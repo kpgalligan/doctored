@@ -15,7 +15,10 @@
 //! (`blend::blend_kind_byte`), so their neutral there is code 128, not ½;
 //! with that, take1's Linear Light Fill tiles were rejudged within 1 code at
 //! 8 bits, and within 0.008 at 16 with the float fold (59 codes under the
-//! plain Fill at both depths). Hard Mix and
+//! plain Fill at both depths). On every code pair (the code-lattice take,
+//! `blend_code_forms_2_take.py` take1) the 8-bit fold is within 4 codes for
+//! Vivid Light and 2 / 0.65 mean for Linear Light at Fill 25 %, so a PSD
+//! claims both only at 100 % Fill (`psd_export_preflight`). Hard Mix and
 //! Difference keep the plain Fill (no candidate met their tiles), as do 32-bit
 //! float scenes and CMYK, which take1 did not measure.
 //!

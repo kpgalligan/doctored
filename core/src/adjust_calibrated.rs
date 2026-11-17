@@ -3,25 +3,31 @@
 //! `params.evaluation = "document_v2"` binds a document's matrix/TRC profile.
 //!
 //! **Exposure runs per channel in the document's own primaries**, at each
-//! channel's pure exponent γ (`MatrixTrc::exposure_domain`, an
-//! [`ExposureDomain`]: rule Γ in a profile that passes the precision check —
-//! 1 for a linear curve, the exponent of a pure power, 2.2 for sRGB-shaped,
-//! sampled and offset curves — and, in one that fails it on a falling branch
-//! boundary, the channel's class: ROMM's pure power 1.8, its toe ignored, and
-//! ITU-709's offset curve 1.883): `x = v^γ`, then `Exposure::apply_linear`
-//! (gain, pedestal, signed `1/gamma` power), then `clamp(u, 0, 1)^(1/γ)`,
+//! channel's class exponent (`MatrixTrc::exposure_domain`: rule Γ in a
+//! profile that passes the precision check — 1 for a linear curve, the
+//! exponent of a pure power, 2.2 for sRGB-shaped, sampled and offset curves
+//! — and, in one that fails it on a falling branch boundary, the channel's
+//! class: ROMM's pure power 1.8, its toe ignored, and ITU-709's offset curve
+//! 1.883) bound to the 1/256 grid ([`grid_exponent`]: 563/256, 461/256,
+//! 482/256), an [`ExposureDomain`]: `x = v^γ`, then `Exposure::apply_linear`
+//! (gain, pedestal, signed `1/gamma` power), then `clamp(u, 0, 1)` encoded
+//! through a 4096-segment linear table of `u^(1/γ)` ([`table_encode`]),
 //! rounded to the 8-bit grid on the byte path and left continuous for the
 //! typed document's own quantization on the 16-bit one. No matrix, no TRC
-//! and no encoder, which is why a profile whose curves cannot be encoded
-//! into still admits Exposure. That is Photoshop's Exposure at 8 and 16
-//! bits, fitted on its receipts and confirmed by fresh takes (#2,
+//! and no encoder of the profile's, which is why a profile whose curves
+//! cannot be encoded into still admits Exposure. The class exponents were
+//! fitted on recorded takes and confirmed by fresh ones (#2,
 //! `scripts/photoshop-probe/stroke_exposure_578_take.py` take1 and
-//! `stroke_exposure_578_take2.py` take2): sRGB 8/16, Display P3 16, ROMM 8/16
-//! and ITU-709 8/16 within 1.76 codes (the reference-basis kernel it
-//! replaces missed by 16 to 218). On [0, 1] inputs "signed power, final
-//! clip", `max(u, 0)` and the clamp after the pedestal are one rule; a clamp
-//! after the gain is refuted (16 codes on `expA`). Persisted parameters keep
-//! their meaning; only the evaluation changed.
+//! `stroke_exposure_578_take2.py` take2; the reference-basis kernel it
+//! replaced missed by 16 to 218 codes). The grid and the table were read
+//! offline from two of the recorded rows (`srgb16_E2`, which `p3_16_E2`
+//! equals, and `take2_srgb16_X3`) and hold on the 59 others with no fresh
+//! take: every row of sRGB 8/16, Display P3 16, ROMM 8/16 and ITU-709 8/16
+//! within its declared 2 codes max and 0.1 mean (`exposure_photoshop_parity`).
+//! On [0, 1] inputs "signed power, final clip", `max(u, 0)` and the clamp
+//! after the pedestal are one rule; a clamp after the gain is refuted (16
+//! codes on `expA`). Persisted parameters keep their meaning; only the
+//! evaluation changed.
 //!
 //! **White Balance** decodes the profile into a common linear sRGB reference
 //! basis, evaluates its Bradford kernel, and encodes through that SAME
@@ -40,6 +46,8 @@
 //!
 //! Scalar targets have no colour profile. Their existing opaque-grayscale
 //! interpretation remains legacy and an explicit calibrated request refuses.
+
+use std::sync::Arc;
 
 use serde_json::{Map, Value};
 
@@ -107,12 +115,13 @@ impl CalibratedOp {
 /// The parsed description is profile-free; only evaluation binds a document.
 /// Its prepared variant is transient and never written into metadata. A
 /// bound White Balance holds a [`Pipeline`], a bound Exposure an
-/// [`ExposureDomain`].
+/// [`ExposureDomain`]. Both are boxed so an unbound or legacy adjustment,
+/// and every enum that carries one, stays small.
 #[derive(Clone)]
 pub(crate) struct Calibrated {
     op: CalibratedOp,
     pipeline: Option<Box<Pipeline>>,
-    domain: Option<ExposureDomain>,
+    domain: Option<Box<ExposureDomain>>,
 }
 
 /// White Balance's binding (module doc): the reference basis and the
@@ -125,18 +134,72 @@ struct Pipeline {
     encoder: Encoder,
 }
 
-/// Exposure's binding (module doc): the per-channel exponents and whether
-/// the result lands on the 8-bit grid (the byte path) or stays continuous
-/// (the typed one).
+/// Segments of the encode table ([`table_encode`]). 4096 is what the
+/// recorded rows read: on `srgb16_E2` (pure gain 4 at 16 bits, which
+/// `p3_16_E2` equals) the output below `u = 1/4096` is a straight line from
+/// 0 (the first segment's chord of `u^(1/γ)`) with the chord's dip in the
+/// next segments, which no pure power gives; 2048 or 8192 segments miss
+/// that row's mean bound where 4096 meets it.
+const ENCODE_SEGMENTS: usize = 4096;
+
+/// A class exponent bound to the 1/256 grid (the u8Fixed8 step an ICC
+/// `curv` gamma is stored on), never below one step. Read from the recorded
+/// rows: at pure gain 4 (`srgb16_E2`) the output over the input above the
+/// table's first segment is `4^(256/563)`, not `4^(1/2.2)`, and with the
+/// table alone `take2_srgb16_X3` misses its mean bound where the grid
+/// exponent meets it. 2.2 → 563/256, 1.8 → 461/256, 1.883 → 482/256.
+fn grid_exponent(g: f64) -> f64 {
+    (256.0 * g).round().max(1.0) / 256.0
+}
+
+/// The [`ENCODE_SEGMENTS`] + 1 nodes `(i / ENCODE_SEGMENTS)^(1 / g)`.
+fn encode_table(g: f64) -> Arc<[f64]> {
+    (0..=ENCODE_SEGMENTS)
+        .map(|i| (i as f64 / ENCODE_SEGMENTS as f64).powf(1.0 / g))
+        .collect()
+}
+
+/// `u^(1/γ)` for `u` in [0, 1] read off `table` (an [`encode_table`]):
+/// the straight line between the two nodes around `u`. A linear curve's
+/// table (γ 1) returns `u` itself.
+fn table_encode(table: &[f64], u: f64) -> f64 {
+    let t = u * ENCODE_SEGMENTS as f64;
+    let i = (t.floor() as usize).min(ENCODE_SEGMENTS - 1);
+    table[i] + (table[i + 1] - table[i]) * (t - i as f64)
+}
+
+/// Exposure's binding (module doc): the per-channel grid exponents, their
+/// encode tables, and whether the result lands on the 8-bit grid (the byte
+/// path) or stays continuous (the typed one).
 #[derive(Clone)]
 struct ExposureDomain {
     gammas: [f64; 3],
+    encode: [Arc<[f64]>; 3],
     byte_grid: bool,
 }
 
 impl ExposureDomain {
-    /// Exposure per channel at `gammas` (module doc). A non-finite input or
-    /// result reads as 0.
+    /// Binds `class_gammas` (rule Γ or the failing profile's classes,
+    /// `MatrixTrc::exposure_domain`) to the grid; channels with equal
+    /// exponents share one table.
+    fn new(class_gammas: [f64; 3], byte_grid: bool) -> Self {
+        let gammas = class_gammas.map(grid_exponent);
+        let mut encode: [Arc<[f64]>; 3] = std::array::from_fn(|_| Arc::from(Vec::new()));
+        for c in 0..3 {
+            encode[c] = match (0..c).find(|&k| gammas[k] == gammas[c]) {
+                Some(k) => encode[k].clone(),
+                None => encode_table(gammas[c]),
+            };
+        }
+        Self {
+            gammas,
+            encode,
+            byte_grid,
+        }
+    }
+
+    /// Exposure per channel at `gammas`, encoded through `encode` (module
+    /// doc). A non-finite input or result reads as 0.
     fn apply(&self, op: &Exposure, rgb: [f32; 3]) -> [f32; 3] {
         let finite = |v: f64| {
             if v.is_finite() {
@@ -149,7 +212,7 @@ impl ExposureDomain {
             std::array::from_fn(|c| finite(f64::from(rgb[c])).powf(self.gammas[c]));
         let u = op.apply_linear(linear);
         std::array::from_fn(|c| {
-            let v = finite(u[c]).powf(1.0 / self.gammas[c]);
+            let v = table_encode(&self.encode[c], finite(u[c]));
             if self.byte_grid {
                 ((v * 255.0).round() / 255.0) as f32
             } else {
@@ -195,12 +258,12 @@ impl Calibrated {
     fn prepare(mut self, profile: &IccProfile) -> Result<Self, String> {
         let model = profile.model().ok_or(PROFILE_REFUSAL)?;
         if let CalibratedOp::Exposure(_) = self.op {
-            self.domain = Some(ExposureDomain {
-                gammas: model
+            self.domain = Some(Box::new(ExposureDomain::new(
+                model
                     .exposure_domain()
                     .unwrap_or_else(|| model.effective_gammas()),
-                byte_grid: true,
-            });
+                true,
+            )));
             return Ok(self);
         }
         let reference = IccProfile::srgb();
@@ -223,10 +286,7 @@ impl Calibrated {
             let gammas = model
                 .exposure_domain()
                 .ok_or_else(|| crate::icc_encode_refusal::own_profile_sentence(profile.name()))?;
-            self.domain = Some(ExposureDomain {
-                gammas,
-                byte_grid: false,
-            });
+            self.domain = Some(Box::new(ExposureDomain::new(gammas, false)));
             return Ok(self);
         }
         let model = precision_model(profile)

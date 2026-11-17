@@ -348,7 +348,9 @@ fn defaults_are_identities_and_wide_gamut_exposure_runs_per_channel() {
         "exposure",
         &json!({"evaluation":"document_v2","exposure":-1}),
     );
-    // Per channel at 2.2 (the built-in P3 table): 200 · 0.5^(1/2.2).
+    // Per channel at the 2.2 class (the built-in P3 table), bound to 563/256
+    // and encoded through the 4096-segment table, which lands on the code of
+    // 200 · 0.5^(1/2.2).
     let green = (200.0 * 0.5f64.powf(1.0 / 2.2)).round() as u8;
     assert_eq!(result, [0, green, 0, 255]);
 }
@@ -436,17 +438,29 @@ fn exposure_in_a_passing_offset_para_profile_stays_at_2_2() {
         }
     }
     // 16 bits, through the typed kernel: the same rule, unquantized, on
-    // every 8-bit code x 257.
+    // every 8-bit code x 257. Unquantized, the 2.2 class is its 1/256 grid
+    // exponent 563/256, and the encode is the chord of `u^(1/γ)` on 4096
+    // equal segments of `u`.
     let description = json!({
         "type": "adjust", "evaluation": "precision_v1", "op": "exposure", "params": params
     })
     .to_string();
     let op = PrecisionAdjustment::parse(&description, &profile).expect("a passing profile");
     let gain = 0.7f64.exp2();
+    let g = 563.0 / 256.0;
+    let chord = |u: f64| {
+        let t = u * 4096.0;
+        let i = t.floor().min(4095.0);
+        let (lo, hi) = (
+            (i / 4096.0).powf(1.0 / g),
+            ((i + 1.0) / 4096.0).powf(1.0 / g),
+        );
+        lo + (hi - lo) * (t - i)
+    };
     for v in 0..=255u16 {
         let x = f64::from(v * 257) / 65535.0;
-        let u = x.powf(2.2) * gain + 0.017;
-        let want = (u.powf(1.0 / 1.2).clamp(0.0, 1.0).powf(1.0 / 2.2) * 65535.0).round();
+        let u = x.powf(g) * gain + 0.017;
+        let want = (chord(u.powf(1.0 / 1.2).clamp(0.0, 1.0)) * 65535.0).round();
         let got = op.apply_at([x as f32; 3], 0.0, (0, 0));
         let got = (f64::from(got[0]).clamp(0.0, 1.0) * 65535.0).round();
         assert!(

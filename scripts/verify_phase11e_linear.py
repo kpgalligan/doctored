@@ -20,7 +20,8 @@ tolerance is widened after the fact.
 - **E2 a 16-bit document.** The same shape at typed depth, exported through
   `export_image` at `bit_depth: 16` and read by the 16-bit PNG reader below.
   The typed transcode is CONTINUOUS, so the oracle's adjustment is
-  `document_v2` Exposure (its pure gamma 2.2) with no rounding between.
+  `document_v2` Exposure (the 2.2 class on the 1/256 grid, 563/256, and the
+  4096-segment table encode) with no rounding between.
   **T2** mean <= 2, max <= 8 codes of 65535. The same
   isolated-group identity is asserted here on the fixture's own `All` group,
   which typed grouping builds around every top-level layer at once.
@@ -74,8 +75,11 @@ T1_MEAN_CODES = 0.05
 T1_MAX_CODES = 1
 # A layer opacity of 0.5 composites as its opacity byte (`opacity_byte`).
 OPACITY_HALF = round(0.5 * 255) / 255
-# `document_v2` Exposure's exponent in an sRGB-shaped profile (`adjust_calibrated`).
-EXPOSURE_GAMMA = 2.2
+# `document_v2` Exposure's exponent in an sRGB-shaped profile (`adjust_calibrated`):
+# the 2.2 class bound to the 1/256 grid.
+EXPOSURE_GAMMA = 563 / 256
+# Segments of its encode table: `u^(1/gamma)` read off the chord between nodes.
+EXPOSURE_SEGMENTS = 4096
 T2_MEAN_CODES = 2.0
 T2_MAX_CODES = 8
 
@@ -243,9 +247,14 @@ def over(backdrop, source, alpha, mode):
 
 def exposure_kernel(encoded, gain):
     """`document_v2` Exposure on one encoded channel (`adjust_calibrated`): an
-    sRGB-shaped profile's channel at its effective pure gamma 2.2, the gain,
-    the clamp, and back through the same power."""
-    return min(max(encoded ** EXPOSURE_GAMMA * gain, 0.0), 1.0) ** (1.0 / EXPOSURE_GAMMA)
+    sRGB-shaped profile's channel at its grid exponent 563/256, the gain, the
+    clamp, and back through the same power read off its 4096-segment chord."""
+    u = min(max(encoded ** EXPOSURE_GAMMA * gain, 0.0), 1.0)
+    t = u * EXPOSURE_SEGMENTS
+    i = min(math.floor(t), EXPOSURE_SEGMENTS - 1)
+    lo = (i / EXPOSURE_SEGMENTS) ** (1.0 / EXPOSURE_GAMMA)
+    hi = ((i + 1) / EXPOSURE_SEGMENTS) ** (1.0 / EXPOSURE_GAMMA)
+    return lo + (hi - lo) * (t - i)
 
 
 def exposure_byte_transcode(linear, gain):

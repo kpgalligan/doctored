@@ -1152,10 +1152,10 @@ fn document_losses(
 /// within 2 codes max and 0.5 mean of Photoshop 26.10.0's own render at 8
 /// and 16 bits. Normal, Multiply, Screen and Pass Through are the claim's
 /// floor whatever a take says. Darker Color and Lighter Color qualify with
-/// the 8-bit compare of their lumas as codes, and Vivid Light, Linear Light
-/// and Divide with their 8-bit blends on codes and Linear Light's Fill folded
-/// toward code 128 (`blend::blend_kind_byte`, `blend_fill::fill_blend_byte`),
-/// each rejudged on the same takes.
+/// the 8-bit compare of their lumas as codes, each rejudged on the same
+/// takes, and Divide with its 8-bit blend on codes (`blend::blend_kind_byte`),
+/// rejudged on them and matched on every pair of the code lattice
+/// (`scripts/photoshop-probe/blend_code_forms_2_take.py` take1).
 const QUALIFIED_BLEND: &[BlendMode] = &[
     BlendMode::Normal,
     BlendMode::Darken,
@@ -1171,8 +1171,6 @@ const QUALIFIED_BLEND: &[BlendMode] = &[
     BlendMode::Overlay,
     BlendMode::SoftLight,
     BlendMode::HardLight,
-    BlendMode::VividLight,
-    BlendMode::LinearLight,
     BlendMode::PinLight,
     BlendMode::Exclusion,
     BlendMode::Subtract,
@@ -1186,8 +1184,18 @@ const QUALIFIED_BLEND: &[BlendMode] = &[
 
 /// The modes claimed only at 100 % Fill: every tile but the Fill ones passes
 /// (#2: Hard Mix and Difference miss on Photoshop's own Fill arithmetic,
-/// which no declared candidate met).
-const QUALIFIED_AT_FULL_FILL: &[BlendMode] = &[BlendMode::Difference, BlendMode::HardMix];
+/// which no declared candidate met). Vivid Light and Linear Light blend on
+/// codes at 8 bits (`blend::blend_kind_byte`), matched on every pair of the
+/// code lattice at full Fill (`blend_code_forms_2_take.py` take1); their
+/// 8-bit Fill folded toward code 128 (`blend_fill::fill_blend_byte`) is
+/// within 4 codes there for Vivid Light and 2 / 0.65 mean for Linear Light
+/// at Fill 25 %, outside the bound.
+const QUALIFIED_AT_FULL_FILL: &[BlendMode] = &[
+    BlendMode::VividLight,
+    BlendMode::LinearLight,
+    BlendMode::Difference,
+    BlendMode::HardMix,
+];
 
 /// The CMYK claim, unchanged: #2 measured RGB only.
 const QUALIFIED_BLEND_CMYK: &[BlendMode] = &[

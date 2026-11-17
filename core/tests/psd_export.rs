@@ -1056,13 +1056,14 @@ fn legacy_fill_modes_always_write_iopa_on_pixel_records() {
 }
 
 /// #2's per-mode table as the layered report states it (take1-3,
-/// `scripts/photoshop-probe/psd_appearance_578_take.py --rejudge`): a
-/// QUALIFIED mode (Overlay; Divide, Vivid Light and Linear Light, the last
-/// two below 100 % Fill too) and a mode qualified at 100 % Fill used at full
-/// Fill (Difference) are named nowhere; an OUT mode (Dissolve) is named as
-/// unqualified in Photoshop; a full-Fill mode below 100 % Fill (Hard Mix) is
-/// named; Dissolve's pattern, a clipping base below 100 % Fill and a clipped
-/// group each get their own sentence.
+/// `scripts/photoshop-probe/psd_appearance_578_take.py --rejudge`, and the
+/// code-lattice take `blend_code_forms_2_take.py`): a QUALIFIED mode
+/// (Overlay; Divide) and a mode qualified at 100 % Fill used at full Fill
+/// (Difference; Vivid Light and Linear Light) are named nowhere; an OUT mode
+/// (Dissolve) is named as unqualified in Photoshop; a full-Fill mode below
+/// 100 % Fill (Hard Mix; Vivid Light and Linear Light) is named; Dissolve's
+/// pattern, a clipping base below 100 % Fill and a clipped group each get
+/// their own sentence.
 #[test]
 fn blend_observations_follow_the_qualified_tables() {
     let mut doc = round_trip_source();
@@ -1121,16 +1122,25 @@ fn blend_observations_follow_the_qualified_tables() {
             "{qualified} is qualified: {observations:#?}"
         );
     }
-    // Vivid Light and Linear Light qualify at every Fill (their 8-bit blends
-    // on codes, the Fill folded toward code 128).
+    // Vivid Light and Linear Light qualify at 100 % Fill only: the code
+    // lattice take matched their 8-bit blends on codes on every pair and
+    // refuted their Fill folds.
     for mode in [BlendMode::VividLight, BlendMode::LinearLight] {
-        doc.layers[ghost].blend = mode;
-        doc.layers[ghost].style = fill(0.6);
-        let observations = strings(&export_report(&doc, LAYERS), "observations");
         let name = format!("{mode:?}");
+        doc.layers[ghost].blend = mode;
+        doc.layers[ghost].style = fill(1.0);
+        let observations = strings(&export_report(&doc, LAYERS), "observations");
         assert!(
             !observations.iter().any(|o| o.contains(&name)),
-            "{name} is qualified below 100 % Fill: {observations:#?}"
+            "{name} is qualified at 100 % Fill: {observations:#?}"
+        );
+        doc.layers[ghost].style = fill(0.6);
+        let observations = strings(&export_report(&doc, LAYERS), "observations");
+        assert!(
+            observations.iter().any(|o| o
+                .starts_with("Blend modes qualified in Photoshop only at 100 % Fill")
+                && o.contains(&name)),
+            "{name} below 100 % Fill is named: {observations:#?}"
         );
     }
 }

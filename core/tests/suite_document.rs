@@ -128,6 +128,8 @@ mod layer_auto_blend;
 mod layer_auto_blend_panorama;
 #[path = "layer_blend_codes.rs"]
 mod layer_blend_codes;
+#[path = "layer_blend_codes_take.rs"]
+mod layer_blend_codes_take;
 #[path = "layer_blend_edges.rs"]
 mod layer_blend_edges;
 #[path = "layer_byte_opacity.rs"]

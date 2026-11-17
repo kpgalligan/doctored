@@ -21,10 +21,11 @@
 //! A `document_v2` description evaluates [`Exposure::apply_linear`] per
 //! channel in the document's own primaries instead, each channel linearized
 //! at the profile's effective pure gamma (2.2 for sRGB-shaped and sampled
-//! curves, a pure power's own exponent) and re-encoded by its inverse — no
-//! TRC, no matrix (`adjust_calibrated`, #2, fitted to Photoshop at 8 and 16
-//! bits) — and a 32-bit float document applies it per stored linear channel
-//! (`adjust_float`).
+//! curves, a pure power's own exponent) bound to the 1/256 grid, and
+//! re-encoded by its inverse read off a 4096-segment linear table — no
+//! TRC, no matrix (`adjust_calibrated`, #2, measured against recorded takes
+//! at 8 and 16 bits) — and a 32-bit float document applies it per stored
+//! linear channel (`adjust_float`).
 //!
 //! Order matters and is not commutative: gain, THEN offset, THEN gamma —
 //! offset after gain is what makes Offset "darken the shadows and midtones
