@@ -188,9 +188,11 @@ keep it, and turn it into a selection, a fill, a stroke or a mask. This batch ad
   (Decisions, "A path shape's outline is a path target"; `scripts/verify_path_shape_outline.py`, the
   jobs-probe's "path shape outline target").
 - `OPEN` [#19](https://github.com/kpgalligan/doctored/issues/19) — per-subpath operations held on the path (and
-  with them a subtracting `vmsk` carried instead of baked): a model change, a DRDC word, three coverage callers
-  and the PSD and TIFF codecs, with a quarter-pixel seam wherever two subpaths share an edge (measured: 0.25 of
-  full coverage at every pixel of a shared 25 px edge) and no stroke.
+  with them a subtracting `vmsk` carried instead of baked): designed in
+  [v1-paths-held-subpaths.md](v1-paths-held-subpaths.md), not built — a model change, a DRDC word, the coverage
+  callers and the PSD and TIFF codecs, and no stroke. No seam: two subpaths sharing a straight, diagonal or
+  cubic edge cover it exactly as their one outline does (`core/tests/path_shared_edge.rs`); the quarter-pixel
+  loss on a shared edge is the per-pixel combine of each subpath's own coverage, which held operations do not use.
 - `DONE` — paths in PSD, PSB and layered TIFF, both directions, every depth and mode (`psd_paths`,
   `psd_path_records`: Adobe's 26-byte records, saved paths by name, the work path, entry-by-entry import); at RGB
   8/16 a `vmsk` with no raster mask beside it imports as the layer's vector mask (a shape layer as its fill

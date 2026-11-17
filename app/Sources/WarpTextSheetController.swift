@@ -9,6 +9,11 @@ import AppKit
 /// editing state at creation, as Replace Missing Fonts does, and an OK after any of them changed
 /// beeps and commits nothing.
 final class WarpTextSheetController: NSViewController {
+    /// The notice a control commit shows when other background work holds the worker a
+    /// high-depth preview needs: the old preview is cleared, never left standing.
+    static let busyPreviewNotice = "The preview is waiting for other work to finish. Change a "
+        + "control to refresh it; OK applies the chosen warp."
+
     private weak var editor: EditorViewController?
     private weak var document: ImageDocument?
     private let source: RasterDocument
@@ -89,6 +94,7 @@ final class WarpTextSheetController: NSViewController {
         grid.rowSpacing = 10
         grid.columnSpacing = 12
         grid.column(at: 0).xPlacement = .trailing
+        notice.identifier = NSUserInterfaceItemIdentifier("warpText.notice")
         notice.font = DS.sans(11)
         notice.preferredMaxLayoutWidth = 376
         notice.widthAnchor.constraint(equalToConstant: 376).isActive = true
@@ -144,9 +150,11 @@ final class WarpTextSheetController: NSViewController {
     // MARK: - Preview
 
     /// The layer re-rendered under the chosen warp, into the canvas's preview: on a worker
-    /// for a high-depth document (`ImageDocument.refreshProjection`'s rule), skipped while
-    /// other background work runs. The stored warp shows the document itself; an error clears
-    /// the preview and is shown.
+    /// for a high-depth document (`ImageDocument.refreshProjection`'s rule). While other
+    /// background work holds that worker the preview is cleared, never left showing the last
+    /// warp, and the notice says so (`busyPreviewNotice`). The stored warp shows the document
+    /// itself; an error clears the preview and is shown, a publication a transparency lock
+    /// refused in the lock's own words.
     func refreshPreview() {
         syncControls()
         guard let editor else { return }
@@ -157,7 +165,11 @@ final class WarpTextSheetController: NSViewController {
             return
         }
         let source = self.source
-        if source.precision != nil, BackgroundWork.occupied { return }
+        if source.precision != nil, BackgroundWork.occupied {
+            editor.canvas.previewImage = nil
+            notice.stringValue = Self.busyPreviewNotice
+            return
+        }
         do {
             // A layer saved before box widths were stored re-wraps as edit_text_layer does.
             let payload = stored.resolvingLegacyBox(width: max(Double(source.width) - anchor.x, 10))
@@ -176,6 +188,10 @@ final class WarpTextSheetController: NSViewController {
             if let error = prepared.error { throw NativeArtworkEvaluation.failure(error) }
             editor.canvas.previewImage = prepared.preview
             notice.stringValue = ""
+        } catch is ArtworkPublicationRefusal where source.transparencyLockOwner(layer) != nil {
+            editor.canvas.previewImage = nil
+            notice.stringValue = "“\(name)” has its transparency locked, and a warp lays the "
+                + "layer out again. Unlock Transparency in Layer ▸ Lock to warp it."
         } catch {
             editor.canvas.previewImage = nil
             notice.stringValue = error.localizedDescription

@@ -204,6 +204,8 @@ mod path_format;
 mod path_geometry;
 #[path = "path_shape.rs"]
 mod path_shape;
+#[path = "path_shared_edge.rs"]
+mod path_shared_edge;
 #[path = "path_subpath_at.rs"]
 mod path_subpath_at;
 #[path = "path_trace.rs"]

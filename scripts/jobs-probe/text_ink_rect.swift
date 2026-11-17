@@ -5,9 +5,12 @@ import AppKit
 // layout, (a-cmyk) and in a CMYK 8 document; (b) the payload codec, versions 1–7; (c) the marked
 // rect; (d) a layer saved before the marker keeps its anchor and is marked at it by an edit, a
 // transform and Replace Missing Fonts; (d-marked) Replace Missing Fonts recentres a marked layer's
-// refitted rect; (d-lock) a transparency lock defers the marker; (e) an unchanged text-session
-// commit adds no step. Each section reports its own failure, so one run names every section a
-// mutant turns red.
+// refitted rect; (d-lock) a transparency lock defers the marker, and a re-layout it refuses
+// names the lock in the agent's answer, (d-lock-editor) and in the editor's alert, while
+// (d-lock-busy) a busy refusal on the same layer keeps its own words; (d-lock-shape) a locked
+// shape re-box and (d-lock-recolour) a locked shape recolour name the lock in the editor's alert
+// too; (e) an unchanged text-session commit adds no step. Each section reports its own failure,
+// so one run names every section a mutant turns red.
 
 /// The deepest `alpha` on a `width` × `height` raster's outermost rows and columns.
 private func textInkRing(_ width: Int, _ height: Int, _ alpha: (Int, Int) -> Int) -> Int {
@@ -80,6 +83,25 @@ private func legacyShaped(_ doc: RasterDocument, _ layer: Int,
                                            offsetX: x, offsetY: y, mask: nil)?.withLayerMeta(layer, json)
     else { throw ProbeFailure(description: "[text ink rect] could not cut the layer back") }
     return shaped
+}
+
+/// The alerts recorded after the first `count`: each message and informative text.
+private func alertsSince(_ count: Int) -> String {
+    AutomationAlerts.recorded.dropFirst(count)
+        .map { "\($0.messageText) | \($0.informativeText)" }.joined(separator: " ;; ")
+}
+
+/// An 80 × 50 rect shape layer at (40, 40) with `style`, added to `document` and its Transparency
+/// locked: the layer and its raster rect.
+private func lockedRect(_ document: ImageDocument, _ style: [String: Any]) throws -> (layer: Int, rect: [Int]) {
+    let box: [String: Any] = ["kind": "rect", "x": 40, "y": 40, "w": 80, "h": 50]
+    let made = try agentOK("add_shape_layer", document, box.merging(style) { $1 })
+    guard let layer = made["layer"] as? Int,
+          let locked = try document.doc?.withLockFlags(layer, .transparency) else {
+        throw ProbeFailure(description: "no locked rect: \(made)")
+    }
+    document.doc = locked
+    return (layer, textInkState(locked, layer).rect)
 }
 
 /// Whether some fully opaque pixel of `pixels` is `rgb`.
@@ -326,9 +348,11 @@ func verifyTextInkRect() throws {
         try require(recoloured.rect == saved.rect && document.doc?.describedAnchor(index) == anchor
                         && !recoloured.meta.contains("ink_outset") && inks(recoloured.pixels, (255, 0, 0)),
                     "a locked colour edit: \(recoloured.rect) from \(saved.rect), \(recoloured.meta)")
-        // A re-layout is refused as before: the core's lock refusal.
+        // A re-layout is refused, and the answer names the lock and how to clear it
+        // (`rejectLockedRerender`), never the core's generic sentence.
         let resized = try agentCall("edit_text_layer", document, ["layer": index, "size": 60])
-        try require(resized.isError && resized.text.contains("refused by layer locks")
+        try require(resized.isError && resized.text.contains("has its transparency locked")
+                        && resized.text.contains("set_layer_lock")
                         && textInkState(document.doc, index).rect == saved.rect,
                     "a locked resize: \(resized.text)")
         _ = try agentOK("set_layer_lock", document, ["layer": index, "locks": [String]()])
@@ -348,6 +372,105 @@ func verifyTextInkRect() throws {
                         && TextLayerPayload.decode(refitted.meta)?.inkOutset == markedOutset,
                     "a locked marked layer's colour edit: \(refitted.rect) from \(direct.rect), "
                     + "\(refitted.meta)")
+    }
+
+    /// The saved-before-the-marker layer with its Transparency locked, installed; its state.
+    func lockedLegacy() throws -> (rect: [Int], pixels: [UInt8]) {
+        let legacy = try legacyShaped(marked, index)
+        guard let locked = try legacy.withLockFlags(index, .transparency) else {
+            throw ProbeFailure(description: "no lock")
+        }
+        document.doc = locked
+        let saved = textInkState(locked, index)
+        return (saved.rect, saved.pixels)
+    }
+
+    // (d-lock-editor) The editor's re-layout under the same lock: the lock's alert
+    // (`refuseLockedRerender`), never the core's sentence.
+    check("d-lock-editor") {
+        let saved = try lockedLegacy()
+        controller.selectTool(.text)
+        controller.editTextLayer(index)
+        let canvas: ImageCanvasView = controller.canvas
+        guard let view = canvas.activeTextView else {
+            throw ProbeFailure(description: "the locked layer did not reopen")
+        }
+        let alertsBefore = AutomationAlerts.recorded.count
+        view.setSelectedRange(NSRange(location: (view.string as NSString).length, length: 0))
+        view.insertText("s", replacementRange: NSRange(location: NSNotFound, length: 0))
+        let committed = canvas.commitTextSession()
+        try pumpUntil({ !BackgroundWork.occupied }, seconds: 30)
+        let shown = AutomationAlerts.recorded.dropFirst(alertsBefore)
+            .map { "\($0.messageText) | \($0.informativeText)" }.joined(separator: " ;; ")
+        canvas.cancelTextSession()
+        try require(!committed && textInkState(document.doc, index).rect == saved.rect
+                        && shown.contains("has its transparency locked")
+                        && !shown.contains("refused by layer locks"),
+                    "a locked editor re-layout: committed \(committed), alerts \(shown)")
+    }
+
+    // (d-lock-busy) Not the lock: busy background work fails the same re-layout in its own words.
+    check("d-lock-busy") {
+        let saved = try lockedLegacy()
+        try pumpUntil({ !BackgroundWork.occupied }, seconds: 30)
+        let busy: (isError: Bool, result: [String: Any], text: String)
+        do {
+            BackgroundWork.occupied = true
+            defer { BackgroundWork.occupied = false }
+            busy = try agentCall("edit_text_layer", document, ["layer": index, "size": 60])
+        }
+        try require(busy.isError && !busy.text.contains("has its transparency locked")
+                        && busy.text.contains("Prepare artwork on the main thread")
+                        && textInkState(document.doc, index).rect == saved.rect,
+                    "a locked resize while busy: \(busy.text)")
+    }
+
+    // (d-lock-shape) The editor's shape re-box under a transparency lock: the lock's alert
+    // (`refuseLockedRerender`), never the core's sentence, and the session stays open.
+    check("d-lock-shape") {
+        let shapes = try fixture(width: 320, height: 240)
+        defer { shapes.close() }
+        let shapeEditor = try editor(shapes)
+        let rect = try lockedRect(shapes, ["fill_rgba": [0.2, 0.4, 0.8, 1]])
+        shapeEditor.editShapeLayer(rect.layer)
+        guard let session = shapeEditor.shapeEditSession else {
+            throw ProbeFailure(description: "the locked shape did not reopen")
+        }
+        let quad = session.quad
+        let right = CGPoint(x: (quad[1].x + quad[2].x) / 2, y: (quad[1].y + quad[2].y) / 2)
+        let alertsBefore = AutomationAlerts.recorded.count
+        shapeEditor.shapeEditMouseDown(right)
+        shapeEditor.shapeEditMouseDragged(CGPoint(x: right.x + 40, y: right.y), [.control])
+        let committed = shapeEditor.commitShapeEditSession()
+        try pumpUntil({ !BackgroundWork.occupied }, seconds: 30)
+        let shown = alertsSince(alertsBefore)
+        let open = shapeEditor.shapeEditSession != nil
+        shapeEditor.cancelShapeEditSession()
+        try require(!committed && open && textInkState(shapes.doc, rect.layer).rect == rect.rect
+                        && shapes.doc?.shapePayload(rect.layer)?.w == 80
+                        && shown.contains("has its transparency locked")
+                        && !shown.contains("refused by layer locks"),
+                    "a locked shape re-box: committed \(committed), open \(open), alerts \(shown)")
+    }
+
+    // (d-lock-recolour) The ⌥⌫ recolour (Artwork Colors' chord) of a stroke-only rect on whole
+    // pixels: the new fill lands only where the frozen alpha is 0, so the core refuses the
+    // publication, and the editor answers the lock's alert, never the core's sentence.
+    check("d-lock-recolour") {
+        let shapes = try fixture(width: 320, height: 240)
+        defer { shapes.close() }
+        let shapeEditor = try editor(shapes)
+        let rect = try lockedRect(shapes, ["stroke_rgba": [0, 0, 0, 1], "stroke_width": 2])
+        let before = shapes.doc
+        let alertsBefore = AutomationAlerts.recorded.count
+        let handled = shapeEditor.recolorArtworkForFill(.white)
+        try pumpUntil({ !BackgroundWork.occupied }, seconds: 30)
+        let shown = alertsSince(alertsBefore)
+        try require(handled && shapes.doc === before
+                        && shown.contains("has its transparency locked")
+                        && !shown.contains("refused by layer locks"),
+                    "a locked recolour: handled \(handled), unchanged \(shapes.doc === before), "
+                    + "fill \(shapes.doc?.shapePayload(rect.layer)?.fill ?? "-"), alerts \(shown)")
     }
 
     // (e) Reopening the marked layer in the text session and committing unchanged adds no step.
@@ -370,5 +493,8 @@ func verifyTextInkRect() throws {
     try require(failures.isEmpty, "\(tag) \(failures.joined(separator: "; "))")
     print("PASS: \(tag) (a) the swash uncut in nine layouts, (a-cmyk) and in CMYK 8, (b) the codec, "
           + "(c) the marked rect, (d) a saved layer marked at its anchor, (d-marked) a marked layer's "
-          + "font replaced at its centre, (d-lock) the lock deferring it, (e) no phantom step")
+          + "font replaced at its centre, (d-lock) the lock deferring it and named by the agent, "
+          + "(d-lock-editor) and the editor, (d-lock-busy) a busy refusal in its own words, "
+          + "(d-lock-shape) a shape re-box, (d-lock-recolour) and recolour naming the lock, (e) no "
+          + "phantom step")
 }

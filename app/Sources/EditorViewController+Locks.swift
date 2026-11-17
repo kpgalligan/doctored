@@ -58,8 +58,13 @@ extension EditorViewController {
     /// same reason: the lock only bites when the new layout changes the
     /// raster's size or offset (`doc_lock`'s rule that a frozen alpha channel
     /// cannot follow a buffer that moved), which is not knowable until the
-    /// layout has run. Silent when transparency is not locked, so a genuine
-    /// layout failure keeps `applyEdit`'s beep and nothing else.
+    /// layout has run. Asked when the edit left the document unchanged: the
+    /// re-render answered nothing, or the core refused the publication
+    /// (`ArtworkPublicationRefusal`) on a transparency-locked layer, which the
+    /// closure turns into nothing so this alert is the one shown. A cancel or
+    /// any other failure is presented as itself and never asks. Silent when
+    /// transparency is not locked, so a genuine layout failure keeps
+    /// `applyEdit`'s beep and nothing else.
     func refuseLockedRerender(layer idx: Int) {
         guard let doc = document?.doc, let owner = doc.transparencyLockOwner(idx) else { return }
         let name = doc.layerInfo(idx)?.name ?? "This layer"

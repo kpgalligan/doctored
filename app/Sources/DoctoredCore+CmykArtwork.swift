@@ -65,7 +65,8 @@ extension RasterPrecisionDocument {
             }
         }
         if let error {
-            throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not publish CMYK artwork."))
+            throw ArtworkPublicationRefusal(
+                message: takeErrorMessage(error, fallback: "Could not publish CMYK artwork."))
         }
         return result.map { RasterPrecisionDocument(owning: $0) }
     }

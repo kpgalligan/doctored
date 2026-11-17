@@ -9,6 +9,8 @@ extension AgentServer {
         "a text layer on a path cannot be warped: take it off its path first (on_path: null)"
     static let onPathWarpRefusal =
         "a warped text layer cannot go on a path: remove the warp first (warp: null)"
+    static let warpAndPathRefusal =
+        "a text layer cannot be both warped and on a path: pass warp or on_path, not both"
     static let warpObjectRefusal =
         "warp must be an object {style, bend?, horizontal?, vertical?}, or null to remove the warp"
     static let warpStyleRefusal = "warp.style must be one of "
@@ -49,12 +51,15 @@ extension AgentServer {
         return .some(warp.isIdentity ? nil : warp)
     }
 
-    /// The refusal for a call whose RESULTING layer would be both warped and on a path: named
-    /// for what the call asked for (`warp` as an object asks for the warp).
-    func refuseWarpOnPath(_ a: [String: Any], warp: TextWarp?, onPath: TextOnPath?) throws {
+    /// The refusal for a call whose RESULTING layer would be both warped and on a path, named
+    /// for what the layer already holds (`stored`, nil for a new layer): a layer on a path
+    /// cannot be warped, a warped layer cannot go on a path, and a layer holding neither was
+    /// asked for both.
+    func refuseWarpOnPath(warp: TextWarp?, onPath: TextOnPath?, stored: TextLayerPayload?) throws {
         guard warp != nil, onPath != nil else { return }
-        throw ToolError(
-            message: a["warp"] is [String: Any] ? Self.warpOnPathRefusal : Self.onPathWarpRefusal)
+        if stored?.onPath != nil { throw ToolError(message: Self.warpOnPathRefusal) }
+        if stored?.warp != nil { throw ToolError(message: Self.onPathWarpRefusal) }
+        throw ToolError(message: Self.warpAndPathRefusal)
     }
 
     /// Whether an edit_text_layer call asks only for `warp` (beside `document_id` and

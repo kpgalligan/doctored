@@ -9,6 +9,10 @@ struct DescribedDrawingPlan {
     let offsetX: Int
     let offsetY: Int
     let appKit: Bool
+    /// A text plan's left-aligned layout rect (`TextLayer.measure`), in source space: the box a
+    /// warp's envelope spans, so the capture never lays the block out a second time. nil for a
+    /// shape.
+    var layoutRect: CGRect? = nil
     let draw: (CGContext) -> Bool
 
     func render(space: CGColorSpace) -> DescribedRaster? {

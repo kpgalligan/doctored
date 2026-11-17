@@ -17,7 +17,8 @@
   any ink, always with `artwork` and a stored `box_width`; `ink_outset` may ride along (TI-6). All three at 0
   is no warp and is never stored: the tools remove the key, and an edit that changes nothing registers no
   step. `warp` and `on_path` on one layer is "not a text layer", as is a `warp` below 8, an 8 without it, or
-  an invalid or all-zero `warp`; a tool that sets one while the other is present refuses and names it.
+  an invalid or all-zero `warp`; a tool that sets one while the other is present refuses and names the one
+  the layer holds, and a call asking for both on a layer holding neither refuses naming the pair.
   Versions 1–7 keep their bytes.
 - **WT-2 — The envelope** maps the text block's box (the left-aligned layout rect `TextLayer.layout`
   measures, `w × h`, centre `(xc, yc)`) onto itself bent. With `u, v` a point's fractions across and down the
@@ -65,7 +66,9 @@
 - **WT-5 — UI.** Layer ▸ Warp Text…: a `WarpTextSheetController` on `makeSheetView` (a Style popup with None
   and the nine styles; Bend, Horizontal and Vertical sliders −100…100, off at None). Its preview re-renders
   the layer into `canvas.previewImage` when a control commits (not per tick; on a worker for a high-depth
-  document) and is cleared on Cancel and OK; OK runs `edit_text_layer` with `warp` through the agent
+  document, and while other background work holds that worker the preview is cleared and the notice says
+  so) and is cleared on Cancel and OK; a re-render a Transparency lock refuses names the lock in the
+  notice. OK runs `edit_text_layer` with `warp` through the agent
   dispatch as one "Warp Text" step and records it, and an unchanged choice records nothing (controls left as
   the sheet opened keep a stored warp off the sliders' whole-hundredth grid, never round it; the test is the
   raw controls, so None still removes a warp that rounds to 0). Offered with no

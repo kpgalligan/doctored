@@ -9,7 +9,10 @@ import AppKit
 // None records `warp: null`, a text-session commit keeps the warp, an unchanged OK keeps a
 // warp set off the sliders' grid, and None removes a warp that rounds to 0; (c) the payload
 // codec: versions 1–7 keep their bytes, an 8 round-trips, malformed 8s are refused, and a
-// version-6 subpath of one anchor is refused. Each section reports its own failure.
+// version-6 subpath of one anchor is refused; (d) RGB 16: a commit while other background work
+// runs clears the preview and shows `busyPreviewNotice`, and an idle one previews again; (e) RGB 8
+// with its Transparency locked: a commit names the lock in the notice, and (f) one while busy
+// keeps its own words. Each section reports its own failure.
 
 /// An open arch across a 64 × 48 fixture.
 private let warpTextArch: [[String: Any]] = [["closed": false, "anchors": [
@@ -205,6 +208,86 @@ func verifyWarpText() throws {
                     + "\(String(describing: document.doc?.textPayload(index)?.warp))")
     }
 
+    // (d) RGB 16: a commit while other background work runs clears the preview and says so
+    // (`busyPreviewNotice`); once it ends, a commit previews again and empties the notice.
+    check("d") {
+        let document = try fixture(width: 160, height: 80)
+        defer { document.close() }
+        let controller = try editor(document)
+        _ = try agentOK("convert_precision", document, ["mode": "rgba16", "structure": "preserve"])
+        _ = try agentOK("add_text_layer", document,
+                        ["text": "Warp me", "x": 10, "y": 10, "size": 24, "wrap_width": 0])
+        try pumpUntil({ !BackgroundWork.occupied }, seconds: 30)
+        let sheet = try warpSheet(controller)
+        try warpSet(sheet, style: 1, sliders: ["bend": 50])
+        try require(controller.canvas.previewImage != nil, "a 16-bit commit sets the preview")
+        try pumpUntil({ !BackgroundWork.occupied }, seconds: 30)
+        do {
+            BackgroundWork.occupied = true
+            defer { BackgroundWork.occupied = false }
+            try warpSet(sheet, style: 1, sliders: ["bend": 20])
+        }
+        let stale = controller.canvas.previewImage != nil
+        let notice = try uiControl(sheet.view, id: "warpText.notice", as: NSTextField.self)
+        try require(!stale && notice.stringValue == WarpTextSheetController.busyPreviewNotice,
+                    "a busy commit clears the preview and says so: preview kept \(stale), notice "
+                    + "\"\(notice.stringValue)\"")
+        try warpSet(sheet, style: 1, sliders: ["bend": 30])
+        try require(controller.canvas.previewImage != nil && notice.stringValue.isEmpty,
+                    "an idle commit previews again: notice \"\(notice.stringValue)\"")
+        try warpPress(controller, sheet, "warpText.cancel")
+    }
+
+    /// An RGB 8 "Warp me" layer with its Transparency locked, its sheet open: the document, the
+    /// controller, the sheet and the layer's name.
+    func lockedSheet() throws -> (ImageDocument, EditorViewController, WarpTextSheetController,
+                                  String) {
+        let document = try fixture(width: 160, height: 80)
+        do {
+            let controller = try editor(document)
+            let made = try agentOK("add_text_layer", document,
+                                   ["text": "Warp me", "x": 10, "y": 10, "size": 24, "wrap_width": 0])
+            guard let index = made["layer"] as? Int, let name = document.doc?.layerInfo(index)?.name
+            else { throw ProbeFailure(description: "no text layer: \(made)") }
+            _ = try agentOK("set_layer_lock", document, ["layer": index, "locks": ["transparency"]])
+            return (document, controller, try warpSheet(controller), name)
+        } catch {
+            document.close()
+            throw error
+        }
+    }
+
+    // (e) RGB 8, Transparency locked: a commit the lock refuses names the lock in the notice.
+    check("e") {
+        let (document, controller, sheet, name) = try lockedSheet()
+        defer { document.close() }
+        let lockNotice = "“\(name)” has its transparency locked, and a warp lays the layer out "
+            + "again. Unlock Transparency in Layer ▸ Lock to warp it."
+        try warpSet(sheet, style: 1, sliders: ["bend": 50])
+        let notice = try uiControl(sheet.view, id: "warpText.notice", as: NSTextField.self)
+        try require(controller.canvas.previewImage == nil && notice.stringValue == lockNotice,
+                    "a locked commit names the lock: notice \"\(notice.stringValue)\"")
+        try warpPress(controller, sheet, "warpText.cancel")
+    }
+
+    // (f) The same locked layer with other background work running: the failure keeps its own
+    // words, never the lock's.
+    check("f") {
+        let (document, controller, sheet, _) = try lockedSheet()
+        defer { document.close() }
+        try pumpUntil({ !BackgroundWork.occupied }, seconds: 30)
+        do {
+            BackgroundWork.occupied = true
+            defer { BackgroundWork.occupied = false }
+            try warpSet(sheet, style: 1, sliders: ["bend": 30])
+        }
+        let notice = try uiControl(sheet.view, id: "warpText.notice", as: NSTextField.self)
+        try require(controller.canvas.previewImage == nil && !notice.stringValue.isEmpty
+                        && !notice.stringValue.contains("transparency locked"),
+                    "a locked commit while busy keeps its own words: \"\(notice.stringValue)\"")
+        try warpPress(controller, sheet, "warpText.cancel")
+    }
+
     // (c) The codec.
     let artwork = "\"artwork\":{\"evaluation\":\"outline_area_v1\","
         + "\"intrinsicGlyphs\":\"platform_byte_assets_v1\",\"rgba\":[0,0,0,1],\"runs\":[]},"
@@ -288,5 +371,6 @@ func verifyWarpText() throws {
     try require(failures.isEmpty, "\(tag) \(failures.joined(separator: "; "))")
     print("PASS: \(tag) (a) on in every text-holding kind and off on a path, (b) the sheet's "
           + "preview, Cancel, one recorded step that undoes and replays, an unchanged OK, None and "
-          + "a session commit keeping the warp, (c) the codec")
+          + "a session commit keeping the warp, (c) the codec, (d) a busy 16-bit preview cleared "
+          + "and named, (e) a locked preview naming the lock, (f) and a busy one its own words")
 }

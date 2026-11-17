@@ -17,11 +17,14 @@ struct TextWarpPlacement {
     /// The flatness in source px: 0.05 raster px over the map's largest scale (WT-3).
     let tolerance: Double
 
-    init(payload: TextLayerPayload, layoutToRaster: CGAffineTransform) throws {
-        guard let warp = payload.warp, let layout = TextLayer.layout(payload) else {
+    /// `layoutRect` is the drawing plan's own (`DescribedDrawingPlan.layoutRect`), measured once
+    /// for the plan's rect and reused here.
+    init(payload: TextLayerPayload, layoutRect: CGRect,
+         layoutToRaster: CGAffineTransform) throws {
+        guard let warp = payload.warp else {
             throw DoctoredCoreError(message: "Warped text needs a laid-out block.")
         }
-        envelope = warp.envelope(box: layout.rect)
+        envelope = warp.envelope(box: layoutRect)
         self.layoutToRaster = layoutToRaster
         rasterToLayout = layoutToRaster.inverted()
         let largest = payload.transform.largestScale

@@ -314,12 +314,16 @@ extension EditorViewController {
         case .fill: return true
         }
         let beforeEdit = document.doc
-        // Whether the core THREW (its sentence already presented by
-        // `applyEdit`), so the lock alert below never follows it.
+        // Whether the edit THREW (its sentence already presented by
+        // `applyEdit`), so the lock alert below never follows it. A
+        // publication the core refused on a transparency-locked layer is the
+        // lock's: it answers nothing, so the lock alert is the one shown.
         var threw = false
         document.applyEdit("Fill", record: record) { current in
             do {
                 return try current.rerenderingArtworkLayer(index, updated, anchor: anchor)
+            } catch is ArtworkPublicationRefusal where current.transparencyLockOwner(index) != nil {
+                return nil
             } catch {
                 threw = true
                 throw error

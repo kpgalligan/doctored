@@ -422,16 +422,20 @@ extension EditorViewController {
         guard !refuseLockedEdit(layer: idx, kind: DR_EDIT_PIXELS) else { return false }
         guard let committed = inkedShape(payload, in: doc, replacing: idx) else { return false }
         let beforeEdit = document.doc
-        // Whether the core THREW (its sentence already presented by
-        // `applyEdit`), so the lock alert below never follows it.
+        // Whether the edit THREW (its sentence already presented by
+        // `applyEdit`), so the lock alert below never follows it. A
+        // publication the core refused on a transparency-locked layer is the
+        // lock's: it answers nothing, so the lock alert is the one shown.
         var threw = false
         document.applyEdit(
             "Edit Shape Layer",
             record: .editShapeLayer(
                 committed, at: anchor, layer: doc.layerRef(idx))
-        ) {
+        ) { current in
             do {
-                return try $0.rerenderingArtworkLayer(idx, .shape(committed), anchor: anchor)
+                return try current.rerenderingArtworkLayer(idx, .shape(committed), anchor: anchor)
+            } catch is ArtworkPublicationRefusal where current.transparencyLockOwner(idx) != nil {
+                return nil
             } catch {
                 threw = true
                 throw error

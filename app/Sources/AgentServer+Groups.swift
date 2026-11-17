@@ -315,10 +315,14 @@ extension AgentServer {
     /// bites when the re-render changes the raster's size or offset — the
     /// `doc_lock` rule that a frozen alpha channel cannot follow a buffer that
     /// moved — and whether a new layout does that is not knowable until it has
-    /// run. So this is asked AFTER the core refuses, in place of the generic
-    /// typography or geometry message, which otherwise sent a model retrying
-    /// sizes forever. It returns without throwing when transparency is not
-    /// locked, and the caller then throws its own message.
+    /// run. So this is asked AFTER the edit, and only then: when the core
+    /// refused the publication itself (`ArtworkPublicationRefusal`, in place
+    /// of its generic sentence, which otherwise sent a model retrying sizes
+    /// forever), or when a re-render of a CHANGED description came back with
+    /// nothing (the typed lock's latch keeps the old raster and description
+    /// when the pixels did not move). A cancel, a host failure or a busy
+    /// worker never asks it. It returns without throwing when transparency is
+    /// not locked, and the caller then keeps its own answer.
     func rejectLockedRerender(_ document: ImageDocument, _ idx: Int) throws {
         guard let doc = document.doc, let owner = doc.transparencyLockOwner(idx) else { return }
         let name = doc.layerInfo(idx)?.name ?? "That layer"

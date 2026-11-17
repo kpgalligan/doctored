@@ -241,8 +241,10 @@ extension EditorViewController {
             guard let committed = inkedText(payload, in: doc, replacing: idx, swatches: swatches) else {
                 return false
             }
-            // Whether the core THREW (its sentence already presented by
-            // `applyEdit`), so the lock alert below never follows it.
+            // Whether the edit THREW (its sentence already presented by
+            // `applyEdit`), so the lock alert below never follows it. A
+            // publication the core refused on a transparency-locked layer is
+            // the lock's: it answers nothing, so the lock alert is the one shown.
             var threw = false
             document.applyEdit(
                 "Edit Text Layer",
@@ -251,6 +253,8 @@ extension EditorViewController {
                 let rendered: RasterDocument?
                 do {
                     rendered = try doc.rerenderingArtworkLayer(idx, .text(committed), anchor: anchor)
+                } catch is ArtworkPublicationRefusal where doc.transparencyLockOwner(idx) != nil {
+                    return nil
                 } catch {
                     threw = true
                     throw error

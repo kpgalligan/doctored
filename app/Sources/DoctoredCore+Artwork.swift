@@ -4,6 +4,16 @@ import AppKit
 // the typed artwork path lands above the active entry instead of appending a top root, and
 // `addingDescribedLayer(above:)` passes `.above`.
 
+/// The core's own answer refusing an artwork publication (`dr_doc_artwork*`,
+/// `dr_precision_doc_artwork*`, `dr_precision_doc_cmyk_artwork`), its message unchanged. Only
+/// the publication's `err_out` throws it, so a caller that catches it by type knows the core
+/// refused the publication itself (a transparency lock among the causes) rather than a host
+/// stage, a cancel or a busy worker.
+struct ArtworkPublicationRefusal: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
+}
+
 // MARK: - Retained native artwork
 enum RasterArtworkCore {
     /// `evenOdd` fills by the even-odd rule, nonzero winding otherwise (`dr_artwork_path_coverage`).
@@ -100,7 +110,10 @@ extension RasterDocument {
                 : dr_doc_artwork_at(ptr, layer, position.code, image.ptr, x, y,
                     name, description, limit, other, control?.ptr, &error)
         }
-        if let error { throw DoctoredCoreError(message: takeErrorMessage(error, fallback: "Could not publish retained artwork.")) }
+        if let error {
+            throw ArtworkPublicationRefusal(
+                message: takeErrorMessage(error, fallback: "Could not publish retained artwork."))
+        }
         guard let result else { return nil }
         if isHighDepth { return try RasterDocument(precision: RasterPrecisionDocument(owning: result)) }
         return RasterDocument(owning: result)

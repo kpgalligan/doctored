@@ -61,9 +61,13 @@ enum ArtworkTextCapture {
         }
         if payload.warp != nil {
             // Warped text (ArtworkTextWarp.swift): the plan laid the block out straight in this
-            // manager; every outline goes through the envelope. Never with a path (the
-            // decoder refuses both).
-            manager.warp = try TextWarpPlacement(payload: payload, layoutToRaster: layoutToRaster())
+            // manager; every outline goes through the envelope, over the plan's own layout rect.
+            // Never with a path (the decoder refuses both).
+            guard let layoutRect = plan.layoutRect else {
+                throw DoctoredCoreError(message: "Warped text needs a laid-out block.")
+            }
+            manager.warp = try TextWarpPlacement(
+                payload: payload, layoutRect: layoutRect, layoutToRaster: layoutToRaster())
         }
         // This scalar context only drives TextKit's callbacks. Its raster is
         // discarded; it never supplies native text coverage or source pixels.

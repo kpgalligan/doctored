@@ -756,7 +756,8 @@ enum TextLayer {
         return DescribedDrawingPlan(
             width: rect.width, height: rect.height,
             offsetX: Int(anchor.x.rounded(.down)) + rect.originX,
-            offsetY: Int(anchor.y.rounded(.down)) + rect.originY, appKit: true
+            offsetY: Int(anchor.y.rounded(.down)) + rect.originY, appKit: true,
+            layoutRect: layout.rect
         ) { context in
             // Source space → raster: the anchor's fraction, less the rect's
             // origin (relative to the anchor's whole part), after the map.

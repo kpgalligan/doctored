@@ -83,13 +83,12 @@ extension AgentServer {
         let landing = document.doc.map {
             placement.position.landingIndex(in: $0, anchor: below)
         } ?? below + 1
-        do {
-            try performArtworkEdit(document, "Add \(name) Layer") {
-                try $0.nativeArtwork(.shape(payload), anchor: anchor, layer: below,
-                                     replacing: false, name: name,
-                                     position: placement.position, matching: inked.matches)
-            }
-        } catch is ToolError {
+        // A failure inside the render or the publication leaves with its own words.
+        guard try performArtworkEdit(document, "Add \(name) Layer", {
+            try $0.nativeArtwork(.shape(payload), anchor: anchor, layer: below,
+                                 replacing: false, name: name,
+                                 position: placement.position, matching: inked.matches)
+        }) else {
             // The op is nil exactly when the render is: name the inputs.
             throw ToolError(
                 message: "Could not render the shape — the box is degenerate for the kind, "
@@ -212,16 +211,23 @@ extension AgentServer {
                 try $0.nativeArtwork(.shape(payload), anchor: anchor, layer: index, replacing: true,
                                      name: info.name, matching: inked.matches)
             }
-        } catch is ToolError {
+        } catch let refusal as ArtworkPublicationRefusal {
             // A transparency lock refuses a re-render that resizes the raster,
             // and it is not knowable up front — name it here rather than
-            // sending the model into the geometry.
+            // sending the model into the core's generic sentence. Any other
+            // failure (a cancel, a host stage, a busy worker) keeps its words.
             try rejectLockedRerender(document, index)
-            throw ToolError(
-                message: "Could not render the shape — the box is degenerate for the kind, "
-                    + "nothing would be visible, or the raster would pass the core's 100 "
-                    + "megapixel ceiling for one layer. Check w, h, stroke_width and "
-                    + "transform.")
+            throw refusal
+        }
+        // A typed document under a transparency lock keeps the old raster AND
+        // the old description when the new geometry leaves the pixels as they
+        // were (a radius that only clears coverage), answering nothing: a
+        // changed description that did not land is the lock's too. The stored
+        // fraction is the anchor's, which the anchor comparison covers, so a
+        // repeat of the stored values still answers success.
+        if !changed, current.withOriginFraction(.zero).json() != payload.json()
+            || anchor != currentAnchor {
+            try rejectLockedRerender(document, index)
         }
         return try jsonResult(Self.withCmykPlan([
             "ok": true, "layer": index, "changed": changed,

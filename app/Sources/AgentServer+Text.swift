@@ -323,7 +323,7 @@ extension AgentServer {
         if onPath != nil { try refuseTextOnPathLayout(a, text: text) }
         // `warp`: absent or null or all zero is none (AgentServer+TextWarp.swift).
         let warp: TextWarp? = try textWarpArg(a, current: nil) ?? nil
-        try refuseWarpOnPath(a, warp: warp, onPath: onPath)
+        try refuseWarpOnPath(warp: warp, onPath: onPath, stored: nil)
         let size = try textSizeArg(a) ?? 48
         let family = try textFamily(a, size: size) ?? Self.defaultTextFamily
         let ink = doc.authoringInk
@@ -351,13 +351,12 @@ extension AgentServer {
         let placement = try insertionArguments(a, document: document)
         let below = placement.anchor
         let landing = placement.position.landingIndex(in: doc, anchor: below)
-        do {
-            try performArtworkEdit(document, "Add Text Layer") {
-                try $0.nativeArtwork(.text(payload), anchor: anchor, layer: below,
-                                     replacing: false, name: name,
-                                     position: placement.position, matching: inked.matches)
-            }
-        } catch is ToolError {
+        // A failure inside the render or the publication leaves with its own words.
+        guard try performArtworkEdit(document, "Add Text Layer", {
+            try $0.nativeArtwork(.text(payload), anchor: anchor, layer: below,
+                                 replacing: false, name: name,
+                                 position: placement.position, matching: inked.matches)
+        }) else {
             // The op is nil exactly when the render is: name the inputs.
             throw ToolError(
                 message: "Could not lay the text out — check that text is not empty and that "
@@ -431,7 +430,7 @@ extension AgentServer {
             a, doc: doc, current: current.onPath, anchor: anchor, transform: transform
         ).map { $0.value } ?? current.onPath
         if onPath != nil { try refuseTextOnPathLayout(a, text: text) }
-        try refuseWarpOnPath(a, warp: warp, onPath: onPath)
+        try refuseWarpOnPath(warp: warp, onPath: onPath, stored: current)
         // The box: wrap_width, else the layer's stored box; a layer saved
         // before widths were stored re-wraps at this tool's own pre-change
         // default (from its origin to the canvas's right edge) and stores
@@ -457,24 +456,34 @@ extension AgentServer {
         // Re-rendering a described layer REWRITES its pixels, so it answers to
         // the same locks every other pixel tool does (performPixelEdit runs
         // this one line for them). Without it the core's refusal surfaced as
-        // the typography error below and sent a model retrying sizes forever.
+        // a typography error and sent a model retrying sizes forever.
         try rejectLockedEdit(document, index, DR_EDIT_PIXELS)
+        let changed: Bool
         do {
-            try performArtworkEdit(document, "Edit Text Layer") { doc in
+            changed = try performArtworkEdit(document, "Edit Text Layer") { doc in
                 guard let described = try doc.nativeArtwork(.text(payload), anchor: anchor,
                     layer: index, replacing: true, name: info.name, matching: inked.matches)
                 else { return nil }
                 guard nameFollowsText else { return described }
                 return try described.withLayerName(index, name) ?? described
             }
-        } catch is ToolError {
+        } catch let refusal as ArtworkPublicationRefusal {
             // A transparency lock refuses a re-render that resizes the raster,
             // and it is not knowable up front — name it here rather than
-            // sending the model into the typography.
+            // sending the model into the core's generic sentence. Any other
+            // failure (a cancel, a host stage, a busy worker) keeps its words.
             try rejectLockedRerender(document, index)
-            throw ToolError(
-                message: "Could not lay the text out — check size, wrap_width, tracking, "
-                    + "leading and transform.")
+            throw refusal
+        }
+        // A typed document under a transparency lock keeps the old raster AND
+        // the old description when the new layout leaves the pixels as they
+        // were, answering nothing: a changed description that did not land is
+        // the lock's too. Compared as the editor's commit compares
+        // (EditorViewController+Text.swift), so a repeat of the stored values
+        // still answers success.
+        let stored = current.box == .unspecified ? current.withBox(payload.box) : current
+        if !changed, stored.withOriginFraction(.zero).withInkOutset(nil) != payload {
+            try rejectLockedRerender(document, index)
         }
         return try textLayerResult(
             layer: index, name: nameFollowsText ? name : info.name,

@@ -33,7 +33,8 @@ Per kind:
   object; the copy with its family byte-patched to one this Mac lacks, after
   `replace_missing_fonts` back to Menlo, too.
 - **W9 refusals**, each with its sentence and no undo step: an unknown style, a number 1.5, a warp
-  on a layer on a path, `on_path` on a warped layer, and an emoji under a warp.
+  on a layer on a path, `on_path` on a warped layer, both `warp` and `on_path` on a new layer and
+  on a plain one, and an emoji under a warp.
 
 RGB 8 only, **W10 swash**: Zapfino's one-glyph "Zapfino" at 48 px under an arch b 0.5 leaves the
 layer's outermost raster ring free of ink, so the mapped rect covers the warped swash.
@@ -88,6 +89,9 @@ SENTENCES = {
     'on_path_layer': 'a text layer on a path cannot be warped: take it off its path first '
                      '(on_path: null)',
     'warped_layer': 'a warped text layer cannot go on a path: remove the warp first (warp: null)',
+    'both_new': 'a text layer cannot be both warped and on a path: pass warp or on_path, not both',
+    'both_plain': 'a text layer cannot be both warped and on a path: pass warp or on_path, not '
+                  'both',
     'emoji': 'warped text needs outline glyphs: remove the colour or bitmap glyphs (emoji), or '
              'remove the warp',
 }
@@ -412,6 +416,14 @@ def main():
                                       layer=placed, warp={'style': 'arch', 'bend': BEND}),
                 'warped_layer': call('edit_text_layer', fail=True, document_id=doc,
                                      layer=warped, on_path={'subpaths': [ring]}),
+                # Both asked for, on a layer holding neither: the sentence names the pair.
+                'both_new': call('add_text_layer', fail=True, document_id=doc, text='ON A PATH',
+                                 font=FONT, size=SIZE, rgba=[0, 0, 0, 1],
+                                 on_path={'subpaths': [ring]},
+                                 warp={'style': 'arch', 'bend': BEND}),
+                'both_plain': call('edit_text_layer', fail=True, document_id=doc, layer=plain,
+                                   on_path={'subpaths': [ring]},
+                                   warp={'style': 'arch', 'bend': BEND}),
                 'emoji': call('add_text_layer', fail=True, document_id=doc, text='Hi \U0001F600',
                               x=ORIGIN[0], y=ORIGIN[1], warp={'style': 'arch', 'bend': BEND},
                               **base),
