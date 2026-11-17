@@ -16,8 +16,8 @@
 //! size alone never makes the rasterizer refuse (the assert beside
 //! [`MAX_BAKE_SAMPLES`]); only an outline's row work can.
 
-use crate::path_geometry::PathShape;
-use crate::vector_mask_combine::{charge, Accumulator, SubpathOp, Window};
+use crate::path_geometry::{PathShape, SubpathOp};
+use crate::vector_mask_combine::{charge, op_from_word, Accumulator, Window};
 
 /// The most samples the import spends drawing one vector mask it does not
 /// carry ([`vmsk_coverage`]): the sum over its subpaths of the window each
@@ -69,7 +69,7 @@ impl Bake {
         let operations: Vec<SubpathOp> = decoded
             .operations
             .iter()
-            .map(|&word| SubpathOp::from_word(word))
+            .map(|&word| op_from_word(word))
             .collect::<Option<_>>()?;
         let counts = (decoded.shape.subpaths.len(), decoded.shape.anchor_count());
         // A first subpath that subtracts starts from all pixels (`vector_mask_combine`).

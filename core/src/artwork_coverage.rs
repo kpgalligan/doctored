@@ -121,6 +121,8 @@
 //! module doc is the exactness and never-charged-above-the-reference argument. Caller coverage
 //! outputs remain untouched on refusal/cancellation; flattening, area, assembly and publication
 //! have admission/work/polling bounds.
+//! A path whose subpaths fold by held operations is the sibling `artwork_ops_coverage`'s: one
+//! cluster per row over `outline_by_subpath`'s edges, through `edge_breaks`, `span`, `emit_row`.
 use crate::artwork_pair_sweep::{pair_breaks, PairScratch};
 use crate::job_control::JobContext;
 use crate::outline_limits::MAX_OUTLINE_COORDINATE;
@@ -149,13 +151,19 @@ pub(crate) type Edge = [Point; 2];
 fn midpoint(a: Point, b: Point) -> Point {
     [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5]
 }
-/// The flattened outline under construction: its edges and, beside each, the
-/// index of the CLOSED LOOP it belongs to — a new index at every move
-/// and after every close, the implicit close belonging to its own loop.
+/// The flattened outline under construction: its edges and, beside each, its
+/// tag. By loop (`outline`), the tag is the index of the CLOSED LOOP the edge
+/// belongs to — a new index at every move and after every close, the
+/// implicit close belonging to its own loop. By subpath
+/// (`outline_by_subpath`), it is the moves seen before the edge less one, so
+/// a close starts no new index and the implicit close at a move belongs to
+/// the subpath it closes.
 struct Outline {
     edges: Vec<Edge>,
-    loops: Vec<u32>,
+    tags: Vec<u32>,
     current: u32,
+    moves: u32,
+    by_subpath: bool,
 }
 fn edge(outline: &mut Outline, a: Point, b: Point) -> Result<(), String> {
     if outline.edges.len() >= MAX_PATH_EDGES {
@@ -163,7 +171,11 @@ fn edge(outline: &mut Outline, a: Point, b: Point) -> Result<(), String> {
     }
     if a != b && a[1] != b[1] {
         outline.edges.push([a, b]);
-        outline.loops.push(outline.current);
+        outline.tags.push(if outline.by_subpath {
+            outline.moves.saturating_sub(1)
+        } else {
+            outline.current
+        });
     }
     Ok(())
 }
@@ -203,6 +215,30 @@ pub(crate) fn outline(
     points: &[Point],
     job: JobContext<'_>,
 ) -> Result<(Vec<Edge>, Vec<u32>), String> {
+    let walked = walk(commands, points, false, job)?;
+    Ok((walked.edges, walked.tags))
+}
+
+/// [`outline`]'s one walk, tagging each edge by its SUBPATH instead (the
+/// moves seen before it, less one): the edges, each one's subpath index and
+/// the move count. `artwork_ops_coverage` folds the subpaths by these.
+pub(crate) fn outline_by_subpath(
+    commands: &[u8],
+    points: &[Point],
+    job: JobContext<'_>,
+) -> Result<(Vec<Edge>, Vec<u32>, u32), String> {
+    let walked = walk(commands, points, true, job)?;
+    Ok((walked.edges, walked.tags, walked.moves))
+}
+
+/// The flattening walk [`outline`] and [`outline_by_subpath`] share, tagging
+/// by loop or by subpath (`Outline`).
+fn walk(
+    commands: &[u8],
+    points: &[Point],
+    by_subpath: bool,
+    job: JobContext<'_>,
+) -> Result<Outline, String> {
     if commands.len() > MAX_PATH_POINTS
         || points.len() > MAX_PATH_POINTS
         || points
@@ -214,8 +250,10 @@ pub(crate) fn outline(
     }
     let mut edges = Outline {
         edges: Vec::new(),
-        loops: Vec::new(),
+        tags: Vec::new(),
         current: 0,
+        moves: 0,
+        by_subpath,
     };
     let mut index = 0;
     let mut start = None;
@@ -239,6 +277,7 @@ pub(crate) fn outline(
                     edge(&mut edges, a, b)?;
                 }
                 edges.current += 1;
+                edges.moves += 1;
                 start = Some(p[0]);
                 current = start;
             }
@@ -281,10 +320,17 @@ pub(crate) fn outline(
     if let (Some(a), Some(b)) = (current, start) {
         edge(&mut edges, a, b)?;
     }
-    Ok((edges.edges, edges.loops))
+    Ok(edges)
 }
 
-fn span(left: f64, right: f64, weight: f64, width: usize, ends: &mut [f64], fills: &mut [f64]) {
+pub(crate) fn span(
+    left: f64,
+    right: f64,
+    weight: f64,
+    width: usize,
+    ends: &mut [f64],
+    fills: &mut [f64],
+) {
     let a = left.clamp(0.0, width as f64);
     let b = right.clamp(0.0, width as f64);
     if b <= a {
@@ -384,8 +430,9 @@ impl RowScratch {
 /// The row bounds, every edge of `active`'s clipped ends and its column
 /// crossings (charged per crossing, as before 13A-6b) into a cleared
 /// `breaks`, unsorted. Shared by `cluster_coverage` (one x-cluster's edges)
-/// and `reference_row_coverage` (every active edge).
-fn edge_breaks(
+/// and `reference_row_coverage` (every active edge), and by
+/// `artwork_ops_coverage`'s one-cluster row.
+pub(crate) fn edge_breaks(
     top: f64,
     bottom: f64,
     width: u32,
@@ -449,7 +496,7 @@ fn accumulate_interval(
 }
 
 /// The accumulated row as `ends.len()` u16 samples appended to `output`.
-fn emit_row(ends: &[f64], fills: &[f64], output: &mut Vec<u16>) {
+pub(crate) fn emit_row(ends: &[f64], fills: &[f64], output: &mut Vec<u16>) {
     let mut interior = 0.0;
     for (x, &end) in ends.iter().enumerate() {
         interior += fills[x];

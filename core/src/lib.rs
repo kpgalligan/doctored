@@ -889,6 +889,7 @@ pub use regional::RegionRequest;
 pub mod artwork_coverage;
 pub mod artwork_document;
 mod artwork_native;
+pub mod artwork_ops_coverage;
 mod artwork_pair_sweep;
 pub mod artwork_render;
 mod artwork_window;

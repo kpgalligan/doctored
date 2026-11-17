@@ -618,6 +618,7 @@ Detail belongs in the source file's own header comment.
 - `precision_png_rows.rs` — the banded native RGBA16 PNG reader: rows decoded straight into 256×256 tiles, with no whole-plane decode buffer beside them.
 - `artwork_coverage.rs` / `artwork_render.rs` / `artwork_document.rs` / `ffi_artwork.rs` — bounded coverage; ink assembly into RGBA16 (linear f32 at 32 bits); a document-depth publication.
 - `artwork_pair_sweep.rs` — KERNEL: an artwork row cluster's pair crossings: open-list sweep for partial edges, inversion sweep for full × full pairs (charged only when they cross).
+- `artwork_ops_coverage.rs` — KERNEL: `rasterize_ops`, a path whose subpaths fold by held ops: one cluster per row, a winding per subpath, the fold per run; `ops_coverage` test seam.
 - `artwork_window.rs` — KERNEL: a coverage/intrinsic component's `window` (the pixels its plane covers), the per-component 64M bound and the windows' sample totals.
 - `authored_color.rs` / `ffi_authored_color.rs` — the one sRGB ↔ document decision for authored colours (`LabTwin` converts tiles), wide colours in and out.
 - `artwork_native.rs` and the typed native reader/writer — v20 postorder `ADSC` references and bounded opaque UTF-8 descriptions; source bindings and descriptions are mutually exclusive.
@@ -626,7 +627,7 @@ Detail belongs in the source file's own header comment.
 - `doc_cutout_render.rs` / `ffi_cutout.rs` — the internal byte cutout's one visible plain root/default mask, validated, then `doc::composite_layer_into` and `doc::quantize` in ≤4096-pixel chunks.
 - `trim_bounds.rs` / `ffi_trim.rs` — Image ▸ Trim scan: the kept rect past transparent or corner-equal rows and columns, at u8, u16 and f32.
 - `perspective_crop.rs` / `doc_perspective_crop.rs` / `precision_perspective_crop.rs` — Perspective Crop: request and homography kernel, byte and typed adapters.
-- `path_geometry.rs` — KERNEL: `PathShape` (anchors, subpaths, fill rule), `PathHit`, JSON, caps, validation, commands, bounds, point maps, coverage.
+- `path_geometry.rs` — KERNEL: `PathShape` (anchors, subpaths, fill rule), `SubpathOp`'s one home, `PathHit`, JSON, caps, validation, commands, bounds, point maps, coverage.
 - `path_flatten.rs` — KERNEL: `PathShape::flattened`, each subpath as a polyline within a tolerance (`flatten_cubic`), beside `path_geometry`.
 - `path_edit.rs` — KERNEL: the Pen's geometry, `PathShape::hit`, `subpath_at` (`winding`), `inserting_anchor`, `converting_anchor` (`nearest_on_cubic`), beside `path_geometry`.
 - `path_trace.rs` — KERNEL: `trace`, u16 coverage to a `PathShape` (50 % contour, Douglas–Peucker corners); the fit is `path_fit`.
@@ -638,7 +639,7 @@ Detail belongs in the source file's own header comment.
 - `doc_path.rs` / `precision_path.rs` — PATHS at both depths: `PathEntry`, `DocPaths` / `TypedPaths`, `list_refusal` (the one home of the list rules), `with_paths`.
 - `path_native.rs` — the native `PATH` table, words 74 (byte) / 75 (typed): the path list and the vector-mask section with its raster planes.
 - `doc_vector_mask.rs` / `precision_vector_mask.rs` — VECTOR MASKS: a shape baked into the layer's ordinary mask; records, live or dead, bake, expose/rebake, edits.
-- `vector_mask_combine.rs` (KERNEL) — a PSD vector mask's coverage under its per-subpath add/subtract/intersect/xor ops, each over its own window (`charge`), for an import that bakes it.
+- `vector_mask_combine.rs` (KERNEL) — a PSD vector mask's coverage under its per-subpath ops (`op_from_word`), each over its own window (`charge`), for an import that bakes it.
 - `vector_mask_common.rs` — vector masks' depth-neutral half: `VectorMaskView` and its JSON, `VectorMaskSeed`, `bake_rect`, `anchor_refusal`, `table_mask_agrees`.
 - `doc_vector_mask_carry.rs` — byte vector masks carried across ops: seeds, the follow hook, the native table written and `adopted_records`.
 - `precision_vector_mask_carry.rs` — typed vector masks carried across ops: seeds, `following_geometry`, the native table and `adopt_vector_masks`.

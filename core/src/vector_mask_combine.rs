@@ -35,25 +35,17 @@
 //! clears; none is ever more than the canvas. [`Accumulator::start`] and
 //! [`Accumulator::finish`] are one canvas pass per mask, outside the charge.
 
-/// One subpath's operation word (`psd_path_records`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SubpathOp {
-    Exclude,
-    Combine,
-    Subtract,
-    Intersect,
-}
+use crate::path_geometry::SubpathOp;
 
-impl SubpathOp {
-    /// The length record's operation word, `None` for an unknown one.
-    pub(crate) fn from_word(word: i16) -> Option<Self> {
-        match word {
-            0 => Some(Self::Exclude),
-            1 => Some(Self::Combine),
-            2 => Some(Self::Subtract),
-            3 => Some(Self::Intersect),
-            _ => None,
-        }
+/// The operation a length record's operation word names
+/// (`psd_path_records`), `None` for an unknown one.
+pub(crate) fn op_from_word(word: i16) -> Option<SubpathOp> {
+    match word {
+        0 => Some(SubpathOp::Exclude),
+        1 => Some(SubpathOp::Unite),
+        2 => Some(SubpathOp::Subtract),
+        3 => Some(SubpathOp::Intersect),
+        _ => None,
     }
 }
 
@@ -132,7 +124,7 @@ impl Window {
 /// subpaths and [`Accumulator::apply`] draws by it, so the two agree.
 pub(crate) fn charge(live: &mut Window, op: SubpathOp, hull: Window) -> (Window, u64) {
     match op {
-        SubpathOp::Combine | SubpathOp::Exclude => {
+        SubpathOp::Unite | SubpathOp::Exclude => {
             *live = live.union_box(hull);
             (hull, hull.area())
         }
@@ -238,7 +230,7 @@ impl Accumulator {
 fn combined(op: SubpathOp, c: u16, s: u16) -> u16 {
     let (c0, s) = (f64::from(c) / 65535.0, f64::from(s) / 65535.0);
     let combined = match op {
-        SubpathOp::Combine => c0 + s - c0 * s,
+        SubpathOp::Unite => c0 + s - c0 * s,
         SubpathOp::Subtract => c0 * (1.0 - s),
         SubpathOp::Intersect => c0 * s,
         SubpathOp::Exclude => c0 + s - 2.0 * c0 * s,

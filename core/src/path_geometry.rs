@@ -121,6 +121,18 @@ pub enum FillRule {
     EvenOdd,
 }
 
+/// How one subpath's own region folds into the regions before it: union,
+/// difference, intersection or symmetric difference. The crate's one home
+/// for the operation: a PSD path record's word reads into it
+/// (`vector_mask_combine::op_from_word`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SubpathOp {
+    Unite,
+    Subtract,
+    Intersect,
+    Exclude,
+}
+
 /// A whole path: every contour and the fill rule. An empty shape (no
 /// subpath) is valid and covers nothing.
 #[derive(Clone, Debug, PartialEq)]
@@ -287,7 +299,9 @@ fn flag(object: &Map<String, Value>, key: &str) -> Result<bool, String> {
     }
 }
 
-fn too_many_subpaths() -> String {
+/// The refusal of more than [`MAX_SUBPATHS`] subpaths (shared with
+/// `artwork_ops_coverage`).
+pub(crate) fn too_many_subpaths() -> String {
     format!("too many subpaths in a path (max {MAX_SUBPATHS})")
 }
 
