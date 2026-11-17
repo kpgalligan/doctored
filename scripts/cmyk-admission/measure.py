@@ -245,7 +245,8 @@ BEFORE the measured call:
 - `export-psd-layers-16`: the `render-structure-16` document with its group
   mask's feather cleared (a PSD mask stores none, so the export refuses one); `export_psd`
   layers, PSD; plan = `inspect_psd_export`'s `working_memory_plan_bytes` for
-  the same request (`psd_export_cmyk`'s plan, `LAYERED_SAVE_BYTES_PER_PIXEL`).
+  the same request (`psd_export_cmyk`'s plan, `LAYERED_SAVE_BYTES_PER_PIXEL`,
+  or the counted records and five composite planes where they are larger).
 - `open-psd-layers-16`: that export (written in the setup app) in a fresh
   instance; `open_document` psd_mode layers; plan = `inspect_psd`'s
   `layered_plan_bytes` (`psd_import_cmyk::layered_plan`,

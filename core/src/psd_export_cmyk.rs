@@ -60,7 +60,7 @@ use crate::psd_adjustment::encode_cmyk;
 use crate::psd_export_encode::{encode_plane, image_resources, write_psd, MaskBody, Record};
 use crate::psd_export_preflight::{
     blend_key, cmyk_general_limitations, preflight, ExportAdjustment, ExportEntry, ExportInventory,
-    ExportMask, ExportStyle, PsdExportMode, CLOSER_NAME,
+    ExportMask, ExportStyle, PsdExportMode, PsdExportReport, CLOSER_NAME,
 };
 use crate::psd_fill_layer::Exported;
 use crate::psd_framing::LayeredContainer;
@@ -70,14 +70,18 @@ use crate::psd_layer_effects::{
 };
 use crate::style::{GlobalLight, LayerStyle};
 
-/// The canvas term of a LAYERED CMYK export's plan beside the file's worst
-/// case: the composite's accumulator rows and five stored planes, the
-/// layered TIFF's strip, each layer's contiguous samples and the file's
-/// assembly copies. Declared before measuring;
+/// The measured floor of a LAYERED CMYK export's canvas term beside the
+/// file's worst case: the composite's accumulator rows and five stored
+/// planes, the layered TIFF's strip, each layer's contiguous samples and the
+/// file's assembly copies. Declared before measuring;
 /// `scripts/cmyk-admission/measure.py`'s `export-psd-layers-16` holds the
 /// plan to ⌈1.25 × its measured peak⌉, and a miss raises this term: declared
 /// 42, the first Release measurement (24 MP, max E 2.10 GB) missed at 0.964,
-/// so it is 68, the smallest whole term that clears ⌈1.25 × max E⌉.
+/// so it is 68, the smallest whole term that clears ⌈1.25 × max E⌉. Each
+/// full-canvas layer's record held beside the file grows the peak by its
+/// planes while this term stays put, so the plan takes the counted term
+/// (`held_bytes` and the five composite planes) where it is larger: at 16
+/// bits from six full-canvas layers, at 8 bits from thirteen.
 pub(crate) const LAYERED_SAVE_BYTES_PER_PIXEL: u64 = 68;
 
 /// A placeholder record's channels: alpha and the four inks, each an empty
@@ -633,13 +637,17 @@ impl PrecisionDocument {
 
     /// The working memory of this export (`working_memory_plan_bytes`): the
     /// flattened mode is the CMYK save's own plan (a PSD's, or a TIFF's); the
-    /// layered mode the file's worst case, [`LAYERED_SAVE_BYTES_PER_PIXEL`] a
-    /// canvas pixel, the composite stack's scratch and bookkeeping.
+    /// layered mode the file's worst case, beside it the larger of
+    /// [`LAYERED_SAVE_BYTES_PER_PIXEL`] a canvas pixel and the counted term
+    /// (the records and resources held beside the file, `held_bytes`, and the
+    /// five composite planes, `5 · n · d`, d the inventory's `sample_bytes`,
+    /// built whole for a PSD and a TIFF alike), then the composite stack's
+    /// scratch and bookkeeping.
     fn cmyk_psd_plan(
         &self,
         container: LayeredContainer,
         mode: PsdExportMode,
-        worst_case: u64,
+        report: &PsdExportReport,
     ) -> Result<u64, String> {
         match (mode, container) {
             (PsdExportMode::Flattened, LayeredContainer::Tiff) => {
@@ -647,9 +655,17 @@ impl PrecisionDocument {
             }
             (PsdExportMode::Flattened, _) => self.cmyk_psd_save_scratch_bytes(),
             (PsdExportMode::Layers, _) => {
+                let policy = self.require_cmyk_policy("A CMYK PSD export")?;
+                let sample_bytes = u64::from(policy.depth().bits() / 8);
                 let (w, h) = self.dimensions();
-                Ok(worst_case
-                    .saturating_add(pixel_count(w, h)? as u64 * LAYERED_SAVE_BYTES_PER_PIXEL)
+                let pixels = pixel_count(w, h)? as u64;
+                let measured = pixels.saturating_mul(LAYERED_SAVE_BYTES_PER_PIXEL);
+                let counted = report
+                    .held_bytes
+                    .saturating_add(pixels.saturating_mul(5 * sample_bytes));
+                Ok(report
+                    .worst_case_bytes
+                    .saturating_add(measured.max(counted))
                     .saturating_add(self.cmyk_stack_scratch_bytes()?)
                     .saturating_add(BOOKKEEPING_BYTES))
             }
@@ -678,9 +694,7 @@ impl PrecisionDocument {
             }
         };
         let report = preflight(&inventory, container, mode, file, reopen);
-        let plan = self
-            .cmyk_psd_plan(container, mode, report.worst_case_bytes)
-            .ok();
+        let plan = self.cmyk_psd_plan(container, mode, &report).ok();
         json!({
             "format": container.name(),
             "container": container.name(),
@@ -765,7 +779,7 @@ impl PrecisionDocument {
         if let Some(refusal) = report.refusal {
             return Err(refusal);
         }
-        let plan = self.cmyk_psd_plan(container, mode, report.worst_case_bytes)?;
+        let plan = self.cmyk_psd_plan(container, mode, &report)?;
         admit(self.retained_bytes(), plan, other, limit)?;
         // The writer's own stages report inside the save's first 80 %; the
         // file's write is the rest.

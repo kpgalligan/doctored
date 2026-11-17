@@ -17,9 +17,11 @@
 //! written as its STAMP, a pixel layer holding the picture up to it,
 //! reported as a loss: no Lab adjustment record was ever observed
 //! (`psd_import_lab`'s H-L). The composite is the host's projection of this
-//! revision, as an RGB document's is. The plan is `save_gray_psd`'s (the
-//! 16-bit formula: the file's worst case, the canvas at 8 B a pixel, the
-//! stamps' scratch and a wide style encoder).
+//! revision, as an RGB document's is. The plan is the RGB save's
+//! (`PsdExportReport::working_plan`: the file in one buffer, the records
+//! held beside it, a PSD's three composite planes or a layered TIFF's one
+//! encoded row, the stamps, a wide style encoder and the fixed bookkeeping),
+//! stated by the report and admitted by the save.
 //!
 //! **Photoshop's own Lab layout.** An offline diff of the writer's output
 //! against Photoshop's own Lab files (`lab-files-547/take2`'s `layers8.psd`,
@@ -38,8 +40,8 @@
 //!   after the blend key ([`photoshop_form_lab`],
 //!   `psd_export_encode::photoshop_folder_lsct`, Gray's M4).
 //! * **L4** — a layered TIFF's strip is THREE CIELab samples (TIFF 6.0 §23,
-//!   a\*/b\* signed) of the composite matted over Lab white
-//!   ([`composite_strip_lab`]) under Photometric 8, big-endian,
+//!   a\*/b\* signed) of the composite matted over Lab white, streamed a
+//!   row at a time ([`strip_row_lab`]) under Photometric 8, big-endian,
 //!   uncompressed, with no ExtraSamples and no SampleFormat, and its
 //!   `Layr`/`Lr16` count is positive, as Photoshop's `layers8.tif` and
 //!   `layers16.tif`.
@@ -62,14 +64,14 @@ use serde_json::{json, Value};
 use crate::lab_document::LabDepth;
 use crate::lab_encode::{matte_white, psd_sample, tiff_samples16, tiff_samples8};
 use crate::precision_document::PrecisionDocument;
-use crate::precision_image::{admit, PrecisionImage, PrecisionStorage};
+use crate::precision_image::{admit, PrecisionImage, PrecisionRun, PrecisionStorage};
 use crate::precision_style_render::StyleEnv;
 use crate::psd_export16::{exported_fills16, knockout_written16, record_styles, records, Walk};
 use crate::psd_export_cmyk::Depth;
 use crate::psd_export_encode::{
     encode_plane, image_resources, photoshop_folder_lsct, write_psd, Record,
 };
-use crate::psd_export_preflight::PsdExportMode;
+use crate::psd_export_preflight::{PsdExportMode, PsdExportReport};
 use crate::psd_framing::LayeredContainer;
 use crate::psd_layer_pixels::import_envelope_bytes;
 
@@ -141,67 +143,92 @@ pub(crate) fn channels_lab(
     )
 }
 
-/// The composite's straight codes matted over Lab white (module doc, L1 and
-/// L4), opaque.
-fn matted(composite: &PrecisionImage, width: u32, height: u32) -> Result<Vec<[u16; 4]>, String> {
-    if composite.dimensions() != (width, height) {
-        return Err("PSD composite preview does not match the canvas".into());
-    }
-    let runs = composite.runs_rgba16().ok_or(PROJECTION)?;
-    Ok(runs
-        .flatten()
-        .map(|p| {
-            [
-                matte_white(0, p[0], p[3]),
-                matte_white(1, p[1], p[3]),
-                matte_white(2, p[2], p[3]),
-                65535,
-            ]
-        })
-        .collect())
-}
-
 /// A Lab document's THREE composite planes (L1): L, a and b matted over Lab
-/// white, then stored as `lab_encode::psd_sample` at the file's `depth`. The
-/// alpha is not written: Photoshop's own Lab files carry no merged-alpha
-/// plane.
+/// white (`lab_encode::matte_white`), then stored as
+/// `lab_encode::psd_sample` at the file's `depth`, in ONE walk of the
+/// composite's runs, each pixel matted as it is read (no matted copy of the
+/// canvas). The alpha is not written: Photoshop's own Lab files carry no
+/// merged-alpha plane.
 pub(crate) fn composite_planes_lab(
     composite: &PrecisionImage,
     width: u32,
     height: u32,
     depth: Depth,
 ) -> Result<Vec<Vec<u8>>, String> {
-    let pixels = matted(composite, width, height)?;
+    if composite.dimensions() != (width, height) {
+        return Err("PSD composite preview does not match the canvas".into());
+    }
     let bits = bits(depth);
-    let mut planes: Vec<Vec<u8>> = (0..LAB_PLANES)
-        .map(|_| Vec::with_capacity(pixels.len() * depth.bytes() as usize))
-        .collect();
-    for pixel in &pixels {
+    let count = width as usize * height as usize * depth.bytes() as usize;
+    let mut planes: Vec<Vec<u8>> = (0..LAB_PLANES).map(|_| Vec::with_capacity(count)).collect();
+    for pixel in composite.runs_rgba16().ok_or(PROJECTION)?.flatten() {
         for (channel, plane) in planes.iter_mut().enumerate() {
-            push_sample(depth, plane, psd_sample(bits, channel, pixel[channel]));
+            let code = matte_white(channel, pixel[channel], pixel[3]);
+            push_sample(depth, plane, psd_sample(bits, channel, code));
         }
     }
     Ok(planes)
 }
 
-/// A Lab document's layered-TIFF strip (L4): the composite matted over Lab
-/// white as three CIELab samples a pixel (`lab_encode::tiff_samples8` /
-/// `tiff_samples16`, alpha dropped), big-endian at 16 bits.
-pub(crate) fn composite_strip_lab(
+/// The pixels a Lab strip row is matted in at a time: the row's scratch (the
+/// matted chunk at 8 B a pixel, and at 16 bits its 6 B of samples) is at
+/// most 57,344 bytes whatever the canvas width, inside the plan's
+/// `BOOKKEEPING_BYTES`. A contiguous plane answers ONE run for a whole row
+/// (`PrecisionImage::row_segments`), so the chunking is over each run.
+const STRIP_CHUNK_PIXELS: usize = 4096;
+
+/// Appends row `y` of a Lab document's layered-TIFF strip (L4) to `out`: the
+/// composite matted over Lab white as three CIELab samples a pixel
+/// (`lab_encode::tiff_samples8` / `tiff_samples16`, alpha dropped),
+/// big-endian at 16 bits — a `tiff_layers_write::AppendRow` body.
+/// `tiff_layers_write::append_strip` hands it one Vec it clears and reuses,
+/// so an empty one is reserved at exactly the row's `3 · width · sample`
+/// bytes, the figure `lab_save_plan` charges, and keeps that capacity; the
+/// matting runs in chunks of [`STRIP_CHUNK_PIXELS`], so nothing else here
+/// grows with the width. `Err` with the projection sentence for a run that
+/// is not RGBA16.
+fn strip_row_lab(
     composite: &PrecisionImage,
     width: u32,
-    height: u32,
     depth: Depth,
-) -> Result<Vec<u8>, String> {
-    let pixels = matted(composite, width, height)?;
-    if depth.eight {
-        let mut out = Vec::with_capacity(pixels.len() * LAB_PLANES);
-        tiff_samples8(&pixels, false, &mut out);
-        return Ok(out);
+    y: u32,
+    out: &mut Vec<u8>,
+) -> Result<(), String> {
+    if out.is_empty() {
+        out.reserve_exact(width as usize * LAB_PLANES * depth.bytes() as usize);
     }
-    let mut samples = Vec::with_capacity(pixels.len() * LAB_PLANES);
-    tiff_samples16(&pixels, false, &mut samples);
-    Ok(samples.iter().flat_map(|v| v.to_be_bytes()).collect())
+    let mut pixels: Vec<[u16; 4]> = Vec::with_capacity(STRIP_CHUNK_PIXELS);
+    let mut samples: Vec<u16> = if depth.eight {
+        Vec::new()
+    } else {
+        Vec::with_capacity(STRIP_CHUNK_PIXELS * LAB_PLANES)
+    };
+    for (_, run) in composite.row_segments(y, 0, width) {
+        let PrecisionRun::Rgba16(run) = run else {
+            return Err(PROJECTION.into());
+        };
+        for chunk in run.chunks(STRIP_CHUNK_PIXELS) {
+            pixels.clear();
+            pixels.extend(chunk.iter().map(|p| {
+                [
+                    matte_white(0, p[0], p[3]),
+                    matte_white(1, p[1], p[3]),
+                    matte_white(2, p[2], p[3]),
+                    65535,
+                ]
+            }));
+            if depth.eight {
+                tiff_samples8(&pixels, false, out);
+            } else {
+                samples.clear();
+                tiff_samples16(&pixels, false, &mut samples);
+                for sample in &samples {
+                    out.extend_from_slice(&sample.to_be_bytes());
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// One authored sRGB colour as the L\*, a\*, b\* (D50) an `LbCl` stores,
@@ -248,9 +275,34 @@ impl PrecisionDocument {
         crate::psd_import_lab::lbcl_srgb(lab)
     }
 
+    /// The plan the Lab save admits and its report states
+    /// (`working_memory_plan_bytes`): `PsdExportReport::working_plan` with a
+    /// PSD's or PSB's three composite planes (`3 · n · d`, d the file's bytes
+    /// a sample) and the wide style encoder (`styles_wide16`). A layered TIFF
+    /// streams its strip, so it charges no planes but the one encoded row it
+    /// holds, `3 · width · d`: `tiff_layers_write::append_strip`'s `colour`
+    /// Vec, reserved at exactly that by `strip_row_lab`. Saturating.
+    fn lab_save_plan(&self, report: &PsdExportReport, container: LayeredContainer) -> u64 {
+        let (width, height) = self.dimensions();
+        let depth = self.lab_policy().map_or(LabDepth::Sixteen, |p| p.depth());
+        let row =
+            (LAB_PLANES as u64 * u64::from(depth.bits() / 8)).saturating_mul(u64::from(width));
+        let wide = if crate::wide_color_native::styles_wide16(self) {
+            crate::authored_color::wide_scratch_bytes()
+        } else {
+            0
+        };
+        if container == LayeredContainer::Tiff {
+            report.working_plan(0, wide).saturating_add(row)
+        } else {
+            report.working_plan(row.saturating_mul(u64::from(height)), wide)
+        }
+    }
+
     /// The Lab export report (`dr_precision_doc_psd_export_report`'s Lab
     /// arm): the shared preflight's report at the declared depth with
-    /// `"color_mode":"lab"` and the Lab first and second limitations.
+    /// `"color_mode":"lab"`, the Lab first and second limitations and the
+    /// save's plan ([`Self::lab_save_plan`]).
     pub(crate) fn lab_psd_report_json(
         &self,
         container: LayeredContainer,
@@ -261,6 +313,7 @@ impl PrecisionDocument {
         let depth = self.lab_policy().map_or(LabDepth::Sixteen, |p| p.depth());
         let report = self.limited_psd_report(container, mode, file, reopen);
         let mut out = report.json(container, mode, depth.bits() as u16);
+        out["working_memory_plan_bytes"] = json!(self.lab_save_plan(&report, container));
         out["color_mode"] = json!("lab");
         if let Some(first) = out["general_limitations"].get_mut(0) {
             *first = json!(first_limitation(container));
@@ -312,24 +365,12 @@ impl PrecisionDocument {
         if projection.profile().bytes() != self.profile().bytes() {
             return Err("the supplied projection does not carry this document's ICC bytes".into());
         }
-        // `save_gray_psd`'s formula: the file's worst case, the canvas at 8 B
-        // a pixel, the stamps' scratch and a wide style encoder.
-        let canvas_bytes = u64::from(width)
-            .checked_mul(u64::from(height))
-            .and_then(|pixels| pixels.checked_mul(8))
-            .ok_or("16-bit PSD export size calculation overflow")?;
-        let wide_bytes = if crate::wide_color_native::styles_wide16(self) {
-            crate::authored_color::wide_scratch_bytes()
-        } else {
-            0
-        };
+        // The plan the report states (`lab_save_plan`): the file, the records
+        // and resources held beside it, a PSD's composite planes or a TIFF's
+        // one encoded row, the stamps and the wide encoder.
         admit(
             self.retained_bytes(),
-            report
-                .worst_case_bytes
-                .saturating_add(canvas_bytes)
-                .saturating_add(report.bake_scratch_bytes)
-                .saturating_add(wide_bytes),
+            self.lab_save_plan(&report, container),
             other,
             limit,
         )?;
@@ -431,6 +472,9 @@ impl PrecisionDocument {
             crate::psd_typed_exchange::resources(self, matches!(mode, PsdExportMode::Layers));
         // L2: no profile anywhere.
         let bytes = if container == LayeredContainer::Tiff {
+            // L4: the strip streamed into the file a row at a time.
+            let row =
+                |y: u32, strip: &mut Vec<u8>| strip_row_lab(projection, width, depth, y, strip);
             crate::tiff_layers::write(
                 width,
                 height,
@@ -441,9 +485,7 @@ impl PrecisionDocument {
                 &image_resources(&[], self.resolution(), light, self.color_samplers(), &extra),
                 &out,
                 false,
-                crate::tiff_layers::Strip::Samples(&composite_strip_lab(
-                    projection, width, height, depth,
-                )?),
+                crate::tiff_layers::Strip::Rows(&row),
                 &tail,
             )?
         } else {

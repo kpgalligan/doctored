@@ -174,17 +174,26 @@ pub(crate) fn rgb_composite_scratch(
 }
 
 impl PsdExportReport {
-    /// The working memory an RGB 8- or 16-bit layered save needs: the file
-    /// (`worst_case_bytes`, laid into one buffer), what it holds beside it
-    /// (`held_bytes`), the composite planes a PSD builds
-    /// ([`rgb_composite_scratch`]), the adjustment stamps and the wide-colour
-    /// encoder (`wide_bytes`, 0 at 8 bits). Saturating.
+    /// The working memory an RGB or Lab 8- or 16-bit layered save needs: the
+    /// file (`worst_case_bytes`, laid into one buffer), what it holds beside
+    /// it (`held_bytes`), the composite planes a PSD builds
+    /// (`composite_bytes`: [`rgb_composite_scratch`], Lab's three planes),
+    /// the adjustment stamps, the wide-colour encoder (`wide_bytes`, 0 at 8
+    /// bits) and `BOOKKEEPING_BYTES`. The megabyte covers what stays bounded
+    /// whatever the canvas: the save's one colour transform
+    /// (`StyleEnv::colors_for`), the record headers, the one encoded
+    /// composite row in flight (`packbits_row`), a Lab strip row's matting
+    /// chunk and the 16-bit RGB layered TIFF's one encoded row
+    /// (`Strip::Rows`, 8 B a pixel grown by doubling: at most 262,144 B at
+    /// the layered TIFF's 30,000-pixel side, `LayeredContainer::max_side`).
+    /// A Lab layered TIFF charges its own row (`lab_save_plan`). Saturating.
     pub(crate) fn working_plan(&self, composite_bytes: u64, wide_bytes: u64) -> u64 {
         self.worst_case_bytes
             .saturating_add(self.held_bytes)
             .saturating_add(composite_bytes)
             .saturating_add(self.bake_scratch_bytes)
             .saturating_add(wide_bytes)
+            .saturating_add(crate::precision_image::BOOKKEEPING_BYTES)
     }
 
     pub(crate) fn json(
@@ -461,12 +470,13 @@ fn name_units(name: &str) -> u64 {
 /// The record costs of one export, in file order.
 fn export_costs(inventory: &ExportInventory, mode: PsdExportMode) -> Vec<RecordCost> {
     if mode == PsdExportMode::Flattened {
+        // The one composite record writes its alpha beside the colour planes,
+        // also for Grayscale and Lab, whose merged composite carries none
+        // (`channels_gray`, `channels_lab`, `channels_gray32`).
+        let planes = composite_planes(inventory) + usize::from(inventory.gray || inventory.lab);
         return vec![RecordCost {
             name_units: name_units("Composite"),
-            planes: vec![
-                (u64::from(inventory.width), u64::from(inventory.height));
-                composite_planes(inventory)
-            ],
+            planes: vec![(u64::from(inventory.width), u64::from(inventory.height)); planes],
             block_bytes: 0,
         }];
     }

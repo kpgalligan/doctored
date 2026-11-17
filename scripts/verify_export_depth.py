@@ -22,7 +22,9 @@ PDF object walk, loaded by path so nothing here edits them.
   (`core/tests/fixtures/psd_photoshop/depth32/source32.psd`, committed by
   the Photoshop take) inspects as rgba32 and opens layered; 8-bit and
   16-bit documents still export at their own depth, and their layered TIFF
-  export admits inspect_psd_export's working_memory_plan_bytes plus 16 MiB.
+  export admits inspect_psd_export's working_memory_plan_bytes plus 16 MiB,
+  as do the layered PSD and TIFF of a Gray and a Lab document and the PSD of
+  a Duotone one, each converted from the 16-bit fixture.
   Never launches Photoshop.
 - G2: a byte document's default PDF is 8 bpc, ZIP, no soft mask, and its image
   stream equals the 8-bit PNG export's RGB.
@@ -70,6 +72,9 @@ T5_JPEG_MEAN_CODES = 3.0
 FLOAT_FIXTURE = ROOT / 'core/tests/fixtures/float_11f/scene.tiff'
 WIDTH = 64
 HEIGHT = 48
+# Two inks, straight curves (`scripts/verify_duotone_mode.py`'s shape).
+DUOTONE_INKS = [{'name': 'Black', 'lab': [0, 0, 0], 'curve': [0] + [None] * 11 + [100]},
+                {'name': 'Rust', 'lab': [55, 45, 55], 'curve': [0] + [None] * 11 + [100]}]
 
 FLOAT_FIRST = {
     'psd': ("Only 32-bit RGB classic PSD is written for a 32-bit float document: linear-light "
@@ -349,6 +354,35 @@ def g1_psd(drive, docs):
         checks[f'{key}_tiff_plan_{depth}'] = (
             tiff.get('ok') is True and isinstance(plan, int)
             and tiff.get('working_memory_plan_bytes') == plan + 16 * 1024 * 1024)
+    # A Gray, a Duotone and a Lab document made from the 16-bit fixture state
+    # their layered save's plan too, and export_psd admits it plus the same
+    # 16 MiB (a 16-bit Duotone's plan includes its 8-bit copy's; a Duotone
+    # has no layered TIFF).
+    source = drive.output / 'fixtures' / 'rgba16.png'
+    gray = {'mode': 'gray', 'gray_space': 'dot_gain_20'}
+    for key, steps, formats in (('gray', (gray,), ('psd', 'tiff')),
+                                ('duotone', (gray, {'mode': 'duotone', 'inks': DUOTONE_INKS}),
+                                 ('psd',)),
+                                ('lab', ({'mode': 'lab'},), ('psd', 'tiff'))):
+        copy = drive.output / 'fixtures' / f'rgba16-{key}.png'
+        copy.write_bytes(source.read_bytes())
+        document = drive.open(copy, precision='preserve')
+        for step in steps:
+            drive.call('convert_mode', document_id=document, **step)
+        for container in formats:
+            inspected = drive.call('inspect_psd_export', document_id=document, mode='layers',
+                                   format=container)
+            exported = drive.call('export_psd', document_id=document, mode='layers',
+                                  format=container,
+                                  path=str(drive.output / f'{key}-layers.{container}'))
+            plan = inspected.get('working_memory_plan_bytes')
+            detail[f'{key}_{container}_plan'] = dict(
+                report=plan, exported=exported.get('working_memory_plan_bytes'),
+                bit_depth=exported.get('bit_depth'))
+            checks[f'{key}_{container}_plan'] = (
+                exported.get('ok') is True and isinstance(plan, int)
+                and exported.get('working_memory_plan_bytes') == plan + 16 * 1024 * 1024)
+        drive.call('close_document', document_id=document, discard_changes=True)
     drive.gate('G1 float PSD and PSB at 32 bits', checks, detail)
 
 

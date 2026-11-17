@@ -14,8 +14,9 @@
 //! `psd_adjustment::encode`'s. The file is colour mode 1 with the Gray ICC
 //! bytes verbatim in resource 1039 (a TIFF's tag 34675 too). The composite is
 //! the host's projection of this revision, as an RGB document's is. The plan
-//! is `save_psd`'s 16-bit formula (one plane written of the four it
-//! charges). A 32-bit Gray document (phase 3c) takes the float preflight
+//! is `gray_save_plan` (the 16-bit formula, one plane written of the four it
+//! charges), which the report states and the save admits. A 32-bit Gray
+//! document (phase 3c) takes the float preflight
 //! (`limited_psd_report` at 4 B a sample: a layered TIFF refuses with
 //! `psd_export_gray32::TIFF_REFUSAL`, a record with no 32-bit form with
 //! `layers_refusal`) and writes through `psd_export_gray32`.
@@ -64,7 +65,7 @@
 //! plan and held beside the document, which is unchanged (`.rz` keeps 16
 //! bits). The report says depth 8 and carries one loss line
 //! ([`DUOTONE_EIGHT_LOSS`]), and the copy's plan rides in
-//! `bake_scratch_bytes`, which the host's admission adds.
+//! `bake_scratch_bytes` and in the stated `working_memory_plan_bytes`.
 //!
 //! Forms the RGB writer shares and Photoshop opens are kept: untrimmed
 //! record bounds, ranges only on a record with Blend If, the `luni`
@@ -88,7 +89,7 @@ use crate::precision_style_render::StyleEnv;
 use crate::psd_export16::{exported_fills16, knockout_written16, record_styles, records, Walk};
 use crate::psd_export_cmyk::Depth;
 use crate::psd_export_encode::{encode_plane, image_resources, matte, matte16, write_psd, Record};
-use crate::psd_export_preflight::PsdExportMode;
+use crate::psd_export_preflight::{PsdExportMode, PsdExportReport};
 use crate::psd_framing::LayeredContainer;
 use crate::psd_layer_pixels::import_envelope_bytes;
 
@@ -245,10 +246,46 @@ impl PrecisionDocument {
                 .is_some_and(|p| p.duotone().is_some() && p.depth() == GrayDepth::Sixteen)
     }
 
+    /// The plan the 8- and 16-bit Gray or Duotone save admits
+    /// (`working_memory_plan_bytes`): the file's worst case, the canvas at
+    /// 8 B a pixel, the stamps' scratch and a wide style encoder, and for a
+    /// Duotone file the worst case once more (one more copy of the Gray
+    /// writer's bytes, `duotone_files::into_duotone_file`). It holds by
+    /// count: the inventory charges four planes for each raster record
+    /// (`psd_export16::entries`) where a Gray record writes two
+    /// ([`channels_gray`]), so `worst_case_bytes` overstates the file by one
+    /// Gray record's planes a layer, which pays for the record held beside
+    /// the file; the 8 B a pixel covers the one composite plane (n · d), a
+    /// PSD's encoded spot rows and the transients. Saturating.
+    fn gray_save_plan(&self, report: &PsdExportReport) -> u64 {
+        let (width, height) = self.dimensions();
+        let canvas = u64::from(width)
+            .saturating_mul(u64::from(height))
+            .saturating_mul(8);
+        let wide = if crate::wide_color_native::styles_wide16(self) {
+            crate::authored_color::wide_scratch_bytes()
+        } else {
+            0
+        };
+        let duotone = if self.gray_policy().is_some_and(|p| p.duotone().is_some()) {
+            report.worst_case_bytes
+        } else {
+            0
+        };
+        report
+            .worst_case_bytes
+            .saturating_add(canvas)
+            .saturating_add(report.bake_scratch_bytes)
+            .saturating_add(wide)
+            .saturating_add(duotone)
+    }
+
     /// The Gray export report (`dr_precision_doc_psd_export_report`'s Gray
     /// arm): the shared preflight's report at the declared depth (at 32 bits
-    /// the float one, module doc) with `"color_mode":"gray"` and the Gray
-    /// first limitation.
+    /// the float one, module doc, which states no plan) with
+    /// `"color_mode":"gray"`, the Gray first limitation and, at 8 and 16
+    /// bits, the save's plan ([`Self::gray_save_plan`]; a 16-bit Duotone's
+    /// adds its 8-bit copy's plan).
     pub(crate) fn gray_psd_report_json(
         &self,
         container: LayeredContainer,
@@ -261,11 +298,12 @@ impl PrecisionDocument {
         let eight_copy = self.duotone_written_at_eight(container);
         let written = if eight_copy { GrayDepth::Eight } else { depth };
         let mut out = report.json(container, mode, written.bits() as u16);
+        let mut save_plan = (depth != GrayDepth::ThirtyTwo).then(|| self.gray_save_plan(&report));
         if eight_copy {
             // The file is written from an 8-bit copy (module doc): its loss
             // line, and the copy's plan (the depth op's own,
-            // `gray_profile_plan`) beside the stamps' scratch, which the host
-            // adds to its admission.
+            // `gray_profile_plan`) beside the stamps' scratch, which the
+            // stated plan adds as the save admits it, in two steps.
             if let Some(losses) = out["losses"].as_array_mut() {
                 losses.push(json!(DUOTONE_EIGHT_LOSS));
             }
@@ -280,14 +318,19 @@ impl PrecisionDocument {
                 Some(copy) => {
                     out["bake_scratch_bytes"] =
                         json!(report.bake_scratch_bytes.saturating_add(copy));
+                    save_plan = save_plan.map(|plan| plan.saturating_add(copy));
                 }
                 None => {
                     out["available"] = json!(false);
                     out["refusal"] = json!(plan
                         .err()
                         .unwrap_or_else(|| "the 8-bit Duotone copy could not be planned".into()));
+                    save_plan = None;
                 }
             }
+        }
+        if let Some(plan) = save_plan {
+            out["working_memory_plan_bytes"] = json!(plan);
         }
         out["color_mode"] = json!("gray");
         if let Some(first) = out["general_limitations"].get_mut(0) {
@@ -374,32 +417,10 @@ impl PrecisionDocument {
         if projection.profile().bytes() != self.profile().bytes() {
             return Err("the supplied projection does not carry this document's ICC bytes".into());
         }
-        // `save_psd`'s 16-bit formula: the file's worst case, the canvas at
-        // 8 B a pixel, the stamps' scratch and a wide style encoder.
-        let canvas_bytes = u64::from(width)
-            .checked_mul(u64::from(height))
-            .and_then(|pixels| pixels.checked_mul(8))
-            .ok_or("16-bit PSD export size calculation overflow")?;
-        let wide_bytes = if crate::wide_color_native::styles_wide16(self) {
-            crate::authored_color::wide_scratch_bytes()
-        } else {
-            0
-        };
-        // A Duotone file is one more copy of the Gray writer's bytes
-        // (`duotone_files::into_duotone_file`).
-        let duotone_bytes = if policy.duotone().is_some() {
-            report.worst_case_bytes
-        } else {
-            0
-        };
+        // The plan the report states (`gray_save_plan`).
         admit(
             self.retained_bytes(),
-            report
-                .worst_case_bytes
-                .saturating_add(canvas_bytes)
-                .saturating_add(report.bake_scratch_bytes)
-                .saturating_add(wide_bytes)
-                .saturating_add(duotone_bytes),
+            self.gray_save_plan(&report),
             other,
             limit,
         )?;

@@ -53,7 +53,7 @@ fn colour_samples(color: u16) -> usize {
 /// Photometric 5, InkSet 1) for `color` 4, the white-matted gray (one sample,
 /// Photometric 1, no ExtraSamples) for `color` 1, the CIELab samples of the
 /// composite matted over Lab white (three samples, Photometric 8, no
-/// ExtraSamples, a\*/b\* signed; `psd_export_lab::composite_strip_lab`) for
+/// ExtraSamples, a\*/b\* signed; `psd_export_lab::strip_row_lab`) for
 /// `color` 9. `resources` is a PSD image-resource section (tag 34377); an
 /// empty `icc` writes no tag 34675. `Err` as [`write_with`].
 #[allow(clippy::too_many_arguments)]

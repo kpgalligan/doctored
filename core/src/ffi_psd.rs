@@ -385,9 +385,10 @@ pub unsafe extern "C" fn dr_precision_doc_open_lab_psd(
 /// 16 or 32) with `"color_mode":"gray"` (#1 phase 3b); at 32 it is the
 /// float report, a layered TIFF refused (#1 phase 3c). A Lab Color
 /// document answers its declared depth (8 or 16) with `"color_mode":"lab"`
-/// (#1 Lab phase 3b). A 16-bit RGB document's `working_memory_plan_bytes`
-/// is the plan its save admits; a float, Grayscale or Lab report carries
-/// none. Reads no pixels.
+/// (#1 Lab phase 3b). The `working_memory_plan_bytes` of a 16-bit RGB, an
+/// 8- or 16-bit Grayscale or Duotone, or a Lab document is the plan its save
+/// admits (a 16-bit Duotone's includes its 8-bit copy's plan); a float or
+/// 32-bit Grayscale report carries none. Reads no pixels.
 ///
 /// # Safety
 /// err_out must be NULL or writable.
@@ -427,21 +428,22 @@ pub unsafe extern "C" fn dr_precision_doc_psd_export_report(
 /// be this document's canvas-sized RGBA16 UNORM rendering in its exact ICC
 /// bytes; the save admits the report's `working_memory_plan_bytes`, holding
 /// its records and one file buffer. A CMYK document takes NULL and writes a
-/// CMYK file at its declared
-/// depth, its composite rendered here (#1). A float document writes a
-/// 32-bit RGB PSD or PSB or big-endian layered TIFF from its
-/// canvas-sized RGBA32 float projection. A Grayscale document writes a
+/// CMYK file at its declared depth, its composite rendered here (#1). A
+/// float document writes a 32-bit RGB PSD or PSB or big-endian layered TIFF
+/// from its canvas-sized RGBA32 float projection. A Grayscale document writes a
 /// colour-mode-1 PSD, PSB or layered TIFF at its declared 8 or 16 bits from
 /// its REQUIRED canvas-sized RGBA16 projection (#1 phase 3b); a 32-bit one
 /// writes a 32-bit colour-mode-1 PSD or PSB from its REQUIRED RGBA32 float
 /// projection, and its layered TIFF is refused (#1 phase 3c). A Lab Color
 /// document writes a colour-mode-9 PSD, PSB or layered TIFF at its declared
 /// 8 or 16 bits, no profile embedded, from its REQUIRED canvas-sized RGBA16
-/// projection in its Lab twin (#1 Lab phase 3b). The preflight runs again
-/// and its refusal is this call's error, so a refused export leaves an
-/// existing destination byte-identical. `control` is optional and
-/// single-use, begun once for the whole save; a cancel answers exactly
-/// `operation cancelled` and keeps the previous file.
+/// projection in its Lab twin (#1 Lab phase 3b). An 8- or 16-bit Grayscale,
+/// a Duotone or a Lab save admits the report's `working_memory_plan_bytes`
+/// (a 16-bit Duotone admits its 8-bit copy, then the copy's save). The
+/// preflight runs again and its refusal is this call's error, so a refused
+/// export leaves an existing destination byte-identical. `control` is
+/// optional and single-use, begun once for the whole save; a cancel answers
+/// exactly `operation cancelled` and keeps the previous file.
 ///
 /// # Safety
 /// path must be NULL or a NUL-terminated string; control NULL or a live

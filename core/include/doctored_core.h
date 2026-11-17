@@ -5639,8 +5639,10 @@ DrPrecisionDocument *dr_precision_doc_open_lab_psd(const char *path, int mode,
  * document, which writes a PSD or PSB or a big-endian layered TIFF
  * at 32 bits. A 16-bit RGB document's "working_memory_plan_bytes" is the plan
  * dr_precision_doc_save_psd admits (a PSD's or PSB's composite planes at n*8,
- * plus the wide-colour encoder a wide style or fill colour needs); a float,
- * Grayscale or Lab document's report carries none. A CMYK
+ * plus the wide-colour encoder a wide style or fill colour needs); an 8- or
+ * 16-bit Grayscale or Duotone document's and a Lab document's report state
+ * the plan their save admits too (a 16-bit Duotone's includes its 8-bit
+ * copy's plan); a float or 32-bit Grayscale report carries none. A CMYK
  * document answers "depth":"cmyk" with "bit_depth" (its declared 8 or 16)
  * and "working_memory_plan_bytes", for every container and both modes (#1).
  * A Grayscale document answers its declared "depth" (8, 16 or 32) with
@@ -5675,6 +5677,9 @@ char *dr_precision_doc_psd_export_report(const DrPrecisionDocument *doc,
  * A Lab Color document writes a colour-mode-9 PSD, PSB or layered TIFF at
  * its declared 8 or 16 bits, no profile embedded, from its REQUIRED
  * canvas-sized RGBA16 projection in its Lab twin (#1 Lab phase 3b).
+ * An 8- or 16-bit Grayscale, a Duotone or a Lab save admits the report's
+ * working_memory_plan_bytes (a 16-bit Duotone admits its 8-bit copy, then
+ * the copy's save).
  * An RGB, CMYK, Grayscale or Duotone PSD or PSB at 8 or 16 bits carries the
  * document's spot channels in Photoshop's layout (#1 spot channels 1b-1);
  * a layered TIFF from RGB or CMYK at 8 or 16 bits carries them as trailing

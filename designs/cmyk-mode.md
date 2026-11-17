@@ -201,7 +201,8 @@
   a missing ink channel refuses. Channel id 3 is admitted only for colour 4. Export writes the same back (ink as
   `max − ink`, adjustments never baked) with a five-plane composite (`on_paper` ink + alpha); Flattened is the zero-record
   colour-4 composite (TIFF: the plain CMYK TIFF). A CMYK document needs no projection. Plans:
-  `LAYERED_OPEN_BYTES_PER_PIXEL` 27 and `LAYERED_SAVE_BYTES_PER_PIXEL` 68 over the canvas; the alpha TIFF's `open_scratch`
+  `LAYERED_OPEN_BYTES_PER_PIXEL` 27 and `LAYERED_SAVE_BYTES_PER_PIXEL` 68 over the canvas (the save takes the counted
+  `held_bytes` + five composite planes instead where the records outgrow 68); the alpha TIFF's `open_scratch`
   adds the extras' decoded bytes.
 - **Retouch on ink.** The shipped RGB16 walk on two canvas-sized `L` pass documents (`cmyk_passes`: `[L_c, L_m, L_y, α]`,
   `[L_k; 3, α]`; a locked record's passes carry the lock), joined by `join_sample` (α must agree): Dodge/Burn (DB-P4, all

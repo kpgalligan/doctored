@@ -113,7 +113,8 @@ second CMYK profile, Adobe's U.S. Web Coated (SWOP) v2.
 Phase 3 (layered files) adds `export-psd-layers-16` (`export_psd` layers of the unfeathered
 `render-structure-16` document, gated on `inspect_psd_export`'s
 `working_memory_plan_bytes`: `psd_export_cmyk::LAYERED_SAVE_BYTES_PER_PIXEL` over the
-canvas beside the record walk), `open-psd-layers-16` (that file opened with psd_mode
+canvas beside the record walk, or the counted records and five composite planes where
+they are larger), `open-psd-layers-16` (that file opened with psd_mode
 layers in a fresh app, gated on `inspect_psd`'s `layered_plan_bytes`:
 `psd_import_cmyk::LAYERED_OPEN_BYTES_PER_PIXEL` over the canvas beside the decode peak)
 and `open-tiff-alpha-16` (a CMYKA16 TIFF the drive writes; `cmyk_io::open_scratch` with
