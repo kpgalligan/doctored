@@ -268,10 +268,17 @@ extension AgentServer {
                 if linear != nil, a["rgba"] != nil {
                     throw ToolError(message: "Pass rgba32 or rgba, not both.")
                 }
-                command = try PrecisionPixelCommand(["op": "paint_blend", "layer": layer,
+                var request: [String: Any] = try ["op": "paint_blend", "layer": layer,
                     "color": linear ?? precisionInk(a, document: document).rgba,
                     "color_space": linear == nil ? precisionInkSpace(a).rawValue : "linear",
-                    "opacity": opacity, "blend_mode": blend.rawValue, "selection": selected])
+                    "opacity": opacity, "blend_mode": blend.rawValue, "selection": selected]
+                // Colour dynamics (`AgentServer+BrushColour.swift`): the stroke's inks ride in
+                // three planes and the request's RGB is inert, its alpha kept.
+                if native.inks != nil {
+                    request["color_space"] = "document"
+                    request["ink_planes"] = true
+                }
+                command = try PrecisionPixelCommand(request)
             }
             // Mirrors the 16-bit Brush, Eraser and Clone Stamp canvas strokes
             // (EditorViewController.finishPrecisionStroke): one job whose

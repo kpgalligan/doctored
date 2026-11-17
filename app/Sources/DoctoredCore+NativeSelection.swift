@@ -69,21 +69,67 @@ extension RasterSelection {
         return output
     }
 
+    /// `dr_brush_u16_coloured`: `nativeBrush`'s coverage (its `shapes`, `texture`, `dual` and
+    /// `origin` as there) with each dab in its own `inks` triple, and the three planes of the
+    /// straight ink `round(S · 65535)` the core accumulates per pixel beside it.
+    static func nativeBrushColoured(width: Int, height: Int, request: String, dabs: [Double],
+                                    shapes: [Double]? = nil, texture: RasterBrushTexture? = nil,
+                                    dual: (request: String, dabs: [Double])? = nil,
+                                    inks: [Double], origin: (x: Int, y: Int) = (0, 0),
+                                    workingLimit: UInt64, otherRetained: UInt64,
+                                    control: RasterJobControl) throws -> (coverage: [UInt16],
+                                                                          ink: [UInt16]) {
+        var error: UnsafeMutablePointer<CChar>?
+        let n = width * height
+        var output = [UInt16](repeating: 0, count: 4 * n)
+        let (ox, oy) = (Int64(origin.x), Int64(origin.y))
+        let ok = dabs.withUnsafeBufferPointer { input in
+            inks.withUnsafeBufferPointer { ink in
+                output.withUnsafeMutableBufferPointer { out in
+                    func call(_ pairs: UnsafePointer<Double>?) -> Bool {
+                        guard let dual else {
+                            return dr_brush_u16_coloured(UInt32(width), UInt32(height), request,
+                                input.baseAddress, dabs.count / 4, pairs, texture?.ptr, ox, oy,
+                                nil, nil, 0, ink.baseAddress, out.baseAddress, out.count,
+                                workingLimit, otherRetained, control.ptr, &error)
+                        }
+                        return dual.dabs.withUnsafeBufferPointer { second in
+                            dr_brush_u16_coloured(UInt32(width), UInt32(height), request,
+                                input.baseAddress, dabs.count / 4, pairs, texture?.ptr, ox, oy,
+                                dual.request, second.baseAddress, dual.dabs.count / 4,
+                                ink.baseAddress, out.baseAddress, out.count, workingLimit,
+                                otherRetained, control.ptr, &error)
+                        }
+                    }
+                    guard let shapes else { return call(nil) }
+                    return shapes.withUnsafeBufferPointer { call($0.baseAddress) }
+                }
+            }
+        }
+        guard ok else {
+            throw DoctoredCoreError(message: takeErrorMessage(error,
+                fallback: "Native brush colour failed."))
+        }
+        return (Array(output[..<n]), Array(output[n...]))
+    }
+
     /// `dr_brush_overlay_rgba8`: the same brush as `nativeBrush`, written as the
     /// canvas-sized premultiplied RGBA8 overlay the byte paint ops take, in
     /// `rgb`'s straight ink and multiplied by `selection` (canvas-sized bytes). With
     /// `texture`, `dr_brush_overlay_rgba8_textured` with `shapes` and `origin`, the canvas
     /// coordinate of the output's pixel (0, 0); with `dual` (the second tip's request and dabs),
-    /// `dr_brush_overlay_rgba8_dual` with `shapes`, `texture` and `origin`. `shapes` without a
-    /// texture or a dual refuses.
+    /// `dr_brush_overlay_rgba8_dual` with `shapes`, `texture` and `origin`. With `inks` (three
+    /// per dab), `dr_brush_overlay_rgba8_coloured` with all of them, each pixel in its own ink and
+    /// `rgb` unread. `shapes` without a texture, a dual or inks refuses.
     static func nativeBrushOverlay(width: Int, height: Int, request: String, dabs: [Double],
                                    shapes: [Double]? = nil, texture: RasterBrushTexture? = nil,
                                    dual: (request: String, dabs: [Double])? = nil,
+                                   inks: [Double]? = nil,
                                    origin: (x: Int, y: Int) = (0, 0),
                                    rgb: [UInt8], selection: [UInt8]?,
                                    workingLimit: UInt64, otherRetained: UInt64) throws -> [UInt8] {
         guard rgb.count == 3 else { throw DoctoredCoreError(message: "Native brush overlay ink needs three bytes.") }
-        guard shapes == nil || texture != nil || dual != nil else {
+        guard shapes == nil || texture != nil || dual != nil || inks != nil else {
             throw DoctoredCoreError(message: "A shaped native brush overlay needs its texture.")
         }
         var error: UnsafeMutablePointer<CChar>?
@@ -92,6 +138,31 @@ extension RasterSelection {
             rgb.withUnsafeBufferPointer { ink in
                 output.withUnsafeMutableBufferPointer { out in
                     func call(_ mask: UnsafePointer<UInt8>?, _ maskCount: Int) -> Bool {
+                        if let inks {
+                            func coloured(_ pairs: UnsafePointer<Double>?) -> Bool {
+                                inks.withUnsafeBufferPointer { perDab in
+                                    guard let dual else {
+                                        return dr_brush_overlay_rgba8_coloured(UInt32(width),
+                                            UInt32(height), request, input.baseAddress,
+                                            dabs.count / 4, pairs, texture?.ptr, Int64(origin.x),
+                                            Int64(origin.y), nil, nil, 0, perDab.baseAddress,
+                                            mask, maskCount, out.baseAddress, out.count,
+                                            workingLimit, otherRetained, nil, &error)
+                                    }
+                                    return dual.dabs.withUnsafeBufferPointer { second in
+                                        dr_brush_overlay_rgba8_coloured(UInt32(width),
+                                            UInt32(height), request, input.baseAddress,
+                                            dabs.count / 4, pairs, texture?.ptr, Int64(origin.x),
+                                            Int64(origin.y), dual.request, second.baseAddress,
+                                            dual.dabs.count / 4, perDab.baseAddress, mask,
+                                            maskCount, out.baseAddress, out.count, workingLimit,
+                                            otherRetained, nil, &error)
+                                    }
+                                }
+                            }
+                            guard let shapes else { return coloured(nil) }
+                            return shapes.withUnsafeBufferPointer { coloured($0.baseAddress) }
+                        }
                         if let dual {
                             func multiplied(_ pairs: UnsafePointer<Double>?) -> Bool {
                                 dual.dabs.withUnsafeBufferPointer { second in

@@ -131,7 +131,11 @@ impl BitmapOp {
             .map_err(|e| format!("invalid high-depth edit request: {e}"))?;
         Ok(match value["op"].as_str().unwrap_or("edit") {
             "paint_blend" | "bucket_fill" | "erase_native" | "gradient" => {
-                Self::Native(NativePaintEdit::parse(text)?)
+                let edit = NativePaintEdit::parse(text)?;
+                if edit.ink_planes() {
+                    return Err(crate::precision_paint_tools::INK_PLANES_MODE.into());
+                }
+                Self::Native(edit)
             }
             "perspective_crop" => Self::PerspectiveCrop(PerspectiveCropRequest::parse(text)?),
             "retouch_clone" => {

@@ -13,6 +13,13 @@ extension AgentServer {
         let number = { (range: String, what: String) -> [String: Any] in
             ["type": "number", "description": "\(what), \(range) (the options bar's field)."]
         }
+        let dynamicsText: String = "The Brush's, Pencil's and Eraser's dynamics (brush_stroke's "
+            + "dynamics without seed); only those three tools take and list a preset that holds "
+            + "them, the Pencil none whose dynamics hold angle, roundness, texture or dual, and "
+            + "only the Brush one whose dynamics hold color (its amounts; a background is the "
+            + "stroke's, and refuses here). A texture's {name} is saved as that library "
+            + "pattern's tile; list rows and the reply echo its pattern without pixels."
+        let dynamics = Self.dynamicsSchema(seed: false).merging(["description": dynamicsText]) { $1 }
         return [
             tool("list_brush_presets",
                  "The paint options bar's Preset popup: every brush tip preset, the built-ins "
@@ -38,12 +45,7 @@ extension AgentServer {
                   "angle": number("-180–180", "Tip angle in degrees"),
                   "roundness": number("1–100", "Roundness percent"),
                   "airbrush": ["type": "boolean", "default": false],
-                  "dynamics": Self.dynamicsSchema(seed: false).merging(["description":
-                      "The Brush's, Pencil's and Eraser's dynamics (brush_stroke's dynamics without "
-                      + "seed); only those three tools take and list a preset that holds them, and "
-                      + "the Pencil none whose dynamics hold angle, roundness, texture or dual. A "
-                      + "texture's {name} is saved as that library pattern's tile; list rows and "
-                      + "the reply echo its pattern without pixels."]) { $1 },
+                  "dynamics": dynamics,
                   "replace": ["type": "boolean", "default": false]],
                  required: ["name", "hardness", "flow", "spacing", "angle", "roundness"]),
             tool("delete_brush_preset",

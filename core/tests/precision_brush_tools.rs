@@ -3,6 +3,7 @@ use crate::common::classic_ramp;
 use crate::native_blend_oracle as hsl;
 use crate::native_scalar as native;
 use doctored_core::ffi_brush::*;
+use doctored_core::ffi_brush_colour::*;
 use doctored_core::ffi_brush_dual::*;
 use doctored_core::ffi_brush_texture::*;
 use doctored_core::ffi_precision_edit::*;
@@ -712,6 +713,60 @@ fn brush_refusals_and_new_exports_null_sweep_leave_output_untouched() {
             ptr::null_mut()
         ));
         assert!(!dr_brush_overlay_rgba8_dual(
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null_mut(),
+            0,
+            LIMIT,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        ));
+        assert!(dr_brush_colour_create(ptr::null(), ptr::null_mut()).is_null());
+        dr_brush_colour_free(ptr::null_mut());
+        let mut ink = [-7.; 3];
+        assert!(!dr_brush_colour_ink(ptr::null(), 0, 0, ink.as_mut_ptr()));
+        assert_eq!(ink, [-7.; 3]);
+        let request = text(json!({"version":1,"foreground":[0.,0.,0.],"background":[1.,1.,1.]}));
+        let colour = dr_brush_colour_create(request.as_ptr(), ptr::null_mut());
+        assert!(!colour.is_null());
+        assert!(!dr_brush_colour_ink(colour, 0, 0, ptr::null_mut()));
+        dr_brush_colour_free(colour);
+        assert!(!dr_brush_u16_coloured(
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            0,
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null_mut(),
+            0,
+            LIMIT,
+            0,
+            ptr::null(),
+            ptr::null_mut()
+        ));
+        assert!(!dr_brush_overlay_rgba8_coloured(
             0,
             0,
             ptr::null(),

@@ -38,6 +38,8 @@ extension AgentServer {
         }
         // Dynamics (the Brush's, Pencil's and Eraser's Dynamics… sheet) on any other tool.
         try Self.refuseForeignDynamics(tool: tool, arguments: arguments)
+        // Colour dynamics' limits, for a generated stroke and a recorded one alike.
+        try refuseColourLimits(tool: tool, arguments: arguments, document: document)
         // The Background Eraser's tip keys, refused by name before generation removes them.
         if tool == "background_eraser_stroke" { try Self.refuseBackgroundEraserTipKeys(arguments) }
         let aliased = try aliasedArgument(tool: tool, arguments: arguments)
@@ -130,13 +132,17 @@ extension AgentServer {
         let pressureSize = try flag("pressure_size")
         let pressureOpacity = try flag("pressure_opacity")
         let airbrush = try flag("airbrush")
-        let dynamics = try Self.strokeDynamics(arguments, points: points.count, size: size, tip: tip)
+        // `dynamics.color.background` is the colour handle's, not the dynamics parser's.
+        let (stripped, background) = Self.strippingColourBackground(arguments)
+        let dynamics = try Self.strokeDynamics(stripped, points: points.count, size: size, tip: tip)
+        let colour = try strokeColourHandle(arguments, colour: dynamics?.colour,
+            background: background, seed: dynamics?.seed ?? 0, document: document)
         let stroke = try NativeBrushStrokeSession.generated(points: points, size: CGFloat(size), tip: tip,
             pressures: pressures, times: times, duration: duration, pressureSize: pressureSize,
             pressureOpacity: pressureOpacity, airbrush: airbrush, dynamics: dynamics?.handle,
             pressureSampled: arguments["pressures"] != nil, tilts: dynamics?.tilts,
             shaped: dynamics?.shaped ?? false, rotations: dynamics?.rotations,
-            texture: dynamics?.texture, dual: dynamics?.dual)
+            texture: dynamics?.texture, dual: dynamics?.dual, colour: colour)
         var resolved = arguments
         for key in keys { resolved.removeValue(forKey: key) }
         resolved["native_stroke"] = try stroke.canonical

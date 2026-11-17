@@ -19,13 +19,26 @@ extension ImageCanvasView {
         return try StrokeTexture(texture)
     }
 
-    /// The straight RGB ink a textured or dual stroke's dab images are drawn in: `color` in the
-    /// document's space, as the byte commit converts it. nil without a texture or a dual brush.
+    /// The straight RGB ink a textured, dual or coloured stroke's dab images are drawn in: `color`
+    /// in the document's space, as the byte commit converts it (a coloured dab draws in its own
+    /// ink, `previewInk`). nil without a texture, a dual brush or colour.
     func textureInk(_ color: NSColor) -> [UInt8]? {
-        guard nativeStrokeSession?.texture != nil || nativeStrokeSession?.dual != nil,
+        guard nativeStrokeSession?.texture != nil || nativeStrokeSession?.dual != nil
+                || nativeStrokeSession?.colour != nil,
               let bytes = ColorProfile.bytes(color, in: NSColorSpace(cgColorSpace: documentColorSpace) ?? .sRGB)
         else { return nil }
         return Array(bytes.prefix(3))
+    }
+
+    /// A coloured dab's preview ink in the overlay's space: its own triple, or on a Lab document
+    /// (`RasterBrushColour.lab`) the codes' display colour through the swatch's Lab route
+    /// (`LabPaint.display`), each 0…1.
+    func previewInk(_ ink: [Double]) -> [Double] {
+        guard nativeStrokeSession?.colour?.lab == true, ink.count == 3 else { return ink }
+        let display = LabPaint.display(LabInk(normalized: ink))
+        guard let bytes = ColorProfile.bytes(display,
+                  in: NSColorSpace(cgColorSpace: documentColorSpace) ?? .sRGB) else { return ink }
+        return bytes.prefix(3).map { Double($0) / 255 }
     }
 
     /// Mouse-down's admission for a textured or dual stroke, before anything is built: the
@@ -36,17 +49,19 @@ extension ImageCanvasView {
     /// may hold every dab of both lists (`stampDualRegions`), and its commit plans both lists.
     func admitTextureImages(diameter: CGFloat) throws {
         let dual = nativeStrokeSession?.dual != nil
+        let coloured = nativeStrokeSession?.colour != nil
         let dualSize = brushDynamics?.normalized?.dual?.size ?? 0
         let widest = dual ? max(diameter, CGFloat(dualSize)) : diameter
         let side = Int(min(max(widest.isFinite ? widest.rounded(.up) : 1, 1),
                            CGFloat(NativeBrushStroke.maximumDiameter))) + 2
         let preview = BytePaintRasterizer.aliasedScratch(width: side, height: side,
             dabs: dual ? NativeBrushStroke.maximumDabs : 1, shaped: true,
-            dualDabs: dual ? NativeBrushStroke.maximumDabs : nil)
+            dualDabs: dual ? NativeBrushStroke.maximumDabs : nil, coloured: coloured)
         let commit = !nativeBrushEnabled && nativeStrokeSession != nil
             ? BytePaintRasterizer.aliasedScratch(width: overlayWidth, height: overlayHeight,
                                                  dabs: NativeBrushStroke.maximumDabs, shaped: true,
-                                                 dualDabs: dual ? NativeBrushStroke.maximumDabs : nil)
+                                                 dualDabs: dual ? NativeBrushStroke.maximumDabs : nil,
+                                                 coloured: coloured)
             : 0
         try SoftBrush.admitDabImage(diameter: diameter,
                                     extra: PrecisionDocumentDescriptor.sum(preview, commit))
@@ -56,11 +71,13 @@ extension ImageCanvasView {
     /// clipped integer box (`brush_coverage::bounds`: floor and ceil of the centre ∓ the
     /// radius, clamped to the canvas), shifted by the box's origin, which is also the
     /// texture's, at the dab's deposit (flow × its factor, so the context alpha stays 1), in
-    /// `strokeTextureInk`. The overlay context is top-left flipped and the image is not
+    /// `strokeTextureInk`, or a coloured dab in its own ink (`ResolvedDab.ink`, `previewInk`),
+    /// the texture optional. The overlay context is top-left flipped and the image is not
     /// symmetric, so it is drawn un-flipped locally, row 0 at the box's top. A dab the core
     /// refuses is not drawn; the commit is exact either way.
     func stampTexturedDab(_ dab: ResolvedDab, in context: CGContext) {
-        guard let texture = nativeStrokeSession?.texture, let ink = strokeTextureInk else { return }
+        let texture = nativeStrokeSession?.texture
+        guard texture != nil || dab.ink != nil, let ink = strokeTextureInk else { return }
         let (x, y, radius) = (Double(dab.point.x), Double(dab.point.y), Double(dab.diameter) / 2)
         func edge(_ value: Double, _ limit: Int) -> Int { Int(min(max(value, 0), Double(limit))) }
         let x0 = edge((x - radius).rounded(.down), overlayWidth)
@@ -74,7 +91,7 @@ extension ImageCanvasView {
         guard let one = try? NativeBrushStroke(tip: strokeTip, pixel: false,
                   dabs: [x - Double(x0), y - Double(y0), Double(dab.diameter),
                          Double(strokeTip.flow * dab.factor)],
-                  shapes: shapes, texture: texture),
+                  shapes: shapes, texture: texture, inks: dab.ink.map(previewInk)),
               let pixels = try? one.coreOverlay(width: width, height: height, origin: (x0, y0),
                                                 rgb: ink, selection: nil, opacity: 1),
               let provider = CGDataProvider(data: Data(pixels) as CFData),

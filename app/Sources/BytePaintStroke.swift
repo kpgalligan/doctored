@@ -57,9 +57,10 @@ enum BytePaintRasterizer {
               coverageOpacity.map({ $0.isFinite && (0...1).contains($0) }) ?? true else {
             throw DoctoredCoreError(message: "Invalid byte stroke extent, size or coverage opacity.")
         }
-        // The Pencil's aliased tip, a textured stroke and a dual one are the core's coverage, on
-        // every byte target, as a typed document's job computes it.
-        if stroke.tip.aliased || stroke.texture != nil || stroke.dual != nil {
+        // The Pencil's aliased tip, a textured stroke, a dual one and a coloured one are the
+        // core's coverage (a coloured one's ink too), on every byte target, as a typed
+        // document's job computes it.
+        if stroke.tip.aliased || stroke.texture != nil || stroke.dual != nil || stroke.inks != nil {
             return try aliasedPixels(stroke: stroke, ink: ink, width: width, height: height,
                 space: space, selection: selection, coverageOpacity: coverageOpacity)
         }
@@ -107,8 +108,9 @@ enum BytePaintRasterizer {
         }
         _ = try RasterResources.shared.admit(scratch: aliasedScratch(width: width, height: height,
             dabs: stroke.dabs.count / 4,
-            shaped: (stroke.texture != nil || stroke.dual != nil) && stroke.shapes != nil,
-            dualDabs: stroke.dual.map { $0.dabs.count / 4 }))
+            shaped: (stroke.texture != nil || stroke.dual != nil || stroke.inks != nil)
+                && stroke.shapes != nil,
+            dualDabs: stroke.dual.map { $0.dabs.count / 4 }, coloured: stroke.inks != nil))
         return try stroke.coreOverlay(width: width, height: height, rgb: Array(bytes.prefix(3)),
             selection: selection?.maskBytes(), opacity: coverageOpacity ?? 1)
     }
@@ -118,16 +120,19 @@ enum BytePaintRasterizer {
     /// brush plan (master: `brush_coverage::plan`, `4 · BOOKKEEPING_BYTES +
     /// 8 · |F| + 2 · n + 32 · dabs` with the footprint `|F| ≤ n`), plus 16 bytes a
     /// dab for `shaped` dabs (the textured and dual exports' shapes) and, with `dualDabs`, the
-    /// second list's own plan beside it (`brush_dual::plan_dual` sums the two). The canvas
-    /// admits the whole-canvas figure at mouse-down, so the commit never asks
-    /// for more than the gesture was admitted with.
+    /// second list's own plan beside it (the dual admission sums the two). A `coloured` stroke
+    /// adds the ink the core keeps over the footprint, 24 bytes a pixel (`|F| ≤ n`), and its
+    /// inks, 24 bytes a dab. The canvas admits the whole-canvas figure at mouse-down, so the
+    /// commit never asks for more than the gesture was admitted with.
     static func aliasedScratch(width: Int, height: Int, dabs: Int, shaped: Bool = false,
-                               dualDabs: Int? = nil) -> UInt64 {
+                               dualDabs: Int? = nil, coloured: Bool = false) -> UInt64 {
         let n = UInt64(max(width, 0)) * UInt64(max(height, 0))
         let bookkeeping: UInt64 = 4 * 1_048_576
         var second: UInt64 = 0
         if let dualDabs { second = bookkeeping + 10 * n + 32 * UInt64(max(dualDabs, 0)) }
-        let perDab: UInt64 = shaped ? 48 : 32
+        let perDab: UInt64 = (shaped ? 48 : 32) + (coloured ? 24 : 0)
+        let ink: UInt64 = coloured ? 24 * n : 0
         return 4 * n + n + 4096 + bookkeeping + 10 * n + perDab * UInt64(max(dabs, 0)) + second
+            + ink
     }
 }

@@ -2,9 +2,10 @@
 
 - **Status:** Accepted — slice 1 shipped (pen response curves on pressure and tilt, size and opacity
   jitter, scatter), slice 2 (the tip shape: angle and roundness dynamics, pen rotation), slice 3
-  (texture) and slice 4 (dual brush); colour dynamics proposed, open on
-  [#18](https://github.com/kpgalligan/doctored/issues/18)
-- **Date:** 2026-11-15; slice 2 2026-11-16; slice 3 2026-11-16; slice 4 2026-11-16
+  (texture), slice 4 (dual brush) and slice 5 (colour dynamics); every brush-dynamics slice has
+  shipped, and [#18](https://github.com/kpgalligan/doctored/issues/18) stays open for ABR import
+- **Date:** 2026-11-15; slice 2 2026-11-16; slice 3 2026-11-16; slice 4 2026-11-16; slice 5
+  2026-11-17
 - **Issue:** part of [#18](https://github.com/kpgalligan/doctored/issues/18)
 
 ## Context
@@ -21,7 +22,9 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   draws exactly those. So every depth and colour mode the three tools paint in, and every target
   they take (layer, mask, colour plane, channel, Quick Mask), takes slice 1 with no rule or refusal
   of its own, and no document state changes (no
-  DRDC word). A stroke without dynamics never reaches the kernel and keeps its bytes.
+  DRDC word). A stroke without dynamics never reaches the kernel and keeps its bytes. Colour
+  (slice 5) is the one dynamic that changes a dab's ink, never its coverage, and so takes limits of
+  its own (below).
 - **The rule (slice 1).** Controls, curves and factors are in 0…1.
   - A response (`size`, `opacity`) has a control (off, pen pressure, pen tilt), a curve `C` (the
     natural cubic through 2–16 points from x = 0 to x = 1, `adjust_curves::Spline`; absent is the
@@ -105,7 +108,39 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   `dr_brush_overlay_rgba8_dual`; a pixel or aliased tip on either list refuses. The canvas preview
   re-rasterizes, after each nominal stamp, every laid dab's box from the stroke so far through the
   core and draws it with `.copy`, within a declared ceiling of `ImageCanvasView.dualPreviewWork`
-  (2²⁴ box pixels a stamp; a box over what is left is skipped, the commit is exact either way).
+  (2²⁴ units a stamp, one per dab examined plus each box pixel; the scan stops once the stamp's
+  budget is passed, so no later box of that stamp is redrawn, and the commit is exact either way).
+- **The rule (slice 5, colour dynamics).** `color: {mix, hue, saturation, brightness}`, each 0–1:
+  each dab of a Brush stroke takes its own ink. Foreground, background and every ink are the
+  document's own unit triple (straight RGB on RGB, Grayscale and Duotone; on Lab the twin's codes
+  `[L/100, (a+128)/255, (b+128)/255]`, `LabInk.unit`). Dab `k` of stamp `i` draws `v1…v4` from
+  `SplitMix64::at(seed, i, k, 3)` (apart from the size, opacity, scatter and shape streams, salts 1
+  and 2), all four under either model; `c = fg + (bg − fg)·mix·v1` per channel. Model `rgb`: with
+  any jitter set, `adjust_math`'s HSL of `c` takes `h + 180·hue·(2·v2 − 1)`, `s·(1 − saturation·v3)`
+  and `l·(1 − brightness·v4)` (brightness is the HSL lightness; saturation and brightness only
+  lower). Model `lab`: no HSL (Lab codes are no RGB), the mix per code and brightness on the L code
+  alone, `c[0]·(1 − brightness·v4)`; hue and saturation are 0 (the core refuses them). Every ink is
+  clamped to 0–1. Per written pixel with dab coverage `c` the premultiplied ink accumulates beside
+  coverage, `P += c·(ink − P)`, `F += c·(1 − F)` (`brush_coverage::field_with`), and the straight
+  ink is `S = P / F`, clamped; coverage is the uncoloured stroke's bit for bit (`quantized`, or
+  `brush_dual::product` with a dual brush, whose ink is the first tip's). The kernel is
+  `brush_colour`; `dr_brush_u16_coloured` writes coverage then three ink planes `round(S·65535)`,
+  `dr_brush_overlay_rgba8_coloured` the byte overlay at `round(S·255)`; scratch adds 24 bytes per
+  footprint pixel. The 8-bit commit is that overlay; the typed commit is `paint_blend` with
+  `ink_planes` (three u16 planes after the coverage and the selection, each pixel's codes through
+  the one document-ink conversion, `InkPreparer` / `LinearInker`: Gray greys it, Lab quantizes each
+  code, float decodes it to linear; the request's RGB is inert, its alpha kept; Normal only, no
+  pattern or plane, and Indexed and Bitmap refuse it by name). The canvas preview draws each laid
+  dab as the core's image of that dab in its own ink (on Lab, the codes' display colour through the
+  swatch's route, `LabPaint.display`); a dual stroke's boxes carry the inks.
+- **Colour's limits (decided with slice 5; the owner may change them).** Layer pixels only, in
+  Normal mode, on an RGB, Grayscale, Duotone or Lab document; Grayscale, Duotone and Lab take the
+  mix and brightness alone (`ColorDynamics.reduced(for:)` zeroes hue and saturation there). On the
+  canvas a stroke outside them paints its one ink instead of being refused
+  (`EditorViewController.strokeColourHandle` answers nil): a mask, plane, channel or Quick Mask
+  stroke, a mode other than Normal, CMYK, Indexed and Bitmap, the size-1 pixel brush (the handle
+  rides only beside the dynamics handle) and a float layer whose foreground or background is above
+  white (the stroke keeps its one linear ink). Over MCP each of these refuses by name.
 - **Pressure and tilt in the walk.** Tilt (`NSEvent.tilt`) is read at every mouse-down and drag and
   carried through the stroke spline beside pressure (`StrokeVertex.tilt`), interpolated per stamp,
   so a dab's tilt is where the pen was at that dab. The MCP walk interpolates `tilts` the same way.
@@ -119,6 +154,8 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   canvas per axis and is not drawn again. A dab's angle and roundness are not lengths, so its
   `shapes` replay as recorded at every mode, and a texture as recorded (tile, scale and the
   canvas-origin anchor). A dual stroke's second dabs map as the first's; its tip as recorded. A
+  coloured stroke's `inks` (one triple per dab, written only when present) are colour, not
+  geometry, and replay as recorded; the step never holds the seed, the amounts or a swatch. A
   Pencil step refuses remapping with the existing sentence
   (`nativeStrokeRefusal`).
 - **Tools.** The Brush, the Pencil and the Eraser (`EditorTool.takesBrushDynamics`), on the canvas
@@ -133,7 +170,10 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   tools' (`EditorTool.takesTextureDynamics`): the Pencil's two-valued dab takes none, so its
   `dynamics.texture` is pinned nil, its sheet shows no Texture rows and `aliased` refuses it. The
   dual brush likewise (`EditorTool.takesDualBrushDynamics`): a two-valued dab times a second field
-  is a third value, so the Pencil and the size-1 pixel brush take none.
+  is a third value, so the Pencil and the size-1 pixel brush take none. Colour is the Brush's alone
+  (`EditorTool.takesColourDynamics`; over MCP `brush_stroke` alone): the Pencil and the Eraser paint
+  one ink (the Eraser none), so their `dynamics.color` is pinned nil and their sheets show no Colour
+  rows.
 - **Options.** `PaintToolOptions.dynamics` (nil whenever every value is its default). The two
   pressure checkboxes stay the pressure on/off: a response's stored control is nil (follow the
   checkbox) or Pen Tilt; choosing Off or Pen Pressure in the sheet sets the checkbox, and ticking or
@@ -142,7 +182,9 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   Axes, Count, Count Jitter), Angle (Control, Jitter), Roundness (Control, Minimum, Jitter) and
   Texture (None, the built-ins and the library; Scale and Depth in percent) and Dual Brush (on/off,
   Size in pixels, Hardness, Spacing, Angle, Roundness, Scatter, Both Axes, Count, Count Jitter) for
-  the Brush and the Eraser, Reset. A texture at depth 0 is stored as none. Tool options only: no undo step, no
+  the Brush and the Eraser, Colour (Fg/Bg Mix, Hue, Saturation and Brightness Jitter in percent)
+  for the Brush, Reset. A texture at depth 0 and a colour whose amounts are all 0 are stored as
+  none; a colour alone keeps the dynamics non-nil. Tool options only: no undo step, no
   Action, exempt from agent parity as every tool option is (a call passes `dynamics` on the stroke).
 - **Presets.** A user preset may hold `dynamics` (file `schema_version` 2; a preset without them is
   still written at 1 and keeps its bytes; the `.doctoredbrushes` container is unchanged; an older
@@ -151,7 +193,8 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   on the dynamics too; every other tool's popup lists only the presets without dynamics, so no two
   listed presets on any tool hold the same values and the `,` `.` keys reach every one. The Pencil's
   popup and keys list only the presets whose dynamics hold no tip shape, no texture and no dual
-  brush, for the same reason; `dual` rides in schema-2 files as the texture does. A save or an import that repeats another preset's six tip values and dynamics is
+  brush, for the same reason; `dual` rides in schema-2 files as the texture does, and so does
+  `color` (its amounts), whose presets only the Brush's popup and keys list. A save or an import that repeats another preset's six tip values and dynamics is
   refused by that preset's name. A texture is saved as its tile (a library `{name}` resolved at the
   save), so a library file reaches 1.5 MiB; a preset file holds up to 96 MiB and an export past it
   refuses by name; rows echo the pattern without pixels.
@@ -164,7 +207,16 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   `pressure_size` / `pressure_opacity`, a size of 1, `angle`, `roundness`, `texture` or `dual` with
   `aliased`, a `{name}` the library lacks, a texture's scale, depth or tile out of range, a dual
   value out of range, and a `native_stroke` holding `shapes`, `texture` or `dual` on any tool
-  outside the three (or a `texture` naming a library pattern, or a malformed or pixel-brush `dual`). `save_brush_preset` takes `dynamics` (no seed); `list_brush_presets`
+  outside the three (or a `texture` naming a library pattern, or a malformed or pixel-brush `dual`).
+  `dynamics.color` (`{mix, hue, saturation, brightness, background}`) is `brush_stroke`'s: the call's
+  colour is the foreground and `background` (in `color`'s forms, required when `mix` is above 0)
+  the background, both read under `color_space` and resolved into the document's unit triple, the
+  handle built on `dynamics.seed` (`AgentServer+BrushColour.swift`); the recorded `native_stroke`
+  holds `inks`. Refused by name, changing nothing: `dynamics.color` or `native_stroke` inks on any
+  other tool, with `aliased`, at size 1, on a mask, plane, channel, adjustment layer or Quick
+  Mask, with another blend mode, `rgba32` or `ink`, on CMYK, Indexed and Bitmap, hue or saturation
+  on Grayscale, Duotone or Lab, `mix` without `background`, and a value out of range.
+  `save_brush_preset` takes `dynamics` (no seed; a colour's amounts, no background); `list_brush_presets`
   rows carry it.
 - **Checks.** Core: `make t F=brush_dynamics`, against an oracle written from this rule (its own
   SplitMix64, natural cubic and angle wrap), and `make t F=brush_shaped_coverage` (shapes equal to
@@ -174,17 +226,27 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   is the crop), `make t F=brush_dual` (the walk at two spacings, split-invariant and continued past
   its capacity bit for bit, the second stream apart from the first's, the product against the
   test's own fields, exact on hard interiors, a hard 1 px second tip, shapes and texture on the
-  first tip; red under a walk ignoring spacing, a sum and a double rounding). App:
+  first tip; red under a walk ignoring spacing, a sum and a double rounding), `make t
+  F=brush_colour` (the ink stream against the test's own SplitMix64 and HSL, the Lab rule, the
+  coverage plane equal to the uncoloured calls', overlapping dabs against the test's own
+  premultiplied accumulation; red under the last dab's ink, an unweighted average, salt 2 and Lab
+  through HSL) and `make t F=paint_ink_planes` (one-code planes equal the plain `paint_blend` bit
+  for bit at 16-bit RGB, Gray, Lab and 32-bit float; red with the planes read at the selection's
+  offset). App:
   `scripts/verify_brush_dynamics.py` on owned Debug instances (seeded repeatability,
   the curve, scatter's band, replay of a recorded step under absolute and relative geometry, the
   tip shape against the plain stroke at the resolved angle and roundness, the heading at rest and
   on an L path's airbrush ticks, the refusals, presets, D11's texture oracle at 8, 16 and 32 bits,
-  the modes, targets, library names and replays; D12 the dual brush, `--only d12`) and the
+  the modes, targets, library names and replays; D12 the dual brush, `--only d12`; D13 colour
+  dynamics against the script's own ink at 8, 16 and 32 bits and Lab, the limits' refusals,
+  replays and presets, `--only d13`) and the
   jobs-probe case `brush dynamics` (tilt and rotation through synthesized tablet events, the
   options and presets pinning, the walk's per-stamp tilt and rotation, a shaped canvas stroke, the
   Pencil's shape pinning, the texture's pinning, sheet rows and a textured canvas commit equal to
   its recorded step's replay; `brush_dual.swift`: the dual brush's pinning, sheet, tick rule,
-  size-1 charge, preview figure and canvas commits).
+  size-1 charge, preview figure and its bounded scan, and canvas commits; `brush_colour.swift`:
+  colour's pinning, sheet rows, canvas commits equal to their replays at 8 and 16 bits, the
+  canvas limits recording no inks, and the Lab reduction).
 - **Hand checks for the owner** (a real pen, the screen's focus): the Dynamics… sheet's layout with
   the Angle and Roundness rows, and its curve popover; a pen's pressure through a bent curve; tilt
   on size; heavy scatter and a shaped stroke looking the same live and at mouse-up; the Preset popup
@@ -197,12 +259,6 @@ mode, masks, channels, Quick Mask, recording (`native_stroke`), replay, Fade and
   rows on a 13-inch display, a dual drag looking the same live and at mouse-up at 8 and 16 bits,
   and drag responsiveness on a long dual stroke with a large brush, which judges the preview
   ceiling (over it the drag shows stale ink under the brush until a later stamp or mouse-up; a
-  canvas Airbrush dual stroke held at rest, or a brush of about 2,000 px, reaches it).
-
-## Proposed: the open slices (for the batch that builds each)
-- **Colour dynamics.** Per dab, the ink a seeded mix toward the background colour plus hue,
-  saturation and brightness jitter. Needs a stroke that carries colour per pixel (premultiplied
-  colour accumulated beside coverage, and a typed commit that takes it). Proposed limits: layer
-  pixels only (a mask, plane, channel and the Quick Mask are coverage and refuse it by name); Normal
-  mode only until the blend path takes per-pixel ink; the Eraser has none; Grayscale and Duotone take
-  the mix and brightness only; CMYK, Indexed and Bitmap refuse by name.
+  canvas Airbrush dual stroke held at rest, or a brush of about 2,000 px, reaches it); pen feel
+  with colour dynamics, the sheet's height with the Colour rows on a 13-inch display, and a
+  colour-dynamics drag looking the same live and at mouse-up at 8 and 16 bits.

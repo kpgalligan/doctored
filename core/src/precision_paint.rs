@@ -141,53 +141,83 @@ pub(crate) fn prepare_colors(
     space: PaintColorSpace,
     doc: &PrecisionDocument,
 ) -> Result<Vec<[f32; 4]>, String> {
-    // Held once per call, so the larger LUT variant is not boxed.
-    #[allow(clippy::large_enum_variant)]
-    enum SrgbInk {
-        Matrix(PrecisionTransform),
-        Lut(crate::icc_intent::ColorPipeline),
+    if colors.is_empty() {
+        return Ok(Vec::new());
     }
-    let conversion = if !colors.is_empty() && matches!(space, PaintColorSpace::Srgb) {
-        let src = IccProfile::srgb();
-        match doc.profile().model() {
-            Some(model) => Some(SrgbInk::Matrix(
-                PrecisionTransform::new(src.model().ok_or("missing sRGB model")?, model)
-                    .map_err(|e| crate::icc_encode_refusal::own_profile_error(doc.profile(), e))?,
-            )),
-            None => lut_ink(doc.profile(), true).map(SrgbInk::Lut),
-        }
-    } else {
-        None
-    };
-    // A Gray document greys every ink by Mode ▸ Grayscale's rule
-    // (`gray_document`, "Luminance"): the document-space colour's luminance
-    // code, so its storage stays R = G = B.
-    let gray = doc.gray_policy();
-    // A Lab document's ink is the twin's colour quantized as Mode ▸ Lab
-    // Color quantizes (`lab_convert`): the ×257 grid at 8 bits.
-    let lab = doc.lab_policy();
+    let preparer = InkPreparer::new(space, doc)?;
     Ok(colors
         .iter()
-        .map(|&color| {
-            let rgb = [color[0], color[1], color[2]];
-            let rgb = match &conversion {
-                Some(SrgbInk::Matrix(t)) => t.color(rgb),
-                Some(SrgbInk::Lut(pipeline)) => pipeline.color(rgb),
-                None => rgb,
-            };
-            if let Some(policy) = gray {
-                let rgb = rgb.map(f64::from);
-                let c = (f64::from(policy.luminance_code(doc.profile(), rgb)) / 65535.0) as f32;
-                return [c, c, c, color[3]];
-            }
-            if let Some(policy) = lab {
-                let [l, a, b] =
-                    rgb.map(|v| (f64::from(policy.code(f64::from(v))) / 65535.0) as f32);
-                return [l, a, b, color[3]];
-            }
-            [rgb[0], rgb[1], rgb[2], color[3]]
-        })
+        .map(|&color| preparer.prepare(color))
         .collect())
+}
+
+/// [`prepare_colors`]' conversion built once and applied one colour at a
+/// time: a `paint_blend` with ink planes prepares every pixel's ink through
+/// it (`precision_paint_tools`).
+pub(crate) struct InkPreparer<'a> {
+    doc: &'a PrecisionDocument,
+    conversion: Option<SrgbInk>,
+    gray: Option<&'a std::sync::Arc<crate::gray_document::GrayPolicy>>,
+    lab: Option<&'a std::sync::Arc<crate::lab_document::LabPolicy>>,
+}
+
+/// The `Srgb` ink conversion. Held once per call, so the larger LUT variant
+/// is not boxed.
+#[allow(clippy::large_enum_variant)]
+enum SrgbInk {
+    Matrix(PrecisionTransform),
+    Lut(crate::icc_intent::ColorPipeline),
+}
+
+impl<'a> InkPreparer<'a> {
+    /// The conversion of `space` into `doc` ([`prepare_colors`]' rule).
+    pub(crate) fn new(space: PaintColorSpace, doc: &'a PrecisionDocument) -> Result<Self, String> {
+        let conversion = if matches!(space, PaintColorSpace::Srgb) {
+            let src = IccProfile::srgb();
+            match doc.profile().model() {
+                Some(model) => Some(SrgbInk::Matrix(
+                    PrecisionTransform::new(src.model().ok_or("missing sRGB model")?, model)
+                        .map_err(|e| {
+                            crate::icc_encode_refusal::own_profile_error(doc.profile(), e)
+                        })?,
+                )),
+                None => lut_ink(doc.profile(), true).map(SrgbInk::Lut),
+            }
+        } else {
+            None
+        };
+        Ok(Self {
+            doc,
+            conversion,
+            // A Gray document greys every ink by Mode ▸ Grayscale's rule
+            // (`gray_document`, "Luminance"): the document-space colour's
+            // luminance code, so its storage stays R = G = B.
+            gray: doc.gray_policy(),
+            // A Lab document's ink is the twin's colour quantized as Mode ▸
+            // Lab Color quantizes (`lab_convert`): the ×257 grid at 8 bits.
+            lab: doc.lab_policy(),
+        })
+    }
+
+    /// One straight colour in the document's ink; alpha passes through.
+    pub(crate) fn prepare(&self, color: [f32; 4]) -> [f32; 4] {
+        let rgb = [color[0], color[1], color[2]];
+        let rgb = match &self.conversion {
+            Some(SrgbInk::Matrix(t)) => t.color(rgb),
+            Some(SrgbInk::Lut(pipeline)) => pipeline.color(rgb),
+            None => rgb,
+        };
+        if let Some(policy) = self.gray {
+            let rgb = rgb.map(f64::from);
+            let c = (f64::from(policy.luminance_code(self.doc.profile(), rgb)) / 65535.0) as f32;
+            return [c, c, c, color[3]];
+        }
+        if let Some(policy) = self.lab {
+            let [l, a, b] = rgb.map(|v| (f64::from(policy.code(f64::from(v))) / 65535.0) as f32);
+            return [l, a, b, color[3]];
+        }
+        [rgb[0], rgb[1], rgb[2], color[3]]
+    }
 }
 
 /// The scratch `Srgb` authored ink takes into `profile` ([`prepare_colors`]):

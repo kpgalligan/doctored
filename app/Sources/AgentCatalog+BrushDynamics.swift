@@ -107,17 +107,55 @@ extension AgentServer {
             properties["seed"] = ["type": "integer", "minimum": 0, "maximum": 4_294_967_295,
                 "default": 0, "description": "The jitter and scatter seed: the same call paints "
                     + "the same pixels. The recorded step holds the resolved dabs, not the seed."]
+        } else {
+            // A preset's colour holds the amounts; a stroke's background is the call's.
+            properties["color"] = colourSchema(background: false)
         }
         return ["type": "object", "properties": properties]
+    }
+
+    /// The `dynamics.color` object (the Brush's Colour rows); `background` on `brush_stroke`.
+    static func colourSchema(background: Bool) -> [String: Any] {
+        let amount: [String: Any] = ["type": "number", "minimum": 0, "maximum": 1, "default": 0]
+        var properties: [String: Any] = [
+            "mix": amount.merging(["description": "Foreground/Background Mix: each dab moves "
+                + "from the colour toward the background by up to mix (a seeded fraction)."]) { $1 },
+            "hue": amount.merging(["description": "Hue Jitter: up to ±180° × hue on the dab's "
+                + "HSL hue. RGB documents only."]) { $1 },
+            "saturation": amount.merging(["description": "Saturation Jitter: lowers the dab's "
+                + "HSL saturation by up to that fraction. RGB documents only."]) { $1 },
+            "brightness": amount.merging(["description": "Brightness Jitter: lowers the dab's "
+                + "HSL lightness (on Lab, its L*) by up to that fraction."]) { $1 },
+        ]
+        if background {
+            properties["background"] = ["description": "The background colour the mix moves "
+                + "toward, in color's forms (a hex string, or [r, g, b, a] as rgba takes it), "
+                + "read under color_space; required when mix is above 0."]
+        }
+        return ["type": "object", "properties": properties,
+                "description": "Colour dynamics (the Brush only): each dab's ink is a seeded mix "
+                    + "from the stroke's colour toward background, then hue, saturation and "
+                    + "brightness jitter, carried per pixel beside the coverage. A layer in Normal "
+                    + "mode of an RGB, Grayscale, Duotone or Lab document; Grayscale, Duotone and "
+                    + "Lab take mix and brightness alone (Lab's brightness scales L*), and hue or "
+                    + "saturation there refuses. Refused by name with aliased, at size 1, on a "
+                    + "mask, plane, channel or Quick Mask, with another blend_mode, rgba32 or ink, "
+                    + "and on a CMYK, Indexed or Bitmap document. The recorded native_stroke holds "
+                    + "each dab's ink (inks), never the seed or the colours."]
     }
 
     /// Adds `dynamics`, `tilts` and `rotations` to the three dynamics stroke tools.
     @inline(never) func annotateBrushDynamicsCatalog(_ name: String, properties: inout [String: Any]) {
         guard Self.dynamicsStrokeTools.contains(name) else { return }
         var dynamics = Self.dynamicsSchema(seed: true)
+        if name == "brush_stroke", var fields = dynamics["properties"] as? [String: Any] {
+            fields["color"] = Self.colourSchema(background: true)
+            dynamics["properties"] = fields
+        }
         dynamics["description"] = "Brush dynamics (mirrors the Brush's, Pencil's and Eraser's "
             + "Dynamics… sheet): pressure or tilt curves on size and opacity, size and opacity "
-            + "jitter, scatter, the tip shape's angle and roundness, a texture and a dual brush. "
+            + "jitter, scatter, the tip shape's angle and roundness, a texture, a dual brush and "
+            + "(brush_stroke) colour. "
             + "Generates stroke_version=1 dabs (stroke_version may be omitted; a tip shape records "
             + "its shapes, a texture its tile and a dual brush its second dabs in native_stroke); "
             + "a stamp's controls read off "

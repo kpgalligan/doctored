@@ -32,7 +32,8 @@ extension EditorViewController {
         guard var paint = ToolOptionsStore.shared.paintOptions(for: currentTool) else { return }
         paint = BrushPreset.stepped(from: paint, step,
                                     comparesDynamics: currentTool.takesBrushDynamics,
-                                    shapes: currentTool.takesTipShapeDynamics).applied(to: paint)
+                                    shapes: currentTool.takesTipShapeDynamics,
+                                    colour: currentTool.takesColourDynamics).applied(to: paint)
         ToolOptionsStore.shared.setPaintOptions(paint, for: currentTool)
         syncCanvasPaintState()
         optionsBar.refreshValues()

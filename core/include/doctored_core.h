@@ -8020,6 +8020,60 @@ bool dr_brush_overlay_rgba8_dual(uint32_t width, uint32_t height,
     size_t selection_length, uint8_t *out, size_t out_length, uint64_t limit,
     uint64_t other_retained, const DrJobControl *control, char **err_out);
 
+/* Brush colour dynamics (ffi_brush_colour.rs; the rule is brush_colour.rs's
+ * module doc and designs/brush-dynamics.md, slice 5). An immutable handle,
+ * so a walk parses once.
+ *
+ * dr_brush_colour_create parses a strict request of at most 1024 bytes:
+ * {"version":1,"model":"rgb"|"lab" (rgb),"seed":0..4294967295 (0),
+ *  "foreground":[x,y,z],"background":[x,y,z],"mix":0..1 (0),"hue":0..1 (0),
+ *  "saturation":0..1 (0),"brightness":0..1 (0)}, the triples each 0..1 in
+ * the document's own unit triple (straight RGB; a Lab document's twin codes
+ * [L/100, (a+128)/255, (b+128)/255]). NULL with err_out on a refusal ("native
+ * brush colour holds a foreground and a background of three values from 0 to
+ * 1 and a mix, hue, saturation and brightness from 0 to 1"; "native brush
+ * colour in the lab model takes a mix and a brightness; its hue and
+ * saturation are 0"). dr_brush_colour_ink writes dab `dab` of stamp `index`'s
+ * ink (3 doubles in 0..1) to rgb_out: the mix toward the background, then
+ * (rgb) hue, saturation and lightness jitter or (lab) brightness on the L
+ * code alone, from SplitMix64 salt 3; false, rgb_out untouched, on NULL.
+ *
+ * dr_brush_u16_coloured is dr_brush_u16's coverage (dr_brush_u16_dual's with
+ * a dual; dual_request NULL with dual_count 0 is none; shapes and texture as
+ * dr_brush_u16_textured takes them, a NULL texture being none) with each dab
+ * in its own ink: inks holds dab_count*3 doubles in 0..1. Per written pixel
+ * the premultiplied ink P += c*(ink - P) accumulates beside the coverage
+ * field F += c*(1 - F); the straight ink is S = P/F (0 where F = 0), clamped
+ * to 0..1. out holds 4*width*height u16: the coverage (bit for bit the
+ * uncoloured call's), then the three ink planes round(S*65535). Refusals
+ * (err_out, out untouched): every refusal of the uncoloured calls, a NULL
+ * inks list or a value not finite in 0..1 ("native brush inks hold three
+ * values from 0 to 1 per dab"). Scratch is the plan(s), plus dab_count*16
+ * bytes with shapes, plus 24 bytes per footprint pixel.
+ * dr_brush_overlay_rgba8_coloured writes that coverage as
+ * dr_brush_overlay_rgba8's overlay with each pixel's ink round(S*255), with
+ * its selection and output rules and refusals. Errors/cancellation leave out
+ * untouched. */
+typedef struct DrBrushColour DrBrushColour;
+DrBrushColour *dr_brush_colour_create(const char *request, char **err_out);
+void dr_brush_colour_free(DrBrushColour *colour);
+bool dr_brush_colour_ink(const DrBrushColour *colour, uint64_t index,
+    uint32_t dab, double *rgb_out);
+bool dr_brush_u16_coloured(uint32_t width, uint32_t height,
+    const char *request, const double *dabs, size_t dab_count,
+    const double *shapes, const DrBrushTexture *texture, int64_t origin_x,
+    int64_t origin_y, const char *dual_request, const double *dual_dabs,
+    size_t dual_count, const double *inks, uint16_t *out, size_t out_length,
+    uint64_t limit, uint64_t other_retained, const DrJobControl *control,
+    char **err_out);
+bool dr_brush_overlay_rgba8_coloured(uint32_t width, uint32_t height,
+    const char *request, const double *dabs, size_t dab_count,
+    const double *shapes, const DrBrushTexture *texture, int64_t origin_x,
+    int64_t origin_y, const char *dual_request, const double *dual_dabs,
+    size_t dual_count, const double *inks, const uint8_t *selection,
+    size_t selection_length, uint8_t *out, size_t out_length, uint64_t limit,
+    uint64_t other_retained, const DrJobControl *control, char **err_out);
+
 /* Brush dynamics (ffi_brush_dynamics.rs; the rule is brush_dynamics.rs's
  * module doc and designs/brush-dynamics.md). An immutable handle, so a walk
  * parses once.

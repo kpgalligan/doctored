@@ -438,6 +438,7 @@ final class EditorViewController: NSViewController {
             self?.makeSnapEngine(for: .canvasPoint) ?? .inactive
         }
         canvas.onViewRotation = { [weak self] in self?.viewRotation ?? 0 }
+        canvas.onStrokeColourHandle = { [weak self] in self?.strokeColourHandle($0, seed: $1) }
         canvas.onRotateView = { [weak self] in self?.rotateViewGestureDidChange($0) }
         canvas.onZoomClick = { [weak self] point, out in self?.zoomStep(at: point, out: out) }
         canvas.onZoomTo = { [weak self] target in self?.applyZoom(target) }

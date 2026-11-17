@@ -17,7 +17,9 @@ import AppKit
 //     2 × 2 box (`min(64 · box, box + 64 · band_bound(1))`).
 // (e) The preview ceiling: `dualPreviewFigure` for one 2,000 px box under one 2,000 px first dab
 //     and 200 coincident 2,000 px second dabs is over `dualPreviewWork`; for one 40 px dab and
-//     one 10 px second dab it is under.
+//     one 10 px second dab it is under. The scan is bounded: it charges one unit per dab
+//     examined and stops once its limit is passed, so 100,000 dabs far from the box cost the
+//     limit plus one.
 // (f) A dual Brush canvas stroke at 8 and 16 bits records a `native_stroke` holding `dual`, and
 //     its commit equals the replay of that recorded step and differs from the replay without the
 //     second tip.
@@ -183,6 +185,11 @@ private func verifyDualPreviewFigure() throws {
                                                   dualDabs: [30.5, 22.5, 10, 1])
     try require(small > 0 && small < ImageCanvasView.dualPreviewWork,
                 "\(tag) one 40 px dab and one 10 px second dab: \(small)")
+    let far = Array([[Double]](repeating: [5000.5, 5000.5, 10, 1], count: 100_000).joined())
+    let bounded = ImageCanvasView.dualPreviewFigure(box: (0, 0, 40, 40), dabs: far, dualDabs: [],
+                                                    limit: 1000)
+    try require(bounded == 1001,
+                "\(tag) 100,000 dabs far from the box cost \(bounded), want the limit plus one")
 }
 
 /// The first layer's red and green: bytes at 8 bits, u16 codes at 16.

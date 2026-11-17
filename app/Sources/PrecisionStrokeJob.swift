@@ -72,7 +72,17 @@ struct PrecisionStrokeWork {
         if case .smudge = kind { return selection == nil ? 0 : plane }
         // Nor does the Art History Brush.
         if case .artHistory = kind { return selection == nil ? 0 : plane }
+        // A coloured stroke's footprint is four planes (coverage and ink), and its joined
+        // input the coverage, the selection and the three ink planes.
+        if inked { return plane * 4 + plane * (selection == nil ? 4 : 5) }
         return plane + plane * (selection == nil ? 1 : 2)
+    }
+
+    /// A coloured Brush stroke's `.edit` (`NativeBrushStroke.inks`): its request carries
+    /// `ink_planes`, so the input joins the three ink planes after the selection.
+    private var inked: Bool {
+        guard case .edit = kind else { return false }
+        return stroke.inks != nil
     }
 
     init(source: RasterPrecisionDocument, stroke: NativeBrushStroke, command: PrecisionPixelCommand,
@@ -93,7 +103,8 @@ struct PrecisionStrokeWork {
         }
         if let rect = coverageRect {
             guard case .edit = kind, rect.x >= 0, rect.y >= 0, rect.width > 0, rect.height > 0,
-                  rect.x + rect.width <= width, rect.y + rect.height <= height else {
+                  rect.x + rect.width <= width, rect.y + rect.height <= height,
+                  stroke.inks == nil else {
                 throw DoctoredCoreError(message: "A stroke's coverage rect must be a nonempty rect inside the canvas.")
             }
         }
@@ -111,7 +122,8 @@ struct PrecisionStrokeWork {
         case .edit:
             plan = try source.pixelEditPlan(request: command.request, workingLimit: context.limit,
                                             otherRetained: context.otherRetained)
-            planned = pixels * (kept == nil ? 1 : 2)
+            // A coloured stroke's three ink planes follow the coverage and the selection.
+            planned = pixels * ((kept == nil ? 1 : 2) + (stroke.inks == nil ? 0 : 3))
         case .smudge(_, let sampleAllLayers):
             plan = try source.smudgePlan(layer: layer, request: stroke.request, dabs: stroke.dabs,
                 selection: kept != nil, sampleAllLayers: sampleAllLayers,
@@ -195,6 +207,27 @@ struct PrecisionStrokeWork {
                 sourceLayer: historyLayer, request: request, brushRequest: stroke.request,
                 dabs: stroke.dabs, selection: selection, workingLimit: context.limit,
                 otherRetained: context.otherRetained, control: control)
+        }
+        // A coloured stroke joins its coverage, the selection and its three ink planes.
+        if inked {
+            let planes = try control.withChildOperation(from: 0, to: 0.2) { child in
+                try stroke.colouredFootprint(width: width, height: height, control: child)
+            }
+            if control.isCancelled { throw JobCancelled() }
+            // Joined once at its final size, so the worker holds the four footprint planes and
+            // this input and nothing between them, as `heldBytes` states.
+            var samples = [UInt16]()
+            samples.reserveCapacity(planes.coverage.count + (selection?.count ?? 0)
+                + planes.ink.count)
+            samples.append(contentsOf: planes.coverage)
+            if let selection { samples.append(contentsOf: selection) }
+            samples.append(contentsOf: planes.ink)
+            return try control.withChildOperation(from: 0.2, to: 1) { child in
+                let context = try PrecisionWorkContext(source: source)
+                return try source.editingPixels(request: command.request, samples: samples,
+                    workingLimit: context.limit, otherRetained: context.otherRetained,
+                    control: child)
+            }
         }
         // The Background Eraser's coverage plane stands where every other stroke's footprint
         // does; `command` (its `erase_native`) erases it.

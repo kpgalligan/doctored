@@ -39,7 +39,8 @@ extension ImageCanvasView {
     /// than the gesture was admitted with.
     func admitDabImages(diameter: CGFloat) throws {
         if strokeTip.aliased { return try admitPencilImages(diameter: diameter) }
-        if nativeStrokeSession?.texture != nil || nativeStrokeSession?.dual != nil {
+        if nativeStrokeSession?.texture != nil || nativeStrokeSession?.dual != nil
+            || nativeStrokeSession?.colour != nil {
             return try admitTextureImages(diameter: diameter)
         }
         guard diameter > 1 else { return }

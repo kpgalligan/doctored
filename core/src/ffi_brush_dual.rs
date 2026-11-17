@@ -121,9 +121,11 @@ pub unsafe extern "C" fn dr_brush_dual_walk(
 /// output's sample count of a dual rasterization: `dr_brush_u16`'s own
 /// admission for each list, a pixel or aliased tip on either refused, the
 /// work sum checked against `MAX_BRUSH_WORK`, then the two plans' scratch
-/// (plus `count * 16` bytes with `shapes`) admitted and reserved.
+/// (plus `count * 16` bytes with `shapes`) admitted and reserved, that figure
+/// last. The coloured stroke (`ffi_brush_colour`) admits its dual lists here
+/// too and adds its own scratch to the figure.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-unsafe fn dual_request<'a>(
+pub(crate) unsafe fn dual_request<'a>(
     width: u32,
     height: u32,
     text: *const c_char,
@@ -146,6 +148,7 @@ unsafe fn dual_request<'a>(
         Option<&'a [f64]>,
         Option<&'a BrushTexture>,
         usize,
+        u64,
     ),
     String,
 > {
@@ -190,6 +193,7 @@ unsafe fn dual_request<'a>(
         shapes,
         texture,
         plan.output_samples,
+        scratch,
     ))
 }
 
@@ -244,7 +248,7 @@ pub unsafe extern "C" fn dr_brush_u16_dual(
                 let control = control.as_ref();
                 let _run = control.map(DrJobControl::begin).transpose()?;
                 let job = control.map_or(JobContext::NONE, JobContext::new);
-                let (first, second, dabs, dual_dabs, shapes, texture, samples) = dual_request(
+                let (first, second, dabs, dual_dabs, shapes, texture, samples, _) = dual_request(
                     width, height, text, dabs, count, shapes, texture, dual_text, dual_dabs,
                     dual_count, limit, other, job,
                 )?;
@@ -259,6 +263,7 @@ pub unsafe extern "C" fn dr_brush_u16_dual(
                     shapes,
                     texture.map(|t| (t, (origin_x, origin_y))),
                     dual_dabs,
+                    samples,
                     job,
                 )?;
                 job.report(1., 5)?;
@@ -315,7 +320,7 @@ pub unsafe extern "C" fn dr_brush_overlay_rgba8_dual(
                 let control = control.as_ref();
                 let _run = control.map(DrJobControl::begin).transpose()?;
                 let job = control.map_or(JobContext::NONE, JobContext::new);
-                let (first, second, dabs, dual_dabs, shapes, texture, samples) = dual_request(
+                let (first, second, dabs, dual_dabs, shapes, texture, samples, _) = dual_request(
                     width, height, text, dabs, count, shapes, texture, dual_text, dual_dabs,
                     dual_count, limit, other, job,
                 )?;
@@ -342,6 +347,7 @@ pub unsafe extern "C" fn dr_brush_overlay_rgba8_dual(
                     shapes,
                     texture.map(|t| (t, (origin_x, origin_y))),
                     dual_dabs,
+                    samples,
                     job,
                 )?;
                 job.report(1., 5)?;

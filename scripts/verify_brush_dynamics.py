@@ -73,6 +73,22 @@ Doctored process this file did not start is signalled.
   schema 2, lists after a relaunch, exports, deletes and imports back. Every named refusal
   (`dual` with `aliased`, a `native_stroke` `dual` on another tool, a malformed or pixel-brush
   `dual`, out-of-range and missing values, an unknown key) changes nothing.
+- **D13 colour dynamics** (two owned launches of its own, over a preset folder of its own). A
+  click's hard interior holds this file's own ink (its own SplitMix64 at salt 3 and its own HSL:
+  the mix toward the background, then hue, saturation and lightness jitter) at 8 and 16 bits
+  within one code and at 32 bits as the sRGB decode of its 16-bit code within 2e-4. A seeded
+  stroke repeats and another seed differs; the mix alone keeps every painted pixel between the
+  two inks per channel; Grayscale takes the mix and brightness, repeats and stays grey; a 16-bit
+  Lab click holds this file's Lab codes (the mix on all three, brightness on L alone, a* and b*
+  the mix's) and repeats; colour with a texture and a dual brush repeats and differs from the
+  uncoloured stroke. Every named refusal (another tool, `native_stroke` inks on another tool,
+  aliased, size 1, a mask, plane or channel, another blend mode, `rgba32`, `ink`, CMYK, Indexed,
+  Bitmap, hue on Grayscale, hue and saturation on Lab, a mix without a background, a value out
+  of range, an unknown key, a preset's background) changes nothing. The recorded step holds
+  `native_stroke.inks` and no seed or background, replays exactly, saved absolute replays to the
+  recorded render and saved relative paints the direct call with the dabs remapped and the inks
+  as recorded, which differs from the call without them. A colour preset saves at schema 2 and
+  lists after a relaunch.
 - D7 also refuses `rotations` alone, of the wrong length or range and on another tool, `angle`
   and `roundness` with `aliased`, and a `native_stroke` with `shapes` on another tool or of the
   wrong length; and `texture` with `aliased`, a `native_stroke` with `texture` on another tool,
@@ -82,7 +98,7 @@ Doctored process this file did not start is signalled.
   without pixels; the file holds the tile), which lists, exports and imports back after a
   relaunch with another (empty) pattern library.
 
-Usage: python3 -B scripts/verify_brush_dynamics.py [--receipts <folder>] [--only d12]
+Usage: python3 -B scripts/verify_brush_dynamics.py [--receipts <folder>] [--only d12|d13]
 """
 import argparse
 import base64
@@ -617,12 +633,385 @@ def dual_brush(folder, receipts):
             os.environ['DR_BRUSH_PRESETS_DIR'] = shared
 
 
+MASK64 = (1 << 64) - 1
+
+
+def colour_draws(seed, stamp, dab):
+    """`v1…v4` of dab `dab` of stamp `stamp`: SplitMix64 at the positional seed
+    `seed ^ stamp·γ ^ dab·m1 ^ 3·m2`, each value its top 53 bits over 2^53."""
+    state = (seed ^ (stamp * 0x9E3779B97F4A7C15 & MASK64) ^ (dab * 0xBF58476D1CE4E5B9 & MASK64)
+             ^ (3 * 0x94D049BB133111EB & MASK64)) & MASK64
+    out = []
+    for _ in range(4):
+        state = (state + 0x9E3779B97F4A7C15) & MASK64
+        z = state
+        z = ((z ^ (z >> 30)) * 0xBF58476D1CE4E5B9) & MASK64
+        z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & MASK64
+        z ^= z >> 31
+        out.append((z >> 11) / float(1 << 53))
+    return out
+
+
+def colour_ink(seed, stamp, dab, fg, bg, amounts, lab=False):
+    """The rule's ink (the ADR's slice 5): the mix, then the HSL jitter (rgb) or the L code's
+    brightness (lab), each channel clamped to 0…1. HSL is this file's own (colorsys)."""
+    import colorsys
+    v1, v2, v3, v4 = colour_draws(seed, stamp, dab)
+    mix, hue, sat, bright = (amounts.get(k, 0) for k in ('mix', 'hue', 'saturation', 'brightness'))
+    c = [f + (b - f) * mix * v1 for f, b in zip(fg, bg)]
+    if lab:
+        out = [c[0] * (1 - bright * v4), c[1], c[2]]
+    elif hue == 0 and sat == 0 and bright == 0:
+        out = c
+    else:
+        h, l, s = colorsys.rgb_to_hls(*c)
+        h = (h + 180 * hue * (2 * v2 - 1) / 360) % 1
+        out = list(colorsys.hls_to_rgb(h, min(max(l * (1 - bright * v4), 0), 1),
+                                       min(max(s * (1 - sat * v3), 0), 1)))
+    return [min(max(v, 0), 1) for v in out]
+
+
+def srgb_decode(v):
+    return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+
+
+def colour_dynamics(folder, receipts):
+    """D13 (the module doc), on two owned launches over a brush preset folder of their own."""
+    from phase5_support import App
+    shared = os.environ.get('DR_BRUSH_PRESETS_DIR')
+    os.environ['DR_BRUSH_PRESETS_DIR'] = str(folder / 'colour-presets')
+    rows = receipts.setdefault('d13', {})
+    fg_hex, bg_hex = '#c03070', '#2080e0'
+    fg = [0xc0 / 255, 0x30 / 255, 0x70 / 255]
+    bg = [0x20 / 255, 0x80 / 255, 0xe0 / 255]
+    amounts = {'mix': 0.8, 'hue': 0.3, 'saturation': 0.5, 'brightness': 0.4}
+    try:
+        with App(folder / 'd13-app1', folder / 'd13-recovery1', interval=600) as app:
+            call = app.call
+            actions = folder / 'd13-app1' / 'actions'
+
+            def render(doc, **extra):
+                reply = app.client.rpc('tools/call', {'name': 'render', 'arguments': {
+                    'document_id': doc, 'max_side': 4096, **extra}})
+                assert not reply.get('isError'), reply
+                return png_pixels(next(item['data'] for item in reply['content']
+                                       if item['type'] == 'image'))
+
+            def changed(before, after, size=(W, H)):
+                assert before[:2] == after[:2] == size, (before[:2], after[:2])
+                return {(i % size[0], i // size[0]): q
+                        for i, (p, q) in enumerate(zip(before[2], after[2])) if p != q}
+
+            def sized(size, spec, background='white'):
+                return call('new_document', width=size[0], height=size[1], background=background,
+                            **spec)['document']['id']
+
+            def close(doc):
+                call('close_document', document_id=doc, discard_changes=True)
+
+            def pixel(doc, x, y):
+                reply = call('sample_pixel', document_id=doc, x=x, y=y, source='layer', layer=0)
+                for key in ('center_rgba32', 'center_rgba_codes'):
+                    if reply.get(key) is not None:
+                        return reply[key]
+                raise AssertionError(('no readout', sorted(reply)))
+
+            def colour(seed=5, **extra):
+                return {'seed': seed, 'color': dict(amounts, background=bg_hex, **extra)}
+
+            centre = (30.5, 22.5)
+            inside = interior(centre, 24)[::5]
+
+            # The click: one dab, stamp 0, dab 0, its hard interior the oracle's ink.
+            clicks = {}
+            for kind in ('rgb8', 'rgb16', 'rgb32'):
+                doc = sized((W, H), KINDS[kind], 'transparent')
+                call('brush_stroke', document_id=doc, points=[list(centre)], size=24, color=fg_hex,
+                     hardness=100, dynamics=colour())
+                ink = colour_ink(5, 0, 0, fg, bg, amounts)
+                worst = 0
+                for (x, y) in inside:
+                    got = pixel(doc, x, y)
+                    if kind == 'rgb32':
+                        want = [srgb_decode(round(v * 65535) / 65535) for v in ink]
+                        miss = max(abs(g - w) for g, w in zip(got[:3], want))
+                        assert miss <= 2e-4, (kind, (x, y), got, want)
+                    else:
+                        top = 255 if kind == 'rgb8' else 65535
+                        want = [math.floor(v * top + 0.5) for v in ink]
+                        miss = max(abs(g - w) for g, w in zip(got[:3], want))
+                        assert miss <= 1, (kind, (x, y), got, want)
+                    worst = max(worst, miss)
+                close(doc)
+                assert max(abs(i - f) for i, f in zip(ink, fg)) > 0.05, ('the ink moved', ink)
+                clicks[kind] = {'ink': ink, 'worst': worst}
+                print(f'PASS {kind} d13 click: {len(inside)} interior px of a coloured click are '
+                      f'this file\'s ink {[round(v, 4) for v in ink]} (worst {worst:g})', flush=True)
+            rows['click'] = clicks
+
+            # The seeded stroke repeats; another seed paints differently.
+            stroke = dict(points=STROKE, size=12, color=fg_hex, hardness=100)
+            scatter = {'scatter': {'amount': 1, 'count': 2}}
+            renders = []
+            for seed in (5, 5, 6):
+                doc = sized((W, H), KINDS['rgb8'])
+                call('brush_stroke', document_id=doc, **stroke,
+                     dynamics=dict(colour(seed), **scatter))
+                renders.append(render(doc))
+                close(doc)
+            assert renders[0] == renders[1] and renders[0] != renders[2], 'the seeded colour'
+            print('PASS d13 seeded: a coloured stroke repeats, another seed differs', flush=True)
+
+            # Mix alone stays between the two inks per channel.
+            doc = sized((W, H), KINDS['rgb8'], 'transparent')
+            call('brush_stroke', document_id=doc, **stroke,
+                 dynamics={'seed': 2, 'color': {'mix': 1, 'background': bg_hex}})
+            moved, checked = 0, 0
+            for y in range(16, 32, 2):
+                for x in range(4, 60, 3):
+                    got = pixel(doc, x, y)
+                    # Straight codes of a faint edge carry the premultiplied rounding.
+                    if got[3] < 200:
+                        continue
+                    checked += 1
+                    for ch in range(3):
+                        lo, hi = sorted((fg[ch] * 255, bg[ch] * 255))
+                        assert lo - 1 <= got[ch] <= hi + 1, ('mix between', (x, y), got)
+                    moved += any(abs(got[ch] - fg[ch] * 255) > 2 for ch in range(3))
+            close(doc)
+            assert checked > 20 and moved > 5, (checked, moved)
+            print(f'PASS d13 mix: {checked} painted px lie between the two inks per channel, '
+                  f'{moved} moved off the foreground', flush=True)
+
+            # Grayscale takes the mix and the brightness, and stays grey.
+            gray = []
+            for extra in ({'dynamics': {'seed': 3, 'color': {'mix': 0.7, 'brightness': 0.5,
+                                                             'background': bg_hex}}},
+                          {'dynamics': {'seed': 3, 'color': {'mix': 0.7, 'brightness': 0.5,
+                                                             'background': bg_hex}}},
+                          {'stroke_version': 1}):
+                doc = sized((W, H), KINDS['gray8'])
+                call('brush_stroke', document_id=doc, **stroke, **extra)
+                gray.append(render(doc))
+                close(doc)
+            assert gray[0] == gray[1] and gray[0] != gray[2], 'Grayscale colour dynamics'
+            assert all(p[0] == p[1] == p[2] for p in gray[0][2]), 'Grayscale stays grey'
+            print('PASS gray8 d13: mix and brightness repeat, differ from the plain stroke and '
+                  'stay grey', flush=True)
+
+            # Lab: the codes' own rule, a* and b* the mix's alone.
+            lab_fg, lab_bg = [0.6, 0.7, 0.4, 1], [0.3, 0.45, 0.65, 1]
+            lab_amounts = {'mix': 0.9, 'brightness': 0.6}
+            labs = []
+            for repeat in range(2):
+                doc = sized((W, H), dict(color_mode='lab', depth=16), 'transparent')
+                call('brush_stroke', document_id=doc, points=[list(centre)], size=24, hardness=100,
+                     color_space='document', rgba=lab_fg,
+                     dynamics={'seed': 11, 'color': dict(lab_amounts, background=lab_bg)})
+                ink = colour_ink(11, 0, 0, lab_fg[:3], lab_bg[:3], lab_amounts, lab=True)
+                mixed = colour_ink(11, 0, 0, lab_fg[:3], lab_bg[:3], {'mix': 0.9}, lab=True)
+                assert ink[1:] == mixed[1:] and ink[0] < mixed[0], (ink, mixed)
+                got = [pixel(doc, x, y) for (x, y) in inside]
+                for value in got:
+                    want = [math.floor(v * 65535 + 0.5) for v in ink]
+                    assert max(abs(g - w) for g, w in zip(value[:3], want)) <= 1, (value, want)
+                labs.append(got)
+                labs.append(render(doc))
+                close(doc)
+            assert labs[0] == labs[2] and labs[1] == labs[3], 'the Lab stroke repeats'
+            rows['lab'] = {'ink': ink}
+            print(f'PASS lab16 d13: a coloured click\'s interior holds this file\'s Lab codes '
+                  f'{[round(v, 4) for v in ink]}, a* and b* the mix\'s; it repeats', flush=True)
+
+            # Texture and dual with colour.
+            combined = []
+            for extra in ({'texture': {'pattern': TILE, 'depth': 0.5}, 'dual': DUAL},) * 2 + (None,):
+                dynamics = dict(colour(4), **extra) if extra else {
+                    'seed': 4, 'texture': {'pattern': TILE, 'depth': 0.5}, 'dual': DUAL}
+                doc = sized((W, H), KINDS['rgb8'])
+                call('brush_stroke', document_id=doc, **stroke, dynamics=dynamics)
+                combined.append(render(doc))
+                close(doc)
+            assert combined[0] == combined[1] and combined[0] != combined[2], 'texture and dual'
+            print('PASS d13 combined: colour with a texture and a dual brush repeats and differs '
+                  'from the uncoloured stroke', flush=True)
+
+            # The refusals.
+            doc = sized((W, H), KINDS['rgb8'])
+            before = render(doc)
+            base = dict(document_id=doc, points=STROKE, size=SIZE, color=fg_hex)
+            inked_native = dict(SHAPED_NATIVE, inks=base64.b64encode(
+                struct.pack('<6d', 0.1, 0.2, 0.3, 0.4, 0.5, 0.6)).decode())
+            inked_native.pop('shapes')
+
+            def refused(tool, document=None, **arguments):
+                arguments = {k: v for k, v in dict(base, **arguments).items() if v is not None}
+                if document is not None:
+                    arguments['document_id'] = document
+                return call(tool, fail=True, **arguments)
+
+            mask_doc = sized((W, H), KINDS['rgb8'])
+            call('add_layer_mask', document_id=mask_doc, layer=0, kind='reveal_all')
+            call('add_channel', document_id=mask_doc, name='Alpha 1')
+            float_doc = sized((W, H), KINDS['rgb32'])
+            mode_docs = {kind: sized((W, H), spec) for kind, spec in (
+                ('gray', KINDS['gray8']), ('cmyk', KINDS['cmyk8']),
+                ('lab', dict(color_mode='lab', depth=8)))}
+            indexed = sized((W, H), KINDS['rgb8'])
+            call('convert_mode', document_id=indexed, mode='indexed', palette='exact', dither='none')
+            bitmap = sized((W, H), KINDS['gray8'])
+            call('convert_mode', document_id=bitmap, mode='bitmap', method='threshold')
+            colour_only = colour()
+            refusals = {
+                'eraser': (refused('eraser_stroke', dynamics=colour_only),
+                           "dynamics.color is the Brush's colour dynamics: brush_stroke takes it"),
+                'quick_mask': (refused('quick_mask_stroke', dynamics=colour_only, width=W,
+                                       height=H, opacity=1),
+                               "dynamics.color is the Brush's colour dynamics"),
+                'inks_tool': (refused('eraser_stroke', native_stroke=inked_native, color=None),
+                              "native_stroke inks is the Brush's colour dynamics"),
+                'pencil': (refused('brush_stroke', aliased=True, dynamics=colour_only),
+                           "the Pencil's tip (aliased) paints one ink"),
+                'size_1': (refused('brush_stroke', size=1, dynamics=colour_only),
+                           'dynamics need a brush size above 1 px'),
+                'mask': (refused('brush_stroke', document=mask_doc, target='mask',
+                                 dynamics=colour_only), 'is coverage, not colour'),
+                'plane': (refused('brush_stroke', document=mask_doc, target='red',
+                                  dynamics=colour_only), 'is coverage, not colour'),
+                'channel': (refused('brush_stroke', document=mask_doc, target='channel:Alpha 1',
+                                    dynamics=colour_only), 'is coverage, not colour'),
+                'blend': (refused('brush_stroke', blend_mode='multiply', dynamics=colour_only),
+                          'blend_mode Multiply takes one ink a stroke'),
+                'rgba32': (refused('brush_stroke', document=float_doc, color=None,
+                                   rgba32=[2, 1, 1, 1], dynamics=colour_only),
+                           'rgba32 is one ink a stroke'),
+                # `ink` off a CMYK document is refused before colour's own limits are asked.
+                'ink': (refused('brush_stroke', ink=[10, 20, 30, 0], dynamics=colour_only),
+                        "ink is a CMYK document's colour"),
+                'cmyk': (refused('brush_stroke', document=mode_docs['cmyk'], dynamics=colour_only),
+                         'a CMYK document paints one ink a stroke'),
+                'indexed': (refused('brush_stroke', document=indexed, dynamics=colour_only),
+                            'an Indexed document paints one ink a stroke'),
+                'bitmap': (refused('brush_stroke', document=bitmap, color='#000000',
+                                   dynamics=colour_only),
+                           'a Bitmap document paints one ink a stroke'),
+                'gray_hue': (refused('brush_stroke', document=mode_docs['gray'],
+                                     dynamics={'color': {'hue': 0.2}}),
+                             'dynamics.color.hue turns an RGB hue; a Grayscale document'),
+                'lab_hue': (refused('brush_stroke', document=mode_docs['lab'],
+                                    dynamics={'color': {'hue': 0.2}}),
+                            'dynamics.color.hue turns an RGB hue; a Lab document'),
+                'lab_saturation': (refused('brush_stroke', document=mode_docs['lab'],
+                                           dynamics={'color': {'saturation': 0.2}}),
+                                   'dynamics.color.saturation lowers an RGB saturation; '
+                                   'a Lab document'),
+                'no_background': (refused('brush_stroke', dynamics={'color': {'mix': 0.5}}),
+                                  'pass dynamics.color.background'),
+                'range': (refused('brush_stroke', dynamics={'color': {'brightness': 1.5}}),
+                          'dynamics.color.brightness must be a number from 0 to 1'),
+                'key': (refused('brush_stroke', dynamics={'color': {'value': 0.5}}),
+                        'dynamics.color takes mix, hue, saturation, brightness; it has no value.'),
+                'preset_background': (call('save_brush_preset', fail=True, name='Bad Colour',
+                                           hardness=100, flow=100, spacing=25, angle=0,
+                                           roundness=100,
+                                           dynamics={'color': {'mix': 0.5, 'background': bg_hex}}),
+                                      'dynamics.color takes mix, hue, saturation, brightness; '
+                                      'it has no background.'),
+            }
+            for name, (reply, needle) in refusals.items():
+                assert needle in reply, (name, reply)
+            assert not changed(before, render(doc)), 'a colour refusal changed pixels'
+            for other in [doc, mask_doc, float_doc, indexed, bitmap, *mode_docs.values()]:
+                close(other)
+            rows['refusals'] = {k: v[0] for k, v in refusals.items()}
+            print(f'PASS d13 refusals: {len(refusals)} refusals by name change nothing', flush=True)
+
+            # The recording: the step holds inks, no seed and no background; it replays exactly
+            # absolute and, relative, remaps the dabs and keeps the inks.
+            arguments_line = dict(stroke, dynamics=dict(colour(8), **scatter))
+            doc = sized((W, H), KINDS['rgb8'])
+            call('start_recording', discard=True)
+            call('brush_stroke', document_id=doc, **arguments_line)
+            recorded_render = render(doc)
+            call('stop_recording', name='colour-replay')
+            call('undo', document_id=doc)
+            call('run_action', document_id=doc, name='colour-replay')
+            assert render(doc) == recorded_render, 'the colour replay differs'
+            close(doc)
+            step = recorded_step(actions, 'colour-replay')
+            arguments = {k: v for k, v in step['arguments'].items() if k != 'document_id'}
+            native = arguments['native_stroke']
+            text = json.dumps(arguments)
+            assert 'dynamics' not in arguments and 'seed' not in text and 'background' not in text
+            inks = base64.b64decode(native['inks'])
+            assert len(inks) == 24 * len(decode_dabs(native)) > 0, (len(inks), len(decode_dabs(native)))
+            for mode in ('absolute', 'relative'):
+                save = app.client.rpc('tools/call', {'name': 'save_action', 'arguments': {
+                    'name': f'colour-{mode}', 'overwrite': True,
+                    'recorded_canvas': {'width': W, 'height': H},
+                    'steps': [{'tool': 'brush_stroke', 'arguments': arguments,
+                               'geometry': {'mode': mode}}]}})
+                assert not save.get('isError'), save
+            doc = sized((W, H), KINDS['rgb8'])
+            call('run_action', document_id=doc, name='colour-absolute')
+            assert render(doc) == recorded_render, 'the absolute colour replay differs'
+            close(doc)
+            live = (2 * W, H * 3 // 2)
+            factor = math.sqrt((live[0] / W) * (live[1] / H))
+            doc = sized(live, KINDS['rgb8'])
+            call('run_action', document_id=doc, name='colour-relative')
+            played = render(doc)
+            close(doc)
+            size = quantize(min(max(arguments['size'] * factor, 1), 5000), arguments['size'])
+            points = [[quantize(x * live[0] / W, x), quantize(y * live[1] / H, y)]
+                      for x, y in arguments['points']]
+            mapped = encode_dabs(native, [(x * live[0] / W, y * live[1] / H,
+                                           min(max(d * factor, 1), 5000), o)
+                                          for x, y, d, o in decode_dabs(native)])
+            direct = dict(arguments, points=points, size=size, native_stroke=mapped)
+            uncoloured = dict(direct, native_stroke={k: v for k, v in mapped.items()
+                                                     if k != 'inks'})
+            renders = []
+            for each in (direct, uncoloured):
+                doc = sized(live, KINDS['rgb8'])
+                call('brush_stroke', document_id=doc, **each)
+                renders.append(render(doc))
+                close(doc)
+            assert played == renders[0], ('the relative colour replay differs from the remapped '
+                                          'direct call', len(changed(played, renders[0], live)))
+            assert renders[0] != renders[1], 'the inks change nothing'
+            print(f'PASS d13 replay: the recorded step holds {len(inks) // 24} inks and no seed or '
+                  'background; it replays absolute and, relative, keeps the inks', flush=True)
+
+            # The preset.
+            tip = dict(hardness=70, flow=100, spacing=25, angle=0, roundness=100, airbrush=False)
+            saved = call('save_brush_preset', name='Colour Round',
+                         dynamics={'color': {'mix': 0.6, 'hue': 0.1}}, **tip)['preset']
+            assert saved['dynamics']['color'] == {'mix': 0.6, 'hue': 0.1, 'saturation': 0,
+                                                  'brightness': 0}, saved
+            body = json.loads(next((folder / 'colour-presets').glob('*.json')).read_text())
+            assert body['schema_version'] == 2 and body['dynamics']['color']['mix'] == 0.6, body
+
+        with App(folder / 'd13-app2', folder / 'd13-recovery2', interval=600) as app:
+            call = app.call
+            mine = [p for p in call('list_brush_presets')['presets'] if not p['builtin']]
+            assert [p['name'] for p in mine] == ['Colour Round'] \
+                and mine[0]['dynamics'] == saved['dynamics'], mine
+            print('PASS d13 preset: a colour preset saves at schema 2 and lists after a relaunch',
+                  flush=True)
+    finally:
+        if shared is None:
+            os.environ.pop('DR_BRUSH_PRESETS_DIR', None)
+        else:
+            os.environ['DR_BRUSH_PRESETS_DIR'] = shared
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--receipts', default=None)
-    parser.add_argument('--only', choices=['d12'], default=None,
-                        help='run D12 (the dual brush) alone')
+    parser.add_argument('--only', choices=['d12', 'd13'], default=None,
+                        help='run D12 (the dual brush) or D13 (colour dynamics) alone')
     args = parser.parse_args()
     output = Path(args.receipts or tempfile.mkdtemp(prefix='brush-dynamics-')).expanduser()
     output.mkdir(parents=True, exist_ok=True)
@@ -632,6 +1021,14 @@ def main():
     os.environ.setdefault('DR_BACKGROUND', '1')
     from phase5_support import App
     receipts = {'expectations': 'fixed in scripts/verify_brush_dynamics.py'}
+
+    # ---- D13 colour dynamics (its own launches and preset folder) -----------------------------
+    if args.only in (None, 'd13'):
+        colour_dynamics(folder, receipts)
+    if args.only == 'd13':
+        (output / 'receipts.json').write_text(json.dumps(receipts, indent=2, sort_keys=True) + '\n')
+        print(f'PASS d13; receipts in {output}', flush=True)
+        return
 
     # ---- D12 dual brush (its own launches and preset folder) ----------------------------------
     dual_brush(folder, receipts)

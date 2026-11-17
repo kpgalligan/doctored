@@ -25,12 +25,24 @@ fn rounded(x: u32, d: u32) -> u32 {
 /// (`4 · coverage.len()` bytes), multiplied by `selection` when given (one byte
 /// per coverage sample). The caller has checked every length.
 pub fn overlay_rgba8(coverage: &[u16], ink: [u8; 3], selection: Option<&[u8]>, out: &mut [u8]) {
+    overlay_rgba8_inked(coverage, |_| ink, selection, out);
+}
+
+/// [`overlay_rgba8`] with each pixel's straight ink `ink(i)` (the coloured
+/// stroke's, `brush_colour`: `round(S · 255)` of its straight ink `S`), then
+/// the same rule per pixel.
+pub fn overlay_rgba8_inked(
+    coverage: &[u16],
+    ink: impl Fn(usize) -> [u8; 3],
+    selection: Option<&[u8]>,
+    out: &mut [u8],
+) {
     for (i, (&sample, pixel)) in coverage.iter().zip(out.chunks_exact_mut(4)).enumerate() {
         let mut alpha = rounded(u32::from(sample) * 255, 65_535);
         if let Some(selection) = selection {
             alpha = rounded(alpha * u32::from(selection[i]), 255);
         }
-        for (channel, &value) in pixel.iter_mut().zip(ink.iter()) {
+        for (channel, &value) in pixel.iter_mut().zip(ink(i).iter()) {
             *channel = rounded(u32::from(value) * alpha, 255) as u8;
         }
         pixel[3] = alpha as u8;

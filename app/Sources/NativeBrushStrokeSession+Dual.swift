@@ -7,9 +7,10 @@ import CoreGraphics
 /// rule hold for the second list exactly as for the first.
 extension NativeBrushStrokeSession {
     /// Feeds `point` to the second tip's walk, calling the core again with the same point while
-    /// a call lays stamps (each call lays at most `RasterBrushDual.stampsPerCall`), and appends
-    /// every second dab the caps admit to `dualDabs`. Returns the second-dab indices laid (an
-    /// empty range without a dual brush, or once the session takes no more ink).
+    /// a call lays stamps (each call lays as many whole stamps as its buffer holds: 64 at the
+    /// largest scatter count, up to 1,024 at a count of 1; `RasterBrushDual.stampsPerCall`), and
+    /// appends every second dab the caps admit to `dualDabs`. Returns the second-dab indices
+    /// laid (an empty range without a dual brush, or once the session takes no more ink).
     @discardableResult
     mutating func walkDual(to point: CGPoint) -> Range<Int> {
         let start = dualDabs.count / 4

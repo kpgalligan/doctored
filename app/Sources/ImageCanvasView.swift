@@ -460,6 +460,7 @@ final class ImageCanvasView: NSView {
     var nativeStrokeSession: NativeBrushStrokeSession?
     /// The Brush's, Pencil's or Eraser's dynamics (`ImageCanvasView+BrushDynamics.swift`).
     var brushDynamics: BrushDynamics?
+    var onStrokeColourHandle: ((BrushDynamics.ColorDynamics, UInt32) -> RasterBrushColour?)?
     var strokePen = StrokePenState()
     var preparedByteStroke: PreparedBytePaintStroke?
     var preparedByteQuickMask: QuickMaskStroke?

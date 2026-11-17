@@ -34,20 +34,26 @@ extension NativeBrushStrokeSession {
             ?? CGVector(dx: 0, dy: 0)
         lastNominalPoint = point
         if heading == nil, direction.dx != 0 || direction.dy != 0 { lastHeading = direction }
-        let resolved = dynamics.dabs(index: dynamicsIndex, at: point, size: size, pen: pen,
+        let stampIndex = dynamicsIndex
+        let resolved = dynamics.dabs(index: stampIndex, at: point, size: size, pen: pen,
                                      direction: direction, heading: heading ?? lastHeading)
         dynamicsIndex += 1
         var laid: [ResolvedDab] = []
-        for dab in resolved {
+        for (k, dab) in resolved.enumerated() {
             let before = dabs.count
             stamp(at: dab.point, diameter: dab.diameter, deposit: tip.flow * dab.factor)
             if dabs.count > before {
                 if dynamicsShaped {
                     shapes.append(contentsOf: [Double(dab.angleDegrees), Double(dab.roundness)])
                 }
+                // Colour dynamics: the dab's ink from its place `k` in the stamp's resolved
+                // list (`brush_colour.rs`, THE DRAWS), whichever dabs the caps let through.
+                let ink = colour?.ink(index: stampIndex, dab: k)
+                if let ink { inks.append(contentsOf: ink) }
                 laid.append(ResolvedDab(point: CGPoint(x: dabs[before], y: dabs[before + 1]),
                                         diameter: CGFloat(dabs[before + 2]), factor: dab.factor,
-                                        angleDegrees: dab.angleDegrees, roundness: dab.roundness))
+                                        angleDegrees: dab.angleDegrees, roundness: dab.roundness,
+                                        ink: ink))
             }
             guard acceptsInk else { break }
         }

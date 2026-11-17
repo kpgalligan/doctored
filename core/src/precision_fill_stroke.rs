@@ -116,6 +116,7 @@ impl LayerEdgeStroke {
             preserve_alpha: self.preserve_alpha,
             plane: None,
             pattern: None,
+            ink_planes: false,
         }
     }
 

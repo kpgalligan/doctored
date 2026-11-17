@@ -11,25 +11,27 @@ import AppKit
 ///
 /// THE CEILING. These redraws run on main, synchronous and uncancellable
 /// (`NativeSelectionWork.context(nil)`), so one nominal stamp spends at most `dualPreviewWork`
-/// box pixels: a box's figure (`dualPreviewFigure`, the sum over the stroke's dabs of each dab's
-/// box intersected with it) is taken before its core call, boxes go in laid order, and a box whose
-/// figure exceeds what is left of the stamp's budget is not redrawn. The commit is exact either
-/// way, and a later stamp's box that fits redraws those pixels from the whole stroke. The figure is
-/// a declared constant, not a measurement; the owner's hand check judges it.
+/// units: a box's figure (`dualPreviewFigure`, one unit per dab examined plus each dab's box
+/// intersected with it) is taken before its core call, boxes go in laid order, and the scan stops
+/// once the stamp's budget is passed, so neither the scan nor the redraws outgrow it: the box that
+/// passes it and every later box of the stamp are not redrawn. The commit is exact either way,
+/// and a later stamp's box that fits redraws those pixels from the whole stroke. The figure is a
+/// declared constant, not a measurement; the owner's hand check judges it.
 extension ImageCanvasView {
-    /// One nominal stamp's preview budget: 2²⁴ box pixels.
+    /// One nominal stamp's preview budget: 2²⁴ units.
     static let dualPreviewWork: UInt64 = 16_777_216
 
-    /// Sum over the dabs (4 doubles each, canvas coordinates) of each dab's clipped box ∩
-    /// `box`; saturating.
+    /// One unit per dab examined (4 doubles each, canvas coordinates) plus each dab's clipped box
+    /// ∩ `box`, saturating; the scan stops as soon as the total passes `limit` and returns it.
     static func dualPreviewFigure(box: (x0: Int, y0: Int, x1: Int, y1: Int), dabs: [Double],
-                                  dualDabs: [Double]) -> UInt64 {
+                                  dualDabs: [Double], limit: UInt64 = .max) -> UInt64 {
         var total: UInt64 = 0
         for list in [dabs, dualDabs] {
             for k in stride(from: 0, to: list.count - list.count % 4, by: 4) {
                 let area = overlap(box, x: list[k], y: list[k + 1], diameter: list[k + 2])
                 let (sum, overflow) = total.addingReportingOverflow(area)
-                total = overflow ? .max : sum
+                total = overflow || sum == .max ? .max : sum + 1
+                if total > limit { return total }
             }
         }
         return total
@@ -69,6 +71,8 @@ extension ImageCanvasView {
         let second = nativeStrokeSession?.dualDabs ?? []
         let shapes = nativeStrokeSession?.dynamicsShaped == true ? nativeStrokeSession?.shapes : nil
         let texture = nativeStrokeSession?.texture
+        // A coloured stroke's boxes carry each first dab's preview ink.
+        let inks = nativeStrokeSession?.colour == nil ? nil : nativeStrokeSession?.inks
         var boxes = laid.map { dualBox(x: Double($0.point.x), y: Double($0.point.y),
                                        diameter: Double($0.diameter)) }
         for k in stride(from: 4 * max(dualFrom, 0), to: second.count, by: 4) {
@@ -76,11 +80,13 @@ extension ImageCanvasView {
         }
         var budget = Self.dualPreviewWork
         for box in boxes where box.x1 > box.x0 && box.y1 > box.y0 {
-            let figure = Self.dualPreviewFigure(box: box, dabs: dabs, dualDabs: second)
-            guard figure <= budget else { continue }
+            let figure = Self.dualPreviewFigure(box: box, dabs: dabs, dualDabs: second,
+                                                limit: budget)
+            // The scan passed the stamp's budget: no later box of this stamp is examined.
+            guard figure <= budget else { return }
             budget -= figure
-            drawDualBox(box, dabs: dabs, shapes: shapes, second: second, tip: dual.tip,
-                        texture: texture, ink: ink, in: context)
+            drawDualBox(box, dabs: dabs, shapes: shapes, inks: inks, second: second,
+                        tip: dual.tip, texture: texture, ink: ink, in: context)
         }
     }
 
@@ -89,20 +95,25 @@ extension ImageCanvasView {
     /// does not reach is the product's zero, so it is cleared. A stroke the core refuses is not
     /// drawn; the commit is exact either way.
     private func drawDualBox(_ box: (x0: Int, y0: Int, x1: Int, y1: Int), dabs: [Double],
-                             shapes: [Double]?, second: [Double], tip: BrushTip,
+                             shapes: [Double]?, inks: [Double]?, second: [Double], tip: BrushTip,
                              texture: StrokeTexture?, ink: [UInt8], in context: CGContext) {
         let (ox, oy) = (Double(box.x0), Double(box.y0))
-        func filtered(_ list: [Double], pairs: [Double]?) -> ([Double], [Double]) {
-            var kept: [Double] = [], keptPairs: [Double] = []
+        func filtered(_ list: [Double], pairs: [Double]?,
+                      triples: [Double]? = nil) -> ([Double], [Double], [Double]) {
+            var kept: [Double] = [], keptPairs: [Double] = [], keptInks: [Double] = []
             for k in stride(from: 0, to: list.count - list.count % 4, by: 4)
             where Self.overlap(box, x: list[k], y: list[k + 1], diameter: list[k + 2]) > 0 {
                 kept.append(contentsOf: [list[k] - ox, list[k + 1] - oy, list[k + 2], list[k + 3]])
                 if let pairs { keptPairs.append(contentsOf: [pairs[k / 2], pairs[k / 2 + 1]]) }
+                if let triples {
+                    let at = k / 4 * 3
+                    keptInks.append(contentsOf: previewInk(Array(triples[at..<at + 3])))
+                }
             }
-            return (kept, keptPairs)
+            return (kept, keptPairs, keptInks)
         }
-        let (first, firstShapes) = filtered(dabs, pairs: shapes)
-        let (secondDabs, _) = filtered(second, pairs: nil)
+        let (first, firstShapes, firstInks) = filtered(dabs, pairs: shapes, triples: inks)
+        let (secondDabs, _, _) = filtered(second, pairs: nil)
         let (width, height) = (box.x1 - box.x0, box.y1 - box.y0)
         let rect = CGRect(x: box.x0, y: box.y0, width: width, height: height)
         guard !first.isEmpty, !secondDabs.isEmpty else {
@@ -111,7 +122,8 @@ extension ImageCanvasView {
         }
         guard let stroke = try? NativeBrushStroke(tip: strokeTip, pixel: false, dabs: first,
                   shapes: shapes == nil ? nil : firstShapes, texture: texture,
-                  dual: StrokeDual(tip: tip, dabs: secondDabs)),
+                  dual: StrokeDual(tip: tip, dabs: secondDabs),
+                  inks: inks == nil ? nil : firstInks),
               let pixels = try? stroke.coreOverlay(width: width, height: height,
                                                    origin: (box.x0, box.y0), rgb: ink,
                                                    selection: nil, opacity: 1),

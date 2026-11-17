@@ -137,6 +137,13 @@
 //! stroke takes the first tip's field `F1` (shapes and texture included) and the second tip's
 //! `F2` (no shapes, no texture) from this one function and writes `quantize(F1 · F2)`: the
 //! product precedes the one rounding, and a pixel outside either footprint is 0.
+//!
+//! THE COLOURED STROKE (brush dynamics' colour, `brush_colour`). `field_with` is `field` with a
+//! hook called after each written pixel with its field index, its dab and the coverage `c` the
+//! accumulation took; `field` is its no-op call, so its bits are unchanged. The coloured stroke
+//! accumulates each dab's ink beside the field, `P += c·(ink − P)`, from that hook, and quantizes
+//! the field through `quantized`, `rasterize_textured`'s own loop pulled out, so its coverage is
+//! the uncoloured stroke's bit for bit.
 use crate::brush_texture::{BrushTexture, TEXTURED_TIP_REFUSAL};
 use crate::job_control::JobContext;
 use crate::precision_image::{pixel_count, reserved_vec, BOOKKEEPING_BYTES};
@@ -350,11 +357,25 @@ impl BrushRequest {
         if texture.is_some() && !self.stamped() {
             return Err(TEXTURED_TIP_REFUSAL.into());
         }
-        let (field, [fx0, fy0, fx1, fy1]) =
-            self.field(dimensions, dabs, shapes, texture, (0., 0.9), job)?;
+        let (field, bounds) = self.field(dimensions, dabs, shapes, texture, (0., 0.9), job)?;
+        self.quantized(dimensions, plan.output_samples, &field, bounds, job)
+    }
+    /// The canvas u16 coverage of `field` over its footprint `bounds`: each
+    /// pixel's one quantization, 0 outside the footprint. `samples` is the
+    /// plan's output count (`rasterize_textured`'s loop, pulled out for the
+    /// coloured stroke, module doc).
+    pub(crate) fn quantized(
+        &self,
+        dimensions: (u32, u32),
+        samples: usize,
+        field: &[f64],
+        bounds: [usize; 4],
+        job: JobContext<'_>,
+    ) -> Result<Vec<u16>, String> {
+        let [fx0, fy0, fx1, fy1] = bounds;
         let fw = fx1 - fx0;
         let (width, height) = (dimensions.0 as usize, dimensions.1 as usize);
-        let mut output = reserved_vec(plan.output_samples)?;
+        let mut output = reserved_vec(samples)?;
         let mut i = 0;
         for y in 0..height {
             for x in 0..width {
@@ -385,6 +406,31 @@ impl BrushRequest {
         texture: Option<(&BrushTexture, (i64, i64))>,
         progress: (f64, f64),
         job: JobContext<'_>,
+    ) -> Result<(Vec<f64>, [usize; 4]), String> {
+        self.field_with(
+            dimensions,
+            dabs,
+            shapes,
+            texture,
+            progress,
+            job,
+            |_, _, _| {},
+        )
+    }
+    /// [`Self::field`] that calls `each(field index, dab index, coverage)`
+    /// after every written pixel, `coverage` the value the accumulation
+    /// just took (shape, texture and deposit included): the coloured
+    /// stroke's hook (module doc, THE COLOURED STROKE).
+    #[allow(clippy::type_complexity, clippy::too_many_arguments)]
+    pub(crate) fn field_with(
+        &self,
+        dimensions: (u32, u32),
+        dabs: &[f64],
+        shapes: Option<&[f64]>,
+        texture: Option<(&BrushTexture, (i64, i64))>,
+        progress: (f64, f64),
+        job: JobContext<'_>,
+        mut each: impl FnMut(usize, usize, f64),
     ) -> Result<(Vec<f64>, [usize; 4]), String> {
         let bounds_of = footprint(dimensions, dabs).unwrap_or([0; 4]);
         let [fx0, fy0, fx1, fy1] = bounds_of;
@@ -427,8 +473,10 @@ impl BrushRequest {
                         coverage *= texture
                             .factor((x as i64).saturating_add(ox), (y as i64).saturating_add(oy));
                     }
-                    let old = &mut field[(y - fy0) * fw + (x - fx0)];
+                    let at = (y - fy0) * fw + (x - fx0);
+                    let old = &mut field[at];
                     *old += coverage * (1. - *old);
+                    each(at, di, coverage);
                 }
             }
             let done = (di + 1) as f64 / (dabs.len() / 4).max(1) as f64;

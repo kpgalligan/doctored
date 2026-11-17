@@ -165,6 +165,8 @@ Detail belongs in the source file's own header comment.
 - `AgentServer+BrushDynamics.swift` / `AgentCatalog+BrushDynamics.swift` — `dynamics`, `tilts`, `rotations` on brush_stroke, eraser_stroke and quick_mask_stroke; refusals; schema.
 - `BrushTexture.swift` / `ImageCanvasView+BrushTexture.swift` — dynamics' texture: value, JSON parse, `StrokeTexture` (value + core handle); the canvas's textured dab preview and admission.
 - `BrushDual.swift` / `NativeBrushStrokeSession+Dual.swift` / `ImageCanvasView+BrushDual.swift` — dynamics' dual brush: value, `StrokeDual`; the second walk; the canvas's capped box preview.
+- `BrushColour.swift` / `EditorViewController+BrushColour.swift` — dynamics' colour (the Brush): value, JSON, Gray/Lab reduction, handle; the canvas's colour handle and its limits.
+- `AgentServer+BrushColour.swift` — `dynamics.color` and `native_stroke` inks on brush_stroke: limits refused by name, background, document-space foreground and handle.
 - `BrushPresetLibrary.swift` — the user brush preset library (`DR_BRUSH_PRESETS_DIR`), its held list, and the `.doctoredbrushes` import and export.
 - `EditorViewController+BrushPresets.swift` — the paint bar's Preset popup: presets, Save, Delete, Import and Export Presets…, the rebuild on change.
 - `EditorViewController+Pencil.swift` / `ImageCanvasView+Pencil.swift` — the Pencil: its options bar, its core-made preview dab and its admission.

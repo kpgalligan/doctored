@@ -197,7 +197,11 @@ impl IndexedPaintEdit {
         let op = value["op"].as_str().unwrap_or("edit");
         let op = match op {
             "paint_blend" | "bucket_fill" | "erase_native" => {
-                IndexedPaintOp::Native(NativePaintEdit::parse(text)?)
+                let edit = NativePaintEdit::parse(text)?;
+                if edit.ink_planes() {
+                    return Err(crate::precision_paint_tools::INK_PLANES_MODE.into());
+                }
+                IndexedPaintOp::Native(edit)
             }
             "paint" | "erase" => IndexedPaintOp::Legacy(PaintEdit::parse(text)?),
             "stroke_layer_edge" => IndexedPaintOp::Edge(LayerEdgeStroke::parse(text)?),

@@ -175,11 +175,13 @@ extension ActionGeometry {
             // is anchored at the canvas origin at its own scale, so it passes through as
             // recorded too (its tile, scale and anchor). A dual brush's second dabs map as the
             // first's (centres as positions, diameters by the one factor); its tip's hardness,
-            // angle and roundness pass through as recorded.
+            // angle and roundness pass through as recorded. Colour dynamics' inks are each dab's
+            // colour, not a geometry, so they pass through as recorded.
             let dual = try stroke.dual.map { try StrokeDual(tip: $0.tip, dabs: mapped($0.dabs)) }
             let remapped = try NativeBrushStroke(tip: stroke.tip, pixel: stroke.pixel,
                                                  dabs: mapped(stroke.dabs), shapes: stroke.shapes,
-                                                 texture: stroke.texture, dual: dual)
+                                                 texture: stroke.texture, dual: dual,
+                                                 inks: stroke.inks)
             return .success(try remapped.canonical)
         } catch {
             return .failure(

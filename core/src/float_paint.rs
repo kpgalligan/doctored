@@ -137,6 +137,7 @@ use crate::doc_lock::{EditKind, LOCK_TRANSPARENCY};
 use crate::doc_plane::{blend_triple, degenerates_on_gray};
 use crate::float_document::{admitted_blend, blend_refusal, refused_sentence, FLOAT_RANGE_MAX};
 use crate::float_paint_ink::FloatInk;
+use crate::float_paint_ink::LinearInker;
 use crate::float_paint_tone::{idle, tone_terms, BUCKET_REGION_BYTES_PER_PIXEL};
 use crate::icc::IccProfile;
 use crate::icc_transform::PrecisionTransform;
@@ -149,7 +150,7 @@ use crate::precision_image::{
     admit, pixel_count, reserved_vec, PrecisionImage, PrecisionRun, BOOKKEEPING_BYTES,
 };
 use crate::precision_paint::PaintColorSpace;
-use crate::precision_paint_tools::{shifted, NativePaintEdit, PaintFrame};
+use crate::precision_paint_tools::{shifted, NativePaintEdit, PaintFrame, INK_PLANES_BLEND};
 use crate::retouch_transform::merged_extent;
 use crate::tile_store::TilePlane;
 
@@ -203,6 +204,14 @@ const PLANE_PATTERN: &str = "a colour-plane fill takes one colour, not a pattern
 /// paint mode (none, or a group's Pass Through) is left to the shared
 /// validation.
 pub(crate) fn admit_ink(edit: &NativePaintEdit, doc: &PrecisionDocument) -> Result<(), String> {
+    // Ink planes are a Normal coloured stroke's (`precision_paint_tools`).
+    if edit.ink_planes()
+        && (edit.blend() != PaintBlend::Mode(BlendMode::Normal)
+            || edit.pattern().is_some()
+            || edit.plane().is_some())
+    {
+        return Err(INK_PLANES_BLEND.into());
+    }
     let (colors, space) = edit.colors();
     if matches!(space, PaintColorSpace::Linear) {
         let inked = matches!(
@@ -278,7 +287,7 @@ pub(crate) fn plan_in(
     doc: &PrecisionDocument,
     frame: PaintFrame,
 ) -> Result<Value, String> {
-    let (layer, _, mode, selection) = edit.target();
+    let (layer, _, mode, _) = edit.target();
     let paint =
         PaintBlend::from_u32(mode).ok_or("native paint opacity or blend mode is invalid")?;
     // Behind and Clear are `paint_mode`'s alpha rules, defined on any
@@ -318,8 +327,9 @@ pub(crate) fn plan_in(
         .count();
     rasters[raster] = extent.0;
     doc.native_fits_geometry(doc.dimensions(), &rasters, &masks, doc.channels.len())?;
+    let planes = edit.input_planes();
     Ok(
-        json!({"retained_bytes":doc.retained_bytes(),"scratch_bytes":scratch,"input_samples":n*if selection{2}else{1},"input_width":frame.width,"input_height":frame.height,"input_planes":if selection{2}else{1}}),
+        json!({"retained_bytes":doc.retained_bytes(),"scratch_bytes":scratch,"input_samples":n*planes,"input_width":frame.width,"input_height":frame.height,"input_planes":planes}),
     )
 }
 
@@ -385,6 +395,15 @@ fn applying_unlocked(
     let paint = match plane {
         Some(_) => None,
         None => FloatInk::of(edit, doc)?,
+    };
+    // Ink planes (`precision_paint_tools`' module doc): each pixel's
+    // document-encoded codes decoded to linear light, after the coverage and
+    // selection planes; `admit_ink` refused them with a plane target.
+    let ink_planes = if edit.ink_planes() {
+        let inker = LinearInker::new(PaintColorSpace::Document, doc)?;
+        Some((inker, n * if selected { 2 } else { 1 }))
+    } else {
+        None
     };
     let layer = doc
         .layer(index)
@@ -468,13 +487,17 @@ fn applying_unlocked(
             }
             continue;
         }
-        let ink = match (&plane, &paint) {
-            (Some(_), _) => colors[0],
-            (None, Some(paint)) => paint.at([
+        let ink = match (&plane, &paint, &ink_planes) {
+            (Some(_), ..) => colors[0],
+            (None, Some(_), Some((inker, at))) => {
+                let code = |ch: usize| f32::from(input[at + ch * n + i]) / 65535.;
+                inker.linear([code(0), code(1), code(2), colors[0][3]])?
+            }
+            (None, Some(paint), None) => paint.at([
                 (i64::from(x) + frame.x) as f64 + 0.5,
                 (i64::from(y) + frame.y) as f64 + 0.5,
             ]),
-            (None, None) => {
+            (None, None, _) => {
                 // The Eraser: the float Cut's destination-out rule
                 // on alpha alone. RGB is neither read nor written, so colour
                 // above white, below zero or hidden under alpha 0 stays.

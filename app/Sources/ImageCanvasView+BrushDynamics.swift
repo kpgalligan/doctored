@@ -62,6 +62,12 @@ extension ImageCanvasView {
         nativeStrokeSession?.attachDual(try handle.flatMap { _ in
             try BrushDynamics.dualHandle(dynamics, size: brushSize, seed: seed)
         })
+        // Colour dynamics, the Brush's alone and only beside a handle, on the stroke's one seed:
+        // the controller answers nil where the stroke paints its one ink (`strokeColourHandle`).
+        let colour = tool.takesColourDynamics ? dynamics?.normalized?.color : nil
+        nativeStrokeSession?.colour = handle.flatMap { _ in
+            colour.flatMap { onStrokeColourHandle?($0, seed) }
+        }
     }
 
     /// Whether a byte stroke of this tool needs a dab session for its dynamics.
@@ -83,8 +89,9 @@ extension ImageCanvasView {
     /// `stampSoftDab` for a dynamics stroke: one nominal stamp laid through the session,
     /// each dab it laid drawn at its recorded centre, diameter and (with a tip shape) angle
     /// and roundness, with the context alpha at its deposit factor (the dab image already
-    /// carries the tip's flow); a textured stroke's each as the core's own image
-    /// (`stampTexturedDab`); a dual stroke's as the core's image of the stroke so far over each
+    /// carries the tip's flow); a textured or coloured stroke's each as the core's own image
+    /// (`stampTexturedDab`, a coloured dab in its own ink); a dual stroke's as the core's image
+    /// of the stroke so far over each
     /// laid dab's box (`stampDualRegions`). `tick` is an airbrush deposit, which lays the first
     /// tip's dabs only (`stamp(at:pen:heading:tick:)`). False, and nothing drawn, without
     /// dynamics.
@@ -94,7 +101,7 @@ extension ImageCanvasView {
         // Read, not copied: a held copy of the session would copy its dabs on the stamp.
         guard nativeStrokeSession?.dynamics != nil else { return false }
         let shaped = nativeStrokeSession?.dynamicsShaped == true
-        let textured = nativeStrokeSession?.texture != nil
+        let textured = nativeStrokeSession?.texture != nil || nativeStrokeSession?.colour != nil
         let pen = strokePenSample(pressure: pressure, tilt: tilt, rotation: rotation)
         if nativeStrokeSession?.dual != nil {
             let dualFrom = (nativeStrokeSession?.dualDabs.count ?? 0) / 4

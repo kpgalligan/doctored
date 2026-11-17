@@ -37,7 +37,7 @@
 //!   sentence), and the scratch the two plans' sum. A pixel or aliased tip on
 //!   either list refuses ([`DUAL_TIP_REFUSAL`]): a two-valued dab times a
 //!   second field is a third value.
-use crate::brush_coverage::{BrushPlan, BrushRequest, MAX_BRUSH_WORK, WORK_REFUSAL};
+use crate::brush_coverage::BrushRequest;
 use crate::brush_dynamics::{Dynamics, DAB_LEN, SAMPLE_LEN};
 use crate::brush_texture::BrushTexture;
 use crate::job_control::JobContext;
@@ -240,36 +240,13 @@ impl DualBrush {
     }
 }
 
-/// The dual stroke's plan (module doc, THE CAPS): each list's own plan, which
-/// refuses a list over 50,000 dabs or over the work cap alone, then the work
-/// sum against `MAX_BRUSH_WORK` with its sentence. Scratch and work are the
-/// two plans' sums; the output is the first plan's.
-pub fn plan_dual(
-    first: &BrushRequest,
-    second: &BrushRequest,
-    dimensions: (u32, u32),
-    dabs: &[f64],
-    dual_dabs: &[f64],
-) -> Result<BrushPlan, String> {
-    let a = first.plan(dimensions, dabs)?;
-    let b = second.plan(dimensions, dual_dabs)?;
-    let work = a.work_units.saturating_add(b.work_units);
-    if work > MAX_BRUSH_WORK {
-        return Err(WORK_REFUSAL.into());
-    }
-    Ok(BrushPlan {
-        scratch_bytes: a.scratch_bytes.saturating_add(b.scratch_bytes),
-        output_samples: a.output_samples,
-        work_units: work,
-    })
-}
-
 /// The dual stroke's u16 coverage (module doc, THE COVERAGE): `F1` from
 /// `first` over `dabs` with its optional shapes and texture (output pixel (0,
 /// 0) is the texture's canvas `origin`), `F2` from `second` over `dual_dabs`,
 /// and `first.quantize(F1 · F2)` per pixel. Refuses a pixel or aliased tip on
-/// either request, every refusal of [`plan_dual`], and a shapes list
-/// `check_shapes` refuses.
+/// either request. The caller has admitted both lists, their work sum (THE
+/// CAPS) and the shapes (`ffi_brush_dual`'s `dual_request`); `output_samples`
+/// is the first plan's.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn rasterize_dual(
     first: &BrushRequest,
@@ -279,22 +256,41 @@ pub(crate) fn rasterize_dual(
     shapes: Option<&[f64]>,
     texture: Option<(&BrushTexture, (i64, i64))>,
     dual_dabs: &[f64],
+    output_samples: usize,
     job: JobContext<'_>,
 ) -> Result<Vec<u16>, String> {
     if !first.stamped() || !second.stamped() {
         return Err(DUAL_TIP_REFUSAL.into());
     }
-    let plan = plan_dual(first, second, dimensions, dabs, dual_dabs)?;
-    if let Some(shapes) = shapes {
-        first.check_shapes(dabs, shapes)?;
-    }
-    let (f1, [ax0, ay0, ax1, ay1]) =
-        first.field(dimensions, dabs, shapes, texture, (0., 0.45), job)?;
-    let (f2, [bx0, by0, bx1, by1]) =
-        second.field(dimensions, dual_dabs, None, None, (0.45, 0.9), job)?;
+    let f1 = first.field(dimensions, dabs, shapes, texture, (0., 0.45), job)?;
+    let f2 = second.field(dimensions, dual_dabs, None, None, (0.45, 0.9), job)?;
+    product(
+        first,
+        dimensions,
+        output_samples,
+        (&f1.0, f1.1),
+        (&f2.0, f2.1),
+        job,
+    )
+}
+
+/// `first.quantize(F1 · F2)` per canvas pixel, 0 outside either footprint
+/// (module doc, THE COVERAGE): each field with its footprint `[x0, y0, x1,
+/// y1)`, `samples` the first plan's output count. The coloured stroke
+/// (`brush_colour`) quantizes its dual coverage here too.
+pub(crate) fn product(
+    first: &BrushRequest,
+    dimensions: (u32, u32),
+    samples: usize,
+    f1: (&[f64], [usize; 4]),
+    f2: (&[f64], [usize; 4]),
+    job: JobContext<'_>,
+) -> Result<Vec<u16>, String> {
+    let (f1, [ax0, ay0, ax1, ay1]) = f1;
+    let (f2, [bx0, by0, bx1, by1]) = f2;
     let (aw, bw) = (ax1 - ax0, bx1 - bx0);
     let (width, height) = (dimensions.0 as usize, dimensions.1 as usize);
-    let mut output = reserved_vec(plan.output_samples)?;
+    let mut output = reserved_vec(samples)?;
     let mut i = 0;
     for y in 0..height {
         for x in 0..width {

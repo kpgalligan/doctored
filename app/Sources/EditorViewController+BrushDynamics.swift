@@ -26,7 +26,8 @@ extension EditorViewController {
             return
         }
         presentAsSheet(BrushDynamicsSheetController(
-            options: options, shapes: tool.takesTipShapeDynamics) { [weak self] chosen in
+            options: options, shapes: tool.takesTipShapeDynamics,
+            colour: tool.takesColourDynamics) { [weak self] chosen in
             self?.applyBrushDynamics(chosen, for: tool)
         })
     }

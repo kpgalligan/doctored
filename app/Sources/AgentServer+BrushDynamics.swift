@@ -63,10 +63,13 @@ extension AgentServer {
     /// `dual` on the Pencil's tip (`tip.aliased`), which is round and two-valued. `shaped` is
     /// whether the dabs carry a tip shape; `texture` is the stroke's, its `{name}` resolved from
     /// the library (`BrushDynamics.Texture.init(json:library:)`), so the recorded step holds the
-    /// tile; `dual` is the second tip's walk (seeded with `seed`) and tip.
+    /// tile; `dual` is the second tip's walk (seeded with `seed`) and tip; `colour` the colour
+    /// dynamics' amounts beside a handle (`AgentServer+BrushColour.swift` builds its handle on
+    /// `seed`).
     static func strokeDynamics(_ arguments: [String: Any], points: Int, size: Double, tip: BrushTip)
         throws -> (handle: RasterBrushDynamics?, tilts: [CGVector]?, rotations: [Double]?, shaped: Bool,
-                   texture: StrokeTexture?, dual: (handle: RasterBrushDual, tip: BrushTip)?)? {
+                   texture: StrokeTexture?, dual: (handle: RasterBrushDual, tip: BrushTip)?,
+                   colour: BrushDynamics.ColorDynamics?, seed: UInt32)? {
         guard let raw = arguments["dynamics"] else { return nil }
         guard let object = raw as? [String: Any] else {
             throw ToolError(message: "dynamics must be an object.")
@@ -145,7 +148,7 @@ extension AgentServer {
                 try BrushDynamics.dualHandle(dynamics, size: CGFloat(size), seed: seed)
             }
             return (handle, tilts, rotations, handle != nil && dynamics.normalized?.shape != nil,
-                    texture, dual)
+                    texture, dual, handle == nil ? nil : dynamics.normalized?.color, seed)
         } catch {
             throw ToolError(message: error.localizedDescription)
         }

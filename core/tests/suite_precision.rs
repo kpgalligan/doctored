@@ -31,6 +31,8 @@ mod source_refusal_fixture;
 #[path = "common/stack_oracle.rs"]
 mod stack_oracle;
 
+#[path = "brush_colour.rs"]
+mod brush_colour;
 #[path = "brush_dual.rs"]
 mod brush_dual;
 #[path = "brush_dynamics.rs"]
@@ -49,6 +51,8 @@ mod gradient_tool_smoothness;
 mod group_projection_rule;
 #[path = "native_stream_reader.rs"]
 mod native_stream_reader;
+#[path = "paint_ink_planes.rs"]
+mod paint_ink_planes;
 #[path = "pencil_coverage.rs"]
 mod pencil_coverage;
 #[path = "precision_add_layer.rs"]

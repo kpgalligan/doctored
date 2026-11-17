@@ -7,14 +7,17 @@ import AppKit
 /// (Control, Minimum, Jitter), the Texture (a pattern popup of None, the built-ins and the
 /// library, which embeds the chosen tile; Scale and Depth in percent) and the Dual Brush (a
 /// checkbox, then the second tip's Size in pixels, Hardness, Spacing, Angle, Roundness, Scatter,
-/// Both Axes, Count and Count Jitter). It edits a copy of the tool's options; Apply hands the
-/// result to `onApply` (`EditorViewController.showBrushDynamicsSheet`). Tool options only:
-/// no undo step, no Action. Percent fields show the model's 0…1 values (scatter:
-/// diameters) × 100.
+/// Both Axes, Count and Count Jitter), and for the Brush (`colour`) the colour dynamics
+/// (Foreground/Background Mix, Hue, Saturation and Brightness Jitter, in percent). It edits a
+/// copy of the tool's options; Apply hands the result to `onApply`
+/// (`EditorViewController.showBrushDynamicsSheet`). Tool options only: no undo step, no
+/// Action. Percent fields show the model's 0…1 values (scatter: diameters) × 100.
 final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
     private var options: PaintToolOptions
     /// Whether the tool takes a tip shape: false for the Pencil, whose tip is round.
     private let shapes: Bool
+    /// Whether the tool takes colour dynamics: the Brush alone (`takesColourDynamics`).
+    private let colour: Bool
     private let onApply: (PaintToolOptions) -> Void
     private static let controls: [(BrushDynamics.Control, String)] = [
         (.off, "Off"), (.pressure, "Pen Pressure"), (.tilt, "Pen Tilt")]
@@ -49,14 +52,20 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
     private let dualBothAxes = NSButton(checkboxWithTitle: "Both axes", target: nil, action: nil)
     private let dualCount = NSTextField(string: "")
     private let dualCountJitter = NSTextField(string: "")
+    private let colourMix = NSTextField(string: "")
+    private let colourHue = NSTextField(string: "")
+    private let colourSaturation = NSTextField(string: "")
+    private let colourBrightness = NSTextField(string: "")
     /// The Texture popup's patterns by row: nil (None), the options' own when no picker row
     /// holds it, then every built-in and library pattern.
     private var texturePatterns: [PatternRef?] = []
     private var popover: NSPopover?
 
-    init(options: PaintToolOptions, shapes: Bool, onApply: @escaping (PaintToolOptions) -> Void) {
+    init(options: PaintToolOptions, shapes: Bool, colour: Bool = false,
+         onApply: @escaping (PaintToolOptions) -> Void) {
         self.options = options
         self.shapes = shapes
+        self.colour = colour
         self.onApply = onApply
         super.init(nibName: nil, bundle: nil)
     }
@@ -85,7 +94,10 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
             (dualSpacing, "brush-dynamics-dual-spacing"), (dualAngle, "brush-dynamics-dual-angle"),
             (dualRoundness, "brush-dynamics-dual-roundness"),
             (dualScatter, "brush-dynamics-dual-scatter"), (dualCount, "brush-dynamics-dual-count"),
-            (dualCountJitter, "brush-dynamics-dual-count-jitter")]
+            (dualCountJitter, "brush-dynamics-dual-count-jitter"),
+            (colourMix, "brush-dynamics-colour-mix"), (colourHue, "brush-dynamics-colour-hue"),
+            (colourSaturation, "brush-dynamics-colour-saturation"),
+            (colourBrightness, "brush-dynamics-colour-brightness")]
         for (field, id) in fields {
             DSField.style(field)
             field.widthAnchor.constraint(equalToConstant: 56).isActive = true
@@ -134,6 +146,15 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
                 [fieldLabel("Count:"), row(dualCount, fieldLabel("Jitter (%):"), dualCountJitter)],
             ]
         }
+        // Colour dynamics: the Brush's alone, whose one ink is the per-dab one's start.
+        if colour {
+            rows += [
+                [fieldLabel("Fg/Bg mix (%):"),
+                 row(colourMix, fieldLabel("Hue jitter (%):"), colourHue)],
+                [fieldLabel("Saturation (%):"),
+                 row(colourSaturation, fieldLabel("Brightness (%):"), colourBrightness)],
+            ]
+        }
         let grid = NSGridView(views: rows)
         grid.columnSpacing = 12
         grid.rowSpacing = 8
@@ -154,6 +175,12 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
                     + "grid at Scale. A dual brush walks a second tip of its own size, spacing "
                     + "and scatter along the stroke, and paints only where both tips reach "
                     + "(an airbrush's held deposits lay the first tip alone)." : "")
+                + (colour ? " Colour moves each dab's ink toward the background colour by up to "
+                    + "the mix, turns its hue by up to ±180° × the hue jitter and lowers its "
+                    + "saturation and brightness by up to their jitter; Grayscale, Duotone and Lab "
+                    + "take the mix and brightness, and a mask, a Quick Mask stroke, a mode other "
+                    + "than Normal and a CMYK, Indexed or Bitmap document paint the one colour."
+                    : "")
                 + " A mouse reads pressure, tilt and rotation as off. Each stroke draws a new "
                 + "random sequence and records the dabs it laid, so a replay paints the same "
                 + "pixels.",
@@ -210,6 +237,11 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
         dualBothAxes.state = dual.bothAxes ? .on : .off
         dualCount.stringValue = "\(dual.count)"
         dualCountJitter.stringValue = percent(dual.countJitter)
+        let tint = d.color ?? BrushDynamics.ColorDynamics()
+        colourMix.stringValue = percent(tint.mix)
+        colourHue.stringValue = percent(tint.hue)
+        colourSaturation.stringValue = percent(tint.saturation)
+        colourBrightness.stringValue = percent(tint.brightness)
     }
 
     /// The Texture popup's rows (`texturePatterns`): None, `current` when no picker row holds
@@ -274,6 +306,11 @@ final class BrushDynamicsSheetController: NSViewController, NSPopoverDelegate {
                 bothAxes: dualBothAxes.state == .on,
                 count: min(max(dualCount.integerValue, 1), BrushDynamics.maximumCount),
                 countJitter: unit(dualCountJitter))
+        }
+        if colour {
+            let tint = BrushDynamics.ColorDynamics(mix: unit(colourMix), hue: unit(colourHue),
+                saturation: unit(colourSaturation), brightness: unit(colourBrightness))
+            d.color = tint.isZero ? nil : tint
         }
         options.dynamics = d
         options.sizeControl = Self.controls[max(sizeControl.indexOfSelectedItem, 0)].0

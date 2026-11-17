@@ -47,13 +47,20 @@ struct BrushDynamics: Codable, Equatable {
     /// switch (`normalized` keeps it). It never reaches the dynamics kernel: the stroke walks it
     /// (`NativeBrushStrokeSession.walkDual`) and carries its dabs (`NativeBrushStroke.dual`).
     var dual: Dual?
+    /// Colour dynamics (slice 5, `BrushColour.swift`), nil for none; the Brush only
+    /// (`EditorTool.takesColourDynamics`). Optional, as `dual` is. It never reaches the dynamics
+    /// kernel: the canvas and MCP build its own handle (`colourHandle`) beside the dynamics one,
+    /// and the stroke carries each dab's ink (`NativeBrushStroke.inks`).
+    var color: ColorDynamics?
 
     static let maximumCurvePoints = 16
     static let maximumScatter = 10.0
     static let maximumCount = 16
 
     /// nil when every value is its default (the stored and passed form), the identity
-    /// curve, a default tip shape and a texture at depth 0 (which thins nothing) dropped first.
+    /// curve, a default tip shape, a texture at depth 0 (which thins nothing) and a colour whose
+    /// four amounts are 0 dropped first. A dynamics holding only a colour stays non-nil, so the
+    /// stroke gets the dynamics handle its colour rides beside.
     var normalized: BrushDynamics? {
         var out = self
         for keyPath in [\BrushDynamics.size, \BrushDynamics.opacity]
@@ -62,6 +69,7 @@ struct BrushDynamics: Codable, Equatable {
         }
         if out.shape == TipShape() { out.shape = nil }
         if out.texture?.depth == 0 { out.texture = nil }
+        if out.color?.isZero == true { out.color = nil }
         return out == BrushDynamics() ? nil : out
     }
 }
@@ -94,7 +102,8 @@ extension BrushDynamics {
     /// `"angle": {"control", "jitter"}` and `"roundness": {"control", "minimum", "jitter"}`;
     /// with a texture, `"texture": {"pattern", "scale", "depth"}` (`Texture.json`); with a dual
     /// brush, `"dual": {"size", "hardness", "roundness", "angle_degrees", "spacing", "scatter"}`
-    /// (`Dual.json`).
+    /// (`Dual.json`); with colour, `"color": {"mix", "hue", "saturation", "brightness"}`
+    /// (`ColorDynamics.json`).
     var json: [String: Any] {
         func response(_ r: Response) -> [String: Any] {
             var out: [String: Any] = ["minimum": r.minimum, "jitter": r.jitter]
@@ -113,12 +122,13 @@ extension BrushDynamics {
         }
         if let texture { out["texture"] = texture.json }
         if let dual { out["dual"] = dual.json }
+        if let color { out["color"] = color.json }
         return out
     }
 
     /// The sections `json` writes, in its order.
     private static let sections = ["size", "opacity", "scatter", "angle", "roundness", "texture",
-                                   "dual"]
+                                   "dual", "color"]
 
     /// Strict parse of `json`'s form, every section and key optional, each refusal
     /// naming its key. `extra` names keys the caller handles itself (`seed`). `library` is the
@@ -135,6 +145,7 @@ extension BrushDynamics {
         shape = try Self.tipShape(angle: object["angle"], roundness: object["roundness"])
         if let raw = object["texture"] { texture = try Texture(json: raw, library: library) }
         if let raw = object["dual"] { dual = try Dual(json: raw) }
+        if let raw = object["color"] { color = try ColorDynamics(json: raw) }
         guard let raw = object["scatter"] else { return }
         guard let scatter = raw as? [String: Any] else {
             throw DoctoredCoreError(message: "dynamics.scatter must be an object.")

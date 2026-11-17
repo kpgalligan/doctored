@@ -191,6 +191,14 @@ extension EditorViewController {
                 command = try CmykPaint.command(["op": "paint_blend", "layer": stroke.capture.layer,
                     "ink": stroke.cmyk ?? [], "opacity": stroke.opacity,
                     "blend_mode": Int(stroke.blendMode.rawValue), "selection": selected])
+            case .brush where native.inks != nil:
+                // Colour dynamics: each pixel's ink rides in three planes after the coverage
+                // and the selection; the request's RGB is inert and its alpha kept. Never
+                // `linear`: an above-white float swatch takes no colour handle.
+                command = try PrecisionPixelCommand(["op": "paint_blend", "layer": stroke.capture.layer,
+                    "color": stroke.ink.rgba, "color_space": "document", "opacity": stroke.opacity,
+                    "blend_mode": stroke.blendMode.rawValue, "selection": selected,
+                    "ink_planes": true])
             case .brush:
                 command = try PrecisionPixelCommand(["op": "paint_blend", "layer": stroke.capture.layer,
                     "color": stroke.linear ?? stroke.ink.rgba,

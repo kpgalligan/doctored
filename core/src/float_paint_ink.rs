@@ -169,61 +169,90 @@ pub(crate) fn linear_inks(
     space: PaintColorSpace,
     doc: &PrecisionDocument,
 ) -> Result<Vec<[f32; 4]>, String> {
-    let inks = rgb_linear_inks(colors, space, doc)?;
-    if !doc.is_gray() {
-        return Ok(inks);
-    }
-    // A Gray document greys every ink by Mode ▸ Grayscale's rule
-    // (`gray_document`, "Luminance"): linear `Y`, so its storage stays
-    // R = G = B.
-    inks.into_iter()
-        .map(|ink| {
-            let rgb = [ink[0], ink[1], ink[2]].map(f64::from);
-            let y = crate::gray_document::GrayPolicy::linear_luminance(doc.profile(), rgb)? as f32;
-            Ok([y, y, y, ink[3]])
-        })
-        .collect()
+    let inker = LinearInker::new(space, doc)?;
+    colors.iter().map(|&color| inker.linear(color)).collect()
 }
 
-/// [`linear_inks`] before a Gray document's luminance.
-fn rgb_linear_inks(
-    colors: &[[f32; 4]],
-    space: PaintColorSpace,
-    doc: &PrecisionDocument,
-) -> Result<Vec<[f32; 4]>, String> {
-    if matches!(space, PaintColorSpace::Linear) {
-        return Ok(colors.to_vec());
+/// [`linear_inks`]' decoder or transform built once and applied one colour
+/// at a time: a `paint_blend` with ink planes decodes every pixel's ink
+/// through it (`float_paint`).
+pub(crate) struct LinearInker<'a> {
+    doc: &'a PrecisionDocument,
+    decode: Decode,
+}
+
+/// How [`LinearInker`] reaches linear light.
+enum Decode {
+    /// Linear ink, used as is.
+    Linear,
+    /// The document's own encoded components through its curves.
+    Document(LinearInk),
+    /// sRGB through its curves and the sRGB → document matrix.
+    Srgb(PrecisionTransform),
+}
+
+impl<'a> LinearInker<'a> {
+    /// The decoder of `space` into `doc` ([`linear_inks`]' rule): a profile
+    /// without a matrix/TRC model refuses every space but `linear`.
+    pub(crate) fn new(space: PaintColorSpace, doc: &'a PrecisionDocument) -> Result<Self, String> {
+        let decode = if matches!(space, PaintColorSpace::Linear) {
+            Decode::Linear
+        } else {
+            let destination = doc
+                .profile()
+                .model()
+                .ok_or("native paint requires RGB matrix/TRC profile")?;
+            match space {
+                PaintColorSpace::Document => Decode::Document(LinearInk::decoding(destination)),
+                PaintColorSpace::Srgb => {
+                    let source = IccProfile::srgb();
+                    Decode::Srgb(
+                        PrecisionTransform::new(
+                            source.model().ok_or("missing sRGB model")?,
+                            destination,
+                        )
+                        .map_err(|e| {
+                            crate::icc_encode_refusal::own_profile_error(doc.profile(), e)
+                        })?,
+                    )
+                }
+                PaintColorSpace::Linear => Decode::Linear,
+            }
+        };
+        Ok(Self { doc, decode })
     }
-    let destination = doc
-        .profile()
-        .model()
-        .ok_or("native paint requires RGB matrix/TRC profile")?;
-    let inked = |linear: &dyn Fn([f32; 3]) -> [f64; 3]| -> Vec<[f32; 4]> {
-        colors
-            .iter()
-            .map(|color| {
-                let linear = linear([color[0], color[1], color[2]]);
+
+    /// One authored colour as linear light; alpha passes through. A Gray
+    /// document greys it by Mode ▸ Grayscale's rule (`gray_document`,
+    /// "Luminance"): linear `Y`, so its storage stays R = G = B.
+    pub(crate) fn linear(&self, color: [f32; 4]) -> Result<[f32; 4], String> {
+        let rgb = [color[0], color[1], color[2]];
+        let ink = match &self.decode {
+            Decode::Linear => color,
+            Decode::Document(ink) => {
+                let linear = ink.linear(rgb);
                 [
                     linear[0] as f32,
                     linear[1] as f32,
                     linear[2] as f32,
                     color[3],
                 ]
-            })
-            .collect()
-    };
-    Ok(match space {
-        PaintColorSpace::Document => {
-            let ink = LinearInk::decoding(destination);
-            inked(&|rgb| ink.linear(rgb))
+            }
+            Decode::Srgb(transform) => {
+                let linear = transform.linear(rgb);
+                [
+                    linear[0] as f32,
+                    linear[1] as f32,
+                    linear[2] as f32,
+                    color[3],
+                ]
+            }
+        };
+        if !self.doc.is_gray() {
+            return Ok(ink);
         }
-        PaintColorSpace::Srgb => {
-            let source = IccProfile::srgb();
-            let transform =
-                PrecisionTransform::new(source.model().ok_or("missing sRGB model")?, destination)
-                    .map_err(|e| crate::icc_encode_refusal::own_profile_error(doc.profile(), e))?;
-            inked(&|rgb| transform.linear(rgb))
-        }
-        PaintColorSpace::Linear => colors.to_vec(),
-    })
+        let rgb = [ink[0], ink[1], ink[2]].map(f64::from);
+        let y = crate::gray_document::GrayPolicy::linear_luminance(self.doc.profile(), rgb)? as f32;
+        Ok([y, y, y, ink[3]])
+    }
 }

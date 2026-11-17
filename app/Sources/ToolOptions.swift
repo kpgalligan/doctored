@@ -629,15 +629,17 @@ final class ToolOptionsStore {
     }
 
     /// A tool's dynamics as stored and read: normalized, nil for every tool that takes
-    /// none (`EditorTool.takesBrushDynamics`), and without a tip shape, a texture or a dual brush
-    /// on a tool that takes none (`takesTipShapeDynamics`, `takesTextureDynamics`,
-    /// `takesDualBrushDynamics`: the Pencil's tip is round and two-valued), whatever a preset or
-    /// a blob brought.
+    /// none (`EditorTool.takesBrushDynamics`), and without a tip shape, a texture, a dual brush
+    /// or colour on a tool that takes none (`takesTipShapeDynamics`, `takesTextureDynamics`,
+    /// `takesDualBrushDynamics`: the Pencil's tip is round and two-valued;
+    /// `takesColourDynamics`: the Brush alone paints a per-dab ink), whatever a preset or a blob
+    /// brought.
     static func pinnedDynamics(_ dynamics: BrushDynamics?, for tool: EditorTool) -> BrushDynamics? {
         guard tool.takesBrushDynamics, var out = dynamics else { return nil }
         if !tool.takesTipShapeDynamics { out.shape = nil }
         if !tool.takesTextureDynamics { out.texture = nil }
         if !tool.takesDualBrushDynamics { out.dual = nil }
+        if !tool.takesColourDynamics { out.color = nil }
         return out.normalized
     }
 

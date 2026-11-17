@@ -9,6 +9,8 @@ struct ResolvedDab: Equatable {
     var factor: CGFloat
     var angleDegrees: CGFloat
     var roundness: CGFloat
+    /// The dab's ink with colour dynamics (the document's unit triple), nil without.
+    var ink: [Double]? = nil
 }
 
 /// A parsed brush dynamics request (`dr_brush_dynamics_create`), immutable, so a
@@ -81,12 +83,46 @@ final class RasterBrushTexture {
     deinit { dr_brush_texture_free(ptr) }
 }
 
+/// A stroke's colour dynamics (`dr_brush_colour_create`): the foreground, the background, the
+/// seed and the four amounts, parsed once, so each laid dab's ink resolves without parsing again.
+/// Immutable. The rule is the core's (`brush_colour.rs`). `lab` is whether the request's triples
+/// are a Lab document's codes, which the canvas preview converts for display.
+final class RasterBrushColour {
+    private let ptr: OpaquePointer
+    let lab: Bool
+
+    init(request: String, lab: Bool = false) throws {
+        var err: UnsafeMutablePointer<CChar>?
+        guard let ptr = request.withCString({ dr_brush_colour_create($0, &err) }) else {
+            throw DoctoredCoreError(message: takeErrorMessage(err,
+                fallback: "The colour dynamics could not be read."))
+        }
+        self.ptr = ptr
+        self.lab = lab
+    }
+
+    deinit { dr_brush_colour_free(ptr) }
+
+    /// Dab `dab` of nominal stamp `index`'s ink, three values in 0…1; black when the core
+    /// answers nothing (it answers every live handle).
+    func ink(index: UInt64, dab: Int) -> [Double] {
+        var out = [Double](repeating: 0, count: 3)
+        guard let k = UInt32(exactly: dab), dr_brush_colour_ink(ptr, index, k, &out) else {
+            return [0, 0, 0]
+        }
+        return out
+    }
+}
+
 /// A dual brush's walk (`dr_brush_dual_create`): the second tip's size, spacing and scatter,
 /// parsed once, so a stroke feeds every path point without parsing again. Immutable. The rule is
 /// the core's (`brush_dual.rs`).
 final class RasterBrushDual {
     private let ptr: OpaquePointer
-    /// The most stamps one `walk` call lays; a longer move is continued by the caller.
+    /// The stamps a `walk` call's buffer is sized for at the largest scatter count
+    /// (`BrushDynamics.maximumCount` dabs a stamp). The core lays whole stamps while a stamp's
+    /// most dabs fit, so a smaller count lays more a call: up to 1,024 at a count of 1. A longer
+    /// move is continued by the caller.
     static let stampsPerCall = 64
 
     init(request: String) throws {
@@ -102,9 +138,9 @@ final class RasterBrushDual {
 
     /// One core call feeding the path point `to` to the walk whose anchor is `anchor` (nil: `to`
     /// is the stroke's first point) and whose next stamp is `index`: the dabs it laid (x, y,
-    /// diameter, deposit quadruples), the anchor it left and the stamps laid, at most
-    /// `stampsPerCall`. Zero stamps and the anchor unchanged (`to` for a nil one) when `to` lies
-    /// within a step of the anchor or the core refuses the point.
+    /// diameter, deposit quadruples), the anchor it left and the stamps laid, as many as the
+    /// buffer holds (`stampsPerCall`'s doc). Zero stamps and the anchor unchanged (`to` for a nil
+    /// one) when `to` lies within a step of the anchor or the core refuses the point.
     func walk(index: UInt64, anchor: CGPoint?, to: CGPoint) -> (dabs: [Double], anchor: CGPoint,
                                                                stamps: UInt64) {
         var out = [Double](repeating: 0,

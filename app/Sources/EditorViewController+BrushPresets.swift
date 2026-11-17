@@ -18,7 +18,8 @@ extension EditorViewController {
                                write: @escaping (PaintToolOptions) -> Void) -> OptionDescriptor {
         let dynamics = tool.takesBrushDynamics
         BrushPresetLibrary.reload()
-        let presets = BrushPreset.all(dynamics: dynamics, shapes: tool.takesTipShapeDynamics)
+        let presets = BrushPreset.all(dynamics: dynamics, shapes: tool.takesTipShapeDynamics,
+                                      colour: tool.takesColourDynamics)
         let items = ["Custom"] + presets.map(\.name) + [OptionPopupControl.separatorTitle]
             + Self.presetActions
         return OptionDescriptor(

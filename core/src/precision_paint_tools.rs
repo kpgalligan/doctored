@@ -8,6 +8,13 @@
 //! alpha multiplying the opacity and coverage; the request's `color` is
 //! inert, and a `plane` target refuses it (`float_paint::admit_ink`).
 //!
+//! A `paint_blend` with `ink_planes` is a coloured Brush stroke (brush
+//! dynamics' colour, `brush_colour`): three u16 planes after the coverage and
+//! the selection hold each pixel's document-encoded ink, read as `code /
+//! 65535` through `precision_paint::InkPreparer` for `document` ink (a Gray
+//! document greys it, a Lab one quantizes each code); `color`'s RGB is inert
+//! and its alpha kept. Normal blending only, never with a pattern or a plane.
+//!
 //! The walk runs over a [`PaintFrame`]: the canvas for every request this
 //! API parses (`plan` / `apply`), or another canvas-space rect for a caller
 //! that lays its coverage out there (`precision_fill_stroke`'s layer-edge
@@ -49,7 +56,7 @@ use crate::paint_mode::PaintBlend;
 use crate::pattern_tile::PatternSampler;
 use crate::precision_document::{Content, PrecisionDocument};
 use crate::precision_image::{admit, pixel_count, reserved_vec, PrecisionRun, BOOKKEEPING_BYTES};
-use crate::precision_paint::{canvas_index, store, PaintColorSpace};
+use crate::precision_paint::{canvas_index, store, InkPreparer, PaintColorSpace};
 use crate::retouch_transform::{merged_extent, StorageExtent};
 use crate::style_pattern::Pattern;
 use serde::Deserialize;
@@ -76,6 +83,13 @@ pub(crate) enum NativePaintEdit {
         /// and is inert) through [`pattern_sampler`]. Never with `plane`.
         #[serde(default, deserialize_with = "crate::style_pattern_fill::paint_pattern")]
         pattern: Option<Pattern>,
+        /// A coloured Brush stroke (brush dynamics' colour, `brush_colour`):
+        /// the input carries three u16 ink planes after the coverage and
+        /// selection, document-encoded codes read per pixel in place of
+        /// `color`'s RGB (inert, its alpha kept). Normal blending only, never
+        /// with `pattern` or `plane` ([`INK_PLANES_BLEND`]).
+        #[serde(default)]
+        ink_planes: bool,
     },
     BucketFill {
         layer: usize,
@@ -137,6 +151,14 @@ pub(crate) enum NativePaintEdit {
         selection: bool,
     },
 }
+/// `ink_planes` with a blend other than Normal, a `pattern` or a `plane`
+/// (`float_paint::admit_ink` asks it for both walks).
+pub(crate) const INK_PLANES_BLEND: &str =
+    "native paint ink planes require Normal blending with no pattern and no plane target";
+/// `ink_planes` on a document whose mode holds one ink a stroke (Indexed and
+/// Bitmap refuse it by name after parsing).
+pub(crate) const INK_PLANES_MODE: &str = "colour dynamics paints RGB, Grayscale, Duotone and Lab layers; this document's mode takes one ink a stroke";
+
 /// The canvas-space rect a native paint walk's coverage is laid out over:
 /// the input is `width·height` samples per plane, row 0 at canvas row `y`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -300,6 +322,21 @@ impl NativePaintEdit {
             _ => None,
         }
     }
+    /// Whether a `paint_blend` carries ink planes (its `ink_planes`).
+    pub(crate) fn ink_planes(&self) -> bool {
+        matches!(
+            self,
+            Self::PaintBlend {
+                ink_planes: true,
+                ..
+            }
+        )
+    }
+    /// The input's planes: the coverage, the selection when `selected`, and
+    /// the three ink planes with `ink_planes`.
+    pub(crate) fn input_planes(&self) -> u64 {
+        1 + u64::from(self.target().3) + if self.ink_planes() { 3 } else { 0 }
+    }
     /// The bytes the pattern's sampler holds (`pattern_tile::fill_scratch_bytes`);
     /// 0 with no pattern.
     pub(crate) fn pattern_scratch(&self) -> u64 {
@@ -370,7 +407,7 @@ impl NativePaintEdit {
         frame: PaintFrame,
     ) -> Result<Value, String> {
         crate::float_paint::admit_ink(self, doc)?;
-        let (layer, opacity, mode, selection) = self.target();
+        let (layer, opacity, mode, _) = self.target();
         if frame != PaintFrame::canvas(doc)
             && matches!(self, Self::BucketFill { .. } | Self::Gradient { .. })
         {
@@ -452,8 +489,9 @@ impl NativePaintEdit {
             .count();
         rasters[raster] = extent.0;
         doc.native_fits_geometry(doc.dimensions(), &rasters, &masks, doc.channels.len())?;
+        let planes = self.input_planes();
         Ok(
-            json!({"retained_bytes":doc.retained_bytes(),"scratch_bytes":scratch,"input_samples":n*if selection{2}else{1},"input_width":frame.width,"input_height":frame.height,"input_planes":if selection{2}else{1}}),
+            json!({"retained_bytes":doc.retained_bytes(),"scratch_bytes":scratch,"input_samples":n*planes,"input_width":frame.width,"input_height":frame.height,"input_planes":planes}),
         )
     }
     /// The LOCK gate (`precision_lock`): every native paint tool writes its
@@ -532,6 +570,14 @@ impl NativePaintEdit {
         }
         let (colors, color_space) = self.colors();
         let colors = crate::precision_paint::prepare_colors(&colors, color_space, doc)?;
+        // Ink planes: each pixel's document-encoded codes through the one
+        // document-ink conversion, after the coverage and selection planes.
+        let planes = if self.ink_planes() {
+            let preparer = InkPreparer::new(PaintColorSpace::Document, doc)?;
+            Some((preparer, n * if selected { 2 } else { 1 }))
+        } else {
+            None
+        };
         // A stops gradient's ramp in the document's ink: each stop's
         // position with its converted colour. Empty for every other request.
         let ramp: Vec<FieldStop> = match self {
@@ -753,6 +799,9 @@ impl NativePaintEdit {
                             let t = crate::gradient_field::styled_parameter(point, from, to, style);
                             crate::gradient_field::stop_color(&ramp, t as f32, style, smoothness)
                         }
+                    } else if let Some((preparer, at)) = &planes {
+                        let code = |ch: usize| f32::from(input[at + ch * n + i]) / 65535.;
+                        preparer.prepare([code(0), code(1), code(2), colors[0][3]])
                     } else {
                         colors[0]
                     };

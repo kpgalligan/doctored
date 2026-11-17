@@ -60,13 +60,16 @@ struct BrushPreset {
     /// `dynamics` false lists only the presets without dynamics, `shapes` false only those
     /// whose dynamics hold no tip shape, no texture and no dual brush (the tool's
     /// `takesBrushDynamics` and `takesTipShapeDynamics`; the tools that take a tip shape are the
-    /// ones that take a texture and a dual brush).
-    static func all(dynamics: Bool = true, shapes: Bool = true) -> [BrushPreset] {
+    /// ones that take a texture and a dual brush), `colour` false only those whose dynamics hold
+    /// no colour (`takesColourDynamics`: the Brush alone).
+    static func all(dynamics: Bool = true, shapes: Bool = true,
+                    colour: Bool = true) -> [BrushPreset] {
         let presets = builtIns + BrushPresetLibrary.presets
         return presets.filter {
             (dynamics || $0.dynamics == nil)
                 && (shapes || ($0.dynamics?.shape == nil && $0.dynamics?.texture == nil
                                && $0.dynamics?.dual == nil))
+                && (colour || $0.dynamics?.color == nil)
         }
     }
 
@@ -79,8 +82,10 @@ struct BrushPreset {
     /// `comparesDynamics` is the tool's `takesBrushDynamics`: only those tools
     /// hold a preset's dynamics, so only they tell two presets apart by them.
     static func matchIndex(of options: PaintToolOptions, in presets: [BrushPreset]? = nil,
-                           comparesDynamics: Bool = true, shapes: Bool = true) -> Int {
-        for (i, preset) in (presets ?? all(dynamics: comparesDynamics, shapes: shapes)).enumerated()
+                           comparesDynamics: Bool = true, shapes: Bool = true,
+                           colour: Bool = true) -> Int {
+        for (i, preset) in (presets ?? all(dynamics: comparesDynamics, shapes: shapes,
+                                           colour: colour)).enumerated()
         where preset.matches(options, comparesDynamics: comparesDynamics) {
             return i + 1
         }
@@ -128,8 +133,9 @@ struct BrushPreset {
     /// through the built-ins and then the user's presets. From Custom, next
     /// is the first preset and previous the last.
     static func stepped(from options: PaintToolOptions, _ step: Step,
-                        comparesDynamics: Bool = true, shapes: Bool = true) -> BrushPreset {
-        let presets = all(dynamics: comparesDynamics, shapes: shapes)
+                        comparesDynamics: Bool = true, shapes: Bool = true,
+                        colour: Bool = true) -> BrushPreset {
+        let presets = all(dynamics: comparesDynamics, shapes: shapes, colour: colour)
         let count = presets.count
         let row = matchIndex(of: options, in: presets, comparesDynamics: comparesDynamics)
         switch step {
