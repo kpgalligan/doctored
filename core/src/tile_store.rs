@@ -497,6 +497,33 @@ impl<S: Sample> TilePlane<S> {
             .count()
     }
 
+    /// Bbox `(x, y, w, h)` of the tiles not shared by pointer with `other`;
+    /// `None` when all are shared; the whole of `self` when the dimensions
+    /// differ. No allocation.
+    pub(crate) fn unshared_rect(&self, other: &Self) -> Option<(u32, u32, u32, u32)> {
+        if self.dimensions() != other.dimensions() {
+            return Some((0, 0, self.width, self.height));
+        }
+        let mut bounds: Option<(u32, u32, u32, u32)> = None;
+        for ty in 0..self.rows() {
+            for tx in 0..self.columns() {
+                if self
+                    .tile(tx, ty)
+                    .zip(other.tile(tx, ty))
+                    .is_some_and(|(p, q)| Arc::ptr_eq(p, q))
+                {
+                    continue;
+                }
+                let (x, y, w, h) = self.tile_rect(tx, ty)?;
+                bounds = Some(match bounds {
+                    None => (x, y, x + w, y + h),
+                    Some((x0, y0, x1, y1)) => (x0.min(x), y0.min(y), x1.max(x + w), y1.max(y + h)),
+                });
+            }
+        }
+        bounds.map(|(x0, y0, x1, y1)| (x0, y0, x1 - x0, y1 - y0))
+    }
+
     /// Bitwise sample equality with `other`: `false` when dimensions differ;
     /// else every tile index is the same `Arc` or [`Sample::same_bits`]
     /// sample for sample. No allocation, no job.

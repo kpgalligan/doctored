@@ -168,35 +168,21 @@ impl<S: Sample> Plane<S> {
     }
 
     /// The bbox of the tile rects `self` and `other` do not share by pointer
-    /// (both tiled over `dimensions`); `None` when all are shared or both
-    /// hold the same contiguous `Arc`; else the whole plane.
+    /// (both tiled over `dimensions`: `TilePlane::unshared_rect`); `None` when
+    /// all are shared or both hold the same contiguous `Arc`; else the whole
+    /// plane.
     pub(super) fn unshared_rect(
         &self,
         other: &Self,
         (width, height): (u32, u32),
     ) -> Option<(u32, u32, u32, u32)> {
-        let (a, b) = match (self, other) {
-            (Self::Tiled(a), Self::Tiled(b)) if a.dimensions() == b.dimensions() => (a, b),
-            (Self::Contiguous(a), Self::Contiguous(b)) if Arc::ptr_eq(a, b) => return None,
-            _ => return Some((0, 0, width, height)),
-        };
-        let mut bounds: Option<(u32, u32, u32, u32)> = None;
-        for ty in 0..a.rows() {
-            for tx in 0..a.columns() {
-                if a.tile(tx, ty)
-                    .zip(b.tile(tx, ty))
-                    .is_some_and(|(p, q)| Arc::ptr_eq(p, q))
-                {
-                    continue;
-                }
-                let (x, y, w, h) = a.tile_rect(tx, ty)?;
-                bounds = Some(match bounds {
-                    None => (x, y, x + w, y + h),
-                    Some((x0, y0, x1, y1)) => (x0.min(x), y0.min(y), x1.max(x + w), y1.max(y + h)),
-                });
+        match (self, other) {
+            (Self::Tiled(a), Self::Tiled(b)) if a.dimensions() == b.dimensions() => {
+                a.unshared_rect(b)
             }
+            (Self::Contiguous(a), Self::Contiguous(b)) if Arc::ptr_eq(a, b) => None,
+            _ => Some((0, 0, width, height)),
         }
-        bounds.map(|(x0, y0, x1, y1)| (x0, y0, x1 - x0, y1 - y0))
     }
 
     /// The tiles holding `samples` (a whole row-major `width`×`height`
