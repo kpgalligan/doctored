@@ -361,6 +361,21 @@ pub(crate) fn estimate_window(
     caller: Caller,
     kind: SpotHealType,
 ) -> Result<u64, String> {
+    let (ww, wh) = estimate_window_size(canvas, bounds, covered_upper, ring, caller, kind)?;
+    Ok(u64::from(ww) * u64::from(wh))
+}
+
+/// [`estimate_window`]'s window as its width and height (the typed
+/// in-place retouch plan charges the destination rect over it and the tiles
+/// that rect can rewrite, 13B-9c).
+pub(crate) fn estimate_window_size(
+    canvas: (u32, u32),
+    bounds: (u32, u32, u32, u32),
+    covered_upper: u64,
+    ring: u32,
+    caller: Caller,
+    kind: SpotHealType,
+) -> Result<(u32, u32), String> {
     pixel_count(canvas.0, canvas.1)?;
     let (x, y, w, h) = bounds;
     if ring > 512
@@ -388,7 +403,7 @@ pub(crate) fn estimate_window(
             window,
         ));
     }
-    Ok(window)
+    Ok((ww, wh))
 }
 
 /// Metadata-only upper bound for a request whose coverage is confined to bounds

@@ -194,11 +194,15 @@ fn a_colour_channel_edit_is_admitted_at_24mp() {
     // Fill (in place and onto a new layer) over the same float layer;
     // ⌈1.25 × the largest measured footprint⌉ of each in `float_retouch`'s
     // module doc (`# Admission`), the requests of
-    // `examples/float_retouch_admission.rs`.
+    // `examples/float_retouch_admission.rs`. The in-place heal, spot heal
+    // and fill were measured while they read the canvas (before 13B-9a and
+    // 13B-9b), so since 13B-9c their floors are ⌈1.25 ×⌉ the heap peaks
+    // `examples/phase13b_retouch_dab.rs` counts for the same requests
+    // (104,843,077; 339,211,458; 339,211,458).
     const FLOOR_RC32: u64 = 1_924_916_610;
-    const FLOOR_RH32: u64 = 1_442_714_620;
-    const FLOOR_RS32: u64 = 962_458_290;
-    const FLOOR_RF32: u64 = 962_437_780;
+    const FLOOR_RH32: u64 = 131_053_847;
+    const FLOOR_RS32: u64 = 424_014_323;
+    const FLOOR_RF32: u64 = 424_014_323;
     const FLOOR_RN32: u64 = 2_670_655_420;
     let translate = [1.0, 0.0, 0.0, 1.0, 64.0, 0.0];
     let clone = json!({"op":"retouch_clone","layer":0,"matrix":translate}).to_string();

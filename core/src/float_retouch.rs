@@ -55,6 +55,15 @@
 //! `sample: current` spot heal or fill reads its source layer in place, so
 //! RS32 and RF32 below drop the plate's `16n + 4 MiB` and plan 3,559,730,688
 //! (`make t F=selected_color_planes_24mp A=--nocapture`); E was not re-measured.
+//! Since 13B-9c the in-place arm (RC32, RH32, RS32, RF32 below) plans what its
+//! rect walk holds instead (`precision_retouch_plan`: the 16-bit terms doubled,
+//! plus the W copy of a heal, spot heal or fill's destination rect): RC32 plans
+//! 2,005,727,488, RH32 292,541,108, RS32 and RF32 711,762,048
+//! (`make t F=selected_color_planes_24mp A=--nocapture`). RH32, RS32 and RF32's
+//! `E` below were measured while they read the canvas; their heap peaks, counted
+//! by `examples/phase13b_retouch_dab.rs`, are 104,843,077 and 339,211,458, and
+//! `selected_color_planes_24mp.rs` pins ⌈1.25 ×⌉ those. Their phys-footprint
+//! re-measure needs a quiet machine (#10).
 //!
 //! Measured in Release, one case per process, `MallocLargeCache=0`, a
 //! baseline twin and three runs (`examples/float_retouch_admission.rs`), on a

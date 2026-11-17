@@ -26,7 +26,7 @@ use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use doctored_core::ffi::dr_string_free;
-use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
+use doctored_core::ffi_precision_edit::{dr_precision_doc_edit, dr_precision_doc_edit_plan};
 use doctored_core::icc::IccProfile;
 use doctored_core::metadata::{Metadata, Resolution};
 use doctored_core::precision_clipboard::ClipboardPayload;
@@ -163,6 +163,34 @@ fn coverage(w: u32, h: u32, rect: (u32, u32, u32, u32)) -> Vec<u16> {
     out
 }
 
+/// `plane` (canvas-sized, `w` wide) cropped to `rect`, row-major.
+fn crop(plane: &[u16], w: u32, (x, y, rw, rh): (u32, u32, u32, u32)) -> Vec<u16> {
+    let mut out = Vec::with_capacity(rw as usize * rh as usize);
+    for row in y..y + rh {
+        let at = row as usize * w as usize + x as usize;
+        out.extend_from_slice(&plane[at..at + rw as usize]);
+    }
+    out
+}
+
+/// The request's `scratch_bytes` (`dr_precision_doc_edit_plan`); 0 on a
+/// refusal.
+fn planned(doc: &PrecisionDocument, request: &Value) -> u64 {
+    let text = CString::new(request.to_string()).expect("a request");
+    let mut error = ptr::null_mut();
+    let out = unsafe { dr_precision_doc_edit_plan(doc, text.as_ptr(), LIMIT, 0, &mut error) };
+    if out.is_null() {
+        if !error.is_null() {
+            unsafe { dr_string_free(error) };
+        }
+        return 0;
+    }
+    let plan: Value = serde_json::from_str(&unsafe { CStr::from_ptr(out) }.to_string_lossy())
+        .unwrap_or(Value::Null);
+    unsafe { dr_string_free(out) };
+    plan["scratch_bytes"].as_u64().unwrap_or(0)
+}
+
 fn measure(
     label: &str,
     canvas: (u32, u32),
@@ -170,6 +198,7 @@ fn measure(
     request: &Value,
     samples: &[u16],
 ) {
+    let plan = planned(doc, request);
     let text = CString::new(request.to_string()).expect("a request");
     let mut error = ptr::null_mut();
     let base = LIVE.load(Ordering::Relaxed);
@@ -212,6 +241,8 @@ fn measure(
             "peak_per_canvas_px": (peak as f64 / n as f64 * 100.0).round() / 100.0,
             "allocated_in_call": allocated,
             "retained_by_answer": retained,
+            "plan_scratch": plan,
+            "plan_over_peak": (plan as f64 / peak.max(1) as f64 * 100.0).round() / 100.0,
             "outcome": outcome,
         })
     );
@@ -251,6 +282,30 @@ fn main() {
             &one,
             &clone("current", true),
             &selected,
+        );
+        // 13B-9c's rect form: the dab and the selection cropped to the dab
+        // grown by 2 px, the rect the app names (`healBounds`).
+        let rect = (dab.0 - 2, dab.1 - 2, dab.2 + 4, dab.3 + 4);
+        let rect_form = |mut request: Value| {
+            request["coverage_rect"] = json!([rect.0, rect.1, rect.2, rect.3]);
+            request
+        };
+        let mut rect_selected = crop(&cover, w, rect);
+        rect_selected.extend(crop(&selected[cover.len()..], w, rect));
+        measure(
+            "clone current + selection, rect form",
+            canvas,
+            &one,
+            &rect_form(clone("current", true)),
+            &rect_selected,
+        );
+        measure(
+            "heal current, rect form",
+            canvas,
+            &one,
+            &rect_form(json!({"op":"retouch_heal","layer":0,"sample":"current",
+                "matrix":matrix,"opacity":1.0})),
+            &crop(&cover, w, rect),
         );
         measure(
             "clone all, 3 layers",
@@ -308,15 +363,57 @@ fn main() {
                 "opacity":1.0}),
             &cover,
         );
+        if canvas == (6000, 4000) {
+            // `selected_color_planes_24mp`'s RH32, RS32 and RF32: the
+            // 1000×1000 box at (2500, 1500), in place (its floors are
+            // ⌈1.25 ×⌉ these counted peaks).
+            let square = (2500u32, 1500u32, 1000u32, 1000u32);
+            let boxed = coverage(w, h, square);
+            let bounds = json!({"layer":0,"x":square.0,"y":square.1,"width":square.2,
+                "height":square.3,"ring":0,"seed":7});
+            let with = |op: &str| {
+                let mut request = bounds.clone();
+                request["op"] = json!(op);
+                request
+            };
+            measure(
+                "float heal 1000x1000 box",
+                canvas,
+                &float,
+                &json!({"op":"retouch_heal","layer":0,"matrix":[1.0,0.0,0.0,1.0,64.0,0.0],
+                    "x":square.0,"y":square.1,"width":square.2,"height":square.3}),
+                &boxed,
+            );
+            measure(
+                "float spot heal 1000x1000 box",
+                canvas,
+                &float,
+                &with("spot_heal"),
+                &boxed,
+            );
+            measure(
+                "float content-aware fill 1000x1000 box",
+                canvas,
+                &float,
+                &with("content_aware_fill"),
+                &boxed,
+            );
+        }
         drop(float);
         let hole = (dab.0 + 20, dab.1 + 20, 48u32, 48u32);
+        let spot = json!({"op":"spot_heal","layer":0,"x":hole.0,"y":hole.1,"width":hole.2,
+            "height":hole.3,"seed":1});
+        let holed = coverage(w, h, hole);
+        measure("spot heal 48x48", canvas, &one, &spot, &holed);
+        let around = (hole.0 - 2, hole.1 - 2, hole.2 + 4, hole.3 + 4);
+        let mut spot_rect = spot.clone();
+        spot_rect["coverage_rect"] = json!([around.0, around.1, around.2, around.3]);
         measure(
-            "spot heal 48x48",
+            "spot heal 48x48, rect form",
             canvas,
             &one,
-            &json!({"op":"spot_heal","layer":0,"x":hole.0,"y":hole.1,"width":hole.2,
-                "height":hole.3,"seed":1}),
-            &coverage(w, h, hole),
+            &spot_rect,
+            &crop(&holed, w, around),
         );
     }
 }

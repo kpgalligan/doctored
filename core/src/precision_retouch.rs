@@ -7,6 +7,11 @@
 //! one `read_rect_rgba16` + `with_rect_rgba16` (no view, ≤ 4 new tiles per
 //! dab); a new layer or a grown extent keeps the whole buffer (rows in).
 //!
+//! Since 13B-9c a request may name its `coverage_rect` (the stroke and the
+//! selection arrive over it; `retouch_coverage`), the selection domain covers
+//! the stroke's bbox only, and the in-place arm's plan charges what its rect
+//! walk holds (`precision_retouch_plan`); the other arms plan the canvas.
+//!
 //! Scalar stroke coverage stays separate from source pixels. A compound job's reservation floor
 //! keeps nested sampling/render stages from hiding already-live buffers. Expansion preserves
 //! existing samples and independent mask placement; healing retains destination alpha.
@@ -338,9 +343,18 @@ impl PrecisionDocument {
         let (dimensions, _) = edit.extent(self)?;
         let n = pixel_count(self.width, self.height)? as u64;
         let output = pixel_count(dimensions.0, dimensions.1)? as u64;
+        // The in-place arm plans what its rect walk holds
+        // (`precision_retouch_plan`, 13B-9c); every other arm the canvas.
+        let in_place = edit.output == RetouchOutput::Layer
+            && !edit.expand_destination
+            && !edit.full_frame
+            && edit.op != RetouchOp::RedEye;
         let buffers = n * (if edit.selection { 44 } else { 40 }) + output * 16;
-        let mut scratch = buffers + 8 * BOOKKEEPING_BYTES;
-        if float {
+        let mut scratch = 8 * BOOKKEEPING_BYTES;
+        if !in_place {
+            scratch += buffers;
+        }
+        if float && !in_place {
             // The pixel buffers at f32 width (`float_retouch`'s module doc
             // holds the measurement), and for the ops that solve in W codes
             // (`retouch_encoding`) the encoded copy of the destination.
@@ -352,11 +366,13 @@ impl PrecisionDocument {
                 scratch += output * 16;
             }
         }
+        let mut plate = 0;
         if edit.op != RetouchOp::RedEye {
             // Validated always; charged unless the synthesis reads the source
-            // layer in place, with no plate (13B-9b).
-            let plate = self.retouch_source_plan(edit.source_layer.unwrap_or(edit.layer), mode)?;
-            if !edit.reads_plate_in_place() {
+            // layer in place, with no plate (13B-9b), or (in place) where
+            // the walk reads it.
+            plate = self.retouch_source_plan(edit.source_layer.unwrap_or(edit.layer), mode)?;
+            if !in_place && !edit.reads_plate_in_place() {
                 scratch += plate;
             }
         }
@@ -372,7 +388,9 @@ impl PrecisionDocument {
             r[raster_index] = dimensions;
             self.native_fits_geometry(self.dimensions(), &r, &m, self.channels.len())?;
         }
-        if edit.op == RetouchOp::RetouchHeal {
+        if in_place {
+            scratch += self.in_place_retouch_scratch(edit, mode, plate, float)?;
+        } else if edit.op == RetouchOp::RetouchHeal {
             let area = if edit.width > 0 && edit.height > 0 {
                 let (_, _, w, h) = edit.bounds(self)?;
                 u64::from(w) * u64::from(h)
@@ -386,8 +404,7 @@ impl PrecisionDocument {
                 area
             };
             scratch += crate::precision_heal::plan(padded)?.0;
-        }
-        if matches!(edit.op, RetouchOp::SpotHeal | RetouchOp::ContentAwareFill) {
+        } else if matches!(edit.op, RetouchOp::SpotHeal | RetouchOp::ContentAwareFill) {
             let bounds = edit.bounds(self)?;
             let caller = if edit.op == RetouchOp::ContentAwareFill {
                 crate::doc_inpaint::Caller::Fill

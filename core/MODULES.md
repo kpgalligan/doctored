@@ -243,6 +243,7 @@ Detail belongs in the source file's own header comment.
 - `inpaint_source.rs` / `doc_regional_plate.rs` — THE sampling-plate builder, shared by every retouch gesture and the 16-bit promotion, over three arms chosen by `plate_arm`.
 - `retouch_sampling.rs` — the three retouch sampling modes and the ignore-adjustments control, as a `Cut` over the compositor.
 - `precision_retouch.rs` / `precision_retouch_apply.rs` / `precision_retouch_source.rs` / `retouch_transform.rs` / `ffi_retouch.rs` — native retouch requests, typed compositor cuts, source mapping.
+- `precision_retouch_plan.rs` — `retouch_plan`'s in-place terms: the coverage area's domain, the Clone/Heal frame, taps and tiles, the synthesis window and estimate.
 - `retouch_coverage.rs` — kernel: `CoveragePlane`, a typed retouch's stroke or selection over one canvas rect (`coverage_rect`), 0 outside it; reads, bbox, crops.
 - `precision_retouch_heal.rs` / `precision_retouch_output.rs` — native retouch windows over the shared membrane writeback; output admission and the new layer above (gated groups refuse).
 - `float_retouch.rs` — the f32 arm of the typed retouch: staging, the linear clone walk, encode → shared kernel → decode for heal, spot heal and fill.

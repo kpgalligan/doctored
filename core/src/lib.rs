@@ -966,6 +966,7 @@ mod precision_redeye;
 pub mod precision_retouch;
 mod precision_retouch_apply;
 mod precision_retouch_brush;
+mod precision_retouch_plan;
 mod precision_retouch_source;
 mod precision_smudge;
 mod retouch_brush;

@@ -264,8 +264,10 @@ impl IndexedPaintEdit {
                 let p = rgb.retouch_plan(edit)?;
                 let mut value = json!({"retained_bytes":p.retained_bytes,"scratch_bytes":p.scratch_bytes,"input_samples":p.input_samples});
                 if p.input_samples > 0 {
-                    value["input_width"] = json!(doc.width);
-                    value["input_height"] = json!(doc.height);
+                    // The coverage rect's size (the canvas without one).
+                    let (_, _, w, h) = edit.coverage_area(&rgb)?;
+                    value["input_width"] = json!(w);
+                    value["input_height"] = json!(h);
                     value["input_planes"] = json!(if edit.selection { 2 } else { 1 });
                 }
                 value

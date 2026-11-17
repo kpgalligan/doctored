@@ -287,8 +287,9 @@ fn a_float_current_dab_peaks_below_two_bytes_a_canvas_pixel() {
 // ------------------------------------------------- selected rect dabs --
 
 /// The in-place plan's fixed bookkeeping (13B-9c): its own eight
-/// `BOOKKEEPING_BYTES` (1 MiB each) and the `Current` taps' four.
-const FIXED: u64 = 12 << 20;
+/// `BOOKKEEPING_BYTES` (1 MiB each) and the `Current` taps' four at the
+/// plan's 5/4 margin.
+const FIXED: u64 = 13 << 20;
 /// The rect a selected dab names: [`DAB`] grown by 2 px.
 const DAB_RECT: (u32, u32, u32, u32) = (998, 798, 104, 104);
 

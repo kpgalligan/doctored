@@ -6,8 +6,9 @@
 //! `retouch_taps32` answer one canvas rect of the plate. `Current` reads that
 //! rect straight from the source layer's rows (no canvas plate is built);
 //! `all` and `current_and_below` still render the whole plate and keep its
-//! rect. Both are admitted and reserved as the whole plate is
-//! (`retouch_source_plan`), so the request's admission does not change.
+//! rect. Since 13B-9c a `Current` read is admitted and reserved as the taps
+//! it copies (`retouch_taps_plan`), the other modes as the whole plate
+//! (`retouch_source_plan`).
 //!
 //! A Spot Heal or Content-Aware Fill reads its [`SynthesisSource`] (13B-9b):
 //! with `sample: current` the source layer IN PLACE at its offset
@@ -85,8 +86,28 @@ impl PrecisionDocument {
                 self.render_plan()?.scratch_bytes
             })
     }
+    /// What a Clone or Heal's tap read over the canvas rect `taps` holds
+    /// (13B-9c): `Current` copies the rect from the layer's rows, so the
+    /// rect at the storage's width (8 bytes a pixel at 16 bits, 16 at float)
+    /// and bookkeeping; another mode renders the whole plate,
+    /// [`Self::retouch_source_plan`].
+    pub(crate) fn retouch_taps_plan(
+        &self,
+        index: usize,
+        mode: RetouchSampling,
+        (x0, y0, x1, y1): CanvasRect,
+    ) -> Result<u64, String> {
+        if mode != RetouchSampling::Current {
+            return self.retouch_source_plan(index, mode);
+        }
+        self.layer_source(index)
+            .ok_or("retouch requires a raster source layer")?;
+        let pixels = (x1 - x0).max(0) as u64 * (y1 - y0).max(0) as u64;
+        Ok(pixels * self.render_storage().bytes_per_pixel() + 4 * BOOKKEEPING_BYTES)
+    }
+
     /// The plate's admission and reservation (`retouch_source_plan`): the
-    /// whole plate's own, read by the plate and by the rect taps alike.
+    /// whole plate's own.
     fn admit_retouch_source(
         &self,
         index: usize,
@@ -194,8 +215,9 @@ impl PrecisionDocument {
     }
 
     /// The one body of [`Self::retouch_taps16`] / [`Self::retouch_taps32`]:
-    /// `Current` admits and reserves the plate's plan and copies `rect` from
-    /// the layer's rows; another mode renders the plate as
+    /// `Current` admits and reserves the taps' own plan
+    /// ([`Self::retouch_taps_plan`], 13B-9c) and copies `rect` from the
+    /// layer's rows; another mode renders the plate as
     /// `retouch_source_with_context` does and copies its `rect`, the plate
     /// dropped on return.
     #[allow(clippy::too_many_arguments)]
@@ -211,7 +233,9 @@ impl PrecisionDocument {
     ) -> Result<Vec<P>, String> {
         const MISSING: &str = "missing native retouch source";
         if mode == RetouchSampling::Current {
-            self.admit_retouch_source(index, mode, limit, other, job)?;
+            let scratch = self.retouch_taps_plan(index, mode, rect)?;
+            admit(self.retained_bytes(), scratch, other, limit)?;
+            job.reserve(scratch)?;
             let (image, offset) = self.current_source(index)?;
             if image.storage() != storage {
                 return Err(MISSING.into());
