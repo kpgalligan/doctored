@@ -171,7 +171,7 @@
 //! and the twin was deleted; its sequential readers, the RZCB `encode` and `converted`, walk
 //! `runs_rgba16/32` with HEAD's bytes and checkpoints), and so is `convert`'s cross-storage output
 //! (`from_float_samples_unseeded`); every other constructor site stays Seeded with its readers and
-//! flip owner named (`designs/phase-13b-tiled-shipped.md`, 13B-3c-2c-2 decisions).
+//! flip owner named (`designs/phase-13b-tiled.md`, 13B-3c-2c-2 decisions).
 //! `tone_mapped_u16` took a `view` as well (none since 13B-3e-4c-2a, always unseeded): unseeded for
 //! `display_rgba8`, `downconvert`, the narrow preview, the byte narrowing and, since 13B-3d-3a,
 //! `float_to_u16` and the u16 narrowing (the layer they install is read through tiles), and

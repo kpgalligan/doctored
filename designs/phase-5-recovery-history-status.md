@@ -93,7 +93,7 @@ and untitled documents, an enumerable memory-budgeted history, and named snapsho
   on the owner's D4); recovery's shipped as 13C-3, in [phase-13c-incremental-io-status.md](phase-13c-incremental-io-status.md).
 - `DONE` — Tiled undo backing: per-edit history bytes measured with tiles (13B-5, 2026-11-15); the history
   budget (working limit / 4, 4096 transitions) and the 32-snapshot cap kept, the record in
-  [phase-13b-tiled-shipped.md](phase-13b-tiled-shipped.md#13b-5-contract).
+  [phase-13b-tiled.md](phase-13b-tiled.md#13b-5-contract).
 - `OPEN` [#11](https://github.com/kpgalligan/doctored/issues/11) — Broader history/snapshot workloads at 24/48 MP.
 - `DONE` — Selective layer comps — 12D-1 (`core/src/doc_comps.rs`, Window > Layer Comps…).
 - `DONE` — Recovery of embedded assets and high-depth buffers (plan §5 boundary) — Phase 8 retained sources, camera

@@ -192,6 +192,10 @@ Links inside these files are historical: sibling links point at other archived o
 - [phase-13a-regional-status.md](phase-13a-regional-status.md) — the working record at close (2026-11-12) — the state, the cap survey, `## Measured latency` with 13A-latency's gated table, profile and tree-plate figures, and the open items with their owners. Its first original is under `2026-10/`. ([ADR](../designs/phase-13a-regional-status.md))
 - [phase-13a-regional-shipped.md](phase-13a-regional-shipped.md) — the shipped companion at close — the 33 runs with their commits, each run's contract deltas, the decisions in force and the drive table. ([ADR](../designs/phase-13a-regional-status.md))
 
+## Phase 13B — settled record condensed 2026-11-17 (phase open)
+
+- [phase-13b-tiled-shipped.md](phase-13b-tiled-shipped.md) — its shipped companion at the 32 KB cap — the 35 runs with their commits, each run's contract (13B-1 to 13B-9b) with the 13B-4 transient-copy, 13B-5 history and layered-save tables, the decisions in force and the closed open items. ([ADR](../designs/phase-13b-tiled.md))
+
 ## Retired assets
 
 - [rasterize-app-icon/](rasterize-app-icon/) — The retired Rasterize "1a Overlap" app icon (three multiplying circles in a squircle): SVG master, appiconset and notes; replaced by the Doctored icon. ([current](../designs/new-icon/README.md))

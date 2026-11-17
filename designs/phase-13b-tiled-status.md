@@ -54,7 +54,7 @@ The full text of each item is in the [13A archived original](../archive/2026-10/
 
 ## Shipped runs
 
-The run table, contracts, `## Decisions` (the decisions in force) and the closed open items are in [phase-13b-tiled-shipped.md](phase-13b-tiled-shipped.md); a run's sections go there in the batch that ships it.
+[phase-13b-tiled.md](phase-13b-tiled.md) — the ADR holding the settled record as of 2026-11-17: the 35 runs through 13B-9b with their commits and contracts, the decisions in force and the closed open items. A run shipped after that puts its few lines and decisions in this section; they move to a new `phase-13b-tiled-shipped.md` under the companion rule, and the closing batch condenses this doc and any such companion into the ADR.
 
 ## Open items
 
