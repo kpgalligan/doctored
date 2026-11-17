@@ -282,11 +282,12 @@ struct NativeBrushStroke {
     /// reserve beyond it. A texture adds nothing: its level is the handle's, built and admitted
     /// once (`StrokeTexture`), and its read is inside the plan's work. A dual brush adds the
     /// second list's own plan (`dr_brush_u16_dual` reserves the two plans' sum).
-    private func plannedScratch(width: Int, height: Int, request: String) throws -> UInt64 {
+    private func plannedScratch(width: Int, height: Int, request: String,
+                                origin: (x: Int, y: Int) = (0, 0)) throws -> UInt64 {
         let context = try NativeSelectionWork.context(nil)
         func scratch(_ request: String, _ dabs: [Double]) throws -> UInt64 {
             let plan = try RasterSelection.nativeBrushPlan(width: width, height: height,
-                request: request, dabs: dabs, workingLimit: context.limit,
+                request: request, dabs: Self.moved(dabs, by: origin), workingLimit: context.limit,
                 otherRetained: context.other)
             return try PrecisionDocumentDescriptor.integer(plan, "scratch_bytes")
         }
@@ -296,9 +297,26 @@ struct NativeBrushStroke {
             UInt64(shapes?.count ?? 0) * 8)
     }
 
+    /// `dabs` (packed x, y, diameter, opacity) moved by `-origin`: the coordinates of a
+    /// rect-sized output whose pixel (0, 0) is canvas `origin`.
+    private static func moved(_ dabs: [Double], by origin: (x: Int, y: Int)) -> [Double] {
+        guard origin != (0, 0) else { return dabs }
+        var out = dabs
+        for i in stride(from: 0, to: out.count - 3, by: 4) {
+            out[i] -= Double(origin.x); out[i + 1] -= Double(origin.y)
+        }
+        return out
+    }
+
     /// The core's scratch estimate for `footprint`, planned on main.
     func footprintPlan(width: Int, height: Int) throws -> UInt64 {
         try plannedScratch(width: width, height: height, request: footprintRequest())
+    }
+
+    /// The core's scratch estimate for `footprint(in:)`, planned on main.
+    func footprintPlan(in rect: CoverageRect) throws -> UInt64 {
+        try plannedScratch(width: rect.width, height: rect.height, request: footprintRequest(),
+                           origin: (rect.x, rect.y))
     }
 
     /// The stroke's u16 footprint at opacity 1, under the caller's control
@@ -307,6 +325,19 @@ struct NativeBrushStroke {
         let context = try NativeSelectionWork.context(nil)
         return try RasterSelection.nativeBrush(width: width, height: height, request: footprintRequest(),
             dabs: dabs, shapes: shapes, texture: texture?.handle, dual: dualInput,
+            workingLimit: context.limit, otherRetained: context.other, control: control)
+    }
+
+    /// `footprint` over the canvas rect `rect` only (13B-9c, a retouch's `coverage_rect`):
+    /// rect-sized, the dabs of both tips moved by its origin and the texture anchored there,
+    /// which is the canvas footprint cropped to the rect (`core/tests/brush_rect_footprint.rs`).
+    func footprint(in rect: CoverageRect, control: RasterJobControl) throws -> [UInt16] {
+        let context = try NativeSelectionWork.context(nil)
+        let origin = (x: rect.x, y: rect.y)
+        let second = try dualInput.map { (request: $0.request, dabs: Self.moved($0.dabs, by: origin)) }
+        return try RasterSelection.nativeBrush(width: rect.width, height: rect.height,
+            request: footprintRequest(), dabs: Self.moved(dabs, by: origin), shapes: shapes,
+            texture: texture?.handle, dual: second, origin: origin,
             workingLimit: context.limit, otherRetained: context.other, control: control)
     }
 

@@ -35,6 +35,8 @@ mod stack_oracle;
 mod brush_dual;
 #[path = "brush_dynamics.rs"]
 mod brush_dynamics;
+#[path = "brush_rect_footprint.rs"]
+mod brush_rect_footprint;
 #[path = "brush_shaped_coverage.rs"]
 mod brush_shaped_coverage;
 #[path = "brush_texture.rs"]

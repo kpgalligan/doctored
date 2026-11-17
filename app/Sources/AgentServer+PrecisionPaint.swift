@@ -188,11 +188,15 @@ extension AgentServer {
             var rasterizes = true
             // The Spot Healing Brush's Type, echoed in the reply.
             var spotType = SpotHealType.contentAware
+            // Clone, Heal and Spot Heal send their stroke's rect (`coverage_rect`, 13B-9c),
+            // echoed in the job's details.
+            var coverageRect: CoverageRect?
             if heal || clone {
                 let choice = try retouchSampling(a, default: .current)
                 let output = try retouchOutput(a)
                 rasterizes = output == .layer
                 let expand = try retouchExpansion(a)
+                coverageRect = native.healBounds(width: width, height: height)
                 if spot {
                     let ring = intArg(a, "ring") ?? 0, seed = intArg(a, "seed") ?? 0
                     guard (0...512).contains(ring), seed >= 0 else {
@@ -202,7 +206,7 @@ extension AgentServer {
                     let bounds = native.healBounds(width: width, height: height)
                     command = try .spotHeal(layer: layer, choice: choice, output: output, expand: expand,
                         opacity: opacity, ring: ring, seed: UInt64(seed), type: spotType,
-                        selection: selected, bounds: bounds)
+                        selection: selected, bounds: bounds, coverageRect: coverageRect)
                 } else {
                     guard let sx = doubleArg(a, "source_x"), let sy = doubleArg(a, "source_y"), sx.isFinite, sy.isFinite else {
                         throw ToolError(message: "Retouch requires finite source_x and source_y.")
@@ -221,17 +225,22 @@ extension AgentServer {
                     command = try .retouch(layer: layer, sourceLayer: intArg(a, "source_layer"), heal: heal,
                         geometry: geometry, choice: choice, output: output, expand: expand, opacity: opacity,
                         blendMode: blend, selection: selected,
-                        bounds: heal ? native.healBounds(width: width, height: height) : nil)
+                        bounds: heal ? native.healBounds(width: width, height: height) : nil,
+                        coverageRect: coverageRect)
                 }
                 if heal {
                     // Mirrors the 16-bit Healing Brush / Spot Healing canvas
                     // strokes (EditorViewController.finishPrecisionStroke).
                     let work = try PrecisionStrokeWork(source: capture.source, stroke: native, command: command,
-                        selection: selected ? capture.selection?.maskSamples16() : nil, width: width, height: height)
+                        selection: selected ? capture.selection?.maskSamples16() : nil, width: width, height: height,
+                        coverageRect: coverageRect)
                     let job = try DocumentJobs.startPrecisionStroke(work, document: document, capture: capture,
                         layer: layer, title: spot ? "Spot Healing" : "Healing Brush", record: .notACommand,
                         showProgress: false, rasterizesTarget: output == .layer)
                     job.details = ["storage": storage, "coverage": note]
+                    if let coverageRect {
+                        job.details["coverage_rect"] = PrecisionPixelCommand.coverageRectField(coverageRect)
+                    }
                     if spot { job.details["applied"] = ["type": spotType.rawValue] }
                     return try finishJobCall(job, tool: tool, arguments: a, unchanged: {
                         try spot ? self.spotHealNoOpResult(layer: layer) : self.healStrokeNoOpResult(layer: layer)
@@ -268,11 +277,15 @@ extension AgentServer {
             // (EditorViewController.finishPrecisionStroke): one job whose
             // worker rasterizes the footprint.
             let work = try PrecisionStrokeWork(source: capture.source, stroke: native, command: command,
-                selection: selected ? capture.selection?.maskSamples16() : nil, width: width, height: height)
+                selection: selected ? capture.selection?.maskSamples16() : nil, width: width, height: height,
+                coverageRect: coverageRect)
             let job = try DocumentJobs.startPrecisionStroke(work, document: document, capture: capture,
                 layer: layer, title: tool.replacingOccurrences(of: "_", with: " "), record: .notACommand,
                 showProgress: false, rasterizesTarget: rasterizes, completion: Self.noteStrokeJobChange)
             job.details = ["storage": storage, "coverage": note]
+            if let coverageRect {
+                job.details["coverage_rect"] = PrecisionPixelCommand.coverageRectField(coverageRect)
+            }
             // #1 Indexed phase 2b: the Brush's admitted plan (the native paint's and the
             // re-index's), which `scripts/indexed-admission/measure.py`'s `brush-indexed` gates on;
             // on a Bitmap document (#1 Bitmap phase 2a-i) the native paint's and the republish's,

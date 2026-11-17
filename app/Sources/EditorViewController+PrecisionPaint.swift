@@ -183,6 +183,8 @@ extension EditorViewController {
             let selected = stroke.capture.selection != nil
             let command: PrecisionPixelCommand
             var kind = PrecisionStrokeWork.Kind.edit
+            // Clone, Heal and Spot Heal send their stroke's rect (`coverage_rect`, 13B-9c).
+            var coverageRect: CoverageRect?
             switch stroke.tool {
             case .brush where stroke.cmyk != nil:
                 // #1: ink on a CMYK layer (`cmyk_paint`).
@@ -208,11 +210,13 @@ extension EditorViewController {
                 guard let options = stroke.retouchOptions else { throw DoctoredCoreError(message: "Missing captured retouch options.") }
                 let choice = RetouchSamplingChoice(mode: options.sample, ignoreAdjustments: options.ignoreAdjustments)
                 let output: RetouchOutput = options.outputToNewLayer ? .newLayer : .layer
+                coverageRect = native.healBounds(width: source.width, height: source.height)
                 if stroke.tool == .spotHeal {
                     let bounds = native.healBounds(width: source.width, height: source.height)
                     command = try .spotHeal(layer: stroke.capture.layer, choice: choice, output: output,
                         expand: options.expandDestination == true, opacity: stroke.opacity,
-                        type: options.spotHealType ?? .contentAware, selection: selected, bounds: bounds)
+                        type: options.spotHealType ?? .contentAware, selection: selected, bounds: bounds,
+                        coverageRect: coverageRect)
                 } else {
                     guard let geometry = canvas.strokeCloneGeometry else {
                         throw DoctoredCoreError(message: "Choose a clone/heal source before painting.")
@@ -221,7 +225,8 @@ extension EditorViewController {
                         geometry: geometry, choice: choice, output: output,
                         expand: options.expandDestination == true, opacity: stroke.opacity,
                         blendMode: stroke.blendMode, selection: selected,
-                        bounds: stroke.tool == .heal ? native.healBounds(width: source.width, height: source.height) : nil)
+                        bounds: stroke.tool == .heal ? native.healBounds(width: source.width, height: source.height) : nil,
+                        coverageRect: coverageRect)
                 }
             case .blurBrush, .sharpenBrush, .sponge, .smudge, .historyBrush:
                 // `retouch_brush` is the planned request of Blur,
@@ -268,7 +273,8 @@ extension EditorViewController {
             }
             let work = try PrecisionStrokeWork(kind: kind, layer: stroke.capture.layer,
                 source: stroke.capture.source, stroke: native, command: command,
-                selection: stroke.capture.selection?.maskSamples16(), width: source.width, height: source.height)
+                selection: stroke.capture.selection?.maskSamples16(), width: source.width, height: source.height,
+                coverageRect: coverageRect)
             var record = ActionRecorder.shared.gestureRecord(strokeRecord(name))
             let canonical = try native.canonical
             // A History Brush stroke is `.unrecorded("History Brush")`: it is

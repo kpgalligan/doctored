@@ -78,13 +78,19 @@ extension AgentServer {
     }
 }
 
+/// The canvas rect a retouch request's coverage samples cover (13B-9c): the stroke, then the
+/// selection, each row-major over it (`coverage_rect`; `PrecisionStrokeWork` sends them).
+typealias CoverageRect = (x: Int, y: Int, width: Int, height: Int)
+
 extension PrecisionPixelCommand {
+    /// `coverageRect` names the rect the request's samples cover; nil sends canvas-sized planes.
     static func retouch(layer: Int, sourceLayer: Int? = nil, heal: Bool,
                         geometry: RetouchGeometry, choice: RetouchSamplingChoice,
                         output: RetouchOutput, expand: Bool, opacity: Double,
                         blendMode: DrBlendMode = DR_BLEND_NORMAL,
                         selection: Bool = false,
-                        bounds: (x: Int, y: Int, width: Int, height: Int)? = nil) throws -> Self {
+                        bounds: (x: Int, y: Int, width: Int, height: Int)? = nil,
+                        coverageRect: CoverageRect? = nil) throws -> Self {
         var fields: [String: Any] = ["op": heal ? "retouch_heal" : "retouch_clone", "layer": layer,
             "matrix": geometry.values, "sample": choice.mode.rawValue,
             "ignore_adjustments": choice.ignoreAdjustments, "output": output.rawValue,
@@ -98,6 +104,7 @@ extension PrecisionPixelCommand {
             fields["x"] = bounds.x; fields["y"] = bounds.y
             fields["width"] = bounds.width; fields["height"] = bounds.height
         }
+        if let coverageRect { fields["coverage_rect"] = Self.coverageRectField(coverageRect) }
         return try Self(fields)
     }
 
@@ -106,13 +113,20 @@ extension PrecisionPixelCommand {
     static func spotHeal(layer: Int, choice: RetouchSamplingChoice, output: RetouchOutput,
                          expand: Bool, opacity: Double, ring: Int = 0, seed: UInt64 = 0,
                          type: SpotHealType = .contentAware, selection: Bool = false,
-                         bounds: (x: Int, y: Int, width: Int, height: Int)) throws -> Self {
+                         bounds: (x: Int, y: Int, width: Int, height: Int),
+                         coverageRect: CoverageRect? = nil) throws -> Self {
         var fields: [String: Any] = ["op": "spot_heal", "layer": layer, "sample": choice.mode.rawValue,
             "ignore_adjustments": choice.ignoreAdjustments, "output": output.rawValue,
             "expand_destination": expand, "opacity": opacity, "ring": ring, "seed": seed, "selection": selection,
             "x": bounds.x, "y": bounds.y, "width": bounds.width, "height": bounds.height]
         if type != .contentAware { fields["type"] = type.rawValue }
+        if let coverageRect { fields["coverage_rect"] = Self.coverageRectField(coverageRect) }
         return try Self(fields)
+    }
+
+    /// `coverage_rect`'s JSON value, `[x, y, width, height]`.
+    static func coverageRectField(_ rect: CoverageRect) -> [Int] {
+        [rect.x, rect.y, rect.width, rect.height]
     }
 
     static func redEye(layer: Int, rect: CGRect, pupilSize: Double, darken: Double) throws -> Self {

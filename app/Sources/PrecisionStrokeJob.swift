@@ -45,20 +45,29 @@ struct PrecisionStrokeWork {
     let source: RasterPrecisionDocument
     let stroke: NativeBrushStroke
     let command: PrecisionPixelCommand
-    /// Canvas-sized u16 coverage appended after the footprint; nil = unselected.
+    /// The u16 coverage appended after the footprint, over the canvas or over
+    /// `coverageRect`; nil = unselected.
     let selection: [UInt16]?
     let width: Int
     let height: Int
+    /// The canvas rect an `.edit`'s request names as its `coverage_rect` (13B-9c): the
+    /// footprint and the selection are that rect's samples; nil = canvas-sized planes.
+    let coverageRect: CoverageRect?
     /// The footprint plan's scratch plus the edit plan's.
     let scratchEstimate: UInt64
     let retainedPayload: PrecisionEditPayload
+
+    /// The pixels of each plane the worker holds: the coverage rect's, or the canvas's.
+    private var planePixels: UInt64 {
+        coverageRect.map { UInt64($0.width) * UInt64($0.height) } ?? UInt64(width) * UInt64(height)
+    }
 
     /// The bytes the worker itself holds outside the core's reservation:
     /// the rasterized footprint and the joined footprint + selection samples.
     /// This, not `scratchEstimate`, is the job's `scratch` — the core reserves
     /// its plan scratch from the job's control.
     var heldBytes: UInt64 {
-        let plane = UInt64(width) * UInt64(height) * 2
+        let plane = planePixels * 2
         // A Smudge rasterizes no footprint: it holds the selection alone.
         if case .smudge = kind { return selection == nil ? 0 : plane }
         // Nor does the Art History Brush.
@@ -67,21 +76,34 @@ struct PrecisionStrokeWork {
     }
 
     init(source: RasterPrecisionDocument, stroke: NativeBrushStroke, command: PrecisionPixelCommand,
-         selection: [UInt16]?, width: Int, height: Int) throws {
+         selection: [UInt16]?, width: Int, height: Int, coverageRect: CoverageRect? = nil) throws {
         try self.init(kind: .edit, layer: 0, source: source, stroke: stroke, command: command,
-                      selection: selection, width: width, height: height)
+                      selection: selection, width: width, height: height, coverageRect: coverageRect)
     }
 
     /// `kind` over `layer`. `command` is the planned request of an `.edit`
-    /// and only names the stroke for the other two kinds.
+    /// and only names the stroke for the other two kinds. `selection` is canvas-sized; with
+    /// a `coverageRect` (an `.edit` whose request names it) only the rect's rows are kept, so
+    /// the canvas plane the caller captured is released when this returns.
     init(kind: Kind, layer: Int, source: RasterPrecisionDocument, stroke: NativeBrushStroke,
-         command: PrecisionPixelCommand, selection: [UInt16]?, width: Int, height: Int) throws {
+         command: PrecisionPixelCommand, selection: [UInt16]?, width: Int, height: Int,
+         coverageRect: CoverageRect? = nil) throws {
         guard !BackgroundWork.occupied else {
             throw DoctoredCoreError(message: BackgroundWork.preparingBusyMessage)
         }
+        if let rect = coverageRect {
+            guard case .edit = kind, rect.x >= 0, rect.y >= 0, rect.width > 0, rect.height > 0,
+                  rect.x + rect.width <= width, rect.y + rect.height <= height else {
+                throw DoctoredCoreError(message: "A stroke's coverage rect must be a nonempty rect inside the canvas.")
+            }
+        }
+        let kept: [UInt16]? = try coverageRect.map { rect in
+            try selection.map { try Self.rows(of: $0, width: width, height: height, in: rect) }
+        } ?? selection
         let context = try PrecisionWorkContext(source: source)
         let plan: [String: Any]
-        let pixels = UInt64(width) * UInt64(height)
+        let pixels = coverageRect.map { UInt64($0.width) * UInt64($0.height) }
+            ?? UInt64(width) * UInt64(height)
         let planned: UInt64
         // The Background Eraser's coverage plan, beside its `erase_native` plan.
         var coverageScratch: UInt64 = 0
@@ -89,23 +111,23 @@ struct PrecisionStrokeWork {
         case .edit:
             plan = try source.pixelEditPlan(request: command.request, workingLimit: context.limit,
                                             otherRetained: context.otherRetained)
-            planned = pixels * (selection == nil ? 1 : 2)
+            planned = pixels * (kept == nil ? 1 : 2)
         case .smudge(_, let sampleAllLayers):
             plan = try source.smudgePlan(layer: layer, request: stroke.request, dabs: stroke.dabs,
-                selection: selection != nil, sampleAllLayers: sampleAllLayers,
+                selection: kept != nil, sampleAllLayers: sampleAllLayers,
                 workingLimit: context.limit, otherRetained: context.otherRetained)
-            planned = selection == nil ? 0 : pixels
+            planned = kept == nil ? 0 : pixels
         case .historyBrush(let history, let historyLayer, _):
             plan = try source.historyBrushPlan(layer: layer, source: history,
-                sourceLayer: historyLayer, selection: selection != nil,
+                sourceLayer: historyLayer, selection: kept != nil,
                 workingLimit: context.limit, otherRetained: context.otherRetained)
-            planned = pixels * (selection == nil ? 1 : 2)
+            planned = pixels * (kept == nil ? 1 : 2)
         case .artHistory(let history, let historyLayer, let request):
             plan = try source.artHistoryBrushPlan(layer: layer, source: history,
                 sourceLayer: historyLayer, request: request, brushRequest: stroke.request,
-                dabs: stroke.dabs, selection: selection != nil, workingLimit: context.limit,
+                dabs: stroke.dabs, selection: kept != nil, workingLimit: context.limit,
                 otherRetained: context.otherRetained)
-            planned = selection == nil ? 0 : pixels
+            planned = kept == nil ? 0 : pixels
         case .backgroundEraser(let request):
             let coverage = try source.backgroundEraserCoveragePlan(layer: layer, request: request,
                 brushRequest: stroke.request, dabs: stroke.dabs, workingLimit: context.limit,
@@ -113,10 +135,10 @@ struct PrecisionStrokeWork {
             coverageScratch = try PrecisionDocumentDescriptor.integer(coverage, "scratch_bytes")
             plan = try source.pixelEditPlan(request: command.request, workingLimit: context.limit,
                                             otherRetained: context.otherRetained)
-            planned = pixels * (selection == nil ? 1 : 2)
+            planned = pixels * (kept == nil ? 1 : 2)
         }
         guard try PrecisionDocumentDescriptor.integer(plan, "input_samples") == planned,
-              selection.map({ $0.count == width * height }) ?? true else {
+              kept.map({ UInt64($0.count) == pixels }) ?? true else {
             throw DoctoredCoreError(message: "High-depth input samples do not match the planned edit.")
         }
         self.kind = kind
@@ -124,11 +146,12 @@ struct PrecisionStrokeWork {
         self.source = source
         self.stroke = stroke
         self.command = command
-        self.selection = selection
+        self.selection = kept
         self.width = width
         self.height = height
+        self.coverageRect = coverageRect
         retainedPayload = try PrecisionEditPayload.admitted(
-            bytes: UInt64(selection?.count ?? 0) * 2 + UInt64(command.request.utf8.count) * 2 + 512)
+            bytes: UInt64(kept?.count ?? 0) * 2 + UInt64(command.request.utf8.count) * 2 + 512)
         let editScratch = try PrecisionDocumentDescriptor.integer(plan, "scratch_bytes")
         switch kind {
         case .smudge, .artHistory:
@@ -136,9 +159,24 @@ struct PrecisionStrokeWork {
         case .backgroundEraser:
             scratchEstimate = try PrecisionDocumentDescriptor.sum(coverageScratch, editScratch)
         case .edit, .historyBrush:
-            scratchEstimate = try PrecisionDocumentDescriptor.sum(
-                stroke.footprintPlan(width: width, height: height), editScratch)
+            let footprint = try coverageRect.map { try stroke.footprintPlan(in: $0) }
+                ?? stroke.footprintPlan(width: width, height: height)
+            scratchEstimate = try PrecisionDocumentDescriptor.sum(footprint, editScratch)
         }
+    }
+
+    /// `plane`'s rows inside `rect` (a `width × height` canvas plane, row-major), checked.
+    private static func rows(of plane: [UInt16], width: Int, height: Int,
+                             in rect: CoverageRect) throws -> [UInt16] {
+        guard plane.count == width * height else {
+            throw DoctoredCoreError(message: "High-depth input samples do not match the planned edit.")
+        }
+        var out = [UInt16](); out.reserveCapacity(rect.width * rect.height)
+        for row in rect.y..<(rect.y + rect.height) {
+            let at = row * width + rect.x
+            out.append(contentsOf: plane[at..<(at + rect.width)])
+        }
+        return out
     }
 
     /// Worker. A job control is single-use at the core, so the footprint and
@@ -168,6 +206,7 @@ struct PrecisionStrokeWork {
                     workingLimit: context.limit, otherRetained: context.otherRetained,
                     control: child)
             }
+            if let rect = coverageRect { return try stroke.footprint(in: rect, control: child) }
             return try stroke.footprint(width: width, height: height, control: child)
         }
         if control.isCancelled { throw JobCancelled() }

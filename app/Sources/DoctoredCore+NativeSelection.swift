@@ -14,23 +14,27 @@ extension RasterSelection {
 
     /// `dr_brush_u16`, or `dr_brush_u16_shaped` when `shapes` (one angle and roundness
     /// pair per dab, brush dynamics' tip shape) is given, or `dr_brush_u16_textured` (with
-    /// or without `shapes`, the canvas at origin 0, 0) when `texture` is. With `dual` (the
-    /// second tip's request and dabs), `dr_brush_u16_dual` with `shapes` and `texture` each
-    /// optional.
+    /// or without `shapes`, the texture anchored at `origin`, the canvas coordinate of the
+    /// output's pixel 0, 0) when `texture` is. With `dual` (the second tip's request and
+    /// dabs), `dr_brush_u16_dual` with `shapes` and `texture` each optional. A rect-sized
+    /// output passes dabs moved by its origin (`NativeBrushStroke.footprint(in:)`).
     static func nativeBrush(width: Int, height: Int, request: String, dabs: [Double],
                             shapes: [Double]? = nil, texture: RasterBrushTexture? = nil,
                             dual: (request: String, dabs: [Double])? = nil,
+                            origin: (x: Int, y: Int) = (0, 0),
                             workingLimit: UInt64, otherRetained: UInt64,
                             control: RasterJobControl) throws -> [UInt16] {
         var error: UnsafeMutablePointer<CChar>?
         var output = [UInt16](repeating: 0, count: width * height)
+        // The canvas coordinate of the output's pixel (0, 0): the texture's anchor.
+        let (ox, oy) = (Int64(origin.x), Int64(origin.y))
         let ok = dabs.withUnsafeBufferPointer { input in
             output.withUnsafeMutableBufferPointer { out in
                 if let dual {
                     func call(_ pairs: UnsafePointer<Double>?) -> Bool {
                         dual.dabs.withUnsafeBufferPointer { second in
                             dr_brush_u16_dual(UInt32(width), UInt32(height), request,
-                                input.baseAddress, dabs.count / 4, pairs, texture?.ptr, 0, 0,
+                                input.baseAddress, dabs.count / 4, pairs, texture?.ptr, ox, oy,
                                 dual.request, second.baseAddress, dual.dabs.count / 4,
                                 out.baseAddress, out.count, workingLimit, otherRetained,
                                 control.ptr, &error)
@@ -42,7 +46,7 @@ extension RasterSelection {
                 if let texture {
                     func call(_ pairs: UnsafePointer<Double>?) -> Bool {
                         dr_brush_u16_textured(UInt32(width), UInt32(height), request,
-                            input.baseAddress, dabs.count / 4, pairs, texture.ptr, 0, 0,
+                            input.baseAddress, dabs.count / 4, pairs, texture.ptr, ox, oy,
                             out.baseAddress, out.count, workingLimit, otherRetained, control.ptr,
                             &error)
                     }
