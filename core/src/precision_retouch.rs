@@ -21,6 +21,7 @@ use crate::precision_inpaint::SynthesisPlate;
 use crate::precision_paint::{canvas_index, PaintPlan};
 use crate::precision_retouch_apply::RetouchKernel;
 use crate::precision_retouch_source::SynthesisSource;
+use crate::retouch_coverage::{selection_domain, CoveragePlane};
 use crate::retouch_sampling::RetouchSampling;
 use serde::Deserialize;
 
@@ -114,6 +115,12 @@ pub struct RetouchEdit {
     /// stays transparent.
     #[serde(default)]
     pub fill_transparent: bool,
+    /// The canvas rect `[x, y, w, h]` the request's coverage samples cover
+    /// (13B-9c, `retouch_coverage`): the stroke, then with `selection` the
+    /// selection, each row-major over the rect, and 0 outside it. Absent =
+    /// the canvas, every earlier request's meaning. Red Eye refuses it.
+    #[serde(default)]
+    pub coverage_rect: Option<[u32; 4]>,
     /// The full-frame seam (tests only, never read from JSON): a Clone or
     /// Heal transforms the whole canvas from the whole plate, the path
     /// before 13B-9a's rect (`precision_retouch_apply`'s module doc), and a
@@ -179,6 +186,7 @@ impl RetouchEdit {
                     "height",
                     "covered",
                     "fill_transparent",
+                    "coverage_rect",
                 ]
                 .contains(&key.as_str()),
                 RetouchOp::SpotHeal => {
@@ -251,6 +259,26 @@ impl RetouchEdit {
         }
         Ok((self.x as u32, self.y as u32, self.width, self.height))
     }
+    /// The canvas rect `(x, y, w, h)` the coverage samples cover: the
+    /// request's `coverage_rect`, or the canvas when it is absent.
+    pub(crate) fn coverage_area(
+        &self,
+        doc: &PrecisionDocument,
+    ) -> Result<(u32, u32, u32, u32), String> {
+        let Some([x, y, w, h]) = self.coverage_rect else {
+            return Ok((0, 0, doc.width, doc.height));
+        };
+        if w == 0
+            || h == 0
+            || u64::from(x) + u64::from(w) > u64::from(doc.width)
+            || u64::from(y) + u64::from(h) > u64::from(doc.height)
+        {
+            return Err(
+                "retouch coverage_rect must be a nonempty rectangle inside the canvas".into(),
+            );
+        }
+        Ok((x, y, w, h))
+    }
     /// SpotHeal|ContentAwareFill, mode() == Ok(Current), !full_frame.
     pub(crate) fn reads_plate_in_place(&self) -> bool {
         matches!(self.op, RetouchOp::SpotHeal | RetouchOp::ContentAwareFill)
@@ -299,6 +327,8 @@ impl PrecisionDocument {
             );
         }
         crate::retouch_transform::validate(&edit.matrix)?;
+        let (_, _, aw, ah) = edit.coverage_area(self)?;
+        let area = u64::from(aw) * u64::from(ah);
         let target = self
             .layer(edit.layer)
             .ok_or("retouch target layer is out of range")?;
@@ -372,6 +402,7 @@ impl PrecisionDocument {
                 caller,
                 edit.spot_type,
                 3,
+                n,
             )?
             .0;
         }
@@ -408,7 +439,7 @@ impl PrecisionDocument {
         Ok(PaintPlan {
             retained_bytes: self.retained_bytes(),
             scratch_bytes: scratch,
-            input_samples: n as usize * if edit.selection { 2 } else { 1 },
+            input_samples: area as usize * if edit.selection { 2 } else { 1 },
         })
     }
     pub fn retouch(
@@ -539,38 +570,51 @@ impl PrecisionDocument {
         if coverage.len() != plan.input_samples {
             return Err("retouch coverage extent mismatch".into());
         }
-        let n = pixel_count(self.width, self.height)?;
-        let selection = edit.selection.then(|| &coverage[n..]);
-        let coverage = &coverage[..n];
+        // The planes over the request's coverage rect (the canvas without
+        // one), 13B-9c: no canvas-sized allocation or scan when it is named.
+        let (canvas, area) = (self.dimensions(), edit.coverage_area(self)?);
+        let m = area.2 as usize * area.3 as usize;
+        let raw = CoveragePlane::new(&coverage[..m], area, canvas)?;
+        let selection = edit
+            .selection
+            .then(|| CoveragePlane::new(&coverage[m..], area, canvas))
+            .transpose()?;
         // Synthesis retains the published half-coverage stroke contour. A tiny
         // positive selection remains in the domain and fades only at writeback.
-        let domain = if let Some(selection) = selection {
-            let mut domain = reserved_vec(n)?;
-            for (i, &c) in coverage.iter().enumerate() {
-                job.every(i)?;
-                domain.push(if selection[i] == 0 { 0 } else { c });
+        // The domain covers the stroke's bbox only: outside it the stroke is 0.
+        let stroke = raw.bbox();
+        let domain = match (selection, stroke) {
+            (Some(selection), Some(bbox)) => {
+                Some((selection_domain(raw, selection, bbox, job)?, bbox))
             }
-            Some(domain)
-        } else {
-            None
+            _ => None,
         };
-        let coverage = domain.as_deref().unwrap_or(coverage);
+        let coverage = match &domain {
+            Some((samples, bbox)) => CoveragePlane::new(samples, *bbox, canvas)?,
+            None => raw,
+        };
+        // The admitted-bounds check and the no-op test read the WORKING
+        // plane (the domain under a selection), in that order: a sample the
+        // selection zeroes is not coverage. A bbox inside the bounds holds
+        // every covered sample, and none outside it is covered.
+        let covered = if domain.is_some() {
+            coverage.bbox()
+        } else {
+            stroke
+        };
         if edit.width > 0 && edit.height > 0 && edit.op != RetouchOp::RedEye {
             let (x, y, w, h) = edit.bounds(self)?;
-            for (i, c) in coverage.iter().enumerate() {
-                job.every(i)?;
-                if *c > 0 {
-                    let (cx, cy) = (
-                        (i % self.width as usize) as u32,
-                        (i / self.width as usize) as u32,
-                    );
-                    if cx < x || cy < y || cx >= x + w || cy >= y + h {
-                        return Err("retouch coverage exceeds its admitted bounds".into());
-                    }
+            if let Some((cx, cy, cw, ch)) = covered {
+                if cx < x
+                    || cy < y
+                    || u64::from(cx) + u64::from(cw) > u64::from(x) + u64::from(w)
+                    || u64::from(cy) + u64::from(ch) > u64::from(y) + u64::from(h)
+                {
+                    return Err("retouch coverage exceeds its admitted bounds".into());
                 }
             }
         }
-        if edit.opacity == 0. || !coverage.iter().any(|v| *v > 0) {
+        if edit.opacity == 0. || covered.is_none() {
             job.report(1.0, 5)?;
             return Ok(None);
         }
@@ -665,7 +709,7 @@ impl PrecisionDocument {
                 } else {
                     32768
                 };
-                if coverage[i] < threshold || *p == baseline[i] {
+                if coverage.at(i) < threshold || *p == baseline[i] {
                     *p = [0; 4];
                 }
             }
@@ -775,7 +819,11 @@ impl PrecisionDocument {
         &self,
         edit: &RetouchEdit,
         kernel: &RetouchKernel,
-        (source, coverage, selection): (Option<SynthesisPlate<'_>>, &[u16], Option<&[u16]>),
+        (source, coverage, selection): (
+            Option<SynthesisPlate<'_>>,
+            CoveragePlane<'_>,
+            Option<CoveragePlane<'_>>,
+        ),
         target: &PrecisionDocumentLayer,
         [job, edit_job]: [JobContext<'_>; 2],
     ) -> Result<Option<Self>, String> {

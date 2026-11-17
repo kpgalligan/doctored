@@ -10,9 +10,11 @@
 //!
 //! # Admission
 //!
-//! [`estimate`] charges `8 MiB + 2n + min(covered,
+//! [`estimate`] charges `8 MiB + 2d + min(covered,
 //! INPAINT_SEARCH_PIXELS)·COMPONENT_BYTES + window·WINDOW_BYTES`, on top of
-//! the typed retouch plan's own canvas, output and plate terms. The record
+//! the typed retouch plan's own canvas, output and plate terms; `d` is the
+//! domain [`plan`] covers (the request's bounds in place since 13B-9c, the
+//! canvas `n` where the measurements below were taken). The record
 //! clamp counts every record there is: [`plan`] refuses a call whose
 //! `doc_heal::component_count_bound` is over `INPAINT_SEARCH_PIXELS` before
 //! the walk (the covered count itself is no longer capped, see
@@ -180,6 +182,7 @@ use crate::inpaint_plan::ComponentPlan;
 use crate::job_control::JobContext;
 use crate::patchmatch::Plane;
 use crate::precision_image::{pixel_count, PrecisionImage, PrecisionRun, PrecisionStorage};
+use crate::retouch_coverage::CoveragePlane;
 use crate::spot_heal_type::SpotHealType;
 
 const BOOKKEEPING: u64 = 8 * 1024 * 1024;
@@ -211,9 +214,11 @@ pub(crate) struct InpaintPlan {
     pub(crate) work_units: u64,
 }
 
-fn scratch(canvas_pixels: u64, covered: u64, window: u64, channels: usize) -> u64 {
+/// `domain_pixels` is the plane the hole and the component walk cover (the
+/// request's bounds, or the canvas), 2 bytes a pixel.
+fn scratch(domain_pixels: u64, covered: u64, window: u64, channels: usize) -> u64 {
     BOOKKEEPING
-        .saturating_add(canvas_pixels.saturating_mul(2))
+        .saturating_add(domain_pixels.saturating_mul(2))
         .saturating_add(covered.saturating_mul(COMPONENT_BYTES))
         .saturating_add(window.saturating_mul(window_bytes(channels)))
 }
@@ -390,7 +395,10 @@ pub(crate) fn estimate_window(
 /// (x,y,width,height). The caller accounts for its source plate, destination and
 /// input coverage separately and validates the supplied mask against the bounds.
 /// `channels` is the plate's colour channel count (3, or 4 on a CMYK document);
-/// `kind` is [`estimate_window`]'s.
+/// `kind` is [`estimate_window`]'s. `domain_pixels` is the 2-bytes-a-pixel
+/// hole/walk term's plane: the domain [`plan`] covers (the request's bounds
+/// in place since 13B-9c), or the canvas where the caller charges it whole.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn estimate(
     canvas: (u32, u32),
     bounds: (u32, u32, u32, u32),
@@ -399,9 +407,9 @@ pub(crate) fn estimate(
     caller: Caller,
     kind: SpotHealType,
     channels: usize,
+    domain_pixels: u64,
 ) -> Result<(u64, u64), String> {
     let window = estimate_window(canvas, bounds, covered_upper, ring, caller, kind)?;
-    let n = pixel_count(canvas.0, canvas.1)? as u64;
     let covered = covered_upper.min(u64::from(bounds.2) * u64::from(bounds.3));
     // Many disconnected components may repeatedly visit the same source pixels.
     // The byte planner bounds their summed windows independently of this box.
@@ -419,7 +427,7 @@ pub(crate) fn estimate(
                 .saturating_mul(3)
                 .saturating_mul(components),
         );
-    Ok((scratch(n, components, window, channels), work))
+    Ok((scratch(domain_pixels, components, window, channels), work))
 }
 
 /// Exact component/ring plan; all costs are decided before the first synthesis
@@ -433,7 +441,7 @@ pub(crate) fn estimate(
 pub(crate) fn plan(
     canvas: (u32, u32),
     domain: (u32, u32, u32, u32),
-    coverage: &[u16],
+    coverage: CoveragePlane<'_>,
     ring: u32,
     soft_write: bool,
     kind: SpotHealType,
@@ -442,32 +450,39 @@ pub(crate) fn plan(
     job: JobContext<'_>,
 ) -> Result<InpaintPlan, String> {
     job.check()?;
-    let n = pixel_count(canvas.0, canvas.1)?;
+    pixel_count(canvas.0, canvas.1)?;
     let (dx, dy, dw, dh) = domain;
-    if coverage.len() != n
-        || ring > 512
+    if ring > 512
         || u64::from(dx) + u64::from(dw) > u64::from(canvas.0)
         || u64::from(dy) + u64::from(dh) > u64::from(canvas.1)
     {
         return Err("high-depth synthesis coverage or ring is invalid".into());
     }
-    let (cw, dw, dh) = (canvas.0 as usize, dw as usize, dh as usize);
-    // The canvas index of domain index `i`.
-    let at = |i: usize| (i / dw + dy as usize) * cw + i % dw + dx as usize;
+    let (dw, dh) = (dw as usize, dh as usize);
+    // The canvas index of domain index `i`, and the coverage there.
+    let at = |i: usize| (i / dw + dy as usize) * canvas.0 as usize + i % dw + dx as usize;
+    let sample = |i: usize| {
+        coverage.get(
+            (i % dw) as i64 + i64::from(dx),
+            (i / dw) as i64 + i64::from(dy),
+        )
+    };
     let threshold = if soft_write { 1 } else { 32768 };
     let mut covered = 0u64;
     for i in 0..dw * dh {
         job.every(i)?;
-        covered += u64::from(coverage[at(i)] >= threshold);
+        covered += u64::from(sample(i) >= threshold);
     }
     // The component records the admission priced: one per covered pixel up
     // to `INPAINT_SEARCH_PIXELS` (`estimate`'s clamp). The covered count
     // itself has no ceiling (`doc_inpaint::inpaint_lift`); the parts refusal
     // below is what keeps the clamp a count of every record the walk makes.
+    // The hole/walk term is the domain's, as `estimate`'s `domain_pixels`.
     let records = covered.min(INPAINT_SEARCH_PIXELS);
-    let preliminary = base_scratch.saturating_add(scratch(n as u64, records, 0, channels));
+    let domain_pixels = (dw * dh) as u64;
+    let preliminary = base_scratch.saturating_add(scratch(domain_pixels, records, 0, channels));
     job.reserve(preliminary)?;
-    let hole: Vec<bool> = (0..dw * dh).map(|i| coverage[at(i)] >= threshold).collect();
+    let hole: Vec<bool> = (0..dw * dh).map(|i| sample(i) >= threshold).collect();
     let caller = if soft_write {
         Caller::Fill
     } else {
@@ -500,7 +515,7 @@ pub(crate) fn plan(
         .max()
         .unwrap_or(0);
     let scratch_bytes =
-        base_scratch.saturating_add(scratch(n as u64, records, max_window, channels));
+        base_scratch.saturating_add(scratch(domain_pixels, records, max_window, channels));
     let work_units = windows.iter().fold(0u64, |work, window| {
         work.saturating_add(window_work(window.window_pixels()))
     });
@@ -604,20 +619,19 @@ pub(crate) fn opaque_hole<T: Copy + PartialEq, const C: usize>(
 pub(crate) fn apply<T: HealSample, const C: usize>(
     plan: &InpaintPlan,
     source: SynthesisPlate<'_>,
-    coverage: &[u16],
+    coverage: CoveragePlane<'_>,
     eligibility: Option<&[bool]>,
     strength: f32,
     seed: u64,
     pixels: &mut [T],
     dimensions: (u32, u32),
     offset: (i32, i32),
-    selection: Option<&[u16]>,
+    selection: Option<CoveragePlane<'_>>,
     job: JobContext<'_>,
 ) -> Result<bool, String> {
     job.check()?;
     let n = plan.canvas.0 as usize * plan.canvas.1 as usize;
     if source.channels() != C
-        || coverage.len() != n
         || eligibility.is_some_and(|e| e.len() != n)
         || pixels.len() as u64 != u64::from(dimensions.0) * u64::from(dimensions.1) * (C as u64 + 1)
         || !strength.is_finite()
@@ -675,7 +689,7 @@ pub(crate) fn apply<T: HealSample, const C: usize>(
             let i = (p / cw - y0) * w + p % cw - x0;
             hole[i] = true;
             write[i] = if plan.soft_write {
-                coverage[p]
+                coverage.at(p)
             } else {
                 u16::MAX
             };
@@ -708,17 +722,26 @@ pub(crate) fn apply<T: HealSample, const C: usize>(
         // These are binary topology samples, not a reduction of RGB or authored
         // coverage. The shared contour algorithm has exactly one interpretation.
         let region: Vec<u16> = region.into_iter().map(|v| u16::from(v) * 257).collect();
+        // The writeback in the window's own frame (the window lies inside
+        // the canvas): the selection cropped to it, the window's size as the
+        // canvas and the plane's offset moved by its origin, as
+        // `precision_retouch_apply::SampledPlate::heal` runs a heal.
+        let frame = (x0 as i64, y0 as i64, (x0 + w) as i64, (y0 + h) as i64);
+        let selection = selection.map(|s| s.crop(frame)).transpose()?;
+        let moved = |o: i32, by: usize| {
+            i32::try_from(i64::from(o) - by as i64).map_err(|_| "synthesis window offset overflow")
+        };
         changed |= crate::heal_writeback::heal_with_selection_channels::<_, _, _, C>(
-            plan.canvas,
+            (w as u32, h as u32),
             dimensions,
             pixels,
-            offset,
-            (x0 as i64, y0 as i64, w, h),
+            (moved(offset.0, x0)?, moved(offset.1, y0)?),
+            (0, 0, w, h),
             &synthesized,
             &region,
             &write,
             strength,
-            selection,
+            selection.as_deref(),
             control.range(0.85, 1.0),
         )?;
         done += window_work(window.window_pixels());

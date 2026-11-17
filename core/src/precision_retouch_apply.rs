@@ -45,12 +45,11 @@ use crate::blend::BlendMode;
 use crate::heal_writeback::HealSample;
 use crate::job_control::JobContext;
 use crate::lab_blend::kind_in;
-use crate::layer_rect::coverage_rect16;
 use crate::precision_document::PrecisionDocument;
-use crate::precision_image::reserved_vec;
 use crate::precision_inpaint::SynthesisPlate;
 use crate::precision_paint::{blend_preserving, canvas_index, store};
 use crate::precision_retouch::{RetouchEdit, RetouchOp, RetouchOutput};
+use crate::retouch_coverage::CoveragePlane;
 use crate::retouch_transform::CanvasRect;
 
 /// A Clone or Heal's transformed source over its `frame` (13B-9a, module
@@ -75,53 +74,30 @@ impl<P: Copy> SampledPlate<P> {
 }
 
 impl<P: HealSample + Into<f32>> SampledPlate<P> {
-    /// `precision_retouch_heal::apply` over this plate (module doc): as is
-    /// when the frame is the `canvas`, else in the frame's coordinates —
-    /// `coverage` and `selection` (canvas-sized) cropped to the frame, the
-    /// frame's size as the canvas and the plane's offset moved by the
-    /// frame's origin. An empty frame covers nothing, so nothing is healed.
+    /// `precision_retouch_heal::apply` over this plate (module doc), in the
+    /// frame's coordinates: `coverage` and `selection` cropped to the frame
+    /// (`CoveragePlane::crop`, 0 outside their rect), the frame's size as the
+    /// canvas and the plane's offset moved by the frame's origin. An empty
+    /// frame covers nothing, so nothing is healed.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn heal(
         &self,
-        canvas: (u32, u32),
-        coverage: &[u16],
-        selection: Option<&[u16]>,
+        coverage: CoveragePlane<'_>,
+        selection: Option<CoveragePlane<'_>>,
         opacity: f32,
         pixels: &mut [[P; 4]],
         (dimensions, offset): ((u32, u32), (i32, i32)),
         job: JobContext<'_>,
     ) -> Result<(), String> {
         let (x0, y0, x1, y1) = self.frame;
-        if self.frame == (0, 0, i64::from(canvas.0), i64::from(canvas.1)) {
-            return crate::precision_retouch_heal::apply(
-                canvas,
-                &self.samples,
-                coverage,
-                opacity,
-                pixels,
-                dimensions,
-                offset,
-                selection,
-                job,
-            );
-        }
         let (Ok(fw), Ok(fh)) = (u32::try_from(x1 - x0), u32::try_from(y1 - y0)) else {
             return Ok(());
         };
         if fw == 0 || fh == 0 {
             return Ok(());
         }
-        let stride = canvas.0 as usize;
-        let crop = |plane: &[u16]| -> Result<Vec<u16>, String> {
-            let mut out = reserved_vec(fw as usize * fh as usize)?;
-            for y in y0..y1 {
-                let at = y as usize * stride + x0 as usize;
-                out.extend_from_slice(&plane[at..at + fw as usize]);
-            }
-            Ok(out)
-        };
-        let coverage = crop(coverage)?;
-        let selection = selection.map(crop).transpose()?;
+        let coverage = coverage.crop(self.frame)?;
+        let selection = selection.map(|s| s.crop(self.frame)).transpose()?;
         let moved = |o: i32, by: i64| {
             i32::try_from(i64::from(o) - by).map_err(|_| "retouch frame offset overflow")
         };
@@ -137,6 +113,18 @@ impl<P: HealSample + Into<f32>> SampledPlate<P> {
             job,
         )
     }
+}
+
+/// Red Eye's coverage, canvas-sized as its kernel reads it: Red Eye takes
+/// neither `coverage_rect` nor a selection, so its plane is the canvas.
+pub(crate) fn red_eye_coverage<'a>(
+    doc: &PrecisionDocument,
+    coverage: CoveragePlane<'a>,
+) -> Result<&'a [u16], String> {
+    if coverage.rect() != (0, 0, doc.width, doc.height) {
+        return Err("red eye reads canvas-sized coverage".into());
+    }
+    Ok(coverage.samples())
 }
 
 /// `P` is the destination's sample: u16 here, f32 in a 32-bit float document
@@ -158,16 +146,19 @@ impl<P> RetouchKernel<P> {
     pub(crate) fn synthesis(
         doc: &PrecisionDocument,
         edit: &RetouchEdit,
-        coverage: &[u16],
+        coverage: CoveragePlane<'_>,
         scratch_bytes: u64,
         job: JobContext<'_>,
     ) -> Result<Self, String> {
         let bounds = edit.bounds(doc)?;
+        let domain = edit.synthesis_domain(doc)?;
         let caller = if edit.op == RetouchOp::ContentAwareFill {
             crate::doc_inpaint::Caller::Fill
         } else {
             crate::doc_inpaint::Caller::SpotHeal
         };
+        // The estimate `plan` reserves within: its hole/walk term over the
+        // domain it plans, as `plan`'s own figure counts it.
         let estimate = crate::precision_inpaint::estimate(
             doc.dimensions(),
             bounds,
@@ -176,11 +167,12 @@ impl<P> RetouchKernel<P> {
             caller,
             edit.spot_type,
             3,
+            u64::from(domain.2) * u64::from(domain.3),
         )?
         .0;
         let synthesis = crate::precision_inpaint::plan(
             doc.dimensions(),
-            edit.synthesis_domain(doc)?,
+            domain,
             coverage,
             edit.ring,
             edit.op == RetouchOp::ContentAwareFill,
@@ -210,12 +202,12 @@ impl<P> RetouchKernel<P> {
     /// frame, or the canvas when `edit.full_frame`.
     pub(crate) fn sampled_frames(
         edit: &RetouchEdit,
-        coverage: &[u16],
+        coverage: CoveragePlane<'_>,
         canvas: (u32, u32),
     ) -> Result<(Option<CanvasRect>, CanvasRect, CanvasRect), String> {
         let whole = (0, 0, i64::from(canvas.0), i64::from(canvas.1));
         let grow = i64::from(edit.op == RetouchOp::RetouchHeal);
-        let bound = coverage_rect16(coverage, canvas, canvas, (0, 0)).map(|(x, y, w, h)| {
+        let bound = coverage.bbox().map(|(x, y, w, h)| {
             let (x0, y0) = (i64::from(x), i64::from(y));
             (
                 (x0 - grow).max(0),
@@ -280,7 +272,7 @@ impl RetouchKernel {
     pub(crate) fn prepare(
         doc: &PrecisionDocument,
         edit: &RetouchEdit,
-        coverage: &[u16],
+        coverage: CoveragePlane<'_>,
         scratch_bytes: u64,
         job: JobContext<'_>,
     ) -> Result<Self, String> {
@@ -306,8 +298,8 @@ impl RetouchKernel {
         doc: &PrecisionDocument,
         edit: &RetouchEdit,
         source: Option<SynthesisPlate<'_>>,
-        coverage: &[u16],
-        selection: Option<&[u16]>,
+        coverage: CoveragePlane<'_>,
+        selection: Option<CoveragePlane<'_>>,
         pixels: &mut [[u16; 4]],
         (dimensions, offset): ((u32, u32), (i32, i32)),
         job: JobContext<'_>,
@@ -341,7 +333,8 @@ impl RetouchKernel {
                     let Some(sampled) = plate.at(cx, cy) else {
                         continue;
                     };
-                    if coverage[ci] == 0 || sampled[3] == 0 {
+                    let c = coverage.at(ci);
+                    if c == 0 || sampled[3] == 0 {
                         continue;
                     }
                     let src = sampled.map(|n| f32::from(n) / 65535.);
@@ -350,12 +343,11 @@ impl RetouchKernel {
                         &mut dest,
                         src,
                         if let Some(selection) = selection {
-                            (f64::from(src[3]) * f64::from(edit.opacity) * f64::from(coverage[ci])
-                                / 65535.
-                                * f64::from(selection[ci])
+                            (f64::from(src[3]) * f64::from(edit.opacity) * f64::from(c) / 65535.
+                                * f64::from(selection.at(ci))
                                 / 65535.) as f32
                         } else {
-                            src[3] * edit.opacity * f32::from(coverage[ci]) / 65535.
+                            src[3] * edit.opacity * f32::from(c) / 65535.
                         },
                         kind,
                         (cx, cy),
@@ -365,7 +357,6 @@ impl RetouchKernel {
                 }
             }
             Self::Sampled(plate) => plate.heal(
-                doc.dimensions(),
                 coverage,
                 selection,
                 edit.opacity,
@@ -380,7 +371,7 @@ impl RetouchKernel {
                         dimensions,
                         offset,
                         doc.dimensions(),
-                        |ci| coverage[ci] > 0,
+                        |ci| coverage.at(ci) > 0,
                         u16::MAX,
                     );
                 }
@@ -404,7 +395,7 @@ impl RetouchKernel {
                 pixels,
                 dimensions,
                 offset,
-                coverage,
+                red_eye_coverage(doc, coverage)?,
                 (edit.x, edit.y, edit.width, edit.height),
                 edit.pupil_size,
                 edit.darken,
@@ -415,7 +406,7 @@ impl RetouchKernel {
                 pixels,
                 dimensions,
                 offset,
-                coverage,
+                red_eye_coverage(doc, coverage)?,
                 (edit.x, edit.y, edit.width, edit.height),
                 edit.pupil_size,
                 edit.darken,

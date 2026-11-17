@@ -57,8 +57,12 @@ use crate::precision_image::{pixel_count, PrecisionImage, BOOKKEEPING_BYTES};
 use crate::precision_inpaint::SynthesisPlate;
 use crate::precision_paint::PaintPlan;
 use crate::precision_retouch::{RetouchEdit, RetouchOp, RetouchOutput};
+use crate::retouch_coverage::CoveragePlane;
 use crate::retouch_sampling::RetouchSampling;
 use crate::retouch_transform::StorageExtent;
+
+/// The working coverage and the selection (`retouching_unlocked`'s prelude).
+type Planes<'a> = (CoveragePlane<'a>, Option<CoveragePlane<'a>>);
 
 /// `edit` as a pass runs it (module doc): layer 0 in place, the plate's
 /// pass document sampled as Current; a clone at opacity 1, Normal.
@@ -133,6 +137,8 @@ impl PrecisionDocument {
             );
         }
         crate::retouch_transform::validate(&edit.matrix)?;
+        let (_, _, aw, ah) = edit.coverage_area(self)?;
+        let area = u64::from(aw) * u64::from(ah);
         self.cmyk_retouch_target(edit.layer)?;
         let source = edit.source_layer.unwrap_or(edit.layer);
         if self.layer(source).and_then(|l| l.cmyk_source()).is_none() {
@@ -188,6 +194,7 @@ impl PrecisionDocument {
                     synthesis_caller(edit),
                     edit.spot_type,
                     4,
+                    n,
                 )?
                 .0;
             }
@@ -199,7 +206,7 @@ impl PrecisionDocument {
         Ok(PaintPlan {
             retained_bytes: self.retained_bytes(),
             scratch_bytes: scratch,
-            input_samples: n as usize * if edit.selection { 2 } else { 1 },
+            input_samples: area as usize * if edit.selection { 2 } else { 1 },
         })
     }
 
@@ -247,8 +254,8 @@ impl PrecisionDocument {
         &self,
         plates: &PrecisionDocument,
         edit: &RetouchEdit,
-        coverage: &[u16],
-        selection: Option<&[u16]>,
+        coverage: CoveragePlane<'_>,
+        selection: Option<CoveragePlane<'_>>,
         scratch: u64,
         limit: u64,
         other: u64,
@@ -331,7 +338,7 @@ impl PrecisionDocument {
                     {
                         for (s, b) in run.iter().zip(base) {
                             let i = y as usize * cw as usize + x;
-                            row[x] = if coverage[i] < threshold || s == b {
+                            row[x] = if coverage.at(i) < threshold || s == b {
                                 PAPER
                             } else {
                                 *s
@@ -362,13 +369,27 @@ impl PrecisionDocument {
         Ok(next)
     }
 
-    /// The pass input: the domain coverage, then the selection plane.
-    fn cmyk_pass_input(coverage: &[u16], selection: Option<&[u16]>) -> Vec<u16> {
-        let mut input = coverage.to_vec();
+    /// The pass input (13B-9c) and the pass request's `coverage_rect`: the
+    /// working coverage, then the selection, each over the working plane's
+    /// rect; over the canvas in canvas form (`None`) when that rect is the
+    /// canvas or under the full-frame seam.
+    fn cmyk_pass_input(
+        &self,
+        edit: &RetouchEdit,
+        (coverage, selection): Planes<'_>,
+    ) -> Result<(Vec<u16>, Option<[u32; 4]>), String> {
+        let (cw, ch) = self.dimensions();
+        let (x, y, w, h) = coverage.rect();
+        let (frame, rect) = if edit.full_frame || (x, y, w, h) == (0, 0, cw, ch) {
+            ((0, 0, i64::from(cw), i64::from(ch)), None)
+        } else {
+            (coverage.frame(), Some([x, y, w, h]))
+        };
+        let mut input = coverage.crop(frame)?;
         if let Some(selection) = selection {
-            input.extend_from_slice(selection);
+            input.extend(selection.crop(frame)?);
         }
-        input
+        Ok((input, rect))
     }
 
     /// Runs `edit`'s RGB walk on `dest`'s two passes (blank for a clone)
@@ -380,14 +401,15 @@ impl PrecisionDocument {
         dest: &CmykImage,
         offset: (i32, i32),
         plate: &CmykImage,
-        (coverage, selection): (&[u16], Option<&[u16]>),
+        io: Planes<'_>,
         limit: u64,
         other: u64,
         job: JobContext<'_>,
     ) -> Result<Option<[PrecisionImage; 2]>, String> {
         let blank = edit.op == RetouchOp::RetouchClone;
-        let pass = pass_edit(edit);
-        let input = Self::cmyk_pass_input(coverage, selection);
+        let mut pass = pass_edit(edit);
+        let (input, rect) = self.cmyk_pass_input(edit, io)?;
+        pass.coverage_rect = rect;
         let held = self.retained_bytes().saturating_add(other);
         let mut out = Vec::with_capacity(2);
         let mut changed = false;
@@ -420,7 +442,7 @@ impl PrecisionDocument {
         dest: &CmykImage,
         offset: (i32, i32),
         plate: &CmykImage,
-        io: (&[u16], Option<&[u16]>),
+        io: Planes<'_>,
         frozen: bool,
         limit: u64,
         other: u64,
@@ -500,7 +522,7 @@ impl PrecisionDocument {
         dest: &CmykImage,
         offset: (i32, i32),
         plate: &CmykImage,
-        io: (&[u16], Option<&[u16]>),
+        io: Planes<'_>,
         frozen: bool,
         limit: u64,
         other: u64,
@@ -530,11 +552,12 @@ impl PrecisionDocument {
         dest: &CmykImage,
         offset: (i32, i32),
         plate: SynthesisPlate<'_>,
-        (coverage, selection): (&[u16], Option<&[u16]>),
+        (coverage, selection): Planes<'_>,
         scratch: u64,
         job: JobContext<'_>,
     ) -> Result<Option<CmykImage>, String> {
         let bounds = edit.bounds(self)?;
+        let domain = edit.synthesis_domain(self)?;
         let estimate = crate::precision_inpaint::estimate(
             self.dimensions(),
             bounds,
@@ -543,11 +566,12 @@ impl PrecisionDocument {
             synthesis_caller(edit),
             edit.spot_type,
             4,
+            u64::from(domain.2) * u64::from(domain.3),
         )?
         .0;
         let synthesis = crate::precision_inpaint::plan(
             self.dimensions(),
-            edit.synthesis_domain(self)?,
+            domain,
             coverage,
             edit.ring,
             edit.op == RetouchOp::ContentAwareFill,

@@ -273,9 +273,10 @@ impl Edit {
                     colors,
                     ..
                 }) => (*width, *height, colors.len()),
-                Self::Retouch(edit) if edit.selection => {
-                    let (w, h) = doc.dimensions();
-                    (w, h, 2)
+                // The coverage rect's size (the canvas without one).
+                Self::Retouch(edit) => {
+                    let (_, _, w, h) = edit.coverage_area(doc)?;
+                    (w, h, if edit.selection { 2 } else { 1 })
                 }
                 _ => {
                     let (w, h) = doc.dimensions();

@@ -128,7 +128,8 @@ pub unsafe extern "C" fn dr_precision_doc_retouch_source(
 /// `gray_filter::CLONE_SOURCE_REFUSAL`; a Lab Color document asks
 /// `lab_document::admit_edit` and takes Lab Color plates only,
 /// `lab_retouch::CLONE_SOURCE_REFUSAL`, #1 phase 2e). `length` must equal the request's planned `input_samples`
-/// on `document`, recomputed here before the samples are borrowed. NULL with
+/// on `document` (the request's `coverage_rect` area, or the canvas, times
+/// its planes), recomputed here before the samples are borrowed. NULL with
 /// no error: nothing would change. NULL with an error: a refusal.
 /// # Safety
 /// document/plates/control NULL/live; request NULL/terminated UTF-8; samples

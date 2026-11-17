@@ -972,6 +972,7 @@ mod retouch_brush;
 mod retouch_brush_sampling;
 #[doc(hidden)]
 pub use retouch_brush_sampling::SAMPLE_ALL_LAYERS;
+mod retouch_coverage;
 mod retouch_encoding;
 mod retouch_smudge;
 mod retouch_transform;

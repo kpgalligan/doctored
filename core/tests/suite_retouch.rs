@@ -134,6 +134,8 @@ mod refinement_execution;
 mod retouch_brush;
 #[path = "retouch_brush_options.rs"]
 mod retouch_brush_options;
+#[path = "retouch_coverage_rect.rs"]
+mod retouch_coverage_rect;
 #[path = "retouch_ffi.rs"]
 mod retouch_ffi;
 #[path = "retouch_output.rs"]

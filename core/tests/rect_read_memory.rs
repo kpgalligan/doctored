@@ -22,6 +22,13 @@
 //! 10 on ink) breaks it, and so does a hole plane and component walk over the
 //! canvas rather than the request's bounds (one byte a canvas pixel each).
 //!
+//! 13B-9c's bounds, declared before measuring, on the first canvas: a
+//! 100 × 100 `sample: current` Clone with a selection, in canvas form and in
+//! rect form (`coverage_rect`), at 16 bits and 32-bit float, stays below
+//! `2·N` (the canvas-sized selection domain reaches it by itself), and the
+//! rect form's plan is at least 1.25 × its peak and below its fixed
+//! bookkeeping plus `2·N` (the in-place plan charged `40·N` before).
+//!
 //! The figures are live heap bytes from the tracking allocator below; the
 //! allocator is process-wide, so the binary is its own and every test holds
 //! `serial()`.
@@ -47,7 +54,7 @@ use doctored_core::ffi_cmyk::dr_precision_doc_convert_to_cmyk;
 use doctored_core::ffi_doc::{dr_doc_adding_layer_mask, dr_doc_free, dr_doc_layer_mask_thumbnail};
 use doctored_core::ffi_fill_align::{dr_doc_fill_align_box, dr_precision_doc_fill_align_box};
 use doctored_core::ffi_group::dr_doc_group_layers;
-use doctored_core::ffi_precision_edit::dr_precision_doc_edit;
+use doctored_core::ffi_precision_edit::{dr_precision_doc_edit, dr_precision_doc_edit_plan};
 use doctored_core::icc::IccProfile;
 use doctored_core::layer_raster::LayerRaster;
 use doctored_core::metadata::{Metadata, Resolution};
@@ -275,6 +282,92 @@ fn a_float_current_dab_peaks_below_two_bytes_a_canvas_pixel() {
     let _serial = serial();
     let doc = float_fixture::float_doc(W, H, &IccProfile::srgb(), &[pattern32()]);
     assert_dabs_below_bound("float", &doc);
+}
+
+// ------------------------------------------------- selected rect dabs --
+
+/// The in-place plan's fixed bookkeeping (13B-9c): its own eight
+/// `BOOKKEEPING_BYTES` (1 MiB each) and the `Current` taps' four.
+const FIXED: u64 = 12 << 20;
+/// The rect a selected dab names: [`DAB`] grown by 2 px.
+const DAB_RECT: (u32, u32, u32, u32) = (998, 798, 104, 104);
+
+/// `plane` (canvas-sized) cropped to `rect`, row-major.
+fn crop(plane: &[u16], (x, y, w, h): (u32, u32, u32, u32)) -> Vec<u16> {
+    let mut out = Vec::with_capacity((w * h) as usize);
+    for row in y..y + h {
+        let at = (row * W + x) as usize;
+        out.extend_from_slice(&plane[at..at + w as usize]);
+    }
+    out
+}
+
+fn scratch_bytes(doc: &PrecisionDocument, request: &Value) -> u64 {
+    let text = CString::new(request.to_string()).unwrap();
+    let mut error = ptr::null_mut();
+    let out = unsafe { dr_precision_doc_edit_plan(doc, text.as_ptr(), LIMIT, 0, &mut error) };
+    assert!(!out.is_null(), "{request}: {}", take(error));
+    let plan: Value =
+        serde_json::from_str(unsafe { CStr::from_ptr(out) }.to_str().unwrap()).unwrap();
+    unsafe { dr_string_free(out) };
+    plan["scratch_bytes"].as_u64().unwrap()
+}
+
+/// 13B-9c's bounds, declared before measuring: a `sample: current` Clone
+/// with a selection, its 100 × 100 dab sent in canvas form and in rect form
+/// (`coverage_rect` = [`DAB_RECT`]), peaks below `2·N` in both (the
+/// canvas-sized selection domain alone reaches it), and the rect form's plan
+/// is at least 1.25 × its counted peak and below [`FIXED`] + `2·N`.
+fn assert_selected_clone_below_bound(depth: &str, doc: &PrecisionDocument) {
+    let stroke = coverage(DAB);
+    let gate: Vec<u16> = (0..N).map(|i| ((i % W as usize) * 21 + 1) as u16).collect();
+    let request = json!({"op":"retouch_clone","layer":0,"sample":"current","selection":true,
+        "matrix":[1.0, 0.0, 0.0, 1.0, 300.0, 0.0],"opacity":1.0});
+    let mut canvas = stroke.clone();
+    canvas.extend_from_slice(&gate);
+    let canvas_peak = dab_peak(doc, &request, &canvas);
+    drop(canvas);
+    println!("{depth} selected clone 100x100 at {W}x{H}: canvas form peak {canvas_peak}");
+    let (x, y, w, h) = DAB_RECT;
+    let mut rect = crop(&stroke, DAB_RECT);
+    rect.extend(crop(&gate, DAB_RECT));
+    let mut rect_request = request.clone();
+    rect_request["coverage_rect"] = json!([x, y, w, h]);
+    let rect_peak = dab_peak(doc, &rect_request, &rect);
+    let plan = scratch_bytes(doc, &rect_request);
+    println!("{depth} selected clone 100x100 at {W}x{H}: rect form peak {rect_peak}, plan {plan}");
+    assert!(
+        canvas_peak < 2 * N,
+        "{depth}: the canvas form's peak {canvas_peak} reaches {}",
+        2 * N
+    );
+    assert!(
+        rect_peak < 2 * N,
+        "{depth}: the rect form's peak {rect_peak} reaches {}",
+        2 * N
+    );
+    assert!(
+        plan as f64 >= 1.25 * rect_peak as f64,
+        "{depth}: the plan {plan} is below 1.25 × the peak {rect_peak}"
+    );
+    assert!(
+        plan < FIXED + 2 * N as u64,
+        "{depth}: the plan {plan} reaches {}",
+        FIXED + 2 * N as u64
+    );
+}
+
+#[test]
+fn a_16_bit_selected_clone_peaks_below_two_bytes_a_canvas_pixel() {
+    let _serial = serial();
+    assert_selected_clone_below_bound("16-bit", &document16(vec![raster16()]));
+}
+
+#[test]
+fn a_float_selected_clone_peaks_below_two_bytes_a_canvas_pixel() {
+    let _serial = serial();
+    let doc = float_fixture::float_doc(W, H, &IccProfile::srgb(), &[pattern32()]);
+    assert_selected_clone_below_bound("float", &doc);
 }
 
 /// The box `BOX` covers, as `[x, y, w, h]`.

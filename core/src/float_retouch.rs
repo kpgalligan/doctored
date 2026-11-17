@@ -95,8 +95,9 @@ use crate::precision_image::{
 use crate::precision_inpaint::SynthesisPlate;
 use crate::precision_paint::{blend_preserving, canvas_index};
 use crate::precision_retouch::{RetouchEdit, RetouchOp, RetouchOutput};
-use crate::precision_retouch_apply::{RetouchKernel, SampledPlate};
+use crate::precision_retouch_apply::{red_eye_coverage, RetouchKernel, SampledPlate};
 use crate::precision_retouch_source::SynthesisSource;
+use crate::retouch_coverage::CoveragePlane;
 use crate::retouch_encoding::{decode_changed, encode, encode_plane};
 use crate::retouch_sampling::RetouchSampling;
 use crate::retouch_transform::CanvasRect;
@@ -160,7 +161,7 @@ impl RetouchKernel<f32> {
     pub(crate) fn prepare_float(
         doc: &PrecisionDocument,
         edit: &RetouchEdit,
-        coverage: &[u16],
+        coverage: CoveragePlane<'_>,
         scratch_bytes: u64,
         job: JobContext<'_>,
     ) -> Result<Self, String> {
@@ -185,8 +186,8 @@ impl RetouchKernel<f32> {
         doc: &PrecisionDocument,
         edit: &RetouchEdit,
         source: Option<SynthesisPlate<'_>>,
-        coverage: &[u16],
-        selection: Option<&[u16]>,
+        coverage: CoveragePlane<'_>,
+        selection: Option<CoveragePlane<'_>>,
         pixels: &mut [[f32; 4]],
         (dimensions, offset): ((u32, u32), (i32, i32)),
         job: JobContext<'_>,
@@ -214,16 +215,16 @@ impl RetouchKernel<f32> {
                     let Some(src) = plate.at(cx, cy) else {
                         continue;
                     };
-                    if coverage[ci] == 0 || src[3] == 0.0 {
+                    let c = coverage.at(ci);
+                    if c == 0 || src[3] == 0.0 {
                         continue;
                     }
                     let alpha = if let Some(selection) = selection {
-                        (f64::from(src[3]) * f64::from(edit.opacity) * f64::from(coverage[ci])
-                            / 65535.
-                            * f64::from(selection[ci])
+                        (f64::from(src[3]) * f64::from(edit.opacity) * f64::from(c) / 65535.
+                            * f64::from(selection.at(ci))
                             / 65535.) as f32
                     } else {
-                        src[3] * edit.opacity * f32::from(coverage[ci]) / 65535.
+                        src[3] * edit.opacity * f32::from(c) / 65535.
                     };
                     // The float Brush's floor (`float_paint`): ink this faint
                     // would only leave an alpha the renderer refuses.
@@ -236,7 +237,6 @@ impl RetouchKernel<f32> {
             Self::Sampled(plate) => {
                 let mut work = encode_plane(pixels)?;
                 plate.heal(
-                    doc.dimensions(),
                     coverage,
                     selection,
                     edit.opacity,
@@ -257,7 +257,7 @@ impl RetouchKernel<f32> {
                         dimensions,
                         offset,
                         doc.dimensions(),
-                        |ci| coverage[ci] > 0,
+                        |ci| coverage.at(ci) > 0,
                         1.0_f32,
                     );
                 }
@@ -290,7 +290,7 @@ impl RetouchKernel<f32> {
                     &mut work,
                     dimensions,
                     offset,
-                    coverage,
+                    red_eye_coverage(doc, coverage)?,
                     (edit.x, edit.y, edit.width, edit.height),
                     edit.pupil_size,
                     edit.darken,
@@ -318,8 +318,8 @@ impl PrecisionDocument {
         &self,
         plates: &PrecisionDocument,
         edit: &RetouchEdit,
-        coverage: &[u16],
-        selection: Option<&[u16]>,
+        coverage: CoveragePlane<'_>,
+        selection: Option<CoveragePlane<'_>>,
         scratch_bytes: u64,
         limit: u64,
         other: u64,
@@ -428,7 +428,7 @@ impl PrecisionDocument {
                 } else {
                     32768
                 };
-                if coverage[i] < threshold || !differs(p, &baseline[i]) {
+                if coverage.at(i) < threshold || !differs(p, &baseline[i]) {
                     *p = [0.0; 4];
                 }
             }

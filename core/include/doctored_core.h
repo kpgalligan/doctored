@@ -5939,7 +5939,8 @@ DrPrecisionImage *dr_precision_doc_retouch_source(const DrPrecisionDocument *doc
  * The request is the retouch request dr_precision_doc_edit takes (at most
  * 64 KiB) and `samples`/`length` are its planned input on `document`
  * (dr_precision_doc_edit_plan's input_samples; stroke, then selection when
- * selection:true). Pure. NULL with no error: nothing would change. NULL with
+ * selection:true, each over the request's coverage_rect when it names one).
+ * Pure. NULL with no error: nothing would change. NULL with
  * an error: a NULL handle, request or samples, a length that is not the
  * plan's, any refusal of dr_precision_doc_edit, or one of this call's own:
  * an op other than retouch_clone / retouch_heal; output other than "layer"
@@ -8436,7 +8437,20 @@ DrPrecisionDocument *dr_precision_doc_fade(const DrPrecisionDocument *document,
  * earlier request's meaning), "create_texture" or "proximity_match", as
  * dr_doc_spot_heal_layer_job's spot_type, at 16 and 32 bits and on CMYK ink;
  * any other op refuses it ("type is not an argument of this retouch
- * operation"). */
+ * operation"). retouch_clone, retouch_heal, spot_heal and
+ * content_aware_fill take an optional "coverage_rect":[x,y,w,h] (u32): the
+ * samples are then w*h (w*h*2 with selection:true), row-major over that
+ * canvas rect, the stroke plane then the selection plane cropped to the same
+ * rect, and the stroke is 0 outside it; the plan reports input_width w,
+ * input_height h, input_planes 1 or 2. The answer is the canvas-form
+ * request's to the bit for the same stroke on a zero plane. Absent, every
+ * earlier request's meaning: canvas-sized planes. An empty rect or one
+ * leaving the canvas refuses at the plan ("retouch coverage_rect must be a
+ * nonempty rectangle inside the canvas"); red_eye refuses the key ("coverage_rect
+ * is not an argument of this retouch operation"); a stroke sample the
+ * selection keeps (the stroke itself with no selection) outside x/y/width/
+ * height refuses in both forms ("retouch coverage exceeds its admitted
+ * bounds"). */
 
 
 /* Deliberate flattened-appearance depth conversion. Plans are owned JSON

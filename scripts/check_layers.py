@@ -176,6 +176,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "remove_model.rs",
     "render_clouds.rs",
     "retouch_brush.rs",
+    "retouch_coverage.rs",
     "retouch_encoding.rs",
     "retouch_smudge.rs",
     "sampled_matting.rs",
