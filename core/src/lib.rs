@@ -808,6 +808,7 @@ mod style_fx_satin;
 mod style_fx_stroke;
 mod style_glow_gradient;
 mod style_gradient;
+mod style_inside_layer;
 mod style_instances;
 mod style_json;
 mod style_json_keys;

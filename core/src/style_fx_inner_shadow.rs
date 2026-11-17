@@ -97,6 +97,18 @@
 //! `core/tests/style_effect_kernels_578_p4_law.rs` holds the oracle and
 //! `style_effect_kernels_578_p4_take.rs` the take.
 //!
+//! # Composited inside the layer (#2 part 4)
+//!
+//! The plane is what the shadow covers; where it lands is the compositor's.
+//! On the layer's partial-alpha ring the shadow composites INSIDE the layer
+//! — over the layer at full coverage, mixed back in by the shape — never over
+//! the stack the layer lets through: candidate IK1 of
+//! `scripts/photoshop-probe/effect_kernels_578_p4_take.py`, which part 4's
+//! confirm take (`effect-kernels-578-p4/take1`) measured as a match on the
+//! eight Fill 100 % rows: 26 ... 28 codes to at most 2. The rule's one home
+//! is `style_inside_layer`, called by every compositor path; the oracle is
+//! `core/tests/style_inner_shadow_inside.rs`.
+//!
 //! # The Gaussian it replaced
 //!
 //! `G1/2.5 · Rnone · γ 1` (sigma `size · (1 − choke) / 2.5`, no map, the

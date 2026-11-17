@@ -1819,8 +1819,11 @@ fn a_photo_sized_styled_layer_plans_within_a_gigabyte_and_renders() {
         "5000×4000 nine effects plan: {} MiB scratch",
         plan.scratch_bytes >> 20
     );
+    // The Inner Shadow's ring store (`style_composite::backdrop_store_bytes`)
+    // is charged at 20 B a layer pixel on top.
+    let ring = 20 * u64::from(w) * u64::from(h);
     assert!(
-        plan.scratch_bytes <= GIB + GIB / 2,
+        plan.scratch_bytes <= GIB + GIB / 2 + ring,
         "{}",
         plan.scratch_bytes
     );

@@ -531,9 +531,10 @@ pub(crate) fn styled_ink(
 }
 
 /// Rows of kernel scratch a styled record holds (the package copy, the Blend
-/// If underlying, `B0`, the unit and its alpha, a styled adjustment's
-/// adjusted row on the routed path) plus a clip base's base-only copy.
-const STYLED_ROWS: u64 = 7;
+/// If underlying, `B0`, the Inner Shadow's `T0`, the unit and its alpha, a
+/// styled adjustment's adjusted row on the routed path) plus a clip base's
+/// base-only copy.
+const STYLED_ROWS: u64 = 8;
 
 /// What a styled `layer` holds beside the stack (module doc): the typed
 /// renderer's plan for its planes over `layer.style_plane(canvas)`, each

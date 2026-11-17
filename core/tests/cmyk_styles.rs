@@ -51,6 +51,22 @@ fn shaped(coverage: &[u16]) -> *mut PrecisionDocument {
     layer(backdrop(W, H, 16, &COLUMNS), "Shape", SOURCE, coverage)
 }
 
+/// The Inner Shadow inside the layer (`style_inside_layer`) on ink, every
+/// stack here opaque: the layer at full coverage `X = T0 + (now − T0) / a`
+/// (clamped), the shadow over it at `sa`, and the pixel `now + a · (X' −
+/// X)`.
+fn inside_ink(t0: Ink, now: Ink, a: f64, sa: f64, ink: [f64; 4], mode: BlendMode) -> Ink {
+    let open: Ink = std::array::from_fn(|c| {
+        if c == 4 {
+            1.0
+        } else {
+            (t0[c] + (now[c] - t0[c]) / a).clamp(0.0, 1.0)
+        }
+    });
+    let shadowed = over_to(open, ink, sa, mode);
+    std::array::from_fn(|c| now[c] + a * (shadowed[c] - open[c]))
+}
+
 fn mode_of(name: &str) -> BlendMode {
     match name {
         "normal" => BlendMode::Normal,
@@ -156,6 +172,13 @@ fn every_effect_meets_its_coverage_on_one_minus_ink() {
                         let under = matches!(name, "stroke" | "outer_glow" | "drop_shadow");
                         if under && a > 0.0 && a < 1.0 {
                             sa = (sa / (1.0 - a)).min(1.0);
+                        }
+                        // The Inner Shadow composites inside the layer on its
+                        // partial ring (`style_inside_layer`).
+                        if name == "inner_shadow" && a > 0.0 && a < 1.0 && cov[i] > 0.0 {
+                            let acc = over_to(column(x), src, a, BlendMode::Normal);
+                            let q = (cov[i] / a).min(1.0) * opacity;
+                            return inside_ink(column(x), acc, a, q, e, mode_of(mode));
                         }
                         if below {
                             let acc = over_to(column(x), e, sa, mode_of(mode));
@@ -351,6 +374,53 @@ fn fill_opacity_scales_the_pixels_never_the_effects() {
         over_to(acc, percent(E2), cov[i] * 0.6, BlendMode::Normal)
     });
     free(doc);
+}
+
+#[test]
+fn an_inner_shadow_composites_inside_a_soft_edged_layer() {
+    // On the soft rect's partial ring the shadow lands over the layer at full
+    // coverage, mixed back by the shape (`style_inside_layer`); inside the
+    // rect, over the layer's composite as before. Normal, Multiply at Fill
+    // 30 %, and the package at 50 %.
+    let coverage = soft_rect(W, H, RECT);
+    let base = json!({"type":"inner_shadow","angle":30,"use_global_light":false,"distance":3,"choke":0,"size":0});
+    let cov = twin(W, H, &coverage, &twin_effect(&base, None), (120.0, 30.0));
+    let byte_unit = crate::cmyk_structure_fixture::byte_unit;
+    for (mode, opacity, fill, packaged) in [
+        ("normal", 1.0, 1.0, false),
+        ("multiply", 0.8, 0.3, false),
+        ("normal", 1.0, 1.0, true),
+    ] {
+        let mut effect = base.clone();
+        effect["ink"] = fractions(E1);
+        effect["blend"] = json!(mode);
+        effect["opacity"] = json!(opacity);
+        let style = json!({"fill_opacity": fill, "effects": [effect]});
+        let mut doc = styled(shaped(&coverage), 1, &style);
+        if packaged {
+            doc = crate::cmyk_structure_fixture::with_opacity(doc, 1, 0.5);
+        }
+        let (e, src) = (percent(E1), percent(SOURCE));
+        let what = format!("inner shadow {mode} {opacity} fill {fill} package {packaged}");
+        assert_flat_all(doc, 2, &what, |x, y| {
+            let i = (y * W + x) as usize;
+            let a = f64::from(coverage[i]) / 65535.0;
+            let t0 = column(x);
+            let now = over_to(t0, src, a * byte_unit(fill as f32), BlendMode::Normal);
+            let now = if a > 0.0 && a < 1.0 && cov[i] > 0.0 {
+                let q = (cov[i] / a).min(1.0) * opacity;
+                inside_ink(t0, now, a, q, e, mode_of(mode))
+            } else {
+                over_to(now, e, cov[i] * opacity, mode_of(mode))
+            };
+            if packaged {
+                mix(t0, now, byte_unit(0.5))
+            } else {
+                now
+            }
+        });
+        free(doc);
+    }
 }
 
 #[test]

@@ -228,49 +228,19 @@ const PINNED: &[(&str, f64, f64)] = &[
     ("og_rr_s6_p70_r50_8", 6.001, 0.009),
     ("og_rr_s6_p70_r75_16", 3.818, 0.014),
     ("og_rr_s6_p70_r75_8", 4.001, 0.007),
-    // The confirm take's shadows (all 32): every mean within 0.061 codes,
-    // the max on the pictures' partial pixels, where the shadows' composite
-    // is not the model's (a disclosed residual, the #2 comment): the drop
-    // shadow's knocked-out landing, `m (1 − a)²` where Photoshop reads
-    // `m (1 − a)`, is the residual DK1 fixed in #2 part 4; its pins stay
-    // unmoved upper bounds because the take1 `rows.json` is absent. The inner
-    // shadow composites over the layer's composite where Photoshop
-    // composites inside the layer before it lands at `a`.
-    ("ds_hp_s10_p20_d4_a180_16", 33.288, 0.061),
-    ("ds_hp_s10_p20_d4_a180_8", 33.001, 0.059),
-    ("ds_hp_s16_p0_d0_a90_16", 17.086, 0.040),
-    ("ds_hp_s16_p0_d0_a90_8", 18.001, 0.041),
-    ("ds_hp_s6_p0_d4_a90_16", 16.685, 0.034),
-    ("ds_hp_s6_p0_d4_a90_8", 17.001, 0.025),
-    ("ds_hp_s7_p50_d6_a135_16", 34.557, 0.061),
-    ("ds_hp_s7_p50_d6_a135_8", 34.001, 0.055),
-    ("ds_rr_s10_p20_d4_a180_16", 34.001, 0.040),
-    ("ds_rr_s10_p20_d4_a180_8", 34.001, 0.041),
-    ("ds_rr_s16_p0_d0_a90_16", 16.253, 0.037),
-    ("ds_rr_s16_p0_d0_a90_8", 16.001, 0.036),
-    ("ds_rr_s6_p0_d4_a90_16", 33.234, 0.031),
-    ("ds_rr_s6_p0_d4_a90_8", 33.001, 0.024),
-    ("ds_rr_s7_p50_d6_a135_16", 36.106, 0.047),
-    ("ds_rr_s7_p50_d6_a135_8", 36.001, 0.041),
-    ("is_hp_s10_p20_d4_a180_16", 25.265, 0.027),
-    ("is_hp_s10_p20_d4_a180_8", 25.001, 0.020),
-    ("is_hp_s16_p0_d0_a90_16", 24.288, 0.038),
-    ("is_hp_s16_p0_d0_a90_8", 24.001, 0.032),
-    ("is_hp_s6_p0_d4_a90_16", 31.717, 0.038),
-    ("is_hp_s6_p0_d4_a90_8", 31.001, 0.032),
-    ("is_hp_s7_p50_d6_a135_16", 33.012, 0.039),
-    ("is_hp_s7_p50_d6_a135_8", 33.001, 0.033),
-    ("is_rr_s10_p20_d4_a180_16", 33.067, 0.041),
-    ("is_rr_s10_p20_d4_a180_8", 33.001, 0.035),
-    ("is_rr_s16_p0_d0_a90_16", 19.191, 0.035),
-    ("is_rr_s16_p0_d0_a90_8", 20.001, 0.028),
-    ("is_rr_s6_p0_d4_a90_16", 32.109, 0.033),
-    ("is_rr_s6_p0_d4_a90_8", 32.001, 0.025),
-    ("is_rr_s7_p50_d6_a135_16", 34.464, 0.045),
-    ("is_rr_s7_p50_d6_a135_8", 35.001, 0.040),
+    // The confirm take's shadows: every Inner Shadow row meets the gate since
+    // it composites inside the layer (`style_inside_layer`, #2 part 4's
+    // IK1), and every Drop Shadow row since its knocked-out landing reads
+    // `m (1 − a)` (DK1), but the Size 7, Spread 50 % pair, which misses on
+    // the pictures' partial pixels (every mean within 0.016).
+    ("ds_hp_s7_p50_d6_a135_16", 2.269, 0.010),
+    ("ds_hp_s7_p50_d6_a135_8", 3.001, 0.004),
+    ("ds_rr_s7_p50_d6_a135_16", 3.701, 0.016),
+    ("ds_rr_s7_p50_d6_a135_8", 4.001, 0.010),
 ];
 
 fn assert_row(name: &str, (max, mean): (f64, f64)) {
+    eprintln!("{name}: {max:.6} / {mean:.6}");
     if let Some(&(_, pm, pn)) = PINNED.iter().find(|(n, _, _)| *n == name) {
         assert!(
             max <= pm && mean <= pn,

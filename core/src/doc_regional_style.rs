@@ -9,7 +9,9 @@
 //! arithmetic around `style_composite::composite_pixels_sample`,
 //! `style_composite::composite_contribution_sample`,
 //! `style_composite::replace_under_band_sample` (the inside band, over the
-//! sample's own B0), `style_composite::mix_premultiplied`, `blend::composite_source_into` and
+//! sample's own B0), `style_inside_layer::composite_inside_layer_sample` (the
+//! Inner Shadow inside the layer, from the sample's own T0),
+//! `style_composite::mix_premultiplied`, `blend::composite_source_into` and
 //! `Shape::coverage_byte` / `Shape::at`. Since 13A-3c a ROUTED style
 //! (`style_knockout::routes_unit`: a knockout, or a grouped interior) takes
 //! the unit pass (`regional_knockout`) in place of the pixel step, the
@@ -40,6 +42,7 @@ use crate::style_composite::{
     occluding_fill, replace_under_band_sample, CompositeEnv, PixelPass,
 };
 use crate::style_effects::EffectKind;
+use crate::style_inside_layer::{composite_inside_layer_sample, inside_layer_applies};
 use crate::style_knockout::{
     backdrop_at, grouped_interior, is_grouped_interior, routes_unit, KnockoutBackdrop,
 };
@@ -134,6 +137,53 @@ pub(crate) fn band_sample(
     );
 }
 
+/// The Interior contribution `c` (with its [`Ink`]) at one sample through
+/// `style_inside_layer::composite_inside_layer_sample`: `composite_contribution`'s
+/// placement inverted at `canvas_xy` as [`contributions_sample`] inverts it,
+/// after the same early return; `t0` is the sample after the Below
+/// contributions and before the pixel pass, `None` where the rule does not
+/// apply (`Styled::inside_shadow`), and `clamp` is false only on a float
+/// scene. Index arithmetic only; shared with the typed tree.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn inside_sample(
+    target: &mut [[f32; 4]],
+    ti: usize,
+    t0: Option<[f32; 4]>,
+    shape: &Shape,
+    c: &PlaneContribution,
+    ink: &Ink,
+    decode: InkDecode<'_>,
+    offset: (i32, i32),
+    opacity: f32,
+    occluding_fill: f32,
+    clamp: bool,
+    canvas_xy: (i64, i64),
+) {
+    let scale = c.opacity * opacity;
+    if scale.is_nan() || scale <= 0.0 || c.coverage.len() != shape.coverage.len() {
+        return;
+    }
+    let px = canvas_xy.0 - i64::from(offset.0) - shape.origin.0 - i64::from(c.shift.0);
+    let py = canvas_xy.1 - i64::from(offset.1) - shape.origin.1 - i64::from(c.shift.1);
+    if px < 0 || py < 0 || px >= i64::from(shape.w) || py >= i64::from(shape.h) {
+        return;
+    }
+    composite_inside_layer_sample(
+        target,
+        ti,
+        t0,
+        shape,
+        c,
+        ink,
+        decode,
+        (px, py),
+        scale,
+        occluding_fill,
+        clamp,
+        canvas_xy,
+    );
+}
+
 /// An admitted style resolved once per node: `composite_pixels_into`'s
 /// sanitized fill and its non-identity Blend If, and — a raster, or a
 /// materialized group's synthetic raster, whose style renders effects —
@@ -158,6 +208,9 @@ pub(crate) struct Styled {
     pub(crate) knockout: Knockout,
     pub(crate) routed: bool,
     pub(crate) grouped: bool,
+    /// Whether the Inner Shadow composites inside the layer
+    /// (`style_inside_layer::inside_layer_applies` of the layer's mode).
+    pub(crate) inside_shadow: bool,
 }
 
 impl Styled {
@@ -200,6 +253,8 @@ impl Styled {
             knockout: style.knockout,
             routed: false,
             grouped: false,
+            // A styled adjustment is refused before the tree is built.
+            inside_shadow: inside_layer_applies(layer.blend, false),
         };
         let planes = if style.has_enabled_effects() {
             style.rendered_with_job(
@@ -345,9 +400,11 @@ impl ResolvedNode<'_> {
                 canvas_xy,
             );
         }
-        // The inside band's B0 (`composite_direct_into`, step 4): this
-        // sample after the Below contributions, before the pixel pass.
-        let b0 = backdrop_at(knockout, style.knockout, target[ti], 0);
+        // The inside band's B0 and the Inner Shadow's T0
+        // (`composite_direct_into`, step 4): this sample after the Below
+        // contributions, before the pixel pass.
+        let t0 = target[ti];
+        let b0 = backdrop_at(knockout, style.knockout, t0, 0);
         if style.routed {
             self.unit_pass_sample(
                 target, ti, under, opacity, pixel, steps, knockout, transfer, canvas_xy, stop,
@@ -453,6 +510,23 @@ impl ResolvedNode<'_> {
                         decode,
                         self.layer().offset,
                         opacity,
+                        canvas_xy,
+                    );
+                    continue;
+                }
+                if c.kind == EffectKind::InnerShadow {
+                    inside_sample(
+                        target,
+                        ti,
+                        style.inside_shadow.then_some(t0),
+                        &planes.shape,
+                        c,
+                        ink,
+                        decode,
+                        self.layer().offset,
+                        opacity,
+                        style.occluding_fill,
+                        true,
                         canvas_xy,
                     );
                     continue;

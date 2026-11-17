@@ -179,6 +179,8 @@ mod style_inner_glow_choke100_parity;
 mod style_inner_glow_identify_parity;
 #[path = "style_inner_shadow.rs"]
 mod style_inner_shadow;
+#[path = "style_inner_shadow_inside.rs"]
+mod style_inner_shadow_inside;
 #[path = "style_inside_stroke.rs"]
 mod style_inside_stroke;
 #[path = "style_noise.rs"]

@@ -537,11 +537,16 @@ fn a_half_alpha_shape_bounds_the_shadow() {
     // Shape = alpha: a rect at alpha 128 has coverage 128 and inverse 127,
     // so after the shift the band reads 255 (true outside) and the rest of
     // the rect 127 (its own half-clear inverse); both are multiplied by
-    // the coverage 128 — the plan's formula, computed here by hand.
+    // the coverage 128 — the plan's formula, computed here by hand. The
+    // shadow composites inside the layer (`style_inside_layer`): over the
+    // layer at full coverage at `min(1, cov / 128)`, the result over the
+    // backdrop at the shape.
     let half = [255u8, 0, 0, 128];
     let doc = styled(&rect_layer_doc(CANVAS, RECT, half), 1, &hard(0.0, 3.0));
     let flat = doc.flattened().unwrap();
     let pixel = ref_composite(to_unit(WHITE), to_unit(half), 1.0, BLEND_NORMAL);
+    let full = to_unit([255, 0, 0, 255]);
+    let shape = 128.0 / 255.0;
     let cov_of = |inverse: u32| ((inverse * 128 + 127) / 255) as u8;
     assert_eq!(cov_of(255), 128);
     assert_eq!(cov_of(127), 64);
@@ -558,12 +563,13 @@ fn a_half_alpha_shape_bounds_the_shadow() {
             } else {
                 cov_of(255)
             };
-            let want = quantized(ref_composite(
-                pixel,
+            let shadowed = ref_composite(
+                full,
                 BLACK,
-                0.75 * f32::from(cov) / 255.0,
+                0.75 * (f32::from(cov) / 128.0).min(1.0),
                 BLEND_MULTIPLY,
-            ));
+            );
+            let want = quantized(ref_composite(to_unit(WHITE), shadowed, shape, BLEND_NORMAL));
             assert_close(&got, &want, &format!("({x},{y}) coverage {cov}"));
             assert_ne!(
                 got,

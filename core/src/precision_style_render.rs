@@ -24,7 +24,9 @@
 //! - The ORDER is `style_composite`'s: Blend If snapshot of `layer rect ∩
 //!   below_landing` (only when Below contributions exist) → Below onto the
 //!   accumulator at `c.opacity × opacity` → pixels with the layer's blend →
-//!   Interior. Opacity < 1 with planes and a non-Dissolve blend is the
+//!   Interior (the Inner Shadow inside the layer on its partial-alpha ring,
+//!   `style_inside_layer`, its weights from the byte shape while the pixels
+//!   keep their own alpha). Opacity < 1 with planes and a non-Dissolve blend is the
 //!   package model on ONE canvas-sized copy of the accumulator (the direct
 //!   path at opacity 1, `mix_premultiplied` back over the affected window
 //!   only) — no strips. A styled clip BASE draws its pixels into a private
@@ -75,11 +77,13 @@ use crate::precision_style_adjustment::{interior_layer, Adjusted16};
 use crate::style::{BlendIf, Effect, GlobalLight, LayerStyle};
 use crate::style_blend_if::{source_weight_16, source_weight_float};
 use crate::style_composite::{
-    affected_window, below_landing, clip_pass_shape, composite_contribution, holds_inside_band,
-    mix_premultiplied_in, occluding_fill, replace_under_band, style_grown, BackdropSnapshot,
-    BandBackdrop, CompositeEnv, Cut, BAND_BACKDROP_BYTES,
+    affected_window, backdrop_store_bytes, below_landing, clip_pass_shape, composite_contribution,
+    mix_premultiplied_in, occluding_fill, replace_under_band, ring_backdrop, style_grown,
+    BackdropSnapshot, BandBackdrop, CompositeEnv, Cut,
 };
+use crate::style_effects::EffectKind;
 use crate::style_float::FloatStyle;
+use crate::style_inside_layer::{composite_inside_layer, inside_layer_applies};
 use crate::style_render::{
     sigma_for_size, Contribution, RenderContext, RenderedEffects, Shape, StyleColors,
 };
@@ -606,6 +610,15 @@ fn composite_direct_into(
             .map(|b0| (bands, b0))
         })
         .transpose()?;
+    // T0 for the Inner Shadow's ring, beside B0 (`style_inside_layer`).
+    let ring = ring_backdrop(
+        acc,
+        acc_w,
+        acc_h,
+        rel,
+        planes.filter(|_| inside_layer_applies(layer.blend, layer.adjusted.is_some())),
+        job,
+    )?;
 
     // A styled ADJUSTMENT's interior is read HERE, after its own Below
     // group (POST), and applied in place (`precision_style_adjustment`).
@@ -757,19 +770,38 @@ fn composite_direct_into(
                     env.style_colors(),
                     job,
                 )?,
-                None => composite_contribution(
-                    acc,
-                    acc_w,
-                    acc_h,
-                    origin,
-                    rel,
-                    &planes.shape,
-                    c,
-                    opacity,
-                    occluding,
-                    env.style_colors(),
-                    job,
-                )?,
+                // The Inner Shadow composites inside the layer on its ring,
+                // colour unclamped at 32 bits (`style_inside_layer`).
+                None => match ring.as_ref().filter(|_| c.kind == EffectKind::InnerShadow) {
+                    Some(t0) => composite_inside_layer(
+                        acc,
+                        acc_w,
+                        acc_h,
+                        origin,
+                        rel,
+                        &planes.shape,
+                        c,
+                        t0,
+                        opacity,
+                        occluding,
+                        !env.float,
+                        env.style_colors(),
+                        job,
+                    )?,
+                    None => composite_contribution(
+                        acc,
+                        acc_w,
+                        acc_h,
+                        origin,
+                        rel,
+                        &planes.shape,
+                        c,
+                        opacity,
+                        occluding,
+                        env.style_colors(),
+                        job,
+                    )?,
+                },
             }
         }
     }
@@ -1043,7 +1075,9 @@ fn blur_sigma(effect: &Effect) -> f32 {
 /// only when an effect is enabled; `16·w·h` for the Blend If snapshot of
 /// the layer rect when `blend_if`; `20·w·h` for the inside band's B0 store
 /// (`style_composite::BandBackdrop`) when the style holds an enabled Inside or
-/// Center Stroke of size > 0; and `16·canvas` for the package copy
+/// Center Stroke of size > 0, and `20·w·h` more for the Inner Shadow ring's
+/// T0 store (`BandBackdrop::of_ring`) when it holds an enabled Inner Shadow
+/// (`style_composite::backdrop_store_bytes`); and `16·canvas` for the package copy
 /// when `package` is `Some(canvas)` (opacity < 1 and blend ≠ Dissolve);
 /// plus `16·level` for each enabled placed tile's PYRAMID level (a pattern
 /// overlay's, a Pattern stroke's, built once per stroke, or an enabled bevel
@@ -1089,11 +1123,12 @@ pub(crate) fn style_scratch(
             .checked_add(16 * u64::from(dims.0) * u64::from(dims.1))
             .ok_or("typed layer style scratch overflow")?;
     }
-    if holds_inside_band(style) {
-        scratch = scratch
-            .checked_add(BAND_BACKDROP_BYTES * u64::from(dims.0) * u64::from(dims.1))
-            .ok_or("typed layer style scratch overflow")?;
-    }
+    scratch = scratch
+        .checked_add(backdrop_store_bytes(
+            style,
+            u64::from(dims.0) * u64::from(dims.1),
+        ))
+        .ok_or("typed layer style scratch overflow")?;
     if let Some(canvas) = package {
         scratch = scratch
             .checked_add(16 * u64::from(canvas.0) * u64::from(canvas.1))

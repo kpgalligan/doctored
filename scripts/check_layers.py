@@ -221,6 +221,7 @@ KERNEL_MODULES: tuple[str, ...] = (
     "style_fx_stroke.rs",
     "style_glow_gradient.rs",
     "style_gradient.rs",
+    "style_inside_layer.rs",
     "style_matte.rs",
     "style_noise.rs",
     "style_plane_ops.rs",

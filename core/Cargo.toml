@@ -124,6 +124,8 @@ name = "rect_read_memory" # isolate: own #[global_allocator], measures process-w
 name = "spot_region_memory" # isolate: own #[global_allocator], measures process-wide allocation
 [[test]]
 name = "layered_save_plan_memory" # isolate: own #[global_allocator], measures process-wide allocation
+[[test]]
+name = "style_ring_backdrop_memory" # isolate: own #[global_allocator], measures process-wide allocation
 
 # Standalone, process state.
 [[test]]

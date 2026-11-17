@@ -20,7 +20,7 @@ use crate::doc_regional_tree::Rect;
 use crate::doc_regional_walk::{renders_planes, style_of};
 use crate::precision_style_render::style_scratch;
 use crate::style::{Knockout, LayerStyle};
-use crate::style_composite::{holds_inside_band, CompositeEnv, BAND_BACKDROP_BYTES};
+use crate::style_composite::{backdrop_store_bytes, CompositeEnv};
 use crate::style_knockout::{has_grouped_interior_effect, level_wants_shallow};
 
 /// The reference's budget and nesting decisions for ONE materialized group,
@@ -360,10 +360,11 @@ fn lone(x: &Layer, x_dims: (u32, u32), acc: Rect, kplanes: u64) -> Result<u64, S
     Ok(total)
 }
 
-/// The inside band's B0 store (`style_composite::BandBackdrop`) over at
-/// most `pixels` band pixels, when `style` can emit an inside band.
+/// The backdrop stores (`style_composite::BandBackdrop`: the inside band's
+/// B0, the Inner Shadow ring's T0) over at most `pixels` pixels each, when
+/// `style` can emit them (`style_composite::backdrop_store_bytes`).
 fn band_store(style: &LayerStyle, pixels: u64) -> u64 {
-    u64::from(holds_inside_band(style)).saturating_mul(BAND_BACKDROP_BYTES.saturating_mul(pixels))
+    backdrop_store_bytes(style, pixels)
 }
 
 /// `pkg(x)`: the package path's strip copy (`PACKAGE_STRIP_ROWS` = 256 rows

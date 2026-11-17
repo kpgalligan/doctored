@@ -394,6 +394,36 @@ fn fill_and_blend_if_beside_effects_match() {
     }
 }
 
+/// Inner Shadows over a layer whose every alpha is partial: the shadow
+/// composites inside the layer (`style_inside_layer`) from each sample's own
+/// T0 — plain, stacked, and under a Shallow knockout at half Fill.
+fn inside_layer_shadows() -> [String; 3] {
+    [
+        fx(&["{\"type\":\"inner_shadow\",\"distance\":3,\"size\":2,\"choke\":0.2}"]),
+        fx(&[
+            "{\"type\":\"inner_shadow\",\"distance\":0,\"size\":0,\"blend\":\"normal\",\
+             \"color\":\"#ffe2aa\",\"opacity\":1}",
+            "{\"type\":\"inner_shadow\",\"distance\":4,\"size\":0,\"blend\":\"screen\",\
+             \"opacity\":0.6}",
+        ]),
+        "{\"knockout\":\"shallow\",\"fill_opacity\":0.5,\"effects\":[\
+         {\"type\":\"inner_shadow\",\"distance\":2,\"size\":3}]}"
+            .to_string(),
+    ]
+}
+
+#[test]
+fn a_soft_alpha_inner_shadow_matches_the_projection() {
+    for style in inside_layer_shadows() {
+        for (mode, opacity) in VARIANTS {
+            let doc = with_raster(&base(), top_pixels(17, 12), (8, 6), mode, opacity);
+            let doc = styled(&doc, 1, &style);
+            let what = format!("{style} {mode:?} {opacity}");
+            assert_regions_match_with(&doc, &what, &around((8, 6), 17, 12, 3));
+        }
+    }
+}
+
 #[test]
 fn a_masked_styled_raster_matches_with_feather_0_and_6() {
     let style = fx(&[

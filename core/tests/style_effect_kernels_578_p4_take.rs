@@ -1,8 +1,10 @@
 //! #2 part 4: the contoured Inner Shadow read on the unrounded matte
-//! (`style_fx_inner_shadow::CONTOUR_UNROUNDED`, candidate IC1) and the
+//! (`style_fx_inner_shadow::CONTOUR_UNROUNDED`, candidate IC1), the
 //! knocked-out Drop Shadow landing under the layer
-//! (`style_composite::SHADOW_UNDER_LAYER`, DK1) against Photoshop 26.10's
-//! own pixels (the runner `scripts/photoshop-probe/effect_kernels_578_p4_take.py`).
+//! (`style_composite::SHADOW_UNDER_LAYER`, DK1) and the Inner Shadow
+//! composited inside the layer (`style_inside_layer`, IK1) against Photoshop
+//! 26.10's own pixels (the runner
+//! `scripts/photoshop-probe/effect_kernels_578_p4_take.py`).
 //!
 //! - THE IDENTIFY ROWS (always run): the identify take's 80 Inner Shadow and
 //!   24 Drop Shadow rows, committed as `fixtures/psd_photoshop/
@@ -152,10 +154,11 @@ fn contour_distance(w: u32, h: u32, a: &[f64]) -> Vec<f64> {
 ///   stretches lift the max to 3 ... 7 codes (the runner's RECORDED: IC1
 ///   leaves Ring 7 / 0.182 where today read 8 / 0.231); every mean within
 ///   0.31.
-/// - The confirm take's Inner Shadow composite rows at Fill 100 % (8 rows,
-///   IK, confirmed but not built in phase 1): the shadow composites over the
-///   layer's composite where Photoshop composites it inside the layer, 26
-///   ... 28 codes on the partial ring, every mean within 0.06.
+///
+/// The confirm take's eight Inner Shadow composite rows at Fill 100 % (IK1)
+/// meet the gate since the shadow composites inside the layer
+/// (`style_inside_layer`): at most 2 codes at 8 bits and 0.84 at 16, where
+/// over-the-composite missed by 26 ... 28 on the partial ring.
 const PINNED: &[(&str, f64, f64)] = &[
     ("ic_disc_cone_s16_c40_d7_8", 3.001, 0.205),
     ("ic_disc_coni_s16_c0_d0_8", 4.001, 1.309),
@@ -191,14 +194,6 @@ const PINNED: &[(&str, f64, f64)] = &[
     ("ic_rr3_hr_s10_c30_d5_16", 2.366, 0.054),
     ("ic_rr3_ring_s10_c30_d5_16", 4.849, 0.089),
     ("ic_rr3_ring_s10_c30_d5_8", 5.001, 0.080),
-    ("is_ell3_f100_m75_16", 26.440, 0.053),
-    ("is_ell3_f100_m75_8", 27.001, 0.048),
-    ("is_ell3_f100_n70_16", 27.892, 0.055),
-    ("is_ell3_f100_n70_8", 28.001, 0.048),
-    ("is_rr3_f100_m75_16", 26.156, 0.031),
-    ("is_rr3_f100_m75_8", 27.001, 0.032),
-    ("is_rr3_f100_n70_16", 27.623, 0.033),
-    ("is_rr3_f100_n70_8", 28.001, 0.025),
 ];
 
 /// `None` when the row meets the gate or its pin, else why not.

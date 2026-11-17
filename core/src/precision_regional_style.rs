@@ -6,7 +6,8 @@
 //! `composite_direct_into` (`direct_sample16`). Index arithmetic only around
 //! `composite_pixels_sample16`, `composite_contribution_sample` (through
 //! `doc_regional_style::contributions_sample`), `replace_under_band_sample`
-//! (through `doc_regional_style::band_sample`), `typed_coverage_byte`,
+//! (through `doc_regional_style::band_sample`), the Inner Shadow inside the
+//! layer (through `doc_regional_style::inside_sample`), `typed_coverage_byte`,
 //! `composite_source_into` and `PreparedMask::at`; the ROUTED unit pass is
 //! `regional_knockout::unit_pass_sample16`. The contract is `regional`'s
 //! module doc.
@@ -14,7 +15,7 @@
 use crate::blend::{composite_source_into, BlendMode};
 use crate::clip_unit::{clip_alpha, ClipStep};
 use crate::doc::MAX_PIXELS;
-use crate::doc_regional_style::{band_sample, contributions_sample};
+use crate::doc_regional_style::{band_sample, contributions_sample, inside_sample};
 use crate::lab_blend::fill_in;
 use crate::precision_regional_tree::{sample_layers, Node, PreparedStyle, UNSTYLABLE};
 use crate::precision_render::{members_want_base_snapshot16, Kind};
@@ -25,6 +26,7 @@ use crate::precision_style_render::{
 use crate::regional_knockout::{base_only_backdrop, isolated_env, unit_pass_sample16};
 use crate::style_composite::{mix_premultiplied_in, occluding_fill};
 use crate::style_effects::EffectKind;
+use crate::style_inside_layer::inside_layer_applies;
 use crate::style_knockout::{backdrop_at, is_grouped_interior};
 
 /// One sample of `render_styled` → `composite_styled_into` for `node` onto
@@ -230,9 +232,12 @@ fn direct_sample16(
             }
         }
     };
-    // The inside band's B0 (`composite_direct_into`, step 4): this sample
-    // after the Below contributions, before the pixel pass.
-    let b0 = backdrop_at(env.knockout, style.knockout, target[ti], 0);
+    // The inside band's B0 and the Inner Shadow's T0 (`composite_direct_into`,
+    // step 4): this sample after the Below contributions, before the pixel
+    // pass. A styled adjustment never reaches here.
+    let t0 = target[ti];
+    let b0 = backdrop_at(env.knockout, style.knockout, t0, 0);
+    let inside = inside_layer_applies(layer.blend_mode, false).then_some(t0);
     if style.routed {
         // ROUTED (13A-3c): the knockout / grouped-interior unit pass.
         unit_pass_sample16(
@@ -306,6 +311,23 @@ fn direct_sample16(
                     decode,
                     offset,
                     opacity,
+                    xy,
+                );
+                continue;
+            }
+            if c.kind == EffectKind::InnerShadow {
+                inside_sample(
+                    target,
+                    ti,
+                    inside,
+                    &planes.shape,
+                    c,
+                    ink,
+                    decode,
+                    offset,
+                    opacity,
+                    occluding,
+                    !env.float,
                     xy,
                 );
                 continue;

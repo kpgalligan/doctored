@@ -27,7 +27,9 @@
 //! 2. the Below contributions onto the row, each with its own mode and
 //!    `sa = contribution_alpha × opacity`;
 //! 3. `B0` under an inside band: the row after the Below group, or under a
-//!    knockout the backdrop the record punches to;
+//!    knockout the backdrop the record punches to; and `T0` under an Inner
+//!    Shadow, the row after the Below group itself (never the knockout's
+//!    backdrop), unless the record is in Dissolve or an adjustment;
 //! 4. the INTERIOR UNIT: with no knockout and nothing grouped, the pixels
 //!    straight onto the row through the record's mode at `alpha × mask ×
 //!    fill × weight × opacity` (a clip base: its pixels and members into a
@@ -38,7 +40,10 @@
 //!    fill·min(1, U.a / s)`, `out = mix(row, K, s·opacity)`, `s = alpha ×
 //!    mask` — with `B0 = row` this IS step 4's plain statement;
 //! 5. the remaining Interior contributions, the inside band REPLACING what
-//!    lies under it (`lerp(X, over(B0, band), band/shape)`).
+//!    lies under it (`lerp(X, over(B0, band), band/shape)`) and the Inner
+//!    Shadow composited inside the record on its partial-alpha ring
+//!    (`style_inside_layer`, the master, on five planes: `X = T0 + (row −
+//!    T0) / a`, the row becoming `row + a · (over(X, ink) − X)`).
 //!
 //! At layer opacity < 1 with planes and a mode other than Dissolve the record
 //! is the PACKAGE: steps 1–5 at opacity 1 on a copy of the row, mixed back at
@@ -64,7 +69,11 @@ use crate::pattern_tile::InkSampler;
 use crate::precision_style_render::typed_coverage_byte;
 use crate::style_blend_if::source_weight_ink;
 use crate::style_composite::{contribution_alpha, mix_premultiplied_planes};
+use crate::style_effects::EffectKind;
 use crate::style_gradient::GradientSampler;
+use crate::style_inside_layer::{
+    inside_layer_applies, inside_layer_weights, land_inside, open_inside,
+};
 use crate::style_knockout::is_grouped_interior;
 use crate::style_model::{BlendIf, Knockout};
 use crate::style_render::{Contribution, RenderedEffects, Shape};
@@ -197,7 +206,7 @@ pub(crate) fn composite_styled_row(
     };
     scratch.clear();
     // A styled adjustment's routed pass holds one more row (module doc).
-    let rows = if styled.tone.is_some() { 6 } else { 5 };
+    let rows = if styled.tone.is_some() { 7 } else { 6 };
     scratch.resize(n * rows, TRANSPARENT);
     let (package, rest) = scratch.split_at_mut(n);
     match styled.planes.as_ref() {
@@ -245,6 +254,7 @@ fn direct(
     let n = t.len();
     let (under, rest) = scratch.split_at_mut(n);
     let (band_b0, rest) = rest.split_at_mut(n);
+    let (ring_t0, rest) = rest.split_at_mut(n);
     let (unit, rest) = rest.split_at_mut(n);
     let (alphas, adjusted) = rest.split_at_mut(n);
     let backdrop = |row: &[InkPixel], k: usize| match styled.knockout {
@@ -283,6 +293,15 @@ fn direct(
         for (k, b0) in band_b0.iter_mut().enumerate().take(n) {
             *b0 = backdrop(t, k);
         }
+    }
+    // ... and T0 under the Inner Shadow's ring, the row itself.
+    let inside = inside_layer_applies(styled.mode, styled.tone.is_some())
+        && styled
+            .planes
+            .as_ref()
+            .is_some_and(|p| p.interior.iter().any(|c| c.kind == EffectKind::InnerShadow));
+    if inside {
+        ring_t0.copy_from_slice(t);
     }
     // 4. The interior unit.
     let routed = styled.knockout != Knockout::None || styled.grouped;
@@ -362,6 +381,9 @@ fn direct(
             let scale = c.opacity * opacity;
             if bands.contains(&j) {
                 replace_under_band_row(t, at, &planes.shape, c, ink, scale, band_b0);
+            } else if inside && c.kind == EffectKind::InnerShadow {
+                let fill = styled.occluding_fill;
+                inside_layer_row(t, at, &planes.shape, c, ink, scale, fill, ring_t0);
             } else {
                 contribution_row(t, at, &planes.shape, c, ink, scale, styled.occluding_fill);
             }
@@ -610,6 +632,47 @@ fn contribution_row(
         }
         let cs = ink.at(px + shape.origin.0, py + shape.origin.1);
         over_mode(dst, cs, sa, c.blend, (x, at.y));
+    }
+}
+
+/// An Inner Shadow onto `t` composited inside the record
+/// (`style_inside_layer::composite_inside_layer_sample`, the master, on five
+/// planes): on the ring (`inside_layer_weights`) the open record `X =
+/// open_inside(t0, t)` takes the shadow through `over_mode` and the row lands
+/// the delta (`land_inside`); everywhere else [`contribution_row`]'s
+/// statement. `t0` is the row after the Below group.
+#[allow(clippy::too_many_arguments)]
+fn inside_layer_row(
+    t: &mut [InkPixel],
+    at: &RowAt,
+    shape: &Shape,
+    c: &Contribution,
+    ink: &InkColor,
+    scale: f32,
+    occluding_fill: f32,
+    t0: &[InkPixel],
+) {
+    if scale.is_nan() || scale <= 0.0 || c.coverage.len() != shape.coverage.len() {
+        return;
+    }
+    for (k, dst) in t.iter_mut().enumerate() {
+        let x = at.x0 + k as i64 * at.step;
+        let Some((px, py)) = at.plane_xy(shape, x, c.shift) else {
+            continue;
+        };
+        let Some((a, sa)) = inside_layer_weights(shape, c, (px, py), scale) else {
+            let sa = contribution_alpha(shape, c, (px, py), scale, occluding_fill);
+            if sa > 0.0 {
+                let cs = ink.at(px + shape.origin.0, py + shape.origin.1);
+                over_mode(dst, cs, sa, c.blend, (x, at.y));
+            }
+            continue;
+        };
+        let open = open_inside(t0[k], *dst, a, true);
+        let mut shadowed = open;
+        let cs = ink.at(px + shape.origin.0, py + shape.origin.1);
+        over_mode(&mut shadowed, cs, sa, c.blend, (x, at.y));
+        *dst = land_inside(*dst, open, shadowed, a, true);
     }
 }
 

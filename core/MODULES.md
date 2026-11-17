@@ -393,6 +393,7 @@ Detail belongs in the source file's own header comment.
 - `style_json_keys.rs` — the style JSON key table and `unknown_key`: both style setters refuse a key the schema does not name, by its path.
 - `style_render.rs` — the padded shape plane (with sub-planes) and the per-effect dispatch. Its parts: `style_plane_ops.rs`, `style_gradient.rs` (the ONE gradient), `style_cache.rs`, `style_reuse.rs`.
 - `style_composite.rs` — the styled-layer compositing path `doc.rs` routes to, and the ONE place a style's AUTHORED sRGB colour converts into the document's space.
+- `style_inside_layer.rs` — KERNEL: the Inner Shadow composited inside the layer on its partial-alpha ring (IK1): the weights, `open_inside`, the `land_inside` delta, the RGB sample and loop.
 - `style_adjustment.rs` — a style / Blend If on an 8-bit adjustment layer: its shape (mask over the canvas) and the in-place interior `style_composite` applies after its Below effects.
 - `style_float.rs` — a style in a 32-bit float document: `FloatStyle`, sRGB → linear effect colour and the effect's float kind, measured in Photoshop.
 - `style_fx_*.rs` / `style_blend_if.rs` — one effect each (drop shadow, inner shadow, outer/inner glow, stroke, colour/gradient overlay, bevel/emboss, satin) and the Blend If weight.

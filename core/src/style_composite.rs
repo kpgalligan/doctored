@@ -68,6 +68,13 @@
 //!    their union, and each band in render order replaces over that same B0
 //!    (measured against Photoshop, `stacked-effects-557/take1`), so a later
 //!    band hides an earlier one where it lands.
+//!    The INNER SHADOW composites inside the layer on its partial-alpha
+//!    ring (`style_inside_layer`, the one home of the rule): beside B0 the
+//!    accumulator there is kept as T0 ([`BandBackdrop::of_ring`], the same
+//!    store, never a knockout's backdrop), and with `a = shape / 255` the
+//!    shadow lands over the layer at full coverage, `X = T0 + (acc − T0) /
+//!    a`, as the delta `acc + a · (X' − X)`. At `shape == 255`, in Dissolve
+//!    and on a styled adjustment it composites over the result as before.
 //!
 //! # Knockout and "Blend Interior Effects as Group"
 //!
@@ -170,6 +177,7 @@ use crate::style::{BlendIf, Effect, GlobalLight, Knockout, LayerStyle, StrokePos
 use crate::style_adjustment::Adjusted;
 use crate::style_blend_if::source_weight;
 use crate::style_effects::EffectKind;
+use crate::style_inside_layer::{composite_inside_layer, inside_layer_applies};
 use crate::style_knockout;
 use crate::style_render::{
     Contribution, Ink, InkDecode, Placement, RenderContext, RenderedEffects, Shape, StyleColors,
@@ -485,6 +493,15 @@ fn composite_direct_into(
             .map(|b0| (bands, b0))
         })
         .transpose()?;
+    // T0 for the Inner Shadow's ring, taken beside B0 (module doc, step 4).
+    let ring = ring_backdrop(
+        acc,
+        acc_w,
+        acc_h,
+        rel,
+        planes.filter(|_| inside_layer_applies(layer.blend, adjusted.is_some())),
+        env.job,
+    )?;
 
     env.job.check()?;
     // A styled ADJUSTMENT's interior is read HERE, after its own Below
@@ -644,29 +661,75 @@ fn composite_direct_into(
                     env.style_colors(),
                     env.job,
                 )?,
-                None => composite_contribution(
-                    acc,
-                    acc_w,
-                    acc_h,
-                    origin,
-                    rel,
-                    &planes.shape,
-                    c,
-                    opacity,
-                    occluding,
-                    env.style_colors(),
-                    env.job,
-                )?,
+                // The Inner Shadow composites inside the layer on its ring
+                // (module doc, step 4).
+                None => match ring.as_ref().filter(|_| c.kind == EffectKind::InnerShadow) {
+                    Some(t0) => composite_inside_layer(
+                        acc,
+                        acc_w,
+                        acc_h,
+                        origin,
+                        rel,
+                        &planes.shape,
+                        c,
+                        t0,
+                        opacity,
+                        occluding,
+                        true,
+                        env.style_colors(),
+                        env.job,
+                    )?,
+                    None => composite_contribution(
+                        acc,
+                        acc_w,
+                        acc_h,
+                        origin,
+                        rel,
+                        &planes.shape,
+                        c,
+                        opacity,
+                        occluding,
+                        env.style_colors(),
+                        env.job,
+                    )?,
+                },
             }
         }
     }
     Ok(())
 }
 
+/// The Inner Shadow ring's T0 store over `target` ([`BandBackdrop::of_ring`])
+/// when `planes` hold an Interior Inner Shadow, else `None` — the caller
+/// passes `None` for planes the rule does not apply to
+/// (`style_inside_layer::inside_layer_applies`). Shared with the typed
+/// direct path (`precision_style_render`).
+pub(crate) fn ring_backdrop(
+    target: &[[f32; 4]],
+    acc_w: u32,
+    acc_h: u32,
+    rel: (i32, i32),
+    planes: Option<&RenderedEffects>,
+    job: JobContext<'_>,
+) -> Result<Option<BandBackdrop>, String> {
+    let Some(planes) = planes else {
+        return Ok(None);
+    };
+    let shadows: Vec<&Contribution> = planes
+        .interior
+        .iter()
+        .filter(|c| c.kind == EffectKind::InnerShadow)
+        .collect();
+    if shadows.is_empty() {
+        return Ok(None);
+    }
+    BandBackdrop::of_ring(target, acc_w, acc_h, rel, &planes.shape, &shadows, job).map(Some)
+}
+
 /// Whether `style` can emit an inside band (an enabled Inside or Center
 /// Stroke of size > 0), i.e. whether a composite of it may hold a
-/// [`BandBackdrop`]: the predicate every scratch plan charges
-/// [`BAND_BACKDROP_BYTES`] per layer pixel on.
+/// [`BandBackdrop`]: one of the predicates [`backdrop_store_bytes`] charges
+/// on.
 pub(crate) fn holds_inside_band(style: &LayerStyle) -> bool {
     style.enabled_effects().any(|e| match e {
         Effect::Stroke(s) => s.position != StrokePosition::Outside && s.size > 0.0,
@@ -674,9 +737,30 @@ pub(crate) fn holds_inside_band(style: &LayerStyle) -> bool {
     })
 }
 
-/// Bytes a [`BandBackdrop`] holds per band pixel: one u32 index and one
-/// f32×4 pixel. The band lies inside the layer's shape, so a layer of
-/// `w × h` holds at most `w·h` of them.
+/// Whether `style` can emit an Inner Shadow (an enabled one at opacity > 0),
+/// i.e. whether a composite of it may hold the ring's T0 store
+/// ([`BandBackdrop::of_ring`]): the other predicate [`backdrop_store_bytes`]
+/// charges on.
+pub(crate) fn holds_inside_shadow(style: &LayerStyle) -> bool {
+    style
+        .enabled_effects()
+        .any(|e| matches!(e, Effect::InnerShadow(s) if s.opacity > 0.0))
+}
+
+/// The backdrop stores a composite of `style` over a layer of `pixels`
+/// pixels can hold at once, from the Below group to the end of the interior:
+/// [`BAND_BACKDROP_BYTES`] per pixel for the inside bands' B0
+/// ([`holds_inside_band`]) and again for the Inner Shadow ring's T0
+/// ([`holds_inside_shadow`]), saturating. The ONE charge every scratch plan
+/// takes for them.
+pub(crate) fn backdrop_store_bytes(style: &LayerStyle, pixels: u64) -> u64 {
+    let stores = u64::from(holds_inside_band(style)) + u64::from(holds_inside_shadow(style));
+    stores.saturating_mul(BAND_BACKDROP_BYTES.saturating_mul(pixels))
+}
+
+/// Bytes a [`BandBackdrop`] holds per pixel it stores: one u32 index and one
+/// f32×4 pixel. A band and the Inner Shadow's ring lie inside the layer's
+/// shape, so a layer of `w × h` holds at most `w·h` of them in each store.
 pub(crate) const BAND_BACKDROP_BYTES: u64 = 20;
 
 /// B0 at the nonzero pixels of the UNION of the inside bands inside one
@@ -685,7 +769,8 @@ pub(crate) const BAND_BACKDROP_BYTES: u64 = 20;
 /// `style_knockout::backdrop_at` of it, the backdrop the layer's own pixels
 /// punch to. Stacked strokes share it: each band replaces over the
 /// same B0, in render order. The union lies inside the layer's shape, so the
-/// store is still at most one entry per layer pixel.
+/// store is still at most one entry per layer pixel. The same store holds the
+/// Inner Shadow ring's T0 ([`BandBackdrop::of_ring`]).
 pub(crate) struct BandBackdrop {
     pixels: Vec<(u32, [f32; 4])>,
 }
@@ -715,7 +800,75 @@ impl BandBackdrop {
         // The shift is applied as `replace_under_band` applies it, so the two
         // loops visit the same pixels (always zero for an Interior band, so
         // every band shares the first one's).
-        let (sx, sy) = (i64::from(first.shift.0), i64::from(first.shift.1));
+        let b0 = |px: [f32; 4], ai: usize| style_knockout::backdrop_at(knockout, mode, px, ai);
+        Self::collect(
+            target,
+            (acc_w, acc_h),
+            rel,
+            shape,
+            first.shift,
+            banded,
+            b0,
+            job,
+        )
+    }
+
+    /// T0 of the Inner Shadow's ring (module doc, step 4;
+    /// `style_inside_layer`): `target[ai]` itself — never a knockout's
+    /// backdrop — at every pixel where any of `shadows` has coverage and the
+    /// shape is partial (`0 < shape < 255`), sorted by target index. Taken
+    /// where B0 is, after the Below group and before step 3. An Interior
+    /// contribution is visited unshifted (`composite_contribution`), so the
+    /// store is too.
+    pub(crate) fn of_ring(
+        target: &[[f32; 4]],
+        acc_w: u32,
+        acc_h: u32,
+        rel: (i32, i32),
+        shape: &Shape,
+        shadows: &[&Contribution],
+        job: JobContext<'_>,
+    ) -> Result<Self, String> {
+        let shadows: Vec<&Contribution> = shadows
+            .iter()
+            .copied()
+            .filter(|c| c.coverage.len() == shape.coverage.len())
+            .collect();
+        if shadows.is_empty() {
+            return Ok(BandBackdrop { pixels: Vec::new() });
+        }
+        let ring = |i: usize| {
+            let s = shape.coverage[i];
+            s != 0 && s != 255 && shadows.iter().any(|c| c.coverage[i] != 0)
+        };
+        Self::collect(
+            target,
+            (acc_w, acc_h),
+            rel,
+            shape,
+            (0, 0),
+            ring,
+            |px, _| px,
+            job,
+        )
+    }
+
+    /// The store of `value(target[ai], ai)` at the plane pixels `keep`
+    /// holds, plane pixel `(px, py)` at window pixel `rel + shape.origin +
+    /// (px, py) + shift` (`composite_contribution`'s placement), sorted by
+    /// target index.
+    #[allow(clippy::too_many_arguments)]
+    fn collect(
+        target: &[[f32; 4]],
+        (acc_w, acc_h): (u32, u32),
+        rel: (i32, i32),
+        shape: &Shape,
+        shift: (i32, i32),
+        keep: impl Fn(usize) -> bool,
+        value: impl Fn([f32; 4], usize) -> [f32; 4],
+        job: JobContext<'_>,
+    ) -> Result<Self, String> {
+        let (sx, sy) = (i64::from(shift.0), i64::from(shift.1));
         let base_x = i64::from(rel.0) + shape.origin.0 + sx;
         let base_y = i64::from(rel.1) + shape.origin.1 + sy;
         let px0 = (-base_x).max(0);
@@ -723,13 +876,13 @@ impl BandBackdrop {
         let px1 = (i64::from(acc_w) - base_x).min(i64::from(shape.w));
         let py1 = (i64::from(acc_h) - base_y).min(i64::from(shape.h));
         // Counted first, so the store is exactly `BAND_BACKDROP_BYTES` per
-        // band pixel — what the scratch plans charge — and never a doubling
-        // growth's spare capacity.
+        // stored pixel — what the scratch plans charge — and never a
+        // doubling growth's spare capacity.
         let mut count = 0usize;
         for py in py0..py1 {
             job.check()?;
             for px in px0..px1 {
-                count += usize::from(banded(shape.idx(px as u32, py as u32)));
+                count += usize::from(keep(shape.idx(px as u32, py as u32)));
             }
         }
         let mut pixels = Vec::with_capacity(count);
@@ -737,17 +890,16 @@ impl BandBackdrop {
             job.check()?;
             let ay = base_y + py;
             for px in px0..px1 {
-                if !banded(shape.idx(px as u32, py as u32)) {
+                if !keep(shape.idx(px as u32, py as u32)) {
                     continue;
                 }
                 let ai = (ay as u64 * u64::from(acc_w) + (base_x + px) as u64) as usize;
                 // An index past u32 is never stored, as `at` never finds one,
-                // so the store stays sorted and the band pixel is untouched.
+                // so the store stays sorted and the pixel is untouched.
                 let Ok(key) = u32::try_from(ai) else {
                     continue;
                 };
-                let b0 = style_knockout::backdrop_at(knockout, mode, target[ai], ai);
-                pixels.push((key, b0));
+                pixels.push((key, value(target[ai], ai)));
             }
         }
         Ok(BandBackdrop { pixels })
