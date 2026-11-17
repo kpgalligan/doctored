@@ -146,6 +146,13 @@ impl CmykImage {
             .map(Self::minted))
     }
 
+    /// The bbox `(x, y, w, h)` of the tiles not shared by pointer with
+    /// `other` (`TilePlane::unshared_rect`): `None` when every tile is
+    /// shared, the whole image when the dimensions differ. No allocation.
+    pub(crate) fn unshared_rect(&self, other: &Self) -> Option<(u32, u32, u32, u32)> {
+        self.plane.unshared_rect(&other.plane)
+    }
+
     /// Bitwise sample equality (the tile store's only equality).
     pub fn same_samples(&self, other: &Self) -> bool {
         self.plane.same_bits(&other.plane)

@@ -57,6 +57,7 @@ Detail belongs in the source file's own header comment.
 - `ffi_cmyk_colour.rs` — the CMYK colour exports: profile edits, New in CMYK, proof, separate, tone analysis, clip display, preset decode.
 - `cmyk_artwork_render.rs` — KERNEL: type/shape/fill/pattern on ink: `cmyk_components`, `assemble_cmyk` (`artwork_render`'s walk), `pattern_scratch`.
 - `cmyk_artwork.rs` — `PrecisionDocument::cmyk_artwork` (publish a CMYK raster with its description), the glyph sRGB→ink leg, `artwork_colors`.
+- `cmyk_lock.rs` — `restoring_cmyk_alpha`: a transparency lock's restore on a CMYK raster, `restoring_alpha`'s arm (a read-only scan, then a banded write).
 - `ffi_cmyk_artwork.rs` — `dr_precision_doc_cmyk_artwork`, `dr_cmyk_artwork_colors`.
 - `cmyk_clipboard_codec.rs` — `CmykClipboardPayload` and its RZCB v4 codec (editable section), trim; `AnyClipboardPayload`, the FFI handle's.
 - `cmyk_payload_convert.rs` — the clipboard's conversions across modes and CMYK profiles (RGB→CMYK, CMYK→RGB, CMYK→CMYK), relative + BPC; `from_cmyk_image`.

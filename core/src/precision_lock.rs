@@ -45,6 +45,11 @@
 //! `lockBlocking`) still phrase the sentence the user sees; this one is the
 //! backstop for a caller that did not ask.
 //!
+//! The transparency restore covers an RGB raster and a CMYK document's
+//! CMYKA16 raster alike: a moved or resized one is the lock's sentence, and
+//! a CMYK record otherwise takes `cmyk_lock`'s arm of `restoring_alpha`,
+//! with the same owner, per-sample rule and no-op latch.
+//!
 //! The two MERGES are the same exception they are at byte depth, for the same
 //! reason: they drain their operands' subtrees, so the entry the lock belongs
 //! to does not survive at the index it was asked about. `precision_merge`
@@ -125,8 +130,8 @@ pub(crate) fn lock_sentence(index: usize, owner: usize, blocking: u32) -> String
 /// Whether two typed records carry the same mask — the other half of
 /// [`PrecisionDocument::freezing_alpha`]'s no-op latch, so an edit that
 /// touched only the mask is not thrown away with the pixels
-/// (`doc_lock::same_mask`).
-fn same_mask(a: &PrecisionDocumentLayer, b: &PrecisionDocumentLayer) -> bool {
+/// (`doc_lock::same_mask`; `cmyk_lock`'s latch too).
+pub(crate) fn same_mask(a: &PrecisionDocumentLayer, b: &PrecisionDocumentLayer) -> bool {
     match (a.mask(), b.mask()) {
         (None, None) => true,
         (Some(x), Some(y)) => {
@@ -352,6 +357,7 @@ impl PrecisionDocument {
     /// `index`'s original alpha channel restored, a NAMED refusal when the
     /// edit could not be reconciled with a frozen alpha (a resized or moved
     /// buffer), and `Ok(None)` when the restore left the record unchanged.
+    /// An RGB raster and a CMYK document's CMYKA16 raster are both covered.
     ///
     /// A no-op for any record that is not transparency-locked (by its own bit
     /// or an enclosing group's) and for every
@@ -377,12 +383,12 @@ impl PrecisionDocument {
         let after = out
             .layer(index)
             .ok_or("high-depth layer index is out of range")?;
-        let (Some(src), Some(dst)) = (before.source(), after.source()) else {
+        let (Some(src), Some(dst)) = (leaf_dimensions(before), leaf_dimensions(after)) else {
             // A group or an adjustment holds no alpha channel of its own;
             // there is nothing to freeze.
             return Ok(Some(out));
         };
-        if src.dimensions() != dst.dimensions() || before.offset() != after.offset() {
+        if src != dst || before.offset() != after.offset() {
             return Err(lock_sentence(index, owner, LOCK_TRANSPARENCY));
         }
         self.restoring_alpha(index, out)
@@ -391,7 +397,9 @@ impl PrecisionDocument {
     /// `out` with record `index`'s original alpha channel restored — the
     /// restore [`Self::freezing_alpha`] runs under a transparency lock, and
     /// the one Preserve Transparency runs (`precision_paint_tools`'
-    /// `preserve_alpha`, `doc_lock::restoring_alpha`'s typed twin).
+    /// `preserve_alpha`, `doc_lock::restoring_alpha`'s typed twin). A CMYK
+    /// raster takes its CMYK arm, `restoring_cmyk_alpha` (`cmyk_lock`), the
+    /// same rule and latch on CMYKA16.
     /// `Ok(None)` when the restore left the record unchanged; `Ok(Some(out))`
     /// untouched for a record with no pixels of its own; `Err` when the edit
     /// resized or moved the buffer.
@@ -399,6 +407,9 @@ impl PrecisionDocument {
         let before = self
             .layer(index)
             .ok_or("high-depth layer index is out of range")?;
+        if before.cmyk_source().is_some() {
+            return self.restoring_cmyk_alpha(index, out);
+        }
         let after = out
             .layer(index)
             .ok_or("high-depth layer index is out of range")?;
@@ -479,6 +490,15 @@ impl PrecisionDocument {
         };
         out.replacing_layer(index, layer)
     }
+}
+
+/// The pixel extent of a raster leaf, RGB or CMYK; `None` for a group or an
+/// adjustment, which hold no alpha channel of their own.
+fn leaf_dimensions(layer: &PrecisionDocumentLayer) -> Option<(u32, u32)> {
+    layer
+        .source()
+        .map(|image| image.dimensions())
+        .or_else(|| layer.cmyk_source().map(|image| image.dimensions()))
 }
 
 /// The given indices over the flat list, deduplicated and ascending. An empty

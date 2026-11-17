@@ -13,9 +13,13 @@
 //! property, and answers `None` when the samples, the offset and the
 //! description are already those; a NEW record is a `raster_cmyk` leaf at
 //! the slot `position` names relative to the anchor (`layer_insert`), or the
-//! top root when there is none. The description is the host's opaque bytes
-//! (`artwork_document::validate`), stored in the record's typed description
-//! slot and persisted as DRDC 87 (`cmyk_native`).
+//! top root when there is none. A transparency-locked replacement answers to
+//! `under_locks`' CMYK arm (`cmyk_lock`), as the RGB one does: a moved or
+//! resized raster is the lock's sentence, an unmoved one keeps the record's
+//! alpha, and one whose frozen samples are the record's own is `None`. The
+//! description is the host's opaque bytes (`artwork_document::validate`),
+//! stored in the record's typed description slot and persisted as DRDC 87
+//! (`cmyk_native`).
 //!
 //! An intrinsic colour glyph's RGBA8 pixels are sRGB platform image data,
 //! not stored numbers: each distinct sRGB converts once to ink through the
@@ -50,6 +54,10 @@
 //! plan for the whole render (`NativeArtworkEvaluation.scratchBytes` plus
 //! `cmykMarginPerPixel` a pixel and the profile × 64) is the measured
 //! figure; its record is below.
+//!
+//! A transparency-locked replacement's restore (`cmyk_lock`) holds at most
+//! one more image's tiles plus one 256-row band of samples beside that. It
+//! is not in the plan and was not measured.
 //!
 //! # Measurement record (#1, 2026-10-15)
 //!
@@ -125,9 +133,11 @@ pub(crate) fn component_lengths(
 
 impl PrecisionDocument {
     /// Publishes `art` as a CMYK raster with `request`'s description (module
-    /// doc). `Ok(None)` when a replacement would change nothing. Refuses an
-    /// RGB document, a bad description or component list, a lock and a
-    /// replacement target that is not a CMYK raster, by name.
+    /// doc). `Ok(None)` when a replacement would change nothing, its frozen
+    /// samples under a transparency lock included. Refuses an RGB document, a
+    /// bad description or component list, a lock (a transparency lock when
+    /// the replacement moves or resizes the raster) and a replacement target
+    /// that is not a CMYK raster, by name.
     pub(crate) fn cmyk_artwork(
         &self,
         request: &ArtworkPublication<'_>,

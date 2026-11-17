@@ -27,13 +27,17 @@
 //! each pass gets the `#rrggbb` of its `L` (`round(255·(1 − ink))`), so the
 //! one noise field spans every plate.
 //!
-//! A transparency-locked layer keeps its alpha: `freezing_alpha` skips a CMYK
-//! raster and the pass documents carry no locks, so this module applies
-//! `precision_lock::restoring_alpha`'s rule itself (α = the source's) for
-//! every filter, Offset included. A pixel whose final alpha is 0 keeps its
-//! source ink. Liquify never reaches this module: `selected_edit` routes it
-//! to phase 4b's `cmyk_warp` first. Both passes unchanged, or no stored code changed, is
-//! `Ok(None)`. The edit runs under the CMYK document's `Pixels` lock.
+//! A transparency-locked layer keeps its alpha: the pass documents carry no
+//! locks, so the join freezes it itself (`join_sample`'s `frozen`: α = the
+//! source's) for every filter, Offset included, and `under_locks`' CMYK arm
+//! (`cmyk_lock`) then finds nothing to restore. The join differs from
+//! `precision_lock::restoring_alpha`'s rule in one case: a pixel the pass
+//! drove to α 0 where the source's α is above 0 keeps the pass's ink at the
+//! source's α, where that rule gives back the source pixel. A pixel whose
+//! final alpha is 0 keeps its source ink. Liquify never reaches this module:
+//! `selected_edit` routes it to phase 4b's `cmyk_warp` first. Both passes
+//! unchanged, or no stored code changed, is `Ok(None)`. The edit runs under
+//! the CMYK document's `Pixels` lock.
 //!
 //! [`FILTER_REFUSALS`] names what a CMYK document refuses, with its
 //! sentence: Lens Correction, the Develop Filter with Presence and Add

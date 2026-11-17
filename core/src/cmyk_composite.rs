@@ -220,6 +220,20 @@ pub(crate) fn over_mode_frozen(
     dst[..4].copy_from_slice(&seen[..4]);
 }
 
+/// A transparency lock's frozen sample: `after`'s inks at `before`'s alpha,
+/// or `before` whole where either alpha is 0 — `PrecisionDocument::
+/// restoring_alpha`'s per-pixel rule (precision_lock.rs, the master copy) on
+/// CMYKA16. A pixel `before` holds at zero alpha is not part of the picture,
+/// and one the edit drove to zero lost its ink as it went, so both get their
+/// ink back with their alpha.
+pub(crate) fn frozen_sample(before: [u16; 5], after: [u16; 5]) -> [u16; 5] {
+    if before[4] == 0 || after[4] == 0 {
+        before
+    } else {
+        [after[0], after[1], after[2], after[3], before[4]]
+    }
+}
+
 /// A Pass Through group's gate on one sample: `dst` moves to `evaluated`
 /// (the children's result over a copy of it) by `t` = opacity × mask —
 /// `blend::gate_planes` (the master `gate_source_into`'s arithmetic) on the

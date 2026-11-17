@@ -35,8 +35,8 @@ origin, a fixed leading, two lines), C (Times New Roman, never missing), D (scal
   fonts, redo returns Courier New.
 - **M6 refusals.** Each leaves the undo count unchanged: no replacements; a `font` no layer
   misses; a `with` that is not an installed family exactly ("helvetica neue", "Zz Nope"); A
-  pixel-locked (the sentence names the lock); outside CMYK, A transparency-locked under Courier
-  New, whose raster moves (the sentence names that lock).
+  pixel-locked (the sentence names the lock); A transparency-locked under Courier New, whose
+  raster moves (the sentence names that lock).
 - **M7 gates.** `get_precision`'s `supported_tools` with its `shared_tools` hold both tools in
   the 16-bit, 32-bit, Grayscale, Lab and CMYK documents.
 
@@ -307,18 +307,16 @@ def main():
             assert 'set_layer_lock' in refusals['locked'], refusals
             assert undo_count(refuse_doc) == locked_before
             # Transparency: another family moves A's raster, which a frozen alpha cannot follow;
-            # the sentence names that lock. Not in CMYK, whose records' transparency lock does not
-            # hold a re-render today ([#89](https://github.com/kpgalligan/doctored/issues/89)).
-            if not kind.startswith('cmyk'):
-                call('set_layer_lock', document_id=refuse_doc, layer=indices['A'],
-                     locks=['transparency'])
-                locked_before = undo_count(refuse_doc)
-                refusals['transparency'] = call('replace_missing_fonts', fail=True,
-                                                document_id=refuse_doc,
-                                                replacements=[{'font': ABSENT, 'with': OTHER}])
-                assert 'has its transparency locked' in refusals['transparency'] \
-                    and 'set_layer_lock' in refusals['transparency'], refusals
-                assert undo_count(refuse_doc) == locked_before
+            # the sentence names that lock.
+            call('set_layer_lock', document_id=refuse_doc, layer=indices['A'],
+                 locks=['transparency'])
+            locked_before = undo_count(refuse_doc)
+            refusals['transparency'] = call('replace_missing_fonts', fail=True,
+                                            document_id=refuse_doc,
+                                            replacements=[{'font': ABSENT, 'with': OTHER}])
+            assert 'has its transparency locked' in refusals['transparency'] \
+                and 'set_layer_lock' in refusals['transparency'], refusals
+            assert undo_count(refuse_doc) == locked_before
             still = rows(refuse_doc)
             assert all(still[indices[n]]['text']['font'] == ABSENT for n in MISSING_LAYERS), kind
             receipts[f'{kind}_refusals'] = refusals

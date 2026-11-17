@@ -197,6 +197,8 @@ mod cmyk_synthesis_in_place;
 mod cmyk_tiff_samples;
 #[path = "cmyk_tone_tools.rs"]
 mod cmyk_tone_tools;
+#[path = "cmyk_transparency_lock.rs"]
+mod cmyk_transparency_lock;
 #[path = "cmyk_warp.rs"]
 mod cmyk_warp;
 #[path = "color_format.rs"]

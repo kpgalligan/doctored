@@ -88,7 +88,9 @@
   unchanged colour keeps its ink (layer, swatch or MCP `ink`/`fill_ink`/`stroke_ink`; a gradient stop by stored index).
   Mode, Convert and cross-profile or cross-mode pastes drop descriptions in the core; the host re-renders the captured
   layers in converted colours (unless the conversion flattens). Geometry, paint, merges and Convert clear a description
-  where RGB does; duplicate, Assign and Depth keep it; PSD writes pixels with RGB's loss line. No Photoshop take.
+  where RGB does; duplicate, Assign and Depth keep it; PSD writes pixels with RGB's loss line. No Photoshop take. A
+  Transparency lock holds a re-render as RGB's does (`cmyk_lock`): a moved or resized raster is refused by name, an
+  unmoved one keeps its alpha.
 - **Ink, not colour.** Painting writes ink (`cmyk_paint`, `CmykPaintEdit`): `ink` = straight `[c, m, y, k, alpha]`, the
   RGB tools' planes and plan keys, Normal over at `ink_alpha × opacity × coverage`, alpha frozen under Preserve
   Transparency or a lock, through `blend.rs`'s RGB functions. A colour crosses the boundary once, via `dr_cmyk_color` (the

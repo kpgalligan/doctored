@@ -88,6 +88,7 @@ mod cmyk_geometry_plans;
 pub mod cmyk_image;
 mod cmyk_io;
 mod cmyk_jpeg;
+mod cmyk_lock;
 mod cmyk_merge;
 mod cmyk_native;
 mod cmyk_paint;

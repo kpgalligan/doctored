@@ -30,6 +30,7 @@
 
 use serde_json::{json, Value};
 
+use crate::cmyk_composite::frozen_sample;
 use crate::cmyk_image::{CmykImage, CmykSample, CMYK_BYTES_PER_PIXEL};
 use crate::doc_lock::{EditKind, LOCK_TRANSPARENCY};
 use crate::filter_kernels::SampleRange;
@@ -334,11 +335,7 @@ impl PrecisionDocument {
                     let mut after = [a[0], a[1], a[2], b[0], a[3]];
                     // `restoring_alpha`'s rule under a transparency lock.
                     if frozen {
-                        after = if before[4] == 0 || after[4] == 0 {
-                            before
-                        } else {
-                            [after[0], after[1], after[2], after[3], before[4]]
-                        };
+                        after = frozen_sample(before, after);
                     }
                     changed |= after != before;
                     *slot = after;

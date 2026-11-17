@@ -2,14 +2,14 @@
 """A described-layer re-render that a Transparency lock refuses names the lock (MCP
 `edit_text_layer` and `edit_shape_layer`; `AgentServer.rejectLockedRerender`, the agent twin of
 `EditorViewController.refuseLockedRerender`) on an owned Debug instance, in an 8-bit and a 16-bit
-RGB document.
+RGB document and an 8-bit CMYK one.
 
 The sentence is the app's own: "… has its transparency locked …" ending in the `set_layer_lock`
 hint. The gates are FIXED here before anything is measured. The instance is owned by this file
 (`phase5_support.App`: a scratch MCP socket, a dummy API key, a private directory for every
 preference library) and ends with it; no Doctored process this file did not start is signalled.
 
-Per depth, on a text layer (Menlo 24, point text) and a rect shape layer (fill only), each with
+Per kind, on a text layer (Menlo 24, point text) and a rect shape layer (fill only), each with
 its Transparency locked:
 - **resize**: `edit_text_layer {size: 60}` and `edit_shape_layer` with a wider `w` answer the
   lock's sentence; the layer's description, its bounds and the undo count read back unchanged.
@@ -18,9 +18,9 @@ its Transparency locked:
   answers the capture's own sentence, never the lock's.
 - **dropped**: an edit that changes the description and not the raster (a short line's
   `wrap_width` raised; a fill-only rect's `radius`), first confirmed on an unlocked twin to keep
-  the layer's bounds. At 16 bits the typed core keeps the old raster AND the old description
-  under the lock, so the call answers the lock's sentence and the description is unchanged. At 8
-  bits each answer is printed as it is (`INFO` lines).
+  the layer's bounds. In the typed documents (RGB 16 bits, CMYK 8 bits) the typed core keeps the
+  old raster AND the old description under the lock, so the call answers the lock's sentence and
+  the description is unchanged. In RGB 8 bits each answer is printed as it is (`INFO` lines).
 
 Usage: python3 -B scripts/verify_locked_rerender.py
 """
@@ -35,7 +35,8 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 
 # ---- the expectations, fixed here BEFORE anything is measured ----------------------------------
 W, H = 400, 300
-DEPTHS = (8, 16)
+KINDS = {'rgb8': dict(depth=8, profile='srgb'), 'rgb16': dict(depth=16, profile='srgb'),
+         'cmyk8': dict(color_mode='cmyk', depth=8)}
 LOCKED = 'has its transparency locked'
 HINT = 'set_layer_lock'
 EMOJI = 'warped text needs outline glyphs'
@@ -115,21 +116,20 @@ def main():
                   f'bounds {before["bounds"]} -> {after["bounds"]}; {field} {after[field]}')
             call('delete_layer', document_id=doc, layer=twin)
 
-        def dropped(label, depth, doc, layer, tool, **arguments):
+        def dropped(label, kind, doc, layer, tool, **arguments):
             before = state(doc, layer)
             error, text = raw(tool, document_id=doc, layer=layer, **arguments)
             after = state(doc, layer)
-            if depth == 8:
+            if kind == 'rgb8':
                 print(f'INFO {label}: error {error}: {text!r}; description changed '
                       f'{after != before}', flush=True)
                 return
             check(label, error and LOCKED in text and HINT in text and after == before,
                   f'error {error}: {text!r}; unchanged {after == before}')
 
-        for depth in DEPTHS:
-            tag = f'rgb{depth}'
-            doc = call('new_document', width=W, height=H, background='white', depth=depth,
-                       profile='srgb')['document']['id']
+        for tag in KINDS:
+            doc = call('new_document', width=W, height=H, background='white',
+                       **KINDS[tag])['document']['id']
             text = call('add_text_layer', document_id=doc, **TEXT)['layer']
             shape = call('add_shape_layer', document_id=doc, **RECT)['layer']
             plain = call('add_text_layer', document_id=doc, **{**TEXT, 'y': 120})['layer']
@@ -158,9 +158,9 @@ def main():
                          'edit_text_layer', SHORT, 'wrap_width', 'text', 'box_width', WIDER_WRAP)
             keeps_bounds(f'{tag} dropped shape twin: radius keeps the bounds', doc,
                          'edit_shape_layer', RECT, 'radius', 'shape', 'radius', RADIUS)
-            dropped(f'{tag} dropped text: the lock sentence, the description kept', depth, doc,
+            dropped(f'{tag} dropped text: the lock sentence, the description kept', tag, doc,
                     short, 'edit_text_layer', wrap_width=WIDER_WRAP)
-            dropped(f'{tag} dropped shape: the lock sentence, the description kept', depth, doc,
+            dropped(f'{tag} dropped shape: the lock sentence, the description kept', tag, doc,
                     shape, 'edit_shape_layer', radius=RADIUS)
 
             call('close_document', document_id=doc, discard_changes=True)
@@ -168,7 +168,7 @@ def main():
     if failures:
         print(f'FAIL {len(failures)}: {"; ".join(failures)}', flush=True)
         sys.exit(1)
-    print('PASS all (rgb8, rgb16)', flush=True)
+    print('PASS all (rgb8, rgb16, cmyk8)', flush=True)
 
 
 if __name__ == '__main__':
