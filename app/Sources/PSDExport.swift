@@ -113,6 +113,10 @@ struct PSDExportReport {
     /// The working memory the adjustment stamps of this export need (0 when
     /// no adjustment layer is baked); the core's `bake_scratch_bytes`.
     let bakeScratchBytes: UInt64
+    /// The save's own plan, the core's `working_memory_plan_bytes`: stated by an RGB document at
+    /// 8 and 16 bits (the file, what the save holds beside it, a PSD's composite planes, the
+    /// stamps) and by CMYK, Bitmap and Indexed; nil for float, Gray, Duotone and Lab.
+    let workingMemoryPlanBytes: UInt64?
     let json: [String: Any]
 
     init(_ json: [String: Any]) throws {
@@ -126,6 +130,7 @@ struct PSDExportReport {
         self.generalLimitations = json["general_limitations"] as? [String] ?? []
         self.worstCaseBytes = (json["worst_case_bytes"] as? NSNumber)?.uint64Value ?? 0
         self.bakeScratchBytes = (json["bake_scratch_bytes"] as? NSNumber)?.uint64Value ?? 0
+        self.workingMemoryPlanBytes = (json["working_memory_plan_bytes"] as? NSNumber)?.uint64Value
         self.json = json
     }
 }
@@ -197,7 +202,13 @@ struct PSDExportCapture {
                 report.json, "working_memory_plan_bytes")
             return
         }
-        // The whole file is built in memory, plus the composite the writer
+        // An RGB document at 8 or 16 bits: the core's own plan (the file, the records beside it, a
+        // PSD's composite planes, the stamps) and the bounded slack every core call reserves.
+        if let plan = report.workingMemoryPlanBytes {
+            self.scratchEstimate = plan &+ 16 * 1024 * 1024
+            return
+        }
+        // Otherwise the whole file is built in memory, plus the composite the writer
         // mattes, the stamps of any baked adjustment layers and the bounded
         // slack every core call reserves.
         // A 32-bit float save charges 28 B a pixel beside the worst case

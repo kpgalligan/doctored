@@ -67,7 +67,7 @@ use crate::precision_style_render::StyleEnv;
 use crate::psd_export16::{exported_fills16, knockout_written16, record_styles, records, Walk};
 use crate::psd_export_cmyk::Depth;
 use crate::psd_export_encode::{
-    encode_plane, image_resources, layer_info_counted, photoshop_folder_lsct, write_psd, Record,
+    encode_plane, image_resources, photoshop_folder_lsct, write_psd, Record,
 };
 use crate::psd_export_preflight::PsdExportMode;
 use crate::psd_framing::LayeredContainer;
@@ -439,8 +439,11 @@ impl PrecisionDocument {
                 &[],
                 self.resolution(),
                 &image_resources(&[], self.resolution(), light, self.color_samplers(), &extra),
-                &layer_info_counted(&out, false, false)?,
-                &composite_strip_lab(projection, width, height, depth)?,
+                &out,
+                false,
+                crate::tiff_layers::Strip::Samples(&composite_strip_lab(
+                    projection, width, height, depth,
+                )?),
                 &tail,
             )?
         } else {

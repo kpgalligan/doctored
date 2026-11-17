@@ -16,10 +16,11 @@
 //! - a byte Levels Auto over a masked adjustment layer (the effective
 //!   mask's copy in `scoped_auto`, beside `scoped_analysis_plan`);
 //! - a layered TIFF save with one spot channel, 8-bit (`dr_doc_save_psd`,
-//!   which admits no plan) and 16-bit (`dr_precision_doc_save_psd`: its
-//!   admitted scratch is the export report's `worst_case_bytes`, the
-//!   projection's `n·8` and `bake_scratch_bytes`), whose spot planes are
-//!   copied for the writer (`tiff_spot`'s `layered_tiff_spots`).
+//!   its composite supplied as the host supplies it) and 16-bit
+//!   (`dr_precision_doc_save_psd`, which admits that plan), each beside its
+//!   export report's `working_memory_plan_bytes`: the records and one file
+//!   buffer, the spot planes read in place (`tiff_spot`'s
+//!   `layered_tiff_spots`).
 //!
 //! `cd core && cargo run --release --example phase13b_transient_copies`
 
@@ -30,10 +31,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use doctored_core::doc::{DrDocument, GrayRaster};
 use doctored_core::doc_mask::MaskProperties;
-use doctored_core::ffi::dr_string_free;
+use doctored_core::ffi::{dr_image_free, dr_image_from_rgba, dr_string_free};
 use doctored_core::ffi_precision_edit::{dr_precision_doc_edit, dr_precision_doc_edit_plan};
 use doctored_core::ffi_psd::{
-    dr_doc_save_psd, dr_precision_doc_psd_export_report, dr_precision_doc_save_psd,
+    dr_doc_psd_export_report, dr_doc_save_psd, dr_precision_doc_psd_export_report,
+    dr_precision_doc_save_psd,
 };
 use doctored_core::ffi_scoped_statistics::{dr_doc_scoped_analysis, dr_doc_scoped_analysis_plan};
 use doctored_core::ffi_selected_pixels::{
@@ -210,18 +212,33 @@ fn spot_tiff(w: u32, h: u32) {
     let ink = SpotInk::new([55.25, 70.5, -30.75], 40).unwrap();
     let ramp: Vec<u8> = (0..n).map(|i| (i * 37 % 256) as u8).collect();
 
-    // 8 bits: the byte document's save admits no plan.
+    // 8 bits: the composite supplied, as the host supplies it; the plan is
+    // the report's.
     let pixels: Vec<u8> = (0..n * 4).map(|i| (i * 7 % 251) as u8).collect();
-    let byte = DrDocument::from_pixels(RgbaImage::from_raw(w, h, pixels).unwrap())
+    let picture = RgbaImage::from_raw(w, h, pixels).unwrap();
+    let flat = unsafe { dr_image_from_rgba(picture.as_raw().as_ptr(), w, h) };
+    let byte = DrDocument::from_pixels(picture)
         .add_spot_channel("Spot", ink, &ramp)
         .expect("a byte spot channel");
+    let mut error = ptr::null_mut();
+    let raw = unsafe { dr_doc_psd_export_report(&byte, TIFF, LAYERS, &mut error) };
+    if let Some(message) = take(error) {
+        println!(
+            "{}",
+            json!({"case": "byte spot TIFF report", "error": message})
+        );
+        return;
+    }
+    let plan = plan_json(raw)["working_memory_plan_bytes"]
+        .as_u64()
+        .unwrap_or(0);
     let path = CString::new(folder.path().join("spot8.tif").to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
     let base = begin();
     let ok = unsafe {
         dr_doc_save_psd(
             &byte,
-            ptr::null(),
+            flat,
             path.as_ptr(),
             TIFF,
             LAYERS,
@@ -234,10 +251,11 @@ fn spot_tiff(w: u32, h: u32) {
     report(
         "byte layered TIFF save, one spot channel",
         (w, h),
-        0,
+        plan,
         peak,
-        json!({"ok": ok, "error": message, "spot_copy_w_h": n}),
+        json!({"ok": ok, "error": message, "spot_plane_w_h": n}),
     );
+    unsafe { dr_image_free(flat) };
     drop(byte);
 
     // 16 bits: the save's admitted scratch (module doc).
@@ -269,7 +287,9 @@ fn spot_tiff(w: u32, h: u32) {
     let report_json = plan_json(raw);
     let worst = report_json["worst_case_bytes"].as_u64().unwrap_or(0);
     let bake = report_json["bake_scratch_bytes"].as_u64().unwrap_or(0);
-    let plan = worst + n as u64 * 8 + bake;
+    let plan = report_json["working_memory_plan_bytes"]
+        .as_u64()
+        .unwrap_or(0);
     let projection = typed.render(LIMIT, 0, None).expect("the projection");
     let path = CString::new(folder.path().join("spot16.tif").to_str().unwrap()).unwrap();
     let mut error = ptr::null_mut();
@@ -294,7 +314,7 @@ fn spot_tiff(w: u32, h: u32) {
         (w, h),
         plan,
         peak,
-        json!({"ok": ok, "error": message, "spot_copy_2_w_h": 2 * n,
+        json!({"ok": ok, "error": message, "spot_plane_2_w_h": 2 * n,
                "worst_case_bytes": worst, "bake_scratch_bytes": bake}),
     );
 }

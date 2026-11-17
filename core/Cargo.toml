@@ -122,6 +122,8 @@ name = "raw_source_plan_memory" # isolate: own #[global_allocator], measures pro
 name = "rect_read_memory" # isolate: own #[global_allocator], measures process-wide allocation
 [[test]]
 name = "spot_region_memory" # isolate: own #[global_allocator], measures process-wide allocation
+[[test]]
+name = "layered_save_plan_memory" # isolate: own #[global_allocator], measures process-wide allocation
 
 # Standalone, process state.
 [[test]]

@@ -451,4 +451,4 @@ pub(crate) fn has_layers(path: &str) -> bool {
 }
 
 // The writer lives in `tiff_layers_write`; its callers reach it here.
-pub(crate) use crate::tiff_layers_write::{write, write_spots, write_with, LayeredTiff};
+pub(crate) use crate::tiff_layers_write::{write, write_spots, write_with, LayeredTiff, Strip};

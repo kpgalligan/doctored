@@ -147,9 +147,46 @@ pub(crate) struct PsdExportReport {
     /// the file itself: three canvas-sized RGBA planes at the document's
     /// depth when any entry bakes, else 0.
     pub bake_scratch_bytes: u64,
+    /// What an 8- or 16-bit save holds BESIDE its one file buffer: the
+    /// record list, the resources, a PSD's pre-encoded spot rows, and the
+    /// pattern tail's blocks and their encoding — `worst_case_bytes` less
+    /// its flat-picture term, plus the tail once more in the layered mode.
+    /// Not in the report JSON; [`Self::working_plan`] reads it.
+    pub held_bytes: u64,
+}
+
+/// The matted composite planes a PSD or PSB builds before it writes them
+/// (`psd_export_encode::composite_planes8` / `composite_planes16`: four
+/// planes of `width · height · sample_bytes`); 0 for a layered TIFF, whose
+/// strip is streamed into the file a row at a time.
+pub(crate) fn rgb_composite_scratch(
+    container: LayeredContainer,
+    width: u32,
+    height: u32,
+    sample_bytes: u64,
+) -> u64 {
+    if container == LayeredContainer::Tiff {
+        return 0;
+    }
+    (4 * sample_bytes)
+        .saturating_mul(u64::from(width))
+        .saturating_mul(u64::from(height))
 }
 
 impl PsdExportReport {
+    /// The working memory an RGB 8- or 16-bit layered save needs: the file
+    /// (`worst_case_bytes`, laid into one buffer), what it holds beside it
+    /// (`held_bytes`), the composite planes a PSD builds
+    /// ([`rgb_composite_scratch`]), the adjustment stamps and the wide-colour
+    /// encoder (`wide_bytes`, 0 at 8 bits). Saturating.
+    pub(crate) fn working_plan(&self, composite_bytes: u64, wide_bytes: u64) -> u64 {
+        self.worst_case_bytes
+            .saturating_add(self.held_bytes)
+            .saturating_add(composite_bytes)
+            .saturating_add(self.bake_scratch_bytes)
+            .saturating_add(wide_bytes)
+    }
+
     pub(crate) fn json(
         &self,
         container: LayeredContainer,
@@ -574,14 +611,13 @@ pub(crate) fn preflight(
     // The flat picture: a PSD's RLE composite preview, whose worst case also
     // bounds a TIFF's uncompressed strip of the same planes (four, or five
     // for CMYK).
-    worst_case = worst_case.saturating_add(
-        plane_worst_case(
-            row(u64::from(inventory.width)),
-            u64::from(inventory.height),
-            large,
-        )
-        .saturating_mul(composite_planes(inventory) as u64),
-    );
+    let flat_picture = plane_worst_case(
+        row(u64::from(inventory.width)),
+        u64::from(inventory.height),
+        large,
+    )
+    .saturating_mul(composite_planes(inventory) as u64);
+    worst_case = worst_case.saturating_add(flat_picture);
     if container == LayeredContainer::Tiff {
         // The directory, the block header and the out-of-line tag values, and
         // the profile a second time: a TIFF carries it in tag 34675 as well
@@ -655,6 +691,23 @@ pub(crate) fn preflight(
         } else {
             0
         },
+        // Every term of the worst case but the flat picture is something the
+        // save also holds outside the file (the records it copies in, the
+        // resources, a PSD's encoded spot rows), and the pattern tail is held
+        // twice: its blocks and their encoding. A PSD's or PSB's spot rows are
+        // one `Vec` each (`psd_spot::SpotPlanes`) in a list that grows by
+        // doubling, so beside the rows' own bytes (in `spot_bytes`) it holds
+        // under two `Vec` headers a row; a TIFF reads its planes in place.
+        held_bytes: worst_case
+            .saturating_sub(flat_picture)
+            .saturating_add(if layers { inventory.tail_bytes } else { 0 })
+            .saturating_add(if container == LayeredContainer::Tiff {
+                0
+            } else {
+                spots_in_file(inventory, container)
+                    .saturating_mul(u64::from(inventory.height))
+                    .saturating_mul(2 * std::mem::size_of::<Vec<u8>>() as u64)
+            }),
     };
     if layers {
         layer_losses(inventory, container, &mut report.losses);

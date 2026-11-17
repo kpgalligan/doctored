@@ -102,6 +102,9 @@ pub unsafe extern "C" fn dr_doc_open_psd(
 /// Layered export preflight for one container (DrLayeredContainer) and mode,
 /// as JSON freed with dr_string_free. Reads no pixels: the answer depends only
 /// on the layer model, so a host can build it while a save panel is open.
+/// `working_memory_plan_bytes` is the save's plan (the file, what it holds
+/// beside it, a PSD's composite planes and the stamps), which assumes the
+/// host supplies `flat` to `dr_doc_save_psd`.
 ///
 /// # Safety
 /// err_out must be NULL or writable.
@@ -122,9 +125,7 @@ pub unsafe extern "C" fn dr_doc_psd_export_report(
                 let container = LayeredContainer::from_c(container).ok_or(UNKNOWN_CONTAINER)?;
                 let mode = crate::psd_export::PsdExportMode::from_c(mode)
                     .ok_or(crate::psd_export::UNKNOWN_MODE)?;
-                let report = document
-                    .psd_export_report(container, mode)
-                    .json(container, mode, 8);
+                let report = document.psd_report_json(container, mode);
                 CString::new(report.to_string())
                     .map_err(|e| format!("cannot report PSD export: {e}"))
             },
@@ -135,7 +136,9 @@ pub unsafe extern "C" fn dr_doc_psd_export_report(
 
 /// Writes an 8-bit RGB PSD, PSB or layered TIFF (`container`, an
 /// DrLayeredContainer). `flat` may be NULL, in which case this
-/// document is composited here; a non-NULL image must be canvas-sized. The
+/// document is composited here; a non-NULL image must be canvas-sized and is
+/// read in place. The save holds its records and one file buffer within the
+/// report's `working_memory_plan_bytes`. The
 /// preflight runs again and its refusal is this call's error, so a refused
 /// export leaves an existing destination byte-identical. `control` is
 /// optional and single-use, begun once for the whole save; a cancel answers
@@ -382,7 +385,9 @@ pub unsafe extern "C" fn dr_precision_doc_open_lab_psd(
 /// 16 or 32) with `"color_mode":"gray"` (#1 phase 3b); at 32 it is the
 /// float report, a layered TIFF refused (#1 phase 3c). A Lab Color
 /// document answers its declared depth (8 or 16) with `"color_mode":"lab"`
-/// (#1 Lab phase 3b). Reads no pixels.
+/// (#1 Lab phase 3b). A 16-bit RGB document's `working_memory_plan_bytes`
+/// is the plan its save admits; a float, Grayscale or Lab report carries
+/// none. Reads no pixels.
 ///
 /// # Safety
 /// err_out must be NULL or writable.
@@ -420,7 +425,9 @@ pub unsafe extern "C" fn dr_precision_doc_psd_export_report(
 /// Writes a 16-bit RGB PSD, PSB or layered TIFF (`container`, an
 /// DrLayeredContainer). `projection` is REQUIRED for an RGB document and must
 /// be this document's canvas-sized RGBA16 UNORM rendering in its exact ICC
-/// bytes; a CMYK document takes NULL and writes a CMYK file at its declared
+/// bytes; the save admits the report's `working_memory_plan_bytes`, holding
+/// its records and one file buffer. A CMYK document takes NULL and writes a
+/// CMYK file at its declared
 /// depth, its composite rendered here (#1). A float document writes a
 /// 32-bit RGB PSD or PSB or big-endian layered TIFF from its
 /// canvas-sized RGBA32 float projection. A Grayscale document writes a

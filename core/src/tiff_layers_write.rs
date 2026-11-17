@@ -5,10 +5,13 @@
 //! has its caller append the layer information and the flat strip straight
 //! into that buffer (the 32-bit float TIFF, `psd_export_float`, and
 //! `tiff_layers_order`'s two re-lays); [`write`] is the big-endian form every
-//! 8- and 16-bit writer calls with both already built. Split out of
-//! `tiff_layers` (the reader) when the 32-bit form took it past its size.
+//! 8- and 16-bit writer calls with its records and its strip ([`Strip`]),
+//! both appended in place, so the records and the file are the only copies of
+//! the planes it holds. Split out of `tiff_layers` (the reader) when the
+//! 32-bit form took it past its size.
 
 use crate::metadata::Resolution;
+use crate::psd_export_encode::{layer_info_counted_into, layer_info_len, Record};
 use crate::tiff_layers::{ByteOrder, BLOCK_HEADER, TAG_ICC, TAG_LAYERS, TAG_RESOURCES};
 use crate::tiff_spot_samples::SpotCoverage;
 
@@ -16,17 +19,43 @@ use crate::tiff_spot_samples::SpotCoverage;
 const SPOTS_ONLY: &str =
     "layered TIFF spot channels are written only for RGB or CMYK at 8 or 16 bits";
 
-/// A complete big-endian layered TIFF, [`write_with`] with the layer
-/// information and the strip already built. `samples_be` is the flat picture,
-/// interleaved, row 0 first, samples big-endian at `depth`: straight RGBA for
-/// `color` 3, straight CMYK ink and alpha (five samples, Photometric 5,
-/// InkSet 1) for `color` 4, the white-matted gray (one sample, Photometric 1,
-/// no ExtraSamples) for `color` 1, the CIELab samples of the composite matted
-/// over Lab white (three samples, Photometric 8, no ExtraSamples, a\*/b\*
-/// signed; `psd_export_lab::composite_strip_lab`) for `color` 9.
-/// `resources` is a PSD image-resource section (tag 34377) and `info` the
-/// layer information a classic PSD would carry (the block's body); an empty
-/// `icc` writes no tag 34675. `Err` as [`write_with`].
+/// [`Strip::Rows`]' row source: appends row `y` to the Vec.
+pub(crate) type AppendRow<'a> = dyn Fn(u32, &mut Vec<u8>) -> Result<(), String> + 'a;
+
+/// A big-endian layered TIFF's flat picture, interleaved, row 0 first,
+/// samples big-endian at the file's depth ([`write`]).
+pub(crate) enum Strip<'a> {
+    /// Colour and alpha samples, interleaved, big-endian, the whole canvas.
+    Samples(&'a [u8]),
+    /// Appends row `y`'s colour and alpha samples, big-endian, to the Vec.
+    Rows(&'a AppendRow<'a>),
+}
+
+/// The colour and alpha samples a pixel of `color` carries in the strip:
+/// RGBA 4, CMYK and alpha 5, the white-matted gray 1, Lab 3. The master copy
+/// is [`write_with`]'s `(samples, photometric)` table, which refuses any
+/// other colour before a strip is appended; 0 here.
+fn colour_samples(color: u16) -> usize {
+    match color {
+        3 => 4,
+        4 => 5,
+        1 => 1,
+        9 => 3,
+        _ => 0,
+    }
+}
+
+/// A complete big-endian layered TIFF, [`write_with`] with `records` (FILE
+/// order, `psd_export_encode::layer_info_counted_into`'s) appended as the layer
+/// information a classic PSD would carry (the block's body, its count
+/// negative when `merged_alpha`) and `strip` as the flat picture: straight
+/// RGBA for `color` 3, straight CMYK ink and alpha (five samples,
+/// Photometric 5, InkSet 1) for `color` 4, the white-matted gray (one sample,
+/// Photometric 1, no ExtraSamples) for `color` 1, the CIELab samples of the
+/// composite matted over Lab white (three samples, Photometric 8, no
+/// ExtraSamples, a\*/b\* signed; `psd_export_lab::composite_strip_lab`) for
+/// `color` 9. `resources` is a PSD image-resource section (tag 34377); an
+/// empty `icc` writes no tag 34675. `Err` as [`write_with`].
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn write(
     width: u32,
@@ -36,8 +65,9 @@ pub(crate) fn write(
     icc: &[u8],
     resolution: Resolution,
     resources: &[u8],
-    info: &[u8],
-    samples_be: &[u8],
+    records: &[Record],
+    merged_alpha: bool,
+    strip: Strip<'_>,
     tail: &[crate::psd_layer_effects::Block],
 ) -> Result<Vec<u8>, String> {
     write_spots(
@@ -48,8 +78,9 @@ pub(crate) fn write(
         icc,
         resolution,
         resources,
-        info,
-        samples_be,
+        records,
+        merged_alpha,
+        strip,
         tail,
         &[],
     )
@@ -57,12 +88,12 @@ pub(crate) fn write(
 
 /// [`write`] with `spots` as the composite's trailing extra samples (#1
 /// 1c-2b, the flat TIFF's rule, `tiff_spot`): each pixel's samples are its
-/// colour and alpha samples from `samples_be`, then every spot's
-/// `SpotCoverage::stored` big-endian at `depth`, each declared ExtraSamples 0
-/// after the alpha's 2. `resources` must already hold their resources. No
-/// spot writes exactly [`write`]'s bytes. `Err` for spots in a file other
-/// than RGB or CMYK at 8 or 16 bits, a spot plane that does not match the
-/// canvas, and as [`write_with`].
+/// colour and alpha samples from `strip`, then every spot's sample as
+/// `SpotCoverage::stored_row` reads its row in place, big-endian at `depth`,
+/// each declared ExtraSamples 0 after the alpha's 2. `resources` must already
+/// hold their resources. No spot writes exactly [`write`]'s bytes. `Err` for
+/// spots in a file other than RGB or CMYK at 8 or 16 bits, a spot plane that
+/// does not match the canvas, and as [`write_with`].
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn write_spots(
     width: u32,
@@ -72,8 +103,9 @@ pub(crate) fn write_spots(
     icc: &[u8],
     resolution: Resolution,
     resources: &[u8],
-    info: &[u8],
-    samples_be: &[u8],
+    records: &[Record],
+    merged_alpha: bool,
+    strip: Strip<'_>,
     tail: &[crate::psd_layer_effects::Block],
     spots: &[SpotCoverage<'_>],
 ) -> Result<Vec<u8>, String> {
@@ -90,38 +122,82 @@ pub(crate) fn write_spots(
         spots: u16::try_from(spots.len())
             .map_err(|_| "a layered TIFF spot plane does not match the canvas".to_string())?,
     };
-    let append_info = |out: &mut Vec<u8>| {
-        out.extend_from_slice(info);
-        Ok(())
-    };
-    if spots.is_empty() {
-        return write_with(
-            &file,
-            info.len(),
-            &append_info,
-            Some(samples_be.len()),
-            &|out| {
-                out.extend_from_slice(samples_be);
-                Ok(())
-            },
-        );
-    }
-    if !matches!(color, 3 | 4) || !matches!(depth, 8 | 16) {
+    // The layer information appended in place: no copy of the records.
+    let info_len = layer_info_len(records, false)?;
+    let append_info =
+        |out: &mut Vec<u8>| layer_info_counted_into(records, false, merged_alpha, out).map(|_| ());
+    if !spots.is_empty() && (!matches!(color, 3 | 4) || !matches!(depth, 8 | 16)) {
         return Err(SPOTS_ONLY.into());
     }
     let pixels = width as usize * height as usize;
     let sample = usize::from(depth / 8);
-    // The colour samples and the alpha: RGBA 4, CMYK and alpha 5.
-    let pixel = (usize::from(color) + 1) * sample;
-    if spots.iter().any(|s| s.pixels() != pixels) || samples_be.len() != pixels * pixel {
+    let pixel = colour_samples(color) * sample;
+    let short = matches!(strip, Strip::Samples(samples) if samples.len() != pixels * pixel);
+    if !spots.is_empty() && (short || spots.iter().any(|s| s.pixels() != pixels)) {
         return Err("a layered TIFF spot plane does not match the canvas".into());
     }
-    let strip = pixels * (pixel + spots.len() * sample);
-    write_with(&file, info.len(), &append_info, Some(strip), &|out| {
-        for (p, colour) in samples_be.chunks_exact(pixel).enumerate() {
-            out.extend_from_slice(colour);
-            for spot in spots {
-                let v = spot.stored(p, depth);
+    let strip_len = match strip {
+        // Checked against the canvas by `write_with`, as it always was.
+        Strip::Samples(samples) if spots.is_empty() => samples.len(),
+        _ => pixels * (pixel + spots.len() * sample),
+    };
+    write_with(&file, info_len, &append_info, Some(strip_len), &|out| {
+        append_strip(out, (width, height), depth, pixel, &strip, spots)
+    })
+}
+
+/// [`write_spots`]' strip, appended to `out` a row at a time: the row's
+/// colour and alpha samples (`pixel` bytes a pixel) from `strip`, straight
+/// into the file when there is no spot; else interleaved per pixel with
+/// each spot's stored samples of that row.
+fn append_strip(
+    out: &mut Vec<u8>,
+    (width, height): (u32, u32),
+    depth: u16,
+    pixel: usize,
+    strip: &Strip<'_>,
+    spots: &[SpotCoverage<'_>],
+) -> Result<(), String> {
+    if let (Strip::Samples(samples), true) = (strip, spots.is_empty()) {
+        out.extend_from_slice(samples);
+        return Ok(());
+    }
+    if pixel == 0 {
+        return Err("internal error: the layered TIFF strip has no colour samples".into());
+    }
+    let row_bytes = width as usize * pixel;
+    let mut colour = Vec::new();
+    let mut stored: Vec<Vec<u16>> = spots.iter().map(|_| Vec::new()).collect();
+    for y in 0..height {
+        let row: &[u8] = match strip {
+            Strip::Samples(samples) => {
+                let at = y as usize * row_bytes;
+                samples.get(at..at + row_bytes).unwrap_or(&[])
+            }
+            Strip::Rows(append) => {
+                colour.clear();
+                append(y, &mut colour)?;
+                &colour
+            }
+        };
+        if row.len() != row_bytes {
+            return Err("layered TIFF flat image does not match the canvas".into());
+        }
+        if spots.is_empty() {
+            out.extend_from_slice(row);
+            continue;
+        }
+        for (spot, samples) in spots.iter().zip(&mut stored) {
+            samples.clear();
+            spot.stored_row(y, depth, samples);
+            if samples.len() != width as usize {
+                return Err("a layered TIFF spot plane does not match the canvas".into());
+            }
+        }
+        for (x, samples) in row.chunks_exact(pixel).enumerate() {
+            out.extend_from_slice(samples);
+            for plane in &stored {
+                let v = plane.get(x).copied().unwrap_or(0);
                 if depth == 8 {
                     out.push(v as u8);
                 } else {
@@ -129,8 +205,8 @@ pub(crate) fn write_spots(
                 }
             }
         }
-        Ok(())
-    })
+    }
+    Ok(())
 }
 
 /// Everything about a layered TIFF but its layer information and its strip,

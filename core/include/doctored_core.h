@@ -5086,12 +5086,17 @@ DrDocument *dr_doc_open_psd(const char *path, int mode,
  * "depth":8,"available":bool,
  * "refusal":string|null,"losses":[],"observations":[],"general_limitations":[],
  * "layer_count":n,"group_count":n,"worst_case_bytes":n,
- * "bake_scratch_bytes":n}. No pixels are read. An adjustment layer never
+ * "bake_scratch_bytes":n,"working_memory_plan_bytes":n}. No pixels are read.
+ * An adjustment layer never
  * refuses: one with a Photoshop record is written as that record, any other
  * is BAKED into a canvas-sized pixel layer holding the picture up to and
  * including it, with one loss per baked layer; "bake_scratch_bytes" is the
  * working memory those stamps need: three canvas-sized RGBA planes at the
- * document's depth, 0 when nothing bakes.
+ * document's depth, 0 when nothing bakes. "working_memory_plan_bytes" is the
+ * save's plan: the file (laid into one buffer), the records and resources it
+ * holds beside it, a PSD's or PSB's matted composite planes (n*4) and the
+ * stamps. It assumes the host supplies `flat` to dr_doc_save_psd; a NULL
+ * `flat` is flattened outside it.
  * A written style's knockout keys are named per layer in "observations"; a
  * BAKED one's are a per-layer loss (neither key is written beside baked
  * pixels), and a knockout reaching a bottom that cannot be written as
@@ -5103,7 +5108,10 @@ char *dr_doc_psd_export_report(const DrDocument *doc, int container, int mode,
 /* Writes an 8-bit RGB PSD, PSB or layered TIFF (PackBits channels; a TIFF's
  * flat image is an uncompressed straight-RGBA strip). Re-runs the preflight
  * and fails with its refusal. `flat` MAY BE NULL (flattened here); non-NULL must be
- * canvas-sized or the call fails. A written layer style adds Photoshop's own
+ * canvas-sized or the call fails, and is read in place. The save holds its
+ * records and one file buffer, its spot planes read in place, within the
+ * report's working_memory_plan_bytes (no limit is taken here; the host admits
+ * it). A written layer style adds Photoshop's own
  * infx then knko records after iOpa and before lclr, on rasters and on
  * OPENING folder records, only when the key is not at its default; a baked
  * style writes neither. A PSD or PSB carries the document's spot channels
@@ -5629,7 +5637,10 @@ DrPrecisionDocument *dr_precision_doc_open_lab_psd(const char *path, int mode,
     const DrJobControl *control, char **err_out);
 /* Same JSON as dr_doc_psd_export_report plus "depth": 16, or 32 for a float
  * document, which writes a PSD or PSB or a big-endian layered TIFF
- * at 32 bits. A CMYK
+ * at 32 bits. A 16-bit RGB document's "working_memory_plan_bytes" is the plan
+ * dr_precision_doc_save_psd admits (a PSD's or PSB's composite planes at n*8,
+ * plus the wide-colour encoder a wide style or fill colour needs); a float,
+ * Grayscale or Lab document's report carries none. A CMYK
  * document answers "depth":"cmyk" with "bit_depth" (its declared 8 or 16)
  * and "working_memory_plan_bytes", for every container and both modes (#1).
  * A Grayscale document answers its declared "depth" (8, 16 or 32) with
@@ -5644,8 +5655,10 @@ char *dr_precision_doc_psd_export_report(const DrPrecisionDocument *doc,
 /* Writes a 16-bit RGB PSD, PSB or layered TIFF. `projection` is REQUIRED for
  * an RGB document: canvas-sized RGBA16 UNORM in the document's exact ICC
  * bytes (the host pairs it with this revision, as save_projection16). Admits
- * worst_case_bytes + projection + bake_scratch_bytes through the typed limit;
- * each adjustment stamp is a render admitted on its own. A CMYK document
+ * the report's working_memory_plan_bytes through the typed limit: the save
+ * holds its records and one file buffer, the projection streamed into a
+ * TIFF's strip and the spot planes read in place; each adjustment stamp is a
+ * render admitted on its own. A CMYK document
  * takes NULL: a colour-mode-4 file at its declared depth (layers: ink, masks,
  * groups, modes, Fill and its Levels/Curves/Hue/Saturation records; its
  * composite rendered here), admitted against the report's

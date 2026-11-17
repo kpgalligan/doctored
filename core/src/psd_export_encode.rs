@@ -10,7 +10,7 @@
 //!
 //! `large` is the PSB form (`psd_framing`): version 2, u64 layer-section and
 //! channel lengths, u32 RLE row counts. `large == false` writes exactly the
-//! bytes the classic writer always wrote. [`layer_info`] and
+//! bytes the classic writer always wrote. [`layer_info_counted_into`] and
 //! [`image_resources`] are the two bodies a layered TIFF carries in its own
 //! tags (`tiff_layers`), so all three containers share one record serializer.
 //!
@@ -77,6 +77,19 @@ fn push_row_count(table: &mut Vec<u8>, count: usize, large: bool) {
         table.extend_from_slice(&(count as u32).to_be_bytes());
     } else {
         table.extend_from_slice(&(count as u16).to_be_bytes());
+    }
+}
+
+/// [`push_row_count`] into a table already reserved: the count at byte `at`.
+fn set_row_count(out: &mut [u8], at: usize, count: usize, large: bool) {
+    let (bytes, width) = if large {
+        ((count as u32).to_be_bytes(), 4)
+    } else {
+        let [high, low] = (count as u16).to_be_bytes();
+        ([high, low, 0, 0], 2)
+    };
+    if let Some(slot) = out.get_mut(at..at + width) {
+        slot.copy_from_slice(&bytes[..width]);
     }
 }
 
@@ -303,30 +316,6 @@ fn u32_len(len: usize, what: &str) -> Result<u32, String> {
     u32::try_from(len).map_err(|_| format!("PSD {what} exceeds the classic format's 4 GiB field"))
 }
 
-/// The layer information all three containers carry: the record count
-/// (negative, so the first alpha channel is declared the merged
-/// transparency), the records, then every record's channel data, padded to an
-/// even length. `records` is FILE order — bottom-first, with each group's
-/// closing divider before its contents and its folder record after them.
-/// `large` writes a PSB's u64 channel lengths; a TIFF's block is classic.
-pub(crate) fn layer_info(records: &[Record], large: bool) -> Result<Vec<u8>, String> {
-    layer_info_counted(records, large, true)
-}
-
-/// [`layer_info`] with the count's sign chosen: negative when
-/// `merged_alpha` (the first alpha channel is the merged transparency),
-/// else positive — a Grayscale file whose composite has no alpha plane
-/// (#1 phase 3b, `psd_export_gray`), as Photoshop writes its own.
-pub(crate) fn layer_info_counted(
-    records: &[Record],
-    large: bool,
-    merged_alpha: bool,
-) -> Result<Vec<u8>, String> {
-    let mut info = Vec::new();
-    layer_info_counted_into(records, large, merged_alpha, &mut info)?;
-    Ok(info)
-}
-
 fn check_record_count(records: &[Record]) -> Result<(), String> {
     if records.len() > PSD_MAX_RECORDS {
         return Err(format!(
@@ -337,9 +326,16 @@ fn check_record_count(records: &[Record]) -> Result<(), String> {
     Ok(())
 }
 
-/// [`layer_info_counted`] appended straight to `out` (a 32-bit layered
-/// TIFF's one-buffer file, `tiff_layers::write_with`); the number of
-/// bytes appended, which is [`layer_info_len`].
+/// The layer information all three containers carry, appended straight to
+/// `out` (every writer's one-buffer file): the record count, the records,
+/// then every record's channel data, padded to an even length; the number
+/// of bytes appended, which is [`layer_info_len`]. The count is negative
+/// when `merged_alpha` (the first alpha channel is declared the merged
+/// transparency), else positive — a Grayscale file whose composite has no
+/// alpha plane (#1 phase 3b, `psd_export_gray`), as Photoshop writes its
+/// own. `records` is FILE order — bottom-first, with each group's closing
+/// divider before its contents and its folder record after them. `large`
+/// writes a PSB's u64 channel lengths; a TIFF's block is classic.
 pub(crate) fn layer_info_counted_into(
     records: &[Record],
     large: bool,
@@ -440,9 +436,9 @@ fn push_section_len(out: &mut Vec<u8>, len: usize, what: &str, large: bool) -> R
 /// version 2) at `depth` (8 or 16) in `color_mode` (3 RGB, 4 CMYK — #1's
 /// flattened CMYK save, `cmyk_io` —, 1 Grayscale, #1 phase 3b, or 9 Lab,
 /// #1 Lab phase 3b). `records`, `global_light` and `color_samplers` are
-/// [`layer_info`]'s and [`image_resources`]'s; a Grayscale file with ONE
+/// [`layer_info_counted_into`]'s and [`image_resources`]'s; a Grayscale file with ONE
 /// composite plane and a Lab file with THREE write a positive record count
-/// (`layer_info_counted`), every other file a negative one.
+/// (`layer_info_counted_into`), every other file a negative one.
 /// `composite` is the canvas-sized preview as row-major byte planes, one per
 /// channel the header declares: for RGB four ALREADY-MATTED planes in R, G,
 /// B, A order (`composite_planes8`/`composite_planes16`), stored white-matted
@@ -455,6 +451,9 @@ fn push_section_len(out: &mut Vec<u8>, len: usize, what: &str, large: bool) -> R
 /// and body, and their resources (`psd_spot_records::encode_resources`)
 /// follow the others, leading with the merged transparency's entry when the
 /// count is negative. `extra_resources` are [`image_resources`]' `extra`.
+/// The file is laid into ONE buffer reserved at its exact prefix plus the
+/// composite's RLE worst case and the spot rows, the records' channel data
+/// copied straight into it ([`write_psd32`]'s pattern).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn write_psd(
     width: u32,
@@ -496,22 +495,11 @@ pub(crate) fn write_psd(
     // Photoshop's own gray (one plane) and Lab (three planes) files carry no
     // merged-alpha plane, so their count is positive.
     let merged_alpha = !matches!((color_mode, composite.len()), (1, 1) | (9, 3));
-    let info = layer_info_counted(records, large, merged_alpha)?;
+    let info_len = layer_info_len(records, large)?;
     let capacity = crate::psd_framing::MAX_PSD_CHANNELS.saturating_sub(composite.len());
     if spots.inks.len() > capacity || spots.rows.len() != spots.inks.len() * height as usize {
         return Err("PSD spot channels do not fit the file".into());
     }
-    let mut out = b"8BPS".to_vec();
-    out.extend_from_slice(&(if large { 2u16 } else { 1 }).to_be_bytes());
-    out.extend_from_slice(&[0; 6]);
-    out.extend_from_slice(&((composite.len() + spots.inks.len()) as u16).to_be_bytes());
-    out.extend_from_slice(&height.to_be_bytes());
-    out.extend_from_slice(&width.to_be_bytes());
-    out.extend_from_slice(&depth.to_be_bytes());
-    out.extend_from_slice(&color_mode.to_be_bytes());
-    // No colour-mode data: neither RGB, CMYK, Grayscale nor Lab mode has any.
-    out.extend_from_slice(&0u32.to_be_bytes());
-
     let mut resources = image_resources(
         icc,
         resolution,
@@ -530,35 +518,74 @@ pub(crate) fn write_psd(
         &inks,
         transparency,
     ));
+    let tail = crate::psd_patterns::encode_tail(tail);
+    let field = if large { 8 } else { 4 };
+    let count_bytes = if large { 4 } else { 2 };
+    // The layer information's length, the information, no global layer mask
+    // and the document-level tail blocks (the `Patt` pattern table).
+    let section_len = field + info_len + 4 + tail.len();
+    // The file in ONE buffer (`write_psd32`'s pattern): the exact prefix,
+    // the composite's RLE worst case and the spot rows as encoded, so the
+    // records and this buffer are the only copies of the planes it holds.
+    let prefix = 26 + 4 + 4 + resources.len() + field + section_len;
+    let composite_worst =
+        usize::try_from(plane_worst_case(row_bytes as u64, u64::from(height), large))
+            .unwrap_or(usize::MAX)
+            .saturating_mul(composite.len());
+    let spot_bytes: usize = spots.rows.iter().map(|row| row.len() + count_bytes).sum();
+    let mut out = Vec::new();
+    out.try_reserve_exact(
+        prefix
+            .saturating_add(composite_worst)
+            .saturating_add(spot_bytes),
+    )
+    .map_err(|_| "PSD export cannot hold its file in memory".to_string())?;
+    out.extend_from_slice(b"8BPS");
+    out.extend_from_slice(&(if large { 2u16 } else { 1 }).to_be_bytes());
+    out.extend_from_slice(&[0; 6]);
+    out.extend_from_slice(&((composite.len() + spots.inks.len()) as u16).to_be_bytes());
+    out.extend_from_slice(&height.to_be_bytes());
+    out.extend_from_slice(&width.to_be_bytes());
+    out.extend_from_slice(&depth.to_be_bytes());
+    out.extend_from_slice(&color_mode.to_be_bytes());
+    // No colour-mode data: neither RGB, CMYK, Grayscale nor Lab mode has any.
+    out.extend_from_slice(&0u32.to_be_bytes());
     out.extend_from_slice(&u32_len(resources.len(), "image resources")?.to_be_bytes());
     out.extend_from_slice(&resources);
+    drop(resources);
 
-    let mut section = Vec::with_capacity(info.len() + 12);
-    push_section_len(&mut section, info.len(), "layer information", large)?;
-    section.extend_from_slice(&info);
+    push_section_len(&mut out, section_len, "layer and mask information", large)?;
+    push_section_len(&mut out, info_len, "layer information", large)?;
+    if layer_info_counted_into(records, large, merged_alpha, &mut out)? != info_len {
+        return Err("internal error: the PSD layer information changed length".into());
+    }
     // No global layer mask.
-    section.extend_from_slice(&0u32.to_be_bytes());
-    // The document-level tail blocks (the `Patt` pattern table).
-    section.extend_from_slice(&crate::psd_patterns::encode_tail(tail));
-    push_section_len(&mut out, section.len(), "layer and mask information", large)?;
-    out.extend_from_slice(&section);
+    out.extend_from_slice(&0u32.to_be_bytes());
+    out.extend_from_slice(&tail);
 
     out.extend_from_slice(&1u16.to_be_bytes());
-    let mut table = Vec::with_capacity(height as usize * if large { 16 } else { 8 });
-    let mut body = Vec::new();
-    for plane in composite {
-        for row in plane.chunks_exact(row_bytes) {
-            let encoded = packbits_row(row);
-            push_row_count(&mut table, encoded.len(), large);
-            body.extend_from_slice(&encoded);
-        }
+    // The row-count table is reserved as zeros, and each count is set as its
+    // row is encoded behind it.
+    let table_at = out.len();
+    let rows = composite.len() * height as usize + spots.rows.len();
+    out.resize(table_at + rows * count_bytes, 0);
+    let composite_rows = composite
+        .iter()
+        .flat_map(|plane| plane.chunks_exact(row_bytes))
+        .map(|row| std::borrow::Cow::Owned(packbits_row(row)));
+    let spot_rows = spots
+        .rows
+        .iter()
+        .map(|row| std::borrow::Cow::Borrowed(row.as_slice()));
+    for (index, encoded) in composite_rows.chain(spot_rows).enumerate() {
+        set_row_count(
+            &mut out,
+            table_at + index * count_bytes,
+            encoded.len(),
+            large,
+        );
+        out.extend_from_slice(&encoded);
     }
-    for encoded in &spots.rows {
-        push_row_count(&mut table, encoded.len(), large);
-        body.extend_from_slice(encoded);
-    }
-    out.extend_from_slice(&table);
-    out.extend_from_slice(&body);
 
     if out.len() as u64 > kind.max_file_bytes() {
         return Err("PSD export exceeds the classic format's 2 GiB file limit".into());
@@ -607,7 +634,7 @@ const PHOTOSHOP_HDR_COLOR_MODE_DATA: [u8; 110] = [
 /// document profile's linear twin, `icc_builtin::linear_twin`), an EMPTY
 /// layer-information sub-section, no global layer mask, an empty `Mt32` tail
 /// block (the merged-transparency declaration), then the records in an
-/// `Lr32` tail block — [`layer_info`]'s body with a POSITIVE count, since
+/// `Lr32` tail block — [`layer_info_counted_into`]'s body with a POSITIVE count, since
 /// `Mt32` declares the merged alpha — zero-padded to a multiple of four (both
 /// blocks' lengths u64 in a PSB, `psd_framing::LONG_LENGTH_KEYS`), then
 /// `tail`; the composite is Raw, its four planes (R, G, B, A, each

@@ -66,12 +66,12 @@ use crate::psd_adjustment;
 use crate::psd_export_bake::inexact_group16;
 use crate::psd_export_cmyk::Depth;
 use crate::psd_export_encode::{
-    composite_planes16, encode_plane, image_resources, layer_info, write_psd, MaskBody, Record,
+    composite_planes16, encode_plane, image_resources, write_psd, MaskBody, Record,
 };
 use crate::psd_export_preflight::{
-    bake_inexact, blend_key, mask_bake_reason, preflight, stamps, ExportAdjustment, ExportEntry,
-    ExportInventory, ExportMask, ExportStyle, PsdExportMode, PsdExportReport, CLOSER_NAME,
-    UNKNOWN_MODE,
+    bake_inexact, blend_key, mask_bake_reason, preflight, rgb_composite_scratch, stamps,
+    ExportAdjustment, ExportEntry, ExportInventory, ExportMask, ExportStyle, PsdExportMode,
+    PsdExportReport, CLOSER_NAME, UNKNOWN_MODE,
 };
 use crate::psd_export_rasterize::style_block_bytes;
 use crate::psd_framing::LayeredContainer;
@@ -1047,6 +1047,7 @@ impl PrecisionDocument {
                 group_count: 0,
                 worst_case_bytes: 0,
                 bake_scratch_bytes: 0,
+                held_bytes: 0,
             };
         }
         let mut report = preflight(&self.export_inventory(4), container, mode, file, reopen);
@@ -1162,9 +1163,41 @@ impl PrecisionDocument {
         if self.is_cmyk() {
             return self.cmyk_psd_report_json(container, mode, file, reopen);
         }
-        let depth = if self.is_float() { 32 } else { 16 };
-        self.limited_psd_report(container, mode, file, reopen)
-            .json(container, mode, depth)
+        if self.is_float() {
+            return self
+                .limited_psd_report(container, mode, file, reopen)
+                .json(container, mode, 32);
+        }
+        // The 16-bit RGB save's admitted plan (`save_psd_with`).
+        let report = self.limited_psd_report(container, mode, file, reopen);
+        let mut json = report.json(container, mode, 16);
+        json["working_memory_plan_bytes"] = json!(self.rgb16_save_plan(&report, container));
+        json
+    }
+
+    /// The working memory a wide style colour's `RGBC`, or a wide solid
+    /// fill's `SoCo` or gradient fill's `GdFl`, needs: one high-depth encoder
+    /// (`authored_color::AuthoredColors::wide`), else 0.
+    fn wide_export_bytes(&self) -> u64 {
+        let mut fills = Vec::new();
+        exported_fills16(self.root_layers(), &mut fills);
+        let wide_fill = fills.iter().any(crate::psd_fill_layer::Exported::is_wide);
+        if crate::wide_color_native::styles_wide16(self) || wide_fill {
+            crate::authored_color::wide_scratch_bytes()
+        } else {
+            0
+        }
+    }
+
+    /// The plan the 16-bit RGB layered save admits and its report states:
+    /// `PsdExportReport::working_plan` with a PSD's 8-byte-a-pixel matted
+    /// composite and the wide encoder.
+    fn rgb16_save_plan(&self, report: &PsdExportReport, container: LayeredContainer) -> u64 {
+        let (width, height) = self.dimensions();
+        report.working_plan(
+            rgb_composite_scratch(container, width, height, 2),
+            self.wide_export_bytes(),
+        )
     }
 
     /// The same report for a classic PSD with reduced limits, so file-size and
@@ -1267,8 +1300,8 @@ impl PrecisionDocument {
             return self.save_psd_float(projection, path, container, mode, (limit, other), job);
         }
         let report = self.psd_export_report(container, mode);
-        if let Some(refusal) = report.refusal {
-            return Err(refusal);
+        if let Some(refusal) = &report.refusal {
+            return Err(refusal.clone());
         }
         let projection = projection.ok_or(
             "an RGB document's PSD export requires its projection (required handle is NULL)",
@@ -1284,28 +1317,12 @@ impl PrecisionDocument {
         if projection.profile().bytes() != self.profile().bytes() {
             return Err("the supplied projection does not carry this document's ICC bytes".into());
         }
-        let canvas_bytes = u64::from(width)
-            .checked_mul(u64::from(height))
-            .and_then(|pixels| pixels.checked_mul(8))
-            .ok_or("16-bit PSD export size calculation overflow")?;
-        // A wide style colour's `RGBC` builds one high-depth encoder
-        // (`authored_color::AuthoredColors::wide`), and so does a wide solid
-        // fill's `SoCo` or gradient fill's `GdFl`.
-        let mut fills = Vec::new();
-        exported_fills16(self.root_layers(), &mut fills);
-        let wide_fill = fills.iter().any(crate::psd_fill_layer::Exported::is_wide);
-        let wide_bytes = if crate::wide_color_native::styles_wide16(self) || wide_fill {
-            crate::authored_color::wide_scratch_bytes()
-        } else {
-            0
-        };
+        // The plan the report states (`rgb16_save_plan`): the file, the
+        // records and resources held beside it, a PSD's matted composite, the
+        // stamps and the wide encoder.
         admit(
             self.retained_bytes(),
-            report
-                .worst_case_bytes
-                .saturating_add(canvas_bytes)
-                .saturating_add(report.bake_scratch_bytes)
-                .saturating_add(wide_bytes),
+            self.rgb16_save_plan(&report, container),
             other,
             limit,
         )?;
@@ -1414,19 +1431,21 @@ impl PrecisionDocument {
             crate::psd_typed_exchange::resources(self, matches!(mode, PsdExportMode::Layers));
         let bytes = if container == LayeredContainer::Tiff {
             // The flat picture is the TIFF's own strip: the projection's
-            // straight RGBA16, big-endian. The records and resources ride in
-            // Photoshop's tags.
-            let runs = projection
-                .runs_rgba16()
-                .ok_or("16-bit PSD export requires an RGBA16 UNORM projection")?;
-            let mut flat = Vec::with_capacity(width as usize * height as usize * 8);
-            for run in runs {
-                for pixel in run {
-                    for sample in pixel {
-                        flat.extend_from_slice(&sample.to_be_bytes());
+            // straight RGBA16, big-endian, streamed into the file a row at a
+            // time. The records and resources ride in Photoshop's tags.
+            let row = |y: u32, flat: &mut Vec<u8>| -> Result<(), String> {
+                for (_, run) in projection.row_segments(y, 0, width) {
+                    let crate::precision_image::PrecisionRun::Rgba16(run) = run else {
+                        return Err("16-bit PSD export requires an RGBA16 UNORM projection".into());
+                    };
+                    for pixel in run {
+                        for sample in pixel {
+                            flat.extend_from_slice(&sample.to_be_bytes());
+                        }
                     }
                 }
-            }
+                Ok(())
+            };
             let spots = self.layered_tiff_spots()?;
             let mut resources = image_resources(
                 self.profile().bytes(),
@@ -1444,8 +1463,9 @@ impl PrecisionDocument {
                 self.profile().bytes(),
                 self.resolution(),
                 &resources,
-                &layer_info(&out, false)?,
-                &flat,
+                &out,
+                true,
+                crate::tiff_layers::Strip::Rows(&row),
                 &tail,
                 &spots.planes,
             )?

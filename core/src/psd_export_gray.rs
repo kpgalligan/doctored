@@ -28,7 +28,7 @@
 //!
 //! * **M1** — a PSD or PSB holds ONE composite plane, the white-matted gray
 //!   ([`composite_plane_gray`]), header channels 1 and a POSITIVE record
-//!   count (`psd_export_encode::layer_info_counted`): Photoshop's gray files
+//!   count (`psd_export_encode::layer_info_counted_into`): Photoshop's gray files
 //!   carry no merged-alpha plane, where 3a wrote two planes and a negative
 //!   count.
 //! * **M2** — no move: the ICC stays the built-in Dot Gain profile
@@ -87,9 +87,7 @@ use crate::precision_image::{admit, PrecisionImage, PrecisionStorage};
 use crate::precision_style_render::StyleEnv;
 use crate::psd_export16::{exported_fills16, knockout_written16, record_styles, records, Walk};
 use crate::psd_export_cmyk::Depth;
-use crate::psd_export_encode::{
-    encode_plane, image_resources, layer_info_counted, matte, matte16, write_psd, Record,
-};
+use crate::psd_export_encode::{encode_plane, image_resources, matte, matte16, write_psd, Record};
 use crate::psd_export_preflight::PsdExportMode;
 use crate::psd_framing::LayeredContainer;
 use crate::psd_layer_pixels::import_envelope_bytes;
@@ -521,8 +519,9 @@ impl PrecisionDocument {
                     self.color_samplers(),
                     &extra,
                 ),
-                &layer_info_counted(&out, false, false)?,
-                &flat,
+                &out,
+                false,
+                crate::tiff_layers::Strip::Samples(&flat),
                 &tail,
             )?
         } else {

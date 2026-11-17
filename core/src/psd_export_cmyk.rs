@@ -57,9 +57,7 @@ use crate::job_control::JobContext;
 use crate::precision_document::{Content, PrecisionDocument, PrecisionDocumentLayer};
 use crate::precision_image::{admit, pixel_count, BOOKKEEPING_BYTES};
 use crate::psd_adjustment::encode_cmyk;
-use crate::psd_export_encode::{
-    encode_plane, image_resources, layer_info, write_psd, MaskBody, Record,
-};
+use crate::psd_export_encode::{encode_plane, image_resources, write_psd, MaskBody, Record};
 use crate::psd_export_preflight::{
     blend_key, cmyk_general_limitations, preflight, ExportAdjustment, ExportEntry, ExportInventory,
     ExportMask, ExportStyle, PsdExportMode, CLOSER_NAME,
@@ -861,8 +859,9 @@ impl PrecisionDocument {
                         policy.profile_bytes(),
                         self.resolution(),
                         &resources,
-                        &layer_info(&out, false)?,
-                        &planes[0],
+                        &out,
+                        true,
+                        crate::tiff_layers::Strip::Samples(&planes[0]),
                         &tail,
                         &spots.planes,
                     )?

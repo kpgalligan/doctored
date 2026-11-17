@@ -173,7 +173,7 @@ Closed as a recorded residual: no tiling code landed. An f32 plane above `CONTIG
 
 Byte masks and channels (`Layer.mask`, `Channel.data`, the vector mask's raster part and baked plane, the WARP masks, the PATH table's byte planes) are `GrayRaster` (`core/src/gray_raster.rs`), typed masks and channels `PrecisionPlane` on `TilePlane<u16>` (`core/src/precision_mask.rs`): shared 256×256 tiles behind an identity token, no `Deref`, no `PartialEq`. Exit met (`core/tests/mask_plane_tiles.rs`): three 300×300 dabs on a 1536×1024 plane retain the base plane plus 4 tiles per dab (byte mask, byte channel, typed mask; 4 whole planes before); the saved native bytes are the row-major samples (a tile-order walk fails); the mask and channel suites are green.
 
-Its transient copies, measured 2026-11-16 at 24 MP beside the plan that admits each operation (`cd core && cargo run --release --example phase13b_transient_copies`, peak heap above the baseline; the layered TIFF spot planes, outside a plan, stay open on [#10](https://github.com/kpgalligan/doctored/issues/10)):
+Its transient copies, measured 2026-11-16 at 24 MP beside the plan that admits each operation (`cd core && cargo run --release --example phase13b_transient_copies`, peak heap above the baseline; the layered TIFF spot planes, copied before, are read in place inside the save's plan since the 13B-5 contract's layered-save lines):
 
 | Copy (24 MP) | Plan scratch | Peak |
 | --- | --- | --- |
@@ -201,6 +201,13 @@ What one edit retains, read from `list_history.retained_bytes` (the union of eve
 | snapshot after capture / after one invert | — | 0 / 96,004,624 | — | 0 / 192,030,744 |
 
 `python3 scripts/verify_phase13b_history.py --measure 8` (and `16`), an owned Debug instance at the 8 GiB limit. The snapshot rows are `list_snapshots.incremental_bytes`; no before was run for that sequence. **Budget decision: kept** — history at working limit / 4 and 4096 transitions, named snapshots at 32 inside limit / 4: at 24 MP the 2 GiB budget of the 16 GB minimum holds 22 whole-layer 8-bit edits or 11 at 16 bits, and dab-scale edits reach the transition cap first (4096 × 266,122 = 1.09 GB at 8 bits; 4096 × 549,608 = 2.25 GB at 16, about the budget). What limited history was the over-retention above.
+
+**The layered RGB saves inside their plan** (2026-11-16, [#10](https://github.com/kpgalligan/doctored/issues/10)). An 8- or 16-bit PSD, PSB or layered TIFF is laid into ONE buffer (`write_psd`; `tiff_layers_write::write` takes the records and a `Strip`): the layer information appended in place, the TIFF strip streamed from the projection (16-bit) or the supplied composite (8-bit), each spot plane read a row at a time (`SpotCoverage::stored_row`). Bytes unchanged. The plan, `PsdExportReport::working_plan`: `worst_case_bytes` + `held_bytes` (the worst case less its flat picture, the pattern tail again, a PSD's spot-row headers) + a PSD's composite planes (n·4 a sample byte) + `bake_scratch_bytes` + the wide encoder; both reports state it as `working_memory_plan_bytes`, the 16-bit save admits it, `PSDExportCapture` reads it. `core/tests/layered_save_plan_memory.rs` holds each peak within it. One spot channel, `cd core && cargo run --release --example phase13b_transient_copies` (before: `flat` NULL; after: supplied, as the host does):
+
+| Layered TIFF (24 MP) | Before: peak / plan | After: peak / plan |
+| --- | --- | --- |
+| 8-bit | 530,365,614 / none | 313,597,438 / 338,757,996 |
+| 16-bit | 967,596,955 / 627,463,002 | 531,410,775 / 677,389,996 |
 
 ## 13B-6 contract
 

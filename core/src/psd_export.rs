@@ -11,7 +11,7 @@
 //!
 //! Both walks write one of three containers (`psd_framing::LayeredContainer`): a classic PSD, a
 //! PSB (the same records at the large widths) or a TIFF whose flat strips are the composite and
-//! whose tags carry `psd_export_encode::layer_info` and `image_resources`. An adjustment layer
+//! whose tags carry `psd_export_encode::layer_info_counted_into` and `image_resources`. An adjustment layer
 //! with no Photoshop record is written as its stamp (`psd_export_bake`): a canvas-sized Normal
 //! pixel layer at 100 % with no mask, keeping its name, visibility, clipping, locks and label —
 //! the same answer the inventory gave the preflight, so the report and the bytes never disagree.
@@ -33,11 +33,11 @@ use crate::dr_image::DrImage;
 use crate::job_control::{DrJobControl, JobContext};
 use crate::psd_adjustment;
 use crate::psd_export_encode::{
-    composite_planes8, encode_plane, image_resources, layer_info, write_psd, MaskBody, Record,
+    composite_planes8, encode_plane, image_resources, write_psd, MaskBody, Record,
 };
 use crate::psd_export_preflight::{
-    bake_inexact, blend_key, preflight, stamps, ExportAdjustment, ExportEntry, ExportInventory,
-    ExportMask, ExportStyle, CLOSER_NAME,
+    bake_inexact, blend_key, preflight, rgb_composite_scratch, stamps, ExportAdjustment,
+    ExportEntry, ExportInventory, ExportMask, ExportStyle, CLOSER_NAME,
 };
 use crate::psd_export_rasterize::export_style;
 use crate::psd_framing::LayeredContainer;
@@ -366,6 +366,23 @@ impl DrDocument {
             report.refusal = Some(crate::psd_export_preflight::spot_refusal(container).into());
         }
         report
+    }
+
+    /// The report's JSON at depth 8 with `"working_memory_plan_bytes"`, the
+    /// layered save's plan (`PsdExportReport::working_plan`). It assumes the
+    /// host supplies the composite (`flat`); a NULL `flat` flattens outside it.
+    pub(crate) fn psd_report_json(
+        &self,
+        container: LayeredContainer,
+        mode: PsdExportMode,
+    ) -> serde_json::Value {
+        let report = self.psd_export_report(container, mode);
+        let mut out = report.json(container, mode, 8);
+        out["working_memory_plan_bytes"] = json!(report.working_plan(
+            rgb_composite_scratch(container, self.width, self.height, 1),
+            0
+        ));
+        out
     }
 
     /// The same preflight for a classic PSD with reduced limits, so file-size
@@ -741,16 +758,17 @@ impl DrDocument {
             return Err(refusal);
         }
         let large = container.large();
-        let composite: RgbaImage = match flat {
+        // The supplied composite is read in place, never copied.
+        let composite: std::borrow::Cow<'_, RgbaImage> = match flat {
             Some(image) => {
                 if image.pixels.dimensions() != (self.width, self.height) {
                     return Err(
                         "the supplied composite does not match this document's canvas".into(),
                     );
                 }
-                image.pixels.clone()
+                std::borrow::Cow::Borrowed(&image.pixels)
             }
-            None => self.flattened()?,
+            None => std::borrow::Cow::Owned(self.flattened()?),
         };
         job.report(0.2, 1)?;
         // ONE colour transform for the whole export, the way a projection
@@ -832,8 +850,9 @@ impl DrDocument {
                 self.profile.bytes(),
                 self.resolution,
                 &resources,
-                &layer_info(&records, false)?,
-                composite.as_raw(),
+                &records,
+                true,
+                crate::tiff_layers::Strip::Samples(composite.as_raw()),
                 &tail,
                 &spots.planes,
             )?

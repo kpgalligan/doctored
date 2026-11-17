@@ -21,7 +21,9 @@ PDF object walk, loaded by path so nothing here edits them.
   TIFF export equals the source's bit for bit; Photoshop's own 32-bit file
   (`core/tests/fixtures/psd_photoshop/depth32/source32.psd`, committed by
   the Photoshop take) inspects as rgba32 and opens layered; 8-bit and
-  16-bit documents still export at their own depth. Never launches Photoshop.
+  16-bit documents still export at their own depth, and their layered TIFF
+  export admits inspect_psd_export's working_memory_plan_bytes plus 16 MiB.
+  Never launches Photoshop.
 - G2: a byte document's default PDF is 8 bpc, ZIP, no soft mask, and its image
   stream equals the 8-bit PNG export's RGB.
 - G3: a 16-bit document's default PDF is 16 bpc, its RGB and 16-bit soft mask
@@ -335,6 +337,18 @@ def g1_psd(drive, docs):
                             path=str(drive.output / f'{key}.psd'), mode='layers')
         detail[f'{key}_psd'] = {k: result.get(k) for k in ('ok', 'bit_depth', 'mode')}
         checks[f'{key}_psd_{depth}'] = result.get('ok') is True and result.get('bit_depth') == depth
+        # The layered TIFF admits the core report's own plan plus the 16 MiB
+        # every core call reserves (`PSDExportCapture.scratchEstimate`).
+        inspected = drive.call('inspect_psd_export', document_id=docs[key], mode='layers',
+                               format='tiff')
+        tiff = drive.call('export_psd', document_id=docs[key], mode='layers', format='tiff',
+                          path=str(drive.output / f'{key}-layers.tif'))
+        plan = inspected.get('working_memory_plan_bytes')
+        detail[f'{key}_tiff_plan'] = dict(report=plan,
+                                          exported=tiff.get('working_memory_plan_bytes'))
+        checks[f'{key}_tiff_plan_{depth}'] = (
+            tiff.get('ok') is True and isinstance(plan, int)
+            and tiff.get('working_memory_plan_bytes') == plan + 16 * 1024 * 1024)
     drive.gate('G1 float PSD and PSB at 32 bits', checks, detail)
 
 

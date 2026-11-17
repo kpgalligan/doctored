@@ -169,39 +169,60 @@ pub(crate) fn tiff_stored(coverage: u16, max: u16) -> u16 {
 }
 
 /// A spot channel's coverage plane as a layered TIFF writer reads it in
-/// place (#1 1c-2b, `tiff_layers_write::write_spots`): canvas-sized, row 0
-/// top, at the document's own channel depth (a byte document's 8 bits, a
-/// typed one's 16).
-#[derive(Clone, Debug)]
+/// place (#1 1c-2b, `tiff_layers_write::write_spots`): the document's own
+/// stored plane, canvas-sized, row 0 top, at its channel depth (a byte
+/// document's 8 bits, a typed one's 16), read a row at a time and never
+/// copied.
 pub(crate) enum SpotCoverage<'a> {
-    Eight(std::borrow::Cow<'a, [u8]>),
-    Sixteen(std::borrow::Cow<'a, [u16]>),
+    Eight(&'a crate::gray_raster::GrayRaster),
+    Sixteen(&'a crate::precision_mask::PrecisionPlane),
 }
 
 impl SpotCoverage<'_> {
-    /// The plane's sample count.
+    /// The plane's sample count: width · height.
     pub(crate) fn pixels(&self) -> usize {
-        match self {
-            SpotCoverage::Eight(v) => v.len(),
-            SpotCoverage::Sixteen(v) => v.len(),
-        }
+        let (width, height) = match self {
+            SpotCoverage::Eight(plane) => plane.dimensions(),
+            SpotCoverage::Sixteen(plane) => plane.dimensions(),
+        };
+        width as usize * height as usize
     }
 
-    /// Pixel `p` as a TIFF of `depth` (8 or 16) bits stores it, through
-    /// [`tiff_stored`]. A 16-bit plane in an 8-bit file narrows the stored
-    /// value by `round(v / 257)`, the rule whose master copy is
-    /// `psd_export_cmyk::Depth::push`; an 8-bit plane in a 16-bit file widens
-    /// its coverage ×257 first, so the polarity is applied at the file's
-    /// own maximum.
-    pub(crate) fn stored(&self, p: usize, depth: u16) -> u16 {
-        match (self, depth) {
-            (SpotCoverage::Eight(v), 8) => tiff_stored(u16::from(v[p]), 255),
-            (SpotCoverage::Eight(v), _) => tiff_stored(u16::from(v[p]) * 257, 65535),
-            (SpotCoverage::Sixteen(v), 8) => {
-                ((u32::from(tiff_stored(v[p], 65535)) + 128) / 257) as u16
+    /// Row `y` as a TIFF of `depth` (8 or 16) bits stores it ([`stored_sample`]),
+    /// appended to `out`: the plane's own runs of that row, read in place
+    /// (`row_segments`, which `GrayRaster::row` and `PrecisionPlane::row`
+    /// read through). A row past the plane appends nothing.
+    pub(crate) fn stored_row(&self, y: u32, depth: u16, out: &mut Vec<u16>) {
+        match self {
+            SpotCoverage::Eight(plane) => {
+                for (_, run) in plane.row_segments(y, 0, plane.width()) {
+                    out.extend(
+                        run.iter()
+                            .map(|&v| stored_sample(u16::from(v), false, depth)),
+                    );
+                }
             }
-            (SpotCoverage::Sixteen(v), _) => tiff_stored(v[p], 65535),
+            SpotCoverage::Sixteen(plane) => {
+                for (_, run) in plane.row_segments(y, 0, plane.width()) {
+                    out.extend(run.iter().map(|&v| stored_sample(v, true, depth)));
+                }
+            }
         }
+    }
+}
+
+/// One coverage sample `v` (8-bit unless `sixteen`) as a TIFF of `depth`
+/// (8 or 16) bits stores it, through [`tiff_stored`]. A 16-bit plane in an
+/// 8-bit file narrows the stored value by `round(v / 257)`, the rule whose
+/// master copy is `psd_export_cmyk::Depth::push`; an 8-bit plane in a 16-bit
+/// file widens its coverage ×257 first, so the polarity is applied at the
+/// file's own maximum.
+fn stored_sample(v: u16, sixteen: bool, depth: u16) -> u16 {
+    match (sixteen, depth) {
+        (false, 8) => tiff_stored(v, 255),
+        (false, _) => tiff_stored(v * 257, 65535),
+        (true, 8) => ((u32::from(tiff_stored(v, 65535)) + 128) / 257) as u16,
+        (true, _) => tiff_stored(v, 65535),
     }
 }
 
